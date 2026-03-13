@@ -1,4 +1,5 @@
 
+#include "pixils/binding/arg_collector.h"
 #include <pixils/binding/pixils_namespace.h>
 #include <pixils/binding/point_namespace.h>
 #include <pixils/binding/render_namespace.h>
@@ -11,6 +12,13 @@ namespace Pixils
 {
   namespace Script
   {
+    namespace MapKey
+    {
+      SHKEY(CLOSE, "close");
+      SHKEY(OFFSET, "offset");
+      SHKEY(ROTATION, "rotation");
+    } // namespace MapKey
+
     namespace Function
     {
       /* DrawLineBang - draw-line! */
@@ -37,6 +45,11 @@ namespace Pixils
                           (FN_ARGS((&HostType::VECTOR_OF_POINT), (&Lisple::Type::MAP)),
                            EXEC_DISPATCH(&DrawPolygonBang::draw_polygon_with_opts))));
 
+      ArgCollector draw_poly_collector(FN__DRAW_POLYGON_BANG, {},
+                                       {{*MapKey::CLOSE, &Lisple::Type::BOOL},
+                                        {*MapKey::ROTATION, &Lisple::Type::NUMBER},
+                                        {*MapKey::OFFSET, &HostType::POINT}});
+
       FUNC_BODY(DrawPolygonBang, draw_polygon)
       {
         Lisple::sptr_sobject_v opt_args = args;
@@ -49,16 +62,45 @@ namespace Pixils
         RenderContext& rc =
             ctx.lookup(ID__PIXILS__RENDER_CONTEXT)->as<RenderContextAdapter>().get_object();
 
-        bool close_shape = args.back()->get_property(Lisple::Key("close")).is_truthy();
+        str_key_map_t keys = draw_poly_collector.collect_keys(ctx, *args.back());
 
-        for (size_t i = 0; i < args.front()->size() - (close_shape ? 0 : 1); i++)
+        Lisple::sptr_sobject& polygon = args.front();
+        bool close_shape =
+            ArgCollector::bool_value(keys, *MapKey::CLOSE, false) || polygon->size() == 1;
+        float rotation = ArgCollector::float_value(keys, *MapKey::ROTATION, 0.0);
+        Point offset = keys.count(MapKey::OFFSET->value)
+                           ? ArgCollector::coerce_host_object<Point>(
+                                 ctx, keys, *MapKey::OFFSET, &HostType::POINT)
+                           : POINT__ZERO_ZERO;
+
+        std::vector<Point> pts;
+        if (polygon->size() > 0)
         {
-          const Point& from = args.front()->get_children()[i]->as<PointAdapter>().get_object();
-          const Point& to = args.front()
-                                ->get_children()[i + 1 == args.front()->size() ? 0 : i + 1]
-                                ->as<PointAdapter>()
-                                .get_object();
-          SDL_RenderDrawLine(rc.renderer, from.x, from.y, to.x, to.y);
+          pts.reserve(polygon->size());
+          for (auto& poly_pt : polygon->get_children())
+          {
+            pts.push_back(poly_pt->as<PointAdapter>()
+                              .get_object()
+                              .rotate(POINT__ZERO_ZERO, rotation)
+                              .plus(offset.x, offset.y));
+          }
+
+          if (close_shape)
+          {
+            pts.push_back(polygon->get_children()
+                              .front()
+                              ->as<PointAdapter>()
+                              .get_object()
+                              .rotate(POINT__ZERO_ZERO, rotation)
+                              .plus(offset.x, offset.y));
+          }
+
+          for (size_t i = 0; i < pts.size() - 1; i++)
+          {
+            const Point& from = pts[i];
+            const Point& to = pts[i + 1];
+            SDL_RenderDrawLine(rc.renderer, from.x, from.y, to.x, to.y);
+          }
         }
 
         return Lisple::NIL;

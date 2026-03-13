@@ -16,6 +16,13 @@ namespace Pixils
     inline const std::string FN__DRAW_POLYGON_BANG = "polygon!";
     inline const std::string FN__USE_COLOR_BANG = "use-color!";
 
+    namespace MapKey
+    {
+      DECL_SHKEY(CLOSE);
+      DECL_SHKEY(OFFSET);
+      DECL_SHKEY(ROTATION);
+    } // namespace MapKey
+
     namespace Function
     {
       /*! @brief draw-line! function */

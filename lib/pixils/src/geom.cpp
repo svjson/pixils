@@ -10,6 +10,8 @@
 
 namespace Pixils
 {
+  const Point POINT__ZERO_ZERO(0, 0);
+
   /* Point */
   Point::Point(float x, float y)
       : x(x)
@@ -68,6 +70,29 @@ namespace Pixils
     return Point{this->x - x, this->y - y};
   }
 
+  Point Point::rotate(const Point& origin, float amount) const
+  {
+    if (amount == 0.0)
+      return *this;
+
+    float s = std::sin(amount);
+    float c = std::cos(amount);
+
+    // translate point to origin
+    float x = this->x - origin.x;
+    float y = this->y - origin.y;
+
+    // rotate
+    float x_new = x * c - y * s;
+    float y_new = x * s + y * c;
+
+    // translate back
+    x_new += origin.x;
+    y_new += origin.y;
+
+    return {x_new, y_new};
+  }
+
   bool Point::operator==(const Point& other) const
   {
     return this->x == other.x && this->y == other.y;
@@ -82,7 +107,8 @@ namespace Pixils
   /* Color */
   bool Color::operator==(const Color& other) const
   {
-    return this->r == other.r && this->g == other.g && this->b == other.b && this->a == other.a;
+    return this->r == other.r && this->g == other.g && this->b == other.b &&
+           this->a == other.a;
   }
 
   SDL_Color Color::to_SDL_Color() const
@@ -135,7 +161,8 @@ namespace Pixils
 
   Rect expand_rect(const Rect* rect, int x_amount, int y_amount)
   {
-    return {rect->x - x_amount, rect->y - y_amount, rect->w + 2 * x_amount, rect->h + 2 * y_amount};
+    return {rect->x - x_amount, rect->y - y_amount, rect->w + 2 * x_amount,
+            rect->h + 2 * y_amount};
   }
 
   Rect shrink_rect(const Rect& rect, int amount)
@@ -145,7 +172,8 @@ namespace Pixils
 
   Rect shrink_rect(const Rect& rect, int x_amount, int y_amount)
   {
-    return {rect.x + x_amount, rect.y + y_amount, rect.w - 2 * x_amount, rect.h - 2 * y_amount};
+    return {rect.x + x_amount, rect.y + y_amount, rect.w - 2 * x_amount,
+            rect.h - 2 * y_amount};
   }
 
   /* Dimension */

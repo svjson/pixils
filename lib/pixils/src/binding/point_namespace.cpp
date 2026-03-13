@@ -88,35 +88,17 @@ namespace Pixils
                                          {{*MapKey::ORIGIN, &HostType::POINT},
                                           {*MapKey::RADIANS, &Lisple::Type::NUMBER}});
 
-      const Point PT_ZERO_ZERO(0, 0);
-
       FUNC_BODY(RotatePoint, rotate_point_with_opts)
       {
         const Point& point = args[0]->as<PointAdapter>().get_object();
         str_key_map_t keys = rotate_opts_collector.collect_keys(ctx, *args[1]);
 
-        float radians = ArgCollector::float_value(keys, *MapKey::RADIANS, 0.0);
-        Point origin = keys.count(MapKey::ORIGIN->value)
-                           ? ArgCollector::coerce_host_object<Point>(
-                                 ctx, keys, *MapKey::ORIGIN, &HostType::POINT)
-                           : PT_ZERO_ZERO;
-
-        float s = std::sin(radians);
-        float c = std::cos(radians);
-
-        // translate point to origin
-        float x = point.x - origin.x;
-        float y = point.y - origin.y;
-
-        // rotate
-        float x_new = x * c - y * s;
-        float y_new = x * s + y * c;
-
-        // translate back
-        x_new += origin.x;
-        y_new += origin.y;
-
-        return PointAdapter::make<Point>(x_new, y_new);
+        return PointAdapter::make<Point>(
+            point.rotate(keys.count(MapKey::ORIGIN->value)
+                             ? ArgCollector::coerce_host_object<Point>(
+                                   ctx, keys, *MapKey::ORIGIN, &HostType::POINT)
+                             : POINT__ZERO_ZERO,
+                         ArgCollector::float_value(keys, *MapKey::RADIANS, 0.0)));
       }
 
       FUNC_BODY(RotatePoint, rotate_point_amount)

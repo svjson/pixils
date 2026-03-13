@@ -50,6 +50,8 @@ namespace Pixils
 
     Point operator*(float multiplier) const;
 
+    Point rotate(const Point& origin, float amount) const;
+
     bool operator<(const Point& other) const;
     bool operator>(const Point& other) const;
 
@@ -57,6 +59,8 @@ namespace Pixils
   };
 
   std::ostream& operator<<(std::ostream&, const Point& point);
+
+  extern const Point POINT__ZERO_ZERO;
 
   /*!
    * @brief Describes the size of a 2-dimensional plane.
