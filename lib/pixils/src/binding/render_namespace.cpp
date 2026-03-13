@@ -17,6 +17,7 @@ namespace Pixils
       SHKEY(CLOSE, "close");
       SHKEY(OFFSET, "offset");
       SHKEY(ROTATION, "rotation");
+      SHKEY(SCALE, "scale");
     } // namespace MapKey
 
     namespace Function
@@ -48,7 +49,8 @@ namespace Pixils
       ArgCollector draw_poly_collector(FN__DRAW_POLYGON_BANG, {},
                                        {{*MapKey::CLOSE, &Lisple::Type::BOOL},
                                         {*MapKey::ROTATION, &Lisple::Type::NUMBER},
-                                        {*MapKey::OFFSET, &HostType::POINT}});
+                                        {*MapKey::OFFSET, &HostType::POINT},
+                                        {*MapKey::SCALE, &Lisple::Type::NUMBER}});
 
       FUNC_BODY(DrawPolygonBang, draw_polygon)
       {
@@ -68,6 +70,7 @@ namespace Pixils
         bool close_shape =
             ArgCollector::bool_value(keys, *MapKey::CLOSE, false) || polygon->size() == 1;
         float rotation = ArgCollector::float_value(keys, *MapKey::ROTATION, 0.0);
+        float scale = ArgCollector::float_value(keys, *MapKey::SCALE, 1.0);
         Point offset = keys.count(MapKey::OFFSET->value)
                            ? ArgCollector::coerce_host_object<Point>(
                                  ctx, keys, *MapKey::OFFSET, &HostType::POINT)
@@ -79,8 +82,7 @@ namespace Pixils
           pts.reserve(polygon->size());
           for (auto& poly_pt : polygon->get_children())
           {
-            pts.push_back(poly_pt->as<PointAdapter>()
-                              .get_object()
+            pts.push_back((poly_pt->as<PointAdapter>().get_object() * scale)
                               .rotate(POINT__ZERO_ZERO, rotation)
                               .plus(offset.x, offset.y));
           }
