@@ -6,7 +6,7 @@ UseTab: Never
 BreakBeforeBraces: Allman
 AllowShortFunctionsOnASingleLine: Inline
 AllowShortBlocksOnASingleLine: Empty
-ColumnLimit: 100
+ColumnLimit: 95
 ReferenceAlignment: Left
 PointerAlignment: Left
 #SortIncludes: false
