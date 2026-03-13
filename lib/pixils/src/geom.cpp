@@ -10,70 +10,70 @@
 
 namespace Pixils
 {
-  /* Coordinate */
-  Coordinate::Coordinate(float x, float y)
+  /* Point */
+  Point::Point(float x, float y)
       : x(x)
       , y(y)
   {
   }
 
-  int Coordinate::distance_to(const Coordinate& other) const
+  int Point::distance_to(const Point& other) const
   {
     return std::max(std::abs(x - other.x), std::abs(y - other.y));
   }
 
-  float Coordinate::euclidean_distance_to(const Coordinate& other) const
+  float Point::euclidean_distance_to(const Point& other) const
   {
     return std::sqrt((other.x - this->x) * (other.x - this->x) +
                      (other.y - this->y) * (other.y - this->y));
   }
 
-  Coordinate Coordinate::plus(float x, float y) const
+  Point Point::plus(float x, float y) const
   {
-    return Coordinate{this->x + x, this->y + y};
+    return Point{this->x + x, this->y + y};
   }
 
-  Coordinate Coordinate::operator+(const Coordinate& other) const
+  Point Point::operator+(const Point& other) const
   {
-    return Coordinate{this->x + other.x, this->y + other.y};
+    return Point{this->x + other.x, this->y + other.y};
   }
 
-  Coordinate Coordinate::operator+(float term) const
+  Point Point::operator+(float term) const
   {
-    return Coordinate{this->x + term, this->y + term};
+    return Point{this->x + term, this->y + term};
   }
 
-  Coordinate Coordinate::operator-(const Coordinate& other) const
+  Point Point::operator-(const Point& other) const
   {
-    return Coordinate{this->x - other.x, this->y - other.y};
+    return Point{this->x - other.x, this->y - other.y};
   }
 
-  Coordinate Coordinate::operator*(float multiplier) const
+  Point Point::operator*(float multiplier) const
   {
-    return Coordinate(this->x * multiplier, this->y * multiplier);
+    return Point(this->x * multiplier, this->y * multiplier);
   }
 
-  bool Coordinate::operator<(const Coordinate& other) const
+  bool Point::operator<(const Point& other) const
   {
     return y < other.y || (y == other.y && x < other.x);
   }
 
-  bool Coordinate::operator>(const Coordinate& other) const
+  bool Point::operator>(const Point& other) const
   {
     return y > other.y || (y == other.y && x > other.x);
   }
 
-  Coordinate Coordinate::minus(float x, float y) const
+  Point Point::minus(float x, float y) const
   {
-    return Coordinate{this->x - x, this->y - y};
+    return Point{this->x - x, this->y - y};
   }
 
-  bool Coordinate::operator==(const Coordinate& other) const
+  bool Point::operator==(const Point& other) const
   {
     return this->x == other.x && this->y == other.y;
   }
 
-  std::ostream& operator<<(std::ostream& os, const Coordinate& coordinate)
+  std::ostream& operator<<(std::ostream& os, const Point& coordinate)
   {
     os << "{" << coordinate.x << ", " << coordinate.y << "}";
     return os;
@@ -113,12 +113,12 @@ namespace Pixils
     return result;
   }
 
-  Coordinate Rect::top_left() const
+  Point Rect::top_left() const
   {
-    return Coordinate(x, y);
+    return Point(x, y);
   }
 
-  bool Rect::contains(const Coordinate& coord) const
+  bool Rect::contains(const Point& coord) const
   {
     return contains(coord.x, coord.y);
   }

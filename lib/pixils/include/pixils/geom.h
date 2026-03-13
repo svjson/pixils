@@ -8,55 +8,55 @@
 namespace Pixils
 {
   /*!
-   * @brief Represents an integer Coordinate in any 2D plane.
+   * @brief Represents an integer Point in any 2D plane.
    *
    * Mostly used to track and refer to tiles on the game map,
-   * but can also be used for screen coordinates.
+   * but can also be used for screen points.
    */
-  struct Coordinate
+  struct Point
   {
-    /*! @brief The horizontal coordinate */
+    /*! @brief The horizontal point */
     float x = 0;
-    /*! @brief The vertical coordinate */
+    /*! @brief The vertical point */
     float y = 0;
 
     /*!
-     * @brief Creates a coordinate with the default value of 0, 0
+     * @brief Creates a point with the default value of 0, 0
      */
-    Coordinate() = default;
+    Point() = default;
     /*!
-     * @brief Creates a coordinate with the value of x and y
+     * @brief Creates a point with the value of x and y
      */
-    Coordinate(float x, float y);
+    Point(float x, float y);
 
     /*!
-     * @brief Calculates the distance between this coordinate
+     * @brief Calculates the distance between this point
      * and other.
      */
-    int distance_to(const Coordinate& other) const;
+    int distance_to(const Point& other) const;
 
     /*!
-     * @brief Calculates the Euclidean distance between this coordinate and
+     * @brief Calculates the Euclidean distance between this point and
      * other.
      */
-    float euclidean_distance_to(const Coordinate& other) const;
+    float euclidean_distance_to(const Point& other) const;
 
-    Coordinate operator+(const Coordinate& other) const;
-    Coordinate operator+(float term) const;
-    Coordinate plus(float x, float y) const;
+    Point operator+(const Point& other) const;
+    Point operator+(float term) const;
+    Point plus(float x, float y) const;
 
-    Coordinate operator-(const Coordinate& other) const;
-    Coordinate minus(float x, float y) const;
+    Point operator-(const Point& other) const;
+    Point minus(float x, float y) const;
 
-    Coordinate operator*(float multiplier) const;
+    Point operator*(float multiplier) const;
 
-    bool operator<(const Coordinate& other) const;
-    bool operator>(const Coordinate& other) const;
+    bool operator<(const Point& other) const;
+    bool operator>(const Point& other) const;
 
-    bool operator==(const Coordinate& other) const;
+    bool operator==(const Point& other) const;
   };
 
-  std::ostream& operator<<(std::ostream&, const Coordinate& coordinate);
+  std::ostream& operator<<(std::ostream&, const Point& point);
 
   /*!
    * @brief Describes the size of a 2-dimensional plane.
@@ -83,9 +83,9 @@ namespace Pixils
    */
   struct Rect
   {
-    /*! @brief The horizontal coordinate of the top-left corner of the rect */
+    /*! @brief The horizontal point of the top-left corner of the rect */
     int x;
-    /*! @brief The vertical coordinate of the top-left corner of the rect */
+    /*! @brief The vertical point of the top-left corner of the rect */
     int y;
     /*! @brief The width of the rect */
     int w;
@@ -94,20 +94,20 @@ namespace Pixils
 
     Rect merge(const Rect& other) const;
     /*!
-     * @brief Queries if a coordinate is contained
+     * @brief Queries if a point is contained
      * within the bounds of this Rect.
      */
-    bool contains(const Coordinate& coord) const;
+    bool contains(const Point& coord) const;
     /*!
-     * @brief Queries if a coordinate is contained
+     * @brief Queries if a point is contained
      * within the bounds of this Rect.
      */
     bool contains(int x, int y) const;
     /*!
      * @brief Get the top left corner, the x and y values
-     * as Coordinate.
+     * as Point.
      */
-    Coordinate top_left() const;
+    Point top_left() const;
 
     bool operator==(const Rect& other) const;
     bool operator!=(const Rect& other) const;

@@ -1,5 +1,7 @@
 
-#include <pixils/pixils_namespace.h>
+#include "pixils/binding/render_namespace.h"
+#include <pixils/binding/pixils_namespace.h>
+#include <pixils/binding/point_namespace.h>
 #include <pixils/script.h>
 
 #include <lisple/dir_root_file_system.h>
@@ -16,6 +18,8 @@ namespace Pixils
 
     std::map<const std::string, Lisple::Namespace> namespaces;
     namespaces.emplace(Pixils::Script::NS_PIXILS, Pixils::Script::PixilsNamespace(ctx));
+    namespaces.emplace(Pixils::Script::NS__PIXILS__POINT, Pixils::Script::PointNamespace());
+    namespaces.emplace(Pixils::Script::NS__PIXILS__RENDER, Pixils::Script::RenderNamespace());
 
     Lisple::Runtime lisple_runtime("asteroids", namespaces, std::move(fs.release()));
     for (auto& file_name : source_files)

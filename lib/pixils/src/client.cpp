@@ -1,8 +1,8 @@
 
+#include <pixils/binding/pixils_namespace.h>
 #include <pixils/context.h>
 #include <pixils/frame_events.h>
 #include <pixils/keyboard.h>
-#include <pixils/pixils_namespace.h>
 
 #include <SDL2/SDL_render.h>
 #include <chrono>
