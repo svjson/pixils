@@ -1,0 +1,22 @@
+BasedOnStyle: LLVM
+IndentWidth: 2
+TabWidth: 2
+NamespaceIndentation: All
+UseTab: Never
+BreakBeforeBraces: Allman
+AllowShortFunctionsOnASingleLine: Inline
+AllowShortBlocksOnASingleLine: Empty
+ColumnLimit: 100
+ReferenceAlignment: Left
+PointerAlignment: Left
+#SortIncludes: false
+IncludeBlocks: Regroup
+IncludeCategories:
+  - Regex: '^<pixils/.*>'
+    Priority: 1
+  - Regex: '^<.*>'
+    Priority: 2
+
+ConstructorInitializerAllOnOneLineOrOnePerLine: false
+BreakConstructorInitializers: BeforeColon
+BreakConstructorInitializersBeforeComma: true
