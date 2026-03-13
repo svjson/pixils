@@ -75,7 +75,8 @@ namespace Pixils
      * @brief Get the value of the property @a key of @a args as char, or the
      * default value of @a default_value, if the property is missing.
      */
-    static char char_value(str_key_map_t& args, const Lisple::Key& key, char default_value = '\0');
+    static char char_value(str_key_map_t& args, const Lisple::Key& key,
+                           char default_value = '\0');
     /*!
      * @brief Get the value of the property @a key of @a args as int, or the
      * default value of @a default_value, if the property is missing.
@@ -97,7 +98,8 @@ namespace Pixils
      * @brief Get the value of the property @a key of @a args as short, or the
      * default value of @a default_value, if the property is missing.
      */
-    static short short_value(str_key_map_t& args, const Lisple::Key& key, short default_value = 0);
+    static short short_value(str_key_map_t& args, const Lisple::Key& key,
+                             short default_value = 0);
     /*!
      * @brief Get the value of the property @a key of @a args as uint8, or the
      * default value of @a default_value, if the property is missing.
@@ -109,20 +111,23 @@ namespace Pixils
      * @brief Get the value of the property @a key of @a args as std::string, or
      * the default value of @a default_value, if the property is missing.
      */
-    static const std::string str_value(str_key_map_t& args, const Lisple::Key& key,
-                                       const std::string& default_value = Lisple::EMPTY_STRING);
+    static const std::string
+    str_value(str_key_map_t& args, const Lisple::Key& key,
+              const std::string& default_value = Lisple::EMPTY_STRING);
 
     /*!
      * @brief Get the value of the property @a key of @a args as bool, or the
      * default value of @a default_value, if the property is missing.
      */
-    static bool bool_value(str_key_map_t& args, const Lisple::Key& key, bool default_value = false);
+    static bool bool_value(str_key_map_t& args, const Lisple::Key& key,
+                           bool default_value = false);
     /*!
      * @brief Get the value of the property @a key of @a args as
      * std::optional<bool>, which will have the value of std::nullopt if the
      * property is missing.
      */
-    static std::optional<std::string> optional_string(str_key_map_t& args, const Lisple::Key& key);
+    static std::optional<std::string> optional_string(str_key_map_t& args,
+                                                      const Lisple::Key& key);
 
     /*!
      * @brief Get the value of the property @a key of @a args as
@@ -175,8 +180,8 @@ namespace Pixils
      * structures to the specified native type.
      */
     template <typename VT>
-    static std::vector<VT> vector(Lisple::Context& ctx, str_key_map_t& keys, const Lisple::Key& key,
-                                  const Lisple::HostTypeRef* type_ref,
+    static std::vector<VT> vector(Lisple::Context& ctx, str_key_map_t& keys,
+                                  const Lisple::Key& key, const Lisple::HostTypeRef* type_ref,
                                   std::vector<VT> default_value = {})
     {
       if (keys.count(key.value))
@@ -187,8 +192,9 @@ namespace Pixils
 
         for (auto& obj : seq.get_children())
         {
-          result.push_back(
-              coerce_host_object(ctx, obj, type_ref)->as<Lisple::HostObject<VT>>().get_object());
+          result.push_back(coerce_host_object(ctx, obj, type_ref)
+                               ->as<Lisple::HostObject<VT>>()
+                               .get_object());
         }
 
         return result;
@@ -198,10 +204,9 @@ namespace Pixils
     }
 
     template <typename VT, typename HT>
-    static std::vector<VT>
-    unbox_host_object_array_to_objects(Lisple::Context& ctx, str_key_map_t& keys,
-                                       const Lisple::Key& key, const Lisple::HostTypeRef* type_ref,
-                                       const std::string& make_fn_name = "")
+    static std::vector<VT> unbox_host_object_array_to_objects(
+        Lisple::Context& ctx, str_key_map_t& keys, const Lisple::Key& key,
+        const Lisple::HostTypeRef* type_ref, const std::string& make_fn_name = "")
     {
       std::vector<VT> result;
 
@@ -252,8 +257,8 @@ namespace Pixils
     }
 
     template <typename VT>
-    static VT coerce_host_object(Lisple::Context& ctx, str_key_map_t keys, const Lisple::Key& key,
-                                 const Lisple::HostTypeRef* type_ref,
+    static VT coerce_host_object(Lisple::Context& ctx, str_key_map_t keys,
+                                 const Lisple::Key& key, const Lisple::HostTypeRef* type_ref,
                                  const std::string& make_fn_name = "")
     {
       return coerce_host_object(ctx, keys.at(key.value), type_ref, make_fn_name)
@@ -261,7 +266,8 @@ namespace Pixils
           .get_object();
     }
 
-    static Lisple::sptr_sobject coerce_host_object(Lisple::Context& ctx, Lisple::sptr_sobject& obj,
+    static Lisple::sptr_sobject coerce_host_object(Lisple::Context& ctx,
+                                                   Lisple::sptr_sobject& obj,
                                                    const Lisple::HostTypeRef* type_ref,
                                                    const std::string& make_fn_name = "")
     {
@@ -269,9 +275,10 @@ namespace Pixils
       {
         return obj;
       }
-      else if (Lisple::Type::MAP.is_type_of(*obj) && !make_fn_name.empty())
+      else if (Lisple::Type::MAP.is_type_of(*obj) &&
+               (!make_fn_name.empty() || type_ref->make_fn.has_value()))
       {
-        return ctx.call(make_fn_name, obj);
+        return ctx.call(type_ref->make_fn ? *type_ref->make_fn : make_fn_name, obj);
       }
       else
       {
@@ -285,7 +292,8 @@ namespace Pixils
       }
     }
 
-    template <typename HT> static HT* get_host_object(str_key_map_t keys, const Lisple::Key& key)
+    template <typename HT>
+    static HT* get_host_object(str_key_map_t keys, const Lisple::Key& key)
     {
       if (!keys.count(key.value))
         return nullptr;

@@ -29,6 +29,8 @@ namespace Pixils
 
     namespace MapKey
     {
+      DECL_SHKEY(ORIGIN)
+      DECL_SHKEY(RADIANS)
       DECL_SHKEY(X)
       DECL_SHKEY(Y)
     } // namespace MapKey
@@ -54,8 +56,7 @@ namespace Pixils
       /*! @brief Distance between */
       FUNC_DECL(DistanceBetween, distance_between_points);
       /*! @brief Rotate point around point */
-      FUNC_DECL(RotatePoint, rotate_point);
-
+      FUNC_DECL(RotatePoint, rotate_point_orig_amount, rotate_point_amount, rotate_point_with_opts);
     } // namespace Function
 
     /*! @brief PointAdapter - A Lisple HostObject Adapter for Point */

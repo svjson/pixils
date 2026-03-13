@@ -11,6 +11,8 @@ namespace Pixils
   {
     namespace MapKey
     {
+      SHKEY(ORIGIN, "origin");
+      SHKEY(RADIANS, "radians");
       SHKEY(X, "x");
       SHKEY(Y, "y");
     } // namespace MapKey
@@ -18,10 +20,11 @@ namespace Pixils
     namespace Function
     {
       /* Point make-function */
-      FUNC_IMPL(MakePoint, MULTI_SIG((FN_ARGS((&Lisple::Type::NUMBER), (&Lisple::Type::NUMBER)),
-                                      EXEC_DISPATCH(&MakePoint::make_point_from_ints)),
-                                     (FN_ARGS((&Lisple::Type::MAP)),
-                                      EXEC_DISPATCH(&MakePoint::make_point_from_map))));
+      FUNC_IMPL(MakePoint,
+                MULTI_SIG((FN_ARGS((&Lisple::Type::NUMBER), (&Lisple::Type::NUMBER)),
+                           EXEC_DISPATCH(&MakePoint::make_point_from_ints)),
+                          (FN_ARGS((&Lisple::Type::MAP)),
+                           EXEC_DISPATCH(&MakePoint::make_point_from_map))));
 
       ArgCollector point_collector(FN__MAKE_POINT, {{*MapKey::X, &Lisple::Type::NUMBER},
                                                     {*MapKey::Y, &Lisple::Type::NUMBER}});
@@ -60,8 +63,9 @@ namespace Pixils
       }
 
       /* Distance Between - distance-between */
-      FUNC_IMPL(DistanceBetween, SIG((FN_ARGS((&HostType::POINT), (&HostType::POINT)),
-                                      EXEC_DISPATCH(&DistanceBetween::distance_between_points))))
+      FUNC_IMPL(DistanceBetween,
+                SIG((FN_ARGS((&HostType::POINT), (&HostType::POINT)),
+                     EXEC_DISPATCH(&DistanceBetween::distance_between_points))))
 
       FUNC_BODY(DistanceBetween, distance_between_points)
       {
@@ -72,15 +76,30 @@ namespace Pixils
       }
 
       /* Rotate Point - rotate-point */
-      FUNC_IMPL(RotatePoint,
-                SIG((FN_ARGS((&HostType::POINT), (&HostType::POINT), (&Lisple::Type::NUMBER)),
-                     EXEC_DISPATCH(&RotatePoint::rotate_point))))
+      FUNC_IMPL(RotatePoint, MULTI_SIG((FN_ARGS((&HostType::POINT), (&HostType::POINT),
+                                                (&Lisple::Type::NUMBER)),
+                                        EXEC_DISPATCH(&RotatePoint::rotate_point_orig_amount)),
+                                       (FN_ARGS((&HostType::POINT), (&Lisple::Type::NUMBER)),
+                                        EXEC_DISPATCH(&RotatePoint::rotate_point_amount)),
+                                       (FN_ARGS((&HostType::POINT), (&Lisple::Type::MAP)),
+                                        EXEC_DISPATCH(&RotatePoint::rotate_point_with_opts))))
 
-      FUNC_BODY(RotatePoint, rotate_point)
+      ArgCollector rotate_opts_collector(FN__ROTATE, {},
+                                         {{*MapKey::ORIGIN, &HostType::POINT},
+                                          {*MapKey::RADIANS, &Lisple::Type::NUMBER}});
+
+      const Point PT_ZERO_ZERO(0, 0);
+
+      FUNC_BODY(RotatePoint, rotate_point_with_opts)
       {
         const Point& point = args[0]->as<PointAdapter>().get_object();
-        const Point& origin = args[1]->as<PointAdapter>().get_object();
-        float radians = args[2]->as<Lisple::Number>().float_value();
+        str_key_map_t keys = rotate_opts_collector.collect_keys(ctx, *args[1]);
+
+        float radians = ArgCollector::float_value(keys, *MapKey::RADIANS, 0.0);
+        Point origin = keys.count(MapKey::ORIGIN->value)
+                           ? ArgCollector::coerce_host_object<Point>(
+                                 ctx, keys, *MapKey::ORIGIN, &HostType::POINT)
+                           : PT_ZERO_ZERO;
 
         float s = std::sin(radians);
         float c = std::cos(radians);
@@ -98,6 +117,20 @@ namespace Pixils
         y_new += origin.y;
 
         return PointAdapter::make<Point>(x_new, y_new);
+      }
+
+      FUNC_BODY(RotatePoint, rotate_point_amount)
+      {
+        Lisple::sptr_sobject_v fwd_args = args;
+        fwd_args[1] = Lisple::Map::make({MapKey::RADIANS, args[1]});
+        return this->rotate_point_with_opts(ctx, fwd_args);
+      }
+
+      FUNC_BODY(RotatePoint, rotate_point_orig_amount)
+      {
+        Lisple::sptr_sobject_v fwd_args = args;
+        fwd_args[1] = Lisple::Map::make({MapKey::ORIGIN, args[1], MapKey::RADIANS, args[2]});
+        return this->rotate_point_with_opts(ctx, fwd_args);
       }
 
       /* PointDivision */
