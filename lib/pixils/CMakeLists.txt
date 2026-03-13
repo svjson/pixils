@@ -2,6 +2,7 @@
 file(GLOB pixils_SOURCES
   src/*.cpp
   src/binding/*.cpp
+  src/runtime/*.cpp
 )
 
 add_library(pixils ${pixils_SOURCES})

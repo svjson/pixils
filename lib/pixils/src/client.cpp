@@ -3,6 +3,7 @@
 #include <pixils/context.h>
 #include <pixils/frame_events.h>
 #include <pixils/keyboard.h>
+#include <pixils/runtime/mode.h>
 
 #include <SDL2/SDL_render.h>
 #include <chrono>
@@ -13,18 +14,31 @@ namespace Pixils
   long long now()
   {
     auto now = std::chrono::system_clock::now();
-    return std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()).count();
+    return std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch())
+        .count();
   }
 
-  void main_loop(Lisple::Runtime& lisple_runtime, RenderContext& ctx)
+  void main_loop(Lisple::Runtime& lisple_runtime, Runtime::Mode& mode, RenderContext& ctx)
   {
+    ctx.prepare_frame();
     Pixils::FrameEvents events;
     bool quit = false;
     SDL_Rect surface_rect{0, 0, ctx.buffer_dim.w, ctx.buffer_dim.h};
+
     SDL_Event event;
 
-    Lisple::sptr_sobject_v frame_args = {Pixils::Script::FrameEventsAdapter::make_ref(events),
-                                         Pixils::Script::RenderContextAdapter::make_ref(ctx)};
+    const std::string render_fun = mode.render->to_string();
+    const std::string update_fun = mode.update->to_string();
+    const std::string init_fun = mode.init->to_string();
+
+    auto l_events = Pixils::Script::FrameEventsAdapter::make_ref(events);
+    auto l_ctx = Pixils::Script::RenderContextAdapter::make_ref(ctx);
+
+    Lisple::sptr_sobject_v init_args = {l_ctx};
+    Lisple::sptr_sobject_v update_args = {l_events, l_ctx};
+    Lisple::sptr_sobject_v render_args = {l_ctx};
+
+    lisple_runtime.call_fn(init_fun, init_args);
 
     while (!quit)
     {
@@ -57,7 +71,8 @@ namespace Pixils
 
       SDL_SetRenderDrawColor(ctx.renderer, 0xff, 0xff, 0xff, 0xff);
 
-      lisple_runtime.call_fn("asteroids/frame-fn", frame_args);
+      lisple_runtime.call_fn(update_fun, update_args);
+      lisple_runtime.call_fn(render_fun, render_args);
 
       ctx.flush_buffer();
 

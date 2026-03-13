@@ -9,9 +9,13 @@ namespace Lisple
 
 namespace Pixils
 {
+  namespace Runtime
+  {
+    struct Mode;
+  }
   struct RenderContext;
 
-  void main_loop(Lisple::Runtime& runtime, RenderContext& ctx);
+  void main_loop(Lisple::Runtime& runtime, Runtime::Mode& mode, RenderContext& ctx);
 } // namespace Pixils
 
 #endif
