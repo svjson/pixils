@@ -8,7 +8,7 @@
 
 namespace Pixils
 {
-  Lisple::Runtime init_lisple_runtime(RenderContext& ctx,
+  Lisple::Runtime init_lisple_runtime(RenderContext& ctx, const std::string& default_namespace,
                                       const std::vector<std::string>& source_files)
   {
     std::string path = ".";
@@ -21,7 +21,7 @@ namespace Pixils
     namespaces.emplace(Pixils::Script::NS__PIXILS__POINT, Pixils::Script::PointNamespace());
     namespaces.emplace(Pixils::Script::NS__PIXILS__RENDER, Pixils::Script::RenderNamespace());
 
-    Lisple::Runtime lisple_runtime("asteroids", namespaces, std::move(fs.release()));
+    Lisple::Runtime lisple_runtime(default_namespace, namespaces, std::move(fs.release()));
     for (auto& file_name : source_files)
     {
       lisple_runtime.read_file(path + file_name);
