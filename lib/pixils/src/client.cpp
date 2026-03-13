@@ -20,6 +20,14 @@ namespace Pixils
 
   void main_loop(Lisple::Runtime& lisple_runtime, Runtime::Mode& mode, RenderContext& ctx)
   {
+    auto root_mode = Script::ModeAdapter::make_ref(mode);
+    Lisple::Array& mode_stack =
+        lisple_runtime.lookup(Script::ID__PIXILS__MODE_STACK)->as<Lisple::Array>();
+    mode_stack.append(root_mode);
+
+    Runtime::Mode* current_mode = &mode;
+    size_t current_mode_index = 0;
+
     ctx.prepare_frame();
     Pixils::FrameEvents events;
     bool quit = false;
@@ -27,9 +35,9 @@ namespace Pixils
 
     SDL_Event event;
 
-    const std::string render_fun = mode.render->to_string();
-    const std::string update_fun = mode.update->to_string();
-    const std::string init_fun = mode.init->to_string();
+    std::string render_fun = current_mode->render->to_string();
+    std::string update_fun = current_mode->update->to_string();
+    std::string init_fun = current_mode->init->to_string();
 
     auto l_events = Pixils::Script::FrameEventsAdapter::make_ref(events);
     auto l_ctx = Pixils::Script::RenderContextAdapter::make_ref(ctx);
@@ -72,6 +80,18 @@ namespace Pixils
       SDL_SetRenderDrawColor(ctx.renderer, 0xff, 0xff, 0xff, 0xff);
 
       lisple_runtime.call_fn(update_fun, update_args);
+
+      if (mode_stack.size() - 1 != current_mode_index)
+      {
+        current_mode =
+            &mode_stack.get_children().back()->as<Script::ModeAdapter>().get_object();
+        current_mode_index = mode_stack.get_children().size() - 1;
+
+        render_fun = current_mode->render->to_string();
+        update_fun = current_mode->update->to_string();
+        init_fun = current_mode->init->to_string();
+      }
+
       lisple_runtime.call_fn(render_fun, render_args);
 
       ctx.flush_buffer();

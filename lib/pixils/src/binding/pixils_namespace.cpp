@@ -19,6 +19,7 @@ namespace Pixils
       SHKEY(HELD_KEYS, "held-keys");
       SHKEY(INIT, "init");
       SHKEY(KEY_DOWN, "key-down");
+      SHKEY(NAME, "name");
       SHKEY(PIXEL_SIZE, "pixel-size");
       SHKEY(RENDER, "render");
       SHKEY(UPDATE, "update");
@@ -49,7 +50,8 @@ namespace Pixils
       {
         Lisple::Map& proto = args.front()->as<Lisple::Map>();
 
-        Runtime::Mode mode{.init = proto.get_sptr_property(*MapKey::INIT),
+        Runtime::Mode mode{.name = proto.get_sptr_property(*MapKey::NAME)->to_string(),
+                           .init = proto.get_sptr_property(*MapKey::INIT),
                            .update = proto.get_sptr_property(*MapKey::UPDATE),
                            .render = proto.get_sptr_property(*MapKey::RENDER)};
 
@@ -69,6 +71,41 @@ namespace Pixils
         str_key_map_t keys = dimension_collector.collect_keys(ctx, *args.front());
         return DimensionAdapter::make<Dimension>(ArgCollector::int_value(keys, *MapKey::W),
                                                  ArgCollector::int_value(keys, *MapKey::H));
+      }
+
+      /* PushModeBangFunction - push-mode! */
+      FUNC_IMPL(PushModeBangFunction, SIG((FN_ARGS((&Lisple::Type::SYMBOL)),
+                                           EXEC_DISPATCH(&PushModeBangFunction::push_mode))));
+
+      FUNC_BODY(PushModeBangFunction, push_mode)
+      {
+        Lisple::QSymbol& mode_name = args.front()->as<Lisple::QSymbol>();
+        Lisple::Map& modes = ctx.lookup(ID__PIXILS__MODES)->as<Lisple::Map>();
+        Lisple::Array& mode_stack = ctx.lookup(ID__PIXILS__MODE_STACK)->as<Lisple::Array>();
+
+        Lisple::sptr_sobject new_mode = modes.get_sptr_property(Lisple::Word(mode_name.value));
+        if (new_mode != Lisple::NIL)
+        {
+          mode_stack.append(new_mode);
+        }
+        return new_mode;
+      }
+
+      /* PopModeBangFunction - pop-mode! */
+      FUNC_IMPL(PopModeBangFunction,
+                SIG((NO_ARGS, EXEC_DISPATCH(&PopModeBangFunction::pop_mode))));
+
+      FUNC_BODY(PopModeBangFunction, pop_mode)
+      {
+        Lisple::Array& mode_stack = ctx.lookup(ID__PIXILS__MODE_STACK)->as<Lisple::Array>();
+        if (mode_stack.size() > 1)
+        {
+          Lisple::sptr_sobject old_mode = mode_stack.get_children().back();
+          mode_stack.get_children().pop_back();
+          return old_mode;
+        }
+
+        return Lisple::NIL;
       }
 
     } // namespace Function
@@ -128,10 +165,13 @@ namespace Pixils
     PixilsNamespace::PixilsNamespace(const RenderContext& render_context)
         : Lisple::Namespace(NS_PIXILS)
     {
+      objects.emplace("mode-stack", Lisple::Array::make({}));
       objects.emplace("modes", Lisple::Map::make({}));
       objects.emplace("defmode", std::make_shared<Macro::DefModeMacro>());
       objects.emplace("make-mode", std::make_shared<Function::MakeMode>());
       objects.emplace("render-context", RenderContextAdapter::make_ref(render_context));
+      objects.emplace("pop-mode!", std::make_shared<Function::PopModeBangFunction>());
+      objects.emplace("push-mode!", std::make_shared<Function::PushModeBangFunction>());
     }
 
   } // namespace Script

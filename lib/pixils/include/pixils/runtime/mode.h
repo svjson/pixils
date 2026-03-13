@@ -10,6 +10,7 @@ namespace Pixils
   {
     struct Mode
     {
+      std::string name;
       Lisple::sptr_sobject init;
       Lisple::sptr_sobject update;
       Lisple::sptr_sobject render;

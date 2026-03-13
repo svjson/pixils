@@ -21,7 +21,10 @@ namespace Pixils
 
     inline const std::string FN__PIXILS__MAKE_MODE = "pixils/make-mode";
     inline const std::string FN__MAKE_DIMENSION = "dimension";
+    inline const std::string FN__POP_MODE_BANG = "pop-mode!";
+    inline const std::string FN__PUSH_MODE_BANG = "push-mode!";
 
+    inline const Lisple::Word ID__PIXILS__MODE_STACK("pixils/mode-stack");
     inline const Lisple::Word ID__PIXILS__MODES("pixils/modes");
     inline const Lisple::Word ID__PIXILS__RENDER_CONTEXT("pixils/render-context");
 
@@ -58,6 +61,10 @@ namespace Pixils
       FUNC_DECL(MakeMode, make);
       /*! @brief Lisple make-function for Dimension/DimensionAdapter */
       FUNC_DECL(MakeDimension, make);
+      /*! @brief Push active mode */
+      FUNC_DECL(PushModeBangFunction, push_mode);
+      /*! @brief Pop active mode */
+      FUNC_DECL(PopModeBangFunction, pop_mode);
     } // namespace Function
 
     /*! @brief ModeAdapter - A Lisple HostObejct Adapter for Mode */
