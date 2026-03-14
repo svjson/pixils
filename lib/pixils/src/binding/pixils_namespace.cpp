@@ -1,4 +1,6 @@
 
+#include "pixils/binding/resource_namespace.h"
+#include "pixils/runtime/mode.h"
 #include <pixils/binding/arg_collector.h>
 #include <pixils/binding/pixils_namespace.h>
 #include <pixils/context.h>
@@ -20,6 +22,7 @@ namespace Pixils::Script
     SHKEY(NAME, "name");
     SHKEY(PIXEL_SIZE, "pixel-size");
     SHKEY(RENDER, "render");
+    SHKEY(RESOURCES, "resources");
     SHKEY(UPDATE, "update");
     SHKEY(W, "w");
   } // namespace MapKey
@@ -45,14 +48,32 @@ namespace Pixils::Script
     /* Mode make function */
     FUNC_IMPL(MakeMode, SIG((FN_ARGS((&Lisple::Type::MAP)), EXEC_DISPATCH(&MakeMode::make))))
 
+    ArgCollector mode_collector(FN__PIXILS__MAKE_MODE,
+                                {},
+                                {{*MapKey::INIT, &Lisple::Type::ANY},
+                                 {*MapKey::UPDATE, &Lisple::Type::ANY},
+                                 {*MapKey::RENDER, &Lisple::Type::ANY},
+                                 {*MapKey::RESOURCES, &HostType::RESOURCE_DEPENDENCIES}});
+
     FUNC_BODY(MakeMode, make)
     {
+      str_key_map_t keys = mode_collector.collect_keys(ctx, *args.front());
+
       Lisple::Map& proto = args.front()->as<Lisple::Map>();
 
+      auto resources = ArgCollector::optional_host_object<Runtime::ResourceDependencies>(
+        ctx,
+        keys,
+        *MapKey::RESOURCES,
+        &HostType::RESOURCE_DEPENDENCIES);
+
       Runtime::Mode mode{.name = proto.get_sptr_property(*MapKey::NAME)->to_string(),
+                         .resources = {},
                          .init = proto.get_sptr_property(*MapKey::INIT),
                          .update = proto.get_sptr_property(*MapKey::UPDATE),
                          .render = proto.get_sptr_property(*MapKey::RENDER)};
+
+      if (resources.has_value()) mode.resources = *resources;
 
       return ModeAdapter::make<Runtime::Mode>(mode);
     }
