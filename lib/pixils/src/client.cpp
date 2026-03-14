@@ -24,10 +24,12 @@ namespace Pixils
                  Runtime::Mode& root_mode)
     : lisple(lisple_runtime)
     , ctx(ctx)
+    , assets(ctx)
     , mode_stack(lisple.lookup(Script::ID__PIXILS__MODE_STACK)->as<Lisple::Array>())
     , hook_args({Pixils::Script::FrameEventsAdapter::make_ref(this->events),
                  Pixils::Script::RenderContextAdapter::make_ref(this->ctx)})
   {
+    ctx.asset_registry = &assets;
     this->mode_stack.append(Script::ModeAdapter::make_ref(root_mode));
   }
 
@@ -45,6 +47,11 @@ namespace Pixils
 
     Runtime::Mode& mode =
       mode_stack.get_children().back()->as<Script::ModeAdapter>().get_object();
+
+    if (!this->assets.is_loaded(mode.name))
+    {
+      this->assets.load(mode.name, mode.resources);
+    }
 
     this->active_mode.mode_index = mode_stack.size() - 1;
     this->active_mode.render_fun = mode.render->to_string();

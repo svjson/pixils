@@ -10,6 +10,11 @@ typedef struct SDL_Texture SDL_Texture;
 
 namespace Pixils
 {
+  namespace Asset
+  {
+    class Registry;
+  }
+
   /*!
    * @brief The "brush" of the UI. All rendering operations go through here.
    */
@@ -49,6 +54,8 @@ namespace Pixils
      */
     int tile_size = 16;
 
+    Asset::Registry* asset_registry = nullptr;
+
     Dimension get_window_dimension();
 
     /*!
@@ -72,7 +79,7 @@ namespace Pixils
      */
     void finalize_frame();
 
-  private:
+   private:
     /*!
      * @brief Creates an initial in-memory buffer and sets the SDL_Renderer
      * to target it.

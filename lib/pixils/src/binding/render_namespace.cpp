@@ -1,4 +1,6 @@
 
+#include "pixils/geom.h"
+#include <pixils/asset/registry.h>
 #include <pixils/binding/arg_collector.h>
 #include <pixils/binding/color_namespace.h>
 #include <pixils/binding/pixils_namespace.h>
@@ -7,6 +9,7 @@
 #include <pixils/context.h>
 
 #include <SDL2/SDL_render.h>
+#include <iostream>
 #include <lisple/namespace.h>
 
 namespace Pixils::Script
@@ -17,12 +20,51 @@ namespace Pixils::Script
     SHKEY(COLOR, "color");
     SHKEY(FILL, "fill");
     SHKEY(OFFSET, "offset");
+    SHKEY(POS, "pos");
     SHKEY(ROTATION, "rotation");
     SHKEY(SCALE, "scale");
   } // namespace MapKey
 
   namespace Function
   {
+    FUNC_IMPL(DrawImageBang,
+              SIG((FN_ARGS((&Lisple::Type::KEY), (&Lisple::Type::MAP)),
+                   EXEC_DISPATCH(&DrawImageBang::draw_img))));
+
+    ArgCollector draw_img_opts(std::string(FN__DRAW_IMAGE_BANG),
+                               {{*MapKey::POS, &HostType::POINT}},
+                               {{*MapKey::SCALE, &Lisple::Type::NUMBER}});
+
+    FUNC_BODY(DrawImageBang, draw_img)
+    {
+      Lisple::Key& asset_key = args.front()->as<Lisple::Key>();
+      Lisple::Map& opts = args.back()->as<Lisple::Map>();
+
+      str_key_map_t keys = draw_img_opts.collect_keys(ctx, opts);
+
+      RenderContext& rc =
+        ctx.lookup(ID__PIXILS__RENDER_CONTEXT)->as<RenderContextAdapter>().get_object();
+
+      SDL_Texture* texture =
+        rc.asset_registry->get_image(asset_key.get_qualifier(), asset_key.get_identifier());
+
+      Point* pos = ArgCollector::get_host_object<Point>(keys, *MapKey::POS);
+      float scale = ArgCollector::float_value(keys, *MapKey::SCALE, 1.0);
+
+      SDL_Rect dim{pos->round_x(), pos->round_y(), 0, 0};
+      SDL_QueryTexture(texture, nullptr, nullptr, &dim.w, &dim.h);
+
+      dim.w *= scale;
+      dim.h *= scale;
+
+      if (texture)
+      {
+        SDL_RenderCopy(rc.renderer, texture, nullptr, &dim);
+      }
+
+      return Lisple::NIL;
+    }
+
     /* DrawLineBang - line! */
     FUNC_IMPL(DrawLineBang,
               MULTI_SIG((FN_ARGS((&HostType::POINT), (&HostType::POINT)),
@@ -33,7 +75,7 @@ namespace Pixils::Script
     FUNC_BODY(DrawLineBang, draw_line)
     {
       RenderContext& rc =
-          ctx.lookup(ID__PIXILS__RENDER_CONTEXT)->as<RenderContextAdapter>().get_object();
+        ctx.lookup(ID__PIXILS__RENDER_CONTEXT)->as<RenderContextAdapter>().get_object();
 
       const Point& from = args[0]->as<PointAdapter>().get_object();
       const Point& to = args[1]->as<PointAdapter>().get_object();
@@ -44,7 +86,10 @@ namespace Pixils::Script
         SDL_SetRenderDrawColor(rc.renderer, color.r, color.g, color.b, color.a);
       }
 
-      SDL_RenderDrawLine(rc.renderer, from.round_x(), from.round_y(), to.round_x(),
+      SDL_RenderDrawLine(rc.renderer,
+                         from.round_x(),
+                         from.round_y(),
+                         to.round_x(),
                          to.round_y());
 
       return Lisple::NIL;
@@ -57,7 +102,8 @@ namespace Pixils::Script
                         (FN_ARGS((&HostType::VECTOR_OF_POINT), (&Lisple::Type::MAP)),
                          EXEC_DISPATCH(&DrawPolygonBang::draw_polygon_with_opts))));
 
-    ArgCollector draw_poly_collector(std::string(FN__DRAW_POLYGON_BANG), {},
+    ArgCollector draw_poly_collector(std::string(FN__DRAW_POLYGON_BANG),
+                                     {},
                                      {{*MapKey::CLOSE, &Lisple::Type::BOOL},
                                       {*MapKey::ROTATION, &Lisple::Type::NUMBER},
                                       {*MapKey::OFFSET, &HostType::POINT},
@@ -74,21 +120,23 @@ namespace Pixils::Script
     FUNC_BODY(DrawPolygonBang, draw_polygon_with_opts)
     {
       RenderContext& rc =
-          ctx.lookup(ID__PIXILS__RENDER_CONTEXT)->as<RenderContextAdapter>().get_object();
+        ctx.lookup(ID__PIXILS__RENDER_CONTEXT)->as<RenderContextAdapter>().get_object();
 
       str_key_map_t keys = draw_poly_collector.collect_keys(ctx, *args.back());
 
       Lisple::sptr_sobject& polygon = args.front();
       bool close_shape =
-          ArgCollector::bool_value(keys, *MapKey::CLOSE, false) || polygon->size() == 1;
+        ArgCollector::bool_value(keys, *MapKey::CLOSE, false) || polygon->size() == 1;
       float rotation = ArgCollector::float_value(keys, *MapKey::ROTATION, 0.0);
       float scale = ArgCollector::float_value(keys, *MapKey::SCALE, 1.0);
       std::optional<Color> color =
-          ArgCollector::optional_host_object<Color>(keys, *MapKey::COLOR);
+        ArgCollector::optional_host_object<Color>(keys, *MapKey::COLOR);
       Point offset = keys.count(MapKey::OFFSET->value)
-                         ? ArgCollector::coerce_host_object<Point>(ctx, keys, *MapKey::OFFSET,
-                                                                   &HostType::POINT)
-                         : POINT__ZERO_ZERO;
+                       ? ArgCollector::coerce_host_object<Point>(ctx,
+                                                                 keys,
+                                                                 *MapKey::OFFSET,
+                                                                 &HostType::POINT)
+                       : POINT__ZERO_ZERO;
 
       if (color)
       {
@@ -102,25 +150,28 @@ namespace Pixils::Script
         for (auto& poly_pt : polygon->get_children())
         {
           pts.push_back((poly_pt->as<PointAdapter>().get_object() * scale)
-                            .rotate(POINT__ZERO_ZERO, rotation)
-                            .plus(offset.x, offset.y));
+                          .rotate(POINT__ZERO_ZERO, rotation)
+                          .plus(offset.x, offset.y));
         }
 
         if (close_shape)
         {
           pts.push_back(polygon->get_children()
-                            .front()
-                            ->as<PointAdapter>()
-                            .get_object()
-                            .rotate(POINT__ZERO_ZERO, rotation)
-                            .plus(offset.x, offset.y));
+                          .front()
+                          ->as<PointAdapter>()
+                          .get_object()
+                          .rotate(POINT__ZERO_ZERO, rotation)
+                          .plus(offset.x, offset.y));
         }
 
         for (size_t i = 0; i < pts.size() - 1; i++)
         {
           const Point& from = pts[i];
           const Point& to = pts[i + 1];
-          SDL_RenderDrawLine(rc.renderer, from.round_x(), from.round_y(), to.round_x(),
+          SDL_RenderDrawLine(rc.renderer,
+                             from.round_x(),
+                             from.round_y(),
+                             to.round_x(),
                              to.round_y());
         }
       }
@@ -136,7 +187,7 @@ namespace Pixils::Script
     FUNC_BODY(DrawRectBang, draw_rect_from_points)
     {
       RenderContext& rc =
-          ctx.lookup(ID__PIXILS__RENDER_CONTEXT)->as<RenderContextAdapter>().get_object();
+        ctx.lookup(ID__PIXILS__RENDER_CONTEXT)->as<RenderContextAdapter>().get_object();
 
       const Point& top_left = args[0]->as<PointAdapter>().get_object();
       const Point& bottom_right = args[1]->as<PointAdapter>().get_object();
@@ -144,7 +195,7 @@ namespace Pixils::Script
       if (opts.get_sptr_property(*MapKey::COLOR)->is_truthy())
       {
         const Color& color =
-            opts.get_sptr_property(*MapKey::COLOR)->as<ColorAdapter>().get_object();
+          opts.get_sptr_property(*MapKey::COLOR)->as<ColorAdapter>().get_object();
         SDL_SetRenderDrawColor(rc.renderer, color.r, color.g, color.b, color.a);
       }
 
@@ -160,14 +211,26 @@ namespace Pixils::Script
       }
       else
       {
-        SDL_RenderDrawLine(rc.renderer, top_left.round_x(), top_left.round_y(),
-                           bottom_right.round_x(), top_left.round_y());
-        SDL_RenderDrawLine(rc.renderer, top_left.round_x(), bottom_right.round_y(),
-                           bottom_right.round_x(), bottom_right.round_y());
-        SDL_RenderDrawLine(rc.renderer, top_left.round_x(), top_left.round_y(),
-                           top_left.round_x(), bottom_right.round_y());
-        SDL_RenderDrawLine(rc.renderer, bottom_right.round_x(), top_left.round_y(),
-                           bottom_right.round_x(), bottom_right.round_y());
+        SDL_RenderDrawLine(rc.renderer,
+                           top_left.round_x(),
+                           top_left.round_y(),
+                           bottom_right.round_x(),
+                           top_left.round_y());
+        SDL_RenderDrawLine(rc.renderer,
+                           top_left.round_x(),
+                           bottom_right.round_y(),
+                           bottom_right.round_x(),
+                           bottom_right.round_y());
+        SDL_RenderDrawLine(rc.renderer,
+                           top_left.round_x(),
+                           top_left.round_y(),
+                           top_left.round_x(),
+                           bottom_right.round_y());
+        SDL_RenderDrawLine(rc.renderer,
+                           bottom_right.round_x(),
+                           top_left.round_y(),
+                           bottom_right.round_x(),
+                           bottom_right.round_y());
       }
 
       return Lisple::NIL;
@@ -175,15 +238,18 @@ namespace Pixils::Script
 
     /* UseColorBang */
     FUNC_IMPL(UseColorBang,
-              MULTI_SIG((FN_ARGS((&HostType::COLOR)), EXEC_DISPATCH(&UseColorBang::use_color)),
-                        (FN_ARGS((&Lisple::Type::NUMBER), (&Lisple::Type::NUMBER),
-                                 (&Lisple::Type::NUMBER), (&Lisple::Type::NUMBER)),
+              MULTI_SIG((FN_ARGS((&HostType::COLOR)),
+                         EXEC_DISPATCH(&UseColorBang::use_color)),
+                        (FN_ARGS((&Lisple::Type::NUMBER),
+                                 (&Lisple::Type::NUMBER),
+                                 (&Lisple::Type::NUMBER),
+                                 (&Lisple::Type::NUMBER)),
                          EXEC_DISPATCH(&UseColorBang::use_color_num))));
 
     FUNC_BODY(UseColorBang, use_color)
     {
       RenderContext& rc =
-          ctx.lookup(ID__PIXILS__RENDER_CONTEXT)->as<RenderContextAdapter>().get_object();
+        ctx.lookup(ID__PIXILS__RENDER_CONTEXT)->as<RenderContextAdapter>().get_object();
 
       const Color& color = args.front()->as<ColorAdapter>().get_object();
       SDL_SetRenderDrawColor(rc.renderer, color.r, color.g, color.b, color.a);
@@ -194,7 +260,7 @@ namespace Pixils::Script
     FUNC_BODY(UseColorBang, use_color_num)
     {
       RenderContext& rc =
-          ctx.lookup(ID__PIXILS__RENDER_CONTEXT)->as<RenderContextAdapter>().get_object();
+        ctx.lookup(ID__PIXILS__RENDER_CONTEXT)->as<RenderContextAdapter>().get_object();
 
       const int r = args[0]->as<Lisple::Number>().int_value();
       const int g = args[1]->as<Lisple::Number>().int_value();
@@ -209,8 +275,9 @@ namespace Pixils::Script
   } // namespace Function
 
   RenderNamespace::RenderNamespace()
-      : Lisple::Namespace(std::string(NS__PIXILS__RENDER))
+    : Lisple::Namespace(std::string(NS__PIXILS__RENDER))
   {
+    objects.emplace(FN__DRAW_IMAGE_BANG, std::make_shared<Function::DrawImageBang>());
     objects.emplace(FN__DRAW_LINE_BANG, std::make_shared<Function::DrawLineBang>());
     objects.emplace(FN__DRAW_POLYGON_BANG, std::make_shared<Function::DrawPolygonBang>());
     objects.emplace(FN__DRAW_RECT_BANG, std::make_shared<Function::DrawRectBang>());

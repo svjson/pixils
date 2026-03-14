@@ -38,6 +38,7 @@ namespace Pixils::Script
     MACRO_BODY(DefModeMacro, declare_mode)
     {
       Lisple::Map& modes = ctx.lookup(ID__PIXILS__MODES)->as<Lisple::Map>();
+      args.back()->as<ModeAdapter>().get_object().name = args.front()->to_string();
       modes.set_property(args.front(), args.back());
       return Lisple::NIL;
     }

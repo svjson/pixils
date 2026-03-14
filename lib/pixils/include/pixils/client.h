@@ -2,6 +2,7 @@
 #ifndef __PIXILS__CLIENT_H_
 #define __PIXILS__CLIENT_H_
 
+#include <pixils/asset/registry.h>
 #include <pixils/frame_events.h>
 
 #include <stddef.h>
@@ -49,6 +50,7 @@ namespace Pixils
   {
     Lisple::Runtime& lisple;
     RenderContext& ctx;
+    Asset::Registry assets;
     Lisple::Array& mode_stack;
 
     ActiveMode active_mode;

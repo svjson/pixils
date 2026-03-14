@@ -1,6 +1,7 @@
 
 file(GLOB pixils_SOURCES
   src/*.cpp
+  src/asset/*.cpp
   src/binding/*.cpp
   src/runtime/*.cpp
 )
