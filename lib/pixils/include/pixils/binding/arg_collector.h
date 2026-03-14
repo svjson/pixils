@@ -27,7 +27,7 @@ namespace Pixils
    */
   class ArgCollector
   {
-  private:
+   private:
     /*!
      * @brief The name of the function that this instance describes.
      */
@@ -51,8 +51,9 @@ namespace Pixils
      */
     ArgKeyMap optional_keys;
 
-  public:
-    ArgCollector(const std::string& function_name, const ArgKeyMap& required_keys,
+   public:
+    ArgCollector(const std::string& function_name,
+                 const ArgKeyMap& required_keys,
                  const ArgKeyMap& optional_keys = {});
 
     /*!
@@ -68,20 +69,23 @@ namespace Pixils
      */
     str_key_map_t collect_keys(Lisple::Map& args, Lisple::Context* = nullptr);
 
-    static bool is_type(str_key_map_t& args, const Lisple::Key& key,
+    static bool is_type(str_key_map_t& args,
+                        const Lisple::Key& key,
                         const Lisple::TypeRef* type_ref);
 
     /*!
      * @brief Get the value of the property @a key of @a args as char, or the
      * default value of @a default_value, if the property is missing.
      */
-    static char char_value(str_key_map_t& args, const Lisple::Key& key,
+    static char char_value(str_key_map_t& args,
+                           const Lisple::Key& key,
                            char default_value = '\0');
     /*!
      * @brief Get the value of the property @a key of @a args as int, or the
      * default value of @a default_value, if the property is missing.
      */
-    static float float_value(str_key_map_t& args, const Lisple::Key& key,
+    static float float_value(str_key_map_t& args,
+                             const Lisple::Key& key,
                              float default_value = 0.0);
     /*!
      * @brief Get the value of the property @a key of @a args as int, or the
@@ -92,34 +96,39 @@ namespace Pixils
      * @brief Get the value of the property @a key of @a args as unsigned short,
      * or the default value of @a default_value, if the property is missing.
      */
-    static unsigned short ushort_value(str_key_map_t& args, const Lisple::Key& key,
+    static unsigned short ushort_value(str_key_map_t& args,
+                                       const Lisple::Key& key,
                                        unsigned short default_value = 0);
     /*!
      * @brief Get the value of the property @a key of @a args as short, or the
      * default value of @a default_value, if the property is missing.
      */
-    static short short_value(str_key_map_t& args, const Lisple::Key& key,
+    static short short_value(str_key_map_t& args,
+                             const Lisple::Key& key,
                              short default_value = 0);
     /*!
      * @brief Get the value of the property @a key of @a args as uint8, or the
      * default value of @a default_value, if the property is missing.
      */
-    static uint8_t uint8_value(str_key_map_t& args, const Lisple::Key& key,
+    static uint8_t uint8_value(str_key_map_t& args,
+                               const Lisple::Key& key,
                                uint8_t default_value = 0xff);
 
     /*!
      * @brief Get the value of the property @a key of @a args as std::string, or
      * the default value of @a default_value, if the property is missing.
      */
-    static const std::string
-    str_value(str_key_map_t& args, const Lisple::Key& key,
-              const std::string& default_value = Lisple::EMPTY_STRING);
+    static const std::string str_value(
+      str_key_map_t& args,
+      const Lisple::Key& key,
+      const std::string& default_value = Lisple::EMPTY_STRING);
 
     /*!
      * @brief Get the value of the property @a key of @a args as bool, or the
      * default value of @a default_value, if the property is missing.
      */
-    static bool bool_value(str_key_map_t& args, const Lisple::Key& key,
+    static bool bool_value(str_key_map_t& args,
+                           const Lisple::Key& key,
                            bool default_value = false);
     /*!
      * @brief Get the value of the property @a key of @a args as
@@ -152,16 +161,21 @@ namespace Pixils
      * @brief Get the Lisple::Key stored under the property @a key of @a args,
      * or @a default_value if the key is missing or nil.
      */
-    static Lisple::Key& key_value(str_key_map_t& rags, const Lisple::Key& key,
+    static Lisple::Key& key_value(str_key_map_t& rags,
+                                  const Lisple::Key& key,
                                   Lisple::Key& default_value);
 
-    static std::vector<uint8_t> unbox_uint8_array(str_key_map_t& args, const Lisple::Key& key,
-                                                  const std::vector<uint8_t> default_val = {});
-    static std::vector<int> unbox_int_array(str_key_map_t& args, const Lisple::Key& key,
+    static std::vector<uint8_t> unbox_uint8_array(
+      str_key_map_t& args,
+      const Lisple::Key& key,
+      const std::vector<uint8_t> default_val = {});
+    static std::vector<int> unbox_int_array(str_key_map_t& args,
+                                            const Lisple::Key& key,
                                             const std::vector<int> default_val = {});
-    static std::vector<std::string>
-    unbox_string_array(str_key_map_t& args, const Lisple::Key& key,
-                       const std::vector<std::string>& default_val = {});
+    static std::vector<std::string> unbox_string_array(
+      str_key_map_t& args,
+      const Lisple::Key& key,
+      const std::vector<std::string>& default_val = {});
 
     template <typename T>
     static std::shared_ptr<T> sptr_value(str_key_map_t& keys, const Lisple::Key& key)
@@ -180,8 +194,10 @@ namespace Pixils
      * structures to the specified native type.
      */
     template <typename VT>
-    static std::vector<VT> vector(Lisple::Context& ctx, str_key_map_t& keys,
-                                  const Lisple::Key& key, const Lisple::HostTypeRef* type_ref,
+    static std::vector<VT> vector(Lisple::Context& ctx,
+                                  str_key_map_t& keys,
+                                  const Lisple::Key& key,
+                                  const Lisple::HostTypeRef* type_ref,
                                   std::vector<VT> default_value = {})
     {
       if (keys.count(key.value))
@@ -193,8 +209,8 @@ namespace Pixils
         for (auto& obj : seq.get_children())
         {
           result.push_back(coerce_host_object(ctx, obj, type_ref)
-                               ->as<Lisple::HostObject<VT>>()
-                               .get_object());
+                             ->as<Lisple::HostObject<VT>>()
+                             .get_object());
         }
 
         return result;
@@ -205,8 +221,11 @@ namespace Pixils
 
     template <typename VT, typename HT>
     static std::vector<VT> unbox_host_object_array_to_objects(
-        Lisple::Context& ctx, str_key_map_t& keys, const Lisple::Key& key,
-        const Lisple::HostTypeRef* type_ref, const std::string& make_fn_name = "")
+      Lisple::Context& ctx,
+      str_key_map_t& keys,
+      const Lisple::Key& key,
+      const Lisple::HostTypeRef* type_ref,
+      const std::string& make_fn_name = "")
     {
       std::vector<VT> result;
 
@@ -216,7 +235,7 @@ namespace Pixils
         for (auto& obj : array.get_children())
         {
           result.push_back(
-              coerce_host_object(ctx, obj, type_ref, make_fn_name)->as<HT>().get_object());
+            coerce_host_object(ctx, obj, type_ref, make_fn_name)->as<HT>().get_object());
         }
       }
 
@@ -224,32 +243,33 @@ namespace Pixils
     }
 
     template <typename VT>
-    static std::optional<VT>
-    optional_host_object(Lisple::Context& ctx, str_key_map_t& keys, const Lisple::Key& key,
-                         const Lisple::HostTypeRef* type_ref,
-                         const std::optional<VT> default_value = std::nullopt)
+    static std::optional<VT> optional_host_object(
+      Lisple::Context& ctx,
+      str_key_map_t& keys,
+      const Lisple::Key& key,
+      const Lisple::HostTypeRef* type_ref,
+      const std::optional<VT> default_value = std::nullopt)
     {
       if (keys.count(key.value))
       {
-        if (*keys.at(key.value) == *Lisple::NIL)
-          return default_value;
+        if (*keys.at(key.value) == *Lisple::NIL) return default_value;
         return coerce_host_object(ctx, keys.at(key.value), type_ref)
-            ->as<Lisple::HostObject<VT>>()
-            .get_object();
+          ->as<Lisple::HostObject<VT>>()
+          .get_object();
       }
 
       return default_value;
     }
 
     template <typename VT>
-    static std::optional<VT>
-    optional_host_object(str_key_map_t& keys, const Lisple::Key& key,
-                         const std::optional<VT> default_value = std::nullopt)
+    static std::optional<VT> optional_host_object(
+      str_key_map_t& keys,
+      const Lisple::Key& key,
+      const std::optional<VT> default_value = std::nullopt)
     {
       if (keys.count(key.value))
       {
-        if (*keys.at(key.value) == *Lisple::NIL)
-          return default_value;
+        if (*keys.at(key.value) == *Lisple::NIL) return default_value;
         return keys.at(key.value)->as<Lisple::HostObject<VT>>().get_object();
       }
 
@@ -257,13 +277,15 @@ namespace Pixils
     }
 
     template <typename VT>
-    static VT coerce_host_object(Lisple::Context& ctx, str_key_map_t keys,
-                                 const Lisple::Key& key, const Lisple::HostTypeRef* type_ref,
+    static VT coerce_host_object(Lisple::Context& ctx,
+                                 str_key_map_t keys,
+                                 const Lisple::Key& key,
+                                 const Lisple::HostTypeRef* type_ref,
                                  const std::string& make_fn_name = "")
     {
       return coerce_host_object(ctx, keys.at(key.value), type_ref, make_fn_name)
-          ->as<Lisple::HostObject<VT>>()
-          .get_object();
+        ->as<Lisple::HostObject<VT>>()
+        .get_object();
     }
 
     static Lisple::sptr_sobject coerce_host_object(Lisple::Context& ctx,
@@ -295,8 +317,7 @@ namespace Pixils
     template <typename HT>
     static HT* get_host_object(str_key_map_t keys, const Lisple::Key& key)
     {
-      if (!keys.count(key.value))
-        return nullptr;
+      if (!keys.count(key.value)) return nullptr;
       return &keys.at(key.value)->as<Lisple::HostObject<HT>>().get_object();
     }
 
@@ -320,7 +341,8 @@ namespace Pixils
     }
 
     template <typename T, typename A>
-    static std::vector<T*> unbox_host_object_array(str_key_map_t& args, const Lisple::Key& key)
+    static std::vector<T*> unbox_host_object_array(str_key_map_t& args,
+                                                   const Lisple::Key& key)
     {
       Lisple::Array& adapter_array = args.at(key.value)->as<Lisple::Array>();
       std::vector<T*> result;

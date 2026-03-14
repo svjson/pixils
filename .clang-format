@@ -1,15 +1,17 @@
 BasedOnStyle: LLVM
+
+# General formatting
 IndentWidth: 2
+ContinuationIndentWidth: 2
 TabWidth: 2
-NamespaceIndentation: All
 UseTab: Never
 BreakBeforeBraces: Allman
-AllowShortFunctionsOnASingleLine: Inline
-AllowShortBlocksOnASingleLine: Empty
-ColumnLimit: 95
+ColumnLimit: 93
 ReferenceAlignment: Left
 PointerAlignment: Left
-#SortIncludes: false
+NamespaceIndentation: All
+
+# Includes
 IncludeBlocks: Regroup
 IncludeCategories:
   - Regex: '^<pixils/.*>'
@@ -17,6 +19,38 @@ IncludeCategories:
   - Regex: '^<.*>'
     Priority: 2
 
+# Type Declarations
+AccessModifierOffset: -1
+
+# Blocks
+AllowShortLambdasOnASingleLine: Inline
+
+# Constructors
+ConstructorInitializerIndentWidth: 2
 ConstructorInitializerAllOnOneLineOrOnePerLine: false
 BreakConstructorInitializers: BeforeColon
 BreakConstructorInitializersBeforeComma: true
+
+# Method globals
+AlignAfterOpenBracket: Align
+BreakAfterReturnType: None
+PenaltyReturnTypeOnItsOwnLine: 1000
+PenaltyBreakBeforeFirstCallParameter: 0
+
+# Method declarations
+BinPackParameters: false
+AllowAllParametersOfDeclarationOnNextLine: false
+AllowShortFunctionsOnASingleLine: Inline
+
+# Method invocations
+BinPackArguments: false
+AllowAllArgumentsOnNextLine: false
+
+# Macros
+SkipMacroDefinitionBody: true
+
+# Elvis
+BreakBeforeTernaryOperators: true
+
+# If Statements
+AllowShortIfStatementsOnASingleLine: WithoutElse

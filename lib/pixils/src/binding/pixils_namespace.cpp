@@ -27,9 +27,10 @@ namespace Pixils::Script
   namespace Macro
   {
     /* DefModeMacro - defmode */
-    MACRO_IMPL(DefModeMacro, SIG((FN_ARGS((&Lisple::Type::WORD, Lisple::NO_EVAL),
-                                          (&HostType::MODE, Lisple::NO_EVAL)),
-                                  EXEC_DISPATCH(&DefModeMacro::declare_mode))));
+    MACRO_IMPL(DefModeMacro,
+               SIG((FN_ARGS((&Lisple::Type::WORD, Lisple::NO_EVAL),
+                            (&HostType::MODE, Lisple::NO_EVAL)),
+                    EXEC_DISPATCH(&DefModeMacro::declare_mode))));
 
     MACRO_BODY(DefModeMacro, declare_mode)
     {
@@ -72,8 +73,9 @@ namespace Pixils::Script
     }
 
     /* PushModeBangFunction - push-mode! */
-    FUNC_IMPL(PushModeBangFunction, SIG((FN_ARGS((&Lisple::Type::SYMBOL)),
-                                         EXEC_DISPATCH(&PushModeBangFunction::push_mode))));
+    FUNC_IMPL(PushModeBangFunction,
+              SIG((FN_ARGS((&Lisple::Type::SYMBOL)),
+                   EXEC_DISPATCH(&PushModeBangFunction::push_mode))));
 
     FUNC_BODY(PushModeBangFunction, push_mode)
     {
@@ -109,7 +111,9 @@ namespace Pixils::Script
   } // namespace Function
 
   /* ModeAdapter */
-  HOST_ADAPTER_IMPL(ModeAdapter, Runtime::Mode, &HostType::MODE,
+  HOST_ADAPTER_IMPL(ModeAdapter,
+                    Runtime::Mode,
+                    &HostType::MODE,
                     ({K_GET(ModeAdapter, MapKey::INIT, init),
                       K_GET(ModeAdapter, MapKey::UPDATE, update),
                       K_GET(ModeAdapter, MapKey::RENDER, render)}))
@@ -130,7 +134,9 @@ namespace Pixils::Script
   }
 
   /* DimensionAdapter */
-  HOST_ADAPTER_IMPL(DimensionAdapter, Dimension, &HostType::DIMENSION,
+  HOST_ADAPTER_IMPL(DimensionAdapter,
+                    Dimension,
+                    &HostType::DIMENSION,
                     ({K_GET_SET(DimensionAdapter, MapKey::W, w),
                       K_GET_SET(DimensionAdapter, MapKey::H, h)}));
 
@@ -138,7 +144,9 @@ namespace Pixils::Script
   ADAPTER_PROP_GET_SET__FIELD(DimensionAdapter, h, Lisple::Number, h);
 
   /* FrameEventsAdapter */
-  HOST_ADAPTER_IMPL(FrameEventsAdapter, FrameEvents, &HostType::FRAME_EVENTS,
+  HOST_ADAPTER_IMPL(FrameEventsAdapter,
+                    FrameEvents,
+                    &HostType::FRAME_EVENTS,
                     ({K_GET(FrameEventsAdapter, MapKey::KEY_DOWN, key_down),
                       K_GET(FrameEventsAdapter, MapKey::HELD_KEYS, held_keys)}))
 
@@ -153,7 +161,9 @@ namespace Pixils::Script
   }
 
   /* RenderContextAdapter */
-  HOST_ADAPTER_IMPL(RenderContextAdapter, RenderContext, &HostType::RENDER_CONTEXT,
+  HOST_ADAPTER_IMPL(RenderContextAdapter,
+                    RenderContext,
+                    &HostType::RENDER_CONTEXT,
                     ({K_GET(RenderContextAdapter, MapKey::PIXEL_SIZE, pixel_size),
                       K_GET(RenderContextAdapter, MapKey::BUFFER_SIZE, buffer_size)}));
 
@@ -161,7 +171,7 @@ namespace Pixils::Script
   ADAPTER_PROP_GET__FIELD(RenderContextAdapter, buffer_size, DimensionAdapter, buffer_dim);
 
   PixilsNamespace::PixilsNamespace(const RenderContext& render_context)
-      : Lisple::Namespace(NS_PIXILS)
+    : Lisple::Namespace(NS_PIXILS)
   {
     objects.emplace("mode-stack", Lisple::Array::make({}));
     objects.emplace("modes", Lisple::Map::make({}));
