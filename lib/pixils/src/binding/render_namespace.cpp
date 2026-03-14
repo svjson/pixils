@@ -59,7 +59,7 @@ namespace Pixils
                           (FN_ARGS((&HostType::VECTOR_OF_POINT), (&Lisple::Type::MAP)),
                            EXEC_DISPATCH(&DrawPolygonBang::draw_polygon_with_opts))));
 
-      ArgCollector draw_poly_collector(FN__DRAW_POLYGON_BANG, {},
+      ArgCollector draw_poly_collector(std::string(FN__DRAW_POLYGON_BANG), {},
                                        {{*MapKey::CLOSE, &Lisple::Type::BOOL},
                                         {*MapKey::ROTATION, &Lisple::Type::NUMBER},
                                         {*MapKey::OFFSET, &HostType::POINT},
@@ -212,7 +212,7 @@ namespace Pixils
     } // namespace Function
 
     RenderNamespace::RenderNamespace()
-        : Lisple::Namespace(NS__PIXILS__RENDER)
+        : Lisple::Namespace(std::string(NS__PIXILS__RENDER))
     {
       objects.emplace(FN__DRAW_LINE_BANG, std::make_shared<Function::DrawLineBang>());
       objects.emplace(FN__DRAW_POLYGON_BANG, std::make_shared<Function::DrawPolygonBang>());

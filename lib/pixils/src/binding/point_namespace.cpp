@@ -26,8 +26,9 @@ namespace Pixils
                           (FN_ARGS((&Lisple::Type::MAP)),
                            EXEC_DISPATCH(&MakePoint::make_point_from_map))));
 
-      ArgCollector point_collector(FN__MAKE_POINT, {{*MapKey::X, &Lisple::Type::NUMBER},
-                                                    {*MapKey::Y, &Lisple::Type::NUMBER}});
+      ArgCollector point_collector(std::string(FN__MAKE_POINT),
+                                   {{*MapKey::X, &Lisple::Type::NUMBER},
+                                    {*MapKey::Y, &Lisple::Type::NUMBER}});
 
       Point unbox_point(Lisple::Context& ctx, Lisple::sptr_sobject& obj)
       {
@@ -84,7 +85,7 @@ namespace Pixils
                                        (FN_ARGS((&HostType::POINT), (&Lisple::Type::MAP)),
                                         EXEC_DISPATCH(&RotatePoint::rotate_point_with_opts))))
 
-      ArgCollector rotate_opts_collector(FN__ROTATE, {},
+      ArgCollector rotate_opts_collector(std::string(FN__ROTATE), {},
                                          {{*MapKey::ORIGIN, &HostType::POINT},
                                           {*MapKey::RADIANS, &Lisple::Type::NUMBER}});
 
@@ -158,7 +159,7 @@ namespace Pixils
     ADAPTER_PROP_GET_SET__FIELD(PointAdapter, y, Lisple::Number, y);
 
     PointNamespace::PointNamespace()
-        : Lisple::Namespace(NS__PIXILS__POINT)
+        : Lisple::Namespace(std::string(NS__PIXILS__POINT))
     {
       objects.emplace(FN__DISTANCE, std::make_shared<Function::DistanceBetween>());
       objects.emplace(FN__DIVIDE, std::make_shared<Function::PointDivision>());

@@ -16,18 +16,19 @@ namespace Pixils
     /*!
      * @brief Constant for "pixils.color"
      */
-    inline const std::string NS__PIXILS__COLOR = "pixils.color";
+    inline constexpr std::string_view NS__PIXILS__COLOR = "pixils.color";
 
     /*!
      * @brief MakeColor function name
      */
-    inline const std::string FN__MAKE_COLOR = "make-color";
-    inline const std::string FN__PIXILS__COLOR__MAKE_COLOR = "pixils.color/" + FN__MAKE_COLOR;
+    inline constexpr std::string_view FN__MAKE_COLOR = "make-color";
+    inline constexpr std::string_view FN__PIXILS__COLOR__MAKE_COLOR =
+        "pixils.color/make-color";
 
     /*!
      * @brief WithAlpha function name
      */
-    inline const std::string FN__WITH_ALPHA = "with-alpha";
+    inline constexpr std::string_view FN__WITH_ALPHA = "with-alpha";
 
     namespace MapKey
     {
@@ -39,7 +40,7 @@ namespace Pixils
 
     namespace HostType
     {
-      HOST_TYPE(COLOR, "Color", FN__PIXILS__COLOR__MAKE_COLOR)
+      HOST_TYPE(COLOR, "Color", std::string(FN__PIXILS__COLOR__MAKE_COLOR))
     }
 
     /*! @brief ColorAdapter - A Lisple HostObject Adapter for Color */

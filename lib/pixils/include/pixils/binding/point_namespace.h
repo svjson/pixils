@@ -16,16 +16,16 @@ namespace Pixils
     /*!
      * @brief Constant for "pixils.point" lisple namespace name
      */
-    inline const std::string NS__PIXILS__POINT = "pixils.point";
+    inline constexpr std::string_view NS__PIXILS__POINT = "pixils.point";
 
-    inline const std::string FN__MAKE_POINT = "point";
+    inline constexpr std::string_view FN__MAKE_POINT = "point";
     inline const std::string FN__PIXILS__POINT__MAKE_POINT = "pixils.point/point";
 
-    inline const std::string FN__DIVIDE = "div";
-    inline const std::string FN__PLUS = "+";
-    inline const std::string FN__MINUS = "-";
-    inline const std::string FN__ROTATE = "rotate";
-    inline const std::string FN__DISTANCE = "distance";
+    inline constexpr std::string_view FN__DIVIDE = "div";
+    inline constexpr std::string_view FN__PLUS = "+";
+    inline constexpr std::string_view FN__MINUS = "-";
+    inline constexpr std::string_view FN__ROTATE = "rotate";
+    inline constexpr std::string_view FN__DISTANCE = "distance";
 
     namespace MapKey
     {
@@ -37,7 +37,7 @@ namespace Pixils
 
     namespace HostType
     {
-      HOST_TYPE(POINT, "HPoint", FN__PIXILS__POINT__MAKE_POINT);
+      HOST_TYPE(POINT, "HPoint", std::string(FN__PIXILS__POINT__MAKE_POINT));
 
       inline const Lisple::SeqRef VECTOR_OF_POINT(&Lisple::Type::ARRAY, &POINT, "[HPoint]");
 

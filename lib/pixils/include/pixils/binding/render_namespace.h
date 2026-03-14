@@ -10,12 +10,12 @@ namespace Pixils
 {
   namespace Script
   {
-    inline const std::string NS__PIXILS__RENDER = "pixils.render";
+    inline constexpr std::string_view NS__PIXILS__RENDER = "pixils.render";
 
-    inline const std::string FN__DRAW_LINE_BANG = "line!";
-    inline const std::string FN__DRAW_POLYGON_BANG = "polygon!";
-    inline const std::string FN__DRAW_RECT_BANG = "rect!";
-    inline const std::string FN__USE_COLOR_BANG = "use-color!";
+    inline constexpr std::string_view FN__DRAW_LINE_BANG = "line!";
+    inline constexpr std::string_view FN__DRAW_POLYGON_BANG = "polygon!";
+    inline constexpr std::string_view FN__DRAW_RECT_BANG = "rect!";
+    inline constexpr std::string_view FN__USE_COLOR_BANG = "use-color!";
 
     namespace MapKey
     {

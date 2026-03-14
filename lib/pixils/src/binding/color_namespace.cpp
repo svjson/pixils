@@ -34,7 +34,7 @@ namespace Pixils
       FUNC_IMPL(MakeColor,
                 SIG((FN_ARGS((&Lisple::Type::MAP)), EXEC_DISPATCH(&MakeColor::make_color))));
 
-      ArgCollector color_collector(FN__MAKE_COLOR,
+      ArgCollector color_collector(std::string(FN__MAKE_COLOR),
                                    {{*MapKey::R, &Lisple::Type::NUMBER},
                                     {*MapKey::G, &Lisple::Type::NUMBER},
                                     {*MapKey::B, &Lisple::Type::NUMBER}},
@@ -71,7 +71,7 @@ namespace Pixils
     } // namespace Function
 
     ColorNamespace::ColorNamespace()
-        : Lisple::Namespace(NS__PIXILS__COLOR)
+        : Lisple::Namespace(std::string(NS__PIXILS__COLOR))
     {
       objects.emplace(FN__MAKE_COLOR, std::make_shared<Function::MakeColor>());
       objects.emplace(FN__WITH_ALPHA, std::make_shared<Function::WithAlpha>());
