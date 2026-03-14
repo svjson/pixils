@@ -1,5 +1,6 @@
 
 #include <pixils/binding/arg_collector.h>
+#include <pixils/binding/color_namespace.h>
 #include <pixils/binding/pixils_namespace.h>
 #include <pixils/binding/point_namespace.h>
 #include <pixils/binding/render_namespace.h>
@@ -15,6 +16,7 @@ namespace Pixils
     namespace MapKey
     {
       SHKEY(CLOSE, "close");
+      SHKEY(COLOR, "color");
       SHKEY(FILL, "fill");
       SHKEY(OFFSET, "offset");
       SHKEY(ROTATION, "rotation");
@@ -24,18 +26,28 @@ namespace Pixils
     namespace Function
     {
       /* DrawLineBang - line! */
-      FUNC_IMPL(DrawLineBang, SIG((FN_ARGS((&HostType::POINT), (&HostType::POINT)),
-                                   EXEC_DISPATCH(&DrawLineBang::draw_line))));
+      FUNC_IMPL(DrawLineBang,
+                MULTI_SIG((FN_ARGS((&HostType::POINT), (&HostType::POINT)),
+                           EXEC_DISPATCH(&DrawLineBang::draw_line)),
+                          (FN_ARGS((&HostType::POINT), (&HostType::POINT), (&HostType::COLOR)),
+                           EXEC_DISPATCH(&DrawLineBang::draw_line))));
 
       FUNC_BODY(DrawLineBang, draw_line)
       {
         RenderContext& rc =
             ctx.lookup(ID__PIXILS__RENDER_CONTEXT)->as<RenderContextAdapter>().get_object();
 
-        const Point& from = args.front()->as<PointAdapter>().get_object();
-        const Point& to = args.back()->as<PointAdapter>().get_object();
+        const Point& from = args[0]->as<PointAdapter>().get_object();
+        const Point& to = args[1]->as<PointAdapter>().get_object();
 
-        SDL_RenderDrawLine(rc.renderer, from.x, from.y, to.x, to.y);
+        if (args.size() == 3 && args[2]->is_truthy())
+        {
+          const Color& color = args[2]->as<ColorAdapter>().get_object();
+          SDL_SetRenderDrawColor(rc.renderer, color.r, color.g, color.b, color.a);
+        }
+
+        SDL_RenderDrawLine(rc.renderer, from.round_x(), from.round_y(), to.round_x(),
+                           to.round_y());
 
         return Lisple::NIL;
       }
@@ -51,6 +63,7 @@ namespace Pixils
                                        {{*MapKey::CLOSE, &Lisple::Type::BOOL},
                                         {*MapKey::ROTATION, &Lisple::Type::NUMBER},
                                         {*MapKey::OFFSET, &HostType::POINT},
+                                        {*MapKey::COLOR, &HostType::COLOR},
                                         {*MapKey::SCALE, &Lisple::Type::NUMBER}});
 
       FUNC_BODY(DrawPolygonBang, draw_polygon)
@@ -72,10 +85,17 @@ namespace Pixils
             ArgCollector::bool_value(keys, *MapKey::CLOSE, false) || polygon->size() == 1;
         float rotation = ArgCollector::float_value(keys, *MapKey::ROTATION, 0.0);
         float scale = ArgCollector::float_value(keys, *MapKey::SCALE, 1.0);
+        std::optional<Color> color =
+            ArgCollector::optional_host_object<Color>(keys, *MapKey::COLOR);
         Point offset = keys.count(MapKey::OFFSET->value)
                            ? ArgCollector::coerce_host_object<Point>(
                                  ctx, keys, *MapKey::OFFSET, &HostType::POINT)
                            : POINT__ZERO_ZERO;
+
+        if (color)
+        {
+          SDL_SetRenderDrawColor(rc.renderer, color->r, color->g, color->b, color->a);
+        }
 
         std::vector<Point> pts;
         if (polygon->size() > 0)
@@ -102,7 +122,8 @@ namespace Pixils
           {
             const Point& from = pts[i];
             const Point& to = pts[i + 1];
-            SDL_RenderDrawLine(rc.renderer, from.x, from.y, to.x, to.y);
+            SDL_RenderDrawLine(rc.renderer, from.round_x(), from.round_y(), to.round_x(),
+                               to.round_y());
           }
         }
 
@@ -149,11 +170,25 @@ namespace Pixils
       }
 
       /* UseColorBang */
-      FUNC_IMPL(UseColorBang, SIG((FN_ARGS((&Lisple::Type::NUMBER), (&Lisple::Type::NUMBER),
-                                           (&Lisple::Type::NUMBER), (&Lisple::Type::NUMBER)),
-                                   EXEC_DISPATCH(&UseColorBang::use_color))));
+      FUNC_IMPL(UseColorBang,
+                MULTI_SIG((FN_ARGS((&HostType::COLOR)),
+                           EXEC_DISPATCH(&UseColorBang::use_color)),
+                          (FN_ARGS((&Lisple::Type::NUMBER), (&Lisple::Type::NUMBER),
+                                   (&Lisple::Type::NUMBER), (&Lisple::Type::NUMBER)),
+                           EXEC_DISPATCH(&UseColorBang::use_color_num))));
 
       FUNC_BODY(UseColorBang, use_color)
+      {
+        RenderContext& rc =
+            ctx.lookup(ID__PIXILS__RENDER_CONTEXT)->as<RenderContextAdapter>().get_object();
+
+        const Color& color = args.front()->as<ColorAdapter>().get_object();
+        SDL_SetRenderDrawColor(rc.renderer, color.r, color.g, color.b, color.a);
+
+        return Lisple::NIL;
+      }
+
+      FUNC_BODY(UseColorBang, use_color_num)
       {
         RenderContext& rc =
             ctx.lookup(ID__PIXILS__RENDER_CONTEXT)->as<RenderContextAdapter>().get_object();
