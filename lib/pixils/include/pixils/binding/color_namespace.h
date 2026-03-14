@@ -1,6 +1,6 @@
 
-#ifndef __PIXILS__COLOR_NAMESPACE_H_
-#define __PIXILS__COLOR_NAMESPACE_H_
+#ifndef PIXILS__COLOR_NAMESPACE_H
+#define PIXILS__COLOR_NAMESPACE_H
 
 #include <pixils/geom.h>
 
@@ -65,4 +65,4 @@ namespace Pixils
   } // namespace Script
 } // namespace Pixils
 
-#endif /* __PIXILS__COLOR_NAMESPACE_H_ */
+#endif /* PIXILS__COLOR_NAMESPACE_H */

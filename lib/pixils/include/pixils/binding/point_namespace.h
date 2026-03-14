@@ -1,6 +1,6 @@
 
-#ifndef __PIXILS__POINT_NAMESPACE_H_
-#define __PIXILS__POINT_NAMESPACE_H_
+#ifndef PIXILS__POINT_NAMESPACE_H
+#define PIXILS__POINT_NAMESPACE_H
 
 #include <pixils/geom.h>
 
@@ -56,7 +56,8 @@ namespace Pixils
       /*! @brief Distance between */
       FUNC_DECL(DistanceBetween, distance_between_points);
       /*! @brief Rotate point around point */
-      FUNC_DECL(RotatePoint, rotate_point_orig_amount, rotate_point_amount, rotate_point_with_opts);
+      FUNC_DECL(RotatePoint, rotate_point_orig_amount, rotate_point_amount,
+                rotate_point_with_opts);
     } // namespace Function
 
     /*! @brief PointAdapter - A Lisple HostObject Adapter for Point */
@@ -71,4 +72,4 @@ namespace Pixils
   } // namespace Script
 } // namespace Pixils
 
-#endif /* __PIXILS__POINT_NAMESPACE_H_ */
+#endif /* PIXILS__POINT_NAMESPACE_H */

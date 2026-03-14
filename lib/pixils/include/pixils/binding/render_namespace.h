@@ -1,6 +1,6 @@
 
-#ifndef __PIXILS__RENDER_NAMESPACE_H_
-#define __PIXILS__RENDER_NAMESPACE_H_
+#ifndef PIXILS__RENDER_NAMESPACE_H
+#define PIXILS__RENDER_NAMESPACE_H
 
 #include <lisple/exec.h>
 #include <lisple/host.h>
@@ -44,4 +44,4 @@ namespace Pixils
   } // namespace Script
 } // namespace Pixils
 
-#endif /* __PIXILS__RENDER_NAMESPACE_H_ */
+#endif /* PIXILS__RENDER_NAMESPACE_H */

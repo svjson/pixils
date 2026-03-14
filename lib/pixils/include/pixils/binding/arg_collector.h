@@ -1,6 +1,6 @@
 
-#ifndef __ARG_COLLECTOR_H_
-#define __ARG_COLLECTOR_H_
+#ifndef ARG_COLLECTOR_H
+#define ARG_COLLECTOR_H
 
 #include <cstdint>
 #include <lisple/context.h>

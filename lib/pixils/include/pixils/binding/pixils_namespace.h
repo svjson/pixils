@@ -1,6 +1,6 @@
 
-#ifndef __PIXILS__PIXILS_NAMESPACE_
-#define __PIXILS__PIXILS_NAMESPACE_
+#ifndef PIXILS__PIXILS_NAMESPACE
+#define PIXILS__PIXILS_NAMESPACE
 
 #include <pixils/context.h>
 #include <pixils/frame_events.h>
