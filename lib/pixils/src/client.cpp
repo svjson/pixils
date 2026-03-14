@@ -1,5 +1,6 @@
 
 #include <pixils/binding/pixils_namespace.h>
+#include <pixils/client.h>
 #include <pixils/context.h>
 #include <pixils/frame_events.h>
 #include <pixils/keyboard.h>
@@ -15,38 +16,53 @@ namespace Pixils
   {
     auto now = std::chrono::system_clock::now();
     return std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch())
-        .count();
+      .count();
   }
 
-  void main_loop(Lisple::Runtime& lisple_runtime, Runtime::Mode& mode, RenderContext& ctx)
+  Client::Client(Lisple::Runtime& lisple_runtime,
+                 RenderContext& ctx,
+                 Runtime::Mode& root_mode)
+    : lisple(lisple_runtime)
+    , ctx(ctx)
+    , mode_stack(lisple.lookup(Script::ID__PIXILS__MODE_STACK)->as<Lisple::Array>())
+    , hook_args({Pixils::Script::FrameEventsAdapter::make_ref(this->events),
+                 Pixils::Script::RenderContextAdapter::make_ref(this->ctx)})
   {
-    auto root_mode = Script::ModeAdapter::make_ref(mode);
-    Lisple::Array& mode_stack =
-        lisple_runtime.lookup(Script::ID__PIXILS__MODE_STACK)->as<Lisple::Array>();
-    mode_stack.append(root_mode);
+    this->mode_stack.append(Script::ModeAdapter::make_ref(root_mode));
+  }
 
-    Runtime::Mode* current_mode = &mode;
-    size_t current_mode_index = 0;
+  void Client::run()
+  {
+    this->ctx.prepare_frame();
+    this->activate_mode();
+    this->main_loop();
+  }
 
-    ctx.prepare_frame();
-    Pixils::FrameEvents events;
-    bool quit = false;
-    SDL_Rect surface_rect{0, 0, ctx.buffer_dim.w, ctx.buffer_dim.h};
+  void Client::activate_mode()
+  {
+    bool pushed =
+      static_cast<int>(mode_stack.get_children().size()) > active_mode.mode_index + 1;
 
-    SDL_Event event;
+    Runtime::Mode& mode =
+      mode_stack.get_children().back()->as<Script::ModeAdapter>().get_object();
 
-    std::string render_fun = current_mode->render->to_string();
-    std::string update_fun = current_mode->update->to_string();
-    std::string init_fun = current_mode->init->to_string();
+    this->active_mode.mode_index = mode_stack.size() - 1;
+    this->active_mode.render_fun = mode.render->to_string();
+    this->active_mode.update_fun = mode.update->to_string();
+    this->active_mode.init_fun = mode.init->to_string();
 
+    if (pushed) this->lisple.call_fn(this->active_mode.init_fun, this->hook_args.init_args);
+  }
+
+  void Client::main_loop()
+  {
     auto l_events = Pixils::Script::FrameEventsAdapter::make_ref(events);
     auto l_ctx = Pixils::Script::RenderContextAdapter::make_ref(ctx);
 
-    Lisple::sptr_sobject_v init_args = {l_ctx};
-    Lisple::sptr_sobject_v update_args = {l_events, l_ctx};
-    Lisple::sptr_sobject_v render_args = {l_ctx};
+    SDL_Rect surface_rect{0, 0, ctx.buffer_dim.w, ctx.buffer_dim.h};
+    SDL_Event event;
 
-    lisple_runtime.call_fn(init_fun, init_args);
+    bool quit = false;
 
     while (!quit)
     {
@@ -76,32 +92,18 @@ namespace Pixils
 
       SDL_SetRenderDrawColor(ctx.renderer, 0x00, 0x00, 0x00, 0xff);
       SDL_RenderFillRect(ctx.renderer, &surface_rect);
-
       SDL_SetRenderDrawColor(ctx.renderer, 0xff, 0xff, 0xff, 0xff);
 
-      lisple_runtime.call_fn(update_fun, update_args);
+      this->lisple.call_fn(this->active_mode.update_fun, this->hook_args.update_args);
 
-      if (mode_stack.size() - 1 != current_mode_index)
+      if (static_cast<int>(mode_stack.size()) - 1 != this->active_mode.mode_index)
       {
-        current_mode =
-            &mode_stack.get_children().back()->as<Script::ModeAdapter>().get_object();
-
-        bool pushed = mode_stack.get_children().size() > current_mode_index + 1;
-
-        current_mode_index = mode_stack.get_children().size() - 1;
-
-        render_fun = current_mode->render->to_string();
-        update_fun = current_mode->update->to_string();
-        init_fun = current_mode->init->to_string();
-
-        if (pushed)
-          lisple_runtime.call_fn(init_fun, init_args);
+        this->activate_mode();
       }
 
-      lisple_runtime.call_fn(render_fun, render_args);
+      lisple.call_fn(this->active_mode.render_fun, this->hook_args.render_args);
 
       ctx.flush_buffer();
-
       ctx.finalize_frame();
 
       while (now() - frame_start < 25)
@@ -109,5 +111,4 @@ namespace Pixils
       }
     }
   }
-
 } // namespace Pixils
