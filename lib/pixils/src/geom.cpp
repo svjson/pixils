@@ -93,6 +93,22 @@ namespace Pixils
     return {x_new, y_new};
   }
 
+  Point Point::round() const
+  {
+    return Point(static_cast<int>(std::lround(this->x)),
+                 static_cast<int>(std::lround(this->y)));
+  }
+
+  int Point::round_x() const
+  {
+    return static_cast<int>(std::lround(this->x));
+  }
+
+  int Point::round_y() const
+  {
+    return static_cast<int>(std::lround(this->y));
+  }
+
   bool Point::operator==(const Point& other) const
   {
     return this->x == other.x && this->y == other.y;

@@ -14,6 +14,7 @@ namespace Pixils
 
     inline const std::string FN__DRAW_LINE_BANG = "line!";
     inline const std::string FN__DRAW_POLYGON_BANG = "polygon!";
+    inline const std::string FN__DRAW_RECT_BANG = "rect!";
     inline const std::string FN__USE_COLOR_BANG = "use-color!";
 
     namespace MapKey
@@ -29,6 +30,8 @@ namespace Pixils
       FUNC_DECL(DrawLineBang, draw_line);
       /*! @brief draw-polygon! function */
       FUNC_DECL(DrawPolygonBang, draw_polygon, draw_polygon_with_opts);
+      /*! @brief draw-rect! function */
+      FUNC_DECL(DrawRectBang, draw_rect_from_points);
       /*! @brief use-color! function */
       FUNC_DECL(UseColorBang, use_color);
     } // namespace Function

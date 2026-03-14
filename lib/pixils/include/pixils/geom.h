@@ -41,6 +41,11 @@ namespace Pixils
      */
     float euclidean_distance_to(const Point& other) const;
 
+    Point round() const;
+
+    int round_x() const;
+    int round_y() const;
+
     Point operator+(const Point& other) const;
     Point operator+(float term) const;
     Point plus(float x, float y) const;
