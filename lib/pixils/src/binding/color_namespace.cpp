@@ -53,12 +53,28 @@ namespace Pixils
         return std::make_shared<ColorAdapter>(std::move(color));
       }
 
+      /* WithAlpha - with-alpha */
+      FUNC_IMPL(WithAlpha, SIG((FN_ARGS((&HostType::COLOR), (&Lisple::Type::NUMBER)),
+                                EXEC_DISPATCH(&WithAlpha::with_alpha))));
+
+      FUNC_BODY(WithAlpha, with_alpha)
+      {
+        const Color& source = args[0]->as<ColorAdapter>().get_object();
+        int alpha = args[1]->as<Lisple::Number>().int_value();
+
+        std::unique_ptr<Color> color = std::make_unique<Color>(source);
+        color->a = alpha;
+
+        return std::make_shared<ColorAdapter>(std::move(color));
+      }
+
     } // namespace Function
 
     ColorNamespace::ColorNamespace()
         : Lisple::Namespace(NS__PIXILS__COLOR)
     {
       objects.emplace(FN__MAKE_COLOR, std::make_shared<Function::MakeColor>());
+      objects.emplace(FN__WITH_ALPHA, std::make_shared<Function::WithAlpha>());
     }
 
   } // namespace Script

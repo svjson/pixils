@@ -24,6 +24,11 @@ namespace Pixils
     inline const std::string FN__MAKE_COLOR = "make-color";
     inline const std::string FN__PIXILS__COLOR__MAKE_COLOR = "pixils.color/" + FN__MAKE_COLOR;
 
+    /*!
+     * @brief WithAlpha function name
+     */
+    inline const std::string FN__WITH_ALPHA = "with-alpha";
+
     namespace MapKey
     {
       DECL_SHKEY(A);
@@ -46,6 +51,10 @@ namespace Pixils
        * @brief Lisple Function that constructs a new instance of Color/ColorAdapter
        */
       FUNC_DECL(MakeColor, make_color);
+      /*!
+       * @brief Constructs a new color with new alpha channel value
+       */
+      FUNC_DECL(WithAlpha, with_alpha);
     } // namespace Function
 
     class ColorNamespace : public Lisple::Namespace
