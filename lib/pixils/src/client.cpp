@@ -85,11 +85,17 @@ namespace Pixils
       {
         current_mode =
             &mode_stack.get_children().back()->as<Script::ModeAdapter>().get_object();
+
+        bool pushed = mode_stack.get_children().size() > current_mode_index + 1;
+
         current_mode_index = mode_stack.get_children().size() - 1;
 
         render_fun = current_mode->render->to_string();
         update_fun = current_mode->update->to_string();
         init_fun = current_mode->init->to_string();
+
+        if (pushed)
+          lisple_runtime.call_fn(init_fun, init_args);
       }
 
       lisple_runtime.call_fn(render_fun, render_args);
