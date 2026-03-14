@@ -143,6 +143,12 @@ namespace Pixils
         const Point& top_left = args[0]->as<PointAdapter>().get_object();
         const Point& bottom_right = args[1]->as<PointAdapter>().get_object();
         const Lisple::Map& opts = args[2]->as<Lisple::Map>();
+        if (opts.get_sptr_property(*MapKey::COLOR)->is_truthy())
+        {
+          const Color& color =
+              opts.get_sptr_property(*MapKey::COLOR)->as<ColorAdapter>().get_object();
+          SDL_SetRenderDrawColor(rc.renderer, color.r, color.g, color.b, color.a);
+        }
 
         const Point wh = bottom_right - top_left;
 
