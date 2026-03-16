@@ -156,12 +156,10 @@ namespace Pixils::Script
 
         if (close_shape)
         {
-          pts.push_back(polygon->get_children()
-                          .front()
-                          ->as<PointAdapter>()
-                          .get_object()
-                          .rotate(POINT__ZERO_ZERO, rotation)
-                          .plus(offset.x, offset.y));
+          pts.push_back(
+            (polygon->get_children().front()->as<PointAdapter>().get_object() * scale)
+              .rotate(POINT__ZERO_ZERO, rotation)
+              .plus(offset.x, offset.y));
         }
 
         for (size_t i = 0; i < pts.size() - 1; i++)

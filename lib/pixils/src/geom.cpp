@@ -13,9 +13,15 @@ namespace Pixils
   const Point POINT__ZERO_ZERO(0, 0);
 
   /* Point */
+  Point::Point(int x, int y)
+    : x(x)
+    , y(y)
+  {
+  }
+
   Point::Point(float x, float y)
-      : x(x)
-      , y(y)
+    : x(x)
+    , y(y)
   {
   }
 
@@ -72,8 +78,7 @@ namespace Pixils
 
   Point Point::rotate(const Point& origin, float amount) const
   {
-    if (amount == 0.0)
-      return *this;
+    if (amount == 0.0) return *this;
 
     float s = std::sin(amount);
     float c = std::cos(amount);
@@ -177,7 +182,9 @@ namespace Pixils
 
   Rect expand_rect(const Rect* rect, int x_amount, int y_amount)
   {
-    return {rect->x - x_amount, rect->y - y_amount, rect->w + 2 * x_amount,
+    return {rect->x - x_amount,
+            rect->y - y_amount,
+            rect->w + 2 * x_amount,
             rect->h + 2 * y_amount};
   }
 
@@ -188,14 +195,16 @@ namespace Pixils
 
   Rect shrink_rect(const Rect& rect, int x_amount, int y_amount)
   {
-    return {rect.x + x_amount, rect.y + y_amount, rect.w - 2 * x_amount,
+    return {rect.x + x_amount,
+            rect.y + y_amount,
+            rect.w - 2 * x_amount,
             rect.h - 2 * y_amount};
   }
 
   /* Dimension */
   Dimension::Dimension(int w, int h)
-      : w(w)
-      , h(h)
+    : w(w)
+    , h(h)
   {
   }
 
@@ -212,7 +221,9 @@ namespace Pixils
   Rect trunc_rect(const Rect& rect, const Rect& limit)
   {
     Rect result{std::max(limit.x, std::min(rect.x, limit.x + limit.w - 1)),
-                std::max(limit.y, std::min(rect.y, limit.y + limit.h - 1)), 0, 0};
+                std::max(limit.y, std::min(rect.y, limit.y + limit.h - 1)),
+                0,
+                0};
 
     // Calculate the maximum possible width within the limit
     int maxWidth = std::min(limit.x + limit.w, rect.x + rect.w) - result.x;

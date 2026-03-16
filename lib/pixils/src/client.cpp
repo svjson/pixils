@@ -1,4 +1,5 @@
 
+#include "pixils/console.h"
 #include <pixils/binding/pixils_namespace.h>
 #include <pixils/client.h>
 #include <pixils/context.h>
@@ -31,6 +32,14 @@ namespace Pixils
   {
     ctx.asset_registry = &assets;
     this->mode_stack.append(Script::ModeAdapter::make_ref(root_mode));
+
+    ctx.asset_registry->load("pixils",
+                             {.images = {{"console-font", "assets/console_font.png"}}});
+
+    this->console = std::make_unique<ConsoleOverlay>(
+      ctx,
+      lisple,
+      ctx.asset_registry->get_image("pixils", "console-font"));
   }
 
   void Client::run()
@@ -66,7 +75,7 @@ namespace Pixils
     auto l_events = Pixils::Script::FrameEventsAdapter::make_ref(events);
     auto l_ctx = Pixils::Script::RenderContextAdapter::make_ref(ctx);
 
-    SDL_Rect surface_rect{0, 0, ctx.buffer_dim.w, ctx.buffer_dim.h};
+    //    SDL_Rect surface_rect{0, 0, ctx.buffer_dim.w, ctx.buffer_dim.h};
     SDL_Event event;
 
     bool quit = false;
@@ -75,8 +84,8 @@ namespace Pixils
     {
       long long frame_start = now();
 
-      surface_rect.w = ctx.buffer_dim.w;
-      surface_rect.h = ctx.buffer_dim.h;
+      // surface_rect.w = ctx.buffer_dim.w;
+      // surface_rect.h = ctx.buffer_dim.h;
       ctx.prepare_frame();
 
       events.key_down = Lisple::NIL;
@@ -89,16 +98,17 @@ namespace Pixils
           quit = true;
           break;
         case SDL_KEYDOWN:
-          events.do_key_down(event.key);
+          handle_keydown(event.key);
           break;
         case SDL_KEYUP:
-          events.do_key_up(event.key);
+          handle_keyup(event.key);
           break;
         }
       }
 
+      SDL_SetRenderDrawBlendMode(ctx.renderer, SDL_BLENDMODE_NONE);
       SDL_SetRenderDrawColor(ctx.renderer, 0x00, 0x00, 0x00, 0xff);
-      SDL_RenderFillRect(ctx.renderer, &surface_rect);
+      SDL_RenderClear(ctx.renderer);
       SDL_SetRenderDrawColor(ctx.renderer, 0xff, 0xff, 0xff, 0xff);
 
       this->lisple.call_fn(this->active_mode.update_fun, this->hook_args.update_args);
@@ -111,11 +121,61 @@ namespace Pixils
       lisple.call_fn(this->active_mode.render_fun, this->hook_args.render_args);
 
       ctx.flush_buffer();
+
+      if (console->get_open_state() == ConsoleOverlay::State::OPEN ||
+          console->get_open_state() == ConsoleOverlay::OPENING ||
+          console->get_open_state() == ConsoleOverlay::State::CLOSING)
+      {
+        SDL_SetRenderTarget(ctx.renderer, nullptr);
+        console->set_window_size(
+          {ctx.window_rect.x, ctx.window_rect.y, ctx.window_rect.w, ctx.window_rect.h});
+        console->tick();
+        console->render(ctx);
+      }
+
+      ctx.clear_buffer();
+
+      ctx.flush_buffer();
       ctx.finalize_frame();
 
       while (now() - frame_start < 25)
       {
       }
     }
+  }
+
+  void Client::handle_keydown(SDL_KeyboardEvent& key_event)
+  {
+    switch (key_event.keysym.sym)
+    {
+    case SDLK_F10:
+      if (this->console->get_open_state() == ConsoleOverlay::State::CLOSED ||
+          this->console->get_open_state() == ConsoleOverlay::State::CLOSING)
+      {
+        this->console->open();
+      }
+      else
+      {
+        this->console->close();
+      }
+      break;
+    default:
+      if (this->console->get_open_state() == ConsoleOverlay::State::OPEN ||
+          this->console->get_open_state() == ConsoleOverlay::State::CLOSING)
+      {
+        this->console->on_keydown(key_event);
+      }
+      else
+      {
+        events.do_key_down(key_event);
+      }
+      break;
+    }
+  }
+
+  void Client::handle_keyup(SDL_KeyboardEvent& key_event)
+  {
+
+    events.do_key_up(key_event);
   }
 } // namespace Pixils

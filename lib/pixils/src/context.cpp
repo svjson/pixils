@@ -22,7 +22,6 @@ namespace Pixils
   void RenderContext::prepare_frame()
   {
     SDL_GetWindowSize(window, &window_rect.w, &window_rect.h);
-
     SDL_SetRenderTarget(renderer, nullptr);
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0xff);
     SDL_RenderClear(renderer);
@@ -57,9 +56,11 @@ namespace Pixils
 
   void RenderContext::create_and_target_buffer()
   {
-    this->buffer_texture =
-        SDL_CreateTexture(this->renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET,
-                          buffer_dim.w, buffer_dim.h);
+    this->buffer_texture = SDL_CreateTexture(this->renderer,
+                                             SDL_PIXELFORMAT_RGBA8888,
+                                             SDL_TEXTUREACCESS_TARGET,
+                                             buffer_dim.w,
+                                             buffer_dim.h);
     SDL_SetTextureBlendMode(buffer_texture, SDL_BLENDMODE_BLEND);
     SDL_SetRenderTarget(this->renderer, this->buffer_texture);
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);

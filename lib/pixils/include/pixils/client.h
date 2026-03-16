@@ -2,6 +2,7 @@
 #ifndef __PIXILS__CLIENT_H_
 #define __PIXILS__CLIENT_H_
 
+#include "pixils/console.h"
 #include <pixils/asset/registry.h>
 #include <pixils/frame_events.h>
 
@@ -58,6 +59,10 @@ namespace Pixils
 
     HookArguments hook_args;
 
+    Asset::Bundle client_bundle;
+
+    std::unique_ptr<ConsoleOverlay> console = nullptr;
+
    public:
     Client(Lisple::Runtime& lisple_runtime, RenderContext& ctx, Runtime::Mode& root_mode);
 
@@ -67,6 +72,9 @@ namespace Pixils
     void main_loop();
 
     void activate_mode();
+
+    void handle_keydown(SDL_KeyboardEvent& event);
+    void handle_keyup(SDL_KeyboardEvent& event);
   };
 
 } // namespace Pixils

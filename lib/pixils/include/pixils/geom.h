@@ -27,6 +27,10 @@ namespace Pixils
     /*!
      * @brief Creates a point with the value of x and y
      */
+    Point(int x, int y);
+    /*!
+     * @brief Creates a point with the value of x and y
+     */
     Point(float x, float y);
 
     /*!
