@@ -39,12 +39,12 @@ namespace Pixils
 
   struct HookArguments
   {
-    Lisple::sptr_sobject events;
-    Lisple::sptr_sobject ctx;
+    Lisple::sptr_rtval events;
+    Lisple::sptr_rtval ctx;
 
-    Lisple::sptr_sobject_v init_args = {ctx};
-    Lisple::sptr_sobject_v update_args = {events, ctx};
-    Lisple::sptr_sobject_v render_args = {ctx};
+    Lisple::sptr_rtval_v init_args = {ctx};
+    Lisple::sptr_rtval_v update_args = {events, ctx};
+    Lisple::sptr_rtval_v render_args = {ctx};
   };
 
   class Client

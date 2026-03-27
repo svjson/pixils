@@ -1,6 +1,3 @@
-// #include "sdl.h"
-// #include "textures.h"
-// #include "widgets.h"
 #include <pixils/console.h>
 #include <pixils/context.h>
 #include <pixils/geom.h>

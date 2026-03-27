@@ -44,18 +44,17 @@ namespace Pixils::Script
   namespace Function
   {
     /*! @brief Lisple Function that constructs a new instance of Point/PointAdapter */
-    FUNC_DECL(MakePoint, make_point_from_ints, make_point_from_map);
+    FUNC(MakePoint, point_from_ints, point_from_map);
     /*! @brief Divide point values  */
-    FUNC_DECL(PointDivision, divide_num);
+    FUNC(PointDivision, divide_num);
     /*! @brief Combines two points using addition */
-    FUNC_DECL(PointPlus, plus);
+    FUNC(PointPlus, plus);
     /*! @brief Combines two points using subtraction  */
-    FUNC_DECL(PointMinus, minus);
+    FUNC(PointMinus, minus);
     /*! @brief Distance between */
-    FUNC_DECL(DistanceBetween, distance_between_points);
+    FUNC(DistanceBetween, distance);
     /*! @brief Rotate point around point */
-    FUNC_DECL(RotatePoint, rotate_point_orig_amount, rotate_point_amount,
-              rotate_point_with_opts);
+    FUNC(RotatePoint, orig_amount, amount, with_opts);
   } // namespace Function
 
   /*! @brief PointAdapter - A Lisple HostObject Adapter for Point */
@@ -63,7 +62,7 @@ namespace Pixils::Script
 
   class PointNamespace : public Lisple::Namespace
   {
-  public:
+   public:
     PointNamespace();
   };
 } // namespace Pixils::Script

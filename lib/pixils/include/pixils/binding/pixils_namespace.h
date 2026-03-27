@@ -58,7 +58,7 @@ namespace Pixils::Script
     /*! @brief Lisple make-function for Mode/ModeAdapter */
     FUNC_DECL(MakeMode, make);
     /*! @brief Lisple make-function for Dimension/DimensionAdapter */
-    FUNC_DECL(MakeDimension, make);
+    FUNC(MakeDimension, make);
     /*! @brief Push active mode */
     FUNC_DECL(PushModeBangFunction, push_mode);
     /*! @brief Pop active mode */
@@ -76,7 +76,7 @@ namespace Pixils::Script
 
   class PixilsNamespace : public Lisple::Namespace
   {
-  public:
+   public:
     PixilsNamespace(const RenderContext& render_context);
   };
 

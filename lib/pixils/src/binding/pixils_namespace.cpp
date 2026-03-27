@@ -9,6 +9,7 @@
 #include <SDL2/SDL_render.h>
 #include <lisple/exec.h>
 #include <lisple/host.h>
+#include <lisple/host/schema.h>
 
 namespace Pixils::Script
 {
@@ -31,8 +32,8 @@ namespace Pixils::Script
   {
     /* DefModeMacro - defmode */
     MACRO_IMPL(DefModeMacro,
-               SIG((FN_ARGS((&Lisple::Type::WORD, Lisple::NO_EVAL),
-                            (&HostType::MODE, Lisple::NO_EVAL)),
+               SIG((FN_ARGS((&Lisple::Type::WORD, &Lisple::Eval::LITERAL),
+                            (&HostType::MODE, &Lisple::Eval::LITERAL)),
                     EXEC_DISPATCH(&DefModeMacro::declare_mode))));
 
     MACRO_BODY(DefModeMacro, declare_mode)
@@ -81,27 +82,27 @@ namespace Pixils::Script
 
     /* Dimension make function */
     FUNC_IMPL(MakeDimension,
-              SIG((FN_ARGS((&Lisple::Type::MAP)), EXEC_DISPATCH(&MakeDimension::make))))
+              SIG((FN_ARGS((&Lisple::Type::MAP)), EXEC_DISPATCH(&MakeDimension::exec_make))))
 
-    ArgCollector dimension_collector(FN__MAKE_DIMENSION,
-                                     {{*MapKey::W, &Lisple::Type::NUMBER},
-                                      {*MapKey::H, &Lisple::Type::NUMBER}});
+    Lisple::MapSchema dimension_schema({{MapKey::W->value, &Lisple::Type::NUMBER},
+                                        {MapKey::H->value, &Lisple::Type::NUMBER}});
 
-    FUNC_BODY(MakeDimension, make)
+    EXEC_BODY(MakeDimension, exec_make)
     {
-      str_key_map_t keys = dimension_collector.collect_keys(ctx, *args.front());
-      return DimensionAdapter::make<Dimension>(ArgCollector::int_value(keys, *MapKey::W),
-                                               ArgCollector::int_value(keys, *MapKey::H));
+      auto opts = dimension_schema.bind(ctx, *args[0]);
+      return Lisple::RTValue::object(
+        DimensionAdapter::make<Dimension>(opts.i32(MapKey::W->value),
+                                          opts.i32(MapKey::H->value)));
     }
 
     /* PushModeBangFunction - push-mode! */
     FUNC_IMPL(PushModeBangFunction,
-              SIG((FN_ARGS((&Lisple::Type::SYMBOL)),
+              SIG((FN_ARGS((&Lisple::Type::SYMBOL_VALUE)),
                    EXEC_DISPATCH(&PushModeBangFunction::push_mode))));
 
     FUNC_BODY(PushModeBangFunction, push_mode)
     {
-      Lisple::QSymbol& mode_name = args.front()->as<Lisple::QSymbol>();
+      auto& mode_name = args.front()->as<Lisple::Value<std::string>>();
       Lisple::Map& modes = ctx.lookup(ID__PIXILS__MODES)->as<Lisple::Map>();
       Lisple::Array& mode_stack = ctx.lookup(ID__PIXILS__MODE_STACK)->as<Lisple::Array>();
 

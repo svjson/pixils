@@ -26,11 +26,11 @@ namespace Pixils::Script
   namespace Function
   {
     /*! @brief draw-image! function */
-    FUNC_DECL(DrawImageBang, draw_img);
+    FUNC(DrawImageBang, draw_img);
     /*! @brief draw-line! function */
-    FUNC_DECL(DrawLineBang, draw_line);
+    FUNC(DrawLineBang, draw_line);
     /*! @brief draw-polygon! function */
-    FUNC_DECL(DrawPolygonBang, draw_polygon, draw_polygon_with_opts);
+    FUNC(DrawPolygonBang, polygon, polygon_with_opts);
     /*! @brief draw-rect! function */
     FUNC_DECL(DrawRectBang, draw_rect_from_points);
     /*! @brief use-color! function */

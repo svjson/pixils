@@ -27,8 +27,9 @@ namespace Pixils
     , ctx(ctx)
     , assets(ctx)
     , mode_stack(lisple.lookup(Script::ID__PIXILS__MODE_STACK)->as<Lisple::Array>())
-    , hook_args({Pixils::Script::FrameEventsAdapter::make_ref(this->events),
-                 Pixils::Script::RenderContextAdapter::make_ref(this->ctx)})
+    , hook_args(
+        {Lisple::RTValue::object(Pixils::Script::FrameEventsAdapter::make_ref(this->events)),
+         Lisple::RTValue::object(Pixils::Script::RenderContextAdapter::make_ref(this->ctx))})
   {
     ctx.asset_registry = &assets;
     this->mode_stack.append(Script::ModeAdapter::make_ref(root_mode));
@@ -67,7 +68,7 @@ namespace Pixils
     this->active_mode.update_fun = mode.update->to_string();
     this->active_mode.init_fun = mode.init->to_string();
 
-    if (pushed) this->lisple.call_fn(this->active_mode.init_fun, this->hook_args.init_args);
+    if (pushed) this->lisple.invoke(this->active_mode.init_fun, this->hook_args.init_args);
   }
 
   void Client::main_loop()
@@ -111,14 +112,14 @@ namespace Pixils
       SDL_RenderClear(ctx.renderer);
       SDL_SetRenderDrawColor(ctx.renderer, 0xff, 0xff, 0xff, 0xff);
 
-      this->lisple.call_fn(this->active_mode.update_fun, this->hook_args.update_args);
+      this->lisple.invoke(this->active_mode.update_fun, this->hook_args.update_args);
 
       if (static_cast<int>(mode_stack.size()) - 1 != this->active_mode.mode_index)
       {
         this->activate_mode();
       }
 
-      lisple.call_fn(this->active_mode.render_fun, this->hook_args.render_args);
+      lisple.invoke(this->active_mode.render_fun, this->hook_args.render_args);
 
       ctx.flush_buffer();
 

@@ -21,7 +21,8 @@ namespace Pixils::Script
    * @brief MakeColor function name
    */
   inline constexpr std::string_view FN__MAKE_COLOR = "make-color";
-  inline constexpr std::string_view FN__PIXILS__COLOR__MAKE_COLOR = "pixils.color/make-color";
+  inline constexpr std::string_view FN__PIXILS__COLOR__MAKE_COLOR =
+    "pixils.color/make-color";
 
   /*!
    * @brief WithAlpha function name
@@ -49,16 +50,16 @@ namespace Pixils::Script
     /*!
      * @brief Lisple Function that constructs a new instance of Color/ColorAdapter
      */
-    FUNC_DECL(MakeColor, make_color);
+    FUNC(MakeColor, make_color);
     /*!
      * @brief Constructs a new color with new alpha channel value
      */
-    FUNC_DECL(WithAlpha, with_alpha);
+    FUNC(WithAlpha, with_alpha);
   } // namespace Function
 
   class ColorNamespace : public Lisple::Namespace
   {
-  public:
+   public:
     ColorNamespace();
   };
 } // namespace Pixils::Script

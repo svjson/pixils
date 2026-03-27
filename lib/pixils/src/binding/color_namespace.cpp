@@ -3,6 +3,8 @@
 #include <pixils/binding/color_namespace.h>
 
 #include <lisple/host.h>
+#include <lisple/host/object.h>
+#include <lisple/host/schema.h>
 #include <lisple/namespace.h>
 
 namespace Pixils::Script
@@ -16,10 +18,13 @@ namespace Pixils::Script
   } // namespace MapKey
 
   /* ColorAdapter */
-  HOST_ADAPTER_IMPL(
-      ColorAdapter, Color, &HostType::COLOR,
-      ({K_GET_SET(ColorAdapter, MapKey::R, r), K_GET_SET(ColorAdapter, MapKey::G, g),
-        K_GET_SET(ColorAdapter, MapKey::B, b), K_GET_SET(ColorAdapter, MapKey::A, a)}));
+  HOST_ADAPTER_IMPL(ColorAdapter,
+                    Color,
+                    &HostType::COLOR,
+                    ({K_GET_SET(ColorAdapter, MapKey::R, r),
+                      K_GET_SET(ColorAdapter, MapKey::G, g),
+                      K_GET_SET(ColorAdapter, MapKey::B, b),
+                      K_GET_SET(ColorAdapter, MapKey::A, a)}));
 
   ADAPTER_PROP_GET_SET__FIELD(ColorAdapter, r, Lisple::Number);
   ADAPTER_PROP_GET_SET__FIELD(ColorAdapter, g, Lisple::Number);
@@ -30,48 +35,48 @@ namespace Pixils::Script
   {
     /* ColorAdapter make function */
     FUNC_IMPL(MakeColor,
-              SIG((FN_ARGS((&Lisple::Type::MAP)), EXEC_DISPATCH(&MakeColor::make_color))));
+              SIG((FN_ARGS((&Lisple::Type::MAP)),
+                   EXEC_DISPATCH(&MakeColor::exec_make_color))));
 
-    ArgCollector color_collector(std::string(FN__MAKE_COLOR),
-                                 {{*MapKey::R, &Lisple::Type::NUMBER},
-                                  {*MapKey::G, &Lisple::Type::NUMBER},
-                                  {*MapKey::B, &Lisple::Type::NUMBER}},
-                                 {{*MapKey::A, &Lisple::Type::NUMBER}});
+    Lisple::MapSchema color_schema({{"r", &Lisple::Type::NUMBER},
+                                    {"g", &Lisple::Type::NUMBER},
+                                    {"b", &Lisple::Type::NUMBER}},
+                                   {{"a", &Lisple::Type::NUMBER}});
 
-    FUNC_BODY(MakeColor, make_color)
+    EXEC_BODY(MakeColor, exec_make_color)
     {
-      str_key_map_t keys = color_collector.collect_keys(*args.front());
+      auto input = color_schema.bind(ctx, *args[0]);
 
       std::unique_ptr<Color> color = std::make_unique<Color>();
-      color->r = ArgCollector::uint8_value(keys, *MapKey::R);
-      color->g = ArgCollector::uint8_value(keys, *MapKey::G);
-      color->b = ArgCollector::uint8_value(keys, *MapKey::B);
-      color->a = ArgCollector::uint8_value(keys, *MapKey::A, 0xff);
+      color->r = input.ui8("r");
+      color->g = input.ui8("g");
+      color->b = input.ui8("b");
+      color->a = input.ui8("a", 0xff);
 
-      return std::make_shared<ColorAdapter>(std::move(color));
+      return Lisple::RTValue::object(std::make_shared<ColorAdapter>(std::move(color)));
     }
 
     /* WithAlpha - with-alpha */
-    FUNC_IMPL(WithAlpha, SIG((FN_ARGS((&HostType::COLOR), (&Lisple::Type::NUMBER)),
-                              EXEC_DISPATCH(&WithAlpha::with_alpha))));
+    FUNC_IMPL(WithAlpha,
+              SIG((FN_ARGS((&HostType::COLOR), (&Lisple::Type::NUMBER)),
+                   EXEC_DISPATCH(&WithAlpha::exec_with_alpha))));
 
-    FUNC_BODY(WithAlpha, with_alpha)
+    EXEC_BODY(WithAlpha, exec_with_alpha)
     {
-      const Color& source = args[0]->as<ColorAdapter>().get_object();
-      int alpha = args[1]->as<Lisple::Number>().int_value();
+      const Color& source = Lisple::obj<Color>(*args[0]);
 
       std::unique_ptr<Color> color = std::make_unique<Color>(source);
-      color->a = alpha;
+      color->a = args[1]->ui8();
 
-      return std::make_shared<ColorAdapter>(std::move(color));
+      return Lisple::RTValue::object(std::make_shared<ColorAdapter>(std::move(color)));
     }
 
   } // namespace Function
 
   ColorNamespace::ColorNamespace()
-      : Lisple::Namespace(std::string(NS__PIXILS__COLOR))
+    : Lisple::Namespace(std::string(NS__PIXILS__COLOR))
   {
-    objects.emplace(FN__MAKE_COLOR, std::make_shared<Function::MakeColor>());
+    values.emplace(FN__MAKE_COLOR, Function::MakeColor::make());
     objects.emplace(FN__WITH_ALPHA, std::make_shared<Function::WithAlpha>());
   }
 

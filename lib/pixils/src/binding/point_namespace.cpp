@@ -4,6 +4,8 @@
 #include <pixils/geom.h>
 
 #include <lisple/exception.h>
+#include <lisple/host/object.h>
+#include <lisple/host/schema.h>
 
 namespace Pixils::Script
 {
@@ -19,135 +21,132 @@ namespace Pixils::Script
   namespace Function
   {
     /* Point make-function */
-    FUNC_IMPL(MakePoint, MULTI_SIG((FN_ARGS((&Lisple::Type::NUMBER), (&Lisple::Type::NUMBER)),
-                                    EXEC_DISPATCH(&MakePoint::make_point_from_ints)),
-                                   (FN_ARGS((&Lisple::Type::MAP)),
-                                    EXEC_DISPATCH(&MakePoint::make_point_from_map))));
+    FUNC_IMPL(MakePoint,
+              MULTI_SIG((FN_ARGS((&Lisple::Type::NUMBER), (&Lisple::Type::NUMBER)),
+                         EXEC_DISPATCH(&MakePoint::exec_point_from_ints)),
+                        (FN_ARGS((&Lisple::Type::MAP)),
+                         EXEC_DISPATCH(&MakePoint::exec_point_from_map))));
 
-    ArgCollector point_collector(std::string(FN__MAKE_POINT),
-                                 {{*MapKey::X, &Lisple::Type::NUMBER},
-                                  {*MapKey::Y, &Lisple::Type::NUMBER}});
+    Lisple::MapSchema point_schema({{"x", &Lisple::Type::NUMBER},
+                                    {"y", &Lisple::Type::NUMBER}});
 
-    Point unbox_point(Lisple::Context& ctx, Lisple::sptr_sobject& obj)
+    EXEC_BODY(MakePoint, exec_point_from_map)
     {
-      if (HostType::POINT.is_type_of(*obj))
-      {
-        return obj->as<PointAdapter>().get_object();
-      }
-      else if (Lisple::Type::MAP.is_type_of(*obj))
-      {
-        return ctx.call(FN__PIXILS__POINT__MAKE_POINT, obj)->as<PointAdapter>().get_object();
-      }
-      else
-      {
-        throw Lisple::TypeError("Cannot be interpereted as Point: " + obj->to_string());
-      }
-    }
-
-    FUNC_BODY(MakePoint, make_point_from_map)
-    {
-      if (*args[0] == *Lisple::NIL)
+      if (*args[0] == *Lisple::Constant::NIL)
       {
         throw Lisple::TypeError("Cannot create Point from nil");
       }
-      str_key_map_t keys = point_collector.collect_keys(*args.front());
-      return PointAdapter::make<Point>(ArgCollector::float_value(keys, *MapKey::X),
-                                       ArgCollector::float_value(keys, *MapKey::Y));
+
+      auto input = point_schema.bind(ctx, *args[0]);
+      return Lisple::RTValue::object(
+        PointAdapter::make<Point>(input.f32("x"), input.f32("y")));
     }
 
-    FUNC_BODY(MakePoint, make_point_from_ints)
+    EXEC_BODY(MakePoint, exec_point_from_ints)
     {
-      return PointAdapter::make<Point>(Lisple::int_val(*args.at(0)),
-                                       Lisple::int_val(*args.at(1)));
+      return Lisple::RTValue::object(
+        PointAdapter::make<Point>(args.at(0)->f32(), args.at(1)->f32()));
     }
 
     /* Distance Between - distance-between */
-    FUNC_IMPL(DistanceBetween, SIG((FN_ARGS((&HostType::POINT), (&HostType::POINT)),
-                                    EXEC_DISPATCH(&DistanceBetween::distance_between_points))))
+    FUNC_IMPL(DistanceBetween,
+              SIG((FN_ARGS((&HostType::POINT), (&HostType::POINT)),
+                   EXEC_DISPATCH(&DistanceBetween::exec_distance))))
 
-    FUNC_BODY(DistanceBetween, distance_between_points)
+    EXEC_BODY(DistanceBetween, exec_distance)
     {
-      const Point& a = args[0]->as<PointAdapter>().get_object();
-      const Point& b = args[1]->as<PointAdapter>().get_object();
+      const Point& a = Lisple::obj<Point>(*args[0]);
+      const Point& b = Lisple::obj<Point>(*args[1]);
 
-      return Lisple::Number::make(a.distance_to(b));
+      return Lisple::RTValue::number(a.distance_to(b));
     }
 
     /* Rotate Point - rotate-point */
-    FUNC_IMPL(RotatePoint, MULTI_SIG((FN_ARGS((&HostType::POINT), (&HostType::POINT),
-                                              (&Lisple::Type::NUMBER)),
-                                      EXEC_DISPATCH(&RotatePoint::rotate_point_orig_amount)),
-                                     (FN_ARGS((&HostType::POINT), (&Lisple::Type::NUMBER)),
-                                      EXEC_DISPATCH(&RotatePoint::rotate_point_amount)),
-                                     (FN_ARGS((&HostType::POINT), (&Lisple::Type::MAP)),
-                                      EXEC_DISPATCH(&RotatePoint::rotate_point_with_opts))))
+    FUNC_IMPL(
+      RotatePoint,
+      MULTI_SIG((FN_ARGS((&HostType::POINT), (&HostType::POINT), (&Lisple::Type::NUMBER)),
+                 EXEC_DISPATCH(&RotatePoint::exec_orig_amount)),
+                (FN_ARGS((&HostType::POINT), (&Lisple::Type::NUMBER)),
+                 EXEC_DISPATCH(&RotatePoint::exec_amount)),
+                (FN_ARGS((&HostType::POINT), (&Lisple::Type::MAP)),
+                 EXEC_DISPATCH(&RotatePoint::exec_with_opts))))
 
-    ArgCollector rotate_opts_collector(std::string(FN__ROTATE), {},
-                                       {{*MapKey::ORIGIN, &HostType::POINT},
-                                        {*MapKey::RADIANS, &Lisple::Type::NUMBER}});
+    Lisple::MapSchema rotate_opts_schema({},
+                                         {{"origin", &HostType::POINT},
+                                          {"radians", &Lisple::Type::NUMBER}});
 
-    FUNC_BODY(RotatePoint, rotate_point_with_opts)
+    EXEC_BODY(RotatePoint, exec_with_opts)
     {
-      const Point& point = args[0]->as<PointAdapter>().get_object();
-      str_key_map_t keys = rotate_opts_collector.collect_keys(ctx, *args[1]);
+      const Point& point = Lisple::obj<Point>(*args[0]);
+      auto map = rotate_opts_schema.bind(ctx, *args[1]);
 
-      return PointAdapter::make<Point>(point.rotate(
-          keys.count(MapKey::ORIGIN->value) ? ArgCollector::coerce_host_object<Point>(
-                                                  ctx, keys, *MapKey::ORIGIN, &HostType::POINT)
-                                            : POINT__ZERO_ZERO,
-          ArgCollector::float_value(keys, *MapKey::RADIANS, 0.0)));
+      return Lisple::RTValue::object(PointAdapter::make<Point>(
+        point.rotate(map.obj<Point>("origin", POINT__ZERO_ZERO), map.f32("radians", 0.0f))));
     }
 
-    FUNC_BODY(RotatePoint, rotate_point_amount)
+    EXEC_BODY(RotatePoint, exec_amount)
     {
-      Lisple::sptr_sobject_v fwd_args = args;
-      fwd_args[1] = Lisple::Map::make({MapKey::RADIANS, args[1]});
-      return this->rotate_point_with_opts(ctx, fwd_args);
+      ;
+      Lisple::sptr_rtval_v fwd_args = {
+        args[0],
+        Lisple::RTValue::map({Lisple::RTValue::keyword("radians"), args[1]})};
+
+      return this->exec_with_opts(ctx, fwd_args);
     }
 
-    FUNC_BODY(RotatePoint, rotate_point_orig_amount)
+    EXEC_BODY(RotatePoint, exec_orig_amount)
     {
-      Lisple::sptr_sobject_v fwd_args = args;
-      fwd_args[1] = Lisple::Map::make({MapKey::ORIGIN, args[1], MapKey::RADIANS, args[2]});
-      return this->rotate_point_with_opts(ctx, fwd_args);
+      Lisple::sptr_rtval_v fwd_args = {
+        args[0],
+        Lisple::RTValue::map({Lisple::RTValue::keyword("origin"),
+                              args[1],
+                              Lisple::RTValue::keyword("amount"),
+                              args[2]})};
+
+      return this->exec_with_opts(ctx, fwd_args);
     }
 
     /* PointDivision */
-    FUNC_IMPL(PointDivision, SIG((FN_ARGS((&HostType::POINT), (&Lisple::Type::NUMBER)),
-                                  EXEC_DISPATCH(&PointDivision::divide_num))));
+    FUNC_IMPL(PointDivision,
+              SIG((FN_ARGS((&HostType::POINT), (&Lisple::Type::NUMBER)),
+                   EXEC_DISPATCH(&PointDivision::exec_divide_num))));
 
-    FUNC_BODY(PointDivision, divide_num)
+    EXEC_BODY(PointDivision, exec_divide_num)
     {
-      const Point& coord = args.front()->as<PointAdapter>().get_object();
-      const float n = args.back()->as<Lisple::Number>().float_value();
+      const Point& coord = Lisple::obj<Point>(*args.front());
+      const float n = args.back()->f32();
 
-      return PointAdapter::make<Point>(coord.x / n, coord.y / n);
+      return Lisple::RTValue::object(PointAdapter::make<Point>(coord.x / n, coord.y / n));
     }
 
     /* PointPlus */
-    FUNC_IMPL(PointPlus, SIG((FN_ARGS((&HostType::POINT), (&HostType::POINT)),
-                              EXEC_DISPATCH(&PointPlus::plus))));
+    FUNC_IMPL(PointPlus,
+              SIG((FN_ARGS((&HostType::POINT), (&HostType::POINT)),
+                   EXEC_DISPATCH(&PointPlus::exec_plus))));
 
-    FUNC_BODY(PointPlus, plus)
+    EXEC_BODY(PointPlus, exec_plus)
     {
-      return PointAdapter::make<Point>(args.front()->as<PointAdapter>().get_object() +
-                                       args.back()->as<PointAdapter>().get_object());
+      return Lisple::RTValue::object(PointAdapter::make<Point>(
+        Lisple::obj<Point>(*args.front()) + Lisple::obj<Point>(*args.back())));
     }
 
     /* PointMinus */
-    FUNC_IMPL(PointMinus, SIG((FN_ARGS((&HostType::POINT), (&HostType::POINT)),
-                               EXEC_DISPATCH(&PointMinus::minus))));
+    FUNC_IMPL(PointMinus,
+              SIG((FN_ARGS((&HostType::POINT), (&HostType::POINT)),
+                   EXEC_DISPATCH(&PointMinus::exec_minus))));
 
-    FUNC_BODY(PointMinus, minus)
+    EXEC_BODY(PointMinus, exec_minus)
     {
-      return PointAdapter::make<Point>(args.front()->as<PointAdapter>().get_object() -
-                                       args.back()->as<PointAdapter>().get_object());
+      return Lisple::RTValue::object(PointAdapter::make<Point>(
+        Lisple::obj<Point>(*args.front()) - Lisple::obj<Point>(*args.back())));
     }
 
   } // namespace Function
 
   /* PointAdapter */
-  HOST_ADAPTER_IMPL(PointAdapter, Point, &HostType::POINT,
+  HOST_ADAPTER_IMPL(PointAdapter,
+                    Point,
+                    &HostType::POINT,
                     ({K_GET_SET(PointAdapter, MapKey::X, x),
                       K_GET_SET(PointAdapter, MapKey::Y, y)}));
 
@@ -155,14 +154,14 @@ namespace Pixils::Script
   ADAPTER_PROP_GET_SET__FIELD(PointAdapter, y, Lisple::Number, y);
 
   PointNamespace::PointNamespace()
-      : Lisple::Namespace(std::string(NS__PIXILS__POINT))
+    : Lisple::Namespace(std::string(NS__PIXILS__POINT))
   {
-    objects.emplace(FN__DISTANCE, std::make_shared<Function::DistanceBetween>());
-    objects.emplace(FN__DIVIDE, std::make_shared<Function::PointDivision>());
-    objects.emplace(FN__MAKE_POINT, std::make_shared<Function::MakePoint>());
-    objects.emplace(FN__MINUS, std::make_shared<Function::PointMinus>());
-    objects.emplace(FN__PLUS, std::make_shared<Function::PointPlus>());
-    objects.emplace(FN__ROTATE, std::make_shared<Function::RotatePoint>());
+    values.emplace(FN__DISTANCE, Function::DistanceBetween::make());
+    values.emplace(FN__DIVIDE, Function::PointDivision::make());
+    values.emplace(FN__MAKE_POINT, Function::MakePoint::make());
+    values.emplace(FN__MINUS, Function::PointMinus::make());
+    values.emplace(FN__PLUS, Function::PointPlus::make());
+    values.emplace(FN__ROTATE, Function::RotatePoint::make());
   }
 
 } // namespace Pixils::Script
