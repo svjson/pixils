@@ -14,24 +14,37 @@ namespace Pixils
                                       const std::string& default_namespace,
                                       const std::vector<std::string>& source_files)
   {
-    std::string path = ".";
+    return init_lisple_runtime(ctx, default_namespace, nullptr, source_files);
+  }
+  Lisple::Runtime init_lisple_runtime(RenderContext& ctx,
+                                      const std::string& default_namespace,
+                                      std::function<void(RuntimeConfiguration*)> init_fn,
+                                      const std::vector<std::string>& source_files)
+  {
+    std::vector<std::unique_ptr<Lisple::Namespace>> namespaces;
+    namespaces.push_back(std::make_unique<Pixils::Script::PixilsNamespace>(ctx));
+    namespaces.push_back(std::make_unique<Pixils::Script::ResourceNamespace>());
+    namespaces.push_back(std::make_unique<Pixils::Script::ColorNamespace>());
+    namespaces.push_back(std::make_unique<Pixils::Script::PointNamespace>());
+    namespaces.push_back(std::make_unique<Pixils::Script::RenderNamespace>());
+
+    RuntimeConfiguration rtconfig{.native_namespaces = std::move(namespaces),
+                                  .load_path = {"."}};
+
+    if (init_fn)
+    {
+      init_fn(&rtconfig);
+    }
 
     std::unique_ptr<Lisple::DirRootFileSystem> fs =
-      std::make_unique<Lisple::DirRootFileSystem>(path);
+      std::make_unique<Lisple::DirRootFileSystem>(rtconfig.load_path);
 
-    std::map<const std::string, Lisple::Namespace> namespaces;
-    namespaces.emplace(Pixils::Script::NS_PIXILS, Pixils::Script::PixilsNamespace(ctx));
-    namespaces.emplace(Pixils::Script::NS__PIXILS__RESOURCE,
-                       Pixils::Script::ResourceNamespace());
-    namespaces.emplace(Pixils::Script::NS__PIXILS__COLOR, Pixils::Script::ColorNamespace());
-    namespaces.emplace(Pixils::Script::NS__PIXILS__POINT, Pixils::Script::PointNamespace());
-    namespaces.emplace(Pixils::Script::NS__PIXILS__RENDER,
-                       Pixils::Script::RenderNamespace());
-
-    Lisple::Runtime lisple_runtime(default_namespace, namespaces, std::move(fs.release()));
+    Lisple::Runtime lisple_runtime(default_namespace,
+                                   std::move(rtconfig.native_namespaces),
+                                   std::move(fs.release()));
     for (auto& file_name : source_files)
     {
-      lisple_runtime.read_file(path + file_name);
+      lisple_runtime.read_file(file_name);
     }
 
     return lisple_runtime;

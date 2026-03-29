@@ -13,11 +13,12 @@ namespace Lisple
 
 namespace Pixils
 {
-  ArgCollector::ArgCollector(const std::string& function_name, const ArgKeyMap& required,
+  ArgCollector::ArgCollector(const std::string& function_name,
+                             const ArgKeyMap& required,
                              const ArgKeyMap& optional)
-      : function_name(function_name)
-      , required_keys(required)
-      , optional_keys(optional)
+    : function_name(function_name)
+    , required_keys(required)
+    , optional_keys(optional)
   {
   }
 
@@ -53,19 +54,20 @@ namespace Pixils
           }
           else
           {
-            throw Lisple::InvocationException("Invalid argument invoking " + function_name +
-                                              ". Incorrect type of value for key " + k.to_string() +
-                                              " in " + arg_map.to_string() +
-                                              " and coercion attempt failed. Expected: " +
-                                              type->to_string() + ", Got: " + val->to_string());
+            throw Lisple::InvocationException(
+              "Invalid argument invoking " + function_name +
+              ". Incorrect type of value for key " + k.to_string() + " in " +
+              arg_map.to_string() + " and coercion attempt failed. Expected: " +
+              type->to_string() + ", Got: " + val->to_string());
           }
         }
         else
         {
           throw Lisple::InvocationException(
-              "Invalid argument invoking " + function_name + ". Incorrect type of value for key " +
-              k.to_string() + " in " + arg_map.to_string() +
-              " and coercion is not possible. Expecting: " + type->to_string());
+            "Invalid argument invoking " + function_name +
+            ". Incorrect type of value for key " + k.to_string() + " in " +
+            arg_map.to_string() +
+            " and coercion is not possible. Expecting: " + type->to_string());
         }
       }
       else
@@ -101,11 +103,11 @@ namespace Pixils
           }
           else
           {
-            throw Lisple::InvocationException("Invalid argument invoking " + function_name +
-                                              ". Incorrect type of value for key " + k.to_string() +
-                                              " in " + arg_map.to_string() +
-                                              " and coercion attempt failed. Expected: " +
-                                              type->to_string() + ", Got: " + val->to_string());
+            throw Lisple::InvocationException(
+              "Invalid argument invoking " + function_name +
+              ". Incorrect type of value for key " + k.to_string() + " in " +
+              arg_map.to_string() + " and coercion attempt failed. Expected: " +
+              type->to_string() + ", Got: " + val->to_string());
           }
         }
         else
@@ -124,10 +126,10 @@ namespace Pixils
           }
 
           throw Lisple::InvocationException(
-              "Invalid argument invoking " + function_name + ". Incorrect type of value for key " +
-              k.to_string() + " in " + arg_map.to_string() + ". Expecting: " + type->to_string() +
-              ". Coercion from " + type_name +
-              " could not be attempted, because runtime ctx is not available.");
+            "Invalid argument invoking " + function_name +
+            ". Incorrect type of value for key " + k.to_string() + " in " +
+            arg_map.to_string() + ". Expecting: " + type->to_string() + ". Coercion from " +
+            type_name + " could not be attempted, because runtime ctx is not available.");
         }
       }
     }
@@ -147,16 +149,18 @@ namespace Pixils
     return verified_keys;
   }
 
-  bool ArgCollector::is_type(str_key_map_t& args, const Lisple::Key& key,
+  bool ArgCollector::is_type(str_key_map_t& args,
+                             const Lisple::Key& key,
                              const Lisple::TypeRef* type_ref)
   {
-    if (args.count(key.value) != 1)
-      return false;
+    if (args.count(key.value) != 1) return false;
 
     return type_ref->is_type_of(*args.at(key.value));
   }
 
-  char ArgCollector::char_value(str_key_map_t& args, const Lisple::Key& key, char default_value)
+  char ArgCollector::char_value(str_key_map_t& args,
+                                const Lisple::Key& key,
+                                char default_value)
   {
     if (!args.count(key.value) || *args.at(key.value) == *Lisple::NIL)
     {
@@ -165,7 +169,9 @@ namespace Pixils
     return args.at(key.value)->as<Lisple::Char>().value;
   }
 
-  float ArgCollector::float_value(str_key_map_t& args, const Lisple::Key& key, float default_value)
+  float ArgCollector::float_value(str_key_map_t& args,
+                                  const Lisple::Key& key,
+                                  float default_value)
   {
     if (!args.count(key.value) || *args.at(key.value) == *Lisple::NIL)
     {
@@ -183,7 +189,9 @@ namespace Pixils
     return Lisple::int_val(*args.at(key.value));
   }
 
-  short ArgCollector::short_value(str_key_map_t& args, const Lisple::Key& key, short default_value)
+  short ArgCollector::short_value(str_key_map_t& args,
+                                  const Lisple::Key& key,
+                                  short default_value)
   {
     if (!args.count(key.value) || *args.at(key.value) == *Lisple::NIL)
     {
@@ -192,7 +200,8 @@ namespace Pixils
     return Lisple::short_val(*args.at(key.value));
   }
 
-  unsigned short ArgCollector::ushort_value(str_key_map_t& args, const Lisple::Key& key,
+  unsigned short ArgCollector::ushort_value(str_key_map_t& args,
+                                            const Lisple::Key& key,
                                             unsigned short default_value)
   {
     if (!args.count(key.value) || *args.at(key.value) == *Lisple::NIL)
@@ -202,7 +211,8 @@ namespace Pixils
     return Lisple::ushort_val(*args.at(key.value));
   }
 
-  uint8_t ArgCollector::uint8_value(str_key_map_t& args, const Lisple::Key& key,
+  uint8_t ArgCollector::uint8_value(str_key_map_t& args,
+                                    const Lisple::Key& key,
                                     uint8_t default_value)
   {
     if (!args.count(key.value) || *args.at(key.value) == *Lisple::NIL)
@@ -214,12 +224,14 @@ namespace Pixils
     if (value < 0 || value > 255)
     {
       throw Lisple::TypeError("Invalid value " + std::to_string(value) +
-                              " for 8-bit unsigned integer associated with key " + key.to_string());
+                              " for 8-bit unsigned integer associated with key " +
+                              key.to_string());
     }
     return static_cast<uint8_t>(value);
   }
 
-  const std::string ArgCollector::str_value(str_key_map_t& args, const Lisple::Key& key,
+  const std::string ArgCollector::str_value(str_key_map_t& args,
+                                            const Lisple::Key& key,
                                             const std::string& default_value)
   {
     if (!args.count(key.value))
@@ -229,8 +241,7 @@ namespace Pixils
 
     const Lisple::Object& obj = *args.at(key.value);
 
-    if (obj == *Lisple::NIL)
-      return default_value;
+    if (obj == *Lisple::NIL) return default_value;
 
     if (Lisple::Type::STRING.is_type_of(obj) || Lisple::Type::KEY.is_type_of(obj) ||
         Lisple::Type::SYMBOL.is_type_of(obj) || Lisple::Type::WORD.is_type_of(obj))
@@ -245,7 +256,9 @@ namespace Pixils
     return default_value;
   }
 
-  bool ArgCollector::bool_value(str_key_map_t& args, const Lisple::Key& key, bool default_value)
+  bool ArgCollector::bool_value(str_key_map_t& args,
+                                const Lisple::Key& key,
+                                bool default_value)
   {
     if (!args.count(key.value) || *args.at(key.value) == *Lisple::NIL)
     {
@@ -270,7 +283,8 @@ namespace Pixils
     return args.at(key.value)->as<Lisple::Key>();
   }
 
-  Lisple::Key& ArgCollector::key_value(str_key_map_t& args, const Lisple::Key& key,
+  Lisple::Key& ArgCollector::key_value(str_key_map_t& args,
+                                       const Lisple::Key& key,
                                        Lisple::Key& default_value)
   {
     if (args.count(key.value))
@@ -280,8 +294,10 @@ namespace Pixils
     return default_value;
   }
 
-  std::vector<uint8_t> ArgCollector::unbox_uint8_array(str_key_map_t& args, const Lisple::Key& key,
-                                                       const std::vector<uint8_t> default_value)
+  std::vector<uint8_t> ArgCollector::unbox_uint8_array(
+    str_key_map_t& args,
+    const Lisple::Key& key,
+    const std::vector<uint8_t> default_value)
   {
     if (!args.count(key.value) || *args.at(key.value) == *Lisple::NIL)
     {
@@ -296,7 +312,8 @@ namespace Pixils
     return result;
   }
 
-  std::vector<int> ArgCollector::unbox_int_array(str_key_map_t& args, const Lisple::Key& key,
+  std::vector<int> ArgCollector::unbox_int_array(str_key_map_t& args,
+                                                 const Lisple::Key& key,
                                                  const std::vector<int> default_value)
   {
     if (!args.count(key.value) || *args.at(key.value) == *Lisple::NIL)
@@ -312,9 +329,10 @@ namespace Pixils
     return result;
   }
 
-  std::vector<std::string>
-  ArgCollector::unbox_string_array(str_key_map_t& args, const Lisple::Key& key,
-                                   const std::vector<std::string>& default_value)
+  std::vector<std::string> ArgCollector::unbox_string_array(
+    str_key_map_t& args,
+    const Lisple::Key& key,
+    const std::vector<std::string>& default_value)
   {
     if (!args.count(key.value) || *args.at(key.value) == *Lisple::NIL)
     {

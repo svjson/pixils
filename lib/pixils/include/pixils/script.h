@@ -8,6 +8,12 @@ namespace Pixils
 {
   struct RenderContext;
 
+  struct RuntimeConfiguration
+  {
+    std::vector<std::unique_ptr<Lisple::Namespace>> native_namespaces;
+    std::vector<std::string> load_path;
+  };
+
   /**
    * @brief Create and initialize the Lisple runtime, loading the provided
    * source files.
@@ -20,8 +26,15 @@ namespace Pixils
    *
    * @return An initialized Lisple runtime with the provided source files loaded.
    */
-  Lisple::Runtime init_lisple_runtime(RenderContext& ctx, const std::string& default_namespace,
+  Lisple::Runtime init_lisple_runtime(RenderContext& ctx,
+                                      const std::string& default_namespace,
                                       const std::vector<std::string>& source_files);
+
+  Lisple::Runtime init_lisple_runtime(RenderContext& ctx,
+                                      const std::string& default_namespace,
+                                      std::function<void(RuntimeConfiguration*)> init_fn,
+                                      const std::vector<std::string>& source_files);
+
 } // namespace Pixils
 
 #endif /* __PIXILS__SCRIPT_H_ */

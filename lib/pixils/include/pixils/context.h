@@ -10,6 +10,8 @@ typedef struct SDL_Texture SDL_Texture;
 
 namespace Pixils
 {
+  struct Display;
+
   namespace Asset
   {
     class Registry;
@@ -62,7 +64,7 @@ namespace Pixils
      * @brief Make sure the in memory buffer is initialized and of the correct
      * size
      */
-    void prepare_frame();
+    void prepare_frame(Display& display);
     /*!
      * @brief Clear the in-memory buffer
      */
@@ -72,7 +74,7 @@ namespace Pixils
      * @brief Renders the contents of the in-memory buffer to the screen,
      * scaled to a factor of @ref pixel_size
      */
-    void flush_buffer();
+    void flush_buffer(Display& display);
 
     /*!
      * @brief Updates the screen

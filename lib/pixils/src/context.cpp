@@ -1,5 +1,6 @@
 
 #include <pixils/context.h>
+#include <pixils/display.h>
 #include <pixils/geom.h>
 
 #include <SDL2/SDL_blendmode.h>
@@ -19,15 +20,16 @@ namespace Pixils
     return Dimension{w, h};
   }
 
-  void RenderContext::prepare_frame()
+  void RenderContext::prepare_frame(Display& display)
   {
+    Color& bg = display.background;
+
     SDL_GetWindowSize(window, &window_rect.w, &window_rect.h);
     SDL_SetRenderTarget(renderer, nullptr);
-    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0xff);
+    SDL_SetRenderDrawColor(renderer, bg.r, bg.g, bg.b, 0xff);
     SDL_RenderClear(renderer);
 
-    Dimension target_buffer_dim{window_rect.w / this->pixel_size,
-                                window_rect.h / this->pixel_size};
+    Dimension& target_buffer_dim = display.resolution.dimension;
 
     if (this->buffer_texture == nullptr)
     {
@@ -67,11 +69,29 @@ namespace Pixils
     SDL_RenderClear(renderer);
   }
 
-  void RenderContext::flush_buffer()
+  void RenderContext::flush_buffer(Display& display)
   {
     SDL_SetRenderTarget(this->renderer, nullptr);
 
-    SDL_Rect target{0, 0, buffer_dim.w * pixel_size, buffer_dim.h * pixel_size};
+    SDL_Rect target{0, 0, buffer_dim.w, buffer_dim.h};
+
+    if (display.scaling == Display::Scaling::STRETCH)
+    {
+      target.w = window_rect.w;
+      target.h = window_rect.h;
+    }
+    else if (display.scaling == Display::Scaling::FIT)
+    {
+      int scale = std::min(window_rect.w / target.w, window_rect.h / target.h);
+      target.w *= scale;
+      target.h *= scale;
+    }
+
+    if (display.align == Display::Alignment::CENTER)
+    {
+      target.x = window_rect.w / 2 - target.w / 2;
+      target.y = window_rect.h / 2 - target.h / 2;
+    }
 
     SDL_RenderCopy(this->renderer, this->buffer_texture, nullptr, &target);
   }

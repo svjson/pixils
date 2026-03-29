@@ -26,6 +26,7 @@ namespace Pixils
     class ModeAdapter;
   }
 
+  struct Program;
   struct RenderContext;
 
   struct ActiveMode
@@ -52,7 +53,8 @@ namespace Pixils
     Lisple::Runtime& lisple;
     RenderContext& ctx;
     Asset::Registry assets;
-    Lisple::Array& mode_stack;
+    Lisple::sptr_rtval mode_stack;
+    Program* program;
 
     ActiveMode active_mode;
     FrameEvents events;
@@ -64,11 +66,15 @@ namespace Pixils
     std::unique_ptr<ConsoleOverlay> console = nullptr;
 
    public:
+    Client(Lisple::Runtime& lisple_runtime, RenderContext& ctx);
     Client(Lisple::Runtime& lisple_runtime, RenderContext& ctx, Runtime::Mode& root_mode);
 
     void run();
 
    private:
+    Client(Lisple::Runtime& lisple_runtime, RenderContext& ctx, bool init_mode);
+
+    void init_console();
     void main_loop();
 
     void activate_mode();

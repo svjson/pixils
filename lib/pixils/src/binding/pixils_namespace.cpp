@@ -1,5 +1,7 @@
 
+#include "pixils/binding/color_namespace.h"
 #include "pixils/binding/resource_namespace.h"
+#include "pixils/display.h"
 #include "pixils/runtime/mode.h"
 #include <pixils/binding/arg_collector.h>
 #include <pixils/binding/pixils_namespace.h>
@@ -10,26 +12,70 @@
 #include <lisple/exec.h>
 #include <lisple/host.h>
 #include <lisple/host/schema.h>
+#include <lisple/runtime/seq.h>
 
 namespace Pixils::Script
 {
   namespace MapKey
   {
+    SHKEY(ALIGN, "align");
+    SHKEY(BACKGROUND, "background");
     SHKEY(BUFFER_SIZE, "buffer-size");
+    SHKEY(DIMENSION, "dimension");
+    SHKEY(DISPLAY, "display");
     SHKEY(H, "h");
     SHKEY(HELD_KEYS, "held-keys");
     SHKEY(INIT, "init");
+    SHKEY(INITIAL_MODE, "initial-mode");
     SHKEY(KEY_DOWN, "key-down");
+    SHKEY(MODE, "mode");
     SHKEY(NAME, "name");
     SHKEY(PIXEL_SIZE, "pixel-size");
     SHKEY(RENDER, "render");
+    SHKEY(RESOLUTION, "resolution");
     SHKEY(RESOURCES, "resources");
+    SHKEY(SCALING, "scaling");
     SHKEY(UPDATE, "update");
     SHKEY(W, "w");
   } // namespace MapKey
 
   namespace Macro
   {
+    /* DefProgramMacro - defprogram */
+    MACRO_IMPL(DefProgramMacro,
+               SIG((FN_ARGS((&Lisple::Type::WORD, &Lisple::Eval::LITERAL),
+                            (&Lisple::Type::MAP)),
+                    EXEC_DISPATCH(&DefProgramMacro::def_program))));
+
+    Lisple::MapSchema program_schema({},
+                                     {{"display", &HostType::DISPLAY},
+                                      {"initial-mode", &Lisple::Type::SYMBOL_VALUE}});
+
+    MACRO_BODY(DefProgramMacro, def_program)
+    {
+      Lisple::sptr_rtval_v rargs = {Lisple::to_rt_value(args[0]),
+                                    Lisple::to_rt_value(args[1])};
+      auto name = rargs[0]->str();
+      auto opts = program_schema.bind(ctx, *rargs[1]);
+
+      auto programs = ctx.lookup_value(ID__PIXILS__PROGRAMS);
+      auto initial_mode = opts.str(MapKey::INITIAL_MODE->value, "");
+
+      Display display = opts.contains(MapKey::DISPLAY->value)
+                          ? opts.obj<Display>(MapKey::DISPLAY->value)
+                          : Display(Resolution(Resolution::Mode::AUTO, {0, 0}),
+                                    Display::Alignment::NONE,
+                                    Display::Scaling::NONE,
+                                    Color(0, 0, 0));
+
+      auto program =
+        Lisple::RTValue::object(ProgramAdapter::make<Program>(name, display, initial_mode));
+
+      Lisple::Dict::set_property(programs, Lisple::RTValue::symbol(name), program);
+
+      return Lisple::NIL;
+    }
+
     /* DefModeMacro - defmode */
     MACRO_IMPL(DefModeMacro,
                SIG((FN_ARGS((&Lisple::Type::WORD, &Lisple::Eval::LITERAL),
@@ -95,40 +141,138 @@ namespace Pixils::Script
                                           opts.i32(MapKey::H->value)));
     }
 
+    /* Display make function */
+    FUNC_IMPL(MakeDisplay,
+              SIG((FN_ARGS((&Lisple::Type::MAP)), EXEC_DISPATCH(&MakeDisplay::exec_make))))
+
+    Lisple::MapSchema display_schema({{MapKey::RESOLUTION->value, &HostType::RESOLUTION}},
+                                     {{MapKey::ALIGN->value, &Lisple::Type::KEY},
+                                      {MapKey::SCALING->value, &Lisple::Type::KEY},
+                                      {MapKey::BACKGROUND->value, &HostType::COLOR}});
+
+    EXEC_BODY(MakeDisplay, exec_make)
+    {
+      try
+      {
+        auto opts = display_schema.bind(ctx, *args[0]);
+
+        auto align = Display::Alignment::NONE;
+        auto scaling = Display::Scaling::NONE;
+
+        if (opts.contains(MapKey::ALIGN->value))
+        {
+          const std::string align_str = opts.str(MapKey::ALIGN->value);
+          if (align_str == "align/center")
+          {
+            align = Display::Alignment::CENTER;
+          }
+        }
+
+        if (opts.contains(MapKey::SCALING->value))
+        {
+          const std::string scale_str = opts.str(MapKey::SCALING->value);
+          if (scale_str == "scaling/stretch")
+          {
+            scaling = Display::Scaling::STRETCH;
+          }
+          else if (scale_str == "scaling/fit")
+          {
+            scaling = Display::Scaling::FIT;
+          }
+        }
+
+        Color color = opts.obj<Color>(MapKey::BACKGROUND->value, Color{0, 0, 0});
+
+        return Lisple::RTValue::object(
+          DisplayAdapter::make<Display>(opts.obj<Resolution>(MapKey::RESOLUTION->value),
+                                        align,
+                                        scaling,
+                                        color));
+      }
+      catch (std::exception& e)
+      {
+        throw e;
+      }
+    }
+
+    /* Resolution make function */
+    FUNC_IMPL(MakeResolution,
+              MULTI_SIG((FN_ARGS((&HostType::DIMENSION)),
+                         EXEC_DISPATCH(&MakeResolution::exec_make_resolution)),
+                        (FN_ARGS((&Lisple::Type::KEY)),
+                         EXEC_DISPATCH(&MakeResolution::exec_make_resolution)),
+                        (FN_ARGS((&Lisple::Type::MAP)),
+                         EXEC_DISPATCH(&MakeResolution::exec_make_resolution))));
+
+    EXEC_BODY(MakeResolution, exec_make_resolution)
+    {
+      try
+      {
+        if (Lisple::Type::KEY.is_type_of(*args[0]))
+        {
+          const std::string& res_type = args[0]->str();
+          if (res_type == "auto")
+          {
+            return Lisple::RTValue::object(
+              ResolutionAdapter::make<Resolution>(Resolution::Mode::AUTO));
+          }
+          throw Lisple::TypeError("Invalid resolution specifier: " + args[0]->to_string());
+        }
+        else if (Lisple::Type::MAP.is_type_of(*args[0]))
+        {
+          Lisple::CoercionResult<Lisple::RTValue> cresult =
+            HostType::DIMENSION.coerce(ctx, args[0]);
+          if (cresult.success)
+          {
+            return Lisple::RTValue::object(
+              ResolutionAdapter::make<Resolution>(Resolution::Mode::FIXED,
+                                                  Lisple::obj<Dimension>(*cresult.result)));
+          }
+        }
+      }
+      catch (std::exception& e)
+      {
+        std::cout << "MakeResolution: " << e.what() << std::endl;
+      }
+      throw Lisple::TypeError("Could not construct Resolution from: " +
+                              args[0]->to_string());
+    }
+
     /* PushModeBangFunction - push-mode! */
     FUNC_IMPL(PushModeBangFunction,
               SIG((FN_ARGS((&Lisple::Type::SYMBOL_VALUE)),
-                   EXEC_DISPATCH(&PushModeBangFunction::push_mode))));
+                   EXEC_DISPATCH(&PushModeBangFunction::exec_push_mode))));
 
-    FUNC_BODY(PushModeBangFunction, push_mode)
+    EXEC_BODY(PushModeBangFunction, exec_push_mode)
     {
-      auto& mode_name = args.front()->as<Lisple::Value<std::string>>();
-      Lisple::Map& modes = ctx.lookup(ID__PIXILS__MODES)->as<Lisple::Map>();
-      Lisple::Array& mode_stack = ctx.lookup(ID__PIXILS__MODE_STACK)->as<Lisple::Array>();
+      auto& mode_name = args.front()->str();
+      Lisple::sptr_rtval modes = ctx.lookup_value(ID__PIXILS__MODES);
+      Lisple::sptr_rtval mode_stack = ctx.lookup_value(ID__PIXILS__MODE_STACK);
 
-      Lisple::sptr_sobject new_mode = modes.get_sptr_property(Lisple::Word(mode_name.value));
-      if (new_mode != Lisple::NIL)
+      Lisple::sptr_rtval new_mode =
+        Lisple::Dict::get_property(modes, Lisple::RTValue::symbol(mode_name));
+
+      if (new_mode->type != Lisple::RTValue::Type::NIL)
       {
-        mode_stack.append(new_mode);
+        Lisple::append(*mode_stack, new_mode);
       }
       return new_mode;
     }
 
     /* PopModeBangFunction - pop-mode! */
     FUNC_IMPL(PopModeBangFunction,
-              SIG((NO_ARGS, EXEC_DISPATCH(&PopModeBangFunction::pop_mode))));
+              SIG((NO_ARGS, EXEC_DISPATCH(&PopModeBangFunction::exec_pop_mode))));
 
-    FUNC_BODY(PopModeBangFunction, pop_mode)
+    EXEC_BODY(PopModeBangFunction, exec_pop_mode)
     {
-      Lisple::Array& mode_stack = ctx.lookup(ID__PIXILS__MODE_STACK)->as<Lisple::Array>();
-      if (mode_stack.size() > 1)
+      Lisple::sptr_rtval mode_stack = ctx.lookup_value(ID__PIXILS__MODE_STACK);
+      size_t stack_size = Lisple::count(*mode_stack);
+      if (stack_size > 1)
       {
-        Lisple::sptr_sobject old_mode = mode_stack.get_children().back();
-        mode_stack.get_children().pop_back();
-        return old_mode;
+        return Lisple::pop_child(*mode_stack);
       }
 
-      return Lisple::NIL;
+      return Lisple::Constant::NIL;
     }
 
   } // namespace Function
@@ -193,14 +337,54 @@ namespace Pixils::Script
   ADAPTER_PROP_GET__FIELD(RenderContextAdapter, pixel_size, Lisple::Number);
   ADAPTER_PROP_GET__FIELD(RenderContextAdapter, buffer_size, DimensionAdapter, buffer_dim);
 
+  /* ProgramAdapter */
+  HOST_ADAPTER_IMPL(ProgramAdapter,
+                    Program,
+                    &HostType::PROGRAM,
+                    ({K_GET(ProgramAdapter, MapKey::NAME, name),
+                      K_GET(ProgramAdapter, MapKey::INITIAL_MODE, initial_mode),
+                      K_GET_SET(ProgramAdapter, MapKey::DISPLAY, display)}));
+
+  ADAPTER_PROP_GET__METHOD(ProgramAdapter, name, Lisple::String, get_name);
+  ADAPTER_PROP_GET_SET_HOST_OBJECT__FIELD(ProgramAdapter, display, DisplayAdapter);
+  Lisple::sptr_sobject ProgramAdapter::get_initial_mode() const
+  {
+    if (get_self_object().initial_mode == "")
+    {
+      return Lisple::NIL;
+    }
+    return std ::make_shared<Lisple ::Word>(get_self_object().initial_mode);
+  };
+
+  /* DisplayAdapter */
+  HOST_ADAPTER_IMPL(DisplayAdapter,
+                    Display,
+                    &HostType::DISPLAY,
+                    ({K_GET_SET(DisplayAdapter, MapKey::RESOLUTION, resolution)}));
+
+  ADAPTER_PROP_GET_SET_HOST_OBJECT__FIELD(DisplayAdapter, resolution, ResolutionAdapter);
+
+  /* ResolutionAdapter */
+  HOST_ADAPTER_IMPL(ResolutionAdapter,
+                    Resolution,
+                    &HostType::RESOLUTION,
+                    ({K_GET(ResolutionAdapter, MapKey::DIMENSION, dimension)}));
+
+  ADAPTER_PROP_GET__FIELD(ResolutionAdapter, dimension, DimensionAdapter);
+
   PixilsNamespace::PixilsNamespace(const RenderContext& render_context)
     : Lisple::Namespace(NS_PIXILS)
   {
-    objects.emplace("mode-stack", Lisple::Array::make({}));
+    values.emplace("mode-stack", Lisple::RTValue::vector({}));
     objects.emplace("modes", Lisple::Map::make({}));
     objects.emplace("defmode", std::make_shared<Macro::DefModeMacro>());
+    objects.emplace("defprogram", std::make_shared<Macro::DefProgramMacro>());
+    objects.emplace("make-dimension", std::make_shared<Function::MakeDimension>());
+    objects.emplace("make-display", std::make_shared<Function::MakeDisplay>());
     objects.emplace("make-mode", std::make_shared<Function::MakeMode>());
+    objects.emplace("make-resolution", std::make_shared<Function::MakeResolution>());
     objects.emplace("render-context", RenderContextAdapter::make_ref(render_context));
+    values.emplace("programs", Lisple::RTValue::map({}));
     objects.emplace("pop-mode!", std::make_shared<Function::PopModeBangFunction>());
     objects.emplace("push-mode!", std::make_shared<Function::PushModeBangFunction>());
   }

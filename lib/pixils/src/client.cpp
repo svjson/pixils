@@ -5,11 +5,18 @@
 #include <pixils/context.h>
 #include <pixils/frame_events.h>
 #include <pixils/keyboard.h>
+#include <pixils/program.h>
 #include <pixils/runtime/mode.h>
 
 #include <SDL2/SDL_render.h>
 #include <chrono>
+#include <iostream>
+#include <lisple/host.h>
+#include <lisple/host/object.h>
 #include <lisple/runtime.h>
+#include <lisple/runtime/dict.h>
+#include <lisple/runtime/seq.h>
+#include <memory>
 
 namespace Pixils
 {
@@ -20,20 +27,81 @@ namespace Pixils
       .count();
   }
 
-  Client::Client(Lisple::Runtime& lisple_runtime,
-                 RenderContext& ctx,
-                 Runtime::Mode& root_mode)
+  Client::Client(Lisple::Runtime& lisple_runtime, RenderContext& ctx, bool init_mode)
     : lisple(lisple_runtime)
     , ctx(ctx)
     , assets(ctx)
-    , mode_stack(lisple.lookup(Script::ID__PIXILS__MODE_STACK)->as<Lisple::Array>())
+    , mode_stack(lisple.lookup_value(Script::ID__PIXILS__MODE_STACK))
     , hook_args(
         {Lisple::RTValue::object(Pixils::Script::FrameEventsAdapter::make_ref(this->events)),
          Lisple::RTValue::object(Pixils::Script::RenderContextAdapter::make_ref(this->ctx))})
   {
     ctx.asset_registry = &assets;
-    this->mode_stack.append(Script::ModeAdapter::make_ref(root_mode));
+    init_console();
 
+    if (init_mode)
+    {
+      Lisple::sptr_rtval programs =
+        lisple_runtime.lookup_value(Script::ID__PIXILS__PROGRAMS);
+      auto program_keys = Lisple::Dict::map_keys(*programs);
+      Lisple::sptr_rtval program_key;
+
+      if (program_keys.size() == 0)
+      {
+        lisple_runtime.eval("(pixils/defprogram program {})");
+        program_key = Lisple::RTValue::symbol("program");
+      }
+      else
+      {
+        program_key = Lisple::RTValue::symbol(program_keys.front()->str());
+      }
+
+      auto program_val = Lisple::Dict::get_property(programs, program_key);
+
+      Lisple::sptr_sobject prg_obj = std::get<Lisple::sptr_sobject>(program_val->value);
+
+      auto& program = Lisple::obj<Program>(*program_val);
+
+      this->program = &program;
+
+      auto modes = lisple_runtime.lookup_value(Script::ID__PIXILS__MODES);
+
+      if (program.initial_mode == "")
+      {
+        auto mode_keys = Lisple::Dict::map_keys(*modes);
+        if (mode_keys.size() == 0)
+        {
+          throw Lisple::LispleException("No modes defined");
+        }
+        else
+        {
+          program.initial_mode = mode_keys.front()->str();
+        }
+      }
+
+      auto mode =
+        Lisple::Dict::get_property(modes, Lisple::RTValue::symbol(program.initial_mode));
+
+      Lisple::append(*mode_stack, mode);
+    }
+  }
+
+  Client::Client(Lisple::Runtime& lisple_runtime, RenderContext& ctx)
+    : Client(lisple_runtime, ctx, true)
+  {
+  }
+
+  Client::Client(Lisple::Runtime& lisple_runtime,
+                 RenderContext& ctx,
+                 Runtime::Mode& root_mode)
+    : Client(lisple_runtime, ctx, false)
+  {
+    Lisple::append(*mode_stack,
+                   Lisple::RTValue::object(Script::ModeAdapter::make_ref(root_mode)));
+  }
+
+  void Client::init_console()
+  {
     ctx.asset_registry->load("pixils",
                              {.images = {{"console-font", "assets/console_font.png"}}});
 
@@ -45,25 +113,24 @@ namespace Pixils
 
   void Client::run()
   {
-    this->ctx.prepare_frame();
+    this->ctx.prepare_frame(program->get_display());
     this->activate_mode();
     this->main_loop();
   }
 
   void Client::activate_mode()
   {
-    bool pushed =
-      static_cast<int>(mode_stack.get_children().size()) > active_mode.mode_index + 1;
+    bool pushed = static_cast<int>(Lisple::count(*mode_stack)) > active_mode.mode_index + 1;
 
-    Runtime::Mode& mode =
-      mode_stack.get_children().back()->as<Script::ModeAdapter>().get_object();
+    Runtime::Mode& mode = Lisple::obj<Runtime::Mode>(
+      *Lisple::get_child(*mode_stack, Lisple::count(*mode_stack) - 1));
 
     if (!this->assets.is_loaded(mode.name))
     {
       this->assets.load(mode.name, mode.resources);
     }
 
-    this->active_mode.mode_index = mode_stack.size() - 1;
+    this->active_mode.mode_index = Lisple::count(*mode_stack) - 1;
     this->active_mode.render_fun = mode.render->to_string();
     this->active_mode.update_fun = mode.update->to_string();
     this->active_mode.init_fun = mode.init->to_string();
@@ -87,7 +154,7 @@ namespace Pixils
 
       // surface_rect.w = ctx.buffer_dim.w;
       // surface_rect.h = ctx.buffer_dim.h;
-      ctx.prepare_frame();
+      ctx.prepare_frame(program->get_display());
 
       events.key_down = Lisple::NIL;
 
@@ -114,14 +181,14 @@ namespace Pixils
 
       this->lisple.invoke(this->active_mode.update_fun, this->hook_args.update_args);
 
-      if (static_cast<int>(mode_stack.size()) - 1 != this->active_mode.mode_index)
+      if (static_cast<int>(Lisple::count(*mode_stack)) - 1 != this->active_mode.mode_index)
       {
         this->activate_mode();
       }
 
       lisple.invoke(this->active_mode.render_fun, this->hook_args.render_args);
 
-      ctx.flush_buffer();
+      ctx.flush_buffer(program->get_display());
 
       if (console->get_open_state() == ConsoleOverlay::State::OPEN ||
           console->get_open_state() == ConsoleOverlay::OPENING ||
@@ -134,9 +201,6 @@ namespace Pixils
         console->render(ctx);
       }
 
-      ctx.clear_buffer();
-
-      ctx.flush_buffer();
       ctx.finalize_frame();
 
       while (now() - frame_start < 25)
