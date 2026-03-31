@@ -106,6 +106,19 @@ namespace Pixils::Script
       return this->exec_with_opts(ctx, fwd_args);
     }
 
+    /* PointMultiplication */
+    FUNC_IMPL(PointMultiplication,
+              SIG((FN_ARGS((&HostType::POINT), (&Lisple::Type::NUMBER)),
+                   EXEC_DISPATCH(&PointMultiplication::exec_multiply_num))));
+
+    EXEC_BODY(PointMultiplication, exec_multiply_num)
+    {
+      const Point& coord = Lisple::obj<Point>(*args.front());
+      const float n = args.back()->f32();
+
+      return Lisple::RTValue::object(PointAdapter::make<Point>(coord.x * n, coord.y * n));
+    }
+
     /* PointDivision */
     FUNC_IMPL(PointDivision,
               SIG((FN_ARGS((&HostType::POINT), (&Lisple::Type::NUMBER)),
@@ -160,6 +173,7 @@ namespace Pixils::Script
     values.emplace(FN__DIVIDE, Function::PointDivision::make());
     values.emplace(FN__MAKE_POINT, Function::MakePoint::make());
     values.emplace(FN__MINUS, Function::PointMinus::make());
+    values.emplace(FN__MULTIPLY, Function::PointMultiplication::make());
     values.emplace(FN__PLUS, Function::PointPlus::make());
     values.emplace(FN__ROTATE, Function::RotatePoint::make());
   }
