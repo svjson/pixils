@@ -3,7 +3,12 @@
 
 #include <pixils/asset/bundle.h>
 #include <pixils/context.h>
-#include <pixils/runtime/mode.h>
+#include <pixils/runtime/session.h>
+
+namespace Pixils::Runtime
+{
+  struct ResourceDependencies;
+}
 
 namespace Pixils::Asset
 {

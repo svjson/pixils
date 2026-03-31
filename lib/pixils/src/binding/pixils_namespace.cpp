@@ -31,10 +31,14 @@ namespace Pixils::Script
     SHKEY(MODE, "mode");
     SHKEY(NAME, "name");
     SHKEY(PIXEL_SIZE, "pixel-size");
+    SHKEY(POP, "pop");
+    SHKEY(PUSH, "push");
     SHKEY(RENDER, "render");
     SHKEY(RESOLUTION, "resolution");
     SHKEY(RESOURCES, "resources");
     SHKEY(SCALING, "scaling");
+    SHKEY(STATE, "state");
+    SHKEY(TYPE, "type");
     SHKEY(UPDATE, "update");
     SHKEY(W, "w");
   } // namespace MapKey
@@ -234,23 +238,25 @@ namespace Pixils::Script
 
     /* PushModeBangFunction - push-mode! */
     FUNC_IMPL(PushModeBangFunction,
-              SIG((FN_ARGS((&Lisple::Type::SYMBOL_VALUE)),
-                   EXEC_DISPATCH(&PushModeBangFunction::exec_push_mode))));
+              MULTI_SIG((FN_ARGS((&Lisple::Type::SYMBOL_VALUE)),
+                         EXEC_DISPATCH(&PushModeBangFunction::exec_push_mode)),
+                        (FN_ARGS((&Lisple::Type::SYMBOL_VALUE), (&Lisple::Type::ANY)),
+                         EXEC_DISPATCH(&PushModeBangFunction::exec_push_mode))));
 
     EXEC_BODY(PushModeBangFunction, exec_push_mode)
     {
-      auto& mode_name = args.front()->str();
-      Lisple::sptr_rtval modes = ctx.lookup_value(ID__PIXILS__MODES);
-      Lisple::sptr_rtval mode_stack = ctx.lookup_value(ID__PIXILS__MODE_STACK);
+      auto message_queue = ctx.lookup_value(ID__PIXILS__MODE_STACK_MESSAGES);
 
-      Lisple::sptr_rtval new_mode =
-        Lisple::Dict::get_property(modes, Lisple::RTValue::symbol(mode_name));
+      Lisple::append(
+        *message_queue,
+        Lisple::RTValue::map({Lisple::RTValue::keyword(MapKey::TYPE->value),
+                              Lisple::RTValue::keyword(MapKey::PUSH->value),
+                              Lisple::RTValue::keyword(MapKey::MODE->value),
+                              args.front(),
+                              Lisple::RTValue::keyword(MapKey::STATE->value),
+                              args.size() > 1 ? args[1] : Lisple::Constant::NIL}));
 
-      if (new_mode->type != Lisple::RTValue::Type::NIL)
-      {
-        Lisple::append(*mode_stack, new_mode);
-      }
-      return new_mode;
+      return args[0];
     }
 
     /* PopModeBangFunction - pop-mode! */
@@ -259,12 +265,13 @@ namespace Pixils::Script
 
     EXEC_BODY(PopModeBangFunction, exec_pop_mode)
     {
-      Lisple::sptr_rtval mode_stack = ctx.lookup_value(ID__PIXILS__MODE_STACK);
-      size_t stack_size = Lisple::count(*mode_stack);
-      if (stack_size > 1)
-      {
-        return Lisple::pop_child(*mode_stack);
-      }
+      auto message_queue = ctx.lookup_value(ID__PIXILS__MODE_STACK_MESSAGES);
+
+      Lisple::append(*message_queue,
+                     Lisple::RTValue::map({
+                       Lisple::RTValue::keyword(MapKey::TYPE->value),
+                       Lisple::RTValue::keyword(MapKey::POP->value),
+                     }));
 
       return Lisple::Constant::NIL;
     }
@@ -370,6 +377,7 @@ namespace Pixils::Script
     : Lisple::Namespace(NS_PIXILS)
   {
     values.emplace("mode-stack", Lisple::RTValue::vector({}));
+    values.emplace("mode-stack-messages", Lisple::RTValue::vector({}));
     objects.emplace("modes", Lisple::Map::make({}));
     objects.emplace("defmode", std::make_shared<Macro::DefModeMacro>());
     objects.emplace("defprogram", std::make_shared<Macro::DefProgramMacro>());

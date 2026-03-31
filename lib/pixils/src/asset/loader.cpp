@@ -1,6 +1,7 @@
 
-#include "pixils/runtime/mode.h"
-#include <pixils/asset/loader.h>
+#include "pixils/asset/loader.h"
+
+#include <pixils/runtime/mode.h>
 
 #include <SDL2/SDL_image.h>
 #include <SDL2/SDL_render.h>

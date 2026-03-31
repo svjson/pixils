@@ -9,7 +9,6 @@
 #include <pixils/context.h>
 
 #include <SDL2/SDL_render.h>
-#include <iostream>
 #include <lisple/host/schema.h>
 #include <lisple/namespace.h>
 #include <lisple/runtime/seq.h>
@@ -34,7 +33,8 @@ namespace Pixils::Script
                    EXEC_DISPATCH(&DrawImageBang::exec_draw_img))));
 
     Lisple::MapSchema draw_image_opts_schema({{"pos", &HostType::POINT}},
-                                             {{"scale", &Lisple::Type::NUMBER}});
+                                             {{"scale", &Lisple::Type::NUMBER},
+                                              {"alpha", &Lisple::Type::NUMBER}});
 
     EXEC_BODY(DrawImageBang, exec_draw_img)
     {

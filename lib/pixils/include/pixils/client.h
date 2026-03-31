@@ -6,6 +6,7 @@
 #include <pixils/asset/registry.h>
 #include <pixils/frame_events.h>
 
+#include <lisple/runtime/value.h>
 #include <stddef.h>
 
 namespace Lisple
@@ -29,37 +30,15 @@ namespace Pixils
   struct Program;
   struct RenderContext;
 
-  struct ActiveMode
-  {
-    int mode_index = -1;
-
-    std::string init_fun;
-    std::string update_fun;
-    std::string render_fun;
-  };
-
-  struct HookArguments
-  {
-    Lisple::sptr_rtval events;
-    Lisple::sptr_rtval ctx;
-
-    Lisple::sptr_rtval_v init_args = {ctx};
-    Lisple::sptr_rtval_v update_args = {events, ctx};
-    Lisple::sptr_rtval_v render_args = {ctx};
-  };
-
   class Client
   {
     Lisple::Runtime& lisple;
     RenderContext& ctx;
     Asset::Registry assets;
-    Lisple::sptr_rtval mode_stack;
+    Runtime::Session session;
     Program* program;
 
-    ActiveMode active_mode;
     FrameEvents events;
-
-    HookArguments hook_args;
 
     Asset::Bundle client_bundle;
 
@@ -76,8 +55,6 @@ namespace Pixils
 
     void init_console();
     void main_loop();
-
-    void activate_mode();
 
     void handle_keydown(SDL_KeyboardEvent& event);
     void handle_keyup(SDL_KeyboardEvent& event);

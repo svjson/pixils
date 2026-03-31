@@ -28,6 +28,7 @@ namespace Pixils::Script
   inline const std::string FN__PUSH_MODE_BANG = "push-mode!";
 
   inline const Lisple::Word ID__PIXILS__MODE_STACK("pixils/mode-stack");
+  inline const Lisple::Word ID__PIXILS__MODE_STACK_MESSAGES("pixils/mode-stack-messages");
   inline const Lisple::Word ID__PIXILS__MODES("pixils/modes");
   inline const Lisple::Word ID__PIXILS__PROGRAMS("pixils/programs");
   inline const Lisple::Word ID__PIXILS__RENDER_CONTEXT("pixils/render-context");

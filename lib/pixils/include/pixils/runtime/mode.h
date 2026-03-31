@@ -1,8 +1,8 @@
-
-#ifndef __PIXILS_MODE_H_
-#define __PIXILS_MODE_H_
+#ifndef PIXILS__RUNTIME__MODE_H
+#define PIXILS__RUNTIME__MODE_H
 
 #include <lisple/form.h>
+#include <string>
 
 namespace Pixils::Runtime
 {
@@ -25,6 +25,7 @@ namespace Pixils::Runtime
     Lisple::sptr_sobject update;
     Lisple::sptr_sobject render;
   };
+
 } // namespace Pixils::Runtime
 
-#endif /* MODE_H */
+#endif /* PIXILS__RUNTIME__MODE_H */

@@ -16,6 +16,7 @@
 #include <lisple/runtime.h>
 #include <lisple/runtime/dict.h>
 #include <lisple/runtime/seq.h>
+#include <lisple/runtime/value.h>
 #include <memory>
 
 namespace Pixils
@@ -31,8 +32,9 @@ namespace Pixils
     : lisple(lisple_runtime)
     , ctx(ctx)
     , assets(ctx)
-    , mode_stack(lisple.lookup_value(Script::ID__PIXILS__MODE_STACK))
-    , hook_args(
+    , session(
+        lisple_runtime,
+        assets,
         {Lisple::RTValue::object(Pixils::Script::FrameEventsAdapter::make_ref(this->events)),
          Lisple::RTValue::object(Pixils::Script::RenderContextAdapter::make_ref(this->ctx))})
   {
@@ -79,10 +81,7 @@ namespace Pixils
         }
       }
 
-      auto mode =
-        Lisple::Dict::get_property(modes, Lisple::RTValue::symbol(program.initial_mode));
-
-      Lisple::append(*mode_stack, mode);
+      session.push_mode(program.initial_mode, Lisple::Constant::NIL);
     }
   }
 
@@ -96,8 +95,7 @@ namespace Pixils
                  Runtime::Mode& root_mode)
     : Client(lisple_runtime, ctx, false)
   {
-    Lisple::append(*mode_stack,
-                   Lisple::RTValue::object(Script::ModeAdapter::make_ref(root_mode)));
+    session.push_mode(root_mode.name, Lisple::Constant::NIL);
   }
 
   void Client::init_console()
@@ -114,28 +112,7 @@ namespace Pixils
   void Client::run()
   {
     this->ctx.prepare_frame(program->get_display());
-    this->activate_mode();
     this->main_loop();
-  }
-
-  void Client::activate_mode()
-  {
-    bool pushed = static_cast<int>(Lisple::count(*mode_stack)) > active_mode.mode_index + 1;
-
-    Runtime::Mode& mode = Lisple::obj<Runtime::Mode>(
-      *Lisple::get_child(*mode_stack, Lisple::count(*mode_stack) - 1));
-
-    if (!this->assets.is_loaded(mode.name))
-    {
-      this->assets.load(mode.name, mode.resources);
-    }
-
-    this->active_mode.mode_index = Lisple::count(*mode_stack) - 1;
-    this->active_mode.render_fun = mode.render->to_string();
-    this->active_mode.update_fun = mode.update->to_string();
-    this->active_mode.init_fun = mode.init->to_string();
-
-    if (pushed) this->lisple.invoke(this->active_mode.init_fun, this->hook_args.init_args);
   }
 
   void Client::main_loop()
@@ -179,14 +156,8 @@ namespace Pixils
       SDL_RenderClear(ctx.renderer);
       SDL_SetRenderDrawColor(ctx.renderer, 0xff, 0xff, 0xff, 0xff);
 
-      this->lisple.invoke(this->active_mode.update_fun, this->hook_args.update_args);
-
-      if (static_cast<int>(Lisple::count(*mode_stack)) - 1 != this->active_mode.mode_index)
-      {
-        this->activate_mode();
-      }
-
-      lisple.invoke(this->active_mode.render_fun, this->hook_args.render_args);
+      session.update_mode();
+      session.render_mode();
 
       ctx.flush_buffer(program->get_display());
 
@@ -206,6 +177,8 @@ namespace Pixils
       while (now() - frame_start < 25)
       {
       }
+
+      session.process_messages();
     }
   }
 
