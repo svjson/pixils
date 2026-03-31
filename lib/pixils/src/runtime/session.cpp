@@ -119,6 +119,19 @@ namespace Pixils::Runtime
 
   void Session::render_mode()
   {
+
+    auto render_stack = mode_stack.get_render_stack();
+
+    for (size_t i = render_stack.size() - 1; i > 0; i--)
+    {
+      auto [mode, mode_state] = render_stack[i];
+
+      Lisple::sptr_rtval_v rargs = this->hook_args.render_args;
+      rargs[0] = mode_state;
+
+      lisple_runtime.invoke(mode->render->to_string(), rargs);
+    }
+
     lisple_runtime.invoke(this->active_mode.render_fun, this->hook_args.render_args);
   }
 

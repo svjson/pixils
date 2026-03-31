@@ -23,6 +23,8 @@ namespace Pixils::Runtime
 
     size_t size() const;
 
+    std::vector<std::pair<Mode*, Lisple::sptr_rtval>> get_render_stack();
+
     Lisple::sptr_rtval_v drain_messages();
   };
 } // namespace Pixils::Runtime

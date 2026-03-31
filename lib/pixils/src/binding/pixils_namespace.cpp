@@ -13,6 +13,7 @@
 #include <lisple/host.h>
 #include <lisple/host/schema.h>
 #include <lisple/runtime/seq.h>
+#include <lisple/runtime/value.h>
 
 namespace Pixils::Script
 {
@@ -20,7 +21,9 @@ namespace Pixils::Script
   {
     SHKEY(ALIGN, "align");
     SHKEY(BACKGROUND, "background");
+    SHKEY(BLOCK, "block");
     SHKEY(BUFFER_SIZE, "buffer-size");
+    SHKEY(COMPOSE, "compose");
     SHKEY(DIMENSION, "dimension");
     SHKEY(DISPLAY, "display");
     SHKEY(H, "h");
@@ -31,6 +34,7 @@ namespace Pixils::Script
     SHKEY(MODE, "mode");
     SHKEY(NAME, "name");
     SHKEY(PIXEL_SIZE, "pixel-size");
+    SHKEY(PASS, "pass");
     SHKEY(POP, "pop");
     SHKEY(PUSH, "push");
     SHKEY(RENDER, "render");
@@ -105,6 +109,7 @@ namespace Pixils::Script
                                 {{*MapKey::INIT, &Lisple::Type::ANY},
                                  {*MapKey::UPDATE, &Lisple::Type::ANY},
                                  {*MapKey::RENDER, &Lisple::Type::ANY},
+                                 {*MapKey::COMPOSE, &HostType::MODE_COMPOSITION},
                                  {*MapKey::RESOURCES, &HostType::RESOURCE_DEPENDENCIES}});
 
     FUNC_BODY(MakeMode, make)
@@ -119,15 +124,40 @@ namespace Pixils::Script
         *MapKey::RESOURCES,
         &HostType::RESOURCE_DEPENDENCIES);
 
+      auto composition = ArgCollector::optional_host_object<Runtime::ModeComposition>(
+        ctx,
+        keys,
+        *MapKey::COMPOSE,
+        &HostType::MODE_COMPOSITION);
+
       Runtime::Mode mode{.name = proto.get_sptr_property(*MapKey::NAME)->to_string(),
                          .resources = {},
                          .init = proto.get_sptr_property(*MapKey::INIT),
                          .update = proto.get_sptr_property(*MapKey::UPDATE),
-                         .render = proto.get_sptr_property(*MapKey::RENDER)};
+                         .render = proto.get_sptr_property(*MapKey::RENDER),
+                         .composition = {}};
 
       if (resources.has_value()) mode.resources = *resources;
+      if (composition.has_value()) mode.composition = *composition;
 
       return ModeAdapter::make<Runtime::Mode>(mode);
+    }
+
+    /* ModeComposition make function */
+    FUNC_IMPL(MakeModeComposition,
+              SIG((FN_ARGS((&Lisple::Type::MAP)),
+                   EXEC_DISPATCH(&MakeModeComposition::exec_make))));
+
+    EXEC_BODY(MakeModeComposition, exec_make)
+    {
+      static Lisple::MapSchema mode_compose_schema({}, {{"render", &Lisple::Type::KEY}});
+
+      auto opts = mode_compose_schema.bind(ctx, *args[0]);
+
+      Runtime::ModeComposition composition{opts.str("render", "block") == "pass"};
+
+      return Lisple::RTValue::object(std::make_shared<ModeCompositionAdapter>(
+        std::make_unique<Runtime::ModeComposition>(composition)));
     }
 
     /* Dimension make function */
@@ -301,6 +331,17 @@ namespace Pixils::Script
     return this->get_object().render;
   }
 
+  /* ModeCompositionAdapter */
+  HOST_ADAPTER_IMPL(ModeCompositionAdapter,
+                    Runtime::ModeComposition,
+                    &HostType::MODE_COMPOSITION,
+                    ({K_GET(ModeCompositionAdapter, MapKey::RENDER, render)}));
+
+  Lisple::sptr_sobject ModeCompositionAdapter::get_render() const
+  {
+    return this->get_object().render ? MapKey::PASS : MapKey::BLOCK;
+  }
+
   /* DimensionAdapter */
   HOST_ADAPTER_IMPL(DimensionAdapter,
                     Dimension,
@@ -384,6 +425,7 @@ namespace Pixils::Script
     objects.emplace("make-dimension", std::make_shared<Function::MakeDimension>());
     objects.emplace("make-display", std::make_shared<Function::MakeDisplay>());
     objects.emplace("make-mode", std::make_shared<Function::MakeMode>());
+    values.emplace("make-mode-composition", Function::MakeModeComposition::make());
     objects.emplace("make-resolution", std::make_shared<Function::MakeResolution>());
     objects.emplace("render-context", RenderContextAdapter::make_ref(render_context));
     values.emplace("programs", Lisple::RTValue::map({}));

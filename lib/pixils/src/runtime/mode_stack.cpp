@@ -1,6 +1,8 @@
 
 #include "pixils/runtime/mode_stack.h"
 
+#include <pixils/runtime/mode.h>
+
 #include <lisple/host.h>
 #include <lisple/host/object.h>
 #include <lisple/runtime/seq.h>
@@ -40,6 +42,24 @@ namespace Pixils::Runtime
     {
       std::get<Lisple::sptr_rtval_v>(frame->value).at(1) = state;
     }
+  }
+
+  std::vector<std::pair<Mode*, Lisple::sptr_rtval>> ModeStack::get_render_stack()
+  {
+    std::vector<std::pair<Mode*, Lisple::sptr_rtval>> render_stack;
+
+    for (int i = this->size() - 1; i >= 0; i--)
+    {
+      auto frame = Lisple::get_child(*stack, i);
+      Mode* mode = &Lisple::obj<Mode>(*Lisple::get_child(*frame, 0));
+      render_stack.push_back(std::make_pair(mode, Lisple::get_child(*frame, 1)));
+      if (!mode->composition.render)
+      {
+        break;
+      }
+    }
+
+    return render_stack;
   }
 
   size_t ModeStack::size() const

@@ -6,11 +6,16 @@
 #include <pixils/display.h>
 #include <pixils/frame_events.h>
 #include <pixils/program.h>
-#include <pixils/runtime/mode.h>
 
 #include <lisple/exec.h>
 #include <lisple/host.h>
 #include <lisple/namespace.h>
+
+namespace Pixils::Runtime
+{
+  struct Mode;
+  struct ModeComposition;
+} // namespace Pixils::Runtime
 
 namespace Pixils::Script
 {
@@ -21,6 +26,8 @@ namespace Pixils::Script
 
   inline const std::string FN__PIXILS__MAKE_DISPLAY = "pixils/make-display";
   inline const std::string FN__PIXILS__MAKE_MODE = "pixils/make-mode";
+  inline const std::string FN__PIXILS__MAKE_MODE_COMPOSITION =
+    "pixils/make-mode-composition";
   inline const std::string FN__PIXILS__MAKE_DIMENSION = "pixils/make-dimension";
   inline const std::string FN__MAKE_DISPLAY = "display";
   inline const std::string FN__MAKE_RESOLUTION = "pixils/make-resolution";
@@ -52,6 +59,7 @@ namespace Pixils::Script
     HOST_TYPE(DISPLAY, "HDisplay", FN__PIXILS__MAKE_DISPLAY)
     HOST_TYPE(FRAME_EVENTS, "HFrameEvents")
     HOST_TYPE(MODE, "HMode", FN__PIXILS__MAKE_MODE)
+    HOST_TYPE(MODE_COMPOSITION, "HModeComposition", FN__PIXILS__MAKE_MODE_COMPOSITION)
     HOST_TYPE(PROGRAM, "HProgram")
     HOST_TYPE(RENDER_CONTEXT, "HRenderContext")
     HOST_TYPE(RESOLUTION, "HResolution", FN__MAKE_RESOLUTION)
@@ -69,6 +77,8 @@ namespace Pixils::Script
   {
     /*! @brief Lisple make-function for Mode/ModeAdapter */
     FUNC_DECL(MakeMode, make);
+    /*! @brief Lisple make-function for ModeComposition/ModeCompositionAdapter */
+    FUNC(MakeModeComposition, make);
     /*! @brief Lisple make-function for Dimension/DimensionAdapter */
     FUNC(MakeDimension, make);
     /*! @brief Lisple make-function for Display/DisplayAdapter */
@@ -87,8 +97,10 @@ namespace Pixils::Script
   HOST_ADAPTER(DisplayAdapter, Display, (resolution), (resolution));
   /*! @brief FrameEventsAdapter - A Lisple HostObject Adapter for FrameEvents */
   HOST_ADAPTER(FrameEventsAdapter, FrameEvents, (key_down, held_keys));
-  /*! @brief ModeAdapter - A Lisple HostObejct Adapter for Mode */
+  /*! @brief ModeAdapter - A Lisple HostObject Adapter for Mode */
   HOST_ADAPTER(ModeAdapter, Runtime::Mode, (init, update, render));
+  /*! @brief ModeCompositionAdapter - A Lisple HostObject Adapter for ModeComposition */
+  HOST_ADAPTER(ModeCompositionAdapter, Runtime::ModeComposition, (render));
   /*! @brief Lisple HostObject Adapter for Program */
   HOST_ADAPTER(ProgramAdapter, Program, (name, display, initial_mode), (display));
   /*! @brief Lisple HostObject Adapter for RenderContext */

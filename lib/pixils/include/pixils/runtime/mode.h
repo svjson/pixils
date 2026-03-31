@@ -1,6 +1,8 @@
 #ifndef PIXILS__RUNTIME__MODE_H
 #define PIXILS__RUNTIME__MODE_H
 
+#include "pixils/binding/pixils_namespace.h"
+
 #include <lisple/form.h>
 #include <string>
 
@@ -17,6 +19,11 @@ namespace Pixils::Runtime
     std::vector<ImageDependency> images;
   };
 
+  struct ModeComposition
+  {
+    bool render = false;
+  };
+
   struct Mode
   {
     std::string name;
@@ -24,6 +31,7 @@ namespace Pixils::Runtime
     Lisple::sptr_sobject init;
     Lisple::sptr_sobject update;
     Lisple::sptr_sobject render;
+    ModeComposition composition;
   };
 
 } // namespace Pixils::Runtime
