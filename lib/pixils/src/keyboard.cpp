@@ -29,15 +29,11 @@ namespace Pixils
 
     bool Shortcut::matches(const SDL_Event& event) const
     {
-      if (keycode.code != event.key.keysym.sym)
-        return false;
+      if (keycode.code != event.key.keysym.sym) return false;
 
-      if (((event.key.keysym.mod & KMOD_CTRL) > 0) != ctrl)
-        return false;
-      if (((event.key.keysym.mod & KMOD_ALT) > 0) != alt)
-        return false;
-      if (((event.key.keysym.mod & KMOD_SHIFT) > 0) != shift)
-        return false;
+      if (((event.key.keysym.mod & KMOD_CTRL) > 0) != ctrl) return false;
+      if (((event.key.keysym.mod & KMOD_ALT) > 0) != alt) return false;
+      if (((event.key.keysym.mod & KMOD_SHIFT) > 0) != shift) return false;
 
       return true;
     }
@@ -55,22 +51,18 @@ namespace Pixils
     std::string Shortcut::to_string() const
     {
       std::string str = "";
-      if (ctrl)
-        str += "ctrl";
+      if (ctrl) str += "ctrl";
       if (alt)
       {
-        if (!str.empty())
-          str += "+";
+        if (!str.empty()) str += "+";
         str += "alt";
       }
       if (shift)
       {
-        if (!str.empty())
-          str += "+";
+        if (!str.empty()) str += "+";
         str += "shift";
       }
-      if (!str.empty())
-        str += "+";
+      if (!str.empty()) str += "+";
       str += keycode.symbol;
       return str;
     }
@@ -85,69 +77,79 @@ namespace Pixils
     /*
      * SYMBOL_TO_KEYCODE map table
      */
-    const std::map<std::string, SDL_Keycode> SYMBOL_TO_KEYCODE = {{"A", SDLK_a},
-                                                                  {"B", SDLK_b},
-                                                                  {"C", SDLK_c},
-                                                                  {"D", SDLK_d},
-                                                                  {"E", SDLK_e},
-                                                                  {"F", SDLK_f},
-                                                                  {"G", SDLK_g},
-                                                                  {"H", SDLK_h},
-                                                                  {"I", SDLK_i},
-                                                                  {"J", SDLK_j},
-                                                                  {"K", SDLK_k},
-                                                                  {"L", SDLK_l},
-                                                                  {"M", SDLK_m},
-                                                                  {"N", SDLK_n},
-                                                                  {"O", SDLK_o},
-                                                                  {"P", SDLK_p},
-                                                                  {"Q", SDLK_q},
-                                                                  {"R", SDLK_r},
-                                                                  {"S", SDLK_s},
-                                                                  {"T", SDLK_t},
-                                                                  {"U", SDLK_u},
-                                                                  {"V", SDLK_v},
-                                                                  {"W", SDLK_w},
-                                                                  {"X", SDLK_x},
-                                                                  {"Y", SDLK_y},
-                                                                  {"Z", SDLK_z},
-                                                                  {"1", SDLK_1},
-                                                                  {"2", SDLK_2},
-                                                                  {"3", SDLK_3},
-                                                                  {"4", SDLK_4},
-                                                                  {"5", SDLK_5},
-                                                                  {"6", SDLK_6},
-                                                                  {"7", SDLK_7},
-                                                                  {"8", SDLK_8},
-                                                                  {"9", SDLK_9},
-                                                                  {"0", SDLK_0},
-                                                                  {"F1", SDLK_F1},
-                                                                  {"F2", SDLK_F2},
-                                                                  {"F3", SDLK_F3},
-                                                                  {"F4", SDLK_F4},
-                                                                  {"F5", SDLK_F5},
-                                                                  {"F6", SDLK_F6},
-                                                                  {"F7", SDLK_F7},
-                                                                  {"F8", SDLK_F8},
-                                                                  {"F9", SDLK_F9},
-                                                                  {"F10", SDLK_F10},
-                                                                  {"F11", SDLK_F11},
-                                                                  {"F12", SDLK_F12},
-                                                                  {"left-ctrl", SDLK_LCTRL},
-                                                                  {"right-ctrl", SDLK_RCTRL},
-                                                                  {"left-shift", SDLK_LSHIFT},
-                                                                  {"right-shift", SDLK_RSHIFT},
-                                                                  {"left-alt", SDLK_LALT},
-                                                                  {"right-alt", SDLK_RALT},
-                                                                  {"left-super", SDLK_LGUI},
-                                                                  {"right-super", SDLK_RGUI},
-                                                                  {"space", SDLK_SPACE},
-                                                                  {"enter", SDLK_RETURN},
-                                                                  {"escape", SDLK_ESCAPE},
-                                                                  {"left", SDLK_LEFT},
-                                                                  {"right", SDLK_RIGHT},
-                                                                  {"down", SDLK_DOWN},
-                                                                  {"up", SDLK_UP}};
+    const std::map<std::string, SDL_Keycode> SYMBOL_TO_KEYCODE = {
+      {"A", SDLK_a},
+      {"B", SDLK_b},
+      {"C", SDLK_c},
+      {"D", SDLK_d},
+      {"E", SDLK_e},
+      {"F", SDLK_f},
+      {"G", SDLK_g},
+      {"H", SDLK_h},
+      {"I", SDLK_i},
+      {"J", SDLK_j},
+      {"K", SDLK_k},
+      {"L", SDLK_l},
+      {"M", SDLK_m},
+      {"N", SDLK_n},
+      {"O", SDLK_o},
+      {"P", SDLK_p},
+      {"Q", SDLK_q},
+      {"R", SDLK_r},
+      {"S", SDLK_s},
+      {"T", SDLK_t},
+      {"U", SDLK_u},
+      {"V", SDLK_v},
+      {"W", SDLK_w},
+      {"X", SDLK_x},
+      {"Y", SDLK_y},
+      {"Z", SDLK_z},
+      {"1", SDLK_1},
+      {"2", SDLK_2},
+      {"3", SDLK_3},
+      {"4", SDLK_4},
+      {"5", SDLK_5},
+      {"6", SDLK_6},
+      {"7", SDLK_7},
+      {"8", SDLK_8},
+      {"9", SDLK_9},
+      {"0", SDLK_0},
+      {"F1", SDLK_F1},
+      {"F2", SDLK_F2},
+      {"F3", SDLK_F3},
+      {"F4", SDLK_F4},
+      {"F5", SDLK_F5},
+      {"F6", SDLK_F6},
+      {"F7", SDLK_F7},
+      {"F8", SDLK_F8},
+      {"F9", SDLK_F9},
+      {"F10", SDLK_F10},
+      {"F11", SDLK_F11},
+      {"F12", SDLK_F12},
+      {"left-ctrl", SDLK_LCTRL},
+      {"right-ctrl", SDLK_RCTRL},
+      {"left-shift", SDLK_LSHIFT},
+      {"right-shift", SDLK_RSHIFT},
+      {"left-alt", SDLK_LALT},
+      {"right-alt", SDLK_RALT},
+      {"left-super", SDLK_LGUI},
+      {"right-super", SDLK_RGUI},
+      {"space", SDLK_SPACE},
+      {"enter", SDLK_RETURN},
+      {"escape", SDLK_ESCAPE},
+      {"left", SDLK_LEFT},
+      {"right", SDLK_RIGHT},
+      {"down", SDLK_DOWN},
+      {"up", SDLK_UP},
+      {"keypad-1", SDLK_KP_1},
+      {"keypad-2", SDLK_KP_2},
+      {"keypad-3", SDLK_KP_3},
+      {"keypad-4", SDLK_KP_4},
+      {"keypad-5", SDLK_KP_5},
+      {"keypad-6", SDLK_KP_6},
+      {"keypad-7", SDLK_KP_7},
+      {"keypad-8", SDLK_KP_8},
+      {"keypad-9", SDLK_KP_9}};
 
     /*!
      * @brief key_to_char - Translate keyboard event to char. Used for keyboard input.
