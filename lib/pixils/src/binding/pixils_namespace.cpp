@@ -206,34 +206,28 @@ namespace Pixils::Script
 
     EXEC_BODY(MakeResolution, exec_make_resolution)
     {
-      try
+      if (Lisple::Type::KEY.is_type_of(*args[0]))
       {
-        if (Lisple::Type::KEY.is_type_of(*args[0]))
+        const std::string& res_type = args[0]->str();
+        if (res_type == "auto")
         {
-          const std::string& res_type = args[0]->str();
-          if (res_type == "auto")
-          {
-            return Lisple::RTValue::object(
-              ResolutionAdapter::make<Resolution>(Resolution::Mode::AUTO));
-          }
-          throw Lisple::TypeError("Invalid resolution specifier: " + args[0]->to_string());
+          return Lisple::RTValue::object(
+            ResolutionAdapter::make<Resolution>(Resolution::Mode::AUTO));
         }
-        else if (Lisple::Type::MAP.is_type_of(*args[0]))
+        throw Lisple::TypeError("Invalid resolution specifier: " + args[0]->to_string());
+      }
+      else if (Lisple::Type::MAP.is_type_of(*args[0]))
+      {
+        Lisple::CoercionResult<Lisple::RTValue> cresult =
+          HostType::DIMENSION.coerce(ctx, args[0]);
+        if (cresult.success)
         {
-          Lisple::CoercionResult<Lisple::RTValue> cresult =
-            HostType::DIMENSION.coerce(ctx, args[0]);
-          if (cresult.success)
-          {
-            return Lisple::RTValue::object(
-              ResolutionAdapter::make<Resolution>(Resolution::Mode::FIXED,
-                                                  Lisple::obj<Dimension>(*cresult.result)));
-          }
+          return Lisple::RTValue::object(
+            ResolutionAdapter::make<Resolution>(Resolution::Mode::FIXED,
+                                                Lisple::obj<Dimension>(*cresult.result)));
         }
       }
-      catch (std::exception& e)
-      {
-        std::cout << "MakeResolution: " << e.what() << std::endl;
-      }
+
       throw Lisple::TypeError("Could not construct Resolution from: " +
                               args[0]->to_string());
     }

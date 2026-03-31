@@ -11,7 +11,6 @@
 
 namespace Pixils
 {
-
   Dimension RenderContext::get_window_dimension()
   {
     int w, h;
@@ -28,6 +27,11 @@ namespace Pixils
     SDL_SetRenderTarget(renderer, nullptr);
     SDL_SetRenderDrawColor(renderer, bg.r, bg.g, bg.b, 0xff);
     SDL_RenderClear(renderer);
+
+    if (display.resolution.mode == Resolution::Mode::AUTO)
+    {
+      display.resolution.dimension = {window_rect.w, window_rect.h};
+    }
 
     Dimension& target_buffer_dim = display.resolution.dimension;
 
