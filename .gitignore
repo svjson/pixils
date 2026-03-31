@@ -1,9 +1,11 @@
+build
 .cache
 CMakeCache.txt
 CMakeFiles/
 cmake_install.cmake
 compile_commands.json
 Makefile
-
+!/Makefile
 libpixils.a
 ext/
+libpixils.so

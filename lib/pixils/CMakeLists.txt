@@ -1,4 +1,11 @@
 
+find_package(PkgConfig)
+pkg_search_module(SDL2 sdl2)
+pkg_search_module(SDL2IMAGE SDL2_image)
+pkg_search_module(SDL2MIXER SDL2_mixer)
+find_package(X11)
+find_package(lisple REQUIRED)
+
 file(GLOB pixils_SOURCES
   src/*.cpp
   src/asset/*.cpp
@@ -6,22 +13,59 @@ file(GLOB pixils_SOURCES
   src/runtime/*.cpp
 )
 
-add_library(pixils ${pixils_SOURCES})
+add_library(pixils INTERFACE)
+add_library(pixils_static STATIC ${pixils_SOURCES})
+add_library(pixils_shared SHARED ${pixils_SOURCES})
 
-find_package(PkgConfig)
-pkg_search_module(SDL2 sdl2)
-pkg_search_module(SDL2IMAGE SDL2_image)
-pkg_search_module(SDL2MIXER SDL2_mixer)
-find_package(X11)
+foreach(target pixils_static pixils_shared)
 
-target_include_directories(pixils
-  PUBLIC
-    ${CMAKE_CURRENT_SOURCE_DIR}/include)
+  set_target_properties(${target} PROPERTIES
+    OUTPUT_NAME pixils
+    POSITION_INDEPENDENT_CODE ON
+  )
 
-target_link_libraries(pixils
+  target_include_directories(${target}
+    PUBLIC
+      $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+      $<INSTALL_INTERFACE:include>
+  )
+
+endforeach()
+
+target_link_libraries(pixils_shared
   PUBLIC
     SDL2
     SDL2_image
     SDL2_mixer
-    lisple
+    Lisple::lisple_shared
 )
+
+target_link_libraries(pixils_static
+  PUBLIC
+    SDL2
+    SDL2_image
+    SDL2_mixer
+    Lisple::lisple_static
+)
+
+install(TARGETS pixils pixils_shared pixils_static
+  EXPORT pixilsTargets
+  ARCHIVE DESTINATION lib
+  LIBRARY DESTINATION lib
+  RUNTIME DESTINATION bin
+  INCLUDES DESTINATION include
+)
+
+install(DIRECTORY include/
+  DESTINATION include
+)
+
+install(EXPORT pixilsTargets
+  NAMESPACE pixils::
+  DESTINATION lib/cmake/pixils
+)
+
+install(FILES cmake/pixilsConfig.cmake
+  DESTINATION lib/cmake/pixils
+)
+
