@@ -111,27 +111,24 @@ namespace Pixils
 
   void Client::run()
   {
-    this->ctx.prepare_frame(program->get_display());
+    this->ctx.prepare_application_frame(program->get_display());
     this->main_loop();
   }
 
   void Client::main_loop()
   {
-    auto l_events = Pixils::Script::FrameEventsAdapter::make_ref(events);
-    auto l_ctx = Pixils::Script::RenderContextAdapter::make_ref(ctx);
-
-    //    SDL_Rect surface_rect{0, 0, ctx.buffer_dim.w, ctx.buffer_dim.h};
     SDL_Event event;
 
     bool quit = false;
+    bool error_state = false;
+
+    [[maybe_unused]] long frame = 0;
 
     while (!quit)
     {
       long long frame_start = now();
 
-      // surface_rect.w = ctx.buffer_dim.w;
-      // surface_rect.h = ctx.buffer_dim.h;
-      ctx.prepare_frame(program->get_display());
+      ctx.begin_frame(program->get_display());
 
       events.key_down = Lisple::NIL;
 
@@ -151,13 +148,25 @@ namespace Pixils
         }
       }
 
-      SDL_SetRenderDrawBlendMode(ctx.renderer, SDL_BLENDMODE_NONE);
-      SDL_SetRenderDrawColor(ctx.renderer, 0x00, 0x00, 0x00, 0xff);
-      SDL_RenderClear(ctx.renderer);
-      SDL_SetRenderDrawColor(ctx.renderer, 0xff, 0xff, 0xff, 0xff);
 
-      session.update_mode();
-      session.render_mode();
+      if (error_state)
+      {
+        ctx.flush_buffer(program->get_display());
+      }
+      else
+      {
+        try
+        {
+          ctx.prepare_application_frame(program->get_display());
+
+          session.update_mode();
+          session.render_mode();
+        }
+        catch (std::exception& e)
+        {
+          error_state = true;
+        }
+      }
 
       ctx.flush_buffer(program->get_display());
 

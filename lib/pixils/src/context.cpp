@@ -19,7 +19,7 @@ namespace Pixils
     return Dimension{w, h};
   }
 
-  void RenderContext::prepare_frame(Display& display)
+  void RenderContext::begin_frame(Display& display)
   {
     Color& bg = display.background;
 
@@ -27,7 +27,10 @@ namespace Pixils
     SDL_SetRenderTarget(renderer, nullptr);
     SDL_SetRenderDrawColor(renderer, bg.r, bg.g, bg.b, 0xff);
     SDL_RenderClear(renderer);
+  }
 
+  void RenderContext::prepare_application_frame(Display& display)
+  {
     if (display.resolution.mode == Resolution::Mode::AUTO)
     {
       display.resolution.dimension = {window_rect.w, window_rect.h};
@@ -46,18 +49,17 @@ namespace Pixils
       SDL_DestroyTexture(this->buffer_texture);
       create_and_target_buffer();
     }
-    else
-    {
-      clear_buffer();
-    }
+
+    clear_buffer();
   }
 
   void RenderContext::clear_buffer()
   {
     SDL_SetTextureBlendMode(buffer_texture, SDL_BLENDMODE_BLEND);
     SDL_SetRenderTarget(this->renderer, this->buffer_texture);
-    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
+    SDL_SetRenderDrawColor(renderer, 0x00, 0x00, 0x00, 0xff);
     SDL_RenderClear(renderer);
+    SDL_SetRenderDrawColor(renderer, 0xff, 0xff, 0xff, 0xff);
   }
 
   void RenderContext::create_and_target_buffer()

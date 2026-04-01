@@ -61,10 +61,16 @@ namespace Pixils
     Dimension get_window_dimension();
 
     /*!
-     * @brief Make sure the in memory buffer is initialized and of the correct
-     * size
+     * @brief Prepare a new frame for rendering. To be called at the beginning of every
+     * frame, regardless of application state.
      */
-    void prepare_frame(Display& display);
+    void begin_frame(Display& display);
+
+    /*!
+     * @brief Make sure the in memory buffer is initialized and of the correct
+     * size.
+     */
+    void prepare_application_frame(Display& display);
     /*!
      * @brief Clear the in-memory buffer
      */
