@@ -19,11 +19,12 @@ namespace Pixils::Runtime
     std::pair<Mode*, Lisple::sptr_rtval> peek();
     void pop();
 
-    void update_state(const Lisple::sptr_rtval& state);
+    void update_state(const Lisple::sptr_rtval& state, size_t offset = 0);
 
     size_t size() const;
 
     std::vector<std::pair<Mode*, Lisple::sptr_rtval>> get_render_stack();
+    std::vector<std::pair<Mode*, Lisple::sptr_rtval>> get_update_stack();
 
     Lisple::sptr_rtval_v drain_messages();
   };

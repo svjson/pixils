@@ -150,11 +150,14 @@ namespace Pixils::Script
 
     EXEC_BODY(MakeModeComposition, exec_make)
     {
-      static Lisple::MapSchema mode_compose_schema({}, {{"render", &Lisple::Type::KEY}});
+      static Lisple::MapSchema mode_compose_schema(
+        {},
+        {{"render", &Lisple::Type::KEY}, {"update", &Lisple::Type::KEY}});
 
       auto opts = mode_compose_schema.bind(ctx, *args[0]);
 
-      Runtime::ModeComposition composition{opts.str("render", "block") == "pass"};
+      Runtime::ModeComposition composition{opts.str("render", "block") == "pass",
+                                           opts.str("update", "block") == "pass"};
 
       return Lisple::RTValue::object(std::make_shared<ModeCompositionAdapter>(
         std::make_unique<Runtime::ModeComposition>(composition)));

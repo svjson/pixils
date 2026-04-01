@@ -111,6 +111,19 @@ namespace Pixils::Runtime
 
   void Session::update_mode()
   {
+    auto update_stack = mode_stack.get_update_stack();
+
+    for (size_t i = update_stack.size() - 1; i > 0; i--)
+    {
+      auto [mode, mode_state] = update_stack[i];
+
+      Lisple::sptr_rtval_v rargs = this->hook_args.update_args;
+      rargs[0] = mode_state;
+
+      Lisple::sptr_rtval new_state = lisple_runtime.invoke(mode->update->to_string(), rargs);
+      mode_stack.update_state(new_state, update_stack.size() - i);
+    }
+
     Lisple::sptr_rtval updated_state =
       this->lisple_runtime.invoke(this->active_mode.update_fun, this->hook_args.update_args);
     this->hook_args.update_state(updated_state);
@@ -119,7 +132,6 @@ namespace Pixils::Runtime
 
   void Session::render_mode()
   {
-
     auto render_stack = mode_stack.get_render_stack();
 
     for (size_t i = render_stack.size() - 1; i > 0; i--)

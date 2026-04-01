@@ -34,14 +34,32 @@ namespace Pixils::Runtime
     Lisple::pop_child(*stack);
   }
 
-  void ModeStack::update_state(const Lisple::sptr_rtval& state)
+  void ModeStack::update_state(const Lisple::sptr_rtval& state, size_t offset)
   {
-    auto frame = Lisple::get_child(*stack, size() - 1);
+    auto frame = Lisple::get_child(*stack, size() - 1 - offset);
 
     if (frame->type != Lisple::RTValue::Type::NIL)
     {
       std::get<Lisple::sptr_rtval_v>(frame->value).at(1) = state;
     }
+  }
+
+  std::vector<std::pair<Mode*, Lisple::sptr_rtval>> ModeStack::get_update_stack()
+  {
+    std::vector<std::pair<Mode*, Lisple::sptr_rtval>> update_stack;
+
+    for (int i = this->size() - 1; i >= 0; i--)
+    {
+      auto frame = Lisple::get_child(*stack, i);
+      Mode* mode = &Lisple::obj<Mode>(*Lisple::get_child(*frame, 0));
+      update_stack.push_back(std::make_pair(mode, Lisple::get_child(*frame, 1)));
+      if (!mode->composition.update)
+      {
+        break;
+      }
+    }
+
+    return update_stack;
   }
 
   std::vector<std::pair<Mode*, Lisple::sptr_rtval>> ModeStack::get_render_stack()

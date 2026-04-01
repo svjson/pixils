@@ -22,6 +22,7 @@ namespace Pixils::Runtime
   struct ModeComposition
   {
     bool render = false;
+    bool update = false;
   };
 
   struct Mode
