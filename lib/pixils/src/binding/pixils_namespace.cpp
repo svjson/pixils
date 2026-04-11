@@ -158,6 +158,7 @@ namespace Pixils::Script
                                             {"render", &Lisple::Type::ANY},
                                             {"compose", &HostType::MODE_COMPOSITION},
                                             {"resources", &HostType::RESOURCE_DEPENDENCIES},
+                                            {"children", &Lisple::Type::ANY}});
 
       auto opts = mode_schema.bind(ctx, *args[0]);
 
@@ -169,10 +170,36 @@ namespace Pixils::Script
                          .init = Lisple::Dict::get_property(*args[0], "init"),
                          .update = Lisple::Dict::get_property(*args[0], "update"),
                          .render = Lisple::Dict::get_property(*args[0], "render"),
-                         .composition = {}};
+                         .composition = {},
+                         .children = {}};
 
       if (resources.has_value()) mode.resources = *resources;
       if (composition.has_value()) mode.composition = *composition;
+
+      auto children_val = opts.val("children");
+      if (children_val->type != Lisple::RTValue::Type::NIL)
+      {
+        static Lisple::MapSchema child_schema(
+          {{"mode", &Lisple::Type::SYMBOL}},
+          {{"width", &Lisple::Type::NUMBER}, {"height", &Lisple::Type::NUMBER}});
+
+        size_t n = Lisple::count(*children_val);
+        for (size_t i = 0; i < n; i++)
+        {
+          auto child_entry = Lisple::get_child(*children_val, i);
+          auto mode_sym = Lisple::Dict::get_property(*child_entry, "mode");
+          auto child_opts = child_schema.bind(ctx, *child_entry);
+
+          Runtime::ChildSlot slot;
+          slot.mode_name = mode_sym->str();
+          if (child_opts.contains("width"))
+            slot.width = Runtime::DimensionConstraint::fixed(child_opts.i32("width"));
+          if (child_opts.contains("height"))
+            slot.height = Runtime::DimensionConstraint::fixed(child_opts.i32("height"));
+
+          mode.children.push_back(slot);
+        }
+      }
 
       return ModeAdapter::make_unique(mode);
     }

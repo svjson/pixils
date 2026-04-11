@@ -2,9 +2,16 @@
 #ifndef __PIXILS__RUNTIME__SESSION_H_
 #define __PIXILS__RUNTIME__SESSION_H_
 
+#include <pixils/geom.h>
+#include <pixils/runtime/mode.h>
 #include <pixils/runtime/mode_stack.h>
 
 #include <lisple/form.h>
+
+namespace Pixils
+{
+  struct RenderContext;
+}
 
 namespace Pixils::Asset
 {
@@ -25,6 +32,17 @@ namespace Pixils::Runtime
     void update_state(const Lisple::sptr_rtval& state);
   };
 
+  /**
+   * Runtime state for a single child mode in a layout tree. Each node holds the
+   * resolved mode pointer, the child's own Lisple state, and any nested children.
+   */
+  struct ChildContext
+  {
+    Mode* mode = nullptr;
+    Lisple::sptr_rtval state = Lisple::Constant::NIL;
+    std::vector<ChildContext> children;
+  };
+
   struct ActiveMode
   {
     int mode_index = -1;
@@ -34,6 +52,7 @@ namespace Pixils::Runtime
     std::string render_fun;
 
     Lisple::sptr_rtval state = Lisple::Constant::NIL;
+    std::vector<ChildContext> children;
   };
 
   struct Session
@@ -59,6 +78,14 @@ namespace Pixils::Runtime
     void init_mode();
     void update_mode();
     void render_mode();
+
+    ChildContext build_child_context(const ChildSlot& slot);
+    void init_child(ChildContext& child);
+    void update_child(ChildContext& child);
+    void render_child(const ChildContext& child, const Rect& bounds);
+
+    std::vector<Rect> layout_children(const std::vector<ChildSlot>& slots,
+                                      const Rect& parent);
   };
 
 } // namespace Pixils::Runtime

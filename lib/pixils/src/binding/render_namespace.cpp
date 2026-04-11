@@ -182,14 +182,19 @@ namespace Pixils::Script
 
       const Point& top_left = Lisple::obj<Point>(*args[0]);
       const Point& bottom_right = Lisple::obj<Point>(*args[1]);
-      const Lisple::sptr_rtval& opts = args[2];
 
-      auto color_expr = Lisple::Dict::get_property(*opts, "color");
-      auto fill_expr = Lisple::Dict::get_property(*opts, "fill");
+      static Lisple::MapSchema opts_schema(
+        {},
+        {{"color", &HostType::COLOR}, {"fill", &Lisple::Type::BOOL}});
 
-      if (Lisple::is_truthy(*color_expr))
+      auto opts = opts_schema.bind(ctx, *args[2]);
+
+      auto color_opt = opts.val("color");
+      auto fill_opt = opts.val("fill");
+
+      if (Lisple::is_truthy(*color_opt))
       {
-        const Color& color = Lisple::obj<Color>(*color_expr);
+        const Color& color = Lisple::obj<Color>(*color_opt);
         SDL_SetRenderDrawColor(rc.renderer, color.r, color.g, color.b, color.a);
       }
 
@@ -197,7 +202,7 @@ namespace Pixils::Script
 
       SDL_Rect rect = {top_left.round_x(), top_left.round_y(), wh.round_x(), wh.round_y()};
 
-      if (Lisple::is_truthy(*fill_expr))
+      if (Lisple::is_truthy(*fill_opt))
       {
         SDL_SetRenderDrawBlendMode(rc.renderer, SDL_BLENDMODE_BLEND);
         SDL_RenderFillRect(rc.renderer, &rect);

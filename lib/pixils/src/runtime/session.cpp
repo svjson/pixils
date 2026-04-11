@@ -50,6 +50,15 @@ namespace Pixils::Runtime
       this->active_mode.state = mode_state;
 
       this->hook_args.update_state(mode_state);
+
+      /** Re-build children for the mode that is now on top. State is not
+       * persisted across a push/pop cycle - children re-initialize. */
+      this->active_mode.children.clear();
+      for (const auto& slot : mode->children)
+      {
+        this->active_mode.children.push_back(build_child_context(slot));
+        init_child(this->active_mode.children.back());
+      }
     }
   }
 
@@ -73,6 +82,13 @@ namespace Pixils::Runtime
     this->hook_args.update_state(state);
 
     this->init_mode();
+
+    this->active_mode.children.clear();
+    for (const auto& slot : mode_obj.children)
+    {
+      this->active_mode.children.push_back(build_child_context(slot));
+      init_child(this->active_mode.children.back());
+    }
   }
 
   void Session::push_mode(const std::string& mode_name, const Lisple::sptr_rtval& state)
@@ -133,6 +149,11 @@ namespace Pixils::Runtime
       this->lisple_runtime.invoke(this->active_mode.update_fun, this->hook_args.update_args);
     this->hook_args.update_state(updated_state);
     this->active_mode.state = updated_state;
+
+    for (auto& child : this->active_mode.children)
+    {
+      update_child(child);
+    }
   }
 
   void Session::render_mode()
@@ -150,6 +171,132 @@ namespace Pixils::Runtime
     }
 
     lisple_runtime.invoke(this->active_mode.render_fun, this->hook_args.render_args);
+
+    if (!this->active_mode.children.empty())
+    {
+      auto [top_mode, _] = mode_stack.peek();
+      Rect parent_bounds = {0, 0, render_ctx.buffer_dim.w, render_ctx.buffer_dim.h};
+      auto child_rects = layout_children(top_mode->children, parent_bounds);
+      for (size_t i = 0; i < this->active_mode.children.size(); i++)
+      {
+        render_child(this->active_mode.children[i], child_rects[i]);
+      }
+    }
+  }
+
+  ChildContext Session::build_child_context(const ChildSlot& slot)
+  {
+    auto mode_val = Lisple::Dict::get_property(modes, Lisple::RTValue::symbol(slot.mode_name));
+    Mode* child_mode = &Lisple::obj<Mode>(*mode_val);
+
+    ChildContext ctx;
+    ctx.mode = child_mode;
+    ctx.state = Lisple::Constant::NIL;
+
+    for (const auto& grandchild_slot : child_mode->children)
+    {
+      ctx.children.push_back(build_child_context(grandchild_slot));
+    }
+
+    return ctx;
+  }
+
+  void Session::init_child(ChildContext& child)
+  {
+    if (!this->assets.is_loaded(child.mode->name))
+    {
+      this->assets.load(child.mode->name, child.mode->resources);
+    }
+
+    if (child.mode->init->type != Lisple::RTValue::Type::NIL)
+    {
+      Lisple::sptr_rtval_v iargs = {child.state, this->hook_args.init_args[1]};
+      child.state = this->lisple_runtime.invoke(child.mode->init->to_string(), iargs);
+    }
+
+    for (auto& grandchild : child.children)
+    {
+      init_child(grandchild);
+    }
+  }
+
+  void Session::update_child(ChildContext& child)
+  {
+    if (child.mode->update->type != Lisple::RTValue::Type::NIL)
+    {
+      Lisple::sptr_rtval_v uargs = {child.state,
+                                    this->hook_args.update_args[1],
+                                    this->hook_args.update_args[2]};
+      child.state = this->lisple_runtime.invoke(child.mode->update->to_string(), uargs);
+    }
+
+    for (auto& grandchild : child.children)
+    {
+      update_child(grandchild);
+    }
+  }
+
+  void Session::render_child(const ChildContext& child, const Rect& bounds)
+  {
+    SDL_Rect viewport = {bounds.x, bounds.y, bounds.w, bounds.h};
+    SDL_RenderSetViewport(render_ctx.renderer, &viewport);
+
+    if (child.mode->render->type != Lisple::RTValue::Type::NIL)
+    {
+      Lisple::sptr_rtval_v rargs = {child.state, this->hook_args.render_args[1]};
+      this->lisple_runtime.invoke(child.mode->render->to_string(), rargs);
+    }
+
+    if (!child.children.empty())
+    {
+      /** Child bounds here are local (origin at 0,0 within the viewport), but
+       *  SDL_RenderSetViewport expects absolute coordinates on the render target.
+       *  Offset by the parent's absolute position when recursing. */
+      Rect local_parent = {0, 0, bounds.w, bounds.h};
+      auto grandchild_rects = layout_children(child.mode->children, local_parent);
+      for (size_t i = 0; i < child.children.size(); i++)
+      {
+        Rect abs = {bounds.x + grandchild_rects[i].x,
+                    bounds.y + grandchild_rects[i].y,
+                    grandchild_rects[i].w,
+                    grandchild_rects[i].h};
+        render_child(child.children[i], abs);
+      }
+    }
+
+    SDL_RenderSetViewport(render_ctx.renderer, nullptr);
+  }
+
+  std::vector<Rect> Session::layout_children(const std::vector<ChildSlot>& slots,
+                                              const Rect& parent)
+  {
+    int total_fixed = 0;
+    int fill_count = 0;
+
+    for (const auto& slot : slots)
+    {
+      const auto& constraint = slot.height;
+      if (constraint.has_value() && constraint->kind == DimensionConstraint::Kind::FIXED)
+        total_fixed += constraint->value;
+      else
+        fill_count++;
+    }
+
+    int fill_height = fill_count > 0 ? (parent.h - total_fixed) / fill_count : 0;
+
+    std::vector<Rect> rects;
+    int y = parent.y;
+    for (const auto& slot : slots)
+    {
+      const auto& constraint = slot.height;
+      int h = (constraint.has_value() && constraint->kind == DimensionConstraint::Kind::FIXED)
+                ? constraint->value
+                : fill_height;
+      rects.push_back({parent.x, y, parent.w, h});
+      y += h;
+    }
+
+    return rects;
   }
 
 } // namespace Pixils::Runtime
