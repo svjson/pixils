@@ -32,11 +32,11 @@ namespace Pixils
     : lisple(lisple_runtime)
     , ctx(ctx)
     , assets(ctx)
-    , session(
-        lisple_runtime,
-        assets,
-        {Lisple::RTValue::object(Pixils::Script::FrameEventsAdapter::make_ref(this->events)),
-         Lisple::RTValue::object(Pixils::Script::RenderContextAdapter::make_ref(this->ctx))})
+    , session(lisple_runtime,
+              assets,
+              ctx,
+              {Pixils::Script::FrameEventsAdapter::make_ref(this->events),
+               Pixils::Script::RenderContextAdapter::make_ref(this->ctx)})
   {
     ctx.asset_registry = &assets;
     init_console();
@@ -60,15 +60,11 @@ namespace Pixils
 
       auto program_val = Lisple::Dict::get_property(programs, program_key);
 
-      Lisple::sptr_sobject prg_obj = std::get<Lisple::sptr_sobject>(program_val->value);
-
-      auto& program = Lisple::obj<Program>(*program_val);
-
-      this->program = &program;
+      this->program = &Lisple::obj<Program>(*program_val);
 
       auto modes = lisple_runtime.lookup_value(Script::ID__PIXILS__MODES);
 
-      if (program.initial_mode == "")
+      if (program->initial_mode == "")
       {
         auto mode_keys = Lisple::Dict::map_keys(*modes);
         if (mode_keys.size() == 0)
@@ -77,11 +73,11 @@ namespace Pixils
         }
         else
         {
-          program.initial_mode = mode_keys.front()->str();
+          program->initial_mode = mode_keys.front()->str();
         }
       }
 
-      session.push_mode(program.initial_mode, Lisple::Constant::NIL);
+      session.push_mode(program->initial_mode, Lisple::Constant::NIL);
     }
   }
 
@@ -130,7 +126,7 @@ namespace Pixils
 
       ctx.begin_frame(program->get_display());
 
-      events.key_down = Lisple::NIL;
+      events.key_down = Lisple::Constant::NIL;
 
       while (SDL_PollEvent(&event))
       {
@@ -148,6 +144,7 @@ namespace Pixils
         }
       }
 
+      frame++;
 
       if (error_state)
       {

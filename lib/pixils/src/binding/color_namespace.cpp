@@ -5,6 +5,7 @@
 #include <lisple/host.h>
 #include <lisple/host/object.h>
 #include <lisple/host/schema.h>
+#include <lisple/host/transform.h>
 #include <lisple/namespace.h>
 
 namespace Pixils::Script
@@ -18,18 +19,12 @@ namespace Pixils::Script
   } // namespace MapKey
 
   /* ColorAdapter */
-  HOST_ADAPTER_IMPL(ColorAdapter,
-                    Color,
-                    &HostType::COLOR,
-                    ({K_GET_SET(ColorAdapter, MapKey::R, r),
-                      K_GET_SET(ColorAdapter, MapKey::G, g),
-                      K_GET_SET(ColorAdapter, MapKey::B, b),
-                      K_GET_SET(ColorAdapter, MapKey::A, a)}));
+  NATIVE_ADAPTER_IMPL(ColorAdapter, Color, &HostType::COLOR, (r), (g), (b), (a));
 
-  ADAPTER_PROP_GET_SET__FIELD(ColorAdapter, r, Lisple::Number);
-  ADAPTER_PROP_GET_SET__FIELD(ColorAdapter, g, Lisple::Number);
-  ADAPTER_PROP_GET_SET__FIELD(ColorAdapter, b, Lisple::Number);
-  ADAPTER_PROP_GET_SET__FIELD(ColorAdapter, a, Lisple::Number);
+  NOBJ_PROP_GET_SET__FIELD(ColorAdapter, r);
+  NOBJ_PROP_GET_SET__FIELD(ColorAdapter, g);
+  NOBJ_PROP_GET_SET__FIELD(ColorAdapter, b);
+  NOBJ_PROP_GET_SET__FIELD(ColorAdapter, a);
 
   namespace Function
   {
@@ -53,7 +48,8 @@ namespace Pixils::Script
       color->b = input.ui8("b");
       color->a = input.ui8("a", 0xff);
 
-      return Lisple::RTValue::object(std::make_shared<ColorAdapter>(std::move(color)));
+      return Lisple::RTValue::native_object(
+        std::make_shared<ColorAdapter>(std::move(color)));
     }
 
     /* WithAlpha - with-alpha */
@@ -68,7 +64,8 @@ namespace Pixils::Script
       std::unique_ptr<Color> color = std::make_unique<Color>(source);
       color->a = args[1]->ui8();
 
-      return Lisple::RTValue::object(std::make_shared<ColorAdapter>(std::move(color)));
+      return Lisple::RTValue::native_object(
+        std::make_shared<ColorAdapter>(std::move(color)));
     }
 
   } // namespace Function
@@ -77,7 +74,7 @@ namespace Pixils::Script
     : Lisple::Namespace(std::string(NS__PIXILS__COLOR))
   {
     values.emplace(FN__MAKE_COLOR, Function::MakeColor::make());
-    objects.emplace(FN__WITH_ALPHA, std::make_shared<Function::WithAlpha>());
+    values.emplace(FN__WITH_ALPHA, Function::WithAlpha::make());
   }
 
 } // namespace Pixils::Script

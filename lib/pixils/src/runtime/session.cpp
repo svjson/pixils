@@ -3,7 +3,10 @@
 
 #include <pixils/asset/registry.h>
 #include <pixils/binding/pixils_namespace.h>
+#include <pixils/context.h>
+#include <pixils/runtime/mode.h>
 
+#include <SDL2/SDL_render.h>
 #include <lisple/host.h>
 #include <lisple/host/object.h>
 #include <lisple/runtime.h>
@@ -21,9 +24,11 @@ namespace Pixils::Runtime
 
   Session::Session(Lisple::Runtime& lisple_runtime,
                    Asset::Registry& assets,
+                   RenderContext& render_ctx,
                    const HookArguments& hook_args)
     : lisple_runtime(lisple_runtime)
     , assets(assets)
+    , render_ctx(render_ctx)
     , mode_stack(lisple_runtime.lookup_value(Script::ID__PIXILS__MODE_STACK),
                  lisple_runtime.lookup_value(Script::ID__PIXILS__MODE_STACK_MESSAGES))
     , modes(lisple_runtime.lookup_value(Script::ID__PIXILS__MODES))

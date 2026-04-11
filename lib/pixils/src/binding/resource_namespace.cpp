@@ -1,9 +1,11 @@
 
-#include "pixils/binding/arg_collector.h"
 #include "pixils/runtime/mode.h"
 #include <pixils/binding/resource_namespace.h>
 
 #include <lisple/host.h>
+#include <lisple/host/accessor.h>
+#include <lisple/host/schema.h>
+#include <lisple/runtime/dict.h>
 
 namespace Pixils::Script
 {
@@ -17,43 +19,44 @@ namespace Pixils::Script
     /* MakeResourceDependencies */
     FUNC_IMPL(MakeResourceDependencies,
               SIG((FN_ARGS((&Lisple::Type::MAP)),
-                   EXEC_DISPATCH(&MakeResourceDependencies::make_deps))));
+                   EXEC_DISPATCH(&MakeResourceDependencies::exec_make_deps))));
 
-    ArgCollector res_dep_coll(std::string(FN__PIXILS__MAKE_RESOURCE_DEPS),
-                              {},
-                              {{*MapKey::IMAGES, &Lisple::Type::MAP}});
-
-    FUNC_BODY(MakeResourceDependencies, make_deps)
+    EXEC_BODY(MakeResourceDependencies, exec_make_deps)
     {
-      str_key_map_t keys = res_dep_coll.collect_keys(ctx, *args.front());
+      static Lisple::MapSchema resources_schema({}, {{"images", &Lisple::Type::MAP}});
+
+      auto opts = resources_schema.bind(ctx, *args[0]);
 
       Runtime::ResourceDependencies deps;
 
-      if (keys.count(MapKey::IMAGES->value))
+      if (auto img_map = opts.val("images"))
       {
-        Lisple::Map& img_map = ArgCollector::lmap_value(keys, *MapKey::IMAGES);
-        for (auto& key : img_map.keys())
+        for (auto& key : Lisple::Dict::map_keys(*img_map))
         {
-          auto val = img_map.get_sptr_property(*key);
-          deps.images.push_back({key->as<Lisple::Value<std::string>>().value,
-                                 val->as<Lisple::Value<std::string>>().value});
+          auto val = Lisple::Dict::get_property(img_map, *key);
+          deps.images.push_back({key->str(), val->str()});
         }
       }
 
-      return ResourceDependenciesAdapter::make<Runtime::ResourceDependencies>(deps);
+      return ResourceDependenciesAdapter::make_unique(deps);
     }
   } // namespace Function
 
   /* ResourceDependenciesAdapter */
-  HOST_ADAPTER_IMPL(ResourceDependenciesAdapter,
-                    Pixils::Runtime::ResourceDependencies,
-                    &HostType::RESOURCE_DEPENDENCIES);
+  NATIVE_ADAPTER_IMPL(ResourceDependenciesAdapter,
+                      Pixils::Runtime::ResourceDependencies,
+                      &HostType::RESOURCE_DEPENDENCIES,
+                      (images));
+
+  NOBJ_PROP_GET(ResourceDependenciesAdapter, images)
+  {
+    return Lisple::Constant::NIL;
+  }
 
   /* ResourceNamespace */
   ResourceNamespace::ResourceNamespace()
     : Lisple::Namespace(std::string(NS__PIXILS__RESOURCE))
   {
-    objects.emplace(FN__MAKE_RESOURCE_DEPS,
-                    std::make_shared<Function::MakeResourceDependencies>());
+    values.emplace(FN__MAKE_RESOURCE_DEPS, Function::MakeResourceDependencies::make());
   }
 } // namespace Pixils::Script

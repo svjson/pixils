@@ -6,6 +6,7 @@
 
 #include <lisple/exec.h>
 #include <lisple/host.h>
+#include <lisple/host/object.h>
 #include <lisple/namespace.h>
 #include <string>
 
@@ -43,7 +44,7 @@ namespace Pixils::Script
   }
 
   /*! @brief ColorAdapter - A Lisple HostObject Adapter for Color */
-  HOST_ADAPTER(ColorAdapter, Color, (r, g, b, a), (r, g, b, a));
+  NATIVE_ADAPTER(ColorAdapter, Color, (r, g, b, a), (r, g, b, a));
 
   namespace Function
   {

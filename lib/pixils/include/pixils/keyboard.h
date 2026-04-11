@@ -123,7 +123,8 @@ namespace Pixils
       /*!
        * @brief A static constant representing an empty shortcut.
        *
-       * This constant represents a shortcut with no keycode or modifiers, effectively "none".
+       * This constant represents a shortcut with no keycode or modifiers, effectively
+       * "none".
        */
       static const Shortcut NONE;
 
@@ -164,7 +165,7 @@ namespace Pixils
 
     std::unique_ptr<char> key_to_char(SDL_KeyboardEvent& key_event);
 
-    Lisple::sptr_sobject key_event_to_lisple_key(const SDL_KeyboardEvent& event);
+    Lisple::sptr_rtval key_event_to_lisple_key(const SDL_KeyboardEvent& event);
   } // namespace Keyboard
 
 } // namespace Pixils

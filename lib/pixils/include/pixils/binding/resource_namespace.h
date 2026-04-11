@@ -24,10 +24,12 @@ namespace Pixils::Script
 
   namespace Function
   {
-    FUNC_DECL(MakeResourceDependencies, make_deps);
+    FUNC(MakeResourceDependencies, make_deps);
   }
 
-  HOST_ADAPTER(ResourceDependenciesAdapter, Pixils::Runtime::ResourceDependencies);
+  NATIVE_ADAPTER(ResourceDependenciesAdapter,
+                 Pixils::Runtime::ResourceDependencies,
+                 (images));
 
   class ResourceNamespace : public Lisple::Namespace
   {

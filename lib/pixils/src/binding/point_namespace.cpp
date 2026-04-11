@@ -38,14 +38,12 @@ namespace Pixils::Script
       }
 
       auto input = point_schema.bind(ctx, *args[0]);
-      return Lisple::RTValue::object(
-        PointAdapter::make<Point>(input.f32("x"), input.f32("y")));
+      return PointAdapter::make_unique(input.f32("x"), input.f32("y"));
     }
 
     EXEC_BODY(MakePoint, exec_point_from_ints)
     {
-      return Lisple::RTValue::object(
-        PointAdapter::make<Point>(args.at(0)->f32(), args.at(1)->f32()));
+      return PointAdapter::make_unique(args.at(0)->f32(), args.at(1)->f32());
     }
 
     /* Distance Between - distance-between */
@@ -80,13 +78,12 @@ namespace Pixils::Script
       const Point& point = Lisple::obj<Point>(*args[0]);
       auto map = rotate_opts_schema.bind(ctx, *args[1]);
 
-      return Lisple::RTValue::object(PointAdapter::make<Point>(
-        point.rotate(map.obj<Point>("origin", POINT__ZERO_ZERO), map.f32("radians", 0.0f))));
+      return PointAdapter::make_unique(
+        point.rotate(map.obj<Point>("origin", POINT__ZERO_ZERO), map.f32("radians", 0.0f)));
     }
 
     EXEC_BODY(RotatePoint, exec_amount)
     {
-      ;
       Lisple::sptr_rtval_v fwd_args = {
         args[0],
         Lisple::RTValue::map({Lisple::RTValue::keyword("radians"), args[1]})};
@@ -116,7 +113,7 @@ namespace Pixils::Script
       const Point& coord = Lisple::obj<Point>(*args.front());
       const float n = args.back()->f32();
 
-      return Lisple::RTValue::object(PointAdapter::make<Point>(coord.x * n, coord.y * n));
+      return PointAdapter::make_unique(coord.x * n, coord.y * n);
     }
 
     /* PointDivision */
@@ -129,7 +126,7 @@ namespace Pixils::Script
       const Point& coord = Lisple::obj<Point>(*args.front());
       const float n = args.back()->f32();
 
-      return Lisple::RTValue::object(PointAdapter::make<Point>(coord.x / n, coord.y / n));
+      return PointAdapter::make_unique(coord.x / n, coord.y / n);
     }
 
     /* PointPlus */
@@ -139,8 +136,8 @@ namespace Pixils::Script
 
     EXEC_BODY(PointPlus, exec_plus)
     {
-      return Lisple::RTValue::object(PointAdapter::make<Point>(
-        Lisple::obj<Point>(*args.front()) + Lisple::obj<Point>(*args.back())));
+      return PointAdapter::make_unique(Lisple::obj<Point>(*args.front()) +
+                                       Lisple::obj<Point>(*args.back()));
     }
 
     /* PointMinus */
@@ -150,21 +147,17 @@ namespace Pixils::Script
 
     EXEC_BODY(PointMinus, exec_minus)
     {
-      return Lisple::RTValue::object(PointAdapter::make<Point>(
-        Lisple::obj<Point>(*args.front()) - Lisple::obj<Point>(*args.back())));
+      return PointAdapter::make_unique(Lisple::obj<Point>(*args.front()) -
+                                       Lisple::obj<Point>(*args.back()));
     }
 
   } // namespace Function
 
   /* PointAdapter */
-  HOST_ADAPTER_IMPL(PointAdapter,
-                    Point,
-                    &HostType::POINT,
-                    ({K_GET_SET(PointAdapter, MapKey::X, x),
-                      K_GET_SET(PointAdapter, MapKey::Y, y)}));
+  NATIVE_ADAPTER_IMPL(PointAdapter, Point, &HostType::POINT, (x), (y));
 
-  ADAPTER_PROP_GET_SET__FIELD(PointAdapter, x, Lisple::Number, x);
-  ADAPTER_PROP_GET_SET__FIELD(PointAdapter, y, Lisple::Number, y);
+  NOBJ_PROP_GET_SET__FIELD(PointAdapter, x);
+  NOBJ_PROP_GET_SET__FIELD(PointAdapter, y);
 
   PointNamespace::PointNamespace()
     : Lisple::Namespace(std::string(NS__PIXILS__POINT))

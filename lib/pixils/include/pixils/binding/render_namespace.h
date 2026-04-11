@@ -32,9 +32,9 @@ namespace Pixils::Script
     /*! @brief draw-polygon! function */
     FUNC(DrawPolygonBang, polygon, polygon_with_opts);
     /*! @brief draw-rect! function */
-    FUNC_DECL(DrawRectBang, draw_rect_from_points);
+    FUNC(DrawRectBang, draw_rect_from_points);
     /*! @brief use-color! function */
-    FUNC_DECL(UseColorBang, use_color, use_color_num);
+    FUNC(UseColorBang, use_color, use_color_num);
   } // namespace Function
 
   class RenderNamespace : public Lisple::Namespace

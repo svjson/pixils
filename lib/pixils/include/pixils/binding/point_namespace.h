@@ -6,6 +6,7 @@
 
 #include <lisple/exec.h>
 #include <lisple/host.h>
+#include <lisple/host/object.h>
 #include <lisple/namespace.h>
 #include <string>
 
@@ -61,7 +62,7 @@ namespace Pixils::Script
   } // namespace Function
 
   /*! @brief PointAdapter - A Lisple HostObject Adapter for Point */
-  HOST_ADAPTER(PointAdapter, Point, (x, y), (x, y));
+  NATIVE_ADAPTER(PointAdapter, Point, (x, y), (x, y));
 
   class PointNamespace : public Lisple::Namespace
   {

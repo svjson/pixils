@@ -3,8 +3,10 @@
 
 #include "pixils/binding/pixils_namespace.h"
 
-#include <lisple/form.h>
+#include <lisple/runtime/value.h>
+#include <optional>
 #include <string>
+#include <vector>
 
 namespace Pixils::Runtime
 {
@@ -29,9 +31,9 @@ namespace Pixils::Runtime
   {
     std::string name;
     ResourceDependencies resources;
-    Lisple::sptr_sobject init;
-    Lisple::sptr_sobject update;
-    Lisple::sptr_sobject render;
+    Lisple::sptr_rtval init;
+    Lisple::sptr_rtval update;
+    Lisple::sptr_rtval render;
     ModeComposition composition;
   };
 

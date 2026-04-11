@@ -3,15 +3,17 @@
 #include "pixils/binding/resource_namespace.h"
 #include "pixils/display.h"
 #include "pixils/runtime/mode.h"
-#include <pixils/binding/arg_collector.h>
 #include <pixils/binding/pixils_namespace.h>
 #include <pixils/context.h>
 #include <pixils/frame_events.h>
 
 #include <SDL2/SDL_render.h>
 #include <lisple/exec.h>
+#include <lisple/form.h>
 #include <lisple/host.h>
+#include <lisple/host/accessor.h>
 #include <lisple/host/schema.h>
+#include <lisple/runtime/exec_node.h>
 #include <lisple/runtime/seq.h>
 #include <lisple/runtime/value.h>
 
@@ -21,8 +23,9 @@ namespace Pixils::Script
   {
     SHKEY(ALIGN, "align");
     SHKEY(BACKGROUND, "background");
-    SHKEY(BLOCK, "block");
+    const Lisple::sptr_rtval BLOCK = Lisple::RTValue::keyword("block");
     SHKEY(BUFFER_SIZE, "buffer-size");
+    SHKEY(CHILDREN, "children");
     SHKEY(COMPOSE, "compose");
     SHKEY(DIMENSION, "dimension");
     SHKEY(DISPLAY, "display");
@@ -32,9 +35,9 @@ namespace Pixils::Script
     SHKEY(INITIAL_MODE, "initial-mode");
     SHKEY(KEY_DOWN, "key-down");
     SHKEY(MODE, "mode");
-    SHKEY(NAME, "name");
+    const Lisple::sptr_rtval NAME = Lisple::RTValue::keyword("name");
     SHKEY(PIXEL_SIZE, "pixel-size");
-    SHKEY(PASS, "pass");
+    const Lisple::sptr_rtval PASS = Lisple::RTValue::keyword("pass");
     SHKEY(POP, "pop");
     SHKEY(PUSH, "push");
     SHKEY(RENDER, "render");
@@ -47,26 +50,33 @@ namespace Pixils::Script
     SHKEY(W, "w");
   } // namespace MapKey
 
+  namespace Key
+  {
+    inline const Lisple::sptr_rtval W = Lisple::RTValue::keyword("w");
+    inline const Lisple::sptr_rtval H = Lisple::RTValue::keyword("h");
+  } // namespace Key
+
   namespace Macro
   {
     /* DefProgramMacro - defprogram */
-    MACRO_IMPL(DefProgramMacro,
-               SIG((FN_ARGS((&Lisple::Type::WORD, &Lisple::Eval::LITERAL),
-                            (&Lisple::Type::MAP)),
-                    EXEC_DISPATCH(&DefProgramMacro::def_program))));
+    SPECIAL_FORM_IMPL(DefProgramMacro,
+                      SIG((FN_ARGS((&Lisple::Type::WORD, &Lisple::Eval::LITERAL),
+                                   (&Lisple::Type::MAP)),
+                           EXEC_DISPATCH(&DefProgramMacro::inv_def_program,
+                                         &DefProgramMacro::execnode_def_program))));
 
     Lisple::MapSchema program_schema({},
                                      {{"display", &HostType::DISPLAY},
                                       {"initial-mode", &Lisple::Type::SYMBOL_VALUE}});
 
-    MACRO_BODY(DefProgramMacro, def_program)
+    SFORM_LOWER_IMPL(DefProgramMacro)
     {
-      Lisple::sptr_rtval_v rargs = {Lisple::to_rt_value(args[0]),
-                                    Lisple::to_rt_value(args[1])};
-      auto name = rargs[0]->str();
-      auto opts = program_schema.bind(ctx, *rargs[1]);
+      auto name = Lisple::exec(*ctx.ctx, *lower_literal(ast_node->get_children()[1]))->str();
+      auto map_expr = Lisple::exec(*ctx.ctx, *lower_expr(ctx, ast_node->get_children()[2]));
 
-      auto programs = ctx.lookup_value(ID__PIXILS__PROGRAMS);
+      auto opts = program_schema.bind(*ctx.ctx, *map_expr);
+
+      auto programs = ctx.ctx->lookup_value(ID__PIXILS__PROGRAMS);
       auto initial_mode = opts.str(MapKey::INITIAL_MODE->value, "");
 
       Display display = opts.contains(MapKey::DISPLAY->value)
@@ -76,71 +86,95 @@ namespace Pixils::Script
                                     Display::Scaling::NONE,
                                     Color(0, 0, 0));
 
-      auto program =
-        Lisple::RTValue::object(ProgramAdapter::make<Program>(name, display, initial_mode));
+      auto program = ProgramAdapter::make_unique(name, display, initial_mode);
 
       Lisple::Dict::set_property(programs, Lisple::RTValue::symbol(name), program);
 
+      return std::make_unique<Lisple::ExecNode>(Lisple::Constant::NIL);
+    }
+
+    EXECNODE_BODY(DefProgramMacro, execnode_def_program)
+    {
+      throw Lisple::LispleException("defmode is lower-only");
+    }
+
+    MACRO_BODY(DefProgramMacro, inv_def_program)
+    {
       return Lisple::NIL;
     }
 
     /* DefModeMacro - defmode */
-    MACRO_IMPL(DefModeMacro,
-               SIG((FN_ARGS((&Lisple::Type::WORD, &Lisple::Eval::LITERAL),
-                            (&HostType::MODE, &Lisple::Eval::LITERAL)),
-                    EXEC_DISPATCH(&DefModeMacro::declare_mode))));
+    SPECIAL_FORM_IMPL(DefModeMacro,
+                      SIG((FN_ARGS((&Lisple::Type::WORD, &Lisple::Eval::LITERAL),
+                                   (&HostType::MODE, &Lisple::Eval::LITERAL)),
+                           EXEC_DISPATCH(&DefModeMacro::inv_declare_mode,
+                                         &DefModeMacro::execnode_declare_mode))));
 
-    MACRO_BODY(DefModeMacro, declare_mode)
+    SFORM_LOWER_IMPL(DefModeMacro)
+    {
+      auto modes = ctx.ctx->lookup_value(ID__PIXILS__MODES);
+      auto name_expr = Lisple::exec(*ctx.ctx, *lower_literal(ast_node->get_children()[1]));
+      auto name_str = Lisple::RTValue::string(name_expr->str());
+
+      auto mode_expr = Lisple::exec(*ctx.ctx, *lower_literal(ast_node->get_children()[2]));
+      Lisple::Dict::set_property(mode_expr, MapKey::NAME, name_str);
+      auto mode_coercion = HostType::MODE.coerce(*ctx.ctx, mode_expr);
+      if (!mode_coercion.success)
+      {
+        throw Lisple::TypeError("Invalid mode declaration: " + mode_expr->to_string());
+      }
+
+      Lisple::Dict::set_property(modes, name_expr, mode_coercion.result);
+
+      return std::make_unique<Lisple::ExecNode>(Lisple::Constant::NIL);
+    }
+
+    MACRO_BODY(DefModeMacro, inv_declare_mode)
     {
       Lisple::Map& modes = ctx.lookup(ID__PIXILS__MODES)->as<Lisple::Map>();
       args.back()->as<ModeAdapter>().get_object().name = args.front()->to_string();
       modes.set_property(args.front(), args.back());
       return Lisple::NIL;
     }
+
+    EXECNODE_BODY(DefModeMacro, execnode_declare_mode)
+    {
+      throw Lisple::LispleException("defmode is lower-only");
+    }
   } // namespace Macro
 
   namespace Function
   {
     /* Mode make function */
-    FUNC_IMPL(MakeMode, SIG((FN_ARGS((&Lisple::Type::MAP)), EXEC_DISPATCH(&MakeMode::make))))
+    FUNC_IMPL(MakeMode,
+              SIG((FN_ARGS((&Lisple::Type::MAP)), EXEC_DISPATCH(&MakeMode::exec_make))))
 
-    ArgCollector mode_collector(FN__PIXILS__MAKE_MODE,
-                                {},
-                                {{*MapKey::INIT, &Lisple::Type::ANY},
-                                 {*MapKey::UPDATE, &Lisple::Type::ANY},
-                                 {*MapKey::RENDER, &Lisple::Type::ANY},
-                                 {*MapKey::COMPOSE, &HostType::MODE_COMPOSITION},
-                                 {*MapKey::RESOURCES, &HostType::RESOURCE_DEPENDENCIES}});
-
-    FUNC_BODY(MakeMode, make)
+    EXEC_BODY(MakeMode, exec_make)
     {
-      str_key_map_t keys = mode_collector.collect_keys(ctx, *args.front());
+      static Lisple::MapSchema mode_schema({},
+                                           {{"name", &Lisple::Type::STRING},
+                                            {"init", &Lisple::Type::ANY},
+                                            {"update", &Lisple::Type::ANY},
+                                            {"render", &Lisple::Type::ANY},
+                                            {"compose", &HostType::MODE_COMPOSITION},
+                                            {"resources", &HostType::RESOURCE_DEPENDENCIES},
 
-      Lisple::Map& proto = args.front()->as<Lisple::Map>();
+      auto opts = mode_schema.bind(ctx, *args[0]);
 
-      auto resources = ArgCollector::optional_host_object<Runtime::ResourceDependencies>(
-        ctx,
-        keys,
-        *MapKey::RESOURCES,
-        &HostType::RESOURCE_DEPENDENCIES);
+      auto resources = opts.optional_obj<Runtime::ResourceDependencies>("resources");
+      auto composition = opts.optional_obj<Runtime::ModeComposition>("compose");
 
-      auto composition = ArgCollector::optional_host_object<Runtime::ModeComposition>(
-        ctx,
-        keys,
-        *MapKey::COMPOSE,
-        &HostType::MODE_COMPOSITION);
-
-      Runtime::Mode mode{.name = proto.get_sptr_property(*MapKey::NAME)->to_string(),
+      Runtime::Mode mode{.name = opts.str("name", ""),
                          .resources = {},
-                         .init = proto.get_sptr_property(*MapKey::INIT),
-                         .update = proto.get_sptr_property(*MapKey::UPDATE),
-                         .render = proto.get_sptr_property(*MapKey::RENDER),
+                         .init = Lisple::Dict::get_property(*args[0], "init"),
+                         .update = Lisple::Dict::get_property(*args[0], "update"),
+                         .render = Lisple::Dict::get_property(*args[0], "render"),
                          .composition = {}};
 
       if (resources.has_value()) mode.resources = *resources;
       if (composition.has_value()) mode.composition = *composition;
 
-      return ModeAdapter::make<Runtime::Mode>(mode);
+      return ModeAdapter::make_unique(mode);
     }
 
     /* ModeComposition make function */
@@ -159,8 +193,7 @@ namespace Pixils::Script
       Runtime::ModeComposition composition{opts.str("render", "block") == "pass",
                                            opts.str("update", "block") == "pass"};
 
-      return Lisple::RTValue::object(std::make_shared<ModeCompositionAdapter>(
-        std::make_unique<Runtime::ModeComposition>(composition)));
+      return ModeCompositionAdapter::make_unique(composition);
     }
 
     /* Dimension make function */
@@ -173,9 +206,8 @@ namespace Pixils::Script
     EXEC_BODY(MakeDimension, exec_make)
     {
       auto opts = dimension_schema.bind(ctx, *args[0]);
-      return Lisple::RTValue::object(
-        DimensionAdapter::make<Dimension>(opts.i32(MapKey::W->value),
-                                          opts.i32(MapKey::H->value)));
+      return DimensionAdapter::make_unique(opts.i32(MapKey::W->value),
+                                           opts.i32(MapKey::H->value));
     }
 
     /* Display make function */
@@ -220,11 +252,10 @@ namespace Pixils::Script
 
         Color color = opts.obj<Color>(MapKey::BACKGROUND->value, Color{0, 0, 0});
 
-        return Lisple::RTValue::object(
-          DisplayAdapter::make<Display>(opts.obj<Resolution>(MapKey::RESOLUTION->value),
-                                        align,
-                                        scaling,
-                                        color));
+        return DisplayAdapter::make_unique(opts.obj<Resolution>(MapKey::RESOLUTION->value),
+                                           align,
+                                           scaling,
+                                           color);
       }
       catch (std::exception& e)
       {
@@ -248,8 +279,7 @@ namespace Pixils::Script
         const std::string& res_type = args[0]->str();
         if (res_type == "auto")
         {
-          return Lisple::RTValue::object(
-            ResolutionAdapter::make<Resolution>(Resolution::Mode::AUTO));
+          return ResolutionAdapter::make_unique(Resolution::Mode::AUTO);
         }
         throw Lisple::TypeError("Invalid resolution specifier: " + args[0]->to_string());
       }
@@ -259,9 +289,8 @@ namespace Pixils::Script
           HostType::DIMENSION.coerce(ctx, args[0]);
         if (cresult.success)
         {
-          return Lisple::RTValue::object(
-            ResolutionAdapter::make<Resolution>(Resolution::Mode::FIXED,
-                                                Lisple::obj<Dimension>(*cresult.result)));
+          return ResolutionAdapter::make_unique(Resolution::Mode::FIXED,
+                                                Lisple::obj<Dimension>(*cresult.result));
         }
       }
 
@@ -312,128 +341,119 @@ namespace Pixils::Script
   } // namespace Function
 
   /* ModeAdapter */
-  HOST_ADAPTER_IMPL(ModeAdapter,
-                    Runtime::Mode,
-                    &HostType::MODE,
-                    ({K_GET(ModeAdapter, MapKey::INIT, init),
-                      K_GET(ModeAdapter, MapKey::UPDATE, update),
-                      K_GET(ModeAdapter, MapKey::RENDER, render)}))
+  NATIVE_ADAPTER_IMPL(ModeAdapter,
+                      Runtime::Mode,
+                      &HostType::MODE,
+                      (init),
+                      (update),
+                      (render));
 
-  Lisple::sptr_sobject ModeAdapter::get_init() const
+  Lisple::sptr_rtval ModeAdapter::get_init() const
   {
     return this->get_object().init;
   }
 
-  Lisple::sptr_sobject ModeAdapter::get_update() const
+  Lisple::sptr_rtval ModeAdapter::get_update() const
   {
     return this->get_object().update;
   }
 
-  Lisple::sptr_sobject ModeAdapter::get_render() const
+  Lisple::sptr_rtval ModeAdapter::get_render() const
   {
     return this->get_object().render;
   }
 
   /* ModeCompositionAdapter */
-  HOST_ADAPTER_IMPL(ModeCompositionAdapter,
-                    Runtime::ModeComposition,
-                    &HostType::MODE_COMPOSITION,
-                    ({K_GET(ModeCompositionAdapter, MapKey::RENDER, render)}));
+  NATIVE_ADAPTER_IMPL(ModeCompositionAdapter,
+                      Runtime::ModeComposition,
+                      &HostType::MODE_COMPOSITION,
+                      (render));
 
-  Lisple::sptr_sobject ModeCompositionAdapter::get_render() const
+  Lisple::sptr_rtval ModeCompositionAdapter::get_render() const
   {
     return this->get_object().render ? MapKey::PASS : MapKey::BLOCK;
   }
 
   /* DimensionAdapter */
-  HOST_ADAPTER_IMPL(DimensionAdapter,
-                    Dimension,
-                    &HostType::DIMENSION,
-                    ({K_GET_SET(DimensionAdapter, MapKey::W, w),
-                      K_GET_SET(DimensionAdapter, MapKey::H, h)}));
+  NATIVE_ADAPTER_IMPL(DimensionAdapter, Dimension, &HostType::DIMENSION, (w), (h));
 
-  ADAPTER_PROP_GET_SET__FIELD(DimensionAdapter, w, Lisple::Number, w);
-  ADAPTER_PROP_GET_SET__FIELD(DimensionAdapter, h, Lisple::Number, h);
+  NOBJ_PROP_GET_SET__FIELD(DimensionAdapter, w);
+  NOBJ_PROP_GET_SET__FIELD(DimensionAdapter, h);
 
   /* FrameEventsAdapter */
-  HOST_ADAPTER_IMPL(FrameEventsAdapter,
-                    FrameEvents,
-                    &HostType::FRAME_EVENTS,
-                    ({K_GET(FrameEventsAdapter, MapKey::KEY_DOWN, key_down),
-                      K_GET(FrameEventsAdapter, MapKey::HELD_KEYS, held_keys)}))
+  NATIVE_ADAPTER_IMPL(FrameEventsAdapter,
+                      FrameEvents,
+                      &HostType::FRAME_EVENTS,
+                      ("key-down", key_down),
+                      ("held-keys", held_keys));
 
-  ADAPTER_PROP_GET(FrameEventsAdapter, key_down)
+  NOBJ_PROP_GET(FrameEventsAdapter, key_down)
   {
     return object->get_object().key_down;
   }
 
-  ADAPTER_PROP_GET(FrameEventsAdapter, held_keys)
+  NOBJ_PROP_GET(FrameEventsAdapter, held_keys)
   {
     return object->get_object().held_keys;
   }
 
   /* RenderContextAdapter */
-  HOST_ADAPTER_IMPL(RenderContextAdapter,
-                    RenderContext,
-                    &HostType::RENDER_CONTEXT,
-                    ({K_GET(RenderContextAdapter, MapKey::PIXEL_SIZE, pixel_size),
-                      K_GET(RenderContextAdapter, MapKey::BUFFER_SIZE, buffer_size)}));
+  NATIVE_ADAPTER_IMPL(RenderContextAdapter,
+                      RenderContext,
+                      &HostType::RENDER_CONTEXT,
+                      ("pixel-size", pixel_size),
+                      ("buffer-size", buffer_dim));
 
-  ADAPTER_PROP_GET__FIELD(RenderContextAdapter, pixel_size, Lisple::Number);
-  ADAPTER_PROP_GET__FIELD(RenderContextAdapter, buffer_size, DimensionAdapter, buffer_dim);
+  NOBJ_PROP_GET__FIELD(RenderContextAdapter, pixel_size);
+  NOBJ_PROP_GET_ADAPTER__FIELD(RenderContextAdapter, buffer_dim, DimensionAdapter);
 
   /* ProgramAdapter */
-  HOST_ADAPTER_IMPL(ProgramAdapter,
-                    Program,
-                    &HostType::PROGRAM,
-                    ({K_GET(ProgramAdapter, MapKey::NAME, name),
-                      K_GET(ProgramAdapter, MapKey::INITIAL_MODE, initial_mode),
-                      K_GET_SET(ProgramAdapter, MapKey::DISPLAY, display)}));
+  NATIVE_ADAPTER_IMPL(ProgramAdapter,
+                      Program,
+                      &HostType::PROGRAM,
+                      (name),
+                      ("initial-mode", initial_mode),
+                      (display));
 
-  ADAPTER_PROP_GET__METHOD(ProgramAdapter, name, Lisple::String, get_name);
-  ADAPTER_PROP_GET_SET_HOST_OBJECT__FIELD(ProgramAdapter, display, DisplayAdapter);
-  Lisple::sptr_sobject ProgramAdapter::get_initial_mode() const
+  NOBJ_PROP_GET__METHOD(ProgramAdapter, name);
+  NOBJ_PROP_GET_SET_ADAPTER__FIELD(ProgramAdapter, display, DisplayAdapter);
+
+  NOBJ_PROP_GET(ProgramAdapter, initial_mode)
   {
-    if (get_self_object().initial_mode == "")
+    if (get_object().initial_mode == "")
     {
-      return Lisple::NIL;
+      return Lisple::Constant::NIL;
     }
-    return std ::make_shared<Lisple ::Word>(get_self_object().initial_mode);
+    return Lisple::RTValue::symbol(get_object().initial_mode);
   };
 
   /* DisplayAdapter */
-  HOST_ADAPTER_IMPL(DisplayAdapter,
-                    Display,
-                    &HostType::DISPLAY,
-                    ({K_GET_SET(DisplayAdapter, MapKey::RESOLUTION, resolution)}));
+  NATIVE_ADAPTER_IMPL(DisplayAdapter, Display, &HostType::DISPLAY, (resolution));
 
-  ADAPTER_PROP_GET_SET_HOST_OBJECT__FIELD(DisplayAdapter, resolution, ResolutionAdapter);
+  NOBJ_PROP_GET_SET_ADAPTER__FIELD(DisplayAdapter, resolution, ResolutionAdapter);
 
   /* ResolutionAdapter */
-  HOST_ADAPTER_IMPL(ResolutionAdapter,
-                    Resolution,
-                    &HostType::RESOLUTION,
-                    ({K_GET(ResolutionAdapter, MapKey::DIMENSION, dimension)}));
+  NATIVE_ADAPTER_IMPL(ResolutionAdapter, Resolution, &HostType::RESOLUTION, (dimension));
 
-  ADAPTER_PROP_GET__FIELD(ResolutionAdapter, dimension, DimensionAdapter);
+  NOBJ_PROP_GET_ADAPTER__FIELD(ResolutionAdapter, dimension, DimensionAdapter);
 
   PixilsNamespace::PixilsNamespace(const RenderContext& render_context)
     : Lisple::Namespace(NS_PIXILS)
   {
     values.emplace("mode-stack", Lisple::RTValue::vector({}));
     values.emplace("mode-stack-messages", Lisple::RTValue::vector({}));
-    objects.emplace("modes", Lisple::Map::make({}));
-    objects.emplace("defmode", std::make_shared<Macro::DefModeMacro>());
-    objects.emplace("defprogram", std::make_shared<Macro::DefProgramMacro>());
-    objects.emplace("make-dimension", std::make_shared<Function::MakeDimension>());
-    objects.emplace("make-display", std::make_shared<Function::MakeDisplay>());
-    objects.emplace("make-mode", std::make_shared<Function::MakeMode>());
+    values.emplace("modes", Lisple::RTValue::map({}));
+    values.emplace("defmode", Macro::DefModeMacro::make());
+    values.emplace("defprogram", Macro::DefProgramMacro::make());
+    values.emplace("make-dimension", Function::MakeDimension::make());
+    values.emplace("make-display", Function::MakeDisplay::make());
+    values.emplace("make-mode", Function::MakeMode::make());
     values.emplace("make-mode-composition", Function::MakeModeComposition::make());
-    objects.emplace("make-resolution", std::make_shared<Function::MakeResolution>());
-    objects.emplace("render-context", RenderContextAdapter::make_ref(render_context));
+    values.emplace("make-resolution", Function::MakeResolution::make());
+    values.emplace("render-context", RenderContextAdapter::make_ref(render_context));
     values.emplace("programs", Lisple::RTValue::map({}));
-    objects.emplace("pop-mode!", std::make_shared<Function::PopModeBangFunction>());
-    objects.emplace("push-mode!", std::make_shared<Function::PushModeBangFunction>());
+    values.emplace("pop-mode!", Function::PopModeBangFunction::make());
+    values.emplace("push-mode!", Function::PushModeBangFunction::make());
   }
 
 } // namespace Pixils::Script

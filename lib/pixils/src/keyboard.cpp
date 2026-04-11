@@ -5,6 +5,7 @@
 #include <SDL2/SDL_keycode.h>
 #include <ctype.h>
 #include <lisple/form.h>
+#include <lisple/runtime/value.h>
 #include <lisple/type.h>
 #include <utility>
 
@@ -358,17 +359,17 @@ namespace Pixils
       return typed_char;
     }
 
-    Lisple::sptr_sobject key_event_to_lisple_key(const SDL_KeyboardEvent& event)
+    Lisple::sptr_rtval key_event_to_lisple_key(const SDL_KeyboardEvent& event)
     {
       for (auto& [str, keycode] : SYMBOL_TO_KEYCODE)
       {
         if (keycode == event.keysym.sym)
         {
-          return std::make_shared<Lisple::Key>("key/" + str);
+          return Lisple::RTValue::keyword("key/" + str);
         }
       }
 
-      return Lisple::NIL;
+      return Lisple::Constant::NIL;
     }
 
   } // namespace Keyboard

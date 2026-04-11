@@ -40,6 +40,7 @@ namespace Pixils::Runtime
   {
     Lisple::Runtime& lisple_runtime;
     Asset::Registry& assets;
+    RenderContext& render_ctx;
     ModeStack mode_stack;
     Lisple::sptr_rtval modes;
     ActiveMode active_mode;
@@ -47,6 +48,7 @@ namespace Pixils::Runtime
 
     Session(Lisple::Runtime& lisple_runtime,
             Asset::Registry& assets,
+            RenderContext& render_ctx,
             const HookArguments& hook_args);
 
     void pop_mode();

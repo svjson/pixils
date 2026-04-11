@@ -4,6 +4,7 @@
 
 #include <SDL2/SDL_events.h>
 #include <algorithm>
+#include <lisple/runtime/seq.h>
 
 namespace Pixils
 {
@@ -11,40 +12,43 @@ namespace Pixils
   void FrameEvents::do_key_down(const SDL_KeyboardEvent& event)
   {
     auto key = Keyboard::key_event_to_lisple_key(event);
-    if (key == Lisple::NIL)
+    if (*key == *Lisple::Constant::NIL)
     {
       return;
     }
 
-    if (this->is_key_held(key->as<Lisple::Key>()))
+    if (this->is_key_held(*key))
     {
       return;
     }
 
-    this->held_keys->append(Lisple::Key::make(key->as<Lisple::Key>().value));
-    this->key_down = Lisple::Key::make(key->as<Lisple::Key>().value);
+    Lisple::append(*this->held_keys, key);
+    this->key_down = key;
   }
 
   void FrameEvents::do_key_up(const SDL_KeyboardEvent& event)
   {
     auto key = Keyboard::key_event_to_lisple_key(event);
 
-    auto it = std::remove_if(this->held_keys->children.begin(), this->held_keys->children.end(),
-                             [key](const Lisple::sptr_sobject& hkey)
-                             { return key->has_value(hkey->as<Lisple::Key>().value); });
+    auto& children = this->held_keys->mut_elements();
+    auto it =
+      std::remove_if(children.begin(),
+                     children.end(),
+                     [key](const Lisple::sptr_rtval& hkey) { return *key == *hkey; });
 
-    if (it != this->held_keys->children.end())
+    if (it != children.end())
     {
-      this->held_keys->children.erase(it);
+      children.erase(it);
     }
   }
 
-  bool FrameEvents::is_key_held(const Lisple::Key& key) const
+  bool FrameEvents::is_key_held(const Lisple::RTValue& key) const
   {
-    auto it = std::find_if(this->held_keys->children.begin(), this->held_keys->children.end(),
-                           [key](const Lisple::sptr_sobject& hkey)
-                           { return key.has_value(hkey->as<Lisple::Key>().value); });
+    auto& children = this->held_keys->mut_elements();
+    auto it = std::find_if(children.begin(),
+                           children.end(),
+                           [key](const Lisple::sptr_rtval& hkey) { return key == *hkey; });
 
-    return it != this->held_keys->children.end();
+    return it != children.end();
   }
 } // namespace Pixils

@@ -12,6 +12,7 @@
 #include <lisple/host/schema.h>
 #include <lisple/namespace.h>
 #include <lisple/runtime/seq.h>
+#include <lisple/runtime/value.h>
 
 namespace Pixils::Script
 {
@@ -42,7 +43,7 @@ namespace Pixils::Script
       auto opts = draw_image_opts_schema.bind(ctx, *args[1]);
 
       RenderContext& rc =
-        ctx.lookup(ID__PIXILS__RENDER_CONTEXT)->as<RenderContextAdapter>().get_object();
+        Lisple::obj<RenderContext>(*ctx.lookup_value(ID__PIXILS__RENDER_CONTEXT));
 
       SDL_Texture* texture = rc.asset_registry->get_image(asset_bundle, asset_key);
 
@@ -73,8 +74,7 @@ namespace Pixils::Script
     EXEC_BODY(DrawLineBang, exec_draw_line)
     {
       RenderContext& rc =
-        ctx.lookup(ID__PIXILS__RENDER_CONTEXT)->as<RenderContextAdapter>().get_object();
-
+        Lisple::obj<RenderContext>(*ctx.lookup_value(ID__PIXILS__RENDER_CONTEXT));
       const Point& from = Lisple::obj<Point>(*args[0]);
       const Point& to = Lisple::obj<Point>(*args[1]);
 
@@ -117,7 +117,7 @@ namespace Pixils::Script
     EXEC_BODY(DrawPolygonBang, exec_polygon_with_opts)
     {
       RenderContext& rc =
-        ctx.lookup(ID__PIXILS__RENDER_CONTEXT)->as<RenderContextAdapter>().get_object();
+        Lisple::obj<RenderContext>(*ctx.lookup_value(ID__PIXILS__RENDER_CONTEXT));
 
       auto opts = polygon_opts.bind(ctx, *args.back());
 
@@ -173,20 +173,23 @@ namespace Pixils::Script
     /* DrawRectBang - rect! */
     FUNC_IMPL(DrawRectBang,
               SIG((FN_ARGS((&HostType::POINT), (&HostType::POINT), (&Lisple::Type::MAP)),
-                   EXEC_DISPATCH(&DrawRectBang::draw_rect_from_points))));
+                   EXEC_DISPATCH(&DrawRectBang::exec_draw_rect_from_points))));
 
-    FUNC_BODY(DrawRectBang, draw_rect_from_points)
+    EXEC_BODY(DrawRectBang, exec_draw_rect_from_points)
     {
       RenderContext& rc =
-        ctx.lookup(ID__PIXILS__RENDER_CONTEXT)->as<RenderContextAdapter>().get_object();
+        Lisple::obj<RenderContext>(*ctx.lookup_value(ID__PIXILS__RENDER_CONTEXT));
 
-      const Point& top_left = args[0]->as<PointAdapter>().get_object();
-      const Point& bottom_right = args[1]->as<PointAdapter>().get_object();
-      const Lisple::Map& opts = args[2]->as<Lisple::Map>();
-      if (opts.get_sptr_property(*MapKey::COLOR)->is_truthy())
+      const Point& top_left = Lisple::obj<Point>(*args[0]);
+      const Point& bottom_right = Lisple::obj<Point>(*args[1]);
+      const Lisple::sptr_rtval& opts = args[2];
+
+      auto color_expr = Lisple::Dict::get_property(*opts, "color");
+      auto fill_expr = Lisple::Dict::get_property(*opts, "fill");
+
+      if (Lisple::is_truthy(*color_expr))
       {
-        const Color& color =
-          opts.get_sptr_property(*MapKey::COLOR)->as<ColorAdapter>().get_object();
+        const Color& color = Lisple::obj<Color>(*color_expr);
         SDL_SetRenderDrawColor(rc.renderer, color.r, color.g, color.b, color.a);
       }
 
@@ -194,7 +197,7 @@ namespace Pixils::Script
 
       SDL_Rect rect = {top_left.round_x(), top_left.round_y(), wh.round_x(), wh.round_y()};
 
-      if (opts.get_sptr_property(*MapKey::FILL)->is_truthy())
+      if (Lisple::is_truthy(*fill_expr))
       {
         SDL_SetRenderDrawBlendMode(rc.renderer, SDL_BLENDMODE_BLEND);
         SDL_RenderFillRect(rc.renderer, &rect);
@@ -224,43 +227,43 @@ namespace Pixils::Script
                            bottom_right.round_y());
       }
 
-      return Lisple::NIL;
+      return Lisple::Constant::NIL;
     }
 
     /* UseColorBang */
     FUNC_IMPL(UseColorBang,
               MULTI_SIG((FN_ARGS((&HostType::COLOR)),
-                         EXEC_DISPATCH(&UseColorBang::use_color)),
+                         EXEC_DISPATCH(&UseColorBang::exec_use_color)),
                         (FN_ARGS((&Lisple::Type::NUMBER),
                                  (&Lisple::Type::NUMBER),
                                  (&Lisple::Type::NUMBER),
                                  (&Lisple::Type::NUMBER)),
-                         EXEC_DISPATCH(&UseColorBang::use_color_num))));
+                         EXEC_DISPATCH(&UseColorBang::exec_use_color_num))));
 
-    FUNC_BODY(UseColorBang, use_color)
+    EXEC_BODY(UseColorBang, exec_use_color)
     {
       RenderContext& rc =
-        ctx.lookup(ID__PIXILS__RENDER_CONTEXT)->as<RenderContextAdapter>().get_object();
+        Lisple::obj<RenderContext>(*ctx.lookup_value(ID__PIXILS__RENDER_CONTEXT));
 
-      const Color& color = args.front()->as<ColorAdapter>().get_object();
+      const Color& color = Lisple::obj<Color>(*args[0]);
       SDL_SetRenderDrawColor(rc.renderer, color.r, color.g, color.b, color.a);
 
-      return Lisple::NIL;
+      return Lisple::Constant::NIL;
     }
 
-    FUNC_BODY(UseColorBang, use_color_num)
+    EXEC_BODY(UseColorBang, exec_use_color_num)
     {
       RenderContext& rc =
-        ctx.lookup(ID__PIXILS__RENDER_CONTEXT)->as<RenderContextAdapter>().get_object();
+        Lisple::obj<RenderContext>(*ctx.lookup_value(ID__PIXILS__RENDER_CONTEXT));
 
-      const int r = args[0]->as<Lisple::Number>().int_value();
-      const int g = args[1]->as<Lisple::Number>().int_value();
-      const int b = args[2]->as<Lisple::Number>().int_value();
-      const int a = args[3]->as<Lisple::Number>().int_value();
+      const int r = args[0]->num().get_int();
+      const int g = args[1]->num().get_int();
+      const int b = args[2]->num().get_int();
+      const int a = args[3]->num().get_int();
 
       SDL_SetRenderDrawColor(rc.renderer, r, g, b, a);
 
-      return Lisple::NIL;
+      return Lisple::Constant::NIL;
     }
 
   } // namespace Function
@@ -271,7 +274,7 @@ namespace Pixils::Script
     values.emplace(FN__DRAW_IMAGE_BANG, Function::DrawImageBang::make());
     values.emplace(FN__DRAW_LINE_BANG, Function::DrawLineBang::make());
     values.emplace(FN__DRAW_POLYGON_BANG, Function::DrawPolygonBang::make());
-    objects.emplace(FN__DRAW_RECT_BANG, std::make_shared<Function::DrawRectBang>());
-    objects.emplace(FN__USE_COLOR_BANG, std::make_shared<Function::UseColorBang>());
+    values.emplace(FN__DRAW_RECT_BANG, Function::DrawRectBang::make());
+    values.emplace(FN__USE_COLOR_BANG, Function::UseColorBang::make());
   }
 } // namespace Pixils::Script

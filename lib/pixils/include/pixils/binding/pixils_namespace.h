@@ -9,6 +9,7 @@
 
 #include <lisple/exec.h>
 #include <lisple/host.h>
+#include <lisple/host/object.h>
 #include <lisple/namespace.h>
 
 namespace Pixils::Runtime
@@ -68,15 +69,15 @@ namespace Pixils::Script
   namespace Macro
   {
     /*! @brief Define a program/application */
-    MACRO_DECL(DefProgramMacro, def_program);
+    SPECIAL_FORM_DECL(DefProgramMacro, def_program);
     /*! @brief Define a game/application mode */
-    MACRO_DECL(DefModeMacro, declare_mode);
+    SPECIAL_FORM_DECL(DefModeMacro, declare_mode);
   } // namespace Macro
 
   namespace Function
   {
     /*! @brief Lisple make-function for Mode/ModeAdapter */
-    FUNC_DECL(MakeMode, make);
+    FUNC(MakeMode, make);
     /*! @brief Lisple make-function for ModeComposition/ModeCompositionAdapter */
     FUNC(MakeModeComposition, make);
     /*! @brief Lisple make-function for Dimension/DimensionAdapter */
@@ -92,21 +93,21 @@ namespace Pixils::Script
   } // namespace Function
 
   /*! @brief DimensionAdapter - A Lisple HostObject Adapter for Dimension */
-  HOST_ADAPTER(DimensionAdapter, Dimension, (w, h), (w, h));
+  NATIVE_ADAPTER(DimensionAdapter, Dimension, (w, h), (w, h));
   /*! @brief Lisple HostObject Adapter for Display */
-  HOST_ADAPTER(DisplayAdapter, Display, (resolution), (resolution));
+  NATIVE_ADAPTER(DisplayAdapter, Display, (resolution), (resolution));
   /*! @brief FrameEventsAdapter - A Lisple HostObject Adapter for FrameEvents */
-  HOST_ADAPTER(FrameEventsAdapter, FrameEvents, (key_down, held_keys));
+  NATIVE_ADAPTER(FrameEventsAdapter, FrameEvents, (key_down, held_keys));
   /*! @brief ModeAdapter - A Lisple HostObject Adapter for Mode */
-  HOST_ADAPTER(ModeAdapter, Runtime::Mode, (init, update, render));
+  NATIVE_ADAPTER(ModeAdapter, Runtime::Mode, (init, update, render));
   /*! @brief ModeCompositionAdapter - A Lisple HostObject Adapter for ModeComposition */
-  HOST_ADAPTER(ModeCompositionAdapter, Runtime::ModeComposition, (render));
+  NATIVE_ADAPTER(ModeCompositionAdapter, Runtime::ModeComposition, (render));
   /*! @brief Lisple HostObject Adapter for Program */
-  HOST_ADAPTER(ProgramAdapter, Program, (name, display, initial_mode), (display));
+  NATIVE_ADAPTER(ProgramAdapter, Program, (name, display, initial_mode), (display));
   /*! @brief Lisple HostObject Adapter for RenderContext */
-  HOST_ADAPTER(RenderContextAdapter, RenderContext, (pixel_size, buffer_size));
+  NATIVE_ADAPTER(RenderContextAdapter, RenderContext, (pixel_size, buffer_dim));
   /*! @brief Lisple HostObject Adapter for Resolution */
-  HOST_ADAPTER(ResolutionAdapter, Resolution, (dimension));
+  NATIVE_ADAPTER(ResolutionAdapter, Resolution, (dimension));
 
   class PixilsNamespace : public Lisple::Namespace
   {
