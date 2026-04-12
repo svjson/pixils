@@ -21,4 +21,5 @@ if (MSVC)
 endif()
 
 add_subdirectory(lib/pixils)
+add_subdirectory(bin/pixils)
 
