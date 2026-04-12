@@ -153,7 +153,7 @@ namespace Pixils::Script
     {
       if (hook_value->type == Lisple::RTValue::Type::LIST)
       {
-        return ctx.eval(hook_value);
+        return ctx.eval(hook_value->to_string());
       }
       return hook_value;
     }

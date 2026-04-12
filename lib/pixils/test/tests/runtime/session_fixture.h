@@ -4,6 +4,7 @@
 
 #include "../fixture.h"
 #include <pixils/asset/registry.h>
+#include <pixils/binding/pixils_namespace.h>
 #include <pixils/context.h>
 #include <pixils/runtime/session.h>
 #include <pixils/script.h>
@@ -27,7 +28,7 @@ class SessionFixture : public BaseFixture
   SessionFixture()
     : BaseFixture()
     , assets(render_ctx)
-    , hook_args{Lisple::Constant::NIL, Lisple::Constant::NIL}
+    , hook_args{Lisple::Constant::NIL, Pixils::Script::RenderContextAdapter::make_ref(render_ctx)}
     , session(runtime, assets, render_ctx, hook_args)
   {
   }

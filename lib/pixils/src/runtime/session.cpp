@@ -234,6 +234,10 @@ namespace Pixils::Runtime
       Lisple::Dict::get_property(modes, Lisple::RTValue::symbol(slot.mode_name));
     Mode* child_mode = &Lisple::obj<Mode>(*mode_val);
 
+    child_mode->init = resolve_hook(lisple_runtime, child_mode->init);
+    child_mode->update = resolve_hook(lisple_runtime, child_mode->update);
+    child_mode->render = resolve_hook(lisple_runtime, child_mode->render);
+
     ChildContext ctx;
     ctx.mode = child_mode;
     ctx.state = Lisple::Constant::NIL;
@@ -285,10 +289,8 @@ namespace Pixils::Runtime
     SDL_Rect viewport = {bounds.x, bounds.y, bounds.w, bounds.h};
     SDL_RenderSetViewport(render_ctx.renderer, &viewport);
 
-    {
-      Lisple::sptr_rtval_v rargs = {child.state, this->hook_args.render_args[1]};
-      invoke_hook(lisple_runtime, child.mode->render, rargs);
-    }
+    Lisple::sptr_rtval_v rargs = {child.state, this->hook_args.render_args[1]};
+    invoke_hook(lisple_runtime, child.mode->render, rargs);
 
     if (!child.children.empty())
     {
