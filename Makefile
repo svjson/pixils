@@ -13,5 +13,8 @@ build:
 install:
 	cmake --build build --target install
 
+test:
+	cmake --build build --target testpixils && cd build && ctest --output-on-failure
+
 clean:
 	rm -rf build

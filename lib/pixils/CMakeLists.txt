@@ -88,3 +88,5 @@ install(FILES cmake/pixilsConfig.cmake
   DESTINATION lib/cmake/pixils
 )
 
+add_subdirectory(test)
+

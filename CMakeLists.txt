@@ -20,6 +20,8 @@ if (MSVC)
   set(CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} /W4")
 endif()
 
+enable_testing()
+
 add_subdirectory(lib/pixils)
 add_subdirectory(bin/pixils)
 

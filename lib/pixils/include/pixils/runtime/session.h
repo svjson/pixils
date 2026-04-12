@@ -47,9 +47,9 @@ namespace Pixils::Runtime
   {
     int mode_index = -1;
 
-    std::string init_fun;
-    std::string update_fun;
-    std::string render_fun;
+    Lisple::sptr_rtval init_fn = Lisple::Constant::NIL;
+    Lisple::sptr_rtval update_fn = Lisple::Constant::NIL;
+    Lisple::sptr_rtval render_fn = Lisple::Constant::NIL;
 
     Lisple::sptr_rtval state = Lisple::Constant::NIL;
     std::vector<ChildContext> children;

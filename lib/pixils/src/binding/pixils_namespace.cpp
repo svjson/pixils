@@ -149,6 +149,15 @@ namespace Pixils::Script
     FUNC_IMPL(MakeMode,
               SIG((FN_ARGS((&Lisple::Type::MAP)), EXEC_DISPATCH(&MakeMode::exec_make))))
 
+    Lisple::sptr_rtval eval_hook(Lisple::Context& ctx, const Lisple::sptr_rtval& hook_value)
+    {
+      if (hook_value->type == Lisple::RTValue::Type::LIST)
+      {
+        return ctx.eval(hook_value);
+      }
+      return hook_value;
+    }
+
     EXEC_BODY(MakeMode, exec_make)
     {
       static Lisple::MapSchema mode_schema({},
@@ -165,11 +174,15 @@ namespace Pixils::Script
       auto resources = opts.optional_obj<Runtime::ResourceDependencies>("resources");
       auto composition = opts.optional_obj<Runtime::ModeComposition>("compose");
 
+      auto init_expr = eval_hook(ctx, opts.val("init"));
+      auto update_expr = eval_hook(ctx, opts.val("update"));
+      auto render_expr = eval_hook(ctx, opts.val("render"));
+
       Runtime::Mode mode{.name = opts.str("name", ""),
                          .resources = {},
-                         .init = Lisple::Dict::get_property(*args[0], "init"),
-                         .update = Lisple::Dict::get_property(*args[0], "update"),
-                         .render = Lisple::Dict::get_property(*args[0], "render"),
+                         .init = init_expr,
+                         .update = update_expr,
+                         .render = render_expr,
                          .composition = {},
                          .children = {}};
 
