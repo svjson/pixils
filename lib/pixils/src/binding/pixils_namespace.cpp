@@ -443,6 +443,54 @@ namespace Pixils::Script
     return object->get_object().held_keys;
   }
 
+  /* HookContextAdapter */
+  NATIVE_ADAPTER_IMPL(HookContextAdapter,
+                      HookContext,
+                      &HostType::HOOK_CONTEXT,
+                      ("key-down", key_down),
+                      ("held-keys", held_keys),
+                      ("mouse-pos", mouse_pos),
+                      ("mouse-button-down", mouse_button_down),
+                      ("mouse-held", mouse_held),
+                      ("pixel-size", pixel_size),
+                      ("buffer-size", buffer_dim));
+
+  NOBJ_PROP_GET(HookContextAdapter, key_down)
+  {
+    return object->get_object().events->key_down;
+  }
+
+  NOBJ_PROP_GET(HookContextAdapter, held_keys)
+  {
+    return object->get_object().events->held_keys;
+  }
+
+  NOBJ_PROP_GET(HookContextAdapter, mouse_pos)
+  {
+    return object->get_object().events->mouse_pos;
+  }
+
+  NOBJ_PROP_GET(HookContextAdapter, mouse_button_down)
+  {
+    return object->get_object().events->mouse_button_down;
+  }
+
+  NOBJ_PROP_GET(HookContextAdapter, mouse_held)
+  {
+    return object->get_object().events->mouse_held;
+  }
+
+  NOBJ_PROP_GET(HookContextAdapter, pixel_size)
+  {
+    return Lisple::RTValue::number(object->get_object().render->pixel_size);
+  }
+
+  NOBJ_PROP_GET(HookContextAdapter, buffer_dim)
+  {
+    const Dimension& dim = object->get_object().render->buffer_dim;
+    return DimensionAdapter::make_unique(dim.w, dim.h);
+  }
+
   /* RenderContextAdapter */
   NATIVE_ADAPTER_IMPL(RenderContextAdapter,
                       RenderContext,

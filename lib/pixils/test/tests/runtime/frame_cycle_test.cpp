@@ -1,10 +1,9 @@
 
 #include "../render_fixture.h"
 
+#include <gtest/gtest.h>
 #include <lisple/runtime/dict.h>
 #include <lisple/runtime/value.h>
-
-#include <gtest/gtest.h>
 
 using FrameCycleTest = RenderFixture;
 
@@ -28,7 +27,7 @@ TEST_F(FrameCycleTest, update_hook_receives_and_returns_new_state)
   runtime.eval(R"(
     (pixils/defmode test-mode {
       :init   (fn [state ctx] {:count 0})
-      :update (fn [state events ctx] (assoc state :count (+ (:count state) 1)))
+      :update (fn [state events ctx] (prn "update!") (assoc state :count (+ (:count state) 1)))
     })
   )");
   session.push_mode("test-mode", Lisple::Constant::NIL);
@@ -115,8 +114,8 @@ TEST_F(FrameCycleTest, full_frame_cycle_init_update_render)
   session.render_mode();
 
   // Then
-  auto count = Lisple::Dict::get_property(session.active_mode.state,
-                                          Lisple::RTValue::keyword("ticks"));
+  auto count =
+    Lisple::Dict::get_property(session.active_mode.state, Lisple::RTValue::keyword("ticks"));
   EXPECT_EQ(count->num().get_int(), 1);
 
   auto& ops = render_target()->render_ops;

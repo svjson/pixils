@@ -5,6 +5,7 @@
 #include "pixils/console.h"
 #include <pixils/asset/registry.h>
 #include <pixils/frame_events.h>
+#include <pixils/hook_context.h>
 
 #include <lisple/runtime/value.h>
 #include <stddef.h>
@@ -27,7 +28,7 @@ namespace Pixils
     class ModeAdapter;
   }
 
-  struct Program;
+  class Program;
   struct RenderContext;
 
   class Client
@@ -35,10 +36,10 @@ namespace Pixils
     Lisple::Runtime& lisple;
     RenderContext& ctx;
     Asset::Registry assets;
+    FrameEvents events;
+    HookContext hook_ctx;
     Runtime::Session session;
     Program* program;
-
-    FrameEvents events;
 
     Asset::Bundle client_bundle;
 

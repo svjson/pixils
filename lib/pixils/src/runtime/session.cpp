@@ -272,9 +272,7 @@ namespace Pixils::Runtime
   void Session::update_child(ChildContext& child)
   {
     {
-      Lisple::sptr_rtval_v uargs = {child.state,
-                                    this->hook_args.update_args[1],
-                                    this->hook_args.update_args[2]};
+      Lisple::sptr_rtval_v uargs = {child.state, this->hook_args.update_args[1]};
       child.state = invoke_hook(lisple_runtime, child.mode->update, uargs, child.state);
     }
 

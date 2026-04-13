@@ -6,6 +6,8 @@
 #include <pixils/asset/registry.h>
 #include <pixils/binding/pixils_namespace.h>
 #include <pixils/context.h>
+#include <pixils/frame_events.h>
+#include <pixils/hook_context.h>
 #include <pixils/runtime/session.h>
 #include <pixils/script.h>
 
@@ -22,13 +24,16 @@ class SessionFixture : public BaseFixture
 {
  protected:
   Pixils::Asset::Registry assets;
+  Pixils::FrameEvents events;
+  Pixils::HookContext hook_ctx;
   Pixils::Runtime::HookArguments hook_args;
   Pixils::Runtime::Session session;
 
   SessionFixture()
     : BaseFixture()
     , assets(render_ctx)
-    , hook_args{Lisple::Constant::NIL, Pixils::Script::RenderContextAdapter::make_ref(render_ctx)}
+    , hook_ctx{&events, &render_ctx}
+    , hook_args{Pixils::Script::HookContextAdapter::make_ref(hook_ctx)}
     , session(runtime, assets, render_ctx, hook_args)
   {
   }

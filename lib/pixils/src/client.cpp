@@ -4,6 +4,7 @@
 #include <pixils/client.h>
 #include <pixils/context.h>
 #include <pixils/frame_events.h>
+#include <pixils/hook_context.h>
 #include <pixils/keyboard.h>
 #include <pixils/program.h>
 #include <pixils/runtime/mode.h>
@@ -32,11 +33,11 @@ namespace Pixils
     : lisple(lisple_runtime)
     , ctx(ctx)
     , assets(ctx)
+    , hook_ctx{&this->events, &this->ctx}
     , session(lisple_runtime,
               assets,
               ctx,
-              {Pixils::Script::FrameEventsAdapter::make_ref(this->events),
-               Pixils::Script::RenderContextAdapter::make_ref(this->ctx)})
+              {Pixils::Script::HookContextAdapter::make_ref(this->hook_ctx)})
   {
     ctx.asset_registry = &assets;
     init_console();
@@ -129,6 +130,12 @@ namespace Pixils
       ctx.begin_frame(program->get_display());
 
       events.key_down = Lisple::Constant::NIL;
+      events.mouse_button_down = Lisple::Constant::NIL;
+
+      // FIXME: Scale is 0 until the first invocation of prepare_application_frame
+      int scale = ctx.buffer_dim.w > 0 ? std::min(ctx.window_rect.w / ctx.buffer_dim.w,
+                                                  ctx.window_rect.h / ctx.buffer_dim.h)
+                                       : 1;
 
       while (SDL_PollEvent(&event))
       {
@@ -143,9 +150,17 @@ namespace Pixils
         case SDL_KEYUP:
           handle_keyup(event.key);
           break;
+        case SDL_MOUSEMOTION:
+          events.do_mouse_motion(event.motion.x / scale, event.motion.y / scale);
+          break;
+        case SDL_MOUSEBUTTONDOWN:
+          events.do_mouse_button_down(event.button);
+          break;
+        case SDL_MOUSEBUTTONUP:
+          events.do_mouse_button_up(event.button);
+          break;
         }
       }
-
       frame++;
 
       if (error_state)

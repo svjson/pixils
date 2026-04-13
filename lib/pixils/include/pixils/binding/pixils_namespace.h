@@ -5,6 +5,7 @@
 #include <pixils/context.h>
 #include <pixils/display.h>
 #include <pixils/frame_events.h>
+#include <pixils/hook_context.h>
 #include <pixils/program.h>
 
 #include <lisple/exec.h>
@@ -59,6 +60,7 @@ namespace Pixils::Script
     HOST_TYPE(DIMENSION, "HDimension", FN__PIXILS__MAKE_DIMENSION)
     HOST_TYPE(DISPLAY, "HDisplay", FN__PIXILS__MAKE_DISPLAY)
     HOST_TYPE(FRAME_EVENTS, "HFrameEvents")
+    HOST_TYPE(HOOK_CONTEXT, "HHookContext")
     HOST_TYPE(MODE, "HMode", FN__PIXILS__MAKE_MODE)
     HOST_TYPE(MODE_COMPOSITION, "HModeComposition", FN__PIXILS__MAKE_MODE_COMPOSITION)
     HOST_TYPE(PROGRAM, "HProgram")
@@ -98,6 +100,11 @@ namespace Pixils::Script
   NATIVE_ADAPTER(DisplayAdapter, Display, (resolution), (resolution));
   /*! @brief FrameEventsAdapter - A Lisple HostObject Adapter for FrameEvents */
   NATIVE_ADAPTER(FrameEventsAdapter, FrameEvents, (key_down, held_keys));
+  /*! @brief HookContextAdapter - unified context passed as second arg to all mode hooks */
+  NATIVE_ADAPTER(
+    HookContextAdapter,
+    HookContext,
+    (key_down, held_keys, mouse_pos, mouse_button_down, mouse_held, pixel_size, buffer_dim));
   /*! @brief ModeAdapter - A Lisple HostObject Adapter for Mode */
   NATIVE_ADAPTER(ModeAdapter, Runtime::Mode, (init, update, render));
   /*! @brief ModeCompositionAdapter - A Lisple HostObject Adapter for ModeComposition */
