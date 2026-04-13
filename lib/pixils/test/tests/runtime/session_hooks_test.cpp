@@ -49,7 +49,7 @@ TEST_F(SessionHooksTest, update_mode_with_no_update_hook_preserves_state)
 TEST_F(SessionHooksTest, update_mode_with_symbol_reference_to_callable_is_invoked)
 {
   // Given
-  runtime.eval("(defun count-update! [state events ctx] 99)");
+  runtime.eval("(defun count-update! [state ctx] 99)");
   runtime.eval("(pixils/defmode counting-mode {:update count-update!})");
   session.push_mode("counting-mode", Lisple::RTValue::number(0));
 
@@ -63,7 +63,7 @@ TEST_F(SessionHooksTest, update_mode_with_symbol_reference_to_callable_is_invoke
 TEST_F(SessionHooksTest, update_mode_with_callable_hook_is_invoked)
 {
   // Given
-  runtime.eval("(pixils/defmode counting-mode {:update (fn [state events ctx] 99)})");
+  runtime.eval("(pixils/defmode counting-mode {:update (fn [state ctx] 99)})");
   session.push_mode("counting-mode", Lisple::RTValue::number(0));
 
   // When

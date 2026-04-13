@@ -45,8 +45,7 @@ namespace Pixils::Runtime
     static DimensionConstraint relative(int percent) { return {Kind::RELATIVE, percent}; }
   };
 
-  /** Per-side margin applied around a layout child. Present in the data model
-   *  from day one; initially stored but not yet applied in layout calculation. */
+  /** Per-side margin around a layout child. Stored but not yet applied in layout calculations. */
   struct Margin
   {
     int top = 0;
@@ -61,10 +60,15 @@ namespace Pixils::Runtime
     ROW,
   };
 
-  /** A slot in a layout tree: which mode to place there and how to size it. */
+  /**
+   * A slot in a layout tree: which mode to place there and how to size it.
+   * `id` is a sibling-unique key used to store this child's state in the
+   * parent state map. Auto-generated as `mode-name-N` if not set explicitly.
+   */
   struct ChildSlot
   {
     std::string mode_name;
+    std::string id;
     std::optional<DimensionConstraint> width;
     std::optional<DimensionConstraint> height;
     Margin margin;

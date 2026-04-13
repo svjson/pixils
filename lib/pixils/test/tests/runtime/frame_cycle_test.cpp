@@ -27,7 +27,7 @@ TEST_F(FrameCycleTest, update_hook_receives_and_returns_new_state)
   runtime.eval(R"(
     (pixils/defmode test-mode {
       :init   (fn [state ctx] {:count 0})
-      :update (fn [state events ctx] (prn "update!") (assoc state :count (+ (:count state) 1)))
+      :update (fn [state ctx] (prn "update!") (assoc state :count (+ (:count state) 1)))
     })
   )");
   session.push_mode("test-mode", Lisple::Constant::NIL);
@@ -99,7 +99,7 @@ TEST_F(FrameCycleTest, full_frame_cycle_init_update_render)
   runtime.eval(R"(
     (pixils/defmode test-mode {
       :init   (fn [state ctx] {:ticks 0})
-      :update (fn [state events ctx] (assoc state :ticks (+ (:ticks state) 1)))
+      :update (fn [state ctx] (assoc state :ticks (+ (:ticks state) 1)))
       :render (fn [state ctx]
                 (pixils.render/rect!
                   (pixils.point/point 0 0)

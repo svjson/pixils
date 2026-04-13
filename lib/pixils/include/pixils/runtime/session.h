@@ -34,9 +34,12 @@ namespace Pixils::Runtime
   /**
    * Runtime state for a single child mode in a layout tree. Each node holds the
    * resolved mode pointer, the child's own Lisple state, and any nested children.
+   * `id` matches the corresponding ChildSlot id and is used as the key in the
+   * parent's state map where this child's state is stored.
    */
   struct ChildContext
   {
+    std::string id;
     Mode* mode = nullptr;
     Lisple::sptr_rtval state = Lisple::Constant::NIL;
     std::vector<ChildContext> children;
@@ -62,7 +65,6 @@ namespace Pixils::Runtime
     ModeStack mode_stack;
     Lisple::sptr_rtval modes;
     ActiveMode active_mode;
-    std::vector<ActiveMode> mode_stack_history;
     HookArguments hook_args;
 
     Session(Lisple::Runtime& lisple_runtime,
@@ -73,17 +75,21 @@ namespace Pixils::Runtime
     void pop_mode();
     void push_mode(const Lisple::sptr_rtval& mode, const Lisple::sptr_rtval& state);
     void push_mode(const std::string& mode_name, const Lisple::sptr_rtval& state);
-    void update_state(const Lisple::sptr_rtval& state, size_t index);
     void process_messages();
     void init_mode();
     void update_mode();
     void render_mode();
 
     ChildContext build_child_context(const ChildSlot& slot);
-    void init_child(ChildContext& child);
-    void update_child(ChildContext& child);
+    Lisple::sptr_rtval init_child(ChildContext& child, const Lisple::sptr_rtval& parent_state);
+    Lisple::sptr_rtval update_child(ChildContext& child, const Lisple::sptr_rtval& parent_state);
+    void restore_child_state(ChildContext& child, const Lisple::sptr_rtval& parent_state);
     void render_child(const ChildContext& child, const Rect& bounds);
     void render_full_mode(const ActiveMode& am, const Mode& mode_def);
+    void render_mode_tree(const Mode& mode_def, const Lisple::sptr_rtval& state);
+    void render_child_tree(const Mode& mode_def,
+                           const Lisple::sptr_rtval& state,
+                           const Rect& bounds);
 
     std::vector<Rect> layout_children(const std::vector<ChildSlot>& slots,
                                       const Rect& parent);

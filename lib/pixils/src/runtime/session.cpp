@@ -42,6 +42,33 @@ namespace
     Lisple::Context exec_ctx(runtime);
     return fn->exec().execute(exec_ctx, args);
   }
+
+  /**
+   * Extract a child's state slice from the parent's state map at the given
+   * keyword id. Returns NIL if parent is not a map or the key is absent.
+   */
+  Lisple::sptr_rtval extract_child_state(const Lisple::sptr_rtval& parent,
+                                         const std::string& id)
+  {
+    if (!parent || parent->type == Lisple::RTValue::Type::NIL) return Lisple::Constant::NIL;
+    auto val = Lisple::Dict::get_property(parent, Lisple::RTValue::keyword(id));
+    return val ? val : Lisple::Constant::NIL;
+  }
+
+  /**
+   * Store child_state into parent's state map under keyword id, returning the
+   * updated parent. Creates a new empty map if parent is NIL.
+   */
+  Lisple::sptr_rtval merge_child_state(Lisple::sptr_rtval parent,
+                                       const std::string& id,
+                                       Lisple::sptr_rtval child_state)
+  {
+    auto key = Lisple::RTValue::keyword(id);
+    if (!parent || parent->type == Lisple::RTValue::Type::NIL)
+      parent = Lisple::RTValue::map({});
+    Lisple::Dict::set_property(parent, key, child_state);
+    return parent;
+  }
 } // namespace
 
 namespace Pixils::Runtime
@@ -73,29 +100,35 @@ namespace Pixils::Runtime
     {
       mode_stack.pop();
 
-      if (!mode_stack_history.empty())
-      {
-        active_mode = std::move(mode_stack_history.back());
-        mode_stack_history.pop_back();
-      }
-
-      /** Refresh state from the Lisple stack - update-composing modes may have
-       *  had their root state updated while below the top. Children keep the
-       *  state they had at push time (they are not updated while below top). */
+      /**
+       * Restore active_mode from the Lisple stack. The saved state already
+       * contains the full child state tree written back during the last update
+       * cycle before the popped mode was pushed.
+       */
       auto [mode, mode_state] = mode_stack.peek();
       active_mode.mode_index = mode_stack.size() - 1;
+      active_mode.init_fn = mode->init;
+      active_mode.update_fn = mode->update;
+      active_mode.render_fn = mode->render;
       active_mode.state = mode_state;
-
       this->hook_args.update_state(mode_state);
+
+      active_mode.children.clear();
+      for (const auto& slot : mode->children)
+      {
+        active_mode.children.push_back(build_child_context(slot));
+        restore_child_state(active_mode.children.back(), mode_state);
+      }
     }
   }
 
   void Session::push_mode(const Lisple::sptr_rtval& mode, const Lisple::sptr_rtval& state)
   {
-    if (mode_stack.size() > 0)
-    {
-      mode_stack_history.push_back(active_mode);
-    }
+    /**
+     * Flush the current active mode's state to the Lisple stack before pushing,
+     * so pop_mode can recover it via peek() regardless of call site.
+     */
+    if (mode_stack.size() > 0) mode_stack.update_state(active_mode.state);
 
     this->mode_stack.push(mode, state);
 
@@ -124,12 +157,19 @@ namespace Pixils::Runtime
 
     this->init_mode();
 
+    /**
+     * Build children and initialize each child, threading child states into
+     * the parent state map as they complete.
+     */
     this->active_mode.children.clear();
+    auto parent_state = this->active_mode.state;
     for (const auto& slot : mode_obj.children)
     {
       this->active_mode.children.push_back(build_child_context(slot));
-      init_child(this->active_mode.children.back());
+      parent_state = init_child(this->active_mode.children.back(), parent_state);
     }
+    this->active_mode.state = parent_state;
+    this->hook_args.update_state(parent_state);
   }
 
   void Session::push_mode(const std::string& mode_name, const Lisple::sptr_rtval& state)
@@ -191,13 +231,17 @@ namespace Pixils::Runtime
                                                    this->active_mode.update_fn,
                                                    this->hook_args.update_args,
                                                    this->active_mode.state);
-    this->hook_args.update_state(updated_state);
     this->active_mode.state = updated_state;
 
+    /**
+     * Thread child updates through the parent state map. Each child reads its
+     * slice from the parent, updates it, and writes the result back.
+     */
+    auto parent_state = this->active_mode.state;
     for (auto& child : this->active_mode.children)
-    {
-      update_child(child);
-    }
+      parent_state = update_child(child, parent_state);
+    this->active_mode.state = parent_state;
+    this->hook_args.update_state(parent_state);
   }
 
   void Session::render_full_mode(const ActiveMode& am, const Mode& mode_def)
@@ -221,25 +265,14 @@ namespace Pixils::Runtime
   {
     auto render_stack = mode_stack.get_render_stack();
 
-    /** render_stack is top-first: [0]=top, [1]=just below, ..., [n-1]=bottom.
-     *  mode_stack_history is bottom-first: [0]=bottom, ..., [n-2]=just below top.
-     *  Mapping: render_stack[i] (i>0) -> history[render_stack.size()-1-i]. */
+    /**
+     * render_stack is top-first: [0]=top, [1]=just below, ..., [n-1]=bottom.
+     * Render from bottom up, skipping index 0 (top mode is rendered last).
+     */
     for (size_t i = render_stack.size() - 1; i > 0; i--)
     {
-      auto [mode, _] = render_stack[i];
-      size_t history_idx = render_stack.size() - 1 - i;
-
-      if (history_idx < mode_stack_history.size())
-      {
-        render_full_mode(mode_stack_history[history_idx], *mode);
-      }
-      else
-      {
-        /** Fallback for stack entries with no saved history (shouldn't occur
-         *  in normal operation, but guards against mismatched state). */
-        Lisple::sptr_rtval_v rargs = this->hook_args.render_args;
-        invoke_hook(lisple_runtime, mode->render, rargs);
-      }
+      auto [mode, state] = render_stack[i];
+      render_mode_tree(*mode, state);
     }
 
     auto [top_mode, _] = mode_stack.peek();
@@ -257,6 +290,7 @@ namespace Pixils::Runtime
     child_mode->render = resolve_hook(lisple_runtime, child_mode->render);
 
     ChildContext ctx;
+    ctx.id = slot.id;
     ctx.mode = child_mode;
     ctx.state = Lisple::Constant::NIL;
 
@@ -268,12 +302,15 @@ namespace Pixils::Runtime
     return ctx;
   }
 
-  void Session::init_child(ChildContext& child)
+  Lisple::sptr_rtval Session::init_child(ChildContext& child,
+                                         const Lisple::sptr_rtval& parent_state)
   {
     if (!this->assets.is_loaded(child.mode->name))
     {
       this->assets.load(child.mode->name, child.mode->resources);
     }
+
+    child.state = extract_child_state(parent_state, child.id);
 
     {
       Lisple::sptr_rtval_v iargs = {child.state, this->hook_args.init_args[1]};
@@ -282,22 +319,33 @@ namespace Pixils::Runtime
     }
 
     for (auto& grandchild : child.children)
-    {
-      init_child(grandchild);
-    }
+      child.state = init_child(grandchild, child.state);
+
+    return merge_child_state(parent_state, child.id, child.state);
   }
 
-  void Session::update_child(ChildContext& child)
+  Lisple::sptr_rtval Session::update_child(ChildContext& child,
+                                           const Lisple::sptr_rtval& parent_state)
   {
+    child.state = extract_child_state(parent_state, child.id);
+
     {
       Lisple::sptr_rtval_v uargs = {child.state, this->hook_args.update_args[1]};
       child.state = invoke_hook(lisple_runtime, child.mode->update, uargs, child.state);
     }
 
     for (auto& grandchild : child.children)
-    {
-      update_child(grandchild);
-    }
+      child.state = update_child(grandchild, child.state);
+
+    return merge_child_state(parent_state, child.id, child.state);
+  }
+
+  void Session::restore_child_state(ChildContext& child,
+                                    const Lisple::sptr_rtval& parent_state)
+  {
+    child.state = extract_child_state(parent_state, child.id);
+    for (auto& grandchild : child.children)
+      restore_child_state(grandchild, child.state);
   }
 
   void Session::render_child(const ChildContext& child, const Rect& bounds)
@@ -324,6 +372,58 @@ namespace Pixils::Runtime
                     grandchild_rects[i].w,
                     grandchild_rects[i].h};
         render_child(child.children[i], abs);
+      }
+    }
+
+    SDL_RenderSetViewport(render_ctx.renderer, nullptr);
+  }
+
+  void Session::render_mode_tree(const Mode& mode_def, const Lisple::sptr_rtval& state)
+  {
+    Lisple::sptr_rtval_v rargs = this->hook_args.render_args;
+    rargs[0] = state;
+    invoke_hook(lisple_runtime, mode_def.render, rargs);
+
+    if (!mode_def.children.empty())
+    {
+      Rect parent_bounds = {0, 0, render_ctx.buffer_dim.w, render_ctx.buffer_dim.h};
+      auto child_rects = layout_children(mode_def.children, parent_bounds);
+      for (size_t i = 0; i < mode_def.children.size(); i++)
+      {
+        const ChildSlot& slot = mode_def.children[i];
+        auto child_state = extract_child_state(state, slot.id);
+        auto child_mode_val =
+          Lisple::Dict::get_property(modes, Lisple::RTValue::symbol(slot.mode_name));
+        render_child_tree(Lisple::obj<Mode>(*child_mode_val), child_state, child_rects[i]);
+      }
+    }
+  }
+
+  void Session::render_child_tree(const Mode& mode_def,
+                                  const Lisple::sptr_rtval& state,
+                                  const Rect& bounds)
+  {
+    SDL_Rect viewport = {bounds.x, bounds.y, bounds.w, bounds.h};
+    SDL_RenderSetViewport(render_ctx.renderer, &viewport);
+
+    Lisple::sptr_rtval_v rargs = {state, this->hook_args.render_args[1]};
+    invoke_hook(lisple_runtime, mode_def.render, rargs);
+
+    if (!mode_def.children.empty())
+    {
+      Rect local_parent = {0, 0, bounds.w, bounds.h};
+      auto grandchild_rects = layout_children(mode_def.children, local_parent);
+      for (size_t i = 0; i < mode_def.children.size(); i++)
+      {
+        const ChildSlot& slot = mode_def.children[i];
+        auto child_state = extract_child_state(state, slot.id);
+        auto child_mode_val =
+          Lisple::Dict::get_property(modes, Lisple::RTValue::symbol(slot.mode_name));
+        Rect abs = {bounds.x + grandchild_rects[i].x,
+                    bounds.y + grandchild_rects[i].y,
+                    grandchild_rects[i].w,
+                    grandchild_rects[i].h};
+        render_child_tree(Lisple::obj<Mode>(*child_mode_val), child_state, abs);
       }
     }
 

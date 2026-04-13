@@ -16,6 +16,7 @@
 #include <lisple/runtime/exec_node.h>
 #include <lisple/runtime/seq.h>
 #include <lisple/runtime/value.h>
+#include <unordered_map>
 
 namespace Pixils::Script
 {
@@ -198,9 +199,12 @@ namespace Pixils::Script
       auto children_val = opts.val("children");
       if (children_val->type != Lisple::RTValue::Type::NIL)
       {
-        static Lisple::MapSchema child_schema(
-          {{"mode", &Lisple::Type::SYMBOL}},
-          {{"width", &Lisple::Type::NUMBER}, {"height", &Lisple::Type::NUMBER}});
+        static Lisple::MapSchema child_schema({{"mode", &Lisple::Type::SYMBOL}},
+                                              {{"id", &Lisple::Type::ANY},
+                                               {"width", &Lisple::Type::NUMBER},
+                                               {"height", &Lisple::Type::NUMBER}});
+
+        std::unordered_map<std::string, int> mode_name_counts;
 
         size_t n = Lisple::count(*children_val);
         for (size_t i = 0; i < n; i++)
@@ -211,6 +215,17 @@ namespace Pixils::Script
 
           Runtime::ChildSlot slot;
           slot.mode_name = mode_sym->str();
+
+          if (child_opts.contains("id"))
+          {
+            slot.id = child_opts.val("id")->str();
+          }
+          else
+          {
+            int idx = mode_name_counts[slot.mode_name]++;
+            slot.id = slot.mode_name + "-" + std::to_string(idx);
+          }
+
           if (child_opts.contains("width"))
             slot.width = Runtime::DimensionConstraint::fixed(child_opts.i32("width"));
           if (child_opts.contains("height"))
