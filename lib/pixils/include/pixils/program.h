@@ -15,6 +15,7 @@ namespace Pixils
    public:
     Display display;
     std::string initial_mode;
+    bool pointer_visible = true;
 
    public:
     Program(const std::string& name, Display& display, const std::string& initial_mode);

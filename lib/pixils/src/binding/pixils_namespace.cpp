@@ -67,7 +67,8 @@ namespace Pixils::Script
 
     Lisple::MapSchema program_schema({},
                                      {{"display", &HostType::DISPLAY},
-                                      {"initial-mode", &Lisple::Type::SYMBOL_VALUE}});
+                                      {"initial-mode", &Lisple::Type::SYMBOL_VALUE},
+                                      {"pointer", &Lisple::Type::KEY}});
 
     SFORM_LOWER_IMPL(DefProgramMacro)
     {
@@ -87,6 +88,11 @@ namespace Pixils::Script
                                     Color(0, 0, 0));
 
       auto program = ProgramAdapter::make_unique(name, display, initial_mode);
+
+      if (opts.str("pointer", "") == "off")
+      {
+        Lisple::obj<Program>(*program).pointer_visible = false;
+      }
 
       Lisple::Dict::set_property(programs, Lisple::RTValue::symbol(name), program);
 

@@ -62,6 +62,8 @@ namespace Pixils
 
       this->program = &Lisple::obj<Program>(*program_val);
 
+      SDL_ShowCursor(this->program->pointer_visible ? SDL_ENABLE : SDL_DISABLE);
+
       auto modes = lisple_runtime.lookup_value(Script::ID__PIXILS__MODES);
 
       if (program->initial_mode == "")
