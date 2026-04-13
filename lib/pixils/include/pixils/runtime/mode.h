@@ -72,6 +72,7 @@ namespace Pixils::Runtime
     std::optional<DimensionConstraint> width;
     std::optional<DimensionConstraint> height;
     Margin margin;
+    Lisple::sptr_rtval initial_state;
   };
 
   struct Mode

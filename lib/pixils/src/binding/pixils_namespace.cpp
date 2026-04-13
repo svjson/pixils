@@ -201,10 +201,17 @@ namespace Pixils::Script
       {
         static Lisple::MapSchema child_schema({{"mode", &Lisple::Type::SYMBOL}},
                                               {{"id", &Lisple::Type::ANY},
+                                               {"state", &Lisple::Type::ANY},
                                                {"width", &Lisple::Type::NUMBER},
                                                {"height", &Lisple::Type::NUMBER}});
-
         std::unordered_map<std::string, int> mode_name_counts;
+
+        // FIXME: This is a hack because of the non-expr eval of the defmode map.
+        // Perhaps there isn't actually any need for that?
+        if (children_val->type == Lisple::RTValue::Type::LIST)
+        {
+          children_val = ctx.eval(children_val);
+        }
 
         size_t n = Lisple::count(*children_val);
         for (size_t i = 0; i < n; i++)
@@ -225,6 +232,8 @@ namespace Pixils::Script
             int idx = mode_name_counts[slot.mode_name]++;
             slot.id = slot.mode_name + "-" + std::to_string(idx);
           }
+
+          slot.initial_state = child_opts.val("state");
 
           if (child_opts.contains("width"))
             slot.width = Runtime::DimensionConstraint::fixed(child_opts.i32("width"));

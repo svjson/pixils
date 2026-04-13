@@ -42,6 +42,7 @@ namespace Pixils::Runtime
     std::string id;
     Mode* mode = nullptr;
     Lisple::sptr_rtval state = Lisple::Constant::NIL;
+    Lisple::sptr_rtval initial_state = Lisple::Constant::NIL;
     std::vector<ChildContext> children;
   };
 

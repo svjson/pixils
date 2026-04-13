@@ -293,6 +293,7 @@ namespace Pixils::Runtime
     ctx.id = slot.id;
     ctx.mode = child_mode;
     ctx.state = Lisple::Constant::NIL;
+    ctx.initial_state = slot.initial_state;
 
     for (const auto& grandchild_slot : child_mode->children)
     {
@@ -311,12 +312,13 @@ namespace Pixils::Runtime
     }
 
     child.state = extract_child_state(parent_state, child.id);
+    if (child.state->type == Lisple::RTValue::Type::NIL)
+      child.state = child.initial_state;
 
-    {
-      Lisple::sptr_rtval_v iargs = {child.state, this->hook_args.init_args[1]};
-      auto new_state = invoke_hook(lisple_runtime, child.mode->init, iargs);
-      if (new_state->type != Lisple::RTValue::Type::NIL) child.state = new_state;
-    }
+    Lisple::sptr_rtval_v iargs = {child.state, this->hook_args.init_args[1]};
+    auto new_state = invoke_hook(lisple_runtime, child.mode->init, iargs);
+    if (new_state->type != Lisple::RTValue::Type::NIL)
+      child.state = new_state;
 
     for (auto& grandchild : child.children)
       child.state = init_child(grandchild, child.state);
@@ -329,10 +331,8 @@ namespace Pixils::Runtime
   {
     child.state = extract_child_state(parent_state, child.id);
 
-    {
-      Lisple::sptr_rtval_v uargs = {child.state, this->hook_args.update_args[1]};
-      child.state = invoke_hook(lisple_runtime, child.mode->update, uargs, child.state);
-    }
+    Lisple::sptr_rtval_v uargs = {child.state, this->hook_args.update_args[1]};
+    child.state = invoke_hook(lisple_runtime, child.mode->update, uargs, child.state);
 
     for (auto& grandchild : child.children)
       child.state = update_child(grandchild, child.state);
