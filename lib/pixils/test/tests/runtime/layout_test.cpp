@@ -1,6 +1,5 @@
 
 #include "session_fixture.h"
-
 #include <pixils/geom.h>
 #include <pixils/runtime/mode.h>
 
@@ -10,7 +9,9 @@ using Pixils::Rect;
 using Pixils::Runtime::ChildSlot;
 using Pixils::Runtime::DimensionConstraint;
 
-class LayoutTest : public SessionFixture {};
+class LayoutTest : public SessionFixture
+{
+};
 
 TEST_F(LayoutTest, layout_single_fill_child_takes_full_height)
 {

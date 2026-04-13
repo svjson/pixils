@@ -82,8 +82,10 @@ namespace Pixils::Runtime
     void render_mode();
 
     ChildContext build_child_context(const ChildSlot& slot);
-    Lisple::sptr_rtval init_child(ChildContext& child, const Lisple::sptr_rtval& parent_state);
-    Lisple::sptr_rtval update_child(ChildContext& child, const Lisple::sptr_rtval& parent_state);
+    Lisple::sptr_rtval init_child(ChildContext& child,
+                                  const Lisple::sptr_rtval& parent_state);
+    Lisple::sptr_rtval update_child(ChildContext& child,
+                                    const Lisple::sptr_rtval& parent_state);
     void restore_child_state(ChildContext& child, const Lisple::sptr_rtval& parent_state);
     void render_child(const ChildContext& child, const Rect& bounds);
     void render_full_mode(const ActiveMode& am, const Mode& mode_def);
@@ -93,7 +95,8 @@ namespace Pixils::Runtime
                            const Rect& bounds);
 
     std::vector<Rect> layout_children(const std::vector<ChildSlot>& slots,
-                                      const Rect& parent);
+                                      const Rect& parent,
+                                      LayoutDirection direction = LayoutDirection::COLUMN);
   };
 
 } // namespace Pixils::Runtime

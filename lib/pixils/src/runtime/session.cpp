@@ -253,7 +253,8 @@ namespace Pixils::Runtime
     if (!am.children.empty())
     {
       Rect parent_bounds = {0, 0, render_ctx.buffer_dim.w, render_ctx.buffer_dim.h};
-      auto child_rects = layout_children(mode_def.children, parent_bounds);
+      auto child_rects =
+        layout_children(mode_def.children, parent_bounds, mode_def.layout_direction);
       for (size_t i = 0; i < am.children.size(); i++)
       {
         render_child(am.children[i], child_rects[i]);
@@ -312,13 +313,11 @@ namespace Pixils::Runtime
     }
 
     child.state = extract_child_state(parent_state, child.id);
-    if (child.state->type == Lisple::RTValue::Type::NIL)
-      child.state = child.initial_state;
+    if (child.state->type == Lisple::RTValue::Type::NIL) child.state = child.initial_state;
 
     Lisple::sptr_rtval_v iargs = {child.state, this->hook_args.init_args[1]};
     auto new_state = invoke_hook(lisple_runtime, child.mode->init, iargs);
-    if (new_state->type != Lisple::RTValue::Type::NIL)
-      child.state = new_state;
+    if (new_state->type != Lisple::RTValue::Type::NIL) child.state = new_state;
 
     for (auto& grandchild : child.children)
       child.state = init_child(grandchild, child.state);
@@ -364,7 +363,8 @@ namespace Pixils::Runtime
        * Offset by the parent's absolute position when recursing.
        */
       Rect local_parent = {0, 0, bounds.w, bounds.h};
-      auto grandchild_rects = layout_children(child.mode->children, local_parent);
+      auto grandchild_rects =
+        layout_children(child.mode->children, local_parent, child.mode->layout_direction);
       for (size_t i = 0; i < child.children.size(); i++)
       {
         Rect abs = {bounds.x + grandchild_rects[i].x,
@@ -387,7 +387,8 @@ namespace Pixils::Runtime
     if (!mode_def.children.empty())
     {
       Rect parent_bounds = {0, 0, render_ctx.buffer_dim.w, render_ctx.buffer_dim.h};
-      auto child_rects = layout_children(mode_def.children, parent_bounds);
+      auto child_rects =
+        layout_children(mode_def.children, parent_bounds, mode_def.layout_direction);
       for (size_t i = 0; i < mode_def.children.size(); i++)
       {
         const ChildSlot& slot = mode_def.children[i];
@@ -412,7 +413,8 @@ namespace Pixils::Runtime
     if (!mode_def.children.empty())
     {
       Rect local_parent = {0, 0, bounds.w, bounds.h};
-      auto grandchild_rects = layout_children(mode_def.children, local_parent);
+      auto grandchild_rects =
+        layout_children(mode_def.children, local_parent, mode_def.layout_direction);
       for (size_t i = 0; i < mode_def.children.size(); i++)
       {
         const ChildSlot& slot = mode_def.children[i];
@@ -431,33 +433,40 @@ namespace Pixils::Runtime
   }
 
   std::vector<Rect> Session::layout_children(const std::vector<ChildSlot>& slots,
-                                             const Rect& parent)
+                                             const Rect& parent,
+                                             LayoutDirection direction)
   {
+    bool row = direction == LayoutDirection::ROW;
+
     int total_fixed = 0;
     int fill_count = 0;
 
     for (const auto& slot : slots)
     {
-      const auto& constraint = slot.height;
+      const auto& constraint = row ? slot.width : slot.height;
       if (constraint.has_value() && constraint->kind == DimensionConstraint::Kind::FIXED)
         total_fixed += constraint->value;
       else
         fill_count++;
     }
 
-    int fill_height = fill_count > 0 ? (parent.h - total_fixed) / fill_count : 0;
+    int available = row ? parent.w : parent.h;
+    int fill_size = fill_count > 0 ? (available - total_fixed) / fill_count : 0;
 
     std::vector<Rect> rects;
-    int y = parent.y;
+    int pos = row ? parent.x : parent.y;
     for (const auto& slot : slots)
     {
-      const auto& constraint = slot.height;
-      int h =
+      const auto& constraint = row ? slot.width : slot.height;
+      int size =
         (constraint.has_value() && constraint->kind == DimensionConstraint::Kind::FIXED)
           ? constraint->value
-          : fill_height;
-      rects.push_back({parent.x, y, parent.w, h});
-      y += h;
+          : fill_size;
+      if (row)
+        rects.push_back({pos, parent.y, size, parent.h});
+      else
+        rects.push_back({parent.x, pos, parent.w, size});
+      pos += size;
     }
 
     return rects;

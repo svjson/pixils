@@ -174,6 +174,7 @@ namespace Pixils::Script
                                             {"render", &Lisple::Type::ANY},
                                             {"compose", &HostType::MODE_COMPOSITION},
                                             {"resources", &HostType::RESOURCE_DEPENDENCIES},
+                                            {"layout", &Lisple::Type::KEY},
                                             {"children", &Lisple::Type::ANY}});
 
       auto opts = mode_schema.bind(ctx, *args[0]);
@@ -195,6 +196,13 @@ namespace Pixils::Script
 
       if (resources.has_value()) mode.resources = *resources;
       if (composition.has_value()) mode.composition = *composition;
+
+      if (opts.contains("layout"))
+      {
+        auto layout_val = opts.val("layout");
+        auto [ns, name] = layout_val->qual();
+        if (name == "row") mode.layout_direction = Runtime::LayoutDirection::ROW;
+      }
 
       auto children_val = opts.val("children");
       if (children_val->type != Lisple::RTValue::Type::NIL)
