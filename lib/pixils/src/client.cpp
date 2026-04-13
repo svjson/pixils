@@ -101,10 +101,12 @@ namespace Pixils
   {
     ctx.asset_registry->load_embedded_assets();
 
-    this->console = std::make_unique<ConsoleOverlay>(
-      ctx,
-      lisple,
-      ctx.asset_registry->get_image("pixils", "console-font"));
+    SDL_Texture* console_font_texture = ctx.asset_registry->get_image("pixils", "console-font");
+
+    ctx.font_registry = &font_registry;
+    font_registry.register_font("font/console", console_font_texture, console_font_map);
+
+    this->console = std::make_unique<ConsoleOverlay>(ctx, lisple, console_font_texture);
   }
 
   void Client::run()

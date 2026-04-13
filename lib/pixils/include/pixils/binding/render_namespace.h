@@ -14,6 +14,8 @@ namespace Pixils::Script
   inline constexpr std::string_view FN__DRAW_LINE_BANG = "line!";
   inline constexpr std::string_view FN__DRAW_POLYGON_BANG = "polygon!";
   inline constexpr std::string_view FN__DRAW_RECT_BANG = "rect!";
+  inline constexpr std::string_view FN__RENDER_TEXT_BANG = "text!";
+  inline constexpr std::string_view FN__TEXT_SIZE = "text-size";
   inline constexpr std::string_view FN__USE_COLOR_BANG = "use-color!";
 
   namespace MapKey
@@ -33,6 +35,10 @@ namespace Pixils::Script
     FUNC(DrawPolygonBang, polygon, polygon_with_opts);
     /*! @brief draw-rect! function */
     FUNC(DrawRectBang, draw_rect_from_points);
+    /*! @brief text! function */
+    FUNC(RenderTextBang, text_no_opts, text);
+    /*! @brief text-size function */
+    FUNC(TextSize, size_no_opts, size);
     /*! @brief use-color! function */
     FUNC(UseColorBang, use_color, use_color_num);
   } // namespace Function

@@ -4,6 +4,7 @@
 
 #include "pixils/console.h"
 #include <pixils/asset/registry.h>
+#include <pixils/font_registry.h>
 #include <pixils/frame_events.h>
 #include <pixils/hook_context.h>
 
@@ -36,6 +37,7 @@ namespace Pixils
     Lisple::Runtime& lisple;
     RenderContext& ctx;
     Asset::Registry assets;
+    FontRegistry font_registry;
     FrameEvents events;
     HookContext hook_ctx;
     Runtime::Session session;

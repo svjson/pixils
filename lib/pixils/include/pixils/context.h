@@ -11,6 +11,7 @@ typedef struct SDL_Texture SDL_Texture;
 namespace Pixils
 {
   struct Display;
+  class FontRegistry;
 
   namespace Asset
   {
@@ -57,6 +58,7 @@ namespace Pixils
     int tile_size = 16;
 
     Asset::Registry* asset_registry = nullptr;
+    FontRegistry* font_registry = nullptr;
 
     Dimension get_window_dimension();
 

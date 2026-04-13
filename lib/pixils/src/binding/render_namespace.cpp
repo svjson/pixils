@@ -7,10 +7,12 @@
 #include <pixils/binding/point_namespace.h>
 #include <pixils/binding/render_namespace.h>
 #include <pixils/context.h>
+#include <pixils/font_registry.h>
 
 #include <SDL2/SDL_render.h>
 #include <lisple/host/schema.h>
 #include <lisple/namespace.h>
+#include <lisple/runtime/dict.h>
 #include <lisple/runtime/seq.h>
 #include <lisple/runtime/value.h>
 
@@ -235,6 +237,163 @@ namespace Pixils::Script
       return Lisple::Constant::NIL;
     }
 
+    /* RenderTextBang - text! */
+    FUNC_IMPL(
+      RenderTextBang,
+      MULTI_SIG((FN_ARGS((&Lisple::Type::STRING), (&HostType::POINT)),
+                 EXEC_DISPATCH(&RenderTextBang::exec_text_no_opts)),
+                (FN_ARGS((&Lisple::Type::STRING), (&HostType::POINT), (&Lisple::Type::MAP)),
+                 EXEC_DISPATCH(&RenderTextBang::exec_text))));
+
+    static Lisple::MapSchema text_opts_schema({},
+                                              {{"font", &Lisple::Type::KEY},
+                                               {"color", &HostType::COLOR},
+                                               {"scale", &Lisple::Type::NUMBER},
+                                               {"shadow", &Lisple::Type::ANY}});
+
+    static void render_shadows(Text::Renderer& renderer,
+                               Lisple::Context& ctx,
+                               RenderContext& rc,
+                               const std::string& text,
+                               int x,
+                               int y,
+                               const Lisple::sptr_rtval& shadow_val)
+    {
+      static Lisple::MapSchema shadow_schema(
+        {{"offset", &HostType::POINT}, {"color", &HostType::COLOR}},
+        {});
+
+      auto render_one = [&](const Lisple::sptr_rtval& s)
+      {
+        auto sh = shadow_schema.bind(ctx, *s);
+        const Point& off = sh.obj<Point>("offset");
+        const Color& col = sh.obj<Color>("color");
+        SDL_Color sdl = col.to_SDL_Color();
+        renderer.set_alt_color(sdl);
+        renderer.render_text(rc, text, x + off.round_x(), y + off.round_y(), sdl);
+      };
+
+      if (shadow_val->type == Lisple::RTValue::Type::VECTOR)
+      {
+        for (auto& s : Lisple::get_children(*shadow_val))
+          render_one(s);
+      }
+      else if (shadow_val->type == Lisple::RTValue::Type::MAP)
+      {
+        render_one(shadow_val);
+      }
+    }
+
+    static Lisple::sptr_rtval make_rect_map(int x, int y, int w, int h)
+    {
+      auto map = Lisple::RTValue::map({});
+      auto vx = Lisple::RTValue::number(x);
+      auto vy = Lisple::RTValue::number(y);
+      auto vw = Lisple::RTValue::number(w);
+      auto vh = Lisple::RTValue::number(h);
+      Lisple::Dict::set_property(map, Lisple::RTValue::keyword("x"), vx);
+      Lisple::Dict::set_property(map, Lisple::RTValue::keyword("y"), vy);
+      Lisple::Dict::set_property(map, Lisple::RTValue::keyword("w"), vw);
+      Lisple::Dict::set_property(map, Lisple::RTValue::keyword("h"), vh);
+      return map;
+    }
+
+    EXEC_BODY(RenderTextBang, exec_text_no_opts)
+    {
+      Lisple::sptr_rtval_v full_args = args;
+      full_args.push_back(Lisple::RTValue::map({}));
+      return this->exec_text(ctx, full_args);
+    }
+
+    EXEC_BODY(RenderTextBang, exec_text)
+    {
+      RenderContext& rc =
+        Lisple::obj<RenderContext>(*ctx.lookup_value(ID__PIXILS__RENDER_CONTEXT));
+
+      const std::string& text = args[0]->str();
+      const Point& pos = Lisple::obj<Point>(*args[1]);
+      auto opts = text_opts_schema.bind(ctx, *args[2]);
+
+      std::string font_key = "font/console";
+      if (auto fv = opts.val("font"); fv && fv->type == Lisple::RTValue::Type::KEYWORD)
+        font_key = fv->str();
+
+      BitmapFont* font = rc.font_registry ? rc.font_registry->get_font(font_key) : nullptr;
+      if (!font) return Lisple::Constant::NIL;
+
+      Text::Renderer& renderer = font->renderer;
+
+      if (auto sv = opts.val("scale"); sv && sv->type != Lisple::RTValue::Type::NIL)
+        renderer.set_scale(sv->num().get_int());
+      else
+        renderer.set_scale(1);
+
+      SDL_Color color = {0xff, 0xff, 0xff, 0xff};
+      if (auto cv = opts.val("color"); cv && cv->type != Lisple::RTValue::Type::NIL)
+      {
+        const Color& c = Lisple::obj<Color>(*cv);
+        color = c.to_SDL_Color();
+      }
+
+      if (auto sv = opts.val("shadow"); sv && sv->type != Lisple::RTValue::Type::NIL)
+        render_shadows(renderer, ctx, rc, text, pos.round_x(), pos.round_y(), sv);
+
+      renderer.render_text(rc, text, pos.round_x(), pos.round_y(), color);
+
+      SDL_Rect size = renderer.get_rendered_size(rc, text);
+      return make_rect_map(pos.round_x(), pos.round_y(), size.w, size.h);
+    }
+
+    /* TextSize - text-size */
+    FUNC_IMPL(TextSize,
+              MULTI_SIG((FN_ARGS((&Lisple::Type::STRING)),
+                         EXEC_DISPATCH(&TextSize::exec_size_no_opts)),
+                        (FN_ARGS((&Lisple::Type::STRING), (&Lisple::Type::MAP)),
+                         EXEC_DISPATCH(&TextSize::exec_size))));
+
+    static Lisple::MapSchema text_size_opts_schema({},
+                                                   {{"font", &Lisple::Type::KEY},
+                                                    {"scale", &Lisple::Type::NUMBER}});
+
+    EXEC_BODY(TextSize, exec_size_no_opts)
+    {
+      Lisple::sptr_rtval_v full_args = args;
+      full_args.push_back(Lisple::RTValue::map({}));
+      return this->exec_size(ctx, full_args);
+    }
+
+    EXEC_BODY(TextSize, exec_size)
+    {
+      RenderContext& rc =
+        Lisple::obj<RenderContext>(*ctx.lookup_value(ID__PIXILS__RENDER_CONTEXT));
+
+      const std::string& text = args[0]->str();
+      auto opts = text_size_opts_schema.bind(ctx, *args[1]);
+
+      std::string font_key = "font/console";
+      if (auto fv = opts.val("font"); fv && fv->type == Lisple::RTValue::Type::KEYWORD)
+        font_key = fv->str();
+
+      BitmapFont* font = rc.font_registry ? rc.font_registry->get_font(font_key) : nullptr;
+      if (!font) return Lisple::Constant::NIL;
+
+      Text::Renderer& renderer = font->renderer;
+
+      if (auto sv = opts.val("scale"); sv && sv->type != Lisple::RTValue::Type::NIL)
+        renderer.set_scale(sv->num().get_int());
+      else
+        renderer.set_scale(1);
+
+      SDL_Rect size = renderer.get_rendered_size(rc, text);
+
+      auto map = Lisple::RTValue::map({});
+      auto vw = Lisple::RTValue::number(size.w);
+      auto vh = Lisple::RTValue::number(size.h);
+      Lisple::Dict::set_property(map, Lisple::RTValue::keyword("w"), vw);
+      Lisple::Dict::set_property(map, Lisple::RTValue::keyword("h"), vh);
+      return map;
+    }
+
     /* UseColorBang */
     FUNC_IMPL(UseColorBang,
               MULTI_SIG((FN_ARGS((&HostType::COLOR)),
@@ -280,6 +439,8 @@ namespace Pixils::Script
     values.emplace(FN__DRAW_LINE_BANG, Function::DrawLineBang::make());
     values.emplace(FN__DRAW_POLYGON_BANG, Function::DrawPolygonBang::make());
     values.emplace(FN__DRAW_RECT_BANG, Function::DrawRectBang::make());
+    values.emplace(FN__RENDER_TEXT_BANG, Function::RenderTextBang::make());
+    values.emplace(FN__TEXT_SIZE, Function::TextSize::make());
     values.emplace(FN__USE_COLOR_BANG, Function::UseColorBang::make());
   }
 } // namespace Pixils::Script
