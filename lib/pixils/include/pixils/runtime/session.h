@@ -62,6 +62,7 @@ namespace Pixils::Runtime
     ModeStack mode_stack;
     Lisple::sptr_rtval modes;
     ActiveMode active_mode;
+    std::vector<ActiveMode> mode_stack_history;
     HookArguments hook_args;
 
     Session(Lisple::Runtime& lisple_runtime,
@@ -82,6 +83,7 @@ namespace Pixils::Runtime
     void init_child(ChildContext& child);
     void update_child(ChildContext& child);
     void render_child(const ChildContext& child, const Rect& bounds);
+    void render_full_mode(const ActiveMode& am, const Mode& mode_def);
 
     std::vector<Rect> layout_children(const std::vector<ChildSlot>& slots,
                                       const Rect& parent);

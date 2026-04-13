@@ -73,30 +73,30 @@ namespace Pixils::Runtime
     {
       mode_stack.pop();
 
+      if (!mode_stack_history.empty())
+      {
+        active_mode = std::move(mode_stack_history.back());
+        mode_stack_history.pop_back();
+      }
+
+      /** Refresh state from the Lisple stack - update-composing modes may have
+       *  had their root state updated while below the top. Children keep the
+       *  state they had at push time (they are not updated while below top). */
       auto [mode, mode_state] = mode_stack.peek();
-      this->active_mode.mode_index = mode_stack.size() - 1;
-      this->active_mode.init_fn = resolve_hook(lisple_runtime, mode->init);
-      this->active_mode.update_fn = resolve_hook(lisple_runtime, mode->update);
-      this->active_mode.render_fn = resolve_hook(lisple_runtime, mode->render);
-      this->active_mode.state = mode_state;
+      active_mode.mode_index = mode_stack.size() - 1;
+      active_mode.state = mode_state;
 
       this->hook_args.update_state(mode_state);
-
-      /**
-       * Re-build children for the mode that is now on top. State is not
-       * persisted across a push/pop cycle - children re-initialize.
-       */
-      this->active_mode.children.clear();
-      for (const auto& slot : mode->children)
-      {
-        this->active_mode.children.push_back(build_child_context(slot));
-        init_child(this->active_mode.children.back());
-      }
     }
   }
 
   void Session::push_mode(const Lisple::sptr_rtval& mode, const Lisple::sptr_rtval& state)
   {
+    if (mode_stack.size() > 0)
+    {
+      mode_stack_history.push_back(active_mode);
+    }
+
     this->mode_stack.push(mode, state);
 
     auto& mode_obj = Lisple::obj<Mode>(*mode);
@@ -200,32 +200,50 @@ namespace Pixils::Runtime
     }
   }
 
+  void Session::render_full_mode(const ActiveMode& am, const Mode& mode_def)
+  {
+    Lisple::sptr_rtval_v rargs = this->hook_args.render_args;
+    rargs[0] = am.state;
+    invoke_hook(lisple_runtime, am.render_fn, rargs);
+
+    if (!am.children.empty())
+    {
+      Rect parent_bounds = {0, 0, render_ctx.buffer_dim.w, render_ctx.buffer_dim.h};
+      auto child_rects = layout_children(mode_def.children, parent_bounds);
+      for (size_t i = 0; i < am.children.size(); i++)
+      {
+        render_child(am.children[i], child_rects[i]);
+      }
+    }
+  }
+
   void Session::render_mode()
   {
     auto render_stack = mode_stack.get_render_stack();
 
+    /** render_stack is top-first: [0]=top, [1]=just below, ..., [n-1]=bottom.
+     *  mode_stack_history is bottom-first: [0]=bottom, ..., [n-2]=just below top.
+     *  Mapping: render_stack[i] (i>0) -> history[render_stack.size()-1-i]. */
     for (size_t i = render_stack.size() - 1; i > 0; i--)
     {
-      auto [mode, mode_state] = render_stack[i];
+      auto [mode, _] = render_stack[i];
+      size_t history_idx = render_stack.size() - 1 - i;
 
-      Lisple::sptr_rtval_v rargs = this->hook_args.render_args;
-      rargs[0] = mode_state;
-
-      invoke_hook(lisple_runtime, mode->render, rargs);
-    }
-
-    invoke_hook(lisple_runtime, this->active_mode.render_fn, this->hook_args.render_args);
-
-    if (!this->active_mode.children.empty())
-    {
-      auto [top_mode, _] = mode_stack.peek();
-      Rect parent_bounds = {0, 0, render_ctx.buffer_dim.w, render_ctx.buffer_dim.h};
-      auto child_rects = layout_children(top_mode->children, parent_bounds);
-      for (size_t i = 0; i < this->active_mode.children.size(); i++)
+      if (history_idx < mode_stack_history.size())
       {
-        render_child(this->active_mode.children[i], child_rects[i]);
+        render_full_mode(mode_stack_history[history_idx], *mode);
+      }
+      else
+      {
+        /** Fallback for stack entries with no saved history (shouldn't occur
+         *  in normal operation, but guards against mismatched state). */
+        Lisple::sptr_rtval_v rargs = this->hook_args.render_args;
+        invoke_hook(lisple_runtime, mode->render, rargs);
       }
     }
+
+    auto [top_mode, _] = mode_stack.peek();
+    render_full_mode(active_mode, *top_mode);
   }
 
   ChildContext Session::build_child_context(const ChildSlot& slot)
