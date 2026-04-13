@@ -5,6 +5,8 @@
 #include <pixils/context.h>
 #include <pixils/runtime/session.h>
 
+#include <cstddef>
+
 namespace Pixils::Runtime
 {
   struct ResourceDependencies;
@@ -19,6 +21,7 @@ namespace Pixils::Asset
    public:
     Loader(RenderContext& ctx);
     Bundle load_bundle_assets(const Runtime::ResourceDependencies& deps);
+    SDL_Texture* load_texture_from_memory(const unsigned char* data, std::size_t size);
   };
 
 } // namespace Pixils::Asset

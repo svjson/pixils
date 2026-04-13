@@ -22,6 +22,7 @@ namespace Pixils::Asset
 
     bool is_loaded(const std::string& bundle_id);
 
+    void load_embedded_assets();
     void load(const std::string& bundle_id, const Runtime::ResourceDependencies& deps);
 
     SDL_Texture* get_image(const std::string& bundle, const std::string& asset_id);

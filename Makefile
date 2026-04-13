@@ -16,5 +16,8 @@ install:
 test:
 	cmake --build build --target testpixils && cd build && ctest --output-on-failure
 
+assets:
+	bash scripts/generate_assets.sh
+
 clean:
 	rm -rf build

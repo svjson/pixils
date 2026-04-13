@@ -5,6 +5,7 @@
 
 #include <SDL2/SDL_image.h>
 #include <SDL2/SDL_render.h>
+#include <SDL2/SDL_rwops.h>
 
 namespace Pixils::Asset
 {
@@ -39,5 +40,17 @@ namespace Pixils::Asset
     }
 
     return bundle;
+  }
+  SDL_Texture* Loader::load_texture_from_memory(const unsigned char* data, std::size_t size)
+  {
+    SDL_RWops* rw = SDL_RWFromConstMem(data, static_cast<int>(size));
+    if (!rw) return nullptr;
+
+    SDL_Surface* surface = IMG_Load_RW(rw, 1);
+    if (!surface) return nullptr;
+
+    SDL_Texture* texture = SDL_CreateTextureFromSurface(ctx.renderer, surface);
+    SDL_FreeSurface(surface);
+    return texture;
   }
 } // namespace Pixils::Asset

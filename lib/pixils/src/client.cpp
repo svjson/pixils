@@ -99,8 +99,7 @@ namespace Pixils
 
   void Client::init_console()
   {
-    ctx.asset_registry->load("pixils",
-                             {.images = {{"console-font", "assets/console_font.png"}}});
+    ctx.asset_registry->load_embedded_assets();
 
     this->console = std::make_unique<ConsoleOverlay>(
       ctx,
