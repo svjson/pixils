@@ -11,15 +11,30 @@
    :initial-mode 'window-mode})
 
 
+;; "label component" mode
 
+(defmode label {:render (fn [state {:keys [buffer-size]}]
+                          (r/text! (:text state) {:x 0 :y 0}))})
 
-(defmode menu-bar-mode
-  {:update pixils.examples.minesweeper/menu-update!
-   :render pixils.examples.minesweeper/menu-render!})
+
+;; Menu bar
 
 (def menu-items ["File" "Edit" "View" "Help"])
 (def menu-item-w 128)
 (def menu-item-h 32)
+
+(defun make-label [item-text]
+  {:mode 'label
+   :state {:text item-text}
+   :width menu-item-w
+   :height 9})
+
+(defmode menu-bar-mode
+  {:layout :row
+   :update pixils.examples.minesweeper/menu-update!
+   :render pixils.examples.minesweeper/menu-render!
+   :children (map menu-items make-label)})
+
 
 (defun menu-item-bounds [index]
   {:x (* index menu-item-w) :y 0 :w menu-item-w :h menu-item-h})
