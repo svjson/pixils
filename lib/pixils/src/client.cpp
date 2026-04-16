@@ -40,6 +40,7 @@ namespace Pixils
               {Pixils::Script::HookContextAdapter::make_ref(this->hook_ctx)})
   {
     ctx.asset_registry = &assets;
+    session.hook_args.events = &this->events;
     init_console();
 
     if (init_mode)

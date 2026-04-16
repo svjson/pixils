@@ -11,6 +11,7 @@ file(GLOB pixils_SOURCES
   src/asset/*.cpp
   src/binding/*.cpp
   src/runtime/*.cpp
+  src/ui/*.cpp
 )
 
 add_library(pixils INTERFACE)

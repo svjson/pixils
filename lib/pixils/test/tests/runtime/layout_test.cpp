@@ -2,6 +2,7 @@
 #include "session_fixture.h"
 #include <pixils/geom.h>
 #include <pixils/runtime/mode.h>
+#include <pixils/runtime/render.h>
 
 #include <gtest/gtest.h>
 
@@ -20,7 +21,7 @@ TEST_F(LayoutTest, layout_single_fill_child_takes_full_height)
   Rect parent = {0, 0, 320, 200};
 
   // When
-  auto rects = session.layout_children(slots, parent);
+  auto rects = layout_children(slots, parent);
 
   // Then
   ASSERT_EQ(rects.size(), 1u);
@@ -38,7 +39,7 @@ TEST_F(LayoutTest, layout_fixed_then_fill_child_splits_height_correctly)
   Rect parent = {0, 0, 320, 200};
 
   // When
-  auto rects = session.layout_children(slots, parent);
+  auto rects = layout_children(slots, parent);
 
   // Then
   ASSERT_EQ(rects.size(), 2u);
@@ -55,7 +56,7 @@ TEST_F(LayoutTest, layout_two_fill_children_split_height_evenly)
   Rect parent = {0, 0, 320, 200};
 
   // When
-  auto rects = session.layout_children(slots, parent);
+  auto rects = layout_children(slots, parent);
 
   // Then
   ASSERT_EQ(rects.size(), 2u);
@@ -75,7 +76,7 @@ TEST_F(LayoutTest, layout_children_always_inherit_full_parent_width)
   Rect parent = {0, 0, 320, 200};
 
   // When
-  auto rects = session.layout_children(slots, parent);
+  auto rects = layout_children(slots, parent);
 
   // Then
   for (const auto& r : rects)
@@ -92,7 +93,7 @@ TEST_F(LayoutTest, layout_children_respect_parent_origin)
   Rect parent = {10, 20, 100, 80};
 
   // When
-  auto rects = session.layout_children(slots, parent);
+  auto rects = layout_children(slots, parent);
 
   // Then
   ASSERT_EQ(rects.size(), 1u);

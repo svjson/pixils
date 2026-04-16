@@ -1,7 +1,8 @@
 #ifndef PIXILS__RUNTIME__MODE_H
 #define PIXILS__RUNTIME__MODE_H
 
-#include "pixils/binding/pixils_namespace.h"
+#include <pixils/binding/pixils_namespace.h>
+#include <pixils/ui/style.h>
 
 #include <lisple/runtime/value.h>
 #include <optional>
@@ -45,7 +46,8 @@ namespace Pixils::Runtime
     static DimensionConstraint relative(int percent) { return {Kind::RELATIVE, percent}; }
   };
 
-  /** Per-side margin around a layout child. Stored but not yet applied in layout calculations. */
+  /** Per-side margin around a layout child. Stored but not yet applied in layout
+   * calculations. */
   struct Margin
   {
     int top = 0;
@@ -85,6 +87,7 @@ namespace Pixils::Runtime
     ModeComposition composition;
     LayoutDirection layout_direction = LayoutDirection::COLUMN;
     std::vector<ChildSlot> children;
+    std::optional<UI::Style> style = std::nullopt;
   };
 
 } // namespace Pixils::Runtime

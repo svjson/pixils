@@ -1,6 +1,7 @@
 
 #include "pixils/binding/color_namespace.h"
 #include "pixils/binding/resource_namespace.h"
+#include "pixils/binding/style_namespace.h"
 #include "pixils/display.h"
 #include "pixils/runtime/mode.h"
 #include <pixils/binding/pixils_namespace.h>
@@ -59,19 +60,19 @@ namespace Pixils::Script
 
   namespace Macro
   {
-    /* DefProgramMacro - defprogram */
-    SPECIAL_FORM_IMPL(DefProgramMacro,
+    /* DefProgramForm - defprogram */
+    SPECIAL_FORM_IMPL(DefProgramForm,
                       SIG((FN_ARGS((&Lisple::Type::WORD, &Lisple::Eval::LITERAL),
                                    (&Lisple::Type::MAP)),
-                           EXEC_DISPATCH(&DefProgramMacro::inv_def_program,
-                                         &DefProgramMacro::execnode_def_program))));
+                           EXEC_DISPATCH(&DefProgramForm::inv_def_program,
+                                         &DefProgramForm::execnode_def_program))));
 
     Lisple::MapSchema program_schema({},
                                      {{"display", &HostType::DISPLAY},
                                       {"initial-mode", &Lisple::Type::SYMBOL_VALUE},
                                       {"pointer", &Lisple::Type::KEY}});
 
-    SFORM_LOWER_IMPL(DefProgramMacro)
+    SFORM_LOWER_IMPL(DefProgramForm)
     {
       auto name = Lisple::exec(*ctx.ctx, *lower_literal(ast_node->get_children()[1]))->str();
       auto map_expr = Lisple::exec(*ctx.ctx, *lower_expr(ctx, ast_node->get_children()[2]));
@@ -100,24 +101,24 @@ namespace Pixils::Script
       return std::make_unique<Lisple::ExecNode>(Lisple::Constant::NIL);
     }
 
-    EXECNODE_BODY(DefProgramMacro, execnode_def_program)
+    EXECNODE_BODY(DefProgramForm, execnode_def_program)
     {
       throw Lisple::LispleException("defmode is lower-only");
     }
 
-    MACRO_BODY(DefProgramMacro, inv_def_program)
+    MACRO_BODY(DefProgramForm, inv_def_program)
     {
       return Lisple::NIL;
     }
 
-    /* DefModeMacro - defmode */
-    SPECIAL_FORM_IMPL(DefModeMacro,
+    /* DefModeForm - defmode */
+    SPECIAL_FORM_IMPL(DefModeForm,
                       SIG((FN_ARGS((&Lisple::Type::WORD, &Lisple::Eval::LITERAL),
                                    (&HostType::MODE, &Lisple::Eval::LITERAL)),
-                           EXEC_DISPATCH(&DefModeMacro::inv_declare_mode,
-                                         &DefModeMacro::execnode_declare_mode))));
+                           EXEC_DISPATCH(&DefModeForm::inv_declare_mode,
+                                         &DefModeForm::execnode_declare_mode))));
 
-    SFORM_LOWER_IMPL(DefModeMacro)
+    SFORM_LOWER_IMPL(DefModeForm)
     {
       auto modes = ctx.ctx->lookup_value(ID__PIXILS__MODES);
       auto name_expr = Lisple::exec(*ctx.ctx, *lower_literal(ast_node->get_children()[1]));
@@ -136,7 +137,7 @@ namespace Pixils::Script
       return std::make_unique<Lisple::ExecNode>(Lisple::Constant::NIL);
     }
 
-    MACRO_BODY(DefModeMacro, inv_declare_mode)
+    MACRO_BODY(DefModeForm, inv_declare_mode)
     {
       Lisple::Map& modes = ctx.lookup(ID__PIXILS__MODES)->as<Lisple::Map>();
       args.back()->as<ModeAdapter>().get_object().name = args.front()->to_string();
@@ -144,7 +145,7 @@ namespace Pixils::Script
       return Lisple::NIL;
     }
 
-    EXECNODE_BODY(DefModeMacro, execnode_declare_mode)
+    EXECNODE_BODY(DefModeForm, execnode_declare_mode)
     {
       throw Lisple::LispleException("defmode is lower-only");
     }
@@ -175,6 +176,7 @@ namespace Pixils::Script
                                             {"compose", &HostType::MODE_COMPOSITION},
                                             {"resources", &HostType::RESOURCE_DEPENDENCIES},
                                             {"layout", &Lisple::Type::KEY},
+                                            {"style", &HostType::STYLE},
                                             {"children", &Lisple::Type::ANY}});
 
       auto opts = mode_schema.bind(ctx, *args[0]);
@@ -203,6 +205,8 @@ namespace Pixils::Script
         auto [ns, name] = layout_val->qual();
         if (name == "row") mode.layout_direction = Runtime::LayoutDirection::ROW;
       }
+
+      mode.style = opts.optional_obj<UI::Style>("style");
 
       auto children_val = opts.val("children");
       if (children_val->type != Lisple::RTValue::Type::NIL)
@@ -458,6 +462,20 @@ namespace Pixils::Script
   NOBJ_PROP_GET_SET__FIELD(DimensionAdapter, w);
   NOBJ_PROP_GET_SET__FIELD(DimensionAdapter, h);
 
+  /* RectAdapter */
+  NATIVE_ADAPTER_IMPL(RectAdapter,
+                      Rect,
+                      &HostType::RECT,
+                      (rw, "x", x),
+                      (rw, "y", y),
+                      (rw, "w", w),
+                      (rw, "h", h))
+
+  NOBJ_PROP_GET_SET__FIELD(RectAdapter, x)
+  NOBJ_PROP_GET_SET__FIELD(RectAdapter, y)
+  NOBJ_PROP_GET_SET__FIELD(RectAdapter, w)
+  NOBJ_PROP_GET_SET__FIELD(RectAdapter, h)
+
   /* FrameEventsAdapter */
   NATIVE_ADAPTER_IMPL(FrameEventsAdapter,
                       FrameEvents,
@@ -569,8 +587,9 @@ namespace Pixils::Script
     values.emplace("mode-stack", Lisple::RTValue::vector({}));
     values.emplace("mode-stack-messages", Lisple::RTValue::vector({}));
     values.emplace("modes", Lisple::RTValue::map({}));
-    values.emplace("defmode", Macro::DefModeMacro::make());
-    values.emplace("defprogram", Macro::DefProgramMacro::make());
+    values.emplace("defmode", Macro::DefModeForm::make());
+    values.emplace("defcomponent", Macro::DefModeForm::make());
+    values.emplace("defprogram", Macro::DefProgramForm::make());
     values.emplace("make-dimension", Function::MakeDimension::make());
     values.emplace("make-display", Function::MakeDisplay::make());
     values.emplace("make-mode", Function::MakeMode::make());

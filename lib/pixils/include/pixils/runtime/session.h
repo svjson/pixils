@@ -2,6 +2,7 @@
 #ifndef __PIXILS__RUNTIME__SESSION_H_
 #define __PIXILS__RUNTIME__SESSION_H_
 
+#include <pixils/frame_events.h>
 #include <pixils/geom.h>
 #include <pixils/runtime/mode.h>
 #include <pixils/runtime/mode_stack.h>
@@ -23,6 +24,7 @@ namespace Pixils::Runtime
   struct HookArguments
   {
     Lisple::sptr_rtval ctx;
+    FrameEvents* events = nullptr;
 
     Lisple::sptr_rtval_v init_args = {Lisple::Constant::NIL, ctx};
     Lisple::sptr_rtval_v update_args = {Lisple::Constant::NIL, ctx};
@@ -43,6 +45,7 @@ namespace Pixils::Runtime
     Mode* mode = nullptr;
     Lisple::sptr_rtval state = Lisple::Constant::NIL;
     Lisple::sptr_rtval initial_state = Lisple::Constant::NIL;
+    Rect bounds = {0, 0, 0, 0};
     std::vector<ChildContext> children;
   };
 
@@ -77,6 +80,17 @@ namespace Pixils::Runtime
     void push_mode(const Lisple::sptr_rtval& mode, const Lisple::sptr_rtval& state);
     void push_mode(const std::string& mode_name, const Lisple::sptr_rtval& state);
     void process_messages();
+    /*!
+     * @brief Invoke a pre-resolved hook. Returns fallback if the hook is NIL (absent).
+     * Hooks must already be resolved - no symbol lookup is performed here.
+     *
+     * @param fn The hook function to invoke, or NIL if no hook was provided.
+     * @param args The arguments to pass to the hook function.
+     */
+    Lisple::sptr_rtval invoke_hook(
+      const Lisple::sptr_rtval& fn,
+      Lisple::sptr_rtval_v& args,
+      const Lisple::sptr_rtval& fallback = Lisple::Constant::NIL);
     void init_mode();
     void update_mode();
     void render_mode();
@@ -87,16 +101,11 @@ namespace Pixils::Runtime
     Lisple::sptr_rtval update_child(ChildContext& child,
                                     const Lisple::sptr_rtval& parent_state);
     void restore_child_state(ChildContext& child, const Lisple::sptr_rtval& parent_state);
-    void render_child(const ChildContext& child, const Rect& bounds);
-    void render_full_mode(const ActiveMode& am, const Mode& mode_def);
+    void render_full_mode(ActiveMode& am, const Mode& mode_def);
     void render_mode_tree(const Mode& mode_def, const Lisple::sptr_rtval& state);
     void render_child_tree(const Mode& mode_def,
                            const Lisple::sptr_rtval& state,
                            const Rect& bounds);
-
-    std::vector<Rect> layout_children(const std::vector<ChildSlot>& slots,
-                                      const Rect& parent,
-                                      LayoutDirection direction = LayoutDirection::COLUMN);
   };
 
 } // namespace Pixils::Runtime

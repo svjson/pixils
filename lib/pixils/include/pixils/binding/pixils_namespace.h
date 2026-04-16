@@ -64,6 +64,7 @@ namespace Pixils::Script
     HOST_TYPE(MODE, "HMode", FN__PIXILS__MAKE_MODE)
     HOST_TYPE(MODE_COMPOSITION, "HModeComposition", FN__PIXILS__MAKE_MODE_COMPOSITION)
     HOST_TYPE(PROGRAM, "HProgram")
+    HOST_TYPE(RECT, "HRect");
     HOST_TYPE(RENDER_CONTEXT, "HRenderContext")
     HOST_TYPE(RESOLUTION, "HResolution", FN__MAKE_RESOLUTION)
   } // namespace HostType
@@ -71,9 +72,9 @@ namespace Pixils::Script
   namespace Macro
   {
     /*! @brief Define a program/application */
-    SPECIAL_FORM_DECL(DefProgramMacro, def_program);
+    SPECIAL_FORM_DECL(DefProgramForm, def_program);
     /*! @brief Define a game/application mode */
-    SPECIAL_FORM_DECL(DefModeMacro, declare_mode);
+    SPECIAL_FORM_DECL(DefModeForm, declare_mode);
   } // namespace Macro
 
   namespace Function
@@ -96,6 +97,8 @@ namespace Pixils::Script
 
   /*! @brief DimensionAdapter - A Lisple HostObject Adapter for Dimension */
   NATIVE_ADAPTER(DimensionAdapter, Dimension, (w, h), (w, h));
+  /*! @brief RectAdapter - A Lisple HostObject Adapter for Rect */
+  NATIVE_ADAPTER(RectAdapter, Rect, (x, y, w, h), (x, y, w, h));
   /*! @brief Lisple HostObject Adapter for Display */
   NATIVE_ADAPTER(DisplayAdapter, Display, (resolution), (resolution));
   /*! @brief FrameEventsAdapter - A Lisple HostObject Adapter for FrameEvents */

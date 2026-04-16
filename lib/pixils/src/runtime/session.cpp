@@ -1,10 +1,15 @@
 
 #include "pixils/runtime/session.h"
 
+#include "pixils/binding/style_namespace.h"
+#include "pixils/ui/style.h"
 #include <pixils/asset/registry.h>
+#include <pixils/binding/color_namespace.h>
 #include <pixils/binding/pixils_namespace.h>
+#include <pixils/binding/point_namespace.h>
 #include <pixils/context.h>
 #include <pixils/runtime/mode.h>
+#include <pixils/runtime/render.h>
 
 #include <SDL2/SDL_render.h>
 #include <lisple/context.h>
@@ -27,20 +32,6 @@ namespace
     if (val->type == Lisple::RTValue::Type::SYMBOL) return runtime.lookup_value(val->str());
     if (val->type == Lisple::RTValue::Type::FUNCTION) return val;
     return Lisple::Constant::NIL;
-  }
-
-  /**
-   * Invoke a pre-resolved hook. Returns fallback if the hook is NIL (absent).
-   * Hooks must already be resolved - no symbol lookup is performed here.
-   */
-  Lisple::sptr_rtval invoke_hook(Lisple::Runtime& runtime,
-                                 const Lisple::sptr_rtval& fn,
-                                 Lisple::sptr_rtval_v& args,
-                                 const Lisple::sptr_rtval& fallback = Lisple::Constant::NIL)
-  {
-    if (!fn || fn->type == Lisple::RTValue::Type::NIL) return fallback;
-    Lisple::Context exec_ctx(runtime);
-    return fn->exec().execute(exec_ctx, args);
   }
 
   /**
@@ -69,6 +60,7 @@ namespace
     Lisple::Dict::set_property(parent, key, child_state);
     return parent;
   }
+
 } // namespace
 
 namespace Pixils::Runtime
@@ -201,10 +193,18 @@ namespace Pixils::Runtime
     }
   }
 
+  Lisple::sptr_rtval Session::invoke_hook(const Lisple::sptr_rtval& fn,
+                                          Lisple::sptr_rtval_v& args,
+                                          const Lisple::sptr_rtval& fallback)
+  {
+    if (!fn || fn->type == Lisple::RTValue::Type::NIL) return fallback;
+    Lisple::Context exec_ctx(lisple_runtime);
+    return fn->exec().execute(exec_ctx, args);
+  }
+
   void Session::init_mode()
   {
-    auto new_state = invoke_hook(lisple_runtime,
-                                 this->active_mode.init_fn,
+    auto new_state = invoke_hook(this->active_mode.init_fn,
                                  this->hook_args.init_args,
                                  this->active_mode.state);
     this->active_mode.state = new_state;
@@ -222,13 +222,11 @@ namespace Pixils::Runtime
       Lisple::sptr_rtval_v rargs = this->hook_args.update_args;
       rargs[0] = mode_state;
 
-      Lisple::sptr_rtval new_state =
-        invoke_hook(lisple_runtime, mode->update, rargs, mode_state);
+      Lisple::sptr_rtval new_state = invoke_hook(mode->update, rargs, mode_state);
       mode_stack.update_state(new_state, update_stack.size() - i);
     }
 
-    Lisple::sptr_rtval updated_state = invoke_hook(lisple_runtime,
-                                                   this->active_mode.update_fn,
+    Lisple::sptr_rtval updated_state = invoke_hook(this->active_mode.update_fn,
                                                    this->hook_args.update_args,
                                                    this->active_mode.state);
     this->active_mode.state = updated_state;
@@ -244,11 +242,11 @@ namespace Pixils::Runtime
     this->hook_args.update_state(parent_state);
   }
 
-  void Session::render_full_mode(const ActiveMode& am, const Mode& mode_def)
+  void Session::render_full_mode(ActiveMode& am, const Mode& mode_def)
   {
     Lisple::sptr_rtval_v rargs = this->hook_args.render_args;
     rargs[0] = am.state;
-    invoke_hook(lisple_runtime, am.render_fn, rargs);
+    invoke_hook(am.render_fn, rargs);
 
     if (!am.children.empty())
     {
@@ -257,7 +255,7 @@ namespace Pixils::Runtime
         layout_children(mode_def.children, parent_bounds, mode_def.layout_direction);
       for (size_t i = 0; i < am.children.size(); i++)
       {
-        render_child(am.children[i], child_rects[i]);
+        render_child(*this, am.children[i], child_rects[i]);
       }
     }
   }
@@ -316,7 +314,7 @@ namespace Pixils::Runtime
     if (child.state->type == Lisple::RTValue::Type::NIL) child.state = child.initial_state;
 
     Lisple::sptr_rtval_v iargs = {child.state, this->hook_args.init_args[1]};
-    auto new_state = invoke_hook(lisple_runtime, child.mode->init, iargs);
+    auto new_state = invoke_hook(child.mode->init, iargs);
     if (new_state->type != Lisple::RTValue::Type::NIL) child.state = new_state;
 
     for (auto& grandchild : child.children)
@@ -330,8 +328,30 @@ namespace Pixils::Runtime
   {
     child.state = extract_child_state(parent_state, child.id);
 
+    /**
+     * For styled components with known bounds, inject the current hover state
+     * into the child's state map before the update hook fires. This allows
+     * the component to react to hover in update and the style system to pick
+     * the correct variant in render.
+     */
+    if (hook_args.events && child.mode->style && child.mode->style && child.bounds.w > 0)
+    {
+      const Point& mp = Lisple::obj<Point>(*hook_args.events->mouse_pos);
+      int mx = mp.round_x();
+      int my = mp.round_y();
+      bool hovered = mx >= child.bounds.x && mx < child.bounds.x + child.bounds.w &&
+                     my >= child.bounds.y && my < child.bounds.y + child.bounds.h;
+
+      if (!child.state || child.state->type == Lisple::RTValue::Type::NIL)
+        child.state = Lisple::RTValue::map({});
+      auto hovered_val = Lisple::RTValue::number(hovered ? 1 : 0);
+      Lisple::Dict::set_property(child.state,
+                                 Lisple::RTValue::keyword("hovered"),
+                                 hovered_val);
+    }
+
     Lisple::sptr_rtval_v uargs = {child.state, this->hook_args.update_args[1]};
-    child.state = invoke_hook(lisple_runtime, child.mode->update, uargs, child.state);
+    child.state = invoke_hook(child.mode->update, uargs, child.state);
 
     for (auto& grandchild : child.children)
       child.state = update_child(grandchild, child.state);
@@ -347,42 +367,11 @@ namespace Pixils::Runtime
       restore_child_state(grandchild, child.state);
   }
 
-  void Session::render_child(const ChildContext& child, const Rect& bounds)
-  {
-    SDL_Rect viewport = {bounds.x, bounds.y, bounds.w, bounds.h};
-    SDL_RenderSetViewport(render_ctx.renderer, &viewport);
-
-    Lisple::sptr_rtval_v rargs = {child.state, this->hook_args.render_args[1]};
-    invoke_hook(lisple_runtime, child.mode->render, rargs);
-
-    if (!child.children.empty())
-    {
-      /**
-       * Child bounds here are local (origin at 0,0 within the viewport), but
-       * SDL_RenderSetViewport expects absolute coordinates on the render target.
-       * Offset by the parent's absolute position when recursing.
-       */
-      Rect local_parent = {0, 0, bounds.w, bounds.h};
-      auto grandchild_rects =
-        layout_children(child.mode->children, local_parent, child.mode->layout_direction);
-      for (size_t i = 0; i < child.children.size(); i++)
-      {
-        Rect abs = {bounds.x + grandchild_rects[i].x,
-                    bounds.y + grandchild_rects[i].y,
-                    grandchild_rects[i].w,
-                    grandchild_rects[i].h};
-        render_child(child.children[i], abs);
-      }
-    }
-
-    SDL_RenderSetViewport(render_ctx.renderer, nullptr);
-  }
-
   void Session::render_mode_tree(const Mode& mode_def, const Lisple::sptr_rtval& state)
   {
     Lisple::sptr_rtval_v rargs = this->hook_args.render_args;
     rargs[0] = state;
-    invoke_hook(lisple_runtime, mode_def.render, rargs);
+    invoke_hook(mode_def.render, rargs);
 
     if (!mode_def.children.empty())
     {
@@ -408,7 +397,7 @@ namespace Pixils::Runtime
     SDL_RenderSetViewport(render_ctx.renderer, &viewport);
 
     Lisple::sptr_rtval_v rargs = {state, this->hook_args.render_args[1]};
-    invoke_hook(lisple_runtime, mode_def.render, rargs);
+    invoke_hook(mode_def.render, rargs);
 
     if (!mode_def.children.empty())
     {
@@ -430,46 +419,6 @@ namespace Pixils::Runtime
     }
 
     SDL_RenderSetViewport(render_ctx.renderer, nullptr);
-  }
-
-  std::vector<Rect> Session::layout_children(const std::vector<ChildSlot>& slots,
-                                             const Rect& parent,
-                                             LayoutDirection direction)
-  {
-    bool row = direction == LayoutDirection::ROW;
-
-    int total_fixed = 0;
-    int fill_count = 0;
-
-    for (const auto& slot : slots)
-    {
-      const auto& constraint = row ? slot.width : slot.height;
-      if (constraint.has_value() && constraint->kind == DimensionConstraint::Kind::FIXED)
-        total_fixed += constraint->value;
-      else
-        fill_count++;
-    }
-
-    int available = row ? parent.w : parent.h;
-    int fill_size = fill_count > 0 ? (available - total_fixed) / fill_count : 0;
-
-    std::vector<Rect> rects;
-    int pos = row ? parent.x : parent.y;
-    for (const auto& slot : slots)
-    {
-      const auto& constraint = row ? slot.width : slot.height;
-      int size =
-        (constraint.has_value() && constraint->kind == DimensionConstraint::Kind::FIXED)
-          ? constraint->value
-          : fill_size;
-      if (row)
-        rects.push_back({pos, parent.y, size, parent.h});
-      else
-        rects.push_back({parent.x, pos, parent.w, size});
-      pos += size;
-    }
-
-    return rects;
   }
 
 } // namespace Pixils::Runtime

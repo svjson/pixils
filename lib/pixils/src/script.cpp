@@ -1,4 +1,5 @@
 
+#include "pixils/binding/style_namespace.h"
 #include <pixils/binding/color_namespace.h>
 #include <pixils/binding/pixils_namespace.h>
 #include <pixils/binding/point_namespace.h>
@@ -27,6 +28,7 @@ namespace Pixils
     namespaces.push_back(std::make_unique<Pixils::Script::ColorNamespace>());
     namespaces.push_back(std::make_unique<Pixils::Script::PointNamespace>());
     namespaces.push_back(std::make_unique<Pixils::Script::RenderNamespace>());
+    namespaces.push_back(std::make_unique<Pixils::Script::StyleNamespace>());
 
     RuntimeConfiguration rtconfig{.native_namespaces = std::move(namespaces),
                                   .load_path = {"."}};

@@ -1,20 +1,29 @@
 (ns pixils.examples.minesweeper
   (:require pixils
             [pixils.render :as r]
+            [pixils.color :as c]
             [pixils.point :as pt]))
 
-
-
 
 (defprogram minesweeper
   {:display {:resolution :auto}
    :initial-mode 'window-mode})
 
 
-;; "label component" mode
+;; Menu item component
 
-(defmode label {:render (fn [state {:keys [buffer-size]}]
-                          (r/text! (:text state) {:x 0 :y 0}))})
+(defcomponent menu-item
+  {:style {:background {:r 60 :g 60 :b 70}
+           :padding    2
+           :hover      {:background {:r 90 :g 90 :b 110}}}
+   :render (fn [state ctx]
+             (r/text! (:text state)
+                      {:x 0 :y 0}
+                      {:scale 3
+                       :color {:r 0 :g 0 :b 255}
+                       :shadow {:offset {:x 3 :y 3}
+                                :color {:r 0 :g 0 :b 0}}}))})
+
 
 
 ;; Menu bar
@@ -23,66 +32,46 @@
 (def menu-item-w 128)
 (def menu-item-h 32)
 
-(defun make-label [item-text]
-  {:mode 'label
+(defun make-menu-item [item-text]
+  {:mode 'menu-item
+   :style {:background {:r 60 :g 60 :b 70}}
    :state {:text item-text}
-   :width menu-item-w
-   :height 9})
+   :width menu-item-w})
 
 (defmode menu-bar-mode
   {:layout :row
+   :style {:background {:r 200 :g 0 :b 100}}
    :update pixils.examples.minesweeper/menu-update!
    :render pixils.examples.minesweeper/menu-render!
-   :children (map menu-items make-label)})
-
-
-(defun menu-item-bounds [index]
-  {:x (* index menu-item-w) :y 0 :w menu-item-w :h menu-item-h})
+   :children (map menu-items make-menu-item)})
 
 (defun mouse-over-item? [mouse-pos index]
-  (let [b (menu-item-bounds index)
-        mx (:x mouse-pos)
-        my (:y mouse-pos)]
-    (and (>= mx (:x b)) (< mx (+ (:x b) (:w b)))
-         (>= my (:y b)) (< my (+ (:y b) (:h b))))))
+  (let [mx (:x mouse-pos)
+        my (:y mouse-pos)
+        ix (* index menu-item-w)]
+    (and (>= mx ix) (< mx (+ ix menu-item-w))
+         (>= my 0)  (< my menu-item-h))))
 
-(defun find-hovered-item [mouse-pos]
+(defun find-clicked-item [mouse-pos]
   (or (find-index
-       (map (range 0 3) (fn [n] (mouse-over-item? mouse-pos n)))
+       (map (range 0 4) (fn [n] (mouse-over-item? mouse-pos n)))
        (fn [item] (when item item)))
       -1))
 
 (defun menu-update! [state ctx]
-  (let [pos (:mouse-pos ctx)
-        hover-index (find-hovered-item pos)
-        new-state (assoc state :hovered hover-index)]
-    (if (and (:mouse-button-down ctx)
-             (>= hover-index 0))
-      (do
-        (push-mode! 'popup-menu-mode {:pos {:x (* hover-index menu-item-w) :y menu-item-h}})
-        (assoc new-state :active-item hover-index))
-      new-state)))
+  (when (and (:mouse-button-down ctx)
+             (>= (find-clicked-item (:mouse-pos ctx)) 0))
+    (let [index (find-clicked-item (:mouse-pos ctx))]
+      (push-mode! 'popup-menu-mode {:pos {:x (* index menu-item-w) :y menu-item-h}})))
+  state)
 
 (defun menu-render! [state ctx]
-  (let [dim (:buffer-size ctx)
-        hovered (or (:hovered state) -1)
-        active (or (:active-item state) -1)]
-    (r/rect! {:x 0 :y 0} {:x (:w dim) :y (:h dim)} {:fill true :color {:r 200 :g 0 :b 100}})
-    (for-indexed [i item menu-items]
-                 (let [b    (menu-item-bounds i)
-                       base {:r 60 :g 60 :b 70}
-                       hot  {:r 90 :g 90 :b 110}
-                       col  (if (or (= i hovered) (= i active)) hot base)]
-                   (r/rect! {:x (:x b) :y (:y b)}
-                            {:x (+ (:x b) (:w b)) :y (+ (:y b) (:h b))}
-                            {:fill true :color col})
-                   (r/text! (nth menu-items i) (pt/+ {:x (:x b) :y (:y b)} {:x 2 :y 2}) {:scale 3
-                                                                                         :color {:r 0 :g 0 :b 255}
-                                                                                         :shadow {:offset {:x 3 :y 3}
-                                                                                                  :color {:r 0 :g 0 :b 0}}})))))
+  (let [dim (:buffer-size ctx)]
+    ))
 
 
 
+;; Popup menu mode
 
 (defmode popup-menu-mode {:init init-popup-menu!
                           :update update-popup-menu!
@@ -97,13 +86,13 @@
     (pop-mode!))
   state)
 
-
 (defun render-popup-menu! [state ctx]
   (r/rect! (:pos state) (pt/+ (:pos state) {:x (* 2 menu-item-w) :y (* 4 menu-item-h)})
            {:fill true :color {:r 200 :g 200 :b 0}}))
 
 
-
+
+;; Board mode
 (defmode board-mode
   {:render pixils.examples.minesweeper/board-render!})
 
