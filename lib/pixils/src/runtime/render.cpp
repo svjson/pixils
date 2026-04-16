@@ -45,58 +45,49 @@ namespace Pixils::Runtime
     return rects;
   }
 
-  void render_child(Session& session, ChildContext& child, const Rect& bounds)
+  void render_mode_context(Session& session, ModeContext& ctx, const Rect& bounds)
   {
-    child.bounds = bounds;
+    ctx.bounds = bounds;
 
-    //    UI::Style style_res = UI::resolve_style(child.mode->style, child.state);
-    UI::Style style_res = child.mode->style ? *child.mode->style : UI::Style();
-    /** Draw background at absolute bounds before setting the viewport. */
-    if (style_res.background)
+    UI::Style style_res = ctx.mode->style ? *ctx.mode->style : UI::Style();
+
+    /** Draw background fill at absolute bounds before the viewport is set. */
+    if (style_res.background && style_res.background->color)
     {
-      if (style_res.background->color)
-      {
-        const SDL_Color& bg = style_res.background->color->to_SDL_Color();
-        SDL_SetRenderDrawColor(session.render_ctx.renderer, bg.r, bg.g, bg.b, bg.a);
-        SDL_Rect bg_rect = {bounds.x, bounds.y, bounds.w, bounds.h};
-        SDL_SetRenderDrawBlendMode(session.render_ctx.renderer, SDL_BLENDMODE_BLEND);
-        SDL_RenderFillRect(session.render_ctx.renderer, &bg_rect);
-        SDL_SetRenderDrawBlendMode(session.render_ctx.renderer, SDL_BLENDMODE_NONE);
-      }
+      const SDL_Color& bg = style_res.background->color->to_SDL_Color();
+      SDL_SetRenderDrawColor(session.render_ctx.renderer, bg.r, bg.g, bg.b, bg.a);
+      SDL_Rect bg_rect = {bounds.x, bounds.y, bounds.w, bounds.h};
+      SDL_SetRenderDrawBlendMode(session.render_ctx.renderer, SDL_BLENDMODE_BLEND);
+      SDL_RenderFillRect(session.render_ctx.renderer, &bg_rect);
+      SDL_SetRenderDrawBlendMode(session.render_ctx.renderer, SDL_BLENDMODE_NONE);
     }
 
-    /** Inset bounds by padding to get the content area. */
+    /** Inset by padding to get the content rect, then set it as the viewport. */
     Rect content = style_res.padding ? style_res.padding->apply_to(bounds) : bounds;
 
     SDL_Rect viewport = {content.x, content.y, content.w, content.h};
     SDL_RenderSetViewport(session.render_ctx.renderer, &viewport);
 
-    // if (style_res.color)
-    // {
-    //   const SDL_Color& fg = *style_res.color;
-    //   SDL_SetRenderDrawColor(render_ctx.renderer, fg.r, fg.g, fg.b, fg.a);
-    // }
+    Lisple::sptr_rtval_v rargs = {ctx.state, session.hook_args.render_args[1]};
+    session.invoke_hook(ctx.mode->render, rargs);
 
-    Lisple::sptr_rtval_v rargs = {child.state, session.hook_args.render_args[1]};
-    session.invoke_hook(child.mode->render, rargs);
-
-    if (!child.children.empty())
+    if (!ctx.children.empty())
     {
       /**
-       * Child bounds here are local (origin at 0,0 within the viewport), but
-       * SDL_RenderSetViewport expects absolute coordinates on the render target.
-       * Offset by the parent's absolute content position when recursing.
+       * Layout is computed in local coordinates (origin 0,0 within the viewport),
+       * but SDL_RenderSetViewport expects absolute coordinates on the render target.
+       * Offset each child rect by the absolute content origin before recursing.
        */
       Rect local_parent = {0, 0, content.w, content.h};
-      auto grandchild_rects =
-        layout_children(child.mode->children, local_parent, child.mode->layout_direction);
-      for (size_t i = 0; i < child.children.size(); i++)
+      auto child_rects =
+        layout_children(ctx.mode->children, local_parent, ctx.mode->layout_direction);
+      for (size_t i = 0; i < ctx.children.size(); i++)
       {
-        Rect abs = {content.x + grandchild_rects[i].x,
-                    content.y + grandchild_rects[i].y,
-                    grandchild_rects[i].w,
-                    grandchild_rects[i].h};
-        render_child(session, child.children[i], abs);
+        Rect abs = {content.x + child_rects[i].x,
+                    content.y + child_rects[i].y,
+                    child_rects[i].w,
+                    child_rects[i].h};
+        render_mode_context(session, ctx.children[i], abs);
       }
     }
 

@@ -4,7 +4,6 @@
 #include "pixils/binding/color_namespace.h"
 #include "pixils/ui/style.h"
 
-#include <iostream>
 #include <lisple/host/accessor.h>
 #include <lisple/host/object.h>
 #include <lisple/host/schema.h>
@@ -39,10 +38,6 @@ namespace Pixils::Script
         style->hover_style = std::make_unique<UI::Style>(*hover_style);
       }
 
-      std::cout << "Style created with bg? " << style->background.has_value() << std::endl;
-      std::cout << "Style created with bg-color? "
-                << (style->background && style->background->color) << std::endl;
-
       return StyleAdapter::claim(std::move(style));
     }
 
@@ -57,7 +52,6 @@ namespace Pixils::Script
 
     EXEC_BODY(MakeBackground, exec_make_color)
     {
-      std::cout << "MakeBackground::make_color" << std::endl;
       return BackgroundAdapter::make_unique(Lisple::obj<Color>(*args[0]));
     }
 

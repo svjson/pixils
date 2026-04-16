@@ -34,31 +34,21 @@ namespace Pixils::Runtime
   };
 
   /**
-   * Runtime state for a single child mode in a layout tree. Each node holds the
-   * resolved mode pointer, the child's own Lisple state, and any nested children.
-   * `id` matches the corresponding ChildSlot id and is used as the key in the
-   * parent's state map where this child's state is stored.
+   * Runtime context for a mode. Serves as the live companion for any mode -
+   * whether active at the top of the mode stack, participating in composition
+   * below it, or placed as a layout child of another mode. Holds the resolved
+   * mode pointer, Lisple state, last-computed layout bounds, and any nested
+   * child contexts. For layout children, `id` is the key under which this
+   * context's state is stored in the parent state map.
    */
-  struct ChildContext
+  struct ModeContext
   {
     std::string id;
     Mode* mode = nullptr;
     Lisple::sptr_rtval state = Lisple::Constant::NIL;
     Lisple::sptr_rtval initial_state = Lisple::Constant::NIL;
     Rect bounds = {0, 0, 0, 0};
-    std::vector<ChildContext> children;
-  };
-
-  struct ActiveMode
-  {
-    int mode_index = -1;
-
-    Lisple::sptr_rtval init_fn = Lisple::Constant::NIL;
-    Lisple::sptr_rtval update_fn = Lisple::Constant::NIL;
-    Lisple::sptr_rtval render_fn = Lisple::Constant::NIL;
-
-    Lisple::sptr_rtval state = Lisple::Constant::NIL;
-    std::vector<ChildContext> children;
+    std::vector<ModeContext> children;
   };
 
   struct Session
@@ -68,7 +58,8 @@ namespace Pixils::Runtime
     RenderContext& render_ctx;
     ModeStack mode_stack;
     Lisple::sptr_rtval modes;
-    ActiveMode active_mode;
+    ModeContext active_mode;
+    std::vector<ModeContext> ctx_stack;
     HookArguments hook_args;
 
     Session(Lisple::Runtime& lisple_runtime,
@@ -80,32 +71,22 @@ namespace Pixils::Runtime
     void push_mode(const Lisple::sptr_rtval& mode, const Lisple::sptr_rtval& state);
     void push_mode(const std::string& mode_name, const Lisple::sptr_rtval& state);
     void process_messages();
-    /*!
-     * @brief Invoke a pre-resolved hook. Returns fallback if the hook is NIL (absent).
-     * Hooks must already be resolved - no symbol lookup is performed here.
-     *
-     * @param fn The hook function to invoke, or NIL if no hook was provided.
-     * @param args The arguments to pass to the hook function.
-     */
     Lisple::sptr_rtval invoke_hook(
       const Lisple::sptr_rtval& fn,
       Lisple::sptr_rtval_v& args,
       const Lisple::sptr_rtval& fallback = Lisple::Constant::NIL);
-    void init_mode();
     void update_mode();
     void render_mode();
 
-    ChildContext build_child_context(const ChildSlot& slot);
-    Lisple::sptr_rtval init_child(ChildContext& child,
-                                  const Lisple::sptr_rtval& parent_state);
-    Lisple::sptr_rtval update_child(ChildContext& child,
+    ModeContext build_mode_context(const ChildSlot& slot);
+    Lisple::sptr_rtval init_context(ModeContext& ctx,
                                     const Lisple::sptr_rtval& parent_state);
-    void restore_child_state(ChildContext& child, const Lisple::sptr_rtval& parent_state);
-    void render_full_mode(ActiveMode& am, const Mode& mode_def);
-    void render_mode_tree(const Mode& mode_def, const Lisple::sptr_rtval& state);
-    void render_child_tree(const Mode& mode_def,
-                           const Lisple::sptr_rtval& state,
-                           const Rect& bounds);
+    Lisple::sptr_rtval update_context(ModeContext& ctx,
+                                      const Lisple::sptr_rtval& parent_state);
+    void restore_context_state(ModeContext& ctx, const Lisple::sptr_rtval& parent_state);
+
+   private:
+    void init_mode();
   };
 
 } // namespace Pixils::Runtime
