@@ -240,7 +240,7 @@ namespace Pixils::Runtime
 
     /**
      * render_stack is top-first: [0]=top, [1]=just below, ..., [n-1]=bottom.
-     * Render from bottom up, skipping index 0 (active_ctx, rendered last).
+     * Render from bottom up, skipping index 0 (active_mode, rendered last).
      */
     for (size_t i = render_stack.size() - 1; i > 0; i--)
     {

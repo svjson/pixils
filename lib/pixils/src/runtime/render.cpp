@@ -49,7 +49,7 @@ namespace Pixils::Runtime
   {
     ctx.bounds = bounds;
 
-    UI::Style style_res = ctx.mode->style ? *ctx.mode->style : UI::Style();
+    UI::Style style_res = UI::resolve_style(ctx.mode->style, ctx.state);
 
     /** Draw background fill at absolute bounds before the viewport is set. */
     if (style_res.background && style_res.background->color)
