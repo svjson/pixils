@@ -5,6 +5,7 @@
 #include <pixils/binding/point_namespace.h>
 #include <pixils/binding/render_namespace.h>
 #include <pixils/binding/resource_namespace.h>
+#include <pixils/binding/ui_namespace.h>
 #include <pixils/script.h>
 
 #include <lisple/dir_root_file_system.h>
@@ -29,6 +30,7 @@ namespace Pixils
     namespaces.push_back(std::make_unique<Pixils::Script::PointNamespace>());
     namespaces.push_back(std::make_unique<Pixils::Script::RenderNamespace>());
     namespaces.push_back(std::make_unique<Pixils::Script::StyleNamespace>());
+    namespaces.push_back(std::make_unique<Pixils::Script::UINamespace>());
 
     RuntimeConfiguration rtconfig{.native_namespaces = std::move(namespaces),
                                   .load_path = {"."}};

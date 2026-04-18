@@ -4,6 +4,7 @@
 #include <pixils/asset/registry.h>
 #include <pixils/binding/pixils_namespace.h>
 #include <pixils/binding/point_namespace.h>
+#include <pixils/binding/ui_namespace.h>
 #include <pixils/context.h>
 #include <pixils/runtime/mode.h>
 #include <pixils/runtime/render.h>
@@ -132,6 +133,7 @@ namespace Pixils::Runtime
     mode_obj.init = resolve_hook(lisple_runtime, mode_obj.init);
     mode_obj.update = resolve_hook(lisple_runtime, mode_obj.update);
     mode_obj.render = resolve_hook(lisple_runtime, mode_obj.render);
+    mode_obj.on_mouse_down = resolve_hook(lisple_runtime, mode_obj.on_mouse_down);
 
     active_mode = ModeContext{};
     active_mode.mode = &mode_obj;
@@ -206,6 +208,24 @@ namespace Pixils::Runtime
 
   void Session::update_mode()
   {
+    /**
+     * Snapshot any mouse button press from this frame into active_mouse_event so
+     * update_context can route it through the component tree. The event lives for
+     * exactly one call to update_mode and is cleared regardless of propagation outcome.
+     */
+    if (hook_args.events && hook_args.events->mouse_button_down &&
+        hook_args.events->mouse_button_down->type != Lisple::RTValue::Type::NIL)
+    {
+      MouseEvent ev;
+      ev.position = Lisple::obj<Point>(*hook_args.events->mouse_pos);
+      ev.button = hook_args.events->mouse_button_down;
+      active_mouse_event = ev;
+    }
+    else
+    {
+      active_mouse_event.reset();
+    }
+
     auto update_stack = mode_stack.get_update_stack();
 
     /** Update composition modes below the top, preserving the existing offset semantics. */
@@ -260,6 +280,7 @@ namespace Pixils::Runtime
     child_mode->init = resolve_hook(lisple_runtime, child_mode->init);
     child_mode->update = resolve_hook(lisple_runtime, child_mode->update);
     child_mode->render = resolve_hook(lisple_runtime, child_mode->render);
+    child_mode->on_mouse_down = resolve_hook(lisple_runtime, child_mode->on_mouse_down);
 
     ModeContext ctx;
     ctx.id = slot.id;
@@ -324,6 +345,29 @@ namespace Pixils::Runtime
 
     for (auto& grandchild : ctx.children)
       ctx.state = update_context(grandchild, ctx.state);
+
+    /**
+     * Fire on_mouse_down if a mouse button event occurred this frame, the component
+     * has a handler, the cursor is within the component's last-rendered bounds, and
+     * propagation has not already been stopped by a deeper component.
+     */
+    if (active_mouse_event && ctx.mode->on_mouse_down &&
+        ctx.mode->on_mouse_down->type != Lisple::RTValue::Type::NIL &&
+        !active_mouse_event->propagation_stopped && ctx.bounds.w > 0)
+    {
+      const Point& mp = active_mouse_event->position;
+      int mx = mp.round_x();
+      int my = mp.round_y();
+      bool hit = mx >= ctx.bounds.x && mx < ctx.bounds.x + ctx.bounds.w &&
+                 my >= ctx.bounds.y && my < ctx.bounds.y + ctx.bounds.h;
+      if (hit)
+      {
+        auto ev_ref = Script::MouseEventAdapter::make_ref(*active_mouse_event);
+        Lisple::sptr_rtval_v eargs = {ctx.state, ev_ref, this->hook_args.update_args[1]};
+        auto new_state = invoke_hook(ctx.mode->on_mouse_down, eargs, ctx.state);
+        if (new_state->type != Lisple::RTValue::Type::NIL) ctx.state = new_state;
+      }
+    }
 
     return merge_child_state(parent_state, ctx.id, ctx.state);
   }

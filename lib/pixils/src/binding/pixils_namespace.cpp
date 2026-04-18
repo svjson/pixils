@@ -9,12 +9,14 @@
 #include <pixils/frame_events.h>
 
 #include <SDL2/SDL_render.h>
+#include <iostream>
 #include <lisple/exec.h>
 #include <lisple/form.h>
 #include <lisple/host.h>
 #include <lisple/host/accessor.h>
 #include <lisple/host/schema.h>
 #include <lisple/runtime/exec_node.h>
+#include <lisple/runtime/lower.h>
 #include <lisple/runtime/seq.h>
 #include <lisple/runtime/value.h>
 #include <unordered_map>
@@ -124,7 +126,9 @@ namespace Pixils::Script
       auto name_expr = Lisple::exec(*ctx.ctx, *lower_literal(ast_node->get_children()[1]));
       auto name_str = Lisple::RTValue::string(name_expr->str());
 
-      auto mode_expr = Lisple::exec(*ctx.ctx, *lower_literal(ast_node->get_children()[2]));
+      Lisple::LowerContext lctx{ctx};
+      auto mode_expr =
+        Lisple::exec(*ctx.ctx, *Lisple::lower_expr(lctx, ast_node->get_children()[2]));
       Lisple::Dict::set_property(mode_expr, MapKey::NAME, name_str);
       auto mode_coercion = HostType::MODE.coerce(*ctx.ctx, mode_expr);
       if (!mode_coercion.success)
@@ -139,6 +143,7 @@ namespace Pixils::Script
 
     MACRO_BODY(DefModeForm, inv_declare_mode)
     {
+      std::cout << "THIS SHOULD NEVER BE INVOKED" << std::endl;
       Lisple::Map& modes = ctx.lookup(ID__PIXILS__MODES)->as<Lisple::Map>();
       args.back()->as<ModeAdapter>().get_object().name = args.front()->to_string();
       modes.set_property(args.front(), args.back());
@@ -173,6 +178,7 @@ namespace Pixils::Script
                                             {"init", &Lisple::Type::ANY},
                                             {"update", &Lisple::Type::ANY},
                                             {"render", &Lisple::Type::ANY},
+                                            {"on-mouse-down", &Lisple::Type::ANY},
                                             {"compose", &HostType::MODE_COMPOSITION},
                                             {"resources", &HostType::RESOURCE_DEPENDENCIES},
                                             {"layout", &Lisple::Type::KEY},
@@ -187,12 +193,14 @@ namespace Pixils::Script
       auto init_expr = eval_hook(ctx, opts.val("init"));
       auto update_expr = eval_hook(ctx, opts.val("update"));
       auto render_expr = eval_hook(ctx, opts.val("render"));
+      auto on_mouse_down_expr = eval_hook(ctx, opts.val("on-mouse-down"));
 
       Runtime::Mode mode{.name = opts.str("name", ""),
                          .resources = {},
                          .init = init_expr,
                          .update = update_expr,
                          .render = render_expr,
+                         .on_mouse_down = on_mouse_down_expr,
                          .composition = {},
                          .children = {}};
 
@@ -220,10 +228,10 @@ namespace Pixils::Script
 
         // FIXME: This is a hack because of the non-expr eval of the defmode map.
         // Perhaps there isn't actually any need for that?
-        if (children_val->type == Lisple::RTValue::Type::LIST)
-        {
-          children_val = ctx.eval(children_val);
-        }
+        // if (children_val->type == Lisple::RTValue::Type::LIST)
+        // {
+        //   children_val = ctx.eval(children_val);
+        // }
 
         size_t n = Lisple::count(*children_val);
         for (size_t i = 0; i < n; i++)

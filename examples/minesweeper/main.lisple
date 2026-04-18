@@ -16,6 +16,13 @@
   {:style {:background {:r 60 :g 60 :b 70}
            :padding    2
            :hover      {:background {:r 90 :g 90 :b 110}}}
+   :on-mouse-down (fn [state event ctx]
+                    (push-mode! (eval "'popup-menu-mode") {:pos {:x (-> state :bounds :x)
+                                                                 :y (+ (-> state :bounds :y) (-> state :bounds :h))}
+                                                           :items (for-indexed [n item (:items state)]
+                                                                               (make-menu-item item {:x (* n menu-item-w) :y 0
+                                                                                                     :w menu-item-w :h menu-item-h}))})
+                    state)
    :render (fn [state ctx]
              (r/text! (:text state)
                       {:x 0 :y 0}
@@ -28,54 +35,36 @@
 
 ;; Menu bar
 
-(def menu-items ["File" "Edit" "View" "Help"])
+(def menu-items [{:title "File" :items [{:title "New Game"}
+                                        {:title "Quit"}]}
+                 {:title "Edit" :items [{:title "Undo move"}]}
+                 {:title "View" :items [{:title "Game board"}
+                                        {:title "Highscores"}]}
+                 {:title "Help" :items [{:title "About"}]}])
 (def menu-item-w 128)
 (def menu-item-h 32)
 
-(defun make-menu-item [item-text]
+(defun make-menu-item [item bounds]
   {:mode 'menu-item
    :style {:background {:r 60 :g 60 :b 70}}
-   :state {:text item-text}
+   :state {:text (:title item)
+           :bounds bounds
+           :items (:items item)}
    :width menu-item-w})
 
 (defmode menu-bar-mode
   {:layout :row
    :style {:background {:r 200 :g 0 :b 100}}
-   :update pixils.examples.minesweeper/menu-update!
-   :render pixils.examples.minesweeper/menu-render!
-   :children (map menu-items make-menu-item)})
-
-(defun mouse-over-item? [mouse-pos index]
-  (let [mx (:x mouse-pos)
-        my (:y mouse-pos)
-        ix (* index menu-item-w)]
-    (and (>= mx ix) (< mx (+ ix menu-item-w))
-         (>= my 0)  (< my menu-item-h))))
-
-(defun find-clicked-item [mouse-pos]
-  (or (find-index
-       (map (range 0 4) (fn [n] (mouse-over-item? mouse-pos n)))
-       (fn [item] (when item item)))
-      -1))
-
-(defun menu-update! [state ctx]
-  (when (and (:mouse-button-down ctx)
-             (>= (find-clicked-item (:mouse-pos ctx)) 0))
-    (let [index (find-clicked-item (:mouse-pos ctx))]
-      (push-mode! 'popup-menu-mode {:pos {:x (* index menu-item-w) :y menu-item-h}})))
-  state)
-
-(defun menu-render! [state ctx]
-  (let [dim (:buffer-size ctx)]
-    ))
-
+   :children (for-indexed [n item menu-items]
+                          (make-menu-item item {:x (* n menu-item-w) :y 0
+                                                :w menu-item-w :h menu-item-h}))})
 
 
 ;; Popup menu mode
 
-(defmode popup-menu-mode {:init init-popup-menu!
-                          :update update-popup-menu!
-                          :render render-popup-menu!
+(defmode popup-menu-mode {:init 'init-popup-menu!
+                          :update 'update-popup-menu!
+                          :render 'render-popup-menu!
                           :compose {:render :pass}})
 
 (defun init-popup-menu! [state ctx]
@@ -91,10 +80,13 @@
            {:fill true :color {:r 200 :g 200 :b 0}}))
 
 
+
+
+
 
 ;; Board mode
 (defmode board-mode
-  {:render pixils.examples.minesweeper/board-render!})
+  {:render 'pixils.examples.minesweeper/board-render!})
 
 (defun board-render! [state ctx]
   (let [dim (:buffer-size ctx)]
@@ -103,5 +95,5 @@
 
 
 (defmode window-mode
-  {:children [{:mode menu-bar-mode :height 32}
-              {:mode board-mode}]})
+  {:children [{:mode 'menu-bar-mode :height 32}
+              {:mode 'board-mode}]})

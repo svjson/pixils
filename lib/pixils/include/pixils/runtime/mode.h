@@ -84,6 +84,7 @@ namespace Pixils::Runtime
     Lisple::sptr_rtval init;
     Lisple::sptr_rtval update;
     Lisple::sptr_rtval render;
+    Lisple::sptr_rtval on_mouse_down = Lisple::Constant::NIL;
     ModeComposition composition;
     LayoutDirection layout_direction = LayoutDirection::COLUMN;
     std::vector<ChildSlot> children;

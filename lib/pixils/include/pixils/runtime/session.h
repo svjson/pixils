@@ -6,6 +6,7 @@
 #include <pixils/geom.h>
 #include <pixils/runtime/mode.h>
 #include <pixils/runtime/mode_stack.h>
+#include <pixils/ui/event.h>
 
 #include <lisple/form.h>
 
@@ -61,6 +62,7 @@ namespace Pixils::Runtime
     ModeContext active_mode;
     std::vector<ModeContext> ctx_stack;
     HookArguments hook_args;
+    std::optional<MouseEvent> active_mouse_event;
 
     Session(Lisple::Runtime& lisple_runtime,
             Asset::Registry& assets,
