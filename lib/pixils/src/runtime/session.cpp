@@ -313,10 +313,10 @@ namespace Pixils::Runtime
 
       if (!ctx.state || ctx.state->type == Lisple::RTValue::Type::NIL)
         ctx.state = Lisple::RTValue::map({});
-      auto hovered_val = Lisple::RTValue::number(hovered ? 1 : 0);
-      Lisple::Dict::set_property(ctx.state,
-                                 Lisple::RTValue::keyword("hovered"),
-                                 hovered_val);
+      Lisple::Dict::set_property(
+        ctx.state,
+        Lisple::RTValue::keyword("hovered"),
+        hovered ? Lisple::Constant::BOOL_TRUE : Lisple::Constant::BOOL_FALSE);
     }
 
     Lisple::sptr_rtval_v uargs = {ctx.state, this->hook_args.update_args[1]};
