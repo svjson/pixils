@@ -54,9 +54,18 @@ namespace Pixils::Runtime
   {
     ctx.bounds = bounds;
 
+    /**
+     * Reset the viewport before any drawing so background coordinates are always
+     * in absolute render-target space. Without this, child 0 enters with the
+     * parent's content viewport still active, which would offset its background
+     * rect by the parent's origin. Children 1..N are fine because each child
+     * resets to null at its end - child 0 never got that prior reset.
+     */
+    SDL_RenderSetViewport(session.render_ctx.renderer, nullptr);
+
     UI::Style style_res = UI::resolve_style(ctx.mode->style, ctx.state);
 
-    /** Draw background fill at absolute bounds before the viewport is set. */
+    /** Draw background fill using absolute bounds, now that viewport is null. */
     if (style_res.background && style_res.background->color)
     {
       const SDL_Color& bg = style_res.background->color->to_SDL_Color();

@@ -17,14 +17,20 @@
            :padding    2
            :hover      {:background {:r 90 :g 90 :b 110}}}
    :on-mouse-down (fn [state event ctx]
-                    (push-mode! (eval "'popup-menu-mode")
-                                {:pos {:x (-> state :bounds :x)
-                                       :y (+ (-> state :bounds :y) (-> state :bounds :h))}}
-                                {:children (for-indexed [n item (:items state)]
-                                                        (make-menu-item item {:x (* n menu-item-w)
-                                                                              :y 0
-                                                                              :w menu-item-w
-                                                                              :h menu-item-h}))})
+                    (push-mode!
+                     (eval "'popup-menu-mode")
+                     {}
+                     {:children [{:mode 'popup-menu-mode
+                                  :style {:position :absolute
+                                          :left (-> state :bounds :x)
+                                          :top (+ (-> state :bounds :y) (-> state :bounds :h))
+                                          :width (* menu-item-w 2)
+                                          :height (* menu-item-h (-> state :items count))}
+                                  :children (for-indexed [n item (:items state)]
+                                                         (make-menu-item item {:x (* n menu-item-w)
+                                                                               :y 0
+                                                                               :w menu-item-w
+                                                                               :h menu-item-h}))}]})
                     state)
    :render (fn [state ctx]
              (r/text! (:text state)
@@ -39,6 +45,7 @@
 ;; Menu bar
 
 (def menu-items [{:title "File" :items [{:title "New Game"}
+                                        {:title "Save"}
                                         {:title "Quit"}]}
                  {:title "Edit" :items [{:title "Undo move"}]}
                  {:title "View" :items [{:title "Game board"}
@@ -67,7 +74,6 @@
 
 (defmode popup-menu-mode {:init 'init-popup-menu!
                           :update 'update-popup-menu!
-                          :render 'render-popup-menu!
                           :compose {:render :pass}})
 
 (defun init-popup-menu! [state ctx]
@@ -78,22 +84,51 @@
     (pop-mode!))
   state)
 
-(defun render-popup-menu! [state ctx]
-  (r/rect! (:pos state) (pt/+ (:pos state) {:x (* 2 menu-item-w) :y (* 4 menu-item-h)})
-           {:fill true :color {:r 200 :g 200 :b 0}}))
 
 
 
 
 
 
+;; Mine layer mode
+
+(def grid-dim {:w 8 :h 8})
+(def tile-size (* 16 3))
+
+(defmode mine-layer-mode
+  {:render 'pixils.examples.minesweeper/mine-layer-render!})
+
+(defun mine-layer-render! [state ctx]
+  (let [dim (:buffer-size ctx)]
+    (r/rect! {:x 0 :y 0}
+             {:x (* tile-size (:w grid-dim)) :y (* tile-size (:h grid-dim))}
+             {:fill true
+              :color {:r 100 :g 100 :b 100}})
+    (dotimes [y (:h grid-dim)]
+      (r/line! {:x 0 :y (* y tile-size)}
+               {:x (* (:w grid-dim) tile-size) :y (* y tile-size)}
+               {:r 0 :g 0 :b 0}))
+    (dotimes [x (:w grid-dim)]
+      (r/line! {:x (* x tile-size) :y 0}
+               {:x (* x tile-size) :y (* (:h grid-dim) tile-size)}
+               {:r 0 :g 0 :b 0}))))
+
+
+
 ;; Board mode
 (defmode board-mode
-  {:render 'pixils.examples.minesweeper/board-render!})
+  {:render 'pixils.examples.minesweeper/board-render!
+   :children [{:mode 'mine-layer-mode
+               :style {:position :absolute
+                       :top 200
+                       :left 200}}]})
 
 (defun board-render! [state ctx]
   (let [dim (:buffer-size ctx)]
     (r/rect! {:x 0 :y 0} {:x (:w dim) :y (:h dim)} {:fill true :color {:r 50 :g 0 :b 200}})))
+
+
+
 
 
 
