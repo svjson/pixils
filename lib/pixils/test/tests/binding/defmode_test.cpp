@@ -13,7 +13,7 @@ namespace
     auto val = rt.eval("(get pixils/modes '" + name + ")");
     return Lisple::obj<Pixils::Runtime::Mode>(*val);
   }
-}
+} // namespace
 
 TEST_F(DefModeTest, defmode_with_no_args_is_created_with_nil_hooks)
 {
@@ -47,7 +47,7 @@ TEST_F(DefModeTest, defmode_children_get_auto_generated_ids)
   runtime.eval(R"(
     (pixils/defmode child-a {})
     (pixils/defmode child-b {})
-    (pixils/defmode parent-mode {:children [{:mode child-a} {:mode child-b}]})
+    (pixils/defmode parent-mode {:children [{:mode 'child-a} {:mode 'child-b}]})
   )");
 
   // Then
@@ -62,7 +62,7 @@ TEST_F(DefModeTest, defmode_two_children_of_same_mode_get_distinct_auto_ids)
   // When
   runtime.eval(R"(
     (pixils/defmode panel {})
-    (pixils/defmode split-mode {:children [{:mode panel} {:mode panel}]})
+    (pixils/defmode split-mode {:children [{:mode 'panel} {:mode 'panel}]})
   )");
 
   // Then
@@ -77,7 +77,7 @@ TEST_F(DefModeTest, defmode_child_explicit_id_overrides_auto)
   // When
   runtime.eval(R"(
     (pixils/defmode child-mode {})
-    (pixils/defmode parent-mode {:children [{:mode child-mode :id "sidebar"}]})
+    (pixils/defmode parent-mode {:children [{:mode 'child-mode :id "sidebar"}]})
   )");
 
   // Then

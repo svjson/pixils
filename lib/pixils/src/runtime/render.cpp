@@ -2,39 +2,44 @@
 #include "pixils/runtime/render.h"
 
 #include <pixils/runtime/session.h>
+#include <pixils/ui/style.h>
 
 namespace Pixils::Runtime
 {
-  std::vector<Rect> layout_children(const std::vector<ChildSlot>& slots,
+  std::vector<Rect> layout_children(const std::vector<ModeContext>& children,
                                     const Rect& parent,
-                                    LayoutDirection direction)
+                                    UI::LayoutDirection direction)
   {
-    bool row = direction == LayoutDirection::ROW;
+    bool row = direction == UI::LayoutDirection::ROW;
 
     int total_fixed = 0;
     int fill_count = 0;
-
-    for (const auto& slot : slots)
+    for (const auto& child : children)
     {
-      const auto& constraint = row ? slot.width : slot.height;
-      if (constraint.has_value() && constraint->kind == DimensionConstraint::Kind::FIXED)
-        total_fixed += constraint->value;
-      else
-        fill_count++;
+      UI::Style cs = UI::resolve_style(child.mode->style, child.state);
+      if (cs.position && *cs.position == UI::PositionMode::ABSOLUTE) continue;
+      const auto& size_opt = row ? cs.width : cs.height;
+      if (size_opt) total_fixed += *size_opt;
+      else fill_count++;
     }
 
     int available = row ? parent.w : parent.h;
     int fill_size = fill_count > 0 ? (available - total_fixed) / fill_count : 0;
 
     std::vector<Rect> rects;
+    rects.reserve(children.size());
+
     int pos = row ? parent.x : parent.y;
-    for (const auto& slot : slots)
+    for (const auto& child : children)
     {
-      const auto& constraint = row ? slot.width : slot.height;
-      int size =
-        (constraint.has_value() && constraint->kind == DimensionConstraint::Kind::FIXED)
-          ? constraint->value
-          : fill_size;
+      UI::Style cs = UI::resolve_style(child.mode->style, child.state);
+      if (cs.position && *cs.position == UI::PositionMode::ABSOLUTE)
+      {
+        rects.push_back({0, 0, 0, 0});
+        continue;
+      }
+      const auto& size_opt = row ? cs.width : cs.height;
+      int size = size_opt ? *size_opt : fill_size;
       if (row)
         rects.push_back({pos, parent.y, size, parent.h});
       else
@@ -74,19 +79,30 @@ namespace Pixils::Runtime
     if (!ctx.children.empty())
     {
       /**
-       * Layout is computed in local coordinates (origin 0,0 within the viewport),
-       * but SDL_RenderSetViewport expects absolute coordinates on the render target.
-       * Offset each child rect by the absolute content origin before recursing.
+       * Direction comes from the parent's resolved style (default: COLUMN).
+       * layout_children computes absolute rects for flow children; absolute-
+       * positioned children get zero rects and are placed separately below.
        */
-      Rect local_parent = {0, 0, content.w, content.h};
-      auto child_rects =
-        layout_children(ctx.mode->children, local_parent, ctx.mode->layout_direction);
+      UI::LayoutDirection direction =
+        style_res.direction.value_or(UI::LayoutDirection::COLUMN);
+      auto child_rects = layout_children(ctx.children, content, direction);
+
       for (size_t i = 0; i < ctx.children.size(); i++)
       {
-        Rect abs = {content.x + child_rects[i].x,
-                    content.y + child_rects[i].y,
-                    child_rects[i].w,
-                    child_rects[i].h};
+        UI::Style cs = UI::resolve_style(ctx.children[i].mode->style, ctx.children[i].state);
+        Rect abs;
+        if (cs.position && *cs.position == UI::PositionMode::ABSOLUTE)
+        {
+          int top = cs.top.value_or(0);
+          int left = cs.left.value_or(0);
+          int w = cs.width.value_or(content.w);
+          int h = cs.height.value_or(content.h);
+          abs = {content.x + left, content.y + top, w, h};
+        }
+        else
+        {
+          abs = child_rects[i];
+        }
         render_mode_context(session, ctx.children[i], abs);
       }
     }

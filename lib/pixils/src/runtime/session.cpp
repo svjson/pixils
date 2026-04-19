@@ -76,11 +76,9 @@ namespace
   {
     using namespace Pixils::Runtime;
 
-    static Lisple::MapSchema child_schema({{"mode", &Lisple::Type::SYMBOL}},
-                                          {{"id", &Lisple::Type::ANY},
-                                           {"state", &Lisple::Type::ANY},
-                                           {"width", &Lisple::Type::NUMBER},
-                                           {"height", &Lisple::Type::NUMBER}});
+    static Lisple::MapSchema child_schema(
+      {{"mode", &Lisple::Type::SYMBOL}},
+      {{"id", &Lisple::Type::ANY}, {"state", &Lisple::Type::ANY}});
 
     Lisple::Context ctx(rt);
     std::unordered_map<std::string, int> name_counts;
@@ -104,12 +102,6 @@ namespace
       }
 
       slot.initial_state = child_opts.val("state");
-
-      if (child_opts.contains("width"))
-        slot.width = DimensionConstraint::fixed(child_opts.i32("width"));
-      if (child_opts.contains("height"))
-        slot.height = DimensionConstraint::fixed(child_opts.i32("height"));
-
       slot.overrides = child_entry;
 
       slots.push_back(std::move(slot));
@@ -155,16 +147,10 @@ namespace
       auto coercion = Pixils::Script::HostType::STYLE.coerce(ctx, style_val);
       if (coercion.success)
       {
-        mode.style = Lisple::obj<Pixils::UI::Style>(*coercion.result);
+        if (!mode.style) mode.style = Pixils::UI::Style{};
+        Pixils::UI::apply_style_variant(*mode.style,
+                                        Lisple::obj<Pixils::UI::Style>(*coercion.result));
       }
-    }
-
-    auto layout_val = get("layout");
-    if (layout_val->type != Lisple::RTValue::Type::NIL)
-    {
-      auto [ns, name] = layout_val->qual();
-      mode.layout_direction =
-        (name == "row") ? LayoutDirection::ROW : LayoutDirection::COLUMN;
     }
 
     auto children_val = get("children");
@@ -176,6 +162,7 @@ namespace
 
 namespace Pixils::Runtime
 {
+
   void HookArguments::update_state(const Lisple::sptr_rtval& state)
   {
     this->init_args[0] = state;

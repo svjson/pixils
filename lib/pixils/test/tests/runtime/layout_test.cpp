@@ -1,27 +1,54 @@
 
-#include "session_fixture.h"
 #include <pixils/geom.h>
 #include <pixils/runtime/mode.h>
 #include <pixils/runtime/render.h>
+#include <pixils/runtime/session.h>
+#include <pixils/ui/style.h>
 
 #include <gtest/gtest.h>
 
 using Pixils::Rect;
-using Pixils::Runtime::ChildSlot;
-using Pixils::Runtime::DimensionConstraint;
+using Pixils::Runtime::ModeContext;
+using Pixils::Runtime::Mode;
+using Pixils::UI::LayoutDirection;
+using Pixils::UI::PositionMode;
+using Pixils::UI::Style;
 
-class LayoutTest : public SessionFixture
+/** Build a ModeContext whose mode has the given style. The Mode is owned by the context. */
+static ModeContext make_ctx(std::optional<Style> style = std::nullopt)
 {
-};
+  ModeContext ctx;
+  ctx.owned_mode = std::make_unique<Mode>();
+  ctx.owned_mode->style = std::move(style);
+  ctx.mode = ctx.owned_mode.get();
+  ctx.state = Lisple::Constant::NIL;
+  return ctx;
+}
 
-TEST_F(LayoutTest, layout_single_fill_child_takes_full_height)
+/** Build a ModeContext whose mode has a fixed size on one axis. */
+static ModeContext make_fixed_ctx(int height)
+{
+  Style s;
+  s.height = height;
+  return make_ctx(std::move(s));
+}
+
+static ModeContext make_fixed_width_ctx(int width)
+{
+  Style s;
+  s.width = width;
+  return make_ctx(std::move(s));
+}
+
+TEST(LayoutTest, layout_single_fill_child_takes_full_height)
 {
   // Given
-  std::vector<ChildSlot> slots = {{}};
+  std::vector<ModeContext> children;
+  children.push_back(make_ctx());
   Rect parent = {0, 0, 320, 200};
 
   // When
-  auto rects = layout_children(slots, parent);
+  auto rects = Pixils::Runtime::layout_children(children, parent);
 
   // Then
   ASSERT_EQ(rects.size(), 1u);
@@ -29,17 +56,16 @@ TEST_F(LayoutTest, layout_single_fill_child_takes_full_height)
   EXPECT_EQ(rects[0].h, 200);
 }
 
-TEST_F(LayoutTest, layout_fixed_then_fill_child_splits_height_correctly)
+TEST(LayoutTest, layout_fixed_then_fill_child_splits_height_correctly)
 {
   // Given
-  ChildSlot fixed_slot;
-  fixed_slot.height = DimensionConstraint::fixed(40);
-
-  std::vector<ChildSlot> slots = {fixed_slot, {}};
+  std::vector<ModeContext> children;
+  children.push_back(make_fixed_ctx(40));
+  children.push_back(make_ctx());
   Rect parent = {0, 0, 320, 200};
 
   // When
-  auto rects = layout_children(slots, parent);
+  auto rects = Pixils::Runtime::layout_children(children, parent);
 
   // Then
   ASSERT_EQ(rects.size(), 2u);
@@ -49,14 +75,16 @@ TEST_F(LayoutTest, layout_fixed_then_fill_child_splits_height_correctly)
   EXPECT_EQ(rects[1].h, 160);
 }
 
-TEST_F(LayoutTest, layout_two_fill_children_split_height_evenly)
+TEST(LayoutTest, layout_two_fill_children_split_height_evenly)
 {
   // Given
-  std::vector<ChildSlot> slots = {{}, {}};
+  std::vector<ModeContext> children;
+  children.push_back(make_ctx());
+  children.push_back(make_ctx());
   Rect parent = {0, 0, 320, 200};
 
   // When
-  auto rects = layout_children(slots, parent);
+  auto rects = Pixils::Runtime::layout_children(children, parent);
 
   // Then
   ASSERT_EQ(rects.size(), 2u);
@@ -66,17 +94,16 @@ TEST_F(LayoutTest, layout_two_fill_children_split_height_evenly)
   EXPECT_EQ(rects[1].h, 100);
 }
 
-TEST_F(LayoutTest, layout_children_always_inherit_full_parent_width)
+TEST(LayoutTest, layout_children_always_inherit_full_parent_width)
 {
   // Given
-  ChildSlot fixed_slot;
-  fixed_slot.height = DimensionConstraint::fixed(30);
-
-  std::vector<ChildSlot> slots = {fixed_slot, {}};
+  std::vector<ModeContext> children;
+  children.push_back(make_fixed_ctx(30));
+  children.push_back(make_ctx());
   Rect parent = {0, 0, 320, 200};
 
   // When
-  auto rects = layout_children(slots, parent);
+  auto rects = Pixils::Runtime::layout_children(children, parent);
 
   // Then
   for (const auto& r : rects)
@@ -86,14 +113,15 @@ TEST_F(LayoutTest, layout_children_always_inherit_full_parent_width)
   }
 }
 
-TEST_F(LayoutTest, layout_children_respect_parent_origin)
+TEST(LayoutTest, layout_children_respect_parent_origin)
 {
   // Given
-  std::vector<ChildSlot> slots = {{}};
+  std::vector<ModeContext> children;
+  children.push_back(make_ctx());
   Rect parent = {10, 20, 100, 80};
 
   // When
-  auto rects = layout_children(slots, parent);
+  auto rects = Pixils::Runtime::layout_children(children, parent);
 
   // Then
   ASSERT_EQ(rects.size(), 1u);
@@ -101,4 +129,46 @@ TEST_F(LayoutTest, layout_children_respect_parent_origin)
   EXPECT_EQ(rects[0].y, 20);
   EXPECT_EQ(rects[0].w, 100);
   EXPECT_EQ(rects[0].h, 80);
+}
+
+TEST(LayoutTest, layout_row_direction_fixed_then_fill_splits_width)
+{
+  // Given
+  std::vector<ModeContext> children;
+  children.push_back(make_fixed_width_ctx(80));
+  children.push_back(make_ctx());
+  Rect parent = {0, 0, 320, 200};
+
+  // When
+  auto rects = Pixils::Runtime::layout_children(children, parent, LayoutDirection::ROW);
+
+  // Then
+  ASSERT_EQ(rects.size(), 2u);
+  EXPECT_EQ(rects[0].x, 0);
+  EXPECT_EQ(rects[0].w, 80);
+  EXPECT_EQ(rects[1].x, 80);
+  EXPECT_EQ(rects[1].w, 240);
+}
+
+TEST(LayoutTest, layout_absolute_children_excluded_from_flow)
+{
+  // Given
+  Style abs_style;
+  abs_style.position = PositionMode::ABSOLUTE;
+  abs_style.width = 50;
+  abs_style.height = 30;
+
+  std::vector<ModeContext> children;
+  children.push_back(make_ctx(std::move(abs_style)));
+  children.push_back(make_ctx());
+  Rect parent = {0, 0, 320, 200};
+
+  // When
+  auto rects = Pixils::Runtime::layout_children(children, parent);
+
+  // Then - absolute child gets zero rect; fill child takes full height
+  ASSERT_EQ(rects.size(), 2u);
+  EXPECT_EQ(rects[0].w, 0);
+  EXPECT_EQ(rects[0].h, 0);
+  EXPECT_EQ(rects[1].h, 200);
 }

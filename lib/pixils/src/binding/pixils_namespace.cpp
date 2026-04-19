@@ -181,7 +181,6 @@ namespace Pixils::Script
                                             {"on-mouse-down", &Lisple::Type::ANY},
                                             {"compose", &HostType::MODE_COMPOSITION},
                                             {"resources", &HostType::RESOURCE_DEPENDENCIES},
-                                            {"layout", &Lisple::Type::KEY},
                                             {"style", &HostType::STYLE},
                                             {"children", &Lisple::Type::ANY}});
 
@@ -207,13 +206,6 @@ namespace Pixils::Script
       if (resources.has_value()) mode.resources = *resources;
       if (composition.has_value()) mode.composition = *composition;
 
-      if (opts.contains("layout"))
-      {
-        auto layout_val = opts.val("layout");
-        auto [ns, name] = layout_val->qual();
-        if (name == "row") mode.layout_direction = Runtime::LayoutDirection::ROW;
-      }
-
       mode.style = opts.optional_obj<UI::Style>("style");
 
       auto children_val = opts.val("children");
@@ -221,17 +213,8 @@ namespace Pixils::Script
       {
         static Lisple::MapSchema child_schema({{"mode", &Lisple::Type::SYMBOL}},
                                               {{"id", &Lisple::Type::ANY},
-                                               {"state", &Lisple::Type::ANY},
-                                               {"width", &Lisple::Type::NUMBER},
-                                               {"height", &Lisple::Type::NUMBER}});
+                                               {"state", &Lisple::Type::ANY}});
         std::unordered_map<std::string, int> mode_name_counts;
-
-        // FIXME: This is a hack because of the non-expr eval of the defmode map.
-        // Perhaps there isn't actually any need for that?
-        // if (children_val->type == Lisple::RTValue::Type::LIST)
-        // {
-        //   children_val = ctx.eval(children_val);
-        // }
 
         size_t n = Lisple::count(*children_val);
         for (size_t i = 0; i < n; i++)
@@ -254,12 +237,6 @@ namespace Pixils::Script
           }
 
           slot.initial_state = child_opts.val("state");
-
-          if (child_opts.contains("width"))
-            slot.width = Runtime::DimensionConstraint::fixed(child_opts.i32("width"));
-          if (child_opts.contains("height"))
-            slot.height = Runtime::DimensionConstraint::fixed(child_opts.i32("height"));
-
           slot.overrides = child_entry;
 
           mode.children.push_back(slot);

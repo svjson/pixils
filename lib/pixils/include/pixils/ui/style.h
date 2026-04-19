@@ -16,6 +16,20 @@ namespace Lisple
 
 namespace Pixils::UI
 {
+  /** How a child is positioned within its parent's layout. */
+  enum class PositionMode
+  {
+    FLOW,     // participates in parent flow (default)
+    ABSOLUTE, // positioned at :top/:left relative to parent content rect
+  };
+
+  /** Direction in which a mode lays out its children. */
+  enum class LayoutDirection
+  {
+    COLUMN, // top to bottom (default)
+    ROW,    // left to right
+  };
+
   struct Style
   {
     struct Background
@@ -28,64 +42,25 @@ namespace Pixils::UI
       std::optional<Color> color;
     };
 
-    /*! @brief Defines four-directional padding */
     struct Padding
     {
-      /*! Top Padding */
       int t = 0;
-      /*! Right Padding */
       int r = 0;
-      /*! Bottom Padding */
       int b = 0;
-      /*! Left  Padding */
       int l = 0;
 
       Padding() = default;
-      /*! @brief Copy-constructor */
       Padding(const Padding& other);
-      /*!
-       * @brief Constructs a Padding instance with individual padding for
-       * top, right, bottom and left edges.
-       */
       Padding(int t, int r, int b, int l);
-      /*!
-       * @brief Constructs a Padding instance with equals padding for top
-       * and bottom(vertical) and left and right(horizontal), respectively.
-       *
-       * @param h Horizontal padding
-       * @param v Vertical padding
-       */
+      /** Uniform horizontal and vertical padding. */
       Padding(int h, int v);
 
-      /*!
-       * @brief Multiply-operator, multiplying each directional value
-       * by @a amount..
-       */
       Padding operator*(int amount) const;
-      /*!
-       * @brief Assignment-operator, copies the values of @a other
-       * to this instance.
-       */
       Padding& operator=(const Padding& other) = default;
-
-      /*!
-       * @brief Comparison-operator. Equal if all directional values
-       * are identical to @a other.
-       */
       bool operator==(const Padding& other) const;
 
-      /*!
-       * @brief Applies the padding to a Dimension, effectively
-       * expanding it by t+b vertically and l+r horizontally.
-       */
       void apply_to(Dimension& dimension);
-
-      /*!
-       * @brief Subtracts the padding from a Dimension, effectively
-       * shrinking it by t+b vertically and l+r horizontally
-       */
       Dimension remove_from(const Dimension& dimension);
-
       Rect apply_to(const Rect& rect) const;
     };
 
@@ -94,22 +69,36 @@ namespace Pixils::UI
 
     void operator=(const Style& other);
 
+    /** Visual */
     std::optional<Background> background = std::nullopt;
     std::optional<Padding> padding = std::nullopt;
-    std::unique_ptr<Style> hover_style = nullptr;
+
+    /** Own sizing. Absent means fill remaining space. */
+    std::optional<int> width;
+    std::optional<int> height;
+
+    /** Positioning. Absent defaults to FLOW. */
+    std::optional<PositionMode> position;
+    std::optional<int> top;
+    std::optional<int> left;
+
+    /** Direction this mode uses to lay out its children. Absent defaults to COLUMN. */
+    std::optional<LayoutDirection> direction;
+
+    /** Hover variant - merged on top of base style when :hovered is true in state. */
+    std::unique_ptr<Style> hover = nullptr;
   };
 
   /**
-   * Merge properties from a style variant map into a ResolvedStyle.
-   * Only non-NIL properties in the variant override existing values.
+   * Merge properties from a style variant map into a base style in-place.
+   * Only set fields in variant override corresponding fields in out.
    */
   void apply_style_variant(Style& out, const Style& variant);
 
   /**
-   * Resolve the effective style from a component's declared style map
-   * and current state. Applies the base style first, then overlays
-   * hover or active variant properties if the corresponding flags are
-   * set in state.
+   * Resolve the effective style from a component's declared style and current
+   * state. Applies the base style first, then overlays the hover variant if
+   * :hovered is truthy in state.
    */
   Style resolve_style(const std::optional<Style>& style, const Lisple::sptr_rtval& state);
 

@@ -49,15 +49,15 @@
 
 (defun make-menu-item [item bounds]
   {:mode 'menu-item
-   :style {:background {:r 60 :g 60 :b 70}}
+   :style {:background {:r 60 :g 60 :b 70}
+           :width menu-item-w}
    :state {:text (:title item)
            :bounds bounds
-           :items (:items item)}
-   :width menu-item-w})
+           :items (:items item)}})
 
 (defmode menu-bar-mode
-  {:layout :row
-   :style {:background {:r 200 :g 0 :b 100}}
+  {:style {:background {:r 200 :g 0 :b 100}
+           :direction :row}
    :children (for-indexed [n item menu-items]
                           (make-menu-item item {:x (* n menu-item-w) :y 0
                                                 :w menu-item-w :h menu-item-h}))})
@@ -98,5 +98,5 @@
 
 
 (defmode window-mode
-  {:children [{:mode 'menu-bar-mode :height 32}
+  {:children [{:mode 'menu-bar-mode :style {:height 32}}
               {:mode 'board-mode}]})

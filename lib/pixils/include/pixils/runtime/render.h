@@ -14,14 +14,23 @@ namespace Pixils::Runtime
   struct ModeContext;
   struct Session;
 
-  std::vector<Rect> layout_children(const std::vector<ChildSlot>& slots,
+  /**
+   * Compute absolute layout rects for a set of child contexts within a parent rect.
+   * Direction controls the main axis (COLUMN = vertical, ROW = horizontal).
+   * Each child's resolved style supplies its fixed size on the main axis; children
+   * without a fixed size share the remaining space equally. Absolute-positioned
+   * children (position == ABSOLUTE) are excluded from flow and returned as zero
+   * rects - their placement is handled separately in render_mode_context.
+   */
+  std::vector<Rect> layout_children(const std::vector<ModeContext>& children,
                                     const Rect& parent,
-                                    LayoutDirection direction = LayoutDirection::COLUMN);
+                                    UI::LayoutDirection direction = UI::LayoutDirection::COLUMN);
 
   /**
    * Render a mode context into the given bounds. Applies style (background fill,
    * padding inset), sets a viewport, invokes the render hook, then lays out and
-   * recurses into any child contexts. For stack-level modes the caller passes the
+   * recurses into any child contexts. Layout direction and child sizing are read
+   * from each child's resolved style. For stack-level modes the caller passes the
    * full buffer rect; for layout children the caller passes the computed slot rect.
    */
   void render_mode_context(Session& session, ModeContext& ctx, const Rect& bounds);

@@ -180,6 +180,7 @@ namespace Pixils
         }
         catch (std::exception& e)
         {
+          std::cout << "ERROR: " << e.what() << std::endl;
           error_state = true;
         }
       }
@@ -198,6 +199,12 @@ namespace Pixils
       }
 
       ctx.finalize_frame();
+
+      [[maybe_unused]] int frame_margin = 25 - (now() - frame_start);
+
+      // std::cout << "frame #" << frame << " - margin: " << frame_margin
+      //           << "\t rtw: " << Lisple::rtvalue_wrappers_constructed
+      //           << "\t eval: " << Lisple::eval_executions << std::endl;
 
       while (now() - frame_start < 25)
       {

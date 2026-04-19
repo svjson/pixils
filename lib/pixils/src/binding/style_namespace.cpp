@@ -22,21 +22,45 @@ namespace Pixils::Script
 
     EXEC_BODY(MakeStyle, exec_make)
     {
-      static Lisple::MapSchema style_schema({},
-                                            {{"background", &HostType::STYLE_BACKGROUND},
-                                             {"padding", &HostType::STYLE_PADDING},
-                                             {"hover", &HostType::STYLE}});
+      static Lisple::MapSchema style_schema(
+        {},
+        {{"background", &HostType::STYLE_BACKGROUND},
+         {"padding", &HostType::STYLE_PADDING},
+         {"width", &Lisple::Type::NUMBER},
+         {"height", &Lisple::Type::NUMBER},
+         {"position", &Lisple::Type::KEY},
+         {"top", &Lisple::Type::NUMBER},
+         {"left", &Lisple::Type::NUMBER},
+         {"direction", &Lisple::Type::KEY},
+         {"hover", &HostType::STYLE}});
 
       auto style = std::make_unique<UI::Style>();
       auto opts = style_schema.bind(ctx, *args[0]);
 
       style->background = opts.optional_obj<UI::Style::Background>("background");
       style->padding = opts.optional_obj<UI::Style::Padding>("padding");
-      auto hover_style = opts.optional_obj<UI::Style>("hover");
-      if (hover_style)
+
+      if (opts.contains("width")) style->width = opts.i32("width");
+      if (opts.contains("height")) style->height = opts.i32("height");
+      if (opts.contains("top")) style->top = opts.i32("top");
+      if (opts.contains("left")) style->left = opts.i32("left");
+
+      if (opts.contains("position"))
       {
-        style->hover_style = std::make_unique<UI::Style>(*hover_style);
+        auto pos_str = opts.str("position");
+        if (pos_str == "absolute") style->position = UI::PositionMode::ABSOLUTE;
+        else style->position = UI::PositionMode::FLOW;
       }
+
+      if (opts.contains("direction"))
+      {
+        auto dir_str = opts.str("direction");
+        if (dir_str == "row") style->direction = UI::LayoutDirection::ROW;
+        else style->direction = UI::LayoutDirection::COLUMN;
+      }
+
+      auto hover_style = opts.optional_obj<UI::Style>("hover");
+      if (hover_style) style->hover = std::make_unique<UI::Style>(*hover_style);
 
       return StyleAdapter::claim(std::move(style));
     }
@@ -162,24 +186,23 @@ namespace Pixils::Script
                       &HostType::STYLE,
                       (background),
                       (padding),
-                      (hover_style))
+                      (width),
+                      (height),
+                      (position),
+                      (top),
+                      (left),
+                      (direction),
+                      (hover))
 
   NOBJ_PROP_GET(StyleAdapter, background)
   {
     if (!get_self_object().background) return Lisple::Constant::NIL;
     if (get_self_object().background->color && get_self_object().background->image)
-    {
       return BackgroundAdapter::make_ref(*get_self_object().background);
-    }
     if (get_self_object().background->color)
-    {
       return ColorAdapter::make_ref(*get_self_object().background->color);
-    }
     if (get_self_object().background->image)
-    {
       return BackgroundAdapter(*get_self_object().background).get_image();
-    }
-
     return Lisple::Constant::NIL;
   }
 
@@ -189,11 +212,48 @@ namespace Pixils::Script
                                      : Lisple::Constant::NIL;
   }
 
-  NOBJ_PROP_GET(StyleAdapter, hover_style)
+  NOBJ_PROP_GET(StyleAdapter, width)
   {
-    return get_self_object().hover_style
-             ? StyleAdapter::make_ref(*get_self_object().hover_style)
-             : Lisple::Constant::NIL;
+    return get_self_object().width ? Lisple::RTValue::number(*get_self_object().width)
+                                   : Lisple::Constant::NIL;
+  }
+
+  NOBJ_PROP_GET(StyleAdapter, height)
+  {
+    return get_self_object().height ? Lisple::RTValue::number(*get_self_object().height)
+                                    : Lisple::Constant::NIL;
+  }
+
+  NOBJ_PROP_GET(StyleAdapter, position)
+  {
+    if (!get_self_object().position) return Lisple::Constant::NIL;
+    return Lisple::RTValue::keyword(
+      *get_self_object().position == UI::PositionMode::ABSOLUTE ? "absolute" : "flow");
+  }
+
+  NOBJ_PROP_GET(StyleAdapter, top)
+  {
+    return get_self_object().top ? Lisple::RTValue::number(*get_self_object().top)
+                                 : Lisple::Constant::NIL;
+  }
+
+  NOBJ_PROP_GET(StyleAdapter, left)
+  {
+    return get_self_object().left ? Lisple::RTValue::number(*get_self_object().left)
+                                  : Lisple::Constant::NIL;
+  }
+
+  NOBJ_PROP_GET(StyleAdapter, direction)
+  {
+    if (!get_self_object().direction) return Lisple::Constant::NIL;
+    return Lisple::RTValue::keyword(
+      *get_self_object().direction == UI::LayoutDirection::ROW ? "row" : "column");
+  }
+
+  NOBJ_PROP_GET(StyleAdapter, hover)
+  {
+    return get_self_object().hover ? StyleAdapter::make_ref(*get_self_object().hover)
+                                   : Lisple::Constant::NIL;
   }
 
   NATIVE_ADAPTER_IMPL(BackgroundAdapter,
