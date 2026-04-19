@@ -46,8 +46,10 @@ namespace Pixils::Runtime
     static DimensionConstraint relative(int percent) { return {Kind::RELATIVE, percent}; }
   };
 
-  /** Per-side margin around a layout child. Stored but not yet applied in layout
-   * calculations. */
+  /**
+   * Per-side margin around a layout child. Stored but not yet applied
+   * in layout calculations.
+   */
   struct Margin
   {
     int top = 0;
@@ -75,6 +77,12 @@ namespace Pixils::Runtime
     std::optional<DimensionConstraint> height;
     Margin margin;
     Lisple::sptr_rtval initial_state;
+    /**
+     * Raw Lisple map of per-instance overrides/mode extesions (hooks,
+     * style, children, layout).  Stored as-is from the child entry
+     * and applied at build time in build_mode_context.
+     */
+    Lisple::sptr_rtval overrides = Lisple::Constant::NIL;
   };
 
   struct Mode

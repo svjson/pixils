@@ -46,6 +46,13 @@ namespace Pixils::Runtime
   {
     std::string id;
     Mode* mode = nullptr;
+    /**
+     * Owns a per-instance copy of the mode when push-time or
+     * child-slot overrides are present. `mode` points here instead of
+     * into the shared registry. unique_ptr so that the pointer
+     * remains valid when ModeContext is moved.
+     */
+    std::unique_ptr<Mode> owned_mode;
     Lisple::sptr_rtval state = Lisple::Constant::NIL;
     Lisple::sptr_rtval initial_state = Lisple::Constant::NIL;
     Rect bounds = {0, 0, 0, 0};
@@ -70,8 +77,12 @@ namespace Pixils::Runtime
             const HookArguments& hook_args);
 
     void pop_mode();
-    void push_mode(const Lisple::sptr_rtval& mode, const Lisple::sptr_rtval& state);
-    void push_mode(const std::string& mode_name, const Lisple::sptr_rtval& state);
+    void push_mode(const Lisple::sptr_rtval& mode,
+                   const Lisple::sptr_rtval& state,
+                   const Lisple::sptr_rtval& overrides = Lisple::Constant::NIL);
+    void push_mode(const std::string& mode_name,
+                   const Lisple::sptr_rtval& state,
+                   const Lisple::sptr_rtval& overrides = Lisple::Constant::NIL);
     void process_messages();
     Lisple::sptr_rtval invoke_hook(
       const Lisple::sptr_rtval& fn,

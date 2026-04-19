@@ -4,6 +4,7 @@
 #include <pixils/asset/registry.h>
 #include <pixils/binding/pixils_namespace.h>
 #include <pixils/binding/point_namespace.h>
+#include <pixils/binding/style_namespace.h>
 #include <pixils/binding/ui_namespace.h>
 #include <pixils/context.h>
 #include <pixils/runtime/mode.h>
@@ -12,10 +13,14 @@
 #include <SDL2/SDL_render.h>
 #include <lisple/context.h>
 #include <lisple/host.h>
+#include <lisple/host/accessor.h>
 #include <lisple/host/object.h>
+#include <lisple/host/schema.h>
 #include <lisple/runtime.h>
 #include <lisple/runtime/dict.h>
+#include <lisple/runtime/seq.h>
 #include <lisple/runtime/value.h>
+#include <unordered_map>
 
 namespace
 {
@@ -57,6 +62,114 @@ namespace
       parent = Lisple::RTValue::map({});
     Lisple::Dict::set_property(parent, key, child_state);
     return parent;
+  }
+
+  /**
+   * Parse a Lisple vector of child entry maps into ChildSlot objects. Extracts
+   * the structural fields (mode, id, state, width, height) and stores the full
+   * entry map as slot.overrides so per-instance hook/style overrides are available
+   * at build time without re-parsing here.
+   */
+  std::vector<Pixils::Runtime::ChildSlot> parse_child_slots(
+    Lisple::Runtime& rt,
+    const Lisple::sptr_rtval& children_val)
+  {
+    using namespace Pixils::Runtime;
+
+    static Lisple::MapSchema child_schema({{"mode", &Lisple::Type::SYMBOL}},
+                                          {{"id", &Lisple::Type::ANY},
+                                           {"state", &Lisple::Type::ANY},
+                                           {"width", &Lisple::Type::NUMBER},
+                                           {"height", &Lisple::Type::NUMBER}});
+
+    Lisple::Context ctx(rt);
+    std::unordered_map<std::string, int> name_counts;
+    std::vector<ChildSlot> slots;
+
+    size_t n = Lisple::count(*children_val);
+    for (size_t i = 0; i < n; i++)
+    {
+      auto child_entry = Lisple::get_child(*children_val, i);
+      auto child_opts = child_schema.bind(ctx, *child_entry);
+
+      ChildSlot slot;
+      slot.mode_name = child_opts.val("mode")->str();
+
+      if (child_opts.contains("id"))
+        slot.id = child_opts.val("id")->str();
+      else
+      {
+        int idx = name_counts[slot.mode_name]++;
+        slot.id = slot.mode_name + "-" + std::to_string(idx);
+      }
+
+      slot.initial_state = child_opts.val("state");
+
+      if (child_opts.contains("width"))
+        slot.width = DimensionConstraint::fixed(child_opts.i32("width"));
+      if (child_opts.contains("height"))
+        slot.height = DimensionConstraint::fixed(child_opts.i32("height"));
+
+      slot.overrides = child_entry;
+
+      slots.push_back(std::move(slot));
+    }
+    return slots;
+  }
+
+  /**
+   * Apply a Lisple override map onto an already-copied Mode in-place. Handles hooks,
+   * style, layout direction, and children. Any key absent from the map is left at
+   * whatever value the base mode copy carried. resolve_hook is called immediately so
+   * symbol references are resolved against the current runtime state.
+   */
+  void apply_mode_overrides(Pixils::Runtime::Mode& mode,
+                            const Lisple::sptr_rtval& overrides,
+                            Lisple::Runtime& rt)
+  {
+    using namespace Pixils::Runtime;
+
+    if (!overrides || overrides->type == Lisple::RTValue::Type::NIL) return;
+
+    auto get = [&](const char* key) -> Lisple::sptr_rtval
+    {
+      auto val = Lisple::Dict::get_property(overrides, Lisple::RTValue::keyword(key));
+      return val ? val : Lisple::Constant::NIL;
+    };
+
+    auto apply_hook = [&](Lisple::sptr_rtval& field, const char* key)
+    {
+      auto val = get(key);
+      if (val->type != Lisple::RTValue::Type::NIL) field = resolve_hook(rt, val);
+    };
+
+    apply_hook(mode.init, "init");
+    apply_hook(mode.update, "update");
+    apply_hook(mode.render, "render");
+    apply_hook(mode.on_mouse_down, "on-mouse-down");
+
+    auto style_val = get("style");
+    if (style_val->type != Lisple::RTValue::Type::NIL)
+    {
+      Lisple::Context ctx(rt);
+      auto coercion = Pixils::Script::HostType::STYLE.coerce(ctx, style_val);
+      if (coercion.success)
+      {
+        mode.style = Lisple::obj<Pixils::UI::Style>(*coercion.result);
+      }
+    }
+
+    auto layout_val = get("layout");
+    if (layout_val->type != Lisple::RTValue::Type::NIL)
+    {
+      auto [ns, name] = layout_val->qual();
+      mode.layout_direction =
+        (name == "row") ? LayoutDirection::ROW : LayoutDirection::COLUMN;
+    }
+
+    auto children_val = get("children");
+    if (children_val->type != Lisple::RTValue::Type::NIL)
+      mode.children = parse_child_slots(rt, children_val);
   }
 
 } // namespace
@@ -110,7 +223,9 @@ namespace Pixils::Runtime
     }
   }
 
-  void Session::push_mode(const Lisple::sptr_rtval& mode, const Lisple::sptr_rtval& state)
+  void Session::push_mode(const Lisple::sptr_rtval& mode,
+                          const Lisple::sptr_rtval& state,
+                          const Lisple::sptr_rtval& overrides)
   {
     /**
      * Flush the current active context's state to the Lisple stack before pushing,
@@ -126,21 +241,34 @@ namespace Pixils::Runtime
 
     auto& mode_obj = Lisple::obj<Mode>(*mode);
 
-    /**
-     * Resolve hooks in-place on first activation so that both active_ctx
-     * and any composition stack accesses find callables, not symbols.
-     */
-    mode_obj.init = resolve_hook(lisple_runtime, mode_obj.init);
-    mode_obj.update = resolve_hook(lisple_runtime, mode_obj.update);
-    mode_obj.render = resolve_hook(lisple_runtime, mode_obj.render);
-    mode_obj.on_mouse_down = resolve_hook(lisple_runtime, mode_obj.on_mouse_down);
-
     active_mode = ModeContext{};
-    active_mode.mode = &mode_obj;
     active_mode.state = state;
 
-    if (!this->assets.is_loaded(mode_obj.name))
-      this->assets.load(mode_obj.name, mode_obj.resources);
+    bool has_overrides = overrides && overrides->type != Lisple::RTValue::Type::NIL;
+
+    if (has_overrides)
+    {
+      active_mode.owned_mode = std::make_unique<Mode>(mode_obj);
+      apply_mode_overrides(*active_mode.owned_mode, overrides, lisple_runtime);
+      active_mode.mode = active_mode.owned_mode.get();
+    }
+    else
+    {
+      active_mode.mode = &mode_obj;
+    }
+
+    /**
+     * Resolve hooks in-place. For an owned copy this is safe; for a registry
+     * entry it replaces symbols with callables once on first activation.
+     */
+    active_mode.mode->init = resolve_hook(lisple_runtime, active_mode.mode->init);
+    active_mode.mode->update = resolve_hook(lisple_runtime, active_mode.mode->update);
+    active_mode.mode->render = resolve_hook(lisple_runtime, active_mode.mode->render);
+    active_mode.mode->on_mouse_down =
+      resolve_hook(lisple_runtime, active_mode.mode->on_mouse_down);
+
+    if (!this->assets.is_loaded(active_mode.mode->name))
+      this->assets.load(active_mode.mode->name, active_mode.mode->resources);
 
     this->hook_args.update_state(state);
     this->init_mode();
@@ -150,7 +278,7 @@ namespace Pixils::Runtime
      * the parent state map as they complete.
      */
     auto parent_state = this->active_mode.state;
-    for (const auto& slot : mode_obj.children)
+    for (const auto& slot : active_mode.mode->children)
     {
       this->active_mode.children.push_back(build_mode_context(slot));
       parent_state = init_context(this->active_mode.children.back(), parent_state);
@@ -159,10 +287,12 @@ namespace Pixils::Runtime
     this->hook_args.update_state(parent_state);
   }
 
-  void Session::push_mode(const std::string& mode_name, const Lisple::sptr_rtval& state)
+  void Session::push_mode(const std::string& mode_name,
+                          const Lisple::sptr_rtval& state,
+                          const Lisple::sptr_rtval& overrides)
   {
     auto mode = Lisple::Dict::get_property(modes, Lisple::RTValue::symbol(mode_name));
-    this->push_mode(mode, state);
+    this->push_mode(mode, state, overrides);
   }
 
   void Session::process_messages()
@@ -177,9 +307,12 @@ namespace Pixils::Runtime
       if (type == "push")
       {
         mode_stack.update_state(active_mode.state);
+        auto overrides_val =
+          Lisple::Dict::get_property(message, Lisple::RTValue::keyword("overrides"));
         push_mode(
           Lisple::Dict::get_property(message, Lisple::RTValue::keyword("mode"))->str(),
-          Lisple::Dict::get_property(message, Lisple::RTValue::keyword("state")));
+          Lisple::Dict::get_property(message, Lisple::RTValue::keyword("state")),
+          overrides_val ? overrides_val : Lisple::Constant::NIL);
       }
       else if (type == "pop")
       {
@@ -275,20 +408,33 @@ namespace Pixils::Runtime
   {
     auto mode_val =
       Lisple::Dict::get_property(modes, Lisple::RTValue::symbol(slot.mode_name));
-    Mode* child_mode = &Lisple::obj<Mode>(*mode_val);
-
-    child_mode->init = resolve_hook(lisple_runtime, child_mode->init);
-    child_mode->update = resolve_hook(lisple_runtime, child_mode->update);
-    child_mode->render = resolve_hook(lisple_runtime, child_mode->render);
-    child_mode->on_mouse_down = resolve_hook(lisple_runtime, child_mode->on_mouse_down);
+    Mode& base_mode = Lisple::obj<Mode>(*mode_val);
 
     ModeContext ctx;
     ctx.id = slot.id;
-    ctx.mode = child_mode;
     ctx.state = Lisple::Constant::NIL;
     ctx.initial_state = slot.initial_state;
 
-    for (const auto& grandchild_slot : child_mode->children)
+    bool has_overrides =
+      slot.overrides && slot.overrides->type != Lisple::RTValue::Type::NIL;
+
+    if (has_overrides)
+    {
+      ctx.owned_mode = std::make_unique<Mode>(base_mode);
+      apply_mode_overrides(*ctx.owned_mode, slot.overrides, lisple_runtime);
+      ctx.mode = ctx.owned_mode.get();
+    }
+    else
+    {
+      ctx.mode = &base_mode;
+    }
+
+    ctx.mode->init = resolve_hook(lisple_runtime, ctx.mode->init);
+    ctx.mode->update = resolve_hook(lisple_runtime, ctx.mode->update);
+    ctx.mode->render = resolve_hook(lisple_runtime, ctx.mode->render);
+    ctx.mode->on_mouse_down = resolve_hook(lisple_runtime, ctx.mode->on_mouse_down);
+
+    for (const auto& grandchild_slot : ctx.mode->children)
       ctx.children.push_back(build_mode_context(grandchild_slot));
 
     return ctx;

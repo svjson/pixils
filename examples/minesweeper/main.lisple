@@ -17,11 +17,14 @@
            :padding    2
            :hover      {:background {:r 90 :g 90 :b 110}}}
    :on-mouse-down (fn [state event ctx]
-                    (push-mode! (eval "'popup-menu-mode") {:pos {:x (-> state :bounds :x)
-                                                                 :y (+ (-> state :bounds :y) (-> state :bounds :h))}
-                                                           :items (for-indexed [n item (:items state)]
-                                                                               (make-menu-item item {:x (* n menu-item-w) :y 0
-                                                                                                     :w menu-item-w :h menu-item-h}))})
+                    (push-mode! (eval "'popup-menu-mode")
+                                {:pos {:x (-> state :bounds :x)
+                                       :y (+ (-> state :bounds :y) (-> state :bounds :h))}}
+                                {:children (for-indexed [n item (:items state)]
+                                                        (make-menu-item item {:x (* n menu-item-w)
+                                                                              :y 0
+                                                                              :w menu-item-w
+                                                                              :h menu-item-h}))})
                     state)
    :render (fn [state ctx]
              (r/text! (:text state)

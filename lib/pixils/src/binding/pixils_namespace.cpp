@@ -260,6 +260,8 @@ namespace Pixils::Script
           if (child_opts.contains("height"))
             slot.height = Runtime::DimensionConstraint::fixed(child_opts.i32("height"));
 
+          slot.overrides = child_entry;
+
           mode.children.push_back(slot);
         }
       }
@@ -393,6 +395,10 @@ namespace Pixils::Script
               MULTI_SIG((FN_ARGS((&Lisple::Type::SYMBOL_VALUE)),
                          EXEC_DISPATCH(&PushModeBangFunction::exec_push_mode)),
                         (FN_ARGS((&Lisple::Type::SYMBOL_VALUE), (&Lisple::Type::ANY)),
+                         EXEC_DISPATCH(&PushModeBangFunction::exec_push_mode)),
+                        (FN_ARGS((&Lisple::Type::SYMBOL_VALUE),
+                                 (&Lisple::Type::ANY),
+                                 (&Lisple::Type::MAP)),
                          EXEC_DISPATCH(&PushModeBangFunction::exec_push_mode))));
 
     EXEC_BODY(PushModeBangFunction, exec_push_mode)
@@ -406,7 +412,9 @@ namespace Pixils::Script
                               Lisple::RTValue::keyword(MapKey::MODE->value),
                               args.front(),
                               Lisple::RTValue::keyword(MapKey::STATE->value),
-                              args.size() > 1 ? args[1] : Lisple::Constant::NIL}));
+                              args.size() > 1 ? args[1] : Lisple::Constant::NIL,
+                              Lisple::RTValue::keyword("overrides"),
+                              args.size() > 2 ? args[2] : Lisple::Constant::NIL}));
 
       return args[0];
     }
