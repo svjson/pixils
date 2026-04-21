@@ -115,19 +115,35 @@ namespace Pixils::Runtime
     auto hovered_view = mouse.hovered.lock();
     if (!hovered_view) return;
 
-    auto& hook = hovered_view->mode->on_mouse_up;
-    if (!hook || hook->type == Lisple::RTValue::Type::NIL) return;
-
     const Point& gp = Lisple::obj<Point>(*events.mouse_pos);
     MouseButtonEvent ev;
     ev.global_pos = gp;
     ev.local_pos = local_pos(gp, hovered_view->bounds);
     ev.button = events.mouse_button_up;
-
     auto ev_ref = Script::MouseButtonEventAdapter::make_ref(ev);
-    Lisple::sptr_rtval_v args = {hovered_view->state, ev_ref, hook_args.update_args[1]};
-    auto new_state = invoke(hook, args, rt, hovered_view->state);
-    if (new_state->type != Lisple::RTValue::Type::NIL) hovered_view->state = new_state;
+
+    auto& up_hook = hovered_view->mode->on_mouse_up;
+    if (up_hook && up_hook->type != Lisple::RTValue::Type::NIL)
+    {
+      Lisple::sptr_rtval_v args = {hovered_view->state, ev_ref, hook_args.update_args[1]};
+      auto new_state = invoke(up_hook, args, rt, hovered_view->state);
+      if (new_state->type != Lisple::RTValue::Type::NIL) hovered_view->state = new_state;
+    }
+
+    /**
+     * Fire on_click when the release happens on the view where the press originated.
+     */
+    auto pressed_view = mouse.primary_pressed();
+    if (pressed_view && pressed_view.get() == hovered_view.get())
+    {
+      auto& click_hook = hovered_view->mode->on_click;
+      if (click_hook && click_hook->type != Lisple::RTValue::Type::NIL)
+      {
+        Lisple::sptr_rtval_v args = {hovered_view->state, ev_ref, hook_args.update_args[1]};
+        auto new_state = invoke(click_hook, args, rt, hovered_view->state);
+        if (new_state->type != Lisple::RTValue::Type::NIL) hovered_view->state = new_state;
+      }
+    }
 
     /**
      * Bubble the updated state back up through the stored hovered chain to root.

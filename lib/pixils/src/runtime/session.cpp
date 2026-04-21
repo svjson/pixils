@@ -113,6 +113,7 @@ namespace
     apply_hook(mode.render, "render");
     apply_hook(mode.on_mouse_down, "on-mouse-down");
     apply_hook(mode.on_mouse_up, "on-mouse-up");
+    apply_hook(mode.on_click, "on-click");
     apply_hook(mode.on_mouse_enter, "on-mouse-enter");
     apply_hook(mode.on_mouse_leave, "on-mouse-leave");
 
@@ -356,6 +357,7 @@ namespace Pixils::Runtime
     v.mode->render = resolve_hook(lisple_runtime, v.mode->render);
     v.mode->on_mouse_down = resolve_hook(lisple_runtime, v.mode->on_mouse_down);
     v.mode->on_mouse_up = resolve_hook(lisple_runtime, v.mode->on_mouse_up);
+    v.mode->on_click = resolve_hook(lisple_runtime, v.mode->on_click);
     v.mode->on_mouse_enter = resolve_hook(lisple_runtime, v.mode->on_mouse_enter);
     v.mode->on_mouse_leave = resolve_hook(lisple_runtime, v.mode->on_mouse_leave);
 

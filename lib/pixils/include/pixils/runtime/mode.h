@@ -64,6 +64,7 @@ namespace Pixils::Runtime
     Lisple::sptr_rtval render;
     Lisple::sptr_rtval on_mouse_down = Lisple::Constant::NIL;
     Lisple::sptr_rtval on_mouse_up = Lisple::Constant::NIL;
+    Lisple::sptr_rtval on_click = Lisple::Constant::NIL;
     Lisple::sptr_rtval on_mouse_enter = Lisple::Constant::NIL;
     Lisple::sptr_rtval on_mouse_leave = Lisple::Constant::NIL;
     ModeComposition composition;
