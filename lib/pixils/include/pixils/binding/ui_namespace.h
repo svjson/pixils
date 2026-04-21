@@ -15,15 +15,19 @@ namespace Pixils::Script
 
   namespace HostType
   {
-    HOST_TYPE(MOUSE_EVENT, "HMouseEvent", "pixils.ui/mouse-event");
-  }
+    HOST_TYPE(MOUSE_EVENT, "HMouseEvent");
+    HOST_TYPE(MOUSE_MOTION_EVENT, "HMouseMotionEvent");
+  } // namespace HostType
 
   namespace Function
   {
     FUNC(StopPropagation, stop);
   }
 
-  NATIVE_ADAPTER(MouseEventAdapter, MouseEvent, (position, button));
+  NATIVE_ADAPTER(MouseEventAdapter, MouseEvent, (global_pos, local_pos));
+  NATIVE_SUB_ADAPTER(MouseEventAdapter,
+                     (MouseButtonEventAdapter, MouseButtonEvent),
+                     (button));
 
   class UINamespace : public Lisple::Namespace
   {

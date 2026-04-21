@@ -292,6 +292,8 @@ namespace Pixils::Script
                                             {"render", &Lisple::Type::ANY},
                                             {"on-mouse-down", &Lisple::Type::ANY},
                                             {"on-mouse-up", &Lisple::Type::ANY},
+                                            {"on-mouse-enter", &Lisple::Type::ANY},
+                                            {"on-mouse-leave", &Lisple::Type::ANY},
                                             {"compose", &HostType::MODE_COMPOSITION},
                                             {"resources", &HostType::RESOURCE_DEPENDENCIES},
                                             {"style", &HostType::STYLE},
@@ -307,6 +309,8 @@ namespace Pixils::Script
       auto render_expr = eval_hook(ctx, opts.val("render"));
       auto on_mouse_down_expr = eval_hook(ctx, opts.val("on-mouse-down"));
       auto on_mouse_up_expr = eval_hook(ctx, opts.val("on-mouse-up"));
+      auto on_mouse_enter_expr = eval_hook(ctx, opts.val("on-mouse-enter"));
+      auto on_mouse_leave_expr = eval_hook(ctx, opts.val("on-mouse-leave"));
 
       Runtime::Mode mode{.name = opts.str("name", ""),
                          .resources = {},
@@ -315,6 +319,8 @@ namespace Pixils::Script
                          .render = render_expr,
                          .on_mouse_down = on_mouse_down_expr,
                          .on_mouse_up = on_mouse_up_expr,
+                         .on_mouse_enter = on_mouse_enter_expr,
+                         .on_mouse_leave = on_mouse_leave_expr,
                          .composition = {},
                          .children = {}};
 

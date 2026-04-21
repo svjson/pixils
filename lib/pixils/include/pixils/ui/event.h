@@ -17,23 +17,26 @@ namespace Pixils
   struct Event
   {
     bool propagation_stopped = false;
+    virtual ~Event() = default;
   };
 
   /**
-   * Mouse button event. Carries the cursor position at the time of the
-   * button press and which button was pressed as a Lisple keyword
-   * (:left, :right, :middle).
+   * Mouse motion event. Carries the global (buffer) and local (component)
+   * cursor positions. Used directly for on_mouse_enter and on_mouse_leave;
+   * local_pos may be just outside component bounds on leave.
    */
   struct MouseEvent : Event
   {
-    enum class Type : uint8_t
-    {
-      MOUSE_DOWN,
-      MOUSE_UP
-    };
+    Point global_pos;
+    Point local_pos;
+  };
 
-    Type type;
-    Point position;
+  /**
+   * Mouse button event. Extends MouseEvent with the button that was
+   * pressed or released, as a Lisple keyword (:left, :right, :middle).
+   */
+  struct MouseButtonEvent : MouseEvent
+  {
     Lisple::sptr_rtval button = Lisple::Constant::NIL;
   };
 

@@ -4,9 +4,9 @@
 
 #include <pixils/frame_events.h>
 #include <pixils/geom.h>
+#include <pixils/runtime/event_routing.h>
 #include <pixils/runtime/mode.h>
 #include <pixils/runtime/mode_stack.h>
-#include <pixils/ui/event.h>
 
 #include <lisple/form.h>
 
@@ -69,7 +69,7 @@ namespace Pixils::Runtime
     std::shared_ptr<View> active_mode;
     std::vector<std::shared_ptr<View>> ctx_stack;
     HookArguments hook_args;
-    std::optional<MouseEvent> active_mouse_event;
+    EventRouter event_router;
 
     Session(Lisple::Runtime& lisple_runtime,
             Asset::Registry& assets,
@@ -93,7 +93,6 @@ namespace Pixils::Runtime
 
     std::shared_ptr<View> build_view(const ChildSlot& slot);
     Lisple::sptr_rtval init_view(View& view, const Lisple::sptr_rtval& parent_state);
-    Lisple::sptr_rtval update_view(View& view, const Lisple::sptr_rtval& parent_state);
     void restore_view_state(View& view, const Lisple::sptr_rtval& parent_state);
 
    private:

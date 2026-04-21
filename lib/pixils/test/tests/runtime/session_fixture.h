@@ -36,6 +36,7 @@ class SessionFixture : public BaseFixture
     , hook_args{Pixils::Script::HookContextAdapter::make_ref(hook_ctx)}
     , session(runtime, assets, render_ctx, hook_args)
   {
+    session.hook_args.events = &events;
   }
 };
 

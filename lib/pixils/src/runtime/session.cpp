@@ -113,6 +113,8 @@ namespace
     apply_hook(mode.render, "render");
     apply_hook(mode.on_mouse_down, "on-mouse-down");
     apply_hook(mode.on_mouse_up, "on-mouse-up");
+    apply_hook(mode.on_mouse_enter, "on-mouse-enter");
+    apply_hook(mode.on_mouse_leave, "on-mouse-leave");
 
     auto style_val = get("style");
     if (style_val->type != Lisple::RTValue::Type::NIL)
@@ -229,6 +231,10 @@ namespace Pixils::Runtime
       resolve_hook(lisple_runtime, active_mode->mode->on_mouse_down);
     active_mode->mode->on_mouse_up =
       resolve_hook(lisple_runtime, active_mode->mode->on_mouse_up);
+    active_mode->mode->on_mouse_enter =
+      resolve_hook(lisple_runtime, active_mode->mode->on_mouse_enter);
+    active_mode->mode->on_mouse_leave =
+      resolve_hook(lisple_runtime, active_mode->mode->on_mouse_leave);
 
     if (!this->assets.is_loaded(active_mode->mode->name))
       this->assets.load(active_mode->mode->name, active_mode->mode->resources);
@@ -350,6 +356,8 @@ namespace Pixils::Runtime
     v.mode->render = resolve_hook(lisple_runtime, v.mode->render);
     v.mode->on_mouse_down = resolve_hook(lisple_runtime, v.mode->on_mouse_down);
     v.mode->on_mouse_up = resolve_hook(lisple_runtime, v.mode->on_mouse_up);
+    v.mode->on_mouse_enter = resolve_hook(lisple_runtime, v.mode->on_mouse_enter);
+    v.mode->on_mouse_leave = resolve_hook(lisple_runtime, v.mode->on_mouse_leave);
 
     for (const auto& grandchild_slot : v.mode->children)
       v.children.push_back(build_view(grandchild_slot));

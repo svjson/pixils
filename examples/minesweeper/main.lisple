@@ -225,6 +225,8 @@
                                   (draw-bevel! {:x offset :y offset :w bw :h bh } {:thickness 2 :invert (:pressed? state)})))
                       :on-mouse-down (fn [state event ctx]
                                        (assoc state :pressed? true))
+                      :on-mouse-leave (fn [state event ctx]
+                                     (assoc state :pressed? false))
                       :on-mouse-up (fn [state event ctx]
                                      (assoc state :pressed? false))})
 
