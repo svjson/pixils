@@ -15,8 +15,10 @@
 
 namespace Pixils::Runtime
 {
+  struct InteractionState;
   struct Mode;
   struct ModeComposition;
+  struct View;
 } // namespace Pixils::Runtime
 
 namespace Pixils::Script
@@ -66,8 +68,10 @@ namespace Pixils::Script
     HOST_TYPE(MODE_COMPOSITION, "HModeComposition", FN__PIXILS__MAKE_MODE_COMPOSITION)
     HOST_TYPE(PROGRAM, "HProgram")
     HOST_TYPE(RECT, "HRect", FN__PIXILS__MAKE_RECT);
+    HOST_TYPE(INTERACTION_STATE, "HInteractionState")
     HOST_TYPE(RENDER_CONTEXT, "HRenderContext")
     HOST_TYPE(RESOLUTION, "HResolution", FN__MAKE_RESOLUTION)
+    HOST_TYPE(VIEW, "HView")
   } // namespace HostType
 
   namespace Macro
@@ -118,7 +122,12 @@ namespace Pixils::Script
                   mouse_button_up,
                   mouse_held,
                   pixel_size,
-                  buffer_dim));
+                  buffer_dim,
+                  view));
+  /*! @brief InteractionStateAdapter - engine-computed hover/press state on a view */
+  NATIVE_ADAPTER(InteractionStateAdapter, Runtime::InteractionState, (hovered, pressed));
+  /*! @brief ViewAdapter - runtime instance of a mode; exposes id, bounds, interaction, style */
+  NATIVE_ADAPTER(ViewAdapter, Runtime::View, (id, bounds, interaction, style));
   /*! @brief ModeAdapter - A Lisple HostObject Adapter for Mode */
   NATIVE_ADAPTER(ModeAdapter, Runtime::Mode, (init, update, render));
   /*! @brief ModeCompositionAdapter - A Lisple HostObject Adapter for ModeComposition */

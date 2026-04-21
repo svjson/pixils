@@ -295,7 +295,7 @@ TEST_F(EventRoutingTest, later_rendered_child_wins_hit_test_when_bounds_overlap)
   EXPECT_EQ(get_count(fg_state, "clicks"), 1);
 }
 
-TEST_F(EventRoutingTest, inject_booleans_sets_hovered_true_when_cursor_is_inside)
+TEST_F(EventRoutingTest, interaction_hovered_true_when_cursor_is_inside)
 {
   // Given
   runtime.eval(R"(
@@ -311,12 +311,10 @@ TEST_F(EventRoutingTest, inject_booleans_sets_hovered_true_when_cursor_is_inside
   session.update_mode();
 
   // Then
-  auto hovered = get_state_key(session.active_mode->state, "hovered");
-  ASSERT_NE(hovered, nullptr);
-  EXPECT_EQ(*hovered, *Lisple::Constant::BOOL_TRUE);
+  EXPECT_TRUE(session.active_mode->interaction.hovered);
 }
 
-TEST_F(EventRoutingTest, inject_booleans_sets_hovered_false_when_cursor_is_outside)
+TEST_F(EventRoutingTest, interaction_hovered_false_when_cursor_is_outside)
 {
   // Given
   runtime.eval(R"(
@@ -332,7 +330,5 @@ TEST_F(EventRoutingTest, inject_booleans_sets_hovered_false_when_cursor_is_outsi
   session.update_mode();
 
   // Then
-  auto hovered = get_state_key(session.active_mode->state, "hovered");
-  ASSERT_NE(hovered, nullptr);
-  EXPECT_EQ(*hovered, *Lisple::Constant::BOOL_FALSE);
+  EXPECT_FALSE(session.active_mode->interaction.hovered);
 }

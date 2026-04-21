@@ -33,7 +33,7 @@ namespace Pixils::Runtime
    * from each child's resolved style. For stack-level modes the caller passes the
    * full buffer rect; for layout children the caller passes the computed slot rect.
    */
-  void render_view(Session& session, View& view, const Rect& bounds);
+  void render_view(Session& session, const std::shared_ptr<View>& view, const Rect& bounds);
 
 } // namespace Pixils::Runtime
 

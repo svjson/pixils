@@ -10,9 +10,9 @@
 #include <pixils/font_registry.h>
 #include <pixils/frame_events.h>
 #include <pixils/runtime/mode.h>
+#include <pixils/runtime/session.h>
 
 #include <SDL2/SDL_render.h>
-#include <iostream>
 #include <lisple/exception.h>
 #include <lisple/exec.h>
 #include <lisple/form.h>
@@ -573,17 +573,17 @@ namespace Pixils::Script
                       (update),
                       (render));
 
-  Lisple::sptr_rtval ModeAdapter::get_init() const
+  NOBJ_PROP_GET(ModeAdapter, init)
   {
     return this->get_object().init;
   }
 
-  Lisple::sptr_rtval ModeAdapter::get_update() const
+  NOBJ_PROP_GET(ModeAdapter, update)
   {
     return this->get_object().update;
   }
 
-  Lisple::sptr_rtval ModeAdapter::get_render() const
+  NOBJ_PROP_GET(ModeAdapter, render)
   {
     return this->get_object().render;
   }
@@ -647,7 +647,8 @@ namespace Pixils::Script
                       ("mouse-button-up", mouse_button_up),
                       ("mouse-held", mouse_held),
                       ("pixel-size", pixel_size),
-                      ("buffer-size", buffer_dim));
+                      ("buffer-size", buffer_dim),
+                      (view));
 
   NOBJ_PROP_GET(HookContextAdapter, key_down)
   {
@@ -688,6 +689,51 @@ namespace Pixils::Script
   {
     const Dimension& dim = object->get_object().render->buffer_dim;
     return DimensionAdapter::make_unique(dim.w, dim.h);
+  }
+
+  NOBJ_PROP_GET(HookContextAdapter, view)
+  {
+    auto view_ptr = object->get_object().current_view;
+    if (!view_ptr) return Lisple::Constant::NIL;
+    return ViewAdapter::make_ref(*view_ptr);
+  }
+
+  /* InteractionStateAdapter */
+  NATIVE_ADAPTER_IMPL(InteractionStateAdapter,
+                      Runtime::InteractionState,
+                      &HostType::INTERACTION_STATE,
+                      (hovered),
+                      (pressed));
+
+  NOBJ_PROP_GET__FIELD(InteractionStateAdapter, hovered);
+  NOBJ_PROP_GET__FIELD(InteractionStateAdapter, pressed);
+
+  /* ViewAdapter */
+  NATIVE_ADAPTER_IMPL(ViewAdapter,
+                      Runtime::View,
+                      &HostType::VIEW,
+                      (id),
+                      (bounds),
+                      (interaction),
+                      (style));
+
+  NOBJ_PROP_GET__FIELD(ViewAdapter, id);
+  NOBJ_PROP_GET(ViewAdapter, bounds)
+  {
+    const Rect& b = object->get_object().bounds;
+    return RectAdapter::make_unique(b.x, b.y, b.w, b.h);
+  }
+
+  NOBJ_PROP_GET(ViewAdapter, interaction)
+  {
+    return InteractionStateAdapter::make_unique(object->get_object().interaction);
+  }
+
+  NOBJ_PROP_GET(ViewAdapter, style)
+  {
+    const Runtime::View& v = object->get_object();
+    if (!v.mode || !v.mode->style.has_value()) return Lisple::Constant::NIL;
+    return StyleAdapter::make_unique(*v.mode->style);
   }
 
   /* RenderContextAdapter */

@@ -1,6 +1,7 @@
 
 #include "pixils/runtime/render.h"
 
+#include <pixils/hook_context.h>
 #include <pixils/runtime/session.h>
 #include <pixils/ui/style.h>
 
@@ -50,8 +51,9 @@ namespace Pixils::Runtime
     return rects;
   }
 
-  void render_view(Session& session, View& ctx, const Rect& bounds)
+  void render_view(Session& session, const std::shared_ptr<View>& view_ptr, const Rect& bounds)
   {
+    View& ctx = *view_ptr;
     ctx.bounds = bounds;
 
     /**
@@ -82,6 +84,7 @@ namespace Pixils::Runtime
     SDL_Rect viewport = {content.x, content.y, content.w, content.h};
     SDL_RenderSetViewport(session.render_ctx.renderer, &viewport);
 
+    Lisple::obj<HookContext>(*session.hook_args.render_args[1]).current_view = view_ptr;
     Lisple::sptr_rtval_v rargs = {ctx.state, session.hook_args.render_args[1]};
     session.invoke_hook(ctx.mode->render, rargs);
 
@@ -113,7 +116,7 @@ namespace Pixils::Runtime
         {
           abs = child_rects[i];
         }
-        render_view(session, child, abs);
+        render_view(session, ctx.children[i], abs);
       }
     }
 

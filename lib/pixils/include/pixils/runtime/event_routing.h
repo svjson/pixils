@@ -102,17 +102,17 @@ namespace Pixils::Runtime
      * Extracts the view's state from parent, does hover/update work,
      * recurses into children, and merges the updated state back.
      */
-    Lisple::sptr_rtval traverse_child(View& view,
+    Lisple::sptr_rtval traverse_child(const std::shared_ptr<View>& view,
                                       const Lisple::sptr_rtval& parent_state,
                                       const Point& mouse_pos,
                                       HookArguments& hook_args,
                                       Lisple::Runtime& rt);
 
     /**
-     * Inject the current hovered and pressed booleans into view.state.
-     * Creates an empty map if state is NIL.
+     * Update the engine-managed interaction flags on the view (hovered, pressed).
+     * This does not write into the developer's state map.
      */
-    void inject_booleans(View& view, const Point& mouse_pos);
+    void update_interaction(View& view, const Point& mouse_pos);
 
     /**
      * Depth-first hit test returning the deepest view whose bounds contain

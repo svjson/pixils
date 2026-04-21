@@ -3,6 +3,7 @@
 
 #include "pixils/runtime/session.h"
 #include "pixils/ui/event.h"
+#include <pixils/hook_context.h>
 #include <pixils/binding/point_namespace.h>
 #include <pixils/binding/ui_namespace.h>
 #include <pixils/frame_events.h>
@@ -81,31 +82,17 @@ namespace Pixils::Runtime
     return true;
   }
 
-  void EventRouter::inject_booleans(View& view, const Point& mouse_pos)
+  void EventRouter::update_interaction(View& view, const Point& mouse_pos)
   {
     int mx = mouse_pos.round_x();
     int my = mouse_pos.round_y();
 
-    bool is_hovered = view.bounds.w > 0 && mx >= view.bounds.x &&
-                      mx < view.bounds.x + view.bounds.w && my >= view.bounds.y &&
-                      my < view.bounds.y + view.bounds.h;
+    view.interaction.hovered =
+      view.bounds.w > 0 && mx >= view.bounds.x && mx < view.bounds.x + view.bounds.w &&
+      my >= view.bounds.y && my < view.bounds.y + view.bounds.h;
 
     auto pressed_view = mouse.primary_pressed();
-    bool is_pressed = pressed_view && pressed_view.get() == &view;
-
-    if (!view.state || view.state->type == Lisple::RTValue::Type::NIL)
-      view.state = Lisple::RTValue::map({});
-    else if (view.state->type != Lisple::RTValue::Type::MAP)
-      return;
-
-    Lisple::Dict::set_property(
-      view.state,
-      Lisple::RTValue::keyword("hovered"),
-      is_hovered ? Lisple::Constant::BOOL_TRUE : Lisple::Constant::BOOL_FALSE);
-    Lisple::Dict::set_property(
-      view.state,
-      Lisple::RTValue::keyword("pressed"),
-      is_pressed ? Lisple::Constant::BOOL_TRUE : Lisple::Constant::BOOL_FALSE);
+    view.interaction.pressed = pressed_view && pressed_view.get() == &view;
   }
 
   void EventRouter::handle_mouse_up(FrameEvents& events,
@@ -121,6 +108,8 @@ namespace Pixils::Runtime
     ev.local_pos = local_pos(gp, hovered_view->bounds);
     ev.button = events.mouse_button_up;
     auto ev_ref = Script::MouseButtonEventAdapter::make_ref(ev);
+
+    Lisple::obj<HookContext>(*hook_args.update_args[1]).current_view = hovered_view;
 
     auto& up_hook = hovered_view->mode->on_mouse_up;
     if (up_hook && up_hook->type != Lisple::RTValue::Type::NIL)
@@ -183,6 +172,7 @@ namespace Pixils::Runtime
       ev.button = events.mouse_button_down;
 
       auto ev_ref = Script::MouseButtonEventAdapter::make_ref(ev);
+      Lisple::obj<HookContext>(*hook_args.update_args[1]).current_view = view_ptr;
       Lisple::sptr_rtval_v args = {view_ptr->state, ev_ref, hook_args.update_args[1]};
       auto new_state = invoke(hook, args, rt, view_ptr->state);
       if (new_state->type != Lisple::RTValue::Type::NIL) view_ptr->state = new_state;
@@ -204,20 +194,22 @@ namespace Pixils::Runtime
       mouse.pressed.push_back(std::weak_ptr<View>(view_ptr));
   }
 
-  Lisple::sptr_rtval EventRouter::traverse_child(View& view,
+  Lisple::sptr_rtval EventRouter::traverse_child(const std::shared_ptr<View>& view_ptr,
                                                  const Lisple::sptr_rtval& parent_state,
                                                  const Point& mouse_pos,
                                                  HookArguments& hook_args,
                                                  Lisple::Runtime& rt)
   {
+    View& view = *view_ptr;
     view.state = extract_child_state(parent_state, view.id);
-    inject_booleans(view, mouse_pos);
+    update_interaction(view, mouse_pos);
 
+    Lisple::obj<HookContext>(*hook_args.update_args[1]).current_view = view_ptr;
     Lisple::sptr_rtval_v uargs = {view.state, hook_args.update_args[1]};
     view.state = invoke(view.mode->update, uargs, rt, view.state);
 
     for (auto& child : view.children)
-      view.state = traverse_child(*child, view.state, mouse_pos, hook_args, rt);
+      view.state = traverse_child(child, view.state, mouse_pos, hook_args, rt);
 
     return merge_child_state(parent_state, view.id, view.state);
   }
@@ -253,6 +245,7 @@ namespace Pixils::Runtime
           ev.global_pos = mouse_pos;
           ev.local_pos = local_pos(mouse_pos, old_hovered->bounds);
           auto ev_ref = Script::MouseEventAdapter::make_ref(ev);
+          Lisple::obj<HookContext>(*hook_args.update_args[1]).current_view = old_hovered;
           Lisple::sptr_rtval_v args = {old_hovered->state, ev_ref, hook_args.update_args[1]};
           auto new_state = invoke(leave_hook, args, rt, old_hovered->state);
           if (new_state->type != Lisple::RTValue::Type::NIL) old_hovered->state = new_state;
@@ -281,6 +274,7 @@ namespace Pixils::Runtime
           ev.global_pos = mouse_pos;
           ev.local_pos = local_pos(mouse_pos, new_hovered->bounds);
           auto ev_ref = Script::MouseEventAdapter::make_ref(ev);
+          Lisple::obj<HookContext>(*hook_args.update_args[1]).current_view = new_hovered;
           Lisple::sptr_rtval_v args = {new_hovered->state, ev_ref, hook_args.update_args[1]};
           auto new_state = invoke(enter_hook, args, rt, new_hovered->state);
           if (new_state->type != Lisple::RTValue::Type::NIL) new_hovered->state = new_state;
@@ -306,16 +300,17 @@ namespace Pixils::Runtime
       mouse.hovered_chain.push_back(std::weak_ptr<View>(v));
 
     /**
-     * Update root: inject booleans, call update hook, thread children.
+     * Update root: update interaction flags, call update hook, thread children.
      */
-    inject_booleans(*root, mouse_pos);
+    update_interaction(*root, mouse_pos);
 
+    Lisple::obj<HookContext>(*hook_args.update_args[1]).current_view = root;
     Lisple::sptr_rtval_v uargs = {root->state, hook_args.update_args[1]};
     root->state = invoke(root->mode->update, uargs, rt, root->state);
 
     auto parent_state = root->state;
     for (auto& child : root->children)
-      parent_state = traverse_child(*child, parent_state, mouse_pos, hook_args, rt);
+      parent_state = traverse_child(child, parent_state, mouse_pos, hook_args, rt);
     root->state = parent_state;
   }
 

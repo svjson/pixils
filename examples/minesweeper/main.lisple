@@ -194,14 +194,14 @@
 
 ;; Board buttons
 (defcomponent board-button-row {:style {:direction :row}
-                                :children [{:mode 'button :state {:width 17 :height 17} :style {:width 17 :height 17}}
-                                           {:mode 'button :state {:width 17 :height 17} :style {:width 17 :height 17}}
-                                           {:mode 'button :state {:width 17 :height 17} :style {:width 17 :height 17}}
-                                           {:mode 'button :state {:width 17 :height 17} :style {:width 17 :height 17}}
-                                           {:mode 'button :state {:width 17 :height 17} :style {:width 17 :height 17}}
-                                           {:mode 'button :state {:width 17 :height 17} :style {:width 17 :height 17}}
-                                           {:mode 'button :state {:width 17 :height 17} :style {:width 17 :height 17}}
-                                           {:mode 'button :state {:width 17 :height 17} :style {:width 17 :height 17}}]})
+                                :children [{:mode 'button :style {:width 17 :height 17}}
+                                           {:mode 'button :style {:width 17 :height 17}}
+                                           {:mode 'button :style {:width 17 :height 17}}
+                                           {:mode 'button :style {:width 17 :height 17}}
+                                           {:mode 'button :style {:width 17 :height 17}}
+                                           {:mode 'button :style {:width 17 :height 17}}
+                                           {:mode 'button :style {:width 17 :height 17}}
+                                           {:mode 'button :style {:width 17 :height 17}}]})
 
 (defcomponent board-buttons {:children [{:mode 'board-button-row :style {:height 17}}
                                         {:mode 'board-button-row :style {:height 17}}
@@ -215,13 +215,11 @@
 
 ;; Button
 
-(defcomponent button {:init (fn [state ctx]
-                              {:width (or (:width state) 20)
-                               :height (or (:height state) 20)})
-                      :render (fn [state {:keys [buffer-size] :as ctx}]
-                                (let [bw (:width state) ; (:w buffer-size)
-                                      bh (:height state) ; (:h buffer-size)
-                                      pressed (and (:pressed state) (:hovered state))
+(defcomponent button {:render (fn [state {:keys [buffer-size view] :as ctx}]
+                                (let [bw (-> view :bounds :w)
+                                      bh (-> view :bounds :h)
+                                      pressed (and (-> view :interaction :pressed)
+                                                   (-> view :interaction :hovered))
                                       offset (if pressed 1 0)]
                                   (r/rect! {:x offset :y offset :w bw :h bh} {:fill true :color win-panel-face})
                                   (draw-bevel! {:x offset :y offset :w bw :h bh } {:thickness 2 :invert pressed})))})

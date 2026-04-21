@@ -321,10 +321,10 @@ namespace Pixils::Runtime
     for (size_t i = render_stack.size() - 1; i > 0; i--)
     {
       size_t ctx_idx = ctx_stack.size() - i;
-      render_view(*this, *ctx_stack[ctx_idx], full);
+      render_view(*this, ctx_stack[ctx_idx], full);
     }
 
-    render_view(*this, *active_mode, full);
+    render_view(*this, active_mode, full);
   }
 
   std::shared_ptr<View> Session::build_view(const ChildSlot& slot)
