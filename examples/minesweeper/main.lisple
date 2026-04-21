@@ -214,21 +214,17 @@
 
 
 ;; Button
+
 (defcomponent button {:init (fn [state ctx]
                               {:width (or (:width state) 20)
                                :height (or (:height state) 20)})
                       :render (fn [state {:keys [buffer-size] :as ctx}]
                                 (let [bw (:width state) ; (:w buffer-size)
                                       bh (:height state) ; (:h buffer-size)
-                                      offset (if (:pressed? state) 1 0)]
+                                      pressed (and (:pressed state) (:hovered state))
+                                      offset (if pressed 1 0)]
                                   (r/rect! {:x offset :y offset :w bw :h bh} {:fill true :color win-panel-face})
-                                  (draw-bevel! {:x offset :y offset :w bw :h bh } {:thickness 2 :invert (:pressed? state)})))
-                      :on-mouse-down (fn [state event ctx]
-                                       (assoc state :pressed? true))
-                      :on-mouse-leave (fn [state event ctx]
-                                     (assoc state :pressed? false))
-                      :on-mouse-up (fn [state event ctx]
-                                     (assoc state :pressed? false))})
+                                  (draw-bevel! {:x offset :y offset :w bw :h bh } {:thickness 2 :invert pressed})))})
 
 
 ;; Counter
