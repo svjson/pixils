@@ -291,6 +291,7 @@ namespace Pixils::Script
                                             {"update", &Lisple::Type::ANY},
                                             {"render", &Lisple::Type::ANY},
                                             {"on-mouse-down", &Lisple::Type::ANY},
+                                            {"on-mouse-up", &Lisple::Type::ANY},
                                             {"compose", &HostType::MODE_COMPOSITION},
                                             {"resources", &HostType::RESOURCE_DEPENDENCIES},
                                             {"style", &HostType::STYLE},
@@ -305,6 +306,7 @@ namespace Pixils::Script
       auto update_expr = eval_hook(ctx, opts.val("update"));
       auto render_expr = eval_hook(ctx, opts.val("render"));
       auto on_mouse_down_expr = eval_hook(ctx, opts.val("on-mouse-down"));
+      auto on_mouse_up_expr = eval_hook(ctx, opts.val("on-mouse-up"));
 
       Runtime::Mode mode{.name = opts.str("name", ""),
                          .resources = {},
@@ -312,6 +314,7 @@ namespace Pixils::Script
                          .update = update_expr,
                          .render = render_expr,
                          .on_mouse_down = on_mouse_down_expr,
+                         .on_mouse_up = on_mouse_up_expr,
                          .composition = {},
                          .children = {}};
 
@@ -632,6 +635,7 @@ namespace Pixils::Script
                       ("held-keys", held_keys),
                       ("mouse-pos", mouse_pos),
                       ("mouse-button-down", mouse_button_down),
+                      ("mouse-button-up", mouse_button_up),
                       ("mouse-held", mouse_held),
                       ("pixel-size", pixel_size),
                       ("buffer-size", buffer_dim));
@@ -654,6 +658,11 @@ namespace Pixils::Script
   NOBJ_PROP_GET(HookContextAdapter, mouse_button_down)
   {
     return object->get_object().events->mouse_button_down;
+  }
+
+  NOBJ_PROP_GET(HookContextAdapter, mouse_button_up)
+  {
+    return object->get_object().events->mouse_button_up;
   }
 
   NOBJ_PROP_GET(HookContextAdapter, mouse_held)

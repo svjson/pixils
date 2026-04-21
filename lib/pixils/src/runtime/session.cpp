@@ -1,6 +1,7 @@
 
 #include "pixils/runtime/session.h"
 
+#include "pixils/ui/event.h"
 #include <pixils/asset/registry.h>
 #include <pixils/binding/pixils_namespace.h>
 #include <pixils/binding/point_namespace.h>
@@ -139,6 +140,7 @@ namespace
     apply_hook(mode.update, "update");
     apply_hook(mode.render, "render");
     apply_hook(mode.on_mouse_down, "on-mouse-down");
+    apply_hook(mode.on_mouse_up, "on-mouse-up");
 
     auto style_val = get("style");
     if (style_val->type != Lisple::RTValue::Type::NIL)
@@ -253,6 +255,8 @@ namespace Pixils::Runtime
     active_mode.mode->render = resolve_hook(lisple_runtime, active_mode.mode->render);
     active_mode.mode->on_mouse_down =
       resolve_hook(lisple_runtime, active_mode.mode->on_mouse_down);
+    active_mode.mode->on_mouse_up =
+      resolve_hook(lisple_runtime, active_mode.mode->on_mouse_up);
 
     if (!this->assets.is_loaded(active_mode.mode->name))
       this->assets.load(active_mode.mode->name, active_mode.mode->resources);
@@ -329,7 +333,7 @@ namespace Pixils::Runtime
   void Session::update_mode()
   {
     /**
-     * Snapshot any mouse button press from this frame into active_mouse_event so
+     * Snapshot any mouse button event from this frame into active_mouse_event so
      * update_context can route it through the component tree. The event lives for
      * exactly one call to update_mode and is cleared regardless of propagation outcome.
      */
@@ -337,8 +341,18 @@ namespace Pixils::Runtime
         hook_args.events->mouse_button_down->type != Lisple::RTValue::Type::NIL)
     {
       MouseEvent ev;
+      ev.type = MouseEvent::Type::MOUSE_DOWN;
       ev.position = Lisple::obj<Point>(*hook_args.events->mouse_pos);
       ev.button = hook_args.events->mouse_button_down;
+      active_mouse_event = ev;
+    }
+    else if (hook_args.events && hook_args.events->mouse_button_up &&
+             hook_args.events->mouse_button_up->type != Lisple::RTValue::Type::NIL)
+    {
+      MouseEvent ev;
+      ev.type = MouseEvent::Type::MOUSE_UP;
+      ev.position = Lisple::obj<Point>(*hook_args.events->mouse_pos);
+      ev.button = hook_args.events->mouse_button_up;
       active_mouse_event = ev;
     }
     else
@@ -420,6 +434,7 @@ namespace Pixils::Runtime
     ctx.mode->update = resolve_hook(lisple_runtime, ctx.mode->update);
     ctx.mode->render = resolve_hook(lisple_runtime, ctx.mode->render);
     ctx.mode->on_mouse_down = resolve_hook(lisple_runtime, ctx.mode->on_mouse_down);
+    ctx.mode->on_mouse_up = resolve_hook(lisple_runtime, ctx.mode->on_mouse_up);
 
     for (const auto& grandchild_slot : ctx.mode->children)
       ctx.children.push_back(build_mode_context(grandchild_slot));
@@ -480,25 +495,38 @@ namespace Pixils::Runtime
       ctx.state = update_context(grandchild, ctx.state);
 
     /**
-     * Fire on_mouse_down if a mouse button event occurred this frame, the component
+     * Fire mouse event handler if a mouse event occurred this frame, the component
      * has a handler, the cursor is within the component's last-rendered bounds, and
      * propagation has not already been stopped by a deeper component.
      */
-    if (active_mouse_event && ctx.mode->on_mouse_down &&
-        ctx.mode->on_mouse_down->type != Lisple::RTValue::Type::NIL &&
-        !active_mouse_event->propagation_stopped && ctx.bounds.w > 0)
+    if (active_mouse_event && !active_mouse_event->propagation_stopped && ctx.bounds.w > 0)
     {
-      const Point& mp = active_mouse_event->position;
-      int mx = mp.round_x();
-      int my = mp.round_y();
-      bool hit = mx >= ctx.bounds.x && mx < ctx.bounds.x + ctx.bounds.w &&
-                 my >= ctx.bounds.y && my < ctx.bounds.y + ctx.bounds.h;
-      if (hit)
+      Lisple::sptr_rtval hook = nullptr;
+
+      switch (active_mouse_event->type)
       {
-        auto ev_ref = Script::MouseEventAdapter::make_ref(*active_mouse_event);
-        Lisple::sptr_rtval_v eargs = {ctx.state, ev_ref, this->hook_args.update_args[1]};
-        auto new_state = invoke_hook(ctx.mode->on_mouse_down, eargs, ctx.state);
-        if (new_state->type != Lisple::RTValue::Type::NIL) ctx.state = new_state;
+      case MouseEvent::Type::MOUSE_DOWN:
+        hook = ctx.mode->on_mouse_down;
+        break;
+      case MouseEvent::Type::MOUSE_UP:
+        hook = ctx.mode->on_mouse_up;
+        break;
+      }
+
+      if (hook && hook->type != Lisple::RTValue::Type::NIL)
+      {
+        const Point& mp = active_mouse_event->position;
+        int mx = mp.round_x();
+        int my = mp.round_y();
+        bool hit = mx >= ctx.bounds.x && mx < ctx.bounds.x + ctx.bounds.w &&
+                   my >= ctx.bounds.y && my < ctx.bounds.y + ctx.bounds.h;
+        if (hit)
+        {
+          auto ev_ref = Script::MouseEventAdapter::make_ref(*active_mouse_event);
+          Lisple::sptr_rtval_v eargs = {ctx.state, ev_ref, this->hook_args.update_args[1]};
+          auto new_state = invoke_hook(hook, eargs, ctx.state);
+          if (new_state->type != Lisple::RTValue::Type::NIL) ctx.state = new_state;
+        }
       }
     }
 

@@ -2,9 +2,9 @@
 #include "pixils/console.h"
 #include <pixils/asset/registry.h>
 #include <pixils/binding/pixils_namespace.h>
-#include <pixils/font_registry.h>
 #include <pixils/client.h>
 #include <pixils/context.h>
+#include <pixils/font_registry.h>
 #include <pixils/frame_events.h>
 #include <pixils/hook_context.h>
 #include <pixils/keyboard.h>
@@ -102,7 +102,8 @@ namespace Pixils
   {
     ctx.asset_registry->load_embedded_assets();
 
-    SDL_Texture* console_font_texture = ctx.asset_registry->get_image("pixils", "console-font");
+    SDL_Texture* console_font_texture =
+      ctx.asset_registry->get_image("pixils", "console-font");
 
     ctx.font_registry->register_font("font/console", console_font_texture, console_font_map);
 
@@ -132,6 +133,7 @@ namespace Pixils
 
       events.key_down = Lisple::Constant::NIL;
       events.mouse_button_down = Lisple::Constant::NIL;
+      events.mouse_button_up = Lisple::Constant::NIL;
 
       // FIXME: Scale is 0 until the first invocation of prepare_application_frame
       int scale = ctx.buffer_dim.w > 0 ? std::min(ctx.window_rect.w / ctx.buffer_dim.w,

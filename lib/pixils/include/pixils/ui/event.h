@@ -26,6 +26,13 @@ namespace Pixils
    */
   struct MouseEvent : Event
   {
+    enum class Type : uint8_t
+    {
+      MOUSE_DOWN,
+      MOUSE_UP
+    };
+
+    Type type;
     Point position;
     Lisple::sptr_rtval button = Lisple::Constant::NIL;
   };

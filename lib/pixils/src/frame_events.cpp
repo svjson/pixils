@@ -31,6 +31,7 @@ namespace Pixils
   FrameEvents::FrameEvents()
     : mouse_pos(Script::PointAdapter::make_unique(0.0f, 0.0f))
     , mouse_button_down(Lisple::Constant::NIL)
+    , mouse_button_up(Lisple::Constant::NIL)
   {
   }
 
@@ -51,6 +52,8 @@ namespace Pixils
   void FrameEvents::do_mouse_button_up(const SDL_MouseButtonEvent& event)
   {
     auto btn = mouse_button_keyword(event.button);
+    if (*btn == *Lisple::Constant::NIL) return;
+    mouse_button_up = btn;
     auto& children = mouse_held->mut_elements();
     auto it =
       std::remove_if(children.begin(),

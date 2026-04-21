@@ -109,10 +109,16 @@ namespace Pixils::Script
   /*! @brief FrameEventsAdapter - A Lisple HostObject Adapter for FrameEvents */
   NATIVE_ADAPTER(FrameEventsAdapter, FrameEvents, (key_down, held_keys));
   /*! @brief HookContextAdapter - unified context passed as second arg to all mode hooks */
-  NATIVE_ADAPTER(
-    HookContextAdapter,
-    HookContext,
-    (key_down, held_keys, mouse_pos, mouse_button_down, mouse_held, pixel_size, buffer_dim));
+  NATIVE_ADAPTER(HookContextAdapter,
+                 HookContext,
+                 (key_down,
+                  held_keys,
+                  mouse_pos,
+                  mouse_button_down,
+                  mouse_button_up,
+                  mouse_held,
+                  pixel_size,
+                  buffer_dim));
   /*! @brief ModeAdapter - A Lisple HostObject Adapter for Mode */
   NATIVE_ADAPTER(ModeAdapter, Runtime::Mode, (init, update, render));
   /*! @brief ModeCompositionAdapter - A Lisple HostObject Adapter for ModeComposition */
