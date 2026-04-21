@@ -29,7 +29,7 @@ TEST_F(SessionHooksTest, push_mode_with_no_init_hook_preserves_initial_state)
   session.push_mode("stateless-mode", initial_state);
 
   // Then
-  EXPECT_TRUE(session.active_mode.state->is_number(100));
+  EXPECT_TRUE(session.active_mode->state->is_number(100));
 }
 
 TEST_F(SessionHooksTest, update_mode_with_no_update_hook_preserves_state)
@@ -43,7 +43,7 @@ TEST_F(SessionHooksTest, update_mode_with_no_update_hook_preserves_state)
   session.update_mode();
 
   // Then
-  EXPECT_TRUE(session.active_mode.state->is_number(42));
+  EXPECT_TRUE(session.active_mode->state->is_number(42));
 }
 
 TEST_F(SessionHooksTest, update_mode_with_symbol_reference_to_callable_is_invoked)
@@ -57,7 +57,7 @@ TEST_F(SessionHooksTest, update_mode_with_symbol_reference_to_callable_is_invoke
   session.update_mode();
 
   // Then
-  EXPECT_TRUE(session.active_mode.state->is_number(99));
+  EXPECT_TRUE(session.active_mode->state->is_number(99));
 }
 
 TEST_F(SessionHooksTest, update_mode_with_callable_hook_is_invoked)
@@ -70,7 +70,7 @@ TEST_F(SessionHooksTest, update_mode_with_callable_hook_is_invoked)
   session.update_mode();
 
   // Then
-  EXPECT_TRUE(session.active_mode.state->is_number(99));
+  EXPECT_TRUE(session.active_mode->state->is_number(99));
 }
 
 TEST_F(SessionHooksTest, push_mode_with_callable_init_hook_is_invoked)
@@ -82,7 +82,7 @@ TEST_F(SessionHooksTest, push_mode_with_callable_init_hook_is_invoked)
   session.push_mode("init-mode", Lisple::Constant::NIL);
 
   // Then
-  EXPECT_TRUE(session.active_mode.state->is_number(77));
+  EXPECT_TRUE(session.active_mode->state->is_number(77));
 }
 
 TEST_F(SessionHooksTest, push_mode_with_symbol_init_hook_resolves_and_invokes)
@@ -95,5 +95,5 @@ TEST_F(SessionHooksTest, push_mode_with_symbol_init_hook_resolves_and_invokes)
   session.push_mode("symbol-mode", Lisple::Constant::NIL);
 
   // Then
-  EXPECT_TRUE(session.active_mode.state->is_number(55));
+  EXPECT_TRUE(session.active_mode->state->is_number(55));
 }

@@ -16,7 +16,7 @@ TEST_F(FrameCycleTest, init_hook_sets_initial_state)
   session.push_mode("test-mode", Lisple::Constant::NIL);
 
   // Then
-  auto state = session.active_mode.state;
+  auto state = session.active_mode->state;
   auto x = Lisple::Dict::get_property(state, Lisple::RTValue::keyword("x"));
   EXPECT_EQ(x->num().get_int(), 42);
 }
@@ -36,7 +36,7 @@ TEST_F(FrameCycleTest, update_hook_receives_and_returns_new_state)
   session.update_mode();
 
   // Then
-  auto state = session.active_mode.state;
+  auto state = session.active_mode->state;
   auto count = Lisple::Dict::get_property(state, Lisple::RTValue::keyword("count"));
   EXPECT_EQ(count->num().get_int(), 1);
 }
@@ -115,7 +115,7 @@ TEST_F(FrameCycleTest, full_frame_cycle_init_update_render)
 
   // Then
   auto count =
-    Lisple::Dict::get_property(session.active_mode.state, Lisple::RTValue::keyword("ticks"));
+    Lisple::Dict::get_property(session.active_mode->state, Lisple::RTValue::keyword("ticks"));
   EXPECT_EQ(count->num().get_int(), 1);
 
   auto& ops = render_target()->render_ops;

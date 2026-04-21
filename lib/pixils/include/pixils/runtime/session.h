@@ -56,7 +56,7 @@ namespace Pixils::Runtime
     Lisple::sptr_rtval state = Lisple::Constant::NIL;
     Lisple::sptr_rtval initial_state = Lisple::Constant::NIL;
     Rect bounds = {0, 0, 0, 0};
-    std::vector<View> children;
+    std::vector<std::shared_ptr<View>> children;
   };
 
   struct Session
@@ -66,8 +66,8 @@ namespace Pixils::Runtime
     RenderContext& render_ctx;
     ModeStack mode_stack;
     Lisple::sptr_rtval modes;
-    View active_mode;
-    std::vector<View> ctx_stack;
+    std::shared_ptr<View> active_mode;
+    std::vector<std::shared_ptr<View>> ctx_stack;
     HookArguments hook_args;
     std::optional<MouseEvent> active_mouse_event;
 
@@ -91,7 +91,7 @@ namespace Pixils::Runtime
     void update_mode();
     void render_mode();
 
-    View build_view(const ChildSlot& slot);
+    std::shared_ptr<View> build_view(const ChildSlot& slot);
     Lisple::sptr_rtval init_view(View& view, const Lisple::sptr_rtval& parent_state);
     Lisple::sptr_rtval update_view(View& view, const Lisple::sptr_rtval& parent_state);
     void restore_view_state(View& view, const Lisple::sptr_rtval& parent_state);

@@ -6,7 +6,7 @@
 
 namespace Pixils::Runtime
 {
-  std::vector<Rect> layout_children(const std::vector<View>& children,
+  std::vector<Rect> layout_children(const std::vector<std::shared_ptr<View>>& children,
                                     const Rect& parent,
                                     UI::LayoutDirection direction)
   {
@@ -16,7 +16,7 @@ namespace Pixils::Runtime
     int fill_count = 0;
     for (const auto& child : children)
     {
-      UI::Style cs = UI::resolve_style(child.mode->style, child.state);
+      UI::Style cs = UI::resolve_style(child->mode->style, child->state);
       if (cs.position && *cs.position == UI::PositionMode::ABSOLUTE) continue;
       const auto& size_opt = row ? cs.width : cs.height;
       if (size_opt) total_fixed += *size_opt;
@@ -32,7 +32,7 @@ namespace Pixils::Runtime
     int pos = row ? parent.x : parent.y;
     for (const auto& child : children)
     {
-      UI::Style cs = UI::resolve_style(child.mode->style, child.state);
+      UI::Style cs = UI::resolve_style(child->mode->style, child->state);
       if (cs.position && *cs.position == UI::PositionMode::ABSOLUTE)
       {
         rects.push_back({0, 0, 0, 0});
@@ -98,7 +98,8 @@ namespace Pixils::Runtime
 
       for (size_t i = 0; i < ctx.children.size(); i++)
       {
-        UI::Style cs = UI::resolve_style(ctx.children[i].mode->style, ctx.children[i].state);
+        View& child = *ctx.children[i];
+        UI::Style cs = UI::resolve_style(child.mode->style, child.state);
         Rect abs;
         if (cs.position && *cs.position == UI::PositionMode::ABSOLUTE)
         {
@@ -112,7 +113,7 @@ namespace Pixils::Runtime
         {
           abs = child_rects[i];
         }
-        render_view(session, ctx.children[i], abs);
+        render_view(session, child, abs);
       }
     }
 

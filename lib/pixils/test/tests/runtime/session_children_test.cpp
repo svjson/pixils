@@ -92,7 +92,7 @@ TEST_F(SessionStateTreeTest, push_mode_merges_child_init_state_into_parent_state
   session.push_mode("parent-mode", Lisple::Constant::NIL);
 
   // Then - parent state map has child state at the auto-generated id key
-  auto child_state = Lisple::Dict::get_property(session.active_mode.state,
+  auto child_state = Lisple::Dict::get_property(session.active_mode->state,
                                                 Lisple::RTValue::keyword("child-mode-0"));
   ASSERT_NE(child_state, nullptr);
   auto value = Lisple::Dict::get_property(child_state, Lisple::RTValue::keyword("value"));
@@ -116,7 +116,7 @@ TEST_F(SessionStateTreeTest, child_update_reads_state_from_parent_map)
   session.update_mode();
 
   // Then - child state in parent map is updated
-  auto child_state = Lisple::Dict::get_property(session.active_mode.state,
+  auto child_state = Lisple::Dict::get_property(session.active_mode->state,
                                                 Lisple::RTValue::keyword("child-mode-0"));
   ASSERT_NE(child_state, nullptr);
   auto count = Lisple::Dict::get_property(child_state, Lisple::RTValue::keyword("count"));
@@ -139,7 +139,7 @@ TEST_F(SessionStateTreeTest, pop_mode_restores_parent_with_child_states)
   session.pop_mode();
 
   // Then - active mode is parent-mode with child state intact
-  auto child_state = Lisple::Dict::get_property(session.active_mode.state,
+  auto child_state = Lisple::Dict::get_property(session.active_mode->state,
                                                 Lisple::RTValue::keyword("child-mode-0"));
   ASSERT_NE(child_state, nullptr);
   auto value = Lisple::Dict::get_property(child_state, Lisple::RTValue::keyword("value"));
@@ -159,9 +159,9 @@ TEST_F(SessionStateTreeTest, sibling_children_of_same_mode_get_distinct_state_sl
   session.push_mode("split-mode", Lisple::Constant::NIL);
 
   // Then - both children have separate state entries
-  auto state0 = Lisple::Dict::get_property(session.active_mode.state,
+  auto state0 = Lisple::Dict::get_property(session.active_mode->state,
                                            Lisple::RTValue::keyword("panel-mode-0"));
-  auto state1 = Lisple::Dict::get_property(session.active_mode.state,
+  auto state1 = Lisple::Dict::get_property(session.active_mode->state,
                                            Lisple::RTValue::keyword("panel-mode-1"));
   EXPECT_NE(state0, nullptr);
   EXPECT_NE(state1, nullptr);
@@ -179,7 +179,7 @@ TEST_F(SessionStateTreeTest, explicit_child_id_is_used_as_state_key)
   session.push_mode("root-mode", Lisple::Constant::NIL);
 
   // Then - state key uses the explicit id
-  auto child_state = Lisple::Dict::get_property(session.active_mode.state,
+  auto child_state = Lisple::Dict::get_property(session.active_mode->state,
                                                 Lisple::RTValue::keyword("sidebar"));
   ASSERT_NE(child_state, nullptr);
   auto loaded = Lisple::Dict::get_property(child_state, Lisple::RTValue::keyword("loaded"));

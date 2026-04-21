@@ -198,17 +198,17 @@ namespace Pixils::Runtime
        * saved state) and restore each child's state slice from that
        * parent state.
        */
-      active_mode = std::move(ctx_stack.back());
+      active_mode = ctx_stack.back();
       ctx_stack.pop_back();
 
       auto [_, saved_state] = mode_stack.peek();
-      active_mode.state = saved_state;
-      for (auto& child : active_mode.children)
+      active_mode->state = saved_state;
+      for (auto& child : active_mode->children)
       {
-        restore_view_state(child, active_mode.state);
+        restore_view_state(*child, active_mode->state);
       }
 
-      this->hook_args.update_state(active_mode.state);
+      this->hook_args.update_state(active_mode->state);
     }
   }
 
@@ -222,7 +222,7 @@ namespace Pixils::Runtime
      */
     if (mode_stack.size() > 0)
     {
-      mode_stack.update_state(active_mode.state);
+      mode_stack.update_state(active_mode->state);
       ctx_stack.push_back(std::move(active_mode));
     }
 
@@ -230,36 +230,36 @@ namespace Pixils::Runtime
 
     auto& mode_obj = Lisple::obj<Mode>(*mode);
 
-    active_mode = View{};
-    active_mode.state = state;
+    active_mode = std::make_shared<View>();
+    active_mode->state = state;
 
     bool has_overrides = overrides && overrides->type != Lisple::RTValue::Type::NIL;
 
     if (has_overrides)
     {
-      active_mode.owned_mode = std::make_unique<Mode>(mode_obj);
-      apply_mode_overrides(*active_mode.owned_mode, overrides, lisple_runtime);
-      active_mode.mode = active_mode.owned_mode.get();
+      active_mode->owned_mode = std::make_unique<Mode>(mode_obj);
+      apply_mode_overrides(*active_mode->owned_mode, overrides, lisple_runtime);
+      active_mode->mode = active_mode->owned_mode.get();
     }
     else
     {
-      active_mode.mode = &mode_obj;
+      active_mode->mode = &mode_obj;
     }
 
     /**
      * Resolve hooks in-place. For an owned copy this is safe; for a registry
      * entry it replaces symbols with callables once on first activation.
      */
-    active_mode.mode->init = resolve_hook(lisple_runtime, active_mode.mode->init);
-    active_mode.mode->update = resolve_hook(lisple_runtime, active_mode.mode->update);
-    active_mode.mode->render = resolve_hook(lisple_runtime, active_mode.mode->render);
-    active_mode.mode->on_mouse_down =
-      resolve_hook(lisple_runtime, active_mode.mode->on_mouse_down);
-    active_mode.mode->on_mouse_up =
-      resolve_hook(lisple_runtime, active_mode.mode->on_mouse_up);
+    active_mode->mode->init = resolve_hook(lisple_runtime, active_mode->mode->init);
+    active_mode->mode->update = resolve_hook(lisple_runtime, active_mode->mode->update);
+    active_mode->mode->render = resolve_hook(lisple_runtime, active_mode->mode->render);
+    active_mode->mode->on_mouse_down =
+      resolve_hook(lisple_runtime, active_mode->mode->on_mouse_down);
+    active_mode->mode->on_mouse_up =
+      resolve_hook(lisple_runtime, active_mode->mode->on_mouse_up);
 
-    if (!this->assets.is_loaded(active_mode.mode->name))
-      this->assets.load(active_mode.mode->name, active_mode.mode->resources);
+    if (!this->assets.is_loaded(active_mode->mode->name))
+      this->assets.load(active_mode->mode->name, active_mode->mode->resources);
 
     this->hook_args.update_state(state);
     this->init_mode();
@@ -268,13 +268,13 @@ namespace Pixils::Runtime
      * Build children and initialize each child, threading child states into
      * the parent state map as they complete.
      */
-    auto parent_state = this->active_mode.state;
-    for (const auto& slot : active_mode.mode->children)
+    auto parent_state = this->active_mode->state;
+    for (const auto& slot : active_mode->mode->children)
     {
-      this->active_mode.children.push_back(build_view(slot));
-      parent_state = init_view(this->active_mode.children.back(), parent_state);
+      this->active_mode->children.push_back(build_view(slot));
+      parent_state = init_view(*this->active_mode->children.back(), parent_state);
     }
-    this->active_mode.state = parent_state;
+    this->active_mode->state = parent_state;
     this->hook_args.update_state(parent_state);
   }
 
@@ -297,7 +297,7 @@ namespace Pixils::Runtime
 
       if (type == "push")
       {
-        mode_stack.update_state(active_mode.state);
+        mode_stack.update_state(active_mode->state);
         auto overrides_val =
           Lisple::Dict::get_property(message, Lisple::RTValue::keyword("overrides"));
         push_mode(
@@ -323,10 +323,10 @@ namespace Pixils::Runtime
 
   void Session::init_mode()
   {
-    auto new_state = invoke_hook(this->active_mode.mode->init,
+    auto new_state = invoke_hook(this->active_mode->mode->init,
                                  this->hook_args.init_args,
-                                 this->active_mode.state);
-    this->active_mode.state = new_state;
+                                 this->active_mode->state);
+    this->active_mode->state = new_state;
     this->hook_args.update_state(new_state);
   }
 
@@ -366,7 +366,7 @@ namespace Pixils::Runtime
     for (size_t i = update_stack.size() - 1; i > 0; i--)
     {
       size_t ctx_idx = ctx_stack.size() - i;
-      auto& ctx = ctx_stack[ctx_idx];
+      View& ctx = *ctx_stack[ctx_idx];
 
       Lisple::sptr_rtval_v rargs = this->hook_args.update_args;
       rargs[0] = ctx.state;
@@ -375,15 +375,15 @@ namespace Pixils::Runtime
     }
 
     /** Update the active (top) mode, then thread child updates through the parent state. */
-    Lisple::sptr_rtval updated_state = invoke_hook(this->active_mode.mode->update,
+    Lisple::sptr_rtval updated_state = invoke_hook(this->active_mode->mode->update,
                                                    this->hook_args.update_args,
-                                                   this->active_mode.state);
-    this->active_mode.state = updated_state;
+                                                   this->active_mode->state);
+    this->active_mode->state = updated_state;
 
-    auto parent_state = this->active_mode.state;
-    for (auto& child : this->active_mode.children)
-      parent_state = update_view(child, parent_state);
-    this->active_mode.state = parent_state;
+    auto parent_state = this->active_mode->state;
+    for (auto& child : this->active_mode->children)
+      parent_state = update_view(*child, parent_state);
+    this->active_mode->state = parent_state;
     this->hook_args.update_state(parent_state);
   }
 
@@ -399,47 +399,47 @@ namespace Pixils::Runtime
     for (size_t i = render_stack.size() - 1; i > 0; i--)
     {
       size_t ctx_idx = ctx_stack.size() - i;
-      render_view(*this, ctx_stack[ctx_idx], full);
+      render_view(*this, *ctx_stack[ctx_idx], full);
     }
 
-    render_view(*this, active_mode, full);
+    render_view(*this, *active_mode, full);
   }
 
-  View Session::build_view(const ChildSlot& slot)
+  std::shared_ptr<View> Session::build_view(const ChildSlot& slot)
   {
     auto mode_val =
       Lisple::Dict::get_property(modes, Lisple::RTValue::symbol(slot.mode_name));
     Mode& base_mode = Lisple::obj<Mode>(*mode_val);
 
-    View ctx;
-    ctx.id = slot.id;
-    ctx.state = Lisple::Constant::NIL;
-    ctx.initial_state = slot.initial_state;
+    View v;
+    v.id = slot.id;
+    v.state = Lisple::Constant::NIL;
+    v.initial_state = slot.initial_state;
 
     bool has_overrides =
       slot.overrides && slot.overrides->type != Lisple::RTValue::Type::NIL;
 
     if (has_overrides)
     {
-      ctx.owned_mode = std::make_unique<Mode>(base_mode);
-      apply_mode_overrides(*ctx.owned_mode, slot.overrides, lisple_runtime);
-      ctx.mode = ctx.owned_mode.get();
+      v.owned_mode = std::make_unique<Mode>(base_mode);
+      apply_mode_overrides(*v.owned_mode, slot.overrides, lisple_runtime);
+      v.mode = v.owned_mode.get();
     }
     else
     {
-      ctx.mode = &base_mode;
+      v.mode = &base_mode;
     }
 
-    ctx.mode->init = resolve_hook(lisple_runtime, ctx.mode->init);
-    ctx.mode->update = resolve_hook(lisple_runtime, ctx.mode->update);
-    ctx.mode->render = resolve_hook(lisple_runtime, ctx.mode->render);
-    ctx.mode->on_mouse_down = resolve_hook(lisple_runtime, ctx.mode->on_mouse_down);
-    ctx.mode->on_mouse_up = resolve_hook(lisple_runtime, ctx.mode->on_mouse_up);
+    v.mode->init = resolve_hook(lisple_runtime, v.mode->init);
+    v.mode->update = resolve_hook(lisple_runtime, v.mode->update);
+    v.mode->render = resolve_hook(lisple_runtime, v.mode->render);
+    v.mode->on_mouse_down = resolve_hook(lisple_runtime, v.mode->on_mouse_down);
+    v.mode->on_mouse_up = resolve_hook(lisple_runtime, v.mode->on_mouse_up);
 
-    for (const auto& grandchild_slot : ctx.mode->children)
-      ctx.children.push_back(build_view(grandchild_slot));
+    for (const auto& grandchild_slot : v.mode->children)
+      v.children.push_back(build_view(grandchild_slot));
 
-    return ctx;
+    return std::make_shared<View>(std::move(v));
   }
 
   Lisple::sptr_rtval Session::init_view(View& ctx,
@@ -456,7 +456,7 @@ namespace Pixils::Runtime
     if (new_state->type != Lisple::RTValue::Type::NIL) ctx.state = new_state;
 
     for (auto& grandchild : ctx.children)
-      ctx.state = init_view(grandchild, ctx.state);
+      ctx.state = init_view(*grandchild, ctx.state);
 
     return merge_child_state(parent_state, ctx.id, ctx.state);
   }
@@ -492,7 +492,7 @@ namespace Pixils::Runtime
     ctx.state = invoke_hook(ctx.mode->update, uargs, ctx.state);
 
     for (auto& grandchild : ctx.children)
-      ctx.state = update_view(grandchild, ctx.state);
+      ctx.state = update_view(*grandchild, ctx.state);
 
     /**
      * Fire mouse event handler if a mouse event occurred this frame, the component
@@ -538,7 +538,7 @@ namespace Pixils::Runtime
   {
     ctx.state = extract_child_state(parent_state, ctx.id);
     for (auto& grandchild : ctx.children)
-      restore_view_state(grandchild, ctx.state);
+      restore_view_state(*grandchild, ctx.state);
   }
 
 } // namespace Pixils::Runtime

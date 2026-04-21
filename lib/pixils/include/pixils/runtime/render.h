@@ -22,7 +22,7 @@ namespace Pixils::Runtime
    * children (position == ABSOLUTE) are excluded from flow and returned as zero
    * rects - their placement is handled separately in render_view.
    */
-  std::vector<Rect> layout_children(const std::vector<View>& children,
+  std::vector<Rect> layout_children(const std::vector<std::shared_ptr<View>>& children,
                                     const Rect& parent,
                                     UI::LayoutDirection direction = UI::LayoutDirection::COLUMN);
 
