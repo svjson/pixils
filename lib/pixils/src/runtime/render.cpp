@@ -6,7 +6,7 @@
 
 namespace Pixils::Runtime
 {
-  std::vector<Rect> layout_children(const std::vector<ModeContext>& children,
+  std::vector<Rect> layout_children(const std::vector<View>& children,
                                     const Rect& parent,
                                     UI::LayoutDirection direction)
   {
@@ -50,7 +50,7 @@ namespace Pixils::Runtime
     return rects;
   }
 
-  void render_mode_context(Session& session, ModeContext& ctx, const Rect& bounds)
+  void render_view(Session& session, View& ctx, const Rect& bounds)
   {
     ctx.bounds = bounds;
 
@@ -112,7 +112,7 @@ namespace Pixils::Runtime
         {
           abs = child_rects[i];
         }
-        render_mode_context(session, ctx.children[i], abs);
+        render_view(session, ctx.children[i], abs);
       }
     }
 

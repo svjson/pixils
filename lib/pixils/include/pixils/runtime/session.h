@@ -35,14 +35,14 @@ namespace Pixils::Runtime
   };
 
   /**
-   * Runtime context for a mode. Serves as the live companion for any mode -
+   * Live instance of a mode. Serves as the runtime companion for any mode -
    * whether active at the top of the mode stack, participating in composition
    * below it, or placed as a layout child of another mode. Holds the resolved
    * mode pointer, Lisple state, last-computed layout bounds, and any nested
-   * child contexts. For layout children, `id` is the key under which this
-   * context's state is stored in the parent state map.
+   * child views. For layout children, `id` is the key under which this
+   * view's state is stored in the parent state map.
    */
-  struct ModeContext
+  struct View
   {
     std::string id;
     Mode* mode = nullptr;
@@ -50,13 +50,13 @@ namespace Pixils::Runtime
      * Owns a per-instance copy of the mode when push-time or
      * child-slot overrides are present. `mode` points here instead of
      * into the shared registry. unique_ptr so that the pointer
-     * remains valid when ModeContext is moved.
+     * remains valid when View is moved.
      */
     std::unique_ptr<Mode> owned_mode;
     Lisple::sptr_rtval state = Lisple::Constant::NIL;
     Lisple::sptr_rtval initial_state = Lisple::Constant::NIL;
     Rect bounds = {0, 0, 0, 0};
-    std::vector<ModeContext> children;
+    std::vector<View> children;
   };
 
   struct Session
@@ -66,8 +66,8 @@ namespace Pixils::Runtime
     RenderContext& render_ctx;
     ModeStack mode_stack;
     Lisple::sptr_rtval modes;
-    ModeContext active_mode;
-    std::vector<ModeContext> ctx_stack;
+    View active_mode;
+    std::vector<View> ctx_stack;
     HookArguments hook_args;
     std::optional<MouseEvent> active_mouse_event;
 
@@ -91,12 +91,10 @@ namespace Pixils::Runtime
     void update_mode();
     void render_mode();
 
-    ModeContext build_mode_context(const ChildSlot& slot);
-    Lisple::sptr_rtval init_context(ModeContext& ctx,
-                                    const Lisple::sptr_rtval& parent_state);
-    Lisple::sptr_rtval update_context(ModeContext& ctx,
-                                      const Lisple::sptr_rtval& parent_state);
-    void restore_context_state(ModeContext& ctx, const Lisple::sptr_rtval& parent_state);
+    View build_view(const ChildSlot& slot);
+    Lisple::sptr_rtval init_view(View& view, const Lisple::sptr_rtval& parent_state);
+    Lisple::sptr_rtval update_view(View& view, const Lisple::sptr_rtval& parent_state);
+    void restore_view_state(View& view, const Lisple::sptr_rtval& parent_state);
 
    private:
     void init_mode();

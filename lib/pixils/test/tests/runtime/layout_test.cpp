@@ -8,16 +8,16 @@
 #include <gtest/gtest.h>
 
 using Pixils::Rect;
-using Pixils::Runtime::ModeContext;
+using Pixils::Runtime::View;
 using Pixils::Runtime::Mode;
 using Pixils::UI::LayoutDirection;
 using Pixils::UI::PositionMode;
 using Pixils::UI::Style;
 
-/** Build a ModeContext whose mode has the given style. The Mode is owned by the context. */
-static ModeContext make_ctx(std::optional<Style> style = std::nullopt)
+/** Build a View whose mode has the given style. The Mode is owned by the context. */
+static View make_ctx(std::optional<Style> style = std::nullopt)
 {
-  ModeContext ctx;
+  View ctx;
   ctx.owned_mode = std::make_unique<Mode>();
   ctx.owned_mode->style = std::move(style);
   ctx.mode = ctx.owned_mode.get();
@@ -25,15 +25,15 @@ static ModeContext make_ctx(std::optional<Style> style = std::nullopt)
   return ctx;
 }
 
-/** Build a ModeContext whose mode has a fixed size on one axis. */
-static ModeContext make_fixed_ctx(int height)
+/** Build a View whose mode has a fixed size on one axis. */
+static View make_fixed_ctx(int height)
 {
   Style s;
   s.height = height;
   return make_ctx(std::move(s));
 }
 
-static ModeContext make_fixed_width_ctx(int width)
+static View make_fixed_width_ctx(int width)
 {
   Style s;
   s.width = width;
@@ -43,7 +43,7 @@ static ModeContext make_fixed_width_ctx(int width)
 TEST(LayoutTest, layout_single_fill_child_takes_full_height)
 {
   // Given
-  std::vector<ModeContext> children;
+  std::vector<View> children;
   children.push_back(make_ctx());
   Rect parent = {0, 0, 320, 200};
 
@@ -59,7 +59,7 @@ TEST(LayoutTest, layout_single_fill_child_takes_full_height)
 TEST(LayoutTest, layout_fixed_then_fill_child_splits_height_correctly)
 {
   // Given
-  std::vector<ModeContext> children;
+  std::vector<View> children;
   children.push_back(make_fixed_ctx(40));
   children.push_back(make_ctx());
   Rect parent = {0, 0, 320, 200};
@@ -78,7 +78,7 @@ TEST(LayoutTest, layout_fixed_then_fill_child_splits_height_correctly)
 TEST(LayoutTest, layout_two_fill_children_split_height_evenly)
 {
   // Given
-  std::vector<ModeContext> children;
+  std::vector<View> children;
   children.push_back(make_ctx());
   children.push_back(make_ctx());
   Rect parent = {0, 0, 320, 200};
@@ -97,7 +97,7 @@ TEST(LayoutTest, layout_two_fill_children_split_height_evenly)
 TEST(LayoutTest, layout_children_always_inherit_full_parent_width)
 {
   // Given
-  std::vector<ModeContext> children;
+  std::vector<View> children;
   children.push_back(make_fixed_ctx(30));
   children.push_back(make_ctx());
   Rect parent = {0, 0, 320, 200};
@@ -116,7 +116,7 @@ TEST(LayoutTest, layout_children_always_inherit_full_parent_width)
 TEST(LayoutTest, layout_children_respect_parent_origin)
 {
   // Given
-  std::vector<ModeContext> children;
+  std::vector<View> children;
   children.push_back(make_ctx());
   Rect parent = {10, 20, 100, 80};
 
@@ -134,7 +134,7 @@ TEST(LayoutTest, layout_children_respect_parent_origin)
 TEST(LayoutTest, layout_row_direction_fixed_then_fill_splits_width)
 {
   // Given
-  std::vector<ModeContext> children;
+  std::vector<View> children;
   children.push_back(make_fixed_width_ctx(80));
   children.push_back(make_ctx());
   Rect parent = {0, 0, 320, 200};
@@ -158,7 +158,7 @@ TEST(LayoutTest, layout_absolute_children_excluded_from_flow)
   abs_style.width = 50;
   abs_style.height = 30;
 
-  std::vector<ModeContext> children;
+  std::vector<View> children;
   children.push_back(make_ctx(std::move(abs_style)));
   children.push_back(make_ctx());
   Rect parent = {0, 0, 320, 200};

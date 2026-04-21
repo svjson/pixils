@@ -42,7 +42,7 @@ namespace Pixils::Runtime
    * A slot in a layout tree: which mode to place there and how to identify it.
    * Sizing, positioning and per-instance hook/style overrides are carried in
    * `overrides` as a raw Lisple map; they are applied at build time in
-   * build_mode_context via apply_mode_overrides.
+   * build_view via apply_mode_overrides.
    * `id` is a sibling-unique key used to store this child's state in the parent
    * state map. Auto-generated as `mode-name-N` if not set explicitly.
    */

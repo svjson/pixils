@@ -205,7 +205,7 @@ namespace Pixils::Runtime
       active_mode.state = saved_state;
       for (auto& child : active_mode.children)
       {
-        restore_context_state(child, active_mode.state);
+        restore_view_state(child, active_mode.state);
       }
 
       this->hook_args.update_state(active_mode.state);
@@ -230,7 +230,7 @@ namespace Pixils::Runtime
 
     auto& mode_obj = Lisple::obj<Mode>(*mode);
 
-    active_mode = ModeContext{};
+    active_mode = View{};
     active_mode.state = state;
 
     bool has_overrides = overrides && overrides->type != Lisple::RTValue::Type::NIL;
@@ -271,8 +271,8 @@ namespace Pixils::Runtime
     auto parent_state = this->active_mode.state;
     for (const auto& slot : active_mode.mode->children)
     {
-      this->active_mode.children.push_back(build_mode_context(slot));
-      parent_state = init_context(this->active_mode.children.back(), parent_state);
+      this->active_mode.children.push_back(build_view(slot));
+      parent_state = init_view(this->active_mode.children.back(), parent_state);
     }
     this->active_mode.state = parent_state;
     this->hook_args.update_state(parent_state);
@@ -334,7 +334,7 @@ namespace Pixils::Runtime
   {
     /**
      * Snapshot any mouse button event from this frame into active_mouse_event so
-     * update_context can route it through the component tree. The event lives for
+     * update_view can route it through the component tree. The event lives for
      * exactly one call to update_mode and is cleared regardless of propagation outcome.
      */
     if (hook_args.events && hook_args.events->mouse_button_down &&
@@ -382,7 +382,7 @@ namespace Pixils::Runtime
 
     auto parent_state = this->active_mode.state;
     for (auto& child : this->active_mode.children)
-      parent_state = update_context(child, parent_state);
+      parent_state = update_view(child, parent_state);
     this->active_mode.state = parent_state;
     this->hook_args.update_state(parent_state);
   }
@@ -399,19 +399,19 @@ namespace Pixils::Runtime
     for (size_t i = render_stack.size() - 1; i > 0; i--)
     {
       size_t ctx_idx = ctx_stack.size() - i;
-      render_mode_context(*this, ctx_stack[ctx_idx], full);
+      render_view(*this, ctx_stack[ctx_idx], full);
     }
 
-    render_mode_context(*this, active_mode, full);
+    render_view(*this, active_mode, full);
   }
 
-  ModeContext Session::build_mode_context(const ChildSlot& slot)
+  View Session::build_view(const ChildSlot& slot)
   {
     auto mode_val =
       Lisple::Dict::get_property(modes, Lisple::RTValue::symbol(slot.mode_name));
     Mode& base_mode = Lisple::obj<Mode>(*mode_val);
 
-    ModeContext ctx;
+    View ctx;
     ctx.id = slot.id;
     ctx.state = Lisple::Constant::NIL;
     ctx.initial_state = slot.initial_state;
@@ -437,12 +437,12 @@ namespace Pixils::Runtime
     ctx.mode->on_mouse_up = resolve_hook(lisple_runtime, ctx.mode->on_mouse_up);
 
     for (const auto& grandchild_slot : ctx.mode->children)
-      ctx.children.push_back(build_mode_context(grandchild_slot));
+      ctx.children.push_back(build_view(grandchild_slot));
 
     return ctx;
   }
 
-  Lisple::sptr_rtval Session::init_context(ModeContext& ctx,
+  Lisple::sptr_rtval Session::init_view(View& ctx,
                                            const Lisple::sptr_rtval& parent_state)
   {
     if (!this->assets.is_loaded(ctx.mode->name))
@@ -456,12 +456,12 @@ namespace Pixils::Runtime
     if (new_state->type != Lisple::RTValue::Type::NIL) ctx.state = new_state;
 
     for (auto& grandchild : ctx.children)
-      ctx.state = init_context(grandchild, ctx.state);
+      ctx.state = init_view(grandchild, ctx.state);
 
     return merge_child_state(parent_state, ctx.id, ctx.state);
   }
 
-  Lisple::sptr_rtval Session::update_context(ModeContext& ctx,
+  Lisple::sptr_rtval Session::update_view(View& ctx,
                                              const Lisple::sptr_rtval& parent_state)
   {
     ctx.state = extract_child_state(parent_state, ctx.id);
@@ -492,7 +492,7 @@ namespace Pixils::Runtime
     ctx.state = invoke_hook(ctx.mode->update, uargs, ctx.state);
 
     for (auto& grandchild : ctx.children)
-      ctx.state = update_context(grandchild, ctx.state);
+      ctx.state = update_view(grandchild, ctx.state);
 
     /**
      * Fire mouse event handler if a mouse event occurred this frame, the component
@@ -533,12 +533,12 @@ namespace Pixils::Runtime
     return merge_child_state(parent_state, ctx.id, ctx.state);
   }
 
-  void Session::restore_context_state(ModeContext& ctx,
+  void Session::restore_view_state(View& ctx,
                                       const Lisple::sptr_rtval& parent_state)
   {
     ctx.state = extract_child_state(parent_state, ctx.id);
     for (auto& grandchild : ctx.children)
-      restore_context_state(grandchild, ctx.state);
+      restore_view_state(grandchild, ctx.state);
   }
 
 } // namespace Pixils::Runtime
