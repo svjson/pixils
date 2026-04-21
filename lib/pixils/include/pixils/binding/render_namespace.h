@@ -34,7 +34,7 @@ namespace Pixils::Script
     /*! @brief draw-polygon! function */
     FUNC(DrawPolygonBang, polygon, polygon_with_opts);
     /*! @brief draw-rect! function */
-    FUNC(DrawRectBang, draw_rect_from_points);
+    FUNC(DrawRectBang, draw_rect, draw_rect_from_points);
     /*! @brief text! function */
     FUNC(RenderTextBang, text_no_opts, text);
     /*! @brief text-size function */

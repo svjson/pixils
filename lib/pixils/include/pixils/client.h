@@ -3,13 +3,13 @@
 #define __PIXILS__CLIENT_H_
 
 #include "pixils/console.h"
-#include <pixils/asset/registry.h>
-#include <pixils/font_registry.h>
 #include <pixils/frame_events.h>
 #include <pixils/hook_context.h>
+#include <pixils/runtime/session.h>
 
 #include <lisple/runtime/value.h>
 #include <stddef.h>
+#include <string>
 
 namespace Lisple
 {
@@ -36,14 +36,10 @@ namespace Pixils
   {
     Lisple::Runtime& lisple;
     RenderContext& ctx;
-    Asset::Registry assets;
-    FontRegistry font_registry;
     FrameEvents events;
     HookContext hook_ctx;
     Runtime::Session session;
     Program* program;
-
-    Asset::Bundle client_bundle;
 
     std::unique_ptr<ConsoleOverlay> console = nullptr;
 

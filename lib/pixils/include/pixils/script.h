@@ -2,6 +2,7 @@
 #define __PIXILS__SCRIPT_H_
 
 #include <lisple/runtime.h>
+#include <memory>
 #include <vector>
 
 namespace Pixils
@@ -12,6 +13,7 @@ namespace Pixils
   {
     std::vector<std::unique_ptr<Lisple::Namespace>> native_namespaces;
     std::vector<std::string> load_path;
+    std::string asset_base_path = ".";
   };
 
   /**

@@ -3,6 +3,7 @@
 #define __PIXILS__GEOM_H_
 
 #include <SDL2/SDL_pixels.h>
+#include <SDL2/SDL_rect.h>
 #include <ostream>
 
 namespace Pixils
@@ -121,6 +122,9 @@ namespace Pixils
      * as Point.
      */
     Point top_left() const;
+    Point bottom_right() const;
+
+    SDL_Rect to_SDL_rect() const;
 
     bool operator==(const Rect& other) const;
     bool operator!=(const Rect& other) const;

@@ -165,6 +165,11 @@ namespace Pixils
     return Point(x, y);
   }
 
+  Point Rect::bottom_right() const
+  {
+    return Point(x + w, y + h);
+  }
+
   bool Rect::contains(const Point& coord) const
   {
     return contains(coord.x, coord.y);
@@ -199,6 +204,11 @@ namespace Pixils
             rect.y + y_amount,
             rect.w - 2 * x_amount,
             rect.h - 2 * y_amount};
+  }
+
+  SDL_Rect Rect::to_SDL_rect() const
+  {
+    return {this->x, this->y, this->w, this->h};
   }
 
   /* Dimension */

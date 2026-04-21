@@ -6,11 +6,13 @@
 #include <SDL2/SDL_image.h>
 #include <SDL2/SDL_render.h>
 #include <SDL2/SDL_rwops.h>
+#include <filesystem>
 
 namespace Pixils::Asset
 {
-  Loader::Loader(RenderContext& ctx)
+  Loader::Loader(RenderContext& ctx, std::string base_path)
     : ctx(ctx)
+    , base_path(std::move(base_path))
   {
   }
 
@@ -20,8 +22,12 @@ namespace Pixils::Asset
 
     for (auto& img_dep : deps.images)
     {
+      std::string resolved = img_dep.file_name;
+      if (!base_path.empty() && !std::filesystem::path(resolved).is_absolute())
+        resolved = base_path + "/" + resolved;
+
       SDL_Texture* texture = nullptr;
-      SDL_Surface* img_surface = IMG_Load(img_dep.file_name.c_str());
+      SDL_Surface* img_surface = IMG_Load(resolved.c_str());
       if (img_surface)
       {
         texture = SDL_CreateTextureFromSurface(ctx.renderer, img_surface);

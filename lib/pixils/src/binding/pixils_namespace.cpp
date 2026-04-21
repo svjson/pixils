@@ -1,20 +1,25 @@
 
-#include "pixils/binding/color_namespace.h"
-#include "pixils/binding/resource_namespace.h"
-#include "pixils/binding/style_namespace.h"
-#include "pixils/display.h"
-#include "pixils/runtime/mode.h"
-#include <pixils/binding/pixils_namespace.h>
+#include "pixils/binding/pixils_namespace.h"
+
+#include <pixils/asset/registry.h>
+#include <pixils/binding/color_namespace.h>
+#include <pixils/binding/resource_namespace.h>
+#include <pixils/binding/style_namespace.h>
 #include <pixils/context.h>
+#include <pixils/display.h>
+#include <pixils/font_registry.h>
 #include <pixils/frame_events.h>
+#include <pixils/runtime/mode.h>
 
 #include <SDL2/SDL_render.h>
 #include <iostream>
+#include <lisple/exception.h>
 #include <lisple/exec.h>
 #include <lisple/form.h>
 #include <lisple/host.h>
 #include <lisple/host/accessor.h>
 #include <lisple/host/schema.h>
+#include <lisple/runtime/dict.h>
 #include <lisple/runtime/exec_node.h>
 #include <lisple/runtime/lower.h>
 #include <lisple/runtime/seq.h>
@@ -62,6 +67,111 @@ namespace Pixils::Script
 
   namespace Macro
   {
+    SPECIAL_FORM_IMPL(
+      DefFontForm,
+      SIG((FN_ARGS((&Lisple::Type::WORD, &Lisple::Eval::LITERAL), (&Lisple::Type::MAP)),
+           EXEC_DISPATCH(&DefFontForm::inv_def_font, &DefFontForm::execnode_def_font))));
+
+    SFORM_LOWER_IMPL(DefFontForm)
+    {
+      static Lisple::MapSchema font_map_schema({},
+                                               {{"type", &Lisple::Type::KEY},
+                                                {"resource", &Lisple::Type::KEY},
+                                                {"spacing", &Lisple::Type::NUMBER},
+                                                {"glyphs", &Lisple::Type::MAP}});
+
+      std::string font_name =
+        Lisple::exec(*ctx.ctx, *lower_literal(ast_node->get_children()[1]))->str();
+      if (font_name.find('/') == std::string::npos)
+      {
+        font_name = "font/" + font_name;
+      }
+      std::map<char32_t, SDL_Rect> glyph_map;
+      auto font_def_map =
+        Lisple::exec(*ctx.ctx, *lower_expr(ctx, ast_node->get_children()[2]));
+
+      auto opts = font_map_schema.bind(*ctx.ctx, *font_def_map);
+      auto type = opts.str("type", "bitmap");
+      if (type != "bitmap")
+      {
+        throw new Lisple::InvocationException("Invalid font type: " + type);
+      }
+      auto resource_key = opts.val("resource");
+      if (resource_key->type != Lisple::RTValue::Type::KEYWORD)
+      {
+        throw Lisple::TypeError("Invalid resource key: " + resource_key->to_string());
+      }
+      int spacing = opts.i32("spacing", 1);
+
+      auto glyphs = opts.val("glyphs");
+      if (glyphs->type == Lisple::RTValue::Type::MAP)
+      {
+
+        for (auto& ch : Lisple::Dict::keys(*glyphs))
+        {
+          char32_t glyph_char;
+          switch (ch->type)
+          {
+          case Lisple::RTValue::Type::CHAR:
+            glyph_char = ch->ch();
+            break;
+          case Lisple::RTValue::Type::STRING:
+          case Lisple::RTValue::Type::KEYWORD:
+          case Lisple::RTValue::Type::SYMBOL:
+          {
+            std::string ch_val = ch->str();
+            if (ch_val.size() != 1)
+            {
+              throw new Lisple::TypeError("Invalid font glyph: " + ch->to_string());
+            }
+            glyph_char = ch_val.at(0);
+            break;
+          }
+
+          default:
+            throw new Lisple::TypeError("Invalid font glyph: " + ch->to_string());
+          }
+
+          auto rect_val = Lisple::Dict::get_property(glyphs, ch);
+          auto glyphc = HostType::RECT.coerce(*ctx.ctx, rect_val);
+
+          if (!glyphc.success)
+          {
+            throw new Lisple::TypeError("Invalid source rect for glyph " + ch->to_string() +
+                                        ": " + rect_val->to_string());
+          }
+
+          glyph_map.emplace(
+            glyph_char,
+            glyphc.result->adapter<RectAdapter>().get_object().to_SDL_rect());
+        }
+      }
+
+      RenderContext& rc =
+        Lisple::obj<RenderContext>(*ctx.ctx->lookup_value(ID__PIXILS__RENDER_CONTEXT));
+
+      auto [bundle_key, image_key] = resource_key->qual();
+
+      SDL_Texture* resource_texture = rc.asset_registry->get_image(bundle_key, image_key);
+
+      rc.font_registry->register_font(font_name,
+                                      resource_texture,
+                                      Text::FontMap(glyph_map),
+                                      spacing);
+
+      return std::make_unique<Lisple::ExecNode>(Lisple::Constant::NIL);
+    }
+
+    MACRO_BODY(DefFontForm, inv_def_font)
+    {
+      throw Lisple::LispleException("Invalid invocation");
+    }
+
+    EXECNODE_BODY(DefFontForm, execnode_def_font)
+    {
+      throw Lisple::LispleException("Invalid invocation");
+    }
+
     /* DefProgramForm - defprogram */
     SPECIAL_FORM_IMPL(DefProgramForm,
                       SIG((FN_ARGS((&Lisple::Type::WORD, &Lisple::Eval::LITERAL),
@@ -138,16 +248,18 @@ namespace Pixils::Script
 
       Lisple::Dict::set_property(modes, name_expr, mode_coercion.result);
 
+      RenderContext& rc =
+        Lisple::obj<RenderContext>(*ctx.ctx->lookup_value(ID__PIXILS__RENDER_CONTEXT));
+      rc.asset_registry->declare_bundle(
+        name_expr->str(),
+        Lisple::obj<Runtime::Mode>(*mode_coercion.result).resources);
+
       return std::make_unique<Lisple::ExecNode>(Lisple::Constant::NIL);
     }
 
     MACRO_BODY(DefModeForm, inv_declare_mode)
     {
-      std::cout << "THIS SHOULD NEVER BE INVOKED" << std::endl;
-      Lisple::Map& modes = ctx.lookup(ID__PIXILS__MODES)->as<Lisple::Map>();
-      args.back()->as<ModeAdapter>().get_object().name = args.front()->to_string();
-      modes.set_property(args.front(), args.back());
-      return Lisple::NIL;
+      throw Lisple::InvocationException("Invalid invocation of defmode");
     }
 
     EXECNODE_BODY(DefModeForm, execnode_declare_mode)
@@ -211,9 +323,9 @@ namespace Pixils::Script
       auto children_val = opts.val("children");
       if (children_val->type != Lisple::RTValue::Type::NIL)
       {
-        static Lisple::MapSchema child_schema({{"mode", &Lisple::Type::SYMBOL}},
-                                              {{"id", &Lisple::Type::ANY},
-                                               {"state", &Lisple::Type::ANY}});
+        static Lisple::MapSchema child_schema(
+          {{"mode", &Lisple::Type::SYMBOL}},
+          {{"id", &Lisple::Type::ANY}, {"state", &Lisple::Type::ANY}});
         std::unordered_map<std::string, int> mode_name_counts;
 
         size_t n = Lisple::count(*children_val);
@@ -354,6 +466,14 @@ namespace Pixils::Script
       }
       else if (Lisple::Type::MAP.is_type_of(*args[0]))
       {
+        auto scale_val =
+          Lisple::Dict::get_property(args[0], Lisple::RTValue::keyword("scale"));
+        if (scale_val && scale_val->type == Lisple::RTValue::Type::NUMBER)
+        {
+          int ps = scale_val->num().get_int();
+          return ResolutionAdapter::make_unique(Resolution::Mode::AUTO, ps);
+        }
+
         Lisple::CoercionResult<Lisple::RTValue> cresult =
           HostType::DIMENSION.coerce(ctx, args[0]);
         if (cresult.success)
@@ -365,6 +485,24 @@ namespace Pixils::Script
 
       throw Lisple::TypeError("Could not construct Resolution from: " +
                               args[0]->to_string());
+    }
+
+    FUNC_IMPL(MakeRect,
+              SIG((FN_ARGS((&Lisple::Type::MAP)), EXEC_DISPATCH(&MakeRect::exec_make))))
+
+    EXEC_BODY(MakeRect, exec_make)
+    {
+      static Lisple::MapSchema rect_schema({{"x", &Lisple::Type::NUMBER},
+                                            {"y", &Lisple::Type::NUMBER},
+                                            {"w", &Lisple::Type::NUMBER},
+                                            {"h", &Lisple::Type::NUMBER}});
+
+      auto opts = rect_schema.bind(ctx, *args[0]);
+
+      return RectAdapter::make_unique(opts.i32("x"),
+                                      opts.i32("y"),
+                                      opts.i32("w"),
+                                      opts.i32("h"));
     }
 
     /* PushModeBangFunction - push-mode! */
@@ -582,11 +720,13 @@ namespace Pixils::Script
     values.emplace("modes", Lisple::RTValue::map({}));
     values.emplace("defmode", Macro::DefModeForm::make());
     values.emplace("defcomponent", Macro::DefModeForm::make());
+    values.emplace("deffont", Macro::DefFontForm::make());
     values.emplace("defprogram", Macro::DefProgramForm::make());
     values.emplace("make-dimension", Function::MakeDimension::make());
     values.emplace("make-display", Function::MakeDisplay::make());
     values.emplace("make-mode", Function::MakeMode::make());
     values.emplace("make-mode-composition", Function::MakeModeComposition::make());
+    values.emplace("make-rect", Function::MakeRect::make());
     values.emplace("make-resolution", Function::MakeResolution::make());
     values.emplace("render-context", RenderContextAdapter::make_ref(render_context));
     values.emplace("programs", Lisple::RTValue::map({}));

@@ -19,10 +19,13 @@ namespace Pixils
 
     Mode mode;
     Dimension dimension;
+    /** Pixel scale for AUTO mode: buffer = window / pixel_scale. 1 = 1:1. */
+    int pixel_scale = 1;
 
     Resolution(const Resolution& other);
     Resolution(Mode mode);
     Resolution(Mode mode, const Dimension& dimension);
+    Resolution(Mode mode, int pixel_scale);
 
     void operator=(const Resolution& other);
   };

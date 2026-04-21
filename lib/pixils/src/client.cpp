@@ -1,6 +1,8 @@
 
 #include "pixils/console.h"
+#include <pixils/asset/registry.h>
 #include <pixils/binding/pixils_namespace.h>
+#include <pixils/font_registry.h>
 #include <pixils/client.h>
 #include <pixils/context.h>
 #include <pixils/frame_events.h>
@@ -32,14 +34,12 @@ namespace Pixils
   Client::Client(Lisple::Runtime& lisple_runtime, RenderContext& ctx, bool init_mode)
     : lisple(lisple_runtime)
     , ctx(ctx)
-    , assets(ctx)
     , hook_ctx{&this->events, &this->ctx}
     , session(lisple_runtime,
-              assets,
+              *ctx.asset_registry,
               ctx,
               {Pixils::Script::HookContextAdapter::make_ref(this->hook_ctx)})
   {
-    ctx.asset_registry = &assets;
     session.hook_args.events = &this->events;
     init_console();
 
@@ -104,8 +104,7 @@ namespace Pixils
 
     SDL_Texture* console_font_texture = ctx.asset_registry->get_image("pixils", "console-font");
 
-    ctx.font_registry = &font_registry;
-    font_registry.register_font("font/console", console_font_texture, console_font_map);
+    ctx.font_registry->register_font("font/console", console_font_texture, console_font_map);
 
     this->console = std::make_unique<ConsoleOverlay>(ctx, lisple, console_font_texture);
   }

@@ -49,7 +49,7 @@ namespace Pixils
   Color ERROR_COLOR = Color{0xf6, 0x40, 0x23};
   TextLine EMPTY_LINE = TextLine{{}};
 
-  ConsoleOverlay::ConsoleOverlay(RenderContext rc,
+  ConsoleOverlay::ConsoleOverlay(RenderContext& rc,
                                  Lisple::Runtime& runtime,
                                  SDL_Texture* font_map_texture)
     : rc(rc)

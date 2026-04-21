@@ -6,8 +6,10 @@ namespace Pixils
   Resolution::Resolution(const Resolution& other)
     : mode(other.mode)
     , dimension(other.dimension)
+    , pixel_scale(other.pixel_scale)
   {
   }
+
   Resolution::Resolution(Mode mode)
     : mode(mode)
     , dimension({0, 0})
@@ -20,10 +22,18 @@ namespace Pixils
   {
   }
 
+  Resolution::Resolution(Mode mode, int pixel_scale)
+    : mode(mode)
+    , dimension({0, 0})
+    , pixel_scale(pixel_scale)
+  {
+  }
+
   void Resolution::operator=(const Resolution& other)
   {
     this->mode = other.mode;
     this->dimension = other.dimension;
+    this->pixel_scale = other.pixel_scale;
   }
 
   Display::Display(const Resolution& resolution,

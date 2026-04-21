@@ -6,8 +6,8 @@
 
 namespace Pixils::Asset
 {
-  Registry::Registry(RenderContext& ctx)
-    : loader(ctx)
+  Registry::Registry(RenderContext& ctx, std::string base_path)
+    : loader(ctx, std::move(base_path))
   {
   }
 
@@ -26,6 +26,12 @@ namespace Pixils::Asset
     return this->bundles.count(bundle_id);
   }
 
+  void Registry::declare_bundle(const std::string& bundle_id,
+                                const Runtime::ResourceDependencies& deps)
+  {
+    this->declarations.emplace(bundle_id, deps);
+  }
+
   void Registry::load(const std::string& bundle_id,
                       const Runtime::ResourceDependencies& deps)
   {
@@ -36,7 +42,12 @@ namespace Pixils::Asset
 
   SDL_Texture* Registry::get_image(const std::string& bundle_id, const std::string& asset_id)
   {
-    if (!this->is_loaded(bundle_id)) return nullptr;
+    if (!this->is_loaded(bundle_id))
+    {
+      auto it = this->declarations.find(bundle_id);
+      if (it == this->declarations.end()) return nullptr;
+      this->load(bundle_id, it->second);
+    }
 
     Bundle& bundle = this->bundles.at(bundle_id);
 

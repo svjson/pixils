@@ -29,9 +29,12 @@ namespace Pixils
       display_mode.h = 600;
     }
 
-    SDL_Window* window =
-        SDL_CreateWindow(window_name.c_str(), SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
-                         display_mode.w, display_mode.h, SDL_WINDOW_FULLSCREEN_DESKTOP);
+    SDL_Window* window = SDL_CreateWindow(window_name.c_str(),
+                                          SDL_WINDOWPOS_CENTERED,
+                                          SDL_WINDOWPOS_CENTERED,
+                                          display_mode.w,
+                                          display_mode.h,
+                                          SDL_WINDOW_FULLSCREEN_DESKTOP);
 
     SDL_ShowCursor(SDL_DISABLE);
 

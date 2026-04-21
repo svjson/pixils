@@ -31,6 +31,7 @@ namespace Pixils::Script
   inline const std::string FN__PIXILS__MAKE_MODE_COMPOSITION =
     "pixils/make-mode-composition";
   inline const std::string FN__PIXILS__MAKE_DIMENSION = "pixils/make-dimension";
+  inline const std::string FN__PIXILS__MAKE_RECT = "pixils/make-rect";
   inline const std::string FN__MAKE_DISPLAY = "display";
   inline const std::string FN__MAKE_RESOLUTION = "pixils/make-resolution";
   inline const std::string FN__POP_MODE_BANG = "pop-mode!";
@@ -64,13 +65,15 @@ namespace Pixils::Script
     HOST_TYPE(MODE, "HMode", FN__PIXILS__MAKE_MODE)
     HOST_TYPE(MODE_COMPOSITION, "HModeComposition", FN__PIXILS__MAKE_MODE_COMPOSITION)
     HOST_TYPE(PROGRAM, "HProgram")
-    HOST_TYPE(RECT, "HRect");
+    HOST_TYPE(RECT, "HRect", FN__PIXILS__MAKE_RECT);
     HOST_TYPE(RENDER_CONTEXT, "HRenderContext")
     HOST_TYPE(RESOLUTION, "HResolution", FN__MAKE_RESOLUTION)
   } // namespace HostType
 
   namespace Macro
   {
+    /*! @brief Define a custom font */
+    SPECIAL_FORM_DECL(DefFontForm, def_font);
     /*! @brief Define a program/application */
     SPECIAL_FORM_DECL(DefProgramForm, def_program);
     /*! @brief Define a game/application mode */
@@ -87,6 +90,8 @@ namespace Pixils::Script
     FUNC(MakeDimension, make);
     /*! @brief Lisple make-function for Display/DisplayAdapter */
     FUNC(MakeDisplay, make);
+    /*! @brief Lisple make-function for Rect/RectAdapter */
+    FUNC(MakeRect, make);
     /*! @brief Push active mode */
     FUNC(PushModeBangFunction, push_mode);
     /*! @brief Pop active mode */

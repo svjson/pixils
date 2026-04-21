@@ -9,6 +9,7 @@
 #include <pixils/context.h>
 #include <pixils/font_registry.h>
 
+#include <SDL2/SDL_blendmode.h>
 #include <SDL2/SDL_render.h>
 #include <lisple/host/schema.h>
 #include <lisple/namespace.h>
@@ -173,23 +174,27 @@ namespace Pixils::Script
     }
 
     /* DrawRectBang - rect! */
-    FUNC_IMPL(DrawRectBang,
-              SIG((FN_ARGS((&HostType::POINT), (&HostType::POINT), (&Lisple::Type::MAP)),
-                   EXEC_DISPATCH(&DrawRectBang::exec_draw_rect_from_points))));
+    FUNC_IMPL(
+      DrawRectBang,
+      MULTI_SIG((FN_ARGS((&HostType::RECT), (&Lisple::Type::MAP)),
+                 EXEC_DISPATCH(&DrawRectBang::exec_draw_rect)),
+                (FN_ARGS((&HostType::POINT), (&HostType::POINT), (&Lisple::Type::MAP)),
+                 EXEC_DISPATCH(&DrawRectBang::exec_draw_rect_from_points))));
 
-    EXEC_BODY(DrawRectBang, exec_draw_rect_from_points)
+    EXEC_BODY(DrawRectBang, exec_draw_rect)
     {
       RenderContext& rc =
         Lisple::obj<RenderContext>(*ctx.lookup_value(ID__PIXILS__RENDER_CONTEXT));
 
-      const Point& top_left = Lisple::obj<Point>(*args[0]);
-      const Point& bottom_right = Lisple::obj<Point>(*args[1]);
+      const Rect& hrect = Lisple::obj<Rect>(*args[0]);
+      const Point top_left = hrect.top_left();
+      const Point bottom_right = hrect.bottom_right();
 
       static Lisple::MapSchema opts_schema(
         {},
         {{"color", &HostType::COLOR}, {"fill", &Lisple::Type::BOOL}});
 
-      auto opts = opts_schema.bind(ctx, *args[2]);
+      auto opts = opts_schema.bind(ctx, *args[1]);
 
       auto color_opt = opts.val("color");
       auto fill_opt = opts.val("fill");
@@ -235,6 +240,21 @@ namespace Pixils::Script
       }
 
       return Lisple::Constant::NIL;
+    }
+
+    EXEC_BODY(DrawRectBang, exec_draw_rect_from_points)
+    {
+      const Point& top_left = Lisple::obj<Point>(*args[0]);
+      const Point& bottom_right = Lisple::obj<Point>(*args[1]);
+
+      Lisple::sptr_rtval_v n_args{
+        RectAdapter::make_unique(Rect{static_cast<int>(top_left.x),
+                                      static_cast<int>(top_left.y),
+                                      static_cast<int>(bottom_right.x - top_left.x),
+                                      static_cast<int>(bottom_right.y - top_left.y)}),
+        args[2]};
+
+      return exec_draw_rect(ctx, n_args);
     }
 
     /* RenderTextBang - text! */

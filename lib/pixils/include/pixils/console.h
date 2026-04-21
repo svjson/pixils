@@ -70,7 +70,7 @@ namespace Pixils
     };
 
    private:
-    RenderContext rc;
+    RenderContext& rc;
     /*!
      * @brief The on-screen(or rendering buffer) coordinate and dimension
      * where this component will be rendered
@@ -107,7 +107,7 @@ namespace Pixils
     std::string input;
 
    public:
-    ConsoleOverlay(RenderContext rc, Lisple::Runtime& runtime, SDL_Texture* textures);
+    ConsoleOverlay(RenderContext& rc, Lisple::Runtime& runtime, SDL_Texture* textures);
 
     /*!
      * @brief Must be called once every frame to forward the swipe in or out

@@ -4,6 +4,8 @@
 
 #include "geom.h"
 
+#include <memory>
+
 typedef struct SDL_Window SDL_Window;
 typedef struct SDL_Renderer SDL_Renderer;
 typedef struct SDL_Texture SDL_Texture;
@@ -57,8 +59,14 @@ namespace Pixils
      */
     int tile_size = 16;
 
-    Asset::Registry* asset_registry = nullptr;
-    FontRegistry* font_registry = nullptr;
+    std::unique_ptr<Asset::Registry> asset_registry;
+    std::unique_ptr<FontRegistry> font_registry;
+
+    RenderContext();
+    RenderContext(SDL_Window* window, SDL_Renderer* renderer);
+    ~RenderContext();
+    RenderContext(RenderContext&&) noexcept;
+    RenderContext& operator=(RenderContext&&) noexcept;
 
     Dimension get_window_dimension();
 

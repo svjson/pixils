@@ -40,12 +40,15 @@ int main(int argc, char** argv)
 
   try
   {
-    Pixils::RenderContext ctx = *opt_ctx;
+    Pixils::RenderContext ctx = std::move(*opt_ctx);
 
     Lisple::Runtime runtime = Pixils::init_lisple_runtime(
       ctx,
       "main",
-      [&script_dir](Pixils::RuntimeConfiguration* cfg) { cfg->load_path = {script_dir}; },
+      [&script_dir](Pixils::RuntimeConfiguration* cfg) {
+        cfg->load_path = {script_dir};
+        cfg->asset_base_path = script_dir;
+      },
       {script_file});
 
     Pixils::Client client(runtime, ctx);

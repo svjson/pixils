@@ -1,11 +1,13 @@
 
 #include "pixils/binding/style_namespace.h"
+#include <pixils/asset/registry.h>
 #include <pixils/binding/color_namespace.h>
 #include <pixils/binding/pixils_namespace.h>
 #include <pixils/binding/point_namespace.h>
 #include <pixils/binding/render_namespace.h>
 #include <pixils/binding/resource_namespace.h>
 #include <pixils/binding/ui_namespace.h>
+#include <pixils/font_registry.h>
 #include <pixils/script.h>
 
 #include <lisple/dir_root_file_system.h>
@@ -39,6 +41,9 @@ namespace Pixils
     {
       init_fn(&rtconfig);
     }
+
+    ctx.asset_registry = std::make_unique<Asset::Registry>(ctx, rtconfig.asset_base_path);
+    ctx.font_registry  = std::make_unique<FontRegistry>();
 
     std::unique_ptr<Lisple::DirRootFileSystem> fs =
       std::make_unique<Lisple::DirRootFileSystem>(rtconfig.load_path);

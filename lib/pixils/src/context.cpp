@@ -1,6 +1,8 @@
 
+#include <pixils/asset/registry.h>
 #include <pixils/context.h>
 #include <pixils/display.h>
+#include <pixils/font_registry.h>
 #include <pixils/geom.h>
 
 #include <SDL2/SDL_blendmode.h>
@@ -11,6 +13,17 @@
 
 namespace Pixils
 {
+  RenderContext::RenderContext() = default;
+
+  RenderContext::RenderContext(SDL_Window* window, SDL_Renderer* renderer)
+    : window(window), renderer(renderer)
+  {
+  }
+
+  RenderContext::~RenderContext() = default;
+  RenderContext::RenderContext(RenderContext&&) noexcept = default;
+  RenderContext& RenderContext::operator=(RenderContext&&) noexcept = default;
+
   Dimension RenderContext::get_window_dimension()
   {
     int w, h;
@@ -33,7 +46,8 @@ namespace Pixils
   {
     if (display.resolution.mode == Resolution::Mode::AUTO)
     {
-      display.resolution.dimension = {window_rect.w, window_rect.h};
+      int ps = display.resolution.pixel_scale;
+      display.resolution.dimension = {window_rect.w / ps, window_rect.h / ps};
     }
 
     Dimension& target_buffer_dim = display.resolution.dimension;
@@ -86,8 +100,10 @@ namespace Pixils
       target.w = window_rect.w;
       target.h = window_rect.h;
     }
-    else if (display.scaling == Display::Scaling::FIT)
+    else if (display.scaling == Display::Scaling::FIT ||
+             display.resolution.pixel_scale > 1)
     {
+      /** For pixel-scaled auto resolution, FIT recovers exactly pixel_scale. */
       int scale = std::min(window_rect.w / target.w, window_rect.h / target.h);
       target.w *= scale;
       target.h *= scale;

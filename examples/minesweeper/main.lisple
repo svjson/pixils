@@ -6,8 +6,45 @@
 
 
 (defprogram minesweeper
-  {:display {:resolution :auto}
+  {:display {:resolution {:scale 3}}
    :initial-mode 'window-mode})
+
+
+;; Game logic
+
+(def directions [{:x 0 :y -1}
+                 {:x 1 :y -1}
+                 {:x 1 :y 0}
+                 {:x 1 :y 1}
+                 {:x 0 :y 1}
+                 {:x -1 :y 1}
+                 {:x -1 :y 0}
+                 {:x -1 :y -1}])
+
+(defun generate-mine-field [w h mines]
+  (let [grid (dotimes [n h] (repeat w nil))
+        m-rem mines]
+    (while (> m-rem 0)
+      (let [mine-x (rnd 0 w)
+            mine-y (rnd 0 h)]
+        (set! [grid]
+              (assoc grid mine-y
+                     (assoc (nth grid mine-y) mine-x :mine))))
+      (set! [m-rem] (- m-rem 1)))
+    (for-indexed [y row grid]
+                 (for-indexed [x cell row]
+                              (if (= cell :mine)
+                                :mine
+                                (reduce directions 0 (fn [num dir]
+                                                       (let [pos (pt/+ {:x x :y y} dir)
+                                                             adj (-> grid
+                                                                     (nth (:y pos))
+                                                                     (nth (:x pos)))]
+                                                         (if (= :mine adj)
+                                                           (+ 1 num)
+                                                           num)))))))))
+
+
 
 
 ;; Menu item component
@@ -35,9 +72,9 @@
    :render (fn [state ctx]
              (r/text! (:text state)
                       {:x 0 :y 0}
-                      {:scale 3
+                      {:scale 1
                        :color {:r 0 :g 0 :b 255}
-                       :shadow {:offset {:x 3 :y 3}
+                       :shadow {:offset {:x 1 :y 1}
                                 :color {:r 0 :g 0 :b 0}}}))})
 
 
@@ -51,8 +88,8 @@
                  {:title "View" :items [{:title "Game board"}
                                         {:title "Highscores"}]}
                  {:title "Help" :items [{:title "About"}]}])
-(def menu-item-w 128)
-(def menu-item-h 32)
+(def menu-item-w 32)
+(def menu-item-h 9)
 
 (defun make-menu-item [item bounds]
   {:mode 'menu-item
@@ -84,8 +121,35 @@
     (pop-mode!))
   state)
 
+
+;; Win 3.11 UI drawing routines
+
+(def win-white {:r 255 :g 255 :b 255})
+(def win-panel-face {:r 0xc0 :g 0xc7 :b 0xc8})
+(def win-panel-shadow {:r 0x87 :g 0x88 :b 0x8f})
 
 
+(defun draw-bevel! [rect {:keys [thickness invert]}]
+  (let [thickness (or thickness 1)
+        tl-color (if invert win-panel-shadow win-white)
+        br-color (if invert win-white win-panel-shadow)]
+    (dotimes [n thickness]
+      (r/line! (pt/+ {:x (:x rect) :y (:y rect)} {:x 0 :y n})
+               {:x (+ (:x rect) (- (:w rect) (+ 1 n))) :y (+ (:y rect) n)}
+               tl-color))
+    (dotimes [n thickness]
+      (r/line! (pt/+ {:x (:x rect) :y (:y rect)} {:x n :y 0})
+               {:x (+ (:x rect) n) :y (+ (:y rect) (- (:h rect) (+ 1 n)))}
+               tl-color))
+    (dotimes [n thickness]
+      (r/line! (pt/+ {:x (+ 1 (:x rect) (- thickness n)) :y (- (+ (:y rect) (:h rect)) thickness)} {:x 0 :y n})
+               {:x (- (+ (:x rect) (:w rect)) 1) :y (- (+ n (:y rect) (:h rect)) thickness)}
+               br-color))
+    (dotimes [n thickness]
+      (r/line! (pt/+ {:x (- (+ (:x rect) (:w rect)) thickness) :y (+ 1 (:y rect) (- thickness n))}
+                     {:x n :y 0})
+               {:x (- (+ n (:x rect) (:w rect)) thickness) :y (- (+ (:y rect) (:h rect)) thickness)}
+               br-color))))
 
 
 
@@ -93,45 +157,94 @@
 ;; Mine layer mode
 
 (def grid-dim {:w 8 :h 8})
-(def tile-size (* 16 3))
+(def tile-size 16)
 
 (defmode mine-layer-mode
-  {:render 'pixils.examples.minesweeper/mine-layer-render!})
+  {:render 'pixils.examples.minesweeper/mine-layer-render!
+   :resources {:images {:mine "assets/mine.png"
+                        :num-1 "assets/num1.png"
+                        :num-2 "assets/num2.png"
+                        :num-3 "assets/num3.png"
+                        :num-4 "assets/num4.png"
+                        :num-5 "assets/num5.png"}}})
 
 (defun mine-layer-render! [state ctx]
   (let [dim (:buffer-size ctx)]
-    (r/rect! {:x 0 :y 0}
-             {:x (* tile-size (:w grid-dim)) :y (* tile-size (:h grid-dim))}
-             {:fill true
-              :color {:r 100 :g 100 :b 100}})
+    (dotimes [y (+ 1 (:h grid-dim))]
+      (r/line! {:x 0 :y (* y (+ 1 tile-size))}
+               {:x (* (:w grid-dim) (+ 1 tile-size)) :y (* y (+ 1 tile-size))}
+               win-panel-shadow))
+    (dotimes [x (+ 1 (:w grid-dim))]
+      (r/line! {:x (* x (+ 1 tile-size)) :y 0}
+               {:x (* x (+ 1 tile-size)) :y (* (:h grid-dim) (+ 1 tile-size))}
+               win-panel-shadow))
     (dotimes [y (:h grid-dim)]
-      (r/line! {:x 0 :y (* y tile-size)}
-               {:x (* (:w grid-dim) tile-size) :y (* y tile-size)}
-               {:r 0 :g 0 :b 0}))
-    (dotimes [x (:w grid-dim)]
-      (r/line! {:x (* x tile-size) :y 0}
-               {:x (* x tile-size) :y (* (:h grid-dim) tile-size)}
-               {:r 0 :g 0 :b 0}))))
+      (dotimes [x (:w grid-dim)]
+        (let [cell (-> state :board (nth y) (nth x))
+              pos {:x (+ 1 (* x (+ 1 tile-size)))
+                   :y (+ 1 (* y (+ 1 tile-size)))}]
+          (cond
+            (= :mine cell)
+            (r/image! :mine-layer-mode/mine {:pos pos})
+
+            (and (number? cell) (> cell 0))
+            (r/image! (keyword (str "mine-layer-mode/num-" cell)) {:pos pos})))))))
+
 
 
+;; Status panel
 
+(defcomponent status-panel {:style {:height 30}
+                            :resources {:images {:counter-font-map "assets/score_numbers.png"}}
+                            :render (fn [state ctx]
+                                      (r/text! "01234" {:x 0 :y 0}
+                                               {:font :font/counter-font}))})
+
+(deffont counter-font {:type :bitmap
+                       :spacing 0
+                       :resource :status-panel/counter-font-map
+                       :glyphs (reduce "0123456789"
+                                       {}
+                                       (fn [glyphs num]
+                                         (let [index (int (str num))]
+                                           (merge glyphs
+                                                  {num {:x (* index 13)
+                                                        :y 0
+                                                        :w 13
+                                                        :h 23}}))))})
+
+
+
+;; Game Layout mode
+
+(defmode game-layout-mode
+  {:render (fn [state ctx]
+             (let [dim (:buffer-size ctx)]
+               (r/rect! {:x 0 :y 0 :w (:w dim) :h (:h dim)} {:fill true :color win-panel-face})
+               (draw-bevel! (merge dim {:x 0 :y 0}) {:thickness 3})
+               (draw-bevel! {:x 9 :y 9 :w (- (:w dim) 18) :h 33} {:thickness 2 :invert true})
+               (draw-bevel! {:x 9 :y 47 :w (- (:w dim) 18) :h (- (:h dim) 56)} {:thickness 3 :invert true})))
+   :children [{:mode 'status-panel}
+              {:mode 'board-mode
+               :style {:padding [20 12]}}]})
+
+
+
 ;; Board mode
+
 (defmode board-mode
-  {:render 'pixils.examples.minesweeper/board-render!
+  {:init (fn [state ctx]
+           (let [board (generate-mine-field 8 8 8)]
+             {:board board }))
+   :render 'pixils.examples.minesweeper/board-render!
    :children [{:mode 'mine-layer-mode
-               :style {:position :absolute
-                       :top 200
-                       :left 200}}]})
-
-(defun board-render! [state ctx]
-  (let [dim (:buffer-size ctx)]
-    (r/rect! {:x 0 :y 0} {:x (:w dim) :y (:h dim)} {:fill true :color {:r 50 :g 0 :b 200}})))
-
-
+               :state (let [board (generate-mine-field 8 8 8)]
+                        {:board board })}]
+   })
 
 
 
 
 (defmode window-mode
-  {:children [{:mode 'menu-bar-mode :style {:height 32}}
-              {:mode 'board-mode}]})
+  {:children [{:mode 'menu-bar-mode :style {:height 13}}
+              {:mode 'game-layout-mode}]})
