@@ -733,7 +733,7 @@ namespace Pixils::Script
   {
     const Runtime::View& v = object->get_object();
     if (!v.mode || !v.mode->style.has_value()) return Lisple::Constant::NIL;
-    return StyleAdapter::make_unique(*v.mode->style);
+    return StyleAdapter::make_ref(*v.mode->style);
   }
 
   /* RenderContextAdapter */

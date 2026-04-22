@@ -194,14 +194,11 @@
 
 ;; Board buttons
 (defcomponent board-button-row {:style {:direction :row}
-                                :children [{:mode 'button :style {:width 17 :height 17}}
-                                           {:mode 'button :style {:width 17 :height 17}}
-                                           {:mode 'button :style {:width 17 :height 17}}
-                                           {:mode 'button :style {:width 17 :height 17}}
-                                           {:mode 'button :style {:width 17 :height 17}}
-                                           {:mode 'button :style {:width 17 :height 17}}
-                                           {:mode 'button :style {:width 17 :height 17}}
-                                           {:mode 'button :style {:width 17 :height 17}}]})
+                                :children (dotimes [n 8]
+                                            {:mode 'button
+                                             :style {:width 17 :height 17}
+                                             :on-click (fn [state e ctx]
+                                                         (assoc-in! ctx [:view :style :hidden] true))})})
 
 (defcomponent board-buttons {:children [{:mode 'board-button-row :style {:height 17}}
                                         {:mode 'board-button-row :style {:height 17}}
@@ -222,6 +219,8 @@
                                                    (-> view :interaction :hovered))
                                       offset (if pressed 1 0)]
                                   (r/rect! {:x offset :y offset :w bw :h bh} {:fill true :color win-panel-face})
+                                  (when (:image state)
+                                    (r/image! (:image state) {:pos {:x (+ 2 offset) :y (+ 2 offset)}}))
                                   (draw-bevel! {:x offset :y offset :w bw :h bh } {:thickness 2 :invert pressed})))})
 
 
@@ -246,13 +245,15 @@
 ;; Status panel
 
 (defcomponent status-panel {:style {:height 50 :padding 13 :direction :row}
-                            :resources {:images {:counter-font-map "assets/score_numbers.png"}}
+                            :resources {:images {:counter-font-map "assets/score_numbers.png"
+                                                 :face-normal "assets/face1.png"}}
                             :children [{:mode 'counter
                                         :state {:value 0}}
                                        {:mode 'button
-                                        :style {:width 20
-                                                :height 20}
-                                        :state {:label "Hehu"}}
+                                        :style {:width 24
+                                                :height 24}
+                                        :state {:label "Hehu"
+                                                :image :status-panel/face-normal}}
                                        {:mode 'counter
                                         :state {:value 1}}]})
 

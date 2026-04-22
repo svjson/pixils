@@ -3,6 +3,7 @@
 
 #include "pixils/runtime/session.h"
 #include "pixils/ui/event.h"
+#include <pixils/ui/style.h>
 #include <pixils/hook_context.h>
 #include <pixils/binding/point_namespace.h>
 #include <pixils/binding/ui_namespace.h>
@@ -62,6 +63,8 @@ namespace Pixils::Runtime
                                     std::vector<std::shared_ptr<View>>& chain)
   {
     if (view->bounds.w == 0) return false;
+    auto style = UI::resolve_style(view->mode->style, view->state);
+    if (style.hidden && *style.hidden) return false;
     bool hit = mx >= view->bounds.x && mx < view->bounds.x + view->bounds.w &&
                my >= view->bounds.y && my < view->bounds.y + view->bounds.h;
     if (!hit) return false;

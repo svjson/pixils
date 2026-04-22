@@ -85,6 +85,9 @@ namespace Pixils::UI
     /** Direction this mode uses to lay out its children. Absent defaults to COLUMN. */
     std::optional<LayoutDirection> direction;
 
+    /** When true, excluded from hit-testing and rendering. Layout space is preserved. */
+    std::optional<bool> hidden;
+
     /** Hover variant - merged on top of base style when :hovered is true in state. */
     std::unique_ptr<Style> hover = nullptr;
   };

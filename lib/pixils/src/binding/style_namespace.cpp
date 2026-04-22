@@ -22,17 +22,17 @@ namespace Pixils::Script
 
     EXEC_BODY(MakeStyle, exec_make)
     {
-      static Lisple::MapSchema style_schema(
-        {},
-        {{"background", &HostType::STYLE_BACKGROUND},
-         {"padding", &HostType::STYLE_PADDING},
-         {"width", &Lisple::Type::NUMBER},
-         {"height", &Lisple::Type::NUMBER},
-         {"position", &Lisple::Type::KEY},
-         {"top", &Lisple::Type::NUMBER},
-         {"left", &Lisple::Type::NUMBER},
-         {"direction", &Lisple::Type::KEY},
-         {"hover", &HostType::STYLE}});
+      static Lisple::MapSchema style_schema({},
+                                            {{"background", &HostType::STYLE_BACKGROUND},
+                                             {"padding", &HostType::STYLE_PADDING},
+                                             {"width", &Lisple::Type::NUMBER},
+                                             {"height", &Lisple::Type::NUMBER},
+                                             {"position", &Lisple::Type::KEY},
+                                             {"top", &Lisple::Type::NUMBER},
+                                             {"left", &Lisple::Type::NUMBER},
+                                             {"direction", &Lisple::Type::KEY},
+                                             {"hidden", &Lisple::Type::ANY},
+                                             {"hover", &HostType::STYLE}});
 
       auto style = std::make_unique<UI::Style>();
       auto opts = style_schema.bind(ctx, *args[0]);
@@ -48,16 +48,30 @@ namespace Pixils::Script
       if (opts.contains("position"))
       {
         auto pos_str = opts.str("position");
-        if (pos_str == "absolute") style->position = UI::PositionMode::ABSOLUTE;
-        else style->position = UI::PositionMode::FLOW;
+        if (pos_str == "absolute")
+        {
+          style->position = UI::PositionMode::ABSOLUTE;
+        }
+        else
+        {
+          style->position = UI::PositionMode::FLOW;
+        }
       }
 
       if (opts.contains("direction"))
       {
         auto dir_str = opts.str("direction");
-        if (dir_str == "row") style->direction = UI::LayoutDirection::ROW;
-        else style->direction = UI::LayoutDirection::COLUMN;
+        if (dir_str == "row")
+        {
+          style->direction = UI::LayoutDirection::ROW;
+        }
+        else
+        {
+          style->direction = UI::LayoutDirection::COLUMN;
+        }
       }
+
+      if (opts.contains("hidden")) style->hidden = Lisple::is_truthy(*opts.val("hidden"));
 
       auto hover_style = opts.optional_obj<UI::Style>("hover");
       if (hover_style) style->hover = std::make_unique<UI::Style>(*hover_style);
@@ -192,6 +206,7 @@ namespace Pixils::Script
                       (top),
                       (left),
                       (direction),
+                      (rw, "hidden", hidden),
                       (hover))
 
   NOBJ_PROP_GET(StyleAdapter, background)
@@ -248,6 +263,25 @@ namespace Pixils::Script
     if (!get_self_object().direction) return Lisple::Constant::NIL;
     return Lisple::RTValue::keyword(
       *get_self_object().direction == UI::LayoutDirection::ROW ? "row" : "column");
+  }
+
+  NOBJ_PROP_GET(StyleAdapter, hidden)
+  {
+    auto& h = get_self_object().hidden;
+    if (!h) return Lisple::Constant::NIL;
+    return *h ? Lisple::Constant::BOOL_TRUE : Lisple::Constant::BOOL_FALSE;
+  }
+
+  NOBJ_PROP_SET(StyleAdapter, hidden)
+  {
+    if (value->type != Lisple::RTValue::Type::BOOL)
+    {
+      get_self_object().hidden.reset();
+    }
+    else
+    {
+      get_self_object().hidden = Lisple::is_truthy(*value);
+    }
   }
 
   NOBJ_PROP_GET(StyleAdapter, hover)

@@ -39,9 +39,11 @@ namespace Pixils::Script
 
   } // namespace Function
 
-  NATIVE_ADAPTER(StyleAdapter,
-                 UI::Style,
-                 (background, padding, width, height, position, top, left, direction, hover));
+  NATIVE_ADAPTER(
+    StyleAdapter,
+    UI::Style,
+    (background, padding, width, height, position, top, left, direction, hidden, hover),
+    (hidden));
   NATIVE_ADAPTER(BackgroundAdapter, UI::Style::Background, (color, image));
   NATIVE_ADAPTER(PaddingAdapter, UI::Style::Padding, (t, r, b, l));
 

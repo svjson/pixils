@@ -228,6 +228,7 @@ namespace Pixils::Runtime
     active_mode->mode->init = resolve_hook(lisple_runtime, active_mode->mode->init);
     active_mode->mode->update = resolve_hook(lisple_runtime, active_mode->mode->update);
     active_mode->mode->render = resolve_hook(lisple_runtime, active_mode->mode->render);
+    active_mode->mode->on_click = resolve_hook(lisple_runtime, active_mode->mode->on_click);
     active_mode->mode->on_mouse_down =
       resolve_hook(lisple_runtime, active_mode->mode->on_mouse_down);
     active_mode->mode->on_mouse_up =

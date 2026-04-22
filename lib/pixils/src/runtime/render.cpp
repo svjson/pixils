@@ -56,6 +56,9 @@ namespace Pixils::Runtime
     View& ctx = *view_ptr;
     ctx.bounds = bounds;
 
+    UI::Style style_res = UI::resolve_style(ctx.mode->style, ctx.state);
+    if (style_res.hidden && *style_res.hidden) return;
+
     /**
      * Reset the viewport before any drawing so background coordinates are always
      * in absolute render-target space. Without this, child 0 enters with the
@@ -64,8 +67,6 @@ namespace Pixils::Runtime
      * resets to null at its end - child 0 never got that prior reset.
      */
     SDL_RenderSetViewport(session.render_ctx.renderer, nullptr);
-
-    UI::Style style_res = UI::resolve_style(ctx.mode->style, ctx.state);
 
     /** Draw background fill using absolute bounds, now that viewport is null. */
     if (style_res.background && style_res.background->color)
