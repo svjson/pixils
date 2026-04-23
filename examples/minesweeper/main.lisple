@@ -45,7 +45,102 @@
                                                            (+ 1 num)
                                                            num)))))))))
 
+(defun new-game-state [w h mines]
+  {:settings {:w w
+              :h h
+              :mines mines}
+   :board (generate-mine-field w h mines)
+   :board-mask (dotimes [y h]
+                 (dotimes [x w]
+                   {:revealed? false
+                    :flagged? false}))
+   :start-time (epoch-ms)
+   :counters {:mines-left mines
+              :timer 0}})
 
+(defun in-bounds? [board y x]
+  (and (<= 0 y)
+       (< y (count board))
+       (<= 0 x)
+       (< x (count (head board)))))
+
+(defun cell-at [board y x]
+  (get-in board [y x]))
+
+(defun neighbors [board y x]
+  (filter
+   (fn [[dy dx]] (in-bounds? board dy dx))
+   (for [d directions]
+     [(+ y (:y d)) (+ x (:x d))])))
+
+(defun reveal-cell [state y x]
+  (assoc-in state [:board-mask y x :revealed?] true))
+
+(defun revealed? [state y x]
+  (get-in state [:board-mask y x :revealed?]))
+
+(defun flagged? [state y x]
+  (get-in state [:board-mask y x :flagged?]))
+
+(defun reveal-board-region [state stack visited]
+  (if (empty? stack)
+    state
+    (let [[y x] (head stack)
+          rest-stack (tail stack)]
+      (cond
+        (contains? visited [y x])
+        (reveal-board-region state rest-stack visited)
+
+        :else
+        (do
+          (append! visited [y x])
+          (let [board (:board state)
+                value (cell-at board y x)
+                nbrs  (neighbors board y x)
+                state (reduce nbrs
+                              (reveal-cell state y x)
+                              (fn [s [ny nx]]
+                                (if (and (not= (cell-at board ny nx) :mine)
+                                         (not (flagged? state ny nx)))
+                                  (reveal-cell s ny nx)
+                                  s)))]
+            (reveal-board-region state
+                                 (reduce nbrs rest-stack
+                                         (fn [new-stack [ny nx]]
+                                           (if (and (= 0 (cell-at board ny nx))
+                                                    (not (flagged? state ny nx))
+                                                    (not (contains? visited [ny nx])))
+                                             (append! new-stack [ny nx])
+                                             new-stack)))
+                                 visited)))))))
+
+(defun reveal-board-cell [state start-y start-x]
+  (let [board (:board state)
+        start-value (cell-at board start-y start-x)]
+    (cond
+      ;; A mine means game over
+      (= :mine start-value)
+      (-> state
+          (assoc :game-over? true)
+          (assoc :board-mask (for [row (:board-mask state)]
+                               (for [cell row]
+                                 {:revealed? true})))
+          (assoc-in [:board-mask start-y start-x :exploded?] true))
+
+      ;; ignore already revealed / flagged cells
+      (revealed? state start-y start-x) state
+      (flagged? state start-y start-x) state
+
+      ;; if clicked a number > 0, reveal only that cell
+      (and (number? start-value) (> start-value 0))
+      (reveal-cell state start-y start-x)
+
+      ;; if clicked a zero, flood-fill zero area and reveal bordering numbers
+      (= start-value 0)
+      (reveal-board-region state [[start-y start-x]] [])
+
+      :else
+      state)))
 
 
 ;; Menu item component
@@ -163,6 +258,7 @@
 (defmode mine-layer-mode
   {:render 'pixils.examples.minesweeper/mine-layer-render!
    :resources {:images {:mine "assets/mine.png"
+                        :flag "assets/flag.png"
                         :num-1 "assets/num1.png"
                         :num-2 "assets/num2.png"
                         :num-3 "assets/num3.png"
@@ -186,7 +282,10 @@
                    :y (+ 1 (* y (+ 1 tile-size)))}]
           (cond
             (= :mine cell)
-            (r/image! :mine-layer-mode/mine {:pos pos})
+            (do
+              (when (-> state :board-mask (nth y) (nth x) :exploded?)
+                (r/rect! (merge pos {:w 16 :h 16}) {:fill true :color {:r 255 :g 0 :b 0}}))
+              (r/image! :mine-layer-mode/mine {:pos pos}))
 
             (and (number? cell) (> cell 0))
             (r/image! (keyword (str "mine-layer-mode/num-" cell)) {:pos pos})))))))
@@ -195,20 +294,22 @@
 
 ;; Board buttons
 
-(defcomponent board-button-row {:style {:direction :row}
-                                :children (dotimes [n 8]
-                                            {:mode 'button
-                                             :style {:width 17 :height 17}
-                                             :state {:x n :y (ui/bind-state :y) :mask (ui/bind-state :mask-row n)}
-                                             :update (fn [state ctx]
-                                                       (when (:revealed? (:mask state))
-                                                         (prn state))
-                                                       state)
-                                             :on-click (fn [state e ctx]
-                                                         (prn state)
-                                                         (ui/emit! (:view ctx) :cell/click state)
-                                        ;(assoc-in! ctx [:view :style :hidden] true)
-                                                         state)})})
+(defcomponent board-button-row
+  {:style {:direction :row}
+   :children (dotimes [n 8]
+               {:mode 'button
+                :style {:width 17 :height 17}
+                :state {:x n :y (ui/bind-state :y) :mask (ui/bind-state :mask-row n)}
+                :update (fn [state ctx]
+                          (assoc-in! ctx [:view :style :hidden] (:revealed? (:mask state)))
+                          (assoc state :image (when (-> state :mask :flagged?)
+                                                :mine-layer-mode/flag)))
+                :on-click (fn [state e ctx]
+                            (case (:button e)
+                              :left (when (not (:flagged? (:mask state)))
+                                      (ui/emit! (:view ctx) :cell/click state))
+                              :right (ui/emit! (:view ctx) :cell/toggle-flag state))
+                            state)})})
 
 (defcomponent board-buttons {:children (dotimes [n 8]
                                          {:mode 'board-button-row
@@ -260,7 +361,9 @@
                                         :style {:width 24
                                                 :height 24}
                                         :state {:label "Hehu"
-                                                :image :status-panel/face-normal}}
+                                                :image :status-panel/face-normal}
+                                        :on-click (fn [state event ctx]
+                                                    (ui/emit! (:view ctx) :game/new-game))}
                                        {:mode 'counter
                                         :state {:value (ui/bind-state :counters :timer)}}]})
 
@@ -284,16 +387,8 @@
 (defmode game-layout-mode
   {:init (fn [state ctx]
            (merge state
-                  {:board (generate-mine-field 8 8 8)
-                   :board-mask (dotimes [y 8]
-                                 (dotimes [x 8]
-                                   {:revealed? false
-                                    :flagged? false}))
-                   :start-time (epoch-ms)
-                   :counters {:mines-left 8
-                              :timer 0}}))
+                  (new-game-state 8 8 8)))
    :update (fn [state ctx]
-             (prn state)
              (assoc-in state [:counters :timer] (min 999 (int (/ (- (epoch-ms) (:start-time state)) 1000)))))
    :render (fn [state ctx]
              (let [dim (:buffer-size ctx)]
@@ -308,7 +403,20 @@
                        :board-mask (ui/bind-state :board-mask)}
                :style {:padding [0 12]}}]
    :on {:cell/click (fn [state payload ctx]
-                      (assoc-in state [:board-mask (:y payload) (:x payload)] {:revealed? true}))}})
+                      (reveal-board-cell state (:y payload) (:x payload)))
+        :cell/toggle-flag (fn [state payload ctx]
+                            (let [flag-state (get-in state [:board-mask (:y payload) (:x payload) :flagged?])
+                                  new-state (assoc-in state [:board-mask (:y payload) (:x payload) :flagged?]
+                                                      (not flag-state))]
+                              (assoc-in new-state [:counters :mines-left]
+                                        (max 0 (- (-> state :settings :mines)
+                                                  (reduce (:board-mask new-state)
+                                                          0
+                                                          (fn [num row]
+                                                            (+ num
+                                                               (count (filter row (fn [cell] (:flagged? cell))))))))))))
+        :game/new-game (fn [state payload ctx]
+                         (new-game-state 8 8 8))}})
 
 
 
@@ -316,7 +424,8 @@
 
 (defmode board-mode
   {:children [{:mode 'mine-layer-mode
-               :state {:board (ui/bind-state :board)}}
+               :state {:board (ui/bind-state :board)
+                       :board-mask (ui/bind-state :board-mask)}}
               {:mode 'board-buttons
                :state {:board-mask (ui/bind-state :board-mask)}
                :style {:position :absolute
