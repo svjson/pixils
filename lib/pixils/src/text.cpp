@@ -129,17 +129,15 @@ namespace Pixils
 
       for (size_t i = 0; i < string.size(); i++)
       {
-        char c = string.at(i);
+        char32_t c = string.at(i);
         if (c != '@' && !font_map.has_char(c)) c = ' ';
-
-        if (c != '@')
+        if (c != '@' && font_map.has_char(c))
         {
           const SDL_Rect& char_rect = *font_map.get_char_rect(c);
           rect.w += char_rect.w + spacing;
           rect.h = std::max(rect.h, char_rect.h);
         }
       }
-
       rect.w *= scale;
       rect.h *= scale;
 
