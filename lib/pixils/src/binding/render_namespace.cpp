@@ -344,9 +344,13 @@ namespace Pixils::Script
       Text::Renderer& renderer = font->renderer;
 
       if (auto sv = opts.val("scale"); sv && sv->type != Lisple::RTValue::Type::NIL)
+      {
         renderer.set_scale(sv->num().get_int());
+      }
       else
+      {
         renderer.set_scale(1);
+      }
 
       SDL_Color color = {0xff, 0xff, 0xff, 0xff};
       if (auto cv = opts.val("color"); cv && cv->type != Lisple::RTValue::Type::NIL)

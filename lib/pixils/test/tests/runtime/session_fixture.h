@@ -9,6 +9,7 @@
 #include <pixils/frame_events.h>
 #include <pixils/hook_context.h>
 #include <pixils/runtime/session.h>
+#include <pixils/runtime/view.h>
 #include <pixils/script.h>
 
 #include <gtest/gtest.h>

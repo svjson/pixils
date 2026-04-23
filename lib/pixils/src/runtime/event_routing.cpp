@@ -3,12 +3,14 @@
 
 #include "pixils/runtime/session.h"
 #include "pixils/ui/event.h"
-#include <pixils/ui/style.h>
-#include <pixils/hook_context.h>
 #include <pixils/binding/point_namespace.h>
 #include <pixils/binding/ui_namespace.h>
 #include <pixils/frame_events.h>
 #include <pixils/geom.h>
+#include <pixils/hook_context.h>
+#include <pixils/runtime/state.h>
+#include <pixils/runtime/view.h>
+#include <pixils/ui/style.h>
 
 #include <lisple/context.h>
 #include <lisple/host/object.h>
@@ -16,34 +18,6 @@
 #include <lisple/runtime/dict.h>
 #include <lisple/runtime/seq.h>
 #include <lisple/runtime/value.h>
-
-namespace
-{
-  Lisple::sptr_rtval extract_child_state(const Lisple::sptr_rtval& parent,
-                                         const std::string& id)
-  {
-    if (!parent || parent->type == Lisple::RTValue::Type::NIL) return Lisple::Constant::NIL;
-    auto val = Lisple::Dict::get_property(parent, Lisple::RTValue::keyword(id));
-    return val ? val : Lisple::Constant::NIL;
-  }
-
-  Lisple::sptr_rtval merge_child_state(Lisple::sptr_rtval parent,
-                                       const std::string& id,
-                                       Lisple::sptr_rtval child_state)
-  {
-    auto key = Lisple::RTValue::keyword(id);
-    if (!parent || parent->type == Lisple::RTValue::Type::NIL)
-      parent = Lisple::RTValue::map({});
-    Lisple::Dict::set_property(parent, key, child_state);
-    return parent;
-  }
-
-  Pixils::Point local_pos(const Pixils::Point& global, const Pixils::Rect& bounds)
-  {
-    return {global.x - static_cast<float>(bounds.x),
-            global.y - static_cast<float>(bounds.y)};
-  }
-} // namespace
 
 namespace Pixils::Runtime
 {
@@ -90,12 +64,18 @@ namespace Pixils::Runtime
     int mx = mouse_pos.round_x();
     int my = mouse_pos.round_y();
 
-    view.interaction.hovered =
-      view.bounds.w > 0 && mx >= view.bounds.x && mx < view.bounds.x + view.bounds.w &&
-      my >= view.bounds.y && my < view.bounds.y + view.bounds.h;
+    view.interaction.hovered = view.bounds.w > 0 && mx >= view.bounds.x &&
+                               mx < view.bounds.x + view.bounds.w && my >= view.bounds.y &&
+                               my < view.bounds.y + view.bounds.h;
 
     auto pressed_view = mouse.primary_pressed();
     view.interaction.pressed = pressed_view && pressed_view.get() == &view;
+  }
+
+  static Pixils::Point local_pos(const Pixils::Point& global, const Pixils::Rect& bounds)
+  {
+    return {global.x - static_cast<float>(bounds.x),
+            global.y - static_cast<float>(bounds.y)};
   }
 
   void EventRouter::handle_mouse_up(FrameEvents& events,
@@ -145,7 +125,7 @@ namespace Pixils::Runtime
       auto child = mouse.hovered_chain[i].lock();
       auto parent = mouse.hovered_chain[i + 1].lock();
       if (!child || !parent) break;
-      parent->state = merge_child_state(parent->state, child->id, child->state);
+      parent->state = merge_state(parent->state, *child, child->state);
     }
   }
 
@@ -187,7 +167,7 @@ namespace Pixils::Runtime
       {
         auto& child = hit_chain[i];
         auto& parent = hit_chain[i + 1];
-        parent->state = merge_child_state(parent->state, child->id, child->state);
+        parent->state = merge_state(parent->state, *child, child->state);
       }
       break;
     }
@@ -204,7 +184,7 @@ namespace Pixils::Runtime
                                                  Lisple::Runtime& rt)
   {
     View& view = *view_ptr;
-    view.state = extract_child_state(parent_state, view.id);
+    view.state = extract_state(parent_state, view);
     update_interaction(view, mouse_pos);
 
     Lisple::obj<HookContext>(*hook_args.update_args[1]).current_view = view_ptr;
@@ -214,7 +194,7 @@ namespace Pixils::Runtime
     for (auto& child : view.children)
       view.state = traverse_child(child, view.state, mouse_pos, hook_args, rt);
 
-    return merge_child_state(parent_state, view.id, view.state);
+    return merge_state(parent_state, view, view.state);
   }
 
   void EventRouter::traverse(std::shared_ptr<View> root,
@@ -261,7 +241,7 @@ namespace Pixils::Runtime
             auto child = mouse.hovered_chain[i].lock();
             auto parent = mouse.hovered_chain[i + 1].lock();
             if (!child || !parent) break;
-            parent->state = merge_child_state(parent->state, child->id, child->state);
+            parent->state = merge_state(parent->state, *child, child->state);
           }
         }
       }
@@ -289,7 +269,7 @@ namespace Pixils::Runtime
           {
             auto& child = hit_chain[i];
             auto& parent = hit_chain[i + 1];
-            parent->state = merge_child_state(parent->state, child->id, child->state);
+            parent->state = merge_state(parent->state, *child, child->state);
           }
         }
       }

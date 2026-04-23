@@ -5,7 +5,6 @@
 #include <algorithm>
 #include <bits/std_abs.h>
 #include <cmath>
-#include <iostream>
 #include <stdlib.h>
 
 namespace Pixils

@@ -5,12 +5,14 @@
 #include <pixils/binding/color_namespace.h>
 #include <pixils/binding/resource_namespace.h>
 #include <pixils/binding/style_namespace.h>
+#include <pixils/binding/ui_namespace.h>
 #include <pixils/context.h>
 #include <pixils/display.h>
 #include <pixils/font_registry.h>
 #include <pixils/frame_events.h>
 #include <pixils/runtime/mode.h>
-#include <pixils/runtime/session.h>
+#include <pixils/runtime/state.h>
+#include <pixils/runtime/view.h>
 
 #include <SDL2/SDL_render.h>
 #include <lisple/exception.h>
@@ -106,7 +108,6 @@ namespace Pixils::Script
       auto glyphs = opts.val("glyphs");
       if (glyphs->type == Lisple::RTValue::Type::MAP)
       {
-
         for (auto& ch : Lisple::Dict::keys(*glyphs))
         {
           char32_t glyph_char;
@@ -360,7 +361,10 @@ namespace Pixils::Script
             slot.id = slot.mode_name + "-" + std::to_string(idx);
           }
 
-          slot.initial_state = child_opts.val("state");
+          auto [binding, initial] =
+            Pixils::Runtime::parse_state_binding(child_opts.val("state"));
+          slot.state_binding = binding;
+          slot.initial_state = initial;
           slot.overrides = child_entry;
 
           mode.children.push_back(slot);

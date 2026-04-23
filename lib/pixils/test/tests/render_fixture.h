@@ -3,10 +3,10 @@
 #define PIXILS__TEST__RENDER_FIXTURE_H
 
 #include "runtime/session_fixture.h"
-
-#include <sdl2_mock/mock_resources.h>
+#include <pixils/runtime/view.h>
 
 #include <SDL2/SDL_render.h>
+#include <sdl2_mock/mock_resources.h>
 
 /**
  * Extends SessionFixture with a live mock renderer. Use this for any test
@@ -15,12 +15,12 @@
  */
 class RenderFixture : public SessionFixture
 {
-protected:
+ protected:
   RenderFixture()
   {
-    render_ctx.renderer     = SDL_CreateRenderer(nullptr, 0, 0);
+    render_ctx.renderer = SDL_CreateRenderer(nullptr, 0, 0);
     render_ctx.buffer_texture = render_ctx.renderer->default_render_target;
-    render_ctx.buffer_dim   = {320, 200};
+    render_ctx.buffer_dim = {320, 200};
   }
 
   void TearDown() override { SDLMock::reset_mocks(); }

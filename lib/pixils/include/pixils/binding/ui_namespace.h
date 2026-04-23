@@ -9,6 +9,11 @@
 #include <lisple/host/object.h>
 #include <lisple/namespace.h>
 
+namespace Pixils::Runtime
+{
+  struct BindState;
+}
+
 namespace Pixils::Script
 {
   inline constexpr std::string_view NS__PIXILS__UI = "pixils.ui";
@@ -17,17 +22,20 @@ namespace Pixils::Script
   {
     HOST_TYPE(MOUSE_EVENT, "HMouseEvent");
     HOST_TYPE(MOUSE_MOTION_EVENT, "HMouseMotionEvent");
+    HOST_TYPE(BIND_STATE, "HBindState");
   } // namespace HostType
 
   namespace Function
   {
     FUNC(StopPropagation, stop);
-  }
+    FUNC(BindStateFn, bind_state);
+  } // namespace Function
 
   NATIVE_ADAPTER(MouseEventAdapter, MouseEvent, (global_pos, local_pos));
   NATIVE_SUB_ADAPTER(MouseEventAdapter,
                      (MouseButtonEventAdapter, MouseButtonEvent),
                      (button));
+  NATIVE_ADAPTER(BindStateAdapter, Runtime::BindState);
 
   class UINamespace : public Lisple::Namespace
   {

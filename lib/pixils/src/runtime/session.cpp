@@ -9,6 +9,8 @@
 #include <pixils/context.h>
 #include <pixils/runtime/mode.h>
 #include <pixils/runtime/render.h>
+#include <pixils/runtime/state.h>
+#include <pixils/runtime/view.h>
 
 #include <SDL2/SDL_render.h>
 #include <lisple/context.h>
@@ -74,9 +76,11 @@ namespace
         slot.id = slot.mode_name + "-" + std::to_string(idx);
       }
 
-      slot.initial_state = child_opts.val("state");
+      auto [binding, initial] =
+        Pixils::Runtime::parse_state_binding(child_opts.val("state"));
+      slot.state_binding = binding;
+      slot.initial_state = initial;
       slot.overrides = child_entry;
-
       slots.push_back(std::move(slot));
     }
     return slots;
@@ -336,7 +340,8 @@ namespace Pixils::Runtime
 
     View v;
     v.id = slot.id;
-    v.state = Lisple::Constant::NIL;
+    v.state_binding = slot.state_binding;
+    v.state = slot.initial_state;
     v.initial_state = slot.initial_state;
 
     bool has_overrides =

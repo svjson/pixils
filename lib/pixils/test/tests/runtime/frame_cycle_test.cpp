@@ -114,8 +114,8 @@ TEST_F(FrameCycleTest, full_frame_cycle_init_update_render)
   session.render_mode();
 
   // Then
-  auto count =
-    Lisple::Dict::get_property(session.active_mode->state, Lisple::RTValue::keyword("ticks"));
+  auto count = Lisple::Dict::get_property(session.active_mode->state,
+                                          Lisple::RTValue::keyword("ticks"));
   EXPECT_EQ(count->num().get_int(), 1);
 
   auto& ops = render_target()->render_ops;

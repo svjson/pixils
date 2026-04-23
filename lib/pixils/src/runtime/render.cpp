@@ -3,6 +3,7 @@
 
 #include <pixils/hook_context.h>
 #include <pixils/runtime/session.h>
+#include <pixils/runtime/view.h>
 #include <pixils/ui/style.h>
 
 namespace Pixils::Runtime
@@ -20,8 +21,10 @@ namespace Pixils::Runtime
       UI::Style cs = UI::resolve_style(child->mode->style, child->state);
       if (cs.position && *cs.position == UI::PositionMode::ABSOLUTE) continue;
       const auto& size_opt = row ? cs.width : cs.height;
-      if (size_opt) total_fixed += *size_opt;
-      else fill_count++;
+      if (size_opt)
+        total_fixed += *size_opt;
+      else
+        fill_count++;
     }
 
     int available = row ? parent.w : parent.h;
@@ -51,7 +54,9 @@ namespace Pixils::Runtime
     return rects;
   }
 
-  void render_view(Session& session, const std::shared_ptr<View>& view_ptr, const Rect& bounds)
+  void render_view(Session& session,
+                   const std::shared_ptr<View>& view_ptr,
+                   const Rect& bounds)
   {
     View& ctx = *view_ptr;
     ctx.bounds = bounds;

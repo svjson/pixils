@@ -4,6 +4,7 @@
 #include <SDL2/SDL_image.h>
 #include <SDL2/SDL_mixer.h>
 #include <SDL2/SDL_video.h>
+#include <iostream>
 #include <optional>
 
 namespace Pixils

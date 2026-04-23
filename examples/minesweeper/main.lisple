@@ -2,7 +2,8 @@
   (:require pixils
             [pixils.render :as r]
             [pixils.color :as c]
-            [pixils.point :as pt]))
+            [pixils.point :as pt]
+            [pixils.ui :as ui]))
 
 
 (defprogram minesweeper
@@ -193,6 +194,7 @@
 
 
 ;; Board buttons
+
 (defcomponent board-button-row {:style {:direction :row}
                                 :children (dotimes [n 8]
                                             {:mode 'button
@@ -248,14 +250,14 @@
                             :resources {:images {:counter-font-map "assets/score_numbers.png"
                                                  :face-normal "assets/face1.png"}}
                             :children [{:mode 'counter
-                                        :state {:value 0}}
+                                        :state {:value (ui/bind-state :counters :mines-left)}}
                                        {:mode 'button
                                         :style {:width 24
                                                 :height 24}
                                         :state {:label "Hehu"
                                                 :image :status-panel/face-normal}}
                                        {:mode 'counter
-                                        :state {:value 1}}]})
+                                        :state {:value (ui/bind-state :counters :timer)}}]})
 
 (deffont counter-font {:type :bitmap
                        :spacing 0
@@ -275,14 +277,24 @@
 ;; Game Layout mode
 
 (defmode game-layout-mode
-  {:render (fn [state ctx]
+  {:init (fn [state ctx]
+           (merge state
+                  {:board (generate-mine-field 8 8 8)
+                   :start-time (epoch-ms)
+                   :counters {:mines-left 8
+                              :timer 0}}))
+   :update (fn [state ctx]
+             (assoc-in state [:counters :timer] (int (/ (- (epoch-ms) (:start-time state)) 1000))))
+   :render (fn [state ctx]
              (let [dim (:buffer-size ctx)]
                (r/rect! {:x 0 :y 0 :w (:w dim) :h (:h dim)} {:fill true :color win-panel-face})
                (draw-bevel! (merge dim {:x 0 :y 0}) {:thickness 3})
                (draw-bevel! {:x 9 :y 9 :w (- (:w dim) 18) :h 33} {:thickness 2 :invert true})
                (draw-bevel! {:x 9 :y 47 :w (- (:w dim) 18) :h (- (:h dim) 56)} {:thickness 3 :invert true})))
-   :children [{:mode 'status-panel}
+   :children [{:mode 'status-panel
+               :state {:counters (ui/bind-state :counters)}}
               {:mode 'board-mode
+               :state {:board (ui/bind-state :board)}
                :style {:padding [0 12]}}]})
 
 
@@ -290,19 +302,12 @@
 ;; Board mode
 
 (defmode board-mode
-  {:init (fn [state ctx]
-           (let [board (generate-mine-field 8 8 8)]
-             {:board board }))
-   :children [{:mode 'mine-layer-mode
-               :state (let [board (generate-mine-field 8 8 8)]
-                        {:board board })}
+  {:children [{:mode 'mine-layer-mode
+               :state {:board (ui/bind-state :board)}}
               {:mode 'board-buttons
                :style {:position :absolute
                        :top 0
                        :left 0}}]})
-
-
-
 
 (defmode window-mode
   {:children [{:mode 'menu-bar-mode :style {:height 13}}

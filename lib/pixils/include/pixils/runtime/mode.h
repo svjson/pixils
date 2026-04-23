@@ -53,6 +53,7 @@ namespace Pixils::Runtime
     Margin margin;
     Lisple::sptr_rtval initial_state;
     Lisple::sptr_rtval overrides = Lisple::Constant::NIL;
+    Lisple::sptr_rtval state_binding = Lisple::Constant::NIL;
   };
 
   struct Mode

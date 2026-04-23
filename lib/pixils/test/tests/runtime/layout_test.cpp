@@ -3,6 +3,7 @@
 #include <pixils/runtime/mode.h>
 #include <pixils/runtime/render.h>
 #include <pixils/runtime/session.h>
+#include <pixils/runtime/view.h>
 #include <pixils/ui/style.h>
 
 #include <gtest/gtest.h>
