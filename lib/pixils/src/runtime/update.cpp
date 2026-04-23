@@ -1,5 +1,7 @@
 
+#include "pixils/runtime/event_routing.h"
 #include "pixils/runtime/session.h"
+#include "pixils/ui/event.h"
 #include <pixils/asset/registry.h>
 #include <pixils/binding/ui_namespace.h>
 #include <pixils/context.h>
@@ -40,6 +42,8 @@ namespace Pixils::Runtime
   {
     auto update_stack = mode_stack.get_update_stack();
 
+    std::vector<CustomEvent> emitted_events;
+
     /**
      * Update composition modes below the top, preserving the existing offset semantics.
      */
@@ -49,9 +53,13 @@ namespace Pixils::Runtime
       View& ctx = *ctx_stack[ctx_idx];
 
       Lisple::sptr_rtval_v rargs = this->hook_args.update_args;
+      emitted_events =
+        EventRouter::process_events(ctx, rargs.back(), emitted_events, lisple_runtime);
       rargs[0] = ctx.state;
       ctx.state = invoke_hook(ctx.mode->update, rargs, ctx.state);
       mode_stack.update_state(ctx.state, update_stack.size() - i);
+
+      ctx.drain_events(emitted_events);
     }
 
     /**

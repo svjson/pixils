@@ -20,6 +20,14 @@ namespace Pixils
     virtual ~Event() = default;
   };
 
+  struct CustomEvent : public Event
+  {
+    Lisple::sptr_rtval event_key;
+    Lisple::sptr_rtval payload;
+
+    CustomEvent(const Lisple::sptr_rtval& event_key, const Lisple::sptr_rtval& payload);
+  };
+
   /**
    * Mouse motion event. Carries the global (buffer) and local (component)
    * cursor positions. Used directly for on_mouse_enter and on_mouse_leave;

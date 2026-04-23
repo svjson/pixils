@@ -2,6 +2,7 @@
 #ifndef PIXILS__RUNTIME__EVENT_ROUTING_H
 #define PIXILS__RUNTIME__EVENT_ROUTING_H
 
+#include "pixils/ui/event.h"
 #include <pixils/geom.h>
 
 #include <lisple/runtime/value.h>
@@ -78,6 +79,11 @@ namespace Pixils::Runtime
                 HookArguments& hook_args,
                 Lisple::Runtime& rt);
 
+    static std::vector<CustomEvent> process_events(View& receiver,
+                                                   Lisple::sptr_rtval& view_ctx,
+                                                   std::vector<CustomEvent>& events,
+                                                   Lisple::Runtime& runtime);
+
    private:
     void handle_mouse_up(FrameEvents& events, HookArguments& hook_args, Lisple::Runtime& rt);
 
@@ -124,13 +130,14 @@ namespace Pixils::Runtime
                                 int my,
                                 std::vector<std::shared_ptr<View>>& chain);
 
+    std::vector<CustomEvent> process_view_events();
+
     static Lisple::sptr_rtval invoke(
       const Lisple::sptr_rtval& fn,
       Lisple::sptr_rtval_v& args,
       Lisple::Runtime& rt,
       const Lisple::sptr_rtval& fallback = Lisple::Constant::NIL);
   };
-
 } // namespace Pixils::Runtime
 
 #endif /* PIXILS__RUNTIME__EVENT_ROUTING_H */

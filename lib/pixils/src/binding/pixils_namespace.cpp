@@ -296,6 +296,7 @@ namespace Pixils::Script
                                             {"on-click", &Lisple::Type::ANY},
                                             {"on-mouse-enter", &Lisple::Type::ANY},
                                             {"on-mouse-leave", &Lisple::Type::ANY},
+                                            {"on", &Lisple::Type::MAP},
                                             {"compose", &HostType::MODE_COMPOSITION},
                                             {"resources", &HostType::RESOURCE_DEPENDENCIES},
                                             {"style", &HostType::STYLE},
@@ -311,9 +312,20 @@ namespace Pixils::Script
       auto render_expr = eval_hook(ctx, opts.val("render"));
       auto on_mouse_down_expr = eval_hook(ctx, opts.val("on-mouse-down"));
       auto on_mouse_up_expr = eval_hook(ctx, opts.val("on-mouse-up"));
+      auto event_handlers_expr = opts.val("on");
       auto on_click_expr = eval_hook(ctx, opts.val("on-click"));
       auto on_mouse_enter_expr = eval_hook(ctx, opts.val("on-mouse-enter"));
       auto on_mouse_leave_expr = eval_hook(ctx, opts.val("on-mouse-leave"));
+
+      std::map<std::string, Lisple::sptr_rtval> event_handlers;
+      if (event_handlers_expr->type == Lisple::RTValue::Type::MAP)
+      {
+        for (auto& key : Lisple::Dict::keys(*event_handlers_expr))
+        {
+          event_handlers.emplace(key->str(),
+                                 Lisple::Dict::get_property(event_handlers_expr, key));
+        }
+      }
 
       Runtime::Mode mode{.name = opts.str("name", ""),
                          .resources = {},
@@ -325,6 +337,7 @@ namespace Pixils::Script
                          .on_click = on_click_expr,
                          .on_mouse_enter = on_mouse_enter_expr,
                          .on_mouse_leave = on_mouse_leave_expr,
+                         .event_handlers = event_handlers,
                          .composition = {},
                          .children = {}};
 

@@ -83,3 +83,69 @@ TEST_F(StateBindingTest, map_binding_propagates_child_state_changes_back_to_pare
   ASSERT_NE(session.active_mode->state, nullptr);
   EXPECT_EQ(session.active_mode->state->to_string(), "{:board {:x 99}}");
 }
+
+TEST_F(StateBindingTest, map_binding_propagates_child_state_vector_back_to_parent)
+{
+  // Given
+  runtime.eval(R"(
+    (pixils/defmode child-mode {:update (fn [state ctx]
+                                          (assoc state :vector-value [1 2 3]))})
+    (pixils/defmode root-mode {:init (fn [state ctx] {:vec [8 8 8]})
+                               :children [{:mode 'child-mode
+                                           :id "child"
+                                           :state {:vector-value (pixils.ui/bind-state :vec)}}]})
+                )");
+  session.push_mode("root-mode", Lisple::Constant::NIL);
+
+  // When
+  session.update_mode();
+
+  // Then - parent's :vec should reflect the child's update
+  ASSERT_NE(session.active_mode->state, nullptr);
+  EXPECT_EQ(session.active_mode->state->to_string(), "{:vec [1 2 3]}");
+}
+
+TEST_F(StateBindingTest, map_binding_propagates_child_state_back_to_parent_vector)
+{
+  // Given
+  runtime.eval(R"(
+    (pixils/defmode child-mode {:update (fn [state ctx]
+                                          (assoc state :value 10))})
+    (pixils/defmode root-mode {:init (fn [state ctx] {:vec [8 8 8]})
+                               :children [{:mode 'child-mode
+                                           :id "child"
+                                           :state {:value (pixils.ui/bind-state :vec 1)}}]})
+                )");
+  session.push_mode("root-mode", Lisple::Constant::NIL);
+
+  // When
+  session.update_mode();
+
+  // Then - parent's :vec should reflect the child's update
+  ASSERT_NE(session.active_mode->state, nullptr);
+  EXPECT_EQ(session.active_mode->state->to_string(), "{:vec [8 10 8]}");
+}
+
+TEST_F(StateBindingTest, map_binding_propagates_child_state_back_to_nested_parent_vector)
+{
+  // Given
+  runtime.eval(R"(
+    (pixils/defmode child-mode {:update (fn [state ctx]
+                                          (assoc state :value 10))})
+    (pixils/defmode mid-mode {:children [{:mode 'child-mode
+                                          :id "child"
+                                          :state {:value (pixils.ui/bind-state :sub-vec 1)}}]})
+    (pixils/defmode root-mode {:init (fn [state ctx] {:vec [[8 8 8] [9 9 9]]})
+                               :children [{:mode 'mid-mode
+                                           :id "mid"
+                                           :state {:sub-vec (pixils.ui/bind-state :vec 1)}}]})
+                )");
+  session.push_mode("root-mode", Lisple::Constant::NIL);
+
+  // When
+  session.update_mode();
+
+  // Then - parent's :vec should reflect the child's update
+  ASSERT_NE(session.active_mode->state, nullptr);
+  EXPECT_EQ(session.active_mode->state->to_string(), "{:vec [[8 8 8] [9 10 9]]}");
+}

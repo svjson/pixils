@@ -28,8 +28,10 @@ namespace Pixils::Runtime
     bool update = false;
   };
 
-  /** Per-side margin around a layout child. Stored but not yet applied in layout
-   *  calculations. */
+  /**
+   * Per-side margin around a layout child. Stored but not yet applied in layout
+   * calculations.
+   */
   struct Margin
   {
     int top = 0;
@@ -68,6 +70,7 @@ namespace Pixils::Runtime
     Lisple::sptr_rtval on_click = Lisple::Constant::NIL;
     Lisple::sptr_rtval on_mouse_enter = Lisple::Constant::NIL;
     Lisple::sptr_rtval on_mouse_leave = Lisple::Constant::NIL;
+    std::map<std::string, Lisple::sptr_rtval> event_handlers;
     ModeComposition composition;
     std::vector<ChildSlot> children;
     std::optional<UI::Style> style = std::nullopt;

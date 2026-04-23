@@ -191,8 +191,19 @@ namespace Pixils::Runtime
     Lisple::sptr_rtval_v uargs = {view.state, hook_args.update_args[1]};
     view.state = invoke(view.mode->update, uargs, rt, view.state);
 
+    std::vector<CustomEvent> emitted_events;
     for (auto& child : view.children)
+    {
       view.state = traverse_child(child, view.state, mouse_pos, hook_args, rt);
+      child->drain_events(emitted_events);
+      emitted_events =
+        EventRouter::process_events(view, hook_args.update_args[1], emitted_events, rt);
+      for (auto& event : emitted_events)
+      {
+        view.emitted_events.push_back(event);
+      }
+      emitted_events.clear();
+    }
 
     return merge_state(parent_state, view, view.state);
   }
@@ -330,6 +341,34 @@ namespace Pixils::Runtime
       }
       if (!any_held) mouse.pressed.clear();
     }
+  }
+
+  std::vector<CustomEvent> EventRouter::process_events(View& receiver,
+                                                       Lisple::sptr_rtval& view_ctx,
+                                                       std::vector<CustomEvent>& events,
+                                                       Lisple::Runtime& runtime)
+  {
+    std::vector<CustomEvent> bubbled_events;
+    for (auto& event : events)
+    {
+      auto it = receiver.mode->event_handlers.find(event.event_key->str());
+      if (it == receiver.mode->event_handlers.end() ||
+          it->second->type != Lisple::RTValue::Type::FUNCTION)
+      {
+        bubbled_events.push_back(event);
+        continue;
+      }
+      else
+      {
+        Lisple::sptr_rtval_v event_args{receiver.state, event.payload, view_ctx};
+        receiver.state = EventRouter::invoke(it->second, event_args, runtime);
+        if (!event.propagation_stopped)
+        {
+          bubbled_events.push_back(event);
+        }
+      }
+    }
+    return bubbled_events;
   }
 
 } // namespace Pixils::Runtime

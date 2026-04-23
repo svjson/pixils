@@ -199,17 +199,22 @@
                                 :children (dotimes [n 8]
                                             {:mode 'button
                                              :style {:width 17 :height 17}
+                                             :state {:x n :y (ui/bind-state :y) :mask (ui/bind-state :mask-row n)}
+                                             :update (fn [state ctx]
+                                                       (when (:revealed? (:mask state))
+                                                         (prn state))
+                                                       state)
                                              :on-click (fn [state e ctx]
-                                                         (assoc-in! ctx [:view :style :hidden] true))})})
+                                                         (prn state)
+                                                         (ui/emit! (:view ctx) :cell/click state)
+                                        ;(assoc-in! ctx [:view :style :hidden] true)
+                                                         state)})})
 
-(defcomponent board-buttons {:children [{:mode 'board-button-row :style {:height 17}}
-                                        {:mode 'board-button-row :style {:height 17}}
-                                        {:mode 'board-button-row :style {:height 17}}
-                                        {:mode 'board-button-row :style {:height 17}}
-                                        {:mode 'board-button-row :style {:height 17}}
-                                        {:mode 'board-button-row :style {:height 17}}
-                                        {:mode 'board-button-row :style {:height 17}}
-                                        {:mode 'board-button-row :style {:height 17}}]})
+(defcomponent board-buttons {:children (dotimes [n 8]
+                                         {:mode 'board-button-row
+                                          :state {:y n
+                                                  :mask-row (ui/bind-state :board-mask n)}
+                                          :style {:height 17}})})
 
 
 ;; Button
@@ -280,11 +285,16 @@
   {:init (fn [state ctx]
            (merge state
                   {:board (generate-mine-field 8 8 8)
+                   :board-mask (dotimes [y 8]
+                                 (dotimes [x 8]
+                                   {:revealed? false
+                                    :flagged? false}))
                    :start-time (epoch-ms)
                    :counters {:mines-left 8
                               :timer 0}}))
    :update (fn [state ctx]
-             (assoc-in state [:counters :timer] (int (/ (- (epoch-ms) (:start-time state)) 1000))))
+             (prn state)
+             (assoc-in state [:counters :timer] (min 999 (int (/ (- (epoch-ms) (:start-time state)) 1000)))))
    :render (fn [state ctx]
              (let [dim (:buffer-size ctx)]
                (r/rect! {:x 0 :y 0 :w (:w dim) :h (:h dim)} {:fill true :color win-panel-face})
@@ -294,8 +304,11 @@
    :children [{:mode 'status-panel
                :state {:counters (ui/bind-state :counters)}}
               {:mode 'board-mode
-               :state {:board (ui/bind-state :board)}
-               :style {:padding [0 12]}}]})
+               :state {:board (ui/bind-state :board)
+                       :board-mask (ui/bind-state :board-mask)}
+               :style {:padding [0 12]}}]
+   :on {:cell/click (fn [state payload ctx]
+                      (assoc-in state [:board-mask (:y payload) (:x payload)] {:revealed? true}))}})
 
 
 
@@ -305,6 +318,7 @@
   {:children [{:mode 'mine-layer-mode
                :state {:board (ui/bind-state :board)}}
               {:mode 'board-buttons
+               :state {:board-mask (ui/bind-state :board-mask)}
                :style {:position :absolute
                        :top 0
                        :left 0}}]})

@@ -27,8 +27,9 @@ namespace Pixils::Script
 
   namespace Function
   {
-    FUNC(StopPropagation, stop);
     FUNC(BindStateFn, bind_state);
+    FUNC(EmitBangFunction, emit);
+    FUNC(StopPropagation, stop);
   } // namespace Function
 
   NATIVE_ADAPTER(MouseEventAdapter, MouseEvent, (global_pos, local_pos));

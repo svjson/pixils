@@ -2,6 +2,7 @@
 #ifndef PIXILS__RUNTIME__VIEW_H
 #define PIXILS__RUNTIME__VIEW_H
 
+#include "pixils/ui/event.h"
 #include <pixils/runtime/mode.h>
 
 #include <lisple/runtime/value.h>
@@ -43,6 +44,10 @@ namespace Pixils::Runtime
     Lisple::sptr_rtval initial_state = Lisple::Constant::NIL;
     Rect bounds = {0, 0, 0, 0};
     std::vector<std::shared_ptr<View>> children;
+    std::vector<CustomEvent> emitted_events;
+
+    void emit_event(const CustomEvent& event);
+    void drain_events(std::vector<CustomEvent>& collected);
   };
 
 } // namespace Pixils::Runtime
