@@ -82,43 +82,67 @@ namespace Pixils::Runtime
                                     HookArguments& hook_args,
                                     Lisple::Runtime& rt)
   {
-    auto hovered_view = mouse.hovered.lock();
-    if (!hovered_view) return;
+    if (mouse.hovered_chain.empty()) return;
 
     const Point& gp = Lisple::obj<Point>(*events.mouse_pos);
-    MouseButtonEvent ev;
-    ev.global_pos = gp;
-    ev.local_pos = local_pos(gp, hovered_view->bounds);
-    ev.button = events.mouse_button_up;
-    auto ev_ref = Script::MouseButtonEventAdapter::make_ref(ev);
 
-    Lisple::obj<HookContext>(*hook_args.update_args[1]).current_view = hovered_view;
+    MouseButtonEvent up_ev;
+    up_ev.global_pos = gp;
+    up_ev.button = events.mouse_button_up;
+    auto up_ev_ref = Script::MouseButtonEventAdapter::make_ref(up_ev);
 
-    auto& up_hook = hovered_view->mode->on_mouse_up;
-    if (up_hook && up_hook->type != Lisple::RTValue::Type::NIL)
-    {
-      Lisple::sptr_rtval_v args = {hovered_view->state, ev_ref, hook_args.update_args[1]};
-      auto new_state = invoke(up_hook, args, rt, hovered_view->state);
-      if (new_state->type != Lisple::RTValue::Type::NIL) hovered_view->state = new_state;
-    }
+    MouseButtonEvent click_ev;
+    click_ev.global_pos = gp;
+    click_ev.button = events.mouse_button_up;
+    auto click_ev_ref = Script::MouseButtonEventAdapter::make_ref(click_ev);
 
-    /**
-     * Fire on_click when the release happens on the view where the press originated.
-     */
     auto pressed_view = mouse.primary_pressed();
-    if (pressed_view && pressed_view.get() == hovered_view.get())
+
+    /**
+     * Walk the hovered chain from deepest to root. on_mouse_up and on_click
+     * bubble independently: each has its own event instance and propagation_stopped
+     * flag, so stopping one does not affect the other. on_click fires on a view
+     * if the press originated in its subtree.
+     */
+    bool pressed_in_subtree = false;
+    for (auto& weak_view : mouse.hovered_chain)
     {
-      auto& click_hook = hovered_view->mode->on_click;
-      if (click_hook && click_hook->type != Lisple::RTValue::Type::NIL)
+      auto view = weak_view.lock();
+      if (!view) break;
+
+      if (pressed_view && view.get() == pressed_view.get()) pressed_in_subtree = true;
+
+      Lisple::obj<HookContext>(*hook_args.update_args[1]).current_view = view;
+
+      if (!up_ev.propagation_stopped)
       {
-        Lisple::sptr_rtval_v args = {hovered_view->state, ev_ref, hook_args.update_args[1]};
-        auto new_state = invoke(click_hook, args, rt, hovered_view->state);
-        if (new_state->type != Lisple::RTValue::Type::NIL) hovered_view->state = new_state;
+        auto& up_hook = view->mode->on_mouse_up;
+        if (up_hook && up_hook->type != Lisple::RTValue::Type::NIL)
+        {
+          up_ev.local_pos = local_pos(gp, view->bounds);
+          Lisple::sptr_rtval_v args = {view->state, up_ev_ref, hook_args.update_args[1]};
+          auto new_state = invoke(up_hook, args, rt, view->state);
+          if (new_state->type != Lisple::RTValue::Type::NIL) view->state = new_state;
+        }
       }
+
+      if (!click_ev.propagation_stopped && pressed_in_subtree)
+      {
+        auto& click_hook = view->mode->on_click;
+        if (click_hook && click_hook->type != Lisple::RTValue::Type::NIL)
+        {
+          click_ev.local_pos = local_pos(gp, view->bounds);
+          Lisple::sptr_rtval_v args = {view->state, click_ev_ref, hook_args.update_args[1]};
+          auto new_state = invoke(click_hook, args, rt, view->state);
+          if (new_state->type != Lisple::RTValue::Type::NIL) view->state = new_state;
+        }
+      }
+
+      if (up_ev.propagation_stopped && click_ev.propagation_stopped) break;
     }
 
     /**
-     * Bubble the updated state back up through the stored hovered chain to root.
+     * Bubble the updated state back up through the hovered chain to root.
      */
     for (size_t i = 0; i + 1 < mouse.hovered_chain.size(); i++)
     {
@@ -142,34 +166,37 @@ namespace Pixils::Runtime
     if (!build_hit_chain(root, mx, my, hit_chain)) return;
 
     /**
-     * Fire on_mouse_down on the deepest hit view that has a handler.
+     * Fire on_mouse_down from deepest hit view upward, stopping when a handler
+     * sets propagation_stopped. A single event object is shared across the chain
+     * so the stopped flag persists.
      */
+    MouseButtonEvent ev;
+    ev.global_pos = gp;
+    ev.button = events.mouse_button_down;
+    auto ev_ref = Script::MouseButtonEventAdapter::make_ref(ev);
+
     for (auto& view_ptr : hit_chain)
     {
       auto& hook = view_ptr->mode->on_mouse_down;
       if (!hook || hook->type == Lisple::RTValue::Type::NIL) continue;
 
-      MouseButtonEvent ev;
-      ev.global_pos = gp;
       ev.local_pos = local_pos(gp, view_ptr->bounds);
-      ev.button = events.mouse_button_down;
-
-      auto ev_ref = Script::MouseButtonEventAdapter::make_ref(ev);
       Lisple::obj<HookContext>(*hook_args.update_args[1]).current_view = view_ptr;
       Lisple::sptr_rtval_v args = {view_ptr->state, ev_ref, hook_args.update_args[1]};
       auto new_state = invoke(hook, args, rt, view_ptr->state);
       if (new_state->type != Lisple::RTValue::Type::NIL) view_ptr->state = new_state;
 
-      /**
-       * Bubble the updated state back up through ancestors to root.
-       */
-      for (size_t i = 0; i + 1 < hit_chain.size(); i++)
-      {
-        auto& child = hit_chain[i];
-        auto& parent = hit_chain[i + 1];
-        parent->state = merge_state(parent->state, *child, child->state);
-      }
-      break;
+      if (ev.propagation_stopped) break;
+    }
+
+    /**
+     * Bubble the updated state back up through ancestors to root.
+     */
+    for (size_t i = 0; i + 1 < hit_chain.size(); i++)
+    {
+      auto& child = hit_chain[i];
+      auto& parent = hit_chain[i + 1];
+      parent->state = merge_state(parent->state, *child, child->state);
     }
 
     mouse.pressed.clear();

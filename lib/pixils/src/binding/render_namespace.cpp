@@ -1,13 +1,14 @@
 
-#include "pixils/geom.h"
+#include "pixils/binding/render_namespace.h"
+
 #include <pixils/asset/registry.h>
 #include <pixils/binding/arg_collector.h>
 #include <pixils/binding/color_namespace.h>
 #include <pixils/binding/pixils_namespace.h>
 #include <pixils/binding/point_namespace.h>
-#include <pixils/binding/render_namespace.h>
 #include <pixils/context.h>
 #include <pixils/font_registry.h>
+#include <pixils/geom.h>
 
 #include <SDL2/SDL_blendmode.h>
 #include <SDL2/SDL_render.h>
@@ -42,26 +43,29 @@ namespace Pixils::Script
 
     EXEC_BODY(DrawImageBang, exec_draw_img)
     {
-      auto [asset_bundle, asset_key] = args.front()->qual();
-      auto opts = draw_image_opts_schema.bind(ctx, *args[1]);
-
-      RenderContext& rc =
-        Lisple::obj<RenderContext>(*ctx.lookup_value(ID__PIXILS__RENDER_CONTEXT));
-
-      SDL_Texture* texture = rc.asset_registry->get_image(asset_bundle, asset_key);
-
-      Point& pos = opts.obj<Point>("pos");
-      float scale = opts.f32("scale", 1.0f);
-
-      SDL_Rect dim{pos.round_x(), pos.round_y(), 0, 0};
-      SDL_QueryTexture(texture, nullptr, nullptr, &dim.w, &dim.h);
-
-      dim.w *= scale;
-      dim.h *= scale;
-
-      if (texture)
+      if (args[0]->type == Lisple::RTValue::Type::KEYWORD)
       {
-        SDL_RenderCopy(rc.renderer, texture, nullptr, &dim);
+        auto [asset_bundle, asset_key] = args.front()->qual();
+        auto opts = draw_image_opts_schema.bind(ctx, *args[1]);
+
+        RenderContext& rc =
+          Lisple::obj<RenderContext>(*ctx.lookup_value(ID__PIXILS__RENDER_CONTEXT));
+
+        SDL_Texture* texture = rc.asset_registry->get_image(asset_bundle, asset_key);
+
+        Point& pos = opts.obj<Point>("pos");
+        float scale = opts.f32("scale", 1.0f);
+
+        SDL_Rect dim{pos.round_x(), pos.round_y(), 0, 0};
+        SDL_QueryTexture(texture, nullptr, nullptr, &dim.w, &dim.h);
+
+        dim.w *= scale;
+        dim.h *= scale;
+
+        if (texture)
+        {
+          SDL_RenderCopy(rc.renderer, texture, nullptr, &dim);
+        }
       }
 
       return Lisple::Constant::NIL;

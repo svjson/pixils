@@ -732,7 +732,10 @@ namespace Pixils::Script
                       (id),
                       (bounds),
                       (interaction),
-                      (style));
+                      (style),
+                      ("on-click", on_click),
+                      ("on-mouse-down", on_mouse_down),
+                      ("on-mouse-up", on_mouse_up));
 
   NOBJ_PROP_GET__FIELD(ViewAdapter, id);
   NOBJ_PROP_GET(ViewAdapter, bounds)
@@ -751,6 +754,30 @@ namespace Pixils::Script
     const Runtime::View& v = object->get_object();
     if (!v.mode || !v.mode->style.has_value()) return Lisple::Constant::NIL;
     return StyleAdapter::make_ref(*v.mode->style);
+  }
+
+  NOBJ_PROP_GET(ViewAdapter, on_click)
+  {
+    const Runtime::View& v = object->get_object();
+    return v.owned_mode && *v.owned_mode->on_click != *Lisple::Constant::NIL
+             ? v.owned_mode->on_click
+             : v.mode->on_click;
+  }
+
+  NOBJ_PROP_GET(ViewAdapter, on_mouse_up)
+  {
+    const Runtime::View& v = object->get_object();
+    return v.owned_mode && *v.owned_mode->on_mouse_up != *Lisple::Constant::NIL
+             ? v.owned_mode->on_mouse_up
+             : v.mode->on_mouse_up;
+  }
+
+  NOBJ_PROP_GET(ViewAdapter, on_mouse_down)
+  {
+    const Runtime::View& v = object->get_object();
+    return v.owned_mode && *v.owned_mode->on_mouse_down != *Lisple::Constant::NIL
+             ? v.owned_mode->on_mouse_down
+             : v.mode->on_mouse_down;
   }
 
   /* RenderContextAdapter */
