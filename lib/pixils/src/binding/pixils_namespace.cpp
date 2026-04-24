@@ -717,7 +717,7 @@ namespace Pixils::Script
 
   /* InteractionStateAdapter */
   NATIVE_ADAPTER_IMPL(InteractionStateAdapter,
-                      Runtime::InteractionState,
+                      UI::InteractionState,
                       &HostType::INTERACTION_STATE,
                       (hovered),
                       (pressed));

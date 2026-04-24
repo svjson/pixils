@@ -37,7 +37,7 @@ namespace Pixils::Runtime
                                     std::vector<std::shared_ptr<View>>& chain)
   {
     if (view->bounds.w == 0) return false;
-    auto style = UI::resolve_style(view->mode->style, view->state);
+    auto style = UI::resolve_style(view->mode->style, view->state, view->interaction);
     if (style.hidden && *style.hidden) return false;
     bool hit = mx >= view->bounds.x && mx < view->bounds.x + view->bounds.w &&
                my >= view->bounds.y && my < view->bounds.y + view->bounds.h;

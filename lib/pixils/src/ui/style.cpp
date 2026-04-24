@@ -117,19 +117,16 @@ namespace Pixils::UI
     if (variant.hidden) out.hidden = variant.hidden;
   }
 
-  UI::Style resolve_style(const std::optional<Style>& style, const Lisple::sptr_rtval& state)
+  UI::Style resolve_style(const std::optional<Style>& style,
+                          const Lisple::sptr_rtval& /* state */,
+                          const InteractionState& interaction)
   {
     UI::Style result;
     if (!style) return result;
 
     apply_style_variant(result, *style);
 
-    if (state && state->type == Lisple::RTValue::Type::MAP)
-    {
-      auto hovered = Lisple::Dict::get_property(state, Lisple::RTValue::keyword("hovered"));
-      if (hovered && Lisple::is_truthy(*hovered) && style->hover)
-        apply_style_variant(result, *style->hover);
-    }
+    if (interaction.hovered && style->hover) apply_style_variant(result, *style->hover);
 
     return result;
   }

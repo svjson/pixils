@@ -3,6 +3,7 @@
 #define PIXILS__UI__STYLE_H
 
 #include <pixils/geom.h>
+#include <pixils/ui/interaction.h>
 
 #include <SDL2/SDL_render.h>
 #include <memory>
@@ -73,7 +74,11 @@ namespace Pixils::UI
     std::optional<Background> background = std::nullopt;
     std::optional<Insets> padding = std::nullopt;
 
-    /** Own sizing. Absent means fill remaining space. width/height are inner (content) dimensions. */
+    /**
+     * Content surface size. Absent means fill remaining space. When
+     * set, this provides the preferred width/height for the inner
+     * (content) dimensions of an associated view.
+     */
     std::optional<int> width;
     std::optional<int> height;
 
@@ -107,7 +112,9 @@ namespace Pixils::UI
    * state. Applies the base style first, then overlays the hover variant if
    * :hovered is truthy in state.
    */
-  Style resolve_style(const std::optional<Style>& style, const Lisple::sptr_rtval& state);
+  Style resolve_style(const std::optional<Style>& style,
+                      const Lisple::sptr_rtval& state,
+                      const InteractionState& interaction = {});
 
 } // namespace Pixils::UI
 

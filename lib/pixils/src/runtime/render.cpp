@@ -18,7 +18,7 @@ namespace Pixils::Runtime
     int fill_count = 0;
     for (const auto& child : children)
     {
-      UI::Style cs = UI::resolve_style(child->mode->style, child->state);
+      UI::Style cs = UI::resolve_style(child->mode->style, child->state, child->interaction);
       if (cs.position && *cs.position == UI::PositionMode::ABSOLUTE) continue;
       const auto& size_opt = row ? cs.width : cs.height;
       if (size_opt)
@@ -36,7 +36,7 @@ namespace Pixils::Runtime
     int pos = row ? parent.x : parent.y;
     for (const auto& child : children)
     {
-      UI::Style cs = UI::resolve_style(child->mode->style, child->state);
+      UI::Style cs = UI::resolve_style(child->mode->style, child->state, child->interaction);
       if (cs.position && *cs.position == UI::PositionMode::ABSOLUTE)
       {
         rects.push_back({0, 0, 0, 0});
@@ -61,7 +61,7 @@ namespace Pixils::Runtime
     View& ctx = *view_ptr;
     ctx.bounds = bounds;
 
-    UI::Style style_res = UI::resolve_style(ctx.mode->style, ctx.state);
+    UI::Style style_res = UI::resolve_style(ctx.mode->style, ctx.state, ctx.interaction);
     if (style_res.hidden && *style_res.hidden) return;
 
     /**
@@ -108,7 +108,7 @@ namespace Pixils::Runtime
       for (size_t i = 0; i < ctx.children.size(); i++)
       {
         View& child = *ctx.children[i];
-        UI::Style cs = UI::resolve_style(child.mode->style, child.state);
+        UI::Style cs = UI::resolve_style(child.mode->style, child.state, child.interaction);
         Rect abs;
         if (cs.position && *cs.position == UI::PositionMode::ABSOLUTE)
         {

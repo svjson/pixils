@@ -13,9 +13,13 @@
 #include <lisple/host/object.h>
 #include <lisple/namespace.h>
 
-namespace Pixils::Runtime
+namespace Pixils::UI
 {
   struct InteractionState;
+} // namespace Pixils::UI
+
+namespace Pixils::Runtime
+{
   struct Mode;
   struct ModeComposition;
   struct View;
@@ -125,7 +129,7 @@ namespace Pixils::Script
                   buffer_dim,
                   view));
   /*! @brief InteractionStateAdapter - engine-computed hover/press state on a view */
-  NATIVE_ADAPTER(InteractionStateAdapter, Runtime::InteractionState, (hovered, pressed));
+  NATIVE_ADAPTER(InteractionStateAdapter, UI::InteractionState, (hovered, pressed));
   /*! @brief Lisple HostObject Adapter for View */
   NATIVE_ADAPTER(ViewAdapter,
                  Runtime::View,

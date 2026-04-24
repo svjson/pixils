@@ -1,5 +1,6 @@
 
 #include "session_fixture.h"
+#include <pixils/ui/style.h>
 
 #include <SDL2/SDL_mouse.h>
 #include <gtest/gtest.h>
@@ -331,4 +332,28 @@ TEST_F(EventRoutingTest, interaction_hovered_false_when_cursor_is_outside)
 
   // Then
   EXPECT_FALSE(session.active_mode->interaction.hovered);
+}
+
+TEST_F(EventRoutingTest, hover_style_variant_applied_when_cursor_is_inside)
+{
+  // Given - a mode with a hover style that changes width
+  runtime.eval(R"(
+    (pixils/defmode panel {
+      :style (pixils.ui.style/make-style
+               {:width 100
+                :hover (pixils.ui.style/make-style {:width 200})})
+    })
+  )");
+  session.push_mode("panel", Lisple::Constant::NIL);
+  session.active_mode->bounds = {0, 0, 100, 100};
+
+  // When - move cursor inside the view
+  move_mouse(50, 50);
+  session.update_mode();
+
+  // Then - resolved style should reflect the hover variant
+  auto style = Pixils::UI::resolve_style(session.active_mode->mode->style,
+                                         session.active_mode->state,
+                                         session.active_mode->interaction);
+  EXPECT_EQ(style.width.value_or(0), 200);
 }
