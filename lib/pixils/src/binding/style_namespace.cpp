@@ -24,7 +24,7 @@ namespace Pixils::Script
     {
       static Lisple::MapSchema style_schema({},
                                             {{"background", &HostType::STYLE_BACKGROUND},
-                                             {"padding", &HostType::STYLE_PADDING},
+                                             {"padding", &HostType::STYLE_INSETS},
                                              {"width", &Lisple::Type::NUMBER},
                                              {"height", &Lisple::Type::NUMBER},
                                              {"position", &Lisple::Type::KEY},
@@ -38,7 +38,7 @@ namespace Pixils::Script
       auto opts = style_schema.bind(ctx, *args[0]);
 
       style->background = opts.optional_obj<UI::Style::Background>("background");
-      style->padding = opts.optional_obj<UI::Style::Padding>("padding");
+      style->padding = opts.optional_obj<UI::Style::Insets>("padding");
 
       if (opts.contains("width")) style->width = opts.i32("width");
       if (opts.contains("height")) style->height = opts.i32("height");
@@ -126,16 +126,16 @@ namespace Pixils::Script
       return BackgroundAdapter::claim(std::move(bg));
     }
 
-    /** MakePadding - make-padding */
-    FUNC_IMPL(MakePadding,
+    /** MakeInsets - make-insets */
+    FUNC_IMPL(MakeInsets,
               MULTI_SIG((FN_ARGS((&Lisple::Type::NUMBER)),
-                         EXEC_DISPATCH(&MakePadding::exec_make_num)),
+                         EXEC_DISPATCH(&MakeInsets::exec_make_num)),
                         (FN_ARGS((&Lisple::Type::ARRAY_OF_NUMBER)),
-                         EXEC_DISPATCH(&MakePadding::exec_make_vec)),
+                         EXEC_DISPATCH(&MakeInsets::exec_make_vec)),
                         (FN_ARGS((&Lisple::Type::ARRAY)),
-                         EXEC_DISPATCH(&MakePadding::exec_make_map))));
+                         EXEC_DISPATCH(&MakeInsets::exec_make_map))));
 
-    EXEC_BODY(MakePadding, exec_make_map)
+    EXEC_BODY(MakeInsets, exec_make_map)
     {
       static Lisple::MapSchema padding_map_schema({},
                                                   {{"t", &Lisple::Type::NUMBER},
@@ -145,29 +145,29 @@ namespace Pixils::Script
 
       auto opts = padding_map_schema.bind(ctx, *args[0]);
 
-      std::unique_ptr<UI::Style::Padding> padding = std::make_unique<UI::Style::Padding>();
+      std::unique_ptr<UI::Style::Insets> padding = std::make_unique<UI::Style::Insets>();
       padding->t = opts.i32("t", 0);
       padding->r = opts.i32("r", 0);
       padding->b = opts.i32("b", 0);
       padding->l = opts.i32("l", 0);
 
-      return PaddingAdapter::claim(std::move(padding));
+      return InsetsAdapter::claim(std::move(padding));
     }
 
-    EXEC_BODY(MakePadding, exec_make_num)
+    EXEC_BODY(MakeInsets, exec_make_num)
     {
       int p = args.front()->num().get_int();
 
-      std::unique_ptr<UI::Style::Padding> padding = std::make_unique<UI::Style::Padding>();
+      std::unique_ptr<UI::Style::Insets> padding = std::make_unique<UI::Style::Insets>();
       padding->t = p;
       padding->r = p;
       padding->b = p;
       padding->l = p;
 
-      return PaddingAdapter::claim(std::move(padding));
+      return InsetsAdapter::claim(std::move(padding));
     }
 
-    EXEC_BODY(MakePadding, exec_make_vec)
+    EXEC_BODY(MakeInsets, exec_make_vec)
     {
       int t = 0, r = 0, b = 0, l = 0;
 
@@ -190,7 +190,7 @@ namespace Pixils::Script
         return Lisple::Constant::NIL;
       };
 
-      return PaddingAdapter::make_unique(t, r, b, l);
+      return InsetsAdapter::make_unique(t, r, b, l);
     }
 
   } // namespace Function
@@ -223,7 +223,7 @@ namespace Pixils::Script
 
   NOBJ_PROP_GET(StyleAdapter, padding)
   {
-    return get_self_object().padding ? PaddingAdapter::make_ref(*get_self_object().padding)
+    return get_self_object().padding ? InsetsAdapter::make_ref(*get_self_object().padding)
                                      : Lisple::Constant::NIL;
   }
 
@@ -310,25 +310,25 @@ namespace Pixils::Script
                                    : Lisple::Constant::NIL;
   };
 
-  NATIVE_ADAPTER_IMPL(PaddingAdapter,
-                      UI::Style::Padding,
-                      &HostType::STYLE_PADDING,
+  NATIVE_ADAPTER_IMPL(InsetsAdapter,
+                      UI::Style::Insets,
+                      &HostType::STYLE_INSETS,
                       (t),
                       (r),
                       (b),
                       (l));
 
-  NOBJ_PROP_GET__FIELD(PaddingAdapter, t);
-  NOBJ_PROP_GET__FIELD(PaddingAdapter, r);
-  NOBJ_PROP_GET__FIELD(PaddingAdapter, b);
-  NOBJ_PROP_GET__FIELD(PaddingAdapter, l);
+  NOBJ_PROP_GET__FIELD(InsetsAdapter, t);
+  NOBJ_PROP_GET__FIELD(InsetsAdapter, r);
+  NOBJ_PROP_GET__FIELD(InsetsAdapter, b);
+  NOBJ_PROP_GET__FIELD(InsetsAdapter, l);
 
   StyleNamespace::StyleNamespace()
     : Lisple::Namespace("pixils.ui.style")
   {
     values.emplace("make-style", Function::MakeStyle::make());
     values.emplace("make-background", Function::MakeBackground::make());
-    values.emplace("make-padding", Function::MakePadding::make());
+    values.emplace("make-insets", Function::MakeInsets::make());
   }
 
 } // namespace Pixils::Script

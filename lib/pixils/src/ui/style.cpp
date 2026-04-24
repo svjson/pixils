@@ -50,8 +50,8 @@ namespace Pixils::UI
   {
   }
 
-  /** Style::Padding */
-  Style::Padding::Padding(int t, int r, int b, int l)
+  /** Style::Insets */
+  Style::Insets::Insets(int t, int r, int b, int l)
     : t(t)
     , r(r)
     , b(b)
@@ -59,7 +59,7 @@ namespace Pixils::UI
   {
   }
 
-  Style::Padding::Padding(int h, int v)
+  Style::Insets::Insets(int h, int v)
     : t(v)
     , r(h)
     , b(v)
@@ -67,7 +67,7 @@ namespace Pixils::UI
   {
   }
 
-  Style::Padding::Padding(const Padding& other)
+  Style::Insets::Insets(const Insets& other)
     : t(other.t)
     , r(other.r)
     , b(other.b)
@@ -75,12 +75,24 @@ namespace Pixils::UI
   {
   }
 
-  Rect Style::Padding::apply_to(const Rect& rect) const
+  Rect Style::Insets::apply_to(const Rect& rect) const
   {
     return Rect(rect.x + this->l,
                 rect.y + this->t,
                 rect.w - this->l - this->r,
                 rect.h - this->t - this->b);
+  }
+
+  int Style::total_width() const
+  {
+    int pad = padding ? padding->l + padding->r : 0;
+    return width.value_or(0) + pad;
+  }
+
+  int Style::total_height() const
+  {
+    int pad = padding ? padding->t + padding->b : 0;
+    return height.value_or(0) + pad;
   }
 
   /**

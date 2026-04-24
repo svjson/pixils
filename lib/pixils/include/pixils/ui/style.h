@@ -42,22 +42,22 @@ namespace Pixils::UI
       std::optional<Color> color;
     };
 
-    struct Padding
+    struct Insets
     {
       int t = 0;
       int r = 0;
       int b = 0;
       int l = 0;
 
-      Padding() = default;
-      Padding(const Padding& other);
-      Padding(int t, int r, int b, int l);
-      /** Uniform horizontal and vertical padding. */
-      Padding(int h, int v);
+      Insets() = default;
+      Insets(const Insets& other);
+      Insets(int t, int r, int b, int l);
+      /** Uniform horizontal and vertical insets. */
+      Insets(int h, int v);
 
-      Padding operator*(int amount) const;
-      Padding& operator=(const Padding& other) = default;
-      bool operator==(const Padding& other) const;
+      Insets operator*(int amount) const;
+      Insets& operator=(const Insets& other) = default;
+      bool operator==(const Insets& other) const;
 
       void apply_to(Dimension& dimension);
       Dimension remove_from(const Dimension& dimension);
@@ -71,11 +71,15 @@ namespace Pixils::UI
 
     /** Visual */
     std::optional<Background> background = std::nullopt;
-    std::optional<Padding> padding = std::nullopt;
+    std::optional<Insets> padding = std::nullopt;
 
-    /** Own sizing. Absent means fill remaining space. */
+    /** Own sizing. Absent means fill remaining space. width/height are inner (content) dimensions. */
     std::optional<int> width;
     std::optional<int> height;
+
+    /** Outer (total) dimensions: content size plus horizontal/vertical padding. */
+    int total_width() const;
+    int total_height() const;
 
     /** Positioning. Absent defaults to FLOW. */
     std::optional<PositionMode> position;

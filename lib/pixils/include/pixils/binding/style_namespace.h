@@ -15,8 +15,8 @@ namespace Pixils::Script
 
   inline constexpr std::string_view FN__PIXILS_UI_STYLE__MAKE_STYLE =
     std::string_view("pixils.ui.style/make-style");
-  inline constexpr std::string_view FN__PIXILS_UI_STYLE__MAKE_PADDING =
-    std::string_view("pixils.ui.style/make-padding");
+  inline constexpr std::string_view FN__PIXILS_UI_STYLE__MAKE_INSETS =
+    std::string_view("pixils.ui.style/make-insets");
   inline constexpr std::string_view FN__PIXILS_UI_STYLE__MAKE_BACKGROUND =
     std::string_view("pixils.ui.style/make-background");
 
@@ -26,16 +26,16 @@ namespace Pixils::Script
     HOST_TYPE(STYLE_BACKGROUND,
               "HStyleBackground",
               std::string(FN__PIXILS_UI_STYLE__MAKE_BACKGROUND));
-    HOST_TYPE(STYLE_PADDING,
-              "HStylePadding",
-              std::string(FN__PIXILS_UI_STYLE__MAKE_PADDING));
+    HOST_TYPE(STYLE_INSETS,
+              "HStyleInsets",
+              std::string(FN__PIXILS_UI_STYLE__MAKE_INSETS));
   } // namespace HostType
 
   namespace Function
   {
     FUNC(MakeStyle, make);
     FUNC(MakeBackground, make_color, make_image, make_map);
-    FUNC(MakePadding, make_num, make_map, make_vec);
+    FUNC(MakeInsets, make_num, make_map, make_vec);
 
   } // namespace Function
 
@@ -45,7 +45,7 @@ namespace Pixils::Script
     (background, padding, width, height, position, top, left, direction, hidden, hover),
     (hidden));
   NATIVE_ADAPTER(BackgroundAdapter, UI::Style::Background, (color, image));
-  NATIVE_ADAPTER(PaddingAdapter, UI::Style::Padding, (t, r, b, l));
+  NATIVE_ADAPTER(InsetsAdapter, UI::Style::Insets, (t, r, b, l));
 
   class StyleNamespace : public Lisple::Namespace
   {
