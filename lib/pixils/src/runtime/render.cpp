@@ -22,7 +22,7 @@ namespace Pixils::Runtime
       if (cs.position && *cs.position == UI::PositionMode::ABSOLUTE) continue;
       const auto& size_opt = row ? cs.width : cs.height;
       if (size_opt)
-        total_fixed += *size_opt;
+        total_fixed += row ? cs.total_width() : cs.total_height();
       else
         fill_count++;
     }
@@ -43,7 +43,7 @@ namespace Pixils::Runtime
         continue;
       }
       const auto& size_opt = row ? cs.width : cs.height;
-      int size = size_opt ? *size_opt : fill_size;
+      int size = size_opt ? (row ? cs.total_width() : cs.total_height()) : fill_size;
       if (row)
         rects.push_back({pos, parent.y, size, parent.h});
       else
@@ -114,8 +114,8 @@ namespace Pixils::Runtime
         {
           int top = cs.top.value_or(0);
           int left = cs.left.value_or(0);
-          int w = cs.width.value_or(content.w);
-          int h = cs.height.value_or(content.h);
+          int w = cs.width.has_value() ? cs.total_width() : content.w;
+          int h = cs.height.has_value() ? cs.total_height() : content.h;
           abs = {content.x + left, content.y + top, w, h};
         }
         else
