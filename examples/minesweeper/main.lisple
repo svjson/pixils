@@ -49,6 +49,7 @@
   {:settings {:w w
               :h h
               :mines mines}
+   :face :status-panel/face-normal
    :board (generate-mine-field w h mines)
    :board-mask (dotimes [y h]
                  (dotimes [x w]
@@ -354,14 +355,15 @@
 
 (defcomponent status-panel {:style {:height 50 :padding 13 :direction :row}
                             :resources {:images {:counter-font-map "assets/score_numbers.png"
-                                                 :face-normal "assets/face1.png"}}
+                                                 :face-normal "assets/face1.png"
+                                                 :face-danger "assets/face2.png"}}
                             :children [{:mode 'counter
                                         :state {:value (ui/bind-state :counters :mines-left)}}
                                        {:mode 'button
                                         :style {:width 24
                                                 :height 24}
                                         :state {:label "Hehu"
-                                                :image :status-panel/face-normal}
+                                                :image (ui/bind-state :face)}
                                         :on-click (fn [state event ctx]
                                                     (ui/emit! (:view ctx) :game/new-game))}
                                        {:mode 'counter
@@ -397,10 +399,12 @@
                (draw-bevel! {:x 9 :y 9 :w (- (:w dim) 18) :h 33} {:thickness 2 :invert true})
                (draw-bevel! {:x 9 :y 47 :w (- (:w dim) 18) :h (- (:h dim) 56)} {:thickness 3 :invert true})))
    :children [{:mode 'status-panel
-               :state {:counters (ui/bind-state :counters)}}
+               :state {:counters (ui/bind-state :counters)
+                       :face (ui/bind-state :face)}}
               {:mode 'board-mode
                :state {:board (ui/bind-state :board)
-                       :board-mask (ui/bind-state :board-mask)}
+                       :board-mask (ui/bind-state :board-mask)
+                       :face (ui/bind-state :face)}
                :style {:padding [0 12]}}]
    :on {:cell/click (fn [state payload ctx]
                       (reveal-board-cell state (:y payload) (:x payload)))
@@ -427,7 +431,12 @@
                :state {:board (ui/bind-state :board)
                        :board-mask (ui/bind-state :board-mask)}}
               {:mode 'board-buttons
-               :state {:board-mask (ui/bind-state :board-mask)}
+               :state {:board-mask (ui/bind-state :board-mask)
+                       :face (ui/bind-state :face)}
+               :on-mouse-down (fn [state e ctx]
+                                (assoc state :face :status-panel/face-danger))
+               :on-mouse-up (fn [state e ctx]
+                              (assoc state :face :status-panel/face-normal))
                :style {:position :absolute
                        :top 0
                        :left 0}}]})
