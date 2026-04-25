@@ -65,6 +65,52 @@ namespace Pixils::UI
       Rect apply_to(const Rect& rect) const;
     };
 
+    enum class LineStyle : uint8_t
+    {
+      SOLID
+    };
+
+    struct Border
+    {
+      virtual ~Border() = default;
+
+      std::optional<int> thickness = std::nullopt;
+      std::optional<LineStyle> line_style = std::nullopt;
+      std::optional<Color> color = std::nullopt;
+    };
+
+    /**
+     * @brief Contains the full border configuration of a Style unit
+     */
+    struct BorderStyle : public Border
+    {
+      std::optional<Border> t = std::nullopt;
+      std::optional<Border> r = std::nullopt;
+      std::optional<Border> b = std::nullopt;
+      std::optional<Border> l = std::nullopt;
+
+      /**
+       * Effective thickness for each side: per-side value if set, else base.
+       */
+      int top_thickness() const;
+      int right_thickness() const;
+      int bottom_thickness() const;
+      int left_thickness() const;
+
+      /**
+       * Effective color for each side: per-side value if set, else base.
+       */
+      std::optional<Color> top_color() const;
+      std::optional<Color> right_color() const;
+      std::optional<Color> bottom_color() const;
+      std::optional<Color> left_color() const;
+
+      /**
+       * Inset a rect by the effective border thickness on each side.
+       */
+      Rect apply_to(const Rect& bounds) const;
+    };
+
     Style();
     Style(const Style& other);
 
@@ -73,6 +119,7 @@ namespace Pixils::UI
     /** Visual */
     std::optional<Background> background = std::nullopt;
     std::optional<Insets> padding = std::nullopt;
+    std::optional<BorderStyle> border = std::nullopt;
 
     /**
      * Content surface size. Absent means fill remaining space. When
@@ -82,9 +129,15 @@ namespace Pixils::UI
     std::optional<int> width;
     std::optional<int> height;
 
-    /** Outer (total) dimensions: content size plus horizontal/vertical padding. */
+    /** Outer (total) dimensions: content size plus padding and border. */
     int total_width() const;
     int total_height() const;
+
+    /**
+     * Content rect within the given bounds: inset by border thickness then by
+     * padding. This is the area available to children and the render hook.
+     */
+    Rect content_rect(const Rect& bounds) const;
 
     /** Positioning. Absent defaults to FLOW. */
     std::optional<PositionMode> position;

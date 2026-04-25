@@ -13,6 +13,10 @@ namespace Pixils::Script
 {
   inline const std::string_view NS__PIXILS__UI__STYLE = "pixils.ui.style";
 
+  inline constexpr std::string_view FN__PIXILS_UI_STYLE__MAKE_BORDER =
+    std::string_view("pixils.ui.style/make-border");
+  inline constexpr std::string_view FN__PIXILS_UI_STYLE__MAKE_BORDER_STYLE =
+    std::string_view("pixils.ui.style/make-border-style");
   inline constexpr std::string_view FN__PIXILS_UI_STYLE__MAKE_STYLE =
     std::string_view("pixils.ui.style/make-style");
   inline constexpr std::string_view FN__PIXILS_UI_STYLE__MAKE_INSETS =
@@ -22,29 +26,46 @@ namespace Pixils::Script
 
   namespace HostType
   {
+    HOST_TYPE(BORDER, "HBorder", std::string(FN__PIXILS_UI_STYLE__MAKE_BORDER));
+    HOST_TYPE(BORDER_STYLE,
+              "HBorderStyle",
+              std::string(FN__PIXILS_UI_STYLE__MAKE_BORDER_STYLE));
     HOST_TYPE(STYLE, "HStyle", std::string(FN__PIXILS_UI_STYLE__MAKE_STYLE));
     HOST_TYPE(STYLE_BACKGROUND,
               "HStyleBackground",
               std::string(FN__PIXILS_UI_STYLE__MAKE_BACKGROUND));
-    HOST_TYPE(STYLE_INSETS,
-              "HStyleInsets",
-              std::string(FN__PIXILS_UI_STYLE__MAKE_INSETS));
+    HOST_TYPE(STYLE_INSETS, "HStyleInsets", std::string(FN__PIXILS_UI_STYLE__MAKE_INSETS));
   } // namespace HostType
 
   namespace Function
   {
+    FUNC(MakeBorder, make);
+    FUNC(MakeBorderStyle, make);
     FUNC(MakeStyle, make);
     FUNC(MakeBackground, make_color, make_image, make_map);
     FUNC(MakeInsets, make_num, make_map, make_vec);
 
   } // namespace Function
 
-  NATIVE_ADAPTER(
-    StyleAdapter,
-    UI::Style,
-    (background, padding, width, height, position, top, left, direction, hidden, hover),
-    (hidden));
+  NATIVE_ADAPTER(StyleAdapter,
+                 UI::Style,
+                 (background,
+                  border,
+                  padding,
+                  width,
+                  height,
+                  position,
+                  top,
+                  left,
+                  direction,
+                  hidden,
+                  hover),
+                 (hidden));
   NATIVE_ADAPTER(BackgroundAdapter, UI::Style::Background, (color, image));
+  NATIVE_ADAPTER(BorderAdapter, UI::Style::Border, (thickness, line_style, color));
+  NATIVE_SUB_ADAPTER(BorderAdapter,
+                     (BorderStyleAdapter, UI::Style::BorderStyle),
+                     (t, r, b, l));
   NATIVE_ADAPTER(InsetsAdapter, UI::Style::Insets, (t, r, b, l));
 
   class StyleNamespace : public Lisple::Namespace

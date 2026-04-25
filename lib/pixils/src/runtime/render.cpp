@@ -73,7 +73,9 @@ namespace Pixils::Runtime
      */
     SDL_RenderSetViewport(session.render_ctx.renderer, nullptr);
 
-    /** Draw background fill using absolute bounds, now that viewport is null. */
+    /**
+     * Draw background fill using absolute bounds, now that viewport is null.
+     */
     if (style_res.background && style_res.background->color)
     {
       const SDL_Color& bg = style_res.background->color->to_SDL_Color();
@@ -84,8 +86,35 @@ namespace Pixils::Runtime
       SDL_SetRenderDrawBlendMode(session.render_ctx.renderer, SDL_BLENDMODE_NONE);
     }
 
-    /** Inset by padding to get the content rect, then set it as the viewport. */
-    Rect content = style_res.padding ? style_res.padding->apply_to(bounds) : bounds;
+    /**
+     * Draw border edges in absolute coordinates, on top of the background.
+     */
+    if (style_res.border)
+    {
+      const UI::Style::BorderStyle& bs = *style_res.border;
+
+      auto draw_side = [&](int thickness, std::optional<Color> color, SDL_Rect rect)
+      {
+        if (thickness <= 0 || !color) return;
+        const SDL_Color c = color->to_SDL_Color();
+        SDL_SetRenderDrawColor(session.render_ctx.renderer, c.r, c.g, c.b, c.a);
+        SDL_SetRenderDrawBlendMode(session.render_ctx.renderer, SDL_BLENDMODE_BLEND);
+        SDL_RenderFillRect(session.render_ctx.renderer, &rect);
+        SDL_SetRenderDrawBlendMode(session.render_ctx.renderer, SDL_BLENDMODE_NONE);
+      };
+
+      int tt = bs.top_thickness();
+      int tr = bs.right_thickness();
+      int tb = bs.bottom_thickness();
+      int tl = bs.left_thickness();
+
+      draw_side(tt, bs.top_color(), {bounds.x, bounds.y, bounds.w, tt});
+      draw_side(tb, bs.bottom_color(), {bounds.x, bounds.y + bounds.h - tb, bounds.w, tb});
+      draw_side(tl, bs.left_color(), {bounds.x, bounds.y, tl, bounds.h});
+      draw_side(tr, bs.right_color(), {bounds.x + bounds.w - tr, bounds.y, tr, bounds.h});
+    }
+
+    Rect content = style_res.content_rect(bounds);
 
     SDL_Rect viewport = {content.x, content.y, content.w, content.h};
     SDL_RenderSetViewport(session.render_ctx.renderer, &viewport);

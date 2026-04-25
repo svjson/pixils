@@ -12,6 +12,7 @@ namespace Pixils::UI
   Style::Style(const Style& other)
     : background(other.background)
     , padding(other.padding)
+    , border(other.border)
     , width(other.width)
     , height(other.height)
     , position(other.position)
@@ -27,6 +28,7 @@ namespace Pixils::UI
   {
     this->background = other.background;
     this->padding = other.padding;
+    this->border = other.border;
     this->width = other.width;
     this->height = other.height;
     this->position = other.position;
@@ -83,16 +85,74 @@ namespace Pixils::UI
                 rect.h - this->t - this->b);
   }
 
+  int Style::BorderStyle::top_thickness() const
+  {
+    return (t && t->thickness) ? *t->thickness : thickness.value_or(0);
+  }
+
+  int Style::BorderStyle::right_thickness() const
+  {
+    return (r && r->thickness) ? *r->thickness : thickness.value_or(0);
+  }
+
+  int Style::BorderStyle::bottom_thickness() const
+  {
+    return (b && b->thickness) ? *b->thickness : thickness.value_or(0);
+  }
+
+  int Style::BorderStyle::left_thickness() const
+  {
+    return (l && l->thickness) ? *l->thickness : thickness.value_or(0);
+  }
+
+  std::optional<Color> Style::BorderStyle::top_color() const
+  {
+    return (t && t->color) ? t->color : color;
+  }
+
+  std::optional<Color> Style::BorderStyle::right_color() const
+  {
+    return (r && r->color) ? r->color : color;
+  }
+
+  std::optional<Color> Style::BorderStyle::bottom_color() const
+  {
+    return (b && b->color) ? b->color : color;
+  }
+
+  std::optional<Color> Style::BorderStyle::left_color() const
+  {
+    return (l && l->color) ? l->color : color;
+  }
+
+  Rect Style::BorderStyle::apply_to(const Rect& bounds) const
+  {
+    int tl = left_thickness();
+    int tt = top_thickness();
+    return {bounds.x + tl,
+            bounds.y + tt,
+            bounds.w - tl - right_thickness(),
+            bounds.h - tt - bottom_thickness()};
+  }
+
   int Style::total_width() const
   {
     int pad = padding ? padding->l + padding->r : 0;
-    return width.value_or(0) + pad;
+    int bord = border ? border->left_thickness() + border->right_thickness() : 0;
+    return width.value_or(0) + pad + bord;
   }
 
   int Style::total_height() const
   {
     int pad = padding ? padding->t + padding->b : 0;
-    return height.value_or(0) + pad;
+    int bord = border ? border->top_thickness() + border->bottom_thickness() : 0;
+    return height.value_or(0) + pad + bord;
+  }
+
+  Rect Style::content_rect(const Rect& bounds) const
+  {
+    Rect inner = border ? border->apply_to(bounds) : bounds;
+    return padding ? padding->apply_to(inner) : inner;
   }
 
   /**
@@ -108,6 +168,7 @@ namespace Pixils::UI
       if (variant.background->image) out.background->image = *variant.background->image;
     }
     if (variant.padding) out.padding = variant.padding;
+    if (variant.border) out.border = variant.border;
     if (variant.width) out.width = variant.width;
     if (variant.height) out.height = variant.height;
     if (variant.position) out.position = variant.position;

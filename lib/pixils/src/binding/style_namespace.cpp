@@ -10,7 +10,6 @@
 #include <lisple/runtime/seq.h>
 #include <lisple/runtime/value.h>
 #include <lisple/type.h>
-
 namespace Pixils::Script
 {
 
@@ -24,6 +23,7 @@ namespace Pixils::Script
     {
       static Lisple::MapSchema style_schema({},
                                             {{"background", &HostType::STYLE_BACKGROUND},
+                                             {"border", &HostType::BORDER_STYLE},
                                              {"padding", &HostType::STYLE_INSETS},
                                              {"width", &Lisple::Type::NUMBER},
                                              {"height", &Lisple::Type::NUMBER},
@@ -39,6 +39,7 @@ namespace Pixils::Script
 
       style->background = opts.optional_obj<UI::Style::Background>("background");
       style->padding = opts.optional_obj<UI::Style::Insets>("padding");
+      style->border = opts.optional_obj<UI::Style::BorderStyle>("border");
 
       if (opts.contains("width")) style->width = opts.i32("width");
       if (opts.contains("height")) style->height = opts.i32("height");
@@ -126,6 +127,74 @@ namespace Pixils::Script
       return BackgroundAdapter::claim(std::move(bg));
     }
 
+    /** Border/BorderStyle common props */
+    static void apply_border_props(UI::Style::Border& border,
+                                   Lisple::MapSchema::Inspector& opts)
+    {
+      if (auto thickness = opts.i32("thickness", -1); thickness > 0)
+      {
+        border.thickness = thickness;
+      }
+      if (auto line_style = opts.val("line-style"); *line_style != *Lisple::Constant::NIL)
+      {
+        auto lstyle = line_style->str();
+        if (lstyle == "solid")
+        {
+          border.line_style = UI::Style::LineStyle::SOLID;
+        }
+      }
+      border.color = opts.optional_obj<Color>("color");
+    }
+
+    /** MakeBorder - make-border */
+    FUNC_IMPL(MakeBorder,
+              SIG((FN_ARGS((&Lisple::Type::MAP)), EXEC_DISPATCH(&MakeBorder::exec_make))));
+
+    EXEC_BODY(MakeBorder, exec_make)
+    {
+      static Lisple::MapSchema border_schema({},
+                                             {{"thickness", &Lisple::Type::NUMBER},
+                                              {"line-style", &Lisple::Type::KEY},
+                                              {"color", &HostType::COLOR}});
+
+      auto opts = border_schema.bind(ctx, *args[0]);
+
+      std::unique_ptr<UI::Style::Border> border = std::make_unique<UI::Style::Border>();
+      apply_border_props(*border, opts);
+
+      return BorderAdapter::claim(std::move(border));
+    }
+
+    /** MakeBorderStyle - make-border */
+    FUNC_IMPL(MakeBorderStyle,
+              SIG((FN_ARGS((&Lisple::Type::MAP)),
+                   EXEC_DISPATCH(&MakeBorderStyle::exec_make))));
+
+    EXEC_BODY(MakeBorderStyle, exec_make)
+    {
+      static Lisple::MapSchema border_style_schema({},
+                                                   {{"thickness", &Lisple::Type::NUMBER},
+                                                    {"line-style", &Lisple::Type::KEY},
+                                                    {"color", &HostType::COLOR},
+                                                    {"top", &HostType::BORDER},
+                                                    {"right", &HostType::BORDER},
+                                                    {"bottom", &HostType::BORDER},
+                                                    {"left", &HostType::BORDER}});
+
+      auto opts = border_style_schema.bind(ctx, *args[0]);
+
+      std::unique_ptr<UI::Style::BorderStyle> border =
+        std::make_unique<UI::Style::BorderStyle>();
+      apply_border_props(*border, opts);
+
+      border->t = opts.optional_obj<UI::Style::Border>("top");
+      border->r = opts.optional_obj<UI::Style::Border>("right");
+      border->b = opts.optional_obj<UI::Style::Border>("bottom");
+      border->l = opts.optional_obj<UI::Style::Border>("left");
+
+      return BorderStyleAdapter::claim(std::move(border));
+    }
+
     /** MakeInsets - make-insets */
     FUNC_IMPL(MakeInsets,
               MULTI_SIG((FN_ARGS((&Lisple::Type::NUMBER)),
@@ -199,6 +268,7 @@ namespace Pixils::Script
                       UI::Style,
                       &HostType::STYLE,
                       (background),
+                      (border),
                       (padding),
                       (width),
                       (height),
@@ -219,6 +289,17 @@ namespace Pixils::Script
     if (get_self_object().background->image)
       return BackgroundAdapter(*get_self_object().background).get_image();
     return Lisple::Constant::NIL;
+  }
+
+  NOBJ_PROP_GET(StyleAdapter, border)
+  {
+    auto& style = get_self_object();
+    if (!style.border)
+    {
+      return Lisple::Constant::NIL;
+    }
+
+    return BorderStyleAdapter::make_ref(*style.border);
   }
 
   NOBJ_PROP_GET(StyleAdapter, padding)
@@ -290,6 +371,7 @@ namespace Pixils::Script
                                    : Lisple::Constant::NIL;
   }
 
+  /** BackgroundAdapter */
   NATIVE_ADAPTER_IMPL(BackgroundAdapter,
                       UI::Style::Background,
                       &HostType::STYLE_BACKGROUND,
@@ -310,13 +392,57 @@ namespace Pixils::Script
                                    : Lisple::Constant::NIL;
   };
 
+  /** BorderAdapter */
+  NATIVE_ADAPTER_IMPL(BorderAdapter,
+                      UI::Style::Border,
+                      &HostType::BORDER,
+                      (thickness),
+                      ("line-style", line_style),
+                      (color));
+
+  NOBJ_PROP_GET(BorderAdapter, thickness)
+  {
+    return get_self_object().thickness
+             ? Lisple::RTValue::number(*get_self_object().thickness)
+             : Lisple::Constant::NIL;
+  }
+
+  NOBJ_PROP_GET(BorderAdapter, line_style)
+  {
+    if (!get_self_object().line_style) return Lisple::Constant::NIL;
+    switch (*get_self_object().line_style)
+    {
+    case UI::Style::LineStyle::SOLID:
+      return Lisple::RTValue::keyword("solid");
+    }
+    return Lisple::Constant::NIL;
+  }
+
+  NOBJ_PROP_GET_OPT_ADAPTER__FIELD(BorderAdapter, color, ColorAdapter);
+
+  /** BorderStyleAdapter */
+  NATIVE_SUB_ADAPTER_IMPL(BorderAdapter,
+                          UI::Style::Border,
+                          (BorderStyleAdapter, UI::Style::BorderStyle),
+                          &HostType::BORDER_STYLE,
+                          ("top", t),
+                          ("right", r),
+                          ("bottom", b),
+                          ("left", l))
+
+  NOBJ_PROP_GET_OPT_ADAPTER__FIELD(BorderStyleAdapter, t, BorderAdapter);
+  NOBJ_PROP_GET_OPT_ADAPTER__FIELD(BorderStyleAdapter, r, BorderAdapter);
+  NOBJ_PROP_GET_OPT_ADAPTER__FIELD(BorderStyleAdapter, b, BorderAdapter);
+  NOBJ_PROP_GET_OPT_ADAPTER__FIELD(BorderStyleAdapter, l, BorderAdapter);
+
+  /** InsetsAdapter */
   NATIVE_ADAPTER_IMPL(InsetsAdapter,
                       UI::Style::Insets,
                       &HostType::STYLE_INSETS,
-                      (t),
-                      (r),
-                      (b),
-                      (l));
+                      ("top", t),
+                      ("right", r),
+                      ("bottom", b),
+                      ("left", l));
 
   NOBJ_PROP_GET__FIELD(InsetsAdapter, t);
   NOBJ_PROP_GET__FIELD(InsetsAdapter, r);
@@ -326,6 +452,8 @@ namespace Pixils::Script
   StyleNamespace::StyleNamespace()
     : Lisple::Namespace("pixils.ui.style")
   {
+    values.emplace("make-border", Function::MakeBorder::make());
+    values.emplace("make-border-style", Function::MakeBorderStyle::make());
     values.emplace("make-style", Function::MakeStyle::make());
     values.emplace("make-background", Function::MakeBackground::make());
     values.emplace("make-insets", Function::MakeInsets::make());
