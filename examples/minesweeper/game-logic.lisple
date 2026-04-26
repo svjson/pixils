@@ -1,0 +1,143 @@
+(ns pixils.examples.minesweeper.game-logic
+  (:require [pixils.point :as pt]))
+
+(def directions [{:x 0 :y -1}
+                 {:x 1 :y -1}
+                 {:x 1 :y 0}
+                 {:x 1 :y 1}
+                 {:x 0 :y 1}
+                 {:x -1 :y 1}
+                 {:x -1 :y 0}
+                 {:x -1 :y -1}])
+
+
+;; Game board creation
+
+(defun generate-mine-field [w h mines]
+  (let [grid (dotimes [n h] (repeat w nil))
+        m-rem mines]
+    (while (> m-rem 0)
+      (let [mine-x (rnd 0 w)
+            mine-y (rnd 0 h)]
+        (set! [grid]
+              (assoc grid mine-y
+                     (assoc (nth grid mine-y) mine-x :mine))))
+      (set! [m-rem] (- m-rem 1)))
+    (for-indexed [y row grid]
+                 (for-indexed [x cell row]
+                              (if (= cell :mine)
+                                :mine
+                                (reduce directions 0 (fn [num dir]
+                                                       (let [pos (pt/+ {:x x :y y} dir)
+                                                             adj (-> grid
+                                                                     (nth (:y pos))
+                                                                     (nth (:x pos)))]
+                                                         (if (= :mine adj)
+                                                           (+ 1 num)
+                                                           num)))))))))
+
+(defun new-game-state [w h mines]
+  {:settings {:w w
+              :h h
+              :mines mines}
+   :face :status-panel/face-normal
+   :board (generate-mine-field w h mines)
+   :board-mask (dotimes [y h]
+                 (dotimes [x w]
+                   {:revealed? false
+                    :flagged? false}))
+   :start-time (epoch-ms)
+   :counters {:mines-left mines
+              :timer 0}})
+
+
+
+;; Game board inspection functions
+
+(defun in-bounds? [board y x]
+  (and (<= 0 y)
+       (< y (count board))
+       (<= 0 x)
+       (< x (count (head board)))))
+
+(defun cell-at [board y x]
+  (get-in board [y x]))
+
+(defun neighbors [board y x]
+  (filter
+   (fn [[dy dx]] (in-bounds? board dy dx))
+   (for [d directions]
+     [(+ y (:y d)) (+ x (:x d))])))
+
+(defun reveal-cell [state y x]
+  (assoc-in state [:board-mask y x :revealed?] true))
+
+(defun revealed? [state y x]
+  (get-in state [:board-mask y x :revealed?]))
+
+(defun flagged? [state y x]
+  (get-in state [:board-mask y x :flagged?]))
+
+
+
+;; Cell reveal logic
+
+(defun reveal-board-region [state stack visited]
+  (if (empty? stack)
+    state
+    (let [[y x] (head stack)
+          rest-stack (tail stack)]
+      (cond
+        (contains? visited [y x])
+        (reveal-board-region state rest-stack visited)
+
+        :else
+        (do
+          (append! visited [y x])
+          (let [board (:board state)
+                value (cell-at board y x)
+                nbrs  (neighbors board y x)
+                state (reduce nbrs
+                              (reveal-cell state y x)
+                              (fn [s [ny nx]]
+                                (if (and (not= (cell-at board ny nx) :mine)
+                                         (not (flagged? state ny nx)))
+                                  (reveal-cell s ny nx)
+                                  s)))]
+            (reveal-board-region state
+                                 (reduce nbrs rest-stack
+                                         (fn [new-stack [ny nx]]
+                                           (if (and (= 0 (cell-at board ny nx))
+                                                    (not (flagged? state ny nx))
+                                                    (not (contains? visited [ny nx])))
+                                             (append! new-stack [ny nx])
+                                             new-stack)))
+                                 visited)))))))
+
+(defun reveal-board-cell [state start-y start-x]
+  (let [board (:board state)
+        start-value (cell-at board start-y start-x)]
+    (cond
+      ;; A mine means game over
+      (= :mine start-value)
+      (-> state
+          (assoc :game-over? true)
+          (assoc :board-mask (for [row (:board-mask state)]
+                               (for [cell row]
+                                 {:revealed? true})))
+          (assoc-in [:board-mask start-y start-x :exploded?] true))
+
+      ;; ignore already revealed / flagged cells
+      (revealed? state start-y start-x) state
+      (flagged? state start-y start-x) state
+
+      ;; if clicked a number > 0, reveal only that cell
+      (and (number? start-value) (> start-value 0))
+      (reveal-cell state start-y start-x)
+
+      ;; if clicked a zero, flood-fill zero area and reveal bordering numbers
+      (= start-value 0)
+      (reveal-board-region state [[start-y start-x]] [])
+
+      :else
+      state)))

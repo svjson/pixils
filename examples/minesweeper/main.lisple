@@ -1,255 +1,16 @@
-(ns pixils.examples.minesweeper
+(ns pixils.examples.minesweeper.core
   (:require pixils
             [pixils.render :as r]
             [pixils.color :as c]
             [pixils.point :as pt]
-            [pixils.ui :as ui]))
-
+            [pixils.ui :as ui]
+            [pixils.examples.minesweeper.game-logic :as gl]
+            [pixils.examples.minesweeper.menu :as menu]
+            [pixils.examples.minesweeper.win :as win]))
 
 (defprogram minesweeper
   {:display {:resolution {:scale 3}}
    :initial-mode 'window-mode})
-
-
-;; Game logic
-
-(def directions [{:x 0 :y -1}
-                 {:x 1 :y -1}
-                 {:x 1 :y 0}
-                 {:x 1 :y 1}
-                 {:x 0 :y 1}
-                 {:x -1 :y 1}
-                 {:x -1 :y 0}
-                 {:x -1 :y -1}])
-
-(defun generate-mine-field [w h mines]
-  (let [grid (dotimes [n h] (repeat w nil))
-        m-rem mines]
-    (while (> m-rem 0)
-      (let [mine-x (rnd 0 w)
-            mine-y (rnd 0 h)]
-        (set! [grid]
-              (assoc grid mine-y
-                     (assoc (nth grid mine-y) mine-x :mine))))
-      (set! [m-rem] (- m-rem 1)))
-    (for-indexed [y row grid]
-                 (for-indexed [x cell row]
-                              (if (= cell :mine)
-                                :mine
-                                (reduce directions 0 (fn [num dir]
-                                                       (let [pos (pt/+ {:x x :y y} dir)
-                                                             adj (-> grid
-                                                                     (nth (:y pos))
-                                                                     (nth (:x pos)))]
-                                                         (if (= :mine adj)
-                                                           (+ 1 num)
-                                                           num)))))))))
-
-(defun new-game-state [w h mines]
-  {:settings {:w w
-              :h h
-              :mines mines}
-   :face :status-panel/face-normal
-   :board (generate-mine-field w h mines)
-   :board-mask (dotimes [y h]
-                 (dotimes [x w]
-                   {:revealed? false
-                    :flagged? false}))
-   :start-time (epoch-ms)
-   :counters {:mines-left mines
-              :timer 0}})
-
-(defun in-bounds? [board y x]
-  (and (<= 0 y)
-       (< y (count board))
-       (<= 0 x)
-       (< x (count (head board)))))
-
-(defun cell-at [board y x]
-  (get-in board [y x]))
-
-(defun neighbors [board y x]
-  (filter
-   (fn [[dy dx]] (in-bounds? board dy dx))
-   (for [d directions]
-     [(+ y (:y d)) (+ x (:x d))])))
-
-(defun reveal-cell [state y x]
-  (assoc-in state [:board-mask y x :revealed?] true))
-
-(defun revealed? [state y x]
-  (get-in state [:board-mask y x :revealed?]))
-
-(defun flagged? [state y x]
-  (get-in state [:board-mask y x :flagged?]))
-
-(defun reveal-board-region [state stack visited]
-  (if (empty? stack)
-    state
-    (let [[y x] (head stack)
-          rest-stack (tail stack)]
-      (cond
-        (contains? visited [y x])
-        (reveal-board-region state rest-stack visited)
-
-        :else
-        (do
-          (append! visited [y x])
-          (let [board (:board state)
-                value (cell-at board y x)
-                nbrs  (neighbors board y x)
-                state (reduce nbrs
-                              (reveal-cell state y x)
-                              (fn [s [ny nx]]
-                                (if (and (not= (cell-at board ny nx) :mine)
-                                         (not (flagged? state ny nx)))
-                                  (reveal-cell s ny nx)
-                                  s)))]
-            (reveal-board-region state
-                                 (reduce nbrs rest-stack
-                                         (fn [new-stack [ny nx]]
-                                           (if (and (= 0 (cell-at board ny nx))
-                                                    (not (flagged? state ny nx))
-                                                    (not (contains? visited [ny nx])))
-                                             (append! new-stack [ny nx])
-                                             new-stack)))
-                                 visited)))))))
-
-(defun reveal-board-cell [state start-y start-x]
-  (let [board (:board state)
-        start-value (cell-at board start-y start-x)]
-    (cond
-      ;; A mine means game over
-      (= :mine start-value)
-      (-> state
-          (assoc :game-over? true)
-          (assoc :board-mask (for [row (:board-mask state)]
-                               (for [cell row]
-                                 {:revealed? true})))
-          (assoc-in [:board-mask start-y start-x :exploded?] true))
-
-      ;; ignore already revealed / flagged cells
-      (revealed? state start-y start-x) state
-      (flagged? state start-y start-x) state
-
-      ;; if clicked a number > 0, reveal only that cell
-      (and (number? start-value) (> start-value 0))
-      (reveal-cell state start-y start-x)
-
-      ;; if clicked a zero, flood-fill zero area and reveal bordering numbers
-      (= start-value 0)
-      (reveal-board-region state [[start-y start-x]] [])
-
-      :else
-      state)))
-
-
-;; Menu item component
-
-(defcomponent menu-item
-  {:style {:padding    2
-           :hover      {:background {:r 90 :g 90 :b 110}}}
-   :on-mouse-down (fn [state event ctx]
-                    (push-mode!
-                     'popup-menu-mode
-                     {}
-                     {:children [{:mode 'popup-menu-mode
-                                  :style {:position :absolute
-                                          :background {:r 255 :g 255 :b 255}
-                                          :border {:thickness 1 :line-style :solid :color {:r 0 :g 0 :b 0}}
-                                          :left (-> ctx :view :bounds :x)
-                                          :top (+ (-> ctx :view :bounds :y) (-> ctx :view :bounds :h))
-                                          :width (+ 8 (apply max (map (:items state)
-                                                                      (fn [item] (:w (r/text-size (:title item) {:font :font/win3-system-font}))))))
-                                          :height (* (+ 4 menu-item-h) (-> state :items count))}
-                                  :children (for-indexed [n item (:items state)]
-                                                         (make-menu-item item {:x (* n menu-item-w)
-                                                                               :y 0
-                                                                               :w menu-item-w
-                                                                               :h menu-item-h}))}]})
-                    state)
-   :render (fn [state ctx]
-             (r/text! (:text state)
-                      {:x 0 :y 0}
-                      {:scale 1
-                       :font :font/win3-system-font
-                       :color {:r 0 :g 0 :b 0}}))})
-
-
-
-;; Menu bar
-
-(def menu-items [{:title "File" :items [{:title "New Game"}
-                                        {:title "Save"}
-                                        {:title "Quit"}]}
-                 {:title "Edit" :items [{:title "Undo move"}]}
-                 {:title "View" :items [{:title "Game board"}
-                                        {:title "Highscores"}]}
-                 {:title "Help" :items [{:title "About"}]}])
-(def menu-item-w 32)
-(def menu-item-h 13)
-
-(defun make-menu-item [item bounds]
-  {:mode 'menu-item
-   :style {:width (:w bounds)
-           :height (:h bounds)}
-   :state {:text (:title item)
-           :items (:items item)}})
-
-(defmode menu-bar-mode
-  {:style {:background {:r 255 :g 255 :b 255}
-           :border {:line-style :solid :color {:r 0 :g 0 :b 0} :bottom {:thickness 1}}
-           :direction :row}
-   :children (for-indexed [n item menu-items]
-                          (make-menu-item item {:x (* n menu-item-w) :y 0
-                                                :w (+ 9 menu-item-w)
-                                                :h menu-item-h}))})
-
-
-;; Popup menu mode
-
-(defmode popup-menu-mode {:init 'init-popup-menu!
-                          :update 'update-popup-menu!
-                          :compose {:render :pass}})
-
-(defun init-popup-menu! [state ctx]
-  state)
-
-(defun update-popup-menu! [state ctx]
-  (when (:mouse-button-down ctx)
-    (pop-mode!))
-  state)
-
-
-;; Win 3.11 UI drawing routines
-
-(def win-white {:r 255 :g 255 :b 255})
-(def win-panel-face {:r 0xc0 :g 0xc7 :b 0xc8})
-(def win-panel-shadow {:r 0x87 :g 0x88 :b 0x8f})
-
-
-(defun draw-bevel! [rect {:keys [thickness invert]}]
-  (let [thickness (or thickness 1)
-        tl-color (if invert win-panel-shadow win-white)
-        br-color (if invert win-white win-panel-shadow)]
-    (dotimes [n thickness]
-      (r/line! (pt/+ {:x (:x rect) :y (:y rect)} {:x 0 :y n})
-               {:x (+ (:x rect) (- (:w rect) (+ 1 n))) :y (+ (:y rect) n)}
-               tl-color))
-    (dotimes [n thickness]
-      (r/line! (pt/+ {:x (:x rect) :y (:y rect)} {:x n :y 0})
-               {:x (+ (:x rect) n) :y (+ (:y rect) (- (:h rect) (+ 1 n)))}
-               tl-color))
-    (dotimes [n thickness]
-      (r/line! (pt/+ {:x (+ 1 (:x rect) (- thickness n)) :y (- (+ (:y rect) (:h rect)) thickness)} {:x 0 :y n})
-               {:x (- (+ (:x rect) (:w rect)) 1) :y (- (+ n (:y rect) (:h rect)) thickness)}
-               br-color))
-    (dotimes [n thickness]
-      (r/line! (pt/+ {:x (- (+ (:x rect) (:w rect)) thickness) :y (+ 1 (:y rect) (- thickness n))}
-                     {:x n :y 0})
-               {:x (- (+ n (:x rect) (:w rect)) thickness) :y (- (+ (:y rect) (:h rect)) thickness)}
-               br-color))))
-
 
 
 
@@ -259,7 +20,7 @@
 (def tile-size 16)
 
 (defmode mine-layer-mode
-  {:render 'pixils.examples.minesweeper/mine-layer-render!
+  {:render 'pixils.examples.minesweeper.core/mine-layer-render!
    :resources {:images {:mine "assets/mine.png"
                         :flag "assets/flag.png"
                         :num-1 "assets/num1.png"
@@ -273,11 +34,11 @@
     (dotimes [y (+ 1 (:h grid-dim))]
       (r/line! {:x 0 :y (* y (+ 1 tile-size))}
                {:x (* (:w grid-dim) (+ 1 tile-size)) :y (* y (+ 1 tile-size))}
-               win-panel-shadow))
+               win/panel-shadow))
     (dotimes [x (+ 1 (:w grid-dim))]
       (r/line! {:x (* x (+ 1 tile-size)) :y 0}
                {:x (* x (+ 1 tile-size)) :y (* (:h grid-dim) (+ 1 tile-size))}
-               win-panel-shadow))
+               win/panel-shadow))
     (dotimes [y (:h grid-dim)]
       (dotimes [x (:w grid-dim)]
         (let [cell (-> state :board (nth y) (nth x))
@@ -329,10 +90,10 @@
                                       pressed (and (-> view :interaction :pressed)
                                                    (-> view :interaction :hovered))
                                       offset (if pressed 1 0)]
-                                  (r/rect! {:x offset :y offset :w bw :h bh} {:fill true :color win-panel-face})
+                                  (r/rect! {:x offset :y offset :w bw :h bh} {:fill true :color win/panel-face})
                                   (when (:image state)
                                     (r/image! (:image state) {:pos {:x (+ 2 offset) :y (+ 2 offset)}}))
-                                  (draw-bevel! {:x offset :y offset :w bw :h bh } {:thickness 2 :invert pressed})))})
+                                  (win/draw-bevel! {:x offset :y offset :w bw :h bh } {:thickness 2 :invert pressed})))})
 
 
 ;; Counter
@@ -340,7 +101,7 @@
 (defcomponent counter {:style {:width 41
                                :height 25}
                        :render (fn [state ctx]
-                                 (draw-bevel! {:x 0 :y 0 :w 41 :h 25} {:thickness 1 :invert true})
+                                 (win/draw-bevel! {:x 0 :y 0 :w 41 :h 25} {:thickness 1 :invert true})
                                  (r/text! (left-pad (:value state) 3 "0") {:x 1 :y 1}
                                           {:font :font/counter-font}))})
 
@@ -391,15 +152,15 @@
 (defmode game-layout-mode
   {:init (fn [state ctx]
            (merge state
-                  (new-game-state 9 9 10)))
+                  (gl/new-game-state 9 9 10)))
    :update (fn [state ctx]
              (assoc-in state [:counters :timer] (min 999 (int (/ (- (epoch-ms) (:start-time state)) 1000)))))
    :render (fn [state ctx]
              (let [dim (:buffer-size ctx)]
-               (r/rect! {:x 0 :y 0 :w (:w dim) :h (:h dim)} {:fill true :color win-panel-face})
-               (draw-bevel! (merge dim {:x 0 :y 0}) {:thickness 3})
-               (draw-bevel! {:x 9 :y 9 :w (- (:w dim) 18) :h 33} {:thickness 2 :invert true})
-               (draw-bevel! {:x 9 :y 47 :w (- (:w dim) 18) :h (- (:h dim) 56)} {:thickness 3 :invert true})))
+               (r/rect! {:x 0 :y 0 :w (:w dim) :h (:h dim)} {:fill true :color win/panel-face})
+               (win/draw-bevel! (merge dim {:x 0 :y 0}) {:thickness 3})
+               (win/draw-bevel! {:x 9 :y 9 :w (- (:w dim) 18) :h 33} {:thickness 2 :invert true})
+               (win/draw-bevel! {:x 9 :y 47 :w (- (:w dim) 18) :h (- (:h dim) 56)} {:thickness 3 :invert true})))
    :children [{:mode 'status-panel
                :state {:counters (ui/bind-state :counters)
                        :face (ui/bind-state :face)}}
@@ -409,7 +170,7 @@
                        :face (ui/bind-state :face)}
                :style {:padding [0 12]}}]
    :on {:cell/click (fn [state payload ctx]
-                      (reveal-board-cell state (:y payload) (:x payload)))
+                      (gl/reveal-board-cell state (:y payload) (:x payload)))
         :cell/toggle-flag (fn [state payload ctx]
                             (let [flag-state (get-in state [:board-mask (:y payload) (:x payload) :flagged?])
                                   new-state (assoc-in state [:board-mask (:y payload) (:x payload) :flagged?]
@@ -445,43 +206,5 @@
 
 (defmode window-mode
   {:children [{:mode 'menu-bar-mode :style {:height 17}}
-              {:mode 'game-layout-mode}]
-   :resources {:images {:win3-system-font "assets/win311systemfont.png"}}})
+              {:mode 'game-layout-mode}]})
 
-
-(deffont win3-system-font
-  {:type :bitmap
-   :spacing 1
-   :resource :window-mode/win3-system-font
-   :glyphs {' ' {:x 235 :y 0 :w 4 :h 10}
-            'A' {:x 0 :y 0 :w 8 :h 10}
-            'E' {:x 35 :y 0 :w 7 :h 10}
-            'F' {:x 43 :y 0 :w 7 :h 10}
-            'G' {:x 51 :y 0 :w 8 :h 10}
-            'H' {:x 60 :y 0 :w 8 :h 10}
-            'N' {:x 108 :y 0 :w 8 :h 10}
-            'Q' {:x 135 :y 0 :w 8 :h 10}
-            'S' {:x 154 :y 0 :w 7 :h 10}
-            'U' {:x 171 :y 0 :w 8 :h 10}
-            'V' {:x 180 :y 0 :w 8 :h 10}
-            'W' {:x 189 :y 0 :w 14 :h 10}
-            'a' {:x 0 :y 11 :w 6 :h 10}
-            'b' {:x 7 :y 11 :w 6 :h 10}
-            'c' {:x 14 :y 11 :w 6 :h 10}
-            'd' {:x 21 :y 11 :w 6 :h 10}
-            'e' {:x 28 :y 11 :w 6 :h 10}
-            'f' {:x 35 :y 11 :w 4 :h 10}
-            'g' {:x 40 :y 11 :w 6 :h 13}
-            'h' {:x 47 :y 11 :w 6 :h 10}
-            'i' {:x 54 :y 11 :w 2 :h 10}
-            'l' {:x 68 :y 11 :w 2 :h 10}
-            'm' {:x 71 :y 11 :w 10 :h 10}
-            'n' {:x 82 :y 11 :w 6 :h 10}
-            'o' {:x 89 :y 11 :w 6 :h 10}
-            'p' {:x 96 :y 11 :w 6 :h 13}
-            'r' {:x 110 :y 11 :w 4 :h 10}
-            's' {:x 115 :y 11 :w 6 :h 10}
-            't' {:x 122 :y 11 :w 4 :h 10}
-            'u' {:x 127 :y 11 :w 6 :h 10}
-            'v' {:x 134 :y 11 :w 8 :h 10}
-            'w' {:x 143 :y 11 :w 10 :h 10}}})
