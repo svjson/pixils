@@ -7,7 +7,6 @@
 #include <pixils/runtime/state.h>
 #include <pixils/ui/style.h>
 
-#include <iostream>
 #include <lisple/context.h>
 #include <lisple/exception.h>
 #include <lisple/host.h>
@@ -119,7 +118,10 @@ namespace Pixils::Script
 
     auto apply_hook = [&](Lisple::sptr_rtval& field, const char* key)
     {
-      if (opts.contains(key)) field = eval_hook(ctx, opts.val(key));
+      if (opts.contains(key))
+      {
+        field = eval_hook(ctx, opts.val(key));
+      }
     };
 
     apply_hook(mode.init, "init");

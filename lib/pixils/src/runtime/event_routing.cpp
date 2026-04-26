@@ -69,10 +69,16 @@ namespace Pixils::Runtime
                                my < view.bounds.y + view.bounds.h;
 
     view.interaction.pressed.clear();
-    auto pressed_view = mouse.primary_pressed();
-    if (pressed_view && pressed_view.get() == &view &&
-        mouse.pressed_button != UI::MouseButton::NONE)
-      view.interaction.pressed.insert(mouse.pressed_button);
+    for (auto& [btn, chain] : mouse.button_chains)
+    {
+      if (!chain.empty())
+      {
+        if (auto v = chain[0].lock(); v && v.get() == &view)
+        {
+          view.interaction.pressed.insert(btn);
+        }
+      }
+    }
   }
 
   static Pixils::Point local_pos(const Pixils::Point& global, const Pixils::Rect& bounds)
@@ -99,7 +105,11 @@ namespace Pixils::Runtime
     click_ev.button = events.mouse_button_up;
     auto click_ev_ref = Script::MouseButtonEventAdapter::make_ref(click_ev);
 
-    auto pressed_view = mouse.primary_pressed();
+    UI::MouseButton up_btn =
+      (events.mouse_button_up && events.mouse_button_up->type != Lisple::RTValue::Type::NIL)
+        ? UI::mouse_button_from_name(events.mouse_button_up->str())
+        : UI::MouseButton::NONE;
+    auto pressed_view = mouse.pressed_by(up_btn);
 
     /**
      * Walk the hovered chain from deepest to root. on_mouse_up and on_click
@@ -169,6 +179,23 @@ namespace Pixils::Runtime
     if (!build_hit_chain(root, mx, my, hit_chain)) return;
 
     /**
+     * Register this button's hit chain before invoking hooks so that
+     * interaction.pressed is current when on_mouse_down reads it.
+     * Existing chains for other held buttons are preserved.
+     */
+    UI::MouseButton btn = (events.mouse_button_down &&
+                           events.mouse_button_down->type != Lisple::RTValue::Type::NIL)
+                            ? UI::mouse_button_from_name(events.mouse_button_down->str())
+                            : UI::MouseButton::NONE;
+    auto& chain = mouse.button_chains[btn];
+    chain.clear();
+    for (auto& view_ptr : hit_chain)
+    {
+      chain.push_back(std::weak_ptr<View>(view_ptr));
+      update_interaction(*view_ptr, gp);
+    }
+
+    /**
      * Fire on_mouse_down from deepest hit view upward, stopping when a handler
      * sets propagation_stopped. A single event object is shared across the chain
      * so the stopped flag persists.
@@ -201,14 +228,6 @@ namespace Pixils::Runtime
       auto& parent = hit_chain[i + 1];
       parent->state = merge_state(parent->state, *child, child->state);
     }
-
-    mouse.pressed.clear();
-    mouse.pressed_button = (events.mouse_button_down &&
-                            events.mouse_button_down->type != Lisple::RTValue::Type::NIL)
-                             ? UI::mouse_button_from_name(events.mouse_button_down->str())
-                             : UI::MouseButton::NONE;
-    for (auto& view_ptr : hit_chain)
-      mouse.pressed.push_back(std::weak_ptr<View>(view_ptr));
   }
 
   Lisple::sptr_rtval EventRouter::traverse_child(const std::shared_ptr<View>& view_ptr,
@@ -361,22 +380,28 @@ namespace Pixils::Runtime
     }
 
     /**
-     * Clear pressed chain once the button is no longer held.
+     * Drop chains for any buttons no longer held. Each button's chain is
+     * removed independently so releasing one button while another is still
+     * held leaves the remaining chains intact.
      */
     if (mouse.has_pressed() &&
         (!events.mouse_button_down ||
          events.mouse_button_down->type == Lisple::RTValue::Type::NIL))
     {
-      bool any_held = false;
+      std::set<UI::MouseButton> held;
       if (events.mouse_held)
       {
         size_t n = Lisple::count(*events.mouse_held);
-        any_held = n > 0;
+        for (size_t i = 0; i < n; i++)
+          held.insert(
+            UI::mouse_button_from_name(Lisple::get_child(*events.mouse_held, i)->str()));
       }
-      if (!any_held)
+      for (auto it = mouse.button_chains.begin(); it != mouse.button_chains.end();)
       {
-        mouse.pressed.clear();
-        mouse.pressed_button = UI::MouseButton::NONE;
+        if (!held.count(it->first))
+          it = mouse.button_chains.erase(it);
+        else
+          ++it;
       }
     }
   }

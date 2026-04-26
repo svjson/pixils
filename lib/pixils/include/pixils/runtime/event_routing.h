@@ -7,6 +7,7 @@
 #include <pixils/ui/mouse_button.h>
 
 #include <lisple/runtime/value.h>
+#include <map>
 #include <memory>
 #include <vector>
 
@@ -32,12 +33,14 @@ namespace Pixils::Runtime
    */
   struct MouseState
   {
+    using ViewChain = std::vector<std::weak_ptr<View>>;
+
     /**
-     * Hit chain from the mouse-down event: [0] = deepest hit view,
-     * [1..n] = ancestors up to root. Only [0] is used for now; the full
-     * chain is in place for future event bubbling.
+     * One hit chain per currently held button: [0] = deepest hit view,
+     * [1..n] = ancestors up to root. Keyed by the button that initiated
+     * the press, so simultaneous multi-button presses are tracked independently.
      */
-    std::vector<std::weak_ptr<View>> pressed;
+    std::map<UI::MouseButton, ViewChain> button_chains;
 
     /**
      * View currently under the cursor, and the full ancestor chain from it
@@ -47,16 +50,13 @@ namespace Pixils::Runtime
     std::weak_ptr<View> hovered;
     std::vector<std::weak_ptr<View>> hovered_chain;
 
-    /**
-     * The button that initiated the current press, or NONE when no press is active.
-     */
-    UI::MouseButton pressed_button = UI::MouseButton::NONE;
+    bool has_pressed() const { return !button_chains.empty(); }
 
-    bool has_pressed() const { return !pressed.empty(); }
-
-    std::shared_ptr<View> primary_pressed() const
+    std::shared_ptr<View> pressed_by(UI::MouseButton btn) const
     {
-      return pressed.empty() ? nullptr : pressed[0].lock();
+      auto it = button_chains.find(btn);
+      if (it == button_chains.end() || it->second.empty()) return nullptr;
+      return it->second[0].lock();
     }
   };
 
