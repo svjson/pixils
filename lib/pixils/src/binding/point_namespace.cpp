@@ -20,6 +20,15 @@ namespace Pixils::Script
 
   namespace Function
   {
+    /** IntPointFunction - int */
+    FUNC_IMPL(IntPointFunction,
+              SIG((FN_ARGS((&HostType::POINT)), EXEC_DISPATCH(&IntPointFunction::exec_int))))
+
+    EXEC_BODY(IntPointFunction, exec_int)
+    {
+      return PointAdapter::make_unique(Lisple::obj<Point>(*args[0]).floor());
+    }
+
     /* Point make-function */
     FUNC_IMPL(MakePoint,
               MULTI_SIG((FN_ARGS((&Lisple::Type::NUMBER), (&Lisple::Type::NUMBER)),
@@ -164,6 +173,7 @@ namespace Pixils::Script
   {
     values.emplace(FN__DISTANCE, Function::DistanceBetween::make());
     values.emplace(FN__DIVIDE, Function::PointDivision::make());
+    values.emplace(FN__INT_POINT, Function::IntPointFunction::make());
     values.emplace(FN__MAKE_POINT, Function::MakePoint::make());
     values.emplace(FN__MINUS, Function::PointMinus::make());
     values.emplace(FN__MULTIPLY, Function::PointMultiplication::make());

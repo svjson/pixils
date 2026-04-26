@@ -21,6 +21,7 @@ namespace Pixils::Script
   inline const std::string FN__PIXILS__POINT__MAKE_POINT = "pixils.point/point";
 
   inline constexpr std::string_view FN__DIVIDE = "div";
+  inline constexpr std::string_view FN__INT_POINT = "int";
   inline constexpr std::string_view FN__PLUS = "+";
   inline constexpr std::string_view FN__MINUS = "-";
   inline constexpr std::string_view FN__MULTIPLY = "*";
@@ -45,6 +46,8 @@ namespace Pixils::Script
 
   namespace Function
   {
+    /*! @brief IntPointFunction */
+    FUNC(IntPointFunction, int);
     /*! @brief Lisple Function that constructs a new instance of Point/PointAdapter */
     FUNC(MakePoint, point_from_ints, point_from_map);
     /*! @brief Multiply point values  */

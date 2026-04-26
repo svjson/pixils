@@ -97,6 +97,11 @@ namespace Pixils
     return {x_new, y_new};
   }
 
+  Point Point::floor() const
+  {
+    return Point(static_cast<int>(this->x), static_cast<int>(this->y));
+  }
+
   Point Point::round() const
   {
     return Point(static_cast<int>(std::lround(this->x)),
