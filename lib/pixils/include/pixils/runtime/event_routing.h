@@ -93,6 +93,11 @@ namespace Pixils::Runtime
                            HookArguments& hook_args,
                            Lisple::Runtime& rt);
 
+    /** Fire on_mouse_motion on the current hovered chain with inline state threading. */
+    void handle_mouse_motion(FrameEvents& events,
+                             HookArguments& hook_args,
+                             Lisple::Runtime& rt);
+
     /**
      * Traverse the full view tree rooted at root. Updates hover tracking,
      * fires enter/leave hooks, injects hovered/pressed booleans, and calls
@@ -120,24 +125,6 @@ namespace Pixils::Runtime
      * This does not write into the developer's state map.
      */
     void update_interaction(View& view, const Point& mouse_pos);
-
-    /**
-     * Depth-first hit test returning the deepest view whose bounds contain
-     * (mx, my), together with the ancestor chain [deepest, ..., root].
-     * Returns false if root itself is not hit.
-     */
-    static bool build_hit_chain(std::shared_ptr<View> view,
-                                int mx,
-                                int my,
-                                std::vector<std::shared_ptr<View>>& chain);
-
-    std::vector<CustomEvent> process_view_events();
-
-    static Lisple::sptr_rtval invoke(
-      const Lisple::sptr_rtval& fn,
-      Lisple::sptr_rtval_v& args,
-      Lisple::Runtime& rt,
-      const Lisple::sptr_rtval& fallback = Lisple::Constant::NIL);
   };
 } // namespace Pixils::Runtime
 

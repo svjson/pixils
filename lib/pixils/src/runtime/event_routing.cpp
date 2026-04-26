@@ -8,6 +8,7 @@
 #include <pixils/frame_events.h>
 #include <pixils/geom.h>
 #include <pixils/hook_context.h>
+#include <pixils/runtime/mode.h>
 #include <pixils/runtime/state.h>
 #include <pixils/runtime/view.h>
 #include <pixils/ui/style.h>
@@ -19,45 +20,132 @@
 #include <lisple/runtime/seq.h>
 #include <lisple/runtime/value.h>
 
+#include <algorithm>
+#include <functional>
+
 namespace Pixils::Runtime
 {
-  Lisple::sptr_rtval EventRouter::invoke(const Lisple::sptr_rtval& fn,
-                                         Lisple::sptr_rtval_v& args,
-                                         Lisple::Runtime& rt,
-                                         const Lisple::sptr_rtval& fallback)
+  namespace
   {
-    if (!fn || fn->type == Lisple::RTValue::Type::NIL) return fallback;
-    Lisple::Context exec_ctx(rt);
-    return fn->exec().execute(exec_ctx, args);
-  }
+    Lisple::sptr_rtval invoke(const Lisple::sptr_rtval& fn,
+                              Lisple::sptr_rtval_v& args,
+                              Lisple::Runtime& rt,
+                              const Lisple::sptr_rtval& fallback = Lisple::Constant::NIL)
+    {
+      if (!fn || fn->type == Lisple::RTValue::Type::NIL) return fallback;
+      Lisple::Context exec_ctx(rt);
+      return fn->exec().execute(exec_ctx, args);
+    }
 
-  bool EventRouter::build_hit_chain(std::shared_ptr<View> view,
-                                    int mx,
-                                    int my,
-                                    std::vector<std::shared_ptr<View>>& chain)
-  {
-    if (view->bounds.w == 0) return false;
-    auto style = UI::resolve_style(view->mode->style, view->state, view->interaction);
-    if (style.hidden && *style.hidden) return false;
-    bool hit = mx >= view->bounds.x && mx < view->bounds.x + view->bounds.w &&
-               my >= view->bounds.y && my < view->bounds.y + view->bounds.h;
-    if (!hit) return false;
+    Point local_pos(const Point& global, const Rect& bounds)
+    {
+      return {global.x - static_cast<float>(bounds.x),
+              global.y - static_cast<float>(bounds.y)};
+    }
+
+    /** Locks a weak_ptr chain to shared_ptrs, stopping at the first expired entry. */
+    std::vector<std::shared_ptr<View>> lock_chain(const std::vector<std::weak_ptr<View>>& wchain)
+    {
+      std::vector<std::shared_ptr<View>> result;
+      result.reserve(wchain.size());
+      for (auto& w : wchain)
+      {
+        if (auto s = w.lock())
+        {
+          result.push_back(s);
+        }
+        else
+        {
+          break;
+        }
+      }
+      return result;
+    }
 
     /**
-     * Check children in reverse render order: last rendered = visually on top.
+     * Fire a single hook on view, updating view->state if the hook returns non-NIL.
+     * No-op if hook is NIL.
      */
-    for (auto it = view->children.rbegin(); it != view->children.rend(); ++it)
+    void fire_hook_on_view(const std::shared_ptr<View>& view,
+                           const Lisple::sptr_rtval& hook,
+                           const Lisple::sptr_rtval& ev_ref,
+                           HookArguments& hook_args,
+                           Lisple::Runtime& rt)
     {
-      if (build_hit_chain(*it, mx, my, chain))
+      if (!hook || hook->type == Lisple::RTValue::Type::NIL) return;
+      Lisple::obj<HookContext>(*hook_args.update_args[1]).current_view = view;
+      Lisple::sptr_rtval_v args = {view->state, ev_ref, hook_args.update_args[1]};
+      auto new_state = invoke(hook, args, rt, view->state);
+      if (new_state->type != Lisple::RTValue::Type::NIL)
       {
-        chain.push_back(view);
-        return true;
+        view->state = new_state;
       }
     }
 
-    chain.push_back(view);
-    return true;
-  }
+    /**
+     * Bubble a hook through chain from deepest to root. For each view: if propagation
+     * has not been stopped, calls set_local_pos then fires the named hook field.
+     * Immediately merges each view's updated state into its parent before the next
+     * view's hook runs. State propagation continues to root even when propagation
+     * is stopped, so no separate bubble-up pass is ever needed after calling this.
+     */
+    void bubble_hook(const std::vector<std::shared_ptr<View>>& chain,
+                     Lisple::sptr_rtval Mode::* hook_field,
+                     const Lisple::sptr_rtval& ev_ref,
+                     bool& propagation_stopped,
+                     const std::function<void(const Rect&)>& set_local_pos,
+                     HookArguments& hook_args,
+                     Lisple::Runtime& rt)
+    {
+      for (size_t i = 0; i < chain.size(); i++)
+      {
+        auto& view = chain[i];
+        if (!propagation_stopped)
+        {
+          set_local_pos(view->bounds);
+          fire_hook_on_view(view, view->mode->*hook_field, ev_ref, hook_args, rt);
+        }
+        if (i + 1 < chain.size())
+        {
+          chain[i + 1]->state = merge_state(chain[i + 1]->state, *view, view->state);
+        }
+      }
+    }
+
+    /**
+     * Depth-first hit test returning the deepest view whose bounds contain
+     * (mx, my), together with the ancestor chain [deepest, ..., root].
+     * Returns false if root itself is not hit.
+     */
+    bool build_hit_chain(std::shared_ptr<View> view,
+                         int mx,
+                         int my,
+                         std::vector<std::shared_ptr<View>>& chain)
+    {
+      if (view->bounds.w == 0) return false;
+      auto style = UI::resolve_style(view->mode->style, view->state, view->interaction);
+      if (style.hidden && *style.hidden) return false;
+      bool hit = mx >= view->bounds.x && mx < view->bounds.x + view->bounds.w &&
+                 my >= view->bounds.y && my < view->bounds.y + view->bounds.h;
+      if (!hit) return false;
+
+      /**
+       * Check children in reverse render order: last rendered = visually on top.
+       */
+      for (auto it = view->children.rbegin(); it != view->children.rend(); ++it)
+      {
+        if (build_hit_chain(*it, mx, my, chain))
+        {
+          chain.push_back(view);
+          return true;
+        }
+      }
+
+      chain.push_back(view);
+      return true;
+    }
+
+  } // namespace
 
   void EventRouter::update_interaction(View& view, const Point& mouse_pos)
   {
@@ -82,12 +170,6 @@ namespace Pixils::Runtime
     }
   }
 
-  static Pixils::Point local_pos(const Pixils::Point& global, const Pixils::Rect& bounds)
-  {
-    return {global.x - static_cast<float>(bounds.x),
-            global.y - static_cast<float>(bounds.y)};
-  }
-
   void EventRouter::handle_mouse_up(FrameEvents& events,
                                     HookArguments& hook_args,
                                     Lisple::Runtime& rt)
@@ -95,68 +177,44 @@ namespace Pixils::Runtime
     if (mouse.hovered_chain.empty()) return;
 
     const Point& gp = Lisple::obj<Point>(*events.mouse_pos);
-
-    MouseButtonEvent up_ev;
-    up_ev.global_pos = gp;
-    up_ev.button = events.mouse_button_up;
-    auto up_ev_ref = Script::MouseButtonEventAdapter::make_ref(up_ev);
-
-    MouseButtonEvent click_ev;
-    click_ev.global_pos = gp;
-    click_ev.button = events.mouse_button_up;
-    auto click_ev_ref = Script::MouseButtonEventAdapter::make_ref(click_ev);
+    auto chain = lock_chain(mouse.hovered_chain);
+    if (chain.empty()) return;
 
     UI::MouseButton up_btn =
       (events.mouse_button_up && events.mouse_button_up->type != Lisple::RTValue::Type::NIL)
         ? UI::mouse_button_from_name(events.mouse_button_up->str())
         : UI::MouseButton::NONE;
-    auto pressed_view = mouse.pressed_by(up_btn);
+
+    {
+      MouseButtonEvent ev;
+      ev.global_pos = gp;
+      ev.button = events.mouse_button_up;
+      auto ev_ref = Script::MouseButtonEventAdapter::make_ref(ev);
+      bubble_hook(chain, &Mode::on_mouse_up, ev_ref, ev.propagation_stopped,
+                  [&](const Rect& b) { ev.local_pos = local_pos(gp, b); }, hook_args, rt);
+    }
 
     /**
-     * Walk the hovered chain from deepest to root. on_mouse_up and on_click
-     * bubble independently. Each view's updated state is merged into its parent
-     * before the parent's hooks run, so bound state written by a child is
-     * visible to the parent in the same event pass. State propagates to root
-     * even when both propagation flags are stopped.
+     * on_click fires only on the pressed view and its ancestors in the hovered chain.
+     * Trimming the chain to start at pressed_view eliminates the need for a
+     * pressed_in_subtree flag: if pressed_view is not in the chain (cursor left the
+     * view before release), find_if returns end and no click fires.
      */
-    bool pressed_in_subtree = false;
-    for (size_t i = 0; i < mouse.hovered_chain.size(); i++)
+    auto pressed_view = mouse.pressed_by(up_btn);
+    if (pressed_view)
     {
-      auto view = mouse.hovered_chain[i].lock();
-      if (!view) break;
-
-      if (pressed_view && view.get() == pressed_view.get()) pressed_in_subtree = true;
-
-      Lisple::obj<HookContext>(*hook_args.update_args[1]).current_view = view;
-
-      if (!up_ev.propagation_stopped)
+      auto it = std::find_if(chain.begin(), chain.end(),
+                             [&](const auto& v) { return v.get() == pressed_view.get(); });
+      if (it != chain.end())
       {
-        auto& up_hook = view->mode->on_mouse_up;
-        if (up_hook && up_hook->type != Lisple::RTValue::Type::NIL)
-        {
-          up_ev.local_pos = local_pos(gp, view->bounds);
-          Lisple::sptr_rtval_v args = {view->state, up_ev_ref, hook_args.update_args[1]};
-          auto new_state = invoke(up_hook, args, rt, view->state);
-          if (new_state->type != Lisple::RTValue::Type::NIL) view->state = new_state;
-        }
-      }
-
-      if (!click_ev.propagation_stopped && pressed_in_subtree)
-      {
-        auto& click_hook = view->mode->on_click;
-        if (click_hook && click_hook->type != Lisple::RTValue::Type::NIL)
-        {
-          click_ev.local_pos = local_pos(gp, view->bounds);
-          Lisple::sptr_rtval_v args = {view->state, click_ev_ref, hook_args.update_args[1]};
-          auto new_state = invoke(click_hook, args, rt, view->state);
-          if (new_state->type != Lisple::RTValue::Type::NIL) view->state = new_state;
-        }
-      }
-
-      if (i + 1 < mouse.hovered_chain.size())
-      {
-        auto parent = mouse.hovered_chain[i + 1].lock();
-        if (parent) parent->state = merge_state(parent->state, *view, view->state);
+        MouseButtonEvent click_ev;
+        click_ev.global_pos = gp;
+        click_ev.button = events.mouse_button_up;
+        auto click_ev_ref = Script::MouseButtonEventAdapter::make_ref(click_ev);
+        std::vector<std::shared_ptr<View>> click_chain(it, chain.end());
+        bubble_hook(click_chain, &Mode::on_click, click_ev_ref, click_ev.propagation_stopped,
+                    [&](const Rect& b) { click_ev.local_pos = local_pos(gp, b); },
+                    hook_args, rt);
       }
     }
   }
@@ -182,57 +240,42 @@ namespace Pixils::Runtime
                            events.mouse_button_down->type != Lisple::RTValue::Type::NIL)
                             ? UI::mouse_button_from_name(events.mouse_button_down->str())
                             : UI::MouseButton::NONE;
-    auto& chain = mouse.button_chains[btn];
-    chain.clear();
+    auto& btn_chain = mouse.button_chains[btn];
+    btn_chain.clear();
     for (auto& view_ptr : hit_chain)
     {
-      chain.push_back(std::weak_ptr<View>(view_ptr));
+      btn_chain.push_back(std::weak_ptr<View>(view_ptr));
       update_interaction(*view_ptr, gp);
     }
 
-    /**
-     * Fire on_mouse_down from deepest hit view upward, stopping when a handler
-     * sets propagation_stopped. A single event object is shared across the chain
-     * so the stopped flag persists.
-     */
     MouseButtonEvent ev;
     ev.global_pos = gp;
     ev.button = events.mouse_button_down;
     auto ev_ref = Script::MouseButtonEventAdapter::make_ref(ev);
+    bubble_hook(hit_chain, &Mode::on_mouse_down, ev_ref, ev.propagation_stopped,
+                [&](const Rect& b) { ev.local_pos = local_pos(gp, b); }, hook_args, rt);
+  }
 
-    /**
-     * Fire hooks deepest-to-root, merging each view's updated state into its
-     * parent before the parent's hook runs. This ensures that bound state
-     * written by a child is visible to the parent in the same event pass.
-     * State propagates all the way to root even when propagation is stopped.
-     */
-    for (size_t i = 0; i < hit_chain.size(); i++)
-    {
-      auto& view_ptr = hit_chain[i];
+  void EventRouter::handle_mouse_motion(FrameEvents& events,
+                                        HookArguments& hook_args,
+                                        Lisple::Runtime& rt)
+  {
+    auto chain = lock_chain(mouse.hovered_chain);
+    if (chain.empty()) return;
 
-      if (!ev.propagation_stopped)
-      {
-        auto& hook = view_ptr->mode->on_mouse_down;
-        if (hook && hook->type != Lisple::RTValue::Type::NIL)
-        {
-          ev.local_pos = local_pos(gp, view_ptr->bounds);
-          Lisple::obj<HookContext>(*hook_args.update_args[1]).current_view = view_ptr;
-          Lisple::sptr_rtval_v args = {view_ptr->state, ev_ref, hook_args.update_args[1]};
-          auto new_state = invoke(hook, args, rt, view_ptr->state);
-          if (new_state->type != Lisple::RTValue::Type::NIL) view_ptr->state = new_state;
-        }
-      }
-
-      if (i + 1 < hit_chain.size())
-        hit_chain[i + 1]->state = merge_state(hit_chain[i + 1]->state, *view_ptr, view_ptr->state);
-    }
+    const Point& gp = Lisple::obj<Point>(*events.mouse_pos);
+    MouseEvent ev;
+    ev.global_pos = gp;
+    auto ev_ref = Script::MouseEventAdapter::make_ref(ev);
+    bubble_hook(chain, &Mode::on_mouse_motion, ev_ref, ev.propagation_stopped,
+                [&](const Rect& b) { ev.local_pos = local_pos(gp, b); }, hook_args, rt);
   }
 
   Lisple::sptr_rtval EventRouter::traverse_child(const std::shared_ptr<View>& view_ptr,
-                                                 const Lisple::sptr_rtval& parent_state,
-                                                 const Point& mouse_pos,
-                                                 HookArguments& hook_args,
-                                                 Lisple::Runtime& rt)
+                                                  const Lisple::sptr_rtval& parent_state,
+                                                  const Point& mouse_pos,
+                                                  HookArguments& hook_args,
+                                                  Lisple::Runtime& rt)
   {
     View& view = *view_ptr;
     view.state = extract_state(parent_state, view);
@@ -276,35 +319,26 @@ namespace Pixils::Runtime
     std::shared_ptr<View> new_hovered = hit_chain.empty() ? nullptr : hit_chain[0];
 
     /**
-     * Fire enter/leave on relevant views if the hovered view has changed.
+     * Fire enter/leave on the specific view that changed hover status. These do not
+     * bubble - they fire only on the one view whose status changed. State is then
+     * propagated through the respective chain so ancestors reflect the change.
      */
     auto old_hovered = mouse.hovered.lock();
     if (old_hovered.get() != new_hovered.get())
     {
       if (old_hovered)
       {
-        auto& leave_hook = old_hovered->mode->on_mouse_leave;
-        if (leave_hook && leave_hook->type != Lisple::RTValue::Type::NIL)
-        {
-          MouseEvent ev;
-          ev.global_pos = mouse_pos;
-          ev.local_pos = local_pos(mouse_pos, old_hovered->bounds);
-          auto ev_ref = Script::MouseEventAdapter::make_ref(ev);
-          Lisple::obj<HookContext>(*hook_args.update_args[1]).current_view = old_hovered;
-          Lisple::sptr_rtval_v args = {old_hovered->state, ev_ref, hook_args.update_args[1]};
-          auto new_state = invoke(leave_hook, args, rt, old_hovered->state);
-          if (new_state->type != Lisple::RTValue::Type::NIL) old_hovered->state = new_state;
+        MouseEvent leave_ev;
+        leave_ev.global_pos = mouse_pos;
+        leave_ev.local_pos = local_pos(mouse_pos, old_hovered->bounds);
+        auto ev_ref = Script::MouseEventAdapter::make_ref(leave_ev);
+        fire_hook_on_view(old_hovered, old_hovered->mode->on_mouse_leave, ev_ref, hook_args, rt);
 
-          /**
-           * hovered_chain still holds the old chain - use it to propagate leave upward.
-           */
-          for (size_t i = 0; i + 1 < mouse.hovered_chain.size(); i++)
-          {
-            auto child = mouse.hovered_chain[i].lock();
-            auto parent = mouse.hovered_chain[i + 1].lock();
-            if (!child || !parent) break;
-            parent->state = merge_state(parent->state, *child, child->state);
-          }
+        auto old_chain = lock_chain(mouse.hovered_chain);
+        for (size_t i = 0; i + 1 < old_chain.size(); i++)
+        {
+          old_chain[i + 1]->state =
+            merge_state(old_chain[i + 1]->state, *old_chain[i], old_chain[i]->state);
         }
       }
 
@@ -312,37 +346,29 @@ namespace Pixils::Runtime
 
       if (new_hovered)
       {
-        auto& enter_hook = new_hovered->mode->on_mouse_enter;
-        if (enter_hook && enter_hook->type != Lisple::RTValue::Type::NIL)
-        {
-          MouseEvent ev;
-          ev.global_pos = mouse_pos;
-          ev.local_pos = local_pos(mouse_pos, new_hovered->bounds);
-          auto ev_ref = Script::MouseEventAdapter::make_ref(ev);
-          Lisple::obj<HookContext>(*hook_args.update_args[1]).current_view = new_hovered;
-          Lisple::sptr_rtval_v args = {new_hovered->state, ev_ref, hook_args.update_args[1]};
-          auto new_state = invoke(enter_hook, args, rt, new_hovered->state);
-          if (new_state->type != Lisple::RTValue::Type::NIL) new_hovered->state = new_state;
+        MouseEvent enter_ev;
+        enter_ev.global_pos = mouse_pos;
+        enter_ev.local_pos = local_pos(mouse_pos, new_hovered->bounds);
+        auto ev_ref = Script::MouseEventAdapter::make_ref(enter_ev);
+        fire_hook_on_view(new_hovered, new_hovered->mode->on_mouse_enter, ev_ref, hook_args, rt);
 
-          /**
-           * hit_chain holds the new chain - use it to propagate the enter event upward.
-           */
-          for (size_t i = 0; i + 1 < hit_chain.size(); i++)
-          {
-            auto& child = hit_chain[i];
-            auto& parent = hit_chain[i + 1];
-            parent->state = merge_state(parent->state, *child, child->state);
-          }
+        for (size_t i = 0; i + 1 < hit_chain.size(); i++)
+        {
+          hit_chain[i + 1]->state =
+            merge_state(hit_chain[i + 1]->state, *hit_chain[i], hit_chain[i]->state);
         }
       }
     }
 
     /**
-     * Always refresh hovered_chain so handle_mouse_up can propagate upward.
+     * Always refresh hovered_chain so handle_mouse_up and handle_mouse_motion
+     * have access to the current chain.
      */
     mouse.hovered_chain.clear();
     for (auto& v : hit_chain)
+    {
       mouse.hovered_chain.push_back(std::weak_ptr<View>(v));
+    }
 
     /**
      * Update root: update interaction flags, call update hook, thread children.
@@ -355,7 +381,9 @@ namespace Pixils::Runtime
 
     auto parent_state = root->state;
     for (auto& child : root->children)
+    {
       parent_state = traverse_child(child, parent_state, mouse_pos, hook_args, rt);
+    }
     root->state = parent_state;
   }
 
@@ -370,6 +398,11 @@ namespace Pixils::Runtime
     }
 
     traverse(root, events, hook_args, rt);
+
+    if (events.mouse_moved)
+    {
+      handle_mouse_motion(events, hook_args, rt);
+    }
 
     if (events.mouse_button_down &&
         events.mouse_button_down->type != Lisple::RTValue::Type::NIL)
@@ -391,15 +424,21 @@ namespace Pixils::Runtime
       {
         size_t n = Lisple::count(*events.mouse_held);
         for (size_t i = 0; i < n; i++)
+        {
           held.insert(
             UI::mouse_button_from_name(Lisple::get_child(*events.mouse_held, i)->str()));
+        }
       }
       for (auto it = mouse.button_chains.begin(); it != mouse.button_chains.end();)
       {
         if (!held.count(it->first))
+        {
           it = mouse.button_chains.erase(it);
+        }
         else
+        {
           ++it;
+        }
       }
     }
   }
@@ -422,7 +461,7 @@ namespace Pixils::Runtime
       else
       {
         Lisple::sptr_rtval_v event_args{receiver.state, event.payload, view_ctx};
-        receiver.state = EventRouter::invoke(it->second, event_args, runtime);
+        receiver.state = invoke(it->second, event_args, runtime);
         if (!event.propagation_stopped)
         {
           bubbled_events.push_back(event);

@@ -39,6 +39,7 @@ namespace Pixils
   {
     mouse_pos =
       Script::PointAdapter::make_unique(static_cast<float>(x), static_cast<float>(y));
+    mouse_moved = true;
   }
 
   void FrameEvents::do_mouse_button_down(const SDL_MouseButtonEvent& event)

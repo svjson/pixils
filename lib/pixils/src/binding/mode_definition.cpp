@@ -88,6 +88,7 @@ namespace Pixils::Script
                                           {"on-click", &Lisple::Type::ANY},
                                           {"on-mouse-enter", &Lisple::Type::ANY},
                                           {"on-mouse-leave", &Lisple::Type::ANY},
+                                          {"on-mouse-motion", &Lisple::Type::ANY},
                                           {"on", &Lisple::Type::MAP},
                                           {"compose", &HostType::MODE_COMPOSITION},
                                           {"resources", &HostType::RESOURCE_DEPENDENCIES},
@@ -132,6 +133,7 @@ namespace Pixils::Script
     apply_hook(mode.on_click, "on-click");
     apply_hook(mode.on_mouse_enter, "on-mouse-enter");
     apply_hook(mode.on_mouse_leave, "on-mouse-leave");
+    apply_hook(mode.on_mouse_motion, "on-mouse-motion");
 
     if (opts.contains("on"))
     {

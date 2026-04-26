@@ -16,6 +16,7 @@ namespace Pixils
     Lisple::sptr_rtval mouse_button_down;
     Lisple::sptr_rtval mouse_button_up;
     Lisple::sptr_rtval mouse_held = Lisple::RTValue::vector({});
+    bool mouse_moved = false;
 
     FrameEvents();
 

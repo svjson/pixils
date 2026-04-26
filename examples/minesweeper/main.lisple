@@ -68,6 +68,7 @@
                (-> state
                    (assoc :image (when flagged
                                    :mine-layer-mode/flag))
+                   (assoc :force-pressed? (-> state :mask :chord-pressed?))
                    (assoc :inhibit-pressed? flagged))))
    :on-click (fn [state e ctx]
                (case (:button e)
@@ -87,6 +88,46 @@
                                           :state {:y n
                                                   :mask-row (ui/bind-state :board-mask n)}
                                           :style {:height 17}})})
+
+
+
+;; Board mode
+
+(defun apply-chord-press [state e ctx]
+  (let [pressed (-> ctx :view :interaction :pressed)]
+                      (if (and (contains? pressed :left)
+                               (contains? pressed :right))
+                        (let [cell-coord (-> e
+                                             :position
+                                             (pt/- {:x 12 :y 0})
+                                             (pt/div 17)
+                                             pt/int)
+                              cells (concat cell-coord
+                                            (map gl/directions
+                                                 (fn [d] (pt/+ cell-coord d))))]
+                          (let [new-state
+                                (assoc state :board-mask (for-indexed [y row (:board-mask state)]
+                                                                      (for-indexed [x cell row]
+                                                                                   (assoc cell :chord-pressed? (contains? cells (pt/make-point {:x x :y y}))))))]
+                            new-state))
+                        state)))
+
+(defmode board-mode
+  {:on-mouse-down apply-chord-press
+   :on-mouse-motion apply-chord-press
+   :children [{:mode 'mine-layer-mode
+               :state {:board (ui/bind-state :board)
+                       :board-mask (ui/bind-state :board-mask)}}
+              {:mode 'board-buttons
+               :state {:board-mask (ui/bind-state :board-mask)
+                       :face (ui/bind-state :face)}
+               :on-mouse-down (fn [state e ctx]
+                                (assoc state :face :status-panel/face-danger))
+               :on-mouse-up (fn [state e ctx]
+                              (assoc state :face :status-panel/face-normal))
+               :style {:position :absolute
+                       :top 0
+                       :left 0}}]})
 
 
 
@@ -183,22 +224,7 @@
 
 
 
-;; Board mode
 
-(defmode board-mode
-  {:children [{:mode 'mine-layer-mode
-               :state {:board (ui/bind-state :board)
-                       :board-mask (ui/bind-state :board-mask)}}
-              {:mode 'board-buttons
-               :state {:board-mask (ui/bind-state :board-mask)
-                       :face (ui/bind-state :face)}
-               :on-mouse-down (fn [state e ctx]
-                                (assoc state :face :status-panel/face-danger))
-               :on-mouse-up (fn [state e ctx]
-                              (assoc state :face :status-panel/face-normal))
-               :style {:position :absolute
-                       :top 0
-                       :left 0}}]})
 
 (defmode window-mode
   {:children [{:mode 'menu-bar-mode :style {:height 17}}
