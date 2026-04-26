@@ -71,11 +71,12 @@ namespace Pixils::Runtime
     view.interaction.pressed.clear();
     for (auto& [btn, chain] : mouse.button_chains)
     {
-      if (!chain.empty())
+      for (auto& weak_v : chain)
       {
-        if (auto v = chain[0].lock(); v && v.get() == &view)
+        if (auto v = weak_v.lock(); v && v.get() == &view)
         {
           view.interaction.pressed.insert(btn);
+          break;
         }
       }
     }
