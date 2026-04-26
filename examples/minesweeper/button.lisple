@@ -3,11 +3,13 @@
             [pixils.render :as r]
             [pixils.examples.minesweeper.win :as win]))
 
-(defcomponent button {:render (fn [state {:keys [buffer-size view] :as ctx}]
+(defcomponent button {:render (fn [state {:keys [view] :as ctx}]
                                 (let [bw (-> view :bounds :w)
                                       bh (-> view :bounds :h)
-                                      pressed (and (contains? (-> view :interaction :pressed) :left)
-                                                   (-> view :interaction :hovered))
+                                      pressed (and (not (:inhibit-pressed? state))
+                                                   (or (:force-pressed? state)
+                                                       (and (contains? (-> view :interaction :pressed) :left)
+                                                            (-> view :interaction :hovered))))
                                       offset (if pressed 1 0)]
                                   (r/rect! {:x offset :y offset :w bw :h bh} {:fill true :color win/panel-face})
                                   (when (:image state)

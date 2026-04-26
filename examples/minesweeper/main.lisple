@@ -60,24 +60,27 @@
 ;; Board buttons
 
 (defcomponent board-button
-  {:extend 'button})
+  {:extend 'button
+   :style {:width 17 :height 17}
+   :update (fn [state ctx]
+             (let [flagged (-> state :mask :flagged?)]
+               (assoc-in! ctx [:view :style :hidden] (:revealed? (:mask state)))
+               (-> state
+                   (assoc :image (when flagged
+                                   :mine-layer-mode/flag))
+                   (assoc :inhibit-pressed? flagged))))
+   :on-click (fn [state e ctx]
+               (case (:button e)
+                 :left (when (not (:flagged? (:mask state)))
+                         (ui/emit! (:view ctx) :cell/click state))
+                 :right (ui/emit! (:view ctx) :cell/toggle-flag state))
+               state)})
 
 (defcomponent board-button-row
   {:style {:direction :row}
    :children (dotimes [n 9]
                {:mode 'board-button
-                :style {:width 17 :height 17}
-                :state {:x n :y (ui/bind-state :y) :mask (ui/bind-state :mask-row n)}
-                :update (fn [state ctx]
-                          (assoc-in! ctx [:view :style :hidden] (:revealed? (:mask state)))
-                          (assoc state :image (when (-> state :mask :flagged?)
-                                                :mine-layer-mode/flag)))
-                :on-click (fn [state e ctx]
-                            (case (:button e)
-                              :left (when (not (:flagged? (:mask state)))
-                                      (ui/emit! (:view ctx) :cell/click state))
-                              :right (ui/emit! (:view ctx) :cell/toggle-flag state))
-                            state)})})
+                :state {:x n :y (ui/bind-state :y) :mask (ui/bind-state :mask-row n)}})})
 
 (defcomponent board-buttons {:children (dotimes [n 9]
                                          {:mode 'board-button-row
@@ -85,19 +88,6 @@
                                                   :mask-row (ui/bind-state :board-mask n)}
                                           :style {:height 17}})})
 
-
-;; Button
-
-(defcomponent button {:render (fn [state {:keys [buffer-size view] :as ctx}]
-                                (let [bw (-> view :bounds :w)
-                                      bh (-> view :bounds :h)
-                                      pressed (and (contains? (-> view :interaction :pressed) :left)
-                                                   (-> view :interaction :hovered))
-                                      offset (if pressed 1 0)]
-                                  (r/rect! {:x offset :y offset :w bw :h bh} {:fill true :color win/panel-face})
-                                  (when (:image state)
-                                    (r/image! (:image state) {:pos {:x (+ 2 offset) :y (+ 2 offset)}}))
-                                  (win/draw-bevel! {:x offset :y offset :w bw :h bh } {:thickness 2 :invert pressed})))})
 
 
 ;; Counter
