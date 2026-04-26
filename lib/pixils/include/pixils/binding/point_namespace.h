@@ -17,8 +17,8 @@ namespace Pixils::Script
    */
   inline constexpr std::string_view NS__PIXILS__POINT = "pixils.point";
 
-  inline constexpr std::string_view FN__MAKE_POINT = "point";
-  inline const std::string FN__PIXILS__POINT__MAKE_POINT = "pixils.point/point";
+  inline constexpr std::string_view FN__MAKE_POINT = "make-point";
+  inline const std::string FN__PIXILS__POINT__MAKE_POINT = "pixils.point/make-point";
 
   inline constexpr std::string_view FN__DIVIDE = "div";
   inline constexpr std::string_view FN__INT_POINT = "int";

@@ -48,8 +48,8 @@ TEST_F(FrameCycleTest, render_hook_produces_fill_rect_draw_op)
     (pixils/defmode test-mode {
       :render (fn [state ctx]
                 (pixils.render/rect!
-                  (pixils.point/point 10 20)
-                  (pixils.point/point 50 60)
+                  {:x 10 :y 20}
+                  {:x 50 :y 60}
                   {:fill true}))
     })
   )");
@@ -76,8 +76,7 @@ TEST_F(FrameCycleTest, render_hook_receives_render_context_with_buffer_dimension
       :render (fn [state ctx]
                 (let [dim (:buffer-size ctx)]
                   (pixils.render/rect!
-                    (pixils.point/point 0 0)
-                    (pixils.point/point (:w dim) (:h dim))
+                    (merge {:x 0 :y 0} dim)
                     {:fill true})))
     })
   )");
@@ -102,8 +101,8 @@ TEST_F(FrameCycleTest, full_frame_cycle_init_update_render)
       :update (fn [state ctx] (assoc state :ticks (+ (:ticks state) 1)))
       :render (fn [state ctx]
                 (pixils.render/rect!
-                  (pixils.point/point 0 0)
-                  (pixils.point/point (:ticks state) (:ticks state))
+                  {:x 0 :y 0}
+                  {:x (:ticks state) :y (:ticks state)}
                   {:fill true}))
     })
   )");
