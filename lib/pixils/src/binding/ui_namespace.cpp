@@ -62,8 +62,8 @@ namespace Pixils::Script
   NATIVE_ADAPTER_IMPL(MouseEventAdapter,
                       MouseEvent,
                       &HostType::MOUSE_MOTION_EVENT,
-                      (global_pos),
-                      (local_pos))
+                      ("global-position", global_pos),
+                      ("position", local_pos))
 
   NOBJ_PROP_GET_ADAPTER__FIELD(MouseEventAdapter, global_pos, PointAdapter);
   NOBJ_PROP_GET_ADAPTER__FIELD(MouseEventAdapter, local_pos, PointAdapter);
