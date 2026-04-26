@@ -114,14 +114,15 @@ namespace Pixils::Runtime
 
     /**
      * Walk the hovered chain from deepest to root. on_mouse_up and on_click
-     * bubble independently: each has its own event instance and propagation_stopped
-     * flag, so stopping one does not affect the other. on_click fires on a view
-     * if the press originated in its subtree.
+     * bubble independently. Each view's updated state is merged into its parent
+     * before the parent's hooks run, so bound state written by a child is
+     * visible to the parent in the same event pass. State propagates to root
+     * even when both propagation flags are stopped.
      */
     bool pressed_in_subtree = false;
-    for (auto& weak_view : mouse.hovered_chain)
+    for (size_t i = 0; i < mouse.hovered_chain.size(); i++)
     {
-      auto view = weak_view.lock();
+      auto view = mouse.hovered_chain[i].lock();
       if (!view) break;
 
       if (pressed_view && view.get() == pressed_view.get()) pressed_in_subtree = true;
@@ -152,18 +153,11 @@ namespace Pixils::Runtime
         }
       }
 
-      if (up_ev.propagation_stopped && click_ev.propagation_stopped) break;
-    }
-
-    /**
-     * Bubble the updated state back up through the hovered chain to root.
-     */
-    for (size_t i = 0; i + 1 < mouse.hovered_chain.size(); i++)
-    {
-      auto child = mouse.hovered_chain[i].lock();
-      auto parent = mouse.hovered_chain[i + 1].lock();
-      if (!child || !parent) break;
-      parent->state = merge_state(parent->state, *child, child->state);
+      if (i + 1 < mouse.hovered_chain.size())
+      {
+        auto parent = mouse.hovered_chain[i + 1].lock();
+        if (parent) parent->state = merge_state(parent->state, *view, view->state);
+      }
     }
   }
 
@@ -206,28 +200,31 @@ namespace Pixils::Runtime
     ev.button = events.mouse_button_down;
     auto ev_ref = Script::MouseButtonEventAdapter::make_ref(ev);
 
-    for (auto& view_ptr : hit_chain)
-    {
-      auto& hook = view_ptr->mode->on_mouse_down;
-      if (!hook || hook->type == Lisple::RTValue::Type::NIL) continue;
-
-      ev.local_pos = local_pos(gp, view_ptr->bounds);
-      Lisple::obj<HookContext>(*hook_args.update_args[1]).current_view = view_ptr;
-      Lisple::sptr_rtval_v args = {view_ptr->state, ev_ref, hook_args.update_args[1]};
-      auto new_state = invoke(hook, args, rt, view_ptr->state);
-      if (new_state->type != Lisple::RTValue::Type::NIL) view_ptr->state = new_state;
-
-      if (ev.propagation_stopped) break;
-    }
-
     /**
-     * Bubble the updated state back up through ancestors to root.
+     * Fire hooks deepest-to-root, merging each view's updated state into its
+     * parent before the parent's hook runs. This ensures that bound state
+     * written by a child is visible to the parent in the same event pass.
+     * State propagates all the way to root even when propagation is stopped.
      */
-    for (size_t i = 0; i + 1 < hit_chain.size(); i++)
+    for (size_t i = 0; i < hit_chain.size(); i++)
     {
-      auto& child = hit_chain[i];
-      auto& parent = hit_chain[i + 1];
-      parent->state = merge_state(parent->state, *child, child->state);
+      auto& view_ptr = hit_chain[i];
+
+      if (!ev.propagation_stopped)
+      {
+        auto& hook = view_ptr->mode->on_mouse_down;
+        if (hook && hook->type != Lisple::RTValue::Type::NIL)
+        {
+          ev.local_pos = local_pos(gp, view_ptr->bounds);
+          Lisple::obj<HookContext>(*hook_args.update_args[1]).current_view = view_ptr;
+          Lisple::sptr_rtval_v args = {view_ptr->state, ev_ref, hook_args.update_args[1]};
+          auto new_state = invoke(hook, args, rt, view_ptr->state);
+          if (new_state->type != Lisple::RTValue::Type::NIL) view_ptr->state = new_state;
+        }
+      }
+
+      if (i + 1 < hit_chain.size())
+        hit_chain[i + 1]->state = merge_state(hit_chain[i + 1]->state, *view_ptr, view_ptr->state);
     }
   }
 
