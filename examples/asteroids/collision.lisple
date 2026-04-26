@@ -1,0 +1,63 @@
+(ns asteroids.collision
+  (:require [pixils.point :as pt]
+            [asteroids.debris :as debris]
+            [asteroids.asteroid :as asteroid]))
+
+(defun handle-collisions [{:keys [player asteroids particles] :as state} area]
+  (let [result
+        (reduce asteroids
+                {:player player
+                 :asteroids []
+                 :new-particles []}
+                (fn [acc rock]
+                  (let [type (get asteroid/ASTEROID-TYPES (:size rock))
+                        player (:player acc)
+                        bullets (:bullets player)]
+                    (if-let [bullet-index (find-index bullets
+                                                      (fn [bullet]
+                                                        (<= (pt/distance (:pos rock)
+                                                                         (:pos bullet))
+                                                            (-> type :shape :base-radius))))]
+                      (-> acc
+                          (assoc :new-particles
+                                 (concat (:new-particles acc)
+                                         (debris/make-debris
+                                          (:pos rock)
+                                          (assoc (:explosion type)
+                                                 :move-mod
+                                                 (pt/+ (:move rock)
+                                                       (pt/div
+                                                        (:move (nth (-> acc
+                                                                        :player
+                                                                        :bullets) bullet-index))
+                                                        5))))))
+                          (assoc :asteroids (concat (:asteroids acc) (asteroid/split-asteroid rock area)))
+                          (assoc :player (-> player
+                                             (assoc :bullets (remove-nth (:bullets player) bullet-index))
+                                             (assoc :score (+ (:score player)
+                                                              (:score type))))))
+                      (if (and (not (:destroyed player))
+                               (<= (pt/distance (:pos rock)
+                                                (-> player :ship :pos))
+                                   (-> type :shape :base-radius)))
+                        (-> acc
+                            (assoc :new-particles (concat (:new-particles acc)
+                                                          (debris/make-debris (-> player :ship :pos)
+                                                                              {:particle-count 400
+                                                                               :velocity-mod 35
+                                                                               :radius 12
+                                                                               :move-mod
+                                                                               (pt/+ (-> player :ship :acceleration)
+                                                                                     (pt/div (:move rock) 2))})))
+                            (assoc :player (assoc player :destroyed true))
+                            (assoc :asteroids (concat (:asteroids acc)
+                                                      rock)))
+                        (assoc acc :asteroids (concat (:asteroids acc)
+                                                      rock)))))))]
+    (-> state
+        (assoc :asteroids (:asteroids result))
+        (assoc :particles (if (> (count (:new-particles result)) 0)
+                            (concat (:particles state)
+                                    (:new-particles result))
+                            (:particles state)))
+        (assoc :player (:player result)))))

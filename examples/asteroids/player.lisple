@@ -1,0 +1,138 @@
+(ns asteroids.player
+  (:require [pixils.render :as r]
+            [pixils.point :as pt]
+            [asteroids.area :as area]
+            [asteroids.debris :as debris]))
+
+(def MAX-RADIANS 6.28318531)
+
+
+;; Ship / Player colors
+
+(def SHIP-COLOR (pixils.color/make-color {:r 255 :g 255 :b 255}))
+(def BULLET-COLOR (pixils.color/make-color {:r 220 :g 220 :b 255}))
+
+
+
+;; Ship polygon
+
+(def player-shape [{:x 0 :y -7.0}
+                   {:x 5.0 :y 5.0}
+                   {:x 0 :y 2}
+                   {:x -5.0 :y 5.0}
+                   {:x 0 :y -7.0}])
+
+
+
+;; Player state functions
+
+(defun make-ship [area]
+  {:pos {:x (/ (:w area) 2)
+                :y (/ (:h area) 2)}
+          :rotation 0.0
+          :acceleration {:x 0 :y 0}})
+
+(defun make-player-state [area]
+  {:lives 3
+   :score 0
+   :ship (make-ship area)
+   :bullets []
+   :fire-cooldown 0
+   :flame-strength 0})
+
+
+
+;; Ship Functions
+
+(defun reset-ship! [player area]
+  (assoc! player :ship {:pos {:x (/ (:w area) 2)
+                              :y (/ (:h area) 2)}
+                        :rotation 0.0
+                        :acceleration {:x 0 :y 0}}))
+
+(defun tick-ship-movement [ship area]
+  (-> ship
+      (assoc :acceleration {:x (* 0.99 (-> ship :acceleration :x))
+                            :y (* 0.99 (-> ship :acceleration :y))})
+      (assoc :pos (area/wrap-position {:x (+ (-> ship :pos :x) (-> ship :acceleration :x))
+                                       :y (+ (-> ship :pos :y) (-> ship :acceleration :y))}
+                                      area))))
+
+(defun rotate [ship amount]
+  (assoc ship :rotation (let [new-amount (+ amount (:rotation ship))]
+                          (cond
+                            (< new-amount 0)
+                            (+ MAX-RADIANS new-amount)
+
+                            (> new-amount MAX-RADIANS)
+                            (- new-amount MAX-RADIANS)
+
+                            true
+                            new-amount))))
+
+(defun accelerate! [player particles]
+  (let [ship (:ship player)]
+    (assoc! player :flame-strength (min 5.25 (+ 0.5 (:flame-strength player))))
+    (concat! particles (debris/make-engine-flame (:flame-strength player) ship))
+    (assoc! ship :acceleration (pt/+
+                                (:acceleration ship)
+                                (pt/rotate {:x 0 :y -0.05}
+                                           (:rotation ship))))))
+
+(defun tick-flame [player]
+  (max 0 (- (:flame-strength player) 0.25)))
+
+(defun draw-ship! [ship]
+  (r/polygon! player-shape {:rotation (:rotation ship)
+                            :offset (:pos ship)
+                            :color SHIP-COLOR
+                            :close true}))
+
+
+;; Bullet Functions
+
+(defun fire-bullet [player]
+  (if (= (:fire-cooldown player) 0)
+    (-> player
+        (assoc :bullets (concat (:bullets player)
+                                {:pos (pt/+ (pt/rotate {:x 0 :y -5}
+                                                       (-> player :ship :rotation))
+                                            (-> player :ship :pos))
+                                 :move (pt/rotate {:x 0 :y -4} (-> player :ship :rotation))}))
+        (assoc :fire-cooldown 10))
+    player))
+
+(defun cull-bullets [bullets area]
+  (remove bullets (fn [bullet] (area/out-of-bounds? (:pos bullet) area))))
+
+(defun tick-bullets [player area]
+  (-> player
+      (assoc :bullets (-> (:bullets player)
+                          (cull-bullets area)
+                          (map (fn [bullet]
+                                 (assoc bullet :pos (pt/+ (:pos bullet) (:move bullet)))))))
+      (assoc :fire-cooldown (max 0 (- (:fire-cooldown player) 1)))))
+
+(defun draw-bullets! [player]
+  (for [bullet (:bullets player)]
+    (r/line! (:pos bullet)
+             (pt/+ (:pos bullet) (:move bullet))
+             BULLET-COLOR)))
+
+
+
+;; Control functions
+
+(defun tick [{:keys [player] :as state} area]
+  (let [{:keys [bullets fire-cooldown]} (tick-bullets player area)]
+    (assoc state :player
+           (-> player
+               (assoc :flame-strength (tick-flame player))
+               (assoc :ship (tick-ship-movement (:ship player) area))
+               (assoc :bullets bullets)
+               (assoc :fire-cooldown fire-cooldown)))))
+
+(defun render! [player]
+  (when (not (:destroyed player))
+    (draw-ship! (:ship player)))
+  (draw-bullets! player))

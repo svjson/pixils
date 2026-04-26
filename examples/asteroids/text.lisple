@@ -1,0 +1,354 @@
+(ns asteroids.text
+  (:require [pixils.point :as pt]
+            [pixils.render :as r]))
+
+(def top!_---_ [{:x 7 :y 2}
+                {:x 5 :y 0}
+                {:x 2 :y 0}
+                {:x 0 :y 2}])
+
+(def top!>---< [{:x 5 :y 0}
+                {:x 2 :y 0}])
+
+(def top!----_ [{:x 7 :y 2}
+                {:x 5 :y 0}
+                {:x 0 :y 0}])
+
+(def top!_---- [{:x 7 :y 0}
+                {:x 2 :y 0}
+                {:x 0 :y 2}])
+
+
+(def low!-___- [{:x 7 :y 7}
+                {:x 5 :y 9}
+                {:x 2 :y 9}
+                {:x 0 :y 7}])
+
+(def low!>___< [{:x 5 :y 9}
+                {:x 2 :y 9}])
+
+(def low!_____ [{:x 0 :y 9}
+                {:x 7 :y 9}])
+
+(def low!____- [{:x 7 :y 7}
+                {:x 5 :y 9}
+                {:x 0 :y 9}])
+
+(def mid!----- [{:x 0 :y 4}
+                {:x 7 :y 4}])
+
+(def mid!----< [{:x 0 :y 4}
+                {:x 4 :y 4}])
+
+(def mid!____< [{:x 0 :y 5}
+                {:x 4 :y 5}])
+
+(def mid!____- [{:x 0 :y 5}
+                {:x 5 :y 5}
+                {:x 7 :y 3}
+                {:x 7 :y 2}])
+
+(def top!_-<<< [{:x 2 :y 0}
+                {:x 0 :y 2}])
+
+(def top!>>>-_ [{:x 7 :y 2}
+                {:x 5 :y 0}])
+
+
+(def top!|<<<< [{:x 0 :y 0}
+                {:x 0 :y 2}])
+
+(def mid!|<<<< [{:x 0 :y 2}
+                {:x 0 :y 7}])
+
+(def low!|<<<< [{:x 0 :y 7}
+                {:x 0 :y 9}])
+
+(def top!>>|<< [{:x 4 :y 0}
+                {:x 4 :y 2}])
+
+(def mid!>>|<< [{:x 4 :y 2}
+                {:x 4 :y 7}])
+
+(def mid!>>>-_ [{:x 5 :y 5}
+                {:x 7 :y 7}])
+
+(def mid!>>>_- [{:x 4 :y 6}
+                {:x 7 :y 3}])
+
+(def mid!-_<<<[{:x 0 :y 2}
+               {:x 3 :y 5}])
+
+
+(def low!>>|<< [{:x 4 :y 7}
+                {:x 4 :y 9}])
+
+(def top!>>>>| [{:x 7 :y 0}
+                {:x 7 :y 2}])
+
+(def mid!>>>>| [{:x 7 :y 2}
+                {:x 7 :y 7}])
+
+(def low!>>>>| [{:x 7 :y 7}
+                {:x 7 :y 9}])
+
+(def low!>>>_- [{:x 5 :y 9}
+                {:x 7 :y 7}])
+
+(def ring [{:x 1 :y 0}
+           {:x 0 :y 1}
+           {:x 1 :y 2}
+           {:x 2 :y 1}])
+
+(def VECTOR-CHARS
+  {'0' [[{:x 7 :y 2}
+         {:x 5 :y 0}
+         {:x 2 :y 0}
+         {:x 0 :y 2}
+
+         {:x 0 :y 7}
+         {:x 2 :y 9}
+         {:x 5 :y 9}
+         {:x 7 :y 7}
+
+         {:x 7 :y 2}]
+        [{:x 6 :y 1}
+         {:x 1 :y 8}]]
+
+   '1' [[{:x 3 :y 1}
+         {:x 4 :y 0}
+         {:x 4 :y 9}]
+        [{:x 2 :y 9}
+         {:x 6 :y 9}]]
+
+   '2' [[{:x 0 :y 2}
+         {:x 2 :y 0}
+         {:x 5 :y 0}
+         {:x 7 :y 2}
+         {:x 7 :y 3}
+
+         {:x 0 :y 9}
+         {:x 7 :y 9}]]
+
+   '3' [[{:x 0 :y 2}
+         {:x 2 :y 0}
+         {:x 5 :y 0}
+         {:x 7 :y 2}
+         {:x 7 :y 3}
+         {:x 6 :y 4}
+
+         {:x 7 :y 7}
+         {:x 5 :y 9}
+         {:x 2 :y 9}
+         {:x 0 :y 7}]
+        [{:x 6 :y 4}
+         {:x 3 :y 4}]]
+
+   '4' [[{:x 0 :y 0}
+         {:x 0 :y 4}
+         {:x 7 :y 4}]
+        [{:x 7 :y 0}
+         {:x 7 :y 9}]]
+
+   '5' [[{:x 7 :y 0}
+         {:x 0 :y 0}
+
+         {:x 0 :y 3}
+         {:x 5 :y 3}
+         {:x 7 :y 5}
+
+         {:x 7 :y 7}
+         {:x 5 :y 9}
+         {:x 2 :y 9}
+         {:x 0 :y 7}]]
+
+   '6' [[{:x 7 :y 2}
+         {:x 5 :y 0}
+         {:x 2 :y 0}
+         {:x 0 :y 2}
+         {:x 0 :y 7}
+
+         {:x 0 :y 7}
+         {:x 2 :y 9}
+         {:x 5 :y 9}
+         {:x 7 :y 7}
+
+         {:x 7 :y 6}
+         {:x 5 :y 4}
+         {:x 2 :y 4}
+         {:x 0 :y 6}]]
+
+   '7' [[{:x 0 :y 0}
+         {:x 7 :y 0}
+         {:x 7 :y 9}]]
+
+   '8' [[{:x 7 :y 2}
+         {:x 5 :y 0}
+         {:x 2 :y 0}
+         {:x 0 :y 2}
+         {:x 2 :y 4}
+         {:x 5 :y 4}
+         {:x 7 :y 2}]
+        [{:x 2 :y 4}
+         {:x 0 :y 6}
+         {:x 0 :y 7}
+         {:x 2 :y 9}
+         {:x 5 :y 9}
+         {:x 7 :y 7}
+         {:x 7 :y 6}
+         {:x 5 :y 4}]]
+
+
+   '9' [[{:x 0 :y 7}
+         {:x 2 :y 9}
+         {:x 5 :y 9}
+         {:x 7 :y 7}
+         {:x 7 :y 2}
+
+         {:x 7 :y 2}
+         {:x 5 :y 0}
+         {:x 2 :y 0}
+         {:x 0 :y 2}
+
+         {:x 0 :y 2}
+         {:x 2 :y 5}
+         {:x 5 :y 5}
+         {:x 7 :y 3}]]
+
+   'A' [top!_---_
+        mid!|<<<<
+        mid!>>>>|
+        mid!-----
+        low!>>>_-
+        low!|<<<<]
+
+   'C' [top!_---_
+        mid!|<<<<
+        low!-___-]
+
+   'D' [top!----_
+        top!|<<<<
+        mid!|<<<<
+        low!|<<<<
+        mid!>>>>|
+        low!____-]
+
+   'E' [top!_---_
+        mid!|<<<<
+        low!|<<<<
+        low!____-
+        mid!____<]
+
+   'G' [top!_---_
+        mid!|<<<<
+        mid!>>>-_
+        low!-___-]
+
+   'H' [top!_-<<<
+        top!>>>>|
+        mid!|<<<<
+        mid!>>>>|
+        mid!-----
+        low!|<<<<
+        low!>>>_-]
+
+   'I' [top!>---<
+        top!>>|<<
+        mid!>>|<<
+        low!>>|<<
+        low!>___<
+        [{:x 5 :y 0} {:x 6 :y 0}]
+        [{:x 5 :y 9} {:x 6 :y 9}]]
+
+   'L' [top!_-<<<
+        mid!|<<<<
+        low!|<<<<
+        low!_____]
+
+   'M' [top!_----
+        top!>>>>|
+        top!>>|<<
+        mid!|<<<<
+        mid!>>|<<
+        mid!>>>>|
+        low!|<<<<
+        low!>>>_-]
+
+   'O' [top!_---_
+        mid!|<<<<
+        mid!>>>>|
+        low!-___-]
+
+   'P' [top!----_
+        top!|<<<<
+        mid!____-
+        mid!|<<<<
+        low!|<<<<]
+
+   'R' [top!----_
+        top!|<<<<
+        mid!____-
+        mid!|<<<<
+        low!|<<<<
+        [{:x 3 :y 5}
+         {:x 7 :y 9}]]
+   'S' [top!_---_
+        [{:x 0 :y 2}
+         {:x 7 :y 7}]
+        low!-___-]
+
+   'T' [top!_----
+        top!>>|<<
+        mid!>>|<<
+        low!>>|<<]
+
+   'U' [top!_-<<<
+        top!>>>>|
+        mid!|<<<<
+        mid!>>>>|
+        low!-___-]
+
+   'V' [[{:x 2 :y 0}
+         {:x 0 :y 2}
+         {:x 0 :y 7}
+         {:x 2 :y 9}
+         {:x 7 :y 4}
+         {:x 7 :y 0}]]
+
+   'W' [top!_-<<<
+        top!>>>>|
+        mid!|<<<<
+        mid!>>|<<
+        mid!>>>>|
+        low!|<<<<
+        low!>>|<<
+        low!____-]
+
+   'Y' [top!_-<<<
+        top!>>>>|
+        mid!-_<<<
+        mid!>>>_-
+        low!>>|<<
+        low!>___<
+        [{:x 5 :y 9} {:x 6 :y 9}]]
+
+   ':' [(map ring (fn [p] (pt/+ p {:x 3 :y 2})))
+        (map ring (fn [p] (pt/+ p {:x 3 :y 6})))]
+   '!' [[(head top!>>|<<)
+         (pt/+ (head top!>>|<<) {:x 0 :y 5})]
+
+        (map ring (fn [p] (pt/+ p {:x 3 :y 7})))]})
+
+
+(defun print! [{:keys [pos text scale rotation color]}]
+  (let [crsr pos
+        scale (or scale 1.0)]
+    (for [ch text]
+      (for [poly (get VECTOR-CHARS ch)]
+        (r/polygon! poly {:offset (pt/+ crsr
+                                        {:x (- 4 (* 4 scale))
+                                         :y (- 5 (* 5 scale))})
+                          :color color
+                          :rotation rotation
+                          :scale scale}))
+      (set! [crsr] (pt/+ crsr {:x (* 9 scale) :y 0})))))

@@ -1,0 +1,202 @@
+(ns asteroids.game-mode
+  (:require [asteroids.area :as area]
+            [asteroids.collision :as collision]
+            [asteroids.debris :as debris]
+            [asteroids.player :as plr]
+            [asteroids.asteroid :as asteroid]
+            asteroids.get-ready-mode
+            [asteroids.text :as text]
+            [pixils.color :as c]
+            [pixils.point :as pt]
+            [pixils.render :as r]
+            asteroids.color
+            pixils))
+
+
+;; game-mode
+
+(def state {})
+
+(defun life-pos [n]
+  {:x (+ 75 (* (- n 1) 14)) :y 11})
+
+(defun render-hud!
+  "Render HUD containg remaining lives and player score.
+
+Renders remaining lives aligned to the top left of the frame buffer
+and player score to aligned to the top right."
+  [player area]
+  (text/print! {:text "LIVES:"
+                :color STAT-COLOR
+                :pos {:x 10 :y 5}})
+
+  (dotimes [n (- (:lives player) 1)]
+    (r/polygon! plr/player-shape
+                {:offset (life-pos (+ 1 n))
+                 :color VALUE-COLOR
+                 :scale 0.8
+                 :close true}))
+
+  (let [score-str (str (-> state :player :score))
+        zero-pad (apply join (concat "" (repeat (- 8 (count score-str)) "0")))]
+    (text/print! {:text "SCORE:"
+                  :color STAT-COLOR
+                  :pos {:x (- (:w area) 140) :y 5}})
+
+    (text/print! {:text zero-pad
+                  :color MUTED-COLOR
+                  :pos {:x (+ (* 9 7) (- (:w area) 140)) :y 5}})
+
+    (text/print! {:text score-str
+                  :color VALUE-COLOR
+                  :pos {:x (+ (* 9 7)
+                              (* 9 (count zero-pad))
+                              (- (:w area) 140))
+                        :y 5}})))
+
+(defun init! [state ctx]
+  (let [area (:buffer-size ctx)]
+    {:level 0
+     :mode :run
+     :countdown 80
+     :player (plr/make-player-state area)
+     :asteroids []
+     :particles []}))
+
+(defun apply-level-state [{:keys [player asteroids level] :as state}]
+  (cond
+    (= (count asteroids) 0)
+    (let [next-level (+ 1 level)]
+      (push-mode! 'get-ready-mode {:type :next-level
+                                   :level next-level
+                                   :from-ship (:ship player)})
+      (-> state
+          (assoc :level next-level)
+          (assoc :mode :next-level)
+          (assoc :countdown 80)
+          (assoc :countdown-max 80)
+          (assoc :asteroids (asteroid/make-asteroids (+ 2 next-level)
+                                                     (:buffer-size ctx)))))
+
+    (and (> (:lives player) 1) (:destroyed player))
+    (do
+      (push-mode! 'get-ready-mode {:type :lost-life :from-ship (assoc (plr/make-ship area) :pos (life-pos (- (:lives player) 1)))})
+      (-> state
+          (assoc :countdown 80)
+          (assoc :countdown-max 80)
+          (assoc :mode :lost-life)))
+
+    (:destroyed player)
+    (do (push-mode! 'game-over-mode)
+        (assoc state :mode :game-over))
+
+    true state))
+
+(defun tick! [{:keys [player] :as state} ctx]
+  (let [area (:buffer-size ctx)
+        mode (:mode state)]
+    (cond
+
+      (or (= :run mode)
+          (= :game-over mode))
+      (do
+        (when (not (:destroyed player))
+          (for [key (:held-keys ctx)]
+            (case key
+              :key/left (assoc-in! state [:player :ship] (plr/rotate (-> state :player :ship) -0.1))
+              :key/right (assoc-in! state [:player :ship] (plr/rotate (-> state :player :ship) 0.1))
+              :key/up (plr/accelerate! (:player state) (:particles state))))
+
+          (case (:key-down ctx)
+            :key/left-ctrl (assoc! state :player (plr/fire-bullet (:player state)))
+            :key/P (push-mode! 'game-paused-mode)))
+
+        (let [new-state (-> state
+                            (plr/tick area)
+                            (debris/tick)
+                            (asteroid/tick area {:rotate? true :move? true})
+                            (collision/handle-collisions area))]
+          (if (= :run mode)
+            (apply-level-state new-state)
+            new-state)))
+
+      (or (= :next-level mode)
+          (= :lost-life mode))
+      (let [countdown (- (:countdown state) 1)]
+        (-> state
+            (assoc :player (if (= countdown 0)
+                             (assoc player :ship (plr/make-ship area))
+                             (case mode
+                               :next-level player
+                               :lost-life (cond
+                                            (= countdown 60)
+                                            (-> player
+                                                (assoc :lives (- (:lives player) 1))
+                                                (assoc :destroyed false))
+
+                                            (and (<= countdown 60)
+                                                 (>= countdown 20))
+                                            player
+
+                                            true player))))
+            (assoc :countdown countdown)
+            (assoc :mode (if (= countdown 0) :run mode))
+            (plr/tick area)
+            (debris/tick)
+            (asteroid/tick area {:rotate? true :move? (= :lost-life mode)})))
+
+      true
+      state)))
+
+(defun render! [state ctx]
+  (let [area (:buffer-size ctx)
+        mode (:mode state)
+        {:keys [player asteroids particles countdown]} state]
+    (debris/render! particles)
+    (if (= :run (:mode state))
+      (plr/render! player)
+      (plr/draw-bullets! player))
+
+    (asteroid/render! asteroids (when (and (= mode :next-level)
+                                           (>= countdown 20))
+                                  (let [phase (- 1.0 (/ (- countdown 20)
+                                                        (- (:countdown-max state) 40)))]
+                                    {:scale phase
+                                     :alpha (* phase 255)})))
+    (render-hud! player area)))
+
+(defmode game-mode {:init asteroids.game-mode/init!
+                    :update asteroids.game-mode/tick!
+                    :render asteroids.game-mode/render!})
+
+
+
+;; game-over mode
+
+(defun init-game-over! [state ctx]
+  {:countdown 120})
+
+(defun tick-game-over! [state ctx]
+  (let [countdown (- (:countdown state) 1)
+        area (:buffer-size ctx)]
+    (when (= 0 countdown)
+      (pop-mode!)
+      (pop-mode!))
+
+    (assoc state :countdown countdown)))
+
+(defun render-game-over! [state ctx]
+  (let [{:keys [player asteroids particles]} state
+        area (:buffer-size ctx)]
+    (text/print! {:text "GAME OVER"
+                  :color STAT-COLOR
+                  :scale 1.5
+                  :pos {:x (- (/ (:w area) 2) (/ (* 9 13.5) 2))
+                        :y (- (/ (:h area) 2) 10)}})))
+
+(defmode game-over-mode {:init asteroids.game-mode/init-game-over!
+                         :update asteroids.game-mode/tick-game-over!
+                         :render asteroids.game-mode/render-game-over!
+                         :compose {:render :pass :update :pass}})
+
+

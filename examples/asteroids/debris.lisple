@@ -1,0 +1,111 @@
+(ns asteroids.debris
+  (:require [pixils.color :as c]
+            [pixils.render :as r]
+            [pixils.point :as pt]))
+
+(def MAX_RADIANS 6.28318531)
+
+
+;; Particle Colors
+
+(def PARTICLE-COLORS (map [{:r 255 :g 255 :b 255}
+                           {:r 255 :g 250 :b 200}
+                           {:r 255 :g 245 :b 170}
+
+                           {:r 255 :g 255 :b 255}
+                           {:r 255 :g 250 :b 200}
+                           {:r 255 :g 245 :b 170}
+
+                           {:r 255 :g 255 :b 255}
+                           {:r 255 :g 250 :b 200}
+                           {:r 255 :g 245 :b 170}
+                           {:r 255 :g 255 :b 255}
+                           {:r 255 :g 250 :b 200}
+                           {:r 255 :g 245 :b 170}
+                           {:r 255 :g 255 :b 255}
+                           {:r 255 :g 250 :b 200}
+                           {:r 255 :g 245 :b 170}
+
+                           {:r 255 :g 235 :b 120}
+                           {:r 255 :g 220 :b 90}
+                           {:r 255 :g 200 :b 60}
+
+                           {:r 255 :g 170 :b 40}
+                           {:r 255 :g 140 :b 20}
+                           {:r 255 :g 110 :b 10}
+
+                           {:r 220 :g 60 :b 10}
+                           {:r 190 :g 40 :b 0}
+                           {:r 150 :g 20 :b 0}]
+                          c/make-color))
+
+(def FLAME-COLORS (map [{:r 220 :g 60 :b 10}
+                        {:r 240 :g 115 :b 25}
+                        {:r 255 :g 170 :b 40}
+                        {:r 255 :g 200 :b 80}
+                        {:r 255 :g 235 :b 120}]
+                       c/make-color))
+
+(def FLAME-INTENSITY [{:cd 6 :off -2 :color (nth FLAME-COLORS 0)}
+                      {:cd 4 :off -1.5 :color (nth FLAME-COLORS 1)}
+                      {:cd 3 :off -1 :color (nth FLAME-COLORS 2)}
+                      {:cd 2 :off -0.5 :color (nth FLAME-COLORS 3)}
+                      {:cd 0 :off 0 :color (nth FLAME-COLORS 4)}
+                      {:cd 2 :off 0.5 :color (nth FLAME-COLORS 2)}
+                      {:cd 3 :off 1 :color (nth FLAME-COLORS 2)}
+                      {:cd 4 :off 1.5 :color (nth FLAME-COLORS 1)}
+                      {:cd 6 :off 2 :color (nth FLAME-COLORS 0)}])
+
+
+
+;; Side Effects
+
+(defun make-debris [origin {:keys [particle-count velocity-mod radius move-mod]}]
+  (map (range 1 particle-count)
+       (fn [n]
+         (let [countdown (rnd 25 55)
+               dir (/ (rnd (* 100 MAX_RADIANS)) 100)]
+           {:pos (pt/+ origin
+                       (pt/rotate {:x 0 :y (- 0 (rnd radius))} dir))
+            :move
+            (pt/+
+             (pt/rotate {:x 0 :y (- 0 (+ 0.1 (/ (rnd 50) velocity-mod)))}
+                        dir)
+             move-mod)
+            :color (rand-nth PARTICLE-COLORS)
+            :countdown-max countdown
+            :countdown countdown }))))
+
+(defun make-engine-flame [strength {:keys [rotation pos acceleration]}]
+  (map (range 1 (int (* 2.5 strength)))
+       (fn [n]
+         (let [intensity (rand-nth FLAME-INTENSITY)
+               countdown (- (rnd 11 16) (:cd intensity))]
+           {:pos (pt/+ pos (pt/rotate {:x (:off intensity) :y (+ 1 (rnd 0 (int strength)))} rotation))
+            :move (pt/+ acceleration (pt/rotate {:x 0 :y (+ (* 0.5 strength) (/ (rnd 1 2) 5))} rotation))
+            :color (:color intensity)
+            :countdown-max countdown
+            :countdown countdown}))))
+
+
+
+;; Control functions
+
+(defun tick [{:keys [particles] :as state}]
+  (assoc state :particles (keep (:particles state)
+                                (fn [part]
+                                  (let [countdown (- (:countdown part) 1)]
+                                    (when (> countdown 0)
+                                      (-> part
+                                          (assoc :countdown countdown)
+                                          (assoc :pos (pt/+ (:pos part)
+                                                            (:move part))))))))))
+
+
+(defun render! [particles]
+  (for [part particles]
+    (r/line! (:pos part)
+             (:pos part)
+             (c/with-alpha
+               (:color part)
+               (* 255 (/ (:countdown part) (:countdown-max part)))))))

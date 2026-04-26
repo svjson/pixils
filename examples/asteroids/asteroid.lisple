@@ -1,0 +1,117 @@
+(ns asteroids.asteroid
+  (:require [pixils.point :as pt]
+            [pixils.color :as c]
+            [pixils.render :as r]
+            [asteroids.area :as area]
+            [asteroids.debris :as debris]
+            [asteroids.player :as plr]))
+
+(def MAX_RADIANS 6.28318531)
+
+
+;; Asteroid Colors
+
+(def ROCK-COLOR (pixils.color/make-color {:r 200 :g 200 :b 200}))
+
+
+
+;; Asteroid Type Definitions
+
+(def ASTEROID-TYPES
+  {:large {:shape {:base-radius 20
+                   :points 12}
+           :movement {:rate -1}
+           :score 50
+           :yield [:mid :mid]
+           :explosion {:particle-count 560
+                       :velocity-mod 30
+                       :radius 15}}
+   :mid {:shape {:base-radius 13
+                 :points 9}
+         :movement {:rate -1.5}
+         :score 100
+         :yield [:small :small]
+         :explosion {:particle-count 400
+                     :velocity-mod 35
+                     :radius 12}}
+   :small {:shape {:base-radius 7
+                   :points 8}
+           :movement {:rate -2}
+           :score 150
+           :yield []
+           :explosion {:particle-count 140
+                       :velocity-mod 45
+                       :radius 9}}})
+
+
+
+;; Asteroid creation
+
+(defun make-asteroid-shape [size points]
+  (let [pt {:x 0 :y (- 0 size) }
+        step-size (/ MAX_RADIANS points)]
+    (map (range 1 points)
+         (fn [i] (pt/rotate (pt/+ pt
+                                  {:x 0 :y (rnd (/ (abs (:y pt)) 2))})
+                            (+ (* i step-size)
+                               (/ (rnd (* 25 step-size)) 100)))))))
+
+
+(defun make-asteroid [{:keys [type pos]} area]
+  (let [{:keys [base-radius points]} (-> ASTEROID-TYPES (get type) :shape)]
+    {:shape (make-asteroid-shape base-radius points)
+     :size type
+     :rotation (/ (rnd (* 100 MAX_RADIANS)) 100)
+     :rotation-factor (rand-nth [0.03 -0.03])
+     :pos (or pos {:x (rnd (:w area)) :y (rnd (:h area))})
+     :move (pt/rotate {:x 0 :y -1} (/ (rnd (* 100 MAX_RADIANS)) 100))}))
+
+
+(defun make-asteroids [amount area]
+  (dotimes [amount]
+    (make-asteroid {:type :large} area)))
+
+
+;; Asteroid functions
+
+(defun split-asteroid [rock area]
+  (cond
+    (= :large (:size rock))
+    [(make-asteroid {:pos (:pos rock) :type :mid} area)
+     (make-asteroid {:pos (:pos rock) :type :mid} area)]
+
+    (= :mid (:size rock))
+    [(make-asteroid {:pos (:pos rock) :type :small} area)
+     (make-asteroid {:pos (:pos rock) :type :small} area)]
+
+    true
+    []))
+
+
+
+;; Control functions
+
+(defun tick [{:keys [player] :as state} area {:keys [rotate? move?]}]
+  (assoc state :asteroids
+         (map (:asteroids state)
+              (fn [asteroid]
+                (-> asteroid
+                    (assoc :rotation (if rotate? (+ (:rotation asteroid)
+                                                    (:rotation-factor asteroid))
+                                         (:rotation asteroid)))
+                    (assoc :pos (if move?
+                                  (area/wrap-position (pt/+ (:pos asteroid)
+                                                            (:move asteroid)) area)
+                                  (:pos asteroid))))))))
+
+(defun render! [asteroids mods]
+  (let [scale (or (:scale mods) 1.0)
+        alpha (or (:alpha mods) (:a ROCK-COLOR))]
+    (when (> scale 0)
+      (for [asteroid asteroids]
+        (r/polygon! (:shape asteroid)
+                    {:offset (:pos asteroid)
+                     :scale scale
+                     :color (c/with-alpha ROCK-COLOR alpha)
+                     :rotation (:rotation asteroid)
+                     :close true})))))

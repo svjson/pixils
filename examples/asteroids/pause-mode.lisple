@@ -1,0 +1,63 @@
+(ns asteroids.pause-mode
+  (:require pixils
+            [pixils.color :as c]
+            [pixils.render :as r]
+            [asteroids.text :as text]
+            asteroids.color))
+
+
+
+;; game-paused-mode
+
+(def PAUSE-FRAMES 15)
+
+(defun pause! [state ctx]
+  {:mode :enter
+   :counter 0})
+
+(defun pause-tick! [state ctx]
+  (let [mode (:mode state)
+        counter (:counter state)
+        new-state (case mode
+                    :enter
+                    (-> state
+                        (assoc :counter (min PAUSE-FRAMES (+ 1 counter)))
+                        (assoc :mode (if (= PAUSE-FRAMES counter) :paused :enter)))
+
+                    :exit
+                    (if (= counter 0)
+                      (pop-mode!)
+                      (assoc state :counter (max 0 (- counter 1))))
+
+                    :default
+                    state)]
+    (case (:key-down ctx)
+      :key/P
+      (assoc new-state :mode (if (= mode :exit) :enter :exit))
+
+      :default
+      new-state)))
+
+(defun pause-render! [{:keys [counter mode]} ctx]
+  (when counter
+    (let [area (:buffer-size ctx)
+          anim-fract (/ counter PAUSE-FRAMES)
+          text-x (- (/ (:w area) 2) (* 3 16))]
+      (r/rect! {:x 0 :y 0}
+               {:x (:w area) :y (:h area)}
+               {:color (c/with-alpha PAUSE-OVERLAY-COLOR (* 128.0 anim-fract))
+                :fill true})
+      (dotimes [n 6]
+        (text/print!
+         {:text (str (nth "PAUSED" n))
+          :color (c/with-alpha PAUSE-TEXT-COLOR (+ 55 (* 200 anim-fract)))
+          :rotation (let [off (-> n (- 2.5) (* 0.4))]
+                      (- off (* off anim-fract)))
+          :pos (let [off (-> n (- 2.5) (* 10))]
+                 {:x (+ text-x (* n 18) (- off (* off anim-fract))) :y (+ 20 (/ (:h area) 2) (- (* 30 anim-fract)))})
+          :scale (* 2.0 anim-fract)})))))
+
+(defmode game-paused-mode {:init asteroids.pause-mode/pause!
+                           :update asteroids.pause-mode/pause-tick!
+                           :render asteroids.pause-mode/pause-render!
+                           :compose {:render :pass}})

@@ -1,0 +1,33 @@
+(ns asteroids.title-screen-mode
+  (:require pixils
+            [pixils.render :as r]
+            [asteroids.text :as text]))
+
+(defun init! [state ctx]
+  state)
+
+(defun update! [state ctx]
+  (case (:key-down ctx)
+    :key/left-ctrl (push-mode! 'game-mode)))
+
+(defun render! [state ctx]
+  (let [area (:buffer-size ctx)]
+    (text/print! {:text "ASTEROIDS"
+                  :color {:r 255 :g 255 :b 255}
+                  :pos {:x (- (/ (:w area) 2) (* 18 4.5)) :y 20}
+                  :scale 2})
+
+    (text/print! {:text "PRESS CTRL TO START"
+                  :pos {:x (- (/ (:w area) 2) (* 9 10)) :y (- (:h area) 40)}})
+
+    (text/print! {:text "MADE WITH"
+                  :pos {:x (- (:w area) 70) :y (- (:h area) 52)}
+                  :scale 0.7})
+
+    (r/image! :pixils/pixils-logo {:pos {:x (- (:w area) 70) :y (- (:h area) 40)}
+                                   :scale 0.5})))
+
+(defmode title-screen-mode {:init 'asteroids.title-screen-mode/init!
+                            :update 'asteroids.title-screen-mode/update!
+                            :render 'asteroids.title-screen-mode/render!})
+

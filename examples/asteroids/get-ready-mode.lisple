@@ -1,0 +1,84 @@
+(ns asteroids.get-ready-mode
+  (:require [asteroids.area :as area]
+            [asteroids.collision :as collision]
+            [asteroids.debris :as debris]
+            [asteroids.player :as plr]
+            [asteroids.asteroid :as asteroid]
+            [asteroids.text :as text]
+            [pixils.color :as c]
+            [pixils.point :as pt]
+            [pixils.render :as r]
+            asteroids.color
+            pixils))
+
+(defun init! [state ctx]
+  (let [countdown 80]
+    {:type (:type state)
+     :level (:level state)
+     :countdown countdown
+     :countdown-max countdown
+     :from-ship (:from-ship state)
+     :target-ship (plr/make-ship (:buffer-size ctx))}))
+
+(defun tick! [state ctx]
+  (let [player (:player state)
+        type (:type state)
+        countdown (- (:countdown state) 1)
+        area (:buffer-size ctx)]
+
+    (when (= 0 countdown)
+      (pop-mode!))
+
+    (let [from-ship (:from-ship state)
+          target-ship (:target-ship state)]
+         (-> state
+             (assoc :countdown countdown)
+             (assoc :ship (cond
+                            (and from-ship
+                                 (<= countdown 60)
+                                 (>= countdown 20))
+                            (when (even? (/ countdown 10))
+                              (let [phase (- 1.0 (/ (- countdown 20)
+                                                    (- (:countdown-max state) 40)))
+                                    pos-mod {:x (* phase (- (-> target-ship :pos :x) (-> from-ship :pos :x)))
+                                             :y (* phase (- (-> target-ship :pos :y) (-> from-ship :pos :y)))}
+                                    rot-mod (* phase (- (-> target-ship :rotation) (-> from-ship :rotation)))]
+                                {:pos (pt/+ (-> from-ship :pos) pos-mod)
+                                 :rotation (+ (-> from-ship :rotation) rot-mod)
+                                 :acceleration {:x 0 :y 0}}))
+
+                            (and (<= countdown 60)
+                                 (even? (/ countdown 10)))
+                            target-ship
+
+                            true
+                            nil))))))
+
+(defun render! [state ctx]
+  (let [area (:buffer-size ctx)
+        player (:player state)
+        ship (:ship state)
+        type (:type state)
+        countdown (:countdown state)
+        level-str (str "LEVEL " (:level state))]
+    (when ship (plr/draw-ship! ship))
+    (let [text-alpha (cond
+                       (>= countdown 70) (* 255 (- 1.0 (/ (- countdown 70) 10)))
+                       (<= countdown 30) (* 255 (/ countdown 30))
+                       true 255)]
+      (when (= :next-level type)
+        (text/print! {:text level-str
+                      :color (c/with-alpha STAT-COLOR text-alpha)
+                      :scale 1.5
+                      :pos {:x (- (/ (:w area) 2) (/ (+ (count level-str) (* (count level-str) 12)) 2))
+                            :y (- (/ (:h area) 2) 40)}}))
+      (text/print! {:text "GET READY!"
+                    :color (c/with-alpha STAT-COLOR text-alpha)
+                    :pos {:x (- (/ (:w area) 2) (/ (* 10 9) 2))
+                          :y (+ (/ (:h area) 2) 30)}}))))
+
+(defmode get-ready-mode {:init asteroids.get-ready-mode/init!
+                         :update asteroids.get-ready-mode/tick!
+                         :render asteroids.get-ready-mode/render!
+                         :compose {:render :pass
+                                   :update :pass}})

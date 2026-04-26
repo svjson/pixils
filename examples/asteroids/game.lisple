@@ -1,0 +1,14 @@
+(ns asteroids.core
+  (:require pixils
+            asteroids.game-mode
+            asteroids.title-screen-mode))
+
+(defprogram asteroids
+  {:display {:resolution {:w 320 :h 200}
+             :scaling :scaling/fit
+             :align :align/center
+             :background {:r 0x20 :g 0x20 :b 0x20}}
+   :pointer :off
+   :initial-mode 'title-screen-mode})
+
+

@@ -1,0 +1,18 @@
+(ns asteroids.area)
+
+(defun wrap-position [pos area]
+  (-> pos
+      (assoc :x (cond
+                  (< (:x pos) 0) (:w area)
+                  (> (:x pos) (:w area)) 0
+                  true (:x pos)))
+      (assoc :y (cond
+                  (< (:y pos) 0) (:h area)
+                  (> (:y pos) (:h area)) 0
+                  true (:y pos)))))
+
+(defun out-of-bounds? [pos area]
+  (or (< (:x pos) 0)
+      (> (:x pos) (:w area))
+      (< (:y pos) 0)
+      (> (:y pos) (:h area))))
