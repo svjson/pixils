@@ -660,7 +660,14 @@ namespace Pixils::Script
                       (pressed));
 
   NOBJ_PROP_GET__FIELD(InteractionStateAdapter, hovered);
-  NOBJ_PROP_GET__FIELD(InteractionStateAdapter, pressed);
+
+  NOBJ_PROP_GET(InteractionStateAdapter, pressed)
+  {
+    Lisple::sptr_rtval_v buttons;
+    for (UI::MouseButton btn : object->get_object().pressed)
+      buttons.push_back(Lisple::RTValue::keyword(UI::mouse_button_name(btn)));
+    return Lisple::RTValue::vector(buttons);
+  }
 
   /* ViewAdapter */
   NATIVE_ADAPTER_IMPL(ViewAdapter,

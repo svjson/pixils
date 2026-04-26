@@ -4,6 +4,7 @@
 
 #include "pixils/ui/event.h"
 #include <pixils/geom.h>
+#include <pixils/ui/mouse_button.h>
 
 #include <lisple/runtime/value.h>
 #include <memory>
@@ -47,9 +48,9 @@ namespace Pixils::Runtime
     std::vector<std::weak_ptr<View>> hovered_chain;
 
     /**
-     * Which SDL button index initiated the current press (-1 = none).
+     * The button that initiated the current press, or NONE when no press is active.
      */
-    int button = -1;
+    UI::MouseButton pressed_button = UI::MouseButton::NONE;
 
     bool has_pressed() const { return !pressed.empty(); }
 

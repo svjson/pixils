@@ -2,6 +2,9 @@
 #ifndef PIXILS__UI__INTERACTION_H
 #define PIXILS__UI__INTERACTION_H
 
+#include <pixils/ui/mouse_button.h>
+#include <set>
+
 namespace Pixils::UI
 {
   /**
@@ -11,11 +14,12 @@ namespace Pixils::UI
    * (hover, pressed, etc).
    *
    * Updated each frame by the event routing mechanism.
+   * `pressed` contains the buttons currently held down on this view.
    */
   struct InteractionState
   {
     bool hovered = false;
-    bool pressed = false;
+    std::set<MouseButton> pressed;
   };
 
 } // namespace Pixils::UI

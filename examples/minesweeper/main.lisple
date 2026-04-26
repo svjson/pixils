@@ -4,6 +4,7 @@
             [pixils.color :as c]
             [pixils.point :as pt]
             [pixils.ui :as ui]
+            pixils.examples.minesweeper.button
             [pixils.examples.minesweeper.game-logic :as gl]
             [pixils.examples.minesweeper.menu :as menu]
             [pixils.examples.minesweeper.win :as win]))
@@ -58,10 +59,13 @@
 
 ;; Board buttons
 
+(defcomponent board-button
+  {:extend 'button})
+
 (defcomponent board-button-row
   {:style {:direction :row}
    :children (dotimes [n 9]
-               {:mode 'button
+               {:mode 'board-button
                 :style {:width 17 :height 17}
                 :state {:x n :y (ui/bind-state :y) :mask (ui/bind-state :mask-row n)}
                 :update (fn [state ctx]
@@ -87,7 +91,7 @@
 (defcomponent button {:render (fn [state {:keys [buffer-size view] :as ctx}]
                                 (let [bw (-> view :bounds :w)
                                       bh (-> view :bounds :h)
-                                      pressed (and (-> view :interaction :pressed)
+                                      pressed (and (contains? (-> view :interaction :pressed) :left)
                                                    (-> view :interaction :hovered))
                                       offset (if pressed 1 0)]
                                   (r/rect! {:x offset :y offset :w bw :h bh} {:fill true :color win/panel-face})
@@ -128,7 +132,9 @@
                                         :state {:label "Hehu"
                                                 :image (ui/bind-state :face)}
                                         :on-click (fn [state event ctx]
-                                                    (ui/emit! (:view ctx) :game/new-game))}
+                                                    (when (= :left (:button event))
+                                                      (ui/emit! (:view ctx) :game/new-game))
+                                                    state)}
                                        {:mode 'counter
                                         :state {:value (ui/bind-state :counters :timer)}}]})
 
@@ -183,7 +189,7 @@
                                                             (+ num
                                                                (count (filter row (fn [cell] (:flagged? cell))))))))))))
         :game/new-game (fn [state payload ctx]
-                         (new-game-state 9 9 10))}})
+                         (gl/new-game-state 9 9 10))}})
 
 
 

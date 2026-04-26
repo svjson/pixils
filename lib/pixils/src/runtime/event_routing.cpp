@@ -68,8 +68,11 @@ namespace Pixils::Runtime
                                mx < view.bounds.x + view.bounds.w && my >= view.bounds.y &&
                                my < view.bounds.y + view.bounds.h;
 
+    view.interaction.pressed.clear();
     auto pressed_view = mouse.primary_pressed();
-    view.interaction.pressed = pressed_view && pressed_view.get() == &view;
+    if (pressed_view && pressed_view.get() == &view &&
+        mouse.pressed_button != UI::MouseButton::NONE)
+      view.interaction.pressed.insert(mouse.pressed_button);
   }
 
   static Pixils::Point local_pos(const Pixils::Point& global, const Pixils::Rect& bounds)
@@ -200,6 +203,10 @@ namespace Pixils::Runtime
     }
 
     mouse.pressed.clear();
+    mouse.pressed_button = (events.mouse_button_down &&
+                            events.mouse_button_down->type != Lisple::RTValue::Type::NIL)
+                             ? UI::mouse_button_from_name(events.mouse_button_down->str())
+                             : UI::MouseButton::NONE;
     for (auto& view_ptr : hit_chain)
       mouse.pressed.push_back(std::weak_ptr<View>(view_ptr));
   }
@@ -366,7 +373,11 @@ namespace Pixils::Runtime
         size_t n = Lisple::count(*events.mouse_held);
         any_held = n > 0;
       }
-      if (!any_held) mouse.pressed.clear();
+      if (!any_held)
+      {
+        mouse.pressed.clear();
+        mouse.pressed_button = UI::MouseButton::NONE;
+      }
     }
   }
 
