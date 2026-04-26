@@ -62,9 +62,9 @@ namespace Pixils::Runtime
   {
     std::string name;
     ResourceDependencies resources;
-    Lisple::sptr_rtval init;
-    Lisple::sptr_rtval update;
-    Lisple::sptr_rtval render;
+    Lisple::sptr_rtval init = Lisple::Constant::NIL;
+    Lisple::sptr_rtval update = Lisple::Constant::NIL;
+    Lisple::sptr_rtval render = Lisple::Constant::NIL;
     Lisple::sptr_rtval on_mouse_down = Lisple::Constant::NIL;
     Lisple::sptr_rtval on_mouse_up = Lisple::Constant::NIL;
     Lisple::sptr_rtval on_click = Lisple::Constant::NIL;

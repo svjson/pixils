@@ -3,6 +3,7 @@
 
 #include <pixils/asset/registry.h>
 #include <pixils/binding/color_namespace.h>
+#include <pixils/binding/mode_definition.h>
 #include <pixils/binding/resource_namespace.h>
 #include <pixils/binding/style_namespace.h>
 #include <pixils/binding/ui_namespace.h>
@@ -26,7 +27,6 @@
 #include <lisple/runtime/lower.h>
 #include <lisple/runtime/seq.h>
 #include <lisple/runtime/value.h>
-#include <unordered_map>
 
 namespace Pixils::Script
 {
@@ -319,116 +319,9 @@ namespace Pixils::Script
     FUNC_IMPL(MakeMode,
               SIG((FN_ARGS((&Lisple::Type::MAP)), EXEC_DISPATCH(&MakeMode::exec_make))))
 
-    Lisple::sptr_rtval eval_hook(Lisple::Context& ctx, const Lisple::sptr_rtval& hook_value)
-    {
-      if (hook_value->type == Lisple::RTValue::Type::LIST)
-      {
-        return ctx.eval(hook_value->to_string());
-      }
-      return hook_value;
-    }
-
     EXEC_BODY(MakeMode, exec_make)
     {
-      static Lisple::MapSchema mode_schema({},
-                                           {{"name", &Lisple::Type::STRING},
-                                            {"init", &Lisple::Type::ANY},
-                                            {"update", &Lisple::Type::ANY},
-                                            {"render", &Lisple::Type::ANY},
-                                            {"on-mouse-down", &Lisple::Type::ANY},
-                                            {"on-mouse-up", &Lisple::Type::ANY},
-                                            {"on-click", &Lisple::Type::ANY},
-                                            {"on-mouse-enter", &Lisple::Type::ANY},
-                                            {"on-mouse-leave", &Lisple::Type::ANY},
-                                            {"on", &Lisple::Type::MAP},
-                                            {"compose", &HostType::MODE_COMPOSITION},
-                                            {"resources", &HostType::RESOURCE_DEPENDENCIES},
-                                            {"style", &HostType::STYLE},
-                                            {"children", &Lisple::Type::ANY}});
-
-      auto opts = mode_schema.bind(ctx, *args[0]);
-
-      auto resources = opts.optional_obj<Runtime::ResourceDependencies>("resources");
-      auto composition = opts.optional_obj<Runtime::ModeComposition>("compose");
-
-      auto init_expr = eval_hook(ctx, opts.val("init"));
-      auto update_expr = eval_hook(ctx, opts.val("update"));
-      auto render_expr = eval_hook(ctx, opts.val("render"));
-      auto on_mouse_down_expr = eval_hook(ctx, opts.val("on-mouse-down"));
-      auto on_mouse_up_expr = eval_hook(ctx, opts.val("on-mouse-up"));
-      auto event_handlers_expr = opts.val("on");
-      auto on_click_expr = eval_hook(ctx, opts.val("on-click"));
-      auto on_mouse_enter_expr = eval_hook(ctx, opts.val("on-mouse-enter"));
-      auto on_mouse_leave_expr = eval_hook(ctx, opts.val("on-mouse-leave"));
-
-      std::map<std::string, Lisple::sptr_rtval> event_handlers;
-      if (event_handlers_expr->type == Lisple::RTValue::Type::MAP)
-      {
-        for (auto& key : Lisple::Dict::keys(*event_handlers_expr))
-        {
-          event_handlers.emplace(key->str(),
-                                 Lisple::Dict::get_property(event_handlers_expr, key));
-        }
-      }
-
-      Runtime::Mode mode{.name = opts.str("name", ""),
-                         .resources = {},
-                         .init = init_expr,
-                         .update = update_expr,
-                         .render = render_expr,
-                         .on_mouse_down = on_mouse_down_expr,
-                         .on_mouse_up = on_mouse_up_expr,
-                         .on_click = on_click_expr,
-                         .on_mouse_enter = on_mouse_enter_expr,
-                         .on_mouse_leave = on_mouse_leave_expr,
-                         .event_handlers = event_handlers,
-                         .composition = {},
-                         .children = {}};
-
-      if (resources.has_value()) mode.resources = *resources;
-      if (composition.has_value()) mode.composition = *composition;
-
-      mode.style = opts.optional_obj<UI::Style>("style");
-
-      auto children_val = opts.val("children");
-      if (children_val->type != Lisple::RTValue::Type::NIL)
-      {
-        static Lisple::MapSchema child_schema(
-          {{"mode", &Lisple::Type::SYMBOL}},
-          {{"id", &Lisple::Type::ANY}, {"state", &Lisple::Type::ANY}});
-        std::unordered_map<std::string, int> mode_name_counts;
-
-        size_t n = Lisple::count(*children_val);
-        for (size_t i = 0; i < n; i++)
-        {
-          auto child_entry = Lisple::get_child(*children_val, i);
-          auto mode_sym = Lisple::Dict::get_property(*child_entry, "mode");
-          auto child_opts = child_schema.bind(ctx, *child_entry);
-
-          Runtime::ChildSlot slot;
-          slot.mode_name = mode_sym->str();
-
-          if (child_opts.contains("id"))
-          {
-            slot.id = child_opts.val("id")->str();
-          }
-          else
-          {
-            int idx = mode_name_counts[slot.mode_name]++;
-            slot.id = slot.mode_name + "-" + std::to_string(idx);
-          }
-
-          auto [binding, initial] =
-            Pixils::Runtime::parse_state_binding(child_opts.val("state"));
-          slot.state_binding = binding;
-          slot.initial_state = initial;
-          slot.overrides = child_entry;
-
-          mode.children.push_back(slot);
-        }
-      }
-
-      return ModeAdapter::make_unique(mode);
+      return ModeAdapter::make_unique(build_mode_from_definition(ctx, args[0]));
     }
 
     /* ModeComposition make function */

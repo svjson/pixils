@@ -145,6 +145,24 @@ local to the component. Use bounds to compute absolute positions for overlays or
              nil)})
 ```
 
+**Derived modes**
+
+A mode can extend another mode with `:extend`, inheriting its hooks, style, and children.
+The derived mode starts as a copy of the named base and applies only the keys present in
+its own definition - absent keys retain the base value.
+
+```clojure
+(pixils/defcomponent highlight-button
+  {:extend 'ui/button
+   :style  {:background {:r 80 :g 160 :b 80}
+            :hover      {:background {:r 100 :g 200 :b 100}}}})
+```
+
+`:extend` works with any key that `defmode` accepts. A hook present in the derived
+definition replaces the inherited one. Event handlers under `:on` are merged: derived
+handlers overlay the base set, with the derived handler winning if the same key appears
+in both.
+
 ### Mode stack
 
 Modes are managed as a stack. The top mode is the active one. Pushing a new mode suspends

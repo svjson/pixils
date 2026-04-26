@@ -2,6 +2,7 @@
 #include "pixils/runtime/session.h"
 
 #include <pixils/asset/registry.h>
+#include <pixils/binding/mode_definition.h>
 #include <pixils/binding/pixils_namespace.h>
 #include <pixils/binding/point_namespace.h>
 #include <pixils/binding/style_namespace.h>
@@ -22,7 +23,6 @@
 #include <lisple/runtime/dict.h>
 #include <lisple/runtime/seq.h>
 #include <lisple/runtime/value.h>
-#include <unordered_map>
 
 namespace
 {
@@ -37,53 +37,6 @@ namespace
     if (val->type == Lisple::RTValue::Type::SYMBOL) return runtime.lookup_value(val->str());
     if (val->type == Lisple::RTValue::Type::FUNCTION) return val;
     return Lisple::Constant::NIL;
-  }
-
-  /**
-   * Parse a Lisple vector of child entry maps into ChildSlot objects. Extracts
-   * the structural fields (mode, id, state, width, height) and stores the full
-   * entry map as slot.overrides so per-instance hook/style overrides are available
-   * at build time without re-parsing here.
-   */
-  std::vector<Pixils::Runtime::ChildSlot> parse_child_slots(
-    Lisple::Runtime& rt,
-    const Lisple::sptr_rtval& children_val)
-  {
-    using namespace Pixils::Runtime;
-
-    static Lisple::MapSchema child_schema(
-      {{"mode", &Lisple::Type::SYMBOL}},
-      {{"id", &Lisple::Type::ANY}, {"state", &Lisple::Type::ANY}});
-
-    Lisple::Context ctx(rt);
-    std::unordered_map<std::string, int> name_counts;
-    std::vector<ChildSlot> slots;
-
-    size_t n = Lisple::count(*children_val);
-    for (size_t i = 0; i < n; i++)
-    {
-      auto child_entry = Lisple::get_child(*children_val, i);
-      auto child_opts = child_schema.bind(ctx, *child_entry);
-
-      ChildSlot slot;
-      slot.mode_name = child_opts.val("mode")->str();
-
-      if (child_opts.contains("id"))
-        slot.id = child_opts.val("id")->str();
-      else
-      {
-        int idx = name_counts[slot.mode_name]++;
-        slot.id = slot.mode_name + "-" + std::to_string(idx);
-      }
-
-      auto [binding, initial] =
-        Pixils::Runtime::parse_state_binding(child_opts.val("state"));
-      slot.state_binding = binding;
-      slot.initial_state = initial;
-      slot.overrides = child_entry;
-      slots.push_back(std::move(slot));
-    }
-    return slots;
   }
 
   /**
@@ -136,7 +89,10 @@ namespace
 
     auto children_val = get("children");
     if (children_val->type != Lisple::RTValue::Type::NIL)
-      mode.children = parse_child_slots(rt, children_val);
+    {
+      Lisple::Context ctx(rt);
+      mode.children = Pixils::Script::parse_child_slots(ctx, children_val);
+    }
   }
 
 } // namespace
