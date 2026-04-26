@@ -1,8 +1,9 @@
 
-#include "pixils/console.h"
+#include "pixils/client.h"
+
 #include <pixils/asset/registry.h>
 #include <pixils/binding/pixils_namespace.h>
-#include <pixils/client.h>
+#include <pixils/console.h>
 #include <pixils/context.h>
 #include <pixils/font_registry.h>
 #include <pixils/frame_events.h>

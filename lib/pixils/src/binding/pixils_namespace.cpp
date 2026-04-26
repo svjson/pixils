@@ -69,6 +69,50 @@ namespace Pixils::Script
 
   namespace Macro
   {
+    /* DefBundleForm - defbundle */
+    SPECIAL_FORM_IMPL(DefBundleForm,
+                      SIG((FN_ARGS((&Lisple::Type::WORD, &Lisple::Eval::LITERAL),
+                                   (&Lisple::Type::MAP)),
+                           EXEC_DISPATCH(&DefBundleForm::inv_def_bundle,
+                                         &DefBundleForm::execnode_def_bundle))));
+
+    SFORM_LOWER_IMPL(DefBundleForm)
+    {
+      static Lisple::MapSchema bundle_schema({}, {{"images", &Lisple::Type::MAP}});
+
+      auto name = Lisple::exec(*ctx.ctx, *lower_literal(ast_node->get_children()[1]))->str();
+      auto map_expr = Lisple::exec(*ctx.ctx, *lower_expr(ctx, ast_node->get_children()[2]));
+
+      auto opts = bundle_schema.bind(*ctx.ctx, *map_expr);
+
+      Runtime::ResourceDependencies deps;
+      auto images_val = opts.val("images");
+      if (images_val->type == Lisple::RTValue::Type::MAP)
+      {
+        for (auto& key : Lisple::Dict::keys(*images_val))
+        {
+          auto val = Lisple::Dict::get_property(images_val, key);
+          deps.images.push_back({key->str(), val->str()});
+        }
+      }
+
+      RenderContext& rc =
+        Lisple::obj<RenderContext>(*ctx.ctx->lookup_value(ID__PIXILS__RENDER_CONTEXT));
+      rc.asset_registry->declare_bundle(name, deps);
+
+      return std::make_unique<Lisple::ExecNode>(Lisple::Constant::NIL);
+    }
+
+    MACRO_BODY(DefBundleForm, inv_def_bundle)
+    {
+      throw Lisple::InvocationException("Invalid invocation of defbundle");
+    }
+
+    EXECNODE_BODY(DefBundleForm, execnode_def_bundle)
+    {
+      throw Lisple::LispleException("defbundle is lower-only");
+    }
+
     SPECIAL_FORM_IMPL(
       DefFontForm,
       SIG((FN_ARGS((&Lisple::Type::WORD, &Lisple::Eval::LITERAL), (&Lisple::Type::MAP)),
@@ -826,6 +870,7 @@ namespace Pixils::Script
     values.emplace("mode-stack", Lisple::RTValue::vector({}));
     values.emplace("mode-stack-messages", Lisple::RTValue::vector({}));
     values.emplace("modes", Lisple::RTValue::map({}));
+    values.emplace("defbundle", Macro::DefBundleForm::make());
     values.emplace("defmode", Macro::DefModeForm::make());
     values.emplace("defcomponent", Macro::DefModeForm::make());
     values.emplace("deffont", Macro::DefFontForm::make());

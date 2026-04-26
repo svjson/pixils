@@ -80,6 +80,8 @@ namespace Pixils::Script
 
   namespace Macro
   {
+    /*! @brief Define a resource bundle independent of any mode */
+    SPECIAL_FORM_DECL(DefBundleForm, def_bundle);
     /*! @brief Define a custom font */
     SPECIAL_FORM_DECL(DefFontForm, def_font);
     /*! @brief Define a program/application */

@@ -204,7 +204,6 @@ namespace Pixils::Runtime
       mode_stack.update_state(active_mode->state);
       ctx_stack.push_back(std::move(active_mode));
     }
-
     this->mode_stack.push(mode, state);
 
     auto& mode_obj = Lisple::obj<Mode>(*mode);
@@ -258,6 +257,7 @@ namespace Pixils::Runtime
       this->active_mode->children.push_back(build_view(slot));
       parent_state = init_view(*this->active_mode->children.back(), parent_state);
     }
+
     this->active_mode->state = parent_state;
     this->hook_args.update_state(parent_state);
   }
