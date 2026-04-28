@@ -119,9 +119,8 @@ namespace Pixils::Runtime
     SDL_Rect viewport = {content.x, content.y, content.w, content.h};
     SDL_RenderSetViewport(session.render_ctx.renderer, &viewport);
 
-    Lisple::obj<HookContext>(*session.hook_args.render_args[1]).current_view = view_ptr;
     Lisple::sptr_rtval_v rargs = {ctx.state, session.hook_args.render_args[1]};
-    session.invoke_hook(ctx.mode->render, rargs);
+    session.invoke_hook(view_ptr, ctx.mode->render, rargs);
 
     if (!ctx.children.empty())
     {

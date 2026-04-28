@@ -28,11 +28,11 @@ namespace Pixils
     /*!
      * @brief Pointer to the application window
      */
-    SDL_Window* window;
+    SDL_Window* window = nullptr;
     /*!
      * @brief Pointer to the SDL renderer that does all rendering
      */
-    SDL_Renderer* renderer;
+    SDL_Renderer* renderer = nullptr;
 
     /*!
      * @brief The buffer texture that all in-game drawing happens against

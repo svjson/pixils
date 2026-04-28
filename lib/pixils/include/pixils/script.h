@@ -37,6 +37,17 @@ namespace Pixils
                                       std::function<void(RuntimeConfiguration*)> init_fn,
                                       const std::vector<std::string>& source_files);
 
+  std::unique_ptr<Lisple::Runtime> make_lisple_runtime(
+    RenderContext& ctx,
+    const std::string& default_namespace,
+    const std::vector<std::string>& source_files);
+
+  std::unique_ptr<Lisple::Runtime> make_lisple_runtime(
+    RenderContext& ctx,
+    const std::string& default_namespace,
+    std::function<void(RuntimeConfiguration*)> init_fn,
+    const std::vector<std::string>& source_files);
+
 } // namespace Pixils
 
 #endif /* __PIXILS__SCRIPT_H_ */

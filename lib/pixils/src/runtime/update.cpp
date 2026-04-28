@@ -14,28 +14,33 @@
 
 namespace Pixils::Runtime
 {
-  Lisple::sptr_rtval Session::init_view(View& ctx, const Lisple::sptr_rtval& parent_state)
+  Lisple::sptr_rtval Session::init_view(const std::shared_ptr<View>& view,
+                                        const Lisple::sptr_rtval& parent_state)
   {
+    View& ctx = *view;
+
     if (!this->assets.is_loaded(ctx.mode->name))
       this->assets.load(ctx.mode->name, ctx.mode->resources);
 
     ctx.state = extract_state(parent_state, ctx);
 
     Lisple::sptr_rtval_v iargs = {ctx.state, this->hook_args.init_args[1]};
-    auto new_state = invoke_hook(ctx.mode->init, iargs);
+    auto new_state = invoke_hook(view, ctx.mode->init, iargs);
     if (new_state->type != Lisple::RTValue::Type::NIL) ctx.state = new_state;
 
     for (auto& grandchild : ctx.children)
-      ctx.state = init_view(*grandchild, ctx.state);
+      ctx.state = init_view(grandchild, ctx.state);
 
     return merge_state(parent_state, ctx, ctx.state);
   }
 
-  void Session::restore_view_state(View& ctx, const Lisple::sptr_rtval& parent_state)
+  void Session::restore_view_state(const std::shared_ptr<View>& view,
+                                   const Lisple::sptr_rtval& parent_state)
   {
+    View& ctx = *view;
     ctx.state = extract_state(parent_state, ctx);
     for (auto& grandchild : ctx.children)
-      restore_view_state(*grandchild, ctx.state);
+      restore_view_state(grandchild, ctx.state);
   }
 
   void Session::update_mode()
@@ -50,13 +55,18 @@ namespace Pixils::Runtime
     for (size_t i = update_stack.size() - 1; i > 0; i--)
     {
       size_t ctx_idx = ctx_stack.size() - i;
-      View& ctx = *ctx_stack[ctx_idx];
+      auto view = ctx_stack[ctx_idx];
+      View& ctx = *view;
 
       Lisple::sptr_rtval_v rargs = this->hook_args.update_args;
-      emitted_events =
-        EventRouter::process_events(ctx, rargs.back(), emitted_events, lisple_runtime);
+      auto ctx_parent_state = ctx.state;
+      emitted_events = EventRouter::process_events(ctx,
+                                                   ctx_parent_state,
+                                                   rargs.back(),
+                                                   emitted_events,
+                                                   lisple_runtime);
       rargs[0] = ctx.state;
-      ctx.state = invoke_hook(ctx.mode->update, rargs, ctx.state);
+      ctx.state = invoke_hook(view, ctx.mode->update, rargs, ctx.state);
       mode_stack.update_state(ctx.state, update_stack.size() - i);
 
       ctx.drain_events(emitted_events);

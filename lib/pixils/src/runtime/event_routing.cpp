@@ -13,15 +13,14 @@
 #include <pixils/runtime/view.h>
 #include <pixils/ui/style.h>
 
+#include <algorithm>
+#include <functional>
 #include <lisple/context.h>
 #include <lisple/host/object.h>
 #include <lisple/runtime.h>
 #include <lisple/runtime/dict.h>
 #include <lisple/runtime/seq.h>
 #include <lisple/runtime/value.h>
-
-#include <algorithm>
-#include <functional>
 
 namespace Pixils::Runtime
 {
@@ -44,7 +43,8 @@ namespace Pixils::Runtime
     }
 
     /** Locks a weak_ptr chain to shared_ptrs, stopping at the first expired entry. */
-    std::vector<std::shared_ptr<View>> lock_chain(const std::vector<std::weak_ptr<View>>& wchain)
+    std::vector<std::shared_ptr<View>> lock_chain(
+      const std::vector<std::weak_ptr<View>>& wchain)
     {
       std::vector<std::shared_ptr<View>> result;
       result.reserve(wchain.size());
@@ -190,8 +190,14 @@ namespace Pixils::Runtime
       ev.global_pos = gp;
       ev.button = events.mouse_button_up;
       auto ev_ref = Script::MouseButtonEventAdapter::make_ref(ev);
-      bubble_hook(chain, &Mode::on_mouse_up, ev_ref, ev.propagation_stopped,
-                  [&](const Rect& b) { ev.local_pos = local_pos(gp, b); }, hook_args, rt);
+      bubble_hook(
+        chain,
+        &Mode::on_mouse_up,
+        ev_ref,
+        ev.propagation_stopped,
+        [&](const Rect& b) { ev.local_pos = local_pos(gp, b); },
+        hook_args,
+        rt);
     }
 
     /**
@@ -203,7 +209,8 @@ namespace Pixils::Runtime
     auto pressed_view = mouse.pressed_by(up_btn);
     if (pressed_view)
     {
-      auto it = std::find_if(chain.begin(), chain.end(),
+      auto it = std::find_if(chain.begin(),
+                             chain.end(),
                              [&](const auto& v) { return v.get() == pressed_view.get(); });
       if (it != chain.end())
       {
@@ -212,9 +219,14 @@ namespace Pixils::Runtime
         click_ev.button = events.mouse_button_up;
         auto click_ev_ref = Script::MouseButtonEventAdapter::make_ref(click_ev);
         std::vector<std::shared_ptr<View>> click_chain(it, chain.end());
-        bubble_hook(click_chain, &Mode::on_click, click_ev_ref, click_ev.propagation_stopped,
-                    [&](const Rect& b) { click_ev.local_pos = local_pos(gp, b); },
-                    hook_args, rt);
+        bubble_hook(
+          click_chain,
+          &Mode::on_click,
+          click_ev_ref,
+          click_ev.propagation_stopped,
+          [&](const Rect& b) { click_ev.local_pos = local_pos(gp, b); },
+          hook_args,
+          rt);
       }
     }
   }
@@ -252,8 +264,14 @@ namespace Pixils::Runtime
     ev.global_pos = gp;
     ev.button = events.mouse_button_down;
     auto ev_ref = Script::MouseButtonEventAdapter::make_ref(ev);
-    bubble_hook(hit_chain, &Mode::on_mouse_down, ev_ref, ev.propagation_stopped,
-                [&](const Rect& b) { ev.local_pos = local_pos(gp, b); }, hook_args, rt);
+    bubble_hook(
+      hit_chain,
+      &Mode::on_mouse_down,
+      ev_ref,
+      ev.propagation_stopped,
+      [&](const Rect& b) { ev.local_pos = local_pos(gp, b); },
+      hook_args,
+      rt);
   }
 
   void EventRouter::handle_mouse_motion(FrameEvents& events,
@@ -267,18 +285,26 @@ namespace Pixils::Runtime
     MouseEvent ev;
     ev.global_pos = gp;
     auto ev_ref = Script::MouseEventAdapter::make_ref(ev);
-    bubble_hook(chain, &Mode::on_mouse_motion, ev_ref, ev.propagation_stopped,
-                [&](const Rect& b) { ev.local_pos = local_pos(gp, b); }, hook_args, rt);
+    bubble_hook(
+      chain,
+      &Mode::on_mouse_motion,
+      ev_ref,
+      ev.propagation_stopped,
+      [&](const Rect& b) { ev.local_pos = local_pos(gp, b); },
+      hook_args,
+      rt);
   }
 
   Lisple::sptr_rtval EventRouter::traverse_child(const std::shared_ptr<View>& view_ptr,
-                                                  const Lisple::sptr_rtval& parent_state,
-                                                  const Point& mouse_pos,
-                                                  HookArguments& hook_args,
-                                                  Lisple::Runtime& rt)
+                                                 Lisple::sptr_rtval parent_state,
+                                                 const Point& mouse_pos,
+                                                 HookArguments& hook_args,
+                                                 Lisple::Runtime& rt)
   {
     View& view = *view_ptr;
+
     view.state = extract_state(parent_state, view);
+
     update_interaction(view, mouse_pos);
 
     Lisple::obj<HookContext>(*hook_args.update_args[1]).current_view = view_ptr;
@@ -290,8 +316,12 @@ namespace Pixils::Runtime
     {
       view.state = traverse_child(child, view.state, mouse_pos, hook_args, rt);
       child->drain_events(emitted_events);
-      emitted_events =
-        EventRouter::process_events(view, hook_args.update_args[1], emitted_events, rt);
+      emitted_events = EventRouter::process_events(view,
+                                                   parent_state,
+                                                   hook_args.update_args[1],
+                                                   emitted_events,
+                                                   rt);
+
       for (auto& event : emitted_events)
       {
         view.emitted_events.push_back(event);
@@ -332,7 +362,11 @@ namespace Pixils::Runtime
         leave_ev.global_pos = mouse_pos;
         leave_ev.local_pos = local_pos(mouse_pos, old_hovered->bounds);
         auto ev_ref = Script::MouseEventAdapter::make_ref(leave_ev);
-        fire_hook_on_view(old_hovered, old_hovered->mode->on_mouse_leave, ev_ref, hook_args, rt);
+        fire_hook_on_view(old_hovered,
+                          old_hovered->mode->on_mouse_leave,
+                          ev_ref,
+                          hook_args,
+                          rt);
 
         auto old_chain = lock_chain(mouse.hovered_chain);
         for (size_t i = 0; i + 1 < old_chain.size(); i++)
@@ -350,7 +384,11 @@ namespace Pixils::Runtime
         enter_ev.global_pos = mouse_pos;
         enter_ev.local_pos = local_pos(mouse_pos, new_hovered->bounds);
         auto ev_ref = Script::MouseEventAdapter::make_ref(enter_ev);
-        fire_hook_on_view(new_hovered, new_hovered->mode->on_mouse_enter, ev_ref, hook_args, rt);
+        fire_hook_on_view(new_hovered,
+                          new_hovered->mode->on_mouse_enter,
+                          ev_ref,
+                          hook_args,
+                          rt);
 
         for (size_t i = 0; i + 1 < hit_chain.size(); i++)
         {
@@ -397,17 +435,17 @@ namespace Pixils::Runtime
       handle_mouse_up(events, hook_args, rt);
     }
 
+    if (events.mouse_button_down &&
+        events.mouse_button_down->type != Lisple::RTValue::Type::NIL)
+    {
+      handle_mouse_down(root, events, hook_args, rt);
+    }
+
     traverse(root, events, hook_args, rt);
 
     if (events.mouse_moved)
     {
       handle_mouse_motion(events, hook_args, rt);
-    }
-
-    if (events.mouse_button_down &&
-        events.mouse_button_down->type != Lisple::RTValue::Type::NIL)
-    {
-      handle_mouse_down(root, events, hook_args, rt);
     }
 
     /**
@@ -444,6 +482,7 @@ namespace Pixils::Runtime
   }
 
   std::vector<CustomEvent> EventRouter::process_events(View& receiver,
+                                                       Lisple::sptr_rtval& parent_state,
                                                        Lisple::sptr_rtval& view_ctx,
                                                        std::vector<CustomEvent>& events,
                                                        Lisple::Runtime& runtime)
@@ -461,7 +500,12 @@ namespace Pixils::Runtime
       else
       {
         Lisple::sptr_rtval_v event_args{receiver.state, event.payload, view_ctx};
-        receiver.state = invoke(it->second, event_args, runtime);
+        auto new_state = invoke(it->second, event_args, runtime, receiver.state);
+        if (new_state->type != Lisple::RTValue::Type::NIL)
+        {
+          receiver.state = new_state;
+          parent_state = merge_state(parent_state, receiver, receiver.state);
+        }
         if (!event.propagation_stopped)
         {
           bubbled_events.push_back(event);

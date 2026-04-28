@@ -80,7 +80,14 @@ namespace Pixils::Runtime
                 HookArguments& hook_args,
                 Lisple::Runtime& rt);
 
+    /**
+     * For each event: if receiver has a matching handler, invoke it and merge
+     * the updated receiver state back into parent_state immediately. Unhandled
+     * events (no handler, or propagation not stopped) are returned so they can
+     * bubble to the next ancestor.
+     */
     static std::vector<CustomEvent> process_events(View& receiver,
+                                                   Lisple::sptr_rtval& parent_state,
                                                    Lisple::sptr_rtval& view_ctx,
                                                    std::vector<CustomEvent>& events,
                                                    Lisple::Runtime& runtime);
@@ -115,7 +122,7 @@ namespace Pixils::Runtime
      * recurses into children, and merges the updated state back.
      */
     Lisple::sptr_rtval traverse_child(const std::shared_ptr<View>& view,
-                                      const Lisple::sptr_rtval& parent_state,
+                                      Lisple::sptr_rtval parent_state,
                                       const Point& mouse_pos,
                                       HookArguments& hook_args,
                                       Lisple::Runtime& rt);

@@ -1,0 +1,5 @@
+(ns pixils.test.app.sample-mode
+  (:require pixils))
+
+(pixils/defmode test-mode
+  {:init (fn [state ctx] {:ticks 2})})

@@ -1,6 +1,7 @@
 
 #include "pixils/runtime/session.h"
 
+#include "pixils/hook_context.h"
 #include <pixils/asset/registry.h>
 #include <pixils/binding/mode_definition.h>
 #include <pixils/binding/pixils_namespace.h>
@@ -73,6 +74,7 @@ namespace
     apply_hook(mode.on_click, "on-click");
     apply_hook(mode.on_mouse_enter, "on-mouse-enter");
     apply_hook(mode.on_mouse_leave, "on-mouse-leave");
+    apply_hook(mode.on_mouse_motion, "on-mouse-motion");
 
     auto style_val = get("style");
     if (style_val->type != Lisple::RTValue::Type::NIL)
@@ -140,7 +142,7 @@ namespace Pixils::Runtime
       active_mode->state = saved_state;
       for (auto& child : active_mode->children)
       {
-        restore_view_state(*child, active_mode->state);
+        restore_view_state(child, active_mode->state);
       }
 
       this->hook_args.update_state(active_mode->state);
@@ -179,7 +181,6 @@ namespace Pixils::Runtime
     {
       active_mode->mode = &mode_obj;
     }
-
     /**
      * Resolve hooks in-place. For an owned copy this is safe; for a registry
      * entry it replaces symbols with callables once on first activation.
@@ -196,11 +197,14 @@ namespace Pixils::Runtime
       resolve_hook(lisple_runtime, active_mode->mode->on_mouse_enter);
     active_mode->mode->on_mouse_leave =
       resolve_hook(lisple_runtime, active_mode->mode->on_mouse_leave);
+    active_mode->mode->on_mouse_motion =
+      resolve_hook(lisple_runtime, active_mode->mode->on_mouse_motion);
 
     if (!this->assets.is_loaded(active_mode->mode->name))
       this->assets.load(active_mode->mode->name, active_mode->mode->resources);
 
     this->hook_args.update_state(state);
+
     this->init_mode();
 
     /**
@@ -211,7 +215,7 @@ namespace Pixils::Runtime
     for (const auto& slot : active_mode->mode->children)
     {
       this->active_mode->children.push_back(build_view(slot));
-      parent_state = init_view(*this->active_mode->children.back(), parent_state);
+      parent_state = init_view(this->active_mode->children.back(), parent_state);
     }
 
     this->active_mode->state = parent_state;
@@ -252,18 +256,22 @@ namespace Pixils::Runtime
     }
   }
 
-  Lisple::sptr_rtval Session::invoke_hook(const Lisple::sptr_rtval& fn,
+  Lisple::sptr_rtval Session::invoke_hook(const std::shared_ptr<View>& view,
+                                          const Lisple::sptr_rtval& fn,
                                           Lisple::sptr_rtval_v& args,
                                           const Lisple::sptr_rtval& fallback)
   {
     if (!fn || fn->type == Lisple::RTValue::Type::NIL) return fallback;
+
+    Lisple::obj<HookContext>(*args.back()).current_view = view;
     Lisple::Context exec_ctx(lisple_runtime);
     return fn->exec().execute(exec_ctx, args);
   }
 
   void Session::init_mode()
   {
-    auto new_state = invoke_hook(this->active_mode->mode->init,
+    auto new_state = invoke_hook(this->active_mode,
+                                 this->active_mode->mode->init,
                                  this->hook_args.init_args,
                                  this->active_mode->state);
     this->active_mode->state = new_state;
@@ -322,6 +330,7 @@ namespace Pixils::Runtime
     v.mode->on_click = resolve_hook(lisple_runtime, v.mode->on_click);
     v.mode->on_mouse_enter = resolve_hook(lisple_runtime, v.mode->on_mouse_enter);
     v.mode->on_mouse_leave = resolve_hook(lisple_runtime, v.mode->on_mouse_leave);
+    v.mode->on_mouse_motion = resolve_hook(lisple_runtime, v.mode->on_mouse_motion);
 
     for (const auto& grandchild_slot : v.mode->children)
       v.children.push_back(build_view(grandchild_slot));

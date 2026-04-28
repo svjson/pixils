@@ -1,0 +1,68 @@
+(ns pixils.test.app.minesweeper.core
+  (:require pixils
+            [pixils.point :as pt]
+            [pixils.ui :as ui]
+            [pixils.test.app.minesweeper.game-logic :as gl]))
+
+(defun clear-chord-press [state]
+  (-> state
+      (assoc :chord-press-active false)
+      (assoc :board-mask (for-indexed [y row (:board-mask state)]
+                                      (for-indexed [x cell row]
+                                                   (assoc cell :chord-pressed? false))))))
+
+(defun apply-chord-press [state e ctx]
+  (let [pressed (-> ctx :view :interaction :pressed)]
+    (if (and (contains? pressed :left)
+             (contains? pressed :right))
+      (let [cell-coord (-> e :position (pt/- {:x 12 :y 0}) (pt/div 17) pt/int)
+            cells (concat cell-coord
+                          (map gl/directions
+                               (fn [d] (pt/+ cell-coord d))))]
+        (-> state
+            (assoc :chord-press-active true)
+            (assoc :board-mask (for-indexed [y row (:board-mask state)]
+                                            (for-indexed [x cell row]
+                                                         (assoc cell
+                                                                :chord-pressed?
+                                                                (contains? cells
+                                                                           (pt/make-point {:x x :y y}))))))))
+      (if (:chord-press-active state)
+        (clear-chord-press state)
+        state))))
+
+(defun valid-chord-press-cells [board-mask]
+  (filter (apply concat (for-indexed [y row board-mask]
+                                     (for-indexed [x cell row]
+                                                  (when (and (:chord-pressed? cell)
+                                                             (not (:flagged? cell)))
+                                                    {:x x :y y}))))
+          (fn [c] (not (nil? c)))))
+
+(defmode board-mode
+  {:on-mouse-down apply-chord-press
+   :on-mouse-motion apply-chord-press
+   :on-mouse-up (fn [state e ctx]
+                  (if (and (= (:button e) :left)
+                           (contains? (-> ctx :view :interaction :pressed) :right))
+                    (-> (reduce (valid-chord-press-cells (:board-mask state))
+                                state
+                                (fn [next-state {:keys [x y]}]
+                                  (if (gl/revealed? next-state y x)
+                                    (gl/reveal-board-cell next-state y x)
+                                    next-state)))
+                        clear-chord-press)
+                    state))
+   :children [{:mode 'mine-layer-mode
+               :state {:board (ui/bind-state :board)
+                       :board-mask (ui/bind-state :board-mask)}}
+              {:mode 'board-buttons
+               :state {:board-mask (ui/bind-state :board-mask)
+                       :face (ui/bind-state :face)}
+               :on-mouse-down (fn [state e ctx]
+                                (assoc state :face :status-panel/face-danger))
+               :on-mouse-up (fn [state e ctx]
+                              (assoc state :face :status-panel/face-normal))
+               :style {:position :absolute
+                       :top 0
+                       :left 0}}]})

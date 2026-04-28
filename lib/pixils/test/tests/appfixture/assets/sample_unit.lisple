@@ -1,0 +1,9 @@
+(ns pixils.test.app.board
+  (:require pixils
+            [pixils.render :as r]
+            [pixils.ui :as ui]))
+
+(def board-width 9)
+
+(defun board-click! [state ctx]
+  (ui/emit! (:view ctx) :board/click {:x 1 :y 2}))

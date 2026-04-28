@@ -60,6 +60,7 @@ namespace Pixils::Runtime
                    const Lisple::sptr_rtval& overrides = Lisple::Constant::NIL);
     void process_messages();
     Lisple::sptr_rtval invoke_hook(
+      const std::shared_ptr<View>& view,
       const Lisple::sptr_rtval& fn,
       Lisple::sptr_rtval_v& args,
       const Lisple::sptr_rtval& fallback = Lisple::Constant::NIL);
@@ -67,8 +68,10 @@ namespace Pixils::Runtime
     void render_mode();
 
     std::shared_ptr<View> build_view(const ChildSlot& slot);
-    Lisple::sptr_rtval init_view(View& view, const Lisple::sptr_rtval& parent_state);
-    void restore_view_state(View& view, const Lisple::sptr_rtval& parent_state);
+    Lisple::sptr_rtval init_view(const std::shared_ptr<View>& view,
+                                 const Lisple::sptr_rtval& parent_state);
+    void restore_view_state(const std::shared_ptr<View>& view,
+                            const Lisple::sptr_rtval& parent_state);
 
    private:
     void init_mode();
