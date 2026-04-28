@@ -36,6 +36,7 @@ namespace
 } // namespace
 
 ComposableAppSessionFixture::ComposableAppSessionFixture()
+  : input_simulator(events)
 {
   render_ctx.renderer = SDL_CreateRenderer(nullptr, 0, 0);
   render_ctx.buffer_texture = render_ctx.renderer->default_render_target;
@@ -107,6 +108,32 @@ void ComposableAppSessionFixture::set_frame_size(const Pixils::Dimension& dim)
 const Pixils::Dimension& ComposableAppSessionFixture::frame_size() const
 {
   return render_ctx.buffer_dim;
+}
+
+InputSimulator& ComposableAppSessionFixture::input()
+{
+  return input_simulator;
+}
+
+void ComposableAppSessionFixture::update_cycle()
+{
+  session().update_mode();
+  session().process_messages();
+  input_simulator.clear_transients();
+}
+
+void ComposableAppSessionFixture::render_cycle()
+{
+  session().render_mode();
+  input_simulator.clear_transients();
+}
+
+void ComposableAppSessionFixture::frame_cycle()
+{
+  session().update_mode();
+  session().render_mode();
+  session().process_messages();
+  input_simulator.clear_transients();
 }
 
 Lisple::Runtime& ComposableAppSessionFixture::pixils()

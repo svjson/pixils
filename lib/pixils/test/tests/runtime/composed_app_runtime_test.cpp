@@ -6,6 +6,7 @@
 #include <SDL2/SDL_mouse.h>
 #include <gtest/gtest.h>
 #include <lisple/runtime/dict.h>
+#include <lisple/runtime/seq.h>
 
 namespace AppFixture = Pixils::Test::AppFixture;
 using Pixils::Runtime::View;
@@ -57,6 +58,12 @@ namespace
     return Lisple::Dict::get_property(target, Lisple::RTValue::keyword(key));
   }
 
+  Lisple::sptr_rtval get_index(const Lisple::sptr_rtval& target, size_t index)
+  {
+    if (!target) return nullptr;
+    return Lisple::get_child(*target, index);
+  }
+
   void expect_nil_key(const Lisple::sptr_rtval& target, const std::string& key)
   {
     auto value = get_key(target, key);
@@ -81,6 +88,27 @@ namespace
     ASSERT_NE(value, nullptr);
     EXPECT_EQ(value->num().get_int(), expected_value);
   }
+
+  int count_flagged_cells(const Lisple::sptr_rtval& board_mask)
+  {
+    if (!board_mask) return 0;
+
+    int flagged = 0;
+    for (size_t row_idx = 0; row_idx < board_mask->elements().size(); row_idx++)
+    {
+      auto row = get_index(board_mask, row_idx);
+      if (!row) continue;
+
+      for (size_t col_idx = 0; col_idx < row->elements().size(); col_idx++)
+      {
+        auto cell = get_index(row, col_idx);
+        auto flagged_value = get_key(cell, "flagged?");
+        if (flagged_value && flagged_value->to_string() == "true") flagged++;
+      }
+    }
+
+    return flagged;
+  }
 } // namespace
 
 class ComposedAppRuntimeTest : public ComposableAppSessionFixture
@@ -100,16 +128,6 @@ class ComposedAppRuntimeTest : public ComposableAppSessionFixture
   }
 
   void use_default_frame_size() { set_frame_size({320, 200}); }
-
-  void move_mouse(int x, int y) { events.do_mouse_motion(x, y); }
-
-  void press_left_mouse_at(int x, int y)
-  {
-    move_mouse(x, y);
-    SDL_MouseButtonEvent btn{};
-    btn.button = SDL_BUTTON_LEFT;
-    events.do_mouse_button_down(btn);
-  }
 };
 
 TEST_F(ComposedAppRuntimeTest, session_builds_expected_initial_view_tree_for_composed_app)
@@ -163,7 +181,7 @@ TEST_F(ComposedAppRuntimeTest, session_assigns_expected_bounds_for_explicit_view
 
   // When
   session().push_mode("root-mode", Lisple::Constant::NIL);
-  session().render_mode();
+  render_cycle();
 
   // Then
   ASSERT_NE(session().active_mode, nullptr);
@@ -331,7 +349,7 @@ TEST_F(ComposedAppRuntimeTest, session_assigns_expected_outer_bounds_for_default
 
   // When
   session().push_mode("window-mode", Lisple::Constant::NIL);
-  session().render_mode();
+  render_cycle();
 
   // Then
   ASSERT_NE(session().active_mode, nullptr);
@@ -354,16 +372,15 @@ TEST_F(ComposedAppRuntimeTest, session_opens_popup_mode_from_menu_mouse_down)
   use_default_frame_size();
   load_minesweeper_app();
   session().push_mode("window-mode", Lisple::Constant::NIL);
-  session().render_mode();
+  render_cycle();
 
   ASSERT_NE(session().active_mode, nullptr);
   ASSERT_EQ(session().active_mode->mode->name, "window-mode");
   ASSERT_EQ(session().mode_stack.size(), 1u);
 
   // When
-  press_left_mouse_at(5, 5);
-  session().update_mode();
-  session().process_messages();
+  input().mouse_down({5, 5});
+  update_cycle();
 
   // Then
   ASSERT_NE(session().active_mode, nullptr);

@@ -1,6 +1,7 @@
 #ifndef PIXILS__TEST__APPFIXTURE__COMPOSABLE_APP_SESSION_FIXTURE_H
 #define PIXILS__TEST__APPFIXTURE__COMPOSABLE_APP_SESSION_FIXTURE_H
 
+#include "../input_simulator.h"
 #include "app_manifest.h"
 #include <pixils/context.h>
 #include <pixils/frame_events.h>
@@ -28,6 +29,7 @@ class ComposableAppSessionFixture : public ::testing::Test
 
   Pixils::RenderContext render_ctx{};
   Pixils::FrameEvents events;
+  InputSimulator input_simulator;
   std::unique_ptr<Pixils::HookContext> hook_ctx;
   std::filesystem::path app_root;
   std::unique_ptr<Lisple::Runtime> lisple_runtime;
@@ -44,6 +46,10 @@ class ComposableAppSessionFixture : public ::testing::Test
 
   void set_frame_size(const Pixils::Dimension& dim);
   const Pixils::Dimension& frame_size() const;
+  InputSimulator& input();
+  void update_cycle();
+  void render_cycle();
+  void frame_cycle();
   Lisple::Runtime& pixils();
   Pixils::Runtime::Session& session();
   Lisple::sptr_rtval eval(const std::string& source);

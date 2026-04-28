@@ -2,7 +2,6 @@
 #include "session_fixture.h"
 #include <pixils/ui/style.h>
 
-#include <SDL2/SDL_mouse.h>
 #include <gtest/gtest.h>
 #include <lisple/runtime/dict.h>
 #include <lisple/runtime/value.h>
@@ -10,34 +9,6 @@
 class EventRoutingTest : public SessionFixture
 {
  protected:
-  void move_mouse(int x, int y) { events.do_mouse_motion(x, y); }
-
-  void press_at(int x, int y)
-  {
-    move_mouse(x, y);
-    SDL_MouseButtonEvent btn{};
-    btn.button = SDL_BUTTON_LEFT;
-    events.do_mouse_button_down(btn);
-  }
-
-  void release_at(int x, int y)
-  {
-    move_mouse(x, y);
-    SDL_MouseButtonEvent btn{};
-    btn.button = SDL_BUTTON_LEFT;
-    events.do_mouse_button_up(btn);
-  }
-
-  /**
-   * Clear per-frame transient events, leaving mouse_held untouched so the
-   * pressed chain stays intact across frames while the button is held.
-   */
-  void next_frame()
-  {
-    events.mouse_button_down = Lisple::Constant::NIL;
-    events.mouse_button_up = Lisple::Constant::NIL;
-  }
-
   Lisple::sptr_rtval get_state_key(const Lisple::sptr_rtval& state, const std::string& key)
   {
     return Lisple::Dict::get_property(state, Lisple::RTValue::keyword(key));
@@ -64,13 +35,12 @@ TEST_F(EventRoutingTest, on_click_fires_when_mouse_down_and_up_on_same_view)
   session.active_mode->bounds = {0, 0, 100, 100};
 
   // When - mouse-down at (50,50)
-  press_at(50, 50);
-  session.update_mode();
+  input().mouse_down({50, 50});
+  update_cycle();
 
   // When - mouse-up at same position
-  next_frame();
-  release_at(50, 50);
-  session.update_mode();
+  input().mouse_up({50, 50});
+  update_cycle();
 
   // Then
   EXPECT_EQ(get_count(session.active_mode->state, "clicks"), 1);
@@ -97,22 +67,20 @@ TEST_F(EventRoutingTest, on_click_does_not_fire_when_mouse_up_on_different_view)
   session.active_mode->children[1]->bounds = {100, 0, 100, 100};
 
   // When - press on left button
-  press_at(25, 50);
-  session.update_mode();
+  input().mouse_down({25, 50});
+  update_cycle();
 
   /**
    * Move the cursor to the right view in a separate frame so that
    * mouse.hovered is updated before handle_mouse_up runs. This matches
    * real usage: SDL delivers motion and button events in separate frames.
    */
-  next_frame();
-  move_mouse(150, 50);
-  session.update_mode();
+  input().mouse_move({150, 50});
+  update_cycle();
 
   // When - release on right button
-  next_frame();
-  release_at(150, 50);
-  session.update_mode();
+  input().mouse_up({150, 50});
+  update_cycle();
 
   // Then - neither button received a click
   auto left_state = get_state_key(session.active_mode->state, "left");
@@ -139,16 +107,14 @@ TEST_F(EventRoutingTest, on_mouse_up_fires_on_hovered_view_regardless_of_press_o
   session.active_mode->children[1]->bounds = {100, 0, 100, 100};
 
   // When - press on left, move to right (separate frame), then release
-  press_at(25, 50);
-  session.update_mode();
+  input().mouse_down({25, 50});
+  update_cycle();
 
-  next_frame();
-  move_mouse(150, 50);
-  session.update_mode();
+  input().mouse_move({150, 50});
+  update_cycle();
 
-  next_frame();
-  release_at(150, 50);
-  session.update_mode();
+  input().mouse_up({150, 50});
+  update_cycle();
 
   // Then - right button received on-mouse-up even though press started on left
   auto right_state = get_state_key(session.active_mode->state, "right");
@@ -170,12 +136,11 @@ TEST_F(EventRoutingTest, child_click_state_propagates_into_parent_state_map)
   session.active_mode->children[0]->bounds = {20, 20, 100, 100};
 
   // When - click on the child button
-  press_at(50, 50);
-  session.update_mode();
+  input().mouse_down({50, 50});
+  update_cycle();
 
-  next_frame();
-  release_at(50, 50);
-  session.update_mode();
+  input().mouse_up({50, 50});
+  update_cycle();
 
   // Then - updated child state is visible in the parent's state map
   auto btn_state = get_state_key(session.active_mode->state, "btn");
@@ -199,8 +164,8 @@ TEST_F(EventRoutingTest, child_mouse_down_state_propagates_into_parent_state_map
   session.active_mode->children[0]->bounds = {20, 20, 100, 100};
 
   // When
-  press_at(50, 50);
-  session.update_mode();
+  input().mouse_down({50, 50});
+  update_cycle();
 
   // Then
   auto btn_state = get_state_key(session.active_mode->state, "btn");
@@ -223,12 +188,11 @@ TEST_F(EventRoutingTest, on_mouse_enter_state_change_propagates_to_parent)
   session.active_mode->children[0]->bounds = {20, 20, 100, 100};
 
   // When - move mouse outside child first, then into child
-  move_mouse(5, 5);
-  session.update_mode();
+  input().mouse_move({5, 5});
+  update_cycle();
 
-  next_frame();
-  move_mouse(50, 50);
-  session.update_mode();
+  input().mouse_move({50, 50});
+  update_cycle();
 
   // Then
   auto panel_state = get_state_key(session.active_mode->state, "panel");
@@ -251,12 +215,11 @@ TEST_F(EventRoutingTest, on_mouse_leave_state_change_propagates_to_parent)
   session.active_mode->children[0]->bounds = {20, 20, 100, 100};
 
   // When - enter child, then leave it
-  move_mouse(50, 50);
-  session.update_mode();
+  input().mouse_move({50, 50});
+  update_cycle();
 
-  next_frame();
-  move_mouse(5, 5);
-  session.update_mode();
+  input().mouse_move({5, 5});
+  update_cycle();
 
   // Then
   auto panel_state = get_state_key(session.active_mode->state, "panel");
@@ -283,12 +246,11 @@ TEST_F(EventRoutingTest, later_rendered_child_wins_hit_test_when_bounds_overlap)
   session.active_mode->children[1]->bounds = {0, 0, 200, 200};
 
   // When - click anywhere in the overlapping area
-  press_at(100, 100);
-  session.update_mode();
+  input().mouse_down({100, 100});
+  update_cycle();
 
-  next_frame();
-  release_at(100, 100);
-  session.update_mode();
+  input().mouse_up({100, 100});
+  update_cycle();
 
   // Then - the second (fg) child, rendered on top, received the click
   auto fg_state = get_state_key(session.active_mode->state, "fg");
@@ -308,8 +270,8 @@ TEST_F(EventRoutingTest, interaction_hovered_true_when_cursor_is_inside)
   session.active_mode->bounds = {0, 0, 100, 100};
 
   // When - move cursor inside the view
-  move_mouse(50, 50);
-  session.update_mode();
+  input().mouse_move({50, 50});
+  update_cycle();
 
   // Then
   EXPECT_TRUE(session.active_mode->interaction.hovered);
@@ -327,8 +289,8 @@ TEST_F(EventRoutingTest, interaction_hovered_false_when_cursor_is_outside)
   session.active_mode->bounds = {0, 0, 100, 100};
 
   // When - move cursor outside the view
-  move_mouse(150, 150);
-  session.update_mode();
+  input().mouse_move({150, 150});
+  update_cycle();
 
   // Then
   EXPECT_FALSE(session.active_mode->interaction.hovered);
@@ -348,8 +310,8 @@ TEST_F(EventRoutingTest, hover_style_variant_applied_when_cursor_is_inside)
   session.active_mode->bounds = {0, 0, 100, 100};
 
   // When - move cursor inside the view
-  move_mouse(50, 50);
-  session.update_mode();
+  input().mouse_move({50, 50});
+  update_cycle();
 
   // Then - resolved style should reflect the hover variant
   auto style = Pixils::UI::resolve_style(session.active_mode->mode->style,
