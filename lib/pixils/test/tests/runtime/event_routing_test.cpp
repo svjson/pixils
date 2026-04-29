@@ -213,6 +213,39 @@ TEST_F(EventRoutingTest, on_mouse_leave_state_change_propagates_to_parent)
   EXPECT_EQ(panel_mode.state->to_string(), "{:left-count 1}");
 }
 
+TEST_F(EventRoutingTest, nested_child_events_update_bound_ancestor_state_during_traverse)
+{
+  // Given
+  runtime.eval(R"(
+    (pixils/defmode emitter-mode {
+      :update (fn [state ctx]
+                (do (pixils.ui/emit! (:view ctx) :ping nil)
+                    state))
+    })
+    (pixils/defmode mid-mode {
+      :on {:ping (fn [state payload ctx]
+                   (assoc state :count (+ (:count state) 1)))}
+      :children [{:mode 'emitter-mode :id "emitter"}]
+    })
+    (pixils/defmode root-mode {
+      :init (fn [state ctx] {:mid {:count 0}})
+      :children [{:mode 'mid-mode :id "mid"
+                  :state (pixils.ui/bind-state :mid)}]
+    })
+  )");
+  session.push_mode("root-mode", Lisple::Constant::NIL);
+
+  // When
+  update_cycle();
+
+  // Then
+  ASSERT_NE(session.active_mode, nullptr);
+  EXPECT_EQ(session.active_mode->state->to_string(), "{:mid {:count 1}}");
+  ASSERT_EQ(session.active_mode->children.size(), 1u);
+  auto& mid_mode = *session.active_mode->children[0];
+  EXPECT_EQ(mid_mode.state->to_string(), "{:count 1}");
+}
+
 TEST_F(EventRoutingTest, non_rendered_child_does_not_win_hit_test_when_bounds_overlap)
 {
   // Given - two overlapping children at the same position - top layer is hidden

@@ -97,6 +97,24 @@ namespace Pixils::Runtime
       }
     }
 
+    void run_update_hook(const std::shared_ptr<View>& view,
+                         HookArguments& hook_args,
+                         Lisple::Runtime& rt)
+    {
+      Lisple::obj<HookContext>(*hook_args.update_args[1]).current_view = view;
+      Lisple::sptr_rtval_v uargs = {view->state, hook_args.update_args[1]};
+      view->state = invoke(view->mode->update, uargs, rt, view->state);
+    }
+
+    void propagate_state_up_chain(const std::vector<std::shared_ptr<View>>& chain)
+    {
+      for (size_t i = 0; i + 1 < chain.size(); i++)
+      {
+        chain[i + 1]->state =
+          merge_state(chain[i + 1]->state, *chain[i], chain[i]->state);
+      }
+    }
+
     /**
      * Bubble a hook through chain from deepest to root. For each view: if propagation
      * has not been stopped, calls set_local_pos then fires the named hook field.
@@ -160,7 +178,7 @@ namespace Pixils::Runtime
       return true;
     }
 
-    bool bubble_child_events_to_subject(View& subject,
+    void bubble_child_events_to_subject(View& subject,
                                         Lisple::sptr_rtval* subject_parent_state,
                                         const std::shared_ptr<View>& child,
                                         Lisple::sptr_rtval& view_ctx,
@@ -168,19 +186,13 @@ namespace Pixils::Runtime
     {
       std::vector<CustomEvent> emitted_events;
       child->drain_events(emitted_events);
-      bool subject_state_updated = false;
-      emitted_events = EventRouter::process_events(subject,
-                                                   subject_parent_state,
-                                                   view_ctx,
-                                                   emitted_events,
-                                                   rt,
-                                                   &subject_state_updated);
+      emitted_events =
+        EventRouter::process_events(subject, subject_parent_state, view_ctx, emitted_events, rt);
 
       for (auto& event : emitted_events)
       {
         subject.emitted_events.push_back(event);
       }
-      return subject_state_updated;
     }
 
   } // namespace
@@ -333,33 +345,33 @@ namespace Pixils::Runtime
       rt);
   }
 
-  Lisple::sptr_rtval EventRouter::traverse_child(const std::shared_ptr<View>& view_ptr,
-                                                 Lisple::sptr_rtval parent_state,
-                                                 const Point& mouse_pos,
-                                                 HookArguments& hook_args,
-                                                 Lisple::Runtime& rt)
+  void EventRouter::traverse_child(const std::shared_ptr<View>& view_ptr,
+                                   Lisple::sptr_rtval* parent_state,
+                                   const Point& mouse_pos,
+                                   HookArguments& hook_args,
+                                   Lisple::Runtime& rt)
   {
     View& view = *view_ptr;
 
-    view.state = extract_state(parent_state, view);
+    if (parent_state)
+    {
+      view.state = extract_state(*parent_state, view);
+    }
 
     update_interaction(view, mouse_pos);
-
-    Lisple::obj<HookContext>(*hook_args.update_args[1]).current_view = view_ptr;
-    Lisple::sptr_rtval_v uargs = {view.state, hook_args.update_args[1]};
-    view.state = invoke(view.mode->update, uargs, rt, view.state);
+    run_update_hook(view_ptr, hook_args, rt);
 
     for (auto& child : view.children)
     {
-      view.state = traverse_child(child, view.state, mouse_pos, hook_args, rt);
-      bubble_child_events_to_subject(view,
-                                     &parent_state,
-                                     child,
-                                     hook_args.update_args[1],
-                                     rt);
+      traverse_child(child, &view.state, mouse_pos, hook_args, rt);
+      bubble_child_events_to_subject(
+        view, parent_state, child, hook_args.update_args[1], rt);
     }
 
-    return merge_state(parent_state, view, view.state);
+    if (parent_state)
+    {
+      *parent_state = merge_state(*parent_state, view, view.state);
+    }
   }
 
   void EventRouter::traverse(std::shared_ptr<View> root,
@@ -399,11 +411,7 @@ namespace Pixils::Runtime
                           rt);
 
         auto old_chain = lock_chain(mouse.hovered_chain);
-        for (size_t i = 0; i + 1 < old_chain.size(); i++)
-        {
-          old_chain[i + 1]->state =
-            merge_state(old_chain[i + 1]->state, *old_chain[i], old_chain[i]->state);
-        }
+        propagate_state_up_chain(old_chain);
       }
 
       mouse.hovered = new_hovered ? std::weak_ptr<View>(new_hovered) : std::weak_ptr<View>{};
@@ -420,11 +428,7 @@ namespace Pixils::Runtime
                           hook_args,
                           rt);
 
-        for (size_t i = 0; i + 1 < hit_chain.size(); i++)
-        {
-          hit_chain[i + 1]->state =
-            merge_state(hit_chain[i + 1]->state, *hit_chain[i], hit_chain[i]->state);
-        }
+        propagate_state_up_chain(hit_chain);
       }
     }
 
@@ -438,29 +442,7 @@ namespace Pixils::Runtime
       mouse.hovered_chain.push_back(std::weak_ptr<View>(v));
     }
 
-    /**
-     * Update root: update interaction flags, call update hook, thread children.
-     */
-    update_interaction(*root, mouse_pos);
-
-    Lisple::obj<HookContext>(*hook_args.update_args[1]).current_view = root;
-    Lisple::sptr_rtval_v uargs = {root->state, hook_args.update_args[1]};
-    root->state = invoke(root->mode->update, uargs, rt, root->state);
-
-    auto parent_state = root->state;
-    for (auto& child : root->children)
-    {
-      parent_state = traverse_child(child, parent_state, mouse_pos, hook_args, rt);
-      if (bubble_child_events_to_subject(*root,
-                                         nullptr,
-                                         child,
-                                         hook_args.update_args[1],
-                                         rt))
-      {
-        parent_state = root->state;
-      }
-    }
-    root->state = parent_state;
+    traverse_child(root, nullptr, mouse_pos, hook_args, rt);
   }
 
   void EventRouter::update(std::shared_ptr<View> root,

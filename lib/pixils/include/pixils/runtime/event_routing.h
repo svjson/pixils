@@ -70,10 +70,10 @@ namespace Pixils::Runtime
     MouseState mouse;
 
     /**
-     * Run the full per-frame update for root: handle any pending mouse-up,
-     * traverse the view tree (hover detection, boolean injection, update hooks,
-     * enter/leave dispatch), then handle any pending mouse-down.
-     * After this returns, root.state reflects all child updates.
+     * Run the full per-frame update for root: handle pending mouse-up/down
+     * edges, traverse the view tree (hover detection, interaction injection,
+     * update hooks, enter/leave dispatch), then fire any mouse-motion hooks.
+     * After this returns, root.state reflects all bound child updates.
      */
     void update(std::shared_ptr<View> root,
                 FrameEvents& events,
@@ -109,8 +109,8 @@ namespace Pixils::Runtime
     /**
      * Traverse the full view tree rooted at root. Updates hover tracking,
      * fires enter/leave hooks, injects hovered/pressed booleans, and calls
-     * each view's update hook. Children are state-threaded through their
-     * parent state map.
+     * each view's update hook. Per-view recursion is delegated to
+     * traverse_child().
      */
     void traverse(std::shared_ptr<View> root,
                   FrameEvents& events,
@@ -118,15 +118,16 @@ namespace Pixils::Runtime
                   Lisple::Runtime& rt);
 
     /**
-     * Recursive helper called for every non-root view in the tree.
-     * Extracts the view's state from parent, does hover/update work,
-     * recurses into children, and merges the updated state back.
+     * Recursive helper for one view subtree. When parent_state is non-null,
+     * the view state is extracted from the parent before update work and
+     * merged back after children complete. Passing nullptr is valid for the
+     * active root, which already owns its state directly.
      */
-    Lisple::sptr_rtval traverse_child(const std::shared_ptr<View>& view,
-                                      Lisple::sptr_rtval parent_state,
-                                      const Point& mouse_pos,
-                                      HookArguments& hook_args,
-                                      Lisple::Runtime& rt);
+    void traverse_child(const std::shared_ptr<View>& view,
+                        Lisple::sptr_rtval* parent_state,
+                        const Point& mouse_pos,
+                        HookArguments& hook_args,
+                        Lisple::Runtime& rt);
 
     /**
      * Update the engine-managed interaction flags on the view (hovered, pressed).
