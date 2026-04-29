@@ -213,9 +213,41 @@ TEST_F(EventRoutingTest, on_mouse_leave_state_change_propagates_to_parent)
   EXPECT_EQ(panel_mode.state->to_string(), "{:left-count 1}");
 }
 
+TEST_F(EventRoutingTest, non_rendered_child_does_not_win_hit_test_when_bounds_overlap)
+{
+  // Given - two overlapping children at the same position - top layer is hidden
+  runtime.eval(R"(
+    (pixils/defmode layer {
+      :init     (fn [state ctx] {:clicks 0})
+      :on-click (fn [state ev ctx] (assoc state :clicks (+ (:clicks state) 1)))
+    })
+    (pixils/defmode overlap-view {:children [{:mode 'layer :id "bg"}
+                                             {:mode 'layer :id "fg" :style {:hidden true}}]})
+  )");
+  session.push_mode("overlap-view", Lisple::Constant::NIL);
+  session.active_mode->bounds = {0, 0, 200, 200};
+  // Both children cover the same area
+  session.active_mode->children[0]->bounds = {0, 0, 200, 200};
+  session.active_mode->children[1]->bounds = {0, 0, 200, 200};
+
+  // When - click anywhere in the overlapping area
+  input().mouse_down({100, 100});
+  update_cycle();
+
+  input().mouse_up({100, 100});
+  update_cycle();
+
+  // Then - the bg layer has received and processed the click event
+  auto& bg_layer = *session.active_mode->children[0];
+  EXPECT_EQ(bg_layer.state->to_string(), "{:clicks 1}");
+
+  auto& fg_layer = *session.active_mode->children[1];
+  EXPECT_EQ(fg_layer.state->to_string(), "{:clicks 0}");
+}
+
 TEST_F(EventRoutingTest, later_rendered_child_wins_hit_test_when_bounds_overlap)
 {
-  // Given - two overlapping children at the same position; only the second tracks clicks
+  // Given - two overlapping children at the same position
   runtime.eval(R"(
     (pixils/defmode layer {
       :init     (fn [state ctx] {:clicks 0})
