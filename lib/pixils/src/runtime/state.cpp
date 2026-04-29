@@ -20,9 +20,8 @@ namespace Pixils::Runtime
 
     if (!binding || binding->type == Lisple::RTValue::Type::NIL)
     {
-      if (!parent || parent->type == Lisple::RTValue::Type::NIL) return view.initial_state;
-      auto val = Lisple::Dict::get_property(parent, Lisple::RTValue::keyword(view.id));
-      return (val && val->type != Lisple::RTValue::Type::NIL) ? val : view.initial_state;
+      if (view.state && view.state->type != Lisple::RTValue::Type::NIL) return view.state;
+      return view.initial_state;
     }
 
     if (Pixils::Script::HostType::BIND_STATE.is_type_of(*binding))
@@ -54,11 +53,7 @@ namespace Pixils::Runtime
 
     if (!binding || binding->type == Lisple::RTValue::Type::NIL)
     {
-      auto updated = (!parent || parent->type == Lisple::RTValue::Type::NIL)
-                       ? Lisple::RTValue::map({})
-                       : parent;
-      Lisple::Dict::set_property(updated, Lisple::RTValue::keyword(view.id), child_state);
-      return updated;
+      return parent;
     }
 
     if (Pixils::Script::HostType::BIND_STATE.is_type_of(*binding))

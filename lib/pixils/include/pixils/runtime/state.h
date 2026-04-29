@@ -28,16 +28,17 @@ namespace Pixils::Runtime
    * Apply state_binding to produce the child state handed to hooks. For a
    * whole-path binding the child state is extracted from the parent at that
    * path. For a map binding, bound keys are overlaid on top of view.state
-   * (which carries the literal/non-bound keys across frames). For unbound
-   * views the id-keyword path is used and initial_state is the fallback.
+   * (which carries the literal/non-bound keys across frames). Unbound views
+   * fully own their own view.state; initial_state is only the fallback before
+   * the first local state has been established.
    */
   Lisple::sptr_rtval extract_state(const Lisple::sptr_rtval& parent,
                                    const Pixils::Runtime::View& view);
 
   /**
-   * Write bound keys from child_state back into parent state. Unbound views
-   * store the full child state under the id keyword. Bound views only touch
-   * the paths declared in state_binding; non-bound keys remain in view.state.
+   * Write bound keys from child_state back into parent state. Unbound views do
+   * not merge into the parent at all. Bound views only touch the paths
+   * declared in state_binding; non-bound keys remain in view.state.
    */
   Lisple::sptr_rtval merge_state(const Lisple::sptr_rtval& parent,
                                  const Pixils::Runtime::View& view,

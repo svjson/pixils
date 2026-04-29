@@ -6,21 +6,7 @@
 #include <lisple/runtime/dict.h>
 #include <lisple/runtime/value.h>
 
-class EventRoutingTest : public SessionFixture
-{
- protected:
-  Lisple::sptr_rtval get_state_key(const Lisple::sptr_rtval& state, const std::string& key)
-  {
-    return Lisple::Dict::get_property(state, Lisple::RTValue::keyword(key));
-  }
-
-  int get_count(const Lisple::sptr_rtval& state, const std::string& key)
-  {
-    auto val = get_state_key(state, key);
-    if (!val || val->type == Lisple::RTValue::Type::NIL) return 0;
-    return val->num().get_int();
-  }
-};
+using EventRoutingTest = SessionFixture;
 
 TEST_F(EventRoutingTest, on_click_fires_when_mouse_down_and_up_on_same_view)
 {
@@ -43,7 +29,7 @@ TEST_F(EventRoutingTest, on_click_fires_when_mouse_down_and_up_on_same_view)
   update_cycle();
 
   // Then
-  EXPECT_EQ(get_count(session.active_mode->state, "clicks"), 1);
+  EXPECT_EQ(session.active_mode->state->to_string(), "{:clicks 1}");
 }
 
 TEST_F(EventRoutingTest, on_click_does_not_fire_when_mouse_up_on_different_view)
@@ -83,10 +69,11 @@ TEST_F(EventRoutingTest, on_click_does_not_fire_when_mouse_up_on_different_view)
   update_cycle();
 
   // Then - neither button received a click
-  auto left_state = get_state_key(session.active_mode->state, "left");
-  auto right_state = get_state_key(session.active_mode->state, "right");
-  EXPECT_EQ(get_count(left_state, "clicks"), 0);
-  EXPECT_EQ(get_count(right_state, "clicks"), 0);
+  auto& left_view = *session.active_mode->children[0];
+  EXPECT_EQ(left_view.state->to_string(), "{:clicks 0}");
+
+  auto& right_view = *session.active_mode->children[1];
+  EXPECT_EQ(right_view.state->to_string(), "{:clicks 0}");
 }
 
 TEST_F(EventRoutingTest, on_mouse_up_fires_on_hovered_view_regardless_of_press_origin)
@@ -117,8 +104,11 @@ TEST_F(EventRoutingTest, on_mouse_up_fires_on_hovered_view_regardless_of_press_o
   update_cycle();
 
   // Then - right button received on-mouse-up even though press started on left
-  auto right_state = get_state_key(session.active_mode->state, "right");
-  EXPECT_EQ(get_count(right_state, "up-count"), 1);
+  auto& left_view = *session.active_mode->children[0];
+  EXPECT_EQ(left_view.state->to_string(), "nil");
+
+  auto& right_view = *session.active_mode->children[1];
+  EXPECT_EQ(right_view.state->to_string(), "{:up-count 1}");
 }
 
 TEST_F(EventRoutingTest, child_click_state_propagates_into_parent_state_map)
@@ -143,9 +133,8 @@ TEST_F(EventRoutingTest, child_click_state_propagates_into_parent_state_map)
   update_cycle();
 
   // Then - updated child state is visible in the parent's state map
-  auto btn_state = get_state_key(session.active_mode->state, "btn");
-  ASSERT_NE(btn_state, nullptr);
-  EXPECT_EQ(get_count(btn_state, "clicks"), 1);
+  auto& btn_mode = *session.active_mode->children[0];
+  EXPECT_EQ(btn_mode.state->to_string(), "{:clicks 1}");
 }
 
 TEST_F(EventRoutingTest, child_mouse_down_state_propagates_into_parent_state_map)
@@ -168,9 +157,8 @@ TEST_F(EventRoutingTest, child_mouse_down_state_propagates_into_parent_state_map
   update_cycle();
 
   // Then
-  auto btn_state = get_state_key(session.active_mode->state, "btn");
-  ASSERT_NE(btn_state, nullptr);
-  EXPECT_EQ(get_count(btn_state, "pressed-count"), 1);
+  auto& btn_mode = *session.active_mode->children[0];
+  EXPECT_EQ(btn_mode.state->to_string(), "{:pressed-count 1}");
 }
 
 TEST_F(EventRoutingTest, on_mouse_enter_state_change_propagates_to_parent)
@@ -195,9 +183,8 @@ TEST_F(EventRoutingTest, on_mouse_enter_state_change_propagates_to_parent)
   update_cycle();
 
   // Then
-  auto panel_state = get_state_key(session.active_mode->state, "panel");
-  ASSERT_NE(panel_state, nullptr);
-  EXPECT_EQ(get_count(panel_state, "entered"), 1);
+  auto& panel_mode = *session.active_mode->children[0];
+  EXPECT_EQ(panel_mode.state->to_string(), "{:entered 1}");
 }
 
 TEST_F(EventRoutingTest, on_mouse_leave_state_change_propagates_to_parent)
@@ -222,22 +209,20 @@ TEST_F(EventRoutingTest, on_mouse_leave_state_change_propagates_to_parent)
   update_cycle();
 
   // Then
-  auto panel_state = get_state_key(session.active_mode->state, "panel");
-  ASSERT_NE(panel_state, nullptr);
-  EXPECT_EQ(get_count(panel_state, "left-count"), 1);
+  auto& panel_mode = *session.active_mode->children[0];
+  EXPECT_EQ(panel_mode.state->to_string(), "{:left-count 1}");
 }
 
 TEST_F(EventRoutingTest, later_rendered_child_wins_hit_test_when_bounds_overlap)
 {
   // Given - two overlapping children at the same position; only the second tracks clicks
   runtime.eval(R"(
-    (pixils/defmode bg-layer {})
-    (pixils/defmode fg-layer {
+    (pixils/defmode layer {
       :init     (fn [state ctx] {:clicks 0})
       :on-click (fn [state ev ctx] (assoc state :clicks (+ (:clicks state) 1)))
     })
-    (pixils/defmode overlap-view {:children [{:mode 'bg-layer :id "bg"}
-                                             {:mode 'fg-layer :id "fg"}]})
+    (pixils/defmode overlap-view {:children [{:mode 'layer :id "bg"}
+                                             {:mode 'layer :id "fg"}]})
   )");
   session.push_mode("overlap-view", Lisple::Constant::NIL);
   session.active_mode->bounds = {0, 0, 200, 200};
@@ -253,9 +238,11 @@ TEST_F(EventRoutingTest, later_rendered_child_wins_hit_test_when_bounds_overlap)
   update_cycle();
 
   // Then - the second (fg) child, rendered on top, received the click
-  auto fg_state = get_state_key(session.active_mode->state, "fg");
-  ASSERT_NE(fg_state, nullptr);
-  EXPECT_EQ(get_count(fg_state, "clicks"), 1);
+  auto& bg_layer = *session.active_mode->children[0];
+  EXPECT_EQ(bg_layer.state->to_string(), "{:clicks 0}");
+
+  auto& fg_layer = *session.active_mode->children[1];
+  EXPECT_EQ(fg_layer.state->to_string(), "{:clicks 1}");
 }
 
 TEST_F(EventRoutingTest, interaction_hovered_true_when_cursor_is_inside)

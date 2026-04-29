@@ -88,16 +88,18 @@ TEST_F(SessionStateTreeTest, push_mode_merges_child_init_state_into_parent_state
   // When
   session.push_mode("parent-mode", Lisple::Constant::NIL);
 
-  // Then - parent state map has child state at the auto-generated id key
-  auto child_state = Lisple::Dict::get_property(session.active_mode->state,
-                                                Lisple::RTValue::keyword("child-mode-0"));
-  ASSERT_NE(child_state, nullptr);
-  auto value = Lisple::Dict::get_property(child_state, Lisple::RTValue::keyword("value"));
+  // Then - child view owns the initialized state locally
+  ASSERT_NE(session.active_mode, nullptr);
+  ASSERT_EQ(session.active_mode->children.size(), 1u);
+  auto child = session.active_mode->children[0];
+  ASSERT_NE(child, nullptr);
+  ASSERT_NE(child->state, nullptr);
+  auto value = Lisple::Dict::get_property(child->state, Lisple::RTValue::keyword("value"));
   ASSERT_NE(value, nullptr);
   EXPECT_EQ(value->num().get_int(), 42);
 }
 
-TEST_F(SessionStateTreeTest, child_update_reads_state_from_parent_map)
+TEST_F(SessionStateTreeTest, child_update_preserves_and_evolves_local_child_state)
 {
   // Given
   runtime.eval(R"(
@@ -112,11 +114,13 @@ TEST_F(SessionStateTreeTest, child_update_reads_state_from_parent_map)
   // When
   session.update_mode();
 
-  // Then - child state in parent map is updated
-  auto child_state = Lisple::Dict::get_property(session.active_mode->state,
-                                                Lisple::RTValue::keyword("child-mode-0"));
-  ASSERT_NE(child_state, nullptr);
-  auto count = Lisple::Dict::get_property(child_state, Lisple::RTValue::keyword("count"));
+  // Then - child local state is updated
+  ASSERT_NE(session.active_mode, nullptr);
+  ASSERT_EQ(session.active_mode->children.size(), 1u);
+  auto child = session.active_mode->children[0];
+  ASSERT_NE(child, nullptr);
+  ASSERT_NE(child->state, nullptr);
+  auto count = Lisple::Dict::get_property(child->state, Lisple::RTValue::keyword("count"));
   ASSERT_NE(count, nullptr);
   EXPECT_EQ(count->num().get_int(), 1);
 }
@@ -135,36 +139,44 @@ TEST_F(SessionStateTreeTest, pop_mode_restores_parent_with_child_states)
   session.push_mode("popup-mode", Lisple::Constant::NIL);
   session.pop_mode();
 
-  // Then - active mode is parent-mode with child state intact
-  auto child_state = Lisple::Dict::get_property(session.active_mode->state,
-                                                Lisple::RTValue::keyword("child-mode-0"));
-  ASSERT_NE(child_state, nullptr);
-  auto value = Lisple::Dict::get_property(child_state, Lisple::RTValue::keyword("value"));
+  // Then - active mode is parent-mode with child local state intact
+  ASSERT_NE(session.active_mode, nullptr);
+  ASSERT_EQ(session.active_mode->mode->name, "parent-mode");
+  ASSERT_EQ(session.active_mode->children.size(), 1u);
+  auto child = session.active_mode->children[0];
+  ASSERT_NE(child, nullptr);
+  ASSERT_NE(child->state, nullptr);
+  auto value = Lisple::Dict::get_property(child->state, Lisple::RTValue::keyword("value"));
   ASSERT_NE(value, nullptr);
   EXPECT_EQ(value->num().get_int(), 99);
 }
 
-TEST_F(SessionStateTreeTest, sibling_children_of_same_mode_get_distinct_state_slots)
+TEST_F(SessionStateTreeTest, sibling_children_of_same_mode_keep_distinct_local_states)
 {
-  // Given - two children using the same mode type
+  // Given - two children using the same mode type with different local initial state
   runtime.eval(R"(
-    (pixils/defmode panel-mode {:init (fn [state ctx] {:panel true})})
-    (pixils/defmode split-mode {:children [{:mode 'panel-mode} {:mode 'panel-mode}]})
+    (pixils/defmode panel-mode {:init (fn [state ctx] state)})
+    (pixils/defmode split-mode {:children [{:mode 'panel-mode :state {:slot 0}}
+                                           {:mode 'panel-mode :state {:slot 1}}]})
   )");
 
   // When
   session.push_mode("split-mode", Lisple::Constant::NIL);
 
-  // Then - both children have separate state entries
-  auto state0 = Lisple::Dict::get_property(session.active_mode->state,
-                                           Lisple::RTValue::keyword("panel-mode-0"));
-  auto state1 = Lisple::Dict::get_property(session.active_mode->state,
-                                           Lisple::RTValue::keyword("panel-mode-1"));
-  EXPECT_NE(state0, nullptr);
-  EXPECT_NE(state1, nullptr);
+  // Then - both children retain distinct local state
+  ASSERT_NE(session.active_mode, nullptr);
+  ASSERT_EQ(session.active_mode->children.size(), 2u);
+  auto child0 = session.active_mode->children[0];
+  auto child1 = session.active_mode->children[1];
+  ASSERT_NE(child0, nullptr);
+  ASSERT_NE(child1, nullptr);
+  ASSERT_NE(child0->state, nullptr);
+  ASSERT_NE(child1->state, nullptr);
+  EXPECT_EQ(child0->state->to_string(), "{:slot 0}");
+  EXPECT_EQ(child1->state->to_string(), "{:slot 1}");
 }
 
-TEST_F(SessionStateTreeTest, explicit_child_id_is_used_as_state_key)
+TEST_F(SessionStateTreeTest, explicit_child_id_is_retained_on_view)
 {
   // Given
   runtime.eval(R"(
@@ -175,10 +187,12 @@ TEST_F(SessionStateTreeTest, explicit_child_id_is_used_as_state_key)
   // When
   session.push_mode("root-mode", Lisple::Constant::NIL);
 
-  // Then - state key uses the explicit id
-  auto child_state = Lisple::Dict::get_property(session.active_mode->state,
-                                                Lisple::RTValue::keyword("sidebar"));
-  ASSERT_NE(child_state, nullptr);
-  auto loaded = Lisple::Dict::get_property(child_state, Lisple::RTValue::keyword("loaded"));
-  EXPECT_NE(loaded, nullptr);
+  // Then - explicit id is retained on the child view itself
+  ASSERT_NE(session.active_mode, nullptr);
+  ASSERT_EQ(session.active_mode->children.size(), 1u);
+  auto child = session.active_mode->children[0];
+  ASSERT_NE(child, nullptr);
+  EXPECT_EQ(child->id, "sidebar");
+  ASSERT_NE(child->state, nullptr);
+  EXPECT_EQ(child->state->to_string(), "{:loaded true}");
 }
