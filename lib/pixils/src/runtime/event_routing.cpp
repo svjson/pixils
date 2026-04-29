@@ -145,6 +145,39 @@ namespace Pixils::Runtime
       return true;
     }
 
+    bool bubble_child_events_to_subject(View& subject,
+                                        Lisple::sptr_rtval* subject_parent_state,
+                                        const std::shared_ptr<View>& child,
+                                        Lisple::sptr_rtval& view_ctx,
+                                        Lisple::Runtime& rt)
+    {
+      std::vector<CustomEvent> emitted_events;
+      child->drain_events(emitted_events);
+      bool subject_state_updated = false;
+      emitted_events = EventRouter::process_events(subject,
+                                                   subject_parent_state,
+                                                   view_ctx,
+                                                   emitted_events,
+                                                   rt,
+                                                   &subject_state_updated);
+
+      for (auto& event : emitted_events)
+      {
+        subject.emitted_events.push_back(event);
+      }
+      return subject_state_updated;
+    }
+
+    void restore_subtree_state(const std::shared_ptr<View>& view,
+                               const Lisple::sptr_rtval& parent_state)
+    {
+      view->state = extract_state(parent_state, *view);
+      for (auto& child : view->children)
+      {
+        restore_subtree_state(child, view->state);
+      }
+    }
+
   } // namespace
 
   void EventRouter::update_interaction(View& view, const Point& mouse_pos)
@@ -311,22 +344,14 @@ namespace Pixils::Runtime
     Lisple::sptr_rtval_v uargs = {view.state, hook_args.update_args[1]};
     view.state = invoke(view.mode->update, uargs, rt, view.state);
 
-    std::vector<CustomEvent> emitted_events;
     for (auto& child : view.children)
     {
       view.state = traverse_child(child, view.state, mouse_pos, hook_args, rt);
-      child->drain_events(emitted_events);
-      emitted_events = EventRouter::process_events(view,
-                                                   parent_state,
-                                                   hook_args.update_args[1],
-                                                   emitted_events,
-                                                   rt);
-
-      for (auto& event : emitted_events)
-      {
-        view.emitted_events.push_back(event);
-      }
-      emitted_events.clear();
+      bubble_child_events_to_subject(view,
+                                     &parent_state,
+                                     child,
+                                     hook_args.update_args[1],
+                                     rt);
     }
 
     return merge_state(parent_state, view, view.state);
@@ -421,6 +446,14 @@ namespace Pixils::Runtime
     for (auto& child : root->children)
     {
       parent_state = traverse_child(child, parent_state, mouse_pos, hook_args, rt);
+      if (bubble_child_events_to_subject(*root,
+                                         nullptr,
+                                         child,
+                                         hook_args.update_args[1],
+                                         rt))
+      {
+        parent_state = root->state;
+      }
     }
     root->state = parent_state;
   }
@@ -482,10 +515,11 @@ namespace Pixils::Runtime
   }
 
   std::vector<CustomEvent> EventRouter::process_events(View& receiver,
-                                                       Lisple::sptr_rtval& parent_state,
+                                                       Lisple::sptr_rtval* parent_state,
                                                        Lisple::sptr_rtval& view_ctx,
                                                        std::vector<CustomEvent>& events,
-                                                       Lisple::Runtime& runtime)
+                                                       Lisple::Runtime& runtime,
+                                                       bool* receiver_state_updated)
   {
     std::vector<CustomEvent> bubbled_events;
     for (auto& event : events)
@@ -504,7 +538,15 @@ namespace Pixils::Runtime
         if (new_state->type != Lisple::RTValue::Type::NIL)
         {
           receiver.state = new_state;
-          parent_state = merge_state(parent_state, receiver, receiver.state);
+          if (receiver_state_updated) *receiver_state_updated = true;
+          for (auto& child : receiver.children)
+          {
+            restore_subtree_state(child, receiver.state);
+          }
+          if (parent_state)
+          {
+            *parent_state = merge_state(*parent_state, receiver, receiver.state);
+          }
         }
         if (!event.propagation_stopped)
         {

@@ -1,0 +1,9 @@
+(ns pixils.test.app.minesweeper.core
+  (:require pixils
+            [pixils.ui :as ui]))
+
+(defmode board-mode
+  {:on-click (fn [state event ctx]
+               (when (= (:button event) :right)
+                 (ui/emit! (:view ctx) :cell/toggle-flag {:x 0 :y 0}))
+               state)})

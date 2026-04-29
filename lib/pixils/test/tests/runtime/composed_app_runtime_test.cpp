@@ -4,6 +4,7 @@
 #include <pixils/runtime/view.h>
 
 #include <SDL2/SDL_mouse.h>
+#include <filesystem>
 #include <gtest/gtest.h>
 #include <lisple/runtime/dict.h>
 #include <lisple/runtime/seq.h>
@@ -28,6 +29,54 @@ namespace
                                 .disk_path = "pixils/test/app/main.lisple",
                                 .namespace_name = "pixils.test.app.main",
                                 .unit_ids = {"main-api"}}});
+  }
+
+  std::filesystem::path appfixture_assets_dir()
+  {
+    return std::filesystem::path(__FILE__).parent_path().parent_path() / "appfixture/assets";
+  }
+
+  AppFixture::SourceUnit load_appfixture_unit(const std::string& unit_id,
+                                              const std::filesystem::path& relative_path)
+  {
+    return AppFixture::SourceUnit::from_file(unit_id,
+                                             appfixture_assets_dir() / relative_path);
+  }
+
+  AppFixture::AppManifest reduced_minesweeper_manifest()
+  {
+    auto manifest = AppFixture::Minesweeper::default_manifest();
+
+    manifest.upsert_unit(
+      load_appfixture_unit(std::string(AppFixture::Minesweeper::unit_ids::board_mode),
+                           "apps/minesweeper/components/board/test-board-mode.lisple"));
+    manifest.upsert_unit(load_appfixture_unit(
+      std::string(AppFixture::Minesweeper::unit_ids::status_panel),
+      "apps/minesweeper/components/status-panel/test-status-panel.lisple"));
+
+    return manifest;
+  }
+
+  AppFixture::AppManifest board_only_reduced_minesweeper_manifest()
+  {
+    auto manifest = reduced_minesweeper_manifest();
+
+    manifest.upsert_unit(load_appfixture_unit(
+      std::string(AppFixture::Minesweeper::unit_ids::game_layout),
+      "apps/minesweeper/components/test-game-layout-board-only.lisple"));
+
+    return manifest;
+  }
+
+  AppFixture::AppManifest one_button_board_reduced_minesweeper_manifest()
+  {
+    auto manifest = board_only_reduced_minesweeper_manifest();
+
+    manifest.upsert_unit(load_appfixture_unit(
+      std::string(AppFixture::Minesweeper::unit_ids::board_mode),
+      "apps/minesweeper/components/board/test-board-mode-one-button.lisple"));
+
+    return manifest;
   }
 
   View& only_child(View& view, size_t index)
@@ -123,6 +172,27 @@ class ComposedAppRuntimeTest : public ComposableAppSessionFixture
   void load_minesweeper_app()
   {
     load_app(AppFixture::Minesweeper::default_manifest(),
+             AppFixture::Minesweeper::main_namespace(),
+             AppFixture::Minesweeper::entry_files());
+  }
+
+  void load_reduced_minesweeper_app()
+  {
+    load_app(reduced_minesweeper_manifest(),
+             AppFixture::Minesweeper::main_namespace(),
+             AppFixture::Minesweeper::entry_files());
+  }
+
+  void load_board_only_reduced_minesweeper_app()
+  {
+    load_app(board_only_reduced_minesweeper_manifest(),
+             AppFixture::Minesweeper::main_namespace(),
+             AppFixture::Minesweeper::entry_files());
+  }
+
+  void load_one_button_board_reduced_minesweeper_app()
+  {
+    load_app(one_button_board_reduced_minesweeper_manifest(),
              AppFixture::Minesweeper::main_namespace(),
              AppFixture::Minesweeper::entry_files());
   }
@@ -389,4 +459,206 @@ TEST_F(ComposedAppRuntimeTest, session_opens_popup_mode_from_menu_mouse_down)
   ASSERT_EQ(session().ctx_stack.size(), 1u);
   ASSERT_NE(session().ctx_stack.back(), nullptr);
   EXPECT_EQ(session().ctx_stack.back()->mode->name, "window-mode");
+}
+
+TEST_F(ComposedAppRuntimeTest,
+       session_applies_board_flag_state_immediately_after_right_click)
+{
+  // Given
+  use_default_frame_size();
+  load_minesweeper_app();
+  session().push_mode("window-mode", Lisple::Constant::NIL);
+  render_cycle();
+
+  ASSERT_NE(session().active_mode, nullptr);
+  View& window = *session().active_mode;
+  View& game_layout = child_with_mode_name(window, "game-layout-mode");
+  View& board_mode = child_with_mode_name(game_layout, "board-mode");
+  View& board_buttons = child_with_mode_name(board_mode, "board-buttons");
+  View& first_row = only_child(board_buttons, 0);
+  View& first_button = only_child(first_row, 0);
+
+  expect_int_key(first_button.state, "x", 0);
+  expect_int_key(first_button.state, "y", 0);
+
+  int click_x = first_button.bounds.x + first_button.bounds.w / 2;
+  int click_y = first_button.bounds.y + first_button.bounds.h / 2;
+
+  // When
+  input().mouse_down({click_x, click_y}, SDL_BUTTON_RIGHT);
+  update_cycle();
+  input().mouse_up({click_x, click_y}, SDL_BUTTON_RIGHT);
+  update_cycle();
+
+  // Then
+  auto counters = get_key(game_layout.state, "counters");
+  auto board_mask = get_key(game_layout.state, "board-mask");
+  auto first_mask_row = get_index(board_mask, 0);
+  auto first_mask_cell = get_index(first_mask_row, 0);
+
+  ASSERT_NE(counters, nullptr);
+  ASSERT_NE(board_mask, nullptr);
+  ASSERT_NE(first_mask_row, nullptr);
+  ASSERT_NE(first_mask_cell, nullptr);
+  expect_int_key(counters, "mines-left", 9);
+  EXPECT_EQ(count_flagged_cells(board_mask), 1);
+  expect_key_string(first_mask_cell, "flagged?", "true");
+}
+
+TEST_F(ComposedAppRuntimeTest,
+       session_preserves_board_flag_state_across_following_update_cycle)
+{
+  // Given
+  use_default_frame_size();
+  load_minesweeper_app();
+  session().push_mode("window-mode", Lisple::Constant::NIL);
+  render_cycle();
+
+  ASSERT_NE(session().active_mode, nullptr);
+  View& window = *session().active_mode;
+  View& game_layout = child_with_mode_name(window, "game-layout-mode");
+  View& board_mode = child_with_mode_name(game_layout, "board-mode");
+  View& board_buttons = child_with_mode_name(board_mode, "board-buttons");
+  View& first_row = only_child(board_buttons, 0);
+  View& first_button = only_child(first_row, 0);
+
+  expect_int_key(first_button.state, "x", 0);
+  expect_int_key(first_button.state, "y", 0);
+
+  int click_x = first_button.bounds.x + first_button.bounds.w / 2;
+  int click_y = first_button.bounds.y + first_button.bounds.h / 2;
+
+  input().mouse_down({click_x, click_y}, SDL_BUTTON_RIGHT);
+  update_cycle();
+  input().mouse_up({click_x, click_y}, SDL_BUTTON_RIGHT);
+  update_cycle();
+
+  // When
+  update_cycle();
+
+  // Then
+  auto counters = get_key(game_layout.state, "counters");
+  auto board_mask = get_key(game_layout.state, "board-mask");
+  auto first_mask_row = get_index(board_mask, 0);
+  auto first_mask_cell = get_index(first_mask_row, 0);
+
+  ASSERT_NE(counters, nullptr);
+  ASSERT_NE(board_mask, nullptr);
+  ASSERT_NE(first_mask_row, nullptr);
+  ASSERT_NE(first_mask_cell, nullptr);
+  expect_int_key(counters, "mines-left", 9);
+  EXPECT_EQ(count_flagged_cells(board_mask), 1);
+  expect_key_string(first_mask_cell, "flagged?", "true");
+}
+
+TEST_F(ComposedAppRuntimeTest,
+       session_applies_board_flag_state_in_reduced_game_layout_fixture)
+{
+  // Given
+  use_default_frame_size();
+  load_reduced_minesweeper_app();
+  session().push_mode("game-layout-mode", Lisple::Constant::NIL);
+  render_cycle();
+
+  ASSERT_NE(session().active_mode, nullptr);
+  View& game_layout = *session().active_mode;
+  View& board_mode = child_with_mode_name(game_layout, "board-mode");
+
+  int click_x = board_mode.bounds.x + board_mode.bounds.w / 2;
+  int click_y = board_mode.bounds.y + board_mode.bounds.h / 2;
+
+  // When
+  input().mouse_down({click_x, click_y}, SDL_BUTTON_RIGHT);
+  update_cycle();
+  input().mouse_up({click_x, click_y}, SDL_BUTTON_RIGHT);
+  update_cycle();
+
+  // Then
+  auto counters = get_key(game_layout.state, "counters");
+  auto board_mask = get_key(game_layout.state, "board-mask");
+  auto first_mask_row = get_index(board_mask, 0);
+  auto first_mask_cell = get_index(first_mask_row, 0);
+
+  ASSERT_NE(counters, nullptr);
+  ASSERT_NE(board_mask, nullptr);
+  ASSERT_NE(first_mask_row, nullptr);
+  ASSERT_NE(first_mask_cell, nullptr);
+  expect_int_key(counters, "mines-left", 9);
+  EXPECT_EQ(count_flagged_cells(board_mask), 1);
+  expect_key_string(first_mask_cell, "flagged?", "true");
+}
+
+TEST_F(ComposedAppRuntimeTest,
+       session_applies_board_flag_state_in_board_only_reduced_game_layout_fixture)
+{
+  // Given
+  use_default_frame_size();
+  load_board_only_reduced_minesweeper_app();
+  session().push_mode("game-layout-mode", Lisple::Constant::NIL);
+  render_cycle();
+
+  ASSERT_NE(session().active_mode, nullptr);
+  View& game_layout = *session().active_mode;
+  View& board_mode = child_with_mode_name(game_layout, "board-mode");
+
+  int click_x = board_mode.bounds.x + board_mode.bounds.w / 2;
+  int click_y = board_mode.bounds.y + board_mode.bounds.h / 2;
+
+  // When
+  input().mouse_down({click_x, click_y}, SDL_BUTTON_RIGHT);
+  update_cycle();
+  input().mouse_up({click_x, click_y}, SDL_BUTTON_RIGHT);
+  update_cycle();
+
+  // Then
+  auto counters = get_key(game_layout.state, "counters");
+  auto board_mask = get_key(game_layout.state, "board-mask");
+  auto first_mask_row = get_index(board_mask, 0);
+  auto first_mask_cell = get_index(first_mask_row, 0);
+
+  ASSERT_NE(counters, nullptr);
+  ASSERT_NE(board_mask, nullptr);
+  ASSERT_NE(first_mask_row, nullptr);
+  ASSERT_NE(first_mask_cell, nullptr);
+  expect_int_key(counters, "mines-left", 9);
+  EXPECT_EQ(count_flagged_cells(board_mask), 1);
+  expect_key_string(first_mask_cell, "flagged?", "true");
+}
+
+TEST_F(ComposedAppRuntimeTest,
+       session_applies_board_flag_state_in_one_button_board_reduced_game_layout_fixture)
+{
+  // Given
+  use_default_frame_size();
+  load_one_button_board_reduced_minesweeper_app();
+  session().push_mode("game-layout-mode", Lisple::Constant::NIL);
+  render_cycle();
+
+  ASSERT_NE(session().active_mode, nullptr);
+  View& game_layout = *session().active_mode;
+  View& board_mode = child_with_mode_name(game_layout, "board-mode");
+  View& board_button = only_child(board_mode, 0);
+
+  int click_x = board_button.bounds.x + board_button.bounds.w / 2;
+  int click_y = board_button.bounds.y + board_button.bounds.h / 2;
+
+  // When
+  input().mouse_down({click_x, click_y}, SDL_BUTTON_RIGHT);
+  update_cycle();
+  input().mouse_up({click_x, click_y}, SDL_BUTTON_RIGHT);
+  update_cycle();
+
+  // Then
+  auto counters = get_key(game_layout.state, "counters");
+  auto board_mask = get_key(game_layout.state, "board-mask");
+  auto first_mask_row = get_index(board_mask, 0);
+  auto first_mask_cell = get_index(first_mask_row, 0);
+
+  ASSERT_NE(counters, nullptr);
+  ASSERT_NE(board_mask, nullptr);
+  ASSERT_NE(first_mask_row, nullptr);
+  ASSERT_NE(first_mask_cell, nullptr);
+  expect_int_key(counters, "mines-left", 9);
+  EXPECT_EQ(count_flagged_cells(board_mask), 1);
+  expect_key_string(first_mask_cell, "flagged?", "true");
 }

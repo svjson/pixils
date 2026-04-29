@@ -87,10 +87,11 @@ namespace Pixils::Runtime
      * bubble to the next ancestor.
      */
     static std::vector<CustomEvent> process_events(View& receiver,
-                                                   Lisple::sptr_rtval& parent_state,
+                                                   Lisple::sptr_rtval* parent_state,
                                                    Lisple::sptr_rtval& view_ctx,
                                                    std::vector<CustomEvent>& events,
-                                                   Lisple::Runtime& runtime);
+                                                   Lisple::Runtime& runtime,
+                                                   bool* receiver_state_updated = nullptr);
 
    private:
     void handle_mouse_up(FrameEvents& events, HookArguments& hook_args, Lisple::Runtime& rt);

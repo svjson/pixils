@@ -1,0 +1,57 @@
+(ns pixils.test.app.minesweeper.core
+  (:require pixils
+            [pixils.render :as r]
+            [pixils.ui :as ui]
+            [pixils.test.app.minesweeper.game-logic :as gl]
+            [pixils.test.app.shared.ui.themes.win311 :as win]))
+
+(defmode game-layout-mode
+  {:init (fn [state ctx]
+           (merge state (gl/new-game-state 9 9 10)))
+   :update (fn [state ctx]
+             (assoc-in state
+                       [:counters :timer]
+                       (min 999
+                            (int (/ (- (epoch-ms) (:start-time state))
+                                    1000)))))
+   :render (fn [state ctx]
+             (let [dim (:buffer-size ctx)]
+               (r/rect! {:x 0 :y 0 :w (:w dim) :h (:h dim)}
+                        {:fill true :color win/panel-face})
+               (win/draw-bevel! (merge dim {:x 0 :y 0}) {:thickness 3})
+               (win/draw-bevel! {:x 9 :y 47
+                                 :w (- (:w dim) 18)
+                                 :h (- (:h dim) 56)}
+                                {:thickness 3 :invert true})))
+   :children [{:mode 'board-mode
+               :state {:board (ui/bind-state :board)
+                       :board-mask (ui/bind-state :board-mask)
+                       :face (ui/bind-state :face)}
+               :style {:padding [0 12]}}]
+   :on {:cell/click (fn [state payload ctx]
+                      (gl/reveal-board-cell state (:y payload) (:x payload)))
+        :cell/toggle-flag (fn [state payload ctx]
+                            (let [flag-state (get-in state [:board-mask
+                                                            (:y payload)
+                                                            (:x payload)
+                                                            :flagged?])
+                                  new-state (assoc-in state
+                                                      [:board-mask
+                                                       (:y payload)
+                                                       (:x payload)
+                                                       :flagged?]
+                                                      (not flag-state))]
+                              (assoc-in new-state
+                                        [:counters :mines-left]
+                                        (max 0
+                                             (- (-> state :settings :mines)
+                                                (reduce (:board-mask new-state)
+                                                        0
+                                                        (fn [num row]
+                                                          (+ num
+                                                             (count
+                                                              (filter row
+                                                                      (fn [cell]
+                                                                        (:flagged? cell))))))))))))
+        :game/new-game (fn [state payload ctx]
+                         (gl/new-game-state 9 9 10))}})

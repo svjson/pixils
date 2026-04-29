@@ -61,7 +61,7 @@ namespace Pixils::Runtime
       Lisple::sptr_rtval_v rargs = this->hook_args.update_args;
       auto ctx_parent_state = ctx.state;
       emitted_events = EventRouter::process_events(ctx,
-                                                   ctx_parent_state,
+                                                   &ctx_parent_state,
                                                    rargs.back(),
                                                    emitted_events,
                                                    lisple_runtime);

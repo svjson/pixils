@@ -1,0 +1,4 @@
+(ns pixils.test.app.minesweeper.core
+  (:require pixils))
+
+(defcomponent status-panel {})
