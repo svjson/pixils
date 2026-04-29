@@ -462,6 +462,50 @@ TEST_F(ComposedAppRuntimeTest, session_opens_popup_mode_from_menu_mouse_down)
 }
 
 TEST_F(ComposedAppRuntimeTest,
+       session_preserves_parent_mouse_up_state_through_following_click_phase)
+{
+  // Given
+  use_default_frame_size();
+  load_bootstrap_app();
+
+  pixils().eval(R"(
+    (ns pixils.test.app.main
+      (:require pixils
+                [pixils.ui :as ui]))
+
+    (pixils/defmode child-mode
+      {:style {:width 80 :height 80}})
+
+    (pixils/defmode root-mode
+      {:style {:padding [10 10]}
+       :children [{:mode 'child-mode
+                   :state {:value (ui/bind-state :value)}}]
+       :on-mouse-up (fn [state e ctx]
+                      (assoc state :value 1))})
+  )");
+
+  auto initial_state = pixils().eval("{:value 0}");
+  session().push_mode("root-mode", initial_state);
+  render_cycle();
+
+  ASSERT_NE(session().active_mode, nullptr);
+  View& root = *session().active_mode;
+  View& child = only_child(root, 0);
+  int click_x = child.bounds.x + child.bounds.w / 2;
+  int click_y = child.bounds.y + child.bounds.h / 2;
+
+  // When
+  input().mouse_down({click_x, click_y});
+  update_cycle();
+  input().mouse_up({click_x, click_y});
+  update_cycle();
+
+  // Then
+  expect_int_key(root.state, "value", 1);
+  expect_int_key(child.state, "value", 1);
+}
+
+TEST_F(ComposedAppRuntimeTest,
        session_applies_board_flag_state_immediately_after_right_click)
 {
   // Given

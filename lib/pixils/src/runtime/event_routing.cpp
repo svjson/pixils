@@ -62,9 +62,20 @@ namespace Pixils::Runtime
       return result;
     }
 
+    void restore_subtree_state(const std::shared_ptr<View>& view,
+                               const Lisple::sptr_rtval& parent_state)
+    {
+      view->state = extract_state(parent_state, *view);
+      for (auto& child : view->children)
+      {
+        restore_subtree_state(child, view->state);
+      }
+    }
+
     /**
      * Fire a single hook on view, updating view->state if the hook returns non-NIL.
-     * No-op if hook is NIL.
+     * When a non-leaf hook updates a bound state branch, immediately resync the
+     * descendants so later hook phases do not merge stale child state back over it.
      */
     void fire_hook_on_view(const std::shared_ptr<View>& view,
                            const Lisple::sptr_rtval& hook,
@@ -79,6 +90,10 @@ namespace Pixils::Runtime
       if (new_state->type != Lisple::RTValue::Type::NIL)
       {
         view->state = new_state;
+        for (auto& child : view->children)
+        {
+          restore_subtree_state(child, view->state);
+        }
       }
     }
 
@@ -166,16 +181,6 @@ namespace Pixils::Runtime
         subject.emitted_events.push_back(event);
       }
       return subject_state_updated;
-    }
-
-    void restore_subtree_state(const std::shared_ptr<View>& view,
-                               const Lisple::sptr_rtval& parent_state)
-    {
-      view->state = extract_state(parent_state, *view);
-      for (auto& child : view->children)
-      {
-        restore_subtree_state(child, view->state);
-      }
     }
 
   } // namespace

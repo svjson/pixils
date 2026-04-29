@@ -135,6 +135,7 @@ namespace Pixils
       events.key_down = Lisple::Constant::NIL;
       events.mouse_button_down = Lisple::Constant::NIL;
       events.mouse_button_up = Lisple::Constant::NIL;
+      events.mouse_moved = false;
 
       // FIXME: Scale is 0 until the first invocation of prepare_application_frame
       int scale = ctx.buffer_dim.w > 0 ? std::min(ctx.window_rect.w / ctx.buffer_dim.w,
