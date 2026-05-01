@@ -83,6 +83,9 @@ namespace Pixils::Script
                                           {"init", &Lisple::Type::ANY},
                                           {"update", &Lisple::Type::ANY},
                                           {"render", &Lisple::Type::ANY},
+                                          {"on-key-down", &Lisple::Type::ANY},
+                                          {"on-key-held", &Lisple::Type::ANY},
+                                          {"on-key-up", &Lisple::Type::ANY},
                                           {"on-mouse-down", &Lisple::Type::ANY},
                                           {"on-mouse-up", &Lisple::Type::ANY},
                                           {"on-click", &Lisple::Type::ANY},
@@ -128,6 +131,9 @@ namespace Pixils::Script
     apply_hook(mode.init, "init");
     apply_hook(mode.update, "update");
     apply_hook(mode.render, "render");
+    apply_hook(mode.on_key_down, "on-key-down");
+    apply_hook(mode.on_key_held, "on-key-held");
+    apply_hook(mode.on_key_up, "on-key-up");
     apply_hook(mode.on_mouse_down, "on-mouse-down");
     apply_hook(mode.on_mouse_up, "on-mouse-up");
     apply_hook(mode.on_click, "on-click");

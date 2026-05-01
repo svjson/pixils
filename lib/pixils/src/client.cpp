@@ -133,6 +133,7 @@ namespace Pixils
       ctx.begin_frame(program->get_display());
 
       events.key_down = Lisple::Constant::NIL;
+      events.key_up = Lisple::Constant::NIL;
       events.mouse_button_down = Lisple::Constant::NIL;
       events.mouse_button_up = Lisple::Constant::NIL;
       events.mouse_moved = false;

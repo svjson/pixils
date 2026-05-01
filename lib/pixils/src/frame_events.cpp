@@ -83,6 +83,7 @@ namespace Pixils
   void FrameEvents::do_key_up(const SDL_KeyboardEvent& event)
   {
     auto key = Keyboard::key_event_to_lisple_key(event);
+    key_up = key;
 
     auto& children = this->held_keys->mut_elements();
     auto it =

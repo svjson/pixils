@@ -65,6 +65,9 @@ namespace Pixils::Runtime
     Lisple::sptr_rtval init = Lisple::Constant::NIL;
     Lisple::sptr_rtval update = Lisple::Constant::NIL;
     Lisple::sptr_rtval render = Lisple::Constant::NIL;
+    Lisple::sptr_rtval on_key_down = Lisple::Constant::NIL;
+    Lisple::sptr_rtval on_key_held = Lisple::Constant::NIL;
+    Lisple::sptr_rtval on_key_up = Lisple::Constant::NIL;
     Lisple::sptr_rtval on_mouse_down = Lisple::Constant::NIL;
     Lisple::sptr_rtval on_mouse_up = Lisple::Constant::NIL;
     Lisple::sptr_rtval on_click = Lisple::Constant::NIL;

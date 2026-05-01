@@ -1,6 +1,7 @@
 
 #include "session_fixture.h"
 
+#include <SDL2/SDL_keycode.h>
 #include <gtest/gtest.h>
 #include <lisple/runtime/value.h>
 
@@ -96,4 +97,120 @@ TEST_F(SessionHooksTest, push_mode_with_symbol_init_hook_resolves_and_invokes)
 
   // Then
   EXPECT_TRUE(session.active_mode->state->is_number(55));
+}
+
+TEST_F(SessionHooksTest, root_mode_on_key_down_hook_is_invoked)
+{
+  // Given
+  runtime.eval(R"(
+    (pixils/defmode key-mode
+      {:init (fn [state ctx] {:count 0 :last-key nil})
+       :on-key-down (fn [state event ctx]
+                      (assoc (assoc state :last-key (:key event))
+                             :count (+ (:count state) 1)))})
+  )");
+  session.push_mode("key-mode", Lisple::Constant::NIL);
+
+  // When
+  input().key_down(SDLK_SPACE);
+  session.update_mode();
+
+  // Then
+  EXPECT_EQ(session.active_mode->state->to_string(), "{:count 1 :last-key :key/space}");
+}
+
+TEST_F(SessionHooksTest, root_mode_on_key_up_hook_is_invoked)
+{
+  // Given
+  runtime.eval(R"(
+    (pixils/defmode key-mode
+      {:init (fn [state ctx] {:count 0 :last-key nil})
+       :on-key-up (fn [state event ctx]
+                    (assoc (assoc state :last-key (:key event))
+                           :count (+ (:count state) 1)))})
+  )");
+  session.push_mode("key-mode", Lisple::Constant::NIL);
+
+  // When
+  input().key_down(SDLK_SPACE);
+  input().clear_transients();
+  input().key_up(SDLK_SPACE);
+  session.update_mode();
+
+  // Then
+  EXPECT_EQ(session.active_mode->state->to_string(), "{:count 1 :last-key :key/space}");
+}
+
+TEST_F(SessionHooksTest, root_mode_on_key_held_function_is_invoked_once_per_frame)
+{
+  // Given
+  runtime.eval(R"(
+    (pixils/defmode key-mode
+      {:init (fn [state ctx] {:count 0 :held-count 0})
+       :on-key-held (fn [state event ctx]
+                      (assoc (assoc state :held-count (count (:held-keys event)))
+                             :count (+ (:count state) 1)))})
+  )");
+  session.push_mode("key-mode", Lisple::Constant::NIL);
+
+  // When
+  input().key_down(SDLK_LCTRL);
+  input().clear_transients();
+  input().key_down(SDLK_SPACE);
+  session.update_mode();
+
+  // Then
+  EXPECT_EQ(session.active_mode->state->to_string(), "{:count 1 :held-count 2}");
+}
+
+TEST_F(SessionHooksTest, root_mode_on_key_held_map_prefers_more_specific_combo_match)
+{
+  // Given
+  runtime.eval(R"(
+    (pixils/defmode key-mode
+      {:init (fn [state ctx] {:tag :none})
+       :on-key-held {:key/left-ctrl (fn [state event ctx]
+                                      (assoc state :tag :single))
+                     [:key/left-ctrl :key/space] (fn [state event ctx]
+                                                   (assoc state :tag :combo))}})
+  )");
+  session.push_mode("key-mode", Lisple::Constant::NIL);
+
+  // When
+  input().key_down(SDLK_LCTRL);
+  input().clear_transients();
+  input().key_down(SDLK_SPACE);
+  session.update_mode();
+
+  // Then
+  EXPECT_EQ(session.active_mode->state->to_string(), "{:tag :combo}");
+}
+
+TEST_F(SessionHooksTest, child_mode_key_hooks_do_not_fire_without_focus_routing)
+{
+  // Given
+  runtime.eval(R"(
+    (pixils/defmode child-mode
+      {:init (fn [state ctx] {:keys 0})
+       :on-key-down (fn [state event ctx]
+                      (assoc state :keys (+ (:keys state) 1)))})
+    (pixils/defmode root-mode
+      {:init (fn [state ctx] {:child {:keys 0}
+                              :root-keys 0})
+       :on-key-down (fn [state event ctx]
+                      (assoc state :root-keys (+ (:root-keys state) 1)))
+       :children [{:mode 'child-mode
+                   :id "child"
+                   :state (pixils.ui/bind-state :child)}]})
+  )");
+  session.push_mode("root-mode", Lisple::Constant::NIL);
+
+  // When
+  input().key_down(SDLK_SPACE);
+  session.update_mode();
+
+  // Then
+  EXPECT_EQ(session.active_mode->state->to_string(), "{:child {:keys 0} :root-keys 1}");
+  ASSERT_EQ(session.active_mode->children.size(), 1u);
+  EXPECT_EQ(session.active_mode->children[0]->state->to_string(), "{:keys 0}");
 }

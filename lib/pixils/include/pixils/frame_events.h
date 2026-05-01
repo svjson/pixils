@@ -11,6 +11,7 @@ namespace Pixils
   {
     Lisple::sptr_rtval held_keys = Lisple::RTValue::vector({});
     Lisple::sptr_rtval key_down = Lisple::Constant::NIL;
+    Lisple::sptr_rtval key_up = Lisple::Constant::NIL;
 
     Lisple::sptr_rtval mouse_pos;
     Lisple::sptr_rtval mouse_button_down;

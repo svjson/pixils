@@ -136,7 +136,7 @@ local to the component. Use bounds to compute absolute positions for overlays or
              {:count 0})
 
    :update (fn [state ctx]
-             (if (= (:key-down ctx) :space)
+             (if (= (:key-down ctx) :key/space)
                (assoc state :count (+ (:count state) 1))
                state))
 
@@ -375,6 +375,54 @@ child slot override map.
 By default the event propagates from the innermost hit component outward through its
 ancestors. Call `(pixils.ui/stop-propagation! event)` to prevent it reaching further
 handlers.
+
+### Keyboard events
+
+Root modes can respond directly to keyboard transitions with explicit key hooks.
+
+```clojure
+(pixils/defmode game-mode
+  {:on-key-down (fn [state event ctx]
+                  (if (= (:key event) :key/space)
+                    (assoc state :firing true)
+                    state))
+   :on-key-held {:key/up (fn [state event ctx]
+                           (assoc state :thrusting true))
+                 [:key/left-ctrl :key/space] (fn [state event ctx]
+                                               (assoc state :special true))}
+   :on-key-up   (fn [state event ctx]
+                  (if (= (:key event) :key/space)
+                    (assoc state :firing false)
+                    state))
+   :update      (fn [state ctx] ...)})
+```
+
+These hooks currently fire on the root mode only. Pixils does not yet have focused
+components, so child views do not receive keyboard hooks directly.
+
+`:on-key-held` accepts either:
+
+- A function, which is called once per frame with the full held-key set in `(:held-keys event)`.
+- A map, where a keyword key matches a single held key and a vector key matches a full combo.
+
+For declarative map dispatch, Pixils chooses the most specific matching entry for the
+current held-key set. A combo vector therefore wins over a matching single-key entry.
+
+**Keyboard hook reference**
+
+| Hook            | When it fires                             |
+|-----------------|-------------------------------------------|
+| `:on-key-down`  | A translated key is pressed this frame    |
+| `:on-key-held`  | Keys are currently held this frame        |
+| `:on-key-up`    | A translated key is released this frame   |
+
+**Keyboard event fields**
+
+| Field        | Description                                                           |
+|--------------|-----------------------------------------------------------------------|
+| `:key`       | The pressed or released key keyword for `:on-key-down` / `:on-key-up` |
+| `:held-keys` | The full held-key set for `:on-key-held`                              |
+| `:match`     | The matched keyword or combo vector for declarative `:on-key-held`    |
 
 ### Custom events
 

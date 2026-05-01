@@ -20,6 +20,7 @@ namespace Pixils::Script
 
   namespace HostType
   {
+    HOST_TYPE(KEYBOARD_EVENT, "HKeyboardEvent");
     HOST_TYPE(MOUSE_EVENT, "HMouseEvent");
     HOST_TYPE(MOUSE_MOTION_EVENT, "HMouseMotionEvent");
     HOST_TYPE(BIND_STATE, "HBindState");
@@ -36,6 +37,7 @@ namespace Pixils::Script
   NATIVE_SUB_ADAPTER(MouseEventAdapter,
                      (MouseButtonEventAdapter, MouseButtonEvent),
                      (button));
+  NATIVE_ADAPTER(KeyboardEventAdapter, KeyboardEvent, (key, held_keys, match));
   NATIVE_ADAPTER(BindStateAdapter, Runtime::BindState);
 
   class UINamespace : public Lisple::Namespace

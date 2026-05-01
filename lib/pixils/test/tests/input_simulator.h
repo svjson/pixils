@@ -3,6 +3,7 @@
 
 #include <pixils/frame_events.h>
 
+#include <SDL2/SDL_keyboard.h>
 #include <SDL2/SDL_mouse.h>
 #include <utility>
 
@@ -19,6 +20,8 @@ class InputSimulator
   void mouse_down(Coord position, Uint8 button = SDL_BUTTON_LEFT);
   void mouse_up(Uint8 button = SDL_BUTTON_LEFT);
   void mouse_up(Coord position, Uint8 button = SDL_BUTTON_LEFT);
+  void key_down(SDL_Keycode key);
+  void key_up(SDL_Keycode key);
 
   /**
    * Clear per-frame transient events while preserving held buttons/keys.

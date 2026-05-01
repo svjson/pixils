@@ -48,6 +48,22 @@ namespace Pixils
     Lisple::sptr_rtval button = Lisple::Constant::NIL;
   };
 
+  /**
+   * Keyboard event delivered to root-level key hooks.
+   * For key down/up hooks, `key` carries the translated Lisple key keyword,
+   * such as :key/space or :key/left.
+   *
+   * For key-held hooks, `held_keys` carries the full set of currently held
+   * keys for the frame, and `match` carries the declarative held-key spec
+   * that matched when dispatched from an on-key-held map.
+   */
+  struct KeyboardEvent : Event
+  {
+    Lisple::sptr_rtval key = Lisple::Constant::NIL;
+    Lisple::sptr_rtval held_keys = Lisple::Constant::NIL;
+    Lisple::sptr_rtval match = Lisple::Constant::NIL;
+  };
+
 } // namespace Pixils
 
 #endif /* PIXILS__UI__EVENT_H */

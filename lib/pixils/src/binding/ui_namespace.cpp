@@ -79,6 +79,28 @@ namespace Pixils::Script
     return get_self_object().button;
   }
 
+  NATIVE_ADAPTER_IMPL(KeyboardEventAdapter,
+                      KeyboardEvent,
+                      &HostType::KEYBOARD_EVENT,
+                      (key),
+                      ("held-keys", held_keys),
+                      (match))
+
+  NOBJ_PROP_GET(KeyboardEventAdapter, key)
+  {
+    return get_object().key;
+  }
+
+  NOBJ_PROP_GET(KeyboardEventAdapter, held_keys)
+  {
+    return get_object().held_keys;
+  }
+
+  NOBJ_PROP_GET(KeyboardEventAdapter, match)
+  {
+    return get_object().match;
+  }
+
   UINamespace::UINamespace()
     : Lisple::Namespace(std::string(NS__PIXILS__UI))
   {

@@ -27,11 +27,22 @@ namespace
     return Lisple::Constant::NIL;
   }
 
+  Lisple::sptr_rtval resolve_key_held_handler(Lisple::Runtime& runtime,
+                                              const Lisple::sptr_rtval& val)
+  {
+    if (!val || val->type == Lisple::RTValue::Type::NIL) return Lisple::Constant::NIL;
+    if (val->type == Lisple::RTValue::Type::MAP) return val;
+    return resolve_hook(runtime, val);
+  }
+
   void resolve_mode_hooks(Pixils::Runtime::Mode& mode, Lisple::Runtime& runtime)
   {
     mode.init = resolve_hook(runtime, mode.init);
     mode.update = resolve_hook(runtime, mode.update);
     mode.render = resolve_hook(runtime, mode.render);
+    mode.on_key_down = resolve_hook(runtime, mode.on_key_down);
+    mode.on_key_held = resolve_key_held_handler(runtime, mode.on_key_held);
+    mode.on_key_up = resolve_hook(runtime, mode.on_key_up);
     mode.on_click = resolve_hook(runtime, mode.on_click);
     mode.on_mouse_down = resolve_hook(runtime, mode.on_mouse_down);
     mode.on_mouse_up = resolve_hook(runtime, mode.on_mouse_up);
@@ -58,9 +69,19 @@ namespace
       if (val->type != Lisple::RTValue::Type::NIL) field = resolve_hook(runtime, val);
     };
 
+    auto apply_key_held = [&](Lisple::sptr_rtval& field, const char* key)
+    {
+      auto val = get(key);
+      if (val->type != Lisple::RTValue::Type::NIL)
+        field = resolve_key_held_handler(runtime, val);
+    };
+
     apply_hook(mode.init, "init");
     apply_hook(mode.update, "update");
     apply_hook(mode.render, "render");
+    apply_hook(mode.on_key_down, "on-key-down");
+    apply_key_held(mode.on_key_held, "on-key-held");
+    apply_hook(mode.on_key_up, "on-key-up");
     apply_hook(mode.on_mouse_down, "on-mouse-down");
     apply_hook(mode.on_mouse_up, "on-mouse-up");
     apply_hook(mode.on_click, "on-click");
