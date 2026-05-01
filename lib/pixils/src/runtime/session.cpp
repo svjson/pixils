@@ -8,7 +8,6 @@
 #include <pixils/binding/style_namespace.h>
 #include <pixils/binding/ui_namespace.h>
 #include <pixils/context.h>
-#include <pixils/runtime/hook_invocation.h>
 #include <pixils/runtime/mode.h>
 #include <pixils/runtime/state.h>
 #include <pixils/runtime/view.h>
@@ -79,17 +78,12 @@ namespace Pixils::Runtime
 
     auto& mode_obj = Lisple::obj<Mode>(*mode);
 
-    active_mode = std::make_shared<View>();
-    active_mode->state = state;
-
-    Pixils::UI::attach_view_mode(*active_mode, mode_obj, overrides, lisple_runtime);
-
-    if (!this->assets.is_loaded(active_mode->mode->name))
-      this->assets.load(active_mode->mode->name, active_mode->mode->resources);
+    active_mode = Pixils::UI::build_root_view(mode_obj, state, overrides, lisple_runtime);
 
     this->hook_args.update_state(state);
 
-    this->init_mode();
+    Pixils::UI::init_root_view(assets, lisple_runtime, hook_args.init_args[1], active_mode);
+    this->hook_args.update_state(active_mode->state);
 
     /**
      * Build children and initialize each child, threading child states into
@@ -143,17 +137,6 @@ namespace Pixils::Runtime
         pop_mode();
       }
     }
-  }
-
-  void Session::init_mode()
-  {
-    auto new_state = Runtime::invoke_hook(this->lisple_runtime,
-                                          this->active_mode,
-                                          this->active_mode->mode->init,
-                                          this->hook_args.init_args,
-                                          this->active_mode->state);
-    this->active_mode->state = new_state;
-    this->hook_args.update_state(new_state);
   }
 
   void Session::render_mode()

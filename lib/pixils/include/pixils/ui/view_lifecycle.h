@@ -24,6 +24,11 @@ namespace Lisple
 
 namespace Pixils::UI
 {
+  std::shared_ptr<Runtime::View> build_root_view(Runtime::Mode& base_mode,
+                                                 const Lisple::sptr_rtval& state,
+                                                 const Lisple::sptr_rtval& overrides,
+                                                 Lisple::Runtime& runtime);
+
   void attach_view_mode(Runtime::View& view,
                         Runtime::Mode& base_mode,
                         const Lisple::sptr_rtval& overrides,
@@ -38,6 +43,11 @@ namespace Pixils::UI
                                     const Lisple::sptr_rtval& init_hook_ctx,
                                     const std::shared_ptr<Runtime::View>& view,
                                     const Lisple::sptr_rtval& parent_state);
+
+  void init_root_view(Asset::Registry& assets,
+                      Lisple::Runtime& runtime,
+                      const Lisple::sptr_rtval& init_hook_ctx,
+                      const std::shared_ptr<Runtime::View>& view);
 
   void restore_view_tree(const std::shared_ptr<Runtime::View>& view,
                          const Lisple::sptr_rtval& parent_state);

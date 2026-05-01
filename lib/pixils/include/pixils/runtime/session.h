@@ -49,9 +49,6 @@ namespace Pixils::Runtime
     void process_messages();
     void update_mode();
     void render_mode();
-
-   private:
-    void init_mode();
   };
 
 } // namespace Pixils::Runtime

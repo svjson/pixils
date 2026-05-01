@@ -93,6 +93,20 @@ namespace
 
 namespace Pixils::UI
 {
+  std::shared_ptr<Runtime::View> build_root_view(Runtime::Mode& base_mode,
+                                                 const Lisple::sptr_rtval& state,
+                                                 const Lisple::sptr_rtval& overrides,
+                                                 Lisple::Runtime& runtime)
+  {
+    Runtime::View view;
+    view.state = state;
+    view.initial_state = state;
+
+    attach_view_mode(view, base_mode, overrides, runtime);
+
+    return std::make_shared<Runtime::View>(std::move(view));
+  }
+
   void attach_view_mode(Runtime::View& view,
                         Runtime::Mode& base_mode,
                         const Lisple::sptr_rtval& overrides,
@@ -160,6 +174,21 @@ namespace Pixils::UI
     }
 
     return Runtime::merge_state(parent_state, ctx, ctx.state);
+  }
+
+  void init_root_view(Asset::Registry& assets,
+                      Lisple::Runtime& runtime,
+                      const Lisple::sptr_rtval& init_hook_ctx,
+                      const std::shared_ptr<Runtime::View>& view)
+  {
+    auto& ctx = *view;
+
+    if (!assets.is_loaded(ctx.mode->name)) assets.load(ctx.mode->name, ctx.mode->resources);
+
+    Lisple::sptr_rtval_v init_args = {ctx.state, init_hook_ctx};
+    auto new_state =
+      Runtime::invoke_hook(runtime, view, ctx.mode->init, init_args, ctx.state);
+    ctx.state = new_state;
   }
 
   void restore_view_tree(const std::shared_ptr<Runtime::View>& view,
