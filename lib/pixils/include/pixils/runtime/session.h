@@ -67,12 +67,6 @@ namespace Pixils::Runtime
     void update_mode();
     void render_mode();
 
-    std::shared_ptr<View> build_view(const ChildSlot& slot);
-    Lisple::sptr_rtval init_view(const std::shared_ptr<View>& view,
-                                 const Lisple::sptr_rtval& parent_state);
-    void restore_view_state(const std::shared_ptr<View>& view,
-                            const Lisple::sptr_rtval& parent_state);
-
    private:
     void init_mode();
   };

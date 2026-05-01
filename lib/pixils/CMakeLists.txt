@@ -6,7 +6,7 @@ pkg_search_module(SDL2MIXER SDL2_mixer)
 find_package(X11)
 find_package(lisple REQUIRED)
 
-file(GLOB pixils_SOURCES
+file(GLOB pixils_SOURCES CONFIGURE_DEPENDS
   src/*.cpp
   src/asset/*.cpp
   src/binding/*.cpp
