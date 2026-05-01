@@ -5,6 +5,7 @@
 #include <pixils/binding/pixils_namespace.h>
 #include <pixils/binding/style_namespace.h>
 #include <pixils/context.h>
+#include <pixils/runtime/hook_invocation.h>
 #include <pixils/runtime/mode.h>
 #include <pixils/runtime/session.h>
 #include <pixils/runtime/state.h>
@@ -150,7 +151,8 @@ namespace Pixils::UI
     ctx.state = Runtime::extract_state(parent_state, ctx);
 
     Lisple::sptr_rtval_v init_args = {ctx.state, session.hook_args.init_args[1]};
-    auto new_state = session.invoke_hook(view, ctx.mode->init, init_args);
+    auto new_state =
+      Runtime::invoke_hook(session.lisple_runtime, view, ctx.mode->init, init_args);
     if (new_state->type != Lisple::RTValue::Type::NIL) ctx.state = new_state;
 
     for (auto& grandchild : ctx.children)

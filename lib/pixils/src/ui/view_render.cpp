@@ -1,6 +1,7 @@
 #include "pixils/ui/view_render.h"
 
 #include <pixils/hook_context.h>
+#include <pixils/runtime/hook_invocation.h>
 #include <pixils/runtime/session.h>
 #include <pixils/runtime/view.h>
 #include <pixils/ui/style.h>
@@ -120,7 +121,7 @@ namespace Pixils::UI
     SDL_RenderSetViewport(session.render_ctx.renderer, &viewport);
 
     Lisple::sptr_rtval_v rargs = {ctx.state, session.hook_args.render_args[1]};
-    session.invoke_hook(view_ptr, ctx.mode->render, rargs);
+    Runtime::invoke_hook(session.lisple_runtime, view_ptr, ctx.mode->render, rargs);
 
     if (!ctx.children.empty())
     {

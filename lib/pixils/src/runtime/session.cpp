@@ -1,7 +1,6 @@
 
 #include "pixils/runtime/session.h"
 
-#include "pixils/hook_context.h"
 #include <pixils/asset/registry.h>
 #include <pixils/binding/mode_definition.h>
 #include <pixils/binding/pixils_namespace.h>
@@ -9,10 +8,11 @@
 #include <pixils/binding/style_namespace.h>
 #include <pixils/binding/ui_namespace.h>
 #include <pixils/context.h>
+#include <pixils/runtime/hook_invocation.h>
 #include <pixils/runtime/mode.h>
 #include <pixils/runtime/state.h>
-#include <pixils/ui/view_lifecycle.h>
 #include <pixils/runtime/view.h>
+#include <pixils/ui/view_lifecycle.h>
 #include <pixils/ui/view_render.h>
 
 #include <SDL2/SDL_render.h>
@@ -150,24 +150,13 @@ namespace Pixils::Runtime
     }
   }
 
-  Lisple::sptr_rtval Session::invoke_hook(const std::shared_ptr<View>& view,
-                                          const Lisple::sptr_rtval& fn,
-                                          Lisple::sptr_rtval_v& args,
-                                          const Lisple::sptr_rtval& fallback)
-  {
-    if (!fn || fn->type == Lisple::RTValue::Type::NIL) return fallback;
-
-    Lisple::obj<HookContext>(*args.back()).current_view = view;
-    Lisple::Context exec_ctx(lisple_runtime);
-    return fn->exec().execute(exec_ctx, args);
-  }
-
   void Session::init_mode()
   {
-    auto new_state = invoke_hook(this->active_mode,
-                                 this->active_mode->mode->init,
-                                 this->hook_args.init_args,
-                                 this->active_mode->state);
+    auto new_state = Runtime::invoke_hook(this->lisple_runtime,
+                                          this->active_mode,
+                                          this->active_mode->mode->init,
+                                          this->hook_args.init_args,
+                                          this->active_mode->state);
     this->active_mode->state = new_state;
     this->hook_args.update_state(new_state);
   }

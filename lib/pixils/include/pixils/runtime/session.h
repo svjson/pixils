@@ -59,11 +59,6 @@ namespace Pixils::Runtime
                    const Lisple::sptr_rtval& state,
                    const Lisple::sptr_rtval& overrides = Lisple::Constant::NIL);
     void process_messages();
-    Lisple::sptr_rtval invoke_hook(
-      const std::shared_ptr<View>& view,
-      const Lisple::sptr_rtval& fn,
-      Lisple::sptr_rtval_v& args,
-      const Lisple::sptr_rtval& fallback = Lisple::Constant::NIL);
     void update_mode();
     void render_mode();
 

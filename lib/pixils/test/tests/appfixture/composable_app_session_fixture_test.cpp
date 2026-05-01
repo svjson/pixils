@@ -1,5 +1,6 @@
 #include "app_manifest.h"
 #include "composable_app_session_fixture.h"
+#include <pixils/runtime/hook_invocation.h>
 #include <pixils/runtime/view.h>
 
 #include <gtest/gtest.h>
@@ -268,8 +269,10 @@ TEST_F(ComposableAppSessionFixtureTest,
   view->state = Lisple::Constant::NIL;
 
   Lisple::sptr_rtval result;
-  ASSERT_NO_THROW(result =
-                    session().invoke_hook(view, mode.init, session().hook_args.init_args));
+  ASSERT_NO_THROW(result = Pixils::Runtime::invoke_hook(pixils(),
+                                                        view,
+                                                        mode.init,
+                                                        session().hook_args.init_args));
 
   auto ticks = Lisple::Dict::get_property(result, Lisple::RTValue::keyword("ticks"));
   ASSERT_NE(ticks, nullptr);
@@ -303,8 +306,10 @@ TEST_F(ComposableAppSessionFixtureTest,
   view->state = Lisple::Constant::NIL;
 
   Lisple::sptr_rtval result;
-  ASSERT_NO_THROW(
-    result = local_session.invoke_hook(view, mode.init, local_session.hook_args.init_args));
+  ASSERT_NO_THROW(result = Pixils::Runtime::invoke_hook(pixils(),
+                                                        view,
+                                                        mode.init,
+                                                        local_session.hook_args.init_args));
 
   auto ticks = Lisple::Dict::get_property(result, Lisple::RTValue::keyword("ticks"));
   ASSERT_NE(ticks, nullptr);

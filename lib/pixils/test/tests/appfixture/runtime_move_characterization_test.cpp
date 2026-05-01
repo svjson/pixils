@@ -3,6 +3,7 @@
 #include <pixils/context.h>
 #include <pixils/frame_events.h>
 #include <pixils/hook_context.h>
+#include <pixils/runtime/hook_invocation.h>
 #include <pixils/runtime/mode.h>
 #include <pixils/runtime/session.h>
 #include <pixils/runtime/view.h>
@@ -303,8 +304,11 @@ TEST(RuntimeMoveCharacterizationTest,
   view->mode = &mode;
   view->state = Lisple::Constant::NIL;
 
-  auto result =
-    session.invoke_hook(view, mode.init, session.hook_args.init_args, Lisple::Constant::NIL);
+  auto result = Pixils::Runtime::invoke_hook(runtime,
+                                             view,
+                                             mode.init,
+                                             session.hook_args.init_args,
+                                             Lisple::Constant::NIL);
   auto ticks = Lisple::Dict::get_property(result, Lisple::RTValue::keyword("ticks"));
 
   ASSERT_NE(ticks, nullptr);
@@ -351,10 +355,11 @@ TEST(RuntimeMoveCharacterizationTest,
   session.active_mode->state = Lisple::Constant::NIL;
   session.hook_args.update_state(Lisple::Constant::NIL);
 
-  auto result = session.invoke_hook(session.active_mode,
-                                    session.active_mode->mode->init,
-                                    session.hook_args.init_args,
-                                    session.active_mode->state);
+  auto result = Pixils::Runtime::invoke_hook(runtime,
+                                             session.active_mode,
+                                             session.active_mode->mode->init,
+                                             session.hook_args.init_args,
+                                             session.active_mode->state);
   auto ticks = Lisple::Dict::get_property(result, Lisple::RTValue::keyword("ticks"));
 
   ASSERT_NE(ticks, nullptr);
@@ -404,8 +409,11 @@ TEST(RuntimeMoveCharacterizationTest,
   view->mode = &mode;
   view->state = Lisple::Constant::NIL;
 
-  auto result =
-    session.invoke_hook(view, mode.init, session.hook_args.init_args, Lisple::Constant::NIL);
+  auto result = Pixils::Runtime::invoke_hook(runtime,
+                                             view,
+                                             mode.init,
+                                             session.hook_args.init_args,
+                                             Lisple::Constant::NIL);
   auto ticks = Lisple::Dict::get_property(result, Lisple::RTValue::keyword("ticks"));
 
   ASSERT_NE(ticks, nullptr);
@@ -455,8 +463,11 @@ TEST(RuntimeMoveCharacterizationTest,
   view->mode = &mode;
   view->state = Lisple::Constant::NIL;
 
-  auto result =
-    session.invoke_hook(view, mode.init, session.hook_args.init_args, Lisple::Constant::NIL);
+  auto result = Pixils::Runtime::invoke_hook(*runtime,
+                                             view,
+                                             mode.init,
+                                             session.hook_args.init_args,
+                                             Lisple::Constant::NIL);
   auto ticks = Lisple::Dict::get_property(result, Lisple::RTValue::keyword("ticks"));
 
   ASSERT_NE(ticks, nullptr);
