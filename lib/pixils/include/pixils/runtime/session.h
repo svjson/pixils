@@ -7,6 +7,7 @@
 #include <pixils/runtime/event_routing.h>
 #include <pixils/runtime/mode.h>
 #include <pixils/runtime/mode_stack.h>
+#include <pixils/ui/mouse_state.h>
 
 #include <lisple/form.h>
 
@@ -44,6 +45,7 @@ namespace Pixils::Runtime
     std::shared_ptr<View> active_mode;
     std::vector<std::shared_ptr<View>> ctx_stack;
     HookArguments hook_args;
+    UI::MouseState mouse_state;
     EventRouter event_router;
 
     Session(Lisple::Runtime& lisple_runtime,

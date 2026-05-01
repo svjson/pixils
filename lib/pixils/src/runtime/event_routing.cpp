@@ -110,8 +110,7 @@ namespace Pixils::Runtime
     {
       for (size_t i = 0; i + 1 < chain.size(); i++)
       {
-        chain[i + 1]->state =
-          merge_state(chain[i + 1]->state, *chain[i], chain[i]->state);
+        chain[i + 1]->state = merge_state(chain[i + 1]->state, *chain[i], chain[i]->state);
       }
     }
 
@@ -186,8 +185,11 @@ namespace Pixils::Runtime
     {
       std::vector<CustomEvent> emitted_events;
       child->drain_events(emitted_events);
-      emitted_events =
-        EventRouter::process_events(subject, subject_parent_state, view_ctx, emitted_events, rt);
+      emitted_events = EventRouter::process_events(subject,
+                                                   subject_parent_state,
+                                                   view_ctx,
+                                                   emitted_events,
+                                                   rt);
 
       for (auto& event : emitted_events)
       {
@@ -197,7 +199,9 @@ namespace Pixils::Runtime
 
   } // namespace
 
-  void EventRouter::update_interaction(View& view, const Point& mouse_pos)
+  void EventRouter::update_interaction(View& view,
+                                       const Point& mouse_pos,
+                                       const UI::MouseState& mouse_state)
   {
     int mx = mouse_pos.round_x();
     int my = mouse_pos.round_y();
@@ -207,7 +211,7 @@ namespace Pixils::Runtime
                                my < view.bounds.y + view.bounds.h;
 
     view.interaction.pressed.clear();
-    for (auto& [btn, chain] : mouse.button_chains)
+    for (auto& [btn, chain] : mouse_state.button_chains)
     {
       for (auto& weak_v : chain)
       {
@@ -220,14 +224,15 @@ namespace Pixils::Runtime
     }
   }
 
-  void EventRouter::handle_mouse_up(FrameEvents& events,
+  void EventRouter::handle_mouse_up(UI::MouseState& mouse_state,
+                                    FrameEvents& events,
                                     HookArguments& hook_args,
                                     Lisple::Runtime& rt)
   {
-    if (mouse.hovered_chain.empty()) return;
+    if (mouse_state.hovered_chain.empty()) return;
 
     const Point& gp = Lisple::obj<Point>(*events.mouse_pos);
-    auto chain = lock_chain(mouse.hovered_chain);
+    auto chain = lock_chain(mouse_state.hovered_chain);
     if (chain.empty()) return;
 
     UI::MouseButton up_btn =
@@ -256,7 +261,7 @@ namespace Pixils::Runtime
      * pressed_in_subtree flag: if pressed_view is not in the chain (cursor left the
      * view before release), find_if returns end and no click fires.
      */
-    auto pressed_view = mouse.pressed_by(up_btn);
+    auto pressed_view = mouse_state.pressed_by(up_btn);
     if (pressed_view)
     {
       auto it = std::find_if(chain.begin(),
@@ -282,6 +287,7 @@ namespace Pixils::Runtime
   }
 
   void EventRouter::handle_mouse_down(std::shared_ptr<View> root,
+                                      UI::MouseState& mouse_state,
                                       FrameEvents& events,
                                       HookArguments& hook_args,
                                       Lisple::Runtime& rt)
@@ -302,12 +308,12 @@ namespace Pixils::Runtime
                            events.mouse_button_down->type != Lisple::RTValue::Type::NIL)
                             ? UI::mouse_button_from_name(events.mouse_button_down->str())
                             : UI::MouseButton::NONE;
-    auto& btn_chain = mouse.button_chains[btn];
+    auto& btn_chain = mouse_state.button_chains[btn];
     btn_chain.clear();
     for (auto& view_ptr : hit_chain)
     {
       btn_chain.push_back(std::weak_ptr<View>(view_ptr));
-      update_interaction(*view_ptr, gp);
+      update_interaction(*view_ptr, gp, mouse_state);
     }
 
     MouseButtonEvent ev;
@@ -324,11 +330,12 @@ namespace Pixils::Runtime
       rt);
   }
 
-  void EventRouter::handle_mouse_motion(FrameEvents& events,
+  void EventRouter::handle_mouse_motion(UI::MouseState& mouse_state,
+                                        FrameEvents& events,
                                         HookArguments& hook_args,
                                         Lisple::Runtime& rt)
   {
-    auto chain = lock_chain(mouse.hovered_chain);
+    auto chain = lock_chain(mouse_state.hovered_chain);
     if (chain.empty()) return;
 
     const Point& gp = Lisple::obj<Point>(*events.mouse_pos);
@@ -346,6 +353,7 @@ namespace Pixils::Runtime
   }
 
   void EventRouter::traverse_child(const std::shared_ptr<View>& view_ptr,
+                                   const UI::MouseState& mouse_state,
                                    Lisple::sptr_rtval* parent_state,
                                    const Point& mouse_pos,
                                    HookArguments& hook_args,
@@ -358,14 +366,17 @@ namespace Pixils::Runtime
       view.state = extract_state(*parent_state, view);
     }
 
-    update_interaction(view, mouse_pos);
+    update_interaction(view, mouse_pos, mouse_state);
     run_update_hook(view_ptr, hook_args, rt);
 
     for (auto& child : view.children)
     {
-      traverse_child(child, &view.state, mouse_pos, hook_args, rt);
-      bubble_child_events_to_subject(
-        view, parent_state, child, hook_args.update_args[1], rt);
+      traverse_child(child, mouse_state, &view.state, mouse_pos, hook_args, rt);
+      bubble_child_events_to_subject(view,
+                                     parent_state,
+                                     child,
+                                     hook_args.update_args[1],
+                                     rt);
     }
 
     if (parent_state)
@@ -375,6 +386,7 @@ namespace Pixils::Runtime
   }
 
   void EventRouter::traverse(std::shared_ptr<View> root,
+                             UI::MouseState& mouse_state,
                              FrameEvents& events,
                              HookArguments& hook_args,
                              Lisple::Runtime& rt)
@@ -395,7 +407,7 @@ namespace Pixils::Runtime
      * bubble - they fire only on the one view whose status changed. State is then
      * propagated through the respective chain so ancestors reflect the change.
      */
-    auto old_hovered = mouse.hovered.lock();
+    auto old_hovered = mouse_state.hovered.lock();
     if (old_hovered.get() != new_hovered.get())
     {
       if (old_hovered)
@@ -410,11 +422,12 @@ namespace Pixils::Runtime
                           hook_args,
                           rt);
 
-        auto old_chain = lock_chain(mouse.hovered_chain);
+        auto old_chain = lock_chain(mouse_state.hovered_chain);
         propagate_state_up_chain(old_chain);
       }
 
-      mouse.hovered = new_hovered ? std::weak_ptr<View>(new_hovered) : std::weak_ptr<View>{};
+      mouse_state.hovered =
+        new_hovered ? std::weak_ptr<View>(new_hovered) : std::weak_ptr<View>{};
 
       if (new_hovered)
       {
@@ -436,36 +449,37 @@ namespace Pixils::Runtime
      * Always refresh hovered_chain so handle_mouse_up and handle_mouse_motion
      * have access to the current chain.
      */
-    mouse.hovered_chain.clear();
+    mouse_state.hovered_chain.clear();
     for (auto& v : hit_chain)
     {
-      mouse.hovered_chain.push_back(std::weak_ptr<View>(v));
+      mouse_state.hovered_chain.push_back(std::weak_ptr<View>(v));
     }
 
-    traverse_child(root, nullptr, mouse_pos, hook_args, rt);
+    traverse_child(root, mouse_state, nullptr, mouse_pos, hook_args, rt);
   }
 
   void EventRouter::update(std::shared_ptr<View> root,
+                           UI::MouseState& mouse_state,
                            FrameEvents& events,
                            HookArguments& hook_args,
                            Lisple::Runtime& rt)
   {
     if (events.mouse_button_up && events.mouse_button_up->type != Lisple::RTValue::Type::NIL)
     {
-      handle_mouse_up(events, hook_args, rt);
+      handle_mouse_up(mouse_state, events, hook_args, rt);
     }
 
     if (events.mouse_button_down &&
         events.mouse_button_down->type != Lisple::RTValue::Type::NIL)
     {
-      handle_mouse_down(root, events, hook_args, rt);
+      handle_mouse_down(root, mouse_state, events, hook_args, rt);
     }
 
-    traverse(root, events, hook_args, rt);
+    traverse(root, mouse_state, events, hook_args, rt);
 
     if (events.mouse_moved)
     {
-      handle_mouse_motion(events, hook_args, rt);
+      handle_mouse_motion(mouse_state, events, hook_args, rt);
     }
 
     /**
@@ -473,7 +487,7 @@ namespace Pixils::Runtime
      * removed independently so releasing one button while another is still
      * held leaves the remaining chains intact.
      */
-    if (mouse.has_pressed() &&
+    if (mouse_state.has_pressed() &&
         (!events.mouse_button_down ||
          events.mouse_button_down->type == Lisple::RTValue::Type::NIL))
     {
@@ -487,11 +501,12 @@ namespace Pixils::Runtime
             UI::mouse_button_from_name(Lisple::get_child(*events.mouse_held, i)->str()));
         }
       }
-      for (auto it = mouse.button_chains.begin(); it != mouse.button_chains.end();)
+      for (auto it = mouse_state.button_chains.begin();
+           it != mouse_state.button_chains.end();)
       {
         if (!held.count(it->first))
         {
-          it = mouse.button_chains.erase(it);
+          it = mouse_state.button_chains.erase(it);
         }
         else
         {

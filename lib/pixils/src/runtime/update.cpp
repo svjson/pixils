@@ -41,7 +41,11 @@ namespace Pixils::Runtime
      * Delegate active-mode update, hover tracking, and event dispatch to EventRouter.
      */
     if (hook_args.events)
-      event_router.update(active_mode, *hook_args.events, hook_args, lisple_runtime);
+      event_router.update(active_mode,
+                          mouse_state,
+                          *hook_args.events,
+                          hook_args,
+                          lisple_runtime);
     this->hook_args.update_state(active_mode->state);
   }
 

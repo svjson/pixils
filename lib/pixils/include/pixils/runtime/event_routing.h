@@ -4,12 +4,10 @@
 
 #include "pixils/ui/event.h"
 #include <pixils/geom.h>
-#include <pixils/ui/mouse_button.h>
+#include <pixils/ui/mouse_state.h>
 
 #include <lisple/runtime/value.h>
-#include <map>
 #include <memory>
-#include <vector>
 
 namespace Lisple
 {
@@ -27,48 +25,13 @@ namespace Pixils::Runtime
   struct HookArguments;
 
   /**
-   * Tracks which views are pressed and hovered across frames. Held by
-   * EventRouter; all pointer fields use weak_ptr so that mode pops naturally
-   * expire stale references without requiring explicit cleanup.
-   */
-  struct MouseState
-  {
-    using ViewChain = std::vector<std::weak_ptr<View>>;
-
-    /**
-     * One hit chain per currently held button: [0] = deepest hit view,
-     * [1..n] = ancestors up to root. Keyed by the button that initiated
-     * the press, so simultaneous multi-button presses are tracked independently.
-     */
-    std::map<UI::MouseButton, ViewChain> button_chains;
-
-    /**
-     * View currently under the cursor, and the full ancestor chain from it
-     * up to root: [hovered, parent, ..., root]. Stored so handle_mouse_up
-     * can propagate state changes back without rebuilding the chain.
-     */
-    std::weak_ptr<View> hovered;
-    std::vector<std::weak_ptr<View>> hovered_chain;
-
-    bool has_pressed() const { return !button_chains.empty(); }
-
-    std::shared_ptr<View> pressed_by(UI::MouseButton btn) const
-    {
-      auto it = button_chains.find(btn);
-      if (it == button_chains.end() || it->second.empty()) return nullptr;
-      return it->second[0].lock();
-    }
-  };
-
-  /**
-   * Owns mouse state and dispatches all mouse events for the active mode tree.
-   * Called once per frame from Session::update_mode(). Processes button events,
-   * updates hover tracking, and runs the update traversal for the active mode.
+   * Dispatches all mouse events for the active mode tree using the caller's
+   * persistent mouse state. Called once per frame from Session::update_mode().
+   * Processes button events, updates hover tracking, and runs the update
+   * traversal for the active mode.
    */
   struct EventRouter
   {
-    MouseState mouse;
-
     /**
      * Run the full per-frame update for root: handle pending mouse-up/down
      * edges, traverse the view tree (hover detection, interaction injection,
@@ -76,6 +39,7 @@ namespace Pixils::Runtime
      * After this returns, root.state reflects all bound child updates.
      */
     void update(std::shared_ptr<View> root,
+                UI::MouseState& mouse_state,
                 FrameEvents& events,
                 HookArguments& hook_args,
                 Lisple::Runtime& rt);
@@ -94,15 +58,20 @@ namespace Pixils::Runtime
                                                    bool* receiver_state_updated = nullptr);
 
    private:
-    void handle_mouse_up(FrameEvents& events, HookArguments& hook_args, Lisple::Runtime& rt);
+    void handle_mouse_up(UI::MouseState& mouse_state,
+                         FrameEvents& events,
+                         HookArguments& hook_args,
+                         Lisple::Runtime& rt);
 
     void handle_mouse_down(std::shared_ptr<View> root,
+                           UI::MouseState& mouse_state,
                            FrameEvents& events,
                            HookArguments& hook_args,
                            Lisple::Runtime& rt);
 
     /** Fire on_mouse_motion on the current hovered chain with inline state threading. */
-    void handle_mouse_motion(FrameEvents& events,
+    void handle_mouse_motion(UI::MouseState& mouse_state,
+                             FrameEvents& events,
                              HookArguments& hook_args,
                              Lisple::Runtime& rt);
 
@@ -113,6 +82,7 @@ namespace Pixils::Runtime
      * traverse_child().
      */
     void traverse(std::shared_ptr<View> root,
+                  UI::MouseState& mouse_state,
                   FrameEvents& events,
                   HookArguments& hook_args,
                   Lisple::Runtime& rt);
@@ -124,6 +94,7 @@ namespace Pixils::Runtime
      * active root, which already owns its state directly.
      */
     void traverse_child(const std::shared_ptr<View>& view,
+                        const UI::MouseState& mouse_state,
                         Lisple::sptr_rtval* parent_state,
                         const Point& mouse_pos,
                         HookArguments& hook_args,
@@ -133,7 +104,9 @@ namespace Pixils::Runtime
      * Update the engine-managed interaction flags on the view (hovered, pressed).
      * This does not write into the developer's state map.
      */
-    void update_interaction(View& view, const Point& mouse_pos);
+    void update_interaction(View& view,
+                            const Point& mouse_pos,
+                            const UI::MouseState& mouse_state);
   };
 } // namespace Pixils::Runtime
 
