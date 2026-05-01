@@ -165,9 +165,17 @@ namespace Pixils::Runtime
     for (size_t i = render_stack.size() - 1; i > 0; i--)
     {
       size_t ctx_idx = ctx_stack.size() - i;
-      Pixils::UI::render_view(*this, ctx_stack[ctx_idx], full);
+      Pixils::UI::render_view(render_ctx,
+                              lisple_runtime,
+                              hook_args.render_args[1],
+                              ctx_stack[ctx_idx],
+                              full);
     }
 
-    Pixils::UI::render_view(*this, active_mode, full);
+    Pixils::UI::render_view(render_ctx,
+                            lisple_runtime,
+                            hook_args.render_args[1],
+                            active_mode,
+                            full);
   }
 } // namespace Pixils::Runtime

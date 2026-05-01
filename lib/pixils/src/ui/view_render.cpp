@@ -1,8 +1,7 @@
 #include "pixils/ui/view_render.h"
 
-#include <pixils/hook_context.h>
+#include <pixils/context.h>
 #include <pixils/runtime/hook_invocation.h>
-#include <pixils/runtime/session.h>
 #include <pixils/runtime/view.h>
 #include <pixils/ui/style.h>
 
@@ -55,7 +54,9 @@ namespace Pixils::UI
     return rects;
   }
 
-  void render_view(Pixils::Runtime::Session& session,
+  void render_view(Pixils::RenderContext& render_ctx,
+                   Lisple::Runtime& runtime,
+                   const Lisple::sptr_rtval& render_hook_ctx,
                    const std::shared_ptr<Pixils::Runtime::View>& view_ptr,
                    const Rect& bounds)
   {
@@ -72,7 +73,7 @@ namespace Pixils::UI
      * rect by the parent's origin. Children 1..N are fine because each child
      * resets to null at its end - child 0 never got that prior reset.
      */
-    SDL_RenderSetViewport(session.render_ctx.renderer, nullptr);
+    SDL_RenderSetViewport(render_ctx.renderer, nullptr);
 
     /**
      * Draw background fill using absolute bounds, now that viewport is null.
@@ -80,11 +81,11 @@ namespace Pixils::UI
     if (style_res.background && style_res.background->color)
     {
       const SDL_Color& bg = style_res.background->color->to_SDL_Color();
-      SDL_SetRenderDrawColor(session.render_ctx.renderer, bg.r, bg.g, bg.b, bg.a);
+      SDL_SetRenderDrawColor(render_ctx.renderer, bg.r, bg.g, bg.b, bg.a);
       SDL_Rect bg_rect = {bounds.x, bounds.y, bounds.w, bounds.h};
-      SDL_SetRenderDrawBlendMode(session.render_ctx.renderer, SDL_BLENDMODE_BLEND);
-      SDL_RenderFillRect(session.render_ctx.renderer, &bg_rect);
-      SDL_SetRenderDrawBlendMode(session.render_ctx.renderer, SDL_BLENDMODE_NONE);
+      SDL_SetRenderDrawBlendMode(render_ctx.renderer, SDL_BLENDMODE_BLEND);
+      SDL_RenderFillRect(render_ctx.renderer, &bg_rect);
+      SDL_SetRenderDrawBlendMode(render_ctx.renderer, SDL_BLENDMODE_NONE);
     }
 
     /**
@@ -98,10 +99,10 @@ namespace Pixils::UI
       {
         if (thickness <= 0 || !color) return;
         const SDL_Color c = color->to_SDL_Color();
-        SDL_SetRenderDrawColor(session.render_ctx.renderer, c.r, c.g, c.b, c.a);
-        SDL_SetRenderDrawBlendMode(session.render_ctx.renderer, SDL_BLENDMODE_BLEND);
-        SDL_RenderFillRect(session.render_ctx.renderer, &rect);
-        SDL_SetRenderDrawBlendMode(session.render_ctx.renderer, SDL_BLENDMODE_NONE);
+        SDL_SetRenderDrawColor(render_ctx.renderer, c.r, c.g, c.b, c.a);
+        SDL_SetRenderDrawBlendMode(render_ctx.renderer, SDL_BLENDMODE_BLEND);
+        SDL_RenderFillRect(render_ctx.renderer, &rect);
+        SDL_SetRenderDrawBlendMode(render_ctx.renderer, SDL_BLENDMODE_NONE);
       };
 
       int tt = bs.top_thickness();
@@ -118,10 +119,10 @@ namespace Pixils::UI
     Rect content = style_res.content_rect(bounds);
 
     SDL_Rect viewport = {content.x, content.y, content.w, content.h};
-    SDL_RenderSetViewport(session.render_ctx.renderer, &viewport);
+    SDL_RenderSetViewport(render_ctx.renderer, &viewport);
 
-    Lisple::sptr_rtval_v rargs = {ctx.state, session.hook_args.render_args[1]};
-    Runtime::invoke_hook(session.lisple_runtime, view_ptr, ctx.mode->render, rargs);
+    Lisple::sptr_rtval_v rargs = {ctx.state, render_hook_ctx};
+    Runtime::invoke_hook(runtime, view_ptr, ctx.mode->render, rargs);
 
     if (!ctx.children.empty())
     {
@@ -150,11 +151,11 @@ namespace Pixils::UI
         {
           abs = child_rects[i];
         }
-        render_view(session, ctx.children[i], abs);
+        render_view(render_ctx, runtime, render_hook_ctx, ctx.children[i], abs);
       }
     }
 
-    SDL_RenderSetViewport(session.render_ctx.renderer, nullptr);
+    SDL_RenderSetViewport(render_ctx.renderer, nullptr);
   }
 
 } // namespace Pixils::UI
