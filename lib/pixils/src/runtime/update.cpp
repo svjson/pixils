@@ -1,8 +1,8 @@
-#include "pixils/runtime/event_routing.h"
 #include "pixils/runtime/session.h"
 #include "pixils/runtime/view.h"
 #include "pixils/ui/event.h"
 #include "pixils/ui/interaction_dispatch.h"
+#include "pixils/ui/view_events.h"
 
 #include <lisple/runtime/dict.h>
 #include <lisple/runtime/value.h>
@@ -26,11 +26,11 @@ namespace Pixils::Runtime
 
       Lisple::sptr_rtval_v rargs = this->hook_args.update_args;
       auto ctx_parent_state = ctx.state;
-      emitted_events = process_view_events(ctx,
-                                           &ctx_parent_state,
-                                           rargs.back(),
-                                           emitted_events,
-                                           lisple_runtime);
+      emitted_events = UI::process_view_events(ctx,
+                                               &ctx_parent_state,
+                                               rargs.back(),
+                                               emitted_events,
+                                               lisple_runtime);
       rargs[0] = ctx.state;
       ctx.state = invoke_hook(view, ctx.mode->update, rargs, ctx.state);
       mode_stack.update_state(ctx.state, update_stack.size() - i);

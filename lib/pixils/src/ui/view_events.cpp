@@ -1,4 +1,4 @@
-#include "pixils/runtime/event_routing.h"
+#include "pixils/ui/view_events.h"
 
 #include "pixils/runtime/state.h"
 #include "pixils/runtime/view.h"
@@ -7,7 +7,7 @@
 #include <lisple/runtime.h>
 #include <lisple/runtime/value.h>
 
-namespace Pixils::Runtime
+namespace Pixils::UI
 {
   namespace
   {
@@ -21,10 +21,10 @@ namespace Pixils::Runtime
       return fn->exec().execute(exec_ctx, args);
     }
 
-    void restore_subtree_state(const std::shared_ptr<View>& view,
+    void restore_subtree_state(const std::shared_ptr<Runtime::View>& view,
                                const Lisple::sptr_rtval& parent_state)
     {
-      view->state = extract_state(parent_state, *view);
+      view->state = Runtime::extract_state(parent_state, *view);
       for (auto& child : view->children)
       {
         restore_subtree_state(child, view->state);
@@ -33,7 +33,7 @@ namespace Pixils::Runtime
 
   } // namespace
 
-  std::vector<CustomEvent> process_view_events(View& receiver,
+  std::vector<CustomEvent> process_view_events(Runtime::View& receiver,
                                                Lisple::sptr_rtval* parent_state,
                                                Lisple::sptr_rtval& view_ctx,
                                                std::vector<CustomEvent>& events,
@@ -63,7 +63,7 @@ namespace Pixils::Runtime
         }
         if (parent_state)
         {
-          *parent_state = merge_state(*parent_state, receiver, receiver.state);
+          *parent_state = Runtime::merge_state(*parent_state, receiver, receiver.state);
         }
       }
       if (!event.propagation_stopped)
@@ -74,4 +74,4 @@ namespace Pixils::Runtime
     return bubbled_events;
   }
 
-} // namespace Pixils::Runtime
+} // namespace Pixils::UI

@@ -1,8 +1,8 @@
 #include "pixils/ui/interaction_dispatch.h"
 
-#include "pixils/runtime/event_routing.h"
 #include "pixils/runtime/session.h"
 #include "pixils/ui/event.h"
+#include "pixils/ui/view_events.h"
 #include "pixils/ui/view_lifecycle.h"
 #include <pixils/binding/point_namespace.h>
 #include <pixils/binding/ui_namespace.h>
@@ -156,11 +156,8 @@ namespace Pixils::UI
     {
       std::vector<CustomEvent> emitted_events;
       child->drain_events(emitted_events);
-      emitted_events = Runtime::process_view_events(subject,
-                                                    subject_parent_state,
-                                                    view_ctx,
-                                                    emitted_events,
-                                                    rt);
+      emitted_events =
+        process_view_events(subject, subject_parent_state, view_ctx, emitted_events, rt);
 
       for (auto& event : emitted_events)
       {
