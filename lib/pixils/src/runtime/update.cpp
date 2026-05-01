@@ -2,6 +2,7 @@
 #include "pixils/runtime/session.h"
 #include "pixils/runtime/view.h"
 #include "pixils/ui/event.h"
+#include "pixils/ui/interaction_dispatch.h"
 
 #include <lisple/runtime/dict.h>
 #include <lisple/runtime/value.h>
@@ -25,11 +26,11 @@ namespace Pixils::Runtime
 
       Lisple::sptr_rtval_v rargs = this->hook_args.update_args;
       auto ctx_parent_state = ctx.state;
-      emitted_events = EventRouter::process_events(ctx,
-                                                   &ctx_parent_state,
-                                                   rargs.back(),
-                                                   emitted_events,
-                                                   lisple_runtime);
+      emitted_events = process_view_events(ctx,
+                                           &ctx_parent_state,
+                                           rargs.back(),
+                                           emitted_events,
+                                           lisple_runtime);
       rargs[0] = ctx.state;
       ctx.state = invoke_hook(view, ctx.mode->update, rargs, ctx.state);
       mode_stack.update_state(ctx.state, update_stack.size() - i);
@@ -38,14 +39,14 @@ namespace Pixils::Runtime
     }
 
     /**
-     * Delegate active-mode update, hover tracking, and event dispatch to EventRouter.
+     * Delegate active-mode update, hover tracking, and event dispatch to UI helpers.
      */
     if (hook_args.events)
-      event_router.update(active_mode,
-                          mouse_state,
-                          *hook_args.events,
-                          hook_args,
-                          lisple_runtime);
+      Pixils::UI::dispatch_interactions(active_mode,
+                                        mouse_state,
+                                        *hook_args.events,
+                                        hook_args,
+                                        lisple_runtime);
     this->hook_args.update_state(active_mode->state);
   }
 
