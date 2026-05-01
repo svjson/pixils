@@ -2,8 +2,8 @@
 
 #include "pixils/runtime/session.h"
 #include "pixils/ui/event.h"
-#include "pixils/ui/view_events.h"
 #include "pixils/ui/view_lifecycle.h"
+#include "pixils/ui/view_update.h"
 #include <pixils/binding/point_namespace.h>
 #include <pixils/binding/ui_namespace.h>
 #include <pixils/frame_events.h>
@@ -81,15 +81,6 @@ namespace Pixils::UI
       }
     }
 
-    void run_update_hook(const std::shared_ptr<Runtime::View>& view,
-                         Runtime::HookArguments& hook_args,
-                         Lisple::Runtime& rt)
-    {
-      Lisple::obj<HookContext>(*hook_args.update_args[1]).current_view = view;
-      Lisple::sptr_rtval_v uargs = {view->state, hook_args.update_args[1]};
-      view->state = invoke(view->mode->update, uargs, rt, view->state);
-    }
-
     void propagate_state_up_chain(const std::vector<std::shared_ptr<Runtime::View>>& chain)
     {
       for (size_t i = 0; i + 1 < chain.size(); i++)
@@ -146,48 +137,6 @@ namespace Pixils::UI
 
       chain.push_back(view);
       return true;
-    }
-
-    void bubble_child_events_to_subject(Runtime::View& subject,
-                                        Lisple::sptr_rtval* subject_parent_state,
-                                        const std::shared_ptr<Runtime::View>& child,
-                                        Lisple::sptr_rtval& view_ctx,
-                                        Lisple::Runtime& rt)
-    {
-      std::vector<CustomEvent> emitted_events;
-      child->drain_events(emitted_events);
-      emitted_events =
-        process_view_events(subject, subject_parent_state, view_ctx, emitted_events, rt);
-
-      for (auto& event : emitted_events)
-      {
-        subject.emitted_events.push_back(event);
-      }
-    }
-
-    void update_interaction(Runtime::View& view,
-                            const Point& mouse_pos,
-                            const MouseState& mouse_state)
-    {
-      int mx = mouse_pos.round_x();
-      int my = mouse_pos.round_y();
-
-      view.interaction.hovered = view.bounds.w > 0 && mx >= view.bounds.x &&
-                                 mx < view.bounds.x + view.bounds.w && my >= view.bounds.y &&
-                                 my < view.bounds.y + view.bounds.h;
-
-      view.interaction.pressed.clear();
-      for (auto& [btn, chain] : mouse_state.button_chains)
-      {
-        for (auto& weak_v : chain)
-        {
-          if (auto v = weak_v.lock(); v && v.get() == &view)
-          {
-            view.interaction.pressed.insert(btn);
-            break;
-          }
-        }
-      }
     }
 
     void handle_mouse_up(MouseState& mouse_state,
@@ -268,7 +217,6 @@ namespace Pixils::UI
       for (auto& view_ptr : hit_chain)
       {
         btn_chain.push_back(std::weak_ptr<Runtime::View>(view_ptr));
-        update_interaction(*view_ptr, gp, mouse_state);
       }
 
       MouseButtonEvent ev;
@@ -305,39 +253,6 @@ namespace Pixils::UI
         [&](const Rect& b) { ev.local_pos = local_pos(gp, b); },
         hook_args,
         rt);
-    }
-
-    void traverse_child(const std::shared_ptr<Runtime::View>& view_ptr,
-                        const MouseState& mouse_state,
-                        Lisple::sptr_rtval* parent_state,
-                        const Point& mouse_pos,
-                        Runtime::HookArguments& hook_args,
-                        Lisple::Runtime& rt)
-    {
-      auto& view = *view_ptr;
-
-      if (parent_state)
-      {
-        view.state = Runtime::extract_state(*parent_state, view);
-      }
-
-      update_interaction(view, mouse_pos, mouse_state);
-      run_update_hook(view_ptr, hook_args, rt);
-
-      for (auto& child : view.children)
-      {
-        traverse_child(child, mouse_state, &view.state, mouse_pos, hook_args, rt);
-        bubble_child_events_to_subject(view,
-                                       parent_state,
-                                       child,
-                                       hook_args.update_args[1],
-                                       rt);
-      }
-
-      if (parent_state)
-      {
-        *parent_state = Runtime::merge_state(*parent_state, view, view.state);
-      }
     }
 
     void traverse(const std::shared_ptr<Runtime::View>& root,
@@ -399,7 +314,7 @@ namespace Pixils::UI
         mouse_state.hovered_chain.push_back(std::weak_ptr<Runtime::View>(v));
       }
 
-      traverse_child(root, mouse_state, nullptr, mouse_pos, hook_args, rt);
+      update_view_tree(root, mouse_state, mouse_pos, hook_args, rt);
     }
 
   } // namespace
