@@ -22,14 +22,6 @@
 
 namespace Pixils::Runtime
 {
-
-  void HookArguments::update_state(const Lisple::sptr_rtval& state)
-  {
-    this->init_args[0] = state;
-    this->update_args[0] = state;
-    this->render_args[0] = state;
-  }
-
   Session::Session(Lisple::Runtime& lisple_runtime,
                    Asset::Registry& assets,
                    RenderContext& render_ctx,

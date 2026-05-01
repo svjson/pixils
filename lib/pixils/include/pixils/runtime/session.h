@@ -2,13 +2,11 @@
 #ifndef __PIXILS__RUNTIME__SESSION_H_
 #define __PIXILS__RUNTIME__SESSION_H_
 
-#include <pixils/frame_events.h>
 #include <pixils/geom.h>
+#include <pixils/runtime/hook_arguments.h>
 #include <pixils/runtime/mode.h>
 #include <pixils/runtime/mode_stack.h>
 #include <pixils/ui/mouse_state.h>
-
-#include <lisple/form.h>
 
 namespace Pixils
 {
@@ -22,17 +20,7 @@ namespace Pixils::Asset
 
 namespace Pixils::Runtime
 {
-  struct HookArguments
-  {
-    Lisple::sptr_rtval ctx;
-    FrameEvents* events = nullptr;
-
-    Lisple::sptr_rtval_v init_args = {Lisple::Constant::NIL, ctx};
-    Lisple::sptr_rtval_v update_args = {Lisple::Constant::NIL, ctx};
-    Lisple::sptr_rtval_v render_args = {Lisple::Constant::NIL, ctx};
-
-    void update_state(const Lisple::sptr_rtval& state);
-  };
+  struct View;
 
   struct Session
   {

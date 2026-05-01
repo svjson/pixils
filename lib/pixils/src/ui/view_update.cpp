@@ -1,6 +1,6 @@
 #include "pixils/ui/view_update.h"
 
-#include "pixils/runtime/session.h"
+#include "pixils/runtime/hook_arguments.h"
 #include "pixils/runtime/state.h"
 #include "pixils/runtime/view.h"
 #include "pixils/ui/view_events.h"

@@ -1,6 +1,6 @@
 #include "pixils/ui/interaction_dispatch.h"
 
-#include "pixils/runtime/session.h"
+#include "pixils/runtime/hook_arguments.h"
 #include "pixils/ui/event.h"
 #include "pixils/ui/view_lifecycle.h"
 #include "pixils/ui/view_update.h"
