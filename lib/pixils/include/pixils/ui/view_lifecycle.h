@@ -1,17 +1,21 @@
 #ifndef PIXILS__UI__VIEW_LIFECYCLE_H
 #define PIXILS__UI__VIEW_LIFECYCLE_H
 
+#include <lisple/form.h>
 #include <lisple/runtime/value.h>
-
 #include <memory>
+
+namespace Pixils::Asset
+{
+  class Registry;
+}
 
 namespace Pixils::Runtime
 {
   struct ChildSlot;
   struct Mode;
-  struct Session;
   struct View;
-}
+} // namespace Pixils::Runtime
 
 namespace Lisple
 {
@@ -29,7 +33,9 @@ namespace Pixils::UI
                                                  const Lisple::sptr_rtval& modes,
                                                  Lisple::Runtime& runtime);
 
-  Lisple::sptr_rtval init_view_tree(Runtime::Session& session,
+  Lisple::sptr_rtval init_view_tree(Asset::Registry& assets,
+                                    Lisple::Runtime& runtime,
+                                    const Lisple::sptr_rtval& init_hook_ctx,
                                     const std::shared_ptr<Runtime::View>& view,
                                     const Lisple::sptr_rtval& parent_state);
 

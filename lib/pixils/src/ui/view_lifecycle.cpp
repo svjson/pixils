@@ -7,7 +7,6 @@
 #include <pixils/context.h>
 #include <pixils/runtime/hook_invocation.h>
 #include <pixils/runtime/mode.h>
-#include <pixils/runtime/session.h>
 #include <pixils/runtime/state.h>
 #include <pixils/runtime/view.h>
 
@@ -139,25 +138,25 @@ namespace Pixils::UI
     return std::make_shared<Runtime::View>(std::move(view));
   }
 
-  Lisple::sptr_rtval init_view_tree(Runtime::Session& session,
+  Lisple::sptr_rtval init_view_tree(Asset::Registry& assets,
+                                    Lisple::Runtime& runtime,
+                                    const Lisple::sptr_rtval& init_hook_ctx,
                                     const std::shared_ptr<Runtime::View>& view,
                                     const Lisple::sptr_rtval& parent_state)
   {
     auto& ctx = *view;
 
-    if (!session.assets.is_loaded(ctx.mode->name))
-      session.assets.load(ctx.mode->name, ctx.mode->resources);
+    if (!assets.is_loaded(ctx.mode->name)) assets.load(ctx.mode->name, ctx.mode->resources);
 
     ctx.state = Runtime::extract_state(parent_state, ctx);
 
-    Lisple::sptr_rtval_v init_args = {ctx.state, session.hook_args.init_args[1]};
-    auto new_state =
-      Runtime::invoke_hook(session.lisple_runtime, view, ctx.mode->init, init_args);
+    Lisple::sptr_rtval_v init_args = {ctx.state, init_hook_ctx};
+    auto new_state = Runtime::invoke_hook(runtime, view, ctx.mode->init, init_args);
     if (new_state->type != Lisple::RTValue::Type::NIL) ctx.state = new_state;
 
     for (auto& grandchild : ctx.children)
     {
-      ctx.state = init_view_tree(session, grandchild, ctx.state);
+      ctx.state = init_view_tree(assets, runtime, init_hook_ctx, grandchild, ctx.state);
     }
 
     return Runtime::merge_state(parent_state, ctx, ctx.state);
