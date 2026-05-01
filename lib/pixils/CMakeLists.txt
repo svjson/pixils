@@ -90,4 +90,3 @@ install(FILES cmake/pixilsConfig.cmake
 )
 
 add_subdirectory(test)
-

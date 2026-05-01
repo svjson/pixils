@@ -1,25 +1,25 @@
-
-#include "pixils/runtime/render.h"
+#include "pixils/ui/view_render.h"
 
 #include <pixils/hook_context.h>
 #include <pixils/runtime/session.h>
 #include <pixils/runtime/view.h>
 #include <pixils/ui/style.h>
 
-namespace Pixils::Runtime
+namespace Pixils::UI
 {
-  std::vector<Rect> layout_children(const std::vector<std::shared_ptr<View>>& children,
-                                    const Rect& parent,
-                                    UI::LayoutDirection direction)
+  std::vector<Rect> layout_children(
+    const std::vector<std::shared_ptr<Pixils::Runtime::View>>& children,
+    const Rect& parent,
+    LayoutDirection direction)
   {
-    bool row = direction == UI::LayoutDirection::ROW;
+    bool row = direction == LayoutDirection::ROW;
 
     int total_fixed = 0;
     int fill_count = 0;
     for (const auto& child : children)
     {
-      UI::Style cs = UI::resolve_style(child->mode->style, child->state, child->interaction);
-      if (cs.position && *cs.position == UI::PositionMode::ABSOLUTE) continue;
+      Style cs = resolve_style(child->mode->style, child->state, child->interaction);
+      if (cs.position && *cs.position == PositionMode::ABSOLUTE) continue;
       const auto& size_opt = row ? cs.width : cs.height;
       if (size_opt)
         total_fixed += row ? cs.total_width() : cs.total_height();
@@ -36,8 +36,8 @@ namespace Pixils::Runtime
     int pos = row ? parent.x : parent.y;
     for (const auto& child : children)
     {
-      UI::Style cs = UI::resolve_style(child->mode->style, child->state, child->interaction);
-      if (cs.position && *cs.position == UI::PositionMode::ABSOLUTE)
+      Style cs = resolve_style(child->mode->style, child->state, child->interaction);
+      if (cs.position && *cs.position == PositionMode::ABSOLUTE)
       {
         rects.push_back({0, 0, 0, 0});
         continue;
@@ -54,14 +54,14 @@ namespace Pixils::Runtime
     return rects;
   }
 
-  void render_view(Session& session,
-                   const std::shared_ptr<View>& view_ptr,
+  void render_view(Pixils::Runtime::Session& session,
+                   const std::shared_ptr<Pixils::Runtime::View>& view_ptr,
                    const Rect& bounds)
   {
-    View& ctx = *view_ptr;
+    Pixils::Runtime::View& ctx = *view_ptr;
     ctx.bounds = bounds;
 
-    UI::Style style_res = UI::resolve_style(ctx.mode->style, ctx.state, ctx.interaction);
+    Style style_res = resolve_style(ctx.mode->style, ctx.state, ctx.interaction);
     if (style_res.hidden && *style_res.hidden) return;
 
     /**
@@ -91,7 +91,7 @@ namespace Pixils::Runtime
      */
     if (style_res.border)
     {
-      const UI::Style::BorderStyle& bs = *style_res.border;
+      const Style::BorderStyle& bs = *style_res.border;
 
       auto draw_side = [&](int thickness, std::optional<Color> color, SDL_Rect rect)
       {
@@ -129,16 +129,15 @@ namespace Pixils::Runtime
        * layout_children computes absolute rects for flow children; absolute-
        * positioned children get zero rects and are placed separately below.
        */
-      UI::LayoutDirection direction =
-        style_res.direction.value_or(UI::LayoutDirection::COLUMN);
+      auto direction = style_res.direction.value_or(LayoutDirection::COLUMN);
       auto child_rects = layout_children(ctx.children, content, direction);
 
       for (size_t i = 0; i < ctx.children.size(); i++)
       {
-        View& child = *ctx.children[i];
-        UI::Style cs = UI::resolve_style(child.mode->style, child.state, child.interaction);
+        Pixils::Runtime::View& child = *ctx.children[i];
+        Style cs = resolve_style(child.mode->style, child.state, child.interaction);
         Rect abs;
-        if (cs.position && *cs.position == UI::PositionMode::ABSOLUTE)
+        if (cs.position && *cs.position == PositionMode::ABSOLUTE)
         {
           int top = cs.top.value_or(0);
           int left = cs.left.value_or(0);
@@ -157,4 +156,4 @@ namespace Pixils::Runtime
     SDL_RenderSetViewport(session.render_ctx.renderer, nullptr);
   }
 
-} // namespace Pixils::Runtime
+} // namespace Pixils::UI

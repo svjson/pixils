@@ -1,10 +1,10 @@
 
 #include <pixils/geom.h>
 #include <pixils/runtime/mode.h>
-#include <pixils/runtime/render.h>
 #include <pixils/runtime/session.h>
 #include <pixils/runtime/view.h>
 #include <pixils/ui/style.h>
+#include <pixils/ui/view_render.h>
 
 #include <gtest/gtest.h>
 
@@ -53,7 +53,7 @@ TEST(LayoutTest, layout_single_fill_child_takes_full_height)
   Rect parent = {0, 0, 320, 200};
 
   // When
-  auto rects = Pixils::Runtime::layout_children(children, parent);
+  auto rects = Pixils::UI::layout_children(children, parent);
 
   // Then
   ASSERT_EQ(rects.size(), 1u);
@@ -70,7 +70,7 @@ TEST(LayoutTest, layout_fixed_then_fill_child_splits_height_correctly)
   Rect parent = {0, 0, 320, 200};
 
   // When
-  auto rects = Pixils::Runtime::layout_children(children, parent);
+  auto rects = Pixils::UI::layout_children(children, parent);
 
   // Then
   ASSERT_EQ(rects.size(), 2u);
@@ -89,7 +89,7 @@ TEST(LayoutTest, layout_two_fill_children_split_height_evenly)
   Rect parent = {0, 0, 320, 200};
 
   // When
-  auto rects = Pixils::Runtime::layout_children(children, parent);
+  auto rects = Pixils::UI::layout_children(children, parent);
 
   // Then
   ASSERT_EQ(rects.size(), 2u);
@@ -108,7 +108,7 @@ TEST(LayoutTest, layout_children_always_inherit_full_parent_width)
   Rect parent = {0, 0, 320, 200};
 
   // When
-  auto rects = Pixils::Runtime::layout_children(children, parent);
+  auto rects = Pixils::UI::layout_children(children, parent);
 
   // Then
   for (const auto& r : rects)
@@ -126,7 +126,7 @@ TEST(LayoutTest, layout_children_respect_parent_origin)
   Rect parent = {10, 20, 100, 80};
 
   // When
-  auto rects = Pixils::Runtime::layout_children(children, parent);
+  auto rects = Pixils::UI::layout_children(children, parent);
 
   // Then
   ASSERT_EQ(rects.size(), 1u);
@@ -145,7 +145,7 @@ TEST(LayoutTest, layout_row_direction_fixed_then_fill_splits_width)
   Rect parent = {0, 0, 320, 200};
 
   // When
-  auto rects = Pixils::Runtime::layout_children(children, parent, LayoutDirection::ROW);
+  auto rects = Pixils::UI::layout_children(children, parent, LayoutDirection::ROW);
 
   // Then
   ASSERT_EQ(rects.size(), 2u);
@@ -169,7 +169,7 @@ TEST(LayoutTest, layout_absolute_children_excluded_from_flow)
   Rect parent = {0, 0, 320, 200};
 
   // When
-  auto rects = Pixils::Runtime::layout_children(children, parent);
+  auto rects = Pixils::UI::layout_children(children, parent);
 
   // Then - absolute child gets zero rect; fill child takes full height
   ASSERT_EQ(rects.size(), 2u);
