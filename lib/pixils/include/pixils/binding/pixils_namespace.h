@@ -37,7 +37,6 @@ namespace Pixils::Script
   inline const std::string FN__PIXILS__MAKE_MODE_COMPOSITION =
     "pixils/make-mode-composition";
   inline const std::string FN__PIXILS__MAKE_DIMENSION = "pixils/make-dimension";
-  inline const std::string FN__PIXILS__MAKE_RECT = "pixils/make-rect";
   inline const std::string FN__MAKE_DISPLAY = "display";
   inline const std::string FN__MAKE_RESOLUTION = "pixils/make-resolution";
   inline const std::string FN__POP_MODE_BANG = "pop-mode!";
@@ -71,7 +70,6 @@ namespace Pixils::Script
     HOST_TYPE(MODE, "HMode", FN__PIXILS__MAKE_MODE)
     HOST_TYPE(MODE_COMPOSITION, "HModeComposition", FN__PIXILS__MAKE_MODE_COMPOSITION)
     HOST_TYPE(PROGRAM, "HProgram")
-    HOST_TYPE(RECT, "HRect", FN__PIXILS__MAKE_RECT);
     HOST_TYPE(INTERACTION_STATE, "HInteractionState")
     HOST_TYPE(RENDER_CONTEXT, "HRenderContext")
     HOST_TYPE(RESOLUTION, "HResolution", FN__MAKE_RESOLUTION)
@@ -100,8 +98,6 @@ namespace Pixils::Script
     FUNC(MakeDimension, make);
     /*! @brief Lisple make-function for Display/DisplayAdapter */
     FUNC(MakeDisplay, make);
-    /*! @brief Lisple make-function for Rect/RectAdapter */
-    FUNC(MakeRect, make);
     /*! @brief Push active mode */
     FUNC(PushModeBangFunction, push_mode);
     /*! @brief Pop active mode */
@@ -112,8 +108,6 @@ namespace Pixils::Script
 
   /*! @brief DimensionAdapter - A Lisple HostObject Adapter for Dimension */
   NATIVE_ADAPTER(DimensionAdapter, Dimension, (w, h), (w, h));
-  /*! @brief RectAdapter - A Lisple HostObject Adapter for Rect */
-  NATIVE_ADAPTER(RectAdapter, Rect, (x, y, w, h), (x, y, w, h));
   /*! @brief Lisple HostObject Adapter for Display */
   NATIVE_ADAPTER(DisplayAdapter, Display, (resolution), (resolution));
   /*! @brief FrameEventsAdapter - A Lisple HostObject Adapter for FrameEvents */

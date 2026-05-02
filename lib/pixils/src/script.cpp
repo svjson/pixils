@@ -4,6 +4,7 @@
 #include <pixils/binding/color_namespace.h>
 #include <pixils/binding/pixils_namespace.h>
 #include <pixils/binding/point_namespace.h>
+#include <pixils/binding/rect_namespace.h>
 #include <pixils/binding/render_namespace.h>
 #include <pixils/binding/resource_namespace.h>
 #include <pixils/binding/ui_namespace.h>
@@ -30,6 +31,7 @@ namespace Pixils
     namespaces.push_back(std::make_unique<Pixils::Script::ResourceNamespace>());
     namespaces.push_back(std::make_unique<Pixils::Script::ColorNamespace>());
     namespaces.push_back(std::make_unique<Pixils::Script::PointNamespace>());
+    namespaces.push_back(std::make_unique<Pixils::Script::RectNamespace>());
     namespaces.push_back(std::make_unique<Pixils::Script::RenderNamespace>());
     namespaces.push_back(std::make_unique<Pixils::Script::StyleNamespace>());
     namespaces.push_back(std::make_unique<Pixils::Script::UINamespace>());
@@ -79,6 +81,7 @@ namespace Pixils
     namespaces.push_back(std::make_unique<Pixils::Script::ColorNamespace>());
     namespaces.push_back(std::make_unique<Pixils::Script::PointNamespace>());
     namespaces.push_back(std::make_unique<Pixils::Script::RenderNamespace>());
+    namespaces.push_back(std::make_unique<Pixils::Script::RectNamespace>());
     namespaces.push_back(std::make_unique<Pixils::Script::StyleNamespace>());
     namespaces.push_back(std::make_unique<Pixils::Script::UINamespace>());
 

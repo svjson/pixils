@@ -4,6 +4,7 @@
 #include <pixils/asset/registry.h>
 #include <pixils/binding/color_namespace.h>
 #include <pixils/binding/mode_definition.h>
+#include <pixils/binding/rect_namespace.h>
 #include <pixils/binding/resource_namespace.h>
 #include <pixils/binding/style_namespace.h>
 #include <pixils/binding/ui_namespace.h>
@@ -453,24 +454,6 @@ namespace Pixils::Script
                               args[0]->to_string());
     }
 
-    FUNC_IMPL(MakeRect,
-              SIG((FN_ARGS((&Lisple::Type::MAP)), EXEC_DISPATCH(&MakeRect::exec_make))))
-
-    EXEC_BODY(MakeRect, exec_make)
-    {
-      static Lisple::MapSchema rect_schema({{"x", &Lisple::Type::NUMBER},
-                                            {"y", &Lisple::Type::NUMBER},
-                                            {"w", &Lisple::Type::NUMBER},
-                                            {"h", &Lisple::Type::NUMBER}});
-
-      auto opts = rect_schema.bind(ctx, *args[0]);
-
-      return RectAdapter::make_unique(opts.i32("x"),
-                                      opts.i32("y"),
-                                      opts.i32("w"),
-                                      opts.i32("h"));
-    }
-
     /* PushModeBangFunction - push-mode! */
     FUNC_IMPL(PushModeBangFunction,
               MULTI_SIG((FN_ARGS((&Lisple::Type::SYMBOL_VALUE)),
@@ -779,7 +762,6 @@ namespace Pixils::Script
     values.emplace("make-display", Function::MakeDisplay::make());
     values.emplace("make-mode", Function::MakeMode::make());
     values.emplace("make-mode-composition", Function::MakeModeComposition::make());
-    values.emplace("make-rect", Function::MakeRect::make());
     values.emplace("make-resolution", Function::MakeResolution::make());
     values.emplace("render-context", RenderContextAdapter::make_ref(render_context));
     values.emplace("programs", Lisple::RTValue::map({}));

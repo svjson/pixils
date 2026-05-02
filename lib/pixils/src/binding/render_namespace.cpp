@@ -6,6 +6,7 @@
 #include <pixils/binding/color_namespace.h>
 #include <pixils/binding/pixils_namespace.h>
 #include <pixils/binding/point_namespace.h>
+#include <pixils/binding/rect_namespace.h>
 #include <pixils/context.h>
 #include <pixils/font_registry.h>
 #include <pixils/geom.h>

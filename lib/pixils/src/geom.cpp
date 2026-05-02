@@ -152,6 +152,12 @@ namespace Pixils
     return !(*this == other);
   }
 
+  bool Rect::intersects(const Rect& other) const
+  {
+    return this->contains(other.top_left()) || this->contains(other.top_right()) ||
+           this->contains(other.bottom_left()) || this->contains(other.bottom_right());
+  }
+
   Rect Rect::merge(const Rect& other) const
   {
     Rect result = *this;
@@ -167,6 +173,16 @@ namespace Pixils
   Point Rect::top_left() const
   {
     return Point(x, y);
+  }
+
+  Point Rect::top_right() const
+  {
+    return Point(x + w, y);
+  }
+
+  Point Rect::bottom_left() const
+  {
+    return Point(x, y + h);
   }
 
   Point Rect::bottom_right() const

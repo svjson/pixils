@@ -107,6 +107,11 @@ namespace Pixils
     /*! @brief The height of the rect */
     int h;
 
+    /*!
+     * @brief Queries if another Rect intersects this Rect.
+     */
+    bool intersects(const Rect& other) const;
+
     Rect merge(const Rect& other) const;
     /*!
      * @brief Queries if a point is contained
@@ -123,7 +128,9 @@ namespace Pixils
      * as Point.
      */
     Point top_left() const;
+    Point top_right() const;
     Point bottom_right() const;
+    Point bottom_left() const;
 
     SDL_Rect to_SDL_rect() const;
 
