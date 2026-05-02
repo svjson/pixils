@@ -13,6 +13,8 @@
             :enemies []
             :explosions []
             :enemy-spawners [{:type :spawner/single-ship
+                              :counter 0}
+                             {:type :spawner/asteroid
                               :counter 0}]
             :background [bg/nebula-top
                          bg/nebula-center
@@ -102,6 +104,6 @@
                  (r/image! :player/flash {:pos (pt/+ (:pos player)
                                                      {:x 24 :y 0})}))
                (for [enemy (:enemies state)]
-                 (r/image! (:image enemy) {:pos (:pos enemy)}))
+                 (e/render-enemy! enemy))
                (for [expl (:explosions state)]
                  (r/image! (:image expl) {:pos (:pos expl)}))))})

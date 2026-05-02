@@ -1,5 +1,6 @@
 (ns spaceshooter.enemy
-  (:require [pixils.point :as pt]))
+  (:require [pixils.point :as pt]
+            [pixils.render :as r]))
 
 
 (def enemy-types {:enemy/ship {:update (fn [e]
@@ -15,7 +16,25 @@
                                                                    :enemy-ship/two
                                                                    :enemy-ship/three
                                                                    :enemy-ship/four
-                                                                   :enemy-ship/five] anim-state)))))}})
+                                                                   :enemy-ship/five] anim-state)))))}
+                  :enemy/asteroid {:update (fn [e]
+                                             (let [vdir (cond
+                                                          (and (= :up (:vdir e)) (< (-> e :pos :y) 1))
+                                                          :down
+
+                                                          (and (= :down (:vdir e)) (> (-> e :pos :y) 230))
+                                                          :up
+
+                                                          :true
+                                                          (:vdir e))]
+                                               (-> e
+                                                   (assoc :vdir vdir)
+                                                   (assoc :pos (pt/+ (:pos e)
+                                                                     {:x -1 :y (if (= :up vdir) -1 1)}))
+                                                   (assoc :rotation (+ (:rotation e) 0.02)))))
+                                   :render! (fn [e]
+                                             (r/image! (:image e) {:pos (:pos e)
+                                                                   :rotation (:rotation e)}))}})
 
 (def spawner-types {:spawner/single-ship (fn [spawner]
                                            (let [new-counter (mod (+ 1 (:counter spawner)) 130)]
@@ -26,14 +45,33 @@
                                                            :image :enemy-ship/one
                                                            :anim-state 0
                                                            :anim-counter 0}]
-                                                         [])}))})
+                                                         [])}))
+                    :spawner/asteroid (fn [spawner]
+                                        (let [new-counter (mod (+ 1 (:counter spawner)) 80)]
+                                          {:spawner (assoc spawner :counter new-counter)
+                                           :enemies (if (= new-counter 0)
+                                                      [{:type :enemy/asteroid
+                                                        :pos {:x 400 :y (rnd 0 230)}
+                                                        :image :asteroid/big
+                                                        :rotation 0.0
+                                                        :anim-state 0
+                                                        :anim-counter 0
+                                                        :vdir (rand-nth [:up :down])}]
+                                                      [])}))})
 
 
 (defun update-enemy [enemy]
   (let [type (get enemy-types (:type enemy))]
     (if type
-      ((:update type) enemy)
+      ; Dynamic callees currently need apply to avoid CallNode cache stickiness.
+      (apply (:update type) [enemy])
       enemy)))
+
+(defun render-enemy! [enemy]
+  (let [type (get enemy-types (:type enemy))]
+    (if (and type (:render! type))
+      (apply (:render! type) [enemy])
+      (r/image! (:image enemy) {:pos (:pos enemy)}))))
 
 
 (defun tick-spawners [spawners]
@@ -42,7 +80,8 @@
         (fn [spawner]
           (let [spawner-fn (get spawner-types (:type spawner))]
             (if spawner-fn
-              (spawner-fn spawner)
+              ; Dynamic callees currently need apply to avoid CallNode cache stickiness.
+              (apply spawner-fn [spawner])
               {:spawner spawner
                :enemies []}))))
    {:spawners []

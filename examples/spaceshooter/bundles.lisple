@@ -23,6 +23,9 @@
             :bullet-2 "assets/shoot2.png"}
    :sounds {:fire "assets/sound/shot1.wav"}})
 
+(defbundle asteroid
+  {:images {:big "assets/asteroid.png"}})
+
 (defbundle enemy-ship
   {:images {:one "assets/enemy1.png"
             :two "assets/enemy2.png"
