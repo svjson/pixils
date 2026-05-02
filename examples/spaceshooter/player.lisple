@@ -21,10 +21,10 @@
            :image :player/down)
 
     :left
-    (assoc player :pos (pt/- (:pos player) {:x (:speed player) :y 0}))
+    (update player :pos (fn [pos] (pt/- pos {:x (:speed player) :y 0})))
 
     :right
-    (assoc player :pos (pt/+ (:pos player) {:x (:speed player) :y 0}))
+    (update player :pos (fn [pos] (pt/+ pos {:x (:speed player) :y 0})))
 
     :default
     player))

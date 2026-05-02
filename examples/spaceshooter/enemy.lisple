@@ -4,9 +4,9 @@
 
 
 (def enemy-types {:enemy/ship {:update (fn [e]
-                                         (let [new-counter (mod (+ 1 (:anim-counter e)) 4)
+                                         (let [new-counter (mod (inc (:anim-counter e)) 4)
                                                anim-state (if (= 0 new-counter)
-                                                            (mod (+ 1 (:anim-state e)) 5)
+                                                            (mod (inc (:anim-state e)) 5)
                                                             (:anim-state e))]
                                            (assoc e
                                                   :pos (pt/- (:pos e) {:x 1 :y 0})
@@ -37,7 +37,7 @@
                                                                     :rotation (:rotation e)}))}})
 
 (def spawner-types {:spawner/single-ship (fn [spawner]
-                                           (let [new-counter (mod (+ 1 (:counter spawner)) 130)]
+                                           (let [new-counter (mod (inc (:counter spawner)) 130)]
                                              {:spawner (assoc spawner :counter new-counter)
                                               :enemies (if (= new-counter 0)
                                                          [{:type :enemy/ship
@@ -47,7 +47,7 @@
                                                            :anim-counter 0}]
                                                          [])}))
                     :spawner/asteroid (fn [spawner]
-                                        (let [new-counter (mod (+ 1 (:counter spawner)) 80)]
+                                        (let [new-counter (mod (inc (:counter spawner)) 80)]
                                           {:spawner (assoc spawner :counter new-counter)
                                            :enemies (if (= new-counter 0)
                                                       [{:type :enemy/asteroid

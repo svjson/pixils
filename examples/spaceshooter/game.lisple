@@ -56,40 +56,42 @@
                                      (concat (:enemies state) spawned-enemies))]
                (when (not (empty? (:explosions collision-result)))
                  (pixils.audio/play! :explosion/boom {:volume 0.1}))
-               (-> state
-                   (assoc :explosions (concat (-> (:explosions state)
-                                                  (map (fn [expl]
-                                                         (let [counter (mod (+ 1 (:counter expl)) 3)
-                                                               anim-frame (if (= 0 counter)
-                                                                            (+ 1 (:anim-counter expl))
-                                                                            (:anim-counter expl))]
-                                                           (assoc expl
-                                                                  :counter counter
-                                                                  :anim-counter anim-frame
-                                                                  :image (nth [:explosion/one
-                                                                               :explosion/two
-                                                                               :explosion/three
-                                                                               :explosion/four
-                                                                               :explosion/five]
-                                                                              anim-frame)))))
-                                                  (filter (fn [expl]
-                                                            (not= (:anim-counter expl) 5))))
-                                              (:explosions collision-result))
-                          :enemy-spawners (:spawners spawner-result)
-                          :background (bg/tick (:background state))
-                          :enemies (map (:enemies collision-result) e/update-enemy))
-                   (assoc-in [:player :image] (if (not (or (contains? (:held-keys ctx) :key/up)
-                                                           (contains? (:held-keys ctx) :key/down)))
-                                                :player/base
-                                                (-> state :player :image))
-                             [:player :flash-counter] (max 0 (- (-> state :player :flash-counter) 1))
-                             [:player :bullets] (-> (:bullets collision-result)
-                                                    (map (fn [b]
-                                                           (let [new-counter (mod (+ 1 (:anim-counter b)) 8)]
-                                                             (-> b
-                                                                 (assoc :pos (pt/+ (:pos b) {:x 6 :y 0}))
-                                                                 (assoc :anim-counter new-counter)))))
-                                                    (filter (fn [b] (< (-> b :pos :x) 420))))))))
+               (assoc state
+                      :explosions (concat (-> (:explosions state)
+                                              (map (fn [expl]
+                                                     (let [counter (mod (inc (:counter expl)) 3)
+                                                           anim-frame (if (= 0 counter)
+                                                                        (inc (:anim-counter expl))
+                                                                        (:anim-counter expl))]
+                                                       (assoc expl
+                                                              :counter counter
+                                                              :anim-counter anim-frame
+                                                              :image (nth [:explosion/one
+                                                                           :explosion/two
+                                                                           :explosion/three
+                                                                           :explosion/four
+                                                                           :explosion/five]
+                                                                          anim-frame)))))
+                                              (filter (fn [expl]
+                                                        (not= (:anim-counter expl) 5))))
+                                          (:explosions collision-result))
+                      :enemy-spawners (:spawners spawner-result)
+                      :background (bg/tick (:background state))
+                      :enemies (map (:enemies collision-result) e/update-enemy)
+                      :player (-> (:player state)
+                                  (update :image (fn [image]
+                                                   (if (not (or (contains? (:held-keys ctx) :key/up)
+                                                                (contains? (:held-keys ctx) :key/down)))
+                                                     :player/base
+                                                     image))
+                                          :flash-counter (fn [counter]
+                                                           (max 0 (dec counter))))
+                                  (assoc :bullets (-> (:bullets collision-result)
+                                                      (map (fn [b]
+                                                             (assoc b
+                                                                    :pos (pt/+ (:pos b) {:x 6 :y 0})
+                                                                    :anim-counter (mod (inc (:anim-counter b)) 8))))
+                                                      (filter (fn [b] (< (-> b :pos :x) 420)))))))))
 
    :render (fn [state ctx]
              (let [player (:player state)]
