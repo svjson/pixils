@@ -1,0 +1,29 @@
+(ns spaceshooter.bundles
+  (:require pixils))
+
+(defbundle background
+  {:images {:stars "assets/bg-stars.png"
+            :back "assets/bg-back.png"
+            :planet "assets/bg-planet.png"}})
+
+(defbundle explosion
+  {:images {:one "assets/explosion1.png"
+            :two "assets/explosion2.png"
+            :three "assets/explosion3.png"
+            :four "assets/explosion4.png"
+            :five "assets/explosion5.png"}})
+
+(defbundle player
+  {:images {:base "assets/player1.png"
+            :down "assets/player2.png"
+            :up "assets/player3.png"
+            :flash "assets/flash.png"
+            :bullet-1 "assets/shoot1.png"
+            :bullet-2 "assets/shoot2.png"}})
+
+(defbundle enemy-ship
+  {:images {:one "assets/enemy1.png"
+            :two "assets/enemy2.png"
+            :three "assets/enemy3.png"
+            :four "assets/enemy4.png"
+            :five "assets/enemy5.png"}})

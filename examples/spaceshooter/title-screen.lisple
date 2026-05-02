@@ -1,0 +1,33 @@
+(ns spaceshooter.title-screen
+  (:require pixils
+            [pixils.point :as pt]
+            [pixils.render :as r]
+            [spaceshooter.background :as bg]))
+
+
+(defmode title-screen
+  {:init (fn [state ctx]
+           {:option-index 0
+            :background [bg/starfield]})
+   :on-key-down (fn [state e ctx]
+                  (case (:key e)
+                    :key/up
+                    (assoc state :option-index (max 0 (- (:option-index state) 1)))
+
+                    :key/down
+                    (assoc state :option-index (min 1 (+ (:option-index state) 1)))
+
+                    :key/space
+                    (do
+                      (push-mode! 'game)
+                      state)
+
+                    :default
+                    state))
+   :update (fn [state ctx]
+             (assoc state :background (bg/tick (:background state))))
+   :render (fn [state ctx]
+             (bg/render! (:background state))
+             (for-indexed [n opt ["START" "ABOUT"]]
+                          (r/text! opt {:x 170 :y (+ 100 (* n 25))} {:scale 2 :color {:r 255 :g 255 :b 255}}))
+             (r/image! :player/base {:pos {:x 120 :y (+ 98 (* (:option-index state) 25))}}))})

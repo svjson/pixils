@@ -1,0 +1,71 @@
+(ns spaceshooter.background
+  (:require [pixils.point :as pt]
+            [pixils.render :as r]))
+
+
+(def nebula-center {:image :background/back
+                    :reset {:at -272
+                            :to 544}
+                    :counter 0
+                    :rate 4
+                    :pos [{:x 0 :y 40}
+                          {:x 272 :y 40}
+                          {:x 544 :y 40}]})
+
+(def nebula-top {:image :background/back
+                          :reset {:at -272
+                                  :to 544}
+                          :counter 0
+                          :rate 3
+                          :pos [{:x -198 :y -110}
+                                {:x 74 :y -110}
+                                {:x 346 :y -110}]})
+
+(def nebula-bottom {:image :background/back
+                    :reset {:at -272
+                            :to 544}
+                    :counter 0
+                    :rate 3
+                    :pos [{:x -108 :y 200}
+                          {:x 164 :y 200}
+                          {:x 436 :y 200}]})
+
+
+(def starfield {:image :background/stars
+                :reset {:at -272
+                        :to 544}
+                :counter 0
+                :rate 2
+                :pos [{:x 0 :y 0}
+                      {:x 272 :y 0}
+                      {:x 544 :y 0}
+                      {:x -198 :y 160}
+                      {:x 74 :y 160}
+                      {:x 346 :y 160}]})
+
+(def planet {:image :background/planet
+             :reset {:at -272
+                     :to 544}
+             :counter 0
+             :rate 1
+             :pos [{:x 150 :y 100}]})
+
+
+(defun tick [backgrounds]
+  (for [bg backgrounds]
+    (let [new-bg (assoc bg :counter (mod (+ 1 (:counter bg)) (+ 1 (:rate bg))))]
+      (if (= (:counter new-bg) 0)
+        (assoc new-bg :pos (map (:pos new-bg)
+                                (fn [pos]
+                                  (let [new-pos (pt/- pos {:x 1 :y 0})]
+                                    (if (<= (:x new-pos) (-> bg :reset :at))
+                                      {:x (-> bg :reset :to) :y (:y new-pos)}
+                                      new-pos)))))
+        new-bg))))
+
+
+(defun render! [backgrounds]
+  (for [bg backgrounds]
+    (for [inst (:pos bg)]
+      (r/image! (:image bg)
+                {:pos inst}))))

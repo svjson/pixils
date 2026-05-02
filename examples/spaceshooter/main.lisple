@@ -1,0 +1,14 @@
+(ns spaceshooter.core
+  (:require pixils
+            spaceshooter.bundles
+            spaceshooter.title-screen
+            spaceshooter.game))
+
+(defprogram spaceshooter
+  {:display {:resolution {:w 400 :h 250}
+             :scaling :scaling/fit
+             :align :align/center
+             :background {:r 0x20 :g 0x20 :b 0x20}}
+   :pointer :off
+   :initial-mode 'title-screen})
+

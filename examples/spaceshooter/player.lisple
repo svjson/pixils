@@ -1,0 +1,40 @@
+(ns spaceshooter.player
+  (:require [pixils.point :as pt]))
+
+(defun make-player []
+  {:pos {:x 20 :y 120}
+   :image :player/base
+   :speed 2
+   :flash-counter 0
+   :bullets []})
+
+(defun move-player [player dir]
+  (case dir
+    :up
+    (-> player
+        (assoc :pos (pt/- (:pos player) {:x 0 :y (:speed player)}))
+        (assoc :image :player/up))
+
+    :down
+    (-> player
+        (assoc :pos (pt/+ (:pos player) {:x 0 :y (:speed player)}))
+        (assoc :image :player/down))
+
+    :left
+    (assoc player :pos (pt/- (:pos player) {:x (:speed player) :y 0}))
+
+    :right
+    (assoc player :pos (pt/+ (:pos player) {:x (:speed player) :y 0}))
+
+    :default
+    player))
+
+
+
+(defun fire [player]
+  (-> player
+      (assoc :bullets (concat (:bullets player)
+                              {:pos (pt/+ (:pos player)
+                                          {:x 16 :y 7})
+                               :anim-counter 0}))
+      (assoc :flash-counter 3)))
