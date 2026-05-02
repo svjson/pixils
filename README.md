@@ -623,6 +623,15 @@ Accepts the same `:font` and `:scale` options as `text!`.
 | `emit!`              | Emit a custom event that bubbles up the view tree. Args: `view`, `event-key`, optional `payload`. |
 | `stop-propagation!`  | Prevent a mouse event from bubbling further up the component tree. Pass the event object from a mouse hook. |
 
+### `pixils.image`
+
+| Symbol   | Description |
+|----------|-------------|
+| `size`   | Return the size of an image resource as a dimension object with `:w` and `:h`. Args: qualified keyword `:bundle/id`. |
+| `width`  | Return the width of an image resource. Args: qualified keyword `:bundle/id`. |
+| `height` | Return the height of an image resource. Args: qualified keyword `:bundle/id`. |
+| `rect`   | Return a rect for an image resource. Args: qualified keyword `:bundle/id`, optional point offset used as the rect's `:x` and `:y`. |
+
 ### `pixils.render`
 
 | Symbol      | Description |
