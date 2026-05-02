@@ -23,7 +23,9 @@
    :on-key-down (fn [state e ctx]
                   (case (:key e)
                     :key/space
-                    (assoc state :player (p/fire (:player state)))
+                    (do
+                      (pixils.audio/play! :player/fire {:volume 0.01})
+                      (assoc state :player (p/fire (:player state))))
 
                     :default
                     state))
@@ -50,6 +52,8 @@
                    collision-result (coll/bullet-collisions
                                      (:player state)
                                      (concat (:enemies state) spawned-enemies))]
+               (when (not (empty? (:explosions collision-result)))
+                 (pixils.audio/play! :explosion/boom {:volume 0.1}))
                (-> state
                    (assoc :explosions (concat (-> (:explosions state)
                                                   (map (fn [expl]

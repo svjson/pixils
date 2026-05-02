@@ -11,7 +11,8 @@
             :two "assets/explosion2.png"
             :three "assets/explosion3.png"
             :four "assets/explosion4.png"
-            :five "assets/explosion5.png"}})
+            :five "assets/explosion5.png"}
+   :sounds {:boom "assets/sound/explosion.wav"}})
 
 (defbundle player
   {:images {:base "assets/player1.png"
@@ -19,7 +20,8 @@
             :up "assets/player3.png"
             :flash "assets/flash.png"
             :bullet-1 "assets/shoot1.png"
-            :bullet-2 "assets/shoot2.png"}})
+            :bullet-2 "assets/shoot2.png"}
+   :sounds {:fire "assets/sound/shot1.wav"}})
 
 (defbundle enemy-ship
   {:images {:one "assets/enemy1.png"
