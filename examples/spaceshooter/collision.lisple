@@ -1,5 +1,6 @@
 (ns spaceshooter.collision
-  (:require [pixils.rect :as rect]))
+  (:require [pixils.rect :as rect]
+            [pixils.image :as img]))
 
 (defun bullet-collisions [player enemies]
   (reduce (:bullets player)
@@ -9,16 +10,14 @@
           (fn [result bullet]
             (if-let [enemy-index (find-index (:enemies result)
                                              (fn [e]
-                                               (rect/intersect? (merge (:pos e)
-                                                                       {:w 24 :h 24})
-                                                                (merge (:pos bullet)
-                                                                       {:w 24 :h 12}))))]
-              (-> result
-                  (assoc :explosions (concat (:explosions result)
-                                             {:pos (:pos (nth (:enemies result) enemy-index))
-                                              :counter 0
-                                              :anim-counter 0
-                                              :image :explosion/one}))
-                  (assoc :enemies (remove-nth (:enemies result) enemy-index)))
+                                               (rect/intersect? (img/rect (:image e) (:pos e))
+                                                                (img/rect :player/bullet-1 (:pos bullet)))))]
+              (assoc result
+                     :explosions (concat (:explosions result)
+                                         {:pos (:pos (nth (:enemies result) enemy-index))
+                                          :counter 0
+                                          :anim-counter 0
+                                          :image :explosion/one})
+                     :enemies (remove-nth (:enemies result) enemy-index))
               (assoc result :bullets (concat (:bullets result) bullet))))))
 

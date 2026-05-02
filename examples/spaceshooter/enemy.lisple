@@ -2,7 +2,6 @@
   (:require [pixils.point :as pt]
             [pixils.render :as r]))
 
-
 (def enemy-types {:enemy/ship {:update (fn [e]
                                          (let [new-counter (mod (inc (:anim-counter e)) 4)
                                                anim-state (if (= 0 new-counter)
