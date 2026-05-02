@@ -68,6 +68,39 @@ namespace Pixils::Script
       return Lisple::RTValue::number(a.distance_to(b));
     }
 
+    /* Translate Point */
+    FUNC_IMPL(TranslatePoint,
+              SIG((FN_ARGS((&HostType::POINT), (&Lisple::Type::NUMBER), (&Lisple::Type::NUMBER)),
+                   EXEC_DISPATCH(&TranslatePoint::exec_translate))));
+
+    EXEC_BODY(TranslatePoint, exec_translate)
+    {
+      const Point& point = Lisple::obj<Point>(*args[0]);
+      return PointAdapter::make_unique(point.plus(args[1]->f32(), args[2]->f32()));
+    }
+
+    /* Translate Point X */
+    FUNC_IMPL(TranslatePointX,
+              SIG((FN_ARGS((&HostType::POINT), (&Lisple::Type::NUMBER)),
+                   EXEC_DISPATCH(&TranslatePointX::exec_translate_x))));
+
+    EXEC_BODY(TranslatePointX, exec_translate_x)
+    {
+      const Point& point = Lisple::obj<Point>(*args[0]);
+      return PointAdapter::make_unique(point.plus(args[1]->f32(), 0));
+    }
+
+    /* Translate Point Y */
+    FUNC_IMPL(TranslatePointY,
+              SIG((FN_ARGS((&HostType::POINT), (&Lisple::Type::NUMBER)),
+                   EXEC_DISPATCH(&TranslatePointY::exec_translate_y))));
+
+    EXEC_BODY(TranslatePointY, exec_translate_y)
+    {
+      const Point& point = Lisple::obj<Point>(*args[0]);
+      return PointAdapter::make_unique(point.plus(0, args[1]->f32()));
+    }
+
     /* Rotate Point - rotate-point */
     FUNC_IMPL(
       RotatePoint,
@@ -179,6 +212,9 @@ namespace Pixils::Script
     values.emplace(FN__MULTIPLY, Function::PointMultiplication::make());
     values.emplace(FN__PLUS, Function::PointPlus::make());
     values.emplace(FN__ROTATE, Function::RotatePoint::make());
+    values.emplace(FN__TRANSLATE, Function::TranslatePoint::make());
+    values.emplace(FN__TRANSLATE_X, Function::TranslatePointX::make());
+    values.emplace(FN__TRANSLATE_Y, Function::TranslatePointY::make());
   }
 
 } // namespace Pixils::Script

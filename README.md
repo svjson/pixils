@@ -660,6 +660,9 @@ Accepts the same `:font` and `:scale` options as `text!`.
 | `-`        | Subtract two points. |
 | `*`        | Multiply a point by a scalar. |
 | `div`      | Divide a point by a scalar. |
+| `translate` | Translate a point by `dx dy`. |
+| `translate-x` | Translate a point by `dx` along the x axis. |
+| `translate-y` | Translate a point by `dy` along the y axis. |
 | `rotate`   | Rotate a point. Args: `point angle` or `point origin angle`. |
 | `distance` | Distance between two points. |
 
