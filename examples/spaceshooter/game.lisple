@@ -89,7 +89,7 @@
                                   (assoc :bullets (-> (:bullets collision-result)
                                                       (map (fn [b]
                                                              (assoc b
-                                                                    :pos (pt/+ (:pos b) {:x 6 :y 0})
+                                                                    :pos (pt/translate-x (:pos b) 6)
                                                                     :anim-counter (mod (inc (:anim-counter b)) 8))))
                                                       (filter (fn [b] (< (-> b :pos :x) 420)))))))))
 
@@ -103,8 +103,7 @@
                            {:pos (:pos bullet)}))
                (r/image! (:image player) {:pos (:pos player)})
                (when (> (:flash-counter player) 0)
-                 (r/image! :player/flash {:pos (pt/+ (:pos player)
-                                                     {:x 24 :y 0})}))
+                 (r/image! :player/flash {:pos (pt/translate-x (:pos player) 24)}))
                (for [enemy (:enemies state)]
                  (e/render-enemy! enemy))
                (for [expl (:explosions state)]

@@ -8,7 +8,7 @@
                                                             (mod (inc (:anim-state e)) 5)
                                                             (:anim-state e))]
                                            (assoc e
-                                                  :pos (pt/- (:pos e) {:x 1 :y 0})
+                                                  :pos (pt/translate-x (:pos e) -1)
                                                   :anim-counter new-counter
                                                   :anim-state anim-state
                                                   :image (nth [:enemy-ship/one

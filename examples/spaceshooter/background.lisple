@@ -57,7 +57,7 @@
       (if (= (:counter new-bg) 0)
         (assoc new-bg :pos (map (:pos new-bg)
                                 (fn [pos]
-                                  (let [new-pos (pt/- pos {:x 1 :y 0})]
+                                  (let [new-pos (pt/translate-x pos -1)]
                                     (if (<= (:x new-pos) (-> bg :reset :at))
                                       {:x (-> bg :reset :to) :y (:y new-pos)}
                                       new-pos)))))
