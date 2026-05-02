@@ -63,21 +63,21 @@
                                                                anim-frame (if (= 0 counter)
                                                                             (+ 1 (:anim-counter expl))
                                                                             (:anim-counter expl))]
-                                                           (-> expl
-                                                               (assoc :counter counter)
-                                                               (assoc :anim-counter anim-frame)
-                                                               (assoc :image (nth [:explosion/one
-                                                                                   :explosion/two
-                                                                                   :explosion/three
-                                                                                   :explosion/four
-                                                                                   :explosion/five]
-                                                                                  anim-frame))))))
+                                                           (assoc expl
+                                                                  :counter counter
+                                                                  :anim-counter anim-frame
+                                                                  :image (nth [:explosion/one
+                                                                               :explosion/two
+                                                                               :explosion/three
+                                                                               :explosion/four
+                                                                               :explosion/five]
+                                                                              anim-frame)))))
                                                   (filter (fn [expl]
                                                             (not= (:anim-counter expl) 5))))
-                                              (:explosions collision-result)))
-                   (assoc :enemy-spawners (:spawners spawner-result))
-                   (assoc :background (bg/tick (:background state)))
-                   (assoc :enemies (map (:enemies collision-result) e/update-enemy))
+                                              (:explosions collision-result))
+                          :enemy-spawners (:spawners spawner-result)
+                          :background (bg/tick (:background state))
+                          :enemies (map (:enemies collision-result) e/update-enemy))
                    (assoc-in [:player :image] (if (not (or (contains? (:held-keys ctx) :key/up)
                                                            (contains? (:held-keys ctx) :key/down)))
                                                 :player/base

@@ -8,15 +8,15 @@
                                                anim-state (if (= 0 new-counter)
                                                             (mod (+ 1 (:anim-state e)) 5)
                                                             (:anim-state e))]
-                                           (-> e
-                                               (assoc :pos (pt/- (:pos e) {:x 1 :y 0}))
-                                               (assoc :anim-counter new-counter)
-                                               (assoc :anim-state anim-state)
-                                               (assoc :image (nth [:enemy-ship/one
-                                                                   :enemy-ship/two
-                                                                   :enemy-ship/three
-                                                                   :enemy-ship/four
-                                                                   :enemy-ship/five] anim-state)))))}
+                                           (assoc e
+                                                  :pos (pt/- (:pos e) {:x 1 :y 0})
+                                                  :anim-counter new-counter
+                                                  :anim-state anim-state
+                                                  :image (nth [:enemy-ship/one
+                                                               :enemy-ship/two
+                                                               :enemy-ship/three
+                                                               :enemy-ship/four
+                                                               :enemy-ship/five] anim-state))))}
                   :enemy/asteroid {:update (fn [e]
                                              (let [vdir (cond
                                                           (and (= :up (:vdir e)) (< (-> e :pos :y) 1))
@@ -27,14 +27,14 @@
 
                                                           :true
                                                           (:vdir e))]
-                                               (-> e
-                                                   (assoc :vdir vdir)
-                                                   (assoc :pos (pt/+ (:pos e)
-                                                                     {:x -1 :y (if (= :up vdir) -1 1)}))
-                                                   (assoc :rotation (+ (:rotation e) 0.02)))))
+                                               (assoc e
+                                                      :vdir vdir
+                                                      :pos (pt/+ (:pos e)
+                                                                 {:x -1 :y (if (= :up vdir) -1 1)})
+                                                      :rotation (+ (:rotation e) 0.02))))
                                    :render! (fn [e]
-                                             (r/image! (:image e) {:pos (:pos e)
-                                                                   :rotation (:rotation e)}))}})
+                                              (r/image! (:image e) {:pos (:pos e)
+                                                                    :rotation (:rotation e)}))}})
 
 (def spawner-types {:spawner/single-ship (fn [spawner]
                                            (let [new-counter (mod (+ 1 (:counter spawner)) 130)]

@@ -11,14 +11,14 @@
 (defun move-player [player dir]
   (case dir
     :up
-    (-> player
-        (assoc :pos (pt/- (:pos player) {:x 0 :y (:speed player)}))
-        (assoc :image :player/up))
+    (assoc player
+           :pos (pt/- (:pos player) {:x 0 :y (:speed player)})
+           :image :player/up)
 
     :down
-    (-> player
-        (assoc :pos (pt/+ (:pos player) {:x 0 :y (:speed player)}))
-        (assoc :image :player/down))
+    (assoc player
+           :pos (pt/+ (:pos player) {:x 0 :y (:speed player)})
+           :image :player/down)
 
     :left
     (assoc player :pos (pt/- (:pos player) {:x (:speed player) :y 0}))
