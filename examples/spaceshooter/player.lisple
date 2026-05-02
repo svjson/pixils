@@ -9,26 +9,26 @@
    :bullets []})
 
 (defun move-player [player dir]
-  (case dir
-    :up
-    (assoc player
-           :pos (pt/- (:pos player) {:x 0 :y (:speed player)})
-           :image :player/up)
+  (-> (case dir
+        :up
+        (assoc player
+               :pos (pt/- (:pos player) {:x 0 :y (:speed player)})
+               :image :player/up)
 
-    :down
-    (assoc player
-           :pos (pt/+ (:pos player) {:x 0 :y (:speed player)})
-           :image :player/down)
+        :down
+        (assoc player
+               :pos (pt/+ (:pos player) {:x 0 :y (:speed player)})
+               :image :player/down)
 
-    :left
-    (update player :pos (fn [pos] (pt/- pos {:x (:speed player) :y 0})))
+        :left
+        (update player :pos (fn [pos] (pt/- pos {:x (:speed player) :y 0})))
 
-    :right
-    (update player :pos (fn [pos] (pt/+ pos {:x (:speed player) :y 0})))
+        :right
+        (update player :pos (fn [pos] (pt/+ pos {:x (:speed player) :y 0})))
 
-    :default
-    player))
-
+        :default
+        player)
+      (update :pos (fn [pos] (pt/clamp pos {:x 0 :y 0 :w 400 :h 225})))))
 
 
 (defun fire [player]
