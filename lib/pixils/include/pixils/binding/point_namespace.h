@@ -27,9 +27,11 @@ namespace Pixils::Script
   inline constexpr std::string_view FN__MULTIPLY = "*";
   inline constexpr std::string_view FN__ROTATE = "rotate";
   inline constexpr std::string_view FN__DISTANCE = "distance";
+  inline constexpr std::string_view FN__CLAMP = "clamp";
   inline constexpr std::string_view FN__TRANSLATE = "translate";
   inline constexpr std::string_view FN__TRANSLATE_X = "translate-x";
   inline constexpr std::string_view FN__TRANSLATE_Y = "translate-y";
+  inline constexpr std::string_view FN__WRAP = "wrap";
 
   namespace MapKey
   {
@@ -63,12 +65,16 @@ namespace Pixils::Script
     FUNC(PointMinus, minus);
     /*! @brief Distance between */
     FUNC(DistanceBetween, distance);
+    /*! @brief Clamp point to rect bounds */
+    FUNC(ClampPoint, clamp);
     /*! @brief Translate point by x/y delta */
     FUNC(TranslatePoint, translate);
     /*! @brief Translate point along x axis */
     FUNC(TranslatePointX, translate_x);
     /*! @brief Translate point along y axis */
     FUNC(TranslatePointY, translate_y);
+    /*! @brief Wrap point around rect bounds */
+    FUNC(WrapPoint, wrap);
     /*! @brief Rotate point around point */
     FUNC(RotatePoint, orig_amount, amount, with_opts);
   } // namespace Function

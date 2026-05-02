@@ -1,11 +1,13 @@
 
 #include <pixils/binding/arg_collector.h>
 #include <pixils/binding/point_namespace.h>
+#include <pixils/binding/rect_namespace.h>
 #include <pixils/geom.h>
 
 #include <lisple/exception.h>
 #include <lisple/host/object.h>
 #include <lisple/host/schema.h>
+#include <algorithm>
 
 namespace Pixils::Script
 {
@@ -68,6 +70,24 @@ namespace Pixils::Script
       return Lisple::RTValue::number(a.distance_to(b));
     }
 
+    /* Clamp Point */
+    FUNC_IMPL(ClampPoint,
+              SIG((FN_ARGS((&HostType::POINT), (&HostType::RECT)),
+                   EXEC_DISPATCH(&ClampPoint::exec_clamp))));
+
+    EXEC_BODY(ClampPoint, exec_clamp)
+    {
+      const Point& point = Lisple::obj<Point>(*args[0]);
+      const Rect& rect = Lisple::obj<Rect>(*args[1]);
+
+      const float x = std::max(static_cast<float>(rect.x),
+                               std::min(point.x, static_cast<float>(rect.x + rect.w)));
+      const float y = std::max(static_cast<float>(rect.y),
+                               std::min(point.y, static_cast<float>(rect.y + rect.h)));
+
+      return PointAdapter::make_unique(x, y);
+    }
+
     /* Translate Point */
     FUNC_IMPL(TranslatePoint,
               SIG((FN_ARGS((&HostType::POINT), (&Lisple::Type::NUMBER), (&Lisple::Type::NUMBER)),
@@ -99,6 +119,27 @@ namespace Pixils::Script
     {
       const Point& point = Lisple::obj<Point>(*args[0]);
       return PointAdapter::make_unique(point.plus(0, args[1]->f32()));
+    }
+
+    /* Wrap Point */
+    FUNC_IMPL(WrapPoint,
+              SIG((FN_ARGS((&HostType::POINT), (&HostType::RECT)),
+                   EXEC_DISPATCH(&WrapPoint::exec_wrap))));
+
+    EXEC_BODY(WrapPoint, exec_wrap)
+    {
+      const Point& point = Lisple::obj<Point>(*args[0]);
+      const Rect& rect = Lisple::obj<Rect>(*args[1]);
+
+      const float min_x = rect.x;
+      const float max_x = rect.x + rect.w;
+      const float min_y = rect.y;
+      const float max_y = rect.y + rect.h;
+
+      const float x = point.x < min_x ? max_x : point.x > max_x ? min_x : point.x;
+      const float y = point.y < min_y ? max_y : point.y > max_y ? min_y : point.y;
+
+      return PointAdapter::make_unique(x, y);
     }
 
     /* Rotate Point - rotate-point */
@@ -205,6 +246,7 @@ namespace Pixils::Script
     : Lisple::Namespace(std::string(NS__PIXILS__POINT))
   {
     values.emplace(FN__DISTANCE, Function::DistanceBetween::make());
+    values.emplace(FN__CLAMP, Function::ClampPoint::make());
     values.emplace(FN__DIVIDE, Function::PointDivision::make());
     values.emplace(FN__INT_POINT, Function::IntPointFunction::make());
     values.emplace(FN__MAKE_POINT, Function::MakePoint::make());
@@ -215,6 +257,7 @@ namespace Pixils::Script
     values.emplace(FN__TRANSLATE, Function::TranslatePoint::make());
     values.emplace(FN__TRANSLATE_X, Function::TranslatePointX::make());
     values.emplace(FN__TRANSLATE_Y, Function::TranslatePointY::make());
+    values.emplace(FN__WRAP, Function::WrapPoint::make());
   }
 
 } // namespace Pixils::Script
