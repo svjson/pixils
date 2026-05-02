@@ -4,12 +4,26 @@
 #include <pixils/runtime/mode.h>
 
 #include <SDL2/SDL_image.h>
+#include <SDL2/SDL_mixer.h>
 #include <SDL2/SDL_render.h>
 #include <SDL2/SDL_rwops.h>
 #include <filesystem>
 
 namespace Pixils::Asset
 {
+  namespace
+  {
+    std::string resolve_asset_path(const std::string& base_path, const std::string& file_name)
+    {
+      if (!base_path.empty() && !std::filesystem::path(file_name).is_absolute())
+      {
+        return base_path + "/" + file_name;
+      }
+
+      return file_name;
+    }
+  } // namespace
+
   Loader::Loader(RenderContext& ctx, std::string base_path)
     : ctx(ctx)
     , base_path(std::move(base_path))
@@ -22,11 +36,8 @@ namespace Pixils::Asset
 
     for (auto& img_dep : deps.images)
     {
-      std::string resolved = img_dep.file_name;
-      if (!base_path.empty() && !std::filesystem::path(resolved).is_absolute())
-        resolved = base_path + "/" + resolved;
-
       SDL_Texture* texture = nullptr;
+      std::string resolved = resolve_asset_path(base_path, img_dep.file_name);
       SDL_Surface* img_surface = IMG_Load(resolved.c_str());
       if (img_surface)
       {
@@ -45,8 +56,14 @@ namespace Pixils::Asset
       bundle.images.emplace(img_dep.resource_id, texture);
     }
 
+    for (auto& sound_dep : deps.sounds)
+    {
+      bundle.sounds.emplace(sound_dep.resource_id, load_sound_from_file(sound_dep.file_name));
+    }
+
     return bundle;
   }
+
   SDL_Texture* Loader::load_texture_from_memory(const unsigned char* data, std::size_t size)
   {
     SDL_RWops* rw = SDL_RWFromConstMem(data, static_cast<int>(size));
@@ -58,5 +75,11 @@ namespace Pixils::Asset
     SDL_Texture* texture = SDL_CreateTextureFromSurface(ctx.renderer, surface);
     SDL_FreeSurface(surface);
     return texture;
+  }
+
+  Mix_Chunk* Loader::load_sound_from_file(const std::string& file_name)
+  {
+    std::string resolved = resolve_asset_path(base_path, file_name);
+    return Mix_LoadWAV(resolved.c_str());
   }
 } // namespace Pixils::Asset

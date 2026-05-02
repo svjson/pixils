@@ -12,6 +12,7 @@ namespace Pixils::Script
   namespace MapKey
   {
     SHKEY(IMAGES, "images");
+    SHKEY(SOUNDS, "sounds");
   }
 
   namespace Function
@@ -23,7 +24,9 @@ namespace Pixils::Script
 
     EXEC_BODY(MakeResourceDependencies, exec_make_deps)
     {
-      static Lisple::MapSchema resources_schema({}, {{"images", &Lisple::Type::MAP}});
+      static Lisple::MapSchema resources_schema(
+        {},
+        {{"images", &Lisple::Type::MAP}, {"sounds", &Lisple::Type::MAP}});
 
       auto opts = resources_schema.bind(ctx, *args[0]);
 
@@ -38,6 +41,15 @@ namespace Pixils::Script
         }
       }
 
+      if (auto sound_map = opts.val("sounds"))
+      {
+        for (auto& key : Lisple::Dict::map_keys(*sound_map))
+        {
+          auto val = Lisple::Dict::get_property(sound_map, *key);
+          deps.sounds.push_back({key->str(), val->str()});
+        }
+      }
+
       return ResourceDependenciesAdapter::make_unique(deps);
     }
   } // namespace Function
@@ -49,6 +61,11 @@ namespace Pixils::Script
                       (images));
 
   NOBJ_PROP_GET(ResourceDependenciesAdapter, images)
+  {
+    return Lisple::Constant::NIL;
+  }
+
+  NOBJ_PROP_GET(ResourceDependenciesAdapter, sounds)
   {
     return Lisple::Constant::NIL;
   }

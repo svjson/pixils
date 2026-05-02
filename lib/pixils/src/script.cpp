@@ -1,4 +1,5 @@
 
+#include <pixils/binding/audio_namespace.h>
 #include "pixils/binding/style_namespace.h"
 #include <pixils/asset/registry.h>
 #include <pixils/binding/color_namespace.h>
@@ -29,6 +30,7 @@ namespace Pixils
     std::vector<std::unique_ptr<Lisple::Namespace>> namespaces;
     namespaces.push_back(std::make_unique<Pixils::Script::PixilsNamespace>(ctx));
     namespaces.push_back(std::make_unique<Pixils::Script::ResourceNamespace>());
+    namespaces.push_back(std::make_unique<Pixils::Script::AudioNamespace>());
     namespaces.push_back(std::make_unique<Pixils::Script::ColorNamespace>());
     namespaces.push_back(std::make_unique<Pixils::Script::PointNamespace>());
     namespaces.push_back(std::make_unique<Pixils::Script::RectNamespace>());
@@ -78,6 +80,7 @@ namespace Pixils
     std::vector<std::unique_ptr<Lisple::Namespace>> namespaces;
     namespaces.push_back(std::make_unique<Pixils::Script::PixilsNamespace>(ctx));
     namespaces.push_back(std::make_unique<Pixils::Script::ResourceNamespace>());
+    namespaces.push_back(std::make_unique<Pixils::Script::AudioNamespace>());
     namespaces.push_back(std::make_unique<Pixils::Script::ColorNamespace>());
     namespaces.push_back(std::make_unique<Pixils::Script::PointNamespace>());
     namespaces.push_back(std::make_unique<Pixils::Script::RenderNamespace>());

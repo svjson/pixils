@@ -55,4 +55,20 @@ namespace Pixils::Asset
 
     return bundle.images.at(asset_id);
   }
+
+  Mix_Chunk* Registry::get_sound(const std::string& bundle_id, const std::string& asset_id)
+  {
+    if (!this->is_loaded(bundle_id))
+    {
+      auto it = this->declarations.find(bundle_id);
+      if (it == this->declarations.end()) return nullptr;
+      this->load(bundle_id, it->second);
+    }
+
+    Bundle& bundle = this->bundles.at(bundle_id);
+
+    if (!bundle.sounds.count(asset_id)) return nullptr;
+
+    return bundle.sounds.at(asset_id);
+  }
 } // namespace Pixils::Asset

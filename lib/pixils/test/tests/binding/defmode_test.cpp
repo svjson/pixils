@@ -85,3 +85,18 @@ TEST_F(DefModeTest, defmode_child_explicit_id_overrides_auto)
   ASSERT_EQ(mode.children.size(), 1u);
   EXPECT_EQ(mode.children[0].id, "sidebar");
 }
+
+TEST_F(DefModeTest, defmode_resources_accept_sounds)
+{
+  // When
+  runtime.eval(R"(
+    (pixils/defmode test-mode
+      {:resources {:sounds {:laser "laser.wav"}}})
+  )");
+
+  // Then
+  Pixils::Runtime::Mode& mode = get_mode(runtime, "test-mode");
+  ASSERT_EQ(mode.resources.sounds.size(), 1u);
+  EXPECT_EQ(mode.resources.sounds[0].resource_id, "laser");
+  EXPECT_EQ(mode.resources.sounds[0].file_name, "laser.wav");
+}

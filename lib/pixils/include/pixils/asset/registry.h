@@ -9,6 +9,8 @@
 #include <string>
 #include <unordered_map>
 
+struct Mix_Chunk;
+
 namespace Pixils::Asset
 {
   class Registry
@@ -32,6 +34,7 @@ namespace Pixils::Asset
     void load(const std::string& bundle_id, const Runtime::ResourceDependencies& deps);
 
     SDL_Texture* get_image(const std::string& bundle, const std::string& asset_id);
+    Mix_Chunk* get_sound(const std::string& bundle, const std::string& asset_id);
   };
 } // namespace Pixils::Asset
 

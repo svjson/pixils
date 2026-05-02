@@ -79,27 +79,19 @@ namespace Pixils::Script
 
     SFORM_LOWER_IMPL(DefBundleForm)
     {
-      static Lisple::MapSchema bundle_schema({}, {{"images", &Lisple::Type::MAP}});
-
       auto name = Lisple::exec(*ctx.ctx, *lower_literal(ast_node->get_children()[1]))->str();
       auto map_expr = Lisple::exec(*ctx.ctx, *lower_expr(ctx, ast_node->get_children()[2]));
-
-      auto opts = bundle_schema.bind(*ctx.ctx, *map_expr);
-
-      Runtime::ResourceDependencies deps;
-      auto images_val = opts.val("images");
-      if (images_val->type == Lisple::RTValue::Type::MAP)
+      auto deps_coercion = HostType::RESOURCE_DEPENDENCIES.coerce(*ctx.ctx, map_expr);
+      if (!deps_coercion.success)
       {
-        for (auto& key : Lisple::Dict::keys(*images_val))
-        {
-          auto val = Lisple::Dict::get_property(images_val, key);
-          deps.images.push_back({key->str(), val->str()});
-        }
+        throw Lisple::TypeError("Invalid bundle declaration: " + map_expr->to_string());
       }
 
       RenderContext& rc =
         Lisple::obj<RenderContext>(*ctx.ctx->lookup_value(ID__PIXILS__RENDER_CONTEXT));
-      rc.asset_registry->declare_bundle(name, deps);
+      rc.asset_registry->declare_bundle(
+        name,
+        Lisple::obj<Runtime::ResourceDependencies>(*deps_coercion.result));
 
       return std::make_unique<Lisple::ExecNode>(Lisple::Constant::NIL);
     }

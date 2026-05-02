@@ -493,6 +493,34 @@ A mode declares the images it needs via `:resources`. They are loaded before the
 
 Images are referenced as qualified keywords: `:mode-name/resource-id`.
 
+### Sound resources
+
+A mode can also declare sounds under `:resources`.
+
+```clojure
+(pixils/defmode game-mode
+  {:resources {:sounds {:laser "assets/laser.wav"
+                        :boom  "assets/explosion.wav"}}})
+```
+
+Sounds are referenced as qualified keywords in the same way as images: `:mode-name/resource-id`.
+
+**`pixils.audio/play!`**
+
+Plays a sound effect loaded via a bundle or mode resource declaration.
+
+```clojure
+(pixils.audio/play! :game-mode/laser)
+(pixils.audio/play! :game-mode/laser {:volume 0.35})
+(pixils.audio/play! :game-mode/boom {:loops 1})
+```
+
+| Option    | Description |
+|-----------|-------------|
+| `:channel`| SDL_mixer channel to use. Default: `-1` (first free channel). |
+| `:loops`  | Number of extra repeats after the first play. Default: `0`. |
+| `:volume` | Playback volume from `0.0` to `1.0`. Default: `1.0`. |
+
 ### Text and fonts
 
 Pixils supports bitmap fonts. A font is declared with `deffont` and references an image
@@ -500,17 +528,17 @@ loaded via a bundle.
 
 **`defbundle`**
 
-`defbundle` declares a named set of images that are loaded immediately, independently of any
-mode's lifecycle. Bundles are the primary mechanism for loading font sheets and other assets
-that need to be available at script load time.
+`defbundle` declares a named set of resources independently of any mode's lifecycle. Bundles
+are the primary mechanism for loading font sheets and other shared assets.
 
 ```clojure
 (pixils/defbundle ui-assets
   {:images {:font-sheet "assets/font.png"
-            :icons      "assets/icons.png"}})
+            :icons      "assets/icons.png"}
+   :sounds {:click      "assets/click.wav"}})
 ```
 
-Bundle images are referenced as `:bundle-name/image-id`.
+Bundle resources are referenced as `:bundle-name/resource-id`.
 
 **`deffont`**
 
@@ -581,6 +609,12 @@ Accepts the same `:font` and `:scale` options as `text!`.
 | `push-mode!`  | Push a mode onto the stack. Args: `mode-sym`, optional `state`, optional `overrides-map` |
 | `pop-mode!`   | Pop the top mode from the stack |
 
+### `pixils.audio`
+
+| Symbol  | Description |
+|---------|-------------|
+| `play!` | Play a sound resource. Args: qualified keyword `:bundle/id`, optional options map `{:channel N :loops N :volume N}`. Returns the SDL_mixer channel index, or `-1` if playback fails. |
+
 ### `pixils.ui`
 
 | Symbol               | Description |
@@ -624,7 +658,7 @@ Accepts the same `:font` and `:scale` options as `text!`.
 
 | Symbol                      | Description |
 |-----------------------------|-------------|
-| `make-resource-dependencies`| Declare image dependencies explicitly. Takes `{:images {:id "file.png"}}`. The plain map form in `:resources` is equivalent and preferred. |
+| `make-resource-dependencies`| Declare resource dependencies explicitly. Takes `{:images {:id "file.png"} :sounds {:id "file.wav"}}`. The plain map form in `:resources` is equivalent and preferred. |
 
 ## Using Pixils as a library
 

@@ -6,12 +6,14 @@
 #include <unordered_map>
 
 struct SDL_Texture;
+struct Mix_Chunk;
 
 namespace Pixils::Asset
 {
   struct Bundle
   {
     std::unordered_map<std::string, SDL_Texture*> images;
+    std::unordered_map<std::string, Mix_Chunk*> sounds;
   };
 } // namespace Pixils::Asset
 
