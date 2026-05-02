@@ -631,7 +631,7 @@ Accepts the same `:font` and `:scale` options as `text!`.
 | `line!`     | Draw a line between two points. Optional third arg: color. |
 | `rect!`     | Draw a rectangle. Args: `{:x :y :w :h}` rect (or two corner points), options map `{:color ... :fill true/false}`. |
 | `polygon!`  | Draw a polygon from a vector of points. Options: `:close`, `:rotation`, `:offset`, `:color`, `:scale`. |
-| `image!`    | Draw an image. Args: qualified keyword `:bundle/id`, options map with `:pos` (required), `:scale`, and `:alpha`. |
+| `image!`    | Draw an image. Args: qualified keyword `:bundle/id`, options map with `:pos` (required), `:scale`, `:alpha`, and `:rotation` (radians). |
 | `text!`     | Render a string. Args: string, position point, options map. Returns rendered bounds `{:x :y :w :h}`. |
 | `text-size` | Measure text without rendering. Args: string, optional options map. Returns `{:w :h}`. |
 

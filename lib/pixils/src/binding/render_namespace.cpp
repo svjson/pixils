@@ -13,6 +13,7 @@
 
 #include <SDL2/SDL_blendmode.h>
 #include <SDL2/SDL_render.h>
+#include <cmath>
 #include <lisple/host/schema.h>
 #include <lisple/namespace.h>
 #include <lisple/runtime/dict.h>
@@ -34,13 +35,19 @@ namespace Pixils::Script
 
   namespace Function
   {
+    namespace
+    {
+      constexpr double RADIANS_TO_DEGREES = 180.0 / 3.14159265358979323846;
+    }
+
     FUNC_IMPL(DrawImageBang,
               SIG((FN_ARGS((&Lisple::Type::KEY), (&Lisple::Type::MAP)),
                    EXEC_DISPATCH(&DrawImageBang::exec_draw_img))));
 
     Lisple::MapSchema draw_image_opts_schema({{"pos", &HostType::POINT}},
                                              {{"scale", &Lisple::Type::NUMBER},
-                                              {"alpha", &Lisple::Type::NUMBER}});
+                                              {"alpha", &Lisple::Type::NUMBER},
+                                              {"rotation", &Lisple::Type::NUMBER}});
 
     EXEC_BODY(DrawImageBang, exec_draw_img)
     {
@@ -56,6 +63,7 @@ namespace Pixils::Script
 
         Point& pos = opts.obj<Point>("pos");
         float scale = opts.f32("scale", 1.0f);
+        float rotation = opts.f32(MapKey::ROTATION->value, 0.0f);
 
         SDL_Rect dim{pos.round_x(), pos.round_y(), 0, 0};
         SDL_QueryTexture(texture, nullptr, nullptr, &dim.w, &dim.h);
@@ -65,7 +73,20 @@ namespace Pixils::Script
 
         if (texture)
         {
-          SDL_RenderCopy(rc.renderer, texture, nullptr, &dim);
+          if (rotation == 0.0f)
+          {
+            SDL_RenderCopy(rc.renderer, texture, nullptr, &dim);
+          }
+          else
+          {
+            SDL_RenderCopyEx(rc.renderer,
+                             texture,
+                             nullptr,
+                             &dim,
+                             static_cast<double>(rotation) * RADIANS_TO_DEGREES,
+                             nullptr,
+                             SDL_FLIP_NONE);
+          }
         }
       }
 
