@@ -2,11 +2,11 @@
   (:require pixils
             [pixils.point :as pt]
             [pixils.render :as r]
+            [pixils.state.counter :as cnt]
             [spaceshooter.enemy :as e]
             [spaceshooter.player :as p]
             [spaceshooter.collision :as coll]
-            [spaceshooter.background :as bg]
-            [spaceshooter.counter :as cnt]))
+            [spaceshooter.background :as bg]))
 
 (defmode game
   {:init (fn [state ctx]
@@ -63,14 +63,16 @@
                                                      (cnt/advance-at expl :counter
                                                                      {:on-step
                                                                       (fn [expl]
-                                                                        (assoc expl :image (nth [:explosion/one
-                                                                                                 :explosion/two
-                                                                                                 :explosion/three
-                                                                                                 :explosion/four
-                                                                                                 :explosion/five]
-                                                                                                (-> expl :counter :value))))})))
+                                                                        (assoc expl :image
+                                                                               (nth [:explosion/one
+                                                                                     :explosion/two
+                                                                                     :explosion/three
+                                                                                     :explosion/four
+                                                                                     :explosion/five
+                                                                                     :explosion/five]
+                                                                                    (cnt/value-at expl :counter))))})))
                                               (filter (fn [expl]
-                                                        (not= (:anim-counter expl) 5))))
+                                                        (< (cnt/value-at expl :counter) 5))))
                                           (:explosions collision-result))
                       :enemy-spawners (:spawners spawner-result)
                       :background (bg/tick (:background state))

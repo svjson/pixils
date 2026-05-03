@@ -1,7 +1,7 @@
 (ns spaceshooter.enemy
   (:require [pixils.point :as pt]
             [pixils.render :as r]
-            [spaceshooter.counter :as cnt]))
+            [pixils.state.counter :as cnt]))
 
 (def enemy-types {:enemy/ship {:update (fn [e]
                                          (cnt/advance-at
@@ -14,7 +14,7 @@
                                                                           :enemy-ship/three
                                                                           :enemy-ship/four
                                                                           :enemy-ship/five]
-                                                                         (-> enemy :anim-counter :value))))}))}
+                                                                         (cnt/value-at enemy :anim-counter))))}))}
                   :enemy/asteroid {:update (fn [e]
                                              (let [vdir (cond
                                                           (and (= :up (:vdir e)) (< (-> e :pos :y) 1))
@@ -40,7 +40,7 @@
                                                            {:on-step
                                                             (fn [spawner]
                                                               (assoc spawner :output
-                                                                     (if (-> spawner :counter :wrapped?)
+                                                                     (if (:wrapped? (:counter spawner))
                                                                        [{:type :enemy/ship
                                                                          :pos {:x 400 :y (rnd 0 230)}
                                                                          :image :enemy-ship/one
@@ -52,7 +52,7 @@
                                                         {:on-step
                                                          (fn [spawner]
                                                            (assoc spawner :output
-                                                                  (if (-> spawner :counter :wrapped?)
+                                                                  (if (:wrapped? (:counter spawner))
                                                                     [{:type :enemy/asteroid
                                                                       :pos {:x 400 :y (rnd 0 230)}
                                                                       :image :asteroid/big
