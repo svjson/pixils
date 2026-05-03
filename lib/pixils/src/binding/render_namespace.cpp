@@ -41,20 +41,32 @@ namespace Pixils::Script
     }
 
     FUNC_IMPL(DrawImageBang,
-              SIG((FN_ARGS((&Lisple::Type::KEY), (&Lisple::Type::MAP)),
-                   EXEC_DISPATCH(&DrawImageBang::exec_draw_img))));
-
-    Lisple::MapSchema draw_image_opts_schema({{"pos", &HostType::POINT}},
-                                             {{"scale", &Lisple::Type::NUMBER},
-                                              {"alpha", &Lisple::Type::NUMBER},
-                                              {"rotation", &Lisple::Type::NUMBER}});
+              MULTI_SIG((FN_ARGS((&Lisple::Type::KEY), (&HostType::POINT)),
+                         EXEC_DISPATCH(&DrawImageBang::exec_draw_img)),
+                        (FN_ARGS((&Lisple::Type::KEY), (&Lisple::Type::MAP)),
+                         EXEC_DISPATCH(&DrawImageBang::exec_draw_img))));
 
     EXEC_BODY(DrawImageBang, exec_draw_img)
     {
+      static Lisple::MapSchema draw_image_opts_schema({{"pos", &HostType::POINT}},
+                                                      {{"scale", &Lisple::Type::NUMBER},
+                                                       {"alpha", &Lisple::Type::NUMBER},
+                                                       {"rotation", &Lisple::Type::NUMBER}});
+
       if (args[0]->type == Lisple::RTValue::Type::KEYWORD)
       {
         auto [asset_bundle, asset_key] = args.front()->qual();
-        auto opts = draw_image_opts_schema.bind(ctx, *args[1]);
+
+        /**
+         * Force detection of Point-arg, as coercion will not have happened during
+         * for map-shaped Points during dispatch
+         */
+        Lisple::sptr_rtval map_arg =
+          Lisple::Dict::contains_key(*args[1], "pos")
+            ? args[1]
+            : Lisple::RTValue::map({Lisple::RTValue::keyword("pos"), args[1]});
+
+        auto opts = draw_image_opts_schema.bind(ctx, *map_arg);
 
         RenderContext& rc =
           Lisple::obj<RenderContext>(*ctx.lookup_value(ID__PIXILS__RENDER_CONTEXT));
