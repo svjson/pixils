@@ -1,0 +1,45 @@
+(ns spaceshooter.counter)
+
+(defun make [opts]
+  (let [counter
+        {:start 0
+         :value 0
+         :end (or (:end opts) 10)
+         :mode (or (:mode opts) :loop)
+         :wrapped? false
+         :phase-counter (when-let [every (:every opts)]
+                          (make {:end every}))}]
+    counter))
+
+(defun advance [counter]
+  (let [phase-counter (when-let [ph-cnt (:phase-counter counter)]
+                        (advance ph-cnt))
+        step? (or (not phase-counter)
+                  (and phase-counter (:wrapped? phase-counter)))
+        value (if step?
+                (case (:mode counter)
+                  :loop
+                  (mod (inc (:value counter)) (:end counter))
+
+                  :stop
+                  (min (inc (:value counter)) (:end counter))
+
+                  :default
+                  (inc (:value counter)))
+                (:value counter))]
+    (assoc counter
+           :value value
+           :phase-counter phase-counter
+           :wrapped? (= 0 value))))
+
+(defun advance-at [entity counter-key triggers]
+  (let [counter (advance (get entity counter-key))
+        updated (assoc entity counter-key counter)
+        updated (if (:on-step triggers)
+                  (apply (:on-step triggers) [updated])
+                  updated)
+        updated (if (and (:wrapped? counter)
+                         (:on-wrap triggers))
+                  (apply (:on-wrap triggers) [updated])
+                  updated)]
+    updated))

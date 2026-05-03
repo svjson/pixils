@@ -1,21 +1,20 @@
 (ns spaceshooter.enemy
   (:require [pixils.point :as pt]
-            [pixils.render :as r]))
+            [pixils.render :as r]
+            [spaceshooter.counter :as cnt]))
 
 (def enemy-types {:enemy/ship {:update (fn [e]
-                                         (let [new-counter (mod (inc (:anim-counter e)) 4)
-                                               anim-state (if (= 0 new-counter)
-                                                            (mod (inc (:anim-state e)) 5)
-                                                            (:anim-state e))]
-                                           (assoc e
-                                                  :pos (pt/translate-x (:pos e) -1)
-                                                  :anim-counter new-counter
-                                                  :anim-state anim-state
-                                                  :image (nth [:enemy-ship/one
-                                                               :enemy-ship/two
-                                                               :enemy-ship/three
-                                                               :enemy-ship/four
-                                                               :enemy-ship/five] anim-state))))}
+                                         (cnt/advance-at
+                                          (update e :pos (fn [pos] (pt/translate-x pos -1)))
+                                          :anim-counter
+                                          {:on-step (fn [enemy]
+                                                      (assoc enemy
+                                                             :image (nth [:enemy-ship/one
+                                                                          :enemy-ship/two
+                                                                          :enemy-ship/three
+                                                                          :enemy-ship/four
+                                                                          :enemy-ship/five]
+                                                                         (-> enemy :anim-counter :value))))}))}
                   :enemy/asteroid {:update (fn [e]
                                              (let [vdir (cond
                                                           (and (= :up (:vdir e)) (< (-> e :pos :y) 1))
@@ -36,27 +35,32 @@
                                                                     :rotation (:rotation e)}))}})
 
 (def spawner-types {:spawner/single-ship (fn [spawner]
-                                           (let [new-counter (mod (inc (:counter spawner)) 130)]
-                                             {:spawner (assoc spawner :counter new-counter)
-                                              :enemies (if (= new-counter 0)
-                                                         [{:type :enemy/ship
-                                                           :pos {:x 400 :y (rnd 0 230)}
-                                                           :image :enemy-ship/one
-                                                           :anim-state 0
-                                                           :anim-counter 0}]
-                                                         [])}))
+                                           (cnt/advance-at spawner
+                                                           :counter
+                                                           {:on-step
+                                                            (fn [spawner]
+                                                              (assoc spawner :output
+                                                                     (if (-> spawner :counter :wrapped?)
+                                                                       [{:type :enemy/ship
+                                                                         :pos {:x 400 :y (rnd 0 230)}
+                                                                         :image :enemy-ship/one
+                                                                         :anim-counter (cnt/make {:end 5 :every 4})}]
+                                                                       [])))}))
                     :spawner/asteroid (fn [spawner]
-                                        (let [new-counter (mod (inc (:counter spawner)) 80)]
-                                          {:spawner (assoc spawner :counter new-counter)
-                                           :enemies (if (= new-counter 0)
-                                                      [{:type :enemy/asteroid
-                                                        :pos {:x 400 :y (rnd 0 230)}
-                                                        :image :asteroid/big
-                                                        :rotation 0.0
-                                                        :anim-state 0
-                                                        :anim-counter 0
-                                                        :vdir (rand-nth [:up :down])}]
-                                                      [])}))})
+                                        (cnt/advance-at spawner
+                                                        :counter
+                                                        {:on-step
+                                                         (fn [spawner]
+                                                           (assoc spawner :output
+                                                                  (if (-> spawner :counter :wrapped?)
+                                                                    [{:type :enemy/asteroid
+                                                                      :pos {:x 400 :y (rnd 0 230)}
+                                                                      :image :asteroid/big
+                                                                      :rotation 0.0
+                                                                      :anim-state 0
+                                                                      :anim-counter 0
+                                                                      :vdir (rand-nth [:up :down])}]
+                                                                    [])))}))})
 
 
 (defun update-enemy [enemy]
@@ -81,10 +85,9 @@
             (if spawner-fn
               ; Dynamic callees currently need apply to avoid CallNode cache stickiness.
               (apply spawner-fn [spawner])
-              {:spawner spawner
-               :enemies []}))))
+              spawner))))
    {:spawners []
     :enemies []}
-   (fn [result spawner-result]
-     {:spawners (concat (:spawners result) (:spawner spawner-result))
-      :enemies (concat (:enemies result) (:enemies spawner-result))})))
+   (fn [result spawner]
+     {:spawners (concat (:spawners result) (assoc spawner :output []))
+      :enemies (concat (:enemies result) (:output spawner))})))

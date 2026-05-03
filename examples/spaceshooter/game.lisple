@@ -5,7 +5,8 @@
             [spaceshooter.enemy :as e]
             [spaceshooter.player :as p]
             [spaceshooter.collision :as coll]
-            [spaceshooter.background :as bg]))
+            [spaceshooter.background :as bg]
+            [spaceshooter.counter :as cnt]))
 
 (defmode game
   {:init (fn [state ctx]
@@ -13,9 +14,9 @@
             :enemies []
             :explosions []
             :enemy-spawners [{:type :spawner/single-ship
-                              :counter 0}
+                              :counter (cnt/make {:end 130})}
                              {:type :spawner/asteroid
-                              :counter 0}]
+                              :counter (cnt/make {:end 80})}]
             :background [bg/nebula-top
                          bg/nebula-center
                          bg/nebula-bottom
@@ -59,19 +60,15 @@
                (assoc state
                       :explosions (concat (-> (:explosions state)
                                               (map (fn [expl]
-                                                     (let [counter (mod (inc (:counter expl)) 3)
-                                                           anim-frame (if (= 0 counter)
-                                                                        (inc (:anim-counter expl))
-                                                                        (:anim-counter expl))]
-                                                       (assoc expl
-                                                              :counter counter
-                                                              :anim-counter anim-frame
-                                                              :image (nth [:explosion/one
-                                                                           :explosion/two
-                                                                           :explosion/three
-                                                                           :explosion/four
-                                                                           :explosion/five]
-                                                                          anim-frame)))))
+                                                     (cnt/advance-at expl :counter
+                                                                     {:on-step
+                                                                      (fn [expl]
+                                                                        (assoc expl :image (nth [:explosion/one
+                                                                                                 :explosion/two
+                                                                                                 :explosion/three
+                                                                                                 :explosion/four
+                                                                                                 :explosion/five]
+                                                                                                (-> expl :counter :value))))})))
                                               (filter (fn [expl]
                                                         (not= (:anim-counter expl) 5))))
                                           (:explosions collision-result))
