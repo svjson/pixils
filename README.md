@@ -316,12 +316,20 @@ The `:border` style key accepts a map with optional per-side overrides:
 ; Uniform border on all sides
 :border {:thickness 1 :line-style :solid :color {:r 0 :g 0 :b 0}}
 
+; Bevel border using per-side colors
+:border {:thickness 2
+         :line-style :bevel
+         :top {:color {:r 255 :g 255 :b 255}}
+         :left {:color {:r 255 :g 255 :b 255}}
+         :bottom {:color {:r 135 :g 136 :b 143}}
+         :right {:color {:r 135 :g 136 :b 143}}}
+
 ; Per-side overrides - base values apply to all sides; side maps override individually
 :border {:line-style :solid :color {:r 0 :g 0 :b 0}
          :bottom {:thickness 1}}
 ```
 
-Base border keys: `:thickness` (number), `:line-style` (`:solid`), `:color` (color map).
+Base border keys: `:thickness` (number), `:line-style` (`:solid`, `:bevel`), `:color` (color map).
 Directional override keys: `:top`, `:right`, `:bottom`, `:left` - each accepts the same fields.
 
 **Hidden**

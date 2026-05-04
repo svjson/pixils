@@ -94,6 +94,7 @@ namespace Pixils::UI
     if (style_res.border)
     {
       const Style::BorderStyle& bs = *style_res.border;
+      auto line_style = bs.line_style.value_or(Style::LineStyle::SOLID);
 
       auto draw_side = [&](int thickness, std::optional<Color> color, SDL_Rect rect)
       {
@@ -110,10 +111,62 @@ namespace Pixils::UI
       int tb = bs.bottom_thickness();
       int tl = bs.left_thickness();
 
-      draw_side(tt, bs.top_color(), {bounds.x, bounds.y, bounds.w, tt});
-      draw_side(tb, bs.bottom_color(), {bounds.x, bounds.y + bounds.h - tb, bounds.w, tb});
-      draw_side(tl, bs.left_color(), {bounds.x, bounds.y, tl, bounds.h});
-      draw_side(tr, bs.right_color(), {bounds.x + bounds.w - tr, bounds.y, tr, bounds.h});
+      if (line_style == Style::LineStyle::BEVEL)
+      {
+        auto draw_line = [&](std::optional<Color> color, int x1, int y1, int x2, int y2)
+        {
+          if (!color) return;
+          if (x2 < x1 || y2 < y1) return;
+          const SDL_Color c = color->to_SDL_Color();
+          SDL_SetRenderDrawColor(render_ctx.renderer, c.r, c.g, c.b, c.a);
+          SDL_SetRenderDrawBlendMode(render_ctx.renderer, SDL_BLENDMODE_BLEND);
+          SDL_RenderDrawLine(render_ctx.renderer, x1, y1, x2, y2);
+          SDL_SetRenderDrawBlendMode(render_ctx.renderer, SDL_BLENDMODE_NONE);
+        };
+
+        for (int n = 0; n < tt; n++)
+        {
+          draw_line(bs.top_color(),
+                    bounds.x,
+                    bounds.y + n,
+                    bounds.x + bounds.w - 1,
+                    bounds.y + n);
+        }
+
+        for (int n = 0; n < tl; n++)
+        {
+          draw_line(bs.left_color(),
+                    bounds.x + n,
+                    bounds.y,
+                    bounds.x + n,
+                    bounds.y + bounds.h - 1);
+        }
+
+        for (int n = 0; n < tb; n++)
+        {
+          draw_line(bs.bottom_color(),
+                    bounds.x + tb - n,
+                    bounds.y + bounds.h - tb + n,
+                    bounds.x + bounds.w - 1,
+                    bounds.y + bounds.h - tb + n);
+        }
+
+        for (int n = 0; n < tr; n++)
+        {
+          draw_line(bs.right_color(),
+                    bounds.x + bounds.w - tr + n,
+                    bounds.y + tr - n,
+                    bounds.x + bounds.w - tr + n,
+                    bounds.y + bounds.h - 1);
+        }
+      }
+      else
+      {
+        draw_side(tt, bs.top_color(), {bounds.x, bounds.y, bounds.w, tt});
+        draw_side(tb, bs.bottom_color(), {bounds.x, bounds.y + bounds.h - tb, bounds.w, tb});
+        draw_side(tl, bs.left_color(), {bounds.x, bounds.y, tl, bounds.h});
+        draw_side(tr, bs.right_color(), {bounds.x + bounds.w - tr, bounds.y, tr, bounds.h});
+      }
     }
 
     Rect content = style_res.content_rect(bounds);

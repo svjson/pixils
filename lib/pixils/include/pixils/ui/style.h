@@ -67,7 +67,8 @@ namespace Pixils::UI
 
     enum class LineStyle : uint8_t
     {
-      SOLID
+      SOLID,
+      BEVEL,
     };
 
     struct Border

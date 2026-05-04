@@ -142,6 +142,10 @@ namespace Pixils::Script
         {
           border.line_style = UI::Style::LineStyle::SOLID;
         }
+        else if (lstyle == "bevel")
+        {
+          border.line_style = UI::Style::LineStyle::BEVEL;
+        }
       }
       border.color = opts.optional_obj<Color>("color");
     }
@@ -414,6 +418,8 @@ namespace Pixils::Script
     {
     case UI::Style::LineStyle::SOLID:
       return Lisple::RTValue::keyword("solid");
+    case UI::Style::LineStyle::BEVEL:
+      return Lisple::RTValue::keyword("bevel");
     }
     return Lisple::Constant::NIL;
   }

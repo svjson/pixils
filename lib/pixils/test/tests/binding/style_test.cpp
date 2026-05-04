@@ -34,6 +34,19 @@ TEST_F(StyleTest, make_uniform_border)
   EXPECT_EQ(style.border->line_style, Pixils::UI::Style::LineStyle::SOLID);
 }
 
+TEST_F(StyleTest, make_bevel_border)
+{
+  // When
+  Lisple::sptr_rtval result =
+    runtime.eval("(pixils.ui.style/make-style {:border {:thickness 2 :line-style :bevel}})");
+
+  // Then
+  auto style = Lisple::obj<Pixils::UI::Style>(*result);
+  ASSERT_NE(style.border, std::nullopt);
+  EXPECT_EQ(style.border->thickness, 2);
+  EXPECT_EQ(style.border->line_style, Pixils::UI::Style::LineStyle::BEVEL);
+}
+
 TEST(StyleTotalDimensionsTest, total_width_includes_padding_and_border)
 {
   // Given
