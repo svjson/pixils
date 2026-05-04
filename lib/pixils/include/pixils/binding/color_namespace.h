@@ -2,7 +2,7 @@
 #ifndef PIXILS__COLOR_NAMESPACE_H
 #define PIXILS__COLOR_NAMESPACE_H
 
-#include <pixils/geom.h>
+#include <pixils/color.h>
 
 #include <lisple/exec.h>
 #include <lisple/host.h>
@@ -51,7 +51,7 @@ namespace Pixils::Script
     /*!
      * @brief Lisple Function that constructs a new instance of Color/ColorAdapter
      */
-    FUNC(MakeColor, make_color);
+    FUNC(MakeColor, make_color_map, make_color_string);
     /*!
      * @brief Constructs a new color with new alpha channel value
      */

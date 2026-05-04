@@ -1,7 +1,5 @@
-
 #include <pixils/geom.h>
 
-#include <SDL2/SDL_pixels.h>
 #include <algorithm>
 #include <bits/std_abs.h>
 #include <cmath>
@@ -127,18 +125,6 @@ namespace Pixils
   {
     os << "{" << coordinate.x << ", " << coordinate.y << "}";
     return os;
-  }
-
-  /* Color */
-  bool Color::operator==(const Color& other) const
-  {
-    return this->r == other.r && this->g == other.g && this->b == other.b &&
-           this->a == other.a;
-  }
-
-  SDL_Color Color::to_SDL_Color() const
-  {
-    return SDL_Color{r, g, b, a};
   }
 
   /* Rect */

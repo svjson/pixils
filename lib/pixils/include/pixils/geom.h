@@ -2,6 +2,8 @@
 #ifndef __PIXILS__GEOM_H_
 #define __PIXILS__GEOM_H_
 
+#include <pixils/color.h>
+
 #include <SDL2/SDL_pixels.h>
 #include <SDL2/SDL_rect.h>
 #include <ostream>
@@ -144,33 +146,6 @@ namespace Pixils
   Rect shrink_rect(const Rect& rect, int x_amount, int y_amount);
 
   Rect trunc_rect(const Rect& rect, const Rect& limit);
-
-  /*!
-   * @brief Describes the red, green and blue balance of a
-   * color, as well as its opacity.
-   *
-   * All values range between 0-255.
-   * a=0 is complete transparency.
-   * a=255 is complete opaqueness.
-   */
-  struct Color
-  {
-    /*! @brief The amount of red, 0-255 */
-    uint8_t r = 0x00;
-    /*! @brief The amount of green, 0-255 */
-    uint8_t g = 0x00;
-    /*! @brief The amount of blue, 0-255 */
-    uint8_t b = 0x00;
-    /*! @brief The alpha channel value, 0-255 */
-    uint8_t a = 0xff;
-
-    bool operator==(const Color& other) const;
-
-    /*!
-     * @brief Creates the SDL equivalent.
-     */
-    SDL_Color to_SDL_Color() const;
-  };
 
 } // namespace Pixils
 
