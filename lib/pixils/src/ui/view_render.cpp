@@ -3,6 +3,7 @@
 #include <pixils/context.h>
 #include <pixils/runtime/hook_invocation.h>
 #include <pixils/runtime/view.h>
+#include <pixils/ui/line.h>
 #include <pixils/ui/style.h>
 
 namespace Pixils::UI
@@ -94,79 +95,34 @@ namespace Pixils::UI
     if (style_res.border)
     {
       const Style::BorderStyle& bs = *style_res.border;
-      auto line_style = bs.line_style.value_or(Style::LineStyle::SOLID);
+      const LineSpec top_spec{.thickness = bs.top_thickness(),
+                              .color = bs.top_color(),
+                              .style = bs.top_line_style()};
+      const LineSpec right_spec{.thickness = bs.right_thickness(),
+                                .color = bs.right_color(),
+                                .style = bs.right_line_style()};
+      const LineSpec bottom_spec{.thickness = bs.bottom_thickness(),
+                                 .color = bs.bottom_color(),
+                                 .style = bs.bottom_line_style()};
+      const LineSpec left_spec{.thickness = bs.left_thickness(),
+                               .color = bs.left_color(),
+                               .style = bs.left_line_style()};
 
-      auto draw_side = [&](int thickness, std::optional<Color> color, SDL_Rect rect)
-      {
-        if (thickness <= 0 || !color) return;
-        const SDL_Color c = color->to_SDL_Color();
-        SDL_SetRenderDrawColor(render_ctx.renderer, c.r, c.g, c.b, c.a);
-        SDL_SetRenderDrawBlendMode(render_ctx.renderer, SDL_BLENDMODE_BLEND);
-        SDL_RenderFillRect(render_ctx.renderer, &rect);
-        SDL_SetRenderDrawBlendMode(render_ctx.renderer, SDL_BLENDMODE_NONE);
-      };
+      render_edge(render_ctx.renderer, bounds, Edge::TOP, top_spec);
+      render_edge(render_ctx.renderer, bounds, Edge::RIGHT, right_spec);
+      render_edge(render_ctx.renderer, bounds, Edge::BOTTOM, bottom_spec);
+      render_edge(render_ctx.renderer, bounds, Edge::LEFT, left_spec);
 
-      int tt = bs.top_thickness();
-      int tr = bs.right_thickness();
-      int tb = bs.bottom_thickness();
-      int tl = bs.left_thickness();
-
-      if (line_style == Style::LineStyle::BEVEL)
-      {
-        auto draw_line = [&](std::optional<Color> color, int x1, int y1, int x2, int y2)
-        {
-          if (!color) return;
-          if (x2 < x1 || y2 < y1) return;
-          const SDL_Color c = color->to_SDL_Color();
-          SDL_SetRenderDrawColor(render_ctx.renderer, c.r, c.g, c.b, c.a);
-          SDL_SetRenderDrawBlendMode(render_ctx.renderer, SDL_BLENDMODE_BLEND);
-          SDL_RenderDrawLine(render_ctx.renderer, x1, y1, x2, y2);
-          SDL_SetRenderDrawBlendMode(render_ctx.renderer, SDL_BLENDMODE_NONE);
-        };
-
-        for (int n = 0; n < tt; n++)
-        {
-          draw_line(bs.top_color(),
-                    bounds.x,
-                    bounds.y + n,
-                    bounds.x + bounds.w - 1,
-                    bounds.y + n);
-        }
-
-        for (int n = 0; n < tl; n++)
-        {
-          draw_line(bs.left_color(),
-                    bounds.x + n,
-                    bounds.y,
-                    bounds.x + n,
-                    bounds.y + bounds.h - 1);
-        }
-
-        for (int n = 0; n < tb; n++)
-        {
-          draw_line(bs.bottom_color(),
-                    bounds.x + tb - n,
-                    bounds.y + bounds.h - tb + n,
-                    bounds.x + bounds.w - 1,
-                    bounds.y + bounds.h - tb + n);
-        }
-
-        for (int n = 0; n < tr; n++)
-        {
-          draw_line(bs.right_color(),
-                    bounds.x + bounds.w - tr + n,
-                    bounds.y + tr - n,
-                    bounds.x + bounds.w - tr + n,
-                    bounds.y + bounds.h - 1);
-        }
-      }
-      else
-      {
-        draw_side(tt, bs.top_color(), {bounds.x, bounds.y, bounds.w, tt});
-        draw_side(tb, bs.bottom_color(), {bounds.x, bounds.y + bounds.h - tb, bounds.w, tb});
-        draw_side(tl, bs.left_color(), {bounds.x, bounds.y, tl, bounds.h});
-        draw_side(tr, bs.right_color(), {bounds.x + bounds.w - tr, bounds.y, tr, bounds.h});
-      }
+      render_bevel_corner(render_ctx.renderer,
+                          bounds,
+                          Corner::TOP_LEFT,
+                          top_spec,
+                          left_spec);
+      render_bevel_corner(render_ctx.renderer,
+                          bounds,
+                          Corner::BOTTOM_RIGHT,
+                          bottom_spec,
+                          right_spec);
     }
 
     Rect content = style_res.content_rect(bounds);

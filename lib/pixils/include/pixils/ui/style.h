@@ -107,6 +107,14 @@ namespace Pixils::UI
       std::optional<Color> left_color() const;
 
       /**
+       * Effective line style for each side: per-side value if set, else base, else solid.
+       */
+      LineStyle top_line_style() const;
+      LineStyle right_line_style() const;
+      LineStyle bottom_line_style() const;
+      LineStyle left_line_style() const;
+
+      /**
        * Inset a rect by the effective border thickness on each side.
        */
       Rect apply_to(const Rect& bounds) const;

@@ -125,6 +125,30 @@ namespace Pixils::UI
     return (l && l->color) ? l->color : color;
   }
 
+  Style::LineStyle Style::BorderStyle::top_line_style() const
+  {
+    return (t && t->line_style) ? *t->line_style
+                                : line_style.value_or(Style::LineStyle::SOLID);
+  }
+
+  Style::LineStyle Style::BorderStyle::right_line_style() const
+  {
+    return (r && r->line_style) ? *r->line_style
+                                : line_style.value_or(Style::LineStyle::SOLID);
+  }
+
+  Style::LineStyle Style::BorderStyle::bottom_line_style() const
+  {
+    return (b && b->line_style) ? *b->line_style
+                                : line_style.value_or(Style::LineStyle::SOLID);
+  }
+
+  Style::LineStyle Style::BorderStyle::left_line_style() const
+  {
+    return (l && l->line_style) ? *l->line_style
+                                : line_style.value_or(Style::LineStyle::SOLID);
+  }
+
   Rect Style::BorderStyle::apply_to(const Rect& bounds) const
   {
     int tl = left_thickness();

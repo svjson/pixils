@@ -121,6 +121,32 @@ TEST(BorderStyleApplyToTest, insets_rect_by_per_side_thickness)
   EXPECT_EQ(result.h, 96);
 }
 
+TEST(BorderStyleEffectiveLineStyleTest, falls_back_to_base_when_no_per_side_override)
+{
+  // Given
+  Pixils::UI::Style::BorderStyle bs;
+  bs.line_style = Pixils::UI::Style::LineStyle::BEVEL;
+
+  // Then
+  EXPECT_EQ(bs.top_line_style(), Pixils::UI::Style::LineStyle::BEVEL);
+  EXPECT_EQ(bs.right_line_style(), Pixils::UI::Style::LineStyle::BEVEL);
+  EXPECT_EQ(bs.bottom_line_style(), Pixils::UI::Style::LineStyle::BEVEL);
+  EXPECT_EQ(bs.left_line_style(), Pixils::UI::Style::LineStyle::BEVEL);
+}
+
+TEST(BorderStyleEffectiveLineStyleTest, per_side_overrides_base)
+{
+  // Given
+  Pixils::UI::Style::BorderStyle bs;
+  bs.line_style = Pixils::UI::Style::LineStyle::BEVEL;
+  bs.t = Pixils::UI::Style::Border{};
+  bs.t->line_style = Pixils::UI::Style::LineStyle::SOLID;
+
+  // Then
+  EXPECT_EQ(bs.top_line_style(), Pixils::UI::Style::LineStyle::SOLID);
+  EXPECT_EQ(bs.right_line_style(), Pixils::UI::Style::LineStyle::BEVEL);
+}
+
 TEST_F(BorderTest, make_border)
 {
   // When
