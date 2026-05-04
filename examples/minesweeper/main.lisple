@@ -234,7 +234,7 @@
    :update (fn [state ctx]
              (assoc-in state [:counters :timer] (min 999 (int (/ (- (epoch-ms) (:start-time state)) 1000)))))
    :render (fn [state ctx]
-             (let [dim (:buffer-size ctx)]
+             (let [dim (-> ctx :view :bounds)]
                (r/rect! {:x 0 :y 0 :w (:w dim) :h (:h dim)} {:fill true :color win/panel-face})
                (win/draw-bevel! (merge dim {:x 0 :y 0}) {:thickness 3})
                (win/draw-bevel! {:x 9 :y 9 :w (- (:w dim) 18) :h 33} {:thickness 2 :invert true})

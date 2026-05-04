@@ -63,17 +63,16 @@
                    (assoc state :player (p/move-player player :right)))}
 
    :update (fn [state ctx]
-             (let [spawner-result (e/tick-spawners (:enemy-spawners state))
+             (let [expl-count (count (-> state :scene :actors :explosions))
+                   spawner-result (e/tick-spawners (:enemy-spawners state))
                    spawned-enemies (:enemies spawner-result)
-                   collision-result (coll/bullet-collisions
-                                     (-> state :scene :actors :player/bullets)
-                                     (concat (-> state :scene :actors :enemies)
-                                             spawned-enemies))
                    scene (-> (:scene state)
-                             (assoc-in [:actors :enemies] (:enemies collision-result)
-                                       [:actors :player/bullets] (:bullets collision-result))
-                             (scene/add-actors :explosions (:explosions collision-result)))]
-               (when (not (empty? (:explosions collision-result)))
+                             (scene/add-actors :enemies (:enemies spawner-result))
+                             (scene/transform-actor-groups [:player/bullets
+                                                            :enemies
+                                                            :explosions]
+                                                           coll/bullet-collisions))]
+               (when (> (count (-> scene :actors :explosions)) expl-count)
                  (pixils.audio/play! :explosion/boom {:volume 0.1}))
                (assoc state
                       :enemy-spawners (:spawners spawner-result)

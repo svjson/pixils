@@ -4,11 +4,11 @@
             [pixils.state.counter :as cnt]
             [spaceshooter.explosion :as ex]))
 
-(defun bullet-collisions [bullets enemies]
-  (reduce bullets
-          {:bullets []
+(defun bullet-collisions [{:keys [player/bullets enemies explosions]}]
+  (reduce player/bullets
+          {:player/bullets []
            :enemies enemies
-           :explosions []}
+           :explosions explosions}
           (fn [result bullet]
             (if-let [enemy-index (find-index (:enemies result)
                                              (fn [e]
@@ -18,5 +18,5 @@
                      :explosions (concat (:explosions result)
                                          (ex/make (:position (nth (:enemies result) enemy-index))))
                      :enemies (remove-nth (:enemies result) enemy-index)
-                     :bullets (concat (:bullets result) (assoc bullet :destroyed? true)))
-              (assoc result :bullets (concat (:bullets result) bullet))))))
+                     :player/bullets (concat (:player/bullets result) (assoc bullet :destroyed? true)))
+              (update result :player/bullets (fn [bullets] (concat bullets bullet)))))))

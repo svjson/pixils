@@ -13,7 +13,6 @@
   {:actors actors
    :registry registry})
 
-
 (defun update-actor-group [scene group]
   (-> group
       (map (fn [actor]
@@ -26,6 +25,12 @@
                                   remove-fn (:remove? actor-type)]
                            (apply remove-fn [actor])
                            false)))))))
+
+(defun transform-actor-groups [scene group-keys transform-fn]
+  (update scene :actors (fn [actors]
+                          (merge actors
+                                 (apply transform-fn
+                                        [(select-keys actors group-keys)])))))
 
 (defun tick [scene]
   (update scene :actors
