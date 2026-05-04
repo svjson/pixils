@@ -1,5 +1,6 @@
 (ns spaceshooter.player
-  (:require [pixils.point :as pt]))
+  (:require [pixils.point :as pt]
+            [pixils.state.counter :as cnt]))
 
 (defun make-player []
   {:pos {:x 20 :y 120}
@@ -32,9 +33,23 @@
 
 
 (defun fire [player]
-  (-> player
-      (assoc :bullets (concat (:bullets player)
-                              {:pos (pt/+ (:pos player)
-                                          {:x 16 :y 7})
-                               :anim-counter 0}))
-      (assoc :flash-counter 3)))
+  {:player (assoc player :flash-counter 3)
+   :bullet {:type :player/bullet
+            :position (pt/+ (:pos player)
+                            {:x 16 :y 7})
+            :sprite :player/bullet-1
+            :counter (cnt/make {:end 8})}})
+
+
+(defun update-bullet [bullet]
+  (cnt/advance-at
+   (update bullet :position (fn [pos] (pt/translate-x pos 6)))
+   :counter
+   {:on-wrap (fn [b]
+               (update b :sprite (fn [sprite]
+                                   (if (= sprite :player/bullet-2)
+                                     :player/bullet-1
+                                     :player/bullet-2))))}))
+
+(defun remove-bullet? [bullet]
+  (> (-> bullet :position :x) 401))

@@ -6,13 +6,23 @@
             [spaceshooter.enemy :as e]
             [spaceshooter.player :as p]
             [spaceshooter.collision :as coll]
-            [spaceshooter.background :as bg]))
+            [spaceshooter.background :as bg]
+            [spaceshooter.explosion :as ex]
+            [spaceshooter.scene :as scene]))
+
 
 (defmode game
   {:init (fn [state ctx]
            {:player (p/make-player)
-            :enemies []
-            :explosions []
+            :scene (scene/make {:player/bullets []
+                                :enemies []
+                                :explosions []}
+                               {:player/bullet {:update p/update-bullet
+                                                :remove? p/remove-bullet?}
+                                :enemy/ship {:update e/update-ship}
+                                :enemy/asteroid {:update e/update-large-asteroid}
+                                :effect/explosion {:update ex/update
+                                                   :remove? ex/remove?}})
             :enemy-spawners [{:type :spawner/single-ship
                               :counter (cnt/make {:end 130})}
                              {:type :spawner/asteroid
@@ -23,12 +33,15 @@
                          bg/starfield
                          bg/planet]})
 
-   :on-key-down (fn [state e ctx]
+   :on-key-down (fn [{:keys [player scene] :as state} e ctx]
                   (case (:key e)
                     :key/space
                     (do
                       (pixils.audio/play! :player/fire {:volume 0.01})
-                      (assoc state :player (p/fire (:player state))))
+                      (let [result (p/fire player)]
+                        (assoc state
+                               :player (:player result)
+                               :scene (scene/add-actor scene :player/bullets (:bullet result)))))
 
                     :default
                     state))
@@ -53,30 +66,18 @@
              (let [spawner-result (e/tick-spawners (:enemy-spawners state))
                    spawned-enemies (:enemies spawner-result)
                    collision-result (coll/bullet-collisions
-                                     (:player state)
-                                     (concat (:enemies state) spawned-enemies))]
+                                     (-> state :scene :actors :player/bullets)
+                                     (concat (-> state :scene :actors :enemies)
+                                             spawned-enemies))
+                   scene (-> (:scene state)
+                             (assoc-in [:actors :enemies] (:enemies collision-result)
+                                       [:actors :player/bullets] (:bullets collision-result))
+                             (scene/add-actors :explosions (:explosions collision-result)))]
                (when (not (empty? (:explosions collision-result)))
                  (pixils.audio/play! :explosion/boom {:volume 0.1}))
                (assoc state
-                      :explosions (concat (-> (:explosions state)
-                                              (map (fn [expl]
-                                                     (cnt/advance-at expl :counter
-                                                                     {:on-step
-                                                                      (fn [expl]
-                                                                        (assoc expl :image
-                                                                               (nth [:explosion/one
-                                                                                     :explosion/two
-                                                                                     :explosion/three
-                                                                                     :explosion/four
-                                                                                     :explosion/five
-                                                                                     :explosion/five]
-                                                                                    (cnt/value-at expl :counter))))})))
-                                              (filter (fn [expl]
-                                                        (< (cnt/value-at expl :counter) 5))))
-                                          (:explosions collision-result))
                       :enemy-spawners (:spawners spawner-result)
                       :background (bg/tick (:background state))
-                      :enemies (map (:enemies collision-result) e/update-enemy)
                       :player (-> (:player state)
                                   (update :image (fn [image]
                                                    (if (not (or (contains? (:held-keys ctx) :key/up)
@@ -84,26 +85,12 @@
                                                      :player/base
                                                      image))
                                           :flash-counter (fn [counter]
-                                                           (max 0 (dec counter))))
-                                  (assoc :bullets (-> (:bullets collision-result)
-                                                      (map (fn [b]
-                                                             (assoc b
-                                                                    :pos (pt/translate-x (:pos b) 6)
-                                                                    :anim-counter (mod (inc (:anim-counter b)) 8))))
-                                                      (filter (fn [b] (< (-> b :pos :x) 420)))))))))
+                                                           (max 0 (dec counter)))))
+                      :scene (scene/tick scene))))
 
-   :render (fn [state ctx]
-             (let [player (:player state)]
-               (bg/render! (:background state))
-               (for [bullet (-> state :player :bullets)]
-                 (r/image! (if (< (:anim-counter bullet) 4)
-                             :player/bullet-1
-                             :player/bullet-2)
-                           {:pos (:pos bullet)}))
-               (r/image! (:image player) {:pos (:pos player)})
-               (when (> (:flash-counter player) 0)
-                 (r/image! :player/flash {:pos (pt/translate-x (:pos player) 24)}))
-               (for [enemy (:enemies state)]
-                 (e/render-enemy! enemy))
-               (for [expl (:explosions state)]
-                 (r/image! (:image expl) {:pos (:pos expl)}))))})
+   :render (fn [{:keys [player] :as state} ctx]
+             (bg/render! (:background state))
+             (scene/render! (:scene state))
+             (r/image! (:image player) (:pos player))
+             (when (> (:flash-counter player) 0)
+               (r/image! :player/flash (pt/translate-x (:pos player) 24))))})

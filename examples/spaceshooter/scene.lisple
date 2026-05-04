@@ -1,0 +1,47 @@
+(ns spaceshooter.scene
+  (:require [pixils.render :as r]))
+
+(defun add-actor [scene group-key actor]
+  (update-in scene [:actors group-key] (fn [group]
+                                         (concat group actor))))
+
+(defun add-actors [scene group-key actors]
+  (update-in scene [:actors group-key] (fn [group]
+                                         (concat group actors))))
+
+(defun make [actors registry]
+  {:actors actors
+   :registry registry})
+
+
+(defun update-actor-group [scene group]
+  (-> group
+      (map (fn [actor]
+             (if-let [actor-type (get (:registry scene) (:type actor))]
+               (apply (:update actor-type) [actor])
+               actor)))
+      (filter (fn [actor]
+                (not (or (:destroyed? actor)
+                         (if-let [actor-type (get (:registry scene) (:type actor))
+                                  remove-fn (:remove? actor-type)]
+                           (apply remove-fn [actor])
+                           false)))))))
+
+(defun tick [scene]
+  (update scene :actors
+          (fn [actor-map]
+            (reduce (keys actor-map)
+                    {}
+                    (fn [result group-key]
+                      (assoc result
+                             group-key
+                             (update-actor-group scene (get actor-map group-key))))))))
+
+(defun render! [scene]
+  (for [group-key (keys (:actors scene))]
+    (for [actor (get (:actors scene) group-key)]
+      (when-let [sprite (:sprite actor)]
+        (if-let [rotation (:rotation actor)]
+          (r/image! (:sprite actor) {:pos (:position actor)
+                                     :rotation (:rotation actor)})
+          (r/image! (:sprite actor) (:position actor)))))))

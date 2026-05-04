@@ -3,36 +3,35 @@
             [pixils.render :as r]
             [pixils.state.counter :as cnt]))
 
-(def enemy-types {:enemy/ship {:update (fn [e]
-                                         (cnt/advance-at
-                                          (update e :pos (fn [pos] (pt/translate-x pos -1)))
-                                          :anim-counter
-                                          {:on-step (fn [enemy]
-                                                      (assoc enemy
-                                                             :image (nth [:enemy-ship/one
-                                                                          :enemy-ship/two
-                                                                          :enemy-ship/three
-                                                                          :enemy-ship/four
-                                                                          :enemy-ship/five]
-                                                                         (cnt/value-at enemy :anim-counter))))}))}
-                  :enemy/asteroid {:update (fn [e]
-                                             (let [vdir (cond
-                                                          (and (= :up (:vdir e)) (< (-> e :pos :y) 1))
-                                                          :down
+(defun update-ship [ship]
+  (cnt/advance-at
+   (update ship :position (fn [pos] (pt/translate-x pos -1)))
+   :anim-counter
+   {:on-step (fn [enemy]
+               (assoc enemy
+                      :sprite (nth [:enemy-ship/one
+                                    :enemy-ship/two
+                                    :enemy-ship/three
+                                    :enemy-ship/four
+                                    :enemy-ship/five]
+                                   (cnt/value-at enemy :anim-counter))))}))
 
-                                                          (and (= :down (:vdir e)) (> (-> e :pos :y) 230))
-                                                          :up
+(defun update-large-asteroid [e]
+  (let [vdir (cond
+               (and (= :up (:vdir e)) (< (-> e :position :y) 1))
+               :down
 
-                                                          :true
-                                                          (:vdir e))]
-                                               (assoc e
-                                                      :vdir vdir
-                                                      :pos (pt/+ (:pos e)
-                                                                 {:x -1 :y (if (= :up vdir) -1 1)})
-                                                      :rotation (+ (:rotation e) 0.02))))
-                                   :render! (fn [e]
-                                              (r/image! (:image e) {:pos (:pos e)
-                                                                    :rotation (:rotation e)}))}})
+               (and (= :down (:vdir e)) (> (-> e :position :y) 230))
+               :up
+
+               :true
+               (:vdir e))]
+    (assoc e
+           :vdir vdir
+           :position (pt/+ (:position e)
+                      {:x -1 :y (if (= :up vdir) -1 1)})
+           :rotation (+ (:rotation e) 0.02))))
+
 
 (def spawner-types {:spawner/single-ship (fn [spawner]
                                            (cnt/advance-at spawner
@@ -42,8 +41,8 @@
                                                               (assoc spawner :output
                                                                      (if (:wrapped? (:counter spawner))
                                                                        [{:type :enemy/ship
-                                                                         :pos {:x 400 :y (rnd 0 230)}
-                                                                         :image :enemy-ship/one
+                                                                         :position {:x 400 :y (rnd 0 230)}
+                                                                         :sprite :enemy-ship/one
                                                                          :anim-counter (cnt/make {:end 5 :every 4})}]
                                                                        [])))}))
                     :spawner/asteroid (fn [spawner]
@@ -54,8 +53,8 @@
                                                            (assoc spawner :output
                                                                   (if (:wrapped? (:counter spawner))
                                                                     [{:type :enemy/asteroid
-                                                                      :pos {:x 400 :y (rnd 0 230)}
-                                                                      :image :asteroid/big
+                                                                      :position {:x 400 :y (rnd 0 230)}
+                                                                      :sprite :asteroid/big
                                                                       :rotation 0.0
                                                                       :anim-state 0
                                                                       :anim-counter 0
@@ -63,12 +62,12 @@
                                                                     [])))}))})
 
 
-(defun update-enemy [enemy]
-  (let [type (get enemy-types (:type enemy))]
-    (if type
-      ; Dynamic callees currently need apply to avoid CallNode cache stickiness.
-      (apply (:update type) [enemy])
-      enemy)))
+;; (defun update-enemy [enemy]
+;;   (let [type (get enemy-types (:type enemy))]
+;;     (if type
+;;       ; Dynamic callees currently need apply to avoid CallNode cache stickiness.
+;;       (apply (:update type) [enemy])
+;;       enemy)))
 
 (defun render-enemy! [enemy]
   (let [type (get enemy-types (:type enemy))]

@@ -1,0 +1,24 @@
+(ns spaceshooter.explosion
+  (:require [pixils.state.counter :as cnt]))
+
+(defun make [pos]
+  {:type :effect/explosion
+   :position pos
+   :counter (cnt/make {:end 5 :every 3 :mode :stop})
+   :sprite :explosion/one})
+
+(defun update [expl]
+  (cnt/advance-at expl :counter
+                  {:on-step
+                   (fn [expl]
+                     (assoc expl :sprite
+                            (nth [:explosion/one
+                                  :explosion/two
+                                  :explosion/three
+                                  :explosion/four
+                                  :explosion/five
+                                  :explosion/five]
+                                 (cnt/value-at expl :counter))))}))
+
+(defun remove? [expl]
+  (= 5 (cnt/value-at expl :counter)))
