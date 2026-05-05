@@ -2,6 +2,7 @@
 #ifndef PIXILS__RUNTIME__RENDER_H
 #define PIXILS__RUNTIME__RENDER_H
 
+#include <pixils/ui/view_layout.h>
 #include <pixils/ui/view_render.h>
 
 namespace Pixils::Runtime

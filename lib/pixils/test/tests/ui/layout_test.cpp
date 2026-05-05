@@ -4,6 +4,7 @@
 #include <pixils/runtime/session.h>
 #include <pixils/runtime/view.h>
 #include <pixils/ui/style.h>
+#include <pixils/ui/view_layout.h>
 #include <pixils/ui/view_render.h>
 
 #include <gtest/gtest.h>
