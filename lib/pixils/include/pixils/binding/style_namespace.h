@@ -50,6 +50,7 @@ namespace Pixils::Script
   NATIVE_ADAPTER(StyleAdapter,
                  UI::Style,
                  (background,
+                  margin,
                   border,
                   padding,
                   width,

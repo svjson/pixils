@@ -177,3 +177,70 @@ TEST(LayoutTest, layout_absolute_children_excluded_from_flow)
   EXPECT_EQ(rects[0].h, 0);
   EXPECT_EQ(rects[1].h, 200);
 }
+
+TEST(LayoutTest, layout_column_child_margin_offsets_and_insets_rect)
+{
+  // Given
+  std::vector<std::shared_ptr<View>> children;
+  Style s;
+  s.height = 40;
+  s.margin = Style::Insets(2, 4, 6, 8);
+  auto child = make_ctx(std::move(s));
+  children.push_back(child);
+  Rect parent = {10, 20, 100, 80};
+
+  // When
+  auto rects = Pixils::UI::layout_children(children, parent);
+
+  // Then
+  ASSERT_EQ(rects.size(), 1u);
+  EXPECT_EQ(rects[0].x, 18);
+  EXPECT_EQ(rects[0].y, 22);
+  EXPECT_EQ(rects[0].w, 88);
+  EXPECT_EQ(rects[0].h, 40);
+}
+
+TEST(LayoutTest, layout_column_margins_consume_flow_space)
+{
+  // Given
+  std::vector<std::shared_ptr<View>> children;
+  Style s;
+  s.height = 40;
+  s.margin = Style::Insets(0, 0, 10, 0);
+  auto fixed = make_ctx(std::move(s));
+  children.push_back(fixed);
+  children.push_back(make_ctx());
+  Rect parent = {0, 0, 320, 200};
+
+  // When
+  auto rects = Pixils::UI::layout_children(children, parent);
+
+  // Then
+  ASSERT_EQ(rects.size(), 2u);
+  EXPECT_EQ(rects[0].y, 0);
+  EXPECT_EQ(rects[0].h, 40);
+  EXPECT_EQ(rects[1].y, 50);
+  EXPECT_EQ(rects[1].h, 150);
+}
+
+TEST(LayoutTest, layout_row_child_margin_offsets_and_insets_rect)
+{
+  // Given
+  std::vector<std::shared_ptr<View>> children;
+  Style s;
+  s.width = 80;
+  s.margin = Style::Insets(3, 7, 5, 11);
+  auto child = make_ctx(std::move(s));
+  children.push_back(child);
+  Rect parent = {10, 20, 120, 60};
+
+  // When
+  auto rects = Pixils::UI::layout_children(children, parent, LayoutDirection::ROW);
+
+  // Then
+  ASSERT_EQ(rects.size(), 1u);
+  EXPECT_EQ(rects[0].x, 21);
+  EXPECT_EQ(rects[0].y, 23);
+  EXPECT_EQ(rects[0].w, 80);
+  EXPECT_EQ(rects[0].h, 52);
+}

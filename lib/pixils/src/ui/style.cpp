@@ -11,6 +11,7 @@ namespace Pixils::UI
 
   Style::Style(const Style& other)
     : background(other.background)
+    , margin(other.margin)
     , padding(other.padding)
     , border(other.border)
     , width(other.width)
@@ -27,6 +28,7 @@ namespace Pixils::UI
   void Style::operator=(const Style& other)
   {
     this->background = other.background;
+    this->margin = other.margin;
     this->padding = other.padding;
     this->border = other.border;
     this->width = other.width;
@@ -198,16 +200,18 @@ namespace Pixils::UI
 
   int Style::total_width() const
   {
+    int mar = margin ? margin->l + margin->r : 0;
     int pad = padding ? padding->l + padding->r : 0;
     int bord = border ? border->left_thickness() + border->right_thickness() : 0;
-    return width.value_or(0) + pad + bord;
+    return width.value_or(0) + mar + pad + bord;
   }
 
   int Style::total_height() const
   {
+    int mar = margin ? margin->t + margin->b : 0;
     int pad = padding ? padding->t + padding->b : 0;
     int bord = border ? border->top_thickness() + border->bottom_thickness() : 0;
-    return height.value_or(0) + pad + bord;
+    return height.value_or(0) + mar + pad + bord;
   }
 
   Rect Style::content_rect(const Rect& bounds) const
@@ -228,6 +232,7 @@ namespace Pixils::UI
       if (variant.background->color) out.background->color = *variant.background->color;
       if (variant.background->image) out.background->image = *variant.background->image;
     }
+    if (variant.margin) out.margin = variant.margin;
     if (variant.padding) out.padding = variant.padding;
     if (variant.border) out.border = variant.border;
     if (variant.width) out.width = variant.width;

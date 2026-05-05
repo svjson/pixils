@@ -38,18 +38,29 @@ namespace Pixils::UI
     for (const auto& child : children)
     {
       Style cs = resolve_style(child->mode->style, child->state, child->interaction);
+      const Style::Insets margin = cs.margin.value_or(Style::Insets{});
       if (cs.position && *cs.position == PositionMode::ABSOLUTE)
       {
         rects.push_back({0, 0, 0, 0});
         continue;
       }
       const auto& size_opt = row ? cs.width : cs.height;
-      int size = size_opt ? (row ? cs.total_width() : cs.total_height()) : fill_size;
+      int outer_size = size_opt ? (row ? cs.total_width() : cs.total_height()) : fill_size;
       if (row)
-        rects.push_back({pos, parent.y, size, parent.h});
+      {
+        rects.push_back({pos + margin.l,
+                         parent.y + margin.t,
+                         std::max(0, outer_size - margin.l - margin.r),
+                         std::max(0, parent.h - margin.t - margin.b)});
+      }
       else
-        rects.push_back({parent.x, pos, parent.w, size});
-      pos += size;
+      {
+        rects.push_back({parent.x + margin.l,
+                         pos + margin.t,
+                         std::max(0, parent.w - margin.l - margin.r),
+                         std::max(0, outer_size - margin.t - margin.b)});
+      }
+      pos += outer_size;
     }
 
     return rects;

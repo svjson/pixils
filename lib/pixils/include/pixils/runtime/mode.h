@@ -36,18 +36,6 @@ namespace Pixils::Runtime
   };
 
   /**
-   * Per-side margin around a layout child. Stored but not yet applied in layout
-   * calculations.
-   */
-  struct Margin
-  {
-    int top = 0;
-    int right = 0;
-    int bottom = 0;
-    int left = 0;
-  };
-
-  /**
    * A slot in a layout tree: which mode to place there and how to identify it.
    * Sizing, positioning and per-instance hook/style overrides are carried in
    * `overrides` as a raw Lisple map; they are applied at build time in
@@ -59,7 +47,6 @@ namespace Pixils::Runtime
   {
     std::string mode_name;
     std::string id;
-    Margin margin;
     Lisple::sptr_rtval initial_state;
     Lisple::sptr_rtval overrides = Lisple::Constant::NIL;
     Lisple::sptr_rtval state_binding = Lisple::Constant::NIL;

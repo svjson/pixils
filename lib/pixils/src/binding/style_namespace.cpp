@@ -47,6 +47,7 @@ namespace Pixils::Script
     {
       static Lisple::MapSchema style_schema({},
                                             {{"background", &HostType::STYLE_BACKGROUND},
+                                             {"margin", &HostType::STYLE_INSETS},
                                              {"border", &HostType::BORDER_STYLE},
                                              {"padding", &HostType::STYLE_INSETS},
                                              {"width", &Lisple::Type::NUMBER},
@@ -62,6 +63,7 @@ namespace Pixils::Script
       auto opts = style_schema.bind(ctx, *args[0]);
 
       style->background = opts.optional_obj<UI::Style::Background>("background");
+      style->margin = opts.optional_obj<UI::Style::Insets>("margin");
       style->padding = opts.optional_obj<UI::Style::Insets>("padding");
       style->border = opts.optional_obj<UI::Style::BorderStyle>("border");
 
@@ -232,7 +234,7 @@ namespace Pixils::Script
                          EXEC_DISPATCH(&MakeInsets::exec_make_num)),
                         (FN_ARGS((&Lisple::Type::ARRAY_OF_NUMBER)),
                          EXEC_DISPATCH(&MakeInsets::exec_make_vec)),
-                        (FN_ARGS((&Lisple::Type::ARRAY)),
+                        (FN_ARGS((&Lisple::Type::MAP)),
                          EXEC_DISPATCH(&MakeInsets::exec_make_map))));
 
     EXEC_BODY(MakeInsets, exec_make_map)
@@ -282,9 +284,9 @@ namespace Pixils::Script
         break;
       case 4:
         t = Lisple::get_child(*args[0], 0)->num().get_int();
-        r = Lisple::get_child(*args[1], 0)->num().get_int();
-        b = Lisple::get_child(*args[2], 0)->num().get_int();
-        l = Lisple::get_child(*args[3], 0)->num().get_int();
+        r = Lisple::get_child(*args[0], 1)->num().get_int();
+        b = Lisple::get_child(*args[0], 2)->num().get_int();
+        l = Lisple::get_child(*args[0], 3)->num().get_int();
         break;
       default:
         return Lisple::Constant::NIL;
@@ -299,6 +301,7 @@ namespace Pixils::Script
                       UI::Style,
                       &HostType::STYLE,
                       (background),
+                      (margin),
                       (border),
                       (padding),
                       (width),
@@ -320,6 +323,12 @@ namespace Pixils::Script
     if (get_self_object().background->image)
       return BackgroundAdapter(*get_self_object().background).get_image();
     return Lisple::Constant::NIL;
+  }
+
+  NOBJ_PROP_GET(StyleAdapter, margin)
+  {
+    return get_self_object().margin ? InsetsAdapter::make_ref(*get_self_object().margin)
+                                    : Lisple::Constant::NIL;
   }
 
   NOBJ_PROP_GET(StyleAdapter, border)

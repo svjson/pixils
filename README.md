@@ -230,6 +230,8 @@ to arrange them left to right instead.
 Sizing is declared in the `:style` map. A child with `:style {:height N}` (or
 `:style {:width N}` in a row layout) is given exactly that many pixels. A child without a
 size constraint fills the remaining space. Multiple fill children share the remainder evenly.
+Margins are also declared in `:style`. A child's `:margin` consumes flow space around the
+child and offsets its rendered bounds within the allocated slot.
 
 Size can come from the mode's own `:style` definition or be overridden per child slot:
 
@@ -294,6 +296,7 @@ hook fires.
 | Style key     | Values                                                                | Description |
 |---------------|-----------------------------------------------------------------------|-------------|
 | `:background` | `{:r N :g N :b N}` or `{:r N :g N :b N :a N}`                       | Background fill color (0-255). |
+| `:margin`     | Number, `[vertical horizontal]`, `[top right bottom left]`, or `{:t N :r N :b N :l N}` | Outer space around a child in layout flow. |
 | `:padding`    | Number, `[vertical horizontal]`, `[top right bottom left]`, or `{:t N :r N :b N :l N}` | Inset applied before the render hook's viewport is set. |
 | `:border`     | Border map (see below)                                               | Draws a border inside the component bounds. |
 | `:direction`  | `:row`, `:column`                                                    | Direction in which children are laid out. Default: `:column`. |

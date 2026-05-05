@@ -148,6 +148,7 @@ namespace Pixils::UI
 
     /** Visual */
     std::optional<Background> background = std::nullopt;
+    std::optional<Insets> margin = std::nullopt;
     std::optional<Insets> padding = std::nullopt;
     std::optional<BorderStyle> border = std::nullopt;
 

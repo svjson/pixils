@@ -34,6 +34,48 @@ TEST_F(StyleTest, make_uniform_border)
   EXPECT_EQ(style.border->line_style, Pixils::UI::Style::LineStyle::SOLID);
 }
 
+TEST_F(StyleTest, make_style_with_margin)
+{
+  // When
+  Lisple::sptr_rtval result = runtime.eval("(pixils.ui.style/make-style {:margin [2 4]})");
+
+  // Then
+  auto style = Lisple::obj<Pixils::UI::Style>(*result);
+  ASSERT_NE(style.margin, std::nullopt);
+  EXPECT_EQ(style.margin->t, 2);
+  EXPECT_EQ(style.margin->r, 4);
+  EXPECT_EQ(style.margin->b, 2);
+  EXPECT_EQ(style.margin->l, 4);
+}
+
+TEST_F(StyleTest, make_style_with_four_value_margin)
+{
+  // When
+  Lisple::sptr_rtval result =
+    runtime.eval("(pixils.ui.style/make-style {:margin [1 2 3 4]})");
+
+  // Then
+  auto style = Lisple::obj<Pixils::UI::Style>(*result);
+  ASSERT_NE(style.margin, std::nullopt);
+  EXPECT_EQ(style.margin->t, 1);
+  EXPECT_EQ(style.margin->r, 2);
+  EXPECT_EQ(style.margin->b, 3);
+  EXPECT_EQ(style.margin->l, 4);
+}
+
+TEST_F(StyleTest, make_insets_with_four_value_vector)
+{
+  // When
+  Lisple::sptr_rtval result = runtime.eval("(pixils.ui.style/make-insets [1 2 3 4])");
+
+  // Then
+  auto insets = Lisple::obj<Pixils::UI::Style::Insets>(*result);
+  EXPECT_EQ(insets.t, 1);
+  EXPECT_EQ(insets.r, 2);
+  EXPECT_EQ(insets.b, 3);
+  EXPECT_EQ(insets.l, 4);
+}
+
 TEST_F(StyleTest, make_bevel_border)
 {
   // When
@@ -58,6 +100,20 @@ TEST(StyleTotalDimensionsTest, total_width_includes_padding_and_border)
 
   // Then: content=100, padding=4+4=8, border=2+2=4 -> total=112
   EXPECT_EQ(style.total_width(), 112);
+}
+
+TEST(StyleTotalDimensionsTest, total_width_includes_margin_padding_and_border)
+{
+  // Given
+  Pixils::UI::Style style;
+  style.width = 100;
+  style.margin = Pixils::UI::Style::Insets(0, 3, 0, 5);
+  style.padding = Pixils::UI::Style::Insets(4, 4, 4, 4);
+  style.border = Pixils::UI::Style::BorderStyle{};
+  style.border->thickness = 2;
+
+  // Then: content=100, margin=5+3=8, padding=4+4=8, border=2+2=4 -> total=120
+  EXPECT_EQ(style.total_width(), 120);
 }
 
 TEST(StyleTotalDimensionsTest, total_height_includes_padding_and_border)
