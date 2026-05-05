@@ -40,7 +40,7 @@
   {:settings {:w w
               :h h
               :mines mines}
-   :face :status-panel/face-normal
+   :face :status/face-normal
    :board (generate-mine-field w h mines)
    :board-mask (dotimes [y h]
                  (dotimes [x w]

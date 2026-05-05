@@ -6,6 +6,8 @@
             [pixils.ui :as ui]
             pixils.examples.minesweeper.button
             [pixils.examples.minesweeper.game-logic :as gl]
+            [pixils.examples.minesweeper.status-panel :as status-panel]
+            [pixils.examples.minesweeper.board :as board]
             [pixils.examples.minesweeper.menu :as menu]
             [pixils.examples.minesweeper.win :as win]))
 
@@ -15,221 +17,9 @@
 
 
 
-;; Mine layer mode
-
-(def grid-dim {:w 9 :h 9})
-(def tile-size 16)
-
-(defmode mine-layer-mode
-  {:render 'pixils.examples.minesweeper.core/mine-layer-render!
-   :resources {:images {:mine "assets/mine.png"
-                        :flag "assets/flag.png"
-                        :num-1 "assets/num1.png"
-                        :num-2 "assets/num2.png"
-                        :num-3 "assets/num3.png"
-                        :num-4 "assets/num4.png"
-                        :num-5 "assets/num5.png"}}})
-
-(defun mine-layer-render! [state ctx]
-  (let [dim (:buffer-size ctx)]
-    (dotimes [y (+ 1 (:h grid-dim))]
-      (r/line! {:x 0 :y (* y (+ 1 tile-size))}
-               {:x (* (:w grid-dim) (+ 1 tile-size)) :y (* y (+ 1 tile-size))}
-               win/panel-shadow))
-    (dotimes [x (+ 1 (:w grid-dim))]
-      (r/line! {:x (* x (+ 1 tile-size)) :y 0}
-               {:x (* x (+ 1 tile-size)) :y (* (:h grid-dim) (+ 1 tile-size))}
-               win/panel-shadow))
-    (dotimes [y (:h grid-dim)]
-      (dotimes [x (:w grid-dim)]
-        (let [cell (-> state :board (nth y) (nth x))
-              pos {:x (+ 1 (* x (+ 1 tile-size)))
-                   :y (+ 1 (* y (+ 1 tile-size)))}]
-          (cond
-            (= :mine cell)
-            (do
-              (when (-> state :board-mask (nth y) (nth x) :exploded?)
-                (r/rect! (merge pos {:w 16 :h 16}) {:fill true :color {:r 255 :g 0 :b 0}}))
-              (r/image! :mine-layer-mode/mine {:pos pos}))
-
-            (and (number? cell) (> cell 0))
-            (r/image! (keyword (str "mine-layer-mode/num-" cell)) {:pos pos})))))))
-
-
-
-;; Board buttons
-
-(defcomponent board-button
-  {:extend 'button
-   :style {:width 17 :height 17}
-   :update (fn [state ctx]
-             (let [flagged (-> state :mask :flagged?)]
-               (assoc-in! ctx [:view :style :hidden] (:revealed? (:mask state)))
-               (-> state
-                   (assoc :image (when flagged
-                                   :mine-layer-mode/flag))
-                   (assoc :force-pressed? (-> state :mask :chord-pressed?))
-                   (assoc :inhibit-pressed? flagged))))
-   :on-click (fn [state e ctx]
-               (case (:button e)
-                 :left (when (not (:flagged? (:mask state)))
-                         (ui/emit! (:view ctx) :cell/click state))
-                 :right (ui/emit! (:view ctx) :cell/toggle-flag state))
-               state)})
-
-(defcomponent board-button-row
-  {:style {:direction :row}
-   :children (dotimes [n 9]
-               {:mode 'board-button
-                :state {:x n :y (ui/bind-state :y) :mask (ui/bind-state :mask-row n)}})})
-
-(defcomponent board-buttons {:children (dotimes [n 9]
-                                         {:mode 'board-button-row
-                                          :state {:y n
-                                                  :mask-row (ui/bind-state :board-mask n)}
-                                          :style {:height 17}})})
-
-
-
-;; Board mode
-
-(defun clear-chord-press [state]
-  (-> state
-      (assoc :chord-press-active false)
-      (assoc :board-mask (for-indexed [y row (:board-mask state)]
-                                      (for-indexed [x cell row]
-                                                   (assoc cell :chord-pressed? false))))))
-
-(defun apply-chord-press [state e ctx]
-  (let [pressed (-> ctx :view :interaction :pressed)]
-    (if (and (contains? pressed :left)
-             (contains? pressed :right))
-      (let [cell-coord (-> e
-                           :position
-                           (pt/- {:x 12 :y 0})
-                           (pt/div 17)
-                           pt/int)
-            cells (concat cell-coord
-                          (map gl/directions
-                               (fn [d] (pt/+ cell-coord d))))]
-        (-> state
-            (assoc :chord-press-active true)
-            (assoc :board-mask (for-indexed [y row (:board-mask state)]
-                                            (for-indexed [x cell row]
-                                                         (assoc cell :chord-pressed? (contains? cells (pt/make-point {:x x :y y}))))))))
-      (if (:chord-press-active state)
-        (clear-chord-press state)
-        state))))
-
-(defun revealed-count [board-mask]
-  (count (filter (apply concat (for-indexed [y row board-mask]
-                                            (for-indexed [x cell row]
-                                                         (when (:revealed? cell)
-                                                           {:x x :y y}))))
-                 (fn [c] (not (nil? c))))))
-
-
-(defun valid-chord-press-cells [board-mask]
-  (filter (apply concat (for-indexed [y row board-mask]
-                                     (for-indexed [x cell row]
-                                                  (when (and (:chord-pressed? cell)
-                                                             (not (:flagged? cell)))
-                                                    {:x x :y y}))))
-          (fn [c] (not (nil? c)))))
-
-(defmode board-mode
-  {:on-mouse-down apply-chord-press
-   :on-mouse-motion apply-chord-press
-   :on-mouse-up (fn [state e ctx]
-                  (if (and (= (:button e) :left)
-                           (contains? (-> ctx :view :interaction :pressed) :right))
-                    (-> (reduce (valid-chord-press-cells (:board-mask state))
-                                state
-                                (fn [state {:keys [x y]}]
-                                  (if (not (gl/revealed? state y x))
-                                    (do
-                                      (prn "Chord-press reveal" y x)
-                                      (prn " - Before: " (revealed-count (:board-mask state)))
-                                      (let [new-state (gl/reveal-board-cell state y x)]
-                                        (prn " - After: " (revealed-count (:board-mask new-state)))
-                                        new-state))
-                                    state)))
-                        clear-chord-press)
-                    state))
-   :children [{:mode 'mine-layer-mode
-               :state {:board (ui/bind-state :board)
-                       :board-mask (ui/bind-state :board-mask)}}
-              {:mode 'board-buttons
-               :state {:board-mask (ui/bind-state :board-mask)
-                       :face (ui/bind-state :face)}
-               :on-mouse-down (fn [state e ctx]
-                                (assoc state :face :status-panel/face-danger))
-               :on-mouse-up (fn [state e ctx]
-                              (assoc state :face :status-panel/face-normal))
-               :style {:position :absolute
-                       :top 0
-                       :left 0}}]})
-
-
-
-;; Counter
-
-(defcomponent counter {:style {:width 41
-                               :height 25}
-                       :render (fn [state ctx]
-                                 (win/draw-bevel! {:x 0 :y 0 :w 41 :h 25} {:thickness 1 :invert true})
-                                 (r/text! (left-pad (:value state) 3 "0") {:x 1 :y 1}
-                                          {:font :font/counter-font}))})
-
-(defun left-pad [s n pad]
-  (let [s (str s)
-        pad-len (- n (count s))]
-    (if (> pad-len 0)
-      (str (apply str (repeat pad-len pad)) s)
-      s)))
-
-
-
-;; Status panel
-
-(defcomponent status-panel {:style {:height 24
-                                    :padding 4
-                                    :direction :row}
-                            :resources {:images {:counter-font-map "assets/score_numbers.png"
-                                                 :face-normal "assets/face1.png"
-                                                 :face-danger "assets/face2.png"}}
-                            :children [{:mode 'counter
-                                        :state {:value (ui/bind-state :counters :mines-left)}}
-                                       {:mode 'button
-                                        :style {:width 24
-                                                :height 24}
-                                        :state {:label "Hehu"
-                                                :image (ui/bind-state :face)}
-                                        :on-click (fn [state event ctx]
-                                                    (when (= :left (:button event))
-                                                      (ui/emit! (:view ctx) :game/new-game))
-                                                    state)}
-                                       {:mode 'counter
-                                        :state {:value (ui/bind-state :counters :timer)}}]})
-
-(deffont counter-font {:type :bitmap
-                       :spacing 0
-                       :resource :status-panel/counter-font-map
-                       :glyphs (reduce "0123456789"
-                                       {}
-                                       (fn [glyphs num]
-                                         (let [index (int (str num))]
-                                           (merge glyphs
-                                                  {num {:x (* index 13)
-                                                        :y 0
-                                                        :w 13
-                                                        :h 23}}))))})
-
-
-
 ;; Game Layout mode
 
-(defmode game-layout-mode
+(defmode game-mode
   {:init (fn [state ctx]
            (merge state
                   (gl/new-game-state 9 9 10)))
@@ -284,5 +74,5 @@
 
 (defmode window-mode
   {:children [{:mode 'menu-bar-mode :style {:height 17}}
-              {:mode 'game-layout-mode}]})
+              {:mode 'game-mode}]})
 

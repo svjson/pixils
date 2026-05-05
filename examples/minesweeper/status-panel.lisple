@@ -1,0 +1,34 @@
+(ns pixils.examples.minesweeper.status-panel
+  (:require pixils
+            [pixils.ui :as ui]
+            pixils.examples.minesweeper.counter))
+
+
+
+;; Face resources
+
+(defbundle status {:images {:face-normal "assets/face1.png"
+                            :face-danger "assets/face2.png"}})
+
+
+
+;; Status Panel Component
+
+(defcomponent status-panel {:style {:height 24
+                                    :padding 4
+                                    :direction :row}
+                            :children [{:mode 'counter
+                                        :state {:value (ui/bind-state :counters :mines-left)}}
+
+                                       {:mode 'button
+                                        :style {:width 24
+                                                :height 24}
+                                        :state {:image (ui/bind-state :face)}
+                                        :on-click (fn [state event ctx]
+                                                    (when (= :left (:button event))
+                                                      (ui/emit! (:view ctx) :game/new-game))
+                                                    state)}
+
+                                       {:mode 'counter
+                                        :state {:value (ui/bind-state :counters :timer)}}]})
+

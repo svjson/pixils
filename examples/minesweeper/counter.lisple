@@ -1,0 +1,46 @@
+(ns pixils.examples.minesweeper.counter
+  (:require pixils
+            [pixils.render :as r]
+            [pixils.examples.minesweeper.win :as win]))
+
+
+
+;; Utility functions
+
+(defun left-pad [s n pad]
+  (let [s (str s)
+        pad-len (- n (count s))]
+    (if (> pad-len 0)
+      (str (apply str (repeat pad-len pad)) s)
+      s)))
+
+
+
+;; Font and image resource
+
+(defbundle counter {:images {:font-map "assets/score_numbers.png"}})
+
+(deffont counter-font {:type :bitmap
+                       :spacing 0
+                       :resource :counter/font-map
+                       :glyphs (reduce "0123456789"
+                                       {}
+                                       (fn [glyphs num]
+                                         (let [index (int (str num))]
+                                           (merge glyphs
+                                                  {num {:x (* index 13)
+                                                        :y 0
+                                                        :w 13
+                                                        :h 23}}))))})
+
+
+
+;; Counter Component
+
+(defcomponent counter {:style {:width 41
+                               :height 25}
+                       :render (fn [state ctx]
+                                 (win/draw-bevel! {:x 0 :y 0 :w 41 :h 25} {:thickness 1 :invert true})
+                                 (r/text! (left-pad (:value state) 3 "0") {:x 1 :y 1}
+                                          {:font :font/counter-font}))})
+
