@@ -50,11 +50,15 @@ namespace Pixils::Script
               MULTI_SIG((FN_ARGS((&Lisple::Type::MAP)),
                          EXEC_DISPATCH(&MakeLayoutGap::exec_make)),
                         (FN_ARGS((&Lisple::Type::KEY)),
-                         EXEC_DISPATCH(&MakeLayoutGap::exec_make_key))));
+                         EXEC_DISPATCH(&MakeLayoutGap::exec_make_key)),
+                        (FN_ARGS((&Lisple::Type::NUMBER)),
+                         EXEC_DISPATCH(&MakeLayoutGap::exec_make_num))));
 
     EXEC_BODY(MakeLayoutGap, exec_make)
     {
-      static Lisple::MapSchema gap_schema({}, {{"mode", &Lisple::Type::KEY}});
+      static Lisple::MapSchema gap_schema(
+        {},
+        {{"mode", &Lisple::Type::KEY}, {"size", &Lisple::Type::NUMBER}});
 
       auto gap = std::make_unique<UI::Style::Layout::Gap>();
       auto opts = gap_schema.bind(ctx, *args[0]);
@@ -62,10 +66,23 @@ namespace Pixils::Script
       if (opts.contains("mode"))
       {
         auto mode_str = opts.str("mode");
+        if (mode_str == "none")
+        {
+          gap->mode = UI::Style::Layout::GapMode::NONE;
+        }
+        else if (mode_str == "fixed")
+        {
+          gap->mode = UI::Style::Layout::GapMode::FIXED;
+        }
         if (mode_str == "space-between")
         {
           gap->mode = UI::Style::Layout::GapMode::SPACE_BETWEEN;
         }
+      }
+
+      if (opts.contains("size"))
+      {
+        gap->size = opts.i32("size");
       }
 
       return LayoutGapAdapter::claim(std::move(gap));
@@ -75,6 +92,16 @@ namespace Pixils::Script
     {
       Lisple::sptr_rtval_v make_args{
         Lisple::RTValue::map({Lisple::RTValue::keyword("mode"), args[0]})};
+
+      return exec_make(ctx, make_args);
+    }
+
+    EXEC_BODY(MakeLayoutGap, exec_make_num)
+    {
+      Lisple::sptr_rtval_v make_args{Lisple::RTValue::map({Lisple::RTValue::keyword("mode"),
+                                                           Lisple::RTValue::keyword("fixed"),
+                                                           Lisple::RTValue::keyword("size"),
+                                                           args[0]})};
 
       return exec_make(ctx, make_args);
     }
@@ -373,7 +400,8 @@ namespace Pixils::Script
   NATIVE_ADAPTER_IMPL(LayoutGapAdapter,
                       UI::Style::Layout::Gap,
                       &HostType::STYLE_LAYOUT_GAP,
-                      (mode));
+                      (mode),
+                      (size));
 
   NOBJ_PROP_GET(StyleAdapter, background)
   {
@@ -465,10 +493,20 @@ namespace Pixils::Script
     if (!get_self_object().mode) return Lisple::Constant::NIL;
     switch (*get_self_object().mode)
     {
+    case UI::Style::Layout::GapMode::NONE:
+      return Lisple::RTValue::keyword("none");
+    case UI::Style::Layout::GapMode::FIXED:
+      return Lisple::RTValue::keyword("fixed");
     case UI::Style::Layout::GapMode::SPACE_BETWEEN:
       return Lisple::RTValue::keyword("space-between");
     }
     return Lisple::Constant::NIL;
+  }
+
+  NOBJ_PROP_GET(LayoutGapAdapter, size)
+  {
+    return get_self_object().size ? Lisple::RTValue::number(*get_self_object().size)
+                                  : Lisple::Constant::NIL;
   }
 
   NOBJ_PROP_GET(StyleAdapter, hidden)

@@ -51,7 +51,7 @@ namespace Pixils::Script
     FUNC(MakeBorderStyle, make);
     FUNC(MakeStyle, make);
     FUNC(MakeLayout, make);
-    FUNC(MakeLayoutGap, make, make_key);
+    FUNC(MakeLayoutGap, make, make_key, make_num);
     FUNC(MakeBackground, make_color, make_image, make_map);
     FUNC(MakeInsets, make_num, make_map, make_vec);
 
@@ -73,7 +73,7 @@ namespace Pixils::Script
                   hover),
                  (hidden));
   NATIVE_ADAPTER(LayoutAdapter, UI::Style::Layout, (direction, gap));
-  NATIVE_ADAPTER(LayoutGapAdapter, UI::Style::Layout::Gap, (mode));
+  NATIVE_ADAPTER(LayoutGapAdapter, UI::Style::Layout::Gap, (mode, size));
   NATIVE_ADAPTER(BackgroundAdapter, UI::Style::Background, (color, image));
   NATIVE_ADAPTER(BorderAdapter, UI::Style::Border, (thickness, line_style, color, trim));
   NATIVE_SUB_ADAPTER(BorderAdapter,

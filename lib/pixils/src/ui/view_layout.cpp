@@ -186,7 +186,26 @@ namespace Pixils::UI
     }
 
     int available = row ? parent.w : parent.h;
-    int fill_size = fill_count > 0 ? (available - total_fixed) / fill_count : 0;
+    int fixed_gap_size = 0;
+    if (layout.gap && layout.gap->mode && flow_count > 1)
+    {
+      switch (*layout.gap->mode)
+      {
+      case Style::Layout::GapMode::NONE:
+        fixed_gap_size = 0;
+        break;
+      case Style::Layout::GapMode::FIXED:
+        fixed_gap_size = layout.gap->size.value_or(0);
+        break;
+      case Style::Layout::GapMode::SPACE_BETWEEN:
+        fixed_gap_size = 0;
+        break;
+      }
+    }
+
+    int total_fixed_gap = flow_count > 1 ? fixed_gap_size * (flow_count - 1) : 0;
+    int fill_size =
+      fill_count > 0 ? (available - total_fixed - total_fixed_gap) / fill_count : 0;
     for (size_t i = 0; i < children.size(); i++)
     {
       const Style& cs = styles[i];
@@ -203,10 +222,20 @@ namespace Pixils::UI
     }
 
     int gap_size = 0;
-    if (layout.gap && layout.gap->mode &&
-        *layout.gap->mode == Style::Layout::GapMode::SPACE_BETWEEN && flow_count > 1)
+    if (layout.gap && layout.gap->mode && flow_count > 1)
     {
-      gap_size = std::max(0, available - total_flow_size) / (flow_count - 1);
+      switch (*layout.gap->mode)
+      {
+      case Style::Layout::GapMode::NONE:
+        gap_size = 0;
+        break;
+      case Style::Layout::GapMode::FIXED:
+        gap_size = layout.gap->size.value_or(0);
+        break;
+      case Style::Layout::GapMode::SPACE_BETWEEN:
+        gap_size = std::max(0, available - total_flow_size) / (flow_count - 1);
+        break;
+      }
     }
 
     std::vector<Rect> rects;

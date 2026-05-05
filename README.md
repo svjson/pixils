@@ -244,7 +244,11 @@ The layout map can also distribute leftover space between flow children:
               {:mode 'main/help-button :style {:width 48}}]})
 ```
 
-`:gap` also accepts the explicit wrapped form `{:mode :space-between}`.
+`:gap` also accepts:
+- the explicit wrapped form `{:mode :space-between}`
+- a fixed number like `:gap 8`
+- the explicit wrapped fixed form `{:mode :fixed :size 8}`
+- `:none` for explicit default/no extra gap
 
 Size can come from the mode's own `:style` definition or be overridden per child slot:
 
@@ -312,7 +316,7 @@ hook fires.
 | `:margin`     | Number, `[vertical horizontal]`, `[top right bottom left]`, or `{:t N :r N :b N :l N}` | Outer space around a child in layout flow. |
 | `:padding`    | Number, `[vertical horizontal]`, `[top right bottom left]`, or `{:t N :r N :b N :l N}` | Inset applied before the render hook's viewport is set. |
 | `:border`     | Border map (see below)                                               | Draws a border inside the component bounds. |
-| `:layout`     | `{:direction :row}`, `{:direction :column}`, optional `:gap :space-between` or `:gap {:mode :space-between}` | Child layout policy. Currently supports flow direction and `space-between` gap distribution. |
+| `:layout`     | `{:direction :row}`, `{:direction :column}`, optional `:gap :none`, `:gap N`, `:gap :space-between`, or wrapped gap maps | Child layout policy. Currently supports flow direction, fixed gap, explicit no-gap, and `space-between` distribution. |
 | `:width`      | Number                                                               | Content width in pixels. Absent means fill remaining space. |
 | `:height`     | Number                                                               | Content height in pixels. Absent means fill remaining space. |
 | `:position`   | `:absolute`, `:flow`                                                 | Positioning mode. Default: `:flow`. |

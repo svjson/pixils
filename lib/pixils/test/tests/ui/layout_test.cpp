@@ -35,7 +35,8 @@ class LayoutTest : public BaseFixture
   std::vector<Rect> layout(const std::vector<std::shared_ptr<View>>& children,
                            const Rect& parent,
                            LayoutDirection direction = LayoutDirection::COLUMN,
-                           std::optional<Style::Layout::GapMode> gap_mode = std::nullopt)
+                           std::optional<Style::Layout::GapMode> gap_mode = std::nullopt,
+                           std::optional<int> gap_size = std::nullopt)
   {
     Style::Layout layout;
     layout.direction = direction;
@@ -43,6 +44,7 @@ class LayoutTest : public BaseFixture
     {
       layout.gap = Style::Layout::Gap{};
       layout.gap->mode = *gap_mode;
+      layout.gap->size = gap_size;
     }
 
     return Pixils::UI::layout_children(children, parent, runtime, hook_ctx_val, layout);
@@ -405,4 +407,52 @@ TEST_F(LayoutTest, layout_space_between_noops_with_single_flow_child)
   ASSERT_EQ(rects.size(), 1u);
   EXPECT_EQ(rects[0].x, 0);
   EXPECT_EQ(rects[0].w, 40);
+}
+
+TEST_F(LayoutTest, layout_row_fixed_gap_uses_requested_spacing)
+{
+  std::vector<std::shared_ptr<View>> children;
+  children.push_back(make_fixed_width_ctx(40));
+  children.push_back(make_fixed_width_ctx(40));
+  children.push_back(make_fixed_width_ctx(40));
+  Rect parent = {0, 0, 200, 40};
+
+  auto rects =
+    layout(children, parent, LayoutDirection::ROW, Style::Layout::GapMode::FIXED, 10);
+
+  ASSERT_EQ(rects.size(), 3u);
+  EXPECT_EQ(rects[0].x, 0);
+  EXPECT_EQ(rects[1].x, 50);
+  EXPECT_EQ(rects[2].x, 100);
+}
+
+TEST_F(LayoutTest, layout_column_fixed_gap_reduces_fill_space)
+{
+  std::vector<std::shared_ptr<View>> children;
+  children.push_back(make_fixed_ctx(40));
+  children.push_back(make_ctx());
+  Rect parent = {0, 0, 100, 200};
+
+  auto rects =
+    layout(children, parent, LayoutDirection::COLUMN, Style::Layout::GapMode::FIXED, 10);
+
+  ASSERT_EQ(rects.size(), 2u);
+  EXPECT_EQ(rects[0].y, 0);
+  EXPECT_EQ(rects[0].h, 40);
+  EXPECT_EQ(rects[1].y, 50);
+  EXPECT_EQ(rects[1].h, 150);
+}
+
+TEST_F(LayoutTest, layout_gap_none_matches_default_behavior)
+{
+  std::vector<std::shared_ptr<View>> children;
+  children.push_back(make_fixed_width_ctx(40));
+  children.push_back(make_fixed_width_ctx(40));
+  Rect parent = {0, 0, 200, 40};
+
+  auto rects = layout(children, parent, LayoutDirection::ROW, Style::Layout::GapMode::NONE);
+
+  ASSERT_EQ(rects.size(), 2u);
+  EXPECT_EQ(rects[0].x, 0);
+  EXPECT_EQ(rects[1].x, 40);
 }

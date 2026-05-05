@@ -104,6 +104,36 @@ TEST_F(StyleTest, make_style_with_layout_gap_keyword)
   EXPECT_EQ(*style.layout->gap->mode, Pixils::UI::Style::Layout::GapMode::SPACE_BETWEEN);
 }
 
+TEST_F(StyleTest, make_style_with_layout_gap_none_keyword)
+{
+  // When
+  Lisple::sptr_rtval result =
+    runtime.eval("(pixils.ui.style/make-style {:layout {:gap :none}})");
+
+  // Then
+  auto style = Lisple::obj<Pixils::UI::Style>(*result);
+  ASSERT_NE(style.layout, std::nullopt);
+  ASSERT_NE(style.layout->gap, std::nullopt);
+  ASSERT_NE(style.layout->gap->mode, std::nullopt);
+  EXPECT_EQ(*style.layout->gap->mode, Pixils::UI::Style::Layout::GapMode::NONE);
+}
+
+TEST_F(StyleTest, make_style_with_layout_gap_number)
+{
+  // When
+  Lisple::sptr_rtval result =
+    runtime.eval("(pixils.ui.style/make-style {:layout {:gap 8}})");
+
+  // Then
+  auto style = Lisple::obj<Pixils::UI::Style>(*result);
+  ASSERT_NE(style.layout, std::nullopt);
+  ASSERT_NE(style.layout->gap, std::nullopt);
+  ASSERT_NE(style.layout->gap->mode, std::nullopt);
+  ASSERT_NE(style.layout->gap->size, std::nullopt);
+  EXPECT_EQ(*style.layout->gap->mode, Pixils::UI::Style::Layout::GapMode::FIXED);
+  EXPECT_EQ(*style.layout->gap->size, 8);
+}
+
 TEST_F(StyleTest, make_insets_with_four_value_vector)
 {
   // When
