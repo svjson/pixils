@@ -21,34 +21,49 @@ namespace Pixils::UI
     void render_solid_edge(SDL_Renderer* renderer,
                            const Rect& bounds,
                            Edge edge,
-                           int thickness)
+                           const LineSpec& spec)
     {
       SDL_Rect rect = {bounds.x, bounds.y, 0, 0};
+      const int thickness = spec.thickness;
 
       switch (edge)
       {
       case Edge::TOP:
-        rect = {bounds.x, bounds.y, bounds.w, thickness};
+        rect = {bounds.x + spec.trim_start,
+                bounds.y,
+                bounds.w - spec.trim_start - spec.trim_end,
+                thickness};
         break;
       case Edge::RIGHT:
-        rect = {bounds.x + bounds.w - thickness, bounds.y, thickness, bounds.h};
+        rect = {bounds.x + bounds.w - thickness,
+                bounds.y + spec.trim_start,
+                thickness,
+                bounds.h - spec.trim_start - spec.trim_end};
         break;
       case Edge::BOTTOM:
-        rect = {bounds.x, bounds.y + bounds.h - thickness, bounds.w, thickness};
+        rect = {bounds.x + spec.trim_end,
+                bounds.y + bounds.h - thickness,
+                bounds.w - spec.trim_start - spec.trim_end,
+                thickness};
         break;
       case Edge::LEFT:
-        rect = {bounds.x, bounds.y, thickness, bounds.h};
+        rect = {bounds.x,
+                bounds.y + spec.trim_end,
+                thickness,
+                bounds.h - spec.trim_start - spec.trim_end};
         break;
       }
 
+      if (rect.w <= 0 || rect.h <= 0) return;
       SDL_RenderFillRect(renderer, &rect);
     }
 
     void render_bevel_edge(SDL_Renderer* renderer,
                            const Rect& bounds,
                            Edge edge,
-                           int thickness)
+                           const LineSpec& spec)
     {
+      const int thickness = spec.thickness;
       auto draw_line = [&](int x1, int y1, int x2, int y2)
       {
         if (x2 < x1 || y2 < y1) return;
@@ -60,22 +75,28 @@ namespace Pixils::UI
         switch (edge)
         {
         case Edge::TOP:
-          draw_line(bounds.x, bounds.y + n, bounds.x + bounds.w - 1 - n, bounds.y + n);
+          draw_line(bounds.x + spec.trim_start,
+                    bounds.y + n,
+                    bounds.x + bounds.w - 1 - n - spec.trim_end,
+                    bounds.y + n);
           break;
         case Edge::RIGHT:
           draw_line(bounds.x + bounds.w - thickness + n,
-                    bounds.y + thickness - n,
+                    bounds.y + thickness - n + spec.trim_start,
                     bounds.x + bounds.w - thickness + n,
-                    bounds.y + bounds.h - 1);
+                    bounds.y + bounds.h - 1 - spec.trim_end);
           break;
         case Edge::BOTTOM:
-          draw_line(bounds.x + thickness - n,
+          draw_line(bounds.x + thickness - n + spec.trim_end,
                     bounds.y + bounds.h - thickness + n,
-                    bounds.x + bounds.w - 1,
+                    bounds.x + bounds.w - 1 - spec.trim_start,
                     bounds.y + bounds.h - thickness + n);
           break;
         case Edge::LEFT:
-          draw_line(bounds.x + n, bounds.y, bounds.x + n, bounds.y + bounds.h - 1 - n);
+          draw_line(bounds.x + n,
+                    bounds.y + spec.trim_end,
+                    bounds.x + n,
+                    bounds.y + bounds.h - 1 - n - spec.trim_start);
           break;
         }
       }
@@ -94,6 +115,7 @@ namespace Pixils::UI
 
       const int join = std::min(top.thickness, left.thickness);
       if (join <= 0) return;
+      if (top.trim_start > 0 || left.trim_end > 0) return;
 
       for (int n = 0; n < join; n++)
       {
@@ -127,6 +149,7 @@ namespace Pixils::UI
 
       const int join = std::min(bottom.thickness, right.thickness);
       if (join <= 0) return;
+      if (bottom.trim_start > 0 || right.trim_end > 0) return;
 
       for (int n = 0; n < join; n++)
       {
@@ -164,11 +187,11 @@ namespace Pixils::UI
     switch (spec.style)
     {
     case Style::LineStyle::BEVEL:
-      render_bevel_edge(renderer, bounds, edge, spec.thickness);
+      render_bevel_edge(renderer, bounds, edge, spec);
       break;
     case Style::LineStyle::SOLID:
     default:
-      render_solid_edge(renderer, bounds, edge, spec.thickness);
+      render_solid_edge(renderer, bounds, edge, spec);
       break;
     }
 

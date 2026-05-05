@@ -65,6 +65,18 @@ namespace Pixils::UI
       Rect apply_to(const Rect& rect) const;
     };
 
+    struct Trim
+    {
+      int start = 0;
+      int end = 0;
+
+      Trim() = default;
+      Trim(int amount);
+      Trim(int start, int end);
+
+      bool operator==(const Trim& other) const;
+    };
+
     enum class LineStyle : uint8_t
     {
       SOLID,
@@ -78,6 +90,7 @@ namespace Pixils::UI
       std::optional<int> thickness = std::nullopt;
       std::optional<LineStyle> line_style = std::nullopt;
       std::optional<Color> color = std::nullopt;
+      std::optional<Trim> trim = std::nullopt;
     };
 
     /**
@@ -105,6 +118,14 @@ namespace Pixils::UI
       std::optional<Color> right_color() const;
       std::optional<Color> bottom_color() const;
       std::optional<Color> left_color() const;
+
+      /**
+       * Effective trim for each side: per-side value if set, else base, else zero.
+       */
+      Trim top_trim() const;
+      Trim right_trim() const;
+      Trim bottom_trim() const;
+      Trim left_trim() const;
 
       /**
        * Effective line style for each side: per-side value if set, else base, else solid.

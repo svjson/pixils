@@ -62,7 +62,7 @@ namespace Pixils::Script
                   hover),
                  (hidden));
   NATIVE_ADAPTER(BackgroundAdapter, UI::Style::Background, (color, image));
-  NATIVE_ADAPTER(BorderAdapter, UI::Style::Border, (thickness, line_style, color));
+  NATIVE_ADAPTER(BorderAdapter, UI::Style::Border, (thickness, line_style, color, trim));
   NATIVE_SUB_ADAPTER(BorderAdapter,
                      (BorderStyleAdapter, UI::Style::BorderStyle),
                      (t, r, b, l));

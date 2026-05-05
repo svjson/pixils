@@ -95,18 +95,30 @@ namespace Pixils::UI
     if (style_res.border)
     {
       const Style::BorderStyle& bs = *style_res.border;
+      const Style::Trim top_trim = bs.top_trim();
+      const Style::Trim right_trim = bs.right_trim();
+      const Style::Trim bottom_trim = bs.bottom_trim();
+      const Style::Trim left_trim = bs.left_trim();
       const LineSpec top_spec{.thickness = bs.top_thickness(),
                               .color = bs.top_color(),
-                              .style = bs.top_line_style()};
+                              .style = bs.top_line_style(),
+                              .trim_start = top_trim.start,
+                              .trim_end = top_trim.end};
       const LineSpec right_spec{.thickness = bs.right_thickness(),
                                 .color = bs.right_color(),
-                                .style = bs.right_line_style()};
+                                .style = bs.right_line_style(),
+                                .trim_start = right_trim.start,
+                                .trim_end = right_trim.end};
       const LineSpec bottom_spec{.thickness = bs.bottom_thickness(),
                                  .color = bs.bottom_color(),
-                                 .style = bs.bottom_line_style()};
+                                 .style = bs.bottom_line_style(),
+                                 .trim_start = bottom_trim.start,
+                                 .trim_end = bottom_trim.end};
       const LineSpec left_spec{.thickness = bs.left_thickness(),
                                .color = bs.left_color(),
-                               .style = bs.left_line_style()};
+                               .style = bs.left_line_style(),
+                               .trim_start = left_trim.start,
+                               .trim_end = left_trim.end};
 
       render_edge(render_ctx.renderer, bounds, Edge::TOP, top_spec);
       render_edge(render_ctx.renderer, bounds, Edge::RIGHT, right_spec);

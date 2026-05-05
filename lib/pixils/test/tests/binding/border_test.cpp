@@ -147,6 +147,32 @@ TEST(BorderStyleEffectiveLineStyleTest, per_side_overrides_base)
   EXPECT_EQ(bs.right_line_style(), Pixils::UI::Style::LineStyle::BEVEL);
 }
 
+TEST(BorderStyleEffectiveTrimTest, falls_back_to_base_when_no_per_side_override)
+{
+  // Given
+  Pixils::UI::Style::BorderStyle bs;
+  bs.trim = Pixils::UI::Style::Trim{2, 1};
+
+  // Then
+  EXPECT_EQ(bs.top_trim(), (Pixils::UI::Style::Trim{2, 1}));
+  EXPECT_EQ(bs.right_trim(), (Pixils::UI::Style::Trim{2, 1}));
+  EXPECT_EQ(bs.bottom_trim(), (Pixils::UI::Style::Trim{2, 1}));
+  EXPECT_EQ(bs.left_trim(), (Pixils::UI::Style::Trim{2, 1}));
+}
+
+TEST(BorderStyleEffectiveTrimTest, per_side_overrides_base)
+{
+  // Given
+  Pixils::UI::Style::BorderStyle bs;
+  bs.trim = Pixils::UI::Style::Trim{1, 1};
+  bs.b = Pixils::UI::Style::Border{};
+  bs.b->trim = Pixils::UI::Style::Trim{3, 0};
+
+  // Then
+  EXPECT_EQ(bs.top_trim(), (Pixils::UI::Style::Trim{1, 1}));
+  EXPECT_EQ(bs.bottom_trim(), (Pixils::UI::Style::Trim{3, 0}));
+}
+
 TEST_F(BorderTest, make_border)
 {
   // When
@@ -170,6 +196,28 @@ TEST_F(BorderTest, make_bevel_border)
   auto border = Lisple::obj<Pixils::UI::Style::Border>(*result);
   EXPECT_EQ(border.line_style, Pixils::UI::Style::LineStyle::BEVEL);
   EXPECT_EQ(border.thickness, 2);
+}
+
+TEST_F(BorderTest, make_border_with_uniform_trim)
+{
+  // When
+  Lisple::sptr_rtval result = runtime.eval("(pixils.ui.style/make-border {:trim 2})");
+
+  // Then
+  auto border = Lisple::obj<Pixils::UI::Style::Border>(*result);
+  ASSERT_TRUE(border.trim.has_value());
+  EXPECT_EQ(*border.trim, (Pixils::UI::Style::Trim{2, 2}));
+}
+
+TEST_F(BorderTest, make_border_with_pair_trim)
+{
+  // When
+  Lisple::sptr_rtval result = runtime.eval("(pixils.ui.style/make-border {:trim [1 0]})");
+
+  // Then
+  auto border = Lisple::obj<Pixils::UI::Style::Border>(*result);
+  ASSERT_TRUE(border.trim.has_value());
+  EXPECT_EQ(*border.trim, (Pixils::UI::Style::Trim{1, 0}));
 }
 
 TEST_F(BorderStyleTest, make_border_style)
@@ -197,4 +245,17 @@ TEST_F(BorderStyleTest, make_bevel_border_style)
   auto& border = result->adapter<Pixils::Script::BorderStyleAdapter>().get_self_object();
   EXPECT_EQ(border.line_style, Pixils::UI::Style::LineStyle::BEVEL);
   EXPECT_EQ(border.thickness, 2);
+}
+
+TEST_F(BorderStyleTest, make_border_style_with_trim)
+{
+  // When
+  Lisple::sptr_rtval result =
+    runtime.eval("(pixils.ui.style/make-border-style {:trim [2 1]})");
+
+  // Then
+  ASSERT_TRUE(Pixils::Script::HostType::BORDER_STYLE.is_type_of(*result));
+  auto& border = result->adapter<Pixils::Script::BorderStyleAdapter>().get_self_object();
+  ASSERT_TRUE(border.trim.has_value());
+  EXPECT_EQ(*border.trim, (Pixils::UI::Style::Trim{2, 1}));
 }

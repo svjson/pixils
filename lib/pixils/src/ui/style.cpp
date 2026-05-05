@@ -77,6 +77,23 @@ namespace Pixils::UI
   {
   }
 
+  Style::Trim::Trim(int amount)
+    : start(amount)
+    , end(amount)
+  {
+  }
+
+  Style::Trim::Trim(int start, int end)
+    : start(start)
+    , end(end)
+  {
+  }
+
+  bool Style::Trim::operator==(const Trim& other) const
+  {
+    return start == other.start && end == other.end;
+  }
+
   Rect Style::Insets::apply_to(const Rect& rect) const
   {
     return Rect(rect.x + this->l,
@@ -123,6 +140,26 @@ namespace Pixils::UI
   std::optional<Color> Style::BorderStyle::left_color() const
   {
     return (l && l->color) ? l->color : color;
+  }
+
+  Style::Trim Style::BorderStyle::top_trim() const
+  {
+    return (t && t->trim) ? *t->trim : trim.value_or(Style::Trim{0});
+  }
+
+  Style::Trim Style::BorderStyle::right_trim() const
+  {
+    return (r && r->trim) ? *r->trim : trim.value_or(Style::Trim{0});
+  }
+
+  Style::Trim Style::BorderStyle::bottom_trim() const
+  {
+    return (b && b->trim) ? *b->trim : trim.value_or(Style::Trim{0});
+  }
+
+  Style::Trim Style::BorderStyle::left_trim() const
+  {
+    return (l && l->trim) ? *l->trim : trim.value_or(Style::Trim{0});
   }
 
   Style::LineStyle Style::BorderStyle::top_line_style() const

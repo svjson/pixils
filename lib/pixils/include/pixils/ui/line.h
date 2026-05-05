@@ -29,6 +29,8 @@ namespace Pixils::UI
     int thickness = 0;
     std::optional<Color> color = std::nullopt;
     Style::LineStyle style = Style::LineStyle::SOLID;
+    int trim_start = 0;
+    int trim_end = 0;
   };
 
   void render_edge(SDL_Renderer* renderer,

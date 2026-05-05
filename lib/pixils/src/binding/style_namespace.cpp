@@ -15,6 +15,30 @@ namespace Pixils::Script
 
   namespace Function
   {
+    static std::optional<UI::Style::Trim> parse_trim(const Lisple::sptr_rtval& value)
+    {
+      if (*value == *Lisple::Constant::NIL) return std::nullopt;
+
+      switch (value->type)
+      {
+      case Lisple::RTValue::Type::NUMBER:
+        return UI::Style::Trim{value->num().get_int()};
+      case Lisple::RTValue::Type::VECTOR:
+        switch (Lisple::count(*value))
+        {
+        case 1:
+          return UI::Style::Trim{Lisple::get_child(*value, 0)->num().get_int()};
+        case 2:
+          return UI::Style::Trim{Lisple::get_child(*value, 0)->num().get_int(),
+                                 Lisple::get_child(*value, 1)->num().get_int()};
+        default:
+          return std::nullopt;
+        }
+      default:
+        return std::nullopt;
+      }
+    }
+
     /** MakeStyle - make-style */
     FUNC_IMPL(MakeStyle,
               SIG((FN_ARGS((&Lisple::Type::MAP)), EXEC_DISPATCH(&MakeStyle::exec_make))));
@@ -148,6 +172,7 @@ namespace Pixils::Script
         }
       }
       border.color = opts.optional_obj<Color>("color");
+      border.trim = parse_trim(opts.val("trim"));
     }
 
     /** MakeBorder - make-border */
@@ -159,7 +184,8 @@ namespace Pixils::Script
       static Lisple::MapSchema border_schema({},
                                              {{"thickness", &Lisple::Type::NUMBER},
                                               {"line-style", &Lisple::Type::KEY},
-                                              {"color", &HostType::COLOR}});
+                                              {"color", &HostType::COLOR},
+                                              {"trim", &Lisple::Type::ANY}});
 
       auto opts = border_schema.bind(ctx, *args[0]);
 
@@ -180,6 +206,7 @@ namespace Pixils::Script
                                                    {{"thickness", &Lisple::Type::NUMBER},
                                                     {"line-style", &Lisple::Type::KEY},
                                                     {"color", &HostType::COLOR},
+                                                    {"trim", &Lisple::Type::ANY},
                                                     {"top", &HostType::BORDER},
                                                     {"right", &HostType::BORDER},
                                                     {"bottom", &HostType::BORDER},
@@ -402,7 +429,8 @@ namespace Pixils::Script
                       &HostType::BORDER,
                       (thickness),
                       ("line-style", line_style),
-                      (color));
+                      (color),
+                      (trim));
 
   NOBJ_PROP_GET(BorderAdapter, thickness)
   {
@@ -425,6 +453,14 @@ namespace Pixils::Script
   }
 
   NOBJ_PROP_GET_OPT_ADAPTER__FIELD(BorderAdapter, color, ColorAdapter);
+
+  NOBJ_PROP_GET(BorderAdapter, trim)
+  {
+    if (!get_self_object().trim) return Lisple::Constant::NIL;
+
+    return Lisple::RTValue::vector({Lisple::RTValue::number(get_self_object().trim->start),
+                                    Lisple::RTValue::number(get_self_object().trim->end)});
+  }
 
   /** BorderStyleAdapter */
   NATIVE_SUB_ADAPTER_IMPL(BorderAdapter,
