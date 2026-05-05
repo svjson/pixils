@@ -46,18 +46,20 @@ namespace Pixils::UI
       }
       const auto& size_opt = row ? cs.width : cs.height;
       int outer_size = size_opt ? (row ? cs.total_width() : cs.total_height()) : fill_size;
+      int cross_outer_size = row ? (cs.height ? cs.total_height() : parent.h)
+                                 : (cs.width ? cs.total_width() : parent.w);
       if (row)
       {
         rects.push_back({pos + margin.l,
                          parent.y + margin.t,
                          std::max(0, outer_size - margin.l - margin.r),
-                         std::max(0, parent.h - margin.t - margin.b)});
+                         std::max(0, cross_outer_size - margin.t - margin.b)});
       }
       else
       {
         rects.push_back({parent.x + margin.l,
                          pos + margin.t,
-                         std::max(0, parent.w - margin.l - margin.r),
+                         std::max(0, cross_outer_size - margin.l - margin.r),
                          std::max(0, outer_size - margin.t - margin.b)});
       }
       pos += outer_size;

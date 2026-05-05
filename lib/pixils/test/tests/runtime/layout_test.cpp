@@ -99,7 +99,7 @@ TEST(LayoutTest, layout_two_fill_children_split_height_evenly)
   EXPECT_EQ(rects[1].h, 100);
 }
 
-TEST(LayoutTest, layout_children_always_inherit_full_parent_width)
+TEST(LayoutTest, layout_children_without_width_inherit_full_parent_width)
 {
   // Given
   std::vector<std::shared_ptr<View>> children;
@@ -116,6 +116,26 @@ TEST(LayoutTest, layout_children_always_inherit_full_parent_width)
     EXPECT_EQ(r.w, 320);
     EXPECT_EQ(r.x, 0);
   }
+}
+
+TEST(LayoutTest, layout_column_child_honors_requested_width)
+{
+  // Given
+  std::vector<std::shared_ptr<View>> children;
+  Style s;
+  s.width = 120;
+  s.height = 30;
+  children.push_back(make_ctx(std::move(s)));
+  Rect parent = {0, 0, 320, 200};
+
+  // When
+  auto rects = Pixils::UI::layout_children(children, parent);
+
+  // Then
+  ASSERT_EQ(rects.size(), 1u);
+  EXPECT_EQ(rects[0].x, 0);
+  EXPECT_EQ(rects[0].w, 120);
+  EXPECT_EQ(rects[0].h, 30);
 }
 
 TEST(LayoutTest, layout_children_respect_parent_origin)
@@ -153,6 +173,26 @@ TEST(LayoutTest, layout_row_direction_fixed_then_fill_splits_width)
   EXPECT_EQ(rects[0].w, 80);
   EXPECT_EQ(rects[1].x, 80);
   EXPECT_EQ(rects[1].w, 240);
+}
+
+TEST(LayoutTest, layout_row_child_honors_requested_height)
+{
+  // Given
+  std::vector<std::shared_ptr<View>> children;
+  Style s;
+  s.width = 80;
+  s.height = 40;
+  children.push_back(make_ctx(std::move(s)));
+  Rect parent = {0, 0, 320, 200};
+
+  // When
+  auto rects = Pixils::UI::layout_children(children, parent, LayoutDirection::ROW);
+
+  // Then
+  ASSERT_EQ(rects.size(), 1u);
+  EXPECT_EQ(rects[0].y, 0);
+  EXPECT_EQ(rects[0].w, 80);
+  EXPECT_EQ(rects[0].h, 40);
 }
 
 TEST(LayoutTest, layout_absolute_children_excluded_from_flow)
