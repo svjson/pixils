@@ -160,6 +160,13 @@ namespace Pixils::UI
       std::optional<Gap> gap = std::nullopt;
     };
 
+    struct Text
+    {
+      std::optional<Color> color = std::nullopt;
+      std::optional<std::string> font = std::nullopt;
+      std::optional<int> scale = std::nullopt;
+    };
+
     Style();
     Style(const Style& other);
 
@@ -170,6 +177,7 @@ namespace Pixils::UI
     std::optional<Insets> margin = std::nullopt;
     std::optional<Insets> padding = std::nullopt;
     std::optional<BorderStyle> border = std::nullopt;
+    std::optional<Text> text = std::nullopt;
 
     /**
      * Content surface size. Absent means fill remaining space. When

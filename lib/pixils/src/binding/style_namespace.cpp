@@ -43,6 +43,9 @@ namespace Pixils::Script
     FUNC_IMPL(MakeStyle,
               SIG((FN_ARGS((&Lisple::Type::MAP)), EXEC_DISPATCH(&MakeStyle::exec_make))));
 
+    FUNC_IMPL(MakeText,
+              SIG((FN_ARGS((&Lisple::Type::MAP)), EXEC_DISPATCH(&MakeText::exec_make))));
+
     FUNC_IMPL(MakeLayout,
               SIG((FN_ARGS((&Lisple::Type::MAP)), EXEC_DISPATCH(&MakeLayout::exec_make))));
 
@@ -106,6 +109,23 @@ namespace Pixils::Script
       return exec_make(ctx, make_args);
     }
 
+    EXEC_BODY(MakeText, exec_make)
+    {
+      static Lisple::MapSchema text_schema({},
+                                           {{"color", &HostType::COLOR},
+                                            {"font", &Lisple::Type::KEY},
+                                            {"scale", &Lisple::Type::NUMBER}});
+
+      auto text = std::make_unique<UI::Style::Text>();
+      auto opts = text_schema.bind(ctx, *args[0]);
+
+      text->color = opts.optional_obj<Color>("color");
+      if (opts.contains("font")) text->font = opts.str("font");
+      if (opts.contains("scale")) text->scale = opts.i32("scale");
+
+      return StyleTextAdapter::claim(std::move(text));
+    }
+
     EXEC_BODY(MakeLayout, exec_make)
     {
       static Lisple::MapSchema layout_schema(
@@ -141,6 +161,7 @@ namespace Pixils::Script
                                              {"border", &HostType::BORDER_STYLE},
                                              {"padding", &HostType::STYLE_INSETS},
                                              {"layout", &HostType::STYLE_LAYOUT},
+                                             {"text", &HostType::STYLE_TEXT},
                                              {"width", &Lisple::Type::NUMBER},
                                              {"height", &Lisple::Type::NUMBER},
                                              {"position", &Lisple::Type::KEY},
@@ -157,6 +178,7 @@ namespace Pixils::Script
       style->padding = opts.optional_obj<UI::Style::Insets>("padding");
       style->border = opts.optional_obj<UI::Style::BorderStyle>("border");
       style->layout = opts.optional_obj<UI::Style::Layout>("layout");
+      style->text = opts.optional_obj<UI::Style::Text>("text");
 
       if (opts.contains("width")) style->width = opts.i32("width");
       if (opts.contains("height")) style->height = opts.i32("height");
@@ -382,6 +404,7 @@ namespace Pixils::Script
                       (margin),
                       (border),
                       (padding),
+                      (text),
                       (width),
                       (height),
                       (position),
@@ -402,6 +425,13 @@ namespace Pixils::Script
                       &HostType::STYLE_LAYOUT_GAP,
                       (mode),
                       (size));
+
+  NATIVE_ADAPTER_IMPL(StyleTextAdapter,
+                      UI::Style::Text,
+                      &HostType::STYLE_TEXT,
+                      (color),
+                      (font),
+                      (scale));
 
   NOBJ_PROP_GET(StyleAdapter, background)
   {
@@ -436,6 +466,12 @@ namespace Pixils::Script
   {
     return get_self_object().padding ? InsetsAdapter::make_ref(*get_self_object().padding)
                                      : Lisple::Constant::NIL;
+  }
+
+  NOBJ_PROP_GET(StyleAdapter, text)
+  {
+    return get_self_object().text ? StyleTextAdapter::make_ref(*get_self_object().text)
+                                  : Lisple::Constant::NIL;
   }
 
   NOBJ_PROP_GET(StyleAdapter, width)
@@ -507,6 +543,24 @@ namespace Pixils::Script
   {
     return get_self_object().size ? Lisple::RTValue::number(*get_self_object().size)
                                   : Lisple::Constant::NIL;
+  }
+
+  NOBJ_PROP_GET(StyleTextAdapter, color)
+  {
+    return get_self_object().color ? ColorAdapter::make_ref(*get_self_object().color)
+                                   : Lisple::Constant::NIL;
+  }
+
+  NOBJ_PROP_GET(StyleTextAdapter, font)
+  {
+    return get_self_object().font ? Lisple::RTValue::keyword(*get_self_object().font)
+                                  : Lisple::Constant::NIL;
+  }
+
+  NOBJ_PROP_GET(StyleTextAdapter, scale)
+  {
+    return get_self_object().scale ? Lisple::RTValue::number(*get_self_object().scale)
+                                   : Lisple::Constant::NIL;
   }
 
   NOBJ_PROP_GET(StyleAdapter, hidden)
@@ -631,6 +685,7 @@ namespace Pixils::Script
     values.emplace("make-style", Function::MakeStyle::make());
     values.emplace("make-layout", Function::MakeLayout::make());
     values.emplace("make-layout-gap", Function::MakeLayoutGap::make());
+    values.emplace("make-text", Function::MakeText::make());
     values.emplace("make-background", Function::MakeBackground::make());
     values.emplace("make-insets", Function::MakeInsets::make());
   }

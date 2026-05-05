@@ -134,6 +134,24 @@ TEST_F(StyleTest, make_style_with_layout_gap_number)
   EXPECT_EQ(*style.layout->gap->size, 8);
 }
 
+TEST_F(StyleTest, make_style_with_text)
+{
+  // When
+  Lisple::sptr_rtval result =
+    runtime.eval("(pixils.ui.style/make-style {:text {:color {:r 255 :g 255 :b 255} "
+                 ":font :font/console :scale 2}})");
+
+  // Then
+  auto style = Lisple::obj<Pixils::UI::Style>(*result);
+  ASSERT_NE(style.text, std::nullopt);
+  ASSERT_NE(style.text->color, std::nullopt);
+  ASSERT_NE(style.text->font, std::nullopt);
+  ASSERT_NE(style.text->scale, std::nullopt);
+  EXPECT_EQ(*style.text->color, (Pixils::Color{255, 255, 255, 255}));
+  EXPECT_EQ(*style.text->font, "font/console");
+  EXPECT_EQ(*style.text->scale, 2);
+}
+
 TEST_F(StyleTest, make_insets_with_four_value_vector)
 {
   // When

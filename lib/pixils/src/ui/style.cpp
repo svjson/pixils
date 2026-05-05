@@ -14,6 +14,7 @@ namespace Pixils::UI
     , margin(other.margin)
     , padding(other.padding)
     , border(other.border)
+    , text(other.text)
     , width(other.width)
     , height(other.height)
     , position(other.position)
@@ -31,6 +32,7 @@ namespace Pixils::UI
     this->margin = other.margin;
     this->padding = other.padding;
     this->border = other.border;
+    this->text = other.text;
     this->width = other.width;
     this->height = other.height;
     this->position = other.position;
@@ -235,6 +237,7 @@ namespace Pixils::UI
     if (variant.margin) out.margin = variant.margin;
     if (variant.padding) out.padding = variant.padding;
     if (variant.border) out.border = variant.border;
+    if (variant.text) out.text = variant.text;
     if (variant.width) out.width = variant.width;
     if (variant.height) out.height = variant.height;
     if (variant.position) out.position = variant.position;
