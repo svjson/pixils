@@ -86,7 +86,9 @@ namespace Pixils::UI
       const Lisple::sptr_rtval& hook_ctx)
     {
       Style style = resolve_style(view->mode->style, view->state, view->interaction);
-      LayoutDirection direction = style.direction.value_or(LayoutDirection::COLUMN);
+      LayoutDirection direction = style.layout && style.layout->direction
+                                    ? *style.layout->direction
+                                    : LayoutDirection::COLUMN;
       bool row = direction == LayoutDirection::ROW;
 
       int total_main = 0;
@@ -243,7 +245,9 @@ namespace Pixils::UI
     if (view->children.empty()) return;
 
     Rect content = style_res.content_rect(bounds);
-    auto direction = style_res.direction.value_or(LayoutDirection::COLUMN);
+    auto direction = style_res.layout && style_res.layout->direction
+                       ? *style_res.layout->direction
+                       : LayoutDirection::COLUMN;
     auto child_rects =
       layout_children(view->children, content, runtime, hook_ctx, direction);
 

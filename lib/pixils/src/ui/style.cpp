@@ -19,7 +19,7 @@ namespace Pixils::UI
     , position(other.position)
     , top(other.top)
     , left(other.left)
-    , direction(other.direction)
+    , layout(other.layout)
     , hidden(other.hidden)
     , hover(other.hover ? std::make_unique<Style>(*other.hover) : nullptr)
   {
@@ -36,7 +36,7 @@ namespace Pixils::UI
     this->position = other.position;
     this->top = other.top;
     this->left = other.left;
-    this->direction = other.direction;
+    this->layout = other.layout;
     this->hidden = other.hidden;
     this->hover = other.hover ? std::make_unique<Style>(*other.hover) : nullptr;
   }
@@ -240,7 +240,7 @@ namespace Pixils::UI
     if (variant.position) out.position = variant.position;
     if (variant.top) out.top = variant.top;
     if (variant.left) out.left = variant.left;
-    if (variant.direction) out.direction = variant.direction;
+    if (variant.layout) out.layout = variant.layout;
     if (variant.hidden) out.hidden = variant.hidden;
   }
 

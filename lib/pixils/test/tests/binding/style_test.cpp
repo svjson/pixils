@@ -63,6 +63,19 @@ TEST_F(StyleTest, make_style_with_four_value_margin)
   EXPECT_EQ(style.margin->l, 4);
 }
 
+TEST_F(StyleTest, make_style_with_layout_direction)
+{
+  // When
+  Lisple::sptr_rtval result =
+    runtime.eval("(pixils.ui.style/make-style {:layout {:direction :row}})");
+
+  // Then
+  auto style = Lisple::obj<Pixils::UI::Style>(*result);
+  ASSERT_NE(style.layout, std::nullopt);
+  ASSERT_NE(style.layout->direction, std::nullopt);
+  EXPECT_EQ(*style.layout->direction, Pixils::UI::LayoutDirection::ROW);
+}
+
 TEST_F(StyleTest, make_insets_with_four_value_vector)
 {
   // When

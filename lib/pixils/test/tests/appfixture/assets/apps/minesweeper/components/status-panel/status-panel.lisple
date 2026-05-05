@@ -23,7 +23,7 @@
       s)))
 
 (defcomponent status-panel
-  {:style {:height 24 :padding 13 :direction :row}
+  {:style {:height 24 :padding 13 :layout {:direction :row}}
    :resources {:images {:counter-font-map "assets/score_numbers.png"
                         :face-normal "assets/face1.png"
                         :face-danger "assets/face2.png"}}

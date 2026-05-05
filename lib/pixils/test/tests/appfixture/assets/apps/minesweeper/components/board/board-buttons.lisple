@@ -21,7 +21,7 @@
                state)})
 
 (defcomponent board-button-row
-  {:style {:direction :row}
+  {:style {:layout {:direction :row}}
    :children (dotimes [n 9]
                {:mode 'board-button
                 :state {:x n

@@ -58,7 +58,7 @@
 (defmode menu-bar-mode
   {:style {:background {:r 255 :g 255 :b 255}
            :border {:line-style :solid :color {:r 0 :g 0 :b 0} :bottom {:thickness 1}}
-           :direction :row}
+           :layout {:direction :row}}
    :children (for-indexed [n item menu-items]
                           (make-menu-item item {:x (* n menu-item-w) :y 0
                                                 :w (+ 9 menu-item-w)
@@ -72,6 +72,5 @@
                                       (pop-mode!))
                                     state)
                           :compose {:render :pass}})
-
 
 

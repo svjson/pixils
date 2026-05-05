@@ -43,6 +43,32 @@ namespace Pixils::Script
     FUNC_IMPL(MakeStyle,
               SIG((FN_ARGS((&Lisple::Type::MAP)), EXEC_DISPATCH(&MakeStyle::exec_make))));
 
+    FUNC_IMPL(MakeLayout,
+              SIG((FN_ARGS((&Lisple::Type::MAP)), EXEC_DISPATCH(&MakeLayout::exec_make))));
+
+    EXEC_BODY(MakeLayout, exec_make)
+    {
+      static Lisple::MapSchema layout_schema({}, {{"direction", &Lisple::Type::KEY}});
+
+      auto layout = std::make_unique<UI::Style::Layout>();
+      auto opts = layout_schema.bind(ctx, *args[0]);
+
+      if (opts.contains("direction"))
+      {
+        auto dir_str = opts.str("direction");
+        if (dir_str == "row")
+        {
+          layout->direction = UI::LayoutDirection::ROW;
+        }
+        else
+        {
+          layout->direction = UI::LayoutDirection::COLUMN;
+        }
+      }
+
+      return LayoutAdapter::claim(std::move(layout));
+    }
+
     EXEC_BODY(MakeStyle, exec_make)
     {
       static Lisple::MapSchema style_schema({},
@@ -50,12 +76,12 @@ namespace Pixils::Script
                                              {"margin", &HostType::STYLE_INSETS},
                                              {"border", &HostType::BORDER_STYLE},
                                              {"padding", &HostType::STYLE_INSETS},
+                                             {"layout", &HostType::STYLE_LAYOUT},
                                              {"width", &Lisple::Type::NUMBER},
                                              {"height", &Lisple::Type::NUMBER},
                                              {"position", &Lisple::Type::KEY},
                                              {"top", &Lisple::Type::NUMBER},
                                              {"left", &Lisple::Type::NUMBER},
-                                             {"direction", &Lisple::Type::KEY},
                                              {"hidden", &Lisple::Type::ANY},
                                              {"hover", &HostType::STYLE}});
 
@@ -66,6 +92,7 @@ namespace Pixils::Script
       style->margin = opts.optional_obj<UI::Style::Insets>("margin");
       style->padding = opts.optional_obj<UI::Style::Insets>("padding");
       style->border = opts.optional_obj<UI::Style::BorderStyle>("border");
+      style->layout = opts.optional_obj<UI::Style::Layout>("layout");
 
       if (opts.contains("width")) style->width = opts.i32("width");
       if (opts.contains("height")) style->height = opts.i32("height");
@@ -82,19 +109,6 @@ namespace Pixils::Script
         else
         {
           style->position = UI::PositionMode::FLOW;
-        }
-      }
-
-      if (opts.contains("direction"))
-      {
-        auto dir_str = opts.str("direction");
-        if (dir_str == "row")
-        {
-          style->direction = UI::LayoutDirection::ROW;
-        }
-        else
-        {
-          style->direction = UI::LayoutDirection::COLUMN;
         }
       }
 
@@ -309,9 +323,14 @@ namespace Pixils::Script
                       (position),
                       (top),
                       (left),
-                      (direction),
+                      (layout),
                       (rw, "hidden", hidden),
                       (hover))
+
+  NATIVE_ADAPTER_IMPL(LayoutAdapter,
+                      UI::Style::Layout,
+                      &HostType::STYLE_LAYOUT,
+                      (direction));
 
   NOBJ_PROP_GET(StyleAdapter, background)
   {
@@ -379,7 +398,13 @@ namespace Pixils::Script
                                   : Lisple::Constant::NIL;
   }
 
-  NOBJ_PROP_GET(StyleAdapter, direction)
+  NOBJ_PROP_GET(StyleAdapter, layout)
+  {
+    return get_self_object().layout ? LayoutAdapter::make_ref(*get_self_object().layout)
+                                    : Lisple::Constant::NIL;
+  }
+
+  NOBJ_PROP_GET(LayoutAdapter, direction)
   {
     if (!get_self_object().direction) return Lisple::Constant::NIL;
     return Lisple::RTValue::keyword(
@@ -506,6 +531,7 @@ namespace Pixils::Script
     values.emplace("make-border", Function::MakeBorder::make());
     values.emplace("make-border-style", Function::MakeBorderStyle::make());
     values.emplace("make-style", Function::MakeStyle::make());
+    values.emplace("make-layout", Function::MakeLayout::make());
     values.emplace("make-background", Function::MakeBackground::make());
     values.emplace("make-insets", Function::MakeInsets::make());
   }

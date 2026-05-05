@@ -62,7 +62,7 @@
            :border {:line-style :solid
                     :color {:r 0 :g 0 :b 0}
                     :bottom {:thickness 1}}
-           :direction :row}
+           :layout {:direction :row}}
    :children (for-indexed [n item menu-items]
                (make-menu-item item
                                {:x (* n menu-item-w)

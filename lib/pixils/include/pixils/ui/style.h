@@ -141,6 +141,11 @@ namespace Pixils::UI
       Rect apply_to(const Rect& bounds) const;
     };
 
+    struct Layout
+    {
+      std::optional<LayoutDirection> direction = std::nullopt;
+    };
+
     Style();
     Style(const Style& other);
 
@@ -175,8 +180,8 @@ namespace Pixils::UI
     std::optional<int> top;
     std::optional<int> left;
 
-    /** Direction this mode uses to lay out its children. Absent defaults to COLUMN. */
-    std::optional<LayoutDirection> direction;
+    /** Layout policy for this mode's children. */
+    std::optional<Layout> layout;
 
     /** When true, excluded from hit-testing and rendering. Layout space is preserved. */
     std::optional<bool> hidden;

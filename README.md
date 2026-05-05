@@ -216,12 +216,12 @@ it is placed.
               {:mode 'main/game-area}]})
 ```
 
-Children are laid out in a column by default (top to bottom). Set `:style {:direction :row}`
+Children are laid out in a column by default (top to bottom). Set `:style {:layout {:direction :row}}`
 to arrange them left to right instead.
 
 ```clojure
 (pixils/defmode toolbar
-  {:style    {:direction :row}
+  {:style    {:layout {:direction :row}}
    :children [{:mode 'main/file-button :style {:width 48}}
               {:mode 'main/edit-button :style {:width 48}}
               {:mode 'main/help-button}]})
@@ -299,7 +299,7 @@ hook fires.
 | `:margin`     | Number, `[vertical horizontal]`, `[top right bottom left]`, or `{:t N :r N :b N :l N}` | Outer space around a child in layout flow. |
 | `:padding`    | Number, `[vertical horizontal]`, `[top right bottom left]`, or `{:t N :r N :b N :l N}` | Inset applied before the render hook's viewport is set. |
 | `:border`     | Border map (see below)                                               | Draws a border inside the component bounds. |
-| `:direction`  | `:row`, `:column`                                                    | Direction in which children are laid out. Default: `:column`. |
+| `:layout`     | `{:direction :row}` or `{:direction :column}`                        | Child layout policy. Currently supports layout direction; default direction is `:column`. |
 | `:width`      | Number                                                               | Content width in pixels. Absent means fill remaining space. |
 | `:height`     | Number                                                               | Content height in pixels. Absent means fill remaining space. |
 | `:position`   | `:absolute`, `:flow`                                                 | Positioning mode. Default: `:flow`. |
