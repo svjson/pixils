@@ -50,8 +50,6 @@
 
 (defun make-menu-item [item bounds]
   {:mode 'menu-item
-   :style {:width (:w bounds)
-           :height (:h bounds)}
    :state {:text (:title item)
            :items (:items item)}})
 
