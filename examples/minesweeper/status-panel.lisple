@@ -14,7 +14,7 @@
 
 ;; Status Panel Component
 
-(defcomponent status-panel {:style {:height 24
+(defcomponent status-panel {:style {:height 25
                                     :padding 4
                                     :direction :row}
                             :children [{:mode 'counter

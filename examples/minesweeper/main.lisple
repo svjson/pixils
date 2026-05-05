@@ -13,7 +13,7 @@
 
 (defprogram minesweeper
   {:display {:resolution {:scale 3}}
-   :initial-mode 'window-mode})
+   :initial-mode 'main-mode})
 
 
 
@@ -71,8 +71,16 @@
 
 
 
-
 (defmode window-mode
-  {:children [{:mode 'menu-bar-mode :style {:height 17}}
+  {:style {:width 178
+           :height 239}
+   :children [{:mode 'menu-bar-mode :style {:height 17}}
               {:mode 'game-mode}]})
+
+
+
+(defmode main-mode
+  {:style {:background win/teal}
+   :children [{:mode 'window-mode}]})
+
 

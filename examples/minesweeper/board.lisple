@@ -157,9 +157,9 @@
                :state {:board-mask (ui/bind-state :board-mask)
                        :face (ui/bind-state :face)}
                :on-mouse-down (fn [state e ctx]
-                                (assoc state :face :status-panel/face-danger))
+                                (assoc state :face :status/face-danger))
                :on-mouse-up (fn [state e ctx]
-                              (assoc state :face :status-panel/face-normal))
+                              (assoc state :face :status/face-normal))
                :style {:position :absolute
                        :top 0
                        :left 0}}]})
