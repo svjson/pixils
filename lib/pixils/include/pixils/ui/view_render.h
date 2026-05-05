@@ -26,17 +26,15 @@ namespace Pixils::Runtime
 namespace Pixils::UI
 {
   /**
-   * Render a view into the given bounds. Applies style (background fill,
-   * padding inset), sets a viewport, invokes the render hook, then lays out and
-   * recurses into any child views. Layout direction and child sizing are read
-   * from each child's resolved style. For stack-level modes the caller passes the
-   * full buffer rect; for layout children the caller passes the computed slot rect.
+   * Render a view using its already-resolved bounds. Applies style (background
+   * fill, border, content inset), sets a viewport, invokes the render hook, and
+   * recurses into any child views that were already laid out by the separate
+   * layout pass.
    */
   void render_view(Pixils::RenderContext& render_ctx,
                    Lisple::Runtime& runtime,
                    const Lisple::sptr_rtval& render_hook_ctx,
-                   const std::shared_ptr<Pixils::Runtime::View>& view,
-                   const Rect& bounds);
+                   const std::shared_ptr<Pixils::Runtime::View>& view);
 
 } // namespace Pixils::UI
 

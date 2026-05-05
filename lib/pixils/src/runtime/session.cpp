@@ -11,6 +11,7 @@
 #include <pixils/runtime/mode.h>
 #include <pixils/runtime/state.h>
 #include <pixils/runtime/view.h>
+#include <pixils/ui/view_layout.h>
 #include <pixils/ui/view_lifecycle.h>
 #include <pixils/ui/view_render.h>
 
@@ -151,17 +152,23 @@ namespace Pixils::Runtime
     for (size_t i = render_stack.size() - 1; i > 0; i--)
     {
       size_t ctx_idx = ctx_stack.size() - i;
+      Pixils::UI::layout_view_tree(ctx_stack[ctx_idx],
+                                   full,
+                                   lisple_runtime,
+                                   hook_args.render_args[1]);
       Pixils::UI::render_view(render_ctx,
                               lisple_runtime,
                               hook_args.render_args[1],
-                              ctx_stack[ctx_idx],
-                              full);
+                              ctx_stack[ctx_idx]);
     }
 
+    Pixils::UI::layout_view_tree(active_mode,
+                                 full,
+                                 lisple_runtime,
+                                 hook_args.render_args[1]);
     Pixils::UI::render_view(render_ctx,
                             lisple_runtime,
                             hook_args.render_args[1],
-                            active_mode,
-                            full);
+                            active_mode);
   }
 } // namespace Pixils::Runtime

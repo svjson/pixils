@@ -12,11 +12,10 @@ namespace Pixils::UI
   void render_view(Pixils::RenderContext& render_ctx,
                    Lisple::Runtime& runtime,
                    const Lisple::sptr_rtval& render_hook_ctx,
-                   const std::shared_ptr<Pixils::Runtime::View>& view_ptr,
-                   const Rect& bounds)
+                   const std::shared_ptr<Pixils::Runtime::View>& view_ptr)
   {
     Pixils::Runtime::View& ctx = *view_ptr;
-    ctx.bounds = bounds;
+    const Rect bounds = ctx.bounds;
 
     Style style_res = resolve_style(ctx.mode->style, ctx.state, ctx.interaction);
     if (style_res.hidden && *style_res.hidden) return;
@@ -101,33 +100,9 @@ namespace Pixils::UI
 
     if (!ctx.children.empty())
     {
-      /**
-       * Direction comes from the parent's resolved style (default: COLUMN).
-       * layout_children computes absolute rects for flow children; absolute-
-       * positioned children get zero rects and are placed separately below.
-       */
-      auto direction = style_res.direction.value_or(LayoutDirection::COLUMN);
-      auto child_rects =
-        layout_children(ctx.children, content, runtime, render_hook_ctx, direction);
-
-      for (size_t i = 0; i < ctx.children.size(); i++)
+      for (const auto& child : ctx.children)
       {
-        Pixils::Runtime::View& child = *ctx.children[i];
-        Style cs = resolve_style(child.mode->style, child.state, child.interaction);
-        Rect abs;
-        if (cs.position && *cs.position == PositionMode::ABSOLUTE)
-        {
-          int top = cs.top.value_or(0);
-          int left = cs.left.value_or(0);
-          int w = cs.width.has_value() ? cs.total_width() : content.w;
-          int h = cs.height.has_value() ? cs.total_height() : content.h;
-          abs = {content.x + left, content.y + top, w, h};
-        }
-        else
-        {
-          abs = child_rects[i];
-        }
-        render_view(render_ctx, runtime, render_hook_ctx, ctx.children[i], abs);
+        render_view(render_ctx, runtime, render_hook_ctx, child);
       }
     }
 

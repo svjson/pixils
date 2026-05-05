@@ -229,4 +229,46 @@ namespace Pixils::UI
     return rects;
   }
 
+  void layout_view_tree(const std::shared_ptr<Pixils::Runtime::View>& view,
+                        const Rect& bounds,
+                        Lisple::Runtime& runtime,
+                        const Lisple::sptr_rtval& hook_ctx)
+  {
+    if (!view) return;
+
+    view->bounds = bounds;
+
+    Style style_res = resolve_style(view->mode->style, view->state, view->interaction);
+    if (style_res.hidden && *style_res.hidden) return;
+    if (view->children.empty()) return;
+
+    Rect content = style_res.content_rect(bounds);
+    auto direction = style_res.direction.value_or(LayoutDirection::COLUMN);
+    auto child_rects =
+      layout_children(view->children, content, runtime, hook_ctx, direction);
+
+    for (size_t i = 0; i < view->children.size(); i++)
+    {
+      auto& child_ptr = view->children[i];
+      Pixils::Runtime::View& child = *child_ptr;
+      Style cs = resolve_style(child.mode->style, child.state, child.interaction);
+
+      Rect child_bounds;
+      if (cs.position && *cs.position == PositionMode::ABSOLUTE)
+      {
+        int top = cs.top.value_or(0);
+        int left = cs.left.value_or(0);
+        int w = cs.width.has_value() ? cs.total_width() : content.w;
+        int h = cs.height.has_value() ? cs.total_height() : content.h;
+        child_bounds = {content.x + left, content.y + top, w, h};
+      }
+      else
+      {
+        child_bounds = child_rects[i];
+      }
+
+      layout_view_tree(child_ptr, child_bounds, runtime, hook_ctx);
+    }
+  }
+
 } // namespace Pixils::UI

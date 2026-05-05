@@ -21,6 +21,17 @@ namespace Pixils::Runtime
 namespace Pixils::UI
 {
   /**
+   * Recursively assign bounds to a view tree starting from the given root
+   * bounds. Child placement uses the same flow/absolute rules as
+   * layout_children, but writes the results onto each live view so later passes
+   * can consume them without recomputing layout.
+   */
+  void layout_view_tree(const std::shared_ptr<Pixils::Runtime::View>& view,
+                        const Rect& bounds,
+                        Lisple::Runtime& runtime,
+                        const Lisple::sptr_rtval& hook_ctx);
+
+  /**
    * Compute absolute layout rects for a set of child views within a parent rect.
    * Direction controls the main axis (COLUMN = vertical, ROW = horizontal).
    * Each child's resolved style supplies its fixed size on the main axis; children
