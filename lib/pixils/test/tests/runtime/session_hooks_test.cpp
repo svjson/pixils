@@ -99,6 +99,21 @@ TEST_F(SessionHooksTest, push_mode_with_symbol_init_hook_resolves_and_invokes)
   EXPECT_TRUE(session.active_mode->state->is_number(55));
 }
 
+TEST_F(SessionHooksTest, push_mode_with_symbol_content_size_hook_resolves)
+{
+  // Given
+  runtime.eval("(defun my-content-size [state ctx] {:w 10 :h 20})");
+  runtime.eval("(pixils/defmode symbol-mode {:content-size 'test/my-content-size})");
+
+  // When
+  session.push_mode("symbol-mode", Lisple::Constant::NIL);
+
+  // Then
+  ASSERT_NE(session.active_mode, nullptr);
+  ASSERT_NE(session.active_mode->mode, nullptr);
+  EXPECT_EQ(session.active_mode->mode->content_size->type, Lisple::RTValue::Type::FUNCTION);
+}
+
 TEST_F(SessionHooksTest, root_mode_on_key_down_hook_is_invoked)
 {
   // Given

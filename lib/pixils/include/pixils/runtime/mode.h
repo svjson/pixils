@@ -58,6 +58,7 @@ namespace Pixils::Runtime
     ResourceDependencies resources;
     Lisple::sptr_rtval init = Lisple::Constant::NIL;
     Lisple::sptr_rtval update = Lisple::Constant::NIL;
+    Lisple::sptr_rtval content_size = Lisple::Constant::NIL;
     Lisple::sptr_rtval render = Lisple::Constant::NIL;
     Lisple::sptr_rtval on_key_down = Lisple::Constant::NIL;
     Lisple::sptr_rtval on_key_held = Lisple::Constant::NIL;

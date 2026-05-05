@@ -1,11 +1,12 @@
-
+#include "../fixture.h"
+#include <pixils/binding/pixils_namespace.h>
+#include <pixils/frame_events.h>
 #include <pixils/geom.h>
+#include <pixils/hook_context.h>
 #include <pixils/runtime/mode.h>
-#include <pixils/runtime/session.h>
 #include <pixils/runtime/view.h>
 #include <pixils/ui/style.h>
 #include <pixils/ui/view_layout.h>
-#include <pixils/ui/view_render.h>
 
 #include <gtest/gtest.h>
 
@@ -16,9 +17,29 @@ using Pixils::UI::LayoutDirection;
 using Pixils::UI::PositionMode;
 using Pixils::UI::Style;
 
-/**
- * Build a View whose mode has the given style. The Mode is owned by the view.
- */
+class LayoutTest : public BaseFixture
+{
+ protected:
+  Pixils::FrameEvents events;
+  Pixils::HookContext hook_ctx;
+  Lisple::sptr_rtval hook_ctx_val;
+
+  LayoutTest()
+    : BaseFixture()
+    , hook_ctx{&events, &render_ctx}
+    , hook_ctx_val(Pixils::Script::HookContextAdapter::make_ref(hook_ctx))
+  {
+    render_ctx.buffer_dim = {320, 200};
+  }
+
+  std::vector<Rect> layout(const std::vector<std::shared_ptr<View>>& children,
+                           const Rect& parent,
+                           LayoutDirection direction = LayoutDirection::COLUMN)
+  {
+    return Pixils::UI::layout_children(children, parent, runtime, hook_ctx_val, direction);
+  }
+};
+
 static std::shared_ptr<View> make_ctx(std::optional<Style> style = std::nullopt)
 {
   auto v = std::make_shared<View>();
@@ -29,9 +50,6 @@ static std::shared_ptr<View> make_ctx(std::optional<Style> style = std::nullopt)
   return v;
 }
 
-/**
- * Build a View whose mode has a fixed size on one axis.
- */
 static std::shared_ptr<View> make_fixed_ctx(int height)
 {
   Style s;
@@ -46,34 +64,28 @@ static std::shared_ptr<View> make_fixed_width_ctx(int width)
   return make_ctx(std::move(s));
 }
 
-TEST(LayoutTest, layout_single_fill_child_takes_full_height)
+TEST_F(LayoutTest, layout_single_fill_child_takes_full_height)
 {
-  // Given
   std::vector<std::shared_ptr<View>> children;
   children.push_back(make_ctx());
   Rect parent = {0, 0, 320, 200};
 
-  // When
-  auto rects = Pixils::UI::layout_children(children, parent);
+  auto rects = layout(children, parent);
 
-  // Then
   ASSERT_EQ(rects.size(), 1u);
   EXPECT_EQ(rects[0].y, 0);
   EXPECT_EQ(rects[0].h, 200);
 }
 
-TEST(LayoutTest, layout_fixed_then_fill_child_splits_height_correctly)
+TEST_F(LayoutTest, layout_fixed_then_fill_child_splits_height_correctly)
 {
-  // Given
   std::vector<std::shared_ptr<View>> children;
   children.push_back(make_fixed_ctx(40));
   children.push_back(make_ctx());
   Rect parent = {0, 0, 320, 200};
 
-  // When
-  auto rects = Pixils::UI::layout_children(children, parent);
+  auto rects = layout(children, parent);
 
-  // Then
   ASSERT_EQ(rects.size(), 2u);
   EXPECT_EQ(rects[0].y, 0);
   EXPECT_EQ(rects[0].h, 40);
@@ -81,18 +93,15 @@ TEST(LayoutTest, layout_fixed_then_fill_child_splits_height_correctly)
   EXPECT_EQ(rects[1].h, 160);
 }
 
-TEST(LayoutTest, layout_two_fill_children_split_height_evenly)
+TEST_F(LayoutTest, layout_two_fill_children_split_height_evenly)
 {
-  // Given
   std::vector<std::shared_ptr<View>> children;
   children.push_back(make_ctx());
   children.push_back(make_ctx());
   Rect parent = {0, 0, 320, 200};
 
-  // When
-  auto rects = Pixils::UI::layout_children(children, parent);
+  auto rects = layout(children, parent);
 
-  // Then
   ASSERT_EQ(rects.size(), 2u);
   EXPECT_EQ(rects[0].y, 0);
   EXPECT_EQ(rects[0].h, 100);
@@ -100,18 +109,15 @@ TEST(LayoutTest, layout_two_fill_children_split_height_evenly)
   EXPECT_EQ(rects[1].h, 100);
 }
 
-TEST(LayoutTest, layout_children_without_width_inherit_full_parent_width)
+TEST_F(LayoutTest, layout_children_without_width_inherit_full_parent_width)
 {
-  // Given
   std::vector<std::shared_ptr<View>> children;
   children.push_back(make_fixed_ctx(30));
   children.push_back(make_ctx());
   Rect parent = {0, 0, 320, 200};
 
-  // When
-  auto rects = Pixils::UI::layout_children(children, parent);
+  auto rects = layout(children, parent);
 
-  // Then
   for (const auto& r : rects)
   {
     EXPECT_EQ(r.w, 320);
@@ -119,9 +125,8 @@ TEST(LayoutTest, layout_children_without_width_inherit_full_parent_width)
   }
 }
 
-TEST(LayoutTest, layout_column_child_honors_requested_width)
+TEST_F(LayoutTest, layout_column_child_honors_requested_width)
 {
-  // Given
   std::vector<std::shared_ptr<View>> children;
   Style s;
   s.width = 120;
@@ -129,27 +134,85 @@ TEST(LayoutTest, layout_column_child_honors_requested_width)
   children.push_back(make_ctx(std::move(s)));
   Rect parent = {0, 0, 320, 200};
 
-  // When
-  auto rects = Pixils::UI::layout_children(children, parent);
+  auto rects = layout(children, parent);
 
-  // Then
   ASSERT_EQ(rects.size(), 1u);
   EXPECT_EQ(rects[0].x, 0);
   EXPECT_EQ(rects[0].w, 120);
   EXPECT_EQ(rects[0].h, 30);
 }
 
-TEST(LayoutTest, layout_children_respect_parent_origin)
+TEST_F(LayoutTest, layout_child_without_content_size_fills_available_space)
 {
-  // Given
+  std::vector<std::shared_ptr<View>> children;
+
+  auto container = make_ctx();
+  Style child_style;
+  child_style.width = 40;
+  child_style.height = 10;
+  container->children.push_back(make_ctx(std::move(child_style)));
+  children.push_back(container);
+
+  Rect parent = {0, 0, 320, 200};
+
+  auto rects = layout(children, parent);
+
+  ASSERT_EQ(rects.size(), 1u);
+  EXPECT_EQ(rects[0].w, 320);
+  EXPECT_EQ(rects[0].h, 200);
+}
+
+TEST_F(LayoutTest, layout_child_with_explicit_height_and_derived_width_preserves_both)
+{
+  std::vector<std::shared_ptr<View>> children;
+
+  Style container_style;
+  container_style.height = 25;
+  auto container = make_ctx(std::move(container_style));
+
+  Style child_style;
+  child_style.width = 40;
+  child_style.height = 10;
+  container->children.push_back(make_ctx(std::move(child_style)));
+  children.push_back(container);
+
+  Rect parent = {0, 0, 320, 200};
+
+  auto rects = layout(children, parent);
+
+  ASSERT_EQ(rects.size(), 1u);
+  EXPECT_EQ(rects[0].w, 320);
+  EXPECT_EQ(rects[0].h, 25);
+}
+
+TEST_F(LayoutTest, layout_row_child_without_content_size_fills_available_space)
+{
+  std::vector<std::shared_ptr<View>> children;
+
+  auto container = make_ctx();
+  Style child_style;
+  child_style.width = 40;
+  child_style.height = 10;
+  container->children.push_back(make_ctx(std::move(child_style)));
+  children.push_back(container);
+
+  Rect parent = {0, 0, 320, 200};
+
+  auto rects = layout(children, parent, LayoutDirection::ROW);
+
+  ASSERT_EQ(rects.size(), 1u);
+  EXPECT_EQ(rects[0].w, 320);
+  EXPECT_EQ(rects[0].h, 200);
+}
+
+TEST_F(LayoutTest, layout_children_respect_parent_origin)
+{
   std::vector<std::shared_ptr<View>> children;
   children.push_back(make_ctx());
   Rect parent = {10, 20, 100, 80};
 
-  // When
-  auto rects = Pixils::UI::layout_children(children, parent);
+  auto rects = layout(children, parent);
 
-  // Then
   ASSERT_EQ(rects.size(), 1u);
   EXPECT_EQ(rects[0].x, 10);
   EXPECT_EQ(rects[0].y, 20);
@@ -157,18 +220,15 @@ TEST(LayoutTest, layout_children_respect_parent_origin)
   EXPECT_EQ(rects[0].h, 80);
 }
 
-TEST(LayoutTest, layout_row_direction_fixed_then_fill_splits_width)
+TEST_F(LayoutTest, layout_row_direction_fixed_then_fill_splits_width)
 {
-  // Given
   std::vector<std::shared_ptr<View>> children;
   children.push_back(make_fixed_width_ctx(80));
   children.push_back(make_ctx());
   Rect parent = {0, 0, 320, 200};
 
-  // When
-  auto rects = Pixils::UI::layout_children(children, parent, LayoutDirection::ROW);
+  auto rects = layout(children, parent, LayoutDirection::ROW);
 
-  // Then
   ASSERT_EQ(rects.size(), 2u);
   EXPECT_EQ(rects[0].x, 0);
   EXPECT_EQ(rects[0].w, 80);
@@ -176,9 +236,8 @@ TEST(LayoutTest, layout_row_direction_fixed_then_fill_splits_width)
   EXPECT_EQ(rects[1].w, 240);
 }
 
-TEST(LayoutTest, layout_row_child_honors_requested_height)
+TEST_F(LayoutTest, layout_row_child_honors_requested_height)
 {
-  // Given
   std::vector<std::shared_ptr<View>> children;
   Style s;
   s.width = 80;
@@ -186,19 +245,16 @@ TEST(LayoutTest, layout_row_child_honors_requested_height)
   children.push_back(make_ctx(std::move(s)));
   Rect parent = {0, 0, 320, 200};
 
-  // When
-  auto rects = Pixils::UI::layout_children(children, parent, LayoutDirection::ROW);
+  auto rects = layout(children, parent, LayoutDirection::ROW);
 
-  // Then
   ASSERT_EQ(rects.size(), 1u);
   EXPECT_EQ(rects[0].y, 0);
   EXPECT_EQ(rects[0].w, 80);
   EXPECT_EQ(rects[0].h, 40);
 }
 
-TEST(LayoutTest, layout_absolute_children_excluded_from_flow)
+TEST_F(LayoutTest, layout_absolute_children_excluded_from_flow)
 {
-  // Given
   Style abs_style;
   abs_style.position = PositionMode::ABSOLUTE;
   abs_style.width = 50;
@@ -209,31 +265,25 @@ TEST(LayoutTest, layout_absolute_children_excluded_from_flow)
   children.push_back(make_ctx());
   Rect parent = {0, 0, 320, 200};
 
-  // When
-  auto rects = Pixils::UI::layout_children(children, parent);
+  auto rects = layout(children, parent);
 
-  // Then - absolute child gets zero rect; fill child takes full height
   ASSERT_EQ(rects.size(), 2u);
   EXPECT_EQ(rects[0].w, 0);
   EXPECT_EQ(rects[0].h, 0);
   EXPECT_EQ(rects[1].h, 200);
 }
 
-TEST(LayoutTest, layout_column_child_margin_offsets_and_insets_rect)
+TEST_F(LayoutTest, layout_column_child_margin_offsets_and_insets_rect)
 {
-  // Given
   std::vector<std::shared_ptr<View>> children;
   Style s;
   s.height = 40;
   s.margin = Style::Insets(2, 4, 6, 8);
-  auto child = make_ctx(std::move(s));
-  children.push_back(child);
+  children.push_back(make_ctx(std::move(s)));
   Rect parent = {10, 20, 100, 80};
 
-  // When
-  auto rects = Pixils::UI::layout_children(children, parent);
+  auto rects = layout(children, parent);
 
-  // Then
   ASSERT_EQ(rects.size(), 1u);
   EXPECT_EQ(rects[0].x, 18);
   EXPECT_EQ(rects[0].y, 22);
@@ -241,22 +291,18 @@ TEST(LayoutTest, layout_column_child_margin_offsets_and_insets_rect)
   EXPECT_EQ(rects[0].h, 40);
 }
 
-TEST(LayoutTest, layout_column_margins_consume_flow_space)
+TEST_F(LayoutTest, layout_column_margins_consume_flow_space)
 {
-  // Given
   std::vector<std::shared_ptr<View>> children;
   Style s;
   s.height = 40;
   s.margin = Style::Insets(0, 0, 10, 0);
-  auto fixed = make_ctx(std::move(s));
-  children.push_back(fixed);
+  children.push_back(make_ctx(std::move(s)));
   children.push_back(make_ctx());
   Rect parent = {0, 0, 320, 200};
 
-  // When
-  auto rects = Pixils::UI::layout_children(children, parent);
+  auto rects = layout(children, parent);
 
-  // Then
   ASSERT_EQ(rects.size(), 2u);
   EXPECT_EQ(rects[0].y, 0);
   EXPECT_EQ(rects[0].h, 40);
@@ -264,21 +310,17 @@ TEST(LayoutTest, layout_column_margins_consume_flow_space)
   EXPECT_EQ(rects[1].h, 150);
 }
 
-TEST(LayoutTest, layout_row_child_margin_offsets_and_insets_rect)
+TEST_F(LayoutTest, layout_row_child_margin_offsets_and_insets_rect)
 {
-  // Given
   std::vector<std::shared_ptr<View>> children;
   Style s;
   s.width = 80;
   s.margin = Style::Insets(3, 7, 5, 11);
-  auto child = make_ctx(std::move(s));
-  children.push_back(child);
+  children.push_back(make_ctx(std::move(s)));
   Rect parent = {10, 20, 120, 60};
 
-  // When
-  auto rects = Pixils::UI::layout_children(children, parent, LayoutDirection::ROW);
+  auto rects = layout(children, parent, LayoutDirection::ROW);
 
-  // Then
   ASSERT_EQ(rects.size(), 1u);
   EXPECT_EQ(rects[0].x, 21);
   EXPECT_EQ(rects[0].y, 23);

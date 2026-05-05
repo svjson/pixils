@@ -25,6 +25,7 @@ TEST_F(DefModeTest, defmode_with_no_args_is_created_with_nil_hooks)
   Pixils::Runtime::Mode& mode = Lisple::obj<Pixils::Runtime::Mode>(*mode_val);
   EXPECT_EQ(*mode.init, *Lisple::Constant::NIL);
   EXPECT_EQ(*mode.update, *Lisple::Constant::NIL);
+  EXPECT_EQ(*mode.content_size, *Lisple::Constant::NIL);
   EXPECT_EQ(*mode.render, *Lisple::Constant::NIL);
 }
 
@@ -38,6 +39,19 @@ TEST_F(DefModeTest, defmode_with_lambda_hook_is_created)
   Pixils::Runtime::Mode& mode = Lisple::obj<Pixils::Runtime::Mode>(*mode_val);
   EXPECT_EQ(mode.init->type, Lisple::RTValue::Type::FUNCTION);
   EXPECT_EQ(*mode.update, *Lisple::Constant::NIL);
+  EXPECT_EQ(*mode.content_size, *Lisple::Constant::NIL);
+  EXPECT_EQ(*mode.render, *Lisple::Constant::NIL);
+}
+
+TEST_F(DefModeTest, defmode_with_content_size_hook_is_created)
+{
+  // When
+  runtime.eval("(pixils/defmode test-mode {:content-size (fn [state ctx] {:w 10 :h 20})})");
+
+  // Then
+  auto mode_val = runtime.eval("(get pixils/modes 'test-mode)");
+  Pixils::Runtime::Mode& mode = Lisple::obj<Pixils::Runtime::Mode>(*mode_val);
+  EXPECT_EQ(mode.content_size->type, Lisple::RTValue::Type::FUNCTION);
   EXPECT_EQ(*mode.render, *Lisple::Constant::NIL);
 }
 

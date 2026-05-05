@@ -4,8 +4,14 @@
 #include <pixils/geom.h>
 #include <pixils/ui/style.h>
 
+#include <lisple/runtime/value.h>
 #include <memory>
 #include <vector>
+
+namespace Lisple
+{
+  class Runtime;
+}
 
 namespace Pixils::Runtime
 {
@@ -25,6 +31,8 @@ namespace Pixils::UI
   std::vector<Rect> layout_children(
     const std::vector<std::shared_ptr<Pixils::Runtime::View>>& children,
     const Rect& parent,
+    Lisple::Runtime& runtime,
+    const Lisple::sptr_rtval& hook_ctx,
     LayoutDirection direction = LayoutDirection::COLUMN);
 
 } // namespace Pixils::UI

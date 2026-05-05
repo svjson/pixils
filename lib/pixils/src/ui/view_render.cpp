@@ -107,7 +107,8 @@ namespace Pixils::UI
        * positioned children get zero rects and are placed separately below.
        */
       auto direction = style_res.direction.value_or(LayoutDirection::COLUMN);
-      auto child_rects = layout_children(ctx.children, content, direction);
+      auto child_rects =
+        layout_children(ctx.children, content, runtime, render_hook_ctx, direction);
 
       for (size_t i = 0; i < ctx.children.size(); i++)
       {

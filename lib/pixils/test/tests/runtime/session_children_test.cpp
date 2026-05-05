@@ -77,6 +77,30 @@ TEST_F(SessionChildrenTest, child_mode_render_hook_receives_render_context)
   EXPECT_FALSE(render_target()->render_ops.empty());
 }
 
+TEST_F(SessionChildrenTest, child_content_size_hook_informs_layout_bounds)
+{
+  // Given
+  runtime.eval(R"(
+    (pixils/defmode child-mode {
+      :content-size (fn [state ctx] {:w 50 :h 20})
+      :render (fn [state ctx] nil)
+    })
+    (pixils/defmode parent-mode {:children [{:mode 'child-mode}]})
+  )");
+  session.push_mode("parent-mode", Lisple::Constant::NIL);
+
+  // When
+  session.render_mode();
+
+  // Then
+  ASSERT_NE(session.active_mode, nullptr);
+  ASSERT_EQ(session.active_mode->children.size(), 1u);
+  auto child = session.active_mode->children[0];
+  ASSERT_NE(child, nullptr);
+  EXPECT_EQ(child->bounds.w, 320);
+  EXPECT_EQ(child->bounds.h, 20);
+}
+
 TEST_F(SessionStateTreeTest, push_mode_merges_child_init_state_into_parent_state)
 {
   // Given

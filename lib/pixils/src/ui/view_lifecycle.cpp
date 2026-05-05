@@ -39,6 +39,7 @@ namespace
   {
     mode.init = resolve_hook(runtime, mode.init);
     mode.update = resolve_hook(runtime, mode.update);
+    mode.content_size = resolve_hook(runtime, mode.content_size);
     mode.render = resolve_hook(runtime, mode.render);
     mode.on_key_down = resolve_hook(runtime, mode.on_key_down);
     mode.on_key_held = resolve_key_held_handler(runtime, mode.on_key_held);
@@ -78,6 +79,7 @@ namespace
 
     apply_hook(mode.init, "init");
     apply_hook(mode.update, "update");
+    apply_hook(mode.content_size, "content-size");
     apply_hook(mode.render, "render");
     apply_hook(mode.on_key_down, "on-key-down");
     apply_key_held(mode.on_key_held, "on-key-held");
