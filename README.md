@@ -233,6 +233,19 @@ size constraint fills the remaining space. Multiple fill children share the rema
 Margins are also declared in `:style`. A child's `:margin` consumes flow space around the
 child and offsets its rendered bounds within the allocated slot.
 
+The layout map can also distribute leftover space between flow children:
+
+```clojure
+(pixils/defmode toolbar
+  {:style {:layout {:direction :row
+                    :gap :space-between}}
+   :children [{:mode 'main/file-button :style {:width 48}}
+              {:mode 'main/edit-button :style {:width 48}}
+              {:mode 'main/help-button :style {:width 48}}]})
+```
+
+`:gap` also accepts the explicit wrapped form `{:mode :space-between}`.
+
 Size can come from the mode's own `:style` definition or be overridden per child slot:
 
 ```clojure
@@ -299,7 +312,7 @@ hook fires.
 | `:margin`     | Number, `[vertical horizontal]`, `[top right bottom left]`, or `{:t N :r N :b N :l N}` | Outer space around a child in layout flow. |
 | `:padding`    | Number, `[vertical horizontal]`, `[top right bottom left]`, or `{:t N :r N :b N :l N}` | Inset applied before the render hook's viewport is set. |
 | `:border`     | Border map (see below)                                               | Draws a border inside the component bounds. |
-| `:layout`     | `{:direction :row}` or `{:direction :column}`                        | Child layout policy. Currently supports layout direction; default direction is `:column`. |
+| `:layout`     | `{:direction :row}`, `{:direction :column}`, optional `:gap :space-between` or `:gap {:mode :space-between}` | Child layout policy. Currently supports flow direction and `space-between` gap distribution. |
 | `:width`      | Number                                                               | Content width in pixels. Absent means fill remaining space. |
 | `:height`     | Number                                                               | Content height in pixels. Absent means fill remaining space. |
 | `:position`   | `:absolute`, `:flow`                                                 | Positioning mode. Default: `:flow`. |

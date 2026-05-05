@@ -44,7 +44,7 @@ namespace Pixils::UI
     const Rect& parent,
     Lisple::Runtime& runtime,
     const Lisple::sptr_rtval& hook_ctx,
-    LayoutDirection direction = LayoutDirection::COLUMN);
+    const Style::Layout& layout = {});
 
 } // namespace Pixils::UI
 

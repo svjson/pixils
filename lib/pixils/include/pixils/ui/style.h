@@ -143,7 +143,18 @@ namespace Pixils::UI
 
     struct Layout
     {
+      enum class GapMode : uint8_t
+      {
+        SPACE_BETWEEN,
+      };
+
+      struct Gap
+      {
+        std::optional<GapMode> mode = std::nullopt;
+      };
+
       std::optional<LayoutDirection> direction = std::nullopt;
+      std::optional<Gap> gap = std::nullopt;
     };
 
     Style();

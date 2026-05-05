@@ -141,11 +141,13 @@ namespace Pixils::UI
     const Rect& parent,
     Lisple::Runtime& runtime,
     const Lisple::sptr_rtval& hook_ctx,
-    LayoutDirection direction)
+    const Style::Layout& layout)
   {
+    LayoutDirection direction = layout.direction.value_or(LayoutDirection::COLUMN);
     bool row = direction == LayoutDirection::ROW;
     std::vector<Style> styles;
     std::vector<std::optional<Dimension>> natural_content_sizes;
+    std::vector<int> outer_sizes(children.size(), 0);
     styles.reserve(children.size());
     natural_content_sizes.reserve(children.size());
 
@@ -157,21 +159,25 @@ namespace Pixils::UI
 
     int total_fixed = 0;
     int fill_count = 0;
+    int flow_count = 0;
     for (size_t i = 0; i < children.size(); i++)
     {
       const Style& cs = styles[i];
       const auto& natural = natural_content_sizes[i];
       if (cs.position && *cs.position == PositionMode::ABSOLUTE) continue;
+      flow_count++;
 
       const auto& main_axis_size = row ? cs.width : cs.height;
       if (main_axis_size)
       {
-        total_fixed += row ? cs.total_width() : cs.total_height();
+        outer_sizes[i] = row ? cs.total_width() : cs.total_height();
+        total_fixed += outer_sizes[i];
       }
       else if (natural)
       {
         Dimension outer_size = calculate_outer_size(cs, *natural);
-        total_fixed += row ? outer_size.w : outer_size.h;
+        outer_sizes[i] = row ? outer_size.w : outer_size.h;
+        total_fixed += outer_sizes[i];
       }
       else
       {
@@ -181,15 +187,36 @@ namespace Pixils::UI
 
     int available = row ? parent.w : parent.h;
     int fill_size = fill_count > 0 ? (available - total_fixed) / fill_count : 0;
+    for (size_t i = 0; i < children.size(); i++)
+    {
+      const Style& cs = styles[i];
+      if (cs.position && *cs.position == PositionMode::ABSOLUTE) continue;
+      if (outer_sizes[i] == 0) outer_sizes[i] = fill_size;
+    }
+
+    int total_flow_size = 0;
+    for (size_t i = 0; i < children.size(); i++)
+    {
+      const Style& cs = styles[i];
+      if (cs.position && *cs.position == PositionMode::ABSOLUTE) continue;
+      total_flow_size += outer_sizes[i];
+    }
+
+    int gap_size = 0;
+    if (layout.gap && layout.gap->mode &&
+        *layout.gap->mode == Style::Layout::GapMode::SPACE_BETWEEN && flow_count > 1)
+    {
+      gap_size = std::max(0, available - total_flow_size) / (flow_count - 1);
+    }
 
     std::vector<Rect> rects;
     rects.reserve(children.size());
 
     int pos = row ? parent.x : parent.y;
+    int flow_index = 0;
     for (size_t i = 0; i < children.size(); i++)
     {
       const Style& cs = styles[i];
-      const auto& natural = natural_content_sizes[i];
       const Style::Insets margin = cs.margin.value_or(Style::Insets{});
 
       if (cs.position && *cs.position == PositionMode::ABSOLUTE)
@@ -198,14 +225,7 @@ namespace Pixils::UI
         continue;
       }
 
-      const auto& main_axis_size = row ? cs.width : cs.height;
-      std::optional<Dimension> natural_outer_size =
-        natural ? std::optional<Dimension>(calculate_outer_size(cs, *natural))
-                : std::nullopt;
-      int outer_size = main_axis_size ? (row ? cs.total_width() : cs.total_height())
-                       : natural_outer_size
-                         ? (row ? natural_outer_size->w : natural_outer_size->h)
-                         : fill_size;
+      int outer_size = outer_sizes[i];
 
       int cross_outer_size = row ? (cs.height ? cs.total_height() : parent.h)
                                  : (cs.width ? cs.total_width() : parent.w);
@@ -226,6 +246,8 @@ namespace Pixils::UI
       }
 
       pos += outer_size;
+      flow_index++;
+      if (flow_index < flow_count) pos += gap_size;
     }
 
     return rects;
@@ -245,11 +267,11 @@ namespace Pixils::UI
     if (view->children.empty()) return;
 
     Rect content = style_res.content_rect(bounds);
-    auto direction = style_res.layout && style_res.layout->direction
-                       ? *style_res.layout->direction
-                       : LayoutDirection::COLUMN;
-    auto child_rects =
-      layout_children(view->children, content, runtime, hook_ctx, direction);
+    auto child_rects = layout_children(view->children,
+                                       content,
+                                       runtime,
+                                       hook_ctx,
+                                       style_res.layout.value_or(Style::Layout{}));
 
     for (size_t i = 0; i < view->children.size(); i++)
     {

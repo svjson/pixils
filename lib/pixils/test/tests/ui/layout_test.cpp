@@ -34,9 +34,18 @@ class LayoutTest : public BaseFixture
 
   std::vector<Rect> layout(const std::vector<std::shared_ptr<View>>& children,
                            const Rect& parent,
-                           LayoutDirection direction = LayoutDirection::COLUMN)
+                           LayoutDirection direction = LayoutDirection::COLUMN,
+                           std::optional<Style::Layout::GapMode> gap_mode = std::nullopt)
   {
-    return Pixils::UI::layout_children(children, parent, runtime, hook_ctx_val, direction);
+    Style::Layout layout;
+    layout.direction = direction;
+    if (gap_mode)
+    {
+      layout.gap = Style::Layout::Gap{};
+      layout.gap->mode = *gap_mode;
+    }
+
+    return Pixils::UI::layout_children(children, parent, runtime, hook_ctx_val, layout);
   }
 };
 
@@ -326,4 +335,74 @@ TEST_F(LayoutTest, layout_row_child_margin_offsets_and_insets_rect)
   EXPECT_EQ(rects[0].y, 23);
   EXPECT_EQ(rects[0].w, 80);
   EXPECT_EQ(rects[0].h, 52);
+}
+
+TEST_F(LayoutTest, layout_row_space_between_distributes_leftover_across_gaps)
+{
+  std::vector<std::shared_ptr<View>> children;
+  children.push_back(make_fixed_width_ctx(40));
+  children.push_back(make_fixed_width_ctx(40));
+  children.push_back(make_fixed_width_ctx(40));
+  Rect parent = {0, 0, 200, 40};
+
+  auto rects =
+    layout(children, parent, LayoutDirection::ROW, Style::Layout::GapMode::SPACE_BETWEEN);
+
+  ASSERT_EQ(rects.size(), 3u);
+  EXPECT_EQ(rects[0].x, 0);
+  EXPECT_EQ(rects[1].x, 80);
+  EXPECT_EQ(rects[2].x, 160);
+}
+
+TEST_F(LayoutTest, layout_column_space_between_distributes_leftover_across_gaps)
+{
+  std::vector<std::shared_ptr<View>> children;
+  children.push_back(make_fixed_ctx(20));
+  children.push_back(make_fixed_ctx(20));
+  children.push_back(make_fixed_ctx(20));
+  Rect parent = {0, 0, 100, 100};
+
+  auto rects =
+    layout(children, parent, LayoutDirection::COLUMN, Style::Layout::GapMode::SPACE_BETWEEN);
+
+  ASSERT_EQ(rects.size(), 3u);
+  EXPECT_EQ(rects[0].y, 0);
+  EXPECT_EQ(rects[1].y, 40);
+  EXPECT_EQ(rects[2].y, 80);
+}
+
+TEST_F(LayoutTest, layout_space_between_ignores_absolute_children_when_counting_gaps)
+{
+  Style abs_style;
+  abs_style.position = PositionMode::ABSOLUTE;
+  abs_style.width = 20;
+  abs_style.height = 20;
+
+  std::vector<std::shared_ptr<View>> children;
+  children.push_back(make_fixed_width_ctx(40));
+  children.push_back(make_ctx(std::move(abs_style)));
+  children.push_back(make_fixed_width_ctx(40));
+  Rect parent = {0, 0, 200, 40};
+
+  auto rects =
+    layout(children, parent, LayoutDirection::ROW, Style::Layout::GapMode::SPACE_BETWEEN);
+
+  ASSERT_EQ(rects.size(), 3u);
+  EXPECT_EQ(rects[0].x, 0);
+  EXPECT_EQ(rects[1].w, 0);
+  EXPECT_EQ(rects[2].x, 160);
+}
+
+TEST_F(LayoutTest, layout_space_between_noops_with_single_flow_child)
+{
+  std::vector<std::shared_ptr<View>> children;
+  children.push_back(make_fixed_width_ctx(40));
+  Rect parent = {0, 0, 200, 40};
+
+  auto rects =
+    layout(children, parent, LayoutDirection::ROW, Style::Layout::GapMode::SPACE_BETWEEN);
+
+  ASSERT_EQ(rects.size(), 1u);
+  EXPECT_EQ(rects[0].x, 0);
+  EXPECT_EQ(rects[0].w, 40);
 }

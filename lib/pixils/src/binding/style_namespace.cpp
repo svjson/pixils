@@ -46,9 +46,44 @@ namespace Pixils::Script
     FUNC_IMPL(MakeLayout,
               SIG((FN_ARGS((&Lisple::Type::MAP)), EXEC_DISPATCH(&MakeLayout::exec_make))));
 
+    FUNC_IMPL(MakeLayoutGap,
+              MULTI_SIG((FN_ARGS((&Lisple::Type::MAP)),
+                         EXEC_DISPATCH(&MakeLayoutGap::exec_make)),
+                        (FN_ARGS((&Lisple::Type::KEY)),
+                         EXEC_DISPATCH(&MakeLayoutGap::exec_make_key))));
+
+    EXEC_BODY(MakeLayoutGap, exec_make)
+    {
+      static Lisple::MapSchema gap_schema({}, {{"mode", &Lisple::Type::KEY}});
+
+      auto gap = std::make_unique<UI::Style::Layout::Gap>();
+      auto opts = gap_schema.bind(ctx, *args[0]);
+
+      if (opts.contains("mode"))
+      {
+        auto mode_str = opts.str("mode");
+        if (mode_str == "space-between")
+        {
+          gap->mode = UI::Style::Layout::GapMode::SPACE_BETWEEN;
+        }
+      }
+
+      return LayoutGapAdapter::claim(std::move(gap));
+    }
+
+    EXEC_BODY(MakeLayoutGap, exec_make_key)
+    {
+      Lisple::sptr_rtval_v make_args{
+        Lisple::RTValue::map({Lisple::RTValue::keyword("mode"), args[0]})};
+
+      return exec_make(ctx, make_args);
+    }
+
     EXEC_BODY(MakeLayout, exec_make)
     {
-      static Lisple::MapSchema layout_schema({}, {{"direction", &Lisple::Type::KEY}});
+      static Lisple::MapSchema layout_schema(
+        {},
+        {{"direction", &Lisple::Type::KEY}, {"gap", &HostType::STYLE_LAYOUT_GAP}});
 
       auto layout = std::make_unique<UI::Style::Layout>();
       auto opts = layout_schema.bind(ctx, *args[0]);
@@ -65,6 +100,8 @@ namespace Pixils::Script
           layout->direction = UI::LayoutDirection::COLUMN;
         }
       }
+
+      layout->gap = opts.optional_obj<UI::Style::Layout::Gap>("gap");
 
       return LayoutAdapter::claim(std::move(layout));
     }
@@ -330,7 +367,13 @@ namespace Pixils::Script
   NATIVE_ADAPTER_IMPL(LayoutAdapter,
                       UI::Style::Layout,
                       &HostType::STYLE_LAYOUT,
-                      (direction));
+                      (direction),
+                      (gap));
+
+  NATIVE_ADAPTER_IMPL(LayoutGapAdapter,
+                      UI::Style::Layout::Gap,
+                      &HostType::STYLE_LAYOUT_GAP,
+                      (mode));
 
   NOBJ_PROP_GET(StyleAdapter, background)
   {
@@ -409,6 +452,23 @@ namespace Pixils::Script
     if (!get_self_object().direction) return Lisple::Constant::NIL;
     return Lisple::RTValue::keyword(
       *get_self_object().direction == UI::LayoutDirection::ROW ? "row" : "column");
+  }
+
+  NOBJ_PROP_GET(LayoutAdapter, gap)
+  {
+    return get_self_object().gap ? LayoutGapAdapter::make_ref(*get_self_object().gap)
+                                 : Lisple::Constant::NIL;
+  }
+
+  NOBJ_PROP_GET(LayoutGapAdapter, mode)
+  {
+    if (!get_self_object().mode) return Lisple::Constant::NIL;
+    switch (*get_self_object().mode)
+    {
+    case UI::Style::Layout::GapMode::SPACE_BETWEEN:
+      return Lisple::RTValue::keyword("space-between");
+    }
+    return Lisple::Constant::NIL;
   }
 
   NOBJ_PROP_GET(StyleAdapter, hidden)
@@ -532,6 +592,7 @@ namespace Pixils::Script
     values.emplace("make-border-style", Function::MakeBorderStyle::make());
     values.emplace("make-style", Function::MakeStyle::make());
     values.emplace("make-layout", Function::MakeLayout::make());
+    values.emplace("make-layout-gap", Function::MakeLayoutGap::make());
     values.emplace("make-background", Function::MakeBackground::make());
     values.emplace("make-insets", Function::MakeInsets::make());
   }

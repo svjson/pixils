@@ -21,6 +21,8 @@ namespace Pixils::Script
     std::string_view("pixils.ui.style/make-style");
   inline constexpr std::string_view FN__PIXILS_UI_STYLE__MAKE_LAYOUT =
     std::string_view("pixils.ui.style/make-layout");
+  inline constexpr std::string_view FN__PIXILS_UI_STYLE__MAKE_LAYOUT_GAP =
+    std::string_view("pixils.ui.style/make-layout-gap");
   inline constexpr std::string_view FN__PIXILS_UI_STYLE__MAKE_INSETS =
     std::string_view("pixils.ui.style/make-insets");
   inline constexpr std::string_view FN__PIXILS_UI_STYLE__MAKE_BACKGROUND =
@@ -34,6 +36,9 @@ namespace Pixils::Script
               std::string(FN__PIXILS_UI_STYLE__MAKE_BORDER_STYLE));
     HOST_TYPE(STYLE, "HStyle", std::string(FN__PIXILS_UI_STYLE__MAKE_STYLE));
     HOST_TYPE(STYLE_LAYOUT, "HStyleLayout", std::string(FN__PIXILS_UI_STYLE__MAKE_LAYOUT));
+    HOST_TYPE(STYLE_LAYOUT_GAP,
+              "HStyleLayoutGap",
+              std::string(FN__PIXILS_UI_STYLE__MAKE_LAYOUT_GAP));
     HOST_TYPE(STYLE_BACKGROUND,
               "HStyleBackground",
               std::string(FN__PIXILS_UI_STYLE__MAKE_BACKGROUND));
@@ -46,6 +51,7 @@ namespace Pixils::Script
     FUNC(MakeBorderStyle, make);
     FUNC(MakeStyle, make);
     FUNC(MakeLayout, make);
+    FUNC(MakeLayoutGap, make, make_key);
     FUNC(MakeBackground, make_color, make_image, make_map);
     FUNC(MakeInsets, make_num, make_map, make_vec);
 
@@ -66,7 +72,8 @@ namespace Pixils::Script
                   hidden,
                   hover),
                  (hidden));
-  NATIVE_ADAPTER(LayoutAdapter, UI::Style::Layout, (direction));
+  NATIVE_ADAPTER(LayoutAdapter, UI::Style::Layout, (direction, gap));
+  NATIVE_ADAPTER(LayoutGapAdapter, UI::Style::Layout::Gap, (mode));
   NATIVE_ADAPTER(BackgroundAdapter, UI::Style::Background, (color, image));
   NATIVE_ADAPTER(BorderAdapter, UI::Style::Border, (thickness, line_style, color, trim));
   NATIVE_SUB_ADAPTER(BorderAdapter,
