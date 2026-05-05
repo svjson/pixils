@@ -16,7 +16,8 @@
 
 (defcomponent status-panel {:style {:height 25
                                     :padding 4
-                                    :layout {:direction :row}}
+                                    :layout {:direction :row
+                                             :gap :space-between}}
                             :children [{:mode 'counter
                                         :state {:value (ui/bind-state :counters :mines-left)}}
 
