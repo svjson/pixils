@@ -100,7 +100,7 @@
              (contains? pressed :right))
       (let [cell-coord (-> e
                            :position
-                           (pt/- {:x 12 :y 0})
+                           (pt/- {:x 3 :y 3})
                            (pt/div 17)
                            pt/int)
             cells (concat cell-coord
