@@ -62,30 +62,48 @@ namespace Pixils::UI
       return parse_dimension_like(result);
     }
 
-    std::optional<Dimension> calculate_child_tree_content_size(
-      const std::shared_ptr<Pixils::Runtime::View>& view,
-      Lisple::Runtime& runtime,
-      const Lisple::sptr_rtval& hook_ctx);
-
-    std::optional<Dimension> calculate_natural_content_size(
-      const std::shared_ptr<Pixils::Runtime::View>& view,
-      Lisple::Runtime& runtime,
-      const Lisple::sptr_rtval& hook_ctx)
+    Style resolve_effective_style(const std::shared_ptr<Pixils::Runtime::View>& view,
+                                  const Style* inherited_style)
     {
-      if (!view || !view->mode) return std::nullopt;
-
-      if (auto measured = invoke_content_size_hook(view, runtime, hook_ctx)) return measured;
-      if (view->children.empty()) return std::nullopt;
-
-      return calculate_child_tree_content_size(view, runtime, hook_ctx);
+      return resolve_style(view->mode->style,
+                           inherited_style,
+                           view->state,
+                           view->interaction);
     }
 
     std::optional<Dimension> calculate_child_tree_content_size(
       const std::shared_ptr<Pixils::Runtime::View>& view,
       Lisple::Runtime& runtime,
-      const Lisple::sptr_rtval& hook_ctx)
+      const Lisple::sptr_rtval& hook_ctx,
+      const Style* inherited_style);
+
+    std::optional<Dimension> calculate_natural_content_size(
+      const std::shared_ptr<Pixils::Runtime::View>& view,
+      Lisple::Runtime& runtime,
+      const Lisple::sptr_rtval& hook_ctx,
+      const Style* inherited_style)
     {
-      Style style = resolve_style(view->mode->style, view->state, view->interaction);
+      if (!view || !view->mode) return std::nullopt;
+
+      view->effective_style = resolve_effective_style(view, inherited_style);
+
+      if (auto natural = invoke_content_size_hook(view, runtime, hook_ctx)) return natural;
+      if (view->children.empty()) return std::nullopt;
+
+      return calculate_child_tree_content_size(view,
+                                               runtime,
+                                               hook_ctx,
+                                               &view->effective_style);
+    }
+
+    std::optional<Dimension> calculate_child_tree_content_size(
+      const std::shared_ptr<Pixils::Runtime::View>& view,
+      Lisple::Runtime& runtime,
+      const Lisple::sptr_rtval& hook_ctx,
+      const Style* inherited_style)
+    {
+      view->effective_style = resolve_effective_style(view, inherited_style);
+      const Style& style = view->effective_style;
       LayoutDirection direction = style.layout && style.layout->direction
                                     ? *style.layout->direction
                                     : LayoutDirection::COLUMN;
@@ -96,13 +114,13 @@ namespace Pixils::UI
 
       for (const auto& child : view->children)
       {
-        Style child_style =
-          resolve_style(child->mode->style, child->state, child->interaction);
+        child->effective_style = resolve_effective_style(child, &style);
+        const Style& child_style = child->effective_style;
         if (child_style.position && *child_style.position == PositionMode::ABSOLUTE)
           continue;
 
         auto child_natural_content_size =
-          calculate_natural_content_size(child, runtime, hook_ctx);
+          calculate_natural_content_size(child, runtime, hook_ctx, &style);
         Dimension child_outer_size{0, 0};
 
         if (child_natural_content_size)
@@ -110,15 +128,8 @@ namespace Pixils::UI
           child_outer_size = calculate_outer_size(child_style, *child_natural_content_size);
         }
 
-        if (child_style.width)
-        {
-          child_outer_size.w = child_style.total_width();
-        }
-
-        if (child_style.height)
-        {
-          child_outer_size.h = child_style.total_height();
-        }
+        if (child_style.width) child_outer_size.w = child_style.total_width();
+        if (child_style.height) child_outer_size.h = child_style.total_height();
 
         if (row)
         {
@@ -134,6 +145,52 @@ namespace Pixils::UI
 
       return row ? Dimension{total_main, max_cross} : Dimension{max_cross, total_main};
     }
+
+    void layout_view_tree_impl(const std::shared_ptr<Pixils::Runtime::View>& view,
+                               const Rect& bounds,
+                               Lisple::Runtime& runtime,
+                               const Lisple::sptr_rtval& hook_ctx,
+                               const Style* inherited_style)
+    {
+      if (!view) return;
+
+      view->bounds = bounds;
+      view->effective_style = resolve_effective_style(view, inherited_style);
+
+      const Style& style = view->effective_style;
+      if (style.hidden && *style.hidden) return;
+      if (view->children.empty()) return;
+
+      Rect content = style.content_rect(bounds);
+      auto child_rects = layout_children(view->children,
+                                         content,
+                                         runtime,
+                                         hook_ctx,
+                                         style.layout.value_or(Style::Layout{}),
+                                         &style);
+
+      for (size_t i = 0; i < view->children.size(); i++)
+      {
+        auto& child_ptr = view->children[i];
+        const Style& child_style = child_ptr->effective_style;
+
+        Rect child_bounds;
+        if (child_style.position && *child_style.position == PositionMode::ABSOLUTE)
+        {
+          int top = child_style.top.value_or(0);
+          int left = child_style.left.value_or(0);
+          int w = child_style.width.has_value() ? child_style.total_width() : content.w;
+          int h = child_style.height.has_value() ? child_style.total_height() : content.h;
+          child_bounds = {content.x + left, content.y + top, w, h};
+        }
+        else
+        {
+          child_bounds = child_rects[i];
+        }
+
+        layout_view_tree_impl(child_ptr, child_bounds, runtime, hook_ctx, &style);
+      }
+    }
   } // namespace
 
   std::vector<Rect> layout_children(
@@ -141,7 +198,8 @@ namespace Pixils::UI
     const Rect& parent,
     Lisple::Runtime& runtime,
     const Lisple::sptr_rtval& hook_ctx,
-    const Style::Layout& layout)
+    const Style::Layout& layout,
+    const Style* inherited_style)
   {
     LayoutDirection direction = layout.direction.value_or(LayoutDirection::COLUMN);
     bool row = direction == LayoutDirection::ROW;
@@ -153,7 +211,8 @@ namespace Pixils::UI
 
     for (const auto& child : children)
     {
-      styles.push_back(resolve_style(child->mode->style, child->state, child->interaction));
+      child->effective_style = resolve_effective_style(child, inherited_style);
+      styles.push_back(child->effective_style);
       natural_content_sizes.push_back(invoke_content_size_hook(child, runtime, hook_ctx));
     }
 
@@ -255,7 +314,6 @@ namespace Pixils::UI
       }
 
       int outer_size = outer_sizes[i];
-
       int cross_outer_size = row ? (cs.height ? cs.total_height() : parent.h)
                                  : (cs.width ? cs.total_width() : parent.w);
 
@@ -287,43 +345,7 @@ namespace Pixils::UI
                         Lisple::Runtime& runtime,
                         const Lisple::sptr_rtval& hook_ctx)
   {
-    if (!view) return;
-
-    view->bounds = bounds;
-
-    Style style_res = resolve_style(view->mode->style, view->state, view->interaction);
-    if (style_res.hidden && *style_res.hidden) return;
-    if (view->children.empty()) return;
-
-    Rect content = style_res.content_rect(bounds);
-    auto child_rects = layout_children(view->children,
-                                       content,
-                                       runtime,
-                                       hook_ctx,
-                                       style_res.layout.value_or(Style::Layout{}));
-
-    for (size_t i = 0; i < view->children.size(); i++)
-    {
-      auto& child_ptr = view->children[i];
-      Pixils::Runtime::View& child = *child_ptr;
-      Style cs = resolve_style(child.mode->style, child.state, child.interaction);
-
-      Rect child_bounds;
-      if (cs.position && *cs.position == PositionMode::ABSOLUTE)
-      {
-        int top = cs.top.value_or(0);
-        int left = cs.left.value_or(0);
-        int w = cs.width.has_value() ? cs.total_width() : content.w;
-        int h = cs.height.has_value() ? cs.total_height() : content.h;
-        child_bounds = {content.x + left, content.y + top, w, h};
-      }
-      else
-      {
-        child_bounds = child_rects[i];
-      }
-
-      layout_view_tree(child_ptr, child_bounds, runtime, hook_ctx);
-    }
+    layout_view_tree_impl(view, bounds, runtime, hook_ctx, nullptr);
   }
 
 } // namespace Pixils::UI

@@ -101,6 +101,39 @@ TEST_F(SessionChildrenTest, child_content_size_hook_informs_layout_bounds)
   EXPECT_EQ(child->bounds.h, 20);
 }
 
+TEST_F(SessionChildrenTest, child_content_size_hook_can_read_effective_style)
+{
+  // Given
+  runtime.eval(R"(
+    (pixils/defmode child-mode {
+      :content-size (fn [state ctx]
+                      {:w 0
+                       :h (-> ctx :view :effective-style :text :scale)})
+      :render (fn [state ctx] nil)
+    })
+    (pixils/defmode parent-mode {
+      :style {:text {:font :font/console :scale 7}}
+      :children [{:mode 'child-mode}]
+    })
+  )");
+  session.push_mode("parent-mode", Lisple::Constant::NIL);
+
+  // When
+  session.render_mode();
+
+  // Then
+  ASSERT_NE(session.active_mode, nullptr);
+  ASSERT_EQ(session.active_mode->children.size(), 1u);
+  auto child = session.active_mode->children[0];
+  ASSERT_NE(child, nullptr);
+  ASSERT_NE(child->effective_style.text, std::nullopt);
+  ASSERT_NE(child->effective_style.text->font, std::nullopt);
+  ASSERT_NE(child->effective_style.text->scale, std::nullopt);
+  EXPECT_EQ(*child->effective_style.text->font, "font/console");
+  EXPECT_EQ(*child->effective_style.text->scale, 7);
+  EXPECT_EQ(child->bounds.h, 7);
+}
+
 TEST_F(SessionStateTreeTest, push_mode_merges_child_init_state_into_parent_state)
 {
   // Given

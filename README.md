@@ -317,6 +317,7 @@ hook fires.
 | `:padding`    | Number, `[vertical horizontal]`, `[top right bottom left]`, or `{:t N :r N :b N :l N}` | Inset applied before the render hook's viewport is set. |
 | `:border`     | Border map (see below)                                               | Draws a border inside the component bounds. |
 | `:layout`     | `{:direction :row}`, `{:direction :column}`, optional `:gap :none`, `:gap N`, `:gap :space-between`, or wrapped gap maps | Child layout policy. Currently supports flow direction, fixed gap, explicit no-gap, and `space-between` distribution. |
+| `:text`       | `{:color {:r N :g N :b N}}`, optional `:font :font/name`, optional `:scale N` | Text presentation properties for components that render text. |
 | `:width`      | Number                                                               | Content width in pixels. Absent means fill remaining space. |
 | `:height`     | Number                                                               | Content height in pixels. Absent means fill remaining space. |
 | `:position`   | `:absolute`, `:flow`                                                 | Positioning mode. Default: `:flow`. |

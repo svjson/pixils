@@ -17,7 +17,7 @@ namespace Pixils::UI
     Pixils::Runtime::View& ctx = *view_ptr;
     const Rect bounds = ctx.bounds;
 
-    Style style_res = resolve_style(ctx.mode->style, ctx.state, ctx.interaction);
+    const Style& style_res = ctx.effective_style;
     if (style_res.hidden && *style_res.hidden) return;
 
     /**

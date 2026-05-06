@@ -16,7 +16,8 @@ namespace Pixils
   RenderContext::RenderContext() = default;
 
   RenderContext::RenderContext(SDL_Window* window, SDL_Renderer* renderer)
-    : window(window), renderer(renderer)
+    : window(window)
+    , renderer(renderer)
   {
   }
 
@@ -100,8 +101,7 @@ namespace Pixils
       target.w = window_rect.w;
       target.h = window_rect.h;
     }
-    else if (display.scaling == Display::Scaling::FIT ||
-             display.resolution.pixel_scale > 1)
+    else if (display.scaling == Display::Scaling::FIT || display.resolution.pixel_scale > 1)
     {
       /** For pixel-scaled auto resolution, FIT recovers exactly pixel_scale. */
       int scale = std::min(window_rect.w / target.w, window_rect.h / target.h);

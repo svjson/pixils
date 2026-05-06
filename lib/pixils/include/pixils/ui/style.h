@@ -220,12 +220,20 @@ namespace Pixils::UI
 
   /**
    * Resolve the effective style from a component's declared style and current
-   * state. Applies the base style first, then overlays the hover variant if
-   * :hovered is truthy in state.
+   * state. Applies any inherited cascading properties first, then the base
+   * style, then overlays the hover variant if :hovered is truthy in state.
    */
   Style resolve_style(const std::optional<Style>& style,
+                      const Style* inherited_style,
                       const Lisple::sptr_rtval& state,
                       const InteractionState& interaction = {});
+
+  inline Style resolve_style(const std::optional<Style>& style,
+                             const Lisple::sptr_rtval& state,
+                             const InteractionState& interaction = {})
+  {
+    return resolve_style(style, nullptr, state, interaction);
+  }
 
 } // namespace Pixils::UI
 

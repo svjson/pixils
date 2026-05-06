@@ -652,6 +652,7 @@ namespace Pixils::Script
                       (bounds),
                       (interaction),
                       (style),
+                      ("effective-style", effective_style),
                       ("on-click", on_click),
                       ("on-mouse-down", on_mouse_down),
                       ("on-mouse-up", on_mouse_up));
@@ -673,6 +674,11 @@ namespace Pixils::Script
     const Runtime::View& v = object->get_object();
     if (!v.mode || !v.mode->style.has_value()) return Lisple::Constant::NIL;
     return StyleAdapter::make_ref(*v.mode->style);
+  }
+
+  NOBJ_PROP_GET(ViewAdapter, effective_style)
+  {
+    return StyleAdapter::make_ref(object->get_object().effective_style);
   }
 
   NOBJ_PROP_GET(ViewAdapter, on_click)

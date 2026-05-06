@@ -44,7 +44,8 @@ namespace Pixils::UI
     const Rect& parent,
     Lisple::Runtime& runtime,
     const Lisple::sptr_rtval& hook_ctx,
-    const Style::Layout& layout = {});
+    const Style::Layout& layout = {},
+    const Style* inherited_style = nullptr);
 
 } // namespace Pixils::UI
 

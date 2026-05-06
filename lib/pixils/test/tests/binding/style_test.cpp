@@ -152,6 +152,61 @@ TEST_F(StyleTest, make_style_with_text)
   EXPECT_EQ(*style.text->scale, 2);
 }
 
+TEST(StyleResolveTest, inherited_text_fields_are_applied_fieldwise)
+{
+  Pixils::UI::Style parent;
+  parent.text = Pixils::UI::Style::Text{};
+  parent.text->color = Pixils::Color{255, 255, 255, 255};
+  parent.text->font = "font/ui";
+  parent.text->scale = 2;
+
+  Pixils::UI::Style child;
+  child.text = Pixils::UI::Style::Text{};
+  child.text->color = Pixils::Color{255, 0, 0, 255};
+
+  auto resolved = Pixils::UI::resolve_style(std::optional<Pixils::UI::Style>{child},
+                                            &parent,
+                                            Lisple::Constant::NIL,
+                                            {});
+
+  ASSERT_NE(resolved.text, std::nullopt);
+  ASSERT_NE(resolved.text->color, std::nullopt);
+  ASSERT_NE(resolved.text->font, std::nullopt);
+  ASSERT_NE(resolved.text->scale, std::nullopt);
+  EXPECT_EQ(*resolved.text->color, (Pixils::Color{255, 0, 0, 255}));
+  EXPECT_EQ(*resolved.text->font, "font/ui");
+  EXPECT_EQ(*resolved.text->scale, 2);
+}
+
+TEST(StyleResolveTest, hover_text_variant_overrides_only_its_own_fields)
+{
+  Pixils::UI::Style parent;
+  parent.text = Pixils::UI::Style::Text{};
+  parent.text->font = "font/ui";
+  parent.text->scale = 2;
+
+  Pixils::UI::Style child;
+  child.hover = std::make_unique<Pixils::UI::Style>();
+  child.hover->text = Pixils::UI::Style::Text{};
+  child.hover->text->color = Pixils::Color{0, 255, 0, 255};
+
+  Pixils::UI::InteractionState interaction;
+  interaction.hovered = true;
+
+  auto resolved = Pixils::UI::resolve_style(std::optional<Pixils::UI::Style>{child},
+                                            &parent,
+                                            Lisple::Constant::NIL,
+                                            interaction);
+
+  ASSERT_NE(resolved.text, std::nullopt);
+  ASSERT_NE(resolved.text->color, std::nullopt);
+  ASSERT_NE(resolved.text->font, std::nullopt);
+  ASSERT_NE(resolved.text->scale, std::nullopt);
+  EXPECT_EQ(*resolved.text->color, (Pixils::Color{0, 255, 0, 255}));
+  EXPECT_EQ(*resolved.text->font, "font/ui");
+  EXPECT_EQ(*resolved.text->scale, 2);
+}
+
 TEST_F(StyleTest, make_insets_with_four_value_vector)
 {
   // When

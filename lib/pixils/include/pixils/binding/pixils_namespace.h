@@ -127,9 +127,10 @@ namespace Pixils::Script
   /*! @brief InteractionStateAdapter - engine-computed hover/press state on a view */
   NATIVE_ADAPTER(InteractionStateAdapter, UI::InteractionState, (hovered, pressed));
   /*! @brief Lisple HostObject Adapter for View */
-  NATIVE_ADAPTER(ViewAdapter,
-                 Runtime::View,
-                 (id, bounds, interaction, style, on_mouse_down, on_mouse_up, on_click));
+  NATIVE_ADAPTER(
+    ViewAdapter,
+    Runtime::View,
+    (id, bounds, interaction, style, effective_style, on_mouse_down, on_mouse_up, on_click));
   /*! @brief ModeAdapter - A Lisple HostObject Adapter for Mode */
   NATIVE_ADAPTER(ModeAdapter, Runtime::Mode, (init, update, render));
   /*! @brief ModeCompositionAdapter - A Lisple HostObject Adapter for ModeComposition */

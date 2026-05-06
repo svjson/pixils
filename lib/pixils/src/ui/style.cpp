@@ -6,6 +6,30 @@
 
 namespace Pixils::UI
 {
+  namespace
+  {
+    void inherit_text_style(Style& out, const Style& inherited_style)
+    {
+      if (!inherited_style.text) return;
+      if (!out.text) out.text = Style::Text{};
+
+      if (inherited_style.text->color && !out.text->color)
+        out.text->color = inherited_style.text->color;
+      if (inherited_style.text->font && !out.text->font)
+        out.text->font = inherited_style.text->font;
+      if (inherited_style.text->scale && !out.text->scale)
+        out.text->scale = inherited_style.text->scale;
+    }
+
+    void apply_text_variant(Style& out, const Style::Text& variant)
+    {
+      if (!out.text) out.text = Style::Text{};
+      if (variant.color) out.text->color = variant.color;
+      if (variant.font) out.text->font = variant.font;
+      if (variant.scale) out.text->scale = variant.scale;
+    }
+  } // namespace
+
   /** Style */
   Style::Style() {}
 
@@ -237,7 +261,7 @@ namespace Pixils::UI
     if (variant.margin) out.margin = variant.margin;
     if (variant.padding) out.padding = variant.padding;
     if (variant.border) out.border = variant.border;
-    if (variant.text) out.text = variant.text;
+    if (variant.text) apply_text_variant(out, *variant.text);
     if (variant.width) out.width = variant.width;
     if (variant.height) out.height = variant.height;
     if (variant.position) out.position = variant.position;
@@ -248,10 +272,12 @@ namespace Pixils::UI
   }
 
   UI::Style resolve_style(const std::optional<Style>& style,
+                          const Style* inherited_style,
                           const Lisple::sptr_rtval& /* state */,
                           const InteractionState& interaction)
   {
     UI::Style result;
+    if (inherited_style) inherit_text_style(result, *inherited_style);
     if (!style) return result;
 
     apply_style_variant(result, *style);

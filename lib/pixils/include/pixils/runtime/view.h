@@ -34,6 +34,7 @@ namespace Pixils::Runtime
     Lisple::sptr_rtval state = Lisple::Constant::NIL;
     Lisple::sptr_rtval initial_state = Lisple::Constant::NIL;
     Rect bounds = {0, 0, 0, 0};
+    UI::Style effective_style;
     std::vector<std::shared_ptr<View>> children;
     std::vector<CustomEvent> emitted_events;
 
