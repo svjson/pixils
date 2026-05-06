@@ -3,4 +3,4 @@
 
 (defprogram minesweeper
   {:display {:resolution {:scale 3}}
-   :initial-mode 'window-mode})
+   :initial-mode 'main-mode})

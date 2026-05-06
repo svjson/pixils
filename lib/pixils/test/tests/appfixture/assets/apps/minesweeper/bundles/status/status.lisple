@@ -1,0 +1,5 @@
+(ns pixils.test.app.minesweeper.core
+  (:require pixils))
+
+(defbundle status {:images {:face-normal "assets/face1.png"
+                            :face-danger "assets/face2.png"}})

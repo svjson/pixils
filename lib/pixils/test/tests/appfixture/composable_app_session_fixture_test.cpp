@@ -67,13 +67,21 @@ namespace
                                                              "shared" / "ui" / "themes" /
                                                              "win311" / "win-theme.lisple"));
     manifest.upsert_unit(AppFixture::SourceUnit::from_file(
-      "button-component",
-      fixture_dir() / "assets" / "shared" / "ui" / "components" / "button" /
-        "button-component.lisple"));
+      "text-node-component",
+      fixture_dir() / "assets" / "shared" / "ui" / "components" / "text-node" /
+        "text-node.lisple"));
     manifest.upsert_unit(AppFixture::SourceUnit::from_file(
-      "status-panel-components",
+      "counter-bundle",
+      fixture_dir() / "assets" / "apps" / "minesweeper" / "bundles" / "counter" /
+        "counter.lisple"));
+    manifest.upsert_unit(AppFixture::SourceUnit::from_file(
+      "status-panel-left-pad",
       fixture_dir() / "assets" / "apps" / "minesweeper" / "components" / "status-panel" /
-        "status-panel.lisple"));
+        "left-pad.lisple"));
+    manifest.upsert_unit(AppFixture::SourceUnit::from_file(
+      "counter-component",
+      fixture_dir() / "assets" / "apps" / "minesweeper" / "components" / "status-panel" /
+        "counter" / "counter.lisple"));
 
     manifest.add_file(
       AppFixture::ManifestFile{.id = "shared-win311",
@@ -81,15 +89,19 @@ namespace
                                .namespace_name = "pixils.test.app.shared.ui.themes.win311",
                                .unit_ids = {"win311-theme"}});
     manifest.add_file(AppFixture::ManifestFile{
-      .id = "shared-button",
-      .disk_path = "pixils/test/app/shared/ui/components/button.lisple",
-      .namespace_name = "pixils.test.app.shared.ui.components.button",
-      .unit_ids = {"button-component"}});
+      .id = "shared-text-node",
+      .disk_path = "pixils/test/app/shared/ui/components/text-node.lisple",
+      .namespace_name = "pixils.test.app.shared.ui.components.text-node",
+      .unit_ids = {"text-node-component"}});
     manifest.add_file(
       AppFixture::ManifestFile{.id = "main",
                                .disk_path = "pixils/test/app/minesweeper/core.lisple",
                                .namespace_name = "pixils.test.app.minesweeper.core",
-                               .unit_ids = {"status-panel-components"}});
+                               .unit_ids = {
+                                 "counter-bundle",
+                                 "status-panel-left-pad",
+                                 "counter-component",
+                               }});
 
     return manifest;
   }
@@ -239,7 +251,7 @@ TEST_F(ComposableAppSessionFixtureTest,
   load_app(file_defined_counter_session_manifest(),
            "pixils.test.app.minesweeper.core",
            {"pixils/test/app/shared/ui/themes/win311.lisple",
-            "pixils/test/app/shared/ui/components/button.lisple",
+            "pixils/test/app/shared/ui/components/text-node.lisple",
             "pixils/test/app/minesweeper/core.lisple"});
 
   ASSERT_NO_THROW(session().push_mode("counter", eval("{:value 123}")));

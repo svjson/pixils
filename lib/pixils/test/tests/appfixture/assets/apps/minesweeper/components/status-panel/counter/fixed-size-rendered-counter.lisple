@@ -1,0 +1,14 @@
+(ns pixils.test.app.minesweeper.core
+  (:require pixils
+            [pixils.render :as r]
+            [pixils.test.app.shared.ui.themes.win311 :as win]))
+
+(defcomponent counter
+  {:style {:width 41
+           :height 25}
+   :render (fn [state ctx]
+             (win/draw-bevel! {:x 0 :y 0 :w 41 :h 25}
+                              {:thickness 1 :invert true})
+             (r/text! (left-pad (:value state) 3 "0")
+                      {:x 1 :y 1}
+                      {:font :font/counter-font}))})

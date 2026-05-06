@@ -369,5 +369,7 @@ TEST_F(EventRoutingTest, hover_style_variant_applied_when_cursor_is_inside)
   auto style = Pixils::UI::resolve_style(session.active_mode->mode->style,
                                          session.active_mode->state,
                                          session.active_mode->interaction);
-  EXPECT_EQ(style.width.value_or(0), 200);
+  ASSERT_NE(style.width, std::nullopt);
+  EXPECT_TRUE(style.width->is_fixed());
+  EXPECT_EQ(style.width->fixed_value_or(0), 200);
 }

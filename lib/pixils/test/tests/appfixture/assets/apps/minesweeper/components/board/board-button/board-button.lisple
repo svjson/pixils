@@ -1,7 +1,7 @@
 (ns pixils.test.app.minesweeper.core
   (:require pixils
-            pixils.test.app.shared.ui.components.button
-            [pixils.ui :as ui]))
+            [pixils.ui :as ui]
+            pixils.test.app.shared.ui.components.button))
 
 (defcomponent board-button
   {:extend 'button
@@ -10,7 +10,8 @@
              (let [flagged (-> state :mask :flagged?)]
                (assoc-in! ctx [:view :style :hidden] (:revealed? (:mask state)))
                (-> state
-                   (assoc :image (when flagged :mine-layer-mode/flag))
+                   (assoc :image (when flagged
+                                   :mine-layer-mode/flag))
                    (assoc :force-pressed? (-> state :mask :chord-pressed?))
                    (assoc :inhibit-pressed? flagged))))
    :on-click (fn [state e ctx]
@@ -19,18 +20,3 @@
                          (ui/emit! (:view ctx) :cell/click state))
                  :right (ui/emit! (:view ctx) :cell/toggle-flag state))
                state)})
-
-(defcomponent board-button-row
-  {:style {:layout {:direction :row}}
-   :children (dotimes [n 9]
-               {:mode 'board-button
-                :state {:x n
-                        :y (ui/bind-state :y)
-                        :mask (ui/bind-state :mask-row n)}})})
-
-(defcomponent board-buttons
-  {:children (dotimes [n 9]
-               {:mode 'board-button-row
-                :state {:y n
-                        :mask-row (ui/bind-state :board-mask n)}
-                :style {:height 17}})})

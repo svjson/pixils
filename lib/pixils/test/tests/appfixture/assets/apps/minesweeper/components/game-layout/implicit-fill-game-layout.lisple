@@ -6,7 +6,7 @@
             [pixils.test.app.shared.ui.themes.win311 :as win]))
 
 (defun revealed-count [board-mask]
-  (count (filter (apply concat (for-indexed [y row board-mask]
+  (count (filter (apply concat (for-indexed [y row board_mask]
                                             (for-indexed [x cell row]
                                                          (when (:revealed? cell)
                                                            {:x x :y y}))))

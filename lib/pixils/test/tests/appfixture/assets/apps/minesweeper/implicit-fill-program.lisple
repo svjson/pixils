@@ -1,0 +1,6 @@
+(ns pixils.test.app.minesweeper.core
+  (:require pixils))
+
+(defprogram minesweeper
+  {:display {:resolution {:scale 3}}
+   :initial-mode 'window-mode})

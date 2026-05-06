@@ -1,0 +1,9 @@
+(ns pixils.test.app.minesweeper.core
+  (:require pixils
+            [pixils.color :as c]))
+
+(defmode window-mode
+  {:style {:border {:thickness 1
+                    :color c/BLACK}}
+   :children [{:mode 'menu-bar-mode}
+              {:mode 'game-mode}]})

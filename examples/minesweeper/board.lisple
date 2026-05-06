@@ -15,6 +15,9 @@
 
 (defmode mine-layer-mode
   {:render 'pixils.examples.minesweeper.board/mine-layer-render!
+   :content-size (fn [state ctx]
+                   {:w (* 17 (-> state :board count))
+                    :h (* 17 (-> state :board (nth 0) count))})
    :resources {:images {:mine "assets/mine.png"
                         :flag "assets/flag.png"
                         :num-1 "assets/num1.png"
@@ -141,12 +144,7 @@
                                 state
                                 (fn [state {:keys [x y]}]
                                   (if (not (gl/revealed? state y x))
-                                    (do
-                                      (prn "Chord-press reveal" y x)
-                                      (prn " - Before: " (revealed-count (:board-mask state)))
-                                      (let [new-state (gl/reveal-board-cell state y x)]
-                                        (prn " - After: " (revealed-count (:board-mask new-state)))
-                                        new-state))
+                                    (gl/reveal-board-cell state y x)
                                     state)))
                         clear-chord-press)
                     state))

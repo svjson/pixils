@@ -15,6 +15,30 @@ namespace Pixils::Script
 
   namespace Function
   {
+    static std::optional<UI::Style::Size> parse_size(const Lisple::sptr_rtval& value)
+    {
+      if (!value || *value == *Lisple::Constant::NIL) return std::nullopt;
+
+      switch (value->type)
+      {
+      case Lisple::RTValue::Type::NUMBER:
+      {
+        UI::Style::Size size(value->num().get_int());
+        return size;
+      }
+      case Lisple::RTValue::Type::KEYWORD:
+      {
+        auto size_mode = value->str();
+        if (size_mode == "fill") return UI::Style::Size(UI::Style::Size::Mode::FILL);
+        if (size_mode == "shrink") return UI::Style::Size(UI::Style::Size::Mode::SHRINK);
+        if (size_mode == "auto") return UI::Style::Size(UI::Style::Size::Mode::AUTO);
+        return std::nullopt;
+      }
+      default:
+        return std::nullopt;
+      }
+    }
+
     static std::optional<UI::Style::Trim> parse_trim(const Lisple::sptr_rtval& value)
     {
       if (*value == *Lisple::Constant::NIL) return std::nullopt;
@@ -162,8 +186,8 @@ namespace Pixils::Script
                                              {"padding", &HostType::STYLE_INSETS},
                                              {"layout", &HostType::STYLE_LAYOUT},
                                              {"text", &HostType::STYLE_TEXT},
-                                             {"width", &Lisple::Type::NUMBER},
-                                             {"height", &Lisple::Type::NUMBER},
+                                             {"width", &Lisple::Type::ANY},
+                                             {"height", &Lisple::Type::ANY},
                                              {"position", &Lisple::Type::KEY},
                                              {"top", &Lisple::Type::NUMBER},
                                              {"left", &Lisple::Type::NUMBER},
@@ -180,8 +204,8 @@ namespace Pixils::Script
       style->layout = opts.optional_obj<UI::Style::Layout>("layout");
       style->text = opts.optional_obj<UI::Style::Text>("text");
 
-      if (opts.contains("width")) style->width = opts.i32("width");
-      if (opts.contains("height")) style->height = opts.i32("height");
+      if (opts.contains("width")) style->width = parse_size(opts.val("width"));
+      if (opts.contains("height")) style->height = parse_size(opts.val("height"));
       if (opts.contains("top")) style->top = opts.i32("top");
       if (opts.contains("left")) style->left = opts.i32("left");
 
@@ -476,14 +500,22 @@ namespace Pixils::Script
 
   NOBJ_PROP_GET(StyleAdapter, width)
   {
-    return get_self_object().width ? Lisple::RTValue::number(*get_self_object().width)
-                                   : Lisple::Constant::NIL;
+    if (!get_self_object().width) return Lisple::Constant::NIL;
+    const auto& width = *get_self_object().width;
+    if (width.is_fixed()) return Lisple::RTValue::number(width.fixed_value_or(0));
+    if (width.is_fill()) return Lisple::RTValue::keyword("fill");
+    if (width.is_shrink()) return Lisple::RTValue::keyword("shrink");
+    return Lisple::RTValue::keyword("auto");
   }
 
   NOBJ_PROP_GET(StyleAdapter, height)
   {
-    return get_self_object().height ? Lisple::RTValue::number(*get_self_object().height)
-                                    : Lisple::Constant::NIL;
+    if (!get_self_object().height) return Lisple::Constant::NIL;
+    const auto& height = *get_self_object().height;
+    if (height.is_fixed()) return Lisple::RTValue::number(height.fixed_value_or(0));
+    if (height.is_fill()) return Lisple::RTValue::keyword("fill");
+    if (height.is_shrink()) return Lisple::RTValue::keyword("shrink");
+    return Lisple::RTValue::keyword("auto");
   }
 
   NOBJ_PROP_GET(StyleAdapter, position)

@@ -1,0 +1,16 @@
+(ns pixils.test.app.minesweeper.core
+  (:require pixils
+            [pixils.ui :as ui]
+            pixils.test.app.shared.ui.components.text-node
+            [pixils.test.app.shared.ui.themes.win311 :as win]))
+
+(defcomponent counter {:update (fn [state ctx]
+                                 (assoc state :text-value (left-pad (:value state) 3 "0")))
+                       :style {:text {:font :font/counter-font}
+                               :border {:thickness 1
+                                        :line-style :solid
+                                        :color win/panel-shadow
+                                        :bottom {:color win/white :trim [0 1]}
+                                        :right {:color win/white :trim [1 0]}}}
+                       :children [{:mode 'text-node
+                                   :state {:value (ui/bind-state :text-value)}}]})

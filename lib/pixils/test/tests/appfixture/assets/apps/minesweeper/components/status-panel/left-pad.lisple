@@ -1,0 +1,8 @@
+(ns pixils.test.app.minesweeper.core)
+
+(defun left-pad [s n pad]
+  (let [s (str s)
+        pad-len (- n (count s))]
+    (if (> pad-len 0)
+      (str (apply str (repeat pad-len pad)) s)
+      s)))

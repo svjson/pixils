@@ -1,0 +1,22 @@
+(ns pixils.examples.minesweeper.text-node
+  (:require pixils
+            [pixils.render :as r]))
+
+
+;; Prototype Primitive Text Node
+
+(defun text-args [style]
+  (reduce-kv (:text style)
+             {}
+             (fn [arg-map k v]
+               (if (nil? v)
+                 arg-map
+                 (merge arg-map {k v})))))
+
+(defcomponent text-node {:content-size (fn [state ctx]
+                                         (r/text-size (or (:value state) "")
+                                                      (text-args (-> ctx :view :effective-style))))
+                         :render (fn [state ctx]
+                                   (r/text! (or (:value state) "") {:x 0 :y 0}
+                                            (text-args (-> ctx :view :effective-style))))})
+

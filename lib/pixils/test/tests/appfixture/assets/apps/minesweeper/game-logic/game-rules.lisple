@@ -34,20 +34,6 @@
                                               (+ 1 num)
                                               num)))))))))
 
-(defun new-game-state [w h mines]
-  {:settings {:w w
-              :h h
-              :mines mines}
-   :face :status-panel/face-normal
-   :board (generate-mine-field w h mines)
-   :board-mask (dotimes [y h]
-                 (dotimes [x w]
-                   {:revealed? false
-                    :flagged? false}))
-   :start-time (epoch-ms)
-   :counters {:mines-left mines
-              :timer 0}})
-
 (defun in-bounds? [board y x]
   (and (<= 0 y)
        (< y (count board))

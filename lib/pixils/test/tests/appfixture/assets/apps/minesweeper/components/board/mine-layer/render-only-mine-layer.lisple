@@ -1,0 +1,12 @@
+(ns pixils.test.app.minesweeper.core
+  (:require pixils))
+
+(defmode mine-layer-mode
+  {:render 'pixils.test.app.minesweeper.core/mine-layer-render!
+   :resources {:images {:mine "assets/mine.png"
+                        :flag "assets/flag.png"
+                        :num-1 "assets/num1.png"
+                        :num-2 "assets/num2.png"
+                        :num-3 "assets/num3.png"
+                        :num-4 "assets/num4.png"
+                        :num-5 "assets/num5.png"}}})

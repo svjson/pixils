@@ -1,0 +1,17 @@
+(ns pixils.test.app.minesweeper.core
+  (:require pixils))
+
+(defbundle counter {:images {:font-map "assets/score_numbers.png"}})
+
+(deffont counter-font {:type :bitmap
+                       :spacing 0
+                       :resource :counter/font-map
+                       :glyphs (reduce "0123456789"
+                                       {}
+                                       (fn [glyphs num]
+                                         (let [index (int (str num))]
+                                           (merge glyphs
+                                                  {num {:x (* index 13)
+                                                        :y 0
+                                                        :w 13
+                                                        :h 23}}))))})

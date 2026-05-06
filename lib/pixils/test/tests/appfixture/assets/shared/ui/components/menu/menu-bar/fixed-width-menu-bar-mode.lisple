@@ -1,0 +1,16 @@
+(ns pixils.test.app.minesweeper.core
+  (:require pixils
+            [pixils.test.app.minesweeper.menu-definition :as md]))
+
+(defmode menu-bar-mode
+  {:style {:background {:r 255 :g 255 :b 255}
+           :border {:line-style :solid
+                    :color {:r 0 :g 0 :b 0}
+                    :bottom {:thickness 1}}
+           :layout {:direction :row}}
+   :children (for-indexed [n item md/menu-items]
+               (make-menu-item item
+                               {:x (* n md/menu-item-w)
+                                :y 0
+                                :w (+ 9 md/menu-item-w)
+                                :h md/menu-item-h}))})

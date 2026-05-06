@@ -18,7 +18,9 @@ TEST_F(StyleTest, make_minimal_style)
 
   // Then
   auto style = Lisple::obj<Pixils::UI::Style>(*result);
-  EXPECT_EQ(style.width, 40);
+  ASSERT_NE(style.width, std::nullopt);
+  EXPECT_TRUE(style.width->is_fixed());
+  EXPECT_EQ(style.width->fixed_value_or(0), 40);
 }
 
 TEST_F(StyleTest, make_uniform_border)
@@ -132,6 +134,18 @@ TEST_F(StyleTest, make_style_with_layout_gap_number)
   ASSERT_NE(style.layout->gap->size, std::nullopt);
   EXPECT_EQ(*style.layout->gap->mode, Pixils::UI::Style::Layout::GapMode::FIXED);
   EXPECT_EQ(*style.layout->gap->size, 8);
+}
+
+TEST_F(StyleTest, make_style_with_fill_and_shrink_sizes)
+{
+  Lisple::sptr_rtval result =
+    runtime.eval("(pixils.ui.style/make-style {:width :fill :height :shrink})");
+
+  auto style = Lisple::obj<Pixils::UI::Style>(*result);
+  ASSERT_NE(style.width, std::nullopt);
+  ASSERT_NE(style.height, std::nullopt);
+  EXPECT_TRUE(style.width->is_fill());
+  EXPECT_TRUE(style.height->is_shrink());
 }
 
 TEST_F(StyleTest, make_style_with_text)

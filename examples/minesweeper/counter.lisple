@@ -1,6 +1,8 @@
 (ns pixils.examples.minesweeper.counter
   (:require pixils
             [pixils.render :as r]
+            [pixils.ui :as ui]
+            pixils.examples.minesweeper.text-node
             [pixils.examples.minesweeper.win :as win]))
 
 
@@ -37,15 +39,14 @@
 
 ;; Counter Component
 
-(defcomponent counter {:style {:border {:thickness 1
+(defcomponent counter {:update (fn [state ctx]
+                                 (assoc state :text-value (left-pad (:value state) 3 "0")))
+                       :style {:text {:font :font/counter-font}
+                               :border {:thickness 1
                                         :line-style :solid
                                         :color win/panel-shadow
                                         :bottom {:color win/white :trim [0 1]}
                                         :right {:color win/white :trim [1 0]}}}
-                       :content-size (fn [state ctx]
-                                       (r/text-size (left-pad (:value state) 3 "0")
-                                                    {:font :font/counter-font}))
-                       :render (fn [state ctx]
-                                 (r/text! (left-pad (:value state) 3 "0") {:x 0 :y 0}
-                                          {:font :font/counter-font}))})
+                       :children [{:mode 'text-node
+                                   :state {:value (ui/bind-state :text-value)}}]})
 

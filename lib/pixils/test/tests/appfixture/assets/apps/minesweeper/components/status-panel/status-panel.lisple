@@ -1,56 +1,24 @@
 (ns pixils.test.app.minesweeper.core
   (:require pixils
-            [pixils.render :as r]
             [pixils.ui :as ui]
-            pixils.test.app.shared.ui.components.button
-            [pixils.test.app.shared.ui.themes.win311 :as win]))
+            pixils.test.app.shared.ui.components.button))
 
-(defcomponent counter
-  {:style {:width 41
-           :height 25}
-   :render (fn [state ctx]
-             (win/draw-bevel! {:x 0 :y 0 :w 41 :h 25}
-                              {:thickness 1 :invert true})
-             (r/text! (left-pad (:value state) 3 "0")
-                      {:x 1 :y 1}
-                      {:font :font/counter-font}))})
+(defcomponent status-panel {:style {:width :fill
+                                    :height 25
+                                    :padding 4
+                                    :layout {:direction :row
+                                             :gap :space-between}}
+                            :children [{:mode 'counter
+                                        :state {:value (ui/bind-state :counters :mines-left)}}
 
-(defun left-pad [s n pad]
-  (let [s (str s)
-        pad-len (- n (count s))]
-    (if (> pad-len 0)
-      (str (apply str (repeat pad-len pad)) s)
-      s)))
+                                       {:mode 'button
+                                        :style {:width 24
+                                                :height 24}
+                                        :state {:image (ui/bind-state :face)}
+                                        :on-click (fn [state event ctx]
+                                                    (when (= :left (:button event))
+                                                      (ui/emit! (:view ctx) :game/new-game))
+                                                    state)}
 
-(defcomponent status-panel
-  {:style {:height 24 :padding 13 :layout {:direction :row}}
-   :resources {:images {:counter-font-map "assets/score_numbers.png"
-                        :face-normal "assets/face1.png"
-                        :face-danger "assets/face2.png"}}
-   :children [{:mode 'counter
-               :state {:value (ui/bind-state :counters :mines-left)}}
-              {:mode 'button
-               :style {:width 24
-                       :height 24}
-               :state {:label "Hehu"
-                       :image (ui/bind-state :face)}
-               :on-click (fn [state event ctx]
-                           (when (= :left (:button event))
-                             (ui/emit! (:view ctx) :game/new-game))
-                           state)}
-              {:mode 'counter
-               :state {:value (ui/bind-state :counters :timer)}}]})
-
-(deffont counter-font
-  {:type :bitmap
-   :spacing 0
-   :resource :status-panel/counter-font-map
-   :glyphs (reduce "0123456789"
-                   {}
-                   (fn [glyphs num]
-                     (let [index (int (str num))]
-                       (merge glyphs
-                              {num {:x (* index 13)
-                                    :y 0
-                                    :w 13
-                                    :h 23}}))))})
+                                       {:mode 'counter
+                                        :state {:value (ui/bind-state :counters :timer)}}]})

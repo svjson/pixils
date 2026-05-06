@@ -1,6 +1,7 @@
-(ns pixils.test.app.shared.ui.components.menu
+(ns pixils.test.app.minesweeper.core
   (:require pixils
-            [pixils.render :as r]))
+            [pixils.render :as r]
+            [pixils.test.app.minesweeper.menu-definition :as md]))
 
 (defcomponent menu-item
   {:style {:padding 2
@@ -24,14 +25,14 @@
                                                                 (fn [item]
                                                                   (:w (r/text-size (:title item)
                                                                                    {:font :font/win3-system-font}))))))
-                                          :height (* (+ 4 menu-item-h)
+                                          :height (* (+ 4 md/menu-item-h)
                                                      (-> state :items count))}
                                   :children (for-indexed [n item (:items state)]
                                               (make-menu-item item
-                                                              {:x (* n menu-item-w)
+                                                              {:x (* n md/menu-item-w)
                                                                :y 0
-                                                               :w menu-item-w
-                                                               :h menu-item-h}))}]})
+                                                               :w md/menu-item-w
+                                                               :h md/menu-item-h}))}]})
                     state)
    :render (fn [state ctx]
              (r/text! (:text state)
@@ -40,39 +41,9 @@
                        :font :font/win3-system-font
                        :color {:r 0 :g 0 :b 0}}))})
 
-(def menu-items [{:title "File" :items [{:title "New Game"}
-                                        {:title "Save"}
-                                        {:title "Quit"}]}
-                 {:title "Edit" :items [{:title "Undo move"}]}
-                 {:title "View" :items [{:title "Game board"}
-                                        {:title "Highscores"}]}
-                 {:title "Help" :items [{:title "About"}]}])
-(def menu-item-w 32)
-(def menu-item-h 13)
-
 (defun make-menu-item [item bounds]
   {:mode 'menu-item
    :style {:width (:w bounds)
            :height (:h bounds)}
    :state {:text (:title item)
            :items (:items item)}})
-
-(defmode menu-bar-mode
-  {:style {:background {:r 255 :g 255 :b 255}
-           :border {:line-style :solid
-                    :color {:r 0 :g 0 :b 0}
-                    :bottom {:thickness 1}}
-           :layout {:direction :row}}
-   :children (for-indexed [n item menu-items]
-               (make-menu-item item
-                               {:x (* n menu-item-w)
-                                :y 0
-                                :w (+ 9 menu-item-w)
-                                :h menu-item-h}))})
-
-(defmode popup-menu-mode
-  {:update (fn [state ctx]
-             (when (:mouse-button-down ctx)
-               (pop-mode!))
-             state)
-   :compose {:render :pass}})

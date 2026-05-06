@@ -33,6 +33,42 @@ namespace Pixils::UI
   /** Style */
   Style::Style() {}
 
+  Style::Size::Size(int fixed_value)
+    : mode(Mode::FIXED)
+    , value(fixed_value)
+  {
+  }
+
+  Style::Size::Size(Mode mode)
+    : mode(mode)
+  {
+  }
+
+  bool Style::Size::is_auto() const
+  {
+    return mode == Mode::AUTO;
+  }
+
+  bool Style::Size::is_fill() const
+  {
+    return mode == Mode::FILL;
+  }
+
+  bool Style::Size::is_shrink() const
+  {
+    return mode == Mode::SHRINK;
+  }
+
+  bool Style::Size::is_fixed() const
+  {
+    return mode == Mode::FIXED;
+  }
+
+  int Style::Size::fixed_value_or(int fallback) const
+  {
+    return is_fixed() ? value.value_or(fallback) : fallback;
+  }
+
   Style::Style(const Style& other)
     : background(other.background)
     , margin(other.margin)
@@ -229,7 +265,8 @@ namespace Pixils::UI
     int mar = margin ? margin->l + margin->r : 0;
     int pad = padding ? padding->l + padding->r : 0;
     int bord = border ? border->left_thickness() + border->right_thickness() : 0;
-    return width.value_or(0) + mar + pad + bord;
+    int content_width = width && width->is_fixed() ? width->fixed_value_or(0) : 0;
+    return content_width + mar + pad + bord;
   }
 
   int Style::total_height() const
@@ -237,7 +274,8 @@ namespace Pixils::UI
     int mar = margin ? margin->t + margin->b : 0;
     int pad = padding ? padding->t + padding->b : 0;
     int bord = border ? border->top_thickness() + border->bottom_thickness() : 0;
-    return height.value_or(0) + mar + pad + bord;
+    int content_height = height && height->is_fixed() ? height->fixed_value_or(0) : 0;
+    return content_height + mar + pad + bord;
   }
 
   Rect Style::content_rect(const Rect& bounds) const

@@ -15,7 +15,11 @@
   (let [pressed (-> ctx :view :interaction :pressed)]
     (if (and (contains? pressed :left)
              (contains? pressed :right))
-      (let [cell-coord (-> e :position (pt/- {:x 12 :y 0}) (pt/div 17) pt/int)
+      (let [cell-coord (-> e
+                           :position
+                           (pt/- {:x 3 :y 3})
+                           (pt/div 17)
+                           pt/int)
             cells (concat cell-coord
                           (map gl/directions
                                (fn [d] (pt/+ cell-coord d))))]
@@ -23,13 +27,17 @@
             (assoc :chord-press-active true)
             (assoc :board-mask (for-indexed [y row (:board-mask state)]
                                             (for-indexed [x cell row]
-                                                         (assoc cell
-                                                                :chord-pressed?
-                                                                (contains? cells
-                                                                           (pt/make-point {:x x :y y}))))))))
+                                                         (assoc cell :chord-pressed? (contains? cells (pt/make-point {:x x :y y}))))))))
       (if (:chord-press-active state)
         (clear-chord-press state)
         state))))
+
+(defun revealed-count [board-mask]
+  (count (filter (apply concat (for-indexed [y row board-mask]
+                                            (for-indexed [x cell row]
+                                                         (when (:revealed? cell)
+                                                           {:x x :y y}))))
+                 (fn [c] (not (nil? c))))))
 
 (defun valid-chord-press-cells [board-mask]
   (filter (apply concat (for-indexed [y row board-mask]
@@ -47,10 +55,10 @@
                            (contains? (-> ctx :view :interaction :pressed) :right))
                     (-> (reduce (valid-chord-press-cells (:board-mask state))
                                 state
-                                (fn [next-state {:keys [x y]}]
-                                  (if (gl/revealed? next-state y x)
-                                    (gl/reveal-board-cell next-state y x)
-                                    next-state)))
+                                (fn [state {:keys [x y]}]
+                                  (if (not (gl/revealed? state y x))
+                                    (gl/reveal-board-cell state y x)
+                                    state)))
                         clear-chord-press)
                     state))
    :children [{:mode 'mine-layer-mode
@@ -60,9 +68,9 @@
                :state {:board-mask (ui/bind-state :board-mask)
                        :face (ui/bind-state :face)}
                :on-mouse-down (fn [state e ctx]
-                                (assoc state :face :status-panel/face-danger))
+                                (assoc state :face :status/face-danger))
                :on-mouse-up (fn [state e ctx]
-                              (assoc state :face :status-panel/face-normal))
+                              (assoc state :face :status/face-normal))
                :style {:position :absolute
                        :top 0
                        :left 0}}]})

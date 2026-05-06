@@ -167,6 +167,30 @@ namespace Pixils::UI
       std::optional<int> scale = std::nullopt;
     };
 
+    struct Size
+    {
+      enum class Mode : uint8_t
+      {
+        AUTO,
+        FILL,
+        SHRINK,
+        FIXED,
+      };
+
+      Mode mode = Mode::AUTO;
+      std::optional<int> value = std::nullopt;
+
+      Size() = default;
+      Size(int fixed_value);
+      Size(Mode mode);
+
+      bool is_auto() const;
+      bool is_fill() const;
+      bool is_shrink() const;
+      bool is_fixed() const;
+      int fixed_value_or(int fallback = 0) const;
+    };
+
     Style();
     Style(const Style& other);
 
@@ -184,8 +208,8 @@ namespace Pixils::UI
      * set, this provides the preferred width/height for the inner
      * (content) dimensions of an associated view.
      */
-    std::optional<int> width;
-    std::optional<int> height;
+    std::optional<Size> width;
+    std::optional<Size> height;
 
     /** Outer (total) dimensions: content size plus padding and border. */
     int total_width() const;

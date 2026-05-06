@@ -1,0 +1,10 @@
+(ns pixils.test.app.minesweeper.core
+  (:require pixils
+            [pixils.ui :as ui]))
+
+(defcomponent board-buttons
+  {:children (dotimes [n 9]
+               {:mode 'board-button-row
+                :state {:y n
+                        :mask-row (ui/bind-state :board-mask n)}
+                :style {:height 17}})})

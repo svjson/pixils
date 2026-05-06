@@ -14,7 +14,8 @@
 
 ;; Status Panel Component
 
-(defcomponent status-panel {:style {:height 25
+(defcomponent status-panel {:style {:width :fill
+                                    :height 25
                                     :padding 4
                                     :layout {:direction :row
                                              :gap :space-between}}

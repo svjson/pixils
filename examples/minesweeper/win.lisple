@@ -49,6 +49,7 @@
 ;; Windows 3.11 colors
 
 (def white {:r 255 :g 255 :b 255})
+(def focus-blue {:r 0x00 :g 0x0b :b 0xc8})
 (def teal {:r 0x00 :g 0x80 :b 0x80})
 (def cyan {:r 0x00 :g 0xff :b 0xff})
 (def panel-face {:r 0xc0 :g 0xc7 :b 0xc8})

@@ -1,0 +1,15 @@
+(ns pixils.test.app.shared.ui.components.menu
+  (:require pixils
+            [pixils.color :as c]
+            [pixils.test.app.minesweeper.menu-definition :as md]))
+
+(defmode menu-bar-mode
+  {:style {:width :fill
+           :background {:r 255 :g 255 :b 255}
+           :text {:color c/BLACK
+                  :font :font/win3-system-font}
+           :border {:line-style :solid :color {:r 0 :g 0 :b 0} :bottom {:thickness 1}}
+           :layout {:direction :row}}
+   :children (for-indexed [n item md/menu-items]
+                          (merge (make-menu-item item)
+                                 {:style {:padding [2 8]}}))})

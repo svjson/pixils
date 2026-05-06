@@ -4,6 +4,7 @@
             [pixils.color :as c]
             [pixils.point :as pt]
             [pixils.ui :as ui]
+            pixils.examples.minesweeper.container
             pixils.examples.minesweeper.button
             [pixils.examples.minesweeper.game-logic :as gl]
             [pixils.examples.minesweeper.status-panel :as status-panel]
@@ -72,9 +73,9 @@
 
 
 (defmode window-mode
-  {:style {:width 178
-           :height 239}
-   :children [{:mode 'menu-bar-mode :style {:height 17}}
+  {:style {:border {:thickness 1
+                    :color c/BLACK}}
+   :children [{:mode 'menu-bar-mode}
               {:mode 'game-mode}]})
 
 
@@ -82,5 +83,4 @@
 (defmode main-mode
   {:style {:background win/teal}
    :children [{:mode 'window-mode}]})
-
 

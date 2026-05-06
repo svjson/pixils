@@ -10,6 +10,12 @@ namespace Pixils::UI
 {
   namespace
   {
+    enum class Axis
+    {
+      HORIZONTAL,
+      VERTICAL,
+    };
+
     Dimension calculate_outer_size(const Style& style, const Dimension& content_size)
     {
       int mar = style.margin ? style.margin->l + style.margin->r : 0;
@@ -60,6 +66,50 @@ namespace Pixils::UI
       auto result =
         Pixils::Runtime::invoke_hook(runtime, child, child->mode->content_size, args);
       return parse_dimension_like(result);
+    }
+
+    const std::optional<Style::Size>& axis_size(const Style& style, Axis axis)
+    {
+      return axis == Axis::HORIZONTAL ? style.width : style.height;
+    }
+
+    int fixed_outer_size(const Style& style, Axis axis)
+    {
+      return axis == Axis::HORIZONTAL ? style.total_width() : style.total_height();
+    }
+
+    int natural_outer_size(const Style& style,
+                           const std::optional<Dimension>& natural_content_size,
+                           Axis axis)
+    {
+      if (!natural_content_size) return 0;
+      Dimension outer = calculate_outer_size(style, *natural_content_size);
+      return axis == Axis::HORIZONTAL ? outer.w : outer.h;
+    }
+
+    bool fills_axis(const Style& style, Axis axis, bool root_context)
+    {
+      const auto& size = axis_size(style, axis);
+      if (!size) return root_context;
+      if (size->is_fill()) return true;
+      if (size->is_auto()) return root_context;
+      return false;
+    }
+
+    int resolve_outer_size(const Style& style,
+                           const std::optional<Dimension>& natural_content_size,
+                           Axis axis,
+                           bool root_context,
+                           int available_size)
+    {
+      const auto& size = axis_size(style, axis);
+      if (size && size->is_fixed()) return fixed_outer_size(style, axis);
+      if (fills_axis(style, axis, root_context)) return available_size;
+
+      int natural = natural_outer_size(style, natural_content_size, axis);
+      if (natural > 0) return natural;
+
+      return 0;
     }
 
     Style resolve_effective_style(const std::shared_ptr<Pixils::Runtime::View>& view,
@@ -128,8 +178,10 @@ namespace Pixils::UI
           child_outer_size = calculate_outer_size(child_style, *child_natural_content_size);
         }
 
-        if (child_style.width) child_outer_size.w = child_style.total_width();
-        if (child_style.height) child_outer_size.h = child_style.total_height();
+        if (child_style.width && child_style.width->is_fixed())
+          child_outer_size.w = child_style.total_width();
+        if (child_style.height && child_style.height->is_fixed())
+          child_outer_size.h = child_style.total_height();
 
         if (row)
         {
@@ -154,14 +206,37 @@ namespace Pixils::UI
     {
       if (!view) return;
 
-      view->bounds = bounds;
       view->effective_style = resolve_effective_style(view, inherited_style);
+
+      auto natural_content_size =
+        calculate_natural_content_size(view, runtime, hook_ctx, inherited_style);
+      int resolved_w = inherited_style ? bounds.w
+                                       : resolve_outer_size(view->effective_style,
+                                                            natural_content_size,
+                                                            Axis::HORIZONTAL,
+                                                            true,
+                                                            bounds.w);
+      int resolved_h = inherited_style ? bounds.h
+                                       : resolve_outer_size(view->effective_style,
+                                                            natural_content_size,
+                                                            Axis::VERTICAL,
+                                                            true,
+                                                            bounds.h);
+      int resolved_x = bounds.x;
+      int resolved_y = bounds.y;
+      if (!inherited_style && view->effective_style.position &&
+          *view->effective_style.position == PositionMode::ABSOLUTE)
+      {
+        resolved_x += view->effective_style.left.value_or(0);
+        resolved_y += view->effective_style.top.value_or(0);
+      }
+      view->bounds = {resolved_x, resolved_y, resolved_w, resolved_h};
 
       const Style& style = view->effective_style;
       if (style.hidden && *style.hidden) return;
       if (view->children.empty()) return;
 
-      Rect content = style.content_rect(bounds);
+      Rect content = style.content_rect(view->bounds);
       auto child_rects = layout_children(view->children,
                                          content,
                                          runtime,
@@ -179,8 +254,18 @@ namespace Pixils::UI
         {
           int top = child_style.top.value_or(0);
           int left = child_style.left.value_or(0);
-          int w = child_style.width.has_value() ? child_style.total_width() : content.w;
-          int h = child_style.height.has_value() ? child_style.total_height() : content.h;
+          auto child_natural_content_size =
+            calculate_natural_content_size(child_ptr, runtime, hook_ctx, &style);
+          int w = resolve_outer_size(child_style,
+                                     child_natural_content_size,
+                                     Axis::HORIZONTAL,
+                                     false,
+                                     content.w);
+          int h = resolve_outer_size(child_style,
+                                     child_natural_content_size,
+                                     Axis::VERTICAL,
+                                     false,
+                                     content.h);
           child_bounds = {content.x + left, content.y + top, w, h};
         }
         else
@@ -213,7 +298,8 @@ namespace Pixils::UI
     {
       child->effective_style = resolve_effective_style(child, inherited_style);
       styles.push_back(child->effective_style);
-      natural_content_sizes.push_back(invoke_content_size_hook(child, runtime, hook_ctx));
+      natural_content_sizes.push_back(
+        calculate_natural_content_size(child, runtime, hook_ctx, inherited_style));
     }
 
     int total_fixed = 0;
@@ -226,8 +312,12 @@ namespace Pixils::UI
       if (cs.position && *cs.position == PositionMode::ABSOLUTE) continue;
       flow_count++;
 
-      const auto& main_axis_size = row ? cs.width : cs.height;
-      if (main_axis_size)
+      Axis main_axis = row ? Axis::HORIZONTAL : Axis::VERTICAL;
+      if (fills_axis(cs, main_axis, false))
+      {
+        fill_count++;
+      }
+      else if (axis_size(cs, main_axis) && axis_size(cs, main_axis)->is_fixed())
       {
         outer_sizes[i] = row ? cs.total_width() : cs.total_height();
         total_fixed += outer_sizes[i];
@@ -237,10 +327,6 @@ namespace Pixils::UI
         Dimension outer_size = calculate_outer_size(cs, *natural);
         outer_sizes[i] = row ? outer_size.w : outer_size.h;
         total_fixed += outer_sizes[i];
-      }
-      else
-      {
-        fill_count++;
       }
     }
 
@@ -269,7 +355,9 @@ namespace Pixils::UI
     {
       const Style& cs = styles[i];
       if (cs.position && *cs.position == PositionMode::ABSOLUTE) continue;
-      if (outer_sizes[i] == 0) outer_sizes[i] = fill_size;
+      if (outer_sizes[i] == 0 &&
+          fills_axis(cs, row ? Axis::HORIZONTAL : Axis::VERTICAL, false))
+        outer_sizes[i] = fill_size;
     }
 
     int total_flow_size = 0;
@@ -314,8 +402,11 @@ namespace Pixils::UI
       }
 
       int outer_size = outer_sizes[i];
-      int cross_outer_size = row ? (cs.height ? cs.total_height() : parent.h)
-                                 : (cs.width ? cs.total_width() : parent.w);
+      int cross_outer_size = resolve_outer_size(cs,
+                                                natural_content_sizes[i],
+                                                row ? Axis::VERTICAL : Axis::HORIZONTAL,
+                                                false,
+                                                row ? parent.h : parent.w);
 
       if (row)
       {

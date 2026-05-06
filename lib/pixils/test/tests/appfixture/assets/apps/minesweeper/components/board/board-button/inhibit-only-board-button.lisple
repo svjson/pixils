@@ -1,0 +1,18 @@
+(ns pixils.test.app.minesweeper.core
+  (:require pixils
+            [pixils.test.app.shared.ui.components.button :as button]
+            [pixils.ui :as ui]))
+
+(defcomponent board-button
+  {:extend 'button
+   :style {:width 17 :height 17}
+   :update (fn [state ctx]
+             (assoc state
+                    :inhibit-pressed?
+                    (:flagged? (:mask state))))
+   :on-click (fn [state e ctx]
+               (case (:button e)
+                 :left (when (not (:flagged? (:mask state)))
+                         (ui/emit! (:view ctx) :cell/click state))
+                 :right (ui/emit! (:view ctx) :cell/toggle-flag state))
+               state)})

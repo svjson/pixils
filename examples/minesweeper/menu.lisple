@@ -1,38 +1,35 @@
 (ns pixils.examples.minesweeper.menu
   (:require pixils
-            [pixils.render :as r]))
+            [pixils.render :as r]
+            [pixils.color :as c]
+            [pixils.ui :as ui]
+            [pixils.examples.minesweeper.win :as win]))
 
 
 ;; Menu item component
 
 (defcomponent menu-item
-  {:style {:padding    2
-           :hover      {:background {:r 90 :g 90 :b 110}}}
+  {:style {:padding 2
+           :hover {:background win/focus-blue
+                   :text {:color win/white}}}
    :on-mouse-down (fn [state event ctx]
                     (push-mode!
                      'popup-menu-mode
                      {}
-                     {:children [{:mode 'popup-menu-mode
-                                  :style {:position :absolute
-                                          :background {:r 255 :g 255 :b 255}
-                                          :border {:thickness 1 :line-style :solid :color {:r 0 :g 0 :b 0}}
-                                          :left (-> ctx :view :bounds :x)
-                                          :top (+ (-> ctx :view :bounds :y) (-> ctx :view :bounds :h))
-                                          :width (+ 8 (apply max (map (:items state)
-                                                                      (fn [item] (:w (r/text-size (:title item) {:font :font/win3-system-font}))))))
-                                          :height (* (+ 4 menu-item-h) (-> state :items count))}
-                                  :children (for-indexed [n item (:items state)]
-                                                         (make-menu-item item {:x (* n menu-item-w)
-                                                                               :y 0
-                                                                               :w menu-item-w
-                                                                               :h menu-item-h}))}]})
+                     {:style {:position :absolute
+                              :width :shrink
+                              :height :shrink
+                              :background {:r 255 :g 255 :b 255}
+                              :text {:color c/BLACK}
+                              :border {:thickness 1 :line-style :solid :color {:r 0 :g 0 :b 0}}
+                              :left (-> ctx :view :bounds :x)
+                              :top (+ (-> ctx :view :bounds :y) (-> ctx :view :bounds :h))}
+                      :children (for-indexed [n item (:items state)]
+                                             (merge (make-menu-item item)
+                                                    {:style {:width :fill}}))})
                     state)
-   :render (fn [state ctx]
-             (r/text! (:text state)
-                      {:x 0 :y 0}
-                      {:scale 1
-                       :font :font/win3-system-font
-                       :color {:r 0 :g 0 :b 0}}))})
+   :children [{:mode 'text-node
+               :state {:value (ui/bind-state :text)}}]})
 
 
 
@@ -48,19 +45,21 @@
 (def menu-item-w 32)
 (def menu-item-h 13)
 
-(defun make-menu-item [item bounds]
+(defun make-menu-item [item]
   {:mode 'menu-item
    :state {:text (:title item)
            :items (:items item)}})
 
 (defmode menu-bar-mode
-  {:style {:background {:r 255 :g 255 :b 255}
+  {:style {:width :fill
+           :background {:r 255 :g 255 :b 255}
+           :text {:color c/BLACK
+                  :font :font/win3-system-font}
            :border {:line-style :solid :color {:r 0 :g 0 :b 0} :bottom {:thickness 1}}
            :layout {:direction :row}}
    :children (for-indexed [n item menu-items]
-                          (make-menu-item item {:x (* n menu-item-w) :y 0
-                                                :w (+ 9 menu-item-w)
-                                                :h menu-item-h}))})
+                          (merge (make-menu-item item)
+                                 {:style {:padding [2 8]}}))})
 
 
 ;; Popup menu mode
@@ -70,5 +69,4 @@
                                       (pop-mode!))
                                     state)
                           :compose {:render :pass}})
-
 
