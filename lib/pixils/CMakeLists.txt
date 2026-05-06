@@ -13,6 +13,7 @@ file(GLOB pixils_SOURCES CONFIGURE_DEPENDS
   src/runtime/*.cpp
   src/state/*.cpp
   src/ui/*.cpp
+  src/ui/components/*.cpp
 )
 
 add_library(pixils INTERFACE)

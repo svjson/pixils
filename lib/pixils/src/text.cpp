@@ -1,5 +1,6 @@
 
 #include <pixils/context.h>
+#include <pixils/font_registry.h>
 #include <pixils/geom.h>
 #include <pixils/text.h>
 
@@ -177,6 +178,47 @@ namespace Pixils
     int Renderer::get_line_height() const
     {
       return line_height;
+    }
+
+    std::optional<TextRenderOp> make_text_render_op(RenderContext& rc,
+                                                    const std::string& font_key,
+                                                    int scale,
+                                                    const std::optional<Color>& color)
+    {
+      if (!rc.font_registry) return std::nullopt;
+
+      BitmapFont* font = rc.font_registry->get_font(font_key);
+      if (!font) return std::nullopt;
+
+      font->renderer.set_scale(scale);
+      font->tint_renderer.set_scale(scale);
+
+      if (color)
+      {
+        return TextRenderOp{.renderer = &font->tint_renderer,
+                            .tint_renderer = &font->tint_renderer,
+                            .color = color->to_SDL_Color()};
+      }
+
+      return TextRenderOp{.renderer = &font->renderer,
+                          .tint_renderer = &font->tint_renderer,
+                          .color = {0xff, 0xff, 0xff, 0xff}};
+    }
+
+    SDL_Rect calculate_rendered_size(RenderContext& rc,
+                                     const TextRenderOp& op,
+                                     const std::string& string)
+    {
+      return op.renderer->get_rendered_size(rc, string);
+    }
+
+    void render_text(RenderContext& rc,
+                     const TextRenderOp& op,
+                     const std::string& text,
+                     int x,
+                     int y)
+    {
+      op.renderer->render_text(rc, text, x, y, op.color);
     }
 
     /**

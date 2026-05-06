@@ -192,3 +192,37 @@ TEST_F(RenderTest, text_size_infers_font_line_height_from_tallest_glyph)
   EXPECT_EQ(w->num().get_int(), 5);
   EXPECT_EQ(h->num().get_int(), 7);
 }
+
+TEST_F(RenderTest, built_in_text_node_renders_and_measures_without_definition)
+{
+  SDLMock::prepared_surfaces["./font.png"] = {16, 12};
+  runtime.eval(R"(
+    (pixils/defbundle fonts {:images {:atlas "font.png"}})
+    (pixils/deffont test-font
+      {:type :bitmap
+       :resource :fonts/atlas
+       :glyphs {"A" {:x 0 :y 0 :w 4 :h 4}
+                "p" {:x 4 :y 0 :w 4 :h 7}}})
+    (pixils/defmode root-mode
+      {:children [{:mode 'text-node
+                   :state {:value "A"}
+                   :style {:text {:font :font/test-font}}}]})
+  )");
+
+  session.push_mode("root-mode", Lisple::Constant::NIL);
+  ASSERT_NE(session.active_mode, nullptr);
+  ASSERT_EQ(session.active_mode->children.size(), 1u);
+
+  auto& child = session.active_mode->children.at(0);
+  ASSERT_NE(child, nullptr);
+  EXPECT_EQ(child->mode->name, "text-node");
+
+  ASSERT_NO_THROW(session.render_mode());
+
+  EXPECT_EQ(child->bounds.w, 5);
+  EXPECT_EQ(child->bounds.h, 7);
+
+  auto& ops = render_target()->render_ops;
+  ASSERT_EQ(ops.size(), 1u);
+  EXPECT_EQ(ops[0].type, RenderOpType::RENDER_COPY);
+}

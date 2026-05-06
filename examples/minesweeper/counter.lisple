@@ -2,7 +2,6 @@
   (:require pixils
             [pixils.render :as r]
             [pixils.ui :as ui]
-            pixils.examples.minesweeper.text-node
             [pixils.examples.minesweeper.win :as win]))
 
 

@@ -10,7 +10,6 @@
 #include <lisple/exec.h>
 #include <lisple/host/accessor.h>
 #include <lisple/host/object.h>
-#include <lisple/runtime/dict.h>
 #include <lisple/runtime/value.h>
 
 namespace Pixils::Script

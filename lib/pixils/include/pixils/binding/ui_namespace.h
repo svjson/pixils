@@ -9,6 +9,11 @@
 #include <lisple/host/object.h>
 #include <lisple/namespace.h>
 
+namespace Lisple
+{
+  class Runtime;
+}
+
 namespace Pixils::Runtime
 {
   struct BindState;

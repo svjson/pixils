@@ -8,6 +8,7 @@
 #include <SDL2/SDL_rect.h>
 #include <cstdint>
 #include <map>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -24,6 +25,19 @@ namespace Pixils
 
   namespace Text
   {
+    class Renderer;
+
+    /*!
+     * @brief Prepared text rendering configuration resolved from font key,
+     * scale and optional tint color.
+     */
+    struct TextRenderOp
+    {
+      Renderer* renderer;
+      Renderer* tint_renderer;
+      SDL_Color color;
+    };
+
     /*!
      * @brief Wrapper class that keeps track of font letters within a sprite map
      * texture containing the font graphics
@@ -432,6 +446,31 @@ namespace Pixils
        */
       std::vector<Shadow> shadows;
     };
+
+    /*!
+     * @brief Resolves a font/scale/color combination into a reusable text render op.
+     */
+    std::optional<TextRenderOp> make_text_render_op(
+      RenderContext& rc,
+      const std::string& font_key = "font/console",
+      int scale = 1,
+      const std::optional<Color>& color = std::nullopt);
+
+    /*!
+     * @brief Calculates the rendered size of a string using a prepared text render op.
+     */
+    SDL_Rect calculate_rendered_size(RenderContext& rc,
+                                     const TextRenderOp& op,
+                                     const std::string& string);
+
+    /*!
+     * @brief Renders a string using a prepared text render op.
+     */
+    void render_text(RenderContext& rc,
+                     const TextRenderOp& op,
+                     const std::string& text,
+                     int x,
+                     int y);
 
   } // namespace Text
 } // namespace Pixils

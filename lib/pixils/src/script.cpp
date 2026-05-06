@@ -13,6 +13,7 @@
 #include <pixils/binding/ui_namespace.h>
 #include <pixils/font_registry.h>
 #include <pixils/script.h>
+#include <pixils/ui/components/text_node.h>
 
 #include <lisple/dir_root_file_system.h>
 
@@ -59,6 +60,7 @@ namespace Pixils
     Lisple::Runtime lisple_runtime(default_namespace,
                                    std::move(rtconfig.native_namespaces),
                                    std::move(fs.release()));
+    UI::Components::register_text_node_component(lisple_runtime);
     for (auto& file_name : source_files)
     {
       lisple_runtime.read_file(file_name);
@@ -112,6 +114,7 @@ namespace Pixils
       std::make_unique<Lisple::Runtime>(default_namespace,
                                         std::move(rtconfig.native_namespaces),
                                         std::move(fs.release()));
+    UI::Components::register_text_node_component(*lisple_runtime);
     for (auto& file_name : source_files)
     {
       lisple_runtime->read_file(file_name);
