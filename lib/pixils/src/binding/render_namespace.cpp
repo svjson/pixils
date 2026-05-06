@@ -379,30 +379,36 @@ namespace Pixils::Script
       BitmapFont* font = rc.font_registry ? rc.font_registry->get_font(font_key) : nullptr;
       if (!font) return Lisple::Constant::NIL;
 
-      Text::Renderer& renderer = font->renderer;
-
       if (auto sv = opts.val("scale"); sv && sv->type != Lisple::RTValue::Type::NIL)
       {
-        renderer.set_scale(sv->num().get_int());
+        int scale = sv->num().get_int();
+        font->renderer.set_scale(scale);
+        font->tint_renderer.set_scale(scale);
       }
       else
       {
-        renderer.set_scale(1);
+        font->renderer.set_scale(1);
+        font->tint_renderer.set_scale(1);
       }
 
       SDL_Color color = {0xff, 0xff, 0xff, 0xff};
+      bool has_explicit_color = false;
       if (auto cv = opts.val("color"); cv && cv->type != Lisple::RTValue::Type::NIL)
       {
         const Color& c = Lisple::obj<Color>(*cv);
         color = c.to_SDL_Color();
+        has_explicit_color = true;
       }
 
+      Text::Renderer& text_renderer =
+        has_explicit_color ? font->tint_renderer : font->renderer;
+
       if (auto sv = opts.val("shadow"); sv && sv->type != Lisple::RTValue::Type::NIL)
-        render_shadows(renderer, ctx, rc, text, pos.round_x(), pos.round_y(), sv);
+        render_shadows(font->tint_renderer, ctx, rc, text, pos.round_x(), pos.round_y(), sv);
 
-      renderer.render_text(rc, text, pos.round_x(), pos.round_y(), color);
+      text_renderer.render_text(rc, text, pos.round_x(), pos.round_y(), color);
 
-      SDL_Rect size = renderer.get_rendered_size(rc, text);
+      SDL_Rect size = text_renderer.get_rendered_size(rc, text);
       return make_rect_map(pos.round_x(), pos.round_y(), size.w, size.h);
     }
 

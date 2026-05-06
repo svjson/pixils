@@ -105,8 +105,13 @@ namespace Pixils
 
     SDL_Texture* console_font_texture =
       ctx.asset_registry->get_image("pixils", "console-font");
+    SDL_Texture* console_font_tint =
+      ctx.asset_registry->get_tint_mask("pixils", "console-font");
 
-    ctx.font_registry->register_font("font/console", console_font_texture, console_font_map);
+    ctx.font_registry->register_font("font/console",
+                                     console_font_texture,
+                                     console_font_tint,
+                                     console_font_map);
 
     this->console = std::make_unique<ConsoleOverlay>(ctx, lisple, console_font_texture);
   }

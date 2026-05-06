@@ -9,6 +9,8 @@
 #include <string>
 
 struct Mix_Chunk;
+struct SDL_Surface;
+struct SDL_Texture;
 
 namespace Pixils::Runtime
 {
@@ -25,6 +27,8 @@ namespace Pixils::Asset
    public:
     Loader(RenderContext& ctx, std::string base_path = "");
     Bundle load_bundle_assets(const Runtime::ResourceDependencies& deps);
+    SDL_Texture* create_texture(SDL_Surface* surface);
+    SDL_Surface* load_surface_from_memory(const unsigned char* data, std::size_t size);
     SDL_Texture* load_texture_from_memory(const unsigned char* data, std::size_t size);
     Mix_Chunk* load_sound_from_file(const std::string& file_name);
   };

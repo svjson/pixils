@@ -191,9 +191,11 @@ namespace Pixils::Script
       auto [bundle_key, image_key] = resource_key->qual();
 
       SDL_Texture* resource_texture = rc.asset_registry->get_image(bundle_key, image_key);
+      SDL_Texture* tint_texture = rc.asset_registry->get_tint_mask(bundle_key, image_key);
 
       rc.font_registry->register_font(font_name,
                                       resource_texture,
+                                      tint_texture,
                                       Text::FontMap(glyph_map),
                                       spacing);
 

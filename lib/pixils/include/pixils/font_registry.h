@@ -21,8 +21,12 @@ namespace Pixils
   {
     Text::FontMap font_map;
     Text::Renderer renderer;
+    Text::Renderer tint_renderer;
 
-    BitmapFont(SDL_Texture* texture, Text::FontMap map, int spacing = 1);
+    BitmapFont(SDL_Texture* texture,
+               SDL_Texture* tint_texture,
+               Text::FontMap map,
+               int spacing = 1);
 
     BitmapFont(const BitmapFont&) = delete;
     BitmapFont& operator=(const BitmapFont&) = delete;
@@ -44,6 +48,7 @@ namespace Pixils
    public:
     void register_font(const std::string& key,
                        SDL_Texture* texture,
+                       SDL_Texture* tint_texture,
                        Text::FontMap map,
                        int spacing = 1);
 

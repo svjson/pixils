@@ -4,20 +4,184 @@
 #include <pixils/asset/registry.h>
 #include <pixils/runtime/mode.h>
 
+#include <SDL2/SDL_mixer.h>
+#include <SDL2/SDL_pixels.h>
+#include <SDL2/SDL_render.h>
+#include <SDL2/SDL_surface.h>
+
 namespace Pixils::Asset
 {
+  namespace
+  {
+    SDL_Texture* duplicate_texture(Loader& loader, SDL_Surface* source)
+    {
+      return source ? loader.create_texture(source) : nullptr;
+    }
+
+    Uint32 read_surface_pixel(SDL_Surface* surface, int x, int y)
+    {
+      const int bpp = surface->format->BytesPerPixel;
+      auto* row = static_cast<Uint8*>(surface->pixels) + (y * surface->pitch);
+      Uint8* pixel = row + (x * bpp);
+
+      switch (bpp)
+      {
+      case 1:
+        return *pixel;
+      case 2:
+        return *reinterpret_cast<Uint16*>(pixel);
+      case 3:
+#if SDL_BYTEORDER == SDL_BIG_ENDIAN
+        return (pixel[0] << 16) | (pixel[1] << 8) | pixel[2];
+#else
+        return pixel[0] | (pixel[1] << 8) | (pixel[2] << 16);
+#endif
+      case 4:
+        return *reinterpret_cast<Uint32*>(pixel);
+      default:
+        return 0;
+      }
+    }
+
+    SDL_Texture* create_tint_mask_texture(Loader& loader, SDL_Surface* source)
+    {
+      if (!source) return nullptr;
+
+      SDL_Surface* mask = SDL_CreateRGBSurfaceWithFormat(0,
+                                                         source->w,
+                                                         source->h,
+                                                         32,
+                                                         SDL_PIXELFORMAT_RGBA8888);
+      if (!mask) return duplicate_texture(loader, source);
+
+      if (!source->format || !source->pixels || !mask->format || !mask->pixels ||
+          source->w <= 0 || source->h <= 0)
+      {
+        SDL_FreeSurface(mask);
+        return duplicate_texture(loader, source);
+      }
+
+      if (SDL_LockSurface(source) != 0)
+      {
+        SDL_FreeSurface(mask);
+        return duplicate_texture(loader, source);
+      }
+
+      if (SDL_LockSurface(mask) != 0)
+      {
+        SDL_UnlockSurface(source);
+        SDL_FreeSurface(mask);
+        return duplicate_texture(loader, source);
+      }
+
+      auto* dst_pixels = static_cast<Uint32*>(mask->pixels);
+      const int dst_stride = mask->pitch / static_cast<int>(sizeof(Uint32));
+      const int pixel_count = source->w * source->h;
+      if (pixel_count <= 0)
+      {
+        SDL_UnlockSurface(mask);
+        SDL_UnlockSurface(source);
+        SDL_FreeSurface(mask);
+        return duplicate_texture(loader, source);
+      }
+
+      bool has_transparency = false;
+      for (int y = 0; y < source->h && !has_transparency; y++)
+      {
+        for (int x = 0; x < source->w; x++)
+        {
+          Uint8 r, g, b, a;
+          Uint32 pixel = read_surface_pixel(source, x, y);
+          SDL_GetRGBA(pixel, source->format, &r, &g, &b, &a);
+          if (a != 0xff)
+          {
+            has_transparency = true;
+            break;
+          }
+        }
+      }
+
+      Uint8 bg_r = 0, bg_g = 0, bg_b = 0, bg_a = 0;
+      SDL_GetRGBA(read_surface_pixel(source, 0, 0),
+                  source->format,
+                  &bg_r,
+                  &bg_g,
+                  &bg_b,
+                  &bg_a);
+
+      for (int y = 0; y < source->h; y++)
+      {
+        for (int x = 0; x < source->w; x++)
+        {
+          Uint8 r, g, b, a;
+          Uint32 pixel = read_surface_pixel(source, x, y);
+          SDL_GetRGBA(pixel, source->format, &r, &g, &b, &a);
+
+          Uint8 out_alpha = 0;
+          if (has_transparency)
+          {
+            out_alpha = a;
+          }
+          else if (!(r == bg_r && g == bg_g && b == bg_b && a == bg_a))
+          {
+            out_alpha = 0xff;
+          }
+
+          dst_pixels[(y * dst_stride) + x] =
+            SDL_MapRGBA(mask->format, 0xff, 0xff, 0xff, out_alpha);
+        }
+      }
+
+      SDL_UnlockSurface(mask);
+      SDL_UnlockSurface(source);
+
+      SDL_Texture* texture = loader.create_texture(mask);
+      SDL_FreeSurface(mask);
+      return texture;
+    }
+  } // namespace
+
   Registry::Registry(RenderContext& ctx, std::string base_path)
     : loader(ctx, std::move(base_path))
   {
   }
 
+  Registry::~Registry()
+  {
+    for (auto& [_, bundle] : bundles)
+    {
+      for (auto& [__, texture] : bundle.images)
+      {
+        if (texture) SDL_DestroyTexture(texture);
+      }
+
+      for (auto& [__, surface] : bundle.image_sources)
+      {
+        if (surface) SDL_FreeSurface(surface);
+      }
+
+      for (auto& [__, texture] : bundle.tint_masks)
+      {
+        if (texture) SDL_DestroyTexture(texture);
+      }
+    }
+  }
+
   void Registry::load_embedded_assets()
   {
     Bundle bundle;
-    bundle.images["console-font"] = loader.load_texture_from_memory(
-      Assets::consolefont_png.data, Assets::consolefont_png.size);
-    bundle.images["pixils-logo"] = loader.load_texture_from_memory(
-      Assets::pixils_logo_png.data, Assets::pixils_logo_png.size);
+    if (auto* surface = loader.load_surface_from_memory(Assets::consolefont_png.data,
+                                                        Assets::consolefont_png.size))
+    {
+      bundle.images["console-font"] = loader.create_texture(surface);
+      bundle.image_sources["console-font"] = surface;
+    }
+    if (auto* surface = loader.load_surface_from_memory(Assets::pixils_logo_png.data,
+                                                        Assets::pixils_logo_png.size))
+    {
+      bundle.images["pixils-logo"] = loader.create_texture(surface);
+      bundle.image_sources["pixils-logo"] = surface;
+    }
     bundles.emplace("pixils", std::move(bundle));
   }
 
@@ -36,8 +200,7 @@ namespace Pixils::Asset
                       const Runtime::ResourceDependencies& deps)
   {
     Bundle bundle = this->loader.load_bundle_assets(deps);
-
-    this->bundles.emplace(bundle_id, bundle);
+    this->bundles.emplace(bundle_id, std::move(bundle));
   }
 
   SDL_Texture* Registry::get_image(const std::string& bundle_id, const std::string& asset_id)
@@ -54,6 +217,29 @@ namespace Pixils::Asset
     if (!bundle.images.count(asset_id)) return nullptr;
 
     return bundle.images.at(asset_id);
+  }
+
+  SDL_Texture* Registry::get_tint_mask(const std::string& bundle_id,
+                                       const std::string& asset_id)
+  {
+    if (!this->is_loaded(bundle_id))
+    {
+      auto it = this->declarations.find(bundle_id);
+      if (it == this->declarations.end()) return nullptr;
+      this->load(bundle_id, it->second);
+    }
+
+    Bundle& bundle = this->bundles.at(bundle_id);
+
+    auto cached = bundle.tint_masks.find(asset_id);
+    if (cached != bundle.tint_masks.end()) return cached->second;
+
+    auto source = bundle.image_sources.find(asset_id);
+    if (source == bundle.image_sources.end()) return nullptr;
+
+    SDL_Texture* tint_mask = create_tint_mask_texture(loader, source->second);
+    bundle.tint_masks.emplace(asset_id, tint_mask);
+    return tint_mask;
   }
 
   Mix_Chunk* Registry::get_sound(const std::string& bundle_id, const std::string& asset_id)

@@ -10,6 +10,7 @@
 #include <unordered_map>
 
 struct Mix_Chunk;
+struct SDL_Texture;
 
 namespace Pixils::Asset
 {
@@ -22,6 +23,7 @@ namespace Pixils::Asset
 
    public:
     Registry(RenderContext& ctx, std::string base_path = "");
+    ~Registry();
 
     bool is_loaded(const std::string& bundle_id);
 
@@ -34,6 +36,7 @@ namespace Pixils::Asset
     void load(const std::string& bundle_id, const Runtime::ResourceDependencies& deps);
 
     SDL_Texture* get_image(const std::string& bundle, const std::string& asset_id);
+    SDL_Texture* get_tint_mask(const std::string& bundle, const std::string& asset_id);
     Mix_Chunk* get_sound(const std::string& bundle, const std::string& asset_id);
   };
 } // namespace Pixils::Asset

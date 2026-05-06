@@ -13,7 +13,8 @@ namespace Pixils::Asset
 {
   namespace
   {
-    std::string resolve_asset_path(const std::string& base_path, const std::string& file_name)
+    std::string resolve_asset_path(const std::string& base_path,
+                                   const std::string& file_name)
     {
       if (!base_path.empty() && !std::filesystem::path(file_name).is_absolute())
       {
@@ -41,8 +42,8 @@ namespace Pixils::Asset
       SDL_Surface* img_surface = IMG_Load(resolved.c_str());
       if (img_surface)
       {
-        texture = SDL_CreateTextureFromSurface(ctx.renderer, img_surface);
-        SDL_FreeSurface(img_surface);
+        texture = create_texture(img_surface);
+        bundle.image_sources.emplace(img_dep.resource_id, img_surface);
       }
       else
       {
@@ -58,21 +59,36 @@ namespace Pixils::Asset
 
     for (auto& sound_dep : deps.sounds)
     {
-      bundle.sounds.emplace(sound_dep.resource_id, load_sound_from_file(sound_dep.file_name));
+      bundle.sounds.emplace(sound_dep.resource_id,
+                            load_sound_from_file(sound_dep.file_name));
     }
 
     return bundle;
   }
 
-  SDL_Texture* Loader::load_texture_from_memory(const unsigned char* data, std::size_t size)
+  SDL_Texture* Loader::create_texture(SDL_Surface* surface)
+  {
+    if (!surface) return nullptr;
+
+    SDL_Texture* texture = SDL_CreateTextureFromSurface(ctx.renderer, surface);
+    if (texture) SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_BLEND);
+    return texture;
+  }
+
+  SDL_Surface* Loader::load_surface_from_memory(const unsigned char* data, std::size_t size)
   {
     SDL_RWops* rw = SDL_RWFromConstMem(data, static_cast<int>(size));
     if (!rw) return nullptr;
 
-    SDL_Surface* surface = IMG_Load_RW(rw, 1);
+    return IMG_Load_RW(rw, 1);
+  }
+
+  SDL_Texture* Loader::load_texture_from_memory(const unsigned char* data, std::size_t size)
+  {
+    SDL_Surface* surface = load_surface_from_memory(data, size);
     if (!surface) return nullptr;
 
-    SDL_Texture* texture = SDL_CreateTextureFromSurface(ctx.renderer, surface);
+    SDL_Texture* texture = create_texture(surface);
     SDL_FreeSurface(surface);
     return texture;
   }

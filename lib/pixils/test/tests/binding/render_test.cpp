@@ -80,3 +80,69 @@ TEST_F(RenderTest, image_accepts_rotation_in_radians)
   EXPECT_EQ(ops[0].rendered_rect.h, 8);
   EXPECT_NEAR(ops[0].rotation_degrees, 90.0, 0.01);
 }
+
+TEST_F(RenderTest, text_without_explicit_color_uses_original_font_texture)
+{
+  SDLMock::prepared_surfaces["./font.png"] = {8, 8};
+  runtime.eval(R"(
+    (pixils/defbundle fonts {:images {:atlas "font.png"}})
+    (pixils/deffont test-font
+      {:type :bitmap
+       :resource :fonts/atlas
+       :glyphs {"A" {:x 0 :y 0 :w 8 :h 8}}})
+    (pixils/defmode test-mode {
+      :render (fn [state ctx]
+                (pixils.render/text! "A" {:x 12 :y 18} {:font :font/test-font}))
+    })
+  )");
+  session.push_mode("test-mode", Lisple::Constant::NIL);
+
+  SDL_Texture* original_texture = render_ctx.asset_registry->get_image("fonts", "atlas");
+  SDL_Texture* tint_texture = render_ctx.asset_registry->get_tint_mask("fonts", "atlas");
+
+  ASSERT_NE(original_texture, nullptr);
+  ASSERT_NE(tint_texture, nullptr);
+  EXPECT_NE(original_texture, tint_texture);
+
+  ASSERT_NO_THROW(session.render_mode());
+
+  auto& ops = render_target()->render_ops;
+  ASSERT_EQ(ops.size(), 1u);
+  EXPECT_EQ(ops[0].type, RenderOpType::RENDER_COPY);
+  EXPECT_EQ(ops[0].rendered_texture, original_texture);
+}
+
+TEST_F(RenderTest, text_with_explicit_color_uses_tint_mask_texture)
+{
+  SDLMock::prepared_surfaces["./font.png"] = {8, 8};
+  runtime.eval(R"(
+    (pixils/defbundle fonts {:images {:atlas "font.png"}})
+    (pixils/deffont test-font
+      {:type :bitmap
+       :resource :fonts/atlas
+       :glyphs {"A" {:x 0 :y 0 :w 8 :h 8}}})
+    (pixils/defmode test-mode {
+      :render (fn [state ctx]
+                (pixils.render/text!
+                  "A"
+                  {:x 12 :y 18}
+                  {:font :font/test-font
+                   :color {:r 200 :g 40 :b 60}}))
+    })
+  )");
+  session.push_mode("test-mode", Lisple::Constant::NIL);
+
+  SDL_Texture* original_texture = render_ctx.asset_registry->get_image("fonts", "atlas");
+  SDL_Texture* tint_texture = render_ctx.asset_registry->get_tint_mask("fonts", "atlas");
+
+  ASSERT_NE(original_texture, nullptr);
+  ASSERT_NE(tint_texture, nullptr);
+  EXPECT_NE(original_texture, tint_texture);
+
+  ASSERT_NO_THROW(session.render_mode());
+
+  auto& ops = render_target()->render_ops;
+  ASSERT_EQ(ops.size(), 1u);
+  EXPECT_EQ(ops[0].type, RenderOpType::RENDER_COPY);
+  EXPECT_EQ(ops[0].rendered_texture, tint_texture);
+}
