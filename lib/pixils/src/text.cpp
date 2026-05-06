@@ -43,6 +43,16 @@ namespace Pixils
       }
     }
 
+    int FontMap::tallest_glyph_height() const
+    {
+      int height = 0;
+      for (const auto& [_, rect] : map)
+      {
+        height = std::max(height, rect.h);
+      }
+      return height;
+    }
+
     std::vector<char32_t> FontMap::keys()
     {
       std::vector<char32_t> chars;
@@ -56,10 +66,15 @@ namespace Pixils
     /**
      * @brief Renderer - Renders string content as graphical text
      */
-    Renderer::Renderer(SDL_Texture* font, FontMap& font_map, int spacing, int scale)
+    Renderer::Renderer(SDL_Texture* font,
+                       FontMap& font_map,
+                       int spacing,
+                       int scale,
+                       int line_height)
       : font(font)
       , font_map(font_map)
       , spacing(spacing)
+      , line_height(std::max(line_height, font_map.tallest_glyph_height()))
       , scale(scale)
     {
     }
@@ -135,9 +150,9 @@ namespace Pixils
         {
           const SDL_Rect& char_rect = *font_map.get_char_rect(c);
           rect.w += char_rect.w + spacing;
-          rect.h = std::max(rect.h, char_rect.h);
         }
       }
+      rect.h = line_height;
       rect.w *= scale;
       rect.h *= scale;
 
@@ -156,7 +171,12 @@ namespace Pixils
 
     int Renderer::get_font_height() const
     {
-      return font_map.get_char_rect(font_map.keys().front())->h;
+      return get_line_height();
+    }
+
+    int Renderer::get_line_height() const
+    {
+      return line_height;
     }
 
     /**
@@ -183,7 +203,7 @@ namespace Pixils
      * Cursor
      */
     Cursor::Cursor(Renderer& renderer, const SDL_Color& color, const SDL_Color& alt_color)
-      : Cursor(renderer, {0, 0}, color, alt_color, renderer.get_font_height())
+      : Cursor(renderer, {0, 0}, color, alt_color, renderer.get_line_height())
     {
     }
 

@@ -63,6 +63,11 @@ namespace Pixils
        * @brief Set or overwrite a character definition.
        */
       void set_char(char32_t chr, const SDL_Rect& rect);
+
+      /*!
+       * @brief Returns the tallest glyph height defined in this map.
+       */
+      int tallest_glyph_height() const;
     };
 
     /*!
@@ -88,6 +93,7 @@ namespace Pixils
        */
       SDL_Color alt_color = {0, 0, 0, 0xff};
       int spacing;
+      int line_height;
       /*!
        * @brief The scale of the text to render. This can be used to render
        * text in multiples of its original size
@@ -95,7 +101,11 @@ namespace Pixils
       int scale = 1;
 
      public:
-      Renderer(SDL_Texture* font, FontMap& font_map, int spacing = 1, int scale = 1);
+      Renderer(SDL_Texture* font,
+               FontMap& font_map,
+               int spacing = 1,
+               int scale = 1,
+               int line_height = 0);
 
       /*!
        * @brief Renders a text string at the specified location of the render
@@ -122,6 +132,10 @@ namespace Pixils
        * all characters and find the max value for height(and ideally cache it)
        */
       int get_font_height() const;
+      /*!
+       * @brief Returns the configured default line height, in pixels.
+       */
+      int get_line_height() const;
       /*!
        * @brief Set the alternative text color of this renderer.
        */

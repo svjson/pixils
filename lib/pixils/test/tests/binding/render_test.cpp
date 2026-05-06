@@ -2,6 +2,7 @@
 #include "../render_fixture.h"
 
 #include <gtest/gtest.h>
+#include <lisple/runtime/dict.h>
 #include <sdl2_mock/mock_resources.h>
 
 class RenderTest : public RenderFixture
@@ -145,4 +146,49 @@ TEST_F(RenderTest, text_with_explicit_color_uses_tint_mask_texture)
   ASSERT_EQ(ops.size(), 1u);
   EXPECT_EQ(ops[0].type, RenderOpType::RENDER_COPY);
   EXPECT_EQ(ops[0].rendered_texture, tint_texture);
+}
+
+TEST_F(RenderTest, text_size_uses_explicit_font_line_height)
+{
+  SDLMock::prepared_surfaces["./font.png"] = {16, 12};
+  runtime.eval(R"(
+    (pixils/defbundle fonts {:images {:atlas "font.png"}})
+    (pixils/deffont test-font
+      {:type :bitmap
+       :resource :fonts/atlas
+       :line-height 10
+       :glyphs {"A" {:x 0 :y 0 :w 4 :h 4}
+                "p" {:x 4 :y 0 :w 4 :h 7}}})
+  )");
+
+  auto result = runtime.eval(R"((pixils.render/text-size "A" {:font :font/test-font}))");
+  auto w = Lisple::Dict::get_property(result, Lisple::RTValue::keyword("w"));
+  auto h = Lisple::Dict::get_property(result, Lisple::RTValue::keyword("h"));
+
+  ASSERT_TRUE(w);
+  ASSERT_TRUE(h);
+  EXPECT_EQ(w->num().get_int(), 5);
+  EXPECT_EQ(h->num().get_int(), 10);
+}
+
+TEST_F(RenderTest, text_size_infers_font_line_height_from_tallest_glyph)
+{
+  SDLMock::prepared_surfaces["./font.png"] = {16, 12};
+  runtime.eval(R"(
+    (pixils/defbundle fonts {:images {:atlas "font.png"}})
+    (pixils/deffont test-font
+      {:type :bitmap
+       :resource :fonts/atlas
+       :glyphs {"A" {:x 0 :y 0 :w 4 :h 4}
+                "p" {:x 4 :y 0 :w 4 :h 7}}})
+  )");
+
+  auto result = runtime.eval(R"((pixils.render/text-size "A" {:font :font/test-font}))");
+  auto w = Lisple::Dict::get_property(result, Lisple::RTValue::keyword("w"));
+  auto h = Lisple::Dict::get_property(result, Lisple::RTValue::keyword("h"));
+
+  ASSERT_TRUE(w);
+  ASSERT_TRUE(h);
+  EXPECT_EQ(w->num().get_int(), 5);
+  EXPECT_EQ(h->num().get_int(), 7);
 }

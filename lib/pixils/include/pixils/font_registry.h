@@ -26,7 +26,8 @@ namespace Pixils
     BitmapFont(SDL_Texture* texture,
                SDL_Texture* tint_texture,
                Text::FontMap map,
-               int spacing = 1);
+               int spacing = 1,
+               int line_height = 0);
 
     BitmapFont(const BitmapFont&) = delete;
     BitmapFont& operator=(const BitmapFont&) = delete;
@@ -50,7 +51,8 @@ namespace Pixils
                        SDL_Texture* texture,
                        SDL_Texture* tint_texture,
                        Text::FontMap map,
-                       int spacing = 1);
+                       int spacing = 1,
+                       int line_height = 0);
 
     BitmapFont* get_font(const std::string& key);
     bool has_font(const std::string& key) const;

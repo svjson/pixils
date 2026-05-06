@@ -117,6 +117,7 @@ namespace Pixils::Script
                                                {{"type", &Lisple::Type::KEY},
                                                 {"resource", &Lisple::Type::KEY},
                                                 {"spacing", &Lisple::Type::NUMBER},
+                                                {"line-height", &Lisple::Type::NUMBER},
                                                 {"glyphs", &Lisple::Type::MAP}});
 
       std::string font_name =
@@ -141,6 +142,7 @@ namespace Pixils::Script
         throw Lisple::TypeError("Invalid resource key: " + resource_key->to_string());
       }
       int spacing = opts.i32("spacing", 1);
+      int line_height = opts.i32("line-height", 0);
 
       auto glyphs = opts.val("glyphs");
       if (glyphs->type == Lisple::RTValue::Type::MAP)
@@ -197,7 +199,8 @@ namespace Pixils::Script
                                       resource_texture,
                                       tint_texture,
                                       Text::FontMap(glyph_map),
-                                      spacing);
+                                      spacing,
+                                      line_height);
 
       return std::make_unique<Lisple::ExecNode>(Lisple::Constant::NIL);
     }
