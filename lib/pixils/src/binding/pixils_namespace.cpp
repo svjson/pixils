@@ -58,6 +58,7 @@ namespace Pixils::Script
     SHKEY(RESOURCES, "resources");
     SHKEY(SCALING, "scaling");
     SHKEY(STATE, "state");
+    SHKEY(TARGET_FRAME_RATE, "target-frame-rate");
     SHKEY(TYPE, "type");
     SHKEY(UPDATE, "update");
     SHKEY(W, "w");
@@ -227,6 +228,7 @@ namespace Pixils::Script
                                      {{"display", &HostType::DISPLAY},
                                       {"initial-mode", &Lisple::Type::SYMBOL_VALUE},
                                       {"theme", &Lisple::Type::SYMBOL_VALUE},
+                                      {"target-frame-rate", &Lisple::Type::NUMBER},
                                       {"pointer", &Lisple::Type::KEY}});
 
     SFORM_LOWER_IMPL(DefProgramForm)
@@ -255,6 +257,12 @@ namespace Pixils::Script
       if (opts.str("pointer", "") == "off")
       {
         Lisple::obj<Program>(*program).pointer_visible = false;
+      }
+
+      if (opts.contains(MapKey::TARGET_FRAME_RATE->value))
+      {
+        Lisple::obj<Program>(*program).target_frame_rate =
+          opts.i32(MapKey::TARGET_FRAME_RATE->value);
       }
 
       Lisple::Dict::set_property(programs, Lisple::RTValue::symbol(name), program);
@@ -764,7 +772,8 @@ namespace Pixils::Script
                       (name),
                       ("initial-mode", initial_mode),
                       (display),
-                      (theme));
+                      (theme),
+                      ("target-frame-rate", target_frame_rate));
 
   NOBJ_PROP_GET__METHOD(ProgramAdapter, name);
   NOBJ_PROP_GET_SET_ADAPTER__FIELD(ProgramAdapter, display, DisplayAdapter);
@@ -783,6 +792,8 @@ namespace Pixils::Script
     if (!get_object().theme) return Lisple::Constant::NIL;
     return Lisple::RTValue::symbol(*get_object().theme);
   }
+
+  NOBJ_PROP_GET__FIELD(ProgramAdapter, target_frame_rate);
 
   /* DisplayAdapter */
   NATIVE_ADAPTER_IMPL(DisplayAdapter, Display, &HostType::DISPLAY, (resolution));

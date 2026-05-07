@@ -13,6 +13,7 @@
 #include <pixils/runtime/mode.h>
 
 #include <SDL2/SDL_render.h>
+#include <algorithm>
 #include <chrono>
 #include <iostream>
 #include <lisple/host.h>
@@ -30,6 +31,12 @@ namespace Pixils
     auto now = std::chrono::system_clock::now();
     return std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch())
       .count();
+  }
+
+  int frame_budget_ms(const Program& program)
+  {
+    if (program.target_frame_rate <= 0) return 0;
+    return std::max(1, 1000 / program.target_frame_rate);
   }
 
   Client::Client(Lisple::Runtime& lisple_runtime, RenderContext& ctx, bool init_mode)
@@ -216,13 +223,12 @@ namespace Pixils
 
       ctx.finalize_frame();
 
-      [[maybe_unused]] int frame_margin = 25 - (now() - frame_start);
+      int target_frame_ms = frame_budget_ms(*program);
+      [[maybe_unused]] int frame_margin = target_frame_ms - (now() - frame_start);
 
-      // std::cout << "frame #" << frame << " - margin: " << frame_margin
-      //           << "\t rtw: " << Lisple::rtvalue_wrappers_constructed
-      //           << "\t eval: " << Lisple::eval_executions << std::endl;
+      // std::cout << "frame #" << frame << " - margin: " << frame_margin << std::endl;
 
-      while (now() - frame_start < 25)
+      while (target_frame_ms > 0 && now() - frame_start < target_frame_ms)
       {
       }
 

@@ -15,6 +15,7 @@
 
 (defprogram minesweeper
   {:display {:resolution {:scale 3}}
+   :target-frame-rate 0
    :theme 'windows-95
    :initial-mode 'main-mode})
 
@@ -85,4 +86,3 @@
 (defmode main-mode
   {:style {:background win/teal}
    :children [{:mode 'window-mode}]})
-

@@ -14,10 +14,13 @@ namespace Pixils
     std::string name;
 
    public:
+    static constexpr int DEFAULT_TARGET_FRAME_RATE = 40;
+
     Display display;
     std::string initial_mode;
     std::optional<std::string> theme = std::nullopt;
     bool pointer_visible = true;
+    int target_frame_rate = DEFAULT_TARGET_FRAME_RATE;
 
     Program(const std::string& name, Display& display, const std::string& initial_mode);
 

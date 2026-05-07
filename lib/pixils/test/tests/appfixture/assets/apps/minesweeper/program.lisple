@@ -3,4 +3,5 @@
 
 (defprogram minesweeper
   {:display {:resolution {:scale 3}}
+   :target-frame-rate 0
    :initial-mode 'main-mode})

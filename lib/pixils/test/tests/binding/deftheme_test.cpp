@@ -94,3 +94,27 @@ TEST_F(DefThemeTest, defprogram_with_theme_is_created)
   ASSERT_TRUE(program.theme.has_value());
   EXPECT_EQ(*program.theme, "app-theme");
 }
+
+TEST_F(DefThemeTest, defprogram_with_target_frame_rate_is_created)
+{
+  runtime.eval(R"(
+    (pixils/defprogram app {:initial-mode 'root-mode
+                            :target-frame-rate 144})
+  )");
+
+  auto program_val = runtime.eval("(get pixils/programs 'app)");
+  Pixils::Program& program = Lisple::obj<Pixils::Program>(*program_val);
+  EXPECT_EQ(program.target_frame_rate, 144);
+}
+
+TEST_F(DefThemeTest, defprogram_target_frame_rate_can_disable_pacing_with_zero)
+{
+  runtime.eval(R"(
+    (pixils/defprogram app {:initial-mode 'root-mode
+                            :target-frame-rate 0})
+  )");
+
+  auto program_val = runtime.eval("(get pixils/programs 'app)");
+  Pixils::Program& program = Lisple::obj<Pixils::Program>(*program_val);
+  EXPECT_EQ(program.target_frame_rate, 0);
+}

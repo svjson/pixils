@@ -140,7 +140,10 @@ namespace Pixils::Script
   /*! @brief ModeCompositionAdapter - A Lisple HostObject Adapter for ModeComposition */
   NATIVE_ADAPTER(ModeCompositionAdapter, Runtime::ModeComposition, (render));
   /*! @brief Lisple HostObject Adapter for Program */
-  NATIVE_ADAPTER(ProgramAdapter, Program, (name, display, initial_mode, theme), (display));
+  NATIVE_ADAPTER(ProgramAdapter,
+                 Program,
+                 (name, display, initial_mode, theme, target_frame_rate),
+                 (display));
   /*! @brief Lisple HostObject Adapter for RenderContext */
   NATIVE_ADAPTER(RenderContextAdapter, RenderContext, (pixel_size, buffer_dim));
   /*! @brief Lisple HostObject Adapter for Resolution */
