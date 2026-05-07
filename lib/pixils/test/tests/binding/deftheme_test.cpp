@@ -5,6 +5,7 @@
 
 #include <gtest/gtest.h>
 #include <lisple/host/object.h>
+#include <lisple/runtime/dict.h>
 #include <lisple/runtime/value.h>
 
 using DefThemeTest = BaseFixture;
@@ -40,6 +41,64 @@ TEST_F(DefThemeTest, deftheme_with_component_and_class_selectors_is_created)
   ASSERT_TRUE(menu_item->text.has_value());
   ASSERT_TRUE(menu_item->text->font.has_value());
   EXPECT_EQ(*menu_item->text->font, "font/console");
+}
+
+TEST_F(DefThemeTest, deftheme_with_compound_state_selector_is_created)
+{
+  runtime.eval(R"(
+    (pixils/deftheme test-theme
+      {:styles {'(button {:pressed true})
+                {:text {:scale 3}}}})
+  )");
+
+  Pixils::UI::Theme& theme = get_theme(runtime, "test-theme");
+  ASSERT_EQ(theme.rules.size(), 1u);
+  EXPECT_EQ(theme.rules[0].selector.type, Pixils::UI::ThemeSelector::Type::COMPOUND);
+  ASSERT_EQ(theme.rules[0].selector.children.size(), 2u);
+  EXPECT_EQ(theme.rules[0].selector.children[0].type,
+            Pixils::UI::ThemeSelector::Type::COMPONENT_TYPE);
+  EXPECT_EQ(theme.rules[0].selector.children[0].value, "button");
+  EXPECT_EQ(theme.rules[0].selector.children[1].type,
+            Pixils::UI::ThemeSelector::Type::STATE);
+  ASSERT_NE(theme.rules[0].selector.children[1].state, nullptr);
+  EXPECT_EQ(theme.rules[0].selector.children[1].state->type, Lisple::RTValue::Type::MAP);
+  EXPECT_EQ(theme.rules[0].selector.children[1].state->to_string(), "{:pressed true}");
+
+  auto pressed_state = Lisple::RTValue::map(
+    {Lisple::RTValue::keyword("pressed"), Lisple::Constant::BOOL_TRUE});
+  auto parsed_keys = Lisple::Dict::keys(*theme.rules[0].selector.children[1].state);
+  auto manual_keys = Lisple::Dict::keys(*pressed_state);
+  ASSERT_EQ(parsed_keys.size(), 1u);
+  ASSERT_EQ(manual_keys.size(), 1u);
+  EXPECT_EQ(parsed_keys[0]->type, manual_keys[0]->type);
+  EXPECT_EQ(parsed_keys[0]->to_string(), manual_keys[0]->to_string());
+  auto expected_pressed =
+    Lisple::Dict::get_property(theme.rules[0].selector.children[1].state, parsed_keys[0]);
+  auto parsed_pressed =
+    Lisple::Dict::get_property(theme.rules[0].selector.children[1].state, *parsed_keys[0]);
+  auto cross_pressed = Lisple::Dict::get_property(pressed_state, *parsed_keys[0]);
+  auto manual_pressed = Lisple::Dict::get_property(pressed_state, *manual_keys[0]);
+  ASSERT_NE(expected_pressed, nullptr);
+  ASSERT_NE(parsed_pressed, nullptr);
+  ASSERT_NE(cross_pressed, nullptr);
+  ASSERT_NE(manual_pressed, nullptr);
+  EXPECT_EQ(expected_pressed->type, Lisple::RTValue::Type::BOOL);
+  EXPECT_EQ(parsed_pressed->type, Lisple::RTValue::Type::BOOL);
+  EXPECT_EQ(cross_pressed->type, Lisple::RTValue::Type::BOOL);
+  EXPECT_EQ(parsed_pressed->to_string(), manual_pressed->to_string());
+  EXPECT_EQ(cross_pressed->to_string(), manual_pressed->to_string());
+  EXPECT_TRUE(theme.rules[0].selector.children[1].matches(
+    Pixils::UI::ThemeMatchContext{.mode_name = "button", .state = pressed_state}));
+  auto button_pressed = Pixils::UI::ThemeSelector::compound(
+    {Pixils::UI::ThemeSelector::component_type("button"),
+     Pixils::UI::ThemeSelector::state_match(pressed_state)});
+  EXPECT_TRUE(theme.rules[0].selector == button_pressed);
+
+  auto style = theme.get_style(button_pressed);
+  ASSERT_NE(style, nullptr);
+  ASSERT_TRUE(style->text.has_value());
+  ASSERT_TRUE(style->text->scale.has_value());
+  EXPECT_EQ(*style->text->scale, 3);
 }
 
 TEST_F(DefThemeTest, deftheme_extend_merges_parent_styles_and_overrides_them)

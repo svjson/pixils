@@ -54,6 +54,7 @@ that runs first.
 
 | Key        | Values | Description                                                     |
 |------------|--------|-----------------------------------------------------------------|
+| `:theme`   | Symbol | Theme applied to the root mode tree for this program.           |
 | `:pointer` | `:off` | Hide the OS mouse cursor. Omit to leave the cursor visible.    |
 
 ### `defmode` and `defcomponent`
@@ -328,6 +329,37 @@ hook fires.
 
 The hover variant is injected automatically by the framework. No manual hit-testing is
 needed in the component.
+
+### Themes
+
+Themes let you define reusable style rules and apply them to a mode tree with `:theme`
+on `defprogram`, `defmode`, or child mode entries.
+
+```clojure
+(pixils/deftheme win95
+  {:styles {'button {:padding 2}
+            '(button {:pressed true})
+            {:border {:thickness 2
+                      :line-style :bevel}}}})
+
+(pixils/defmode toolbar-button
+  {:theme 'win95
+   :init (fn [state ctx] {:pressed false})
+   :render (fn [state ctx] ...)})
+```
+
+Theme selectors are map keys under `:styles`:
+
+| Selector form | Meaning |
+|---------------|---------|
+| `'button` | Matches modes/components named `button`. |
+| `:menu/item` | Class selector syntax reserved for future runtime matching. |
+| `{:pressed true}` | Matches when the view state contains at least `{:pressed true}`. |
+| `'(button {:pressed true})` | Compound selector: all parts must match the same view. |
+| `['window 'button]` | Descendant selector syntax reserved for future runtime matching. |
+
+State selector maps use subset matching, so a selector such as `{:pressed true}` matches
+any view state map that contains `:pressed true` alongside any other keys.
 
 **Border**
 

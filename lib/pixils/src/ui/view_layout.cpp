@@ -121,10 +121,12 @@ namespace Pixils::UI
 
       if (view->mode)
       {
-        if (const Style* theme_style = view->effective_theme.get_style(
-              ThemeSelector::component_type(view->mode->name)))
+        ThemeMatchContext match_ctx{.mode_name = view->mode->name, .state = view->state};
+
+        for (const Style* theme_style : view->effective_theme.get_matching_styles(match_ctx))
         {
-          resolved_style = *theme_style;
+          if (!resolved_style) resolved_style = Style{};
+          apply_style_variant(*resolved_style, *theme_style);
         }
 
         if (view->mode->style)

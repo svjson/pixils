@@ -219,6 +219,34 @@ TEST_F(SessionChildrenTest, root_mode_theme_applies_component_selector_to_active
 }
 
 TEST_F(SessionChildrenTest,
+       root_mode_theme_applies_compound_state_selector_to_active_view)
+{
+  // Given
+  runtime.eval(R"(
+    (pixils/deftheme root-theme
+      {:styles {'button {:text {:font :font/console}}
+                '(button {:pressed true}) {:text {:scale 3}}}})
+
+    (pixils/defmode button
+      {:theme 'root-theme
+       :init (fn [state ctx] {:pressed true})
+       :render (fn [state ctx] nil)})
+  )");
+  session.push_mode("button", Lisple::Constant::NIL);
+
+  // When
+  session.render_mode();
+
+  // Then
+  ASSERT_NE(session.active_mode, nullptr);
+  ASSERT_TRUE(session.active_mode->effective_style.text.has_value());
+  ASSERT_TRUE(session.active_mode->effective_style.text->font.has_value());
+  ASSERT_TRUE(session.active_mode->effective_style.text->scale.has_value());
+  EXPECT_EQ(*session.active_mode->effective_style.text->font, "font/console");
+  EXPECT_EQ(*session.active_mode->effective_style.text->scale, 3);
+}
+
+TEST_F(SessionChildrenTest,
        root_mode_theme_override_applies_component_selector_to_active_view)
 {
   // Given

@@ -39,6 +39,54 @@ namespace Pixils::Script
       throw Lisple::TypeError("Theme :extend must be a symbol or vector of symbols");
     }
 
+    Lisple::sptr_rtval normalize_selector_literal_value(const Lisple::sptr_rtval& value)
+    {
+      if (!value) return value;
+
+      switch (value->type)
+      {
+      case Lisple::RTValue::Type::SYMBOL:
+        if (value->str() == "true") return Lisple::Constant::BOOL_TRUE;
+        if (value->str() == "false") return Lisple::Constant::BOOL_FALSE;
+        if (value->str() == "nil") return Lisple::Constant::NIL;
+        return value;
+      case Lisple::RTValue::Type::LIST:
+      {
+        Lisple::sptr_rtval_v elements;
+        elements.reserve(value->elements().size());
+        for (const auto& child : value->elements())
+        {
+          elements.push_back(normalize_selector_literal_value(child));
+        }
+        return Lisple::RTValue::list(elements);
+      }
+      case Lisple::RTValue::Type::VECTOR:
+      {
+        Lisple::sptr_rtval_v elements;
+        elements.reserve(value->elements().size());
+        for (const auto& child : value->elements())
+        {
+          elements.push_back(normalize_selector_literal_value(child));
+        }
+        return Lisple::RTValue::vector(elements);
+      }
+      case Lisple::RTValue::Type::MAP:
+      {
+        Lisple::sptr_rtval_v elements;
+        elements.reserve(value->elements().size());
+        const auto& source = value->elements();
+        for (size_t i = 0; i + 1 < source.size(); i += 2)
+        {
+          elements.push_back(source[i]);
+          elements.push_back(normalize_selector_literal_value(source[i + 1]));
+        }
+        return Lisple::RTValue::map(elements);
+      }
+      default:
+        return value;
+      }
+    }
+
     UI::ThemeSelector parse_theme_selector(const Lisple::sptr_rtval& key)
     {
       switch (key->type)
@@ -47,8 +95,41 @@ namespace Pixils::Script
         return UI::ThemeSelector::component_type(key->str());
       case Lisple::RTValue::Type::KEYWORD:
         return UI::ThemeSelector::class_name(key->str());
+      case Lisple::RTValue::Type::MAP:
+        return UI::ThemeSelector::state_match(normalize_selector_literal_value(key));
+      case Lisple::RTValue::Type::LIST:
+      {
+        std::vector<UI::ThemeSelector> children;
+        for (const auto& child : Lisple::get_children(*key))
+        {
+          auto selector = parse_theme_selector(child);
+          if (selector.type == UI::ThemeSelector::Type::DESCENDANT)
+            throw Lisple::TypeError("Theme compound selectors cannot contain descendant selectors");
+          children.push_back(std::move(selector));
+        }
+        if (children.empty())
+          throw Lisple::TypeError("Theme compound selectors cannot be empty");
+        if (children.size() == 1) return children[0];
+        return UI::ThemeSelector::compound(children);
+      }
+      case Lisple::RTValue::Type::VECTOR:
+      {
+        std::vector<UI::ThemeSelector> children;
+        for (const auto& child : Lisple::get_children(*key))
+        {
+          auto selector = parse_theme_selector(child);
+          if (selector.type == UI::ThemeSelector::Type::DESCENDANT)
+            throw Lisple::TypeError("Theme descendant selectors cannot contain descendant selectors");
+          children.push_back(std::move(selector));
+        }
+        if (children.empty())
+          throw Lisple::TypeError("Theme descendant selectors cannot be empty");
+        if (children.size() == 1) return children[0];
+        return UI::ThemeSelector::descendant(children);
+      }
       default:
-        throw Lisple::TypeError("Theme style selectors must be symbols or keywords");
+        throw Lisple::TypeError(
+          "Theme style selectors must be symbols, keywords, maps, lists, or vectors");
       }
     }
   } // namespace
