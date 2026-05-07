@@ -1,5 +1,6 @@
 (ns pixils.examples.minesweeper.win
   (:require pixils
+            [pixils.color :as c]
             [pixils.point :as pt]
             [pixils.render :as r]))
 
@@ -82,3 +83,15 @@
 
 
 
+(deftheme windows-3
+  {:styles {'menu-bar-mode {:background white
+                            :text {:font :font/win3-system-font}
+                            :border {:line-style :solid :color {:r 0 :g 0 :b 0} :bottom {:thickness 1}}}
+            'menu-item {:padding 2
+                        :hover {:background focus-blue
+                                :text {:color white}}}
+            'popup-menu-inner {:background white
+                               :text {:font :font/win3-system-font}
+                               :border {:thickness 1
+                                        :line-style :solid
+                                        :color c/BLACK}}}})

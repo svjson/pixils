@@ -10,10 +10,12 @@
             [pixils.examples.minesweeper.status-panel :as status-panel]
             [pixils.examples.minesweeper.board :as board]
             [pixils.examples.minesweeper.menu :as menu]
-            [pixils.examples.minesweeper.win :as win]))
+            [pixils.examples.minesweeper.win :as win]
+            [pixils.examples.minesweeper.win95 :as win95]))
 
 (defprogram minesweeper
   {:display {:resolution {:scale 3}}
+   :theme 'windows-95
    :initial-mode 'main-mode})
 
 

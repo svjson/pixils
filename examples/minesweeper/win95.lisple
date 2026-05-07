@@ -1,0 +1,77 @@
+(ns pixils.examples.minesweeper.win95
+  (:require pixils
+            [pixils.color :as c]
+            [pixils.examples.minesweeper.win :as win]))
+
+
+;; Win95 Sans Serif System Font
+
+(defbundle win95 {:images {:system-font "assets/win95systemfont.png"}})
+
+(deffont win95-system-font
+  {:type :bitmap
+   :spacing 1
+   :resource :win95/system-font
+   :glyphs {' ' {:x 144 :y 11 :w 1 :h 11}
+            'A' {:x 0 :y 0 :w 7 :h 9}
+            'E' {:x 29 :y 0 :w 5 :h 9}
+            'F' {:x 35 :y 0 :w 5 :h 10}
+            'G' {:x 41 :y 0 :w 6 :h 9}
+            'H' {:x 48 :y 0 :w 6 :h 9}
+            'N' {:x 85 :y 0 :w 6 :h 9}
+            'Q' {:x 107 :y 0 :w 6 :h 10}
+            'S' {:x 121 :y 0 :w 5 :h 9}
+            'U' {:x 133 :y 0 :w 6 :h 9}
+            'V' {:x 140 :y 0 :w 7 :h 9}
+            'W' {:x 148 :y 0 :w 11 :h 9}
+            'a' {:x 0 :y 11 :w 5 :h 9}
+            'b' {:x 6 :y 11 :w 5 :h 9}
+            'c' {:x 12 :y 11 :w 5 :h 9}
+            'd' {:x 18 :y 11 :w 5 :h 9}
+            'e' {:x 24 :y 11 :w 5 :h 9}
+            'f' {:x 30 :y 11 :w 2 :h 9}
+            'g' {:x 34 :y 11 :w 5 :h 11}
+            'h' {:x 40 :y 11 :w 5 :h 9}
+            'i' {:x 46 :y 11 :w 1 :h 9}
+            'j' {:x 48 :y 11 :w 1 :h 11}
+            'l' {:x 57 :y 11 :w 1 :h 11}
+            'm' {:x 59 :y 11 :w 7 :h 9}
+            'n' {:x 68 :y 11 :w 5 :h 9}
+            'o' {:x 74 :y 11 :w 5 :h 9}
+            'p' {:x 80 :y 11 :w 5 :h 11}
+            'r' {:x 93 :y 11 :w 2 :h 9}
+            's' {:x 96 :y 11 :w 4 :h 9}
+            't' {:x 101 :y 11 :w 2 :h 9}
+            'u' {:x 105 :y 11 :w 5 :h 9}
+            'v' {:x 111 :y 11 :w 5 :h 9}
+            'w' {:x 117 :y 11 :w 7 :h 9}}})
+
+
+;; Windows 95 colors
+
+(def WHITE {:r 255 :g 255 :b 255})
+(def PANEL-COLOR {:r 0xb8 :g 0xb8 :b 0xb8})
+(def PANEL-LIGHT {:r 0xdf :g 0xdf :b 0xdf})
+(def PANEL-SHADOW {:r 0x7f :g 0x7f :b 0x7f})
+(def FOCUS-BLUE {:r 0x00 :g 0x00 :b 0x7f})
+
+(deftheme windows-95
+  {:styles {'menu-bar-mode {:background PANEL-COLOR
+                            :text {:font :font/win95-system-font
+                                   :color c/BLACK}}
+            'menu-item {:padding 2
+                        :hover {:background FOCUS-BLUE
+                                :text {:color WHITE}}}
+            'popup-menu-outer {:border {:color PANEL-LIGHT
+                                        :line-style :sold
+                                        :thickness 1
+                                        :bottom {:color c/BLACK}
+                                        :right {:color c/BLACK}}}
+            'popup-menu-inner {:border {:color c/WHITE
+                                        :line-style :sold
+                                        :thickness 1
+                                        :bottom {:color PANEL-SHADOW}
+                                        :right {:color PANEL-SHADOW}}
+                               :background PANEL-COLOR
+                               :text {:font :font/win95-system-font
+                                      :color c/BLACK}}}})
