@@ -307,6 +307,11 @@ namespace Pixils::UI
     if (variant.left) out.left = variant.left;
     if (variant.layout) out.layout = variant.layout;
     if (variant.hidden) out.hidden = variant.hidden;
+    if (variant.hover)
+    {
+      if (!out.hover) out.hover = std::make_unique<Style>();
+      apply_style_variant(*out.hover, *variant.hover);
+    }
   }
 
   UI::Style resolve_style(const std::optional<Style>& style,

@@ -3,6 +3,7 @@
 #define PIXILS__STYLE_NAMESPACE_H
 
 #include <pixils/ui/style.h>
+#include <pixils/ui/theme.h>
 
 #include <lisple/exec.h>
 #include <lisple/host.h>
@@ -46,6 +47,7 @@ namespace Pixils::Script
               "HStyleBackground",
               std::string(FN__PIXILS_UI_STYLE__MAKE_BACKGROUND));
     HOST_TYPE(STYLE_INSETS, "HStyleInsets", std::string(FN__PIXILS_UI_STYLE__MAKE_INSETS));
+    HOST_TYPE(THEME, "HTheme");
   } // namespace HostType
 
   namespace Function
@@ -80,6 +82,7 @@ namespace Pixils::Script
   NATIVE_ADAPTER(LayoutAdapter, UI::Style::Layout, (direction, gap));
   NATIVE_ADAPTER(LayoutGapAdapter, UI::Style::Layout::Gap, (mode, size));
   NATIVE_ADAPTER(StyleTextAdapter, UI::Style::Text, (color, font, scale));
+  NATIVE_ADAPTER(ThemeAdapter, UI::Theme, (name));
   NATIVE_ADAPTER(BackgroundAdapter, UI::Style::Background, (color, image));
   NATIVE_ADAPTER(BorderAdapter, UI::Style::Border, (thickness, line_style, color, trim));
   NATIVE_SUB_ADAPTER(BorderAdapter,

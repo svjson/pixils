@@ -9,6 +9,7 @@
 #include <pixils/runtime/mode.h>
 #include <pixils/runtime/state.h>
 #include <pixils/runtime/view.h>
+#include <pixils/ui/theme.h>
 
 #include <lisple/context.h>
 #include <lisple/host.h>
@@ -102,6 +103,12 @@ namespace
         Pixils::UI::apply_style_variant(*mode.style,
                                         Lisple::obj<Pixils::UI::Style>(*coercion.result));
       }
+    }
+
+    auto theme_val = get("theme");
+    if (theme_val->type != Lisple::RTValue::Type::NIL)
+    {
+      mode.theme = theme_val->str();
     }
 
     auto children_val = get("children");

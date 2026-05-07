@@ -97,6 +97,7 @@ namespace Pixils::Script
                                           {"compose", &HostType::MODE_COMPOSITION},
                                           {"resources", &HostType::RESOURCE_DEPENDENCIES},
                                           {"style", &HostType::STYLE},
+                                          {"theme", &Lisple::Type::SYMBOL_VALUE},
                                           {"children", &Lisple::Type::ANY}});
 
     auto opts = mode_schema.bind(ctx, *definition_map);
@@ -163,6 +164,7 @@ namespace Pixils::Script
     }
 
     mode.style = opts.optional_obj<UI::Style>("style");
+    if (opts.contains("theme")) mode.theme = opts.str("theme");
 
     if (opts.contains("children"))
     {

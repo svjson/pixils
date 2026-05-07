@@ -159,6 +159,126 @@ TEST_F(SessionChildrenTest, child_content_size_hook_can_read_effective_style)
   EXPECT_EQ(child->bounds.h, 7);
 }
 
+TEST_F(SessionChildrenTest, mode_theme_and_child_theme_override_apply_to_effective_style)
+{
+  // Given
+  runtime.eval(R"(
+    (pixils/deftheme base-theme
+      {:styles {'child-mode {:text {:scale 2}}}})
+
+    (pixils/deftheme local-theme
+      {:styles {'child-mode {:text {:font :font/console}}}})
+
+    (pixils/defmode child-mode {:render (fn [state ctx] nil)})
+    (pixils/defmode parent-mode
+      {:theme 'base-theme
+       :children [{:mode 'child-mode
+                   :theme 'local-theme}]})
+  )");
+  session.push_mode("parent-mode", Lisple::Constant::NIL);
+
+  // When
+  session.render_mode();
+
+  // Then
+  ASSERT_NE(session.active_mode, nullptr);
+  ASSERT_EQ(session.active_mode->children.size(), 1u);
+  auto child = session.active_mode->children[0];
+  ASSERT_NE(child, nullptr);
+  ASSERT_TRUE(child->effective_style.text.has_value());
+  ASSERT_TRUE(child->effective_style.text->font.has_value());
+  ASSERT_TRUE(child->effective_style.text->scale.has_value());
+  EXPECT_EQ(*child->effective_style.text->font, "font/console");
+  EXPECT_EQ(*child->effective_style.text->scale, 2);
+}
+
+TEST_F(SessionChildrenTest, root_mode_theme_applies_component_selector_to_active_view)
+{
+  // Given
+  runtime.eval(R"(
+    (pixils/deftheme root-theme
+      {:styles {'root-mode {:text {:font :font/console
+                                   :scale 3}}}})
+
+    (pixils/defmode root-mode
+      {:theme 'root-theme
+       :render (fn [state ctx] nil)})
+  )");
+  session.push_mode("root-mode", Lisple::Constant::NIL);
+
+  // When
+  session.render_mode();
+
+  // Then
+  ASSERT_NE(session.active_mode, nullptr);
+  ASSERT_TRUE(session.active_mode->effective_style.text.has_value());
+  ASSERT_TRUE(session.active_mode->effective_style.text->font.has_value());
+  ASSERT_TRUE(session.active_mode->effective_style.text->scale.has_value());
+  EXPECT_EQ(*session.active_mode->effective_style.text->font, "font/console");
+  EXPECT_EQ(*session.active_mode->effective_style.text->scale, 3);
+}
+
+TEST_F(SessionChildrenTest,
+       root_mode_theme_override_applies_component_selector_to_active_view)
+{
+  // Given
+  runtime.eval(R"(
+    (pixils/deftheme root-theme
+      {:styles {'root-mode {:text {:font :font/console
+                                   :scale 4}}}})
+
+    (pixils/defmode root-mode
+      {:render (fn [state ctx] nil)})
+  )");
+  auto overrides = Lisple::RTValue::map(
+    {Lisple::RTValue::keyword("theme"), Lisple::RTValue::symbol("root-theme")});
+  session.push_mode("root-mode", Lisple::Constant::NIL, overrides);
+
+  // When
+  session.render_mode();
+
+  // Then
+  ASSERT_NE(session.active_mode, nullptr);
+  ASSERT_TRUE(session.active_mode->effective_style.text.has_value());
+  ASSERT_TRUE(session.active_mode->effective_style.text->font.has_value());
+  ASSERT_TRUE(session.active_mode->effective_style.text->scale.has_value());
+  EXPECT_EQ(*session.active_mode->effective_style.text->font, "font/console");
+  EXPECT_EQ(*session.active_mode->effective_style.text->scale, 4);
+}
+
+TEST_F(SessionChildrenTest,
+       pushed_root_mode_inherits_parent_effective_theme_for_component_selectors)
+{
+  // Given
+  runtime.eval(R"(
+    (pixils/deftheme app-theme
+      {:styles {'popup-mode {:text {:font :font/console
+                                    :scale 5}}}})
+
+    (pixils/defmode popup-mode
+      {:render (fn [state ctx] nil)})
+
+    (pixils/defmode root-mode
+      {:theme 'app-theme
+       :render (fn [state ctx] nil)})
+  )");
+  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.render_mode();
+
+  // When
+  session.push_mode("popup-mode", Lisple::Constant::NIL);
+  session.render_mode();
+
+  // Then
+  ASSERT_NE(session.active_mode, nullptr);
+  ASSERT_EQ(session.active_mode->mode->name, "popup-mode");
+  ASSERT_TRUE(session.active_mode->effective_style.text.has_value());
+  ASSERT_TRUE(session.active_mode->effective_style.text->font.has_value());
+  ASSERT_TRUE(session.active_mode->effective_style.text->scale.has_value());
+  EXPECT_EQ(*session.active_mode->effective_style.text->font, "font/console");
+  EXPECT_EQ(*session.active_mode->effective_style.text->scale, 5);
+}
+
 TEST_F(SessionStateTreeTest, push_mode_merges_child_init_state_into_parent_state)
 {
   // Given

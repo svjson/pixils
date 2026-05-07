@@ -66,12 +66,14 @@ namespace Pixils::Runtime
                           const Lisple::sptr_rtval& state,
                           const Lisple::sptr_rtval& overrides)
   {
+    std::optional<UI::Theme> inherited_theme = std::nullopt;
     /**
      * Flush the current active context's state to the Lisple stack before pushing,
      * then save the context itself so pop_mode can recover it cheaply.
      */
     if (mode_stack.size() > 0)
     {
+      inherited_theme = active_mode->effective_theme;
       mode_stack.update_state(active_mode->state);
       ctx_stack.push_back(std::move(active_mode));
     }
@@ -80,6 +82,7 @@ namespace Pixils::Runtime
     auto& mode_obj = Lisple::obj<Mode>(*mode);
 
     active_mode = Pixils::UI::build_root_view(mode_obj, state, overrides, lisple_runtime);
+    active_mode->inherited_theme = inherited_theme;
 
     this->hook_args.update_state(state);
 

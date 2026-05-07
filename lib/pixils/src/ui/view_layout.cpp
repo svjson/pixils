@@ -3,7 +3,9 @@
 #include <pixils/binding/pixils_namespace.h>
 #include <pixils/runtime/hook_invocation.h>
 #include <pixils/runtime/view.h>
+#include <pixils/ui/theme.h>
 
+#include <lisple/runtime.h>
 #include <lisple/runtime/dict.h>
 
 namespace Pixils::UI
@@ -115,26 +117,66 @@ namespace Pixils::UI
     Style resolve_effective_style(const std::shared_ptr<Pixils::Runtime::View>& view,
                                   const Style* inherited_style)
     {
-      return resolve_style(view->mode->style,
-                           inherited_style,
-                           view->state,
-                           view->interaction);
+      std::optional<Style> resolved_style = std::nullopt;
+
+      if (view->mode)
+      {
+        if (const Style* theme_style = view->effective_theme.get_style(
+              ThemeSelector::component_type(view->mode->name)))
+        {
+          resolved_style = *theme_style;
+        }
+
+        if (view->mode->style)
+        {
+          if (!resolved_style) resolved_style = Style{};
+          apply_style_variant(*resolved_style, *view->mode->style);
+        }
+      }
+
+      return resolve_style(resolved_style, inherited_style, view->state, view->interaction);
+    }
+
+    std::optional<Theme> lookup_theme(Lisple::Runtime& runtime, const std::string& name)
+    {
+      auto themes = runtime.lookup_value(Pixils::Script::ID__PIXILS__THEMES);
+      auto theme_val = Lisple::Dict::get_property(themes, Lisple::RTValue::symbol(name));
+      if (!theme_val || theme_val->type == Lisple::RTValue::Type::NIL) return std::nullopt;
+      return Lisple::obj<Theme>(*theme_val);
+    }
+
+    Theme resolve_effective_theme(const std::shared_ptr<Pixils::Runtime::View>& view,
+                                  Lisple::Runtime& runtime,
+                                  const Theme* inherited_theme)
+    {
+      Theme theme = inherited_theme
+                      ? *inherited_theme
+                      : (view && view->inherited_theme ? *view->inherited_theme : Theme{});
+      if (!view || !view->mode || !view->mode->theme) return theme;
+
+      auto local_theme = lookup_theme(runtime, *view->mode->theme);
+      if (local_theme) overlay_theme(theme, *local_theme);
+
+      return theme;
     }
 
     std::optional<Dimension> calculate_child_tree_content_size(
       const std::shared_ptr<Pixils::Runtime::View>& view,
       Lisple::Runtime& runtime,
       const Lisple::sptr_rtval& hook_ctx,
-      const Style* inherited_style);
+      const Style* inherited_style,
+      const Theme* inherited_theme);
 
     std::optional<Dimension> calculate_natural_content_size(
       const std::shared_ptr<Pixils::Runtime::View>& view,
       Lisple::Runtime& runtime,
       const Lisple::sptr_rtval& hook_ctx,
-      const Style* inherited_style)
+      const Style* inherited_style,
+      const Theme* inherited_theme)
     {
       if (!view || !view->mode) return std::nullopt;
 
+      view->effective_theme = resolve_effective_theme(view, runtime, inherited_theme);
       view->effective_style = resolve_effective_style(view, inherited_style);
 
       if (auto natural = invoke_content_size_hook(view, runtime, hook_ctx)) return natural;
@@ -143,15 +185,18 @@ namespace Pixils::UI
       return calculate_child_tree_content_size(view,
                                                runtime,
                                                hook_ctx,
-                                               &view->effective_style);
+                                               &view->effective_style,
+                                               &view->effective_theme);
     }
 
     std::optional<Dimension> calculate_child_tree_content_size(
       const std::shared_ptr<Pixils::Runtime::View>& view,
       Lisple::Runtime& runtime,
       const Lisple::sptr_rtval& hook_ctx,
-      const Style* inherited_style)
+      const Style* inherited_style,
+      const Theme* inherited_theme)
     {
+      view->effective_theme = resolve_effective_theme(view, runtime, inherited_theme);
       view->effective_style = resolve_effective_style(view, inherited_style);
       const Style& style = view->effective_style;
       LayoutDirection direction = style.layout && style.layout->direction
@@ -164,13 +209,19 @@ namespace Pixils::UI
 
       for (const auto& child : view->children)
       {
+        child->effective_theme =
+          resolve_effective_theme(child, runtime, &view->effective_theme);
         child->effective_style = resolve_effective_style(child, &style);
         const Style& child_style = child->effective_style;
         if (child_style.position && *child_style.position == PositionMode::ABSOLUTE)
           continue;
 
         auto child_natural_content_size =
-          calculate_natural_content_size(child, runtime, hook_ctx, &style);
+          calculate_natural_content_size(child,
+                                         runtime,
+                                         hook_ctx,
+                                         &style,
+                                         &view->effective_theme);
         Dimension child_outer_size{0, 0};
 
         if (child_natural_content_size)
@@ -202,14 +253,19 @@ namespace Pixils::UI
                                const Rect& bounds,
                                Lisple::Runtime& runtime,
                                const Lisple::sptr_rtval& hook_ctx,
-                               const Style* inherited_style)
+                               const Style* inherited_style,
+                               const Theme* inherited_theme)
     {
       if (!view) return;
 
+      view->effective_theme = resolve_effective_theme(view, runtime, inherited_theme);
       view->effective_style = resolve_effective_style(view, inherited_style);
 
-      auto natural_content_size =
-        calculate_natural_content_size(view, runtime, hook_ctx, inherited_style);
+      auto natural_content_size = calculate_natural_content_size(view,
+                                                                 runtime,
+                                                                 hook_ctx,
+                                                                 inherited_style,
+                                                                 inherited_theme);
       int resolved_w = inherited_style ? bounds.w
                                        : resolve_outer_size(view->effective_style,
                                                             natural_content_size,
@@ -242,7 +298,8 @@ namespace Pixils::UI
                                          runtime,
                                          hook_ctx,
                                          style.layout.value_or(Style::Layout{}),
-                                         &style);
+                                         &style,
+                                         &view->effective_theme);
 
       for (size_t i = 0; i < view->children.size(); i++)
       {
@@ -255,7 +312,11 @@ namespace Pixils::UI
           int top = child_style.top.value_or(0);
           int left = child_style.left.value_or(0);
           auto child_natural_content_size =
-            calculate_natural_content_size(child_ptr, runtime, hook_ctx, &style);
+            calculate_natural_content_size(child_ptr,
+                                           runtime,
+                                           hook_ctx,
+                                           &style,
+                                           &view->effective_theme);
           int w = resolve_outer_size(child_style,
                                      child_natural_content_size,
                                      Axis::HORIZONTAL,
@@ -273,7 +334,12 @@ namespace Pixils::UI
           child_bounds = child_rects[i];
         }
 
-        layout_view_tree_impl(child_ptr, child_bounds, runtime, hook_ctx, &style);
+        layout_view_tree_impl(child_ptr,
+                              child_bounds,
+                              runtime,
+                              hook_ctx,
+                              &style,
+                              &view->effective_theme);
       }
     }
   } // namespace
@@ -284,7 +350,8 @@ namespace Pixils::UI
     Lisple::Runtime& runtime,
     const Lisple::sptr_rtval& hook_ctx,
     const Style::Layout& layout,
-    const Style* inherited_style)
+    const Style* inherited_style,
+    const Theme* inherited_theme)
   {
     LayoutDirection direction = layout.direction.value_or(LayoutDirection::COLUMN);
     bool row = direction == LayoutDirection::ROW;
@@ -296,10 +363,14 @@ namespace Pixils::UI
 
     for (const auto& child : children)
     {
+      child->effective_theme = resolve_effective_theme(child, runtime, inherited_theme);
       child->effective_style = resolve_effective_style(child, inherited_style);
       styles.push_back(child->effective_style);
-      natural_content_sizes.push_back(
-        calculate_natural_content_size(child, runtime, hook_ctx, inherited_style));
+      natural_content_sizes.push_back(calculate_natural_content_size(child,
+                                                                     runtime,
+                                                                     hook_ctx,
+                                                                     inherited_style,
+                                                                     inherited_theme));
     }
 
     int total_fixed = 0;
@@ -436,7 +507,7 @@ namespace Pixils::UI
                         Lisple::Runtime& runtime,
                         const Lisple::sptr_rtval& hook_ctx)
   {
-    layout_view_tree_impl(view, bounds, runtime, hook_ctx, nullptr);
+    layout_view_tree_impl(view, bounds, runtime, hook_ctx, nullptr, nullptr);
   }
 
 } // namespace Pixils::UI

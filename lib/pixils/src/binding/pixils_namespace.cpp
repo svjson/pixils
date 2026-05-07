@@ -7,6 +7,7 @@
 #include <pixils/binding/rect_namespace.h>
 #include <pixils/binding/resource_namespace.h>
 #include <pixils/binding/style_namespace.h>
+#include <pixils/binding/theme_definition.h>
 #include <pixils/binding/ui_namespace.h>
 #include <pixils/context.h>
 #include <pixils/display.h>
@@ -225,6 +226,7 @@ namespace Pixils::Script
     Lisple::MapSchema program_schema({},
                                      {{"display", &HostType::DISPLAY},
                                       {"initial-mode", &Lisple::Type::SYMBOL_VALUE},
+                                      {"theme", &Lisple::Type::SYMBOL_VALUE},
                                       {"pointer", &Lisple::Type::KEY}});
 
     SFORM_LOWER_IMPL(DefProgramForm)
@@ -245,6 +247,10 @@ namespace Pixils::Script
                                     Color(0, 0, 0));
 
       auto program = ProgramAdapter::make_unique(name, display, initial_mode);
+      if (opts.contains("theme"))
+      {
+        Lisple::obj<Program>(*program).theme = opts.str("theme");
+      }
 
       if (opts.str("pointer", "") == "off")
       {
@@ -264,6 +270,37 @@ namespace Pixils::Script
     MACRO_BODY(DefProgramForm, inv_def_program)
     {
       return Lisple::NIL;
+    }
+
+    /* DefThemeForm - deftheme */
+    SPECIAL_FORM_IMPL(DefThemeForm,
+                      SIG((FN_ARGS((&Lisple::Type::WORD, &Lisple::Eval::LITERAL),
+                                   (&Lisple::Type::MAP)),
+                           EXEC_DISPATCH(&DefThemeForm::inv_declare_theme,
+                                         &DefThemeForm::execnode_declare_theme))));
+
+    SFORM_LOWER_IMPL(DefThemeForm)
+    {
+      auto themes = ctx.ctx->lookup_value(ID__PIXILS__THEMES);
+      auto name_expr = Lisple::exec(*ctx.ctx, *lower_literal(ast_node->get_children()[1]));
+      auto name = name_expr->str();
+      auto theme_expr =
+        Lisple::exec(*ctx.ctx, *Lisple::lower_expr(ctx, ast_node->get_children()[2]));
+
+      auto theme = build_theme_from_definition(*ctx.ctx, name, theme_expr);
+      Lisple::Dict::set_property(themes, name_expr, ThemeAdapter::make_unique(theme));
+
+      return std::make_unique<Lisple::ExecNode>(Lisple::Constant::NIL);
+    }
+
+    MACRO_BODY(DefThemeForm, inv_declare_theme)
+    {
+      throw Lisple::InvocationException("Invalid invocation of deftheme");
+    }
+
+    EXECNODE_BODY(DefThemeForm, execnode_declare_theme)
+    {
+      throw Lisple::LispleException("deftheme is lower-only");
     }
 
     /* DefModeForm - defmode */
@@ -726,7 +763,8 @@ namespace Pixils::Script
                       &HostType::PROGRAM,
                       (name),
                       ("initial-mode", initial_mode),
-                      (display));
+                      (display),
+                      (theme));
 
   NOBJ_PROP_GET__METHOD(ProgramAdapter, name);
   NOBJ_PROP_GET_SET_ADAPTER__FIELD(ProgramAdapter, display, DisplayAdapter);
@@ -739,6 +777,12 @@ namespace Pixils::Script
     }
     return Lisple::RTValue::symbol(get_object().initial_mode);
   };
+
+  NOBJ_PROP_GET(ProgramAdapter, theme)
+  {
+    if (!get_object().theme) return Lisple::Constant::NIL;
+    return Lisple::RTValue::symbol(*get_object().theme);
+  }
 
   /* DisplayAdapter */
   NATIVE_ADAPTER_IMPL(DisplayAdapter, Display, &HostType::DISPLAY, (resolution));
@@ -756,9 +800,11 @@ namespace Pixils::Script
     values.emplace("mode-stack", Lisple::RTValue::vector({}));
     values.emplace("mode-stack-messages", Lisple::RTValue::vector({}));
     values.emplace("modes", Lisple::RTValue::map({}));
+    values.emplace("themes", Lisple::RTValue::map({}));
     values.emplace("defbundle", Macro::DefBundleForm::make());
     values.emplace("defmode", Macro::DefModeForm::make());
     values.emplace("defcomponent", Macro::DefModeForm::make());
+    values.emplace("deftheme", Macro::DefThemeForm::make());
     values.emplace("deffont", Macro::DefFontForm::make());
     values.emplace("defprogram", Macro::DefProgramForm::make());
     values.emplace("make-dimension", Function::MakeDimension::make());

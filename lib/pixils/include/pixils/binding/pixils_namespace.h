@@ -7,6 +7,7 @@
 #include <pixils/frame_events.h>
 #include <pixils/hook_context.h>
 #include <pixils/program.h>
+#include <pixils/ui/theme.h>
 
 #include <lisple/exec.h>
 #include <lisple/host.h>
@@ -47,6 +48,7 @@ namespace Pixils::Script
   inline const Lisple::Word ID__PIXILS__MODES("pixils/modes");
   inline const Lisple::Word ID__PIXILS__PROGRAMS("pixils/programs");
   inline const Lisple::Word ID__PIXILS__RENDER_CONTEXT("pixils/render-context");
+  inline const Lisple::Word ID__PIXILS__THEMES("pixils/themes");
 
   namespace MapKey
   {
@@ -86,6 +88,8 @@ namespace Pixils::Script
     SPECIAL_FORM_DECL(DefProgramForm, def_program);
     /*! @brief Define a game/application mode */
     SPECIAL_FORM_DECL(DefModeForm, declare_mode);
+    /*! @brief Define a named theme */
+    SPECIAL_FORM_DECL(DefThemeForm, declare_theme);
   } // namespace Macro
 
   namespace Function
@@ -136,12 +140,11 @@ namespace Pixils::Script
   /*! @brief ModeCompositionAdapter - A Lisple HostObject Adapter for ModeComposition */
   NATIVE_ADAPTER(ModeCompositionAdapter, Runtime::ModeComposition, (render));
   /*! @brief Lisple HostObject Adapter for Program */
-  NATIVE_ADAPTER(ProgramAdapter, Program, (name, display, initial_mode), (display));
+  NATIVE_ADAPTER(ProgramAdapter, Program, (name, display, initial_mode, theme), (display));
   /*! @brief Lisple HostObject Adapter for RenderContext */
   NATIVE_ADAPTER(RenderContextAdapter, RenderContext, (pixel_size, buffer_dim));
   /*! @brief Lisple HostObject Adapter for Resolution */
   NATIVE_ADAPTER(ResolutionAdapter, Resolution, (dimension));
-
   class PixilsNamespace : public Lisple::Namespace
   {
    public:

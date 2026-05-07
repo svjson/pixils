@@ -82,7 +82,14 @@ namespace Pixils
         }
       }
 
-      session.push_mode(program->initial_mode, Lisple::Constant::NIL);
+      Lisple::sptr_rtval overrides = Lisple::Constant::NIL;
+      if (program->theme)
+      {
+        overrides = Lisple::RTValue::map(
+          {Lisple::RTValue::keyword("theme"), Lisple::RTValue::symbol(*program->theme)});
+      }
+
+      session.push_mode(program->initial_mode, Lisple::Constant::NIL, overrides);
     }
   }
 

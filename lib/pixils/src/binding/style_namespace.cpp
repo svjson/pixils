@@ -10,6 +10,7 @@
 #include <lisple/runtime/seq.h>
 #include <lisple/runtime/value.h>
 #include <lisple/type.h>
+
 namespace Pixils::Script
 {
 
@@ -421,6 +422,7 @@ namespace Pixils::Script
 
   } // namespace Function
 
+  /** StyleAdapter */
   NATIVE_ADAPTER_IMPL(StyleAdapter,
                       UI::Style,
                       &HostType::STYLE,
@@ -437,25 +439,6 @@ namespace Pixils::Script
                       (layout),
                       (rw, "hidden", hidden),
                       (hover))
-
-  NATIVE_ADAPTER_IMPL(LayoutAdapter,
-                      UI::Style::Layout,
-                      &HostType::STYLE_LAYOUT,
-                      (direction),
-                      (gap));
-
-  NATIVE_ADAPTER_IMPL(LayoutGapAdapter,
-                      UI::Style::Layout::Gap,
-                      &HostType::STYLE_LAYOUT_GAP,
-                      (mode),
-                      (size));
-
-  NATIVE_ADAPTER_IMPL(StyleTextAdapter,
-                      UI::Style::Text,
-                      &HostType::STYLE_TEXT,
-                      (color),
-                      (font),
-                      (scale));
 
   NOBJ_PROP_GET(StyleAdapter, background)
   {
@@ -543,58 +526,6 @@ namespace Pixils::Script
                                     : Lisple::Constant::NIL;
   }
 
-  NOBJ_PROP_GET(LayoutAdapter, direction)
-  {
-    if (!get_self_object().direction) return Lisple::Constant::NIL;
-    return Lisple::RTValue::keyword(
-      *get_self_object().direction == UI::LayoutDirection::ROW ? "row" : "column");
-  }
-
-  NOBJ_PROP_GET(LayoutAdapter, gap)
-  {
-    return get_self_object().gap ? LayoutGapAdapter::make_ref(*get_self_object().gap)
-                                 : Lisple::Constant::NIL;
-  }
-
-  NOBJ_PROP_GET(LayoutGapAdapter, mode)
-  {
-    if (!get_self_object().mode) return Lisple::Constant::NIL;
-    switch (*get_self_object().mode)
-    {
-    case UI::Style::Layout::GapMode::NONE:
-      return Lisple::RTValue::keyword("none");
-    case UI::Style::Layout::GapMode::FIXED:
-      return Lisple::RTValue::keyword("fixed");
-    case UI::Style::Layout::GapMode::SPACE_BETWEEN:
-      return Lisple::RTValue::keyword("space-between");
-    }
-    return Lisple::Constant::NIL;
-  }
-
-  NOBJ_PROP_GET(LayoutGapAdapter, size)
-  {
-    return get_self_object().size ? Lisple::RTValue::number(*get_self_object().size)
-                                  : Lisple::Constant::NIL;
-  }
-
-  NOBJ_PROP_GET(StyleTextAdapter, color)
-  {
-    return get_self_object().color ? ColorAdapter::make_ref(*get_self_object().color)
-                                   : Lisple::Constant::NIL;
-  }
-
-  NOBJ_PROP_GET(StyleTextAdapter, font)
-  {
-    return get_self_object().font ? Lisple::RTValue::keyword(*get_self_object().font)
-                                  : Lisple::Constant::NIL;
-  }
-
-  NOBJ_PROP_GET(StyleTextAdapter, scale)
-  {
-    return get_self_object().scale ? Lisple::RTValue::number(*get_self_object().scale)
-                                   : Lisple::Constant::NIL;
-  }
-
   NOBJ_PROP_GET(StyleAdapter, hidden)
   {
     auto& h = get_self_object().hidden;
@@ -619,6 +550,85 @@ namespace Pixils::Script
     return get_self_object().hover ? StyleAdapter::make_ref(*get_self_object().hover)
                                    : Lisple::Constant::NIL;
   }
+
+  /** LayoutAdapter */
+  NATIVE_ADAPTER_IMPL(LayoutAdapter,
+                      UI::Style::Layout,
+                      &HostType::STYLE_LAYOUT,
+                      (direction),
+                      (gap));
+
+  NOBJ_PROP_GET(LayoutAdapter, direction)
+  {
+    if (!get_self_object().direction) return Lisple::Constant::NIL;
+    return Lisple::RTValue::keyword(
+      *get_self_object().direction == UI::LayoutDirection::ROW ? "row" : "column");
+  }
+
+  NOBJ_PROP_GET(LayoutAdapter, gap)
+  {
+    return get_self_object().gap ? LayoutGapAdapter::make_ref(*get_self_object().gap)
+                                 : Lisple::Constant::NIL;
+  }
+
+  /** LayoutGapAdapter */
+  NATIVE_ADAPTER_IMPL(LayoutGapAdapter,
+                      UI::Style::Layout::Gap,
+                      &HostType::STYLE_LAYOUT_GAP,
+                      (mode),
+                      (size));
+
+  NOBJ_PROP_GET(LayoutGapAdapter, mode)
+  {
+    if (!get_self_object().mode) return Lisple::Constant::NIL;
+    switch (*get_self_object().mode)
+    {
+    case UI::Style::Layout::GapMode::NONE:
+      return Lisple::RTValue::keyword("none");
+    case UI::Style::Layout::GapMode::FIXED:
+      return Lisple::RTValue::keyword("fixed");
+    case UI::Style::Layout::GapMode::SPACE_BETWEEN:
+      return Lisple::RTValue::keyword("space-between");
+    }
+    return Lisple::Constant::NIL;
+  }
+
+  NOBJ_PROP_GET(LayoutGapAdapter, size)
+  {
+    return get_self_object().size ? Lisple::RTValue::number(*get_self_object().size)
+                                  : Lisple::Constant::NIL;
+  }
+
+  /** StyleTextAdapter */
+  NATIVE_ADAPTER_IMPL(StyleTextAdapter,
+                      UI::Style::Text,
+                      &HostType::STYLE_TEXT,
+                      (color),
+                      (font),
+                      (scale));
+
+  NOBJ_PROP_GET(StyleTextAdapter, color)
+  {
+    return get_self_object().color ? ColorAdapter::make_ref(*get_self_object().color)
+                                   : Lisple::Constant::NIL;
+  }
+
+  NOBJ_PROP_GET(StyleTextAdapter, font)
+  {
+    return get_self_object().font ? Lisple::RTValue::keyword(*get_self_object().font)
+                                  : Lisple::Constant::NIL;
+  }
+
+  NOBJ_PROP_GET(StyleTextAdapter, scale)
+  {
+    return get_self_object().scale ? Lisple::RTValue::number(*get_self_object().scale)
+                                   : Lisple::Constant::NIL;
+  }
+
+  /** ThemeAdapter */
+  NATIVE_ADAPTER_IMPL(ThemeAdapter, UI::Theme, &HostType::THEME, (name));
+
+  NOBJ_PROP_GET__FIELD(ThemeAdapter, name);
 
   /** BackgroundAdapter */
   NATIVE_ADAPTER_IMPL(BackgroundAdapter,

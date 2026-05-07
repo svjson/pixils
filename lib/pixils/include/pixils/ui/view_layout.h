@@ -3,6 +3,7 @@
 
 #include <pixils/geom.h>
 #include <pixils/ui/style.h>
+#include <pixils/ui/theme.h>
 
 #include <lisple/runtime/value.h>
 #include <memory>
@@ -45,7 +46,8 @@ namespace Pixils::UI
     Lisple::Runtime& runtime,
     const Lisple::sptr_rtval& hook_ctx,
     const Style::Layout& layout = {},
-    const Style* inherited_style = nullptr);
+    const Style* inherited_style = nullptr,
+    const Theme* inherited_theme = nullptr);
 
 } // namespace Pixils::UI
 

@@ -691,6 +691,45 @@ TEST_F(ComposedAppRuntimeTest,
 }
 
 TEST_F(ComposedAppRuntimeTest,
+       session_applies_menu_item_hover_style_for_canonical_default_fixture)
+{
+  // Given
+  use_default_frame_size();
+  load_default_minesweeper_app();
+  session().push_mode("main-mode", Lisple::Constant::NIL);
+  render_cycle();
+
+  ASSERT_NE(session().active_mode, nullptr);
+  View& main_mode = *session().active_mode;
+  View& window = child_with_mode_name(main_mode, "window-mode");
+  View& menu_bar = child_with_mode_name(window, "menu-bar-mode");
+  View& menu_item = only_child(menu_bar, 0);
+
+  expect_mode_name(menu_item, "menu-item");
+  ASSERT_TRUE(menu_item.effective_style.text.has_value());
+  ASSERT_TRUE(menu_item.effective_style.text->color.has_value());
+  EXPECT_EQ(*menu_item.effective_style.text->color, (Pixils::Color{0, 0, 0, 255}));
+  EXPECT_FALSE(menu_item.effective_style.background.has_value());
+
+  int hover_x = menu_item.bounds.x + menu_item.bounds.w / 2;
+  int hover_y = menu_item.bounds.y + menu_item.bounds.h / 2;
+
+  // When
+  input().mouse_move({hover_x, hover_y});
+  frame_cycle();
+
+  // Then
+  EXPECT_TRUE(menu_item.interaction.hovered);
+  ASSERT_TRUE(menu_item.effective_style.background.has_value());
+  ASSERT_TRUE(menu_item.effective_style.background->color.has_value());
+  EXPECT_EQ(*menu_item.effective_style.background->color,
+            (Pixils::Color{0x00, 0x0b, 0xc8, 0xff}));
+  ASSERT_TRUE(menu_item.effective_style.text.has_value());
+  ASSERT_TRUE(menu_item.effective_style.text->color.has_value());
+  EXPECT_EQ(*menu_item.effective_style.text->color, (Pixils::Color{0xff, 0xff, 0xff, 0xff}));
+}
+
+TEST_F(ComposedAppRuntimeTest,
        session_preserves_parent_mouse_up_state_through_following_click_phase)
 {
   // Given

@@ -221,6 +221,26 @@ TEST(StyleResolveTest, hover_text_variant_overrides_only_its_own_fields)
   EXPECT_EQ(*resolved.text->scale, 2);
 }
 
+TEST(StyleVariantTest, apply_style_variant_preserves_hover_style)
+{
+  Pixils::UI::Style base;
+  Pixils::UI::Style variant;
+  variant.hover = std::make_unique<Pixils::UI::Style>();
+  variant.hover->background = Pixils::UI::Style::Background{Pixils::Color{0, 11, 200, 255}};
+  variant.hover->text = Pixils::UI::Style::Text{};
+  variant.hover->text->color = Pixils::Color{255, 255, 255, 255};
+
+  Pixils::UI::apply_style_variant(base, variant);
+
+  ASSERT_NE(base.hover, nullptr);
+  ASSERT_NE(base.hover->background, std::nullopt);
+  ASSERT_NE(base.hover->background->color, std::nullopt);
+  ASSERT_NE(base.hover->text, std::nullopt);
+  ASSERT_NE(base.hover->text->color, std::nullopt);
+  EXPECT_EQ(*base.hover->background->color, (Pixils::Color{0, 11, 200, 255}));
+  EXPECT_EQ(*base.hover->text->color, (Pixils::Color{255, 255, 255, 255}));
+}
+
 TEST_F(StyleTest, make_insets_with_four_value_vector)
 {
   // When

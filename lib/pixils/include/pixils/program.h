@@ -4,6 +4,7 @@
 
 #include "display.h"
 
+#include <optional>
 #include <string>
 
 namespace Pixils
@@ -15,6 +16,7 @@ namespace Pixils
    public:
     Display display;
     std::string initial_mode;
+    std::optional<std::string> theme = std::nullopt;
     bool pointer_visible = true;
 
     Program(const std::string& name, Display& display, const std::string& initial_mode);

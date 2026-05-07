@@ -5,8 +5,10 @@
 #include "pixils/ui/event.h"
 #include <pixils/runtime/mode.h>
 #include <pixils/ui/interaction.h>
+#include <pixils/ui/theme.h>
 
 #include <lisple/runtime/value.h>
+#include <optional>
 
 namespace Pixils::Runtime
 {
@@ -34,6 +36,8 @@ namespace Pixils::Runtime
     Lisple::sptr_rtval state = Lisple::Constant::NIL;
     Lisple::sptr_rtval initial_state = Lisple::Constant::NIL;
     Rect bounds = {0, 0, 0, 0};
+    std::optional<UI::Theme> inherited_theme = std::nullopt;
+    UI::Theme effective_theme;
     UI::Style effective_style;
     std::vector<std::shared_ptr<View>> children;
     std::vector<CustomEvent> emitted_events;
