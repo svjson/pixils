@@ -352,7 +352,7 @@ Theme selectors are map keys under `:styles`:
 
 | Selector form | Meaning |
 |---------------|---------|
-| `'button` | Matches modes/components named `button`. |
+| `'button` | Matches modes/components named `button`, including modes that `:extend 'button`. |
 | `:menu/item` | Class selector syntax reserved for future runtime matching. |
 | `{:pressed true}` | Matches when the view state contains at least `{:pressed true}`. |
 | `'(button {:pressed true})` | Compound selector: all parts must match the same view. |

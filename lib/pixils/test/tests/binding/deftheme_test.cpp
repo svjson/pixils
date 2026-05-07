@@ -88,7 +88,7 @@ TEST_F(DefThemeTest, deftheme_with_compound_state_selector_is_created)
   EXPECT_EQ(parsed_pressed->to_string(), manual_pressed->to_string());
   EXPECT_EQ(cross_pressed->to_string(), manual_pressed->to_string());
   EXPECT_TRUE(theme.rules[0].selector.children[1].matches(
-    Pixils::UI::ThemeMatchContext{.mode_name = "button", .state = pressed_state}));
+    Pixils::UI::ThemeMatchContext{.mode_names = {"button"}, .state = pressed_state}));
   auto button_pressed = Pixils::UI::ThemeSelector::compound(
     {Pixils::UI::ThemeSelector::component_type("button"),
      Pixils::UI::ThemeSelector::state_match(pressed_state)});
@@ -99,6 +99,25 @@ TEST_F(DefThemeTest, deftheme_with_compound_state_selector_is_created)
   ASSERT_TRUE(style->text.has_value());
   ASSERT_TRUE(style->text->scale.has_value());
   EXPECT_EQ(*style->text->scale, 3);
+}
+
+TEST_F(DefThemeTest, component_selector_matches_modes_that_extend_the_component)
+{
+  runtime.eval(R"(
+    (pixils/deftheme test-theme
+      {:styles {'button {:text {:scale 2}}}})
+  )");
+
+  Pixils::UI::Theme& theme = get_theme(runtime, "test-theme");
+  auto matches =
+    theme.get_matching_styles(Pixils::UI::ThemeMatchContext{.mode_names = {"board-button",
+                                                                            "button"},
+                                                            .state = Lisple::Constant::NIL});
+
+  ASSERT_EQ(matches.size(), 1u);
+  ASSERT_TRUE(matches[0]->text.has_value());
+  ASSERT_TRUE(matches[0]->text->scale.has_value());
+  EXPECT_EQ(*matches[0]->text->scale, 2);
 }
 
 TEST_F(DefThemeTest, deftheme_extend_merges_parent_styles_and_overrides_them)

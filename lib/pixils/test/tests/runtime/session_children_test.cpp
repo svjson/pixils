@@ -247,6 +247,34 @@ TEST_F(SessionChildrenTest,
 }
 
 TEST_F(SessionChildrenTest,
+       root_mode_theme_component_selector_applies_to_mode_that_extends_component)
+{
+  runtime.eval(R"(
+    (pixils/deftheme root-theme
+      {:styles {'button {:text {:font :font/console
+                                :scale 2}}}})
+
+    (pixils/defcomponent button
+      {:render (fn [state ctx] nil)})
+
+    (pixils/defcomponent board-button
+      {:extend 'button
+       :theme 'root-theme
+       :render (fn [state ctx] nil)})
+  )");
+  session.push_mode("board-button", Lisple::Constant::NIL);
+
+  session.render_mode();
+
+  ASSERT_NE(session.active_mode, nullptr);
+  ASSERT_TRUE(session.active_mode->effective_style.text.has_value());
+  ASSERT_TRUE(session.active_mode->effective_style.text->font.has_value());
+  ASSERT_TRUE(session.active_mode->effective_style.text->scale.has_value());
+  EXPECT_EQ(*session.active_mode->effective_style.text->font, "font/console");
+  EXPECT_EQ(*session.active_mode->effective_style.text->scale, 2);
+}
+
+TEST_F(SessionChildrenTest,
        root_mode_theme_override_applies_component_selector_to_active_view)
 {
   // Given

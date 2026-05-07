@@ -121,6 +121,17 @@ namespace Pixils::Script
     }
 
     if (opts.contains("name")) mode.name = opts.str("name", "");
+    if (!mode.name.empty())
+    {
+      if (mode.selector_modes.empty())
+      {
+        mode.selector_modes.push_back(mode.name);
+      }
+      else
+      {
+        mode.selector_modes.insert(mode.selector_modes.begin(), mode.name);
+      }
+    }
 
     auto apply_hook = [&](Lisple::sptr_rtval& field, const char* key)
     {

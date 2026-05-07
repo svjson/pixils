@@ -23,10 +23,32 @@ TEST_F(DefModeTest, defmode_with_no_args_is_created_with_nil_hooks)
   // Then
   auto mode_val = runtime.eval("(get pixils/modes 'test-mode)");
   Pixils::Runtime::Mode& mode = Lisple::obj<Pixils::Runtime::Mode>(*mode_val);
+  ASSERT_EQ(mode.selector_modes.size(), 1u);
+  EXPECT_EQ(mode.selector_modes[0], "test-mode");
   EXPECT_EQ(*mode.init, *Lisple::Constant::NIL);
   EXPECT_EQ(*mode.update, *Lisple::Constant::NIL);
   EXPECT_EQ(*mode.content_size, *Lisple::Constant::NIL);
   EXPECT_EQ(*mode.render, *Lisple::Constant::NIL);
+}
+
+TEST_F(DefModeTest, defmode_extend_preserves_selector_ancestry_for_theme_matching)
+{
+  runtime.eval(R"(
+    (pixils/defcomponent button {})
+    (pixils/defcomponent board-button {:extend 'button})
+    (pixils/defcomponent special-board-button {:extend 'board-button})
+  )");
+
+  auto& board_button = get_mode(runtime, "board-button");
+  ASSERT_EQ(board_button.selector_modes.size(), 2u);
+  EXPECT_EQ(board_button.selector_modes[0], "board-button");
+  EXPECT_EQ(board_button.selector_modes[1], "button");
+
+  auto& special_board_button = get_mode(runtime, "special-board-button");
+  ASSERT_EQ(special_board_button.selector_modes.size(), 3u);
+  EXPECT_EQ(special_board_button.selector_modes[0], "special-board-button");
+  EXPECT_EQ(special_board_button.selector_modes[1], "board-button");
+  EXPECT_EQ(special_board_button.selector_modes[2], "button");
 }
 
 TEST_F(DefModeTest, defmode_with_lambda_hook_is_created)

@@ -55,6 +55,7 @@ namespace Pixils::Runtime
   struct Mode
   {
     std::string name;
+    std::vector<std::string> selector_modes;
     ResourceDependencies resources;
     Lisple::sptr_rtval init = Lisple::Constant::NIL;
     Lisple::sptr_rtval update = Lisple::Constant::NIL;

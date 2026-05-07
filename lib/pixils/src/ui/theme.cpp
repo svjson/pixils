@@ -112,7 +112,8 @@ namespace Pixils::UI
     switch (type)
     {
     case Type::COMPONENT_TYPE:
-      return ctx.mode_name == value;
+      return std::find(ctx.mode_names.begin(), ctx.mode_names.end(), value) !=
+             ctx.mode_names.end();
     case Type::CLASS_NAME:
       // TODO: Runtime view classes are not implemented yet.
       return false;
