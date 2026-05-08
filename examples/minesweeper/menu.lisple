@@ -1,15 +1,15 @@
 (ns pixils.examples.minesweeper.menu
   (:require pixils
-            [pixils.render :as r]
             [pixils.color :as c]
             [pixils.ui :as ui]
-            [pixils.examples.minesweeper.win :as win]))
+            [pixils.render :as r]))
 
 
 ;; Menu item component
 
 (defcomponent menu-item
-  {:on-mouse-down (fn [state event ctx]
+  {:class :menu/item
+   :on-mouse-down (fn [state event ctx]
                     (push-mode!
                      'popup-menu
                      {}
@@ -29,22 +29,63 @@
    :children [{:mode 'text-node
                :state {:value (ui/bind-state :text)}}]})
 
+(defcomponent menu-option-indicator
+  {:class :menu/option-indicator})
+
+(defcomponent menu-option-item
+  {:class :menu/item
+   :style {:layout {:direction :row}}
+   :children [{:mode 'menu-option-indicator
+               :state {:value false}}
+              {:mode 'text-node
+               :state {:value (ui/bind-state :text)}}]})
+
+(defcomponent menu-separator {})
+
 
 
 ;; Menu bar
 
-(def menu-items [{:title "File" :items [{:title "New Game"}
-                                        {:title "Save"}
-                                        {:title "Quit"}]}
+(def menu-items [{:title "File" :items [{:title "New"}
+                                        :separator
+                                        {:title "Beginner"
+                                         :type :option
+                                         :group "difficulty"}
+                                        {:title "Intermediate"
+                                         :type :option
+                                         :group "difficulty"}
+                                        {:title "Expert"
+                                         :type :option
+                                         :group "difficulty"}
+                                        {:title "Custom..."
+                                         :type :option
+                                         :group "difficulty"}
+                                        :separator
+                                        {:title "Marks (?)"}
+                                        {:title "Color"}
+                                        :separator
+                                        {:title "Best Times..."}
+                                        :separator
+                                        {:title "Exit"}]}
                  {:title "Edit" :items [{:title "Undo move"}]}
                  {:title "View" :items [{:title "Game board"}
                                         {:title "Highscores"}]}
                  {:title "Help" :items [{:title "About"}]}])
 
 (defun make-menu-item [item]
-  {:mode 'menu-item
-   :state {:text (:title item)
-           :items (:items item)}})
+  (cond
+    (= :separator item)
+    {:mode 'menu-separator}
+
+    (= (:type item) :option)
+    {:mode 'menu-option-item
+     :state {:text (:title item)
+             :selected false}}
+
+    :default
+    {:mode 'menu-item
+     :state {:text (:title item)
+             :items (:items item)}}))
 
 (defmode menu-bar-mode
   {:style {:width :fill
@@ -65,4 +106,3 @@
 (defmode popup-menu-outer {})
 
 (defmode popup-menu-inner {})
-

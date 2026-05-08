@@ -24,10 +24,7 @@
 ;; Game Layout mode
 
 (defmode game-mode
-  {:init (fn [state ctx]
-           (merge state
-                  (gl/new-game-state 9 9 10)))
-   :update (fn [state ctx]
+  {:update (fn [state ctx]
              (assoc-in state [:counters :timer] (min 999 (int (/ (- (epoch-ms) (:start-time state)) 1000)))))
    :class :ui/panel
    :style {:padding 6
@@ -76,10 +73,14 @@
 
 
 (defmode window-mode
-  {:style {:border {:thickness 1
+  {:init (fn [state ctx]
+           (merge state
+                  {:game-state (gl/new-game-state 9 9 10)}))
+   :style {:border {:thickness 1
                     :color c/BLACK}}
    :children [{:mode 'menu-bar-mode}
-              {:mode 'game-mode}]})
+              {:mode 'game-mode
+               :state (ui/bind-state :game-state)}]})
 
 
 

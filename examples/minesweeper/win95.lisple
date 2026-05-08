@@ -88,6 +88,14 @@
             'menu-item {:padding 2
                         :hover {:background FOCUS-BLUE
                                 :text {:color WHITE}}}
+            'menu-separator {:height 2
+                             :margin {:t 3 :r 2 :b 2 :l 2}
+                             :border {:thickness 1
+                                      :line-style :solid
+                                      :color PANEL-SHADOW
+                                      :left {:thickness 0}
+                                      :right {:thickness 0}
+                                      :bottom {:color PANEL-LIGHT}}}
             'popup-menu-outer {:border {:color PANEL-LIGHT
                                         :line-style :sold
                                         :thickness 1
