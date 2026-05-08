@@ -527,7 +527,9 @@ namespace Pixils::Script
 
     /* PopModeBangFunction - pop-mode! */
     FUNC_IMPL(PopModeBangFunction,
-              SIG((NO_ARGS, EXEC_DISPATCH(&PopModeBangFunction::exec_pop_mode))));
+              MULTI_SIG((NO_ARGS, EXEC_DISPATCH(&PopModeBangFunction::exec_pop_mode)),
+                        (FN_ARGS((&Lisple::Type::ANY)),
+                         EXEC_DISPATCH(&PopModeBangFunction::exec_pop_mode))));
 
     EXEC_BODY(PopModeBangFunction, exec_pop_mode)
     {
@@ -537,6 +539,8 @@ namespace Pixils::Script
                      Lisple::RTValue::map({
                        Lisple::RTValue::keyword(MapKey::TYPE->value),
                        Lisple::RTValue::keyword(MapKey::POP->value),
+                       Lisple::RTValue::keyword("payload"),
+                       args.empty() ? Lisple::Constant::NIL : args[0],
                      }));
 
       return Lisple::Constant::NIL;

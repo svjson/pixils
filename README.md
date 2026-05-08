@@ -182,14 +182,56 @@ the current one; popping returns to it.
 
 ; Pop the top mode and return to the one below
 (pixils/pop-mode!)
+
+; Pop with a payload that is returned to the pusher
+(pixils/pop-mode! {:selected :expert})
 ```
 
 The optional third argument to `push-mode!` is an override map. It accepts any key that
 `defmode` accepts (hooks, `:style`, `:children`) and merges them onto the base mode for
-that specific push only. The registered mode definition is not modified.
+that specific push only. It also accepts `:origin`, which controls where a later
+`pop-mode!` result event is delivered. The registered mode definition is not modified.
 
 Mode transitions are message-based and take effect between frames, so it is safe to call
 `push-mode!` or `pop-mode!` from inside any hook.
+
+**Returning data from a pushed mode**
+
+When a mode is popped, it can return data to the view tree that is exposed underneath it.
+By default, the runtime emits a `:pop/result` custom event from the newly exposed root view.
+
+If the pushed mode should return to a specific initiating view instead, pass `:origin` in
+the third argument to `push-mode!`:
+
+```clojure
+; Return to a specific view with the default :pop/result event
+(pixils/push-mode! 'main/popup-menu
+  nil
+  {:origin (:view ctx)})
+
+; Return to a specific view with a custom event name
+(pixils/push-mode! 'main/popup-menu
+  nil
+  {:origin {:view (:view ctx)
+            :event :menu/select}})
+```
+
+Then, from the pushed mode:
+
+```clojure
+(pixils/pop-mode! {:selected :expert})
+```
+
+The delivered event is a normal custom event whose metadata identifies the popped mode:
+
+```clojure
+{:event-key :pop/result
+ :source-mode 'main/popup-menu
+ :payload {:selected :expert}}
+```
+
+This lets the receiver distinguish which mode was popped even when multiple pushed modes
+return results through the same handler, while keeping the payload itself unchanged.
 
 ### Mode composition
 
@@ -517,17 +559,31 @@ an `:on` map keyed by event keyword.
 
 ; Handling in an ancestor
 (pixils/defmode board
-  {:on {:board/cell-clicked (fn [state payload ctx]
-                               (handle-click state (:x payload) (:y payload)))}})
+  {:on {:board/cell-clicked (fn [state event ctx]
+                               (let [payload (:payload event)]
+                                 (handle-click state (:x payload) (:y payload))))}})
 ```
 
 `emit!` takes the view from which the event bubbles, an event key, and an optional payload.
 The event key can be any keyword; qualified keywords (`:ns/name`) are recommended to avoid
 collisions.
 
-The `:on` handler signature is `(fn [state payload ctx] ...)`. It returns the new state for
-the mode that declared the handler. Handlers do not participate in propagation - only the
-nearest ancestor with a matching `:on` key receives the event.
+The `:on` handler signature is `(fn [state event ctx] ...)`. It returns the new state for
+the mode that declared the handler. Custom events bubble through matching ancestors until
+they are stopped with `(pixils.ui/stop-propagation! event)`.
+
+**Custom event object fields**
+
+| Field        | Description |
+|--------------|-------------|
+| `:event-key` | The emitted event keyword |
+| `:source-mode` | The mode that originated the custom event, such as the emitting component's mode or a popped mode |
+| `:payload`   | The optional payload passed to `emit!` |
+
+Pushed modes are separate root trees, so `emit!` from inside a pushed mode does not bubble
+into the underlying mode stack automatically. To return data to the underlying tree when a
+pushed mode closes, use `pop-mode!` together with `push-mode!`'s `:origin` option described
+above.
 
 ### State binding
 
@@ -685,8 +741,8 @@ Accepts the same `:font` and `:scale` options as `text!`.
 | `defcomponent`| Declare a reusable component (alias for `defmode`) |
 | `defbundle`   | Declare a global named image bundle |
 | `deffont`     | Declare a bitmap font |
-| `push-mode!`  | Push a mode onto the stack. Args: `mode-sym`, optional `state`, optional `overrides-map` |
-| `pop-mode!`   | Pop the top mode from the stack |
+| `push-mode!`  | Push a mode onto the stack. Args: `mode-sym`, optional `state`, optional override map. The override map also accepts optional `:origin` for pop-result routing. |
+| `pop-mode!`   | Pop the top mode from the stack. Optional arg: payload returned as a `:pop/result`-style custom event. |
 
 ### `pixils.audio`
 
@@ -700,7 +756,7 @@ Accepts the same `:font` and `:scale` options as `text!`.
 |----------------------|-------------|
 | `bind-state`         | Create a live binding from a child state key to a path in the parent's state. Args: one or more keys forming the path. |
 | `emit!`              | Emit a custom event that bubbles up the view tree. Args: `view`, `event-key`, optional `payload`. |
-| `stop-propagation!`  | Prevent a mouse event from bubbling further up the component tree. Pass the event object from a mouse hook. |
+| `stop-propagation!`  | Prevent a mouse or custom event from bubbling further. Pass the event object from a mouse hook or `:on` handler. |
 
 ### `pixils.image`
 

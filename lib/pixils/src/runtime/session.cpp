@@ -11,6 +11,7 @@
 #include <pixils/runtime/mode.h>
 #include <pixils/runtime/state.h>
 #include <pixils/runtime/view.h>
+#include <pixils/ui/view_events.h>
 #include <pixils/ui/view_layout.h>
 #include <pixils/ui/view_lifecycle.h>
 #include <pixils/ui/view_render.h>
@@ -22,6 +23,98 @@
 
 namespace Pixils::Runtime
 {
+  namespace
+  {
+    const Lisple::sptr_rtval KEYWORD__EVENT = Lisple::RTValue::keyword("event");
+    const Lisple::sptr_rtval KEYWORD__ORIGIN = Lisple::RTValue::keyword("origin");
+    const Lisple::sptr_rtval KEYWORD__POP_RESULT = Lisple::RTValue::keyword("pop/result");
+    const Lisple::sptr_rtval KEYWORD__VIEW = Lisple::RTValue::keyword("view");
+
+    Session::ModeFrameMetadata parse_frame_metadata(const Lisple::sptr_rtval& overrides)
+    {
+      Session::ModeFrameMetadata metadata;
+      if (!overrides || overrides->type == Lisple::RTValue::Type::NIL)
+      {
+        return metadata;
+      }
+
+      auto origin = Lisple::Dict::get_property(overrides, KEYWORD__ORIGIN);
+      if (!origin || origin->type == Lisple::RTValue::Type::NIL)
+      {
+        return metadata;
+      }
+
+      if (Script::HostType::VIEW.is_type_of(*origin))
+      {
+        metadata.origin_view = &Lisple::obj<View>(*origin);
+        return metadata;
+      }
+
+      if (origin->type != Lisple::RTValue::Type::MAP)
+      {
+        return metadata;
+      }
+
+      auto view = Lisple::Dict::get_property(origin, KEYWORD__VIEW);
+      if (view && Script::HostType::VIEW.is_type_of(*view))
+      {
+        metadata.origin_view = &Lisple::obj<View>(*view);
+      }
+
+      auto event = Lisple::Dict::get_property(origin, KEYWORD__EVENT);
+      if (event && event->type != Lisple::RTValue::Type::NIL)
+      {
+        metadata.origin_event = event;
+      }
+
+      return metadata;
+    }
+
+    bool find_view_path(const std::shared_ptr<View>& current,
+                        View* target,
+                        std::vector<std::shared_ptr<View>>& path)
+    {
+      if (!current)
+      {
+        return false;
+      }
+
+      if (current.get() == target)
+      {
+        path.push_back(current);
+        return true;
+      }
+
+      for (auto& child : current->children)
+      {
+        if (find_view_path(child, target, path))
+        {
+          path.push_back(current);
+          return true;
+        }
+      }
+
+      return false;
+    }
+
+    void dispatch_event_along_path(const std::vector<std::shared_ptr<View>>& path,
+                                   const CustomEvent& event,
+                                   const Lisple::sptr_rtval& view_ctx,
+                                   Lisple::Runtime& runtime)
+    {
+      std::vector<CustomEvent> events = {event};
+      auto hook_ctx = view_ctx;
+
+      for (size_t i = 0; i < path.size() && !events.empty(); i++)
+      {
+        Lisple::sptr_rtval* parent_state =
+          i + 1 < path.size() ? &path[i + 1]->state : nullptr;
+        events = UI::process_view_events(*path[i], parent_state, hook_ctx, events, runtime);
+      }
+    }
+
+  } // namespace
+
   Session::Session(Lisple::Runtime& lisple_runtime,
                    Asset::Registry& assets,
                    RenderContext& render_ctx,
@@ -36,11 +129,19 @@ namespace Pixils::Runtime
   {
   }
 
-  void Session::pop_mode()
+  void Session::pop_mode(const Lisple::sptr_rtval& payload)
   {
     if (mode_stack.size() > 1)
     {
+      auto popped_frame = mode_stack.peek();
+      auto* popped_mode = popped_frame.first;
+      auto frame_meta = frame_metadata.empty() ? ModeFrameMetadata{} : frame_metadata.back();
+
       mode_stack.pop();
+      if (!frame_metadata.empty())
+      {
+        frame_metadata.pop_back();
+      }
 
       /**
        * Restore active_mode from the context stack. Then re-sync
@@ -51,13 +152,41 @@ namespace Pixils::Runtime
       active_mode = ctx_stack.back();
       ctx_stack.pop_back();
 
-      auto [_, saved_state] = mode_stack.peek();
+      auto restored_frame = mode_stack.peek();
+      auto saved_state = restored_frame.second;
       active_mode->state = saved_state;
       for (auto& child : active_mode->children)
       {
         Pixils::UI::restore_view_tree(child, active_mode->state);
       }
 
+      auto pop_event_key = frame_meta.origin_event->type != Lisple::RTValue::Type::NIL
+                             ? frame_meta.origin_event
+                             : KEYWORD__POP_RESULT;
+      auto pop_event_source_mode = Lisple::RTValue::symbol(popped_mode->name);
+      std::vector<std::shared_ptr<View>> path;
+
+      if (frame_meta.origin_view &&
+          find_view_path(active_mode, frame_meta.origin_view, path))
+      {
+        dispatch_event_along_path(path,
+                                  CustomEvent(pop_event_key,
+                                              payload ? payload : Lisple::Constant::NIL,
+                                              pop_event_source_mode),
+                                  hook_args.update_args[1],
+                                  lisple_runtime);
+      }
+      else if (active_mode)
+      {
+        dispatch_event_along_path({active_mode},
+                                  CustomEvent(pop_event_key,
+                                              payload ? payload : Lisple::Constant::NIL,
+                                              pop_event_source_mode),
+                                  hook_args.update_args[1],
+                                  lisple_runtime);
+      }
+
+      mode_stack.update_state(active_mode->state);
       this->hook_args.update_state(active_mode->state);
     }
   }
@@ -77,6 +206,7 @@ namespace Pixils::Runtime
       mode_stack.update_state(active_mode->state);
       ctx_stack.push_back(std::move(active_mode));
     }
+    frame_metadata.push_back(parse_frame_metadata(overrides));
     this->mode_stack.push(mode, state);
 
     auto& mode_obj = Lisple::obj<Mode>(*mode);
@@ -138,7 +268,9 @@ namespace Pixils::Runtime
       }
       else if (type == "pop")
       {
-        pop_mode();
+        auto payload =
+          Lisple::Dict::get_property(message, Lisple::RTValue::keyword("payload"));
+        pop_mode(payload ? payload : Lisple::Constant::NIL);
       }
     }
   }

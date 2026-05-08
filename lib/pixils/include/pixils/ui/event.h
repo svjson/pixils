@@ -23,9 +23,12 @@ namespace Pixils
   struct CustomEvent : public Event
   {
     Lisple::sptr_rtval event_key;
+    Lisple::sptr_rtval source_mode = Lisple::Constant::NIL;
     Lisple::sptr_rtval payload;
 
-    CustomEvent(const Lisple::sptr_rtval& event_key, const Lisple::sptr_rtval& payload);
+    CustomEvent(const Lisple::sptr_rtval& event_key,
+                const Lisple::sptr_rtval& payload,
+                const Lisple::sptr_rtval& source_mode = Lisple::Constant::NIL);
   };
 
   /**

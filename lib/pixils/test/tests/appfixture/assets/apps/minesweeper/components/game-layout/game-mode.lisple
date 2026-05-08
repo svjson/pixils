@@ -38,10 +38,12 @@
                                 :color win/panel-shadow
                                 :bottom {:color c/WHITE :trim [0 1]}
                                 :right {:color c/WHITE :trim [1 0]}}}}]
-   :on {:cell/click (fn [state payload ctx]
-                      (gl/reveal-board-cell state (:y payload) (:x payload)))
-        :cell/toggle-flag (fn [state payload ctx]
-                            (let [flag-state (get-in state [:board-mask (:y payload) (:x payload) :flagged?])
+   :on {:cell/click (fn [state event ctx]
+                      (let [payload (:payload event)]
+                        (gl/reveal-board-cell state (:y payload) (:x payload))))
+        :cell/toggle-flag (fn [state event ctx]
+                            (let [payload (:payload event)
+                                  flag-state (get-in state [:board-mask (:y payload) (:x payload) :flagged?])
                                   new-state (assoc-in state [:board-mask (:y payload) (:x payload) :flagged?]
                                                       (not flag-state))]
                               (assoc-in new-state [:counters :mines-left]
@@ -51,5 +53,5 @@
                                                           (fn [num row]
                                                             (+ num
                                                                (count (filter row (fn [cell] (:flagged? cell))))))))))))
-        :game/new-game (fn [state payload ctx]
+        :game/new-game (fn [state event ctx]
                          (gl/new-game-state 9 9 10))}})

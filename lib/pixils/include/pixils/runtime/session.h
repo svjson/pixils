@@ -24,6 +24,12 @@ namespace Pixils::Runtime
 
   struct Session
   {
+    struct ModeFrameMetadata
+    {
+      View* origin_view = nullptr;
+      Lisple::sptr_rtval origin_event = Lisple::Constant::NIL;
+    };
+
     Lisple::Runtime& lisple_runtime;
     Asset::Registry& assets;
     RenderContext& render_ctx;
@@ -31,6 +37,7 @@ namespace Pixils::Runtime
     Lisple::sptr_rtval modes;
     std::shared_ptr<View> active_mode;
     std::vector<std::shared_ptr<View>> ctx_stack;
+    std::vector<ModeFrameMetadata> frame_metadata;
     HookArguments hook_args;
     UI::MouseState mouse_state;
 
@@ -39,7 +46,7 @@ namespace Pixils::Runtime
             RenderContext& render_ctx,
             const HookArguments& hook_args);
 
-    void pop_mode();
+    void pop_mode(const Lisple::sptr_rtval& payload = Lisple::Constant::NIL);
     void push_mode(const Lisple::sptr_rtval& mode,
                    const Lisple::sptr_rtval& state,
                    const Lisple::sptr_rtval& overrides = Lisple::Constant::NIL);

@@ -223,7 +223,7 @@ TEST_F(EventRoutingTest, nested_child_events_update_bound_ancestor_state_during_
                     state))
     })
     (pixils/defmode mid-mode {
-      :on {:ping (fn [state payload ctx]
+      :on {:ping (fn [state event ctx]
                    (assoc state :count (+ (:count state) 1)))}
       :children [{:mode 'emitter-mode :id "emitter"}]
     })
@@ -257,7 +257,7 @@ TEST_F(EventRoutingTest, child_override_on_map_merges_with_existing_event_handle
                     state))
     })
     (pixils/defmode mid-mode {
-      :on {:ping (fn [state payload ctx]
+      :on {:ping (fn [state event ctx]
                    (assoc state :ping-count (+ (:ping-count state) 1)))}
       :children [{:mode 'emitter-mode :id "emitter"}]
     })
@@ -267,7 +267,7 @@ TEST_F(EventRoutingTest, child_override_on_map_merges_with_existing_event_handle
       :children [{:mode 'mid-mode
                   :id "mid"
                   :state (pixils.ui/bind-state :mid)
-                  :on {:pong (fn [state payload ctx]
+                  :on {:pong (fn [state event ctx]
                                (assoc state :pong-count (+ (:pong-count state) 1)))}}]
     })
   )");
@@ -282,6 +282,42 @@ TEST_F(EventRoutingTest, child_override_on_map_merges_with_existing_event_handle
   ASSERT_EQ(session.active_mode->children.size(), 1u);
   auto& mid_mode = *session.active_mode->children[0];
   EXPECT_EQ(mid_mode.state->to_string(), "{:ping-count 1 :pong-count 1}");
+}
+
+TEST_F(EventRoutingTest, custom_event_stop_propagation_prevents_ancestor_on_handler)
+{
+  runtime.eval(R"(
+    (pixils/defmode emitter-mode {
+      :update (fn [state ctx]
+                (do (pixils.ui/emit! (:view ctx) :ping nil)
+                    state))
+    })
+    (pixils/defmode mid-mode {
+      :init (fn [state ctx] {:count 0})
+      :on {:ping (fn [state event ctx]
+                   (pixils.ui/stop-propagation! event)
+                   (assoc state :count (+ (:count state) 1)))}
+      :children [{:mode 'emitter-mode :id "emitter"}]
+    })
+    (pixils/defmode root-mode {
+      :init (fn [state ctx] {:mid {:count 0}
+                             :root-count 0})
+      :on {:ping (fn [state event ctx]
+                   (assoc state :root-count (+ (:root-count state) 1)))}
+      :children [{:mode 'mid-mode
+                  :id "mid"
+                  :state (pixils.ui/bind-state :mid)}]
+    })
+  )");
+  session.push_mode("root-mode", Lisple::Constant::NIL);
+
+  update_cycle();
+
+  ASSERT_NE(session.active_mode, nullptr);
+  EXPECT_EQ(session.active_mode->state->to_string(), "{:mid {:count 1} :root-count 0}");
+  ASSERT_EQ(session.active_mode->children.size(), 1u);
+  auto& mid_mode = *session.active_mode->children[0];
+  EXPECT_EQ(mid_mode.state->to_string(), "{:count 1}");
 }
 
 TEST_F(EventRoutingTest, non_rendered_child_does_not_win_hit_test_when_bounds_overlap)

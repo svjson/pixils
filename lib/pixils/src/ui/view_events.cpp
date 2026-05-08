@@ -1,9 +1,12 @@
 #include "pixils/ui/view_events.h"
 
+#include "pixils/binding/ui_namespace.h"
+#include "pixils/hook_context.h"
 #include "pixils/runtime/state.h"
 #include "pixils/runtime/view.h"
 
 #include <lisple/context.h>
+#include <lisple/host/object.h>
 #include <lisple/runtime.h>
 #include <lisple/runtime/value.h>
 
@@ -13,10 +16,13 @@ namespace Pixils::UI
   {
     Lisple::sptr_rtval invoke(const Lisple::sptr_rtval& fn,
                               Lisple::sptr_rtval_v& args,
+                              Runtime::View& receiver,
                               Lisple::Runtime& rt,
                               const Lisple::sptr_rtval& fallback = Lisple::Constant::NIL)
     {
       if (!fn || fn->type == Lisple::RTValue::Type::NIL) return fallback;
+      Lisple::obj<HookContext>(*args.back()).current_view =
+        std::shared_ptr<Runtime::View>(&receiver, [](Runtime::View*) {});
       Lisple::Context exec_ctx(rt);
       return fn->exec().execute(exec_ctx, args);
     }
@@ -51,8 +57,9 @@ namespace Pixils::UI
         continue;
       }
 
-      Lisple::sptr_rtval_v event_args{receiver.state, event.payload, view_ctx};
-      auto new_state = invoke(it->second, event_args, runtime, receiver.state);
+      auto event_ref = Script::CustomEventAdapter::make_ref(event);
+      Lisple::sptr_rtval_v event_args{receiver.state, event_ref, view_ctx};
+      auto new_state = invoke(it->second, event_args, receiver, runtime, receiver.state);
       if (new_state->type != Lisple::RTValue::Type::NIL)
       {
         receiver.state = new_state;

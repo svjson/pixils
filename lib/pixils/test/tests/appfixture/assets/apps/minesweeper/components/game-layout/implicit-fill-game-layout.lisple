@@ -40,10 +40,12 @@
                        :board-mask (ui/bind-state :board-mask)
                        :face (ui/bind-state :face)}
                :style {:padding [0 12]}}]
-   :on {:cell/click (fn [state payload ctx]
-                      (gl/reveal-board-cell state (:y payload) (:x payload)))
-        :cell/toggle-flag (fn [state payload ctx]
-                            (let [flag-state (get-in state [:board-mask
+   :on {:cell/click (fn [state event ctx]
+                      (let [payload (:payload event)]
+                        (gl/reveal-board-cell state (:y payload) (:x payload))))
+        :cell/toggle-flag (fn [state event ctx]
+                            (let [payload (:payload event)
+                                  flag-state (get-in state [:board-mask
                                                             (:y payload)
                                                             (:x payload)
                                                             :flagged?])
@@ -62,8 +64,8 @@
                                                         (fn [num row]
                                                           (+ num
                                                              (count
-                                                              (filter row
+                                                             (filter row
                                                                       (fn [cell]
                                                                         (:flagged? cell))))))))))))
-        :game/new-game (fn [state payload ctx]
+        :game/new-game (fn [state event ctx]
                          (gl/new-game-state 9 9 10))}})

@@ -37,26 +37,60 @@ namespace Pixils::Script
     EXEC_BODY(EmitBangFunction, exec_emit)
     {
       Runtime::View& view = Lisple::obj<Runtime::View>(*args[0]);
-      view.emit_event(
-        CustomEvent{args[1], args.size() > 2 ? args[2] : Lisple::Constant::NIL});
+      auto source_mode =
+        view.mode ? Lisple::RTValue::symbol(view.mode->name) : Lisple::Constant::NIL;
+      view.emit_event(CustomEvent{args[1],
+                                  args.size() > 2 ? args[2] : Lisple::Constant::NIL,
+                                  source_mode});
 
       return Lisple::Constant::NIL;
     }
 
     /** StopPropagationFn - stop-propagation! */
     FUNC_IMPL(StopPropagation,
-              SIG((FN_ARGS((&HostType::MOUSE_EVENT)),
-                   EXEC_DISPATCH(&StopPropagation::exec_stop))));
+              MULTI_SIG((FN_ARGS((&HostType::MOUSE_EVENT)),
+                         EXEC_DISPATCH(&StopPropagation::exec_stop)),
+                        (FN_ARGS((&HostType::CUSTOM_EVENT)),
+                         EXEC_DISPATCH(&StopPropagation::exec_stop))));
 
     EXEC_BODY(StopPropagation, exec_stop)
     {
-      Lisple::obj<MouseEvent>(*args[0]).propagation_stopped = true;
+      if (HostType::MOUSE_EVENT.is_type_of(*args[0]))
+      {
+        Lisple::obj<MouseEvent>(*args[0]).propagation_stopped = true;
+      }
+      else
+      {
+        Lisple::obj<CustomEvent>(*args[0]).propagation_stopped = true;
+      }
       return Lisple::Constant::NIL;
     }
 
   } // namespace Function
 
   NATIVE_ADAPTER_IMPL(BindStateAdapter, Runtime::BindState, &HostType::BIND_STATE);
+
+  NATIVE_ADAPTER_IMPL(CustomEventAdapter,
+                      CustomEvent,
+                      &HostType::CUSTOM_EVENT,
+                      ("event-key", event_key),
+                      ("source-mode", source_mode),
+                      (payload))
+
+  NOBJ_PROP_GET(CustomEventAdapter, event_key)
+  {
+    return get_object().event_key;
+  }
+
+  NOBJ_PROP_GET(CustomEventAdapter, payload)
+  {
+    return get_object().payload;
+  }
+
+  NOBJ_PROP_GET(CustomEventAdapter, source_mode)
+  {
+    return get_object().source_mode;
+  }
 
   NATIVE_ADAPTER_IMPL(MouseEventAdapter,
                       MouseEvent,

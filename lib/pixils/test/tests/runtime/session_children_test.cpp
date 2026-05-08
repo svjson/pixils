@@ -462,6 +462,155 @@ TEST_F(SessionStateTreeTest, pop_mode_restores_parent_with_child_states)
   EXPECT_EQ(value->num().get_int(), 99);
 }
 
+TEST_F(SessionStateTreeTest, pop_mode_result_returns_to_explicit_origin_view)
+{
+  runtime.eval(R"(
+    (pixils/defmode popup-mode
+      {:update (fn [state ctx]
+                 (do (pixils/pop-mode! {:value 42})
+                     state))})
+
+    (pixils/defmode child-mode
+      {:init (fn [state ctx] {:opened? false})
+       :update (fn [state ctx]
+                 (if (:opened? state)
+                   state
+                   (do (pixils/push-mode! 'popup-mode nil {:origin (:view ctx)})
+                       (assoc state :opened? true))))
+       :on {:pop/result (fn [state ev ctx]
+                          (assoc state :result {:source-mode (:source-mode ev)
+                                                :payload (:payload ev)}))}})
+
+    (pixils/defmode root-mode
+      {:children [{:mode 'child-mode :id "child"}]})
+  )");
+
+  session.push_mode("root-mode", Lisple::Constant::NIL);
+
+  update_cycle();
+  ASSERT_NE(session.active_mode, nullptr);
+  ASSERT_EQ(session.active_mode->mode->name, "popup-mode");
+
+  update_cycle();
+  ASSERT_NE(session.active_mode, nullptr);
+  ASSERT_EQ(session.active_mode->mode->name, "root-mode");
+  ASSERT_EQ(session.active_mode->children.size(), 1u);
+
+  auto child = session.active_mode->children[0];
+  auto result = Lisple::Dict::get_property(child->state, Lisple::RTValue::keyword("result"));
+  ASSERT_NE(result, nullptr);
+
+  auto source_mode =
+    Lisple::Dict::get_property(result, Lisple::RTValue::keyword("source-mode"));
+  auto payload = Lisple::Dict::get_property(result, Lisple::RTValue::keyword("payload"));
+  auto value = Lisple::Dict::get_property(payload, Lisple::RTValue::keyword("value"));
+
+  ASSERT_NE(source_mode, nullptr);
+  ASSERT_NE(payload, nullptr);
+  ASSERT_NE(value, nullptr);
+  EXPECT_EQ(source_mode->str(), "popup-mode");
+  EXPECT_EQ(value->num().get_int(), 42);
+}
+
+TEST_F(SessionStateTreeTest, pop_mode_result_uses_custom_origin_event_and_bubbles)
+{
+  runtime.eval(R"(
+    (pixils/defmode popup-mode
+      {:update (fn [state ctx]
+                 (do (pixils/pop-mode! {:value :expert})
+                     state))})
+
+    (pixils/defmode child-mode
+      {:init (fn [state ctx] {:opened? false})
+       :update (fn [state ctx]
+                 (if (:opened? state)
+                   state
+                   (do (pixils/push-mode! 'popup-mode nil
+                                          {:origin {:view (:view ctx)
+                                                    :event :menu/select}})
+                       (assoc state :opened? true))))})
+
+    (pixils/defmode root-mode
+      {:init (fn [state ctx] {:result nil})
+       :on {:menu/select (fn [state ev ctx]
+                           (assoc state :result {:source-mode (:source-mode ev)
+                                                 :payload (:payload ev)}))}
+       :children [{:mode 'child-mode :id "child"}]})
+  )");
+
+  session.push_mode("root-mode", Lisple::Constant::NIL);
+
+  update_cycle();
+  ASSERT_NE(session.active_mode, nullptr);
+  ASSERT_EQ(session.active_mode->mode->name, "popup-mode");
+
+  update_cycle();
+  ASSERT_NE(session.active_mode, nullptr);
+  ASSERT_EQ(session.active_mode->mode->name, "root-mode");
+
+  auto result = Lisple::Dict::get_property(session.active_mode->state,
+                                           Lisple::RTValue::keyword("result"));
+  ASSERT_NE(result, nullptr);
+
+  auto source_mode =
+    Lisple::Dict::get_property(result, Lisple::RTValue::keyword("source-mode"));
+  auto payload = Lisple::Dict::get_property(result, Lisple::RTValue::keyword("payload"));
+  auto value = Lisple::Dict::get_property(payload, Lisple::RTValue::keyword("value"));
+
+  ASSERT_NE(source_mode, nullptr);
+  ASSERT_NE(payload, nullptr);
+  ASSERT_NE(value, nullptr);
+  EXPECT_EQ(source_mode->str(), "popup-mode");
+  EXPECT_EQ(value->str(), "expert");
+}
+
+TEST_F(SessionStateTreeTest, pop_mode_result_defaults_to_exposed_root_view_without_origin)
+{
+  runtime.eval(R"(
+    (pixils/defmode popup-mode
+      {:update (fn [state ctx]
+                 (do (pixils/pop-mode! {:dismissed? true})
+                     state))})
+
+    (pixils/defmode root-mode
+      {:init (fn [state ctx] {:opened? false :result nil})
+       :update (fn [state ctx]
+                 (if (:opened? state)
+                   state
+                   (do (pixils/push-mode! 'popup-mode)
+                       (assoc state :opened? true))))
+       :on {:pop/result (fn [state ev ctx]
+                          (assoc state :result {:source-mode (:source-mode ev)
+                                                :payload (:payload ev)}))}})
+  )");
+
+  session.push_mode("root-mode", Lisple::Constant::NIL);
+
+  update_cycle();
+  ASSERT_NE(session.active_mode, nullptr);
+  ASSERT_EQ(session.active_mode->mode->name, "popup-mode");
+
+  update_cycle();
+  ASSERT_NE(session.active_mode, nullptr);
+  ASSERT_EQ(session.active_mode->mode->name, "root-mode");
+
+  auto result = Lisple::Dict::get_property(session.active_mode->state,
+                                           Lisple::RTValue::keyword("result"));
+  ASSERT_NE(result, nullptr);
+
+  auto source_mode =
+    Lisple::Dict::get_property(result, Lisple::RTValue::keyword("source-mode"));
+  auto payload = Lisple::Dict::get_property(result, Lisple::RTValue::keyword("payload"));
+  auto dismissed =
+    Lisple::Dict::get_property(payload, Lisple::RTValue::keyword("dismissed?"));
+
+  ASSERT_NE(source_mode, nullptr);
+  ASSERT_NE(payload, nullptr);
+  ASSERT_NE(dismissed, nullptr);
+  EXPECT_EQ(source_mode->str(), "popup-mode");
+  EXPECT_TRUE(Lisple::is_truthy(*dismissed));
+}
+
 TEST_F(SessionStateTreeTest, sibling_children_of_same_mode_keep_distinct_local_states)
 {
   // Given - two children using the same mode type with different local initial state

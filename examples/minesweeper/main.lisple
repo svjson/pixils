@@ -16,7 +16,7 @@
 (defprogram minesweeper
   {:display {:resolution {:scale 3}}
    :target-frame-rate 0
-   :theme 'windows-3
+   :theme 'windows-95
    :initial-mode 'main-mode})
 
 
@@ -53,10 +53,12 @@
                                 :color win/panel-shadow
                                 :bottom {:color c/WHITE :trim [0 1]}
                                 :right {:color c/WHITE :trim [1 0]}}}}]
-   :on {:cell/click (fn [state payload ctx]
-                      (gl/reveal-board-cell state (:y payload) (:x payload)))
-        :cell/toggle-flag (fn [state payload ctx]
-                            (let [flag-state (get-in state [:board-mask (:y payload) (:x payload) :flagged?])
+   :on {:cell/click (fn [state event ctx]
+                      (let [payload (:payload event)]
+                        (gl/reveal-board-cell state (:y payload) (:x payload))))
+        :cell/toggle-flag (fn [state event ctx]
+                            (let [payload (:payload event)
+                                  flag-state (get-in state [:board-mask (:y payload) (:x payload) :flagged?])
                                   new-state (assoc-in state [:board-mask (:y payload) (:x payload) :flagged?]
                                                       (not flag-state))]
                               (assoc-in new-state [:counters :mines-left]
@@ -66,8 +68,8 @@
                                                           (fn [num row]
                                                             (+ num
                                                                (count (filter row (fn [cell] (:flagged? cell))))))))))))
-        :game/new-game (fn [state payload ctx]
-                         (gl/new-game-state 9 9 10))}})
+        :game/new-game (fn [state event ctx]
+                         (gl/new-game-state (:settings state)))}})
 
 
 
@@ -75,12 +77,32 @@
 (defmode window-mode
   {:init (fn [state ctx]
            (merge state
-                  {:game-state (gl/new-game-state 9 9 10)}))
+                  {:game (gl/new-game-state (merge {:mode :beginner}
+                                                   (get gl/difficulty-settings :beginner)))
+                   :preferences {:marks? true
+                                 :color? true}}))
    :style {:border {:thickness 1
                     :color c/BLACK}}
-   :children [{:mode 'menu-bar-mode}
+   :children [{:mode 'menu-bar-mode
+               :state {:game (ui/bind-state :game)
+                       :preferences (ui/bind-state :preferences)}
+               :on {:menu/select (fn [state event ctx]
+                                   (case (-> event :payload :key)
+                                     :game/new-game
+                                     (update state :game (fn [game-state]
+                                                           (gl/new-game-state (:settings game-state))))
+
+                                     :game/difficulty
+                                     (update state :game (fn [game-state]
+                                                           (let [difficulty (-> event :payload :value)]
+                                                             (gl/new-game-state (merge {:mode difficulty}
+                                                                                       (get gl/difficulty-settings difficulty))))))
+
+                                     :default
+                                     state))}}
               {:mode 'game-mode
-               :state (ui/bind-state :game-state)}]})
+               :state (ui/bind-state :game)}]})
+
 
 
 

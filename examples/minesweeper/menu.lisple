@@ -10,22 +10,33 @@
 (defcomponent menu-item
   {:class :menu/item
    :on-mouse-down (fn [state event ctx]
-                    (push-mode!
-                     'popup-menu
-                     {}
-                     {:children [{:mode 'popup-menu-outer
-                                  :style {:position :absolute
-                                          :width :shrink
-                                          :height :shrink
-                                          :left (-> ctx :view :bounds :x)
-                                          :top (+ (-> ctx :view :bounds :y)
-                                                  (-> ctx :view :bounds :h))}
-                                  :children [{:mode 'popup-menu-inner
-                                              :style {}
-                                              :children (for-indexed [n item (:items state)]
-                                                                     (merge (make-menu-item item)
-                                                                            {:style {:width :fill}}))}]}]})
+                    (when-let [items (:items state)]
+                      (push-mode!
+                       'popup-menu
+                       {}
+                       {:origin {:view (:view ctx) :event :menu/select}
+                        :children [{:mode 'popup-menu-outer
+                                    :style {:position :absolute
+                                            :width :shrink
+                                            :height :shrink
+                                            :left (-> ctx :view :bounds :x)
+                                            :top (+ (-> ctx :view :bounds :y)
+                                                    (-> ctx :view :bounds :h))}
+                                    :children [{:mode 'popup-menu-inner
+                                                :style {}
+                                                :children (for-indexed [n item items]
+                                                                       (merge (make-menu-item item state)
+                                                                              {:style {:width :fill}}))}]}]}))
+                    (ui/stop-propagation! event)
                     state)
+   :on-mouse-up (fn [state event ctx]
+                  (when (not (:items state))
+                    (ui/emit! (:view ctx) :menu/select {:key (:key state)}))
+                  state)
+   :on {:menu/select (fn [state event ctx]
+                       (ui/stop-propagation! event)
+                       (ui/emit! (:view ctx) :menu/select (:payload event))
+                       state)}
    :children [{:mode 'text-node
                :state {:value (ui/bind-state :text)}}]})
 
@@ -35,8 +46,15 @@
 (defcomponent menu-option-item
   {:class :menu/item
    :style {:layout {:direction :row}}
+   :on-mouse-down (fn [state event ctx]
+                    (ui/stop-propagation! event)
+                    state)
+   :on-mouse-up (fn [state event ctx]
+                  (ui/emit! (:view ctx) :menu/select {:key (or (:key state) (:selected-value state))
+                                                      :value (:selected-value state)})
+                  state)
    :children [{:mode 'menu-option-indicator
-               :state {:value false}}
+               :state {:selected (ui/bind-state :selected)}}
               {:mode 'text-node
                :state {:value (ui/bind-state :text)}}]})
 
@@ -46,62 +64,99 @@
 
 ;; Menu bar
 
-(def menu-items [{:title "File" :items [{:title "New"}
-                                        :separator
-                                        {:title "Beginner"
-                                         :type :option
-                                         :group "difficulty"}
-                                        {:title "Intermediate"
-                                         :type :option
-                                         :group "difficulty"}
-                                        {:title "Expert"
-                                         :type :option
-                                         :group "difficulty"}
-                                        {:title "Custom..."
-                                         :type :option
-                                         :group "difficulty"}
-                                        :separator
-                                        {:title "Marks (?)"}
-                                        {:title "Color"}
-                                        :separator
-                                        {:title "Best Times..."}
-                                        :separator
-                                        {:title "Exit"}]}
+(defun item-selected? [item state]
+  (let [selected-path (:selected-path item)
+        selected-value (get-in state selected-path)]
+    (cond
+      (= (:type item) :toggle)
+      selected-value
+
+      (= (:type item) :option)
+      (= selected-value (:selected-value item))
+
+      :default
+      false)))
+
+(def menu-items [{:key :menu-bar/game
+                  :title "Game"
+                  :items [{:key :game/new-game
+                           :title "New"}
+                          :separator
+                          {:key :game/difficulty
+                           :title "Beginner"
+                           :type :option
+                           :selected-path [:game :settings :mode]
+                           :selected-value :beginner}
+                          {:key :game/difficulty
+                           :title "Intermediate"
+                           :type :option
+                           :selected-path [:game :settings :mode]
+                           :selected-value :intermediate}
+                          {:key :game/difficulty
+                           :title "Expert"
+                           :type :option
+                           :selected-path [:game :settings :mode]
+                           :selected-value :expert}
+                          {:key :game/custom
+                           :title "Custom..."
+                           :type :option
+                           :selected-path [:game :settings :mode]
+                           :selected-value :custom}
+                          :separator
+                          {:title "Marks (?)"
+                           :type :toggle
+                           :selected-path [:preferences :marks?]}
+                          {:title "Color"
+                           :type :toggle
+                           :selected-path [:preferences :color?]}
+                          :separator
+                          {:title "Best Times..."}
+                          :separator
+                          {:title "Exit"}]}
                  {:title "Edit" :items [{:title "Undo move"}]}
                  {:title "View" :items [{:title "Game board"}
                                         {:title "Highscores"}]}
                  {:title "Help" :items [{:title "About"}]}])
 
-(defun make-menu-item [item]
+(defun make-menu-item [item state]
   (cond
     (= :separator item)
     {:mode 'menu-separator}
 
-    (= (:type item) :option)
+    (or (= (:type item) :option)
+        (= (:type item) :toggle))
     {:mode 'menu-option-item
-     :state {:text (:title item)
-             :selected false}}
+     :state {:key (:key item)
+             :text (:title item)
+             :selected-value (:selected-value item)
+             :selected (item-selected? item state)}}
 
     :default
     {:mode 'menu-item
-     :state {:text (:title item)
-             :items (:items item)}}))
+     :state {:key (:key item)
+             :text (:title item)
+             :items (:items item)
+             :game (ui/bind-state :game)
+             :preferences (ui/bind-state :preferences)}}))
 
 (defmode menu-bar-mode
   {:style {:width :fill
            :layout {:direction :row}}
    :children (for-indexed [n item menu-items]
-                          (merge (make-menu-item item)
+                          (merge (make-menu-item item {})
                                  {:style {:padding [2 8]}}))})
 
 
 ;; Popup menu mode
 
-(defmode popup-menu {:update (fn [state ctx]
-                               (when (:mouse-button-down ctx)
-                                 (pop-mode!))
-                               state)
-                        :compose {:render :pass}})
+(defmode popup-menu {:on-mouse-down (fn [state event ctx]
+                                      (pop-mode!)
+                                      state)
+                     :on {:menu/select (fn [state event ctx]
+                                         (ui/stop-propagation! event)
+                                         (pop-mode! (:payload event))
+                                         state)}
+                     :compose {:render :pass}})
 
 (defmode popup-menu-outer {})
 

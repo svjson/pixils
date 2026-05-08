@@ -25,6 +25,7 @@ namespace Pixils::Script
 
   namespace HostType
   {
+    HOST_TYPE(CUSTOM_EVENT, "HCustomEvent");
     HOST_TYPE(KEYBOARD_EVENT, "HKeyboardEvent");
     HOST_TYPE(MOUSE_EVENT, "HMouseEvent");
     HOST_TYPE(MOUSE_MOTION_EVENT, "HMouseMotionEvent");
@@ -38,6 +39,7 @@ namespace Pixils::Script
     FUNC(StopPropagation, stop);
   } // namespace Function
 
+  NATIVE_ADAPTER(CustomEventAdapter, CustomEvent, (event_key, source_mode, payload));
   NATIVE_ADAPTER(MouseEventAdapter, MouseEvent, (global_pos, local_pos));
   NATIVE_SUB_ADAPTER(MouseEventAdapter,
                      (MouseButtonEventAdapter, MouseButtonEvent),
