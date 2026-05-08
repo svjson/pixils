@@ -58,14 +58,19 @@
 (defcomponent board-button
   {:extend 'button
    :style {:width 17 :height 17}
-   :update (fn [state ctx]
-             (let [flagged (-> state :mask :flagged?)]
+   :update (fn [state {:keys [view] :as ctx}]
+             (let [flagged (-> state :mask :flagged?)
+                   state (-> state
+                             (assoc :image (when flagged
+                                             :mine-layer-mode/flag))
+                             (assoc :force-pressed? (-> state :mask :chord-pressed?))
+                             (assoc :inhibit-pressed? flagged))]
                (assoc-in! ctx [:view :style :hidden] (:revealed? (:mask state)))
-               (-> state
-                   (assoc :image (when flagged
-                                   :mine-layer-mode/flag))
-                   (assoc :force-pressed? (-> state :mask :chord-pressed?))
-                   (assoc :inhibit-pressed? flagged))))
+               (assoc state :pressed
+                      (and (not (:inhibit-pressed? state))
+                           (or (:force-pressed? state)
+                               (and (contains? (-> view :interaction :pressed) :left)
+                                    (-> view :interaction :hovered)))))))
    :on-click (fn [state e ctx]
                (case (:button e)
                  :left (when (not (:flagged? (:mask state)))

@@ -84,14 +84,43 @@
 
 
 (deftheme windows-3
-  {:styles {'menu-bar-mode {:background white
-                            :text {:font :font/win3-system-font}
-                            :border {:line-style :solid :color {:r 0 :g 0 :b 0} :bottom {:thickness 1}}}
-            'menu-item {:padding 2
-                        :hover {:background focus-blue
-                                :text {:color white}}}
-            'popup-menu-inner {:background white
-                               :text {:font :font/win3-system-font}
-                               :border {:thickness 1
-                                        :line-style :solid
-                                        :color c/BLACK}}}})
+  {:styles {'(button {:pressed true})
+            {:border {:line-style :solid
+                      :color c/TRANSPARENT
+                      :thickness 1
+                      :right {:thickness 0}
+                      :bottom {:thickness 0}}}
+
+            'button-inner
+            {:background panel-face
+             :border {:line-style :bevel
+                      :color c/WHITE
+                      :thickness 2
+                      :right {:color panel-shadow}
+                      :bottom {:color panel-shadow}}}
+
+            '(button-inner {:pressed true})
+            {:border {:line-style :bevel
+                      :color panel-shadow
+                      :thickness 2
+                      :right {:color c/WHITE :thickness 1}
+                      :bottom {:color c/WHITE :thickness 1}}}
+
+            'menu-bar-mode
+            {:background white
+             :text {:font :font/win3-system-font}
+             :border {:line-style :solid :color {:r 0 :g 0 :b 0} :bottom {:thickness 1}}}
+
+            'menu-item
+            {:padding 2
+             :hover {:background focus-blue
+                     :text {:color white}}}
+
+            'popup-menu-inner
+            {:background white
+             :text {:font :font/win3-system-font}
+             :border {:thickness 1
+                      :line-style :solid
+                      :color c/BLACK}}
+
+            :ui/panel {:background panel-face}}})

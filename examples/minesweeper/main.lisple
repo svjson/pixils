@@ -29,8 +29,8 @@
                   (gl/new-game-state 9 9 10)))
    :update (fn [state ctx]
              (assoc-in state [:counters :timer] (min 999 (int (/ (- (epoch-ms) (:start-time state)) 1000)))))
-   :style {:background win/panel-face
-           :padding 6
+   :classes :ui/panel
+   :style {:padding 6
            :border {:thickness 3
                     :line-style :bevel
                     :color win/panel-shadow

@@ -56,7 +56,33 @@
 (def FOCUS-BLUE {:r 0x00 :g 0x00 :b 0x7f})
 
 (deftheme windows-95
-  {:styles {'menu-bar-mode {:background PANEL-COLOR
+  {:styles {'button
+            {:border {:line-style :solid
+                      :color c/BLACK
+                      :thickness 1
+                      :top {:thickness 0}
+                      :left {:thickness 0}}}
+
+            '(button {:pressed true})
+            {:border {:top {:thickness 1 :color c/BLACK}
+                      :left {:thickness 1 :color c/BLACK}}}
+
+            'button-inner
+            {:background PANEL-COLOR
+             :border {:line-style :bevel
+                      :color PANEL-LIGHT
+                      :thickness 1
+                      :right {:color PANEL-SHADOW}
+                      :bottom {:color PANEL-SHADOW}}}
+
+            '(button-inner {:pressed true})
+            {:border {:line-style :bevel
+                      :color PANEL-SHADOW
+                      :thickness 1
+                      :right {:thickness 1 :color PANEL-LIGHT}
+                      :bottom {:thickness 1 :color PANEL-LIGHT}}}
+
+            'menu-bar-mode {:background PANEL-COLOR
                             :text {:font :font/win95-system-font
                                    :color c/BLACK}}
             'menu-item {:padding 2
@@ -74,4 +100,6 @@
                                         :right {:color PANEL-SHADOW}}
                                :background PANEL-COLOR
                                :text {:font :font/win95-system-font
-                                      :color c/BLACK}}}})
+                                      :color c/BLACK}}
+
+            :ui/panel {:background PANEL-COLOR}}})
