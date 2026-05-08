@@ -17,9 +17,22 @@
 #include <lisple/host/schema.h>
 #include <lisple/runtime.h>
 #include <lisple/runtime/dict.h>
+#include <algorithm>
 
 namespace
 {
+  void append_class_names(std::vector<std::string>& target,
+                          const std::vector<std::string>& classes)
+  {
+    for (const auto& class_name : classes)
+    {
+      if (std::find(target.begin(), target.end(), class_name) == target.end())
+      {
+        target.push_back(class_name);
+      }
+    }
+  }
+
   Lisple::sptr_rtval resolve_hook(Lisple::Runtime& runtime, const Lisple::sptr_rtval& val)
   {
     if (!val || val->type == Lisple::RTValue::Type::NIL) return Lisple::Constant::NIL;
@@ -103,6 +116,12 @@ namespace
         Pixils::UI::apply_style_variant(*mode.style,
                                         Lisple::obj<Pixils::UI::Style>(*coercion.result));
       }
+    }
+
+    auto class_val = get("class");
+    if (class_val->type != Lisple::RTValue::Type::NIL)
+    {
+      append_class_names(mode.class_names, Pixils::Script::parse_mode_classes(class_val));
     }
 
     auto theme_val = get("theme");

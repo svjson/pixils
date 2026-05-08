@@ -7,6 +7,7 @@
 #include <pixils/runtime/state.h>
 #include <pixils/ui/style.h>
 
+#include <algorithm>
 #include <lisple/context.h>
 #include <lisple/exception.h>
 #include <lisple/host.h>
@@ -20,6 +21,18 @@ namespace Pixils::Script
 {
   namespace
   {
+    void append_class_names(std::vector<std::string>& target,
+                            const std::vector<std::string>& classes)
+    {
+      for (const auto& class_name : classes)
+      {
+        if (std::find(target.begin(), target.end(), class_name) == target.end())
+        {
+          target.push_back(class_name);
+        }
+      }
+    }
+
     /**
      * Evaluate a hook value at definition time. LIST-type values are evaluated
      * (legacy compatibility); everything else passes through as-is. Symbol
@@ -36,6 +49,36 @@ namespace Pixils::Script
     }
 
   } // namespace
+
+  std::vector<std::string> parse_mode_classes(const Lisple::sptr_rtval& class_val)
+  {
+    std::vector<std::string> classes;
+    if (!class_val || class_val->type == Lisple::RTValue::Type::NIL) return classes;
+
+    auto parse_one = [&](const Lisple::sptr_rtval& value)
+    {
+      if (value->type != Lisple::RTValue::Type::KEYWORD)
+        throw Lisple::TypeError("Mode :class entries must be keywords");
+      classes.push_back(value->str());
+    };
+
+    if (class_val->type == Lisple::RTValue::Type::KEYWORD)
+    {
+      parse_one(class_val);
+      return classes;
+    }
+
+    if (class_val->type == Lisple::RTValue::Type::VECTOR)
+    {
+      for (const auto& child : Lisple::get_children(*class_val))
+      {
+        parse_one(child);
+      }
+      return classes;
+    }
+
+    throw Lisple::TypeError("Mode :class must be a keyword or vector of keywords");
+  }
 
   std::vector<Runtime::ChildSlot> parse_child_slots(Lisple::Context& ctx,
                                                     const Lisple::sptr_rtval& children_val)
@@ -97,6 +140,7 @@ namespace Pixils::Script
                                           {"compose", &HostType::MODE_COMPOSITION},
                                           {"resources", &HostType::RESOURCE_DEPENDENCIES},
                                           {"style", &HostType::STYLE},
+                                          {"class", &Lisple::Type::ANY},
                                           {"theme", &Lisple::Type::SYMBOL_VALUE},
                                           {"children", &Lisple::Type::ANY}});
 
@@ -175,6 +219,8 @@ namespace Pixils::Script
     }
 
     mode.style = opts.optional_obj<UI::Style>("style");
+    if (opts.contains("class"))
+      append_class_names(mode.class_names, parse_mode_classes(opts.val("class")));
     if (opts.contains("theme")) mode.theme = opts.str("theme");
 
     if (opts.contains("children"))

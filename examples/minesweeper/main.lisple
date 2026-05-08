@@ -16,7 +16,7 @@
 (defprogram minesweeper
   {:display {:resolution {:scale 3}}
    :target-frame-rate 0
-   :theme 'windows-95
+   :theme 'windows-3
    :initial-mode 'main-mode})
 
 
@@ -29,7 +29,7 @@
                   (gl/new-game-state 9 9 10)))
    :update (fn [state ctx]
              (assoc-in state [:counters :timer] (min 999 (int (/ (- (epoch-ms) (:start-time state)) 1000)))))
-   :classes :ui/panel
+   :class :ui/panel
    :style {:padding 6
            :border {:thickness 3
                     :line-style :bevel

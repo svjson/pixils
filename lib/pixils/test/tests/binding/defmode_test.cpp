@@ -51,6 +51,26 @@ TEST_F(DefModeTest, defmode_extend_preserves_selector_ancestry_for_theme_matchin
   EXPECT_EQ(special_board_button.selector_modes[2], "button");
 }
 
+TEST_F(DefModeTest, defmode_class_accepts_keyword_or_vector_and_merges_on_extend)
+{
+  runtime.eval(R"(
+    (pixils/defcomponent button {:class :ui/control})
+    (pixils/defcomponent primary-button
+      {:extend 'button
+       :class [:ui/primary :ui/cta]})
+  )");
+
+  auto& button = get_mode(runtime, "button");
+  ASSERT_EQ(button.class_names.size(), 1u);
+  EXPECT_EQ(button.class_names[0], "ui/control");
+
+  auto& primary_button = get_mode(runtime, "primary-button");
+  ASSERT_EQ(primary_button.class_names.size(), 3u);
+  EXPECT_EQ(primary_button.class_names[0], "ui/control");
+  EXPECT_EQ(primary_button.class_names[1], "ui/primary");
+  EXPECT_EQ(primary_button.class_names[2], "ui/cta");
+}
+
 TEST_F(DefModeTest, defmode_with_lambda_hook_is_created)
 {
   // When

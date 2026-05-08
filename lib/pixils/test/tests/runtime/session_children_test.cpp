@@ -218,8 +218,7 @@ TEST_F(SessionChildrenTest, root_mode_theme_applies_component_selector_to_active
   EXPECT_EQ(*session.active_mode->effective_style.text->scale, 3);
 }
 
-TEST_F(SessionChildrenTest,
-       root_mode_theme_applies_compound_state_selector_to_active_view)
+TEST_F(SessionChildrenTest, root_mode_theme_applies_compound_state_selector_to_active_view)
 {
   // Given
   runtime.eval(R"(
@@ -272,6 +271,60 @@ TEST_F(SessionChildrenTest,
   ASSERT_TRUE(session.active_mode->effective_style.text->scale.has_value());
   EXPECT_EQ(*session.active_mode->effective_style.text->font, "font/console");
   EXPECT_EQ(*session.active_mode->effective_style.text->scale, 2);
+}
+
+TEST_F(SessionChildrenTest, root_mode_theme_applies_class_selector_to_active_view)
+{
+  runtime.eval(R"(
+    (pixils/deftheme root-theme
+      {:styles {:ui/panel {:text {:font :font/console
+                                  :scale 6}}}})
+
+    (pixils/defmode root-mode
+      {:theme 'root-theme
+       :class :ui/panel
+       :render (fn [state ctx] nil)})
+  )");
+  session.push_mode("root-mode", Lisple::Constant::NIL);
+
+  session.render_mode();
+
+  ASSERT_NE(session.active_mode, nullptr);
+  ASSERT_TRUE(session.active_mode->effective_style.text.has_value());
+  ASSERT_TRUE(session.active_mode->effective_style.text->font.has_value());
+  ASSERT_TRUE(session.active_mode->effective_style.text->scale.has_value());
+  EXPECT_EQ(*session.active_mode->effective_style.text->font, "font/console");
+  EXPECT_EQ(*session.active_mode->effective_style.text->scale, 6);
+}
+
+TEST_F(SessionChildrenTest, child_override_class_applies_class_selector_to_child_view)
+{
+  runtime.eval(R"(
+    (pixils/deftheme root-theme
+      {:styles {:ui/panel {:text {:font :font/console
+                                  :scale 7}}}})
+
+    (pixils/defmode child-mode
+      {:render (fn [state ctx] nil)})
+
+    (pixils/defmode root-mode
+      {:theme 'root-theme
+       :children [{:mode 'child-mode
+                   :class :ui/panel}]})
+  )");
+  session.push_mode("root-mode", Lisple::Constant::NIL);
+
+  session.render_mode();
+
+  ASSERT_NE(session.active_mode, nullptr);
+  ASSERT_EQ(session.active_mode->children.size(), 1u);
+  auto child = session.active_mode->children[0];
+  ASSERT_NE(child, nullptr);
+  ASSERT_TRUE(child->effective_style.text.has_value());
+  ASSERT_TRUE(child->effective_style.text->font.has_value());
+  ASSERT_TRUE(child->effective_style.text->scale.has_value());
+  EXPECT_EQ(*child->effective_style.text->font, "font/console");
+  EXPECT_EQ(*child->effective_style.text->scale, 7);
 }
 
 TEST_F(SessionChildrenTest,

@@ -115,8 +115,8 @@ namespace Pixils::UI
       return std::find(ctx.mode_names.begin(), ctx.mode_names.end(), value) !=
              ctx.mode_names.end();
     case Type::CLASS_NAME:
-      // TODO: Runtime view classes are not implemented yet.
-      return false;
+      return std::find(ctx.class_names.begin(), ctx.class_names.end(), value) !=
+             ctx.class_names.end();
     case Type::STATE:
       return state_subset_matches(state, ctx.state);
     case Type::COMPOUND:

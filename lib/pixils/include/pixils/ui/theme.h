@@ -13,6 +13,7 @@ namespace Pixils::UI
   struct ThemeMatchContext
   {
     std::vector<std::string> mode_names;
+    std::vector<std::string> class_names;
     Lisple::sptr_rtval state = Lisple::Constant::NIL;
   };
 

@@ -122,6 +122,7 @@ namespace Pixils::UI
       if (view->mode)
       {
         ThemeMatchContext match_ctx{.mode_names = view->mode->selector_modes,
+                                    .class_names = view->mode->class_names,
                                     .state = view->state};
 
         for (const Style* theme_style : view->effective_theme.get_matching_styles(match_ctx))

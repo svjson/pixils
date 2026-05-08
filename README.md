@@ -359,13 +359,25 @@ Theme selectors are map keys under `:styles`:
 | Selector form | Meaning |
 |---------------|---------|
 | `'button` | Matches modes/components named `button`, including modes that `:extend 'button`. |
-| `:menu/item` | Class selector syntax reserved for future runtime matching. |
+| `:menu/item` | Matches views whose `:class` contains `:menu/item`. |
 | `{:pressed true}` | Matches when the view state contains at least `{:pressed true}`. |
 | `'(button {:pressed true})` | Compound selector: all parts must match the same view. |
 | `['window 'button]` | Descendant selector syntax reserved for future runtime matching. |
 
 State selector maps use subset matching, so a selector such as `{:pressed true}` matches
 any view state map that contains `:pressed true` alongside any other keys.
+
+Modes and child entries may declare `:class` as either a single keyword or a vector of
+keywords:
+
+```clojure
+(pixils/defmode status-panel
+  {:class :ui/panel
+   ...})
+
+{:mode 'main/button
+ :class [:ui/toolbar-item :ui/primary]}
+```
 
 **Border**
 
