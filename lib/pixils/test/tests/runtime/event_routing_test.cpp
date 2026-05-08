@@ -246,6 +246,44 @@ TEST_F(EventRoutingTest, nested_child_events_update_bound_ancestor_state_during_
   EXPECT_EQ(mid_mode.state->to_string(), "{:count 1}");
 }
 
+TEST_F(EventRoutingTest, child_override_on_map_merges_with_existing_event_handlers)
+{
+  // Given
+  runtime.eval(R"(
+    (pixils/defmode emitter-mode {
+      :update (fn [state ctx]
+                (do (pixils.ui/emit! (:view ctx) :ping nil)
+                    (pixils.ui/emit! (:view ctx) :pong nil)
+                    state))
+    })
+    (pixils/defmode mid-mode {
+      :on {:ping (fn [state payload ctx]
+                   (assoc state :ping-count (+ (:ping-count state) 1)))}
+      :children [{:mode 'emitter-mode :id "emitter"}]
+    })
+    (pixils/defmode root-mode {
+      :init (fn [state ctx] {:mid {:ping-count 0
+                                   :pong-count 0}})
+      :children [{:mode 'mid-mode
+                  :id "mid"
+                  :state (pixils.ui/bind-state :mid)
+                  :on {:pong (fn [state payload ctx]
+                               (assoc state :pong-count (+ (:pong-count state) 1)))}}]
+    })
+  )");
+  session.push_mode("root-mode", Lisple::Constant::NIL);
+
+  // When
+  update_cycle();
+
+  // Then
+  ASSERT_NE(session.active_mode, nullptr);
+  EXPECT_EQ(session.active_mode->state->to_string(), "{:mid {:ping-count 1 :pong-count 1}}");
+  ASSERT_EQ(session.active_mode->children.size(), 1u);
+  auto& mid_mode = *session.active_mode->children[0];
+  EXPECT_EQ(mid_mode.state->to_string(), "{:ping-count 1 :pong-count 1}");
+}
+
 TEST_F(EventRoutingTest, non_rendered_child_does_not_win_hit_test_when_bounds_overlap)
 {
   // Given - two overlapping children at the same position - top layer is hidden

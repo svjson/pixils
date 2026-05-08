@@ -11,13 +11,13 @@
 #include <pixils/runtime/view.h>
 #include <pixils/ui/theme.h>
 
+#include <algorithm>
 #include <lisple/context.h>
 #include <lisple/host.h>
 #include <lisple/host/object.h>
 #include <lisple/host/schema.h>
 #include <lisple/runtime.h>
 #include <lisple/runtime/dict.h>
-#include <algorithm>
 
 namespace
 {
@@ -104,6 +104,16 @@ namespace
     apply_hook(mode.on_mouse_enter, "on-mouse-enter");
     apply_hook(mode.on_mouse_leave, "on-mouse-leave");
     apply_hook(mode.on_mouse_motion, "on-mouse-motion");
+
+    auto on_val = get("on");
+    if (on_val->type == Lisple::RTValue::Type::MAP)
+    {
+      for (auto& key : Lisple::Dict::keys(*on_val))
+      {
+        auto handler = Lisple::Dict::get_property(on_val, key);
+        mode.event_handlers[key->str()] = resolve_hook(runtime, handler);
+      }
+    }
 
     auto style_val = get("style");
     if (style_val->type != Lisple::RTValue::Type::NIL)
