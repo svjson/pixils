@@ -314,7 +314,7 @@ hook fires.
 
 | Style key     | Values                                                                | Description |
 |---------------|-----------------------------------------------------------------------|-------------|
-| `:background` | `{:r N :g N :b N}` or `{:r N :g N :b N :a N}`                       | Background fill color (0-255). |
+| `:background` | `{:r N :g N :b N}`, `{:r N :g N :b N :a N}`, `:bundle/image`, or `{:color ... :image ...}` | Background fill and/or a non-repeating top-left image. |
 | `:margin`     | Number, `[vertical horizontal]`, `[top right bottom left]`, or `{:t N :r N :b N :l N}` | Outer space around a child in layout flow. |
 | `:padding`    | Number, `[vertical horizontal]`, `[top right bottom left]`, or `{:t N :r N :b N :l N}` | Inset applied before the render hook's viewport is set. |
 | `:border`     | Border map (see below)                                               | Draws a border inside the component bounds. |

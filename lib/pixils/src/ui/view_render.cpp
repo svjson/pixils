@@ -1,5 +1,6 @@
 #include "pixils/ui/view_render.h"
 
+#include <pixils/asset/registry.h>
 #include <pixils/context.h>
 #include <pixils/runtime/hook_invocation.h>
 #include <pixils/runtime/view.h>
@@ -40,6 +41,22 @@ namespace Pixils::UI
       SDL_SetRenderDrawBlendMode(render_ctx.renderer, SDL_BLENDMODE_BLEND);
       SDL_RenderFillRect(render_ctx.renderer, &bg_rect);
       SDL_SetRenderDrawBlendMode(render_ctx.renderer, SDL_BLENDMODE_NONE);
+    }
+
+    if (style_res.background && style_res.background->image && render_ctx.asset_registry)
+    {
+      auto [bundle_id, asset_id] = *style_res.background->image;
+      SDL_Texture* texture = render_ctx.asset_registry->get_image(bundle_id, asset_id);
+      if (texture)
+      {
+        SDL_Rect dest = {bounds.x, bounds.y, 0, 0};
+        SDL_QueryTexture(texture, nullptr, nullptr, &dest.w, &dest.h);
+
+        SDL_Rect clip_rect = {bounds.x, bounds.y, bounds.w, bounds.h};
+        SDL_RenderSetClipRect(render_ctx.renderer, &clip_rect);
+        SDL_RenderCopy(render_ctx.renderer, texture, nullptr, &dest);
+        SDL_RenderSetClipRect(render_ctx.renderer, nullptr);
+      }
     }
 
     /**

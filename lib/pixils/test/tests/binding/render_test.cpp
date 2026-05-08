@@ -82,6 +82,27 @@ TEST_F(RenderTest, image_accepts_rotation_in_radians)
   EXPECT_NEAR(ops[0].rotation_degrees, 90.0, 0.01);
 }
 
+TEST_F(RenderTest, style_background_image_renders_once_without_repeat)
+{
+  SDLMock::prepared_surfaces["./checkmark.png"] = {7, 7};
+  runtime.eval(R"(
+    (pixils/defbundle icons {:images {:checkmark "checkmark.png"}})
+    (pixils/defmode test-mode
+      {:style {:background {:image :icons/checkmark}}})
+  )");
+  session.push_mode("test-mode", Lisple::Constant::NIL);
+
+  ASSERT_NO_THROW(session.render_mode());
+
+  auto& ops = render_target()->render_ops;
+  ASSERT_EQ(ops.size(), 1u);
+  EXPECT_EQ(ops[0].type, RenderOpType::RENDER_COPY);
+  EXPECT_EQ(ops[0].rendered_rect.x, 0);
+  EXPECT_EQ(ops[0].rendered_rect.y, 0);
+  EXPECT_EQ(ops[0].rendered_rect.w, 7);
+  EXPECT_EQ(ops[0].rendered_rect.h, 7);
+}
+
 TEST_F(RenderTest, text_without_explicit_color_uses_original_font_texture)
 {
   SDLMock::prepared_surfaces["./font.png"] = {8, 8};
