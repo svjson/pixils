@@ -306,6 +306,45 @@ TEST_F(LayoutTest, layout_row_child_honors_requested_height)
   EXPECT_EQ(rects[0].h, 40);
 }
 
+TEST_F(LayoutTest, layout_fixed_size_defaults_to_border_box)
+{
+  std::vector<std::shared_ptr<View>> children;
+  Style s;
+  s.width = 20;
+  s.height = 20;
+  s.padding = Style::Insets(1, 1, 1, 1);
+  s.border = Style::BorderStyle{};
+  s.border->thickness = 2;
+  children.push_back(make_ctx(std::move(s)));
+  Rect parent = {0, 0, 100, 100};
+
+  auto rects = layout(children, parent, LayoutDirection::ROW);
+
+  ASSERT_EQ(rects.size(), 1u);
+  EXPECT_EQ(rects[0].w, 20);
+  EXPECT_EQ(rects[0].h, 20);
+}
+
+TEST_F(LayoutTest, layout_fixed_content_box_size_adds_padding_and_border)
+{
+  std::vector<std::shared_ptr<View>> children;
+  Style s;
+  s.box_sizing = Style::BoxSizing::CONTENT_BOX;
+  s.width = 20;
+  s.height = 20;
+  s.padding = Style::Insets(1, 1, 1, 1);
+  s.border = Style::BorderStyle{};
+  s.border->thickness = 2;
+  children.push_back(make_ctx(std::move(s)));
+  Rect parent = {0, 0, 100, 100};
+
+  auto rects = layout(children, parent, LayoutDirection::ROW);
+
+  ASSERT_EQ(rects.size(), 1u);
+  EXPECT_EQ(rects[0].w, 26);
+  EXPECT_EQ(rects[0].h, 26);
+}
+
 TEST_F(LayoutTest, layout_absolute_children_excluded_from_flow)
 {
   Style abs_style;

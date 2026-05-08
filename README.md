@@ -229,10 +229,11 @@ to arrange them left to right instead.
 ```
 
 Sizing is declared in the `:style` map. A child with `:style {:height N}` (or
-`:style {:width N}` in a row layout) is given exactly that many pixels. A child without a
-size constraint fills the remaining space. Multiple fill children share the remainder evenly.
-Margins are also declared in `:style`. A child's `:margin` consumes flow space around the
-child and offsets its rendered bounds within the allocated slot.
+`:style {:width N}` in a row layout) is given exactly that many pixels by default as a
+border box. Set `:box-sizing :content-box` to interpret fixed sizes as content dimensions
+instead. A child without a size constraint fills the remaining space. Multiple fill children
+share the remainder evenly. Margins are also declared in `:style`. A child's `:margin`
+consumes flow space around the child and offsets its rendered bounds within the allocated slot.
 
 The layout map can also distribute leftover space between flow children:
 
@@ -319,8 +320,9 @@ hook fires.
 | `:border`     | Border map (see below)                                               | Draws a border inside the component bounds. |
 | `:layout`     | `{:direction :row}`, `{:direction :column}`, optional `:gap :none`, `:gap N`, `:gap :space-between`, or wrapped gap maps | Child layout policy. Currently supports flow direction, fixed gap, explicit no-gap, and `space-between` distribution. |
 | `:text`       | `{:color {:r N :g N :b N}}`, optional `:font :font/name`, optional `:scale N` | Text presentation properties for components that render text. |
-| `:width`      | Number                                                               | Content width in pixels. Absent means fill remaining space. |
-| `:height`     | Number                                                               | Content height in pixels. Absent means fill remaining space. |
+| `:box-sizing` | `:border-box`, `:content-box`                                        | How fixed `:width`/`:height` are interpreted. Default: `:border-box`. |
+| `:width`      | Number                                                               | Fixed width in pixels using the selected `:box-sizing`. Absent means fill remaining space. |
+| `:height`     | Number                                                               | Fixed height in pixels using the selected `:box-sizing`. Absent means fill remaining space. |
 | `:position`   | `:absolute`, `:flow`                                                 | Positioning mode. Default: `:flow`. |
 | `:top`        | Number                                                               | Top offset when `:position :absolute`. |
 | `:left`       | Number                                                               | Left offset when `:position :absolute`. |
@@ -329,6 +331,10 @@ hook fires.
 
 The hover variant is injected automatically by the framework. No manual hit-testing is
 needed in the component.
+
+With the default `:box-sizing :border-box`, a fixed size includes padding and border but
+not margin. Use `:box-sizing :content-box` to opt into the previous behavior where padding
+and border are added on top of the fixed content size.
 
 ### Themes
 

@@ -600,13 +600,13 @@ TEST_F(ComposedAppRuntimeTest, session_assigns_expected_outer_bounds_for_default
   View& board_mode = child_with_mode_name(game_layout, "board-mode");
 
   EXPECT_EQ(window.bounds, (Pixils::Rect{0, 0, 320, 200}));
-  // This implicit-fill baseline predates natural child sizing. Under current
-  // semantics the status panel contributes a natural width, while the old board
-  // subtree still collapses vertically because it never reports content size.
-  EXPECT_EQ(menu_bar.bounds, (Pixils::Rect{0, 0, 180, 18}));
-  EXPECT_EQ(game_layout.bounds, (Pixils::Rect{0, 18, 132, 50}));
-  EXPECT_EQ(status_panel.bounds, (Pixils::Rect{0, 18, 132, 50}));
-  EXPECT_EQ(board_mode.bounds, (Pixils::Rect{0, 68, 24, 0}));
+  // With default border-box sizing, fixed heights now include border/padding.
+  // The board subtree still collapses vertically here because it never reports
+  // content size in this implicit-fill baseline.
+  EXPECT_EQ(menu_bar.bounds, (Pixils::Rect{0, 0, 164, 17}));
+  EXPECT_EQ(game_layout.bounds, (Pixils::Rect{0, 17, 132, 24}));
+  EXPECT_EQ(status_panel.bounds, (Pixils::Rect{0, 17, 132, 24}));
+  EXPECT_EQ(board_mode.bounds, (Pixils::Rect{0, 41, 24, 0}));
 }
 
 TEST_F(ComposedAppRuntimeTest,
@@ -632,11 +632,11 @@ TEST_F(ComposedAppRuntimeTest,
   View& board_mode = child_with_mode_name(game_mode, "board-mode");
 
   EXPECT_EQ(main_mode.bounds, (Pixils::Rect{0, 0, 320, 200}));
-  EXPECT_EQ(window.bounds, (Pixils::Rect{0, 0, 179, 240}));
+  EXPECT_EQ(window.bounds, (Pixils::Rect{0, 0, 179, 228}));
   EXPECT_EQ(menu_bar.bounds, (Pixils::Rect{1, 1, 177, 18}));
-  EXPECT_EQ(game_mode.bounds, (Pixils::Rect{1, 19, 177, 220}));
-  EXPECT_EQ(status_panel.bounds, (Pixils::Rect{10, 28, 159, 37}));
-  EXPECT_EQ(board_mode.bounds, (Pixils::Rect{10, 71, 159, 159}));
+  EXPECT_EQ(game_mode.bounds, (Pixils::Rect{1, 19, 177, 208}));
+  EXPECT_EQ(status_panel.bounds, (Pixils::Rect{10, 28, 159, 25}));
+  EXPECT_EQ(board_mode.bounds, (Pixils::Rect{10, 59, 159, 159}));
 }
 
 TEST_F(ComposedAppRuntimeTest, session_opens_popup_mode_from_menu_mouse_down)

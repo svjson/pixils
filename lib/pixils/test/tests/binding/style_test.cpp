@@ -36,6 +36,32 @@ TEST_F(StyleTest, make_uniform_border)
   EXPECT_EQ(style.border->line_style, Pixils::UI::Style::LineStyle::SOLID);
 }
 
+TEST_F(StyleTest, make_style_with_box_sizing)
+{
+  Lisple::sptr_rtval result =
+    runtime.eval("(pixils.ui.style/make-style {:box-sizing :content-box})");
+
+  auto style = Lisple::obj<Pixils::UI::Style>(*result);
+  ASSERT_NE(style.box_sizing, std::nullopt);
+  EXPECT_EQ(*style.box_sizing, Pixils::UI::Style::BoxSizing::CONTENT_BOX);
+}
+
+TEST_F(StyleTest, make_style_with_per_side_border_overrides)
+{
+  // When
+  Lisple::sptr_rtval result =
+    runtime.eval("(pixils.ui.style/make-style {:border {:thickness 2 :line-style :solid "
+                 ":right {:thickness 1} :bottom {:thickness 0}}})");
+
+  // Then
+  auto style = Lisple::obj<Pixils::UI::Style>(*result);
+  ASSERT_NE(style.border, std::nullopt);
+  EXPECT_EQ(style.border->top_thickness(), 2);
+  EXPECT_EQ(style.border->right_thickness(), 1);
+  EXPECT_EQ(style.border->bottom_thickness(), 0);
+  EXPECT_EQ(style.border->left_thickness(), 2);
+}
+
 TEST_F(StyleTest, make_style_with_margin)
 {
   // When
@@ -271,6 +297,7 @@ TEST(StyleTotalDimensionsTest, total_width_includes_padding_and_border)
 {
   // Given
   Pixils::UI::Style style;
+  style.box_sizing = Pixils::UI::Style::BoxSizing::CONTENT_BOX;
   style.width = 100;
   style.padding = Pixils::UI::Style::Insets(4, 4, 4, 4);
   style.border = Pixils::UI::Style::BorderStyle{};
@@ -284,6 +311,7 @@ TEST(StyleTotalDimensionsTest, total_width_includes_margin_padding_and_border)
 {
   // Given
   Pixils::UI::Style style;
+  style.box_sizing = Pixils::UI::Style::BoxSizing::CONTENT_BOX;
   style.width = 100;
   style.margin = Pixils::UI::Style::Insets(0, 3, 0, 5);
   style.padding = Pixils::UI::Style::Insets(4, 4, 4, 4);
@@ -298,6 +326,7 @@ TEST(StyleTotalDimensionsTest, total_height_includes_padding_and_border)
 {
   // Given
   Pixils::UI::Style style;
+  style.box_sizing = Pixils::UI::Style::BoxSizing::CONTENT_BOX;
   style.height = 50;
   style.padding = Pixils::UI::Style::Insets(3, 0, 3, 0);
   style.border = Pixils::UI::Style::BorderStyle{};
@@ -305,6 +334,38 @@ TEST(StyleTotalDimensionsTest, total_height_includes_padding_and_border)
 
   // Then: content=50, padding=3+3=6, border=1+1=2 -> total=58
   EXPECT_EQ(style.total_height(), 58);
+}
+
+TEST(StyleTotalDimensionsTest, total_dimensions_use_effective_per_side_border_thicknesses)
+{
+  // Given
+  Pixils::UI::Style style;
+  style.box_sizing = Pixils::UI::Style::BoxSizing::CONTENT_BOX;
+  style.width = 13;
+  style.height = 13;
+  style.border = Pixils::UI::Style::BorderStyle{};
+  style.border->thickness = 2;
+  style.border->r = Pixils::UI::Style::Border{};
+  style.border->r->thickness = 1;
+  style.border->b = Pixils::UI::Style::Border{};
+  style.border->b->thickness = 0;
+
+  // Then: width=13 + left 2 + right 1, height=13 + top 2 + bottom 0
+  EXPECT_EQ(style.total_width(), 16);
+  EXPECT_EQ(style.total_height(), 15);
+}
+
+TEST(StyleTotalDimensionsTest, fixed_dimensions_default_to_border_box)
+{
+  Pixils::UI::Style style;
+  style.width = 13;
+  style.height = 13;
+  style.padding = Pixils::UI::Style::Insets(1, 1, 1, 1);
+  style.border = Pixils::UI::Style::BorderStyle{};
+  style.border->thickness = 2;
+
+  EXPECT_EQ(style.total_width(), 13);
+  EXPECT_EQ(style.total_height(), 13);
 }
 
 TEST(StyleContentRectTest, content_rect_insets_by_border_then_padding)
@@ -340,6 +401,27 @@ TEST(StyleContentRectTest, content_rect_with_border_only)
   EXPECT_EQ(result.y, 23);
   EXPECT_EQ(result.w, 94);
   EXPECT_EQ(result.h, 74);
+}
+
+TEST(StyleContentRectTest, content_rect_uses_effective_per_side_border_thicknesses)
+{
+  // Given
+  Pixils::UI::Style style;
+  style.border = Pixils::UI::Style::BorderStyle{};
+  style.border->thickness = 2;
+  style.border->r = Pixils::UI::Style::Border{};
+  style.border->r->thickness = 1;
+  style.border->b = Pixils::UI::Style::Border{};
+  style.border->b->thickness = 0;
+
+  // When
+  Pixils::Rect result = style.content_rect({10, 20, 13, 13});
+
+  // Then
+  EXPECT_EQ(result.x, 12);
+  EXPECT_EQ(result.y, 22);
+  EXPECT_EQ(result.w, 10);
+  EXPECT_EQ(result.h, 11);
 }
 
 TEST(StyleContentRectTest, content_rect_with_no_border_or_padding_returns_bounds)

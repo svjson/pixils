@@ -70,6 +70,7 @@ namespace Pixils::Script
                   border,
                   padding,
                   text,
+                  box_sizing,
                   width,
                   height,
                   position,

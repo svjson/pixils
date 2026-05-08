@@ -8,6 +8,33 @@ namespace Pixils::UI
 {
   namespace
   {
+    int horizontal_padding(const Style& style)
+    {
+      return style.padding ? style.padding->l + style.padding->r : 0;
+    }
+
+    int vertical_padding(const Style& style)
+    {
+      return style.padding ? style.padding->t + style.padding->b : 0;
+    }
+
+    int horizontal_border(const Style& style)
+    {
+      return style.border ? style.border->left_thickness() + style.border->right_thickness()
+                          : 0;
+    }
+
+    int vertical_border(const Style& style)
+    {
+      return style.border ? style.border->top_thickness() + style.border->bottom_thickness()
+                          : 0;
+    }
+
+    bool uses_content_box_sizing(const Style& style)
+    {
+      return style.box_sizing && *style.box_sizing == Style::BoxSizing::CONTENT_BOX;
+    }
+
     void inherit_text_style(Style& out, const Style& inherited_style)
     {
       if (!inherited_style.text) return;
@@ -75,6 +102,7 @@ namespace Pixils::UI
     , padding(other.padding)
     , border(other.border)
     , text(other.text)
+    , box_sizing(other.box_sizing)
     , width(other.width)
     , height(other.height)
     , position(other.position)
@@ -93,6 +121,7 @@ namespace Pixils::UI
     this->padding = other.padding;
     this->border = other.border;
     this->text = other.text;
+    this->box_sizing = other.box_sizing;
     this->width = other.width;
     this->height = other.height;
     this->position = other.position;
@@ -263,19 +292,19 @@ namespace Pixils::UI
   int Style::total_width() const
   {
     int mar = margin ? margin->l + margin->r : 0;
-    int pad = padding ? padding->l + padding->r : 0;
-    int bord = border ? border->left_thickness() + border->right_thickness() : 0;
-    int content_width = width && width->is_fixed() ? width->fixed_value_or(0) : 0;
-    return content_width + mar + pad + bord;
+    int fixed_width = width && width->is_fixed() ? width->fixed_value_or(0) : 0;
+    if (!uses_content_box_sizing(*this)) return fixed_width + mar;
+
+    return fixed_width + mar + horizontal_padding(*this) + horizontal_border(*this);
   }
 
   int Style::total_height() const
   {
     int mar = margin ? margin->t + margin->b : 0;
-    int pad = padding ? padding->t + padding->b : 0;
-    int bord = border ? border->top_thickness() + border->bottom_thickness() : 0;
-    int content_height = height && height->is_fixed() ? height->fixed_value_or(0) : 0;
-    return content_height + mar + pad + bord;
+    int fixed_height = height && height->is_fixed() ? height->fixed_value_or(0) : 0;
+    if (!uses_content_box_sizing(*this)) return fixed_height + mar;
+
+    return fixed_height + mar + vertical_padding(*this) + vertical_border(*this);
   }
 
   Rect Style::content_rect(const Rect& bounds) const
@@ -300,6 +329,7 @@ namespace Pixils::UI
     if (variant.padding) out.padding = variant.padding;
     if (variant.border) out.border = variant.border;
     if (variant.text) apply_text_variant(out, *variant.text);
+    if (variant.box_sizing) out.box_sizing = variant.box_sizing;
     if (variant.width) out.width = variant.width;
     if (variant.height) out.height = variant.height;
     if (variant.position) out.position = variant.position;

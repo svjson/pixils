@@ -187,6 +187,7 @@ namespace Pixils::Script
                                              {"padding", &HostType::STYLE_INSETS},
                                              {"layout", &HostType::STYLE_LAYOUT},
                                              {"text", &HostType::STYLE_TEXT},
+                                             {"box-sizing", &Lisple::Type::KEY},
                                              {"width", &Lisple::Type::ANY},
                                              {"height", &Lisple::Type::ANY},
                                              {"position", &Lisple::Type::KEY},
@@ -204,6 +205,18 @@ namespace Pixils::Script
       style->border = opts.optional_obj<UI::Style::BorderStyle>("border");
       style->layout = opts.optional_obj<UI::Style::Layout>("layout");
       style->text = opts.optional_obj<UI::Style::Text>("text");
+      if (opts.contains("box-sizing"))
+      {
+        auto box_sizing = opts.str("box-sizing");
+        if (box_sizing == "content-box")
+        {
+          style->box_sizing = UI::Style::BoxSizing::CONTENT_BOX;
+        }
+        else
+        {
+          style->box_sizing = UI::Style::BoxSizing::BORDER_BOX;
+        }
+      }
 
       if (opts.contains("width")) style->width = parse_size(opts.val("width"));
       if (opts.contains("height")) style->height = parse_size(opts.val("height"));
@@ -282,9 +295,9 @@ namespace Pixils::Script
     static void apply_border_props(UI::Style::Border& border,
                                    Lisple::MapSchema::Inspector& opts)
     {
-      if (auto thickness = opts.i32("thickness", -1); thickness > 0)
+      if (opts.contains("thickness"))
       {
-        border.thickness = thickness;
+        border.thickness = opts.i32("thickness");
       }
       if (auto line_style = opts.val("line-style"); *line_style != *Lisple::Constant::NIL)
       {
@@ -431,6 +444,7 @@ namespace Pixils::Script
                       (border),
                       (padding),
                       (text),
+                      (box_sizing),
                       (width),
                       (height),
                       (position),
@@ -479,6 +493,15 @@ namespace Pixils::Script
   {
     return get_self_object().text ? StyleTextAdapter::make_ref(*get_self_object().text)
                                   : Lisple::Constant::NIL;
+  }
+
+  NOBJ_PROP_GET(StyleAdapter, box_sizing)
+  {
+    if (!get_self_object().box_sizing) return Lisple::Constant::NIL;
+    return Lisple::RTValue::keyword(*get_self_object().box_sizing ==
+                                        UI::Style::BoxSizing::CONTENT_BOX
+                                      ? "content-box"
+                                      : "border-box");
   }
 
   NOBJ_PROP_GET(StyleAdapter, width)

@@ -33,6 +33,12 @@ namespace Pixils::UI
 
   struct Style
   {
+    enum class BoxSizing : uint8_t
+    {
+      BORDER_BOX,
+      CONTENT_BOX,
+    };
+
     struct Background
     {
       Background();
@@ -202,16 +208,17 @@ namespace Pixils::UI
     std::optional<Insets> padding = std::nullopt;
     std::optional<BorderStyle> border = std::nullopt;
     std::optional<Text> text = std::nullopt;
+    std::optional<BoxSizing> box_sizing = std::nullopt;
 
     /**
-     * Content surface size. Absent means fill remaining space. When
-     * set, this provides the preferred width/height for the inner
-     * (content) dimensions of an associated view.
+     * Preferred size. For fixed numeric values, interpretation depends on
+     * box_sizing: border-box by default, or content-box when explicitly set.
+     * Absent means fill remaining space.
      */
     std::optional<Size> width;
     std::optional<Size> height;
 
-    /** Outer (total) dimensions: content size plus padding and border. */
+    /** Outer flow dimensions: view box plus margins. */
     int total_width() const;
     int total_height() const;
 
