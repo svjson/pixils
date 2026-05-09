@@ -1,6 +1,7 @@
 
 #include "../fixture.h"
-#include "pixils/binding/style_namespace.h"
+#include "pixils/binding/ui/style/style_adapter.h"
+#include "pixils/binding/ui/style/style_host_type.h"
 #include <pixils/runtime/mode.h>
 #include <pixils/ui/style.h>
 

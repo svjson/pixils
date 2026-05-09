@@ -3,7 +3,7 @@
 #include <pixils/asset/registry.h>
 #include <pixils/binding/mode_definition.h>
 #include <pixils/binding/pixils_namespace.h>
-#include <pixils/binding/style_namespace.h>
+#include <pixils/binding/ui/style/style_host_type.h>
 #include <pixils/context.h>
 #include <pixils/runtime/hook_invocation.h>
 #include <pixils/runtime/mode.h>

@@ -1,7 +1,7 @@
-#include "pixils/binding/theme_definition.h"
+#include "pixils/binding/ui/style/theme_definition.h"
 
 #include <pixils/binding/pixils_namespace.h>
-#include <pixils/binding/style_namespace.h>
+#include <pixils/binding/ui/style/style_host_type.h>
 #include <pixils/ui/theme.h>
 
 #include <lisple/context.h>

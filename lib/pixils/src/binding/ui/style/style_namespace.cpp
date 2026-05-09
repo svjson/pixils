@@ -1,71 +1,27 @@
-
 #include "pixils/binding/ui/style/style_namespace.h"
 
 #include <pixils/binding/color_namespace.h>
+#include <pixils/binding/ui/style/style_adapter.h>
+#include <pixils/binding/ui/style/style_constant.h>
+#include <pixils/binding/ui/style/style_definition.h>
 #include <pixils/binding/ui/style/style_host_type.h>
-#include <pixils/ui/style.h>
 
-#include <lisple/host/accessor.h>
-#include <lisple/host/object.h>
-#include <lisple/host/schema.h>
-#include <lisple/runtime/seq.h>
+#include <lisple/exec.h>
 #include <lisple/runtime/value.h>
-#include <lisple/type.h>
 
 namespace Pixils::Script
 {
-
   namespace Function
   {
-    static std::optional<UI::Style::Size> parse_size(const Lisple::sptr_rtval& value)
-    {
-      if (!value || *value == *Lisple::Constant::NIL) return std::nullopt;
+    FUNC(MakeBorder, make);
+    FUNC(MakeBorderStyle, make);
+    FUNC(MakeStyle, make);
+    FUNC(MakeLayout, make);
+    FUNC(MakeLayoutGap, make, make_key, make_num);
+    FUNC(MakeText, make);
+    FUNC(MakeBackground, make_color, make_image, make_map);
+    FUNC(MakeInsets, make_num, make_map, make_vec);
 
-      switch (value->type)
-      {
-      case Lisple::RTValue::Type::NUMBER:
-      {
-        UI::Style::Size size(value->num().get_int());
-        return size;
-      }
-      case Lisple::RTValue::Type::KEYWORD:
-      {
-        auto size_mode = value->str();
-        if (size_mode == "fill") return UI::Style::Size(UI::Style::Size::Mode::FILL);
-        if (size_mode == "shrink") return UI::Style::Size(UI::Style::Size::Mode::SHRINK);
-        if (size_mode == "auto") return UI::Style::Size(UI::Style::Size::Mode::AUTO);
-        return std::nullopt;
-      }
-      default:
-        return std::nullopt;
-      }
-    }
-
-    static std::optional<UI::Style::Trim> parse_trim(const Lisple::sptr_rtval& value)
-    {
-      if (*value == *Lisple::Constant::NIL) return std::nullopt;
-
-      switch (value->type)
-      {
-      case Lisple::RTValue::Type::NUMBER:
-        return UI::Style::Trim{value->num().get_int()};
-      case Lisple::RTValue::Type::VECTOR:
-        switch (Lisple::count(*value))
-        {
-        case 1:
-          return UI::Style::Trim{Lisple::get_child(*value, 0)->num().get_int()};
-        case 2:
-          return UI::Style::Trim{Lisple::get_child(*value, 0)->num().get_int(),
-                                 Lisple::get_child(*value, 1)->num().get_int()};
-        default:
-          return std::nullopt;
-        }
-      default:
-        return std::nullopt;
-      }
-    }
-
-    /** MakeStyle - make-style */
     FUNC_IMPL(MakeStyle,
               SIG((FN_ARGS((&Lisple::Type::MAP)), EXEC_DISPATCH(&MakeStyle::exec_make))));
 
@@ -85,35 +41,8 @@ namespace Pixils::Script
 
     EXEC_BODY(MakeLayoutGap, exec_make)
     {
-      static Lisple::MapSchema gap_schema(
-        {},
-        {{"mode", &Lisple::Type::KEY}, {"size", &Lisple::Type::NUMBER}});
-
-      auto gap = std::make_unique<UI::Style::Layout::Gap>();
-      auto opts = gap_schema.bind(ctx, *args[0]);
-
-      if (opts.contains("mode"))
-      {
-        auto mode_str = opts.str("mode");
-        if (mode_str == "none")
-        {
-          gap->mode = UI::Style::Layout::GapMode::NONE;
-        }
-        else if (mode_str == "fixed")
-        {
-          gap->mode = UI::Style::Layout::GapMode::FIXED;
-        }
-        if (mode_str == "space-between")
-        {
-          gap->mode = UI::Style::Layout::GapMode::SPACE_BETWEEN;
-        }
-      }
-
-      if (opts.contains("size"))
-      {
-        gap->size = opts.i32("size");
-      }
-
+      auto gap = StyleDefinition::build_layout_gap(ctx, args[0]);
+      if (!gap) return Lisple::Constant::NIL;
       return LayoutGapAdapter::claim(std::move(gap));
     }
 
@@ -121,7 +50,6 @@ namespace Pixils::Script
     {
       Lisple::sptr_rtval_v make_args{
         Lisple::RTValue::map({Lisple::RTValue::keyword("mode"), args[0]})};
-
       return exec_make(ctx, make_args);
     }
 
@@ -131,121 +59,30 @@ namespace Pixils::Script
                                                            Lisple::RTValue::keyword("fixed"),
                                                            Lisple::RTValue::keyword("size"),
                                                            args[0]})};
-
       return exec_make(ctx, make_args);
     }
 
     EXEC_BODY(MakeText, exec_make)
     {
-      static Lisple::MapSchema text_schema({},
-                                           {{"color", &HostType::COLOR},
-                                            {"font", &Lisple::Type::KEY},
-                                            {"scale", &Lisple::Type::NUMBER}});
-
-      auto text = std::make_unique<UI::Style::Text>();
-      auto opts = text_schema.bind(ctx, *args[0]);
-
-      text->color = opts.optional_obj<Color>("color");
-      if (opts.contains("font")) text->font = opts.str("font");
-      if (opts.contains("scale")) text->scale = opts.i32("scale");
-
+      auto text = StyleDefinition::build_text(ctx, args[0]);
+      if (!text) return Lisple::Constant::NIL;
       return StyleTextAdapter::claim(std::move(text));
     }
 
     EXEC_BODY(MakeLayout, exec_make)
     {
-      static Lisple::MapSchema layout_schema(
-        {},
-        {{"direction", &Lisple::Type::KEY}, {"gap", &HostType::STYLE_LAYOUT_GAP}});
-
-      auto layout = std::make_unique<UI::Style::Layout>();
-      auto opts = layout_schema.bind(ctx, *args[0]);
-
-      if (opts.contains("direction"))
-      {
-        auto dir_str = opts.str("direction");
-        if (dir_str == "row")
-        {
-          layout->direction = UI::LayoutDirection::ROW;
-        }
-        else
-        {
-          layout->direction = UI::LayoutDirection::COLUMN;
-        }
-      }
-
-      layout->gap = opts.optional_obj<UI::Style::Layout::Gap>("gap");
-
+      auto layout = StyleDefinition::build_layout(ctx, args[0]);
+      if (!layout) return Lisple::Constant::NIL;
       return LayoutAdapter::claim(std::move(layout));
     }
 
     EXEC_BODY(MakeStyle, exec_make)
     {
-      static Lisple::MapSchema style_schema({},
-                                            {{"background", &HostType::STYLE_BACKGROUND},
-                                             {"margin", &HostType::STYLE_INSETS},
-                                             {"border", &HostType::BORDER_STYLE},
-                                             {"padding", &HostType::STYLE_INSETS},
-                                             {"layout", &HostType::STYLE_LAYOUT},
-                                             {"text", &HostType::STYLE_TEXT},
-                                             {"box-sizing", &Lisple::Type::KEY},
-                                             {"width", &Lisple::Type::ANY},
-                                             {"height", &Lisple::Type::ANY},
-                                             {"position", &Lisple::Type::KEY},
-                                             {"top", &Lisple::Type::NUMBER},
-                                             {"left", &Lisple::Type::NUMBER},
-                                             {"hidden", &Lisple::Type::ANY},
-                                             {"hover", &HostType::STYLE}});
-
-      auto style = std::make_unique<UI::Style>();
-      auto opts = style_schema.bind(ctx, *args[0]);
-
-      style->background = opts.optional_obj<UI::Style::Background>("background");
-      style->margin = opts.optional_obj<UI::Style::Insets>("margin");
-      style->padding = opts.optional_obj<UI::Style::Insets>("padding");
-      style->border = opts.optional_obj<UI::Style::BorderStyle>("border");
-      style->layout = opts.optional_obj<UI::Style::Layout>("layout");
-      style->text = opts.optional_obj<UI::Style::Text>("text");
-      if (opts.contains("box-sizing"))
-      {
-        auto box_sizing = opts.str("box-sizing");
-        if (box_sizing == "content-box")
-        {
-          style->box_sizing = UI::Style::BoxSizing::CONTENT_BOX;
-        }
-        else
-        {
-          style->box_sizing = UI::Style::BoxSizing::BORDER_BOX;
-        }
-      }
-
-      if (opts.contains("width")) style->width = parse_size(opts.val("width"));
-      if (opts.contains("height")) style->height = parse_size(opts.val("height"));
-      if (opts.contains("top")) style->top = opts.i32("top");
-      if (opts.contains("left")) style->left = opts.i32("left");
-
-      if (opts.contains("position"))
-      {
-        auto pos_str = opts.str("position");
-        if (pos_str == "absolute")
-        {
-          style->position = UI::PositionMode::ABSOLUTE;
-        }
-        else
-        {
-          style->position = UI::PositionMode::FLOW;
-        }
-      }
-
-      if (opts.contains("hidden")) style->hidden = Lisple::is_truthy(*opts.val("hidden"));
-
-      auto hover_style = opts.optional_obj<UI::Style>("hover");
-      if (hover_style) style->hover = std::make_unique<UI::Style>(*hover_style);
-
+      auto style = StyleDefinition::build_style(ctx, args[0]);
+      if (!style) return Lisple::Constant::NIL;
       return StyleAdapter::claim(std::move(style));
     }
 
-    /** MakeBackground - make-background */
     FUNC_IMPL(MakeBackground,
               MULTI_SIG((FN_ARGS((&HostType::COLOR)),
                          EXEC_DISPATCH(&MakeBackground::exec_make_color)),
@@ -256,118 +93,46 @@ namespace Pixils::Script
 
     EXEC_BODY(MakeBackground, exec_make_color)
     {
-      return BackgroundAdapter::make_unique(Lisple::obj<Color>(*args[0]));
+      auto bg = StyleDefinition::build_background(ctx, args[0]);
+      if (!bg) return Lisple::Constant::NIL;
+      return BackgroundAdapter::claim(std::move(bg));
     }
 
     EXEC_BODY(MakeBackground, exec_make_image)
     {
-      return BackgroundAdapter::make_unique(args[0]->qual());
-    }
-    EXEC_BODY(MakeBackground, exec_make_map)
-    {
-      if (Lisple::Dict::contains_key(*args[0], "r"))
-      {
-        auto cres = HostType::COLOR.coerce(ctx, args[0]);
-        if (cres.success)
-        {
-          Lisple::sptr_rtval_v cargs = {cres.result};
-          return exec_make_color(ctx, cargs);
-        }
-      }
-      static Lisple::MapSchema background_schema(
-        {},
-        {{"color", &HostType::COLOR}, {"image", &Lisple::Type::KEY}});
-
-      auto bg = std::make_unique<UI::Style::Background>();
-
-      auto opts = background_schema.bind(ctx, *args[0]);
-      bg->color = opts.optional_obj<Color>("color");
-
-      auto img_key = opts.val("image");
-      if (img_key->type != Lisple::RTValue::Type::NIL)
-      {
-        bg->image = img_key->qual();
-      }
-
+      auto bg = StyleDefinition::build_background(ctx, args[0]);
+      if (!bg) return Lisple::Constant::NIL;
       return BackgroundAdapter::claim(std::move(bg));
     }
 
-    /** Border/BorderStyle common props */
-    static void apply_border_props(UI::Style::Border& border,
-                                   Lisple::MapSchema::Inspector& opts)
+    EXEC_BODY(MakeBackground, exec_make_map)
     {
-      if (opts.contains("thickness"))
-      {
-        border.thickness = opts.i32("thickness");
-      }
-      if (auto line_style = opts.val("line-style"); *line_style != *Lisple::Constant::NIL)
-      {
-        auto lstyle = line_style->str();
-        if (lstyle == "solid")
-        {
-          border.line_style = UI::Style::LineStyle::SOLID;
-        }
-        else if (lstyle == "bevel")
-        {
-          border.line_style = UI::Style::LineStyle::BEVEL;
-        }
-      }
-      border.color = opts.optional_obj<Color>("color");
-      border.trim = parse_trim(opts.val("trim"));
+      auto bg = StyleDefinition::build_background(ctx, args[0]);
+      if (!bg) return Lisple::Constant::NIL;
+      return BackgroundAdapter::claim(std::move(bg));
     }
 
-    /** MakeBorder - make-border */
     FUNC_IMPL(MakeBorder,
               SIG((FN_ARGS((&Lisple::Type::MAP)), EXEC_DISPATCH(&MakeBorder::exec_make))));
 
     EXEC_BODY(MakeBorder, exec_make)
     {
-      static Lisple::MapSchema border_schema({},
-                                             {{"thickness", &Lisple::Type::NUMBER},
-                                              {"line-style", &Lisple::Type::KEY},
-                                              {"color", &HostType::COLOR},
-                                              {"trim", &Lisple::Type::ANY}});
-
-      auto opts = border_schema.bind(ctx, *args[0]);
-
-      std::unique_ptr<UI::Style::Border> border = std::make_unique<UI::Style::Border>();
-      apply_border_props(*border, opts);
-
+      auto border = StyleDefinition::build_border(ctx, args[0]);
+      if (!border) return Lisple::Constant::NIL;
       return BorderAdapter::claim(std::move(border));
     }
 
-    /** MakeBorderStyle - make-border */
     FUNC_IMPL(MakeBorderStyle,
               SIG((FN_ARGS((&Lisple::Type::MAP)),
                    EXEC_DISPATCH(&MakeBorderStyle::exec_make))));
 
     EXEC_BODY(MakeBorderStyle, exec_make)
     {
-      static Lisple::MapSchema border_style_schema({},
-                                                   {{"thickness", &Lisple::Type::NUMBER},
-                                                    {"line-style", &Lisple::Type::KEY},
-                                                    {"color", &HostType::COLOR},
-                                                    {"trim", &Lisple::Type::ANY},
-                                                    {"top", &HostType::BORDER},
-                                                    {"right", &HostType::BORDER},
-                                                    {"bottom", &HostType::BORDER},
-                                                    {"left", &HostType::BORDER}});
-
-      auto opts = border_style_schema.bind(ctx, *args[0]);
-
-      std::unique_ptr<UI::Style::BorderStyle> border =
-        std::make_unique<UI::Style::BorderStyle>();
-      apply_border_props(*border, opts);
-
-      border->t = opts.optional_obj<UI::Style::Border>("top");
-      border->r = opts.optional_obj<UI::Style::Border>("right");
-      border->b = opts.optional_obj<UI::Style::Border>("bottom");
-      border->l = opts.optional_obj<UI::Style::Border>("left");
-
+      auto border = StyleDefinition::build_border_style(ctx, args[0]);
+      if (!border) return Lisple::Constant::NIL;
       return BorderStyleAdapter::claim(std::move(border));
     }
 
-    /** MakeInsets - make-insets */
     FUNC_IMPL(MakeInsets,
               MULTI_SIG((FN_ARGS((&Lisple::Type::NUMBER)),
                          EXEC_DISPATCH(&MakeInsets::exec_make_num)),
@@ -378,446 +143,28 @@ namespace Pixils::Script
 
     EXEC_BODY(MakeInsets, exec_make_map)
     {
-      static Lisple::MapSchema padding_map_schema({},
-                                                  {{"t", &Lisple::Type::NUMBER},
-                                                   {"r", &Lisple::Type::NUMBER},
-                                                   {"b", &Lisple::Type::NUMBER},
-                                                   {"l", &Lisple::Type::NUMBER}});
-
-      auto opts = padding_map_schema.bind(ctx, *args[0]);
-
-      std::unique_ptr<UI::Style::Insets> padding = std::make_unique<UI::Style::Insets>();
-      padding->t = opts.i32("t", 0);
-      padding->r = opts.i32("r", 0);
-      padding->b = opts.i32("b", 0);
-      padding->l = opts.i32("l", 0);
-
-      return InsetsAdapter::claim(std::move(padding));
+      auto insets = StyleDefinition::build_insets(ctx, args[0]);
+      if (!insets) return Lisple::Constant::NIL;
+      return InsetsAdapter::claim(std::move(insets));
     }
 
     EXEC_BODY(MakeInsets, exec_make_num)
     {
-      int p = args.front()->num().get_int();
-
-      std::unique_ptr<UI::Style::Insets> padding = std::make_unique<UI::Style::Insets>();
-      padding->t = p;
-      padding->r = p;
-      padding->b = p;
-      padding->l = p;
-
-      return InsetsAdapter::claim(std::move(padding));
+      auto insets = StyleDefinition::build_insets(ctx, args[0]);
+      if (!insets) return Lisple::Constant::NIL;
+      return InsetsAdapter::claim(std::move(insets));
     }
 
     EXEC_BODY(MakeInsets, exec_make_vec)
     {
-      int t = 0, r = 0, b = 0, l = 0;
-
-      switch (Lisple::count(*args[0]))
-      {
-      case 1:
-        t = r = b = l = Lisple::get_child(*args[0], 0)->num().get_int();
-        break;
-      case 2:
-        t = b = Lisple::get_child(*args[0], 0)->num().get_int();
-        r = l = Lisple::get_child(*args[0], 1)->num().get_int();
-        break;
-      case 4:
-        t = Lisple::get_child(*args[0], 0)->num().get_int();
-        r = Lisple::get_child(*args[0], 1)->num().get_int();
-        b = Lisple::get_child(*args[0], 2)->num().get_int();
-        l = Lisple::get_child(*args[0], 3)->num().get_int();
-        break;
-      default:
-        return Lisple::Constant::NIL;
-      };
-
-      return InsetsAdapter::make_unique(t, r, b, l);
+      auto insets = StyleDefinition::build_insets(ctx, args[0]);
+      if (!insets) return Lisple::Constant::NIL;
+      return InsetsAdapter::claim(std::move(insets));
     }
-
   } // namespace Function
 
-  /** StyleAdapter */
-  NATIVE_ADAPTER_IMPL(StyleAdapter,
-                      UI::Style,
-                      &HostType::STYLE,
-                      (background),
-                      (margin),
-                      (border),
-                      (padding),
-                      (text),
-                      (box_sizing),
-                      (rw, "width", width),
-                      (rw, "height", height),
-                      (rw, "position", position),
-                      (rw, "top", top),
-                      (rw, "left", left),
-                      (layout),
-                      (rw, "hidden", hidden),
-                      (hover))
-
-  NOBJ_PROP_GET(StyleAdapter, background)
-  {
-    if (!get_self_object().background) return Lisple::Constant::NIL;
-    if (get_self_object().background->color && get_self_object().background->image)
-      return BackgroundAdapter::make_ref(*get_self_object().background);
-    if (get_self_object().background->color)
-      return ColorAdapter::make_ref(*get_self_object().background->color);
-    if (get_self_object().background->image)
-      return BackgroundAdapter(*get_self_object().background).get_image();
-    return Lisple::Constant::NIL;
-  }
-
-  NOBJ_PROP_GET(StyleAdapter, margin)
-  {
-    return get_self_object().margin ? InsetsAdapter::make_ref(*get_self_object().margin)
-                                    : Lisple::Constant::NIL;
-  }
-
-  NOBJ_PROP_GET(StyleAdapter, border)
-  {
-    auto& style = get_self_object();
-    if (!style.border)
-    {
-      return Lisple::Constant::NIL;
-    }
-
-    return BorderStyleAdapter::make_ref(*style.border);
-  }
-
-  NOBJ_PROP_GET(StyleAdapter, padding)
-  {
-    return get_self_object().padding ? InsetsAdapter::make_ref(*get_self_object().padding)
-                                     : Lisple::Constant::NIL;
-  }
-
-  NOBJ_PROP_GET(StyleAdapter, text)
-  {
-    return get_self_object().text ? StyleTextAdapter::make_ref(*get_self_object().text)
-                                  : Lisple::Constant::NIL;
-  }
-
-  NOBJ_PROP_GET(StyleAdapter, box_sizing)
-  {
-    if (!get_self_object().box_sizing) return Lisple::Constant::NIL;
-    return Lisple::RTValue::keyword(
-      *get_self_object().box_sizing == UI::Style::BoxSizing::CONTENT_BOX ? "content-box"
-                                                                         : "border-box");
-  }
-
-  NOBJ_PROP_GET(StyleAdapter, width)
-  {
-    if (!get_self_object().width) return Lisple::Constant::NIL;
-    const auto& width = *get_self_object().width;
-    if (width.is_fixed()) return Lisple::RTValue::number(width.fixed_value_or(0));
-    if (width.is_fill()) return Lisple::RTValue::keyword("fill");
-    if (width.is_shrink()) return Lisple::RTValue::keyword("shrink");
-    return Lisple::RTValue::keyword("auto");
-  }
-
-  NOBJ_PROP_SET(StyleAdapter, width)
-  {
-    auto size_opt = Function::parse_size(value);
-    if (size_opt)
-    {
-      get_self_object().width = *size_opt;
-    }
-    else
-    {
-      get_self_object().width.reset();
-    }
-  }
-
-  NOBJ_PROP_GET(StyleAdapter, height)
-  {
-    if (!get_self_object().height) return Lisple::Constant::NIL;
-    const auto& height = *get_self_object().height;
-    if (height.is_fixed()) return Lisple::RTValue::number(height.fixed_value_or(0));
-    if (height.is_fill()) return Lisple::RTValue::keyword("fill");
-    if (height.is_shrink()) return Lisple::RTValue::keyword("shrink");
-    return Lisple::RTValue::keyword("auto");
-  }
-
-  NOBJ_PROP_SET(StyleAdapter, height)
-  {
-    auto size_opt = Function::parse_size(value);
-    if (size_opt)
-    {
-      get_self_object().height = *size_opt;
-    }
-    else
-    {
-      get_self_object().height.reset();
-    }
-  }
-
-  NOBJ_PROP_GET(StyleAdapter, position)
-  {
-    if (!get_self_object().position) return Lisple::Constant::NIL;
-    return Lisple::RTValue::keyword(
-      *get_self_object().position == UI::PositionMode::ABSOLUTE ? "absolute" : "flow");
-  }
-
-  NOBJ_PROP_SET(StyleAdapter, position)
-  {
-    if (value->type != Lisple::RTValue::Type::KEYWORD)
-    {
-      get_self_object().position.reset();
-    }
-    else
-    {
-      auto pos_str = value->str();
-      if (pos_str == "absolute")
-      {
-        get_self_object().position = UI::PositionMode::ABSOLUTE;
-      }
-      else if (pos_str == "flow")
-      {
-        get_self_object().position = UI::PositionMode::FLOW;
-      }
-      else
-      {
-        get_self_object().position.reset();
-      }
-    }
-  }
-
-  NOBJ_PROP_GET(StyleAdapter, top)
-  {
-    return get_self_object().top ? Lisple::RTValue::number(*get_self_object().top)
-                                 : Lisple::Constant::NIL;
-  }
-
-  NOBJ_PROP_SET(StyleAdapter, top)
-  {
-    if (value->type != Lisple::RTValue::Type::NUMBER)
-    {
-      get_self_object().top.reset();
-    }
-    else
-    {
-      get_self_object().top = value->num().get_int();
-    }
-  }
-
-  NOBJ_PROP_GET(StyleAdapter, left)
-  {
-    return get_self_object().left ? Lisple::RTValue::number(*get_self_object().left)
-                                  : Lisple::Constant::NIL;
-  }
-
-  NOBJ_PROP_SET(StyleAdapter, left)
-  {
-    if (value->type != Lisple::RTValue::Type::NUMBER)
-    {
-      get_self_object().left.reset();
-    }
-    else
-    {
-      get_self_object().left = value->num().get_int();
-    }
-  }
-
-  NOBJ_PROP_GET(StyleAdapter, layout)
-  {
-    return get_self_object().layout ? LayoutAdapter::make_ref(*get_self_object().layout)
-                                    : Lisple::Constant::NIL;
-  }
-
-  NOBJ_PROP_GET(StyleAdapter, hidden)
-  {
-    auto& h = get_self_object().hidden;
-    if (!h) return Lisple::Constant::NIL;
-    return *h ? Lisple::Constant::BOOL_TRUE : Lisple::Constant::BOOL_FALSE;
-  }
-
-  NOBJ_PROP_SET(StyleAdapter, hidden)
-  {
-    if (value->type != Lisple::RTValue::Type::BOOL)
-    {
-      get_self_object().hidden.reset();
-    }
-    else
-    {
-      get_self_object().hidden = Lisple::is_truthy(*value);
-    }
-  }
-
-  NOBJ_PROP_GET(StyleAdapter, hover)
-  {
-    return get_self_object().hover ? StyleAdapter::make_ref(*get_self_object().hover)
-                                   : Lisple::Constant::NIL;
-  }
-
-  /** LayoutAdapter */
-  NATIVE_ADAPTER_IMPL(LayoutAdapter,
-                      UI::Style::Layout,
-                      &HostType::STYLE_LAYOUT,
-                      (direction),
-                      (gap));
-
-  NOBJ_PROP_GET(LayoutAdapter, direction)
-  {
-    if (!get_self_object().direction) return Lisple::Constant::NIL;
-    return Lisple::RTValue::keyword(
-      *get_self_object().direction == UI::LayoutDirection::ROW ? "row" : "column");
-  }
-
-  NOBJ_PROP_GET(LayoutAdapter, gap)
-  {
-    return get_self_object().gap ? LayoutGapAdapter::make_ref(*get_self_object().gap)
-                                 : Lisple::Constant::NIL;
-  }
-
-  /** LayoutGapAdapter */
-  NATIVE_ADAPTER_IMPL(LayoutGapAdapter,
-                      UI::Style::Layout::Gap,
-                      &HostType::STYLE_LAYOUT_GAP,
-                      (mode),
-                      (size));
-
-  NOBJ_PROP_GET(LayoutGapAdapter, mode)
-  {
-    if (!get_self_object().mode) return Lisple::Constant::NIL;
-    switch (*get_self_object().mode)
-    {
-    case UI::Style::Layout::GapMode::NONE:
-      return Lisple::RTValue::keyword("none");
-    case UI::Style::Layout::GapMode::FIXED:
-      return Lisple::RTValue::keyword("fixed");
-    case UI::Style::Layout::GapMode::SPACE_BETWEEN:
-      return Lisple::RTValue::keyword("space-between");
-    }
-    return Lisple::Constant::NIL;
-  }
-
-  NOBJ_PROP_GET(LayoutGapAdapter, size)
-  {
-    return get_self_object().size ? Lisple::RTValue::number(*get_self_object().size)
-                                  : Lisple::Constant::NIL;
-  }
-
-  /** StyleTextAdapter */
-  NATIVE_ADAPTER_IMPL(StyleTextAdapter,
-                      UI::Style::Text,
-                      &HostType::STYLE_TEXT,
-                      (color),
-                      (font),
-                      (scale));
-
-  NOBJ_PROP_GET(StyleTextAdapter, color)
-  {
-    return get_self_object().color ? ColorAdapter::make_ref(*get_self_object().color)
-                                   : Lisple::Constant::NIL;
-  }
-
-  NOBJ_PROP_GET(StyleTextAdapter, font)
-  {
-    return get_self_object().font ? Lisple::RTValue::keyword(*get_self_object().font)
-                                  : Lisple::Constant::NIL;
-  }
-
-  NOBJ_PROP_GET(StyleTextAdapter, scale)
-  {
-    return get_self_object().scale ? Lisple::RTValue::number(*get_self_object().scale)
-                                   : Lisple::Constant::NIL;
-  }
-
-  /** ThemeAdapter */
-  NATIVE_ADAPTER_IMPL(ThemeAdapter, UI::Theme, &HostType::THEME, (name));
-
-  NOBJ_PROP_GET__FIELD(ThemeAdapter, name);
-
-  /** BackgroundAdapter */
-  NATIVE_ADAPTER_IMPL(BackgroundAdapter,
-                      UI::Style::Background,
-                      &HostType::STYLE_BACKGROUND,
-                      (color),
-                      (image));
-
-  NOBJ_PROP_GET(BackgroundAdapter, image)
-  {
-    return get_self_object().image
-             ? Lisple::RTValue::keyword(get_self_object().image->first + "/" +
-                                        get_self_object().image->second)
-             : Lisple::Constant::NIL;
-  }
-
-  NOBJ_PROP_GET(BackgroundAdapter, color)
-  {
-    return get_self_object().color ? ColorAdapter ::make_ref(*get_self_object().color)
-                                   : Lisple::Constant::NIL;
-  };
-
-  /** BorderAdapter */
-  NATIVE_ADAPTER_IMPL(BorderAdapter,
-                      UI::Style::Border,
-                      &HostType::BORDER,
-                      (thickness),
-                      ("line-style", line_style),
-                      (color),
-                      (trim));
-
-  NOBJ_PROP_GET(BorderAdapter, thickness)
-  {
-    return get_self_object().thickness
-             ? Lisple::RTValue::number(*get_self_object().thickness)
-             : Lisple::Constant::NIL;
-  }
-
-  NOBJ_PROP_GET(BorderAdapter, line_style)
-  {
-    if (!get_self_object().line_style) return Lisple::Constant::NIL;
-    switch (*get_self_object().line_style)
-    {
-    case UI::Style::LineStyle::SOLID:
-      return Lisple::RTValue::keyword("solid");
-    case UI::Style::LineStyle::BEVEL:
-      return Lisple::RTValue::keyword("bevel");
-    }
-    return Lisple::Constant::NIL;
-  }
-
-  NOBJ_PROP_GET_OPT_ADAPTER__FIELD(BorderAdapter, color, ColorAdapter);
-
-  NOBJ_PROP_GET(BorderAdapter, trim)
-  {
-    if (!get_self_object().trim) return Lisple::Constant::NIL;
-
-    return Lisple::RTValue::vector({Lisple::RTValue::number(get_self_object().trim->start),
-                                    Lisple::RTValue::number(get_self_object().trim->end)});
-  }
-
-  /** BorderStyleAdapter */
-  NATIVE_SUB_ADAPTER_IMPL(BorderAdapter,
-                          UI::Style::Border,
-                          (BorderStyleAdapter, UI::Style::BorderStyle),
-                          &HostType::BORDER_STYLE,
-                          ("top", t),
-                          ("right", r),
-                          ("bottom", b),
-                          ("left", l))
-
-  NOBJ_PROP_GET_OPT_ADAPTER__FIELD(BorderStyleAdapter, t, BorderAdapter);
-  NOBJ_PROP_GET_OPT_ADAPTER__FIELD(BorderStyleAdapter, r, BorderAdapter);
-  NOBJ_PROP_GET_OPT_ADAPTER__FIELD(BorderStyleAdapter, b, BorderAdapter);
-  NOBJ_PROP_GET_OPT_ADAPTER__FIELD(BorderStyleAdapter, l, BorderAdapter);
-
-  /** InsetsAdapter */
-  NATIVE_ADAPTER_IMPL(InsetsAdapter,
-                      UI::Style::Insets,
-                      &HostType::STYLE_INSETS,
-                      ("top", t),
-                      ("right", r),
-                      ("bottom", b),
-                      ("left", l));
-
-  NOBJ_PROP_GET__FIELD(InsetsAdapter, t);
-  NOBJ_PROP_GET__FIELD(InsetsAdapter, r);
-  NOBJ_PROP_GET__FIELD(InsetsAdapter, b);
-  NOBJ_PROP_GET__FIELD(InsetsAdapter, l);
-
   StyleNamespace::StyleNamespace()
-    : Lisple::Namespace("pixils.ui.style")
+    : Lisple::Namespace(std::string(NS__PIXILS__UI__STYLE))
   {
     values.emplace("make-border", Function::MakeBorder::make());
     values.emplace("make-border-style", Function::MakeBorderStyle::make());
@@ -828,5 +175,4 @@ namespace Pixils::Script
     values.emplace("make-background", Function::MakeBackground::make());
     values.emplace("make-insets", Function::MakeInsets::make());
   }
-
 } // namespace Pixils::Script

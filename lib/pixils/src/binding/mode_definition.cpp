@@ -3,7 +3,7 @@
 
 #include <pixils/binding/pixils_namespace.h>
 #include <pixils/binding/resource_namespace.h>
-#include <pixils/binding/style_namespace.h>
+#include <pixils/binding/ui/style/style_host_type.h>
 #include <pixils/runtime/state.h>
 #include <pixils/ui/style.h>
 
