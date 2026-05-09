@@ -1,8 +1,9 @@
 
-#include "pixils/binding/style_namespace.h"
+#include "pixils/binding/ui/style/style_namespace.h"
 
-#include "pixils/binding/color_namespace.h"
-#include "pixils/ui/style.h"
+#include <pixils/binding/color_namespace.h>
+#include <pixils/binding/ui/style/style_host_type.h>
+#include <pixils/ui/style.h>
 
 #include <lisple/host/accessor.h>
 #include <lisple/host/object.h>

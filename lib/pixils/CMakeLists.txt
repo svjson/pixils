@@ -11,6 +11,7 @@ file(GLOB pixils_SOURCES CONFIGURE_DEPENDS
   src/asset/*.cpp
   src/binding/*.cpp
   src/binding/ui/*.cpp
+  src/binding/ui/style/*.cpp
   src/runtime/*.cpp
   src/state/*.cpp
   src/ui/*.cpp
