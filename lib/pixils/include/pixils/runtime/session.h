@@ -40,6 +40,7 @@ namespace Pixils::Runtime
     std::vector<ModeFrameMetadata> frame_metadata;
     HookArguments hook_args;
     UI::MouseState mouse_state;
+    bool quit_requested = false;
 
     Session(Lisple::Runtime& lisple_runtime,
             Asset::Registry& assets,

@@ -112,7 +112,8 @@
                           :separator
                           {:title "Best Times..."}
                           :separator
-                          {:title "Exit"}]}
+                          {:key :game/quit
+                           :title "Exit"}]}
                  {:title "Edit" :items [{:title "Undo move"}]}
                  {:title "View" :items [{:title "Game board"}
                                         {:title "Highscores"}]}

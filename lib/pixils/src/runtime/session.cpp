@@ -270,6 +270,10 @@ namespace Pixils::Runtime
           Lisple::Dict::get_property(message, Lisple::RTValue::keyword("payload"));
         pop_mode(payload ? payload : Lisple::Constant::NIL);
       }
+      else if (type == "quit")
+      {
+        quit_requested = true;
+      }
     }
   }
 

@@ -97,6 +97,9 @@
                                                              (gl/new-game-state (merge {:mode difficulty}
                                                                                        (get gl/difficulty-settings difficulty))))))
 
+                                     :game/quit
+                                     (quit!)
+
                                      :default
                                      state))}}
               {:mode 'game-mode

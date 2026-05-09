@@ -233,6 +233,7 @@ namespace Pixils
       }
 
       session.process_messages();
+      quit = quit || session.quit_requested;
     }
   }
 

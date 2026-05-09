@@ -552,3 +552,14 @@ TEST_F(EventRoutingTest, hover_style_variant_applied_when_cursor_is_inside)
   EXPECT_TRUE(style.width->is_fixed());
   EXPECT_EQ(style.width->fixed_value_or(0), 200);
 }
+
+TEST_F(EventRoutingTest, quit_bang_requests_session_shutdown)
+{
+  runtime.eval("(pixils/quit!)");
+
+  EXPECT_FALSE(session.quit_requested);
+
+  session.process_messages();
+
+  EXPECT_TRUE(session.quit_requested);
+}

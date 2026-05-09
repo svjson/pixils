@@ -52,6 +52,7 @@ namespace Pixils::Script
     const Lisple::sptr_rtval PASS = Lisple::RTValue::keyword("pass");
     SHKEY(POP, "pop");
     SHKEY(PUSH, "push");
+    SHKEY(QUIT, "quit");
     SHKEY(RENDER, "render");
     SHKEY(RESOLUTION, "resolution");
     SHKEY(RESOURCES, "resources");
@@ -545,6 +546,22 @@ namespace Pixils::Script
       return Lisple::Constant::NIL;
     }
 
+    /* QuitBangFunction - quit! */
+    FUNC_IMPL(QuitBangFunction, SIG((NO_ARGS, EXEC_DISPATCH(&QuitBangFunction::exec_quit))));
+
+    EXEC_BODY(QuitBangFunction, exec_quit)
+    {
+      auto message_queue = ctx.lookup_value(ID__PIXILS__MODE_STACK_MESSAGES);
+
+      Lisple::append(*message_queue,
+                     Lisple::RTValue::map({
+                       Lisple::RTValue::keyword(MapKey::TYPE->value),
+                       Lisple::RTValue::keyword(MapKey::QUIT->value),
+                     }));
+
+      return Lisple::Constant::NIL;
+    }
+
   } // namespace Function
 
   /* ModeAdapter */
@@ -829,7 +846,8 @@ namespace Pixils::Script
     values.emplace("render-context", RenderContextAdapter::make_ref(render_context));
     values.emplace("programs", Lisple::RTValue::map({}));
     values.emplace("pop-mode!", Function::PopModeBangFunction::make());
-    values.emplace("push-mode!", Function::PushModeBangFunction::make());
+    values.emplace(FN__PUSH_MODE_BANG, Function::PushModeBangFunction::make());
+    values.emplace(FN__QUIT_BANG, Function::QuitBangFunction::make());
   }
 
 } // namespace Pixils::Script

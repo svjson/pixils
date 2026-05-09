@@ -42,6 +42,7 @@ namespace Pixils::Script
   inline const std::string FN__MAKE_RESOLUTION = "pixils/make-resolution";
   inline const std::string FN__POP_MODE_BANG = "pop-mode!";
   inline const std::string FN__PUSH_MODE_BANG = "push-mode!";
+  inline const std::string FN__QUIT_BANG = "quit!";
 
   inline const Lisple::Word ID__PIXILS__MODE_STACK("pixils/mode-stack");
   inline const Lisple::Word ID__PIXILS__MODE_STACK_MESSAGES("pixils/mode-stack-messages");
@@ -58,6 +59,7 @@ namespace Pixils::Script
     DECL_SHKEY(INIT)
     DECL_SHKEY(KEY_DOWN)
     DECL_SHKEY(PIXEL_SIZE)
+    DECL_SHKEY(QUIT)
     DECL_SHKEY(RENDER)
     DECL_SHKEY(UPDATE)
     DECL_SHKEY(W)
@@ -106,6 +108,8 @@ namespace Pixils::Script
     FUNC(PushModeBangFunction, push_mode);
     /*! @brief Pop active mode */
     FUNC(PopModeBangFunction, pop_mode);
+    /*! @brief Request application shutdown */
+    FUNC(QuitBangFunction, quit);
     /*! @brief Lisple make-function for Resolution/ResolutionAdapter */
     FUNC(MakeResolution, make_resolution);
   } // namespace Function
