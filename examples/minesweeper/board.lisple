@@ -10,14 +10,13 @@
 
 ;; Mine layer mode
 
-(def grid-dim {:w 9 :h 9})
 (def tile-size 16)
 
 (defmode mine-layer-mode
   {:render 'pixils.examples.minesweeper.board/mine-layer-render!
    :content-size (fn [state ctx]
-                   {:w (* 17 (-> state :board (nth 0) count))
-                    :h (* 17 (-> state :board count))})
+                   {:w (* 17 (-> state :settings :w))
+                    :h (* 17 (-> state :settings :h))})
    :resources {:images {:mine "assets/mine.png"
                         :flag "assets/flag.png"
                         :num-1 "assets/num1.png"
@@ -27,7 +26,7 @@
                         :num-5 "assets/num5.png"}}})
 
 (defun mine-layer-render! [state ctx]
-  (let [dim (:buffer-size ctx)]
+  (let [grid-dim (select-keys (:settings state) [:w :h])]
     (dotimes [y (+ 1 (:h grid-dim))]
       (r/line! {:x 0 :y (* y (+ 1 tile-size))}
                {:x (* (:w grid-dim) (+ 1 tile-size)) :y (* y (+ 1 tile-size))}
@@ -155,7 +154,8 @@
                     state))
    :children [{:mode 'mine-layer-mode
                :state {:board (ui/bind-state :board)
-                       :board-mask (ui/bind-state :board-mask)}}
+                       :board-mask (ui/bind-state :board-mask)
+                       :settings (ui/bind-state :settings)}}
               {:mode 'board-buttons
                :state {:board-mask (ui/bind-state :board-mask)
                        :face (ui/bind-state :face)}

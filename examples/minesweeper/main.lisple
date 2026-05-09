@@ -47,6 +47,7 @@
               {:mode 'board-mode
                :state {:board (ui/bind-state :board)
                        :board-mask (ui/bind-state :board-mask)
+                       :settings (ui/bind-state :settings)
                        :face (ui/bind-state :face)}
                :style {:margin {:t 6}
                        :border {:thickness 3
