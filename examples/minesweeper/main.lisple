@@ -11,13 +11,14 @@
             [pixils.examples.minesweeper.status-panel :as status-panel]
             [pixils.examples.minesweeper.board :as board]
             [pixils.examples.minesweeper.menu :as menu]
+            [pixils.examples.minesweeper.highscore :as hs]
             [pixils.examples.minesweeper.win :as win]
             [pixils.examples.minesweeper.win95 :as win95]))
 
 (defprogram minesweeper
   {:display {:resolution {:scale 3}}
    :target-frame-rate 0
-   :theme 'windows-3
+   :theme 'windows-95
    :initial-mode 'main-mode})
 
 (defun restart-game [state ctx settings]
@@ -110,6 +111,9 @@
                                          (merge {:mode difficulty}
                                                 (get gl/difficulty-settings difficulty))))
 
+                         :game/best-times
+                         state
+
                          :game/quit
                          (quit!)
 
@@ -120,7 +124,17 @@
 
 
 (defmode main-mode
-  {:style {:background win/teal}
+  {:init (fn [state ctx]
+           {:highscores {:beginner {:difficulty-name "Beginner"
+                                    :time 6
+                                    :player-name "Nisse"}
+                         :intermediate {:difficulty-name "Intermediate"
+                                        :time 32
+                                        :player-name "Korven"}
+                         :expert {:difficulty-name "Expert"
+                                  :time 114
+                                  :player-name "Herr Anka"}}})
+   :style {:background win/teal}
    :children [(w/make {:position {:x 24 :y 20}
                        :title-bar {:title "Minesweeper"}
                        :init (fn [state ctx]
@@ -129,4 +143,9 @@
                                                                        (get gl/difficulty-settings :beginner)))
                                        :preferences {:marks? true
                                                      :color? true}}))
-                       :body [{:mode 'window-mode}]})]})
+                       :body [{:mode 'window-mode}]})
+              (w/make {:position {:x 100 :y 100}
+                       :title-bar {:title "Fastest Mine Sweepers"}
+                       :state {:highscores (ui/bind-state :highscores)}
+                       :body [{:mode 'highscores-window
+                               :state {:highscores (ui/bind-state :highscores)}}]})]})

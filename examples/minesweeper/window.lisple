@@ -46,13 +46,15 @@
               {:mode 'window-body}]})
 
 
-(defun make [{:keys [title-bar body init style position] :as opts}]
+(defun make [{:keys [title-bar body init state style position] :as opts}]
   {:mode 'window
-   :state {:position (or position {:x 24 :y 20})}
    :init (or init (fn [state ctx]
                     state))
    :style (or style {})
+   :state (merge (or state {})
+                 {:position (or position {:x 24 :y 20})})
    :children [{:mode 'window-title-bar
                :state title-bar}
               {:mode 'window-body
-               :children body}]})
+               :children body
+               :state (or state {})}]})

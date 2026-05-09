@@ -110,7 +110,8 @@
                            :type :toggle
                            :selected-path [:preferences :color?]}
                           :separator
-                          {:title "Best Times..."}
+                          {:key :game/best-times
+                           :title "Best Times..."}
                           :separator
                           {:key :game/quit
                            :title "Exit"}]}

@@ -1,0 +1,48 @@
+(ns pixils.examples.minesweeper.highscore
+  (:require pixils
+            [pixils.color :as c]
+            [pixils.ui :as ui]
+            [pixils.examples.minesweeper.window :as w]))
+
+
+(def col-1-width 90)
+(def col-2-width 100)
+
+(defcomponent highscore-row
+  {:style {:layout {:direction :row}}
+   :update (fn [state ctx]
+             (assoc state :time-str (str (:time state) " seconds")))
+   :children [{:mode 'text-node
+               :style {:width col-1-width}
+               :state {:value (ui/bind-state :difficulty-name)}}
+              {:mode 'text-node
+               :style {:width col-2-width}
+               :state {:value (ui/bind-state :time-str)}}
+              {:mode 'text-node
+               :state {:value (ui/bind-state :player-name)}}]})
+
+(defcomponent highscore-table
+  {:style {:margin 16}
+   :children [{:mode 'highscore-row
+               :state (ui/bind-state :beginner)}
+              {:mode 'highscore-row
+               :state (ui/bind-state :intermediate)}
+              {:mode 'highscore-row
+               :state (ui/bind-state :expert)}]})
+
+(defcomponent highscore-buttons
+  {:style {:width :fill
+           :layout {:direction :row
+                    :gap :space-between}
+           :margin [8 28]}
+   :children [{:mode 'button
+               :state {:label "Reset Scores"}}
+              {:mode 'button
+               :state {:label " OK "}}]})
+
+(defcomponent highscores-window
+  {:style {:background c/WHITE
+           :text {:color c/BLACK}}
+   :children [{:mode 'highscore-table
+               :state (ui/bind-state :highscores)}
+              {:mode 'highscore-buttons}]})

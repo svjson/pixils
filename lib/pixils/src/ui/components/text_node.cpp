@@ -22,10 +22,11 @@ namespace Pixils::UI::Components
     {
       if (!state || state->type == Lisple::RTValue::Type::NIL) return "";
       if (state->type == Lisple::RTValue::Type::STRING) return state->str();
-      if (state->type != Lisple::RTValue::Type::MAP) return "";
+      if (state->type != Lisple::RTValue::Type::MAP) return state->to_string();
 
       auto value = Lisple::Dict::get_property(state, Lisple::RTValue::keyword("value"));
       if (!value || value->type == Lisple::RTValue::Type::NIL) return "";
+      if (value->type != Lisple::RTValue::Type::STRING) return value->to_string();
       return value->str();
     }
 
