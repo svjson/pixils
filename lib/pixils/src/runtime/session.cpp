@@ -6,7 +6,6 @@
 #include <pixils/binding/pixils_namespace.h>
 #include <pixils/binding/point_namespace.h>
 #include <pixils/binding/style_namespace.h>
-#include <pixils/binding/ui_namespace.h>
 #include <pixils/context.h>
 #include <pixils/runtime/mode.h>
 #include <pixils/runtime/state.h>

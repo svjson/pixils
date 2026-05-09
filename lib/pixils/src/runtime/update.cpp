@@ -1,12 +1,11 @@
-#include "pixils/binding/ui_namespace.h"
-#include "pixils/runtime/hook_invocation.h"
-#include "pixils/runtime/session.h"
-#include "pixils/runtime/view.h"
-#include "pixils/ui/event.h"
-#include "pixils/ui/interaction_dispatch.h"
-#include "pixils/ui/view_events.h"
+#include <pixils/binding/ui/ui_namespace.h>
+#include <pixils/runtime/hook_invocation.h>
+#include <pixils/runtime/session.h>
+#include <pixils/runtime/view.h>
+#include <pixils/ui/event.h>
+#include <pixils/ui/interaction_dispatch.h>
+#include <pixils/ui/view_events.h>
 
-#include <algorithm>
 #include <lisple/runtime.h>
 #include <lisple/runtime/dict.h>
 #include <lisple/runtime/seq.h>

@@ -5,7 +5,7 @@
 #include "pixils/ui/view_lifecycle.h"
 #include "pixils/ui/view_update.h"
 #include <pixils/binding/point_namespace.h>
-#include <pixils/binding/ui_namespace.h>
+#include <pixils/binding/ui/ui_namespace.h>
 #include <pixils/frame_events.h>
 #include <pixils/geom.h>
 #include <pixils/hook_context.h>
@@ -44,14 +44,18 @@ namespace Pixils::UI
 
     bool has_drag_hooks(const std::vector<std::shared_ptr<Runtime::View>>& chain)
     {
-      return std::any_of(chain.begin(), chain.end(), [](const auto& view) {
-        return (view->mode->on_drag_start &&
-                view->mode->on_drag_start->type != Lisple::RTValue::Type::NIL) ||
-               (view->mode->on_drag &&
-                view->mode->on_drag->type != Lisple::RTValue::Type::NIL) ||
-               (view->mode->on_drag_end &&
-                view->mode->on_drag_end->type != Lisple::RTValue::Type::NIL);
-      });
+      return std::any_of(
+        chain.begin(),
+        chain.end(),
+        [](const auto& view)
+        {
+          return (view->mode->on_drag_start &&
+                  view->mode->on_drag_start->type != Lisple::RTValue::Type::NIL) ||
+                 (view->mode->on_drag &&
+                  view->mode->on_drag->type != Lisple::RTValue::Type::NIL) ||
+                 (view->mode->on_drag_end &&
+                  view->mode->on_drag_end->type != Lisple::RTValue::Type::NIL);
+        });
     }
 
     std::vector<std::shared_ptr<Runtime::View>> lock_chain(
@@ -138,7 +142,8 @@ namespace Pixils::UI
         hook_field,
         ev_ref,
         ev.propagation_stopped,
-        [&](const Rect& b) {
+        [&](const Rect& b)
+        {
           ev.local_pos = local_pos(ev.global_pos, b);
           ev.start_local_pos = local_pos(ev.start_global_pos, b);
         },
@@ -219,12 +224,11 @@ namespace Pixils::UI
             drag_end_ev.start_global_pos = drag_it->second.start_global_pos;
             drag_end_ev.delta = gp - drag_it->second.last_global_pos;
             drag_end_ev.total_delta = gp - drag_it->second.start_global_pos;
-            bubble_drag_hook(
-              pressed_chain,
-              &Runtime::Mode::on_drag_end,
-              drag_end_ev,
-              hook_args,
-              rt);
+            bubble_drag_hook(pressed_chain,
+                             &Runtime::Mode::on_drag_end,
+                             drag_end_ev,
+                             hook_args,
+                             rt);
           }
         }
       }
@@ -317,7 +321,7 @@ namespace Pixils::UI
         ev.propagation_stopped,
         [&](const Rect& b) { ev.local_pos = local_pos(gp, b); },
         hook_args,
-          rt);
+        rt);
     }
 
     void handle_drag_motion(MouseState& mouse_state,
@@ -347,12 +351,11 @@ namespace Pixils::UI
           drag_start_ev.start_global_pos = drag_state.start_global_pos;
           drag_start_ev.delta = gp - drag_state.last_global_pos;
           drag_start_ev.total_delta = gp - drag_state.start_global_pos;
-          bubble_drag_hook(
-            chain,
-            &Runtime::Mode::on_drag_start,
-            drag_start_ev,
-            hook_args,
-            rt);
+          bubble_drag_hook(chain,
+                           &Runtime::Mode::on_drag_start,
+                           drag_start_ev,
+                           hook_args,
+                           rt);
           drag_state.active = true;
           drag_state.last_global_pos = gp;
           continue;

@@ -8,7 +8,6 @@
 #include <pixils/binding/resource_namespace.h>
 #include <pixils/binding/style_namespace.h>
 #include <pixils/binding/theme_definition.h>
-#include <pixils/binding/ui_namespace.h>
 #include <pixils/context.h>
 #include <pixils/display.h>
 #include <pixils/font_registry.h>

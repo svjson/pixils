@@ -23,16 +23,6 @@ namespace Pixils::Script
 {
   inline constexpr std::string_view NS__PIXILS__UI = "pixils.ui";
 
-  namespace HostType
-  {
-    HOST_TYPE(CUSTOM_EVENT, "HCustomEvent");
-    HOST_TYPE(KEYBOARD_EVENT, "HKeyboardEvent");
-    HOST_TYPE(MOUSE_EVENT, "HMouseEvent");
-    HOST_TYPE(MOUSE_MOTION_EVENT, "HMouseMotionEvent");
-    HOST_TYPE(DRAG_EVENT, "HDragEvent");
-    HOST_TYPE(BIND_STATE, "HBindState");
-  } // namespace HostType
-
   namespace Function
   {
     FUNC(BindStateFn, bind_state);

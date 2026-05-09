@@ -1,8 +1,9 @@
 
-#include "pixils/binding/ui_namespace.h"
+#include "pixils/binding/ui/ui_namespace.h"
 
 #include <pixils/binding/pixils_namespace.h>
 #include <pixils/binding/point_namespace.h>
+#include <pixils/binding/ui/ui_host_type.h>
 #include <pixils/runtime/state.h>
 #include <pixils/runtime/view.h>
 #include <pixils/ui/event.h>

@@ -1,5 +1,6 @@
 
-#include "pixils/binding/style_namespace.h"
+#include "pixils/script.h"
+
 #include <pixils/asset/registry.h>
 #include <pixils/binding/audio_namespace.h>
 #include <pixils/binding/color_namespace.h>
@@ -10,9 +11,9 @@
 #include <pixils/binding/render_namespace.h>
 #include <pixils/binding/resource_namespace.h>
 #include <pixils/binding/state_counter_namespace.h>
-#include <pixils/binding/ui_namespace.h>
+#include <pixils/binding/style_namespace.h>
+#include <pixils/binding/ui/ui_namespace.h>
 #include <pixils/font_registry.h>
-#include <pixils/script.h>
 #include <pixils/ui/components/text_node.h>
 
 #include <lisple/dir_root_file_system.h>
