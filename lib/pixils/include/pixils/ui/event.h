@@ -52,6 +52,20 @@ namespace Pixils
   };
 
   /**
+   * Mouse drag event routed to the view chain that received the initiating
+   * mouse-down. `delta` is movement since the previous drag lifecycle event for
+   * this button, while `total_delta` is movement since the initiating press.
+   * The start positions are recomputed per receiver as the event bubbles.
+   */
+  struct DragEvent : MouseButtonEvent
+  {
+    Point start_global_pos;
+    Point start_local_pos;
+    Point delta;
+    Point total_delta;
+  };
+
+  /**
    * Keyboard event delivered to root-level key hooks.
    * For key down/up hooks, `key` carries the translated Lisple key keyword,
    * such as :key/space or :key/left.

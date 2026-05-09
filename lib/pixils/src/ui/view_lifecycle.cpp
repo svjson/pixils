@@ -64,6 +64,9 @@ namespace
     mode.on_mouse_enter = resolve_hook(runtime, mode.on_mouse_enter);
     mode.on_mouse_leave = resolve_hook(runtime, mode.on_mouse_leave);
     mode.on_mouse_motion = resolve_hook(runtime, mode.on_mouse_motion);
+    mode.on_drag_start = resolve_hook(runtime, mode.on_drag_start);
+    mode.on_drag = resolve_hook(runtime, mode.on_drag);
+    mode.on_drag_end = resolve_hook(runtime, mode.on_drag_end);
   }
 
   void apply_mode_overrides(Pixils::Runtime::Mode& mode,
@@ -104,6 +107,9 @@ namespace
     apply_hook(mode.on_mouse_enter, "on-mouse-enter");
     apply_hook(mode.on_mouse_leave, "on-mouse-leave");
     apply_hook(mode.on_mouse_motion, "on-mouse-motion");
+    apply_hook(mode.on_drag_start, "on-drag-start");
+    apply_hook(mode.on_drag, "on-drag");
+    apply_hook(mode.on_drag_end, "on-drag-end");
 
     auto on_val = get("on");
     if (on_val->type == Lisple::RTValue::Type::MAP)

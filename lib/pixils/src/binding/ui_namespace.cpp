@@ -98,8 +98,17 @@ namespace Pixils::Script
                       ("global-position", global_pos),
                       ("position", local_pos))
 
-  NOBJ_PROP_GET_ADAPTER__FIELD(MouseEventAdapter, global_pos, PointAdapter);
-  NOBJ_PROP_GET_ADAPTER__FIELD(MouseEventAdapter, local_pos, PointAdapter);
+  NOBJ_PROP_GET(MouseEventAdapter, global_pos)
+  {
+    const Point& point = get_self_object().global_pos;
+    return PointAdapter::make_unique(point.x, point.y);
+  }
+
+  NOBJ_PROP_GET(MouseEventAdapter, local_pos)
+  {
+    const Point& point = get_self_object().local_pos;
+    return PointAdapter::make_unique(point.x, point.y);
+  }
 
   NATIVE_SUB_ADAPTER_IMPL(MouseEventAdapter,
                           MouseEvent,
@@ -110,6 +119,39 @@ namespace Pixils::Script
   NOBJ_PROP_GET(MouseButtonEventAdapter, button)
   {
     return get_self_object().button;
+  }
+
+  NATIVE_SUB_ADAPTER_IMPL(MouseButtonEventAdapter,
+                          MouseButtonEvent,
+                          (DragEventAdapter, DragEvent),
+                          &HostType::DRAG_EVENT,
+                          ("start-global-position", start_global_pos),
+                          ("start-position", start_local_pos),
+                          (delta),
+                          ("total-delta", total_delta))
+
+  NOBJ_PROP_GET(DragEventAdapter, start_global_pos)
+  {
+    const Point& point = get_self_object().start_global_pos;
+    return PointAdapter::make_unique(point.x, point.y);
+  }
+
+  NOBJ_PROP_GET(DragEventAdapter, start_local_pos)
+  {
+    const Point& point = get_self_object().start_local_pos;
+    return PointAdapter::make_unique(point.x, point.y);
+  }
+
+  NOBJ_PROP_GET(DragEventAdapter, delta)
+  {
+    const Point& point = get_self_object().delta;
+    return PointAdapter::make_unique(point.x, point.y);
+  }
+
+  NOBJ_PROP_GET(DragEventAdapter, total_delta)
+  {
+    const Point& point = get_self_object().total_delta;
+    return PointAdapter::make_unique(point.x, point.y);
   }
 
   NATIVE_ADAPTER_IMPL(KeyboardEventAdapter,

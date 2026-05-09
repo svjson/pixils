@@ -445,11 +445,11 @@ namespace Pixils::Script
                       (padding),
                       (text),
                       (box_sizing),
-                      (width),
-                      (height),
-                      (position),
-                      (top),
-                      (left),
+                      (rw, "width", width),
+                      (rw, "height", height),
+                      (rw, "position", position),
+                      (rw, "top", top),
+                      (rw, "left", left),
                       (layout),
                       (rw, "hidden", hidden),
                       (hover))
@@ -498,10 +498,9 @@ namespace Pixils::Script
   NOBJ_PROP_GET(StyleAdapter, box_sizing)
   {
     if (!get_self_object().box_sizing) return Lisple::Constant::NIL;
-    return Lisple::RTValue::keyword(*get_self_object().box_sizing ==
-                                        UI::Style::BoxSizing::CONTENT_BOX
-                                      ? "content-box"
-                                      : "border-box");
+    return Lisple::RTValue::keyword(
+      *get_self_object().box_sizing == UI::Style::BoxSizing::CONTENT_BOX ? "content-box"
+                                                                         : "border-box");
   }
 
   NOBJ_PROP_GET(StyleAdapter, width)
@@ -514,6 +513,19 @@ namespace Pixils::Script
     return Lisple::RTValue::keyword("auto");
   }
 
+  NOBJ_PROP_SET(StyleAdapter, width)
+  {
+    auto size_opt = Function::parse_size(value);
+    if (size_opt)
+    {
+      get_self_object().width = *size_opt;
+    }
+    else
+    {
+      get_self_object().width.reset();
+    }
+  }
+
   NOBJ_PROP_GET(StyleAdapter, height)
   {
     if (!get_self_object().height) return Lisple::Constant::NIL;
@@ -524,11 +536,48 @@ namespace Pixils::Script
     return Lisple::RTValue::keyword("auto");
   }
 
+  NOBJ_PROP_SET(StyleAdapter, height)
+  {
+    auto size_opt = Function::parse_size(value);
+    if (size_opt)
+    {
+      get_self_object().height = *size_opt;
+    }
+    else
+    {
+      get_self_object().height.reset();
+    }
+  }
+
   NOBJ_PROP_GET(StyleAdapter, position)
   {
     if (!get_self_object().position) return Lisple::Constant::NIL;
     return Lisple::RTValue::keyword(
       *get_self_object().position == UI::PositionMode::ABSOLUTE ? "absolute" : "flow");
+  }
+
+  NOBJ_PROP_SET(StyleAdapter, position)
+  {
+    if (value->type != Lisple::RTValue::Type::KEYWORD)
+    {
+      get_self_object().position.reset();
+    }
+    else
+    {
+      auto pos_str = value->str();
+      if (pos_str == "absolute")
+      {
+        get_self_object().position = UI::PositionMode::ABSOLUTE;
+      }
+      else if (pos_str == "flow")
+      {
+        get_self_object().position = UI::PositionMode::FLOW;
+      }
+      else
+      {
+        get_self_object().position.reset();
+      }
+    }
   }
 
   NOBJ_PROP_GET(StyleAdapter, top)
@@ -537,10 +586,34 @@ namespace Pixils::Script
                                  : Lisple::Constant::NIL;
   }
 
+  NOBJ_PROP_SET(StyleAdapter, top)
+  {
+    if (value->type != Lisple::RTValue::Type::NUMBER)
+    {
+      get_self_object().top.reset();
+    }
+    else
+    {
+      get_self_object().top = value->num().get_int();
+    }
+  }
+
   NOBJ_PROP_GET(StyleAdapter, left)
   {
     return get_self_object().left ? Lisple::RTValue::number(*get_self_object().left)
                                   : Lisple::Constant::NIL;
+  }
+
+  NOBJ_PROP_SET(StyleAdapter, left)
+  {
+    if (value->type != Lisple::RTValue::Type::NUMBER)
+    {
+      get_self_object().left.reset();
+    }
+    else
+    {
+      get_self_object().left = value->num().get_int();
+    }
   }
 
   NOBJ_PROP_GET(StyleAdapter, layout)

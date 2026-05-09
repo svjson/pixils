@@ -79,7 +79,7 @@ namespace Pixils::Script
                   layout,
                   hidden,
                   hover),
-                 (hidden));
+                 (height, hidden, left, position, top, width));
   NATIVE_ADAPTER(LayoutAdapter, UI::Style::Layout, (direction, gap));
   NATIVE_ADAPTER(LayoutGapAdapter, UI::Style::Layout::Gap, (mode, size));
   NATIVE_ADAPTER(StyleTextAdapter, UI::Style::Text, (color, font, scale));

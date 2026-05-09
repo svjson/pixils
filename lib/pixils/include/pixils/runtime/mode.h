@@ -71,6 +71,9 @@ namespace Pixils::Runtime
     Lisple::sptr_rtval on_mouse_enter = Lisple::Constant::NIL;
     Lisple::sptr_rtval on_mouse_leave = Lisple::Constant::NIL;
     Lisple::sptr_rtval on_mouse_motion = Lisple::Constant::NIL;
+    Lisple::sptr_rtval on_drag_start = Lisple::Constant::NIL;
+    Lisple::sptr_rtval on_drag = Lisple::Constant::NIL;
+    Lisple::sptr_rtval on_drag_end = Lisple::Constant::NIL;
     std::map<std::string, Lisple::sptr_rtval> event_handlers;
     ModeComposition composition;
     std::vector<ChildSlot> children;

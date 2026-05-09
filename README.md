@@ -484,18 +484,30 @@ child slot override map.
 | `:on-click`       | Button pressed and released within the same component                      |
 | `:on-mouse-enter` | Cursor enters the component's bounds                                       |
 | `:on-mouse-leave` | Cursor leaves the component's bounds                                       |
+| `:on-drag-start`  | Pressed button begins dragging after moving, routed to the press chain     |
+| `:on-drag`        | Cursor moves while an active drag is in progress, routed to the press chain |
+| `:on-drag-end`    | Active drag ends when the initiating button is released                    |
 
 **Event object fields**
 
 | Field        | Description                                                     |
 |--------------|-----------------------------------------------------------------|
-| `:button`    | Which button (`:left`, `:right`, `:middle`) - mouse-down, mouse-up, on-click only |
-| `:local-pos` | Cursor position relative to the component's content rect        |
-| `:global-pos`| Cursor position in buffer coordinates                           |
+| `:button`            | Which button (`:left`, `:right`, `:middle`) - mouse-down, mouse-up, click, drag |
+| `:position`          | Cursor position relative to the current component                            |
+| `:global-position`   | Cursor position in buffer coordinates                                        |
+| `:start-position`    | Drag start position relative to the current component - drag hooks only      |
+| `:start-global-position` | Drag start position in buffer coordinates - drag hooks only            |
+| `:delta`             | Movement since the previous drag lifecycle event - drag hooks only           |
+| `:total-delta`       | Movement since the initiating mouse-down - drag hooks only                   |
 
 By default the event propagates from the innermost hit component outward through its
 ancestors. Call `(pixils.ui/stop-propagation! event)` to prevent it reaching further
 handlers.
+
+Drag capture is source-based rather than hover-based: once a view chain begins a drag,
+its drag hooks continue receiving events even after the cursor leaves its bounds.
+Ordinary clicks remain unchanged unless that press chain has drag hooks and a drag
+actually starts.
 
 ### Keyboard events
 

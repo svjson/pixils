@@ -1,6 +1,10 @@
 (ns pixils.examples.minesweeper.window
   (:require pixils
+            [pixils.point :as pt]
             [pixils.ui :as ui]))
+
+(defun emit-window-move! [event ctx]
+  (ui/emit! (:view ctx) :window/move-by (:delta event)))
 
 (defcomponent window-control-button
   {})
@@ -10,7 +14,13 @@
    :class :window/minimize-button})
 
 (defcomponent window-title-bar
-  {:children [{:mode 'window-control-button}
+  {:on-drag-start (fn [state event ctx]
+                    (emit-window-move! event ctx)
+                    state)
+   :on-drag (fn [state event ctx]
+              (emit-window-move! event ctx)
+              state)
+   :children [{:mode 'window-control-button}
               {:mode 'text-node
                :style {:padding [3 2]}
                :state {:value (ui/bind-state :title)}}
@@ -20,12 +30,25 @@
   {})
 
 (defcomponent window
-  {:children [{:mode 'window-title-bar}
+  {:update (fn [state ctx]
+             (let [pos (or (:position state) {:x 24 :y 20})]
+               (assoc-in! ctx [:view :style :position] :absolute)
+               (assoc-in! ctx [:view :style :left] (:x pos))
+               (assoc-in! ctx [:view :style :top] (:y pos))
+               state))
+   :on {:window/move-by (fn [state event ctx]
+                          (ui/stop-propagation! event)
+                          (update state :position
+                                  (fn [pos]
+                                    (pt/+ (or pos {:x 24 :y 20})
+                                          (:payload event)))))}
+   :children [{:mode 'window-title-bar}
               {:mode 'window-body}]})
 
 
-(defun make [{:keys [title-bar body init style] :as opts}]
+(defun make [{:keys [title-bar body init style position] :as opts}]
   {:mode 'window
+   :state {:position (or position {:x 24 :y 20})}
    :init (or init (fn [state ctx]
                     state))
    :style (or style {})
@@ -33,4 +56,3 @@
                :state title-bar}
               {:mode 'window-body
                :children body}]})
-

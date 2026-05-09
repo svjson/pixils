@@ -213,6 +213,111 @@ TEST_F(EventRoutingTest, on_mouse_leave_state_change_propagates_to_parent)
   EXPECT_EQ(panel_mode.state->to_string(), "{:left-count 1}");
 }
 
+TEST_F(EventRoutingTest, drag_hooks_fire_on_pressed_view_chain_after_motion)
+{
+  runtime.eval(R"(
+    (pixils/defmode titlebar {
+      :init          (fn [state ctx] {:drag-starts 0 :last-drag nil})
+      :on-drag-start (fn [state event ctx]
+                       (assoc state :drag-starts (+ (:drag-starts state) 1)))
+      :on-drag       (fn [state event ctx]
+                       (assoc state :last-drag (:total-delta event)))
+    })
+  )");
+  session.push_mode("titlebar", Lisple::Constant::NIL);
+  session.active_mode->bounds = {0, 0, 100, 20};
+
+  input().mouse_down({10, 10});
+  update_cycle();
+
+  input().mouse_move({18, 14});
+  update_cycle();
+
+  input().mouse_move({22, 16});
+  update_cycle();
+
+  EXPECT_EQ(session.active_mode->state->to_string(),
+            "{:drag-starts 1 :last-drag {:x 12 :y 6}}");
+}
+
+TEST_F(EventRoutingTest, drag_continues_after_cursor_leaves_pressed_view)
+{
+  runtime.eval(R"(
+    (pixils/defmode draggable {
+      :init    (fn [state ctx] {:last nil})
+      :on-drag (fn [state event ctx]
+                 (assoc state :last (:total-delta event)))
+    })
+  )");
+  session.push_mode("draggable", Lisple::Constant::NIL);
+  session.active_mode->bounds = {0, 0, 40, 20};
+
+  input().mouse_down({10, 10});
+  update_cycle();
+
+  input().mouse_move({20, 12});
+  update_cycle();
+
+  input().mouse_move({80, 12});
+  update_cycle();
+
+  EXPECT_EQ(session.active_mode->state->to_string(), "{:last {:x 70 :y 2}}");
+}
+
+TEST_F(EventRoutingTest, drag_end_suppresses_click_and_updates_state)
+{
+  runtime.eval(R"(
+    (pixils/defmode draggable {
+      :init          (fn [state ctx] {:clicks 0 :drag-ended nil})
+      :on-click      (fn [state event ctx]
+                       (assoc state :clicks (+ (:clicks state) 1)))
+      :on-drag-start (fn [state event ctx] state)
+      :on-drag-end   (fn [state event ctx]
+                       (assoc state :drag-ended (:total-delta event)))
+    })
+  )");
+  session.push_mode("draggable", Lisple::Constant::NIL);
+  session.active_mode->bounds = {0, 0, 100, 20};
+
+  input().mouse_down({10, 10});
+  update_cycle();
+
+  input().mouse_move({30, 10});
+  update_cycle();
+
+  input().mouse_up({30, 10});
+  update_cycle();
+
+  EXPECT_EQ(session.active_mode->state->to_string(), "{:clicks 0 :drag-ended {:x 20 :y 0}}");
+}
+
+TEST_F(EventRoutingTest, child_drag_state_propagates_into_parent_state_map)
+{
+  runtime.eval(R"(
+    (pixils/defmode titlebar {
+      :init    (fn [state ctx] {:last nil})
+      :on-drag-start (fn [state event ctx]
+                       (assoc state :last (:total-delta event)))
+    })
+    (pixils/defmode window-mode {
+      :init (fn [state ctx] {:titlebar {:last nil}})
+      :children [{:mode 'titlebar :id "titlebar"
+                  :state (pixils.ui/bind-state :titlebar)}]
+    })
+  )");
+  session.push_mode("window-mode", Lisple::Constant::NIL);
+  session.active_mode->bounds = {0, 0, 120, 80};
+  session.active_mode->children[0]->bounds = {0, 0, 120, 20};
+
+  input().mouse_down({10, 10});
+  update_cycle();
+
+  input().mouse_move({25, 18});
+  update_cycle();
+
+  EXPECT_EQ(session.active_mode->state->to_string(), "{:titlebar {:last {:x 15 :y 8}}}");
+}
+
 TEST_F(EventRoutingTest, nested_child_events_update_bound_ancestor_state_during_traverse)
 {
   // Given

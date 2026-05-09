@@ -1,6 +1,7 @@
 #ifndef PIXILS__UI__MOUSE_STATE_H
 #define PIXILS__UI__MOUSE_STATE_H
 
+#include <pixils/geom.h>
 #include <pixils/ui/mouse_button.h>
 
 #include <map>
@@ -23,12 +24,21 @@ namespace Pixils::UI
   {
     using ViewChain = std::vector<std::weak_ptr<Pixils::Runtime::View>>;
 
+    struct DragState
+    {
+      Point start_global_pos;
+      Point last_global_pos;
+      bool eligible = false;
+      bool active = false;
+    };
+
     /**
      * One hit chain per currently held button: [0] = deepest hit view,
      * [1..n] = ancestors up to root. Keyed by the button that initiated
      * the press, so simultaneous multi-button presses are tracked independently.
      */
     std::map<MouseButton, ViewChain> button_chains;
+    std::map<MouseButton, DragState> drag_states;
 
     /**
      * View currently under the cursor, and the full ancestor chain from it

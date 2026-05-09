@@ -42,6 +42,18 @@ namespace Pixils::UI
               global.y - static_cast<float>(bounds.y)};
     }
 
+    bool has_drag_hooks(const std::vector<std::shared_ptr<Runtime::View>>& chain)
+    {
+      return std::any_of(chain.begin(), chain.end(), [](const auto& view) {
+        return (view->mode->on_drag_start &&
+                view->mode->on_drag_start->type != Lisple::RTValue::Type::NIL) ||
+               (view->mode->on_drag &&
+                view->mode->on_drag->type != Lisple::RTValue::Type::NIL) ||
+               (view->mode->on_drag_end &&
+                view->mode->on_drag_end->type != Lisple::RTValue::Type::NIL);
+      });
+    }
+
     std::vector<std::shared_ptr<Runtime::View>> lock_chain(
       const std::vector<std::weak_ptr<Runtime::View>>& wchain)
     {
@@ -114,6 +126,26 @@ namespace Pixils::UI
       }
     }
 
+    void bubble_drag_hook(const std::vector<std::shared_ptr<Runtime::View>>& chain,
+                          Lisple::sptr_rtval Runtime::Mode::* hook_field,
+                          DragEvent& ev,
+                          Runtime::HookArguments& hook_args,
+                          Lisple::Runtime& rt)
+    {
+      auto ev_ref = Script::DragEventAdapter::make_ref(ev);
+      bubble_hook(
+        chain,
+        hook_field,
+        ev_ref,
+        ev.propagation_stopped,
+        [&](const Rect& b) {
+          ev.local_pos = local_pos(ev.global_pos, b);
+          ev.start_local_pos = local_pos(ev.start_global_pos, b);
+        },
+        hook_args,
+        rt);
+    }
+
     bool build_hit_chain(std::shared_ptr<Runtime::View> view,
                          int mx,
                          int my,
@@ -170,8 +202,35 @@ namespace Pixils::UI
           rt);
       }
 
+      bool drag_active = false;
+      auto drag_it = mouse_state.drag_states.find(up_btn);
+      if (drag_it != mouse_state.drag_states.end())
+      {
+        drag_active = drag_it->second.active;
+        auto pressed_chain_it = mouse_state.button_chains.find(up_btn);
+        if (drag_active && pressed_chain_it != mouse_state.button_chains.end())
+        {
+          auto pressed_chain = lock_chain(pressed_chain_it->second);
+          if (!pressed_chain.empty())
+          {
+            DragEvent drag_end_ev;
+            drag_end_ev.global_pos = gp;
+            drag_end_ev.button = events.mouse_button_up;
+            drag_end_ev.start_global_pos = drag_it->second.start_global_pos;
+            drag_end_ev.delta = gp - drag_it->second.last_global_pos;
+            drag_end_ev.total_delta = gp - drag_it->second.start_global_pos;
+            bubble_drag_hook(
+              pressed_chain,
+              &Runtime::Mode::on_drag_end,
+              drag_end_ev,
+              hook_args,
+              rt);
+          }
+        }
+      }
+
       auto pressed_view = mouse_state.pressed_by(up_btn);
-      if (pressed_view)
+      if (pressed_view && !drag_active)
       {
         auto it = std::find_if(chain.begin(),
                                chain.end(),
@@ -218,6 +277,12 @@ namespace Pixils::UI
       {
         btn_chain.push_back(std::weak_ptr<Runtime::View>(view_ptr));
       }
+      mouse_state.drag_states[btn] = MouseState::DragState{
+        .start_global_pos = gp,
+        .last_global_pos = gp,
+        .eligible = has_drag_hooks(hit_chain),
+        .active = false,
+      };
 
       MouseButtonEvent ev;
       ev.global_pos = gp;
@@ -252,7 +317,58 @@ namespace Pixils::UI
         ev.propagation_stopped,
         [&](const Rect& b) { ev.local_pos = local_pos(gp, b); },
         hook_args,
-        rt);
+          rt);
+    }
+
+    void handle_drag_motion(MouseState& mouse_state,
+                            FrameEvents& events,
+                            Runtime::HookArguments& hook_args,
+                            Lisple::Runtime& rt)
+    {
+      if (!events.mouse_moved) return;
+
+      const Point& gp = Lisple::obj<Point>(*events.mouse_pos);
+      for (auto& [btn, wchain] : mouse_state.button_chains)
+      {
+        auto drag_it = mouse_state.drag_states.find(btn);
+        if (drag_it == mouse_state.drag_states.end() || !drag_it->second.eligible) continue;
+
+        auto chain = lock_chain(wchain);
+        if (chain.empty()) continue;
+
+        auto& drag_state = drag_it->second;
+        if (!drag_state.active)
+        {
+          if (gp == drag_state.start_global_pos) continue;
+
+          DragEvent drag_start_ev;
+          drag_start_ev.global_pos = gp;
+          drag_start_ev.button = Lisple::RTValue::keyword(mouse_button_name(btn));
+          drag_start_ev.start_global_pos = drag_state.start_global_pos;
+          drag_start_ev.delta = gp - drag_state.last_global_pos;
+          drag_start_ev.total_delta = gp - drag_state.start_global_pos;
+          bubble_drag_hook(
+            chain,
+            &Runtime::Mode::on_drag_start,
+            drag_start_ev,
+            hook_args,
+            rt);
+          drag_state.active = true;
+          drag_state.last_global_pos = gp;
+          continue;
+        }
+
+        if (gp == drag_state.last_global_pos) continue;
+
+        DragEvent drag_ev;
+        drag_ev.global_pos = gp;
+        drag_ev.button = Lisple::RTValue::keyword(mouse_button_name(btn));
+        drag_ev.start_global_pos = drag_state.start_global_pos;
+        drag_ev.delta = gp - drag_state.last_global_pos;
+        drag_ev.total_delta = gp - drag_state.start_global_pos;
+        bubble_drag_hook(chain, &Runtime::Mode::on_drag, drag_ev, hook_args, rt);
+        drag_state.last_global_pos = gp;
+      }
     }
 
     void traverse(const std::shared_ptr<Runtime::View>& root,
@@ -341,6 +457,7 @@ namespace Pixils::UI
     if (events.mouse_moved)
     {
       handle_mouse_motion(mouse_state, events, hook_args, runtime);
+      handle_drag_motion(mouse_state, events, hook_args, runtime);
     }
 
     if (mouse_state.has_pressed() &&
@@ -362,6 +479,7 @@ namespace Pixils::UI
       {
         if (!held.count(it->first))
         {
+          mouse_state.drag_states.erase(it->first);
           it = mouse_state.button_chains.erase(it);
         }
         else
