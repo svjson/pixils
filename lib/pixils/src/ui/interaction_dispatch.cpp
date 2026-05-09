@@ -1,6 +1,7 @@
 #include "pixils/ui/interaction_dispatch.h"
 
 #include "pixils/runtime/hook_arguments.h"
+#include "pixils/runtime/hook_invocation.h"
 #include "pixils/ui/event.h"
 #include "pixils/ui/view_lifecycle.h"
 #include "pixils/ui/view_update.h"
@@ -16,7 +17,6 @@
 
 #include <algorithm>
 #include <functional>
-#include <lisple/context.h>
 #include <lisple/host/object.h>
 #include <lisple/runtime.h>
 #include <lisple/runtime/seq.h>
@@ -26,16 +26,6 @@ namespace Pixils::UI
 {
   namespace
   {
-    Lisple::sptr_rtval invoke(const Lisple::sptr_rtval& fn,
-                              Lisple::sptr_rtval_v& args,
-                              Lisple::Runtime& rt,
-                              const Lisple::sptr_rtval& fallback = Lisple::Constant::NIL)
-    {
-      if (!fn || fn->type == Lisple::RTValue::Type::NIL) return fallback;
-      Lisple::Context exec_ctx(rt);
-      return fn->exec().execute(exec_ctx, args);
-    }
-
     Point local_pos(const Point& global, const Rect& bounds)
     {
       return {global.x - static_cast<float>(bounds.x),
@@ -86,7 +76,7 @@ namespace Pixils::UI
       if (!hook || hook->type == Lisple::RTValue::Type::NIL) return;
       Lisple::obj<HookContext>(*hook_args.update_args[1]).current_view = view;
       Lisple::sptr_rtval_v args = {view->state, ev_ref, hook_args.update_args[1]};
-      auto new_state = invoke(hook, args, rt, view->state);
+      auto new_state = Runtime::invoke_hook(rt, view, hook, args, view->state);
       if (new_state->type != Lisple::RTValue::Type::NIL)
       {
         view->state = new_state;

@@ -656,3 +656,41 @@ TEST_F(SessionStateTreeTest, explicit_child_id_is_retained_on_view)
   ASSERT_NE(child->state, nullptr);
   EXPECT_EQ(child->state->to_string(), "{:loaded true}");
 }
+
+TEST_F(SessionStateTreeTest,
+       replace_child_bang_rebuilds_direct_child_against_post_hook_state)
+{
+  runtime.eval(R"(
+    (pixils/defmode old-child {})
+    (pixils/defmode new-child {})
+    (pixils/defmode root-mode
+      {:init (fn [state ctx] {:game {:value 1} :swapped? false})
+       :update (fn [state ctx]
+                 (if (:swapped? state)
+                   state
+                   (do (pixils.ui/replace-child! (:view ctx)
+                                                 "game"
+                                                 {:mode 'new-child
+                                                  :state (pixils.ui/bind-state :game)})
+                       (-> state
+                           (assoc :game {:value 42})
+                           (assoc :swapped? true)))))
+       :children [{:mode 'old-child
+                   :id "game"
+                   :state (pixils.ui/bind-state :game)}]})
+  )");
+
+  session.push_mode("root-mode", Lisple::Constant::NIL);
+  ASSERT_NE(session.active_mode, nullptr);
+  ASSERT_EQ(session.active_mode->children.size(), 1u);
+  ASSERT_EQ(session.active_mode->children[0]->mode->name, "old-child");
+  EXPECT_EQ(session.active_mode->children[0]->state->to_string(), "{:value 1}");
+
+  update_cycle();
+
+  ASSERT_EQ(session.active_mode->children.size(), 1u);
+  EXPECT_EQ(session.active_mode->children[0]->id, "game");
+  EXPECT_EQ(session.active_mode->children[0]->mode->name, "new-child");
+  EXPECT_EQ(session.active_mode->children[0]->state->to_string(), "{:value 42}");
+  EXPECT_EQ(session.active_mode->state->to_string(), "{:game {:value 42} :swapped? true}");
+}

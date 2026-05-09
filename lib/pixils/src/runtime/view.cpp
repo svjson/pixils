@@ -18,4 +18,10 @@ namespace Pixils::Runtime
     }
     this->emitted_events.clear();
   }
+
+  void View::queue_replace_child(const std::string& child_id, ChildSlot child_slot)
+  {
+    pending_child_replacements.push_back(
+      QueuedChildReplacement{child_id, std::move(child_slot)});
+  }
 } // namespace Pixils::Runtime

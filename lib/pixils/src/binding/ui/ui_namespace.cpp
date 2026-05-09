@@ -1,6 +1,7 @@
 
 #include "pixils/binding/ui/ui_namespace.h"
 
+#include <pixils/binding/mode_definition.h>
 #include <pixils/binding/pixils_namespace.h>
 #include <pixils/binding/point_namespace.h>
 #include <pixils/binding/ui/ui_host_type.h>
@@ -8,6 +9,8 @@
 #include <pixils/runtime/view.h>
 #include <pixils/ui/event.h>
 
+#include <algorithm>
+#include <lisple/exception.h>
 #include <lisple/exec.h>
 #include <lisple/host/accessor.h>
 #include <lisple/host/object.h>
@@ -43,6 +46,41 @@ namespace Pixils::Script
       view.emit_event(CustomEvent{args[1],
                                   args.size() > 2 ? args[2] : Lisple::Constant::NIL,
                                   source_mode});
+
+      return Lisple::Constant::NIL;
+    }
+
+    /** ReplaceChildBangFunction - replace-child! */
+    FUNC_IMPL(ReplaceChildBangFunction,
+              SIG((FN_ARGS((&HostType::VIEW), (&Lisple::Type::ANY), (&Lisple::Type::MAP)),
+                   EXEC_DISPATCH(&ReplaceChildBangFunction::exec_replace_child))));
+
+    EXEC_BODY(ReplaceChildBangFunction, exec_replace_child)
+    {
+      Runtime::View& view = Lisple::obj<Runtime::View>(*args[0]);
+      if (args[1]->type != Lisple::RTValue::Type::STRING &&
+          args[1]->type != Lisple::RTValue::Type::SYMBOL &&
+          args[1]->type != Lisple::RTValue::Type::KEYWORD)
+      {
+        throw Lisple::TypeError("ui/replace-child! child id must be string-like");
+      }
+
+      std::string child_id = args[1]->str();
+      auto existing_child = std::find_if(view.children.begin(),
+                                         view.children.end(),
+                                         [&](const std::shared_ptr<Runtime::View>& child)
+                                         { return child && child->id == child_id; });
+      if (existing_child == view.children.end())
+      {
+        throw Lisple::InvocationException("ui/replace-child! could not find child '" +
+                                          child_id + "'");
+      }
+
+      auto child_entries = Lisple::RTValue::vector({args[2]});
+      auto slots = parse_child_slots(ctx, child_entries);
+      auto slot = std::move(slots.front());
+      slot.id = child_id;
+      view.queue_replace_child(child_id, std::move(slot));
 
       return Lisple::Constant::NIL;
     }
@@ -182,6 +220,7 @@ namespace Pixils::Script
   {
     values.emplace("bind-state", Function::BindStateFn::make());
     values.emplace("emit!", Function::EmitBangFunction::make());
+    values.emplace("replace-child!", Function::ReplaceChildBangFunction::make());
     values.emplace("stop-propagation!", Function::StopPropagation::make());
   }
 

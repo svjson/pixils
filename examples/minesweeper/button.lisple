@@ -12,7 +12,7 @@
                                             bh (-> view :bounds :h)
                                             pressed (:pressed state)
                                             offset (if pressed 1 0)]
-                                        (when (:image state)
+                                        (when (keyword? (:image state))
                                           (r/image! (:image state) {:x 0 :y 0}))
                                         ;(win/draw-bevel! {:x offset :y offset :w bw :h bh } {:thickness 2 :invert pressed})
                                         ))})

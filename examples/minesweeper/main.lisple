@@ -20,6 +20,11 @@
    :theme 'windows-3
    :initial-mode 'main-mode})
 
+(defun restart-game [state ctx settings]
+  (let [new-state (assoc state :game (gl/new-game-state settings))]
+    (ui/replace-child! (:view ctx) "game" (make-game-mode settings))
+    new-state))
+
 
 
 ;; Game Layout mode
@@ -38,12 +43,7 @@
                     :left {:color c/WHITE}}}
    :children [{:mode 'status-panel
                :state {:counters (ui/bind-state :counters)
-                       :face (ui/bind-state :face)}
-               :style {:border {:thickness 2
-                                :line-style :bevel
-                                :color win/panel-shadow
-                                :bottom {:color c/WHITE :trim [0 1]}
-                                :right {:color c/WHITE :trim [1 0]}}}}
+                       :face (ui/bind-state :face)}}
               {:mode 'board-mode
                :state {:board (ui/bind-state :board)
                        :board-mask (ui/bind-state :board-mask)
@@ -69,10 +69,18 @@
                                                           0
                                                           (fn [num row]
                                                             (+ num
-                                                               (count (filter row (fn [cell] (:flagged? cell))))))))))))
-        :game/new-game (fn [state event ctx]
-                         (gl/new-game-state (:settings state)))}})
+                                                               (count (filter row (fn [cell] (:flagged? cell))))))))))))}})
 
+(defun make-game-mode [& settings]
+  (merge {:mode 'game-mode
+          :id "game"
+          :state (ui/bind-state :game)}
+         (if settings
+           {:children [{:mode 'status-panel
+                        :state {:counters (ui/bind-state :counters)
+                                :face (ui/bind-state :face)}}
+                       (board/make-board-child settings)]}
+           {})))
 
 
 
@@ -84,27 +92,29 @@
                    :preferences {:marks? true
                                  :color? true}}))
    :children [{:mode 'menu-bar-mode
+               :id "menu"
                :state {:game (ui/bind-state :game)
-                       :preferences (ui/bind-state :preferences)}
-               :on {:menu/select (fn [state event ctx]
-                                   (case (-> event :payload :key)
-                                     :game/new-game
-                                     (update state :game (fn [game-state]
-                                                           (gl/new-game-state (:settings game-state))))
+                       :preferences (ui/bind-state :preferences)}}
+              (make-game-mode)]
+   :on {:game/new-game (fn [state event ctx]
+                         (restart-game state ctx (-> state :game :settings)))
+        :menu/select (fn [state event ctx]
+                       (case (-> event :payload :key)
+                         :game/new-game
+                         (restart-game state ctx (-> state :game :settings))
 
-                                     :game/difficulty
-                                     (update state :game (fn [game-state]
-                                                           (let [difficulty (-> event :payload :value)]
-                                                             (gl/new-game-state (merge {:mode difficulty}
-                                                                                       (get gl/difficulty-settings difficulty))))))
+                         :game/difficulty
+                         (let [difficulty (-> event :payload :value)]
+                           (restart-game state
+                                         ctx
+                                         (merge {:mode difficulty}
+                                                (get gl/difficulty-settings difficulty))))
 
-                                     :game/quit
-                                     (quit!)
+                         :game/quit
+                         (quit!)
 
-                                     :default
-                                     state))}}
-              {:mode 'game-mode
-               :state (ui/bind-state :game)}]})
+                         :default
+                         state))}})
 
 
 

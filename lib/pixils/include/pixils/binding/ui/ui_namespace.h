@@ -27,6 +27,7 @@ namespace Pixils::Script
   {
     FUNC(BindStateFn, bind_state);
     FUNC(EmitBangFunction, emit);
+    FUNC(ReplaceChildBangFunction, replace_child);
     FUNC(StopPropagation, stop);
   } // namespace Function
 

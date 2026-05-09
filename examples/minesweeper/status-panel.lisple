@@ -1,6 +1,8 @@
 (ns pixils.examples.minesweeper.status-panel
   (:require pixils
+            [pixils.color :as c]
             [pixils.ui :as ui]
+            [pixils.examples.minesweeper.win :as win]
             pixils.examples.minesweeper.counter))
 
 
@@ -17,7 +19,12 @@
 (defcomponent status-panel {:style {:width :fill
                                     :padding 4
                                     :layout {:direction :row
-                                             :gap :space-between}}
+                                             :gap :space-between}
+                                    :border {:thickness 2
+                                             :line-style :bevel
+                                             :color win/panel-shadow
+                                             :bottom {:color c/WHITE :trim [0 1]}
+                                             :right {:color c/WHITE :trim [1 0]}}}
                             :children [{:mode 'counter
                                         :state {:value (ui/bind-state :counters :mines-left)}}
 

@@ -1,12 +1,12 @@
 #include "pixils/ui/view_update.h"
 
 #include "pixils/runtime/hook_arguments.h"
+#include "pixils/runtime/hook_invocation.h"
 #include "pixils/runtime/state.h"
 #include "pixils/runtime/view.h"
 #include "pixils/ui/view_events.h"
 #include <pixils/hook_context.h>
 
-#include <lisple/context.h>
 #include <lisple/host/object.h>
 #include <lisple/runtime.h>
 #include <lisple/runtime/value.h>
@@ -15,23 +15,13 @@ namespace Pixils::UI
 {
   namespace
   {
-    Lisple::sptr_rtval invoke(const Lisple::sptr_rtval& fn,
-                              Lisple::sptr_rtval_v& args,
-                              Lisple::Runtime& rt,
-                              const Lisple::sptr_rtval& fallback = Lisple::Constant::NIL)
-    {
-      if (!fn || fn->type == Lisple::RTValue::Type::NIL) return fallback;
-      Lisple::Context exec_ctx(rt);
-      return fn->exec().execute(exec_ctx, args);
-    }
-
     void run_update_hook(const std::shared_ptr<Runtime::View>& view,
                          Runtime::HookArguments& hook_args,
                          Lisple::Runtime& rt)
     {
       Lisple::obj<HookContext>(*hook_args.update_args[1]).current_view = view;
       Lisple::sptr_rtval_v args = {view->state, hook_args.update_args[1]};
-      view->state = invoke(view->mode->update, args, rt, view->state);
+      view->state = Runtime::invoke_hook(rt, view, view->mode->update, args, view->state);
     }
 
     void bubble_child_events_to_subject(Runtime::View& subject,

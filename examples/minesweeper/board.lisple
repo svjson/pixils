@@ -1,6 +1,7 @@
 (ns pixils.examples.minesweeper.board
   (:require pixils
             [pixils.render :as r]
+            [pixils.color :as c]
             [pixils.point :as pt]
             [pixils.ui :as ui]
             [pixils.examples.minesweeper.game-logic :as gl]
@@ -90,6 +91,52 @@
                                                   :mask-row (ui/bind-state :board-mask n)}
                                           :style {:height 17}})})
 
+(defun make-board-button-row [y settings]
+  {:mode 'board-button-row
+   :id (str "row-" y)
+   :state {:y y
+           :mask-row (ui/bind-state :board-mask y)}
+   :style {:height 17}
+   :children (dotimes [x (:w settings)]
+               {:mode 'board-button
+                :id (str "cell-" x)
+                :state {:x x
+                        :y (ui/bind-state :y)
+                        :mask (ui/bind-state :mask-row x)}})})
+
+(defun make-board-buttons [settings]
+  {:mode 'board-buttons
+   :id "buttons"
+   :state {:board-mask (ui/bind-state :board-mask)
+           :face (ui/bind-state :face)}
+   :on-mouse-down (fn [state e ctx]
+                    (assoc state :face :status/face-danger))
+   :on-mouse-up (fn [state e ctx]
+                  (assoc state :face :status/face-normal))
+   :style {:position :absolute
+           :top 0
+           :left 0}
+   :children (dotimes [y (:h settings)]
+               (make-board-button-row y settings))})
+
+(defun make-board-child [settings]
+  {:mode 'board-mode
+   :state {:board (ui/bind-state :board)
+           :board-mask (ui/bind-state :board-mask)
+           :settings (ui/bind-state :settings)
+           :face (ui/bind-state :face)}
+   :style {:margin {:t 6}
+           :border {:thickness 3
+                    :line-style :bevel
+                    :color win/panel-shadow
+                    :bottom {:color c/WHITE :trim [0 1]}
+                    :right {:color c/WHITE :trim [1 0]}}}
+   :children [{:mode 'mine-layer-mode
+               :state {:board (ui/bind-state :board)
+                       :board-mask (ui/bind-state :board-mask)
+                       :settings (ui/bind-state :settings)}}
+              (make-board-buttons settings)]})
+
 
 
 ;; Board mode
@@ -166,5 +213,3 @@
                :style {:position :absolute
                        :top 0
                        :left 0}}]})
-
-
