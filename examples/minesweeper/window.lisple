@@ -1,0 +1,36 @@
+(ns pixils.examples.minesweeper.window
+  (:require pixils
+            [pixils.ui :as ui]))
+
+(defcomponent window-control-button
+  {})
+
+(defcomponent window-minimize-button
+  {:extend 'button
+   :class :window/minimize-button})
+
+(defcomponent window-title-bar
+  {:children [{:mode 'window-control-button}
+              {:mode 'text-node
+               :style {:padding [3 2]}
+               :state {:value (ui/bind-state :title)}}
+              {:mode 'window-minimize-button}]})
+
+(defcomponent window-body
+  {})
+
+(defcomponent window
+  {:children [{:mode 'window-title-bar}
+              {:mode 'window-body}]})
+
+
+(defun make [{:keys [title-bar body init style] :as opts}]
+  {:mode 'window
+   :init (or init (fn [state ctx]
+                    state))
+   :style (or style {})
+   :children [{:mode 'window-title-bar
+               :state title-bar}
+              {:mode 'window-body
+               :children body}]})
+

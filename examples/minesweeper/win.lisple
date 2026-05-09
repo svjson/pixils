@@ -8,7 +8,9 @@
 ;; Win 3.11 Sans Serif System Font
 
 (defbundle win3 {:images {:system-font "assets/win311systemfont.png"
-                          :checkmark "assets/win311-checkmark.png"}})
+                          :checkmark "assets/win311-checkmark.png"
+                          :control-button "assets/win311-control-button.png"
+                          :minimize-button "assets/win311-minimize-button.png"}})
 
 (deffont win3-system-font
   {:type :bitmap
@@ -96,7 +98,31 @@
 
 
 (deftheme windows-3
-  {:styles {'(button {:pressed true})
+  {:styles {'window {:border {:line-style :solid
+                              :thickness 1
+                              :color c/BLACK}
+                     :text {:font :font/win3-system-font}}
+
+            'window-title-bar {:background focus-blue
+                               :text {:color c/WHITE}
+                               :width :fill
+                               :height 19
+                               :layout {:direction :row
+                                        :gap :space-between}}
+
+            'window-control-button {:background {:image :win3/control-button}
+                                    :border {:right {:thickness 1
+                                                     :color c/BLACK}}
+                                    :width 18
+                                    :height 18}
+
+            'window-minimize-button {:width 18
+                                     :height 18}
+
+            '(window-minimize-button button-inner)
+            {:background {:image :win3/minimize-button}}
+
+            '(button {:pressed true})
             {:border {:line-style :solid
                       :color c/TRANSPARENT
                       :thickness 1
