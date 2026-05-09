@@ -38,7 +38,10 @@
    :children [{:mode 'button
                :state {:label "Reset Scores"}}
               {:mode 'button
-               :state {:label " OK "}}]})
+               :state {:label " OK "}
+               :on-click (fn [state event ctx]
+                           (ui/emit! (:view ctx) :highscores/close)
+                           state)}]})
 
 (defcomponent highscores-window
   {:style {:background c/WHITE
@@ -46,3 +49,15 @@
    :children [{:mode 'highscore-table
                :state (ui/bind-state :highscores)}
               {:mode 'highscore-buttons}]})
+
+(defmode highscores-modal
+  {:on {:highscores/close (fn [state event ctx]
+                            (ui/stop-propagation! event)
+                            (pop-mode!)
+                            state)}
+   :compose {:render :pass}
+   :children [(w/make {:position {:x 100 :y 100}
+                       :title-bar {:title "Fastest Mine Sweepers"}
+                       :state {:highscores (ui/bind-state :highscores)}
+                       :body [{:mode 'highscores-window
+                               :state {:highscores (ui/bind-state :highscores)}}]})]})

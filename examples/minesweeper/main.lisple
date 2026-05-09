@@ -112,7 +112,9 @@
                                                 (get gl/difficulty-settings difficulty))))
 
                          :game/best-times
-                         state
+                         (do
+                           (ui/emit! (:view ctx) :action/show-highscores)
+                           state)
 
                          :game/quit
                          (quit!)
@@ -135,6 +137,10 @@
                                   :time 114
                                   :player-name "Herr Anka"}}})
    :style {:background win/teal}
+   :on {:action/show-highscores (fn [state event ctx]
+                                  (push-mode! 'highscores-modal
+                                              {:highscores (:highscores state)})
+                                  state)}
    :children [(w/make {:position {:x 24 :y 20}
                        :title-bar {:title "Minesweeper"}
                        :init (fn [state ctx]
@@ -143,9 +149,5 @@
                                                                        (get gl/difficulty-settings :beginner)))
                                        :preferences {:marks? true
                                                      :color? true}}))
-                       :body [{:mode 'window-mode}]})
-              (w/make {:position {:x 100 :y 100}
-                       :title-bar {:title "Fastest Mine Sweepers"}
-                       :state {:highscores (ui/bind-state :highscores)}
-                       :body [{:mode 'highscores-window
+                       :body [{:mode 'window-mode
                                :state {:highscores (ui/bind-state :highscores)}}]})]})
