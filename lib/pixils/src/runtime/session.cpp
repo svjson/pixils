@@ -13,6 +13,7 @@
 #include <pixils/ui/view_layout.h>
 #include <pixils/ui/view_lifecycle.h>
 #include <pixils/ui/view_render.h>
+#include <pixils/ui/view_update.h>
 
 #include <SDL2/SDL_render.h>
 #include <lisple/exception.h>
@@ -27,6 +28,7 @@ namespace Pixils::Runtime
     const Lisple::sptr_rtval KEYWORD__EVENT = Lisple::RTValue::keyword("event");
     const Lisple::sptr_rtval KEYWORD__ORIGIN = Lisple::RTValue::keyword("origin");
     const Lisple::sptr_rtval KEYWORD__POP_RESULT = Lisple::RTValue::keyword("pop/result");
+    const Lisple::sptr_rtval KEYWORD__TARGET = Lisple::RTValue::keyword("target");
     const Lisple::sptr_rtval KEYWORD__VIEW = Lisple::RTValue::keyword("view");
 
     Session::ModeFrameMetadata parse_frame_metadata(const Lisple::sptr_rtval& overrides)
@@ -94,6 +96,64 @@ namespace Pixils::Runtime
       }
 
       return false;
+    }
+
+    void store_focus_chain(UI::FocusState& focus_state,
+                           const std::vector<std::shared_ptr<View>>& chain)
+    {
+      focus_state.clear();
+      if (chain.empty()) return;
+
+      focus_state.focused = chain[0];
+      for (auto& view : chain)
+      {
+        focus_state.focus_chain.push_back(std::weak_ptr<View>(view));
+      }
+    }
+
+    View* resolve_target_view(const Lisple::sptr_rtval& value)
+    {
+      if (!value || value->type == Lisple::RTValue::Type::NIL)
+      {
+        return nullptr;
+      }
+
+      if (!Script::HostType::VIEW.is_type_of(*value))
+      {
+        return nullptr;
+      }
+
+      return &Lisple::obj<View>(*value);
+    }
+
+    bool focus_target_view(const std::shared_ptr<View>& root,
+                           UI::FocusState& focus_state,
+                           View* target)
+    {
+      if (!root || !target)
+      {
+        return false;
+      }
+
+      std::vector<std::shared_ptr<View>> path;
+      if (!find_view_path(root, target, path))
+      {
+        return false;
+      }
+
+      store_focus_chain(focus_state, path);
+      return true;
+    }
+
+    Point current_mouse_pos(const HookArguments& hook_args)
+    {
+      if (!hook_args.events || !hook_args.events->mouse_pos ||
+          hook_args.events->mouse_pos->type == Lisple::RTValue::Type::NIL)
+      {
+        return {0.0f, 0.0f};
+      }
+
+      return Lisple::obj<Point>(*hook_args.events->mouse_pos);
     }
 
     void dispatch_event_along_path(const std::vector<std::shared_ptr<View>>& path,
@@ -271,6 +331,7 @@ namespace Pixils::Runtime
   void Session::process_messages()
   {
     Lisple::sptr_rtval_v messages = mode_stack.drain_messages();
+    bool focus_changed = false;
 
     for (auto& message : messages)
     {
@@ -293,10 +354,40 @@ namespace Pixils::Runtime
           Lisple::Dict::get_property(message, Lisple::RTValue::keyword("payload"));
         pop_mode(payload ? payload : Lisple::Constant::NIL);
       }
+      else if (type == "focus")
+      {
+        auto target = resolve_target_view(Lisple::Dict::get_property(message, KEYWORD__TARGET));
+        if (focus_target_view(active_mode, focus_state, target))
+        {
+          focus_changed = true;
+        }
+      }
+      else if (type == "blur")
+      {
+        auto target = resolve_target_view(Lisple::Dict::get_property(message, KEYWORD__TARGET));
+        if (!target)
+        {
+          focus_state.clear();
+          focus_changed = true;
+        }
+        else if (auto focused = focus_state.focused.lock(); focused && focused.get() == target)
+        {
+          focus_state.clear();
+          focus_changed = true;
+        }
+      }
       else if (type == "quit")
       {
         quit_requested = true;
       }
+    }
+
+    if (focus_changed)
+    {
+      UI::refresh_view_interaction_tree(active_mode,
+                                        mouse_state,
+                                        focus_state,
+                                        current_mouse_pos(hook_args));
     }
   }
 

@@ -26,6 +26,11 @@ namespace Pixils::UI
                         const Point& mouse_pos,
                         Runtime::HookArguments& hook_args,
                         Lisple::Runtime& runtime);
+
+  void refresh_view_interaction_tree(const std::shared_ptr<Runtime::View>& root,
+                                     const MouseState& mouse_state,
+                                     const FocusState& focus_state,
+                                     const Point& mouse_pos);
 }
 
 #endif /* PIXILS__UI__VIEW_UPDATE_H */

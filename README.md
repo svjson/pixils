@@ -378,6 +378,14 @@ hit-testing or focus bookkeeping is needed in the component. When a focused leaf
 it receives both `:focus` and `:focus-within`; its ancestors receive `:focus-within`
 only.
 
+Programmatic focus control is also available from hooks:
+
+```clojure
+(pixils.ui/focus! ctx)         ; focus the current view
+(pixils.ui/focus! (:view ctx)) ; equivalent explicit form
+(pixils.ui/blur!)              ; clear the current focused leaf
+```
+
 With the default `:box-sizing :border-box`, a fixed size includes padding and border but
 not margin. Use `:box-sizing :content-box` to opt into the previous behavior where padding
 and border are added on top of the fixed content size.
@@ -776,7 +784,9 @@ Accepts the same `:font` and `:scale` options as `text!`.
 | Symbol               | Description |
 |----------------------|-------------|
 | `bind-state`         | Create a live binding from a child state key to a path in the parent's state. Args: one or more keys forming the path. |
+| `blur!`              | Clear focus, or clear it only when the optional hook `ctx`/`view` argument is the focused leaf. |
 | `emit!`              | Emit a custom event that bubbles up the view tree. Args: `view`, `event-key`, optional `payload`. |
+| `focus!`             | Focus a view. Arg: hook `ctx` or a `view` object. |
 | `stop-propagation!`  | Prevent a mouse or custom event from bubbling further. Pass the event object from a mouse hook or `:on` handler. |
 
 ### `pixils.image`

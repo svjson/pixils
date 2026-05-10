@@ -680,6 +680,47 @@ TEST_F(EventRoutingTest, hover_style_variant_applied_when_cursor_is_inside)
   EXPECT_EQ(style.width->fixed_value_or(0), 200);
 }
 
+TEST_F(EventRoutingTest, focus_and_blur_bang_update_focus_state_from_hook_context)
+{
+  runtime.eval(R"(
+    (pixils/defmode root-mode
+      {:init (fn [state ctx] {:step 0})
+       :update (fn [state ctx]
+                   (if (= (:step state) 0)
+                   (do (pixils.ui/focus! ctx)
+                       (assoc state :step 1))
+                   (if (= (:step state) 1)
+                     (do (pixils.ui/blur!)
+                         (assoc state :step 2))
+                     state)))
+       :style (pixils.ui.style/make-style
+                {:width 40
+                 :focus {:width 90}})})
+  )");
+
+  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.active_mode->bounds = {0, 0, 100, 100};
+
+  update_cycle();
+
+  ASSERT_TRUE(session.focus_state.has_focus());
+  ASSERT_EQ(session.focus_state.focused.lock().get(), session.active_mode.get());
+  EXPECT_TRUE(session.active_mode->interaction.focused);
+  EXPECT_TRUE(session.active_mode->interaction.focus_within);
+
+  auto focused_style = Pixils::UI::resolve_style(session.active_mode->mode->style,
+                                                 session.active_mode->state,
+                                                 session.active_mode->interaction);
+  ASSERT_NE(focused_style.width, std::nullopt);
+  EXPECT_EQ(focused_style.width->fixed_value_or(0), 90);
+
+  update_cycle();
+
+  EXPECT_FALSE(session.focus_state.has_focus());
+  EXPECT_FALSE(session.active_mode->interaction.focused);
+  EXPECT_FALSE(session.active_mode->interaction.focus_within);
+}
+
 TEST_F(EventRoutingTest, quit_bang_requests_session_shutdown)
 {
   runtime.eval("(pixils/quit!)");

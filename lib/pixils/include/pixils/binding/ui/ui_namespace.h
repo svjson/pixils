@@ -22,11 +22,15 @@ namespace Pixils::Runtime
 namespace Pixils::Script
 {
   inline constexpr std::string_view NS__PIXILS__UI = "pixils.ui";
+  inline constexpr std::string_view FN__PIXILS__UI__BLUR_BANG = "blur!";
+  inline constexpr std::string_view FN__PIXILS__UI__FOCUS_BANG = "focus!";
 
   namespace Function
   {
     FUNC(BindStateFn, bind_state);
+    FUNC(BlurBangFunction, blur);
     FUNC(EmitBangFunction, emit);
+    FUNC(FocusBangFunction, focus);
     FUNC(ReplaceChildBangFunction, replace_child);
     FUNC(StopPropagation, stop);
   } // namespace Function

@@ -38,6 +38,9 @@
    :children [{:mode 'button
                :state {:label "Reset Scores"}}
               {:mode 'button
+               :init (fn [state ctx]
+                       (ui/focus! ctx)
+                       state)
                :state {:label " OK "}
                :on-click (fn [state event ctx]
                            (ui/emit! (:view ctx) :highscores/close)

@@ -12,14 +12,45 @@
 #include <algorithm>
 #include <lisple/exception.h>
 #include <lisple/exec.h>
+#include <lisple/host.h>
 #include <lisple/host/accessor.h>
 #include <lisple/host/object.h>
+#include <lisple/runtime/seq.h>
 #include <lisple/runtime/value.h>
 
 namespace Pixils::Script
 {
   namespace Function
   {
+    namespace
+    {
+      Lisple::sptr_rtval resolve_focus_target(const Lisple::sptr_rtval& target)
+      {
+        if (!target || target->type == Lisple::RTValue::Type::NIL)
+        {
+          return Lisple::Constant::NIL;
+        }
+
+        if (HostType::VIEW.is_type_of(*target))
+        {
+          return target;
+        }
+
+        if (!Script::HostType::HOOK_CONTEXT.is_type_of(*target))
+        {
+          throw Lisple::TypeError("ui/focus! target must be a view or hook context");
+        }
+
+        auto view = Lisple::obj<HookContext>(*target).current_view;
+        if (!view)
+        {
+          return Lisple::Constant::NIL;
+        }
+
+        return ViewAdapter::make_ref(*view);
+      }
+    } // namespace
+
     /** BindStateFn - bind-state */
     FUNC_IMPL(BindStateFn,
               SIG((FN_ARGS((Lisple::VARARG, &Lisple::Type::ANY)),
@@ -28,6 +59,30 @@ namespace Pixils::Script
     EXEC_BODY(BindStateFn, exec_bind_state)
     {
       return BindStateAdapter::make_unique(args);
+    }
+
+    /** BlurBangFunction - blur! */
+    FUNC_IMPL(BlurBangFunction,
+              MULTI_SIG((NO_ARGS, EXEC_DISPATCH(&BlurBangFunction::exec_blur)),
+                        (FN_ARGS((&Script::HostType::HOOK_CONTEXT)),
+                         EXEC_DISPATCH(&BlurBangFunction::exec_blur)),
+                        (FN_ARGS((&HostType::VIEW)),
+                         EXEC_DISPATCH(&BlurBangFunction::exec_blur))));
+
+    EXEC_BODY(BlurBangFunction, exec_blur)
+    {
+      auto message_queue = ctx.lookup_value(ID__PIXILS__MODE_STACK_MESSAGES);
+      auto target = args.empty() ? Lisple::Constant::NIL : resolve_focus_target(args[0]);
+
+      Lisple::append(*message_queue,
+                     Lisple::RTValue::map(Lisple::sptr_rtval_v{
+                       Lisple::RTValue::keyword("type"),
+                       Lisple::RTValue::keyword("blur"),
+                       Lisple::RTValue::keyword("target"),
+                       target,
+                     }));
+
+      return Lisple::Constant::NIL;
     }
 
     /** EmitFunction - emit */
@@ -48,6 +103,29 @@ namespace Pixils::Script
                                   source_mode});
 
       return Lisple::Constant::NIL;
+    }
+
+    /** FocusBangFunction - focus! */
+    FUNC_IMPL(FocusBangFunction,
+              MULTI_SIG((FN_ARGS((&Script::HostType::HOOK_CONTEXT)),
+                         EXEC_DISPATCH(&FocusBangFunction::exec_focus)),
+                        (FN_ARGS((&HostType::VIEW)),
+                         EXEC_DISPATCH(&FocusBangFunction::exec_focus))));
+
+    EXEC_BODY(FocusBangFunction, exec_focus)
+    {
+      auto target = resolve_focus_target(args[0]);
+      auto message_queue = ctx.lookup_value(ID__PIXILS__MODE_STACK_MESSAGES);
+
+      Lisple::append(*message_queue,
+                     Lisple::RTValue::map(Lisple::sptr_rtval_v{
+                       Lisple::RTValue::keyword("type"),
+                       Lisple::RTValue::keyword("focus"),
+                       Lisple::RTValue::keyword("target"),
+                       target,
+                     }));
+
+      return target;
     }
 
     /** ReplaceChildBangFunction - replace-child! */
@@ -219,7 +297,9 @@ namespace Pixils::Script
     : Lisple::Namespace(std::string(NS__PIXILS__UI))
   {
     values.emplace("bind-state", Function::BindStateFn::make());
+    values.emplace(FN__PIXILS__UI__BLUR_BANG, Function::BlurBangFunction::make());
     values.emplace("emit!", Function::EmitBangFunction::make());
+    values.emplace(FN__PIXILS__UI__FOCUS_BANG, Function::FocusBangFunction::make());
     values.emplace("replace-child!", Function::ReplaceChildBangFunction::make());
     values.emplace("stop-propagation!", Function::StopPropagation::make());
   }

@@ -124,6 +124,25 @@ namespace Pixils::UI
       }
     }
 
+    void refresh_interaction_subtree(const std::shared_ptr<Runtime::View>& view_ptr,
+                                     const MouseState& mouse_state,
+                                     const FocusState& focus_state,
+                                     const Point& mouse_pos)
+    {
+      if (!view_ptr)
+      {
+        return;
+      }
+
+      auto& view = *view_ptr;
+      update_interaction(view, mouse_pos, mouse_state, focus_state);
+
+      for (auto& child : view.children)
+      {
+        refresh_interaction_subtree(child, mouse_state, focus_state, mouse_pos);
+      }
+    }
+
   } // namespace
 
   void update_view_tree(const std::shared_ptr<Runtime::View>& root,
@@ -140,6 +159,14 @@ namespace Pixils::UI
                         mouse_pos,
                         hook_args,
                         runtime);
+  }
+
+  void refresh_view_interaction_tree(const std::shared_ptr<Runtime::View>& root,
+                                     const MouseState& mouse_state,
+                                     const FocusState& focus_state,
+                                     const Point& mouse_pos)
+  {
+    refresh_interaction_subtree(root, mouse_state, focus_state, mouse_pos);
   }
 
 } // namespace Pixils::UI
