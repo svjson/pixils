@@ -19,6 +19,8 @@ namespace Pixils::UI
   struct InteractionState
   {
     bool hovered = false;
+    bool focused = false;
+    bool focus_within = false;
     std::set<MouseButton> pressed;
   };
 

@@ -67,6 +67,19 @@ namespace Pixils::UI
       return result;
     }
 
+    void store_focus_chain(FocusState& focus_state,
+                           const std::vector<std::shared_ptr<Runtime::View>>& chain)
+    {
+      focus_state.clear();
+      if (chain.empty()) return;
+
+      focus_state.focused = chain[0];
+      for (auto& view : chain)
+      {
+        focus_state.focus_chain.push_back(std::weak_ptr<Runtime::View>(view));
+      }
+    }
+
     void fire_hook_on_view(const std::shared_ptr<Runtime::View>& view,
                            const Lisple::sptr_rtval& hook,
                            const Lisple::sptr_rtval& ev_ref,
@@ -166,6 +179,59 @@ namespace Pixils::UI
       return true;
     }
 
+    bool is_focusable(const std::shared_ptr<Runtime::View>& view)
+    {
+      return view != nullptr;
+    }
+
+    bool find_focus_chain(const std::shared_ptr<Runtime::View>& view,
+                          Runtime::View* target,
+                          std::vector<std::shared_ptr<Runtime::View>>& chain)
+    {
+      if (!view || !target) return false;
+      if (view->bounds.w <= 0 || view->bounds.h <= 0) return false;
+
+      auto style = resolve_style(view->mode->style, view->state, view->interaction);
+      if (style.hidden && *style.hidden) return false;
+
+      if (view.get() == target)
+      {
+        chain.push_back(view);
+        return true;
+      }
+
+      for (auto& child : view->children)
+      {
+        if (find_focus_chain(child, target, chain))
+        {
+          chain.push_back(view);
+          return true;
+        }
+      }
+
+      return false;
+    }
+
+    void sync_focus_state(const std::shared_ptr<Runtime::View>& root,
+                          FocusState& focus_state)
+    {
+      auto focused = focus_state.focused.lock();
+      if (!root || !focused)
+      {
+        focus_state.clear();
+        return;
+      }
+
+      std::vector<std::shared_ptr<Runtime::View>> chain;
+      if (!find_focus_chain(root, focused.get(), chain))
+      {
+        focus_state.clear();
+        return;
+      }
+
+      store_focus_chain(focus_state, chain);
+    }
+
     void handle_mouse_up(MouseState& mouse_state,
                          FrameEvents& events,
                          Runtime::HookArguments& hook_args,
@@ -250,6 +316,7 @@ namespace Pixils::UI
 
     void handle_mouse_down(const std::shared_ptr<Runtime::View>& root,
                            MouseState& mouse_state,
+                           FocusState& focus_state,
                            FrameEvents& events,
                            Runtime::HookArguments& hook_args,
                            Lisple::Runtime& rt)
@@ -259,7 +326,20 @@ namespace Pixils::UI
       int my = gp.round_y();
 
       std::vector<std::shared_ptr<Runtime::View>> hit_chain;
-      if (!build_hit_chain(root, mx, my, hit_chain)) return;
+      if (!build_hit_chain(root, mx, my, hit_chain))
+      {
+        focus_state.clear();
+        return;
+      }
+
+      if (is_focusable(hit_chain[0]))
+      {
+        store_focus_chain(focus_state, hit_chain);
+      }
+      else
+      {
+        focus_state.clear();
+      }
 
       MouseButton btn = (events.mouse_button_down &&
                          events.mouse_button_down->type != Lisple::RTValue::Type::NIL)
@@ -366,6 +446,7 @@ namespace Pixils::UI
 
     void traverse(const std::shared_ptr<Runtime::View>& root,
                   MouseState& mouse_state,
+                  const FocusState& focus_state,
                   FrameEvents& events,
                   Runtime::HookArguments& hook_args,
                   Lisple::Runtime& rt)
@@ -423,17 +504,20 @@ namespace Pixils::UI
         mouse_state.hovered_chain.push_back(std::weak_ptr<Runtime::View>(v));
       }
 
-      update_view_tree(root, mouse_state, mouse_pos, hook_args, rt);
+      update_view_tree(root, mouse_state, focus_state, mouse_pos, hook_args, rt);
     }
 
   } // namespace
 
   void dispatch_interactions(const std::shared_ptr<Runtime::View>& root,
                              MouseState& mouse_state,
+                             FocusState& focus_state,
                              FrameEvents& events,
                              Runtime::HookArguments& hook_args,
                              Lisple::Runtime& runtime)
   {
+    sync_focus_state(root, focus_state);
+
     if (events.mouse_button_up && events.mouse_button_up->type != Lisple::RTValue::Type::NIL)
     {
       handle_mouse_up(mouse_state, events, hook_args, runtime);
@@ -442,10 +526,11 @@ namespace Pixils::UI
     if (events.mouse_button_down &&
         events.mouse_button_down->type != Lisple::RTValue::Type::NIL)
     {
-      handle_mouse_down(root, mouse_state, events, hook_args, runtime);
+      handle_mouse_down(root, mouse_state, focus_state, events, hook_args, runtime);
     }
 
-    traverse(root, mouse_state, events, hook_args, runtime);
+    sync_focus_state(root, focus_state);
+    traverse(root, mouse_state, focus_state, events, hook_args, runtime);
 
     if (events.mouse_moved)
     {

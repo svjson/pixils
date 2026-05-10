@@ -224,6 +224,7 @@ namespace Pixils::Runtime
     if (hook_args.events)
       Pixils::UI::dispatch_interactions(active_mode,
                                         mouse_state,
+                                        focus_state,
                                         *hook_args.events,
                                         hook_args,
                                         lisple_runtime);

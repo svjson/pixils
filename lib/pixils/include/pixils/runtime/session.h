@@ -6,6 +6,7 @@
 #include <pixils/runtime/hook_arguments.h>
 #include <pixils/runtime/mode.h>
 #include <pixils/runtime/mode_stack.h>
+#include <pixils/ui/focus_state.h>
 #include <pixils/ui/mouse_state.h>
 
 namespace Pixils
@@ -39,6 +40,7 @@ namespace Pixils::Runtime
     std::vector<std::shared_ptr<View>> ctx_stack;
     std::vector<ModeFrameMetadata> frame_metadata;
     HookArguments hook_args;
+    UI::FocusState focus_state;
     UI::MouseState mouse_state;
     bool quit_requested = false;
 

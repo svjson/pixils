@@ -527,6 +527,96 @@ TEST_F(EventRoutingTest, interaction_hovered_false_when_cursor_is_outside)
   EXPECT_FALSE(session.active_mode->interaction.hovered);
 }
 
+TEST_F(EventRoutingTest, mouse_down_sets_focus_to_deepest_hit_view_and_marks_ancestor_chain)
+{
+  runtime.eval(R"(
+    (pixils/defmode child-mode {})
+    (pixils/defmode root-mode {:children [{:mode 'child-mode :id "child"}]})
+  )");
+  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.active_mode->bounds = {0, 0, 200, 200};
+  session.active_mode->children[0]->bounds = {20, 20, 100, 100};
+
+  input().mouse_down({50, 50});
+  update_cycle();
+
+  auto focused = session.focus_state.focused.lock();
+  ASSERT_NE(focused, nullptr);
+  EXPECT_EQ(focused.get(), session.active_mode->children[0].get());
+
+  ASSERT_EQ(session.focus_state.focus_chain.size(), 2u);
+  EXPECT_EQ(session.focus_state.focus_chain[0].lock().get(),
+            session.active_mode->children[0].get());
+  EXPECT_EQ(session.focus_state.focus_chain[1].lock().get(), session.active_mode.get());
+
+  EXPECT_TRUE(session.active_mode->children[0]->interaction.focused);
+  EXPECT_TRUE(session.active_mode->children[0]->interaction.focus_within);
+  EXPECT_FALSE(session.active_mode->interaction.focused);
+  EXPECT_TRUE(session.active_mode->interaction.focus_within);
+}
+
+TEST_F(EventRoutingTest, mouse_down_outside_root_clears_focus)
+{
+  runtime.eval(R"(
+    (pixils/defmode child-mode {})
+    (pixils/defmode root-mode {:children [{:mode 'child-mode :id "child"}]})
+  )");
+  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.active_mode->bounds = {0, 0, 200, 200};
+  session.active_mode->children[0]->bounds = {20, 20, 100, 100};
+
+  input().mouse_down({50, 50});
+  update_cycle();
+  ASSERT_TRUE(session.focus_state.has_focus());
+
+  input().mouse_down({250, 250});
+  update_cycle();
+
+  EXPECT_FALSE(session.focus_state.has_focus());
+  EXPECT_FALSE(session.active_mode->interaction.focused);
+  EXPECT_FALSE(session.active_mode->interaction.focus_within);
+  EXPECT_FALSE(session.active_mode->children[0]->interaction.focused);
+  EXPECT_FALSE(session.active_mode->children[0]->interaction.focus_within);
+}
+
+TEST_F(EventRoutingTest, focused_view_replacement_clears_focus_state)
+{
+  runtime.eval(R"(
+    (pixils/defmode old-child {})
+    (pixils/defmode new-child {})
+    (pixils/defmode root-mode
+      {:init (fn [state ctx] {:swapped? false})
+       :update (fn [state ctx]
+                 (if (:swapped? state)
+                   state
+                   (do (pixils.ui/replace-child! (:view ctx)
+                                                 "child"
+                                                 {:mode 'new-child})
+                       (assoc state :swapped? true))))
+       :children [{:mode 'old-child :id "child"}]})
+  )");
+  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.active_mode->bounds = {0, 0, 200, 200};
+  session.active_mode->children[0]->bounds = {20, 20, 100, 100};
+
+  auto original_child = session.active_mode->children[0];
+
+  input().mouse_down({50, 50});
+  update_cycle();
+  ASSERT_TRUE(session.focus_state.has_focus());
+  ASSERT_EQ(session.focus_state.focused.lock().get(), original_child.get());
+
+  update_cycle();
+
+  EXPECT_EQ(session.active_mode->children[0]->mode->name, "new-child");
+  EXPECT_NE(session.active_mode->children[0].get(), original_child.get());
+  EXPECT_FALSE(session.focus_state.has_focus());
+  EXPECT_FALSE(session.active_mode->interaction.focused);
+  EXPECT_FALSE(session.active_mode->interaction.focus_within);
+  EXPECT_FALSE(session.active_mode->children[0]->interaction.focused);
+  EXPECT_FALSE(session.active_mode->children[0]->interaction.focus_within);
+}
+
 TEST_F(EventRoutingTest, hover_style_variant_applied_when_cursor_is_inside)
 {
   // Given - a mode with a hover style that changes width

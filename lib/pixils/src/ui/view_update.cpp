@@ -43,7 +43,8 @@ namespace Pixils::UI
 
     void update_interaction(Runtime::View& view,
                             const Point& mouse_pos,
-                            const MouseState& mouse_state)
+                            const MouseState& mouse_state,
+                            const FocusState& focus_state)
     {
       int mx = mouse_pos.round_x();
       int my = mouse_pos.round_y();
@@ -51,6 +52,8 @@ namespace Pixils::UI
       view.interaction.hovered = view.bounds.w > 0 && mx >= view.bounds.x &&
                                  mx < view.bounds.x + view.bounds.w && my >= view.bounds.y &&
                                  my < view.bounds.y + view.bounds.h;
+      view.interaction.focused = false;
+      view.interaction.focus_within = false;
 
       view.interaction.pressed.clear();
       for (auto& [btn, chain] : mouse_state.button_chains)
@@ -64,10 +67,26 @@ namespace Pixils::UI
           }
         }
       }
+
+      auto focused_view = focus_state.focused.lock();
+      if (focused_view && focused_view.get() == &view)
+      {
+        view.interaction.focused = true;
+      }
+
+      for (auto& weak_v : focus_state.focus_chain)
+      {
+        if (auto v = weak_v.lock(); v && v.get() == &view)
+        {
+          view.interaction.focus_within = true;
+          break;
+        }
+      }
     }
 
     void update_view_subtree(const std::shared_ptr<Runtime::View>& view_ptr,
                              const MouseState& mouse_state,
+                             const FocusState& focus_state,
                              Lisple::sptr_rtval* parent_state,
                              const Point& mouse_pos,
                              Runtime::HookArguments& hook_args,
@@ -80,12 +99,18 @@ namespace Pixils::UI
         view.state = Runtime::extract_state(*parent_state, view);
       }
 
-      update_interaction(view, mouse_pos, mouse_state);
+      update_interaction(view, mouse_pos, mouse_state, focus_state);
       run_update_hook(view_ptr, hook_args, rt);
 
       for (auto& child : view.children)
       {
-        update_view_subtree(child, mouse_state, &view.state, mouse_pos, hook_args, rt);
+        update_view_subtree(child,
+                            mouse_state,
+                            focus_state,
+                            &view.state,
+                            mouse_pos,
+                            hook_args,
+                            rt);
         bubble_child_events_to_subject(view,
                                        parent_state,
                                        child,
@@ -103,11 +128,18 @@ namespace Pixils::UI
 
   void update_view_tree(const std::shared_ptr<Runtime::View>& root,
                         const MouseState& mouse_state,
+                        const FocusState& focus_state,
                         const Point& mouse_pos,
                         Runtime::HookArguments& hook_args,
                         Lisple::Runtime& runtime)
   {
-    update_view_subtree(root, mouse_state, nullptr, mouse_pos, hook_args, runtime);
+    update_view_subtree(root,
+                        mouse_state,
+                        focus_state,
+                        nullptr,
+                        mouse_pos,
+                        hook_args,
+                        runtime);
   }
 
 } // namespace Pixils::UI

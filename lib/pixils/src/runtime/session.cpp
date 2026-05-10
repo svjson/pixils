@@ -150,6 +150,8 @@ namespace Pixils::Runtime
   {
     if (mode_stack.size() > 1)
     {
+      focus_state.clear();
+
       auto popped_frame = mode_stack.peek();
       auto* popped_mode = popped_frame.first;
       auto frame_meta = frame_metadata.empty() ? ModeFrameMetadata{} : frame_metadata.back();
@@ -212,6 +214,8 @@ namespace Pixils::Runtime
                           const Lisple::sptr_rtval& state,
                           const Lisple::sptr_rtval& overrides)
   {
+    focus_state.clear();
+
     std::optional<UI::Theme> inherited_theme = std::nullopt;
     /**
      * Flush the current active context's state to the Lisple stack before pushing,
