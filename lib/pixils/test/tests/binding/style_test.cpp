@@ -179,7 +179,7 @@ TEST_F(StyleTest, make_style_with_text)
   // When
   Lisple::sptr_rtval result =
     runtime.eval("(pixils.ui.style/make-style {:text {:color {:r 255 :g 255 :b 255} "
-                 ":font :font/console :scale 2}})");
+                 ":font :font/console :scale 2 :align :center}})");
 
   // Then
   auto style = Lisple::obj<Pixils::UI::Style>(*result);
@@ -187,9 +187,11 @@ TEST_F(StyleTest, make_style_with_text)
   ASSERT_NE(style.text->color, std::nullopt);
   ASSERT_NE(style.text->font, std::nullopt);
   ASSERT_NE(style.text->scale, std::nullopt);
+  ASSERT_NE(style.text->align, std::nullopt);
   EXPECT_EQ(*style.text->color, (Pixils::Color{255, 255, 255, 255}));
   EXPECT_EQ(*style.text->font, "font/console");
   EXPECT_EQ(*style.text->scale, 2);
+  EXPECT_EQ(*style.text->align, Pixils::Text::Alignment::CENTER);
 }
 
 TEST_F(StyleTest, make_style_with_focus_variants)
@@ -216,6 +218,7 @@ TEST(StyleResolveTest, inherited_text_fields_are_applied_fieldwise)
   parent.text->color = Pixils::Color{255, 255, 255, 255};
   parent.text->font = "font/ui";
   parent.text->scale = 2;
+  parent.text->align = Pixils::Text::Alignment::RIGHT;
 
   Pixils::UI::Style child;
   child.text = Pixils::UI::Style::Text{};
@@ -230,9 +233,11 @@ TEST(StyleResolveTest, inherited_text_fields_are_applied_fieldwise)
   ASSERT_NE(resolved.text->color, std::nullopt);
   ASSERT_NE(resolved.text->font, std::nullopt);
   ASSERT_NE(resolved.text->scale, std::nullopt);
+  ASSERT_NE(resolved.text->align, std::nullopt);
   EXPECT_EQ(*resolved.text->color, (Pixils::Color{255, 0, 0, 255}));
   EXPECT_EQ(*resolved.text->font, "font/ui");
   EXPECT_EQ(*resolved.text->scale, 2);
+  EXPECT_EQ(*resolved.text->align, Pixils::Text::Alignment::RIGHT);
 }
 
 TEST(StyleResolveTest, hover_text_variant_overrides_only_its_own_fields)
@@ -241,6 +246,7 @@ TEST(StyleResolveTest, hover_text_variant_overrides_only_its_own_fields)
   parent.text = Pixils::UI::Style::Text{};
   parent.text->font = "font/ui";
   parent.text->scale = 2;
+  parent.text->align = Pixils::Text::Alignment::RIGHT;
 
   Pixils::UI::Style child;
   child.hover = std::make_unique<Pixils::UI::Style>();
@@ -259,9 +265,11 @@ TEST(StyleResolveTest, hover_text_variant_overrides_only_its_own_fields)
   ASSERT_NE(resolved.text->color, std::nullopt);
   ASSERT_NE(resolved.text->font, std::nullopt);
   ASSERT_NE(resolved.text->scale, std::nullopt);
+  ASSERT_NE(resolved.text->align, std::nullopt);
   EXPECT_EQ(*resolved.text->color, (Pixils::Color{0, 255, 0, 255}));
   EXPECT_EQ(*resolved.text->font, "font/ui");
   EXPECT_EQ(*resolved.text->scale, 2);
+  EXPECT_EQ(*resolved.text->align, Pixils::Text::Alignment::RIGHT);
 }
 
 TEST(StyleResolveTest, focus_variant_overrides_focus_within_on_focused_leaf)

@@ -30,7 +30,7 @@ namespace Pixils::Script
                  (height, hidden, left, position, top, width));
   NATIVE_ADAPTER(LayoutAdapter, UI::Style::Layout, (direction, gap));
   NATIVE_ADAPTER(LayoutGapAdapter, UI::Style::Layout::Gap, (mode, size));
-  NATIVE_ADAPTER(StyleTextAdapter, UI::Style::Text, (color, font, scale));
+  NATIVE_ADAPTER(StyleTextAdapter, UI::Style::Text, (color, font, scale, align));
   NATIVE_ADAPTER(ThemeAdapter, UI::Theme, (name));
   NATIVE_ADAPTER(BackgroundAdapter, UI::Style::Background, (color, image));
   NATIVE_ADAPTER(BorderAdapter, UI::Style::Border, (thickness, line_style, color, trim));

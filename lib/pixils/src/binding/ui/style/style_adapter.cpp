@@ -194,7 +194,8 @@ namespace Pixils::Script
                       &HostType::STYLE_TEXT,
                       (color),
                       (font),
-                      (scale));
+                      (scale),
+                      (align));
 
   NOBJ_PROP_GET(StyleTextAdapter, color)
   {
@@ -212,6 +213,11 @@ namespace Pixils::Script
   {
     return get_self_object().scale ? Lisple::RTValue::number(*get_self_object().scale)
                                    : Lisple::Constant::NIL;
+  }
+
+  NOBJ_PROP_GET(StyleTextAdapter, align)
+  {
+    return StyleDefinition::text_align_to_value(get_self_object().align);
   }
 
   NATIVE_ADAPTER_IMPL(ThemeAdapter, UI::Theme, &HostType::THEME, (name));

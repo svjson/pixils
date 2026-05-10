@@ -4,7 +4,6 @@
 #include <pixils/ui/style.h>
 
 #include <lisple/runtime/value.h>
-
 #include <memory>
 #include <optional>
 
@@ -30,8 +29,11 @@ namespace Pixils::Script::StyleDefinition
   std::optional<UI::Style::LineStyle> parse_line_style(const Lisple::sptr_rtval& value);
   Lisple::sptr_rtval line_style_to_value(const std::optional<UI::Style::LineStyle>& value);
 
-  std::optional<UI::LayoutDirection> parse_layout_direction(
-    const Lisple::sptr_rtval& value);
+  std::optional<Pixils::Text::Alignment> parse_text_align(const Lisple::sptr_rtval& value);
+  Lisple::sptr_rtval text_align_to_value(
+    const std::optional<Pixils::Text::Alignment>& value);
+
+  std::optional<UI::LayoutDirection> parse_layout_direction(const Lisple::sptr_rtval& value);
   Lisple::sptr_rtval layout_direction_to_value(
     const std::optional<UI::LayoutDirection>& value);
 
@@ -50,13 +52,12 @@ namespace Pixils::Script::StyleDefinition
                                          const Lisple::sptr_rtval& value);
   std::unique_ptr<UI::Style::Layout> build_layout(Lisple::Context& ctx,
                                                   const Lisple::sptr_rtval& value);
-  std::unique_ptr<UI::Style::Layout::Gap> build_layout_gap(
-    Lisple::Context& ctx,
-    const Lisple::sptr_rtval& value);
+  std::unique_ptr<UI::Style::Layout::Gap> build_layout_gap(Lisple::Context& ctx,
+                                                           const Lisple::sptr_rtval& value);
   std::unique_ptr<UI::Style::Text> build_text(Lisple::Context& ctx,
                                               const Lisple::sptr_rtval& value);
   std::unique_ptr<UI::Style::Background> build_background(Lisple::Context& ctx,
-                                                           const Lisple::sptr_rtval& value);
+                                                          const Lisple::sptr_rtval& value);
   std::unique_ptr<UI::Style::Border> build_border(Lisple::Context& ctx,
                                                   const Lisple::sptr_rtval& value);
   std::unique_ptr<UI::Style::BorderStyle> build_border_style(

@@ -129,6 +129,31 @@ namespace Pixils::Script::StyleDefinition
     return Lisple::Constant::NIL;
   }
 
+  std::optional<Pixils::Text::Alignment> parse_text_align(const Lisple::sptr_rtval& value)
+  {
+    if (!value || value->type != Lisple::RTValue::Type::KEYWORD) return std::nullopt;
+    if (value->str() == "left") return Pixils::Text::Alignment::LEFT;
+    if (value->str() == "center") return Pixils::Text::Alignment::CENTER;
+    if (value->str() == "right") return Pixils::Text::Alignment::RIGHT;
+    return std::nullopt;
+  }
+
+  Lisple::sptr_rtval text_align_to_value(
+    const std::optional<Pixils::Text::Alignment>& value)
+  {
+    if (!value) return Lisple::Constant::NIL;
+    switch (*value)
+    {
+    case Pixils::Text::Alignment::LEFT:
+      return Lisple::RTValue::keyword("left");
+    case Pixils::Text::Alignment::CENTER:
+      return Lisple::RTValue::keyword("center");
+    case Pixils::Text::Alignment::RIGHT:
+      return Lisple::RTValue::keyword("right");
+    }
+    return Lisple::Constant::NIL;
+  }
+
   std::optional<UI::LayoutDirection> parse_layout_direction(const Lisple::sptr_rtval& value)
   {
     if (!value || value->type != Lisple::RTValue::Type::KEYWORD) return std::nullopt;
@@ -235,13 +260,15 @@ namespace Pixils::Script::StyleDefinition
     static Lisple::MapSchema text_schema({},
                                          {{"color", &HostType::COLOR},
                                           {"font", &Lisple::Type::KEY},
-                                          {"scale", &Lisple::Type::NUMBER}});
+                                          {"scale", &Lisple::Type::NUMBER},
+                                          {"align", &Lisple::Type::KEY}});
 
     auto text = std::make_unique<UI::Style::Text>();
     auto opts = text_schema.bind(ctx, *value);
     text->color = opts.optional_obj<Color>("color");
     if (opts.contains("font")) text->font = opts.str("font");
     if (opts.contains("scale")) text->scale = opts.i32("scale");
+    if (opts.contains("align")) text->align = parse_text_align(opts.val("align"));
     return text;
   }
 

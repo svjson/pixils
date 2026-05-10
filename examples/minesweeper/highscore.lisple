@@ -84,6 +84,8 @@
                                                   (:difficulty-name state)
                                                   " level.")))}
               {:mode 'text-node
+               :style {:width :fill
+                       :text {:align :center}}
                :state {:value "Please type your name."}}
               {:mode 'text-input}
               {:mode 'button

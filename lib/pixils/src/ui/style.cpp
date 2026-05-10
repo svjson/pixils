@@ -41,11 +41,24 @@ namespace Pixils::UI
       if (!out.text) out.text = Style::Text{};
 
       if (inherited_style.text->color && !out.text->color)
+      {
         out.text->color = inherited_style.text->color;
+      }
+
       if (inherited_style.text->font && !out.text->font)
+      {
         out.text->font = inherited_style.text->font;
+      }
+
       if (inherited_style.text->scale && !out.text->scale)
+      {
         out.text->scale = inherited_style.text->scale;
+      }
+
+      if (inherited_style.text->align && !out.text->align)
+      {
+        out.text->align = inherited_style.text->align;
+      }
     }
 
     void apply_text_variant(Style& out, const Style::Text& variant)
@@ -54,6 +67,7 @@ namespace Pixils::UI
       if (variant.color) out.text->color = variant.color;
       if (variant.font) out.text->font = variant.font;
       if (variant.scale) out.text->scale = variant.scale;
+      if (variant.align) out.text->align = variant.align;
     }
   } // namespace
 

@@ -3,6 +3,7 @@
 #define PIXILS__UI__STYLE_H
 
 #include <pixils/geom.h>
+#include <pixils/text.h>
 #include <pixils/ui/interaction.h>
 
 #include <SDL2/SDL_render.h>
@@ -171,6 +172,7 @@ namespace Pixils::UI
       std::optional<Color> color = std::nullopt;
       std::optional<std::string> font = std::nullopt;
       std::optional<int> scale = std::nullopt;
+      std::optional<Pixils::Text::Alignment> align = std::nullopt;
     };
 
     struct Size

@@ -48,6 +48,12 @@ namespace Pixils::UI::Components
       return "font/console";
     }
 
+    Text::Alignment text_style_alignment(const Style& style)
+    {
+      if (style.text && style.text->align) return *style.text->align;
+      return Text::Alignment::LEFT;
+    }
+
     namespace Function
     {
       FUNC(TextNodeContentSize, text_node_content_size);
@@ -96,7 +102,26 @@ namespace Pixils::UI::Components
                                                  text_style_color(view.effective_style));
         if (!text_op) return Lisple::Constant::NIL;
 
-        Text::render_text(rc, *text_op, text_node_value(args[0]), 0, 0);
+        Text::Cursor cursor(*text_op->renderer,
+                            text_op->color,
+                            text_op->renderer->get_line_height());
+        cursor.set_alignment(text_style_alignment(view.effective_style));
+
+        const Rect content_rect = view.effective_style.content_rect(view.bounds);
+        switch (cursor.get_alignment())
+        {
+        case Text::Alignment::CENTER:
+          cursor.move_to(content_rect.w / 2, 0);
+          break;
+        case Text::Alignment::RIGHT:
+          cursor.move_to(content_rect.w, 0);
+          break;
+        default:
+          cursor.move_to(0, 0);
+          break;
+        }
+
+        cursor.print(rc, text_node_value(args[0]));
         return Lisple::Constant::NIL;
       }
     } // namespace Function
