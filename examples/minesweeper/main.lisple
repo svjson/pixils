@@ -229,7 +229,8 @@
                                                      :color? true}}))
                        :body [{:mode 'window-mode
                                :state {:highscores (ui/bind-state :highscores)}}]})
-              (w/make {:position {:x 100 :y 100}
-                       :title-bar {:title "New Highscore"}
-                       :body [{:mode 'new-highscore-window
-                               :state {:difficulty-name "beginner"}}]})]})
+              ;; (w/make {:position {:x 100 :y 100}
+              ;;          :title-bar {:title "New Highscore"}
+              ;;          :body [{:mode 'new-highscore-window
+              ;;                  :state {:difficulty-name "beginner"}}]})
+              ]})

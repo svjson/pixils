@@ -53,34 +53,6 @@
    :key/f11 "F11"
    :key/f12 "F12"})
 
-(def upper-alpha
-  {"a" "A"
-   "b" "B"
-   "c" "C"
-   "d" "D"
-   "e" "E"
-   "f" "F"
-   "g" "G"
-   "h" "H"
-   "i" "I"
-   "j" "J"
-   "k" "K"
-   "l" "L"
-   "m" "M"
-   "n" "N"
-   "o" "O"
-   "p" "P"
-   "q" "Q"
-   "r" "R"
-   "s" "S"
-   "t" "T"
-   "u" "U"
-   "v" "V"
-   "w" "W"
-   "x" "X"
-   "y" "Y"
-   "z" "Z"})
-
 (defun merge-menu-settings [parent local]
   (let [local (or local {})
         merged (merge parent local)]
@@ -189,7 +161,7 @@
                   (substr raw 5)
                   raw)]
       (if (= 1 (count value))
-        (or (get upper-alpha value) value)
+        (upper-case value)
         value))))
 
 (defun format-shortcut-parts [parts]

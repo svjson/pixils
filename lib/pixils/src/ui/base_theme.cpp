@@ -66,7 +66,20 @@ namespace Pixils::UI
 
         'menu-bar {:background {:r 0xff :g 0xff :b 0xff}}
 
-        'menu-item {:padding [2 16]}
+        'popup-menu-item
+        {:padding [2 16]}
+
+        'popup-menu-option-item
+        {:padding [2 2]}
+
+        :menu/shortcut-column
+        {:margin {:l 16}}
+
+        :menu/item
+        {:text {:color {:r 0x00 :g 0x00 :b 0x00}
+                :marked-style {:enabled true
+                               :marker "@"
+                               :font-styles :underline}}}
 
         :menu/item:hover
         {:text {:color {:r 0xff :g 0xff :b 0xff}}
@@ -78,6 +91,20 @@ namespace Pixils::UI
                                 :box-sizing :content-box
                                 :width 8
                                 :height 10}
+
+        '(menu-option-indicator {:selected true})
+        {:background {:image :pixils/console-font}}
+
+        'menu-separator
+        {:height 1
+         :margin {:t 3 :r 0 :b 2 :l 0}
+         :border {:thickness 1
+                  :line-style :solid
+                  :color {:r 0x00 :g 0x00 :b 0x00}
+                  :right {:thickness 0}
+                  :bottom {:thickness 0}
+                  :left {:thickness 0}}}
+
 
         'popup-menu-inner
         {:text {:color {:r 0x00 :g 0x00 :b 0x00}}
