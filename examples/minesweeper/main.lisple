@@ -38,21 +38,25 @@
                     {:label "&Beginner"
                      :type :option
                      :action :game/set-difficulty
+                     :payload {:mode :beginner}
                      :value :beginner
                      :selected-path [:game :settings :mode]}
                     {:label "&Intermediate"
                      :type :option
                      :action :game/set-difficulty
+                     :payload {:mode :intermediate}
                      :value :intermediate
                      :selected-path [:game :settings :mode]}
                     {:label "&Expert"
                      :type :option
                      :action :game/set-difficulty
+                     :payload {:mode :expert}
                      :value :expert
                      :selected-path [:game :settings :mode]}
                     {:label "&Custom..."
                      :type :option
                      :action :game/set-difficulty
+                     :payload {:mode :custom}
                      :value :custom
                      :selected-path [:game :settings :mode]}
                     :separator
@@ -164,43 +168,22 @@
               (make-game-mode)]
    :on {:game/new-game (fn [state event ctx]
                          (restart-game state ctx (-> state :game :settings)))
-        :action/show-highscores (fn [state event ctx]
-                                  (ui/emit! (:view ctx) :action/show-highscores)
-                                  state)
+        :game/set-difficulty (fn [state event ctx]
+                               (let [difficulty (-> event :payload :mode)]
+                                 (restart-game state
+                                               ctx
+                                               (merge {:mode difficulty}
+                                                      (get gl/difficulty-settings difficulty)))))
+        :preferences/toggle-marks (fn [state event ctx]
+                                    (assoc-in state
+                                              [:preferences :marks?]
+                                              (not (-> state :preferences :marks?))))
+        :preferences/toggle-color (fn [state event ctx]
+                                    (assoc-in state
+                                              [:preferences :color?]
+                                              (not (-> state :preferences :color?))))
         :game/quit (fn [state event ctx]
-                     (quit!))
-        :menu/select (fn [state event ctx]
-                       (case (-> event :payload :action)
-                         :game/new-game
-                         (restart-game state ctx (-> state :game :settings))
-
-                         :game/set-difficulty
-                         (let [difficulty (-> event :payload :value)]
-                           (restart-game state
-                                         ctx
-                                         (merge {:mode difficulty}
-                                                (get gl/difficulty-settings difficulty))))
-
-                         :preferences/toggle-marks
-                         (assoc-in state
-                                   [:preferences :marks?]
-                                   (not (-> state :preferences :marks?)))
-
-                         :preferences/toggle-color
-                         (assoc-in state
-                                   [:preferences :color?]
-                                   (not (-> state :preferences :color?)))
-
-                         :action/show-highscores
-                         (do
-                           (ui/emit! (:view ctx) :action/show-highscores)
-                           state)
-
-                         :game/quit
-                         (quit!)
-
-                         :default
-                         state))}})
+                     (quit!))}})
 
 
 

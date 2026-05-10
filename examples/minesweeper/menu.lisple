@@ -214,6 +214,7 @@
       {:node-type :item
        :item-type (or (:type item) :action)
        :action action
+       :payload (:payload item)
        :value (or (:value item) (:selected-value item))
        :label (:label item)
        :text (:text label-data)
@@ -345,8 +346,9 @@
       (do
         (ui/emit! (:view ctx)
                   :menu/select
-                  {:action (:action node)
-                   :value (:value node)})
+                  {:type :action
+                   :action (:action node)
+                   :payload (:payload node)})
         state)
 
       :default
@@ -499,6 +501,13 @@
                                         :menu-index (:menu-index state)})
                              state)
 
+                           (= :action (:type payload))
+                           (do
+                             (ui/emit! (:view ctx)
+                                       (:action payload)
+                                       (:payload payload))
+                             state)
+
                            :default
                            state)))}
    :children [{:mode 'text-node
@@ -525,8 +534,9 @@
                     (when (empty? (:items node))
                       (ui/emit! (:view ctx)
                                 :menu/select
-                                {:action (:action node)
-                                 :value (:value node)})))
+                                {:type :action
+                                 :action (:action node)
+                                 :payload (:payload node)})))
                   state)
    :on {:menu/select (fn [state event ctx]
                        (ui/stop-propagation! event)
@@ -565,8 +575,9 @@
                   (let [node (:node state)]
                     (ui/emit! (:view ctx)
                               :menu/select
-                              {:action (:action node)
-                               :value (:value node)}))
+                              {:type :action
+                               :action (:action node)
+                               :payload (:payload node)}))
                   state)
    :children [{:mode 'menu-option-indicator
                :state {:selected (ui/bind-state :selected)}}
