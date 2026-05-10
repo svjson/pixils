@@ -134,8 +134,8 @@
 
             'window-title-bar {:background c/WHITE
                                :text {:color c/BLACK}
-                               :border {:bottom {:color c/BLACK}
-                                        :thickness 1}
+                               :border {:bottom {:color c/BLACK
+                                                 :thickness 1}}
                                :width :fill
                                :height 19
                                :padding 0}
