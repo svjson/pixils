@@ -201,12 +201,12 @@
              :text {:font :font/win3-system-font}
              :border {:line-style :solid :color {:r 0 :g 0 :b 0} :bottom {:thickness 1}}}
 
+            :menu/menu
+            {:padding [2 16]}
+
             :menu/item:hover
             {:background focus-blue
              :text {:color white}}
-
-            'menu-item
-            {:padding [2 16]}
 
             'menu-option-item
             {:padding {:t 2 :r 12 :b 2 :l 2}}
