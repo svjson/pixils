@@ -1,6 +1,7 @@
 #include "pixils/ui/view_layout.h"
 
 #include <pixils/binding/pixils_namespace.h>
+#include <pixils/hook_context.h>
 #include <pixils/runtime/hook_invocation.h>
 #include <pixils/runtime/view.h>
 #include <pixils/ui/theme.h>
@@ -35,6 +36,28 @@ namespace Pixils::UI
       return Dimension{total_w, total_h};
     }
 
+    int margin_size(const Style& style, Axis axis)
+    {
+      if (!style.margin) return 0;
+      return axis == Axis::HORIZONTAL ? style.margin->l + style.margin->r
+                                      : style.margin->t + style.margin->b;
+    }
+
+    int padding_size(const Style& style, Axis axis)
+    {
+      if (!style.padding) return 0;
+      return axis == Axis::HORIZONTAL ? style.padding->l + style.padding->r
+                                      : style.padding->t + style.padding->b;
+    }
+
+    int border_size(const Style& style, Axis axis)
+    {
+      if (!style.border) return 0;
+      return axis == Axis::HORIZONTAL
+               ? style.border->left_thickness() + style.border->right_thickness()
+               : style.border->top_thickness() + style.border->bottom_thickness();
+    }
+
     std::optional<Dimension> parse_dimension_like(const Lisple::sptr_rtval& value)
     {
       if (!value || value->type == Lisple::RTValue::Type::NIL) return std::nullopt;
@@ -57,16 +80,26 @@ namespace Pixils::UI
     std::optional<Dimension> invoke_content_size_hook(
       const std::shared_ptr<Pixils::Runtime::View>& child,
       Lisple::Runtime& runtime,
-      const Lisple::sptr_rtval& hook_ctx)
+      const Lisple::sptr_rtval& hook_ctx,
+      const std::optional<int>& available_width,
+      const std::optional<int>& available_height)
     {
       if (!hook_ctx || hook_ctx->type == Lisple::RTValue::Type::NIL) return std::nullopt;
       if (!child->mode || !child->mode->content_size ||
           child->mode->content_size->type == Lisple::RTValue::Type::NIL)
         return std::nullopt;
 
+      HookContext& native_hook_ctx = Lisple::obj<HookContext>(*hook_ctx);
+      auto previous_width = native_hook_ctx.available_width;
+      auto previous_height = native_hook_ctx.available_height;
+      native_hook_ctx.available_width = available_width;
+      native_hook_ctx.available_height = available_height;
+
       Lisple::sptr_rtval_v args = {child->state, hook_ctx};
       auto result =
         Pixils::Runtime::invoke_hook(runtime, child, child->mode->content_size, args);
+      native_hook_ctx.available_width = previous_width;
+      native_hook_ctx.available_height = previous_height;
       return parse_dimension_like(result);
     }
 
@@ -112,6 +145,31 @@ namespace Pixils::UI
       if (natural > 0) return natural;
 
       return 0;
+    }
+
+    std::optional<int> resolve_available_content_size(const Style& style,
+                                                      const std::optional<int>& parent_size,
+                                                      Axis axis,
+                                                      bool root_context)
+    {
+      const auto& size = axis_size(style, axis);
+      const int margin = margin_size(style, axis);
+      const int padding = padding_size(style, axis);
+      const int border = border_size(style, axis);
+
+      if (size && size->is_fixed())
+      {
+        const int bounds_size = fixed_outer_size(style, axis) - margin;
+        return std::max(0, bounds_size - padding - border);
+      }
+
+      if (parent_size && fills_axis(style, axis, root_context))
+      {
+        const int bounds_size = *parent_size - margin;
+        return std::max(0, bounds_size - padding - border);
+      }
+
+      return std::nullopt;
     }
 
     ThemeMatchContext make_theme_match_context(
@@ -195,6 +253,8 @@ namespace Pixils::UI
       const std::shared_ptr<Pixils::Runtime::View>& view,
       Lisple::Runtime& runtime,
       const Lisple::sptr_rtval& hook_ctx,
+      const std::optional<int>& available_width,
+      const std::optional<int>& available_height,
       const Style* inherited_style,
       const Theme* inherited_theme,
       const std::vector<ThemeMatchContext>& selector_path);
@@ -213,6 +273,8 @@ namespace Pixils::UI
       const std::shared_ptr<Pixils::Runtime::View>& view,
       Lisple::Runtime& runtime,
       const Lisple::sptr_rtval& hook_ctx,
+      const std::optional<int>& parent_available_width,
+      const std::optional<int>& parent_available_height,
       const Style* inherited_style,
       const Theme* inherited_theme,
       const std::vector<ThemeMatchContext>& selector_path)
@@ -222,12 +284,29 @@ namespace Pixils::UI
       view->effective_theme = resolve_effective_theme(view, runtime, inherited_theme);
       view->effective_style = resolve_effective_style(view, inherited_style, selector_path);
 
-      if (auto natural = invoke_content_size_hook(view, runtime, hook_ctx)) return natural;
+      const bool root_context = !inherited_style;
+      auto available_width = resolve_available_content_size(view->effective_style,
+                                                            parent_available_width,
+                                                            Axis::HORIZONTAL,
+                                                            root_context);
+      auto available_height = resolve_available_content_size(view->effective_style,
+                                                             parent_available_height,
+                                                             Axis::VERTICAL,
+                                                             root_context);
+
+      if (auto natural = invoke_content_size_hook(view,
+                                                  runtime,
+                                                  hook_ctx,
+                                                  available_width,
+                                                  available_height))
+        return natural;
       if (view->children.empty()) return std::nullopt;
 
       return calculate_child_tree_content_size(view,
                                                runtime,
                                                hook_ctx,
+                                               available_width,
+                                               available_height,
                                                &view->effective_style,
                                                &view->effective_theme,
                                                selector_path);
@@ -237,6 +316,8 @@ namespace Pixils::UI
       const std::shared_ptr<Pixils::Runtime::View>& view,
       Lisple::Runtime& runtime,
       const Lisple::sptr_rtval& hook_ctx,
+      const std::optional<int>& available_width,
+      const std::optional<int>& available_height,
       const Style* inherited_style,
       const Theme* inherited_theme,
       const std::vector<ThemeMatchContext>& selector_path)
@@ -266,6 +347,8 @@ namespace Pixils::UI
           calculate_natural_content_size(child,
                                          runtime,
                                          hook_ctx,
+                                         available_width,
+                                         available_height,
                                          &style,
                                          &view->effective_theme,
                                          child_selector_path);
@@ -312,6 +395,8 @@ namespace Pixils::UI
       auto natural_content_size = calculate_natural_content_size(view,
                                                                  runtime,
                                                                  hook_ctx,
+                                                                 bounds.w,
+                                                                 bounds.h,
                                                                  inherited_style,
                                                                  inherited_theme,
                                                                  selector_path);
@@ -367,6 +452,8 @@ namespace Pixils::UI
             calculate_natural_content_size(child_ptr,
                                            runtime,
                                            hook_ctx,
+                                           content.w,
+                                           content.h,
                                            &style,
                                            &view->effective_theme,
                                            child_selector_path);
@@ -425,6 +512,8 @@ namespace Pixils::UI
         natural_content_sizes.push_back(calculate_natural_content_size(child,
                                                                        runtime,
                                                                        hook_ctx,
+                                                                       parent.w,
+                                                                       parent.h,
                                                                        inherited_style,
                                                                        inherited_theme,
                                                                        child_selector_path));

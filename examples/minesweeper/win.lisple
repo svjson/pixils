@@ -163,6 +163,7 @@
             'button-inner
             {:background panel-face
              :border {:line-style :bevel
+                      :width :fill
                       :color c/WHITE
                       :thickness 2
                       :right {:color panel-shadow}

@@ -12,6 +12,35 @@ namespace Pixils
 {
   namespace Text
   {
+    namespace
+    {
+      bool is_wrap_whitespace(char c)
+      {
+        return c == ' ' || c == '\t';
+      }
+
+      std::vector<std::string> split_paragraphs(const std::string& text)
+      {
+        std::vector<std::string> paragraphs;
+        std::string current;
+
+        for (char c : text)
+        {
+          if (c == '\n')
+          {
+            paragraphs.push_back(current);
+            current.clear();
+            continue;
+          }
+
+          current.push_back(c);
+        }
+
+        paragraphs.push_back(current);
+        return paragraphs;
+      }
+    } // namespace
+
     /* FontMap */
     FontMap::FontMap(const std::map<char32_t, SDL_Rect>& map)
       : map(map)
@@ -210,6 +239,107 @@ namespace Pixils
                                      const std::string& string)
     {
       return op.renderer->get_rendered_size(rc, string);
+    }
+
+    Layout layout_text(RenderContext& rc,
+                       const TextRenderOp& op,
+                       const std::string& text,
+                       WrapMode wrap_mode,
+                       std::optional<int> max_width)
+    {
+      Layout layout;
+      const int line_height = op.renderer->get_line_height();
+      const bool should_wrap =
+        wrap_mode == WrapMode::WORD && max_width && *max_width > 0;
+
+      auto measure_width = [&](const std::string& line)
+      { return calculate_rendered_size(rc, op, line).w; };
+      auto append_line = [&](const std::string& line)
+      {
+        const int width = measure_width(line);
+        layout.lines.push_back({line, width});
+        layout.size.w = std::max(layout.size.w, width);
+      };
+
+      for (const auto& paragraph : split_paragraphs(text))
+      {
+        if (!should_wrap)
+        {
+          append_line(paragraph);
+          continue;
+        }
+
+        std::string current;
+        std::string pending_whitespace;
+        bool emitted_line = false;
+        bool at_paragraph_start = true;
+
+        for (size_t i = 0; i < paragraph.size();)
+        {
+          while (i < paragraph.size() && is_wrap_whitespace(paragraph[i]))
+          {
+            pending_whitespace.push_back(paragraph[i]);
+            i++;
+          }
+
+          const size_t word_start = i;
+          while (i < paragraph.size() && !is_wrap_whitespace(paragraph[i]))
+          {
+            i++;
+          }
+
+          const std::string word = paragraph.substr(word_start, i - word_start);
+          if (word.empty())
+          {
+            continue;
+          }
+
+          if (current.empty())
+          {
+            current = at_paragraph_start ? pending_whitespace + word : word;
+            pending_whitespace.clear();
+            at_paragraph_start = false;
+            continue;
+          }
+
+          const std::string candidate = current + pending_whitespace + word;
+          if (measure_width(candidate) <= *max_width)
+          {
+            current = candidate;
+            pending_whitespace.clear();
+            continue;
+          }
+
+          append_line(current);
+          emitted_line = true;
+          current = word;
+          pending_whitespace.clear();
+          at_paragraph_start = false;
+        }
+
+        if (!current.empty() && !pending_whitespace.empty())
+        {
+          current += pending_whitespace;
+        }
+
+        if (!current.empty())
+        {
+          append_line(current);
+        }
+        else if (!emitted_line)
+        {
+          append_line(paragraph);
+        }
+      }
+
+      if (layout.lines.empty())
+      {
+        append_line("");
+      }
+
+      layout.size.h =
+        line_height * op.renderer->get_scale() * static_cast<int>(layout.lines.size());
+      return layout;
     }
 
     void render_text(RenderContext& rc,

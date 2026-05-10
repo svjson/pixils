@@ -76,9 +76,12 @@
 (defcomponent new-highscore-window
   {:style {:background c/WHITE
            :text {:color c/BLACK}
+           :style {:width 155}
            :padding 8}
    :children [{:mode 'text-node
                :state {:difficulty-name (ui/bind-state :difficulty-name)}
+               :style {:width :fill
+                       :text {:align :center}}
                :update (fn [state ctx]
                          (assoc state :value (str "You have the fastest time for "
                                                   (:difficulty-name state)
@@ -87,7 +90,9 @@
                :style {:width :fill
                        :text {:align :center}}
                :state {:value "Please type your name."}}
-              {:mode 'text-input}
+              {:mode 'text-input
+               :style {:margin 16
+                       :width :fill}}
               {:mode 'button
                :state {:label "   OK   "}
                :init (fn [state ctx]

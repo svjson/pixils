@@ -195,7 +195,8 @@ namespace Pixils::Script
                       (color),
                       (font),
                       (scale),
-                      (align));
+                      (align),
+                      (wrap));
 
   NOBJ_PROP_GET(StyleTextAdapter, color)
   {
@@ -218,6 +219,11 @@ namespace Pixils::Script
   NOBJ_PROP_GET(StyleTextAdapter, align)
   {
     return StyleDefinition::text_align_to_value(get_self_object().align);
+  }
+
+  NOBJ_PROP_GET(StyleTextAdapter, wrap)
+  {
+    return StyleDefinition::text_wrap_to_value(get_self_object().wrap);
   }
 
   NATIVE_ADAPTER_IMPL(ThemeAdapter, UI::Theme, &HostType::THEME, (name));

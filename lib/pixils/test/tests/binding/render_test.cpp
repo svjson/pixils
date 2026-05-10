@@ -1,5 +1,6 @@
 
 #include "../render_fixture.h"
+#include <pixils/text.h>
 
 #include <gtest/gtest.h>
 #include <lisple/runtime/dict.h>
@@ -246,4 +247,100 @@ TEST_F(RenderTest, built_in_text_node_renders_and_measures_without_definition)
   auto& ops = render_target()->render_ops;
   ASSERT_EQ(ops.size(), 1u);
   EXPECT_EQ(ops[0].type, RenderOpType::RENDER_COPY);
+}
+
+TEST_F(RenderTest, built_in_text_node_wraps_wordwise_when_fill_width_is_constrained)
+{
+  SDLMock::prepared_surfaces["./font.png"] = {16, 12};
+  runtime.eval(R"(
+    (pixils/defbundle fonts {:images {:atlas "font.png"}})
+    (pixils/deffont test-font
+      {:type :bitmap
+       :resource :fonts/atlas
+       :glyphs {"A" {:x 0 :y 0 :w 4 :h 7}
+                " " {:x 4 :y 0 :w 1 :h 7}}})
+    (pixils/defcomponent wrap-box
+      {:style {:width 12}
+       :children [{:mode 'text-node
+                   :state {:value "AA AA AA"}
+                   :style {:width :fill
+                           :text {:font :font/test-font}}}]})
+    (pixils/defmode root-mode
+      {:children [{:mode 'wrap-box}]})
+  )");
+
+  session.push_mode("root-mode", Lisple::Constant::NIL);
+  ASSERT_NE(session.active_mode, nullptr);
+  ASSERT_EQ(session.active_mode->children.size(), 1u);
+  ASSERT_EQ(session.active_mode->children.at(0)->children.size(), 1u);
+
+  auto& child = session.active_mode->children.at(0)->children.at(0);
+  ASSERT_NE(child, nullptr);
+
+  ASSERT_NO_THROW(session.render_mode());
+
+  EXPECT_EQ(child->bounds.w, 12);
+  EXPECT_EQ(child->bounds.h, 21);
+}
+
+TEST_F(RenderTest, built_in_text_node_wrap_none_stays_single_line_when_width_is_constrained)
+{
+  SDLMock::prepared_surfaces["./font.png"] = {16, 12};
+  runtime.eval(R"(
+    (pixils/defbundle fonts {:images {:atlas "font.png"}})
+    (pixils/deffont test-font
+      {:type :bitmap
+       :resource :fonts/atlas
+       :glyphs {"A" {:x 0 :y 0 :w 4 :h 7}
+                " " {:x 4 :y 0 :w 1 :h 7}}})
+    (pixils/defcomponent wrap-box
+      {:style {:width 12}
+       :children [{:mode 'text-node
+                   :state {:value "AA AA AA"}
+                   :style {:width :fill
+                           :text {:font :font/test-font
+                                  :wrap :none}}}]})
+    (pixils/defmode root-mode
+      {:children [{:mode 'wrap-box}]})
+  )");
+
+  session.push_mode("root-mode", Lisple::Constant::NIL);
+  ASSERT_NE(session.active_mode, nullptr);
+  ASSERT_EQ(session.active_mode->children.size(), 1u);
+  ASSERT_EQ(session.active_mode->children.at(0)->children.size(), 1u);
+
+  auto& child = session.active_mode->children.at(0)->children.at(0);
+  ASSERT_NE(child, nullptr);
+
+  ASSERT_NO_THROW(session.render_mode());
+
+  EXPECT_EQ(child->bounds.w, 12);
+  EXPECT_EQ(child->bounds.h, 7);
+}
+
+TEST_F(RenderTest, built_in_text_node_wrap_preserves_leading_spaces)
+{
+  SDLMock::prepared_surfaces["./font.png"] = {24, 12};
+  runtime.eval(R"(
+    (pixils/defbundle fonts {:images {:atlas "font.png"}})
+    (pixils/deffont test-font
+      {:type :bitmap
+       :resource :fonts/atlas
+       :glyphs {"O" {:x 0 :y 0 :w 4 :h 7}
+                "K" {:x 4 :y 0 :w 4 :h 7}
+                " " {:x 8 :y 0 :w 1 :h 7}}})
+  )");
+
+  auto text_op = Pixils::Text::make_text_render_op(render_ctx, "font/test-font", 1);
+  ASSERT_TRUE(text_op.has_value());
+
+  auto layout = Pixils::Text::layout_text(render_ctx,
+                                          *text_op,
+                                          "  OK  ",
+                                          Pixils::Text::WrapMode::WORD,
+                                          24);
+  ASSERT_EQ(layout.lines.size(), 1u);
+  EXPECT_EQ(layout.lines[0].text, "  OK  ");
+  EXPECT_EQ(layout.size.w, 18);
+  EXPECT_EQ(layout.size.h, 7);
 }

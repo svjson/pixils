@@ -169,10 +169,17 @@ namespace Pixils::UI
 
     struct Text
     {
+      enum class Wrap : uint8_t
+      {
+        WORD,
+        NONE,
+      };
+
       std::optional<Color> color = std::nullopt;
       std::optional<std::string> font = std::nullopt;
       std::optional<int> scale = std::nullopt;
       std::optional<Pixils::Text::Alignment> align = std::nullopt;
+      std::optional<Wrap> wrap = std::nullopt;
     };
 
     struct Size

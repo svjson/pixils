@@ -38,6 +38,24 @@ namespace Pixils
       SDL_Color color;
     };
 
+    struct LayoutLine
+    {
+      std::string text;
+      int width = 0;
+    };
+
+    struct Layout
+    {
+      std::vector<LayoutLine> lines;
+      Dimension size = {0, 0};
+    };
+
+    enum class WrapMode : uint8_t
+    {
+      NONE,
+      WORD,
+    };
+
     /*!
      * @brief Wrapper class that keeps track of font letters within a sprite map
      * texture containing the font graphics
@@ -462,6 +480,12 @@ namespace Pixils
     SDL_Rect calculate_rendered_size(RenderContext& rc,
                                      const TextRenderOp& op,
                                      const std::string& string);
+
+    Layout layout_text(RenderContext& rc,
+                       const TextRenderOp& op,
+                       const std::string& text,
+                       WrapMode wrap_mode = WrapMode::NONE,
+                       std::optional<int> max_width = std::nullopt);
 
     /*!
      * @brief Renders a string using a prepared text render op.

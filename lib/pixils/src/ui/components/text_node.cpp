@@ -54,6 +54,13 @@ namespace Pixils::UI::Components
       return Text::Alignment::LEFT;
     }
 
+    Text::WrapMode text_style_wrap_mode(const Style& style)
+    {
+      if (!style.text || !style.text->wrap) return Text::WrapMode::WORD;
+      return *style.text->wrap == Style::Text::Wrap::NONE ? Text::WrapMode::NONE
+                                                          : Text::WrapMode::WORD;
+    }
+
     namespace Function
     {
       FUNC(TextNodeContentSize, text_node_content_size);
@@ -77,9 +84,12 @@ namespace Pixils::UI::Components
                                                  text_style_scale(view.effective_style));
         if (!text_op) return Lisple::Constant::NIL;
 
-        SDL_Rect size =
-          Text::calculate_rendered_size(rc, *text_op, text_node_value(args[0]));
-        return Script::DimensionAdapter::make_unique(size.w, size.h);
+        auto layout = Text::layout_text(rc,
+                                        *text_op,
+                                        text_node_value(args[0]),
+                                        text_style_wrap_mode(view.effective_style),
+                                        hook_ctx.available_width);
+        return Script::DimensionAdapter::make_unique(layout.size.w, layout.size.h);
       }
 
       FUNC_IMPL(TextNodeRender,
@@ -102,12 +112,18 @@ namespace Pixils::UI::Components
                                                  text_style_color(view.effective_style));
         if (!text_op) return Lisple::Constant::NIL;
 
+        const Rect content_rect = view.effective_style.content_rect(view.bounds);
+        auto layout = Text::layout_text(rc,
+                                        *text_op,
+                                        text_node_value(args[0]),
+                                        text_style_wrap_mode(view.effective_style),
+                                        content_rect.w);
+
         Text::Cursor cursor(*text_op->renderer,
                             text_op->color,
                             text_op->renderer->get_line_height());
         cursor.set_alignment(text_style_alignment(view.effective_style));
 
-        const Rect content_rect = view.effective_style.content_rect(view.bounds);
         switch (cursor.get_alignment())
         {
         case Text::Alignment::CENTER:
@@ -121,7 +137,16 @@ namespace Pixils::UI::Components
           break;
         }
 
-        cursor.print(rc, text_node_value(args[0]));
+        for (size_t i = 0; i < layout.lines.size(); i++)
+        {
+          if (i + 1 < layout.lines.size())
+          {
+            cursor.println(rc, layout.lines[i].text);
+            continue;
+          }
+
+          cursor.print(rc, layout.lines[i].text);
+        }
         return Lisple::Constant::NIL;
       }
     } // namespace Function

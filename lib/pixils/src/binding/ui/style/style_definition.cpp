@@ -138,8 +138,7 @@ namespace Pixils::Script::StyleDefinition
     return std::nullopt;
   }
 
-  Lisple::sptr_rtval text_align_to_value(
-    const std::optional<Pixils::Text::Alignment>& value)
+  Lisple::sptr_rtval text_align_to_value(const std::optional<Pixils::Text::Alignment>& value)
   {
     if (!value) return Lisple::Constant::NIL;
     switch (*value)
@@ -150,6 +149,27 @@ namespace Pixils::Script::StyleDefinition
       return Lisple::RTValue::keyword("center");
     case Pixils::Text::Alignment::RIGHT:
       return Lisple::RTValue::keyword("right");
+    }
+    return Lisple::Constant::NIL;
+  }
+
+  std::optional<UI::Style::Text::Wrap> parse_text_wrap(const Lisple::sptr_rtval& value)
+  {
+    if (!value || value->type != Lisple::RTValue::Type::KEYWORD) return std::nullopt;
+    if (value->str() == "word") return UI::Style::Text::Wrap::WORD;
+    if (value->str() == "none") return UI::Style::Text::Wrap::NONE;
+    return std::nullopt;
+  }
+
+  Lisple::sptr_rtval text_wrap_to_value(const std::optional<UI::Style::Text::Wrap>& value)
+  {
+    if (!value) return Lisple::Constant::NIL;
+    switch (*value)
+    {
+    case UI::Style::Text::Wrap::WORD:
+      return Lisple::RTValue::keyword("word");
+    case UI::Style::Text::Wrap::NONE:
+      return Lisple::RTValue::keyword("none");
     }
     return Lisple::Constant::NIL;
   }
@@ -261,7 +281,8 @@ namespace Pixils::Script::StyleDefinition
                                          {{"color", &HostType::COLOR},
                                           {"font", &Lisple::Type::KEY},
                                           {"scale", &Lisple::Type::NUMBER},
-                                          {"align", &Lisple::Type::KEY}});
+                                          {"align", &Lisple::Type::KEY},
+                                          {"wrap", &Lisple::Type::KEY}});
 
     auto text = std::make_unique<UI::Style::Text>();
     auto opts = text_schema.bind(ctx, *value);
@@ -269,6 +290,7 @@ namespace Pixils::Script::StyleDefinition
     if (opts.contains("font")) text->font = opts.str("font");
     if (opts.contains("scale")) text->scale = opts.i32("scale");
     if (opts.contains("align")) text->align = parse_text_align(opts.val("align"));
+    if (opts.contains("wrap")) text->wrap = parse_text_wrap(opts.val("wrap"));
     return text;
   }
 

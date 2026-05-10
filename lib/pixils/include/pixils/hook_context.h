@@ -4,6 +4,7 @@
 
 #include <pixils/frame_events.h>
 #include <memory>
+#include <optional>
 
 namespace Pixils
 {
@@ -26,6 +27,8 @@ namespace Pixils
     FrameEvents* events;
     const RenderContext* render;
     std::shared_ptr<Runtime::View> current_view = nullptr;
+    std::optional<int> available_width = std::nullopt;
+    std::optional<int> available_height = std::nullopt;
   };
 
 } // namespace Pixils

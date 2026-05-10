@@ -59,6 +59,11 @@ namespace Pixils::UI
       {
         out.text->align = inherited_style.text->align;
       }
+
+      if (inherited_style.text->wrap && !out.text->wrap)
+      {
+        out.text->wrap = inherited_style.text->wrap;
+      }
     }
 
     void apply_text_variant(Style& out, const Style::Text& variant)
@@ -68,6 +73,7 @@ namespace Pixils::UI
       if (variant.font) out.text->font = variant.font;
       if (variant.scale) out.text->scale = variant.scale;
       if (variant.align) out.text->align = variant.align;
+      if (variant.wrap) out.text->wrap = variant.wrap;
     }
   } // namespace
 
