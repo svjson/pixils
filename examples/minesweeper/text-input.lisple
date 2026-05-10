@@ -1,26 +1,107 @@
 (ns pixils.examples.minesweeper.text-input
   (:require pixils
+            [pixils.color :as c]
             [pixils.keyboard :as kbd]
+            [pixils.render :as r]
             [pixils.ui :as ui]))
 
+(defun text-args [style]
+  (reduce-kv (:text style)
+             {}
+             (fn [arg-map k v]
+               (if (nil? v)
+                 arg-map
+                 (merge arg-map {k v})))))
+
+(defun insert-text-at [value cursor-index text]
+  (str (substr value 0 cursor-index)
+       text
+       (substr value cursor-index)))
+
+(defun remove-char-before [value cursor-index]
+  (str (substr value 0 (dec cursor-index))
+       (substr value cursor-index)))
+
+(defun remove-char-after [value cursor-index]
+  (str (substr value 0 cursor-index)
+       (substr value (inc cursor-index))))
+
+(defcomponent text-input-caret
+  {:style {:width 1}
+   :update (fn [state ctx]
+             (do (assoc-in! ctx [:view :style :position] :absolute)
+                 (assoc-in! ctx [:view :style :left] (:x state))
+                 (assoc-in! ctx [:view :style :top] 0)
+                 (assoc-in! ctx [:view :style :height] (:h state))
+                 (assoc-in! ctx [:view :style :hidden] (not (:visible? state)))
+                 state))
+   :render (fn [state ctx]
+             (r/rect! {:x 0 :y 0 :w 1 :h (:h state)}
+                      {:fill true
+                       :color c/BLACK}))})
 
 (defcomponent text-input-inner
   {:init (fn [state ctx]
-           (update state :value (fn [v] (or v ""))))
+           (let [value (or (:value state) "")]
+             (-> state
+                 (assoc :value value)
+                 (assoc :cursor-index (or (:cursor-index state) (count value))))))
+   :update (fn [state ctx]
+             (let [value (or (:value state) "")
+                   text-opts (text-args (-> ctx :view :effective-style))
+                   cursor-index (max 0 (min (count value)
+                                            (or (:cursor-index state) (count value))))
+                   prefix (substr value 0 cursor-index)
+                   cursor-x (:w (r/text-size prefix text-opts))
+                   cursor-h (:h (r/text-size "M" text-opts))
+                   show-caret? (or (-> ctx :view :interaction :focused)
+                                   (-> ctx :view :interaction :focus-within))]
+               (-> state
+                   (assoc :value value)
+                   (assoc :cursor-index cursor-index)
+                   (assoc :cursor-x cursor-x)
+                   (assoc :cursor-h cursor-h)
+                   (assoc :show-caret? show-caret?))))
    :children [{:mode 'text-node
-               :state {:value (ui/bind-state :value)}}]
+               :state {:value (ui/bind-state :value)}}
+              {:mode 'text-input-caret
+               :state {:x (ui/bind-state :cursor-x)
+                       :h (ui/bind-state :cursor-h)
+                       :visible? (ui/bind-state :show-caret?)}}]
    :on-key-down (fn [state event ctx]
-                  (cond
-                    (= :key/backspace (:key event))
-                    (update state :value (fn [val]
-                                           (if (> (count val) 0)
-                                             (substr val 0 (dec (count val)))
-                                             val)))
+                  (let [value (:value state)
+                        cursor-index (:cursor-index state)]
+                    (cond
+                      (= :key/backspace (:key event))
+                      (if (> cursor-index 0)
+                        (-> state
+                            (assoc :value (remove-char-before value cursor-index))
+                            (assoc :cursor-index (dec cursor-index)))
+                        state)
 
-                    :default
-                    (if-let [text (kbd/event->text event)]
-                      (assoc state :value (str (:value state) text))
-                      state)))})
+                      (= :key/delete (:key event))
+                      (if (< cursor-index (count value))
+                        (assoc state :value (remove-char-after value cursor-index))
+                        state)
+
+                      (= :key/left (:key event))
+                      (assoc state :cursor-index (max 0 (dec cursor-index)))
+
+                      (= :key/right (:key event))
+                      (assoc state :cursor-index (min (count value) (+ cursor-index 1)))
+
+                      (= :key/home (:key event))
+                      (assoc state :cursor-index 0)
+
+                      (= :key/end (:key event))
+                      (assoc state :cursor-index (count value))
+
+                      :default
+                      (if-let [text (kbd/event->text event)]
+                        (-> state
+                            (assoc :value (insert-text-at value cursor-index text))
+                            (assoc :cursor-index (+ cursor-index (count text))))
+                        state))))})
 
 (defcomponent text-input
   {:children [{:mode 'text-input-inner}]})
