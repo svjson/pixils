@@ -320,6 +320,53 @@
                                                           (:settings menu-definition))
                                      menu-keymap))})
 
+(defun selectable-item? [node]
+  (not= :separator (:node-type node)))
+
+(defun first-selectable-index [items]
+  (let [indexed (for-indexed [index item items]
+                  {:index index
+                   :item item})
+        selected (head (filter indexed (fn [entry]
+                                         (selectable-item? (:item entry)))))]
+    (if selected
+      (:index selected)
+      0)))
+
+(defun selectable-indices [items]
+  (map (filter (for-indexed [index item items]
+                 {:index index
+                  :item item})
+               (fn [entry]
+                 (selectable-item? (:item entry))))
+       :index))
+
+(defun highlighted-item [items highlighted-index]
+  (if (and highlighted-index
+           (>= highlighted-index 0)
+           (< highlighted-index (count items)))
+    (nth items highlighted-index)
+    0))
+
+(defun child-view-at [view index]
+  (let [children (ui/children view)]
+    (when (and (>= index 0)
+               (< index (count children)))
+      (nth children index))))
+
+(defun move-highlight-index [items highlighted-index direction]
+  (let [indices (selectable-indices items)]
+    (if (empty? indices)
+      highlighted-index
+      (if-let [current-pos (find-index indices (fn [idx] (= idx highlighted-index)))
+               fallback-pos 0
+               start-pos (if (< current-pos 0)
+                           fallback-pos
+                           current-pos)
+               next-pos (mod (+ start-pos direction) (count indices))]
+        (nth indices next-pos)
+        highlighted-index))))
+
 (defun item-selected? [node state]
   (let [selected-path (:selected-path node)
         selected-value (get-in state selected-path)]
@@ -335,6 +382,8 @@
 
 (defun popup-item-state [node state]
   {:node node
+   :index (:index state)
+   :highlighted-index (:highlighted-index state)
    :text (:display-text node)
    :shortcut-text (:shortcut-text node)
    :game (:game state)
@@ -342,7 +391,7 @@
 
 (defun popup-option-item-state [node state]
   (merge (popup-item-state node state)
-         {:selected (item-selected? node state)}))
+         {:selected false}))
 
 (defun popup-item-child [node state]
   (cond
@@ -358,24 +407,53 @@
     {:mode 'popup-menu-item
      :state (popup-item-state node state)}))
 
-(defun open-popup! [node state ctx]
+(defun popup-position [anchor-view placement]
+  (let [bounds (:bounds anchor-view)]
+    (case placement
+      :right {:left (+ (:x bounds) (:w bounds))
+              :top (:y bounds)}
+      :default {:left (:x bounds)
+                :top (+ (:y bounds) (:h bounds))})))
+
+(defun open-popup-at-view! [node state anchor-view placement]
   (when-let [items (:items node)]
     (when (not (empty? items))
+      (let [position (popup-position anchor-view placement)]
       (push-mode!
        'popup-menu
-       {}
-       {:origin {:view (:view ctx) :event :menu/select}
+       {:items items
+        :highlighted-index (first-selectable-index items)
+        :game (:game state)
+        :preferences (:preferences state)}
+       {:origin {:view anchor-view :event :menu/select}
         :children [{:mode 'popup-menu-outer
+                    :state {:items (ui/bind-state :items)
+                            :highlighted-index (ui/bind-state :highlighted-index)
+                            :game (ui/bind-state :game)
+                            :preferences (ui/bind-state :preferences)}
                     :style {:position :absolute
                             :width :shrink
                             :height :shrink
-                            :left (-> ctx :view :bounds :x)
-                            :top (+ (-> ctx :view :bounds :y)
-                                    (-> ctx :view :bounds :h))}
+                            :left (:left position)
+                            :top (:top position)}
                     :children [{:mode 'popup-menu-inner
-                                :children (for [item items]
-                                            (merge (popup-item-child item state)
-                                                   {:style {:width :fill}}))}]}]}))))
+                                :state {:items (ui/bind-state :items)
+                                        :highlighted-index (ui/bind-state :highlighted-index)
+                                        :game (ui/bind-state :game)
+                                        :preferences (ui/bind-state :preferences)}
+                                :children (for-indexed [index item items]
+                                            (merge (popup-item-child item {:node item
+                                                                           :index index
+                                                                           :highlighted-index (ui/bind-state :highlighted-index)
+                                                                           :game (ui/bind-state :game)
+                                                                           :preferences (ui/bind-state :preferences)})
+                                                   {:style {:width :fill}}))}]}]})))))
+
+(defun open-popup! [node state ctx]
+  (open-popup-at-view! node state (:view ctx) :below))
+
+(defun open-submenu! [node state anchor-view]
+  (open-popup-at-view! node state anchor-view :right))
 
 
 
@@ -393,12 +471,19 @@
 (defcomponent popup-menu-item
   {:class :menu/item
    :style {:layout {:direction :row}}
+   :update (fn [state ctx]
+             (assoc state
+                    :highlighted
+                    (= (:index state) (:highlighted-index state))))
+   :on-mouse-enter (fn [state event ctx]
+                     (ui/emit! (:view ctx) :menu/highlight (:index state))
+                     state)
    :on-mouse-down (fn [state event ctx]
-                    (open-popup! (:node state) state ctx)
+                    (open-submenu! (:node state) state (:view ctx))
                     (ui/stop-propagation! event)
                     state)
    :on-mouse-up (fn [state event ctx]
-                  (let [node (:node state)]
+                 (let [node (:node state)]
                     (when (empty? (:items node))
                       (ui/emit! (:view ctx)
                                 :menu/select
@@ -421,6 +506,15 @@
 (defcomponent popup-menu-option-item
   {:class :menu/item
    :style {:layout {:direction :row}}
+   :update (fn [state ctx]
+             (assoc (assoc state
+                           :highlighted
+                           (= (:index state) (:highlighted-index state)))
+                    :selected
+                    (item-selected? (:node state) state)))
+   :on-mouse-enter (fn [state event ctx]
+                     (ui/emit! (:view ctx) :menu/highlight (:index state))
+                     state)
    :on-mouse-down (fn [state event ctx]
                     (ui/stop-propagation! event)
                     state)
@@ -468,4 +562,82 @@
 
 (defmode popup-menu-outer {})
 
-(defmode popup-menu-inner {})
+(defmode popup-menu-inner
+  {:focusable true
+   :init (fn [state ctx]
+           (ui/focus! ctx)
+           state)
+   :on {:menu/highlight (fn [state event ctx]
+                          (assoc state :highlighted-index (:payload event)))}
+   :on-key-down (fn [state event ctx]
+                  (case (:key event)
+                    :key/right
+                    (do
+                      (when-let [index (:highlighted-index state)
+                                 node (highlighted-item (:items state) index)
+                                 child-view (child-view-at (:view ctx) index)]
+                        (do
+                          (ui/stop-propagation! event)
+                          (when (and node
+                                     child-view
+                                     (not (empty? (:items node))))
+                            (open-submenu! node state child-view))))
+                      state)
+
+                    :key/left
+                    (do
+                      (ui/stop-propagation! event)
+                      (pop-mode!)
+                      state)
+
+                    :key/down
+                    (do
+                      (ui/stop-propagation! event)
+                      (assoc state
+                             :highlighted-index
+                             (move-highlight-index (:items state)
+                                                   (:highlighted-index state)
+                                                   1)))
+
+                    :key/up
+                    (do
+                      (ui/stop-propagation! event)
+                      (assoc state
+                             :highlighted-index
+                             (move-highlight-index (:items state)
+                                                   (:highlighted-index state)
+                                                   -1)))
+
+                    :key/escape
+                    (do
+                      (ui/stop-propagation! event)
+                      (pop-mode!)
+                      state)
+
+                    :key/enter
+                    (let [index (:highlighted-index state)
+                          node (highlighted-item (:items state) index)
+                          child-view (child-view-at (:view ctx) index)]
+                      (ui/stop-propagation! event)
+                      (cond
+                        (and node
+                             child-view
+                             (not (empty? (:items node))))
+                        (do
+                          (open-submenu! node state child-view)
+                          state)
+
+                        (and node
+                             (empty? (:items node)))
+                        (do
+                          (ui/emit! (:view ctx)
+                                    :menu/select
+                                    {:action (:action node)
+                                     :value (:value node)})
+                          state)
+
+                        :default
+                        state))
+
+                    :default
+                    state))})

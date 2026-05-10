@@ -218,6 +218,16 @@
              :text {:color white
                     :marked-style {:color c/WHITE}}}
 
+            '(popup-menu-item {:highlighted true})
+            {:background focus-blue
+             :text {:color white
+                    :marked-style {:color c/WHITE}}}
+
+            '(popup-menu-option-item {:highlighted true})
+            {:background focus-blue
+             :text {:color white
+                    :marked-style {:color c/WHITE}}}
+
             'menu-option-item
             {:padding {:t 2 :r 12 :b 2 :l 2}}
 

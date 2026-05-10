@@ -156,6 +156,29 @@ TEST_F(SessionHooksTest, root_mode_on_key_up_hook_is_invoked)
   EXPECT_EQ(session.active_mode->state->to_string(), "{:count 1 :last-key :key/space}");
 }
 
+TEST_F(SessionHooksTest, ui_children_returns_child_views_for_view_and_hook_context)
+{
+  runtime.eval(R"(
+    (pixils/defmode child-mode {})
+    (pixils/defmode parent-mode
+      {:init (fn [state ctx] {:from-ctx nil :from-view nil :first-child-id nil})
+       :update (fn [state ctx]
+                 (let [children-from-ctx (pixils.ui/children ctx)
+                       children-from-view (pixils.ui/children (:view ctx))
+                       first-child (head children-from-ctx)]
+                   {:from-ctx (count children-from-ctx)
+                    :from-view (count children-from-view)
+                    :first-child-id (:id first-child)}))
+       :children [{:mode 'child-mode}]})
+  )");
+
+  session.push_mode("parent-mode", Lisple::Constant::NIL);
+  session.update_mode();
+
+  EXPECT_EQ(session.active_mode->state->to_string(),
+            "{:from-ctx 1 :from-view 1 :first-child-id \"child-mode-0\"}");
+}
+
 TEST_F(SessionHooksTest, root_mode_on_key_held_function_is_invoked_once_per_frame)
 {
   // Given
@@ -281,6 +304,37 @@ TEST_F(SessionHooksTest, focused_child_mode_on_key_down_bubbles_to_root_mode)
 
   // Then
   EXPECT_EQ(session.active_mode->state->to_string(), "{:child {:keys 1} :root-keys 1}");
+  ASSERT_EQ(session.active_mode->children.size(), 1u);
+  EXPECT_EQ(session.active_mode->children[0]->state->to_string(), "{:keys 1}");
+}
+
+TEST_F(SessionHooksTest, child_mode_focused_in_init_receives_key_down)
+{
+  runtime.eval(R"(
+    (pixils/defmode child-mode
+      {:focusable true
+       :init (fn [state ctx]
+               (do (pixils.ui/focus! ctx)
+                   {:keys 0}))
+       :on-key-down (fn [state event ctx]
+                      (assoc state :keys (+ (:keys state) 1)))})
+    (pixils/defmode root-mode
+      {:init (fn [state ctx] {:child {:keys 0}})
+       :children [{:mode 'child-mode
+                   :id "child"
+                   :state (pixils.ui/bind-state :child)}]})
+  )");
+
+  session.push_mode("root-mode", Lisple::Constant::NIL);
+  update_cycle();
+
+  ASSERT_TRUE(session.focus_state.has_focus());
+  ASSERT_EQ(session.focus_state.focused.lock().get(), session.active_mode->children[0].get());
+
+  input().key_down(SDLK_SPACE);
+  session.update_mode();
+
+  EXPECT_EQ(session.active_mode->state->to_string(), "{:child {:keys 1}}");
   ASSERT_EQ(session.active_mode->children.size(), 1u);
   EXPECT_EQ(session.active_mode->children[0]->state->to_string(), "{:keys 1}");
 }

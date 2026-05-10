@@ -24,7 +24,8 @@ namespace Pixils::Script
   {
     namespace
     {
-      Lisple::sptr_rtval resolve_focus_target(const Lisple::sptr_rtval& target)
+      Lisple::sptr_rtval resolve_view_target(const Lisple::sptr_rtval& target,
+                                             const std::string& fn_name)
       {
         if (!target || target->type == Lisple::RTValue::Type::NIL)
         {
@@ -38,7 +39,7 @@ namespace Pixils::Script
 
         if (!Script::HostType::HOOK_CONTEXT.is_type_of(*target))
         {
-          throw Lisple::TypeError("ui/focus! target must be a view or hook context");
+          throw Lisple::TypeError(fn_name + " target must be a view or hook context");
         }
 
         auto view = Lisple::obj<HookContext>(*target).current_view;
@@ -72,7 +73,8 @@ namespace Pixils::Script
     EXEC_BODY(BlurBangFunction, exec_blur)
     {
       auto message_queue = ctx.lookup_value(ID__PIXILS__MODE_STACK_MESSAGES);
-      auto target = args.empty() ? Lisple::Constant::NIL : resolve_focus_target(args[0]);
+      auto target =
+        args.empty() ? Lisple::Constant::NIL : resolve_view_target(args[0], "ui/blur!");
 
       Lisple::append(*message_queue,
                      Lisple::RTValue::map(Lisple::sptr_rtval_v{
@@ -83,6 +85,32 @@ namespace Pixils::Script
                      }));
 
       return Lisple::Constant::NIL;
+    }
+
+    /** ChildrenFunction - children */
+    FUNC_IMPL(ChildrenFunction,
+              MULTI_SIG((FN_ARGS((&Script::HostType::HOOK_CONTEXT)),
+                         EXEC_DISPATCH(&ChildrenFunction::exec_children)),
+                        (FN_ARGS((&HostType::VIEW)),
+                         EXEC_DISPATCH(&ChildrenFunction::exec_children))));
+
+    EXEC_BODY(ChildrenFunction, exec_children)
+    {
+      auto target = resolve_view_target(args[0], "ui/children");
+      if (!target || target->type == Lisple::RTValue::Type::NIL)
+      {
+        return Lisple::RTValue::vector({});
+      }
+
+      Runtime::View& view = Lisple::obj<Runtime::View>(*target);
+      Lisple::sptr_rtval_v children;
+      children.reserve(view.children.size());
+      for (const auto& child : view.children)
+      {
+        if (child) children.push_back(ViewAdapter::make_ref(*child));
+      }
+
+      return Lisple::RTValue::vector(children);
     }
 
     /** EmitFunction - emit */
@@ -114,7 +142,7 @@ namespace Pixils::Script
 
     EXEC_BODY(FocusBangFunction, exec_focus)
     {
-      auto target = resolve_focus_target(args[0]);
+      auto target = resolve_view_target(args[0], "ui/focus!");
       auto message_queue = ctx.lookup_value(ID__PIXILS__MODE_STACK_MESSAGES);
 
       Lisple::append(*message_queue,
@@ -304,6 +332,7 @@ namespace Pixils::Script
   {
     values.emplace("bind-state", Function::BindStateFn::make());
     values.emplace(FN__PIXILS__UI__BLUR_BANG, Function::BlurBangFunction::make());
+    values.emplace(FN__PIXILS__UI__CHILDREN, Function::ChildrenFunction::make());
     values.emplace("emit!", Function::EmitBangFunction::make());
     values.emplace(FN__PIXILS__UI__FOCUS_BANG, Function::FocusBangFunction::make());
     values.emplace("replace-child!", Function::ReplaceChildBangFunction::make());
