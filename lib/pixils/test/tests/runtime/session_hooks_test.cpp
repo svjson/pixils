@@ -161,9 +161,8 @@ TEST_F(SessionHooksTest, root_mode_action_map_emits_matching_action_event)
   runtime.eval(R"(
     (pixils/defmode action-mode
       {:init (fn [state ctx] {:count 0 :last-payload nil})
-       :action-map [{:shortcut :key/f2
-                     :action :game/new-game
-                     :payload {:source :action-map}}]
+       :action-map {:key/f2 {:action :game/new-game
+                             :payload {:source :action-map}}}
        :on {:game/new-game (fn [state event ctx]
                              (assoc (assoc state :count (+ (:count state) 1))
                                     :last-payload (:payload event)))}})
@@ -190,8 +189,7 @@ TEST_F(SessionHooksTest, focused_child_stopping_key_down_prevents_action_map_dis
     (pixils/defmode root-mode
       {:init (fn [state ctx] {:child {:keys 0}
                               :actions 0})
-       :action-map [{:shortcut :key/space
-                     :action :root/action}]
+       :action-map {:key/space :root/action}
        :on {:root/action (fn [state event ctx]
                            (assoc state :actions (+ (:actions state) 1)))}
        :children [{:mode 'child-mode
@@ -218,8 +216,7 @@ TEST_F(SessionHooksTest, root_mode_action_map_matches_modifier_vector_shortcuts)
   runtime.eval(R"(
     (pixils/defmode action-mode
       {:init (fn [state ctx] {:tag :none})
-       :action-map [{:shortcut [:key/shift :key/f5]
-                     :action :help/about}]
+       :action-map {[:key/shift :key/f5] :help/about}
        :on {:help/about (fn [state event ctx]
                           (assoc state :tag :matched))}})
   )");

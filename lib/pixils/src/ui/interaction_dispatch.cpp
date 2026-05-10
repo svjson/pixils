@@ -343,32 +343,43 @@ namespace Pixils::UI
         return std::nullopt;
       }
 
-      auto action_map = view->mode->action_map;
-      if (action_map->type != Lisple::RTValue::Type::VECTOR)
+      auto try_binding = [&](const Lisple::sptr_rtval& shortcut,
+                             const Lisple::sptr_rtval& binding) -> std::optional<CustomEvent>
       {
-        return std::nullopt;
-      }
+        Lisple::sptr_rtval action = Lisple::Constant::NIL;
+        Lisple::sptr_rtval payload = Lisple::Constant::NIL;
 
-      size_t entry_count = Lisple::count(*action_map);
-      for (size_t i = 0; i < entry_count; i++)
-      {
-        auto entry = Lisple::get_child(*action_map, i);
-        if (!entry || entry->type != Lisple::RTValue::Type::MAP) continue;
+        if (binding && binding->type == Lisple::RTValue::Type::KEYWORD)
+        {
+          action = binding;
+        }
+        else if (binding && binding->type == Lisple::RTValue::Type::MAP)
+        {
+          action = Lisple::Dict::get_property(binding, Lisple::RTValue::keyword("action"));
+          payload = Lisple::Dict::get_property(binding, Lisple::RTValue::keyword("payload"));
+        }
 
-        auto shortcut =
-          Lisple::Dict::get_property(entry, Lisple::RTValue::keyword("shortcut"));
-        auto action = Lisple::Dict::get_property(entry, Lisple::RTValue::keyword("action"));
-        auto payload =
-          Lisple::Dict::get_property(entry, Lisple::RTValue::keyword("payload"));
-
-        if (!action || action->type != Lisple::RTValue::Type::KEYWORD) continue;
-        if (!shortcut_matches_key_event(shortcut, key_event)) continue;
+        if (!action || action->type != Lisple::RTValue::Type::KEYWORD) return std::nullopt;
+        if (!shortcut_matches_key_event(shortcut, key_event)) return std::nullopt;
 
         return CustomEvent{
           action,
           payload && payload->type != Lisple::RTValue::Type::NIL ? payload
                                                                  : Lisple::Constant::NIL,
           view->mode ? Lisple::RTValue::symbol(view->mode->name) : Lisple::Constant::NIL};
+      };
+
+      auto action_map = view->mode->action_map;
+      if (action_map->type != Lisple::RTValue::Type::MAP)
+      {
+        return std::nullopt;
+      }
+
+      for (const auto& shortcut : Lisple::Dict::keys(*action_map))
+      {
+        auto resolved =
+          try_binding(shortcut, Lisple::Dict::get_property(action_map, shortcut));
+        if (resolved.has_value()) return resolved;
       }
 
       return std::nullopt;

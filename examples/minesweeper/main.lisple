@@ -22,16 +22,11 @@
    :initial-mode 'main-mode})
 
 (def menu-keymap
-  [{:shortcut :key/f2
-    :action :game/new-game}
-   {:shortcut :key/f5
-    :action :action/show-highscores}
-   {:shortcut :key/f4
-    :action :game/quit}
-   {:shortcut :key/f1
-    :action :help/about}
-   {:shortcut [:key/shift :key/f5]
-    :action :help/about}])
+  {:key/f2 :game/new-game
+   :key/f5 :action/show-highscores
+   :key/f4 :game/quit
+   :key/f1 :help/about
+   [:key/shift :key/f5] :help/about})
 
 (def menu-definition
   {:settings {:mnemonics {:marker "&"}

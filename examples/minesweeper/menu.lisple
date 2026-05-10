@@ -140,19 +140,31 @@
            render-marker
            (substr text (inc index))))))
 
-(defun first-shortcut-for-action [action keymap]
+(defun action-binding-action [binding]
   (cond
-    (nil? action)
-    nil
+    (keyword? binding)
+    binding
 
-    (empty? keymap)
-    nil
-
-    (= (:action (head keymap)) action)
-    (:shortcut (head keymap))
+    (:action binding)
+    (:action binding)
 
     :default
-    (first-shortcut-for-action action (tail keymap))))
+    nil))
+
+(defun first-shortcut-for-action [action keymap]
+  (if (or (nil? action)
+          (empty? keymap))
+    nil
+    (reduce-kv keymap
+               nil
+               (fn [match shortcut-or-index binding]
+                 (if match
+                   match
+                   (if (= (action-binding-action binding) action)
+                     (if (:shortcut binding)
+                       (:shortcut binding)
+                       shortcut-or-index)
+                     nil))))))
 
 (defun shortcut-key-name [key]
   (if-let [name (get shortcut-key-names key)]
