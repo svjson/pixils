@@ -127,6 +127,7 @@ namespace Pixils::Script
                                           {"update", &Lisple::Type::ANY},
                                           {"content-size", &Lisple::Type::ANY},
                                           {"render", &Lisple::Type::ANY},
+                                          {"action-map", &Lisple::Type::ANY},
                                           {"on-key-down", &Lisple::Type::ANY},
                                           {"on-key-held", &Lisple::Type::ANY},
                                           {"on-key-up", &Lisple::Type::ANY},
@@ -193,6 +194,7 @@ namespace Pixils::Script
     apply_hook(mode.update, "update");
     apply_hook(mode.content_size, "content-size");
     apply_hook(mode.render, "render");
+    apply_hook(mode.action_map, "action-map");
     apply_hook(mode.on_key_down, "on-key-down");
     apply_hook(mode.on_key_held, "on-key-held");
     apply_hook(mode.on_key_up, "on-key-up");

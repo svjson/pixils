@@ -3,6 +3,7 @@
 #include "pixils/runtime/hook_arguments.h"
 #include "pixils/runtime/hook_invocation.h"
 #include "pixils/ui/event.h"
+#include "pixils/ui/view_events.h"
 #include "pixils/ui/view_lifecycle.h"
 #include "pixils/ui/view_update.h"
 #include <pixils/binding/point_namespace.h>
@@ -218,6 +219,201 @@ namespace Pixils::UI
       return true;
     }
 
+    bool held_keys_contains_exact(const Lisple::sptr_rtval& held_keys,
+                                  const std::string& key_name)
+    {
+      if (!held_keys || held_keys->type == Lisple::RTValue::Type::NIL) return false;
+
+      size_t held_count = Lisple::count(*held_keys);
+      for (size_t i = 0; i < held_count; i++)
+      {
+        auto held_key = Lisple::get_child(*held_keys, i);
+        if (!held_key || held_key->type != Lisple::RTValue::Type::KEYWORD) continue;
+        if (held_key->str() == key_name) return true;
+      }
+
+      return false;
+    }
+
+    std::string lower_ascii(std::string value)
+    {
+      std::transform(value.begin(),
+                     value.end(),
+                     value.begin(),
+                     [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+      return value;
+    }
+
+    bool held_keys_has_shift(const Lisple::sptr_rtval& held_keys)
+    {
+      return held_keys_contains_exact(held_keys, "key/left-shift") ||
+             held_keys_contains_exact(held_keys, "key/right-shift");
+    }
+
+    bool held_keys_has_ctrl(const Lisple::sptr_rtval& held_keys)
+    {
+      return held_keys_contains_exact(held_keys, "key/left-ctrl") ||
+             held_keys_contains_exact(held_keys, "key/right-ctrl");
+    }
+
+    bool held_keys_has_alt(const Lisple::sptr_rtval& held_keys)
+    {
+      return held_keys_contains_exact(held_keys, "key/left-alt") ||
+             held_keys_contains_exact(held_keys, "key/right-alt");
+    }
+
+    bool shortcut_matches_key_event(const Lisple::sptr_rtval& shortcut,
+                                    const KeyboardEvent& event)
+    {
+      if (!shortcut || shortcut->type == Lisple::RTValue::Type::NIL || !event.key ||
+          event.key->type != Lisple::RTValue::Type::KEYWORD)
+      {
+        return false;
+      }
+
+      bool expect_shift = false;
+      bool expect_ctrl = false;
+      bool expect_alt = false;
+      Lisple::sptr_rtval primary = Lisple::Constant::NIL;
+
+      auto consume_key = [&](const Lisple::sptr_rtval& key) -> bool
+      {
+        if (!key || key->type != Lisple::RTValue::Type::KEYWORD) return false;
+
+        auto name = key->str();
+        if (name == "key/shift" || name == "key/left-shift" || name == "key/right-shift")
+        {
+          expect_shift = true;
+          return true;
+        }
+        if (name == "key/ctrl" || name == "key/left-ctrl" || name == "key/right-ctrl")
+        {
+          expect_ctrl = true;
+          return true;
+        }
+        if (name == "key/alt" || name == "key/left-alt" || name == "key/right-alt")
+        {
+          expect_alt = true;
+          return true;
+        }
+        if (primary && primary->type != Lisple::RTValue::Type::NIL)
+        {
+          return false;
+        }
+
+        primary = key;
+        return true;
+      };
+
+      if (shortcut->type == Lisple::RTValue::Type::KEYWORD)
+      {
+        primary = shortcut;
+      }
+      else if (shortcut->type == Lisple::RTValue::Type::VECTOR)
+      {
+        size_t count = Lisple::count(*shortcut);
+        for (size_t i = 0; i < count; i++)
+        {
+          if (!consume_key(Lisple::get_child(*shortcut, i))) return false;
+        }
+      }
+      else
+      {
+        return false;
+      }
+
+      if (!primary || primary->type == Lisple::RTValue::Type::NIL) return false;
+      if (lower_ascii(primary->str()) != lower_ascii(event.key->str())) return false;
+
+      bool actual_shift = held_keys_has_shift(event.held_keys);
+      bool actual_ctrl = held_keys_has_ctrl(event.held_keys);
+      bool actual_alt = held_keys_has_alt(event.held_keys);
+
+      return actual_shift == expect_shift && actual_ctrl == expect_ctrl &&
+             actual_alt == expect_alt;
+    }
+
+    std::optional<CustomEvent> resolve_action_map_event(
+      const std::shared_ptr<Runtime::View>& view,
+      const KeyboardEvent& key_event)
+    {
+      if (!view || !view->mode || !view->mode->action_map ||
+          view->mode->action_map->type == Lisple::RTValue::Type::NIL)
+      {
+        return std::nullopt;
+      }
+
+      auto action_map = view->mode->action_map;
+      if (action_map->type != Lisple::RTValue::Type::VECTOR)
+      {
+        return std::nullopt;
+      }
+
+      size_t entry_count = Lisple::count(*action_map);
+      for (size_t i = 0; i < entry_count; i++)
+      {
+        auto entry = Lisple::get_child(*action_map, i);
+        if (!entry || entry->type != Lisple::RTValue::Type::MAP) continue;
+
+        auto shortcut =
+          Lisple::Dict::get_property(entry, Lisple::RTValue::keyword("shortcut"));
+        auto action = Lisple::Dict::get_property(entry, Lisple::RTValue::keyword("action"));
+        auto payload =
+          Lisple::Dict::get_property(entry, Lisple::RTValue::keyword("payload"));
+
+        if (!action || action->type != Lisple::RTValue::Type::KEYWORD) continue;
+        if (!shortcut_matches_key_event(shortcut, key_event)) continue;
+
+        return CustomEvent{
+          action,
+          payload && payload->type != Lisple::RTValue::Type::NIL ? payload
+                                                                 : Lisple::Constant::NIL,
+          view->mode ? Lisple::RTValue::symbol(view->mode->name) : Lisple::Constant::NIL};
+      }
+
+      return std::nullopt;
+    }
+
+    bool dispatch_action_map_event(const std::vector<std::shared_ptr<Runtime::View>>& chain,
+                                   size_t start_index,
+                                   const KeyboardEvent& key_event,
+                                   Runtime::HookArguments& hook_args,
+                                   Lisple::Runtime& rt)
+    {
+      for (size_t i = start_index; i < chain.size(); i++)
+      {
+        auto& view = chain[i];
+        auto action_event = resolve_action_map_event(view, key_event);
+        if (!action_event.has_value()) continue;
+
+        std::vector<CustomEvent> events{*action_event};
+        auto view_ctx = hook_args.update_args[1];
+        auto bubbled_events =
+          process_view_events(*view, nullptr, view_ctx, events, rt, nullptr);
+
+        for (size_t j = i; j + 1 < chain.size(); j++)
+        {
+          chain[j + 1]->state =
+            Runtime::merge_state(chain[j + 1]->state, *chain[j], chain[j]->state);
+
+          if (!bubbled_events.empty())
+          {
+            auto parent_state = (j + 2 < chain.size()) ? &chain[j + 2]->state : nullptr;
+            bubbled_events = process_view_events(*chain[j + 1],
+                                                 parent_state,
+                                                 view_ctx,
+                                                 bubbled_events,
+                                                 rt,
+                                                 nullptr);
+          }
+        }
+
+        return true;
+      }
+
+      return false;
+    }
+
     std::vector<std::shared_ptr<Runtime::View>> keyboard_target_chain(
       const std::shared_ptr<Runtime::View>& root,
       const FocusState& focus_state)
@@ -243,13 +439,28 @@ namespace Pixils::UI
                               Lisple::Runtime& rt)
     {
       auto ev_ref = Script::KeyboardEventAdapter::make_ref(event);
-      bubble_hook(chain,
-                  hook_field,
-                  ev_ref,
-                  event.propagation_stopped,
-                  [](const Rect&) {},
-                  hook_args,
-                  rt);
+      for (size_t i = 0; i < chain.size(); i++)
+      {
+        auto& view = chain[i];
+        if (!event.propagation_stopped)
+        {
+          fire_hook_on_view(view, view->mode->*hook_field, ev_ref, hook_args, rt);
+        }
+
+        if (!event.propagation_stopped && hook_field == &Runtime::Mode::on_key_down)
+        {
+          if (dispatch_action_map_event(chain, i, event, hook_args, rt))
+          {
+            event.propagation_stopped = true;
+          }
+        }
+
+        if (i + 1 < chain.size())
+        {
+          chain[i + 1]->state =
+            Runtime::merge_state(chain[i + 1]->state, *view, view->state);
+        }
+      }
     }
 
     void bubble_held_key_hook(const std::vector<std::shared_ptr<Runtime::View>>& chain,
@@ -718,8 +929,7 @@ namespace Pixils::UI
       KeyboardEvent event;
       event.key = events.key_down;
       event.held_keys = events.held_keys;
-      bubble_keyboard_hook(
-        chain, &Runtime::Mode::on_key_down, event, hook_args, runtime);
+      bubble_keyboard_hook(chain, &Runtime::Mode::on_key_down, event, hook_args, runtime);
     }
 
     bubble_held_key_hook(chain, events.held_keys, hook_args, runtime);

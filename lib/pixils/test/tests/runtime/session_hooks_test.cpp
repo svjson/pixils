@@ -156,6 +156,84 @@ TEST_F(SessionHooksTest, root_mode_on_key_up_hook_is_invoked)
   EXPECT_EQ(session.active_mode->state->to_string(), "{:count 1 :last-key :key/space}");
 }
 
+TEST_F(SessionHooksTest, root_mode_action_map_emits_matching_action_event)
+{
+  runtime.eval(R"(
+    (pixils/defmode action-mode
+      {:init (fn [state ctx] {:count 0 :last-payload nil})
+       :action-map [{:shortcut :key/f2
+                     :action :game/new-game
+                     :payload {:source :action-map}}]
+       :on {:game/new-game (fn [state event ctx]
+                             (assoc (assoc state :count (+ (:count state) 1))
+                                    :last-payload (:payload event)))}})
+  )");
+
+  session.push_mode("action-mode", Lisple::Constant::NIL);
+
+  input().key_down(SDLK_F2);
+  session.update_mode();
+
+  EXPECT_EQ(session.active_mode->state->to_string(),
+            "{:count 1 :last-payload {:source :action-map}}");
+}
+
+TEST_F(SessionHooksTest, focused_child_stopping_key_down_prevents_action_map_dispatch)
+{
+  runtime.eval(R"(
+    (pixils/defmode child-mode
+      {:focusable true
+       :init (fn [state ctx] {:keys 0})
+       :on-key-down (fn [state event ctx]
+                      (do (pixils.ui/stop-propagation! event)
+                          (assoc state :keys (+ (:keys state) 1))))})
+    (pixils/defmode root-mode
+      {:init (fn [state ctx] {:child {:keys 0}
+                              :actions 0})
+       :action-map [{:shortcut :key/space
+                     :action :root/action}]
+       :on {:root/action (fn [state event ctx]
+                           (assoc state :actions (+ (:actions state) 1)))}
+       :children [{:mode 'child-mode
+                   :id "child"
+                   :state (pixils.ui/bind-state :child)}]})
+  )");
+
+  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.active_mode->bounds = {0, 0, 200, 200};
+  session.active_mode->children[0]->bounds = {20, 20, 100, 100};
+
+  input().mouse_down({50, 50});
+  session.update_mode();
+  input().clear_transients();
+
+  input().key_down(SDLK_SPACE);
+  session.update_mode();
+
+  EXPECT_EQ(session.active_mode->state->to_string(), "{:child {:keys 1} :actions 0}");
+}
+
+TEST_F(SessionHooksTest, root_mode_action_map_matches_modifier_vector_shortcuts)
+{
+  runtime.eval(R"(
+    (pixils/defmode action-mode
+      {:init (fn [state ctx] {:tag :none})
+       :action-map [{:shortcut [:key/shift :key/f5]
+                     :action :help/about}]
+       :on {:help/about (fn [state event ctx]
+                          (assoc state :tag :matched))}})
+  )");
+
+  session.push_mode("action-mode", Lisple::Constant::NIL);
+
+  input().key_down(SDLK_LSHIFT);
+  input().clear_transients();
+  input().key_down(SDLK_F5);
+  session.update_mode();
+
+  EXPECT_EQ(session.active_mode->state->to_string(), "{:tag :matched}");
+}
+
 TEST_F(SessionHooksTest, ui_children_returns_child_views_for_view_and_hook_context)
 {
   runtime.eval(R"(
