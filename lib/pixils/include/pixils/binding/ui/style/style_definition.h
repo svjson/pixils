@@ -32,6 +32,8 @@ namespace Pixils::Script::StyleDefinition
   std::optional<Pixils::Text::Alignment> parse_text_align(const Lisple::sptr_rtval& value);
   Lisple::sptr_rtval text_align_to_value(
     const std::optional<Pixils::Text::Alignment>& value);
+  bool parse_text_use_font_color(const Lisple::sptr_rtval& value);
+  Lisple::sptr_rtval text_color_to_value(const UI::Style::Text& text);
   std::optional<UI::Style::Text::Wrap> parse_text_wrap(const Lisple::sptr_rtval& value);
   Lisple::sptr_rtval text_wrap_to_value(
     const std::optional<UI::Style::Text::Wrap>& value);

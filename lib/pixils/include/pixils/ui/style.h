@@ -183,6 +183,8 @@ namespace Pixils::UI
         NONE,
       };
 
+      /** Prevents inherited tint and renders bitmap/native font colors as-is. */
+      bool use_font_color = false;
       std::optional<Color> color = std::nullopt;
       std::optional<std::string> font = std::nullopt;
       std::optional<int> scale = std::nullopt;

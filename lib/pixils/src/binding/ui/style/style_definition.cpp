@@ -153,6 +153,18 @@ namespace Pixils::Script::StyleDefinition
     return Lisple::Constant::NIL;
   }
 
+  bool parse_text_use_font_color(const Lisple::sptr_rtval& value)
+  {
+    return value && value->type == Lisple::RTValue::Type::KEYWORD && value->str() == "none";
+  }
+
+  Lisple::sptr_rtval text_color_to_value(const UI::Style::Text& text)
+  {
+    if (text.use_font_color) return Lisple::RTValue::keyword("none");
+    if (text.color) return ColorAdapter::make_ref(*text.color);
+    return Lisple::Constant::NIL;
+  }
+
   std::optional<UI::Style::Text::Wrap> parse_text_wrap(const Lisple::sptr_rtval& value)
   {
     if (!value || value->type != Lisple::RTValue::Type::KEYWORD) return std::nullopt;
@@ -311,8 +323,23 @@ namespace Pixils::Script::StyleDefinition
                                           {"wrap", &Lisple::Type::KEY}});
 
     auto text = std::make_unique<UI::Style::Text>();
-    auto opts = text_schema.bind(ctx, *value);
+    auto text_source = value;
+    if (Lisple::Dict::contains_key(*value, "color"))
+    {
+      auto color_value = Lisple::Dict::get_property(*value, "color");
+
+      if (parse_text_use_font_color(color_value))
+      {
+        text->use_font_color = true;
+        text_source = Lisple::Dict::shallow_copy(value);
+        Lisple::Dict::set_property(
+          text_source, Lisple::RTValue::keyword("color"), Lisple::Constant::NIL);
+      }
+    }
+
+    auto opts = text_schema.bind(ctx, *text_source);
     text->color = opts.optional_obj<Color>("color");
+
     if (opts.contains("font")) text->font = opts.str("font");
     if (opts.contains("scale")) text->scale = opts.i32("scale");
     if (opts.contains("align")) text->align = parse_text_align(opts.val("align"));

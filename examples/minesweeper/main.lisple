@@ -92,7 +92,7 @@
                                                    (get gl/difficulty-settings :beginner)))
                    :preferences {:marks? true
                                  :color? true}}))
-   :children [{:mode 'menu-bar-mode
+   :children [{:mode 'menu-bar
                :id "menu"
                :state {:game (ui/bind-state :game)
                        :preferences (ui/bind-state :preferences)}}

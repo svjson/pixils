@@ -199,6 +199,29 @@ TEST_F(StyleTest, make_style_with_text)
   EXPECT_EQ(*style.text->wrap, Pixils::UI::Style::Text::Wrap::WORD);
 }
 
+TEST_F(StyleTest, make_style_with_text_color_none)
+{
+  Lisple::sptr_rtval result =
+    runtime.eval("(pixils.ui.style/make-style {:text {:color :none}})");
+
+  auto style = Lisple::obj<Pixils::UI::Style>(*result);
+  ASSERT_NE(style.text, std::nullopt);
+  EXPECT_TRUE(style.text->use_font_color);
+  EXPECT_EQ(style.text->color, std::nullopt);
+}
+
+TEST_F(StyleTest, make_style_with_text_color_from_host_color_value)
+{
+  Lisple::sptr_rtval result =
+    runtime.eval("(pixils.ui.style/make-style "
+                 "{:text {:color (pixils.color/make-color {:r 255 :g 255 :b 255})}})");
+
+  auto style = Lisple::obj<Pixils::UI::Style>(*result);
+  ASSERT_NE(style.text, std::nullopt);
+  ASSERT_NE(style.text->color, std::nullopt);
+  EXPECT_EQ(*style.text->color, (Pixils::Color{255, 255, 255, 255}));
+}
+
 TEST_F(StyleTest, make_style_with_focus_variants)
 {
   Lisple::sptr_rtval result = runtime.eval("(pixils.ui.style/make-style {:focus {:width 80} "
@@ -281,6 +304,26 @@ TEST(StyleResolveTest, hover_text_variant_overrides_only_its_own_fields)
   EXPECT_EQ(*resolved.text->scale, 2);
   EXPECT_EQ(*resolved.text->align, Pixils::Text::Alignment::RIGHT);
   EXPECT_EQ(*resolved.text->wrap, Pixils::UI::Style::Text::Wrap::WORD);
+}
+
+TEST(StyleResolveTest, text_color_none_stops_inherited_text_tint)
+{
+  Pixils::UI::Style parent;
+  parent.text = Pixils::UI::Style::Text{};
+  parent.text->color = Pixils::Color{255, 255, 255, 255};
+
+  Pixils::UI::Style child;
+  child.text = Pixils::UI::Style::Text{};
+  child.text->use_font_color = true;
+
+  auto resolved = Pixils::UI::resolve_style(std::optional<Pixils::UI::Style>{child},
+                                            &parent,
+                                            Lisple::Constant::NIL,
+                                            {});
+
+  ASSERT_NE(resolved.text, std::nullopt);
+  EXPECT_TRUE(resolved.text->use_font_color);
+  EXPECT_EQ(resolved.text->color, std::nullopt);
 }
 
 TEST(StyleResolveTest, focus_variant_overrides_focus_within_on_focused_leaf)

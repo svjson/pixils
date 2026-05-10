@@ -92,9 +92,7 @@
             'window-title-bar {:background FOCUS-BLUE
                                :text {:color c/WHITE}
                                :width :fill
-                               :height 19
-                               :layout {:direction :row
-                                        :gap :space-between}}
+                               :height 19}
 
             'window-control-button {:hidden true}
 
@@ -128,16 +126,15 @@
                       :right {:thickness 1 :color PANEL-LIGHT}
                       :bottom {:thickness 1 :color PANEL-LIGHT}}}
 
-            'menu-bar-mode {:background PANEL-COLOR
-                            :text {:font :font/win95-system-font
-                                   :color c/BLACK}}
+            'menu-bar {:background PANEL-COLOR
+                       :text {:font :font/win95-system-font
+                              :color c/BLACK}}
 
             :menu/item
             {:hover {:background FOCUS-BLUE
                      :text {:color WHITE}}}
 
-            'menu-item {:padding [2 16]
-                        :hover {:background FOCUS-BLUE
+            'menu-item {:hover {:background FOCUS-BLUE
                                 :text {:color WHITE}}}
 
             'menu-option-item

@@ -4,6 +4,7 @@
 #include <pixils/hook_context.h>
 #include <pixils/runtime/hook_invocation.h>
 #include <pixils/runtime/view.h>
+#include <pixils/ui/base_theme.h>
 #include <pixils/ui/theme.h>
 
 #include <lisple/runtime.h>
@@ -240,7 +241,9 @@ namespace Pixils::UI
     {
       Theme theme = inherited_theme
                       ? *inherited_theme
-                      : (view && view->inherited_theme ? *view->inherited_theme : Theme{});
+                      : (view && view->inherited_theme
+                           ? *view->inherited_theme
+                           : default_base_theme(runtime));
       if (!view || !view->mode || !view->mode->theme) return theme;
 
       auto local_theme = lookup_theme(runtime, *view->mode->theme);

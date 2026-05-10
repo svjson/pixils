@@ -40,7 +40,8 @@
 
 (defcomponent counter {:update (fn [state ctx]
                                  (assoc state :text-value (left-pad (:value state) 3 "0")))
-                       :style {:text {:font :font/counter-font}
+                       :style {:text {:font :font/counter-font
+                                      :color :none}
                                :border {:thickness 1
                                         :line-style :solid
                                         :color win/panel-shadow
@@ -48,4 +49,3 @@
                                         :right {:color win/white :trim [1 0]}}}
                        :children [{:mode 'text-node
                                    :state {:value (ui/bind-state :text-value)}}]})
-

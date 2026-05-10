@@ -206,8 +206,7 @@ namespace Pixils::Script
 
   NOBJ_PROP_GET(StyleTextAdapter, color)
   {
-    return get_self_object().color ? ColorAdapter::make_ref(*get_self_object().color)
-                                   : Lisple::Constant::NIL;
+    return StyleDefinition::text_color_to_value(get_self_object());
   }
 
   NOBJ_PROP_GET(StyleTextAdapter, font)

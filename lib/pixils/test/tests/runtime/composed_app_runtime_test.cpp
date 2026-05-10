@@ -849,6 +849,28 @@ TEST_F(ComposedAppRuntimeTest,
 }
 
 TEST_F(ComposedAppRuntimeTest,
+       session_applies_window_title_bar_text_color_from_theme_for_windowed_default_fixture)
+{
+  use_default_frame_size();
+  load_default_minesweeper_program();
+  render_cycle();
+
+  ASSERT_NE(session().active_mode, nullptr);
+  View& main_mode = *session().active_mode;
+  View& window = windowed_default_window_shell(main_mode);
+  View& title_bar = child_with_mode_name(window, "window-title-bar");
+  View& title_text = child_with_mode_name(title_bar, "text-node");
+
+  ASSERT_TRUE(title_bar.effective_style.text.has_value());
+  ASSERT_TRUE(title_bar.effective_style.text->color.has_value());
+  EXPECT_EQ(*title_bar.effective_style.text->color, (Pixils::Color{0xff, 0xff, 0xff, 0xff}));
+
+  ASSERT_TRUE(title_text.effective_style.text.has_value());
+  ASSERT_TRUE(title_text.effective_style.text->color.has_value());
+  EXPECT_EQ(*title_text.effective_style.text->color, (Pixils::Color{0xff, 0xff, 0xff, 0xff}));
+}
+
+TEST_F(ComposedAppRuntimeTest,
        session_opens_popup_mode_from_menu_mouse_down_for_implicit_fill_fixture)
 {
   // Given

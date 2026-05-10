@@ -38,6 +38,7 @@ namespace Pixils::UI::Components
 
     std::optional<Color> text_style_color(const Style& style)
     {
+      if (style.text && style.text->use_font_color) return std::nullopt;
       if (style.text && style.text->color) return style.text->color;
       return std::nullopt;
     }

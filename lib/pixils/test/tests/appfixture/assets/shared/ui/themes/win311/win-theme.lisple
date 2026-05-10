@@ -117,9 +117,7 @@
             'window-title-bar {:background focus-blue
                                :text {:color c/WHITE}
                                :width :fill
-                               :height 19
-                               :layout {:direction :row
-                                        :gap :space-between}}
+                               :height 19}
 
             'window-control-button {:background {:image :win3/control-button}
                                     :border {:right {:thickness 1

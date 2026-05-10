@@ -77,6 +77,16 @@ TEST_F(SessionChildrenTest, child_mode_render_hook_receives_render_context)
   EXPECT_FALSE(render_target()->render_ops.empty());
 }
 
+TEST_F(SessionChildrenTest, root_mode_without_explicit_theme_uses_builtin_base_theme)
+{
+  runtime.eval("(pixils/defmode window-control-button {})");
+
+  session.push_mode("window-control-button", Lisple::Constant::NIL);
+  session.render_mode();
+
+  EXPECT_EQ(session.active_mode->effective_theme.name, "pixils/base-theme");
+}
+
 TEST_F(SessionChildrenTest, child_content_size_hook_informs_layout_bounds)
 {
   // Given
