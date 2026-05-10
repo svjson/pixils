@@ -1,0 +1,11 @@
+(ns pixils.test.app.minesweeper.core
+  (:require pixils
+            [pixils.color :as c]
+            [pixils.ui :as ui]))
+
+(defcomponent highscores-window
+  {:style {:background c/WHITE
+           :text {:color c/BLACK}}
+   :children [{:mode 'highscore-table
+               :state (ui/bind-state :highscores)}
+              {:mode 'highscore-buttons}]})

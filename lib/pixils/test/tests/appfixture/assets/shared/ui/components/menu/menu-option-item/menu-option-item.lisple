@@ -1,0 +1,19 @@
+(ns pixils.test.app.shared.ui.components.menu
+  (:require pixils
+            [pixils.ui :as ui]))
+
+(defcomponent menu-option-item
+  {:class :menu/item
+   :style {:layout {:direction :row}}
+   :on-mouse-down (fn [state event ctx]
+                    (ui/stop-propagation! event)
+                    state)
+   :on-mouse-up (fn [state event ctx]
+                  (ui/emit! (:view ctx) :menu/select {:key (or (:key state)
+                                                               (:selected-value state))
+                                                      :value (:selected-value state)})
+                  state)
+   :children [{:mode 'menu-option-indicator
+               :state {:selected (ui/bind-state :selected)}}
+              {:mode 'text-node
+               :state {:value (ui/bind-state :text)}}]})

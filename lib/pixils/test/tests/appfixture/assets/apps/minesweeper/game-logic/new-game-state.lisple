@@ -1,9 +1,13 @@
 (ns pixils.test.app.minesweeper.game-logic)
 
-(defun new-game-state [w h mines]
-  {:settings {:w w
-              :h h
-              :mines mines}
+(def difficulty-settings
+  {:beginner {:w 9 :h 9 :mines 10}
+   :intermediate {:w 16 :h 16 :mines 40}
+   :expert {:w 30 :h 16 :mines 99}
+   :custom {:w 9 :h 9 :mines 10}})
+
+(defun new-game-state [{:keys [w h mines] :as settings}]
+  {:settings settings
    :face :status/face-normal
    :board (generate-mine-field w h mines)
    :board-mask (dotimes [y h]

@@ -7,3 +7,16 @@
    :children (dotimes [n 9]
                {:mode 'board-button
                 :state {:x n :y (ui/bind-state :y) :mask (ui/bind-state :mask-row n)}})})
+
+(defun make-board-button-row [y settings]
+  {:mode 'board-button-row
+   :id (str "row-" y)
+   :state {:y y
+           :mask-row (ui/bind-state :board-mask y)}
+   :style {:height 17}
+   :children (dotimes [x (:w settings)]
+               {:mode 'board-button
+                :id (str "cell-" x)
+                :state {:x x
+                        :y (ui/bind-state :y)
+                        :mask (ui/bind-state :mask-row x)}})})

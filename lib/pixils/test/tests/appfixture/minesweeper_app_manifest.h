@@ -17,6 +17,7 @@ namespace Pixils::Test::AppFixture::Minesweeper
     inline constexpr std::string_view shared_button = "shared/ui/components/button";
     inline constexpr std::string_view shared_text_node = "shared/ui/components/text-node";
     inline constexpr std::string_view shared_menu = "shared/ui/components/menu";
+    inline constexpr std::string_view shared_window = "shared/ui/components/window";
     inline constexpr std::string_view shared_win311 = "shared/ui/themes/win311";
   } // namespace file_ids
 
@@ -61,6 +62,16 @@ namespace Pixils::Test::AppFixture::Minesweeper
     inline constexpr std::string_view fixed_size_counter_status_panel =
       "minesweeper/status-panel/fixed-size-counter-status-panel";
     inline constexpr std::string_view menu_definition = "minesweeper/menu/menu-definition";
+    inline constexpr std::string_view highscore_row_component =
+      "minesweeper/highscores/highscore-row";
+    inline constexpr std::string_view highscore_table_component =
+      "minesweeper/highscores/highscore-table";
+    inline constexpr std::string_view highscore_buttons_component =
+      "minesweeper/highscores/highscore-buttons";
+    inline constexpr std::string_view highscores_window_component =
+      "minesweeper/highscores/highscores-window";
+    inline constexpr std::string_view highscores_modal_mode =
+      "minesweeper/highscores/highscores-modal";
     inline constexpr std::string_view menu_item_component =
       "shared/ui/components/menu/menu-item/menu-item";
     inline constexpr std::string_view menu_bar_mode =
@@ -73,19 +84,44 @@ namespace Pixils::Test::AppFixture::Minesweeper
       "shared/ui/components/menu/popup-menu/popup-menu";
     inline constexpr std::string_view status_panel_face_new_game_state =
       "minesweeper/game-logic/status-panel-face-new-game-state";
-    inline constexpr std::string_view new_game_state = "minesweeper/game-logic/new-game-state";
+    inline constexpr std::string_view new_game_state =
+      "minesweeper/game-logic/new-game-state";
     inline constexpr std::string_view game_rules = "minesweeper/game-logic/game-rules";
     inline constexpr std::string_view button_component = "shared/ui/components/button";
+    inline constexpr std::string_view button_inner_component =
+      "shared/ui/components/button/button-inner";
     inline constexpr std::string_view text_node_component = "shared/ui/components/text-node";
+    inline constexpr std::string_view menu_option_indicator_component =
+      "shared/ui/components/menu/menu-option-indicator";
+    inline constexpr std::string_view menu_option_item_component =
+      "shared/ui/components/menu/menu-option-item";
+    inline constexpr std::string_view menu_separator_component =
+      "shared/ui/components/menu/menu-separator";
+    inline constexpr std::string_view popup_menu_outer_mode =
+      "shared/ui/components/menu/popup-menu-outer";
+    inline constexpr std::string_view popup_menu_inner_mode =
+      "shared/ui/components/menu/popup-menu-inner";
+    inline constexpr std::string_view window_component =
+      "shared/ui/components/window/window-component";
+    inline constexpr std::string_view window_title_bar_component =
+      "shared/ui/components/window/window-title-bar";
+    inline constexpr std::string_view window_control_button_component =
+      "shared/ui/components/window/window-control-button";
+    inline constexpr std::string_view window_minimize_button_component =
+      "shared/ui/components/window/window-minimize-button";
+    inline constexpr std::string_view window_body_component =
+      "shared/ui/components/window/window-body";
     inline constexpr std::string_view win311_theme = "shared/ui/themes/win311";
   } // namespace unit_ids
 
   AppManifest implicit_fill_manifest();
+  AppManifest pre_windowed_manifest();
   AppManifest canonical_manifest();
   AppManifest default_manifest();
 
   std::string main_namespace();
   std::vector<std::string> implicit_fill_entry_files();
+  std::vector<std::string> pre_windowed_entry_files();
   std::vector<std::string> canonical_entry_files();
   std::vector<std::string> entry_files();
 } // namespace Pixils::Test::AppFixture::Minesweeper

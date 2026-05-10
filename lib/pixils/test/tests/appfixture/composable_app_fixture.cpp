@@ -3,6 +3,8 @@
 #include "app_source_builder.h"
 
 #include <chrono>
+#include <cstdlib>
+#include <iostream>
 #include <stdexcept>
 
 namespace
@@ -11,13 +13,33 @@ namespace
   {
     return std::chrono::steady_clock::now().time_since_epoch().count();
   }
+
+  bool env_flag_set(const char* name)
+  {
+    const char* value = std::getenv(name);
+    if (!value) return false;
+
+    const std::string_view flag(value);
+    return !(flag.empty() || flag == "0" || flag == "false" || flag == "FALSE");
+  }
+
+  bool should_keep_composed_app()
+  {
+    return env_flag_set("PIXILS_KEEP_COMPOSED_APP");
+  }
+
+  bool should_log_composed_app_root()
+  {
+    return should_keep_composed_app() || env_flag_set("PIXILS_LOG_COMPOSED_APP_ROOT");
+  }
 } // namespace
 
 void ComposableAppFixture::TearDown()
 {
   lisple_runtime.reset();
 
-  if (!app_root.empty()) std::filesystem::remove_all(app_root);
+  if (!app_root.empty() && !should_keep_composed_app())
+    std::filesystem::remove_all(app_root);
 }
 
 void ComposableAppFixture::load_app(const Pixils::Test::AppFixture::AppManifest& manifest,
@@ -26,12 +48,22 @@ void ComposableAppFixture::load_app(const Pixils::Test::AppFixture::AppManifest&
 {
   lisple_runtime.reset();
 
-  if (!app_root.empty()) std::filesystem::remove_all(app_root);
+  if (!app_root.empty() && !should_keep_composed_app())
+  {
+    std::filesystem::remove_all(app_root);
+  }
   app_root = make_temp_app_root();
   std::filesystem::create_directories(app_root);
 
   for (const auto& file : manifest.materialize_files())
+  {
     Pixils::Test::AppFixture::write_composed_file(file, app_root);
+  }
+
+  if (should_log_composed_app_root())
+  {
+    std::cout << "[ComposableAppFixture] app root: " << app_root << '\n';
+  }
 
   lisple_runtime = Pixils::make_lisple_runtime(
     render_ctx,

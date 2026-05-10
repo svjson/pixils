@@ -1,0 +1,19 @@
+(ns pixils.test.app.shared.ui.components.window
+  (:require pixils
+            [pixils.ui :as ui]))
+
+(defun emit-window-move! [event ctx]
+  (ui/emit! (:view ctx) :window/move-by (:delta event)))
+
+(defcomponent window-title-bar
+  {:on-drag-start (fn [state event ctx]
+                    (emit-window-move! event ctx)
+                    state)
+   :on-drag (fn [state event ctx]
+              (emit-window-move! event ctx)
+              state)
+   :children [{:mode 'window-control-button}
+              {:mode 'text-node
+               :style {:padding [3 2]}
+               :state {:value (ui/bind-state :title)}}
+              {:mode 'window-minimize-button}]})

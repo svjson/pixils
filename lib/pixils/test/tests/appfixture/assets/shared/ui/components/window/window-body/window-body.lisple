@@ -1,0 +1,5 @@
+(ns pixils.test.app.shared.ui.components.window
+  (:require pixils))
+
+(defcomponent window-body
+  {})

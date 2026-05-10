@@ -1,0 +1,7 @@
+(ns pixils.test.app.shared.ui.components.window
+  (:require pixils
+            pixils.test.app.shared.ui.components.button))
+
+(defcomponent window-minimize-button
+  {:extend 'button
+   :class :window/minimize-button})

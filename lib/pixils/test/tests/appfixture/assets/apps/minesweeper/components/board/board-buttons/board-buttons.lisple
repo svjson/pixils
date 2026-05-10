@@ -8,3 +8,18 @@
                 :state {:y n
                         :mask-row (ui/bind-state :board-mask n)}
                 :style {:height 17}})})
+
+(defun make-board-buttons [settings]
+  {:mode 'board-buttons
+   :id "buttons"
+   :state {:board-mask (ui/bind-state :board-mask)
+           :face (ui/bind-state :face)}
+   :on-mouse-down (fn [state e ctx]
+                    (assoc state :face :status/face-danger))
+   :on-mouse-up (fn [state e ctx]
+                  (assoc state :face :status/face-normal))
+   :style {:position :absolute
+           :top 0
+           :left 0}
+   :children (dotimes [y (:h settings)]
+               (make-board-button-row y settings))})

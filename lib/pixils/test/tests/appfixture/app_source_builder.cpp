@@ -16,7 +16,9 @@ namespace Pixils::Test::AppFixture
     {
       std::ifstream stream(file_path);
       if (!stream.is_open())
+      {
         throw std::runtime_error("Failed to open source unit file: " + file_path.string());
+      }
 
       std::ostringstream buffer;
       buffer << stream.rdbuf();

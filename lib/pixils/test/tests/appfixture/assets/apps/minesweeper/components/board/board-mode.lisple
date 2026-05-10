@@ -1,8 +1,10 @@
 (ns pixils.test.app.minesweeper.core
   (:require pixils
+            [pixils.color :as c]
             [pixils.point :as pt]
             [pixils.ui :as ui]
-            [pixils.test.app.minesweeper.game-logic :as gl]))
+            [pixils.test.app.minesweeper.game-logic :as gl]
+            [pixils.test.app.shared.ui.themes.win311 :as win]))
 
 (defun clear-chord-press [state]
   (-> state
@@ -47,6 +49,24 @@
                                                     {:x x :y y}))))
           (fn [c] (not (nil? c)))))
 
+(defun make-board-child [settings]
+  {:mode 'board-mode
+   :state {:board (ui/bind-state :board)
+           :board-mask (ui/bind-state :board-mask)
+           :settings (ui/bind-state :settings)
+           :face (ui/bind-state :face)}
+   :style {:margin {:t 6}
+           :border {:thickness 3
+                    :line-style :bevel
+                    :color win/panel-shadow
+                    :bottom {:color c/WHITE :trim [0 1]}
+                    :right {:color c/WHITE :trim [1 0]}}}
+   :children [{:mode 'mine-layer-mode
+               :state {:board (ui/bind-state :board)
+                       :board-mask (ui/bind-state :board-mask)
+                       :settings (ui/bind-state :settings)}}
+              (make-board-buttons settings)]})
+
 (defmode board-mode
   {:on-mouse-down apply-chord-press
    :on-mouse-motion apply-chord-press
@@ -63,7 +83,8 @@
                     state))
    :children [{:mode 'mine-layer-mode
                :state {:board (ui/bind-state :board)
-                       :board-mask (ui/bind-state :board-mask)}}
+                       :board-mask (ui/bind-state :board-mask)
+                       :settings (ui/bind-state :settings)}}
               {:mode 'board-buttons
                :state {:board-mask (ui/bind-state :board-mask)
                        :face (ui/bind-state :face)}

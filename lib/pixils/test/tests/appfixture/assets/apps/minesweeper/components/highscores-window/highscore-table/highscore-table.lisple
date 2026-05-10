@@ -1,0 +1,12 @@
+(ns pixils.test.app.minesweeper.core
+  (:require pixils
+            [pixils.ui :as ui]))
+
+(defcomponent highscore-table
+  {:style {:margin 16}
+   :children [{:mode 'highscore-row
+               :state (ui/bind-state :beginner)}
+              {:mode 'highscore-row
+               :state (ui/bind-state :intermediate)}
+              {:mode 'highscore-row
+               :state (ui/bind-state :expert)}]})

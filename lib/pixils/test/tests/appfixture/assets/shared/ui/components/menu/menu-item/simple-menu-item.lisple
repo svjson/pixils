@@ -1,0 +1,35 @@
+(ns pixils.test.app.shared.ui.components.menu
+  (:require pixils
+            [pixils.color :as c]
+            [pixils.ui :as ui]
+            pixils.test.app.shared.ui.components.text-node
+            [pixils.test.app.shared.ui.themes.win311 :as win]
+            [pixils.test.app.minesweeper.menu-definition :as md]))
+
+(defcomponent menu-item
+  {:style {:padding 2
+           :hover {:background win/focus-blue
+                   :text {:color win/white}}}
+   :on-mouse-down (fn [state event ctx]
+                    (push-mode!
+                     'popup-menu-mode
+                     {}
+                     {:style {:position :absolute
+                              :width :shrink
+                              :height :shrink
+                              :background {:r 255 :g 255 :b 255}
+                              :text {:color c/BLACK}
+                              :border {:thickness 1 :line-style :solid :color {:r 0 :g 0 :b 0}}
+                              :left (-> ctx :view :bounds :x)
+                              :top (+ (-> ctx :view :bounds :y) (-> ctx :view :bounds :h))}
+                      :children (for-indexed [n item (:items state)]
+                                             (merge (make-menu-item item)
+                                                    {:style {:width :fill}}))})
+                    state)
+   :children [{:mode 'text-node
+               :state {:value (ui/bind-state :text)}}]})
+
+(defun make-menu-item [item]
+  {:mode 'menu-item
+   :state {:text (:title item)
+           :items (:items item)}})

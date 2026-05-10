@@ -32,6 +32,7 @@ namespace Pixils::Test::AppFixture
 
     void add_file(const ManifestFile& file);
     bool has_file(const std::string& file_id) const;
+    void remove_file(const std::string& file_id);
 
     void append_unit_to_file(const std::string& file_id, const std::string& unit_id);
     void insert_unit_after(const std::string& file_id,

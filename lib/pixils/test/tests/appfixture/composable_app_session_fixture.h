@@ -18,6 +18,11 @@
 #include <string>
 #include <vector>
 
+namespace Pixils
+{
+  class Program;
+}
+
 class ComposableAppSessionFixture : public ::testing::Test
 {
  protected:
@@ -50,6 +55,7 @@ class ComposableAppSessionFixture : public ::testing::Test
   void update_cycle();
   void render_cycle();
   void frame_cycle();
+  Pixils::Program& load_program();
   Lisple::Runtime& pixils();
   Pixils::Runtime::Session& session();
   Lisple::sptr_rtval eval(const std::string& source);

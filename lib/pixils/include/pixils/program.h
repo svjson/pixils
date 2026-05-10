@@ -7,8 +7,18 @@
 #include <optional>
 #include <string>
 
+namespace Lisple
+{
+  class Runtime;
+}
+
 namespace Pixils
 {
+  namespace Runtime
+  {
+    struct Session;
+  }
+
   class Program
   {
     std::string name;
@@ -28,6 +38,8 @@ namespace Pixils
     Display& get_display();
     void set_display(Display& display);
   };
+
+  Program& load_program(Lisple::Runtime& runtime, Runtime::Session& session);
 } // namespace Pixils
 
 #endif /* PROGRAM_H */

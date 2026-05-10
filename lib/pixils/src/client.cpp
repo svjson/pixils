@@ -53,50 +53,8 @@ namespace Pixils
 
     if (init_mode)
     {
-      Lisple::sptr_rtval programs =
-        lisple_runtime.lookup_value(Script::ID__PIXILS__PROGRAMS);
-      auto program_keys = Lisple::Dict::map_keys(*programs);
-      Lisple::sptr_rtval program_key;
-
-      if (program_keys.size() == 0)
-      {
-        lisple_runtime.eval("(pixils/defprogram program {})");
-        program_key = Lisple::RTValue::symbol("program");
-      }
-      else
-      {
-        program_key = Lisple::RTValue::symbol(program_keys.front()->str());
-      }
-
-      auto program_val = Lisple::Dict::get_property(programs, program_key);
-
-      this->program = &Lisple::obj<Program>(*program_val);
-
+      this->program = &Pixils::load_program(lisple_runtime, session);
       SDL_ShowCursor(this->program->pointer_visible ? SDL_ENABLE : SDL_DISABLE);
-
-      auto modes = lisple_runtime.lookup_value(Script::ID__PIXILS__MODES);
-
-      if (program->initial_mode == "")
-      {
-        auto mode_keys = Lisple::Dict::map_keys(*modes);
-        if (mode_keys.size() == 0)
-        {
-          throw Lisple::LispleException("No modes defined");
-        }
-        else
-        {
-          program->initial_mode = mode_keys.front()->str();
-        }
-      }
-
-      Lisple::sptr_rtval overrides = Lisple::Constant::NIL;
-      if (program->theme)
-      {
-        overrides = Lisple::RTValue::map(
-          {Lisple::RTValue::keyword("theme"), Lisple::RTValue::symbol(*program->theme)});
-      }
-
-      session.push_mode(program->initial_mode, Lisple::Constant::NIL, overrides);
     }
   }
 

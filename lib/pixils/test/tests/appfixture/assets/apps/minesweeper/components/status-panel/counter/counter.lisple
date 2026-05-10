@@ -1,7 +1,6 @@
 (ns pixils.test.app.minesweeper.core
   (:require pixils
             [pixils.ui :as ui]
-            pixils.test.app.shared.ui.components.text-node
             [pixils.test.app.shared.ui.themes.win311 :as win]))
 
 (defcomponent counter {:update (fn [state ctx]

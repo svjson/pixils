@@ -1,0 +1,12 @@
+(ns pixils.test.app.minesweeper.menu-definition)
+
+(def menu-items [{:title "File" :items [{:title "New Game"}
+                                        {:title "Save"}
+                                        {:title "Quit"}]}
+                 {:title "Edit" :items [{:title "Undo move"}]}
+                 {:title "View" :items [{:title "Game board"}
+                                        {:title "Highscores"}]}
+                 {:title "Help" :items [{:title "About"}]}])
+
+(def menu-item-w 32)
+(def menu-item-h 13)

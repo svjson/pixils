@@ -13,6 +13,7 @@
 
 #include <algorithm>
 #include <lisple/context.h>
+#include <lisple/exception.h>
 #include <lisple/host.h>
 #include <lisple/host/object.h>
 #include <lisple/host/schema.h>
@@ -67,6 +68,25 @@ namespace
     mode.on_drag_start = resolve_hook(runtime, mode.on_drag_start);
     mode.on_drag = resolve_hook(runtime, mode.on_drag);
     mode.on_drag_end = resolve_hook(runtime, mode.on_drag_end);
+  }
+
+  Pixils::Runtime::Mode& resolve_child_mode(const Pixils::Runtime::ChildSlot& slot,
+                                            const Lisple::sptr_rtval& modes)
+  {
+    auto mode_val = Lisple::Dict::get_property(modes, Lisple::RTValue::symbol(slot.mode_name));
+    if (!mode_val || mode_val->type == Lisple::RTValue::Type::NIL)
+    {
+      throw Lisple::InvocationException("Unknown child mode '" + slot.mode_name +
+                                        "' referenced by child slot '" + slot.id + "'");
+    }
+
+    if (!Pixils::Script::HostType::MODE.is_type_of(*mode_val))
+    {
+      throw Lisple::InvocationException("Child slot '" + slot.id + "' resolved mode '" +
+                                        slot.mode_name + "' to non-mode value");
+    }
+
+    return Lisple::obj<Pixils::Runtime::Mode>(*mode_val);
   }
 
   void apply_mode_overrides(Pixils::Runtime::Mode& mode,
@@ -197,9 +217,7 @@ namespace Pixils::UI
                                                  const Lisple::sptr_rtval& modes,
                                                  Lisple::Runtime& runtime)
   {
-    auto mode_val =
-      Lisple::Dict::get_property(modes, Lisple::RTValue::symbol(slot.mode_name));
-    auto& base_mode = Lisple::obj<Runtime::Mode>(*mode_val);
+    auto& base_mode = resolve_child_mode(slot, modes);
 
     Runtime::View view;
     view.id = slot.id;

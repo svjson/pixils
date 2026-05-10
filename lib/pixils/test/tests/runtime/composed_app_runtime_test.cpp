@@ -102,6 +102,39 @@ namespace
     return *view.children.at(0);
   }
 
+  View& windowed_default_window_shell(View& main_mode)
+  {
+    return child_with_mode_name(main_mode, "window");
+  }
+
+  View& windowed_default_window_body(View& window_shell)
+  {
+    return child_with_mode_name(window_shell, "window-body");
+  }
+
+  View& windowed_default_app_mode(View& main_mode)
+  {
+    return child_with_mode_name(
+      windowed_default_window_body(windowed_default_window_shell(main_mode)),
+      "window-mode");
+  }
+
+  View& windowed_default_game_mode(View& main_mode)
+  {
+    View& window_body =
+      windowed_default_window_body(windowed_default_window_shell(main_mode));
+
+    for (auto& child : window_body.children)
+    {
+      if (child && child->mode && child->mode->name == "window-mode")
+      {
+        return child_with_mode_name(*child, "game-mode");
+      }
+    }
+
+    return child_with_mode_name(window_body, "game-mode");
+  }
+
   Lisple::sptr_rtval get_key(const Lisple::sptr_rtval& target, const std::string& key)
   {
     return Lisple::Dict::get_property(target, Lisple::RTValue::keyword(key));
@@ -176,11 +209,36 @@ class ComposedAppRuntimeTest : public ComposableAppSessionFixture
              AppFixture::Minesweeper::implicit_fill_entry_files());
   }
 
+  void load_minesweeper_program()
+  {
+    load_minesweeper_app();
+    ComposableAppSessionFixture::load_program();
+  }
+
   void load_default_minesweeper_app()
   {
     load_app(AppFixture::Minesweeper::default_manifest(),
              AppFixture::Minesweeper::main_namespace(),
              AppFixture::Minesweeper::entry_files());
+  }
+
+  void load_default_minesweeper_program()
+  {
+    load_default_minesweeper_app();
+    ComposableAppSessionFixture::load_program();
+  }
+
+  void load_pre_windowed_minesweeper_app()
+  {
+    load_app(AppFixture::Minesweeper::pre_windowed_manifest(),
+             AppFixture::Minesweeper::main_namespace(),
+             AppFixture::Minesweeper::pre_windowed_entry_files());
+  }
+
+  void load_pre_windowed_minesweeper_program()
+  {
+    load_pre_windowed_minesweeper_app();
+    ComposableAppSessionFixture::load_program();
   }
 
   void load_reduced_minesweeper_app()
@@ -273,13 +331,11 @@ TEST_F(ComposedAppRuntimeTest, session_assigns_expected_bounds_for_explicit_view
   EXPECT_EQ(body_panel.bounds, (Pixils::Rect{0, 40, 0, 0}));
 }
 
-TEST_F(ComposedAppRuntimeTest, session_builds_expected_initial_view_tree_for_default_fixture)
+TEST_F(ComposedAppRuntimeTest,
+       session_builds_expected_initial_view_tree_for_implicit_fill_fixture)
 {
   // Given
-  load_minesweeper_app();
-
-  // When
-  session().push_mode("window-mode", Lisple::Constant::NIL);
+  load_minesweeper_program();
 
   // Then
   ASSERT_NE(session().active_mode, nullptr);
@@ -309,13 +365,10 @@ TEST_F(ComposedAppRuntimeTest, session_builds_expected_initial_view_tree_for_def
 }
 
 TEST_F(ComposedAppRuntimeTest,
-       session_builds_expected_initial_view_tree_for_canonical_default_fixture)
+       session_builds_expected_initial_view_tree_for_pre_windowed_fixture)
 {
   // Given
-  load_default_minesweeper_app();
-
-  // When
-  session().push_mode("main-mode", Lisple::Constant::NIL);
+  load_pre_windowed_minesweeper_program();
 
   // Then
   ASSERT_NE(session().active_mode, nullptr);
@@ -349,13 +402,58 @@ TEST_F(ComposedAppRuntimeTest,
 }
 
 TEST_F(ComposedAppRuntimeTest,
-       session_initializes_expected_root_state_for_default_fixture_game_layout)
+       session_builds_expected_initial_view_tree_for_windowed_default_fixture)
 {
   // Given
-  load_minesweeper_app();
+  load_default_minesweeper_program();
 
-  // When
-  session().push_mode("window-mode", Lisple::Constant::NIL);
+  // Then
+  ASSERT_NE(session().active_mode, nullptr);
+  View& main_mode = *session().active_mode;
+  expect_mode_name(main_mode, "main-mode");
+  ASSERT_EQ(main_mode.children.size(), 1u);
+
+  View& window = only_child(main_mode, 0);
+  expect_mode_name(window, "window");
+  ASSERT_EQ(window.children.size(), 2u);
+
+  View& title_bar = only_child(window, 0);
+  expect_mode_name(title_bar, "window-title-bar");
+
+  View& window_body = only_child(window, 1);
+  expect_mode_name(window_body, "window-body");
+  ASSERT_EQ(window_body.children.size(), 1u);
+
+  View& window_mode = only_child(window_body, 0);
+  expect_mode_name(window_mode, "window-mode");
+  ASSERT_EQ(window_mode.children.size(), 2u);
+
+  View& menu_bar = only_child(window_mode, 0);
+  expect_mode_name(menu_bar, "menu-bar-mode");
+
+  View& game_mode = only_child(window_mode, 1);
+  expect_mode_name(game_mode, "game-mode");
+  ASSERT_EQ(game_mode.children.size(), 2u);
+
+  View& status_panel = only_child(game_mode, 0);
+  expect_mode_name(status_panel, "status-panel");
+  ASSERT_EQ(status_panel.children.size(), 3u);
+  expect_mode_name(*status_panel.children.at(0), "counter");
+  expect_mode_name(*status_panel.children.at(1), "button");
+  expect_mode_name(*status_panel.children.at(2), "counter");
+
+  View& board_mode = only_child(game_mode, 1);
+  expect_mode_name(board_mode, "board-mode");
+  ASSERT_EQ(board_mode.children.size(), 2u);
+  expect_mode_name(*board_mode.children.at(0), "mine-layer-mode");
+  expect_mode_name(*board_mode.children.at(1), "board-buttons");
+}
+
+TEST_F(ComposedAppRuntimeTest,
+       session_initializes_expected_root_state_for_implicit_fill_fixture_game_layout)
+{
+  // Given
+  load_minesweeper_program();
 
   // Then
   ASSERT_NE(session().active_mode, nullptr);
@@ -384,13 +482,10 @@ TEST_F(ComposedAppRuntimeTest,
 }
 
 TEST_F(ComposedAppRuntimeTest,
-       session_initializes_expected_root_state_for_canonical_default_fixture_game_mode)
+       session_initializes_expected_root_state_for_pre_windowed_fixture_game_mode)
 {
   // Given
-  load_default_minesweeper_app();
-
-  // When
-  session().push_mode("main-mode", Lisple::Constant::NIL);
+  load_pre_windowed_minesweeper_program();
 
   // Then
   ASSERT_NE(session().active_mode, nullptr);
@@ -419,13 +514,42 @@ TEST_F(ComposedAppRuntimeTest,
   EXPECT_EQ(board_mask->elements().size(), 9u);
 }
 
+TEST_F(ComposedAppRuntimeTest,
+       session_initializes_expected_root_state_for_windowed_default_fixture_game_mode)
+{
+  // Given
+  load_default_minesweeper_program();
+
+  // Then
+  ASSERT_NE(session().active_mode, nullptr);
+  View& main_mode = *session().active_mode;
+  View& game_mode = windowed_default_game_mode(main_mode);
+
+  ASSERT_NE(game_mode.state, nullptr);
+  auto settings = get_key(game_mode.state, "settings");
+  auto counters = get_key(game_mode.state, "counters");
+  auto face = get_key(game_mode.state, "face");
+  auto board = get_key(game_mode.state, "board");
+  auto board_mask = get_key(game_mode.state, "board-mask");
+  ASSERT_NE(settings, nullptr);
+  ASSERT_NE(counters, nullptr);
+  ASSERT_NE(face, nullptr);
+  ASSERT_NE(board, nullptr);
+  ASSERT_NE(board_mask, nullptr);
+  expect_int_key(settings, "w", 9);
+  expect_int_key(settings, "h", 9);
+  expect_int_key(settings, "mines", 10);
+  expect_int_key(counters, "mines-left", 10);
+  expect_int_key(counters, "timer", 0);
+  EXPECT_EQ(face->to_string(), ":status/face-normal");
+  EXPECT_EQ(board->elements().size(), 9u);
+  EXPECT_EQ(board_mask->elements().size(), 9u);
+}
+
 TEST_F(ComposedAppRuntimeTest, session_projects_bound_state_into_status_panel_view)
 {
   // Given
-  load_minesweeper_app();
-
-  // When
-  session().push_mode("window-mode", Lisple::Constant::NIL);
+  load_minesweeper_program();
 
   // Then
   ASSERT_NE(session().active_mode, nullptr);
@@ -441,13 +565,10 @@ TEST_F(ComposedAppRuntimeTest, session_projects_bound_state_into_status_panel_vi
 }
 
 TEST_F(ComposedAppRuntimeTest,
-       session_projects_bound_state_into_status_panel_view_for_canonical_default_fixture)
+       session_projects_bound_state_into_status_panel_view_for_pre_windowed_fixture)
 {
   // Given
-  load_default_minesweeper_app();
-
-  // When
-  session().push_mode("main-mode", Lisple::Constant::NIL);
+  load_pre_windowed_minesweeper_program();
 
   // Then
   ASSERT_NE(session().active_mode, nullptr);
@@ -463,13 +584,29 @@ TEST_F(ComposedAppRuntimeTest,
   expect_nil_key(status_panel.state, "board-mask");
 }
 
+TEST_F(ComposedAppRuntimeTest,
+       session_projects_bound_state_into_status_panel_view_for_windowed_default_fixture)
+{
+  // Given
+  load_default_minesweeper_program();
+
+  // Then
+  ASSERT_NE(session().active_mode, nullptr);
+  View& main_mode = *session().active_mode;
+  View& game_mode = windowed_default_game_mode(main_mode);
+  View& status_panel = child_with_mode_name(game_mode, "status-panel");
+
+  ASSERT_NE(status_panel.state, nullptr);
+  expect_key_string(status_panel.state, "face", ":status/face-normal");
+  ASSERT_NE(get_key(status_panel.state, "counters"), nullptr);
+  expect_nil_key(status_panel.state, "board");
+  expect_nil_key(status_panel.state, "board-mask");
+}
+
 TEST_F(ComposedAppRuntimeTest, session_projects_bound_state_into_board_subtree_views)
 {
   // Given
-  load_minesweeper_app();
-
-  // When
-  session().push_mode("window-mode", Lisple::Constant::NIL);
+  load_minesweeper_program();
 
   // Then
   ASSERT_NE(session().active_mode, nullptr);
@@ -495,13 +632,10 @@ TEST_F(ComposedAppRuntimeTest, session_projects_bound_state_into_board_subtree_v
 }
 
 TEST_F(ComposedAppRuntimeTest,
-       session_projects_bound_state_into_board_subtree_views_for_canonical_default_fixture)
+       session_projects_bound_state_into_board_subtree_views_for_pre_windowed_fixture)
 {
   // Given
-  load_default_minesweeper_app();
-
-  // When
-  session().push_mode("main-mode", Lisple::Constant::NIL);
+  load_pre_windowed_minesweeper_program();
 
   // Then
   ASSERT_NE(session().active_mode, nullptr);
@@ -527,13 +661,39 @@ TEST_F(ComposedAppRuntimeTest,
   expect_key_string(board_buttons.state, "face", ":status/face-normal");
 }
 
+TEST_F(ComposedAppRuntimeTest,
+       session_projects_bound_state_into_board_subtree_views_for_windowed_default_fixture)
+{
+  // Given
+  load_default_minesweeper_program();
+
+  // Then
+  ASSERT_NE(session().active_mode, nullptr);
+  View& main_mode = *session().active_mode;
+  View& game_mode = windowed_default_game_mode(main_mode);
+  View& board_mode = child_with_mode_name(game_mode, "board-mode");
+  View& mine_layer = child_with_mode_name(board_mode, "mine-layer-mode");
+  View& board_buttons = child_with_mode_name(board_mode, "board-buttons");
+
+  ASSERT_NE(board_mode.state, nullptr);
+  ASSERT_NE(get_key(board_mode.state, "board"), nullptr);
+  ASSERT_NE(get_key(board_mode.state, "board-mask"), nullptr);
+  expect_key_string(board_mode.state, "face", ":status/face-normal");
+  expect_nil_key(board_mode.state, "counters");
+
+  ASSERT_NE(mine_layer.state, nullptr);
+  ASSERT_NE(get_key(mine_layer.state, "board"), nullptr);
+  ASSERT_NE(get_key(mine_layer.state, "board-mask"), nullptr);
+
+  ASSERT_NE(board_buttons.state, nullptr);
+  ASSERT_NE(get_key(board_buttons.state, "board-mask"), nullptr);
+  expect_key_string(board_buttons.state, "face", ":status/face-normal");
+}
+
 TEST_F(ComposedAppRuntimeTest, session_projects_bound_state_into_status_panel_leaf_views)
 {
   // Given
-  load_minesweeper_app();
-
-  // When
-  session().push_mode("window-mode", Lisple::Constant::NIL);
+  load_minesweeper_program();
 
   // Then
   ASSERT_NE(session().active_mode, nullptr);
@@ -550,15 +710,11 @@ TEST_F(ComposedAppRuntimeTest, session_projects_bound_state_into_status_panel_le
   expect_key_string(face_button.state, "image", ":status-panel/face-normal");
 }
 
-TEST_F(
-  ComposedAppRuntimeTest,
-  session_projects_bound_state_into_status_panel_leaf_views_for_canonical_default_fixture)
+TEST_F(ComposedAppRuntimeTest,
+       session_projects_bound_state_into_status_panel_leaf_views_for_pre_windowed_fixture)
 {
   // Given
-  load_default_minesweeper_app();
-
-  // When
-  session().push_mode("main-mode", Lisple::Constant::NIL);
+  load_pre_windowed_minesweeper_program();
 
   // Then
   ASSERT_NE(session().active_mode, nullptr);
@@ -579,16 +735,39 @@ TEST_F(
   expect_key_string(face_button.state, "image", ":status/face-normal");
 }
 
-TEST_F(ComposedAppRuntimeTest, session_assigns_expected_outer_bounds_for_default_fixture)
+TEST_F(
+  ComposedAppRuntimeTest,
+  session_projects_bound_state_into_status_panel_leaf_views_for_windowed_default_fixture)
+{
+  // Given
+  load_default_minesweeper_program();
+
+  // Then
+  ASSERT_NE(session().active_mode, nullptr);
+  View& main_mode = *session().active_mode;
+  View& game_mode = windowed_default_game_mode(main_mode);
+  View& status_panel = child_with_mode_name(game_mode, "status-panel");
+
+  View& mines_counter = *status_panel.children.at(0);
+  View& face_button = *status_panel.children.at(1);
+  View& timer_counter = *status_panel.children.at(2);
+  expect_int_key(mines_counter.state, "value", 10);
+  expect_int_key(timer_counter.state, "value", 0);
+  ASSERT_EQ(mines_counter.children.size(), 1u);
+  ASSERT_EQ(timer_counter.children.size(), 1u);
+  expect_mode_name(*mines_counter.children.at(0), "text-node");
+  expect_mode_name(*timer_counter.children.at(0), "text-node");
+  expect_key_string(face_button.state, "image", ":status/face-normal");
+}
+
+TEST_F(ComposedAppRuntimeTest,
+       session_assigns_expected_outer_bounds_for_implicit_fill_fixture)
 {
   // Given
   use_default_frame_size();
-  load_minesweeper_app();
+  load_minesweeper_program();
 
   ASSERT_EQ(frame_size(), (Pixils::Dimension{320, 200}));
-
-  // When
-  session().push_mode("window-mode", Lisple::Constant::NIL);
   render_cycle();
 
   // Then
@@ -610,16 +789,13 @@ TEST_F(ComposedAppRuntimeTest, session_assigns_expected_outer_bounds_for_default
 }
 
 TEST_F(ComposedAppRuntimeTest,
-       session_assigns_expected_outer_bounds_for_canonical_default_fixture)
+       session_assigns_expected_outer_bounds_for_pre_windowed_fixture)
 {
   // Given
   use_default_frame_size();
-  load_default_minesweeper_app();
+  load_pre_windowed_minesweeper_program();
 
   ASSERT_EQ(frame_size(), (Pixils::Dimension{320, 200}));
-
-  // When
-  session().push_mode("main-mode", Lisple::Constant::NIL);
   render_cycle();
 
   // Then
@@ -639,12 +815,45 @@ TEST_F(ComposedAppRuntimeTest,
   EXPECT_EQ(board_mode.bounds, (Pixils::Rect{10, 59, 159, 159}));
 }
 
-TEST_F(ComposedAppRuntimeTest, session_opens_popup_mode_from_menu_mouse_down)
+TEST_F(ComposedAppRuntimeTest,
+       session_assigns_expected_outer_bounds_for_windowed_default_fixture)
 {
   // Given
   use_default_frame_size();
-  load_minesweeper_app();
-  session().push_mode("window-mode", Lisple::Constant::NIL);
+  load_default_minesweeper_program();
+
+  ASSERT_EQ(frame_size(), (Pixils::Dimension{320, 200}));
+  render_cycle();
+
+  // Then
+  ASSERT_NE(session().active_mode, nullptr);
+  View& main_mode = *session().active_mode;
+  View& window = windowed_default_window_shell(main_mode);
+  View& title_bar = child_with_mode_name(window, "window-title-bar");
+  View& window_body = windowed_default_window_body(window);
+  View& window_mode = windowed_default_app_mode(main_mode);
+  View& menu_bar = child_with_mode_name(window_mode, "menu-bar-mode");
+  View& game_mode = windowed_default_game_mode(main_mode);
+  View& status_panel = child_with_mode_name(game_mode, "status-panel");
+  View& board_mode = child_with_mode_name(game_mode, "board-mode");
+
+  EXPECT_EQ(main_mode.bounds, (Pixils::Rect{0, 0, 320, 200}));
+  EXPECT_EQ(window.bounds, (Pixils::Rect{0, 0, 179, 259}));
+  EXPECT_EQ(title_bar.bounds, (Pixils::Rect{1, 1, 177, 19}));
+  EXPECT_EQ(window_body.bounds, (Pixils::Rect{1, 20, 177, 238}));
+  EXPECT_EQ(window_mode.bounds, (Pixils::Rect{1, 20, 177, 238}));
+  EXPECT_EQ(menu_bar.bounds, (Pixils::Rect{1, 20, 177, 18}));
+  EXPECT_EQ(game_mode.bounds, (Pixils::Rect{1, 38, 177, 220}));
+  EXPECT_EQ(status_panel.bounds, (Pixils::Rect{10, 47, 159, 37}));
+  EXPECT_EQ(board_mode.bounds, (Pixils::Rect{10, 90, 159, 159}));
+}
+
+TEST_F(ComposedAppRuntimeTest,
+       session_opens_popup_mode_from_menu_mouse_down_for_implicit_fill_fixture)
+{
+  // Given
+  use_default_frame_size();
+  load_minesweeper_program();
   render_cycle();
 
   ASSERT_NE(session().active_mode, nullptr);
@@ -665,20 +874,26 @@ TEST_F(ComposedAppRuntimeTest, session_opens_popup_mode_from_menu_mouse_down)
 }
 
 TEST_F(ComposedAppRuntimeTest,
-       session_opens_popup_mode_from_menu_mouse_down_for_canonical_default_fixture)
+       session_opens_popup_mode_from_menu_mouse_down_for_pre_windowed_fixture)
 {
   // Given
   use_default_frame_size();
-  load_default_minesweeper_app();
-  session().push_mode("main-mode", Lisple::Constant::NIL);
+  load_pre_windowed_minesweeper_program();
   render_cycle();
 
   ASSERT_NE(session().active_mode, nullptr);
+  View& main_mode = *session().active_mode;
+  View& window_mode = child_with_mode_name(main_mode, "window-mode");
+  View& menu_bar = child_with_mode_name(window_mode, "menu-bar-mode");
+  View& menu_item = only_child(menu_bar, 0);
+  int click_x = menu_item.bounds.x + menu_item.bounds.w / 2;
+  int click_y = menu_item.bounds.y + menu_item.bounds.h / 2;
+
   ASSERT_EQ(session().active_mode->mode->name, "main-mode");
   ASSERT_EQ(session().mode_stack.size(), 1u);
 
   // When
-  input().mouse_down({5, 5});
+  input().mouse_down({click_x, click_y});
   update_cycle();
 
   // Then
@@ -691,24 +906,52 @@ TEST_F(ComposedAppRuntimeTest,
 }
 
 TEST_F(ComposedAppRuntimeTest,
-       session_applies_menu_item_hover_style_for_canonical_default_fixture)
+       session_opens_popup_mode_from_menu_mouse_down_for_windowed_default_fixture)
 {
   // Given
   use_default_frame_size();
-  load_default_minesweeper_app();
-  session().push_mode("main-mode", Lisple::Constant::NIL);
+  load_default_minesweeper_program();
+  render_cycle();
+
+  ASSERT_NE(session().active_mode, nullptr);
+  ASSERT_EQ(session().active_mode->mode->name, "main-mode");
+  ASSERT_EQ(session().mode_stack.size(), 1u);
+
+  View& main_mode = *session().active_mode;
+  View& window_mode = windowed_default_app_mode(main_mode);
+  View& menu_bar = child_with_mode_name(window_mode, "menu-bar-mode");
+  View& menu_item = only_child(menu_bar, 0);
+  int click_x = menu_item.bounds.x + menu_item.bounds.w / 2;
+  int click_y = menu_item.bounds.y + menu_item.bounds.h / 2;
+
+  // When
+  input().mouse_down({click_x, click_y});
+  update_cycle();
+
+  // Then
+  ASSERT_NE(session().active_mode, nullptr);
+  EXPECT_EQ(session().active_mode->mode->name, "popup-menu");
+  EXPECT_EQ(session().mode_stack.size(), 2u);
+  ASSERT_EQ(session().ctx_stack.size(), 1u);
+  ASSERT_NE(session().ctx_stack.back(), nullptr);
+  EXPECT_EQ(session().ctx_stack.back()->mode->name, "main-mode");
+}
+
+TEST_F(ComposedAppRuntimeTest,
+       session_applies_menu_item_hover_style_for_windowed_default_fixture)
+{
+  // Given
+  use_default_frame_size();
+  load_default_minesweeper_program();
   render_cycle();
 
   ASSERT_NE(session().active_mode, nullptr);
   View& main_mode = *session().active_mode;
-  View& window = child_with_mode_name(main_mode, "window-mode");
-  View& menu_bar = child_with_mode_name(window, "menu-bar-mode");
+  View& window_mode = windowed_default_app_mode(main_mode);
+  View& menu_bar = child_with_mode_name(window_mode, "menu-bar-mode");
   View& menu_item = only_child(menu_bar, 0);
 
   expect_mode_name(menu_item, "menu-item");
-  ASSERT_TRUE(menu_item.effective_style.text.has_value());
-  ASSERT_TRUE(menu_item.effective_style.text->color.has_value());
-  EXPECT_EQ(*menu_item.effective_style.text->color, (Pixils::Color{0, 0, 0, 255}));
   EXPECT_FALSE(menu_item.effective_style.background.has_value());
 
   int hover_x = menu_item.bounds.x + menu_item.bounds.w / 2;
@@ -778,8 +1021,7 @@ TEST_F(ComposedAppRuntimeTest,
 {
   // Given
   use_default_frame_size();
-  load_minesweeper_app();
-  session().push_mode("window-mode", Lisple::Constant::NIL);
+  load_minesweeper_program();
   render_cycle();
 
   ASSERT_NE(session().active_mode, nullptr);
@@ -821,12 +1063,11 @@ TEST_F(ComposedAppRuntimeTest,
 
 TEST_F(
   ComposedAppRuntimeTest,
-  session_applies_board_flag_state_immediately_after_right_click_for_canonical_default_fixture)
+  session_applies_board_flag_state_immediately_after_right_click_for_pre_windowed_fixture)
 {
   // Given
   use_default_frame_size();
-  load_default_minesweeper_app();
-  session().push_mode("main-mode", Lisple::Constant::NIL);
+  load_pre_windowed_minesweeper_program();
   render_cycle();
 
   ASSERT_NE(session().active_mode, nullptr);
@@ -865,13 +1106,56 @@ TEST_F(
   expect_key_string(first_mask_cell, "flagged?", "true");
 }
 
+TEST_F(
+  ComposedAppRuntimeTest,
+  session_applies_board_flag_state_immediately_after_right_click_for_windowed_default_fixture)
+{
+  // Given
+  use_default_frame_size();
+  load_default_minesweeper_program();
+  render_cycle();
+
+  ASSERT_NE(session().active_mode, nullptr);
+  View& main_mode = *session().active_mode;
+  View& game_mode = windowed_default_game_mode(main_mode);
+  View& board_mode = child_with_mode_name(game_mode, "board-mode");
+  View& board_buttons = child_with_mode_name(board_mode, "board-buttons");
+  View& first_row = only_child(board_buttons, 0);
+  View& first_button = only_child(first_row, 0);
+
+  expect_int_key(first_button.state, "x", 0);
+  expect_int_key(first_button.state, "y", 0);
+
+  int click_x = first_button.bounds.x + first_button.bounds.w / 2;
+  int click_y = first_button.bounds.y + first_button.bounds.h / 2;
+
+  // When
+  input().mouse_down({click_x, click_y}, SDL_BUTTON_RIGHT);
+  update_cycle();
+  input().mouse_up({click_x, click_y}, SDL_BUTTON_RIGHT);
+  update_cycle();
+
+  // Then
+  auto counters = get_key(game_mode.state, "counters");
+  auto board_mask = get_key(game_mode.state, "board-mask");
+  auto first_mask_row = get_index(board_mask, 0);
+  auto first_mask_cell = get_index(first_mask_row, 0);
+
+  ASSERT_NE(counters, nullptr);
+  ASSERT_NE(board_mask, nullptr);
+  ASSERT_NE(first_mask_row, nullptr);
+  ASSERT_NE(first_mask_cell, nullptr);
+  expect_int_key(counters, "mines-left", 9);
+  EXPECT_EQ(count_flagged_cells(board_mask), 1);
+  expect_key_string(first_mask_cell, "flagged?", "true");
+}
+
 TEST_F(ComposedAppRuntimeTest,
        session_preserves_board_flag_state_across_following_update_cycle)
 {
   // Given
   use_default_frame_size();
-  load_minesweeper_app();
-  session().push_mode("window-mode", Lisple::Constant::NIL);
+  load_minesweeper_program();
   render_cycle();
 
   ASSERT_NE(session().active_mode, nullptr);
@@ -915,18 +1199,63 @@ TEST_F(ComposedAppRuntimeTest,
 
 TEST_F(
   ComposedAppRuntimeTest,
-  session_preserves_board_flag_state_across_following_update_cycle_for_canonical_default_fixture)
+  session_preserves_board_flag_state_across_following_update_cycle_for_pre_windowed_fixture)
 {
   // Given
   use_default_frame_size();
-  load_default_minesweeper_app();
-  session().push_mode("main-mode", Lisple::Constant::NIL);
+  load_pre_windowed_minesweeper_program();
   render_cycle();
 
   ASSERT_NE(session().active_mode, nullptr);
   View& main_mode = *session().active_mode;
   View& window = child_with_mode_name(main_mode, "window-mode");
   View& game_mode = child_with_mode_name(window, "game-mode");
+  View& board_mode = child_with_mode_name(game_mode, "board-mode");
+  View& board_buttons = child_with_mode_name(board_mode, "board-buttons");
+  View& first_row = only_child(board_buttons, 0);
+  View& first_button = only_child(first_row, 0);
+
+  expect_int_key(first_button.state, "x", 0);
+  expect_int_key(first_button.state, "y", 0);
+
+  int click_x = first_button.bounds.x + first_button.bounds.w / 2;
+  int click_y = first_button.bounds.y + first_button.bounds.h / 2;
+
+  input().mouse_down({click_x, click_y}, SDL_BUTTON_RIGHT);
+  update_cycle();
+  input().mouse_up({click_x, click_y}, SDL_BUTTON_RIGHT);
+  update_cycle();
+
+  // When
+  update_cycle();
+
+  // Then
+  auto counters = get_key(game_mode.state, "counters");
+  auto board_mask = get_key(game_mode.state, "board-mask");
+  auto first_mask_row = get_index(board_mask, 0);
+  auto first_mask_cell = get_index(first_mask_row, 0);
+
+  ASSERT_NE(counters, nullptr);
+  ASSERT_NE(board_mask, nullptr);
+  ASSERT_NE(first_mask_row, nullptr);
+  ASSERT_NE(first_mask_cell, nullptr);
+  expect_int_key(counters, "mines-left", 9);
+  EXPECT_EQ(count_flagged_cells(board_mask), 1);
+  expect_key_string(first_mask_cell, "flagged?", "true");
+}
+
+TEST_F(
+  ComposedAppRuntimeTest,
+  session_preserves_board_flag_state_across_following_update_cycle_for_windowed_default_fixture)
+{
+  // Given
+  use_default_frame_size();
+  load_default_minesweeper_program();
+  render_cycle();
+
+  ASSERT_NE(session().active_mode, nullptr);
+  View& main_mode = *session().active_mode;
+  View& game_mode = windowed_default_game_mode(main_mode);
   View& board_mode = child_with_mode_name(game_mode, "board-mode");
   View& board_buttons = child_with_mode_name(board_mode, "board-buttons");
   View& first_row = only_child(board_buttons, 0);

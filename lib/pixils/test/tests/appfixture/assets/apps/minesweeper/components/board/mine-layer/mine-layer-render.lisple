@@ -3,33 +3,31 @@
             [pixils.render :as r]
             [pixils.test.app.shared.ui.themes.win311 :as win]))
 
-(def grid-dim {:w 9 :h 9})
 (def tile-size 16)
 
 (defun mine-layer-render! [state ctx]
-  (dotimes [y (+ 1 (:h grid-dim))]
-    (r/line! {:x 0 :y (* y (+ 1 tile-size))}
-             {:x (* (:w grid-dim) (+ 1 tile-size))
-              :y (* y (+ 1 tile-size))}
-             win/panel-shadow))
-  (dotimes [x (+ 1 (:w grid-dim))]
-    (r/line! {:x (* x (+ 1 tile-size)) :y 0}
-             {:x (* x (+ 1 tile-size))
-              :y (* (:h grid-dim) (+ 1 tile-size))}
-             win/panel-shadow))
-  (dotimes [y (:h grid-dim)]
-    (dotimes [x (:w grid-dim)]
-      (let [cell (-> state :board (nth y) (nth x))
-            pos {:x (+ 1 (* x (+ 1 tile-size)))
-                 :y (+ 1 (* y (+ 1 tile-size)))}]
-        (cond
-          (= :mine cell)
-          (do
-            (when (-> state :board-mask (nth y) (nth x) :exploded?)
-              (r/rect! (merge pos {:w 16 :h 16})
-                       {:fill true :color {:r 255 :g 0 :b 0}}))
-            (r/image! :mine-layer-mode/mine {:pos pos}))
+  (let [grid-dim (select-keys (:settings state) [:w :h])]
+    (dotimes [y (+ 1 (:h grid-dim))]
+      (r/line! {:x 0 :y (* y (+ 1 tile-size))}
+               {:x (* (:w grid-dim) (+ 1 tile-size))
+                :y (* y (+ 1 tile-size))}
+               win/panel-shadow))
+    (dotimes [x (+ 1 (:w grid-dim))]
+      (r/line! {:x (* x (+ 1 tile-size)) :y 0}
+               {:x (* x (+ 1 tile-size))
+                :y (* (:h grid-dim) (+ 1 tile-size))}
+               win/panel-shadow))
+    (dotimes [y (:h grid-dim)]
+      (dotimes [x (:w grid-dim)]
+        (let [cell (-> state :board (nth y) (nth x))
+              pos {:x (+ 1 (* x (+ 1 tile-size)))
+                   :y (+ 1 (* y (+ 1 tile-size)))}]
+          (cond
+            (= :mine cell)
+            (do
+              (when (-> state :board-mask (nth y) (nth x) :exploded?)
+                (r/rect! (merge pos {:w 16 :h 16}) {:fill true :color {:r 255 :g 0 :b 0}}))
+              (r/image! :mine-layer-mode/mine {:pos pos}))
 
-          (and (number? cell) (> cell 0))
-          (r/image! (keyword (str "mine-layer-mode/num-" cell))
-                    {:pos pos}))))))
+            (and (number? cell) (> cell 0))
+            (r/image! (keyword (str "mine-layer-mode/num-" cell)) {:pos pos})))))))

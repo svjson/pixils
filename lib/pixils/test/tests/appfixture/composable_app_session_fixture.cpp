@@ -3,8 +3,11 @@
 #include "app_source_builder.h"
 #include <pixils/asset/registry.h>
 #include <pixils/font_registry.h>
+#include <pixils/program.h>
 
 #include <chrono>
+#include <cstdlib>
+#include <iostream>
 #include <sdl2_mock/mock_resources.h>
 #include <stdexcept>
 
@@ -13,6 +16,25 @@ namespace
   long long unique_suffix()
   {
     return std::chrono::steady_clock::now().time_since_epoch().count();
+  }
+
+  bool env_flag_set(const char* name)
+  {
+    const char* value = std::getenv(name);
+    if (!value) return false;
+
+    const std::string_view flag(value);
+    return !(flag.empty() || flag == "0" || flag == "false" || flag == "FALSE");
+  }
+
+  bool should_keep_composed_app()
+  {
+    return env_flag_set("PIXILS_KEEP_COMPOSED_APP");
+  }
+
+  bool should_log_composed_app_root()
+  {
+    return should_keep_composed_app() || env_flag_set("PIXILS_LOG_COMPOSED_APP_ROOT");
   }
 
   void copy_path_into_root(const std::filesystem::path& source_path,
@@ -53,7 +75,10 @@ void ComposableAppSessionFixture::TearDown()
   render_ctx.asset_registry.reset();
   render_ctx.font_registry.reset();
 
-  if (!app_root.empty()) std::filesystem::remove_all(app_root);
+  if (!app_root.empty() && !should_keep_composed_app())
+  {
+    std::filesystem::remove_all(app_root);
+  }
 
   SDLMock::reset_mocks();
 }
@@ -69,12 +94,22 @@ void ComposableAppSessionFixture::load_app(
   render_ctx.asset_registry.reset();
   render_ctx.font_registry.reset();
 
-  if (!app_root.empty()) std::filesystem::remove_all(app_root);
+  if (!app_root.empty() && !should_keep_composed_app())
+  {
+    std::filesystem::remove_all(app_root);
+  }
   app_root = make_temp_app_root();
   std::filesystem::create_directories(app_root);
 
   for (const auto& file : manifest.materialize_files())
+  {
     Pixils::Test::AppFixture::write_composed_file(file, app_root);
+  }
+
+  if (should_log_composed_app_root())
+  {
+    std::cout << "[ComposableAppSessionFixture] app root: " << app_root << '\n';
+  }
 
   stage_runtime_assets(runtime_assets);
 
@@ -136,17 +171,26 @@ void ComposableAppSessionFixture::frame_cycle()
   input_simulator.clear_transients();
 }
 
+Pixils::Program& ComposableAppSessionFixture::load_program()
+{
+  return Pixils::load_program(pixils(), session());
+}
+
 Lisple::Runtime& ComposableAppSessionFixture::pixils()
 {
   if (!lisple_runtime)
+  {
     throw std::runtime_error("ComposableAppSessionFixture runtime not initialized");
+  }
   return *lisple_runtime;
 }
 
 Pixils::Runtime::Session& ComposableAppSessionFixture::session()
 {
   if (!pixils_session)
+  {
     throw std::runtime_error("ComposableAppSessionFixture session not initialized");
+  }
   return *pixils_session;
 }
 

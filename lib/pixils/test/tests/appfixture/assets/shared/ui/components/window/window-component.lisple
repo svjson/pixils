@@ -1,0 +1,33 @@
+(ns pixils.test.app.shared.ui.components.window
+  (:require pixils
+            [pixils.point :as pt]
+            [pixils.ui :as ui]))
+
+(defcomponent window
+  {:update (fn [state ctx]
+             (let [pos (or (:position state) {:x 24 :y 20})]
+               (assoc-in! ctx [:view :style :position] :absolute)
+               (assoc-in! ctx [:view :style :left] (:x pos))
+               (assoc-in! ctx [:view :style :top] (:y pos))
+               state))
+   :on {:window/move-by (fn [state event ctx]
+                          (ui/stop-propagation! event)
+                          (update state :position
+                                  (fn [pos]
+                                    (pt/+ (or pos {:x 24 :y 20})
+                                          (:payload event)))))}
+   :children [{:mode 'window-title-bar}
+              {:mode 'window-body}]})
+
+(defun make [{:keys [title-bar body init state style position] :as opts}]
+  {:mode 'window
+   :init (or init (fn [state ctx]
+                    state))
+   :style (or style {})
+   :state (merge (or state {})
+                 {:position (or position {:x 24 :y 20})})
+   :children [{:mode 'window-title-bar
+               :state title-bar}
+              {:mode 'window-body
+               :children body
+               :state (or state {})}]})

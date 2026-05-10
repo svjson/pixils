@@ -1,0 +1,5 @@
+(ns pixils.test.app.shared.ui.components.menu
+  (:require pixils))
+
+(defmode popup-menu-inner
+  {})

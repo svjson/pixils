@@ -1,5 +1,6 @@
 #include "app_manifest.h"
 #include "composable_app_session_fixture.h"
+#include <pixils/program.h>
 #include <pixils/runtime/hook_invocation.h>
 #include <pixils/runtime/view.h>
 
@@ -34,6 +35,34 @@ namespace
                                 .unit_ids = {"main-api"}}});
   }
 
+  AppFixture::AppManifest program_boot_session_manifest()
+  {
+    return AppFixture::AppManifest(
+      {inline_unit(
+        "theme-and-program-api",
+        {"pixils"},
+        {"(pixils/deftheme app-theme {:styles {'root-mode {:background {:r 1 :g 2 :b 3}}}})",
+         "(pixils/defmode root-mode {:init (fn [state ctx] {:ticks 2})})",
+         "(pixils/defprogram app {:initial-mode 'root-mode :theme 'app-theme})"})},
+      {AppFixture::ManifestFile{.id = "main",
+                                .disk_path = "pixils/test/app/main.lisple",
+                                .namespace_name = "pixils.test.app.main",
+                                .unit_ids = {"theme-and-program-api"}}});
+  }
+
+  AppFixture::AppManifest program_without_initial_mode_manifest()
+  {
+    return AppFixture::AppManifest(
+      {inline_unit("program-api",
+                   {"pixils"},
+                   {"(pixils/defmode root-mode {:init (fn [state ctx] {:ticks 2})})",
+                    "(pixils/defprogram app {})"})},
+      {AppFixture::ManifestFile{.id = "main",
+                                .disk_path = "pixils/test/app/main.lisple",
+                                .namespace_name = "pixils.test.app.main",
+                                .unit_ids = {"program-api"}}});
+  }
+
   AppFixture::AppManifest file_defined_mode_session_manifest()
   {
     return AppFixture::AppManifest(
@@ -66,14 +95,14 @@ namespace
                                                            fixture_dir() / "assets" /
                                                              "shared" / "ui" / "themes" /
                                                              "win311" / "win-theme.lisple"));
-    manifest.upsert_unit(AppFixture::SourceUnit::from_file(
-      "text-node-component",
-      fixture_dir() / "assets" / "shared" / "ui" / "components" / "text-node" /
-        "text-node.lisple"));
-    manifest.upsert_unit(AppFixture::SourceUnit::from_file(
-      "counter-bundle",
-      fixture_dir() / "assets" / "apps" / "minesweeper" / "bundles" / "counter" /
-        "counter.lisple"));
+    manifest.upsert_unit(
+      AppFixture::SourceUnit::from_file("text-node-component",
+                                        fixture_dir() / "assets" / "shared" / "ui" /
+                                          "components" / "text-node" / "text-node.lisple"));
+    manifest.upsert_unit(
+      AppFixture::SourceUnit::from_file("counter-bundle",
+                                        fixture_dir() / "assets" / "apps" / "minesweeper" /
+                                          "bundles" / "counter" / "counter.lisple"));
     manifest.upsert_unit(AppFixture::SourceUnit::from_file(
       "status-panel-left-pad",
       fixture_dir() / "assets" / "apps" / "minesweeper" / "components" / "status-panel" /
@@ -326,4 +355,68 @@ TEST_F(ComposableAppSessionFixtureTest,
   auto ticks = Lisple::Dict::get_property(result, Lisple::RTValue::keyword("ticks"));
   ASSERT_NE(ticks, nullptr);
   EXPECT_EQ(ticks->num().get_int(), 2);
+}
+
+TEST_F(ComposableAppSessionFixtureTest,
+       load_program_pushes_declared_initial_mode_into_session)
+{
+  load_app(program_boot_session_manifest(),
+           "pixils.test.app.main",
+           {"pixils/test/app/main.lisple"});
+
+  Pixils::Program& program = load_program();
+
+  EXPECT_EQ(program.initial_mode, "root-mode");
+  ASSERT_NE(session().active_mode, nullptr);
+  EXPECT_EQ(session().active_mode->mode->name, "root-mode");
+
+  auto ticks = Lisple::Dict::get_property(session().active_mode->state,
+                                          Lisple::RTValue::keyword("ticks"));
+  ASSERT_NE(ticks, nullptr);
+  EXPECT_EQ(ticks->num().get_int(), 2);
+}
+
+TEST_F(ComposableAppSessionFixtureTest,
+       load_program_falls_back_to_first_mode_when_program_initial_mode_missing)
+{
+  load_app(program_without_initial_mode_manifest(),
+           "pixils.test.app.main",
+           {"pixils/test/app/main.lisple"});
+
+  Pixils::Program& program = load_program();
+
+  EXPECT_FALSE(program.initial_mode.empty());
+  ASSERT_NE(session().active_mode, nullptr);
+  EXPECT_EQ(session().active_mode->mode->name, program.initial_mode);
+}
+
+TEST_F(ComposableAppSessionFixtureTest,
+       load_program_creates_default_program_when_none_is_declared)
+{
+  load_app(file_defined_mode_session_manifest(),
+           "pixils.test.app.main",
+           {"pixils/test/app/main.lisple"});
+
+  Pixils::Program& program = load_program();
+
+  EXPECT_FALSE(program.initial_mode.empty());
+  ASSERT_NE(session().active_mode, nullptr);
+  EXPECT_EQ(session().active_mode->mode->name, program.initial_mode);
+}
+
+TEST_F(ComposableAppSessionFixtureTest,
+       load_program_applies_program_theme_override_to_root_view)
+{
+  load_app(program_boot_session_manifest(),
+           "pixils.test.app.main",
+           {"pixils/test/app/main.lisple"});
+
+  load_program();
+  render_cycle();
+
+  ASSERT_NE(session().active_mode, nullptr);
+  const auto& style = session().active_mode->effective_style;
+  ASSERT_TRUE(style.background.has_value());
+  ASSERT_TRUE(style.background->color.has_value());
+  EXPECT_EQ(*style.background->color, (Pixils::Color{1, 2, 3, 255}));
 }

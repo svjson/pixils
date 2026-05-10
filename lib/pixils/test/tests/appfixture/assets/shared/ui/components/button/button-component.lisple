@@ -1,21 +1,17 @@
 (ns pixils.test.app.shared.ui.components.button
   (:require pixils
-            [pixils.render :as r]
-            [pixils.test.app.shared.ui.themes.win311 :as win]))
+            [pixils.ui :as ui]))
 
 (defcomponent button
-  {:render (fn [state {:keys [view] :as ctx}]
-             (let [bw (-> view :bounds :w)
-                   bh (-> view :bounds :h)
-                   pressed (and (not (:inhibit-pressed? state))
-                                (or (:force-pressed? state)
-                                    (and (contains? (-> view :interaction :pressed) :left)
-                                         (-> view :interaction :hovered))))
-                   offset (if pressed 1 0)]
-               (r/rect! {:x offset :y offset :w bw :h bh}
-                        {:fill true :color win/panel-face})
-               (when (:image state)
-                 (r/image! (:image state)
-                           {:pos {:x (+ 2 offset) :y (+ 2 offset)}}))
-               (win/draw-bevel! {:x offset :y offset :w bw :h bh}
-                                {:thickness 2 :invert pressed})))})
+  {:init (fn [state ctx]
+           (update state :pressed (fn [pressed] pressed)))
+   :update (fn [state {:keys [view] :as ctx}]
+             (assoc state :pressed
+                    (and (not (:inhibit-pressed? state))
+                         (or (:force-pressed? state)
+                             (and (contains? (-> view :interaction :pressed) :left)
+                                  (-> view :interaction :hovered))))))
+   :children [{:mode 'button-inner
+               :state {:pressed (ui/bind-state :pressed)
+                       :image (ui/bind-state :image)
+                       :label (ui/bind-state :label)}}]})

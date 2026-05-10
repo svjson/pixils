@@ -1,9 +1,13 @@
-(ns pixils.test.app.minesweeper.core
-  (:require pixils))
+(ns pixils.test.app.shared.ui.components.menu
+  (:require pixils
+            [pixils.ui :as ui]))
 
-(defmode popup-menu-mode
-  {:update (fn [state ctx]
-             (when (:mouse-button-down ctx)
-               (pop-mode!))
-             state)
+(defmode popup-menu
+  {:on-mouse-down (fn [state event ctx]
+                    (pop-mode!)
+                    state)
+   :on {:menu/select (fn [state event ctx]
+                       (ui/stop-propagation! event)
+                       (pop-mode! (:payload event))
+                       state)}
    :compose {:render :pass}})

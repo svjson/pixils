@@ -1,7 +1,33 @@
 (ns pixils.test.app.minesweeper.core
   (:require pixils
+            [pixils.ui :as ui]
+            [pixils.test.app.minesweeper.game-logic :as gl]
+            [pixils.test.app.shared.ui.components.window :as w]
             [pixils.test.app.shared.ui.themes.win311 :as win]))
 
 (defmode main-mode
-  {:style {:background win/teal}
-   :children [{:mode 'window-mode}]})
+  {:init (fn [state ctx]
+           {:highscores {:beginner {:difficulty-name "Beginner"
+                                    :time 6
+                                    :player-name "Nisse"}
+                         :intermediate {:difficulty-name "Intermediate"
+                                        :time 32
+                                        :player-name "Korven"}
+                         :expert {:difficulty-name "Expert"
+                                  :time 114
+                                  :player-name "Herr Anka"}}})
+   :style {:background win/teal}
+   :on {:action/show-highscores (fn [state event ctx]
+                                  (push-mode! 'highscores-modal
+                                              {:highscores (:highscores state)})
+                                  state)}
+   :children [(w/make {:position {:x 24 :y 20}
+                       :title-bar {:title "Minesweeper"}
+                       :init (fn [state ctx]
+                               (merge state
+                                      {:game (gl/new-game-state (merge {:mode :beginner}
+                                                                       (get gl/difficulty-settings :beginner)))
+                                       :preferences {:marks? true
+                                                     :color? true}}))
+                       :body [{:mode 'window-mode
+                               :state {:highscores (ui/bind-state :highscores)}}]})]})

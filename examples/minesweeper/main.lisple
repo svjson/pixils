@@ -18,7 +18,7 @@
 (defprogram minesweeper
   {:display {:resolution {:scale 3}}
    :target-frame-rate 0
-   :theme 'windows-95
+   :theme 'windows-3
    :initial-mode 'main-mode})
 
 (defun restart-game [state ctx settings]

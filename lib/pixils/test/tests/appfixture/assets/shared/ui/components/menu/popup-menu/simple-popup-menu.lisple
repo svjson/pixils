@@ -1,0 +1,9 @@
+(ns pixils.test.app.minesweeper.core
+  (:require pixils))
+
+(defmode popup-menu-mode
+  {:update (fn [state ctx]
+             (when (:mouse-button-down ctx)
+               (pop-mode!))
+             state)
+   :compose {:render :pass}})

@@ -4,8 +4,8 @@
 (defmode mine-layer-mode
   {:render 'pixils.test.app.minesweeper.core/mine-layer-render!
    :content-size (fn [state ctx]
-                   {:w (* 17 (-> state :board count))
-                    :h (* 17 (-> state :board (nth 0) count))})
+                   {:w (* 17 (-> state :settings :w))
+                    :h (* 17 (-> state :settings :h))})
    :resources {:images {:mine "assets/mine.png"
                         :flag "assets/flag.png"
                         :num-1 "assets/num1.png"

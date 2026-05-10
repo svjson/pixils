@@ -15,6 +15,7 @@
 #include <pixils/ui/view_render.h>
 
 #include <SDL2/SDL_render.h>
+#include <lisple/exception.h>
 #include <lisple/runtime.h>
 #include <lisple/runtime/dict.h>
 #include <lisple/runtime/value.h>
@@ -109,6 +110,24 @@ namespace Pixils::Runtime
           i + 1 < path.size() ? &path[i + 1]->state : nullptr;
         events = UI::process_view_events(*path[i], parent_state, hook_ctx, events, runtime);
       }
+    }
+
+    Lisple::sptr_rtval resolve_mode_value(const Lisple::sptr_rtval& modes,
+                                          const std::string& mode_name)
+    {
+      auto mode = Lisple::Dict::get_property(modes, Lisple::RTValue::symbol(mode_name));
+      if (!mode || mode->type == Lisple::RTValue::Type::NIL)
+      {
+        throw Lisple::InvocationException("Unknown mode '" + mode_name + "'");
+      }
+
+      if (!Script::HostType::MODE.is_type_of(*mode))
+      {
+        throw Lisple::InvocationException("Identifier '" + mode_name +
+                                          "' resolved to non-mode value");
+      }
+
+      return mode;
     }
 
   } // namespace
@@ -241,7 +260,7 @@ namespace Pixils::Runtime
                           const Lisple::sptr_rtval& state,
                           const Lisple::sptr_rtval& overrides)
   {
-    auto mode = Lisple::Dict::get_property(modes, Lisple::RTValue::symbol(mode_name));
+    auto mode = resolve_mode_value(modes, mode_name);
     this->push_mode(mode, state, overrides);
   }
 

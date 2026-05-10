@@ -5,14 +5,22 @@
             [pixils.test.app.minesweeper.game-logic :as gl]
             [pixils.test.app.shared.ui.themes.win311 :as win]))
 
+(defun make-game-mode [& settings]
+  (merge {:mode 'game-mode
+          :id "game"
+          :state (ui/bind-state :game)}
+         (if settings
+           {:children [{:mode 'status-panel
+                        :state {:counters (ui/bind-state :counters)
+                                :face (ui/bind-state :face)}}
+                       (make-board-child settings)]}
+           {})))
+
 (defmode game-mode
-  {:init (fn [state ctx]
-           (merge state
-                  (gl/new-game-state 9 9 10)))
-   :update (fn [state ctx]
+  {:update (fn [state ctx]
              (assoc-in state [:counters :timer] (min 999 (int (/ (- (epoch-ms) (:start-time state)) 1000)))))
-   :style {:background win/panel-face
-           :padding 6
+   :class :ui/panel
+   :style {:padding 6
            :border {:thickness 3
                     :line-style :bevel
                     :color win/panel-shadow
@@ -22,15 +30,11 @@
                     :left {:color c/WHITE}}}
    :children [{:mode 'status-panel
                :state {:counters (ui/bind-state :counters)
-                       :face (ui/bind-state :face)}
-               :style {:border {:thickness 2
-                                :line-style :bevel
-                                :color win/panel-shadow
-                                :bottom {:color c/WHITE :trim [0 1]}
-                                :right {:color c/WHITE :trim [1 0]}}}}
+                       :face (ui/bind-state :face)}}
               {:mode 'board-mode
                :state {:board (ui/bind-state :board)
                        :board-mask (ui/bind-state :board-mask)
+                       :settings (ui/bind-state :settings)
                        :face (ui/bind-state :face)}
                :style {:margin {:t 6}
                        :border {:thickness 3
@@ -52,6 +56,4 @@
                                                           0
                                                           (fn [num row]
                                                             (+ num
-                                                               (count (filter row (fn [cell] (:flagged? cell))))))))))))
-        :game/new-game (fn [state event ctx]
-                         (gl/new-game-state 9 9 10))}})
+                                                               (count (filter row (fn [cell] (:flagged? cell))))))))))))}})

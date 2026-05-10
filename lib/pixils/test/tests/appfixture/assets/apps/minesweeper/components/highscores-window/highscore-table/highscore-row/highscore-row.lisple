@@ -1,0 +1,19 @@
+(ns pixils.test.app.minesweeper.core
+  (:require pixils
+            [pixils.ui :as ui]))
+
+(def col-1-width 90)
+(def col-2-width 100)
+
+(defcomponent highscore-row
+  {:style {:layout {:direction :row}}
+   :update (fn [state ctx]
+             (assoc state :time-str (str (:time state) " seconds")))
+   :children [{:mode 'text-node
+               :style {:width col-1-width}
+               :state {:value (ui/bind-state :difficulty-name)}}
+              {:mode 'text-node
+               :style {:width col-2-width}
+               :state {:value (ui/bind-state :time-str)}}
+              {:mode 'text-node
+               :state {:value (ui/bind-state :player-name)}}]})

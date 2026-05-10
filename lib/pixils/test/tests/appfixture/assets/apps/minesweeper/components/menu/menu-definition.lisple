@@ -1,12 +1,79 @@
-(ns pixils.test.app.minesweeper.menu-definition)
+(ns pixils.test.app.minesweeper.menu-definition
+  (:require [pixils.ui :as ui]))
 
-(def menu-items [{:title "File" :items [{:title "New Game"}
-                                        {:title "Save"}
-                                        {:title "Quit"}]}
+(defun item-selected? [item state]
+  (let [selected-path (:selected-path item)
+        selected-value (get-in state selected-path)]
+    (cond
+      (= (:type item) :toggle)
+      selected-value
+
+      (= (:type item) :option)
+      (= selected-value (:selected-value item))
+
+      :default
+      false)))
+
+(def menu-items [{:key :menu-bar/game
+                  :title "Game"
+                  :items [{:key :game/new-game
+                           :title "New"}
+                          :separator
+                          {:key :game/difficulty
+                           :title "Beginner"
+                           :type :option
+                           :selected-path [:game :settings :mode]
+                           :selected-value :beginner}
+                          {:key :game/difficulty
+                           :title "Intermediate"
+                           :type :option
+                           :selected-path [:game :settings :mode]
+                           :selected-value :intermediate}
+                          {:key :game/difficulty
+                           :title "Expert"
+                           :type :option
+                           :selected-path [:game :settings :mode]
+                           :selected-value :expert}
+                          {:key :game/custom
+                           :title "Custom..."
+                           :type :option
+                           :selected-path [:game :settings :mode]
+                           :selected-value :custom}
+                          :separator
+                          {:title "Marks (?)"
+                           :type :toggle
+                           :selected-path [:preferences :marks?]}
+                          {:title "Color"
+                           :type :toggle
+                           :selected-path [:preferences :color?]}
+                          :separator
+                          {:key :game/best-times
+                           :title "Best Times..."}
+                          :separator
+                          {:key :game/quit
+                           :title "Exit"}]}
                  {:title "Edit" :items [{:title "Undo move"}]}
                  {:title "View" :items [{:title "Game board"}
                                         {:title "Highscores"}]}
                  {:title "Help" :items [{:title "About"}]}])
 
-(def menu-item-w 32)
-(def menu-item-h 13)
+(defun make-menu-item [item state]
+  (cond
+    (= :separator item)
+    {:mode 'menu-separator}
+
+    (or (= (:type item) :option)
+        (= (:type item) :toggle))
+    {:mode 'menu-option-item
+     :state {:key (:key item)
+             :text (:title item)
+             :selected-value (:selected-value item)
+             :selected (item-selected? item state)}}
+
+    :default
+    {:mode 'menu-item
+     :state {:key (:key item)
+             :text (:title item)
+             :items (:items item)
+             :game (ui/bind-state :game)
+             :preferences (ui/bind-state :preferences)}}))

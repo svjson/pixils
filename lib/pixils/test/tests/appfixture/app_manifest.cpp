@@ -105,6 +105,20 @@ namespace Pixils::Test::AppFixture
     return find_file(files, file_id) != nullptr;
   }
 
+  void AppManifest::remove_file(const std::string& file_id)
+  {
+    for (auto it = files.begin(); it != files.end(); ++it)
+    {
+      if (it->id == file_id)
+      {
+        files.erase(it);
+        return;
+      }
+    }
+
+    throw std::runtime_error("Unknown file id: " + file_id);
+  }
+
   void AppManifest::append_unit_to_file(const std::string& file_id, const std::string& unit_id)
   {
     auto* file = find_file(files, file_id);
