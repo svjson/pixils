@@ -1,5 +1,6 @@
 
 #include "../render_fixture.h"
+#include <pixils/font_registry.h>
 #include <pixils/text.h>
 
 #include <gtest/gtest.h>
@@ -193,6 +194,83 @@ TEST_F(RenderTest, text_size_uses_explicit_font_line_height)
   EXPECT_EQ(h->num().get_int(), 10);
 }
 
+TEST_F(RenderTest, text_size_ignores_inline_toggle_markers)
+{
+  SDLMock::prepared_surfaces["./font.png"] = {8, 8};
+  runtime.eval(R"(
+    (pixils/defbundle fonts {:images {:atlas "font.png"}})
+    (pixils/deffont test-font
+      {:type :bitmap
+       :resource :fonts/atlas
+       :glyphs {"A" {:x 0 :y 0 :w 3 :h 7}}})
+  )");
+
+  auto result = runtime.eval(
+    "(pixils.render/text-size \"A@A@\" {:font :font/test-font "
+    ":marked-style {:enabled true :marker \"@\"}})");
+
+  auto w = Lisple::Dict::get_property(result, Lisple::RTValue::keyword("w"));
+  auto h = Lisple::Dict::get_property(result, Lisple::RTValue::keyword("h"));
+  ASSERT_NE(w, nullptr);
+  ASSERT_NE(h, nullptr);
+  EXPECT_EQ(w->num().get_int(), 8);
+  EXPECT_EQ(h->num().get_int(), 7);
+}
+
+TEST_F(RenderTest, deffont_registers_baseline_and_underline_metrics)
+{
+  SDLMock::prepared_surfaces["./font.png"] = {8, 8};
+  runtime.eval(R"(
+    (pixils/defbundle fonts {:images {:atlas "font.png"}})
+    (pixils/deffont test-font
+      {:type :bitmap
+       :resource :fonts/atlas
+       :baseline 5
+       :styles {:underline {:offset 1 :thickness 2}}
+       :glyphs {"A" {:x 0 :y 0 :w 3 :h 7}}})
+  )");
+
+  auto* font = render_ctx.font_registry->get_font("font/test-font");
+  ASSERT_NE(font, nullptr);
+  EXPECT_EQ(font->definition.baseline, 5);
+  ASSERT_TRUE(font->definition.underline.has_value());
+  EXPECT_EQ(font->definition.underline->offset, 1);
+  EXPECT_EQ(font->definition.underline->thickness, 2);
+}
+
+TEST_F(RenderTest, text_with_underline_font_style_renders_fill_rect_for_underline)
+{
+  SDLMock::prepared_surfaces["./font.png"] = {8, 8};
+  runtime.eval(R"(
+    (pixils/defbundle fonts {:images {:atlas "font.png"}})
+    (pixils/deffont test-font
+      {:type :bitmap
+       :resource :fonts/atlas
+       :baseline 5
+       :styles {:underline {:offset 1 :thickness 1}}
+       :glyphs {"A" {:x 0 :y 0 :w 3 :h 7}}})
+    (pixils/defmode test-mode
+      {:render (fn [state ctx]
+                 (pixils.render/text! "A"
+                                      {:x 10 :y 12}
+                                      {:font :font/test-font
+                                       :color {:r 255 :g 255 :b 255}
+                                       :font-styles :underline}))})
+  )");
+  session.push_mode("test-mode", Lisple::Constant::NIL);
+
+  ASSERT_NO_THROW(session.render_mode());
+
+  auto& ops = render_target()->render_ops;
+  ASSERT_EQ(ops.size(), 2u);
+  EXPECT_EQ(ops[0].type, RenderOpType::RENDER_COPY);
+  EXPECT_EQ(ops[1].type, RenderOpType::FILL_RECT);
+  EXPECT_EQ(ops[1].rendered_rect.x, 10);
+  EXPECT_EQ(ops[1].rendered_rect.y, 18);
+  EXPECT_EQ(ops[1].rendered_rect.w, 4);
+  EXPECT_EQ(ops[1].rendered_rect.h, 1);
+}
+
 TEST_F(RenderTest, text_size_infers_font_line_height_from_tallest_glyph)
 {
   SDLMock::prepared_surfaces["./font.png"] = {16, 12};
@@ -247,6 +325,148 @@ TEST_F(RenderTest, built_in_text_node_renders_and_measures_without_definition)
   auto& ops = render_target()->render_ops;
   ASSERT_EQ(ops.size(), 1u);
   EXPECT_EQ(ops[0].type, RenderOpType::RENDER_COPY);
+}
+
+TEST_F(RenderTest, built_in_text_node_renders_in_local_viewport_coordinates)
+{
+  SDLMock::prepared_surfaces["./font.png"] = {16, 12};
+  runtime.eval(R"(
+    (pixils/defbundle fonts {:images {:atlas "font.png"}})
+    (pixils/deffont test-font
+      {:type :bitmap
+       :resource :fonts/atlas
+       :glyphs {"A" {:x 0 :y 0 :w 4 :h 7}}})
+    (pixils/defcomponent padded-box
+      {:style {:padding [5 7]}
+       :children [{:mode 'text-node
+                   :state {:value "A"}
+                   :style {:text {:font :font/test-font}}}]})
+    (pixils/defmode root-mode
+      {:children [{:mode 'padded-box}]})
+  )");
+
+  session.push_mode("root-mode", Lisple::Constant::NIL);
+  ASSERT_NE(session.active_mode, nullptr);
+  ASSERT_EQ(session.active_mode->children.size(), 1u);
+  ASSERT_EQ(session.active_mode->children.at(0)->children.size(), 1u);
+
+  ASSERT_NO_THROW(session.render_mode());
+
+  auto& ops = render_target()->render_ops;
+  ASSERT_EQ(ops.size(), 1u);
+  EXPECT_EQ(ops[0].type, RenderOpType::RENDER_COPY);
+  EXPECT_EQ(ops[0].rendered_rect.x, 0);
+  EXPECT_EQ(ops[0].rendered_rect.y, 0);
+}
+
+TEST_F(RenderTest, built_in_text_node_inherits_marked_style_and_renders_underline)
+{
+  SDLMock::prepared_surfaces["./font.png"] = {16, 12};
+  runtime.eval(R"(
+    (pixils/defbundle fonts {:images {:atlas "font.png"}})
+    (pixils/deffont test-font
+      {:type :bitmap
+       :resource :fonts/atlas
+       :baseline 5
+       :styles {:underline {:offset 2 :thickness 1}}
+       :glyphs {"A" {:x 0 :y 0 :w 4 :h 7}}})
+    (pixils/defcomponent menu-like-item
+      {:style {:text {:font :font/test-font
+                      :color {:r 0 :g 0 :b 0}
+                      :marked-style {:enabled true
+                                     :marker "@"
+                                     :font-styles :underline}}}
+       :children [{:mode 'text-node
+                   :state {:value "@A@"}}]})
+    (pixils/defmode root-mode
+      {:children [{:mode 'menu-like-item}]})
+  )");
+
+  session.push_mode("root-mode", Lisple::Constant::NIL);
+
+  ASSERT_NO_THROW(session.render_mode());
+
+  auto& ops = render_target()->render_ops;
+  ASSERT_EQ(ops.size(), 2u);
+  EXPECT_EQ(ops[0].type, RenderOpType::RENDER_COPY);
+  EXPECT_EQ(ops[1].type, RenderOpType::FILL_RECT);
+}
+
+TEST_F(RenderTest, built_in_text_node_marked_style_explicit_color_uses_tint_texture_for_mnemonic)
+{
+  SDLMock::prepared_surfaces["./font.png"] = {16, 12};
+  runtime.eval(R"(
+    (pixils/defbundle fonts {:images {:atlas "font.png"}})
+    (pixils/deffont test-font
+      {:type :bitmap
+       :resource :fonts/atlas
+       :baseline 5
+       :styles {:underline {:offset 2 :thickness 1}}
+       :glyphs {"A" {:x 0 :y 0 :w 4 :h 7}
+                "B" {:x 4 :y 0 :w 4 :h 7}}})
+    (pixils/defcomponent menu-like-item
+      {:style {:text {:font :font/test-font
+                      :color {:r 0 :g 0 :b 0}
+                      :marked-style {:enabled true
+                                     :marker "@"
+                                     :font-styles :underline
+                                     :color {:r 255 :g 255 :b 255}}}}
+       :children [{:mode 'text-node
+                   :state {:value "@A@B"}}]})
+    (pixils/defmode root-mode
+      {:children [{:mode 'menu-like-item}]})
+  )");
+
+  session.push_mode("root-mode", Lisple::Constant::NIL);
+  ASSERT_NO_THROW(session.render_mode());
+
+  SDL_Texture* tint_texture = render_ctx.asset_registry->get_tint_mask("fonts", "atlas");
+  ASSERT_NE(tint_texture, nullptr);
+
+  auto& ops = render_target()->render_ops;
+  ASSERT_EQ(ops.size(), 3u);
+  EXPECT_EQ(ops[0].type, RenderOpType::RENDER_COPY);
+  EXPECT_EQ(ops[0].rendered_texture, tint_texture);
+  EXPECT_EQ(ops[1].type, RenderOpType::FILL_RECT);
+  EXPECT_EQ(ops[2].type, RenderOpType::RENDER_COPY);
+}
+
+TEST_F(RenderTest, built_in_text_node_marked_style_inherits_parent_tint_for_mnemonic)
+{
+  SDLMock::prepared_surfaces["./font.png"] = {16, 12};
+  runtime.eval(R"(
+    (pixils/defbundle fonts {:images {:atlas "font.png"}})
+    (pixils/deffont test-font
+      {:type :bitmap
+       :resource :fonts/atlas
+       :baseline 5
+       :styles {:underline {:offset 2 :thickness 1}}
+       :glyphs {"A" {:x 0 :y 0 :w 4 :h 7}
+                "B" {:x 4 :y 0 :w 4 :h 7}}})
+    (pixils/defcomponent menu-like-item
+      {:style {:text {:font :font/test-font
+                      :color {:r 255 :g 255 :b 255}
+                      :marked-style {:enabled true
+                                     :marker "@"
+                                     :font-styles :underline}}}
+       :children [{:mode 'text-node
+                   :state {:value "@A@B"}}]})
+    (pixils/defmode root-mode
+      {:children [{:mode 'menu-like-item}]})
+  )");
+
+  session.push_mode("root-mode", Lisple::Constant::NIL);
+  ASSERT_NO_THROW(session.render_mode());
+
+  SDL_Texture* tint_texture = render_ctx.asset_registry->get_tint_mask("fonts", "atlas");
+  ASSERT_NE(tint_texture, nullptr);
+
+  auto& ops = render_target()->render_ops;
+  ASSERT_EQ(ops.size(), 3u);
+  EXPECT_EQ(ops[0].type, RenderOpType::RENDER_COPY);
+  EXPECT_EQ(ops[0].rendered_texture, tint_texture);
+  EXPECT_EQ(ops[1].type, RenderOpType::FILL_RECT);
+  EXPECT_EQ(ops[2].type, RenderOpType::RENDER_COPY);
 }
 
 TEST_F(RenderTest, built_in_text_node_wraps_wordwise_when_fill_width_is_constrained)

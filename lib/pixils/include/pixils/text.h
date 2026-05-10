@@ -27,6 +27,73 @@ namespace Pixils
   {
     class Renderer;
 
+    enum class FontStyle : uint8_t
+    {
+      UNDERLINE,
+    };
+
+    struct UnderlineMetrics
+    {
+      int offset = 0;
+      int thickness = 1;
+    };
+
+    struct FontDefinition
+    {
+      int baseline = 0;
+      std::optional<UnderlineMetrics> underline = std::nullopt;
+    };
+
+    /*!
+     * @brief Describes a text shadow - its offset and color
+     */
+    struct Shadow
+    {
+      /*! @brief The offset of the shadow, in pixels */
+      Point offset;
+      /*! @brief The shadow color */
+      Color color;
+      /*! @brief Copy constructor */
+      Shadow(const Shadow& other);
+      /*!
+       * @brief Constructs a shadow, represented by its @ref
+       * FrontierWorlds::Color and offset @ref FrontierWorlds::Coordinate
+       */
+      Shadow(const Point& offset, const Color& color);
+
+      /*! @brief Default assignment operator */
+      Shadow& operator=(const Shadow& other) = default;
+      /*!
+       * @brief Comparison operator for comparing the value of another
+       * shadow instance to this one.
+       */
+      bool operator==(const Shadow& other) const;
+    };
+
+    struct InlineTextStyleSpec
+    {
+      bool enabled = false;
+      char marker = '@';
+      std::optional<std::string> font_key = std::nullopt;
+      std::optional<int> scale = std::nullopt;
+      bool use_font_color = false;
+      std::optional<Color> color = std::nullopt;
+      std::optional<std::vector<FontStyle>> font_styles = std::nullopt;
+      std::optional<std::vector<Shadow>> shadows = std::nullopt;
+    };
+
+    struct InlineTextRenderOp
+    {
+      bool enabled = false;
+      char marker = '@';
+      Renderer* renderer = nullptr;
+      Renderer* tint_renderer = nullptr;
+      SDL_Color color = {0xff, 0xff, 0xff, 0xff};
+      const FontDefinition* font_definition = nullptr;
+      std::vector<FontStyle> font_styles;
+      std::vector<Shadow> shadows;
+    };
+
     /*!
      * @brief Prepared text rendering configuration resolved from font key,
      * scale and optional tint color.
@@ -36,6 +103,10 @@ namespace Pixils
       Renderer* renderer;
       Renderer* tint_renderer;
       SDL_Color color;
+      const FontDefinition* font_definition = nullptr;
+      std::vector<FontStyle> font_styles;
+      std::vector<Shadow> shadows;
+      std::optional<InlineTextRenderOp> inline_style = std::nullopt;
     };
 
     struct LayoutLine
@@ -169,6 +240,10 @@ namespace Pixils
        */
       int get_line_height() const;
       /*!
+       * @brief Returns the rendered advance width for a single character.
+       */
+      int get_char_advance(char32_t chr) const;
+      /*!
        * @brief Set the alternative text color of this renderer.
        */
       void set_alt_color(const SDL_Color& color);
@@ -186,32 +261,6 @@ namespace Pixils
        * particular character.
        */
       bool supports_char(char32_t c) const;
-    };
-
-    /*!
-     * @brief Describes a text shadow - its offset and color
-     */
-    struct Shadow
-    {
-      /*! @brief The offset of the shadow, in pixels */
-      Point offset;
-      /*! @brief The shadow color */
-      Color color;
-      /*! @brief Copy constructor */
-      Shadow(const Shadow& other);
-      /*!
-       * @brief Constructs a shadow, represented by its @ref
-       * FrontierWorlds::Color and offset @ref FrontierWorlds::Coordinate
-       */
-      Shadow(const Point& offset, const Color& color);
-
-      /*! @brief Default assignment operator */
-      Shadow& operator=(const Shadow& other) = default;
-      /*!
-       * @brief Comparison operator for comparing the value of another
-       * shadow instance to this one.
-       */
-      bool operator==(const Shadow& other) const;
     };
 
     /*!
@@ -472,7 +521,10 @@ namespace Pixils
       RenderContext& rc,
       const std::string& font_key = "font/console",
       int scale = 1,
-      const std::optional<Color>& color = std::nullopt);
+      const std::optional<Color>& color = std::nullopt,
+      const std::vector<FontStyle>& font_styles = {},
+      const std::vector<Shadow>& shadows = {},
+      const std::optional<InlineTextStyleSpec>& inline_style = std::nullopt);
 
     /*!
      * @brief Calculates the rendered size of a string using a prepared text render op.

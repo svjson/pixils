@@ -9,6 +9,7 @@
 #include <SDL2/SDL_render.h>
 #include <memory>
 #include <optional>
+#include <vector>
 
 namespace Lisple
 {
@@ -183,13 +184,28 @@ namespace Pixils::UI
         NONE,
       };
 
+      struct MarkedStyle
+      {
+        std::optional<bool> enabled = std::nullopt;
+        std::optional<char> marker = std::nullopt;
+        std::optional<bool> use_font_color = std::nullopt;
+        std::optional<Color> color = std::nullopt;
+        std::optional<std::string> font = std::nullopt;
+        std::optional<int> scale = std::nullopt;
+        std::optional<std::vector<Pixils::Text::FontStyle>> font_styles = std::nullopt;
+        std::optional<std::vector<Pixils::Text::Shadow>> shadows = std::nullopt;
+      };
+
       /** Prevents inherited tint and renders bitmap/native font colors as-is. */
       bool use_font_color = false;
       std::optional<Color> color = std::nullopt;
       std::optional<std::string> font = std::nullopt;
       std::optional<int> scale = std::nullopt;
+      std::optional<std::vector<Pixils::Text::FontStyle>> font_styles = std::nullopt;
+      std::optional<std::vector<Pixils::Text::Shadow>> shadows = std::nullopt;
       std::optional<Pixils::Text::Alignment> align = std::nullopt;
       std::optional<Wrap> wrap = std::nullopt;
+      std::optional<MarkedStyle> marked_style = std::nullopt;
     };
 
     struct Size

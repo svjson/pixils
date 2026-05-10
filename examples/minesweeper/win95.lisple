@@ -13,6 +13,9 @@
   {:type :bitmap
    :spacing 1
    :resource :win95/system-font
+   :baseline 8
+   :styles {:underline {:offset 2
+                        :thickness 1}}
    :glyphs {' ' {:x 144 :y 11 :w 1 :h 11}
             '.' {:x 73 :y 22 :w 1 :h 10}
             '?' {:x 67 :y 22 :w 6 :h 10}
@@ -131,7 +134,11 @@
                               :color c/BLACK}}
 
             :menu/item
-            {:hover {:background FOCUS-BLUE
+            {:text {:color c/BLACK
+                    :marked-style {:enabled true
+                                   :marker "@"
+                                    :font-styles :underline}}
+             :hover {:background FOCUS-BLUE
                      :text {:color WHITE}}}
 
             'menu-item {:hover {:background FOCUS-BLUE

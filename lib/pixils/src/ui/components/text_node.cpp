@@ -49,6 +49,34 @@ namespace Pixils::UI::Components
       return "font/console";
     }
 
+    std::vector<Text::FontStyle> text_style_font_styles(const Style& style)
+    {
+      if (style.text && style.text->font_styles) return *style.text->font_styles;
+      return {};
+    }
+
+    std::vector<Text::Shadow> text_style_shadows(const Style& style)
+    {
+      if (style.text && style.text->shadows) return *style.text->shadows;
+      return {};
+    }
+
+    std::optional<Text::InlineTextStyleSpec> text_style_marked_style(const Style& style)
+    {
+      if (!style.text || !style.text->marked_style) return std::nullopt;
+
+      Text::InlineTextStyleSpec inline_style;
+      inline_style.enabled = style.text->marked_style->enabled.value_or(true);
+      inline_style.marker = style.text->marked_style->marker.value_or('@');
+      inline_style.use_font_color = style.text->marked_style->use_font_color.value_or(false);
+      inline_style.color = style.text->marked_style->color;
+      inline_style.font_key = style.text->marked_style->font;
+      inline_style.scale = style.text->marked_style->scale;
+      inline_style.font_styles = style.text->marked_style->font_styles;
+      inline_style.shadows = style.text->marked_style->shadows;
+      return inline_style;
+    }
+
     Text::Alignment text_style_alignment(const Style& style)
     {
       if (style.text && style.text->align) return *style.text->align;
@@ -82,7 +110,11 @@ namespace Pixils::UI::Components
         const Runtime::View& view = *hook_ctx.current_view;
         auto text_op = Text::make_text_render_op(rc,
                                                  text_style_font_key(view.effective_style),
-                                                 text_style_scale(view.effective_style));
+                                                 text_style_scale(view.effective_style),
+                                                 std::nullopt,
+                                                 text_style_font_styles(view.effective_style),
+                                                 text_style_shadows(view.effective_style),
+                                                 text_style_marked_style(view.effective_style));
         if (!text_op) return Lisple::Constant::NIL;
 
         auto layout = Text::layout_text(rc,
@@ -110,7 +142,10 @@ namespace Pixils::UI::Components
         auto text_op = Text::make_text_render_op(rc,
                                                  text_style_font_key(view.effective_style),
                                                  text_style_scale(view.effective_style),
-                                                 text_style_color(view.effective_style));
+                                                 text_style_color(view.effective_style),
+                                                 text_style_font_styles(view.effective_style),
+                                                 text_style_shadows(view.effective_style),
+                                                 text_style_marked_style(view.effective_style));
         if (!text_op) return Lisple::Constant::NIL;
 
         const Rect content_rect = view.effective_style.content_rect(view.bounds);
@@ -120,33 +155,24 @@ namespace Pixils::UI::Components
                                         text_style_wrap_mode(view.effective_style),
                                         content_rect.w);
 
-        Text::Cursor cursor(*text_op->renderer,
-                            text_op->color,
-                            text_op->renderer->get_line_height());
-        cursor.set_alignment(text_style_alignment(view.effective_style));
-
-        switch (cursor.get_alignment())
-        {
-        case Text::Alignment::CENTER:
-          cursor.move_to(content_rect.w / 2, 0);
-          break;
-        case Text::Alignment::RIGHT:
-          cursor.move_to(content_rect.w, 0);
-          break;
-        default:
-          cursor.move_to(0, 0);
-          break;
-        }
-
         for (size_t i = 0; i < layout.lines.size(); i++)
         {
-          if (i + 1 < layout.lines.size())
+          int x = 0;
+          switch (text_style_alignment(view.effective_style))
           {
-            cursor.println(rc, layout.lines[i].text);
-            continue;
+          case Text::Alignment::CENTER:
+            x += (content_rect.w - layout.lines[i].width) / 2;
+            break;
+          case Text::Alignment::RIGHT:
+            x += content_rect.w - layout.lines[i].width;
+            break;
+          default:
+            break;
           }
 
-          cursor.print(rc, layout.lines[i].text);
+          int y = static_cast<int>(i) *
+                  (layout.size.h / static_cast<int>(layout.lines.size()));
+          Text::render_text(rc, *text_op, layout.lines[i].text, x, y);
         }
         return Lisple::Constant::NIL;
       }

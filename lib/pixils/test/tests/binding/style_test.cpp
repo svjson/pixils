@@ -199,6 +199,77 @@ TEST_F(StyleTest, make_style_with_text)
   EXPECT_EQ(*style.text->wrap, Pixils::UI::Style::Text::Wrap::WORD);
 }
 
+TEST_F(StyleTest, make_style_with_text_font_styles_shadows_and_marked_style)
+{
+  Lisple::sptr_rtval result = runtime.eval(R"(
+    (pixils.ui.style/make-style
+      {:text {:font :font/console
+              :font-styles :underline
+              :shadow {:offset {:x 1 :y 2}
+                       :color {:r 3 :g 4 :b 5}}
+              :marked-style {:enabled true
+                             :marker "@"
+                             :scale 2
+                             :font-styles [:underline]}}})
+  )");
+
+  auto style = Lisple::obj<Pixils::UI::Style>(*result);
+  ASSERT_NE(style.text, std::nullopt);
+  ASSERT_NE(style.text->font_styles, std::nullopt);
+  ASSERT_NE(style.text->shadows, std::nullopt);
+  ASSERT_NE(style.text->marked_style, std::nullopt);
+  ASSERT_EQ(style.text->font_styles->size(), 1u);
+  EXPECT_EQ(style.text->font_styles->at(0), Pixils::Text::FontStyle::UNDERLINE);
+  ASSERT_EQ(style.text->shadows->size(), 1u);
+  EXPECT_EQ(style.text->shadows->at(0).offset, (Pixils::Point{1, 2}));
+  EXPECT_EQ(style.text->shadows->at(0).color, (Pixils::Color{3, 4, 5, 255}));
+  ASSERT_NE(style.text->marked_style->enabled, std::nullopt);
+  ASSERT_NE(style.text->marked_style->marker, std::nullopt);
+  EXPECT_TRUE(*style.text->marked_style->enabled);
+  EXPECT_EQ(*style.text->marked_style->marker, '@');
+  ASSERT_NE(style.text->marked_style->scale, std::nullopt);
+  EXPECT_EQ(*style.text->marked_style->scale, 2);
+  ASSERT_NE(style.text->marked_style->font_styles, std::nullopt);
+  ASSERT_EQ(style.text->marked_style->font_styles->size(), 1u);
+  EXPECT_EQ(style.text->marked_style->font_styles->at(0),
+            Pixils::Text::FontStyle::UNDERLINE);
+}
+
+TEST(StyleResolveTest, hover_marked_style_overrides_only_its_own_fields)
+{
+  Pixils::UI::Style child;
+  child.text = Pixils::UI::Style::Text{};
+  child.text->marked_style = Pixils::UI::Style::Text::MarkedStyle{};
+  child.text->marked_style->enabled = true;
+  child.text->marked_style->marker = '@';
+  child.text->marked_style->font_styles =
+    std::vector<Pixils::Text::FontStyle>{Pixils::Text::FontStyle::UNDERLINE};
+  child.hover = std::make_unique<Pixils::UI::Style>();
+  child.hover->text = Pixils::UI::Style::Text{};
+  child.hover->text->marked_style = Pixils::UI::Style::Text::MarkedStyle{};
+  child.hover->text->marked_style->color = Pixils::Color{255, 255, 255, 255};
+
+  Pixils::UI::InteractionState interaction;
+  interaction.hovered = true;
+
+  auto resolved = Pixils::UI::resolve_style(std::optional<Pixils::UI::Style>{child},
+                                            Lisple::Constant::NIL,
+                                            interaction);
+
+  ASSERT_NE(resolved.text, std::nullopt);
+  ASSERT_NE(resolved.text->marked_style, std::nullopt);
+  ASSERT_NE(resolved.text->marked_style->enabled, std::nullopt);
+  ASSERT_NE(resolved.text->marked_style->marker, std::nullopt);
+  ASSERT_NE(resolved.text->marked_style->font_styles, std::nullopt);
+  ASSERT_NE(resolved.text->marked_style->color, std::nullopt);
+  EXPECT_TRUE(*resolved.text->marked_style->enabled);
+  EXPECT_EQ(*resolved.text->marked_style->marker, '@');
+  EXPECT_EQ(resolved.text->marked_style->font_styles->size(), 1u);
+  EXPECT_EQ(resolved.text->marked_style->font_styles->at(0),
+            Pixils::Text::FontStyle::UNDERLINE);
+  EXPECT_EQ(*resolved.text->marked_style->color, (Pixils::Color{255, 255, 255, 255}));
+}
+
 TEST_F(StyleTest, make_style_with_text_color_none)
 {
   Lisple::sptr_rtval result =

@@ -17,6 +17,7 @@
 #include <pixils/runtime/view.h>
 
 #include <SDL2/SDL_render.h>
+#include <algorithm>
 #include <lisple/exception.h>
 #include <lisple/exec.h>
 #include <lisple/form.h>
@@ -120,6 +121,8 @@ namespace Pixils::Script
                                                 {"resource", &Lisple::Type::KEY},
                                                 {"spacing", &Lisple::Type::NUMBER},
                                                 {"line-height", &Lisple::Type::NUMBER},
+                                                {"baseline", &Lisple::Type::NUMBER},
+                                                {"styles", &Lisple::Type::MAP},
                                                 {"glyphs", &Lisple::Type::MAP}});
 
       std::string font_name =
@@ -145,6 +148,36 @@ namespace Pixils::Script
       }
       int spacing = opts.i32("spacing", 1);
       int line_height = opts.i32("line-height", 0);
+      Text::FontDefinition font_definition;
+      const bool has_explicit_baseline = opts.contains("baseline");
+      font_definition.baseline = opts.i32("baseline", 0);
+
+      if (opts.contains("styles"))
+      {
+        auto styles_value = opts.val("styles");
+        if (styles_value->type != Lisple::RTValue::Type::MAP)
+        {
+          throw Lisple::TypeError("Font :styles must be a map");
+        }
+
+        auto underline_value =
+          Lisple::Dict::get_property(styles_value, Lisple::RTValue::keyword("underline"));
+        if (underline_value && underline_value->type != Lisple::RTValue::Type::NIL)
+        {
+          if (underline_value->type != Lisple::RTValue::Type::MAP)
+          {
+            throw Lisple::TypeError("Font :styles :underline must be a map");
+          }
+
+          static Lisple::MapSchema underline_schema(
+            {},
+            {{"offset", &Lisple::Type::NUMBER}, {"thickness", &Lisple::Type::NUMBER}});
+          auto underline_opts = underline_schema.bind(*ctx.ctx, *underline_value);
+          font_definition.underline =
+            Text::UnderlineMetrics{.offset = underline_opts.i32("offset", 0),
+                                   .thickness = underline_opts.i32("thickness", 1)};
+        }
+      }
 
       auto glyphs = opts.val("glyphs");
       if (glyphs->type == Lisple::RTValue::Type::MAP)
@@ -189,6 +222,16 @@ namespace Pixils::Script
         }
       }
 
+      if (!has_explicit_baseline)
+      {
+        int inferred_height = line_height;
+        for (const auto& [_, rect] : glyph_map)
+        {
+          inferred_height = std::max(inferred_height, rect.h);
+        }
+        font_definition.baseline = std::max(0, inferred_height - 1);
+      }
+
       RenderContext& rc =
         Lisple::obj<RenderContext>(*ctx.ctx->lookup_value(ID__PIXILS__RENDER_CONTEXT));
 
@@ -201,6 +244,7 @@ namespace Pixils::Script
                                       resource_texture,
                                       tint_texture,
                                       Text::FontMap(glyph_map),
+                                      font_definition,
                                       spacing,
                                       line_height);
 

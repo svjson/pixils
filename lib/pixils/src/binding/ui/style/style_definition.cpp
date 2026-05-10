@@ -1,6 +1,7 @@
 #include "pixils/binding/ui/style/style_definition.h"
 
 #include <pixils/binding/color_namespace.h>
+#include <pixils/binding/point_namespace.h>
 #include <pixils/binding/ui/style/style_host_type.h>
 
 #include <lisple/context.h>
@@ -20,6 +21,154 @@ namespace Pixils::Script::StyleDefinition
       border.line_style = parse_line_style(opts.val("line-style"));
       border.color = opts.optional_obj<Color>("color");
       border.trim = parse_trim(opts.val("trim"));
+    }
+
+    std::optional<Pixils::Text::FontStyle> parse_font_style_keyword(
+      const Lisple::sptr_rtval& value)
+    {
+      if (!value || value->type != Lisple::RTValue::Type::KEYWORD) return std::nullopt;
+      if (value->str() == "underline") return Pixils::Text::FontStyle::UNDERLINE;
+      return std::nullopt;
+    }
+
+    std::optional<std::vector<Pixils::Text::FontStyle>> parse_text_font_styles(
+      const Lisple::sptr_rtval& value)
+    {
+      if (!value || value->type == Lisple::RTValue::Type::NIL) return std::nullopt;
+
+      if (auto single = parse_font_style_keyword(value))
+      {
+        return std::vector<Pixils::Text::FontStyle>{*single};
+      }
+
+      if (value->type != Lisple::RTValue::Type::VECTOR) return std::nullopt;
+
+      std::vector<Pixils::Text::FontStyle> styles;
+      for (auto& child : Lisple::get_children(*value))
+      {
+        auto parsed = parse_font_style_keyword(child);
+        if (!parsed) return std::nullopt;
+        styles.push_back(*parsed);
+      }
+      return styles;
+    }
+
+    std::optional<std::vector<Pixils::Text::Shadow>> parse_text_shadows(
+      Lisple::Context& ctx,
+      const Lisple::sptr_rtval& value)
+    {
+      if (!value || value->type == Lisple::RTValue::Type::NIL) return std::nullopt;
+
+      static Lisple::MapSchema shadow_schema(
+        {{"offset", &HostType::POINT}, {"color", &HostType::COLOR}},
+        {});
+
+      auto parse_one = [&](const Lisple::sptr_rtval& shadow_value)
+      {
+        auto sh = shadow_schema.bind(ctx, *shadow_value);
+        return Pixils::Text::Shadow(sh.obj<Point>("offset"), sh.obj<Color>("color"));
+      };
+
+      std::vector<Pixils::Text::Shadow> shadows;
+      if (value->type == Lisple::RTValue::Type::VECTOR)
+      {
+        for (auto& child : Lisple::get_children(*value))
+        {
+          shadows.push_back(parse_one(child));
+        }
+        return shadows;
+      }
+
+      if (value->type == Lisple::RTValue::Type::MAP)
+      {
+        shadows.push_back(parse_one(value));
+        return shadows;
+      }
+
+      return std::nullopt;
+    }
+
+    std::optional<char> parse_inline_marker(const Lisple::sptr_rtval& value)
+    {
+      if (!value || value->type == Lisple::RTValue::Type::NIL) return std::nullopt;
+
+      if (value->type == Lisple::RTValue::Type::CHAR)
+      {
+        return static_cast<char>(value->ch());
+      }
+
+      if (value->type == Lisple::RTValue::Type::STRING ||
+          value->type == Lisple::RTValue::Type::KEYWORD ||
+          value->type == Lisple::RTValue::Type::SYMBOL)
+      {
+        std::string raw = value->str();
+        if (raw.size() == 1) return raw[0];
+      }
+
+      return std::nullopt;
+    }
+
+    std::optional<UI::Style::Text::MarkedStyle> parse_marked_style(
+      Lisple::Context& ctx,
+      const Lisple::sptr_rtval& value)
+    {
+      if (!value || value->type == Lisple::RTValue::Type::NIL) return std::nullopt;
+      if (value->type != Lisple::RTValue::Type::MAP) return std::nullopt;
+
+      static Lisple::MapSchema inline_schema({},
+                                             {{"enabled", &Lisple::Type::BOOL},
+                                              {"marker", &Lisple::Type::ANY},
+                                              {"color", &HostType::COLOR},
+                                              {"font", &Lisple::Type::KEY},
+                                              {"scale", &Lisple::Type::NUMBER},
+                                              {"font-styles", &Lisple::Type::ANY},
+                                              {"shadow", &Lisple::Type::ANY}});
+
+      auto inline_source = value;
+      if (Lisple::Dict::contains_key(*value, "color"))
+      {
+        auto color_value = Lisple::Dict::get_property(*value, "color");
+        if (parse_text_use_font_color(color_value))
+        {
+          inline_source = Lisple::Dict::shallow_copy(value);
+          Lisple::Dict::set_property(inline_source,
+                                     Lisple::RTValue::keyword("color"),
+                                     Lisple::Constant::NIL);
+        }
+      }
+
+      auto opts = inline_schema.bind(ctx, *inline_source);
+      UI::Style::Text::MarkedStyle marked_style;
+      if (opts.contains("enabled")) marked_style.enabled = opts.boolean("enabled");
+
+      if (auto marker = parse_inline_marker(opts.val("marker")); marker.has_value())
+      {
+        marked_style.marker = *marker;
+      }
+
+      auto color_value = opts.val("color");
+      if (parse_text_use_font_color(color_value))
+      {
+        marked_style.use_font_color = true;
+      }
+      else if (opts.contains("color"))
+      {
+        marked_style.use_font_color = false;
+        marked_style.color = opts.optional_obj<Color>("color");
+      }
+
+      if (opts.contains("font")) marked_style.font = opts.str("font");
+      if (opts.contains("scale")) marked_style.scale = opts.i32("scale");
+      if (opts.contains("font-styles"))
+      {
+        marked_style.font_styles = parse_text_font_styles(opts.val("font-styles"));
+      }
+      if (opts.contains("shadow"))
+      {
+        marked_style.shadows = parse_text_shadows(ctx, opts.val("shadow"));
+      }
+
+      return marked_style;
     }
   } // namespace
 
@@ -319,8 +468,11 @@ namespace Pixils::Script::StyleDefinition
                                          {{"color", &HostType::COLOR},
                                           {"font", &Lisple::Type::KEY},
                                           {"scale", &Lisple::Type::NUMBER},
+                                          {"font-styles", &Lisple::Type::ANY},
                                           {"align", &Lisple::Type::KEY},
-                                          {"wrap", &Lisple::Type::KEY}});
+                                          {"wrap", &Lisple::Type::KEY},
+                                          {"shadow", &Lisple::Type::ANY},
+                                          {"marked-style", &Lisple::Type::ANY}});
 
     auto text = std::make_unique<UI::Style::Text>();
     auto text_source = value;
@@ -332,18 +484,49 @@ namespace Pixils::Script::StyleDefinition
       {
         text->use_font_color = true;
         text_source = Lisple::Dict::shallow_copy(value);
-        Lisple::Dict::set_property(
-          text_source, Lisple::RTValue::keyword("color"), Lisple::Constant::NIL);
+        Lisple::Dict::set_property(text_source,
+                                   Lisple::RTValue::keyword("color"),
+                                   Lisple::Constant::NIL);
       }
     }
 
     auto opts = text_schema.bind(ctx, *text_source);
     text->color = opts.optional_obj<Color>("color");
 
-    if (opts.contains("font")) text->font = opts.str("font");
-    if (opts.contains("scale")) text->scale = opts.i32("scale");
-    if (opts.contains("align")) text->align = parse_text_align(opts.val("align"));
-    if (opts.contains("wrap")) text->wrap = parse_text_wrap(opts.val("wrap"));
+    if (opts.contains("font"))
+    {
+      text->font = opts.str("font");
+    }
+
+    if (opts.contains("scale"))
+    {
+      text->scale = opts.i32("scale");
+    }
+
+    if (opts.contains("font-styles"))
+    {
+      text->font_styles = parse_text_font_styles(opts.val("font-styles"));
+    }
+
+    if (opts.contains("align"))
+    {
+      text->align = parse_text_align(opts.val("align"));
+    }
+
+    if (opts.contains("wrap"))
+    {
+      text->wrap = parse_text_wrap(opts.val("wrap"));
+    }
+
+    if (opts.contains("shadow"))
+    {
+      text->shadows = parse_text_shadows(ctx, opts.val("shadow"));
+    }
+
+    if (opts.contains("marked-style"))
+    {
+      text->marked_style = parse_marked_style(ctx, opts.val("marked-style"));
+    }
     return text;
   }
 
@@ -352,11 +535,10 @@ namespace Pixils::Script::StyleDefinition
   {
     if (!value || value->type != Lisple::RTValue::Type::MAP) return nullptr;
 
-    static Lisple::MapSchema layout_schema(
-      {},
-      {{"direction", &Lisple::Type::KEY},
-       {"align-items", &Lisple::Type::KEY},
-       {"gap", &HostType::STYLE_LAYOUT_GAP}});
+    static Lisple::MapSchema layout_schema({},
+                                           {{"direction", &Lisple::Type::KEY},
+                                            {"align-items", &Lisple::Type::KEY},
+                                            {"gap", &HostType::STYLE_LAYOUT_GAP}});
 
     auto layout = std::make_unique<UI::Style::Layout>();
     auto opts = layout_schema.bind(ctx, *value);

@@ -16,9 +16,14 @@
   {:type :bitmap
    :spacing 1
    :resource :win3/system-font
+   :baseline 9
+   :styles {:underline {:offset 2
+                        :thickness 1}}
    :glyphs {' ' {:x 235 :y 0 :w 4 :h 10}
             '.' {:x 0 :y 25 :w 2 :h 10}
             '?' {:x 37 :y 25 :w 6 :h 10}
+            '@' {:x 47 :y 24 :w 12 :h 13}
+            '&' {:x 104 :y 25 :w 7 :h 10}
             '(' {:x 112 :y 25 :w 3 :h 13}
             ')' {:x 116 :y 25 :w 3 :h 13}
             '0' {:x 179 :y 11 :w 6 :h 10}
@@ -201,12 +206,17 @@
              :text {:font :font/win3-system-font}
              :border {:line-style :solid :color {:r 0 :g 0 :b 0} :bottom {:thickness 1}}}
 
-            :menu/menu
-            {:padding [2 16]}
+            :menu/item
+            {:padding [2 16]
+             :text {:color c/BLACK
+                    :marked-style {:enabled true
+                                   :marker "@"
+                                    :font-styles :underline}}}
 
             :menu/item:hover
             {:background focus-blue
-             :text {:color white}}
+             :text {:color white
+                    :marked-style {:color c/WHITE}}}
 
             'menu-option-item
             {:padding {:t 2 :r 12 :b 2 :l 2}}

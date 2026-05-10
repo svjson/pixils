@@ -35,6 +35,48 @@ namespace Pixils::UI
       return style.box_sizing && *style.box_sizing == Style::BoxSizing::CONTENT_BOX;
     }
 
+    void inherit_marked_text_style(Style::Text::MarkedStyle& out,
+                                   const Style::Text::MarkedStyle& inherited)
+    {
+      if (inherited.enabled && !out.enabled) out.enabled = inherited.enabled;
+      if (inherited.marker && !out.marker) out.marker = inherited.marker;
+      if (inherited.use_font_color && !out.use_font_color)
+      {
+        out.use_font_color = inherited.use_font_color;
+      }
+      if (inherited.color && !out.color) out.color = inherited.color;
+      if (inherited.font && !out.font) out.font = inherited.font;
+      if (inherited.scale && !out.scale) out.scale = inherited.scale;
+      if (inherited.font_styles && !out.font_styles)
+      {
+        out.font_styles = inherited.font_styles;
+      }
+      if (inherited.shadows && !out.shadows) out.shadows = inherited.shadows;
+    }
+
+    void apply_marked_text_style_variant(Style::Text::MarkedStyle& out,
+                                         const Style::Text::MarkedStyle& variant)
+    {
+      if (variant.enabled) out.enabled = variant.enabled;
+      if (variant.marker) out.marker = variant.marker;
+
+      if (variant.use_font_color)
+      {
+        out.use_font_color = variant.use_font_color;
+        if (*variant.use_font_color) out.color = std::nullopt;
+      }
+      else if (variant.color)
+      {
+        out.use_font_color = false;
+        out.color = variant.color;
+      }
+
+      if (variant.font) out.font = variant.font;
+      if (variant.scale) out.scale = variant.scale;
+      if (variant.font_styles) out.font_styles = variant.font_styles;
+      if (variant.shadows) out.shadows = variant.shadows;
+    }
+
     void inherit_text_style(Style& out, const Style& inherited_style)
     {
       if (!inherited_style.text) return;
@@ -60,6 +102,16 @@ namespace Pixils::UI
         out.text->scale = inherited_style.text->scale;
       }
 
+      if (inherited_style.text->font_styles && !out.text->font_styles)
+      {
+        out.text->font_styles = inherited_style.text->font_styles;
+      }
+
+      if (inherited_style.text->shadows && !out.text->shadows)
+      {
+        out.text->shadows = inherited_style.text->shadows;
+      }
+
       if (inherited_style.text->align && !out.text->align)
       {
         out.text->align = inherited_style.text->align;
@@ -68,6 +120,15 @@ namespace Pixils::UI
       if (inherited_style.text->wrap && !out.text->wrap)
       {
         out.text->wrap = inherited_style.text->wrap;
+      }
+
+      if (inherited_style.text->marked_style && !out.text->marked_style)
+      {
+        out.text->marked_style = inherited_style.text->marked_style;
+      }
+      else if (inherited_style.text->marked_style && out.text->marked_style)
+      {
+        inherit_marked_text_style(*out.text->marked_style, *inherited_style.text->marked_style);
       }
     }
 
@@ -88,8 +149,15 @@ namespace Pixils::UI
 
       if (variant.font) out.text->font = variant.font;
       if (variant.scale) out.text->scale = variant.scale;
+      if (variant.font_styles) out.text->font_styles = variant.font_styles;
+      if (variant.shadows) out.text->shadows = variant.shadows;
       if (variant.align) out.text->align = variant.align;
       if (variant.wrap) out.text->wrap = variant.wrap;
+      if (variant.marked_style)
+      {
+        if (!out.text->marked_style) out.text->marked_style = Style::Text::MarkedStyle{};
+        apply_marked_text_style_variant(*out.text->marked_style, *variant.marked_style);
+      }
     }
   } // namespace
 

@@ -14,9 +14,232 @@ namespace Pixils
   {
     namespace
     {
+      struct StyledSegment
+      {
+        std::string text;
+        bool use_inline_style = false;
+      };
+
       bool is_wrap_whitespace(char c)
       {
         return c == ' ' || c == '\t';
+      }
+
+      std::vector<StyledSegment> split_inline_segments(const std::string& text,
+                                                       const TextRenderOp& op)
+      {
+        std::vector<StyledSegment> segments;
+        const bool inline_enabled = op.inline_style && op.inline_style->enabled;
+        const char marker = inline_enabled ? op.inline_style->marker : '\0';
+        bool use_inline_style = false;
+        std::string current;
+
+        auto flush = [&]()
+        {
+          if (current.empty()) return;
+          segments.push_back({current, use_inline_style});
+          current.clear();
+        };
+
+        for (size_t i = 0; i < text.size(); i++)
+        {
+          char c = text.at(i);
+          if (inline_enabled && c == marker)
+          {
+            if (i + 1 < text.size() && text.at(i + 1) == marker)
+            {
+              current.push_back(marker);
+              i++;
+              continue;
+            }
+
+            flush();
+            use_inline_style = !use_inline_style;
+            continue;
+          }
+
+          current.push_back(c);
+        }
+
+        flush();
+        return segments;
+      }
+
+      const Renderer& select_renderer(const TextRenderOp& op, bool use_inline_style)
+      {
+        if (use_inline_style && op.inline_style && op.inline_style->enabled &&
+            op.inline_style->renderer)
+        {
+          return *op.inline_style->renderer;
+        }
+
+        return *op.renderer;
+      }
+
+      Renderer& select_renderer(TextRenderOp& op, bool use_inline_style)
+      {
+        if (use_inline_style && op.inline_style && op.inline_style->enabled &&
+            op.inline_style->renderer)
+        {
+          return *op.inline_style->renderer;
+        }
+
+        return *op.renderer;
+      }
+
+      Renderer& select_tint_renderer(TextRenderOp& op, bool use_inline_style)
+      {
+        if (use_inline_style && op.inline_style && op.inline_style->enabled &&
+            op.inline_style->tint_renderer)
+        {
+          return *op.inline_style->tint_renderer;
+        }
+
+        return *op.tint_renderer;
+      }
+
+      const FontDefinition* select_font_definition(const TextRenderOp& op,
+                                                   bool use_inline_style)
+      {
+        if (use_inline_style && op.inline_style && op.inline_style->enabled)
+        {
+          return op.inline_style->font_definition;
+        }
+
+        return op.font_definition;
+      }
+
+      const SDL_Color& select_color(const TextRenderOp& op, bool use_inline_style)
+      {
+        if (use_inline_style && op.inline_style && op.inline_style->enabled)
+        {
+          return op.inline_style->color;
+        }
+
+        return op.color;
+      }
+
+      const std::vector<FontStyle>& select_font_styles(const TextRenderOp& op,
+                                                       bool use_inline_style)
+      {
+        if (use_inline_style && op.inline_style && op.inline_style->enabled)
+        {
+          return op.inline_style->font_styles;
+        }
+
+        return op.font_styles;
+      }
+
+      const std::vector<Shadow>& select_shadows(const TextRenderOp& op,
+                                                bool use_inline_style)
+      {
+        if (use_inline_style && op.inline_style && op.inline_style->enabled)
+        {
+          return op.inline_style->shadows;
+        }
+
+        return op.shadows;
+      }
+
+      int op_line_height(const TextRenderOp& op)
+      {
+        auto style_height = [](const Renderer& renderer,
+                               const FontDefinition* font_definition,
+                               const std::vector<FontStyle>& font_styles)
+        {
+          int height = renderer.get_line_height() * renderer.get_scale();
+          for (auto style : font_styles)
+          {
+            if (style == FontStyle::UNDERLINE && font_definition &&
+                font_definition->underline)
+            {
+              height =
+                std::max(height,
+                         (font_definition->baseline + font_definition->underline->offset +
+                          font_definition->underline->thickness) *
+                           renderer.get_scale());
+            }
+          }
+          return height;
+        };
+
+        int line_height = style_height(*op.renderer, op.font_definition, op.font_styles);
+        if (op.inline_style && op.inline_style->enabled && op.inline_style->renderer)
+        {
+          line_height = std::max(line_height,
+                                 style_height(*op.inline_style->renderer,
+                                              op.inline_style->font_definition,
+                                              op.inline_style->font_styles));
+        }
+        return line_height;
+      }
+
+      int underline_top(const Renderer& renderer,
+                        const FontDefinition* font_definition,
+                        const std::vector<FontStyle>& font_styles,
+                        int y)
+      {
+        if (!font_definition)
+          return y + renderer.get_line_height() * renderer.get_scale() - 1;
+
+        for (auto style : font_styles)
+        {
+          if (style == FontStyle::UNDERLINE && font_definition->underline)
+          {
+            return y + (font_definition->baseline + font_definition->underline->offset) *
+                         renderer.get_scale();
+          }
+        }
+
+        return y + renderer.get_line_height() * renderer.get_scale() - 1;
+      }
+
+      int underline_thickness(const Renderer& renderer,
+                              const FontDefinition* font_definition,
+                              const std::vector<FontStyle>& font_styles)
+      {
+        for (auto style : font_styles)
+        {
+          if (style == FontStyle::UNDERLINE && font_definition && font_definition->underline)
+          {
+            return std::max(1, font_definition->underline->thickness * renderer.get_scale());
+          }
+        }
+
+        return 0;
+      }
+
+      void render_underlines(RenderContext& rc,
+                             const TextRenderOp& op,
+                             bool use_inline_style,
+                             int x,
+                             int y,
+                             int width,
+                             const SDL_Color& color)
+      {
+        if (width <= 0) return;
+
+        const auto& font_styles = select_font_styles(op, use_inline_style);
+        const Renderer& renderer = select_renderer(op, use_inline_style);
+        const FontDefinition* font_definition = select_font_definition(op, use_inline_style);
+        int thickness = underline_thickness(renderer, font_definition, font_styles);
+        if (thickness <= 0) return;
+
+        SDL_Rect rect{x,
+                      underline_top(renderer, font_definition, font_styles, y),
+                      width,
+                      thickness};
+        SDL_SetRenderDrawColor(rc.renderer, color.r, color.g, color.b, color.a);
+        SDL_RenderFillRect(rc.renderer, &rect);
+      }
+
+      int rendered_width_for_segment(RenderContext& rc,
+                                     const TextRenderOp& op,
+                                     const StyledSegment& segment)
+      {
+        return select_renderer(op, segment.use_inline_style)
+          .get_rendered_size(rc, segment.text)
+          .w;
       }
 
       std::vector<std::string> split_paragraphs(const std::string& text)
@@ -129,42 +352,26 @@ namespace Pixils
       cursor.x = x;
       cursor.y = y;
 
-      bool color_switch = false;
-
       SDL_SetTextureColorMod(font, color.r, color.g, color.b);
       SDL_SetTextureAlphaMod(font, color.a);
 
       for (size_t i = 0; i < text.size(); i++)
       {
         char c = text.at(i);
-        if (c == '@')
+        if (!font_map.has_char(c))
         {
-          color_switch = !color_switch;
-          if (color_switch)
-          {
-            SDL_SetTextureColorMod(font, alt_color.r, alt_color.g, alt_color.b);
-          }
+          if (c == 10)
+            c = ' ';
           else
-          {
-            SDL_SetTextureColorMod(font, color.r, color.g, color.b);
-          }
+            continue;
         }
-        else
-        {
-          if (!font_map.has_char(c))
-          {
-            if (c == 10)
-              c = ' ';
-            else
-              continue;
-          }
-          const SDL_Rect& char_rect = *font_map.get_char_rect(c);
-          cursor.w = char_rect.w * scale;
-          cursor.h = char_rect.h * scale;
 
-          SDL_RenderCopy(rc.renderer, font, &char_rect, &cursor);
-          cursor.x += cursor.w + (spacing * scale);
-        }
+        const SDL_Rect& char_rect = *font_map.get_char_rect(c);
+        cursor.w = char_rect.w * scale;
+        cursor.h = char_rect.h * scale;
+
+        SDL_RenderCopy(rc.renderer, font, &char_rect, &cursor);
+        cursor.x += cursor.w + (spacing * scale);
       }
     }
 
@@ -175,8 +382,8 @@ namespace Pixils
       for (size_t i = 0; i < string.size(); i++)
       {
         char32_t c = string.at(i);
-        if (c != '@' && !font_map.has_char(c)) c = ' ';
-        if (c != '@' && font_map.has_char(c))
+        if (!font_map.has_char(c)) c = ' ';
+        if (font_map.has_char(c))
         {
           const SDL_Rect& char_rect = *font_map.get_char_rect(c);
           rect.w += char_rect.w + spacing;
@@ -209,10 +416,22 @@ namespace Pixils
       return line_height;
     }
 
-    std::optional<TextRenderOp> make_text_render_op(RenderContext& rc,
-                                                    const std::string& font_key,
-                                                    int scale,
-                                                    const std::optional<Color>& color)
+    int Renderer::get_char_advance(char32_t chr) const
+    {
+      char32_t c = font_map.has_char(chr) ? chr : ' ';
+      if (!font_map.has_char(c)) return 0;
+      const SDL_Rect& char_rect = *font_map.get_char_rect(c);
+      return (char_rect.w + spacing) * scale;
+    }
+
+    std::optional<TextRenderOp> make_text_render_op(
+      RenderContext& rc,
+      const std::string& font_key,
+      int scale,
+      const std::optional<Color>& color,
+      const std::vector<FontStyle>& font_styles,
+      const std::vector<Shadow>& shadows,
+      const std::optional<InlineTextStyleSpec>& inline_style)
     {
       if (!rc.font_registry) return std::nullopt;
 
@@ -222,23 +441,59 @@ namespace Pixils
       font->renderer.set_scale(scale);
       font->tint_renderer.set_scale(scale);
 
-      if (color)
+      TextRenderOp op{
+        .renderer = color ? &font->tint_renderer : &font->renderer,
+        .tint_renderer = &font->tint_renderer,
+        .color = color ? color->to_SDL_Color() : SDL_Color{0xff, 0xff, 0xff, 0xff},
+        .font_definition = &font->definition,
+        .font_styles = font_styles,
+        .shadows = shadows};
+
+      if (inline_style && inline_style->enabled)
       {
-        return TextRenderOp{.renderer = &font->tint_renderer,
-                            .tint_renderer = &font->tint_renderer,
-                            .color = color->to_SDL_Color()};
+        std::string inline_font_key = inline_style->font_key.value_or(font_key);
+        BitmapFont* inline_font = rc.font_registry->get_font(inline_font_key);
+        if (!inline_font) return std::nullopt;
+
+        int inline_scale = inline_style->scale.value_or(scale);
+        inline_font->renderer.set_scale(inline_scale);
+        inline_font->tint_renderer.set_scale(inline_scale);
+
+        bool use_font_color = inline_style->use_font_color;
+        std::optional<Color> inline_color =
+          use_font_color ? std::nullopt : inline_style->color;
+        const bool inherit_tint_from_parent =
+          !inline_color && op.renderer == op.tint_renderer;
+        Renderer* inline_renderer = (inline_color || inherit_tint_from_parent)
+                                      ? &inline_font->tint_renderer
+                                      : &inline_font->renderer;
+
+        op.inline_style = InlineTextRenderOp{
+          .enabled = true,
+          .marker = inline_style->marker,
+          .renderer = inline_renderer,
+          .tint_renderer = &inline_font->tint_renderer,
+          .color = inline_color ? inline_color->to_SDL_Color() : op.color,
+          .font_definition = &inline_font->definition,
+          .font_styles = inline_style->font_styles.value_or(font_styles),
+          .shadows = inline_style->shadows.value_or(shadows),
+        };
       }
 
-      return TextRenderOp{.renderer = &font->renderer,
-                          .tint_renderer = &font->tint_renderer,
-                          .color = {0xff, 0xff, 0xff, 0xff}};
+      return op;
     }
 
     SDL_Rect calculate_rendered_size(RenderContext& rc,
                                      const TextRenderOp& op,
                                      const std::string& string)
     {
-      return op.renderer->get_rendered_size(rc, string);
+      SDL_Rect rect{0, 0, 0, op_line_height(op)};
+      auto segments = split_inline_segments(string, op);
+      for (const auto& segment : segments)
+      {
+        rect.w += rendered_width_for_segment(rc, op, segment);
+      }
+      return rect;
     }
 
     Layout layout_text(RenderContext& rc,
@@ -248,12 +503,13 @@ namespace Pixils
                        std::optional<int> max_width)
     {
       Layout layout;
-      const int line_height = op.renderer->get_line_height();
-      const bool should_wrap =
-        wrap_mode == WrapMode::WORD && max_width && *max_width > 0;
+      const int line_height = op_line_height(op);
+      const bool should_wrap = wrap_mode == WrapMode::WORD && max_width && *max_width > 0;
 
       auto measure_width = [&](const std::string& line)
-      { return calculate_rendered_size(rc, op, line).w; };
+      {
+        return calculate_rendered_size(rc, op, line).w;
+      };
       auto append_line = [&](const std::string& line)
       {
         const int width = measure_width(line);
@@ -337,8 +593,7 @@ namespace Pixils
         append_line("");
       }
 
-      layout.size.h =
-        line_height * op.renderer->get_scale() * static_cast<int>(layout.lines.size());
+      layout.size.h = line_height * static_cast<int>(layout.lines.size());
       return layout;
     }
 
@@ -348,7 +603,46 @@ namespace Pixils
                      int x,
                      int y)
     {
-      op.renderer->render_text(rc, text, x, y, op.color);
+      auto mutable_op = op;
+      int cursor_x = x;
+      auto segments = split_inline_segments(text, mutable_op);
+
+      for (const auto& segment : segments)
+      {
+        auto& tint_renderer = select_tint_renderer(mutable_op, segment.use_inline_style);
+        auto& renderer = select_renderer(mutable_op, segment.use_inline_style);
+        const SDL_Color& color = select_color(mutable_op, segment.use_inline_style);
+        const auto& shadows = select_shadows(mutable_op, segment.use_inline_style);
+
+        for (const auto& shadow : shadows)
+        {
+          SDL_Color shadow_color = shadow.color.to_SDL_Color();
+          tint_renderer.set_alt_color(shadow_color);
+          tint_renderer.render_text(rc,
+                                    segment.text,
+                                    cursor_x + shadow.offset.x,
+                                    y + shadow.offset.y,
+                                    shadow_color);
+          render_underlines(rc,
+                            mutable_op,
+                            segment.use_inline_style,
+                            cursor_x + shadow.offset.x,
+                            y + shadow.offset.y,
+                            tint_renderer.get_rendered_size(rc, segment.text).w,
+                            shadow_color);
+        }
+
+        renderer.render_text(rc, segment.text, cursor_x, y, color);
+        int width = renderer.get_rendered_size(rc, segment.text).w;
+        render_underlines(rc,
+                          mutable_op,
+                          segment.use_inline_style,
+                          cursor_x,
+                          y,
+                          width,
+                          color);
+        cursor_x += width;
+      }
     }
 
     /**

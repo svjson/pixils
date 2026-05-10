@@ -307,39 +307,140 @@ namespace Pixils::Script
                                               {{"font", &Lisple::Type::KEY},
                                                {"color", &HostType::COLOR},
                                                {"scale", &Lisple::Type::NUMBER},
-                                               {"shadow", &Lisple::Type::ANY}});
+                                               {"font-styles", &Lisple::Type::ANY},
+                                               {"shadow", &Lisple::Type::ANY},
+                                               {"marked-style", &Lisple::Type::ANY}});
 
-    static void render_shadows(Text::Renderer& renderer,
-                               Lisple::Context& ctx,
-                               RenderContext& rc,
-                               const std::string& text,
-                               int x,
-                               int y,
-                               const Lisple::sptr_rtval& shadow_val)
+    static std::vector<Text::FontStyle> parse_font_styles(const Lisple::sptr_rtval& value)
     {
+      if (!value || value->type == Lisple::RTValue::Type::NIL) return {};
+
+      auto parse_one = [](const Lisple::sptr_rtval& style_value)
+      {
+        if (!style_value || style_value->type != Lisple::RTValue::Type::KEYWORD)
+        {
+          throw Lisple::TypeError("Text font style must be a keyword");
+        }
+
+        if (style_value->str() == "underline") return Text::FontStyle::UNDERLINE;
+        throw Lisple::TypeError("Unknown text font style: " + style_value->to_string());
+      };
+
+      if (value->type == Lisple::RTValue::Type::KEYWORD) return {parse_one(value)};
+      if (value->type != Lisple::RTValue::Type::VECTOR)
+      {
+        throw Lisple::TypeError("Text font styles must be a keyword or vector");
+      }
+
+      std::vector<Text::FontStyle> out;
+      for (auto& child : Lisple::get_children(*value))
+      {
+        out.push_back(parse_one(child));
+      }
+      return out;
+    }
+
+    static std::vector<Text::Shadow> parse_shadows(Lisple::Context& ctx,
+                                                   const Lisple::sptr_rtval& shadow_val)
+    {
+      std::vector<Text::Shadow> shadows;
+      if (!shadow_val || shadow_val->type == Lisple::RTValue::Type::NIL) return shadows;
+
       static Lisple::MapSchema shadow_schema(
         {{"offset", &HostType::POINT}, {"color", &HostType::COLOR}},
         {});
 
-      auto render_one = [&](const Lisple::sptr_rtval& s)
+      auto parse_one = [&](const Lisple::sptr_rtval& s)
       {
         auto sh = shadow_schema.bind(ctx, *s);
-        const Point& off = sh.obj<Point>("offset");
-        const Color& col = sh.obj<Color>("color");
-        SDL_Color sdl = col.to_SDL_Color();
-        renderer.set_alt_color(sdl);
-        renderer.render_text(rc, text, x + off.round_x(), y + off.round_y(), sdl);
+        return Text::Shadow(sh.obj<Point>("offset"), sh.obj<Color>("color"));
       };
 
       if (shadow_val->type == Lisple::RTValue::Type::VECTOR)
       {
         for (auto& s : Lisple::get_children(*shadow_val))
-          render_one(s);
+          shadows.push_back(parse_one(s));
       }
       else if (shadow_val->type == Lisple::RTValue::Type::MAP)
       {
-        render_one(shadow_val);
+        shadows.push_back(parse_one(shadow_val));
       }
+
+      return shadows;
+    }
+
+    static std::optional<char> parse_inline_marker(const Lisple::sptr_rtval& value)
+    {
+      if (!value || value->type == Lisple::RTValue::Type::NIL) return std::nullopt;
+      if (value->type == Lisple::RTValue::Type::CHAR) return static_cast<char>(value->ch());
+      if (value->type == Lisple::RTValue::Type::STRING ||
+          value->type == Lisple::RTValue::Type::KEYWORD ||
+          value->type == Lisple::RTValue::Type::SYMBOL)
+      {
+        std::string raw = value->str();
+        if (raw.size() == 1) return raw[0];
+      }
+      return std::nullopt;
+    }
+
+    static std::optional<Text::InlineTextStyleSpec> parse_marked_style(
+      Lisple::Context& ctx,
+      const Lisple::sptr_rtval& value)
+    {
+      if (!value || value->type == Lisple::RTValue::Type::NIL) return std::nullopt;
+
+      static Lisple::MapSchema inline_schema({},
+                                             {{"enabled", &Lisple::Type::BOOL},
+                                              {"marker", &Lisple::Type::ANY},
+                                              {"font", &Lisple::Type::KEY},
+                                              {"color", &HostType::COLOR},
+                                              {"scale", &Lisple::Type::NUMBER},
+                                              {"font-styles", &Lisple::Type::ANY},
+                                              {"shadow", &Lisple::Type::ANY}});
+
+      auto inline_source = value;
+      if (Lisple::Dict::contains_key(*value, "color"))
+      {
+        auto color_value = Lisple::Dict::get_property(*value, "color");
+        if (color_value && color_value->type == Lisple::RTValue::Type::KEYWORD &&
+            color_value->str() == "none")
+        {
+          inline_source = Lisple::Dict::shallow_copy(value);
+          Lisple::Dict::set_property(inline_source,
+                                     Lisple::RTValue::keyword("color"),
+                                     Lisple::Constant::NIL);
+        }
+      }
+
+      auto opts = inline_schema.bind(ctx, *inline_source);
+      Text::InlineTextStyleSpec spec;
+      spec.enabled = opts.contains("enabled") ? opts.boolean("enabled") : true;
+      if (auto marker = parse_inline_marker(opts.val("marker")); marker.has_value())
+      {
+        spec.marker = *marker;
+      }
+      if (opts.contains("font")) spec.font_key = opts.str("font");
+      if (auto color_value = opts.val("color");
+          color_value && color_value->type == Lisple::RTValue::Type::KEYWORD &&
+          color_value->str() == "none")
+      {
+        spec.use_font_color = true;
+      }
+      else if (auto color_value = opts.val("color");
+               color_value && color_value->type != Lisple::RTValue::Type::NIL)
+      {
+        spec.color = Lisple::obj<Color>(*color_value);
+      }
+      if (opts.contains("scale")) spec.scale = opts.i32("scale");
+      if (opts.contains("font-styles"))
+      {
+        spec.font_styles = parse_font_styles(opts.val("font-styles"));
+      }
+      if (opts.contains("shadow"))
+      {
+        spec.shadows = parse_shadows(ctx, opts.val("shadow"));
+      }
+      return spec;
     }
 
     static Lisple::sptr_rtval make_rect_map(int x, int y, int w, int h)
@@ -386,17 +487,28 @@ namespace Pixils::Script
         color = Lisple::obj<Color>(*cv);
       }
 
-      auto text_op = Text::make_text_render_op(rc, font_key, scale, color);
-      if (!text_op) return Lisple::Constant::NIL;
+      std::vector<Text::FontStyle> font_styles;
+      if (auto fsv = opts.val("font-styles"); fsv && fsv->type != Lisple::RTValue::Type::NIL)
+      {
+        font_styles = parse_font_styles(fsv);
+      }
 
+      std::vector<Text::Shadow> shadows;
       if (auto sv = opts.val("shadow"); sv && sv->type != Lisple::RTValue::Type::NIL)
-        render_shadows(*text_op->tint_renderer,
-                       ctx,
-                       rc,
-                       text,
-                       pos.round_x(),
-                       pos.round_y(),
-                       sv);
+      {
+        shadows = parse_shadows(ctx, sv);
+      }
+
+      auto inline_style = parse_marked_style(ctx, opts.val("marked-style"));
+
+      auto text_op = Text::make_text_render_op(rc,
+                                               font_key,
+                                               scale,
+                                               color,
+                                               font_styles,
+                                               shadows,
+                                               inline_style);
+      if (!text_op) return Lisple::Constant::NIL;
 
       Text::render_text(rc, *text_op, text, pos.round_x(), pos.round_y());
 
@@ -413,7 +525,10 @@ namespace Pixils::Script
 
     static Lisple::MapSchema text_size_opts_schema({},
                                                    {{"font", &Lisple::Type::KEY},
-                                                    {"scale", &Lisple::Type::NUMBER}});
+                                                    {"scale", &Lisple::Type::NUMBER},
+                                                    {"font-styles", &Lisple::Type::ANY},
+                                                    {"shadow", &Lisple::Type::ANY},
+                                                    {"marked-style", &Lisple::Type::ANY}});
 
     EXEC_BODY(TextSize, exec_size_no_opts)
     {
@@ -438,7 +553,27 @@ namespace Pixils::Script
       if (auto sv = opts.val("scale"); sv && sv->type != Lisple::RTValue::Type::NIL)
         scale = sv->num().get_int();
 
-      auto text_op = Text::make_text_render_op(rc, font_key, scale);
+      std::vector<Text::FontStyle> font_styles;
+      if (auto fsv = opts.val("font-styles"); fsv && fsv->type != Lisple::RTValue::Type::NIL)
+      {
+        font_styles = parse_font_styles(fsv);
+      }
+
+      std::vector<Text::Shadow> shadows;
+      if (auto sv = opts.val("shadow"); sv && sv->type != Lisple::RTValue::Type::NIL)
+      {
+        shadows = parse_shadows(ctx, sv);
+      }
+
+      auto inline_style = parse_marked_style(ctx, opts.val("marked-style"));
+
+      auto text_op = Text::make_text_render_op(rc,
+                                               font_key,
+                                               scale,
+                                               std::nullopt,
+                                               font_styles,
+                                               shadows,
+                                               inline_style);
       if (!text_op) return Lisple::Constant::NIL;
 
       SDL_Rect size = Text::calculate_rendered_size(rc, *text_op, text);

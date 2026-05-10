@@ -6,9 +6,11 @@ namespace Pixils
   BitmapFont::BitmapFont(SDL_Texture* texture,
                          SDL_Texture* tint_texture,
                          Text::FontMap map,
+                         Text::FontDefinition definition,
                          int spacing,
                          int line_height)
     : font_map(std::move(map))
+    , definition(std::move(definition))
     , renderer(texture, font_map, spacing, 1, line_height)
     , tint_renderer(tint_texture ? tint_texture : texture, font_map, spacing, 1, line_height)
   {
@@ -18,6 +20,7 @@ namespace Pixils
                                    SDL_Texture* texture,
                                    SDL_Texture* tint_texture,
                                    Text::FontMap map,
+                                   Text::FontDefinition definition,
                                    int spacing,
                                    int line_height)
   {
@@ -25,6 +28,7 @@ namespace Pixils
                   std::make_unique<BitmapFont>(texture,
                                                tint_texture,
                                                std::move(map),
+                                               std::move(definition),
                                                spacing,
                                                line_height));
   }

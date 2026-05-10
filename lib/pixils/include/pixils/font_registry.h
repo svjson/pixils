@@ -20,12 +20,14 @@ namespace Pixils
   struct BitmapFont
   {
     Text::FontMap font_map;
+    Text::FontDefinition definition;
     Text::Renderer renderer;
     Text::Renderer tint_renderer;
 
     BitmapFont(SDL_Texture* texture,
                SDL_Texture* tint_texture,
                Text::FontMap map,
+               Text::FontDefinition definition = {},
                int spacing = 1,
                int line_height = 0);
 
@@ -51,6 +53,7 @@ namespace Pixils
                        SDL_Texture* texture,
                        SDL_Texture* tint_texture,
                        Text::FontMap map,
+                       Text::FontDefinition definition = {},
                        int spacing = 1,
                        int line_height = 0);
 

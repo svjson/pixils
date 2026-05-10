@@ -9,6 +9,7 @@
 (def default-menu-settings
   {:mnemonics {:enabled true
                :marker "&"
+               :render-marker "@"
                :trigger :alt
                :style :underline}
    :shortcuts {:render true}})
@@ -167,7 +168,7 @@
     {:text out
      :mnemonic mnemonic}
     (let [ch (nth label index)]
-      (if (not= ch marker)
+      (if (not= (str ch) marker)
         (parse-mnemonic-label label
                               marker
                               trigger
@@ -184,7 +185,7 @@
                                 (str out ch)
                                 mnemonic)
           (let [next-ch (nth label (inc index))]
-            (if (= next-ch marker)
+            (if (= (str next-ch) marker)
               (parse-mnemonic-label label
                                     marker
                                     trigger
@@ -221,6 +222,17 @@
                               nil)
         {:text label
          :mnemonic nil}))))
+
+(defun mnemonic-display-text [text mnemonic render-marker]
+  (if (or (nil? mnemonic)
+          (nil? render-marker))
+    text
+    (let [index (:index mnemonic)]
+      (str (substr text 0 index)
+           render-marker
+           (substr text index 1)
+           render-marker
+           (substr text (inc index))))))
 
 (defun first-shortcut-for-action [action keymap]
   (cond
@@ -287,6 +299,9 @@
        :value (or (:value item) (:selected-value item))
        :label (:label item)
        :text (:text label-data)
+       :display-text (mnemonic-display-text (:text label-data)
+                                            (:mnemonic label-data)
+                                            (-> settings :mnemonics :render-marker))
        :mnemonic (:mnemonic label-data)
        :settings settings
        :selected-path (:selected-path item)
@@ -320,7 +335,7 @@
 
 (defun popup-item-state [node state]
   {:node node
-   :text (:text node)
+   :text (:display-text node)
    :shortcut-text (:shortcut-text node)
    :game (:game state)
    :preferences (:preferences state)})
@@ -434,12 +449,12 @@
   {:style {:width :fill
            :layout {:direction :row}}
    :children (for [item (:items normalized-menu)]
-                  {:mode 'menu-bar-item
-                   :style {:padding [2 8]}
-                   :state {:node item
-                           :text (:text item)
-                           :game (ui/bind-state :game)
-                           :preferences (ui/bind-state :preferences)}})})
+               {:mode 'menu-bar-item
+                :style {:padding [2 8]}
+                :state {:node item
+                        :text (:display-text item)
+                        :game (ui/bind-state :game)
+                        :preferences (ui/bind-state :preferences)}})})
 
 (defmode popup-menu
   {:on-mouse-down (fn [state event ctx]
