@@ -41,7 +41,8 @@
                        :color c/BLACK}))})
 
 (defcomponent text-input-inner
-  {:init (fn [state ctx]
+  {:focusable true
+   :init (fn [state ctx]
            (let [value (or (:value state) "")]
              (-> state
                  (assoc :value value)

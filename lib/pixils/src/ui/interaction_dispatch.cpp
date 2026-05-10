@@ -368,7 +368,7 @@ namespace Pixils::UI
 
     bool is_focusable(const std::shared_ptr<Runtime::View>& view)
     {
-      return view != nullptr;
+      return view && view->mode && view->mode->focusable;
     }
 
     bool find_focus_chain(const std::shared_ptr<Runtime::View>& view,
@@ -518,13 +518,14 @@ namespace Pixils::UI
         return;
       }
 
-      if (is_focusable(hit_chain[0]))
+      auto focus_it = std::find_if(hit_chain.begin(),
+                                   hit_chain.end(),
+                                   [](const auto& view) { return is_focusable(view); });
+
+      if (focus_it != hit_chain.end())
       {
-        store_focus_chain(focus_state, hit_chain);
-      }
-      else
-      {
-        focus_state.clear();
+        std::vector<std::shared_ptr<Runtime::View>> focus_chain(focus_it, hit_chain.end());
+        store_focus_chain(focus_state, focus_chain);
       }
 
       MouseButton btn = (events.mouse_button_down &&

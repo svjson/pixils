@@ -141,6 +141,11 @@ namespace Pixils::Runtime
         return false;
       }
 
+      if (!path.front()->mode || !path.front()->mode->focusable)
+      {
+        return false;
+      }
+
       store_focus_chain(focus_state, path);
       return true;
     }

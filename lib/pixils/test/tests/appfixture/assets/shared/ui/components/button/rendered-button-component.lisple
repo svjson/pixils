@@ -4,7 +4,8 @@
             [pixils.test.app.shared.ui.themes.win311 :as win]))
 
 (defcomponent button
-  {:render (fn [state {:keys [view] :as ctx}]
+  {:focusable true
+   :render (fn [state {:keys [view] :as ctx}]
              (let [bw (-> view :bounds :w)
                    bh (-> view :bounds :h)
                    pressed (and (not (:inhibit-pressed? state))

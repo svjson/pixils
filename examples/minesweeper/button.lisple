@@ -18,7 +18,8 @@
                                         (when (keyword? (:image state))
                                           (r/image! (:image state) {:x 0 :y 0}))))})
 
-(defcomponent button {:init (fn [state ctx]
+(defcomponent button {:focusable true
+                      :init (fn [state ctx]
                               (update state :pressed (fn [pressed] pressed)))
                       :update (fn [state {:keys [view] :as ctx}]
                                 (assoc state :pressed
@@ -30,4 +31,3 @@
                                   :state {:pressed (ui/bind-state :pressed)
                                           :image (ui/bind-state :image)
                                           :label (ui/bind-state :label)}}]})
-

@@ -71,11 +71,16 @@ not at definition.
 (pixils/defmode game-mode
   {:init    (fn [state ctx] initial-state)
    :update  (fn [state ctx] new-state)
+   :focusable true
    :render  (fn [state ctx] nil)})
 ```
 
 All three hooks are optional. An absent hook is a no-op; an absent `:init` or `:update`
 leaves the state unchanged.
+
+Focusability is a core mode property, not a style property. Modes are not focusable by
+default. Set `:focusable true` on controls or containers that should be allowed to own
+keyboard focus.
 
 **Hook signatures**
 
@@ -188,7 +193,7 @@ the current one; popping returns to it.
 ```
 
 The optional third argument to `push-mode!` is an override map. It accepts any key that
-`defmode` accepts (hooks, `:style`, `:children`) and merges them onto the base mode for
+`defmode` accepts (hooks, `:style`, `:children`, `:focusable`) and merges them onto the base mode for
 that specific push only. It also accepts `:origin`, which controls where a later
 `pop-mode!` result event is delivered. The registered mode definition is not modified.
 
@@ -323,6 +328,7 @@ registered mode definition for that specific slot only, without modifying the mo
 ```
 
 The same override map accepted by `push-mode!`'s third argument works here too.
+That includes behavioral properties like `:focusable`, not just style and hooks.
 
 **Absolute positioning**
 
@@ -389,6 +395,9 @@ Programmatic focus control is also available from hooks:
 (pixils.ui/focus! (:view ctx)) ; equivalent explicit form
 (pixils.ui/blur!)              ; clear the current focused leaf
 ```
+
+`focus!` only succeeds for views whose mode is `:focusable true`. Mouse focus acquisition
+uses the same rule and will walk up the hit chain to the nearest focusable ancestor.
 
 With the default `:box-sizing :border-box`, a fixed size includes padding and border but
 not margin. Use `:box-sizing :content-box` to opt into the previous behavior where padding
@@ -483,7 +492,8 @@ child slot override map.
 
 ```clojure
 (pixils/defcomponent button
-  {:on-click       (fn [state event ctx]
+  {:focusable true
+   :on-click       (fn [state event ctx]
                      (assoc state :clicked true))
    :on-mouse-down  (fn [state event ctx]
                      (pixils.ui/stop-propagation! event)

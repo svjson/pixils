@@ -144,6 +144,7 @@ namespace Pixils::Script
                                           {"resources", &HostType::RESOURCE_DEPENDENCIES},
                                           {"style", &HostType::STYLE},
                                           {"class", &Lisple::Type::ANY},
+                                          {"focusable", &Lisple::Type::BOOL},
                                           {"theme", &Lisple::Type::SYMBOL_VALUE},
                                           {"children", &Lisple::Type::ANY}});
 
@@ -226,14 +227,25 @@ namespace Pixils::Script
 
     mode.style = opts.optional_obj<UI::Style>("style");
     if (opts.contains("class"))
+    {
       append_class_names(mode.class_names, parse_mode_classes(opts.val("class")));
-    if (opts.contains("theme")) mode.theme = opts.str("theme");
+    }
+    if (opts.contains("focusable"))
+    {
+      mode.focusable = opts.boolean("focusable");
+    }
+    if (opts.contains("theme"))
+    {
+      mode.theme = opts.str("theme");
+    }
 
     if (opts.contains("children"))
     {
       auto children_val = opts.val("children");
       if (children_val->type != Lisple::RTValue::Type::NIL)
+      {
         mode.children = parse_child_slots(ctx, children_val);
+      }
     }
 
     return mode;

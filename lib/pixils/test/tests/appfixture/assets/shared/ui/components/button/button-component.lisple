@@ -3,7 +3,8 @@
             [pixils.ui :as ui]))
 
 (defcomponent button
-  {:init (fn [state ctx]
+  {:focusable true
+   :init (fn [state ctx]
            (update state :pressed (fn [pressed] pressed)))
    :update (fn [state {:keys [view] :as ctx}]
              (assoc state :pressed

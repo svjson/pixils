@@ -530,7 +530,7 @@ TEST_F(EventRoutingTest, interaction_hovered_false_when_cursor_is_outside)
 TEST_F(EventRoutingTest, mouse_down_sets_focus_to_deepest_hit_view_and_marks_ancestor_chain)
 {
   runtime.eval(R"(
-    (pixils/defmode child-mode {})
+    (pixils/defmode child-mode {:focusable true})
     (pixils/defmode root-mode {:children [{:mode 'child-mode :id "child"}]})
   )");
   session.push_mode("root-mode", Lisple::Constant::NIL);
@@ -555,10 +555,61 @@ TEST_F(EventRoutingTest, mouse_down_sets_focus_to_deepest_hit_view_and_marks_anc
   EXPECT_TRUE(session.active_mode->interaction.focus_within);
 }
 
+TEST_F(EventRoutingTest, mouse_down_uses_nearest_focusable_ancestor_in_hit_chain)
+{
+  runtime.eval(R"(
+    (pixils/defmode leaf-mode {})
+    (pixils/defmode child-mode
+      {:focusable true
+       :children [{:mode 'leaf-mode :id "leaf"}]})
+    (pixils/defmode root-mode {:children [{:mode 'child-mode :id "child"}]})
+  )");
+  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.active_mode->bounds = {0, 0, 200, 200};
+  session.active_mode->children[0]->bounds = {20, 20, 100, 100};
+  session.active_mode->children[0]->children[0]->bounds = {30, 30, 40, 40};
+
+  input().mouse_down({40, 40});
+  update_cycle();
+
+  auto focused = session.focus_state.focused.lock();
+  ASSERT_NE(focused, nullptr);
+  EXPECT_EQ(focused.get(), session.active_mode->children[0].get());
+}
+
+TEST_F(EventRoutingTest, mouse_down_on_non_focusable_hit_chain_preserves_existing_focus)
+{
+  runtime.eval(R"(
+    (pixils/defmode focusable-child {:focusable true})
+    (pixils/defmode static-child {})
+    (pixils/defmode root-mode
+      {:children [{:mode 'focusable-child :id "focusable"}
+                  {:mode 'static-child :id "static"}]})
+  )");
+  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.active_mode->bounds = {0, 0, 200, 200};
+  session.active_mode->children[0]->bounds = {20, 20, 60, 60};
+  session.active_mode->children[1]->bounds = {100, 20, 60, 60};
+
+  input().mouse_down({40, 40});
+  update_cycle();
+
+  ASSERT_TRUE(session.focus_state.has_focus());
+  ASSERT_EQ(session.focus_state.focused.lock().get(),
+            session.active_mode->children[0].get());
+
+  input().mouse_down({120, 40});
+  update_cycle();
+
+  ASSERT_TRUE(session.focus_state.has_focus());
+  EXPECT_EQ(session.focus_state.focused.lock().get(),
+            session.active_mode->children[0].get());
+}
+
 TEST_F(EventRoutingTest, mouse_down_outside_root_clears_focus)
 {
   runtime.eval(R"(
-    (pixils/defmode child-mode {})
+    (pixils/defmode child-mode {:focusable true})
     (pixils/defmode root-mode {:children [{:mode 'child-mode :id "child"}]})
   )");
   session.push_mode("root-mode", Lisple::Constant::NIL);
@@ -582,7 +633,7 @@ TEST_F(EventRoutingTest, mouse_down_outside_root_clears_focus)
 TEST_F(EventRoutingTest, focused_view_replacement_clears_focus_state)
 {
   runtime.eval(R"(
-    (pixils/defmode old-child {})
+    (pixils/defmode old-child {:focusable true})
     (pixils/defmode new-child {})
     (pixils/defmode root-mode
       {:init (fn [state ctx] {:swapped? false})
@@ -621,7 +672,8 @@ TEST_F(EventRoutingTest, focus_style_variants_apply_to_focused_leaf_and_ancestor
 {
   runtime.eval(R"(
     (pixils/defmode child-mode
-      {:style (pixils.ui.style/make-style
+      {:focusable true
+       :style (pixils.ui.style/make-style
                 {:width 40
                  :focus {:width 90}})})
     (pixils/defmode root-mode
@@ -641,9 +693,10 @@ TEST_F(EventRoutingTest, focus_style_variants_apply_to_focused_leaf_and_ancestor
   auto root_style = Pixils::UI::resolve_style(session.active_mode->mode->style,
                                               session.active_mode->state,
                                               session.active_mode->interaction);
-  auto child_style = Pixils::UI::resolve_style(session.active_mode->children[0]->mode->style,
-                                               session.active_mode->children[0]->state,
-                                               session.active_mode->children[0]->interaction);
+  auto child_style =
+    Pixils::UI::resolve_style(session.active_mode->children[0]->mode->style,
+                              session.active_mode->children[0]->state,
+                              session.active_mode->children[0]->interaction);
 
   ASSERT_NE(root_style.height, std::nullopt);
   EXPECT_TRUE(root_style.height->is_fixed());
@@ -684,7 +737,8 @@ TEST_F(EventRoutingTest, focus_and_blur_bang_update_focus_state_from_hook_contex
 {
   runtime.eval(R"(
     (pixils/defmode root-mode
-      {:init (fn [state ctx] {:step 0})
+      {:focusable true
+       :init (fn [state ctx] {:step 0})
        :update (fn [state ctx]
                    (if (= (:step state) 0)
                    (do (pixils.ui/focus! ctx)
@@ -721,11 +775,29 @@ TEST_F(EventRoutingTest, focus_and_blur_bang_update_focus_state_from_hook_contex
   EXPECT_FALSE(session.active_mode->interaction.focus_within);
 }
 
+TEST_F(EventRoutingTest, focus_bang_on_non_focusable_view_does_not_change_focus_state)
+{
+  runtime.eval(R"(
+    (pixils/defmode root-mode
+      {:init (fn [state ctx]
+               (do (pixils.ui/focus! ctx)
+                   state))})
+  )");
+
+  session.push_mode("root-mode", Lisple::Constant::NIL);
+  update_cycle();
+
+  EXPECT_FALSE(session.focus_state.has_focus());
+  EXPECT_FALSE(session.active_mode->interaction.focused);
+  EXPECT_FALSE(session.active_mode->interaction.focus_within);
+}
+
 TEST_F(EventRoutingTest, pushed_mode_init_focuses_itself_in_same_process_messages_cycle)
 {
   runtime.eval(R"(
     (pixils/defmode popup-mode
-      {:init (fn [state ctx]
+      {:focusable true
+       :init (fn [state ctx]
                (pixils.ui/focus! ctx)
                state)})
     (pixils/defmode root-mode
@@ -754,7 +826,8 @@ TEST_F(EventRoutingTest, init_focused_view_survives_following_update_before_firs
 {
   runtime.eval(R"(
     (pixils/defmode popup-mode
-      {:init (fn [state ctx]
+      {:focusable true
+       :init (fn [state ctx]
                (pixils.ui/focus! ctx)
                state)})
     (pixils/defmode root-mode

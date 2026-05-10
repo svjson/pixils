@@ -160,6 +160,16 @@ namespace
       append_class_names(mode.class_names, Pixils::Script::parse_mode_classes(class_val));
     }
 
+    auto focusable_val = get("focusable");
+    if (focusable_val->type != Lisple::RTValue::Type::NIL)
+    {
+      if (focusable_val->type != Lisple::RTValue::Type::BOOL)
+      {
+        throw Lisple::TypeError("Mode :focusable must be a boolean");
+      }
+      mode.focusable = std::get<bool>(focusable_val->value);
+    }
+
     auto theme_val = get("theme");
     if (theme_val->type != Lisple::RTValue::Type::NIL)
     {

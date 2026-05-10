@@ -57,6 +57,7 @@ namespace Pixils::Runtime
     std::string name;
     std::vector<std::string> selector_modes;
     std::vector<std::string> class_names;
+    bool focusable = false;
     ResourceDependencies resources;
     Lisple::sptr_rtval init = Lisple::Constant::NIL;
     Lisple::sptr_rtval update = Lisple::Constant::NIL;

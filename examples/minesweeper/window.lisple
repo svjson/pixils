@@ -30,7 +30,8 @@
   {})
 
 (defcomponent window
-  {:update (fn [state ctx]
+  {:focusable true
+   :update (fn [state ctx]
              (let [pos (or (:position state) {:x 24 :y 20})]
                (assoc-in! ctx [:view :style :position] :absolute)
                (assoc-in! ctx [:view :style :left] (:x pos))

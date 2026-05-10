@@ -71,6 +71,24 @@ TEST_F(DefModeTest, defmode_class_accepts_keyword_or_vector_and_merges_on_extend
   EXPECT_EQ(primary_button.class_names[2], "ui/cta");
 }
 
+TEST_F(DefModeTest, defmode_focusable_defaults_false_and_can_be_extended_or_overridden)
+{
+  runtime.eval(R"(
+    (pixils/defcomponent button {:focusable true})
+    (pixils/defcomponent primary-button {:extend 'button})
+    (pixils/defcomponent static-label {:extend 'button :focusable false})
+  )");
+
+  auto& button = get_mode(runtime, "button");
+  EXPECT_TRUE(button.focusable);
+
+  auto& primary_button = get_mode(runtime, "primary-button");
+  EXPECT_TRUE(primary_button.focusable);
+
+  auto& static_label = get_mode(runtime, "static-label");
+  EXPECT_FALSE(static_label.focusable);
+}
+
 TEST_F(DefModeTest, defmode_with_lambda_hook_is_created)
 {
   // When

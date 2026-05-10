@@ -254,7 +254,8 @@ TEST_F(SessionHooksTest, focused_child_mode_on_key_down_bubbles_to_root_mode)
   // Given
   runtime.eval(R"(
     (pixils/defmode child-mode
-      {:init (fn [state ctx] {:keys 0})
+      {:focusable true
+       :init (fn [state ctx] {:keys 0})
        :on-key-down (fn [state event ctx]
                       (assoc state :keys (+ (:keys state) 1)))})
     (pixils/defmode root-mode
@@ -288,7 +289,8 @@ TEST_F(SessionHooksTest, focused_child_key_stop_propagation_prevents_root_key_ho
 {
   runtime.eval(R"(
     (pixils/defmode child-mode
-      {:init (fn [state ctx] {:keys 0})
+      {:focusable true
+       :init (fn [state ctx] {:keys 0})
        :on-key-down (fn [state event ctx]
                       (do (pixils.ui/stop-propagation! event)
                           (assoc state :keys (+ (:keys state) 1))))})
@@ -321,7 +323,8 @@ TEST_F(SessionHooksTest, focused_child_mode_on_key_held_bubbles_to_root_mode)
 {
   runtime.eval(R"(
     (pixils/defmode child-mode
-      {:init (fn [state ctx] {:tag :none})
+      {:focusable true
+       :init (fn [state ctx] {:tag :none})
        :on-key-held {[:key/left-ctrl :key/space] (fn [state event ctx]
                                                    (assoc state :tag :combo))}})
     (pixils/defmode root-mode
