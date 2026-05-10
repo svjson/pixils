@@ -223,6 +223,16 @@
              :text {:color white
                     :marked-style {:color c/WHITE}}}
 
+            'popup-menu-item:hover
+            {:background white
+             :text {:color c/BLACK
+                    :marked-style {:color c/BLACK}}}
+
+            'popup-menu-option-item:hover
+            {:background white
+             :text {:color c/BLACK
+                    :marked-style {:color c/BLACK}}}
+
             :menu/shortcut-column
             {:margin {:l 16}}
 

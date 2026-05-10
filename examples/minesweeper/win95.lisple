@@ -144,6 +144,16 @@
             'menu-item {:hover {:background FOCUS-BLUE
                                 :text {:color WHITE}}}
 
+            'popup-menu-item:hover
+            {:background PANEL-COLOR
+             :text {:color c/BLACK
+                    :marked-style {:color c/BLACK}}}
+
+            'popup-menu-option-item:hover
+            {:background PANEL-COLOR
+             :text {:color c/BLACK
+                    :marked-style {:color c/BLACK}}}
+
             '(popup-menu-item {:highlighted true})
             {:background FOCUS-BLUE
              :text {:color WHITE

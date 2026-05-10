@@ -287,6 +287,17 @@
                (< index (count children)))
       (nth children index))))
 
+(defun wrap-index [index count]
+  (cond
+    (< index 0)
+    (+ index count)
+
+    (>= index count)
+    (- index count)
+
+    :default
+    index))
+
 (defun move-highlight-index [items highlighted-index direction]
   (let [indices (selectable-indices items)]
     (if (empty? indices)
@@ -297,7 +308,7 @@
                               (< current-pos 0))
                         fallback-pos
                         current-pos)
-            next-pos (mod (+ start-pos direction) (count indices))]
+            next-pos (wrap-index (+ start-pos direction) (count indices))]
         (nth indices next-pos)))))
 
 (defun make-menu [state menu-definition keymap]
@@ -330,6 +341,7 @@
   {:node node
    :index (:index state)
    :highlighted-index (:highlighted-index state)
+   :input-source (:input-source state)
    :text (:display-text node)
    :shortcut-text (:shortcut-text node)
    :game (:game state)
@@ -369,12 +381,14 @@
        'popup-menu
        {:items items
         :highlighted-index (first-selectable-index items)
+        :input-source :mouse
         :game (:game state)
         :preferences (:preferences state)}
        {:origin {:view anchor-view :event :menu/select}
         :children [{:mode 'popup-menu-outer
                     :state {:items (ui/bind-state :items)
                             :highlighted-index (ui/bind-state :highlighted-index)
+                            :input-source (ui/bind-state :input-source)
                             :game (ui/bind-state :game)
                             :preferences (ui/bind-state :preferences)}
                     :style {:position :absolute
@@ -385,12 +399,14 @@
                     :children [{:mode 'popup-menu-inner
                                 :state {:items (ui/bind-state :items)
                                         :highlighted-index (ui/bind-state :highlighted-index)
+                                        :input-source (ui/bind-state :input-source)
                                         :game (ui/bind-state :game)
                                         :preferences (ui/bind-state :preferences)}
                                 :children (for-indexed [index item items]
                                             (merge (popup-item-child item {:node item
                                                                            :index index
                                                                            :highlighted-index (ui/bind-state :highlighted-index)
+                                                                           :input-source (ui/bind-state :input-source)
                                                                            :game (ui/bind-state :game)
                                                                            :preferences (ui/bind-state :preferences)})
                                                    {:style {:width :fill}}))}]}]})))))
@@ -418,12 +434,14 @@
   {:class :menu/item
    :style {:layout {:direction :row}}
    :update (fn [state ctx]
-             (assoc state
-                    :highlighted
-                    (= (:index state) (:highlighted-index state))))
-   :on-mouse-enter (fn [state event ctx]
-                     (ui/emit! (:view ctx) :menu/highlight (:index state))
-                     state)
+             (let [hovered (-> ctx :view :interaction :hovered)
+                   highlighted (if (= :mouse (:input-source state))
+                                 hovered
+                                 (= (:index state) (:highlighted-index state)))]
+               (assoc state :highlighted highlighted)))
+   :on-mouse-motion (fn [state event ctx]
+                      (assoc (assoc state :input-source :mouse)
+                             :highlighted-index (:index state)))
    :on-mouse-down (fn [state event ctx]
                     (open-submenu! (:node state) state (:view ctx))
                     (ui/stop-propagation! event)
@@ -454,14 +472,18 @@
   {:class :menu/item
    :style {:layout {:direction :row}}
    :update (fn [state ctx]
-             (assoc (assoc state
-                           :highlighted
-                           (= (:index state) (:highlighted-index state)))
-                    :selected
-                    (item-selected? (:node state) state)))
-   :on-mouse-enter (fn [state event ctx]
-                     (ui/emit! (:view ctx) :menu/highlight (:index state))
-                     state)
+             (let [hovered (-> ctx :view :interaction :hovered)
+                   highlighted (if (= :mouse (:input-source state))
+                                 hovered
+                                 (= (:index state) (:highlighted-index state)))]
+               (assoc (assoc state
+                             :highlighted
+                             highlighted)
+                      :selected
+                      (item-selected? (:node state) state))))
+   :on-mouse-motion (fn [state event ctx]
+                      (assoc (assoc state :input-source :mouse)
+                             :highlighted-index (:index state)))
    :on-mouse-down (fn [state event ctx]
                     (ui/stop-propagation! event)
                     state)
@@ -507,32 +529,32 @@
    :init (fn [state ctx]
            (ui/focus! ctx)
            state)
-   :on {:menu/highlight (fn [state event ctx]
-                          (assoc state :highlighted-index (:payload event)))}
    :on-key-down (fn [state event ctx]
                   (case (:key event)
                     :key/right
                     (let [index (:highlighted-index state)]
                       (ui/stop-propagation! event)
-                      (when (not (nil? index))
-                        (let [node (highlighted-item (:items state) index)
-                              child-view (child-view-at (:view ctx) index)]
-                          (when (and node
-                                     child-view
-                                     (not (empty? (:items node))))
-                            (open-submenu! node state child-view))))
-                      state)
+                      (let [next-state (assoc state :input-source :keyboard)]
+                        (when (not (nil? index))
+                          (let [node (highlighted-item (:items next-state) index)
+                                child-view (child-view-at (:view ctx) index)]
+                            (when (and node
+                                       child-view
+                                       (not (empty? (:items node))))
+                              (open-submenu! node next-state child-view))))
+                        next-state))
 
                     :key/left
                     (do
                       (ui/stop-propagation! event)
                       (pop-mode!)
-                      state)
+                      (assoc state :input-source :keyboard))
 
                     :key/down
                     (do
                       (ui/stop-propagation! event)
-                      (assoc state
+                      (assoc (assoc state
+                                    :input-source :keyboard)
                              :highlighted-index
                              (move-highlight-index (:items state)
                                                    (:highlighted-index state)
@@ -541,7 +563,8 @@
                     :key/up
                     (do
                       (ui/stop-propagation! event)
-                      (assoc state
+                      (assoc (assoc state
+                                    :input-source :keyboard)
                              :highlighted-index
                              (move-highlight-index (:items state)
                                                    (:highlighted-index state)
@@ -551,11 +574,12 @@
                     (do
                       (ui/stop-propagation! event)
                       (pop-mode!)
-                      state)
+                      (assoc state :input-source :keyboard))
 
                     :key/enter
                     (let [index (:highlighted-index state)
-                          node (highlighted-item (:items state) index)
+                          next-state (assoc state :input-source :keyboard)
+                          node (highlighted-item (:items next-state) index)
                           child-view (child-view-at (:view ctx) index)]
                       (ui/stop-propagation! event)
                       (cond
@@ -563,8 +587,8 @@
                              child-view
                              (not (empty? (:items node))))
                         (do
-                          (open-submenu! node state child-view)
-                          state)
+                          (open-submenu! node next-state child-view)
+                          next-state)
 
                         (and node
                              (empty? (:items node)))
@@ -573,10 +597,10 @@
                                     :menu/select
                                     {:action (:action node)
                                      :value (:value node)})
-                          state)
+                          next-state)
 
                         :default
-                        state))
+                        next-state))
 
                     :default
                     state))})
