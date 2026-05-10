@@ -14,6 +14,38 @@ namespace Pixils::Script
 {
   namespace
   {
+    void apply_selector_pseudo_suffixes(UI::ThemeSelector& selector)
+    {
+      while (true)
+      {
+        size_t split_idx = selector.value.rfind(':');
+        if (split_idx == std::string::npos || split_idx == 0)
+        {
+          return;
+        }
+
+        std::string suffix = selector.value.substr(split_idx + 1);
+        if (suffix == "hover")
+        {
+          selector.hovered = true;
+        }
+        else if (suffix == "focus")
+        {
+          selector.focused = true;
+        }
+        else if (suffix == "focus-within")
+        {
+          selector.focus_within = true;
+        }
+        else
+        {
+          return;
+        }
+
+        selector.value = selector.value.substr(0, split_idx);
+      }
+    }
+
     std::vector<std::string> parse_theme_extends(const Lisple::sptr_rtval& value)
     {
       std::vector<std::string> names;
@@ -92,9 +124,17 @@ namespace Pixils::Script
       switch (key->type)
       {
       case Lisple::RTValue::Type::SYMBOL:
-        return UI::ThemeSelector::component_type(key->str());
+      {
+        auto selector = UI::ThemeSelector::component_type(key->str());
+        apply_selector_pseudo_suffixes(selector);
+        return selector;
+      }
       case Lisple::RTValue::Type::KEYWORD:
-        return UI::ThemeSelector::class_name(key->str());
+      {
+        auto selector = UI::ThemeSelector::class_name(key->str());
+        apply_selector_pseudo_suffixes(selector);
+        return selector;
+      }
       case Lisple::RTValue::Type::MAP:
         return UI::ThemeSelector::state_match(normalize_selector_literal_value(key));
       case Lisple::RTValue::Type::LIST:
@@ -104,7 +144,8 @@ namespace Pixils::Script
         {
           auto selector = parse_theme_selector(child);
           if (selector.type == UI::ThemeSelector::Type::DESCENDANT)
-            throw Lisple::TypeError("Theme compound selectors cannot contain descendant selectors");
+            throw Lisple::TypeError(
+              "Theme compound selectors cannot contain descendant selectors");
           children.push_back(std::move(selector));
         }
         if (children.empty())
@@ -119,7 +160,8 @@ namespace Pixils::Script
         {
           auto selector = parse_theme_selector(child);
           if (selector.type == UI::ThemeSelector::Type::DESCENDANT)
-            throw Lisple::TypeError("Theme descendant selectors cannot contain descendant selectors");
+            throw Lisple::TypeError(
+              "Theme descendant selectors cannot contain descendant selectors");
           children.push_back(std::move(selector));
         }
         if (children.empty())

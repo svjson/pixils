@@ -7,6 +7,21 @@ namespace Pixils::UI
 {
   namespace
   {
+    bool interaction_matches_selector(const ThemeSelector& selector,
+                                      const ThemeMatchContext& ctx)
+    {
+      if (selector.hovered && !ctx.interaction.hovered) return false;
+      if (selector.focused && !ctx.interaction.focused) return false;
+      if (selector.focus_within && !ctx.interaction.focus_within) return false;
+      return true;
+    }
+
+    int interaction_specificity(const ThemeSelector& selector)
+    {
+      return static_cast<int>(selector.hovered) + static_cast<int>(selector.focused) +
+             static_cast<int>(selector.focus_within);
+    }
+
     bool rtval_equal(const Lisple::sptr_rtval& lhs, const Lisple::sptr_rtval& rhs)
     {
       if (lhs == rhs) return true;
@@ -26,7 +41,8 @@ namespace Pixils::UI
     bool state_subset_matches(const Lisple::sptr_rtval& selector_state,
                               const Lisple::sptr_rtval& view_state)
     {
-      if (!selector_state || selector_state->type != Lisple::RTValue::Type::MAP) return false;
+      if (!selector_state || selector_state->type != Lisple::RTValue::Type::MAP)
+        return false;
       if (!view_state || view_state->type != Lisple::RTValue::Type::MAP) return false;
 
       for (const auto& key : Lisple::Dict::keys(*selector_state))
@@ -42,6 +58,37 @@ namespace Pixils::UI
     bool state_maps_equal(const Lisple::sptr_rtval& lhs, const Lisple::sptr_rtval& rhs)
     {
       return state_subset_matches(lhs, rhs) && state_subset_matches(rhs, lhs);
+    }
+
+    bool matches_descendant_chain(const std::vector<ThemeSelector>& selectors,
+                                  size_t selector_idx,
+                                  const std::vector<ThemeMatchContext>& path,
+                                  size_t path_idx)
+    {
+      if (!selectors[selector_idx].matches(path[path_idx]))
+      {
+        return false;
+      }
+
+      if (selector_idx == 0)
+      {
+        return true;
+      }
+
+      if (path_idx == 0)
+      {
+        return false;
+      }
+
+      for (size_t i = path_idx; i-- > 0;)
+      {
+        if (matches_descendant_chain(selectors, selector_idx - 1, path, i))
+        {
+          return true;
+        }
+      }
+
+      return false;
     }
   } // namespace
 
@@ -89,6 +136,9 @@ namespace Pixils::UI
   {
     if (type != other.type) return false;
     if (value != other.value) return false;
+    if (hovered != other.hovered) return false;
+    if (focused != other.focused) return false;
+    if (focus_within != other.focus_within) return false;
     if (type == Type::STATE)
     {
       if (!state_maps_equal(state, other.state)) return false;
@@ -109,6 +159,11 @@ namespace Pixils::UI
 
   bool ThemeSelector::matches(const ThemeMatchContext& ctx) const
   {
+    if (!interaction_matches_selector(*this, ctx))
+    {
+      return false;
+    }
+
     switch (type)
     {
     case Type::COMPONENT_TYPE:
@@ -124,29 +179,50 @@ namespace Pixils::UI
                          children.end(),
                          [&](const auto& child) { return child.matches(ctx); });
     case Type::DESCENDANT:
-      // TODO: Descendant selector matching requires ancestor tracking in style resolution.
       return false;
     }
 
     return false;
   }
 
+  bool ThemeSelector::matches_path(const std::vector<ThemeMatchContext>& path) const
+  {
+    if (path.empty())
+    {
+      return false;
+    }
+
+    if (type != Type::DESCENDANT)
+    {
+      return matches(path.back());
+    }
+
+    if (children.empty() || children.size() > path.size())
+    {
+      return false;
+    }
+
+    return matches_descendant_chain(children, children.size() - 1, path, path.size() - 1);
+  }
+
   int ThemeSelector::specificity() const
   {
+    int specificity = interaction_specificity(*this);
+
     switch (type)
     {
     case Type::COMPONENT_TYPE:
-      return 1;
+      return 1 + specificity;
     case Type::CLASS_NAME:
-      return 1;
+      return 1 + specificity;
     case Type::STATE:
-      return state && state->type == Lisple::RTValue::Type::MAP
-               ? static_cast<int>(Lisple::Dict::keys(*state).size())
-               : 1;
+      return specificity + (state && state->type == Lisple::RTValue::Type::MAP
+                              ? static_cast<int>(Lisple::Dict::keys(*state).size())
+                              : 1);
     case Type::COMPOUND:
     case Type::DESCENDANT:
     {
-      int sum = 0;
+      int sum = specificity;
       for (const auto& child : children)
       {
         sum += child.specificity();
@@ -160,9 +236,9 @@ namespace Pixils::UI
 
   void Theme::set_style(const ThemeSelector& selector, const Style& style)
   {
-    auto it = std::find_if(rules.begin(), rules.end(), [&](const auto& rule) {
-      return rule.selector == selector;
-    });
+    auto it = std::find_if(rules.begin(),
+                           rules.end(),
+                           [&](const auto& rule) { return rule.selector == selector; });
 
     if (it == rules.end())
     {
@@ -176,14 +252,20 @@ namespace Pixils::UI
 
   const Style* Theme::get_style(const ThemeSelector& selector) const
   {
-    auto it = std::find_if(rules.begin(), rules.end(), [&](const auto& rule) {
-      return rule.selector == selector;
-    });
+    auto it = std::find_if(rules.begin(),
+                           rules.end(),
+                           [&](const auto& rule) { return rule.selector == selector; });
     if (it == rules.end()) return nullptr;
     return &it->style;
   }
 
   std::vector<const Style*> Theme::get_matching_styles(const ThemeMatchContext& ctx) const
+  {
+    return get_matching_styles(std::vector<ThemeMatchContext>{ctx});
+  }
+
+  std::vector<const Style*> Theme::get_matching_styles(
+    const std::vector<ThemeMatchContext>& path) const
   {
     struct MatchingRule
     {
@@ -195,15 +277,17 @@ namespace Pixils::UI
 
     for (size_t i = 0; i < rules.size(); i++)
     {
-      if (rules[i].selector.matches(ctx))
+      if (rules[i].selector.matches_path(path))
       {
         matching.push_back(MatchingRule{.rule = &rules[i]});
       }
     }
 
-    std::stable_sort(matching.begin(), matching.end(), [](const auto& lhs, const auto& rhs) {
-      return lhs.rule->selector.specificity() < rhs.rule->selector.specificity();
-    });
+    std::stable_sort(
+      matching.begin(),
+      matching.end(),
+      [](const auto& lhs, const auto& rhs)
+      { return lhs.rule->selector.specificity() < rhs.rule->selector.specificity(); });
 
     std::vector<const Style*> result;
     result.reserve(matching.size());

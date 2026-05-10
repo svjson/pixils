@@ -111,6 +111,9 @@ namespace Pixils::UI
     , layout(other.layout)
     , hidden(other.hidden)
     , hover(other.hover ? std::make_unique<Style>(*other.hover) : nullptr)
+    , focus_within(other.focus_within ? std::make_unique<Style>(*other.focus_within)
+                                      : nullptr)
+    , focus(other.focus ? std::make_unique<Style>(*other.focus) : nullptr)
   {
   }
 
@@ -130,6 +133,9 @@ namespace Pixils::UI
     this->layout = other.layout;
     this->hidden = other.hidden;
     this->hover = other.hover ? std::make_unique<Style>(*other.hover) : nullptr;
+    this->focus_within =
+      other.focus_within ? std::make_unique<Style>(*other.focus_within) : nullptr;
+    this->focus = other.focus ? std::make_unique<Style>(*other.focus) : nullptr;
   }
 
   /** Style::Background */
@@ -342,6 +348,22 @@ namespace Pixils::UI
       if (!out.hover) out.hover = std::make_unique<Style>();
       apply_style_variant(*out.hover, *variant.hover);
     }
+    if (variant.focus_within)
+    {
+      if (!out.focus_within)
+      {
+        out.focus_within = std::make_unique<Style>();
+      }
+      apply_style_variant(*out.focus_within, *variant.focus_within);
+    }
+    if (variant.focus)
+    {
+      if (!out.focus)
+      {
+        out.focus = std::make_unique<Style>();
+      }
+      apply_style_variant(*out.focus, *variant.focus);
+    }
   }
 
   UI::Style resolve_style(const std::optional<Style>& style,
@@ -356,6 +378,14 @@ namespace Pixils::UI
     apply_style_variant(result, *style);
 
     if (interaction.hovered && style->hover) apply_style_variant(result, *style->hover);
+    if (interaction.focus_within && style->focus_within)
+    {
+      apply_style_variant(result, *style->focus_within);
+    }
+    if (interaction.focused && style->focus)
+    {
+      apply_style_variant(result, *style->focus);
+    }
 
     return result;
   }

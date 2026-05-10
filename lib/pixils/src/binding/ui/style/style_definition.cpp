@@ -281,7 +281,9 @@ namespace Pixils::Script::StyleDefinition
                                            {"top", &Lisple::Type::NUMBER},
                                            {"left", &Lisple::Type::NUMBER},
                                            {"hidden", &Lisple::Type::ANY},
-                                           {"hover", &HostType::STYLE}});
+                                           {"hover", &HostType::STYLE},
+                                           {"focus-within", &HostType::STYLE},
+                                           {"focus", &HostType::STYLE}});
 
     auto style = std::make_unique<UI::Style>();
     auto opts = style_schema.bind(ctx, *value);
@@ -304,6 +306,18 @@ namespace Pixils::Script::StyleDefinition
 
     auto hover_style = opts.optional_obj<UI::Style>("hover");
     if (hover_style) style->hover = std::make_unique<UI::Style>(*hover_style);
+
+    auto focus_within_style = opts.optional_obj<UI::Style>("focus-within");
+    if (focus_within_style)
+    {
+      style->focus_within = std::make_unique<UI::Style>(*focus_within_style);
+    }
+
+    auto focus_style = opts.optional_obj<UI::Style>("focus");
+    if (focus_style)
+    {
+      style->focus = std::make_unique<UI::Style>(*focus_style);
+    }
 
     return style;
   }

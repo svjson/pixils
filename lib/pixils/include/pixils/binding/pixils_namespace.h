@@ -132,8 +132,10 @@ namespace Pixils::Script
                   pixel_size,
                   buffer_dim,
                   view));
-  /*! @brief InteractionStateAdapter - engine-computed hover/press state on a view */
-  NATIVE_ADAPTER(InteractionStateAdapter, UI::InteractionState, (hovered, pressed));
+  /*! @brief InteractionStateAdapter - engine-computed hover/focus/press state on a view */
+  NATIVE_ADAPTER(InteractionStateAdapter,
+                 UI::InteractionState,
+                 (hovered, focused, focus_within, pressed));
   /*! @brief Lisple HostObject Adapter for View */
   NATIVE_ADAPTER(
     ViewAdapter,

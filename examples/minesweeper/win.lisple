@@ -120,12 +120,19 @@
                               :color c/BLACK}
                      :text {:font :font/win3-system-font}}
 
-            'window-title-bar {:background focus-blue
-                               :text {:color c/WHITE}
+            'window-title-bar {:background c/WHITE
+                               :text {:color c/BLACK}
+                               :border {:bottom {:color c/BLACK}
+                                        :thickness 1}
                                :width :fill
                                :height 19
+                               :padding 0
                                :layout {:direction :row
                                         :gap :space-between}}
+
+            ['window:focus-within 'window-title-bar]
+            {:background focus-blue
+             :text {:color c/WHITE}}
 
             'window-control-button {:background {:image :win3/control-button}
                                     :border {:right {:thickness 1
@@ -166,9 +173,9 @@
              :text {:font :font/win3-system-font}
              :border {:line-style :solid :color {:r 0 :g 0 :b 0} :bottom {:thickness 1}}}
 
-            :menu/item
-            {:hover {:background focus-blue
-                     :text {:color white}}}
+            :menu/item:hover
+            {:background focus-blue
+             :text {:color white}}
 
             'menu-item
             {:padding [2 16]}

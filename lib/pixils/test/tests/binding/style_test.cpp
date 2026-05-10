@@ -192,6 +192,23 @@ TEST_F(StyleTest, make_style_with_text)
   EXPECT_EQ(*style.text->scale, 2);
 }
 
+TEST_F(StyleTest, make_style_with_focus_variants)
+{
+  Lisple::sptr_rtval result = runtime.eval("(pixils.ui.style/make-style {:focus {:width 80} "
+                                           ":focus-within {:height 24}})");
+
+  auto style = Lisple::obj<Pixils::UI::Style>(*result);
+  ASSERT_NE(style.focus, nullptr);
+  ASSERT_NE(style.focus->width, std::nullopt);
+  EXPECT_TRUE(style.focus->width->is_fixed());
+  EXPECT_EQ(style.focus->width->fixed_value_or(0), 80);
+
+  ASSERT_NE(style.focus_within, nullptr);
+  ASSERT_NE(style.focus_within->height, std::nullopt);
+  EXPECT_TRUE(style.focus_within->height->is_fixed());
+  EXPECT_EQ(style.focus_within->height->fixed_value_or(0), 24);
+}
+
 TEST(StyleResolveTest, inherited_text_fields_are_applied_fieldwise)
 {
   Pixils::UI::Style parent;
@@ -247,6 +264,27 @@ TEST(StyleResolveTest, hover_text_variant_overrides_only_its_own_fields)
   EXPECT_EQ(*resolved.text->scale, 2);
 }
 
+TEST(StyleResolveTest, focus_variant_overrides_focus_within_on_focused_leaf)
+{
+  Pixils::UI::Style child;
+  child.focus_within = std::make_unique<Pixils::UI::Style>();
+  child.focus_within->width = Pixils::UI::Style::Size(120);
+  child.focus = std::make_unique<Pixils::UI::Style>();
+  child.focus->width = Pixils::UI::Style::Size(200);
+
+  Pixils::UI::InteractionState interaction;
+  interaction.focus_within = true;
+  interaction.focused = true;
+
+  auto resolved = Pixils::UI::resolve_style(std::optional<Pixils::UI::Style>{child},
+                                            Lisple::Constant::NIL,
+                                            interaction);
+
+  ASSERT_NE(resolved.width, std::nullopt);
+  EXPECT_TRUE(resolved.width->is_fixed());
+  EXPECT_EQ(resolved.width->fixed_value_or(0), 200);
+}
+
 TEST(StyleVariantTest, apply_style_variant_preserves_hover_style)
 {
   Pixils::UI::Style base;
@@ -265,6 +303,30 @@ TEST(StyleVariantTest, apply_style_variant_preserves_hover_style)
   ASSERT_NE(base.hover->text->color, std::nullopt);
   EXPECT_EQ(*base.hover->background->color, (Pixils::Color{0, 11, 200, 255}));
   EXPECT_EQ(*base.hover->text->color, (Pixils::Color{255, 255, 255, 255}));
+}
+
+TEST(StyleVariantTest, apply_style_variant_preserves_focus_styles)
+{
+  Pixils::UI::Style base;
+  Pixils::UI::Style variant;
+  variant.focus_within = std::make_unique<Pixils::UI::Style>();
+  variant.focus_within->background =
+    Pixils::UI::Style::Background{Pixils::Color{10, 20, 30, 255}};
+  variant.focus = std::make_unique<Pixils::UI::Style>();
+  variant.focus->text = Pixils::UI::Style::Text{};
+  variant.focus->text->scale = 2;
+
+  Pixils::UI::apply_style_variant(base, variant);
+
+  ASSERT_NE(base.focus_within, nullptr);
+  ASSERT_NE(base.focus_within->background, std::nullopt);
+  ASSERT_NE(base.focus_within->background->color, std::nullopt);
+  EXPECT_EQ(*base.focus_within->background->color, (Pixils::Color{10, 20, 30, 255}));
+
+  ASSERT_NE(base.focus, nullptr);
+  ASSERT_NE(base.focus->text, std::nullopt);
+  ASSERT_NE(base.focus->text->scale, std::nullopt);
+  EXPECT_EQ(*base.focus->text->scale, 2);
 }
 
 TEST_F(StyleTest, make_insets_with_four_value_vector)

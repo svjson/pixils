@@ -702,9 +702,13 @@ namespace Pixils::Script
                       UI::InteractionState,
                       &HostType::INTERACTION_STATE,
                       (hovered),
+                      (focused),
+                      ("focus-within", focus_within),
                       (pressed));
 
   NOBJ_PROP_GET__FIELD(InteractionStateAdapter, hovered);
+  NOBJ_PROP_GET__FIELD(InteractionStateAdapter, focused);
+  NOBJ_PROP_GET__FIELD(InteractionStateAdapter, focus_within);
 
   NOBJ_PROP_GET(InteractionStateAdapter, pressed)
   {

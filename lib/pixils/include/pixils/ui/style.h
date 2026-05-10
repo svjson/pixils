@@ -239,8 +239,12 @@ namespace Pixils::UI
     /** When true, excluded from hit-testing and rendering. Layout space is preserved. */
     std::optional<bool> hidden;
 
-    /** Hover variant - merged on top of base style when :hovered is true in state. */
+    /** Hover variant - merged on top of base style when the cursor is within bounds. */
     std::unique_ptr<Style> hover = nullptr;
+    /** Focus-within variant - merged when this view or any descendant owns focus. */
+    std::unique_ptr<Style> focus_within = nullptr;
+    /** Focus variant - merged when this exact view owns focus. */
+    std::unique_ptr<Style> focus = nullptr;
   };
 
   /**
@@ -252,7 +256,7 @@ namespace Pixils::UI
   /**
    * Resolve the effective style from a component's declared style and current
    * state. Applies any inherited cascading properties first, then the base
-   * style, then overlays the hover variant if :hovered is truthy in state.
+   * style, then overlays hover/focus variants from broadest to narrowest.
    */
   Style resolve_style(const std::optional<Style>& style,
                       const Style* inherited_style,

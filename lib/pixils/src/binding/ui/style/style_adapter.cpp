@@ -25,7 +25,9 @@ namespace Pixils::Script
                       (rw, "left", left),
                       (layout),
                       (rw, "hidden", hidden),
-                      (hover))
+                      (hover),
+                      ("focus-within", focus_within),
+                      (focus))
 
   NOBJ_PROP_GET(StyleAdapter, background)
   {
@@ -138,6 +140,19 @@ namespace Pixils::Script
   NOBJ_PROP_GET(StyleAdapter, hover)
   {
     return get_self_object().hover ? StyleAdapter::make_ref(*get_self_object().hover)
+                                   : Lisple::Constant::NIL;
+  }
+
+  NOBJ_PROP_GET(StyleAdapter, focus_within)
+  {
+    return get_self_object().focus_within
+             ? StyleAdapter::make_ref(*get_self_object().focus_within)
+             : Lisple::Constant::NIL;
+  }
+
+  NOBJ_PROP_GET(StyleAdapter, focus)
+  {
+    return get_self_object().focus ? StyleAdapter::make_ref(*get_self_object().focus)
                                    : Lisple::Constant::NIL;
   }
 

@@ -17,6 +17,30 @@ namespace
     auto val = rt.eval("(get pixils/themes '" + name + ")");
     return Lisple::obj<Pixils::UI::Theme>(*val);
   }
+
+  Pixils::UI::ThemeSelector component_selector_with_pseudos(const std::string& value,
+                                                            bool hovered = false,
+                                                            bool focused = false,
+                                                            bool focus_within = false)
+  {
+    auto selector = Pixils::UI::ThemeSelector::component_type(value);
+    selector.hovered = hovered;
+    selector.focused = focused;
+    selector.focus_within = focus_within;
+    return selector;
+  }
+
+  Pixils::UI::ThemeSelector class_selector_with_pseudos(const std::string& value,
+                                                        bool hovered = false,
+                                                        bool focused = false,
+                                                        bool focus_within = false)
+  {
+    auto selector = Pixils::UI::ThemeSelector::class_name(value);
+    selector.hovered = hovered;
+    selector.focused = focused;
+    selector.focus_within = focus_within;
+    return selector;
+  }
 } // namespace
 
 TEST_F(DefThemeTest, deftheme_with_component_and_class_selectors_is_created)
@@ -90,7 +114,8 @@ TEST_F(DefThemeTest, deftheme_with_compound_state_selector_is_created)
   EXPECT_TRUE(theme.rules[0].selector.children[1].matches(
     Pixils::UI::ThemeMatchContext{.mode_names = {"button"},
                                   .class_names = {},
-                                  .state = pressed_state}));
+                                  .state = pressed_state,
+                                  .interaction = {}}));
   auto button_pressed = Pixils::UI::ThemeSelector::compound(
     {Pixils::UI::ThemeSelector::component_type("button"),
      Pixils::UI::ThemeSelector::state_match(pressed_state)});
@@ -114,7 +139,8 @@ TEST_F(DefThemeTest, component_selector_matches_modes_that_extend_the_component)
   auto matches = theme.get_matching_styles(
     Pixils::UI::ThemeMatchContext{.mode_names = {"board-button", "button"},
                                   .class_names = {},
-                                  .state = Lisple::Constant::NIL});
+                                  .state = Lisple::Constant::NIL,
+                                  .interaction = {}});
 
   ASSERT_EQ(matches.size(), 1u);
   ASSERT_TRUE(matches[0]->text.has_value());
@@ -133,12 +159,109 @@ TEST_F(DefThemeTest, class_selector_matches_runtime_view_classes)
   auto matches =
     theme.get_matching_styles(Pixils::UI::ThemeMatchContext{.mode_names = {"game-mode"},
                                                             .class_names = {"ui/panel"},
-                                                            .state = Lisple::Constant::NIL});
+                                                            .state = Lisple::Constant::NIL,
+                                                            .interaction = {}});
 
   ASSERT_EQ(matches.size(), 1u);
   ASSERT_TRUE(matches[0]->text.has_value());
   ASSERT_TRUE(matches[0]->text->scale.has_value());
   EXPECT_EQ(*matches[0]->text->scale, 4);
+}
+
+TEST_F(DefThemeTest, focus_pseudo_state_selectors_match_interaction_state)
+{
+  runtime.eval(R"(
+    (pixils/deftheme test-theme
+      {:styles {'window:focus-within {:text {:scale 4}}
+                'input:focus {:text {:scale 2}}
+                :ui/menu-item:focus {:text {:scale 6}}}})
+  )");
+
+  Pixils::UI::Theme& theme = get_theme(runtime, "test-theme");
+
+  EXPECT_NE(theme.get_style(component_selector_with_pseudos("window", false, false, true)),
+            nullptr);
+  EXPECT_NE(theme.get_style(component_selector_with_pseudos("input", false, true, false)),
+            nullptr);
+  EXPECT_NE(theme.get_style(class_selector_with_pseudos("ui/menu-item", false, true, false)),
+            nullptr);
+
+  Pixils::UI::InteractionState focus_within_interaction;
+  focus_within_interaction.focus_within = true;
+  auto window_matches = theme.get_matching_styles(
+    Pixils::UI::ThemeMatchContext{.mode_names = {"window"},
+                                  .class_names = {},
+                                  .state = Lisple::RTValue::map({}),
+                                  .interaction = focus_within_interaction});
+
+  ASSERT_EQ(window_matches.size(), 1u);
+  ASSERT_TRUE(window_matches[0]->text.has_value());
+  ASSERT_TRUE(window_matches[0]->text->scale.has_value());
+  EXPECT_EQ(*window_matches[0]->text->scale, 4);
+
+  Pixils::UI::InteractionState focused_interaction;
+  focused_interaction.focused = true;
+  focused_interaction.focus_within = true;
+  auto input_matches = theme.get_matching_styles(
+    Pixils::UI::ThemeMatchContext{.mode_names = {"input"},
+                                  .class_names = {},
+                                  .state = Lisple::RTValue::map({}),
+                                  .interaction = focused_interaction});
+
+  ASSERT_EQ(input_matches.size(), 1u);
+  ASSERT_TRUE(input_matches[0]->text.has_value());
+  ASSERT_TRUE(input_matches[0]->text->scale.has_value());
+  EXPECT_EQ(*input_matches[0]->text->scale, 2);
+
+  auto menu_item_matches = theme.get_matching_styles(
+    Pixils::UI::ThemeMatchContext{.mode_names = {"menu-item"},
+                                  .class_names = {"ui/menu-item"},
+                                  .state = Lisple::RTValue::map({}),
+                                  .interaction = focused_interaction});
+
+  ASSERT_EQ(menu_item_matches.size(), 1u);
+  ASSERT_TRUE(menu_item_matches[0]->text.has_value());
+  ASSERT_TRUE(menu_item_matches[0]->text->scale.has_value());
+  EXPECT_EQ(*menu_item_matches[0]->text->scale, 6);
+}
+
+TEST_F(DefThemeTest, descendant_selectors_match_ancestor_focus_chain)
+{
+  runtime.eval(R"(
+    (pixils/deftheme test-theme
+      {:styles {['window:focus-within 'window-title-bar] {:text {:scale 5}}}})
+  )");
+
+  Pixils::UI::Theme& theme = get_theme(runtime, "test-theme");
+
+  Pixils::UI::InteractionState focus_within_interaction;
+  focus_within_interaction.focus_within = true;
+  auto matches = theme.get_matching_styles(std::vector<Pixils::UI::ThemeMatchContext>{
+    Pixils::UI::ThemeMatchContext{.mode_names = {"window"},
+                                  .class_names = {},
+                                  .state = Lisple::RTValue::map({}),
+                                  .interaction = focus_within_interaction},
+    Pixils::UI::ThemeMatchContext{.mode_names = {"window-title-bar"},
+                                  .class_names = {},
+                                  .state = Lisple::RTValue::map({}),
+                                  .interaction = {}}});
+
+  ASSERT_EQ(matches.size(), 1u);
+  ASSERT_TRUE(matches[0]->text.has_value());
+  ASSERT_TRUE(matches[0]->text->scale.has_value());
+  EXPECT_EQ(*matches[0]->text->scale, 5);
+
+  auto non_matching = theme.get_matching_styles(std::vector<Pixils::UI::ThemeMatchContext>{
+    Pixils::UI::ThemeMatchContext{.mode_names = {"window"},
+                                  .class_names = {},
+                                  .state = Lisple::RTValue::map({}),
+                                  .interaction = {}},
+    Pixils::UI::ThemeMatchContext{.mode_names = {"window-title-bar"},
+                                  .class_names = {},
+                                  .state = Lisple::RTValue::map({}),
+                                  .interaction = {}}});
+
+  EXPECT_TRUE(non_matching.empty());
 }
 
 TEST_F(DefThemeTest, deftheme_extend_merges_parent_styles_and_overrides_them)

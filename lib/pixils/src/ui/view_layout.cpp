@@ -114,18 +114,45 @@ namespace Pixils::UI
       return 0;
     }
 
+    ThemeMatchContext make_theme_match_context(
+      const std::shared_ptr<Pixils::Runtime::View>& view)
+    {
+      if (!view)
+      {
+        return {};
+      }
+
+      ThemeMatchContext ctx;
+      ctx.state = view->state;
+      ctx.interaction = view->interaction;
+      if (view->mode)
+      {
+        ctx.mode_names = view->mode->selector_modes;
+        ctx.class_names = view->mode->class_names;
+      }
+
+      return ctx;
+    }
+
+    std::vector<ThemeMatchContext> append_theme_match_context(
+      const std::vector<ThemeMatchContext>& path,
+      const std::shared_ptr<Pixils::Runtime::View>& view)
+    {
+      auto child_path = path;
+      child_path.push_back(make_theme_match_context(view));
+      return child_path;
+    }
+
     Style resolve_effective_style(const std::shared_ptr<Pixils::Runtime::View>& view,
-                                  const Style* inherited_style)
+                                  const Style* inherited_style,
+                                  const std::vector<ThemeMatchContext>& selector_path)
     {
       std::optional<Style> resolved_style = std::nullopt;
 
       if (view->mode)
       {
-        ThemeMatchContext match_ctx{.mode_names = view->mode->selector_modes,
-                                    .class_names = view->mode->class_names,
-                                    .state = view->state};
-
-        for (const Style* theme_style : view->effective_theme.get_matching_styles(match_ctx))
+        for (const Style* theme_style :
+             view->effective_theme.get_matching_styles(selector_path))
         {
           if (!resolved_style) resolved_style = Style{};
           apply_style_variant(*resolved_style, *theme_style);
@@ -169,19 +196,31 @@ namespace Pixils::UI
       Lisple::Runtime& runtime,
       const Lisple::sptr_rtval& hook_ctx,
       const Style* inherited_style,
-      const Theme* inherited_theme);
+      const Theme* inherited_theme,
+      const std::vector<ThemeMatchContext>& selector_path);
+
+    std::vector<Rect> layout_children_with_selector_path(
+      const std::vector<std::shared_ptr<Pixils::Runtime::View>>& children,
+      const Rect& parent,
+      Lisple::Runtime& runtime,
+      const Lisple::sptr_rtval& hook_ctx,
+      const Style::Layout& layout,
+      const Style* inherited_style,
+      const Theme* inherited_theme,
+      const std::vector<ThemeMatchContext>& parent_selector_path);
 
     std::optional<Dimension> calculate_natural_content_size(
       const std::shared_ptr<Pixils::Runtime::View>& view,
       Lisple::Runtime& runtime,
       const Lisple::sptr_rtval& hook_ctx,
       const Style* inherited_style,
-      const Theme* inherited_theme)
+      const Theme* inherited_theme,
+      const std::vector<ThemeMatchContext>& selector_path)
     {
       if (!view || !view->mode) return std::nullopt;
 
       view->effective_theme = resolve_effective_theme(view, runtime, inherited_theme);
-      view->effective_style = resolve_effective_style(view, inherited_style);
+      view->effective_style = resolve_effective_style(view, inherited_style, selector_path);
 
       if (auto natural = invoke_content_size_hook(view, runtime, hook_ctx)) return natural;
       if (view->children.empty()) return std::nullopt;
@@ -190,7 +229,8 @@ namespace Pixils::UI
                                                runtime,
                                                hook_ctx,
                                                &view->effective_style,
-                                               &view->effective_theme);
+                                               &view->effective_theme,
+                                               selector_path);
     }
 
     std::optional<Dimension> calculate_child_tree_content_size(
@@ -198,10 +238,11 @@ namespace Pixils::UI
       Lisple::Runtime& runtime,
       const Lisple::sptr_rtval& hook_ctx,
       const Style* inherited_style,
-      const Theme* inherited_theme)
+      const Theme* inherited_theme,
+      const std::vector<ThemeMatchContext>& selector_path)
     {
       view->effective_theme = resolve_effective_theme(view, runtime, inherited_theme);
-      view->effective_style = resolve_effective_style(view, inherited_style);
+      view->effective_style = resolve_effective_style(view, inherited_style, selector_path);
       const Style& style = view->effective_style;
       LayoutDirection direction = style.layout && style.layout->direction
                                     ? *style.layout->direction
@@ -213,9 +254,10 @@ namespace Pixils::UI
 
       for (const auto& child : view->children)
       {
+        auto child_selector_path = append_theme_match_context(selector_path, child);
         child->effective_theme =
           resolve_effective_theme(child, runtime, &view->effective_theme);
-        child->effective_style = resolve_effective_style(child, &style);
+        child->effective_style = resolve_effective_style(child, &style, child_selector_path);
         const Style& child_style = child->effective_style;
         if (child_style.position && *child_style.position == PositionMode::ABSOLUTE)
           continue;
@@ -225,7 +267,8 @@ namespace Pixils::UI
                                          runtime,
                                          hook_ctx,
                                          &style,
-                                         &view->effective_theme);
+                                         &view->effective_theme,
+                                         child_selector_path);
         Dimension child_outer_size{0, 0};
 
         if (child_natural_content_size)
@@ -258,18 +301,20 @@ namespace Pixils::UI
                                Lisple::Runtime& runtime,
                                const Lisple::sptr_rtval& hook_ctx,
                                const Style* inherited_style,
-                               const Theme* inherited_theme)
+                               const Theme* inherited_theme,
+                               const std::vector<ThemeMatchContext>& selector_path)
     {
       if (!view) return;
 
       view->effective_theme = resolve_effective_theme(view, runtime, inherited_theme);
-      view->effective_style = resolve_effective_style(view, inherited_style);
+      view->effective_style = resolve_effective_style(view, inherited_style, selector_path);
 
       auto natural_content_size = calculate_natural_content_size(view,
                                                                  runtime,
                                                                  hook_ctx,
                                                                  inherited_style,
-                                                                 inherited_theme);
+                                                                 inherited_theme,
+                                                                 selector_path);
       int resolved_w = inherited_style ? bounds.w
                                        : resolve_outer_size(view->effective_style,
                                                             natural_content_size,
@@ -297,18 +342,21 @@ namespace Pixils::UI
       if (view->children.empty()) return;
 
       Rect content = style.content_rect(view->bounds);
-      auto child_rects = layout_children(view->children,
-                                         content,
-                                         runtime,
-                                         hook_ctx,
-                                         style.layout.value_or(Style::Layout{}),
-                                         &style,
-                                         &view->effective_theme);
+      auto child_rects =
+        layout_children_with_selector_path(view->children,
+                                           content,
+                                           runtime,
+                                           hook_ctx,
+                                           style.layout.value_or(Style::Layout{}),
+                                           &style,
+                                           &view->effective_theme,
+                                           selector_path);
 
       for (size_t i = 0; i < view->children.size(); i++)
       {
         auto& child_ptr = view->children[i];
         const Style& child_style = child_ptr->effective_style;
+        auto child_selector_path = append_theme_match_context(selector_path, child_ptr);
 
         Rect child_bounds;
         if (child_style.position && *child_style.position == PositionMode::ABSOLUTE)
@@ -320,7 +368,8 @@ namespace Pixils::UI
                                            runtime,
                                            hook_ctx,
                                            &style,
-                                           &view->effective_theme);
+                                           &view->effective_theme,
+                                           child_selector_path);
           int w = resolve_outer_size(child_style,
                                      child_natural_content_size,
                                      Axis::HORIZONTAL,
@@ -343,8 +392,173 @@ namespace Pixils::UI
                               runtime,
                               hook_ctx,
                               &style,
-                              &view->effective_theme);
+                              &view->effective_theme,
+                              child_selector_path);
       }
+    }
+
+    std::vector<Rect> layout_children_with_selector_path(
+      const std::vector<std::shared_ptr<Pixils::Runtime::View>>& children,
+      const Rect& parent,
+      Lisple::Runtime& runtime,
+      const Lisple::sptr_rtval& hook_ctx,
+      const Style::Layout& layout,
+      const Style* inherited_style,
+      const Theme* inherited_theme,
+      const std::vector<ThemeMatchContext>& parent_selector_path)
+    {
+      LayoutDirection direction = layout.direction.value_or(LayoutDirection::COLUMN);
+      bool row = direction == LayoutDirection::ROW;
+      std::vector<Style> styles;
+      std::vector<std::optional<Dimension>> natural_content_sizes;
+      std::vector<int> outer_sizes(children.size(), 0);
+      styles.reserve(children.size());
+      natural_content_sizes.reserve(children.size());
+
+      for (const auto& child : children)
+      {
+        auto child_selector_path = append_theme_match_context(parent_selector_path, child);
+        child->effective_theme = resolve_effective_theme(child, runtime, inherited_theme);
+        child->effective_style =
+          resolve_effective_style(child, inherited_style, child_selector_path);
+        styles.push_back(child->effective_style);
+        natural_content_sizes.push_back(calculate_natural_content_size(child,
+                                                                       runtime,
+                                                                       hook_ctx,
+                                                                       inherited_style,
+                                                                       inherited_theme,
+                                                                       child_selector_path));
+      }
+
+      int total_fixed = 0;
+      int fill_count = 0;
+      int flow_count = 0;
+      for (size_t i = 0; i < children.size(); i++)
+      {
+        const Style& cs = styles[i];
+        const auto& natural = natural_content_sizes[i];
+        if (cs.position && *cs.position == PositionMode::ABSOLUTE) continue;
+        flow_count++;
+
+        Axis main_axis = row ? Axis::HORIZONTAL : Axis::VERTICAL;
+        if (fills_axis(cs, main_axis, false))
+        {
+          fill_count++;
+        }
+        else if (axis_size(cs, main_axis) && axis_size(cs, main_axis)->is_fixed())
+        {
+          outer_sizes[i] = row ? cs.total_width() : cs.total_height();
+          total_fixed += outer_sizes[i];
+        }
+        else if (natural)
+        {
+          Dimension outer_size = calculate_outer_size(cs, *natural);
+          outer_sizes[i] = row ? outer_size.w : outer_size.h;
+          total_fixed += outer_sizes[i];
+        }
+      }
+
+      int available = row ? parent.w : parent.h;
+      int fixed_gap_size = 0;
+      if (layout.gap && layout.gap->mode && flow_count > 1)
+      {
+        switch (*layout.gap->mode)
+        {
+        case Style::Layout::GapMode::NONE:
+          fixed_gap_size = 0;
+          break;
+        case Style::Layout::GapMode::FIXED:
+          fixed_gap_size = layout.gap->size.value_or(0);
+          break;
+        case Style::Layout::GapMode::SPACE_BETWEEN:
+          fixed_gap_size = 0;
+          break;
+        }
+      }
+
+      int total_fixed_gap = flow_count > 1 ? fixed_gap_size * (flow_count - 1) : 0;
+      int fill_size =
+        fill_count > 0 ? (available - total_fixed - total_fixed_gap) / fill_count : 0;
+      for (size_t i = 0; i < children.size(); i++)
+      {
+        const Style& cs = styles[i];
+        if (cs.position && *cs.position == PositionMode::ABSOLUTE) continue;
+        if (outer_sizes[i] == 0 &&
+            fills_axis(cs, row ? Axis::HORIZONTAL : Axis::VERTICAL, false))
+        {
+          outer_sizes[i] = fill_size;
+        }
+      }
+
+      int total_flow_size = 0;
+      for (size_t i = 0; i < children.size(); i++)
+      {
+        const Style& cs = styles[i];
+        if (cs.position && *cs.position == PositionMode::ABSOLUTE) continue;
+        total_flow_size += outer_sizes[i];
+      }
+
+      int gap_size = 0;
+      if (layout.gap && layout.gap->mode && flow_count > 1)
+      {
+        switch (*layout.gap->mode)
+        {
+        case Style::Layout::GapMode::NONE:
+          gap_size = 0;
+          break;
+        case Style::Layout::GapMode::FIXED:
+          gap_size = layout.gap->size.value_or(0);
+          break;
+        case Style::Layout::GapMode::SPACE_BETWEEN:
+          gap_size = std::max(0, available - total_flow_size) / (flow_count - 1);
+          break;
+        }
+      }
+
+      std::vector<Rect> rects;
+      rects.reserve(children.size());
+
+      int pos = row ? parent.x : parent.y;
+      int flow_index = 0;
+      for (size_t i = 0; i < children.size(); i++)
+      {
+        const Style& cs = styles[i];
+        const Style::Insets margin = cs.margin.value_or(Style::Insets{});
+
+        if (cs.position && *cs.position == PositionMode::ABSOLUTE)
+        {
+          rects.push_back({0, 0, 0, 0});
+          continue;
+        }
+
+        int outer_size = outer_sizes[i];
+        int cross_outer_size = resolve_outer_size(cs,
+                                                  natural_content_sizes[i],
+                                                  row ? Axis::VERTICAL : Axis::HORIZONTAL,
+                                                  false,
+                                                  row ? parent.h : parent.w);
+
+        if (row)
+        {
+          rects.push_back({pos + margin.l,
+                           parent.y + margin.t,
+                           std::max(0, outer_size - margin.l - margin.r),
+                           std::max(0, cross_outer_size - margin.t - margin.b)});
+        }
+        else
+        {
+          rects.push_back({parent.x + margin.l,
+                           pos + margin.t,
+                           std::max(0, cross_outer_size - margin.l - margin.r),
+                           std::max(0, outer_size - margin.t - margin.b)});
+        }
+
+        pos += outer_size;
+        flow_index++;
+        if (flow_index < flow_count) pos += gap_size;
+      }
+
+      return rects;
     }
   } // namespace
 
@@ -357,153 +571,14 @@ namespace Pixils::UI
     const Style* inherited_style,
     const Theme* inherited_theme)
   {
-    LayoutDirection direction = layout.direction.value_or(LayoutDirection::COLUMN);
-    bool row = direction == LayoutDirection::ROW;
-    std::vector<Style> styles;
-    std::vector<std::optional<Dimension>> natural_content_sizes;
-    std::vector<int> outer_sizes(children.size(), 0);
-    styles.reserve(children.size());
-    natural_content_sizes.reserve(children.size());
-
-    for (const auto& child : children)
-    {
-      child->effective_theme = resolve_effective_theme(child, runtime, inherited_theme);
-      child->effective_style = resolve_effective_style(child, inherited_style);
-      styles.push_back(child->effective_style);
-      natural_content_sizes.push_back(calculate_natural_content_size(child,
-                                                                     runtime,
-                                                                     hook_ctx,
-                                                                     inherited_style,
-                                                                     inherited_theme));
-    }
-
-    int total_fixed = 0;
-    int fill_count = 0;
-    int flow_count = 0;
-    for (size_t i = 0; i < children.size(); i++)
-    {
-      const Style& cs = styles[i];
-      const auto& natural = natural_content_sizes[i];
-      if (cs.position && *cs.position == PositionMode::ABSOLUTE) continue;
-      flow_count++;
-
-      Axis main_axis = row ? Axis::HORIZONTAL : Axis::VERTICAL;
-      if (fills_axis(cs, main_axis, false))
-      {
-        fill_count++;
-      }
-      else if (axis_size(cs, main_axis) && axis_size(cs, main_axis)->is_fixed())
-      {
-        outer_sizes[i] = row ? cs.total_width() : cs.total_height();
-        total_fixed += outer_sizes[i];
-      }
-      else if (natural)
-      {
-        Dimension outer_size = calculate_outer_size(cs, *natural);
-        outer_sizes[i] = row ? outer_size.w : outer_size.h;
-        total_fixed += outer_sizes[i];
-      }
-    }
-
-    int available = row ? parent.w : parent.h;
-    int fixed_gap_size = 0;
-    if (layout.gap && layout.gap->mode && flow_count > 1)
-    {
-      switch (*layout.gap->mode)
-      {
-      case Style::Layout::GapMode::NONE:
-        fixed_gap_size = 0;
-        break;
-      case Style::Layout::GapMode::FIXED:
-        fixed_gap_size = layout.gap->size.value_or(0);
-        break;
-      case Style::Layout::GapMode::SPACE_BETWEEN:
-        fixed_gap_size = 0;
-        break;
-      }
-    }
-
-    int total_fixed_gap = flow_count > 1 ? fixed_gap_size * (flow_count - 1) : 0;
-    int fill_size =
-      fill_count > 0 ? (available - total_fixed - total_fixed_gap) / fill_count : 0;
-    for (size_t i = 0; i < children.size(); i++)
-    {
-      const Style& cs = styles[i];
-      if (cs.position && *cs.position == PositionMode::ABSOLUTE) continue;
-      if (outer_sizes[i] == 0 &&
-          fills_axis(cs, row ? Axis::HORIZONTAL : Axis::VERTICAL, false))
-        outer_sizes[i] = fill_size;
-    }
-
-    int total_flow_size = 0;
-    for (size_t i = 0; i < children.size(); i++)
-    {
-      const Style& cs = styles[i];
-      if (cs.position && *cs.position == PositionMode::ABSOLUTE) continue;
-      total_flow_size += outer_sizes[i];
-    }
-
-    int gap_size = 0;
-    if (layout.gap && layout.gap->mode && flow_count > 1)
-    {
-      switch (*layout.gap->mode)
-      {
-      case Style::Layout::GapMode::NONE:
-        gap_size = 0;
-        break;
-      case Style::Layout::GapMode::FIXED:
-        gap_size = layout.gap->size.value_or(0);
-        break;
-      case Style::Layout::GapMode::SPACE_BETWEEN:
-        gap_size = std::max(0, available - total_flow_size) / (flow_count - 1);
-        break;
-      }
-    }
-
-    std::vector<Rect> rects;
-    rects.reserve(children.size());
-
-    int pos = row ? parent.x : parent.y;
-    int flow_index = 0;
-    for (size_t i = 0; i < children.size(); i++)
-    {
-      const Style& cs = styles[i];
-      const Style::Insets margin = cs.margin.value_or(Style::Insets{});
-
-      if (cs.position && *cs.position == PositionMode::ABSOLUTE)
-      {
-        rects.push_back({0, 0, 0, 0});
-        continue;
-      }
-
-      int outer_size = outer_sizes[i];
-      int cross_outer_size = resolve_outer_size(cs,
-                                                natural_content_sizes[i],
-                                                row ? Axis::VERTICAL : Axis::HORIZONTAL,
-                                                false,
-                                                row ? parent.h : parent.w);
-
-      if (row)
-      {
-        rects.push_back({pos + margin.l,
-                         parent.y + margin.t,
-                         std::max(0, outer_size - margin.l - margin.r),
-                         std::max(0, cross_outer_size - margin.t - margin.b)});
-      }
-      else
-      {
-        rects.push_back({parent.x + margin.l,
-                         pos + margin.t,
-                         std::max(0, cross_outer_size - margin.l - margin.r),
-                         std::max(0, outer_size - margin.t - margin.b)});
-      }
-
-      pos += outer_size;
-      flow_index++;
-      if (flow_index < flow_count) pos += gap_size;
-    }
-
-    return rects;
+    return layout_children_with_selector_path(children,
+                                              parent,
+                                              runtime,
+                                              hook_ctx,
+                                              layout,
+                                              inherited_style,
+                                              inherited_theme,
+                                              {});
   }
 
   void layout_view_tree(const std::shared_ptr<Pixils::Runtime::View>& view,
@@ -511,7 +586,13 @@ namespace Pixils::UI
                         Lisple::Runtime& runtime,
                         const Lisple::sptr_rtval& hook_ctx)
   {
-    layout_view_tree_impl(view, bounds, runtime, hook_ctx, nullptr, nullptr);
+    layout_view_tree_impl(view,
+                          bounds,
+                          runtime,
+                          hook_ctx,
+                          nullptr,
+                          nullptr,
+                          append_theme_match_context({}, view));
   }
 
 } // namespace Pixils::UI

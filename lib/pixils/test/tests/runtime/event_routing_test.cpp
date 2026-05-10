@@ -617,6 +617,43 @@ TEST_F(EventRoutingTest, focused_view_replacement_clears_focus_state)
   EXPECT_FALSE(session.active_mode->children[0]->interaction.focus_within);
 }
 
+TEST_F(EventRoutingTest, focus_style_variants_apply_to_focused_leaf_and_ancestor_chain)
+{
+  runtime.eval(R"(
+    (pixils/defmode child-mode
+      {:style (pixils.ui.style/make-style
+                {:width 40
+                 :focus {:width 90}})})
+    (pixils/defmode root-mode
+      {:style (pixils.ui.style/make-style
+                {:height 10
+                 :focus-within {:height 30}})
+       :children [{:mode 'child-mode :id "child"}]})
+  )");
+  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.active_mode->bounds = {0, 0, 200, 200};
+  session.active_mode->children[0]->bounds = {20, 20, 100, 100};
+
+  input().mouse_down({50, 50});
+  update_cycle();
+  session.render_mode();
+
+  auto root_style = Pixils::UI::resolve_style(session.active_mode->mode->style,
+                                              session.active_mode->state,
+                                              session.active_mode->interaction);
+  auto child_style = Pixils::UI::resolve_style(session.active_mode->children[0]->mode->style,
+                                               session.active_mode->children[0]->state,
+                                               session.active_mode->children[0]->interaction);
+
+  ASSERT_NE(root_style.height, std::nullopt);
+  EXPECT_TRUE(root_style.height->is_fixed());
+  EXPECT_EQ(root_style.height->fixed_value_or(0), 30);
+
+  ASSERT_NE(child_style.width, std::nullopt);
+  EXPECT_TRUE(child_style.width->is_fixed());
+  EXPECT_EQ(child_style.width->fixed_value_or(0), 90);
+}
+
 TEST_F(EventRoutingTest, hover_style_variant_applied_when_cursor_is_inside)
 {
   // Given - a mode with a hover style that changes width

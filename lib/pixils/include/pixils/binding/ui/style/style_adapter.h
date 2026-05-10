@@ -24,7 +24,9 @@ namespace Pixils::Script
                   left,
                   layout,
                   hidden,
-                  hover),
+                  hover,
+                  focus_within,
+                  focus),
                  (height, hidden, left, position, top, width));
   NATIVE_ADAPTER(LayoutAdapter, UI::Style::Layout, (direction, gap));
   NATIVE_ADAPTER(LayoutGapAdapter, UI::Style::Layout::Gap, (mode, size));

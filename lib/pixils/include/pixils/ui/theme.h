@@ -15,6 +15,7 @@ namespace Pixils::UI
     std::vector<std::string> mode_names;
     std::vector<std::string> class_names;
     Lisple::sptr_rtval state = Lisple::Constant::NIL;
+    InteractionState interaction;
   };
 
   struct ThemeSelector
@@ -32,6 +33,9 @@ namespace Pixils::UI
     std::string value;
     Lisple::sptr_rtval state = Lisple::Constant::NIL;
     std::vector<ThemeSelector> children;
+    bool hovered = false;
+    bool focused = false;
+    bool focus_within = false;
 
     static ThemeSelector component_type(const std::string& value);
     static ThemeSelector class_name(const std::string& value);
@@ -41,6 +45,7 @@ namespace Pixils::UI
 
     bool operator==(const ThemeSelector& other) const;
     bool matches(const ThemeMatchContext& ctx) const;
+    bool matches_path(const std::vector<ThemeMatchContext>& path) const;
     int specificity() const;
   };
 
@@ -59,6 +64,7 @@ namespace Pixils::UI
     void set_style(const ThemeSelector& selector, const Style& style);
     const Style* get_style(const ThemeSelector& selector) const;
     std::vector<const Style*> get_matching_styles(const ThemeMatchContext& ctx) const;
+    std::vector<const Style*> get_matching_styles(const std::vector<ThemeMatchContext>& path) const;
   };
 
   void overlay_theme(Theme& out, const Theme& overlay);

@@ -123,7 +123,7 @@ The `:view` key gives access to the current component's live view instance.
 |----------------|--------------------------------------------------------------------------------|
 | `:id`          | The view's unique identifier string                                            |
 | `:bounds`      | The view's bounding rect in the buffer: `{:x N :y N :w N :h N}`               |
-| `:interaction` | Interaction state: map with `:hovered` and `:pressed` booleans                |
+| `:interaction` | Interaction state: map with `:hovered`, `:focused`, `:focus-within`, and `:pressed` |
 | `:style`       | The view's current style object. The `:hidden` property is mutable.           |
 
 The bounds reflect the viewport assigned by the layout engine in buffer coordinates, not
@@ -370,9 +370,13 @@ hook fires.
 | `:left`       | Number                                                               | Left offset when `:position :absolute`. |
 | `:hidden`     | Boolean                                                              | When true, excluded from hit-testing and rendering. Layout space is preserved. |
 | `:hover`      | Nested style map                                                     | Applied instead of the base style when the cursor is within bounds. |
+| `:focus-within` | Nested style map                                                   | Applied when this view or any descendant owns focus. |
+| `:focus`      | Nested style map                                                     | Applied when this exact view owns focus. |
 
-The hover variant is injected automatically by the framework. No manual hit-testing is
-needed in the component.
+These interaction variants are injected automatically by the framework. No manual
+hit-testing or focus bookkeeping is needed in the component. When a focused leaf exists,
+it receives both `:focus` and `:focus-within`; its ancestors receive `:focus-within`
+only.
 
 With the default `:box-sizing :border-box`, a fixed size includes padding and border but
 not margin. Use `:box-sizing :content-box` to opt into the previous behavior where padding
@@ -402,12 +406,16 @@ Theme selectors are map keys under `:styles`:
 |---------------|---------|
 | `'button` | Matches modes/components named `button`, including modes that `:extend 'button`. |
 | `:menu/item` | Matches views whose `:class` contains `:menu/item`. |
+| `'window:focus-within` | Matches a `window` view when it or any descendant contains focus. |
+| `:menu/item:focus` | Matches a `:menu/item` classed view when it is the focused leaf. |
 | `{:pressed true}` | Matches when the view state contains at least `{:pressed true}`. |
 | `'(button {:pressed true})` | Compound selector: all parts must match the same view. |
-| `['window 'button]` | Descendant selector syntax reserved for future runtime matching. |
+| `['window:focus-within 'button]` | Descendant selector: the left selector must match an ancestor of the right selector. |
 
 State selector maps use subset matching, so a selector such as `{:pressed true}` matches
-any view state map that contains `:pressed true` alongside any other keys.
+any view state map that contains `:pressed true` alongside any other keys. Interaction
+pseudo-state is expressed by suffixing component or class selectors with `:hover`,
+`:focus`, or `:focus-within`.
 
 Modes and child entries may declare `:class` as either a single keyword or a vector of
 keywords:
@@ -530,8 +538,9 @@ Root modes can respond directly to keyboard transitions with explicit key hooks.
    :update      (fn [state ctx] ...)})
 ```
 
-These hooks currently fire on the root mode only. Pixils does not yet have focused
-components, so child views do not receive keyboard hooks directly.
+These hooks currently fire on the root mode only. Pixils now tracks focused views for
+interaction and styling, but keyboard routing has not yet been redirected through the
+focus chain, so child views still do not receive keyboard hooks directly.
 
 `:on-key-held` accepts either:
 
