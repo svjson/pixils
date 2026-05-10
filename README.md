@@ -551,6 +551,18 @@ receives keyboard hooks directly.
 Call `(pixils.ui/stop-propagation! event)` from a key hook to prevent the event
 from reaching further ancestors.
 
+For text-entry style behavior, `pixils.keyboard/event->text` converts a keyboard
+event into the printable text it represents, or returns `nil` for non-text keys:
+
+```clojure
+(pixils/defmode text-input
+  {:init (fn [state ctx] {:value ""})
+   :on-key-down (fn [state event ctx]
+                  (if-let [text (pixils.keyboard/event->text event)]
+                    (assoc state :value (str (:value state) text))
+                    state))})
+```
+
 `:on-key-held` accepts either:
 
 - A function, which is called once per frame with the full held-key set in `(:held-keys event)`.

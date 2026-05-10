@@ -7,6 +7,7 @@
 #include <lisple/type.h>
 #include <map>
 #include <memory>
+#include <optional>
 #include <string>
 
 typedef int32_t SDL_Keycode;
@@ -166,6 +167,9 @@ namespace Pixils
     std::unique_ptr<char> key_to_char(SDL_KeyboardEvent& key_event);
 
     Lisple::sptr_rtval key_event_to_lisple_key(const SDL_KeyboardEvent& event);
+
+    std::optional<std::string> key_to_text(const Lisple::sptr_rtval& key,
+                                           const Lisple::sptr_rtval& held_keys);
   } // namespace Keyboard
 
 } // namespace Pixils

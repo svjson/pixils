@@ -5,6 +5,7 @@
 #include <SDL2/SDL_keycode.h>
 #include <ctype.h>
 #include <lisple/form.h>
+#include <lisple/runtime/seq.h>
 #include <lisple/runtime/value.h>
 #include <lisple/type.h>
 #include <utility>
@@ -13,6 +14,35 @@ namespace Pixils
 {
   namespace Keyboard
   {
+    namespace
+    {
+      bool held_keys_contains(const Lisple::sptr_rtval& held_keys,
+                              const std::string& key_name)
+      {
+        if (!held_keys || held_keys->type == Lisple::RTValue::Type::NIL)
+        {
+          return false;
+        }
+
+        size_t held_count = Lisple::count(*held_keys);
+        for (size_t i = 0; i < held_count; i++)
+        {
+          auto held_key = Lisple::get_child(*held_keys, i);
+          if (!held_key || held_key->type != Lisple::RTValue::Type::KEYWORD)
+          {
+            continue;
+          }
+
+          if (held_key->str() == key_name)
+          {
+            return true;
+          }
+        }
+
+        return false;
+      }
+    } // namespace
+
     /*
      * KeyCode
      */
@@ -135,9 +165,16 @@ namespace Pixils
       {"right-alt", SDLK_RALT},
       {"left-super", SDLK_LGUI},
       {"right-super", SDLK_RGUI},
+      {"backspace", SDLK_BACKSPACE},
       {"space", SDLK_SPACE},
       {"enter", SDLK_RETURN},
       {"escape", SDLK_ESCAPE},
+      {"plus", SDLK_PLUS},
+      {"minus", SDLK_MINUS},
+      {"quote", SDLK_QUOTE},
+      {"comma", SDLK_COMMA},
+      {"period", SDLK_PERIOD},
+      {"less", SDLK_LESS},
       {"left", SDLK_LEFT},
       {"right", SDLK_RIGHT},
       {"down", SDLK_DOWN},
@@ -370,6 +407,84 @@ namespace Pixils
       }
 
       return Lisple::Constant::NIL;
+    }
+
+    std::optional<std::string> key_to_text(const Lisple::sptr_rtval& key,
+                                           const Lisple::sptr_rtval& held_keys)
+    {
+      if (!key || key->type != Lisple::RTValue::Type::KEYWORD)
+      {
+        return std::nullopt;
+      }
+
+      auto [qualifier, key_name] = key->qual();
+      if (qualifier != "key")
+      {
+        return std::nullopt;
+      }
+
+      bool shift = held_keys_contains(held_keys, "key/left-shift") ||
+                   held_keys_contains(held_keys, "key/right-shift");
+      bool alt = held_keys_contains(held_keys, "key/left-alt") ||
+                 held_keys_contains(held_keys, "key/right-alt");
+
+      if (shift)
+      {
+        if (key_name == "0") return std::string("=");
+        if (key_name == "1") return std::string("!");
+        if (key_name == "2") return std::string("\"");
+        if (key_name == "3") return std::string("#");
+        if (key_name == "5") return std::string("%");
+        if (key_name == "6") return std::string("&");
+        if (key_name == "7") return std::string("/");
+        if (key_name == "8") return std::string("(");
+        if (key_name == "9") return std::string(")");
+        if (key_name == "period") return std::string(":");
+        if (key_name == "comma") return std::string(";");
+        if (key_name == "minus") return std::string("_");
+        if (key_name == "plus") return std::string("?");
+        if (key_name == "quote") return std::string("*");
+        if (key_name == "less") return std::string(">");
+      }
+
+      if (alt)
+      {
+        if (key_name == "4") return std::string("$");
+        if (key_name == "8") return std::string("[");
+        if (key_name == "9") return std::string("]");
+        if (key_name == "0") return std::string("}");
+        if (key_name == "7") return std::string("{");
+        if (key_name == "plus") return std::string("\\");
+      }
+
+      if (key_name == "space") return std::string(" ");
+      if (key_name == "plus") return std::string("+");
+      if (key_name == "minus") return std::string("-");
+      if (key_name == "quote") return std::string("'");
+      if (key_name == "comma") return std::string(",");
+      if (key_name == "period") return std::string(".");
+      if (key_name == "less") return std::string("<");
+
+      if (key_name.size() == 1)
+      {
+        char c = key_name[0];
+        if (std::isalnum(static_cast<unsigned char>(c)))
+        {
+          if (std::isalpha(static_cast<unsigned char>(c)))
+          {
+            c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+          }
+
+          if (shift)
+          {
+            c = static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
+          }
+
+          return std::string(1, c);
+        }
+      }
+
+      return std::nullopt;
     }
 
   } // namespace Keyboard

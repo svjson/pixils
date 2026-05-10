@@ -1,0 +1,26 @@
+(ns pixils.examples.minesweeper.text-input
+  (:require pixils
+            [pixils.keyboard :as kbd]
+            [pixils.ui :as ui]))
+
+
+(defcomponent text-input-inner
+  {:init (fn [state ctx]
+           (update state :value (fn [v] (or v ""))))
+   :children [{:mode 'text-node
+               :state {:value (ui/bind-state :value)}}]
+   :on-key-down (fn [state event ctx]
+                  (cond
+                    (= :key/backspace (:key event))
+                    (update state :value (fn [val]
+                                           (if (> (count val) 0)
+                                             (substr val 0 (dec (count val)))
+                                             val)))
+
+                    :default
+                    (if-let [text (kbd/event->text event)]
+                      (assoc state :value (str (:value state) text))
+                      state)))})
+
+(defcomponent text-input
+  {:children [{:mode 'text-input-inner}]})

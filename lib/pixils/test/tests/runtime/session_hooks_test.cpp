@@ -201,6 +201,54 @@ TEST_F(SessionHooksTest, root_mode_on_key_held_map_prefers_more_specific_combo_m
   EXPECT_EQ(session.active_mode->state->to_string(), "{:tag :combo}");
 }
 
+TEST_F(SessionHooksTest, keyboard_event_to_text_appends_printable_text_in_key_down_hook)
+{
+  runtime.eval(R"(
+    (pixils/defmode key-mode
+      {:init (fn [state ctx] {:value ""})
+       :on-key-down (fn [state event ctx]
+                      (if-let [text (pixils.keyboard/event->text event)]
+                        (assoc state :value (str (:value state) text))
+                        state))})
+  )");
+  session.push_mode("key-mode", Lisple::Constant::NIL);
+
+  input().key_down(SDLK_a);
+  session.update_mode();
+
+  EXPECT_EQ(session.active_mode->state->to_string(), "{:value \"a\"}");
+}
+
+TEST_F(SessionHooksTest, keyboard_event_to_text_handles_shifted_and_punctuation_keys)
+{
+  runtime.eval(R"(
+    (pixils/defmode key-mode
+      {:init (fn [state ctx] {:value ""})
+       :on-key-down (fn [state event ctx]
+                      (if-let [text (pixils.keyboard/event->text event)]
+                        (assoc state :value (str (:value state) text))
+                        state))})
+  )");
+  session.push_mode("key-mode", Lisple::Constant::NIL);
+
+  input().key_down(SDLK_LSHIFT);
+  input().clear_transients();
+  input().key_down(SDLK_1);
+  session.update_mode();
+  EXPECT_EQ(session.active_mode->state->to_string(), "{:value \"!\"}");
+
+  input().clear_transients();
+  input().key_up(SDLK_1);
+  input().key_up(SDLK_LSHIFT);
+  session.update_mode();
+  input().clear_transients();
+
+  input().key_down(SDLK_COMMA);
+  session.update_mode();
+
+  EXPECT_EQ(session.active_mode->state->to_string(), "{:value \"!,\"}");
+}
+
 TEST_F(SessionHooksTest, focused_child_mode_on_key_down_bubbles_to_root_mode)
 {
   // Given

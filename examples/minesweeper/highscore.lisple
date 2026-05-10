@@ -2,8 +2,12 @@
   (:require pixils
             [pixils.color :as c]
             [pixils.ui :as ui]
-            [pixils.examples.minesweeper.window :as w]))
+            [pixils.examples.minesweeper.window :as w]
+            [pixils.examples.minesweeper.text-input :as ti]))
 
+
+
+;; Highscore Table Window
 
 (def col-1-width 90)
 (def col-2-width 100)
@@ -64,3 +68,41 @@
                        :state {:highscores (ui/bind-state :highscores)}
                        :body [{:mode 'highscores-window
                                :state {:highscores (ui/bind-state :highscores)}}]})]})
+
+
+
+;; New Highscore Window
+
+(defcomponent new-highscore-window
+  {:style {:background c/WHITE
+           :text {:color c/BLACK}
+           :padding 8}
+   :children [{:mode 'text-node
+               :state {:difficulty-name (ui/bind-state :difficulty-name)}
+               :update (fn [state ctx]
+                         (assoc state :value (str "You have the fastest time for "
+                                                  (:difficulty-name state)
+                                                  " level.")))}
+              {:mode 'text-node
+               :state {:value "Please type your name."}}
+              {:mode 'text-input}
+              {:mode 'button
+               :state {:label "   OK   "}
+               :init (fn [state ctx]
+                       (ui/focus! ctx)
+                       state)
+               :on-click (fn [state event ctx]
+                           (ui/emit! (:view ctx) :highscores/close)
+                           state)}]})
+
+
+(defmode new-highscore-modal
+  {:on {:highscores/close (fn [state event ctx]
+                            (ui/stop-propagation! event)
+                            (pop-mode!)
+                            state)}
+   :compose {:render :pass}
+   :children [(w/make {:position {:x 100 :y 100}
+                       :title-bar {:title "New Highscore"}
+                       :body [{:mode 'new-highscore-window
+                               :state {:difficulty-name "beginner"}}]})]})

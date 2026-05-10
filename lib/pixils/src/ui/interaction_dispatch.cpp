@@ -712,6 +712,7 @@ namespace Pixils::UI
     {
       KeyboardEvent event;
       event.key = events.key_down;
+      event.held_keys = events.held_keys;
       bubble_keyboard_hook(
         chain, &Runtime::Mode::on_key_down, event, hook_args, runtime);
     }
@@ -722,6 +723,7 @@ namespace Pixils::UI
     {
       KeyboardEvent event;
       event.key = events.key_up;
+      event.held_keys = events.held_keys;
       bubble_keyboard_hook(chain, &Runtime::Mode::on_key_up, event, hook_args, runtime);
     }
   }
