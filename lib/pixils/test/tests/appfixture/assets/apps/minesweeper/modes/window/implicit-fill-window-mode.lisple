@@ -2,6 +2,7 @@
   (:require pixils))
 
 (defmode window-mode
-  {:children [{:mode 'menu-bar-mode
+  {:focusable true
+   :children [{:mode 'menu-bar-mode
                :style {:height 17}}
               {:mode 'game-layout-mode}]})

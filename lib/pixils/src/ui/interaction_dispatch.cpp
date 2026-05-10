@@ -522,7 +522,11 @@ namespace Pixils::UI
                                    hit_chain.end(),
                                    [](const auto& view) { return is_focusable(view); });
 
-      if (focus_it != hit_chain.end())
+      if (focus_it == hit_chain.end())
+      {
+        focus_state.clear();
+      }
+      else
       {
         std::vector<std::shared_ptr<Runtime::View>> focus_chain(focus_it, hit_chain.end());
         store_focus_chain(focus_state, focus_chain);

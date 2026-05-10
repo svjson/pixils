@@ -577,7 +577,7 @@ TEST_F(EventRoutingTest, mouse_down_uses_nearest_focusable_ancestor_in_hit_chain
   EXPECT_EQ(focused.get(), session.active_mode->children[0].get());
 }
 
-TEST_F(EventRoutingTest, mouse_down_on_non_focusable_hit_chain_preserves_existing_focus)
+TEST_F(EventRoutingTest, mouse_down_on_non_focusable_hit_chain_without_ancestor_clears_focus)
 {
   runtime.eval(R"(
     (pixils/defmode focusable-child {:focusable true})
@@ -601,9 +601,7 @@ TEST_F(EventRoutingTest, mouse_down_on_non_focusable_hit_chain_preserves_existin
   input().mouse_down({120, 40});
   update_cycle();
 
-  ASSERT_TRUE(session.focus_state.has_focus());
-  EXPECT_EQ(session.focus_state.focused.lock().get(),
-            session.active_mode->children[0].get());
+  EXPECT_FALSE(session.focus_state.has_focus());
 }
 
 TEST_F(EventRoutingTest, mouse_down_outside_root_clears_focus)
