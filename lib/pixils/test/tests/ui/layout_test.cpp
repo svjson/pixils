@@ -36,10 +36,12 @@ class LayoutTest : public BaseFixture
                            const Rect& parent,
                            LayoutDirection direction = LayoutDirection::COLUMN,
                            std::optional<Style::Layout::GapMode> gap_mode = std::nullopt,
-                           std::optional<int> gap_size = std::nullopt)
+                           std::optional<int> gap_size = std::nullopt,
+                           std::optional<Style::Layout::AlignItems> align_items = std::nullopt)
   {
     Style::Layout layout;
     layout.direction = direction;
+    layout.align_items = align_items;
     if (gap_mode)
     {
       layout.gap = Style::Layout::Gap{};
@@ -194,6 +196,29 @@ TEST_F(LayoutTest, layout_column_child_honors_requested_width)
   EXPECT_EQ(rects[0].h, 30);
 }
 
+TEST_F(LayoutTest, layout_column_align_items_center_centers_fixed_width_child)
+{
+  std::vector<std::shared_ptr<View>> children;
+  Style s;
+  s.width = 120;
+  s.height = 30;
+  children.push_back(make_ctx(std::move(s)));
+  Rect parent = {0, 0, 320, 200};
+
+  auto rects =
+    layout(children,
+           parent,
+           LayoutDirection::COLUMN,
+           std::nullopt,
+           std::nullopt,
+           Style::Layout::AlignItems::CENTER);
+
+  ASSERT_EQ(rects.size(), 1u);
+  EXPECT_EQ(rects[0].x, 100);
+  EXPECT_EQ(rects[0].w, 120);
+  EXPECT_EQ(rects[0].h, 30);
+}
+
 TEST_F(LayoutTest, layout_child_without_content_size_uses_child_tree_natural_main_axis_size)
 {
   std::vector<std::shared_ptr<View>> children;
@@ -302,6 +327,29 @@ TEST_F(LayoutTest, layout_row_child_honors_requested_height)
 
   ASSERT_EQ(rects.size(), 1u);
   EXPECT_EQ(rects[0].y, 0);
+  EXPECT_EQ(rects[0].w, 80);
+  EXPECT_EQ(rects[0].h, 40);
+}
+
+TEST_F(LayoutTest, layout_row_align_items_center_centers_fixed_height_child)
+{
+  std::vector<std::shared_ptr<View>> children;
+  Style s;
+  s.width = 80;
+  s.height = 40;
+  children.push_back(make_ctx(std::move(s)));
+  Rect parent = {0, 0, 320, 200};
+
+  auto rects =
+    layout(children,
+           parent,
+           LayoutDirection::ROW,
+           std::nullopt,
+           std::nullopt,
+           Style::Layout::AlignItems::CENTER);
+
+  ASSERT_EQ(rects.size(), 1u);
+  EXPECT_EQ(rects[0].y, 80);
   EXPECT_EQ(rects[0].w, 80);
   EXPECT_EQ(rects[0].h, 40);
 }

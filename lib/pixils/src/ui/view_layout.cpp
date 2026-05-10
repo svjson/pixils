@@ -607,6 +607,8 @@ namespace Pixils::UI
       std::vector<Rect> rects;
       rects.reserve(children.size());
 
+      const Style::Layout::AlignItems align_items =
+        layout.align_items.value_or(Style::Layout::AlignItems::START);
       int pos = row ? parent.x : parent.y;
       int flow_index = 0;
       for (size_t i = 0; i < children.size(); i++)
@@ -626,17 +628,30 @@ namespace Pixils::UI
                                                   row ? Axis::VERTICAL : Axis::HORIZONTAL,
                                                   false,
                                                   row ? parent.h : parent.w);
+        int cross_available = row ? parent.h : parent.w;
+        int cross_offset = 0;
+        switch (align_items)
+        {
+        case Style::Layout::AlignItems::CENTER:
+          cross_offset = std::max(0, (cross_available - cross_outer_size) / 2);
+          break;
+        case Style::Layout::AlignItems::END:
+          cross_offset = std::max(0, cross_available - cross_outer_size);
+          break;
+        default:
+          break;
+        }
 
         if (row)
         {
           rects.push_back({pos + margin.l,
-                           parent.y + margin.t,
+                           parent.y + cross_offset + margin.t,
                            std::max(0, outer_size - margin.l - margin.r),
                            std::max(0, cross_outer_size - margin.t - margin.b)});
         }
         else
         {
-          rects.push_back({parent.x + margin.l,
+          rects.push_back({parent.x + cross_offset + margin.l,
                            pos + margin.t,
                            std::max(0, cross_outer_size - margin.l - margin.r),
                            std::max(0, outer_size - margin.t - margin.b)});

@@ -39,6 +39,10 @@ namespace Pixils::Script::StyleDefinition
   std::optional<UI::LayoutDirection> parse_layout_direction(const Lisple::sptr_rtval& value);
   Lisple::sptr_rtval layout_direction_to_value(
     const std::optional<UI::LayoutDirection>& value);
+  std::optional<UI::Style::Layout::AlignItems> parse_layout_align_items(
+    const Lisple::sptr_rtval& value);
+  Lisple::sptr_rtval layout_align_items_to_value(
+    const std::optional<UI::Style::Layout::AlignItems>& value);
 
   std::optional<UI::Style::Layout::GapMode> parse_layout_gap_mode(
     const Lisple::sptr_rtval& value);

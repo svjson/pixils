@@ -187,6 +187,32 @@ namespace Pixils::Script::StyleDefinition
     return Lisple::RTValue::keyword(*value == UI::LayoutDirection::ROW ? "row" : "column");
   }
 
+  std::optional<UI::Style::Layout::AlignItems> parse_layout_align_items(
+    const Lisple::sptr_rtval& value)
+  {
+    if (!value || value->type != Lisple::RTValue::Type::KEYWORD) return std::nullopt;
+    if (value->str() == "start") return UI::Style::Layout::AlignItems::START;
+    if (value->str() == "center") return UI::Style::Layout::AlignItems::CENTER;
+    if (value->str() == "end") return UI::Style::Layout::AlignItems::END;
+    return std::nullopt;
+  }
+
+  Lisple::sptr_rtval layout_align_items_to_value(
+    const std::optional<UI::Style::Layout::AlignItems>& value)
+  {
+    if (!value) return Lisple::Constant::NIL;
+    switch (*value)
+    {
+    case UI::Style::Layout::AlignItems::START:
+      return Lisple::RTValue::keyword("start");
+    case UI::Style::Layout::AlignItems::CENTER:
+      return Lisple::RTValue::keyword("center");
+    case UI::Style::Layout::AlignItems::END:
+      return Lisple::RTValue::keyword("end");
+    }
+    return Lisple::Constant::NIL;
+  }
+
   std::optional<UI::Style::Layout::GapMode> parse_layout_gap_mode(
     const Lisple::sptr_rtval& value)
   {
@@ -301,12 +327,20 @@ namespace Pixils::Script::StyleDefinition
 
     static Lisple::MapSchema layout_schema(
       {},
-      {{"direction", &Lisple::Type::KEY}, {"gap", &HostType::STYLE_LAYOUT_GAP}});
+      {{"direction", &Lisple::Type::KEY},
+       {"align-items", &Lisple::Type::KEY},
+       {"gap", &HostType::STYLE_LAYOUT_GAP}});
 
     auto layout = std::make_unique<UI::Style::Layout>();
     auto opts = layout_schema.bind(ctx, *value);
     if (opts.contains("direction"))
+    {
       layout->direction = parse_layout_direction(opts.val("direction"));
+    }
+    if (opts.contains("align-items"))
+    {
+      layout->align_items = parse_layout_align_items(opts.val("align-items"));
+    }
     layout->gap = opts.optional_obj<UI::Style::Layout::Gap>("gap");
     return layout;
   }

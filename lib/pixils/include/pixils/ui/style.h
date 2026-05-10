@@ -150,6 +150,13 @@ namespace Pixils::UI
 
     struct Layout
     {
+      enum class AlignItems : uint8_t
+      {
+        START,
+        CENTER,
+        END,
+      };
+
       enum class GapMode : uint8_t
       {
         NONE,
@@ -164,6 +171,7 @@ namespace Pixils::UI
       };
 
       std::optional<LayoutDirection> direction = std::nullopt;
+      std::optional<AlignItems> align_items = std::nullopt;
       std::optional<Gap> gap = std::nullopt;
     };
 

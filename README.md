@@ -360,7 +360,7 @@ hook fires.
 | `:margin`     | Number, `[vertical horizontal]`, `[top right bottom left]`, or `{:t N :r N :b N :l N}` | Outer space around a child in layout flow. |
 | `:padding`    | Number, `[vertical horizontal]`, `[top right bottom left]`, or `{:t N :r N :b N :l N}` | Inset applied before the render hook's viewport is set. |
 | `:border`     | Border map (see below)                                               | Draws a border inside the component bounds. |
-| `:layout`     | `{:direction :row}`, `{:direction :column}`, optional `:gap :none`, `:gap N`, `:gap :space-between`, or wrapped gap maps | Child layout policy. Currently supports flow direction, fixed gap, explicit no-gap, and `space-between` distribution. |
+| `:layout`     | `{:direction :row}`, `{:direction :column}`, optional `:align-items :start|:center|:end`, optional `:gap :none`, `:gap N`, `:gap :space-between`, or wrapped gap maps | Child layout policy. Supports flow direction, cross-axis alignment of flow children, fixed gap, explicit no-gap, and `space-between` distribution. |
 | `:text`       | `{:color {:r N :g N :b N}}`, optional `:font :font/name`, optional `:scale N`, optional `:align :left|:center|:right`, optional `:wrap :word|:none` | Text presentation properties for components that render text. |
 | `:box-sizing` | `:border-box`, `:content-box`                                        | How fixed `:width`/`:height` are interpreted. Default: `:border-box`. |
 | `:width`      | Number                                                               | Fixed width in pixels using the selected `:box-sizing`. Absent means fill remaining space. |

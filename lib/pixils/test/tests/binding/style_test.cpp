@@ -95,13 +95,16 @@ TEST_F(StyleTest, make_style_with_layout_direction)
 {
   // When
   Lisple::sptr_rtval result =
-    runtime.eval("(pixils.ui.style/make-style {:layout {:direction :row}})");
+    runtime.eval("(pixils.ui.style/make-style {:layout {:direction :row "
+                 ":align-items :center}})");
 
   // Then
   auto style = Lisple::obj<Pixils::UI::Style>(*result);
   ASSERT_NE(style.layout, std::nullopt);
   ASSERT_NE(style.layout->direction, std::nullopt);
+  ASSERT_NE(style.layout->align_items, std::nullopt);
   EXPECT_EQ(*style.layout->direction, Pixils::UI::LayoutDirection::ROW);
+  EXPECT_EQ(*style.layout->align_items, Pixils::UI::Style::Layout::AlignItems::CENTER);
 }
 
 TEST_F(StyleTest, make_style_with_layout_gap_mode)

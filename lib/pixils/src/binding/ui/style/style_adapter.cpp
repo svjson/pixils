@@ -160,11 +160,17 @@ namespace Pixils::Script
                       UI::Style::Layout,
                       &HostType::STYLE_LAYOUT,
                       (direction),
+                      ("align-items", align_items),
                       (gap));
 
   NOBJ_PROP_GET(LayoutAdapter, direction)
   {
     return StyleDefinition::layout_direction_to_value(get_self_object().direction);
+  }
+
+  NOBJ_PROP_GET(LayoutAdapter, align_items)
+  {
+    return StyleDefinition::layout_align_items_to_value(get_self_object().align_items);
   }
 
   NOBJ_PROP_GET(LayoutAdapter, gap)

@@ -77,10 +77,11 @@
   {:style {:background c/WHITE
            :text {:color c/BLACK}
            :style {:width 155}
+           :layout {:align-items :center}
            :padding 8}
    :children [{:mode 'text-node
                :state {:difficulty-name (ui/bind-state :difficulty-name)}
-               :style {:width :fill
+               :style {:width 170
                        :text {:align :center}}
                :update (fn [state ctx]
                          (assoc state :value (str "You have the fastest time for "

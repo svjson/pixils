@@ -28,7 +28,7 @@ namespace Pixils::Script
                   focus_within,
                   focus),
                  (height, hidden, left, position, top, width));
-  NATIVE_ADAPTER(LayoutAdapter, UI::Style::Layout, (direction, gap));
+  NATIVE_ADAPTER(LayoutAdapter, UI::Style::Layout, (direction, align_items, gap));
   NATIVE_ADAPTER(LayoutGapAdapter, UI::Style::Layout::Gap, (mode, size));
   NATIVE_ADAPTER(StyleTextAdapter, UI::Style::Text, (color, font, scale, align, wrap));
   NATIVE_ADAPTER(ThemeAdapter, UI::Theme, (name));
