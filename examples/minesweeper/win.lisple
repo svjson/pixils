@@ -223,6 +223,16 @@
              :text {:color white
                     :marked-style {:color c/WHITE}}}
 
+            'menu-bar-item:hover
+            {:background white
+             :text {:color c/BLACK
+                    :marked-style {:color c/BLACK}}}
+
+            '(menu-bar-item {:highlighted true})
+            {:background focus-blue
+             :text {:color white
+                    :marked-style {:color c/WHITE}}}
+
             'popup-menu-item:hover
             {:background white
              :text {:color c/BLACK
