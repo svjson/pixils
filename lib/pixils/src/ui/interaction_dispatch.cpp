@@ -19,6 +19,7 @@
 #include <functional>
 #include <lisple/host/object.h>
 #include <lisple/runtime.h>
+#include <lisple/runtime/dict.h>
 #include <lisple/runtime/seq.h>
 #include <lisple/runtime/value.h>
 
@@ -78,6 +79,18 @@ namespace Pixils::UI
       {
         focus_state.focus_chain.push_back(std::weak_ptr<Runtime::View>(view));
       }
+    }
+
+    Lisple::sptr_rtval resolve_callable_handler(Lisple::Runtime& runtime,
+                                                const Lisple::sptr_rtval& val)
+    {
+      if (!val || val->type == Lisple::RTValue::Type::NIL) return Lisple::Constant::NIL;
+      if (val->type == Lisple::RTValue::Type::SYMBOL)
+      {
+        return runtime.lookup_value(val->str());
+      }
+      if (val->type == Lisple::RTValue::Type::FUNCTION) return val;
+      return Lisple::Constant::NIL;
     }
 
     void fire_hook_on_view(const std::shared_ptr<Runtime::View>& view,
@@ -152,6 +165,180 @@ namespace Pixils::UI
         },
         hook_args,
         rt);
+    }
+
+    bool held_keys_contains(const Lisple::sptr_rtval& held_keys,
+                            const Lisple::sptr_rtval& key)
+    {
+      if (!held_keys || held_keys->type == Lisple::RTValue::Type::NIL || !key ||
+          key->type == Lisple::RTValue::Type::NIL)
+      {
+        return false;
+      }
+
+      size_t held_count = Lisple::count(*held_keys);
+      for (size_t i = 0; i < held_count; i++)
+      {
+        if (*Lisple::get_child(*held_keys, i) == *key) return true;
+      }
+
+      return false;
+    }
+
+    size_t key_spec_specificity(const Lisple::sptr_rtval& spec)
+    {
+      if (!spec) return 0;
+      if (spec->type == Lisple::RTValue::Type::KEYWORD) return 1;
+      if (spec->type == Lisple::RTValue::Type::VECTOR) return Lisple::count(*spec);
+      return 0;
+    }
+
+    bool key_spec_matches_held(const Lisple::sptr_rtval& spec,
+                               const Lisple::sptr_rtval& held_keys)
+    {
+      if (!spec || !held_keys || held_keys->type == Lisple::RTValue::Type::NIL) return false;
+
+      if (spec->type == Lisple::RTValue::Type::KEYWORD)
+      {
+        return held_keys_contains(held_keys, spec);
+      }
+
+      if (spec->type != Lisple::RTValue::Type::VECTOR) return false;
+
+      size_t key_count = Lisple::count(*spec);
+      if (key_count == 0) return false;
+
+      for (size_t i = 0; i < key_count; i++)
+      {
+        auto key = Lisple::get_child(*spec, i);
+        if (!key || key->type != Lisple::RTValue::Type::KEYWORD) return false;
+        if (!held_keys_contains(held_keys, key)) return false;
+      }
+
+      return true;
+    }
+
+    std::vector<std::shared_ptr<Runtime::View>> keyboard_target_chain(
+      const std::shared_ptr<Runtime::View>& root,
+      const FocusState& focus_state)
+    {
+      auto focus_chain = lock_chain(focus_state.focus_chain);
+      if (!focus_chain.empty())
+      {
+        return focus_chain;
+      }
+
+      if (!root)
+      {
+        return {};
+      }
+
+      return {root};
+    }
+
+    void bubble_keyboard_hook(const std::vector<std::shared_ptr<Runtime::View>>& chain,
+                              Lisple::sptr_rtval Runtime::Mode::* hook_field,
+                              KeyboardEvent& event,
+                              Runtime::HookArguments& hook_args,
+                              Lisple::Runtime& rt)
+    {
+      auto ev_ref = Script::KeyboardEventAdapter::make_ref(event);
+      bubble_hook(chain,
+                  hook_field,
+                  ev_ref,
+                  event.propagation_stopped,
+                  [](const Rect&) {},
+                  hook_args,
+                  rt);
+    }
+
+    void bubble_held_key_hook(const std::vector<std::shared_ptr<Runtime::View>>& chain,
+                              const Lisple::sptr_rtval& held_keys,
+                              Runtime::HookArguments& hook_args,
+                              Lisple::Runtime& rt)
+    {
+      if (!held_keys || held_keys->type == Lisple::RTValue::Type::NIL)
+      {
+        return;
+      }
+
+      for (size_t i = 0; i < chain.size(); i++)
+      {
+        auto& view = chain[i];
+        auto& hook = view->mode->on_key_held;
+
+        if (hook && hook->type != Lisple::RTValue::Type::NIL)
+        {
+          KeyboardEvent event;
+          event.held_keys = held_keys;
+
+          if (hook->type == Lisple::RTValue::Type::MAP)
+          {
+            std::vector<std::pair<Lisple::sptr_rtval, size_t>> matches;
+            size_t best_specificity = 0;
+
+            for (auto& spec : Lisple::Dict::keys(*hook))
+            {
+              if (!key_spec_matches_held(spec, held_keys)) continue;
+
+              size_t specificity = key_spec_specificity(spec);
+              if (specificity == 0) continue;
+
+              if (specificity > best_specificity)
+              {
+                matches.clear();
+                best_specificity = specificity;
+              }
+
+              if (specificity == best_specificity)
+              {
+                matches.emplace_back(spec, specificity);
+              }
+            }
+
+            for (auto& [spec, _] : matches)
+            {
+              auto resolved_handler =
+                resolve_callable_handler(rt, Lisple::Dict::get_property(hook, spec));
+              if (!resolved_handler ||
+                  resolved_handler->type != Lisple::RTValue::Type::FUNCTION)
+              {
+                continue;
+              }
+
+              event.match = spec;
+              auto ev_ref = Script::KeyboardEventAdapter::make_ref(event);
+              fire_hook_on_view(view, resolved_handler, ev_ref, hook_args, rt);
+            }
+          }
+          else
+          {
+            auto resolved_handler = resolve_callable_handler(rt, hook);
+            if (resolved_handler &&
+                resolved_handler->type == Lisple::RTValue::Type::FUNCTION)
+            {
+              auto ev_ref = Script::KeyboardEventAdapter::make_ref(event);
+              fire_hook_on_view(view, resolved_handler, ev_ref, hook_args, rt);
+            }
+          }
+
+          if (event.propagation_stopped)
+          {
+            if (i + 1 < chain.size())
+            {
+              chain[i + 1]->state =
+                Runtime::merge_state(chain[i + 1]->state, *view, view->state);
+            }
+            return;
+          }
+        }
+
+        if (i + 1 < chain.size())
+        {
+          chain[i + 1]->state =
+            Runtime::merge_state(chain[i + 1]->state, *view, view->state);
+        }
+      }
     }
 
     bool build_hit_chain(std::shared_ptr<Runtime::View> view,
@@ -507,6 +694,37 @@ namespace Pixils::UI
     }
 
   } // namespace
+
+  void dispatch_keyboard_events(const std::shared_ptr<Runtime::View>& root,
+                                FocusState& focus_state,
+                                FrameEvents& events,
+                                Runtime::HookArguments& hook_args,
+                                Lisple::Runtime& runtime)
+  {
+    sync_focus_state(root, focus_state);
+    auto chain = keyboard_target_chain(root, focus_state);
+    if (chain.empty())
+    {
+      return;
+    }
+
+    if (events.key_down && events.key_down->type != Lisple::RTValue::Type::NIL)
+    {
+      KeyboardEvent event;
+      event.key = events.key_down;
+      bubble_keyboard_hook(
+        chain, &Runtime::Mode::on_key_down, event, hook_args, runtime);
+    }
+
+    bubble_held_key_hook(chain, events.held_keys, hook_args, runtime);
+
+    if (events.key_up && events.key_up->type != Lisple::RTValue::Type::NIL)
+    {
+      KeyboardEvent event;
+      event.key = events.key_up;
+      bubble_keyboard_hook(chain, &Runtime::Mode::on_key_up, event, hook_args, runtime);
+    }
+  }
 
   void dispatch_interactions(const std::shared_ptr<Runtime::View>& root,
                              MouseState& mouse_state,

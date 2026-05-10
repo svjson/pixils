@@ -24,6 +24,12 @@ namespace Pixils::Runtime
 
 namespace Pixils::UI
 {
+  void dispatch_keyboard_events(const std::shared_ptr<Pixils::Runtime::View>& root,
+                                FocusState& focus_state,
+                                FrameEvents& events,
+                                Pixils::Runtime::HookArguments& hook_args,
+                                Lisple::Runtime& runtime);
+
   void dispatch_interactions(const std::shared_ptr<Pixils::Runtime::View>& root,
                              MouseState& mouse_state,
                              FocusState& focus_state,

@@ -66,9 +66,9 @@ namespace Pixils
   };
 
   /**
-   * Keyboard event delivered to root-level key hooks.
-   * For key down/up hooks, `key` carries the translated Lisple key keyword,
-   * such as :key/space or :key/left.
+   * Keyboard event delivered to the focused view chain, or to the root view
+   * when nothing is focused. For key down/up hooks, `key` carries the
+   * translated Lisple key keyword, such as :key/space or :key/left.
    *
    * For key-held hooks, `held_keys` carries the full set of currently held
    * keys for the frame, and `match` carries the declarative held-key spec

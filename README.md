@@ -527,7 +527,9 @@ actually starts.
 
 ### Keyboard events
 
-Root modes can respond directly to keyboard transitions with explicit key hooks.
+Focused views receive keyboard transitions first, and those events bubble up
+through their ancestor chain to the root. If nothing is focused, the root mode
+receives keyboard hooks directly.
 
 ```clojure
 (pixils/defmode game-mode
@@ -546,9 +548,8 @@ Root modes can respond directly to keyboard transitions with explicit key hooks.
    :update      (fn [state ctx] ...)})
 ```
 
-These hooks currently fire on the root mode only. Pixils now tracks focused views for
-interaction and styling, but keyboard routing has not yet been redirected through the
-focus chain, so child views still do not receive keyboard hooks directly.
+Call `(pixils.ui/stop-propagation! event)` from a key hook to prevent the event
+from reaching further ancestors.
 
 `:on-key-held` accepts either:
 

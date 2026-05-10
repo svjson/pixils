@@ -167,6 +167,8 @@ namespace Pixils::Script
     FUNC_IMPL(StopPropagation,
               MULTI_SIG((FN_ARGS((&HostType::MOUSE_EVENT)),
                          EXEC_DISPATCH(&StopPropagation::exec_stop)),
+                        (FN_ARGS((&HostType::KEYBOARD_EVENT)),
+                         EXEC_DISPATCH(&StopPropagation::exec_stop)),
                         (FN_ARGS((&HostType::CUSTOM_EVENT)),
                          EXEC_DISPATCH(&StopPropagation::exec_stop))));
 
@@ -175,6 +177,10 @@ namespace Pixils::Script
       if (HostType::MOUSE_EVENT.is_type_of(*args[0]))
       {
         Lisple::obj<MouseEvent>(*args[0]).propagation_stopped = true;
+      }
+      else if (HostType::KEYBOARD_EVENT.is_type_of(*args[0]))
+      {
+        Lisple::obj<KeyboardEvent>(*args[0]).propagation_stopped = true;
       }
       else
       {

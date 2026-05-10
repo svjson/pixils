@@ -201,7 +201,7 @@ TEST_F(SessionHooksTest, root_mode_on_key_held_map_prefers_more_specific_combo_m
   EXPECT_EQ(session.active_mode->state->to_string(), "{:tag :combo}");
 }
 
-TEST_F(SessionHooksTest, child_mode_key_hooks_do_not_fire_without_focus_routing)
+TEST_F(SessionHooksTest, focused_child_mode_on_key_down_bubbles_to_root_mode)
 {
   // Given
   runtime.eval(R"(
@@ -219,13 +219,88 @@ TEST_F(SessionHooksTest, child_mode_key_hooks_do_not_fire_without_focus_routing)
                    :state (pixils.ui/bind-state :child)}]})
   )");
   session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.active_mode->bounds = {0, 0, 200, 200};
+  session.active_mode->children[0]->bounds = {20, 20, 100, 100};
+
+  input().mouse_down({50, 50});
+  session.update_mode();
+  input().clear_transients();
 
   // When
   input().key_down(SDLK_SPACE);
   session.update_mode();
 
   // Then
-  EXPECT_EQ(session.active_mode->state->to_string(), "{:child {:keys 0} :root-keys 1}");
+  EXPECT_EQ(session.active_mode->state->to_string(), "{:child {:keys 1} :root-keys 1}");
   ASSERT_EQ(session.active_mode->children.size(), 1u);
-  EXPECT_EQ(session.active_mode->children[0]->state->to_string(), "{:keys 0}");
+  EXPECT_EQ(session.active_mode->children[0]->state->to_string(), "{:keys 1}");
+}
+
+TEST_F(SessionHooksTest, focused_child_key_stop_propagation_prevents_root_key_hook)
+{
+  runtime.eval(R"(
+    (pixils/defmode child-mode
+      {:init (fn [state ctx] {:keys 0})
+       :on-key-down (fn [state event ctx]
+                      (do (pixils.ui/stop-propagation! event)
+                          (assoc state :keys (+ (:keys state) 1))))})
+    (pixils/defmode root-mode
+      {:init (fn [state ctx] {:child {:keys 0}
+                              :root-keys 0})
+       :on-key-down (fn [state event ctx]
+                      (assoc state :root-keys (+ (:root-keys state) 1)))
+       :children [{:mode 'child-mode
+                   :id "child"
+                   :state (pixils.ui/bind-state :child)}]})
+  )");
+  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.active_mode->bounds = {0, 0, 200, 200};
+  session.active_mode->children[0]->bounds = {20, 20, 100, 100};
+
+  input().mouse_down({50, 50});
+  session.update_mode();
+  input().clear_transients();
+
+  input().key_down(SDLK_SPACE);
+  session.update_mode();
+
+  EXPECT_EQ(session.active_mode->state->to_string(), "{:child {:keys 1} :root-keys 0}");
+  ASSERT_EQ(session.active_mode->children.size(), 1u);
+  EXPECT_EQ(session.active_mode->children[0]->state->to_string(), "{:keys 1}");
+}
+
+TEST_F(SessionHooksTest, focused_child_mode_on_key_held_bubbles_to_root_mode)
+{
+  runtime.eval(R"(
+    (pixils/defmode child-mode
+      {:init (fn [state ctx] {:tag :none})
+       :on-key-held {[:key/left-ctrl :key/space] (fn [state event ctx]
+                                                   (assoc state :tag :combo))}})
+    (pixils/defmode root-mode
+      {:init (fn [state ctx] {:child {:tag :none}
+                              :root-held 0})
+       :on-key-held {[:key/left-ctrl :key/space] (fn [state event ctx]
+                                                   (assoc state :root-held
+                                                                (+ (:root-held state) 1)))}
+       :children [{:mode 'child-mode
+                   :id "child"
+                   :state (pixils.ui/bind-state :child)}]})
+  )");
+  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.active_mode->bounds = {0, 0, 200, 200};
+  session.active_mode->children[0]->bounds = {20, 20, 100, 100};
+
+  input().mouse_down({50, 50});
+  session.update_mode();
+  EXPECT_EQ(session.active_mode->state->to_string(), "{:child {:tag :none} :root-held 0}");
+  input().clear_transients();
+
+  input().key_down(SDLK_LCTRL);
+  input().clear_transients();
+  input().key_down(SDLK_SPACE);
+  session.update_mode();
+
+  EXPECT_EQ(session.active_mode->state->to_string(), "{:child {:tag :combo} :root-held 1}");
+  ASSERT_EQ(session.active_mode->children.size(), 1u);
+  EXPECT_EQ(session.active_mode->children[0]->state->to_string(), "{:tag :combo}");
 }
