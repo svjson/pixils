@@ -330,55 +330,66 @@ namespace Pixils::Runtime
 
   void Session::process_messages()
   {
-    Lisple::sptr_rtval_v messages = mode_stack.drain_messages();
     bool focus_changed = false;
 
-    for (auto& message : messages)
+    while (true)
     {
-      std::string type =
-        Lisple::Dict::get_property(message, Lisple::RTValue::keyword("type"))->str();
+      Lisple::sptr_rtval_v messages = mode_stack.drain_messages();
+      if (messages.empty())
+      {
+        break;
+      }
 
-      if (type == "push")
+      for (auto& message : messages)
       {
-        mode_stack.update_state(active_mode->state);
-        auto overrides_val =
-          Lisple::Dict::get_property(message, Lisple::RTValue::keyword("overrides"));
-        push_mode(
-          Lisple::Dict::get_property(message, Lisple::RTValue::keyword("mode"))->str(),
-          Lisple::Dict::get_property(message, Lisple::RTValue::keyword("state")),
-          overrides_val ? overrides_val : Lisple::Constant::NIL);
-      }
-      else if (type == "pop")
-      {
-        auto payload =
-          Lisple::Dict::get_property(message, Lisple::RTValue::keyword("payload"));
-        pop_mode(payload ? payload : Lisple::Constant::NIL);
-      }
-      else if (type == "focus")
-      {
-        auto target = resolve_target_view(Lisple::Dict::get_property(message, KEYWORD__TARGET));
-        if (focus_target_view(active_mode, focus_state, target))
+        std::string type =
+          Lisple::Dict::get_property(message, Lisple::RTValue::keyword("type"))->str();
+
+        if (type == "push")
         {
-          focus_changed = true;
+          mode_stack.update_state(active_mode->state);
+          auto overrides_val =
+            Lisple::Dict::get_property(message, Lisple::RTValue::keyword("overrides"));
+          push_mode(
+            Lisple::Dict::get_property(message, Lisple::RTValue::keyword("mode"))->str(),
+            Lisple::Dict::get_property(message, Lisple::RTValue::keyword("state")),
+            overrides_val ? overrides_val : Lisple::Constant::NIL);
         }
-      }
-      else if (type == "blur")
-      {
-        auto target = resolve_target_view(Lisple::Dict::get_property(message, KEYWORD__TARGET));
-        if (!target)
+        else if (type == "pop")
         {
-          focus_state.clear();
-          focus_changed = true;
+          auto payload =
+            Lisple::Dict::get_property(message, Lisple::RTValue::keyword("payload"));
+          pop_mode(payload ? payload : Lisple::Constant::NIL);
         }
-        else if (auto focused = focus_state.focused.lock(); focused && focused.get() == target)
+        else if (type == "focus")
         {
-          focus_state.clear();
-          focus_changed = true;
+          auto target =
+            resolve_target_view(Lisple::Dict::get_property(message, KEYWORD__TARGET));
+          if (focus_target_view(active_mode, focus_state, target))
+          {
+            focus_changed = true;
+          }
         }
-      }
-      else if (type == "quit")
-      {
-        quit_requested = true;
+        else if (type == "blur")
+        {
+          auto target =
+            resolve_target_view(Lisple::Dict::get_property(message, KEYWORD__TARGET));
+          if (!target)
+          {
+            focus_state.clear();
+            focus_changed = true;
+          }
+          else if (auto focused = focus_state.focused.lock();
+                   focused && focused.get() == target)
+          {
+            focus_state.clear();
+            focus_changed = true;
+          }
+        }
+        else if (type == "quit")
+        {
+          quit_requested = true;
+        }
       }
     }
 

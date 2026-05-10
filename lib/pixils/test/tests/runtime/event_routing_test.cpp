@@ -721,6 +721,65 @@ TEST_F(EventRoutingTest, focus_and_blur_bang_update_focus_state_from_hook_contex
   EXPECT_FALSE(session.active_mode->interaction.focus_within);
 }
 
+TEST_F(EventRoutingTest, pushed_mode_init_focuses_itself_in_same_process_messages_cycle)
+{
+  runtime.eval(R"(
+    (pixils/defmode popup-mode
+      {:init (fn [state ctx]
+               (pixils.ui/focus! ctx)
+               state)})
+    (pixils/defmode root-mode
+      {:init (fn [state ctx] {:opened? false})
+       :update (fn [state ctx]
+                 (if (:opened? state)
+                   state
+                   (do (pixils/push-mode! 'popup-mode)
+                       (assoc state :opened? true))))})
+  )");
+
+  session.push_mode("root-mode", Lisple::Constant::NIL);
+
+  update_cycle();
+
+  ASSERT_NE(session.active_mode, nullptr);
+  ASSERT_NE(session.active_mode->mode, nullptr);
+  EXPECT_EQ(session.active_mode->mode->name, "popup-mode");
+  ASSERT_TRUE(session.focus_state.has_focus());
+  ASSERT_EQ(session.focus_state.focused.lock().get(), session.active_mode.get());
+  EXPECT_TRUE(session.active_mode->interaction.focused);
+  EXPECT_TRUE(session.active_mode->interaction.focus_within);
+}
+
+TEST_F(EventRoutingTest, init_focused_view_survives_following_update_before_first_layout)
+{
+  runtime.eval(R"(
+    (pixils/defmode popup-mode
+      {:init (fn [state ctx]
+               (pixils.ui/focus! ctx)
+               state)})
+    (pixils/defmode root-mode
+      {:init (fn [state ctx] {:opened? false})
+       :update (fn [state ctx]
+                 (if (:opened? state)
+                   state
+                   (do (pixils/push-mode! 'popup-mode)
+                       (assoc state :opened? true))))})
+  )");
+
+  session.push_mode("root-mode", Lisple::Constant::NIL);
+
+  update_cycle();
+  ASSERT_TRUE(session.focus_state.has_focus());
+  ASSERT_EQ(session.active_mode->mode->name, "popup-mode");
+
+  update_cycle();
+
+  ASSERT_TRUE(session.focus_state.has_focus());
+  ASSERT_EQ(session.focus_state.focused.lock().get(), session.active_mode.get());
+  EXPECT_TRUE(session.active_mode->interaction.focused);
+  EXPECT_TRUE(session.active_mode->interaction.focus_within);
+}
+
 TEST_F(EventRoutingTest, quit_bang_requests_session_shutdown)
 {
   runtime.eval("(pixils/quit!)");

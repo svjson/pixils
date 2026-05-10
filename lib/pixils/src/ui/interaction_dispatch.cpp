@@ -189,7 +189,6 @@ namespace Pixils::UI
                           std::vector<std::shared_ptr<Runtime::View>>& chain)
     {
       if (!view || !target) return false;
-      if (view->bounds.w <= 0 || view->bounds.h <= 0) return false;
 
       auto style = resolve_style(view->mode->style, view->state, view->interaction);
       if (style.hidden && *style.hidden) return false;
