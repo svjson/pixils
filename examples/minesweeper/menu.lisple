@@ -81,73 +81,6 @@
    "y" "Y"
    "z" "Z"})
 
-(def menu-keymap
-  [{:shortcut :key/f2
-    :action :game/new-game}
-   {:shortcut :key/f5
-    :action :action/show-highscores}
-   {:shortcut :key/f4
-    :action :game/quit}
-   {:shortcut :key/f1
-    :action :help/about}
-   {:shortcut [:key/shift :key/f5]
-    :action :help/about}])
-
-(def menu-definition
-  {:settings {:mnemonics {:marker "&"}
-              :shortcuts {:render true}}
-   :items [{:label "&Game"
-            :items [{:label "&New"
-                     :action :game/new-game}
-                    :separator
-                    {:label "&Beginner"
-                     :type :option
-                     :action :game/set-difficulty
-                     :value :beginner
-                     :selected-path [:game :settings :mode]}
-                    {:label "&Intermediate"
-                     :type :option
-                     :action :game/set-difficulty
-                     :value :intermediate
-                     :selected-path [:game :settings :mode]}
-                    {:label "E&xpert"
-                     :type :option
-                     :action :game/set-difficulty
-                     :value :expert
-                     :selected-path [:game :settings :mode]}
-                    {:label "&Custom..."
-                     :type :option
-                     :action :game/set-difficulty
-                     :value :custom
-                     :selected-path [:game :settings :mode]}
-                    :separator
-                    {:label "&Marks (?)"
-                     :type :toggle
-                     :action :preferences/toggle-marks
-                     :selected-path [:preferences :marks?]}
-                    {:label "&Color"
-                     :type :toggle
-                     :action :preferences/toggle-color
-                     :selected-path [:preferences :color?]}
-                    :separator
-                    {:label "Best &Times..."
-                     :action :action/show-highscores}
-                    :separator
-                    {:label "E&xit"
-                     :action :game/quit}]}
-           {:label "&Edit"
-            :settings {:shortcuts {:render false}}
-            :items [{:label "&Undo move"}]}
-           {:label "&View"
-            :items [{:label "&Game board"}
-                    {:label "&Highscores"
-                     :action :action/show-highscores
-                     :shortcut [:key/shift :key/f5]}]}
-           {:label "&Help"
-            :settings {:shortcuts {:render false}}
-            :items [{:label "&About"
-                     :action :help/about}]}]})
-
 (defun merge-menu-settings [parent local]
   (let [local (or local {})
         merged (merge parent local)]
@@ -310,15 +243,15 @@
        :items (for [child (or (:items item) [])]
                     (normalize-menu-item child settings keymap))})))
 
-(def normalized-menu
+(defun normalize-menu [menu-definition keymap]
   {:node-type :root
    :settings (merge-menu-settings default-menu-settings
                                   (:settings menu-definition))
    :items (for [item (:items menu-definition)]
-                (normalize-menu-item item
-                                     (merge-menu-settings default-menu-settings
-                                                          (:settings menu-definition))
-                                     menu-keymap))})
+            (normalize-menu-item item
+                                 (merge-menu-settings default-menu-settings
+                                                      (:settings menu-definition))
+                                 keymap))})
 
 (defun selectable-item? [node]
   (not= :separator (:node-type node)))
@@ -346,7 +279,7 @@
            (>= highlighted-index 0)
            (< highlighted-index (count items)))
     (nth items highlighted-index)
-    0))
+    nil))
 
 (defun child-view-at [view index]
   (let [children (ui/children view)]
@@ -358,14 +291,27 @@
   (let [indices (selectable-indices items)]
     (if (empty? indices)
       highlighted-index
-      (if-let [current-pos (find-index indices (fn [idx] (= idx highlighted-index)))
-               fallback-pos 0
-               start-pos (if (< current-pos 0)
-                           fallback-pos
-                           current-pos)
-               next-pos (mod (+ start-pos direction) (count indices))]
-        (nth indices next-pos)
-        highlighted-index))))
+      (let [current-pos (find-index indices (fn [idx] (= idx highlighted-index)))
+            fallback-pos 0
+            start-pos (if (or (nil? current-pos)
+                              (< current-pos 0))
+                        fallback-pos
+                        current-pos)
+            next-pos (mod (+ start-pos direction) (count indices))]
+        (nth indices next-pos)))))
+
+(defun make-menu [state menu-definition keymap]
+  (let [normalized-menu (normalize-menu menu-definition keymap)]
+    {:mode 'menu-bar
+     :state (merge (or state {})
+                   {:menu normalized-menu})
+     :children (for [item (:items normalized-menu)]
+                 {:mode 'menu-bar-item
+                  :style {:padding [2 8]}
+                  :state {:node item
+                          :text (:display-text item)
+                          :game (ui/bind-state :game)
+                          :preferences (ui/bind-state :preferences)}})}))
 
 (defun item-selected? [node state]
   (let [selected-path (:selected-path node)
@@ -498,6 +444,7 @@
                :style {:width :fill}
                :state {:value (ui/bind-state :text)}}
               {:mode 'text-node
+               :class :menu/shortcut-column
                :state {:value (ui/bind-state :shortcut-text)}}]})
 
 (defcomponent menu-option-indicator
@@ -541,14 +488,7 @@
 
 (defmode menu-bar
   {:style {:width :fill
-           :layout {:direction :row}}
-   :children (for [item (:items normalized-menu)]
-               {:mode 'menu-bar-item
-                :style {:padding [2 8]}
-                :state {:node item
-                        :text (:display-text item)
-                        :game (ui/bind-state :game)
-                        :preferences (ui/bind-state :preferences)}})})
+           :layout {:direction :row}}})
 
 (defmode popup-menu
   {:on-mouse-down (fn [state event ctx]
@@ -572,12 +512,11 @@
    :on-key-down (fn [state event ctx]
                   (case (:key event)
                     :key/right
-                    (do
-                      (when-let [index (:highlighted-index state)
-                                 node (highlighted-item (:items state) index)
-                                 child-view (child-view-at (:view ctx) index)]
-                        (do
-                          (ui/stop-propagation! event)
+                    (let [index (:highlighted-index state)]
+                      (ui/stop-propagation! event)
+                      (when (not (nil? index))
+                        (let [node (highlighted-item (:items state) index)
+                              child-view (child-view-at (:view ctx) index)]
                           (when (and node
                                      child-view
                                      (not (empty? (:items node))))

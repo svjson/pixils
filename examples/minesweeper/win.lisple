@@ -206,17 +206,25 @@
              :text {:font :font/win3-system-font}
              :border {:line-style :solid :color {:r 0 :g 0 :b 0} :bottom {:thickness 1}}}
 
+            'popup-menu-item
+            {:padding [2 16]}
+
+            'popup-menu-option-item
+            {:padding [2 2]}
+
             :menu/item
-            {:padding [2 16]
-             :text {:color c/BLACK
+            {:text {:color c/BLACK
                     :marked-style {:enabled true
                                    :marker "@"
-                                    :font-styles :underline}}}
+                                   :font-styles :underline}}}
 
             :menu/item:hover
             {:background focus-blue
              :text {:color white
                     :marked-style {:color c/WHITE}}}
+
+            :menu/shortcut-column
+            {:margin {:l 16}}
 
             '(popup-menu-item {:highlighted true})
             {:background focus-blue

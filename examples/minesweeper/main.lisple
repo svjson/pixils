@@ -21,6 +21,73 @@
    :theme 'windows-3
    :initial-mode 'main-mode})
 
+(def menu-keymap
+  [{:shortcut :key/f2
+    :action :game/new-game}
+   {:shortcut :key/f5
+    :action :action/show-highscores}
+   {:shortcut :key/f4
+    :action :game/quit}
+   {:shortcut :key/f1
+    :action :help/about}
+   {:shortcut [:key/shift :key/f5]
+    :action :help/about}])
+
+(def menu-definition
+  {:settings {:mnemonics {:marker "&"}
+              :shortcuts {:render true}}
+   :items [{:label "&Game"
+            :items [{:label "&New"
+                     :action :game/new-game}
+                    :separator
+                    {:label "&Beginner"
+                     :type :option
+                     :action :game/set-difficulty
+                     :value :beginner
+                     :selected-path [:game :settings :mode]}
+                    {:label "&Intermediate"
+                     :type :option
+                     :action :game/set-difficulty
+                     :value :intermediate
+                     :selected-path [:game :settings :mode]}
+                    {:label "E&xpert"
+                     :type :option
+                     :action :game/set-difficulty
+                     :value :expert
+                     :selected-path [:game :settings :mode]}
+                    {:label "&Custom..."
+                     :type :option
+                     :action :game/set-difficulty
+                     :value :custom
+                     :selected-path [:game :settings :mode]}
+                    :separator
+                    {:label "&Marks (?)"
+                     :type :toggle
+                     :action :preferences/toggle-marks
+                     :selected-path [:preferences :marks?]}
+                    {:label "&Color"
+                     :type :toggle
+                     :action :preferences/toggle-color
+                     :selected-path [:preferences :color?]}
+                    :separator
+                    {:label "Best &Times..."
+                     :action :action/show-highscores}
+                    :separator
+                    {:label "E&xit"
+                     :action :game/quit}]}
+           {:label "&Edit"
+            :settings {:shortcuts {:render false}}
+            :items [{:label "&Undo move"}]}
+           {:label "&View"
+            :items [{:label "&Game board"}
+                    {:label "&Highscores"
+                     :action :action/show-highscores
+                     :shortcut [:key/shift :key/f5]}]}
+           {:label "&Help"
+            :settings {:shortcuts {:render false}}
+            :items [{:label "&About"
+                     :action :help/about}]}]})
+
 (defun restart-game [state ctx settings]
   (let [new-state (assoc state :game (gl/new-game-state settings))]
     (ui/replace-child! (:view ctx) "game" (make-game-mode settings))
@@ -92,10 +159,11 @@
                                                    (get gl/difficulty-settings :beginner)))
                    :preferences {:marks? true
                                  :color? true}}))
-   :children [{:mode 'menu-bar
-               :id "menu"
-               :state {:game (ui/bind-state :game)
-                       :preferences (ui/bind-state :preferences)}}
+   :children [(merge {:id "menu"}
+                     (menu/make-menu {:game (ui/bind-state :game)
+                                      :preferences (ui/bind-state :preferences)}
+                                     menu-definition
+                                     menu-keymap))
               (make-game-mode)]
    :on {:game/new-game (fn [state event ctx]
                          (restart-game state ctx (-> state :game :settings)))
