@@ -50,7 +50,7 @@
                      :action :game/set-difficulty
                      :value :intermediate
                      :selected-path [:game :settings :mode]}
-                    {:label "E&xpert"
+                    {:label "&Expert"
                      :type :option
                      :action :game/set-difficulty
                      :value :expert
@@ -65,7 +65,7 @@
                      :type :toggle
                      :action :preferences/toggle-marks
                      :selected-path [:preferences :marks?]}
-                    {:label "&Color"
+                    {:label "Co&lor"
                      :type :toggle
                      :action :preferences/toggle-color
                      :selected-path [:preferences :color?]}

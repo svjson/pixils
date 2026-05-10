@@ -1,5 +1,6 @@
 (ns pixils.examples.minesweeper.menu
   (:require pixils
+            [pixils.keyboard :as kbd]
             [pixils.ui :as ui]))
 
 
@@ -253,6 +254,33 @@
     (nth items highlighted-index)
     nil))
 
+(defun normalized-mnemonic-char [value]
+  (prn {:val value})
+  (if (or (nil? value)
+          (empty? value))
+    nil
+    (upper-case (substr value 0 1))))
+
+(defun event-mnemonic-char [event]
+  (if-let [text (kbd/event->text event)]
+    (normalized-mnemonic-char text)
+    nil))
+
+(defun find-mnemonic-index [items mnemonic-char]
+  (let [indexed (for-indexed [index item items]
+                  {:index index
+                   :item item})
+        match (head (filter indexed (fn [entry]
+                                      (= mnemonic-char (-> entry
+                                                           :item
+                                                           :mnemonic
+                                                           :char
+                                                           str
+                                                           upper-case)))))]
+    (if match
+      (:index match)
+      nil)))
+
 (defun child-view-at [view index]
   (let [children (ui/children view)]
     (when (and (>= index 0)
@@ -288,6 +316,29 @@
                         current-pos)
             next-pos (wrap-index (+ start-pos direction) (count indices))]
         (nth indices next-pos)))))
+
+(defun activate-menu-index! [state ctx index]
+  (let [node (highlighted-item (:items state) index)
+        child-view (child-view-at (:view ctx) index)]
+    (cond
+      (and node
+           child-view
+           (not (empty? (:items node))))
+      (do
+        (open-submenu! node state child-view)
+        state)
+
+      (and node
+           (empty? (:items node)))
+      (do
+        (ui/emit! (:view ctx)
+                  :menu/select
+                  {:action (:action node)
+                   :value (:value node)})
+        state)
+
+      :default
+      state)))
 
 (defun make-menu [state menu-definition keymap]
   (let [normalized-menu (normalize-menu menu-definition keymap)]
@@ -426,7 +477,8 @@
                       next-state))
    :on {:menu/select (fn [state event ctx]
                        (let [payload (:payload event)]
-                         (if (= :navigate-top (:type payload))
+                         (cond
+                           (= :navigate-top (:type payload))
                            (do
                              (ui/stop-propagation! event)
                              (ui/emit! (:view ctx)
@@ -434,6 +486,8 @@
                                        {:direction (:direction payload)
                                         :menu-index (:menu-index state)})
                              state)
+
+                           :default
                            state)))}
    :children [{:mode 'text-node
                :state {:value (ui/bind-state :text)}}]})
@@ -626,29 +680,23 @@
 
                     :key/enter
                     (let [index (:highlighted-index state)
-                          next-state (assoc state :input-source :keyboard)
-                          node (highlighted-item (:items next-state) index)
-                          child-view (child-view-at (:view ctx) index)]
+                          next-state (assoc state :input-source :keyboard)]
                       (ui/stop-propagation! event)
-                      (cond
-                        (and node
-                             child-view
-                             (not (empty? (:items node))))
-                        (do
-                          (open-submenu! node next-state child-view)
-                          next-state)
-
-                        (and node
-                             (empty? (:items node)))
-                        (do
-                          (ui/emit! (:view ctx)
-                                    :menu/select
-                                    {:action (:action node)
-                                     :value (:value node)})
-                          next-state)
-
-                        :default
-                        next-state))
+                      (activate-menu-index! next-state ctx index))
 
                     :default
-                    state))})
+                    (let [mnemonic-char (event-mnemonic-char event)
+                          next-state (assoc state :input-source :keyboard)
+                          index (find-mnemonic-index (:items next-state)
+                                                     mnemonic-char)]
+                      (cond
+                        (not (nil? index))
+                        (do
+                          (ui/stop-propagation! event)
+                          (activate-menu-index! (assoc next-state
+                                                       :highlighted-index index)
+                                               ctx
+                                               index))
+
+                        :default
+                        state))))})
