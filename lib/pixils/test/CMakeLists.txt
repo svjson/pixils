@@ -5,7 +5,7 @@ set(CMAKE_BUILD_TYPE Debug)
 
 find_package(sdl2_mock REQUIRED)
 
-file(GLOB_RECURSE TEST_SOURCES tests/*.cpp)
+file(GLOB_RECURSE TEST_SOURCES CONFIGURE_DEPENDS tests/*.cpp)
 
 add_executable(testpixils ${TEST_SOURCES})
 
