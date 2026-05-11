@@ -1,10 +1,12 @@
 #include "fixture.h"
-
+#include <pixils/embedded_lisp_sources.h>
 #include <pixils/runtime/mode.h>
 
+#include <algorithm>
 #include <gtest/gtest.h>
 #include <lisple/host.h>
 #include <lisple/runtime/dict.h>
+#include <string_view>
 
 class BootstrapTest : public BaseFixture
 {
@@ -38,4 +40,32 @@ TEST_F(BootstrapTest, loads_embedded_core_ui_modes_into_pixils_mode_registry)
   EXPECT_EQ(Lisple::obj<Pixils::Runtime::Mode>(*window_mode).name, "ui/window");
   EXPECT_EQ(Lisple::obj<Pixils::Runtime::Mode>(*menu_bar_mode).name, "ui/menu-bar");
   EXPECT_EQ(Lisple::obj<Pixils::Runtime::Mode>(*popup_menu_mode).name, "ui/popup-menu");
+}
+
+TEST_F(BootstrapTest, includes_embedded_base_theme_source)
+{
+  const auto& sources = Pixils::EmbeddedLisp::core_sources();
+  auto base_theme =
+    std::find_if(sources.begin(),
+                 sources.end(),
+                 [](const Pixils::EmbeddedLisp::Source& source)
+                 { return std::string_view(source.path) == "ui/base/base-theme.lisple"; });
+
+  ASSERT_NE(base_theme, sources.end());
+  EXPECT_NE(std::string_view(base_theme->source).find(":ui/panel"), std::string_view::npos);
+}
+
+TEST_F(BootstrapTest, includes_embedded_classic_blue_theme_source)
+{
+  const auto& sources = Pixils::EmbeddedLisp::core_sources();
+  auto classic_blue_theme = std::find_if(
+    sources.begin(),
+    sources.end(),
+    [](const Pixils::EmbeddedLisp::Source& source)
+    { return std::string_view(source.path) == "ui/themes/classic-blue.lisple"; });
+
+  ASSERT_NE(classic_blue_theme, sources.end());
+  EXPECT_NE(
+    std::string_view(classic_blue_theme->source).find("(deftheme pixils/classic-blue"),
+    std::string_view::npos);
 }

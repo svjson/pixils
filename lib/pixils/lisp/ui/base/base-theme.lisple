@@ -1,0 +1,95 @@
+{:styles {
+  :ui/panel {:background {:r 0xcc :g 0xcc :b 0xcc}
+             :padding 4}
+
+  'ui/window {:border {:color {:r 0x00 :g 0x00 :b 0x00}
+                       :thickness 1}
+              :text {:color {:r 0 :g 0 :b 0}}}
+
+  'ui/window-title-bar {:background {:r 0xff :g 0xff :b 0xff}
+                        :text {:color {:r 0x88 :g 0x88 :b 0x88}}
+                        :border {:bottom {:color {:r 0x00 :g 0x00 :b 0x00}
+                                          :thickness 1}}
+                        :width :fill
+                        :height 19
+                        :padding 0
+                        :layout {:direction :row
+                                 :gap :space-between}}
+
+  ['ui/window:focus-within 'ui/window-title-bar]
+  {:text {:color {:r 0 :g 0 :b 0}}}
+
+  'ui/window-control-button {:hidden true
+                             :width 18
+                             :height 18}
+
+  'ui/window-minimize-button {:hidden true
+                              :width 18
+                              :height 18}
+
+  'ui/button-inner
+  {:text {:color {:r 0x00 :g 0x00 :b 0x00}}
+   :background {:r 0xff :g 0xff :b 0xff}
+   :border {:color {:r 0x00 :g 0x00 :b 0x00}
+            :thickness 1}}
+
+  'ui/button-inner:hover
+  {:text {:color {:r 0xff :g 0xff :b 0xff}}
+   :background {:r 0x00 :g 0x00 :b 0x00}
+   :border {:color {:r 0x00 :g 0x00 :b 0x00}
+            :thickness 1}}
+
+  'ui/text-input {:width 80
+                  :border {:color {:r 0x00 :g 0x00 :b 0x00}
+                           :thickness 1}}
+
+  'ui/text-input-inner {:width :fill
+                        :padding [2 4]}
+
+  'ui/menu-bar {:background {:r 0xff :g 0xff :b 0xff}}
+
+  'ui/popup-menu-item
+  {:padding [2 16]}
+
+  'ui/popup-menu-option-item
+  {:padding [2 2]}
+
+  :menu/shortcut-column
+  {:margin {:l 16}}
+
+  :menu/item
+  {:text {:color {:r 0x00 :g 0x00 :b 0x00}
+          :marked-style {:enabled true
+                         :marker "@"
+                         :font-styles :underline}}}
+
+  :menu/item:hover
+  {:text {:color {:r 0xff :g 0xff :b 0xff}}
+   :background {:r 0x00 :g 0x00 :b 0x00}}
+
+  'ui/menu-option-item {:padding {:t 2 :r 12 :b 2 :l 2}}
+
+  'ui/menu-option-indicator {:margin {:l 2 :r 4}
+                             :box-sizing :content-box
+                             :width 8
+                             :height 10}
+
+  '(ui/menu-option-indicator {:selected true})
+  {:background {:image :pixils/console-font}}
+
+  'ui/menu-separator
+  {:height 1
+   :margin {:t 3 :r 0 :b 2 :l 0}
+   :border {:thickness 1
+            :line-style :solid
+            :color {:r 0x00 :g 0x00 :b 0x00}
+            :right {:thickness 0}
+            :bottom {:thickness 0}
+            :left {:thickness 0}}}
+
+  'ui/popup-menu-inner
+  {:text {:color {:r 0x00 :g 0x00 :b 0x00}}
+   :background {:r 0xff :g 0xff :b 0xff}
+   :border {:color {:r 0x00 :g 0x00 :b 0x00}
+            :thickness 1}}
+}}

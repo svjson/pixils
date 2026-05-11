@@ -1,0 +1,41 @@
+(ns pixils.ui.theme.classic-blue
+  (:require pixils))
+
+(deftheme pixils/classic-blue
+  {:styles
+   {:ui/panel {:background {:r 0x20 :g 0x29 :b 0x36}
+               :padding 4}
+
+    'ui/window-title-bar {:background {:r 0x34 :g 0x42 :b 0x55}
+                          :border {:top {:color {:r 0x58 :g 0x84 :b 0xc8}
+                                         :thickness 1}
+                                   :left {:color {:r 0x58 :g 0x84 :b 0xc8}
+                                          :thickness 1}}
+                          :width :fill
+                          :height 19
+                          :padding 0
+                          :layout {:direction :row
+                                   :gap :space-between}}
+
+    ['ui/window:focus-within 'ui/window-title-bar]
+    {:background {:r 0x26 :g 0x48 :b 0x8a}}
+
+    'ui/window-control-button {:width 18
+                               :height 18}
+
+    'ui/window-minimize-button {:width 18
+                                :height 18}
+
+    'ui/text-input {:width 80}
+
+    'ui/text-input-inner {:width :fill
+                          :padding [2 4]}
+
+    'ui/menu-item {:padding [2 16]}
+
+    'ui/menu-option-item {:padding {:t 2 :r 12 :b 2 :l 2}}
+
+    'ui/menu-option-indicator {:margin {:l 2 :r 4}
+                               :box-sizing :content-box
+                               :width 8
+                               :height 10}}})
