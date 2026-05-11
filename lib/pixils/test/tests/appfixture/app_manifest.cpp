@@ -51,15 +51,22 @@ namespace Pixils::Test::AppFixture
   {
   }
 
+  void AppManifest::invalidate_materialized_files()
+  {
+    materialized_files_cache.reset();
+  }
+
   void AppManifest::upsert_unit(const SourceUnit& unit)
   {
     if (auto* existing = find_unit(unit_catalog, unit.id))
     {
       *existing = unit;
+      invalidate_materialized_files();
       return;
     }
 
     unit_catalog.push_back(unit);
+    invalidate_materialized_files();
   }
 
   bool AppManifest::has_unit(const std::string& unit_id) const
@@ -92,12 +99,15 @@ namespace Pixils::Test::AppFixture
           ++it;
       }
     }
+
+    invalidate_materialized_files();
   }
 
   void AppManifest::add_file(const ManifestFile& file)
   {
     if (has_file(file.id)) throw std::runtime_error("Duplicate file id: " + file.id);
     files.push_back(file);
+    invalidate_materialized_files();
   }
 
   bool AppManifest::has_file(const std::string& file_id) const
@@ -112,6 +122,7 @@ namespace Pixils::Test::AppFixture
       if (it->id == file_id)
       {
         files.erase(it);
+        invalidate_materialized_files();
         return;
       }
     }
@@ -119,13 +130,15 @@ namespace Pixils::Test::AppFixture
     throw std::runtime_error("Unknown file id: " + file_id);
   }
 
-  void AppManifest::append_unit_to_file(const std::string& file_id, const std::string& unit_id)
+  void AppManifest::append_unit_to_file(const std::string& file_id,
+                                        const std::string& unit_id)
   {
     auto* file = find_file(files, file_id);
     if (!file) throw std::runtime_error("Unknown file id: " + file_id);
     if (!has_unit(unit_id)) throw std::runtime_error("Unknown unit id: " + unit_id);
 
     file->unit_ids.push_back(unit_id);
+    invalidate_materialized_files();
   }
 
   void AppManifest::insert_unit_after(const std::string& file_id,
@@ -141,12 +154,13 @@ namespace Pixils::Test::AppFixture
       if (*it == anchor_unit_id)
       {
         file->unit_ids.insert(it + 1, unit_id);
+        invalidate_materialized_files();
         return;
       }
     }
 
-    throw std::runtime_error("Unknown anchor unit id '" + anchor_unit_id +
-                             "' in file '" + file_id + "'");
+    throw std::runtime_error("Unknown anchor unit id '" + anchor_unit_id + "' in file '" +
+                             file_id + "'");
   }
 
   void AppManifest::remove_unit_from_file(const std::string& file_id,
@@ -160,6 +174,7 @@ namespace Pixils::Test::AppFixture
       if (*it == unit_id)
       {
         file->unit_ids.erase(it);
+        invalidate_materialized_files();
         return;
       }
     }
@@ -169,15 +184,16 @@ namespace Pixils::Test::AppFixture
 
   std::vector<ComposedFile> AppManifest::materialize_files() const
   {
+    if (materialized_files_cache) return *materialized_files_cache;
+
     std::vector<ComposedFile> out;
     out.reserve(files.size());
 
     for (const auto& file : files)
     {
-      ComposedFile composed{
-        .disk_path = file.disk_path,
-        .namespace_name = file.namespace_name,
-        .units = {}};
+      ComposedFile composed{.disk_path = file.disk_path,
+                            .namespace_name = file.namespace_name,
+                            .units = {}};
 
       for (const auto& unit_id : file.unit_ids)
       {
@@ -192,6 +208,7 @@ namespace Pixils::Test::AppFixture
       out.push_back(std::move(composed));
     }
 
-    return out;
+    materialized_files_cache = std::move(out);
+    return *materialized_files_cache;
   }
 } // namespace Pixils::Test::AppFixture

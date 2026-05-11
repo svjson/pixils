@@ -4,6 +4,7 @@
 #include "app_source_builder.h"
 
 #include <filesystem>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -21,6 +22,9 @@ namespace Pixils::Test::AppFixture
   {
     std::vector<SourceUnit> unit_catalog;
     std::vector<ManifestFile> files;
+    mutable std::optional<std::vector<ComposedFile>> materialized_files_cache;
+
+    void invalidate_materialized_files();
 
    public:
     AppManifest() = default;

@@ -25,7 +25,7 @@ namespace Pixils::Test::AppFixture::Minesweeper
     }
   } // namespace
 
-  AppManifest implicit_fill_manifest()
+  static AppManifest build_implicit_fill_manifest()
   {
     AppManifest manifest;
 
@@ -49,9 +49,9 @@ namespace Pixils::Test::AppFixture::Minesweeper
     manifest.upsert_unit(load_unit(std::string(unit_ids::board_button_row_component),
                                    "apps/minesweeper/components/board/board-button-row/"
                                    "board-button-row.lisple"));
-    manifest.upsert_unit(
-      load_unit(std::string(unit_ids::board_buttons_component),
-                "apps/minesweeper/components/board/board-buttons/settings-sized-board-buttons.lisple"));
+    manifest.upsert_unit(load_unit(std::string(unit_ids::board_buttons_component),
+                                   "apps/minesweeper/components/board/board-buttons/"
+                                   "settings-sized-board-buttons.lisple"));
     manifest.upsert_unit(
       load_unit(std::string(unit_ids::overlay_button_board_mode),
                 "apps/minesweeper/components/board/overlay-button-board-mode.lisple"));
@@ -144,7 +144,7 @@ namespace Pixils::Test::AppFixture::Minesweeper
     return manifest;
   }
 
-  AppManifest pre_windowed_manifest()
+  static AppManifest build_pre_windowed_manifest()
   {
     AppManifest manifest;
 
@@ -282,7 +282,7 @@ namespace Pixils::Test::AppFixture::Minesweeper
     return manifest;
   }
 
-  AppManifest simple_windowed_manifest()
+  static AppManifest build_simple_windowed_manifest()
   {
     auto manifest = pre_windowed_manifest();
     manifest.remove_unit(std::string(unit_ids::text_node_component));
@@ -293,40 +293,45 @@ namespace Pixils::Test::AppFixture::Minesweeper
     manifest.upsert_unit(
       load_unit(std::string(unit_ids::menu_definition),
                 "apps/minesweeper/components/menu/simple-windowed-menu-definition.lisple"));
-    manifest.upsert_unit(load_unit(std::string(unit_ids::main_mode),
-                                   "apps/minesweeper/modes/main-mode/simple-windowed-main-mode.lisple"));
-    manifest.upsert_unit(load_unit(std::string(unit_ids::window_mode),
-                                   "apps/minesweeper/modes/window/simple-windowed-window-mode.lisple"));
+    manifest.upsert_unit(
+      load_unit(std::string(unit_ids::main_mode),
+                "apps/minesweeper/modes/main-mode/simple-windowed-main-mode.lisple"));
+    manifest.upsert_unit(
+      load_unit(std::string(unit_ids::window_mode),
+                "apps/minesweeper/modes/window/simple-windowed-window-mode.lisple"));
     manifest.upsert_unit(load_unit(std::string(unit_ids::counter_component),
                                    "apps/minesweeper/components/status-panel/counter/"
                                    "ui-text-counter.lisple"));
     manifest.upsert_unit(
       load_unit(std::string(unit_ids::status_panel_component),
                 "apps/minesweeper/components/status-panel/beveled-status-panel.lisple"));
-    manifest.upsert_unit(
-      load_unit(std::string(unit_ids::mine_layer_render),
-                "apps/minesweeper/components/board/mine-layer/settings-grid-mine-layer-render.lisple"));
-    manifest.upsert_unit(
-      load_unit(std::string(unit_ids::mine_layer_mode),
-                "apps/minesweeper/components/board/mine-layer/settings-derived-mine-layer.lisple"));
-    manifest.upsert_unit(
-      load_unit(std::string(unit_ids::board_button_component),
-                "apps/minesweeper/components/board/board-button/flag-aware-board-button.lisple"));
+    manifest.upsert_unit(load_unit(std::string(unit_ids::mine_layer_render),
+                                   "apps/minesweeper/components/board/mine-layer/"
+                                   "settings-grid-mine-layer-render.lisple"));
+    manifest.upsert_unit(load_unit(
+      std::string(unit_ids::mine_layer_mode),
+      "apps/minesweeper/components/board/mine-layer/settings-derived-mine-layer.lisple"));
+    manifest.upsert_unit(load_unit(
+      std::string(unit_ids::board_button_component),
+      "apps/minesweeper/components/board/board-button/flag-aware-board-button.lisple"));
     manifest.upsert_unit(load_unit(std::string(unit_ids::board_button_row_component),
                                    "apps/minesweeper/components/board/board-button-row/"
                                    "board-button-row.lisple"));
+    manifest.upsert_unit(load_unit(std::string(unit_ids::board_buttons_component),
+                                   "apps/minesweeper/components/board/board-buttons/"
+                                   "settings-sized-board-buttons.lisple"));
     manifest.upsert_unit(
-      load_unit(std::string(unit_ids::board_buttons_component),
-                "apps/minesweeper/components/board/board-buttons/settings-sized-board-buttons.lisple"));
-    manifest.upsert_unit(load_unit(std::string(unit_ids::board_mode),
-                                   "apps/minesweeper/components/board/chord-board-mode.lisple"));
-    manifest.upsert_unit(load_unit(std::string(unit_ids::button_component),
-                                   "shared/ui/components/button/child-rendered-button-component.lisple"));
+      load_unit(std::string(unit_ids::board_mode),
+                "apps/minesweeper/components/board/chord-board-mode.lisple"));
+    manifest.upsert_unit(
+      load_unit(std::string(unit_ids::button_component),
+                "shared/ui/components/button/child-rendered-button-component.lisple"));
     manifest.upsert_unit(
       load_unit(std::string(unit_ids::button_inner_component),
                 "shared/ui/components/button/button-inner/button-inner.lisple"));
-    manifest.upsert_unit(load_unit(std::string(unit_ids::menu_item_component),
-                                   "shared/ui/components/menu/menu-item/simple-windowed-menu-item.lisple"));
+    manifest.upsert_unit(
+      load_unit(std::string(unit_ids::menu_item_component),
+                "shared/ui/components/menu/menu-item/simple-windowed-menu-item.lisple"));
     manifest.upsert_unit(
       load_unit(std::string(unit_ids::menu_option_indicator_component),
                 "shared/ui/components/menu/menu-option-item/menu-option-indicator/"
@@ -368,8 +373,9 @@ namespace Pixils::Test::AppFixture::Minesweeper
                 "shared/ui/components/window/window-body/window-body.lisple"));
     manifest.upsert_unit(load_unit(std::string(unit_ids::win311_theme),
                                    "shared/ui/themes/win311/win-theme.lisple"));
-    manifest.upsert_unit(load_unit(std::string(unit_ids::new_game_state),
-                                   "apps/minesweeper/game-logic/settings-map-new-game-state.lisple"));
+    manifest.upsert_unit(
+      load_unit(std::string(unit_ids::new_game_state),
+                "apps/minesweeper/game-logic/settings-map-new-game-state.lisple"));
     manifest.upsert_unit(load_unit(
       std::string(unit_ids::highscore_row_component),
       "apps/minesweeper/components/highscores-window/highscore-table/highscore-row/"
@@ -451,7 +457,7 @@ namespace Pixils::Test::AppFixture::Minesweeper
     return manifest;
   }
 
-  AppManifest keyboard_menu_windowed_manifest()
+  static AppManifest build_keyboard_menu_windowed_manifest()
   {
     auto manifest = simple_windowed_manifest();
 
@@ -486,6 +492,54 @@ namespace Pixils::Test::AppFixture::Minesweeper
                                    "keyboard-menu-windowed-win-theme.lisple"));
 
     return manifest;
+  }
+
+  AppManifest implicit_fill_manifest()
+  {
+    static const AppManifest cached = []
+    {
+      auto manifest = build_implicit_fill_manifest();
+      manifest.materialize_files();
+      return manifest;
+    }();
+
+    return cached;
+  }
+
+  AppManifest pre_windowed_manifest()
+  {
+    static const AppManifest cached = []
+    {
+      auto manifest = build_pre_windowed_manifest();
+      manifest.materialize_files();
+      return manifest;
+    }();
+
+    return cached;
+  }
+
+  AppManifest simple_windowed_manifest()
+  {
+    static const AppManifest cached = []
+    {
+      auto manifest = build_simple_windowed_manifest();
+      manifest.materialize_files();
+      return manifest;
+    }();
+
+    return cached;
+  }
+
+  AppManifest keyboard_menu_windowed_manifest()
+  {
+    static const AppManifest cached = []
+    {
+      auto manifest = build_keyboard_menu_windowed_manifest();
+      manifest.materialize_files();
+      return manifest;
+    }();
+
+    return cached;
   }
 
   std::string main_namespace()
