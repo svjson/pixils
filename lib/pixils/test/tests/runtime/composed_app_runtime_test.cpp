@@ -122,8 +122,7 @@ namespace
 
   View& simple_windowed_window_game_mode(View& main_mode)
   {
-    View& window_body =
-      simple_windowed_window_body(simple_windowed_window_shell(main_mode));
+    View& window_body = simple_windowed_window_body(simple_windowed_window_shell(main_mode));
 
     for (auto& child : window_body.children)
     {
@@ -760,9 +759,8 @@ TEST_F(ComposedAppRuntimeTest,
   expect_key_string(face_button.state, "image", ":status/face-normal");
 }
 
-TEST_F(
-  ComposedAppRuntimeTest,
-  session_projects_bound_state_into_status_panel_leaf_views_for_simple_windowed_fixture)
+TEST_F(ComposedAppRuntimeTest,
+       session_projects_bound_state_into_status_panel_leaf_views_for_simple_windowed_fixture)
 {
   // Given
   load_simple_windowed_minesweeper_program();
@@ -780,8 +778,8 @@ TEST_F(
   expect_int_key(timer_counter.state, "value", 0);
   ASSERT_EQ(mines_counter.children.size(), 1u);
   ASSERT_EQ(timer_counter.children.size(), 1u);
-  expect_mode_name(*mines_counter.children.at(0), "text-node");
-  expect_mode_name(*timer_counter.children.at(0), "text-node");
+  expect_mode_name(*mines_counter.children.at(0), "ui/text");
+  expect_mode_name(*timer_counter.children.at(0), "ui/text");
   expect_key_string(face_button.state, "image", ":status/face-normal");
 }
 
@@ -884,7 +882,7 @@ TEST_F(ComposedAppRuntimeTest,
   View& main_mode = *session().active_mode;
   View& window = simple_windowed_window_shell(main_mode);
   View& title_bar = child_with_mode_name(window, "window-title-bar");
-  View& title_text = child_with_mode_name(title_bar, "text-node");
+  View& title_text = child_with_mode_name(title_bar, "ui/text");
 
   ASSERT_TRUE(title_bar.effective_style.text.has_value());
   ASSERT_TRUE(title_bar.effective_style.text->color.has_value());
@@ -892,7 +890,8 @@ TEST_F(ComposedAppRuntimeTest,
 
   ASSERT_TRUE(title_text.effective_style.text.has_value());
   ASSERT_TRUE(title_text.effective_style.text->color.has_value());
-  EXPECT_EQ(*title_text.effective_style.text->color, (Pixils::Color{0xff, 0xff, 0xff, 0xff}));
+  EXPECT_EQ(*title_text.effective_style.text->color,
+            (Pixils::Color{0xff, 0xff, 0xff, 0xff}));
 }
 
 TEST_F(ComposedAppRuntimeTest,
@@ -1337,9 +1336,8 @@ TEST_F(
   expect_key_string(first_mask_cell, "flagged?", "true");
 }
 
-TEST_F(
-  ComposedAppRuntimeTest,
-  session_keyboard_navigation_selects_menu_option_for_keyboard_menu_windowed_fixture)
+TEST_F(ComposedAppRuntimeTest,
+       session_keyboard_navigation_selects_menu_option_for_keyboard_menu_windowed_fixture)
 {
   use_default_frame_size();
   load_keyboard_menu_windowed_minesweeper_program();
@@ -1386,8 +1384,9 @@ TEST_F(
   expect_int_key(settings, "mines", 40);
 }
 
-TEST_F(ComposedAppRuntimeTest,
-       session_keyboard_navigation_switches_top_level_menu_for_keyboard_menu_windowed_fixture)
+TEST_F(
+  ComposedAppRuntimeTest,
+  session_keyboard_navigation_switches_top_level_menu_for_keyboard_menu_windowed_fixture)
 {
   use_default_frame_size();
   load_keyboard_menu_windowed_minesweeper_program();

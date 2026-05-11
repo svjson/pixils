@@ -16,13 +16,13 @@
   {:style {:layout {:direction :row}}
    :update (fn [state ctx]
              (assoc state :time-str (str (:time state) " seconds")))
-   :children [{:mode 'text-node
+   :children [{:mode 'ui/text
                :style {:width col-1-width}
                :state {:value (ui/bind-state :difficulty-name)}}
-              {:mode 'text-node
+              {:mode 'ui/text
                :style {:width col-2-width}
                :state {:value (ui/bind-state :time-str)}}
-              {:mode 'text-node
+              {:mode 'ui/text
                :state {:value (ui/bind-state :player-name)}}]})
 
 (defcomponent highscore-table
@@ -79,7 +79,7 @@
            :style {:width 155}
            :layout {:align-items :center}
            :padding 8}
-   :children [{:mode 'text-node
+   :children [{:mode 'ui/text
                :state {:difficulty-name (ui/bind-state :difficulty-name)}
                :style {:width 170
                        :text {:align :center}}
@@ -87,7 +87,7 @@
                          (assoc state :value (str "You have the fastest time for "
                                                   (:difficulty-name state)
                                                   " level.")))}
-              {:mode 'text-node
+              {:mode 'ui/text
                :style {:width :fill
                        :text {:align :center}}
                :state {:value "Please type your name."}}

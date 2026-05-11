@@ -47,5 +47,5 @@
                                         :color win/panel-shadow
                                         :bottom {:color win/white :trim [0 1]}
                                         :right {:color win/white :trim [1 0]}}}
-                       :children [{:mode 'text-node
+                       :children [{:mode 'ui/text
                                    :state {:value (ui/bind-state :text-value)}}]})

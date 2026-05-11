@@ -510,7 +510,7 @@
 
                            :default
                            state)))}
-   :children [{:mode 'text-node
+   :children [{:mode 'ui/text
                :state {:value (ui/bind-state :text)}}]})
 
 (defcomponent popup-menu-item
@@ -542,10 +542,10 @@
                        (ui/stop-propagation! event)
                        (ui/emit! (:view ctx) :menu/select (:payload event))
                        state)}
-   :children [{:mode 'text-node
+   :children [{:mode 'ui/text
                :style {:width :fill}
                :state {:value (ui/bind-state :text)}}
-              {:mode 'text-node
+              {:mode 'ui/text
                :class :menu/shortcut-column
                :state {:value (ui/bind-state :shortcut-text)}}]})
 
@@ -581,10 +581,10 @@
                   state)
    :children [{:mode 'menu-option-indicator
                :state {:selected (ui/bind-state :selected)}}
-              {:mode 'text-node
+              {:mode 'ui/text
                :style {:width :fill}
                :state {:value (ui/bind-state :text)}}
-              {:mode 'text-node
+              {:mode 'ui/text
                :state {:value (ui/bind-state :shortcut-text)}}]})
 
 (defcomponent menu-separator {})

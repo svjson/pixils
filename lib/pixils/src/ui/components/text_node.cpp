@@ -181,7 +181,7 @@ namespace Pixils::UI::Components
     Runtime::Mode make_text_node_component_mode()
     {
       Runtime::Mode mode;
-      mode.name = "text-node";
+      mode.name = "ui/text";
       mode.content_size = Function::TextNodeContentSize::make();
       mode.render = Function::TextNodeRender::make();
       return mode;
@@ -193,7 +193,7 @@ namespace Pixils::UI::Components
     auto modes = runtime.lookup_value(Script::ID__PIXILS__MODES);
     Lisple::Dict::set_property(
       modes,
-      Lisple::RTValue::symbol("text-node"),
+      Lisple::RTValue::symbol("ui/text"),
       Script::ModeAdapter::make_unique(make_text_node_component_mode()));
   }
 } // namespace Pixils::UI::Components

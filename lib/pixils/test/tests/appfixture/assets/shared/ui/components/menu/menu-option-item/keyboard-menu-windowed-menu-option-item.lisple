@@ -32,8 +32,8 @@
                   state)
    :children [{:mode 'menu-option-indicator
                :state {:selected (ui/bind-state :selected)}}
-              {:mode 'text-node
+              {:mode 'ui/text
                :style {:width :fill}
                :state {:value (ui/bind-state :text)}}
-              {:mode 'text-node
+              {:mode 'ui/text
                :state {:value (ui/bind-state :shortcut-text)}}]})

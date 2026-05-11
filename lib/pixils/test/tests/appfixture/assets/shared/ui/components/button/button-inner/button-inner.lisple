@@ -6,7 +6,7 @@
 (defcomponent button-inner
   {:style {:width :fill
            :height :fill}
-   :children [{:mode 'text-node
+   :children [{:mode 'ui/text
                :style {:padding {:t 4 :l 4 :r 4 :b 2}}
                :state {:value (ui/bind-state :label)}}]
    :render (fn [state ctx]

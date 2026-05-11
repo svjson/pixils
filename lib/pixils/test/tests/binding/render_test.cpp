@@ -205,9 +205,8 @@ TEST_F(RenderTest, text_size_ignores_inline_toggle_markers)
        :glyphs {"A" {:x 0 :y 0 :w 3 :h 7}}})
   )");
 
-  auto result = runtime.eval(
-    "(pixils.render/text-size \"A@A@\" {:font :font/test-font "
-    ":marked-style {:enabled true :marker \"@\"}})");
+  auto result = runtime.eval("(pixils.render/text-size \"A@A@\" {:font :font/test-font "
+                             ":marked-style {:enabled true :marker \"@\"}})");
 
   auto w = Lisple::Dict::get_property(result, Lisple::RTValue::keyword("w"));
   auto h = Lisple::Dict::get_property(result, Lisple::RTValue::keyword("h"));
@@ -304,7 +303,7 @@ TEST_F(RenderTest, built_in_text_node_renders_and_measures_without_definition)
        :glyphs {"A" {:x 0 :y 0 :w 4 :h 4}
                 "p" {:x 4 :y 0 :w 4 :h 7}}})
     (pixils/defmode root-mode
-      {:children [{:mode 'text-node
+      {:children [{:mode 'ui/text
                    :state {:value "A"}
                    :style {:text {:font :font/test-font}}}]})
   )");
@@ -315,7 +314,7 @@ TEST_F(RenderTest, built_in_text_node_renders_and_measures_without_definition)
 
   auto& child = session.active_mode->children.at(0);
   ASSERT_NE(child, nullptr);
-  EXPECT_EQ(child->mode->name, "text-node");
+  EXPECT_EQ(child->mode->name, "ui/text");
 
   ASSERT_NO_THROW(session.render_mode());
 
@@ -338,7 +337,7 @@ TEST_F(RenderTest, built_in_text_node_renders_in_local_viewport_coordinates)
        :glyphs {"A" {:x 0 :y 0 :w 4 :h 7}}})
     (pixils/defcomponent padded-box
       {:style {:padding [5 7]}
-       :children [{:mode 'text-node
+       :children [{:mode 'ui/text
                    :state {:value "A"}
                    :style {:text {:font :font/test-font}}}]})
     (pixils/defmode root-mode
@@ -376,7 +375,7 @@ TEST_F(RenderTest, built_in_text_node_inherits_marked_style_and_renders_underlin
                       :marked-style {:enabled true
                                      :marker "@"
                                      :font-styles :underline}}}
-       :children [{:mode 'text-node
+       :children [{:mode 'ui/text
                    :state {:value "@A@"}}]})
     (pixils/defmode root-mode
       {:children [{:mode 'menu-like-item}]})
@@ -392,7 +391,8 @@ TEST_F(RenderTest, built_in_text_node_inherits_marked_style_and_renders_underlin
   EXPECT_EQ(ops[1].type, RenderOpType::FILL_RECT);
 }
 
-TEST_F(RenderTest, built_in_text_node_marked_style_explicit_color_uses_tint_texture_for_mnemonic)
+TEST_F(RenderTest,
+       built_in_text_node_marked_style_explicit_color_uses_tint_texture_for_mnemonic)
 {
   SDLMock::prepared_surfaces["./font.png"] = {16, 12};
   runtime.eval(R"(
@@ -411,7 +411,7 @@ TEST_F(RenderTest, built_in_text_node_marked_style_explicit_color_uses_tint_text
                                      :marker "@"
                                      :font-styles :underline
                                      :color {:r 255 :g 255 :b 255}}}}
-       :children [{:mode 'text-node
+       :children [{:mode 'ui/text
                    :state {:value "@A@B"}}]})
     (pixils/defmode root-mode
       {:children [{:mode 'menu-like-item}]})
@@ -449,7 +449,7 @@ TEST_F(RenderTest, built_in_text_node_marked_style_inherits_parent_tint_for_mnem
                       :marked-style {:enabled true
                                      :marker "@"
                                      :font-styles :underline}}}
-       :children [{:mode 'text-node
+       :children [{:mode 'ui/text
                    :state {:value "@A@B"}}]})
     (pixils/defmode root-mode
       {:children [{:mode 'menu-like-item}]})
@@ -481,7 +481,7 @@ TEST_F(RenderTest, built_in_text_node_wraps_wordwise_when_fill_width_is_constrai
                 " " {:x 4 :y 0 :w 1 :h 7}}})
     (pixils/defcomponent wrap-box
       {:style {:width 12}
-       :children [{:mode 'text-node
+       :children [{:mode 'ui/text
                    :state {:value "AA AA AA"}
                    :style {:width :fill
                            :text {:font :font/test-font}}}]})
@@ -515,7 +515,7 @@ TEST_F(RenderTest, built_in_text_node_wrap_none_stays_single_line_when_width_is_
                 " " {:x 4 :y 0 :w 1 :h 7}}})
     (pixils/defcomponent wrap-box
       {:style {:width 12}
-       :children [{:mode 'text-node
+       :children [{:mode 'ui/text
                    :state {:value "AA AA AA"}
                    :style {:width :fill
                            :text {:font :font/test-font

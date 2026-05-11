@@ -33,5 +33,5 @@
                        (ui/stop-propagation! event)
                        (ui/emit! (:view ctx) :menu/select (:payload event))
                        state)}
-   :children [{:mode 'text-node
+   :children [{:mode 'ui/text
                :state {:value (ui/bind-state :text)}}]})

@@ -47,14 +47,14 @@ TEST_F(DefThemeTest, deftheme_with_component_and_class_selectors_is_created)
 {
   runtime.eval(R"(
     (pixils/deftheme test-theme
-      {:styles {'text-node {:text {:scale 2}}
+      {:styles {'ui/text {:text {:scale 2}}
                 :menu/item {:text {:font :font/console}}}})
   )");
 
   Pixils::UI::Theme& theme = get_theme(runtime, "test-theme");
   EXPECT_EQ(theme.name, "test-theme");
 
-  auto text_node = theme.get_style(Pixils::UI::ThemeSelector::component_type("text-node"));
+  auto text_node = theme.get_style(Pixils::UI::ThemeSelector::component_type("ui/text"));
   ASSERT_NE(text_node, nullptr);
   ASSERT_TRUE(text_node->text.has_value());
   ASSERT_TRUE(text_node->text->scale.has_value());
@@ -268,13 +268,13 @@ TEST_F(DefThemeTest, deftheme_extend_merges_parent_styles_and_overrides_them)
 {
   runtime.eval(R"(
     (pixils/deftheme base-theme
-      {:styles {'text-node {:text {:font :font/console
+      {:styles {'ui/text {:text {:font :font/console
                                    :scale 1}}
                 :menu/item {:text {:color {:r 0 :g 0 :b 0 :a 255}}}}})
 
     (pixils/deftheme child-theme
       {:extend 'base-theme
-       :styles {'text-node {:text {:scale 3}}
+       :styles {'ui/text {:text {:scale 3}}
                 :status/panel {:text {:font :font/status}}}})
   )");
 
@@ -282,7 +282,7 @@ TEST_F(DefThemeTest, deftheme_extend_merges_parent_styles_and_overrides_them)
   ASSERT_EQ(theme.extend.size(), 1u);
   EXPECT_EQ(theme.extend[0], "base-theme");
 
-  auto text_node = theme.get_style(Pixils::UI::ThemeSelector::component_type("text-node"));
+  auto text_node = theme.get_style(Pixils::UI::ThemeSelector::component_type("ui/text"));
   ASSERT_NE(text_node, nullptr);
   ASSERT_TRUE(text_node->text.has_value());
   ASSERT_TRUE(text_node->text->font.has_value());

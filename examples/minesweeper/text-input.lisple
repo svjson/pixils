@@ -63,7 +63,7 @@
                    (assoc :cursor-x cursor-x)
                    (assoc :cursor-h cursor-h)
                    (assoc :show-caret? show-caret?))))
-   :children [{:mode 'text-node
+   :children [{:mode 'ui/text
                :state {:value (ui/bind-state :value)}}
               {:mode 'text-input-caret
                :state {:x (ui/bind-state :cursor-x)

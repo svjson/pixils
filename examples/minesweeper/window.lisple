@@ -21,7 +21,7 @@
               (emit-window-move! event ctx)
               state)
    :children [{:mode 'window-control-button}
-              {:mode 'text-node
+              {:mode 'ui/text
                :style {:padding [3 2]}
                :state {:value (ui/bind-state :title)}}
               {:mode 'window-minimize-button}]})

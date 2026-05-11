@@ -297,6 +297,9 @@ namespace Pixils::Test::AppFixture::Minesweeper
                                    "apps/minesweeper/modes/main-mode/simple-windowed-main-mode.lisple"));
     manifest.upsert_unit(load_unit(std::string(unit_ids::window_mode),
                                    "apps/minesweeper/modes/window/simple-windowed-window-mode.lisple"));
+    manifest.upsert_unit(load_unit(std::string(unit_ids::counter_component),
+                                   "apps/minesweeper/components/status-panel/counter/"
+                                   "ui-text-counter.lisple"));
     manifest.upsert_unit(
       load_unit(std::string(unit_ids::status_panel_component),
                 "apps/minesweeper/components/status-panel/beveled-status-panel.lisple"));
