@@ -1,4 +1,4 @@
-(ns pixils.examples.minesweeper.text-input
+(ns pixils.ui.text-input
   (:require pixils
             [pixils.color :as c]
             [pixils.keyboard :as kbd]
@@ -26,7 +26,7 @@
   (str (substr value 0 cursor-index)
        (substr value (inc cursor-index))))
 
-(defcomponent text-input-caret
+(defcomponent ui/text-input-caret
   {:style {:width 1}
    :update (fn [state ctx]
              (do (assoc-in! ctx [:view :style :position] :absolute)
@@ -40,7 +40,7 @@
                       {:fill true
                        :color c/BLACK}))})
 
-(defcomponent text-input-inner
+(defcomponent ui/text-input-inner
   {:focusable true
    :init (fn [state ctx]
            (let [value (or (:value state) "")]
@@ -104,5 +104,5 @@
                             (assoc :cursor-index (+ cursor-index (count text))))
                         state))))})
 
-(defcomponent text-input
+(defcomponent ui/text-input
   {:children [{:mode 'text-input-inner}]})

@@ -1,4 +1,4 @@
-(ns pixils.examples.minesweeper.window
+(ns pixils.ui.window
   (:require pixils
             [pixils.point :as pt]
             [pixils.ui :as ui]))
@@ -6,30 +6,30 @@
 (defun emit-window-move! [event ctx]
   (ui/emit! (:view ctx) :window/move-by (:delta event)))
 
-(defcomponent window-control-button
+(defcomponent ui/window-control-button
   {})
 
-(defcomponent window-minimize-button
-  {:extend 'button
+(defcomponent ui/window-minimize-button
+  {:extend 'ui/button
    :class :window/minimize-button})
 
-(defcomponent window-title-bar
+(defcomponent ui/window-title-bar
   {:on-drag-start (fn [state event ctx]
                     (emit-window-move! event ctx)
                     state)
    :on-drag (fn [state event ctx]
               (emit-window-move! event ctx)
               state)
-   :children [{:mode 'window-control-button}
+   :children [{:mode 'ui/window-control-button}
               {:mode 'ui/text
                :style {:padding [3 2]}
                :state {:value (ui/bind-state :title)}}
-              {:mode 'window-minimize-button}]})
+              {:mode 'ui/window-minimize-button}]})
 
-(defcomponent window-body
+(defcomponent ui/window-body
   {})
 
-(defcomponent window
+(defcomponent ui/window
   {:focusable true
    :update (fn [state ctx]
              (let [pos (or (:position state) {:x 24 :y 20})]
@@ -43,19 +43,19 @@
                                   (fn [pos]
                                     (pt/+ (or pos {:x 24 :y 20})
                                           (:payload event)))))}
-   :children [{:mode 'window-title-bar}
-              {:mode 'window-body}]})
+   :children [{:mode 'ui/window-title-bar}
+              {:mode 'ui/window-body}]})
 
 
 (defun make [{:keys [title-bar body init state style position] :as opts}]
-  {:mode 'window
+  {:mode 'ui/window
    :init (or init (fn [state ctx]
                     state))
    :style (or style {})
    :state (merge (or state {})
                  {:position (or position {:x 24 :y 20})})
-   :children [{:mode 'window-title-bar
+   :children [{:mode 'ui/window-title-bar
                :state title-bar}
-              {:mode 'window-body
+              {:mode 'ui/window-body
                :children body
                :state (or state {})}]})

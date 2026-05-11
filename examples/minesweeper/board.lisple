@@ -56,7 +56,7 @@
 ;; Board buttons
 
 (defcomponent board-button
-  {:extend 'button
+  {:extend 'ui/button
    :style {:width 17 :height 17}
    :update (fn [state {:keys [view] :as ctx}]
              (let [flagged (-> state :mask :flagged?)

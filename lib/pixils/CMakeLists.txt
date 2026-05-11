@@ -18,8 +18,28 @@ file(GLOB pixils_SOURCES CONFIGURE_DEPENDS
   src/ui/components/*.cpp
 )
 
+file(GLOB_RECURSE pixils_EMBEDDED_LISP_SOURCES CONFIGURE_DEPENDS
+  lisp/*.lisple
+)
+
+set(pixils_GENERATED_DIR ${CMAKE_CURRENT_BINARY_DIR}/generated)
+set(pixils_EMBEDDED_LISP_CPP ${pixils_GENERATED_DIR}/embedded_lisp_sources.cpp)
+set(pixils_EMBEDDED_LISP_H ${pixils_GENERATED_DIR}/pixils/embedded_lisp_sources.h)
+
+add_custom_command(
+  OUTPUT ${pixils_EMBEDDED_LISP_CPP} ${pixils_EMBEDDED_LISP_H}
+  COMMAND ${CMAKE_COMMAND}
+          -DPIXILS_LISP_ROOT=${CMAKE_CURRENT_SOURCE_DIR}/lisp
+          -DPIXILS_LISP_CPP=${pixils_EMBEDDED_LISP_CPP}
+          -DPIXILS_LISP_H=${pixils_EMBEDDED_LISP_H}
+          -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/embed_lisp_sources.cmake
+  DEPENDS ${pixils_EMBEDDED_LISP_SOURCES}
+          ${CMAKE_CURRENT_SOURCE_DIR}/cmake/embed_lisp_sources.cmake
+  VERBATIM
+)
+
 add_library(pixils INTERFACE)
-add_library(pixils_objects OBJECT ${pixils_SOURCES})
+add_library(pixils_objects OBJECT ${pixils_SOURCES} ${pixils_EMBEDDED_LISP_CPP})
 
 set_target_properties(pixils_objects PROPERTIES
   POSITION_INDEPENDENT_CODE ON
@@ -28,6 +48,7 @@ set_target_properties(pixils_objects PROPERTIES
 target_include_directories(pixils_objects
   PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<BUILD_INTERFACE:${pixils_GENERATED_DIR}>
     $<INSTALL_INTERFACE:include>
 )
 
@@ -51,6 +72,7 @@ foreach(target pixils_static pixils_shared)
   target_include_directories(${target}
     PUBLIC
       $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+      $<BUILD_INTERFACE:${pixils_GENERATED_DIR}>
       $<INSTALL_INTERFACE:include>
   )
 

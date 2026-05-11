@@ -5,12 +5,11 @@
             [pixils.point :as pt]
             [pixils.ui :as ui]
             pixils.examples.minesweeper.container
-            pixils.examples.minesweeper.button
-            [pixils.examples.minesweeper.window :as w]
+            [pixils.ui.window :as w]
             [pixils.examples.minesweeper.game-logic :as gl]
             [pixils.examples.minesweeper.status-panel :as status-panel]
             [pixils.examples.minesweeper.board :as board]
-            [pixils.examples.minesweeper.menu :as menu]
+            [pixils.ui.menu :as menu]
             [pixils.examples.minesweeper.highscore :as hs]
             [pixils.examples.minesweeper.win :as win]
             [pixils.examples.minesweeper.win95 :as win95]))

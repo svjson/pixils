@@ -2,8 +2,8 @@
   (:require pixils
             [pixils.color :as c]
             [pixils.ui :as ui]
-            [pixils.examples.minesweeper.window :as w]
-            [pixils.examples.minesweeper.text-input :as ti]))
+            [pixils.ui.window :as w]
+            [pixils.ui.text-input :as ti]))
 
 
 
@@ -39,9 +39,9 @@
            :layout {:direction :row
                     :gap :space-between}
            :margin [8 28]}
-   :children [{:mode 'button
+   :children [{:mode 'ui/button
                :state {:label "Reset Scores"}}
-              {:mode 'button
+              {:mode 'ui/button
                :init (fn [state ctx]
                        (ui/focus! ctx)
                        state)
@@ -94,7 +94,7 @@
               {:mode 'text-input
                :style {:margin 16
                        :width :fill}}
-              {:mode 'button
+              {:mode 'ui/button
                :state {:label "   OK   "}
                :init (fn [state ctx]
                        (ui/focus! ctx)

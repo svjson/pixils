@@ -126,3 +126,4 @@ TEST_F(ComposableAppFixtureTest, loads_file_defined_mode_into_pixils_mode_regist
   const auto& child_mode = Lisple::obj<Pixils::Runtime::Mode>(*child_mode_val);
   EXPECT_EQ(child_mode.name, "child-mode");
 }
+

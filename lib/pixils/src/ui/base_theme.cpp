@@ -19,57 +19,57 @@ namespace Pixils::UI
         :ui/panel {:background {:r 0xcc :g 0xcc :b 0xcc}
                    :padding 4}
 
-        'window {:border {:color {:r 0x00 :g 0x00 :b 0x00}
-                                  :thickness 1}
-                 :text {:color {:r 0 :g 0 :b 0}}}
+        'ui/window {:border {:color {:r 0x00 :g 0x00 :b 0x00}
+                                     :thickness 1}
+                    :text {:color {:r 0 :g 0 :b 0}}}
 
-        'window-title-bar {:background {:r 0xff :g 0xff :b 0xff}
-                           :text {:color {:r 0x88 :g 0x88 :b 0x88}}
-                           :border {:bottom {:color {:r 0x00 :g 0x00 :b 0x00}
-                                             :thickness 1}}
-                           :width :fill
-                           :height 19
-                           :padding 0
-                           :layout {:direction :row
-                                    :gap :space-between}}
+        'ui/window-title-bar {:background {:r 0xff :g 0xff :b 0xff}
+                              :text {:color {:r 0x88 :g 0x88 :b 0x88}}
+                              :border {:bottom {:color {:r 0x00 :g 0x00 :b 0x00}
+                                                :thickness 1}}
+                              :width :fill
+                              :height 19
+                              :padding 0
+                              :layout {:direction :row
+                                       :gap :space-between}}
 
-        ['window:focus-within 'window-title-bar]
+        ['ui/window:focus-within 'ui/window-title-bar]
         {:text {:color {:r 0 :g 0 :b 0}}}
 
-        'window-control-button {:hidden true
-                                :width 18
-                                :height 18}
+        'ui/window-control-button {:hidden true
+                                   :width 18
+                                   :height 18}
 
-        'window-minimize-button {:hidden true
-                                 :width 18
-                                 :height 18}
+        'ui/window-minimize-button {:hidden true
+                                    :width 18
+                                    :height 18}
 
-        'button-inner
+        'ui/button-inner
         {:text {:color {:r 0x00 :g 0x00 :b 0x00}}
          :background {:r 0xff :g 0xff :b 0xff}
          :border {:color {:r 0x00 :g 0x00 :b 0x00}
                  :thickness 1}}
 
-        'button-inner:hover
+        'ui/button-inner:hover
         {:text {:color {:r 0xff :g 0xff :b 0xff}}
          :background {:r 0x00 :g 0x00 :b 0x00}
          :border {:color {:r 0x00 :g 0x00 :b 0x00}
                  :thickness 1}}
 
 
-        'text-input {:width 80
-                     :border {:color {:r 0x00 :g 0x00 :b 0x00}
-                     :thickness 1}}
+        'ui/text-input {:width 80
+                        :border {:color {:r 0x00 :g 0x00 :b 0x00}
+                        :thickness 1}}
 
-        'text-input-inner {:width :fill
-                           :padding [2 4]}
+        'ui/text-input-inner {:width :fill
+                              :padding [2 4]}
 
-        'menu-bar {:background {:r 0xff :g 0xff :b 0xff}}
+        'ui/menu-bar {:background {:r 0xff :g 0xff :b 0xff}}
 
-        'popup-menu-item
+        'ui/popup-menu-item
         {:padding [2 16]}
 
-        'popup-menu-option-item
+        'ui/popup-menu-option-item
         {:padding [2 2]}
 
         :menu/shortcut-column
@@ -85,17 +85,17 @@ namespace Pixils::UI
         {:text {:color {:r 0xff :g 0xff :b 0xff}}
          :background {:r 0x00 :g 0x00 :b 0x00}}
 
-        'menu-option-item {:padding {:t 2 :r 12 :b 2 :l 2}}
+        'ui/menu-option-item {:padding {:t 2 :r 12 :b 2 :l 2}}
 
-        'menu-option-indicator {:margin {:l 2 :r 4}
+        'ui/menu-option-indicator {:margin {:l 2 :r 4}
                                 :box-sizing :content-box
                                 :width 8
                                 :height 10}
 
-        '(menu-option-indicator {:selected true})
+        '(ui/menu-option-indicator {:selected true})
         {:background {:image :pixils/console-font}}
 
-        'menu-separator
+        'ui/menu-separator
         {:height 1
          :margin {:t 3 :r 0 :b 2 :l 0}
          :border {:thickness 1
@@ -106,7 +106,7 @@ namespace Pixils::UI
                   :left {:thickness 0}}}
 
 
-        'popup-menu-inner
+        'ui/popup-menu-inner
         {:text {:color {:r 0x00 :g 0x00 :b 0x00}}
          :background {:r 0xff :g 0xff :b 0xff}
          :border {:color {:r 0x00 :g 0x00 :b 0x00}

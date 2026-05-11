@@ -28,7 +28,7 @@
                             :children [{:mode 'counter
                                         :state {:value (ui/bind-state :counters :mines-left)}}
 
-                                       {:mode 'button
+                                       {:mode 'ui/button
                                         :style {:width 24
                                                 :height 24}
                                         :state {:image (ui/bind-state :face)}

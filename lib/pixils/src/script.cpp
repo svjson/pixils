@@ -14,6 +14,7 @@
 #include <pixils/binding/state_counter_namespace.h>
 #include <pixils/binding/ui/style/style_namespace.h>
 #include <pixils/binding/ui/ui_namespace.h>
+#include <pixils/embedded_lisp_sources.h>
 #include <pixils/font_registry.h>
 #include <pixils/ui/components/text_node.h>
 
@@ -64,6 +65,11 @@ namespace Pixils
                                    std::move(rtconfig.native_namespaces),
                                    std::move(fs.release()));
     UI::Components::register_text_node_component(lisple_runtime);
+    for (const auto& embedded_source : EmbeddedLisp::core_sources())
+    {
+      lisple_runtime.eval(embedded_source.source);
+    }
+    lisple_runtime.eval("(ns " + default_namespace + ")");
     for (auto& file_name : source_files)
     {
       lisple_runtime.read_file(file_name);
@@ -119,6 +125,11 @@ namespace Pixils
                                         std::move(rtconfig.native_namespaces),
                                         std::move(fs.release()));
     UI::Components::register_text_node_component(*lisple_runtime);
+    for (const auto& embedded_source : EmbeddedLisp::core_sources())
+    {
+      lisple_runtime->eval(embedded_source.source);
+    }
+    lisple_runtime->eval("(ns " + default_namespace + ")");
     for (auto& file_name : source_files)
     {
       lisple_runtime->read_file(file_name);
