@@ -116,14 +116,12 @@ namespace Pixils::Test::AppFixture::Minesweeper
 
   AppManifest implicit_fill_manifest();
   AppManifest pre_windowed_manifest();
-  AppManifest canonical_manifest();
-  AppManifest default_manifest();
+  AppManifest simple_windowed_manifest();
 
   std::string main_namespace();
   std::vector<std::string> implicit_fill_entry_files();
   std::vector<std::string> pre_windowed_entry_files();
-  std::vector<std::string> canonical_entry_files();
-  std::vector<std::string> entry_files();
+  std::vector<std::string> simple_windowed_entry_files();
 } // namespace Pixils::Test::AppFixture::Minesweeper
 
 #endif

@@ -124,9 +124,9 @@ TEST(MinesweeperAppManifestTest, materializes_pre_windowed_catalog)
   EXPECT_EQ(shared_menu->units[2].id, Minesweeper::unit_ids::popup_menu_mode);
 }
 
-TEST(MinesweeperAppManifestTest, materializes_windowed_canonical_catalog)
+TEST(MinesweeperAppManifestTest, materializes_simple_windowed_catalog)
 {
-  auto files = Minesweeper::canonical_manifest().materialize_files();
+  auto files = Minesweeper::simple_windowed_manifest().materialize_files();
 
   ASSERT_EQ(files.size(), 7u);
 
@@ -214,9 +214,9 @@ TEST(MinesweeperAppManifestTest, exposes_pre_windowed_entry_files_in_dependency_
 }
 
 TEST(MinesweeperAppManifestTest,
-     exposes_windowed_canonical_entry_files_in_dependency_load_order)
+     exposes_simple_windowed_entry_files_in_dependency_load_order)
 {
-  EXPECT_EQ(Minesweeper::canonical_entry_files(),
+  EXPECT_EQ(Minesweeper::simple_windowed_entry_files(),
             (std::vector<std::string>{
               "pixils/test/app/shared/ui/themes/win311.lisple",
               "pixils/test/app/shared/ui/components/button.lisple",
@@ -226,24 +226,4 @@ TEST(MinesweeperAppManifestTest,
               "pixils/test/app/shared/ui/components/window.lisple",
               "pixils/test/app/minesweeper/core.lisple",
             }));
-}
-
-TEST(MinesweeperAppManifestTest, default_manifest_points_at_canonical_baseline)
-{
-  EXPECT_EQ(Minesweeper::entry_files(), Minesweeper::canonical_entry_files());
-
-  const auto files = Minesweeper::default_manifest().materialize_files();
-  EXPECT_EQ(find_file(files, "pixils.test.app.shared.ui.components.text-node"), nullptr);
-
-  const auto* shared_window =
-    find_file(files, "pixils.test.app.shared.ui.components.window");
-  ASSERT_NE(shared_window, nullptr);
-  ASSERT_EQ(shared_window->units.size(), 5u);
-  EXPECT_EQ(shared_window->units[0].id,
-            Minesweeper::unit_ids::window_control_button_component);
-  EXPECT_EQ(shared_window->units[1].id,
-            Minesweeper::unit_ids::window_minimize_button_component);
-  EXPECT_EQ(shared_window->units[2].id, Minesweeper::unit_ids::window_body_component);
-  EXPECT_EQ(shared_window->units[3].id, Minesweeper::unit_ids::window_title_bar_component);
-  EXPECT_EQ(shared_window->units[4].id, Minesweeper::unit_ids::window_component);
 }
