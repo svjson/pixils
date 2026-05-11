@@ -1,0 +1,45 @@
+(ns pixils.test.app.minesweeper.core
+  (:require pixils
+            [pixils.ui :as ui]
+            [pixils.test.app.minesweeper.game-logic :as gl]
+            [pixils.test.app.minesweeper.menu-definition :as md]
+            [pixils.test.app.shared.ui.components.menu :as menu]))
+
+(defun restart-game [state ctx settings]
+  (let [new-state (assoc state :game (gl/new-game-state settings))]
+    (ui/replace-child! (:view ctx) "game" (make-game-mode settings))
+    new-state))
+
+(defmode window-mode
+  {:focusable true
+   :init (fn [state ctx]
+           (merge state
+                  {:game (gl/new-game-state (merge {:mode :beginner}
+                                                   (get gl/difficulty-settings :beginner)))
+                   :preferences {:marks? true
+                                 :color? true}}))
+   :action-map md/menu-keymap
+   :children [(merge {:id "menu"}
+                     (menu/make-menu {:game (ui/bind-state :game)
+                                      :preferences (ui/bind-state :preferences)}
+                                     md/menu-definition
+                                     md/menu-keymap))
+              (make-game-mode)]
+   :on {:game/new-game (fn [state event ctx]
+                         (restart-game state ctx (-> state :game :settings)))
+        :game/set-difficulty (fn [state event ctx]
+                               (let [difficulty (-> event :payload :mode)]
+                                 (restart-game state
+                                               ctx
+                                               (merge {:mode difficulty}
+                                                      (get gl/difficulty-settings difficulty)))))
+        :preferences/toggle-marks (fn [state event ctx]
+                                    (assoc-in state
+                                              [:preferences :marks?]
+                                              (not (-> state :preferences :marks?))))
+        :preferences/toggle-color (fn [state event ctx]
+                                    (assoc-in state
+                                              [:preferences :color?]
+                                              (not (-> state :preferences :color?))))
+        :game/quit (fn [state event ctx]
+                     (quit!))}})

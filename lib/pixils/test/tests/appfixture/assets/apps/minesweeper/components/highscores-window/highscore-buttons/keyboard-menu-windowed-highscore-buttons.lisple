@@ -1,0 +1,19 @@
+(ns pixils.test.app.minesweeper.core
+  (:require pixils
+            [pixils.ui :as ui]))
+
+(defcomponent highscore-buttons
+  {:style {:width :fill
+           :layout {:direction :row
+                    :gap :space-between}
+           :margin [8 28]}
+   :children [{:mode 'button
+               :state {:label "Reset Scores"}}
+              {:mode 'button
+               :init (fn [state ctx]
+                       (ui/focus! ctx)
+                       state)
+               :state {:label " OK "}
+               :on-click (fn [state event ctx]
+                           (ui/emit! (:view ctx) :highscores/close)
+                           state)}]})

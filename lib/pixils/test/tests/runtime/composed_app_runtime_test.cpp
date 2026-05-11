@@ -3,6 +3,7 @@
 #include "../appfixture/minesweeper_app_manifest.h"
 #include <pixils/runtime/view.h>
 
+#include <SDL2/SDL_keycode.h>
 #include <SDL2/SDL_mouse.h>
 #include <filesystem>
 #include <gtest/gtest.h>
@@ -135,6 +136,17 @@ namespace
     return child_with_mode_name(window_body, "game-mode");
   }
 
+  View& keyboard_menu_windowed_menu_bar(View& main_mode)
+  {
+    return child_with_mode_name(simple_windowed_window_app_mode(main_mode), "menu-bar");
+  }
+
+  View& keyboard_menu_windowed_popup_inner(View& popup_mode)
+  {
+    return child_with_mode_name(child_with_mode_name(popup_mode, "popup-menu-outer"),
+                                "popup-menu-inner");
+  }
+
   Lisple::sptr_rtval get_key(const Lisple::sptr_rtval& target, const std::string& key)
   {
     return Lisple::Dict::get_property(target, Lisple::RTValue::keyword(key));
@@ -238,6 +250,19 @@ class ComposedAppRuntimeTest : public ComposableAppSessionFixture
   void load_pre_windowed_minesweeper_program()
   {
     load_pre_windowed_minesweeper_app();
+    ComposableAppSessionFixture::load_program();
+  }
+
+  void load_keyboard_menu_windowed_minesweeper_app()
+  {
+    load_app(AppFixture::Minesweeper::keyboard_menu_windowed_manifest(),
+             AppFixture::Minesweeper::main_namespace(),
+             AppFixture::Minesweeper::keyboard_menu_windowed_entry_files());
+  }
+
+  void load_keyboard_menu_windowed_minesweeper_program()
+  {
+    load_keyboard_menu_windowed_minesweeper_app();
     ComposableAppSessionFixture::load_program();
   }
 
@@ -1310,6 +1335,169 @@ TEST_F(
   expect_int_key(counters, "mines-left", 9);
   EXPECT_EQ(count_flagged_cells(board_mask), 1);
   expect_key_string(first_mask_cell, "flagged?", "true");
+}
+
+TEST_F(
+  ComposedAppRuntimeTest,
+  session_keyboard_navigation_selects_menu_option_for_keyboard_menu_windowed_fixture)
+{
+  use_default_frame_size();
+  load_keyboard_menu_windowed_minesweeper_program();
+  render_cycle();
+
+  ASSERT_NE(session().active_mode, nullptr);
+  View& main_mode = *session().active_mode;
+  View& menu_bar = keyboard_menu_windowed_menu_bar(main_mode);
+  View& game_menu_item = only_child(menu_bar, 0);
+
+  int click_x = game_menu_item.bounds.x + game_menu_item.bounds.w / 2;
+  int click_y = game_menu_item.bounds.y + game_menu_item.bounds.h / 2;
+
+  input().mouse_down({click_x, click_y});
+  update_cycle();
+  input().mouse_up({click_x, click_y});
+  update_cycle();
+
+  ASSERT_NE(session().active_mode, nullptr);
+  EXPECT_EQ(session().active_mode->mode->name, "popup-menu");
+
+  input().key_down(SDLK_DOWN);
+  update_cycle();
+  input().key_up(SDLK_DOWN);
+  update_cycle();
+  input().key_down(SDLK_DOWN);
+  update_cycle();
+  input().key_up(SDLK_DOWN);
+  update_cycle();
+  input().key_down(SDLK_RETURN);
+  update_cycle();
+  input().key_up(SDLK_RETURN);
+  update_cycle();
+
+  ASSERT_NE(session().active_mode, nullptr);
+  EXPECT_EQ(session().active_mode->mode->name, "main-mode");
+
+  View& game_mode = simple_windowed_window_game_mode(*session().active_mode);
+  auto settings = get_key(game_mode.state, "settings");
+  ASSERT_NE(settings, nullptr);
+  EXPECT_EQ(get_key(settings, "mode")->to_string(), ":intermediate");
+  expect_int_key(settings, "w", 16);
+  expect_int_key(settings, "h", 16);
+  expect_int_key(settings, "mines", 40);
+}
+
+TEST_F(ComposedAppRuntimeTest,
+       session_keyboard_navigation_switches_top_level_menu_for_keyboard_menu_windowed_fixture)
+{
+  use_default_frame_size();
+  load_keyboard_menu_windowed_minesweeper_program();
+  render_cycle();
+
+  ASSERT_NE(session().active_mode, nullptr);
+  View& main_mode = *session().active_mode;
+  View& menu_bar = keyboard_menu_windowed_menu_bar(main_mode);
+  View& game_menu_item = only_child(menu_bar, 0);
+
+  int click_x = game_menu_item.bounds.x + game_menu_item.bounds.w / 2;
+  int click_y = game_menu_item.bounds.y + game_menu_item.bounds.h / 2;
+
+  input().mouse_down({click_x, click_y});
+  update_cycle();
+  input().mouse_up({click_x, click_y});
+  update_cycle();
+
+  ASSERT_NE(session().active_mode, nullptr);
+  EXPECT_EQ(session().active_mode->mode->name, "popup-menu");
+
+  input().key_down(SDLK_RIGHT);
+  update_cycle();
+  input().key_up(SDLK_RIGHT);
+  update_cycle();
+  update_cycle();
+
+  ASSERT_NE(session().active_mode, nullptr);
+  EXPECT_EQ(session().active_mode->mode->name, "popup-menu");
+  ASSERT_EQ(session().ctx_stack.size(), 1u);
+  ASSERT_NE(session().ctx_stack.back(), nullptr);
+
+  View& popup_inner = keyboard_menu_windowed_popup_inner(*session().active_mode);
+  ASSERT_FALSE(popup_inner.children.empty());
+  expect_key_string(popup_inner.children.at(0)->state, "text", "\"@U@ndo move\"");
+
+  View& underlying_main_mode = *session().ctx_stack.back();
+  View& underlying_menu_bar = keyboard_menu_windowed_menu_bar(underlying_main_mode);
+  expect_int_key(underlying_menu_bar.state, "active-index", 1);
+}
+
+TEST_F(ComposedAppRuntimeTest,
+       session_mnemonic_key_opens_highscores_for_keyboard_menu_windowed_fixture)
+{
+  use_default_frame_size();
+  load_keyboard_menu_windowed_minesweeper_program();
+  render_cycle();
+
+  ASSERT_NE(session().active_mode, nullptr);
+  View& main_mode = *session().active_mode;
+  View& menu_bar = keyboard_menu_windowed_menu_bar(main_mode);
+  View& game_menu_item = only_child(menu_bar, 0);
+
+  int click_x = game_menu_item.bounds.x + game_menu_item.bounds.w / 2;
+  int click_y = game_menu_item.bounds.y + game_menu_item.bounds.h / 2;
+
+  input().mouse_down({click_x, click_y});
+  update_cycle();
+  input().mouse_up({click_x, click_y});
+  update_cycle();
+
+  ASSERT_NE(session().active_mode, nullptr);
+  EXPECT_EQ(session().active_mode->mode->name, "popup-menu");
+
+  input().key_down(SDLK_t);
+  update_cycle();
+  input().key_up(SDLK_t);
+  update_cycle();
+
+  ASSERT_NE(session().active_mode, nullptr);
+  EXPECT_EQ(session().active_mode->mode->name, "highscores-modal");
+  View& modal_window = child_with_mode_name(*session().active_mode, "window");
+  View& highscores_window =
+    child_with_mode_name(child_with_mode_name(modal_window, "window-body"),
+                         "highscores-window");
+  expect_mode_name(highscores_window, "highscores-window");
+}
+
+TEST_F(ComposedAppRuntimeTest,
+       session_action_map_shortcut_opens_highscores_for_keyboard_menu_windowed_fixture)
+{
+  use_default_frame_size();
+  load_keyboard_menu_windowed_minesweeper_program();
+  render_cycle();
+
+  ASSERT_NE(session().active_mode, nullptr);
+  View& main_mode = *session().active_mode;
+  View& game_mode = simple_windowed_window_game_mode(main_mode);
+  View& status_panel = child_with_mode_name(game_mode, "status-panel");
+
+  int click_x = status_panel.bounds.x + status_panel.bounds.w - 4;
+  int click_y = status_panel.bounds.y + status_panel.bounds.h / 2;
+
+  input().mouse_down({click_x, click_y});
+  update_cycle();
+  input().mouse_up({click_x, click_y});
+  update_cycle();
+
+  input().key_down(SDLK_F5);
+  update_cycle();
+  input().key_up(SDLK_F5);
+  update_cycle();
+
+  ASSERT_NE(session().active_mode, nullptr);
+  EXPECT_EQ(session().active_mode->mode->name, "highscores-modal");
+  View& modal_window = child_with_mode_name(*session().active_mode, "window");
+  View& highscores_window =
+    child_with_mode_name(child_with_mode_name(modal_window, "window-body"),
+                         "highscores-window");
+  expect_mode_name(highscores_window, "highscores-window");
 }
 
 TEST_F(ComposedAppRuntimeTest,

@@ -1,0 +1,67 @@
+(ns pixils.test.app.minesweeper.menu-definition)
+
+(def menu-keymap
+  {:key/f2 :game/new-game
+   :key/f5 :action/show-highscores
+   :key/f4 :game/quit
+   :key/f1 :help/about
+   [:key/shift :key/f5] :help/about})
+
+(def menu-definition
+  {:settings {:mnemonics {:marker "&"}
+              :shortcuts {:render true}}
+   :items [{:label "&Game"
+            :items [{:label "&New"
+                     :action :game/new-game}
+                    :separator
+                    {:label "&Beginner"
+                     :type :option
+                     :action :game/set-difficulty
+                     :payload {:mode :beginner}
+                     :value :beginner
+                     :selected-path [:game :settings :mode]}
+                    {:label "&Intermediate"
+                     :type :option
+                     :action :game/set-difficulty
+                     :payload {:mode :intermediate}
+                     :value :intermediate
+                     :selected-path [:game :settings :mode]}
+                    {:label "&Expert"
+                     :type :option
+                     :action :game/set-difficulty
+                     :payload {:mode :expert}
+                     :value :expert
+                     :selected-path [:game :settings :mode]}
+                    {:label "&Custom..."
+                     :type :option
+                     :action :game/set-difficulty
+                     :payload {:mode :custom}
+                     :value :custom
+                     :selected-path [:game :settings :mode]}
+                    :separator
+                    {:label "&Marks (?)"
+                     :type :toggle
+                     :action :preferences/toggle-marks
+                     :selected-path [:preferences :marks?]}
+                    {:label "Co&lor"
+                     :type :toggle
+                     :action :preferences/toggle-color
+                     :selected-path [:preferences :color?]}
+                    :separator
+                    {:label "Best &Times..."
+                     :action :action/show-highscores}
+                    :separator
+                    {:label "E&xit"
+                     :action :game/quit}]}
+           {:label "&Edit"
+            :settings {:shortcuts {:render false}}
+            :items [{:label "&Undo move"}]}
+           {:label "&View"
+            :items [{:label "&Game board"}
+                    {:label "&Highscores"
+                     :action :action/show-highscores
+                     :shortcut [:key/shift :key/f5]}]}
+           {:label "&Help"
+            :settings {:shortcuts {:render false}}
+            :items [{:label "&About"
+                     :action :help/about}]}]})

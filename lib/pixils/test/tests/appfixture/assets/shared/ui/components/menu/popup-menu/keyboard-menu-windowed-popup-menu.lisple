@@ -1,0 +1,13 @@
+(ns pixils.test.app.shared.ui.components.menu
+  (:require pixils
+            [pixils.ui :as ui]))
+
+(defmode popup-menu
+  {:on-mouse-down (fn [state event ctx]
+                    (pop-mode! {:type :dismiss})
+                    state)
+   :on {:menu/select (fn [state event ctx]
+                       (ui/stop-propagation! event)
+                       (pop-mode! (:payload event))
+                       state)}
+   :compose {:render :pass}})

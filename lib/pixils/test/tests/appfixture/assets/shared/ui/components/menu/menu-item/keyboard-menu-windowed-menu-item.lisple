@@ -1,0 +1,544 @@
+(ns pixils.test.app.shared.ui.components.menu
+  (:require pixils
+            [pixils.keyboard :as kbd]
+            [pixils.ui :as ui]))
+
+(def default-menu-settings
+  {:mnemonics {:enabled true
+               :marker "&"
+               :render-marker "@"
+               :trigger :alt
+               :style :underline}
+   :shortcuts {:render true}})
+
+(def shortcut-key-names
+  {:key/alt "Alt"
+   :key/left-alt "Alt"
+   :key/right-alt "Alt"
+   :key/ctrl "Ctrl"
+   :key/left-ctrl "Ctrl"
+   :key/right-ctrl "Ctrl"
+   :key/shift "Shift"
+   :key/left-shift "Shift"
+   :key/right-shift "Shift"
+   :key/super "Super"
+   :key/left-super "Super"
+   :key/right-super "Super"
+   :key/enter "Enter"
+   :key/escape "Esc"
+   :key/delete "Del"
+   :key/backspace "Backspace"
+   :key/space "Space"
+   :key/home "Home"
+   :key/end "End"
+   :key/pageup "PgUp"
+   :key/pagedown "PgDn"
+   :key/left "Left"
+   :key/right "Right"
+   :key/up "Up"
+   :key/down "Down"
+   :key/f1 "F1"
+   :key/f2 "F2"
+   :key/f3 "F3"
+   :key/f4 "F4"
+   :key/f5 "F5"
+   :key/f6 "F6"
+   :key/f7 "F7"
+   :key/f8 "F8"
+   :key/f9 "F9"
+   :key/f10 "F10"
+   :key/f11 "F11"
+   :key/f12 "F12"})
+
+(defun merge-menu-settings [parent local]
+  (let [local (or local {})
+        merged (merge parent local)]
+    (-> merged
+        (assoc :mnemonics (merge (:mnemonics parent)
+                                 (or (:mnemonics local) {})))
+        (assoc :shortcuts (merge (:shortcuts parent)
+                                 (or (:shortcuts local) {}))))))
+
+(defun item-settings [item]
+  (let [settings (or (:settings item) {})]
+    (if (contains? item :render-shortcut?)
+      (assoc-in settings [:shortcuts :render] (:render-shortcut? item))
+      settings)))
+
+(defun parse-mnemonic-label [label marker trigger style index out mnemonic]
+  (if (>= index (count label))
+    {:text out
+     :mnemonic mnemonic}
+    (let [ch (nth label index)]
+      (if (not= (str ch) marker)
+        (parse-mnemonic-label label
+                              marker
+                              trigger
+                              style
+                              (inc index)
+                              (str out ch)
+                              mnemonic)
+        (if (= index (dec (count label)))
+          (parse-mnemonic-label label
+                                marker
+                                trigger
+                                style
+                                (inc index)
+                                (str out ch)
+                                mnemonic)
+          (let [next-ch (nth label (inc index))]
+            (if (= (str next-ch) marker)
+              (parse-mnemonic-label label
+                                    marker
+                                    trigger
+                                    style
+                                    (+ index 2)
+                                    (str out marker)
+                                    mnemonic)
+              (parse-mnemonic-label label
+                                    marker
+                                    trigger
+                                    style
+                                    (+ index 2)
+                                    (str out next-ch)
+                                    (or mnemonic
+                                        {:char next-ch
+                                         :index (count out)
+                                         :trigger trigger
+                                         :style style})))))))))
+
+(defun normalize-label [item settings]
+  (let [label (or (:label item) "")]
+    (if (contains? item :mnemonic)
+      {:text label
+       :mnemonic (if (= false (:mnemonic item))
+                   nil
+                   (:mnemonic item))}
+      (if (-> settings :mnemonics :enabled)
+        (parse-mnemonic-label label
+                              (-> settings :mnemonics :marker)
+                              (-> settings :mnemonics :trigger)
+                              (-> settings :mnemonics :style)
+                              0
+                              ""
+                              nil)
+        {:text label
+         :mnemonic nil}))))
+
+(defun mnemonic-display-text [text mnemonic render-marker]
+  (if (or (nil? mnemonic)
+          (nil? render-marker))
+    text
+    (let [index (:index mnemonic)]
+      (str (substr text 0 index)
+           render-marker
+           (substr text index 1)
+           render-marker
+           (substr text (inc index))))))
+
+(defun action-binding-action [binding]
+  (cond
+    (keyword? binding)
+    binding
+
+    (:action binding)
+    (:action binding)
+
+    :default
+    nil))
+
+(defun first-shortcut-for-action [action keymap]
+  (if (or (nil? action)
+          (empty? keymap))
+    nil
+    (reduce-kv keymap
+               nil
+               (fn [match shortcut-or-index binding]
+                 (if match
+                   match
+                   (if (= (action-binding-action binding) action)
+                     (if (:shortcut binding)
+                       (:shortcut binding)
+                       shortcut-or-index)
+                     nil))))))
+
+(defun shortcut-key-name [key]
+  (if-let [name (get shortcut-key-names key)]
+    name
+    (let [raw (str key)
+          value (if (= ":key/" (substr raw 0 5))
+                  (substr raw 5)
+                  raw)]
+      (if (= 1 (count value))
+        (upper-case value)
+        value))))
+
+(defun format-shortcut-parts [parts]
+  (if (empty? parts)
+    ""
+    (let [head-text (shortcut-key-name (head parts))
+          tail-parts (tail parts)]
+      (if (empty? tail-parts)
+        head-text
+        (str head-text "+" (format-shortcut-parts tail-parts))))))
+
+(defun format-shortcut [shortcut]
+  (cond
+    (nil? shortcut)
+    nil
+
+    (keyword? shortcut)
+    (shortcut-key-name shortcut)
+
+    :default
+    (format-shortcut-parts shortcut)))
+
+(defun normalize-menu-item [item inherited-settings keymap]
+  (if (= :separator item)
+    {:node-type :separator
+     :settings inherited-settings}
+    (let [settings (merge-menu-settings inherited-settings (item-settings item))
+          label-data (normalize-label item settings)
+          action (:action item)
+          shortcut (if (contains? item :shortcut)
+                     (:shortcut item)
+                     (first-shortcut-for-action action keymap))
+          shortcut-text (if (and (-> settings :shortcuts :render)
+                                 (not (nil? shortcut)))
+                          (format-shortcut shortcut)
+                          nil)]
+      {:node-type :item
+       :item-type (or (:type item) :action)
+       :action action
+       :payload (:payload item)
+       :value (or (:value item) (:selected-value item))
+       :label (:label item)
+       :text (:text label-data)
+       :display-text (mnemonic-display-text (:text label-data)
+                                            (:mnemonic label-data)
+                                            (-> settings :mnemonics :render-marker))
+       :mnemonic (:mnemonic label-data)
+       :settings settings
+       :selected-path (:selected-path item)
+       :resolved-shortcut shortcut
+       :shortcut-text shortcut-text
+       :items (for [child (or (:items item) [])]
+                    (normalize-menu-item child settings keymap))})))
+
+(defun normalize-menu [menu-definition keymap]
+  {:node-type :root
+   :settings (merge-menu-settings default-menu-settings
+                                  (:settings menu-definition))
+   :items (for [item (:items menu-definition)]
+            (normalize-menu-item item
+                                 (merge-menu-settings default-menu-settings
+                                                      (:settings menu-definition))
+                                 keymap))})
+
+(defun selectable-item? [node]
+  (not= :separator (:node-type node)))
+
+(defun first-selectable-index [items]
+  (let [indexed (for-indexed [index item items]
+                  {:index index
+                   :item item})
+        selected (head (filter indexed (fn [entry]
+                                         (selectable-item? (:item entry)))))]
+    (if selected
+      (:index selected)
+      0)))
+
+(defun selectable-indices [items]
+  (map (filter (for-indexed [index item items]
+                 {:index index
+                  :item item})
+               (fn [entry]
+                 (selectable-item? (:item entry))))
+       :index))
+
+(defun highlighted-item [items highlighted-index]
+  (if (and highlighted-index
+           (>= highlighted-index 0)
+           (< highlighted-index (count items)))
+    (nth items highlighted-index)
+    nil))
+
+(defun normalized-mnemonic-char [value]
+  (if (or (nil? value)
+          (empty? value))
+    nil
+    (upper-case (substr value 0 1))))
+
+(defun event-mnemonic-char [event]
+  (if-let [text (kbd/event->text event)]
+    (normalized-mnemonic-char text)
+    nil))
+
+(defun find-mnemonic-index [items mnemonic-char]
+  (let [indexed (for-indexed [index item items]
+                  {:index index
+                   :item item})
+        match (head (filter indexed (fn [entry]
+                                      (= mnemonic-char (-> entry
+                                                           :item
+                                                           :mnemonic
+                                                           :char
+                                                           str
+                                                           upper-case)))))]
+    (if match
+      (:index match)
+      nil)))
+
+(defun child-view-at [view index]
+  (let [children (ui/children view)]
+    (when (and (>= index 0)
+               (< index (count children)))
+      (nth children index))))
+
+(defun top-menu-item-at [menu index]
+  (let [items (:items menu)]
+    (when (and (>= index 0)
+               (< index (count items)))
+      (nth items index))))
+
+(defun wrap-index [index count]
+  (cond
+    (< index 0)
+    (+ index count)
+
+    (>= index count)
+    (- index count)
+
+    :default
+    index))
+
+(defun move-highlight-index [items highlighted-index direction]
+  (let [indices (selectable-indices items)]
+    (if (empty? indices)
+      highlighted-index
+      (let [current-pos (find-index indices (fn [idx] (= idx highlighted-index)))
+            fallback-pos 0
+            start-pos (if (or (nil? current-pos)
+                              (< current-pos 0))
+                        fallback-pos
+                        current-pos)
+            next-pos (wrap-index (+ start-pos direction) (count indices))]
+        (nth indices next-pos)))))
+
+(defun activate-menu-index! [state ctx index]
+  (let [node (highlighted-item (:items state) index)
+        child-view (child-view-at (:view ctx) index)]
+    (cond
+      (and node
+           child-view
+           (not (empty? (:items node))))
+      (do
+        (open-submenu! node state child-view)
+        state)
+
+      (and node
+           (empty? (:items node))
+           (:action node))
+      (do
+        (ui/emit! (:view ctx)
+                  :menu/select
+                  {:type :action
+                   :action (:action node)
+                   :payload (:payload node)})
+        state)
+
+      :default
+      state)))
+
+(defun make-menu [state menu-definition keymap]
+  (let [normalized-menu (normalize-menu menu-definition keymap)]
+    {:mode 'menu-bar
+     :state (merge (or state {})
+                   {:menu normalized-menu
+                    :active-index nil
+                    :pending-open-index nil})
+     :children (for-indexed [index item (:items normalized-menu)]
+                 {:mode 'menu-bar-item
+                  :style {:padding [2 8]}
+                  :state {:node item
+                          :menu-index index
+                          :active-index (ui/bind-state :active-index)
+                          :text (:display-text item)
+                          :game (ui/bind-state :game)
+                          :preferences (ui/bind-state :preferences)}})}))
+
+(defun item-selected? [node state]
+  (let [selected-path (:selected-path node)
+        selected-value (get-in state selected-path)]
+    (cond
+      (= (:item-type node) :toggle)
+      selected-value
+
+      (= (:item-type node) :option)
+      (= selected-value (:value node))
+
+      :default
+      false)))
+
+(defun popup-item-state [node state]
+  {:node node
+   :index (:index state)
+   :highlighted-index (:highlighted-index state)
+   :input-source (:input-source state)
+   :menu-depth (:menu-depth state)
+   :text (:display-text node)
+   :shortcut-text (:shortcut-text node)
+   :game (:game state)
+   :preferences (:preferences state)})
+
+(defun popup-option-item-state [node state]
+  (merge (popup-item-state node state)
+         {:selected false}))
+
+(defun popup-item-child [node state]
+  (cond
+    (= :separator (:node-type node))
+    {:mode 'menu-separator}
+
+    (or (= (:item-type node) :option)
+        (= (:item-type node) :toggle))
+    {:mode 'popup-menu-option-item
+     :state (popup-option-item-state node state)}
+
+    :default
+    {:mode 'popup-menu-item
+     :state (popup-item-state node state)}))
+
+(defun popup-position [anchor-view placement]
+  (let [bounds (:bounds anchor-view)]
+    (case placement
+      :right {:left (+ (:x bounds) (:w bounds))
+              :top (:y bounds)}
+      :default {:left (:x bounds)
+                :top (+ (:y bounds) (:h bounds))})))
+
+(defun open-popup-at-view! [node state anchor-view placement]
+  (when-let [items (:items node)]
+    (when (not (empty? items))
+      (let [position (popup-position anchor-view placement)]
+        (push-mode!
+         'popup-menu
+         {:items items
+          :highlighted-index (first-selectable-index items)
+          :input-source :mouse
+          :menu-depth (or (:menu-depth state) 0)
+          :game (:game state)
+          :preferences (:preferences state)}
+         {:origin {:view anchor-view :event :menu/select}
+          :children [{:mode 'popup-menu-outer
+                      :state {:items (ui/bind-state :items)
+                              :highlighted-index (ui/bind-state :highlighted-index)
+                              :input-source (ui/bind-state :input-source)
+                              :menu-depth (ui/bind-state :menu-depth)
+                              :game (ui/bind-state :game)
+                              :preferences (ui/bind-state :preferences)}
+                      :style {:position :absolute
+                              :width :shrink
+                              :height :shrink
+                              :left (:left position)
+                              :top (:top position)}
+                      :children [{:mode 'popup-menu-inner
+                                  :state {:items (ui/bind-state :items)
+                                          :highlighted-index (ui/bind-state :highlighted-index)
+                                          :input-source (ui/bind-state :input-source)
+                                          :menu-depth (ui/bind-state :menu-depth)
+                                          :game (ui/bind-state :game)
+                                          :preferences (ui/bind-state :preferences)}
+                                  :children (for-indexed [index item items]
+                                              (merge (popup-item-child item {:node item
+                                                                             :index index
+                                                                             :highlighted-index (ui/bind-state :highlighted-index)
+                                                                             :input-source (ui/bind-state :input-source)
+                                                                             :menu-depth (ui/bind-state :menu-depth)
+                                                                             :game (ui/bind-state :game)
+                                                                             :preferences (ui/bind-state :preferences)})
+                                                     {:style {:width :fill}}))}]}]})))))
+
+(defun open-popup! [node state ctx]
+  (open-popup-at-view! node state (:view ctx) :below))
+
+(defun open-submenu! [node state anchor-view]
+  (open-popup-at-view! node
+                       (assoc state :menu-depth (inc (or (:menu-depth state) 0)))
+                       anchor-view
+                       :right))
+
+(defcomponent menu-bar-item
+  {:class :menu/item
+   :update (fn [state ctx]
+             (let [hovered (-> ctx :view :interaction :hovered)
+                   highlighted (if (nil? (:active-index state))
+                                 hovered
+                                 (= (:menu-index state) (:active-index state)))]
+               (assoc state :highlighted highlighted)))
+   :on-mouse-down (fn [state event ctx]
+                    (let [next-state (assoc state :active-index (:menu-index state))]
+                      (open-popup! (:node state) next-state ctx)
+                      (ui/stop-propagation! event)
+                      next-state))
+   :on {:menu/select (fn [state event ctx]
+                       (let [payload (:payload event)]
+                         (cond
+                           (= :navigate-top (:type payload))
+                           (do
+                             (ui/stop-propagation! event)
+                             (ui/emit! (:view ctx)
+                                       :menu/navigate-top
+                                       {:direction (:direction payload)
+                                        :menu-index (:menu-index state)})
+                             state)
+
+                           (and (= :action (:type payload))
+                                (:action payload))
+                           (do
+                             (ui/emit! (:view ctx)
+                                       (:action payload)
+                                       (:payload payload))
+                             state)
+
+                           :default
+                           state)))}
+   :children [{:mode 'text-node
+               :state {:value (ui/bind-state :text)}}]})
+
+(defcomponent popup-menu-item
+  {:class :menu/item
+   :style {:layout {:direction :row}}
+   :update (fn [state ctx]
+             (let [hovered (-> ctx :view :interaction :hovered)
+                   highlighted (if (= :mouse (:input-source state))
+                                 hovered
+                                 (= (:index state) (:highlighted-index state)))]
+               (assoc state :highlighted highlighted)))
+   :on-mouse-motion (fn [state event ctx]
+                      (assoc (assoc state :input-source :mouse)
+                             :highlighted-index (:index state)))
+   :on-mouse-down (fn [state event ctx]
+                    (open-submenu! (:node state) state (:view ctx))
+                    (ui/stop-propagation! event)
+                    state)
+   :on-mouse-up (fn [state event ctx]
+                  (let [node (:node state)]
+                    (when (and (empty? (:items node))
+                               (:action node))
+                      (ui/emit! (:view ctx)
+                                :menu/select
+                                {:type :action
+                                 :action (:action node)
+                                 :payload (:payload node)})))
+                  state)
+   :on {:menu/select (fn [state event ctx]
+                       (ui/stop-propagation! event)
+                       (ui/emit! (:view ctx) :menu/select (:payload event))
+                       state)}
+   :children [{:mode 'text-node
+               :style {:width :fill}
+               :state {:value (ui/bind-state :text)}}
+              {:mode 'text-node
+               :class :menu/shortcut-column
+               :state {:value (ui/bind-state :shortcut-text)}}]})

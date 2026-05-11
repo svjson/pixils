@@ -1,0 +1,33 @@
+(ns pixils.test.app.shared.ui.components.menu
+  (:require pixils
+            [pixils.ui :as ui]))
+
+(defmode menu-bar
+  {:update (fn [state ctx]
+             (let [pending-open-index (:pending-open-index state)]
+               (if (nil? pending-open-index)
+                 state
+                 (let [menu (:menu state)
+                       next-node (top-menu-item-at menu pending-open-index)
+                       next-view (child-view-at (:view ctx) pending-open-index)]
+                   (when (and next-node next-view)
+                     (open-popup-at-view! next-node state next-view :below))
+                   (assoc state :pending-open-index nil)))))
+   :style {:width :fill
+           :layout {:direction :row}}
+   :on {:menu/navigate-top (fn [state event ctx]
+                             (let [payload (:payload event)
+                                   menu (:menu state)
+                                   items (:items menu)
+                                   current-index (:menu-index payload)
+                                   direction (if (= :left (:direction payload)) -1 1)
+                                   next-index (wrap-index (+ current-index direction)
+                                                          (count items))
+                                   next-state (assoc (assoc state
+                                                            :active-index next-index)
+                                                     :pending-open-index next-index)]
+                               (ui/stop-propagation! event)
+                               next-state))
+        :menu/select (fn [state event ctx]
+                       (assoc (assoc state :active-index nil)
+                              :pending-open-index nil))}})

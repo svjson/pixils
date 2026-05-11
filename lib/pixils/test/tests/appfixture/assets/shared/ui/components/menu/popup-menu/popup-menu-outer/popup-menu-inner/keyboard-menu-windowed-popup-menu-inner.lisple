@@ -1,0 +1,89 @@
+(ns pixils.test.app.shared.ui.components.menu
+  (:require pixils
+            [pixils.ui :as ui]))
+
+(defmode popup-menu-inner
+  {:focusable true
+   :init (fn [state ctx]
+           (ui/focus! ctx)
+           state)
+   :on-key-down (fn [state event ctx]
+                  (case (:key event)
+                    :key/right
+                    (let [index (:highlighted-index state)
+                          next-state (assoc state :input-source :keyboard)]
+                      (ui/stop-propagation! event)
+                      (let [node (highlighted-item (:items next-state) index)
+                            child-view (child-view-at (:view ctx) index)]
+                        (when (and node
+                                   child-view
+                                   (not (empty? (:items node))))
+                          (open-submenu! node next-state child-view))
+                        (if (and (= 0 (:menu-depth next-state))
+                                 (or (nil? node)
+                                     (empty? (:items node))))
+                          (do
+                            (pop-mode! {:type :navigate-top
+                                        :direction :right})
+                            next-state)
+                          next-state)))
+
+                    :key/left
+                    (let [next-state (assoc state :input-source :keyboard)]
+                      (ui/stop-propagation! event)
+                      (if (= 0 (:menu-depth next-state))
+                        (do
+                          (pop-mode! {:type :navigate-top
+                                      :direction :left})
+                          next-state)
+                        (do
+                          (pop-mode!)
+                          next-state)))
+
+                    :key/down
+                    (do
+                      (ui/stop-propagation! event)
+                      (assoc (assoc state
+                                    :input-source :keyboard)
+                             :highlighted-index
+                             (move-highlight-index (:items state)
+                                                   (:highlighted-index state)
+                                                   1)))
+
+                    :key/up
+                    (do
+                      (ui/stop-propagation! event)
+                      (assoc (assoc state
+                                    :input-source :keyboard)
+                             :highlighted-index
+                             (move-highlight-index (:items state)
+                                                   (:highlighted-index state)
+                                                   -1)))
+
+                    :key/escape
+                    (do
+                      (ui/stop-propagation! event)
+                      (if (= 0 (:menu-depth state))
+                        (pop-mode! {:type :dismiss})
+                        (pop-mode!))
+                      (assoc state :input-source :keyboard))
+
+                    :key/enter
+                    (let [index (:highlighted-index state)
+                          next-state (assoc state :input-source :keyboard)]
+                      (ui/stop-propagation! event)
+                      (activate-menu-index! next-state ctx index))
+
+                    :default
+                    (let [mnemonic-char (event-mnemonic-char event)
+                          next-state (assoc state :input-source :keyboard)
+                          index (find-mnemonic-index (:items next-state)
+                                                     mnemonic-char)]
+                      (if (not (nil? index))
+                        (do
+                          (ui/stop-propagation! event)
+                          (activate-menu-index! (assoc next-state
+                                                       :highlighted-index index)
+                                                ctx
+                                                index))
+                        state))))})

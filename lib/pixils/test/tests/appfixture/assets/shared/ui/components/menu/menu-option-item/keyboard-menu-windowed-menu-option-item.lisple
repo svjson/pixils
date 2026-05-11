@@ -1,0 +1,39 @@
+(ns pixils.test.app.shared.ui.components.menu
+  (:require pixils
+            [pixils.ui :as ui]))
+
+(defcomponent popup-menu-option-item
+  {:class :menu/item
+   :style {:layout {:direction :row}}
+   :update (fn [state ctx]
+             (let [hovered (-> ctx :view :interaction :hovered)
+                   highlighted (if (= :mouse (:input-source state))
+                                 hovered
+                                 (= (:index state) (:highlighted-index state)))]
+               (assoc (assoc state
+                             :highlighted
+                             highlighted)
+                      :selected
+                      (item-selected? (:node state) state))))
+   :on-mouse-motion (fn [state event ctx]
+                      (assoc (assoc state :input-source :mouse)
+                             :highlighted-index (:index state)))
+   :on-mouse-down (fn [state event ctx]
+                    (ui/stop-propagation! event)
+                    state)
+   :on-mouse-up (fn [state event ctx]
+                  (let [node (:node state)]
+                    (when (:action node)
+                      (ui/emit! (:view ctx)
+                                :menu/select
+                                {:type :action
+                                 :action (:action node)
+                                 :payload (:payload node)})))
+                  state)
+   :children [{:mode 'menu-option-indicator
+               :state {:selected (ui/bind-state :selected)}}
+              {:mode 'text-node
+               :style {:width :fill}
+               :state {:value (ui/bind-state :text)}}
+              {:mode 'text-node
+               :state {:value (ui/bind-state :shortcut-text)}}]})

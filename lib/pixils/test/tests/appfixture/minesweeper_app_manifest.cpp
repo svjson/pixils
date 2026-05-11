@@ -448,6 +448,43 @@ namespace Pixils::Test::AppFixture::Minesweeper
     return manifest;
   }
 
+  AppManifest keyboard_menu_windowed_manifest()
+  {
+    auto manifest = simple_windowed_manifest();
+
+    manifest.upsert_unit(load_unit(std::string(unit_ids::menu_definition),
+                                   "apps/minesweeper/components/menu/"
+                                   "keyboard-menu-windowed-menu-definition.lisple"));
+    manifest.upsert_unit(load_unit(std::string(unit_ids::window_mode),
+                                   "apps/minesweeper/modes/window/"
+                                   "keyboard-menu-windowed-window-mode.lisple"));
+    manifest.upsert_unit(load_unit(std::string(unit_ids::menu_item_component),
+                                   "shared/ui/components/menu/menu-item/"
+                                   "keyboard-menu-windowed-menu-item.lisple"));
+    manifest.upsert_unit(load_unit(std::string(unit_ids::menu_option_item_component),
+                                   "shared/ui/components/menu/menu-option-item/"
+                                   "keyboard-menu-windowed-menu-option-item.lisple"));
+    manifest.upsert_unit(load_unit(std::string(unit_ids::menu_bar_mode),
+                                   "shared/ui/components/menu/menu-bar/"
+                                   "keyboard-menu-windowed-menu-bar-mode.lisple"));
+    manifest.upsert_unit(load_unit(std::string(unit_ids::popup_menu_mode),
+                                   "shared/ui/components/menu/popup-menu/"
+                                   "keyboard-menu-windowed-popup-menu.lisple"));
+    manifest.upsert_unit(load_unit(std::string(unit_ids::popup_menu_inner_mode),
+                                   "shared/ui/components/menu/popup-menu/popup-menu-outer/"
+                                   "popup-menu-inner/"
+                                   "keyboard-menu-windowed-popup-menu-inner.lisple"));
+    manifest.upsert_unit(
+      load_unit(std::string(unit_ids::highscore_buttons_component),
+                "apps/minesweeper/components/highscores-window/highscore-buttons/"
+                "keyboard-menu-windowed-highscore-buttons.lisple"));
+    manifest.upsert_unit(load_unit(std::string(unit_ids::win311_theme),
+                                   "shared/ui/themes/win311/"
+                                   "keyboard-menu-windowed-win-theme.lisple"));
+
+    return manifest;
+  }
+
   std::string main_namespace()
   {
     return "pixils.test.app.minesweeper.core";
@@ -478,6 +515,19 @@ namespace Pixils::Test::AppFixture::Minesweeper
   }
 
   std::vector<std::string> simple_windowed_entry_files()
+  {
+    return {
+      "pixils/test/app/shared/ui/themes/win311.lisple",
+      "pixils/test/app/shared/ui/components/button.lisple",
+      "pixils/test/app/minesweeper/menu-definition.lisple",
+      "pixils/test/app/shared/ui/components/menu.lisple",
+      "pixils/test/app/minesweeper/game-logic.lisple",
+      "pixils/test/app/shared/ui/components/window.lisple",
+      "pixils/test/app/minesweeper/core.lisple",
+    };
+  }
+
+  std::vector<std::string> keyboard_menu_windowed_entry_files()
   {
     return {
       "pixils/test/app/shared/ui/themes/win311.lisple",

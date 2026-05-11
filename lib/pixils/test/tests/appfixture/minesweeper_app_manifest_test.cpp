@@ -199,6 +199,40 @@ TEST(MinesweeperAppManifestTest, materializes_simple_windowed_catalog)
   EXPECT_EQ(shared_window->units[4].id, Minesweeper::unit_ids::window_component);
 }
 
+TEST(MinesweeperAppManifestTest, materializes_keyboard_menu_windowed_catalog)
+{
+  auto files = Minesweeper::keyboard_menu_windowed_manifest().materialize_files();
+
+  ASSERT_EQ(files.size(), 7u);
+
+  const auto* core = find_file(files, Minesweeper::main_namespace());
+  ASSERT_NE(core, nullptr);
+  ASSERT_EQ(core->units.size(), 20u);
+  EXPECT_EQ(core->units[0].id, Minesweeper::unit_ids::program);
+  EXPECT_EQ(core->units[17].id, Minesweeper::unit_ids::game_mode);
+  EXPECT_EQ(core->units[18].id, Minesweeper::unit_ids::window_mode);
+  EXPECT_EQ(core->units[19].id, Minesweeper::unit_ids::main_mode);
+
+  const auto* menu_definition =
+    find_file(files, "pixils.test.app.minesweeper.menu-definition");
+  ASSERT_NE(menu_definition, nullptr);
+  ASSERT_EQ(menu_definition->units.size(), 1u);
+  EXPECT_EQ(menu_definition->units[0].id, Minesweeper::unit_ids::menu_definition);
+
+  const auto* shared_menu = find_file(files, "pixils.test.app.shared.ui.components.menu");
+  ASSERT_NE(shared_menu, nullptr);
+  ASSERT_EQ(shared_menu->units.size(), 8u);
+  EXPECT_EQ(shared_menu->units[0].id, Minesweeper::unit_ids::menu_item_component);
+  EXPECT_EQ(shared_menu->units[1].id,
+            Minesweeper::unit_ids::menu_option_indicator_component);
+  EXPECT_EQ(shared_menu->units[2].id, Minesweeper::unit_ids::menu_option_item_component);
+  EXPECT_EQ(shared_menu->units[3].id, Minesweeper::unit_ids::menu_separator_component);
+  EXPECT_EQ(shared_menu->units[4].id, Minesweeper::unit_ids::menu_bar_mode);
+  EXPECT_EQ(shared_menu->units[5].id, Minesweeper::unit_ids::popup_menu_mode);
+  EXPECT_EQ(shared_menu->units[6].id, Minesweeper::unit_ids::popup_menu_outer_mode);
+  EXPECT_EQ(shared_menu->units[7].id, Minesweeper::unit_ids::popup_menu_inner_mode);
+}
+
 TEST(MinesweeperAppManifestTest, exposes_pre_windowed_entry_files_in_dependency_load_order)
 {
   EXPECT_EQ(Minesweeper::pre_windowed_entry_files(),
@@ -217,6 +251,21 @@ TEST(MinesweeperAppManifestTest,
      exposes_simple_windowed_entry_files_in_dependency_load_order)
 {
   EXPECT_EQ(Minesweeper::simple_windowed_entry_files(),
+            (std::vector<std::string>{
+              "pixils/test/app/shared/ui/themes/win311.lisple",
+              "pixils/test/app/shared/ui/components/button.lisple",
+              "pixils/test/app/minesweeper/menu-definition.lisple",
+              "pixils/test/app/shared/ui/components/menu.lisple",
+              "pixils/test/app/minesweeper/game-logic.lisple",
+              "pixils/test/app/shared/ui/components/window.lisple",
+              "pixils/test/app/minesweeper/core.lisple",
+            }));
+}
+
+TEST(MinesweeperAppManifestTest,
+     exposes_keyboard_menu_windowed_entry_files_in_dependency_load_order)
+{
+  EXPECT_EQ(Minesweeper::keyboard_menu_windowed_entry_files(),
             (std::vector<std::string>{
               "pixils/test/app/shared/ui/themes/win311.lisple",
               "pixils/test/app/shared/ui/components/button.lisple",
