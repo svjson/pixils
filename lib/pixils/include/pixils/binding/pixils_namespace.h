@@ -131,6 +131,8 @@ namespace Pixils::Script
                   mouse_held,
                   pixel_size,
                   buffer_dim,
+                  available_width,
+                  available_height,
                   view));
   /*! @brief InteractionStateAdapter - engine-computed hover/focus/press state on a view */
   NATIVE_ADAPTER(InteractionStateAdapter,

@@ -1,9 +1,17 @@
 (ns pixils.ui.theme.classic-blue
-  (:require pixils))
+  (:require pixils
+            [pixils.color :as c]))
+
+(def BUTTON-BG {:r 0x3d :g 0x4a :b 0x5e})
+(def BUTTON-HIGHLIGHT {:r 0x67 :g 0x78 :b 0x8f})
+(def BUTTON-SHADOW {:r 0x2d :g 0x36 :b 0x46})
+(def BUTTON-GLYPH {:r 0xf5 :g 0xf6 :b 0xf3})
+
+(def PANEL-BG {:r 0x20 :g 0x29 :b 0x36})
 
 (deftheme pixils/classic-blue
   {:styles
-   {:ui/panel {:background {:r 0x20 :g 0x29 :b 0x36}
+   {:ui/panel {:background PANEL-BG
                :padding 4}
 
     :ui/app {:background {:r 0x1d :g 0x23 :b 0x2a}
@@ -24,10 +32,70 @@
     '(:ui/list-item {:selected true})
     {:background {:r 0x4a :g 0x3f :b 0x24}}
 
+    '(ui/button {:pressed true})
+    {:border {:line-style :solid
+              :color c/TRANSPARENT
+              :thickness 1
+              :right {:thickness 0}
+              :bottom {:thickness 0}}}
+
+    'ui/button-inner
+    {:background BUTTON-BG
+     :border {:line-style :bevel
+              :width :fill
+              :color BUTTON-HIGHLIGHT
+              :thickness 2
+              :right {:color BUTTON-SHADOW}
+              :bottom {:color BUTTON-SHADOW}}}
+
+    'ui/button-inner:hover
+    {:text {:color c/BLACK}
+     :background BUTTON-BG
+     :border {:line-style :bevel
+              :width :fill
+              :color BUTTON-HIGHLIGHT
+              :thickness 2
+              :right {:color BUTTON-SHADOW}
+              :bottom {:color BUTTON-SHADOW}}}
+
+    '(ui/button-inner {:pressed true})
+    {:border {:line-style :bevel
+              :color BUTTON-SHADOW
+              :thickness 2
+              :right {:color c/WHITE :thickness 1}
+              :bottom {:color c/WHITE :thickness 1}}}
+
     'ui/scrollbar {:background {:r 0x20 :g 0x29 :b 0x36}
-                   :border {:color {:r 0x5f :g 0x6f :b 0x7f}
-                            :thickness 1}
                    :text {:color {:r 0xe6 :g 0xea :b 0xee}}}
+
+    'ui/scrollbar-button {:background BUTTON-BG
+                          :border {:color BUTTON-HIGHLIGHT
+                                   :thickness 1
+                                   :right {:color BUTTON-SHADOW}
+                                   :bottom {:color BUTTON-SHADOW}}
+                          :text {:color BUTTON-GLYPH}}
+
+    '(ui/scrollbar-button {:pressed true})
+    {:background BUTTON-BG
+     :border {:color BUTTON-SHADOW
+              :thickness 1
+              :right {:color BUTTON-HIGHLIGHT}
+              :bottom {:color BUTTON-HIGHLIGHT}}}
+
+    'ui/scrollbar-track {:background PANEL-BG}
+
+    'ui/scrollbar-handle {:background BUTTON-BG
+                          :border {:color BUTTON-HIGHLIGHT
+                                   :thickness 1
+                                   :right {:color BUTTON-SHADOW}
+                                   :bottom {:color BUTTON-SHADOW}}}
+
+    '(ui/scrollbar-handle {:pressed true})
+    {:background BUTTON-BG
+     :border {:color BUTTON-SHADOW
+              :thickness 1
+              :right {:color BUTTON-HIGHLIGHT}
+              :bottom {:color BUTTON-HIGHLIGHT}}}
 
     'ui/scrollbar-corner {:background {:r 0x20 :g 0x29 :b 0x36}
                           :border {:color {:r 0x5f :g 0x6f :b 0x7f}

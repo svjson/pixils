@@ -371,6 +371,9 @@ with `:position :absolute`:
 Absolutely positioned children do not consume space in the flow layout and do not affect
 the size allocated to other children.
 
+For a root mode, absolute positioning is relative to the root render area because there is
+no parent content rect.
+
 ### Style
 
 Modes and components can declare a style that the framework applies before their render
@@ -545,11 +548,13 @@ Directional override keys: `:top`, `:right`, `:bottom`, `:left` - each accepts t
 **Hidden**
 
 The `:hidden` style property is mutable. A component can show or hide itself during its
-update hook without changing its parent's state:
+update hook without changing its parent's state. Prefer `pixils.ui/style!` for runtime
+style changes; it accepts either the hook context or a view and merges the supplied style
+fragment onto that live view instance:
 
 ```clojure
 :update (fn [state ctx]
-          (assoc-in! ctx [:view :style :hidden] (:should-hide? state))
+          (pixils.ui/style! ctx {:hidden (:should-hide? state)})
           state)
 ```
 

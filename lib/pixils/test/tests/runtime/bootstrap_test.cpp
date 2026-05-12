@@ -23,6 +23,8 @@ TEST_F(BootstrapTest, loads_embedded_core_ui_modes_into_pixils_mode_registry)
   auto button_mode = Lisple::Dict::get_property(modes, Lisple::RTValue::symbol("ui/button"));
   auto scrollbar_mode =
     Lisple::Dict::get_property(modes, Lisple::RTValue::symbol("ui/scrollbar"));
+  auto scrollbar_button_mode =
+    Lisple::Dict::get_property(modes, Lisple::RTValue::symbol("ui/scrollbar-button"));
   auto window_mode = Lisple::Dict::get_property(modes, Lisple::RTValue::symbol("ui/window"));
   auto menu_bar_mode =
     Lisple::Dict::get_property(modes, Lisple::RTValue::symbol("ui/menu-bar"));
@@ -33,6 +35,7 @@ TEST_F(BootstrapTest, loads_embedded_core_ui_modes_into_pixils_mode_registry)
   ASSERT_NE(text_input_mode, nullptr);
   ASSERT_NE(button_mode, nullptr);
   ASSERT_NE(scrollbar_mode, nullptr);
+  ASSERT_NE(scrollbar_button_mode, nullptr);
   ASSERT_NE(window_mode, nullptr);
   ASSERT_NE(menu_bar_mode, nullptr);
   ASSERT_NE(popup_menu_mode, nullptr);
@@ -41,6 +44,8 @@ TEST_F(BootstrapTest, loads_embedded_core_ui_modes_into_pixils_mode_registry)
   EXPECT_EQ(Lisple::obj<Pixils::Runtime::Mode>(*text_input_mode).name, "ui/text-input");
   EXPECT_EQ(Lisple::obj<Pixils::Runtime::Mode>(*button_mode).name, "ui/button");
   EXPECT_EQ(Lisple::obj<Pixils::Runtime::Mode>(*scrollbar_mode).name, "ui/scrollbar");
+  EXPECT_EQ(Lisple::obj<Pixils::Runtime::Mode>(*scrollbar_button_mode).name,
+            "ui/scrollbar-button");
   EXPECT_EQ(Lisple::obj<Pixils::Runtime::Mode>(*window_mode).name, "ui/window");
   EXPECT_EQ(Lisple::obj<Pixils::Runtime::Mode>(*menu_bar_mode).name, "ui/menu-bar");
   EXPECT_EQ(Lisple::obj<Pixils::Runtime::Mode>(*popup_menu_mode).name, "ui/popup-menu");
@@ -78,16 +83,16 @@ TEST_F(BootstrapTest, includes_embedded_windows_theme_sources)
 {
   const auto& sources = Pixils::EmbeddedLisp::core_sources();
 
-  auto windows_3_theme = std::find_if(
-    sources.begin(),
-    sources.end(),
-    [](const Pixils::EmbeddedLisp::Source& source)
-    { return std::string_view(source.path) == "ui/themes/windows-3.lisple"; });
-  auto windows_95_theme = std::find_if(
-    sources.begin(),
-    sources.end(),
-    [](const Pixils::EmbeddedLisp::Source& source)
-    { return std::string_view(source.path) == "ui/themes/windows-95.lisple"; });
+  auto windows_3_theme =
+    std::find_if(sources.begin(),
+                 sources.end(),
+                 [](const Pixils::EmbeddedLisp::Source& source)
+                 { return std::string_view(source.path) == "ui/themes/windows-3.lisple"; });
+  auto windows_95_theme =
+    std::find_if(sources.begin(),
+                 sources.end(),
+                 [](const Pixils::EmbeddedLisp::Source& source)
+                 { return std::string_view(source.path) == "ui/themes/windows-95.lisple"; });
 
   ASSERT_NE(windows_3_theme, sources.end());
   ASSERT_NE(windows_95_theme, sources.end());

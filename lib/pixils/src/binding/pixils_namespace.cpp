@@ -693,6 +693,8 @@ namespace Pixils::Script
                       ("mouse-held", mouse_held),
                       ("pixel-size", pixel_size),
                       ("buffer-size", buffer_dim),
+                      ("available-width", available_width),
+                      ("available-height", available_height),
                       (view));
 
   NOBJ_PROP_GET(HookContextAdapter, key_down)
@@ -734,6 +736,18 @@ namespace Pixils::Script
   {
     const Dimension& dim = object->get_object().render->buffer_dim;
     return DimensionAdapter::make_unique(dim.w, dim.h);
+  }
+
+  NOBJ_PROP_GET(HookContextAdapter, available_width)
+  {
+    auto available = object->get_object().available_width;
+    return available ? Lisple::RTValue::number(*available) : Lisple::Constant::NIL;
+  }
+
+  NOBJ_PROP_GET(HookContextAdapter, available_height)
+  {
+    auto available = object->get_object().available_height;
+    return available ? Lisple::RTValue::number(*available) : Lisple::Constant::NIL;
   }
 
   NOBJ_PROP_GET(HookContextAdapter, view)

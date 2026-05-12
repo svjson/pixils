@@ -4,10 +4,12 @@
 #include <pixils/binding/mode_definition.h>
 #include <pixils/binding/pixils_namespace.h>
 #include <pixils/binding/point_namespace.h>
+#include <pixils/binding/ui/style/style_host_type.h>
 #include <pixils/binding/ui/ui_host_type.h>
 #include <pixils/runtime/state.h>
 #include <pixils/runtime/view.h>
 #include <pixils/ui/event.h>
+#include <pixils/ui/style.h>
 
 #include <algorithm>
 #include <lisple/exception.h>
@@ -49,6 +51,22 @@ namespace Pixils::Script
         }
 
         return ViewAdapter::make_ref(*view);
+      }
+
+      Runtime::Mode& ensure_instance_mode(Runtime::View& view)
+      {
+        if (!view.mode)
+        {
+          throw Lisple::InvocationException("view has no mode");
+        }
+
+        if (!view.owned_mode)
+        {
+          view.owned_mode = std::make_unique<Runtime::Mode>(*view.mode);
+          view.mode = view.owned_mode.get();
+        }
+
+        return *view.mode;
       }
     } // namespace
 
@@ -189,6 +207,33 @@ namespace Pixils::Script
       view.queue_replace_child(child_id, std::move(slot));
 
       return Lisple::Constant::NIL;
+    }
+
+    /** StyleBangFunction - style! */
+    FUNC_IMPL(StyleBangFunction,
+              SIG((FN_ARGS((&Lisple::Type::ANY), (&Lisple::Type::ANY)),
+                   EXEC_DISPATCH(&StyleBangFunction::exec_style))));
+
+    EXEC_BODY(StyleBangFunction, exec_style)
+    {
+      auto target = resolve_view_target(args[0], "ui/style!");
+      if (!target || target->type == Lisple::RTValue::Type::NIL)
+      {
+        return Lisple::Constant::NIL;
+      }
+
+      Runtime::View& view = Lisple::obj<Runtime::View>(*target);
+      auto coercion = HostType::STYLE.coerce(ctx, args[1]);
+      if (!coercion.success)
+      {
+        throw Lisple::TypeError("ui/style! style argument must be a style map or style");
+      }
+
+      Runtime::Mode& mode = ensure_instance_mode(view);
+      if (!mode.style) mode.style = UI::Style{};
+      UI::apply_style_variant(*mode.style, Lisple::obj<UI::Style>(*coercion.result));
+
+      return target;
     }
 
     /** StopPropagationFn - stop-propagation! */
@@ -336,6 +381,7 @@ namespace Pixils::Script
     values.emplace("emit!", Function::EmitBangFunction::make());
     values.emplace(FN__PIXILS__UI__FOCUS_BANG, Function::FocusBangFunction::make());
     values.emplace("replace-child!", Function::ReplaceChildBangFunction::make());
+    values.emplace(FN__PIXILS__UI__STYLE_BANG, Function::StyleBangFunction::make());
     values.emplace("stop-propagation!", Function::StopPropagation::make());
   }
 

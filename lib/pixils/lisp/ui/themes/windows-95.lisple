@@ -82,6 +82,7 @@
 (def PANEL-COLOR {:r 0xb8 :g 0xb8 :b 0xb8})
 (def PANEL-LIGHT {:r 0xdf :g 0xdf :b 0xdf})
 (def PANEL-SHADOW {:r 0x7f :g 0x7f :b 0x7f})
+(def PANEL-BRIGHT {:r 0xe0 :g 0xe0 :b 0xe0})
 (def FOCUS-BLUE {:r 0x00 :g 0x00 :b 0x7f})
 
 (deftheme pixils/windows-95
@@ -113,14 +114,47 @@
              :text {:color c/WHITE}}
 
             'ui/scrollbar {:background PANEL-COLOR
-                           :border {:color c/BLACK
-                                    :thickness 1}
                            :text {:font :font/win95-system-font
                                   :color c/BLACK}}
 
+            'ui/scrollbar-button {:background PANEL-COLOR
+                                  :border {:line-style :bevel
+                                           :color PANEL-LIGHT
+                                           :thickness 1
+                                           :right {:color PANEL-SHADOW}
+                                           :bottom {:color PANEL-SHADOW}}
+                                  :text {:font :font/win95-system-font
+                                         :color c/BLACK}}
+
+            '(ui/scrollbar-button {:pressed true})
+            {:border {:line-style :bevel
+                      :color PANEL-SHADOW
+                      :thickness 1
+                      :right {:color PANEL-LIGHT}
+                      :bottom {:color PANEL-LIGHT}}}
+
+            'ui/scrollbar-track {:background PANEL-BRIGHT}
+
+            'ui/scrollbar-handle {:background PANEL-COLOR
+                                  :border {:line-style :bevel
+                                           :color PANEL-LIGHT
+                                           :thickness 1
+                                           :right {:color PANEL-SHADOW}
+                                           :bottom {:color PANEL-SHADOW}}}
+
+            '(ui/scrollbar-handle {:pressed true})
+            {:border {:line-style :bevel
+                      :color PANEL-SHADOW
+                      :thickness 1
+                      :right {:color PANEL-LIGHT}
+                      :bottom {:color PANEL-LIGHT}}}
+
             'ui/scrollbar-corner {:background PANEL-COLOR
-                                  :border {:color c/BLACK
-                                           :thickness 1}}
+                                  :border {:line-style :bevel
+                                           :color PANEL-LIGHT
+                                           :thickness 1
+                                           :right {:color PANEL-SHADOW}
+                                           :bottom {:color PANEL-SHADOW}}}
 
             'ui/window {:border {:line-style :solid
                                  :thickness 1

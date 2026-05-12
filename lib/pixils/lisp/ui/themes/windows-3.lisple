@@ -98,7 +98,6 @@
 (def panel-face {:r 0xc0 :g 0xc7 :b 0xc8})
 (def panel-shadow {:r 0x87 :g 0x88 :b 0x8f})
 
-
 
 ;; Win 3.11 UI drawing routines
 
@@ -160,9 +159,56 @@
                            :text {:font :font/win3-system-font
                                   :color c/BLACK}}
 
+            'ui/scrollbar-button {:background panel-face
+                                  :border {:line-style :bevel
+                                           :color c/WHITE
+                                           :thickness 2
+                                           :right {:color panel-shadow}
+                                           :bottom {:color panel-shadow}}
+                                  :text {:font :font/win3-system-font
+                                         :color c/BLACK}}
+
+            '(ui/scrollbar-button {:pressed true})
+            {:border {:line-style :bevel
+                      :color panel-shadow
+                      :thickness 2
+                      :right {:color c/WHITE}
+                      :bottom {:color c/WHITE}}}
+
+            'ui/scrollbar-track {:background panel-face}
+
+            '(ui/scrollbar-track {:axis :x})
+            {:border {:color c/BLACK
+                      :thickness 0
+                      :left {:thickness 1}
+                      :right {:thickness 1}}}
+
+            '(ui/scrollbar-track {:axis :y})
+            {:border {:color c/BLACK
+                      :thickness 0
+                      :top {:thickness 1}
+                      :bottom {:thickness 1}}}
+
+            'ui/scrollbar-handle {:background panel-face
+                                  :border {:line-style :bevel
+                                           :color c/WHITE
+                                           :thickness 2
+                                           :right {:color panel-shadow}
+                                           :bottom {:color panel-shadow}}}
+
+            '(ui/scrollbar-handle {:pressed true})
+            {:border {:line-style :bevel
+                      :color panel-shadow
+                      :thickness 2
+                      :right {:color c/WHITE}
+                      :bottom {:color c/WHITE}}}
+
             'ui/scrollbar-corner {:background panel-face
-                                  :border {:color c/BLACK
-                                           :thickness 1}}
+                                  :border {:line-style :bevel
+                                           :color c/WHITE
+                                           :thickness 2
+                                           :right {:color panel-shadow}
+                                           :bottom {:color panel-shadow}}}
 
             'ui/window {:border {:line-style :solid
                                  :thickness 1
