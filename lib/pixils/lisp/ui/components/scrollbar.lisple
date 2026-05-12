@@ -2,11 +2,11 @@
   (:require pixils
             [pixils.render :as r]))
 
-(def default-track-color {:r 0xcc :g 0xcc :b 0xcc})
-(def default-button-color {:r 0xe6 :g 0xe6 :b 0xe6})
-(def default-button-border-color {:r 0x66 :g 0x66 :b 0x66})
-(def default-handle-color {:r 0x99 :g 0x99 :b 0x99})
-(def default-handle-pressed-color {:r 0x77 :g 0x77 :b 0x77})
+(def default-track-color {:r 0xff :g 0xff :b 0xff})
+(def default-button-color {:r 0xff :g 0xff :b 0xff})
+(def default-button-border-color {:r 0x00 :g 0x00 :b 0x00})
+(def default-handle-color {:r 0xff :g 0xff :b 0xff})
+(def default-handle-pressed-color {:r 0xcc :g 0xcc :b 0xcc})
 (def default-glyph-color {:r 0x00 :g 0x00 :b 0x00})
 
 (defun clamp [value low high]
@@ -146,15 +146,34 @@
   {:x (+ (:x rect) 4)
    :y (+ (:y rect) 3)})
 
-(defun render-scrollbar-button! [state rect label]
+(defun scrollbar-background-color [state ctx key fallback]
+  (or (get state key)
+      (-> ctx :view :style :background)
+      fallback))
+
+(defun scrollbar-border-color [state ctx fallback]
+  (or (:button-border-color state)
+      (-> ctx :view :style :border :color)
+      fallback))
+
+(defun scrollbar-glyph-color [state ctx]
+  (or (:glyph-color state)
+      (-> ctx :view :style :text :color)
+      default-glyph-color))
+
+(defun render-scrollbar-button! [state ctx rect label]
   (do
     (r/rect! rect {:fill true
-                   :color (or (:button-color state) default-button-color)})
-    (r/rect! rect {:color (or (:button-border-color state)
-                              default-button-border-color)})
+                   :color (scrollbar-background-color state
+                                                       ctx
+                                                       :button-color
+                                                       default-button-color)})
+    (r/rect! rect {:color (scrollbar-border-color state
+                                                  ctx
+                                                  default-button-border-color)})
     (r/text! label
              (scrollbar-glyph-pos state rect)
-             {:color (or (:glyph-color state) default-glyph-color)})))
+             {:color (scrollbar-glyph-color state ctx)})))
 
 (defcomponent ui/scrollbar
   {:focusable true
@@ -196,19 +215,30 @@
                    handle-color (if pressed?
                                   (or (:handle-pressed-color state)
                                       default-handle-pressed-color)
-                                  (or (:handle-color state) default-handle-color))]
+                                  (scrollbar-background-color state
+                                                              ctx
+                                                              :handle-color
+                                                              default-handle-color))
+                   border-color (scrollbar-border-color state
+                                                        ctx
+                                                        default-button-border-color)]
                (do
                  (r/rect! track {:fill true
-                                 :color (or (:track-color state) default-track-color)})
+                                 :color (scrollbar-background-color state
+                                                                    ctx
+                                                                    :track-color
+                                                                    default-track-color)})
                  (render-scrollbar-button! state
+                                           ctx
                                            start-button
                                            (scrollbar-start-glyph state))
                  (render-scrollbar-button! state
+                                           ctx
                                            end-button
                                            (scrollbar-end-glyph state))
                  (r/rect! handle {:fill true
                                   :color handle-color})
-                 (r/rect! track {:color (or (:button-border-color state)
-                                            default-button-border-color)}))))})
+                 (r/rect! handle {:color border-color})
+                 (r/rect! track {:color border-color}))))})
 
 (defcomponent ui/scrollbar-corner {})

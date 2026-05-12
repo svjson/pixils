@@ -154,6 +154,16 @@
             {:background focus-blue
              :text {:color c/WHITE}}
 
+            'ui/scrollbar {:background panel-face
+                           :border {:color c/BLACK
+                                    :thickness 1}
+                           :text {:font :font/win3-system-font
+                                  :color c/BLACK}}
+
+            'ui/scrollbar-corner {:background panel-face
+                                  :border {:color c/BLACK
+                                           :thickness 1}}
+
             'ui/window {:border {:line-style :solid
                                  :thickness 1
                                  :color c/BLACK}

@@ -24,6 +24,15 @@
     '(:ui/list-item {:selected true})
     {:background {:r 0x4a :g 0x3f :b 0x24}}
 
+    'ui/scrollbar {:background {:r 0x20 :g 0x29 :b 0x36}
+                   :border {:color {:r 0x5f :g 0x6f :b 0x7f}
+                            :thickness 1}
+                   :text {:color {:r 0xe6 :g 0xea :b 0xee}}}
+
+    'ui/scrollbar-corner {:background {:r 0x20 :g 0x29 :b 0x36}
+                          :border {:color {:r 0x5f :g 0x6f :b 0x7f}
+                                   :thickness 1}}
+
     'ui/window-title-bar {:background {:r 0x34 :g 0x42 :b 0x55}
                           :border {:top {:color {:r 0x58 :g 0x84 :b 0xc8}
                                          :thickness 1}

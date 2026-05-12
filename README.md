@@ -100,8 +100,10 @@ Lisple components, so applications can use them like any other mode.
 `ui/scrollbar` is intended for direct composition. Use `:axis :x` or `:axis :y`,
 bind `:value` to the scroll offset you want to control, and provide `:content-size`
 for the total scrollable span. Optional `:step` controls the arrow-button increment.
-The first version exposes visual slots through state colors:
-`:track-color`, `:button-color`, `:button-border-color`, `:handle-color`,
+The scrollbar uses its effective style as its visual default: `:background` for
+the track, arrow buttons, and handle; `:border :color` for outlines; and
+`:text :color` for arrow glyphs. State colors can still override individual
+parts: `:track-color`, `:button-color`, `:button-border-color`, `:handle-color`,
 `:handle-pressed-color`, and `:glyph-color`.
 
 **Hook signatures**
