@@ -11,10 +11,26 @@ namespace Pixils
 {
   namespace
   {
+    Lisple::sptr_rtval theme_names_to_value(const std::vector<std::string>& theme_names)
+    {
+      if (theme_names.size() == 1)
+      {
+
+        return Lisple::RTValue::symbol(theme_names[0]);
+      }
+
+      std::vector<Lisple::sptr_rtval> values;
+      values.reserve(theme_names.size());
+      for (const auto& theme_name : theme_names)
+      {
+        values.push_back(Lisple::RTValue::symbol(theme_name));
+      }
+      return Lisple::RTValue::vector(values);
+    }
+
     Program& resolve_program(Lisple::Runtime& runtime)
     {
-      Lisple::sptr_rtval programs =
-        runtime.lookup_value(Script::ID__PIXILS__PROGRAMS);
+      Lisple::sptr_rtval programs = runtime.lookup_value(Script::ID__PIXILS__PROGRAMS);
       auto program_keys = Lisple::Dict::map_keys(*programs);
       Lisple::sptr_rtval program_key;
 
@@ -48,7 +64,7 @@ namespace Pixils
       if (!program.theme) return Lisple::Constant::NIL;
 
       return Lisple::RTValue::map(
-        {Lisple::RTValue::keyword("theme"), Lisple::RTValue::symbol(*program.theme)});
+        {Lisple::RTValue::keyword("theme"), theme_names_to_value(*program.theme)});
     }
   } // namespace
 
@@ -75,7 +91,9 @@ namespace Pixils
   {
     auto& program = resolve_program(runtime);
     ensure_initial_mode(runtime, program);
-    session.push_mode(program.initial_mode, Lisple::Constant::NIL, program_root_overrides(program));
+    session.push_mode(program.initial_mode,
+                      Lisple::Constant::NIL,
+                      program_root_overrides(program));
     return program;
   }
 } // namespace Pixils

@@ -303,6 +303,57 @@ TEST_F(DefThemeTest, deftheme_extend_merges_parent_styles_and_overrides_them)
   EXPECT_EQ(*status_panel->text->font, "font/status");
 }
 
+TEST_F(DefThemeTest, deftheme_can_compose_visual_and_layout_theme_layers)
+{
+  runtime.eval(R"(
+    (pixils/deftheme visual-theme
+      {:styles {:ui/panel {:background {:r 1 :g 2 :b 3 :a 255}
+                           :text {:font :font/visual}}}})
+
+    (pixils/deftheme compact-layout-theme
+      {:styles {:ui/panel {:padding [2 4]
+                           :layout {:direction :row
+                                    :gap 3}}}})
+
+    (pixils/deftheme compact-visual-theme
+      {:extend ['visual-theme 'compact-layout-theme]
+       :styles {}})
+  )");
+
+  Pixils::UI::Theme& theme = get_theme(runtime, "compact-visual-theme");
+  ASSERT_EQ(theme.extend.size(), 2u);
+  EXPECT_EQ(theme.extend[0], "visual-theme");
+  EXPECT_EQ(theme.extend[1], "compact-layout-theme");
+
+  auto panel = theme.get_style(Pixils::UI::ThemeSelector::class_name("ui/panel"));
+  ASSERT_NE(panel, nullptr);
+
+  ASSERT_TRUE(panel->background.has_value());
+  ASSERT_TRUE(panel->background->color.has_value());
+  EXPECT_EQ(panel->background->color->r, 1);
+  EXPECT_EQ(panel->background->color->g, 2);
+  EXPECT_EQ(panel->background->color->b, 3);
+
+  ASSERT_TRUE(panel->text.has_value());
+  ASSERT_TRUE(panel->text->font.has_value());
+  EXPECT_EQ(*panel->text->font, "font/visual");
+
+  ASSERT_TRUE(panel->padding.has_value());
+  EXPECT_EQ(panel->padding->t, 2);
+  EXPECT_EQ(panel->padding->r, 4);
+  EXPECT_EQ(panel->padding->b, 2);
+  EXPECT_EQ(panel->padding->l, 4);
+
+  ASSERT_TRUE(panel->layout.has_value());
+  ASSERT_TRUE(panel->layout->direction.has_value());
+  ASSERT_TRUE(panel->layout->gap.has_value());
+  ASSERT_TRUE(panel->layout->gap->mode.has_value());
+  ASSERT_TRUE(panel->layout->gap->size.has_value());
+  EXPECT_EQ(*panel->layout->direction, Pixils::UI::LayoutDirection::ROW);
+  EXPECT_EQ(*panel->layout->gap->mode, Pixils::UI::Style::Layout::GapMode::FIXED);
+  EXPECT_EQ(*panel->layout->gap->size, 3);
+}
+
 TEST_F(DefThemeTest, defprogram_with_theme_is_created)
 {
   runtime.eval(R"(
@@ -314,7 +365,25 @@ TEST_F(DefThemeTest, defprogram_with_theme_is_created)
   auto program_val = runtime.eval("(get pixils/programs 'app)");
   Pixils::Program& program = Lisple::obj<Pixils::Program>(*program_val);
   ASSERT_TRUE(program.theme.has_value());
-  EXPECT_EQ(*program.theme, "app-theme");
+  ASSERT_EQ(program.theme->size(), 1u);
+  EXPECT_EQ((*program.theme)[0], "app-theme");
+}
+
+TEST_F(DefThemeTest, defprogram_accepts_theme_vectors)
+{
+  runtime.eval(R"(
+    (pixils/deftheme visual-theme {:styles {}})
+    (pixils/deftheme compact-layout-theme {:styles {}})
+    (pixils/defprogram app {:initial-mode 'root-mode
+                            :theme ['visual-theme 'compact-layout-theme]})
+  )");
+
+  auto program_val = runtime.eval("(get pixils/programs 'app)");
+  Pixils::Program& program = Lisple::obj<Pixils::Program>(*program_val);
+  ASSERT_TRUE(program.theme.has_value());
+  ASSERT_EQ(program.theme->size(), 2u);
+  EXPECT_EQ((*program.theme)[0], "visual-theme");
+  EXPECT_EQ((*program.theme)[1], "compact-layout-theme");
 }
 
 TEST_F(DefThemeTest, defprogram_with_target_frame_rate_is_created)

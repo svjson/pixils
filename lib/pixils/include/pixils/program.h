@@ -6,6 +6,7 @@
 
 #include <optional>
 #include <string>
+#include <vector>
 
 namespace Lisple
 {
@@ -28,7 +29,7 @@ namespace Pixils
 
     Display display;
     std::string initial_mode;
-    std::optional<std::string> theme = std::nullopt;
+    std::optional<std::vector<std::string>> theme = std::nullopt;
     bool pointer_visible = true;
     int target_frame_rate = DEFAULT_TARGET_FRAME_RATE;
 

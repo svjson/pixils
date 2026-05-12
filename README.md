@@ -54,7 +54,7 @@ that runs first.
 
 | Key        | Values | Description                                                     |
 |------------|--------|-----------------------------------------------------------------|
-| `:theme`   | Symbol | Theme applied to the root mode tree for this program.           |
+| `:theme`   | Symbol or vector of symbols | Theme layer(s) applied to the root mode tree for this program. |
 | `:pointer` | `:off` | Hide the OS mouse cursor. Omit to leave the cursor visible.    |
 
 ### `defmode` and `defcomponent`
@@ -430,7 +430,8 @@ and border are added on top of the fixed content size.
 ### Themes
 
 Themes let you define reusable style rules and apply them to a mode tree with `:theme`
-on `defprogram`, `defmode`, or child mode entries.
+on `defprogram`, `defmode`, or child mode entries. `:theme` accepts either one
+theme symbol or a vector of theme symbols, applied left to right.
 
 Pixils also applies an internal built-in base theme underneath any user theme. That base
 theme is the framework's equivalent of browser default styles: always present, and used
@@ -439,6 +440,39 @@ as-is when no explicit theme is active.
 The current built-in named themes are `pixils/classic-blue`,
 `pixils/windows-3`, and `pixils/windows-95`. The Windows themes include their
 bitmap font and small control images as embedded Pixils assets.
+
+Stock themes also define a small semantic UI vocabulary for application-level
+layout surfaces:
+
+| Class | Intended use |
+|-------|--------------|
+| `:ui/app` | Root application surface. |
+| `:ui/panel` | Generic panel or sidebar surface. |
+| `:ui/title` | Section or tool heading text. |
+| `:ui/muted` | Secondary text. |
+| `:ui/accent` | Highlight text. |
+| `:ui/canvas` | Framed drawing or editor surface. |
+| `:ui/list-item` | Selectable list/palette rows; `{:selected true}` marks the selected row. |
+
+Themes are presentation profiles, and presentation includes both visual styling
+and layout policy. Applications can rely on the built-in base theme, choose a
+stock theme, or define their own theme layers for application layout, density,
+spacing, and visual identity.
+
+For example, an application may define both a compact layout theme and a roomy
+layout theme, then compose either one with `pixils/classic-blue` or
+`pixils/windows-95`. The composition can be named with vector `:extend` in a
+concrete application theme, or selected directly where the theme is applied:
+
+```clojure
+(pixils/defprogram tilemap-editor
+  {:theme ['pixils/windows-3 'tilemap-editor/compact-theme]
+   :initial-mode 'main-mode})
+```
+
+Component-local `:style` remains useful for intrinsic structure and one-off
+constraints, but reusable application spacing and density belong naturally in
+theme rules.
 
 ```clojure
 (pixils/deftheme win95

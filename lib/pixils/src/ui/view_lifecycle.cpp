@@ -173,7 +173,9 @@ namespace
     auto theme_val = get("theme");
     if (theme_val->type != Lisple::RTValue::Type::NIL)
     {
-      mode.theme = theme_val->str();
+      auto theme_names = Pixils::Script::parse_theme_names(theme_val, "Mode :theme");
+      mode.theme = theme_names.empty() ? std::nullopt
+                                       : std::make_optional(std::move(theme_names));
     }
 
     auto children_val = get("children");

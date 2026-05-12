@@ -1,6 +1,25 @@
 {:styles {
+  :ui/app {:background {:r 0xff :g 0xff :b 0xff}
+           :text {:color {:r 0x00 :g 0x00 :b 0x00}}}
+
   :ui/panel {:background {:r 0xcc :g 0xcc :b 0xcc}
              :padding 4}
+
+  :ui/title {:text {:color {:r 0x00 :g 0x00 :b 0x00}}}
+
+  :ui/muted {:text {:color {:r 0x66 :g 0x66 :b 0x66}}}
+
+  :ui/accent {:text {:color {:r 0x00 :g 0x00 :b 0x00}}}
+
+  :ui/canvas {:background {:r 0xff :g 0xff :b 0xff}
+              :border {:color {:r 0x00 :g 0x00 :b 0x00}
+                       :thickness 1}}
+
+  :ui/list-item {:text {:color {:r 0x00 :g 0x00 :b 0x00}}}
+
+  '(:ui/list-item {:selected true})
+  {:background {:r 0x00 :g 0x00 :b 0x00}
+   :text {:color {:r 0xff :g 0xff :b 0xff}}}
 
   'ui/window {:border {:color {:r 0x00 :g 0x00 :b 0x00}
                        :thickness 1}

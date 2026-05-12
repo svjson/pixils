@@ -85,7 +85,34 @@
 (def FOCUS-BLUE {:r 0x00 :g 0x00 :b 0x7f})
 
 (deftheme pixils/windows-95
-  {:styles {'ui/window {:border {:line-style :solid
+  {:styles {:ui/app {:background PANEL-COLOR
+                     :text {:font :font/win95-system-font
+                            :color c/BLACK}}
+
+            :ui/panel {:background PANEL-COLOR
+                       :padding 4}
+
+            :ui/title {:text {:font :font/win95-system-font
+                              :color c/BLACK}}
+
+            :ui/muted {:text {:font :font/win95-system-font
+                              :color PANEL-SHADOW}}
+
+            :ui/accent {:text {:font :font/win95-system-font
+                               :color FOCUS-BLUE}}
+
+            :ui/canvas {:background c/WHITE
+                        :border {:color c/BLACK
+                                 :thickness 1}}
+
+            :ui/list-item {:text {:font :font/win95-system-font
+                                  :color c/BLACK}}
+
+            '(:ui/list-item {:selected true})
+            {:background FOCUS-BLUE
+             :text {:color c/WHITE}}
+
+            'ui/window {:border {:line-style :solid
                                  :thickness 1
                                  :color c/BLACK}
                         :text {:font :font/win95-system-font}}

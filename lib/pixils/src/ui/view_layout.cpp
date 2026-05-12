@@ -240,13 +240,15 @@ namespace Pixils::UI
     {
       Theme theme = inherited_theme
                       ? *inherited_theme
-                      : (view && view->inherited_theme
-                           ? *view->inherited_theme
-                           : default_base_theme(runtime));
+                      : (view && view->inherited_theme ? *view->inherited_theme
+                                                       : default_base_theme(runtime));
       if (!view || !view->mode || !view->mode->theme) return theme;
 
-      auto local_theme = lookup_theme(runtime, *view->mode->theme);
-      if (local_theme) overlay_theme(theme, *local_theme);
+      for (const auto& theme_name : *view->mode->theme)
+      {
+        auto local_theme = lookup_theme(runtime, theme_name);
+        if (local_theme) overlay_theme(theme, *local_theme);
+      }
 
       return theme;
     }

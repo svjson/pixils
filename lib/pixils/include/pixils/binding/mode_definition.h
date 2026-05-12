@@ -15,6 +15,8 @@ namespace Lisple
 namespace Pixils::Script
 {
   std::vector<std::string> parse_mode_classes(const Lisple::sptr_rtval& class_val);
+  std::vector<std::string> parse_theme_names(const Lisple::sptr_rtval& theme_val,
+                                             const std::string& context);
 
   /**
    * @brief Parse a Lisple sequence of child entry maps into ChildSlot objects.

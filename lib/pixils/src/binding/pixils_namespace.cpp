@@ -271,7 +271,7 @@ namespace Pixils::Script
     Lisple::MapSchema program_schema({},
                                      {{"display", &HostType::DISPLAY},
                                       {"initial-mode", &Lisple::Type::SYMBOL_VALUE},
-                                      {"theme", &Lisple::Type::SYMBOL_VALUE},
+                                      {"theme", &Lisple::Type::ANY},
                                       {"target-frame-rate", &Lisple::Type::NUMBER},
                                       {"pointer", &Lisple::Type::KEY}});
 
@@ -295,7 +295,9 @@ namespace Pixils::Script
       auto program = ProgramAdapter::make_unique(name, display, initial_mode);
       if (opts.contains("theme"))
       {
-        Lisple::obj<Program>(*program).theme = opts.str("theme");
+        auto theme_names = parse_theme_names(opts.val("theme"), "Program :theme");
+        Lisple::obj<Program>(*program).theme =
+          theme_names.empty() ? std::nullopt : std::make_optional(std::move(theme_names));
       }
 
       if (opts.str("pointer", "") == "off")
@@ -858,7 +860,19 @@ namespace Pixils::Script
   NOBJ_PROP_GET(ProgramAdapter, theme)
   {
     if (!get_object().theme) return Lisple::Constant::NIL;
-    return Lisple::RTValue::symbol(*get_object().theme);
+    const auto& theme_names = *get_object().theme;
+    if (theme_names.size() == 1)
+    {
+      return Lisple::RTValue::symbol(theme_names[0]);
+    }
+
+    std::vector<Lisple::sptr_rtval> values;
+    values.reserve(theme_names.size());
+    for (const auto& theme_name : theme_names)
+    {
+      values.push_back(Lisple::RTValue::symbol(theme_name));
+    }
+    return Lisple::RTValue::vector(values);
   }
 
   NOBJ_PROP_GET__FIELD(ProgramAdapter, target_frame_rate);

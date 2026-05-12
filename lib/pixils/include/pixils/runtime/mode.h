@@ -80,7 +80,7 @@ namespace Pixils::Runtime
     ModeComposition composition;
     std::vector<ChildSlot> children;
     std::optional<UI::Style> style = std::nullopt;
-    std::optional<std::string> theme = std::nullopt;
+    std::optional<std::vector<std::string>> theme = std::nullopt;
   };
 
 } // namespace Pixils::Runtime

@@ -80,6 +80,39 @@ namespace Pixils::Script
     throw Lisple::TypeError("Mode :class must be a keyword or vector of keywords");
   }
 
+  std::vector<std::string> parse_theme_names(const Lisple::sptr_rtval& theme_val,
+                                             const std::string& context)
+  {
+    std::vector<std::string> names;
+    if (!theme_val || theme_val->type == Lisple::RTValue::Type::NIL) return names;
+
+    auto parse_one = [&](const Lisple::sptr_rtval& value)
+    {
+      if (value->type != Lisple::RTValue::Type::SYMBOL)
+      {
+        throw Lisple::TypeError(context + " entries must be symbols");
+      }
+      names.push_back(value->str());
+    };
+
+    if (theme_val->type == Lisple::RTValue::Type::SYMBOL)
+    {
+      parse_one(theme_val);
+      return names;
+    }
+
+    if (theme_val->type == Lisple::RTValue::Type::VECTOR)
+    {
+      for (const auto& child : Lisple::get_children(*theme_val))
+      {
+        parse_one(child);
+      }
+      return names;
+    }
+
+    throw Lisple::TypeError(context + " must be a symbol or vector of symbols");
+  }
+
   std::vector<Runtime::ChildSlot> parse_child_slots(Lisple::Context& ctx,
                                                     const Lisple::sptr_rtval& children_val)
   {
@@ -100,7 +133,9 @@ namespace Pixils::Script
       slot.mode_name = child_opts.val("mode")->str();
 
       if (child_opts.contains("id"))
+      {
         slot.id = child_opts.val("id")->str();
+      }
       else
       {
         int idx = name_counts[slot.mode_name]++;
@@ -146,7 +181,7 @@ namespace Pixils::Script
                                           {"style", &HostType::STYLE},
                                           {"class", &Lisple::Type::ANY},
                                           {"focusable", &Lisple::Type::BOOL},
-                                          {"theme", &Lisple::Type::SYMBOL_VALUE},
+                                          {"theme", &Lisple::Type::ANY},
                                           {"children", &Lisple::Type::ANY}});
 
     auto opts = mode_schema.bind(ctx, *definition_map);
@@ -238,7 +273,9 @@ namespace Pixils::Script
     }
     if (opts.contains("theme"))
     {
-      mode.theme = opts.str("theme");
+      auto theme_names = parse_theme_names(opts.val("theme"), "Mode :theme");
+      mode.theme =
+        theme_names.empty() ? std::nullopt : std::make_optional(std::move(theme_names));
     }
 
     if (opts.contains("children"))

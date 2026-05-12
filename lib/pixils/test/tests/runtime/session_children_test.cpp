@@ -2,6 +2,8 @@
 #include "../render_fixture.h"
 #include "session_fixture.h"
 
+#include <pixils/program.h>
+
 #include <gtest/gtest.h>
 #include <lisple/runtime/dict.h>
 #include <lisple/runtime/value.h>
@@ -200,6 +202,79 @@ TEST_F(SessionChildrenTest, mode_theme_and_child_theme_override_apply_to_effecti
   ASSERT_TRUE(child->effective_style.text->scale.has_value());
   EXPECT_EQ(*child->effective_style.text->font, "font/console");
   EXPECT_EQ(*child->effective_style.text->scale, 2);
+}
+
+TEST_F(SessionChildrenTest, mode_and_child_theme_vectors_apply_in_order)
+{
+  // Given
+  runtime.eval(R"(
+    (pixils/deftheme visual-theme
+      {:styles {'child-mode {:text {:font :font/visual}}}})
+
+    (pixils/deftheme compact-layout-theme
+      {:styles {'child-mode {:text {:scale 2}}}})
+
+    (pixils/deftheme roomy-layout-theme
+      {:styles {'child-mode {:text {:scale 5}}}})
+
+    (pixils/defmode child-mode {:render (fn [state ctx] nil)})
+    (pixils/defmode parent-mode
+      {:theme ['visual-theme]
+       :children [{:mode 'child-mode
+                   :theme ['compact-layout-theme 'roomy-layout-theme]}]})
+  )");
+  session.push_mode("parent-mode", Lisple::Constant::NIL);
+
+  // When
+  session.render_mode();
+
+  // Then
+  ASSERT_NE(session.active_mode, nullptr);
+  ASSERT_EQ(session.active_mode->children.size(), 1u);
+  auto child = session.active_mode->children[0];
+  ASSERT_NE(child, nullptr);
+  ASSERT_TRUE(child->effective_style.text.has_value());
+  ASSERT_TRUE(child->effective_style.text->font.has_value());
+  ASSERT_TRUE(child->effective_style.text->scale.has_value());
+  EXPECT_EQ(*child->effective_style.text->font, "font/visual");
+  EXPECT_EQ(*child->effective_style.text->scale, 5);
+}
+
+TEST_F(SessionChildrenTest, program_theme_vector_applies_to_root_view)
+{
+  // Given
+  runtime.eval(R"(
+    (pixils/deftheme visual-theme
+      {:styles {:ui/panel {:background {:r 1 :g 2 :b 3 :a 255}}}})
+
+    (pixils/deftheme compact-layout-theme
+      {:styles {:ui/panel {:padding [2 4]}}})
+
+    (pixils/defmode root-mode
+      {:class :ui/panel
+       :render (fn [state ctx] nil)})
+
+    (pixils/defprogram app
+      {:initial-mode 'root-mode
+       :theme ['visual-theme 'compact-layout-theme]})
+  )");
+  Pixils::load_program(runtime, session);
+
+  // When
+  session.render_mode();
+
+  // Then
+  ASSERT_NE(session.active_mode, nullptr);
+  const auto& style = session.active_mode->effective_style;
+  ASSERT_TRUE(style.background.has_value());
+  ASSERT_TRUE(style.background->color.has_value());
+  EXPECT_EQ(*style.background->color, (Pixils::Color{1, 2, 3, 255}));
+
+  ASSERT_TRUE(style.padding.has_value());
+  EXPECT_EQ(style.padding->t, 2);
+  EXPECT_EQ(style.padding->r, 4);
+  EXPECT_EQ(style.padding->b, 2);
+  EXPECT_EQ(style.padding->l, 4);
 }
 
 TEST_F(SessionChildrenTest, root_mode_theme_applies_component_selector_to_active_view)
