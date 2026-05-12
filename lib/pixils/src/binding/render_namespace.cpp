@@ -31,6 +31,7 @@ namespace Pixils::Script
     SHKEY(POS, "pos");
     SHKEY(ROTATION, "rotation");
     SHKEY(SCALE, "scale");
+    SHKEY(SOURCE, "source");
   } // namespace MapKey
 
   namespace Function
@@ -51,7 +52,8 @@ namespace Pixils::Script
       static Lisple::MapSchema draw_image_opts_schema({{"pos", &HostType::POINT}},
                                                       {{"scale", &Lisple::Type::NUMBER},
                                                        {"alpha", &Lisple::Type::NUMBER},
-                                                       {"rotation", &Lisple::Type::NUMBER}});
+                                                       {"rotation", &Lisple::Type::NUMBER},
+                                                       {"source", &HostType::RECT}});
 
       if (args[0]->type == Lisple::RTValue::Type::KEYWORD)
       {
@@ -76,24 +78,36 @@ namespace Pixils::Script
         Point& pos = opts.obj<Point>("pos");
         float scale = opts.f32("scale", 1.0f);
         float rotation = opts.f32(MapKey::ROTATION->value, 0.0f);
+        std::optional<SDL_Rect> source_rect = std::nullopt;
+        if (auto source = opts.val(MapKey::SOURCE->value);
+            source && source->type != Lisple::RTValue::Type::NIL)
+        {
+          source_rect = opts.obj<Rect>(MapKey::SOURCE->value).to_SDL_rect();
+        }
 
         SDL_Rect dim{pos.round_x(), pos.round_y(), 0, 0};
         SDL_QueryTexture(texture, nullptr, nullptr, &dim.w, &dim.h);
+        if (source_rect)
+        {
+          dim.w = source_rect->w;
+          dim.h = source_rect->h;
+        }
 
         dim.w *= scale;
         dim.h *= scale;
+        const SDL_Rect* source_ptr = source_rect ? &*source_rect : nullptr;
 
         if (texture)
         {
           if (rotation == 0.0f)
           {
-            SDL_RenderCopy(rc.renderer, texture, nullptr, &dim);
+            SDL_RenderCopy(rc.renderer, texture, source_ptr, &dim);
           }
           else
           {
             SDL_RenderCopyEx(rc.renderer,
                              texture,
-                             nullptr,
+                             source_ptr,
                              &dim,
                              static_cast<double>(rotation) * RADIANS_TO_DEGREES,
                              nullptr,

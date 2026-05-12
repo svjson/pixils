@@ -84,6 +84,33 @@ TEST_F(RenderTest, image_accepts_rotation_in_radians)
   EXPECT_NEAR(ops[0].rotation_degrees, 90.0, 0.01);
 }
 
+TEST_F(RenderTest, image_accepts_source_rect)
+{
+  SDLMock::prepared_surfaces["./tiles.png"] = {32, 16};
+  runtime.eval(R"(
+    (pixils/defbundle sprites {:images {:tiles "tiles.png"}})
+    (pixils/defmode test-mode {
+      :render (fn [state ctx]
+                (pixils.render/image!
+                  :sprites/tiles
+                  {:pos {:x 3 :y 4}
+                   :source {:x 16 :y 0 :w 8 :h 8}
+                   :scale 2}))
+    })
+  )");
+  session.push_mode("test-mode", Lisple::Constant::NIL);
+
+  ASSERT_NO_THROW(session.render_mode());
+
+  auto& ops = render_target()->render_ops;
+  ASSERT_EQ(ops.size(), 1u);
+  EXPECT_EQ(ops[0].type, RenderOpType::RENDER_COPY);
+  EXPECT_EQ(ops[0].rendered_rect.x, 3);
+  EXPECT_EQ(ops[0].rendered_rect.y, 4);
+  EXPECT_EQ(ops[0].rendered_rect.w, 16);
+  EXPECT_EQ(ops[0].rendered_rect.h, 16);
+}
+
 TEST_F(RenderTest, style_background_image_renders_once_without_repeat)
 {
   SDLMock::prepared_surfaces["./checkmark.png"] = {7, 7};
