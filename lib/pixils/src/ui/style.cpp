@@ -128,7 +128,8 @@ namespace Pixils::UI
       }
       else if (inherited_style.text->marked_style && out.text->marked_style)
       {
-        inherit_marked_text_style(*out.text->marked_style, *inherited_style.text->marked_style);
+        inherit_marked_text_style(*out.text->marked_style,
+                                  *inherited_style.text->marked_style);
       }
     }
 
@@ -214,6 +215,7 @@ namespace Pixils::UI
     , left(other.left)
     , layout(other.layout)
     , hidden(other.hidden)
+    , clip(other.clip)
     , hover(other.hover ? std::make_unique<Style>(*other.hover) : nullptr)
     , focus_within(other.focus_within ? std::make_unique<Style>(*other.focus_within)
                                       : nullptr)
@@ -236,6 +238,7 @@ namespace Pixils::UI
     this->left = other.left;
     this->layout = other.layout;
     this->hidden = other.hidden;
+    this->clip = other.clip;
     this->hover = other.hover ? std::make_unique<Style>(*other.hover) : nullptr;
     this->focus_within =
       other.focus_within ? std::make_unique<Style>(*other.focus_within) : nullptr;
@@ -447,6 +450,7 @@ namespace Pixils::UI
     if (variant.left) out.left = variant.left;
     if (variant.layout) out.layout = variant.layout;
     if (variant.hidden) out.hidden = variant.hidden;
+    if (variant.clip) out.clip = variant.clip;
     if (variant.hover)
     {
       if (!out.hover) out.hover = std::make_unique<Style>();

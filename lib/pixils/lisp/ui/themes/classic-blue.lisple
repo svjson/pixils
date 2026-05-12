@@ -101,6 +101,10 @@
                           :border {:color {:r 0x5f :g 0x6f :b 0x7f}
                                    :thickness 1}}
 
+    'ui/scroll-pane {:background {:r 0x20 :g 0x29 :b 0x36}}
+
+    'ui/scroll-pane-viewport {:background {:r 0x15 :g 0x19 :b 0x1f}}
+
     'ui/window-title-bar {:background {:r 0x34 :g 0x42 :b 0x55}
                           :border {:top {:color {:r 0x58 :g 0x84 :b 0xc8}
                                          :thickness 1}

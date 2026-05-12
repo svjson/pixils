@@ -32,6 +32,36 @@ TEST_F(EventRoutingTest, on_click_fires_when_mouse_down_and_up_on_same_view)
   EXPECT_EQ(session.active_mode->state->to_string(), "{:clicks 1}");
 }
 
+TEST_F(EventRoutingTest, clipped_view_does_not_hit_children_outside_content_rect)
+{
+  runtime.eval(R"(
+    (pixils/defmode child-mode
+      {:init (fn [state ctx] {:clicks 0})
+       :on-click (fn [state event ctx]
+                   (assoc state :clicks (+ (:clicks state) 1)))})
+
+    (pixils/defmode root-mode
+      {:style {:width 100 :height 100 :padding 20 :clip true}
+       :children [{:mode 'child-mode
+                   :style {:position :absolute
+                           :left 0
+                           :top 0
+                           :width 100
+                           :height 100}}]})
+  )");
+  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.render_mode();
+
+  input().mouse_down({10, 10});
+  update_cycle();
+  input().mouse_up({10, 10});
+  update_cycle();
+
+  auto child = session.active_mode->children[0];
+  ASSERT_NE(child, nullptr);
+  EXPECT_EQ(child->state->to_string(), "{:clicks 0}");
+}
+
 TEST_F(EventRoutingTest, on_click_does_not_fire_when_mouse_up_on_different_view)
 {
   // Given - two side-by-side sibling views

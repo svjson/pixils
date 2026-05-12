@@ -573,6 +573,7 @@ namespace Pixils::Script::StyleDefinition
                                            {"top", &Lisple::Type::NUMBER},
                                            {"left", &Lisple::Type::NUMBER},
                                            {"hidden", &Lisple::Type::ANY},
+                                           {"clip", &Lisple::Type::ANY},
                                            {"hover", &HostType::STYLE},
                                            {"focus-within", &HostType::STYLE},
                                            {"focus", &HostType::STYLE}});
@@ -595,6 +596,7 @@ namespace Pixils::Script::StyleDefinition
     if (opts.contains("top")) style->top = opts.i32("top");
     if (opts.contains("left")) style->left = opts.i32("left");
     if (opts.contains("hidden")) style->hidden = parse_optional_bool(opts.val("hidden"));
+    if (opts.contains("clip")) style->clip = parse_optional_bool(opts.val("clip"));
 
     auto hover_style = opts.optional_obj<UI::Style>("hover");
     if (hover_style) style->hover = std::make_unique<UI::Style>(*hover_style);

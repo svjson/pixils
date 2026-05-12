@@ -274,6 +274,9 @@ namespace Pixils::UI
     /** When true, excluded from hit-testing and rendering. Layout space is preserved. */
     std::optional<bool> hidden;
 
+    /** When true, descendant rendering and hit testing are clipped to content_rect. */
+    std::optional<bool> clip;
+
     /** Hover variant - merged on top of base style when the cursor is within bounds. */
     std::unique_ptr<Style> hover = nullptr;
     /** Focus-within variant - merged when this view or any descendant owns focus. */

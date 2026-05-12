@@ -540,6 +540,98 @@ TEST_F(SessionChildrenTest, scrollbar_button_children_bubble_click_behavior_to_s
   EXPECT_EQ(value->num().get_int(), 5);
 }
 
+TEST_F(SessionChildrenTest, scroll_pane_offsets_content_inside_clipped_viewport)
+{
+  runtime.eval(R"(
+    (pixils/defmode content-mode {})
+    (pixils/defmode root-mode
+      {:children [(pixils.ui.scroll-pane/make
+                   {:style {:width 50 :height 40}
+                    :content-size {:w 100 :h 80}
+                    :offset {:x 10 :y 20}
+                    :children [{:mode 'content-mode
+                                :style {:width 100 :height 80}}]})]})
+  )");
+
+  session.push_mode("root-mode", Lisple::Constant::NIL);
+
+  session.update_mode();
+  session.render_mode();
+
+  ASSERT_NE(session.active_mode, nullptr);
+  ASSERT_EQ(session.active_mode->children.size(), 1u);
+  auto pane = session.active_mode->children[0];
+  ASSERT_NE(pane, nullptr);
+  ASSERT_EQ(pane->children.size(), 2u);
+
+  auto row = pane->children[0];
+  auto footer = pane->children[1];
+  ASSERT_NE(row, nullptr);
+  ASSERT_NE(footer, nullptr);
+  ASSERT_EQ(row->children.size(), 2u);
+  auto viewport = row->children[0];
+  auto vertical_scrollbar = row->children[1];
+  ASSERT_NE(viewport, nullptr);
+  ASSERT_NE(vertical_scrollbar, nullptr);
+  ASSERT_EQ(viewport->children.size(), 1u);
+  auto content = viewport->children[0];
+  ASSERT_NE(content, nullptr);
+
+  EXPECT_EQ(viewport->bounds.x, 0);
+  EXPECT_EQ(viewport->bounds.y, 0);
+  EXPECT_EQ(viewport->bounds.w, 36);
+  EXPECT_EQ(viewport->bounds.h, 26);
+  EXPECT_EQ(vertical_scrollbar->bounds.x, 36);
+  EXPECT_EQ(vertical_scrollbar->bounds.w, 14);
+  EXPECT_EQ(footer->bounds.y, 26);
+  EXPECT_EQ(footer->bounds.h, 14);
+
+  ASSERT_TRUE(viewport->effective_style.clip.has_value());
+  EXPECT_TRUE(*viewport->effective_style.clip);
+  EXPECT_EQ(content->bounds.x, -10);
+  EXPECT_EQ(content->bounds.y, -20);
+  EXPECT_EQ(content->bounds.w, 100);
+  EXPECT_EQ(content->bounds.h, 80);
+}
+
+TEST_F(SessionChildrenTest, scroll_pane_without_horizontal_scroll_uses_content_width)
+{
+  runtime.eval(R"(
+    (pixils/defmode content-mode {})
+    (pixils/defmode root-mode
+      {:children [(pixils.ui.scroll-pane/make
+                   {:style {:height 40}
+                    :content-size {:w 100 :h 80}
+                    :scroll-x? false
+                    :children [{:mode 'content-mode
+                                :style {:width 100 :height 80}}]})]})
+  )");
+
+  session.push_mode("root-mode", Lisple::Constant::NIL);
+
+  session.update_mode();
+  session.render_mode();
+
+  ASSERT_NE(session.active_mode, nullptr);
+  ASSERT_EQ(session.active_mode->children.size(), 1u);
+  auto pane = session.active_mode->children[0];
+  ASSERT_NE(pane, nullptr);
+  ASSERT_EQ(pane->children.size(), 1u);
+
+  auto row = pane->children[0];
+  ASSERT_NE(row, nullptr);
+  ASSERT_EQ(row->children.size(), 2u);
+  auto viewport = row->children[0];
+  auto vertical_scrollbar = row->children[1];
+  ASSERT_NE(viewport, nullptr);
+  ASSERT_NE(vertical_scrollbar, nullptr);
+
+  EXPECT_EQ(pane->bounds.w, 114);
+  EXPECT_EQ(viewport->bounds.w, 100);
+  EXPECT_EQ(vertical_scrollbar->bounds.x, 100);
+  EXPECT_EQ(vertical_scrollbar->bounds.w, 14);
+}
+
 TEST_F(SessionStateTreeTest, push_mode_merges_child_init_state_into_parent_state)
 {
   // Given

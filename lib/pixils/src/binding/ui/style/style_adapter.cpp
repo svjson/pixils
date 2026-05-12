@@ -25,6 +25,7 @@ namespace Pixils::Script
                       (rw, "left", left),
                       (layout),
                       (rw, "hidden", hidden),
+                      (rw, "clip", clip),
                       (hover),
                       ("focus-within", focus_within),
                       (focus))
@@ -135,6 +136,16 @@ namespace Pixils::Script
   NOBJ_PROP_SET(StyleAdapter, hidden)
   {
     get_self_object().hidden = StyleDefinition::parse_optional_bool(value);
+  }
+
+  NOBJ_PROP_GET(StyleAdapter, clip)
+  {
+    return StyleDefinition::optional_bool_to_value(get_self_object().clip);
+  }
+
+  NOBJ_PROP_SET(StyleAdapter, clip)
+  {
+    get_self_object().clip = StyleDefinition::parse_optional_bool(value);
   }
 
   NOBJ_PROP_GET(StyleAdapter, hover)

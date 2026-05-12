@@ -25,6 +25,8 @@ TEST_F(BootstrapTest, loads_embedded_core_ui_modes_into_pixils_mode_registry)
     Lisple::Dict::get_property(modes, Lisple::RTValue::symbol("ui/scrollbar"));
   auto scrollbar_button_mode =
     Lisple::Dict::get_property(modes, Lisple::RTValue::symbol("ui/scrollbar-button"));
+  auto scroll_pane_mode =
+    Lisple::Dict::get_property(modes, Lisple::RTValue::symbol("ui/scroll-pane"));
   auto window_mode = Lisple::Dict::get_property(modes, Lisple::RTValue::symbol("ui/window"));
   auto menu_bar_mode =
     Lisple::Dict::get_property(modes, Lisple::RTValue::symbol("ui/menu-bar"));
@@ -36,6 +38,7 @@ TEST_F(BootstrapTest, loads_embedded_core_ui_modes_into_pixils_mode_registry)
   ASSERT_NE(button_mode, nullptr);
   ASSERT_NE(scrollbar_mode, nullptr);
   ASSERT_NE(scrollbar_button_mode, nullptr);
+  ASSERT_NE(scroll_pane_mode, nullptr);
   ASSERT_NE(window_mode, nullptr);
   ASSERT_NE(menu_bar_mode, nullptr);
   ASSERT_NE(popup_menu_mode, nullptr);
@@ -46,6 +49,7 @@ TEST_F(BootstrapTest, loads_embedded_core_ui_modes_into_pixils_mode_registry)
   EXPECT_EQ(Lisple::obj<Pixils::Runtime::Mode>(*scrollbar_mode).name, "ui/scrollbar");
   EXPECT_EQ(Lisple::obj<Pixils::Runtime::Mode>(*scrollbar_button_mode).name,
             "ui/scrollbar-button");
+  EXPECT_EQ(Lisple::obj<Pixils::Runtime::Mode>(*scroll_pane_mode).name, "ui/scroll-pane");
   EXPECT_EQ(Lisple::obj<Pixils::Runtime::Mode>(*window_mode).name, "ui/window");
   EXPECT_EQ(Lisple::obj<Pixils::Runtime::Mode>(*menu_bar_mode).name, "ui/menu-bar");
   EXPECT_EQ(Lisple::obj<Pixils::Runtime::Mode>(*popup_menu_mode).name, "ui/popup-menu");

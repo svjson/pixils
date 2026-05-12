@@ -96,6 +96,7 @@ Lisple components, so applications can use them like any other mode.
 | `ui/window` | Lightweight draggable window primitive. |
 | `ui/scrollbar` | Standalone horizontal or vertical scrollbar primitive. |
 | `ui/scrollbar-corner` | Filler component for the square where two scrollbars meet. |
+| `ui/scroll-pane` | Scrollable viewport composed from a clipped content area and stock scrollbars. |
 
 `ui/scrollbar` is intended for direct composition. Use `:axis :x` or `:axis :y`,
 bind `:value` to the scroll offset you want to control, and provide `:content-size`
@@ -105,6 +106,23 @@ the track, arrow buttons, and handle; `:border :color` for outlines; and
 `:text :color` for arrow glyphs. State colors can still override individual
 parts: `:track-color`, `:button-color`, `:button-border-color`, `:handle-color`,
 `:handle-pressed-color`, and `:glyph-color`.
+
+`ui/scroll-pane` is a convenience composition around `ui/scrollbar`. Use
+`pixils.ui.scroll-pane/make` when supplying arbitrary child content:
+
+```clojure
+(pixils.ui.scroll-pane/make
+  {:style {:width 160 :height 120}
+   :content-size {:w 160 :h 320}
+   :children [{:mode 'main/list-content}]})
+```
+
+The first version expects explicit `:content-size` and stores its offset in
+`{:offset {:x N :y N}}`. The viewport uses `:clip true`, and the content view is
+positioned absolutely inside that clipped area. Pass `:scroll-x? false` or
+`:scroll-y? false` to omit one axis from helper-created panes. `:content-state-key`
+can wrap the pane's `:content-state` binding in a named child-state key when the
+scrolling content needs state from the owner.
 
 **Hook signatures**
 
@@ -402,6 +420,7 @@ hook fires.
 | `:top`        | Number                                                               | Top offset when `:position :absolute`. |
 | `:left`       | Number                                                               | Left offset when `:position :absolute`. |
 | `:hidden`     | Boolean                                                              | When true, excluded from hit-testing and rendering. Layout space is preserved. |
+| `:clip`       | Boolean                                                              | When true, descendant rendering and hit testing are clipped to this view's content rect. |
 | `:hover`      | Nested style map                                                     | Applied instead of the base style when the cursor is within bounds. |
 | `:focus-within` | Nested style map                                                   | Applied when this view or any descendant owns focus. |
 | `:focus`      | Nested style map                                                     | Applied when this exact view owns focus. |

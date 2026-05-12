@@ -45,6 +45,10 @@
                         :border {:color {:r 0x00 :g 0x00 :b 0x00}
                                  :thickness 1}}
 
+  'ui/scroll-pane {:background {:r 0xff :g 0xff :b 0xff}}
+
+  'ui/scroll-pane-viewport {:background {:r 0xff :g 0xff :b 0xff}}
+
   'ui/window {:border {:color {:r 0x00 :g 0x00 :b 0x00}
                        :thickness 1}
               :text {:color {:r 0 :g 0 :b 0}}}

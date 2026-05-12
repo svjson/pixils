@@ -23,6 +23,7 @@
 #include <lisple/runtime/dict.h>
 #include <lisple/runtime/seq.h>
 #include <lisple/runtime/value.h>
+#include <optional>
 
 namespace Pixils::UI
 {
@@ -566,18 +567,49 @@ namespace Pixils::UI
     bool build_hit_chain(std::shared_ptr<Runtime::View> view,
                          int mx,
                          int my,
-                         std::vector<std::shared_ptr<Runtime::View>>& chain)
+                         std::vector<std::shared_ptr<Runtime::View>>& chain,
+                         const std::optional<Rect>& inherited_clip = std::nullopt)
     {
       if (view->bounds.w == 0) return false;
       auto style = resolve_style(view->mode->style, view->state, view->interaction);
       if (style.hidden && *style.hidden) return false;
+      if (inherited_clip &&
+          (mx < inherited_clip->x || mx >= inherited_clip->x + inherited_clip->w ||
+           my < inherited_clip->y || my >= inherited_clip->y + inherited_clip->h))
+        return false;
+
       bool hit = mx >= view->bounds.x && mx < view->bounds.x + view->bounds.w &&
                  my >= view->bounds.y && my < view->bounds.y + view->bounds.h;
       if (!hit) return false;
 
-      for (auto it = view->children.rbegin(); it != view->children.rend(); ++it)
+      auto child_clip = inherited_clip;
+      if (style.clip && *style.clip)
       {
-        if (build_hit_chain(*it, mx, my, chain))
+        Rect content = style.content_rect(view->bounds);
+        int x1 = child_clip ? std::max(child_clip->x, content.x) : content.x;
+        int y1 = child_clip ? std::max(child_clip->y, content.y) : content.y;
+        int x2 = child_clip ? std::min(child_clip->x + child_clip->w, content.x + content.w)
+                            : content.x + content.w;
+        int y2 = child_clip ? std::min(child_clip->y + child_clip->h, content.y + content.h)
+                            : content.y + content.h;
+        if (x2 > x1 && y2 > y1)
+          child_clip = Rect{x1, y1, x2 - x1, y2 - y1};
+        else
+          child_clip = std::nullopt;
+      }
+
+      bool visit_children = true;
+      if (style.clip && *style.clip)
+      {
+        visit_children = child_clip && mx >= child_clip->x &&
+                         mx < child_clip->x + child_clip->w && my >= child_clip->y &&
+                         my < child_clip->y + child_clip->h;
+      }
+
+      for (auto it = view->children.rbegin(); visit_children && it != view->children.rend();
+           ++it)
+      {
+        if (build_hit_chain(*it, mx, my, chain, child_clip))
         {
           chain.push_back(view);
           return true;

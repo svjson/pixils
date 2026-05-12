@@ -156,6 +156,10 @@
                                            :right {:color PANEL-SHADOW}
                                            :bottom {:color PANEL-SHADOW}}}
 
+            'ui/scroll-pane {:background PANEL-COLOR}
+
+            'ui/scroll-pane-viewport {:background c/WHITE}
+
             'ui/window {:border {:line-style :solid
                                  :thickness 1
                                  :color c/BLACK}

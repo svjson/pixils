@@ -18,6 +18,7 @@
    :glyphs {' ' {:x 235 :y 0 :w 4 :h 10}
             '.' {:x 0 :y 25 :w 2 :h 10}
             '?' {:x 37 :y 25 :w 6 :h 10}
+            '!' {:x 44 :y 25 :w 2 :h 10}
             '@' {:x 47 :y 24 :w 12 :h 13}
             '&' {:x 104 :y 25 :w 7 :h 10}
             '(' {:x 112 :y 25 :w 3 :h 13}
@@ -210,6 +211,10 @@
                                            :right {:color panel-shadow}
                                            :bottom {:color panel-shadow}}}
 
+            'ui/scroll-pane {:background panel-face}
+
+            'ui/scroll-pane-viewport {:background c/WHITE}
+
             'ui/window {:border {:line-style :solid
                                  :thickness 1
                                  :color c/BLACK}
@@ -240,6 +245,9 @@
 
             '(ui/window-minimize-button ui/button-inner)
             {:background {:image :pixils/win311-minimize-button}}
+
+            'ui/button
+            {:text {:font :font/win3-system-font}}
 
             '(ui/button {:pressed true})
             {:border {:line-style :solid
