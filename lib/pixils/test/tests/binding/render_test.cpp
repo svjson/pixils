@@ -198,6 +198,36 @@ TEST_F(RenderTest, text_with_explicit_color_uses_tint_mask_texture)
   EXPECT_EQ(ops[0].rendered_texture, tint_texture);
 }
 
+TEST_F(RenderTest, text_bang_respects_explicit_newlines)
+{
+  SDLMock::prepared_surfaces["./font.png"] = {16, 12};
+  runtime.eval(R"(
+    (pixils/defbundle fonts {:images {:atlas "font.png"}})
+    (pixils/deffont test-font
+      {:type :bitmap
+       :resource :fonts/atlas
+       :glyphs {"A" {:x 0 :y 0 :w 4 :h 7}
+                "B" {:x 4 :y 0 :w 4 :h 7}}})
+    (pixils/defmode test-mode {
+      :render (fn [state ctx]
+                (pixils.render/text! "AA
+B" {:x 12 :y 18} {:font :font/test-font}))
+    })
+  )");
+  session.push_mode("test-mode", Lisple::Constant::NIL);
+
+  ASSERT_NO_THROW(session.render_mode());
+
+  auto& ops = render_target()->render_ops;
+  ASSERT_EQ(ops.size(), 3u);
+  EXPECT_EQ(ops[0].type, RenderOpType::RENDER_COPY);
+  EXPECT_EQ(ops[0].rendered_rect.y, 18);
+  EXPECT_EQ(ops[1].type, RenderOpType::RENDER_COPY);
+  EXPECT_EQ(ops[1].rendered_rect.y, 18);
+  EXPECT_EQ(ops[2].type, RenderOpType::RENDER_COPY);
+  EXPECT_EQ(ops[2].rendered_rect.y, 25);
+}
+
 TEST_F(RenderTest, text_size_uses_explicit_font_line_height)
 {
   SDLMock::prepared_surfaces["./font.png"] = {16, 12};
@@ -219,6 +249,29 @@ TEST_F(RenderTest, text_size_uses_explicit_font_line_height)
   ASSERT_TRUE(h);
   EXPECT_EQ(w->num().get_int(), 5);
   EXPECT_EQ(h->num().get_int(), 10);
+}
+
+TEST_F(RenderTest, text_size_respects_explicit_newlines)
+{
+  SDLMock::prepared_surfaces["./font.png"] = {16, 12};
+  runtime.eval(R"(
+    (pixils/defbundle fonts {:images {:atlas "font.png"}})
+    (pixils/deffont test-font
+      {:type :bitmap
+       :resource :fonts/atlas
+       :glyphs {"A" {:x 0 :y 0 :w 4 :h 7}
+                "B" {:x 4 :y 0 :w 4 :h 7}}})
+  )");
+
+  auto result = runtime.eval(R"((pixils.render/text-size "AA
+B" {:font :font/test-font}))");
+  auto w = Lisple::Dict::get_property(result, Lisple::RTValue::keyword("w"));
+  auto h = Lisple::Dict::get_property(result, Lisple::RTValue::keyword("h"));
+
+  ASSERT_TRUE(w);
+  ASSERT_TRUE(h);
+  EXPECT_EQ(w->num().get_int(), 10);
+  EXPECT_EQ(h->num().get_int(), 14);
 }
 
 TEST_F(RenderTest, deffont_replaces_existing_font_definition)
@@ -405,6 +458,45 @@ TEST_F(RenderTest, built_in_text_node_renders_in_local_viewport_coordinates)
   EXPECT_EQ(ops[0].type, RenderOpType::RENDER_COPY);
   EXPECT_EQ(ops[0].rendered_rect.x, 0);
   EXPECT_EQ(ops[0].rendered_rect.y, 0);
+}
+
+TEST_F(RenderTest, built_in_text_node_respects_explicit_newlines)
+{
+  SDLMock::prepared_surfaces["./font.png"] = {16, 12};
+  runtime.eval(R"(
+    (pixils/defbundle fonts {:images {:atlas "font.png"}})
+    (pixils/deffont test-font
+      {:type :bitmap
+       :resource :fonts/atlas
+       :glyphs {"A" {:x 0 :y 0 :w 4 :h 7}
+                "B" {:x 4 :y 0 :w 4 :h 7}}})
+    (pixils/defmode root-mode
+      {:children [{:mode 'ui/text
+                   :state {:value "AA
+B"}
+                   :style {:text {:font :font/test-font}}}]})
+  )");
+
+  session.push_mode("root-mode", Lisple::Constant::NIL);
+  ASSERT_NE(session.active_mode, nullptr);
+  ASSERT_EQ(session.active_mode->children.size(), 1u);
+
+  auto& child = session.active_mode->children.at(0);
+  ASSERT_NE(child, nullptr);
+
+  ASSERT_NO_THROW(session.render_mode());
+
+  EXPECT_EQ(child->bounds.w, 10);
+  EXPECT_EQ(child->bounds.h, 14);
+
+  auto& ops = render_target()->render_ops;
+  ASSERT_EQ(ops.size(), 3u);
+  EXPECT_EQ(ops[0].type, RenderOpType::RENDER_COPY);
+  EXPECT_EQ(ops[0].rendered_rect.y, 0);
+  EXPECT_EQ(ops[1].type, RenderOpType::RENDER_COPY);
+  EXPECT_EQ(ops[1].rendered_rect.y, 0);
+  EXPECT_EQ(ops[2].type, RenderOpType::RENDER_COPY);
+  EXPECT_EQ(ops[2].rendered_rect.y, 7);
 }
 
 TEST_F(RenderTest, built_in_text_node_inherits_marked_style_and_renders_underline)

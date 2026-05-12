@@ -247,8 +247,20 @@ namespace Pixils
         std::vector<std::string> paragraphs;
         std::string current;
 
-        for (char c : text)
+        for (size_t i = 0; i < text.size(); i++)
         {
+          char c = text[i];
+          if (c == '\r')
+          {
+            if (i + 1 < text.size() && text[i + 1] == '\n')
+            {
+              i++;
+            }
+            paragraphs.push_back(current);
+            current.clear();
+            continue;
+          }
+
           if (c == '\n')
           {
             paragraphs.push_back(current);
@@ -483,9 +495,9 @@ namespace Pixils
       return op;
     }
 
-    SDL_Rect calculate_rendered_size(RenderContext& rc,
-                                     const TextRenderOp& op,
-                                     const std::string& string)
+    SDL_Rect calculate_line_rendered_size(RenderContext& rc,
+                                          const TextRenderOp& op,
+                                          const std::string& string)
     {
       SDL_Rect rect{0, 0, 0, op_line_height(op)};
       auto segments = split_inline_segments(string, op);
@@ -493,6 +505,28 @@ namespace Pixils
       {
         rect.w += rendered_width_for_segment(rc, op, segment);
       }
+      return rect;
+    }
+
+    SDL_Rect calculate_rendered_size(RenderContext& rc,
+                                     const TextRenderOp& op,
+                                     const std::string& string)
+    {
+      SDL_Rect rect{0, 0, 0, 0};
+      const int line_height = op_line_height(op);
+
+      for (const auto& line : split_paragraphs(string))
+      {
+        SDL_Rect line_rect = calculate_line_rendered_size(rc, op, line);
+        rect.w = std::max(rect.w, line_rect.w);
+        rect.h += line_height;
+      }
+
+      if (rect.h == 0)
+      {
+        rect.h = line_height;
+      }
+
       return rect;
     }
 
@@ -508,7 +542,7 @@ namespace Pixils
 
       auto measure_width = [&](const std::string& line)
       {
-        return calculate_rendered_size(rc, op, line).w;
+        return calculate_line_rendered_size(rc, op, line).w;
       };
       auto append_line = [&](const std::string& line)
       {
@@ -597,11 +631,11 @@ namespace Pixils
       return layout;
     }
 
-    void render_text(RenderContext& rc,
-                     const TextRenderOp& op,
-                     const std::string& text,
-                     int x,
-                     int y)
+    void render_text_line(RenderContext& rc,
+                          const TextRenderOp& op,
+                          const std::string& text,
+                          int x,
+                          int y)
     {
       auto mutable_op = op;
       int cursor_x = x;
@@ -642,6 +676,24 @@ namespace Pixils
                           width,
                           color);
         cursor_x += width;
+      }
+    }
+
+    void render_text(RenderContext& rc,
+                     const TextRenderOp& op,
+                     const std::string& text,
+                     int x,
+                     int y)
+    {
+      const int line_height = op_line_height(op);
+      auto layout = layout_text(rc, op, text, WrapMode::NONE, std::nullopt);
+      for (size_t i = 0; i < layout.lines.size(); i++)
+      {
+        render_text_line(rc,
+                         op,
+                         layout.lines[i].text,
+                         x,
+                         y + static_cast<int>(i) * line_height);
       }
     }
 
