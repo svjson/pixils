@@ -71,6 +71,18 @@ namespace Pixils
     Dimension get_window_dimension();
 
     /*!
+     * @brief Calculate where the logical application buffer is drawn in the
+     * physical window for a display configuration.
+     */
+    Rect application_target_rect(Display& display) const;
+
+    /*!
+     * @brief Map a physical window coordinate to logical application buffer
+     * coordinates, accounting for fit/stretch scaling and alignment.
+     */
+    Point window_to_buffer_point(Display& display, int x, int y) const;
+
+    /*!
      * @brief Prepare a new frame for rendering. To be called at the beginning of every
      * frame, regardless of application state.
      */

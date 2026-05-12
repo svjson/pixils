@@ -10,6 +10,7 @@
 #include <SDL2/SDL_rect.h>
 #include <SDL2/SDL_render.h>
 #include <SDL2/SDL_video.h>
+#include <algorithm>
 
 namespace Pixils
 {
@@ -31,6 +32,51 @@ namespace Pixils
     SDL_GetWindowSize(window, &w, &h);
 
     return Dimension{w, h};
+  }
+
+  Rect RenderContext::application_target_rect(Display& display) const
+  {
+    SDL_Rect target{0, 0, buffer_dim.w, buffer_dim.h};
+
+    if (target.w <= 0 || target.h <= 0)
+    {
+      return {0, 0, 0, 0};
+    }
+
+    if (display.scaling == Display::Scaling::STRETCH)
+    {
+      target.w = window_rect.w;
+      target.h = window_rect.h;
+    }
+    else if (display.scaling == Display::Scaling::FIT || display.resolution.pixel_scale > 1)
+    {
+      int scale = std::min(window_rect.w / target.w, window_rect.h / target.h);
+      if (scale < 1) scale = 1;
+      target.w *= scale;
+      target.h *= scale;
+    }
+
+    if (display.align == Display::Alignment::CENTER)
+    {
+      target.x = window_rect.w / 2 - target.w / 2;
+      target.y = window_rect.h / 2 - target.h / 2;
+    }
+
+    return {target.x, target.y, target.w, target.h};
+  }
+
+  Point RenderContext::window_to_buffer_point(Display& display, int x, int y) const
+  {
+    Rect target = application_target_rect(display);
+    if (target.w <= 0 || target.h <= 0 || buffer_dim.w <= 0 || buffer_dim.h <= 0)
+    {
+      return {static_cast<float>(x), static_cast<float>(y)};
+    }
+
+    return {static_cast<float>(x - target.x) *
+              (static_cast<float>(buffer_dim.w) / static_cast<float>(target.w)),
+            static_cast<float>(y - target.y) *
+              (static_cast<float>(buffer_dim.h) / static_cast<float>(target.h))};
   }
 
   void RenderContext::begin_frame(Display& display)
@@ -94,26 +140,7 @@ namespace Pixils
   {
     SDL_SetRenderTarget(this->renderer, nullptr);
 
-    SDL_Rect target{0, 0, buffer_dim.w, buffer_dim.h};
-
-    if (display.scaling == Display::Scaling::STRETCH)
-    {
-      target.w = window_rect.w;
-      target.h = window_rect.h;
-    }
-    else if (display.scaling == Display::Scaling::FIT || display.resolution.pixel_scale > 1)
-    {
-      /** For pixel-scaled auto resolution, FIT recovers exactly pixel_scale. */
-      int scale = std::min(window_rect.w / target.w, window_rect.h / target.h);
-      target.w *= scale;
-      target.h *= scale;
-    }
-
-    if (display.align == Display::Alignment::CENTER)
-    {
-      target.x = window_rect.w / 2 - target.w / 2;
-      target.y = window_rect.h / 2 - target.h / 2;
-    }
+    SDL_Rect target = application_target_rect(display).to_SDL_rect();
 
     SDL_RenderCopy(this->renderer, this->buffer_texture, nullptr, &target);
   }

@@ -115,11 +115,6 @@ namespace Pixils
       events.mouse_button_up = Lisple::Constant::NIL;
       events.mouse_moved = false;
 
-      // FIXME: Scale is 0 until the first invocation of prepare_application_frame
-      int scale = ctx.buffer_dim.w > 0 ? std::min(ctx.window_rect.w / ctx.buffer_dim.w,
-                                                  ctx.window_rect.h / ctx.buffer_dim.h)
-                                       : 1;
-
       while (SDL_PollEvent(&event))
       {
         switch (event.type)
@@ -134,14 +129,31 @@ namespace Pixils
           handle_keyup(event.key);
           break;
         case SDL_MOUSEMOTION:
-          events.do_mouse_motion(event.motion.x / scale, event.motion.y / scale);
+        {
+          Point pos = ctx.window_to_buffer_point(program->get_display(),
+                                                 event.motion.x,
+                                                 event.motion.y);
+          events.do_mouse_motion(pos.round_x(), pos.round_y());
           break;
+        }
         case SDL_MOUSEBUTTONDOWN:
+        {
+          Point pos = ctx.window_to_buffer_point(program->get_display(),
+                                                 event.button.x,
+                                                 event.button.y);
+          events.do_mouse_motion(pos.round_x(), pos.round_y());
           events.do_mouse_button_down(event.button);
           break;
+        }
         case SDL_MOUSEBUTTONUP:
+        {
+          Point pos = ctx.window_to_buffer_point(program->get_display(),
+                                                 event.button.x,
+                                                 event.button.y);
+          events.do_mouse_motion(pos.round_x(), pos.round_y());
           events.do_mouse_button_up(event.button);
           break;
+        }
         }
       }
       frame++;
