@@ -384,9 +384,11 @@ hit-testing or focus bookkeeping is needed in the component. When a focused leaf
 it receives both `:focus` and `:focus-within`; its ancestors receive `:focus-within`
 only.
 
-Text wrapping is enabled by default for `text-node` when the node has a real width
-constraint, such as a fixed `:width` or `:width :fill`. Use `:text {:wrap :none}` to
-keep it on a single line. Explicit newline characters still create separate lines.
+Text wrapping is enabled by default for `ui/text` when the node can see a real
+available width, either from its own fixed/fill `:width` or from a constrained
+ancestor. Auto-width text uses that available width as a wrapping maximum without
+filling the full width itself. Use `:text {:wrap :none}` to keep it on a single
+line. Explicit newline characters still create separate lines.
 
 Programmatic focus control is also available from hooks:
 

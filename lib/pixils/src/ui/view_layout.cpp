@@ -150,8 +150,7 @@ namespace Pixils::UI
 
     std::optional<int> resolve_available_content_size(const Style& style,
                                                       const std::optional<int>& parent_size,
-                                                      Axis axis,
-                                                      bool root_context)
+                                                      Axis axis)
     {
       const auto& size = axis_size(style, axis);
       const int margin = margin_size(style, axis);
@@ -164,7 +163,7 @@ namespace Pixils::UI
         return std::max(0, bounds_size - padding - border);
       }
 
-      if (parent_size && fills_axis(style, axis, root_context))
+      if (parent_size)
       {
         const int bounds_size = *parent_size - margin;
         return std::max(0, bounds_size - padding - border);
@@ -287,15 +286,12 @@ namespace Pixils::UI
       view->effective_theme = resolve_effective_theme(view, runtime, inherited_theme);
       view->effective_style = resolve_effective_style(view, inherited_style, selector_path);
 
-      const bool root_context = !inherited_style;
       auto available_width = resolve_available_content_size(view->effective_style,
                                                             parent_available_width,
-                                                            Axis::HORIZONTAL,
-                                                            root_context);
+                                                            Axis::HORIZONTAL);
       auto available_height = resolve_available_content_size(view->effective_style,
                                                              parent_available_height,
-                                                             Axis::VERTICAL,
-                                                             root_context);
+                                                             Axis::VERTICAL);
 
       if (auto natural = invoke_content_size_hook(view,
                                                   runtime,

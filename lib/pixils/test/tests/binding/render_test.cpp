@@ -503,6 +503,39 @@ TEST_F(RenderTest, built_in_text_node_wraps_wordwise_when_fill_width_is_constrai
   EXPECT_EQ(child->bounds.h, 21);
 }
 
+TEST_F(RenderTest, built_in_text_node_wraps_wordwise_when_parent_width_is_constrained)
+{
+  SDLMock::prepared_surfaces["./font.png"] = {16, 12};
+  runtime.eval(R"(
+    (pixils/defbundle fonts {:images {:atlas "font.png"}})
+    (pixils/deffont test-font
+      {:type :bitmap
+       :resource :fonts/atlas
+       :glyphs {"A" {:x 0 :y 0 :w 4 :h 7}
+                " " {:x 4 :y 0 :w 1 :h 7}}})
+    (pixils/defcomponent wrap-box
+      {:style {:width 12}
+       :children [{:mode 'ui/text
+                   :state {:value "AA AA AA"}
+                   :style {:text {:font :font/test-font}}}]})
+    (pixils/defmode root-mode
+      {:children [{:mode 'wrap-box}]})
+  )");
+
+  session.push_mode("root-mode", Lisple::Constant::NIL);
+  ASSERT_NE(session.active_mode, nullptr);
+  ASSERT_EQ(session.active_mode->children.size(), 1u);
+  ASSERT_EQ(session.active_mode->children.at(0)->children.size(), 1u);
+
+  auto& child = session.active_mode->children.at(0)->children.at(0);
+  ASSERT_NE(child, nullptr);
+
+  ASSERT_NO_THROW(session.render_mode());
+
+  EXPECT_EQ(child->bounds.w, 10);
+  EXPECT_EQ(child->bounds.h, 21);
+}
+
 TEST_F(RenderTest, built_in_text_node_wrap_none_stays_single_line_when_width_is_constrained)
 {
   SDLMock::prepared_surfaces["./font.png"] = {16, 12};
