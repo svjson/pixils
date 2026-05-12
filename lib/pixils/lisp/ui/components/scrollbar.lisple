@@ -1,0 +1,214 @@
+(ns pixils.ui.scrollbar
+  (:require pixils
+            [pixils.render :as r]))
+
+(def default-track-color {:r 0xcc :g 0xcc :b 0xcc})
+(def default-button-color {:r 0xe6 :g 0xe6 :b 0xe6})
+(def default-button-border-color {:r 0x66 :g 0x66 :b 0x66})
+(def default-handle-color {:r 0x99 :g 0x99 :b 0x99})
+(def default-handle-pressed-color {:r 0x77 :g 0x77 :b 0x77})
+(def default-glyph-color {:r 0x00 :g 0x00 :b 0x00})
+
+(defun clamp [value low high]
+  (max low (min high value)))
+
+(defun scrollbar-viewport-size [state ctx]
+  (if (= (:axis state) :x)
+    (-> ctx :view :bounds :w)
+    (-> ctx :view :bounds :h)))
+
+(defun scrollbar-cross-size [state ctx]
+  (if (= (:axis state) :x)
+    (-> ctx :view :bounds :h)
+    (-> ctx :view :bounds :w)))
+
+(defun scrollbar-button-size [state ctx]
+  (scrollbar-cross-size state ctx))
+
+(defun scrollbar-track-start [state ctx]
+  (scrollbar-button-size state ctx))
+
+(defun scrollbar-track-size [state ctx]
+  (max 1 (- (scrollbar-viewport-size state ctx)
+            (* 2 (scrollbar-button-size state ctx)))))
+
+(defun scrollbar-max [state ctx]
+  (max 0 (- (:content-size state) (scrollbar-viewport-size state ctx))))
+
+(defun scrollbar-handle-size [state ctx]
+  (let [track (scrollbar-track-size state ctx)
+        content (:content-size state)
+        page (min track content)]
+    (if (<= content 0)
+      track
+      (max 12 (min track (int (/ (* track page) content)))))))
+
+(defun scrollbar-handle-pos [state ctx]
+  (let [track-start (scrollbar-track-start state ctx)
+        track (scrollbar-track-size state ctx)
+        handle (scrollbar-handle-size state ctx)
+        span (max 1 (- track handle))
+        max-value (scrollbar-max state ctx)
+        value (clamp (or (:value state) 0) 0 max-value)]
+    (if (= max-value 0)
+      track-start
+      (+ track-start (int (/ (* value span) max-value))))))
+
+(defun scrollbar-event-coord [state event]
+  (let [pos (:position event)]
+    (if (= (:axis state) :x) (:x pos) (:y pos))))
+
+(defun scrollbar-handle-hit? [state event ctx]
+  (let [coord (scrollbar-event-coord state event)
+        handle-pos (scrollbar-handle-pos state ctx)
+        handle-size (scrollbar-handle-size state ctx)]
+    (and (>= coord handle-pos)
+         (< coord (+ handle-pos handle-size)))))
+
+(defun scrollbar-grab-offset [state event ctx]
+  (let [coord (scrollbar-event-coord state event)
+        handle-pos (scrollbar-handle-pos state ctx)
+        handle-size (scrollbar-handle-size state ctx)]
+    (if (scrollbar-handle-hit? state event ctx)
+      (- coord handle-pos)
+      (/ handle-size 2))))
+
+(defun scrollbar-value-at [state event ctx]
+  (let [track-start (scrollbar-track-start state ctx)
+        track (scrollbar-track-size state ctx)
+        handle (scrollbar-handle-size state ctx)
+        span (max 1 (- track handle))
+        max-value (scrollbar-max state ctx)
+        coord (scrollbar-event-coord state event)
+        grab-offset (or (:grab-offset state) (/ handle 2))]
+    (if (= max-value 0)
+      0
+      (int (clamp (/ (* (- coord track-start grab-offset) max-value) span)
+                  0
+                  max-value)))))
+
+(defun scrollbar-step [state]
+  (or (:step state) 1))
+
+(defun scrollbar-step-value [state ctx direction]
+  (clamp (+ (or (:value state) 0)
+            (* direction (scrollbar-step state)))
+         0
+         (scrollbar-max state ctx)))
+
+(defun scrollbar-start-button-hit? [state event ctx]
+  (< (scrollbar-event-coord state event)
+     (scrollbar-button-size state ctx)))
+
+(defun scrollbar-end-button-hit? [state event ctx]
+  (>= (scrollbar-event-coord state event)
+      (- (scrollbar-viewport-size state ctx)
+         (scrollbar-button-size state ctx))))
+
+(defun scrollbar-handle-rect [state ctx]
+  (let [pos (scrollbar-handle-pos state ctx)
+        handle (scrollbar-handle-size state ctx)
+        cross (scrollbar-cross-size state ctx)]
+    (if (= (:axis state) :x)
+      {:x pos :y 0 :w handle :h cross}
+      {:x 0 :y pos :w cross :h handle})))
+
+(defun scrollbar-start-button-rect [state ctx]
+  (let [button (scrollbar-button-size state ctx)
+        cross (scrollbar-cross-size state ctx)]
+    (if (= (:axis state) :x)
+      {:x 0 :y 0 :w button :h cross}
+      {:x 0 :y 0 :w cross :h button})))
+
+(defun scrollbar-end-button-rect [state ctx]
+  (let [button (scrollbar-button-size state ctx)
+        cross (scrollbar-cross-size state ctx)
+        pos (- (scrollbar-viewport-size state ctx) button)]
+    (if (= (:axis state) :x)
+      {:x pos :y 0 :w button :h cross}
+      {:x 0 :y pos :w cross :h button})))
+
+(defun scrollbar-track-rect [state ctx]
+  (let [start (scrollbar-track-start state ctx)
+        size (scrollbar-track-size state ctx)
+        cross (scrollbar-cross-size state ctx)]
+    (if (= (:axis state) :x)
+      {:x start :y 0 :w size :h cross}
+      {:x 0 :y start :w cross :h size})))
+
+(defun scrollbar-start-glyph [state]
+  (if (= (:axis state) :x) "<" "^"))
+
+(defun scrollbar-end-glyph [state]
+  (if (= (:axis state) :x) ">" "v"))
+
+(defun scrollbar-glyph-pos [state rect]
+  {:x (+ (:x rect) 4)
+   :y (+ (:y rect) 3)})
+
+(defun render-scrollbar-button! [state rect label]
+  (do
+    (r/rect! rect {:fill true
+                   :color (or (:button-color state) default-button-color)})
+    (r/rect! rect {:color (or (:button-border-color state)
+                              default-button-border-color)})
+    (r/text! label
+             (scrollbar-glyph-pos state rect)
+             {:color (or (:glyph-color state) default-glyph-color)})))
+
+(defcomponent ui/scrollbar
+  {:focusable true
+   :on-mouse-down (fn [state event ctx]
+                    (cond
+                      (scrollbar-start-button-hit? state event ctx)
+                      (assoc (assoc state
+                                    :drag-kind :button)
+                             :value (scrollbar-step-value state ctx -1))
+
+                      (scrollbar-end-button-hit? state event ctx)
+                      (assoc (assoc state
+                                    :drag-kind :button)
+                             :value (scrollbar-step-value state ctx 1))
+
+                      :default
+                      (let [next-state (assoc (assoc state
+                                                     :drag-kind :handle)
+                                              :grab-offset
+                                              (scrollbar-grab-offset state event ctx))]
+                        (if (scrollbar-handle-hit? state event ctx)
+                          next-state
+                          (assoc next-state
+                                 :value
+                                 (scrollbar-value-at next-state event ctx))))))
+   :on-drag (fn [state event ctx]
+              (if (= (:drag-kind state) :button)
+                state
+                (assoc state :value (scrollbar-value-at state event ctx))))
+   :on-drag-end (fn [state event ctx]
+                  (assoc (assoc state :grab-offset nil)
+                         :drag-kind nil))
+   :render (fn [state ctx]
+             (let [track (scrollbar-track-rect state ctx)
+                   start-button (scrollbar-start-button-rect state ctx)
+                   end-button (scrollbar-end-button-rect state ctx)
+                   handle (scrollbar-handle-rect state ctx)
+                   pressed? (contains? (-> ctx :view :interaction :pressed) :left)
+                   handle-color (if pressed?
+                                  (or (:handle-pressed-color state)
+                                      default-handle-pressed-color)
+                                  (or (:handle-color state) default-handle-color))]
+               (do
+                 (r/rect! track {:fill true
+                                 :color (or (:track-color state) default-track-color)})
+                 (render-scrollbar-button! state
+                                           start-button
+                                           (scrollbar-start-glyph state))
+                 (render-scrollbar-button! state
+                                           end-button
+                                           (scrollbar-end-glyph state))
+                 (r/rect! handle {:fill true
+                                  :color handle-color})
+                 (r/rect! track {:color (or (:button-border-color state)
+                                            default-button-border-color)}))))})
+
+(defcomponent ui/scrollbar-corner {})

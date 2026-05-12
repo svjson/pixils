@@ -82,6 +82,28 @@ Focusability is a core mode property, not a style property. Modes are not focusa
 default. Set `:focusable true` on controls or containers that should be allowed to own
 keyboard focus.
 
+**Built-in UI components**
+
+Pixils ships reusable UI primitives under the `ui/` namespace. These are embedded
+Lisple components, so applications can use them like any other mode.
+
+| Component | Purpose |
+|-----------|---------|
+| `ui/text` | Styled text node with scaling, alignment, and word wrapping. |
+| `ui/button` | Focusable button wrapper with inner text/content styling. |
+| `ui/text-input` | Basic editable single-line text field. |
+| `ui/menu-bar`, `ui/popup-menu` | Data-driven menu controls. |
+| `ui/window` | Lightweight draggable window primitive. |
+| `ui/scrollbar` | Standalone horizontal or vertical scrollbar primitive. |
+| `ui/scrollbar-corner` | Filler component for the square where two scrollbars meet. |
+
+`ui/scrollbar` is intended for direct composition. Use `:axis :x` or `:axis :y`,
+bind `:value` to the scroll offset you want to control, and provide `:content-size`
+for the total scrollable span. Optional `:step` controls the arrow-button increment.
+The first version exposes visual slots through state colors:
+`:track-color`, `:button-color`, `:button-border-color`, `:handle-color`,
+`:handle-pressed-color`, and `:glyph-color`.
+
 **Hook signatures**
 
 All hooks receive the same two arguments: the current state and a unified context object.
