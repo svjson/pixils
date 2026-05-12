@@ -57,6 +57,10 @@ namespace Pixils
 
     ctx.asset_registry = std::make_unique<Asset::Registry>(ctx, rtconfig.asset_base_path);
     ctx.font_registry = std::make_unique<FontRegistry>();
+    if (ctx.renderer)
+    {
+      ctx.asset_registry->load_embedded_assets();
+    }
 
     std::unique_ptr<Lisple::DirRootFileSystem> fs =
       std::make_unique<Lisple::DirRootFileSystem>(rtconfig.load_path);
@@ -116,6 +120,10 @@ namespace Pixils
 
     ctx.asset_registry = std::make_unique<Asset::Registry>(ctx, rtconfig.asset_base_path);
     ctx.font_registry = std::make_unique<FontRegistry>();
+    if (ctx.renderer)
+    {
+      ctx.asset_registry->load_embedded_assets();
+    }
 
     std::unique_ptr<Lisple::DirRootFileSystem> fs =
       std::make_unique<Lisple::DirRootFileSystem>(rtconfig.load_path);

@@ -13,6 +13,12 @@ namespace Pixils::Assets
 
   extern const EmbeddedAsset consolefont_png;
   extern const EmbeddedAsset pixils_logo_png;
+  extern const EmbeddedAsset win311_checkmark_png;
+  extern const EmbeddedAsset win311_control_button_png;
+  extern const EmbeddedAsset win311_minimize_button_png;
+  extern const EmbeddedAsset win311systemfont_png;
+  extern const EmbeddedAsset win95_minimize_button_png;
+  extern const EmbeddedAsset win95systemfont_png;
 
 } // namespace Pixils::Assets
 

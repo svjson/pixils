@@ -16,6 +16,12 @@ assets_dir, out_dir = sys.argv[1], sys.argv[2]
 assets = [
     ("consolefont.png", "consolefont_png"),
     ("pixils_logo.png", "pixils_logo_png"),
+    ("win311-checkmark.png", "win311_checkmark_png"),
+    ("win311-control-button.png", "win311_control_button_png"),
+    ("win311-minimize-button.png", "win311_minimize_button_png"),
+    ("win311systemfont.png", "win311systemfont_png"),
+    ("win95-minimize-button.png", "win95_minimize_button_png"),
+    ("win95systemfont.png", "win95systemfont_png"),
 ]
 
 for png_name, symbol in assets:

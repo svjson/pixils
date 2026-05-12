@@ -4,6 +4,8 @@
 #include <pixils/asset/registry.h>
 #include <pixils/runtime/mode.h>
 
+#include <SDL2/SDL.h>
+#include <SDL2/SDL_image.h>
 #include <SDL2/SDL_mixer.h>
 #include <SDL2/SDL_pixels.h>
 #include <SDL2/SDL_render.h>
@@ -169,19 +171,29 @@ namespace Pixils::Asset
 
   void Registry::load_embedded_assets()
   {
+    if (this->is_loaded("pixils")) return;
+    if (!SDL_WasInit(SDL_INIT_VIDEO)) return;
+    if ((IMG_Init(IMG_INIT_PNG) & IMG_INIT_PNG) == 0) return;
+
     Bundle bundle;
-    if (auto* surface = loader.load_surface_from_memory(Assets::consolefont_png.data,
-                                                        Assets::consolefont_png.size))
+    auto load_image = [&](const std::string& name, const Assets::EmbeddedAsset& asset)
     {
-      bundle.images["console-font"] = loader.create_texture(surface);
-      bundle.image_sources["console-font"] = surface;
-    }
-    if (auto* surface = loader.load_surface_from_memory(Assets::pixils_logo_png.data,
-                                                        Assets::pixils_logo_png.size))
-    {
-      bundle.images["pixils-logo"] = loader.create_texture(surface);
-      bundle.image_sources["pixils-logo"] = surface;
-    }
+      if (auto* surface = loader.load_surface_from_memory(asset.data, asset.size))
+      {
+        bundle.images[name] = loader.create_texture(surface);
+        bundle.image_sources[name] = surface;
+      }
+    };
+
+    load_image("console-font", Assets::consolefont_png);
+    load_image("pixils-logo", Assets::pixils_logo_png);
+    load_image("win311-checkmark", Assets::win311_checkmark_png);
+    load_image("win311-control-button", Assets::win311_control_button_png);
+    load_image("win311-minimize-button", Assets::win311_minimize_button_png);
+    load_image("win311-system-font", Assets::win311systemfont_png);
+    load_image("win95-minimize-button", Assets::win95_minimize_button_png);
+    load_image("win95-system-font", Assets::win95systemfont_png);
+
     bundles.emplace("pixils", std::move(bundle));
   }
 

@@ -221,6 +221,28 @@ TEST_F(RenderTest, text_size_uses_explicit_font_line_height)
   EXPECT_EQ(h->num().get_int(), 10);
 }
 
+TEST_F(RenderTest, deffont_replaces_existing_font_definition)
+{
+  SDLMock::prepared_surfaces["./font.png"] = {16, 12};
+  runtime.eval(R"(
+    (pixils/defbundle fonts {:images {:atlas "font.png"}})
+    (pixils/deffont test-font
+      {:type :bitmap
+       :resource :fonts/atlas
+       :glyphs {"A" {:x 0 :y 0 :w 4 :h 4}}})
+    (pixils/deffont test-font
+      {:type :bitmap
+       :resource :fonts/atlas
+       :glyphs {"A" {:x 0 :y 0 :w 7 :h 4}}})
+  )");
+
+  auto result = runtime.eval(R"((pixils.render/text-size "A" {:font :font/test-font}))");
+  auto w = Lisple::Dict::get_property(result, Lisple::RTValue::keyword("w"));
+
+  ASSERT_TRUE(w);
+  EXPECT_EQ(w->num().get_int(), 8);
+}
+
 TEST_F(RenderTest, text_size_ignores_inline_toggle_markers)
 {
   SDLMock::prepared_surfaces["./font.png"] = {8, 8};

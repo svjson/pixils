@@ -436,6 +436,10 @@ Pixils also applies an internal built-in base theme underneath any user theme. T
 theme is the framework's equivalent of browser default styles: always present, and used
 as-is when no explicit theme is active.
 
+The current built-in named themes are `pixils/classic-blue`,
+`pixils/windows-3`, and `pixils/windows-95`. The Windows themes include their
+bitmap font and small control images as embedded Pixils assets.
+
 ```clojure
 (pixils/deftheme win95
   {:styles {'button {:padding 2}

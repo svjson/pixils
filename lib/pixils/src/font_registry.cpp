@@ -24,13 +24,12 @@ namespace Pixils
                                    int spacing,
                                    int line_height)
   {
-    fonts.emplace(key,
-                  std::make_unique<BitmapFont>(texture,
-                                               tint_texture,
-                                               std::move(map),
-                                               std::move(definition),
-                                               spacing,
-                                               line_height));
+    fonts[key] = std::make_unique<BitmapFont>(texture,
+                                              tint_texture,
+                                              std::move(map),
+                                              std::move(definition),
+                                              spacing,
+                                              line_height);
   }
 
   BitmapFont* FontRegistry::get_font(const std::string& key)

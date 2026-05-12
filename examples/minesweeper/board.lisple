@@ -5,7 +5,7 @@
             [pixils.point :as pt]
             [pixils.ui :as ui]
             [pixils.examples.minesweeper.game-logic :as gl]
-            [pixils.examples.minesweeper.win :as win]))
+            [pixils.ui.theme.windows-3 :as win]))
 
 
 

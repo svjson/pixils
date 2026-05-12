@@ -2,7 +2,7 @@
   (:require pixils
             [pixils.render :as r]
             [pixils.ui :as ui]
-            [pixils.examples.minesweeper.win :as win]))
+            [pixils.ui.theme.windows-3 :as win]))
 
 
 

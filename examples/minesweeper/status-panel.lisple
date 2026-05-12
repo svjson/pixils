@@ -2,7 +2,7 @@
   (:require pixils
             [pixils.color :as c]
             [pixils.ui :as ui]
-            [pixils.examples.minesweeper.win :as win]
+            [pixils.ui.theme.windows-3 :as win]
             pixils.examples.minesweeper.counter))
 
 

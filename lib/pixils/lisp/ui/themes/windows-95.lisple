@@ -1,18 +1,15 @@
-(ns pixils.examples.minesweeper.win95
+(ns pixils.ui.theme.windows-95
   (:require pixils
-            [pixils.color :as c]
-            [pixils.examples.minesweeper.win :as win]))
+            [pixils.color :as c]))
+
 
 
 ;; Win95 Sans Serif System Font
 
-(defbundle win95 {:images {:system-font "assets/win95systemfont.png"
-                           :minimize-button "assets/win95-minimize-button.png"}})
-
 (deffont win95-system-font
   {:type :bitmap
    :spacing 1
-   :resource :win95/system-font
+   :resource :pixils/win95-system-font
    :baseline 8
    :styles {:underline {:offset 2
                         :thickness 1}}
@@ -77,6 +74,7 @@
             'w' {:x 117 :y 11 :w 7 :h 9}
             'x' {:x 126 :y 11 :w 4 :h 9}}})
 
+
 
 ;; Windows 95 colors
 
@@ -86,35 +84,38 @@
 (def PANEL-SHADOW {:r 0x7f :g 0x7f :b 0x7f})
 (def FOCUS-BLUE {:r 0x00 :g 0x00 :b 0x7f})
 
-(deftheme windows-95
-  {:styles {'window {:border {:line-style :solid
-                              :thickness 1
-                              :color c/BLACK}
-                     :text {:font :font/win95-system-font}}
+(deftheme pixils/windows-95
+  {:styles {'ui/window {:border {:line-style :solid
+                                 :thickness 1
+                                 :color c/BLACK}
+                        :text {:font :font/win95-system-font}}
 
-            'window-title-bar {:background FOCUS-BLUE
-                               :text {:color c/WHITE}
-                               :width :fill
-                               :height 19}
+            'ui/window-title-bar {:background FOCUS-BLUE
+                                  :text {:color c/WHITE}
+                                  :width :fill
+                                  :height 19}
 
-            'window-control-button {:hidden true}
+            'ui/window-control-button {:hidden true}
 
-            'window-minimize-button {:margin {:t 2}
-                                     :width 16
-                                     :height 14}
+            'ui/window-minimize-button {:margin {:t 2}
+                                        :width 16
+                                        :height 14}
 
-            'button
+            '(ui/window-minimize-button ui/button-inner)
+            {:background {:image :pixils/win95-minimize-button}}
+
+            'ui/button
             {:border {:line-style :solid
                       :color c/BLACK
                       :thickness 1
                       :top {:thickness 0}
                       :left {:thickness 0}}}
 
-            '(button {:pressed true})
+            '(ui/button {:pressed true})
             {:border {:top {:thickness 1 :color c/BLACK}
                       :left {:thickness 1 :color c/BLACK}}}
 
-            'button-inner
+            'ui/button-inner
             {:background PANEL-COLOR
              :border {:line-style :bevel
                       :color PANEL-LIGHT
@@ -122,16 +123,16 @@
                       :right {:color PANEL-SHADOW}
                       :bottom {:color PANEL-SHADOW}}}
 
-            '(button-inner {:pressed true})
+            '(ui/button-inner {:pressed true})
             {:border {:line-style :bevel
                       :color PANEL-SHADOW
                       :thickness 1
                       :right {:thickness 1 :color PANEL-LIGHT}
                       :bottom {:thickness 1 :color PANEL-LIGHT}}}
 
-            'menu-bar {:background PANEL-COLOR
-                       :text {:font :font/win95-system-font
-                              :color c/BLACK}}
+            'ui/menu-bar {:background PANEL-COLOR
+                          :text {:font :font/win95-system-font
+                                 :color c/BLACK}}
 
             :menu/item
             {:text {:color c/BLACK
@@ -141,69 +142,66 @@
              :hover {:background FOCUS-BLUE
                      :text {:color WHITE}}}
 
-            'menu-item {:hover {:background FOCUS-BLUE
-                                :text {:color WHITE}}}
-
-            'menu-bar-item:hover
+            'ui/menu-bar-item:hover
             {:background PANEL-COLOR
              :text {:color c/BLACK}}
 
-            '(menu-bar-item {:highlighted true})
+            '(ui/menu-bar-item {:highlighted true})
             {:background FOCUS-BLUE
              :text {:color WHITE}}
 
-            'popup-menu-item:hover
+            'ui/popup-menu-item:hover
             {:background PANEL-COLOR
              :text {:color c/BLACK
                     :marked-style {:color c/BLACK}}}
 
-            'popup-menu-option-item:hover
+            'ui/popup-menu-option-item:hover
             {:background PANEL-COLOR
              :text {:color c/BLACK
                     :marked-style {:color c/BLACK}}}
 
-            '(popup-menu-item {:highlighted true})
+            '(ui/popup-menu-item {:highlighted true})
             {:background FOCUS-BLUE
              :text {:color WHITE
                     :marked-style {:color WHITE}}}
 
-            '(popup-menu-option-item {:highlighted true})
+            '(ui/popup-menu-option-item {:highlighted true})
             {:background FOCUS-BLUE
              :text {:color WHITE
                     :marked-style {:color WHITE}}}
 
-            'menu-option-item
+            'ui/popup-menu-option-item
             {:padding {:t 2 :r 12 :b 2 :l 2}}
 
-            'menu-option-indicator
+            'ui/menu-option-indicator
             {:margin {:l 2 :r 4}
              :box-sizing :content-box
              :width 8
              :height 10}
 
-            '(menu-option-indicator {:selected true})
-            {:background {:image :win3/checkmark}}
+            '(ui/menu-option-indicator {:selected true})
+            {:background {:image :pixils/win311-checkmark}}
 
-            'menu-separator {:height 2
-                             :margin {:t 3 :r 2 :b 2 :l 2}
-                             :border {:thickness 1
-                                      :line-style :solid
-                                      :color PANEL-SHADOW
-                                      :left {:thickness 0}
-                                      :right {:thickness 0}
-                                      :bottom {:color PANEL-LIGHT}}}
-            'popup-menu-outer {:border {:color PANEL-LIGHT
-                                        :line-style :sold
-                                        :thickness 1
-                                        :bottom {:color c/BLACK}
-                                        :right {:color c/BLACK}}}
-            'popup-menu-inner {:border {:color c/WHITE
-                                        :line-style :sold
-                                        :thickness 1
-                                        :bottom {:color PANEL-SHADOW}
-                                        :right {:color PANEL-SHADOW}}
-                               :background PANEL-COLOR
-                               :text {:font :font/win95-system-font
-                                      :color c/BLACK}}
+            'ui/menu-separator {:height 2
+                                :margin {:t 3 :r 2 :b 2 :l 2}
+                                :border {:thickness 1
+                                         :line-style :solid
+                                         :color PANEL-SHADOW
+                                         :left {:thickness 0}
+                                         :right {:thickness 0}
+                                         :bottom {:color PANEL-LIGHT}}}
+            'ui/popup-menu-outer {:border {:color PANEL-LIGHT
+                                           :line-style :solid
+                                           :thickness 1
+                                           :bottom {:color c/BLACK}
+                                           :right {:color c/BLACK}}}
+            'ui/popup-menu-inner {:border {:color c/WHITE
+                                           :line-style :solid
+                                           :thickness 1
+                                           :bottom {:color PANEL-SHADOW}
+                                           :right {:color PANEL-SHADOW}}
+                                  :background PANEL-COLOR
+                                  :text {:font :font/win95-system-font
+                                         :color c/BLACK}}
 
             :ui/panel {:background PANEL-COLOR}}})

@@ -11,13 +11,13 @@
             [pixils.examples.minesweeper.board :as board]
             [pixils.ui.menu :as menu]
             [pixils.examples.minesweeper.highscore :as hs]
-            [pixils.examples.minesweeper.win :as win]
-            [pixils.examples.minesweeper.win95 :as win95]))
+            [pixils.ui.theme.windows-3 :as win]
+            [pixils.ui.theme.windows-95 :as win95]))
 
 (defprogram minesweeper
   {:display {:resolution {:scale 3}}
    :target-frame-rate 0
-   :theme 'windows-3
+   :theme 'pixils/windows-3
    :initial-mode 'main-mode})
 
 (def menu-keymap
