@@ -2,6 +2,7 @@
 
 #include <pixils/binding/color_namespace.h>
 #include <pixils/binding/point_namespace.h>
+#include <pixils/binding/rect_namespace.h>
 #include <pixils/binding/ui/style/style_host_type.h>
 
 #include <algorithm>
@@ -87,6 +88,96 @@ namespace Pixils::Script::StyleDefinition
       }
 
       return std::nullopt;
+    }
+
+    std::optional<UI::Style::Background::Fit> parse_background_fit(
+      const Lisple::sptr_rtval& value)
+    {
+      if (!value || value->type != Lisple::RTValue::Type::KEYWORD) return std::nullopt;
+      if (value->str() == "none") return UI::Style::Background::Fit::NONE;
+      if (value->str() == "contain") return UI::Style::Background::Fit::CONTAIN;
+      if (value->str() == "cover") return UI::Style::Background::Fit::COVER;
+      if (value->str() == "fill") return UI::Style::Background::Fit::FILL;
+      return std::nullopt;
+    }
+
+    std::optional<UI::Style::Background::Align> parse_background_align_keyword(
+      const Lisple::sptr_rtval& value)
+    {
+      if (!value || value->type != Lisple::RTValue::Type::KEYWORD)
+      {
+        return std::nullopt;
+      }
+      if (value->str() == "start" || value->str() == "left" || value->str() == "top")
+      {
+        return UI::Style::Background::Align::START;
+      }
+      if (value->str() == "center")
+      {
+        return UI::Style::Background::Align::CENTER;
+      }
+      if (value->str() == "end" || value->str() == "right" || value->str() == "bottom")
+      {
+        return UI::Style::Background::Align::END;
+      }
+      return std::nullopt;
+    }
+
+    void apply_background_align(UI::Style::Background& bg, const Lisple::sptr_rtval& value)
+    {
+      if (!value || value->type != Lisple::RTValue::Type::KEYWORD) return;
+
+      auto name = value->str();
+      if (name == "top-left")
+      {
+        bg.align_x = UI::Style::Background::Align::START;
+        bg.align_y = UI::Style::Background::Align::START;
+      }
+      else if (name == "top")
+      {
+        bg.align_x = UI::Style::Background::Align::CENTER;
+        bg.align_y = UI::Style::Background::Align::START;
+      }
+      else if (name == "top-right")
+      {
+        bg.align_x = UI::Style::Background::Align::END;
+        bg.align_y = UI::Style::Background::Align::START;
+      }
+      else if (name == "left")
+      {
+        bg.align_x = UI::Style::Background::Align::START;
+        bg.align_y = UI::Style::Background::Align::CENTER;
+      }
+      else if (name == "center")
+      {
+        bg.align_x = UI::Style::Background::Align::CENTER;
+        bg.align_y = UI::Style::Background::Align::CENTER;
+      }
+      else if (name == "right")
+      {
+        bg.align_x = UI::Style::Background::Align::END;
+        bg.align_y = UI::Style::Background::Align::CENTER;
+      }
+      else if (name == "bottom-left")
+      {
+        bg.align_x = UI::Style::Background::Align::START;
+        bg.align_y = UI::Style::Background::Align::END;
+      }
+      else if (name == "bottom")
+      {
+        bg.align_x = UI::Style::Background::Align::CENTER;
+        bg.align_y = UI::Style::Background::Align::END;
+      }
+      else if (name == "bottom-right")
+      {
+        bg.align_x = UI::Style::Background::Align::END;
+        bg.align_y = UI::Style::Background::Align::END;
+      }
+      else if (auto align = parse_background_align_keyword(value))
+      {
+        bg.align_x = align;
+        bg.align_y = align;
+      }
     }
 
     std::optional<char> parse_inline_marker(const Lisple::sptr_rtval& value)
@@ -715,9 +806,13 @@ namespace Pixils::Script::StyleDefinition
       }
     }
 
-    static Lisple::MapSchema background_schema(
-      {},
-      {{"color", &HostType::COLOR}, {"image", &Lisple::Type::KEY}});
+    static Lisple::MapSchema background_schema({},
+                                               {{"color", &HostType::COLOR},
+                                                {"image", &Lisple::Type::KEY},
+                                                {"source", &HostType::RECT},
+                                                {"fit", &Lisple::Type::KEY},
+                                                {"align", &Lisple::Type::KEY},
+                                                {"offset", &HostType::POINT}});
 
     auto bg = std::make_unique<UI::Style::Background>();
     auto opts = background_schema.bind(ctx, *value);
@@ -725,6 +820,10 @@ namespace Pixils::Script::StyleDefinition
 
     auto image_key = opts.val("image");
     if (image_key->type != Lisple::RTValue::Type::NIL) bg->image = image_key->qual();
+    bg->source = opts.optional_obj<Rect>("source");
+    bg->fit = parse_background_fit(opts.val("fit"));
+    apply_background_align(*bg, opts.val("align"));
+    bg->offset = opts.optional_obj<Point>("offset");
 
     return bg;
   }

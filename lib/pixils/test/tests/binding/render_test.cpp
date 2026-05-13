@@ -132,6 +132,32 @@ TEST_F(RenderTest, style_background_image_renders_once_without_repeat)
   EXPECT_EQ(ops[0].rendered_rect.h, 7);
 }
 
+TEST_F(RenderTest, style_background_image_can_fit_source_and_align)
+{
+  SDLMock::prepared_surfaces["./icons.png"] = {32, 32};
+  runtime.eval(R"(
+    (pixils/defbundle icons {:images {:sheet "icons.png"}})
+    (pixils/defmode test-mode
+      {:style {:width 20
+               :height 20
+               :background {:image :icons/sheet
+                            :source {:x 8 :y 4 :w 8 :h 4}
+                            :fit :contain
+                            :align :center}}})
+  )");
+  session.push_mode("test-mode", Lisple::Constant::NIL);
+
+  ASSERT_NO_THROW(session.render_mode());
+
+  auto& ops = render_target()->render_ops;
+  ASSERT_EQ(ops.size(), 1u);
+  EXPECT_EQ(ops[0].type, RenderOpType::RENDER_COPY);
+  EXPECT_EQ(ops[0].rendered_rect.x, 0);
+  EXPECT_EQ(ops[0].rendered_rect.y, 5);
+  EXPECT_EQ(ops[0].rendered_rect.w, 20);
+  EXPECT_EQ(ops[0].rendered_rect.h, 10);
+}
+
 TEST_F(RenderTest, scaled_view_renders_to_logical_texture_and_copies_to_scaled_footprint)
 {
   runtime.eval(R"(

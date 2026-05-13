@@ -63,12 +63,32 @@ namespace Pixils::UI
 
     struct Background
     {
+      enum class Fit : uint8_t
+      {
+        NONE,
+        CONTAIN,
+        COVER,
+        FILL,
+      };
+
+      enum class Align : uint8_t
+      {
+        START,
+        CENTER,
+        END,
+      };
+
       Background();
       Background(const std::pair<std::string, std::string>& resource_id);
       Background(const Color& color);
 
       std::optional<std::pair<std::string, std::string>> image;
       std::optional<Color> color;
+      std::optional<Rect> source;
+      std::optional<Fit> fit;
+      std::optional<Align> align_x;
+      std::optional<Align> align_y;
+      std::optional<Point> offset;
     };
 
     struct Insets

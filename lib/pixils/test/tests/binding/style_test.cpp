@@ -46,6 +46,36 @@ TEST_F(StyleTest, make_style_with_box_sizing)
   EXPECT_EQ(*style.box_sizing, Pixils::UI::Style::BoxSizing::CONTENT_BOX);
 }
 
+TEST_F(StyleTest, make_style_with_background_image_layout)
+{
+  Lisple::sptr_rtval result = runtime.eval("(pixils.ui.style/make-style "
+                                           "{:background {:image :icons/brush "
+                                           ":source {:x 1 :y 2 :w 3 :h 4} "
+                                           ":fit :contain "
+                                           ":align :center "
+                                           ":offset {:x 5 :y 6}}})");
+
+  auto style = Lisple::obj<Pixils::UI::Style>(*result);
+  ASSERT_NE(style.background, std::nullopt);
+  ASSERT_NE(style.background->image, std::nullopt);
+  EXPECT_EQ(style.background->image->first, "icons");
+  EXPECT_EQ(style.background->image->second, "brush");
+  ASSERT_NE(style.background->source, std::nullopt);
+  EXPECT_EQ(style.background->source->x, 1);
+  EXPECT_EQ(style.background->source->y, 2);
+  EXPECT_EQ(style.background->source->w, 3);
+  EXPECT_EQ(style.background->source->h, 4);
+  ASSERT_NE(style.background->fit, std::nullopt);
+  EXPECT_EQ(*style.background->fit, Pixils::UI::Style::Background::Fit::CONTAIN);
+  ASSERT_NE(style.background->align_x, std::nullopt);
+  ASSERT_NE(style.background->align_y, std::nullopt);
+  EXPECT_EQ(*style.background->align_x, Pixils::UI::Style::Background::Align::CENTER);
+  EXPECT_EQ(*style.background->align_y, Pixils::UI::Style::Background::Align::CENTER);
+  ASSERT_NE(style.background->offset, std::nullopt);
+  EXPECT_EQ(style.background->offset->round_x(), 5);
+  EXPECT_EQ(style.background->offset->round_y(), 6);
+}
+
 TEST_F(StyleTest, make_style_with_per_side_border_overrides)
 {
   // When

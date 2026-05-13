@@ -101,3 +101,76 @@ TEST_F(MenuTest, opened_popup_inherits_menu_scale)
   ASSERT_TRUE(session.active_mode->effective_style.scale.has_value());
   EXPECT_EQ(*session.active_mode->effective_style.scale, 2);
 }
+
+TEST_F(MenuTest, menu_bar_item_without_children_emits_action_without_opening_popup)
+{
+  runtime.eval(R"(
+    (def menu-definition
+      {:items [{:label "Quit"
+                :action :game/quit
+                :payload {:source :menu}}]})
+
+    (pixils/defmode root-mode
+      {:on {:game/quit (fn [state event ctx]
+                         (assoc (assoc state :quit true)
+                                :payload (:payload event)))}
+       :children [(pixils.ui.menu/make-menu
+                   {}
+                   menu-definition
+                   {})]})
+  )");
+
+  session.push_mode("root-mode", runtime.eval("{:quit false}"));
+  session.update_mode();
+  session.render_mode();
+
+  ASSERT_NE(session.active_mode, nullptr);
+  ASSERT_EQ(session.active_mode->children.size(), 1u);
+  auto menu = session.active_mode->children[0];
+  ASSERT_NE(menu, nullptr);
+  ASSERT_EQ(menu->children.size(), 1u);
+  auto menu_item = menu->children[0];
+  ASSERT_NE(menu_item, nullptr);
+
+  input().mouse_down({menu_item->bounds.x + menu_item->bounds.w / 2,
+                      menu_item->bounds.y + menu_item->bounds.h / 2});
+  update_cycle();
+
+  ASSERT_NE(session.active_mode, nullptr);
+  EXPECT_EQ(session.active_mode->mode->name, "root-mode");
+  EXPECT_EQ(session.active_mode->state->to_string(),
+            "{:quit true :payload {:source :menu}}");
+}
+
+TEST_F(MenuTest, menu_bar_item_without_children_or_action_does_not_open_popup)
+{
+  runtime.eval(R"(
+    (def menu-definition
+      {:items [{:label "Static"}]})
+
+    (pixils/defmode root-mode
+      {:children [(pixils.ui.menu/make-menu
+                   {}
+                   menu-definition
+                   {})]})
+  )");
+
+  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.update_mode();
+  session.render_mode();
+
+  ASSERT_NE(session.active_mode, nullptr);
+  ASSERT_EQ(session.active_mode->children.size(), 1u);
+  auto menu = session.active_mode->children[0];
+  ASSERT_NE(menu, nullptr);
+  ASSERT_EQ(menu->children.size(), 1u);
+  auto menu_item = menu->children[0];
+  ASSERT_NE(menu_item, nullptr);
+
+  input().mouse_down({menu_item->bounds.x + menu_item->bounds.w / 2,
+                      menu_item->bounds.y + menu_item->bounds.h / 2});
+  update_cycle();
+
+  ASSERT_NE(session.active_mode, nullptr);
+  EXPECT_EQ(session.active_mode->mode->name, "root-mode");
+}

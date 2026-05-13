@@ -9,6 +9,7 @@
 #include <pixils/ui/view_layout.h>
 
 #include <algorithm>
+#include <cmath>
 #include <optional>
 
 namespace Pixils::UI
@@ -44,6 +45,72 @@ namespace Pixils::UI
     Rect target_rect(const Rect& rect, const Point& origin)
     {
       return {rect.x - origin.round_x(), rect.y - origin.round_y(), rect.w, rect.h};
+    }
+
+    int align_offset(int available, int size, Style::Background::Align align)
+    {
+      switch (align)
+      {
+      case Style::Background::Align::START:
+        return 0;
+      case Style::Background::Align::CENTER:
+        return static_cast<int>(std::round((available - size) / 2.0f));
+      case Style::Background::Align::END:
+        return available - size;
+      }
+      return 0;
+    }
+
+    SDL_Rect background_image_dest(const Style::Background& background,
+                                   const Rect& bounds,
+                                   int source_width,
+                                   int source_height,
+                                   const Point& origin)
+    {
+      int width = source_width;
+      int height = source_height;
+
+      switch (background.fit.value_or(Style::Background::Fit::NONE))
+      {
+      case Style::Background::Fit::NONE:
+        break;
+      case Style::Background::Fit::FILL:
+        width = bounds.w;
+        height = bounds.h;
+        break;
+      case Style::Background::Fit::CONTAIN:
+      case Style::Background::Fit::COVER:
+      {
+        if (source_width <= 0 || source_height <= 0 || bounds.w <= 0 || bounds.h <= 0)
+        {
+          width = 0;
+          height = 0;
+          break;
+        }
+        float sx = static_cast<float>(bounds.w) / static_cast<float>(source_width);
+        float sy = static_cast<float>(bounds.h) / static_cast<float>(source_height);
+        float scale = background.fit == Style::Background::Fit::COVER ? std::max(sx, sy)
+                                                                      : std::min(sx, sy);
+        width = static_cast<int>(std::round(source_width * scale));
+        height = static_cast<int>(std::round(source_height * scale));
+        break;
+      }
+      }
+
+      Style::Background::Align align_x =
+        background.align_x.value_or(Style::Background::Align::START);
+      Style::Background::Align align_y =
+        background.align_y.value_or(Style::Background::Align::START);
+      Point offset = background.offset.value_or(Point{0.0f, 0.0f});
+
+      return SDL_Rect{
+        bounds.x + align_offset(bounds.w, width, align_x) + offset.round_x() -
+          origin.round_x(),
+        bounds.y + align_offset(bounds.h, height, align_y) + offset.round_y() -
+          origin.round_y(),
+        width,
+        height,
+      };
     }
 
     void set_clip(Pixils::RenderContext& render_ctx,
@@ -154,15 +221,20 @@ namespace Pixils::UI
 
       if (style_res.background && style_res.background->image && render_ctx.asset_registry)
       {
-        auto [bundle_id, asset_id] = *style_res.background->image;
+        const auto& background = *style_res.background;
+        auto [bundle_id, asset_id] = *background.image;
         SDL_Texture* texture = render_ctx.asset_registry->get_image(bundle_id, asset_id);
         if (texture)
         {
-          SDL_Rect dest = {bounds.x - origin.round_x(), bounds.y - origin.round_y(), 0, 0};
-          SDL_QueryTexture(texture, nullptr, nullptr, &dest.w, &dest.h);
+          SDL_Rect texture_dim = {0, 0, 0, 0};
+          SDL_QueryTexture(texture, nullptr, nullptr, &texture_dim.w, &texture_dim.h);
+          SDL_Rect source = background.source ? background.source->to_SDL_rect()
+                                              : SDL_Rect{0, 0, texture_dim.w, texture_dim.h};
+          SDL_Rect dest =
+            background_image_dest(background, bounds, source.w, source.h, origin);
 
           set_clip(render_ctx, intersect_clip(active_clip, bounds), origin);
-          SDL_RenderCopy(render_ctx.renderer, texture, nullptr, &dest);
+          SDL_RenderCopy(render_ctx.renderer, texture, &source, &dest);
           set_clip(render_ctx, active_clip, origin);
         }
       }

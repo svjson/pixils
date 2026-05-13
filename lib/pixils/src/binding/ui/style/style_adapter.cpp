@@ -1,6 +1,9 @@
 #include "pixils/binding/ui/style/style_adapter.h"
 
 #include <pixils/binding/color_namespace.h>
+#include <pixils/binding/pixils_namespace.h>
+#include <pixils/binding/point_namespace.h>
+#include <pixils/binding/rect_namespace.h>
 #include <pixils/binding/ui/style/style_definition.h>
 #include <pixils/binding/ui/style/style_host_type.h>
 
@@ -9,6 +12,56 @@
 
 namespace Pixils::Script
 {
+  namespace
+  {
+    Lisple::sptr_rtval background_fit_to_value(
+      const std::optional<UI::Style::Background::Fit>& fit)
+    {
+      if (!fit) return Lisple::Constant::NIL;
+      switch (*fit)
+      {
+      case UI::Style::Background::Fit::NONE:
+        return Lisple::RTValue::keyword("none");
+      case UI::Style::Background::Fit::CONTAIN:
+        return Lisple::RTValue::keyword("contain");
+      case UI::Style::Background::Fit::COVER:
+        return Lisple::RTValue::keyword("cover");
+      case UI::Style::Background::Fit::FILL:
+        return Lisple::RTValue::keyword("fill");
+      }
+      return Lisple::Constant::NIL;
+    }
+
+    Lisple::sptr_rtval background_align_to_value(
+      const std::optional<UI::Style::Background::Align>& align_x,
+      const std::optional<UI::Style::Background::Align>& align_y)
+    {
+      if (!align_x && !align_y) return Lisple::Constant::NIL;
+
+      auto align_name = [](UI::Style::Background::Align align)
+      {
+        switch (align)
+        {
+        case UI::Style::Background::Align::START:
+          return "start";
+        case UI::Style::Background::Align::CENTER:
+          return "center";
+        case UI::Style::Background::Align::END:
+          return "end";
+        }
+        return "start";
+      };
+
+      return Lisple::RTValue::map({Lisple::RTValue::keyword("x"),
+                                   Lisple::RTValue::keyword(align_name(
+                                     align_x.value_or(UI::Style::Background::Align::START))),
+                                   Lisple::RTValue::keyword("y"),
+                                   Lisple::RTValue::keyword(align_name(align_y.value_or(
+                                     UI::Style::Background::Align::START)))});
+    }
+
+  } // namespace
+
   NATIVE_ADAPTER_IMPL(StyleAdapter,
                       UI::Style,
                       &HostType::STYLE,
@@ -271,7 +324,11 @@ namespace Pixils::Script
                       UI::Style::Background,
                       &HostType::STYLE_BACKGROUND,
                       (color),
-                      (image));
+                      (image),
+                      (source),
+                      (fit),
+                      (align),
+                      (offset));
 
   NOBJ_PROP_GET(BackgroundAdapter, image)
   {
@@ -285,6 +342,28 @@ namespace Pixils::Script
   {
     return get_self_object().color ? ColorAdapter::make_ref(*get_self_object().color)
                                    : Lisple::Constant::NIL;
+  }
+
+  NOBJ_PROP_GET(BackgroundAdapter, source)
+  {
+    return get_self_object().source ? RectAdapter::make_ref(*get_self_object().source)
+                                    : Lisple::Constant::NIL;
+  }
+
+  NOBJ_PROP_GET(BackgroundAdapter, fit)
+  {
+    return background_fit_to_value(get_self_object().fit);
+  }
+
+  NOBJ_PROP_GET(BackgroundAdapter, align)
+  {
+    return background_align_to_value(get_self_object().align_x, get_self_object().align_y);
+  }
+
+  NOBJ_PROP_GET(BackgroundAdapter, offset)
+  {
+    return get_self_object().offset ? PointAdapter::make_ref(*get_self_object().offset)
+                                    : Lisple::Constant::NIL;
   }
 
   NATIVE_ADAPTER_IMPL(BorderAdapter,

@@ -441,6 +441,17 @@ namespace Pixils::UI
       if (!out.background) out.background = Style::Background();
       if (variant.background->color) out.background->color = *variant.background->color;
       if (variant.background->image) out.background->image = *variant.background->image;
+      if (variant.background->source) out.background->source = *variant.background->source;
+      if (variant.background->fit) out.background->fit = *variant.background->fit;
+      if (variant.background->align_x)
+      {
+        out.background->align_x = *variant.background->align_x;
+      }
+      if (variant.background->align_y)
+      {
+        out.background->align_y = *variant.background->align_y;
+      }
+      if (variant.background->offset) out.background->offset = *variant.background->offset;
     }
     if (variant.margin) out.margin = variant.margin;
     if (variant.padding) out.padding = variant.padding;
@@ -486,12 +497,21 @@ namespace Pixils::UI
                           const InteractionState& interaction)
   {
     UI::Style result;
-    if (inherited_style) inherit_text_style(result, *inherited_style);
-    if (!style) return result;
+    if (inherited_style)
+    {
+      inherit_text_style(result, *inherited_style);
+    }
+    if (!style)
+    {
+      return result;
+    }
 
     apply_style_variant(result, *style);
 
-    if (interaction.hovered && style->hover) apply_style_variant(result, *style->hover);
+    if (interaction.hovered && style->hover)
+    {
+      apply_style_variant(result, *style->hover);
+    }
     if (interaction.focus_within && style->focus_within)
     {
       apply_style_variant(result, *style->focus_within);

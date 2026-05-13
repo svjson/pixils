@@ -341,7 +341,8 @@
         state)
 
       (and node
-           (empty? (:items node)))
+           (empty? (:items node))
+           (:action node))
       (do
         (ui/emit! (:view ctx)
                   :menu/select
@@ -509,13 +510,27 @@
                                  (= (:menu-index state) (:active-index state)))]
                (assoc state :highlighted highlighted)))
    :on-mouse-down (fn [state event ctx]
-                    (let [next-state (assoc (assoc state
-                                                   :active-index
-                                                   (:menu-index state))
-                                            :pending-open-index
-                                            (:menu-index state))]
+                    (let [node (:node state)]
                       (ui/stop-propagation! event)
-                      next-state))
+                      (cond
+                        (and node
+                             (not (empty? (:items node))))
+                        (assoc (assoc state
+                                      :active-index
+                                      (:menu-index state))
+                               :pending-open-index
+                               (:menu-index state))
+
+                        (and node
+                             (:action node))
+                        (do
+                          (ui/emit! (:view ctx)
+                                    (:action node)
+                                    (:payload node))
+                          state)
+
+                        :default
+                        state)))
    :on {:menu/select (fn [state event ctx]
                        (let [payload (:payload event)]
                          (cond

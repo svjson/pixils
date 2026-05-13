@@ -419,7 +419,7 @@ hook fires.
 
 | Style key     | Values                                                                | Description |
 |---------------|-----------------------------------------------------------------------|-------------|
-| `:background` | `{:r N :g N :b N}`, `{:r N :g N :b N :a N}`, `:bundle/image`, or `{:color ... :image ...}` | Background fill and/or a non-repeating top-left image. |
+| `:background` | `{:r N :g N :b N}`, `{:r N :g N :b N :a N}`, `:bundle/image`, or `{:color ... :image ...}` | Background fill and/or a non-repeating image. Image maps may include `:source`, `:fit`, `:align`, and `:offset`. |
 | `:margin`     | Number, `[vertical horizontal]`, `[top right bottom left]`, or `{:t N :r N :b N :l N}` | Outer space around a child in layout flow. |
 | `:padding`    | Number, `[vertical horizontal]`, `[top right bottom left]`, or `{:t N :r N :b N :l N}` | Inset applied before the render hook's viewport is set. |
 | `:border`     | Border map (see below)                                               | Draws a border inside the component bounds. |
@@ -443,6 +443,19 @@ These interaction variants are injected automatically by the framework. No manua
 hit-testing or focus bookkeeping is needed in the component. When a focused leaf exists,
 it receives both `:focus` and `:focus-within`; its ancestors receive `:focus-within`
 only.
+
+Background image maps support `:source {:x :y :w :h}` for spritesheet crops,
+`:fit :none|:contain|:cover|:fill`, `:align` (`:top-left`, `:top`,
+`:top-right`, `:left`, `:center`, `:right`, `:bottom-left`, `:bottom`,
+`:bottom-right`), and `:offset {:x N :y N}`. The default remains top-left at
+natural image size:
+
+```clojure
+{:style {:background {:image :editor-assets/brush
+                      :source {:x 0 :y 0 :w 16 :h 16}
+                      :fit :contain
+                      :align :center}}}
+```
 
 `:cursor` controls the SDL/OS cursor, not a Pixils-rendered sprite. The deepest hovered
 view with a cursor wins; if that view has no cursor, Pixils falls back through its hovered
