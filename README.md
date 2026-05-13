@@ -98,6 +98,18 @@ Lisple components, so applications can use them like any other mode.
 | `ui/scrollbar-corner` | Filler component for the square where two scrollbars meet. |
 | `ui/scroll-pane` | Scrollable viewport composed from a clipped content area and stock scrollbars. |
 
+`ui/menu-bar` is usually created with `pixils.ui.menu/make-menu` from a menu
+definition and action map. The first argument can be either the menu state map
+or an options map with `:state` plus node options such as `:style`:
+
+```clojure
+(pixils.ui.menu/make-menu
+  {:state {:game (pixils.ui/bind-state :game)}
+   :style {:height 18}}
+  menu-definition
+  menu-keymap)
+```
+
 `ui/scrollbar` is intended for direct composition. Use `:axis :x` or `:axis :y`,
 bind `:value` to the scroll offset you want to control, and provide `:content-size`
 for the total scrollable span. Optional `:step` controls the arrow-button increment.

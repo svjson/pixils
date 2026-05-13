@@ -353,11 +353,14 @@
       :default
       state)))
 
-(defun make-menu [state menu-definition keymap]
+(defun make-menu-node [{:keys [state menu-definition keymap style] :as opts}]
   (let [normalized-menu (normalize-menu menu-definition keymap)]
     {:mode 'ui/menu-bar
+     :style (or style {})
      :state (merge (or state {})
                    {:menu normalized-menu
+                    :menu-scale (or (:menu-scale state)
+                                    (:scale style))
                     :active-index nil
                     :pending-open-index nil})
      :children (for-indexed [index item (:items normalized-menu)]
@@ -366,9 +369,22 @@
                   :state {:node item
                           :menu-index index
                           :active-index (ui/bind-state :active-index)
+                          :pending-open-index (ui/bind-state :pending-open-index)
                           :text (:display-text item)
+                          :menu-scale (ui/bind-state :menu-scale)
                           :game (ui/bind-state :game)
                           :preferences (ui/bind-state :preferences)}})}))
+
+(defun make-menu-options [options menu-definition keymap]
+  (merge (if (or (contains? options :state)
+                 (contains? options :style))
+           options
+           {:state options})
+         {:menu-definition menu-definition
+          :keymap keymap}))
+
+(defun make-menu [options menu-definition keymap]
+  (make-menu-node (make-menu-options options menu-definition keymap)))
 
 (defun item-selected? [node state]
   (let [selected-path (:selected-path node)
@@ -420,6 +436,10 @@
       :default {:left (:x bounds)
                 :top (+ (:y bounds) (:h bounds))})))
 
+(defun view-scale [view]
+  (or (-> view :effective-style :scale)
+      (-> view :style :scale)))
+
 (defun open-popup-at-view! [node state anchor-view placement]
   (when-let [items (:items node)]
     (when (not (empty? items))
@@ -430,14 +450,17 @@
         :highlighted-index (first-selectable-index items)
         :input-source :mouse
         :menu-depth (or (:menu-depth state) 0)
+        :menu-scale (:menu-scale state)
         :game (:game state)
         :preferences (:preferences state)}
        {:origin {:view anchor-view :event :menu/select}
+        :style {:scale (:menu-scale state)}
         :children [{:mode 'ui/popup-menu-outer
                     :state {:items (ui/bind-state :items)
                             :highlighted-index (ui/bind-state :highlighted-index)
                             :input-source (ui/bind-state :input-source)
                             :menu-depth (ui/bind-state :menu-depth)
+                            :menu-scale (ui/bind-state :menu-scale)
                             :game (ui/bind-state :game)
                             :preferences (ui/bind-state :preferences)}
                     :style {:position :absolute
@@ -450,6 +473,7 @@
                                         :highlighted-index (ui/bind-state :highlighted-index)
                                         :input-source (ui/bind-state :input-source)
                                         :menu-depth (ui/bind-state :menu-depth)
+                                        :menu-scale (ui/bind-state :menu-scale)
                                         :game (ui/bind-state :game)
                                         :preferences (ui/bind-state :preferences)}
                                 :children (for-indexed [index item items]
@@ -458,6 +482,7 @@
                                                                            :highlighted-index (ui/bind-state :highlighted-index)
                                                                            :input-source (ui/bind-state :input-source)
                                                                            :menu-depth (ui/bind-state :menu-depth)
+                                                                           :menu-scale (ui/bind-state :menu-scale)
                                                                            :game (ui/bind-state :game)
                                                                            :preferences (ui/bind-state :preferences)})
                                                    {:style {:width :fill}}))}]}]})))))
@@ -484,8 +509,11 @@
                                  (= (:menu-index state) (:active-index state)))]
                (assoc state :highlighted highlighted)))
    :on-mouse-down (fn [state event ctx]
-                    (let [next-state (assoc state :active-index (:menu-index state))]
-                      (open-popup! (:node state) next-state ctx)
+                    (let [next-state (assoc (assoc state
+                                                   :active-index
+                                                   (:menu-index state))
+                                            :pending-open-index
+                                            (:menu-index state))]
                       (ui/stop-propagation! event)
                       next-state))
    :on {:menu/select (fn [state event ctx]
@@ -594,7 +622,11 @@
 
 (defcomponent ui/menu-bar
   {:update (fn [state ctx]
-             (let [pending-open-index (:pending-open-index state)]
+             (let [state (assoc state
+                                :menu-scale
+                                (or (view-scale (:view ctx))
+                                    (:menu-scale state)))
+                   pending-open-index (:pending-open-index state)]
                (if (nil? pending-open-index)
                  state
                  (let [menu (:menu state)

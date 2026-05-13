@@ -18,6 +18,7 @@ namespace Pixils::Script
                       (padding),
                       (text),
                       (box_sizing),
+                      (rw, "scale", scale),
                       (rw, "width", width),
                       (rw, "height", height),
                       (rw, "position", position),
@@ -26,6 +27,7 @@ namespace Pixils::Script
                       (layout),
                       (rw, "hidden", hidden),
                       (rw, "clip", clip),
+                      (rw, "cursor", cursor),
                       (hover),
                       ("focus-within", focus_within),
                       (focus))
@@ -70,6 +72,16 @@ namespace Pixils::Script
   NOBJ_PROP_GET(StyleAdapter, box_sizing)
   {
     return StyleDefinition::box_sizing_to_value(get_self_object().box_sizing);
+  }
+
+  NOBJ_PROP_GET(StyleAdapter, scale)
+  {
+    return StyleDefinition::scale_to_value(get_self_object().scale);
+  }
+
+  NOBJ_PROP_SET(StyleAdapter, scale)
+  {
+    get_self_object().scale = StyleDefinition::parse_scale(value);
   }
 
   NOBJ_PROP_GET(StyleAdapter, width)
@@ -146,6 +158,16 @@ namespace Pixils::Script
   NOBJ_PROP_SET(StyleAdapter, clip)
   {
     get_self_object().clip = StyleDefinition::parse_optional_bool(value);
+  }
+
+  NOBJ_PROP_GET(StyleAdapter, cursor)
+  {
+    return StyleDefinition::cursor_to_value(get_self_object().cursor);
+  }
+
+  NOBJ_PROP_SET(StyleAdapter, cursor)
+  {
+    get_self_object().cursor = StyleDefinition::parse_cursor(value);
   }
 
   NOBJ_PROP_GET(StyleAdapter, hover)

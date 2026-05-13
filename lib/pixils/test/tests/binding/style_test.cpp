@@ -300,6 +300,15 @@ TEST_F(StyleTest, make_style_with_view_scale)
   EXPECT_EQ(*style.scale, 2);
 }
 
+TEST_F(StyleTest, style_adapter_exposes_view_scale)
+{
+  Lisple::sptr_rtval result =
+    runtime.eval("(:scale (pixils.ui.style/make-style {:scale 2}))");
+
+  ASSERT_NE(result, nullptr);
+  EXPECT_EQ(result->to_string(), "2");
+}
+
 TEST_F(StyleTest, make_style_with_hover_cursor)
 {
   Lisple::sptr_rtval result = runtime.eval("(pixils.ui.style/make-style {:cursor :default "
