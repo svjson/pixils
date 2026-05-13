@@ -19,14 +19,18 @@ namespace Lisple
 
 namespace Pixils::UI
 {
-  /** How a child is positioned within its parent's layout. */
+  /**
+   * How a child is positioned within its parent's layout.
+   */
   enum class PositionMode
   {
     FLOW,     // participates in parent flow (default)
     ABSOLUTE, // positioned at :top/:left relative to parent content rect
   };
 
-  /** Direction in which a mode lays out its children. */
+  /**
+   * Direction in which a mode lays out its children.
+   */
   enum class LayoutDirection
   {
     COLUMN, // top to bottom (default)
@@ -39,6 +43,22 @@ namespace Pixils::UI
     {
       BORDER_BOX,
       CONTENT_BOX,
+    };
+
+    enum class Cursor : uint8_t
+    {
+      DEFAULT,
+      POINTER,
+      TEXT,
+      CROSSHAIR,
+      MOVE,
+      NOT_ALLOWED,
+      WAIT,
+      PROGRESS,
+      RESIZE_X,
+      RESIZE_Y,
+      RESIZE_NWSE,
+      RESIZE_NESW,
     };
 
     struct Background
@@ -61,7 +81,9 @@ namespace Pixils::UI
       Insets() = default;
       Insets(const Insets& other);
       Insets(int t, int r, int b, int l);
-      /** Uniform horizontal and vertical insets. */
+      /**
+       * Uniform horizontal and vertical insets.
+       */
       Insets(int h, int v);
 
       Insets operator*(int amount) const;
@@ -263,19 +285,32 @@ namespace Pixils::UI
      */
     Rect content_rect(const Rect& bounds) const;
 
-    /** Positioning. Absent defaults to FLOW. */
+    /**
+     * Positioning. Absent defaults to FLOW.
+     */
     std::optional<PositionMode> position;
     std::optional<int> top;
     std::optional<int> left;
 
-    /** Layout policy for this mode's children. */
+    /**
+     * Layout policy for this mode's children.
+     */
     std::optional<Layout> layout;
 
-    /** When true, excluded from hit-testing and rendering. Layout space is preserved. */
+    /**
+     * When true, excluded from hit-testing and rendering. Layout space is preserved.
+     */
     std::optional<bool> hidden;
 
-    /** When true, descendant rendering and hit testing are clipped to content_rect. */
+    /**
+     * When true, descendant rendering and hit testing are clipped to content_rect.
+     */
     std::optional<bool> clip;
+
+    /**
+     * OS cursor used while this view, or a descendant without an override, is hovered.
+     */
+    std::optional<Cursor> cursor;
 
     /** Hover variant - merged on top of base style when the cursor is within bounds. */
     std::unique_ptr<Style> hover = nullptr;

@@ -6,8 +6,11 @@
 #include <pixils/frame_events.h>
 #include <pixils/hook_context.h>
 #include <pixils/runtime/session.h>
+#include <pixils/ui/style.h>
 
+#include <SDL2/SDL_mouse.h>
 #include <lisple/runtime/value.h>
+#include <map>
 #include <stddef.h>
 #include <string>
 
@@ -39,13 +42,16 @@ namespace Pixils
     FrameEvents events;
     HookContext hook_ctx;
     Runtime::Session session;
-    Program* program;
+    Program* program = nullptr;
 
     std::unique_ptr<ConsoleOverlay> console = nullptr;
+    std::map<UI::Style::Cursor, SDL_Cursor*> cursor_cache;
+    std::optional<UI::Style::Cursor> active_cursor = std::nullopt;
 
    public:
     Client(Lisple::Runtime& lisple_runtime, RenderContext& ctx);
     Client(Lisple::Runtime& lisple_runtime, RenderContext& ctx, Runtime::Mode& root_mode);
+    ~Client();
 
     void run();
 
@@ -57,6 +63,8 @@ namespace Pixils
 
     void handle_keydown(SDL_KeyboardEvent& event);
     void handle_keyup(SDL_KeyboardEvent& event);
+    void update_cursor();
+    SDL_Cursor* system_cursor(UI::Style::Cursor cursor);
   };
 
 } // namespace Pixils

@@ -257,6 +257,62 @@ namespace Pixils::Script::StyleDefinition
       *value == UI::Style::BoxSizing::CONTENT_BOX ? "content-box" : "border-box");
   }
 
+  std::optional<UI::Style::Cursor> parse_cursor(const Lisple::sptr_rtval& value)
+  {
+    if (!value || value->type != Lisple::RTValue::Type::KEYWORD) return std::nullopt;
+    if (value->str() == "default") return UI::Style::Cursor::DEFAULT;
+    if (value->str() == "pointer" || value->str() == "hand")
+      return UI::Style::Cursor::POINTER;
+    if (value->str() == "text") return UI::Style::Cursor::TEXT;
+    if (value->str() == "crosshair") return UI::Style::Cursor::CROSSHAIR;
+    if (value->str() == "move") return UI::Style::Cursor::MOVE;
+    if (value->str() == "not-allowed") return UI::Style::Cursor::NOT_ALLOWED;
+    if (value->str() == "wait") return UI::Style::Cursor::WAIT;
+    if (value->str() == "progress") return UI::Style::Cursor::PROGRESS;
+    if (value->str() == "resize-x" || value->str() == "ew-resize")
+      return UI::Style::Cursor::RESIZE_X;
+    if (value->str() == "resize-y" || value->str() == "ns-resize")
+      return UI::Style::Cursor::RESIZE_Y;
+    if (value->str() == "resize-nwse" || value->str() == "nwse-resize")
+      return UI::Style::Cursor::RESIZE_NWSE;
+    if (value->str() == "resize-nesw" || value->str() == "nesw-resize")
+      return UI::Style::Cursor::RESIZE_NESW;
+    return std::nullopt;
+  }
+
+  Lisple::sptr_rtval cursor_to_value(const std::optional<UI::Style::Cursor>& value)
+  {
+    if (!value) return Lisple::Constant::NIL;
+    switch (*value)
+    {
+    case UI::Style::Cursor::DEFAULT:
+      return Lisple::RTValue::keyword("default");
+    case UI::Style::Cursor::POINTER:
+      return Lisple::RTValue::keyword("pointer");
+    case UI::Style::Cursor::TEXT:
+      return Lisple::RTValue::keyword("text");
+    case UI::Style::Cursor::CROSSHAIR:
+      return Lisple::RTValue::keyword("crosshair");
+    case UI::Style::Cursor::MOVE:
+      return Lisple::RTValue::keyword("move");
+    case UI::Style::Cursor::NOT_ALLOWED:
+      return Lisple::RTValue::keyword("not-allowed");
+    case UI::Style::Cursor::WAIT:
+      return Lisple::RTValue::keyword("wait");
+    case UI::Style::Cursor::PROGRESS:
+      return Lisple::RTValue::keyword("progress");
+    case UI::Style::Cursor::RESIZE_X:
+      return Lisple::RTValue::keyword("resize-x");
+    case UI::Style::Cursor::RESIZE_Y:
+      return Lisple::RTValue::keyword("resize-y");
+    case UI::Style::Cursor::RESIZE_NWSE:
+      return Lisple::RTValue::keyword("resize-nwse");
+    case UI::Style::Cursor::RESIZE_NESW:
+      return Lisple::RTValue::keyword("resize-nesw");
+    }
+    return Lisple::Constant::NIL;
+  }
+
   std::optional<UI::Style::LineStyle> parse_line_style(const Lisple::sptr_rtval& value)
   {
     if (!value || value->type != Lisple::RTValue::Type::KEYWORD) return std::nullopt;
@@ -574,6 +630,7 @@ namespace Pixils::Script::StyleDefinition
                                            {"left", &Lisple::Type::NUMBER},
                                            {"hidden", &Lisple::Type::ANY},
                                            {"clip", &Lisple::Type::ANY},
+                                           {"cursor", &Lisple::Type::KEY},
                                            {"hover", &HostType::STYLE},
                                            {"focus-within", &HostType::STYLE},
                                            {"focus", &HostType::STYLE}});
@@ -597,6 +654,7 @@ namespace Pixils::Script::StyleDefinition
     if (opts.contains("left")) style->left = opts.i32("left");
     if (opts.contains("hidden")) style->hidden = parse_optional_bool(opts.val("hidden"));
     if (opts.contains("clip")) style->clip = parse_optional_bool(opts.val("clip"));
+    if (opts.contains("cursor")) style->cursor = parse_cursor(opts.val("cursor"));
 
     auto hover_style = opts.optional_obj<UI::Style>("hover");
     if (hover_style) style->hover = std::make_unique<UI::Style>(*hover_style);

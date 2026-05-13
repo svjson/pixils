@@ -25,10 +25,11 @@ namespace Pixils::Script
                   layout,
                   hidden,
                   clip,
+                  cursor,
                   hover,
                   focus_within,
                   focus),
-                 (clip, height, hidden, left, position, top, width));
+                 (clip, cursor, height, hidden, left, position, top, width));
   NATIVE_ADAPTER(LayoutAdapter, UI::Style::Layout, (direction, align_items, gap));
   NATIVE_ADAPTER(LayoutGapAdapter, UI::Style::Layout::Gap, (mode, size));
   NATIVE_ADAPTER(StyleTextAdapter, UI::Style::Text, (color, font, scale, align, wrap));

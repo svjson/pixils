@@ -281,6 +281,29 @@ TEST_F(StyleTest, make_style_with_text_color_none)
   EXPECT_EQ(style.text->color, std::nullopt);
 }
 
+TEST_F(StyleTest, make_style_with_cursor)
+{
+  Lisple::sptr_rtval result =
+    runtime.eval("(pixils.ui.style/make-style {:cursor :pointer})");
+
+  auto style = Lisple::obj<Pixils::UI::Style>(*result);
+  ASSERT_NE(style.cursor, std::nullopt);
+  EXPECT_EQ(*style.cursor, Pixils::UI::Style::Cursor::POINTER);
+}
+
+TEST_F(StyleTest, make_style_with_hover_cursor)
+{
+  Lisple::sptr_rtval result = runtime.eval("(pixils.ui.style/make-style {:cursor :default "
+                                           ":hover {:cursor :text}})");
+
+  auto style = Lisple::obj<Pixils::UI::Style>(*result);
+  ASSERT_NE(style.cursor, std::nullopt);
+  EXPECT_EQ(*style.cursor, Pixils::UI::Style::Cursor::DEFAULT);
+  ASSERT_NE(style.hover, nullptr);
+  ASSERT_NE(style.hover->cursor, std::nullopt);
+  EXPECT_EQ(*style.hover->cursor, Pixils::UI::Style::Cursor::TEXT);
+}
+
 TEST_F(StyleTest, make_style_with_text_color_from_host_color_value)
 {
   Lisple::sptr_rtval result =

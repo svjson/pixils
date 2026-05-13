@@ -11,7 +11,9 @@
 #include <pixils/keyboard.h>
 #include <pixils/program.h>
 #include <pixils/runtime/mode.h>
+#include <pixils/runtime/view.h>
 
+#include <SDL2/SDL_mouse.h>
 #include <SDL2/SDL_render.h>
 #include <algorithm>
 #include <chrono>
@@ -69,6 +71,14 @@ namespace Pixils
     : Client(lisple_runtime, ctx, false)
   {
     session.push_mode(root_mode.name, Lisple::Constant::NIL);
+  }
+
+  Client::~Client()
+  {
+    for (auto& [_, cursor] : cursor_cache)
+    {
+      if (cursor) SDL_FreeCursor(cursor);
+    }
   }
 
   void Client::init_console()
@@ -169,6 +179,7 @@ namespace Pixils
           ctx.prepare_application_frame(program->get_display());
 
           session.update_mode();
+          update_cursor();
           session.render_mode();
         }
         catch (std::exception& e)
@@ -233,6 +244,92 @@ namespace Pixils
         events.do_key_down(key_event);
       }
       break;
+    }
+  }
+
+  SDL_Cursor* Client::system_cursor(UI::Style::Cursor cursor)
+  {
+    if (auto it = cursor_cache.find(cursor); it != cursor_cache.end())
+    {
+      return it->second;
+    }
+
+    SDL_SystemCursor sdl_cursor = SDL_SYSTEM_CURSOR_ARROW;
+    switch (cursor)
+    {
+    case UI::Style::Cursor::DEFAULT:
+      sdl_cursor = SDL_SYSTEM_CURSOR_ARROW;
+      break;
+    case UI::Style::Cursor::POINTER:
+      sdl_cursor = SDL_SYSTEM_CURSOR_HAND;
+      break;
+    case UI::Style::Cursor::TEXT:
+      sdl_cursor = SDL_SYSTEM_CURSOR_IBEAM;
+      break;
+    case UI::Style::Cursor::CROSSHAIR:
+      sdl_cursor = SDL_SYSTEM_CURSOR_CROSSHAIR;
+      break;
+    case UI::Style::Cursor::MOVE:
+      sdl_cursor = SDL_SYSTEM_CURSOR_SIZEALL;
+      break;
+    case UI::Style::Cursor::NOT_ALLOWED:
+      sdl_cursor = SDL_SYSTEM_CURSOR_NO;
+      break;
+    case UI::Style::Cursor::WAIT:
+      sdl_cursor = SDL_SYSTEM_CURSOR_WAIT;
+      break;
+    case UI::Style::Cursor::PROGRESS:
+      sdl_cursor = SDL_SYSTEM_CURSOR_WAITARROW;
+      break;
+    case UI::Style::Cursor::RESIZE_X:
+      sdl_cursor = SDL_SYSTEM_CURSOR_SIZEWE;
+      break;
+    case UI::Style::Cursor::RESIZE_Y:
+      sdl_cursor = SDL_SYSTEM_CURSOR_SIZENS;
+      break;
+    case UI::Style::Cursor::RESIZE_NWSE:
+      sdl_cursor = SDL_SYSTEM_CURSOR_SIZENWSE;
+      break;
+    case UI::Style::Cursor::RESIZE_NESW:
+      sdl_cursor = SDL_SYSTEM_CURSOR_SIZENESW;
+      break;
+    }
+
+    SDL_Cursor* created = SDL_CreateSystemCursor(sdl_cursor);
+    cursor_cache[cursor] = created;
+    return created;
+  }
+
+  void Client::update_cursor()
+  {
+    if (!program || !program->pointer_visible)
+    {
+      SDL_ShowCursor(SDL_DISABLE);
+      active_cursor = std::nullopt;
+      return;
+    }
+
+    auto next_cursor = UI::Style::Cursor::DEFAULT;
+    for (auto& weak_view : session.mouse_state.hovered_chain)
+    {
+      auto view = weak_view.lock();
+      if (view && view->effective_style.cursor)
+      {
+        next_cursor = *view->effective_style.cursor;
+        break;
+      }
+    }
+
+    SDL_ShowCursor(SDL_ENABLE);
+    if (active_cursor && *active_cursor == next_cursor)
+    {
+      return;
+    }
+
+    if (auto* cursor = system_cursor(next_cursor))
+    {
+      SDL_SetCursor(cursor);
+      active_cursor = next_cursor;
     }
   }
 

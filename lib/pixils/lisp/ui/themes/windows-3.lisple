@@ -182,6 +182,7 @@
             'ui/scrollbar {:background panel-face
                            :border {:color c/BLACK
                                     :thickness 1}
+                           :cursor :default
                            :text {:font :font/win3-system-font
                                   :color c/BLACK}}
 

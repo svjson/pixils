@@ -421,6 +421,7 @@ hook fires.
 | `:left`       | Number                                                               | Left offset when `:position :absolute`. |
 | `:hidden`     | Boolean                                                              | When true, excluded from hit-testing and rendering. Layout space is preserved. |
 | `:clip`       | Boolean                                                              | When true, descendant rendering and hit testing are clipped to this view's content rect. |
+| `:cursor`     | Cursor keyword                                                       | OS mouse cursor to show while this view, or a descendant without its own cursor, is hovered. |
 | `:hover`      | Nested style map                                                     | Applied instead of the base style when the cursor is within bounds. |
 | `:focus-within` | Nested style map                                                   | Applied when this view or any descendant owns focus. |
 | `:focus`      | Nested style map                                                     | Applied when this exact view owns focus. |
@@ -429,6 +430,24 @@ These interaction variants are injected automatically by the framework. No manua
 hit-testing or focus bookkeeping is needed in the component. When a focused leaf exists,
 it receives both `:focus` and `:focus-within`; its ancestors receive `:focus-within`
 only.
+
+`:cursor` controls the SDL/OS cursor, not a Pixils-rendered sprite. The deepest hovered
+view with a cursor wins; if that view has no cursor, Pixils falls back through its hovered
+ancestors. It can be declared directly or inside interaction variants:
+
+```clojure
+(pixils/defcomponent draggable-splitter
+  {:style {:cursor :resize-x
+           :hover  {:background {:r 220 :g 220 :b 220}}}})
+
+(pixils/defcomponent text-region
+  {:style {:cursor :text}})
+```
+
+Supported cursor keywords are `:default`, `:pointer`, `:hand`, `:text`, `:crosshair`,
+`:move`, `:not-allowed`, `:wait`, `:progress`, `:resize-x`, `:resize-y`,
+`:resize-nwse`, and `:resize-nesw`. `:hand` is accepted as an alias for `:pointer`.
+Use program-level `:pointer :off` when the OS cursor should be hidden entirely.
 
 Text wrapping is enabled by default for `ui/text` when the node can see a real
 available width, either from its own fixed/fill `:width` or from a constrained

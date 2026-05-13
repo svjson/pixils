@@ -25,6 +25,8 @@ namespace Pixils::Script::StyleDefinition
 
   std::optional<UI::Style::BoxSizing> parse_box_sizing(const Lisple::sptr_rtval& value);
   Lisple::sptr_rtval box_sizing_to_value(const std::optional<UI::Style::BoxSizing>& value);
+  std::optional<UI::Style::Cursor> parse_cursor(const Lisple::sptr_rtval& value);
+  Lisple::sptr_rtval cursor_to_value(const std::optional<UI::Style::Cursor>& value);
 
   std::optional<UI::Style::LineStyle> parse_line_style(const Lisple::sptr_rtval& value);
   Lisple::sptr_rtval line_style_to_value(const std::optional<UI::Style::LineStyle>& value);
@@ -35,8 +37,7 @@ namespace Pixils::Script::StyleDefinition
   bool parse_text_use_font_color(const Lisple::sptr_rtval& value);
   Lisple::sptr_rtval text_color_to_value(const UI::Style::Text& text);
   std::optional<UI::Style::Text::Wrap> parse_text_wrap(const Lisple::sptr_rtval& value);
-  Lisple::sptr_rtval text_wrap_to_value(
-    const std::optional<UI::Style::Text::Wrap>& value);
+  Lisple::sptr_rtval text_wrap_to_value(const std::optional<UI::Style::Text::Wrap>& value);
 
   std::optional<UI::LayoutDirection> parse_layout_direction(const Lisple::sptr_rtval& value);
   Lisple::sptr_rtval layout_direction_to_value(
