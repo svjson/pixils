@@ -334,6 +334,12 @@
                                      :h (-> ctx :view :bounds :h)}
                                     (scrollbar-button-direction state)))})
 
+(defcomponent ui/combo-box-button
+  {:extend 'ui/scrollbar-button
+   :class :ui/combo-box-button
+   :style {:width 14
+           :height :fill}})
+
 (defcomponent ui/scrollbar-handle
   {:update (fn [state ctx]
              (assoc state

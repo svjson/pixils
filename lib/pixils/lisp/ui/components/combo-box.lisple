@@ -83,8 +83,9 @@
    :children [{:mode 'ui/text
                :style {:width :fill}
                :state {:value (ui/bind-state :selected-label)}}
-              {:mode 'ui/text
-               :state {:value "v"}}]})
+              {:mode 'ui/combo-box-button
+               :state {:axis :y
+                       :part :end}}]})
 
 (defcomponent ui/combo-box
   {:focusable true
