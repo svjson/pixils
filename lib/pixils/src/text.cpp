@@ -65,6 +65,57 @@ namespace Pixils
         return segments;
       }
 
+      std::vector<StyledSegment> split_marker_segments(const std::string& text,
+                                                       char marker = '@')
+      {
+        std::vector<StyledSegment> segments;
+        bool use_alt_style = false;
+        std::string current;
+
+        auto flush = [&]()
+        {
+          if (current.empty()) return;
+          segments.push_back({current, use_alt_style});
+          current.clear();
+        };
+
+        for (size_t i = 0; i < text.size(); i++)
+        {
+          char c = text.at(i);
+          if (c == marker)
+          {
+            if (i + 1 < text.size() && text.at(i + 1) == marker)
+            {
+              current.push_back(marker);
+              i++;
+              continue;
+            }
+
+            flush();
+            use_alt_style = !use_alt_style;
+            continue;
+          }
+
+          current.push_back(c);
+        }
+
+        flush();
+        return segments;
+      }
+
+      SDL_Rect marker_aware_rendered_size(RenderContext& rc,
+                                          Renderer& renderer,
+                                          const std::string& text)
+      {
+        SDL_Rect rect{0, 0, 0, renderer.get_line_height() * renderer.get_scale()};
+        auto segments = split_marker_segments(text);
+        for (const auto& segment : segments)
+        {
+          rect.w += renderer.get_rendered_size(rc, segment.text).w;
+        }
+        return rect;
+      }
+
       const Renderer& select_renderer(const TextRenderOp& op, bool use_inline_style)
       {
         if (use_inline_style && op.inline_style && op.inline_style->enabled &&
@@ -783,33 +834,42 @@ namespace Pixils
       switch (alignment)
       {
       case Alignment::CENTER:
-        align_mod -= renderer.get_rendered_size(rc, text).w / 2;
+        align_mod -= marker_aware_rendered_size(rc, renderer, text).w / 2;
         break;
       case Alignment::RIGHT:
-        align_mod -= renderer.get_rendered_size(rc, text).w;
+        align_mod -= marker_aware_rendered_size(rc, renderer, text).w;
         break;
       default:
         break;
       }
 
+      auto render_segments = [&](int x, int y, const SDL_Color& base_color, bool use_alt)
+      {
+        int cursor_x = x;
+        for (const auto& segment : split_marker_segments(text))
+        {
+          const SDL_Color& segment_color =
+            use_alt && segment.use_inline_style ? alt_color : base_color;
+          renderer.render_text(rc, segment.text, cursor_x, y, segment_color);
+          cursor_x += renderer.get_rendered_size(rc, segment.text).w;
+        }
+      };
+
       SDL_Color shadow_color;
       for (auto& shadow : shadows)
       {
         shadow_color = shadow.color.to_SDL_Color();
-        renderer.set_alt_color(shadow_color);
-        renderer.render_text(rc,
-                             text,
-                             align_mod + position.x + (shadow.offset.x),
-                             position.y + shadow.offset.y,
-                             shadow_color);
+        render_segments(align_mod + position.x + (shadow.offset.x),
+                        position.y + shadow.offset.y,
+                        shadow_color,
+                        false);
       }
-      renderer.set_alt_color(alt_color);
-      renderer.render_text(rc, text, align_mod + position.x, position.y, color);
+      render_segments(align_mod + position.x, position.y, color, true);
     }
 
     SDL_Rect Cursor::get_rendered_rect(RenderContext& rc, const std::string& text)
     {
-      SDL_Rect rect = renderer.get_rendered_size(rc, text);
+      SDL_Rect rect = marker_aware_rendered_size(rc, renderer, text);
 
       rect.x = position.x;
       rect.y = position.y;
@@ -842,7 +902,7 @@ namespace Pixils
     void Cursor::print(RenderContext& rc, const std::string& text, const SDL_Color& color)
     {
       render_text(rc, text, color);
-      position.x += renderer.get_rendered_size(rc, text).w;
+      position.x += marker_aware_rendered_size(rc, renderer, text).w;
     }
 
     void Cursor::print(RenderContext& rc,

@@ -272,7 +272,7 @@ namespace Pixils
 
     try
     {
-      Lisple::sptr_sobject result = runtime.eval_ast(input);
+      Lisple::sptr_rtval result = runtime.eval(input);
       output = pretty_printer.pretty_print(result);
     }
     catch (Lisple::LispleException& e)

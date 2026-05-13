@@ -318,6 +318,41 @@ TEST_F(RenderTest, text_size_ignores_inline_toggle_markers)
   EXPECT_EQ(h->num().get_int(), 7);
 }
 
+TEST_F(RenderTest, text_cursor_treats_at_markers_as_console_style_toggles)
+{
+  Pixils::Text::FontMap font_map(
+    {{'A', SDL_Rect{0, 0, 4, 7}}, {'B', SDL_Rect{4, 0, 4, 7}}, {'@', SDL_Rect{8, 0, 4, 7}}});
+  Pixils::Text::Renderer renderer(render_ctx.buffer_texture, font_map, 1, 1);
+  Pixils::Text::Cursor cursor(renderer,
+                              SDL_Color{0xff, 0xff, 0xff, 0xff},
+                              SDL_Color{0x2b, 0x83, 0x14, 0xff});
+
+  cursor.print(render_ctx, "@A@B");
+
+  auto& ops = render_target()->render_ops;
+  ASSERT_EQ(ops.size(), 2u);
+  EXPECT_EQ(ops[0].rendered_rect.x, 0);
+  EXPECT_EQ(ops[1].rendered_rect.x, 5);
+
+  auto rect = cursor.get_rendered_rect(render_ctx, "@A@B");
+  EXPECT_EQ(rect.w, 10);
+}
+
+TEST_F(RenderTest, text_cursor_escapes_double_at_as_literal_at_glyph)
+{
+  Pixils::Text::FontMap font_map({{'@', SDL_Rect{0, 0, 4, 7}}});
+  Pixils::Text::Renderer renderer(render_ctx.buffer_texture, font_map, 1, 1);
+  Pixils::Text::Cursor cursor(renderer,
+                              SDL_Color{0xff, 0xff, 0xff, 0xff},
+                              SDL_Color{0x2b, 0x83, 0x14, 0xff});
+
+  cursor.print(render_ctx, "@@");
+
+  auto& ops = render_target()->render_ops;
+  ASSERT_EQ(ops.size(), 1u);
+  EXPECT_EQ(ops[0].rendered_rect.x, 0);
+}
+
 TEST_F(RenderTest, deffont_registers_baseline_and_underline_metrics)
 {
   SDLMock::prepared_surfaces["./font.png"] = {8, 8};

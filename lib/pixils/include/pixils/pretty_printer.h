@@ -66,10 +66,28 @@ namespace Pixils
       {Lisple::Form::SYMBOL, Color{0xb6, 0xe9, 0x73}},
       {Lisple::Form::WORD, Color{0xd8, 0xde, 0xea}}};
 
+    std::map<Lisple::RTValue::Type, Color> rtvalue_colors = {
+      {Lisple::RTValue::Type::ANY, Color{0xff, 0xff, 0xff}},
+      {Lisple::RTValue::Type::BOOL, Color{0xff, 0xff, 0xff}},
+      {Lisple::RTValue::Type::CHAR, Color{0xde, 0xf4, 0xdf}},
+      {Lisple::RTValue::Type::FUNCTION, Color{0x89, 0xab, 0xf9}},
+      {Lisple::RTValue::Type::KEYWORD, Color{0x94, 0xd9, 0xcb}},
+      {Lisple::RTValue::Type::LIST, Color{0xf9, 0xd7, 0x49}},
+      {Lisple::RTValue::Type::MAP, Color{0x96, 0xcd, 0xf6}},
+      {Lisple::RTValue::Type::NATIVE_OBJECT, Color{0x32, 0x62, 0xd0}},
+      {Lisple::RTValue::Type::NIL, Color{0x77, 0x77, 0x77}},
+      {Lisple::RTValue::Type::NUMBER, Color{0xe9, 0x91, 0x73}},
+      {Lisple::RTValue::Type::OBJECT, Color{0x32, 0x62, 0xd0}},
+      {Lisple::RTValue::Type::STRING, Color{0xe6, 0xc5, 0x94}},
+      {Lisple::RTValue::Type::SYMBOL, Color{0xb6, 0xe9, 0x73}},
+      {Lisple::RTValue::Type::VECTOR, Color{0xcc, 0x78, 0xd1}}};
+
     void pretty_print(Lisple::Object& form, PrinterContext& ctx);
+    void pretty_print(Lisple::RTValue& value, PrinterContext& ctx);
 
    public:
     std::vector<TextLine> pretty_print(Lisple::sptr_sobject& form);
+    std::vector<TextLine> pretty_print(Lisple::sptr_rtval& value);
   };
 } // namespace Pixils
 

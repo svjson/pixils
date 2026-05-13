@@ -96,6 +96,75 @@ namespace Pixils
     return ctx.lines;
   }
 
+  std::vector<TextLine> ObjectPrinter::pretty_print(Lisple::sptr_rtval& value)
+  {
+    PrinterContext ctx = {COLUMN_THRESHOLD};
+    pretty_print(*value, ctx);
+    if (ctx.segments.size()) ctx.newline();
+    return ctx.lines;
+  }
+
+  void ObjectPrinter::pretty_print(Lisple::RTValue& value, PrinterContext& ctx)
+  {
+    if (value.type == Lisple::RTValue::Type::MAP)
+    {
+      bool split = value.to_string().size() > ctx.threshold;
+
+      ctx.out("{", rtvalue_colors.at(value.type));
+      if (split) ctx.newline().indent();
+
+      const auto& children = value.elements();
+      for (unsigned int i = 0; i < children.size(); i += 2)
+      {
+        pretty_print(*children.at(i), ctx);
+        if (i + 1 < children.size())
+        {
+          ctx.space();
+          pretty_print(*children.at(i + 1), ctx);
+        }
+
+        if (split)
+          ctx.newline();
+        else if (i + 2 < children.size())
+          ctx.space();
+      }
+
+      if (split) ctx.unindent();
+      ctx.out("}", rtvalue_colors.at(value.type));
+    }
+    else if (value.type == Lisple::RTValue::Type::LIST ||
+             value.type == Lisple::RTValue::Type::VECTOR)
+    {
+      bool split = value.to_string().size() > ctx.threshold;
+      const std::string lpar = value.type == Lisple::RTValue::Type::LIST ? "(" : "[";
+      const std::string rpar = value.type == Lisple::RTValue::Type::LIST ? ")" : "]";
+
+      ctx.out(lpar, rtvalue_colors.at(value.type));
+      if (split) ctx.newline().indent();
+
+      const auto& children = value.elements();
+      for (unsigned int i = 0; i < children.size(); i++)
+      {
+        pretty_print(*children.at(i), ctx);
+        if (split)
+          ctx.newline();
+        else if (i + 1 < children.size())
+          ctx.space();
+      }
+      if (split) ctx.newline().unindent();
+      ctx.out(rpar, rtvalue_colors.at(value.type));
+    }
+    else if (value.type == Lisple::RTValue::Type::OBJECT ||
+             value.type == Lisple::RTValue::Type::FUNCTION)
+    {
+      pretty_print(*value.obj(), ctx);
+    }
+    else
+    {
+      ctx.out(value.to_string(), rtvalue_colors.at(value.type));
+    }
+  }
+
   void ObjectPrinter::pretty_print(Lisple::Object& form, PrinterContext& ctx)
   {
     if (form.get_type() == Lisple::Form::MAP || form.get_type() == Lisple::Form::HOST_OBJECT)
