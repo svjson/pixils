@@ -73,7 +73,8 @@ namespace
   Pixils::Runtime::Mode& resolve_child_mode(const Pixils::Runtime::ChildSlot& slot,
                                             const Lisple::sptr_rtval& modes)
   {
-    auto mode_val = Lisple::Dict::get_property(modes, Lisple::RTValue::symbol(slot.mode_name));
+    auto mode_val =
+      Lisple::Dict::get_property(modes, Lisple::RTValue::symbol(slot.mode_name));
     if (!mode_val || mode_val->type == Lisple::RTValue::Type::NIL)
     {
       throw Lisple::InvocationException("Unknown child mode '" + slot.mode_name +
@@ -174,8 +175,8 @@ namespace
     if (theme_val->type != Lisple::RTValue::Type::NIL)
     {
       auto theme_names = Pixils::Script::parse_theme_names(theme_val, "Mode :theme");
-      mode.theme = theme_names.empty() ? std::nullopt
-                                       : std::make_optional(std::move(theme_names));
+      mode.theme =
+        theme_names.empty() ? std::nullopt : std::make_optional(std::move(theme_names));
     }
 
     auto children_val = get("children");
@@ -229,15 +230,23 @@ namespace Pixils::UI
                                                  const Lisple::sptr_rtval& modes,
                                                  Lisple::Runtime& runtime)
   {
-    auto& base_mode = resolve_child_mode(slot, modes);
-
     Runtime::View view;
     view.id = slot.id;
     view.state_binding = slot.state_binding;
     view.state = slot.initial_state;
     view.initial_state = slot.initial_state;
 
-    attach_view_mode(view, base_mode, slot.overrides, runtime);
+    if (slot.anonymous_mode)
+    {
+      view.owned_mode = std::make_unique<Runtime::Mode>(*slot.anonymous_mode);
+      view.mode = view.owned_mode.get();
+      resolve_mode_hooks(*view.mode, runtime);
+    }
+    else
+    {
+      auto& base_mode = resolve_child_mode(slot, modes);
+      attach_view_mode(view, base_mode, slot.overrides, runtime);
+    }
 
     for (const auto& grandchild_slot : view.mode->children)
     {

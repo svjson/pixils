@@ -3,8 +3,8 @@
 #include "session_fixture.h"
 #include <pixils/program.h>
 
-#include <gtest/gtest.h>
 #include <SDL2/SDL_keycode.h>
+#include <gtest/gtest.h>
 #include <lisple/runtime/dict.h>
 #include <lisple/runtime/value.h>
 
@@ -77,6 +77,59 @@ TEST_F(SessionChildrenTest, child_mode_render_hook_receives_render_context)
 
   // Then - child renders into its own viewport (full parent area since only one fill child)
   EXPECT_FALSE(render_target()->render_ops.empty());
+}
+
+TEST_F(SessionChildrenTest, child_without_mode_builds_anonymous_structural_view)
+{
+  runtime.eval(R"(
+    (pixils/defmode root-mode
+      {:children [{:id "container"
+                   :class :ui/panel
+                   :style {:width 90 :height 30}
+                   :init (fn [state ctx] {:label "nested"})
+                   :children [{:mode 'ui/text
+                               :state {:value "nested"}}]}]})
+  )");
+
+  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.render_mode();
+
+  ASSERT_NE(session.active_mode, nullptr);
+  ASSERT_EQ(session.active_mode->children.size(), 1u);
+  auto child = session.active_mode->children[0];
+  ASSERT_NE(child, nullptr);
+  EXPECT_EQ(child->id, "container");
+  ASSERT_NE(child->mode, nullptr);
+  EXPECT_EQ(child->mode->name, "container");
+  EXPECT_TRUE(child->mode->selector_modes.empty());
+  EXPECT_EQ(child->state->to_string(), "{:label \"nested\"}");
+  EXPECT_EQ(child->bounds.w, 90);
+  EXPECT_EQ(child->bounds.h, 30);
+
+  ASSERT_EQ(child->children.size(), 1u);
+  auto grandchild = child->children[0];
+  ASSERT_NE(grandchild, nullptr);
+  ASSERT_NE(grandchild->mode, nullptr);
+  EXPECT_EQ(grandchild->mode->name, "ui/text");
+}
+
+TEST_F(SessionChildrenTest, anonymous_children_get_stable_generated_ids)
+{
+  runtime.eval(R"(
+    (pixils/defmode root-mode
+      {:children [{:style {:width 10 :height 10}}
+                  {:style {:width 20 :height 20}}]})
+  )");
+
+  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.render_mode();
+
+  ASSERT_NE(session.active_mode, nullptr);
+  ASSERT_EQ(session.active_mode->children.size(), 2u);
+  EXPECT_EQ(session.active_mode->children[0]->id, "anonymous-0");
+  EXPECT_EQ(session.active_mode->children[1]->id, "anonymous-1");
+  EXPECT_EQ(session.active_mode->children[0]->mode->name, "anonymous-0");
+  EXPECT_EQ(session.active_mode->children[1]->mode->name, "anonymous-1");
 }
 
 TEST_F(SessionChildrenTest, root_mode_without_explicit_theme_uses_builtin_base_theme)
@@ -809,8 +862,8 @@ TEST_F(SessionChildrenTest, list_box_uses_scroll_pane_and_forces_initial_selecti
   EXPECT_EQ(list_box->bounds.w, 100);
   EXPECT_EQ(list_box->bounds.h, 20);
 
-  auto selected =
-    Lisple::Dict::get_property(list_box->state, Lisple::RTValue::keyword("selected-indices"));
+  auto selected = Lisple::Dict::get_property(list_box->state,
+                                             Lisple::RTValue::keyword("selected-indices"));
   ASSERT_NE(selected, nullptr);
   EXPECT_EQ(selected->to_string(), "[0]");
 
@@ -899,9 +952,8 @@ TEST_F(SessionChildrenTest, list_box_ctrl_and_shift_click_update_selection)
   input().key_up(SDLK_LCTRL);
   update_cycle();
 
-  auto selected =
-    Lisple::Dict::get_property(session.active_mode->state,
-                               Lisple::RTValue::keyword("selected"));
+  auto selected = Lisple::Dict::get_property(session.active_mode->state,
+                                             Lisple::RTValue::keyword("selected"));
   ASSERT_NE(selected, nullptr);
   EXPECT_EQ(selected->to_string(), "[0 1]");
 
@@ -962,9 +1014,8 @@ TEST_F(SessionChildrenTest, combo_box_trigger_uses_styleable_scrollbar_button)
 
 TEST_F(SessionChildrenTest, combo_box_opens_scrollable_popup_and_reports_selection)
 {
-  runtime.eval(
-    "(def probe-combo-value (pixils.ui.combo-box/selected-value "
-    "[{:value :a :label \"Alpha\"} {:value :b :label \"Beta\"}] 1))");
+  runtime.eval("(def probe-combo-value (pixils.ui.combo-box/selected-value "
+               "[{:value :a :label \"Alpha\"} {:value :b :label \"Beta\"}] 1))");
   auto probe = runtime.lookup_value("test/probe-combo-value");
   ASSERT_NE(probe, nullptr);
   ASSERT_EQ(probe->to_string(), ":b");
@@ -1023,15 +1074,14 @@ TEST_F(SessionChildrenTest, combo_box_opens_scrollable_popup_and_reports_selecti
   ASSERT_GE(popup_content->children.size(), 2u);
   auto first_popup_item = popup_content->children[0];
   auto second_popup_item = popup_content->children[1];
-  auto first_selected =
-    Lisple::Dict::get_property(first_popup_item->state, Lisple::RTValue::keyword("selected"));
+  auto first_selected = Lisple::Dict::get_property(first_popup_item->state,
+                                                   Lisple::RTValue::keyword("selected"));
   ASSERT_NE(first_selected, nullptr);
   EXPECT_EQ(first_selected->to_string(), "false");
   EXPECT_EQ(popup_viewport->bounds.w, 84);
   EXPECT_EQ(popup_scrollbar->bounds.x, 85);
   EXPECT_EQ(popup_scrollbar->bounds.w, 14);
-  EXPECT_LE(popup_scrollbar->bounds.x + popup_scrollbar->bounds.w,
-            popup_panel->bounds.w);
+  EXPECT_LE(popup_scrollbar->bounds.x + popup_scrollbar->bounds.w, popup_panel->bounds.w);
 
   input().mouse_move({5, 37});
   update_cycle();
@@ -1039,8 +1089,7 @@ TEST_F(SessionChildrenTest, combo_box_opens_scrollable_popup_and_reports_selecti
   EXPECT_FALSE(first_popup_item->effective_style.background.has_value());
   ASSERT_TRUE(second_popup_item->effective_style.background.has_value());
 
-  input().mouse_move({popup_scrollbar->bounds.x + 2,
-                      popup_scrollbar->bounds.y + 5});
+  input().mouse_move({popup_scrollbar->bounds.x + 2, popup_scrollbar->bounds.y + 5});
   update_cycle();
   session.render_mode();
   EXPECT_FALSE(first_popup_item->interaction.hovered);
@@ -1064,11 +1113,10 @@ TEST_F(SessionChildrenTest, combo_box_opens_scrollable_popup_and_reports_selecti
   auto selected_index =
     Lisple::Dict::get_property(session.active_mode->state,
                                Lisple::RTValue::keyword("selected-index"));
-  auto value =
-    Lisple::Dict::get_property(session.active_mode->state, Lisple::RTValue::keyword("value"));
-  auto payload =
-    Lisple::Dict::get_property(session.active_mode->state,
-                               Lisple::RTValue::keyword("payload"));
+  auto value = Lisple::Dict::get_property(session.active_mode->state,
+                                          Lisple::RTValue::keyword("value"));
+  auto payload = Lisple::Dict::get_property(session.active_mode->state,
+                                            Lisple::RTValue::keyword("payload"));
   ASSERT_NE(selected_index, nullptr);
   ASSERT_NE(value, nullptr);
   ASSERT_NE(payload, nullptr);
@@ -1496,4 +1544,49 @@ TEST_F(SessionStateTreeTest,
   EXPECT_EQ(session.active_mode->children[0]->mode->name, "new-child");
   EXPECT_EQ(session.active_mode->children[0]->state->to_string(), "{:value 42}");
   EXPECT_EQ(session.active_mode->state->to_string(), "{:game {:value 42} :swapped? true}");
+}
+
+TEST_F(SessionStateTreeTest, replace_child_bang_accepts_anonymous_child_entry)
+{
+  runtime.eval(R"(
+    (pixils/defmode old-child {})
+    (pixils/defmode root-mode
+      {:init (fn [state ctx] {:game {:value 1} :swapped? false})
+       :update (fn [state ctx]
+                 (if (:swapped? state)
+                   state
+                   (do (pixils.ui/replace-child! (:view ctx)
+                                                 "game"
+                                                 {:state (pixils.ui/bind-state :game)
+                                                  :style {:width 40 :height 20}
+                                                  :init (fn [child-state child-ctx]
+                                                          (assoc child-state :ready true))})
+                       (-> state
+                           (assoc :game {:value 42})
+                           (assoc :swapped? true)))))
+       :children [{:mode 'old-child
+                   :id "game"
+                   :state (pixils.ui/bind-state :game)}]})
+  )");
+
+  session.push_mode("root-mode", Lisple::Constant::NIL);
+  ASSERT_NE(session.active_mode, nullptr);
+  ASSERT_EQ(session.active_mode->children.size(), 1u);
+  ASSERT_EQ(session.active_mode->children[0]->mode->name, "old-child");
+
+  update_cycle();
+
+  ASSERT_EQ(session.active_mode->children.size(), 1u);
+  auto child = session.active_mode->children[0];
+  ASSERT_NE(child, nullptr);
+  EXPECT_EQ(child->id, "game");
+  ASSERT_NE(child->mode, nullptr);
+  EXPECT_EQ(child->mode->name, "game");
+  EXPECT_TRUE(child->mode->selector_modes.empty());
+  EXPECT_EQ(child->state->to_string(), "{:value 42 :ready true}");
+  ASSERT_TRUE(child->mode->style.has_value());
+  ASSERT_TRUE(child->mode->style->width.has_value());
+  ASSERT_TRUE(child->mode->style->height.has_value());
+  EXPECT_EQ(child->mode->style->width->fixed_value_or(), 40);
+  EXPECT_EQ(child->mode->style->height->fixed_value_or(), 20);
 }

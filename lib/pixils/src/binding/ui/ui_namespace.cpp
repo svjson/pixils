@@ -204,6 +204,10 @@ namespace Pixils::Script
       auto slots = parse_child_slots(ctx, child_entries);
       auto slot = std::move(slots.front());
       slot.id = child_id;
+      if (slot.anonymous_mode && slot.anonymous_mode->selector_modes.empty())
+      {
+        slot.anonymous_mode->name = child_id;
+      }
       view.queue_replace_child(child_id, std::move(slot));
 
       return Lisple::Constant::NIL;

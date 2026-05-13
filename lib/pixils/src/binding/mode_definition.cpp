@@ -15,6 +15,7 @@
 #include <lisple/runtime/dict.h>
 #include <lisple/runtime/seq.h>
 #include <lisple/runtime/value.h>
+#include <memory>
 #include <unordered_map>
 
 namespace Pixils::Script
@@ -116,9 +117,10 @@ namespace Pixils::Script
   std::vector<Runtime::ChildSlot> parse_child_slots(Lisple::Context& ctx,
                                                     const Lisple::sptr_rtval& children_val)
   {
-    static Lisple::MapSchema child_schema(
-      {{"mode", &Lisple::Type::SYMBOL}},
-      {{"id", &Lisple::Type::ANY}, {"state", &Lisple::Type::ANY}});
+    static Lisple::MapSchema child_schema({},
+                                          {{"mode", &Lisple::Type::SYMBOL},
+                                           {"id", &Lisple::Type::ANY},
+                                           {"state", &Lisple::Type::ANY}});
 
     std::unordered_map<std::string, int> name_counts;
     std::vector<Runtime::ChildSlot> slots;
@@ -130,7 +132,16 @@ namespace Pixils::Script
       auto child_opts = child_schema.bind(ctx, *child_entry);
 
       Runtime::ChildSlot slot;
-      slot.mode_name = child_opts.val("mode")->str();
+      if (child_opts.contains("mode"))
+      {
+        slot.mode_name = child_opts.val("mode")->str();
+        slot.overrides = child_entry;
+      }
+      else
+      {
+        slot.anonymous_mode =
+          std::make_shared<Runtime::Mode>(build_mode_from_definition(ctx, child_entry));
+      }
 
       if (child_opts.contains("id"))
       {
@@ -138,14 +149,23 @@ namespace Pixils::Script
       }
       else
       {
-        int idx = name_counts[slot.mode_name]++;
-        slot.id = slot.mode_name + "-" + std::to_string(idx);
+        std::string base_name = slot.mode_name;
+        if (base_name.empty() && slot.anonymous_mode && !slot.anonymous_mode->name.empty())
+        {
+          base_name = slot.anonymous_mode->name;
+        }
+        if (base_name.empty()) base_name = "anonymous";
+
+        int idx = name_counts[base_name]++;
+        slot.id = base_name + "-" + std::to_string(idx);
       }
+
+      if (slot.anonymous_mode && slot.anonymous_mode->name.empty())
+        slot.anonymous_mode->name = slot.id;
 
       auto [binding, initial] = Runtime::parse_state_binding(child_opts.val("state"));
       slot.state_binding = binding;
       slot.initial_state = initial;
-      slot.overrides = child_entry;
       slots.push_back(std::move(slot));
     }
     return slots;

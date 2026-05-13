@@ -21,9 +21,10 @@ namespace Pixils::Script
   /**
    * @brief Parse a Lisple sequence of child entry maps into ChildSlot objects.
    *
-   * Each entry must carry a :mode symbol; :id and :state are optional.
-   * The full entry map is stored as slot.overrides for deferred per-instance
-   * hook and style application at build time.
+   * Entries may carry a :mode symbol; when omitted, the entry itself becomes an
+   * anonymous inline mode. :id and :state are optional.
+   * Named child entries store the full entry map as slot.overrides for deferred
+   * per-instance hook and style application at build time.
    */
   std::vector<Runtime::ChildSlot> parse_child_slots(Lisple::Context& ctx,
                                                     const Lisple::sptr_rtval& children_val);

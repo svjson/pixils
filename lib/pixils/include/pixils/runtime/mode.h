@@ -5,6 +5,7 @@
 #include <pixils/ui/style.h>
 
 #include <lisple/runtime/value.h>
+#include <memory>
 #include <optional>
 #include <string>
 #include <vector>
@@ -35,18 +36,24 @@ namespace Pixils::Runtime
     bool update = false;
   };
 
+  struct Mode;
+
   /**
    * A slot in a layout tree: which mode to place there and how to identify it.
-   * Sizing, positioning and per-instance hook/style overrides are carried in
-   * `overrides` as a raw Lisple map; they are applied at build time in
-   * build_view via apply_mode_overrides.
+   * Named child slots resolve `mode_name` from the mode registry and carry
+   * sizing, positioning and per-instance hook/style overrides in `overrides`.
+   * Anonymous child slots carry `anonymous_mode` directly and do not require a
+   * registry entry.
+   *
    * `id` is a sibling-unique key used to store this child's state in the parent
-   * state map. Auto-generated as `mode-name-N` if not set explicitly.
+   * state map. Auto-generated as `mode-name-N` or `anonymous-N` if not set
+   * explicitly.
    */
   struct ChildSlot
   {
     std::string mode_name;
     std::string id;
+    std::shared_ptr<Mode> anonymous_mode = nullptr;
     Lisple::sptr_rtval initial_state;
     Lisple::sptr_rtval overrides = Lisple::Constant::NIL;
     Lisple::sptr_rtval state_binding = Lisple::Constant::NIL;
