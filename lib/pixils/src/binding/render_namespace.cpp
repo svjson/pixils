@@ -2,7 +2,6 @@
 #include "pixils/binding/render_namespace.h"
 
 #include <pixils/asset/registry.h>
-#include <pixils/binding/arg_collector.h>
 #include <pixils/binding/color_namespace.h>
 #include <pixils/binding/pixils_namespace.h>
 #include <pixils/binding/point_namespace.h>
@@ -13,7 +12,6 @@
 
 #include <SDL2/SDL_blendmode.h>
 #include <SDL2/SDL_render.h>
-#include <cmath>
 #include <lisple/host/schema.h>
 #include <lisple/namespace.h>
 #include <lisple/runtime/dict.h>

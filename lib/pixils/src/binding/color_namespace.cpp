@@ -1,4 +1,3 @@
-#include <pixils/binding/arg_collector.h>
 #include <pixils/binding/color_namespace.h>
 
 #include <lisple/host.h>

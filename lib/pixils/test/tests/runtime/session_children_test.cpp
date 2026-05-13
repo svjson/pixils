@@ -789,6 +789,105 @@ TEST_F(SessionChildrenTest, scroll_pane_without_content_size_keeps_fill_width_vi
   EXPECT_GT(message->bounds.w, 0);
 }
 
+TEST_F(SessionChildrenTest, scroll_pane_measures_runtime_content_growth)
+{
+  runtime.eval(R"(
+    (pixils/defcomponent growing-content
+      {:content-size (fn [state ctx] {:w 100 :h (:height state)})})
+
+    (pixils/defmode root-mode
+      {:init (fn [state ctx] {:content-state {:height 20} :grown? false})
+       :update (fn [state ctx]
+                 (if (:grown? state)
+                   state
+                   (assoc state :content-state {:height 200} :grown? true)))
+       :children [(pixils.ui.scroll-pane/make
+                   {:style {:width 50 :height 80}
+                    :scroll-x? false
+                    :scroll-y? :auto
+                    :state {:content-state (pixils.ui/bind-state :content-state)}
+                    :children [{:mode 'growing-content
+                                :state {:height (pixils.ui/bind-state :height)}}]})]})
+  )");
+
+  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.render_mode();
+
+  session.update_mode();
+  session.render_mode();
+
+  session.update_mode();
+  session.render_mode();
+
+  ASSERT_NE(session.active_mode, nullptr);
+  ASSERT_EQ(session.active_mode->children.size(), 1u);
+  auto pane = session.active_mode->children[0];
+  ASSERT_NE(pane, nullptr);
+
+  auto content_size =
+    Lisple::Dict::get_property(pane->state, Lisple::RTValue::keyword("content-size"));
+  ASSERT_NE(content_size, nullptr);
+  auto content_height =
+    Lisple::Dict::get_property(content_size, Lisple::RTValue::keyword("h"));
+  ASSERT_NE(content_height, nullptr);
+  EXPECT_EQ(content_height->num().get_int(), 200);
+
+  ASSERT_EQ(pane->children.size(), 1u);
+  auto row = pane->children[0];
+  ASSERT_NE(row, nullptr);
+  ASSERT_EQ(row->children.size(), 2u);
+  auto scrollbar = row->children[1];
+  ASSERT_NE(scrollbar, nullptr);
+  ASSERT_EQ(scrollbar->children.size(), 3u);
+  auto track = scrollbar->children[1];
+  ASSERT_NE(track, nullptr);
+  ASSERT_EQ(track->children.size(), 1u);
+  auto handle = track->children[0];
+  ASSERT_NE(handle, nullptr);
+  EXPECT_LT(handle->bounds.h, track->bounds.h);
+}
+
+TEST_F(SessionChildrenTest, scroll_pane_keeps_explicit_content_size_when_child_grows)
+{
+  runtime.eval(R"(
+    (pixils/defcomponent growing-content
+      {:content-size (fn [state ctx] {:w 100 :h (:height state)})})
+
+    (pixils/defmode root-mode
+      {:init (fn [state ctx] {:content-state {:height 20} :grown? false})
+       :update (fn [state ctx]
+                 (if (:grown? state)
+                   state
+                   (assoc state :content-state {:height 200} :grown? true)))
+       :children [(pixils.ui.scroll-pane/make
+                   {:style {:width 50 :height 80}
+                    :content-size {:w 100 :h 80}
+                    :scroll-x? false
+                    :state {:content-state (pixils.ui/bind-state :content-state)}
+                    :children [{:mode 'growing-content
+                                :state {:height (pixils.ui/bind-state :height)}}]})]})
+  )");
+
+  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.render_mode();
+
+  session.update_mode();
+  session.render_mode();
+
+  session.update_mode();
+  session.render_mode();
+
+  auto pane = session.active_mode->children[0];
+  ASSERT_NE(pane, nullptr);
+  auto content_size =
+    Lisple::Dict::get_property(pane->state, Lisple::RTValue::keyword("content-size"));
+  ASSERT_NE(content_size, nullptr);
+  auto content_height =
+    Lisple::Dict::get_property(content_size, Lisple::RTValue::keyword("h"));
+  ASSERT_NE(content_height, nullptr);
+  EXPECT_EQ(content_height->num().get_int(), 80);
+}
+
 TEST_F(SessionChildrenTest, shrink_height_list_box_rebuilds_with_scrollbar_when_clamped)
 {
   runtime.eval(R"(

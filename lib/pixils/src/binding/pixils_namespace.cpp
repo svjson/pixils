@@ -77,8 +77,7 @@ namespace Pixils::Script
     SPECIAL_FORM_IMPL(DefBundleForm,
                       SIG((FN_ARGS((&Lisple::Type::WORD, &Lisple::Eval::LITERAL),
                                    (&Lisple::Type::MAP)),
-                           EXEC_DISPATCH(&DefBundleForm::inv_def_bundle,
-                                         &DefBundleForm::execnode_def_bundle))));
+                           EXEC_DISPATCH(&DefBundleForm::execnode_def_bundle))));
 
     SFORM_LOWER_IMPL(DefBundleForm)
     {
@@ -99,20 +98,15 @@ namespace Pixils::Script
       return std::make_unique<Lisple::ExecNode>(Lisple::Constant::NIL);
     }
 
-    MACRO_BODY(DefBundleForm, inv_def_bundle)
-    {
-      throw Lisple::InvocationException("Invalid invocation of defbundle");
-    }
-
     EXECNODE_BODY(DefBundleForm, execnode_def_bundle)
     {
       throw Lisple::LispleException("defbundle is lower-only");
     }
 
-    SPECIAL_FORM_IMPL(
-      DefFontForm,
-      SIG((FN_ARGS((&Lisple::Type::WORD, &Lisple::Eval::LITERAL), (&Lisple::Type::MAP)),
-           EXEC_DISPATCH(&DefFontForm::inv_def_font, &DefFontForm::execnode_def_font))));
+    SPECIAL_FORM_IMPL(DefFontForm,
+                      SIG((FN_ARGS((&Lisple::Type::WORD, &Lisple::Eval::LITERAL),
+                                   (&Lisple::Type::MAP)),
+                           EXEC_DISPATCH(&DefFontForm::execnode_def_font))));
 
     SFORM_LOWER_IMPL(DefFontForm)
     {
@@ -251,11 +245,6 @@ namespace Pixils::Script
       return std::make_unique<Lisple::ExecNode>(Lisple::Constant::NIL);
     }
 
-    MACRO_BODY(DefFontForm, inv_def_font)
-    {
-      throw Lisple::LispleException("Invalid invocation");
-    }
-
     EXECNODE_BODY(DefFontForm, execnode_def_font)
     {
       throw Lisple::LispleException("Invalid invocation");
@@ -265,8 +254,7 @@ namespace Pixils::Script
     SPECIAL_FORM_IMPL(DefProgramForm,
                       SIG((FN_ARGS((&Lisple::Type::WORD, &Lisple::Eval::LITERAL),
                                    (&Lisple::Type::MAP)),
-                           EXEC_DISPATCH(&DefProgramForm::inv_def_program,
-                                         &DefProgramForm::execnode_def_program))));
+                           EXEC_DISPATCH(&DefProgramForm::execnode_def_program))));
 
     Lisple::MapSchema program_schema({},
                                      {{"display", &HostType::DISPLAY},
@@ -321,17 +309,11 @@ namespace Pixils::Script
       throw Lisple::LispleException("defmode is lower-only");
     }
 
-    MACRO_BODY(DefProgramForm, inv_def_program)
-    {
-      return Lisple::NIL;
-    }
-
     /* DefThemeForm - deftheme */
     SPECIAL_FORM_IMPL(DefThemeForm,
                       SIG((FN_ARGS((&Lisple::Type::WORD, &Lisple::Eval::LITERAL),
                                    (&Lisple::Type::MAP)),
-                           EXEC_DISPATCH(&DefThemeForm::inv_declare_theme,
-                                         &DefThemeForm::execnode_declare_theme))));
+                           EXEC_DISPATCH(&DefThemeForm::execnode_declare_theme))));
 
     SFORM_LOWER_IMPL(DefThemeForm)
     {
@@ -347,11 +329,6 @@ namespace Pixils::Script
       return std::make_unique<Lisple::ExecNode>(Lisple::Constant::NIL);
     }
 
-    MACRO_BODY(DefThemeForm, inv_declare_theme)
-    {
-      throw Lisple::InvocationException("Invalid invocation of deftheme");
-    }
-
     EXECNODE_BODY(DefThemeForm, execnode_declare_theme)
     {
       throw Lisple::LispleException("deftheme is lower-only");
@@ -361,8 +338,7 @@ namespace Pixils::Script
     SPECIAL_FORM_IMPL(DefModeForm,
                       SIG((FN_ARGS((&Lisple::Type::WORD, &Lisple::Eval::LITERAL),
                                    (&HostType::MODE, &Lisple::Eval::LITERAL)),
-                           EXEC_DISPATCH(&DefModeForm::inv_declare_mode,
-                                         &DefModeForm::execnode_declare_mode))));
+                           EXEC_DISPATCH(&DefModeForm::execnode_declare_mode))));
 
     SFORM_LOWER_IMPL(DefModeForm)
     {
@@ -389,11 +365,6 @@ namespace Pixils::Script
         Lisple::obj<Runtime::Mode>(*mode_coercion.result).resources);
 
       return std::make_unique<Lisple::ExecNode>(Lisple::Constant::NIL);
-    }
-
-    MACRO_BODY(DefModeForm, inv_declare_mode)
-    {
-      throw Lisple::InvocationException("Invalid invocation of defmode");
     }
 
     EXECNODE_BODY(DefModeForm, execnode_declare_mode)

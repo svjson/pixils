@@ -12,6 +12,9 @@
 (defun scroll-pane-offset [state]
   (or (:offset state) default-offset))
 
+(defun scroll-pane-clamp [value low high]
+  (max low (min high value)))
+
 (defun scroll-pane-content-style [state]
   (let [size (scroll-pane-content-size state)
         offset (scroll-pane-offset state)]
@@ -249,6 +252,97 @@
                     0
                     default-scrollbar-size))}))
 
+(defun scroll-pane-child-at [children index]
+  (if (> (count children) index)
+    (nth children index)
+    nil))
+
+(defun scroll-pane-row-view [ctx]
+  (scroll-pane-child-at (ui/children ctx) 0))
+
+(defun scroll-pane-viewport-view [ctx]
+  (let [row (scroll-pane-row-view ctx)]
+    (if row
+      (scroll-pane-child-at (ui/children row) 0)
+      nil)))
+
+(defun scroll-pane-content-view [ctx]
+  (let [viewport (scroll-pane-viewport-view ctx)]
+    (if viewport
+      (scroll-pane-child-at (ui/children viewport) 0)
+      nil)))
+
+(defun scroll-pane-viewport-size-from-view [ctx]
+  (let [viewport (scroll-pane-viewport-view ctx)
+        bounds (if viewport (:bounds viewport) nil)]
+    {:w (or (:w bounds) 0)
+     :h (or (:h bounds) 0)}))
+
+(defun scroll-pane-measure-descendants [children origin-x origin-y]
+  (reduce children
+          {:w 0 :h 0}
+          (fn [size child]
+            (let [bounds (:bounds child)
+                  x (or (:x bounds) origin-x)
+                  y (or (:y bounds) origin-y)
+                  w (or (:w bounds) 0)
+                  h (or (:h bounds) 0)
+                  child-size {:w (max (or (:w size) 0)
+                                      (- (+ x w) origin-x))
+                              :h (max (or (:h size) 0)
+                                      (- (+ y h) origin-y))}
+                  descendant-size (scroll-pane-measure-descendants (ui/children child)
+                                                                   origin-x
+                                                                   origin-y)]
+              {:w (max (or (:w child-size) 0)
+                       (or (:w descendant-size) 0))
+               :h (max (or (:h child-size) 0)
+                       (or (:h descendant-size) 0))}))))
+
+(defun scroll-pane-measured-content-size [ctx]
+  (let [content (scroll-pane-content-view ctx)
+        bounds (if content (:bounds content) nil)
+        origin-x (or (:x bounds) 0)
+        origin-y (or (:y bounds) 0)]
+    (if content
+      (scroll-pane-measure-descendants (ui/children content) origin-x origin-y)
+      nil)))
+
+(defun scroll-pane-measured-axis [state measured key explicit-key]
+  (if (get state explicit-key)
+    (get (scroll-pane-content-size state) key)
+    (or (get measured key) 0)))
+
+(defun scroll-pane-clamped-offset [offset content-size viewport-size]
+  {:x (scroll-pane-clamp (or (:x offset) 0)
+                         0
+                         (max 0 (- (or (:w content-size) 0)
+                                   (or (:w viewport-size) 0))))
+   :y (scroll-pane-clamp (or (:y offset) 0)
+                         0
+                         (max 0 (- (or (:h content-size) 0)
+                                   (or (:h viewport-size) 0))))})
+
+(defun scroll-pane-apply-measured-content-size [state ctx]
+  (let [measured-size (scroll-pane-measured-content-size ctx)]
+    (if measured-size
+      (let [content-size {:w (scroll-pane-measured-axis state
+                                                        measured-size
+                                                        :w
+                                                        :content-width-explicit?)
+                          :h (scroll-pane-measured-axis state
+                                                        measured-size
+                                                        :h
+                                                        :content-height-explicit?)}
+            viewport-size (scroll-pane-viewport-size-from-view ctx)
+            offset (scroll-pane-clamped-offset (scroll-pane-offset state)
+                                               content-size
+                                               viewport-size)]
+        (assoc state
+               :content-size content-size
+               :offset offset))
+      state)))
+
 (defun scroll-pane-replace-row! [state ctx effective-scroll-y?]
   (ui/replace-child! (:view ctx)
                      "row"
@@ -290,7 +384,8 @@
                   state))
    :update (fn [state ctx]
              (if (:auto-managed? state)
-               (let [effective-scroll-y? (scroll-pane-effective-scroll-y? state ctx)]
+               (let [state (scroll-pane-apply-measured-content-size state ctx)
+                     effective-scroll-y? (scroll-pane-effective-scroll-y? state ctx)]
                  (if (= effective-scroll-y? (:effective-scroll-y? state))
                    state
                    (do

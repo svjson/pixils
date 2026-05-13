@@ -1,13 +1,12 @@
 
-#include <pixils/binding/arg_collector.h>
 #include <pixils/binding/point_namespace.h>
 #include <pixils/binding/rect_namespace.h>
 #include <pixils/geom.h>
 
+#include <algorithm>
 #include <lisple/exception.h>
 #include <lisple/host/object.h>
 #include <lisple/host/schema.h>
-#include <algorithm>
 
 namespace Pixils::Script
 {
@@ -89,9 +88,10 @@ namespace Pixils::Script
     }
 
     /* Translate Point */
-    FUNC_IMPL(TranslatePoint,
-              SIG((FN_ARGS((&HostType::POINT), (&Lisple::Type::NUMBER), (&Lisple::Type::NUMBER)),
-                   EXEC_DISPATCH(&TranslatePoint::exec_translate))));
+    FUNC_IMPL(
+      TranslatePoint,
+      SIG((FN_ARGS((&HostType::POINT), (&Lisple::Type::NUMBER), (&Lisple::Type::NUMBER)),
+           EXEC_DISPATCH(&TranslatePoint::exec_translate))));
 
     EXEC_BODY(TranslatePoint, exec_translate)
     {
