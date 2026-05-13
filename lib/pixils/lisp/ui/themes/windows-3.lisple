@@ -132,7 +132,9 @@
                             :color c/BLACK}}
 
             :ui/panel {:background panel-face
-                       :padding 4}
+                       :padding 4
+                       :text {:font :font/win3-system-font
+                              :color c/BLACK}}
 
             :ui/title {:text {:font :font/win3-system-font
                               :color c/BLACK}}

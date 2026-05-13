@@ -91,6 +91,8 @@
                             :color c/BLACK}}
 
             :ui/panel {:background PANEL-COLOR
+                       :text {:font :font/win95-system-font
+                              :color c/BLACK}
                        :padding 4}
 
             :ui/title {:text {:font :font/win95-system-font
@@ -239,7 +241,7 @@
             {:text {:color c/BLACK
                     :marked-style {:enabled true
                                    :marker "@"
-                                    :font-styles :underline}}
+                                   :font-styles :underline}}
              :hover {:background FOCUS-BLUE
                      :text {:color WHITE}}}
 
