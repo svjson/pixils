@@ -633,6 +633,154 @@ TEST_F(SessionChildrenTest, scroll_pane_without_horizontal_scroll_uses_content_w
   EXPECT_EQ(vertical_scrollbar->bounds.w, 14);
 }
 
+TEST_F(SessionChildrenTest, scroll_pane_fill_width_contributes_content_width_to_auto_parent)
+{
+  runtime.eval(R"(
+    (pixils/defmode content-mode {})
+    (pixils/defcomponent auto-panel
+      {:style {:height 40
+               :layout {:direction :column}}
+       :children [(pixils.ui.scroll-pane/make
+                   {:style {:width :fill
+                            :height 40}
+                    :content-size {:w 100 :h 80}
+                    :scroll-x? false
+                    :children [{:mode 'content-mode
+                                :style {:width 100 :height 80}}]})]})
+    (pixils/defmode root-mode
+      {:children [{:mode 'auto-panel}]})
+  )");
+
+  session.push_mode("root-mode", Lisple::Constant::NIL);
+
+  session.update_mode();
+  session.render_mode();
+
+  ASSERT_NE(session.active_mode, nullptr);
+  ASSERT_EQ(session.active_mode->children.size(), 1u);
+  auto panel = session.active_mode->children[0];
+  ASSERT_NE(panel, nullptr);
+  EXPECT_EQ(panel->bounds.w, 114);
+
+  ASSERT_EQ(panel->children.size(), 1u);
+  auto pane = panel->children[0];
+  ASSERT_NE(pane, nullptr);
+  EXPECT_EQ(pane->bounds.w, 114);
+}
+
+TEST_F(SessionChildrenTest, scroll_pane_without_content_size_keeps_fill_width_viewport)
+{
+  runtime.eval(R"(
+    (pixils/defcomponent message-area
+      {:class :ui/panel
+       :style {:width :fill
+               :height :fill}
+       :children [{:mode 'ui/text
+                   :state {:value "one\ntwo"}}]})
+
+    (pixils/defcomponent info-box
+      {:class :ui/panel
+       :style {:width 200
+               :height :fill}
+       :children [{:mode 'ui/text
+                   :state {:value "info"}}]})
+
+    (pixils/defcomponent status-area
+      {:style {:layout {:direction :row}
+               :height 150
+               :width :fill}
+       :children [(pixils.ui.scroll-pane/make
+                   {:style {:width :fill
+                            :height :fill}
+                    :scroll-x? false
+                    :children [{:mode 'message-area}]})
+                  {:mode 'info-box}]})
+
+    (pixils/defmode root-mode
+      {:children [{:mode 'status-area}]})
+  )");
+
+  session.push_mode("root-mode", Lisple::Constant::NIL);
+
+  session.update_mode();
+  session.render_mode();
+
+  ASSERT_NE(session.active_mode, nullptr);
+  auto status = session.active_mode->children[0];
+  ASSERT_NE(status, nullptr);
+  ASSERT_EQ(status->children.size(), 2u);
+
+  auto pane = status->children[0];
+  auto info = status->children[1];
+  ASSERT_NE(pane, nullptr);
+  ASSERT_NE(info, nullptr);
+  EXPECT_EQ(pane->bounds.w, 120);
+  EXPECT_EQ(info->bounds.x, 120);
+  EXPECT_EQ(info->bounds.w, 200);
+
+  ASSERT_EQ(pane->children.size(), 1u);
+  auto row = pane->children[0];
+  ASSERT_EQ(row->children.size(), 2u);
+  auto viewport = row->children[0];
+  auto vertical_scrollbar = row->children[1];
+  ASSERT_NE(viewport, nullptr);
+  ASSERT_NE(vertical_scrollbar, nullptr);
+  EXPECT_GT(viewport->bounds.w, 0);
+  EXPECT_EQ(vertical_scrollbar->bounds.x, viewport->bounds.w);
+
+  ASSERT_EQ(viewport->children.size(), 1u);
+  auto content = viewport->children[0];
+  ASSERT_EQ(content->children.size(), 1u);
+  auto message = content->children[0];
+  ASSERT_NE(message, nullptr);
+  EXPECT_GT(message->bounds.w, 0);
+}
+
+TEST_F(SessionChildrenTest, shrink_height_list_box_rebuilds_with_scrollbar_when_clamped)
+{
+  runtime.eval(R"(
+    (pixils/defmode header-mode
+      {:style {:width :fill
+               :height 10}})
+
+    (pixils/defmode root-mode
+      {:style {:width 100
+               :height 25
+               :layout {:direction :column}}
+       :children [{:mode 'header-mode}
+                  (pixils.ui.list-box/make
+                   {:options [{:value :a :label "Alpha"}
+                              {:value :b :label "Beta"}
+                              {:value :c :label "Gamma"}]
+                    :style {:width 100
+                            :height :shrink}
+                    :row-height 10
+                    :max-height 30
+                    :content-width 100
+                    :force-selection? true})]})
+  )");
+
+  session.push_mode("root-mode", Lisple::Constant::NIL);
+
+  session.update_mode();
+  session.render_mode();
+
+  ASSERT_EQ(session.active_mode->children.size(), 2u);
+  auto list_box = session.active_mode->children[1];
+  ASSERT_NE(list_box, nullptr);
+  EXPECT_EQ(list_box->bounds.h, 15);
+
+  session.update_mode();
+  session.render_mode();
+
+  ASSERT_EQ(list_box->children.size(), 1u);
+  auto pane = list_box->children[0];
+  ASSERT_EQ(pane->children.size(), 1u);
+  auto row = pane->children[0];
+  ASSERT_EQ(row->children.size(), 2u);
+  EXPECT_EQ(row->children[1]->mode->name, "ui/scrollbar");
+}
+
 TEST_F(SessionChildrenTest, list_box_uses_scroll_pane_and_forces_initial_selection)
 {
   runtime.eval(R"(
@@ -681,6 +829,40 @@ TEST_F(SessionChildrenTest, list_box_uses_scroll_pane_and_forces_initial_selecti
   EXPECT_EQ(first_value->to_string(), ":a");
 }
 
+TEST_F(SessionChildrenTest, list_box_item_hover_highlight_is_opt_in)
+{
+  runtime.eval(R"(
+    (pixils/defmode root-mode
+      {:children [(pixils.ui.list-box/make
+                   {:options [{:value :a :label "Alpha"}
+                              {:value :b :label "Beta"}]
+                    :style {:width 100}
+                    :row-height 10
+                    :visible-rows 2
+                    :content-width 100})]})
+  )");
+
+  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.update_mode();
+  session.render_mode();
+  session.update_mode();
+  session.render_mode();
+
+  auto list_box = session.active_mode->children[0];
+  auto scroll_pane = list_box->children[0];
+  auto row = scroll_pane->children[0];
+  auto viewport = row->children[0];
+  auto content = viewport->children[0];
+  auto first_item = content->children[0];
+
+  input().mouse_move({5, 5});
+  update_cycle();
+  session.render_mode();
+
+  EXPECT_TRUE(first_item->interaction.hovered);
+  EXPECT_FALSE(first_item->effective_style.background.has_value());
+}
+
 TEST_F(SessionChildrenTest, list_box_ctrl_and_shift_click_update_selection)
 {
   runtime.eval(R"(
@@ -704,6 +886,8 @@ TEST_F(SessionChildrenTest, list_box_ctrl_and_shift_click_update_selection)
   )");
 
   session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.update_mode();
+  session.render_mode();
   session.update_mode();
   session.render_mode();
 
@@ -782,6 +966,8 @@ TEST_F(SessionChildrenTest, combo_box_opens_scrollable_popup_and_reports_selecti
   EXPECT_EQ(session.active_mode->mode->name, "ui/combo-box-popup");
 
   session.render_mode();
+  session.update_mode();
+  session.render_mode();
   EXPECT_FALSE(session.active_mode->effective_style.background.has_value());
   EXPECT_FALSE(session.active_mode->effective_style.border.has_value());
   ASSERT_EQ(session.active_mode->children.size(), 1u);
@@ -801,11 +987,33 @@ TEST_F(SessionChildrenTest, combo_box_opens_scrollable_popup_and_reports_selecti
   auto popup_scrollbar = popup_row->children[1];
   ASSERT_NE(popup_viewport, nullptr);
   ASSERT_NE(popup_scrollbar, nullptr);
+  ASSERT_EQ(popup_viewport->children.size(), 1u);
+  auto popup_content = popup_viewport->children[0];
+  ASSERT_GE(popup_content->children.size(), 2u);
+  auto first_popup_item = popup_content->children[0];
+  auto second_popup_item = popup_content->children[1];
+  auto first_selected =
+    Lisple::Dict::get_property(first_popup_item->state, Lisple::RTValue::keyword("selected"));
+  ASSERT_NE(first_selected, nullptr);
+  EXPECT_EQ(first_selected->to_string(), "false");
   EXPECT_EQ(popup_viewport->bounds.w, 84);
   EXPECT_EQ(popup_scrollbar->bounds.x, 85);
   EXPECT_EQ(popup_scrollbar->bounds.w, 14);
   EXPECT_LE(popup_scrollbar->bounds.x + popup_scrollbar->bounds.w,
             popup_panel->bounds.w);
+
+  input().mouse_move({5, 37});
+  update_cycle();
+  session.render_mode();
+  EXPECT_FALSE(first_popup_item->effective_style.background.has_value());
+  ASSERT_TRUE(second_popup_item->effective_style.background.has_value());
+
+  input().mouse_move({popup_scrollbar->bounds.x + 2,
+                      popup_scrollbar->bounds.y + 5});
+  update_cycle();
+  session.render_mode();
+  EXPECT_FALSE(first_popup_item->interaction.hovered);
+  EXPECT_FALSE(second_popup_item->interaction.hovered);
 
   input().mouse_down({95, 30});
   update_cycle();

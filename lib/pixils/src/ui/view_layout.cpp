@@ -523,6 +523,7 @@ namespace Pixils::UI
       int total_fixed = 0;
       int fill_count = 0;
       int flow_count = 0;
+      std::vector<size_t> shrink_indices;
       for (size_t i = 0; i < children.size(); i++)
       {
         const Style& cs = styles[i];
@@ -538,6 +539,16 @@ namespace Pixils::UI
         else if (axis_size(cs, main_axis) && axis_size(cs, main_axis)->is_fixed())
         {
           outer_sizes[i] = row ? cs.total_width() : cs.total_height();
+          total_fixed += outer_sizes[i];
+        }
+        else if (axis_size(cs, main_axis) && axis_size(cs, main_axis)->is_shrink())
+        {
+          if (natural)
+          {
+            Dimension outer_size = calculate_outer_size(cs, *natural);
+            outer_sizes[i] = row ? outer_size.w : outer_size.h;
+          }
+          shrink_indices.push_back(i);
           total_fixed += outer_sizes[i];
         }
         else if (natural)
@@ -567,6 +578,32 @@ namespace Pixils::UI
       }
 
       int total_fixed_gap = flow_count > 1 ? fixed_gap_size * (flow_count - 1) : 0;
+      int overflow = std::max(0, total_fixed + total_fixed_gap - available);
+      while (overflow > 0 && !shrink_indices.empty())
+      {
+        int per_child = std::max(1, (overflow + static_cast<int>(shrink_indices.size()) - 1) /
+                                     static_cast<int>(shrink_indices.size()));
+        std::vector<size_t> still_shrinkable;
+        for (size_t index : shrink_indices)
+        {
+          int reduction = std::min(outer_sizes[index], per_child);
+          outer_sizes[index] -= reduction;
+          overflow -= reduction;
+          if (outer_sizes[index] > 0) still_shrinkable.push_back(index);
+          if (overflow <= 0) break;
+        }
+        shrink_indices = std::move(still_shrinkable);
+      }
+
+      total_fixed = 0;
+      for (size_t i = 0; i < children.size(); i++)
+      {
+        const Style& cs = styles[i];
+        if (cs.position && *cs.position == PositionMode::ABSOLUTE) continue;
+        if (!fills_axis(cs, row ? Axis::HORIZONTAL : Axis::VERTICAL, false))
+          total_fixed += outer_sizes[i];
+      }
+
       int fill_size =
         fill_count > 0 ? (available - total_fixed - total_fixed_gap) / fill_count : 0;
       for (size_t i = 0; i < children.size(); i++)

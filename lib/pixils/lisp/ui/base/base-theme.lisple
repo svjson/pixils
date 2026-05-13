@@ -17,7 +17,7 @@
 
   :ui/list-item {:text {:color {:r 0x00 :g 0x00 :b 0x00}}}
 
-  :ui/list-item:hover
+  :ui/list-item-hover:hover
   {:background {:r 0x00 :g 0x00 :b 0x00}
    :text {:color {:r 0xff :g 0xff :b 0xff}}}
 

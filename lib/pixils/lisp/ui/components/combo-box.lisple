@@ -69,8 +69,8 @@
                                  :row-height row-height
                                  :max-height max-height
                                  :content-width (max 1 (- (:width pos) 2))
-                                 :selected-indices (ui/bind-state :selected-indices)
-                                 :force-selection? true
+                                 :selected-indices []
+                                 :hover-highlight? true
                                  :toggle-selected? false})]}]}))))
 
 (defcomponent ui/combo-box-trigger

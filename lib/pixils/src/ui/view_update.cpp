@@ -42,16 +42,19 @@ namespace Pixils::UI
     }
 
     void update_interaction(Runtime::View& view,
-                            const Point& mouse_pos,
+                            const Point&,
                             const MouseState& mouse_state,
                             const FocusState& focus_state)
     {
-      int mx = mouse_pos.round_x();
-      int my = mouse_pos.round_y();
-
-      view.interaction.hovered = view.bounds.w > 0 && mx >= view.bounds.x &&
-                                 mx < view.bounds.x + view.bounds.w && my >= view.bounds.y &&
-                                 my < view.bounds.y + view.bounds.h;
+      view.interaction.hovered = false;
+      for (auto& weak_v : mouse_state.hovered_chain)
+      {
+        if (auto v = weak_v.lock(); v && v.get() == &view)
+        {
+          view.interaction.hovered = true;
+          break;
+        }
+      }
       view.interaction.focused = false;
       view.interaction.focus_within = false;
 

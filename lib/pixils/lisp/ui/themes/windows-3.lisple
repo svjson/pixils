@@ -150,7 +150,7 @@
             :ui/list-item {:text {:font :font/win3-system-font
                                   :color c/BLACK}}
 
-            :ui/list-item:hover
+            :ui/list-item-hover:hover
             {:background focus-blue
              :text {:color c/WHITE}}
 

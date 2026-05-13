@@ -109,7 +109,7 @@
             :ui/list-item {:text {:font :font/win95-system-font
                                   :color c/BLACK}}
 
-            :ui/list-item:hover
+            :ui/list-item-hover:hover
             {:background FOCUS-BLUE
              :text {:color c/WHITE}}
 

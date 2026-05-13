@@ -99,6 +99,18 @@ static std::shared_ptr<View> make_fill_width_height_ctx()
   return make_ctx(std::move(s));
 }
 
+static std::shared_ptr<View> make_shrink_height_ctx(int natural_height)
+{
+  Style s;
+  s.height = Style::Size(Style::Size::Mode::SHRINK);
+  auto container = make_ctx(std::move(s));
+
+  Style child_style;
+  child_style.height = natural_height;
+  container->children.push_back(make_ctx(std::move(child_style)));
+  return container;
+}
+
 TEST_F(LayoutTest, layout_single_fill_child_takes_full_height)
 {
   std::vector<std::shared_ptr<View>> children;
@@ -126,6 +138,25 @@ TEST_F(LayoutTest, layout_fixed_then_fill_child_splits_height_correctly)
   EXPECT_EQ(rects[0].h, 40);
   EXPECT_EQ(rects[1].y, 40);
   EXPECT_EQ(rects[1].h, 160);
+}
+
+TEST_F(LayoutTest, layout_shrink_height_child_gives_up_space_when_column_overflows)
+{
+  std::vector<std::shared_ptr<View>> children;
+  children.push_back(make_fixed_ctx(70));
+  children.push_back(make_shrink_height_ctx(60));
+  children.push_back(make_fixed_ctx(70));
+  Rect parent = {0, 0, 320, 150};
+
+  auto rects = layout(children, parent);
+
+  ASSERT_EQ(rects.size(), 3u);
+  EXPECT_EQ(rects[0].y, 0);
+  EXPECT_EQ(rects[0].h, 70);
+  EXPECT_EQ(rects[1].y, 70);
+  EXPECT_EQ(rects[1].h, 10);
+  EXPECT_EQ(rects[2].y, 80);
+  EXPECT_EQ(rects[2].h, 70);
 }
 
 TEST_F(LayoutTest, layout_two_fill_children_split_height_evenly)
