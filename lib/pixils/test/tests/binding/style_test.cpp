@@ -291,6 +291,15 @@ TEST_F(StyleTest, make_style_with_cursor)
   EXPECT_EQ(*style.cursor, Pixils::UI::Style::Cursor::POINTER);
 }
 
+TEST_F(StyleTest, make_style_with_view_scale)
+{
+  Lisple::sptr_rtval result = runtime.eval("(pixils.ui.style/make-style {:scale 2})");
+
+  auto style = Lisple::obj<Pixils::UI::Style>(*result);
+  ASSERT_NE(style.scale, std::nullopt);
+  EXPECT_EQ(*style.scale, 2);
+}
+
 TEST_F(StyleTest, make_style_with_hover_cursor)
 {
   Lisple::sptr_rtval result = runtime.eval("(pixils.ui.style/make-style {:cursor :default "

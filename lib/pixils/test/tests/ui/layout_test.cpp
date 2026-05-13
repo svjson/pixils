@@ -32,12 +32,13 @@ class LayoutTest : public BaseFixture
     render_ctx.buffer_dim = {320, 200};
   }
 
-  std::vector<Rect> layout(const std::vector<std::shared_ptr<View>>& children,
-                           const Rect& parent,
-                           LayoutDirection direction = LayoutDirection::COLUMN,
-                           std::optional<Style::Layout::GapMode> gap_mode = std::nullopt,
-                           std::optional<int> gap_size = std::nullopt,
-                           std::optional<Style::Layout::AlignItems> align_items = std::nullopt)
+  std::vector<Rect> layout(
+    const std::vector<std::shared_ptr<View>>& children,
+    const Rect& parent,
+    LayoutDirection direction = LayoutDirection::COLUMN,
+    std::optional<Style::Layout::GapMode> gap_mode = std::nullopt,
+    std::optional<int> gap_size = std::nullopt,
+    std::optional<Style::Layout::AlignItems> align_items = std::nullopt)
   {
     Style::Layout layout;
     layout.direction = direction;
@@ -140,6 +141,43 @@ TEST_F(LayoutTest, layout_fixed_then_fill_child_splits_height_correctly)
   EXPECT_EQ(rects[1].h, 160);
 }
 
+TEST_F(LayoutTest, layout_scaled_fixed_child_keeps_logical_size_but_consumes_scaled_space)
+{
+  Style scaled_style;
+  scaled_style.height = 40;
+  scaled_style.scale = 2;
+
+  std::vector<std::shared_ptr<View>> children;
+  children.push_back(make_ctx(std::move(scaled_style)));
+  children.push_back(make_fixed_ctx(20));
+  Rect parent = {0, 0, 320, 200};
+
+  auto rects = layout(children, parent);
+
+  ASSERT_EQ(rects.size(), 2u);
+  EXPECT_EQ(rects[0].y, 0);
+  EXPECT_EQ(rects[0].h, 40);
+  EXPECT_EQ(rects[1].y, 80);
+  EXPECT_EQ(rects[1].h, 20);
+}
+
+TEST_F(LayoutTest, layout_scaled_fill_child_gets_inverse_logical_size)
+{
+  Style scaled_style;
+  scaled_style.width = Style::Size(Style::Size::Mode::FILL);
+  scaled_style.scale = 2;
+
+  std::vector<std::shared_ptr<View>> children;
+  children.push_back(make_ctx(std::move(scaled_style)));
+  Rect parent = {0, 0, 200, 40};
+
+  auto rects = layout(children, parent, LayoutDirection::ROW);
+
+  ASSERT_EQ(rects.size(), 1u);
+  EXPECT_EQ(rects[0].x, 0);
+  EXPECT_EQ(rects[0].w, 100);
+}
+
 TEST_F(LayoutTest, layout_shrink_height_child_gives_up_space_when_column_overflows)
 {
   std::vector<std::shared_ptr<View>> children;
@@ -236,13 +274,12 @@ TEST_F(LayoutTest, layout_column_align_items_center_centers_fixed_width_child)
   children.push_back(make_ctx(std::move(s)));
   Rect parent = {0, 0, 320, 200};
 
-  auto rects =
-    layout(children,
-           parent,
-           LayoutDirection::COLUMN,
-           std::nullopt,
-           std::nullopt,
-           Style::Layout::AlignItems::CENTER);
+  auto rects = layout(children,
+                      parent,
+                      LayoutDirection::COLUMN,
+                      std::nullopt,
+                      std::nullopt,
+                      Style::Layout::AlignItems::CENTER);
 
   ASSERT_EQ(rects.size(), 1u);
   EXPECT_EQ(rects[0].x, 100);
@@ -371,13 +408,12 @@ TEST_F(LayoutTest, layout_row_align_items_center_centers_fixed_height_child)
   children.push_back(make_ctx(std::move(s)));
   Rect parent = {0, 0, 320, 200};
 
-  auto rects =
-    layout(children,
-           parent,
-           LayoutDirection::ROW,
-           std::nullopt,
-           std::nullopt,
-           Style::Layout::AlignItems::CENTER);
+  auto rects = layout(children,
+                      parent,
+                      LayoutDirection::ROW,
+                      std::nullopt,
+                      std::nullopt,
+                      Style::Layout::AlignItems::CENTER);
 
   ASSERT_EQ(rects.size(), 1u);
   EXPECT_EQ(rects[0].y, 80);

@@ -761,6 +761,31 @@ TEST_F(EventRoutingTest, hover_style_variant_applied_when_cursor_is_inside)
   EXPECT_EQ(style.width->fixed_value_or(0), 200);
 }
 
+TEST_F(EventRoutingTest,
+       scaled_child_hit_testing_uses_external_footprint_and_logical_local_position)
+{
+  runtime.eval(R"(
+    (pixils/defmode scaled-child
+      {:style {:width 100 :height 50 :scale 2}
+       :on-mouse-down (fn [state event ctx]
+                        {:x (:x (:position event))
+                         :y (:y (:position event))})})
+
+    (pixils/defmode root-mode
+      {:children [{:mode 'scaled-child :id "child"}]})
+  )");
+  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.active_mode->bounds = {0, 0, 300, 200};
+  session.active_mode->children[0]->bounds = {0, 0, 100, 50};
+
+  input().mouse_down({150, 20});
+  update_cycle();
+
+  auto child = session.active_mode->children[0];
+  ASSERT_NE(child, nullptr);
+  EXPECT_EQ(child->state->to_string(), "{:x 75 :y 10}");
+}
+
 TEST_F(EventRoutingTest, focus_and_blur_bang_update_focus_state_from_hook_context)
 {
   runtime.eval(R"(

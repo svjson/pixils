@@ -27,9 +27,29 @@ namespace Pixils::UI
       return Rect{x1, y1, x2 - x1, y2 - y1};
     }
 
+    int scale_factor(const Style& style)
+    {
+      return std::max(1, style.scale.value_or(1));
+    }
+
+    Rect scaled_external_bounds(const Rect& logical_bounds, const Style& style)
+    {
+      int scale = scale_factor(style);
+      return {logical_bounds.x,
+              logical_bounds.y,
+              logical_bounds.w * scale,
+              logical_bounds.h * scale};
+    }
+
+    Rect target_rect(const Rect& rect, const Point& origin)
+    {
+      return {rect.x - origin.round_x(), rect.y - origin.round_y(), rect.w, rect.h};
+    }
+
     void set_clip(Pixils::RenderContext& render_ctx,
                   const std::optional<Rect>& clip,
-                  const Rect& viewport = {0, 0, 0, 0})
+                  const Point& origin,
+                  const std::optional<Rect>& viewport = std::nullopt)
     {
       if (!clip)
       {
@@ -37,9 +57,11 @@ namespace Pixils::UI
         return;
       }
 
+      int x = viewport ? clip->x - viewport->x : clip->x - origin.round_x();
+      int y = viewport ? clip->y - viewport->y : clip->y - origin.round_y();
       SDL_Rect clip_rect = {
-        clip->x - viewport.x,
-        clip->y - viewport.y,
+        x,
+        y,
         clip->w,
         clip->h,
       };
@@ -50,13 +72,56 @@ namespace Pixils::UI
                           Lisple::Runtime& runtime,
                           const Lisple::sptr_rtval& render_hook_ctx,
                           const std::shared_ptr<Pixils::Runtime::View>& view_ptr,
-                          const std::optional<Rect>& inherited_clip)
+                          const std::optional<Rect>& inherited_clip,
+                          SDL_Texture* target_texture,
+                          const Point& origin,
+                          bool allow_scale_boundary)
     {
       Pixils::Runtime::View& ctx = *view_ptr;
       const Rect bounds = ctx.bounds;
 
       const Style& style_res = ctx.effective_style;
       if (style_res.hidden && *style_res.hidden) return;
+
+      if (allow_scale_boundary && scale_factor(style_res) > 1)
+      {
+        if (bounds.w <= 0 || bounds.h <= 0) return;
+
+        SDL_Texture* texture = SDL_CreateTexture(render_ctx.renderer,
+                                                 SDL_PIXELFORMAT_RGBA8888,
+                                                 SDL_TEXTUREACCESS_TARGET,
+                                                 bounds.w,
+                                                 bounds.h);
+        SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_BLEND);
+
+        SDL_SetRenderTarget(render_ctx.renderer, texture);
+        SDL_RenderSetViewport(render_ctx.renderer, nullptr);
+        SDL_RenderSetClipRect(render_ctx.renderer, nullptr);
+        SDL_SetRenderDrawColor(render_ctx.renderer, 0, 0, 0, 0);
+        SDL_RenderClear(render_ctx.renderer);
+
+        render_view_impl(render_ctx,
+                         runtime,
+                         render_hook_ctx,
+                         view_ptr,
+                         std::nullopt,
+                         texture,
+                         {static_cast<float>(bounds.x), static_cast<float>(bounds.y)},
+                         false);
+
+        SDL_SetRenderTarget(render_ctx.renderer, target_texture);
+        SDL_RenderSetViewport(render_ctx.renderer, nullptr);
+        set_clip(render_ctx, inherited_clip, origin);
+
+        Rect external = scaled_external_bounds(bounds, style_res);
+        SDL_Rect dest = target_rect(external, origin).to_SDL_rect();
+        SDL_RenderCopy(render_ctx.renderer, texture, nullptr, &dest);
+
+        SDL_DestroyTexture(texture);
+        SDL_RenderSetClipRect(render_ctx.renderer, nullptr);
+        return;
+      }
+
       auto active_clip = inherited_clip;
       if (style_res.clip && *style_res.clip)
       {
@@ -72,7 +137,7 @@ namespace Pixils::UI
        * resets to null at its end - child 0 never got that prior reset.
        */
       SDL_RenderSetViewport(render_ctx.renderer, nullptr);
-      set_clip(render_ctx, active_clip);
+      set_clip(render_ctx, active_clip, origin);
 
       /**
        * Draw background fill using absolute bounds, now that viewport is null.
@@ -81,7 +146,7 @@ namespace Pixils::UI
       {
         const SDL_Color& bg = style_res.background->color->to_SDL_Color();
         SDL_SetRenderDrawColor(render_ctx.renderer, bg.r, bg.g, bg.b, bg.a);
-        SDL_Rect bg_rect = {bounds.x, bounds.y, bounds.w, bounds.h};
+        SDL_Rect bg_rect = target_rect(bounds, origin).to_SDL_rect();
         SDL_SetRenderDrawBlendMode(render_ctx.renderer, SDL_BLENDMODE_BLEND);
         SDL_RenderFillRect(render_ctx.renderer, &bg_rect);
         SDL_SetRenderDrawBlendMode(render_ctx.renderer, SDL_BLENDMODE_NONE);
@@ -93,12 +158,12 @@ namespace Pixils::UI
         SDL_Texture* texture = render_ctx.asset_registry->get_image(bundle_id, asset_id);
         if (texture)
         {
-          SDL_Rect dest = {bounds.x, bounds.y, 0, 0};
+          SDL_Rect dest = {bounds.x - origin.round_x(), bounds.y - origin.round_y(), 0, 0};
           SDL_QueryTexture(texture, nullptr, nullptr, &dest.w, &dest.h);
 
-          set_clip(render_ctx, intersect_clip(active_clip, bounds));
+          set_clip(render_ctx, intersect_clip(active_clip, bounds), origin);
           SDL_RenderCopy(render_ctx.renderer, texture, nullptr, &dest);
-          set_clip(render_ctx, active_clip);
+          set_clip(render_ctx, active_clip, origin);
         }
       }
 
@@ -107,6 +172,7 @@ namespace Pixils::UI
        */
       if (style_res.border)
       {
+        Rect target_bounds = target_rect(bounds, origin);
         const Style::BorderStyle& bs = *style_res.border;
         const Style::Trim top_trim = bs.top_trim();
         const Style::Trim right_trim = bs.right_trim();
@@ -133,18 +199,18 @@ namespace Pixils::UI
                                  .trim_start = left_trim.start,
                                  .trim_end = left_trim.end};
 
-        render_edge(render_ctx.renderer, bounds, Edge::TOP, top_spec);
-        render_edge(render_ctx.renderer, bounds, Edge::RIGHT, right_spec);
-        render_edge(render_ctx.renderer, bounds, Edge::BOTTOM, bottom_spec);
-        render_edge(render_ctx.renderer, bounds, Edge::LEFT, left_spec);
+        render_edge(render_ctx.renderer, target_bounds, Edge::TOP, top_spec);
+        render_edge(render_ctx.renderer, target_bounds, Edge::RIGHT, right_spec);
+        render_edge(render_ctx.renderer, target_bounds, Edge::BOTTOM, bottom_spec);
+        render_edge(render_ctx.renderer, target_bounds, Edge::LEFT, left_spec);
 
         render_bevel_corner(render_ctx.renderer,
-                            bounds,
+                            target_bounds,
                             Corner::TOP_LEFT,
                             top_spec,
                             left_spec);
         render_bevel_corner(render_ctx.renderer,
-                            bounds,
+                            target_bounds,
                             Corner::BOTTOM_RIGHT,
                             bottom_spec,
                             right_spec);
@@ -152,9 +218,9 @@ namespace Pixils::UI
 
       Rect content = style_res.content_rect(bounds);
 
-      SDL_Rect viewport = {content.x, content.y, content.w, content.h};
+      SDL_Rect viewport = target_rect(content, origin).to_SDL_rect();
       SDL_RenderSetViewport(render_ctx.renderer, &viewport);
-      set_clip(render_ctx, active_clip, content);
+      set_clip(render_ctx, active_clip, origin, content);
 
       Lisple::sptr_rtval_v rargs = {ctx.state, render_hook_ctx};
       Runtime::invoke_hook(runtime, view_ptr, ctx.mode->render, rargs);
@@ -163,7 +229,14 @@ namespace Pixils::UI
       {
         for (const auto& child : ctx.children)
         {
-          render_view_impl(render_ctx, runtime, render_hook_ctx, child, active_clip);
+          render_view_impl(render_ctx,
+                           runtime,
+                           render_hook_ctx,
+                           child,
+                           active_clip,
+                           target_texture,
+                           origin,
+                           true);
         }
       }
 
@@ -177,7 +250,14 @@ namespace Pixils::UI
                    const Lisple::sptr_rtval& render_hook_ctx,
                    const std::shared_ptr<Pixils::Runtime::View>& view_ptr)
   {
-    render_view_impl(render_ctx, runtime, render_hook_ctx, view_ptr, std::nullopt);
+    render_view_impl(render_ctx,
+                     runtime,
+                     render_hook_ctx,
+                     view_ptr,
+                     std::nullopt,
+                     render_ctx.buffer_texture,
+                     POINT__ZERO_ZERO,
+                     true);
   }
 
 } // namespace Pixils::UI

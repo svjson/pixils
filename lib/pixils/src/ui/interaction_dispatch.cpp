@@ -35,6 +35,65 @@ namespace Pixils::UI
               global.y - static_cast<float>(bounds.y)};
     }
 
+    int scale_factor(const Style& style)
+    {
+      return std::max(1, style.scale.value_or(1));
+    }
+
+    Style interaction_style(const std::shared_ptr<Runtime::View>& view)
+    {
+      Style style = resolve_style(view->mode->style, view->state, view->interaction);
+      if (view->effective_style.hidden) style.hidden = view->effective_style.hidden;
+      if (view->effective_style.clip) style.clip = view->effective_style.clip;
+      if (view->effective_style.scale) style.scale = view->effective_style.scale;
+      return style;
+    }
+
+    Rect external_bounds(const std::shared_ptr<Runtime::View>& view, const Style& style)
+    {
+      int scale = scale_factor(style);
+      return {view->bounds.x,
+              view->bounds.y,
+              view->bounds.w * scale,
+              view->bounds.h * scale};
+    }
+
+    Point to_logical_point(const std::shared_ptr<Runtime::View>& view,
+                           const Style& style,
+                           const Point& parent_point)
+    {
+      int scale = scale_factor(style);
+      if (scale == 1) return parent_point;
+
+      return {
+        static_cast<float>(view->bounds.x) +
+          (parent_point.x - static_cast<float>(view->bounds.x)) / static_cast<float>(scale),
+        static_cast<float>(view->bounds.y) +
+          (parent_point.y - static_cast<float>(view->bounds.y)) / static_cast<float>(scale)};
+    }
+
+    Point logical_pos_in_view(const Point& global,
+                              const std::vector<std::shared_ptr<Runtime::View>>& chain,
+                              size_t target_index)
+    {
+      Point p = global;
+      for (size_t reverse_index = chain.size(); reverse_index > target_index;
+           reverse_index--)
+      {
+        auto& view = chain[reverse_index - 1];
+        p = to_logical_point(view, interaction_style(view), p);
+      }
+      return p;
+    }
+
+    Point local_pos_in_view(const Point& global,
+                            const std::vector<std::shared_ptr<Runtime::View>>& chain,
+                            size_t target_index)
+    {
+      Point logical = logical_pos_in_view(global, chain, target_index);
+      return local_pos(logical, chain[target_index]->bounds);
+    }
+
     bool has_drag_hooks(const std::vector<std::shared_ptr<Runtime::View>>& chain)
     {
       return std::any_of(
@@ -128,7 +187,7 @@ namespace Pixils::UI
                      Lisple::sptr_rtval Runtime::Mode::* hook_field,
                      const Lisple::sptr_rtval& ev_ref,
                      bool& propagation_stopped,
-                     const std::function<void(const Rect&)>& set_local_pos,
+                     const std::function<void(size_t)>& set_local_pos,
                      Runtime::HookArguments& hook_args,
                      Lisple::Runtime& rt)
     {
@@ -137,7 +196,7 @@ namespace Pixils::UI
         auto& view = chain[i];
         if (!propagation_stopped)
         {
-          set_local_pos(view->bounds);
+          set_local_pos(i);
           fire_hook_on_view(view, view->mode->*hook_field, ev_ref, hook_args, rt);
         }
         if (i + 1 < chain.size())
@@ -160,10 +219,10 @@ namespace Pixils::UI
         hook_field,
         ev_ref,
         ev.propagation_stopped,
-        [&](const Rect& b)
+        [&](size_t index)
         {
-          ev.local_pos = local_pos(ev.global_pos, b);
-          ev.start_local_pos = local_pos(ev.start_global_pos, b);
+          ev.local_pos = local_pos_in_view(ev.global_pos, chain, index);
+          ev.start_local_pos = local_pos_in_view(ev.start_global_pos, chain, index);
         },
         hook_args,
         rt);
@@ -565,23 +624,24 @@ namespace Pixils::UI
     }
 
     bool build_hit_chain(std::shared_ptr<Runtime::View> view,
-                         int mx,
-                         int my,
+                         const Point& point,
                          std::vector<std::shared_ptr<Runtime::View>>& chain,
                          const std::optional<Rect>& inherited_clip = std::nullopt)
     {
       if (view->bounds.w == 0) return false;
-      auto style = resolve_style(view->mode->style, view->state, view->interaction);
+      auto style = interaction_style(view);
       if (style.hidden && *style.hidden) return false;
       if (inherited_clip &&
-          (mx < inherited_clip->x || mx >= inherited_clip->x + inherited_clip->w ||
-           my < inherited_clip->y || my >= inherited_clip->y + inherited_clip->h))
+          (point.x < inherited_clip->x || point.x >= inherited_clip->x + inherited_clip->w ||
+           point.y < inherited_clip->y || point.y >= inherited_clip->y + inherited_clip->h))
         return false;
 
-      bool hit = mx >= view->bounds.x && mx < view->bounds.x + view->bounds.w &&
-                 my >= view->bounds.y && my < view->bounds.y + view->bounds.h;
+      Rect hit_bounds = external_bounds(view, style);
+      bool hit = point.x >= hit_bounds.x && point.x < hit_bounds.x + hit_bounds.w &&
+                 point.y >= hit_bounds.y && point.y < hit_bounds.y + hit_bounds.h;
       if (!hit) return false;
 
+      Point logical_point = to_logical_point(view, style, point);
       auto child_clip = inherited_clip;
       if (style.clip && *style.clip)
       {
@@ -601,15 +661,16 @@ namespace Pixils::UI
       bool visit_children = true;
       if (style.clip && *style.clip)
       {
-        visit_children = child_clip && mx >= child_clip->x &&
-                         mx < child_clip->x + child_clip->w && my >= child_clip->y &&
-                         my < child_clip->y + child_clip->h;
+        visit_children = child_clip && logical_point.x >= child_clip->x &&
+                         logical_point.x < child_clip->x + child_clip->w &&
+                         logical_point.y >= child_clip->y &&
+                         logical_point.y < child_clip->y + child_clip->h;
       }
 
       for (auto it = view->children.rbegin(); visit_children && it != view->children.rend();
            ++it)
       {
-        if (build_hit_chain(*it, mx, my, chain, child_clip))
+        if (build_hit_chain(*it, logical_point, chain, child_clip))
         {
           chain.push_back(view);
           return true;
@@ -698,7 +759,7 @@ namespace Pixils::UI
           &Runtime::Mode::on_mouse_up,
           ev_ref,
           ev.propagation_stopped,
-          [&](const Rect& b) { ev.local_pos = local_pos(gp, b); },
+          [&](size_t index) { ev.local_pos = local_pos_in_view(gp, chain, index); },
           hook_args,
           rt);
       }
@@ -747,7 +808,8 @@ namespace Pixils::UI
             &Runtime::Mode::on_click,
             click_ev_ref,
             click_ev.propagation_stopped,
-            [&](const Rect& b) { click_ev.local_pos = local_pos(gp, b); },
+            [&](size_t index)
+            { click_ev.local_pos = local_pos_in_view(gp, click_chain, index); },
             hook_args,
             rt);
         }
@@ -762,11 +824,9 @@ namespace Pixils::UI
                            Lisple::Runtime& rt)
     {
       const Point& gp = Lisple::obj<Point>(*events.mouse_pos);
-      int mx = gp.round_x();
-      int my = gp.round_y();
 
       std::vector<std::shared_ptr<Runtime::View>> hit_chain;
-      if (!build_hit_chain(root, mx, my, hit_chain))
+      if (!build_hit_chain(root, gp, hit_chain))
       {
         focus_state.clear();
         return;
@@ -812,7 +872,7 @@ namespace Pixils::UI
         &Runtime::Mode::on_mouse_down,
         ev_ref,
         ev.propagation_stopped,
-        [&](const Rect& b) { ev.local_pos = local_pos(gp, b); },
+        [&](size_t index) { ev.local_pos = local_pos_in_view(gp, hit_chain, index); },
         hook_args,
         rt);
     }
@@ -834,7 +894,7 @@ namespace Pixils::UI
         &Runtime::Mode::on_mouse_motion,
         ev_ref,
         ev.propagation_stopped,
-        [&](const Rect& b) { ev.local_pos = local_pos(gp, b); },
+        [&](size_t index) { ev.local_pos = local_pos_in_view(gp, chain, index); },
         hook_args,
         rt);
     }
@@ -897,11 +957,9 @@ namespace Pixils::UI
                   Lisple::Runtime& rt)
     {
       const Point& mouse_pos = Lisple::obj<Point>(*events.mouse_pos);
-      int mx = mouse_pos.round_x();
-      int my = mouse_pos.round_y();
 
       std::vector<std::shared_ptr<Runtime::View>> hit_chain;
-      build_hit_chain(root, mx, my, hit_chain);
+      build_hit_chain(root, mouse_pos, hit_chain);
       std::shared_ptr<Runtime::View> new_hovered =
         hit_chain.empty() ? nullptr : hit_chain[0];
 
@@ -910,9 +968,12 @@ namespace Pixils::UI
       {
         if (old_hovered)
         {
+          auto old_chain = lock_chain(mouse_state.hovered_chain);
           MouseEvent leave_ev;
           leave_ev.global_pos = mouse_pos;
-          leave_ev.local_pos = local_pos(mouse_pos, old_hovered->bounds);
+          leave_ev.local_pos = old_chain.empty()
+                                 ? local_pos(mouse_pos, old_hovered->bounds)
+                                 : local_pos_in_view(mouse_pos, old_chain, 0);
           auto ev_ref = Script::MouseEventAdapter::make_ref(leave_ev);
           fire_hook_on_view(old_hovered,
                             old_hovered->mode->on_mouse_leave,
@@ -920,7 +981,6 @@ namespace Pixils::UI
                             hook_args,
                             rt);
 
-          auto old_chain = lock_chain(mouse_state.hovered_chain);
           propagate_state_up_chain(old_chain);
         }
 
@@ -931,7 +991,7 @@ namespace Pixils::UI
         {
           MouseEvent enter_ev;
           enter_ev.global_pos = mouse_pos;
-          enter_ev.local_pos = local_pos(mouse_pos, new_hovered->bounds);
+          enter_ev.local_pos = local_pos_in_view(mouse_pos, hit_chain, 0);
           auto ev_ref = Script::MouseEventAdapter::make_ref(enter_ev);
           fire_hook_on_view(new_hovered,
                             new_hovered->mode->on_mouse_enter,

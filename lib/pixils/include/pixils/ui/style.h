@@ -266,6 +266,7 @@ namespace Pixils::UI
     std::optional<BorderStyle> border = std::nullopt;
     std::optional<Text> text = std::nullopt;
     std::optional<BoxSizing> box_sizing = std::nullopt;
+    std::optional<int> scale = std::nullopt;
 
     /**
      * Preferred size. For fixed numeric values, interpretation depends on

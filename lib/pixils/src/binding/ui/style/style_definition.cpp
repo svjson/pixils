@@ -4,6 +4,7 @@
 #include <pixils/binding/point_namespace.h>
 #include <pixils/binding/ui/style/style_host_type.h>
 
+#include <algorithm>
 #include <lisple/context.h>
 #include <lisple/host/object.h>
 #include <lisple/host/schema.h>
@@ -255,6 +256,17 @@ namespace Pixils::Script::StyleDefinition
     if (!value) return Lisple::Constant::NIL;
     return Lisple::RTValue::keyword(
       *value == UI::Style::BoxSizing::CONTENT_BOX ? "content-box" : "border-box");
+  }
+
+  std::optional<int> parse_scale(const Lisple::sptr_rtval& value)
+  {
+    if (!value || value->type != Lisple::RTValue::Type::NUMBER) return std::nullopt;
+    return std::max(1, value->num().get_int());
+  }
+
+  Lisple::sptr_rtval scale_to_value(const std::optional<int>& value)
+  {
+    return value ? Lisple::RTValue::number(*value) : Lisple::Constant::NIL;
   }
 
   std::optional<UI::Style::Cursor> parse_cursor(const Lisple::sptr_rtval& value)
@@ -623,6 +635,7 @@ namespace Pixils::Script::StyleDefinition
                                            {"layout", &HostType::STYLE_LAYOUT},
                                            {"text", &HostType::STYLE_TEXT},
                                            {"box-sizing", &Lisple::Type::KEY},
+                                           {"scale", &Lisple::Type::NUMBER},
                                            {"width", &Lisple::Type::ANY},
                                            {"height", &Lisple::Type::ANY},
                                            {"position", &Lisple::Type::KEY},
@@ -646,6 +659,7 @@ namespace Pixils::Script::StyleDefinition
     style->text = opts.optional_obj<UI::Style::Text>("text");
     if (opts.contains("box-sizing"))
       style->box_sizing = parse_box_sizing(opts.val("box-sizing"));
+    if (opts.contains("scale")) style->scale = parse_scale(opts.val("scale"));
     if (opts.contains("width")) style->width = parse_size(opts.val("width"));
     if (opts.contains("height")) style->height = parse_size(opts.val("height"));
     if (opts.contains("position"))

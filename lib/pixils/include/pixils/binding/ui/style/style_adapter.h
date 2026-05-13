@@ -17,6 +17,7 @@ namespace Pixils::Script
                   padding,
                   text,
                   box_sizing,
+                  scale,
                   width,
                   height,
                   position,
@@ -29,7 +30,7 @@ namespace Pixils::Script
                   hover,
                   focus_within,
                   focus),
-                 (clip, cursor, height, hidden, left, position, top, width));
+                 (clip, cursor, height, hidden, left, position, scale, top, width));
   NATIVE_ADAPTER(LayoutAdapter, UI::Style::Layout, (direction, align_items, gap));
   NATIVE_ADAPTER(LayoutGapAdapter, UI::Style::Layout::Gap, (mode, size));
   NATIVE_ADAPTER(StyleTextAdapter, UI::Style::Text, (color, font, scale, align, wrap));

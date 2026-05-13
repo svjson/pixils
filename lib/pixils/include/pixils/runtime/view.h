@@ -42,6 +42,7 @@ namespace Pixils::Runtime
     Lisple::sptr_rtval state = Lisple::Constant::NIL;
     Lisple::sptr_rtval initial_state = Lisple::Constant::NIL;
     Rect bounds = {0, 0, 0, 0};
+    Rect external_bounds = {0, 0, 0, 0};
     std::optional<UI::Theme> inherited_theme = std::nullopt;
     UI::Theme effective_theme;
     UI::Style effective_style;

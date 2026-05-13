@@ -208,6 +208,7 @@ namespace Pixils::UI
     , border(other.border)
     , text(other.text)
     , box_sizing(other.box_sizing)
+    , scale(other.scale)
     , width(other.width)
     , height(other.height)
     , position(other.position)
@@ -232,6 +233,7 @@ namespace Pixils::UI
     this->border = other.border;
     this->text = other.text;
     this->box_sizing = other.box_sizing;
+    this->scale = other.scale;
     this->width = other.width;
     this->height = other.height;
     this->position = other.position;
@@ -445,6 +447,7 @@ namespace Pixils::UI
     if (variant.border) out.border = variant.border;
     if (variant.text) apply_text_variant(out, *variant.text);
     if (variant.box_sizing) out.box_sizing = variant.box_sizing;
+    if (variant.scale) out.scale = variant.scale;
     if (variant.width) out.width = variant.width;
     if (variant.height) out.height = variant.height;
     if (variant.position) out.position = variant.position;

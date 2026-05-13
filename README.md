@@ -414,6 +414,7 @@ hook fires.
 | `:layout`     | `{:direction :row}`, `{:direction :column}`, optional `:align-items :start|:center|:end`, optional `:gap :none`, `:gap N`, `:gap :space-between`, or wrapped gap maps | Child layout policy. Supports flow direction, cross-axis alignment of flow children, fixed gap, explicit no-gap, and `space-between` distribution. |
 | `:text`       | `{:color {:r N :g N :b N}}`, `{:color :none}`, optional `:font :font/name`, optional `:scale N`, optional `:align :left|:center|:right`, optional `:wrap :word|:none` | Text presentation properties for components that render text. |
 | `:box-sizing` | `:border-box`, `:content-box`                                        | How fixed `:width`/`:height` are interpreted. Default: `:border-box`. |
+| `:scale`      | Integer `N`                                                          | Render this view subtree at logical size, then copy it to an external footprint scaled by `N`. Minimum effective value: `1`. |
 | `:width`      | Number                                                               | Fixed width in pixels using the selected `:box-sizing`. Absent means fill remaining space. |
 | `:height`     | Number                                                               | Fixed height in pixels using the selected `:box-sizing`. Absent means fill remaining space. |
 | `:position`   | `:absolute`, `:flow`                                                 | Positioning mode. Default: `:flow`. |
@@ -448,6 +449,24 @@ Supported cursor keywords are `:default`, `:pointer`, `:hand`, `:text`, `:crossh
 `:move`, `:not-allowed`, `:wait`, `:progress`, `:resize-x`, `:resize-y`,
 `:resize-nwse`, and `:resize-nesw`. `:hand` is accepted as an alias for `:pointer`.
 Use program-level `:pointer :off` when the OS cursor should be hidden entirely.
+
+`:scale` is a view-boundary scale. The view and its descendants still lay out and
+receive local mouse positions in the unscaled logical coordinate system, but the parent
+layout reserves the scaled footprint. For example, a `160x100` view with `:scale 2`
+behaves internally as `160x100` and externally occupies `320x200`.
+
+```clojure
+(pixils/defcomponent pixel-panel
+  {:style {:width 160
+           :height 100
+           :scale 2}
+   :children [{:mode 'ui/text
+               :state {:value "Scaled panel"}}]})
+```
+
+The first version supports uniform integer scale factors only. Pixils renders the subtree
+to a logical-size target texture and copies it back without component-specific font,
+image, or layout scaling.
 
 Text wrapping is enabled by default for `ui/text` when the node can see a real
 available width, either from its own fixed/fill `:width` or from a constrained

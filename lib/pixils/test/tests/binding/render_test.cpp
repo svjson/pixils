@@ -132,6 +132,35 @@ TEST_F(RenderTest, style_background_image_renders_once_without_repeat)
   EXPECT_EQ(ops[0].rendered_rect.h, 7);
 }
 
+TEST_F(RenderTest, scaled_view_renders_to_logical_texture_and_copies_to_scaled_footprint)
+{
+  runtime.eval(R"(
+    (pixils/defmode scaled-panel
+      {:style {:width 20 :height 10 :scale 2}
+       :render (fn [state ctx]
+                 (pixils.render/rect!
+                   {:x 0 :y 0}
+                   {:x 20 :y 10}
+                   {:fill true}))})
+  )");
+  session.push_mode("scaled-panel", Lisple::Constant::NIL);
+
+  ASSERT_NO_THROW(session.render_mode());
+
+  auto& ops = render_target()->render_ops;
+  ASSERT_EQ(ops.size(), 1u);
+  EXPECT_EQ(ops[0].type, RenderOpType::RENDER_COPY);
+  EXPECT_EQ(ops[0].rendered_rect.x, 0);
+  EXPECT_EQ(ops[0].rendered_rect.y, 0);
+  EXPECT_EQ(ops[0].rendered_rect.w, 40);
+  EXPECT_EQ(ops[0].rendered_rect.h, 20);
+
+  ASSERT_EQ(ops[0].sub_ops.size(), 1u);
+  EXPECT_EQ(ops[0].sub_ops[0].type, RenderOpType::FILL_RECT);
+  EXPECT_EQ(ops[0].sub_ops[0].rendered_rect.w, 20);
+  EXPECT_EQ(ops[0].sub_ops[0].rendered_rect.h, 10);
+}
+
 TEST_F(RenderTest, text_without_explicit_color_uses_original_font_texture)
 {
   SDLMock::prepared_surfaces["./font.png"] = {8, 8};
