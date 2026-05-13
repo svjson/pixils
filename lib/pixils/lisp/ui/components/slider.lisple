@@ -1,0 +1,156 @@
+(ns pixils.ui.slider
+  (:require pixils
+            [pixils.render :as r]
+            [pixils.ui :as ui]))
+
+(def default-track-color {:r 0x99 :g 0x99 :b 0x99})
+(def default-handle-color {:r 0xff :g 0xff :b 0xff})
+(def default-border-color {:r 0x00 :g 0x00 :b 0x00})
+
+(defun clamp [value low high]
+  (max low (min high value)))
+
+(defun slider-min [state]
+  (or (:min state) 0))
+
+(defun slider-max [state]
+  (or (:max state) 100))
+
+(defun slider-step [state]
+  (or (:step state) 1))
+
+(defun slider-value [state]
+  (clamp (or (:value state) (slider-min state))
+         (slider-min state)
+         (slider-max state)))
+
+(defun slider-axis-size [state ctx]
+  (if (= (:axis state) :y)
+    (-> ctx :view :bounds :h)
+    (-> ctx :view :bounds :w)))
+
+(defun slider-cross-size [state ctx]
+  (if (= (:axis state) :y)
+    (-> ctx :view :bounds :w)
+    (-> ctx :view :bounds :h)))
+
+(defun slider-event-coord [state event]
+  (let [pos (:position event)]
+    (if (= (:axis state) :y) (:y pos) (:x pos))))
+
+(defun slider-handle-size [state ctx]
+  (max 8 (slider-cross-size state ctx)))
+
+(defun slider-track-span [state ctx]
+  (max 1 (- (slider-axis-size state ctx)
+            (slider-handle-size state ctx))))
+
+(defun slider-value-ratio [state]
+  (let [span (max 1 (- (slider-max state) (slider-min state)))]
+    (/ (- (slider-value state) (slider-min state)) span)))
+
+(defun slider-handle-pos [state ctx]
+  (int (* (slider-value-ratio state)
+          (slider-track-span state ctx))))
+
+(defun nearest-stepped-value [state raw]
+  (let [min-value (slider-min state)
+        step (slider-step state)]
+    (+ min-value
+       (* step
+          (int (/ (+ (- raw min-value)
+                     (/ step 2))
+                  step))))))
+
+(defun slider-value-at [state event ctx]
+  (let [handle (slider-handle-size state ctx)
+        coord (clamp (- (slider-event-coord state event) (/ handle 2))
+                     0
+                     (slider-track-span state ctx))
+        ratio (/ coord (slider-track-span state ctx))
+        raw (+ (slider-min state)
+               (* ratio (- (slider-max state) (slider-min state))))]
+    (clamp (nearest-stepped-value state raw)
+           (slider-min state)
+           (slider-max state))))
+
+(defun slider-track-color [state ctx]
+  (or (:track-color state)
+      (-> ctx :view :style :border :color)
+      default-track-color))
+
+(defun slider-handle-color [state ctx]
+  (or (:handle-color state)
+      (-> ctx :view :style :background)
+      default-handle-color))
+
+(defun slider-border-color [state ctx]
+  (or (:border-color state)
+      (-> ctx :view :style :border :color)
+      default-border-color))
+
+(defun slider-track-rect [state ctx]
+  (let [axis (slider-axis-size state ctx)
+        cross (slider-cross-size state ctx)]
+    (if (= (:axis state) :y)
+      {:x (int (/ (- cross 3) 2))
+       :y 0
+       :w 3
+       :h axis}
+      {:x 0
+       :y (int (/ (- cross 3) 2))
+       :w axis
+       :h 3})))
+
+(defun slider-handle-rect [state ctx]
+  (let [pos (slider-handle-pos state ctx)
+        handle (slider-handle-size state ctx)
+        cross (slider-cross-size state ctx)]
+    (if (= (:axis state) :y)
+      {:x 0
+       :y pos
+       :w cross
+       :h handle}
+      {:x pos
+       :y 0
+       :w handle
+       :h cross})))
+
+(defun slider-set-value [state event ctx]
+  (let [value (slider-value-at state event ctx)]
+    (do
+      (ui/emit! (:view ctx) :slider/change value)
+      (assoc state :value value))))
+
+(defcomponent ui/slider
+  {:focusable true
+   :class :ui/slider
+   :style {:width :fill
+           :height 18}
+   :init (fn [state ctx]
+           (assoc state :value (slider-value state)))
+   :on-mouse-down (fn [state event ctx]
+                    (do
+                      (ui/stop-propagation! event)
+                      (slider-set-value state event ctx)))
+   :on-drag (fn [state event ctx]
+              (slider-set-value state event ctx))
+   :render (fn [state ctx]
+             (do
+               (r/rect! (slider-track-rect state ctx)
+                        {:fill true
+                         :color (slider-track-color state ctx)})
+               (r/rect! (slider-handle-rect state ctx)
+                        {:fill true
+                         :color (slider-handle-color state ctx)})
+               (r/rect! (slider-handle-rect state ctx)
+                        {:color (slider-border-color state ctx)})))})
+
+(defun make [{:keys [style value min max step axis]}]
+  {:mode 'ui/slider
+   :style (or style {})
+   :state {:value value
+           :min min
+           :max max
+           :step step
+           :axis (or axis :x)}})

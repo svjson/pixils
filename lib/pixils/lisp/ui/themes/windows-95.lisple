@@ -109,9 +109,35 @@
             :ui/list-item {:text {:font :font/win95-system-font
                                   :color c/BLACK}}
 
+            :ui/list-item:hover
+            {:background FOCUS-BLUE
+             :text {:color c/WHITE}}
+
             '(:ui/list-item {:selected true})
             {:background FOCUS-BLUE
              :text {:color c/WHITE}}
+
+            'ui/list-box {:background c/WHITE
+                          :border {:color c/BLACK
+                                   :thickness 1}}
+
+            'ui/combo-box {:background c/WHITE
+                           :border {:line-style :bevel
+                                    :color PANEL-SHADOW
+                                    :thickness 1
+                                    :right {:color PANEL-LIGHT}
+                                    :bottom {:color PANEL-LIGHT}}}
+
+            'ui/combo-box-popup-panel {:background c/WHITE
+                                       :border {:color c/BLACK
+                                                :thickness 1}}
+
+            'ui/slider {:background PANEL-COLOR
+                        :border {:line-style :bevel
+                                 :color PANEL-LIGHT
+                                 :thickness 1
+                                 :right {:color PANEL-SHADOW}
+                                 :bottom {:color PANEL-SHADOW}}}
 
             'ui/scrollbar {:background PANEL-COLOR
                            :text {:font :font/win95-system-font

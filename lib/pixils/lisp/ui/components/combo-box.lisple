@@ -1,0 +1,149 @@
+(ns pixils.ui.combo-box
+  (:require pixils
+            [pixils.ui :as ui]))
+
+(def default-row-height 20)
+(def default-max-height 120)
+
+(defun option-label [option]
+  (or (:label option)
+      (:name option)
+      (str (:value option))))
+
+(defun option-value [option]
+  (let [value (:value option)]
+    (if (nil? value)
+      (:id option)
+      value)))
+
+(defun selected-option [options selected-index]
+  (if (empty? options)
+    nil
+    (nth options (max 0 (min (dec (count options))
+                             (or selected-index 0))))))
+
+(defun selected-label [options selected-index]
+  (let [option (selected-option options selected-index)]
+    (if option
+      (option-label option)
+      "")))
+
+(defun selected-value [options selected-index]
+  (let [option (selected-option options selected-index)]
+    (if option
+      (option-value option)
+      nil)))
+
+(defun popup-position [anchor-view]
+  (let [bounds (:bounds anchor-view)]
+    {:left (:x bounds)
+     :top (+ (:y bounds) (:h bounds))
+     :width (:w bounds)}))
+
+(defun popup-selected-indices [state]
+  [(or (:selected-index state) 0)])
+
+(defun open-popup! [state ctx]
+  (let [options (or (:options state) [])
+        row-height (or (:row-height state) default-row-height)
+        max-height (or (:max-height state) default-max-height)
+        pos (popup-position (:view ctx))]
+    (when (not (empty? options))
+      (push-mode!
+       'ui/combo-box-popup
+       {:options options
+        :selected-indices (popup-selected-indices state)
+        :row-height row-height
+        :max-height max-height}
+       {:origin {:view (:view ctx)
+                 :event :combo-box/select}
+        :children [{:mode 'ui/combo-box-popup-panel
+                    :style {:position :absolute
+                            :left (:left pos)
+                            :top (:top pos)
+                            :width (:width pos)
+                            :height :shrink}
+                    :children [(pixils.ui.list-box/make
+                                {:options options
+                                 :style {:border {:thickness 0}}
+                                 :row-height row-height
+                                 :max-height max-height
+                                 :content-width (max 1 (- (:width pos) 2))
+                                 :selected-indices (ui/bind-state :selected-indices)
+                                 :force-selection? true
+                                 :toggle-selected? false})]}]}))))
+
+(defcomponent ui/combo-box-trigger
+  {:style {:width :fill
+           :height :fill
+           :padding [3 5]
+           :layout {:direction :row
+                    :align-items :center
+                    :gap :space-between}}
+   :children [{:mode 'ui/text
+               :style {:width :fill}
+               :state {:value (ui/bind-state :selected-label)}}
+              {:mode 'ui/text
+               :state {:value "v"}}]})
+
+(defcomponent ui/combo-box
+  {:focusable true
+   :class :ui/combo-box
+   :style {:width :fill
+           :height 22}
+   :init (fn [state ctx]
+           (assoc (assoc state
+                         :selected-index (or (:selected-index state) 0))
+                  :selected-label
+                  (selected-label (:options state)
+                                  (or (:selected-index state) 0))))
+   :update (fn [state ctx]
+             (assoc state
+                    :selected-label
+                    (selected-label (:options state)
+                                    (:selected-index state))))
+   :on-mouse-down (fn [state event ctx]
+                    (do
+                      (ui/stop-propagation! event)
+                      (open-popup! state ctx)
+                      state))
+   :on {:combo-box/select (fn [state event ctx]
+                            (let [payload (:payload event)
+                                  index (head (:selected-indices payload))
+                                  value (or (:value payload)
+                                            (selected-value (:options state) index))
+                                  next-state (assoc (assoc state
+                                                           :selected-index index)
+                                                    :selected-value value)]
+                              (do
+                                (ui/stop-propagation! event)
+                                (ui/emit! (:view ctx)
+                                          :combo-box/change
+                                          {:selected-index index
+                                           :value value})
+                                next-state)))}
+   :children [{:mode 'ui/combo-box-trigger
+               :state {:selected-label (ui/bind-state :selected-label)}}]})
+
+(defmode ui/combo-box-popup
+  {:on-mouse-down (fn [state event ctx]
+                    (do
+                      (pop-mode! {:type :dismiss})
+                      state))
+   :on {:list-box/change (fn [state event ctx]
+                           (do
+                             (ui/stop-propagation! event)
+                             (pop-mode! (:payload event))
+                             state))}
+   :compose {:render :pass}})
+
+(defcomponent ui/combo-box-popup-panel
+  {:class :ui/combo-box-popup-panel})
+
+(defun make [{:keys [options style selected-index row-height max-height]}]
+  {:mode 'ui/combo-box
+   :style (or style {})
+   :state {:options (or options [])
+           :selected-index selected-index
+           :row-height (or row-height default-row-height)
+           :max-height (or max-height default-max-height)}})

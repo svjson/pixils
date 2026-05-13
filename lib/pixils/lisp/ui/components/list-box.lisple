@@ -1,0 +1,233 @@
+(ns pixils.ui.list-box
+  (:require pixils
+            [pixils.ui :as ui]))
+
+(def default-row-height 20)
+(def default-visible-rows 5)
+(def default-scrollbar-size 14)
+
+(defun option-label [option]
+  (or (:label option)
+      (:name option)
+      (str (:value option))))
+
+(defun option-value [option]
+  (let [value (:value option)]
+    (if (nil? value)
+      (:id option)
+      value)))
+
+(defun option-at [options index]
+  (nth options index))
+
+(defun option-value-at [options index]
+  (option-value (option-at options index)))
+
+(defun selected-values-for [options indices]
+  (map indices (fn [index]
+                 (option-value-at options index))))
+
+(defun add-index [indices index]
+  (if (contains? indices index)
+    indices
+    (concat indices [index])))
+
+(defun remove-index [indices index]
+  (filter indices (fn [item]
+                    (not= item index))))
+
+(defun index-range-up [from to]
+  (if (> from to)
+    []
+    (concat [from] (index-range-up (inc from) to))))
+
+(defun index-range [from to]
+  (index-range-up (min from to) (max from to)))
+
+(defun add-indices [indices items]
+  (reduce items indices (fn [out index]
+                          (add-index out index))))
+
+(defun held-shift? [ctx]
+  (or (contains? (:held-keys ctx) :key/shift)
+      (contains? (:held-keys ctx) :key/left-shift)
+      (contains? (:held-keys ctx) :key/right-shift)))
+
+(defun held-ctrl? [ctx]
+  (or (contains? (:held-keys ctx) :key/ctrl)
+      (contains? (:held-keys ctx) :key/left-ctrl)
+      (contains? (:held-keys ctx) :key/right-ctrl)))
+
+(defun forced-selection? [state]
+  (= (:force-selection? state) true))
+
+(defun multi-select? [state]
+  (= (:multi-select? state) true))
+
+(defun toggle-selected? [state]
+  (= (:toggle-selected? state) true))
+
+(defun preserve-forced-selection [state indices previous]
+  (if (and (forced-selection? state)
+           (empty? indices))
+    previous
+    indices))
+
+(defun single-click-selection [state index]
+  (let [selected (or (:selected-indices state) [])]
+    (if (and (contains? selected index)
+             (toggle-selected? state))
+      (preserve-forced-selection state
+                                 (remove-index selected index)
+                                 selected)
+      [index])))
+
+(defun ctrl-click-selection [state index]
+  (let [selected (or (:selected-indices state) [])]
+    (if (contains? selected index)
+      (preserve-forced-selection state
+                                 (remove-index selected index)
+                                 selected)
+      (add-index selected index))))
+
+(defun shift-click-selection [state index ctrl?]
+  (let [selected (or (:selected-indices state) [])
+        anchor (or (:anchor-index state) index)
+        range (index-range anchor index)]
+    (if ctrl?
+      (add-indices selected range)
+      range)))
+
+(defun list-box-click-selection [state payload]
+  (let [index (:index payload)]
+    (if (multi-select? state)
+      (cond
+        (:shift? payload)
+        (shift-click-selection state index (:ctrl? payload))
+
+        (:ctrl? payload)
+        (ctrl-click-selection state index)
+
+        :default
+        (single-click-selection state index))
+      (single-click-selection state index))))
+
+(defun list-box-content-height [options row-height]
+  (* (count options) row-height))
+
+(defun list-box-visible-height [options row-height visible-rows max-height]
+  (min (or max-height (* row-height visible-rows))
+       (list-box-content-height options row-height)))
+
+(defun list-box-scroll-y? [content-height height]
+  (> content-height height))
+
+(defun list-box-viewport-width [content-width scroll-y?]
+  (if scroll-y?
+    (max 1 (- content-width default-scrollbar-size))
+    content-width))
+
+(defun list-box-content-state [state]
+  {:selected-indices (or (:selected-indices state) [])
+   :active-index (:active-index state)})
+
+(defcomponent ui/list-box-item
+  {:class [:ui/list-item :ui/list-box-item]
+   :style {:width :fill
+           :height default-row-height
+           :padding [3 5]
+           :layout {:direction :row
+                    :align-items :center}}
+   :update (fn [state ctx]
+             (assoc state :selected (contains? (:selected-indices state)
+                                               (:index state))))
+   :on-mouse-down (fn [state event ctx]
+                    (do
+                      (ui/stop-propagation! event)
+                      state))
+   :on-mouse-up (fn [state event ctx]
+                  (do
+                    (ui/emit! (:view ctx)
+                              :list-box/item-click
+                              {:index (:index state)
+                               :value (:value state)
+                               :shift? (held-shift? ctx)
+                               :ctrl? (held-ctrl? ctx)})
+                    state))
+   :children [{:mode 'ui/text
+               :style {:width :fill}
+               :state {:value (ui/bind-state :label)}}]})
+
+(defcomponent ui/list-box
+  {:focusable true
+   :class :ui/list-box
+   :init (fn [state ctx]
+           (let [selected (or (:selected-indices state)
+                              (if (forced-selection? state) [0] []))]
+             (assoc (assoc (assoc state
+                                  :selected-indices selected)
+                           :anchor-index (or (:anchor-index state)
+                                             (head selected)))
+                    :content-state
+                    (list-box-content-state (assoc state
+                                                  :selected-indices
+                                                  selected)))))
+   :update (fn [state ctx]
+             (assoc state :content-state (list-box-content-state state)))
+   :on {:list-box/item-click (fn [state event ctx]
+                              (let [payload (:payload event)
+                                    selected (list-box-click-selection state payload)
+                                    next-state (assoc (assoc state
+                                                             :selected-indices selected)
+                                                      :anchor-index (:index payload))
+                                    values (selected-values-for (:options next-state)
+                                                                selected)]
+                                (do
+                                  (ui/stop-propagation! event)
+                                  (ui/emit! (:view ctx)
+                                            :list-box/change
+                                            {:selected-indices selected
+                                             :selected-values values
+                                             :value (:value payload)})
+                                  (assoc next-state
+                                         :selected-values values))))}})
+
+(defun make-item-child [index option row-height]
+  {:mode 'ui/list-box-item
+   :style {:height row-height}
+   :state {:index index
+           :value (option-value option)
+           :label (option-label option)
+           :selected-indices (ui/bind-state :selected-indices)}})
+
+(defun make [{:keys [options style row-height visible-rows max-height content-width selected-indices multi-select? force-selection? toggle-selected?]}]
+  (let [row-height (or row-height default-row-height)
+        visible-rows (or visible-rows default-visible-rows)
+        options (or options [])
+        content-width (or content-width 160)
+        content-height (list-box-content-height options row-height)
+        height (list-box-visible-height options row-height visible-rows max-height)
+        scroll-y? (list-box-scroll-y? content-height height)
+        viewport-width (list-box-viewport-width content-width scroll-y?)]
+    {:mode 'ui/list-box
+     :style (merge {:height height
+                    :width :fill}
+                   (or style {}))
+     :state {:options options
+             :row-height row-height
+             :selected-indices selected-indices
+             :multi-select? multi-select?
+             :force-selection? force-selection?
+             :toggle-selected? toggle-selected?}
+     :children [(pixils.ui.scroll-pane/make
+                 {:style {:width :fill
+                          :height :fill}
+                  :content-size {:w viewport-width
+                                 :h content-height}
+                  :state {:offset (ui/bind-state :offset)
+                          :content-state (ui/bind-state :content-state)}
+                  :scroll-x? false
+                  :scroll-y? scroll-y?
+                  :step row-height
+                  :children (for-indexed [index option options]
+                              (make-item-child index option row-height))})]}))

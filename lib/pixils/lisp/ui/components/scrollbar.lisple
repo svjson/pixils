@@ -361,32 +361,34 @@
                                                       :column)}})
                state))
    :on-mouse-down (fn [state event ctx]
-                    (cond
-                      (scrollbar-start-button-hit? state event ctx)
-                      (assoc (assoc (assoc state
-                                           :drag-kind :button)
-                                    :active-part :start-button)
-                             :value
-                             (scrollbar-step-value state ctx -1))
+                    (do
+                      (ui/stop-propagation! event)
+                      (cond
+                        (scrollbar-start-button-hit? state event ctx)
+                        (assoc (assoc (assoc state
+                                             :drag-kind :button)
+                                      :active-part :start-button)
+                               :value
+                               (scrollbar-step-value state ctx -1))
 
-                      (scrollbar-end-button-hit? state event ctx)
-                      (assoc (assoc (assoc state
-                                           :drag-kind :button)
-                                    :active-part :end-button)
-                             :value
-                             (scrollbar-step-value state ctx 1))
+                        (scrollbar-end-button-hit? state event ctx)
+                        (assoc (assoc (assoc state
+                                             :drag-kind :button)
+                                      :active-part :end-button)
+                               :value
+                               (scrollbar-step-value state ctx 1))
 
-                      :default
-                      (let [next-state (assoc (assoc state
-                                                     :drag-kind :handle)
-                                              :grab-offset
-                                              (scrollbar-grab-offset state event ctx))]
-                        (if (scrollbar-handle-hit? state event ctx)
-                          (assoc next-state :active-part :handle)
-                          (assoc next-state
-                                 :active-part :track
-                                 :value
-                                 (scrollbar-value-at next-state event ctx))))))
+                        :default
+                        (let [next-state (assoc (assoc state
+                                                       :drag-kind :handle)
+                                                :grab-offset
+                                                (scrollbar-grab-offset state event ctx))]
+                          (if (scrollbar-handle-hit? state event ctx)
+                            (assoc next-state :active-part :handle)
+                            (assoc next-state
+                                   :active-part :track
+                                   :value
+                                   (scrollbar-value-at next-state event ctx)))))))
    :on-drag (fn [state event ctx]
               (if (= (:drag-kind state) :button)
                 state

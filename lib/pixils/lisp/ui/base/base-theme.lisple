@@ -17,9 +17,33 @@
 
   :ui/list-item {:text {:color {:r 0x00 :g 0x00 :b 0x00}}}
 
+  :ui/list-item:hover
+  {:background {:r 0x00 :g 0x00 :b 0x00}
+   :text {:color {:r 0xff :g 0xff :b 0xff}}}
+
   '(:ui/list-item {:selected true})
   {:background {:r 0x00 :g 0x00 :b 0x00}
    :text {:color {:r 0xff :g 0xff :b 0xff}}}
+
+  'ui/list-box {:background {:r 0xff :g 0xff :b 0xff}
+                :border {:color {:r 0x00 :g 0x00 :b 0x00}
+                         :thickness 1}}
+
+  'ui/combo-box {:background {:r 0xff :g 0xff :b 0xff}
+                 :border {:color {:r 0x00 :g 0x00 :b 0x00}
+                          :thickness 1}}
+
+  'ui/combo-box-trigger:hover
+  {:text {:color {:r 0xff :g 0xff :b 0xff}}
+   :background {:r 0x00 :g 0x00 :b 0x00}}
+
+  'ui/combo-box-popup-panel {:background {:r 0xff :g 0xff :b 0xff}
+                             :border {:color {:r 0x00 :g 0x00 :b 0x00}
+                                      :thickness 1}}
+
+  'ui/slider {:background {:r 0xff :g 0xff :b 0xff}
+              :border {:color {:r 0x00 :g 0x00 :b 0x00}
+                       :thickness 1}}
 
   'ui/scrollbar {:background {:r 0xff :g 0xff :b 0xff}
                  :text {:color {:r 0x00 :g 0x00 :b 0x00}}}

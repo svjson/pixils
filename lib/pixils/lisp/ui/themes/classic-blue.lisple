@@ -29,8 +29,31 @@
 
     :ui/list-item {:text {:color {:r 0xe6 :g 0xea :b 0xee}}}
 
+    :ui/list-item:hover
+    {:background {:r 0x33 :g 0x3b :b 0x48}}
+
     '(:ui/list-item {:selected true})
     {:background {:r 0x4a :g 0x3f :b 0x24}}
+
+    'ui/list-box {:background {:r 0x15 :g 0x19 :b 0x1f}
+                  :border {:color {:r 0x5f :g 0x6f :b 0x7f}
+                           :thickness 1}}
+
+    'ui/combo-box {:background BUTTON-BG
+                   :border {:color BUTTON-HIGHLIGHT
+                            :thickness 1
+                            :right {:color BUTTON-SHADOW}
+                            :bottom {:color BUTTON-SHADOW}}}
+
+    'ui/combo-box-popup-panel {:background {:r 0x15 :g 0x19 :b 0x1f}
+                               :border {:color {:r 0x5f :g 0x6f :b 0x7f}
+                                        :thickness 1}}
+
+    'ui/slider {:background BUTTON-BG
+                :border {:color BUTTON-HIGHLIGHT
+                         :thickness 1
+                         :right {:color BUTTON-SHADOW}
+                         :bottom {:color BUTTON-SHADOW}}}
 
     '(ui/button {:pressed true})
     {:border {:line-style :solid

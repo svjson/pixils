@@ -150,9 +150,32 @@
             :ui/list-item {:text {:font :font/win3-system-font
                                   :color c/BLACK}}
 
+            :ui/list-item:hover
+            {:background focus-blue
+             :text {:color c/WHITE}}
+
             '(:ui/list-item {:selected true})
             {:background focus-blue
              :text {:color c/WHITE}}
+
+            'ui/list-box {:background c/WHITE
+                          :border {:color c/BLACK
+                                   :thickness 1}}
+
+            'ui/combo-box {:background c/WHITE
+                           :border {:color c/BLACK
+                                    :thickness 1}}
+
+            'ui/combo-box-popup-panel {:background c/WHITE
+                                       :border {:color c/BLACK
+                                                :thickness 1}}
+
+            'ui/slider {:background panel-face
+                        :border {:line-style :bevel
+                                 :color c/WHITE
+                                 :thickness 2
+                                 :right {:color panel-shadow}
+                                 :bottom {:color panel-shadow}}}
 
             'ui/scrollbar {:background panel-face
                            :border {:color c/BLACK
