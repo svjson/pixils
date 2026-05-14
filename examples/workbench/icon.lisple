@@ -1,7 +1,8 @@
 (ns workbench.icon
   (:require pixils
             [pixils.render :as r]
-            [pixils.ui :as ui]))
+            [pixils.ui :as ui]
+            pixils.ui.icon))
 
 
 
@@ -20,14 +21,14 @@
 (def gray {:r 0x99 :g 0x99 :b 0x99})
 
 (defun icon-entry [state]
-  (or (:entry state) {}))
+  (or (:item state) (:entry state)))
 
 (defun icon-selected? [state]
   (= (:id (icon-entry state))
      (:selected-id state)))
 
 (defun icon-hidden? [state]
-  (nil? (:entry state)))
+  (nil? (or (:item state) (:entry state))))
 
 (defun draw-disk! []
   (do
@@ -118,65 +119,10 @@
                {:color (if selected? white black)}))))
 
 (defcomponent workbench-icon
-  {:focusable true
-   :drag {:start {:mode :threshold :distance 3}
-          :payload (fn [state event ctx]
-                     {:entry (:entry state)
-                      :offset (:start-position event)})}
+  {:extend 'ui/icon
    :style {:width icon-width
            :height icon-height
            :cursor :workbench/pointer}
-   :update (fn [state ctx]
-             (let [entry (icon-entry state)
-                   pos (or (:position entry) {:x 0 :y 0})]
-               (do
-                 (ui/style! (:view ctx)
-                            {:position :absolute
-                             :left (:x pos)
-                             :top (:y pos)
-                             :width icon-width
-                             :height icon-height
-                             :hidden (icon-hidden? state)
-                             :cursor :workbench/pointer})
-                 state)))
-   :on-mouse-down (fn [state event ctx]
-                    (do
-                      (ui/emit! (:view ctx)
-                                :workbench/icon-select
-                                (:entry state))
-                      state))
-   :on-click (fn [state event ctx]
-               (do
-                 (ui/emit! (:view ctx)
-                           :workbench/icon-click
-                           (:entry state))
-                 state))
-   :on-drag-start (fn [state event ctx]
-                    (let [payload (:payload event)
-                          entry (:entry payload)
-                          offset (or (:offset payload) {:x 0 :y 0})
-                          pointer-pos (:global-position event)
-                          preview-pos {:x (- (:x pointer-pos) (:x offset))
-                                       :y (- (:y pointer-pos) (:y offset))}]
-                      (do
-                        (ui/emit! (:view ctx)
-                                  :workbench/drag-start
-                                  {:entry entry
-                                   :offset offset
-                                   :position preview-pos})
-                        state)))
-   :on-drag (fn [state event ctx]
-              (do
-                (ui/emit! (:view ctx)
-                          :workbench/drag-move
-                          {:position (:global-position event)})
-                state))
-   :on-drag-end (fn [state event ctx]
-                  (do
-                    (ui/emit! (:view ctx)
-                              :workbench/drag-end
-                              nil)
-                    state))
    :render (fn [state ctx]
              (when (not (icon-hidden? state))
                (let [entry (icon-entry state)
@@ -186,26 +132,15 @@
                    (draw-title! entry selected?)))))})
 
 (defcomponent workbench-icon-preview
-  {:style {:position :absolute
+  {:extend 'ui/icon-preview
+   :style {:position :absolute
            :width icon-width
            :height icon-height
            :hit-test false
            :cursor :workbench/pointer}
-   :update (fn [state ctx]
-             (let [pos (or (:position state) {:x 0 :y 0})]
-               (do
-                 (ui/style! (:view ctx)
-                            {:position :absolute
-                             :left (:x pos)
-                             :top (:y pos)
-                             :width icon-width
-                             :height icon-height
-                             :hidden (nil? (:entry state))
-                             :cursor :workbench/pointer})
-                 state)))
    :render (fn [state ctx]
-             (let [entry (:entry state)]
-               (when entry
+             (when (not (icon-hidden? state))
+               (let [entry (icon-entry state)]
                  (do
                    (draw-icon-image! entry)
                    (draw-title! entry true)))))})

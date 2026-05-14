@@ -44,7 +44,23 @@
                                  (ui/emit! (:view ctx)
                                            :workbench/open-path
                                            (:payload event))
-                                 state))}
+                                 state))
+        :ui/icon-drop (fn [state event ctx]
+                        (let [payload (:payload event)
+                              entry (:item payload)
+                              path (:target payload)]
+                          (do
+                            (ui/stop-propagation! event)
+                            (when (and entry
+                                       path
+                                       (or (= (:parent entry) path)
+                                           (= (:type entry) :project)))
+                              (ui/emit! (:view ctx)
+                                        :workbench/move-entry
+                                        {:entry entry
+                                         :target-path path
+                                         :position (:position payload)}))
+                            state)))}
    :children [{:mode 'workbench-icon-container
                :state {:entries (ui/bind-state :desktop-entries)
                        :selected-id (ui/bind-state :desktop-selected-id)
@@ -131,22 +147,22 @@
                                                        (if (= target-path fs/desktop-path)
                                                          "Workbench desktop"
                                                          (-> state :window :title))))))
-        :workbench/drag-start (fn [state event ctx]
-                                (let [payload (:payload event)]
-                                  (assoc state
-                                         :drag-preview {:entry (:entry payload)
-                                                        :offset (:offset payload)
-                                                        :position (:position payload)})))
-        :workbench/drag-move (fn [state event ctx]
-                               (let [pointer-pos (:position (:payload event))
-                                     offset (or (-> state :drag-preview :offset)
-                                                {:x 0 :y 0})]
-                                 (assoc-in state
-                                           [:drag-preview :position]
-                                           {:x (- (:x pointer-pos) (:x offset))
-                                            :y (- (:y pointer-pos) (:y offset))})))
-        :workbench/drag-end (fn [state event ctx]
-                              (assoc state :drag-preview nil))
+        :ui/icon-drag-start (fn [state event ctx]
+                              (let [payload (:payload event)]
+                                (assoc state
+                                       :drag-preview {:item (:item payload)
+                                                      :offset (:offset payload)
+                                                      :position (:position payload)})))
+        :ui/icon-drag-move (fn [state event ctx]
+                             (let [pointer-pos (:position (:payload event))
+                                   offset (or (-> state :drag-preview :offset)
+                                              {:x 0 :y 0})]
+                               (assoc-in state
+                                         [:drag-preview :position]
+                                         {:x (- (:x pointer-pos) (:x offset))
+                                          :y (- (:y pointer-pos) (:y offset))})))
+        :ui/icon-drag-end (fn [state event ctx]
+                            (assoc state :drag-preview nil))
         :icons/open (fn [state event ctx]
                       (assoc state :message "Open uses double-clicked icons for now."))
         :icons/snapshot (fn [state event ctx]

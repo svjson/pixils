@@ -351,7 +351,18 @@ namespace Pixils::Script
 
     if (opts.contains("drag")) mode.drag = parse_drag_policy(ctx, opts.val("drag"));
 
-    mode.style = opts.optional_obj<UI::Style>("style");
+    if (opts.contains("style"))
+    {
+      auto style = opts.obj<UI::Style>("style");
+      if (!mode.style)
+      {
+        mode.style = style;
+      }
+      else
+      {
+        UI::apply_style_variant(*mode.style, style);
+      }
+    }
     if (opts.contains("class"))
     {
       append_class_names(mode.class_names, parse_mode_classes(opts.val("class")));

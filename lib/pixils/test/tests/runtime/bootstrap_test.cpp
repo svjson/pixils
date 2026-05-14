@@ -41,6 +41,11 @@ TEST_F(BootstrapTest, loads_embedded_core_ui_modes_into_pixils_mode_registry)
   auto combo_box_mode =
     Lisple::Dict::get_property(modes, Lisple::RTValue::symbol("ui/combo-box"));
   auto slider_mode = Lisple::Dict::get_property(modes, Lisple::RTValue::symbol("ui/slider"));
+  auto icon_mode = Lisple::Dict::get_property(modes, Lisple::RTValue::symbol("ui/icon"));
+  auto icon_container_mode =
+    Lisple::Dict::get_property(modes, Lisple::RTValue::symbol("ui/icon-container"));
+  auto icon_preview_mode =
+    Lisple::Dict::get_property(modes, Lisple::RTValue::symbol("ui/icon-preview"));
 
   ASSERT_NE(text_mode, nullptr);
   ASSERT_NE(text_input_mode, nullptr);
@@ -56,6 +61,9 @@ TEST_F(BootstrapTest, loads_embedded_core_ui_modes_into_pixils_mode_registry)
   ASSERT_NE(list_box_mode, nullptr);
   ASSERT_NE(combo_box_mode, nullptr);
   ASSERT_NE(slider_mode, nullptr);
+  ASSERT_NE(icon_mode, nullptr);
+  ASSERT_NE(icon_container_mode, nullptr);
+  ASSERT_NE(icon_preview_mode, nullptr);
 
   EXPECT_EQ(Lisple::obj<Pixils::Runtime::Mode>(*text_mode).name, "ui/text");
   EXPECT_EQ(Lisple::obj<Pixils::Runtime::Mode>(*text_input_mode).name, "ui/text-input");
@@ -72,6 +80,10 @@ TEST_F(BootstrapTest, loads_embedded_core_ui_modes_into_pixils_mode_registry)
   EXPECT_EQ(Lisple::obj<Pixils::Runtime::Mode>(*list_box_mode).name, "ui/list-box");
   EXPECT_EQ(Lisple::obj<Pixils::Runtime::Mode>(*combo_box_mode).name, "ui/combo-box");
   EXPECT_EQ(Lisple::obj<Pixils::Runtime::Mode>(*slider_mode).name, "ui/slider");
+  EXPECT_EQ(Lisple::obj<Pixils::Runtime::Mode>(*icon_mode).name, "ui/icon");
+  EXPECT_EQ(Lisple::obj<Pixils::Runtime::Mode>(*icon_container_mode).name,
+            "ui/icon-container");
+  EXPECT_EQ(Lisple::obj<Pixils::Runtime::Mode>(*icon_preview_mode).name, "ui/icon-preview");
 }
 
 TEST_F(BootstrapTest, includes_embedded_base_theme_source)

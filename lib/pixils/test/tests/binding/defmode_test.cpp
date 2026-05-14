@@ -89,6 +89,40 @@ TEST_F(DefModeTest, defmode_focusable_defaults_false_and_can_be_extended_or_over
   EXPECT_FALSE(static_label.focusable);
 }
 
+TEST_F(DefModeTest, defmode_extend_preserves_and_overlays_base_style)
+{
+  runtime.eval(R"(
+    (pixils/defcomponent panel
+      {:style {:width :fill
+               :height :fill
+               :clip true}})
+    (pixils/defcomponent panel-child
+      {:extend 'panel})
+    (pixils/defcomponent narrow-panel-child
+      {:extend 'panel
+       :style {:width 120}})
+  )");
+
+  auto& panel_child = get_mode(runtime, "panel-child");
+  ASSERT_NE(panel_child.style, std::nullopt);
+  ASSERT_NE(panel_child.style->width, std::nullopt);
+  ASSERT_NE(panel_child.style->height, std::nullopt);
+  ASSERT_NE(panel_child.style->clip, std::nullopt);
+  EXPECT_TRUE(panel_child.style->width->is_fill());
+  EXPECT_TRUE(panel_child.style->height->is_fill());
+  EXPECT_TRUE(*panel_child.style->clip);
+
+  auto& narrow_panel_child = get_mode(runtime, "narrow-panel-child");
+  ASSERT_NE(narrow_panel_child.style, std::nullopt);
+  ASSERT_NE(narrow_panel_child.style->width, std::nullopt);
+  ASSERT_NE(narrow_panel_child.style->height, std::nullopt);
+  ASSERT_NE(narrow_panel_child.style->clip, std::nullopt);
+  EXPECT_TRUE(narrow_panel_child.style->width->is_fixed());
+  EXPECT_EQ(narrow_panel_child.style->width->fixed_value_or(0), 120);
+  EXPECT_TRUE(narrow_panel_child.style->height->is_fill());
+  EXPECT_TRUE(*narrow_panel_child.style->clip);
+}
+
 TEST_F(DefModeTest, defmode_with_lambda_hook_is_created)
 {
   // When
