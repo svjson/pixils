@@ -162,7 +162,7 @@ and player score to aligned to the top right."
                                   (let [phase (- 1.0 (/ (- countdown 20)
                                                         (- (:countdown-max state) 40)))]
                                     {:scale phase
-                                     :alpha (* phase 255)})))
+                                     :opacity phase})))
     (render-hud! player area)))
 
 (defmode game-mode {:init asteroids.game-mode/init!
@@ -198,5 +198,4 @@ and player score to aligned to the top right."
                          :update asteroids.game-mode/tick-game-over!
                          :render asteroids.game-mode/render-game-over!
                          :compose {:render :pass :update :pass}})
-
 

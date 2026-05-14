@@ -93,7 +93,7 @@
 ;; Windows 3.11 colors
 
 (def white {:r 255 :g 255 :b 255})
-(def focus-blue {:r 0x00 :g 0x0b :b 0xc8})
+(def FOCUS-BLUE {:r 0x00 :g 0x0b :b 0xc8})
 (def teal {:r 0x00 :g 0x80 :b 0x80})
 (def cyan {:r 0x00 :g 0xff :b 0xff})
 (def panel-face {:r 0xc0 :g 0xc7 :b 0xc8})
@@ -143,7 +143,7 @@
                               :color panel-shadow}}
 
             :ui/accent {:text {:font :font/win3-system-font
-                               :color focus-blue}}
+                               :color FOCUS-BLUE}}
 
             :ui/canvas {:background c/WHITE
                         :border {:color c/BLACK
@@ -153,11 +153,11 @@
                                   :color c/BLACK}}
 
             :ui/list-item-hover:hover
-            {:background focus-blue
+            {:background FOCUS-BLUE
              :text {:color c/WHITE}}
 
             '(:ui/list-item {:selected true})
-            {:background focus-blue
+            {:background FOCUS-BLUE
              :text {:color c/WHITE}}
 
             'ui/list-box {:background c/WHITE
@@ -252,6 +252,11 @@
 
             'ui/scroll-pane-viewport {:background c/WHITE}
 
+            'ui/header-panel-header {:background FOCUS-BLUE
+                                     :text {:color c/WHITE}
+                                     :border {:bottom {:color {:r 0x00 :g 0x00 :b 0x00}
+                                                       :thickness 1}}}
+
             'ui/window {:border {:line-style :solid
                                  :thickness 1
                                  :color c/BLACK}
@@ -266,7 +271,7 @@
                                   :padding 0}
 
             ['ui/window:focus-within 'ui/window-title-bar]
-            {:background focus-blue
+            {:background FOCUS-BLUE
              :text {:color c/WHITE}}
 
             'ui/window-control-button {:background {:image :pixils/win311-control-button}
@@ -347,7 +352,7 @@
                                    :font-styles :underline}}}
 
             :menu/item:hover
-            {:background focus-blue
+            {:background FOCUS-BLUE
              :text {:color white
                     :marked-style {:color c/WHITE}}}
 
@@ -357,7 +362,7 @@
                     :marked-style {:color c/BLACK}}}
 
             '(ui/menu-bar-item {:highlighted true})
-            {:background focus-blue
+            {:background FOCUS-BLUE
              :text {:color white
                     :marked-style {:color c/WHITE}}}
 
@@ -375,12 +380,12 @@
             {:margin {:l 16}}
 
             '(ui/popup-menu-item {:highlighted true})
-            {:background focus-blue
+            {:background FOCUS-BLUE
              :text {:color white
                     :marked-style {:color c/WHITE}}}
 
             '(ui/popup-menu-option-item {:highlighted true})
-            {:background focus-blue
+            {:background FOCUS-BLUE
              :text {:color white
                     :marked-style {:color c/WHITE}}}
 

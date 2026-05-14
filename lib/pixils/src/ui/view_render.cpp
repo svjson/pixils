@@ -33,6 +33,17 @@ namespace Pixils::UI
       return std::max(1, style.scale.value_or(1));
     }
 
+    float opacity_factor(const Style& style)
+    {
+      return std::clamp(style.opacity.value_or(1.0f), 0.0f, 1.0f);
+    }
+
+    Uint8 opacity_to_alpha(float opacity)
+    {
+      return static_cast<Uint8>(
+        std::lround(std::clamp(opacity, 0.0f, 1.0f) * 255.0f));
+    }
+
     Rect scaled_external_bounds(const Rect& logical_bounds, const Style& style)
     {
       int scale = scale_factor(style);
@@ -150,7 +161,10 @@ namespace Pixils::UI
       const Style& style_res = ctx.effective_style;
       if (style_res.hidden && *style_res.hidden) return;
 
-      if (allow_scale_boundary && scale_factor(style_res) > 1)
+      const float opacity = opacity_factor(style_res);
+      if (opacity <= 0.0f) return;
+
+      if (allow_scale_boundary && (scale_factor(style_res) > 1 || opacity < 1.0f))
       {
         if (bounds.w <= 0 || bounds.h <= 0) return;
 
@@ -182,6 +196,7 @@ namespace Pixils::UI
 
         Rect external = scaled_external_bounds(bounds, style_res);
         SDL_Rect dest = target_rect(external, origin).to_SDL_rect();
+        SDL_SetTextureAlphaMod(texture, opacity_to_alpha(opacity));
         SDL_RenderCopy(render_ctx.renderer, texture, nullptr, &dest);
 
         SDL_DestroyTexture(texture);
@@ -234,7 +249,10 @@ namespace Pixils::UI
             background_image_dest(background, bounds, source.w, source.h, origin);
 
           set_clip(render_ctx, intersect_clip(active_clip, bounds), origin);
+          const Uint8 alpha = opacity_to_alpha(background.opacity.value_or(1.0f));
+          SDL_SetTextureAlphaMod(texture, alpha);
           SDL_RenderCopy(render_ctx.renderer, texture, &source, &dest);
+          if (alpha != 255) SDL_SetTextureAlphaMod(texture, 255);
           set_clip(render_ctx, active_clip, origin);
         }
       }

@@ -53,7 +53,8 @@ TEST_F(StyleTest, make_style_with_background_image_layout)
                                            ":source {:x 1 :y 2 :w 3 :h 4} "
                                            ":fit :contain "
                                            ":align :center "
-                                           ":offset {:x 5 :y 6}}})");
+                                           ":offset {:x 5 :y 6} "
+                                           ":opacity 0.5}})");
 
   auto style = Lisple::obj<Pixils::UI::Style>(*result);
   ASSERT_NE(style.background, std::nullopt);
@@ -74,6 +75,18 @@ TEST_F(StyleTest, make_style_with_background_image_layout)
   ASSERT_NE(style.background->offset, std::nullopt);
   EXPECT_EQ(style.background->offset->round_x(), 5);
   EXPECT_EQ(style.background->offset->round_y(), 6);
+  ASSERT_NE(style.background->opacity, std::nullopt);
+  EXPECT_FLOAT_EQ(*style.background->opacity, 0.5f);
+}
+
+TEST_F(StyleTest, make_style_with_opacity)
+{
+  Lisple::sptr_rtval result =
+    runtime.eval("(pixils.ui.style/make-style {:opacity 0.25})");
+
+  auto style = Lisple::obj<Pixils::UI::Style>(*result);
+  ASSERT_NE(style.opacity, std::nullopt);
+  EXPECT_FLOAT_EQ(*style.opacity, 0.25f);
 }
 
 TEST_F(StyleTest, make_style_with_per_side_border_overrides)

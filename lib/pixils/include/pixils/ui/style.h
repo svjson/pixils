@@ -74,6 +74,7 @@ namespace Pixils::UI
       std::optional<Align> align_x;
       std::optional<Align> align_y;
       std::optional<Point> offset;
+      std::optional<float> opacity = std::nullopt;
     };
 
     struct Insets
@@ -272,6 +273,7 @@ namespace Pixils::UI
     std::optional<Text> text = std::nullopt;
     std::optional<BoxSizing> box_sizing = std::nullopt;
     std::optional<int> scale = std::nullopt;
+    std::optional<float> opacity = std::nullopt;
 
     /**
      * Preferred size. For fixed numeric values, interpretation depends on

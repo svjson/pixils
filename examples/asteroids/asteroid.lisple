@@ -106,7 +106,8 @@
 
 (defun render! [asteroids mods]
   (let [scale (or (:scale mods) 1.0)
-        alpha (or (:alpha mods) (:a ROCK-COLOR))]
+        opacity (or (:opacity mods) 1.0)
+        alpha (* opacity (:a ROCK-COLOR))]
     (when (> scale 0)
       (for [asteroid asteroids]
         (r/polygon! (:shape asteroid)

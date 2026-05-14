@@ -1,24 +1,9 @@
-{:styles {
-  :ui/app {:background {:r 0xff :g 0xff :b 0xff}
+{:styles
+ {:ui/app {:background {:r 0xff :g 0xff :b 0xff}
            :text {:color {:r 0x00 :g 0x00 :b 0x00}}}
 
   :ui/panel {:background {:r 0xcc :g 0xcc :b 0xcc}
              :padding 4}
-
-  'ui/header-panel {:padding 0
-                    :layout {:direction :column}}
-
-  'ui/header-panel-header {:width :fill
-                           :height 20
-                           :padding [2 4]
-                           :layout {:direction :row}
-                           :background {:r 0xff :g 0xff :b 0xff}
-                           :border {:bottom {:color {:r 0x00 :g 0x00 :b 0x00}
-                                             :thickness 1}}}
-
-  'ui/header-panel-body {:width :fill
-                         :height :fill
-                         :padding 4}
 
   :ui/title {:text {:color {:r 0x00 :g 0x00 :b 0x00}}}
 
@@ -103,6 +88,21 @@
   'ui/scroll-pane {:background {:r 0xff :g 0xff :b 0xff}}
 
   'ui/scroll-pane-viewport {:background {:r 0xff :g 0xff :b 0xff}}
+
+
+  'ui/header-panel {:padding 0
+                    :layout {:direction :column}}
+
+  'ui/header-panel-header {:width :fill
+                           :padding [2 4]
+                           :layout {:direction :row}
+                           :background {:r 0xff :g 0xff :b 0xff}
+                           :border {:bottom {:color {:r 0x00 :g 0x00 :b 0x00}
+                                             :thickness 1}}}
+
+  'ui/header-panel-body {:width :fill
+                         :height :fill
+                         :padding 4}
 
   'ui/window {:border {:color {:r 0x00 :g 0x00 :b 0x00}
                        :thickness 1}
@@ -194,4 +194,4 @@
    :background {:r 0xff :g 0xff :b 0xff}
    :border {:color {:r 0x00 :g 0x00 :b 0x00}
             :thickness 1}}
-}}
+  }}

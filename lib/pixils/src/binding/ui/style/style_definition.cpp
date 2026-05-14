@@ -334,9 +334,16 @@ namespace Pixils::Script::StyleDefinition
     if (!mode) return Lisple::Constant::NIL;
     return Lisple::RTValue::keyword(*mode == UI::PositionMode::ABSOLUTE ? "absolute"
                                                                         : "flow");
-  }
+    }
 
-  std::optional<UI::Style::BoxSizing> parse_box_sizing(const Lisple::sptr_rtval& value)
+    std::optional<float> parse_opacity(Lisple::MapSchema::Inspector& opts,
+                                       const std::string& key)
+    {
+      if (!opts.contains(key)) return std::nullopt;
+      return std::clamp(opts.f32(key), 0.0f, 1.0f);
+    }
+
+    std::optional<UI::Style::BoxSizing> parse_box_sizing(const Lisple::sptr_rtval& value)
   {
     if (!value || value->type != Lisple::RTValue::Type::KEYWORD) return std::nullopt;
     return value->str() == "content-box" ? UI::Style::BoxSizing::CONTENT_BOX
@@ -824,6 +831,7 @@ namespace Pixils::Script::StyleDefinition
                                            {"text", &HostType::STYLE_TEXT},
                                            {"box-sizing", &Lisple::Type::KEY},
                                            {"scale", &Lisple::Type::NUMBER},
+                                           {"opacity", &Lisple::Type::NUMBER},
                                            {"width", &Lisple::Type::ANY},
                                            {"height", &Lisple::Type::ANY},
                                            {"position", &Lisple::Type::KEY},
@@ -846,6 +854,7 @@ namespace Pixils::Script::StyleDefinition
     style->border = opts.optional_obj<UI::Style::BorderStyle>("border");
     style->layout = opts.optional_obj<UI::Style::Layout>("layout");
     style->text = opts.optional_obj<UI::Style::Text>("text");
+    style->opacity = parse_opacity(opts, "opacity");
     if (opts.contains("box-sizing"))
     {
       style->box_sizing = parse_box_sizing(opts.val("box-sizing"));
@@ -919,7 +928,8 @@ namespace Pixils::Script::StyleDefinition
                                                 {"source", &HostType::RECT},
                                                 {"fit", &Lisple::Type::KEY},
                                                 {"align", &Lisple::Type::KEY},
-                                                {"offset", &HostType::POINT}});
+                                                {"offset", &HostType::POINT},
+                                                {"opacity", &Lisple::Type::NUMBER}});
 
     auto bg = std::make_unique<UI::Style::Background>();
     auto opts = background_schema.bind(ctx, *value);
@@ -934,6 +944,7 @@ namespace Pixils::Script::StyleDefinition
     bg->fit = parse_background_fit(opts.val("fit"));
     apply_background_align(*bg, opts.val("align"));
     bg->offset = opts.optional_obj<Point>("offset");
+    bg->opacity = parse_opacity(opts, "opacity");
 
     return bg;
   }

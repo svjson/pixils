@@ -18,6 +18,9 @@
 #include <lisple/runtime/seq.h>
 #include <lisple/runtime/value.h>
 
+#include <algorithm>
+#include <cmath>
+
 namespace Pixils::Script
 {
   namespace MapKey
@@ -30,6 +33,7 @@ namespace Pixils::Script
     SHKEY(ROTATION, "rotation");
     SHKEY(SCALE, "scale");
     SHKEY(SOURCE, "source");
+    SHKEY(OPACITY, "opacity");
   } // namespace MapKey
 
   namespace Function
@@ -37,6 +41,21 @@ namespace Pixils::Script
     namespace
     {
       constexpr double RADIANS_TO_DEGREES = 180.0 / 3.14159265358979323846;
+
+      Uint8 opacity_to_alpha(float opacity)
+      {
+        return static_cast<Uint8>(
+          std::lround(std::clamp(opacity, 0.0f, 1.0f) * 255.0f));
+      }
+
+      Uint8 image_opacity_alpha(Lisple::MapSchema::Inspector& opts)
+      {
+        if (opts.contains(MapKey::OPACITY->value))
+        {
+          return opacity_to_alpha(opts.f32(MapKey::OPACITY->value));
+        }
+        return 255;
+      }
     }
 
     FUNC_IMPL(DrawImageBang,
@@ -49,7 +68,7 @@ namespace Pixils::Script
     {
       static Lisple::MapSchema draw_image_opts_schema({{"pos", &HostType::POINT}},
                                                       {{"scale", &Lisple::Type::NUMBER},
-                                                       {"alpha", &Lisple::Type::NUMBER},
+                                                       {"opacity", &Lisple::Type::NUMBER},
                                                        {"rotation", &Lisple::Type::NUMBER},
                                                        {"source", &HostType::RECT}});
 
@@ -76,6 +95,7 @@ namespace Pixils::Script
         Point& pos = opts.obj<Point>("pos");
         float scale = opts.f32("scale", 1.0f);
         float rotation = opts.f32(MapKey::ROTATION->value, 0.0f);
+        Uint8 alpha = image_opacity_alpha(opts);
         std::optional<SDL_Rect> source_rect = std::nullopt;
         if (auto source = opts.val(MapKey::SOURCE->value);
             source && source->type != Lisple::RTValue::Type::NIL)
@@ -97,6 +117,7 @@ namespace Pixils::Script
 
         if (texture)
         {
+          SDL_SetTextureAlphaMod(texture, alpha);
           if (rotation == 0.0f)
           {
             SDL_RenderCopy(rc.renderer, texture, source_ptr, &dim);
@@ -111,6 +132,7 @@ namespace Pixils::Script
                              nullptr,
                              SDL_FLIP_NONE);
           }
+          if (alpha != 255) SDL_SetTextureAlphaMod(texture, 255);
         }
       }
 

@@ -7,6 +7,7 @@
 #include <pixils/binding/ui/style/style_definition.h>
 #include <pixils/binding/ui/style/style_host_type.h>
 
+#include <algorithm>
 #include <lisple/host/accessor.h>
 #include <lisple/runtime/value.h>
 
@@ -71,6 +72,7 @@ namespace Pixils::Script
                       (padding),
                       (text),
                       (box_sizing),
+                      (rw, "opacity", opacity),
                       (rw, "scale", scale),
                       (rw, "width", width),
                       (rw, "height", height),
@@ -88,13 +90,29 @@ namespace Pixils::Script
 
   NOBJ_PROP_GET(StyleAdapter, background)
   {
-    if (!get_self_object().background) return Lisple::Constant::NIL;
-    if (get_self_object().background->color && get_self_object().background->image)
-      return BackgroundAdapter::make_ref(*get_self_object().background);
-    if (get_self_object().background->color)
-      return ColorAdapter::make_ref(*get_self_object().background->color);
-    if (get_self_object().background->image)
-      return BackgroundAdapter(*get_self_object().background).get_image();
+    if (!get_self_object().background)
+    {
+      return Lisple::Constant::NIL;
+    }
+
+    const auto& background = *get_self_object().background;
+    const bool needs_background_adapter =
+      (background.color && background.image) || background.source || background.fit ||
+      background.align_x || background.align_y || background.offset || background.opacity;
+
+    if (needs_background_adapter)
+    {
+      return BackgroundAdapter::make_ref(background);
+    }
+    if (background.color)
+    {
+      return ColorAdapter::make_ref(*background.color);
+    }
+    if (background.image)
+    {
+      return Lisple::RTValue::keyword(background.image->first + "/" +
+                                      background.image->second);
+    }
     return Lisple::Constant::NIL;
   }
 
@@ -131,6 +149,24 @@ namespace Pixils::Script
   NOBJ_PROP_GET(StyleAdapter, scale)
   {
     return StyleDefinition::scale_to_value(get_self_object().scale);
+  }
+
+  NOBJ_PROP_GET(StyleAdapter, opacity)
+  {
+    return get_self_object().opacity ? Lisple::RTValue::number(*get_self_object().opacity)
+                                     : Lisple::Constant::NIL;
+  }
+
+  NOBJ_PROP_SET(StyleAdapter, opacity)
+  {
+    if (!value || value->type == Lisple::RTValue::Type::NIL)
+    {
+      get_self_object().opacity = std::nullopt;
+      return;
+    }
+    if (value->type != Lisple::RTValue::Type::NUMBER)
+      throw Lisple::TypeError("Style :opacity must be a number");
+    get_self_object().opacity = std::clamp(value->f32(), 0.0f, 1.0f);
   }
 
   NOBJ_PROP_SET(StyleAdapter, scale)
@@ -339,7 +375,8 @@ namespace Pixils::Script
                       (source),
                       (fit),
                       (align),
-                      (offset));
+                      (offset),
+                      (opacity));
 
   NOBJ_PROP_GET(BackgroundAdapter, image)
   {
@@ -375,6 +412,12 @@ namespace Pixils::Script
   {
     return get_self_object().offset ? PointAdapter::make_ref(*get_self_object().offset)
                                     : Lisple::Constant::NIL;
+  }
+
+  NOBJ_PROP_GET(BackgroundAdapter, opacity)
+  {
+    return get_self_object().opacity ? Lisple::RTValue::number(*get_self_object().opacity)
+                                     : Lisple::Constant::NIL;
   }
 
   NATIVE_ADAPTER_IMPL(BorderAdapter,

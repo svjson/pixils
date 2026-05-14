@@ -445,7 +445,7 @@ hook fires.
 
 | Style key     | Values                                                                | Description |
 |---------------|-----------------------------------------------------------------------|-------------|
-| `:background` | `{:r N :g N :b N}`, `{:r N :g N :b N :a N}`, `:bundle/image`, or `{:color ... :image ...}` | Background fill and/or a non-repeating image. Image maps may include `:source`, `:fit`, `:align`, and `:offset`. |
+| `:background` | `{:r N :g N :b N}`, `{:r N :g N :b N :a N}`, `:bundle/image`, or `{:color ... :image ...}` | Background fill and/or a non-repeating image. Image maps may include `:source`, `:fit`, `:align`, `:offset`, and `:opacity`. |
 | `:margin`     | Number, `[vertical horizontal]`, `[top right bottom left]`, or `{:t N :r N :b N :l N}` | Outer space around a child in layout flow. |
 | `:padding`    | Number, `[vertical horizontal]`, `[top right bottom left]`, or `{:t N :r N :b N :l N}` | Inset applied before the render hook's viewport is set. |
 | `:border`     | Border map (see below)                                               | Draws a border inside the component bounds. |
@@ -453,6 +453,7 @@ hook fires.
 | `:text`       | `{:color {:r N :g N :b N}}`, `{:color :none}`, optional `:font :font/name`, optional `:scale N`, optional `:align :left|:center|:right`, optional `:wrap :word|:none` | Text presentation properties for components that render text. |
 | `:box-sizing` | `:border-box`, `:content-box`                                        | How fixed `:width`/`:height` are interpreted. Default: `:border-box`. |
 | `:scale`      | Integer `N`                                                          | Render this view subtree at logical size, then copy it to an external footprint scaled by `N`. Minimum effective value: `1`. |
+| `:opacity`    | Number from `0.0` to `1.0`                                           | Render this whole view subtree translucent. `1.0` is fully opaque, `0.0` is invisible. |
 | `:width`      | Number                                                               | Fixed width in pixels using the selected `:box-sizing`. Absent means fill remaining space. |
 | `:height`     | Number                                                               | Fixed height in pixels using the selected `:box-sizing`. Absent means fill remaining space. |
 | `:position`   | `:absolute`, `:flow`                                                 | Positioning mode. Default: `:flow`. |
@@ -1074,7 +1075,7 @@ Accepts the same `:font` and `:scale` options as `text!`.
 | `line!`     | Draw a line between two points. Optional third arg: color. |
 | `rect!`     | Draw a rectangle. Args: `{:x :y :w :h}` rect (or two corner points), options map `{:color ... :fill true/false}`. |
 | `polygon!`  | Draw a polygon from a vector of points. Options: `:close`, `:rotation`, `:offset`, `:color`, `:scale`. |
-| `image!`    | Draw an image. Args: qualified keyword `:bundle/id`, options map with `:pos` (required), optional `:source` rect for spritesheet crops, `:scale`, `:alpha`, and `:rotation` (radians). |
+| `image!`    | Draw an image. Args: qualified keyword `:bundle/id`, options map with `:pos` (required), optional `:source` rect for spritesheet crops, `:scale`, `:opacity`, and `:rotation` (radians). |
 | `text!`     | Render a string. Args: string, position point, options map. Returns rendered bounds `{:x :y :w :h}`. |
 | `text-size` | Measure text without rendering. Args: string, optional options map. Returns `{:w :h}`. |
 

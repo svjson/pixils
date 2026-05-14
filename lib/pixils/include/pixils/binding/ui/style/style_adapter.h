@@ -17,6 +17,7 @@ namespace Pixils::Script
                   padding,
                   text,
                   box_sizing,
+                  opacity,
                   scale,
                   width,
                   height,
@@ -31,14 +32,14 @@ namespace Pixils::Script
                   hover,
                   focus_within,
                   focus),
-                 (clip, cursor, height, hidden, hit_test, left, position, scale, top, width));
+                 (clip, cursor, height, hidden, hit_test, left, opacity, position, scale, top, width));
   NATIVE_ADAPTER(LayoutAdapter, UI::Style::Layout, (direction, align_items, gap));
   NATIVE_ADAPTER(LayoutGapAdapter, UI::Style::Layout::Gap, (mode, size));
   NATIVE_ADAPTER(StyleTextAdapter, UI::Style::Text, (color, font, scale, align, wrap));
   NATIVE_ADAPTER(ThemeAdapter, UI::Theme, (name));
   NATIVE_ADAPTER(BackgroundAdapter,
                  UI::Style::Background,
-                 (color, image, source, fit, align, offset));
+                 (color, image, source, fit, align, offset, opacity));
   NATIVE_ADAPTER(BorderAdapter, UI::Style::Border, (thickness, line_style, color, trim));
   NATIVE_SUB_ADAPTER(BorderAdapter,
                      (BorderStyleAdapter, UI::Style::BorderStyle),

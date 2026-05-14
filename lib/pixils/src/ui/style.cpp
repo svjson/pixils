@@ -209,6 +209,7 @@ namespace Pixils::UI
     , text(other.text)
     , box_sizing(other.box_sizing)
     , scale(other.scale)
+    , opacity(other.opacity)
     , width(other.width)
     , height(other.height)
     , position(other.position)
@@ -235,6 +236,7 @@ namespace Pixils::UI
     this->text = other.text;
     this->box_sizing = other.box_sizing;
     this->scale = other.scale;
+    this->opacity = other.opacity;
     this->width = other.width;
     this->height = other.height;
     this->position = other.position;
@@ -454,6 +456,7 @@ namespace Pixils::UI
         out.background->align_y = *variant.background->align_y;
       }
       if (variant.background->offset) out.background->offset = *variant.background->offset;
+      if (variant.background->opacity) out.background->opacity = *variant.background->opacity;
     }
     if (variant.margin) out.margin = variant.margin;
     if (variant.padding) out.padding = variant.padding;
@@ -461,6 +464,7 @@ namespace Pixils::UI
     if (variant.text) apply_text_variant(out, *variant.text);
     if (variant.box_sizing) out.box_sizing = variant.box_sizing;
     if (variant.scale) out.scale = variant.scale;
+    if (variant.opacity) out.opacity = variant.opacity;
     if (variant.width) out.width = variant.width;
     if (variant.height) out.height = variant.height;
     if (variant.position) out.position = variant.position;
