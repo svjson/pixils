@@ -94,6 +94,7 @@ Lisple components, so applications can use them like any other mode.
 | `ui/text-input` | Basic editable single-line text field. |
 | `ui/menu-bar`, `ui/popup-menu` | Data-driven menu controls. |
 | `ui/window` | Lightweight draggable window primitive. |
+| `ui/header-panel` | Static content panel with a styled header/title region. |
 | `ui/scrollbar` | Standalone horizontal or vertical scrollbar primitive. |
 | `ui/scrollbar-corner` | Filler component for the square where two scrollbars meet. |
 | `ui/scroll-pane` | Scrollable viewport composed from a clipped content area and stock scrollbars. |
@@ -113,6 +114,17 @@ or an options map with `:state` plus node options such as `:style`:
 `ui/scrollbar` is intended for direct composition. Use `:axis :x` or `:axis :y`,
 bind `:value` to the scroll offset you want to control, and provide `:content-size`
 for the total scrollable span. Optional `:step` controls the arrow-button increment.
+
+`ui/header-panel` is usually created with `pixils.ui.header-panel/make` so the
+header/body structure stays consistent while applications provide body children:
+
+```clojure
+(pixils.ui.header-panel/make
+  {:title "Inspector"
+   :children [{:mode 'ui/text
+               :state {:value "Selected: Grass"}}]})
+```
+
 The scrollbar uses its effective style as its visual default: `:background` for
 the track, arrow buttons, and handle; `:border :color` for outlines; and
 `:text :color` for arrow glyphs. State colors can still override individual

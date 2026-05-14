@@ -1,0 +1,30 @@
+(ns pixils.ui.header-panel
+  (:require pixils
+            [pixils.ui :as ui]))
+
+(defcomponent ui/header-panel
+  {:class :ui/panel})
+
+(defcomponent ui/header-panel-header
+  {:children [{:mode 'ui/text
+               :class :ui/title
+               :style {:width :fill}
+               :state {:value (ui/bind-state :title)}}]})
+
+(defcomponent ui/header-panel-body
+  {})
+
+(defun make [{:keys [title init update state style header-style body-style body-state children]}]
+  (merge {:mode 'ui/header-panel
+          :style (or style {})
+          :state (merge (or state {})
+                        {:title title})
+          :children [{:mode 'ui/header-panel-header
+                      :style (or header-style {})
+                      :state {:title (ui/bind-state :title)}}
+                     {:mode 'ui/header-panel-body
+                      :style (or body-style {})
+                      :state (or body-state state {})
+                      :children (or children [])}]}
+         (if init {:init init} {})
+         (if update {:update update} {})))

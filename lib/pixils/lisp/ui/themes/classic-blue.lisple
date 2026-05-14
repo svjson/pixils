@@ -7,7 +7,13 @@
 (def BUTTON-SHADOW {:r 0x2d :g 0x36 :b 0x46})
 (def BUTTON-GLYPH {:r 0xf5 :g 0xf6 :b 0xf3})
 
+(def TITLE-BAR-BG {:r 0x29 :g 0x3e :b 0x5c})
+(def TITLE-BAR-HIGHLIGHT {:r 0x7c :g 0x8d :b 0xa8})
+(def TITLE-BAR-SHADOW {:r 0x56 :g 0x6d :b 0x87})
+
 (def PANEL-BG {:r 0x20 :g 0x29 :b 0x36})
+(def PANEL-HIGHLIGHT {:r 0x67 :g 0x78 :b 0x8f})
+(def PANEL-SHADOW {:r 0x2d :g 0x36 :b 0x46})
 
 (deftheme pixils/classic-blue
   {:styles
@@ -17,7 +23,7 @@
     :ui/app {:background {:r 0x1d :g 0x23 :b 0x2a}
              :text {:color {:r 0xe6 :g 0xea :b 0xee}}}
 
-    :ui/title {:text {:color {:r 0xff :g 0xcc :b 0x66}}}
+    :ui/title {:text {:color c/WHITE}}
 
     :ui/muted {:text {:color {:r 0xa7 :g 0xb0 :b 0xb8}}}
 
@@ -160,4 +166,21 @@
     'ui/menu-option-indicator {:margin {:l 2 :r 4}
                                :box-sizing :content-box
                                :width 8
-                               :height 10}}})
+                               :height 10}
+    'ui/header-panel
+    {:border {:color c/BLACK
+              :thickness 1}}
+
+    'ui/header-panel-header
+    {:background {:color TITLE-BAR-BG}
+     :padding 4
+     :text {:color c/WHITE}
+     :border {:color TITLE-BAR-HIGHLIGHT
+              :thickness 1
+              :right {:color TITLE-BAR-SHADOW}
+              :bottom {:color c/BLACK}}}
+
+    'ui/header-panel-body
+    {:border {:color PANEL-SHADOW
+              :thickness 1
+              :left {:color PANEL-HIGHLIGHT}}}}})
