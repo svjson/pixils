@@ -255,6 +255,10 @@ namespace Pixils::Script
       {
         Lisple::obj<MouseEvent>(*args[0]).propagation_stopped = true;
       }
+      else if (HostType::DRAG_EVENT.is_type_of(*args[0]))
+      {
+        Lisple::obj<DragEvent>(*args[0]).propagation_stopped = true;
+      }
       else if (HostType::KEYBOARD_EVENT.is_type_of(*args[0]))
       {
         Lisple::obj<KeyboardEvent>(*args[0]).propagation_stopped = true;
@@ -328,7 +332,8 @@ namespace Pixils::Script
                           ("start-global-position", start_global_pos),
                           ("start-position", start_local_pos),
                           (delta),
-                          ("total-delta", total_delta))
+                          ("total-delta", total_delta),
+                          (payload))
 
   NOBJ_PROP_GET(DragEventAdapter, start_global_pos)
   {
@@ -352,6 +357,11 @@ namespace Pixils::Script
   {
     const Point& point = get_self_object().total_delta;
     return PointAdapter::make_unique(point.x, point.y);
+  }
+
+  NOBJ_PROP_GET(DragEventAdapter, payload)
+  {
+    return get_self_object().payload;
   }
 
   NATIVE_ADAPTER_IMPL(KeyboardEventAdapter,

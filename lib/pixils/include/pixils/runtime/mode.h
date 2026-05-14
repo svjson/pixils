@@ -2,6 +2,7 @@
 #define PIXILS__RUNTIME__MODE_H
 
 #include <pixils/binding/pixils_namespace.h>
+#include <pixils/ui/drag.h>
 #include <pixils/ui/style.h>
 
 #include <lisple/runtime/value.h>
@@ -83,9 +84,11 @@ namespace Pixils::Runtime
     Lisple::sptr_rtval on_drag_start = Lisple::Constant::NIL;
     Lisple::sptr_rtval on_drag = Lisple::Constant::NIL;
     Lisple::sptr_rtval on_drag_end = Lisple::Constant::NIL;
+    Lisple::sptr_rtval on_drop = Lisple::Constant::NIL;
     std::map<std::string, Lisple::sptr_rtval> event_handlers;
     ModeComposition composition;
     std::vector<ChildSlot> children;
+    std::optional<UI::DragPolicy> drag = std::nullopt;
     std::optional<UI::Style> style = std::nullopt;
     std::optional<std::vector<std::string>> theme = std::nullopt;
   };

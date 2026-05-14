@@ -2,10 +2,12 @@
 #define PIXILS__UI__MOUSE_STATE_H
 
 #include <pixils/geom.h>
+#include <pixils/ui/drag.h>
 #include <pixils/ui/mouse_button.h>
 
 #include <map>
 #include <memory>
+#include <optional>
 #include <vector>
 
 namespace Pixils::Runtime
@@ -30,6 +32,8 @@ namespace Pixils::UI
       Point last_global_pos;
       bool eligible = false;
       bool active = false;
+      size_t source_index = 0;
+      DragPolicy policy;
     };
 
     /**
@@ -39,6 +43,7 @@ namespace Pixils::UI
      */
     std::map<MouseButton, ViewChain> button_chains;
     std::map<MouseButton, DragState> drag_states;
+    std::optional<DragOperation> drag_operation = std::nullopt;
 
     /**
      * View currently under the cursor, and the full ancestor chain from it

@@ -294,6 +294,51 @@ TEST_F(EventRoutingTest, drag_continues_after_cursor_leaves_pressed_view)
   EXPECT_EQ(session.active_mode->state->to_string(), "{:last {:x 70 :y 2}}");
 }
 
+TEST_F(EventRoutingTest, drag_policy_payload_is_delivered_to_drop_target)
+{
+  runtime.eval(R"(
+    (pixils/defmode drag-source {
+      :init (fn [state ctx] {:id :disk :started nil})
+      :drag {:start {:mode :threshold :distance 8}
+             :payload (fn [state event ctx]
+                        {:kind :icon
+                         :id (:id state)
+                         :grab (:start-position event)})}
+      :on-drag-start (fn [state event ctx]
+                       (assoc state :started (:payload event)))
+    })
+    (pixils/defmode drop-target {
+      :init    (fn [state ctx] {:dropped nil})
+      :on-drop (fn [state event ctx]
+                 (assoc state :dropped (:payload event)))
+    })
+    (pixils/defmode split-view {:children [{:mode 'drag-source :id "source"}
+                                           {:mode 'drop-target :id "target"}]})
+  )");
+  session.push_mode("split-view", Lisple::Constant::NIL);
+  session.active_mode->bounds = {0, 0, 120, 40};
+  session.active_mode->children[0]->bounds = {0, 0, 50, 40};
+  session.active_mode->children[1]->bounds = {60, 0, 50, 40};
+
+  input().mouse_down({10, 10});
+  update_cycle();
+
+  input().mouse_move({14, 10});
+  update_cycle();
+  EXPECT_EQ(session.active_mode->children[0]->state->to_string(),
+            "{:id :disk :started nil}");
+
+  input().mouse_move({70, 10});
+  update_cycle();
+  input().mouse_up({70, 10});
+  update_cycle();
+
+  EXPECT_EQ(session.active_mode->children[0]->state->to_string(),
+            "{:id :disk :started {:kind :icon :id :disk :grab {:x 10 :y 10}}}");
+  EXPECT_EQ(session.active_mode->children[1]->state->to_string(),
+            "{:dropped {:kind :icon :id :disk :grab {:x 10 :y 10}}}");
+}
+
 TEST_F(EventRoutingTest, drag_end_suppresses_click_and_updates_state)
 {
   runtime.eval(R"(

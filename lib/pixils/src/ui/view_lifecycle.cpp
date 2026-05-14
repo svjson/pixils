@@ -68,6 +68,11 @@ namespace
     mode.on_drag_start = resolve_hook(runtime, mode.on_drag_start);
     mode.on_drag = resolve_hook(runtime, mode.on_drag);
     mode.on_drag_end = resolve_hook(runtime, mode.on_drag_end);
+    mode.on_drop = resolve_hook(runtime, mode.on_drop);
+    if (mode.drag)
+    {
+      mode.drag->payload = resolve_hook(runtime, mode.drag->payload);
+    }
   }
 
   Pixils::Runtime::Mode& resolve_child_mode(const Pixils::Runtime::ChildSlot& slot,
@@ -131,6 +136,7 @@ namespace
     apply_hook(mode.on_drag_start, "on-drag-start");
     apply_hook(mode.on_drag, "on-drag");
     apply_hook(mode.on_drag_end, "on-drag-end");
+    apply_hook(mode.on_drop, "on-drop");
 
     auto on_val = get("on");
     if (on_val->type == Lisple::RTValue::Type::MAP)

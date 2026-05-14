@@ -446,6 +446,7 @@ hook fires.
 | `:top`        | Number                                                               | Top offset when `:position :absolute`. |
 | `:left`       | Number                                                               | Left offset when `:position :absolute`. |
 | `:hidden`     | Boolean                                                              | When true, excluded from hit-testing and rendering. Layout space is preserved. |
+| `:hit-test`   | Boolean                                                              | When false, excluded from hit-testing while still rendering. Useful for overlays and drag previews. |
 | `:clip`       | Boolean                                                              | When true, descendant rendering and hit testing are clipped to this view's content rect. |
 | `:cursor`     | Cursor keyword, pointer keyword, or pointer map                      | Mouse cursor to show while this view, or a descendant without its own cursor, is hovered. |
 | `:hover`      | Nested style map                                                     | Applied instead of the base style when the cursor is within bounds. |
@@ -730,6 +731,19 @@ child slot override map.
 | `:on-drag-start`  | Pressed button begins dragging after moving, routed to the press chain     |
 | `:on-drag`        | Cursor moves while an active drag is in progress, routed to the press chain |
 | `:on-drag-end`    | Active drag ends when the initiating button is released                    |
+| `:on-drop`        | Active drag is released over the component, routed to the hover chain      |
+
+Modes can opt into explicit drag policy with `:drag`:
+
+```lisp
+:drag {:button :left
+       :start {:mode :threshold :distance 3}
+       :payload (fn [state event ctx] {:kind :file :id (:id state)})}
+```
+
+`:start` supports `:motion`, `:immediate`, or `{:mode :threshold :distance n}`.
+The payload is evaluated once when the drag operation starts, then delivered on
+`:on-drag-start`, `:on-drag`, `:on-drag-end`, and `:on-drop`.
 
 **Event object fields**
 
@@ -742,6 +756,7 @@ child slot override map.
 | `:start-global-position` | Drag start position in buffer coordinates - drag hooks only            |
 | `:delta`             | Movement since the previous drag lifecycle event - drag hooks only           |
 | `:total-delta`       | Movement since the initiating mouse-down - drag hooks only                   |
+| `:payload`           | Source-defined drag data - drag and drop hooks only                         |
 
 By default the event propagates from the innermost hit component outward through its
 ancestors. Call `(pixils.ui/stop-propagation! event)` to prevent it reaching further

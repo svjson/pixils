@@ -46,7 +46,7 @@ namespace Pixils::Script
                      (button));
   NATIVE_SUB_ADAPTER(MouseButtonEventAdapter,
                      (DragEventAdapter, DragEvent),
-                     (start_global_pos, start_local_pos, delta, total_delta));
+                     (start_global_pos, start_local_pos, delta, total_delta, payload));
   NATIVE_ADAPTER(KeyboardEventAdapter, KeyboardEvent, (key, held_keys, match));
   NATIVE_ADAPTER(BindStateAdapter, Runtime::BindState);
 

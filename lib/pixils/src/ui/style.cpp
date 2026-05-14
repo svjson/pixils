@@ -216,6 +216,7 @@ namespace Pixils::UI
     , left(other.left)
     , layout(other.layout)
     , hidden(other.hidden)
+    , hit_test(other.hit_test)
     , clip(other.clip)
     , cursor(other.cursor)
     , hover(other.hover ? std::make_unique<Style>(*other.hover) : nullptr)
@@ -241,6 +242,7 @@ namespace Pixils::UI
     this->left = other.left;
     this->layout = other.layout;
     this->hidden = other.hidden;
+    this->hit_test = other.hit_test;
     this->clip = other.clip;
     this->cursor = other.cursor;
     this->hover = other.hover ? std::make_unique<Style>(*other.hover) : nullptr;
@@ -466,6 +468,7 @@ namespace Pixils::UI
     if (variant.left) out.left = variant.left;
     if (variant.layout) out.layout = variant.layout;
     if (variant.hidden) out.hidden = variant.hidden;
+    if (variant.hit_test) out.hit_test = variant.hit_test;
     if (variant.clip) out.clip = variant.clip;
     if (variant.cursor) out.cursor = variant.cursor;
     if (variant.hover)

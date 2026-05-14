@@ -309,6 +309,11 @@ namespace Pixils::UI
     std::optional<bool> hidden;
 
     /**
+     * When false, excluded from hit-testing while still rendering normally.
+     */
+    std::optional<bool> hit_test;
+
+    /**
      * When true, descendant rendering and hit testing are clipped to content_rect.
      */
     std::optional<bool> clip;

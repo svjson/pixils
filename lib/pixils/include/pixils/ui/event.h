@@ -63,6 +63,7 @@ namespace Pixils
     Point start_local_pos;
     Point delta;
     Point total_delta;
+    Lisple::sptr_rtval payload = Lisple::Constant::NIL;
   };
 
   /**

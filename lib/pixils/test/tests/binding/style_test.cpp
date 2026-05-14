@@ -322,6 +322,16 @@ TEST_F(StyleTest, make_style_with_cursor)
   EXPECT_EQ(style.cursor->system, Pixils::UI::SystemCursor::POINTER);
 }
 
+TEST_F(StyleTest, make_style_with_hit_test_disabled)
+{
+  Lisple::sptr_rtval result =
+    runtime.eval("(pixils.ui.style/make-style {:hit-test false})");
+
+  auto style = Lisple::obj<Pixils::UI::Style>(*result);
+  ASSERT_NE(style.hit_test, std::nullopt);
+  EXPECT_FALSE(*style.hit_test);
+}
+
 TEST_F(StyleTest, make_style_with_named_pointer_cursor)
 {
   Lisple::sptr_rtval result =

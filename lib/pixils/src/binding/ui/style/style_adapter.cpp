@@ -79,6 +79,7 @@ namespace Pixils::Script
                       (rw, "left", left),
                       (layout),
                       (rw, "hidden", hidden),
+                      (rw, "hit-test", hit_test),
                       (rw, "clip", clip),
                       (rw, "cursor", cursor),
                       (hover),
@@ -201,6 +202,16 @@ namespace Pixils::Script
   NOBJ_PROP_SET(StyleAdapter, hidden)
   {
     get_self_object().hidden = StyleDefinition::parse_optional_bool(value);
+  }
+
+  NOBJ_PROP_GET(StyleAdapter, hit_test)
+  {
+    return StyleDefinition::optional_bool_to_value(get_self_object().hit_test);
+  }
+
+  NOBJ_PROP_SET(StyleAdapter, hit_test)
+  {
+    get_self_object().hit_test = StyleDefinition::parse_optional_bool(value);
   }
 
   NOBJ_PROP_GET(StyleAdapter, clip)

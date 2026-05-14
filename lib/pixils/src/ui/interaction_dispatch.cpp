@@ -18,6 +18,7 @@
 
 #include <algorithm>
 #include <functional>
+#include <lisple/context.h>
 #include <lisple/host/object.h>
 #include <lisple/runtime.h>
 #include <lisple/runtime/dict.h>
@@ -44,6 +45,7 @@ namespace Pixils::UI
     {
       Style style = resolve_style(view->mode->style, view->state, view->interaction);
       if (view->effective_style.hidden) style.hidden = view->effective_style.hidden;
+      if (view->effective_style.hit_test) style.hit_test = view->effective_style.hit_test;
       if (view->effective_style.clip) style.clip = view->effective_style.clip;
       if (view->effective_style.scale) style.scale = view->effective_style.scale;
       return style;
@@ -94,20 +96,53 @@ namespace Pixils::UI
       return local_pos(logical, chain[target_index]->bounds);
     }
 
-    bool has_drag_hooks(const std::vector<std::shared_ptr<Runtime::View>>& chain)
+    bool has_drag_hooks(const std::shared_ptr<Runtime::View>& view)
     {
-      return std::any_of(
-        chain.begin(),
-        chain.end(),
-        [](const auto& view)
+      return (view->mode->on_drag_start &&
+              view->mode->on_drag_start->type != Lisple::RTValue::Type::NIL) ||
+             (view->mode->on_drag &&
+              view->mode->on_drag->type != Lisple::RTValue::Type::NIL) ||
+             (view->mode->on_drag_end &&
+              view->mode->on_drag_end->type != Lisple::RTValue::Type::NIL);
+    }
+
+    std::optional<std::pair<size_t, DragPolicy>> drag_policy_for_chain(
+      const std::vector<std::shared_ptr<Runtime::View>>& chain,
+      MouseButton button)
+    {
+      for (size_t i = 0; i < chain.size(); i++)
+      {
+        auto& view = chain[i];
+        if (view->mode->drag)
         {
-          return (view->mode->on_drag_start &&
-                  view->mode->on_drag_start->type != Lisple::RTValue::Type::NIL) ||
-                 (view->mode->on_drag &&
-                  view->mode->on_drag->type != Lisple::RTValue::Type::NIL) ||
-                 (view->mode->on_drag_end &&
-                  view->mode->on_drag_end->type != Lisple::RTValue::Type::NIL);
-        });
+          if (view->mode->drag->button == button) return std::make_pair(i, *view->mode->drag);
+          continue;
+        }
+
+        if (has_drag_hooks(view))
+        {
+          DragPolicy policy;
+          policy.button = button;
+          return std::make_pair(i, policy);
+        }
+      }
+
+      return std::nullopt;
+    }
+
+    bool should_start_drag(const MouseState::DragState& drag_state, const Point& gp)
+    {
+      switch (drag_state.policy.start.mode)
+      {
+      case DragStartMode::IMMEDIATE:
+        return true;
+      case DragStartMode::THRESHOLD:
+        return drag_state.start_global_pos.euclidean_distance_to(gp) >=
+               static_cast<float>(drag_state.policy.start.distance);
+      case DragStartMode::MOTION:
+      default:
+        return !(gp == drag_state.start_global_pos);
+      }
     }
 
     std::vector<std::shared_ptr<Runtime::View>> lock_chain(
@@ -226,6 +261,78 @@ namespace Pixils::UI
         },
         hook_args,
         rt);
+    }
+
+    Lisple::sptr_rtval invoke_drag_payload_hook(
+      const std::shared_ptr<Runtime::View>& source,
+      const Lisple::sptr_rtval& hook,
+      DragEvent& ev,
+      Runtime::HookArguments& hook_args,
+      Lisple::Runtime& rt)
+    {
+      auto payload_hook = resolve_callable_handler(rt, hook);
+      if (!payload_hook || payload_hook->type == Lisple::RTValue::Type::NIL)
+        return Lisple::Constant::NIL;
+
+      Lisple::obj<HookContext>(*hook_args.update_args[1]).current_view = source;
+      auto ev_ref = Script::DragEventAdapter::make_ref(ev);
+      Lisple::sptr_rtval_v args = {source->state, ev_ref, hook_args.update_args[1]};
+      Lisple::Context exec_ctx(rt);
+      auto result = payload_hook->exec().execute(exec_ctx, args);
+      return result ? result : Lisple::Constant::NIL;
+    }
+
+    DragEvent make_drag_event(MouseButton button,
+                              const Point& gp,
+                              const MouseState::DragState& drag_state)
+    {
+      DragEvent ev;
+      ev.global_pos = gp;
+      ev.button = Lisple::RTValue::keyword(mouse_button_name(button));
+      ev.start_global_pos = drag_state.start_global_pos;
+      ev.delta = gp - drag_state.last_global_pos;
+      ev.total_delta = gp - drag_state.start_global_pos;
+      ev.payload = Lisple::Constant::NIL;
+      return ev;
+    }
+
+    void start_drag_operation(MouseState& mouse_state,
+                              MouseButton button,
+                              MouseState::DragState& drag_state,
+                              const std::vector<std::shared_ptr<Runtime::View>>& chain,
+                              const Point& gp,
+                              Runtime::HookArguments& hook_args,
+                              Lisple::Runtime& rt)
+    {
+      if (drag_state.source_index >= chain.size()) return;
+
+      auto source = chain[drag_state.source_index];
+      DragEvent drag_start_ev = make_drag_event(button, gp, drag_state);
+      drag_start_ev.local_pos = local_pos_in_view(gp, chain, drag_state.source_index);
+      drag_start_ev.start_local_pos =
+        local_pos_in_view(drag_state.start_global_pos, chain, drag_state.source_index);
+      drag_start_ev.payload = invoke_drag_payload_hook(source,
+                                                       drag_state.policy.payload,
+                                                       drag_start_ev,
+                                                       hook_args,
+                                                       rt);
+
+      mouse_state.drag_operation = DragOperation{
+        .button = button,
+        .source = source,
+        .start_global_pos = drag_state.start_global_pos,
+        .current_global_pos = gp,
+        .payload = drag_start_ev.payload,
+        .policy = drag_state.policy,
+      };
+
+      bubble_drag_hook(chain,
+                       &Runtime::Mode::on_drag_start,
+                       drag_start_ev,
+                       hook_args,
+                       rt);
+      drag_state.active = true;
+      drag_state.last_global_pos = gp;
     }
 
     bool held_keys_contains(const Lisple::sptr_rtval& held_keys,
@@ -631,6 +738,7 @@ namespace Pixils::UI
       if (view->bounds.w == 0) return false;
       auto style = interaction_style(view);
       if (style.hidden && *style.hidden) return false;
+      if (style.hit_test && !*style.hit_test) return false;
       if (inherited_clip &&
           (point.x < inherited_clip->x || point.x >= inherited_clip->x + inherited_clip->w ||
            point.y < inherited_clip->y || point.y >= inherited_clip->y + inherited_clip->h))
@@ -775,18 +883,29 @@ namespace Pixils::UI
           auto pressed_chain = lock_chain(pressed_chain_it->second);
           if (!pressed_chain.empty())
           {
-            DragEvent drag_end_ev;
-            drag_end_ev.global_pos = gp;
+            DragEvent drag_end_ev = make_drag_event(up_btn, gp, drag_it->second);
             drag_end_ev.button = events.mouse_button_up;
-            drag_end_ev.start_global_pos = drag_it->second.start_global_pos;
-            drag_end_ev.delta = gp - drag_it->second.last_global_pos;
-            drag_end_ev.total_delta = gp - drag_it->second.start_global_pos;
+            if (mouse_state.drag_operation)
+            {
+              mouse_state.drag_operation->current_global_pos = gp;
+              drag_end_ev.payload = mouse_state.drag_operation->payload;
+            }
             bubble_drag_hook(pressed_chain,
                              &Runtime::Mode::on_drag_end,
                              drag_end_ev,
                              hook_args,
                              rt);
           }
+
+          DragEvent drop_ev = make_drag_event(up_btn, gp, drag_it->second);
+          drop_ev.button = events.mouse_button_up;
+          if (mouse_state.drag_operation) drop_ev.payload = mouse_state.drag_operation->payload;
+          bubble_drag_hook(chain,
+                           &Runtime::Mode::on_drop,
+                           drop_ev,
+                           hook_args,
+                           rt);
+          mouse_state.drag_operation = std::nullopt;
         }
       }
 
@@ -856,11 +975,14 @@ namespace Pixils::UI
       {
         btn_chain.push_back(std::weak_ptr<Runtime::View>(view_ptr));
       }
+      auto drag_policy = drag_policy_for_chain(hit_chain, btn);
       mouse_state.drag_states[btn] = MouseState::DragState{
         .start_global_pos = gp,
         .last_global_pos = gp,
-        .eligible = has_drag_hooks(hit_chain),
+        .eligible = drag_policy.has_value(),
         .active = false,
+        .source_index = drag_policy ? drag_policy->first : 0,
+        .policy = drag_policy ? drag_policy->second : DragPolicy{},
       };
 
       MouseButtonEvent ev;
@@ -875,6 +997,19 @@ namespace Pixils::UI
         [&](size_t index) { ev.local_pos = local_pos_in_view(gp, hit_chain, index); },
         hook_args,
         rt);
+
+      auto drag_it = mouse_state.drag_states.find(btn);
+      if (drag_it != mouse_state.drag_states.end() && drag_it->second.eligible &&
+          drag_it->second.policy.start.mode == DragStartMode::IMMEDIATE)
+      {
+        start_drag_operation(mouse_state,
+                             btn,
+                             drag_it->second,
+                             hit_chain,
+                             gp,
+                             hook_args,
+                             rt);
+      }
     }
 
     void handle_mouse_motion(MouseState& mouse_state,
@@ -918,32 +1053,19 @@ namespace Pixils::UI
         auto& drag_state = drag_it->second;
         if (!drag_state.active)
         {
-          if (gp == drag_state.start_global_pos) continue;
-
-          DragEvent drag_start_ev;
-          drag_start_ev.global_pos = gp;
-          drag_start_ev.button = Lisple::RTValue::keyword(mouse_button_name(btn));
-          drag_start_ev.start_global_pos = drag_state.start_global_pos;
-          drag_start_ev.delta = gp - drag_state.last_global_pos;
-          drag_start_ev.total_delta = gp - drag_state.start_global_pos;
-          bubble_drag_hook(chain,
-                           &Runtime::Mode::on_drag_start,
-                           drag_start_ev,
-                           hook_args,
-                           rt);
-          drag_state.active = true;
-          drag_state.last_global_pos = gp;
+          if (!should_start_drag(drag_state, gp)) continue;
+          start_drag_operation(mouse_state, btn, drag_state, chain, gp, hook_args, rt);
           continue;
         }
 
         if (gp == drag_state.last_global_pos) continue;
 
-        DragEvent drag_ev;
-        drag_ev.global_pos = gp;
-        drag_ev.button = Lisple::RTValue::keyword(mouse_button_name(btn));
-        drag_ev.start_global_pos = drag_state.start_global_pos;
-        drag_ev.delta = gp - drag_state.last_global_pos;
-        drag_ev.total_delta = gp - drag_state.start_global_pos;
+        DragEvent drag_ev = make_drag_event(btn, gp, drag_state);
+        if (mouse_state.drag_operation)
+        {
+          mouse_state.drag_operation->current_global_pos = gp;
+          drag_ev.payload = mouse_state.drag_operation->payload;
+        }
         bubble_drag_hook(chain, &Runtime::Mode::on_drag, drag_ev, hook_args, rt);
         drag_state.last_global_pos = gp;
       }
@@ -1094,6 +1216,9 @@ namespace Pixils::UI
       {
         if (!held.count(it->first))
         {
+          if (mouse_state.drag_operation &&
+              mouse_state.drag_operation->button == it->first)
+            mouse_state.drag_operation = std::nullopt;
           mouse_state.drag_states.erase(it->first);
           it = mouse_state.button_chains.erase(it);
         }

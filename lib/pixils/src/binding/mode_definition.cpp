@@ -49,6 +49,70 @@ namespace Pixils::Script
       return val ? val : Lisple::Constant::NIL;
     }
 
+    UI::DragStartMode parse_drag_start_mode(const Lisple::sptr_rtval& value)
+    {
+      if (!value || value->type != Lisple::RTValue::Type::KEYWORD)
+        throw Lisple::TypeError("Mode :drag :start :mode must be a keyword");
+
+      if (value->str() == "motion") return UI::DragStartMode::MOTION;
+      if (value->str() == "immediate") return UI::DragStartMode::IMMEDIATE;
+      if (value->str() == "threshold") return UI::DragStartMode::THRESHOLD;
+      throw Lisple::TypeError("unknown drag start mode :" + value->str());
+    }
+
+    UI::DragStartPolicy parse_drag_start_policy(Lisple::Context& ctx,
+                                                const Lisple::sptr_rtval& value)
+    {
+      UI::DragStartPolicy policy;
+      if (!value || value->type == Lisple::RTValue::Type::NIL) return policy;
+
+      if (value->type == Lisple::RTValue::Type::KEYWORD)
+      {
+        policy.mode = parse_drag_start_mode(value);
+        if (policy.mode == UI::DragStartMode::THRESHOLD) policy.distance = 3;
+        return policy;
+      }
+
+      if (value->type != Lisple::RTValue::Type::MAP)
+        throw Lisple::TypeError("Mode :drag :start must be a keyword or map");
+
+      static Lisple::MapSchema start_schema({},
+                                            {{"mode", &Lisple::Type::KEY},
+                                             {"distance", &Lisple::Type::NUMBER}});
+      auto opts = start_schema.bind(ctx, *value);
+      if (opts.contains("mode")) policy.mode = parse_drag_start_mode(opts.val("mode"));
+      if (opts.contains("distance"))
+      {
+        policy.distance = std::max(0, opts.i32("distance"));
+        if (!opts.contains("mode")) policy.mode = UI::DragStartMode::THRESHOLD;
+      }
+      return policy;
+    }
+
+    std::optional<UI::DragPolicy> parse_drag_policy(Lisple::Context& ctx,
+                                                    const Lisple::sptr_rtval& value)
+    {
+      if (!value || value->type == Lisple::RTValue::Type::NIL) return std::nullopt;
+      if (value->type != Lisple::RTValue::Type::MAP)
+        throw Lisple::TypeError("Mode :drag must be a map");
+
+      static Lisple::MapSchema drag_schema({},
+                                           {{"button", &Lisple::Type::KEY},
+                                            {"start", &Lisple::Type::ANY},
+                                            {"payload", &Lisple::Type::ANY}});
+
+      UI::DragPolicy policy;
+      auto opts = drag_schema.bind(ctx, *value);
+      if (opts.contains("button"))
+        policy.button = UI::mouse_button_from_name(opts.str("button"));
+      if (policy.button == UI::MouseButton::NONE)
+        throw Lisple::TypeError("Mode :drag :button must be :left, :right, or :middle");
+      if (opts.contains("start"))
+        policy.start = parse_drag_start_policy(ctx, opts.val("start"));
+      if (opts.contains("payload")) policy.payload = eval_hook(ctx, opts.val("payload"));
+      return policy;
+    }
+
   } // namespace
 
   std::vector<std::string> parse_mode_classes(const Lisple::sptr_rtval& class_val)
@@ -195,9 +259,11 @@ namespace Pixils::Script
                                           {"on-drag-start", &Lisple::Type::ANY},
                                           {"on-drag", &Lisple::Type::ANY},
                                           {"on-drag-end", &Lisple::Type::ANY},
+                                          {"on-drop", &Lisple::Type::ANY},
                                           {"on", &Lisple::Type::MAP},
                                           {"compose", &HostType::MODE_COMPOSITION},
                                           {"resources", &HostType::RESOURCE_DEPENDENCIES},
+                                          {"drag", &Lisple::Type::MAP},
                                           {"style", &HostType::STYLE},
                                           {"class", &Lisple::Type::ANY},
                                           {"focusable", &Lisple::Type::BOOL},
@@ -262,6 +328,7 @@ namespace Pixils::Script
     apply_hook(mode.on_drag_start, "on-drag-start");
     apply_hook(mode.on_drag, "on-drag");
     apply_hook(mode.on_drag_end, "on-drag-end");
+    apply_hook(mode.on_drop, "on-drop");
 
     if (opts.contains("on"))
     {
@@ -281,6 +348,8 @@ namespace Pixils::Script
       auto res = opts.optional_obj<Runtime::ResourceDependencies>("resources");
       if (res.has_value()) mode.resources = *res;
     }
+
+    if (opts.contains("drag")) mode.drag = parse_drag_policy(ctx, opts.val("drag"));
 
     mode.style = opts.optional_obj<UI::Style>("style");
     if (opts.contains("class"))

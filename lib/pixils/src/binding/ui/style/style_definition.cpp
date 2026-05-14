@@ -384,9 +384,8 @@ namespace Pixils::Script::StyleDefinition
     return std::nullopt;
   }
 
-  std::optional<UI::ImageCursor> parse_image_cursor(
-    Lisple::Context& ctx,
-    const Lisple::sptr_rtval& value)
+  std::optional<UI::ImageCursor> parse_image_cursor(Lisple::Context& ctx,
+                                                    const Lisple::sptr_rtval& value)
   {
     if (!value || value->type != Lisple::RTValue::Type::MAP) return std::nullopt;
 
@@ -506,8 +505,7 @@ namespace Pixils::Script::StyleDefinition
       values.push_back(Lisple::RTValue::number(value->image.scale));
       values.push_back(Lisple::RTValue::keyword("render"));
       values.push_back(Lisple::RTValue::keyword(
-        value->image.render_mode == UI::ImageCursor::RenderMode::NATIVE ? "native"
-                                                                         : "app"));
+        value->image.render_mode == UI::ImageCursor::RenderMode::NATIVE ? "native" : "app"));
       return Lisple::RTValue::map(values);
     }
     }
@@ -832,6 +830,7 @@ namespace Pixils::Script::StyleDefinition
                                            {"top", &Lisple::Type::NUMBER},
                                            {"left", &Lisple::Type::NUMBER},
                                            {"hidden", &Lisple::Type::ANY},
+                                           {"hit-test", &Lisple::Type::ANY},
                                            {"clip", &Lisple::Type::ANY},
                                            {"cursor", &Lisple::Type::ANY},
                                            {"hover", &HostType::STYLE},
@@ -848,15 +847,24 @@ namespace Pixils::Script::StyleDefinition
     style->layout = opts.optional_obj<UI::Style::Layout>("layout");
     style->text = opts.optional_obj<UI::Style::Text>("text");
     if (opts.contains("box-sizing"))
+    {
       style->box_sizing = parse_box_sizing(opts.val("box-sizing"));
+    }
+
     if (opts.contains("scale")) style->scale = parse_scale(opts.val("scale"));
     if (opts.contains("width")) style->width = parse_size(opts.val("width"));
     if (opts.contains("height")) style->height = parse_size(opts.val("height"));
     if (opts.contains("position"))
+    {
       style->position = parse_position_mode(opts.val("position"));
+    }
     if (opts.contains("top")) style->top = opts.i32("top");
     if (opts.contains("left")) style->left = opts.i32("left");
     if (opts.contains("hidden")) style->hidden = parse_optional_bool(opts.val("hidden"));
+    if (opts.contains("hit-test"))
+    {
+      style->hit_test = parse_optional_bool(opts.val("hit-test"));
+    }
     if (opts.contains("clip")) style->clip = parse_optional_bool(opts.val("clip"));
     if (opts.contains("cursor")) style->cursor = parse_cursor(ctx, opts.val("cursor"));
 
@@ -918,7 +926,10 @@ namespace Pixils::Script::StyleDefinition
     bg->color = opts.optional_obj<Color>("color");
 
     auto image_key = opts.val("image");
-    if (image_key->type != Lisple::RTValue::Type::NIL) bg->image = image_key->qual();
+    if (image_key->type != Lisple::RTValue::Type::NIL)
+    {
+      bg->image = image_key->qual();
+    }
     bg->source = opts.optional_obj<Rect>("source");
     bg->fit = parse_background_fit(opts.val("fit"));
     apply_background_align(*bg, opts.val("align"));
