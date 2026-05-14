@@ -28,9 +28,9 @@ namespace Pixils::Runtime
         return base_state;
       }
 
-      auto modes = runtime.lookup_value(Script::ID__PIXILS__MODES);
+      auto modes = runtime.lookup(Script::ID__PIXILS__MODES);
       auto& render_ctx = Lisple::obj<RenderContext>(
-        *runtime.lookup_value(Script::ID__PIXILS__RENDER_CONTEXT));
+        *runtime.lookup(Script::ID__PIXILS__RENDER_CONTEXT));
       auto* assets = render_ctx.asset_registry.get();
       if (!assets)
       {

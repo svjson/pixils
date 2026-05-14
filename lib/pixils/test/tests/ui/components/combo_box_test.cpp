@@ -41,7 +41,7 @@ TEST_F(ComboBoxTest, combo_box_opens_scrollable_popup_and_reports_selection)
 {
   runtime.eval("(def probe-combo-value (pixils.ui.combo-box/selected-value "
                "[{:value :a :label \"Alpha\"} {:value :b :label \"Beta\"}] 1))");
-  auto probe = runtime.lookup_value("test/probe-combo-value");
+  auto probe = runtime.lookup("test/probe-combo-value");
   ASSERT_NE(probe, nullptr);
   ASSERT_EQ(probe->to_string(), ":b");
 

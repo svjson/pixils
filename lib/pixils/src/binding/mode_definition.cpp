@@ -277,7 +277,7 @@ namespace Pixils::Script
     if (opts.contains("extend"))
     {
       auto extends_name = opts.str("extend", "");
-      auto modes = ctx.lookup_value(ID__PIXILS__MODES);
+      auto modes = ctx.lookup(ID__PIXILS__MODES);
       auto base_val =
         Lisple::Dict::get_property(modes, Lisple::RTValue::symbol(extends_name));
       if (!base_val || base_val->type == Lisple::RTValue::Type::NIL)

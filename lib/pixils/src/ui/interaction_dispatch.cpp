@@ -183,7 +183,7 @@ namespace Pixils::UI
       if (!val || val->type == Lisple::RTValue::Type::NIL) return Lisple::Constant::NIL;
       if (val->type == Lisple::RTValue::Type::SYMBOL)
       {
-        return runtime.lookup_value(val->str());
+        return runtime.lookup(val->str());
       }
       if (val->type == Lisple::RTValue::Type::FUNCTION) return val;
       return Lisple::Constant::NIL;

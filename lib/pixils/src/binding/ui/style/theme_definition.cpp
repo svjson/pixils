@@ -192,7 +192,7 @@ namespace Pixils::Script
 
     if (!theme.extend.empty())
     {
-      auto themes = ctx.lookup_value(ID__PIXILS__THEMES);
+      auto themes = ctx.lookup(ID__PIXILS__THEMES);
       UI::Theme merged;
 
       for (const auto& extends_name : theme.extend)

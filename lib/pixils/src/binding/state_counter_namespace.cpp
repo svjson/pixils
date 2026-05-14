@@ -53,7 +53,7 @@ namespace Pixils::Script
       Lisple::sptr_rtval resolved = callback;
       if (callback->type == Lisple::RTValue::Type::SYMBOL)
       {
-        resolved = ctx.lookup_value(callback->str());
+        resolved = ctx.lookup(callback->str());
       }
 
       if (!resolved || resolved->type != Lisple::RTValue::Type::FUNCTION)

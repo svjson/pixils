@@ -90,7 +90,7 @@ namespace Pixils::Script
 
     EXEC_BODY(BlurBangFunction, exec_blur)
     {
-      auto message_queue = ctx.lookup_value(ID__PIXILS__MODE_STACK_MESSAGES);
+      auto message_queue = ctx.lookup(ID__PIXILS__MODE_STACK_MESSAGES);
       auto target =
         args.empty() ? Lisple::Constant::NIL : resolve_view_target(args[0], "ui/blur!");
 
@@ -161,7 +161,7 @@ namespace Pixils::Script
     EXEC_BODY(FocusBangFunction, exec_focus)
     {
       auto target = resolve_view_target(args[0], "ui/focus!");
-      auto message_queue = ctx.lookup_value(ID__PIXILS__MODE_STACK_MESSAGES);
+      auto message_queue = ctx.lookup(ID__PIXILS__MODE_STACK_MESSAGES);
 
       Lisple::append(*message_queue,
                      Lisple::RTValue::map(Lisple::sptr_rtval_v{

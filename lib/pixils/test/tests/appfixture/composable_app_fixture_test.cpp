@@ -105,7 +105,7 @@ TEST_F(ComposableAppFixtureTest, loads_file_defined_mode_into_pixils_mode_regist
            "pixils.test.app.main",
            {"pixils/test/app/main.lisple"});
 
-  auto modes = pixils().lookup_value("pixils/modes");
+  auto modes = pixils().lookup("pixils/modes");
   ASSERT_NE(modes, nullptr);
 
   auto test_mode_val =

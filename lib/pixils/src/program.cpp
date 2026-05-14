@@ -30,7 +30,7 @@ namespace Pixils
 
     Program& resolve_program(Lisple::Runtime& runtime)
     {
-      Lisple::sptr_rtval programs = runtime.lookup_value(Script::ID__PIXILS__PROGRAMS);
+      Lisple::sptr_rtval programs = runtime.lookup(Script::ID__PIXILS__PROGRAMS);
       auto program_keys = Lisple::Dict::map_keys(*programs);
       Lisple::sptr_rtval program_key;
 
@@ -52,7 +52,7 @@ namespace Pixils
     {
       if (program.initial_mode != "") return;
 
-      auto modes = runtime.lookup_value(Script::ID__PIXILS__MODES);
+      auto modes = runtime.lookup(Script::ID__PIXILS__MODES);
       auto mode_keys = Lisple::Dict::map_keys(*modes);
       if (mode_keys.size() == 0) throw Lisple::LispleException("No modes defined");
 

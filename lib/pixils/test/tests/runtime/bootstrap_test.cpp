@@ -14,7 +14,7 @@ class BootstrapTest : public BaseFixture
 
 TEST_F(BootstrapTest, loads_embedded_core_ui_modes_into_pixils_mode_registry)
 {
-  auto modes = runtime.lookup_value("pixils/modes");
+  auto modes = runtime.lookup("pixils/modes");
   ASSERT_NE(modes, nullptr);
 
   auto text_mode = Lisple::Dict::get_property(modes, Lisple::RTValue::symbol("ui/text"));
@@ -139,7 +139,7 @@ TEST_F(BootstrapTest, includes_embedded_windows_theme_sources)
 
 TEST_F(BootstrapTest, loads_embedded_core_themes_into_registry)
 {
-  auto themes = runtime.lookup_value("pixils/themes");
+  auto themes = runtime.lookup("pixils/themes");
   ASSERT_NE(themes, nullptr);
 
   auto classic_blue =

@@ -44,12 +44,12 @@ namespace Pixils::Script
   inline const std::string FN__PUSH_MODE_BANG = "push-mode!";
   inline const std::string FN__QUIT_BANG = "quit!";
 
-  inline const Lisple::Word ID__PIXILS__MODE_STACK("pixils/mode-stack");
-  inline const Lisple::Word ID__PIXILS__MODE_STACK_MESSAGES("pixils/mode-stack-messages");
-  inline const Lisple::Word ID__PIXILS__MODES("pixils/modes");
-  inline const Lisple::Word ID__PIXILS__PROGRAMS("pixils/programs");
-  inline const Lisple::Word ID__PIXILS__RENDER_CONTEXT("pixils/render-context");
-  inline const Lisple::Word ID__PIXILS__THEMES("pixils/themes");
+  inline const std::string ID__PIXILS__MODE_STACK = "pixils/mode-stack";
+  inline const std::string ID__PIXILS__MODE_STACK_MESSAGES = "pixils/mode-stack-messages";
+  inline const std::string ID__PIXILS__MODES = "pixils/modes";
+  inline const std::string ID__PIXILS__PROGRAMS = "pixils/programs";
+  inline const std::string ID__PIXILS__RENDER_CONTEXT = "pixils/render-context";
+  inline const std::string ID__PIXILS__THEMES = "pixils/themes";
 
   namespace MapKey
   {

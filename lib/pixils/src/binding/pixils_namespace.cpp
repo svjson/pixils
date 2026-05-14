@@ -91,7 +91,7 @@ namespace Pixils::Script
       }
 
       RenderContext& rc =
-        Lisple::obj<RenderContext>(*ctx.ctx->lookup_value(ID__PIXILS__RENDER_CONTEXT));
+        Lisple::obj<RenderContext>(*ctx.ctx->lookup(ID__PIXILS__RENDER_CONTEXT));
       rc.pointer_registry[name] = *pointer;
 
       return std::make_unique<Lisple::ExecNode>(Lisple::Constant::NIL);
@@ -119,7 +119,7 @@ namespace Pixils::Script
       }
 
       RenderContext& rc =
-        Lisple::obj<RenderContext>(*ctx.ctx->lookup_value(ID__PIXILS__RENDER_CONTEXT));
+        Lisple::obj<RenderContext>(*ctx.ctx->lookup(ID__PIXILS__RENDER_CONTEXT));
       rc.asset_registry->declare_bundle(
         name,
         Lisple::obj<Runtime::ResourceDependencies>(*deps_coercion.result));
@@ -256,7 +256,7 @@ namespace Pixils::Script
       }
 
       RenderContext& rc =
-        Lisple::obj<RenderContext>(*ctx.ctx->lookup_value(ID__PIXILS__RENDER_CONTEXT));
+        Lisple::obj<RenderContext>(*ctx.ctx->lookup(ID__PIXILS__RENDER_CONTEXT));
 
       auto [bundle_key, image_key] = resource_key->qual();
 
@@ -299,7 +299,7 @@ namespace Pixils::Script
 
       auto opts = program_schema.bind(*ctx.ctx, *map_expr);
 
-      auto programs = ctx.ctx->lookup_value(ID__PIXILS__PROGRAMS);
+      auto programs = ctx.ctx->lookup(ID__PIXILS__PROGRAMS);
       auto initial_mode = opts.str(MapKey::INITIAL_MODE->value, "");
 
       Display display = opts.contains(MapKey::DISPLAY->value)
@@ -346,7 +346,7 @@ namespace Pixils::Script
 
     SFORM_LOWER_IMPL(DefThemeForm)
     {
-      auto themes = ctx.ctx->lookup_value(ID__PIXILS__THEMES);
+      auto themes = ctx.ctx->lookup(ID__PIXILS__THEMES);
       auto name_expr = Lisple::exec(*ctx.ctx, *lower_literal(ast_node->get_children()[1]));
       auto name = name_expr->str();
       auto theme_expr =
@@ -371,7 +371,7 @@ namespace Pixils::Script
 
     SFORM_LOWER_IMPL(DefModeForm)
     {
-      auto modes = ctx.ctx->lookup_value(ID__PIXILS__MODES);
+      auto modes = ctx.ctx->lookup(ID__PIXILS__MODES);
       auto name_expr = Lisple::exec(*ctx.ctx, *lower_literal(ast_node->get_children()[1]));
       auto name_str = Lisple::RTValue::string(name_expr->str());
 
@@ -388,7 +388,7 @@ namespace Pixils::Script
       Lisple::Dict::set_property(modes, name_expr, mode_coercion.result);
 
       RenderContext& rc =
-        Lisple::obj<RenderContext>(*ctx.ctx->lookup_value(ID__PIXILS__RENDER_CONTEXT));
+        Lisple::obj<RenderContext>(*ctx.ctx->lookup(ID__PIXILS__RENDER_CONTEXT));
       rc.asset_registry->declare_bundle(
         name_expr->str(),
         Lisple::obj<Runtime::Mode>(*mode_coercion.result).resources);
@@ -554,7 +554,7 @@ namespace Pixils::Script
 
     EXEC_BODY(PushModeBangFunction, exec_push_mode)
     {
-      auto message_queue = ctx.lookup_value(ID__PIXILS__MODE_STACK_MESSAGES);
+      auto message_queue = ctx.lookup(ID__PIXILS__MODE_STACK_MESSAGES);
 
       Lisple::append(
         *message_queue,
@@ -578,7 +578,7 @@ namespace Pixils::Script
 
     EXEC_BODY(PopModeBangFunction, exec_pop_mode)
     {
-      auto message_queue = ctx.lookup_value(ID__PIXILS__MODE_STACK_MESSAGES);
+      auto message_queue = ctx.lookup(ID__PIXILS__MODE_STACK_MESSAGES);
 
       Lisple::append(*message_queue,
                      Lisple::RTValue::map({
@@ -596,7 +596,7 @@ namespace Pixils::Script
 
     EXEC_BODY(QuitBangFunction, exec_quit)
     {
-      auto message_queue = ctx.lookup_value(ID__PIXILS__MODE_STACK_MESSAGES);
+      auto message_queue = ctx.lookup(ID__PIXILS__MODE_STACK_MESSAGES);
 
       Lisple::append(*message_queue,
                      Lisple::RTValue::map({

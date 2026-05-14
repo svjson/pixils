@@ -255,7 +255,7 @@ namespace Pixils::UI
 
     std::optional<Theme> lookup_theme(Lisple::Runtime& runtime, const std::string& name)
     {
-      auto themes = runtime.lookup_value(Pixils::Script::ID__PIXILS__THEMES);
+      auto themes = runtime.lookup(Pixils::Script::ID__PIXILS__THEMES);
       auto theme_val = Lisple::Dict::get_property(themes, Lisple::RTValue::symbol(name));
       if (!theme_val || theme_val->type == Lisple::RTValue::Type::NIL) return std::nullopt;
       return Lisple::obj<Theme>(*theme_val);

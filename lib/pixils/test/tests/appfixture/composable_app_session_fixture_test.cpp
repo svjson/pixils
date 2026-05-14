@@ -300,7 +300,7 @@ TEST_F(ComposableAppSessionFixtureTest,
            "pixils.test.app.main",
            {"pixils/test/app/main.lisple"});
 
-  auto modes = pixils().lookup_value("pixils/modes");
+  auto modes = pixils().lookup("pixils/modes");
   auto mode_val = Lisple::Dict::get_property(modes, Lisple::RTValue::symbol("test-mode"));
   ASSERT_NE(mode_val, nullptr);
 
@@ -337,7 +337,7 @@ TEST_F(ComposableAppSessionFixtureTest,
                                          render_ctx,
                                          local_hook_args);
 
-  auto modes = pixils().lookup_value("pixils/modes");
+  auto modes = pixils().lookup("pixils/modes");
   auto mode_val = Lisple::Dict::get_property(modes, Lisple::RTValue::symbol("test-mode"));
   ASSERT_NE(mode_val, nullptr);
 

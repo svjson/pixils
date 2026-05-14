@@ -204,9 +204,9 @@ namespace Pixils::Runtime
     : lisple_runtime(lisple_runtime)
     , assets(assets)
     , render_ctx(render_ctx)
-    , mode_stack(lisple_runtime.lookup_value(Script::ID__PIXILS__MODE_STACK),
-                 lisple_runtime.lookup_value(Script::ID__PIXILS__MODE_STACK_MESSAGES))
-    , modes(lisple_runtime.lookup_value(Script::ID__PIXILS__MODES))
+    , mode_stack(lisple_runtime.lookup(Script::ID__PIXILS__MODE_STACK),
+                 lisple_runtime.lookup(Script::ID__PIXILS__MODE_STACK_MESSAGES))
+    , modes(lisple_runtime.lookup(Script::ID__PIXILS__MODES))
     , hook_args(hook_args)
   {
   }

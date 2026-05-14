@@ -26,7 +26,7 @@ namespace Pixils::Script
         auto [bundle_id, asset_id] = image_key->qual();
 
         RenderContext& rc =
-          Lisple::obj<RenderContext>(*ctx.lookup_value(ID__PIXILS__RENDER_CONTEXT));
+          Lisple::obj<RenderContext>(*ctx.lookup(ID__PIXILS__RENDER_CONTEXT));
 
         SDL_Texture* texture = rc.asset_registry->get_image(bundle_id, asset_id);
         if (!texture) return std::nullopt;

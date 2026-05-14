@@ -47,7 +47,7 @@ namespace Pixils::Script
       auto opts = opts_schema.bind(ctx, *args[1]);
 
       RenderContext& rc =
-        Lisple::obj<RenderContext>(*ctx.lookup_value(ID__PIXILS__RENDER_CONTEXT));
+        Lisple::obj<RenderContext>(*ctx.lookup(ID__PIXILS__RENDER_CONTEXT));
 
       Mix_Chunk* chunk = rc.asset_registry->get_sound(bundle_id, sound_id);
       if (!chunk) return Lisple::RTValue::number(-1);

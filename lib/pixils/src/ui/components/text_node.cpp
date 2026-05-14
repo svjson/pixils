@@ -106,7 +106,7 @@ namespace Pixils::UI::Components
         if (!hook_ctx.current_view) return Lisple::Constant::NIL;
 
         RenderContext& rc =
-          Lisple::obj<RenderContext>(*ctx.lookup_value(Script::ID__PIXILS__RENDER_CONTEXT));
+          Lisple::obj<RenderContext>(*ctx.lookup(Script::ID__PIXILS__RENDER_CONTEXT));
         const Runtime::View& view = *hook_ctx.current_view;
         auto text_op = Text::make_text_render_op(rc,
                                                  text_style_font_key(view.effective_style),
@@ -136,7 +136,7 @@ namespace Pixils::UI::Components
         if (!hook_ctx.current_view) return Lisple::Constant::NIL;
 
         RenderContext& rc =
-          Lisple::obj<RenderContext>(*ctx.lookup_value(Script::ID__PIXILS__RENDER_CONTEXT));
+          Lisple::obj<RenderContext>(*ctx.lookup(Script::ID__PIXILS__RENDER_CONTEXT));
         const Runtime::View& view = *hook_ctx.current_view;
 
         auto text_op = Text::make_text_render_op(rc,
@@ -190,7 +190,7 @@ namespace Pixils::UI::Components
 
   void register_text_node_component(Lisple::Runtime& runtime)
   {
-    auto modes = runtime.lookup_value(Script::ID__PIXILS__MODES);
+    auto modes = runtime.lookup(Script::ID__PIXILS__MODES);
     Lisple::Dict::set_property(
       modes,
       Lisple::RTValue::symbol("ui/text"),

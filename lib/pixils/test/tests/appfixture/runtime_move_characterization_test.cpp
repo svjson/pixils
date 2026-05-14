@@ -80,7 +80,7 @@ namespace
 
   Lisple::sptr_rtval invoke_test_mode_init(Lisple::Runtime& runtime)
   {
-    auto modes = runtime.lookup_value("pixils/modes");
+    auto modes = runtime.lookup("pixils/modes");
     auto mode_val = Lisple::Dict::get_property(modes, Lisple::RTValue::symbol("test-mode"));
     auto& mode = Lisple::obj<Pixils::Runtime::Mode>(*mode_val);
 
@@ -94,7 +94,7 @@ namespace
     Pixils::FrameEvents& events,
     Pixils::RenderContext& render_ctx)
   {
-    auto modes = runtime.lookup_value("pixils/modes");
+    auto modes = runtime.lookup("pixils/modes");
     auto mode_val = Lisple::Dict::get_property(modes, Lisple::RTValue::symbol("test-mode"));
     auto& mode = Lisple::obj<Pixils::Runtime::Mode>(*mode_val);
 
@@ -296,7 +296,7 @@ TEST(RuntimeMoveCharacterizationTest,
                                    render_ctx,
                                    hook_args);
 
-  auto modes = runtime.lookup_value("pixils/modes");
+  auto modes = runtime.lookup("pixils/modes");
   auto mode_val = Lisple::Dict::get_property(modes, Lisple::RTValue::symbol("test-mode"));
   auto& mode = Lisple::obj<Pixils::Runtime::Mode>(*mode_val);
 
@@ -345,7 +345,7 @@ TEST(RuntimeMoveCharacterizationTest,
                                    render_ctx,
                                    hook_args);
 
-  auto modes = runtime.lookup_value("pixils/modes");
+  auto modes = runtime.lookup("pixils/modes");
   auto mode_val = Lisple::Dict::get_property(modes, Lisple::RTValue::symbol("test-mode"));
   auto& mode = Lisple::obj<Pixils::Runtime::Mode>(*mode_val);
 
@@ -401,7 +401,7 @@ TEST(RuntimeMoveCharacterizationTest,
                                    render_ctx,
                                    hook_args);
 
-  auto modes = runtime.lookup_value("pixils/modes");
+  auto modes = runtime.lookup("pixils/modes");
   auto mode_val = Lisple::Dict::get_property(modes, Lisple::RTValue::symbol("test-mode"));
   auto& mode = Lisple::obj<Pixils::Runtime::Mode>(*mode_val);
 
@@ -455,7 +455,7 @@ TEST(RuntimeMoveCharacterizationTest,
                                    render_ctx,
                                    hook_args);
 
-  auto modes = runtime->lookup_value("pixils/modes");
+  auto modes = runtime->lookup("pixils/modes");
   auto mode_val = Lisple::Dict::get_property(modes, Lisple::RTValue::symbol("test-mode"));
   auto& mode = Lisple::obj<Pixils::Runtime::Mode>(*mode_val);
 

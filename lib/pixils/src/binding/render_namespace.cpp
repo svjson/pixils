@@ -69,7 +69,7 @@ namespace Pixils::Script
         auto opts = draw_image_opts_schema.bind(ctx, *map_arg);
 
         RenderContext& rc =
-          Lisple::obj<RenderContext>(*ctx.lookup_value(ID__PIXILS__RENDER_CONTEXT));
+          Lisple::obj<RenderContext>(*ctx.lookup(ID__PIXILS__RENDER_CONTEXT));
 
         SDL_Texture* texture = rc.asset_registry->get_image(asset_bundle, asset_key);
 
@@ -127,7 +127,7 @@ namespace Pixils::Script
     EXEC_BODY(DrawLineBang, exec_draw_line)
     {
       RenderContext& rc =
-        Lisple::obj<RenderContext>(*ctx.lookup_value(ID__PIXILS__RENDER_CONTEXT));
+        Lisple::obj<RenderContext>(*ctx.lookup(ID__PIXILS__RENDER_CONTEXT));
       const Point& from = Lisple::obj<Point>(*args[0]);
       const Point& to = Lisple::obj<Point>(*args[1]);
 
@@ -170,7 +170,7 @@ namespace Pixils::Script
     EXEC_BODY(DrawPolygonBang, exec_polygon_with_opts)
     {
       RenderContext& rc =
-        Lisple::obj<RenderContext>(*ctx.lookup_value(ID__PIXILS__RENDER_CONTEXT));
+        Lisple::obj<RenderContext>(*ctx.lookup(ID__PIXILS__RENDER_CONTEXT));
 
       auto opts = polygon_opts.bind(ctx, *args.back());
 
@@ -234,7 +234,7 @@ namespace Pixils::Script
     EXEC_BODY(DrawRectBang, exec_draw_rect)
     {
       RenderContext& rc =
-        Lisple::obj<RenderContext>(*ctx.lookup_value(ID__PIXILS__RENDER_CONTEXT));
+        Lisple::obj<RenderContext>(*ctx.lookup(ID__PIXILS__RENDER_CONTEXT));
 
       const Rect& hrect = Lisple::obj<Rect>(*args[0]);
       const Point top_left = hrect.top_left();
@@ -479,7 +479,7 @@ namespace Pixils::Script
     EXEC_BODY(RenderTextBang, exec_text)
     {
       RenderContext& rc =
-        Lisple::obj<RenderContext>(*ctx.lookup_value(ID__PIXILS__RENDER_CONTEXT));
+        Lisple::obj<RenderContext>(*ctx.lookup(ID__PIXILS__RENDER_CONTEXT));
 
       const std::string& text = args[0]->str();
       const Point& pos = Lisple::obj<Point>(*args[1]);
@@ -552,7 +552,7 @@ namespace Pixils::Script
     EXEC_BODY(TextSize, exec_size)
     {
       RenderContext& rc =
-        Lisple::obj<RenderContext>(*ctx.lookup_value(ID__PIXILS__RENDER_CONTEXT));
+        Lisple::obj<RenderContext>(*ctx.lookup(ID__PIXILS__RENDER_CONTEXT));
 
       const std::string& text = args[0]->str();
       auto opts = text_size_opts_schema.bind(ctx, *args[1]);
@@ -611,7 +611,7 @@ namespace Pixils::Script
     EXEC_BODY(UseColorBang, exec_use_color)
     {
       RenderContext& rc =
-        Lisple::obj<RenderContext>(*ctx.lookup_value(ID__PIXILS__RENDER_CONTEXT));
+        Lisple::obj<RenderContext>(*ctx.lookup(ID__PIXILS__RENDER_CONTEXT));
 
       const Color& color = Lisple::obj<Color>(*args[0]);
       SDL_SetRenderDrawColor(rc.renderer, color.r, color.g, color.b, color.a);
@@ -622,7 +622,7 @@ namespace Pixils::Script
     EXEC_BODY(UseColorBang, exec_use_color_num)
     {
       RenderContext& rc =
-        Lisple::obj<RenderContext>(*ctx.lookup_value(ID__PIXILS__RENDER_CONTEXT));
+        Lisple::obj<RenderContext>(*ctx.lookup(ID__PIXILS__RENDER_CONTEXT));
 
       const int r = args[0]->num().get_int();
       const int g = args[1]->num().get_int();
