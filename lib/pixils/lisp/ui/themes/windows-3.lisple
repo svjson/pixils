@@ -253,9 +253,11 @@
             'ui/scroll-pane-viewport {:background c/WHITE}
 
             'ui/header-panel-header {:background FOCUS-BLUE
-                                     :text {:color c/WHITE}
-                                     :border {:bottom {:color {:r 0x00 :g 0x00 :b 0x00}
-                                                       :thickness 1}}}
+                                     :border {:color c/BLACK
+                                              :thickness 1}}
+
+            ['ui/header-panel-header :ui/title]
+            {:text {:color c/WHITE}}
 
             'ui/window {:border {:line-style :solid
                                  :thickness 1
