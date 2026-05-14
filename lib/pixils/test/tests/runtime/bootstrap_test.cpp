@@ -21,6 +21,8 @@ TEST_F(BootstrapTest, loads_embedded_core_ui_modes_into_pixils_mode_registry)
   auto text_input_mode =
     Lisple::Dict::get_property(modes, Lisple::RTValue::symbol("ui/text-input"));
   auto button_mode = Lisple::Dict::get_property(modes, Lisple::RTValue::symbol("ui/button"));
+  auto checkbox_mode =
+    Lisple::Dict::get_property(modes, Lisple::RTValue::symbol("ui/checkbox"));
   auto scrollbar_mode =
     Lisple::Dict::get_property(modes, Lisple::RTValue::symbol("ui/scrollbar"));
   auto scrollbar_button_mode =
@@ -43,6 +45,7 @@ TEST_F(BootstrapTest, loads_embedded_core_ui_modes_into_pixils_mode_registry)
   ASSERT_NE(text_mode, nullptr);
   ASSERT_NE(text_input_mode, nullptr);
   ASSERT_NE(button_mode, nullptr);
+  ASSERT_NE(checkbox_mode, nullptr);
   ASSERT_NE(scrollbar_mode, nullptr);
   ASSERT_NE(scrollbar_button_mode, nullptr);
   ASSERT_NE(scroll_pane_mode, nullptr);
@@ -57,6 +60,7 @@ TEST_F(BootstrapTest, loads_embedded_core_ui_modes_into_pixils_mode_registry)
   EXPECT_EQ(Lisple::obj<Pixils::Runtime::Mode>(*text_mode).name, "ui/text");
   EXPECT_EQ(Lisple::obj<Pixils::Runtime::Mode>(*text_input_mode).name, "ui/text-input");
   EXPECT_EQ(Lisple::obj<Pixils::Runtime::Mode>(*button_mode).name, "ui/button");
+  EXPECT_EQ(Lisple::obj<Pixils::Runtime::Mode>(*checkbox_mode).name, "ui/checkbox");
   EXPECT_EQ(Lisple::obj<Pixils::Runtime::Mode>(*scrollbar_mode).name, "ui/scrollbar");
   EXPECT_EQ(Lisple::obj<Pixils::Runtime::Mode>(*scrollbar_button_mode).name,
             "ui/scrollbar-button");

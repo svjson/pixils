@@ -91,6 +91,7 @@ Lisple components, so applications can use them like any other mode.
 |-----------|---------|
 | `ui/text` | Styled text node with scaling, alignment, and word wrapping. |
 | `ui/button` | Focusable button wrapper with inner text/content styling. |
+| `ui/checkbox` | Focusable boolean toggle with a styleable box and label. |
 | `ui/text-input` | Basic editable single-line text field. |
 | `ui/menu-bar`, `ui/popup-menu` | Data-driven menu controls. |
 | `ui/window` | Lightweight draggable window primitive. |

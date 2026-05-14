@@ -1,0 +1,84 @@
+(ns pixils.ui.checkbox
+  (:require pixils
+            [pixils.render :as r]
+            [pixils.ui :as ui]))
+
+(def default-mark-color {:r 0x00 :g 0x00 :b 0x00})
+
+(defun checked? [state]
+  (= (:checked? state) true))
+
+(defun checkbox-mark-color [state ctx]
+  (or (:mark-color state)
+      (-> ctx :view :style :text :color)
+      default-mark-color))
+
+(defun checkbox-mark-rect [bounds]
+  (let [w (max 4 (- (or (:w bounds) 0) 2))
+        h (max 4 (- (or (:h bounds) 0) 2))
+        size (min w h)]
+    {:x (int (/ (- w size) 2))
+     :y (int (/ (- h size) 2))
+     :w size
+     :h size}))
+
+(defun checkbox-mark-point [rect x-scale y-scale]
+  {:x (+ (:x rect) (int (* (:w rect) x-scale)))
+   :y (+ (:y rect) (int (* (:h rect) y-scale)))})
+
+(defcomponent ui/checkbox-box
+  {:render (fn [state ctx]
+             (when (checked? state)
+               (let [bounds (-> ctx :view :bounds)
+                     color (checkbox-mark-color state ctx)
+                     mark (checkbox-mark-rect bounds)
+                     p1 (checkbox-mark-point mark 0.18 0.55)
+                     p2 (checkbox-mark-point mark 0.42 0.80)
+                     p3 (checkbox-mark-point mark 0.86 0.18)]
+                 (do
+                   (r/line! p1 p2 color)
+                   (r/line! p2 p3 color)))))})
+
+(defcomponent ui/checkbox-label
+  {:children [{:mode 'ui/text
+               :state {:value (ui/bind-state :label)}}]})
+
+(defcomponent ui/checkbox
+  {:focusable true
+   :class :ui/checkbox
+   :init (fn [state ctx]
+           (assoc state :checked? (checked? state)))
+   :update (fn [state ctx]
+             (assoc state :pressed
+                    (and (contains? (-> ctx :view :interaction :pressed) :left)
+                         (-> ctx :view :interaction :hovered))))
+   :on-click (fn [state event ctx]
+               (let [checked? (not (checked? state))]
+                 (do
+                   (ui/emit! (:view ctx)
+                             :checkbox/change
+                             {:checked? checked?
+                              :value (:value state)})
+                   (assoc state :checked? checked?))))
+   :children [{:mode 'ui/checkbox-box
+               :state {:checked? (ui/bind-state :checked?)
+                       :pressed (ui/bind-state :pressed)}}
+              {:mode 'ui/checkbox-label
+               :state {:label (ui/bind-state :label)}}]})
+
+(defun checkbox-children [box-style label-style]
+  [{:mode 'ui/checkbox-box
+    :style (or box-style {})
+    :state {:checked? (ui/bind-state :checked?)
+            :pressed (ui/bind-state :pressed)}}
+   {:mode 'ui/checkbox-label
+    :style (or label-style {})
+    :state {:label (ui/bind-state :label)}}])
+
+(defun make [{:keys [label checked? value style box-style label-style]}]
+  {:mode 'ui/checkbox
+   :style (or style {})
+   :state {:label label
+           :checked? checked?
+           :value value}
+   :children (checkbox-children box-style label-style)})

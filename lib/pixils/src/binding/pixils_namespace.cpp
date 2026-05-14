@@ -500,8 +500,7 @@ namespace Pixils::Script
           return ResolutionAdapter::make_unique(Resolution::Mode::AUTO, ps);
         }
 
-        Lisple::CoercionResult<Lisple::RTValue> cresult =
-          HostType::DIMENSION.coerce(ctx, args[0]);
+        Lisple::CoercionResult cresult = HostType::DIMENSION.coerce(ctx, args[0]);
         if (cresult.success)
         {
           return ResolutionAdapter::make_unique(Resolution::Mode::FIXED,

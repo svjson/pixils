@@ -134,6 +134,20 @@
                                        :border {:color c/BLACK
                                                 :thickness 1}}
 
+            'ui/checkbox {:text {:font :font/win95-system-font
+                                 :color c/BLACK}}
+
+            'ui/checkbox-box {:background c/WHITE
+                              :border {:line-style :bevel
+                                       :color PANEL-SHADOW
+                                       :thickness 1
+                                       :right {:color PANEL-LIGHT}
+                                       :bottom {:color PANEL-LIGHT}}
+                              :text {:color c/BLACK}}
+
+            '(ui/checkbox-box {:pressed true})
+            {:background PANEL-COLOR}
+
             'ui/slider {:background PANEL-COLOR
                         :border {:line-style :bevel
                                  :color PANEL-LIGHT

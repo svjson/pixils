@@ -55,6 +55,21 @@
                                :border {:color {:r 0x5f :g 0x6f :b 0x7f}
                                         :thickness 1}}
 
+    'ui/checkbox {:text {:color {:r 0xe6 :g 0xea :b 0xee}}}
+
+    'ui/checkbox-box {:background {:r 0x15 :g 0x19 :b 0x1f}
+                      :border {:color BUTTON-HIGHLIGHT
+                               :thickness 1
+                               :right {:color BUTTON-SHADOW}
+                               :bottom {:color BUTTON-SHADOW}}
+                      :text {:color BUTTON-GLYPH}}
+
+    '(ui/checkbox-box {:pressed true})
+    {:border {:color BUTTON-SHADOW
+              :thickness 1
+              :right {:color BUTTON-HIGHLIGHT}
+              :bottom {:color BUTTON-HIGHLIGHT}}}
+
     'ui/slider {:background BUTTON-BG
                 :border {:color BUTTON-HIGHLIGHT
                          :thickness 1

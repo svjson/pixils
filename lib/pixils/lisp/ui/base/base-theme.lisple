@@ -56,6 +56,22 @@
                              :border {:color {:r 0x00 :g 0x00 :b 0x00}
                                       :thickness 1}}
 
+  'ui/checkbox {:height 16
+                :layout {:direction :row
+                         :align-items :center
+                         :gap 4}
+                :text {:color {:r 0x00 :g 0x00 :b 0x00}}}
+
+  'ui/checkbox-box {:width 12
+                    :height 12
+                    :background {:r 0xff :g 0xff :b 0xff}
+                    :border {:color {:r 0x00 :g 0x00 :b 0x00}
+                             :thickness 1}
+                    :text {:color {:r 0x00 :g 0x00 :b 0x00}}}
+
+  '(ui/checkbox-box {:pressed true})
+  {:background {:r 0xcc :g 0xcc :b 0xcc}}
+
   'ui/slider {:background {:r 0xff :g 0xff :b 0xff}
               :border {:color {:r 0x00 :g 0x00 :b 0x00}
                        :thickness 1}}

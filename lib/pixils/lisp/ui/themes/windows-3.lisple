@@ -172,6 +172,17 @@
                                        :border {:color c/BLACK
                                                 :thickness 1}}
 
+            'ui/checkbox {:text {:font :font/win3-system-font
+                                 :color c/BLACK}}
+
+            'ui/checkbox-box {:background c/WHITE
+                              :border {:color c/BLACK
+                                       :thickness 1}
+                              :text {:color c/BLACK}}
+
+            '(ui/checkbox-box {:pressed true})
+            {:background panel-face}
+
             'ui/slider {:background panel-face
                         :border {:line-style :bevel
                                  :color c/WHITE
