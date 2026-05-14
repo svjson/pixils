@@ -1,0 +1,155 @@
+(ns workbench.desktop
+  (:require pixils
+            [pixils.ui :as ui]
+            [workbench.fs :as fs]
+            workbench.icon
+            workbench.icon-container
+            [workbench.menus :as menus]
+            workbench.windows))
+
+
+
+;; Desktop screen
+
+(defcomponent workbench-status-line
+  {:class :workbench/status-line
+   :style {:position :absolute
+           :left 8
+           :width :fill
+           :height 12}
+   :update (fn [state ctx]
+             (let [top (or (:top state) 0)]
+               (do
+                 (ui/style! (:view ctx)
+                            {:position :absolute
+                             :left 8
+                             :top top
+                             :width :fill
+                             :height 12})
+                 state)))
+   :children [{:mode 'ui/text
+               :state {:value (ui/bind-state :message)}}]})
+
+(defcomponent workbench-screen
+  {:class :workbench/screen
+   :style {:width :fill
+           :height :fill
+           :clip true}
+   :update (fn [state ctx]
+             (assoc state
+                    :status-top
+                    (- (or (-> ctx :view :bounds :h) 0) 16)))
+   :on {:workbench/icon-open (fn [state event ctx]
+                               (do
+                                 (ui/emit! (:view ctx)
+                                           :workbench/open-path
+                                           (:payload event))
+                                 state))}
+   :children [{:mode 'workbench-icon-container
+               :state {:entries (ui/bind-state :desktop-entries)
+                       :selected-id (ui/bind-state :desktop-selected-id)
+                       :path fs/desktop-path}}
+              {:mode 'workbench-drawer-window
+               :state {:title (ui/bind-state :window :title)
+                       :path (ui/bind-state :window :path)
+                       :position (ui/bind-state :window :position)
+                       :entries (ui/bind-state :window :entries)
+                       :selected-id (ui/bind-state :window :selected-id)}}
+              {:mode 'workbench-status-line
+               :state {:message (ui/bind-state :message)
+                       :top (ui/bind-state :status-top)}}]})
+
+(defmode main-mode
+  {:class :workbench/app
+   :style {:layout {:direction :column}
+           :width :fill
+           :height :fill}
+   :init (fn [state ctx]
+           (let [backend fs/memory-backend]
+             {:backend backend
+              :desktop-entries (fs/desktop-entries backend)
+              :desktop-selected-id nil
+              :window {:title "Workbench"
+                      :path :workbench
+                      :position {:x 156 :y 54}
+                      :entries (fs/drawer-entries backend :workbench)
+                      :selected-id nil}
+              :drag-preview nil
+              :message "Pixils Workbench - double-click icons to open drawers."}))
+   :action-map menus/workbench-menu-keymap
+   :children [(menus/make-workbench-menu)
+              {:mode 'workbench-screen
+               :state {:desktop-entries (ui/bind-state :desktop-entries)
+                       :desktop-selected-id (ui/bind-state :desktop-selected-id)
+                       :window (ui/bind-state :window)
+                       :message (ui/bind-state :message)}}
+              {:mode 'workbench-icon-preview
+               :state (ui/bind-state :drag-preview)}]
+   :on {:workbench/open-path (fn [state event ctx]
+                               (let [entry (:payload event)
+                                     path (:path entry)
+                                     title (:title entry)]
+                                 (assoc state
+                                        :window {:title title
+                                                 :path path
+                                                 :position (or (-> state :window :position)
+                                                               {:x 156 :y 54})
+                                                 :entries (fs/drawer-entries (:backend state) path)
+                                                 :selected-id nil}
+                                        :message (str "Opened " title))))
+        :workbench/about (fn [state event ctx]
+                           (assoc state :message "Workbench 1.x style desktop, backed by a pluggable memory filesystem."))
+        :workbench/refresh (fn [state event ctx]
+                             (assoc state :message "Redraw requested."))
+        :window/close (fn [state event ctx]
+                        (assoc-in state [:window :path] nil))
+        :workbench/move-entry (fn [state event ctx]
+                                (let [payload (:payload event)
+                                      entry (:entry payload)
+                                      source-path (:parent entry)
+                                      target-path (:target-path payload)
+                                      backend (fs/move-entry (:backend state)
+                                                             source-path
+                                                             target-path
+                                                             (:id entry)
+                                                             (:position payload))
+                                      window-path (-> state :window :path)]
+                                  (assoc state
+                                         :backend backend
+                                         :desktop-entries (fs/desktop-entries backend)
+                                         :desktop-selected-id (if (= target-path fs/desktop-path)
+                                                                (:id entry)
+                                                                nil)
+                                         :window (assoc (:window state)
+                                                        :entries (fs/drawer-entries backend
+                                                                                   window-path)
+                                                        :selected-id (if (= target-path window-path)
+                                                                       (:id entry)
+                                                                       (-> state :window :selected-id)))
+                                         :drag-preview nil
+                                         :message (str "Moved " (:title entry) " to "
+                                                       (if (= target-path fs/desktop-path)
+                                                         "Workbench desktop"
+                                                         (-> state :window :title))))))
+        :workbench/drag-start (fn [state event ctx]
+                                (let [payload (:payload event)]
+                                  (assoc state
+                                         :drag-preview {:entry (:entry payload)
+                                                        :offset (:offset payload)
+                                                        :position (:position payload)})))
+        :workbench/drag-move (fn [state event ctx]
+                               (let [pointer-pos (:position (:payload event))
+                                     offset (or (-> state :drag-preview :offset)
+                                                {:x 0 :y 0})]
+                                 (assoc-in state
+                                           [:drag-preview :position]
+                                           {:x (- (:x pointer-pos) (:x offset))
+                                            :y (- (:y pointer-pos) (:y offset))})))
+        :workbench/drag-end (fn [state event ctx]
+                              (assoc state :drag-preview nil))
+        :icons/open (fn [state event ctx]
+                      (assoc state :message "Open uses double-clicked icons for now."))
+        :icons/snapshot (fn [state event ctx]
+                          (assoc state :message "Snapshot would persist icon positions in the active backend."))
+        :icons/cleanup (fn [state event ctx]
+                         (assoc state :message "Clean Up will be the first grid-layout command."))}})

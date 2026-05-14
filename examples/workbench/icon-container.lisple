@@ -1,0 +1,68 @@
+(ns workbench.icon-container
+  (:require pixils
+            [pixils.ui :as ui]
+            workbench.icon))
+
+
+
+;; Icon container
+
+(def max-icons 32)
+(def double-click-ms 500)
+
+(defun now-ms []
+  (epoch-ms))
+
+(defun openable? [entry]
+  (not (nil? (:path entry))))
+
+(defun maybe-open-icon! [state event ctx entry now]
+  (when (and (openable? entry)
+             (= (:id entry) (:last-click-id state))
+             (< (- now (or (:last-click-time state) 0)) double-click-ms))
+    (ui/emit! (:view ctx) :workbench/icon-open entry)))
+
+(defun drop-position [event offset]
+  (let [pos (:position event)
+        off (or offset {:x 0 :y 0})]
+    {:x (- (:x pos) (:x off))
+     :y (- (:y pos) (:y off))}))
+
+(defcomponent workbench-icon-container
+  {:focusable true
+   :style {:width :fill
+           :height :fill
+           :clip true}
+   :on {:workbench/icon-select (fn [state event ctx]
+                                 (do
+                                   (ui/stop-propagation! event)
+                                   (assoc state :selected-id (:id (:payload event)))))
+        :workbench/icon-click (fn [state event ctx]
+                                (let [entry (:payload event)
+                                      now (now-ms)]
+                                  (do
+                                    (ui/stop-propagation! event)
+                                    (maybe-open-icon! state event ctx entry now)
+                                    (assoc state
+                                           :selected-id (:id entry)
+                                           :last-click-id (:id entry)
+                                           :last-click-time now))))}
+   :on-drop (fn [state event ctx]
+              (let [payload (:payload event)
+                    entry (:entry payload)
+                    path (:path state)]
+                (do
+                  (when (and entry
+                             path
+                             (or (= (:parent entry) path)
+                                 (= (:type entry) :project)))
+                    (ui/emit! (:view ctx)
+                              :workbench/move-entry
+                              {:entry entry
+                               :target-path path
+                               :position (drop-position event (:offset payload))}))
+                  state)))
+   :children (dotimes [index max-icons]
+               {:mode 'workbench-icon
+                :state {:entry (ui/bind-state :entries index)
+                        :selected-id (ui/bind-state :selected-id)}})})

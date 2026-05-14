@@ -1,0 +1,189 @@
+(ns workbench.fs)
+
+
+
+;; Filesystem backend
+
+(def desktop-path :desktop)
+
+(def memory-backend
+  {:kind :memory
+   :children
+   {:desktop [{:id :desktop-note
+               :title "Note"
+               :type :project
+               :position {:x 24 :y 24}}
+              {:id :workbench
+               :title "Workbench"
+               :type :disk
+               :path :workbench
+               :position {:x 24 :y 98}}
+              {:id :ram-disk
+               :title "RAM Disk"
+               :type :disk
+               :path :ram-disk
+               :position {:x 24 :y 172}}
+              {:id :trashcan
+               :title "Trashcan"
+               :type :trash
+               :path :trashcan
+               :position {:x 132 :y 172}}]
+
+    :workbench [{:id :system
+                 :title "System"
+                 :type :drawer
+                 :path :system}
+                {:id :utilities
+                 :title "Utilities"
+                 :type :drawer
+                 :path :utilities}
+                {:id :prefs
+                 :title "Prefs"
+                 :type :drawer
+                 :path :prefs}
+                {:id :tools
+                 :title "Tools"
+                 :type :drawer
+                 :path :tools}
+                {:id :shell
+                 :title "Shell"
+                 :type :tool}
+                {:id :readme
+                 :title "ReadMe"
+                 :type :project}]
+
+    :utilities [{:id :clock
+                 :title "Clock"
+                 :type :tool}
+                {:id :calculator
+                 :title "Calculator"
+                 :type :tool}
+                {:id :notepad
+                 :title "Notepad"
+                 :type :tool}
+                {:id :palette
+                 :title "Palette"
+                 :type :tool}]
+
+    :system [{:id :cli
+              :title "CLI"
+              :type :tool}
+             {:id :diskcopy
+              :title "DiskCopy"
+              :type :tool}
+             {:id :format
+              :title "Format"
+              :type :tool}]
+
+    :prefs [{:id :font
+             :title "Font"
+             :type :tool}
+            {:id :pointer
+             :title "Pointer"
+             :type :tool}
+            {:id :screenmode
+             :title "ScreenMode"
+             :type :tool}]
+
+    :tools [{:id :iconedit
+             :title "IconEdit"
+             :type :tool}
+            {:id :mousedriver
+             :title "MouseDriver"
+             :type :project}]
+
+    :ram-disk []
+    :trashcan []}})
+
+(defun memory-children [backend path]
+  (or (get (:children backend) path)
+      []))
+
+(defun backend-children [backend path]
+  (case (:kind backend)
+    :memory (memory-children backend path)
+    :default []))
+
+(defun icon-position [index columns start-x start-y cell-w cell-h]
+  {:x (+ start-x (* (mod index columns) cell-w))
+   :y (+ start-y (* (int (/ index columns)) cell-h))})
+
+(defun place-entry [entry index path layout]
+  (assoc entry
+         :parent path
+         :position
+         (or (:position entry)
+             (icon-position index
+                            (:columns layout)
+                            (:x layout)
+                            (:y layout)
+                            (:cell-w layout)
+                            (:cell-h layout)))))
+
+(defun entries-for [backend path layout]
+  (for-indexed [index entry (backend-children backend path)]
+    (place-entry entry index path layout)))
+
+(defun desktop-entries [backend]
+  (entries-for backend
+               desktop-path
+               {:columns 1
+                :x 24
+                :y 24
+                :cell-w 92
+                :cell-h 74}))
+
+(defun drawer-entries [backend path]
+  (entries-for backend
+               path
+               {:columns 4
+                :x 18
+                :y 16
+                :cell-w 92
+                :cell-h 72}))
+
+(defun find-entry [entries entry-id]
+  (head (filter entries (fn [entry] (= (:id entry) entry-id)))))
+
+(defun remove-entry [entries entry-id]
+  (remove entries (fn [entry] (= (:id entry) entry-id))))
+
+(defun position-entry [entry target-path position]
+  (assoc entry
+         :parent target-path
+         :position position))
+
+(defun replace-entry-position [entries entry-id target-path position]
+  (map entries
+       (fn [entry]
+         (if (= (:id entry) entry-id)
+           (position-entry entry target-path position)
+           entry))))
+
+(defun move-entry [backend source-path target-path entry-id position]
+  (if (or (nil? source-path)
+          (nil? target-path))
+    backend
+    (let [children (:children backend)
+          source-entries (or (get children source-path) [])
+          target-entries (or (get children target-path) [])
+          entry (find-entry source-entries entry-id)]
+      (if (nil? entry)
+        backend
+        (assoc backend
+               :children
+               (if (= source-path target-path)
+                 (assoc children
+                        source-path
+                        (replace-entry-position source-entries
+                                                entry-id
+                                                target-path
+                                                position))
+                 (assoc
+                  (assoc children
+                         source-path
+                         (remove-entry source-entries entry-id))
+                  target-path
+                  (concat target-entries [(position-entry entry
+                                                          target-path
+                                                          position)]))))))))

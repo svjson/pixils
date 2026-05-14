@@ -1,0 +1,40 @@
+(ns workbench.menus
+  (:require [pixils.ui :as ui]
+            [pixils.ui.menu :as menu]))
+
+
+
+;; Menu model
+
+(def workbench-menu-keymap
+  {:key/f1 :workbench/about
+   :key/f5 :workbench/refresh})
+
+(def workbench-menu
+  {:settings {:mnemonics {:marker "&"}
+              :shortcuts {:render true}}
+   :items [{:label "&Workbench"
+            :items [{:label "&About Workbench"
+                     :action :workbench/about
+                     :shortcut :key/f1}
+                    :separator
+                    {:label "&Redraw"
+                     :action :workbench/refresh
+                     :shortcut :key/f5}]}
+           {:label "&Window"
+            :items [{:label "&Close"
+                     :action :window/close}
+                    {:label "&Backdrop"
+                     :action :window/backdrop}]}
+           {:label "&Icons"
+            :items [{:label "&Open"
+                     :action :icons/open}
+                    {:label "&Snapshot"
+                     :action :icons/snapshot}
+                    {:label "&Clean Up"
+                     :action :icons/cleanup}]}]})
+
+(defun make-workbench-menu []
+  (menu/make-menu {:style {:height 18}}
+                  workbench-menu
+                  workbench-menu-keymap))

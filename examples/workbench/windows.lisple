@@ -1,0 +1,52 @@
+(ns workbench.windows
+  (:require pixils
+            [pixils.point :as pt]
+            [pixils.ui :as ui]
+            workbench.icon-container
+            pixils.ui.window))
+
+
+
+;; Drawer window
+
+(defcomponent workbench-drawer-window
+  {:focusable true
+   :class :workbench/window
+   :style {:width 430
+           :height 230}
+   :update (fn [state ctx]
+             (let [pos (or (:position state) {:x 160 :y 70})]
+               (do
+                 (ui/style! (:view ctx)
+                            {:position :absolute
+                             :left (:x pos)
+                             :top (:y pos)
+                             :width 430
+                             :height 230
+                             :hidden (nil? (:path state))})
+                 state)))
+   :on {:window/move-by (fn [state event ctx]
+                          (do
+                            (ui/stop-propagation! event)
+                            (update state :position
+                                    (fn [pos]
+                                      (pt/+ (or pos {:x 160 :y 70})
+                                            (:payload event))))))
+        :workbench/icon-open (fn [state event ctx]
+                               (do
+                                 (ui/emit! (:view ctx)
+                                           :workbench/open-path
+                                           (:payload event))
+                                 state))}
+   :children [{:mode 'ui/window-title-bar
+              :state {:title (ui/bind-state :title)}}
+              {:mode 'ui/window-body
+               :state {:entries (ui/bind-state :entries)
+                       :selected-id (ui/bind-state :selected-id)
+                       :path (ui/bind-state :path)}
+               :style {:width :fill
+                       :height :fill}
+               :children [{:mode 'workbench-icon-container
+                           :state {:entries (ui/bind-state :entries)
+                                   :selected-id (ui/bind-state :selected-id)
+                                   :path (ui/bind-state :path)}}]}]})

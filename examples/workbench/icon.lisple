@@ -1,0 +1,211 @@
+(ns workbench.icon
+  (:require pixils
+            [pixils.render :as r]
+            [pixils.ui :as ui]))
+
+
+
+;; Icon primitive
+
+(def icon-width 78)
+(def icon-height 58)
+(def icon-image-x 23)
+(def icon-image-y 4)
+(def icon-title-y 41)
+
+(def white {:r 0xff :g 0xff :b 0xff})
+(def black {:r 0x00 :g 0x00 :b 0x00})
+(def blue {:r 0x00 :g 0x55 :b 0xaa})
+(def orange {:r 0xff :g 0x99 :b 0x33})
+(def gray {:r 0x99 :g 0x99 :b 0x99})
+
+(defun icon-entry [state]
+  (or (:entry state) {}))
+
+(defun icon-selected? [state]
+  (= (:id (icon-entry state))
+     (:selected-id state)))
+
+(defun icon-hidden? [state]
+  (nil? (:entry state)))
+
+(defun draw-disk! []
+  (do
+    (r/rect! {:x icon-image-x :y icon-image-y :w 29 :h 25}
+             {:fill true :color gray})
+    (r/rect! {:x icon-image-x :y icon-image-y :w 29 :h 25}
+             {:color black})
+    (r/rect! {:x (+ icon-image-x 5) :y (+ icon-image-y 4) :w 19 :h 7}
+             {:fill true :color white})
+    (r/rect! {:x (+ icon-image-x 7) :y (+ icon-image-y 16) :w 15 :h 5}
+             {:fill true :color black})))
+
+(defun draw-drawer! []
+  (do
+    (r/rect! {:x icon-image-x :y (+ icon-image-y 8) :w 31 :h 19}
+             {:fill true :color orange})
+    (r/rect! {:x icon-image-x :y (+ icon-image-y 8) :w 31 :h 19}
+             {:color black})
+    (r/rect! {:x (+ icon-image-x 3) :y icon-image-y :w 14 :h 8}
+             {:fill true :color orange})
+    (r/line! {:x (+ icon-image-x 3) :y (+ icon-image-y 8)}
+             {:x (+ icon-image-x 17) :y (+ icon-image-y 8)}
+             black)))
+
+(defun draw-tool! []
+  (do
+    (r/rect! {:x (+ icon-image-x 6) :y icon-image-y :w 18 :h 25}
+             {:fill true :color white})
+    (r/rect! {:x (+ icon-image-x 6) :y icon-image-y :w 18 :h 25}
+             {:color black})
+    (r/line! {:x (+ icon-image-x 10) :y (+ icon-image-y 7)}
+             {:x (+ icon-image-x 20) :y (+ icon-image-y 7)}
+             black)
+    (r/line! {:x (+ icon-image-x 10) :y (+ icon-image-y 13)}
+             {:x (+ icon-image-x 20) :y (+ icon-image-y 13)}
+             black)))
+
+(defun draw-trash! []
+  (do
+    (r/rect! {:x (+ icon-image-x 5) :y (+ icon-image-y 7) :w 22 :h 22}
+             {:fill true :color gray})
+    (r/rect! {:x (+ icon-image-x 5) :y (+ icon-image-y 7) :w 22 :h 22}
+             {:color black})
+    (r/line! {:x (+ icon-image-x 3) :y (+ icon-image-y 5)}
+             {:x (+ icon-image-x 29) :y (+ icon-image-y 5)}
+             black)
+    (r/line! {:x (+ icon-image-x 10) :y (+ icon-image-y 12)}
+             {:x (+ icon-image-x 10) :y (+ icon-image-y 24)}
+             black)
+    (r/line! {:x (+ icon-image-x 17) :y (+ icon-image-y 12)}
+             {:x (+ icon-image-x 17) :y (+ icon-image-y 24)}
+             black)))
+
+(defun draw-project! []
+  (do
+    (r/rect! {:x (+ icon-image-x 6) :y icon-image-y :w 20 :h 27}
+             {:fill true :color white})
+    (r/rect! {:x (+ icon-image-x 6) :y icon-image-y :w 20 :h 27}
+             {:color black})
+    (r/line! {:x (+ icon-image-x 10) :y (+ icon-image-y 8)}
+             {:x (+ icon-image-x 22) :y (+ icon-image-y 8)}
+             black)
+    (r/line! {:x (+ icon-image-x 10) :y (+ icon-image-y 14)}
+             {:x (+ icon-image-x 22) :y (+ icon-image-y 14)}
+             black)
+    (r/line! {:x (+ icon-image-x 10) :y (+ icon-image-y 20)}
+             {:x (+ icon-image-x 18) :y (+ icon-image-y 20)}
+             black)))
+
+(defun draw-icon-image! [entry]
+  (case (:type entry)
+    :disk (draw-disk!)
+    :drawer (draw-drawer!)
+    :trash (draw-trash!)
+    :project (draw-project!)
+    :default (draw-tool!)))
+
+(defun draw-title! [entry selected?]
+  (let [title (or (:title entry) "")
+        text-size (r/text-size title)
+        text-x (max 0 (int (/ (- icon-width (:w text-size)) 2)))]
+    (do
+      (when selected?
+        (r/rect! {:x 3 :y icon-title-y :w (- icon-width 6) :h 13}
+                 {:fill true :color blue}))
+      (r/text! title
+               {:x text-x :y (+ icon-title-y 2)}
+               {:color (if selected? white black)}))))
+
+(defcomponent workbench-icon
+  {:focusable true
+   :drag {:start {:mode :threshold :distance 3}
+          :payload (fn [state event ctx]
+                     {:entry (:entry state)
+                      :offset (:start-position event)})}
+   :style {:width icon-width
+           :height icon-height
+           :cursor :workbench/pointer}
+   :update (fn [state ctx]
+             (let [entry (icon-entry state)
+                   pos (or (:position entry) {:x 0 :y 0})]
+               (do
+                 (ui/style! (:view ctx)
+                            {:position :absolute
+                             :left (:x pos)
+                             :top (:y pos)
+                             :width icon-width
+                             :height icon-height
+                             :hidden (icon-hidden? state)
+                             :cursor :workbench/pointer})
+                 state)))
+   :on-mouse-down (fn [state event ctx]
+                    (do
+                      (ui/emit! (:view ctx)
+                                :workbench/icon-select
+                                (:entry state))
+                      state))
+   :on-click (fn [state event ctx]
+               (do
+                 (ui/emit! (:view ctx)
+                           :workbench/icon-click
+                           (:entry state))
+                 state))
+   :on-drag-start (fn [state event ctx]
+                    (let [payload (:payload event)
+                          entry (:entry payload)
+                          offset (or (:offset payload) {:x 0 :y 0})
+                          pointer-pos (:global-position event)
+                          preview-pos {:x (- (:x pointer-pos) (:x offset))
+                                       :y (- (:y pointer-pos) (:y offset))}]
+                      (do
+                        (ui/emit! (:view ctx)
+                                  :workbench/drag-start
+                                  {:entry entry
+                                   :offset offset
+                                   :position preview-pos})
+                        state)))
+   :on-drag (fn [state event ctx]
+              (do
+                (ui/emit! (:view ctx)
+                          :workbench/drag-move
+                          {:position (:global-position event)})
+                state))
+   :on-drag-end (fn [state event ctx]
+                  (do
+                    (ui/emit! (:view ctx)
+                              :workbench/drag-end
+                              nil)
+                    state))
+   :render (fn [state ctx]
+             (when (not (icon-hidden? state))
+               (let [entry (icon-entry state)
+                     selected? (icon-selected? state)]
+                 (do
+                   (draw-icon-image! entry)
+                   (draw-title! entry selected?)))))})
+
+(defcomponent workbench-icon-preview
+  {:style {:position :absolute
+           :width icon-width
+           :height icon-height
+           :hit-test false
+           :cursor :workbench/pointer}
+   :update (fn [state ctx]
+             (let [pos (or (:position state) {:x 0 :y 0})]
+               (do
+                 (ui/style! (:view ctx)
+                            {:position :absolute
+                             :left (:x pos)
+                             :top (:y pos)
+                             :width icon-width
+                             :height icon-height
+                             :hidden (nil? (:entry state))
+                             :cursor :workbench/pointer})
+                 state)))
+   :render (fn [state ctx]
+             (let [entry (:entry state)]
+               (when entry
+                 (do
+                   (draw-icon-image! entry)
+                   (draw-title! entry true)))))})

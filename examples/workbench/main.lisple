@@ -1,0 +1,14 @@
+(ns workbench.core
+  (:require pixils
+            workbench.assets
+            workbench.desktop
+            workbench.theme))
+
+(defprogram workbench
+  {:display {:resolution {:w 640 :h 350}
+             :scaling :scaling/fit
+             :align :align/center
+             :background {:r 0x00 :g 0x00 :b 0x00}}
+   :target-frame-rate 0
+   :theme 'workbench/theme
+   :initial-mode 'main-mode})

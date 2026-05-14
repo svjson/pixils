@@ -1,0 +1,87 @@
+(ns workbench.theme
+  (:require pixils))
+
+
+
+;; Amiga Workbench style
+
+(def orange {:r 0xff :g 0x88 :b 0x00})
+(def blue {:r 0x00 :g 0x55 :b 0xaa})
+(def light-blue {:r 0x55 :g 0xaa :b 0xff})
+(def white {:r 0xff :g 0xff :b 0xff})
+(def black {:r 0x00 :g 0x00 :b 0x00})
+(def gray {:r 0xaa :g 0xaa :b 0xaa})
+(def dark-gray {:r 0x55 :g 0x55 :b 0x55})
+
+(deftheme workbench/theme
+  {:styles {:workbench/app {:background orange
+                            :cursor :workbench/pointer
+                            :text {:color black}}
+
+            :workbench/screen {:background orange
+                               :text {:color black}}
+
+            :workbench/status-line {:text {:color black}}
+
+            :workbench/window {:background gray
+                               :border {:thickness 2
+                                        :line-style :bevel
+                                        :color dark-gray
+                                        :top {:color white}
+                                        :left {:color white}}
+                               :text {:color black}}
+
+            'ui/window-title-bar {:height 16
+                                  :background blue
+                                  :text {:color white}
+                                  :layout {:direction :row
+                                           :align-items :center
+                                           :gap 2}}
+
+            'ui/window-control-button {:width 14
+                                       :height 12
+                                       :background light-blue
+                                       :border {:color black
+                                                :thickness 1}}
+
+            'ui/window-minimize-button {:width 14
+                                        :height 12
+                                        :background light-blue
+                                        :border {:color black
+                                                 :thickness 1}}
+
+            'ui/window-body {:background gray
+                             :border {:color dark-gray
+                                      :thickness 1}
+                             :text {:color black}}
+
+            'ui/menu-bar {:background white
+                          :cursor :workbench/pointer
+                          :text {:color black}
+                          :border {:color black
+                                   :bottom {:thickness 1}}}
+
+            'ui/menu-bar-item {:cursor :workbench/pointer
+                               :text {:color black}}
+
+            'ui/popup-menu {:cursor :workbench/pointer}
+
+            'ui/popup-menu-outer {:cursor :workbench/pointer}
+
+            'ui/popup-menu-inner {:background white
+                                  :cursor :workbench/pointer
+                                  :border {:color black
+                                           :thickness 1}
+                                  :text {:color black}}
+
+            'ui/menu-item {:cursor :workbench/pointer
+                           :text {:color black}}
+
+            :menu/item {:cursor :workbench/pointer}
+
+            'ui/popup-menu-item {:cursor :workbench/pointer}
+
+            'ui/popup-menu-option-item {:cursor :workbench/pointer}
+
+            '(ui/menu-item {:highlighted true}) {:background blue
+                                                 :text {:color white}}}})

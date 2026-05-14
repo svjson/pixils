@@ -1,0 +1,10 @@
+(ns workbench.assets
+  (:require pixils))
+
+(defbundle workbench-assets
+  {:images {:cursor "assets/cursor.png"}})
+
+(defpointer workbench/pointer
+  {:image :workbench-assets/cursor
+   :hotspot {:x 0 :y 0}
+   :scale 1})
