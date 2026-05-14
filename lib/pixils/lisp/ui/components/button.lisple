@@ -4,28 +4,42 @@
             [pixils.render :as r]
             [pixils.ui :as ui]))
 
+
+;; Inner button
+
 (defcomponent ui/button-inner {:style {:width :fill
-                                    :height :fill}
-                            :children [{:mode 'ui/text
-                                        :style {:padding {:t 4 :l 4 :r 4 :b 2}}
-                                        :state {:value (ui/bind-state :label)}}]
-                            :render (fn [state {:keys [view] :as ctx}]
-                                      (let [bw (-> view :bounds :w)
-                                            bh (-> view :bounds :h)
-                                            pressed (:pressed state)
-                                            offset (if pressed 1 0)]
-                                        (when (keyword? (:image state))
-                                          (r/image! (:image state) {:x 0 :y 0}))))})
+                                       :height :fill}
+                               :children [{:mode 'ui/text
+                                           :style {:padding {:t 4 :l 4 :r 4 :b 2}}
+                                           :state {:value (ui/bind-state :label)}}]
+                               :render (fn [state {:keys [view] :as ctx}]
+                                         (let [bw (-> view :bounds :w)
+                                               bh (-> view :bounds :h)
+                                               pressed (:pressed state)
+                                               offset (if pressed 1 0)]
+                                           (when (keyword? (:image state))
+                                             (r/image! (:image state) {:x 0 :y 0}))))})
+
+
+;; Outer button component
+
+(defun button-update [state {:keys [view] :as ctx}]
+  "Update button state based on interaction state. The button is
+  considered pressed if the left mouse button is currently pressed
+  while hovering over the button, unless the :inhibit-pressed? flag is
+  set in the state. The :force-pressed? flag can be used to force the
+  button into a pressed state regardless of interaction."
+  (assoc state :pressed
+         (and (not (:inhibit-pressed? state))
+              (or (:force-pressed? state)
+                  (and (contains? (-> view :interaction :pressed) :left)
+                       (-> view :interaction :hovered))))))
+
 
 (defcomponent ui/button {:focusable true
                          :init (fn [state ctx]
                                  (update state :pressed (fn [pressed] pressed)))
-                         :update (fn [state {:keys [view] :as ctx}]
-                                   (assoc state :pressed
-                                          (and (not (:inhibit-pressed? state))
-                                               (or (:force-pressed? state)
-                                                   (and (contains? (-> view :interaction :pressed) :left)
-                                                        (-> view :interaction :hovered))))))
+                         :update button-update
                          :children [{:mode 'ui/button-inner
                                      :state {:pressed (ui/bind-state :pressed)
                                              :image (ui/bind-state :image)
