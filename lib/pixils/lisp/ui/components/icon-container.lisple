@@ -1,0 +1,34 @@
+(ns pixils.ui.icon-container
+  (:require pixils
+            [pixils.ui :as ui]))
+
+
+
+;; Generic icon container behavior
+
+(defun subtract-point [position offset]
+  (let [pos (or position {:x 0 :y 0})
+        off (or offset {:x 0 :y 0})]
+    {:x (- (:x pos) (:x off))
+     :y (- (:y pos) (:y off))}))
+
+(defun drop-position [event offset]
+  (subtract-point (:position event) offset))
+
+(defcomponent ui/icon-container
+  {:focusable true
+   :style {:width :fill
+           :height :fill
+           :clip true}
+   :on-drop (fn [state event ctx]
+              (let [payload (:payload event)
+                    item (:item payload)]
+                (do
+                  (when item
+                    (ui/emit! (:view ctx)
+                              :ui/icon-drop
+                              {:item item
+                               :target (or (:target state)
+                                           (:path state))
+                               :position (drop-position event (:offset payload))}))
+                  state)))})

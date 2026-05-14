@@ -27,9 +27,6 @@
 (defun preview-position [event offset]
   (subtract-point (:global-position event) offset))
 
-(defun drop-position [event offset]
-  (subtract-point (:position event) offset))
-
 (defcomponent ui/icon
   {:focusable true
    :drag {:start {:mode :threshold
@@ -82,24 +79,6 @@
                               :ui/icon-drag-end
                               nil)
                     state))})
-
-(defcomponent ui/icon-container
-  {:focusable true
-   :style {:width :fill
-           :height :fill
-           :clip true}
-   :on-drop (fn [state event ctx]
-              (let [payload (:payload event)
-                    item (:item payload)]
-                (do
-                  (when item
-                    (ui/emit! (:view ctx)
-                              :ui/icon-drop
-                              {:item item
-                               :target (or (:target state)
-                                           (:path state))
-                               :position (drop-position event (:offset payload))}))
-                  state)))})
 
 (defcomponent ui/icon-preview
   {:style {:position :absolute

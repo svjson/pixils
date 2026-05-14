@@ -1,7 +1,7 @@
 (ns workbench.icon-container
   (:require pixils
             [pixils.ui :as ui]
-            pixils.ui.icon
+            pixils.ui.icon-container
             workbench.icon))
 
 

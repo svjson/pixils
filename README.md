@@ -99,6 +99,9 @@ Lisple components, so applications can use them like any other mode.
 | `ui/scrollbar` | Standalone horizontal or vertical scrollbar primitive. |
 | `ui/scrollbar-corner` | Filler component for the square where two scrollbars meet. |
 | `ui/scroll-pane` | Scrollable viewport composed from a clipped content area and stock scrollbars. |
+| `ui/icon` | Focusable visual item primitive with selection, activation, and drag events. |
+| `ui/icon-preview` | Non-hit-tested overlay primitive for rendering a dragged icon representation. |
+| `ui/icon-container` | Fill-sized drop surface that turns icon drag releases into generic drop events. |
 
 `ui/menu-bar` is usually created with `pixils.ui.menu/make-menu` from a menu
 definition and action map. The first argument can be either the menu state map
@@ -148,6 +151,16 @@ positioned absolutely inside that clipped area. Pass `:scroll-x? false` or
 `:scroll-y? false` to omit one axis from helper-created panes. `:content-state-key`
 can wrap the pane's `:content-state` binding in a named child-state key when the
 scrolling content needs state from the owner.
+
+`ui/icon` is intentionally only the item primitive. It expects an `:item` in
+state, optionally positioned by `:position` on either the state or item map, and
+emits `:ui/icon-select`, `:ui/icon-activate`, `:ui/icon-drag-start`,
+`:ui/icon-drag-move`, and `:ui/icon-drag-end`. `ui/icon-container` is the
+coordinator/drop surface: when an icon drag is released over it, it emits
+`:ui/icon-drop` with `{:item item :target target :position point}`. The target
+comes from container state `:target` or `:path`. Applications decide what the
+item and drop mean; filesystem moves, ownership, and persistence are not part of
+the core icon components.
 
 **Hook signatures**
 
