@@ -4,7 +4,11 @@
 
 #include "geom.h"
 
+#include <pixils/ui/style.h>
+
 #include <memory>
+#include <string>
+#include <unordered_map>
 
 typedef struct SDL_Window SDL_Window;
 typedef struct SDL_Renderer SDL_Renderer;
@@ -61,6 +65,7 @@ namespace Pixils
 
     std::unique_ptr<Asset::Registry> asset_registry;
     std::unique_ptr<FontRegistry> font_registry;
+    std::unordered_map<std::string, UI::ImageCursor> pointer_registry;
 
     RenderContext();
     RenderContext(SDL_Window* window, SDL_Renderer* renderer);

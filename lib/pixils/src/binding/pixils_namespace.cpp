@@ -7,6 +7,7 @@
 #include <pixils/binding/rect_namespace.h>
 #include <pixils/binding/resource_namespace.h>
 #include <pixils/binding/ui/style/style_adapter.h>
+#include <pixils/binding/ui/style/style_definition.h>
 #include <pixils/binding/ui/style/theme_definition.h>
 #include <pixils/context.h>
 #include <pixils/display.h>
@@ -73,6 +74,34 @@ namespace Pixils::Script
 
   namespace Macro
   {
+    /* DefPointerForm - defpointer */
+    SPECIAL_FORM_IMPL(DefPointerForm,
+                      SIG((FN_ARGS((&Lisple::Type::WORD, &Lisple::Eval::LITERAL),
+                                   (&Lisple::Type::MAP)),
+                           EXEC_DISPATCH(&DefPointerForm::execnode_def_pointer))));
+
+    SFORM_LOWER_IMPL(DefPointerForm)
+    {
+      auto name = Lisple::exec(*ctx.ctx, *lower_literal(ast_node->get_children()[1]))->str();
+      auto map_expr = Lisple::exec(*ctx.ctx, *lower_expr(ctx, ast_node->get_children()[2]));
+      auto pointer = StyleDefinition::parse_image_cursor(*ctx.ctx, map_expr);
+      if (!pointer)
+      {
+        throw Lisple::TypeError("Invalid pointer declaration: " + map_expr->to_string());
+      }
+
+      RenderContext& rc =
+        Lisple::obj<RenderContext>(*ctx.ctx->lookup_value(ID__PIXILS__RENDER_CONTEXT));
+      rc.pointer_registry[name] = *pointer;
+
+      return std::make_unique<Lisple::ExecNode>(Lisple::Constant::NIL);
+    }
+
+    EXECNODE_BODY(DefPointerForm, execnode_def_pointer)
+    {
+      throw Lisple::LispleException("defpointer is lower-only");
+    }
+
     /* DefBundleForm - defbundle */
     SPECIAL_FORM_IMPL(DefBundleForm,
                       SIG((FN_ARGS((&Lisple::Type::WORD, &Lisple::Eval::LITERAL),
@@ -878,6 +907,7 @@ namespace Pixils::Script
     values.emplace("mode-stack-messages", Lisple::RTValue::vector({}));
     values.emplace("modes", Lisple::RTValue::map({}));
     values.emplace("themes", Lisple::RTValue::map({}));
+    values.emplace("defpointer", Macro::DefPointerForm::make());
     values.emplace("defbundle", Macro::DefBundleForm::make());
     values.emplace("defmode", Macro::DefModeForm::make());
     values.emplace("defcomponent", Macro::DefModeForm::make());

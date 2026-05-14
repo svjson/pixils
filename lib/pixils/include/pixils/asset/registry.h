@@ -11,6 +11,7 @@
 
 struct Mix_Chunk;
 struct SDL_Texture;
+struct SDL_Surface;
 
 namespace Pixils::Asset
 {
@@ -36,6 +37,7 @@ namespace Pixils::Asset
     void load(const std::string& bundle_id, const Runtime::ResourceDependencies& deps);
 
     SDL_Texture* get_image(const std::string& bundle, const std::string& asset_id);
+    SDL_Surface* get_image_surface(const std::string& bundle, const std::string& asset_id);
     SDL_Texture* get_tint_mask(const std::string& bundle, const std::string& asset_id);
     Mix_Chunk* get_sound(const std::string& bundle, const std::string& asset_id);
   };

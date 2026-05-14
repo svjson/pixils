@@ -12,6 +12,7 @@
 #include <lisple/runtime/dict.h>
 #include <lisple/runtime/seq.h>
 #include <lisple/type.h>
+#include <vector>
 
 namespace Pixils::Script::StyleDefinition
 {
@@ -360,59 +361,157 @@ namespace Pixils::Script::StyleDefinition
     return value ? Lisple::RTValue::number(*value) : Lisple::Constant::NIL;
   }
 
-  std::optional<UI::Style::Cursor> parse_cursor(const Lisple::sptr_rtval& value)
+  std::optional<UI::SystemCursor> parse_system_cursor(const Lisple::sptr_rtval& value)
   {
     if (!value || value->type != Lisple::RTValue::Type::KEYWORD) return std::nullopt;
-    if (value->str() == "default") return UI::Style::Cursor::DEFAULT;
+    if (value->str() == "default") return UI::SystemCursor::DEFAULT;
     if (value->str() == "pointer" || value->str() == "hand")
-      return UI::Style::Cursor::POINTER;
-    if (value->str() == "text") return UI::Style::Cursor::TEXT;
-    if (value->str() == "crosshair") return UI::Style::Cursor::CROSSHAIR;
-    if (value->str() == "move") return UI::Style::Cursor::MOVE;
-    if (value->str() == "not-allowed") return UI::Style::Cursor::NOT_ALLOWED;
-    if (value->str() == "wait") return UI::Style::Cursor::WAIT;
-    if (value->str() == "progress") return UI::Style::Cursor::PROGRESS;
+      return UI::SystemCursor::POINTER;
+    if (value->str() == "text") return UI::SystemCursor::TEXT;
+    if (value->str() == "crosshair") return UI::SystemCursor::CROSSHAIR;
+    if (value->str() == "move") return UI::SystemCursor::MOVE;
+    if (value->str() == "not-allowed") return UI::SystemCursor::NOT_ALLOWED;
+    if (value->str() == "wait") return UI::SystemCursor::WAIT;
+    if (value->str() == "progress") return UI::SystemCursor::PROGRESS;
     if (value->str() == "resize-x" || value->str() == "ew-resize")
-      return UI::Style::Cursor::RESIZE_X;
+      return UI::SystemCursor::RESIZE_X;
     if (value->str() == "resize-y" || value->str() == "ns-resize")
-      return UI::Style::Cursor::RESIZE_Y;
+      return UI::SystemCursor::RESIZE_Y;
     if (value->str() == "resize-nwse" || value->str() == "nwse-resize")
-      return UI::Style::Cursor::RESIZE_NWSE;
+      return UI::SystemCursor::RESIZE_NWSE;
     if (value->str() == "resize-nesw" || value->str() == "nesw-resize")
-      return UI::Style::Cursor::RESIZE_NESW;
+      return UI::SystemCursor::RESIZE_NESW;
     return std::nullopt;
   }
 
-  Lisple::sptr_rtval cursor_to_value(const std::optional<UI::Style::Cursor>& value)
+  std::optional<UI::ImageCursor> parse_image_cursor(
+    Lisple::Context& ctx,
+    const Lisple::sptr_rtval& value)
   {
-    if (!value) return Lisple::Constant::NIL;
-    switch (*value)
+    if (!value || value->type != Lisple::RTValue::Type::MAP) return std::nullopt;
+
+    static Lisple::MapSchema pointer_schema({{"image", &Lisple::Type::KEY}},
+                                            {{"source", &HostType::RECT},
+                                             {"hotspot", &HostType::POINT},
+                                             {"scale", &Lisple::Type::NUMBER},
+                                             {"render", &Lisple::Type::KEY}});
+
+    auto opts = pointer_schema.bind(ctx, *value);
+    UI::ImageCursor pointer;
+    pointer.image = opts.val("image")->qual();
+    pointer.source = opts.optional_obj<Rect>("source");
+    if (opts.contains("hotspot")) pointer.hotspot = opts.obj<Point>("hotspot");
+    if (opts.contains("scale")) pointer.scale = std::max(1, opts.i32("scale"));
+    if (opts.contains("render") && opts.str("render") == "native")
     {
-    case UI::Style::Cursor::DEFAULT:
+      pointer.render_mode = UI::ImageCursor::RenderMode::NATIVE;
+    }
+    return pointer;
+  }
+
+  std::optional<UI::CursorSpec> parse_cursor(Lisple::Context& ctx,
+                                             const Lisple::sptr_rtval& value)
+  {
+    if (!value || *value == *Lisple::Constant::NIL) return std::nullopt;
+
+    if (auto system = parse_system_cursor(value))
+    {
+      return UI::CursorSpec::system_cursor(*system);
+    }
+
+    if (value->type == Lisple::RTValue::Type::KEYWORD)
+    {
+      return UI::CursorSpec::named(value->str());
+    }
+
+    if (auto image_cursor = parse_image_cursor(ctx, value))
+    {
+      return UI::CursorSpec::image_cursor(*image_cursor);
+    }
+
+    return std::nullopt;
+  }
+
+  Lisple::sptr_rtval system_cursor_to_value(const UI::SystemCursor& value)
+  {
+    switch (value)
+    {
+    case UI::SystemCursor::DEFAULT:
       return Lisple::RTValue::keyword("default");
-    case UI::Style::Cursor::POINTER:
+    case UI::SystemCursor::POINTER:
       return Lisple::RTValue::keyword("pointer");
-    case UI::Style::Cursor::TEXT:
+    case UI::SystemCursor::TEXT:
       return Lisple::RTValue::keyword("text");
-    case UI::Style::Cursor::CROSSHAIR:
+    case UI::SystemCursor::CROSSHAIR:
       return Lisple::RTValue::keyword("crosshair");
-    case UI::Style::Cursor::MOVE:
+    case UI::SystemCursor::MOVE:
       return Lisple::RTValue::keyword("move");
-    case UI::Style::Cursor::NOT_ALLOWED:
+    case UI::SystemCursor::NOT_ALLOWED:
       return Lisple::RTValue::keyword("not-allowed");
-    case UI::Style::Cursor::WAIT:
+    case UI::SystemCursor::WAIT:
       return Lisple::RTValue::keyword("wait");
-    case UI::Style::Cursor::PROGRESS:
+    case UI::SystemCursor::PROGRESS:
       return Lisple::RTValue::keyword("progress");
-    case UI::Style::Cursor::RESIZE_X:
+    case UI::SystemCursor::RESIZE_X:
       return Lisple::RTValue::keyword("resize-x");
-    case UI::Style::Cursor::RESIZE_Y:
+    case UI::SystemCursor::RESIZE_Y:
       return Lisple::RTValue::keyword("resize-y");
-    case UI::Style::Cursor::RESIZE_NWSE:
+    case UI::SystemCursor::RESIZE_NWSE:
       return Lisple::RTValue::keyword("resize-nwse");
-    case UI::Style::Cursor::RESIZE_NESW:
+    case UI::SystemCursor::RESIZE_NESW:
       return Lisple::RTValue::keyword("resize-nesw");
     }
+    return Lisple::Constant::NIL;
+  }
+
+  Lisple::sptr_rtval cursor_to_value(const std::optional<UI::CursorSpec>& value)
+  {
+    if (!value) return Lisple::Constant::NIL;
+
+    switch (value->kind)
+    {
+    case UI::CursorSpec::Kind::SYSTEM:
+      return system_cursor_to_value(value->system);
+    case UI::CursorSpec::Kind::NAMED:
+      return Lisple::RTValue::keyword(value->name);
+    case UI::CursorSpec::Kind::IMAGE:
+    {
+      std::vector<Lisple::sptr_rtval> values;
+      if (value->image.image)
+      {
+        values.push_back(Lisple::RTValue::keyword("image"));
+        values.push_back(Lisple::RTValue::keyword(value->image.image->first + "/" +
+                                                  value->image.image->second));
+      }
+      if (value->image.source)
+      {
+        values.push_back(Lisple::RTValue::keyword("source"));
+        values.push_back(
+          Lisple::RTValue::map({Lisple::RTValue::keyword("x"),
+                                Lisple::RTValue::number(value->image.source->x),
+                                Lisple::RTValue::keyword("y"),
+                                Lisple::RTValue::number(value->image.source->y),
+                                Lisple::RTValue::keyword("w"),
+                                Lisple::RTValue::number(value->image.source->w),
+                                Lisple::RTValue::keyword("h"),
+                                Lisple::RTValue::number(value->image.source->h)}));
+      }
+      values.push_back(Lisple::RTValue::keyword("hotspot"));
+      values.push_back(
+        Lisple::RTValue::map({Lisple::RTValue::keyword("x"),
+                              Lisple::RTValue::number(value->image.hotspot.round_x()),
+                              Lisple::RTValue::keyword("y"),
+                              Lisple::RTValue::number(value->image.hotspot.round_y())}));
+      values.push_back(Lisple::RTValue::keyword("scale"));
+      values.push_back(Lisple::RTValue::number(value->image.scale));
+      values.push_back(Lisple::RTValue::keyword("render"));
+      values.push_back(Lisple::RTValue::keyword(
+        value->image.render_mode == UI::ImageCursor::RenderMode::NATIVE ? "native"
+                                                                         : "app"));
+      return Lisple::RTValue::map(values);
+    }
+    }
+
     return Lisple::Constant::NIL;
   }
 
@@ -734,7 +833,7 @@ namespace Pixils::Script::StyleDefinition
                                            {"left", &Lisple::Type::NUMBER},
                                            {"hidden", &Lisple::Type::ANY},
                                            {"clip", &Lisple::Type::ANY},
-                                           {"cursor", &Lisple::Type::KEY},
+                                           {"cursor", &Lisple::Type::ANY},
                                            {"hover", &HostType::STYLE},
                                            {"focus-within", &HostType::STYLE},
                                            {"focus", &HostType::STYLE}});
@@ -759,7 +858,7 @@ namespace Pixils::Script::StyleDefinition
     if (opts.contains("left")) style->left = opts.i32("left");
     if (opts.contains("hidden")) style->hidden = parse_optional_bool(opts.val("hidden"));
     if (opts.contains("clip")) style->clip = parse_optional_bool(opts.val("clip"));
-    if (opts.contains("cursor")) style->cursor = parse_cursor(opts.val("cursor"));
+    if (opts.contains("cursor")) style->cursor = parse_cursor(ctx, opts.val("cursor"));
 
     auto hover_style = opts.optional_obj<UI::Style>("hover");
     if (hover_style) style->hover = std::make_unique<UI::Style>(*hover_style);

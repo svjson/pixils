@@ -318,7 +318,75 @@ TEST_F(StyleTest, make_style_with_cursor)
 
   auto style = Lisple::obj<Pixils::UI::Style>(*result);
   ASSERT_NE(style.cursor, std::nullopt);
-  EXPECT_EQ(*style.cursor, Pixils::UI::Style::Cursor::POINTER);
+  EXPECT_EQ(style.cursor->kind, Pixils::UI::CursorSpec::Kind::SYSTEM);
+  EXPECT_EQ(style.cursor->system, Pixils::UI::SystemCursor::POINTER);
+}
+
+TEST_F(StyleTest, make_style_with_named_pointer_cursor)
+{
+  Lisple::sptr_rtval result =
+    runtime.eval("(pixils.ui.style/make-style {:cursor :workbench/pointer})");
+
+  auto style = Lisple::obj<Pixils::UI::Style>(*result);
+  ASSERT_NE(style.cursor, std::nullopt);
+  EXPECT_EQ(style.cursor->kind, Pixils::UI::CursorSpec::Kind::NAMED);
+  EXPECT_EQ(style.cursor->name, "workbench/pointer");
+}
+
+TEST_F(StyleTest, make_style_with_inline_image_cursor)
+{
+  Lisple::sptr_rtval result = runtime.eval("(pixils.ui.style/make-style "
+                                           "{:cursor {:image :workbench-assets/cursor "
+                                           ":source {:x 1 :y 2 :w 3 :h 4} "
+                                           ":hotspot {:x 5 :y 6} "
+                                           ":scale 2}})");
+
+  auto style = Lisple::obj<Pixils::UI::Style>(*result);
+  ASSERT_NE(style.cursor, std::nullopt);
+  EXPECT_EQ(style.cursor->kind, Pixils::UI::CursorSpec::Kind::IMAGE);
+  ASSERT_NE(style.cursor->image.image, std::nullopt);
+  EXPECT_EQ(style.cursor->image.image->first, "workbench-assets");
+  EXPECT_EQ(style.cursor->image.image->second, "cursor");
+  ASSERT_NE(style.cursor->image.source, std::nullopt);
+  EXPECT_EQ(style.cursor->image.source->x, 1);
+  EXPECT_EQ(style.cursor->image.source->y, 2);
+  EXPECT_EQ(style.cursor->image.source->w, 3);
+  EXPECT_EQ(style.cursor->image.source->h, 4);
+  EXPECT_EQ(style.cursor->image.hotspot.round_x(), 5);
+  EXPECT_EQ(style.cursor->image.hotspot.round_y(), 6);
+  EXPECT_EQ(style.cursor->image.scale, 2);
+  EXPECT_EQ(style.cursor->image.render_mode, Pixils::UI::ImageCursor::RenderMode::APP);
+}
+
+TEST_F(StyleTest, make_style_with_native_image_cursor)
+{
+  Lisple::sptr_rtval result = runtime.eval("(pixils.ui.style/make-style "
+                                           "{:cursor {:image :workbench-assets/cursor "
+                                           ":render :native}})");
+
+  auto style = Lisple::obj<Pixils::UI::Style>(*result);
+  ASSERT_NE(style.cursor, std::nullopt);
+  EXPECT_EQ(style.cursor->kind, Pixils::UI::CursorSpec::Kind::IMAGE);
+  EXPECT_EQ(style.cursor->image.render_mode, Pixils::UI::ImageCursor::RenderMode::NATIVE);
+}
+
+TEST_F(StyleTest, defpointer_registers_named_pointer_without_implicit_renaming)
+{
+  runtime.eval("(pixils/defpointer workbench-pointer "
+               "{:image :workbench-assets/cursor "
+               ":hotspot {:x 1 :y 2} "
+               ":scale 2})");
+
+  auto pointer = render_ctx.pointer_registry.find("workbench-pointer");
+  ASSERT_NE(pointer, render_ctx.pointer_registry.end());
+  ASSERT_NE(pointer->second.image, std::nullopt);
+  EXPECT_EQ(pointer->second.image->first, "workbench-assets");
+  EXPECT_EQ(pointer->second.image->second, "cursor");
+  EXPECT_EQ(pointer->second.hotspot.round_x(), 1);
+  EXPECT_EQ(pointer->second.hotspot.round_y(), 2);
+  EXPECT_EQ(pointer->second.scale, 2);
+  EXPECT_EQ(render_ctx.pointer_registry.find("workbench/pointer"),
+            render_ctx.pointer_registry.end());
 }
 
 TEST_F(StyleTest, make_style_with_view_scale)
@@ -346,10 +414,12 @@ TEST_F(StyleTest, make_style_with_hover_cursor)
 
   auto style = Lisple::obj<Pixils::UI::Style>(*result);
   ASSERT_NE(style.cursor, std::nullopt);
-  EXPECT_EQ(*style.cursor, Pixils::UI::Style::Cursor::DEFAULT);
+  EXPECT_EQ(style.cursor->kind, Pixils::UI::CursorSpec::Kind::SYSTEM);
+  EXPECT_EQ(style.cursor->system, Pixils::UI::SystemCursor::DEFAULT);
   ASSERT_NE(style.hover, nullptr);
   ASSERT_NE(style.hover->cursor, std::nullopt);
-  EXPECT_EQ(*style.hover->cursor, Pixils::UI::Style::Cursor::TEXT);
+  EXPECT_EQ(style.hover->cursor->kind, Pixils::UI::CursorSpec::Kind::SYSTEM);
+  EXPECT_EQ(style.hover->cursor->system, Pixils::UI::SystemCursor::TEXT);
 }
 
 TEST_F(StyleTest, make_style_with_text_color_from_host_color_value)

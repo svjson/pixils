@@ -14,7 +14,9 @@
 #include <pixils/runtime/view.h>
 
 #include <SDL2/SDL_mouse.h>
+#include <SDL2/SDL_pixels.h>
 #include <SDL2/SDL_render.h>
+#include <SDL2/SDL_surface.h>
 #include <algorithm>
 #include <chrono>
 #include <iostream>
@@ -25,6 +27,7 @@
 #include <lisple/runtime/seq.h>
 #include <lisple/runtime/value.h>
 #include <memory>
+#include <sstream>
 
 namespace Pixils
 {
@@ -76,6 +79,10 @@ namespace Pixils
   Client::~Client()
   {
     for (auto& [_, cursor] : cursor_cache)
+    {
+      if (cursor) SDL_FreeCursor(cursor);
+    }
+    for (auto& [_, cursor] : image_cursor_cache)
     {
       if (cursor) SDL_FreeCursor(cursor);
     }
@@ -181,6 +188,7 @@ namespace Pixils
           session.update_mode();
           update_cursor();
           session.render_mode();
+          render_app_cursor();
         }
         catch (std::exception& e)
         {
@@ -247,7 +255,7 @@ namespace Pixils
     }
   }
 
-  SDL_Cursor* Client::system_cursor(UI::Style::Cursor cursor)
+  SDL_Cursor* Client::system_cursor(UI::SystemCursor cursor)
   {
     if (auto it = cursor_cache.find(cursor); it != cursor_cache.end())
     {
@@ -257,40 +265,40 @@ namespace Pixils
     SDL_SystemCursor sdl_cursor = SDL_SYSTEM_CURSOR_ARROW;
     switch (cursor)
     {
-    case UI::Style::Cursor::DEFAULT:
+    case UI::SystemCursor::DEFAULT:
       sdl_cursor = SDL_SYSTEM_CURSOR_ARROW;
       break;
-    case UI::Style::Cursor::POINTER:
+    case UI::SystemCursor::POINTER:
       sdl_cursor = SDL_SYSTEM_CURSOR_HAND;
       break;
-    case UI::Style::Cursor::TEXT:
+    case UI::SystemCursor::TEXT:
       sdl_cursor = SDL_SYSTEM_CURSOR_IBEAM;
       break;
-    case UI::Style::Cursor::CROSSHAIR:
+    case UI::SystemCursor::CROSSHAIR:
       sdl_cursor = SDL_SYSTEM_CURSOR_CROSSHAIR;
       break;
-    case UI::Style::Cursor::MOVE:
+    case UI::SystemCursor::MOVE:
       sdl_cursor = SDL_SYSTEM_CURSOR_SIZEALL;
       break;
-    case UI::Style::Cursor::NOT_ALLOWED:
+    case UI::SystemCursor::NOT_ALLOWED:
       sdl_cursor = SDL_SYSTEM_CURSOR_NO;
       break;
-    case UI::Style::Cursor::WAIT:
+    case UI::SystemCursor::WAIT:
       sdl_cursor = SDL_SYSTEM_CURSOR_WAIT;
       break;
-    case UI::Style::Cursor::PROGRESS:
+    case UI::SystemCursor::PROGRESS:
       sdl_cursor = SDL_SYSTEM_CURSOR_WAITARROW;
       break;
-    case UI::Style::Cursor::RESIZE_X:
+    case UI::SystemCursor::RESIZE_X:
       sdl_cursor = SDL_SYSTEM_CURSOR_SIZEWE;
       break;
-    case UI::Style::Cursor::RESIZE_Y:
+    case UI::SystemCursor::RESIZE_Y:
       sdl_cursor = SDL_SYSTEM_CURSOR_SIZENS;
       break;
-    case UI::Style::Cursor::RESIZE_NWSE:
+    case UI::SystemCursor::RESIZE_NWSE:
       sdl_cursor = SDL_SYSTEM_CURSOR_SIZENWSE;
       break;
-    case UI::Style::Cursor::RESIZE_NESW:
+    case UI::SystemCursor::RESIZE_NESW:
       sdl_cursor = SDL_SYSTEM_CURSOR_SIZENESW;
       break;
     }
@@ -298,6 +306,179 @@ namespace Pixils
     SDL_Cursor* created = SDL_CreateSystemCursor(sdl_cursor);
     cursor_cache[cursor] = created;
     return created;
+  }
+
+  std::string image_cursor_key(const UI::ImageCursor& cursor)
+  {
+    std::ostringstream key;
+    if (cursor.image)
+    {
+      key << cursor.image->first << "/" << cursor.image->second;
+    }
+    key << "|";
+    if (cursor.source)
+    {
+      key << cursor.source->x << "," << cursor.source->y << "," << cursor.source->w
+          << "," << cursor.source->h;
+    }
+    key << "|" << cursor.hotspot.round_x() << "," << cursor.hotspot.round_y() << "|"
+        << cursor.scale;
+    return key.str();
+  }
+
+  SDL_Cursor* Client::image_cursor(const UI::ImageCursor& cursor)
+  {
+    std::string key = image_cursor_key(cursor);
+    if (auto it = image_cursor_cache.find(key); it != image_cursor_cache.end())
+    {
+      return it->second;
+    }
+
+    if (!cursor.image) return nullptr;
+
+    SDL_Surface* source_surface =
+      ctx.asset_registry->get_image_surface(cursor.image->first, cursor.image->second);
+    if (!source_surface) return nullptr;
+
+    SDL_Surface* formatted_source =
+      SDL_ConvertSurfaceFormat(source_surface, SDL_PIXELFORMAT_RGBA32, 0);
+    if (!formatted_source) return nullptr;
+
+    SDL_Rect source_rect{0, 0, source_surface->w, source_surface->h};
+    if (cursor.source)
+    {
+      source_rect = cursor.source->to_SDL_rect();
+    }
+    if (source_rect.w <= 0 || source_rect.h <= 0)
+    {
+      SDL_FreeSurface(formatted_source);
+      return nullptr;
+    }
+
+    int scale = std::max(1, cursor.scale);
+    SDL_Rect target_rect{0, 0, source_rect.w * scale, source_rect.h * scale};
+    SDL_Surface* final_surface =
+      SDL_CreateRGBSurfaceWithFormat(0,
+                                     target_rect.w,
+                                     target_rect.h,
+                                     32,
+                                     SDL_PIXELFORMAT_RGBA32);
+    if (!final_surface)
+    {
+      SDL_FreeSurface(formatted_source);
+      return nullptr;
+    }
+
+    SDL_SetSurfaceBlendMode(formatted_source, SDL_BLENDMODE_NONE);
+    if (SDL_BlitScaled(formatted_source, &source_rect, final_surface, &target_rect) != 0)
+    {
+      SDL_FreeSurface(formatted_source);
+      SDL_FreeSurface(final_surface);
+      return nullptr;
+    }
+
+    int hot_x = std::clamp(cursor.hotspot.round_x() * scale, 0, target_rect.w - 1);
+    int hot_y = std::clamp(cursor.hotspot.round_y() * scale, 0, target_rect.h - 1);
+    SDL_Cursor* created = SDL_CreateColorCursor(final_surface, hot_x, hot_y);
+    SDL_FreeSurface(formatted_source);
+    SDL_FreeSurface(final_surface);
+
+    image_cursor_cache[key] = created;
+    return created;
+  }
+
+  SDL_Cursor* Client::resolved_cursor(const UI::CursorSpec& cursor)
+  {
+    switch (cursor.kind)
+    {
+    case UI::CursorSpec::Kind::SYSTEM:
+      return system_cursor(cursor.system);
+    case UI::CursorSpec::Kind::IMAGE:
+      if (cursor.image.render_mode == UI::ImageCursor::RenderMode::APP)
+      {
+        return nullptr;
+      }
+      return image_cursor(cursor.image);
+    case UI::CursorSpec::Kind::NAMED:
+    {
+      auto it = ctx.pointer_registry.find(cursor.name);
+      if (it == ctx.pointer_registry.end()) return nullptr;
+      if (it->second.render_mode == UI::ImageCursor::RenderMode::APP)
+      {
+        return nullptr;
+      }
+      return image_cursor(it->second);
+    }
+    }
+
+    return nullptr;
+  }
+
+  std::optional<UI::ImageCursor> Client::app_rendered_cursor(
+    const UI::CursorSpec& cursor) const
+  {
+    switch (cursor.kind)
+    {
+    case UI::CursorSpec::Kind::IMAGE:
+      if (cursor.image.render_mode == UI::ImageCursor::RenderMode::APP)
+      {
+        return cursor.image;
+      }
+      return std::nullopt;
+    case UI::CursorSpec::Kind::NAMED:
+    {
+      auto it = ctx.pointer_registry.find(cursor.name);
+      if (it != ctx.pointer_registry.end() &&
+          it->second.render_mode == UI::ImageCursor::RenderMode::APP)
+      {
+        return it->second;
+      }
+      return std::nullopt;
+    }
+    case UI::CursorSpec::Kind::SYSTEM:
+      return std::nullopt;
+    }
+
+    return std::nullopt;
+  }
+
+  void Client::render_app_cursor()
+  {
+    if (!program || !program->pointer_visible || !active_cursor) return;
+
+    auto cursor = app_rendered_cursor(*active_cursor);
+    if (!cursor || !cursor->image) return;
+
+    SDL_Texture* texture =
+      ctx.asset_registry->get_image(cursor->image->first, cursor->image->second);
+    if (!texture) return;
+
+    SDL_Rect source_rect{0, 0, 0, 0};
+    SDL_Rect* source_ptr = nullptr;
+    if (cursor->source)
+    {
+      source_rect = cursor->source->to_SDL_rect();
+      source_ptr = &source_rect;
+    }
+    else if (SDL_QueryTexture(texture, nullptr, nullptr, &source_rect.w, &source_rect.h) == 0)
+    {
+      source_ptr = &source_rect;
+    }
+    if (source_rect.w <= 0 || source_rect.h <= 0) return;
+
+    int mouse_x = 0;
+    int mouse_y = 0;
+    SDL_GetMouseState(&mouse_x, &mouse_y);
+    Point mouse_pos = ctx.window_to_buffer_point(program->get_display(), mouse_x, mouse_y);
+    Point snapped = mouse_pos.round();
+    int scale = std::max(1, cursor->scale);
+    SDL_Rect dest{snapped.round_x() - (cursor->hotspot.round_x() * scale),
+                  snapped.round_y() - (cursor->hotspot.round_y() * scale),
+                  source_rect.w * scale,
+                  source_rect.h * scale};
+
+    SDL_SetRenderTarget(ctx.renderer, ctx.buffer_texture);
+    SDL_RenderCopy(ctx.renderer, texture, source_ptr, &dest);
   }
 
   void Client::update_cursor()
@@ -309,7 +490,7 @@ namespace Pixils
       return;
     }
 
-    auto next_cursor = UI::Style::Cursor::DEFAULT;
+    auto next_cursor = UI::CursorSpec::system_cursor(UI::SystemCursor::DEFAULT);
     for (auto& weak_view : session.mouse_state.hovered_chain)
     {
       auto view = weak_view.lock();
@@ -320,16 +501,30 @@ namespace Pixils
       }
     }
 
-    SDL_ShowCursor(SDL_ENABLE);
     if (active_cursor && *active_cursor == next_cursor)
     {
       return;
     }
 
-    if (auto* cursor = system_cursor(next_cursor))
+    if (app_rendered_cursor(next_cursor))
+    {
+      SDL_ShowCursor(SDL_DISABLE);
+      active_cursor = next_cursor;
+      return;
+    }
+
+    SDL_ShowCursor(SDL_ENABLE);
+    if (auto* cursor = resolved_cursor(next_cursor))
     {
       SDL_SetCursor(cursor);
       active_cursor = next_cursor;
+      return;
+    }
+
+    if (auto* cursor = system_cursor(UI::SystemCursor::DEFAULT))
+    {
+      SDL_SetCursor(cursor);
+      active_cursor = UI::CursorSpec::system_cursor(UI::SystemCursor::DEFAULT);
     }
   }
 

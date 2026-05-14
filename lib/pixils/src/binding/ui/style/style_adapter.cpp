@@ -220,7 +220,7 @@ namespace Pixils::Script
 
   NOBJ_PROP_SET(StyleAdapter, cursor)
   {
-    get_self_object().cursor = StyleDefinition::parse_cursor(value);
+    get_self_object().cursor = StyleDefinition::parse_cursor(*ctx, value);
   }
 
   NOBJ_PROP_GET(StyleAdapter, hover)

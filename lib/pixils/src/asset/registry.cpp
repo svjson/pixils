@@ -231,6 +231,23 @@ namespace Pixils::Asset
     return bundle.images.at(asset_id);
   }
 
+  SDL_Surface* Registry::get_image_surface(const std::string& bundle_id,
+                                           const std::string& asset_id)
+  {
+    if (!this->is_loaded(bundle_id))
+    {
+      auto it = this->declarations.find(bundle_id);
+      if (it == this->declarations.end()) return nullptr;
+      this->load(bundle_id, it->second);
+    }
+
+    Bundle& bundle = this->bundles.at(bundle_id);
+
+    auto source = bundle.image_sources.find(asset_id);
+    if (source == bundle.image_sources.end()) return nullptr;
+    return source->second;
+  }
+
   SDL_Texture* Registry::get_tint_mask(const std::string& bundle_id,
                                        const std::string& asset_id)
   {

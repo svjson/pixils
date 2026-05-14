@@ -447,7 +447,7 @@ hook fires.
 | `:left`       | Number                                                               | Left offset when `:position :absolute`. |
 | `:hidden`     | Boolean                                                              | When true, excluded from hit-testing and rendering. Layout space is preserved. |
 | `:clip`       | Boolean                                                              | When true, descendant rendering and hit testing are clipped to this view's content rect. |
-| `:cursor`     | Cursor keyword                                                       | OS mouse cursor to show while this view, or a descendant without its own cursor, is hovered. |
+| `:cursor`     | Cursor keyword, pointer keyword, or pointer map                      | Mouse cursor to show while this view, or a descendant without its own cursor, is hovered. |
 | `:hover`      | Nested style map                                                     | Applied instead of the base style when the cursor is within bounds. |
 | `:focus-within` | Nested style map                                                   | Applied when this view or any descendant owns focus. |
 | `:focus`      | Nested style map                                                     | Applied when this exact view owns focus. |
@@ -470,9 +470,9 @@ natural image size:
                       :align :center}}}
 ```
 
-`:cursor` controls the SDL/OS cursor, not a Pixils-rendered sprite. The deepest hovered
-view with a cursor wins; if that view has no cursor, Pixils falls back through its hovered
-ancestors. It can be declared directly or inside interaction variants:
+`:cursor` controls the visible mouse cursor. The deepest hovered view with a cursor wins;
+if that view has no cursor, Pixils falls back through its hovered ancestors. It can be
+declared directly or inside interaction variants:
 
 ```clojure
 (pixils/defcomponent draggable-splitter
@@ -486,6 +486,51 @@ ancestors. It can be declared directly or inside interaction variants:
 Supported cursor keywords are `:default`, `:pointer`, `:hand`, `:text`, `:crosshair`,
 `:move`, `:not-allowed`, `:wait`, `:progress`, `:resize-x`, `:resize-y`,
 `:resize-nwse`, and `:resize-nesw`. `:hand` is accepted as an alias for `:pointer`.
+
+Custom pointers are named with `defpointer` and can reuse normal image assets. The
+definition name is used exactly as written: `(defpointer workbench-pointer ...)` is
+referenced as `:workbench-pointer`; use `(defpointer workbench/pointer ...)` when you
+want `:workbench/pointer`. Image pointers default to `:render :app`, which hides the OS
+cursor and draws the pointer into Pixils' logical buffer so it scales and snaps to the same
+pixel grid as the application.
+
+```clojure
+(pixils/defbundle workbench-assets
+  {:images {:cursor "assets/cursor.png"
+            :cursors "assets/cursors.png"}})
+
+(pixils/defpointer workbench/pointer
+  {:image :workbench-assets/cursor
+   :hotspot {:x 0 :y 0}
+   :scale 1})
+
+(pixils/defpointer precision-crosshair
+  {:image :workbench-assets/cursors
+   :source {:x 16 :y 0 :w 16 :h 16}
+   :hotspot {:x 8 :y 8}
+   :scale 2})
+
+{:style {:cursor :workbench/pointer}}
+```
+
+Use `:render :native` when you need SDL to draw a custom cursor outside the app's logical
+pixel grid:
+
+```clojure
+(pixils/defpointer native-pointer
+  {:image :workbench-assets/cursor
+   :hotspot {:x 0 :y 0}
+   :render :native})
+```
+
+Inline custom cursor maps are also accepted for one-off use:
+
+```clojure
+{:style {:cursor {:image :workbench-assets/cursor
+                  :hotspot {:x 2 :y 1}
+                  :scale 2}}}
+```
+
 Use program-level `:pointer :off` when the OS cursor should be hidden entirely.
 
 `:scale` is a view-boundary scale. The view and its descendants still lay out and

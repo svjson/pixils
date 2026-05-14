@@ -4,6 +4,7 @@
 
 #include <pixils/geom.h>
 #include <pixils/text.h>
+#include <pixils/ui/cursor.h>
 #include <pixils/ui/interaction.h>
 
 #include <SDL2/SDL_render.h>
@@ -43,22 +44,6 @@ namespace Pixils::UI
     {
       BORDER_BOX,
       CONTENT_BOX,
-    };
-
-    enum class Cursor : uint8_t
-    {
-      DEFAULT,
-      POINTER,
-      TEXT,
-      CROSSHAIR,
-      MOVE,
-      NOT_ALLOWED,
-      WAIT,
-      PROGRESS,
-      RESIZE_X,
-      RESIZE_Y,
-      RESIZE_NWSE,
-      RESIZE_NESW,
     };
 
     struct Background
@@ -331,7 +316,7 @@ namespace Pixils::UI
     /**
      * OS cursor used while this view, or a descendant without an override, is hovered.
      */
-    std::optional<Cursor> cursor;
+    std::optional<CursorSpec> cursor;
 
     /** Hover variant - merged on top of base style when the cursor is within bounds. */
     std::unique_ptr<Style> hover = nullptr;
