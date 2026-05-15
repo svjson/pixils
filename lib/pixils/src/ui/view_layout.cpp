@@ -1,5 +1,7 @@
 #include "pixils/ui/view_layout.h"
 
+#include <pixils/binding/ui/style/style_host_type.h>
+#include <pixils/binding/ui/style/theme_definition.h>
 #include <pixils/binding/pixils_namespace.h>
 #include <pixils/hook_context.h>
 #include <pixils/runtime/hook_invocation.h>
@@ -8,6 +10,8 @@
 #include <pixils/ui/theme.h>
 
 #include <functional>
+#include <lisple/context.h>
+#include <lisple/exception.h>
 #include <lisple/runtime.h>
 #include <lisple/runtime/dict.h>
 #include <unordered_map>
@@ -286,7 +290,51 @@ namespace Pixils::UI
       return child_path;
     }
 
+    std::optional<Style> resolve_style_layer(const Runtime::StyleLayer& layer,
+                                             const Theme& theme,
+                                             Lisple::Runtime& runtime)
+    {
+      if (layer.style) return layer.style;
+      if (!layer.source || layer.source->type == Lisple::Value::Type::NIL)
+        return std::nullopt;
+
+      auto resolved_value =
+        Script::resolve_theme_vars(theme, theme.selected_variant, layer.source);
+      if (!resolved_value) return std::nullopt;
+
+      Lisple::Context ctx(runtime);
+      auto coercion = Script::HostType::STYLE.coerce(ctx, resolved_value);
+      if (!coercion.success)
+      {
+        throw Lisple::TypeError("Invalid inline style after resolving theme vars: " +
+                                resolved_value->to_string());
+      }
+
+      return Lisple::obj<Style>(*coercion.result);
+    }
+
+    std::optional<Style> resolve_style_source(const Lisple::sptr_val& source,
+                                              const Theme& theme,
+                                              Lisple::Runtime& runtime)
+    {
+      if (!source || source->type == Lisple::Value::Type::NIL) return std::nullopt;
+
+      auto resolved_value = Script::resolve_theme_vars(theme, theme.selected_variant, source);
+      if (!resolved_value) return std::nullopt;
+
+      Lisple::Context ctx(runtime);
+      auto coercion = Script::HostType::STYLE.coerce(ctx, resolved_value);
+      if (!coercion.success)
+      {
+        throw Lisple::TypeError("Invalid inline style after resolving theme vars: " +
+                                resolved_value->to_string());
+      }
+
+      return Lisple::obj<Style>(*coercion.result);
+    }
+
     Style resolve_effective_style(const std::shared_ptr<Pixils::Runtime::View>& view,
+                                  Lisple::Runtime& runtime,
                                   const Style* inherited_style,
                                   const std::vector<ThemeMatchContext>& selector_path)
     {
@@ -301,10 +349,35 @@ namespace Pixils::UI
           apply_style_variant(*resolved_style, *theme_style);
         }
 
+        if (!view->mode->style_layers.empty())
+        {
+          for (const auto& layer : view->mode->style_layers)
+          {
+            auto layer_style = resolve_style_layer(layer, view->effective_theme, runtime);
+            if (!layer_style) continue;
+            if (!resolved_style) resolved_style = Style{};
+            apply_style_variant(*resolved_style, *layer_style);
+          }
+        }
+
         if (view->mode->style)
         {
           if (!resolved_style) resolved_style = Style{};
           apply_style_variant(*resolved_style, *view->mode->style);
+        }
+
+        if (auto runtime_style = resolve_style_source(view->mode->runtime_style_source,
+                                                      view->effective_theme,
+                                                      runtime))
+        {
+          if (!resolved_style) resolved_style = Style{};
+          apply_style_variant(*resolved_style, *runtime_style);
+        }
+
+        if (view->mode->runtime_style)
+        {
+          if (!resolved_style) resolved_style = Style{};
+          apply_style_variant(*resolved_style, *view->mode->runtime_style);
         }
       }
 
@@ -392,7 +465,8 @@ namespace Pixils::UI
       if (cached != pass.natural_size_cache.end()) return cached->second;
 
       view->effective_theme = resolve_effective_theme(view, pass.runtime, inherited_theme);
-      view->effective_style = resolve_effective_style(view, inherited_style, selector_path);
+      view->effective_style =
+        resolve_effective_style(view, pass.runtime, inherited_style, selector_path);
 
       auto available_width = resolve_available_content_size(view->effective_style,
                                                             parent_available_width,

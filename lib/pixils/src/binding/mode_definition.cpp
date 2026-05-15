@@ -4,6 +4,7 @@
 #include <pixils/binding/pixils_namespace.h>
 #include <pixils/binding/resource_namespace.h>
 #include <pixils/binding/ui/style/style_host_type.h>
+#include <pixils/binding/ui/style/theme_definition.h>
 #include <pixils/runtime/state.h>
 #include <pixils/ui/style.h>
 
@@ -189,6 +190,62 @@ namespace Pixils::Script
     return variant_val->str();
   }
 
+  void append_mode_style_layer(Lisple::Context& ctx,
+                               Runtime::Mode& mode,
+                               const Lisple::sptr_val& style_val)
+  {
+    if (!style_val || style_val->type == Lisple::Value::Type::NIL) return;
+
+    auto append_materialized_style = [&](const UI::Style& style)
+    {
+      if (!mode.style_layers.empty())
+      {
+        mode.style_layers.push_back(Runtime::StyleLayer{.style = style});
+        if (!mode.style) mode.style = UI::Style{};
+        return;
+      }
+
+      if (!mode.style)
+      {
+        mode.style = style;
+      }
+      else
+      {
+        UI::apply_style_variant(*mode.style, style);
+      }
+    };
+
+    if (HostType::STYLE.is_type_of(*style_val))
+    {
+      auto style = Lisple::obj<UI::Style>(*style_val);
+      append_materialized_style(style);
+      return;
+    }
+
+    if (contains_theme_var_ref(style_val))
+    {
+      if (mode.style && mode.style_layers.empty())
+      {
+        mode.style_layers.push_back(Runtime::StyleLayer{.style = *mode.style});
+        mode.style = UI::Style{};
+      }
+      mode.style_layers.push_back(Runtime::StyleLayer{.source = style_val});
+      if (!mode.style) mode.style = UI::Style{};
+      return;
+    }
+
+    auto mutable_style_val = style_val;
+    auto coercion = HostType::STYLE.coerce(ctx, mutable_style_val);
+    if (!coercion.success)
+    {
+      throw Lisple::TypeError("Mode :style must be a style map or style. Got: " +
+                              style_val->to_string());
+    }
+
+    auto style = Lisple::obj<UI::Style>(*coercion.result);
+    append_materialized_style(style);
+  }
+
   std::vector<Runtime::ChildSlot> parse_child_slots(Lisple::Context& ctx,
                                                     const Lisple::sptr_val& children_val)
   {
@@ -275,7 +332,7 @@ namespace Pixils::Script
                                           {"compose", &HostType::MODE_COMPOSITION},
                                           {"resources", &HostType::RESOURCE_DEPENDENCIES},
                                           {"drag", &Lisple::Type::MAP},
-                                          {"style", &HostType::STYLE},
+                                          {"style", &Lisple::Type::ANY},
                                           {"class", &Lisple::Type::ANY},
                                           {"focusable", &Lisple::Type::BOOL},
                                           {"theme", &Lisple::Type::ANY},
@@ -364,15 +421,7 @@ namespace Pixils::Script
 
     if (opts.contains("style"))
     {
-      auto style = opts.obj<UI::Style>("style");
-      if (!mode.style)
-      {
-        mode.style = style;
-      }
-      else
-      {
-        UI::apply_style_variant(*mode.style, style);
-      }
+      append_mode_style_layer(ctx, mode, opts.val("style"));
     }
     if (opts.contains("class"))
     {
@@ -390,8 +439,8 @@ namespace Pixils::Script
     }
     if (opts.contains("theme-variant"))
     {
-      mode.theme_variant = parse_theme_variant(opts.val("theme-variant"),
-                                               "Mode :theme-variant");
+      mode.theme_variant =
+        parse_theme_variant(opts.val("theme-variant"), "Mode :theme-variant");
     }
 
     if (opts.contains("children"))

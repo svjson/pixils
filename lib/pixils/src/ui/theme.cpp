@@ -336,7 +336,8 @@ namespace Pixils::UI
     Theme resolved = *this;
     resolved.selected_variant = variant;
     if (resolved.selected_variant &&
-        resolved.variant_rules.find(*resolved.selected_variant) == resolved.variant_rules.end())
+        resolved.variant_rules.find(*resolved.selected_variant) == resolved.variant_rules.end() &&
+        resolved.vars.find(*resolved.selected_variant) == resolved.vars.end())
     {
       resolved.selected_variant = resolved.default_variant;
     }

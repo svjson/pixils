@@ -250,6 +250,104 @@ TEST_F(SessionChildrenTest, hook_can_read_active_theme_vars)
   EXPECT_EQ(child->bounds.h, 17);
 }
 
+TEST_F(SessionChildrenTest, inline_style_can_use_active_theme_vars)
+{
+  runtime.eval(R"(
+    (pixils/deftheme token-theme
+      {:default-variant :light
+       :vars {:light {:panel-bg {:r 1 :g 2 :b 3}
+                      :panel-text {:r 4 :g 5 :b 6}
+                      :panel-width 40}
+              :dark {:panel-bg {:r 10 :g 11 :b 12}
+                     :panel-width 64}}
+       :styles {}})
+
+    (pixils/defmode root-mode
+      {:theme 'token-theme
+       :theme-variant :dark
+       :style {:width (pixils/var :panel-width)
+               :height 20
+               :background (pixils/var :panel-bg)
+               :text {:color (pixils/var :panel-text)}}
+       :children [{:mode 'child-mode
+                   :style {:width (pixils/var :panel-width)
+                           :height 10
+                           :background (pixils/var :panel-bg)}}]
+       :render (fn [state ctx] nil)})
+
+    (pixils/defmode child-mode
+      {:render (fn [state ctx] nil)})
+  )");
+
+  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.render_mode();
+
+  ASSERT_NE(session.active_mode, nullptr);
+  const auto& style = session.active_mode->effective_style;
+  ASSERT_TRUE(style.width.has_value());
+  EXPECT_EQ(style.width->fixed_value_or(0), 64);
+  ASSERT_TRUE(style.background.has_value());
+  ASSERT_TRUE(style.background->color.has_value());
+  EXPECT_EQ(style.background->color->r, 10);
+  ASSERT_TRUE(style.text.has_value());
+  ASSERT_TRUE(style.text->color.has_value());
+  EXPECT_EQ(style.text->color->r, 4);
+
+  ASSERT_EQ(session.active_mode->children.size(), 1u);
+  auto child = session.active_mode->children[0];
+  ASSERT_NE(child, nullptr);
+  ASSERT_TRUE(child->effective_style.width.has_value());
+  EXPECT_EQ(child->effective_style.width->fixed_value_or(0), 64);
+  ASSERT_TRUE(child->effective_style.background.has_value());
+  ASSERT_TRUE(child->effective_style.background->color.has_value());
+  EXPECT_EQ(child->effective_style.background->color->r, 10);
+}
+
+TEST_F(SessionChildrenTest, inline_theme_var_style_keeps_update_time_style_mutations)
+{
+  runtime.eval(R"(
+    (pixils/deftheme token-theme
+      {:default-variant :light
+       :vars {:light {:panel-width 40}}
+       :styles {}})
+
+    (pixils/defmode child-mode
+      {:style {:width (pixils/var :panel-width)
+               :height 10}
+       :update (fn [state ctx]
+                 (do
+                   (assoc-in! ctx [:view :style :position] :absolute)
+                   (assoc-in! ctx [:view :style :left] 21)
+                   (assoc-in! ctx [:view :style :top] 7)
+                   state))
+       :render (fn [state ctx] nil)})
+
+    (pixils/defmode root-mode
+      {:theme 'token-theme
+       :style {:padding 3}
+       :children [{:mode 'child-mode}]})
+  )");
+
+  session.push_mode("root-mode", Lisple::Constant::NIL);
+
+  session.update_mode();
+  session.render_mode();
+
+  ASSERT_NE(session.active_mode, nullptr);
+  ASSERT_EQ(session.active_mode->children.size(), 1u);
+  auto child = session.active_mode->children[0];
+  ASSERT_NE(child, nullptr);
+
+  ASSERT_TRUE(child->effective_style.width.has_value());
+  EXPECT_EQ(child->effective_style.width->fixed_value_or(0), 40);
+  ASSERT_TRUE(child->effective_style.position.has_value());
+  EXPECT_EQ(*child->effective_style.position, Pixils::UI::PositionMode::ABSOLUTE);
+  EXPECT_EQ(child->bounds.x, 24);
+  EXPECT_EQ(child->bounds.y, 10);
+  EXPECT_EQ(child->bounds.w, 40);
+  EXPECT_EQ(child->bounds.h, 10);
+}
+
 TEST_F(SessionChildrenTest, mode_theme_and_child_theme_override_apply_to_effective_style)
 {
   // Given

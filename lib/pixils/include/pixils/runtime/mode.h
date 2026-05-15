@@ -37,6 +37,12 @@ namespace Pixils::Runtime
     bool update = false;
   };
 
+  struct StyleLayer
+  {
+    std::optional<UI::Style> style = std::nullopt;
+    Lisple::sptr_val source = Lisple::Constant::NIL;
+  };
+
   struct Mode;
 
   /**
@@ -90,6 +96,9 @@ namespace Pixils::Runtime
     std::vector<ChildSlot> children;
     std::optional<UI::DragPolicy> drag = std::nullopt;
     std::optional<UI::Style> style = std::nullopt;
+    std::vector<StyleLayer> style_layers;
+    std::optional<UI::Style> runtime_style = std::nullopt;
+    Lisple::sptr_val runtime_style_source = Lisple::Constant::NIL;
     std::optional<std::vector<std::string>> theme = std::nullopt;
     std::optional<std::string> theme_variant = std::nullopt;
   };

@@ -18,6 +18,7 @@ namespace Pixils::Script
   Lisple::sptr_val lookup_theme_var(const UI::Theme& theme,
                                     const std::optional<std::string>& variant,
                                     const std::string& key);
+  bool contains_theme_var_ref(const Lisple::sptr_val& value);
   Lisple::sptr_val resolve_theme_vars(const UI::Theme& theme,
                                       const std::optional<std::string>& variant,
                                       const Lisple::sptr_val& value,

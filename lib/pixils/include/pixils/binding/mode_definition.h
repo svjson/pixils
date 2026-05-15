@@ -20,6 +20,9 @@ namespace Pixils::Script
                                              const std::string& context);
   std::optional<std::string> parse_theme_variant(const Lisple::sptr_val& variant_val,
                                                  const std::string& context);
+  void append_mode_style_layer(Lisple::Context& ctx,
+                               Runtime::Mode& mode,
+                               const Lisple::sptr_val& style_val);
 
   /**
    * @brief Parse a Lisple sequence of child entry maps into ChildSlot objects.

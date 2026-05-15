@@ -365,6 +365,31 @@ namespace Pixils::Script
     return lookup_theme_var_internal(theme, variant, key);
   }
 
+  bool contains_theme_var_ref(const Lisple::sptr_val& value)
+  {
+    if (!value) return false;
+    if (is_theme_var_ref(value)) return true;
+
+    switch (value->type)
+    {
+    case Lisple::Value::Type::LIST:
+    case Lisple::Value::Type::VECTOR:
+      for (const auto& child : value->elements())
+      {
+        if (contains_theme_var_ref(child)) return true;
+      }
+      return false;
+    case Lisple::Value::Type::MAP:
+      for (const auto& child : value->elements())
+      {
+        if (contains_theme_var_ref(child)) return true;
+      }
+      return false;
+    default:
+      return false;
+    }
+  }
+
   Lisple::sptr_val resolve_theme_vars(const UI::Theme& theme,
                                       const std::optional<std::string>& variant,
                                       const Lisple::sptr_val& value,

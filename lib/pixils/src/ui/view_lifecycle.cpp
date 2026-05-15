@@ -3,7 +3,6 @@
 #include <pixils/asset/registry.h>
 #include <pixils/binding/mode_definition.h>
 #include <pixils/binding/pixils_namespace.h>
-#include <pixils/binding/ui/style/style_host_type.h>
 #include <pixils/context.h>
 #include <pixils/runtime/hook_invocation.h>
 #include <pixils/runtime/mode.h>
@@ -150,13 +149,7 @@ namespace
     if (style_val->type != Lisple::Value::Type::NIL)
     {
       Lisple::Context ctx(runtime);
-      auto coercion = Pixils::Script::HostType::STYLE.coerce(ctx, style_val);
-      if (coercion.success)
-      {
-        if (!mode.style) mode.style = Pixils::UI::Style{};
-        Pixils::UI::apply_style_variant(*mode.style,
-                                        Lisple::obj<Pixils::UI::Style>(*coercion.result));
-      }
+      Pixils::Script::append_mode_style_layer(ctx, mode, style_val);
     }
 
     auto class_val = get("class");

@@ -79,6 +79,53 @@ namespace Pixils::Script
 
         return key->str();
       }
+
+      void apply_runtime_style(Runtime::Mode& mode,
+                               Lisple::Context& ctx,
+                               const Lisple::sptr_val& style_val)
+      {
+        if (!style_val || style_val->type == Lisple::Value::Type::NIL) return;
+
+        if (contains_theme_var_ref(style_val))
+        {
+          mode.runtime_style_source = style_val;
+          return;
+        }
+
+        UI::Style style;
+        if (HostType::STYLE.is_type_of(*style_val))
+        {
+          style = Lisple::obj<UI::Style>(*style_val);
+        }
+        else
+        {
+          auto mutable_style_val = style_val;
+          auto coercion = HostType::STYLE.coerce(ctx, mutable_style_val);
+          if (!coercion.success)
+          {
+            throw Lisple::TypeError("ui/style! style argument must be a style map or style");
+          }
+          style = Lisple::obj<UI::Style>(*coercion.result);
+        }
+
+        if (!mode.runtime_style)
+        {
+          mode.runtime_style = style;
+        }
+        else
+        {
+          UI::apply_style_variant(*mode.runtime_style, style);
+        }
+
+        if (!mode.style)
+        {
+          mode.style = style;
+        }
+        else
+        {
+          UI::apply_style_variant(*mode.style, style);
+        }
+      }
     } // namespace
 
     /** BindStateFn - bind-state */
@@ -237,15 +284,8 @@ namespace Pixils::Script
       }
 
       Runtime::View& view = Lisple::obj<Runtime::View>(*target);
-      auto coercion = HostType::STYLE.coerce(ctx, args[1]);
-      if (!coercion.success)
-      {
-        throw Lisple::TypeError("ui/style! style argument must be a style map or style");
-      }
-
       Runtime::Mode& mode = ensure_instance_mode(view);
-      if (!mode.style) mode.style = UI::Style{};
-      UI::apply_style_variant(*mode.style, Lisple::obj<UI::Style>(*coercion.result));
+      apply_runtime_style(mode, ctx, args[1]);
 
       return target;
     }
@@ -310,8 +350,8 @@ namespace Pixils::Script
       }
 
       auto resolved_value = resolve_theme_vars(view.effective_theme,
-                                              view.effective_theme.selected_variant,
-                                              raw_value);
+                                               view.effective_theme.selected_variant,
+                                               raw_value);
       return resolved_value ? resolved_value : fallback;
     }
 
