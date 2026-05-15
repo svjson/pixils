@@ -7,8 +7,10 @@
 #include <pixils/ui/base_theme.h>
 #include <pixils/ui/theme.h>
 
+#include <functional>
 #include <lisple/runtime.h>
 #include <lisple/runtime/dict.h>
+#include <unordered_map>
 
 namespace Pixils::UI
 {
@@ -19,6 +21,62 @@ namespace Pixils::UI
       HORIZONTAL,
       VERTICAL,
     };
+
+    struct NaturalSizeCacheKey
+    {
+      const Pixils::Runtime::View* view = nullptr;
+      bool has_available_width = false;
+      int available_width = 0;
+      bool has_available_height = false;
+      int available_height = 0;
+
+      bool operator==(const NaturalSizeCacheKey& other) const
+      {
+        return view == other.view && has_available_width == other.has_available_width &&
+               available_width == other.available_width &&
+               has_available_height == other.has_available_height &&
+               available_height == other.available_height;
+      }
+    };
+
+    struct NaturalSizeCacheKeyHash
+    {
+      size_t operator()(const NaturalSizeCacheKey& key) const
+      {
+        size_t seed = std::hash<const Pixils::Runtime::View*>{}(key.view);
+        auto combine = [&](size_t value)
+        {
+          seed ^= value + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+        };
+        combine(std::hash<bool>{}(key.has_available_width));
+        combine(std::hash<int>{}(key.available_width));
+        combine(std::hash<bool>{}(key.has_available_height));
+        combine(std::hash<int>{}(key.available_height));
+        return seed;
+      }
+    };
+
+    struct LayoutPass
+    {
+      Lisple::Runtime& runtime;
+      const Lisple::sptr_val& hook_ctx;
+      std::unordered_map<NaturalSizeCacheKey,
+                         std::optional<Dimension>,
+                         NaturalSizeCacheKeyHash>
+        natural_size_cache;
+    };
+
+    NaturalSizeCacheKey natural_size_cache_key(
+      const std::shared_ptr<Pixils::Runtime::View>& view,
+      const std::optional<int>& available_width,
+      const std::optional<int>& available_height)
+    {
+      return NaturalSizeCacheKey{.view = view.get(),
+                                 .has_available_width = available_width.has_value(),
+                                 .available_width = available_width.value_or(0),
+                                 .has_available_height = available_height.has_value(),
+                                 .available_height = available_height.value_or(0)};
+    }
 
     Dimension calculate_outer_size(const Style& style, const Dimension& content_size)
     {
@@ -296,21 +354,29 @@ namespace Pixils::UI
       return theme;
     }
 
+    void resolve_layout_inputs(const std::shared_ptr<Pixils::Runtime::View>& view,
+                               Lisple::Runtime& runtime,
+                               const Style* inherited_style,
+                               const Theme* inherited_theme,
+                               const std::vector<ThemeMatchContext>& selector_path)
+    {
+      if (!view) return;
+
+      view->effective_theme = resolve_effective_theme(view, runtime, inherited_theme);
+      view->effective_style = resolve_effective_style(view, inherited_style, selector_path);
+    }
+
     std::optional<Dimension> calculate_child_tree_content_size(
       const std::shared_ptr<Pixils::Runtime::View>& view,
-      Lisple::Runtime& runtime,
-      const Lisple::sptr_val& hook_ctx,
+      LayoutPass& pass,
       const std::optional<int>& available_width,
       const std::optional<int>& available_height,
-      const Style* inherited_style,
-      const Theme* inherited_theme,
       const std::vector<ThemeMatchContext>& selector_path);
 
     std::vector<Rect> layout_children_with_selector_path(
       const std::vector<std::shared_ptr<Pixils::Runtime::View>>& children,
       const Rect& parent,
-      Lisple::Runtime& runtime,
-      const Lisple::sptr_val& hook_ctx,
+      LayoutPass& pass,
       const Style::Layout& layout,
       const Style* inherited_style,
       const Theme* inherited_theme,
@@ -318,18 +384,17 @@ namespace Pixils::UI
 
     std::optional<Dimension> calculate_natural_content_size(
       const std::shared_ptr<Pixils::Runtime::View>& view,
-      Lisple::Runtime& runtime,
-      const Lisple::sptr_val& hook_ctx,
+      LayoutPass& pass,
       const std::optional<int>& parent_available_width,
       const std::optional<int>& parent_available_height,
-      const Style* inherited_style,
-      const Theme* inherited_theme,
       const std::vector<ThemeMatchContext>& selector_path)
     {
       if (!view || !view->mode) return std::nullopt;
 
-      view->effective_theme = resolve_effective_theme(view, runtime, inherited_theme);
-      view->effective_style = resolve_effective_style(view, inherited_style, selector_path);
+      auto cache_key =
+        natural_size_cache_key(view, parent_available_width, parent_available_height);
+      auto cached = pass.natural_size_cache.find(cache_key);
+      if (cached != pass.natural_size_cache.end()) return cached->second;
 
       auto available_width = resolve_available_content_size(view->effective_style,
                                                             parent_available_width,
@@ -339,35 +404,36 @@ namespace Pixils::UI
                                                              Axis::VERTICAL);
 
       if (auto natural = invoke_content_size_hook(view,
-                                                  runtime,
-                                                  hook_ctx,
+                                                  pass.runtime,
+                                                  pass.hook_ctx,
                                                   available_width,
                                                   available_height))
+      {
+        pass.natural_size_cache.emplace(cache_key, natural);
         return natural;
-      if (view->children.empty()) return std::nullopt;
+      }
+      if (view->children.empty())
+      {
+        pass.natural_size_cache.emplace(cache_key, std::nullopt);
+        return std::nullopt;
+      }
 
-      return calculate_child_tree_content_size(view,
-                                               runtime,
-                                               hook_ctx,
-                                               available_width,
-                                               available_height,
-                                               &view->effective_style,
-                                               &view->effective_theme,
-                                               selector_path);
+      auto natural = calculate_child_tree_content_size(view,
+                                                       pass,
+                                                       available_width,
+                                                       available_height,
+                                                       selector_path);
+      pass.natural_size_cache.emplace(cache_key, natural);
+      return natural;
     }
 
     std::optional<Dimension> calculate_child_tree_content_size(
       const std::shared_ptr<Pixils::Runtime::View>& view,
-      Lisple::Runtime& runtime,
-      const Lisple::sptr_val& hook_ctx,
+      LayoutPass& pass,
       const std::optional<int>& available_width,
       const std::optional<int>& available_height,
-      const Style* inherited_style,
-      const Theme* inherited_theme,
       const std::vector<ThemeMatchContext>& selector_path)
     {
-      view->effective_theme = resolve_effective_theme(view, runtime, inherited_theme);
-      view->effective_style = resolve_effective_style(view, inherited_style, selector_path);
       const Style& style = view->effective_style;
       LayoutDirection direction = style.layout && style.layout->direction
                                     ? *style.layout->direction
@@ -380,21 +446,20 @@ namespace Pixils::UI
       for (const auto& child : view->children)
       {
         auto child_selector_path = append_theme_match_context(selector_path, child);
-        child->effective_theme =
-          resolve_effective_theme(child, runtime, &view->effective_theme);
-        child->effective_style = resolve_effective_style(child, &style, child_selector_path);
+        resolve_layout_inputs(child,
+                              pass.runtime,
+                              &style,
+                              &view->effective_theme,
+                              child_selector_path);
         const Style& child_style = child->effective_style;
         if (child_style.position && *child_style.position == PositionMode::ABSOLUTE)
           continue;
 
         auto child_natural_content_size =
           calculate_natural_content_size(child,
-                                         runtime,
-                                         hook_ctx,
+                                         pass,
                                          available_width,
                                          available_height,
-                                         &style,
-                                         &view->effective_theme,
                                          child_selector_path);
         Dimension child_outer_size{0, 0};
 
@@ -429,25 +494,21 @@ namespace Pixils::UI
 
     void layout_view_tree_impl(const std::shared_ptr<Pixils::Runtime::View>& view,
                                const Rect& bounds,
-                               Lisple::Runtime& runtime,
-                               const Lisple::sptr_val& hook_ctx,
+                               LayoutPass& pass,
                                const Style* inherited_style,
                                const Theme* inherited_theme,
                                const std::vector<ThemeMatchContext>& selector_path)
     {
       if (!view) return;
 
-      view->effective_theme = resolve_effective_theme(view, runtime, inherited_theme);
-      view->effective_style = resolve_effective_style(view, inherited_style, selector_path);
+      resolve_layout_inputs(view,
+                            pass.runtime,
+                            inherited_style,
+                            inherited_theme,
+                            selector_path);
 
-      auto natural_content_size = calculate_natural_content_size(view,
-                                                                 runtime,
-                                                                 hook_ctx,
-                                                                 bounds.w,
-                                                                 bounds.h,
-                                                                 inherited_style,
-                                                                 inherited_theme,
-                                                                 selector_path);
+      auto natural_content_size =
+        calculate_natural_content_size(view, pass, bounds.w, bounds.h, selector_path);
       int resolved_w = inherited_style ? bounds.w
                                        : resolve_outer_size(view->effective_style,
                                                             natural_content_size,
@@ -479,8 +540,7 @@ namespace Pixils::UI
       auto child_rects =
         layout_children_with_selector_path(view->children,
                                            content,
-                                           runtime,
-                                           hook_ctx,
+                                           pass,
                                            style.layout.value_or(Style::Layout{}),
                                            &style,
                                            &view->effective_theme,
@@ -499,12 +559,9 @@ namespace Pixils::UI
           int left = child_style.left.value_or(0);
           auto child_natural_content_size =
             calculate_natural_content_size(child_ptr,
-                                           runtime,
-                                           hook_ctx,
+                                           pass,
                                            content.w,
                                            content.h,
-                                           &style,
-                                           &view->effective_theme,
                                            child_selector_path);
           int w = resolve_outer_size(child_style,
                                      child_natural_content_size,
@@ -525,8 +582,7 @@ namespace Pixils::UI
 
         layout_view_tree_impl(child_ptr,
                               child_bounds,
-                              runtime,
-                              hook_ctx,
+                              pass,
                               &style,
                               &view->effective_theme,
                               child_selector_path);
@@ -536,8 +592,7 @@ namespace Pixils::UI
     std::vector<Rect> layout_children_with_selector_path(
       const std::vector<std::shared_ptr<Pixils::Runtime::View>>& children,
       const Rect& parent,
-      Lisple::Runtime& runtime,
-      const Lisple::sptr_val& hook_ctx,
+      LayoutPass& pass,
       const Style::Layout& layout,
       const Style* inherited_style,
       const Theme* inherited_theme,
@@ -555,17 +610,16 @@ namespace Pixils::UI
       for (const auto& child : children)
       {
         auto child_selector_path = append_theme_match_context(parent_selector_path, child);
-        child->effective_theme = resolve_effective_theme(child, runtime, inherited_theme);
-        child->effective_style =
-          resolve_effective_style(child, inherited_style, child_selector_path);
+        resolve_layout_inputs(child,
+                              pass.runtime,
+                              inherited_style,
+                              inherited_theme,
+                              child_selector_path);
         styles.push_back(child->effective_style);
         natural_content_sizes.push_back(calculate_natural_content_size(child,
-                                                                       runtime,
-                                                                       hook_ctx,
+                                                                       pass,
                                                                        parent.w,
                                                                        parent.h,
-                                                                       inherited_style,
-                                                                       inherited_theme,
                                                                        child_selector_path));
       }
 
@@ -791,10 +845,10 @@ namespace Pixils::UI
     const Style* inherited_style,
     const Theme* inherited_theme)
   {
+    LayoutPass pass{.runtime = runtime, .hook_ctx = hook_ctx, .natural_size_cache = {}};
     return layout_children_with_selector_path(children,
                                               parent,
-                                              runtime,
-                                              hook_ctx,
+                                              pass,
                                               layout,
                                               inherited_style,
                                               inherited_theme,
@@ -806,10 +860,10 @@ namespace Pixils::UI
                         Lisple::Runtime& runtime,
                         const Lisple::sptr_val& hook_ctx)
   {
+    LayoutPass pass{.runtime = runtime, .hook_ctx = hook_ctx, .natural_size_cache = {}};
     layout_view_tree_impl(view,
                           bounds,
-                          runtime,
-                          hook_ctx,
+                          pass,
                           nullptr,
                           nullptr,
                           append_theme_match_context({}, view));
