@@ -408,6 +408,26 @@ TEST_F(DefThemeTest, resolved_theme_variant_falls_back_to_default_when_missing)
   EXPECT_EQ(resolved.selected_variant, std::make_optional<std::string>("light"));
 }
 
+TEST_F(DefThemeTest, unresolved_theme_vars_are_omitted_from_style_properties)
+{
+  runtime.eval(R"(
+    (pixils/deftheme token-theme
+      {:default-variant :light
+       :vars {:light {:panel-bg {:r 1 :g 2 :b 3}}}
+       :styles {:ui/panel {:background (pixils/var :panel-bg)
+                           :text {:color (pixils/var :missing-text)}}}})
+  )");
+
+  Pixils::UI::Theme& theme = get_theme(runtime, "token-theme");
+  auto panel = theme.get_style(Pixils::UI::ThemeSelector::class_name("ui/panel"));
+  ASSERT_NE(panel, nullptr);
+  ASSERT_TRUE(panel->background.has_value());
+  ASSERT_TRUE(panel->background->color.has_value());
+  EXPECT_EQ(panel->background->color->r, 1);
+  ASSERT_TRUE(panel->text.has_value());
+  EXPECT_FALSE(panel->text->color.has_value());
+}
+
 TEST_F(DefThemeTest, resolved_theme_variant_matching_keeps_base_rules)
 {
   runtime.eval(R"(

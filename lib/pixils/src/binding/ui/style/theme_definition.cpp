@@ -112,7 +112,7 @@ namespace Pixils::Script
         }
       }
 
-      throw Lisple::TypeError("Unresolved theme var :" + key);
+      return nullptr;
     }
 
     Lisple::sptr_val resolve_theme_vars(const UI::Theme& theme,
@@ -124,10 +124,9 @@ namespace Pixils::Script
 
       if (is_theme_var_ref(value))
       {
-        return resolve_theme_vars(theme,
-                                  variant,
-                                  lookup_theme_var(theme, variant, theme_var_ref_name(value)),
-                                  depth + 1);
+        auto var_value = lookup_theme_var(theme, variant, theme_var_ref_name(value));
+        if (!var_value) return nullptr;
+        return resolve_theme_vars(theme, variant, var_value, depth + 1);
       }
 
       switch (value->type)
@@ -138,7 +137,8 @@ namespace Pixils::Script
         elements.reserve(value->elements().size());
         for (const auto& child : value->elements())
         {
-          elements.push_back(resolve_theme_vars(theme, variant, child, depth + 1));
+          auto resolved_child = resolve_theme_vars(theme, variant, child, depth + 1);
+          if (resolved_child) elements.push_back(resolved_child);
         }
         return Lisple::list(elements);
       }
@@ -148,7 +148,8 @@ namespace Pixils::Script
         elements.reserve(value->elements().size());
         for (const auto& child : value->elements())
         {
-          elements.push_back(resolve_theme_vars(theme, variant, child, depth + 1));
+          auto resolved_child = resolve_theme_vars(theme, variant, child, depth + 1);
+          if (resolved_child) elements.push_back(resolved_child);
         }
         return Lisple::vector(elements);
       }
@@ -159,8 +160,10 @@ namespace Pixils::Script
         const auto& source = value->elements();
         for (size_t i = 0; i + 1 < source.size(); i += 2)
         {
+          auto resolved_child = resolve_theme_vars(theme, variant, source[i + 1], depth + 1);
+          if (!resolved_child) continue;
           elements.push_back(source[i]);
-          elements.push_back(resolve_theme_vars(theme, variant, source[i + 1], depth + 1));
+          elements.push_back(resolved_child);
         }
         return Lisple::map(elements);
       }
@@ -419,15 +422,18 @@ namespace Pixils::Script
 
         if (variant_names.empty())
         {
-          theme.set_style(selector,
-                          coerce_theme_style(ctx,
-                                             resolve_theme_vars(theme, std::nullopt, style_val)));
+          auto resolved_value = resolve_theme_vars(theme, std::nullopt, style_val);
+          if (resolved_value)
+          {
+            theme.set_style(selector, coerce_theme_style(ctx, resolved_value));
+          }
           continue;
         }
 
         for (const auto& variant : variant_names)
         {
           auto resolved_value = resolve_theme_vars(theme, variant, style_val);
+          if (!resolved_value) continue;
           auto resolved_style = coerce_theme_style(ctx, resolved_value);
           theme.set_variant_style(variant, selector, resolved_style);
           if (theme.default_variant && variant == *theme.default_variant)
