@@ -136,6 +136,8 @@
                   :accent FOCUS-BLUE
                   :focus-bg FOCUS-BLUE
                   :focus-text c/WHITE
+                  :content-bg c/WHITE
+                  :content-text c/BLACK
                   :field-bg c/WHITE
                   :field-text c/BLACK
                   :menu-bg white
@@ -149,6 +151,8 @@
                  :accent {:r 0x6f :g 0xa8 :b 0xff}
                  :focus-bg {:r 0x18 :g 0x4f :b 0x9d}
                  :focus-text c/WHITE
+                 :content-bg {:r 0x14 :g 0x16 :b 0x18}
+                 :content-text {:r 0xf0 :g 0xf2 :b 0xf4}
                  :field-bg {:r 0x14 :g 0x16 :b 0x18}
                  :field-text {:r 0xf0 :g 0xf2 :b 0xf4}
                  :menu-bg {:r 0x24 :g 0x27 :b 0x2a}
@@ -175,6 +179,12 @@
             :ui/canvas {:background (var :field-bg)
                         :border {:color (var :border)
                                  :thickness 1}}
+
+            :ui/content {:background (var :content-bg)
+                         :border {:color (var :border)
+                                  :thickness 1}
+                         :text {:font :font/win3-system-font
+                                :color (var :content-text)}}
 
             :ui/list-item {:text {:font :font/win3-system-font
                                   :color (var :field-text)}}

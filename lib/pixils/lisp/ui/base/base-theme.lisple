@@ -15,6 +15,10 @@
               :border {:color {:r 0x00 :g 0x00 :b 0x00}
                        :thickness 1}}
 
+  :ui/content {:background {:r 0xff :g 0xff :b 0xff}
+               :border {:color {:r 0x00 :g 0x00 :b 0x00}
+                        :thickness 1}}
+
   :ui/list-item {:text {:color {:r 0x00 :g 0x00 :b 0x00}}}
 
   :ui/list-item-hover:hover

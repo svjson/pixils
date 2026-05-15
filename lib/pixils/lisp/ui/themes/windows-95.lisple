@@ -84,6 +84,7 @@
 (def PANEL-SHADOW {:r 0x7f :g 0x7f :b 0x7f})
 (def PANEL-BRIGHT {:r 0xe0 :g 0xe0 :b 0xe0})
 (def FOCUS-BLUE {:r 0x00 :g 0x00 :b 0x7f})
+(def CONTENT-BG WHITE)
 
 (deftheme pixils/windows-95
   {:styles {:ui/app {:background PANEL-COLOR
@@ -108,6 +109,12 @@
                         :border {:color c/BLACK
                                  :thickness 1}}
 
+            :ui/content {:background CONTENT-BG
+                         :border {:color c/BLACK
+                                  :thickness 1}
+                         :text {:font :font/win95-system-font
+                                :color c/BLACK}}
+
             :ui/list-item {:text {:font :font/win95-system-font
                                   :color c/BLACK}}
 
@@ -119,25 +126,25 @@
             {:background FOCUS-BLUE
              :text {:color c/WHITE}}
 
-            'ui/list-box {:background c/WHITE
+            'ui/list-box {:background CONTENT-BG
                           :border {:color c/BLACK
                                    :thickness 1}}
 
-            'ui/combo-box {:background c/WHITE
+            'ui/combo-box {:background CONTENT-BG
                            :border {:line-style :bevel
                                     :color PANEL-SHADOW
                                     :thickness 1
                                     :right {:color PANEL-LIGHT}
                                     :bottom {:color PANEL-LIGHT}}}
 
-            'ui/combo-box-popup-panel {:background c/WHITE
+            'ui/combo-box-popup-panel {:background CONTENT-BG
                                        :border {:color c/BLACK
                                                 :thickness 1}}
 
             'ui/checkbox {:text {:font :font/win95-system-font
                                  :color c/BLACK}}
 
-            'ui/checkbox-box {:background c/WHITE
+            'ui/checkbox-box {:background CONTENT-BG
                               :border {:line-style :bevel
                                        :color PANEL-SHADOW
                                        :thickness 1
@@ -200,7 +207,7 @@
 
             'ui/scroll-pane {:background PANEL-COLOR}
 
-            'ui/scroll-pane-viewport {:background c/WHITE}
+            'ui/scroll-pane-viewport {:background CONTENT-BG}
 
             'ui/window {:border {:line-style :solid
                                  :thickness 1

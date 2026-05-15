@@ -14,6 +14,8 @@
 (def PANEL-BG {:r 0x20 :g 0x29 :b 0x36})
 (def PANEL-HIGHLIGHT {:r 0x67 :g 0x78 :b 0x8f})
 (def PANEL-SHADOW {:r 0x2d :g 0x36 :b 0x46})
+(def CONTENT-BG {:r 0x15 :g 0x19 :b 0x1f})
+(def CONTENT-BORDER {:r 0x5f :g 0x6f :b 0x7f})
 
 (deftheme pixils/classic-blue
   {:styles
@@ -29,8 +31,12 @@
 
     :ui/accent {:text {:color {:r 0xff :g 0xcc :b 0x66}}}
 
-    :ui/canvas {:background {:r 0x15 :g 0x19 :b 0x1f}
-                :border {:color {:r 0x5f :g 0x6f :b 0x7f}
+    :ui/content {:background CONTENT-BG
+                 :border {:color CONTENT-BORDER
+                          :thickness 1}}
+
+    :ui/canvas {:background CONTENT-BG
+                :border {:color CONTENT-BORDER
                          :thickness 1}}
 
     :ui/list-item {:text {:color {:r 0xe6 :g 0xea :b 0xee}}}
@@ -41,8 +47,8 @@
     '(:ui/list-item {:selected true})
     {:background {:r 0x4a :g 0x3f :b 0x24}}
 
-    'ui/list-box {:background {:r 0x15 :g 0x19 :b 0x1f}
-                  :border {:color {:r 0x5f :g 0x6f :b 0x7f}
+    'ui/list-box {:background CONTENT-BG
+                  :border {:color CONTENT-BORDER
                            :thickness 1}}
 
     'ui/combo-box {:background BUTTON-BG
@@ -51,13 +57,13 @@
                             :right {:color BUTTON-SHADOW}
                             :bottom {:color BUTTON-SHADOW}}}
 
-    'ui/combo-box-popup-panel {:background {:r 0x15 :g 0x19 :b 0x1f}
-                               :border {:color {:r 0x5f :g 0x6f :b 0x7f}
+    'ui/combo-box-popup-panel {:background CONTENT-BG
+                               :border {:color CONTENT-BORDER
                                         :thickness 1}}
 
     'ui/checkbox {:text {:color {:r 0xe6 :g 0xea :b 0xee}}}
 
-    'ui/checkbox-box {:background {:r 0x15 :g 0x19 :b 0x1f}
+    'ui/checkbox-box {:background CONTENT-BG
                       :border {:color BUTTON-HIGHLIGHT
                                :thickness 1
                                :right {:color BUTTON-SHADOW}
@@ -147,7 +153,7 @@
 
     'ui/scroll-pane {:background {:r 0x20 :g 0x29 :b 0x36}}
 
-    'ui/scroll-pane-viewport {:background {:r 0x15 :g 0x19 :b 0x1f}}
+    'ui/scroll-pane-viewport {:background CONTENT-BG}
 
     'ui/window-title-bar {:background {:r 0x34 :g 0x42 :b 0x55}
                           :border {:top {:color {:r 0x58 :g 0x84 :b 0xc8}
