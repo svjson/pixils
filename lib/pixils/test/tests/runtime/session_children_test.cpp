@@ -471,8 +471,7 @@ TEST_F(SessionChildrenTest,
     (pixils/defmode root-mode
       {:render (fn [state ctx] nil)})
   )");
-  auto overrides = Lisple::RTValue::map(
-    {Lisple::RTValue::keyword("theme"), Lisple::RTValue::symbol("root-theme")});
+  auto overrides = Lisple::map({Lisple::keyword("theme"), Lisple::symbol("root-theme")});
   session.push_mode("root-mode", Lisple::Constant::NIL, overrides);
 
   // When
@@ -537,7 +536,7 @@ TEST_F(SessionStateTreeTest, push_mode_merges_child_init_state_into_parent_state
   auto child = session.active_mode->children[0];
   ASSERT_NE(child, nullptr);
   ASSERT_NE(child->state, nullptr);
-  auto value = Lisple::Dict::get_property(child->state, Lisple::RTValue::keyword("value"));
+  auto value = Lisple::Dict::get_property(child->state, Lisple::keyword("value"));
   ASSERT_NE(value, nullptr);
   EXPECT_EQ(value->num().get_int(), 42);
 }
@@ -563,7 +562,7 @@ TEST_F(SessionStateTreeTest, child_update_preserves_and_evolves_local_child_stat
   auto child = session.active_mode->children[0];
   ASSERT_NE(child, nullptr);
   ASSERT_NE(child->state, nullptr);
-  auto count = Lisple::Dict::get_property(child->state, Lisple::RTValue::keyword("count"));
+  auto count = Lisple::Dict::get_property(child->state, Lisple::keyword("count"));
   ASSERT_NE(count, nullptr);
   EXPECT_EQ(count->num().get_int(), 1);
 }
@@ -589,7 +588,7 @@ TEST_F(SessionStateTreeTest, pop_mode_restores_parent_with_child_states)
   auto child = session.active_mode->children[0];
   ASSERT_NE(child, nullptr);
   ASSERT_NE(child->state, nullptr);
-  auto value = Lisple::Dict::get_property(child->state, Lisple::RTValue::keyword("value"));
+  auto value = Lisple::Dict::get_property(child->state, Lisple::keyword("value"));
   ASSERT_NE(value, nullptr);
   EXPECT_EQ(value->num().get_int(), 99);
 }
@@ -629,13 +628,12 @@ TEST_F(SessionStateTreeTest, pop_mode_result_returns_to_explicit_origin_view)
   ASSERT_EQ(session.active_mode->children.size(), 1u);
 
   auto child = session.active_mode->children[0];
-  auto result = Lisple::Dict::get_property(child->state, Lisple::RTValue::keyword("result"));
+  auto result = Lisple::Dict::get_property(child->state, Lisple::keyword("result"));
   ASSERT_NE(result, nullptr);
 
-  auto source_mode =
-    Lisple::Dict::get_property(result, Lisple::RTValue::keyword("source-mode"));
-  auto payload = Lisple::Dict::get_property(result, Lisple::RTValue::keyword("payload"));
-  auto value = Lisple::Dict::get_property(payload, Lisple::RTValue::keyword("value"));
+  auto source_mode = Lisple::Dict::get_property(result, Lisple::keyword("source-mode"));
+  auto payload = Lisple::Dict::get_property(result, Lisple::keyword("payload"));
+  auto value = Lisple::Dict::get_property(payload, Lisple::keyword("value"));
 
   ASSERT_NE(source_mode, nullptr);
   ASSERT_NE(payload, nullptr);
@@ -680,14 +678,13 @@ TEST_F(SessionStateTreeTest, pop_mode_result_uses_custom_origin_event_and_bubble
   ASSERT_NE(session.active_mode, nullptr);
   ASSERT_EQ(session.active_mode->mode->name, "root-mode");
 
-  auto result = Lisple::Dict::get_property(session.active_mode->state,
-                                           Lisple::RTValue::keyword("result"));
+  auto result =
+    Lisple::Dict::get_property(session.active_mode->state, Lisple::keyword("result"));
   ASSERT_NE(result, nullptr);
 
-  auto source_mode =
-    Lisple::Dict::get_property(result, Lisple::RTValue::keyword("source-mode"));
-  auto payload = Lisple::Dict::get_property(result, Lisple::RTValue::keyword("payload"));
-  auto value = Lisple::Dict::get_property(payload, Lisple::RTValue::keyword("value"));
+  auto source_mode = Lisple::Dict::get_property(result, Lisple::keyword("source-mode"));
+  auto payload = Lisple::Dict::get_property(result, Lisple::keyword("payload"));
+  auto value = Lisple::Dict::get_property(payload, Lisple::keyword("value"));
 
   ASSERT_NE(source_mode, nullptr);
   ASSERT_NE(payload, nullptr);
@@ -726,15 +723,13 @@ TEST_F(SessionStateTreeTest, pop_mode_result_defaults_to_exposed_root_view_witho
   ASSERT_NE(session.active_mode, nullptr);
   ASSERT_EQ(session.active_mode->mode->name, "root-mode");
 
-  auto result = Lisple::Dict::get_property(session.active_mode->state,
-                                           Lisple::RTValue::keyword("result"));
+  auto result =
+    Lisple::Dict::get_property(session.active_mode->state, Lisple::keyword("result"));
   ASSERT_NE(result, nullptr);
 
-  auto source_mode =
-    Lisple::Dict::get_property(result, Lisple::RTValue::keyword("source-mode"));
-  auto payload = Lisple::Dict::get_property(result, Lisple::RTValue::keyword("payload"));
-  auto dismissed =
-    Lisple::Dict::get_property(payload, Lisple::RTValue::keyword("dismissed?"));
+  auto source_mode = Lisple::Dict::get_property(result, Lisple::keyword("source-mode"));
+  auto payload = Lisple::Dict::get_property(result, Lisple::keyword("payload"));
+  auto dismissed = Lisple::Dict::get_property(payload, Lisple::keyword("dismissed?"));
 
   ASSERT_NE(source_mode, nullptr);
   ASSERT_NE(payload, nullptr);

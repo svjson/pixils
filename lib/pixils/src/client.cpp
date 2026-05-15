@@ -20,7 +20,6 @@
 #include <algorithm>
 #include <chrono>
 #include <iostream>
-#include <lisple/host.h>
 #include <lisple/host/object.h>
 #include <lisple/runtime.h>
 #include <lisple/runtime/dict.h>
@@ -318,8 +317,8 @@ namespace Pixils
     key << "|";
     if (cursor.source)
     {
-      key << cursor.source->x << "," << cursor.source->y << "," << cursor.source->w
-          << "," << cursor.source->h;
+      key << cursor.source->x << "," << cursor.source->y << "," << cursor.source->w << ","
+          << cursor.source->h;
     }
     key << "|" << cursor.hotspot.round_x() << "," << cursor.hotspot.round_y() << "|"
         << cursor.scale;
@@ -357,12 +356,11 @@ namespace Pixils
 
     int scale = std::max(1, cursor.scale);
     SDL_Rect target_rect{0, 0, source_rect.w * scale, source_rect.h * scale};
-    SDL_Surface* final_surface =
-      SDL_CreateRGBSurfaceWithFormat(0,
-                                     target_rect.w,
-                                     target_rect.h,
-                                     32,
-                                     SDL_PIXELFORMAT_RGBA32);
+    SDL_Surface* final_surface = SDL_CreateRGBSurfaceWithFormat(0,
+                                                                target_rect.w,
+                                                                target_rect.h,
+                                                                32,
+                                                                SDL_PIXELFORMAT_RGBA32);
     if (!final_surface)
     {
       SDL_FreeSurface(formatted_source);
@@ -460,7 +458,8 @@ namespace Pixils
       source_rect = cursor->source->to_SDL_rect();
       source_ptr = &source_rect;
     }
-    else if (SDL_QueryTexture(texture, nullptr, nullptr, &source_rect.w, &source_rect.h) == 0)
+    else if (SDL_QueryTexture(texture, nullptr, nullptr, &source_rect.w, &source_rect.h) ==
+             0)
     {
       source_ptr = &source_rect;
     }

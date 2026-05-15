@@ -58,7 +58,7 @@ class ComposableAppSessionFixture : public ::testing::Test
   Pixils::Program& load_program();
   Lisple::Runtime& pixils();
   Pixils::Runtime::Session& session();
-  Lisple::sptr_rtval eval(const std::string& source);
+  Lisple::sptr_val eval(const std::string& source);
   SDL_Texture* render_target();
   const std::filesystem::path& app_root_dir() const;
 

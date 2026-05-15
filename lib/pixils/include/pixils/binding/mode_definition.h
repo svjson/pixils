@@ -14,8 +14,8 @@ namespace Lisple
 
 namespace Pixils::Script
 {
-  std::vector<std::string> parse_mode_classes(const Lisple::sptr_rtval& class_val);
-  std::vector<std::string> parse_theme_names(const Lisple::sptr_rtval& theme_val,
+  std::vector<std::string> parse_mode_classes(const Lisple::sptr_val& class_val);
+  std::vector<std::string> parse_theme_names(const Lisple::sptr_val& theme_val,
                                              const std::string& context);
 
   /**
@@ -27,7 +27,7 @@ namespace Pixils::Script
    * per-instance hook and style application at build time.
    */
   std::vector<Runtime::ChildSlot> parse_child_slots(Lisple::Context& ctx,
-                                                    const Lisple::sptr_rtval& children_val);
+                                                    const Lisple::sptr_val& children_val);
 
   /**
    * @brief Construct a Mode from a Lisple definition map.
@@ -44,7 +44,7 @@ namespace Pixils::Script
    * handlers, with derived winning on key collision.
    */
   Runtime::Mode build_mode_from_definition(Lisple::Context& ctx,
-                                           const Lisple::sptr_rtval& definition_map,
+                                           const Lisple::sptr_val& definition_map,
                                            const Runtime::Mode* base = nullptr);
 
 } // namespace Pixils::Script

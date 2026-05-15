@@ -194,7 +194,7 @@ Pixils::Runtime::Session& ComposableAppSessionFixture::session()
   return *pixils_session;
 }
 
-Lisple::sptr_rtval ComposableAppSessionFixture::eval(const std::string& source)
+Lisple::sptr_val ComposableAppSessionFixture::eval(const std::string& source)
 {
   return pixils().eval(source);
 }

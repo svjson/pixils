@@ -16,10 +16,9 @@ namespace Pixils
   {
     namespace
     {
-      bool held_keys_contains(const Lisple::sptr_rtval& held_keys,
-                              const std::string& key_name)
+      bool held_keys_contains(const Lisple::sptr_val& held_keys, const std::string& key_name)
       {
-        if (!held_keys || held_keys->type == Lisple::RTValue::Type::NIL)
+        if (!held_keys || held_keys->type == Lisple::Value::Type::NIL)
         {
           return false;
         }
@@ -28,7 +27,7 @@ namespace Pixils
         for (size_t i = 0; i < held_count; i++)
         {
           auto held_key = Lisple::get_child(*held_keys, i);
-          if (!held_key || held_key->type != Lisple::RTValue::Type::KEYWORD)
+          if (!held_key || held_key->type != Lisple::Value::Type::KEYWORD)
           {
             continue;
           }
@@ -401,23 +400,23 @@ namespace Pixils
       return typed_char;
     }
 
-    Lisple::sptr_rtval key_event_to_lisple_key(const SDL_KeyboardEvent& event)
+    Lisple::sptr_val key_event_to_lisple_key(const SDL_KeyboardEvent& event)
     {
       for (auto& [str, keycode] : SYMBOL_TO_KEYCODE)
       {
         if (keycode == event.keysym.sym)
         {
-          return Lisple::RTValue::keyword("key/" + str);
+          return Lisple::keyword("key/" + str);
         }
       }
 
       return Lisple::Constant::NIL;
     }
 
-    std::optional<std::string> key_to_text(const Lisple::sptr_rtval& key,
-                                           const Lisple::sptr_rtval& held_keys)
+    std::optional<std::string> key_to_text(const Lisple::sptr_val& key,
+                                           const Lisple::sptr_val& held_keys)
     {
-      if (!key || key->type != Lisple::RTValue::Type::KEYWORD)
+      if (!key || key->type != Lisple::Value::Type::KEYWORD)
       {
         return std::nullopt;
       }

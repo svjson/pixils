@@ -16,9 +16,9 @@ namespace Pixils::Script
     namespace
     {
       std::optional<Dimension> image_size(Lisple::Context& ctx,
-                                          const Lisple::sptr_rtval& image_key)
+                                          const Lisple::sptr_val& image_key)
       {
-        if (!image_key || image_key->type != Lisple::RTValue::Type::KEYWORD)
+        if (!image_key || image_key->type != Lisple::Value::Type::KEYWORD)
         {
           return std::nullopt;
         }
@@ -39,7 +39,8 @@ namespace Pixils::Script
     } // namespace
 
     FUNC_IMPL(ImageSize,
-              SIG((FN_ARGS((&Lisple::Type::KEY)), EXEC_DISPATCH(&ImageSize::exec_size))));
+              SIG((FN_ARGS((&Lisple::Type::KEYWORD)),
+                   EXEC_DISPATCH(&ImageSize::exec_size))));
 
     EXEC_BODY(ImageSize, exec_size)
     {
@@ -49,35 +50,36 @@ namespace Pixils::Script
     }
 
     FUNC_IMPL(ImageWidth,
-              SIG((FN_ARGS((&Lisple::Type::KEY)), EXEC_DISPATCH(&ImageWidth::exec_width))));
+              SIG((FN_ARGS((&Lisple::Type::KEYWORD)),
+                   EXEC_DISPATCH(&ImageWidth::exec_width))));
 
     EXEC_BODY(ImageWidth, exec_width)
     {
       auto size = image_size(ctx, args[0]);
       if (!size) return Lisple::Constant::NIL;
-      return Lisple::RTValue::number(size->w);
+      return Lisple::number(size->w);
     }
 
     FUNC_IMPL(ImageHeight,
-              SIG((FN_ARGS((&Lisple::Type::KEY)),
+              SIG((FN_ARGS((&Lisple::Type::KEYWORD)),
                    EXEC_DISPATCH(&ImageHeight::exec_height))));
 
     EXEC_BODY(ImageHeight, exec_height)
     {
       auto size = image_size(ctx, args[0]);
       if (!size) return Lisple::Constant::NIL;
-      return Lisple::RTValue::number(size->h);
+      return Lisple::number(size->h);
     }
 
     FUNC_IMPL(ImageRect,
-              MULTI_SIG((FN_ARGS((&Lisple::Type::KEY)),
+              MULTI_SIG((FN_ARGS((&Lisple::Type::KEYWORD)),
                          EXEC_DISPATCH(&ImageRect::exec_rect)),
-                        (FN_ARGS((&Lisple::Type::KEY), (&HostType::POINT)),
+                        (FN_ARGS((&Lisple::Type::KEYWORD), (&HostType::POINT)),
                          EXEC_DISPATCH(&ImageRect::exec_rect_with_offset))));
 
     EXEC_BODY(ImageRect, exec_rect)
     {
-      Lisple::sptr_rtval_v fwd_args = {
+      Lisple::sptr_val_v fwd_args = {
         args[0],
         PointAdapter::make_unique(POINT__ZERO_ZERO.x, POINT__ZERO_ZERO.y)};
       return this->exec_rect_with_offset(ctx, fwd_args);

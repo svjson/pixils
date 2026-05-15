@@ -3,7 +3,7 @@
 
 #include <pixils/binding/ui/style/style_constant.h>
 
-#include <lisple/host.h>
+#include <lisple/host/type.h>
 
 namespace Pixils::Script::HostType
 {

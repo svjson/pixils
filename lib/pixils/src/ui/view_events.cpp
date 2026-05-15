@@ -15,7 +15,7 @@ namespace Pixils::UI
   namespace
   {
     void restore_subtree_state(const std::shared_ptr<Runtime::View>& view,
-                               const Lisple::sptr_rtval& parent_state)
+                               const Lisple::sptr_val& parent_state)
     {
       view->state = Runtime::extract_state(parent_state, *view);
       for (auto& child : view->children)
@@ -27,8 +27,8 @@ namespace Pixils::UI
   } // namespace
 
   std::vector<CustomEvent> process_view_events(Runtime::View& receiver,
-                                               Lisple::sptr_rtval* parent_state,
-                                               Lisple::sptr_rtval& view_ctx,
+                                               Lisple::sptr_val* parent_state,
+                                               Lisple::sptr_val& view_ctx,
                                                std::vector<CustomEvent>& events,
                                                Lisple::Runtime& runtime,
                                                bool* receiver_state_updated)
@@ -38,18 +38,18 @@ namespace Pixils::UI
     {
       auto it = receiver.mode->event_handlers.find(event.event_key->str());
       if (it == receiver.mode->event_handlers.end() ||
-          it->second->type != Lisple::RTValue::Type::FUNCTION)
+          it->second->type != Lisple::Value::Type::FUNCTION)
       {
         bubbled_events.push_back(event);
         continue;
       }
 
       auto event_ref = Script::CustomEventAdapter::make_ref(event);
-      Lisple::sptr_rtval_v event_args{receiver.state, event_ref, view_ctx};
+      Lisple::sptr_val_v event_args{receiver.state, event_ref, view_ctx};
       auto receiver_ref = std::shared_ptr<Runtime::View>(&receiver, [](Runtime::View*) {});
       auto new_state =
         Runtime::invoke_hook(runtime, receiver_ref, it->second, event_args, receiver.state);
-      if (new_state->type != Lisple::RTValue::Type::NIL)
+      if (new_state->type != Lisple::Value::Type::NIL)
       {
         receiver.state = new_state;
         if (receiver_state_updated) *receiver_state_updated = true;

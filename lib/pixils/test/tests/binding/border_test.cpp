@@ -177,7 +177,7 @@ TEST(BorderStyleEffectiveTrimTest, per_side_overrides_base)
 TEST_F(BorderTest, make_border)
 {
   // When
-  Lisple::sptr_rtval result =
+  Lisple::sptr_val result =
     runtime.eval("(pixils.ui.style/make-border {:thickness 1 :line-style :solid})");
 
   // Then
@@ -190,7 +190,7 @@ TEST_F(BorderTest, make_border)
 TEST_F(BorderTest, make_bevel_border)
 {
   // When
-  Lisple::sptr_rtval result =
+  Lisple::sptr_val result =
     runtime.eval("(pixils.ui.style/make-border {:thickness 2 :line-style :bevel})");
 
   // Then
@@ -202,7 +202,7 @@ TEST_F(BorderTest, make_bevel_border)
 TEST_F(BorderTest, make_border_with_uniform_trim)
 {
   // When
-  Lisple::sptr_rtval result = runtime.eval("(pixils.ui.style/make-border {:trim 2})");
+  Lisple::sptr_val result = runtime.eval("(pixils.ui.style/make-border {:trim 2})");
 
   // Then
   auto border = Lisple::obj<Pixils::UI::Style::Border>(*result);
@@ -213,7 +213,7 @@ TEST_F(BorderTest, make_border_with_uniform_trim)
 TEST_F(BorderTest, make_border_with_pair_trim)
 {
   // When
-  Lisple::sptr_rtval result = runtime.eval("(pixils.ui.style/make-border {:trim [1 0]})");
+  Lisple::sptr_val result = runtime.eval("(pixils.ui.style/make-border {:trim [1 0]})");
 
   // Then
   auto border = Lisple::obj<Pixils::UI::Style::Border>(*result);
@@ -224,7 +224,7 @@ TEST_F(BorderTest, make_border_with_pair_trim)
 TEST_F(BorderStyleTest, make_border_style)
 {
   // When
-  Lisple::sptr_rtval result =
+  Lisple::sptr_val result =
     runtime.eval("(pixils.ui.style/make-border-style {:thickness 1 :line-style :solid})");
 
   // Then
@@ -238,7 +238,7 @@ TEST_F(BorderStyleTest, make_border_style)
 TEST_F(BorderStyleTest, make_bevel_border_style)
 {
   // When
-  Lisple::sptr_rtval result =
+  Lisple::sptr_val result =
     runtime.eval("(pixils.ui.style/make-border-style {:thickness 2 :line-style :bevel})");
 
   // Then
@@ -251,7 +251,7 @@ TEST_F(BorderStyleTest, make_bevel_border_style)
 TEST_F(BorderStyleTest, make_border_style_with_trim)
 {
   // When
-  Lisple::sptr_rtval result =
+  Lisple::sptr_val result =
     runtime.eval("(pixils.ui.style/make-border-style {:trim [2 1]})");
 
   // Then

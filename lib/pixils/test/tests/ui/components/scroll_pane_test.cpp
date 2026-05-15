@@ -237,10 +237,9 @@ TEST_F(ScrollPaneTest, scroll_pane_measures_runtime_content_growth)
   ASSERT_NE(pane, nullptr);
 
   auto content_size =
-    Lisple::Dict::get_property(pane->state, Lisple::RTValue::keyword("content-size"));
+    Lisple::Dict::get_property(pane->state, Lisple::keyword("content-size"));
   ASSERT_NE(content_size, nullptr);
-  auto content_height =
-    Lisple::Dict::get_property(content_size, Lisple::RTValue::keyword("h"));
+  auto content_height = Lisple::Dict::get_property(content_size, Lisple::keyword("h"));
   ASSERT_NE(content_height, nullptr);
   EXPECT_EQ(content_height->num().get_int(), 200);
 
@@ -292,10 +291,9 @@ TEST_F(ScrollPaneTest, scroll_pane_keeps_explicit_content_size_when_child_grows)
   auto pane = session.active_mode->children[0];
   ASSERT_NE(pane, nullptr);
   auto content_size =
-    Lisple::Dict::get_property(pane->state, Lisple::RTValue::keyword("content-size"));
+    Lisple::Dict::get_property(pane->state, Lisple::keyword("content-size"));
   ASSERT_NE(content_size, nullptr);
-  auto content_height =
-    Lisple::Dict::get_property(content_size, Lisple::RTValue::keyword("h"));
+  auto content_height = Lisple::Dict::get_property(content_size, Lisple::keyword("h"));
   ASSERT_NE(content_height, nullptr);
   EXPECT_EQ(content_height->num().get_int(), 80);
 }

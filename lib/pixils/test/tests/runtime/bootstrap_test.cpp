@@ -4,7 +4,6 @@
 
 #include <algorithm>
 #include <gtest/gtest.h>
-#include <lisple/host.h>
 #include <lisple/runtime/dict.h>
 #include <string_view>
 
@@ -17,35 +16,28 @@ TEST_F(BootstrapTest, loads_embedded_core_ui_modes_into_pixils_mode_registry)
   auto modes = runtime.lookup("pixils/modes");
   ASSERT_NE(modes, nullptr);
 
-  auto text_mode = Lisple::Dict::get_property(modes, Lisple::RTValue::symbol("ui/text"));
-  auto text_input_mode =
-    Lisple::Dict::get_property(modes, Lisple::RTValue::symbol("ui/text-input"));
-  auto button_mode = Lisple::Dict::get_property(modes, Lisple::RTValue::symbol("ui/button"));
-  auto checkbox_mode =
-    Lisple::Dict::get_property(modes, Lisple::RTValue::symbol("ui/checkbox"));
-  auto scrollbar_mode =
-    Lisple::Dict::get_property(modes, Lisple::RTValue::symbol("ui/scrollbar"));
+  auto text_mode = Lisple::Dict::get_property(modes, Lisple::symbol("ui/text"));
+  auto text_input_mode = Lisple::Dict::get_property(modes, Lisple::symbol("ui/text-input"));
+  auto button_mode = Lisple::Dict::get_property(modes, Lisple::symbol("ui/button"));
+  auto checkbox_mode = Lisple::Dict::get_property(modes, Lisple::symbol("ui/checkbox"));
+  auto scrollbar_mode = Lisple::Dict::get_property(modes, Lisple::symbol("ui/scrollbar"));
   auto scrollbar_button_mode =
-    Lisple::Dict::get_property(modes, Lisple::RTValue::symbol("ui/scrollbar-button"));
+    Lisple::Dict::get_property(modes, Lisple::symbol("ui/scrollbar-button"));
   auto scroll_pane_mode =
-    Lisple::Dict::get_property(modes, Lisple::RTValue::symbol("ui/scroll-pane"));
+    Lisple::Dict::get_property(modes, Lisple::symbol("ui/scroll-pane"));
   auto header_panel_mode =
-    Lisple::Dict::get_property(modes, Lisple::RTValue::symbol("ui/header-panel"));
-  auto window_mode = Lisple::Dict::get_property(modes, Lisple::RTValue::symbol("ui/window"));
-  auto menu_bar_mode =
-    Lisple::Dict::get_property(modes, Lisple::RTValue::symbol("ui/menu-bar"));
-  auto popup_menu_mode =
-    Lisple::Dict::get_property(modes, Lisple::RTValue::symbol("ui/popup-menu"));
-  auto list_box_mode =
-    Lisple::Dict::get_property(modes, Lisple::RTValue::symbol("ui/list-box"));
-  auto combo_box_mode =
-    Lisple::Dict::get_property(modes, Lisple::RTValue::symbol("ui/combo-box"));
-  auto slider_mode = Lisple::Dict::get_property(modes, Lisple::RTValue::symbol("ui/slider"));
-  auto icon_mode = Lisple::Dict::get_property(modes, Lisple::RTValue::symbol("ui/icon"));
+    Lisple::Dict::get_property(modes, Lisple::symbol("ui/header-panel"));
+  auto window_mode = Lisple::Dict::get_property(modes, Lisple::symbol("ui/window"));
+  auto menu_bar_mode = Lisple::Dict::get_property(modes, Lisple::symbol("ui/menu-bar"));
+  auto popup_menu_mode = Lisple::Dict::get_property(modes, Lisple::symbol("ui/popup-menu"));
+  auto list_box_mode = Lisple::Dict::get_property(modes, Lisple::symbol("ui/list-box"));
+  auto combo_box_mode = Lisple::Dict::get_property(modes, Lisple::symbol("ui/combo-box"));
+  auto slider_mode = Lisple::Dict::get_property(modes, Lisple::symbol("ui/slider"));
+  auto icon_mode = Lisple::Dict::get_property(modes, Lisple::symbol("ui/icon"));
   auto icon_container_mode =
-    Lisple::Dict::get_property(modes, Lisple::RTValue::symbol("ui/icon-container"));
+    Lisple::Dict::get_property(modes, Lisple::symbol("ui/icon-container"));
   auto icon_preview_mode =
-    Lisple::Dict::get_property(modes, Lisple::RTValue::symbol("ui/icon-preview"));
+    Lisple::Dict::get_property(modes, Lisple::symbol("ui/icon-preview"));
 
   ASSERT_NE(text_mode, nullptr);
   ASSERT_NE(text_input_mode, nullptr);
@@ -143,11 +135,9 @@ TEST_F(BootstrapTest, loads_embedded_core_themes_into_registry)
   ASSERT_NE(themes, nullptr);
 
   auto classic_blue =
-    Lisple::Dict::get_property(themes, Lisple::RTValue::symbol("pixils/classic-blue"));
-  auto windows_3 =
-    Lisple::Dict::get_property(themes, Lisple::RTValue::symbol("pixils/windows-3"));
-  auto windows_95 =
-    Lisple::Dict::get_property(themes, Lisple::RTValue::symbol("pixils/windows-95"));
+    Lisple::Dict::get_property(themes, Lisple::symbol("pixils/classic-blue"));
+  auto windows_3 = Lisple::Dict::get_property(themes, Lisple::symbol("pixils/windows-3"));
+  auto windows_95 = Lisple::Dict::get_property(themes, Lisple::symbol("pixils/windows-95"));
 
   ASSERT_NE(classic_blue, nullptr);
   ASSERT_NE(windows_3, nullptr);

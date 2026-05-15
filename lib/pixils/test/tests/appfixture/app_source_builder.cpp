@@ -25,25 +25,25 @@ namespace Pixils::Test::AppFixture
       return buffer.str();
     }
 
-    const Lisple::List& as_list(const Lisple::sptr_sobject& form, const char* what)
+    const Lisple::AST::List& as_list(const Lisple::sptr_ast_node& form, const char* what)
     {
       if (!form || form->get_type() != Lisple::Form::LIST)
         throw std::runtime_error(std::string(what) + " must be a list form");
-      return form->as<Lisple::List>();
+      return form->as<Lisple::AST::List>();
     }
 
-    bool is_word(const Lisple::sptr_sobject& form, const std::string& value)
+    bool is_word(const Lisple::sptr_ast_node& form, const std::string& value)
     {
-      return form && form->get_type() == Lisple::Form::WORD &&
-             form->as<Lisple::Word>().value == value;
+      return form && form->get_type() == Lisple::Form::SYMBOL &&
+             form->as<Lisple::AST::Symbol>().value == value;
     }
 
-    bool is_key(const Lisple::sptr_sobject& form, const std::string& value)
+    bool is_key(const Lisple::sptr_ast_node& form, const std::string& value)
     {
-      return form && form->get_type() == Lisple::Form::KEY && form->to_string() == value;
+      return form && form->get_type() == Lisple::Form::KEYWORD && form->to_string() == value;
     }
 
-    std::vector<std::string> parse_require_entries(const Lisple::List& ns_form)
+    std::vector<std::string> parse_require_entries(const Lisple::AST::List& ns_form)
     {
       std::vector<std::string> require_entries;
 
@@ -52,7 +52,7 @@ namespace Pixils::Test::AppFixture
         const auto& clause = ns_form.children[i];
         if (!clause || clause->get_type() != Lisple::Form::LIST) continue;
 
-        const auto& clause_list = clause->as<Lisple::List>();
+        const auto& clause_list = clause->as<Lisple::AST::List>();
         if (clause_list.children.empty()) continue;
         if (!is_key(clause_list.children.front(), ":require")) continue;
 

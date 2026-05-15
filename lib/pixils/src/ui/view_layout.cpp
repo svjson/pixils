@@ -86,19 +86,19 @@ namespace Pixils::UI
       return margin + std::max(0, scaled_outer_size - margin) / scale;
     }
 
-    std::optional<Dimension> parse_dimension_like(const Lisple::sptr_rtval& value)
+    std::optional<Dimension> parse_dimension_like(const Lisple::sptr_val& value)
     {
-      if (!value || value->type == Lisple::RTValue::Type::NIL) return std::nullopt;
+      if (!value || value->type == Lisple::Value::Type::NIL) return std::nullopt;
 
       if (Pixils::Script::HostType::DIMENSION.is_type_of(*value))
       {
         return Lisple::obj<Dimension>(*value);
       }
 
-      if (value->type == Lisple::RTValue::Type::MAP)
+      if (value->type == Lisple::Value::Type::MAP)
       {
-        auto wv = Lisple::Dict::get_property(value, Lisple::RTValue::keyword("w"));
-        auto hv = Lisple::Dict::get_property(value, Lisple::RTValue::keyword("h"));
+        auto wv = Lisple::Dict::get_property(value, Lisple::keyword("w"));
+        auto hv = Lisple::Dict::get_property(value, Lisple::keyword("h"));
         return Dimension{wv ? wv->num().get_int() : 0, hv ? hv->num().get_int() : 0};
       }
 
@@ -108,13 +108,13 @@ namespace Pixils::UI
     std::optional<Dimension> invoke_content_size_hook(
       const std::shared_ptr<Pixils::Runtime::View>& child,
       Lisple::Runtime& runtime,
-      const Lisple::sptr_rtval& hook_ctx,
+      const Lisple::sptr_val& hook_ctx,
       const std::optional<int>& available_width,
       const std::optional<int>& available_height)
     {
-      if (!hook_ctx || hook_ctx->type == Lisple::RTValue::Type::NIL) return std::nullopt;
+      if (!hook_ctx || hook_ctx->type == Lisple::Value::Type::NIL) return std::nullopt;
       if (!child->mode || !child->mode->content_size ||
-          child->mode->content_size->type == Lisple::RTValue::Type::NIL)
+          child->mode->content_size->type == Lisple::Value::Type::NIL)
         return std::nullopt;
 
       HookContext& native_hook_ctx = Lisple::obj<HookContext>(*hook_ctx);
@@ -123,7 +123,7 @@ namespace Pixils::UI
       native_hook_ctx.available_width = available_width;
       native_hook_ctx.available_height = available_height;
 
-      Lisple::sptr_rtval_v args = {child->state, hook_ctx};
+      Lisple::sptr_val_v args = {child->state, hook_ctx};
       auto result =
         Pixils::Runtime::invoke_hook(runtime, child, child->mode->content_size, args);
       native_hook_ctx.available_width = previous_width;
@@ -256,8 +256,8 @@ namespace Pixils::UI
     std::optional<Theme> lookup_theme(Lisple::Runtime& runtime, const std::string& name)
     {
       auto themes = runtime.lookup(Pixils::Script::ID__PIXILS__THEMES);
-      auto theme_val = Lisple::Dict::get_property(themes, Lisple::RTValue::symbol(name));
-      if (!theme_val || theme_val->type == Lisple::RTValue::Type::NIL) return std::nullopt;
+      auto theme_val = Lisple::Dict::get_property(themes, Lisple::symbol(name));
+      if (!theme_val || theme_val->type == Lisple::Value::Type::NIL) return std::nullopt;
       return Lisple::obj<Theme>(*theme_val);
     }
 
@@ -283,7 +283,7 @@ namespace Pixils::UI
     std::optional<Dimension> calculate_child_tree_content_size(
       const std::shared_ptr<Pixils::Runtime::View>& view,
       Lisple::Runtime& runtime,
-      const Lisple::sptr_rtval& hook_ctx,
+      const Lisple::sptr_val& hook_ctx,
       const std::optional<int>& available_width,
       const std::optional<int>& available_height,
       const Style* inherited_style,
@@ -294,7 +294,7 @@ namespace Pixils::UI
       const std::vector<std::shared_ptr<Pixils::Runtime::View>>& children,
       const Rect& parent,
       Lisple::Runtime& runtime,
-      const Lisple::sptr_rtval& hook_ctx,
+      const Lisple::sptr_val& hook_ctx,
       const Style::Layout& layout,
       const Style* inherited_style,
       const Theme* inherited_theme,
@@ -303,7 +303,7 @@ namespace Pixils::UI
     std::optional<Dimension> calculate_natural_content_size(
       const std::shared_ptr<Pixils::Runtime::View>& view,
       Lisple::Runtime& runtime,
-      const Lisple::sptr_rtval& hook_ctx,
+      const Lisple::sptr_val& hook_ctx,
       const std::optional<int>& parent_available_width,
       const std::optional<int>& parent_available_height,
       const Style* inherited_style,
@@ -343,7 +343,7 @@ namespace Pixils::UI
     std::optional<Dimension> calculate_child_tree_content_size(
       const std::shared_ptr<Pixils::Runtime::View>& view,
       Lisple::Runtime& runtime,
-      const Lisple::sptr_rtval& hook_ctx,
+      const Lisple::sptr_val& hook_ctx,
       const std::optional<int>& available_width,
       const std::optional<int>& available_height,
       const Style* inherited_style,
@@ -414,7 +414,7 @@ namespace Pixils::UI
     void layout_view_tree_impl(const std::shared_ptr<Pixils::Runtime::View>& view,
                                const Rect& bounds,
                                Lisple::Runtime& runtime,
-                               const Lisple::sptr_rtval& hook_ctx,
+                               const Lisple::sptr_val& hook_ctx,
                                const Style* inherited_style,
                                const Theme* inherited_theme,
                                const std::vector<ThemeMatchContext>& selector_path)
@@ -521,7 +521,7 @@ namespace Pixils::UI
       const std::vector<std::shared_ptr<Pixils::Runtime::View>>& children,
       const Rect& parent,
       Lisple::Runtime& runtime,
-      const Lisple::sptr_rtval& hook_ctx,
+      const Lisple::sptr_val& hook_ctx,
       const Style::Layout& layout,
       const Style* inherited_style,
       const Theme* inherited_theme,
@@ -770,7 +770,7 @@ namespace Pixils::UI
     const std::vector<std::shared_ptr<Pixils::Runtime::View>>& children,
     const Rect& parent,
     Lisple::Runtime& runtime,
-    const Lisple::sptr_rtval& hook_ctx,
+    const Lisple::sptr_val& hook_ctx,
     const Style::Layout& layout,
     const Style* inherited_style,
     const Theme* inherited_theme)
@@ -788,7 +788,7 @@ namespace Pixils::UI
   void layout_view_tree(const std::shared_ptr<Pixils::Runtime::View>& view,
                         const Rect& bounds,
                         Lisple::Runtime& runtime,
-                        const Lisple::sptr_rtval& hook_ctx)
+                        const Lisple::sptr_val& hook_ctx)
   {
     layout_view_tree_impl(view,
                           bounds,

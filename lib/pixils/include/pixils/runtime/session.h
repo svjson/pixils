@@ -28,14 +28,14 @@ namespace Pixils::Runtime
     struct ModeFrameMetadata
     {
       View* origin_view = nullptr;
-      Lisple::sptr_rtval origin_event = Lisple::Constant::NIL;
+      Lisple::sptr_val origin_event = Lisple::Constant::NIL;
     };
 
     Lisple::Runtime& lisple_runtime;
     Asset::Registry& assets;
     RenderContext& render_ctx;
     ModeStack mode_stack;
-    Lisple::sptr_rtval modes;
+    Lisple::sptr_val modes;
     std::shared_ptr<View> active_mode;
     std::vector<std::shared_ptr<View>> ctx_stack;
     std::vector<ModeFrameMetadata> frame_metadata;
@@ -49,13 +49,13 @@ namespace Pixils::Runtime
             RenderContext& render_ctx,
             const HookArguments& hook_args);
 
-    void pop_mode(const Lisple::sptr_rtval& payload = Lisple::Constant::NIL);
-    void push_mode(const Lisple::sptr_rtval& mode,
-                   const Lisple::sptr_rtval& state,
-                   const Lisple::sptr_rtval& overrides = Lisple::Constant::NIL);
+    void pop_mode(const Lisple::sptr_val& payload = Lisple::Constant::NIL);
+    void push_mode(const Lisple::sptr_val& mode,
+                   const Lisple::sptr_val& state,
+                   const Lisple::sptr_val& overrides = Lisple::Constant::NIL);
     void push_mode(const std::string& mode_name,
-                   const Lisple::sptr_rtval& state,
-                   const Lisple::sptr_rtval& overrides = Lisple::Constant::NIL);
+                   const Lisple::sptr_val& state,
+                   const Lisple::sptr_val& overrides = Lisple::Constant::NIL);
     void process_messages();
     void update_mode();
     void render_mode();

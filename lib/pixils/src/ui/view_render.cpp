@@ -40,8 +40,7 @@ namespace Pixils::UI
 
     Uint8 opacity_to_alpha(float opacity)
     {
-      return static_cast<Uint8>(
-        std::lround(std::clamp(opacity, 0.0f, 1.0f) * 255.0f));
+      return static_cast<Uint8>(std::lround(std::clamp(opacity, 0.0f, 1.0f) * 255.0f));
     }
 
     Rect scaled_external_bounds(const Rect& logical_bounds, const Style& style)
@@ -148,7 +147,7 @@ namespace Pixils::UI
 
     void render_view_impl(Pixils::RenderContext& render_ctx,
                           Lisple::Runtime& runtime,
-                          const Lisple::sptr_rtval& render_hook_ctx,
+                          const Lisple::sptr_val& render_hook_ctx,
                           const std::shared_ptr<Pixils::Runtime::View>& view_ptr,
                           const std::optional<Rect>& inherited_clip,
                           SDL_Texture* target_texture,
@@ -312,7 +311,7 @@ namespace Pixils::UI
       SDL_RenderSetViewport(render_ctx.renderer, &viewport);
       set_clip(render_ctx, active_clip, origin, content);
 
-      Lisple::sptr_rtval_v rargs = {ctx.state, render_hook_ctx};
+      Lisple::sptr_val_v rargs = {ctx.state, render_hook_ctx};
       Runtime::invoke_hook(runtime, view_ptr, ctx.mode->render, rargs);
 
       if (!ctx.children.empty())
@@ -337,7 +336,7 @@ namespace Pixils::UI
 
   void render_view(Pixils::RenderContext& render_ctx,
                    Lisple::Runtime& runtime,
-                   const Lisple::sptr_rtval& render_hook_ctx,
+                   const Lisple::sptr_val& render_hook_ctx,
                    const std::shared_ptr<Pixils::Runtime::View>& view_ptr)
   {
     render_view_impl(render_ctx,

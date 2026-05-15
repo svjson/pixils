@@ -27,7 +27,7 @@ class ComposableAppFixture : public ::testing::Test
                 const std::vector<std::string>& entry_files);
 
   Lisple::Runtime& pixils();
-  Lisple::sptr_rtval eval(const std::string& source);
+  Lisple::sptr_val eval(const std::string& source);
 
  private:
   static std::filesystem::path make_temp_app_root();

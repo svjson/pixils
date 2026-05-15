@@ -27,24 +27,24 @@ namespace Pixils::Script::StyleDefinition
     }
 
     std::optional<Pixils::Text::FontStyle> parse_font_style_keyword(
-      const Lisple::sptr_rtval& value)
+      const Lisple::sptr_val& value)
     {
-      if (!value || value->type != Lisple::RTValue::Type::KEYWORD) return std::nullopt;
+      if (!value || value->type != Lisple::Value::Type::KEYWORD) return std::nullopt;
       if (value->str() == "underline") return Pixils::Text::FontStyle::UNDERLINE;
       return std::nullopt;
     }
 
     std::optional<std::vector<Pixils::Text::FontStyle>> parse_text_font_styles(
-      const Lisple::sptr_rtval& value)
+      const Lisple::sptr_val& value)
     {
-      if (!value || value->type == Lisple::RTValue::Type::NIL) return std::nullopt;
+      if (!value || value->type == Lisple::Value::Type::NIL) return std::nullopt;
 
       if (auto single = parse_font_style_keyword(value))
       {
         return std::vector<Pixils::Text::FontStyle>{*single};
       }
 
-      if (value->type != Lisple::RTValue::Type::VECTOR) return std::nullopt;
+      if (value->type != Lisple::Value::Type::VECTOR) return std::nullopt;
 
       std::vector<Pixils::Text::FontStyle> styles;
       for (auto& child : Lisple::get_children(*value))
@@ -58,22 +58,22 @@ namespace Pixils::Script::StyleDefinition
 
     std::optional<std::vector<Pixils::Text::Shadow>> parse_text_shadows(
       Lisple::Context& ctx,
-      const Lisple::sptr_rtval& value)
+      const Lisple::sptr_val& value)
     {
-      if (!value || value->type == Lisple::RTValue::Type::NIL) return std::nullopt;
+      if (!value || value->type == Lisple::Value::Type::NIL) return std::nullopt;
 
       static Lisple::MapSchema shadow_schema(
         {{"offset", &HostType::POINT}, {"color", &HostType::COLOR}},
         {});
 
-      auto parse_one = [&](const Lisple::sptr_rtval& shadow_value)
+      auto parse_one = [&](const Lisple::sptr_val& shadow_value)
       {
         auto sh = shadow_schema.bind(ctx, *shadow_value);
         return Pixils::Text::Shadow(sh.obj<Point>("offset"), sh.obj<Color>("color"));
       };
 
       std::vector<Pixils::Text::Shadow> shadows;
-      if (value->type == Lisple::RTValue::Type::VECTOR)
+      if (value->type == Lisple::Value::Type::VECTOR)
       {
         for (auto& child : Lisple::get_children(*value))
         {
@@ -82,7 +82,7 @@ namespace Pixils::Script::StyleDefinition
         return shadows;
       }
 
-      if (value->type == Lisple::RTValue::Type::MAP)
+      if (value->type == Lisple::Value::Type::MAP)
       {
         shadows.push_back(parse_one(value));
         return shadows;
@@ -92,9 +92,9 @@ namespace Pixils::Script::StyleDefinition
     }
 
     std::optional<UI::Style::Background::Fit> parse_background_fit(
-      const Lisple::sptr_rtval& value)
+      const Lisple::sptr_val& value)
     {
-      if (!value || value->type != Lisple::RTValue::Type::KEYWORD) return std::nullopt;
+      if (!value || value->type != Lisple::Value::Type::KEYWORD) return std::nullopt;
       if (value->str() == "none") return UI::Style::Background::Fit::NONE;
       if (value->str() == "contain") return UI::Style::Background::Fit::CONTAIN;
       if (value->str() == "cover") return UI::Style::Background::Fit::COVER;
@@ -103,9 +103,9 @@ namespace Pixils::Script::StyleDefinition
     }
 
     std::optional<UI::Style::Background::Align> parse_background_align_keyword(
-      const Lisple::sptr_rtval& value)
+      const Lisple::sptr_val& value)
     {
-      if (!value || value->type != Lisple::RTValue::Type::KEYWORD)
+      if (!value || value->type != Lisple::Value::Type::KEYWORD)
       {
         return std::nullopt;
       }
@@ -124,9 +124,9 @@ namespace Pixils::Script::StyleDefinition
       return std::nullopt;
     }
 
-    void apply_background_align(UI::Style::Background& bg, const Lisple::sptr_rtval& value)
+    void apply_background_align(UI::Style::Background& bg, const Lisple::sptr_val& value)
     {
-      if (!value || value->type != Lisple::RTValue::Type::KEYWORD) return;
+      if (!value || value->type != Lisple::Value::Type::KEYWORD) return;
 
       auto name = value->str();
       if (name == "top-left")
@@ -181,18 +181,18 @@ namespace Pixils::Script::StyleDefinition
       }
     }
 
-    std::optional<char> parse_inline_marker(const Lisple::sptr_rtval& value)
+    std::optional<char> parse_inline_marker(const Lisple::sptr_val& value)
     {
-      if (!value || value->type == Lisple::RTValue::Type::NIL) return std::nullopt;
+      if (!value || value->type == Lisple::Value::Type::NIL) return std::nullopt;
 
-      if (value->type == Lisple::RTValue::Type::CHAR)
+      if (value->type == Lisple::Value::Type::CHAR)
       {
         return static_cast<char>(value->ch());
       }
 
-      if (value->type == Lisple::RTValue::Type::STRING ||
-          value->type == Lisple::RTValue::Type::KEYWORD ||
-          value->type == Lisple::RTValue::Type::SYMBOL)
+      if (value->type == Lisple::Value::Type::STRING ||
+          value->type == Lisple::Value::Type::KEYWORD ||
+          value->type == Lisple::Value::Type::SYMBOL)
       {
         std::string raw = value->str();
         if (raw.size() == 1) return raw[0];
@@ -203,16 +203,16 @@ namespace Pixils::Script::StyleDefinition
 
     std::optional<UI::Style::Text::MarkedStyle> parse_marked_style(
       Lisple::Context& ctx,
-      const Lisple::sptr_rtval& value)
+      const Lisple::sptr_val& value)
     {
-      if (!value || value->type == Lisple::RTValue::Type::NIL) return std::nullopt;
-      if (value->type != Lisple::RTValue::Type::MAP) return std::nullopt;
+      if (!value || value->type == Lisple::Value::Type::NIL) return std::nullopt;
+      if (value->type != Lisple::Value::Type::MAP) return std::nullopt;
 
       static Lisple::MapSchema inline_schema({},
                                              {{"enabled", &Lisple::Type::BOOL},
                                               {"marker", &Lisple::Type::ANY},
                                               {"color", &HostType::COLOR},
-                                              {"font", &Lisple::Type::KEY},
+                                              {"font", &Lisple::Type::KEYWORD},
                                               {"scale", &Lisple::Type::NUMBER},
                                               {"font-styles", &Lisple::Type::ANY},
                                               {"shadow", &Lisple::Type::ANY}});
@@ -225,7 +225,7 @@ namespace Pixils::Script::StyleDefinition
         {
           inline_source = Lisple::Dict::shallow_copy(value);
           Lisple::Dict::set_property(inline_source,
-                                     Lisple::RTValue::keyword("color"),
+                                     Lisple::keyword("color"),
                                      Lisple::Constant::NIL);
         }
       }
@@ -265,15 +265,15 @@ namespace Pixils::Script::StyleDefinition
     }
   } // namespace
 
-  std::optional<UI::Style::Size> parse_size(const Lisple::sptr_rtval& value)
+  std::optional<UI::Style::Size> parse_size(const Lisple::sptr_val& value)
   {
     if (!value || *value == *Lisple::Constant::NIL) return std::nullopt;
 
     switch (value->type)
     {
-    case Lisple::RTValue::Type::NUMBER:
+    case Lisple::Value::Type::NUMBER:
       return UI::Style::Size(value->num().get_int());
-    case Lisple::RTValue::Type::KEYWORD:
+    case Lisple::Value::Type::KEYWORD:
       if (value->str() == "fill") return UI::Style::Size(UI::Style::Size::Mode::FILL);
       if (value->str() == "shrink") return UI::Style::Size(UI::Style::Size::Mode::SHRINK);
       if (value->str() == "auto") return UI::Style::Size(UI::Style::Size::Mode::AUTO);
@@ -283,24 +283,24 @@ namespace Pixils::Script::StyleDefinition
     }
   }
 
-  Lisple::sptr_rtval size_to_value(const std::optional<UI::Style::Size>& size)
+  Lisple::sptr_val size_to_value(const std::optional<UI::Style::Size>& size)
   {
     if (!size) return Lisple::Constant::NIL;
-    if (size->is_fixed()) return Lisple::RTValue::number(size->fixed_value_or(0));
-    if (size->is_fill()) return Lisple::RTValue::keyword("fill");
-    if (size->is_shrink()) return Lisple::RTValue::keyword("shrink");
-    return Lisple::RTValue::keyword("auto");
+    if (size->is_fixed()) return Lisple::number(size->fixed_value_or(0));
+    if (size->is_fill()) return Lisple::keyword("fill");
+    if (size->is_shrink()) return Lisple::keyword("shrink");
+    return Lisple::keyword("auto");
   }
 
-  std::optional<UI::Style::Trim> parse_trim(const Lisple::sptr_rtval& value)
+  std::optional<UI::Style::Trim> parse_trim(const Lisple::sptr_val& value)
   {
     if (!value || *value == *Lisple::Constant::NIL) return std::nullopt;
 
     switch (value->type)
     {
-    case Lisple::RTValue::Type::NUMBER:
+    case Lisple::Value::Type::NUMBER:
       return UI::Style::Trim{value->num().get_int()};
-    case Lisple::RTValue::Type::VECTOR:
+    case Lisple::Value::Type::VECTOR:
       switch (Lisple::count(*value))
       {
       case 1:
@@ -316,61 +316,59 @@ namespace Pixils::Script::StyleDefinition
     }
   }
 
-  Lisple::sptr_rtval trim_to_value(const std::optional<UI::Style::Trim>& trim)
+  Lisple::sptr_val trim_to_value(const std::optional<UI::Style::Trim>& trim)
   {
     if (!trim) return Lisple::Constant::NIL;
-    return Lisple::RTValue::vector(
-      {Lisple::RTValue::number(trim->start), Lisple::RTValue::number(trim->end)});
+    return Lisple::vector({Lisple::number(trim->start), Lisple::number(trim->end)});
   }
 
-  std::optional<UI::PositionMode> parse_position_mode(const Lisple::sptr_rtval& value)
+  std::optional<UI::PositionMode> parse_position_mode(const Lisple::sptr_val& value)
   {
-    if (!value || value->type != Lisple::RTValue::Type::KEYWORD) return std::nullopt;
+    if (!value || value->type != Lisple::Value::Type::KEYWORD) return std::nullopt;
     return value->str() == "absolute" ? UI::PositionMode::ABSOLUTE : UI::PositionMode::FLOW;
   }
 
-  Lisple::sptr_rtval position_mode_to_value(const std::optional<UI::PositionMode>& mode)
+  Lisple::sptr_val position_mode_to_value(const std::optional<UI::PositionMode>& mode)
   {
     if (!mode) return Lisple::Constant::NIL;
-    return Lisple::RTValue::keyword(*mode == UI::PositionMode::ABSOLUTE ? "absolute"
-                                                                        : "flow");
-    }
+    return Lisple::keyword(*mode == UI::PositionMode::ABSOLUTE ? "absolute" : "flow");
+  }
 
-    std::optional<float> parse_opacity(Lisple::MapSchema::Inspector& opts,
-                                       const std::string& key)
-    {
-      if (!opts.contains(key)) return std::nullopt;
-      return std::clamp(opts.f32(key), 0.0f, 1.0f);
-    }
-
-    std::optional<UI::Style::BoxSizing> parse_box_sizing(const Lisple::sptr_rtval& value)
+  std::optional<float> parse_opacity(Lisple::MapSchema::Inspector& opts,
+                                     const std::string& key)
   {
-    if (!value || value->type != Lisple::RTValue::Type::KEYWORD) return std::nullopt;
+    if (!opts.contains(key)) return std::nullopt;
+    return std::clamp(opts.f32(key), 0.0f, 1.0f);
+  }
+
+  std::optional<UI::Style::BoxSizing> parse_box_sizing(const Lisple::sptr_val& value)
+  {
+    if (!value || value->type != Lisple::Value::Type::KEYWORD) return std::nullopt;
     return value->str() == "content-box" ? UI::Style::BoxSizing::CONTENT_BOX
                                          : UI::Style::BoxSizing::BORDER_BOX;
   }
 
-  Lisple::sptr_rtval box_sizing_to_value(const std::optional<UI::Style::BoxSizing>& value)
+  Lisple::sptr_val box_sizing_to_value(const std::optional<UI::Style::BoxSizing>& value)
   {
     if (!value) return Lisple::Constant::NIL;
-    return Lisple::RTValue::keyword(
-      *value == UI::Style::BoxSizing::CONTENT_BOX ? "content-box" : "border-box");
+    return Lisple::keyword(*value == UI::Style::BoxSizing::CONTENT_BOX ? "content-box"
+                                                                       : "border-box");
   }
 
-  std::optional<int> parse_scale(const Lisple::sptr_rtval& value)
+  std::optional<int> parse_scale(const Lisple::sptr_val& value)
   {
-    if (!value || value->type != Lisple::RTValue::Type::NUMBER) return std::nullopt;
+    if (!value || value->type != Lisple::Value::Type::NUMBER) return std::nullopt;
     return std::max(1, value->num().get_int());
   }
 
-  Lisple::sptr_rtval scale_to_value(const std::optional<int>& value)
+  Lisple::sptr_val scale_to_value(const std::optional<int>& value)
   {
-    return value ? Lisple::RTValue::number(*value) : Lisple::Constant::NIL;
+    return value ? Lisple::number(*value) : Lisple::Constant::NIL;
   }
 
-  std::optional<UI::SystemCursor> parse_system_cursor(const Lisple::sptr_rtval& value)
+  std::optional<UI::SystemCursor> parse_system_cursor(const Lisple::sptr_val& value)
   {
-    if (!value || value->type != Lisple::RTValue::Type::KEYWORD) return std::nullopt;
+    if (!value || value->type != Lisple::Value::Type::KEYWORD) return std::nullopt;
     if (value->str() == "default") return UI::SystemCursor::DEFAULT;
     if (value->str() == "pointer" || value->str() == "hand")
       return UI::SystemCursor::POINTER;
@@ -392,15 +390,15 @@ namespace Pixils::Script::StyleDefinition
   }
 
   std::optional<UI::ImageCursor> parse_image_cursor(Lisple::Context& ctx,
-                                                    const Lisple::sptr_rtval& value)
+                                                    const Lisple::sptr_val& value)
   {
-    if (!value || value->type != Lisple::RTValue::Type::MAP) return std::nullopt;
+    if (!value || value->type != Lisple::Value::Type::MAP) return std::nullopt;
 
-    static Lisple::MapSchema pointer_schema({{"image", &Lisple::Type::KEY}},
+    static Lisple::MapSchema pointer_schema({{"image", &Lisple::Type::KEYWORD}},
                                             {{"source", &HostType::RECT},
                                              {"hotspot", &HostType::POINT},
                                              {"scale", &Lisple::Type::NUMBER},
-                                             {"render", &Lisple::Type::KEY}});
+                                             {"render", &Lisple::Type::KEYWORD}});
 
     auto opts = pointer_schema.bind(ctx, *value);
     UI::ImageCursor pointer;
@@ -416,7 +414,7 @@ namespace Pixils::Script::StyleDefinition
   }
 
   std::optional<UI::CursorSpec> parse_cursor(Lisple::Context& ctx,
-                                             const Lisple::sptr_rtval& value)
+                                             const Lisple::sptr_val& value)
   {
     if (!value || *value == *Lisple::Constant::NIL) return std::nullopt;
 
@@ -425,7 +423,7 @@ namespace Pixils::Script::StyleDefinition
       return UI::CursorSpec::system_cursor(*system);
     }
 
-    if (value->type == Lisple::RTValue::Type::KEYWORD)
+    if (value->type == Lisple::Value::Type::KEYWORD)
     {
       return UI::CursorSpec::named(value->str());
     }
@@ -438,39 +436,39 @@ namespace Pixils::Script::StyleDefinition
     return std::nullopt;
   }
 
-  Lisple::sptr_rtval system_cursor_to_value(const UI::SystemCursor& value)
+  Lisple::sptr_val system_cursor_to_value(const UI::SystemCursor& value)
   {
     switch (value)
     {
     case UI::SystemCursor::DEFAULT:
-      return Lisple::RTValue::keyword("default");
+      return Lisple::keyword("default");
     case UI::SystemCursor::POINTER:
-      return Lisple::RTValue::keyword("pointer");
+      return Lisple::keyword("pointer");
     case UI::SystemCursor::TEXT:
-      return Lisple::RTValue::keyword("text");
+      return Lisple::keyword("text");
     case UI::SystemCursor::CROSSHAIR:
-      return Lisple::RTValue::keyword("crosshair");
+      return Lisple::keyword("crosshair");
     case UI::SystemCursor::MOVE:
-      return Lisple::RTValue::keyword("move");
+      return Lisple::keyword("move");
     case UI::SystemCursor::NOT_ALLOWED:
-      return Lisple::RTValue::keyword("not-allowed");
+      return Lisple::keyword("not-allowed");
     case UI::SystemCursor::WAIT:
-      return Lisple::RTValue::keyword("wait");
+      return Lisple::keyword("wait");
     case UI::SystemCursor::PROGRESS:
-      return Lisple::RTValue::keyword("progress");
+      return Lisple::keyword("progress");
     case UI::SystemCursor::RESIZE_X:
-      return Lisple::RTValue::keyword("resize-x");
+      return Lisple::keyword("resize-x");
     case UI::SystemCursor::RESIZE_Y:
-      return Lisple::RTValue::keyword("resize-y");
+      return Lisple::keyword("resize-y");
     case UI::SystemCursor::RESIZE_NWSE:
-      return Lisple::RTValue::keyword("resize-nwse");
+      return Lisple::keyword("resize-nwse");
     case UI::SystemCursor::RESIZE_NESW:
-      return Lisple::RTValue::keyword("resize-nesw");
+      return Lisple::keyword("resize-nesw");
     }
     return Lisple::Constant::NIL;
   }
 
-  Lisple::sptr_rtval cursor_to_value(const std::optional<UI::CursorSpec>& value)
+  Lisple::sptr_val cursor_to_value(const std::optional<UI::CursorSpec>& value)
   {
     if (!value) return Lisple::Constant::NIL;
 
@@ -479,223 +477,220 @@ namespace Pixils::Script::StyleDefinition
     case UI::CursorSpec::Kind::SYSTEM:
       return system_cursor_to_value(value->system);
     case UI::CursorSpec::Kind::NAMED:
-      return Lisple::RTValue::keyword(value->name);
+      return Lisple::keyword(value->name);
     case UI::CursorSpec::Kind::IMAGE:
     {
-      std::vector<Lisple::sptr_rtval> values;
+      std::vector<Lisple::sptr_val> values;
       if (value->image.image)
       {
-        values.push_back(Lisple::RTValue::keyword("image"));
-        values.push_back(Lisple::RTValue::keyword(value->image.image->first + "/" +
-                                                  value->image.image->second));
+        values.push_back(Lisple::keyword("image"));
+        values.push_back(
+          Lisple::keyword(value->image.image->first + "/" + value->image.image->second));
       }
       if (value->image.source)
       {
-        values.push_back(Lisple::RTValue::keyword("source"));
-        values.push_back(
-          Lisple::RTValue::map({Lisple::RTValue::keyword("x"),
-                                Lisple::RTValue::number(value->image.source->x),
-                                Lisple::RTValue::keyword("y"),
-                                Lisple::RTValue::number(value->image.source->y),
-                                Lisple::RTValue::keyword("w"),
-                                Lisple::RTValue::number(value->image.source->w),
-                                Lisple::RTValue::keyword("h"),
-                                Lisple::RTValue::number(value->image.source->h)}));
+        values.push_back(Lisple::keyword("source"));
+        values.push_back(Lisple::map({Lisple::keyword("x"),
+                                      Lisple::number(value->image.source->x),
+                                      Lisple::keyword("y"),
+                                      Lisple::number(value->image.source->y),
+                                      Lisple::keyword("w"),
+                                      Lisple::number(value->image.source->w),
+                                      Lisple::keyword("h"),
+                                      Lisple::number(value->image.source->h)}));
       }
-      values.push_back(Lisple::RTValue::keyword("hotspot"));
-      values.push_back(
-        Lisple::RTValue::map({Lisple::RTValue::keyword("x"),
-                              Lisple::RTValue::number(value->image.hotspot.round_x()),
-                              Lisple::RTValue::keyword("y"),
-                              Lisple::RTValue::number(value->image.hotspot.round_y())}));
-      values.push_back(Lisple::RTValue::keyword("scale"));
-      values.push_back(Lisple::RTValue::number(value->image.scale));
-      values.push_back(Lisple::RTValue::keyword("render"));
-      values.push_back(Lisple::RTValue::keyword(
+      values.push_back(Lisple::keyword("hotspot"));
+      values.push_back(Lisple::map({Lisple::keyword("x"),
+                                    Lisple::number(value->image.hotspot.round_x()),
+                                    Lisple::keyword("y"),
+                                    Lisple::number(value->image.hotspot.round_y())}));
+      values.push_back(Lisple::keyword("scale"));
+      values.push_back(Lisple::number(value->image.scale));
+      values.push_back(Lisple::keyword("render"));
+      values.push_back(Lisple::keyword(
         value->image.render_mode == UI::ImageCursor::RenderMode::NATIVE ? "native" : "app"));
-      return Lisple::RTValue::map(values);
+      return Lisple::map(values);
     }
     }
 
     return Lisple::Constant::NIL;
   }
 
-  std::optional<UI::Style::LineStyle> parse_line_style(const Lisple::sptr_rtval& value)
+  std::optional<UI::Style::LineStyle> parse_line_style(const Lisple::sptr_val& value)
   {
-    if (!value || value->type != Lisple::RTValue::Type::KEYWORD) return std::nullopt;
+    if (!value || value->type != Lisple::Value::Type::KEYWORD) return std::nullopt;
     if (value->str() == "solid") return UI::Style::LineStyle::SOLID;
     if (value->str() == "bevel") return UI::Style::LineStyle::BEVEL;
     return std::nullopt;
   }
 
-  Lisple::sptr_rtval line_style_to_value(const std::optional<UI::Style::LineStyle>& value)
+  Lisple::sptr_val line_style_to_value(const std::optional<UI::Style::LineStyle>& value)
   {
     if (!value) return Lisple::Constant::NIL;
     switch (*value)
     {
     case UI::Style::LineStyle::SOLID:
-      return Lisple::RTValue::keyword("solid");
+      return Lisple::keyword("solid");
     case UI::Style::LineStyle::BEVEL:
-      return Lisple::RTValue::keyword("bevel");
+      return Lisple::keyword("bevel");
     }
     return Lisple::Constant::NIL;
   }
 
-  std::optional<Pixils::Text::Alignment> parse_text_align(const Lisple::sptr_rtval& value)
+  std::optional<Pixils::Text::Alignment> parse_text_align(const Lisple::sptr_val& value)
   {
-    if (!value || value->type != Lisple::RTValue::Type::KEYWORD) return std::nullopt;
+    if (!value || value->type != Lisple::Value::Type::KEYWORD) return std::nullopt;
     if (value->str() == "left") return Pixils::Text::Alignment::LEFT;
     if (value->str() == "center") return Pixils::Text::Alignment::CENTER;
     if (value->str() == "right") return Pixils::Text::Alignment::RIGHT;
     return std::nullopt;
   }
 
-  Lisple::sptr_rtval text_align_to_value(const std::optional<Pixils::Text::Alignment>& value)
+  Lisple::sptr_val text_align_to_value(const std::optional<Pixils::Text::Alignment>& value)
   {
     if (!value) return Lisple::Constant::NIL;
     switch (*value)
     {
     case Pixils::Text::Alignment::LEFT:
-      return Lisple::RTValue::keyword("left");
+      return Lisple::keyword("left");
     case Pixils::Text::Alignment::CENTER:
-      return Lisple::RTValue::keyword("center");
+      return Lisple::keyword("center");
     case Pixils::Text::Alignment::RIGHT:
-      return Lisple::RTValue::keyword("right");
+      return Lisple::keyword("right");
     }
     return Lisple::Constant::NIL;
   }
 
-  bool parse_text_use_font_color(const Lisple::sptr_rtval& value)
+  bool parse_text_use_font_color(const Lisple::sptr_val& value)
   {
-    return value && value->type == Lisple::RTValue::Type::KEYWORD && value->str() == "none";
+    return value && value->type == Lisple::Value::Type::KEYWORD && value->str() == "none";
   }
 
-  Lisple::sptr_rtval text_color_to_value(const UI::Style::Text& text)
+  Lisple::sptr_val text_color_to_value(const UI::Style::Text& text)
   {
-    if (text.use_font_color) return Lisple::RTValue::keyword("none");
+    if (text.use_font_color) return Lisple::keyword("none");
     if (text.color) return ColorAdapter::make_ref(*text.color);
     return Lisple::Constant::NIL;
   }
 
-  std::optional<UI::Style::Text::Wrap> parse_text_wrap(const Lisple::sptr_rtval& value)
+  std::optional<UI::Style::Text::Wrap> parse_text_wrap(const Lisple::sptr_val& value)
   {
-    if (!value || value->type != Lisple::RTValue::Type::KEYWORD) return std::nullopt;
+    if (!value || value->type != Lisple::Value::Type::KEYWORD) return std::nullopt;
     if (value->str() == "word") return UI::Style::Text::Wrap::WORD;
     if (value->str() == "none") return UI::Style::Text::Wrap::NONE;
     return std::nullopt;
   }
 
-  Lisple::sptr_rtval text_wrap_to_value(const std::optional<UI::Style::Text::Wrap>& value)
+  Lisple::sptr_val text_wrap_to_value(const std::optional<UI::Style::Text::Wrap>& value)
   {
     if (!value) return Lisple::Constant::NIL;
     switch (*value)
     {
     case UI::Style::Text::Wrap::WORD:
-      return Lisple::RTValue::keyword("word");
+      return Lisple::keyword("word");
     case UI::Style::Text::Wrap::NONE:
-      return Lisple::RTValue::keyword("none");
+      return Lisple::keyword("none");
     }
     return Lisple::Constant::NIL;
   }
 
-  std::optional<UI::LayoutDirection> parse_layout_direction(const Lisple::sptr_rtval& value)
+  std::optional<UI::LayoutDirection> parse_layout_direction(const Lisple::sptr_val& value)
   {
-    if (!value || value->type != Lisple::RTValue::Type::KEYWORD) return std::nullopt;
+    if (!value || value->type != Lisple::Value::Type::KEYWORD) return std::nullopt;
     return value->str() == "row" ? UI::LayoutDirection::ROW : UI::LayoutDirection::COLUMN;
   }
 
-  Lisple::sptr_rtval layout_direction_to_value(
-    const std::optional<UI::LayoutDirection>& value)
+  Lisple::sptr_val layout_direction_to_value(const std::optional<UI::LayoutDirection>& value)
   {
     if (!value) return Lisple::Constant::NIL;
-    return Lisple::RTValue::keyword(*value == UI::LayoutDirection::ROW ? "row" : "column");
+    return Lisple::keyword(*value == UI::LayoutDirection::ROW ? "row" : "column");
   }
 
   std::optional<UI::Style::Layout::AlignItems> parse_layout_align_items(
-    const Lisple::sptr_rtval& value)
+    const Lisple::sptr_val& value)
   {
-    if (!value || value->type != Lisple::RTValue::Type::KEYWORD) return std::nullopt;
+    if (!value || value->type != Lisple::Value::Type::KEYWORD) return std::nullopt;
     if (value->str() == "start") return UI::Style::Layout::AlignItems::START;
     if (value->str() == "center") return UI::Style::Layout::AlignItems::CENTER;
     if (value->str() == "end") return UI::Style::Layout::AlignItems::END;
     return std::nullopt;
   }
 
-  Lisple::sptr_rtval layout_align_items_to_value(
+  Lisple::sptr_val layout_align_items_to_value(
     const std::optional<UI::Style::Layout::AlignItems>& value)
   {
     if (!value) return Lisple::Constant::NIL;
     switch (*value)
     {
     case UI::Style::Layout::AlignItems::START:
-      return Lisple::RTValue::keyword("start");
+      return Lisple::keyword("start");
     case UI::Style::Layout::AlignItems::CENTER:
-      return Lisple::RTValue::keyword("center");
+      return Lisple::keyword("center");
     case UI::Style::Layout::AlignItems::END:
-      return Lisple::RTValue::keyword("end");
+      return Lisple::keyword("end");
     }
     return Lisple::Constant::NIL;
   }
 
   std::optional<UI::Style::Layout::GapMode> parse_layout_gap_mode(
-    const Lisple::sptr_rtval& value)
+    const Lisple::sptr_val& value)
   {
-    if (!value || value->type != Lisple::RTValue::Type::KEYWORD) return std::nullopt;
+    if (!value || value->type != Lisple::Value::Type::KEYWORD) return std::nullopt;
     if (value->str() == "none") return UI::Style::Layout::GapMode::NONE;
     if (value->str() == "fixed") return UI::Style::Layout::GapMode::FIXED;
     if (value->str() == "space-between") return UI::Style::Layout::GapMode::SPACE_BETWEEN;
     return std::nullopt;
   }
 
-  Lisple::sptr_rtval layout_gap_mode_to_value(
+  Lisple::sptr_val layout_gap_mode_to_value(
     const std::optional<UI::Style::Layout::GapMode>& value)
   {
     if (!value) return Lisple::Constant::NIL;
     switch (*value)
     {
     case UI::Style::Layout::GapMode::NONE:
-      return Lisple::RTValue::keyword("none");
+      return Lisple::keyword("none");
     case UI::Style::Layout::GapMode::FIXED:
-      return Lisple::RTValue::keyword("fixed");
+      return Lisple::keyword("fixed");
     case UI::Style::Layout::GapMode::SPACE_BETWEEN:
-      return Lisple::RTValue::keyword("space-between");
+      return Lisple::keyword("space-between");
     }
     return Lisple::Constant::NIL;
   }
 
-  std::optional<int> parse_optional_int(const Lisple::sptr_rtval& value)
+  std::optional<int> parse_optional_int(const Lisple::sptr_val& value)
   {
-    if (!value || value->type != Lisple::RTValue::Type::NUMBER) return std::nullopt;
+    if (!value || value->type != Lisple::Value::Type::NUMBER) return std::nullopt;
     return value->num().get_int();
   }
 
-  Lisple::sptr_rtval optional_int_to_value(const std::optional<int>& value)
+  Lisple::sptr_val optional_int_to_value(const std::optional<int>& value)
   {
-    return value ? Lisple::RTValue::number(*value) : Lisple::Constant::NIL;
+    return value ? Lisple::number(*value) : Lisple::Constant::NIL;
   }
 
-  std::optional<bool> parse_optional_bool(const Lisple::sptr_rtval& value)
+  std::optional<bool> parse_optional_bool(const Lisple::sptr_val& value)
   {
     if (!value || *value == *Lisple::Constant::NIL) return std::nullopt;
     return Lisple::is_truthy(*value);
   }
 
-  Lisple::sptr_rtval optional_bool_to_value(const std::optional<bool>& value)
+  Lisple::sptr_val optional_bool_to_value(const std::optional<bool>& value)
   {
     if (!value) return Lisple::Constant::NIL;
     return *value ? Lisple::Constant::BOOL_TRUE : Lisple::Constant::BOOL_FALSE;
   }
 
   std::unique_ptr<UI::Style::Layout::Gap> build_layout_gap(Lisple::Context& ctx,
-                                                           const Lisple::sptr_rtval& value)
+                                                           const Lisple::sptr_val& value)
   {
     if (!value || *value == *Lisple::Constant::NIL) return nullptr;
 
-    if (value->type == Lisple::RTValue::Type::MAP)
+    if (value->type == Lisple::Value::Type::MAP)
     {
       static Lisple::MapSchema gap_schema(
         {},
-        {{"mode", &Lisple::Type::KEY}, {"size", &Lisple::Type::NUMBER}});
+        {{"mode", &Lisple::Type::KEYWORD}, {"size", &Lisple::Type::NUMBER}});
 
       auto gap = std::make_unique<UI::Style::Layout::Gap>();
       auto opts = gap_schema.bind(ctx, *value);
@@ -704,14 +699,14 @@ namespace Pixils::Script::StyleDefinition
       return gap;
     }
 
-    if (value->type == Lisple::RTValue::Type::KEYWORD)
+    if (value->type == Lisple::Value::Type::KEYWORD)
     {
       auto gap = std::make_unique<UI::Style::Layout::Gap>();
       gap->mode = parse_layout_gap_mode(value);
       return gap;
     }
 
-    if (value->type == Lisple::RTValue::Type::NUMBER)
+    if (value->type == Lisple::Value::Type::NUMBER)
     {
       auto gap = std::make_unique<UI::Style::Layout::Gap>();
       gap->mode = UI::Style::Layout::GapMode::FIXED;
@@ -723,17 +718,17 @@ namespace Pixils::Script::StyleDefinition
   }
 
   std::unique_ptr<UI::Style::Text> build_text(Lisple::Context& ctx,
-                                              const Lisple::sptr_rtval& value)
+                                              const Lisple::sptr_val& value)
   {
-    if (!value || value->type != Lisple::RTValue::Type::MAP) return nullptr;
+    if (!value || value->type != Lisple::Value::Type::MAP) return nullptr;
 
     static Lisple::MapSchema text_schema({},
                                          {{"color", &HostType::COLOR},
-                                          {"font", &Lisple::Type::KEY},
+                                          {"font", &Lisple::Type::KEYWORD},
                                           {"scale", &Lisple::Type::NUMBER},
                                           {"font-styles", &Lisple::Type::ANY},
-                                          {"align", &Lisple::Type::KEY},
-                                          {"wrap", &Lisple::Type::KEY},
+                                          {"align", &Lisple::Type::KEYWORD},
+                                          {"wrap", &Lisple::Type::KEYWORD},
                                           {"shadow", &Lisple::Type::ANY},
                                           {"marked-style", &Lisple::Type::ANY}});
 
@@ -748,7 +743,7 @@ namespace Pixils::Script::StyleDefinition
         text->use_font_color = true;
         text_source = Lisple::Dict::shallow_copy(value);
         Lisple::Dict::set_property(text_source,
-                                   Lisple::RTValue::keyword("color"),
+                                   Lisple::keyword("color"),
                                    Lisple::Constant::NIL);
       }
     }
@@ -794,13 +789,13 @@ namespace Pixils::Script::StyleDefinition
   }
 
   std::unique_ptr<UI::Style::Layout> build_layout(Lisple::Context& ctx,
-                                                  const Lisple::sptr_rtval& value)
+                                                  const Lisple::sptr_val& value)
   {
-    if (!value || value->type != Lisple::RTValue::Type::MAP) return nullptr;
+    if (!value || value->type != Lisple::Value::Type::MAP) return nullptr;
 
     static Lisple::MapSchema layout_schema({},
-                                           {{"direction", &Lisple::Type::KEY},
-                                            {"align-items", &Lisple::Type::KEY},
+                                           {{"direction", &Lisple::Type::KEYWORD},
+                                            {"align-items", &Lisple::Type::KEYWORD},
                                             {"gap", &HostType::STYLE_LAYOUT_GAP}});
 
     auto layout = std::make_unique<UI::Style::Layout>();
@@ -817,10 +812,9 @@ namespace Pixils::Script::StyleDefinition
     return layout;
   }
 
-  std::unique_ptr<UI::Style> build_style(Lisple::Context& ctx,
-                                         const Lisple::sptr_rtval& value)
+  std::unique_ptr<UI::Style> build_style(Lisple::Context& ctx, const Lisple::sptr_val& value)
   {
-    if (!value || value->type != Lisple::RTValue::Type::MAP) return nullptr;
+    if (!value || value->type != Lisple::Value::Type::MAP) return nullptr;
 
     static Lisple::MapSchema style_schema({},
                                           {{"background", &HostType::STYLE_BACKGROUND},
@@ -829,12 +823,12 @@ namespace Pixils::Script::StyleDefinition
                                            {"padding", &HostType::STYLE_INSETS},
                                            {"layout", &HostType::STYLE_LAYOUT},
                                            {"text", &HostType::STYLE_TEXT},
-                                           {"box-sizing", &Lisple::Type::KEY},
+                                           {"box-sizing", &Lisple::Type::KEYWORD},
                                            {"scale", &Lisple::Type::NUMBER},
                                            {"opacity", &Lisple::Type::NUMBER},
                                            {"width", &Lisple::Type::ANY},
                                            {"height", &Lisple::Type::ANY},
-                                           {"position", &Lisple::Type::KEY},
+                                           {"position", &Lisple::Type::KEYWORD},
                                            {"top", &Lisple::Type::NUMBER},
                                            {"left", &Lisple::Type::NUMBER},
                                            {"hidden", &Lisple::Type::ANY},
@@ -896,7 +890,7 @@ namespace Pixils::Script::StyleDefinition
   }
 
   std::unique_ptr<UI::Style::Background> build_background(Lisple::Context& ctx,
-                                                          const Lisple::sptr_rtval& value)
+                                                          const Lisple::sptr_val& value)
   {
     if (!value || *value == *Lisple::Constant::NIL) return nullptr;
 
@@ -905,12 +899,12 @@ namespace Pixils::Script::StyleDefinition
       return std::make_unique<UI::Style::Background>(Lisple::obj<Color>(*value));
     }
 
-    if (value->type == Lisple::RTValue::Type::KEYWORD)
+    if (value->type == Lisple::Value::Type::KEYWORD)
     {
       return std::make_unique<UI::Style::Background>(value->qual());
     }
 
-    if (value->type != Lisple::RTValue::Type::MAP) return nullptr;
+    if (value->type != Lisple::Value::Type::MAP) return nullptr;
 
     if (Lisple::Dict::contains_key(*value, "r"))
     {
@@ -924,10 +918,10 @@ namespace Pixils::Script::StyleDefinition
 
     static Lisple::MapSchema background_schema({},
                                                {{"color", &HostType::COLOR},
-                                                {"image", &Lisple::Type::KEY},
+                                                {"image", &Lisple::Type::KEYWORD},
                                                 {"source", &HostType::RECT},
-                                                {"fit", &Lisple::Type::KEY},
-                                                {"align", &Lisple::Type::KEY},
+                                                {"fit", &Lisple::Type::KEYWORD},
+                                                {"align", &Lisple::Type::KEYWORD},
                                                 {"offset", &HostType::POINT},
                                                 {"opacity", &Lisple::Type::NUMBER}});
 
@@ -936,7 +930,7 @@ namespace Pixils::Script::StyleDefinition
     bg->color = opts.optional_obj<Color>("color");
 
     auto image_key = opts.val("image");
-    if (image_key->type != Lisple::RTValue::Type::NIL)
+    if (image_key->type != Lisple::Value::Type::NIL)
     {
       bg->image = image_key->qual();
     }
@@ -950,13 +944,13 @@ namespace Pixils::Script::StyleDefinition
   }
 
   std::unique_ptr<UI::Style::Border> build_border(Lisple::Context& ctx,
-                                                  const Lisple::sptr_rtval& value)
+                                                  const Lisple::sptr_val& value)
   {
-    if (!value || value->type != Lisple::RTValue::Type::MAP) return nullptr;
+    if (!value || value->type != Lisple::Value::Type::MAP) return nullptr;
 
     static Lisple::MapSchema border_schema({},
                                            {{"thickness", &Lisple::Type::NUMBER},
-                                            {"line-style", &Lisple::Type::KEY},
+                                            {"line-style", &Lisple::Type::KEYWORD},
                                             {"color", &HostType::COLOR},
                                             {"trim", &Lisple::Type::ANY}});
 
@@ -967,13 +961,13 @@ namespace Pixils::Script::StyleDefinition
   }
 
   std::unique_ptr<UI::Style::BorderStyle> build_border_style(Lisple::Context& ctx,
-                                                             const Lisple::sptr_rtval& value)
+                                                             const Lisple::sptr_val& value)
   {
-    if (!value || value->type != Lisple::RTValue::Type::MAP) return nullptr;
+    if (!value || value->type != Lisple::Value::Type::MAP) return nullptr;
 
     static Lisple::MapSchema border_style_schema({},
                                                  {{"thickness", &Lisple::Type::NUMBER},
-                                                  {"line-style", &Lisple::Type::KEY},
+                                                  {"line-style", &Lisple::Type::KEYWORD},
                                                   {"color", &HostType::COLOR},
                                                   {"trim", &Lisple::Type::ANY},
                                                   {"top", &HostType::BORDER},
@@ -992,11 +986,11 @@ namespace Pixils::Script::StyleDefinition
   }
 
   std::unique_ptr<UI::Style::Insets> build_insets(Lisple::Context& ctx,
-                                                  const Lisple::sptr_rtval& value)
+                                                  const Lisple::sptr_val& value)
   {
     if (!value || *value == *Lisple::Constant::NIL) return nullptr;
 
-    if (value->type == Lisple::RTValue::Type::MAP)
+    if (value->type == Lisple::Value::Type::MAP)
     {
       static Lisple::MapSchema insets_map_schema({},
                                                  {{"t", &Lisple::Type::NUMBER},
@@ -1013,7 +1007,7 @@ namespace Pixils::Script::StyleDefinition
       return insets;
     }
 
-    if (value->type == Lisple::RTValue::Type::NUMBER)
+    if (value->type == Lisple::Value::Type::NUMBER)
     {
       auto insets = std::make_unique<UI::Style::Insets>();
       int p = value->num().get_int();
@@ -1024,7 +1018,7 @@ namespace Pixils::Script::StyleDefinition
       return insets;
     }
 
-    if (value->type != Lisple::RTValue::Type::VECTOR) return nullptr;
+    if (value->type != Lisple::Value::Type::VECTOR) return nullptr;
 
     int t = 0;
     int r = 0;

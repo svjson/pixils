@@ -164,8 +164,8 @@ TEST_F(ComposableAppSessionFixtureTest,
   session().update_mode();
   session().render_mode();
 
-  auto ticks = Lisple::Dict::get_property(session().active_mode->state,
-                                          Lisple::RTValue::keyword("ticks"));
+  auto ticks =
+    Lisple::Dict::get_property(session().active_mode->state, Lisple::keyword("ticks"));
   ASSERT_NE(ticks, nullptr);
   EXPECT_EQ(ticks->num().get_int(), 3);
 
@@ -193,8 +193,8 @@ TEST_F(ComposableAppSessionFixtureTest, loads_composed_app_and_pushes_mode_into_
   ASSERT_NO_THROW(session().push_mode("test-mode", Lisple::Constant::NIL));
   ASSERT_NE(session().active_mode, nullptr);
 
-  auto ticks = Lisple::Dict::get_property(session().active_mode->state,
-                                          Lisple::RTValue::keyword("ticks"));
+  auto ticks =
+    Lisple::Dict::get_property(session().active_mode->state, Lisple::keyword("ticks"));
   ASSERT_NE(ticks, nullptr);
   EXPECT_EQ(ticks->num().get_int(), 2);
 }
@@ -216,8 +216,8 @@ TEST_F(ComposableAppSessionFixtureTest, loads_composed_app_and_updates_mode_in_s
   session().push_mode("test-mode", Lisple::Constant::NIL);
   ASSERT_NO_THROW(session().update_mode());
 
-  auto ticks = Lisple::Dict::get_property(session().active_mode->state,
-                                          Lisple::RTValue::keyword("ticks"));
+  auto ticks =
+    Lisple::Dict::get_property(session().active_mode->state, Lisple::keyword("ticks"));
   ASSERT_NE(ticks, nullptr);
   EXPECT_EQ(ticks->num().get_int(), 3);
 }
@@ -251,8 +251,8 @@ TEST_F(ComposableAppSessionFixtureTest,
   ASSERT_NE(session().active_mode, nullptr);
   EXPECT_EQ(session().active_mode->mode->name, "test-mode");
 
-  auto ticks = Lisple::Dict::get_property(session().active_mode->state,
-                                          Lisple::RTValue::keyword("ticks"));
+  auto ticks =
+    Lisple::Dict::get_property(session().active_mode->state, Lisple::keyword("ticks"));
   ASSERT_NE(ticks, nullptr);
   EXPECT_EQ(ticks->num().get_int(), 2);
 }
@@ -268,8 +268,8 @@ TEST_F(ComposableAppSessionFixtureTest,
   ASSERT_NE(session().active_mode, nullptr);
   EXPECT_EQ(session().active_mode->mode->name, "test-mode");
 
-  auto ticks = Lisple::Dict::get_property(session().active_mode->state,
-                                          Lisple::RTValue::keyword("ticks"));
+  auto ticks =
+    Lisple::Dict::get_property(session().active_mode->state, Lisple::keyword("ticks"));
   ASSERT_NE(ticks, nullptr);
   EXPECT_EQ(ticks->num().get_int(), 2);
 }
@@ -287,8 +287,8 @@ TEST_F(ComposableAppSessionFixtureTest,
   ASSERT_NE(session().active_mode, nullptr);
   EXPECT_EQ(session().active_mode->mode->name, "counter");
 
-  auto value = Lisple::Dict::get_property(session().active_mode->state,
-                                          Lisple::RTValue::keyword("value"));
+  auto value =
+    Lisple::Dict::get_property(session().active_mode->state, Lisple::keyword("value"));
   ASSERT_NE(value, nullptr);
   EXPECT_EQ(value->num().get_int(), 123);
 }
@@ -301,7 +301,7 @@ TEST_F(ComposableAppSessionFixtureTest,
            {"pixils/test/app/main.lisple"});
 
   auto modes = pixils().lookup("pixils/modes");
-  auto mode_val = Lisple::Dict::get_property(modes, Lisple::RTValue::symbol("test-mode"));
+  auto mode_val = Lisple::Dict::get_property(modes, Lisple::symbol("test-mode"));
   ASSERT_NE(mode_val, nullptr);
 
   auto& mode = Lisple::obj<Pixils::Runtime::Mode>(*mode_val);
@@ -309,13 +309,13 @@ TEST_F(ComposableAppSessionFixtureTest,
   view->mode = &mode;
   view->state = Lisple::Constant::NIL;
 
-  Lisple::sptr_rtval result;
+  Lisple::sptr_val result;
   ASSERT_NO_THROW(result = Pixils::Runtime::invoke_hook(pixils(),
                                                         view,
                                                         mode.init,
                                                         session().hook_args.init_args));
 
-  auto ticks = Lisple::Dict::get_property(result, Lisple::RTValue::keyword("ticks"));
+  auto ticks = Lisple::Dict::get_property(result, Lisple::keyword("ticks"));
   ASSERT_NE(ticks, nullptr);
   EXPECT_EQ(ticks->num().get_int(), 2);
 }
@@ -338,7 +338,7 @@ TEST_F(ComposableAppSessionFixtureTest,
                                          local_hook_args);
 
   auto modes = pixils().lookup("pixils/modes");
-  auto mode_val = Lisple::Dict::get_property(modes, Lisple::RTValue::symbol("test-mode"));
+  auto mode_val = Lisple::Dict::get_property(modes, Lisple::symbol("test-mode"));
   ASSERT_NE(mode_val, nullptr);
 
   auto& mode = Lisple::obj<Pixils::Runtime::Mode>(*mode_val);
@@ -346,13 +346,13 @@ TEST_F(ComposableAppSessionFixtureTest,
   view->mode = &mode;
   view->state = Lisple::Constant::NIL;
 
-  Lisple::sptr_rtval result;
+  Lisple::sptr_val result;
   ASSERT_NO_THROW(result = Pixils::Runtime::invoke_hook(pixils(),
                                                         view,
                                                         mode.init,
                                                         local_session.hook_args.init_args));
 
-  auto ticks = Lisple::Dict::get_property(result, Lisple::RTValue::keyword("ticks"));
+  auto ticks = Lisple::Dict::get_property(result, Lisple::keyword("ticks"));
   ASSERT_NE(ticks, nullptr);
   EXPECT_EQ(ticks->num().get_int(), 2);
 }
@@ -370,8 +370,8 @@ TEST_F(ComposableAppSessionFixtureTest,
   ASSERT_NE(session().active_mode, nullptr);
   EXPECT_EQ(session().active_mode->mode->name, "root-mode");
 
-  auto ticks = Lisple::Dict::get_property(session().active_mode->state,
-                                          Lisple::RTValue::keyword("ticks"));
+  auto ticks =
+    Lisple::Dict::get_property(session().active_mode->state, Lisple::keyword("ticks"));
   ASSERT_NE(ticks, nullptr);
   EXPECT_EQ(ticks->num().get_int(), 2);
 }

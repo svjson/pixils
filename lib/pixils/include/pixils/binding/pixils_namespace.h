@@ -2,6 +2,7 @@
 #ifndef PIXILS__PIXILS_NAMESPACE
 #define PIXILS__PIXILS_NAMESPACE
 
+#include <pixils/binding/shkey.h>
 #include <pixils/context.h>
 #include <pixils/display.h>
 #include <pixils/frame_events.h>
@@ -10,7 +11,6 @@
 #include <pixils/ui/theme.h>
 
 #include <lisple/exec.h>
-#include <lisple/host.h>
 #include <lisple/host/object.h>
 #include <lisple/namespace.h>
 

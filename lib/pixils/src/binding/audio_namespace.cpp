@@ -5,10 +5,9 @@
 #include <pixils/context.h>
 
 #include <SDL2/SDL_mixer.h>
+#include <algorithm>
 #include <lisple/host/schema.h>
 #include <lisple/runtime/value.h>
-
-#include <algorithm>
 
 namespace Pixils::Script
 {
@@ -24,24 +23,24 @@ namespace Pixils::Script
   namespace Function
   {
     FUNC_IMPL(PlayBang,
-              MULTI_SIG((FN_ARGS((&Lisple::Type::KEY)), EXEC_DISPATCH(&PlayBang::exec_play)),
-                        (FN_ARGS((&Lisple::Type::KEY), (&Lisple::Type::MAP)),
+              MULTI_SIG((FN_ARGS((&Lisple::Type::KEYWORD)),
+                         EXEC_DISPATCH(&PlayBang::exec_play)),
+                        (FN_ARGS((&Lisple::Type::KEYWORD), (&Lisple::Type::MAP)),
                          EXEC_DISPATCH(&PlayBang::exec_play_with_opts))));
 
     EXEC_BODY(PlayBang, exec_play)
     {
-      Lisple::sptr_rtval_v opt_args = args;
-      opt_args.push_back(Lisple::RTValue::map({}));
+      Lisple::sptr_val_v opt_args = args;
+      opt_args.push_back(Lisple::map({}));
       return this->exec_play_with_opts(ctx, opt_args);
     }
 
     EXEC_BODY(PlayBang, exec_play_with_opts)
     {
-      static Lisple::MapSchema opts_schema(
-        {},
-        {{"channel", &Lisple::Type::NUMBER},
-         {"loops", &Lisple::Type::NUMBER},
-         {"volume", &Lisple::Type::NUMBER}});
+      static Lisple::MapSchema opts_schema({},
+                                           {{"channel", &Lisple::Type::NUMBER},
+                                            {"loops", &Lisple::Type::NUMBER},
+                                            {"volume", &Lisple::Type::NUMBER}});
 
       auto [bundle_id, sound_id] = args[0]->qual();
       auto opts = opts_schema.bind(ctx, *args[1]);
@@ -50,7 +49,7 @@ namespace Pixils::Script
         Lisple::obj<RenderContext>(*ctx.lookup(ID__PIXILS__RENDER_CONTEXT));
 
       Mix_Chunk* chunk = rc.asset_registry->get_sound(bundle_id, sound_id);
-      if (!chunk) return Lisple::RTValue::number(-1);
+      if (!chunk) return Lisple::number(-1);
 
       int channel = opts.i32("channel", -1);
       int loops = opts.i32("loops", 0);
@@ -62,7 +61,7 @@ namespace Pixils::Script
         Mix_Volume(played_channel, normalized_volume_to_mix_level(volume));
       }
 
-      return Lisple::RTValue::number(played_channel);
+      return Lisple::number(played_channel);
     }
   } // namespace Function
 

@@ -29,7 +29,7 @@ TEST_F(StateBindingTest, whole_path_binding_projects_parent_value_into_child_sta
   // Then - child state should be {:x 42} (the value at :data in parent)
   auto child = session.active_mode->children[0];
   ASSERT_NE(child, nullptr);
-  ASSERT_EQ(child->state->type, Lisple::RTValue::Type::MAP);
+  ASSERT_EQ(child->state->type, Lisple::Value::Type::MAP);
   EXPECT_EQ(child->state->to_string(), "{:x 42}");
 }
 

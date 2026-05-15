@@ -83,8 +83,7 @@ TEST_F(MenuTest, opened_popup_inherits_menu_scale)
   ASSERT_EQ(session.active_mode->children.size(), 1u);
   auto menu = session.active_mode->children[0];
   ASSERT_NE(menu, nullptr);
-  auto menu_scale =
-    Lisple::Dict::get_property(menu->state, Lisple::RTValue::keyword("menu-scale"));
+  auto menu_scale = Lisple::Dict::get_property(menu->state, Lisple::keyword("menu-scale"));
   ASSERT_NE(menu_scale, nullptr);
   EXPECT_EQ(menu_scale->to_string(), "2");
   ASSERT_EQ(menu->children.size(), 1u);

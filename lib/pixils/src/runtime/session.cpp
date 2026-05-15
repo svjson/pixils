@@ -25,22 +25,22 @@ namespace Pixils::Runtime
 {
   namespace
   {
-    const Lisple::sptr_rtval KEYWORD__EVENT = Lisple::RTValue::keyword("event");
-    const Lisple::sptr_rtval KEYWORD__ORIGIN = Lisple::RTValue::keyword("origin");
-    const Lisple::sptr_rtval KEYWORD__POP_RESULT = Lisple::RTValue::keyword("pop/result");
-    const Lisple::sptr_rtval KEYWORD__TARGET = Lisple::RTValue::keyword("target");
-    const Lisple::sptr_rtval KEYWORD__VIEW = Lisple::RTValue::keyword("view");
+    const Lisple::sptr_val KEYWORD__EVENT = Lisple::keyword("event");
+    const Lisple::sptr_val KEYWORD__ORIGIN = Lisple::keyword("origin");
+    const Lisple::sptr_val KEYWORD__POP_RESULT = Lisple::keyword("pop/result");
+    const Lisple::sptr_val KEYWORD__TARGET = Lisple::keyword("target");
+    const Lisple::sptr_val KEYWORD__VIEW = Lisple::keyword("view");
 
-    Session::ModeFrameMetadata parse_frame_metadata(const Lisple::sptr_rtval& overrides)
+    Session::ModeFrameMetadata parse_frame_metadata(const Lisple::sptr_val& overrides)
     {
       Session::ModeFrameMetadata metadata;
-      if (!overrides || overrides->type == Lisple::RTValue::Type::NIL)
+      if (!overrides || overrides->type == Lisple::Value::Type::NIL)
       {
         return metadata;
       }
 
       auto origin = Lisple::Dict::get_property(overrides, KEYWORD__ORIGIN);
-      if (!origin || origin->type == Lisple::RTValue::Type::NIL)
+      if (!origin || origin->type == Lisple::Value::Type::NIL)
       {
         return metadata;
       }
@@ -51,7 +51,7 @@ namespace Pixils::Runtime
         return metadata;
       }
 
-      if (origin->type != Lisple::RTValue::Type::MAP)
+      if (origin->type != Lisple::Value::Type::MAP)
       {
         return metadata;
       }
@@ -63,7 +63,7 @@ namespace Pixils::Runtime
       }
 
       auto event = Lisple::Dict::get_property(origin, KEYWORD__EVENT);
-      if (event && event->type != Lisple::RTValue::Type::NIL)
+      if (event && event->type != Lisple::Value::Type::NIL)
       {
         metadata.origin_event = event;
       }
@@ -111,9 +111,9 @@ namespace Pixils::Runtime
       }
     }
 
-    View* resolve_target_view(const Lisple::sptr_rtval& value)
+    View* resolve_target_view(const Lisple::sptr_val& value)
     {
-      if (!value || value->type == Lisple::RTValue::Type::NIL)
+      if (!value || value->type == Lisple::Value::Type::NIL)
       {
         return nullptr;
       }
@@ -153,7 +153,7 @@ namespace Pixils::Runtime
     Point current_mouse_pos(const HookArguments& hook_args)
     {
       if (!hook_args.events || !hook_args.events->mouse_pos ||
-          hook_args.events->mouse_pos->type == Lisple::RTValue::Type::NIL)
+          hook_args.events->mouse_pos->type == Lisple::Value::Type::NIL)
       {
         return {0.0f, 0.0f};
       }
@@ -163,7 +163,7 @@ namespace Pixils::Runtime
 
     void dispatch_event_along_path(const std::vector<std::shared_ptr<View>>& path,
                                    const CustomEvent& event,
-                                   const Lisple::sptr_rtval& view_ctx,
+                                   const Lisple::sptr_val& view_ctx,
                                    Lisple::Runtime& runtime)
     {
       std::vector<CustomEvent> events = {event};
@@ -171,17 +171,16 @@ namespace Pixils::Runtime
 
       for (size_t i = 0; i < path.size() && !events.empty(); i++)
       {
-        Lisple::sptr_rtval* parent_state =
-          i + 1 < path.size() ? &path[i + 1]->state : nullptr;
+        Lisple::sptr_val* parent_state = i + 1 < path.size() ? &path[i + 1]->state : nullptr;
         events = UI::process_view_events(*path[i], parent_state, hook_ctx, events, runtime);
       }
     }
 
-    Lisple::sptr_rtval resolve_mode_value(const Lisple::sptr_rtval& modes,
-                                          const std::string& mode_name)
+    Lisple::sptr_val resolve_mode_value(const Lisple::sptr_val& modes,
+                                        const std::string& mode_name)
     {
-      auto mode = Lisple::Dict::get_property(modes, Lisple::RTValue::symbol(mode_name));
-      if (!mode || mode->type == Lisple::RTValue::Type::NIL)
+      auto mode = Lisple::Dict::get_property(modes, Lisple::symbol(mode_name));
+      if (!mode || mode->type == Lisple::Value::Type::NIL)
       {
         throw Lisple::InvocationException("Unknown mode '" + mode_name + "'");
       }
@@ -211,7 +210,7 @@ namespace Pixils::Runtime
   {
   }
 
-  void Session::pop_mode(const Lisple::sptr_rtval& payload)
+  void Session::pop_mode(const Lisple::sptr_val& payload)
   {
     if (mode_stack.size() > 1)
     {
@@ -244,10 +243,10 @@ namespace Pixils::Runtime
         Pixils::UI::restore_view_tree(child, active_mode->state);
       }
 
-      auto pop_event_key = frame_meta.origin_event->type != Lisple::RTValue::Type::NIL
+      auto pop_event_key = frame_meta.origin_event->type != Lisple::Value::Type::NIL
                              ? frame_meta.origin_event
                              : KEYWORD__POP_RESULT;
-      auto pop_event_source_mode = Lisple::RTValue::symbol(popped_mode->name);
+      auto pop_event_source_mode = Lisple::symbol(popped_mode->name);
       std::vector<std::shared_ptr<View>> path;
 
       if (frame_meta.origin_view &&
@@ -275,9 +274,9 @@ namespace Pixils::Runtime
     }
   }
 
-  void Session::push_mode(const Lisple::sptr_rtval& mode,
-                          const Lisple::sptr_rtval& state,
-                          const Lisple::sptr_rtval& overrides)
+  void Session::push_mode(const Lisple::sptr_val& mode,
+                          const Lisple::sptr_val& state,
+                          const Lisple::sptr_val& overrides)
   {
     focus_state.clear();
 
@@ -326,8 +325,8 @@ namespace Pixils::Runtime
   }
 
   void Session::push_mode(const std::string& mode_name,
-                          const Lisple::sptr_rtval& state,
-                          const Lisple::sptr_rtval& overrides)
+                          const Lisple::sptr_val& state,
+                          const Lisple::sptr_val& overrides)
   {
     auto mode = resolve_mode_value(modes, mode_name);
     this->push_mode(mode, state, overrides);
@@ -339,7 +338,7 @@ namespace Pixils::Runtime
 
     while (true)
     {
-      Lisple::sptr_rtval_v messages = mode_stack.drain_messages();
+      Lisple::sptr_val_v messages = mode_stack.drain_messages();
       if (messages.empty())
       {
         break;
@@ -348,22 +347,20 @@ namespace Pixils::Runtime
       for (auto& message : messages)
       {
         std::string type =
-          Lisple::Dict::get_property(message, Lisple::RTValue::keyword("type"))->str();
+          Lisple::Dict::get_property(message, Lisple::keyword("type"))->str();
 
         if (type == "push")
         {
           mode_stack.update_state(active_mode->state);
           auto overrides_val =
-            Lisple::Dict::get_property(message, Lisple::RTValue::keyword("overrides"));
-          push_mode(
-            Lisple::Dict::get_property(message, Lisple::RTValue::keyword("mode"))->str(),
-            Lisple::Dict::get_property(message, Lisple::RTValue::keyword("state")),
-            overrides_val ? overrides_val : Lisple::Constant::NIL);
+            Lisple::Dict::get_property(message, Lisple::keyword("overrides"));
+          push_mode(Lisple::Dict::get_property(message, Lisple::keyword("mode"))->str(),
+                    Lisple::Dict::get_property(message, Lisple::keyword("state")),
+                    overrides_val ? overrides_val : Lisple::Constant::NIL);
         }
         else if (type == "pop")
         {
-          auto payload =
-            Lisple::Dict::get_property(message, Lisple::RTValue::keyword("payload"));
+          auto payload = Lisple::Dict::get_property(message, Lisple::keyword("payload"));
           pop_mode(payload ? payload : Lisple::Constant::NIL);
         }
         else if (type == "focus")

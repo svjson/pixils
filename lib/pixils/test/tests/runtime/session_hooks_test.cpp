@@ -24,7 +24,7 @@ TEST_F(SessionHooksTest, push_mode_with_no_init_hook_preserves_initial_state)
 {
   // Given
   runtime.eval("(pixils/defmode stateless-mode {})");
-  auto initial_state = Lisple::RTValue::number(100);
+  auto initial_state = Lisple::number(100);
 
   // When
   session.push_mode("stateless-mode", initial_state);
@@ -37,7 +37,7 @@ TEST_F(SessionHooksTest, update_mode_with_no_update_hook_preserves_state)
 {
   // Given
   runtime.eval("(pixils/defmode test-mode {})");
-  auto initial_state = Lisple::RTValue::number(42);
+  auto initial_state = Lisple::number(42);
   session.push_mode("test-mode", initial_state);
 
   // When
@@ -52,7 +52,7 @@ TEST_F(SessionHooksTest, update_mode_with_symbol_reference_to_callable_is_invoke
   // Given
   runtime.eval("(defun count-update! [state ctx] 99)");
   runtime.eval("(pixils/defmode counting-mode {:update count-update!})");
-  session.push_mode("counting-mode", Lisple::RTValue::number(0));
+  session.push_mode("counting-mode", Lisple::number(0));
 
   // When
   session.update_mode();
@@ -65,7 +65,7 @@ TEST_F(SessionHooksTest, update_mode_with_callable_hook_is_invoked)
 {
   // Given
   runtime.eval("(pixils/defmode counting-mode {:update (fn [state ctx] 99)})");
-  session.push_mode("counting-mode", Lisple::RTValue::number(0));
+  session.push_mode("counting-mode", Lisple::number(0));
 
   // When
   session.update_mode();
@@ -111,7 +111,7 @@ TEST_F(SessionHooksTest, push_mode_with_symbol_content_size_hook_resolves)
   // Then
   ASSERT_NE(session.active_mode, nullptr);
   ASSERT_NE(session.active_mode->mode, nullptr);
-  EXPECT_EQ(session.active_mode->mode->content_size->type, Lisple::RTValue::Type::FUNCTION);
+  EXPECT_EQ(session.active_mode->mode->content_size->type, Lisple::Value::Type::FUNCTION);
 }
 
 TEST_F(SessionHooksTest, root_mode_on_key_down_hook_is_invoked)
@@ -404,7 +404,8 @@ TEST_F(SessionHooksTest, child_mode_focused_in_init_receives_key_down)
   update_cycle();
 
   ASSERT_TRUE(session.focus_state.has_focus());
-  ASSERT_EQ(session.focus_state.focused.lock().get(), session.active_mode->children[0].get());
+  ASSERT_EQ(session.focus_state.focused.lock().get(),
+            session.active_mode->children[0].get());
 
   input().key_down(SDLK_SPACE);
   session.update_mode();

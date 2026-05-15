@@ -368,8 +368,8 @@ TEST_F(RenderTest, text_size_uses_explicit_font_line_height)
   )");
 
   auto result = runtime.eval(R"((pixils.render/text-size "A" {:font :font/test-font}))");
-  auto w = Lisple::Dict::get_property(result, Lisple::RTValue::keyword("w"));
-  auto h = Lisple::Dict::get_property(result, Lisple::RTValue::keyword("h"));
+  auto w = Lisple::Dict::get_property(result, Lisple::keyword("w"));
+  auto h = Lisple::Dict::get_property(result, Lisple::keyword("h"));
 
   ASSERT_TRUE(w);
   ASSERT_TRUE(h);
@@ -391,8 +391,8 @@ TEST_F(RenderTest, text_size_respects_explicit_newlines)
 
   auto result = runtime.eval(R"((pixils.render/text-size "AA
 B" {:font :font/test-font}))");
-  auto w = Lisple::Dict::get_property(result, Lisple::RTValue::keyword("w"));
-  auto h = Lisple::Dict::get_property(result, Lisple::RTValue::keyword("h"));
+  auto w = Lisple::Dict::get_property(result, Lisple::keyword("w"));
+  auto h = Lisple::Dict::get_property(result, Lisple::keyword("h"));
 
   ASSERT_TRUE(w);
   ASSERT_TRUE(h);
@@ -416,7 +416,7 @@ TEST_F(RenderTest, deffont_replaces_existing_font_definition)
   )");
 
   auto result = runtime.eval(R"((pixils.render/text-size "A" {:font :font/test-font}))");
-  auto w = Lisple::Dict::get_property(result, Lisple::RTValue::keyword("w"));
+  auto w = Lisple::Dict::get_property(result, Lisple::keyword("w"));
 
   ASSERT_TRUE(w);
   EXPECT_EQ(w->num().get_int(), 8);
@@ -436,8 +436,8 @@ TEST_F(RenderTest, text_size_ignores_inline_toggle_markers)
   auto result = runtime.eval("(pixils.render/text-size \"A@A@\" {:font :font/test-font "
                              ":marked-style {:enabled true :marker \"@\"}})");
 
-  auto w = Lisple::Dict::get_property(result, Lisple::RTValue::keyword("w"));
-  auto h = Lisple::Dict::get_property(result, Lisple::RTValue::keyword("h"));
+  auto w = Lisple::Dict::get_property(result, Lisple::keyword("w"));
+  auto h = Lisple::Dict::get_property(result, Lisple::keyword("h"));
   ASSERT_NE(w, nullptr);
   ASSERT_NE(h, nullptr);
   EXPECT_EQ(w->num().get_int(), 8);
@@ -546,8 +546,8 @@ TEST_F(RenderTest, text_size_infers_font_line_height_from_tallest_glyph)
   )");
 
   auto result = runtime.eval(R"((pixils.render/text-size "A" {:font :font/test-font}))");
-  auto w = Lisple::Dict::get_property(result, Lisple::RTValue::keyword("w"));
-  auto h = Lisple::Dict::get_property(result, Lisple::RTValue::keyword("h"));
+  auto w = Lisple::Dict::get_property(result, Lisple::keyword("w"));
+  auto h = Lisple::Dict::get_property(result, Lisple::keyword("h"));
 
   ASSERT_TRUE(w);
   ASSERT_TRUE(h);

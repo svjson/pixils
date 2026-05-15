@@ -33,7 +33,7 @@ namespace Pixils::UI
    */
   void render_view(Pixils::RenderContext& render_ctx,
                    Lisple::Runtime& runtime,
-                   const Lisple::sptr_rtval& render_hook_ctx,
+                   const Lisple::sptr_val& render_hook_ctx,
                    const std::shared_ptr<Pixils::Runtime::View>& view);
 
 } // namespace Pixils::UI

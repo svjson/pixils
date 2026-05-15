@@ -49,8 +49,7 @@ TEST_F(HeaderPanelTest, make_composes_header_and_body)
   auto title = header->children[0];
   ASSERT_NE(title, nullptr);
   EXPECT_EQ(title->mode->name, "ui/text");
-  auto title_value =
-    Lisple::Dict::get_property(title->state, Lisple::RTValue::keyword("value"));
+  auto title_value = Lisple::Dict::get_property(title->state, Lisple::keyword("value"));
   ASSERT_NE(title_value, nullptr);
   EXPECT_EQ(title_value->to_string(), "\"Inspector\"");
 
@@ -80,8 +79,7 @@ TEST_F(HeaderPanelTest, body_state_can_bind_to_panel_state)
   auto panel = session.active_mode->children[0];
   auto body = panel->children[1];
   auto text = body->children[0];
-  auto text_value =
-    Lisple::Dict::get_property(text->state, Lisple::RTValue::keyword("value"));
+  auto text_value = Lisple::Dict::get_property(text->state, Lisple::keyword("value"));
   ASSERT_NE(text_value, nullptr);
   EXPECT_EQ(text_value->to_string(), "\"Selected: Grass\"");
 }

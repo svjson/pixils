@@ -12,14 +12,13 @@
 
 #include <SDL2/SDL_blendmode.h>
 #include <SDL2/SDL_render.h>
+#include <algorithm>
+#include <cmath>
 #include <lisple/host/schema.h>
 #include <lisple/namespace.h>
 #include <lisple/runtime/dict.h>
 #include <lisple/runtime/seq.h>
 #include <lisple/runtime/value.h>
-
-#include <algorithm>
-#include <cmath>
 
 namespace Pixils::Script
 {
@@ -44,24 +43,23 @@ namespace Pixils::Script
 
       Uint8 opacity_to_alpha(float opacity)
       {
-        return static_cast<Uint8>(
-          std::lround(std::clamp(opacity, 0.0f, 1.0f) * 255.0f));
+        return static_cast<Uint8>(std::lround(std::clamp(opacity, 0.0f, 1.0f) * 255.0f));
       }
 
       Uint8 image_opacity_alpha(Lisple::MapSchema::Inspector& opts)
       {
-        if (opts.contains(MapKey::OPACITY->value))
+        if (opts.contains(std::get<std::string>(MapKey::OPACITY->value)))
         {
-          return opacity_to_alpha(opts.f32(MapKey::OPACITY->value));
+          return opacity_to_alpha(opts.f32(std::get<std::string>(MapKey::OPACITY->value)));
         }
         return 255;
       }
-    }
+    } // namespace
 
     FUNC_IMPL(DrawImageBang,
-              MULTI_SIG((FN_ARGS((&Lisple::Type::KEY), (&HostType::POINT)),
+              MULTI_SIG((FN_ARGS((&Lisple::Type::KEYWORD), (&HostType::POINT)),
                          EXEC_DISPATCH(&DrawImageBang::exec_draw_img)),
-                        (FN_ARGS((&Lisple::Type::KEY), (&Lisple::Type::MAP)),
+                        (FN_ARGS((&Lisple::Type::KEYWORD), (&Lisple::Type::MAP)),
                          EXEC_DISPATCH(&DrawImageBang::exec_draw_img))));
 
     EXEC_BODY(DrawImageBang, exec_draw_img)
@@ -72,7 +70,7 @@ namespace Pixils::Script
                                                        {"rotation", &Lisple::Type::NUMBER},
                                                        {"source", &HostType::RECT}});
 
-      if (args[0]->type == Lisple::RTValue::Type::KEYWORD)
+      if (args[0]->type == Lisple::Value::Type::KEYWORD)
       {
         auto [asset_bundle, asset_key] = args.front()->qual();
 
@@ -80,10 +78,9 @@ namespace Pixils::Script
          * Force detection of Point-arg, as coercion will not have happened during
          * for map-shaped Points during dispatch
          */
-        Lisple::sptr_rtval map_arg =
-          Lisple::Dict::contains_key(*args[1], "pos")
-            ? args[1]
-            : Lisple::RTValue::map({Lisple::RTValue::keyword("pos"), args[1]});
+        Lisple::sptr_val map_arg = Lisple::Dict::contains_key(*args[1], "pos")
+                                     ? args[1]
+                                     : Lisple::map({Lisple::keyword("pos"), args[1]});
 
         auto opts = draw_image_opts_schema.bind(ctx, *map_arg);
 
@@ -94,13 +91,14 @@ namespace Pixils::Script
 
         Point& pos = opts.obj<Point>("pos");
         float scale = opts.f32("scale", 1.0f);
-        float rotation = opts.f32(MapKey::ROTATION->value, 0.0f);
+        float rotation = opts.f32(std::get<std::string>(MapKey::ROTATION->value), 0.0f);
         Uint8 alpha = image_opacity_alpha(opts);
         std::optional<SDL_Rect> source_rect = std::nullopt;
-        if (auto source = opts.val(MapKey::SOURCE->value);
-            source && source->type != Lisple::RTValue::Type::NIL)
+        if (auto source = opts.val(std::get<std::string>(MapKey::SOURCE->value));
+            source && source->type != Lisple::Value::Type::NIL)
         {
-          source_rect = opts.obj<Rect>(MapKey::SOURCE->value).to_SDL_rect();
+          source_rect =
+            opts.obj<Rect>(std::get<std::string>(MapKey::SOURCE->value)).to_SDL_rect();
         }
 
         SDL_Rect dim{pos.round_x(), pos.round_y(), 0, 0};
@@ -175,17 +173,18 @@ namespace Pixils::Script
                         (FN_ARGS((&HostType::VECTOR_OF_POINT), (&Lisple::Type::MAP)),
                          EXEC_DISPATCH(&DrawPolygonBang::exec_polygon_with_opts))));
 
-    Lisple::MapSchema polygon_opts({},
-                                   {{MapKey::CLOSE->value, &Lisple::Type::BOOL},
-                                    {MapKey::ROTATION->value, &Lisple::Type::NUMBER},
-                                    {MapKey::OFFSET->value, &HostType::POINT},
-                                    {MapKey::COLOR->value, &HostType::COLOR},
-                                    {MapKey::SCALE->value, &Lisple::Type::NUMBER}});
+    Lisple::MapSchema polygon_opts(
+      {},
+      {{std::get<std::string>(MapKey::CLOSE->value), &Lisple::Type::BOOL},
+       {std::get<std::string>(MapKey::ROTATION->value), &Lisple::Type::NUMBER},
+       {std::get<std::string>(MapKey::OFFSET->value), &HostType::POINT},
+       {std::get<std::string>(MapKey::COLOR->value), &HostType::COLOR},
+       {std::get<std::string>(MapKey::SCALE->value), &Lisple::Type::NUMBER}});
 
     EXEC_BODY(DrawPolygonBang, exec_polygon)
     {
-      Lisple::sptr_rtval_v opt_args = args;
-      opt_args.push_back(Lisple::RTValue::map({}));
+      Lisple::sptr_val_v opt_args = args;
+      opt_args.push_back(Lisple::map({}));
       return this->exec_polygon_with_opts(ctx, opt_args);
     }
 
@@ -196,16 +195,18 @@ namespace Pixils::Script
 
       auto opts = polygon_opts.bind(ctx, *args.back());
 
-      Lisple::sptr_rtval& polygon = args.front();
-      Lisple::sptr_rtval_v points = Lisple::get_children(*polygon);
+      Lisple::sptr_val& polygon = args.front();
+      Lisple::sptr_val_v points = Lisple::get_children(*polygon);
 
-      bool close_shape = opts.boolean(MapKey::CLOSE->value, false);
+      bool close_shape = opts.boolean(std::get<std::string>(MapKey::CLOSE->value), false);
 
-      float rotation = opts.f32(MapKey::ROTATION->value, 0.0f);
-      float scale = opts.f32(MapKey::SCALE->value, 1.0f);
-      std::optional<Color> color = opts.optional_obj<Color>(MapKey::COLOR->value);
+      float rotation = opts.f32(std::get<std::string>(MapKey::ROTATION->value), 0.0f);
+      float scale = opts.f32(std::get<std::string>(MapKey::SCALE->value), 1.0f);
+      std::optional<Color> color =
+        opts.optional_obj<Color>(std::get<std::string>(MapKey::COLOR->value));
 
-      const Point& offset = opts.obj<Point>(MapKey::OFFSET->value, POINT__ZERO_ZERO);
+      const Point& offset =
+        opts.obj<Point>(std::get<std::string>(MapKey::OFFSET->value), POINT__ZERO_ZERO);
 
       if (color)
       {
@@ -319,7 +320,7 @@ namespace Pixils::Script
       const Point& top_left = Lisple::obj<Point>(*args[0]);
       const Point& bottom_right = Lisple::obj<Point>(*args[1]);
 
-      Lisple::sptr_rtval_v n_args{
+      Lisple::sptr_val_v n_args{
         RectAdapter::make_unique(Rect{static_cast<int>(top_left.x),
                                       static_cast<int>(top_left.y),
                                       static_cast<int>(bottom_right.x - top_left.x),
@@ -338,20 +339,20 @@ namespace Pixils::Script
                  EXEC_DISPATCH(&RenderTextBang::exec_text))));
 
     static Lisple::MapSchema text_opts_schema({},
-                                              {{"font", &Lisple::Type::KEY},
+                                              {{"font", &Lisple::Type::KEYWORD},
                                                {"color", &HostType::COLOR},
                                                {"scale", &Lisple::Type::NUMBER},
                                                {"font-styles", &Lisple::Type::ANY},
                                                {"shadow", &Lisple::Type::ANY},
                                                {"marked-style", &Lisple::Type::ANY}});
 
-    static std::vector<Text::FontStyle> parse_font_styles(const Lisple::sptr_rtval& value)
+    static std::vector<Text::FontStyle> parse_font_styles(const Lisple::sptr_val& value)
     {
-      if (!value || value->type == Lisple::RTValue::Type::NIL) return {};
+      if (!value || value->type == Lisple::Value::Type::NIL) return {};
 
-      auto parse_one = [](const Lisple::sptr_rtval& style_value)
+      auto parse_one = [](const Lisple::sptr_val& style_value)
       {
-        if (!style_value || style_value->type != Lisple::RTValue::Type::KEYWORD)
+        if (!style_value || style_value->type != Lisple::Value::Type::KEYWORD)
         {
           throw Lisple::TypeError("Text font style must be a keyword");
         }
@@ -360,8 +361,8 @@ namespace Pixils::Script
         throw Lisple::TypeError("Unknown text font style: " + style_value->to_string());
       };
 
-      if (value->type == Lisple::RTValue::Type::KEYWORD) return {parse_one(value)};
-      if (value->type != Lisple::RTValue::Type::VECTOR)
+      if (value->type == Lisple::Value::Type::KEYWORD) return {parse_one(value)};
+      if (value->type != Lisple::Value::Type::VECTOR)
       {
         throw Lisple::TypeError("Text font styles must be a keyword or vector");
       }
@@ -375,27 +376,27 @@ namespace Pixils::Script
     }
 
     static std::vector<Text::Shadow> parse_shadows(Lisple::Context& ctx,
-                                                   const Lisple::sptr_rtval& shadow_val)
+                                                   const Lisple::sptr_val& shadow_val)
     {
       std::vector<Text::Shadow> shadows;
-      if (!shadow_val || shadow_val->type == Lisple::RTValue::Type::NIL) return shadows;
+      if (!shadow_val || shadow_val->type == Lisple::Value::Type::NIL) return shadows;
 
       static Lisple::MapSchema shadow_schema(
         {{"offset", &HostType::POINT}, {"color", &HostType::COLOR}},
         {});
 
-      auto parse_one = [&](const Lisple::sptr_rtval& s)
+      auto parse_one = [&](const Lisple::sptr_val& s)
       {
         auto sh = shadow_schema.bind(ctx, *s);
         return Text::Shadow(sh.obj<Point>("offset"), sh.obj<Color>("color"));
       };
 
-      if (shadow_val->type == Lisple::RTValue::Type::VECTOR)
+      if (shadow_val->type == Lisple::Value::Type::VECTOR)
       {
         for (auto& s : Lisple::get_children(*shadow_val))
           shadows.push_back(parse_one(s));
       }
-      else if (shadow_val->type == Lisple::RTValue::Type::MAP)
+      else if (shadow_val->type == Lisple::Value::Type::MAP)
       {
         shadows.push_back(parse_one(shadow_val));
       }
@@ -403,13 +404,13 @@ namespace Pixils::Script
       return shadows;
     }
 
-    static std::optional<char> parse_inline_marker(const Lisple::sptr_rtval& value)
+    static std::optional<char> parse_inline_marker(const Lisple::sptr_val& value)
     {
-      if (!value || value->type == Lisple::RTValue::Type::NIL) return std::nullopt;
-      if (value->type == Lisple::RTValue::Type::CHAR) return static_cast<char>(value->ch());
-      if (value->type == Lisple::RTValue::Type::STRING ||
-          value->type == Lisple::RTValue::Type::KEYWORD ||
-          value->type == Lisple::RTValue::Type::SYMBOL)
+      if (!value || value->type == Lisple::Value::Type::NIL) return std::nullopt;
+      if (value->type == Lisple::Value::Type::CHAR) return static_cast<char>(value->ch());
+      if (value->type == Lisple::Value::Type::STRING ||
+          value->type == Lisple::Value::Type::KEYWORD ||
+          value->type == Lisple::Value::Type::SYMBOL)
       {
         std::string raw = value->str();
         if (raw.size() == 1) return raw[0];
@@ -419,14 +420,14 @@ namespace Pixils::Script
 
     static std::optional<Text::InlineTextStyleSpec> parse_marked_style(
       Lisple::Context& ctx,
-      const Lisple::sptr_rtval& value)
+      const Lisple::sptr_val& value)
     {
-      if (!value || value->type == Lisple::RTValue::Type::NIL) return std::nullopt;
+      if (!value || value->type == Lisple::Value::Type::NIL) return std::nullopt;
 
       static Lisple::MapSchema inline_schema({},
                                              {{"enabled", &Lisple::Type::BOOL},
                                               {"marker", &Lisple::Type::ANY},
-                                              {"font", &Lisple::Type::KEY},
+                                              {"font", &Lisple::Type::KEYWORD},
                                               {"color", &HostType::COLOR},
                                               {"scale", &Lisple::Type::NUMBER},
                                               {"font-styles", &Lisple::Type::ANY},
@@ -436,12 +437,12 @@ namespace Pixils::Script
       if (Lisple::Dict::contains_key(*value, "color"))
       {
         auto color_value = Lisple::Dict::get_property(*value, "color");
-        if (color_value && color_value->type == Lisple::RTValue::Type::KEYWORD &&
+        if (color_value && color_value->type == Lisple::Value::Type::KEYWORD &&
             color_value->str() == "none")
         {
           inline_source = Lisple::Dict::shallow_copy(value);
           Lisple::Dict::set_property(inline_source,
-                                     Lisple::RTValue::keyword("color"),
+                                     Lisple::keyword("color"),
                                      Lisple::Constant::NIL);
         }
       }
@@ -455,13 +456,13 @@ namespace Pixils::Script
       }
       if (opts.contains("font")) spec.font_key = opts.str("font");
       if (auto color_value = opts.val("color");
-          color_value && color_value->type == Lisple::RTValue::Type::KEYWORD &&
+          color_value && color_value->type == Lisple::Value::Type::KEYWORD &&
           color_value->str() == "none")
       {
         spec.use_font_color = true;
       }
       else if (auto color_value = opts.val("color");
-               color_value && color_value->type != Lisple::RTValue::Type::NIL)
+               color_value && color_value->type != Lisple::Value::Type::NIL)
       {
         spec.color = Lisple::obj<Color>(*color_value);
       }
@@ -477,24 +478,24 @@ namespace Pixils::Script
       return spec;
     }
 
-    static Lisple::sptr_rtval make_rect_map(int x, int y, int w, int h)
+    static Lisple::sptr_val make_rect_map(int x, int y, int w, int h)
     {
-      auto map = Lisple::RTValue::map({});
-      auto vx = Lisple::RTValue::number(x);
-      auto vy = Lisple::RTValue::number(y);
-      auto vw = Lisple::RTValue::number(w);
-      auto vh = Lisple::RTValue::number(h);
-      Lisple::Dict::set_property(map, Lisple::RTValue::keyword("x"), vx);
-      Lisple::Dict::set_property(map, Lisple::RTValue::keyword("y"), vy);
-      Lisple::Dict::set_property(map, Lisple::RTValue::keyword("w"), vw);
-      Lisple::Dict::set_property(map, Lisple::RTValue::keyword("h"), vh);
+      auto map = Lisple::map({});
+      auto vx = Lisple::number(x);
+      auto vy = Lisple::number(y);
+      auto vw = Lisple::number(w);
+      auto vh = Lisple::number(h);
+      Lisple::Dict::set_property(map, Lisple::keyword("x"), vx);
+      Lisple::Dict::set_property(map, Lisple::keyword("y"), vy);
+      Lisple::Dict::set_property(map, Lisple::keyword("w"), vw);
+      Lisple::Dict::set_property(map, Lisple::keyword("h"), vh);
       return map;
     }
 
     EXEC_BODY(RenderTextBang, exec_text_no_opts)
     {
-      Lisple::sptr_rtval_v full_args = args;
-      full_args.push_back(Lisple::RTValue::map({}));
+      Lisple::sptr_val_v full_args = args;
+      full_args.push_back(Lisple::map({}));
       return this->exec_text(ctx, full_args);
     }
 
@@ -508,27 +509,27 @@ namespace Pixils::Script
       auto opts = text_opts_schema.bind(ctx, *args[2]);
 
       std::string font_key = "font/console";
-      if (auto fv = opts.val("font"); fv && fv->type == Lisple::RTValue::Type::KEYWORD)
+      if (auto fv = opts.val("font"); fv && fv->type == Lisple::Value::Type::KEYWORD)
         font_key = fv->str();
 
       int scale = 1;
-      if (auto sv = opts.val("scale"); sv && sv->type != Lisple::RTValue::Type::NIL)
+      if (auto sv = opts.val("scale"); sv && sv->type != Lisple::Value::Type::NIL)
         scale = sv->num().get_int();
 
       std::optional<Color> color;
-      if (auto cv = opts.val("color"); cv && cv->type != Lisple::RTValue::Type::NIL)
+      if (auto cv = opts.val("color"); cv && cv->type != Lisple::Value::Type::NIL)
       {
         color = Lisple::obj<Color>(*cv);
       }
 
       std::vector<Text::FontStyle> font_styles;
-      if (auto fsv = opts.val("font-styles"); fsv && fsv->type != Lisple::RTValue::Type::NIL)
+      if (auto fsv = opts.val("font-styles"); fsv && fsv->type != Lisple::Value::Type::NIL)
       {
         font_styles = parse_font_styles(fsv);
       }
 
       std::vector<Text::Shadow> shadows;
-      if (auto sv = opts.val("shadow"); sv && sv->type != Lisple::RTValue::Type::NIL)
+      if (auto sv = opts.val("shadow"); sv && sv->type != Lisple::Value::Type::NIL)
       {
         shadows = parse_shadows(ctx, sv);
       }
@@ -558,7 +559,7 @@ namespace Pixils::Script
                          EXEC_DISPATCH(&TextSize::exec_size))));
 
     static Lisple::MapSchema text_size_opts_schema({},
-                                                   {{"font", &Lisple::Type::KEY},
+                                                   {{"font", &Lisple::Type::KEYWORD},
                                                     {"scale", &Lisple::Type::NUMBER},
                                                     {"font-styles", &Lisple::Type::ANY},
                                                     {"shadow", &Lisple::Type::ANY},
@@ -566,8 +567,8 @@ namespace Pixils::Script
 
     EXEC_BODY(TextSize, exec_size_no_opts)
     {
-      Lisple::sptr_rtval_v full_args = args;
-      full_args.push_back(Lisple::RTValue::map({}));
+      Lisple::sptr_val_v full_args = args;
+      full_args.push_back(Lisple::map({}));
       return this->exec_size(ctx, full_args);
     }
 
@@ -580,21 +581,21 @@ namespace Pixils::Script
       auto opts = text_size_opts_schema.bind(ctx, *args[1]);
 
       std::string font_key = "font/console";
-      if (auto fv = opts.val("font"); fv && fv->type == Lisple::RTValue::Type::KEYWORD)
+      if (auto fv = opts.val("font"); fv && fv->type == Lisple::Value::Type::KEYWORD)
         font_key = fv->str();
 
       int scale = 1;
-      if (auto sv = opts.val("scale"); sv && sv->type != Lisple::RTValue::Type::NIL)
+      if (auto sv = opts.val("scale"); sv && sv->type != Lisple::Value::Type::NIL)
         scale = sv->num().get_int();
 
       std::vector<Text::FontStyle> font_styles;
-      if (auto fsv = opts.val("font-styles"); fsv && fsv->type != Lisple::RTValue::Type::NIL)
+      if (auto fsv = opts.val("font-styles"); fsv && fsv->type != Lisple::Value::Type::NIL)
       {
         font_styles = parse_font_styles(fsv);
       }
 
       std::vector<Text::Shadow> shadows;
-      if (auto sv = opts.val("shadow"); sv && sv->type != Lisple::RTValue::Type::NIL)
+      if (auto sv = opts.val("shadow"); sv && sv->type != Lisple::Value::Type::NIL)
       {
         shadows = parse_shadows(ctx, sv);
       }
@@ -612,11 +613,11 @@ namespace Pixils::Script
 
       SDL_Rect size = Text::calculate_rendered_size(rc, *text_op, text);
 
-      auto map = Lisple::RTValue::map({});
-      auto vw = Lisple::RTValue::number(size.w);
-      auto vh = Lisple::RTValue::number(size.h);
-      Lisple::Dict::set_property(map, Lisple::RTValue::keyword("w"), vw);
-      Lisple::Dict::set_property(map, Lisple::RTValue::keyword("h"), vh);
+      auto map = Lisple::map({});
+      auto vw = Lisple::number(size.w);
+      auto vh = Lisple::number(size.h);
+      Lisple::Dict::set_property(map, Lisple::keyword("w"), vw);
+      Lisple::Dict::set_property(map, Lisple::keyword("h"), vh);
       return map;
     }
 

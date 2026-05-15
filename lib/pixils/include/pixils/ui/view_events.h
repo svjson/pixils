@@ -24,8 +24,8 @@ namespace Pixils::UI
    * bubble to the next ancestor.
    */
   std::vector<CustomEvent> process_view_events(Runtime::View& receiver,
-                                               Lisple::sptr_rtval* parent_state,
-                                               Lisple::sptr_rtval& view_ctx,
+                                               Lisple::sptr_val* parent_state,
+                                               Lisple::sptr_val& view_ctx,
                                                std::vector<CustomEvent>& events,
                                                Lisple::Runtime& runtime,
                                                bool* receiver_state_updated = nullptr);

@@ -99,8 +99,8 @@ TEST_F(ComboBoxTest, combo_box_opens_scrollable_popup_and_reports_selection)
   ASSERT_GE(popup_content->children.size(), 2u);
   auto first_popup_item = popup_content->children[0];
   auto second_popup_item = popup_content->children[1];
-  auto first_selected = Lisple::Dict::get_property(first_popup_item->state,
-                                                   Lisple::RTValue::keyword("selected"));
+  auto first_selected =
+    Lisple::Dict::get_property(first_popup_item->state, Lisple::keyword("selected"));
   ASSERT_NE(first_selected, nullptr);
   EXPECT_EQ(first_selected->to_string(), "false");
   EXPECT_EQ(popup_viewport->bounds.w, 84);
@@ -135,13 +135,12 @@ TEST_F(ComboBoxTest, combo_box_opens_scrollable_popup_and_reports_selection)
 
   update_cycle();
 
-  auto selected_index =
-    Lisple::Dict::get_property(session.active_mode->state,
-                               Lisple::RTValue::keyword("selected-index"));
-  auto value = Lisple::Dict::get_property(session.active_mode->state,
-                                          Lisple::RTValue::keyword("value"));
-  auto payload = Lisple::Dict::get_property(session.active_mode->state,
-                                            Lisple::RTValue::keyword("payload"));
+  auto selected_index = Lisple::Dict::get_property(session.active_mode->state,
+                                                   Lisple::keyword("selected-index"));
+  auto value =
+    Lisple::Dict::get_property(session.active_mode->state, Lisple::keyword("value"));
+  auto payload =
+    Lisple::Dict::get_property(session.active_mode->state, Lisple::keyword("payload"));
   ASSERT_NE(selected_index, nullptr);
   ASSERT_NE(value, nullptr);
   ASSERT_NE(payload, nullptr);

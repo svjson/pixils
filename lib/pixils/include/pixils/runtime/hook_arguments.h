@@ -9,14 +9,14 @@ namespace Pixils::Runtime
 {
   struct HookArguments
   {
-    Lisple::sptr_rtval ctx;
+    Lisple::sptr_val ctx;
     FrameEvents* events = nullptr;
 
-    Lisple::sptr_rtval_v init_args = {Lisple::Constant::NIL, ctx};
-    Lisple::sptr_rtval_v update_args = {Lisple::Constant::NIL, ctx};
-    Lisple::sptr_rtval_v render_args = {Lisple::Constant::NIL, ctx};
+    Lisple::sptr_val_v init_args = {Lisple::Constant::NIL, ctx};
+    Lisple::sptr_val_v update_args = {Lisple::Constant::NIL, ctx};
+    Lisple::sptr_val_v render_args = {Lisple::Constant::NIL, ctx};
 
-    void update_state(const Lisple::sptr_rtval& state);
+    void update_state(const Lisple::sptr_val& state);
   };
 } // namespace Pixils::Runtime
 

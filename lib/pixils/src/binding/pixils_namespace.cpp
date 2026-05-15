@@ -22,7 +22,6 @@
 #include <lisple/exception.h>
 #include <lisple/exec.h>
 #include <lisple/form.h>
-#include <lisple/host.h>
 #include <lisple/host/accessor.h>
 #include <lisple/host/schema.h>
 #include <lisple/runtime/dict.h>
@@ -37,7 +36,7 @@ namespace Pixils::Script
   {
     SHKEY(ALIGN, "align");
     SHKEY(BACKGROUND, "background");
-    const Lisple::sptr_rtval BLOCK = Lisple::RTValue::keyword("block");
+    const Lisple::sptr_val BLOCK = Lisple::keyword("block");
     SHKEY(BUFFER_SIZE, "buffer-size");
     SHKEY(CHILDREN, "children");
     SHKEY(COMPOSE, "compose");
@@ -49,9 +48,9 @@ namespace Pixils::Script
     SHKEY(INITIAL_MODE, "initial-mode");
     SHKEY(KEY_DOWN, "key-down");
     SHKEY(MODE, "mode");
-    const Lisple::sptr_rtval NAME = Lisple::RTValue::keyword("name");
+    const Lisple::sptr_val NAME = Lisple::keyword("name");
     SHKEY(PIXEL_SIZE, "pixel-size");
-    const Lisple::sptr_rtval PASS = Lisple::RTValue::keyword("pass");
+    const Lisple::sptr_val PASS = Lisple::keyword("pass");
     SHKEY(POP, "pop");
     SHKEY(PUSH, "push");
     SHKEY(QUIT, "quit");
@@ -68,21 +67,22 @@ namespace Pixils::Script
 
   namespace Key
   {
-    inline const Lisple::sptr_rtval W = Lisple::RTValue::keyword("w");
-    inline const Lisple::sptr_rtval H = Lisple::RTValue::keyword("h");
+    inline const Lisple::sptr_val W = Lisple::keyword("w");
+    inline const Lisple::sptr_val H = Lisple::keyword("h");
   } // namespace Key
 
   namespace Macro
   {
     /* DefPointerForm - defpointer */
     SPECIAL_FORM_IMPL(DefPointerForm,
-                      SIG((FN_ARGS((&Lisple::Type::WORD, &Lisple::Eval::LITERAL),
+                      SIG((FN_ARGS((&Lisple::Type::SYMBOL, &Lisple::Eval::LITERAL),
                                    (&Lisple::Type::MAP)),
                            EXEC_DISPATCH(&DefPointerForm::execnode_def_pointer))));
 
     SFORM_LOWER_IMPL(DefPointerForm)
     {
-      auto name = Lisple::exec(*ctx.ctx, *lower_literal(ast_node->get_children()[1]))->str();
+      auto name =
+        Lisple::exec(*ctx.ctx, *Lisple::lower_literal(ast_node->get_children()[1]))->str();
       auto map_expr = Lisple::exec(*ctx.ctx, *lower_expr(ctx, ast_node->get_children()[2]));
       auto pointer = StyleDefinition::parse_image_cursor(*ctx.ctx, map_expr);
       if (!pointer)
@@ -104,13 +104,14 @@ namespace Pixils::Script
 
     /* DefBundleForm - defbundle */
     SPECIAL_FORM_IMPL(DefBundleForm,
-                      SIG((FN_ARGS((&Lisple::Type::WORD, &Lisple::Eval::LITERAL),
+                      SIG((FN_ARGS((&Lisple::Type::SYMBOL, &Lisple::Eval::LITERAL),
                                    (&Lisple::Type::MAP)),
                            EXEC_DISPATCH(&DefBundleForm::execnode_def_bundle))));
 
     SFORM_LOWER_IMPL(DefBundleForm)
     {
-      auto name = Lisple::exec(*ctx.ctx, *lower_literal(ast_node->get_children()[1]))->str();
+      auto name =
+        Lisple::exec(*ctx.ctx, *Lisple::lower_literal(ast_node->get_children()[1]))->str();
       auto map_expr = Lisple::exec(*ctx.ctx, *lower_expr(ctx, ast_node->get_children()[2]));
       auto deps_coercion = HostType::RESOURCE_DEPENDENCIES.coerce(*ctx.ctx, map_expr);
       if (!deps_coercion.success)
@@ -133,15 +134,15 @@ namespace Pixils::Script
     }
 
     SPECIAL_FORM_IMPL(DefFontForm,
-                      SIG((FN_ARGS((&Lisple::Type::WORD, &Lisple::Eval::LITERAL),
+                      SIG((FN_ARGS((&Lisple::Type::SYMBOL, &Lisple::Eval::LITERAL),
                                    (&Lisple::Type::MAP)),
                            EXEC_DISPATCH(&DefFontForm::execnode_def_font))));
 
     SFORM_LOWER_IMPL(DefFontForm)
     {
       static Lisple::MapSchema font_map_schema({},
-                                               {{"type", &Lisple::Type::KEY},
-                                                {"resource", &Lisple::Type::KEY},
+                                               {{"type", &Lisple::Type::KEYWORD},
+                                                {"resource", &Lisple::Type::KEYWORD},
                                                 {"spacing", &Lisple::Type::NUMBER},
                                                 {"line-height", &Lisple::Type::NUMBER},
                                                 {"baseline", &Lisple::Type::NUMBER},
@@ -149,7 +150,7 @@ namespace Pixils::Script
                                                 {"glyphs", &Lisple::Type::MAP}});
 
       std::string font_name =
-        Lisple::exec(*ctx.ctx, *lower_literal(ast_node->get_children()[1]))->str();
+        Lisple::exec(*ctx.ctx, *Lisple::lower_literal(ast_node->get_children()[1]))->str();
       if (font_name.find('/') == std::string::npos)
       {
         font_name = "font/" + font_name;
@@ -165,7 +166,7 @@ namespace Pixils::Script
         throw new Lisple::InvocationException("Invalid font type: " + type);
       }
       auto resource_key = opts.val("resource");
-      if (resource_key->type != Lisple::RTValue::Type::KEYWORD)
+      if (resource_key->type != Lisple::Value::Type::KEYWORD)
       {
         throw Lisple::TypeError("Invalid resource key: " + resource_key->to_string());
       }
@@ -178,16 +179,16 @@ namespace Pixils::Script
       if (opts.contains("styles"))
       {
         auto styles_value = opts.val("styles");
-        if (styles_value->type != Lisple::RTValue::Type::MAP)
+        if (styles_value->type != Lisple::Value::Type::MAP)
         {
           throw Lisple::TypeError("Font :styles must be a map");
         }
 
         auto underline_value =
-          Lisple::Dict::get_property(styles_value, Lisple::RTValue::keyword("underline"));
-        if (underline_value && underline_value->type != Lisple::RTValue::Type::NIL)
+          Lisple::Dict::get_property(styles_value, Lisple::keyword("underline"));
+        if (underline_value && underline_value->type != Lisple::Value::Type::NIL)
         {
-          if (underline_value->type != Lisple::RTValue::Type::MAP)
+          if (underline_value->type != Lisple::Value::Type::MAP)
           {
             throw Lisple::TypeError("Font :styles :underline must be a map");
           }
@@ -203,19 +204,19 @@ namespace Pixils::Script
       }
 
       auto glyphs = opts.val("glyphs");
-      if (glyphs->type == Lisple::RTValue::Type::MAP)
+      if (glyphs->type == Lisple::Value::Type::MAP)
       {
         for (auto& ch : Lisple::Dict::keys(*glyphs))
         {
           char32_t glyph_char;
           switch (ch->type)
           {
-          case Lisple::RTValue::Type::CHAR:
+          case Lisple::Value::Type::CHAR:
             glyph_char = ch->ch();
             break;
-          case Lisple::RTValue::Type::STRING:
-          case Lisple::RTValue::Type::KEYWORD:
-          case Lisple::RTValue::Type::SYMBOL:
+          case Lisple::Value::Type::STRING:
+          case Lisple::Value::Type::KEYWORD:
+          case Lisple::Value::Type::SYMBOL:
           {
             std::string ch_val = ch->str();
             if (ch_val.size() != 1)
@@ -281,7 +282,7 @@ namespace Pixils::Script
 
     /* DefProgramForm - defprogram */
     SPECIAL_FORM_IMPL(DefProgramForm,
-                      SIG((FN_ARGS((&Lisple::Type::WORD, &Lisple::Eval::LITERAL),
+                      SIG((FN_ARGS((&Lisple::Type::SYMBOL, &Lisple::Eval::LITERAL),
                                    (&Lisple::Type::MAP)),
                            EXEC_DISPATCH(&DefProgramForm::execnode_def_program))));
 
@@ -290,20 +291,21 @@ namespace Pixils::Script
                                       {"initial-mode", &Lisple::Type::SYMBOL_VALUE},
                                       {"theme", &Lisple::Type::ANY},
                                       {"target-frame-rate", &Lisple::Type::NUMBER},
-                                      {"pointer", &Lisple::Type::KEY}});
+                                      {"pointer", &Lisple::Type::KEYWORD}});
 
     SFORM_LOWER_IMPL(DefProgramForm)
     {
-      auto name = Lisple::exec(*ctx.ctx, *lower_literal(ast_node->get_children()[1]))->str();
+      auto name =
+        Lisple::exec(*ctx.ctx, *Lisple::lower_literal(ast_node->get_children()[1]))->str();
       auto map_expr = Lisple::exec(*ctx.ctx, *lower_expr(ctx, ast_node->get_children()[2]));
 
       auto opts = program_schema.bind(*ctx.ctx, *map_expr);
 
       auto programs = ctx.ctx->lookup(ID__PIXILS__PROGRAMS);
-      auto initial_mode = opts.str(MapKey::INITIAL_MODE->value, "");
+      auto initial_mode = opts.str(std::get<std::string>(MapKey::INITIAL_MODE->value), "");
 
-      Display display = opts.contains(MapKey::DISPLAY->value)
-                          ? opts.obj<Display>(MapKey::DISPLAY->value)
+      Display display = opts.contains(std::get<std::string>(MapKey::DISPLAY->value))
+                          ? opts.obj<Display>(std::get<std::string>(MapKey::DISPLAY->value))
                           : Display(Resolution(Resolution::Mode::AUTO, {0, 0}),
                                     Display::Alignment::NONE,
                                     Display::Scaling::NONE,
@@ -322,13 +324,13 @@ namespace Pixils::Script
         Lisple::obj<Program>(*program).pointer_visible = false;
       }
 
-      if (opts.contains(MapKey::TARGET_FRAME_RATE->value))
+      if (opts.contains(std::get<std::string>(MapKey::TARGET_FRAME_RATE->value)))
       {
         Lisple::obj<Program>(*program).target_frame_rate =
-          opts.i32(MapKey::TARGET_FRAME_RATE->value);
+          opts.i32(std::get<std::string>(MapKey::TARGET_FRAME_RATE->value));
       }
 
-      Lisple::Dict::set_property(programs, Lisple::RTValue::symbol(name), program);
+      Lisple::Dict::set_property(programs, Lisple::symbol(name), program);
 
       return std::make_unique<Lisple::ExecNode>(Lisple::Constant::NIL);
     }
@@ -340,14 +342,15 @@ namespace Pixils::Script
 
     /* DefThemeForm - deftheme */
     SPECIAL_FORM_IMPL(DefThemeForm,
-                      SIG((FN_ARGS((&Lisple::Type::WORD, &Lisple::Eval::LITERAL),
+                      SIG((FN_ARGS((&Lisple::Type::SYMBOL, &Lisple::Eval::LITERAL),
                                    (&Lisple::Type::MAP)),
                            EXEC_DISPATCH(&DefThemeForm::execnode_declare_theme))));
 
     SFORM_LOWER_IMPL(DefThemeForm)
     {
       auto themes = ctx.ctx->lookup(ID__PIXILS__THEMES);
-      auto name_expr = Lisple::exec(*ctx.ctx, *lower_literal(ast_node->get_children()[1]));
+      auto name_expr =
+        Lisple::exec(*ctx.ctx, *Lisple::lower_literal(ast_node->get_children()[1]));
       auto name = name_expr->str();
       auto theme_expr =
         Lisple::exec(*ctx.ctx, *Lisple::lower_expr(ctx, ast_node->get_children()[2]));
@@ -365,15 +368,16 @@ namespace Pixils::Script
 
     /* DefModeForm - defmode */
     SPECIAL_FORM_IMPL(DefModeForm,
-                      SIG((FN_ARGS((&Lisple::Type::WORD, &Lisple::Eval::LITERAL),
+                      SIG((FN_ARGS((&Lisple::Type::SYMBOL, &Lisple::Eval::LITERAL),
                                    (&HostType::MODE, &Lisple::Eval::LITERAL)),
                            EXEC_DISPATCH(&DefModeForm::execnode_declare_mode))));
 
     SFORM_LOWER_IMPL(DefModeForm)
     {
       auto modes = ctx.ctx->lookup(ID__PIXILS__MODES);
-      auto name_expr = Lisple::exec(*ctx.ctx, *lower_literal(ast_node->get_children()[1]));
-      auto name_str = Lisple::RTValue::string(name_expr->str());
+      auto name_expr =
+        Lisple::exec(*ctx.ctx, *Lisple::lower_literal(ast_node->get_children()[1]));
+      auto name_str = Lisple::string(name_expr->str());
 
       Lisple::LowerContext lctx{ctx};
       auto mode_expr =
@@ -422,7 +426,7 @@ namespace Pixils::Script
     {
       static Lisple::MapSchema mode_compose_schema(
         {},
-        {{"render", &Lisple::Type::KEY}, {"update", &Lisple::Type::KEY}});
+        {{"render", &Lisple::Type::KEYWORD}, {"update", &Lisple::Type::KEYWORD}});
 
       auto opts = mode_compose_schema.bind(ctx, *args[0]);
 
@@ -436,24 +440,27 @@ namespace Pixils::Script
     FUNC_IMPL(MakeDimension,
               SIG((FN_ARGS((&Lisple::Type::MAP)), EXEC_DISPATCH(&MakeDimension::exec_make))))
 
-    Lisple::MapSchema dimension_schema({{MapKey::W->value, &Lisple::Type::NUMBER},
-                                        {MapKey::H->value, &Lisple::Type::NUMBER}});
+    Lisple::MapSchema dimension_schema(
+      {{std::get<std::string>(MapKey::W->value), &Lisple::Type::NUMBER},
+       {std::get<std::string>(MapKey::H->value), &Lisple::Type::NUMBER}});
 
     EXEC_BODY(MakeDimension, exec_make)
     {
       auto opts = dimension_schema.bind(ctx, *args[0]);
-      return DimensionAdapter::make_unique(opts.i32(MapKey::W->value),
-                                           opts.i32(MapKey::H->value));
+      return DimensionAdapter::make_unique(
+        opts.i32(std::get<std::string>(MapKey::W->value)),
+        opts.i32(std::get<std::string>(MapKey::H->value)));
     }
 
     /* Display make function */
     FUNC_IMPL(MakeDisplay,
               SIG((FN_ARGS((&Lisple::Type::MAP)), EXEC_DISPATCH(&MakeDisplay::exec_make))))
 
-    Lisple::MapSchema display_schema({{MapKey::RESOLUTION->value, &HostType::RESOLUTION}},
-                                     {{MapKey::ALIGN->value, &Lisple::Type::KEY},
-                                      {MapKey::SCALING->value, &Lisple::Type::KEY},
-                                      {MapKey::BACKGROUND->value, &HostType::COLOR}});
+    Lisple::MapSchema display_schema(
+      {{std::get<std::string>(MapKey::RESOLUTION->value), &HostType::RESOLUTION}},
+      {{std::get<std::string>(MapKey::ALIGN->value), &Lisple::Type::KEYWORD},
+       {std::get<std::string>(MapKey::SCALING->value), &Lisple::Type::KEYWORD},
+       {std::get<std::string>(MapKey::BACKGROUND->value), &HostType::COLOR}});
 
     EXEC_BODY(MakeDisplay, exec_make)
     {
@@ -464,18 +471,20 @@ namespace Pixils::Script
         auto align = Display::Alignment::NONE;
         auto scaling = Display::Scaling::NONE;
 
-        if (opts.contains(MapKey::ALIGN->value))
+        if (opts.contains(std::get<std::string>(MapKey::ALIGN->value)))
         {
-          const std::string align_str = opts.str(MapKey::ALIGN->value);
+          const std::string align_str =
+            opts.str(std::get<std::string>(MapKey::ALIGN->value));
           if (align_str == "align/center")
           {
             align = Display::Alignment::CENTER;
           }
         }
 
-        if (opts.contains(MapKey::SCALING->value))
+        if (opts.contains(std::get<std::string>(MapKey::SCALING->value)))
         {
-          const std::string scale_str = opts.str(MapKey::SCALING->value);
+          const std::string scale_str =
+            opts.str(std::get<std::string>(MapKey::SCALING->value));
           if (scale_str == "scaling/stretch")
           {
             scaling = Display::Scaling::STRETCH;
@@ -486,12 +495,14 @@ namespace Pixils::Script
           }
         }
 
-        Color color = opts.obj<Color>(MapKey::BACKGROUND->value, Color{0, 0, 0});
+        Color color =
+          opts.obj<Color>(std::get<std::string>(MapKey::BACKGROUND->value), Color{0, 0, 0});
 
-        return DisplayAdapter::make_unique(opts.obj<Resolution>(MapKey::RESOLUTION->value),
-                                           align,
-                                           scaling,
-                                           color);
+        return DisplayAdapter::make_unique(
+          opts.obj<Resolution>(std::get<std::string>(MapKey::RESOLUTION->value)),
+          align,
+          scaling,
+          color);
       }
       catch (std::exception& e)
       {
@@ -503,14 +514,14 @@ namespace Pixils::Script
     FUNC_IMPL(MakeResolution,
               MULTI_SIG((FN_ARGS((&HostType::DIMENSION)),
                          EXEC_DISPATCH(&MakeResolution::exec_make_resolution)),
-                        (FN_ARGS((&Lisple::Type::KEY)),
+                        (FN_ARGS((&Lisple::Type::KEYWORD)),
                          EXEC_DISPATCH(&MakeResolution::exec_make_resolution)),
                         (FN_ARGS((&Lisple::Type::MAP)),
                          EXEC_DISPATCH(&MakeResolution::exec_make_resolution))));
 
     EXEC_BODY(MakeResolution, exec_make_resolution)
     {
-      if (Lisple::Type::KEY.is_type_of(*args[0]))
+      if (Lisple::Type::KEYWORD.is_type_of(*args[0]))
       {
         const std::string& res_type = args[0]->str();
         if (res_type == "auto")
@@ -521,9 +532,8 @@ namespace Pixils::Script
       }
       else if (Lisple::Type::MAP.is_type_of(*args[0]))
       {
-        auto scale_val =
-          Lisple::Dict::get_property(args[0], Lisple::RTValue::keyword("scale"));
-        if (scale_val && scale_val->type == Lisple::RTValue::Type::NUMBER)
+        auto scale_val = Lisple::Dict::get_property(args[0], Lisple::keyword("scale"));
+        if (scale_val && scale_val->type == Lisple::Value::Type::NUMBER)
         {
           int ps = scale_val->num().get_int();
           return ResolutionAdapter::make_unique(Resolution::Mode::AUTO, ps);
@@ -558,14 +568,14 @@ namespace Pixils::Script
 
       Lisple::append(
         *message_queue,
-        Lisple::RTValue::map({Lisple::RTValue::keyword(MapKey::TYPE->value),
-                              Lisple::RTValue::keyword(MapKey::PUSH->value),
-                              Lisple::RTValue::keyword(MapKey::MODE->value),
-                              args.front(),
-                              Lisple::RTValue::keyword(MapKey::STATE->value),
-                              args.size() > 1 ? args[1] : Lisple::Constant::NIL,
-                              Lisple::RTValue::keyword("overrides"),
-                              args.size() > 2 ? args[2] : Lisple::Constant::NIL}));
+        Lisple::map({Lisple::keyword(std::get<std::string>(MapKey::TYPE->value)),
+                     Lisple::keyword(std::get<std::string>(MapKey::PUSH->value)),
+                     Lisple::keyword(std::get<std::string>(MapKey::MODE->value)),
+                     args.front(),
+                     Lisple::keyword(std::get<std::string>(MapKey::STATE->value)),
+                     args.size() > 1 ? args[1] : Lisple::Constant::NIL,
+                     Lisple::keyword("overrides"),
+                     args.size() > 2 ? args[2] : Lisple::Constant::NIL}));
 
       return args[0];
     }
@@ -581,10 +591,10 @@ namespace Pixils::Script
       auto message_queue = ctx.lookup(ID__PIXILS__MODE_STACK_MESSAGES);
 
       Lisple::append(*message_queue,
-                     Lisple::RTValue::map({
-                       Lisple::RTValue::keyword(MapKey::TYPE->value),
-                       Lisple::RTValue::keyword(MapKey::POP->value),
-                       Lisple::RTValue::keyword("payload"),
+                     Lisple::map({
+                       Lisple::keyword(std::get<std::string>(MapKey::TYPE->value)),
+                       Lisple::keyword(std::get<std::string>(MapKey::POP->value)),
+                       Lisple::keyword("payload"),
                        args.empty() ? Lisple::Constant::NIL : args[0],
                      }));
 
@@ -599,9 +609,9 @@ namespace Pixils::Script
       auto message_queue = ctx.lookup(ID__PIXILS__MODE_STACK_MESSAGES);
 
       Lisple::append(*message_queue,
-                     Lisple::RTValue::map({
-                       Lisple::RTValue::keyword(MapKey::TYPE->value),
-                       Lisple::RTValue::keyword(MapKey::QUIT->value),
+                     Lisple::map({
+                       Lisple::keyword(std::get<std::string>(MapKey::TYPE->value)),
+                       Lisple::keyword(std::get<std::string>(MapKey::QUIT->value)),
                      }));
 
       return Lisple::Constant::NIL;
@@ -638,7 +648,7 @@ namespace Pixils::Script
                       &HostType::MODE_COMPOSITION,
                       (render));
 
-  Lisple::sptr_rtval ModeCompositionAdapter::get_render() const
+  Lisple::sptr_val ModeCompositionAdapter::get_render() const
   {
     return this->get_object().render ? MapKey::PASS : MapKey::BLOCK;
   }
@@ -728,7 +738,7 @@ namespace Pixils::Script
 
   NOBJ_PROP_GET(HookContextAdapter, pixel_size)
   {
-    return Lisple::RTValue::number(object->get_object().render->pixel_size);
+    return Lisple::number(object->get_object().render->pixel_size);
   }
 
   NOBJ_PROP_GET(HookContextAdapter, buffer_dim)
@@ -740,13 +750,13 @@ namespace Pixils::Script
   NOBJ_PROP_GET(HookContextAdapter, available_width)
   {
     auto available = object->get_object().available_width;
-    return available ? Lisple::RTValue::number(*available) : Lisple::Constant::NIL;
+    return available ? Lisple::number(*available) : Lisple::Constant::NIL;
   }
 
   NOBJ_PROP_GET(HookContextAdapter, available_height)
   {
     auto available = object->get_object().available_height;
-    return available ? Lisple::RTValue::number(*available) : Lisple::Constant::NIL;
+    return available ? Lisple::number(*available) : Lisple::Constant::NIL;
   }
 
   NOBJ_PROP_GET(HookContextAdapter, view)
@@ -771,10 +781,10 @@ namespace Pixils::Script
 
   NOBJ_PROP_GET(InteractionStateAdapter, pressed)
   {
-    Lisple::sptr_rtval_v buttons;
+    Lisple::sptr_val_v buttons;
     for (UI::MouseButton btn : object->get_object().pressed)
-      buttons.push_back(Lisple::RTValue::keyword(UI::mouse_button_name(btn)));
-    return Lisple::RTValue::vector(buttons);
+      buttons.push_back(Lisple::keyword(UI::mouse_button_name(btn)));
+    return Lisple::vector(buttons);
   }
 
   /* ViewAdapter */
@@ -867,7 +877,7 @@ namespace Pixils::Script
     {
       return Lisple::Constant::NIL;
     }
-    return Lisple::RTValue::symbol(get_object().initial_mode);
+    return Lisple::symbol(get_object().initial_mode);
   };
 
   NOBJ_PROP_GET(ProgramAdapter, theme)
@@ -876,16 +886,16 @@ namespace Pixils::Script
     const auto& theme_names = *get_object().theme;
     if (theme_names.size() == 1)
     {
-      return Lisple::RTValue::symbol(theme_names[0]);
+      return Lisple::symbol(theme_names[0]);
     }
 
-    std::vector<Lisple::sptr_rtval> values;
+    std::vector<Lisple::sptr_val> values;
     values.reserve(theme_names.size());
     for (const auto& theme_name : theme_names)
     {
-      values.push_back(Lisple::RTValue::symbol(theme_name));
+      values.push_back(Lisple::symbol(theme_name));
     }
-    return Lisple::RTValue::vector(values);
+    return Lisple::vector(values);
   }
 
   NOBJ_PROP_GET__FIELD(ProgramAdapter, target_frame_rate);
@@ -903,10 +913,10 @@ namespace Pixils::Script
   PixilsNamespace::PixilsNamespace(const RenderContext& render_context)
     : Lisple::Namespace(NS_PIXILS)
   {
-    values.emplace("mode-stack", Lisple::RTValue::vector({}));
-    values.emplace("mode-stack-messages", Lisple::RTValue::vector({}));
-    values.emplace("modes", Lisple::RTValue::map({}));
-    values.emplace("themes", Lisple::RTValue::map({}));
+    values.emplace("mode-stack", Lisple::vector({}));
+    values.emplace("mode-stack-messages", Lisple::vector({}));
+    values.emplace("modes", Lisple::map({}));
+    values.emplace("themes", Lisple::map({}));
     values.emplace("defpointer", Macro::DefPointerForm::make());
     values.emplace("defbundle", Macro::DefBundleForm::make());
     values.emplace("defmode", Macro::DefModeForm::make());
@@ -920,7 +930,7 @@ namespace Pixils::Script
     values.emplace("make-mode-composition", Function::MakeModeComposition::make());
     values.emplace("make-resolution", Function::MakeResolution::make());
     values.emplace("render-context", RenderContextAdapter::make_ref(render_context));
-    values.emplace("programs", Lisple::RTValue::map({}));
+    values.emplace("programs", Lisple::map({}));
     values.emplace("pop-mode!", Function::PopModeBangFunction::make());
     values.emplace(FN__PUSH_MODE_BANG, Function::PushModeBangFunction::make());
     values.emplace(FN__QUIT_BANG, Function::QuitBangFunction::make());

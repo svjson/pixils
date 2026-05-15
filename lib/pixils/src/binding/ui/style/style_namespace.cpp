@@ -34,7 +34,7 @@ namespace Pixils::Script
     FUNC_IMPL(MakeLayoutGap,
               MULTI_SIG((FN_ARGS((&Lisple::Type::MAP)),
                          EXEC_DISPATCH(&MakeLayoutGap::exec_make)),
-                        (FN_ARGS((&Lisple::Type::KEY)),
+                        (FN_ARGS((&Lisple::Type::KEYWORD)),
                          EXEC_DISPATCH(&MakeLayoutGap::exec_make_key)),
                         (FN_ARGS((&Lisple::Type::NUMBER)),
                          EXEC_DISPATCH(&MakeLayoutGap::exec_make_num))));
@@ -48,17 +48,16 @@ namespace Pixils::Script
 
     EXEC_BODY(MakeLayoutGap, exec_make_key)
     {
-      Lisple::sptr_rtval_v make_args{
-        Lisple::RTValue::map({Lisple::RTValue::keyword("mode"), args[0]})};
+      Lisple::sptr_val_v make_args{Lisple::map({Lisple::keyword("mode"), args[0]})};
       return exec_make(ctx, make_args);
     }
 
     EXEC_BODY(MakeLayoutGap, exec_make_num)
     {
-      Lisple::sptr_rtval_v make_args{Lisple::RTValue::map({Lisple::RTValue::keyword("mode"),
-                                                           Lisple::RTValue::keyword("fixed"),
-                                                           Lisple::RTValue::keyword("size"),
-                                                           args[0]})};
+      Lisple::sptr_val_v make_args{Lisple::map({Lisple::keyword("mode"),
+                                                Lisple::keyword("fixed"),
+                                                Lisple::keyword("size"),
+                                                args[0]})};
       return exec_make(ctx, make_args);
     }
 
@@ -86,7 +85,7 @@ namespace Pixils::Script
     FUNC_IMPL(MakeBackground,
               MULTI_SIG((FN_ARGS((&HostType::COLOR)),
                          EXEC_DISPATCH(&MakeBackground::exec_make_color)),
-                        (FN_ARGS((&Lisple::Type::KEY)),
+                        (FN_ARGS((&Lisple::Type::KEYWORD)),
                          EXEC_DISPATCH(&MakeBackground::exec_make_image)),
                         (FN_ARGS((&Lisple::Type::MAP)),
                          EXEC_DISPATCH(&MakeBackground::exec_make_map))));
@@ -136,7 +135,7 @@ namespace Pixils::Script
     FUNC_IMPL(MakeInsets,
               MULTI_SIG((FN_ARGS((&Lisple::Type::NUMBER)),
                          EXEC_DISPATCH(&MakeInsets::exec_make_num)),
-                        (FN_ARGS((&Lisple::Type::ARRAY_OF_NUMBER)),
+                        (FN_ARGS((&Lisple::Type::VECTOR_OF_NUMBER)),
                          EXEC_DISPATCH(&MakeInsets::exec_make_vec)),
                         (FN_ARGS((&Lisple::Type::MAP)),
                          EXEC_DISPATCH(&MakeInsets::exec_make_map))));

@@ -20,14 +20,14 @@ namespace Pixils::UI
                          Lisple::Runtime& rt)
     {
       Lisple::obj<HookContext>(*hook_args.update_args[1]).current_view = view;
-      Lisple::sptr_rtval_v args = {view->state, hook_args.update_args[1]};
+      Lisple::sptr_val_v args = {view->state, hook_args.update_args[1]};
       view->state = Runtime::invoke_hook(rt, view, view->mode->update, args, view->state);
     }
 
     void bubble_child_events_to_subject(Runtime::View& subject,
-                                        Lisple::sptr_rtval* subject_parent_state,
+                                        Lisple::sptr_val* subject_parent_state,
                                         const std::shared_ptr<Runtime::View>& child,
-                                        Lisple::sptr_rtval& view_ctx,
+                                        Lisple::sptr_val& view_ctx,
                                         Lisple::Runtime& rt)
     {
       std::vector<CustomEvent> emitted_events;
@@ -90,7 +90,7 @@ namespace Pixils::UI
     void update_view_subtree(const std::shared_ptr<Runtime::View>& view_ptr,
                              const MouseState& mouse_state,
                              const FocusState& focus_state,
-                             Lisple::sptr_rtval* parent_state,
+                             Lisple::sptr_val* parent_state,
                              const Point& mouse_pos,
                              Runtime::HookArguments& hook_args,
                              Lisple::Runtime& rt)

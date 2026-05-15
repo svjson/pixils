@@ -2,7 +2,6 @@
 #include "pixils/runtime/mode.h"
 #include <pixils/binding/resource_namespace.h>
 
-#include <lisple/host.h>
 #include <lisple/host/accessor.h>
 #include <lisple/host/schema.h>
 #include <lisple/runtime/dict.h>
@@ -13,7 +12,7 @@ namespace Pixils::Script
   {
     SHKEY(IMAGES, "images");
     SHKEY(SOUNDS, "sounds");
-  }
+  } // namespace MapKey
 
   namespace Function
   {

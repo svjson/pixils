@@ -2,10 +2,10 @@
 #ifndef PIXILS__COLOR_NAMESPACE_H
 #define PIXILS__COLOR_NAMESPACE_H
 
+#include <pixils/binding/shkey.h>
 #include <pixils/color.h>
 
 #include <lisple/exec.h>
-#include <lisple/host.h>
 #include <lisple/host/object.h>
 #include <lisple/namespace.h>
 #include <string>

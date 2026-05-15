@@ -85,11 +85,11 @@ TEST_F(DefThemeTest, deftheme_with_compound_state_selector_is_created)
   EXPECT_EQ(theme.rules[0].selector.children[1].type,
             Pixils::UI::ThemeSelector::Type::STATE);
   ASSERT_NE(theme.rules[0].selector.children[1].state, nullptr);
-  EXPECT_EQ(theme.rules[0].selector.children[1].state->type, Lisple::RTValue::Type::MAP);
+  EXPECT_EQ(theme.rules[0].selector.children[1].state->type, Lisple::Value::Type::MAP);
   EXPECT_EQ(theme.rules[0].selector.children[1].state->to_string(), "{:pressed true}");
 
   auto pressed_state =
-    Lisple::RTValue::map({Lisple::RTValue::keyword("pressed"), Lisple::Constant::BOOL_TRUE});
+    Lisple::map({Lisple::keyword("pressed"), Lisple::Constant::BOOL_TRUE});
   auto parsed_keys = Lisple::Dict::keys(*theme.rules[0].selector.children[1].state);
   auto manual_keys = Lisple::Dict::keys(*pressed_state);
   ASSERT_EQ(parsed_keys.size(), 1u);
@@ -106,9 +106,9 @@ TEST_F(DefThemeTest, deftheme_with_compound_state_selector_is_created)
   ASSERT_NE(parsed_pressed, nullptr);
   ASSERT_NE(cross_pressed, nullptr);
   ASSERT_NE(manual_pressed, nullptr);
-  EXPECT_EQ(expected_pressed->type, Lisple::RTValue::Type::BOOL);
-  EXPECT_EQ(parsed_pressed->type, Lisple::RTValue::Type::BOOL);
-  EXPECT_EQ(cross_pressed->type, Lisple::RTValue::Type::BOOL);
+  EXPECT_EQ(expected_pressed->type, Lisple::Value::Type::BOOL);
+  EXPECT_EQ(parsed_pressed->type, Lisple::Value::Type::BOOL);
+  EXPECT_EQ(cross_pressed->type, Lisple::Value::Type::BOOL);
   EXPECT_EQ(parsed_pressed->to_string(), manual_pressed->to_string());
   EXPECT_EQ(cross_pressed->to_string(), manual_pressed->to_string());
   EXPECT_TRUE(theme.rules[0].selector.children[1].matches(
@@ -191,7 +191,7 @@ TEST_F(DefThemeTest, focus_pseudo_state_selectors_match_interaction_state)
   auto window_matches = theme.get_matching_styles(
     Pixils::UI::ThemeMatchContext{.mode_names = {"window"},
                                   .class_names = {},
-                                  .state = Lisple::RTValue::map({}),
+                                  .state = Lisple::map({}),
                                   .interaction = focus_within_interaction});
 
   ASSERT_EQ(window_matches.size(), 1u);
@@ -205,7 +205,7 @@ TEST_F(DefThemeTest, focus_pseudo_state_selectors_match_interaction_state)
   auto input_matches = theme.get_matching_styles(
     Pixils::UI::ThemeMatchContext{.mode_names = {"input"},
                                   .class_names = {},
-                                  .state = Lisple::RTValue::map({}),
+                                  .state = Lisple::map({}),
                                   .interaction = focused_interaction});
 
   ASSERT_EQ(input_matches.size(), 1u);
@@ -216,7 +216,7 @@ TEST_F(DefThemeTest, focus_pseudo_state_selectors_match_interaction_state)
   auto menu_item_matches = theme.get_matching_styles(
     Pixils::UI::ThemeMatchContext{.mode_names = {"menu-item"},
                                   .class_names = {"ui/menu-item"},
-                                  .state = Lisple::RTValue::map({}),
+                                  .state = Lisple::map({}),
                                   .interaction = focused_interaction});
 
   ASSERT_EQ(menu_item_matches.size(), 1u);
@@ -239,11 +239,11 @@ TEST_F(DefThemeTest, descendant_selectors_match_ancestor_focus_chain)
   auto matches = theme.get_matching_styles(std::vector<Pixils::UI::ThemeMatchContext>{
     Pixils::UI::ThemeMatchContext{.mode_names = {"window"},
                                   .class_names = {},
-                                  .state = Lisple::RTValue::map({}),
+                                  .state = Lisple::map({}),
                                   .interaction = focus_within_interaction},
     Pixils::UI::ThemeMatchContext{.mode_names = {"window-title-bar"},
                                   .class_names = {},
-                                  .state = Lisple::RTValue::map({}),
+                                  .state = Lisple::map({}),
                                   .interaction = {}}});
 
   ASSERT_EQ(matches.size(), 1u);
@@ -254,11 +254,11 @@ TEST_F(DefThemeTest, descendant_selectors_match_ancestor_focus_chain)
   auto non_matching = theme.get_matching_styles(std::vector<Pixils::UI::ThemeMatchContext>{
     Pixils::UI::ThemeMatchContext{.mode_names = {"window"},
                                   .class_names = {},
-                                  .state = Lisple::RTValue::map({}),
+                                  .state = Lisple::map({}),
                                   .interaction = {}},
     Pixils::UI::ThemeMatchContext{.mode_names = {"window-title-bar"},
                                   .class_names = {},
-                                  .state = Lisple::RTValue::map({}),
+                                  .state = Lisple::map({}),
                                   .interaction = {}}});
 
   EXPECT_TRUE(non_matching.empty());

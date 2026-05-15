@@ -1,6 +1,5 @@
 #include <pixils/binding/color_namespace.h>
 
-#include <lisple/host.h>
 #include <lisple/host/object.h>
 #include <lisple/host/schema.h>
 #include <lisple/host/transform.h>

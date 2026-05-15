@@ -22,7 +22,7 @@ class LayoutTest : public BaseFixture
  protected:
   Pixils::FrameEvents events;
   Pixils::HookContext hook_ctx;
-  Lisple::sptr_rtval hook_ctx_val;
+  Lisple::sptr_val hook_ctx_val;
 
   LayoutTest()
     : BaseFixture()

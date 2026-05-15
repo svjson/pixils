@@ -30,7 +30,7 @@ namespace Pixils::UI
   void layout_view_tree(const std::shared_ptr<Pixils::Runtime::View>& view,
                         const Rect& bounds,
                         Lisple::Runtime& runtime,
-                        const Lisple::sptr_rtval& hook_ctx);
+                        const Lisple::sptr_val& hook_ctx);
 
   /**
    * Compute absolute layout rects for a set of child views within a parent rect.
@@ -44,7 +44,7 @@ namespace Pixils::UI
     const std::vector<std::shared_ptr<Pixils::Runtime::View>>& children,
     const Rect& parent,
     Lisple::Runtime& runtime,
-    const Lisple::sptr_rtval& hook_ctx,
+    const Lisple::sptr_val& hook_ctx,
     const Style::Layout& layout = {},
     const Style* inherited_style = nullptr,
     const Theme* inherited_theme = nullptr);

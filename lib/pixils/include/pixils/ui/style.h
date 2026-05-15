@@ -14,8 +14,8 @@
 
 namespace Lisple
 {
-  class RTValue;
-  using sptr_rtval = std::shared_ptr<RTValue>;
+  struct Value;
+  using sptr_val = std::shared_ptr<Value>;
 } // namespace Lisple
 
 namespace Pixils::UI
@@ -346,11 +346,11 @@ namespace Pixils::UI
    */
   Style resolve_style(const std::optional<Style>& style,
                       const Style* inherited_style,
-                      const Lisple::sptr_rtval& state,
+                      const Lisple::sptr_val& state,
                       const InteractionState& interaction = {});
 
   inline Style resolve_style(const std::optional<Style>& style,
-                             const Lisple::sptr_rtval& state,
+                             const Lisple::sptr_val& state,
                              const InteractionState& interaction = {})
   {
     return resolve_style(style, nullptr, state, interaction);

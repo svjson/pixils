@@ -2,7 +2,6 @@
 #define PIXILS__IMAGE_NAMESPACE_H
 
 #include <lisple/exec.h>
-#include <lisple/host.h>
 #include <lisple/namespace.h>
 
 namespace Pixils::Script

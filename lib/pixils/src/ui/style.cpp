@@ -456,7 +456,8 @@ namespace Pixils::UI
         out.background->align_y = *variant.background->align_y;
       }
       if (variant.background->offset) out.background->offset = *variant.background->offset;
-      if (variant.background->opacity) out.background->opacity = *variant.background->opacity;
+      if (variant.background->opacity)
+        out.background->opacity = *variant.background->opacity;
     }
     if (variant.margin) out.margin = variant.margin;
     if (variant.padding) out.padding = variant.padding;
@@ -500,7 +501,7 @@ namespace Pixils::UI
 
   UI::Style resolve_style(const std::optional<Style>& style,
                           const Style* inherited_style,
-                          const Lisple::sptr_rtval& /* state */,
+                          const Lisple::sptr_val& /* state */,
                           const InteractionState& interaction)
   {
     UI::Style result;

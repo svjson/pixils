@@ -22,13 +22,13 @@ namespace Pixils
 
   struct CustomEvent : public Event
   {
-    Lisple::sptr_rtval event_key;
-    Lisple::sptr_rtval source_mode = Lisple::Constant::NIL;
-    Lisple::sptr_rtval payload;
+    Lisple::sptr_val event_key;
+    Lisple::sptr_val source_mode = Lisple::Constant::NIL;
+    Lisple::sptr_val payload;
 
-    CustomEvent(const Lisple::sptr_rtval& event_key,
-                const Lisple::sptr_rtval& payload,
-                const Lisple::sptr_rtval& source_mode = Lisple::Constant::NIL);
+    CustomEvent(const Lisple::sptr_val& event_key,
+                const Lisple::sptr_val& payload,
+                const Lisple::sptr_val& source_mode = Lisple::Constant::NIL);
   };
 
   /**
@@ -48,7 +48,7 @@ namespace Pixils
    */
   struct MouseButtonEvent : MouseEvent
   {
-    Lisple::sptr_rtval button = Lisple::Constant::NIL;
+    Lisple::sptr_val button = Lisple::Constant::NIL;
   };
 
   /**
@@ -63,7 +63,7 @@ namespace Pixils
     Point start_local_pos;
     Point delta;
     Point total_delta;
-    Lisple::sptr_rtval payload = Lisple::Constant::NIL;
+    Lisple::sptr_val payload = Lisple::Constant::NIL;
   };
 
   /**
@@ -77,9 +77,9 @@ namespace Pixils
    */
   struct KeyboardEvent : Event
   {
-    Lisple::sptr_rtval key = Lisple::Constant::NIL;
-    Lisple::sptr_rtval held_keys = Lisple::Constant::NIL;
-    Lisple::sptr_rtval match = Lisple::Constant::NIL;
+    Lisple::sptr_val key = Lisple::Constant::NIL;
+    Lisple::sptr_val held_keys = Lisple::Constant::NIL;
+    Lisple::sptr_val match = Lisple::Constant::NIL;
   };
 
 } // namespace Pixils

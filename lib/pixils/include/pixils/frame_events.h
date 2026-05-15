@@ -9,19 +9,19 @@ namespace Pixils
 {
   struct FrameEvents
   {
-    Lisple::sptr_rtval held_keys = Lisple::RTValue::vector({});
-    Lisple::sptr_rtval key_down = Lisple::Constant::NIL;
-    Lisple::sptr_rtval key_up = Lisple::Constant::NIL;
+    Lisple::sptr_val held_keys = Lisple::vector({});
+    Lisple::sptr_val key_down = Lisple::Constant::NIL;
+    Lisple::sptr_val key_up = Lisple::Constant::NIL;
 
-    Lisple::sptr_rtval mouse_pos;
-    Lisple::sptr_rtval mouse_button_down;
-    Lisple::sptr_rtval mouse_button_up;
-    Lisple::sptr_rtval mouse_held = Lisple::RTValue::vector({});
+    Lisple::sptr_val mouse_pos;
+    Lisple::sptr_val mouse_button_down;
+    Lisple::sptr_val mouse_button_up;
+    Lisple::sptr_val mouse_held = Lisple::vector({});
     bool mouse_moved = false;
 
     FrameEvents();
 
-    bool is_key_held(const Lisple::RTValue& key) const;
+    bool is_key_held(const Lisple::Value& key) const;
 
     void do_key_down(const SDL_KeyboardEvent& event);
     void do_key_up(const SDL_KeyboardEvent& event);

@@ -2,10 +2,10 @@
 #ifndef PIXILS__POINT_NAMESPACE_H
 #define PIXILS__POINT_NAMESPACE_H
 
+#include <pixils/binding/shkey.h>
 #include <pixils/geom.h>
 
 #include <lisple/exec.h>
-#include <lisple/host.h>
 #include <lisple/host/object.h>
 #include <lisple/namespace.h>
 #include <string>
@@ -45,7 +45,7 @@ namespace Pixils::Script
   {
     HOST_TYPE(POINT, "HPoint", std::string(FN__PIXILS__POINT__MAKE_POINT));
 
-    inline const Lisple::SeqRef VECTOR_OF_POINT(&Lisple::Type::ARRAY, &POINT, "[HPoint]");
+    inline const Lisple::SeqRef VECTOR_OF_POINT(&Lisple::Type::VECTOR, &POINT, "[HPoint]");
 
   } // namespace HostType
 

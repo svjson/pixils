@@ -4,7 +4,6 @@
 #include <pixils/runtime/mode.h>
 
 #include <gtest/gtest.h>
-#include <lisple/host.h>
 #include <lisple/runtime/dict.h>
 
 namespace AppFixture = Pixils::Test::AppFixture;
@@ -108,22 +107,19 @@ TEST_F(ComposableAppFixtureTest, loads_file_defined_mode_into_pixils_mode_regist
   auto modes = pixils().lookup("pixils/modes");
   ASSERT_NE(modes, nullptr);
 
-  auto test_mode_val =
-    Lisple::Dict::get_property(modes, Lisple::RTValue::symbol("test-mode"));
+  auto test_mode_val = Lisple::Dict::get_property(modes, Lisple::symbol("test-mode"));
   ASSERT_NE(test_mode_val, nullptr);
 
   const auto& test_mode = Lisple::obj<Pixils::Runtime::Mode>(*test_mode_val);
   EXPECT_EQ(test_mode.name, "test-mode");
-  EXPECT_EQ(test_mode.init->type, Lisple::RTValue::Type::FUNCTION);
-  EXPECT_EQ(test_mode.update->type, Lisple::RTValue::Type::FUNCTION);
+  EXPECT_EQ(test_mode.init->type, Lisple::Value::Type::FUNCTION);
+  EXPECT_EQ(test_mode.update->type, Lisple::Value::Type::FUNCTION);
   ASSERT_EQ(test_mode.children.size(), 1u);
   EXPECT_EQ(test_mode.children[0].mode_name, "child-mode");
   EXPECT_EQ(test_mode.children[0].id, "child-mode-0");
 
-  auto child_mode_val =
-    Lisple::Dict::get_property(modes, Lisple::RTValue::symbol("child-mode"));
+  auto child_mode_val = Lisple::Dict::get_property(modes, Lisple::symbol("child-mode"));
   ASSERT_NE(child_mode_val, nullptr);
   const auto& child_mode = Lisple::obj<Pixils::Runtime::Mode>(*child_mode_val);
   EXPECT_EQ(child_mode.name, "child-mode");
 }
-

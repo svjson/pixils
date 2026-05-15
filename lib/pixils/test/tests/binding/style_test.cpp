@@ -14,7 +14,7 @@ using StyleTest = BaseFixture;
 TEST_F(StyleTest, make_minimal_style)
 {
   // When
-  Lisple::sptr_rtval result = runtime.eval("(pixils.ui.style/make-style {:width 40})");
+  Lisple::sptr_val result = runtime.eval("(pixils.ui.style/make-style {:width 40})");
 
   // Then
   auto style = Lisple::obj<Pixils::UI::Style>(*result);
@@ -26,7 +26,7 @@ TEST_F(StyleTest, make_minimal_style)
 TEST_F(StyleTest, make_uniform_border)
 {
   // When
-  Lisple::sptr_rtval result =
+  Lisple::sptr_val result =
     runtime.eval("(pixils.ui.style/make-style {:border {:thickness 1 :line-style :solid}})");
 
   // Then
@@ -38,7 +38,7 @@ TEST_F(StyleTest, make_uniform_border)
 
 TEST_F(StyleTest, make_style_with_box_sizing)
 {
-  Lisple::sptr_rtval result =
+  Lisple::sptr_val result =
     runtime.eval("(pixils.ui.style/make-style {:box-sizing :content-box})");
 
   auto style = Lisple::obj<Pixils::UI::Style>(*result);
@@ -48,13 +48,13 @@ TEST_F(StyleTest, make_style_with_box_sizing)
 
 TEST_F(StyleTest, make_style_with_background_image_layout)
 {
-  Lisple::sptr_rtval result = runtime.eval("(pixils.ui.style/make-style "
-                                           "{:background {:image :icons/brush "
-                                           ":source {:x 1 :y 2 :w 3 :h 4} "
-                                           ":fit :contain "
-                                           ":align :center "
-                                           ":offset {:x 5 :y 6} "
-                                           ":opacity 0.5}})");
+  Lisple::sptr_val result = runtime.eval("(pixils.ui.style/make-style "
+                                         "{:background {:image :icons/brush "
+                                         ":source {:x 1 :y 2 :w 3 :h 4} "
+                                         ":fit :contain "
+                                         ":align :center "
+                                         ":offset {:x 5 :y 6} "
+                                         ":opacity 0.5}})");
 
   auto style = Lisple::obj<Pixils::UI::Style>(*result);
   ASSERT_NE(style.background, std::nullopt);
@@ -81,8 +81,7 @@ TEST_F(StyleTest, make_style_with_background_image_layout)
 
 TEST_F(StyleTest, make_style_with_opacity)
 {
-  Lisple::sptr_rtval result =
-    runtime.eval("(pixils.ui.style/make-style {:opacity 0.25})");
+  Lisple::sptr_val result = runtime.eval("(pixils.ui.style/make-style {:opacity 0.25})");
 
   auto style = Lisple::obj<Pixils::UI::Style>(*result);
   ASSERT_NE(style.opacity, std::nullopt);
@@ -92,7 +91,7 @@ TEST_F(StyleTest, make_style_with_opacity)
 TEST_F(StyleTest, make_style_with_per_side_border_overrides)
 {
   // When
-  Lisple::sptr_rtval result =
+  Lisple::sptr_val result =
     runtime.eval("(pixils.ui.style/make-style {:border {:thickness 2 :line-style :solid "
                  ":right {:thickness 1} :bottom {:thickness 0}}})");
 
@@ -108,7 +107,7 @@ TEST_F(StyleTest, make_style_with_per_side_border_overrides)
 TEST_F(StyleTest, make_style_with_margin)
 {
   // When
-  Lisple::sptr_rtval result = runtime.eval("(pixils.ui.style/make-style {:margin [2 4]})");
+  Lisple::sptr_val result = runtime.eval("(pixils.ui.style/make-style {:margin [2 4]})");
 
   // Then
   auto style = Lisple::obj<Pixils::UI::Style>(*result);
@@ -122,8 +121,7 @@ TEST_F(StyleTest, make_style_with_margin)
 TEST_F(StyleTest, make_style_with_four_value_margin)
 {
   // When
-  Lisple::sptr_rtval result =
-    runtime.eval("(pixils.ui.style/make-style {:margin [1 2 3 4]})");
+  Lisple::sptr_val result = runtime.eval("(pixils.ui.style/make-style {:margin [1 2 3 4]})");
 
   // Then
   auto style = Lisple::obj<Pixils::UI::Style>(*result);
@@ -137,7 +135,7 @@ TEST_F(StyleTest, make_style_with_four_value_margin)
 TEST_F(StyleTest, make_style_with_layout_direction)
 {
   // When
-  Lisple::sptr_rtval result =
+  Lisple::sptr_val result =
     runtime.eval("(pixils.ui.style/make-style {:layout {:direction :row "
                  ":align-items :center}})");
 
@@ -153,7 +151,7 @@ TEST_F(StyleTest, make_style_with_layout_direction)
 TEST_F(StyleTest, make_style_with_layout_gap_mode)
 {
   // When
-  Lisple::sptr_rtval result =
+  Lisple::sptr_val result =
     runtime.eval("(pixils.ui.style/make-style {:layout {:gap {:mode :space-between}}})");
 
   // Then
@@ -167,7 +165,7 @@ TEST_F(StyleTest, make_style_with_layout_gap_mode)
 TEST_F(StyleTest, make_style_with_layout_gap_keyword)
 {
   // When
-  Lisple::sptr_rtval result =
+  Lisple::sptr_val result =
     runtime.eval("(pixils.ui.style/make-style {:layout {:gap :space-between}})");
 
   // Then
@@ -181,7 +179,7 @@ TEST_F(StyleTest, make_style_with_layout_gap_keyword)
 TEST_F(StyleTest, make_style_with_layout_gap_none_keyword)
 {
   // When
-  Lisple::sptr_rtval result =
+  Lisple::sptr_val result =
     runtime.eval("(pixils.ui.style/make-style {:layout {:gap :none}})");
 
   // Then
@@ -195,8 +193,7 @@ TEST_F(StyleTest, make_style_with_layout_gap_none_keyword)
 TEST_F(StyleTest, make_style_with_layout_gap_number)
 {
   // When
-  Lisple::sptr_rtval result =
-    runtime.eval("(pixils.ui.style/make-style {:layout {:gap 8}})");
+  Lisple::sptr_val result = runtime.eval("(pixils.ui.style/make-style {:layout {:gap 8}})");
 
   // Then
   auto style = Lisple::obj<Pixils::UI::Style>(*result);
@@ -210,7 +207,7 @@ TEST_F(StyleTest, make_style_with_layout_gap_number)
 
 TEST_F(StyleTest, make_style_with_fill_and_shrink_sizes)
 {
-  Lisple::sptr_rtval result =
+  Lisple::sptr_val result =
     runtime.eval("(pixils.ui.style/make-style {:width :fill :height :shrink})");
 
   auto style = Lisple::obj<Pixils::UI::Style>(*result);
@@ -223,7 +220,7 @@ TEST_F(StyleTest, make_style_with_fill_and_shrink_sizes)
 TEST_F(StyleTest, make_style_with_text)
 {
   // When
-  Lisple::sptr_rtval result =
+  Lisple::sptr_val result =
     runtime.eval("(pixils.ui.style/make-style {:text {:color {:r 255 :g 255 :b 255} "
                  ":font :font/console :scale 2 :align :center :wrap :word}})");
 
@@ -244,7 +241,7 @@ TEST_F(StyleTest, make_style_with_text)
 
 TEST_F(StyleTest, make_style_with_text_font_styles_shadows_and_marked_style)
 {
-  Lisple::sptr_rtval result = runtime.eval(R"(
+  Lisple::sptr_val result = runtime.eval(R"(
     (pixils.ui.style/make-style
       {:text {:font :font/console
               :font-styles :underline
@@ -315,7 +312,7 @@ TEST(StyleResolveTest, hover_marked_style_overrides_only_its_own_fields)
 
 TEST_F(StyleTest, make_style_with_text_color_none)
 {
-  Lisple::sptr_rtval result =
+  Lisple::sptr_val result =
     runtime.eval("(pixils.ui.style/make-style {:text {:color :none}})");
 
   auto style = Lisple::obj<Pixils::UI::Style>(*result);
@@ -326,8 +323,7 @@ TEST_F(StyleTest, make_style_with_text_color_none)
 
 TEST_F(StyleTest, make_style_with_cursor)
 {
-  Lisple::sptr_rtval result =
-    runtime.eval("(pixils.ui.style/make-style {:cursor :pointer})");
+  Lisple::sptr_val result = runtime.eval("(pixils.ui.style/make-style {:cursor :pointer})");
 
   auto style = Lisple::obj<Pixils::UI::Style>(*result);
   ASSERT_NE(style.cursor, std::nullopt);
@@ -337,8 +333,7 @@ TEST_F(StyleTest, make_style_with_cursor)
 
 TEST_F(StyleTest, make_style_with_hit_test_disabled)
 {
-  Lisple::sptr_rtval result =
-    runtime.eval("(pixils.ui.style/make-style {:hit-test false})");
+  Lisple::sptr_val result = runtime.eval("(pixils.ui.style/make-style {:hit-test false})");
 
   auto style = Lisple::obj<Pixils::UI::Style>(*result);
   ASSERT_NE(style.hit_test, std::nullopt);
@@ -347,7 +342,7 @@ TEST_F(StyleTest, make_style_with_hit_test_disabled)
 
 TEST_F(StyleTest, make_style_with_named_pointer_cursor)
 {
-  Lisple::sptr_rtval result =
+  Lisple::sptr_val result =
     runtime.eval("(pixils.ui.style/make-style {:cursor :workbench/pointer})");
 
   auto style = Lisple::obj<Pixils::UI::Style>(*result);
@@ -358,11 +353,11 @@ TEST_F(StyleTest, make_style_with_named_pointer_cursor)
 
 TEST_F(StyleTest, make_style_with_inline_image_cursor)
 {
-  Lisple::sptr_rtval result = runtime.eval("(pixils.ui.style/make-style "
-                                           "{:cursor {:image :workbench-assets/cursor "
-                                           ":source {:x 1 :y 2 :w 3 :h 4} "
-                                           ":hotspot {:x 5 :y 6} "
-                                           ":scale 2}})");
+  Lisple::sptr_val result = runtime.eval("(pixils.ui.style/make-style "
+                                         "{:cursor {:image :workbench-assets/cursor "
+                                         ":source {:x 1 :y 2 :w 3 :h 4} "
+                                         ":hotspot {:x 5 :y 6} "
+                                         ":scale 2}})");
 
   auto style = Lisple::obj<Pixils::UI::Style>(*result);
   ASSERT_NE(style.cursor, std::nullopt);
@@ -383,9 +378,9 @@ TEST_F(StyleTest, make_style_with_inline_image_cursor)
 
 TEST_F(StyleTest, make_style_with_native_image_cursor)
 {
-  Lisple::sptr_rtval result = runtime.eval("(pixils.ui.style/make-style "
-                                           "{:cursor {:image :workbench-assets/cursor "
-                                           ":render :native}})");
+  Lisple::sptr_val result = runtime.eval("(pixils.ui.style/make-style "
+                                         "{:cursor {:image :workbench-assets/cursor "
+                                         ":render :native}})");
 
   auto style = Lisple::obj<Pixils::UI::Style>(*result);
   ASSERT_NE(style.cursor, std::nullopt);
@@ -414,7 +409,7 @@ TEST_F(StyleTest, defpointer_registers_named_pointer_without_implicit_renaming)
 
 TEST_F(StyleTest, make_style_with_view_scale)
 {
-  Lisple::sptr_rtval result = runtime.eval("(pixils.ui.style/make-style {:scale 2})");
+  Lisple::sptr_val result = runtime.eval("(pixils.ui.style/make-style {:scale 2})");
 
   auto style = Lisple::obj<Pixils::UI::Style>(*result);
   ASSERT_NE(style.scale, std::nullopt);
@@ -423,8 +418,7 @@ TEST_F(StyleTest, make_style_with_view_scale)
 
 TEST_F(StyleTest, style_adapter_exposes_view_scale)
 {
-  Lisple::sptr_rtval result =
-    runtime.eval("(:scale (pixils.ui.style/make-style {:scale 2}))");
+  Lisple::sptr_val result = runtime.eval("(:scale (pixils.ui.style/make-style {:scale 2}))");
 
   ASSERT_NE(result, nullptr);
   EXPECT_EQ(result->to_string(), "2");
@@ -432,8 +426,8 @@ TEST_F(StyleTest, style_adapter_exposes_view_scale)
 
 TEST_F(StyleTest, make_style_with_hover_cursor)
 {
-  Lisple::sptr_rtval result = runtime.eval("(pixils.ui.style/make-style {:cursor :default "
-                                           ":hover {:cursor :text}})");
+  Lisple::sptr_val result = runtime.eval("(pixils.ui.style/make-style {:cursor :default "
+                                         ":hover {:cursor :text}})");
 
   auto style = Lisple::obj<Pixils::UI::Style>(*result);
   ASSERT_NE(style.cursor, std::nullopt);
@@ -447,7 +441,7 @@ TEST_F(StyleTest, make_style_with_hover_cursor)
 
 TEST_F(StyleTest, make_style_with_text_color_from_host_color_value)
 {
-  Lisple::sptr_rtval result =
+  Lisple::sptr_val result =
     runtime.eval("(pixils.ui.style/make-style "
                  "{:text {:color (pixils.color/make-color {:r 255 :g 255 :b 255})}})");
 
@@ -459,8 +453,8 @@ TEST_F(StyleTest, make_style_with_text_color_from_host_color_value)
 
 TEST_F(StyleTest, make_style_with_focus_variants)
 {
-  Lisple::sptr_rtval result = runtime.eval("(pixils.ui.style/make-style {:focus {:width 80} "
-                                           ":focus-within {:height 24}})");
+  Lisple::sptr_val result = runtime.eval("(pixils.ui.style/make-style {:focus {:width 80} "
+                                         ":focus-within {:height 24}})");
 
   auto style = Lisple::obj<Pixils::UI::Style>(*result);
   ASSERT_NE(style.focus, nullptr);
@@ -629,7 +623,7 @@ TEST(StyleVariantTest, apply_style_variant_preserves_focus_styles)
 TEST_F(StyleTest, make_insets_with_four_value_vector)
 {
   // When
-  Lisple::sptr_rtval result = runtime.eval("(pixils.ui.style/make-insets [1 2 3 4])");
+  Lisple::sptr_val result = runtime.eval("(pixils.ui.style/make-insets [1 2 3 4])");
 
   // Then
   auto insets = Lisple::obj<Pixils::UI::Style::Insets>(*result);
@@ -642,7 +636,7 @@ TEST_F(StyleTest, make_insets_with_four_value_vector)
 TEST_F(StyleTest, make_bevel_border)
 {
   // When
-  Lisple::sptr_rtval result =
+  Lisple::sptr_val result =
     runtime.eval("(pixils.ui.style/make-style {:border {:thickness 2 :line-style :bevel}})");
 
   // Then

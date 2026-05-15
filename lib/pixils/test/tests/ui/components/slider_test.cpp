@@ -27,7 +27,7 @@ TEST_F(SliderTest, slider_drag_updates_bound_value)
   update_cycle();
 
   auto zoom =
-    Lisple::Dict::get_property(session.active_mode->state, Lisple::RTValue::keyword("zoom"));
+    Lisple::Dict::get_property(session.active_mode->state, Lisple::keyword("zoom"));
   ASSERT_NE(zoom, nullptr);
   EXPECT_EQ(zoom->num().get_int(), 4);
 }

@@ -24,7 +24,7 @@ namespace Pixils::Script
         return Lisple::Constant::NIL;
       }
 
-      return Lisple::RTValue::string(*text);
+      return Lisple::string(*text);
     }
   } // namespace Function
 

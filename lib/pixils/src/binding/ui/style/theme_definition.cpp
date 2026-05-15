@@ -6,7 +6,6 @@
 
 #include <lisple/context.h>
 #include <lisple/exception.h>
-#include <lisple/host.h>
 #include <lisple/runtime/dict.h>
 #include <lisple/runtime/seq.h>
 
@@ -46,22 +45,22 @@ namespace Pixils::Script
       }
     }
 
-    std::vector<std::string> parse_theme_extends(const Lisple::sptr_rtval& value)
+    std::vector<std::string> parse_theme_extends(const Lisple::sptr_val& value)
     {
       std::vector<std::string> names;
-      if (!value || value->type == Lisple::RTValue::Type::NIL) return names;
+      if (!value || value->type == Lisple::Value::Type::NIL) return names;
 
-      if (value->type == Lisple::RTValue::Type::SYMBOL)
+      if (value->type == Lisple::Value::Type::SYMBOL)
       {
         names.push_back(value->str());
         return names;
       }
 
-      if (value->type == Lisple::RTValue::Type::VECTOR)
+      if (value->type == Lisple::Value::Type::VECTOR)
       {
         for (auto& child : Lisple::get_children(*value))
         {
-          if (child->type != Lisple::RTValue::Type::SYMBOL)
+          if (child->type != Lisple::Value::Type::SYMBOL)
             throw Lisple::TypeError("Theme :extend entries must be symbols");
           names.push_back(child->str());
         }
@@ -71,40 +70,40 @@ namespace Pixils::Script
       throw Lisple::TypeError("Theme :extend must be a symbol or vector of symbols");
     }
 
-    Lisple::sptr_rtval normalize_selector_literal_value(const Lisple::sptr_rtval& value)
+    Lisple::sptr_val normalize_selector_literal_value(const Lisple::sptr_val& value)
     {
       if (!value) return value;
 
       switch (value->type)
       {
-      case Lisple::RTValue::Type::SYMBOL:
+      case Lisple::Value::Type::SYMBOL:
         if (value->str() == "true") return Lisple::Constant::BOOL_TRUE;
         if (value->str() == "false") return Lisple::Constant::BOOL_FALSE;
         if (value->str() == "nil") return Lisple::Constant::NIL;
         return value;
-      case Lisple::RTValue::Type::LIST:
+      case Lisple::Value::Type::LIST:
       {
-        Lisple::sptr_rtval_v elements;
+        Lisple::sptr_val_v elements;
         elements.reserve(value->elements().size());
         for (const auto& child : value->elements())
         {
           elements.push_back(normalize_selector_literal_value(child));
         }
-        return Lisple::RTValue::list(elements);
+        return Lisple::list(elements);
       }
-      case Lisple::RTValue::Type::VECTOR:
+      case Lisple::Value::Type::VECTOR:
       {
-        Lisple::sptr_rtval_v elements;
+        Lisple::sptr_val_v elements;
         elements.reserve(value->elements().size());
         for (const auto& child : value->elements())
         {
           elements.push_back(normalize_selector_literal_value(child));
         }
-        return Lisple::RTValue::vector(elements);
+        return Lisple::vector(elements);
       }
-      case Lisple::RTValue::Type::MAP:
+      case Lisple::Value::Type::MAP:
       {
-        Lisple::sptr_rtval_v elements;
+        Lisple::sptr_val_v elements;
         elements.reserve(value->elements().size());
         const auto& source = value->elements();
         for (size_t i = 0; i + 1 < source.size(); i += 2)
@@ -112,32 +111,32 @@ namespace Pixils::Script
           elements.push_back(source[i]);
           elements.push_back(normalize_selector_literal_value(source[i + 1]));
         }
-        return Lisple::RTValue::map(elements);
+        return Lisple::map(elements);
       }
       default:
         return value;
       }
     }
 
-    UI::ThemeSelector parse_theme_selector(const Lisple::sptr_rtval& key)
+    UI::ThemeSelector parse_theme_selector(const Lisple::sptr_val& key)
     {
       switch (key->type)
       {
-      case Lisple::RTValue::Type::SYMBOL:
+      case Lisple::Value::Type::SYMBOL:
       {
         auto selector = UI::ThemeSelector::component_type(key->str());
         apply_selector_pseudo_suffixes(selector);
         return selector;
       }
-      case Lisple::RTValue::Type::KEYWORD:
+      case Lisple::Value::Type::KEYWORD:
       {
         auto selector = UI::ThemeSelector::class_name(key->str());
         apply_selector_pseudo_suffixes(selector);
         return selector;
       }
-      case Lisple::RTValue::Type::MAP:
+      case Lisple::Value::Type::MAP:
         return UI::ThemeSelector::state_match(normalize_selector_literal_value(key));
-      case Lisple::RTValue::Type::LIST:
+      case Lisple::Value::Type::LIST:
       {
         std::vector<UI::ThemeSelector> children;
         for (const auto& child : Lisple::get_children(*key))
@@ -153,7 +152,7 @@ namespace Pixils::Script
         if (children.size() == 1) return children[0];
         return UI::ThemeSelector::compound(children);
       }
-      case Lisple::RTValue::Type::VECTOR:
+      case Lisple::Value::Type::VECTOR:
       {
         std::vector<UI::ThemeSelector> children;
         for (const auto& child : Lisple::get_children(*key))
@@ -178,7 +177,7 @@ namespace Pixils::Script
 
   UI::Theme build_theme_from_definition(Lisple::Context& ctx,
                                         const std::string& name,
-                                        const Lisple::sptr_rtval& definition_map,
+                                        const Lisple::sptr_val& definition_map,
                                         const UI::Theme* base)
   {
     UI::Theme theme;
@@ -186,8 +185,7 @@ namespace Pixils::Script
     if (base) theme = *base;
     theme.name = name;
 
-    auto extend_val =
-      Lisple::Dict::get_property(definition_map, Lisple::RTValue::keyword("extend"));
+    auto extend_val = Lisple::Dict::get_property(definition_map, Lisple::keyword("extend"));
     theme.extend = parse_theme_extends(extend_val);
 
     if (!theme.extend.empty())
@@ -197,9 +195,8 @@ namespace Pixils::Script
 
       for (const auto& extends_name : theme.extend)
       {
-        auto base_val =
-          Lisple::Dict::get_property(themes, Lisple::RTValue::symbol(extends_name));
-        if (!base_val || base_val->type == Lisple::RTValue::Type::NIL)
+        auto base_val = Lisple::Dict::get_property(themes, Lisple::symbol(extends_name));
+        if (!base_val || base_val->type == Lisple::Value::Type::NIL)
           throw Lisple::InvocationException("deftheme :extend - unknown base theme '" +
                                             extends_name + "'");
         UI::overlay_theme(merged, Lisple::obj<UI::Theme>(*base_val));
@@ -211,9 +208,8 @@ namespace Pixils::Script
       theme = merged;
     }
 
-    auto styles_val =
-      Lisple::Dict::get_property(definition_map, Lisple::RTValue::keyword("styles"));
-    if (styles_val && styles_val->type == Lisple::RTValue::Type::MAP)
+    auto styles_val = Lisple::Dict::get_property(definition_map, Lisple::keyword("styles"));
+    if (styles_val && styles_val->type == Lisple::Value::Type::MAP)
     {
       for (auto& key : Lisple::Dict::keys(*styles_val))
       {

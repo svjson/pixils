@@ -14,7 +14,7 @@ namespace Pixils::Script
 {
   UI::Theme build_theme_from_definition(Lisple::Context& ctx,
                                         const std::string& name,
-                                        const Lisple::sptr_rtval& definition_map,
+                                        const Lisple::sptr_val& definition_map,
                                         const UI::Theme* base = nullptr);
 }
 

@@ -13,11 +13,11 @@ namespace Pixils::Runtime
 {
   struct View;
 
-  Lisple::sptr_rtval invoke_hook(Lisple::Runtime& runtime,
-                                 const std::shared_ptr<View>& view,
-                                 const Lisple::sptr_rtval& fn,
-                                 Lisple::sptr_rtval_v& args,
-                                 const Lisple::sptr_rtval& fallback = Lisple::Constant::NIL);
+  Lisple::sptr_val invoke_hook(Lisple::Runtime& runtime,
+                               const std::shared_ptr<View>& view,
+                               const Lisple::sptr_val& fn,
+                               Lisple::sptr_val_v& args,
+                               const Lisple::sptr_val& fallback = Lisple::Constant::NIL);
 } // namespace Pixils::Runtime
 
 #endif /* PIXILS__RUNTIME__HOOK_INVOCATION_H */

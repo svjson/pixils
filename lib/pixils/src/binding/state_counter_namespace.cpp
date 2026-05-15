@@ -25,9 +25,9 @@ namespace Pixils::Script
   namespace
   {
 
-    Pixils::State::CounterMode parse_mode(const Lisple::sptr_rtval& mode_val)
+    Pixils::State::CounterMode parse_mode(const Lisple::sptr_val& mode_val)
     {
-      if (!mode_val || mode_val->type == Lisple::RTValue::Type::NIL)
+      if (!mode_val || mode_val->type == Lisple::Value::Type::NIL)
       {
         return Pixils::State::CounterMode::LOOP;
       }
@@ -41,27 +41,27 @@ namespace Pixils::Script
       return Pixils::State::CounterMode::LOOP;
     }
 
-    Lisple::sptr_rtval invoke_callback(Lisple::Context& ctx,
-                                       const Lisple::sptr_rtval& callback,
-                                       const Lisple::sptr_rtval& value)
+    Lisple::sptr_val invoke_callback(Lisple::Context& ctx,
+                                     const Lisple::sptr_val& callback,
+                                     const Lisple::sptr_val& value)
     {
-      if (!callback || callback->type == Lisple::RTValue::Type::NIL)
+      if (!callback || callback->type == Lisple::Value::Type::NIL)
       {
         return value;
       }
 
-      Lisple::sptr_rtval resolved = callback;
-      if (callback->type == Lisple::RTValue::Type::SYMBOL)
+      Lisple::sptr_val resolved = callback;
+      if (callback->type == Lisple::Value::Type::SYMBOL)
       {
         resolved = ctx.lookup(callback->str());
       }
 
-      if (!resolved || resolved->type != Lisple::RTValue::Type::FUNCTION)
+      if (!resolved || resolved->type != Lisple::Value::Type::FUNCTION)
       {
         throw Lisple::TypeError("Counter trigger callback must be callable");
       }
 
-      Lisple::sptr_rtval_v args = {value};
+      Lisple::sptr_val_v args = {value};
       return resolved->exec().execute(ctx, args);
     }
 
@@ -96,7 +96,7 @@ namespace Pixils::Script
 
   NOBJ_PROP_GET(CounterAdapter, mode)
   {
-    return Lisple::RTValue::keyword(Pixils::State::counter_mode_name(get_object().mode));
+    return Lisple::keyword(Pixils::State::counter_mode_name(get_object().mode));
   }
 
   namespace Function
@@ -109,7 +109,7 @@ namespace Pixils::Script
                                       {MapKey::VALUE, &Lisple::Type::NUMBER},
                                       {MapKey::END, &Lisple::Type::NUMBER},
                                       {MapKey::EVERY, &Lisple::Type::NUMBER},
-                                      {MapKey::MODE, &Lisple::Type::KEY}});
+                                      {MapKey::MODE, &Lisple::Type::KEYWORD}});
 
     EXEC_BODY(MakeCounter, exec_make)
     {
@@ -135,16 +135,17 @@ namespace Pixils::Script
         Pixils::State::advance_counter(Lisple::obj<Pixils::State::Counter>(*args[0])));
     }
 
-    FUNC_IMPL(
-      AdvanceCounterAt,
-      MULTI_SIG((FN_ARGS((&Lisple::Type::MAP), (&Lisple::Type::KEY)),
-                 EXEC_DISPATCH(&AdvanceCounterAt::exec_advance_at)),
-                (FN_ARGS((&Lisple::Type::MAP), (&Lisple::Type::KEY), (&Lisple::Type::MAP)),
-                 EXEC_DISPATCH(&AdvanceCounterAt::exec_advance_at_with_triggers))));
+    FUNC_IMPL(AdvanceCounterAt,
+              MULTI_SIG((FN_ARGS((&Lisple::Type::MAP), (&Lisple::Type::KEYWORD)),
+                         EXEC_DISPATCH(&AdvanceCounterAt::exec_advance_at)),
+                        (FN_ARGS((&Lisple::Type::MAP),
+                                 (&Lisple::Type::KEYWORD),
+                                 (&Lisple::Type::MAP)),
+                         EXEC_DISPATCH(&AdvanceCounterAt::exec_advance_at_with_triggers))));
 
     EXEC_BODY(AdvanceCounterAt, exec_advance_at)
     {
-      Lisple::sptr_rtval_v full_args = {args[0], args[1], Lisple::RTValue::map({})};
+      Lisple::sptr_val_v full_args = {args[0], args[1], Lisple::map({})};
       return exec_advance_at_with_triggers(ctx, full_args);
     }
 
@@ -156,18 +157,18 @@ namespace Pixils::Script
       const bool stepped =
         counter_stepped(Lisple::obj<Pixils::State::Counter>(*current_counter));
 
-      Lisple::sptr_rtval_v path = {args[1]};
+      Lisple::sptr_val_v path = {args[1]};
       auto updated =
         Lisple::Dict::assoc_in(args[0], path, CounterAdapter::make_unique(advanced_counter));
 
       auto on_step = Lisple::Dict::get_property(*args[2], MapKey::ON_STEP);
-      if (stepped && on_step && on_step->type != Lisple::RTValue::Type::NIL)
+      if (stepped && on_step && on_step->type != Lisple::Value::Type::NIL)
       {
         updated = invoke_callback(ctx, on_step, updated);
       }
 
       auto on_wrap = Lisple::Dict::get_property(*args[2], MapKey::ON_WRAP);
-      if (advanced_counter.wrapped && on_wrap && on_wrap->type != Lisple::RTValue::Type::NIL)
+      if (advanced_counter.wrapped && on_wrap && on_wrap->type != Lisple::Value::Type::NIL)
       {
         updated = invoke_callback(ctx, on_wrap, updated);
       }
@@ -181,17 +182,17 @@ namespace Pixils::Script
 
     EXEC_BODY(CounterValue, exec_value)
     {
-      return Lisple::RTValue::number(Lisple::obj<Pixils::State::Counter>(*args[0]).value);
+      return Lisple::number(Lisple::obj<Pixils::State::Counter>(*args[0]).value);
     }
 
     FUNC_IMPL(CounterValueAt,
-              SIG((FN_ARGS((&Lisple::Type::MAP), (&Lisple::Type::KEY)),
+              SIG((FN_ARGS((&Lisple::Type::MAP), (&Lisple::Type::KEYWORD)),
                    EXEC_DISPATCH(&CounterValueAt::exec_value_at))));
 
     EXEC_BODY(CounterValueAt, exec_value_at)
     {
       auto counter = Lisple::Dict::get_property(args[0], args[1]);
-      return Lisple::RTValue::number(Lisple::obj<Pixils::State::Counter>(*counter).value);
+      return Lisple::number(Lisple::obj<Pixils::State::Counter>(*counter).value);
     }
   } // namespace Function
 

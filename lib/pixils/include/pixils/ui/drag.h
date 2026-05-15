@@ -31,7 +31,7 @@ namespace Pixils::UI
   {
     MouseButton button = MouseButton::LEFT;
     DragStartPolicy start;
-    Lisple::sptr_rtval payload = Lisple::Constant::NIL;
+    Lisple::sptr_val payload = Lisple::Constant::NIL;
   };
 
   struct DragOperation
@@ -40,7 +40,7 @@ namespace Pixils::UI
     std::weak_ptr<Runtime::View> source;
     Point start_global_pos;
     Point current_global_pos;
-    Lisple::sptr_rtval payload = Lisple::Constant::NIL;
+    Lisple::sptr_val payload = Lisple::Constant::NIL;
     DragPolicy policy;
   };
 

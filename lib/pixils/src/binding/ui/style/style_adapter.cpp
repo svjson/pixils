@@ -15,25 +15,25 @@ namespace Pixils::Script
 {
   namespace
   {
-    Lisple::sptr_rtval background_fit_to_value(
+    Lisple::sptr_val background_fit_to_value(
       const std::optional<UI::Style::Background::Fit>& fit)
     {
       if (!fit) return Lisple::Constant::NIL;
       switch (*fit)
       {
       case UI::Style::Background::Fit::NONE:
-        return Lisple::RTValue::keyword("none");
+        return Lisple::keyword("none");
       case UI::Style::Background::Fit::CONTAIN:
-        return Lisple::RTValue::keyword("contain");
+        return Lisple::keyword("contain");
       case UI::Style::Background::Fit::COVER:
-        return Lisple::RTValue::keyword("cover");
+        return Lisple::keyword("cover");
       case UI::Style::Background::Fit::FILL:
-        return Lisple::RTValue::keyword("fill");
+        return Lisple::keyword("fill");
       }
       return Lisple::Constant::NIL;
     }
 
-    Lisple::sptr_rtval background_align_to_value(
+    Lisple::sptr_val background_align_to_value(
       const std::optional<UI::Style::Background::Align>& align_x,
       const std::optional<UI::Style::Background::Align>& align_y)
     {
@@ -53,12 +53,12 @@ namespace Pixils::Script
         return "start";
       };
 
-      return Lisple::RTValue::map({Lisple::RTValue::keyword("x"),
-                                   Lisple::RTValue::keyword(align_name(
-                                     align_x.value_or(UI::Style::Background::Align::START))),
-                                   Lisple::RTValue::keyword("y"),
-                                   Lisple::RTValue::keyword(align_name(align_y.value_or(
-                                     UI::Style::Background::Align::START)))});
+      return Lisple::map(
+        {Lisple::keyword("x"),
+         Lisple::keyword(align_name(align_x.value_or(UI::Style::Background::Align::START))),
+         Lisple::keyword("y"),
+         Lisple::keyword(
+           align_name(align_y.value_or(UI::Style::Background::Align::START)))});
     }
 
   } // namespace
@@ -110,8 +110,7 @@ namespace Pixils::Script
     }
     if (background.image)
     {
-      return Lisple::RTValue::keyword(background.image->first + "/" +
-                                      background.image->second);
+      return Lisple::keyword(background.image->first + "/" + background.image->second);
     }
     return Lisple::Constant::NIL;
   }
@@ -153,18 +152,18 @@ namespace Pixils::Script
 
   NOBJ_PROP_GET(StyleAdapter, opacity)
   {
-    return get_self_object().opacity ? Lisple::RTValue::number(*get_self_object().opacity)
+    return get_self_object().opacity ? Lisple::number(*get_self_object().opacity)
                                      : Lisple::Constant::NIL;
   }
 
   NOBJ_PROP_SET(StyleAdapter, opacity)
   {
-    if (!value || value->type == Lisple::RTValue::Type::NIL)
+    if (!value || value->type == Lisple::Value::Type::NIL)
     {
       get_self_object().opacity = std::nullopt;
       return;
     }
-    if (value->type != Lisple::RTValue::Type::NUMBER)
+    if (value->type != Lisple::Value::Type::NUMBER)
       throw Lisple::TypeError("Style :opacity must be a number");
     get_self_object().opacity = std::clamp(value->f32(), 0.0f, 1.0f);
   }
@@ -344,13 +343,13 @@ namespace Pixils::Script
 
   NOBJ_PROP_GET(StyleTextAdapter, font)
   {
-    return get_self_object().font ? Lisple::RTValue::keyword(*get_self_object().font)
+    return get_self_object().font ? Lisple::keyword(*get_self_object().font)
                                   : Lisple::Constant::NIL;
   }
 
   NOBJ_PROP_GET(StyleTextAdapter, scale)
   {
-    return get_self_object().scale ? Lisple::RTValue::number(*get_self_object().scale)
+    return get_self_object().scale ? Lisple::number(*get_self_object().scale)
                                    : Lisple::Constant::NIL;
   }
 
@@ -380,10 +379,9 @@ namespace Pixils::Script
 
   NOBJ_PROP_GET(BackgroundAdapter, image)
   {
-    return get_self_object().image
-             ? Lisple::RTValue::keyword(get_self_object().image->first + "/" +
-                                        get_self_object().image->second)
-             : Lisple::Constant::NIL;
+    return get_self_object().image ? Lisple::keyword(get_self_object().image->first + "/" +
+                                                     get_self_object().image->second)
+                                   : Lisple::Constant::NIL;
   }
 
   NOBJ_PROP_GET(BackgroundAdapter, color)
@@ -416,7 +414,7 @@ namespace Pixils::Script
 
   NOBJ_PROP_GET(BackgroundAdapter, opacity)
   {
-    return get_self_object().opacity ? Lisple::RTValue::number(*get_self_object().opacity)
+    return get_self_object().opacity ? Lisple::number(*get_self_object().opacity)
                                      : Lisple::Constant::NIL;
   }
 
@@ -430,9 +428,8 @@ namespace Pixils::Script
 
   NOBJ_PROP_GET(BorderAdapter, thickness)
   {
-    return get_self_object().thickness
-             ? Lisple::RTValue::number(*get_self_object().thickness)
-             : Lisple::Constant::NIL;
+    return get_self_object().thickness ? Lisple::number(*get_self_object().thickness)
+                                       : Lisple::Constant::NIL;
   }
 
   NOBJ_PROP_GET(BorderAdapter, line_style)

@@ -166,10 +166,10 @@ namespace Pixils
 
     std::unique_ptr<char> key_to_char(SDL_KeyboardEvent& key_event);
 
-    Lisple::sptr_rtval key_event_to_lisple_key(const SDL_KeyboardEvent& event);
+    Lisple::sptr_val key_event_to_lisple_key(const SDL_KeyboardEvent& event);
 
-    std::optional<std::string> key_to_text(const Lisple::sptr_rtval& key,
-                                           const Lisple::sptr_rtval& held_keys);
+    std::optional<std::string> key_to_text(const Lisple::sptr_val& key,
+                                           const Lisple::sptr_val& held_keys);
   } // namespace Keyboard
 
 } // namespace Pixils

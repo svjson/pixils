@@ -66,7 +66,7 @@ namespace Pixils::Script
       const Point& a = Lisple::obj<Point>(*args[0]);
       const Point& b = Lisple::obj<Point>(*args[1]);
 
-      return Lisple::RTValue::number(a.distance_to(b));
+      return Lisple::number(a.distance_to(b));
     }
 
     /* Clamp Point */
@@ -167,21 +167,18 @@ namespace Pixils::Script
 
     EXEC_BODY(RotatePoint, exec_amount)
     {
-      Lisple::sptr_rtval_v fwd_args = {
-        args[0],
-        Lisple::RTValue::map({Lisple::RTValue::keyword("radians"), args[1]})};
+      Lisple::sptr_val_v fwd_args = {args[0],
+                                     Lisple::map({Lisple::keyword("radians"), args[1]})};
 
       return this->exec_with_opts(ctx, fwd_args);
     }
 
     EXEC_BODY(RotatePoint, exec_orig_amount)
     {
-      Lisple::sptr_rtval_v fwd_args = {
+      Lisple::sptr_val_v fwd_args = {
         args[0],
-        Lisple::RTValue::map({Lisple::RTValue::keyword("origin"),
-                              args[1],
-                              Lisple::RTValue::keyword("amount"),
-                              args[2]})};
+        Lisple::map(
+          {Lisple::keyword("origin"), args[1], Lisple::keyword("amount"), args[2]})};
 
       return this->exec_with_opts(ctx, fwd_args);
     }

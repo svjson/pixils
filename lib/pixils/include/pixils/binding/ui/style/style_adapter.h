@@ -4,35 +4,35 @@
 #include <pixils/ui/style.h>
 #include <pixils/ui/theme.h>
 
-#include <lisple/host.h>
 #include <lisple/host/object.h>
 
 namespace Pixils::Script
 {
-  NATIVE_ADAPTER(StyleAdapter,
-                 UI::Style,
-                 (background,
-                  margin,
-                  border,
-                  padding,
-                  text,
-                  box_sizing,
-                  opacity,
-                  scale,
-                  width,
-                  height,
-                  position,
-                  top,
-                  left,
-                  layout,
-                  hidden,
-                  hit_test,
-                  clip,
-                  cursor,
-                  hover,
-                  focus_within,
-                  focus),
-                 (clip, cursor, height, hidden, hit_test, left, opacity, position, scale, top, width));
+  NATIVE_ADAPTER(
+    StyleAdapter,
+    UI::Style,
+    (background,
+     margin,
+     border,
+     padding,
+     text,
+     box_sizing,
+     opacity,
+     scale,
+     width,
+     height,
+     position,
+     top,
+     left,
+     layout,
+     hidden,
+     hit_test,
+     clip,
+     cursor,
+     hover,
+     focus_within,
+     focus),
+    (clip, cursor, height, hidden, hit_test, left, opacity, position, scale, top, width));
   NATIVE_ADAPTER(LayoutAdapter, UI::Style::Layout, (direction, align_items, gap));
   NATIVE_ADAPTER(LayoutGapAdapter, UI::Style::Layout::Gap, (mode, size));
   NATIVE_ADAPTER(StyleTextAdapter, UI::Style::Text, (color, font, scale, align, wrap));

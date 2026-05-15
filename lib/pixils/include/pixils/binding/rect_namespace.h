@@ -3,7 +3,6 @@
 #define PIXILS__RECT_NAMESPACE_H
 
 #include <lisple/exec.h>
-#include <lisple/host.h>
 #include <lisple/host/object.h>
 #include <string>
 

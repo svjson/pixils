@@ -12,16 +12,16 @@ namespace Pixils
 {
   namespace
   {
-    Lisple::sptr_rtval mouse_button_keyword(Uint8 button)
+    Lisple::sptr_val mouse_button_keyword(Uint8 button)
     {
       switch (button)
       {
       case SDL_BUTTON_LEFT:
-        return Lisple::RTValue::keyword("left");
+        return Lisple::keyword("left");
       case SDL_BUTTON_RIGHT:
-        return Lisple::RTValue::keyword("right");
+        return Lisple::keyword("right");
       case SDL_BUTTON_MIDDLE:
-        return Lisple::RTValue::keyword("middle");
+        return Lisple::keyword("middle");
       default:
         return Lisple::Constant::NIL;
       }
@@ -56,10 +56,9 @@ namespace Pixils
     if (*btn == *Lisple::Constant::NIL) return;
     mouse_button_up = btn;
     auto& children = mouse_held->mut_elements();
-    auto it =
-      std::remove_if(children.begin(),
-                     children.end(),
-                     [btn](const Lisple::sptr_rtval& hbtn) { return *btn == *hbtn; });
+    auto it = std::remove_if(children.begin(),
+                             children.end(),
+                             [btn](const Lisple::sptr_val& hbtn) { return *btn == *hbtn; });
     if (it != children.end()) children.erase(it);
   }
 
@@ -86,10 +85,9 @@ namespace Pixils
     key_up = key;
 
     auto& children = this->held_keys->mut_elements();
-    auto it =
-      std::remove_if(children.begin(),
-                     children.end(),
-                     [key](const Lisple::sptr_rtval& hkey) { return *key == *hkey; });
+    auto it = std::remove_if(children.begin(),
+                             children.end(),
+                             [key](const Lisple::sptr_val& hkey) { return *key == *hkey; });
 
     if (it != children.end())
     {
@@ -97,12 +95,12 @@ namespace Pixils
     }
   }
 
-  bool FrameEvents::is_key_held(const Lisple::RTValue& key) const
+  bool FrameEvents::is_key_held(const Lisple::Value& key) const
   {
     auto& children = this->held_keys->mut_elements();
     auto it = std::find_if(children.begin(),
                            children.end(),
-                           [key](const Lisple::sptr_rtval& hkey) { return key == *hkey; });
+                           [key](const Lisple::sptr_val& hkey) { return key == *hkey; });
 
     return it != children.end();
   }

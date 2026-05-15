@@ -13,7 +13,6 @@
 #include <filesystem>
 #include <gtest/gtest.h>
 #include <iostream>
-#include <lisple/host.h>
 #include <lisple/runtime.h>
 #include <lisple/runtime/dict.h>
 #include <lisple/runtime/value.h>
@@ -72,36 +71,35 @@ namespace
       AppFixture::write_composed_file(file, app_root);
   }
 
-  Lisple::sptr_rtval invoke_test_fn(Lisple::Runtime& runtime)
+  Lisple::sptr_val invoke_test_fn(Lisple::Runtime& runtime)
   {
-    Lisple::sptr_rtval_v args{Lisple::Constant::NIL, Lisple::Constant::NIL};
+    Lisple::sptr_val_v args{Lisple::Constant::NIL, Lisple::Constant::NIL};
     return runtime.invoke("pixils.test.app.main/test-fn", args);
   }
 
-  Lisple::sptr_rtval invoke_test_mode_init(Lisple::Runtime& runtime)
+  Lisple::sptr_val invoke_test_mode_init(Lisple::Runtime& runtime)
   {
     auto modes = runtime.lookup("pixils/modes");
-    auto mode_val = Lisple::Dict::get_property(modes, Lisple::RTValue::symbol("test-mode"));
+    auto mode_val = Lisple::Dict::get_property(modes, Lisple::symbol("test-mode"));
     auto& mode = Lisple::obj<Pixils::Runtime::Mode>(*mode_val);
 
     Lisple::Context exec_ctx(runtime);
-    Lisple::sptr_rtval_v args{Lisple::Constant::NIL, Lisple::Constant::NIL};
+    Lisple::sptr_val_v args{Lisple::Constant::NIL, Lisple::Constant::NIL};
     return mode.init->exec().execute(exec_ctx, args);
   }
 
-  Lisple::sptr_rtval invoke_test_mode_init_with_hook_context(
-    Lisple::Runtime& runtime,
-    Pixils::FrameEvents& events,
-    Pixils::RenderContext& render_ctx)
+  Lisple::sptr_val invoke_test_mode_init_with_hook_context(Lisple::Runtime& runtime,
+                                                           Pixils::FrameEvents& events,
+                                                           Pixils::RenderContext& render_ctx)
   {
     auto modes = runtime.lookup("pixils/modes");
-    auto mode_val = Lisple::Dict::get_property(modes, Lisple::RTValue::symbol("test-mode"));
+    auto mode_val = Lisple::Dict::get_property(modes, Lisple::symbol("test-mode"));
     auto& mode = Lisple::obj<Pixils::Runtime::Mode>(*mode_val);
 
     Pixils::HookContext hook_ctx{&events, &render_ctx, nullptr};
     Lisple::Context exec_ctx(runtime);
-    Lisple::sptr_rtval_v args{Lisple::Constant::NIL,
-                              Pixils::Script::HookContextAdapter::make_ref(hook_ctx)};
+    Lisple::sptr_val_v args{Lisple::Constant::NIL,
+                            Pixils::Script::HookContextAdapter::make_ref(hook_ctx)};
     return mode.init->exec().execute(exec_ctx, args);
   }
 } // namespace
@@ -124,7 +122,7 @@ TEST(RuntimeMoveCharacterizationTest,
                                 {"pixils/test/app/main.lisple"});
 
   auto result = invoke_test_fn(runtime);
-  auto ticks = Lisple::Dict::get_property(result, Lisple::RTValue::keyword("ticks"));
+  auto ticks = Lisple::Dict::get_property(result, Lisple::keyword("ticks"));
 
   ASSERT_NE(ticks, nullptr);
   EXPECT_EQ(ticks->num().get_int(), 2);
@@ -151,7 +149,7 @@ TEST(RuntimeMoveCharacterizationTest,
 
   auto moved_runtime = std::make_unique<Lisple::Runtime>(std::move(runtime));
   auto result = invoke_test_fn(*moved_runtime);
-  auto ticks = Lisple::Dict::get_property(result, Lisple::RTValue::keyword("ticks"));
+  auto ticks = Lisple::Dict::get_property(result, Lisple::keyword("ticks"));
 
   ASSERT_NE(ticks, nullptr);
   EXPECT_EQ(ticks->num().get_int(), 2);
@@ -179,9 +177,9 @@ TEST(RuntimeMoveCharacterizationTest,
   auto moved_runtime = std::make_unique<Lisple::Runtime>(std::move(runtime));
   moved_runtime->eval("(def moved-fn (fn [state ctx] {:ticks 3}))");
 
-  Lisple::sptr_rtval_v args{Lisple::Constant::NIL, Lisple::Constant::NIL};
+  Lisple::sptr_val_v args{Lisple::Constant::NIL, Lisple::Constant::NIL};
   auto result = moved_runtime->invoke("moved-fn", args);
-  auto ticks = Lisple::Dict::get_property(result, Lisple::RTValue::keyword("ticks"));
+  auto ticks = Lisple::Dict::get_property(result, Lisple::keyword("ticks"));
 
   ASSERT_NE(ticks, nullptr);
   EXPECT_EQ(ticks->num().get_int(), 3);
@@ -207,7 +205,7 @@ TEST(RuntimeMoveCharacterizationTest,
                                 {"pixils/test/app/main.lisple"});
 
   auto result = invoke_test_mode_init(runtime);
-  auto ticks = Lisple::Dict::get_property(result, Lisple::RTValue::keyword("ticks"));
+  auto ticks = Lisple::Dict::get_property(result, Lisple::keyword("ticks"));
 
   ASSERT_NE(ticks, nullptr);
   EXPECT_EQ(ticks->num().get_int(), 2);
@@ -233,7 +231,7 @@ TEST(RuntimeMoveCharacterizationTest, moved_runtime_executes_file_defined_mode_i
 
   auto moved_runtime = std::make_unique<Lisple::Runtime>(std::move(runtime));
   auto result = invoke_test_mode_init(*moved_runtime);
-  auto ticks = Lisple::Dict::get_property(result, Lisple::RTValue::keyword("ticks"));
+  auto ticks = Lisple::Dict::get_property(result, Lisple::keyword("ticks"));
 
   ASSERT_NE(ticks, nullptr);
   EXPECT_EQ(ticks->num().get_int(), 2);
@@ -260,7 +258,7 @@ TEST(RuntimeMoveCharacterizationTest,
                                 {"pixils/test/app/main.lisple"});
 
   auto result = invoke_test_mode_init_with_hook_context(runtime, events, render_ctx);
-  auto ticks = Lisple::Dict::get_property(result, Lisple::RTValue::keyword("ticks"));
+  auto ticks = Lisple::Dict::get_property(result, Lisple::keyword("ticks"));
 
   ASSERT_NE(ticks, nullptr);
   EXPECT_EQ(ticks->num().get_int(), 2);
@@ -297,7 +295,7 @@ TEST(RuntimeMoveCharacterizationTest,
                                    hook_args);
 
   auto modes = runtime.lookup("pixils/modes");
-  auto mode_val = Lisple::Dict::get_property(modes, Lisple::RTValue::symbol("test-mode"));
+  auto mode_val = Lisple::Dict::get_property(modes, Lisple::symbol("test-mode"));
   auto& mode = Lisple::obj<Pixils::Runtime::Mode>(*mode_val);
 
   auto view = std::make_shared<Pixils::Runtime::View>();
@@ -309,7 +307,7 @@ TEST(RuntimeMoveCharacterizationTest,
                                              mode.init,
                                              session.hook_args.init_args,
                                              Lisple::Constant::NIL);
-  auto ticks = Lisple::Dict::get_property(result, Lisple::RTValue::keyword("ticks"));
+  auto ticks = Lisple::Dict::get_property(result, Lisple::keyword("ticks"));
 
   ASSERT_NE(ticks, nullptr);
   EXPECT_EQ(ticks->num().get_int(), 2);
@@ -346,7 +344,7 @@ TEST(RuntimeMoveCharacterizationTest,
                                    hook_args);
 
   auto modes = runtime.lookup("pixils/modes");
-  auto mode_val = Lisple::Dict::get_property(modes, Lisple::RTValue::symbol("test-mode"));
+  auto mode_val = Lisple::Dict::get_property(modes, Lisple::symbol("test-mode"));
   auto& mode = Lisple::obj<Pixils::Runtime::Mode>(*mode_val);
 
   session.mode_stack.push(mode_val, Lisple::Constant::NIL);
@@ -360,7 +358,7 @@ TEST(RuntimeMoveCharacterizationTest,
                                              session.active_mode->mode->init,
                                              session.hook_args.init_args,
                                              session.active_mode->state);
-  auto ticks = Lisple::Dict::get_property(result, Lisple::RTValue::keyword("ticks"));
+  auto ticks = Lisple::Dict::get_property(result, Lisple::keyword("ticks"));
 
   ASSERT_NE(ticks, nullptr);
   EXPECT_EQ(ticks->num().get_int(), 2);
@@ -402,7 +400,7 @@ TEST(RuntimeMoveCharacterizationTest,
                                    hook_args);
 
   auto modes = runtime.lookup("pixils/modes");
-  auto mode_val = Lisple::Dict::get_property(modes, Lisple::RTValue::symbol("test-mode"));
+  auto mode_val = Lisple::Dict::get_property(modes, Lisple::symbol("test-mode"));
   auto& mode = Lisple::obj<Pixils::Runtime::Mode>(*mode_val);
 
   auto view = std::make_shared<Pixils::Runtime::View>();
@@ -414,7 +412,7 @@ TEST(RuntimeMoveCharacterizationTest,
                                              mode.init,
                                              session.hook_args.init_args,
                                              Lisple::Constant::NIL);
-  auto ticks = Lisple::Dict::get_property(result, Lisple::RTValue::keyword("ticks"));
+  auto ticks = Lisple::Dict::get_property(result, Lisple::keyword("ticks"));
 
   ASSERT_NE(ticks, nullptr);
   EXPECT_EQ(ticks->num().get_int(), 2);
@@ -456,7 +454,7 @@ TEST(RuntimeMoveCharacterizationTest,
                                    hook_args);
 
   auto modes = runtime->lookup("pixils/modes");
-  auto mode_val = Lisple::Dict::get_property(modes, Lisple::RTValue::symbol("test-mode"));
+  auto mode_val = Lisple::Dict::get_property(modes, Lisple::symbol("test-mode"));
   auto& mode = Lisple::obj<Pixils::Runtime::Mode>(*mode_val);
 
   auto view = std::make_shared<Pixils::Runtime::View>();
@@ -468,7 +466,7 @@ TEST(RuntimeMoveCharacterizationTest,
                                              mode.init,
                                              session.hook_args.init_args,
                                              Lisple::Constant::NIL);
-  auto ticks = Lisple::Dict::get_property(result, Lisple::RTValue::keyword("ticks"));
+  auto ticks = Lisple::Dict::get_property(result, Lisple::keyword("ticks"));
 
   ASSERT_NE(ticks, nullptr);
   EXPECT_EQ(ticks->num().get_int(), 2);

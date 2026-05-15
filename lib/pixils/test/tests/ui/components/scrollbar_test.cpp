@@ -68,8 +68,7 @@ TEST_F(ScrollbarTest, scrollbar_button_children_bubble_click_behavior_to_scrollb
   input().mouse_down({45, 5});
   update_cycle();
 
-  auto value =
-    Lisple::Dict::get_property(scrollbar->state, Lisple::RTValue::keyword("value"));
+  auto value = Lisple::Dict::get_property(scrollbar->state, Lisple::keyword("value"));
   ASSERT_NE(value, nullptr);
   EXPECT_EQ(value->num().get_int(), 5);
 }

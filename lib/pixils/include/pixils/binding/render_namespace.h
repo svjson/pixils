@@ -2,8 +2,9 @@
 #ifndef PIXILS__RENDER_NAMESPACE_H
 #define PIXILS__RENDER_NAMESPACE_H
 
+#include <pixils/binding/shkey.h>
+
 #include <lisple/exec.h>
-#include <lisple/host.h>
 #include <lisple/namespace.h>
 
 namespace Pixils::Script

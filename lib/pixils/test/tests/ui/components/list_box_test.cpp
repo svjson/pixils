@@ -80,8 +80,8 @@ TEST_F(ListBoxTest, list_box_uses_scroll_pane_and_forces_initial_selection)
   EXPECT_EQ(list_box->bounds.w, 100);
   EXPECT_EQ(list_box->bounds.h, 20);
 
-  auto selected = Lisple::Dict::get_property(list_box->state,
-                                             Lisple::RTValue::keyword("selected-indices"));
+  auto selected =
+    Lisple::Dict::get_property(list_box->state, Lisple::keyword("selected-indices"));
   ASSERT_NE(selected, nullptr);
   EXPECT_EQ(selected->to_string(), "[0]");
 
@@ -94,8 +94,7 @@ TEST_F(ListBoxTest, list_box_uses_scroll_pane_and_forces_initial_selection)
   auto content = viewport->children[0];
   ASSERT_GE(content->children.size(), 1u);
   auto first_item = content->children[0];
-  auto first_value =
-    Lisple::Dict::get_property(first_item->state, Lisple::RTValue::keyword("value"));
+  auto first_value = Lisple::Dict::get_property(first_item->state, Lisple::keyword("value"));
   ASSERT_NE(first_value, nullptr);
   EXPECT_EQ(first_value->to_string(), ":a");
 }
@@ -170,8 +169,8 @@ TEST_F(ListBoxTest, list_box_ctrl_and_shift_click_update_selection)
   input().key_up(SDLK_LCTRL);
   update_cycle();
 
-  auto selected = Lisple::Dict::get_property(session.active_mode->state,
-                                             Lisple::RTValue::keyword("selected"));
+  auto selected =
+    Lisple::Dict::get_property(session.active_mode->state, Lisple::keyword("selected"));
   ASSERT_NE(selected, nullptr);
   EXPECT_EQ(selected->to_string(), "[0 1]");
 
@@ -183,8 +182,8 @@ TEST_F(ListBoxTest, list_box_ctrl_and_shift_click_update_selection)
   input().key_up(SDLK_LSHIFT);
   update_cycle();
 
-  selected = Lisple::Dict::get_property(session.active_mode->state,
-                                        Lisple::RTValue::keyword("selected"));
+  selected =
+    Lisple::Dict::get_property(session.active_mode->state, Lisple::keyword("selected"));
   ASSERT_NE(selected, nullptr);
   EXPECT_EQ(selected->to_string(), "[1 2]");
 
@@ -193,8 +192,8 @@ TEST_F(ListBoxTest, list_box_ctrl_and_shift_click_update_selection)
   input().mouse_up({5, 15});
   update_cycle();
 
-  selected = Lisple::Dict::get_property(session.active_mode->state,
-                                        Lisple::RTValue::keyword("selected"));
+  selected =
+    Lisple::Dict::get_property(session.active_mode->state, Lisple::keyword("selected"));
   ASSERT_NE(selected, nullptr);
   EXPECT_EQ(selected->to_string(), "[2]");
 }

@@ -4,7 +4,6 @@
 #include <pixils/state/counter.h>
 
 #include <lisple/exec.h>
-#include <lisple/host.h>
 #include <lisple/host/object.h>
 #include <lisple/namespace.h>
 #include <string>

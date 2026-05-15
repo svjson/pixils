@@ -10,7 +10,6 @@
 #include <algorithm>
 #include <lisple/context.h>
 #include <lisple/exception.h>
-#include <lisple/host.h>
 #include <lisple/host/schema.h>
 #include <lisple/runtime/dict.h>
 #include <lisple/runtime/seq.h>
@@ -40,18 +39,18 @@ namespace Pixils::Script
      * resolution happens separately at activation time via resolve_hook in
      * session.cpp.
      */
-    Lisple::sptr_rtval eval_hook(Lisple::Context& ctx, const Lisple::sptr_rtval& val)
+    Lisple::sptr_val eval_hook(Lisple::Context& ctx, const Lisple::sptr_val& val)
     {
-      if (val && val->type == Lisple::RTValue::Type::LIST)
+      if (val && val->type == Lisple::Value::Type::LIST)
       {
         return ctx.eval(val->to_string());
       }
       return val ? val : Lisple::Constant::NIL;
     }
 
-    UI::DragStartMode parse_drag_start_mode(const Lisple::sptr_rtval& value)
+    UI::DragStartMode parse_drag_start_mode(const Lisple::sptr_val& value)
     {
-      if (!value || value->type != Lisple::RTValue::Type::KEYWORD)
+      if (!value || value->type != Lisple::Value::Type::KEYWORD)
         throw Lisple::TypeError("Mode :drag :start :mode must be a keyword");
 
       if (value->str() == "motion") return UI::DragStartMode::MOTION;
@@ -61,24 +60,24 @@ namespace Pixils::Script
     }
 
     UI::DragStartPolicy parse_drag_start_policy(Lisple::Context& ctx,
-                                                const Lisple::sptr_rtval& value)
+                                                const Lisple::sptr_val& value)
     {
       UI::DragStartPolicy policy;
-      if (!value || value->type == Lisple::RTValue::Type::NIL) return policy;
+      if (!value || value->type == Lisple::Value::Type::NIL) return policy;
 
-      if (value->type == Lisple::RTValue::Type::KEYWORD)
+      if (value->type == Lisple::Value::Type::KEYWORD)
       {
         policy.mode = parse_drag_start_mode(value);
         if (policy.mode == UI::DragStartMode::THRESHOLD) policy.distance = 3;
         return policy;
       }
 
-      if (value->type != Lisple::RTValue::Type::MAP)
+      if (value->type != Lisple::Value::Type::MAP)
         throw Lisple::TypeError("Mode :drag :start must be a keyword or map");
 
-      static Lisple::MapSchema start_schema({},
-                                            {{"mode", &Lisple::Type::KEY},
-                                             {"distance", &Lisple::Type::NUMBER}});
+      static Lisple::MapSchema start_schema(
+        {},
+        {{"mode", &Lisple::Type::KEYWORD}, {"distance", &Lisple::Type::NUMBER}});
       auto opts = start_schema.bind(ctx, *value);
       if (opts.contains("mode")) policy.mode = parse_drag_start_mode(opts.val("mode"));
       if (opts.contains("distance"))
@@ -90,14 +89,14 @@ namespace Pixils::Script
     }
 
     std::optional<UI::DragPolicy> parse_drag_policy(Lisple::Context& ctx,
-                                                    const Lisple::sptr_rtval& value)
+                                                    const Lisple::sptr_val& value)
     {
-      if (!value || value->type == Lisple::RTValue::Type::NIL) return std::nullopt;
-      if (value->type != Lisple::RTValue::Type::MAP)
+      if (!value || value->type == Lisple::Value::Type::NIL) return std::nullopt;
+      if (value->type != Lisple::Value::Type::MAP)
         throw Lisple::TypeError("Mode :drag must be a map");
 
       static Lisple::MapSchema drag_schema({},
-                                           {{"button", &Lisple::Type::KEY},
+                                           {{"button", &Lisple::Type::KEYWORD},
                                             {"start", &Lisple::Type::ANY},
                                             {"payload", &Lisple::Type::ANY}});
 
@@ -115,25 +114,25 @@ namespace Pixils::Script
 
   } // namespace
 
-  std::vector<std::string> parse_mode_classes(const Lisple::sptr_rtval& class_val)
+  std::vector<std::string> parse_mode_classes(const Lisple::sptr_val& class_val)
   {
     std::vector<std::string> classes;
-    if (!class_val || class_val->type == Lisple::RTValue::Type::NIL) return classes;
+    if (!class_val || class_val->type == Lisple::Value::Type::NIL) return classes;
 
-    auto parse_one = [&](const Lisple::sptr_rtval& value)
+    auto parse_one = [&](const Lisple::sptr_val& value)
     {
-      if (value->type != Lisple::RTValue::Type::KEYWORD)
+      if (value->type != Lisple::Value::Type::KEYWORD)
         throw Lisple::TypeError("Mode :class entries must be keywords");
       classes.push_back(value->str());
     };
 
-    if (class_val->type == Lisple::RTValue::Type::KEYWORD)
+    if (class_val->type == Lisple::Value::Type::KEYWORD)
     {
       parse_one(class_val);
       return classes;
     }
 
-    if (class_val->type == Lisple::RTValue::Type::VECTOR)
+    if (class_val->type == Lisple::Value::Type::VECTOR)
     {
       for (const auto& child : Lisple::get_children(*class_val))
       {
@@ -145,28 +144,28 @@ namespace Pixils::Script
     throw Lisple::TypeError("Mode :class must be a keyword or vector of keywords");
   }
 
-  std::vector<std::string> parse_theme_names(const Lisple::sptr_rtval& theme_val,
+  std::vector<std::string> parse_theme_names(const Lisple::sptr_val& theme_val,
                                              const std::string& context)
   {
     std::vector<std::string> names;
-    if (!theme_val || theme_val->type == Lisple::RTValue::Type::NIL) return names;
+    if (!theme_val || theme_val->type == Lisple::Value::Type::NIL) return names;
 
-    auto parse_one = [&](const Lisple::sptr_rtval& value)
+    auto parse_one = [&](const Lisple::sptr_val& value)
     {
-      if (value->type != Lisple::RTValue::Type::SYMBOL)
+      if (value->type != Lisple::Value::Type::SYMBOL)
       {
         throw Lisple::TypeError(context + " entries must be symbols");
       }
       names.push_back(value->str());
     };
 
-    if (theme_val->type == Lisple::RTValue::Type::SYMBOL)
+    if (theme_val->type == Lisple::Value::Type::SYMBOL)
     {
       parse_one(theme_val);
       return names;
     }
 
-    if (theme_val->type == Lisple::RTValue::Type::VECTOR)
+    if (theme_val->type == Lisple::Value::Type::VECTOR)
     {
       for (const auto& child : Lisple::get_children(*theme_val))
       {
@@ -179,7 +178,7 @@ namespace Pixils::Script
   }
 
   std::vector<Runtime::ChildSlot> parse_child_slots(Lisple::Context& ctx,
-                                                    const Lisple::sptr_rtval& children_val)
+                                                    const Lisple::sptr_val& children_val)
   {
     static Lisple::MapSchema child_schema({},
                                           {{"mode", &Lisple::Type::SYMBOL},
@@ -236,7 +235,7 @@ namespace Pixils::Script
   }
 
   Runtime::Mode build_mode_from_definition(Lisple::Context& ctx,
-                                           const Lisple::sptr_rtval& definition_map,
+                                           const Lisple::sptr_val& definition_map,
                                            const Runtime::Mode* base)
   {
     static Lisple::MapSchema mode_schema({},
@@ -278,9 +277,8 @@ namespace Pixils::Script
     {
       auto extends_name = opts.str("extend", "");
       auto modes = ctx.lookup(ID__PIXILS__MODES);
-      auto base_val =
-        Lisple::Dict::get_property(modes, Lisple::RTValue::symbol(extends_name));
-      if (!base_val || base_val->type == Lisple::RTValue::Type::NIL)
+      auto base_val = Lisple::Dict::get_property(modes, Lisple::symbol(extends_name));
+      if (!base_val || base_val->type == Lisple::Value::Type::NIL)
         throw Lisple::InvocationException("defmode :extends - unknown base mode '" +
                                           extends_name + "'");
       mode = Lisple::obj<Runtime::Mode>(*base_val);
@@ -303,7 +301,7 @@ namespace Pixils::Script
       }
     }
 
-    auto apply_hook = [&](Lisple::sptr_rtval& field, const char* key)
+    auto apply_hook = [&](Lisple::sptr_val& field, const char* key)
     {
       if (opts.contains(key))
       {
@@ -333,7 +331,7 @@ namespace Pixils::Script
     if (opts.contains("on"))
     {
       auto on_val = opts.val("on");
-      if (on_val->type == Lisple::RTValue::Type::MAP)
+      if (on_val->type == Lisple::Value::Type::MAP)
       {
         for (auto& key : Lisple::Dict::keys(*on_val))
           mode.event_handlers[key->str()] = Lisple::Dict::get_property(on_val, key);
@@ -381,7 +379,7 @@ namespace Pixils::Script
     if (opts.contains("children"))
     {
       auto children_val = opts.val("children");
-      if (children_val->type != Lisple::RTValue::Type::NIL)
+      if (children_val->type != Lisple::Value::Type::NIL)
       {
         mode.children = parse_child_slots(ctx, children_val);
       }

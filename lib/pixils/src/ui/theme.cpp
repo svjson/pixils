@@ -22,7 +22,7 @@ namespace Pixils::UI
              static_cast<int>(selector.focus_within);
     }
 
-    bool rtval_equal(const Lisple::sptr_rtval& lhs, const Lisple::sptr_rtval& rhs)
+    bool rtval_equal(const Lisple::sptr_val& lhs, const Lisple::sptr_val& rhs)
     {
       if (lhs == rhs) return true;
       if (!lhs || !rhs) return false;
@@ -38,12 +38,11 @@ namespace Pixils::UI
       }
     }
 
-    bool state_subset_matches(const Lisple::sptr_rtval& selector_state,
-                              const Lisple::sptr_rtval& view_state)
+    bool state_subset_matches(const Lisple::sptr_val& selector_state,
+                              const Lisple::sptr_val& view_state)
     {
-      if (!selector_state || selector_state->type != Lisple::RTValue::Type::MAP)
-        return false;
-      if (!view_state || view_state->type != Lisple::RTValue::Type::MAP) return false;
+      if (!selector_state || selector_state->type != Lisple::Value::Type::MAP) return false;
+      if (!view_state || view_state->type != Lisple::Value::Type::MAP) return false;
 
       for (const auto& key : Lisple::Dict::keys(*selector_state))
       {
@@ -55,7 +54,7 @@ namespace Pixils::UI
       return true;
     }
 
-    bool state_maps_equal(const Lisple::sptr_rtval& lhs, const Lisple::sptr_rtval& rhs)
+    bool state_maps_equal(const Lisple::sptr_val& lhs, const Lisple::sptr_val& rhs)
     {
       return state_subset_matches(lhs, rhs) && state_subset_matches(rhs, lhs);
     }
@@ -108,7 +107,7 @@ namespace Pixils::UI
     return selector;
   }
 
-  ThemeSelector ThemeSelector::state_match(const Lisple::sptr_rtval& value)
+  ThemeSelector ThemeSelector::state_match(const Lisple::sptr_val& value)
   {
     ThemeSelector selector;
     selector.type = Type::STATE;
@@ -216,7 +215,7 @@ namespace Pixils::UI
     case Type::CLASS_NAME:
       return 1 + specificity;
     case Type::STATE:
-      return specificity + (state && state->type == Lisple::RTValue::Type::MAP
+      return specificity + (state && state->type == Lisple::Value::Type::MAP
                               ? static_cast<int>(Lisple::Dict::keys(*state).size())
                               : 1);
     case Type::COMPOUND:

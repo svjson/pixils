@@ -83,7 +83,7 @@ Lisple::Runtime& ComposableAppFixture::pixils()
   return *lisple_runtime;
 }
 
-Lisple::sptr_rtval ComposableAppFixture::eval(const std::string& source)
+Lisple::sptr_val ComposableAppFixture::eval(const std::string& source)
 {
   return pixils().eval(source);
 }

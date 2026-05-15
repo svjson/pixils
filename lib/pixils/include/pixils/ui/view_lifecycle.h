@@ -25,32 +25,32 @@ namespace Lisple
 namespace Pixils::UI
 {
   std::shared_ptr<Runtime::View> build_root_view(Runtime::Mode& base_mode,
-                                                 const Lisple::sptr_rtval& state,
-                                                 const Lisple::sptr_rtval& overrides,
+                                                 const Lisple::sptr_val& state,
+                                                 const Lisple::sptr_val& overrides,
                                                  Lisple::Runtime& runtime);
 
   void attach_view_mode(Runtime::View& view,
                         Runtime::Mode& base_mode,
-                        const Lisple::sptr_rtval& overrides,
+                        const Lisple::sptr_val& overrides,
                         Lisple::Runtime& runtime);
 
   std::shared_ptr<Runtime::View> build_view_tree(const Runtime::ChildSlot& slot,
-                                                 const Lisple::sptr_rtval& modes,
+                                                 const Lisple::sptr_val& modes,
                                                  Lisple::Runtime& runtime);
 
-  Lisple::sptr_rtval init_view_tree(Asset::Registry& assets,
-                                    Lisple::Runtime& runtime,
-                                    const Lisple::sptr_rtval& init_hook_ctx,
-                                    const std::shared_ptr<Runtime::View>& view,
-                                    const Lisple::sptr_rtval& parent_state);
+  Lisple::sptr_val init_view_tree(Asset::Registry& assets,
+                                  Lisple::Runtime& runtime,
+                                  const Lisple::sptr_val& init_hook_ctx,
+                                  const std::shared_ptr<Runtime::View>& view,
+                                  const Lisple::sptr_val& parent_state);
 
   void init_root_view(Asset::Registry& assets,
                       Lisple::Runtime& runtime,
-                      const Lisple::sptr_rtval& init_hook_ctx,
+                      const Lisple::sptr_val& init_hook_ctx,
                       const std::shared_ptr<Runtime::View>& view);
 
   void restore_view_tree(const std::shared_ptr<Runtime::View>& view,
-                         const Lisple::sptr_rtval& parent_state);
+                         const Lisple::sptr_val& parent_state);
 
 } // namespace Pixils::UI
 

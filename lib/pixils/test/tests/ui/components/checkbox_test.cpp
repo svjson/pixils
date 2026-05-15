@@ -36,10 +36,10 @@ TEST_F(CheckboxTest, checkbox_toggles_bound_state_and_emits_change)
   input().mouse_up({5, 5});
   update_cycle();
 
-  auto show_grid = Lisple::Dict::get_property(session.active_mode->state,
-                                              Lisple::RTValue::keyword("show-grid?"));
-  auto last_change = Lisple::Dict::get_property(session.active_mode->state,
-                                                Lisple::RTValue::keyword("last-change"));
+  auto show_grid =
+    Lisple::Dict::get_property(session.active_mode->state, Lisple::keyword("show-grid?"));
+  auto last_change =
+    Lisple::Dict::get_property(session.active_mode->state, Lisple::keyword("last-change"));
   ASSERT_NE(show_grid, nullptr);
   ASSERT_NE(last_change, nullptr);
   EXPECT_EQ(show_grid->to_string(), "false");

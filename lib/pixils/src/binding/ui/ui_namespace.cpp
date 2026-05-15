@@ -14,7 +14,6 @@
 #include <algorithm>
 #include <lisple/exception.h>
 #include <lisple/exec.h>
-#include <lisple/host.h>
 #include <lisple/host/accessor.h>
 #include <lisple/host/object.h>
 #include <lisple/runtime/seq.h>
@@ -26,10 +25,10 @@ namespace Pixils::Script
   {
     namespace
     {
-      Lisple::sptr_rtval resolve_view_target(const Lisple::sptr_rtval& target,
-                                             const std::string& fn_name)
+      Lisple::sptr_val resolve_view_target(const Lisple::sptr_val& target,
+                                           const std::string& fn_name)
       {
-        if (!target || target->type == Lisple::RTValue::Type::NIL)
+        if (!target || target->type == Lisple::Value::Type::NIL)
         {
           return Lisple::Constant::NIL;
         }
@@ -95,10 +94,10 @@ namespace Pixils::Script
         args.empty() ? Lisple::Constant::NIL : resolve_view_target(args[0], "ui/blur!");
 
       Lisple::append(*message_queue,
-                     Lisple::RTValue::map(Lisple::sptr_rtval_v{
-                       Lisple::RTValue::keyword("type"),
-                       Lisple::RTValue::keyword("blur"),
-                       Lisple::RTValue::keyword("target"),
+                     Lisple::map(Lisple::sptr_val_v{
+                       Lisple::keyword("type"),
+                       Lisple::keyword("blur"),
+                       Lisple::keyword("target"),
                        target,
                      }));
 
@@ -115,35 +114,34 @@ namespace Pixils::Script
     EXEC_BODY(ChildrenFunction, exec_children)
     {
       auto target = resolve_view_target(args[0], "ui/children");
-      if (!target || target->type == Lisple::RTValue::Type::NIL)
+      if (!target || target->type == Lisple::Value::Type::NIL)
       {
-        return Lisple::RTValue::vector({});
+        return Lisple::vector({});
       }
 
       Runtime::View& view = Lisple::obj<Runtime::View>(*target);
-      Lisple::sptr_rtval_v children;
+      Lisple::sptr_val_v children;
       children.reserve(view.children.size());
       for (const auto& child : view.children)
       {
         if (child) children.push_back(ViewAdapter::make_ref(*child));
       }
 
-      return Lisple::RTValue::vector(children);
+      return Lisple::vector(children);
     }
 
     /** EmitFunction - emit */
     FUNC_IMPL(
       EmitBangFunction,
-      MULTI_SIG((FN_ARGS((&HostType::VIEW), (&Lisple::Type::KEY), (&Lisple::Type::ANY)),
+      MULTI_SIG((FN_ARGS((&HostType::VIEW), (&Lisple::Type::KEYWORD), (&Lisple::Type::ANY)),
                  EXEC_DISPATCH(&EmitBangFunction::exec_emit)),
-                (FN_ARGS((&HostType::VIEW), (&Lisple::Type::KEY)),
+                (FN_ARGS((&HostType::VIEW), (&Lisple::Type::KEYWORD)),
                  EXEC_DISPATCH(&EmitBangFunction::exec_emit))))
 
     EXEC_BODY(EmitBangFunction, exec_emit)
     {
       Runtime::View& view = Lisple::obj<Runtime::View>(*args[0]);
-      auto source_mode =
-        view.mode ? Lisple::RTValue::symbol(view.mode->name) : Lisple::Constant::NIL;
+      auto source_mode = view.mode ? Lisple::symbol(view.mode->name) : Lisple::Constant::NIL;
       view.emit_event(CustomEvent{args[1],
                                   args.size() > 2 ? args[2] : Lisple::Constant::NIL,
                                   source_mode});
@@ -164,10 +162,10 @@ namespace Pixils::Script
       auto message_queue = ctx.lookup(ID__PIXILS__MODE_STACK_MESSAGES);
 
       Lisple::append(*message_queue,
-                     Lisple::RTValue::map(Lisple::sptr_rtval_v{
-                       Lisple::RTValue::keyword("type"),
-                       Lisple::RTValue::keyword("focus"),
-                       Lisple::RTValue::keyword("target"),
+                     Lisple::map(Lisple::sptr_val_v{
+                       Lisple::keyword("type"),
+                       Lisple::keyword("focus"),
+                       Lisple::keyword("target"),
                        target,
                      }));
 
@@ -182,9 +180,9 @@ namespace Pixils::Script
     EXEC_BODY(ReplaceChildBangFunction, exec_replace_child)
     {
       Runtime::View& view = Lisple::obj<Runtime::View>(*args[0]);
-      if (args[1]->type != Lisple::RTValue::Type::STRING &&
-          args[1]->type != Lisple::RTValue::Type::SYMBOL &&
-          args[1]->type != Lisple::RTValue::Type::KEYWORD)
+      if (args[1]->type != Lisple::Value::Type::STRING &&
+          args[1]->type != Lisple::Value::Type::SYMBOL &&
+          args[1]->type != Lisple::Value::Type::KEYWORD)
       {
         throw Lisple::TypeError("ui/replace-child! child id must be string-like");
       }
@@ -200,7 +198,7 @@ namespace Pixils::Script
                                           child_id + "'");
       }
 
-      auto child_entries = Lisple::RTValue::vector({args[2]});
+      auto child_entries = Lisple::vector({args[2]});
       auto slots = parse_child_slots(ctx, child_entries);
       auto slot = std::move(slots.front());
       slot.id = child_id;
@@ -221,7 +219,7 @@ namespace Pixils::Script
     EXEC_BODY(StyleBangFunction, exec_style)
     {
       auto target = resolve_view_target(args[0], "ui/style!");
-      if (!target || target->type == Lisple::RTValue::Type::NIL)
+      if (!target || target->type == Lisple::Value::Type::NIL)
       {
         return Lisple::Constant::NIL;
       }

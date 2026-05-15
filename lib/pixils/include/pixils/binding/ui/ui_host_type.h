@@ -1,7 +1,7 @@
 #ifndef PIXILS__BINDING__UI_HOST_TYPE_H
 #define PIXILS__BINDING__UI_HOST_TYPE_H
 
-#include <lisple/host.h>
+#include <lisple/host/type.h>
 
 namespace Pixils::Script::HostType
 {

@@ -4,7 +4,6 @@
 #include <pixils/runtime/mode.h>
 
 #include <lisple/exec.h>
-#include <lisple/host.h>
 #include <lisple/namespace.h>
 
 namespace Pixils::Script

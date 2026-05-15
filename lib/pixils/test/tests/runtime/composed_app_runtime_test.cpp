@@ -146,25 +146,25 @@ namespace
                                 "popup-menu-inner");
   }
 
-  Lisple::sptr_rtval get_key(const Lisple::sptr_rtval& target, const std::string& key)
+  Lisple::sptr_val get_key(const Lisple::sptr_val& target, const std::string& key)
   {
-    return Lisple::Dict::get_property(target, Lisple::RTValue::keyword(key));
+    return Lisple::Dict::get_property(target, Lisple::keyword(key));
   }
 
-  Lisple::sptr_rtval get_index(const Lisple::sptr_rtval& target, size_t index)
+  Lisple::sptr_val get_index(const Lisple::sptr_val& target, size_t index)
   {
     if (!target) return nullptr;
     return Lisple::get_child(*target, index);
   }
 
-  void expect_nil_key(const Lisple::sptr_rtval& target, const std::string& key)
+  void expect_nil_key(const Lisple::sptr_val& target, const std::string& key)
   {
     auto value = get_key(target, key);
     ASSERT_NE(value, nullptr);
     EXPECT_EQ(value->to_string(), "nil");
   }
 
-  void expect_key_string(const Lisple::sptr_rtval& target,
+  void expect_key_string(const Lisple::sptr_val& target,
                          const std::string& key,
                          const std::string& expected_value)
   {
@@ -173,7 +173,7 @@ namespace
     EXPECT_EQ(value->to_string(), expected_value);
   }
 
-  void expect_int_key(const Lisple::sptr_rtval& target,
+  void expect_int_key(const Lisple::sptr_val& target,
                       const std::string& key,
                       int expected_value)
   {
@@ -182,7 +182,7 @@ namespace
     EXPECT_EQ(value->num().get_int(), expected_value);
   }
 
-  int count_flagged_cells(const Lisple::sptr_rtval& board_mask)
+  int count_flagged_cells(const Lisple::sptr_val& board_mask)
   {
     if (!board_mask) return 0;
 

@@ -3,25 +3,23 @@
 
 #include <pixils/runtime/mode.h>
 
-#include <lisple/host.h>
 #include <lisple/host/object.h>
 #include <lisple/runtime/seq.h>
 
 namespace Pixils::Runtime
 {
-  ModeStack::ModeStack(const Lisple::sptr_rtval& stack,
-                       const Lisple::sptr_rtval& message_queue)
+  ModeStack::ModeStack(const Lisple::sptr_val& stack, const Lisple::sptr_val& message_queue)
     : stack(stack)
     , message_queue(message_queue)
   {
   }
 
-  void ModeStack::push(const Lisple::sptr_rtval& mode, const Lisple::sptr_rtval& state)
+  void ModeStack::push(const Lisple::sptr_val& mode, const Lisple::sptr_val& state)
   {
-    Lisple::append(*stack, Lisple::RTValue::vector({mode, state}));
+    Lisple::append(*stack, Lisple::vector({mode, state}));
   }
 
-  std::pair<Mode*, Lisple::sptr_rtval> ModeStack::peek()
+  std::pair<Mode*, Lisple::sptr_val> ModeStack::peek()
   {
     auto frame = Lisple::get_child(*stack, size() - 1);
 
@@ -34,19 +32,19 @@ namespace Pixils::Runtime
     Lisple::pop_child(*stack);
   }
 
-  void ModeStack::update_state(const Lisple::sptr_rtval& state, size_t offset)
+  void ModeStack::update_state(const Lisple::sptr_val& state, size_t offset)
   {
     auto frame = Lisple::get_child(*stack, size() - 1 - offset);
 
-    if (frame->type != Lisple::RTValue::Type::NIL)
+    if (frame->type != Lisple::Value::Type::NIL)
     {
-      std::get<Lisple::sptr_rtval_v>(frame->value).at(1) = state;
+      std::get<Lisple::sptr_val_v>(frame->value).at(1) = state;
     }
   }
 
-  std::vector<std::pair<Mode*, Lisple::sptr_rtval>> ModeStack::get_update_stack()
+  std::vector<std::pair<Mode*, Lisple::sptr_val>> ModeStack::get_update_stack()
   {
-    std::vector<std::pair<Mode*, Lisple::sptr_rtval>> update_stack;
+    std::vector<std::pair<Mode*, Lisple::sptr_val>> update_stack;
 
     for (int i = this->size() - 1; i >= 0; i--)
     {
@@ -62,9 +60,9 @@ namespace Pixils::Runtime
     return update_stack;
   }
 
-  std::vector<std::pair<Mode*, Lisple::sptr_rtval>> ModeStack::get_render_stack()
+  std::vector<std::pair<Mode*, Lisple::sptr_val>> ModeStack::get_render_stack()
   {
-    std::vector<std::pair<Mode*, Lisple::sptr_rtval>> render_stack;
+    std::vector<std::pair<Mode*, Lisple::sptr_val>> render_stack;
 
     for (int i = this->size() - 1; i >= 0; i--)
     {
@@ -85,12 +83,12 @@ namespace Pixils::Runtime
     return Lisple::count(*stack);
   }
 
-  Lisple::sptr_rtval_v ModeStack::drain_messages()
+  Lisple::sptr_val_v ModeStack::drain_messages()
   {
-    Lisple::sptr_rtval_v& persistent_vector =
-      std::get<Lisple::sptr_rtval_v>(message_queue->value);
+    Lisple::sptr_val_v& persistent_vector =
+      std::get<Lisple::sptr_val_v>(message_queue->value);
 
-    Lisple::sptr_rtval_v messages = persistent_vector;
+    Lisple::sptr_val_v messages = persistent_vector;
 
     persistent_vector.clear();
 

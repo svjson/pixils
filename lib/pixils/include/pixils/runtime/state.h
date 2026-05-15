@@ -13,15 +13,15 @@ namespace Pixils::Runtime
    */
   struct BindState
   {
-    Lisple::sptr_rtval_v path;
+    Lisple::sptr_val_v path;
     BindState() = default;
-    explicit BindState(Lisple::sptr_rtval_v p);
+    explicit BindState(Lisple::sptr_val_v p);
   };
 
   struct StateBinding
   {
-    Lisple::sptr_rtval binding = Lisple::Constant::NIL;
-    Lisple::sptr_rtval initial_state = Lisple::Constant::NIL;
+    Lisple::sptr_val binding = Lisple::Constant::NIL;
+    Lisple::sptr_val initial_state = Lisple::Constant::NIL;
   };
 
   /**
@@ -32,19 +32,19 @@ namespace Pixils::Runtime
    * fully own their own view.state; initial_state is only the fallback before
    * the first local state has been established.
    */
-  Lisple::sptr_rtval extract_state(const Lisple::sptr_rtval& parent,
-                                   const Pixils::Runtime::View& view);
+  Lisple::sptr_val extract_state(const Lisple::sptr_val& parent,
+                                 const Pixils::Runtime::View& view);
 
   /**
    * Write bound keys from child_state back into parent state. Unbound views do
    * not merge into the parent at all. Bound views only touch the paths
    * declared in state_binding; non-bound keys remain in view.state.
    */
-  Lisple::sptr_rtval merge_state(const Lisple::sptr_rtval& parent,
-                                 const Pixils::Runtime::View& view,
-                                 const Lisple::sptr_rtval& child_state);
+  Lisple::sptr_val merge_state(const Lisple::sptr_val& parent,
+                               const Pixils::Runtime::View& view,
+                               const Lisple::sptr_val& child_state);
 
-  const Lisple::sptr_rtval_v& bind_state_path(const Lisple::sptr_rtval& val);
+  const Lisple::sptr_val_v& bind_state_path(const Lisple::sptr_val& val);
 
   /**
    * Parse a raw :state value from a child slot entry into its binding and
@@ -53,7 +53,7 @@ namespace Pixils::Runtime
    *   - map with BindState values -> binding = val, initial_state = literal keys only
    *   - plain map or NIL -> binding = NIL, initial_state = val
    */
-  StateBinding parse_state_binding(const Lisple::sptr_rtval& state_val);
+  StateBinding parse_state_binding(const Lisple::sptr_val& state_val);
 
 } // namespace Pixils::Runtime
 

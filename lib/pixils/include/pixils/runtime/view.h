@@ -29,7 +29,7 @@ namespace Pixils::Runtime
   struct View
   {
     std::string id;
-    Lisple::sptr_rtval state_binding = Lisple::Constant::NIL;
+    Lisple::sptr_val state_binding = Lisple::Constant::NIL;
     Mode* mode = nullptr;
     UI::InteractionState interaction;
     /**
@@ -39,8 +39,8 @@ namespace Pixils::Runtime
      * remains valid when View is moved.
      */
     std::unique_ptr<Mode> owned_mode;
-    Lisple::sptr_rtval state = Lisple::Constant::NIL;
-    Lisple::sptr_rtval initial_state = Lisple::Constant::NIL;
+    Lisple::sptr_val state = Lisple::Constant::NIL;
+    Lisple::sptr_val initial_state = Lisple::Constant::NIL;
     Rect bounds = {0, 0, 0, 0};
     Rect external_bounds = {0, 0, 0, 0};
     std::optional<UI::Theme> inherited_theme = std::nullopt;
