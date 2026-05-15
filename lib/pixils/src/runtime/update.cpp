@@ -36,7 +36,10 @@ namespace Pixils::Runtime
                                                emitted_events,
                                                lisple_runtime);
       rargs[0] = ctx.state;
-      ctx.state = invoke_hook(lisple_runtime, view, ctx.mode->update, rargs, ctx.state);
+      if (ctx.mode->update && ctx.mode->update->type != Lisple::Value::Type::NIL)
+      {
+        ctx.state = invoke_hook(lisple_runtime, view, ctx.mode->update, rargs, ctx.state);
+      }
       mode_stack.update_state(ctx.state, update_stack.size() - i);
 
       ctx.drain_events(emitted_events);

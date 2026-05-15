@@ -15,10 +15,22 @@ namespace Pixils::UI
 {
   namespace
   {
+    bool has_hook(const Lisple::sptr_val& hook)
+    {
+      return hook && hook->type != Lisple::Value::Type::NIL;
+    }
+
+    bool has_state_binding(const Runtime::View& view)
+    {
+      return view.state_binding && view.state_binding->type != Lisple::Value::Type::NIL;
+    }
+
     void run_update_hook(const std::shared_ptr<Runtime::View>& view,
                          Runtime::HookArguments& hook_args,
                          Lisple::Runtime& rt)
     {
+      if (!has_hook(view->mode->update)) return;
+
       Lisple::obj<HookContext>(*hook_args.update_args[1]).current_view = view;
       Lisple::sptr_val_v args = {view->state, hook_args.update_args[1]};
       view->state = Runtime::invoke_hook(rt, view, view->mode->update, args, view->state);
@@ -97,7 +109,7 @@ namespace Pixils::UI
     {
       auto& view = *view_ptr;
 
-      if (parent_state)
+      if (parent_state && has_state_binding(view))
       {
         view.state = Runtime::extract_state(*parent_state, view);
       }
@@ -121,7 +133,7 @@ namespace Pixils::UI
                                        rt);
       }
 
-      if (parent_state)
+      if (parent_state && has_state_binding(view))
       {
         *parent_state = Runtime::merge_state(*parent_state, view, view.state);
       }
