@@ -13,7 +13,7 @@
 (defprogram minesweeper
   {:display {:resolution {:scale 3}}
    :target-frame-rate 0
-   :theme 'pixils/classic-blue
+   :theme 'pixils/windows-3
    :initial-mode 'main-mode})
 
 (def menu-keymap
@@ -69,14 +69,6 @@
                     :separator
                     {:label "E&xit"
                      :action :game/quit}]}
-           {:label "&Edit"
-            :settings {:shortcuts {:render false}}
-            :items [{:label "&Undo move"}]}
-           {:label "&View"
-            :items [{:label "&Game board"}
-                    {:label "&Highscores"
-                     :action :action/show-highscores
-                     :shortcut [:key/shift :key/f5]}]}
            {:label "&Help"
             :settings {:shortcuts {:render false}}
             :items [{:label "&About"
