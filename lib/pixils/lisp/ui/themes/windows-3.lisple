@@ -129,7 +129,8 @@
 (deftheme pixils/windows-3
   {:default-variant :light
    :vars {:light {:desktop-bg teal
-                  :panel-face panel-face
+                  :panel-bg panel-face
+                  :panel-highlight c/WHITE
                   :panel-shadow panel-shadow
                   :text c/BLACK
                   :muted-text panel-shadow
@@ -144,7 +145,7 @@
                   :border c/BLACK
                   :highlight c/WHITE}
           :dark {:desktop-bg {:r 0x18 :g 0x28 :b 0x2a}
-                 :panel-face {:r 0x32 :g 0x35 :b 0x38}
+                 :panel-bg {:r 0x32 :g 0x35 :b 0x38}
                  :panel-shadow {:r 0x1b :g 0x1d :b 0x20}
                  :text {:r 0xe8 :g 0xea :b 0xec}
                  :muted-text {:r 0x9a :g 0xa0 :b 0xa6}
@@ -162,7 +163,7 @@
                      :text {:font :font/win3-system-font
                             :color (var :text)}}
 
-            :ui/panel {:background (var :panel-face)
+            :ui/panel {:background (var :panel-bg)
                        :padding 4
                        :text {:font :font/win3-system-font
                               :color (var :text)}}
@@ -218,23 +219,23 @@
                               :text {:color (var :field-text)}}
 
             '(ui/checkbox-box {:pressed true})
-            {:background (var :panel-face)}
+            {:background (var :panel-bg)}
 
-            'ui/slider {:background (var :panel-face)
+            'ui/slider {:background (var :panel-bg)
                         :border {:line-style :bevel
                                  :color (var :highlight)
                                  :thickness 2
                                  :right {:color (var :panel-shadow)}
                                  :bottom {:color (var :panel-shadow)}}}
 
-            'ui/scrollbar {:background (var :panel-face)
+            'ui/scrollbar {:background (var :panel-bg)
                            :border {:color (var :border)
                                     :thickness 1}
                            :cursor :default
                            :text {:font :font/win3-system-font
                                   :color (var :text)}}
 
-            'ui/scrollbar-button {:background (var :panel-face)
+            'ui/scrollbar-button {:background (var :panel-bg)
                                   :border {:line-style :bevel
                                            :color (var :highlight)
                                            :thickness 2
@@ -250,7 +251,7 @@
                       :right {:color (var :highlight)}
                       :bottom {:color (var :highlight)}}}
 
-            'ui/scrollbar-track {:background (var :panel-face)}
+            'ui/scrollbar-track {:background (var :panel-bg)}
 
             '(ui/scrollbar-track {:axis :x})
             {:border {:color (var :border)
@@ -264,7 +265,7 @@
                       :top {:thickness 1}
                       :bottom {:thickness 1}}}
 
-            'ui/scrollbar-handle {:background (var :panel-face)
+            'ui/scrollbar-handle {:background (var :panel-bg)
                                   :border {:line-style :bevel
                                            :color (var :highlight)
                                            :thickness 2
@@ -278,14 +279,14 @@
                       :right {:color (var :highlight)}
                       :bottom {:color (var :highlight)}}}
 
-            'ui/scrollbar-corner {:background (var :panel-face)
+            'ui/scrollbar-corner {:background (var :panel-bg)
                                   :border {:line-style :bevel
                                            :color (var :highlight)
                                            :thickness 2
                                            :right {:color (var :panel-shadow)}
                                            :bottom {:color (var :panel-shadow)}}}
 
-            'ui/scroll-pane {:background (var :panel-face)}
+            'ui/scroll-pane {:background (var :panel-bg)}
 
             'ui/scroll-pane-viewport {:background (var :field-bg)}
 
@@ -338,7 +339,7 @@
                       :bottom {:thickness 0}}}
 
             'ui/button-inner
-            {:background (var :panel-face)
+            {:background (var :panel-bg)
              :border {:line-style :bevel
                       :width :fill
                       :color (var :highlight)
@@ -348,7 +349,7 @@
 
             'ui/button-inner:hover
             {:text {:color (var :text)}
-             :background (var :panel-face)
+             :background (var :panel-bg)
              :border {:line-style :bevel
                       :width :fill
                       :color (var :highlight)
@@ -457,4 +458,4 @@
                       :line-style :solid
                       :color (var :border)}}
 
-            :ui/panel {:background (var :panel-face)}}})
+            :ui/panel {:background (var :panel-bg)}}})

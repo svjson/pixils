@@ -1,6 +1,5 @@
 (ns pixils.examples.minesweeper.highscore
   (:require pixils
-            [pixils.color :as c]
             [pixils.ui :as ui]
             [pixils.ui.window :as w]
             [pixils.ui.text-input :as ti]))
@@ -51,8 +50,7 @@
                            state)}]})
 
 (defcomponent highscores-window
-  {:style {:background c/WHITE
-           :text {:color c/BLACK}}
+  {:class :ui/content
    :children [{:mode 'highscore-table
                :state (ui/bind-state :highscores)}
               {:mode 'highscore-buttons}]})
@@ -74,11 +72,10 @@
 ;; New Highscore Window
 
 (defcomponent new-highscore-window
-  {:style {:background c/WHITE
-           :text {:color c/BLACK}
-           :style {:width 155}
+  {:style {:style {:width 155}
            :layout {:align-items :center}
            :padding 8}
+   :class :ui/content
    :children [{:mode 'ui/text
                :state {:difficulty-name (ui/bind-state :difficulty-name)}
                :style {:width 170

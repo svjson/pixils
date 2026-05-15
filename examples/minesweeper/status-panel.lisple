@@ -2,7 +2,6 @@
   (:require pixils
             [pixils.color :as c]
             [pixils.ui :as ui]
-            [pixils.ui.theme.windows-3 :as win]
             pixils.examples.minesweeper.counter))
 
 
@@ -22,9 +21,9 @@
                                              :gap :space-between}
                                     :border {:thickness 2
                                              :line-style :bevel
-                                             :color win/panel-shadow
-                                             :bottom {:color c/WHITE :trim [0 1]}
-                                             :right {:color c/WHITE :trim [1 0]}}}
+                                             :color (var :panel-shadow)
+                                             :bottom {:color (var :panel-highlight) :trim [0 1]}
+                                             :right {:color (var :panel-highlight) :trim [1 0]}}}
                             :children [{:mode 'counter
                                         :state {:value (ui/bind-state :counters :mines-left)}}
 

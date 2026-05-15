@@ -14,11 +14,24 @@
 (def PANEL-BG {:r 0x20 :g 0x29 :b 0x36})
 (def PANEL-HIGHLIGHT {:r 0x67 :g 0x78 :b 0x8f})
 (def PANEL-SHADOW {:r 0x2d :g 0x36 :b 0x46})
-(def CONTENT-BG {:r 0x15 :g 0x19 :b 0x1f})
+
+(def CONTENT-BG {:r 0x2d :g 0x39 :b 0x48})
 (def CONTENT-BORDER {:r 0x5f :g 0x6f :b 0x7f})
 
 (deftheme pixils/classic-blue
-  {:styles
+  {:vars {:dark {:menu-bg CONTENT-BG
+                 :content-bg CONTENT-BG
+                 :panel-bg PANEL-BG
+                 :panel-highlight PANEL-HIGHLIGHT
+                 :panel-shadow PANEL-SHADOW
+                 :button-bg BUTTON-BG
+                 :button-highlight BUTTON-HIGHLIGHT
+                 :button-shadow BUTTON-SHADOW
+                 :border c/BLACK
+                 :text c/WHITE
+                 :focus-text BUTTON-HIGHLIGHT}}
+   :default-variant :dark
+   :styles
    {:ui/panel {:background PANEL-BG
                :padding 4}
 
@@ -33,7 +46,8 @@
 
     :ui/content {:background CONTENT-BG
                  :border {:color CONTENT-BORDER
-                          :thickness 1}}
+                          :thickness 1}
+                 :text {:color (var :text)}}
 
     :ui/canvas {:background CONTENT-BG
                 :border {:color CONTENT-BORDER
@@ -91,6 +105,7 @@
 
     'ui/button-inner
     {:background BUTTON-BG
+     :font {:color (var :text)}
      :border {:line-style :bevel
               :width :fill
               :color BUTTON-HIGHLIGHT
@@ -99,7 +114,7 @@
               :bottom {:color BUTTON-SHADOW}}}
 
     'ui/button-inner:hover
-    {:text {:color c/BLACK}
+    {:text {:color (var :focus-text)}
      :background BUTTON-BG
      :border {:line-style :bevel
               :width :fill
@@ -110,10 +125,10 @@
 
     '(ui/button-inner {:pressed true})
     {:border {:line-style :bevel
-              :color BUTTON-SHADOW
+              :color (var :button-shadow)
               :thickness 2
-              :right {:color c/WHITE :thickness 1}
-              :bottom {:color c/WHITE :thickness 1}}}
+              :right {:color (var :button-highlight) :thickness 1}
+              :bottom {:color (var :button-highlight) :thickness 1}}}
 
     'ui/scrollbar {:background {:r 0x20 :g 0x29 :b 0x36}
                    :text {:color {:r 0xe6 :g 0xea :b 0xee}}}
@@ -167,7 +182,8 @@
                                    :gap :space-between}}
 
     ['ui/window:focus-within 'ui/window-title-bar]
-    {:background {:r 0x26 :g 0x48 :b 0x8a}}
+    {:background {:r 0x26 :g 0x48 :b 0x8a}
+     :text {:color c/WHITE}}
 
     'ui/window-control-button {:width 18
                                :height 18}
@@ -180,6 +196,20 @@
     'ui/text-input-inner {:width :fill
                           :padding [2 4]}
 
+
+    'ui/menu-bar
+    {:background (var :menu-bg)
+     :text {:color c/WHITE}
+     :border {:line-style :solid
+              :color (var :border)
+              :top {:thickness 1}
+              :bottom {:thickness 1}}}
+
+    'ui/menu-bar-item
+    {:background (var :menu-bg)
+     :text {:color (var :text)
+            :marked-style {:color (var :text)}}}
+
     'ui/menu-item {:padding [2 16]}
 
     'ui/menu-option-item {:padding {:t 2 :r 12 :b 2 :l 2}}
@@ -188,6 +218,22 @@
                                :box-sizing :content-box
                                :width 8
                                :height 10}
+
+    'ui/popup-menu-inner
+    {:background (var :menu-bg)
+     :text {:color (var :text)}
+     :border {:thickness 1
+              :line-style :solid
+              :color (var :border)}}
+
+    :menu/item
+    {:padding [2 16]
+     :text {:color c/WHITE}}
+
+    'ui/popup-menu-option-item
+    {:padding [2 2]
+     :text {:color c/WHITE}}
+
     'ui/header-panel
     {:border {:color c/BLACK
               :thickness 1}}

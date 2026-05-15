@@ -1,8 +1,7 @@
 (ns pixils.examples.minesweeper.counter
   (:require pixils
             [pixils.render :as r]
-            [pixils.ui :as ui]
-            [pixils.ui.theme.windows-3 :as win]))
+            [pixils.ui :as ui]))
 
 
 
@@ -44,8 +43,8 @@
                                       :color :none}
                                :border {:thickness 1
                                         :line-style :solid
-                                        :color win/panel-shadow
-                                        :bottom {:color win/white :trim [0 1]}
-                                        :right {:color win/white :trim [1 0]}}}
+                                        :color (var :panel-shadow)
+                                        :bottom {:color (var :panel-highlight) :trim [0 1]}
+                                        :right {:color (var :panel-highlight) :trim [1 0]}}}
                        :children [{:mode 'ui/text
                                    :state {:value (ui/bind-state :text-value)}}]})

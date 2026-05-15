@@ -1,4 +1,0 @@
-(ns pixils.examples.minesweeper.container
-  (:require pixils))
-
-(defmode container {})

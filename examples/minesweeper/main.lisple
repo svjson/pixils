@@ -1,23 +1,19 @@
 (ns pixils.examples.minesweeper.core
   (:require pixils
             [pixils.render :as r]
-            [pixils.color :as c]
             [pixils.point :as pt]
             [pixils.ui :as ui]
-            pixils.examples.minesweeper.container
+            [pixils.ui.menu :as menu]
             [pixils.ui.window :as w]
             [pixils.examples.minesweeper.game-logic :as gl]
             [pixils.examples.minesweeper.status-panel :as status-panel]
             [pixils.examples.minesweeper.board :as board]
-            [pixils.ui.menu :as menu]
-            [pixils.examples.minesweeper.highscore :as hs]
-            [pixils.ui.theme.windows-3 :as win]
-            [pixils.ui.theme.windows-95 :as win95]))
+            [pixils.examples.minesweeper.highscore :as hs]))
 
 (defprogram minesweeper
   {:display {:resolution {:scale 3}}
    :target-frame-rate 0
-   :theme 'pixils/windows-3
+   :theme 'pixils/classic-blue
    :initial-mode 'main-mode})
 
 (def menu-keymap
@@ -102,11 +98,11 @@
    :style {:padding 6
            :border {:thickness 3
                     :line-style :bevel
-                    :color win/panel-shadow
+                    :color (var :panel-shadow)
                     :right {:trim [1 0]}
                     :bottom {:trim [0 1]}
-                    :top {:color c/WHITE}
-                    :left {:color c/WHITE}}}
+                    :top {:color (var :panel-highlight)}
+                    :left {:color (var :panel-highlight)}}}
    :children [{:mode 'status-panel
                :state {:counters (ui/bind-state :counters)
                        :face (ui/bind-state :face)}}
@@ -118,9 +114,9 @@
                :style {:margin {:t 6}
                        :border {:thickness 3
                                 :line-style :bevel
-                                :color win/panel-shadow
-                                :bottom {:color c/WHITE :trim [0 1]}
-                                :right {:color c/WHITE :trim [1 0]}}}}]
+                                :color (var :panel-shadow)
+                                :bottom {:color (var :panel-highlight) :trim [0 1]}
+                                :right {:color (var :panel-highlight) :trim [1 0]}}}}]
    :on {:cell/click (fn [state event ctx]
                       (let [payload (:payload event)]
                         (gl/reveal-board-cell state (:y payload) (:x payload))))
@@ -198,7 +194,7 @@
                          :expert {:difficulty-name "Expert"
                                   :time 114
                                   :player-name "Herr Anka"}}})
-   :style {:background win/teal}
+   :class :ui/app
    :on {:action/show-highscores (fn [state event ctx]
                                   (push-mode! 'highscores-modal
                                               {:highscores (:highscores state)})
