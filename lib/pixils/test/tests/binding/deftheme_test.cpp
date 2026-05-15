@@ -408,6 +408,43 @@ TEST_F(DefThemeTest, resolved_theme_variant_falls_back_to_default_when_missing)
   EXPECT_EQ(resolved.selected_variant, std::make_optional<std::string>("light"));
 }
 
+TEST_F(DefThemeTest, resolved_theme_variant_matching_keeps_base_rules)
+{
+  runtime.eval(R"(
+    (pixils/deftheme base-theme
+      {:styles {'widget {:width 12
+                         :height 8}}})
+    (pixils/deftheme variant-theme
+      {:extend 'base-theme
+       :default-variant :light
+       :vars {:light {:fg {:r 1 :g 2 :b 3}}
+              :dark {:fg {:r 4 :g 5 :b 6}}}
+       :styles {'widget {:text {:color (pixils/var :fg)}}}})
+  )");
+
+  Pixils::UI::Theme& theme = get_theme(runtime, "variant-theme");
+  auto resolved = theme.resolved_for_variant("dark");
+  auto matches = resolved.get_matching_styles(
+    Pixils::UI::ThemeMatchContext{.mode_names = {"widget"},
+                                  .class_names = {},
+                                  .state = Lisple::Constant::NIL,
+                                  .interaction = {}});
+
+  Pixils::UI::Style style;
+  for (const auto* match : matches)
+  {
+    Pixils::UI::apply_style_variant(style, *match);
+  }
+
+  ASSERT_TRUE(style.width.has_value());
+  EXPECT_EQ(style.width->fixed_value_or(0), 12);
+  ASSERT_TRUE(style.height.has_value());
+  EXPECT_EQ(style.height->fixed_value_or(0), 8);
+  ASSERT_TRUE(style.text.has_value());
+  ASSERT_TRUE(style.text->color.has_value());
+  EXPECT_EQ(style.text->color->r, 4);
+}
+
 TEST_F(DefThemeTest, defprogram_with_theme_is_created)
 {
   runtime.eval(R"(

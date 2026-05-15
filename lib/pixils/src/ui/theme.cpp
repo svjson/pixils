@@ -90,22 +90,6 @@ namespace Pixils::UI
       return false;
     }
 
-    const std::vector<ThemeRule>& rules_for_selected_variant(const Theme& theme)
-    {
-      if (theme.selected_variant)
-      {
-        auto it = theme.variant_rules.find(*theme.selected_variant);
-        if (it != theme.variant_rules.end()) return it->second;
-      }
-
-      if (theme.default_variant)
-      {
-        auto it = theme.variant_rules.find(*theme.default_variant);
-        if (it != theme.variant_rules.end()) return it->second;
-      }
-
-      return theme.rules;
-    }
   } // namespace
 
   ThemeSelector ThemeSelector::component_type(const std::string& value)
@@ -320,7 +304,7 @@ namespace Pixils::UI
     };
 
     std::vector<MatchingRule> matching;
-    const auto& source_rules = rules_for_selected_variant(*this);
+    const auto& source_rules = rules;
     matching.reserve(source_rules.size());
 
     for (size_t i = 0; i < source_rules.size(); i++)
@@ -359,7 +343,14 @@ namespace Pixils::UI
     if (resolved.selected_variant)
     {
       auto it = resolved.variant_rules.find(*resolved.selected_variant);
-      if (it != resolved.variant_rules.end()) resolved.rules = it->second;
+      if (it != resolved.variant_rules.end())
+      {
+        auto variant_rules = it->second;
+        for (const auto& rule : variant_rules)
+        {
+          resolved.set_style(rule.selector, rule.style);
+        }
+      }
     }
     return resolved;
   }
