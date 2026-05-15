@@ -88,9 +88,9 @@ namespace Pixils::Script
       return vars;
     }
 
-    Lisple::sptr_val lookup_theme_var(const UI::Theme& theme,
-                                      const std::optional<std::string>& variant,
-                                      const std::string& key)
+    Lisple::sptr_val lookup_theme_var_internal(const UI::Theme& theme,
+                                               const std::optional<std::string>& variant,
+                                               const std::string& key)
     {
       if (variant)
       {
@@ -115,18 +115,18 @@ namespace Pixils::Script
       return nullptr;
     }
 
-    Lisple::sptr_val resolve_theme_vars(const UI::Theme& theme,
-                                        const std::optional<std::string>& variant,
-                                        const Lisple::sptr_val& value,
-                                        int depth = 0)
+    Lisple::sptr_val resolve_theme_vars_internal(const UI::Theme& theme,
+                                                 const std::optional<std::string>& variant,
+                                                 const Lisple::sptr_val& value,
+                                                 int depth = 0)
     {
       if (!value || depth > 32) return value;
 
       if (is_theme_var_ref(value))
       {
-        auto var_value = lookup_theme_var(theme, variant, theme_var_ref_name(value));
+        auto var_value = lookup_theme_var_internal(theme, variant, theme_var_ref_name(value));
         if (!var_value) return nullptr;
-        return resolve_theme_vars(theme, variant, var_value, depth + 1);
+        return resolve_theme_vars_internal(theme, variant, var_value, depth + 1);
       }
 
       switch (value->type)
@@ -137,7 +137,7 @@ namespace Pixils::Script
         elements.reserve(value->elements().size());
         for (const auto& child : value->elements())
         {
-          auto resolved_child = resolve_theme_vars(theme, variant, child, depth + 1);
+          auto resolved_child = resolve_theme_vars_internal(theme, variant, child, depth + 1);
           if (resolved_child) elements.push_back(resolved_child);
         }
         return Lisple::list(elements);
@@ -148,7 +148,7 @@ namespace Pixils::Script
         elements.reserve(value->elements().size());
         for (const auto& child : value->elements())
         {
-          auto resolved_child = resolve_theme_vars(theme, variant, child, depth + 1);
+          auto resolved_child = resolve_theme_vars_internal(theme, variant, child, depth + 1);
           if (resolved_child) elements.push_back(resolved_child);
         }
         return Lisple::vector(elements);
@@ -160,7 +160,8 @@ namespace Pixils::Script
         const auto& source = value->elements();
         for (size_t i = 0; i + 1 < source.size(); i += 2)
         {
-          auto resolved_child = resolve_theme_vars(theme, variant, source[i + 1], depth + 1);
+          auto resolved_child =
+            resolve_theme_vars_internal(theme, variant, source[i + 1], depth + 1);
           if (!resolved_child) continue;
           elements.push_back(source[i]);
           elements.push_back(resolved_child);
@@ -356,6 +357,21 @@ namespace Pixils::Script
       }
     }
   } // namespace
+
+  Lisple::sptr_val lookup_theme_var(const UI::Theme& theme,
+                                    const std::optional<std::string>& variant,
+                                    const std::string& key)
+  {
+    return lookup_theme_var_internal(theme, variant, key);
+  }
+
+  Lisple::sptr_val resolve_theme_vars(const UI::Theme& theme,
+                                      const std::optional<std::string>& variant,
+                                      const Lisple::sptr_val& value,
+                                      int depth)
+  {
+    return resolve_theme_vars_internal(theme, variant, value, depth);
+  }
 
   UI::Theme build_theme_from_definition(Lisple::Context& ctx,
                                         const std::string& name,

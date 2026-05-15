@@ -25,6 +25,7 @@ namespace Pixils::Script
   inline constexpr std::string_view FN__PIXILS__UI__CHILDREN = "children";
   inline constexpr std::string_view FN__PIXILS__UI__FOCUS_BANG = "focus!";
   inline constexpr std::string_view FN__PIXILS__UI__STYLE_BANG = "style!";
+  inline constexpr std::string_view FN__PIXILS__UI__THEME_VAR = "theme-var";
 
   namespace Function
   {
@@ -36,6 +37,7 @@ namespace Pixils::Script
     FUNC(ReplaceChildBangFunction, replace_child);
     FUNC(StyleBangFunction, style);
     FUNC(StopPropagation, stop);
+    FUNC(ActiveThemeVarFunction, theme_var);
   } // namespace Function
 
   NATIVE_ADAPTER(CustomEventAdapter, CustomEvent, (event_key, source_mode, payload));

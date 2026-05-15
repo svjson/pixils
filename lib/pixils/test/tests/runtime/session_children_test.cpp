@@ -218,6 +218,38 @@ TEST_F(SessionChildrenTest, child_content_size_hook_can_read_effective_style)
   EXPECT_EQ(child->bounds.h, 7);
 }
 
+TEST_F(SessionChildrenTest, hook_can_read_active_theme_vars)
+{
+  runtime.eval(R"(
+    (pixils/deftheme token-theme
+      {:default-variant :light
+       :vars {:light {:row-height 11
+                      :alias-height (pixils/var :row-height)}
+              :dark {:row-height 17}}
+       :styles {}})
+
+    (pixils/defmode child-mode
+      {:theme 'token-theme
+       :theme-variant :dark
+       :content-size (fn [state ctx]
+                       {:w (pixils.ui/theme-var (:view ctx) :missing-width 5)
+                        :h (pixils.ui/theme-var ctx :alias-height)})
+       :render (fn [state ctx] nil)})
+
+    (pixils/defmode parent-mode {:children [{:mode 'child-mode}]})
+  )");
+
+  session.push_mode("parent-mode", Lisple::Constant::NIL);
+  session.render_mode();
+
+  ASSERT_NE(session.active_mode, nullptr);
+  ASSERT_EQ(session.active_mode->children.size(), 1u);
+  auto child = session.active_mode->children[0];
+  ASSERT_NE(child, nullptr);
+  EXPECT_EQ(child->bounds.w, 5);
+  EXPECT_EQ(child->bounds.h, 17);
+}
+
 TEST_F(SessionChildrenTest, mode_theme_and_child_theme_override_apply_to_effective_style)
 {
   // Given

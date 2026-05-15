@@ -5,6 +5,7 @@
 #include <pixils/binding/pixils_namespace.h>
 #include <pixils/binding/point_namespace.h>
 #include <pixils/binding/ui/style/style_host_type.h>
+#include <pixils/binding/ui/style/theme_definition.h>
 #include <pixils/binding/ui/ui_host_type.h>
 #include <pixils/runtime/state.h>
 #include <pixils/runtime/view.h>
@@ -66,6 +67,17 @@ namespace Pixils::Script
         }
 
         return *view.mode;
+      }
+
+      std::string theme_var_key(const Lisple::sptr_val& key, const std::string& fn_name)
+      {
+        if (!key || (key->type != Lisple::Value::Type::KEYWORD &&
+                     key->type != Lisple::Value::Type::SYMBOL))
+        {
+          throw Lisple::TypeError(fn_name + " key must be a keyword or symbol");
+        }
+
+        return key->str();
       }
     } // namespace
 
@@ -268,6 +280,41 @@ namespace Pixils::Script
       return Lisple::Constant::NIL;
     }
 
+    /** ActiveThemeVarFunction - theme-var */
+    FUNC_IMPL(ActiveThemeVarFunction,
+              SIG((FN_ARGS((Lisple::VARARG, &Lisple::Type::ANY)),
+                   EXEC_DISPATCH(&ActiveThemeVarFunction::exec_theme_var))));
+
+    EXEC_BODY(ActiveThemeVarFunction, exec_theme_var)
+    {
+      if (args.size() < 2 || args.size() > 3)
+      {
+        throw Lisple::InvocationException(
+          "ui/theme-var expects a view or hook context, a key, and optional fallback");
+      }
+
+      const auto fallback = args.size() > 2 ? args[2] : Lisple::Constant::NIL;
+      auto target = resolve_view_target(args[0], "ui/theme-var");
+      if (!target || target->type == Lisple::Value::Type::NIL)
+      {
+        return fallback;
+      }
+
+      Runtime::View& view = Lisple::obj<Runtime::View>(*target);
+      auto raw_value = lookup_theme_var(view.effective_theme,
+                                        view.effective_theme.selected_variant,
+                                        theme_var_key(args[1], "ui/theme-var"));
+      if (!raw_value)
+      {
+        return fallback;
+      }
+
+      auto resolved_value = resolve_theme_vars(view.effective_theme,
+                                              view.effective_theme.selected_variant,
+                                              raw_value);
+      return resolved_value ? resolved_value : fallback;
+    }
+
   } // namespace Function
 
   NATIVE_ADAPTER_IMPL(BindStateAdapter, Runtime::BindState, &HostType::BIND_STATE);
@@ -395,6 +442,7 @@ namespace Pixils::Script
     values.emplace("replace-child!", Function::ReplaceChildBangFunction::make());
     values.emplace(FN__PIXILS__UI__STYLE_BANG, Function::StyleBangFunction::make());
     values.emplace("stop-propagation!", Function::StopPropagation::make());
+    values.emplace(FN__PIXILS__UI__THEME_VAR, Function::ActiveThemeVarFunction::make());
   }
 
 } // namespace Pixils::Script
