@@ -89,6 +89,23 @@ namespace Pixils::UI
 
       return false;
     }
+
+    const std::vector<ThemeRule>& rules_for_selected_variant(const Theme& theme)
+    {
+      if (theme.selected_variant)
+      {
+        auto it = theme.variant_rules.find(*theme.selected_variant);
+        if (it != theme.variant_rules.end()) return it->second;
+      }
+
+      if (theme.default_variant)
+      {
+        auto it = theme.variant_rules.find(*theme.default_variant);
+        if (it != theme.variant_rules.end()) return it->second;
+      }
+
+      return theme.rules;
+    }
   } // namespace
 
   ThemeSelector ThemeSelector::component_type(const std::string& value)
@@ -249,12 +266,43 @@ namespace Pixils::UI
     }
   }
 
+  void Theme::set_variant_style(const std::string& variant,
+                                const ThemeSelector& selector,
+                                const Style& style)
+  {
+    auto& rules_for_variant = variant_rules[variant];
+    auto it = std::find_if(rules_for_variant.begin(),
+                           rules_for_variant.end(),
+                           [&](const auto& rule) { return rule.selector == selector; });
+
+    if (it == rules_for_variant.end())
+    {
+      rules_for_variant.push_back(ThemeRule{.selector = selector, .style = style});
+    }
+    else
+    {
+      apply_style_variant(it->style, style);
+    }
+  }
+
   const Style* Theme::get_style(const ThemeSelector& selector) const
   {
     auto it = std::find_if(rules.begin(),
                            rules.end(),
                            [&](const auto& rule) { return rule.selector == selector; });
     if (it == rules.end()) return nullptr;
+    return &it->style;
+  }
+
+  const Style* Theme::get_variant_style(const std::string& variant,
+                                        const ThemeSelector& selector) const
+  {
+    auto variant_it = variant_rules.find(variant);
+    const auto& source_rules = variant_it == variant_rules.end() ? rules : variant_it->second;
+    auto it = std::find_if(source_rules.begin(),
+                           source_rules.end(),
+                           [&](const auto& rule) { return rule.selector == selector; });
+    if (it == source_rules.end()) return nullptr;
     return &it->style;
   }
 
@@ -272,13 +320,14 @@ namespace Pixils::UI
     };
 
     std::vector<MatchingRule> matching;
-    matching.reserve(rules.size());
+    const auto& source_rules = rules_for_selected_variant(*this);
+    matching.reserve(source_rules.size());
 
-    for (size_t i = 0; i < rules.size(); i++)
+    for (size_t i = 0; i < source_rules.size(); i++)
     {
-      if (rules[i].selector.matches_path(path))
+      if (source_rules[i].selector.matches_path(path))
       {
-        matching.push_back(MatchingRule{.rule = &rules[i]});
+        matching.push_back(MatchingRule{.rule = &source_rules[i]});
       }
     }
 
@@ -298,11 +347,45 @@ namespace Pixils::UI
     return result;
   }
 
+  Theme Theme::resolved_for_variant(const std::optional<std::string>& variant) const
+  {
+    Theme resolved = *this;
+    resolved.selected_variant = variant;
+    if (resolved.selected_variant &&
+        resolved.variant_rules.find(*resolved.selected_variant) == resolved.variant_rules.end())
+    {
+      resolved.selected_variant = resolved.default_variant;
+    }
+    if (resolved.selected_variant)
+    {
+      auto it = resolved.variant_rules.find(*resolved.selected_variant);
+      if (it != resolved.variant_rules.end()) resolved.rules = it->second;
+    }
+    return resolved;
+  }
+
   void overlay_theme(Theme& out, const Theme& overlay)
   {
     for (const auto& rule : overlay.rules)
     {
       out.set_style(rule.selector, rule.style);
     }
+    for (const auto& [variant, rules] : overlay.variant_rules)
+    {
+      for (const auto& rule : rules)
+      {
+        out.set_variant_style(variant, rule.selector, rule.style);
+      }
+    }
+    for (const auto& [variant, vars] : overlay.vars)
+    {
+      auto& out_vars = out.vars[variant];
+      for (const auto& [key, value] : vars)
+      {
+        out_vars[key] = value;
+      }
+    }
+    if (overlay.default_variant) out.default_variant = overlay.default_variant;
+    if (overlay.selected_variant) out.selected_variant = overlay.selected_variant;
   }
 } // namespace Pixils::UI

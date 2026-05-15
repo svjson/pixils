@@ -354,6 +354,60 @@ TEST_F(DefThemeTest, deftheme_can_compose_visual_and_layout_theme_layers)
   EXPECT_EQ(*panel->layout->gap->size, 3);
 }
 
+TEST_F(DefThemeTest, deftheme_vars_resolve_default_and_variant_styles)
+{
+  runtime.eval(R"(
+    (pixils/deftheme token-theme
+      {:default-variant :light
+       :vars {:light {:panel-bg {:r 1 :g 2 :b 3}
+                      :panel-text {:r 4 :g 5 :b 6}}
+              :dark {:panel-bg {:r 10 :g 11 :b 12}}}
+       :styles {:ui/panel {:background (pixils/var :panel-bg)
+                           :text {:color (pixils/var :panel-text)}}}})
+  )");
+
+  Pixils::UI::Theme& theme = get_theme(runtime, "token-theme");
+  EXPECT_EQ(theme.default_variant, std::make_optional<std::string>("light"));
+
+  auto light_panel = theme.get_style(Pixils::UI::ThemeSelector::class_name("ui/panel"));
+  ASSERT_NE(light_panel, nullptr);
+  ASSERT_TRUE(light_panel->background.has_value());
+  ASSERT_TRUE(light_panel->background->color.has_value());
+  EXPECT_EQ(light_panel->background->color->r, 1);
+  ASSERT_TRUE(light_panel->text.has_value());
+  ASSERT_TRUE(light_panel->text->color.has_value());
+  EXPECT_EQ(light_panel->text->color->r, 4);
+
+  auto dark_panel =
+    theme.get_variant_style("dark", Pixils::UI::ThemeSelector::class_name("ui/panel"));
+  ASSERT_NE(dark_panel, nullptr);
+  ASSERT_TRUE(dark_panel->background.has_value());
+  ASSERT_TRUE(dark_panel->background->color.has_value());
+  EXPECT_EQ(dark_panel->background->color->r, 10);
+  ASSERT_TRUE(dark_panel->text.has_value());
+  ASSERT_TRUE(dark_panel->text->color.has_value());
+  EXPECT_EQ(dark_panel->text->color->r, 4);
+}
+
+TEST_F(DefThemeTest, resolved_theme_variant_falls_back_to_default_when_missing)
+{
+  runtime.eval(R"(
+    (pixils/deftheme token-theme
+      {:default-variant :light
+       :vars {:light {:panel-bg {:r 1 :g 2 :b 3}}}
+       :styles {:ui/panel {:background (pixils/var :panel-bg)}}})
+  )");
+
+  Pixils::UI::Theme& theme = get_theme(runtime, "token-theme");
+  auto resolved = theme.resolved_for_variant("dark");
+  auto panel = resolved.get_style(Pixils::UI::ThemeSelector::class_name("ui/panel"));
+  ASSERT_NE(panel, nullptr);
+  ASSERT_TRUE(panel->background.has_value());
+  ASSERT_TRUE(panel->background->color.has_value());
+  EXPECT_EQ(panel->background->color->r, 1);
+  EXPECT_EQ(resolved.selected_variant, std::make_optional<std::string>("light"));
+}
+
 TEST_F(DefThemeTest, defprogram_with_theme_is_created)
 {
   runtime.eval(R"(
@@ -367,6 +421,21 @@ TEST_F(DefThemeTest, defprogram_with_theme_is_created)
   ASSERT_TRUE(program.theme.has_value());
   ASSERT_EQ(program.theme->size(), 1u);
   EXPECT_EQ((*program.theme)[0], "app-theme");
+}
+
+TEST_F(DefThemeTest, defprogram_accepts_theme_variant)
+{
+  runtime.eval(R"(
+    (pixils/deftheme app-theme {:styles {}})
+    (pixils/defprogram app {:initial-mode 'root-mode
+                            :theme 'app-theme
+                            :theme-variant :dark})
+  )");
+
+  auto program_val = runtime.eval("(get pixils/programs 'app)");
+  Pixils::Program& program = Lisple::obj<Pixils::Program>(*program_val);
+  ASSERT_TRUE(program.theme_variant.has_value());
+  EXPECT_EQ(*program.theme_variant, "dark");
 }
 
 TEST_F(DefThemeTest, defprogram_accepts_theme_vectors)

@@ -61,9 +61,20 @@ namespace Pixils
 
     Lisple::sptr_val program_root_overrides(const Program& program)
     {
-      if (!program.theme) return Lisple::Constant::NIL;
+      if (!program.theme && !program.theme_variant) return Lisple::Constant::NIL;
 
-      return Lisple::map({Lisple::keyword("theme"), theme_names_to_value(*program.theme)});
+      std::vector<Lisple::sptr_val> values;
+      if (program.theme)
+      {
+        values.push_back(Lisple::keyword("theme"));
+        values.push_back(theme_names_to_value(*program.theme));
+      }
+      if (program.theme_variant)
+      {
+        values.push_back(Lisple::keyword("theme-variant"));
+        values.push_back(Lisple::keyword(*program.theme_variant));
+      }
+      return Lisple::map(values);
     }
   } // namespace
 

@@ -290,6 +290,7 @@ namespace Pixils::Script
                                      {{"display", &HostType::DISPLAY},
                                       {"initial-mode", &Lisple::Type::SYMBOL_VALUE},
                                       {"theme", &Lisple::Type::ANY},
+                                      {"theme-variant", &Lisple::Type::ANY},
                                       {"target-frame-rate", &Lisple::Type::NUMBER},
                                       {"pointer", &Lisple::Type::KEYWORD}});
 
@@ -317,6 +318,12 @@ namespace Pixils::Script
         auto theme_names = parse_theme_names(opts.val("theme"), "Program :theme");
         Lisple::obj<Program>(*program).theme =
           theme_names.empty() ? std::nullopt : std::make_optional(std::move(theme_names));
+      }
+
+      if (opts.contains("theme-variant"))
+      {
+        Lisple::obj<Program>(*program).theme_variant =
+          parse_theme_variant(opts.val("theme-variant"), "Program :theme-variant");
       }
 
       if (opts.str("pointer", "") == "off")
@@ -617,6 +624,22 @@ namespace Pixils::Script
       return Lisple::Constant::NIL;
     }
 
+    /* ThemeVarFunction - var */
+    FUNC_IMPL(ThemeVarFunction,
+              SIG((FN_ARGS((&Lisple::Type::ANY)),
+                   EXEC_DISPATCH(&ThemeVarFunction::exec_theme_var))));
+
+    EXEC_BODY(ThemeVarFunction, exec_theme_var)
+    {
+      auto key = args[0];
+      if (key->type != Lisple::Value::Type::KEYWORD &&
+          key->type != Lisple::Value::Type::SYMBOL)
+      {
+        throw Lisple::TypeError("var expects a keyword or symbol");
+      }
+      return Lisple::map({Lisple::keyword("__pixils-theme-var"), key});
+    }
+
   } // namespace Function
 
   /* ModeAdapter */
@@ -866,6 +889,7 @@ namespace Pixils::Script
                       ("initial-mode", initial_mode),
                       (display),
                       (theme),
+                      ("theme-variant", theme_variant),
                       ("target-frame-rate", target_frame_rate));
 
   NOBJ_PROP_GET__METHOD(ProgramAdapter, name);
@@ -896,6 +920,12 @@ namespace Pixils::Script
       values.push_back(Lisple::symbol(theme_name));
     }
     return Lisple::vector(values);
+  }
+
+  NOBJ_PROP_GET(ProgramAdapter, theme_variant)
+  {
+    if (!get_object().theme_variant) return Lisple::Constant::NIL;
+    return Lisple::keyword(*get_object().theme_variant);
   }
 
   NOBJ_PROP_GET__FIELD(ProgramAdapter, target_frame_rate);
@@ -934,6 +964,7 @@ namespace Pixils::Script
     values.emplace("pop-mode!", Function::PopModeBangFunction::make());
     values.emplace(FN__PUSH_MODE_BANG, Function::PushModeBangFunction::make());
     values.emplace(FN__QUIT_BANG, Function::QuitBangFunction::make());
+    values.emplace("var", Function::ThemeVarFunction::make());
   }
 
 } // namespace Pixils::Script

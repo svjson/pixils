@@ -183,6 +183,13 @@ namespace
         theme_names.empty() ? std::nullopt : std::make_optional(std::move(theme_names));
     }
 
+    auto theme_variant_val = get("theme-variant");
+    if (theme_variant_val->type != Lisple::Value::Type::NIL)
+    {
+      mode.theme_variant = Pixils::Script::parse_theme_variant(theme_variant_val,
+                                                               "Mode :theme-variant");
+    }
+
     auto children_val = get("children");
     if (children_val->type != Lisple::Value::Type::NIL)
     {

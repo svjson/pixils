@@ -324,6 +324,40 @@ TEST_F(SessionChildrenTest, program_theme_vector_applies_to_root_view)
   EXPECT_EQ(style.padding->l, 4);
 }
 
+TEST_F(SessionChildrenTest, program_theme_variant_selects_theme_vars)
+{
+  // Given
+  runtime.eval(R"(
+    (pixils/deftheme visual-theme
+      {:default-variant :light
+       :vars {:light {:panel-bg {:r 1 :g 2 :b 3}}
+              :dark {:panel-bg {:r 10 :g 11 :b 12}}}
+       :styles {:ui/panel {:background (pixils/var :panel-bg)}}})
+
+    (pixils/defmode root-mode
+      {:class :ui/panel
+       :render (fn [state ctx] nil)})
+
+    (pixils/defprogram app
+      {:initial-mode 'root-mode
+       :theme 'visual-theme
+       :theme-variant :dark})
+  )");
+  Pixils::load_program(runtime, session);
+
+  // When
+  session.render_mode();
+
+  // Then
+  ASSERT_NE(session.active_mode, nullptr);
+  const auto& style = session.active_mode->effective_style;
+  ASSERT_TRUE(style.background.has_value());
+  ASSERT_TRUE(style.background->color.has_value());
+  EXPECT_EQ(*style.background->color, (Pixils::Color{10, 11, 12, 255}));
+  EXPECT_EQ(session.active_mode->effective_theme.selected_variant,
+            std::make_optional<std::string>("dark"));
+}
+
 TEST_F(SessionChildrenTest, root_mode_theme_applies_component_selector_to_active_view)
 {
   // Given

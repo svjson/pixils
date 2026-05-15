@@ -30,6 +30,7 @@ namespace Pixils
     Display display;
     std::string initial_mode;
     std::optional<std::vector<std::string>> theme = std::nullopt;
+    std::optional<std::string> theme_variant = std::nullopt;
     bool pointer_visible = true;
     int target_frame_rate = DEFAULT_TARGET_FRAME_RATE;
 

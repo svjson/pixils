@@ -5,6 +5,8 @@
 
 #include <cstdint>
 #include <lisple/runtime/value.h>
+#include <map>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -59,13 +61,23 @@ namespace Pixils::UI
   {
     std::string name;
     std::vector<std::string> extend;
+    std::optional<std::string> default_variant = std::nullopt;
+    std::optional<std::string> selected_variant = std::nullopt;
+    std::map<std::string, std::map<std::string, Lisple::sptr_val>> vars;
     std::vector<ThemeRule> rules;
+    std::map<std::string, std::vector<ThemeRule>> variant_rules;
 
     void set_style(const ThemeSelector& selector, const Style& style);
+    void set_variant_style(const std::string& variant,
+                           const ThemeSelector& selector,
+                           const Style& style);
     const Style* get_style(const ThemeSelector& selector) const;
+    const Style* get_variant_style(const std::string& variant,
+                                   const ThemeSelector& selector) const;
     std::vector<const Style*> get_matching_styles(const ThemeMatchContext& ctx) const;
     std::vector<const Style*> get_matching_styles(
       const std::vector<ThemeMatchContext>& path) const;
+    Theme resolved_for_variant(const std::optional<std::string>& variant) const;
   };
 
   void overlay_theme(Theme& out, const Theme& overlay);

@@ -127,158 +127,185 @@
 
 
 (deftheme pixils/windows-3
-  {:styles {:ui/app {:background teal
+  {:default-variant :light
+   :vars {:light {:desktop-bg teal
+                  :panel-face panel-face
+                  :panel-shadow panel-shadow
+                  :text c/BLACK
+                  :muted-text panel-shadow
+                  :accent FOCUS-BLUE
+                  :focus-bg FOCUS-BLUE
+                  :focus-text c/WHITE
+                  :field-bg c/WHITE
+                  :field-text c/BLACK
+                  :menu-bg white
+                  :border c/BLACK
+                  :highlight c/WHITE}
+          :dark {:desktop-bg {:r 0x18 :g 0x28 :b 0x2a}
+                 :panel-face {:r 0x32 :g 0x35 :b 0x38}
+                 :panel-shadow {:r 0x1b :g 0x1d :b 0x20}
+                 :text {:r 0xe8 :g 0xea :b 0xec}
+                 :muted-text {:r 0x9a :g 0xa0 :b 0xa6}
+                 :accent {:r 0x6f :g 0xa8 :b 0xff}
+                 :focus-bg {:r 0x18 :g 0x4f :b 0x9d}
+                 :focus-text c/WHITE
+                 :field-bg {:r 0x14 :g 0x16 :b 0x18}
+                 :field-text {:r 0xf0 :g 0xf2 :b 0xf4}
+                 :menu-bg {:r 0x24 :g 0x27 :b 0x2a}
+                 :border {:r 0x05 :g 0x06 :b 0x07}
+                 :highlight {:r 0x69 :g 0x70 :b 0x76}}}
+   :styles {:ui/app {:background (var :desktop-bg)
                      :text {:font :font/win3-system-font
-                            :color c/BLACK}}
+                            :color (var :text)}}
 
-            :ui/panel {:background panel-face
+            :ui/panel {:background (var :panel-face)
                        :padding 4
                        :text {:font :font/win3-system-font
-                              :color c/BLACK}}
+                              :color (var :text)}}
 
             :ui/title {:text {:font :font/win3-system-font
-                              :color c/BLACK}}
+                              :color (var :text)}}
 
             :ui/muted {:text {:font :font/win3-system-font
-                              :color panel-shadow}}
+                              :color (var :muted-text)}}
 
             :ui/accent {:text {:font :font/win3-system-font
-                               :color FOCUS-BLUE}}
+                               :color (var :accent)}}
 
-            :ui/canvas {:background c/WHITE
-                        :border {:color c/BLACK
+            :ui/canvas {:background (var :field-bg)
+                        :border {:color (var :border)
                                  :thickness 1}}
 
             :ui/list-item {:text {:font :font/win3-system-font
-                                  :color c/BLACK}}
+                                  :color (var :field-text)}}
 
             :ui/list-item-hover:hover
-            {:background FOCUS-BLUE
-             :text {:color c/WHITE}}
+            {:background (var :focus-bg)
+             :text {:color (var :focus-text)}}
 
             '(:ui/list-item {:selected true})
-            {:background FOCUS-BLUE
-             :text {:color c/WHITE}}
+            {:background (var :focus-bg)
+             :text {:color (var :focus-text)}}
 
-            'ui/list-box {:background c/WHITE
-                          :border {:color c/BLACK
+            'ui/list-box {:background (var :field-bg)
+                          :border {:color (var :border)
                                    :thickness 1}}
 
-            'ui/combo-box {:background c/WHITE
-                           :border {:color c/BLACK
+            'ui/combo-box {:background (var :field-bg)
+                           :border {:color (var :border)
                                     :thickness 1}}
 
-            'ui/combo-box-popup-panel {:background c/WHITE
-                                       :border {:color c/BLACK
+            'ui/combo-box-popup-panel {:background (var :field-bg)
+                                       :border {:color (var :border)
                                                 :thickness 1}}
 
             'ui/checkbox {:text {:font :font/win3-system-font
-                                 :color c/BLACK}}
+                                 :color (var :text)}}
 
-            'ui/checkbox-box {:background c/WHITE
-                              :border {:color c/BLACK
+            'ui/checkbox-box {:background (var :field-bg)
+                              :border {:color (var :border)
                                        :thickness 1}
-                              :text {:color c/BLACK}}
+                              :text {:color (var :field-text)}}
 
             '(ui/checkbox-box {:pressed true})
-            {:background panel-face}
+            {:background (var :panel-face)}
 
-            'ui/slider {:background panel-face
+            'ui/slider {:background (var :panel-face)
                         :border {:line-style :bevel
-                                 :color c/WHITE
+                                 :color (var :highlight)
                                  :thickness 2
-                                 :right {:color panel-shadow}
-                                 :bottom {:color panel-shadow}}}
+                                 :right {:color (var :panel-shadow)}
+                                 :bottom {:color (var :panel-shadow)}}}
 
-            'ui/scrollbar {:background panel-face
-                           :border {:color c/BLACK
+            'ui/scrollbar {:background (var :panel-face)
+                           :border {:color (var :border)
                                     :thickness 1}
                            :cursor :default
                            :text {:font :font/win3-system-font
-                                  :color c/BLACK}}
+                                  :color (var :text)}}
 
-            'ui/scrollbar-button {:background panel-face
+            'ui/scrollbar-button {:background (var :panel-face)
                                   :border {:line-style :bevel
-                                           :color c/WHITE
+                                           :color (var :highlight)
                                            :thickness 2
-                                           :right {:color panel-shadow}
-                                           :bottom {:color panel-shadow}}
+                                           :right {:color (var :panel-shadow)}
+                                           :bottom {:color (var :panel-shadow)}}
                                   :text {:font :font/win3-system-font
-                                         :color c/BLACK}}
+                                         :color (var :text)}}
 
             '(ui/scrollbar-button {:pressed true})
             {:border {:line-style :bevel
-                      :color panel-shadow
+                      :color (var :panel-shadow)
                       :thickness 2
-                      :right {:color c/WHITE}
-                      :bottom {:color c/WHITE}}}
+                      :right {:color (var :highlight)}
+                      :bottom {:color (var :highlight)}}}
 
-            'ui/scrollbar-track {:background panel-face}
+            'ui/scrollbar-track {:background (var :panel-face)}
 
             '(ui/scrollbar-track {:axis :x})
-            {:border {:color c/BLACK
+            {:border {:color (var :border)
                       :thickness 0
                       :left {:thickness 1}
                       :right {:thickness 1}}}
 
             '(ui/scrollbar-track {:axis :y})
-            {:border {:color c/BLACK
+            {:border {:color (var :border)
                       :thickness 0
                       :top {:thickness 1}
                       :bottom {:thickness 1}}}
 
-            'ui/scrollbar-handle {:background panel-face
+            'ui/scrollbar-handle {:background (var :panel-face)
                                   :border {:line-style :bevel
-                                           :color c/WHITE
+                                           :color (var :highlight)
                                            :thickness 2
-                                           :right {:color panel-shadow}
-                                           :bottom {:color panel-shadow}}}
+                                           :right {:color (var :panel-shadow)}
+                                           :bottom {:color (var :panel-shadow)}}}
 
             '(ui/scrollbar-handle {:pressed true})
             {:border {:line-style :bevel
-                      :color panel-shadow
+                      :color (var :panel-shadow)
                       :thickness 2
-                      :right {:color c/WHITE}
-                      :bottom {:color c/WHITE}}}
+                      :right {:color (var :highlight)}
+                      :bottom {:color (var :highlight)}}}
 
-            'ui/scrollbar-corner {:background panel-face
+            'ui/scrollbar-corner {:background (var :panel-face)
                                   :border {:line-style :bevel
-                                           :color c/WHITE
+                                           :color (var :highlight)
                                            :thickness 2
-                                           :right {:color panel-shadow}
-                                           :bottom {:color panel-shadow}}}
+                                           :right {:color (var :panel-shadow)}
+                                           :bottom {:color (var :panel-shadow)}}}
 
-            'ui/scroll-pane {:background panel-face}
+            'ui/scroll-pane {:background (var :panel-face)}
 
-            'ui/scroll-pane-viewport {:background c/WHITE}
+            'ui/scroll-pane-viewport {:background (var :field-bg)}
 
-            'ui/header-panel-header {:background FOCUS-BLUE
-                                     :border {:color c/BLACK
+            'ui/header-panel-header {:background (var :focus-bg)
+                                     :border {:color (var :border)
                                               :thickness 1}}
 
             ['ui/header-panel-header :ui/title]
-            {:text {:color c/WHITE}}
+            {:text {:color (var :focus-text)}}
 
             'ui/window {:border {:line-style :solid
                                  :thickness 1
-                                 :color c/BLACK}
+                                 :color (var :border)}
                         :text {:font :font/win3-system-font}}
 
-            'ui/window-title-bar {:background c/WHITE
-                                  :text {:color c/BLACK}
-                                  :border {:bottom {:color c/BLACK
+            'ui/window-title-bar {:background (var :menu-bg)
+                                  :text {:color (var :text)}
+                                  :border {:bottom {:color (var :border)
                                                     :thickness 1}}
                                   :width :fill
                                   :height 19
                                   :padding 0}
 
             ['ui/window:focus-within 'ui/window-title-bar]
-            {:background FOCUS-BLUE
-             :text {:color c/WHITE}}
+            {:background (var :focus-bg)
+             :text {:color (var :focus-text)}}
 
             'ui/window-control-button {:background {:image :pixils/win311-control-button}
                                        :border {:right {:thickness 1
-                                                        :color c/BLACK}}
+                                                        :color (var :border)}}
                                        :hidden false
                                        :width 18
                                        :height 18}
@@ -301,35 +328,35 @@
                       :bottom {:thickness 0}}}
 
             'ui/button-inner
-            {:background panel-face
+            {:background (var :panel-face)
              :border {:line-style :bevel
                       :width :fill
-                      :color c/WHITE
+                      :color (var :highlight)
                       :thickness 2
-                      :right {:color panel-shadow}
-                      :bottom {:color panel-shadow}}}
+                      :right {:color (var :panel-shadow)}
+                      :bottom {:color (var :panel-shadow)}}}
 
             'ui/button-inner:hover
-            {:text {:color c/BLACK}
-             :background panel-face
+            {:text {:color (var :text)}
+             :background (var :panel-face)
              :border {:line-style :bevel
                       :width :fill
-                      :color c/WHITE
+                      :color (var :highlight)
                       :thickness 2
-                      :right {:color panel-shadow}
-                      :bottom {:color panel-shadow}}}
+                      :right {:color (var :panel-shadow)}
+                      :bottom {:color (var :panel-shadow)}}}
 
             '(ui/button-inner {:pressed true})
             {:border {:line-style :bevel
-                      :color panel-shadow
+                      :color (var :panel-shadow)
                       :thickness 2
-                      :right {:color c/WHITE :thickness 1}
-                      :bottom {:color c/WHITE :thickness 1}}}
+                      :right {:color (var :highlight) :thickness 1}
+                      :bottom {:color (var :highlight) :thickness 1}}}
 
             'ui/text-input
             {:width 80
              :border {:line-style :solid
-                      :color c/BLACK
+                      :color (var :border)
                       :thickness 1}}
 
             'ui/text-input-inner
@@ -337,9 +364,9 @@
              :padding [2 4]}
 
             'ui/menu-bar
-            {:background white
+            {:background (var :menu-bg)
              :text {:font :font/win3-system-font}
-             :border {:line-style :solid :color {:r 0 :g 0 :b 0} :bottom {:thickness 1}}}
+             :border {:line-style :solid :color (var :border) :bottom {:thickness 1}}}
 
             'ui/popup-menu-item
             {:padding [2 16]}
@@ -348,48 +375,48 @@
             {:padding [2 2]}
 
             :menu/item
-            {:text {:color c/BLACK
+            {:text {:color (var :text)
                     :marked-style {:enabled true
                                    :marker "@"
                                    :font-styles :underline}}}
 
             :menu/item:hover
-            {:background FOCUS-BLUE
-             :text {:color white
-                    :marked-style {:color c/WHITE}}}
+            {:background (var :focus-bg)
+             :text {:color (var :focus-text)
+                    :marked-style {:color (var :focus-text)}}}
 
             'ui/menu-bar-item:hover
-            {:background white
-             :text {:color c/BLACK
-                    :marked-style {:color c/BLACK}}}
+            {:background (var :menu-bg)
+             :text {:color (var :text)
+                    :marked-style {:color (var :text)}}}
 
             '(ui/menu-bar-item {:highlighted true})
-            {:background FOCUS-BLUE
-             :text {:color white
-                    :marked-style {:color c/WHITE}}}
+            {:background (var :focus-bg)
+             :text {:color (var :focus-text)
+                    :marked-style {:color (var :focus-text)}}}
 
             'ui/popup-menu-item:hover
-            {:background white
-             :text {:color c/BLACK
-                    :marked-style {:color c/BLACK}}}
+            {:background (var :menu-bg)
+             :text {:color (var :text)
+                    :marked-style {:color (var :text)}}}
 
             'ui/popup-menu-option-item:hover
-            {:background white
-             :text {:color c/BLACK
-                    :marked-style {:color c/BLACK}}}
+            {:background (var :menu-bg)
+             :text {:color (var :text)
+                    :marked-style {:color (var :text)}}}
 
             :menu/shortcut-column
             {:margin {:l 16}}
 
             '(ui/popup-menu-item {:highlighted true})
-            {:background FOCUS-BLUE
-             :text {:color white
-                    :marked-style {:color c/WHITE}}}
+            {:background (var :focus-bg)
+             :text {:color (var :focus-text)
+                    :marked-style {:color (var :focus-text)}}}
 
             '(ui/popup-menu-option-item {:highlighted true})
-            {:background FOCUS-BLUE
-             :text {:color white
-                    :marked-style {:color c/WHITE}}}
+            {:background (var :focus-bg)
+             :text {:color (var :focus-text)
+                    :marked-style {:color (var :focus-text)}}}
 
             'ui/menu-option-item
             {:padding {:t 2 :r 12 :b 2 :l 2}}
@@ -408,16 +435,16 @@
              :margin {:t 3 :r 0 :b 2 :l 0}
              :border {:thickness 1
                       :line-style :solid
-                      :color c/BLACK
+                      :color (var :border)
                       :right {:thickness 0}
                       :bottom {:thickness 0}
                       :left {:thickness 0}}}
 
             'ui/popup-menu-inner
-            {:background white
+            {:background (var :menu-bg)
              :text {:font :font/win3-system-font}
              :border {:thickness 1
                       :line-style :solid
-                      :color c/BLACK}}
+                      :color (var :border)}}
 
-            :ui/panel {:background panel-face}}})
+            :ui/panel {:background (var :panel-face)}}})

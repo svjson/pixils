@@ -55,6 +55,7 @@ that runs first.
 | Key        | Values | Description                                                     |
 |------------|--------|-----------------------------------------------------------------|
 | `:theme`   | Symbol or vector of symbols | Theme layer(s) applied to the root mode tree for this program. |
+| `:theme-variant` | Keyword or symbol | Optional variant name used by theme variables, such as `:dark`. |
 | `:pointer` | `:off` | Hide the OS mouse cursor. Omit to leave the cursor visible.    |
 
 ### `defmode` and `defcomponent`
@@ -646,6 +647,36 @@ theme rules.
    :init (fn [state ctx] {:pressed false})
    :render (fn [state ctx] ...)})
 ```
+
+Themes may optionally define CSS-variable-like tokens and variants with `:vars`.
+This is not required for a theme; themes with only `:styles` behave normally.
+When variables are used, `:default-variant` names the fallback variant. Variant
+names and token names are ordinary keywords or symbols:
+
+```clojure
+(pixils/deftheme win3
+  {:default-variant :light
+   :vars {:light {:panel-face {:r 0xc0 :g 0xc7 :b 0xc8}
+                  :panel-text {:r 0 :g 0 :b 0}}
+          :dark {:panel-face {:r 0x32 :g 0x35 :b 0x38}
+                 :panel-text {:r 0xe8 :g 0xea :b 0xec}}}
+   :styles {:ui/panel {:background (pixils/var :panel-face)
+                       :text {:color (pixils/var :panel-text)}}}})
+```
+
+An application can select a variant without changing the major theme:
+
+```clojure
+(pixils/defprogram app
+  {:theme 'pixils/windows-3
+   :theme-variant :dark})
+```
+
+`:theme-variant` is also accepted where `:theme` is accepted on `defmode` and
+child mode entries.
+
+Missing token keys in the selected variant fall back to the theme's
+`:default-variant`. Missing unresolved tokens are errors.
 
 Theme selectors are map keys under `:styles`:
 

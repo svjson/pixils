@@ -177,6 +177,18 @@ namespace Pixils::Script
     throw Lisple::TypeError(context + " must be a symbol or vector of symbols");
   }
 
+  std::optional<std::string> parse_theme_variant(const Lisple::sptr_val& variant_val,
+                                                 const std::string& context)
+  {
+    if (!variant_val || variant_val->type == Lisple::Value::Type::NIL) return std::nullopt;
+    if (variant_val->type != Lisple::Value::Type::KEYWORD &&
+        variant_val->type != Lisple::Value::Type::SYMBOL)
+    {
+      throw Lisple::TypeError(context + " must be a keyword or symbol");
+    }
+    return variant_val->str();
+  }
+
   std::vector<Runtime::ChildSlot> parse_child_slots(Lisple::Context& ctx,
                                                     const Lisple::sptr_val& children_val)
   {
@@ -267,6 +279,7 @@ namespace Pixils::Script
                                           {"class", &Lisple::Type::ANY},
                                           {"focusable", &Lisple::Type::BOOL},
                                           {"theme", &Lisple::Type::ANY},
+                                          {"theme-variant", &Lisple::Type::ANY},
                                           {"children", &Lisple::Type::ANY}});
 
     auto opts = mode_schema.bind(ctx, *definition_map);
@@ -374,6 +387,11 @@ namespace Pixils::Script
       auto theme_names = parse_theme_names(opts.val("theme"), "Mode :theme");
       mode.theme =
         theme_names.empty() ? std::nullopt : std::make_optional(std::move(theme_names));
+    }
+    if (opts.contains("theme-variant"))
+    {
+      mode.theme_variant = parse_theme_variant(opts.val("theme-variant"),
+                                               "Mode :theme-variant");
     }
 
     if (opts.contains("children"))

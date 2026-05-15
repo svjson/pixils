@@ -265,18 +265,34 @@ namespace Pixils::UI
                                   Lisple::Runtime& runtime,
                                   const Theme* inherited_theme)
     {
+      std::optional<std::string> selected_variant =
+        view && view->mode ? view->mode->theme_variant : std::nullopt;
+      if (!selected_variant && inherited_theme)
+      {
+        selected_variant = inherited_theme->selected_variant;
+      }
+      else if (!selected_variant && view && view->inherited_theme)
+      {
+        selected_variant = view->inherited_theme->selected_variant;
+      }
+
       Theme theme = inherited_theme
-                      ? *inherited_theme
-                      : (view && view->inherited_theme ? *view->inherited_theme
-                                                       : default_base_theme(runtime));
+                      ? inherited_theme->resolved_for_variant(selected_variant)
+                      : (view && view->inherited_theme
+                           ? view->inherited_theme->resolved_for_variant(selected_variant)
+                           : default_base_theme(runtime).resolved_for_variant(selected_variant));
       if (!view || !view->mode || !view->mode->theme) return theme;
 
       for (const auto& theme_name : *view->mode->theme)
       {
         auto local_theme = lookup_theme(runtime, theme_name);
-        if (local_theme) overlay_theme(theme, *local_theme);
+        if (local_theme)
+        {
+          overlay_theme(theme, local_theme->resolved_for_variant(selected_variant));
+        }
       }
 
+      theme.selected_variant = selected_variant;
       return theme;
     }
 

@@ -5,6 +5,7 @@
 #include <pixils/runtime/mode.h>
 
 #include <lisple/runtime/value.h>
+#include <optional>
 #include <vector>
 
 namespace Lisple
@@ -17,6 +18,8 @@ namespace Pixils::Script
   std::vector<std::string> parse_mode_classes(const Lisple::sptr_val& class_val);
   std::vector<std::string> parse_theme_names(const Lisple::sptr_val& theme_val,
                                              const std::string& context);
+  std::optional<std::string> parse_theme_variant(const Lisple::sptr_val& variant_val,
+                                                 const std::string& context);
 
   /**
    * @brief Parse a Lisple sequence of child entry maps into ChildSlot objects.

@@ -112,6 +112,8 @@ namespace Pixils::Script
     FUNC(PopModeBangFunction, pop_mode);
     /*! @brief Request application shutdown */
     FUNC(QuitBangFunction, quit);
+    /*! @brief Create a theme variable reference for deftheme styles */
+    FUNC(ThemeVarFunction, theme_var);
     /*! @brief Lisple make-function for Resolution/ResolutionAdapter */
     FUNC(MakeResolution, make_resolution);
   } // namespace Function
@@ -152,7 +154,7 @@ namespace Pixils::Script
   /*! @brief Lisple HostObject Adapter for Program */
   NATIVE_ADAPTER(ProgramAdapter,
                  Program,
-                 (name, display, initial_mode, theme, target_frame_rate),
+                 (name, display, initial_mode, theme, theme_variant, target_frame_rate),
                  (display));
   /*! @brief Lisple HostObject Adapter for RenderContext */
   NATIVE_ADAPTER(RenderContextAdapter, RenderContext, (pixel_size, buffer_dim));
