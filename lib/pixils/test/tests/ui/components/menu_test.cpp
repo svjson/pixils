@@ -102,6 +102,45 @@ TEST_F(MenuTest, opened_popup_inherits_menu_scale)
   EXPECT_EQ(*session.active_mode->effective_style.scale, 2);
 }
 
+TEST_F(MenuTest, opened_popup_without_menu_scale_omits_scale_style)
+{
+  runtime.eval(R"(
+    (def menu-definition
+      {:items [{:label "Game"
+                :items [{:label "New"
+                         :action :game/new}]}]})
+
+    (pixils/defmode root-mode
+      {:children [(pixils.ui.menu/make-menu
+                   {}
+                   menu-definition
+                   {})]})
+  )");
+
+  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.update_mode();
+  session.render_mode();
+
+  ASSERT_NE(session.active_mode, nullptr);
+  ASSERT_EQ(session.active_mode->children.size(), 1u);
+  auto menu = session.active_mode->children[0];
+  ASSERT_NE(menu, nullptr);
+  auto menu_scale = Lisple::Dict::get_property(menu->state, Lisple::keyword("menu-scale"));
+  EXPECT_TRUE(!menu_scale || menu_scale->type == Lisple::Value::Type::NIL);
+  ASSERT_EQ(menu->children.size(), 1u);
+  auto menu_item = menu->children[0];
+  ASSERT_NE(menu_item, nullptr);
+
+  input().mouse_down({menu_item->bounds.x + menu_item->bounds.w / 2,
+                      menu_item->bounds.y + menu_item->bounds.h / 2});
+  update_cycle();
+  session.render_mode();
+
+  ASSERT_NE(session.active_mode, nullptr);
+  EXPECT_EQ(session.active_mode->mode->name, "ui/popup-menu");
+  EXPECT_FALSE(session.active_mode->effective_style.scale.has_value());
+}
+
 TEST_F(MenuTest, context_menu_opens_popup_at_mouse_position)
 {
   runtime.eval(R"(

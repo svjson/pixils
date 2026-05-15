@@ -360,8 +360,8 @@
      :style (or style {})
      :state (merge (or state {})
                    {:menu normalized-menu
-                    :menu-scale (or (:menu-scale state)
-                                    (:scale style))
+                    :menu-scale (menu-scale (:menu-scale state)
+                                            (:scale style))
                     :active-index nil
                     :pending-open-index nil})
      :children (for-indexed [index item (:items normalized-menu)]
@@ -441,6 +441,19 @@
   (or (-> view :effective-style :scale)
       (-> view :style :scale)))
 
+(defun menu-scale [primary fallback]
+  (if (number? primary)
+    primary
+    (if (number? fallback)
+      fallback
+      nil)))
+
+(defun popup-style [state]
+  (let [scale (:menu-scale state)]
+    (if (number? scale)
+      {:scale scale}
+      {})))
+
 (defun popup-menu-children [items state position]
   [{:mode 'ui/popup-menu-outer
     :state {:items (ui/bind-state :items)
@@ -486,7 +499,7 @@
       :game (:game state)
       :preferences (:preferences state)}
      {:origin {:view origin-view :event :menu/select}
-      :style {:scale (:menu-scale state)}
+      :style (popup-style state)
       :children (popup-menu-children items state position)})))
 
 (defun open-popup-at-view! [node state anchor-view placement]
@@ -654,8 +667,8 @@
   {:update (fn [state ctx]
              (let [state (assoc state
                                 :menu-scale
-                                (or (view-scale (:view ctx))
-                                    (:menu-scale state)))
+                                (menu-scale (view-scale (:view ctx))
+                                            (:menu-scale state)))
                    pending-open-index (:pending-open-index state)]
                (if (nil? pending-open-index)
                  state
