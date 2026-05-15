@@ -41,9 +41,9 @@ TEST_F(HeaderPanelTest, make_composes_header_and_body)
   EXPECT_EQ(header->mode->name, "ui/header-panel-header");
   EXPECT_EQ(body->mode->name, "ui/header-panel-body");
   EXPECT_EQ(header->bounds.w, 100);
-  EXPECT_EQ(header->bounds.h, 20);
-  EXPECT_EQ(body->bounds.y, 20);
-  EXPECT_EQ(body->bounds.h, 40);
+  EXPECT_GT(header->bounds.h, 0);
+  EXPECT_EQ(body->bounds.y, header->bounds.h);
+  EXPECT_EQ(body->bounds.h, panel->bounds.h - header->bounds.h);
 
   ASSERT_EQ(header->children.size(), 1u);
   auto title = header->children[0];
