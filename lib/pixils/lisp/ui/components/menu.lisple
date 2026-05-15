@@ -441,52 +441,67 @@
   (or (-> view :effective-style :scale)
       (-> view :style :scale)))
 
+(defun popup-menu-children [items state position]
+  [{:mode 'ui/popup-menu-outer
+    :state {:items (ui/bind-state :items)
+            :highlighted-index (ui/bind-state :highlighted-index)
+            :input-source (ui/bind-state :input-source)
+            :menu-depth (ui/bind-state :menu-depth)
+            :menu-scale (ui/bind-state :menu-scale)
+            :game (ui/bind-state :game)
+            :preferences (ui/bind-state :preferences)}
+    :style {:position :absolute
+            :width :shrink
+            :height :shrink
+            :left (:left position)
+            :top (:top position)}
+    :children [{:mode 'ui/popup-menu-inner
+                :state {:items (ui/bind-state :items)
+                        :highlighted-index (ui/bind-state :highlighted-index)
+                        :input-source (ui/bind-state :input-source)
+                        :menu-depth (ui/bind-state :menu-depth)
+                        :menu-scale (ui/bind-state :menu-scale)
+                        :game (ui/bind-state :game)
+                        :preferences (ui/bind-state :preferences)}
+                :children (for-indexed [index item items]
+                            (merge (popup-item-child item {:node item
+                                                           :index index
+                                                           :highlighted-index (ui/bind-state :highlighted-index)
+                                                           :input-source (ui/bind-state :input-source)
+                                                           :menu-depth (ui/bind-state :menu-depth)
+                                                           :menu-scale (ui/bind-state :menu-scale)
+                                                           :game (ui/bind-state :game)
+                                                           :preferences (ui/bind-state :preferences)})
+                                   {:style {:width :fill}}))}]}])
+
+(defun open-popup-at-position! [items state origin-view position]
+  (when (not (empty? items))
+    (push-mode!
+     (or (:popup-mode state) 'ui/popup-menu)
+     {:items items
+      :highlighted-index (first-selectable-index items)
+      :input-source :mouse
+      :menu-depth (or (:menu-depth state) 0)
+      :menu-scale (:menu-scale state)
+      :game (:game state)
+      :preferences (:preferences state)}
+     {:origin {:view origin-view :event :menu/select}
+      :style {:scale (:menu-scale state)}
+      :children (popup-menu-children items state position)})))
+
 (defun open-popup-at-view! [node state anchor-view placement]
   (when-let [items (:items node)]
     (when (not (empty? items))
       (let [position (popup-position anchor-view placement)]
-      (push-mode!
-       'ui/popup-menu
-       {:items items
-        :highlighted-index (first-selectable-index items)
-        :input-source :mouse
-        :menu-depth (or (:menu-depth state) 0)
-        :menu-scale (:menu-scale state)
-        :game (:game state)
-        :preferences (:preferences state)}
-       {:origin {:view anchor-view :event :menu/select}
-        :style {:scale (:menu-scale state)}
-        :children [{:mode 'ui/popup-menu-outer
-                    :state {:items (ui/bind-state :items)
-                            :highlighted-index (ui/bind-state :highlighted-index)
-                            :input-source (ui/bind-state :input-source)
-                            :menu-depth (ui/bind-state :menu-depth)
-                            :menu-scale (ui/bind-state :menu-scale)
-                            :game (ui/bind-state :game)
-                            :preferences (ui/bind-state :preferences)}
-                    :style {:position :absolute
-                            :width :shrink
-                            :height :shrink
-                            :left (:left position)
-                            :top (:top position)}
-                    :children [{:mode 'ui/popup-menu-inner
-                                :state {:items (ui/bind-state :items)
-                                        :highlighted-index (ui/bind-state :highlighted-index)
-                                        :input-source (ui/bind-state :input-source)
-                                        :menu-depth (ui/bind-state :menu-depth)
-                                        :menu-scale (ui/bind-state :menu-scale)
-                                        :game (ui/bind-state :game)
-                                        :preferences (ui/bind-state :preferences)}
-                                :children (for-indexed [index item items]
-                                            (merge (popup-item-child item {:node item
-                                                                           :index index
-                                                                           :highlighted-index (ui/bind-state :highlighted-index)
-                                                                           :input-source (ui/bind-state :input-source)
-                                                                           :menu-depth (ui/bind-state :menu-depth)
-                                                                           :menu-scale (ui/bind-state :menu-scale)
-                                                                           :game (ui/bind-state :game)
-                                                                           :preferences (ui/bind-state :preferences)})
-                                                   {:style {:width :fill}}))}]}]})))))
+        (open-popup-at-position! items state anchor-view position)))))
+
+(defun open-context-menu! [menu-definition position state ctx]
+  (let [menu (normalize-menu menu-definition (:keymap state))]
+    (open-popup-at-position! (:items menu)
+                             (assoc state :popup-mode 'ui/context-menu)
+                             (:view ctx)
+                             {:left (:x position)
+                              :top (:y position)})))
 
 (defun open-popup! [node state ctx]
   (open-popup-at-view! node state (:view ctx) :below))
@@ -670,6 +685,16 @@
                               :pending-open-index nil))}})
 
 (defmode ui/popup-menu
+  {:on-mouse-down (fn [state event ctx]
+                    (pop-mode! {:type :dismiss})
+                    state)
+   :on {:menu/select (fn [state event ctx]
+                       (ui/stop-propagation! event)
+                       (pop-mode! (:payload event))
+                       state)}
+   :compose {:render :pass}})
+
+(defmode ui/context-menu
   {:on-mouse-down (fn [state event ctx]
                     (pop-mode! {:type :dismiss})
                     state)

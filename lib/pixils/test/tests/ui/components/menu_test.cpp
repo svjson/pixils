@@ -3,6 +3,7 @@
 #include <gtest/gtest.h>
 #include <lisple/runtime/dict.h>
 #include <lisple/runtime/value.h>
+#include <SDL2/SDL_mouse.h>
 
 using MenuTest = RenderFixture;
 
@@ -99,6 +100,50 @@ TEST_F(MenuTest, opened_popup_inherits_menu_scale)
   EXPECT_EQ(session.active_mode->mode->name, "ui/popup-menu");
   ASSERT_TRUE(session.active_mode->effective_style.scale.has_value());
   EXPECT_EQ(*session.active_mode->effective_style.scale, 2);
+}
+
+TEST_F(MenuTest, context_menu_opens_popup_at_mouse_position)
+{
+  runtime.eval(R"(
+    (def context-menu
+      {:settings {:mnemonics {:enabled false}}
+       :items [{:label "Rename"
+                :action :layer/rename}
+               {:label "Delete"
+                :action :layer/delete}]})
+
+    (pixils/defmode context-target
+      {:style {:width 100 :height 30}
+       :on-mouse-up (fn [state event ctx]
+                      (if (= (:button event) :right)
+                        (do
+                          (pixils.ui.menu/open-context-menu!
+                           context-menu
+                           (:global-position event)
+                           state
+                           ctx)
+                          state)
+                        state))})
+  )");
+
+  session.push_mode("context-target", Lisple::Constant::NIL);
+  session.active_mode->bounds = {0, 0, 100, 30};
+  session.update_mode();
+  session.render_mode();
+
+  input().mouse_down({42, 17}, SDL_BUTTON_RIGHT);
+  update_cycle();
+  input().mouse_up({42, 17}, SDL_BUTTON_RIGHT);
+  update_cycle();
+  session.render_mode();
+
+  ASSERT_NE(session.active_mode, nullptr);
+  EXPECT_EQ(session.active_mode->mode->name, "ui/context-menu");
+  ASSERT_EQ(session.active_mode->children.size(), 1u);
+  auto outer = session.active_mode->children[0];
+  ASSERT_NE(outer, nullptr);
+  EXPECT_EQ(outer->bounds.x, 42);
+  EXPECT_EQ(outer->bounds.y, 17);
 }
 
 TEST_F(MenuTest, menu_bar_item_without_children_emits_action_without_opening_popup)
