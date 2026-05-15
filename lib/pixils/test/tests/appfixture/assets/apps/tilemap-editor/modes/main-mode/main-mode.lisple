@@ -1,0 +1,49 @@
+(ns tilemap-editor.root
+  (:require pixils
+            [pixils.ui :as ui]
+            tilemap-editor.controls
+            [tilemap-editor.data :as data]
+            tilemap-editor.workspace))
+
+
+
+;; Root mode
+
+(defmode main-mode
+  {:class :ui/app
+   :style {:padding 8
+           :layout {:direction :column
+                    :gap 8}}
+   :init (fn [state ctx]
+           {:selected-tile 0
+            :selected-tileset-index 0
+            :visible-tileset-indices [0 1 2]
+            :tileset :mixed
+            :selected-label "Selected: Grass"
+            :zoom 1
+            :zoom-label "Zoom 1x"
+            :show-grid? true
+            :map-offset {:x 0 :y 0}})
+   :update (fn [state ctx]
+             (let [tileset (data/tileset-key (:selected-tileset-index state))
+                   zoom (or (:zoom state) 1)]
+               (assoc (assoc (assoc state
+                                    :tileset tileset)
+                             :selected-label
+                             (data/tile-label-in tileset (:selected-tile state)))
+                      :zoom-label
+                      (str "Zoom " zoom "x"))))
+   :children [{:mode 'toolbar
+               :state {:show-grid? (ui/bind-state :show-grid?)}}
+              {:mode 'workspace
+               :state {:selected-tile (ui/bind-state :selected-tile)
+                       :selected-label (ui/bind-state :selected-label)
+                       :selected-tileset-index (ui/bind-state :selected-tileset-index)
+                       :visible-tileset-indices (ui/bind-state :visible-tileset-indices)
+                       :tileset (ui/bind-state :tileset)
+                       :zoom (ui/bind-state :zoom)
+                       :zoom-label (ui/bind-state :zoom-label)
+                       :show-grid? (ui/bind-state :show-grid?)
+                       :map-offset (ui/bind-state :map-offset)}}]
+   :on {:palette/select (fn [state event ctx]
+                          (assoc state :selected-tile (:payload event)))}})

@@ -1,0 +1,72 @@
+(ns tilemap-editor.tile-renderer
+  (:require [pixils.image :as img]
+            [pixils.render :as r]
+            [tilemap-editor.data :as data]
+            [tilemap-editor.tilemap :as tm]))
+
+
+
+;; Tile rendering
+
+(defun centered-pos [rect width height]
+  {:x (+ (:x rect) (/ (- (:w rect) width) 2))
+   :y (+ (:y rect) (/ (- (:h rect) height) 2))})
+
+(defun fit-scale [source-width source-height rect]
+  (min (/ (:w rect) source-width)
+       (/ (:h rect) source-height)))
+
+(defun draw-color-tile! [tile rect]
+  (r/rect! rect {:fill true
+                 :color (:color tile)}))
+
+(defun draw-image-tile! [tile rect]
+  (let [dim (img/size (:image tile))
+        scale (fit-scale (:w dim) (:h dim) rect)
+        width (* (:w dim) scale)
+        height (* (:h dim) scale)]
+    (do
+      (r/rect! rect {:fill true
+                     :color {:r 0x12 :g 0x15 :b 0x18}})
+      (r/image! (:image tile)
+                {:pos (centered-pos rect width height)
+                 :scale scale}))))
+
+(defun draw-sprite-tile! [tile rect]
+  (let [source (:source tile)
+        scale (fit-scale (:w source) (:h source) rect)
+        width (* (:w source) scale)
+        height (* (:h source) scale)]
+    (r/image! (:image tile)
+              {:pos (centered-pos rect width height)
+               :source source
+               :scale scale})))
+
+(defun draw-tile! [tile rect]
+  (cond
+    (= (:type tile) :color)
+    (draw-color-tile! tile rect)
+
+    (= (:type tile) :image)
+    (draw-image-tile! tile rect)
+
+    (= (:type tile) :sprite)
+    (draw-sprite-tile! tile rect)
+
+    :default
+    (r/rect! rect {:fill true
+                   :color {:r 0xff :g 0x00 :b 0xff}})))
+
+(defun render-grid! [tiles offset tileset zoom show-grid?]
+  (dotimes [y data/map-height]
+    (dotimes [x data/map-width]
+      (let [tile-index (nth (nth tiles y) x)
+            tile (data/tile-in tileset tile-index)
+            size (tm/scaled-tile-size zoom)
+            rect {:x (- (* x size) (:x offset))
+                  :y (- (* y size) (:y offset))
+                  :w size
+                  :h size}]
+        (draw-tile! tile rect)
+        (when show-grid?
+          (r/rect! rect {:color {:r 0x12 :g 0x15 :b 0x18}}))))))

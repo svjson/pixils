@@ -1,0 +1,45 @@
+(ns tilemap-editor.workspace
+  (:require pixils
+            [pixils.ui :as ui]
+            tilemap-editor.canvas
+            tilemap-editor.controls
+            [tilemap-editor.inspector :as inspector]
+            [tilemap-editor.palette :as palette]))
+
+
+
+;; Workspace layout
+
+(defcomponent side-panel
+  {:style {:width 190
+           :height :fill
+           :layout {:direction :column
+                    :gap 8}}
+   :children [{:mode 'tileset-controls
+               :state {:selected-tileset-index (ui/bind-state :selected-tileset-index)
+                       :visible-tileset-indices (ui/bind-state :visible-tileset-indices)}}
+              {:mode 'zoom-control
+               :state {:zoom (ui/bind-state :zoom)
+                       :zoom-label (ui/bind-state :zoom-label)}}
+              (palette/make-tile-palette)
+              (inspector/make-inspector-panel)]})
+
+(defcomponent workspace
+  {:style {:width :fill
+           :height :fill
+           :layout {:direction :row
+                    :gap 8}}
+   :children [{:mode 'map-area
+               :state {:selected-tile (ui/bind-state :selected-tile)
+                       :map-offset (ui/bind-state :map-offset)
+                       :tileset (ui/bind-state :tileset)
+                       :zoom (ui/bind-state :zoom)
+                       :show-grid? (ui/bind-state :show-grid?)}}
+              {:mode 'side-panel
+               :state {:selected-tile (ui/bind-state :selected-tile)
+                       :selected-label (ui/bind-state :selected-label)
+                       :selected-tileset-index (ui/bind-state :selected-tileset-index)
+                       :visible-tileset-indices (ui/bind-state :visible-tileset-indices)
+                       :tileset (ui/bind-state :tileset)
+                       :zoom (ui/bind-state :zoom)
+                       :zoom-label (ui/bind-state :zoom-label)}}]})

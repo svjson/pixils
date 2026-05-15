@@ -1,0 +1,66 @@
+(ns tilemap-editor.controls
+  (:require pixils
+            [pixils.ui :as ui]
+            [pixils.ui.checkbox :as chk]
+            [pixils.ui.combo-box :as cb]
+            [pixils.ui.list-box :as lb]
+            [pixils.ui.slider :as sl]
+            [tilemap-editor.data :as data]
+            [tilemap-editor.palette :as palette]))
+
+
+
+;; Editor controls
+
+(defcomponent toolbar
+  {:style {:height 24
+           :layout {:direction :row
+                    :align-items :center
+                    :gap 8}}
+   :children [{:mode 'ui/text
+               :class :ui/title
+               :state {:value "Tilemap Editor"}}
+              {:mode 'ui/text
+               :class :ui/muted
+               :state {:value "arrows pan canvas, click paints selected tile"}}
+              (chk/make {:label "Show grid"
+                         :checked? (ui/bind-state :show-grid?)})]})
+
+(defcomponent tileset-controls
+  {:class :ui/panel
+   :style {:padding 8
+           :layout {:direction :column
+                    :gap 4}}
+   :children [{:mode 'ui/text
+               :class :ui/title
+               :state {:value "Tilesets"}}
+              (cb/make {:options data/tileset-options
+                        :selected-index (ui/bind-state :selected-tileset-index)
+                        :row-height 20
+                        :max-height 72})
+              {:mode 'ui/text
+               :class :ui/muted
+               :state {:value "Library"}}
+              (lb/make {:options data/tileset-options
+                        :style {:height :shrink}
+                        :row-height 20
+                        :visible-rows 3
+                        :max-height 62
+                        :content-width palette/tile-palette-content-width
+                        :selected-indices (ui/bind-state :visible-tileset-indices)
+                        :multi-select? true
+                        :force-selection? true
+                        :toggle-selected? true})]})
+
+(defcomponent zoom-control
+  {:class :ui/panel
+   :style {:padding 8
+           :layout {:direction :column
+                    :gap 4}}
+   :children [{:mode 'ui/text
+               :class :ui/title
+               :state {:value (ui/bind-state :zoom-label)}}
+              (sl/make {:value (ui/bind-state :zoom)
+                        :min 1
+                        :max 4
+                        :step 1})]})

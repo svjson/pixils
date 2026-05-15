@@ -1,0 +1,15 @@
+(ns tilemap-editor.core
+  (:require pixils
+            tilemap-editor.assets
+            tilemap-editor.root
+            tilemap-editor.theme))
+
+(defprogram tilemap-editor
+  {:display {:resolution {:w 800 :h 500}
+             :scaling :scaling/fit
+             :align :align/center
+             :background {:r 0x10 :g 0x13 :b 0x17}}
+   :target-frame-rate 0
+   ;:theme 'tilemap-editor/theme
+   :theme 'pixils/windows-3
+   :initial-mode 'main-mode})
