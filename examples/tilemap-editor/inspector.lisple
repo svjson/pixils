@@ -18,7 +18,7 @@
                (r/text! "CC0 sprite sheet loaded"
                         {:x 74 :y 4}
                         {:color {:r 0xa7 :g 0xb0 :b 0xb8}})
-               (r/text! "Tile slicing comes later"
+               (r/text! "Platformer cuts active"
                         {:x 74 :y 18}
                         {:color {:r 0xa7 :g 0xb0 :b 0xb8}})))})
 
