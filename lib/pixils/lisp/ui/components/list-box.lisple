@@ -136,16 +136,29 @@
   {:w (or (:content-width state) 160)
    :h (list-box-preferred-height state)})
 
+(defun list-box-stretches-items? [style]
+  (let [width (:width (or style {}))]
+    (and (not (nil? width))
+         (not= width :shrink)
+         (not= width :auto))))
+
+(defun list-box-scroll-content-size [state]
+  (let [content-height (list-box-content-height (:options state)
+                                                (or (:row-height state)
+                                                    default-row-height))]
+    (if (:stretch-items? state)
+      {:h content-height}
+      {:w (or (:content-width state) 160)
+       :h content-height})))
+
 (defun list-box-scroll-pane-child [state children]
   (let [row-height (or (:row-height state) default-row-height)
-        content-width (or (:content-width state) 160)
-        content-height (list-box-content-height (:options state) row-height)]
+        content-size (list-box-scroll-content-size state)]
     (merge {:id "scroll-pane"}
            (pixils.ui.scroll-pane/make
             {:style {:width :fill
                      :height :fill}
-             :content-size {:w content-width
-                            :h content-height}
+             :content-size content-size
              :state {:offset (ui/bind-state :offset)
                      :content-state (ui/bind-state :content-state)}
              :scroll-x? false
@@ -219,18 +232,27 @@
                                   (assoc next-state
                                          :selected-values values))))}})
 
-(defun make-item-child [item-child index option row-height hover-highlight?]
-  (if item-child
-    (item-child index option)
-    {:mode 'ui/list-box-item
-     :class (if hover-highlight?
-              :ui/list-item-hover
-              [])
-     :style {:height row-height}
-     :state {:index index
-             :value (option-value option)
-             :label (option-label option)
-             :selected-indices (ui/bind-state :selected-indices)}}))
+(defun stretch-list-box-item [child]
+  (assoc child
+         :style
+         (merge (or (:style child) {})
+                {:width :fill})))
+
+(defun make-item-child [item-child index option row-height hover-highlight? stretch-items?]
+  (let [child (if item-child
+                (item-child index option)
+                {:mode 'ui/list-box-item
+                 :class (if hover-highlight?
+                          :ui/list-item-hover
+                          [])
+                 :style {:height row-height}
+                 :state {:index index
+                         :value (option-value option)
+                         :label (option-label option)
+                         :selected-indices (ui/bind-state :selected-indices)}})]
+    (if stretch-items?
+      (stretch-list-box-item child)
+      child)))
 
 (defun make [{:keys [options style row-height visible-rows max-height content-width selected-indices multi-select? force-selection? toggle-selected? hover-highlight? item-child item-state-keys state]}]
   (let [row-height (or row-height default-row-height)
@@ -238,11 +260,13 @@
         options (or options [])
         content-width (or content-width 160)
         content-height (list-box-content-height options row-height)
-        height (list-box-visible-height options row-height visible-rows max-height)]
+        height (list-box-visible-height options row-height visible-rows max-height)
+        final-style (merge {:height height
+                            :width :shrink}
+                           (or style {}))
+        stretch-items? (list-box-stretches-items? final-style)]
     {:mode 'ui/list-box
-     :style (merge {:height height
-                    :width :fill}
-                   (or style {}))
+     :style final-style
      :state (merge (or state {})
                    {:options options
                     :item-state-keys item-state-keys
@@ -250,22 +274,26 @@
                     :visible-rows visible-rows
                     :max-height max-height
                     :content-width content-width
+                    :stretch-items? stretch-items?
                     :item-children (for-indexed [index option options]
                                      (make-item-child item-child
                                                       index
                                                       option
                                                       row-height
-                                                      hover-highlight?))
+                                                      hover-highlight?
+                                                      stretch-items?))
                     :selected-indices selected-indices
                     :multi-select? multi-select?
                     :force-selection? force-selection?
                     :toggle-selected? toggle-selected?})
      :children [(list-box-scroll-pane-child {:row-height row-height
                                              :content-width content-width
-                                             :options options}
+                                             :options options
+                                             :stretch-items? stretch-items?}
                                             (for-indexed [index option options]
                                               (make-item-child item-child
                                                                index
                                                                option
                                                                row-height
-                                                               hover-highlight?)))]}))
+                                                               hover-highlight?
+                                                               stretch-items?)))]}))

@@ -553,6 +553,10 @@ TEST_F(TilemapEditorAppFixtureTest, current_layer_and_tile_palette_use_list_boxe
   std::vector<std::shared_ptr<Pixils::Runtime::View>> layer_rows;
   find_descendant_modes(layer_list, "layer-row", layer_rows);
   ASSERT_EQ(layer_rows.size(), 4u);
+  auto layer_viewport = find_descendant_mode(layer_list_box, "ui/scroll-pane-viewport");
+  ASSERT_NE(layer_viewport, nullptr);
+  EXPECT_EQ(layer_rows[0]->bounds.w, layer_viewport->bounds.w);
+
   auto first_layer_name =
     Lisple::Dict::get_property(layer_rows[0]->state, Lisple::keyword("layer-name"));
   ASSERT_NE(first_layer_name, nullptr);

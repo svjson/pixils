@@ -99,6 +99,83 @@ TEST_F(ListBoxTest, list_box_uses_scroll_pane_and_forces_initial_selection)
   EXPECT_EQ(first_value->to_string(), ":a");
 }
 
+TEST_F(ListBoxTest, list_box_defaults_to_shrink_width)
+{
+  runtime.eval(R"(
+    (pixils/defmode root-mode
+      {:style {:width 300
+               :height 40
+               :layout {:direction :row}}
+       :children [(pixils.ui.list-box/make
+                   {:options [{:value :a :label "Alpha"}
+                              {:value :b :label "Beta"}]
+                    :row-height 10
+                    :visible-rows 2
+                    :content-width 80})]})
+  )");
+
+  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.update_mode();
+  session.render_mode();
+
+  ASSERT_EQ(session.active_mode->children.size(), 1u);
+  auto list_box = session.active_mode->children[0];
+  ASSERT_NE(list_box, nullptr);
+  EXPECT_EQ(list_box->bounds.w, 82);
+  EXPECT_EQ(list_box->bounds.h, 20);
+
+  auto scroll_pane = list_box->children[0];
+  auto row = scroll_pane->children[0];
+  auto viewport = row->children[0];
+  EXPECT_EQ(viewport->bounds.w, 80);
+}
+
+TEST_F(ListBoxTest, list_box_with_explicit_width_stretches_items)
+{
+  runtime.eval(R"(
+    (pixils/defcomponent custom-fixed-row
+      {:extend 'ui/list-box-item
+       :style {:width 30
+               :height 10}
+       :children [{:mode 'ui/text
+                   :state {:value "Fixed"}}]})
+
+    (pixils/defmode root-mode
+      {:children [(pixils.ui.list-box/make
+                   {:options [{:value :a :label "Alpha"}
+                              {:value :b :label "Beta"}]
+                    :style {:width 200}
+                    :row-height 10
+                    :visible-rows 2
+                    :content-width 80
+                    :item-child (fn [index option]
+                                  {:mode 'custom-fixed-row
+                                   :state {:index index
+                                           :value (:value option)
+                                           :selected-indices (pixils.ui/bind-state
+                                                              :selected-indices)}})})]})
+  )");
+
+  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.update_mode();
+  session.render_mode();
+  session.update_mode();
+  session.render_mode();
+
+  auto list_box = session.active_mode->children[0];
+  ASSERT_NE(list_box, nullptr);
+  EXPECT_EQ(list_box->bounds.w, 200);
+
+  auto scroll_pane = list_box->children[0];
+  auto row = scroll_pane->children[0];
+  auto viewport = row->children[0];
+  auto content = viewport->children[0];
+  ASSERT_EQ(content->children.size(), 2u);
+  auto first_item = content->children[0];
+  EXPECT_GT(viewport->bounds.w, 80);
+  EXPECT_EQ(first_item->bounds.w, viewport->bounds.w);
+}
+
 TEST_F(ListBoxTest, list_box_accepts_custom_item_children)
 {
   runtime.eval(R"(
