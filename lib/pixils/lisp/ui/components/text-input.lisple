@@ -46,9 +46,12 @@
   {:focusable true
    :init (fn [state ctx]
            (let [value (or (:value state) "")]
-             (-> state
-                 (assoc :value value)
-                 (assoc :cursor-index (or (:cursor-index state) (count value))))))
+             (do
+               (when (:auto-focus? state)
+                 (ui/focus! ctx))
+               (-> state
+                   (assoc :value value)
+                   (assoc :cursor-index (or (:cursor-index state) (count value)))))))
    :update (fn [state ctx]
              (let [value (or (:value state) "")
                    text-opts (text-args (-> ctx :view :effective-style))
@@ -114,4 +117,5 @@
 
 (defcomponent ui/text-input
   {:children [{:mode 'ui/text-input-inner
-               :state {:value (ui/bind-state :value)}}]})
+               :state {:value (ui/bind-state :value)
+                       :auto-focus? (ui/bind-state :auto-focus?)}}]})

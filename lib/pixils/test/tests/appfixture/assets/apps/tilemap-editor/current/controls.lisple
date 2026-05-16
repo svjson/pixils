@@ -252,11 +252,8 @@
               {:mode 'ui/text-input
                :style {:width :fill
                        :height 24}
-               :init (fn [state ctx]
-                       (do
-                         (ui/focus! ctx)
-                         state))
-               :state {:value (ui/bind-state :name)}}
+               :state {:value (ui/bind-state :name)
+                       :auto-focus? true}}
               {:mode 'layer-name-dialog-buttons
                :state {:name (ui/bind-state :name)}}]})
 

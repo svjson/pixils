@@ -485,3 +485,53 @@ TEST_F(TilemapEditorAppFixtureTest,
     EXPECT_LE(button->bounds.y + button->bounds.h, content.y + content.h);
   }
 }
+
+TEST_F(TilemapEditorAppFixtureTest, current_layer_name_dialog_focuses_text_input)
+{
+  set_frame_size({1200, 700});
+  load_current_tilemap_editor();
+  load_program();
+
+  session().push_mode("layer-name-dialog-modal",
+                      eval("{:operation :rename "
+                           " :index 0 "
+                           " :title \"Rename Layer\" "
+                           " :name \"Terrain\"}"));
+  ASSERT_NO_THROW(session().process_messages());
+
+  auto text_input_inner = find_first_mode(session().active_mode, "ui/text-input-inner");
+  ASSERT_NE(text_input_inner, nullptr);
+  ASSERT_TRUE(session().focus_state.has_focus());
+  EXPECT_EQ(session().focus_state.focused.lock().get(), text_input_inner.get());
+  EXPECT_TRUE(text_input_inner->interaction.focused);
+
+  auto window = find_first_mode(session().active_mode, "ui/window");
+  ASSERT_NE(window, nullptr);
+  EXPECT_TRUE(window->interaction.focus_within);
+}
+
+TEST_F(TilemapEditorAppFixtureTest, current_layer_confirm_dialog_focuses_cancel_button)
+{
+  set_frame_size({1200, 700});
+  load_current_tilemap_editor();
+  load_program();
+
+  session().push_mode("layer-confirm-dialog-modal",
+                      eval("{:operation :delete "
+                           " :index 0 "
+                           " :title \"Delete Layer\" "
+                           " :message \"Delete Terrain?\" "
+                           " :confirm-label \"Delete\"}"));
+  ASSERT_NO_THROW(session().process_messages());
+
+  std::vector<std::shared_ptr<Pixils::Runtime::View>> buttons;
+  find_descendant_modes(session().active_mode, "ui/button", buttons);
+  ASSERT_EQ(buttons.size(), 2u);
+  ASSERT_TRUE(session().focus_state.has_focus());
+  EXPECT_EQ(session().focus_state.focused.lock().get(), buttons[0].get());
+  EXPECT_TRUE(buttons[0]->interaction.focused);
+
+  auto window = find_first_mode(session().active_mode, "ui/window");
+  ASSERT_NE(window, nullptr);
+  EXPECT_TRUE(window->interaction.focus_within);
+}
