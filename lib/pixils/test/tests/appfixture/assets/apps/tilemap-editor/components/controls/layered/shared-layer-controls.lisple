@@ -1,0 +1,31 @@
+(ns tilemap-editor.controls)
+
+(defun layer-visible? [hidden-layer-indices index]
+  (not (contains? (or hidden-layer-indices []) index)))
+
+(defun toggle-hidden-layer [hidden-layer-indices index]
+  (let [hidden-layer-indices (or hidden-layer-indices [])]
+    (if (contains? hidden-layer-indices index)
+      (filter hidden-layer-indices (fn [item]
+                                     (not= item index)))
+      (concat hidden-layer-indices [index]))))
+
+(def layer-context-menu
+  {:settings {:mnemonics {:enabled false}}
+   :items [{:label "Rename Layer"
+            :action :layer/context-dummy
+            :payload {:command :rename}}
+           {:label "Duplicate Layer"
+            :action :layer/context-dummy
+            :payload {:command :duplicate}}
+           :separator
+           {:label "Move Up"
+            :action :layer/context-dummy
+            :payload {:command :move-up}}
+           {:label "Move Down"
+            :action :layer/context-dummy
+            :payload {:command :move-down}}
+           :separator
+           {:label "Delete Layer"
+            :action :layer/context-dummy
+            :payload {:command :delete}}]})

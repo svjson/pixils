@@ -34,11 +34,51 @@ namespace Pixils::Test::AppFixture::TilemapEditor
     inline constexpr std::string_view tile_renderer = "tilemap-editor/tile-renderer";
     inline constexpr std::string_view theme = "tilemap-editor/theme";
     inline constexpr std::string_view assets_bundle = "tilemap-editor/bundles/assets";
+    inline constexpr std::string_view layered_program = "tilemap-editor/layered/program";
+    inline constexpr std::string_view layered_main_mode = "tilemap-editor/layered/main-mode";
+    inline constexpr std::string_view layered_workspace_component =
+      "tilemap-editor/layered/workspace";
+    inline constexpr std::string_view layered_canvas_component =
+      "tilemap-editor/layered/canvas";
+    inline constexpr std::string_view layered_controls_shared =
+      "tilemap-editor/layered/controls/shared";
+    inline constexpr std::string_view layered_toolbar_component =
+      "tilemap-editor/layered/controls/toolbar";
+    inline constexpr std::string_view layered_tileset_controls_component =
+      "tilemap-editor/layered/controls/tileset-controls";
+    inline constexpr std::string_view layered_layer_visibility_toggle_component =
+      "tilemap-editor/layered/controls/layer-visibility-toggle";
+    inline constexpr std::string_view layered_layer_row_component =
+      "tilemap-editor/layered/controls/layer-row";
+    inline constexpr std::string_view layered_layer_list_plain_component =
+      "tilemap-editor/layered/controls/layer-list-plain";
+    inline constexpr std::string_view layered_layer_list_content_component =
+      "tilemap-editor/layered/controls/layer-list-content";
+    inline constexpr std::string_view layered_layer_list_unclipped_component =
+      "tilemap-editor/layered/controls/layer-list-unclipped";
+    inline constexpr std::string_view layered_layer_list_clipped_component =
+      "tilemap-editor/layered/controls/layer-list-clipped";
+    inline constexpr std::string_view layered_layer_controls_component =
+      "tilemap-editor/layered/controls/layer-controls";
+    inline constexpr std::string_view layered_zoom_control_component =
+      "tilemap-editor/layered/controls/zoom-control";
+    inline constexpr std::string_view layered_inspector_component =
+      "tilemap-editor/layered/inspector";
+    inline constexpr std::string_view layered_data = "tilemap-editor/layered/data";
+    inline constexpr std::string_view layered_tilemap = "tilemap-editor/layered/tilemap";
+    inline constexpr std::string_view layered_tile_renderer =
+      "tilemap-editor/layered/tile-renderer";
+    inline constexpr std::string_view layered_theme = "tilemap-editor/layered/theme";
   } // namespace unit_ids
 
   AppManifest manifest();
+  AppManifest layered_manifest();
+  AppManifest layered_plain_layer_list_manifest();
+  AppManifest layered_content_layer_list_manifest();
+  AppManifest layered_clipped_layer_list_manifest();
   std::string main_namespace();
   std::vector<std::string> entry_files();
+  std::vector<std::string> layered_entry_files();
   std::filesystem::path spritesheet_asset_path();
 } // namespace Pixils::Test::AppFixture::TilemapEditor
 

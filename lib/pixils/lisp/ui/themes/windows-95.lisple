@@ -145,6 +145,7 @@
             :ui/content {:background (var :content-bg)
                          :border {:color (var :border)
                                   :thickness 1}
+                         :clip true
                          :text {:font :font/win95-system-font
                                 :color (var :content-text)}}
 

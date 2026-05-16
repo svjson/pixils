@@ -17,7 +17,8 @@
 
   :ui/content {:background {:r 0xff :g 0xff :b 0xff}
                :border {:color {:r 0x00 :g 0x00 :b 0x00}
-                        :thickness 1}}
+                        :thickness 1}
+               :clip true}
 
   :ui/list-item {:text {:color {:r 0x00 :g 0x00 :b 0x00}}}
 

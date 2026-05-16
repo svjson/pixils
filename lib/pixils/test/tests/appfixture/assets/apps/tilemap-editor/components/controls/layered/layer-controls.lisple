@@ -1,0 +1,23 @@
+(ns tilemap-editor.controls
+  (:require pixils
+            [pixils.ui :as ui]))
+
+(defcomponent layer-controls
+  {:class :ui/panel
+   :style {:padding 8
+           :layout {:direction :column
+                    :gap 4}}
+   :on {:layer/select (fn [state event ctx]
+                        (assoc state :selected-layer-index (:payload event)))
+        :layer/toggle-visible (fn [state event ctx]
+                                (assoc state
+                                       :hidden-layer-indices
+                                       (toggle-hidden-layer (:hidden-layer-indices state)
+                                                            (:payload event))))}
+   :children [{:mode 'ui/text
+               :class :ui/title
+               :state {:value "Layers"}}
+              {:mode 'layer-list
+               :state {:layers (ui/bind-state :layers)
+                       :hidden-layer-indices (ui/bind-state :hidden-layer-indices)
+                       :selected-layer-index (ui/bind-state :selected-layer-index)}}]})

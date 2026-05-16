@@ -1,0 +1,67 @@
+(ns tilemap-editor.controls
+  (:require pixils
+            [pixils.ui :as ui]
+            [pixils.ui.menu :as menu]
+            [tilemap-editor.data :as data]))
+
+(defcomponent layer-row
+  {:class [:ui/list-item :ui/list-item-hover]
+   :style {:width :fill
+           :height 26
+           :padding [3 6]
+           :layout {:direction :row
+                    :align-items :center
+                    :gap 6}}
+   :update (fn [state ctx]
+             (let [layer (:layer state)
+                   visible? (layer-visible? (:hidden-layer-indices state)
+                                            (:index state))]
+               (assoc
+                (assoc
+                 (assoc
+                  (assoc
+                   (assoc state
+                          :selected
+                          (= (:index state) (:selected-layer-index state)))
+                   :visible?
+                   visible?)
+                  :visibility-label
+                  (if visible? "V" "-"))
+                 :layer-name
+                 (:label layer))
+                :tileset-label
+                (data/tileset-label (:tileset layer)))))
+   :on-click (fn [state event ctx]
+               (if (= (:button event) :left)
+                 (do
+                   (ui/emit! (:view ctx) :layer/select (:index state))
+                   state)
+                 state))
+   :on-mouse-down (fn [state event ctx]
+                    (do
+                      (when (= (:button event) :right)
+                        (ui/stop-propagation! event))
+                      state))
+   :on-mouse-up (fn [state event ctx]
+                  (if (= (:button event) :right)
+                    (do
+                      (ui/stop-propagation! event)
+                      (ui/emit! (:view ctx) :layer/select (:index state))
+                      (menu/open-context-menu! layer-context-menu
+                                               (:global-position event)
+                                               state
+                                               ctx)
+                      state)
+                    state))
+   :on {:menu/select (fn [state event ctx]
+                       (ui/stop-propagation! event)
+                       state)}
+   :children [{:mode 'layer-visibility-toggle
+               :state {:index (ui/bind-state :index)
+                       :visibility-label (ui/bind-state :visibility-label)}}
+              {:mode 'ui/text
+               :style {:width :fill}
+               :state {:value (ui/bind-state :layer-name)}}
+              {:mode 'ui/text
+               :class :ui/muted
+               :state {:value (ui/bind-state :tileset-label)}}]})

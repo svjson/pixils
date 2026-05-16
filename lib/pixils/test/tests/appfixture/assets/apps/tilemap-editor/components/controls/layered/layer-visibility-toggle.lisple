@@ -1,0 +1,19 @@
+(ns tilemap-editor.controls
+  (:require pixils
+            [pixils.ui :as ui]))
+
+(defcomponent layer-visibility-toggle
+  {:class :ui/list-item-hover
+   :style {:width 24
+           :height 22
+           :layout {:direction :row
+                    :align-items :center}}
+   :on-click (fn [state event ctx]
+               (do
+                 (ui/stop-propagation! event)
+                 (ui/emit! (:view ctx) :layer/toggle-visible (:index state))
+                 state))
+   :children [{:mode 'ui/text
+               :style {:width :fill
+                       :text {:align :center}}
+               :state {:value (ui/bind-state :visibility-label)}}]})

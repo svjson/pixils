@@ -1,0 +1,28 @@
+(ns tilemap-editor.controls
+  (:require pixils
+            [pixils.ui :as ui]
+            [pixils.ui.combo-box :as cb]
+            [tilemap-editor.data :as data]))
+
+(defcomponent tileset-controls
+  {:class :ui/panel
+   :style {:padding 8
+           :layout {:direction :column
+                    :gap 4}}
+   :on {:combo-box/change (fn [state event ctx]
+                            (let [index (-> event :payload :selected-index)]
+                              (assoc-in (assoc state :selected-tileset-index index)
+                                        [:layers
+                                         (or (:selected-layer-index state) 0)
+                                         :tileset]
+                                        (data/tileset-key index))))}
+   :children [{:mode 'ui/text
+               :class :ui/title
+               :state {:value "Tile Definition Set"}}
+              (cb/make {:options data/tileset-options
+                        :selected-index (ui/bind-state :selected-tileset-index)
+                        :row-height 20
+                        :max-height 72})
+              {:mode 'ui/text
+               :class :ui/muted
+               :state {:value "Applies to selected layer"}}]})

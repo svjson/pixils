@@ -1,0 +1,109 @@
+(ns tilemap-editor.canvas
+  (:require pixils
+            [pixils.render :as r]
+            [pixils.ui :as ui]
+            [tilemap-editor.data :as data]
+            [tilemap-editor.tilemap :as tm]
+            [tilemap-editor.tile-renderer :as tr]))
+
+
+
+;; Map canvas
+
+(defcomponent map-canvas
+  {:focusable true
+   :class :ui/canvas
+   :style {:width :fill
+           :height :fill
+           :cursor :crosshair}
+   :init (fn [state ctx]
+           (merge {:offset {:x 0 :y 0}
+                   :layers (data/make-layered-map)}
+                  state))
+   :update (fn [state ctx]
+             (tm/clamp-map-offset state ctx))
+   :on-mouse-down (fn [state event ctx]
+                    (tm/paint-map-at state event))
+   :on-drag (fn [state event ctx]
+              (tm/paint-map-at state event))
+   :on-key-down (fn [state event ctx]
+                  (let [step (tm/scaled-tile-size (:zoom state))]
+                    (case (:key event)
+                      :key/left (tm/pan-map state ctx (* -1 step) 0)
+                      :key/right (tm/pan-map state ctx step 0)
+                      :key/up (tm/pan-map state ctx 0 (* -1 step))
+                      :key/down (tm/pan-map state ctx 0 step)
+                      :default state)))
+   :render (fn [state ctx]
+             (let [offset (or (:offset state) {:x 0 :y 0})]
+               (tr/render-layers! (:layers state)
+                                  (:hidden-layer-indices state)
+                                  offset
+                                  (:zoom state)
+                                  (:show-grid? state))
+               (r/text! (str "offset " (:x offset) "," (:y offset)
+                             "\nzoom " (:zoom state) "x"
+                             "\nlayer " (data/layer-label (:selected-layer-index state)))
+                        {:x 8 :y 8}
+                        {:color {:r 0xff :g 0xcc :b 0x66}})))})
+
+(defcomponent map-scroll-row
+  {:style {:width :fill
+           :height :fill
+           :layout {:direction :row}}
+   :children [{:mode 'map-canvas
+               :state {:selected-tile (ui/bind-state :selected-tile)
+                       :selected-layer-index (ui/bind-state :selected-layer-index)
+                       :layers (ui/bind-state :layers)
+                       :hidden-layer-indices (ui/bind-state :hidden-layer-indices)
+                       :offset (ui/bind-state :map-offset)
+                       :zoom (ui/bind-state :zoom)
+                       :show-grid? (ui/bind-state :show-grid?)}}
+              {:mode 'ui/scrollbar
+               :class :scrollbar/v
+               :style {:width 14
+                       :height :fill}
+               :state {:axis :y
+                       :value (ui/bind-state :map-offset :y)
+                       :step (ui/bind-state :tile-size)
+                       :content-size (ui/bind-state :content-height)}}]
+   :update (fn [state ctx]
+             (let [size (tm/scaled-tile-size (:zoom state))]
+               (assoc (assoc state :tile-size size)
+                      :content-height (* data/map-height size))))})
+
+(defcomponent map-scroll-footer
+  {:style {:width :fill
+           :height 14
+           :layout {:direction :row}}
+   :children [{:mode 'ui/scrollbar
+               :class :scrollbar/h
+               :style {:width :fill
+                       :height 14}
+               :state {:axis :x
+                       :value (ui/bind-state :map-offset :x)
+                       :step (ui/bind-state :tile-size)
+                       :content-size (ui/bind-state :content-width)}}
+              {:mode 'ui/scrollbar-corner
+               :style {:width 14
+                       :height 14}}]
+   :update (fn [state ctx]
+             (let [size (tm/scaled-tile-size (:zoom state))]
+               (assoc (assoc state :tile-size size)
+                      :content-width (* data/map-width size))))})
+
+(defcomponent map-area
+  {:style {:width :fill
+           :height :fill
+           :layout {:direction :column}}
+   :children [{:mode 'map-scroll-row
+               :state {:selected-tile (ui/bind-state :selected-tile)
+                       :selected-layer-index (ui/bind-state :selected-layer-index)
+                       :layers (ui/bind-state :layers)
+                       :hidden-layer-indices (ui/bind-state :hidden-layer-indices)
+                       :map-offset (ui/bind-state :map-offset)
+                       :zoom (ui/bind-state :zoom)
+                       :show-grid? (ui/bind-state :show-grid?)}}
+              {:mode 'map-scroll-footer
+               :state {:map-offset (ui/bind-state :map-offset)
+                       :zoom (ui/bind-state :zoom)}}]})

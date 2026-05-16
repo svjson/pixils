@@ -1,0 +1,18 @@
+(ns tilemap-editor.controls
+  (:require pixils
+            [pixils.ui :as ui]
+            [pixils.ui.checkbox :as chk]))
+
+(defcomponent toolbar
+  {:style {:height 24
+           :layout {:direction :row
+                    :align-items :center
+                    :gap 8}}
+   :children [{:mode 'ui/text
+               :class :ui/title
+               :state {:value "Tilemap Editor"}}
+              {:mode 'ui/text
+               :class :ui/muted
+               :state {:value "arrows pan, left paints, right clears"}}
+              (chk/make {:label "Show grid"
+                         :checked? (ui/bind-state :show-grid?)})]})

@@ -203,11 +203,12 @@ namespace Pixils::UI
         return;
       }
 
-      auto active_clip = inherited_clip;
+      auto content_clip = inherited_clip;
+      bool content_visible = true;
       if (style_res.clip && *style_res.clip)
       {
-        active_clip = intersect_clip(active_clip, style_res.content_rect(bounds));
-        if (!active_clip) return;
+        content_clip = intersect_clip(content_clip, style_res.content_rect(bounds));
+        content_visible = content_clip.has_value();
       }
 
       /**
@@ -218,19 +219,23 @@ namespace Pixils::UI
        * resets to null at its end - child 0 never got that prior reset.
        */
       SDL_RenderSetViewport(render_ctx.renderer, nullptr);
-      set_clip(render_ctx, active_clip, origin);
+      set_clip(render_ctx, inherited_clip, origin);
 
       /**
        * Draw background fill using absolute bounds, now that viewport is null.
        */
       if (style_res.background && style_res.background->color)
       {
-        const SDL_Color& bg = style_res.background->color->to_SDL_Color();
-        SDL_SetRenderDrawColor(render_ctx.renderer, bg.r, bg.g, bg.b, bg.a);
-        SDL_Rect bg_rect = target_rect(bounds, origin).to_SDL_rect();
-        SDL_SetRenderDrawBlendMode(render_ctx.renderer, SDL_BLENDMODE_BLEND);
-        SDL_RenderFillRect(render_ctx.renderer, &bg_rect);
-        SDL_SetRenderDrawBlendMode(render_ctx.renderer, SDL_BLENDMODE_NONE);
+        auto bg_bounds = intersect_clip(inherited_clip, bounds);
+        if (bg_bounds)
+        {
+          const SDL_Color& bg = style_res.background->color->to_SDL_Color();
+          SDL_SetRenderDrawColor(render_ctx.renderer, bg.r, bg.g, bg.b, bg.a);
+          SDL_Rect bg_rect = target_rect(*bg_bounds, origin).to_SDL_rect();
+          SDL_SetRenderDrawBlendMode(render_ctx.renderer, SDL_BLENDMODE_BLEND);
+          SDL_RenderFillRect(render_ctx.renderer, &bg_rect);
+          SDL_SetRenderDrawBlendMode(render_ctx.renderer, SDL_BLENDMODE_NONE);
+        }
       }
 
       if (style_res.background && style_res.background->image && render_ctx.asset_registry)
@@ -247,12 +252,12 @@ namespace Pixils::UI
           SDL_Rect dest =
             background_image_dest(background, bounds, source.w, source.h, origin);
 
-          set_clip(render_ctx, intersect_clip(active_clip, bounds), origin);
+          set_clip(render_ctx, intersect_clip(inherited_clip, bounds), origin);
           const Uint8 alpha = opacity_to_alpha(background.opacity.value_or(1.0f));
           SDL_SetTextureAlphaMod(texture, alpha);
           SDL_RenderCopy(render_ctx.renderer, texture, &source, &dest);
           if (alpha != 255) SDL_SetTextureAlphaMod(texture, 255);
-          set_clip(render_ctx, active_clip, origin);
+          set_clip(render_ctx, inherited_clip, origin);
         }
       }
 
@@ -307,25 +312,28 @@ namespace Pixils::UI
 
       Rect content = style_res.content_rect(bounds);
 
-      SDL_Rect viewport = target_rect(content, origin).to_SDL_rect();
-      SDL_RenderSetViewport(render_ctx.renderer, &viewport);
-      set_clip(render_ctx, active_clip, origin, content);
-
-      Lisple::sptr_val_v rargs = {ctx.state, render_hook_ctx};
-      Runtime::invoke_hook(runtime, view_ptr, ctx.mode->render, rargs);
-
-      if (!ctx.children.empty())
+      if (content_visible)
       {
-        for (const auto& child : ctx.children)
+        SDL_Rect viewport = target_rect(content, origin).to_SDL_rect();
+        SDL_RenderSetViewport(render_ctx.renderer, &viewport);
+        set_clip(render_ctx, content_clip, origin, content);
+
+        Lisple::sptr_val_v rargs = {ctx.state, render_hook_ctx};
+        Runtime::invoke_hook(runtime, view_ptr, ctx.mode->render, rargs);
+
+        if (!ctx.children.empty())
         {
-          render_view_impl(render_ctx,
-                           runtime,
-                           render_hook_ctx,
-                           child,
-                           active_clip,
-                           target_texture,
-                           origin,
-                           true);
+          for (const auto& child : ctx.children)
+          {
+            render_view_impl(render_ctx,
+                             runtime,
+                             render_hook_ctx,
+                             child,
+                             content_clip,
+                             target_texture,
+                             origin,
+                             true);
+          }
         }
       }
 

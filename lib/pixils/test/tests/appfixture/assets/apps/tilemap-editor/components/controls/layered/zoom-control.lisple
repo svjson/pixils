@@ -1,0 +1,17 @@
+(ns tilemap-editor.controls
+  (:require pixils
+            [pixils.ui :as ui]
+            [pixils.ui.slider :as sl]))
+
+(defcomponent zoom-control
+  {:class :ui/panel
+   :style {:padding 8
+           :layout {:direction :column
+                    :gap 4}}
+   :children [{:mode 'ui/text
+               :class :ui/title
+               :state {:value (ui/bind-state :zoom-label)}}
+              (sl/make {:value (ui/bind-state :zoom)
+                        :min 1
+                        :max 4
+                        :step 1})]})
