@@ -125,8 +125,12 @@
                            (:max-height state)))
 
 (defun list-box-content-state [state]
-  {:selected-indices (or (:selected-indices state) [])
-   :active-index (:active-index state)})
+  (merge (reduce (or (:item-state-keys state) [])
+                 {}
+                 (fn [out key]
+                   (merge out {key (get state key)})))
+         {:selected-indices (or (:selected-indices state) [])
+          :active-index (:active-index state)}))
 
 (defun list-box-content-size [state ctx]
   {:w (or (:content-width state) 160)
@@ -215,18 +219,20 @@
                                   (assoc next-state
                                          :selected-values values))))}})
 
-(defun make-item-child [index option row-height hover-highlight?]
-  {:mode 'ui/list-box-item
-   :class (if hover-highlight?
-            :ui/list-item-hover
-            [])
-   :style {:height row-height}
-   :state {:index index
-           :value (option-value option)
-           :label (option-label option)
-           :selected-indices (ui/bind-state :selected-indices)}})
+(defun make-item-child [item-child index option row-height hover-highlight?]
+  (if item-child
+    (item-child index option)
+    {:mode 'ui/list-box-item
+     :class (if hover-highlight?
+              :ui/list-item-hover
+              [])
+     :style {:height row-height}
+     :state {:index index
+             :value (option-value option)
+             :label (option-label option)
+             :selected-indices (ui/bind-state :selected-indices)}}))
 
-(defun make [{:keys [options style row-height visible-rows max-height content-width selected-indices multi-select? force-selection? toggle-selected? hover-highlight?]}]
+(defun make [{:keys [options style row-height visible-rows max-height content-width selected-indices multi-select? force-selection? toggle-selected? hover-highlight? item-child item-state-keys state]}]
   (let [row-height (or row-height default-row-height)
         visible-rows (or visible-rows default-visible-rows)
         options (or options [])
@@ -237,22 +243,29 @@
      :style (merge {:height height
                     :width :fill}
                    (or style {}))
-     :state {:options options
-             :row-height row-height
-             :visible-rows visible-rows
-             :max-height max-height
-             :content-width content-width
-             :item-children (for-indexed [index option options]
-                              (make-item-child index option row-height hover-highlight?))
-             :selected-indices selected-indices
-             :multi-select? multi-select?
-             :force-selection? force-selection?
-             :toggle-selected? toggle-selected?}
+     :state (merge (or state {})
+                   {:options options
+                    :item-state-keys item-state-keys
+                    :row-height row-height
+                    :visible-rows visible-rows
+                    :max-height max-height
+                    :content-width content-width
+                    :item-children (for-indexed [index option options]
+                                     (make-item-child item-child
+                                                      index
+                                                      option
+                                                      row-height
+                                                      hover-highlight?))
+                    :selected-indices selected-indices
+                    :multi-select? multi-select?
+                    :force-selection? force-selection?
+                    :toggle-selected? toggle-selected?})
      :children [(list-box-scroll-pane-child {:row-height row-height
                                              :content-width content-width
                                              :options options}
                                             (for-indexed [index option options]
-                                              (make-item-child index
+                                              (make-item-child item-child
+                                                               index
                                                                option
                                                                row-height
                                                                hover-highlight?)))]}))

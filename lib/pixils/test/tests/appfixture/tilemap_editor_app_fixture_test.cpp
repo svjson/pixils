@@ -449,8 +449,8 @@ TEST_F(TilemapEditorAppFixtureTest,
        current_layer_name_dialog_shrink_height_contains_buttons)
 {
   set_frame_size({1200, 700});
-  load_current_tilemap_editor();
-  load_program();
+  ASSERT_NO_THROW(load_current_tilemap_editor());
+  ASSERT_NO_THROW(load_program());
 
   session().push_mode("layer-name-dialog-modal",
                       eval("{:operation :rename "
@@ -534,4 +534,83 @@ TEST_F(TilemapEditorAppFixtureTest, current_layer_confirm_dialog_focuses_cancel_
   auto window = find_first_mode(session().active_mode, "ui/window");
   ASSERT_NE(window, nullptr);
   EXPECT_TRUE(window->interaction.focus_within);
+}
+
+TEST_F(TilemapEditorAppFixtureTest, current_layer_and_tile_palette_use_list_boxes)
+{
+  set_frame_size({1200, 700});
+  load_current_tilemap_editor();
+  load_program();
+
+  ASSERT_NO_THROW(update_and_layout());
+  ASSERT_NO_THROW(update_and_layout());
+
+  auto layer_list = find_first_mode(session().active_mode, "layer-list");
+  ASSERT_NE(layer_list, nullptr);
+  auto layer_list_box = find_descendant_mode(layer_list, "ui/list-box");
+  ASSERT_NE(layer_list_box, nullptr);
+
+  std::vector<std::shared_ptr<Pixils::Runtime::View>> layer_rows;
+  find_descendant_modes(layer_list, "layer-row", layer_rows);
+  ASSERT_EQ(layer_rows.size(), 4u);
+  auto first_layer_name =
+    Lisple::Dict::get_property(layer_rows[0]->state, Lisple::keyword("layer-name"));
+  ASSERT_NE(first_layer_name, nullptr);
+  EXPECT_EQ(first_layer_name->to_string(), "\"Terrain\"");
+  auto first_visibility_label = Lisple::Dict::get_property(
+    layer_rows[0]->state, Lisple::keyword("visibility-label"));
+  ASSERT_NE(first_visibility_label, nullptr);
+  EXPECT_EQ(first_visibility_label->to_string(), "\"V\"");
+
+  std::vector<std::shared_ptr<Pixils::Runtime::View>> tile_swatches;
+  find_descendant_modes(session().active_mode, "tile-swatch", tile_swatches);
+  ASSERT_GT(tile_swatches.size(), 1u);
+  auto first_tile_name =
+    Lisple::Dict::get_property(tile_swatches[0]->state, Lisple::keyword("name"));
+  ASSERT_NE(first_tile_name, nullptr);
+  EXPECT_EQ(first_tile_name->to_string(), "\"Grass\"");
+
+  std::vector<std::shared_ptr<Pixils::Runtime::View>> list_boxes;
+  find_descendant_modes(session().active_mode, "ui/list-box", list_boxes);
+  EXPECT_GE(list_boxes.size(), 2u);
+
+  auto second_tile = tile_swatches[1];
+  input().mouse_down({static_cast<float>(second_tile->bounds.x + 4),
+                      static_cast<float>(second_tile->bounds.y + 4)});
+  ASSERT_NO_THROW(update_cycle());
+  input().mouse_up({static_cast<float>(second_tile->bounds.x + 4),
+                    static_cast<float>(second_tile->bounds.y + 4)});
+  ASSERT_NO_THROW(update_cycle());
+
+  auto selected_tile =
+    Lisple::Dict::get_property(session().active_mode->state,
+                               Lisple::keyword("selected-tile"));
+  ASSERT_NE(selected_tile, nullptr);
+  EXPECT_EQ(selected_tile->to_string(), "1");
+
+  std::vector<std::shared_ptr<Pixils::Runtime::View>> visibility_toggles;
+  find_descendant_modes(layer_list, "layer-visibility-toggle", visibility_toggles);
+  ASSERT_EQ(visibility_toggles.size(), 4u);
+  auto first_toggle = visibility_toggles[0];
+  input().mouse_down({static_cast<float>(first_toggle->bounds.x + 4),
+                      static_cast<float>(first_toggle->bounds.y + 4)});
+  ASSERT_NO_THROW(update_cycle());
+  input().mouse_up({static_cast<float>(first_toggle->bounds.x + 4),
+                    static_cast<float>(first_toggle->bounds.y + 4)});
+  ASSERT_NO_THROW(update_cycle());
+  ASSERT_NO_THROW(update_and_layout());
+
+  auto hidden_layer_indices =
+    Lisple::Dict::get_property(session().active_mode->state,
+                               Lisple::keyword("hidden-layer-indices"));
+  ASSERT_NE(hidden_layer_indices, nullptr);
+  EXPECT_EQ(hidden_layer_indices->to_string(), "[0]");
+
+  layer_rows.clear();
+  find_descendant_modes(layer_list, "layer-row", layer_rows);
+  ASSERT_EQ(layer_rows.size(), 4u);
+  first_visibility_label = Lisple::Dict::get_property(
+    layer_rows[0]->state, Lisple::keyword("visibility-label"));
+  ASSERT_NE(first_visibility_label, nullptr);
+  EXPECT_EQ(first_visibility_label->to_string(), "\"-\"");
 }

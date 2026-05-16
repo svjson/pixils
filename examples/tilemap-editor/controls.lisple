@@ -4,6 +4,7 @@
             [pixils.ui.checkbox :as chk]
             [pixils.ui.combo-box :as cb]
             [pixils.ui.header-panel :as hp]
+            [pixils.ui.list-box :as lb]
             [pixils.ui.menu :as menu]
             [pixils.ui.slider :as sl]
             pixils.ui.text-input
@@ -433,18 +434,23 @@
            :height 22
            :layout {:direction :row
                     :align-items :center}}
-   :on-click (fn [state event ctx]
-               (do
-                 (ui/stop-propagation! event)
-                 (ui/emit! (:view ctx) :layer/toggle-visible (:index state))
-                 state))
+   :on-mouse-down (fn [state event ctx]
+                    (do
+                      (ui/stop-propagation! event)
+                      state))
+   :on-mouse-up (fn [state event ctx]
+                  (do
+                    (ui/stop-propagation! event)
+                    (ui/emit! (:view ctx) :layer/toggle-visible (:index state))
+                    state))
    :children [{:mode 'ui/text
                :style {:width :fill
                        :text {:align :center}}
                :state {:value (ui/bind-state :visibility-label)}}]})
 
 (defcomponent layer-row
-  {:class [:ui/list-item :ui/list-item-hover]
+  {:extend 'ui/list-box-item
+   :class :ui/list-item-hover
    :style {:width :fill
            :height 26
            :padding [3 6]
@@ -456,32 +462,30 @@
                    visible? (layer-visible? (:hidden-layer-indices state)
                                             (:index state))]
                (assoc state
-                      :selected (= (:index state) (:selected-layer-index state))
+                      :selected (contains? (:selected-indices state)
+                                           (:index state))
                       :visible? visible?
                       :visibility-label (if visible? "V" "-")
                       :layer-name (:label layer)
                       :tileset-label (data/tileset-label (:tileset layer)))))
-   :on-click (fn [state event ctx]
-               (if (= (:button event) :left)
-                 (do
-                   (ui/emit! (:view ctx) :layer/select (:index state))
-                   state)
-                 state))
    :on-mouse-down (fn [state event ctx]
                     (do
-                      (when (= (:button event) :right)
-                        (ui/stop-propagation! event))
+                      (ui/stop-propagation! event)
                       state))
    :on-mouse-up (fn [state event ctx]
-                  (if (= (:button event) :right)
-                    (do
-                      (ui/stop-propagation! event)
-                      (ui/emit! (:view ctx) :layer/select (:index state))
+                  (do
+                    (ui/stop-propagation! event)
+                    (ui/emit! (:view ctx)
+                              :list-box/item-click
+                              {:index (:index state)
+                               :value (:index state)
+                               :shift? false
+                               :ctrl? false})
+                    (when (= (:button event) :right)
                       (menu/open-context-menu! layer-context-menu
                                                (:global-position event)
                                                state
-                                               ctx)
-                      state)
+                                               ctx))
                     state))
    :on {:menu/select (fn [state event ctx]
                        (let [payload (:payload event)]
@@ -503,49 +507,66 @@
                :class :ui/muted
                :state {:value (ui/bind-state :tileset-label)}}]})
 
-(defun layer-row-child [index]
+(defun layer-row-child [index layer]
   {:mode 'layer-row
    :state {:index index
+           :value index
            :layer (ui/bind-state :layers index)
            :hidden-layer-indices (ui/bind-state :hidden-layer-indices)
-           :selected-layer-index (ui/bind-state :selected-layer-index)}})
+           :selected-indices (ui/bind-state :selected-indices)}})
 
-(defun layer-row-children [layers]
+(defun layer-options [layers]
   (for-indexed [index layer (or layers [])]
-    (layer-row-child index)))
+    {:value index
+     :label (:label layer)}))
 
-(defcomponent layer-list-rows
-  {:style {:width :fill
-           :height :shrink
-           :layout {:direction :column
-                    :gap 2}}})
+(defun selected-layer-indices [state]
+  (if (nil? (:selected-layer-index state))
+    []
+    [(:selected-layer-index state)]))
 
-(defun layer-list-rows-child [layers]
-  {:mode 'layer-list-rows
-   :id "rows"
-   :state {:layers (ui/bind-state :layers)
-           :hidden-layer-indices (ui/bind-state :hidden-layer-indices)
-           :selected-layer-index (ui/bind-state :selected-layer-index)}
-   :children (layer-row-children layers)})
+(defun layer-list-box-child [layers]
+  (lb/make {:options (layer-options layers)
+            :style {:width :fill
+                    :height :shrink}
+            :row-height 26
+            :visible-rows (count (or layers []))
+            :content-width 200
+            :state {:layers (ui/bind-state :layers)
+                    :hidden-layer-indices (ui/bind-state :hidden-layer-indices)}
+            :item-state-keys [:layers :hidden-layer-indices]
+            :selected-indices (ui/bind-state :selected-indices)
+            :force-selection? true
+            :item-child layer-row-child}))
 
 (defcomponent layer-list
-  {:class :ui/content
-   :style {:width :fill
-           :height :shrink
-           :padding 2
-           :layout {:direction :column}}
+  {:style {:width :fill
+           :height :shrink}
    :init (fn [state ctx]
-           (assoc state :row-count (count (or (:layers state) []))))
+           (assoc state
+                  :row-count (count (or (:layers state) []))
+                  :selected-indices (selected-layer-indices state)))
    :update (fn [state ctx]
              (let [layers (or (:layers state) [])
                    row-count (count layers)]
                (do
                  (when (not= row-count (:row-count state))
                    (ui/replace-child! (:view ctx)
-                                      "rows"
-                                      (layer-list-rows-child layers)))
-                 (assoc state :row-count row-count))))
-   :children [(layer-list-rows-child data/tilemap-layers)]})
+                                      "list-box"
+                                      (merge {:id "list-box"}
+                                             (layer-list-box-child layers))))
+                 (assoc state
+                        :row-count row-count
+                        :selected-indices (selected-layer-indices state)))))
+   :on {:list-box/change (fn [state event ctx]
+                           (do
+                             (ui/stop-propagation! event)
+                             (ui/emit! (:view ctx)
+                                       :layer/select
+                                       (-> event :payload :value))
+                             state))}
+   :children [(merge {:id "list-box"}
+                     (layer-list-box-child data/tilemap-layers))]})
 
 (defun make-layer-controls []
   (hp/make {:title "Layers"

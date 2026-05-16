@@ -3,7 +3,7 @@
             [pixils.render :as r]
             [pixils.ui :as ui]
             [pixils.ui.header-panel :as hp]
-            [pixils.ui.scroll-pane :as sp]
+            [pixils.ui.list-box :as lb]
             [tilemap-editor.data :as data]
             [tilemap-editor.tile-renderer :as tr]))
 
@@ -12,12 +12,15 @@
 ;; Tile palette
 
 (def tile-palette-row-height 22)
-(def tile-palette-row-gap 4)
 (def tile-palette-content-width 160)
 
 (defun tile-palette-content-height []
-  (+ (* data/max-tile-count tile-palette-row-height)
-     (* (dec data/max-tile-count) tile-palette-row-gap)))
+  (* data/max-tile-count tile-palette-row-height))
+
+(defun tile-options []
+  (dotimes [index data/max-tile-count]
+    {:value index
+     :label (str index)}))
 
 (defcomponent tile-swatch-preview
   {:style {:width 14
@@ -32,7 +35,7 @@
                  (r/rect! rect {:color {:r 0xe6 :g 0xea :b 0xee}}))))})
 
 (defcomponent tile-swatch
-  {:class :ui/list-item
+  {:extend 'ui/list-box-item
    :style {:width :fill
            :height tile-palette-row-height
            :padding [4 6]
@@ -42,29 +45,41 @@
    :update (fn [state ctx]
              (let [tile (data/tile-in (:tileset state) (:tile-index state))]
                (assoc (assoc (assoc state
-                                    :selected
-                                    (= (:tile-index state) (:selected-tile state)))
+                                    :selected (contains? (:selected-indices state)
+                                                         (:tile-index state)))
                              :tile tile)
                       :name (:name tile))))
-   :on-click (fn [state event ctx]
-               (do
-                 (ui/emit! (:view ctx) :palette/select (:tile-index state))
-                 state))
+   :on-mouse-down (fn [state event ctx]
+                    (do
+                      (ui/stop-propagation! event)
+                      state))
+   :on-mouse-up (fn [state event ctx]
+                  (do
+                    (ui/stop-propagation! event)
+                    (ui/emit! (:view ctx)
+                              :list-box/item-click
+                              {:index (:index state)
+                               :value (:value state)
+                               :shift? false
+                               :ctrl? false})
+                    state))
    :children [{:mode 'tile-swatch-preview
                :state {:tile (ui/bind-state :tile)}}
               {:mode 'ui/text
                :state {:value (ui/bind-state :name)}}]})
 
-(defcomponent tile-palette-list
-  {:style {:width :fill
-           :height :fill
-           :layout {:direction :column
-                    :gap tile-palette-row-gap}}
-   :children (dotimes [index data/max-tile-count]
-               {:mode 'tile-swatch
-                :state {:tile-index index
-                        :tileset (ui/bind-state :tileset)
-                        :selected-tile (ui/bind-state :selected-tile)}})})
+(defun selected-tile-indices [state]
+  (if (nil? (:selected-tile state))
+    []
+    [(:selected-tile state)]))
+
+(defun tile-swatch-child [index option]
+  {:mode 'tile-swatch
+   :state {:index index
+           :value index
+           :tile-index index
+           :tileset (ui/bind-state :tileset)
+           :selected-indices (ui/bind-state :selected-indices)}})
 
 (defun make-tile-palette []
   (hp/make {:title "Tiles"
@@ -75,19 +90,27 @@
                                   :gap 4}}
             :state {:selected-tile (ui/bind-state :selected-tile)
                     :tileset (ui/bind-state :tileset)}
-            :body-state {:content-state (ui/bind-state :content-state)}
+            :body-state {:tileset (ui/bind-state :tileset)
+                         :selected-indices (ui/bind-state :selected-indices)}
             :update (fn [state ctx]
                       (assoc state
-                             :content-state
-                             {:selected-tile (:selected-tile state)
-                              :tileset (:tileset state)}))
-            :children [(sp/make {:style {:width :fill
-                                          :height :fill}
-                                 :content-size {:w tile-palette-content-width
-                                                :h (tile-palette-content-height)}
-                                 :state {:content-state (ui/bind-state :content-state)}
-                                 :scroll-x? false
-                                 :step (+ tile-palette-row-height tile-palette-row-gap)
-                                 :children [{:mode 'tile-palette-list
-                                             :state {:selected-tile (ui/bind-state :selected-tile)
-                                                     :tileset (ui/bind-state :tileset)}}]})]}))
+                             :selected-indices
+                             (selected-tile-indices state)))
+            :on {:list-box/change (fn [state event ctx]
+                                    (do
+                                      (ui/stop-propagation! event)
+                                      (ui/emit! (:view ctx)
+                                                :palette/select
+                                                (-> event :payload :value))
+                                      state))}
+            :children [(lb/make {:options (tile-options)
+                                 :style {:width :fill
+                                         :height :fill}
+                                 :row-height tile-palette-row-height
+                                 :visible-rows data/max-tile-count
+                                 :content-width tile-palette-content-width
+                                 :state {:tileset (ui/bind-state :tileset)}
+                                 :item-state-keys [:tileset]
+                                 :selected-indices (ui/bind-state :selected-indices)
+                                 :force-selection? true
+                                 :item-child tile-swatch-child})]}))

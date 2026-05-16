@@ -99,6 +99,77 @@ TEST_F(ListBoxTest, list_box_uses_scroll_pane_and_forces_initial_selection)
   EXPECT_EQ(first_value->to_string(), ":a");
 }
 
+TEST_F(ListBoxTest, list_box_accepts_custom_item_children)
+{
+  runtime.eval(R"(
+    (pixils/defcomponent custom-list-row
+      {:extend 'ui/list-box-item
+       :on-mouse-down (fn [state event ctx]
+                        (do
+                          (pixils.ui/stop-propagation! event)
+                          state))
+       :on-mouse-up (fn [state event ctx]
+                      (do
+                        (pixils.ui/emit! (:view ctx)
+                                         :list-box/item-click
+                                         {:index (:index state)
+                                          :value (:value state)
+                                          :shift? false
+                                          :ctrl? false})
+                        state))
+       :children [{:mode 'ui/text
+                   :style {:width :fill}
+                   :state {:value (pixils.ui/bind-state :custom-label)}}]})
+
+    (pixils/defmode root-mode
+      {:init (fn [state ctx] {:selected [0]})
+       :on {:list-box/change (fn [state event ctx]
+                               (assoc state
+                                      :selected (:selected-indices (:payload event))))}
+       :children [(pixils.ui.list-box/make
+                   {:options [{:value :a :label "Alpha"}
+                              {:value :b :label "Beta"}]
+                    :style {:width 100}
+                    :row-height 10
+                    :visible-rows 2
+                    :content-width 100
+                    :selected-indices (pixils.ui/bind-state :selected)
+                    :force-selection? true
+                    :item-child (fn [index option]
+                                  {:mode 'custom-list-row
+                                   :style {:height 10}
+                                   :state {:index index
+                                           :value (:value option)
+                                           :selected-indices (pixils.ui/bind-state
+                                                              :selected-indices)
+                                           :custom-label (str "Custom " (:label option))}})})]})
+  )");
+
+  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.update_mode();
+  session.render_mode();
+  session.update_mode();
+  session.render_mode();
+
+  auto list_box = session.active_mode->children[0];
+  auto scroll_pane = list_box->children[0];
+  auto row = scroll_pane->children[0];
+  auto viewport = row->children[0];
+  auto content = viewport->children[0];
+  ASSERT_EQ(content->children.size(), 2u);
+  EXPECT_EQ(content->children[0]->mode->name, "custom-list-row");
+
+  input().mouse_down({5, 15});
+  update_cycle();
+  input().mouse_up({5, 15});
+  update_cycle();
+
+  auto selected =
+    Lisple::Dict::get_property(session.active_mode->state, Lisple::keyword("selected"));
+  ASSERT_NE(selected, nullptr);
+  EXPECT_EQ(selected->to_string(), "[1]");
+}
+
 TEST_F(ListBoxTest, list_box_item_hover_highlight_is_opt_in)
 {
   runtime.eval(R"(
