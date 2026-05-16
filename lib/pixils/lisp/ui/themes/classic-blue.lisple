@@ -127,7 +127,7 @@
 
     'ui/button-inner
     {:background BUTTON-BG
-     :font {:color (var :text)}
+     :text {:color (var :text)}
      :border {:line-style :bevel
               :width :fill
               :color BUTTON-HIGHLIGHT
@@ -213,10 +213,19 @@
     'ui/window-minimize-button {:width 18
                                 :height 18}
 
-    'ui/text-input {:width 80}
+    'ui/text-input {:width 80
+                    :background (var :content-bg)
+                    :border {:color (var :panel-shadow)
+                             :thickness 1
+                             :right {:color (var :panel-highlight)}
+                             :bottom {:color (var :panel-highlight)}}
+                    :text {:color (var :text)}}
 
     'ui/text-input-inner {:width :fill
-                          :padding [2 4]}
+                          :background (var :panel-bg)
+                          :padding [0 4]}
+
+    'ui/text-input-caret {:background (var :text)}
 
 
     'ui/menu-bar

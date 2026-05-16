@@ -10,7 +10,8 @@
 (defcomponent ui/button-inner {:style {:width :fill
                                        :height :fill}
                                :children [{:mode 'ui/text
-                                           :style {:padding {:t 4 :l 4 :r 4 :b 2}}
+                                           :style {:width :fill
+                                                   :text {:align :center}}
                                            :state {:value (ui/bind-state :label)}}]
                                :render (fn [state {:keys [view] :as ctx}]
                                          (let [bw (-> view :bounds :w)

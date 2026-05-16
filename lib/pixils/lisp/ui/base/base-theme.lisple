@@ -152,21 +152,30 @@
   'ui/button-inner
   {:text {:color {:r 0x00 :g 0x00 :b 0x00}}
    :background {:r 0xff :g 0xff :b 0xff}
+   :layout {:direction :row
+            :align-items :center}
    :border {:color {:r 0x00 :g 0x00 :b 0x00}
             :thickness 1}}
 
   'ui/button-inner:hover
   {:text {:color {:r 0xff :g 0xff :b 0xff}}
    :background {:r 0x00 :g 0x00 :b 0x00}
+   :layout {:direction :row
+            :align-items :center}
    :border {:color {:r 0x00 :g 0x00 :b 0x00}
             :thickness 1}}
 
   'ui/text-input {:width 80
+                  :height 22
+                  :background {:r 0xff :g 0xff :b 0xff}
                   :border {:color {:r 0x00 :g 0x00 :b 0x00}
                            :thickness 1}}
 
   'ui/text-input-inner {:width :fill
-                        :padding [2 4]}
+                        :height :fill
+                        :padding [0 4]
+                        :layout {:direction :row
+                                 :align-items :center}}
 
   'ui/menu-bar {:background {:r 0xff :g 0xff :b 0xff}}
 
