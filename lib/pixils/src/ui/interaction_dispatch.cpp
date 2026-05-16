@@ -243,6 +243,52 @@ namespace Pixils::UI
       }
     }
 
+    void bubble_emitted_events_from_chain(
+      const std::vector<std::shared_ptr<Runtime::View>>& chain,
+      Runtime::HookArguments& hook_args,
+      Lisple::Runtime& rt)
+    {
+      auto view_ctx = hook_args.update_args[1];
+      for (size_t source_index = 0; source_index < chain.size(); source_index++)
+      {
+        std::vector<CustomEvent> bubbled_events;
+        chain[source_index]->drain_events(bubbled_events);
+        if (bubbled_events.empty()) continue;
+
+        if (source_index + 1 >= chain.size())
+        {
+          for (auto& event : bubbled_events)
+          {
+            chain[source_index]->emitted_events.push_back(event);
+          }
+          continue;
+        }
+
+        for (size_t receiver_index = source_index + 1;
+             receiver_index < chain.size() && !bubbled_events.empty();
+             receiver_index++)
+        {
+          auto parent_state =
+            (receiver_index + 1 < chain.size()) ? &chain[receiver_index + 1]->state
+                                                : nullptr;
+          bubbled_events = process_view_events(*chain[receiver_index],
+                                               parent_state,
+                                               view_ctx,
+                                               bubbled_events,
+                                               rt,
+                                               nullptr);
+        }
+
+        if (!bubbled_events.empty())
+        {
+          for (auto& event : bubbled_events)
+          {
+            chain.back()->emitted_events.push_back(event);
+          }
+        }
+      }
+    }
+
     void bubble_drag_hook(const std::vector<std::shared_ptr<Runtime::View>>& chain,
                           Lisple::sptr_val Runtime::Mode::* hook_field,
                           DragEvent& ev,
@@ -262,6 +308,7 @@ namespace Pixils::UI
         },
         hook_args,
         rt);
+      bubble_emitted_events_from_chain(chain, hook_args, rt);
     }
 
     Lisple::sptr_val invoke_drag_payload_hook(const std::shared_ptr<Runtime::View>& source,
