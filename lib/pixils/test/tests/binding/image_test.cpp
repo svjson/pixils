@@ -32,6 +32,27 @@ TEST_F(ImageTest, image_metadata_functions_load_declared_images_on_demand)
   EXPECT_EQ(size_h->num().get_int(), 8);
 }
 
+TEST_F(ImageTest, image_dependencies_accept_map_with_transparency_color)
+{
+  // Given
+  SDLMock::prepared_surfaces["./ship.png"] = {16, 8};
+  runtime.eval(R"(
+    (pixils/defbundle sprites
+      {:images {:ship {:file-name "ship.png"
+                       :transparency-color "#5a5268"}}})
+  )");
+
+  // When
+  auto width = runtime.eval("(pixils.image/width :sprites/ship)");
+  auto height = runtime.eval("(pixils.image/height :sprites/ship)");
+
+  // Then
+  ASSERT_NE(width, nullptr);
+  ASSERT_NE(height, nullptr);
+  EXPECT_EQ(width->num().get_int(), 16);
+  EXPECT_EQ(height->num().get_int(), 8);
+}
+
 TEST_F(ImageTest, image_rect_uses_optional_point_offset_for_position)
 {
   // Given

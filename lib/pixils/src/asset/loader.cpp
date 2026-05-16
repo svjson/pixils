@@ -5,9 +5,12 @@
 
 #include <SDL2/SDL_image.h>
 #include <SDL2/SDL_mixer.h>
+#include <SDL2/SDL_pixels.h>
 #include <SDL2/SDL_render.h>
 #include <SDL2/SDL_rwops.h>
+#include <SDL2/SDL_surface.h>
 #include <filesystem>
+#include <optional>
 
 namespace Pixils::Asset
 {
@@ -22,6 +25,17 @@ namespace Pixils::Asset
       }
 
       return file_name;
+    }
+
+    void apply_transparency_color(SDL_Surface* surface,
+                                  const std::optional<Color>& transparency_color)
+    {
+      if (!surface || !transparency_color) return;
+      if (!surface->format) return;
+
+      const Color& color = *transparency_color;
+      Uint32 color_key = SDL_MapRGB(surface->format, color.r, color.g, color.b);
+      SDL_SetColorKey(surface, SDL_TRUE, color_key);
     }
   } // namespace
 
@@ -42,6 +56,7 @@ namespace Pixils::Asset
       SDL_Surface* img_surface = IMG_Load(resolved.c_str());
       if (img_surface)
       {
+        apply_transparency_color(img_surface, img_dep.transparency_color);
         texture = create_texture(img_surface);
         bundle.image_sources.emplace(img_dep.resource_id, img_surface);
       }

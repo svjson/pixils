@@ -2,6 +2,7 @@
 #define PIXILS__RUNTIME__MODE_H
 
 #include <pixils/binding/pixils_namespace.h>
+#include <pixils/color.h>
 #include <pixils/ui/drag.h>
 #include <pixils/ui/style.h>
 
@@ -17,6 +18,7 @@ namespace Pixils::Runtime
   {
     std::string resource_id;
     std::string file_name;
+    std::optional<Color> transparency_color = std::nullopt;
   };
 
   struct SoundDependency

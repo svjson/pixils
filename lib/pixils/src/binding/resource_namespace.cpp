@@ -1,18 +1,53 @@
 
 #include "pixils/runtime/mode.h"
+#include <pixils/binding/color_namespace.h>
 #include <pixils/binding/resource_namespace.h>
 
 #include <lisple/host/accessor.h>
 #include <lisple/host/schema.h>
+#include <lisple/runtime/value.h>
 #include <lisple/runtime/dict.h>
 
 namespace Pixils::Script
 {
   namespace MapKey
   {
+    SHKEY(FILE_NAME, "file-name");
     SHKEY(IMAGES, "images");
     SHKEY(SOUNDS, "sounds");
+    SHKEY(TRANSPARENCY_COLOR, "transparency-color");
   } // namespace MapKey
+
+  namespace
+  {
+    Runtime::ImageDependency parse_image_dependency(Lisple::Context& ctx,
+                                                    const Lisple::Value* key,
+                                                    const Lisple::sptr_val& value)
+    {
+      if (value->type == Lisple::Value::Type::STRING)
+      {
+        return Runtime::ImageDependency{key->str(), value->str()};
+      }
+
+      if (value->type != Lisple::Value::Type::MAP)
+      {
+        throw Lisple::TypeError("Image resource dependency must be a file name string "
+                                "or a map");
+      }
+
+      static Lisple::MapSchema image_schema(
+        {{"file-name", &Lisple::Type::STRING}},
+        {{"transparency-color", &HostType::COLOR}});
+
+      auto opts = image_schema.bind(ctx, *value);
+      Runtime::ImageDependency dep{key->str(), opts.str("file-name")};
+      if (opts.contains("transparency-color"))
+      {
+        dep.transparency_color = opts.obj<Color>("transparency-color");
+      }
+      return dep;
+    }
+  } // namespace
 
   namespace Function
   {
@@ -36,7 +71,7 @@ namespace Pixils::Script
         for (auto& key : Lisple::Dict::map_keys(*img_map))
         {
           auto val = Lisple::Dict::get_property(img_map, *key);
-          deps.images.push_back({key->str(), val->str()});
+          deps.images.push_back(parse_image_dependency(ctx, key, val));
         }
       }
 
