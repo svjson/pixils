@@ -815,20 +815,54 @@ namespace Pixils::UI
       return false;
     }
 
-    void sync_focus_state(const std::shared_ptr<Runtime::View>& root,
-                          FocusState& focus_state)
+    bool restore_nearest_focusable_ancestor(const std::shared_ptr<Runtime::View>& root,
+                                            FocusState& focus_state)
+    {
+      if (!root) return false;
+
+      auto previous_chain = focus_state.focus_chain;
+      for (size_t i = 1; i < previous_chain.size(); i++)
+      {
+        auto candidate = previous_chain[i].lock();
+        if (!is_focusable(candidate)) continue;
+
+        std::vector<std::shared_ptr<Runtime::View>> chain;
+        if (find_focus_chain(root, candidate.get(), chain))
+        {
+          store_focus_chain(focus_state, chain);
+          return true;
+        }
+      }
+
+      return false;
+    }
+
+    void sync_focus_state_impl(const std::shared_ptr<Runtime::View>& root,
+                               FocusState& focus_state)
     {
       auto focused = focus_state.focused.lock();
-      if (!root || !focused)
+      if (!root)
       {
         focus_state.clear();
+        return;
+      }
+
+      if (!focused)
+      {
+        if (!restore_nearest_focusable_ancestor(root, focus_state))
+        {
+          focus_state.clear();
+        }
         return;
       }
 
       std::vector<std::shared_ptr<Runtime::View>> chain;
       if (!find_focus_chain(root, focused.get(), chain))
       {
-        focus_state.clear();
+        if (!restore_nearest_focusable_ancestor(root, focus_state))
+        {
+          focus_state.clear();
+        }
         return;
       }
 
@@ -1127,13 +1161,19 @@ namespace Pixils::UI
 
   } // namespace
 
+  void sync_focus_state(const std::shared_ptr<Runtime::View>& root,
+                        FocusState& focus_state)
+  {
+    sync_focus_state_impl(root, focus_state);
+  }
+
   void dispatch_keyboard_events(const std::shared_ptr<Runtime::View>& root,
                                 FocusState& focus_state,
                                 FrameEvents& events,
                                 Runtime::HookArguments& hook_args,
                                 Lisple::Runtime& runtime)
   {
-    sync_focus_state(root, focus_state);
+    sync_focus_state_impl(root, focus_state);
     auto chain = keyboard_target_chain(root, focus_state);
     if (chain.empty())
     {
@@ -1166,7 +1206,7 @@ namespace Pixils::UI
                              Runtime::HookArguments& hook_args,
                              Lisple::Runtime& runtime)
   {
-    sync_focus_state(root, focus_state);
+    sync_focus_state_impl(root, focus_state);
 
     if (events.mouse_button_up && events.mouse_button_up->type != Lisple::Value::Type::NIL)
     {
@@ -1179,7 +1219,7 @@ namespace Pixils::UI
       handle_mouse_down(root, mouse_state, focus_state, events, hook_args, runtime);
     }
 
-    sync_focus_state(root, focus_state);
+    sync_focus_state_impl(root, focus_state);
     traverse(root, mouse_state, focus_state, events, hook_args, runtime);
 
     if (events.mouse_moved)

@@ -29,6 +29,7 @@ namespace Pixils::Runtime
     {
       View* origin_view = nullptr;
       Lisple::sptr_val origin_event = Lisple::Constant::NIL;
+      UI::FocusState restore_focus;
     };
 
     Lisple::Runtime& lisple_runtime;

@@ -727,10 +727,6 @@ TEST_F(EventRoutingTest, focused_view_replacement_clears_focus_state)
 
   input().mouse_down({50, 50});
   update_cycle();
-  ASSERT_TRUE(session.focus_state.has_focus());
-  ASSERT_EQ(session.focus_state.focused.lock().get(), original_child.get());
-
-  update_cycle();
 
   EXPECT_EQ(session.active_mode->children[0]->mode->name, "new-child");
   EXPECT_NE(session.active_mode->children[0].get(), original_child.get());
@@ -739,6 +735,99 @@ TEST_F(EventRoutingTest, focused_view_replacement_clears_focus_state)
   EXPECT_FALSE(session.active_mode->interaction.focus_within);
   EXPECT_FALSE(session.active_mode->children[0]->interaction.focused);
   EXPECT_FALSE(session.active_mode->children[0]->interaction.focus_within);
+}
+
+TEST_F(EventRoutingTest, focused_view_replacement_falls_back_to_focusable_ancestor)
+{
+  runtime.eval(R"(
+    (pixils/defmode old-child {:focusable true})
+    (pixils/defmode new-child {})
+    (pixils/defmode root-mode
+      {:focusable true
+       :init (fn [state ctx] {:swapped? false})
+       :update (fn [state ctx]
+                 (if (:swapped? state)
+                   state
+                   (do (pixils.ui/replace-child! (:view ctx)
+                                                 "child"
+                                                 {:mode 'new-child})
+                       (assoc state :swapped? true))))
+       :children [{:mode 'old-child :id "child"}]})
+  )");
+  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.active_mode->bounds = {0, 0, 200, 200};
+  session.active_mode->children[0]->bounds = {20, 20, 100, 100};
+
+  input().mouse_down({50, 50});
+  update_cycle();
+
+  EXPECT_EQ(session.active_mode->children[0]->mode->name, "new-child");
+  ASSERT_TRUE(session.focus_state.has_focus());
+  EXPECT_EQ(session.focus_state.focused.lock().get(), session.active_mode.get());
+  EXPECT_TRUE(session.active_mode->interaction.focused);
+  EXPECT_TRUE(session.active_mode->interaction.focus_within);
+}
+
+TEST_F(EventRoutingTest, hidden_focused_view_falls_back_to_focusable_ancestor)
+{
+  runtime.eval(R"(
+    (pixils/defmode child-mode
+      {:focusable true
+       :on-click (fn [state event ctx]
+                   (do
+                     (pixils.ui/style! ctx {:hidden true})
+                     state))})
+    (pixils/defmode root-mode
+      {:focusable true
+       :children [{:mode 'child-mode :id "child"}]})
+  )");
+  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.active_mode->bounds = {0, 0, 200, 200};
+  session.active_mode->children[0]->bounds = {20, 20, 100, 100};
+
+  input().mouse_down({50, 50});
+  update_cycle();
+  ASSERT_TRUE(session.focus_state.has_focus());
+  ASSERT_EQ(session.focus_state.focused.lock().get(),
+            session.active_mode->children[0].get());
+
+  input().mouse_up({50, 50});
+  update_cycle();
+
+  ASSERT_TRUE(session.focus_state.has_focus());
+  EXPECT_EQ(session.focus_state.focused.lock().get(), session.active_mode.get());
+  EXPECT_TRUE(session.active_mode->interaction.focused);
+  EXPECT_TRUE(session.active_mode->interaction.focus_within);
+}
+
+TEST_F(EventRoutingTest, pop_mode_restores_focus_from_underlying_frame)
+{
+  runtime.eval(R"(
+    (pixils/defmode child-mode {:focusable true})
+    (pixils/defmode root-mode
+      {:focusable true
+       :children [{:mode 'child-mode :id "child"}]})
+    (pixils/defmode popup-mode {:focusable true})
+  )");
+  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.active_mode->bounds = {0, 0, 200, 200};
+  session.active_mode->children[0]->bounds = {20, 20, 100, 100};
+
+  input().mouse_down({50, 50});
+  update_cycle();
+  auto focused_child = session.active_mode->children[0];
+  ASSERT_TRUE(session.focus_state.has_focus());
+  ASSERT_EQ(session.focus_state.focused.lock().get(), focused_child.get());
+
+  session.push_mode("popup-mode", Lisple::Constant::NIL);
+  EXPECT_FALSE(session.focus_state.has_focus());
+
+  session.pop_mode();
+
+  ASSERT_TRUE(session.focus_state.has_focus());
+  EXPECT_EQ(session.focus_state.focused.lock().get(), focused_child.get());
+  EXPECT_TRUE(session.active_mode->children[0]->interaction.focused);
+  EXPECT_TRUE(session.active_mode->interaction.focus_within);
 }
 
 TEST_F(EventRoutingTest, focus_style_variants_apply_to_focused_leaf_and_ancestor_chain)

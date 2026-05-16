@@ -9,6 +9,7 @@
 #include <pixils/runtime/mode.h>
 #include <pixils/runtime/state.h>
 #include <pixils/runtime/view.h>
+#include <pixils/ui/interaction_dispatch.h>
 #include <pixils/ui/view_events.h>
 #include <pixils/ui/view_layout.h>
 #include <pixils/ui/view_lifecycle.h>
@@ -214,8 +215,6 @@ namespace Pixils::Runtime
   {
     if (mode_stack.size() > 1)
     {
-      focus_state.clear();
-
       auto popped_frame = mode_stack.peek();
       auto* popped_mode = popped_frame.first;
       auto frame_meta = frame_metadata.empty() ? ModeFrameMetadata{} : frame_metadata.back();
@@ -242,6 +241,7 @@ namespace Pixils::Runtime
       {
         Pixils::UI::restore_view_tree(child, active_mode->state);
       }
+      focus_state = frame_meta.restore_focus;
 
       auto pop_event_key = frame_meta.origin_event->type != Lisple::Value::Type::NIL
                              ? frame_meta.origin_event
@@ -271,6 +271,11 @@ namespace Pixils::Runtime
 
       mode_stack.update_state(active_mode->state);
       this->hook_args.update_state(active_mode->state);
+      UI::sync_focus_state(active_mode, focus_state);
+      UI::refresh_view_interaction_tree(active_mode,
+                                        mouse_state,
+                                        focus_state,
+                                        current_mouse_pos(hook_args));
     }
   }
 
@@ -278,8 +283,6 @@ namespace Pixils::Runtime
                           const Lisple::sptr_val& state,
                           const Lisple::sptr_val& overrides)
   {
-    focus_state.clear();
-
     std::optional<UI::Theme> inherited_theme = std::nullopt;
     /**
      * Flush the current active context's state to the Lisple stack before pushing,
@@ -291,7 +294,10 @@ namespace Pixils::Runtime
       mode_stack.update_state(active_mode->state);
       ctx_stack.push_back(std::move(active_mode));
     }
-    frame_metadata.push_back(parse_frame_metadata(overrides));
+    auto metadata = parse_frame_metadata(overrides);
+    metadata.restore_focus = focus_state;
+    frame_metadata.push_back(std::move(metadata));
+    focus_state.clear();
     this->mode_stack.push(mode, state);
 
     auto& mode_obj = Lisple::obj<Mode>(*mode);

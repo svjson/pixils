@@ -5,6 +5,7 @@
 #include <pixils/ui/event.h>
 #include <pixils/ui/interaction_dispatch.h>
 #include <pixils/ui/view_events.h>
+#include <pixils/ui/view_update.h>
 
 #include <lisple/runtime.h>
 #include <lisple/runtime/dict.h>
@@ -58,12 +59,19 @@ namespace Pixils::Runtime
      * Delegate active-mode update, hover tracking, and event dispatch to UI helpers.
      */
     if (hook_args.events)
+    {
       Pixils::UI::dispatch_interactions(active_mode,
                                         mouse_state,
                                         focus_state,
                                         *hook_args.events,
                                         hook_args,
                                         lisple_runtime);
+      Pixils::UI::sync_focus_state(active_mode, focus_state);
+      Pixils::UI::refresh_view_interaction_tree(active_mode,
+                                                mouse_state,
+                                                focus_state,
+                                                {0.0f, 0.0f});
+    }
     this->hook_args.update_state(active_mode->state);
   }
 

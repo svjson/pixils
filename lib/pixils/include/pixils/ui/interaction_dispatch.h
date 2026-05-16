@@ -24,6 +24,9 @@ namespace Pixils::Runtime
 
 namespace Pixils::UI
 {
+  void sync_focus_state(const std::shared_ptr<Pixils::Runtime::View>& root,
+                        FocusState& focus_state);
+
   void dispatch_keyboard_events(const std::shared_ptr<Pixils::Runtime::View>& root,
                                 FocusState& focus_state,
                                 FrameEvents& events,
