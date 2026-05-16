@@ -39,6 +39,7 @@
             'I' {:x 55 :y 0 :w 1 :h 9}
             'J' {:x 58 :y 0 :w 4 :h 9}
             'K' {:x 63 :y 0 :w 6 :h 9}
+            'L' {:x 70 :y 0 :w 5 :h 9}
             'M' {:x 77 :y 0 :w 7 :h 9}
             'N' {:x 85 :y 0 :w 6 :h 9}
             'O' {:x 92 :y 0 :w 6 :h 9}
@@ -50,6 +51,9 @@
             'U' {:x 133 :y 0 :w 6 :h 9}
             'V' {:x 140 :y 0 :w 7 :h 9}
             'W' {:x 148 :y 0 :w 11 :h 9}
+            'X' {:x 160 :y 0 :w 7 :h 9}
+            'Y' {:x 168 :y 0 :w 7 :h 9}
+            'Z' {:x 176 :y 0 :w 7 :h 9}
             'a' {:x 0 :y 11 :w 5 :h 9}
             'b' {:x 6 :y 11 :w 5 :h 9}
             'c' {:x 12 :y 11 :w 5 :h 9}
@@ -72,7 +76,8 @@
             'u' {:x 105 :y 11 :w 5 :h 9}
             'v' {:x 111 :y 11 :w 5 :h 9}
             'w' {:x 117 :y 11 :w 7 :h 9}
-            'x' {:x 126 :y 11 :w 4 :h 9}}})
+            'x' {:x 126 :y 11 :w 4 :h 9}
+            'y' {:x 131 :y 11 :w 4 :h 11}}})
 
 
 
@@ -103,7 +108,8 @@
                   :field-text c/BLACK
                   :menu-bg PANEL-COLOR
                   :border c/BLACK
-                  :highlight PANEL-LIGHT}
+                  :highlight PANEL-LIGHT
+                  :split-pane-resizer-size 6}
           :dark {:desktop-bg {:r 0x12 :g 0x2f :b 0x33}
                  :panel-bg {:r 0x33 :g 0x36 :b 0x39}
                  :panel-highlight {:r 0x58 :g 0x5d :b 0x63}
@@ -119,7 +125,8 @@
                  :field-text {:r 0xf0 :g 0xf2 :b 0xf4}
                  :menu-bg {:r 0x33 :g 0x36 :b 0x39}
                  :border {:r 0x05 :g 0x06 :b 0x07}
-                 :highlight {:r 0x58 :g 0x5d :b 0x63}}}
+                 :highlight {:r 0x58 :g 0x5d :b 0x63}
+                 :split-pane-resizer-size 6}}
    :styles {:ui/app {:background (var :desktop-bg)
                      :text {:font :font/win95-system-font
                             :color (var :text)}}
@@ -195,6 +202,26 @@
                                  :thickness 1
                                  :right {:color (var :panel-shadow)}
                                  :bottom {:color (var :panel-shadow)}}}
+
+            :ui/split-pane-resizer {:background (var :panel-bg)
+                                    :border {:line-style :bevel
+                                             :color (var :highlight)
+                                             :thickness 1
+                                             :right {:color (var :panel-shadow)}
+                                             :bottom {:color (var :panel-shadow)}}}
+
+            :ui/split-pane-resizer:hover {:background (var :panel-bg)
+                                          :border {:line-style :bevel
+                                                   :color (var :panel-shadow)
+                                                   :thickness 1
+                                                   :right {:color (var :highlight)}
+                                                   :bottom {:color (var :highlight)}}}
+
+            '(:ui/split-pane-resizer {:axis :x})
+            {:width (var :split-pane-resizer-size)}
+
+            '(:ui/split-pane-resizer {:axis :y})
+            {:height (var :split-pane-resizer-size)}
 
             'ui/scrollbar {:background (var :panel-bg)
                            :text {:font :font/win95-system-font

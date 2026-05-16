@@ -9,6 +9,5 @@
              :align :align/center
              :background {:r 0x10 :g 0x13 :b 0x17}}
    :target-frame-rate 0
-   ;:theme 'tilemap-editor/theme
    :theme 'pixils/classic-blue
    :initial-mode 'main-mode})

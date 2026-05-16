@@ -393,6 +393,37 @@ TEST_F(EventRoutingTest, child_drag_state_propagates_into_parent_state_map)
   EXPECT_EQ(session.active_mode->state->to_string(), "{:titlebar {:last {:x 15 :y 8}}}");
 }
 
+TEST_F(EventRoutingTest, stop_propagation_accepts_drag_events)
+{
+  runtime.eval(R"(
+    (pixils/defmode child-mode {
+      :on-drag-start (fn [state event ctx]
+                       (do
+                         (pixils.ui/stop-propagation! event)
+                         (assoc state :child-starts (+ (:child-starts state) 1))))
+    })
+    (pixils/defmode parent-mode {
+      :init (fn [state ctx] {:parent-starts 0 :child {:child-starts 0}})
+      :on-drag-start (fn [state event ctx]
+                       (assoc state :parent-starts (+ (:parent-starts state) 1)))
+      :children [{:mode 'child-mode :id "child"
+                  :state (pixils.ui/bind-state :child)}]
+    })
+  )");
+  session.push_mode("parent-mode", Lisple::Constant::NIL);
+  session.active_mode->bounds = {0, 0, 100, 40};
+  session.active_mode->children[0]->bounds = {0, 0, 100, 40};
+
+  input().mouse_down({10, 10});
+  update_cycle();
+
+  input().mouse_move({20, 10});
+  update_cycle();
+
+  EXPECT_EQ(session.active_mode->state->to_string(),
+            "{:parent-starts 0 :child {:child-starts 1}}");
+}
+
 TEST_F(EventRoutingTest, nested_child_events_update_bound_ancestor_state_during_traverse)
 {
   // Given

@@ -1,6 +1,7 @@
 (ns tilemap-editor.workspace
   (:require pixils
             [pixils.ui :as ui]
+            [pixils.ui.split-pane :as split]
             tilemap-editor.canvas
             tilemap-editor.controls
             [tilemap-editor.inspector :as inspector]
@@ -11,7 +12,7 @@
 ;; Workspace layout
 
 (defcomponent side-panel
-  {:style {:width 250
+  {:style {:width :fill
            :height :fill
            :layout {:direction :column
                     :gap 8}}
@@ -33,24 +34,43 @@
 (defcomponent workspace
   {:style {:width :fill
            :height :fill
-           :layout {:direction :row
-                    :gap 8}}
-   :children [{:mode 'map-area
-               :state {:selected-tile (ui/bind-state :selected-tile)
-                       :selected-layer-index (ui/bind-state :selected-layer-index)
-                       :layers (ui/bind-state :layers)
-                       :hidden-layer-indices (ui/bind-state :hidden-layer-indices)
-                       :map-offset (ui/bind-state :map-offset)
-                       :zoom (ui/bind-state :zoom)
-                       :show-grid? (ui/bind-state :show-grid?)}}
-              {:mode 'side-panel
-               :state {:selected-tile (ui/bind-state :selected-tile)
-                       :selected-label (ui/bind-state :selected-label)
-                       :selected-tileset-index (ui/bind-state :selected-tileset-index)
-                       :tileset (ui/bind-state :tileset)
-                       :selected-layer-index (ui/bind-state :selected-layer-index)
-                       :selected-layer-label (ui/bind-state :selected-layer-label)
-                       :layers (ui/bind-state :layers)
-                       :hidden-layer-indices (ui/bind-state :hidden-layer-indices)
-                       :zoom (ui/bind-state :zoom)
-                       :zoom-label (ui/bind-state :zoom-label)}}]})
+           :layout {:direction :row}}
+   :children [(split/make
+               {:style {:width :fill
+                        :height :fill}
+                :axis :x
+                :split 0.72
+                :min-first 280
+                :min-second 220
+                :state {:selected-tile (ui/bind-state :selected-tile)
+                        :selected-label (ui/bind-state :selected-label)
+                        :selected-tileset-index (ui/bind-state :selected-tileset-index)
+                        :tileset (ui/bind-state :tileset)
+                        :selected-layer-index (ui/bind-state :selected-layer-index)
+                        :selected-layer-label (ui/bind-state :selected-layer-label)
+                        :layers (ui/bind-state :layers)
+                        :hidden-layer-indices (ui/bind-state :hidden-layer-indices)
+                        :map-offset (ui/bind-state :map-offset)
+                        :zoom (ui/bind-state :zoom)
+                        :zoom-label (ui/bind-state :zoom-label)
+                        :show-grid? (ui/bind-state :show-grid?)}
+                :children [{:mode 'map-area
+                            :state {:selected-tile (ui/bind-state :selected-tile)
+                                    :selected-layer-index (ui/bind-state :selected-layer-index)
+                                    :layers (ui/bind-state :layers)
+                                    :hidden-layer-indices (ui/bind-state :hidden-layer-indices)
+                                    :map-offset (ui/bind-state :map-offset)
+                                    :zoom (ui/bind-state :zoom)
+                                    :show-grid? (ui/bind-state :show-grid?)}}
+                           {:mode 'side-panel
+                            :style {:padding {:l 8}}
+                            :state {:selected-tile (ui/bind-state :selected-tile)
+                                    :selected-label (ui/bind-state :selected-label)
+                                    :selected-tileset-index (ui/bind-state :selected-tileset-index)
+                                    :tileset (ui/bind-state :tileset)
+                                    :selected-layer-index (ui/bind-state :selected-layer-index)
+                                    :selected-layer-label (ui/bind-state :selected-layer-label)
+                                    :layers (ui/bind-state :layers)
+                                    :hidden-layer-indices (ui/bind-state :hidden-layer-indices)
+                                    :zoom (ui/bind-state :zoom)
+                                    :zoom-label (ui/bind-state :zoom-label)}}]})]})

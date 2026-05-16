@@ -145,7 +145,8 @@
                   :field-text c/BLACK
                   :menu-bg white
                   :border c/BLACK
-                  :highlight c/WHITE}
+                  :highlight c/WHITE
+                  :split-pane-resizer-size 8}
           :dark {:desktop-bg {:r 0x18 :g 0x28 :b 0x2a}
                  :panel-bg {:r 0x32 :g 0x35 :b 0x38}
                  :panel-shadow {:r 0x1b :g 0x1d :b 0x20}
@@ -160,7 +161,8 @@
                  :field-text {:r 0xf0 :g 0xf2 :b 0xf4}
                  :menu-bg {:r 0x24 :g 0x27 :b 0x2a}
                  :border {:r 0x05 :g 0x06 :b 0x07}
-                 :highlight {:r 0x69 :g 0x70 :b 0x76}}}
+                 :highlight {:r 0x69 :g 0x70 :b 0x76}
+                 :split-pane-resizer-size 8}}
    :styles {:ui/app {:background (var :desktop-bg)
                      :text {:font :font/win3-system-font
                             :color (var :text)}}
@@ -230,6 +232,26 @@
                                  :thickness 2
                                  :right {:color (var :panel-shadow)}
                                  :bottom {:color (var :panel-shadow)}}}
+
+            :ui/split-pane-resizer {:background (var :panel-bg)
+                                    :border {:line-style :bevel
+                                             :color (var :highlight)
+                                             :thickness 2
+                                             :right {:color (var :panel-shadow)}
+                                             :bottom {:color (var :panel-shadow)}}}
+
+            :ui/split-pane-resizer:hover {:background (var :panel-bg)
+                                          :border {:line-style :bevel
+                                                   :color (var :panel-shadow)
+                                                   :thickness 2
+                                                   :right {:color (var :highlight)}
+                                                   :bottom {:color (var :highlight)}}}
+
+            '(:ui/split-pane-resizer {:axis :x})
+            {:width (var :split-pane-resizer-size)}
+
+            '(:ui/split-pane-resizer {:axis :y})
+            {:height (var :split-pane-resizer-size)}
 
             'ui/scrollbar {:background (var :panel-bg)
                            :border {:color (var :border)

@@ -1,4 +1,6 @@
-{:styles
+{:default-variant :base
+ :vars {:base {:split-pane-resizer-size 6}}
+ :styles
  {:ui/app {:background {:r 0xff :g 0xff :b 0xff}
            :text {:color {:r 0x00 :g 0x00 :b 0x00}}}
 
@@ -65,6 +67,19 @@
   'ui/slider {:background {:r 0xff :g 0xff :b 0xff}
               :border {:color {:r 0x00 :g 0x00 :b 0x00}
                        :thickness 1}}
+
+  :ui/split-pane-resizer {:border {:color {:r 0x00 :g 0x00 :b 0x00}
+                                   :thickness 1}}
+
+  '(:ui/split-pane-resizer {:axis :x})
+  {:width (pixils/var :split-pane-resizer-size)
+   :height :fill
+   :cursor :resize-x}
+
+  '(:ui/split-pane-resizer {:axis :y})
+  {:width :fill
+   :height (pixils/var :split-pane-resizer-size)
+   :cursor :resize-y}
 
   'ui/scrollbar {:background {:r 0xff :g 0xff :b 0xff}
                  :text {:color {:r 0x00 :g 0x00 :b 0x00}}}

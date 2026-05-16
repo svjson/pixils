@@ -40,15 +40,22 @@ namespace Pixils::Script
     FUNC(ActiveThemeVarFunction, theme_var);
   } // namespace Function
 
-  NATIVE_ADAPTER(CustomEventAdapter, CustomEvent, (event_key, source_mode, payload));
-  NATIVE_ADAPTER(MouseEventAdapter, MouseEvent, (global_pos, local_pos));
+  NATIVE_ADAPTER(EventAdapter, Event);
+  NATIVE_SUB_ADAPTER(EventAdapter,
+                     (CustomEventAdapter, CustomEvent),
+                     (event_key, source_mode, payload));
+  NATIVE_SUB_ADAPTER(EventAdapter,
+                     (MouseEventAdapter, MouseEvent),
+                     (global_pos, local_pos));
   NATIVE_SUB_ADAPTER(MouseEventAdapter,
                      (MouseButtonEventAdapter, MouseButtonEvent),
                      (button));
   NATIVE_SUB_ADAPTER(MouseButtonEventAdapter,
                      (DragEventAdapter, DragEvent),
                      (start_global_pos, start_local_pos, delta, total_delta, payload));
-  NATIVE_ADAPTER(KeyboardEventAdapter, KeyboardEvent, (key, held_keys, match));
+  NATIVE_SUB_ADAPTER(EventAdapter,
+                     (KeyboardEventAdapter, KeyboardEvent),
+                     (key, held_keys, match));
   NATIVE_ADAPTER(BindStateAdapter, Runtime::BindState);
 
   class UINamespace : public Lisple::Namespace

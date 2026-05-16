@@ -25,8 +25,12 @@ namespace Pixils::Runtime
     }
 
     if (Pixils::Script::HostType::BIND_STATE.is_type_of(*binding))
+    {
+      const auto& path = Pixils::Runtime::bind_state_path(binding);
+      if (path.empty()) return parent;
       return Lisple::Dict::get_property_path(parent,
-                                             Pixils::Runtime::bind_state_path(binding));
+                                             path);
+    }
 
     auto result = (view.state && view.state->type != Lisple::Value::Type::NIL)
                     ? Lisple::Dict::shallow_copy(view.state)
@@ -57,9 +61,13 @@ namespace Pixils::Runtime
     }
 
     if (Pixils::Script::HostType::BIND_STATE.is_type_of(*binding))
+    {
+      const auto& path = Pixils::Runtime::bind_state_path(binding);
+      if (path.empty()) return child_state;
       return Lisple::Dict::assoc_in(parent,
-                                    Pixils::Runtime::bind_state_path(binding),
+                                    path,
                                     child_state);
+    }
 
     auto result = parent;
     for (const auto& key : Lisple::Dict::map_sptr_keys(binding))

@@ -29,7 +29,8 @@
                  :button-shadow BUTTON-SHADOW
                  :border c/BLACK
                  :text c/WHITE
-                 :focus-text BUTTON-HIGHLIGHT}}
+                 :focus-text BUTTON-HIGHLIGHT
+                 :split-pane-resizer-size 8}}
    :default-variant :dark
    :styles
    {:ui/panel {:background PANEL-BG
@@ -96,6 +97,26 @@
                          :thickness 1
                          :right {:color BUTTON-SHADOW}
                          :bottom {:color BUTTON-SHADOW}}}
+
+    :ui/split-pane-resizer {:background (var :button-bg)
+                            :border {:line-style :bevel
+                                     :color (var :button-highlight)
+                                     :thickness 1
+                                     :right {:color (var :button-shadow)}
+                                     :bottom {:color (var :button-shadow)}}}
+
+    :ui/split-pane-resizer:hover {:background (var :panel-highlight)
+                                  :border {:line-style :bevel
+                                           :color (var :button-highlight)
+                                           :thickness 1
+                                           :right {:color (var :border)}
+                                           :bottom {:color (var :border)}}}
+
+    '(:ui/split-pane-resizer {:axis :x})
+    {:width (var :split-pane-resizer-size)}
+
+    '(:ui/split-pane-resizer {:axis :y})
+    {:height (var :split-pane-resizer-size)}
 
     '(ui/button {:pressed true})
     {:border {:line-style :solid

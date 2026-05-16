@@ -13,13 +13,13 @@
                           {:x 544 :y 40}]})
 
 (def nebula-top {:image :background/back
-                          :reset {:at -272
-                                  :to 544}
-                          :counter 0
-                          :rate 3
-                          :pos [{:x -198 :y -110}
-                                {:x 74 :y -110}
-                                {:x 346 :y -110}]})
+                 :reset {:at -272
+                         :to 544}
+                 :counter 0
+                 :rate 3
+                 :pos [{:x -198 :y -110}
+                       {:x 74 :y -110}
+                       {:x 346 :y -110}]})
 
 (def nebula-bottom {:image :background/back
                     :reset {:at -272

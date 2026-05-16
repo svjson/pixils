@@ -1,0 +1,264 @@
+(ns pixils.ui.split-pane
+  (:require pixils
+            [pixils.ui :as ui]))
+
+(def default-split 0.5)
+(def default-resizer-size 6)
+(def default-min-pane-size 24)
+
+(defun clamp [value low high]
+  (max low (min high value)))
+
+(defun split-pane-axis [state]
+  (cond
+    (:axis state)
+    (:axis state)
+
+    (= (:orientation state) :vertical)
+    :x
+
+    (= (:orientation state) :horizontal)
+    :y
+
+    (= (:direction state) :column)
+    :y
+
+    :default
+    :x))
+
+(defun split-pane-layout-direction [state]
+  (if (= (split-pane-axis state) :y)
+    :column
+    :row))
+
+(defun split-pane-resizer-size [state ctx]
+  (or (:resizer-size state)
+      (ui/theme-var ctx :split-pane-resizer-size default-resizer-size)))
+
+(defun split-pane-min-first [state]
+  (or (:min-first state) default-min-pane-size))
+
+(defun split-pane-min-second [state]
+  (or (:min-second state) default-min-pane-size))
+
+(defun split-pane-axis-size [state ctx]
+  (let [bounds (-> ctx :view :bounds)]
+    (if (= (split-pane-axis state) :y)
+      (or (:h bounds) 0)
+      (or (:w bounds) 0))))
+
+(defun split-pane-available-size [state ctx]
+  (max 0 (- (split-pane-axis-size state ctx)
+            (split-pane-resizer-size state ctx))))
+
+(defun split-pane-split [state]
+  (clamp (or (:split state) default-split) 0 1))
+
+(defun split-pane-clamp-primary-size [state available primary]
+  (let [low (min (split-pane-min-first state) available)
+        high (max low (- available (split-pane-min-second state)))]
+    (clamp primary low high)))
+
+(defun split-pane-primary-size [state ctx]
+  (let [available (split-pane-available-size state ctx)
+        primary (if (= (:primary-size-available state) available)
+                  (or (:primary-size state)
+                      (int (* (split-pane-split state) available)))
+                  (int (* (split-pane-split state) available)))]
+    (split-pane-clamp-primary-size state available primary)))
+
+(defun split-pane-ratio [primary available]
+  (if (> available 0)
+    (/ primary available)
+    default-split))
+
+(defun split-pane-style-primary [state primary]
+  (if (= (split-pane-axis state) :y)
+    {:width :fill
+     :height primary}
+    {:width primary
+     :height :fill}))
+
+(defun split-pane-style-secondary [state]
+  {:width :fill
+   :height :fill})
+
+(defun split-pane-style-resizer-override [state]
+  (if (:resizer-size state)
+    (if (= (split-pane-axis state) :y)
+      {:height (:resizer-size state)}
+      {:width (:resizer-size state)})
+    nil))
+
+(defun split-pane-child [ctx index]
+  (let [children (ui/children ctx)]
+    (if (> (count children) index)
+      (nth children index)
+      nil)))
+
+(defun split-pane-apply-layout! [state ctx]
+  (let [primary-view (split-pane-child ctx 0)
+        resizer-view (split-pane-child ctx 1)
+        secondary-view (split-pane-child ctx 2)
+        available (split-pane-available-size state ctx)
+        primary (split-pane-primary-size state ctx)]
+    (do
+      (ui/style! ctx {:layout {:direction (split-pane-layout-direction state)}})
+      (when primary-view
+        (when (> available 0)
+          (ui/style! primary-view (split-pane-style-primary state primary))))
+      (when resizer-view
+        (let [resizer-style (split-pane-style-resizer-override state)]
+          (when resizer-style
+            (ui/style! resizer-view resizer-style))))
+      (when secondary-view
+        (ui/style! secondary-view (split-pane-style-secondary state))))))
+
+(defun split-pane-normalized-state [state ctx]
+  (let [available (split-pane-available-size state ctx)]
+    (if (> available 0)
+      (let [primary (split-pane-primary-size state ctx)]
+        (assoc state
+               :axis (split-pane-axis state)
+               :primary-size primary
+               :primary-size-available available
+               :split (split-pane-ratio primary available)))
+      (assoc state :axis (split-pane-axis state)))))
+
+(defun split-pane-drag-axis-delta [state payload]
+  (let [delta (:delta payload)]
+    (if (= (split-pane-axis state) :y)
+      (or (:y delta) 0)
+      (or (:x delta) 0))))
+
+(defun split-pane-drag-primary-size [state event ctx]
+  (let [available (split-pane-available-size state ctx)
+        start (or (:drag-start-primary-size state)
+                  (split-pane-primary-size state ctx))
+        raw (+ start (split-pane-drag-axis-delta state (:payload event)))]
+    (split-pane-clamp-primary-size state available raw)))
+
+(defun split-pane-apply-primary-size [state primary ctx]
+  (let [available (split-pane-available-size state ctx)
+        next-state (assoc state
+                          :primary-size primary
+                          :primary-size-available available
+                          :split (split-pane-ratio primary available))]
+    (do
+      (split-pane-apply-layout! next-state ctx)
+      next-state)))
+
+(defun split-pane-drag-payload [state event]
+  {:delta (:total-delta event)
+   :axis (:axis state)})
+
+(defcomponent ui/split-pane-primary
+  {:style {:width :fill
+           :height :fill
+           :clip true}})
+
+(defcomponent ui/split-pane-secondary
+  {:style {:width :fill
+           :height :fill
+           :clip true}})
+
+(defcomponent ui/split-pane-resizer
+  {:class :ui/split-pane-resizer
+   :on-mouse-down (fn [state event ctx]
+                    (do
+                      (ui/stop-propagation! event)
+                      state))
+   :on-drag-start (fn [state event ctx]
+                    (do
+                      (ui/stop-propagation! event)
+                      (ui/emit! (:view ctx) :split-pane/drag-start nil)
+                      (ui/emit! (:view ctx)
+                                :split-pane/drag
+                                (split-pane-drag-payload state event))
+                      state))
+   :on-drag (fn [state event ctx]
+              (do
+                (ui/stop-propagation! event)
+                (ui/emit! (:view ctx)
+                          :split-pane/drag
+                          (split-pane-drag-payload state event))
+                state))
+   :on-drag-end (fn [state event ctx]
+                  (do
+                    (ui/stop-propagation! event)
+                    (ui/emit! (:view ctx) :split-pane/drag-end nil)
+                    state))})
+
+(defcomponent ui/split-pane
+  {:style {:width :fill
+           :height :fill}
+   :init (fn [state ctx]
+           (merge {:axis :x
+                   :split default-split
+                   :min-first default-min-pane-size
+                   :min-second default-min-pane-size}
+                  state))
+   :update (fn [state ctx]
+             (let [next-state (split-pane-normalized-state state ctx)]
+               (do
+                 (split-pane-apply-layout! next-state ctx)
+                 next-state)))
+   :on {:split-pane/drag-start
+        (fn [state event ctx]
+          (do
+            (ui/stop-propagation! event)
+            (assoc state :drag-start-primary-size (split-pane-primary-size state ctx))))
+
+        :split-pane/drag
+        (fn [state event ctx]
+          (do
+            (ui/stop-propagation! event)
+            (let [primary (split-pane-drag-primary-size state event ctx)]
+              (split-pane-apply-primary-size state primary ctx))))
+
+        :split-pane/drag-end
+        (fn [state event ctx]
+          (do
+            (ui/stop-propagation! event)
+            (assoc state :drag-start-primary-size nil)))}
+   :children [{:mode 'ui/split-pane-primary
+               :id "primary"
+               :state (ui/bind-state)}
+              {:mode 'ui/split-pane-resizer
+               :id "resizer"
+               :state {:axis (ui/bind-state :axis)
+                       :resizer-size (ui/bind-state :resizer-size)}}
+              {:mode 'ui/split-pane-secondary
+               :id "secondary"
+               :state (ui/bind-state)}]})
+
+(defun split-pane-slot-children [children index]
+  (let [children (or children [])]
+    (if (> (count children) index)
+      [(nth children index)]
+      [])))
+
+(defun make [{:keys [axis orientation direction split resizer-size min-first min-second
+                     style state children]}]
+  {:mode 'ui/split-pane
+   :style (or style {})
+   :state (merge {:axis axis
+                  :orientation orientation
+                  :direction direction
+                  :split (or split default-split)
+                  :min-first (or min-first default-min-pane-size)
+                  :min-second (or min-second default-min-pane-size)}
+                 (if resizer-size {:resizer-size resizer-size} {})
+                 (or state {}))
+   :children [{:mode 'ui/split-pane-primary
+               :id "primary"
+               :state (ui/bind-state)
+               :children (split-pane-slot-children children 0)}
+              {:mode 'ui/split-pane-resizer
+               :id "resizer"
+               :state {:axis (ui/bind-state :axis)
+                       :resizer-size (ui/bind-state :resizer-size)}}
+              {:mode 'ui/split-pane-secondary
+               :id "secondary"
+               :state (ui/bind-state)
+               :children (split-pane-slot-children children 1)}]})

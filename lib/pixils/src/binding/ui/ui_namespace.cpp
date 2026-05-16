@@ -292,31 +292,12 @@ namespace Pixils::Script
 
     /** StopPropagationFn - stop-propagation! */
     FUNC_IMPL(StopPropagation,
-              MULTI_SIG((FN_ARGS((&HostType::MOUSE_EVENT)),
-                         EXEC_DISPATCH(&StopPropagation::exec_stop)),
-                        (FN_ARGS((&HostType::KEYBOARD_EVENT)),
-                         EXEC_DISPATCH(&StopPropagation::exec_stop)),
-                        (FN_ARGS((&HostType::CUSTOM_EVENT)),
-                         EXEC_DISPATCH(&StopPropagation::exec_stop))));
+              SIG((FN_ARGS((&HostType::EVENT)),
+                   EXEC_DISPATCH(&StopPropagation::exec_stop))));
 
     EXEC_BODY(StopPropagation, exec_stop)
     {
-      if (HostType::MOUSE_EVENT.is_type_of(*args[0]))
-      {
-        Lisple::obj<MouseEvent>(*args[0]).propagation_stopped = true;
-      }
-      else if (HostType::DRAG_EVENT.is_type_of(*args[0]))
-      {
-        Lisple::obj<DragEvent>(*args[0]).propagation_stopped = true;
-      }
-      else if (HostType::KEYBOARD_EVENT.is_type_of(*args[0]))
-      {
-        Lisple::obj<KeyboardEvent>(*args[0]).propagation_stopped = true;
-      }
-      else
-      {
-        Lisple::obj<CustomEvent>(*args[0]).propagation_stopped = true;
-      }
+      Lisple::obj<Event>(*args[0]).propagation_stopped = true;
       return Lisple::Constant::NIL;
     }
 
@@ -359,33 +340,37 @@ namespace Pixils::Script
 
   NATIVE_ADAPTER_IMPL(BindStateAdapter, Runtime::BindState, &HostType::BIND_STATE);
 
-  NATIVE_ADAPTER_IMPL(CustomEventAdapter,
-                      CustomEvent,
-                      &HostType::CUSTOM_EVENT,
-                      ("event-key", event_key),
-                      ("source-mode", source_mode),
-                      (payload))
+  NATIVE_ADAPTER_IMPL(EventAdapter, Event, &HostType::EVENT);
+
+  NATIVE_SUB_ADAPTER_IMPL(EventAdapter,
+                          Event,
+                          (CustomEventAdapter, CustomEvent),
+                          &HostType::CUSTOM_EVENT,
+                          ("event-key", event_key),
+                          ("source-mode", source_mode),
+                          (payload))
 
   NOBJ_PROP_GET(CustomEventAdapter, event_key)
   {
-    return get_object().event_key;
+    return get_self_object().event_key;
   }
 
   NOBJ_PROP_GET(CustomEventAdapter, payload)
   {
-    return get_object().payload;
+    return get_self_object().payload;
   }
 
   NOBJ_PROP_GET(CustomEventAdapter, source_mode)
   {
-    return get_object().source_mode;
+    return get_self_object().source_mode;
   }
 
-  NATIVE_ADAPTER_IMPL(MouseEventAdapter,
-                      MouseEvent,
-                      &HostType::MOUSE_MOTION_EVENT,
-                      ("global-position", global_pos),
-                      ("position", local_pos))
+  NATIVE_SUB_ADAPTER_IMPL(EventAdapter,
+                          Event,
+                          (MouseEventAdapter, MouseEvent),
+                          &HostType::MOUSE_MOTION_EVENT,
+                          ("global-position", global_pos),
+                          ("position", local_pos))
 
   NOBJ_PROP_GET(MouseEventAdapter, global_pos)
   {
@@ -449,26 +434,27 @@ namespace Pixils::Script
     return get_self_object().payload;
   }
 
-  NATIVE_ADAPTER_IMPL(KeyboardEventAdapter,
-                      KeyboardEvent,
-                      &HostType::KEYBOARD_EVENT,
-                      (key),
-                      ("held-keys", held_keys),
-                      (match))
+  NATIVE_SUB_ADAPTER_IMPL(EventAdapter,
+                          Event,
+                          (KeyboardEventAdapter, KeyboardEvent),
+                          &HostType::KEYBOARD_EVENT,
+                          (key),
+                          ("held-keys", held_keys),
+                          (match))
 
   NOBJ_PROP_GET(KeyboardEventAdapter, key)
   {
-    return get_object().key;
+    return get_self_object().key;
   }
 
   NOBJ_PROP_GET(KeyboardEventAdapter, held_keys)
   {
-    return get_object().held_keys;
+    return get_self_object().held_keys;
   }
 
   NOBJ_PROP_GET(KeyboardEventAdapter, match)
   {
-    return get_object().match;
+    return get_self_object().match;
   }
 
   UINamespace::UINamespace()
