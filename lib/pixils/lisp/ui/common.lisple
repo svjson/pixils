@@ -1,0 +1,74 @@
+(ns pixils.ui)
+
+
+
+;; Shared UI helpers
+
+(def default-drag-threshold 3)
+
+(defun subtract-point [position offset]
+  (let [pos (or position {:x 0 :y 0})
+        off (or offset {:x 0 :y 0})]
+    {:x (- (:x pos) (:x off))
+     :y (- (:y pos) (:y off))}))
+
+(defun draggable-option [opts key default]
+  (let [value (get (or opts {}) key)]
+    (if (nil? value)
+      default
+      value)))
+
+(defun draggable-item [state opts]
+  (let [item-key (:item-key (or opts {}))]
+    (if item-key
+      (get state item-key)
+      (:item state))))
+
+(defun draggable-start-position [event offset]
+  (subtract-point (:global-position event) offset))
+
+(defun draggable-drag-config [definition opts]
+  (merge (:drag definition)
+         {:start {:mode :threshold
+                  :distance (draggable-option opts
+                                               :threshold
+                                               default-drag-threshold)}
+          :payload (fn [state event ctx]
+                     {:item (draggable-item state opts)
+                      :offset (:start-position event)})}))
+
+(defun draggable-start-handler [opts]
+  (fn [state event ctx]
+    (let [payload (:payload event)
+          offset (:offset payload)]
+      (do
+        (emit! (:view ctx)
+               (draggable-option opts :start-event :ui/drag-start)
+               {:item (:item payload)
+                :offset offset
+                :position (draggable-start-position event offset)})
+        state))))
+
+(defun draggable-move-handler [opts]
+  (fn [state event ctx]
+    (do
+      (emit! (:view ctx)
+             (draggable-option opts :move-event :ui/drag-move)
+             {:position (:global-position event)})
+      state)))
+
+(defun draggable-end-handler [opts]
+  (fn [state event ctx]
+    (do
+      (emit! (:view ctx)
+             (draggable-option opts :end-event :ui/drag-end)
+             nil)
+      state)))
+
+(defun make-draggable [definition & options]
+  (let [opts (or options {})]
+    (merge definition
+           {:drag (draggable-drag-config definition opts)
+            :on-drag-start (draggable-start-handler opts)
+            :on-drag (draggable-move-handler opts)
+            :on-drag-end (draggable-end-handler opts)})))

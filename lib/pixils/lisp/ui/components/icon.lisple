@@ -6,8 +6,6 @@
 
 ;; Generic icon behavior
 
-(def default-drag-threshold 3)
-
 (defun icon-item [state]
   (:item state))
 
@@ -18,33 +16,13 @@
 (defun icon-hidden? [state]
   (nil? (icon-item state)))
 
-(defun subtract-point [position offset]
-  (let [pos (or position {:x 0 :y 0})
-        off (or offset {:x 0 :y 0})]
-    {:x (- (:x pos) (:x off))
-     :y (- (:y pos) (:y off))}))
-
-(defun preview-position [event offset]
-  (subtract-point (:global-position event) offset))
-
 (defcomponent ui/icon
   {:focusable true
-   :drag {:start {:mode :threshold
-                  :distance default-drag-threshold}
-          :payload (fn [state event ctx]
-                     {:item (icon-item state)
-                      :offset (:start-position event)})}
    :update (fn [state ctx]
-             (let [pos (icon-position state)]
-               (do
-                 (when pos
-                   (ui/style! (:view ctx)
-                              {:position :absolute
-                               :left (:x pos)
-                               :top (:y pos)}))
-                 (ui/style! (:view ctx)
-                            {:hidden (icon-hidden? state)})
-                 state)))
+             (do
+               (ui/style! (:view ctx)
+                          {:hidden (icon-hidden? state)})
+               state))
    :on-mouse-down (fn [state event ctx]
                     (do
                       (ui/emit! (:view ctx)
@@ -56,29 +34,7 @@
                  (ui/emit! (:view ctx)
                            :ui/icon-activate
                            (icon-item state))
-                 state))
-   :on-drag-start (fn [state event ctx]
-                    (let [payload (:payload event)
-                          offset (:offset payload)]
-                      (do
-                        (ui/emit! (:view ctx)
-                                  :ui/icon-drag-start
-                                  {:item (:item payload)
-                                   :offset offset
-                                   :position (preview-position event offset)})
-                        state)))
-   :on-drag (fn [state event ctx]
-              (do
-                (ui/emit! (:view ctx)
-                          :ui/icon-drag-move
-                          {:position (:global-position event)})
-                state))
-   :on-drag-end (fn [state event ctx]
-                  (do
-                    (ui/emit! (:view ctx)
-                              :ui/icon-drag-end
-                              nil)
-                    state))})
+                 state))})
 
 (defcomponent ui/icon-preview
   {:style {:position :absolute

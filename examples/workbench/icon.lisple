@@ -30,6 +30,22 @@
 (defun icon-hidden? [state]
   (nil? (or (:item state) (:entry state))))
 
+(defun icon-position [state]
+  (or (:position state)
+      (:position (icon-entry state))))
+
+(defun position-icon! [state ctx]
+  (let [pos (icon-position state)]
+    (do
+      (when pos
+        (ui/style! (:view ctx)
+                   {:position :absolute
+                    :left (:x pos)
+                    :top (:y pos)}))
+      (ui/style! (:view ctx)
+                 {:hidden (icon-hidden? state)})
+      state)))
+
 (defun draw-disk! []
   (do
     (r/rect! {:x icon-image-x :y icon-image-y :w 29 :h 25}
@@ -119,17 +135,22 @@
                {:color (if selected? white black)}))))
 
 (defcomponent workbench-icon
-  {:extend 'ui/icon
-   :style {:width icon-width
-           :height icon-height
-           :cursor :workbench/pointer}
-   :render (fn [state ctx]
-             (when (not (icon-hidden? state))
-               (let [entry (icon-entry state)
-                     selected? (icon-selected? state)]
-                 (do
-                   (draw-icon-image! entry)
-                   (draw-title! entry selected?)))))})
+  (ui/make-draggable
+   {:extend 'ui/icon
+    :style {:width icon-width
+            :height icon-height
+            :cursor :workbench/pointer}
+    :update position-icon!
+    :render (fn [state ctx]
+              (when (not (icon-hidden? state))
+                (let [entry (icon-entry state)
+                      selected? (icon-selected? state)]
+                  (do
+                    (draw-icon-image! entry)
+                    (draw-title! entry selected?)))))}
+   {:start-event :ui/icon-drag-start
+    :move-event :ui/icon-drag-move
+    :end-event :ui/icon-drag-end}))
 
 (defcomponent workbench-icon-preview
   {:extend 'ui/icon-preview
