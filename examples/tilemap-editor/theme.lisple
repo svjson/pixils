@@ -11,6 +11,7 @@
 
 (deftheme tilemap-editor/theme
   {:extend 'pixils/classic-blue
+   :vars {:dark {:content-bg content-bg}}
    :styles {:ui/app {:background editor-bg
                      :text {:color text-main}}
 

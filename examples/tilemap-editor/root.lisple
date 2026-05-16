@@ -1,7 +1,7 @@
 (ns tilemap-editor.root
   (:require pixils
             [pixils.ui :as ui]
-            tilemap-editor.controls
+            [tilemap-editor.controls :as controls]
             [tilemap-editor.data :as data]
             tilemap-editor.workspace))
 
@@ -52,4 +52,16 @@
                        :show-grid? (ui/bind-state :show-grid?)
                        :map-offset (ui/bind-state :map-offset)}}]
    :on {:palette/select (fn [state event ctx]
-                          (assoc state :selected-tile (:payload event)))}})
+                          (assoc state :selected-tile (:payload event)))
+        :layer/name-dialog-result (fn [state event ctx]
+                                    (controls/apply-layer-name-dialog-result
+                                     state
+                                     (:payload event)))
+        :layer/confirm-dialog-result (fn [state event ctx]
+                                       (controls/apply-delete-layer-result
+                                        state
+                                        (:payload event)))
+        :layer/context-command (fn [state event ctx]
+                                 (controls/apply-layer-move-command
+                                  state
+                                  (:payload event)))}})
