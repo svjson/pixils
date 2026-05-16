@@ -16,21 +16,12 @@
              (let [layer (:layer state)
                    visible? (layer-visible? (:hidden-layer-indices state)
                                             (:index state))]
-               (assoc
-                (assoc
-                 (assoc
-                  (assoc
-                   (assoc state
-                          :selected
-                          (= (:index state) (:selected-layer-index state)))
-                   :visible?
-                   visible?)
-                  :visibility-label
-                  (if visible? "V" "-"))
-                 :layer-name
-                 (:label layer))
-                :tileset-label
-                (data/tileset-label (:tileset layer)))))
+               (assoc state
+                      :selected (= (:index state) (:selected-layer-index state))
+                      :visible? visible?
+                      :visibility-label (if visible? "V" "-")
+                      :layer-name (:label layer)
+                      :tileset-label (data/tileset-label (:tileset layer)))))
    :on-click (fn [state event ctx]
                (if (= (:button event) :left)
                  (do

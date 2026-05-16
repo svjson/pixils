@@ -1,0 +1,308 @@
+(ns tilemap-editor.data)
+
+(def tile-size 16)
+(def map-width 40)
+(def map-height 28)
+(def max-tile-count 12)
+
+(def color-tile-types
+  [{:id :grass
+    :name "Grass"
+    :type :color
+    :color {:r 0x55 :g 0x8a :b 0x3a}}
+   {:id :dirt
+    :name "Dirt"
+    :type :color
+    :color {:r 0x8d :g 0x65 :b 0x3f}}
+   {:id :stone
+    :name "Stone"
+    :type :color
+    :color {:r 0x7f :g 0x86 :b 0x8d}}
+   {:id :water
+    :name "Water"
+    :type :color
+    :color {:r 0x38 :g 0x76 :b 0xbf}}
+   {:id :sand
+    :name "Sand"
+    :type :color
+    :color {:r 0xc5 :g 0xb3 :b 0x74}}
+   {:id :wall
+    :name "Wall"
+    :type :color
+    :color {:r 0x45 :g 0x4b :b 0x52}}
+   {:id :marker
+    :name "Marker"
+    :type :color
+    :color {:r 0xd8 :g 0x63 :b 0x63}}
+   {:id :entity
+    :name "Entity"
+    :type :color
+    :color {:r 0xb7 :g 0x79 :b 0xff}}
+   {:id :lava
+    :name "Lava"
+    :type :color
+    :color {:r 0xe2 :g 0x55 :b 0x32}}
+   {:id :ice
+    :name "Ice"
+    :type :color
+    :color {:r 0x9c :g 0xdd :b 0xf2}}
+   {:id :forest
+    :name "Forest"
+    :type :color
+    :color {:r 0x24 :g 0x5c :b 0x35}}
+   {:id :roof
+    :name "Roof"
+    :type :color
+    :color {:r 0x8a :g 0x3f :b 0x4d}}])
+
+(def sprite-tile-types
+  [{:id :brick-block
+    :name "Brick Block"
+    :type :sprite
+    :image :editor-assets/spritesheet
+    :source {:x 64 :y 64 :w 16 :h 16}}
+   {:id :stone-block
+    :name "Stone Block"
+    :type :sprite
+    :image :editor-assets/spritesheet
+    :source {:x 0 :y 80 :w 16 :h 16}}
+   {:id :grass-block
+    :name "Grass Block"
+    :type :sprite
+    :image :editor-assets/spritesheet
+    :source {:x 32 :y 64 :w 16 :h 16}}
+   {:id :dirt-block
+    :name "Dirt Block"
+    :type :sprite
+    :image :editor-assets/spritesheet
+    :source {:x 48 :y 64 :w 16 :h 16}}
+   {:id :warning-block
+    :name "Warning Block"
+    :type :sprite
+    :image :editor-assets/spritesheet
+    :source {:x 0 :y 304 :w 16 :h 16}}
+   {:id :crate
+    :name "Crate"
+    :type :sprite
+    :image :editor-assets/spritesheet
+    :source {:x 16 :y 304 :w 16 :h 16}}
+   {:id :door
+    :name "Door"
+    :type :sprite
+    :image :editor-assets/spritesheet
+    :source {:x 32 :y 304 :w 16 :h 16}}
+   {:id :ladder
+    :name "Ladder"
+    :type :sprite
+    :image :editor-assets/spritesheet
+    :source {:x 48 :y 304 :w 16 :h 16}}
+   {:id :hero
+    :name "Hero"
+    :type :sprite
+    :image :editor-assets/spritesheet
+    :source {:x 0 :y 0 :w 16 :h 16}}
+   {:id :npc
+    :name "NPC"
+    :type :sprite
+    :image :editor-assets/spritesheet
+    :source {:x 16 :y 0 :w 16 :h 16}}
+   {:id :monster
+    :name "Monster"
+    :type :sprite
+    :image :editor-assets/spritesheet
+    :source {:x 32 :y 0 :w 16 :h 16}}
+   {:id :coin
+    :name "Coin"
+    :type :sprite
+    :image :editor-assets/spritesheet
+    :source {:x 48 :y 0 :w 16 :h 16}}])
+
+(def mixed-tile-types
+  [{:id :grass
+    :name "Grass"
+    :type :color
+    :color {:r 0x55 :g 0x8a :b 0x3a}}
+   {:id :dirt
+    :name "Dirt"
+    :type :color
+    :color {:r 0x8d :g 0x65 :b 0x3f}}
+   {:id :stone
+    :name "Stone"
+    :type :color
+    :color {:r 0x7f :g 0x86 :b 0x8d}}
+   {:id :water
+    :name "Water"
+    :type :color
+    :color {:r 0x38 :g 0x76 :b 0xbf}}
+   {:id :sand
+    :name "Sand"
+    :type :color
+    :color {:r 0xc5 :g 0xb3 :b 0x74}}
+   {:id :wall
+    :name "Wall"
+    :type :color
+    :color {:r 0x45 :g 0x4b :b 0x52}}
+   {:id :marker
+    :name "Marker"
+    :type :color
+    :color {:r 0xd8 :g 0x63 :b 0x63}}
+   {:id :entity
+    :name "Entity"
+    :type :color
+    :color {:r 0xb7 :g 0x79 :b 0xff}}
+   {:id :brick-block
+    :name "Brick Block"
+    :type :sprite
+    :image :editor-assets/spritesheet
+    :source {:x 64 :y 64 :w 16 :h 16}}
+   {:id :stone-block
+    :name "Stone Block"
+    :type :sprite
+    :image :editor-assets/spritesheet
+    :source {:x 0 :y 80 :w 16 :h 16}}
+   {:id :warning-block
+    :name "Warning Block"
+    :type :sprite
+    :image :editor-assets/spritesheet
+    :source {:x 0 :y 304 :w 16 :h 16}}
+   {:id :sheet-thumb
+    :name "Sprite Sheet"
+    :type :image
+    :image :editor-assets/spritesheet}])
+
+(def tile-types mixed-tile-types)
+
+(def tilesets
+  [{:id :mixed
+    :label "Mixed Bag"}
+   {:id :colors
+    :label "Colors"}
+   {:id :sprites
+    :label "Sprite Sheet"}])
+
+(def tileset-options
+  (for-indexed [index tileset tilesets]
+    {:value index
+     :label (:label tileset)}))
+
+(def tilemap-layers
+  [{:id :terrain/base
+    :label "Terrain"
+    :kind :tile
+    :tileset :mixed
+    :order 0}
+   {:id :terrain/feature
+    :label "Features"
+    :kind :tile
+    :tileset :mixed
+    :order 10}
+   {:id :routes/road
+    :label "Roads"
+    :kind :tile
+    :tileset :mixed
+    :order 20}
+   {:id :resources/icon
+    :label "Resources"
+    :kind :tile
+    :tileset :mixed
+    :order 30}])
+
+(def layer-options
+  (for-indexed [index layer tilemap-layers]
+    {:value index
+     :label (:label layer)}))
+
+(defun tileset-key [index]
+  (:id (nth tilesets (or index 0))))
+
+(defun tileset-index [tileset]
+  (let [match (find-index tilesets (fn [item]
+                                     (= (:id item) tileset)))]
+    (or match 0)))
+
+(defun tileset-label [tileset]
+  (:label (nth tilesets (tileset-index tileset))))
+
+(defun layer-key [index]
+  (:id (nth tilemap-layers (or index 0))))
+
+(defun layer-label [index]
+  (:label (nth tilemap-layers (or index 0))))
+
+(defun tile-types-for [tileset]
+  (case tileset
+    :colors color-tile-types
+    :sprites sprite-tile-types
+    :default mixed-tile-types))
+
+(defun tile-in [tileset index]
+  (let [types (tile-types-for tileset)]
+    (nth types (mod index (count types)))))
+
+(defun tile [index]
+  (tile-in :mixed index))
+
+(defun tile-color [index]
+  (:color (tile index)))
+
+(defun tile-name [index]
+  (:name (tile index)))
+
+(defun tile-name-in [tileset index]
+  (:name (tile-in tileset index)))
+
+(defun tile-label-in [tileset index]
+  (let [tile (tile-in tileset index)]
+    (str "Selected: " (:name tile) " (" (:type tile) ")")))
+
+(defun tile-label [index]
+  (tile-label-in :mixed index))
+
+(defun make-row [y]
+  (dotimes [x map-width]
+    (cond
+      (or (= x 0)
+          (= y 0)
+          (= x (dec map-width))
+          (= y (dec map-height)))
+      5
+
+      (= 0 (mod (+ x (* y 3)) 17))
+      3
+
+      (= 0 (mod (+ (* x 7) (* y 5)) 29))
+      8
+
+      (= 0 (mod (+ (* x 5) y) 31))
+      9
+
+      (= 0 (mod (+ (* x 2) y) 23))
+      2
+
+      (= 0 (mod (+ x y) 11))
+      1
+
+      :default
+      0)))
+
+(defun make-map []
+  (dotimes [y map-height]
+    (make-row y)))
+
+(defun make-empty-row []
+  (dotimes [x map-width]
+    nil))
+
+(defun make-empty-map []
+  (dotimes [y map-height]
+    (make-empty-row)))
+
+(defun make-layer [definition tiles]
+  (assoc definition :tiles tiles))
+
+(defun make-layered-map []
+  (for-indexed [index layer tilemap-layers]
+    (make-layer layer
+                (if (= index 0)
+                  (make-map)
+                  (make-empty-map)))))

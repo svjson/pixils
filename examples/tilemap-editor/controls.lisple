@@ -1,0 +1,211 @@
+(ns tilemap-editor.controls
+  (:require pixils
+            [pixils.ui :as ui]
+            [pixils.ui.checkbox :as chk]
+            [pixils.ui.combo-box :as cb]
+            [pixils.ui.menu :as menu]
+            [pixils.ui.slider :as sl]
+            [tilemap-editor.data :as data]))
+
+
+
+;; Editor controls
+
+(defun layer-visible? [hidden-layer-indices index]
+  (not (contains? (or hidden-layer-indices []) index)))
+
+(defun toggle-hidden-layer [hidden-layer-indices index]
+  (let [hidden-layer-indices (or hidden-layer-indices [])]
+    (if (contains? hidden-layer-indices index)
+      (filter hidden-layer-indices (fn [item]
+                                     (not= item index)))
+      (concat hidden-layer-indices [index]))))
+
+(def layer-context-menu
+  {:settings {:mnemonics {:enabled false}}
+   :items [{:label "Rename Layer"
+            :action :layer/context-dummy
+            :payload {:command :rename}}
+           {:label "Duplicate Layer"
+            :action :layer/context-dummy
+            :payload {:command :duplicate}}
+           :separator
+           {:label "Move Up"
+            :action :layer/context-dummy
+            :payload {:command :move-up}}
+           {:label "Move Down"
+            :action :layer/context-dummy
+            :payload {:command :move-down}}
+           :separator
+           {:label "Delete Layer"
+            :action :layer/context-dummy
+            :payload {:command :delete}}]})
+
+
+
+;; Toolbar
+
+(defcomponent toolbar
+  {:style {:height 24
+           :layout {:direction :row
+                    :align-items :center
+                    :gap 8}}
+   :children [{:mode 'ui/text
+               :class :ui/title
+               :state {:value "Tilemap Editor"}}
+              {:mode 'ui/text
+               :class :ui/muted
+               :state {:value "arrows pan, left paints, right clears"}}
+              (chk/make {:label "Show grid"
+                         :checked? (ui/bind-state :show-grid?)})]})
+
+
+
+;; Tileset Selection
+
+(defcomponent tileset-controls
+  {:class :ui/panel
+   :style {:padding 8
+           :layout {:direction :column
+                    :gap 4}}
+   :on {:combo-box/change (fn [state event ctx]
+                            (let [index (-> event :payload :selected-index)]
+                              (assoc-in (assoc state :selected-tileset-index index)
+                                        [:layers
+                                         (or (:selected-layer-index state) 0)
+                                         :tileset]
+                                        (data/tileset-key index))))}
+   :children [{:mode 'ui/text
+               :class :ui/title
+               :state {:value "Tile Definition Set"}}
+              (cb/make {:options data/tileset-options
+                        :selected-index (ui/bind-state :selected-tileset-index)
+                        :row-height 20
+                        :max-height 72})
+              {:mode 'ui/text
+               :class :ui/muted
+               :state {:value "Applies to selected layer"}}]})
+
+
+
+;; Layer List
+
+(defcomponent layer-visibility-toggle
+  {:class :ui/list-item-hover
+   :style {:width 24
+           :height 22
+           :layout {:direction :row
+                    :align-items :center}}
+   :on-click (fn [state event ctx]
+               (do
+                 (ui/stop-propagation! event)
+                 (ui/emit! (:view ctx) :layer/toggle-visible (:index state))
+                 state))
+   :children [{:mode 'ui/text
+               :style {:width :fill
+                       :text {:align :center}}
+               :state {:value (ui/bind-state :visibility-label)}}]})
+
+(defcomponent layer-row
+  {:class [:ui/list-item :ui/list-item-hover]
+   :style {:width :fill
+           :height 26
+           :padding [3 6]
+           :layout {:direction :row
+                    :align-items :center
+                    :gap 6}}
+   :update (fn [state ctx]
+             (let [layer (:layer state)
+                   visible? (layer-visible? (:hidden-layer-indices state)
+                                            (:index state))]
+               (assoc state
+                      :selected (= (:index state) (:selected-layer-index state))
+                      :visible? visible?
+                      :visibility-label (if visible? "V" "-")
+                      :layer-name (:label layer)
+                      :tileset-label (data/tileset-label (:tileset layer)))))
+   :on-click (fn [state event ctx]
+               (if (= (:button event) :left)
+                 (do
+                   (ui/emit! (:view ctx) :layer/select (:index state))
+                   state)
+                 state))
+   :on-mouse-down (fn [state event ctx]
+                    (do
+                      (when (= (:button event) :right)
+                        (ui/stop-propagation! event))
+                      state))
+   :on-mouse-up (fn [state event ctx]
+                  (if (= (:button event) :right)
+                    (do
+                      (ui/stop-propagation! event)
+                      (ui/emit! (:view ctx) :layer/select (:index state))
+                      (menu/open-context-menu! layer-context-menu
+                                               (:global-position event)
+                                               state
+                                               ctx)
+                      state)
+                    state))
+   :on {:menu/select (fn [state event ctx]
+                       (ui/stop-propagation! event)
+                       state)}
+   :children [{:mode 'layer-visibility-toggle
+               :state {:index (ui/bind-state :index)
+                       :visibility-label (ui/bind-state :visibility-label)}}
+              {:mode 'ui/text
+               :style {:width :fill}
+               :state {:value (ui/bind-state :layer-name)}}
+              {:mode 'ui/text
+               :class :ui/muted
+               :state {:value (ui/bind-state :tileset-label)}}]})
+
+(defcomponent layer-list
+  {:class :ui/content
+   :style {:width :fill
+           :height :shrink
+           :padding 2
+           :layout {:direction :column
+                    :gap 2}}
+   :children (for-indexed [index layer data/tilemap-layers]
+               {:mode 'layer-row
+                :state {:index index
+                        :layer (ui/bind-state :layers index)
+                        :hidden-layer-indices (ui/bind-state :hidden-layer-indices)
+                        :selected-layer-index (ui/bind-state :selected-layer-index)}})})
+
+(defcomponent layer-controls
+  {:class :ui/panel
+   :style {:padding 8
+           :layout {:direction :column
+                    :gap 4}}
+   :on {:layer/select (fn [state event ctx]
+                        (assoc state :selected-layer-index (:payload event)))
+        :layer/toggle-visible (fn [state event ctx]
+                                (assoc state
+                                       :hidden-layer-indices
+                                       (toggle-hidden-layer (:hidden-layer-indices state)
+                                                            (:payload event))))}
+   :children [{:mode 'ui/text
+               :class :ui/title
+               :state {:value "Layers"}}
+              {:mode 'layer-list
+               :state {:layers (ui/bind-state :layers)
+                       :hidden-layer-indices (ui/bind-state :hidden-layer-indices)
+                       :selected-layer-index (ui/bind-state :selected-layer-index)}}]})
+
+
+
+;; Zoom
+
+(defcomponent zoom-control
+  {:class :ui/panel
+   :style {:padding 8
+           :layout {:direction :column
+                    :gap 4}}
+   :children [{:mode 'ui/text
+               :class :ui/title
+               :state {:value (ui/bind-state :zoom-label)}}
+              (sl/make {:value (ui/bind-state :zoom)
+                        :min 1
+                        :max 4
+                        :step 1})]})

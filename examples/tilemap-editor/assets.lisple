@@ -1,0 +1,5 @@
+(ns tilemap-editor.assets
+  (:require pixils))
+
+(defbundle editor-assets
+  {:images {:spritesheet "assets/simples_pimples.png"}})
