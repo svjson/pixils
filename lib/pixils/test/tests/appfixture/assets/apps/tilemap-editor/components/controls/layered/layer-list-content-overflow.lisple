@@ -1,0 +1,18 @@
+(ns tilemap-editor.controls
+  (:require pixils
+            [pixils.ui :as ui]
+            [tilemap-editor.data :as data]))
+
+(defcomponent layer-list
+  {:class :ui/content
+   :style {:width :fill
+           :height 108
+           :padding 2
+           :layout {:direction :column
+                    :gap 2}}
+   :children (for-indexed [index layer data/tilemap-layers]
+               {:mode 'layer-row
+                :state {:index index
+                        :layer (ui/bind-state :layers index)
+                        :hidden-layer-indices (ui/bind-state :hidden-layer-indices)
+                        :selected-layer-index (ui/bind-state :selected-layer-index)}})})

@@ -31,6 +31,14 @@ class TilemapEditorAppFixtureTest : public ComposableAppSessionFixture
              {{TilemapEditor::spritesheet_asset_path(), "assets/simples_pimples.png"}});
   }
 
+  void load_current_tilemap_editor()
+  {
+    load_app(TilemapEditor::current_manifest(),
+             TilemapEditor::main_namespace(),
+             TilemapEditor::entry_files(),
+             {{TilemapEditor::spritesheet_asset_path(), "assets/simples_pimples.png"}});
+  }
+
   void load_layered_tilemap_editor_with_plain_layer_list()
   {
     load_app(TilemapEditor::layered_plain_layer_list_manifest(),
@@ -42,6 +50,22 @@ class TilemapEditorAppFixtureTest : public ComposableAppSessionFixture
   void load_layered_tilemap_editor_with_content_layer_list()
   {
     load_app(TilemapEditor::layered_content_layer_list_manifest(),
+             TilemapEditor::main_namespace(),
+             TilemapEditor::layered_entry_files(),
+             {{TilemapEditor::spritesheet_asset_path(), "assets/simples_pimples.png"}});
+  }
+
+  void load_layered_tilemap_editor_with_plain_overflow_layer_list()
+  {
+    load_app(TilemapEditor::layered_plain_overflow_layer_list_manifest(),
+             TilemapEditor::main_namespace(),
+             TilemapEditor::layered_entry_files(),
+             {{TilemapEditor::spritesheet_asset_path(), "assets/simples_pimples.png"}});
+  }
+
+  void load_layered_tilemap_editor_with_content_overflow_layer_list()
+  {
+    load_app(TilemapEditor::layered_content_overflow_layer_list_manifest(),
              TilemapEditor::main_namespace(),
              TilemapEditor::layered_entry_files(),
              {{TilemapEditor::spritesheet_asset_path(), "assets/simples_pimples.png"}});
@@ -180,9 +204,9 @@ class TilemapEditorAppFixtureTest : public ComposableAppSessionFixture
   {
     set_frame_size({1200, 700});
     if (use_content_class)
-      load_layered_tilemap_editor_with_content_layer_list();
+      load_layered_tilemap_editor_with_content_overflow_layer_list();
     else
-      load_layered_tilemap_editor_with_plain_layer_list();
+      load_layered_tilemap_editor_with_plain_overflow_layer_list();
     load_program();
 
     ASSERT_NO_THROW(update_and_layout());
@@ -296,7 +320,7 @@ TEST_F(TilemapEditorAppFixtureTest,
 TEST_F(TilemapEditorAppFixtureTest, layered_layer_list_clips_partially_visible_layer_rows)
 {
   set_frame_size({1200, 700});
-  load_layered_tilemap_editor_with_content_layer_list();
+  load_layered_tilemap_editor_with_content_overflow_layer_list();
   load_program();
 
   ASSERT_NO_THROW(update_and_layout());
@@ -419,4 +443,45 @@ TEST_F(TilemapEditorAppFixtureTest, tile_palette_scroll_pane_stays_inside_panel_
             panel_body->bounds.x + panel_body->bounds.w);
   EXPECT_LE(scroll_pane->bounds.y + scroll_pane->bounds.h,
             panel_body->bounds.y + panel_body->bounds.h);
+}
+
+TEST_F(TilemapEditorAppFixtureTest,
+       current_layer_name_dialog_shrink_height_contains_buttons)
+{
+  set_frame_size({1200, 700});
+  load_current_tilemap_editor();
+  load_program();
+
+  session().push_mode("layer-name-dialog-modal",
+                      eval("{:operation :rename "
+                           " :index 0 "
+                           " :title \"Rename Layer\" "
+                           " :name \"Terrain\"}"));
+
+  ASSERT_NO_THROW(layout_active_mode());
+
+  ASSERT_NE(session().active_mode, nullptr);
+  EXPECT_EQ(session().active_mode->mode->name, "layer-name-dialog-modal");
+
+  auto dialog_body = find_first_mode(session().active_mode, "layer-name-dialog-body");
+  ASSERT_NE(dialog_body, nullptr);
+  auto button_row = find_descendant_mode(dialog_body, "layer-name-dialog-buttons");
+  ASSERT_NE(button_row, nullptr);
+
+  auto content = dialog_body->effective_style.content_rect(dialog_body->bounds);
+  EXPECT_GE(button_row->bounds.x, content.x);
+  EXPECT_GE(button_row->bounds.y, content.y);
+  EXPECT_LE(button_row->bounds.x + button_row->bounds.w, content.x + content.w);
+  EXPECT_LE(button_row->bounds.y + button_row->bounds.h, content.y + content.h);
+
+  std::vector<std::shared_ptr<Pixils::Runtime::View>> buttons;
+  find_descendant_modes(button_row, "ui/button", buttons);
+  ASSERT_EQ(buttons.size(), 2u);
+
+  for (const auto& button : buttons)
+  {
+    ASSERT_NE(button, nullptr);
+    EXPECT_GE(button->bounds.y, content.y);
+    EXPECT_LE(button->bounds.y + button->bounds.h, content.y + content.h);
+  }
 }

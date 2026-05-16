@@ -514,6 +514,7 @@ namespace Pixils::UI
 
       int total_main = 0;
       int max_cross = 0;
+      int flow_count = 0;
 
       for (const auto& child : view->children)
       {
@@ -530,6 +531,7 @@ namespace Pixils::UI
         const Style& child_style = child->effective_style;
         if (child_style.position && *child_style.position == PositionMode::ABSOLUTE)
           continue;
+        flow_count++;
 
         Dimension child_outer_size{0, 0};
 
@@ -557,6 +559,12 @@ namespace Pixils::UI
             std::max(max_cross,
                      scaled_outer_size(child_style, Axis::HORIZONTAL, child_outer_size.w));
         }
+      }
+
+      if (style.layout && style.layout->gap && style.layout->gap->mode &&
+          *style.layout->gap->mode == Style::Layout::GapMode::FIXED && flow_count > 1)
+      {
+        total_main += style.layout->gap->size.value_or(0) * (flow_count - 1);
       }
 
       return row ? Dimension{total_main, max_cross} : Dimension{max_cross, total_main};

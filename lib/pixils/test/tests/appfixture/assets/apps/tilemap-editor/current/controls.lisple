@@ -1,0 +1,648 @@
+(ns tilemap-editor.controls
+  (:require pixils
+            [pixils.ui :as ui]
+            [pixils.ui.checkbox :as chk]
+            [pixils.ui.combo-box :as cb]
+            [pixils.ui.header-panel :as hp]
+            [pixils.ui.menu :as menu]
+            [pixils.ui.slider :as sl]
+            pixils.ui.text-input
+            [pixils.ui.window :as w]
+            [tilemap-editor.data :as data]))
+
+
+
+;; Editor controls
+
+(defun layer-visible? [hidden-layer-indices index]
+  (not (contains? (or hidden-layer-indices []) index)))
+
+(defun toggle-hidden-layer [hidden-layer-indices index]
+  (let [hidden-layer-indices (or hidden-layer-indices [])]
+    (if (contains? hidden-layer-indices index)
+      (filter hidden-layer-indices (fn [item]
+                                     (not= item index)))
+      (concat hidden-layer-indices [index]))))
+
+(def layer-context-menu
+  {:settings {:mnemonics {:enabled false}}
+   :items [{:label "Rename Layer"
+            :action :layer/context-dummy
+            :payload {:command :rename}}
+           {:label "Duplicate Layer"
+            :action :layer/context-dummy
+            :payload {:command :duplicate}}
+           :separator
+           {:label "Move Up"
+            :action :layer/context-dummy
+            :payload {:command :move-up}}
+           {:label "Move Down"
+            :action :layer/context-dummy
+            :payload {:command :move-down}}
+           :separator
+           {:label "Delete Layer"
+            :action :layer/context-dummy
+            :payload {:command :delete}}]})
+
+(defun layer-name-exists? [layers name exclude-index]
+  (> (count (filter (for-indexed [index layer (or layers [])]
+                      {:index index
+                       :label (:label layer)})
+                    (fn [entry]
+                      (and (= (:label entry) name)
+                           (not= (:index entry) exclude-index)))))
+     0))
+
+(defun unique-layer-name-from [layers root-name exclude-index suffix]
+  (let [candidate (if suffix
+                    (str root-name " " suffix)
+                    root-name)]
+    (if (layer-name-exists? layers candidate exclude-index)
+      (unique-layer-name-from layers
+                              root-name
+                              exclude-index
+                              (if suffix (inc suffix) 2))
+      candidate)))
+
+(defun rename-layer [layers index name]
+  (for-indexed [layer-index layer (or layers [])]
+    (if (= layer-index index)
+      (assoc layer :label name)
+      layer)))
+
+(defun duplicate-layer-after [layers index name]
+  (apply concat
+         (for-indexed [layer-index layer (or layers [])]
+           (if (= layer-index index)
+             [layer (assoc layer :label name)]
+             [layer]))))
+
+(defun shift-hidden-layer-indices-for-insert [hidden-layer-indices insert-index]
+  (map (or hidden-layer-indices [])
+       (fn [index]
+         (if (>= index insert-index)
+           (inc index)
+           index))))
+
+(defun shift-hidden-layer-indices-for-delete [hidden-layer-indices delete-index]
+  (map (filter (or hidden-layer-indices [])
+               (fn [index]
+                 (not= index delete-index)))
+       (fn [index]
+         (if (> index delete-index)
+           (dec index)
+           index))))
+
+(defun swap-index-value [index a b]
+  (cond
+    (= index a) b
+    (= index b) a
+    :default index))
+
+(defun swap-layer-indices [layers a b]
+  (for-indexed [index layer (or layers [])]
+    (cond
+      (= index a) (nth layers b)
+      (= index b) (nth layers a)
+      :default layer)))
+
+(defun swap-hidden-layer-indices [hidden-layer-indices a b]
+  (map (or hidden-layer-indices [])
+       (fn [index]
+         (swap-index-value index a b))))
+
+(defun remove-layer-at [layers delete-index]
+  (map (filter (for-indexed [index layer (or layers [])]
+                 {:index index
+                  :layer layer})
+               (fn [entry]
+                 (not= (:index entry) delete-index)))
+       :layer))
+
+(defun selected-layer-index-after-delete [selected-index delete-index remaining-count]
+  (let [selected-index (or selected-index 0)]
+    (cond
+      (<= remaining-count 0) 0
+      (< selected-index delete-index) selected-index
+      (> selected-index delete-index) (dec selected-index)
+      :default (min delete-index (dec remaining-count)))))
+
+(defun layer-move-target-index [command index layer-count]
+  (case command
+    :move-up
+    (if (> index 0)
+      (dec index)
+      nil)
+
+    :move-down
+    (if (< index (dec layer-count))
+      (inc index)
+      nil)
+
+    :default
+    nil))
+
+(defun selected-layer-name [layers index]
+  (:label (nth layers index)))
+
+(defun open-layer-name-dialog! [state ctx operation index title name]
+  (do
+    (push-mode! 'layer-name-dialog-modal
+                {:operation operation
+                 :index index
+                 :title title
+                 :name name}
+                {:origin {:view (:view ctx)
+                          :event :layer/name-dialog-result}})
+    state))
+
+(defun open-layer-confirm-dialog! [state ctx operation index title message confirm-label]
+  (do
+    (push-mode! 'layer-confirm-dialog-modal
+                {:operation operation
+                 :index index
+                 :title title
+                 :message message
+                 :confirm-label confirm-label}
+                {:origin {:view (:view ctx)
+                          :event :layer/confirm-dialog-result}})
+    state))
+
+(defun apply-layer-move-command [state payload]
+  (let [command (:command payload)
+        index (:index payload)
+        layers (or (:layers state) [])
+        target-index (layer-move-target-index command index (count layers))]
+    (if (nil? target-index)
+      state
+      (let [next-layers (swap-layer-indices layers index target-index)
+            next-selected-index (swap-index-value (or (:selected-layer-index state) 0)
+                                                  index
+                                                  target-index)]
+        (assoc state
+               :layers next-layers
+               :selected-layer-index next-selected-index
+               :selected-layer-label (selected-layer-name next-layers next-selected-index)
+               :hidden-layer-indices (swap-hidden-layer-indices
+                                      (:hidden-layer-indices state)
+                                      index
+                                      target-index))))))
+
+(defun apply-delete-layer-result [state payload]
+  (if (and (= (:type payload) :confirm)
+           (= (:operation payload) :delete))
+    (let [index (:index payload)
+          layers (or (:layers state) [])]
+      (if (<= (count layers) 1)
+        state
+        (let [next-layers (remove-layer-at layers index)
+              next-index (selected-layer-index-after-delete (:selected-layer-index state)
+                                                            index
+                                                            (count next-layers))]
+          (assoc state
+                 :layers next-layers
+                 :selected-layer-index next-index
+                 :selected-layer-label (selected-layer-name next-layers next-index)
+                 :hidden-layer-indices (shift-hidden-layer-indices-for-delete
+                                        (:hidden-layer-indices state)
+                                        index)))))
+    state))
+
+(defun apply-layer-name-dialog-result [state payload]
+  (if (= (:type payload) :confirm)
+    (let [operation (:operation payload)
+          index (:index payload)
+          layers (:layers state)
+          requested-name (:name payload)]
+      (case operation
+        :rename
+        (let [name (unique-layer-name-from layers requested-name index nil)]
+          (assoc state
+                 :layers (rename-layer layers index name)
+                 :selected-layer-label name))
+
+        :duplicate
+        (let [new-index (inc index)
+              name (unique-layer-name-from layers requested-name nil nil)]
+          (assoc state
+                 :layers (duplicate-layer-after layers index name)
+                 :selected-layer-index new-index
+                 :selected-layer-label name
+                 :hidden-layer-indices (shift-hidden-layer-indices-for-insert
+                                        (:hidden-layer-indices state)
+                                        new-index)))
+
+        :default
+        state))
+    state))
+
+
+
+;; Layer Name Dialog
+
+(defcomponent layer-name-dialog-body
+  {:class :ui/content
+   :style {:width 260
+           :height :shrink
+           :padding 10
+           :layout {:direction :column
+                    :gap 8}}
+   :children [{:mode 'ui/text
+               :state {:value "Layer name:"}}
+              {:mode 'ui/text-input
+               :style {:width :fill
+                       :height 24}
+               :init (fn [state ctx]
+                       (do
+                         (ui/focus! ctx)
+                         state))
+               :state {:value (ui/bind-state :name)}}
+              {:mode 'layer-name-dialog-buttons
+               :state {:name (ui/bind-state :name)}}]})
+
+(defcomponent layer-name-dialog-buttons
+  {:style {:width :fill
+           :height 24
+           :layout {:direction :row
+                    :gap :space-between}}
+   :children [{:mode 'ui/button
+               :style {:width 78
+                       :height 24}
+               :state {:label "Cancel"}
+               :on-click (fn [state event ctx]
+                           (do
+                             (ui/emit! (:view ctx) :layer-name-dialog/cancel)
+                             state))}
+              {:mode 'ui/button
+               :style {:width 78
+                       :height 24}
+               :state {:label "OK"
+                       :name (ui/bind-state :name)}
+               :on-click (fn [state event ctx]
+                           (do
+                             (ui/emit! (:view ctx)
+                                       :layer-name-dialog/confirm
+                                       {:name (:name state)})
+                             state))}]})
+
+(defmode layer-name-dialog-modal
+  {:on {:layer-name-dialog/cancel (fn [state event ctx]
+                                    (do
+                                      (ui/stop-propagation! event)
+                                      (pop-mode! {:type :cancel
+                                                  :operation (:operation state)
+                                                  :index (:index state)})
+                                      state))
+        :layer-name-dialog/confirm (fn [state event ctx]
+                                     (do
+                                       (ui/stop-propagation! event)
+                                       (pop-mode! {:type :confirm
+                                                   :operation (:operation state)
+                                                   :index (:index state)
+                                                   :name (-> event :payload :name)})
+                                       state))}
+   :compose {:render :pass}
+   :children [(w/make {:position {:x 220 :y 140}
+                       :title-bar {:title (ui/bind-state :title)}
+                       :state {:title (ui/bind-state :title)
+                               :operation (ui/bind-state :operation)
+                               :index (ui/bind-state :index)
+                               :name (ui/bind-state :name)}
+                       :body [{:mode 'layer-name-dialog-body
+                               :state {:name (ui/bind-state :name)}}]})]})
+
+
+
+;; Layer Confirm Dialog
+
+(defcomponent layer-confirm-dialog-body
+  {:class :ui/content
+   :style {:width 260
+           :height :shrink
+           :padding 10
+           :layout {:direction :column
+                    :gap 10}}
+   :children [{:mode 'ui/text
+               :style {:width :fill}
+               :state {:value (ui/bind-state :message)}}
+              {:mode 'layer-confirm-dialog-buttons
+               :state {:confirm-label (ui/bind-state :confirm-label)}}]})
+
+(defcomponent layer-confirm-dialog-buttons
+  {:style {:width :fill
+           :height 24
+           :layout {:direction :row
+                    :gap :space-between}}
+   :children [{:mode 'ui/button
+               :style {:width 78
+                       :height 24}
+               :state {:label "Cancel"}
+               :init (fn [state ctx]
+                       (do
+                         (ui/focus! ctx)
+                         state))
+               :on-click (fn [state event ctx]
+                           (do
+                             (ui/emit! (:view ctx) :layer-confirm-dialog/cancel)
+                             state))}
+              {:mode 'ui/button
+               :style {:width 78
+                       :height 24}
+               :state {:label (ui/bind-state :confirm-label)}
+               :on-click (fn [state event ctx]
+                           (do
+                             (ui/emit! (:view ctx) :layer-confirm-dialog/confirm)
+                             state))}]})
+
+(defmode layer-confirm-dialog-modal
+  {:on {:layer-confirm-dialog/cancel (fn [state event ctx]
+                                       (do
+                                         (ui/stop-propagation! event)
+                                         (pop-mode! {:type :cancel
+                                                     :operation (:operation state)
+                                                     :index (:index state)})
+                                         state))
+        :layer-confirm-dialog/confirm (fn [state event ctx]
+                                        (do
+                                          (ui/stop-propagation! event)
+                                          (pop-mode! {:type :confirm
+                                                      :operation (:operation state)
+                                                      :index (:index state)})
+                                          state))}
+   :compose {:render :pass}
+   :children [(w/make {:position {:x 220 :y 140}
+                       :title-bar {:title (ui/bind-state :title)}
+                       :state {:title (ui/bind-state :title)
+                               :operation (ui/bind-state :operation)
+                               :index (ui/bind-state :index)
+                               :message (ui/bind-state :message)
+                               :confirm-label (ui/bind-state :confirm-label)}
+                       :body [{:mode 'layer-confirm-dialog-body
+                               :state {:message (ui/bind-state :message)
+                                       :confirm-label (ui/bind-state :confirm-label)}}]})]})
+
+
+
+;; Toolbar
+
+(defcomponent toolbar
+  {:style {:height 24
+           :layout {:direction :row
+                    :align-items :center
+                    :gap 8}}
+   :children [{:mode 'ui/text
+               :class :ui/title
+               :state {:value "Tilemap Editor"}}
+              {:mode 'ui/text
+               :class :ui/muted
+               :state {:value "arrows pan, left paints, right clears"}}]})
+
+
+
+;; Tileset Selection
+
+(defun make-tileset-controls []
+  (hp/make {:title "Tile Definition Set"
+            :style {:width :fill}
+            :body-style {:padding 8
+                         :layout {:direction :column
+                                  :gap 4}}
+            :state {:selected-tileset-index (ui/bind-state :selected-tileset-index)
+                    :selected-layer-index (ui/bind-state :selected-layer-index)
+                    :layers (ui/bind-state :layers)}
+            :body-state {:selected-tileset-index (ui/bind-state :selected-tileset-index)}
+            :on {:combo-box/change (fn [state event ctx]
+                                      (let [index (-> event :payload :selected-index)]
+                                        (assoc-in (assoc state :selected-tileset-index index)
+                                                  [:layers
+                                                   (or (:selected-layer-index state) 0)
+                                                   :tileset]
+                                                  (data/tileset-key index))))}
+            :children [(cb/make {:options data/tileset-options
+                                  :selected-index (ui/bind-state :selected-tileset-index)
+                                  :row-height 20
+                                  :max-height 72})
+                       {:mode 'ui/text
+                        :class :ui/muted
+                        :state {:value "Applies to selected layer"}}]}))
+
+
+
+;; Layer List
+
+(defcomponent layer-visibility-toggle
+  {:class :ui/list-item-hover
+   :style {:width 24
+           :height 22
+           :layout {:direction :row
+                    :align-items :center}}
+   :on-click (fn [state event ctx]
+               (do
+                 (ui/stop-propagation! event)
+                 (ui/emit! (:view ctx) :layer/toggle-visible (:index state))
+                 state))
+   :children [{:mode 'ui/text
+               :style {:width :fill
+                       :text {:align :center}}
+               :state {:value (ui/bind-state :visibility-label)}}]})
+
+(defcomponent layer-row
+  {:class [:ui/list-item :ui/list-item-hover]
+   :style {:width :fill
+           :height 26
+           :padding [3 6]
+           :layout {:direction :row
+                    :align-items :center
+                    :gap 6}}
+   :update (fn [state ctx]
+             (let [layer (:layer state)
+                   visible? (layer-visible? (:hidden-layer-indices state)
+                                            (:index state))]
+               (assoc state
+                      :selected (= (:index state) (:selected-layer-index state))
+                      :visible? visible?
+                      :visibility-label (if visible? "V" "-")
+                      :layer-name (:label layer)
+                      :tileset-label (data/tileset-label (:tileset layer)))))
+   :on-click (fn [state event ctx]
+               (if (= (:button event) :left)
+                 (do
+                   (ui/emit! (:view ctx) :layer/select (:index state))
+                   state)
+                 state))
+   :on-mouse-down (fn [state event ctx]
+                    (do
+                      (when (= (:button event) :right)
+                        (ui/stop-propagation! event))
+                      state))
+   :on-mouse-up (fn [state event ctx]
+                  (if (= (:button event) :right)
+                    (do
+                      (ui/stop-propagation! event)
+                      (ui/emit! (:view ctx) :layer/select (:index state))
+                      (menu/open-context-menu! layer-context-menu
+                                               (:global-position event)
+                                               state
+                                               ctx)
+                      state)
+                    state))
+   :on {:menu/select (fn [state event ctx]
+                       (let [payload (:payload event)]
+                         (do
+                           (ui/stop-propagation! event)
+                           (when (= (:type payload) :action)
+                             (ui/emit! (:view ctx)
+                                       :layer/context-command
+                                       {:index (:index state)
+                                        :command (-> payload :payload :command)}))))
+                       state)}
+   :children [{:mode 'layer-visibility-toggle
+               :state {:index (ui/bind-state :index)
+                       :visibility-label (ui/bind-state :visibility-label)}}
+              {:mode 'ui/text
+               :style {:width :fill}
+               :state {:value (ui/bind-state :layer-name)}}
+              {:mode 'ui/text
+               :class :ui/muted
+               :state {:value (ui/bind-state :tileset-label)}}]})
+
+(defun layer-row-child [index]
+  {:mode 'layer-row
+   :state {:index index
+           :layer (ui/bind-state :layers index)
+           :hidden-layer-indices (ui/bind-state :hidden-layer-indices)
+           :selected-layer-index (ui/bind-state :selected-layer-index)}})
+
+(defun layer-row-children [layers]
+  (for-indexed [index layer (or layers [])]
+    (layer-row-child index)))
+
+(defcomponent layer-list-rows
+  {:style {:width :fill
+           :height :shrink
+           :layout {:direction :column
+                    :gap 2}}})
+
+(defun layer-list-rows-child [layers]
+  {:mode 'layer-list-rows
+   :id "rows"
+   :state {:layers (ui/bind-state :layers)
+           :hidden-layer-indices (ui/bind-state :hidden-layer-indices)
+           :selected-layer-index (ui/bind-state :selected-layer-index)}
+   :children (layer-row-children layers)})
+
+(defcomponent layer-list
+  {:class :ui/content
+   :style {:width :fill
+           :height :shrink
+           :padding 2
+           :layout {:direction :column}}
+   :init (fn [state ctx]
+           (assoc state :row-count (count (or (:layers state) []))))
+   :update (fn [state ctx]
+             (let [layers (or (:layers state) [])
+                   row-count (count layers)]
+               (do
+                 (when (not= row-count (:row-count state))
+                   (ui/replace-child! (:view ctx)
+                                      "rows"
+                                      (layer-list-rows-child layers)))
+                 (assoc state :row-count row-count))))
+   :children [(layer-list-rows-child data/tilemap-layers)]})
+
+(defun make-layer-controls []
+  (hp/make {:title "Layers"
+            :style {:width :fill}
+            :body-style {:padding 8
+                         :layout {:direction :column
+                                  :gap 4}}
+            :state {:selected-layer-index (ui/bind-state :selected-layer-index)
+                    :selected-layer-label (ui/bind-state :selected-layer-label)
+                    :hidden-layer-indices (ui/bind-state :hidden-layer-indices)
+                    :layers (ui/bind-state :layers)}
+            :body-state {:layers (ui/bind-state :layers)
+                         :hidden-layer-indices (ui/bind-state :hidden-layer-indices)
+                         :selected-layer-index (ui/bind-state :selected-layer-index)}
+            :on {:layer/select (fn [state event ctx]
+                                  (assoc state :selected-layer-index (:payload event)))
+                 :layer/toggle-visible (fn [state event ctx]
+                                         (assoc state
+                                                :hidden-layer-indices
+                                                (toggle-hidden-layer (:hidden-layer-indices state)
+                                                                     (:payload event))))
+                 :layer/context-command (fn [state event ctx]
+                                          (let [payload (:payload event)
+                                                command (:command payload)
+                                                index (:index payload)
+                                                name (selected-layer-name (:layers state) index)]
+                                            (case command
+                                              :rename
+                                              (open-layer-name-dialog! state
+                                                                       ctx
+                                                                       :rename
+                                                                       index
+                                                                       "Rename Layer"
+                                                                       name)
+
+                                              :duplicate
+                                              (open-layer-name-dialog! state
+                                                                       ctx
+                                                                       :duplicate
+                                                                       index
+                                                                       "Duplicate Layer"
+                                                                       (unique-layer-name-from
+                                                                        (:layers state)
+                                                                        name
+                                                                        nil
+                                                                        2))
+
+                                              :delete
+                                              (open-layer-confirm-dialog! state
+                                                                          ctx
+                                                                          :delete
+                                                                          index
+                                                                          "Delete Layer"
+                                                                          (str "Delete layer \"" name "\"?")
+                                                                          "Delete")
+
+                                              :default
+                                              state)))}
+            :children [{:mode 'layer-list
+                        :state {:layers (ui/bind-state :layers)
+                                :hidden-layer-indices (ui/bind-state :hidden-layer-indices)
+                                :selected-layer-index (ui/bind-state :selected-layer-index)}}]}))
+
+
+
+;; Zoom
+
+(defcomponent zoom-control
+  {:class :ui/panel
+   :style {:padding 8
+           :layout {:direction :column
+                    :gap 4}}
+   :children [{:mode 'ui/text
+               :class :ui/title
+               :state {:value (ui/bind-state :zoom-label)}}
+              (sl/make {:value (ui/bind-state :zoom)
+                        :min 1
+                        :max 4
+                        :step 1})]})
+
+(defcomponent map-view-controls
+  {:class :ui/panel
+   :style {:width :fill
+           :height 36
+           :padding [6 8]
+           :layout {:direction :row
+                    :align-items :center
+                    :gap 12}}
+   :children [{:mode 'ui/text
+               :class :ui/title
+               :state {:value (ui/bind-state :zoom-label)}}
+              (sl/make {:value (ui/bind-state :zoom)
+                        :min 1
+                        :max 4
+                        :step 1})
+              (chk/make {:label "Show grid"
+                         :checked? (ui/bind-state :show-grid?)})]})

@@ -654,3 +654,32 @@ TEST_F(LayoutTest, layout_gap_none_matches_default_behavior)
   EXPECT_EQ(rects[0].x, 0);
   EXPECT_EQ(rects[1].x, 40);
 }
+
+TEST_F(LayoutTest, shrink_height_column_includes_fixed_gaps)
+{
+  Style container_style;
+  container_style.width = 100;
+  container_style.height = Style::Size(Style::Size::Mode::SHRINK);
+  container_style.layout = Style::Layout{};
+  container_style.layout->direction = LayoutDirection::COLUMN;
+  container_style.layout->gap = Style::Layout::Gap{};
+  container_style.layout->gap->mode = Style::Layout::GapMode::FIXED;
+  container_style.layout->gap->size = 8;
+
+  auto container = make_ctx(std::move(container_style));
+  container->children.push_back(make_fixed_ctx(20));
+  container->children.push_back(make_fixed_ctx(30));
+
+  Pixils::UI::layout_view_tree(container, {0, 0, 320, 200}, runtime, hook_ctx_val);
+
+  ASSERT_EQ(container->children.size(), 2u);
+  EXPECT_EQ(container->bounds.h, 58);
+  EXPECT_EQ(container->children[0]->bounds.y, 0);
+  EXPECT_EQ(container->children[0]->bounds.h, 20);
+  EXPECT_EQ(container->children[1]->bounds.y, 28);
+  EXPECT_EQ(container->children[1]->bounds.h, 30);
+
+  auto content = container->effective_style.content_rect(container->bounds);
+  EXPECT_LE(container->children[1]->bounds.y + container->children[1]->bounds.h,
+            content.y + content.h);
+}

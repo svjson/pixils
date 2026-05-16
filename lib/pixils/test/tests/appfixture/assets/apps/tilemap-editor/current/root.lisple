@@ -1,0 +1,67 @@
+(ns tilemap-editor.root
+  (:require pixils
+            [pixils.ui :as ui]
+            [tilemap-editor.controls :as controls]
+            [tilemap-editor.data :as data]
+            tilemap-editor.workspace))
+
+
+
+;; Root mode
+
+(defmode main-mode
+  {:class :ui/app
+   :style {:padding 8
+           :layout {:direction :column
+                    :gap 8}}
+   :init (fn [state ctx]
+           {:selected-tile 0
+            :selected-tileset-index 0
+            :tileset :mixed
+            :selected-layer-index 0
+            :selected-layer-label "Terrain"
+            :layers (data/make-layered-map)
+            :hidden-layer-indices []
+            :selected-label "Selected: Grass"
+            :zoom 1
+            :zoom-label "Zoom 1x"
+            :show-grid? true
+            :map-offset {:x 0 :y 0}})
+   :update (fn [state ctx]
+             (let [layer (nth (:layers state) (or (:selected-layer-index state) 0))
+                   tileset (:tileset layer)
+                   zoom (or (:zoom state) 1)]
+               (assoc state
+                      :tileset tileset
+                      :selected-tileset-index (data/tileset-index tileset)
+                      :selected-label (data/tile-label-in tileset (:selected-tile state))
+                      :zoom-label (str "Zoom " zoom "x")
+                      :selected-layer-label (:label layer))))
+   :children [{:mode 'toolbar}
+              {:mode 'workspace
+               :state {:selected-tile (ui/bind-state :selected-tile)
+                       :selected-label (ui/bind-state :selected-label)
+                       :selected-tileset-index (ui/bind-state :selected-tileset-index)
+                       :tileset (ui/bind-state :tileset)
+                       :selected-layer-index (ui/bind-state :selected-layer-index)
+                       :selected-layer-label (ui/bind-state :selected-layer-label)
+                       :layers (ui/bind-state :layers)
+                       :hidden-layer-indices (ui/bind-state :hidden-layer-indices)
+                       :zoom (ui/bind-state :zoom)
+                       :zoom-label (ui/bind-state :zoom-label)
+                       :show-grid? (ui/bind-state :show-grid?)
+                       :map-offset (ui/bind-state :map-offset)}}]
+   :on {:palette/select (fn [state event ctx]
+                          (assoc state :selected-tile (:payload event)))
+        :layer/name-dialog-result (fn [state event ctx]
+                                    (controls/apply-layer-name-dialog-result
+                                     state
+                                     (:payload event)))
+        :layer/confirm-dialog-result (fn [state event ctx]
+                                       (controls/apply-delete-layer-result
+                                        state
+                                        (:payload event)))
+        :layer/context-command (fn [state event ctx]
+                                 (controls/apply-layer-move-command
+                                  state
+                                  (:payload event)))}})

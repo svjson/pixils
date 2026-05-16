@@ -54,6 +54,10 @@ namespace Pixils::Test::AppFixture::TilemapEditor
       "tilemap-editor/layered/controls/layer-list-plain";
     inline constexpr std::string_view layered_layer_list_content_component =
       "tilemap-editor/layered/controls/layer-list-content";
+    inline constexpr std::string_view layered_layer_list_plain_overflow_component =
+      "tilemap-editor/layered/controls/layer-list-plain-overflow";
+    inline constexpr std::string_view layered_layer_list_content_overflow_component =
+      "tilemap-editor/layered/controls/layer-list-content-overflow";
     inline constexpr std::string_view layered_layer_list_unclipped_component =
       "tilemap-editor/layered/controls/layer-list-unclipped";
     inline constexpr std::string_view layered_layer_list_clipped_component =
@@ -75,7 +79,10 @@ namespace Pixils::Test::AppFixture::TilemapEditor
   AppManifest layered_manifest();
   AppManifest layered_plain_layer_list_manifest();
   AppManifest layered_content_layer_list_manifest();
+  AppManifest layered_plain_overflow_layer_list_manifest();
+  AppManifest layered_content_overflow_layer_list_manifest();
   AppManifest layered_clipped_layer_list_manifest();
+  AppManifest current_manifest();
   std::string main_namespace();
   std::vector<std::string> entry_files();
   std::vector<std::string> layered_entry_files();
