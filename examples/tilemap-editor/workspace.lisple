@@ -3,7 +3,7 @@
             [pixils.ui :as ui]
             [pixils.ui.split-pane :as split]
             tilemap-editor.canvas
-            tilemap-editor.controls
+            [tilemap-editor.controls :as controls]
             [tilemap-editor.inspector :as inspector]
             [tilemap-editor.palette :as palette]))
 
@@ -16,20 +16,29 @@
            :height :fill
            :layout {:direction :column
                     :gap 8}}
-   :children [{:mode 'layer-controls
-               :state {:selected-layer-index (ui/bind-state :selected-layer-index)
-                       :selected-layer-label (ui/bind-state :selected-layer-label)
-                       :hidden-layer-indices (ui/bind-state :hidden-layer-indices)
-                       :layers (ui/bind-state :layers)}}
-              {:mode 'tileset-controls
-               :state {:selected-tileset-index (ui/bind-state :selected-tileset-index)
-                       :selected-layer-index (ui/bind-state :selected-layer-index)
-                       :layers (ui/bind-state :layers)}}
-              {:mode 'zoom-control
-               :state {:zoom (ui/bind-state :zoom)
-                       :zoom-label (ui/bind-state :zoom-label)}}
+   :children [(controls/make-layer-controls)
+              (controls/make-tileset-controls)
               (palette/make-tile-palette)
               (inspector/make-inspector-panel)]})
+
+(defcomponent map-column
+  {:style {:width :fill
+           :height :fill
+           :layout {:direction :column
+                    :gap 8}}
+   :children [{:mode 'map-area
+               :style {:height :fill}
+               :state {:selected-tile (ui/bind-state :selected-tile)
+                       :selected-layer-index (ui/bind-state :selected-layer-index)
+                       :layers (ui/bind-state :layers)
+                       :hidden-layer-indices (ui/bind-state :hidden-layer-indices)
+                       :map-offset (ui/bind-state :map-offset)
+                       :zoom (ui/bind-state :zoom)
+                       :show-grid? (ui/bind-state :show-grid?)}}
+              {:mode 'map-view-controls
+               :state {:zoom (ui/bind-state :zoom)
+                       :zoom-label (ui/bind-state :zoom-label)
+                       :show-grid? (ui/bind-state :show-grid?)}}]})
 
 (defcomponent workspace
   {:style {:width :fill
@@ -54,13 +63,15 @@
                         :zoom (ui/bind-state :zoom)
                         :zoom-label (ui/bind-state :zoom-label)
                         :show-grid? (ui/bind-state :show-grid?)}
-                :children [{:mode 'map-area
+                :children [{:mode 'map-column
+                            :style {:padding {:r 8}}
                             :state {:selected-tile (ui/bind-state :selected-tile)
                                     :selected-layer-index (ui/bind-state :selected-layer-index)
                                     :layers (ui/bind-state :layers)
                                     :hidden-layer-indices (ui/bind-state :hidden-layer-indices)
                                     :map-offset (ui/bind-state :map-offset)
                                     :zoom (ui/bind-state :zoom)
+                                    :zoom-label (ui/bind-state :zoom-label)
                                     :show-grid? (ui/bind-state :show-grid?)}}
                            {:mode 'side-panel
                             :style {:padding {:l 8}}
@@ -71,6 +82,4 @@
                                     :selected-layer-index (ui/bind-state :selected-layer-index)
                                     :selected-layer-label (ui/bind-state :selected-layer-label)
                                     :layers (ui/bind-state :layers)
-                                    :hidden-layer-indices (ui/bind-state :hidden-layer-indices)
-                                    :zoom (ui/bind-state :zoom)
-                                    :zoom-label (ui/bind-state :zoom-label)}}]})]})
+                                    :hidden-layer-indices (ui/bind-state :hidden-layer-indices)}}]})]})

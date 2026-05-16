@@ -37,8 +37,7 @@
                       :selected-label (data/tile-label-in tileset (:selected-tile state))
                       :zoom-label (str "Zoom " zoom "x")
                       :selected-layer-label (:label layer))))
-   :children [{:mode 'toolbar
-               :state {:show-grid? (ui/bind-state :show-grid?)}}
+   :children [{:mode 'toolbar}
               {:mode 'workspace
                :state {:selected-tile (ui/bind-state :selected-tile)
                        :selected-label (ui/bind-state :selected-label)

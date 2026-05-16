@@ -3,6 +3,7 @@
             [pixils.ui :as ui]
             [pixils.ui.checkbox :as chk]
             [pixils.ui.combo-box :as cb]
+            [pixils.ui.header-panel :as hp]
             [pixils.ui.menu :as menu]
             [pixils.ui.slider :as sl]
             [tilemap-editor.data :as data]))
@@ -55,36 +56,36 @@
                :state {:value "Tilemap Editor"}}
               {:mode 'ui/text
                :class :ui/muted
-               :state {:value "arrows pan, left paints, right clears"}}
-              (chk/make {:label "Show grid"
-                         :checked? (ui/bind-state :show-grid?)})]})
+               :state {:value "arrows pan, left paints, right clears"}}]})
 
 
 
 ;; Tileset Selection
 
-(defcomponent tileset-controls
-  {:class :ui/panel
-   :style {:padding 8
-           :layout {:direction :column
-                    :gap 4}}
-   :on {:combo-box/change (fn [state event ctx]
-                            (let [index (-> event :payload :selected-index)]
-                              (assoc-in (assoc state :selected-tileset-index index)
-                                        [:layers
-                                         (or (:selected-layer-index state) 0)
-                                         :tileset]
-                                        (data/tileset-key index))))}
-   :children [{:mode 'ui/text
-               :class :ui/title
-               :state {:value "Tile Definition Set"}}
-              (cb/make {:options data/tileset-options
-                        :selected-index (ui/bind-state :selected-tileset-index)
-                        :row-height 20
-                        :max-height 72})
-              {:mode 'ui/text
-               :class :ui/muted
-               :state {:value "Applies to selected layer"}}]})
+(defun make-tileset-controls []
+  (hp/make {:title "Tile Definition Set"
+            :style {:width :fill}
+            :body-style {:padding 8
+                         :layout {:direction :column
+                                  :gap 4}}
+            :state {:selected-tileset-index (ui/bind-state :selected-tileset-index)
+                    :selected-layer-index (ui/bind-state :selected-layer-index)
+                    :layers (ui/bind-state :layers)}
+            :body-state {:selected-tileset-index (ui/bind-state :selected-tileset-index)}
+            :on {:combo-box/change (fn [state event ctx]
+                                      (let [index (-> event :payload :selected-index)]
+                                        (assoc-in (assoc state :selected-tileset-index index)
+                                                  [:layers
+                                                   (or (:selected-layer-index state) 0)
+                                                   :tileset]
+                                                  (data/tileset-key index))))}
+            :children [(cb/make {:options data/tileset-options
+                                  :selected-index (ui/bind-state :selected-tileset-index)
+                                  :row-height 20
+                                  :max-height 72})
+                       {:mode 'ui/text
+                        :class :ui/muted
+                        :state {:value "Applies to selected layer"}}]}))
 
 
 
@@ -173,25 +174,30 @@
                         :hidden-layer-indices (ui/bind-state :hidden-layer-indices)
                         :selected-layer-index (ui/bind-state :selected-layer-index)}})})
 
-(defcomponent layer-controls
-  {:class :ui/panel
-   :style {:padding 8
-           :layout {:direction :column
-                    :gap 4}}
-   :on {:layer/select (fn [state event ctx]
-                        (assoc state :selected-layer-index (:payload event)))
-        :layer/toggle-visible (fn [state event ctx]
-                                (assoc state
-                                       :hidden-layer-indices
-                                       (toggle-hidden-layer (:hidden-layer-indices state)
-                                                            (:payload event))))}
-   :children [{:mode 'ui/text
-               :class :ui/title
-               :state {:value "Layers"}}
-              {:mode 'layer-list
-               :state {:layers (ui/bind-state :layers)
-                       :hidden-layer-indices (ui/bind-state :hidden-layer-indices)
-                       :selected-layer-index (ui/bind-state :selected-layer-index)}}]})
+(defun make-layer-controls []
+  (hp/make {:title "Layers"
+            :style {:width :fill}
+            :body-style {:padding 8
+                         :layout {:direction :column
+                                  :gap 4}}
+            :state {:selected-layer-index (ui/bind-state :selected-layer-index)
+                    :selected-layer-label (ui/bind-state :selected-layer-label)
+                    :hidden-layer-indices (ui/bind-state :hidden-layer-indices)
+                    :layers (ui/bind-state :layers)}
+            :body-state {:layers (ui/bind-state :layers)
+                         :hidden-layer-indices (ui/bind-state :hidden-layer-indices)
+                         :selected-layer-index (ui/bind-state :selected-layer-index)}
+            :on {:layer/select (fn [state event ctx]
+                                  (assoc state :selected-layer-index (:payload event)))
+                 :layer/toggle-visible (fn [state event ctx]
+                                         (assoc state
+                                                :hidden-layer-indices
+                                                (toggle-hidden-layer (:hidden-layer-indices state)
+                                                                     (:payload event))))}
+            :children [{:mode 'layer-list
+                        :state {:layers (ui/bind-state :layers)
+                                :hidden-layer-indices (ui/bind-state :hidden-layer-indices)
+                                :selected-layer-index (ui/bind-state :selected-layer-index)}}]}))
 
 
 
@@ -209,3 +215,21 @@
                         :min 1
                         :max 4
                         :step 1})]})
+
+(defcomponent map-view-controls
+  {:class :ui/panel
+   :style {:width :fill
+           :height 36
+           :padding [6 8]
+           :layout {:direction :row
+                    :align-items :center
+                    :gap 12}}
+   :children [{:mode 'ui/text
+               :class :ui/title
+               :state {:value (ui/bind-state :zoom-label)}}
+              (sl/make {:value (ui/bind-state :zoom)
+                        :min 1
+                        :max 4
+                        :step 1})
+              (chk/make {:label "Show grid"
+                         :checked? (ui/bind-state :show-grid?)})]})

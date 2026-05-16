@@ -14,7 +14,7 @@
 (defcomponent ui/header-panel-body
   {})
 
-(defun make [{:keys [title init update state style header-style body-style body-state children]}]
+(defun make [{:keys [title init update on state style header-style body-style body-state children]}]
   (merge {:mode 'ui/header-panel
           :style (or style {})
           :state (merge (or state {})
@@ -27,4 +27,5 @@
                       :state (or body-state state {})
                       :children (or children [])}]}
          (if init {:init init} {})
-         (if update {:update update} {})))
+         (if update {:update update} {})
+         (if on {:on on} {})))

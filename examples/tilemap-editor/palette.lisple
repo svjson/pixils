@@ -68,7 +68,8 @@
 
 (defun make-tile-palette []
   (hp/make {:title "Tiles"
-            :style {:height 176}
+            :style {:width :fill
+                    :height 176}
             :body-style {:padding 8
                          :layout {:direction :column
                                   :gap 4}}
