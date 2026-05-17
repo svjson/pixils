@@ -186,6 +186,85 @@ TEST_F(FileDialogTest, save_file_dialog_returns_entered_filename_path)
   EXPECT_EQ(get_key(result, "filename")->str(), "new-map.edn");
 }
 
+TEST_F(FileDialogTest, filter_combo_box_updates_confirm_result_filter)
+{
+  render_ctx.buffer_dim = {640, 480};
+
+  runtime.eval(R"(
+    (pixils/defmode root-mode
+      {:init (fn [state ctx]
+               (do
+                 (pixils.ui.file-dialog/open-file-dialog!
+                  ctx
+                  {:title "Open Project"
+                   :mode :file-dialog/open
+                   :path "/projects"
+                   :result-event :project/open-result})
+                 {:result nil}))
+       :on {:project/open-result (fn [state event ctx]
+                                   (assoc state :result (:payload event)))}})
+  )");
+
+  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.process_messages();
+  session.update_mode();
+  session.render_mode();
+
+  auto combo = find_mode(session.active_mode, "ui/combo-box");
+  ASSERT_NE(combo, nullptr);
+  input().mouse_down({combo->bounds.x + (combo->bounds.w / 2),
+                      combo->bounds.y + (combo->bounds.h / 2)});
+  update_cycle();
+
+  ASSERT_EQ(session.active_mode->mode->name, "ui/combo-box-popup");
+  session.render_mode();
+
+  auto all_files = find_list_item_with_label(session.active_mode, "All files (*)");
+  ASSERT_NE(all_files, nullptr);
+  input().mouse_down({all_files->bounds.x + (all_files->bounds.w / 2),
+                      all_files->bounds.y + (all_files->bounds.h / 2)});
+  update_cycle();
+  input().mouse_up({all_files->bounds.x + (all_files->bounds.w / 2),
+                    all_files->bounds.y + (all_files->bounds.h / 2)});
+  update_cycle();
+  update_cycle();
+  session.render_mode();
+
+  ASSERT_EQ(session.active_mode->mode->name, "ui/dialog-frame");
+  auto entry = find_list_item_with_label(session.active_mode, "    readme.txt");
+  ASSERT_NE(entry, nullptr);
+  input().mouse_down({entry->bounds.x + (entry->bounds.w / 2),
+                      entry->bounds.y + (entry->bounds.h / 2)},
+                     SDL_BUTTON_LEFT);
+  update_cycle();
+  session.render_mode();
+  input().mouse_up({entry->bounds.x + (entry->bounds.w / 2),
+                    entry->bounds.y + (entry->bounds.h / 2)},
+                   SDL_BUTTON_LEFT);
+  update_cycle();
+  session.render_mode();
+
+  auto open_button = find_button_with_label(session.active_mode, "Open");
+  ASSERT_NE(open_button, nullptr);
+  input().mouse_down({open_button->bounds.x + (open_button->bounds.w / 2),
+                      open_button->bounds.y + (open_button->bounds.h / 2)},
+                     SDL_BUTTON_LEFT);
+  update_cycle();
+  session.render_mode();
+  input().mouse_up({open_button->bounds.x + (open_button->bounds.w / 2),
+                    open_button->bounds.y + (open_button->bounds.h / 2)},
+                   SDL_BUTTON_LEFT);
+  update_cycle();
+
+  ASSERT_EQ(session.active_mode->mode->name, "root-mode");
+  auto result = get_key(session.active_mode->state, "result");
+  ASSERT_NE(result, nullptr);
+  auto filter = get_key(result, "filter");
+  ASSERT_NE(filter, nullptr);
+  EXPECT_EQ(get_key(result, "path")->str(), "/projects/readme.txt");
+  EXPECT_EQ(get_key(filter, "label")->str(), "All files (*)");
+}
+
 TEST_F(FileDialogTest, double_click_directory_navigates_into_it)
 {
   render_ctx.buffer_dim = {640, 480};

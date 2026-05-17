@@ -103,13 +103,23 @@
              (< index (count entries)))
     (nth entries index)))
 
-(defun filter-label [filters]
-  (:label (head (or filters default-filters))))
+(defun filter-at [filters index]
+  (let [items (or filters default-filters)
+        selected-index (max 0
+                            (min (dec (count items))
+                                 (or index 0)))]
+    (nth items selected-index)))
+
+(defun filter-options [filters]
+  (for-indexed [index filter (or filters default-filters)]
+    {:value index
+     :label (:label filter)}))
 
 (defun initial-state [opts]
   (let [path (or (:path opts) default-path)
         mode (normalize-dialog-mode (:mode opts))
-        filters (or (:filters opts) default-filters)]
+        filters (or (:filters opts) default-filters)
+        filter-index (or (:filter-index opts) 0)]
     {:dialog-mode mode
      :path path
      :entry-path path
@@ -118,7 +128,8 @@
      :selected-entry nil
      :filename (or (:filename opts) "")
      :filters filters
-     :filter-label (filter-label filters)}))
+     :filter-index filter-index
+     :filter-options (filter-options filters)}))
 
 (defun entry-list-child [entries selected-index]
   (merge
@@ -165,7 +176,8 @@
    :path (selected-file-path state)
    :directory (:path state)
    :filename (:filename state)
-   :filter (head (or (:filters state) default-filters))})
+   :filter (filter-at (:filters state)
+                      (:filter-index state))})
 
 (defun cancel-result [state]
   {:type :cancel
@@ -227,15 +239,19 @@
 
 (defcomponent ui/file-dialog-filter-row
   {:style {:width :fill
-           :height 18
+           :height 24
            :layout {:direction :row
                     :align-items :center
                     :gap 6}}
    :children [{:mode 'ui/text
                :state {:value "File type:"}}
-              {:mode 'ui/text
-               :class :ui/muted
-               :state {:value (ui/bind-state :filter-label)}}]})
+              {:mode 'ui/combo-box
+               :style {:width :fill
+                       :height 22}
+               :state {:options (ui/bind-state :filter-options)
+                       :selected-index (ui/bind-state :filter-index)
+                       :row-height 20
+                       :max-height 96}}]})
 
 (defun button-row-child [state]
   {:style {:width :fill
@@ -246,13 +262,15 @@
            :path (ui/bind-state :path)
            :selected-entry (ui/bind-state :selected-entry)
            :filename (ui/bind-state :filename)
-           :filters (ui/bind-state :filters)}
+           :filters (ui/bind-state :filters)
+           :filter-index (ui/bind-state :filter-index)}
    :children [{:mode 'ui/button
                :state {:label "Cancel"
                        :dialog-mode (ui/bind-state :dialog-mode)
                        :path (ui/bind-state :path)
                        :filename (ui/bind-state :filename)
-                       :filters (ui/bind-state :filters)}
+                       :filters (ui/bind-state :filters)
+                       :filter-index (ui/bind-state :filter-index)}
                :on-mouse-up (fn [state event ctx]
                                (do
                                  (ui/stop-propagation! event)
@@ -266,7 +284,8 @@
                        :path (ui/bind-state :path)
                        :selected-entry (ui/bind-state :selected-entry)
                        :filename (ui/bind-state :filename)
-                       :filters (ui/bind-state :filters)}
+                       :filters (ui/bind-state :filters)
+                       :filter-index (ui/bind-state :filter-index)}
                :on-mouse-up (fn [state event ctx]
                                (do
                                  (ui/stop-propagation! event)
@@ -278,11 +297,11 @@
    :init (fn [state ctx]
            (let [path (or (:path state) default-path)
                  filters (or (:filters state) default-filters)]
-             (assoc (assoc (assoc state
-                                  :path path)
-                           :filters filters)
-                    :filter-label
-                    (filter-label filters))))
+             (assoc state
+                    :path path
+                    :filters filters
+                    :filter-index (or (:filter-index state) 0)
+                    :filter-options (filter-options filters))))
    :update (fn [state ctx]
              (let [path (or (:path state) default-path)]
                (if (= path (:entry-path state))
@@ -314,6 +333,12 @@
                           (do
                             (ui/stop-propagation! event)
                             (navigate-to state (parent-path (:path state)))))
+        :combo-box/change (fn [state event ctx]
+                            (do
+                              (ui/stop-propagation! event)
+                              (assoc state
+                                     :filter-index
+                                     (-> event :payload :selected-index))))
         :list-box/activate (fn [state event ctx]
                              (do
                                (ui/stop-propagation! event)
@@ -335,7 +360,8 @@
                  :state {:filename (ui/bind-state :filename)
                          :auto-focus-filename? (ui/bind-state :auto-focus-filename?)}}
                 {:mode 'ui/file-dialog-filter-row
-                 :state {:filter-label (ui/bind-state :filter-label)}}
+                 :state {:filter-options (ui/bind-state :filter-options)
+                         :filter-index (ui/bind-state :filter-index)}}
                 (button-row-child state)]}))
 
 (defun result-from-event [state event ctx]
