@@ -23,16 +23,8 @@
 
 namespace Pixils
 {
-  Lisple::Runtime init_lisple_runtime(RenderContext& ctx,
-                                      const std::string& default_namespace,
-                                      const std::vector<std::string>& source_files)
-  {
-    return init_lisple_runtime(ctx, default_namespace, nullptr, source_files);
-  }
-  Lisple::Runtime init_lisple_runtime(RenderContext& ctx,
-                                      const std::string& default_namespace,
-                                      std::function<void(RuntimeConfiguration*)> init_fn,
-                                      const std::vector<std::string>& source_files)
+  std::vector<std::unique_ptr<Lisple::Namespace>> make_lisple_native_namespaces(
+    RenderContext& ctx)
   {
     std::vector<std::unique_ptr<Lisple::Namespace>> namespaces;
     namespaces.push_back(std::make_unique<Pixils::Script::PixilsNamespace>(ctx));
@@ -47,6 +39,22 @@ namespace Pixils
     namespaces.push_back(std::make_unique<Pixils::Script::StateCounterNamespace>());
     namespaces.push_back(std::make_unique<Pixils::Script::StyleNamespace>());
     namespaces.push_back(std::make_unique<Pixils::Script::UINamespace>());
+    return namespaces;
+  }
+
+  Lisple::Runtime init_lisple_runtime(RenderContext& ctx,
+                                      const std::string& default_namespace,
+                                      const std::vector<std::string>& source_files)
+  {
+    return init_lisple_runtime(ctx, default_namespace, nullptr, source_files);
+  }
+  Lisple::Runtime init_lisple_runtime(RenderContext& ctx,
+                                      const std::string& default_namespace,
+                                      std::function<void(RuntimeConfiguration*)> init_fn,
+                                      const std::vector<std::string>& source_files)
+  {
+    std::vector<std::unique_ptr<Lisple::Namespace>> namespaces =
+      make_lisple_native_namespaces(ctx);
     namespaces.push_back(std::make_unique<Lisple::Namespace>(Lisple::make_io_namespace()));
 
     RuntimeConfiguration rtconfig{.native_namespaces = std::move(namespaces),
@@ -98,19 +106,8 @@ namespace Pixils
     std::function<void(RuntimeConfiguration*)> init_fn,
     const std::vector<std::string>& source_files)
   {
-    std::vector<std::unique_ptr<Lisple::Namespace>> namespaces;
-    namespaces.push_back(std::make_unique<Pixils::Script::PixilsNamespace>(ctx));
-    namespaces.push_back(std::make_unique<Pixils::Script::ResourceNamespace>());
-    namespaces.push_back(std::make_unique<Pixils::Script::AudioNamespace>());
-    namespaces.push_back(std::make_unique<Pixils::Script::ColorNamespace>());
-    namespaces.push_back(std::make_unique<Pixils::Script::ImageNamespace>());
-    namespaces.push_back(std::make_unique<Pixils::Script::KeyboardNamespace>());
-    namespaces.push_back(std::make_unique<Pixils::Script::PointNamespace>());
-    namespaces.push_back(std::make_unique<Pixils::Script::RenderNamespace>());
-    namespaces.push_back(std::make_unique<Pixils::Script::RectNamespace>());
-    namespaces.push_back(std::make_unique<Pixils::Script::StateCounterNamespace>());
-    namespaces.push_back(std::make_unique<Pixils::Script::StyleNamespace>());
-    namespaces.push_back(std::make_unique<Pixils::Script::UINamespace>());
+    std::vector<std::unique_ptr<Lisple::Namespace>> namespaces =
+      make_lisple_native_namespaces(ctx);
     namespaces.push_back(std::make_unique<Lisple::Namespace>(Lisple::make_io_namespace()));
 
     RuntimeConfiguration rtconfig{.native_namespaces = std::move(namespaces),

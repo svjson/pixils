@@ -6,6 +6,7 @@ pkg_search_module(SDL2MIXER SDL2_mixer)
 pkg_search_module(FREETYPE REQUIRED freetype2)
 find_package(X11)
 find_package(lisple REQUIRED)
+find_package(lisple-package REQUIRED)
 
 file(GLOB pixils_SOURCES CONFIGURE_DEPENDS
   src/*.cpp
@@ -18,6 +19,7 @@ file(GLOB pixils_SOURCES CONFIGURE_DEPENDS
   src/ui/*.cpp
   src/ui/components/*.cpp
 )
+list(FILTER pixils_SOURCES EXCLUDE REGEX ".*/native_package\\.cpp$")
 
 file(GLOB_RECURSE pixils_EMBEDDED_LISP_SOURCES CONFIGURE_DEPENDS
   lisp/*.lisple
@@ -100,7 +102,43 @@ target_link_libraries(pixils_static
     Lisple::lisple_static
 )
 
-install(TARGETS pixils pixils_shared pixils_static
+add_library(pixils_lisple_native SHARED
+  $<TARGET_OBJECTS:pixils_objects>
+  src/native_package.cpp
+)
+
+set_target_properties(pixils_lisple_native PROPERTIES
+  OUTPUT_NAME pixils-native
+)
+
+target_include_directories(pixils_lisple_native
+  PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<BUILD_INTERFACE:${pixils_GENERATED_DIR}>
+    $<INSTALL_INTERFACE:include>
+    ${FREETYPE_INCLUDE_DIRS}
+)
+
+target_link_libraries(pixils_lisple_native
+  PUBLIC
+    SDL2
+    SDL2_image
+    SDL2_mixer
+    ${FREETYPE_LIBRARIES}
+    Lisple::lisple_shared
+    Lisple::package_shared
+)
+
+add_custom_command(TARGET pixils_lisple_native POST_BUILD
+  COMMAND ${CMAKE_COMMAND} -E make_directory
+          ${CMAKE_CURRENT_SOURCE_DIR}/native
+  COMMAND ${CMAKE_COMMAND} -E copy_if_different
+          $<TARGET_FILE:pixils_lisple_native>
+          ${CMAKE_CURRENT_SOURCE_DIR}/native/$<TARGET_FILE_NAME:pixils_lisple_native>
+  COMMENT "Copying Pixils Lisple native package artifact into lib/pixils/native"
+)
+
+install(TARGETS pixils pixils_shared pixils_static pixils_lisple_native
   EXPORT pixilsTargets
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib

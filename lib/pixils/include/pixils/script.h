@@ -16,6 +16,9 @@ namespace Pixils
     std::string asset_base_path = ".";
   };
 
+  std::vector<std::unique_ptr<Lisple::Namespace>> make_lisple_native_namespaces(
+    RenderContext& ctx);
+
   /**
    * @brief Create and initialize the Lisple runtime, loading the provided
    * source files.

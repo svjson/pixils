@@ -1,0 +1,16 @@
+(ns pixils.package-test
+  (:require proof.core
+            [pixils.color :as color]
+            [pixils.point :as point]))
+
+(deftest native-color-bindings-load-from-package
+  (let [value (color/make-color {:r 12 :g 34 :b 56 :a 78})]
+    (is (= 12 (:r value)))
+    (is (= 34 (:g value)))
+    (is (= 56 (:b value)))
+    (is (= 78 (:a value)))))
+
+(deftest native-point-bindings-load-from-package
+  (let [value (point/translate {:x 10 :y 20} 3 -4)]
+    (is (= 13 (:x value)))
+    (is (= 16 (:y value)))))

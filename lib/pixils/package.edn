@@ -1,0 +1,22 @@
+{:name pixils
+ :version "0.1.0"
+ :description "Pixils Lisple runtime and UI package."
+ :dependencies []
+ :load-roots ["lisp"]
+ :native-libraries [{:name "pixils-native"
+                     :version "0.1.0"
+                     :path "native"
+                     :namespaces [pixils
+                                  pixils.resource
+                                  pixils.audio
+                                  pixils.color
+                                  pixils.image
+                                  pixils.keyboard
+                                  pixils.point
+                                  pixils.rect
+                                  pixils.render
+                                  pixils.state.counter
+                                  pixils.ui.style
+                                  pixils.ui]}]
+ :entry-points []
+ :test-entry-points []}

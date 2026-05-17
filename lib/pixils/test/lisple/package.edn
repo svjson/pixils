@@ -1,0 +1,6 @@
+{:name pixils-tests
+ :version "0.1.0"
+ :dependencies {pixils {:path "../.."}
+                proof "0.1.0"}
+ :load-roots ["src"]
+ :test-entry-points [pixils.package-test]}
