@@ -157,6 +157,9 @@
    :border {:color {:r 0x00 :g 0x00 :b 0x00}
             :thickness 1}}
 
+  ['ui/button-inner 'ui/text]
+  {:padding [3 6]}
+
   'ui/button-inner:hover
   {:text {:color {:r 0xff :g 0xff :b 0xff}}
    :background {:r 0x00 :g 0x00 :b 0x00}

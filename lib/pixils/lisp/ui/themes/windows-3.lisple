@@ -163,23 +163,19 @@
                  :border {:r 0x05 :g 0x06 :b 0x07}
                  :highlight {:r 0x69 :g 0x70 :b 0x76}
                  :split-pane-resizer-size 8}}
+   :defaults {:text {:font :font/win3-system-font}}
    :styles {:ui/app {:background (var :desktop-bg)
-                     :text {:font :font/win3-system-font
-                            :color (var :text)}}
+                     :text {:color (var :text)}}
 
             :ui/panel {:background (var :panel-bg)
                        :padding 4
-                       :text {:font :font/win3-system-font
-                              :color (var :text)}}
+                       :text {:color (var :text)}}
 
-            :ui/title {:text {:font :font/win3-system-font
-                              :color (var :text)}}
+            :ui/title {:text {:color (var :text)}}
 
-            :ui/muted {:text {:font :font/win3-system-font
-                              :color (var :muted-text)}}
+            :ui/muted {:text {:color (var :muted-text)}}
 
-            :ui/accent {:text {:font :font/win3-system-font
-                               :color (var :accent)}}
+            :ui/accent {:text {:color (var :accent)}}
 
             :ui/canvas {:background (var :field-bg)
                         :border {:color (var :border)
@@ -189,11 +185,9 @@
                          :border {:color (var :border)
                                   :thickness 1}
                          :clip true
-                         :text {:font :font/win3-system-font
-                                :color (var :content-text)}}
+                         :text {:color (var :content-text)}}
 
-            :ui/list-item {:text {:font :font/win3-system-font
-                                  :color (var :field-text)}}
+            :ui/list-item {:text {:color (var :field-text)}}
 
             :ui/list-item-hover:hover
             {:background (var :focus-bg)
@@ -215,8 +209,7 @@
                                        :border {:color (var :border)
                                                 :thickness 1}}
 
-            'ui/checkbox {:text {:font :font/win3-system-font
-                                 :color (var :text)}}
+            'ui/checkbox {:text {:color (var :text)}}
 
             'ui/checkbox-box {:background (var :field-bg)
                               :border {:color (var :border)
@@ -257,8 +250,7 @@
                            :border {:color (var :border)
                                     :thickness 1}
                            :cursor :default
-                           :text {:font :font/win3-system-font
-                                  :color (var :text)}}
+                           :text {:color (var :text)}}
 
             'ui/scrollbar-button {:background (var :panel-bg)
                                   :border {:line-style :bevel
@@ -266,8 +258,7 @@
                                            :thickness 2
                                            :right {:color (var :panel-shadow)}
                                            :bottom {:color (var :panel-shadow)}}
-                                  :text {:font :font/win3-system-font
-                                         :color (var :text)}}
+                                  :text {:color (var :text)}}
 
             '(ui/scrollbar-button {:pressed true})
             {:border {:line-style :bevel
@@ -324,8 +315,7 @@
 
             'ui/window {:border {:line-style :solid
                                  :thickness 1
-                                 :color (var :border)}
-                        :text {:font :font/win3-system-font}}
+                                 :color (var :border)}}
 
             'ui/window-title-bar {:background (var :menu-bg)
                                   :text {:color (var :text)}
@@ -352,9 +342,6 @@
 
             '(ui/window-minimize-button ui/button-inner)
             {:background {:image :pixils/win311-minimize-button}}
-
-            'ui/button
-            {:text {:font :font/win3-system-font}}
 
             '(ui/button {:pressed true})
             {:border {:line-style :solid
@@ -401,7 +388,6 @@
 
             'ui/menu-bar
             {:background (var :menu-bg)
-             :text {:font :font/win3-system-font}
              :border {:line-style :solid :color (var :border) :bottom {:thickness 1}}}
 
             'ui/popup-menu-item
@@ -478,7 +464,6 @@
 
             'ui/popup-menu-inner
             {:background (var :menu-bg)
-             :text {:font :font/win3-system-font}
              :border {:thickness 1
                       :line-style :solid
                       :color (var :border)}}

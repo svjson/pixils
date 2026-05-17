@@ -198,6 +198,7 @@ namespace Pixils::UI::Components
     {
       Runtime::Mode mode;
       mode.name = "ui/text";
+      mode.selector_modes.push_back(mode.name);
       mode.content_size = Function::TextNodeContentSize::make();
       mode.render = Function::TextNodeRender::make();
       return mode;

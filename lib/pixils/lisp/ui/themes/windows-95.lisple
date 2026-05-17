@@ -127,23 +127,19 @@
                  :border {:r 0x05 :g 0x06 :b 0x07}
                  :highlight {:r 0x58 :g 0x5d :b 0x63}
                  :split-pane-resizer-size 6}}
+   :defaults {:text {:font :font/win95-system-font}}
    :styles {:ui/app {:background (var :desktop-bg)
-                     :text {:font :font/win95-system-font
-                            :color (var :text)}}
+                     :text {:color (var :text)}}
 
             :ui/panel {:background (var :panel-bg)
-                       :text {:font :font/win95-system-font
-                              :color (var :text)}
+                       :text {:color (var :text)}
                        :padding 4}
 
-            :ui/title {:text {:font :font/win95-system-font
-                              :color (var :text)}}
+            :ui/title {:text {:color (var :text)}}
 
-            :ui/muted {:text {:font :font/win95-system-font
-                              :color (var :muted-text)}}
+            :ui/muted {:text {:color (var :muted-text)}}
 
-            :ui/accent {:text {:font :font/win95-system-font
-                               :color (var :accent)}}
+            :ui/accent {:text {:color (var :accent)}}
 
             :ui/canvas {:background (var :field-bg)
                         :border {:color (var :border)
@@ -153,11 +149,9 @@
                          :border {:color (var :border)
                                   :thickness 1}
                          :clip true
-                         :text {:font :font/win95-system-font
-                                :color (var :content-text)}}
+                         :text {:color (var :content-text)}}
 
-            :ui/list-item {:text {:font :font/win95-system-font
-                                  :color (var :field-text)}}
+            :ui/list-item {:text {:color (var :field-text)}}
 
             :ui/list-item-hover:hover
             {:background (var :focus-bg)
@@ -182,8 +176,7 @@
                                        :border {:color (var :border)
                                                 :thickness 1}}
 
-            'ui/checkbox {:text {:font :font/win95-system-font
-                                 :color (var :text)}}
+            'ui/checkbox {:text {:color (var :text)}}
 
             'ui/checkbox-box {:background (var :field-bg)
                               :border {:line-style :bevel
@@ -224,8 +217,7 @@
             {:height (var :split-pane-resizer-size)}
 
             'ui/scrollbar {:background (var :panel-bg)
-                           :text {:font :font/win95-system-font
-                                  :color (var :text)}}
+                           :text {:color (var :text)}}
 
             'ui/scrollbar-button {:background (var :panel-bg)
                                   :border {:line-style :bevel
@@ -233,8 +225,7 @@
                                            :thickness 1
                                            :right {:color (var :panel-shadow)}
                                            :bottom {:color (var :panel-shadow)}}
-                                  :text {:font :font/win95-system-font
-                                         :color (var :text)}}
+                                  :text {:color (var :text)}}
 
             '(ui/scrollbar-button {:pressed true})
             {:border {:line-style :bevel
@@ -274,8 +265,7 @@
                                  :thickness 1
                                  :color (var :border)
                                  :top {:color (var :panel-bg)}
-                                 :left {:color (var :panel-bg)}}
-                        :text {:font :font/win95-system-font}}
+                                 :left {:color (var :panel-bg)}}}
 
             'ui/window-title-bar {:background (var :panel-shadow)
                                   :border {:line-style :solid
@@ -344,8 +334,7 @@
                       :bottom {:thickness 1 :color (var :highlight)}}}
 
             'ui/menu-bar {:background (var :menu-bg)
-                          :text {:font :font/win95-system-font
-                                 :color (var :text)}}
+                          :text {:color (var :text)}}
 
             :menu/item
             {:text {:color (var :text)
@@ -414,7 +403,6 @@
                                            :bottom {:color (var :panel-shadow)}
                                            :right {:color (var :panel-shadow)}}
                                   :background (var :menu-bg)
-                                  :text {:font :font/win95-system-font
-                                         :color (var :text)}}
+                                  :text {:color (var :text)}}
 
             :ui/panel {:background (var :panel-bg)}}})
