@@ -100,6 +100,7 @@ Lisple components, so applications can use them like any other mode.
 | `ui/scrollbar` | Standalone horizontal or vertical scrollbar primitive. |
 | `ui/scrollbar-corner` | Filler component for the square where two scrollbars meet. |
 | `ui/scroll-pane` | Scrollable viewport composed from a clipped content area and stock scrollbars. |
+| `ui/dialog-frame` | Full-screen overlay used by dialog helpers such as `open-confirm!` and `open-dialog!`. |
 | `ui/icon` | Focusable visual item primitive with selection, activation, and drag events. |
 | `ui/icon-preview` | Non-hit-tested overlay primitive for rendering a dragged icon representation. |
 | `ui/icon-container` | Fill-sized drop surface that turns icon drag releases into generic drop events. |
@@ -153,6 +154,54 @@ positioned absolutely inside that clipped area. Pass `:scroll-x? false` or
 can wrap the pane's `:content-state` binding in a named child-state key when the
 scrolling content needs state from the owner.
 
+`pixils.ui.dialog/open-confirm!` opens a modal confirmation dialog and sends a result event
+back to the opening view when the dialog closes. By default it shows a single OK button and
+emits `:dialog/result`; override that with `:result-event`.
+
+```clojure
+(pixils.ui.dialog/open-confirm!
+ ctx
+ {:title "Delete layer"
+  :body [{:mode 'ui/text
+          :state {:value "Delete the selected layer?"}}]
+  :buttons [{:type :dialog/ok :label "Delete"}
+            :dialog/cancel]
+  :payload {:layer-id (:selected-layer state)}
+  :result-event :layer/delete-result})
+```
+
+The result payload has the shape `{:choice choice :payload payload}`. Button choices are
+the button `:type`, such as `:dialog/ok`, `:dialog/cancel`, `:dialog/yes`, or `:dialog/no`.
+The built-in button presets are `:dialog/ok`, `:dialog/ok-cancel`, `:dialog/yes-no`, and
+`:dialog/yes-no-cancel`; vectors are rendered left-to-right, so callers control ordering.
+
+`pixils.ui.dialog/open-dialog!` is the lower-level helper for custom dialog windows. It
+pushes `ui/dialog-frame`, creates the window, and wraps result handlers so user code returns
+the value to deliver to the origin instead of calling `pop-mode!` itself. Use `:state` for
+dialog-local state, `:body` for the window body, and `:results` to map custom events to
+return values.
+
+```clojure
+(pixils.ui.dialog/open-dialog!
+ ctx
+ {:title (pixils.ui/bind-state :title)
+  :state {:title "New component"
+          :name ""
+          :type :sprite}
+  :body {:mode 'new-component-form}
+  :result-event :component/dialog-result
+  :results {:dialog/confirm
+            (fn [state event ctx]
+              {:name (:name state)
+               :type (:type state)})
+            :dialog/cancel
+            (fn [state event ctx]
+              {:cancelled? true})}})
+```
+
+`open-dialog!` is modal by default. Pass `:modal false` to let events reach modes below the
+dialog frame, or `:dismissable true` to allow Escape/outside-click dismissal. Dismissal uses
+the standard confirm result shape with `:choice :dialog/dismiss`.
 `ui/icon` is intentionally only the item primitive. It expects an `:item` in
 state, optionally positioned by `:position` on either the state or item map, and
 emits `:ui/icon-select`, `:ui/icon-activate`, `:ui/icon-drag-start`,

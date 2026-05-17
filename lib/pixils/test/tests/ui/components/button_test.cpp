@@ -1,9 +1,18 @@
 #include "../../render_fixture.h"
 
 #include <gtest/gtest.h>
+#include <lisple/runtime/dict.h>
 #include <sdl2_mock/mock_resources.h>
 
 using ButtonTest = RenderFixture;
+
+namespace
+{
+  Lisple::sptr_val get_key(const Lisple::sptr_val& value, const std::string& key)
+  {
+    return Lisple::Dict::get_property(value, Lisple::keyword(key));
+  }
+} // namespace
 
 TEST_F(ButtonTest, button_can_use_fitted_background_image_from_style)
 {
@@ -62,4 +71,67 @@ TEST_F(ButtonTest, button_label_uses_base_theme_padding)
   EXPECT_GT(label->effective_style.padding->r, 0);
   EXPECT_GT(label->effective_style.padding->b, 0);
   EXPECT_GT(label->effective_style.padding->l, 0);
+  auto label_value = get_key(label->state, "value");
+  ASSERT_NE(label_value, nullptr);
+  EXPECT_EQ(label_value->str(), "OK");
+  EXPECT_GT(button->bounds.w, 20);
+  EXPECT_GT(button->bounds.h, 10);
+}
+
+TEST_F(ButtonTest, button_label_has_natural_size_inside_window_body)
+{
+  runtime.eval(R"(
+    (pixils/defcomponent form-body
+      {:children [{:mode 'ui/button
+                   :state {:label "Create"}}]})
+
+    (pixils/defmode root-mode
+      {:children [(pixils.ui.window/make
+                   {:title-bar {:title "Window"}
+                    :style {:width 300}
+                    :body [{:mode 'form-body}]})]})
+  )");
+
+  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.render_mode();
+
+  auto window = session.active_mode->children[0];
+  auto body = window->children[1];
+  auto form = body->children[0];
+  auto button = form->children[0];
+  EXPECT_GT(button->bounds.w, 40);
+  EXPECT_GT(button->bounds.h, 10);
+}
+
+TEST_F(ButtonTest, button_label_has_natural_size_inside_pushed_dialog_frame)
+{
+  runtime.eval(R"(
+    (pixils/defcomponent form-body
+      {:children [{:mode 'ui/button
+                   :state {:label "Create"}}]})
+
+    (pixils/defmode root-mode
+      {:init (fn [state ctx]
+               (do
+                 (pixils/push-mode!
+                  'ui/dialog-frame
+                  {}
+                  {:children [(pixils.ui.window/make
+                               {:title-bar {:title "Window"}
+                                :style {:width 300}
+                                :body [{:mode 'form-body}]})]})
+                 state))})
+  )");
+
+  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.process_messages();
+  session.render_mode();
+
+  auto window = session.active_mode->children[0];
+  auto body = window->children[1];
+  auto form = body->children[0];
+  auto button = form->children[0];
+  EXPECT_GT(window->bounds.h, 0);
+  EXPECT_GT(button->bounds.w, 40);
+  EXPECT_GT(button->bounds.h, 10);
 }
