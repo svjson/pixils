@@ -70,3 +70,21 @@ TEST(PixilsLisplePackageTest, pixils_test_package_loads)
 
   EXPECT_EQ(runtime.eval("pixils.test/test-package-loaded?")->to_string(), "true");
 }
+
+TEST(PixilsLisplePackageTest, pixils_test_package_runs_proof_tests)
+{
+  auto plan = resolve_test_package(PIXILS_TEST_PACKAGE_DIR);
+
+  auto fs = Lisple::Package::make_load_path_file_system(plan);
+  Lisple::Package::LoadedNativePackages native_packages;
+  Lisple::Runtime runtime(fs.get());
+  native_packages = Lisple::Package::load_native_libraries(runtime, plan);
+
+  runtime.eval(
+    "(ns pixils.test-package-proof-runner "
+    "(:require proof.core pixils.test.package-test))");
+
+  auto summary = runtime.eval("(result-summary (run))");
+
+  EXPECT_EQ(summary->to_string(), "{:total 2 :passed 2 :failed 0}");
+}

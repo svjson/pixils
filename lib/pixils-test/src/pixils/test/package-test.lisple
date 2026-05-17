@@ -1,0 +1,17 @@
+(ns pixils.test.package-test
+  (:require proof.core
+            pixils.test
+            [pixils.color :as color]
+            [pixils.point :as point]))
+
+(deftest pixils-test-loads-pixils-native-namespaces
+  (is (= true pixils.test/test-package-loaded?))
+  (let [value (color/make-color {:r 12 :g 34 :b 56 :a 78})]
+    (is (= 12 (:r value)))
+    (is (= 34 (:g value)))
+    (is (= 56 (:b value)))
+    (is (= 78 (:a value)))))
+
+(deftest pixils-test-can-host-pure-function-tests
+  (let [move-right (fn [point] (point/translate point 1 0))]
+    (is (= {:x 4 :y 5} (move-right {:x 3 :y 5})))))
