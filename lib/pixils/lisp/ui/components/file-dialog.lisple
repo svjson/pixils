@@ -1,9 +1,10 @@
 (ns pixils.ui.file-dialog
   (:require pixils
+            [lisple.io :as io]
             [pixils.ui :as ui]
             [pixils.ui.dialog :as dialog]))
 
-(def default-path "/projects")
+(def default-path (io/current-directory!))
 
 (def default-filters
   [{:label "EDN files (*.edn)"
@@ -22,36 +23,31 @@
    :layout {:direction :column
             :gap 8}})
 
-(defun dummy-entry [type name path]
-  {:type type
-   :name name
-   :path path})
+(defun filter-patterns [filter]
+  (let [patterns (:patterns filter)
+        extensions (or (:extensions filter) [])]
+    (if patterns
+      patterns
+      (map extensions
+           (fn [extension]
+             (str "*" extension))))))
 
-(defun list-directory [path]
-  (cond
-    (= path "/")
-    [(dummy-entry :directory "projects" "/projects")
-     (dummy-entry :directory "tmp" "/tmp")]
+(defun file-list-options [filter]
+  (let [patterns (filter-patterns filter)]
+    (if (empty? patterns)
+      {:directories? false}
+      {:directories? false
+       :filter patterns})))
 
-    (= path "/projects/assets")
-    [(dummy-entry :file "terrain.edn" "/projects/assets/terrain.edn")
-     (dummy-entry :file "tilesets.edn" "/projects/assets/tilesets.edn")]
-
-    (= path "/tmp")
-    [(dummy-entry :file "scratch.edn" "/tmp/scratch.edn")]
-
-    :default
-    [(dummy-entry :directory "assets" "/projects/assets")
-     (dummy-entry :file "tilemap-editor.edn" "/projects/tilemap-editor.edn")
-     (dummy-entry :file "demo-map.edn" "/projects/demo-map.edn")
-     (dummy-entry :file "readme.txt" "/projects/readme.txt")]))
+(defun list-directory [path filter]
+  (concat (io/list-directory! path {:files? false})
+          (io/list-directory! path (file-list-options filter))))
 
 (defun parent-path [path]
-  (cond
-    (= path "/projects/assets") "/projects"
-    (= path "/projects") "/"
-    (= path "/tmp") "/"
-    :default default-path))
+  (let [parent (io/parent-path path)]
+    (if (empty? parent)
+      path
+      parent)))
 
 (defun join-path [path name]
   (cond
@@ -59,11 +55,8 @@
         (empty? name))
     path
 
-    (= path "/")
-    (str "/" name)
-
     :default
-    (str path "/" name)))
+    (io/join-path path name)))
 
 (defun normalize-dialog-mode [mode]
   (case mode
@@ -123,7 +116,7 @@
     {:dialog-mode mode
      :path path
      :entry-path path
-     :entries (list-directory path)
+     :entries (list-directory path (filter-at filters filter-index))
      :selected-index nil
      :selected-entry nil
      :filename (or (:filename opts) "")
@@ -151,7 +144,9 @@
   (assoc state
          :path path
          :entry-path nil
-         :entries (list-directory path)
+         :entries (list-directory path
+                                  (filter-at (:filters state)
+                                             (:filter-index state)))
          :selected-index nil
          :selected-entry nil
          :filename ""))
@@ -306,7 +301,9 @@
              (let [path (or (:path state) default-path)]
                (if (= path (:entry-path state))
                  state
-                 (let [entries (list-directory path)]
+                 (let [entries (list-directory path
+                                               (filter-at (:filters state)
+                                                          (:filter-index state)))]
                    (do
                      (ui/replace-child! (:view ctx)
                                         "entry-list"
@@ -334,11 +331,21 @@
                             (ui/stop-propagation! event)
                             (navigate-to state (parent-path (:path state)))))
         :combo-box/change (fn [state event ctx]
-                            (do
-                              (ui/stop-propagation! event)
-                              (assoc state
-                                     :filter-index
-                                     (-> event :payload :selected-index))))
+                            (let [filter-index (-> event :payload :selected-index)
+                                  entries (list-directory (:path state)
+                                                          (filter-at (:filters state)
+                                                                     filter-index))]
+                              (do
+                                (ui/stop-propagation! event)
+                                (ui/replace-child! (:view ctx)
+                                                   "entry-list"
+                                                   (entry-list-child entries nil))
+                                (assoc state
+                                       :filter-index filter-index
+                                       :entries entries
+                                       :selected-index nil
+                                       :selected-entry nil
+                                       :filename ""))))
         :list-box/activate (fn [state event ctx]
                              (do
                                (ui/stop-propagation! event)

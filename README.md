@@ -205,9 +205,9 @@ dialog frame, or `:dismissable true` to allow Escape/outside-click dismissal. Di
 the standard confirm result shape with `:choice :dialog/dismiss`.
 
 `pixils.ui.file-dialog/open-file-dialog!` opens a Pixils-provided file chooser on top of
-`open-dialog!`. It currently uses `pixils.ui.file-dialog/list-directory`, a deterministic
-dummy directory provider, until Lisple exposes enough filesystem operations for a real file
-dialog. The result shape is `{:type :confirm :mode mode :path path :directory directory
+`open-dialog!`. It uses the active `lisple.io` filesystem and keeps directories visible
+while applying the selected filter to files. The result shape is
+`{:type :confirm :mode mode :path path :directory directory
 :filename filename :filter filter}` or `{:type :cancel ...}`.
 
 ```clojure
@@ -215,7 +215,7 @@ dialog. The result shape is `{:type :confirm :mode mode :path path :directory di
  ctx
  {:title "Open Project"
   :mode :file-dialog/open
-  :path "/projects"
+  :path pixils.ui.file-dialog/default-path
   :filters [{:label "EDN files (*.edn)"
              :extensions [".edn"]}]
   :result-event :project/open-result})

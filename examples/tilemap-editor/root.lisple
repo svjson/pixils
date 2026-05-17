@@ -23,7 +23,7 @@
            :hidden-layer-indices []
            :selected-label "Selected: Night Sky (color)"
            :project-path nil
-           :project-directory "/projects"
+           :project-directory nil
            :project-filename "tilemap-project.edn"
            :zoom 1
            :zoom-label "Zoom 1x"

@@ -59,7 +59,7 @@
      ctx
      {:title title
       :mode mode
-      :path (or (:project-directory state) "/projects")
+      :path (or (:project-directory state) file-dialog/default-path)
       :filename (or (:project-filename state) "tilemap-project.edn")
       :filters project-file-filters
       :result-event :project/file-dialog-result})

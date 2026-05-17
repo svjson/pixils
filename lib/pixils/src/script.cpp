@@ -19,6 +19,7 @@
 #include <pixils/ui/components/text_node.h>
 
 #include <lisple/io/dir_root_file_system.h>
+#include <lisple/lang/io/io_namespace.h>
 
 namespace Pixils
 {
@@ -46,6 +47,7 @@ namespace Pixils
     namespaces.push_back(std::make_unique<Pixils::Script::StateCounterNamespace>());
     namespaces.push_back(std::make_unique<Pixils::Script::StyleNamespace>());
     namespaces.push_back(std::make_unique<Pixils::Script::UINamespace>());
+    namespaces.push_back(std::make_unique<Lisple::Namespace>(Lisple::make_io_namespace()));
 
     RuntimeConfiguration rtconfig{.native_namespaces = std::move(namespaces),
                                   .load_path = {"."}};
@@ -109,6 +111,7 @@ namespace Pixils
     namespaces.push_back(std::make_unique<Pixils::Script::StateCounterNamespace>());
     namespaces.push_back(std::make_unique<Pixils::Script::StyleNamespace>());
     namespaces.push_back(std::make_unique<Pixils::Script::UINamespace>());
+    namespaces.push_back(std::make_unique<Lisple::Namespace>(Lisple::make_io_namespace()));
 
     RuntimeConfiguration rtconfig{.native_namespaces = std::move(namespaces),
                                   .load_path = {"."}};

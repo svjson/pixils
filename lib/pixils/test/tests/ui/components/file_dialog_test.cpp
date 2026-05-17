@@ -4,11 +4,66 @@
 #include <gtest/gtest.h>
 #include <lisple/runtime/dict.h>
 
+#include <chrono>
+#include <filesystem>
+#include <fstream>
+#include <string>
+
 using FileDialogTest = RenderFixture;
 using Pixils::Runtime::View;
 
 namespace
 {
+  namespace fs = std::filesystem;
+
+  std::string lisp_string(const std::string& value)
+  {
+    std::string out = "\"";
+    for (char c : value)
+    {
+      if (c == '\\' || c == '"')
+      {
+        out.push_back('\\');
+      }
+      out.push_back(c);
+    }
+    out.push_back('"');
+    return out;
+  }
+
+  struct TempProject
+  {
+    fs::path root;
+
+    TempProject()
+    {
+      const auto suffix =
+        std::chrono::steady_clock::now().time_since_epoch().count();
+      root = fs::temp_directory_path() /
+             ("pixils-file-dialog-test-" + std::to_string(suffix));
+      fs::create_directories(root / "assets");
+      write(root / "tilemap-editor.edn", "{:name \"editor\"}");
+      write(root / "demo-map.edn", "{:name \"demo\"}");
+      write(root / "readme.txt", "text");
+      write(root / "assets" / "terrain.edn", "{:terrain true}");
+      write(root / "assets" / "tilesets.edn", "{:tilesets []}");
+    }
+
+    ~TempProject()
+    {
+      std::error_code ec;
+      fs::remove_all(root, ec);
+    }
+
+    static void write(const fs::path& path, const std::string& contents)
+    {
+      std::ofstream out(path);
+      out << contents;
+    }
+
+    std::string path() const { return root.string(); }
+  };
+
   Lisple::sptr_val get_key(const Lisple::sptr_val& value, const std::string& key)
   {
     return Lisple::Dict::get_property(value, Lisple::keyword(key));
@@ -69,9 +124,10 @@ namespace
 
 } // namespace
 
-TEST_F(FileDialogTest, open_file_dialog_returns_selected_dummy_file)
+TEST_F(FileDialogTest, open_file_dialog_returns_selected_file)
 {
   render_ctx.buffer_dim = {640, 480};
+  TempProject project;
 
   runtime.eval(R"(
     (pixils/defmode root-mode
@@ -81,7 +137,7 @@ TEST_F(FileDialogTest, open_file_dialog_returns_selected_dummy_file)
                   ctx
                   {:title "Open Project"
                    :mode :file-dialog/open
-                   :path "/projects"
+                   :path )" + lisp_string(project.path()) + R"(
                    :result-event :project/open-result})
                  {:result nil}))
        :on {:project/open-result (fn [state event ctx]
@@ -132,14 +188,16 @@ TEST_F(FileDialogTest, open_file_dialog_returns_selected_dummy_file)
   ASSERT_NE(result, nullptr);
   EXPECT_EQ(get_key(result, "type")->str(), "confirm");
   EXPECT_EQ(get_key(result, "mode")->str(), "file-dialog/open");
-  EXPECT_EQ(get_key(result, "path")->str(), "/projects/tilemap-editor.edn");
-  EXPECT_EQ(get_key(result, "directory")->str(), "/projects");
+  EXPECT_EQ(get_key(result, "path")->str(),
+            (project.root / "tilemap-editor.edn").string());
+  EXPECT_EQ(get_key(result, "directory")->str(), project.path());
   EXPECT_EQ(get_key(result, "filename")->str(), "tilemap-editor.edn");
 }
 
 TEST_F(FileDialogTest, save_file_dialog_returns_entered_filename_path)
 {
   render_ctx.buffer_dim = {640, 480};
+  TempProject project;
 
   runtime.eval(R"(
     (pixils/defmode root-mode
@@ -149,7 +207,7 @@ TEST_F(FileDialogTest, save_file_dialog_returns_entered_filename_path)
                   ctx
                   {:title "Save Project"
                    :mode :file-dialog/save
-                   :path "/projects"
+                   :path )" + lisp_string(project.path()) + R"(
                    :filename "new-map.edn"
                    :result-event :project/save-result})
                  {:result nil}))
@@ -182,13 +240,15 @@ TEST_F(FileDialogTest, save_file_dialog_returns_entered_filename_path)
   ASSERT_NE(result, nullptr);
   EXPECT_EQ(get_key(result, "type")->str(), "confirm");
   EXPECT_EQ(get_key(result, "mode")->str(), "file-dialog/save");
-  EXPECT_EQ(get_key(result, "path")->str(), "/projects/new-map.edn");
+  EXPECT_EQ(get_key(result, "path")->str(),
+            (project.root / "new-map.edn").string());
   EXPECT_EQ(get_key(result, "filename")->str(), "new-map.edn");
 }
 
 TEST_F(FileDialogTest, filter_combo_box_updates_confirm_result_filter)
 {
   render_ctx.buffer_dim = {640, 480};
+  TempProject project;
 
   runtime.eval(R"(
     (pixils/defmode root-mode
@@ -198,7 +258,7 @@ TEST_F(FileDialogTest, filter_combo_box_updates_confirm_result_filter)
                   ctx
                   {:title "Open Project"
                    :mode :file-dialog/open
-                   :path "/projects"
+                   :path )" + lisp_string(project.path()) + R"(
                    :result-event :project/open-result})
                  {:result nil}))
        :on {:project/open-result (fn [state event ctx]
@@ -261,13 +321,14 @@ TEST_F(FileDialogTest, filter_combo_box_updates_confirm_result_filter)
   ASSERT_NE(result, nullptr);
   auto filter = get_key(result, "filter");
   ASSERT_NE(filter, nullptr);
-  EXPECT_EQ(get_key(result, "path")->str(), "/projects/readme.txt");
+  EXPECT_EQ(get_key(result, "path")->str(), (project.root / "readme.txt").string());
   EXPECT_EQ(get_key(filter, "label")->str(), "All files (*)");
 }
 
 TEST_F(FileDialogTest, double_click_directory_navigates_into_it)
 {
   render_ctx.buffer_dim = {640, 480};
+  TempProject project;
 
   runtime.eval(R"(
     (pixils/defmode root-mode
@@ -277,7 +338,7 @@ TEST_F(FileDialogTest, double_click_directory_navigates_into_it)
                   ctx
                   {:title "Open Project"
                    :mode :file-dialog/open
-                   :path "/projects"
+                   :path )" + lisp_string(project.path()) + R"(
                    :result-event :project/open-result})
                  {:result nil}))
        :on {:project/open-result (fn [state event ctx]
@@ -316,7 +377,7 @@ TEST_F(FileDialogTest, double_click_directory_navigates_into_it)
   ASSERT_NE(file_dialog_body, nullptr);
   auto path = get_key(file_dialog_body->state, "path");
   ASSERT_NE(path, nullptr);
-  EXPECT_EQ(path->str(), "/projects/assets");
+  EXPECT_EQ(path->str(), (project.root / "assets").string());
 
   auto terrain = find_list_item_with_label(session.active_mode, "    terrain.edn");
   ASSERT_NE(terrain, nullptr);
@@ -325,6 +386,7 @@ TEST_F(FileDialogTest, double_click_directory_navigates_into_it)
 TEST_F(FileDialogTest, double_click_file_confirms_dialog)
 {
   render_ctx.buffer_dim = {640, 480};
+  TempProject project;
 
   runtime.eval(R"(
     (pixils/defmode root-mode
@@ -334,7 +396,7 @@ TEST_F(FileDialogTest, double_click_file_confirms_dialog)
                   ctx
                   {:title "Open Project"
                    :mode :file-dialog/open
-                   :path "/projects"
+                   :path )" + lisp_string(project.path()) + R"(
                    :result-event :project/open-result})
                  {:result nil}))
        :on {:project/open-result (fn [state event ctx]
@@ -370,6 +432,6 @@ TEST_F(FileDialogTest, double_click_file_confirms_dialog)
   auto result = get_key(session.active_mode->state, "result");
   ASSERT_NE(result, nullptr);
   EXPECT_EQ(get_key(result, "type")->str(), "confirm");
-  EXPECT_EQ(get_key(result, "path")->str(), "/projects/demo-map.edn");
+  EXPECT_EQ(get_key(result, "path")->str(), (project.root / "demo-map.edn").string());
   EXPECT_EQ(get_key(result, "filename")->str(), "demo-map.edn");
 }
