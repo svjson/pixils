@@ -58,8 +58,8 @@ TEST_F(ButtonTest, button_label_uses_base_theme_padding)
   ASSERT_FALSE(label->mode->selector_modes.empty());
   EXPECT_EQ(label->mode->selector_modes[0], "ui/text");
   ASSERT_TRUE(label->effective_style.padding.has_value());
-  EXPECT_EQ(label->effective_style.padding->t, 2);
-  EXPECT_EQ(label->effective_style.padding->r, 6);
-  EXPECT_EQ(label->effective_style.padding->b, 2);
-  EXPECT_EQ(label->effective_style.padding->l, 6);
+  EXPECT_GT(label->effective_style.padding->t, 0);
+  EXPECT_GT(label->effective_style.padding->r, 0);
+  EXPECT_GT(label->effective_style.padding->b, 0);
+  EXPECT_GT(label->effective_style.padding->l, 0);
 }

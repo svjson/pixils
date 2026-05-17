@@ -27,6 +27,8 @@ TEST_F(BootstrapTest, loads_embedded_core_ui_modes_into_pixils_mode_registry)
     Lisple::Dict::get_property(modes, Lisple::symbol("ui/scroll-pane"));
   auto header_panel_mode =
     Lisple::Dict::get_property(modes, Lisple::symbol("ui/header-panel"));
+  auto dialog_frame_mode =
+    Lisple::Dict::get_property(modes, Lisple::symbol("ui/dialog-frame"));
   auto window_mode = Lisple::Dict::get_property(modes, Lisple::symbol("ui/window"));
   auto menu_bar_mode = Lisple::Dict::get_property(modes, Lisple::symbol("ui/menu-bar"));
   auto popup_menu_mode = Lisple::Dict::get_property(modes, Lisple::symbol("ui/popup-menu"));
@@ -50,6 +52,7 @@ TEST_F(BootstrapTest, loads_embedded_core_ui_modes_into_pixils_mode_registry)
   ASSERT_NE(scrollbar_button_mode, nullptr);
   ASSERT_NE(scroll_pane_mode, nullptr);
   ASSERT_NE(header_panel_mode, nullptr);
+  ASSERT_NE(dialog_frame_mode, nullptr);
   ASSERT_NE(window_mode, nullptr);
   ASSERT_NE(menu_bar_mode, nullptr);
   ASSERT_NE(popup_menu_mode, nullptr);
@@ -71,6 +74,8 @@ TEST_F(BootstrapTest, loads_embedded_core_ui_modes_into_pixils_mode_registry)
             "ui/scrollbar-button");
   EXPECT_EQ(Lisple::obj<Pixils::Runtime::Mode>(*scroll_pane_mode).name, "ui/scroll-pane");
   EXPECT_EQ(Lisple::obj<Pixils::Runtime::Mode>(*header_panel_mode).name, "ui/header-panel");
+  EXPECT_EQ(Lisple::obj<Pixils::Runtime::Mode>(*dialog_frame_mode).name,
+            "ui/dialog-frame");
   EXPECT_EQ(Lisple::obj<Pixils::Runtime::Mode>(*window_mode).name, "ui/window");
   EXPECT_EQ(Lisple::obj<Pixils::Runtime::Mode>(*menu_bar_mode).name, "ui/menu-bar");
   EXPECT_EQ(Lisple::obj<Pixils::Runtime::Mode>(*popup_menu_mode).name, "ui/popup-menu");
@@ -97,6 +102,22 @@ TEST_F(BootstrapTest, includes_embedded_base_theme_source)
 
   ASSERT_NE(base_theme, sources.end());
   EXPECT_NE(std::string_view(base_theme->source).find(":ui/panel"), std::string_view::npos);
+}
+
+TEST_F(BootstrapTest, includes_embedded_dialog_source)
+{
+  const auto& sources = Pixils::EmbeddedLisp::core_sources();
+  auto dialog =
+    std::find_if(sources.begin(),
+                 sources.end(),
+                 [](const Pixils::EmbeddedLisp::Source& source)
+                 { return std::string_view(source.path) == "ui/components/dialog.lisple"; });
+
+  ASSERT_NE(dialog, sources.end());
+  EXPECT_NE(std::string_view(dialog->source).find("(ns pixils.ui.dialog"),
+            std::string_view::npos);
+  EXPECT_NE(std::string_view(dialog->source).find(":dialog/ok-cancel"),
+            std::string_view::npos);
 }
 
 TEST_F(BootstrapTest, includes_embedded_classic_blue_theme_source)
