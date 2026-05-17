@@ -23,5 +23,6 @@ endif()
 enable_testing()
 
 add_subdirectory(lib/pixils)
+add_subdirectory(lib/pixils-runner)
+add_subdirectory(lib/pixils-test)
 add_subdirectory(bin/pixils)
-

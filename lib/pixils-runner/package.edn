@@ -1,0 +1,7 @@
+{:name pixils-runner
+ :version "0.1.0"
+ :description "Pixils application runner package."
+ :dependencies {pixils {:path "../pixils"}}
+ :load-roots ["src"]
+ :entry-points [pixils.runner]
+ :test-entry-points []}
