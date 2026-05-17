@@ -13,7 +13,7 @@
 (defprogram minesweeper
   {:display {:resolution {:scale 3}}
    :target-frame-rate 0
-   :theme 'pixils/classic-blue
+   :theme 'pixils/windows-3
    :initial-mode 'main-mode})
 
 (def menu-keymap
@@ -24,55 +24,55 @@
    [:key/shift :key/f5] :help/about})
 
 (def menu-definition
-  {:settings {:mnemonics {:marker "&"}
-              :shortcuts {:render true}}
-   :items [{:label "&Game"
-            :items [{:label "&New"
-                     :action :game/new-game}
-                    :separator
-                    {:label "&Beginner"
-                     :type :option
-                     :action :game/set-difficulty
-                     :payload {:mode :beginner}
-                     :value :beginner
-                     :selected-path [:game :settings :mode]}
-                    {:label "&Intermediate"
-                     :type :option
-                     :action :game/set-difficulty
-                     :payload {:mode :intermediate}
-                     :value :intermediate
-                     :selected-path [:game :settings :mode]}
-                    {:label "&Expert"
-                     :type :option
-                     :action :game/set-difficulty
-                     :payload {:mode :expert}
-                     :value :expert
-                     :selected-path [:game :settings :mode]}
-                    {:label "&Custom..."
-                     :type :option
-                     :action :game/set-difficulty
-                     :payload {:mode :custom}
-                     :value :custom
-                     :selected-path [:game :settings :mode]}
-                    :separator
-                    {:label "&Marks (?)"
-                     :type :toggle
-                     :action :preferences/toggle-marks
-                     :selected-path [:preferences :marks?]}
-                    {:label "Co&lor"
-                     :type :toggle
-                     :action :preferences/toggle-color
-                     :selected-path [:preferences :color?]}
-                    :separator
-                    {:label "Best &Times..."
-                     :action :action/show-highscores}
-                    :separator
-                    {:label "E&xit"
-                     :action :game/quit}]}
-           {:label "&Help"
-            :settings {:shortcuts {:render false}}
-            :items [{:label "&About"
-                     :action :help/about}]}]})
+ {:settings {:mnemonics {:marker "&"}
+             :shortcuts {:render true}}
+  :items [{:label "&Game"
+           :items [{:label "&New"
+                    :action :game/new-game}
+                   :separator
+                   {:label "&Beginner"
+                    :type :option
+                    :action :game/set-difficulty
+                    :payload {:mode :beginner}
+                    :value :beginner
+                    :selected-path [:game :settings :mode]}
+                   {:label "&Intermediate"
+                    :type :option
+                    :action :game/set-difficulty
+                    :payload {:mode :intermediate}
+                    :value :intermediate
+                    :selected-path [:game :settings :mode]}
+                   {:label "&Expert"
+                    :type :option
+                    :action :game/set-difficulty
+                    :payload {:mode :expert}
+                    :value :expert
+                    :selected-path [:game :settings :mode]}
+                   {:label "&Custom..."
+                    :type :option
+                    :action :game/set-difficulty
+                    :payload {:mode :custom}
+                    :value :custom
+                    :selected-path [:game :settings :mode]}
+                   :separator
+                   {:label "&Marks (?)"
+                    :type :toggle
+                    :action :preferences/toggle-marks
+                    :selected-path [:preferences :marks?]}
+                   {:label "Co&lor"
+                    :type :toggle
+                    :action :preferences/toggle-color
+                    :selected-path [:preferences :color?]}
+                   :separator
+                   {:label "Best &Times..."
+                    :action :action/show-highscores}
+                   :separator
+                   {:label "E&xit"
+                    :action :game/quit}]}
+          {:label "&Help"
+           :settings {:shortcuts {:render false}}
+           :items [{:label "&About"
+                    :action :help/about}]}]})
 
 (defun restart-game [state ctx settings]
   (let [new-state (assoc state :game (gl/new-game-state settings))]
@@ -139,7 +139,7 @@
 
 
 (defmode window-mode
-  {:focusable true
+ {:focusable true
    :init (fn [state ctx]
            (merge state
                   {:game (gl/new-game-state (merge {:mode :beginner}
