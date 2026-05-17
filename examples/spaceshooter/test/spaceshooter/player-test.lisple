@@ -1,0 +1,17 @@
+(ns spaceshooter.player-test
+  (:require proof.core
+            [spaceshooter.player :as player]))
+
+(deftest move-player-moves-up-and-uses-up-image
+  (let [moved (player/move-player (player/make-player) :up)]
+    (is (= {:x 20 :y 118} (:pos moved)))
+    (is (= :player/up (:image moved)))))
+
+(deftest move-player-clamps-to-play-area
+  (let [moved (player/move-player {:pos {:x 399 :y 224}
+                                   :image :player/base
+                                   :speed 10
+                                   :flash-counter 0
+                                   :bullets []}
+                                  :right)]
+    (is (= {:x 400 :y 224} (:pos moved)))))

@@ -1,0 +1,10 @@
+{:name spaceshooter
+ :version "0.1.0"
+ :description "Pixils Space Shooter example."
+ :dependencies {proof {:path "../../../lisple-lang/pkg/proof"}
+                pixils-runner {:path "../../lib/pixils-runner"}
+                pixils-test {:path "../../lib/pixils-test"}}
+ :load-roots ["src"]
+ :namespace-roots {spaceshooter "src"}
+ :config {proof {:test-roots ["test"]}}
+ :entry-points [spaceshooter.core]}
