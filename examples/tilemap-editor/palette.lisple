@@ -43,10 +43,10 @@
                     :align-items :center
                     :gap 6}}
    :update (fn [state ctx]
-             (let [tile (data/tile-in (:tileset state) (:tile-index state))]
+             (let [tile (data/tile-in (:tileset state) (:tile-id state))]
                (assoc (assoc (assoc state
                                     :selected (contains? (:selected-indices state)
-                                                         (:tile-index state)))
+                                                         (:index state)))
                              :tile tile)
                       :name (:name tile))))
    :on-mouse-down (fn [state event ctx]
@@ -71,14 +71,14 @@
 (defun selected-tile-indices [state]
   (if (nil? (:selected-tile state))
     []
-    [(data/clamp-tile-index (selected-layer-tileset state)
-                            (:selected-tile state))]))
+    [(data/tile-index-in (selected-layer-tileset state)
+                         (:selected-tile state))]))
 
 (defun tile-swatch-child [index option]
   {:mode 'tile-swatch
    :state {:index index
            :value (:value option)
-           :tile-index (:value option)
+           :tile-id (:value option)
            :tileset (ui/bind-state :tileset)
            :selected-indices (ui/bind-state :selected-indices)}})
 

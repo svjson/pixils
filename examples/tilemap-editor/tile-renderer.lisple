@@ -69,9 +69,9 @@
         tileset (:tileset layer)]
     (dotimes [y data/map-height]
       (dotimes [x data/map-width]
-        (let [tile-index (nth (nth tiles y) x)]
-          (when (not (nil? tile-index))
-            (draw-tile! (data/tile-in tileset tile-index)
+        (let [tile-ref (nth (nth tiles y) x)]
+          (when (not (nil? tile-ref))
+            (draw-tile! (data/tile-in tileset tile-ref)
                         (tile-rect x y offset zoom))))))))
 
 (defun render-grid-overlay! [offset zoom]

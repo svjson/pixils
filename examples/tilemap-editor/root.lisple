@@ -15,7 +15,7 @@
            :layout {:direction :column
                     :gap 8}}
    :init (fn [state ctx]
-           {:selected-tile 0
+           {:selected-tile :night
             :selected-tileset-index 0
             :tileset :colors
             :selected-layer-index 0
@@ -30,7 +30,7 @@
    :update (fn [state ctx]
              (let [layer (nth (:layers state) (or (:selected-layer-index state) 0))
                    tileset (:tileset layer)
-                   selected-tile (data/clamp-tile-index tileset (:selected-tile state))
+                   selected-tile (data/tile-id-in tileset (:selected-tile state))
                    zoom (or (:zoom state) 1)]
                (assoc state
                       :tileset tileset
