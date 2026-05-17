@@ -103,9 +103,13 @@ TEST_F(BootstrapTest, includes_embedded_base_theme_source)
     std::find_if(sources.begin(),
                  sources.end(),
                  [](const Pixils::EmbeddedLisp::Source& source)
-                 { return std::string_view(source.path) == "ui/base/base-theme.lisple"; });
+                 { return std::string_view(source.path) == "ui/base-theme.lisple"; });
 
   ASSERT_NE(base_theme, sources.end());
+  EXPECT_NE(std::string_view(base_theme->source).find("(ns pixils.ui.base-theme"),
+            std::string_view::npos);
+  EXPECT_NE(std::string_view(base_theme->source).find("(def definition"),
+            std::string_view::npos);
   EXPECT_NE(std::string_view(base_theme->source).find(":ui/panel"), std::string_view::npos);
 }
 

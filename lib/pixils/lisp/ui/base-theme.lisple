@@ -1,4 +1,8 @@
-{:default-variant :base
+(ns pixils.ui.base-theme
+  (:require pixils))
+
+(def definition
+  {:default-variant :base
  :vars {:base {:split-pane-resizer-size 6}}
  :styles
  {:ui/app {:background {:r 0xff :g 0xff :b 0xff}
@@ -227,4 +231,4 @@
   {:text {:color {:r 0x00 :g 0x00 :b 0x00}}
    :background {:r 0xff :g 0xff :b 0xff}
    :border {:color {:r 0x00 :g 0x00 :b 0x00}
-            :thickness 1}}}}
+            :thickness 1}}}})
