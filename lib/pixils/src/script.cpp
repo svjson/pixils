@@ -18,7 +18,7 @@
 #include <pixils/font_registry.h>
 #include <pixils/ui/components/text_node.h>
 
-#include <lisple/dir_root_file_system.h>
+#include <lisple/io/dir_root_file_system.h>
 
 namespace Pixils
 {
