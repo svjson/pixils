@@ -1,5 +1,6 @@
 (ns tilemap-editor.controls
   (:require pixils
+            [lisple.io :as io]
             [pixils.ui :as ui]
             [pixils.ui.checkbox :as chk]
             [pixils.ui.combo-box :as cb]
@@ -53,6 +54,16 @@
    {:label "All files (*)"
     :extensions []}])
 
+(defun save-project-result? [payload]
+  (and (= (:type payload) :confirm)
+       (= (:mode payload) :file-dialog/save)
+       (not (nil? (:path payload)))))
+
+(defun save-project! [state payload]
+  (do
+    (io/spit-edn! (:path payload) (data/project-document state))
+    payload))
+
 (defun open-project-file-dialog! [state ctx mode title]
   (do
     (file-dialog/open-file-dialog!
@@ -67,11 +78,16 @@
 
 (defun apply-project-file-dialog-result [state payload]
   (if (= (:type payload) :confirm)
-    (assoc state
-           :project-path (:path payload)
-           :project-directory (:directory payload)
-           :project-filename (:filename payload)
-           :last-project-file-dialog-result payload)
+    (let [next-state (assoc state
+                            :project-path (:path payload)
+                            :project-directory (:directory payload)
+                            :project-filename (:filename payload)
+                            :last-project-file-dialog-result payload)]
+      (if (save-project-result? payload)
+        (do
+          (save-project! next-state payload)
+          (assoc next-state :last-project-save-result payload))
+        next-state))
     state))
 
 (defun layer-name-exists? [layers name exclude-index]

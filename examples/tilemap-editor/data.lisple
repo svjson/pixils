@@ -359,6 +359,14 @@
    {:id :platform-foreground
     :label "Platform Foreground"}])
 
+(def project-format :pixils.tilemap-editor/project)
+(def project-format-version 1)
+
+(def project-resources
+  {:images {:editor-assets/spritesheet
+            {:file-name "assets/simples_pimples.png"
+             :transparency-color "#5a5268"}}})
+
 (def tileset-options
   (for-indexed [index tileset tilesets]
     {:value index
@@ -643,3 +651,21 @@
 
 (defun make-layered-map []
   (make-layered-map-from-string-maps tilemap-layers example-layer-string-maps))
+
+(defun tileset-definition [tileset]
+  (assoc tileset
+         :tile-size tile-size
+         :tiles (tile-types-for (:id tileset))))
+
+(defun project-tileset-definitions []
+  (map tilesets tileset-definition))
+
+(defun project-document [state]
+  {:format project-format
+   :version project-format-version
+   :resources project-resources
+   :tilesets (project-tileset-definitions)
+   :tilemap {:width map-width
+             :height map-height
+             :tile-size tile-size
+             :layers (or (:layers state) [])}})

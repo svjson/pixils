@@ -84,12 +84,13 @@
                                                               "Save Project As"))
        :project/save (fn [state event ctx]
                        (if (:project-path state)
-                         (assoc state :last-project-file-dialog-result
-                                {:type :confirm
-                                 :mode :file-dialog/save
-                                 :path (:project-path state)
-                                 :directory (:project-directory state)
-                                 :filename (:project-filename state)})
+                         (controls/apply-project-file-dialog-result
+                          state
+                          {:type :confirm
+                           :mode :file-dialog/save
+                           :path (:project-path state)
+                           :directory (:project-directory state)
+                           :filename (:project-filename state)})
                          (controls/open-project-file-dialog! state
                                                              ctx
                                                              :file-dialog/save
