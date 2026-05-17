@@ -1,0 +1,18 @@
+(ns pixils.examples.minesweeper.game-logic-test
+  (:require proof.core
+            [pixils.examples.minesweeper.game-logic :as gl]))
+
+(def TEST-BOARD [[0 1 :mine]
+                 [0 1 1]])
+
+(deftest in-bounds-recognizes-board-edges
+  (is (= true (gl/in-bounds? TEST-BOARD 0 0)))
+  (is (= true (gl/in-bounds? TEST-BOARD 1 2)))
+  (is (= false (gl/in-bounds? TEST-BOARD -1 0)))
+  (is (= false (gl/in-bounds? TEST-BOARD 0 -1)))
+  (is (= false (gl/in-bounds? TEST-BOARD 2 0)))
+  (is (= false (gl/in-bounds? TEST-BOARD 0 3))))
+
+(deftest neighbors-returns-only-in-bounds-cells
+  (is (= [[0 1] [1 1] [1 0]]
+         (gl/neighbors TEST-BOARD 0 0))))

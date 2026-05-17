@@ -1,6 +1,7 @@
 (ns pixils.ui.window
   (:require pixils
             [pixils.point :as pt]
+            pixils.ui.button
             [pixils.ui :as ui]))
 
 (defun emit-window-move! [event ctx]

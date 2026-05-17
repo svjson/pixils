@@ -18,7 +18,7 @@
 
 ;; Font and image resource
 
-(defbundle counter {:images {:font-map "assets/score_numbers.png"}})
+(defbundle counter {:images {:font-map "../assets/score_numbers.png"}})
 
 (deffont counter-font {:type :bitmap
                        :spacing 0
