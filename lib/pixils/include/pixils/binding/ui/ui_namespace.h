@@ -49,7 +49,7 @@ namespace Pixils::Script
                      (global_pos, local_pos));
   NATIVE_SUB_ADAPTER(MouseEventAdapter,
                      (MouseButtonEventAdapter, MouseButtonEvent),
-                     (button));
+                     (button, click_count));
   NATIVE_SUB_ADAPTER(MouseButtonEventAdapter,
                      (DragEventAdapter, DragEvent),
                      (start_global_pos, start_local_pos, delta, total_delta, payload));

@@ -16,30 +16,32 @@ void InputSimulator::mouse_move(int x, int y)
   mouse_move({x, y});
 }
 
-void InputSimulator::mouse_down(Uint8 button)
+void InputSimulator::mouse_down(Uint8 button, Uint8 clicks)
 {
   SDL_MouseButtonEvent mouse_button_event{};
   mouse_button_event.button = button;
+  mouse_button_event.clicks = clicks;
   _events.do_mouse_button_down(mouse_button_event);
 }
 
-void InputSimulator::mouse_down(Coord position, Uint8 button)
+void InputSimulator::mouse_down(Coord position, Uint8 button, Uint8 clicks)
 {
   mouse_move(position);
-  mouse_down(button);
+  mouse_down(button, clicks);
 }
 
-void InputSimulator::mouse_up(Uint8 button)
+void InputSimulator::mouse_up(Uint8 button, Uint8 clicks)
 {
   SDL_MouseButtonEvent mouse_button_event{};
   mouse_button_event.button = button;
+  mouse_button_event.clicks = clicks;
   _events.do_mouse_button_up(mouse_button_event);
 }
 
-void InputSimulator::mouse_up(Coord position, Uint8 button)
+void InputSimulator::mouse_up(Coord position, Uint8 button, Uint8 clicks)
 {
   mouse_move(position);
-  mouse_up(button);
+  mouse_up(button, clicks);
 }
 
 void InputSimulator::key_down(SDL_Keycode key)
@@ -60,6 +62,8 @@ void InputSimulator::clear_transients()
 {
   _events.mouse_button_down = Lisple::Constant::NIL;
   _events.mouse_button_up = Lisple::Constant::NIL;
+  _events.mouse_button_down_clicks = 1;
+  _events.mouse_button_up_clicks = 1;
   _events.mouse_moved = false;
   _events.key_down = Lisple::Constant::NIL;
   _events.key_up = Lisple::Constant::NIL;

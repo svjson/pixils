@@ -93,6 +93,7 @@ namespace Pixils::Runtime
     Lisple::sptr_val on_mouse_down = Lisple::Constant::NIL;
     Lisple::sptr_val on_mouse_up = Lisple::Constant::NIL;
     Lisple::sptr_val on_click = Lisple::Constant::NIL;
+    Lisple::sptr_val on_double_click = Lisple::Constant::NIL;
     Lisple::sptr_val on_mouse_enter = Lisple::Constant::NIL;
     Lisple::sptr_val on_mouse_leave = Lisple::Constant::NIL;
     Lisple::sptr_val on_mouse_motion = Lisple::Constant::NIL;

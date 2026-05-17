@@ -16,6 +16,8 @@ namespace Pixils
     Lisple::sptr_val mouse_pos;
     Lisple::sptr_val mouse_button_down;
     Lisple::sptr_val mouse_button_up;
+    uint8_t mouse_button_down_clicks = 1;
+    uint8_t mouse_button_up_clicks = 1;
     Lisple::sptr_val mouse_held = Lisple::vector({});
     bool mouse_moved = false;
 

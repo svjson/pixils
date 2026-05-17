@@ -49,6 +49,7 @@ namespace Pixils
   struct MouseButtonEvent : MouseEvent
   {
     Lisple::sptr_val button = Lisple::Constant::NIL;
+    uint8_t click_count = 1;
   };
 
   /**

@@ -1,6 +1,7 @@
 #include "../../render_fixture.h"
 
 #include <SDL2/SDL_keycode.h>
+#include <SDL2/SDL_mouse.h>
 #include <gtest/gtest.h>
 #include <lisple/runtime/dict.h>
 #include <lisple/runtime/value.h>
@@ -344,4 +345,45 @@ TEST_F(ListBoxTest, list_box_ctrl_and_shift_click_update_selection)
     Lisple::Dict::get_property(session.active_mode->state, Lisple::keyword("selected"));
   ASSERT_NE(selected, nullptr);
   EXPECT_EQ(selected->to_string(), "[2]");
+}
+
+TEST_F(ListBoxTest, list_box_emits_activate_on_double_click)
+{
+  runtime.eval(R"(
+    (pixils/defmode root-mode
+      {:init (fn [state ctx] {:activated nil})
+       :on {:list-box/activate (fn [state event ctx]
+                                  (assoc state :activated (:payload event)))}
+       :children [(pixils.ui.list-box/make
+                   {:options [{:value :a :label "Alpha"}
+                              {:value :b :label "Beta"}]
+                    :style {:width 100}
+                    :row-height 10
+                    :visible-rows 2
+                    :content-width 100})]})
+  )");
+
+  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.update_mode();
+  session.render_mode();
+  session.update_mode();
+  session.render_mode();
+
+  input().mouse_down({5, 15});
+  update_cycle();
+  input().mouse_up({5, 15});
+  update_cycle();
+  input().mouse_down({5, 15}, SDL_BUTTON_LEFT, 2);
+  update_cycle();
+  input().mouse_up({5, 15}, SDL_BUTTON_LEFT, 2);
+  update_cycle();
+
+  auto activated =
+    Lisple::Dict::get_property(session.active_mode->state, Lisple::keyword("activated"));
+  ASSERT_NE(activated, nullptr);
+  EXPECT_EQ(Lisple::Dict::get_property(activated, Lisple::keyword("value"))->to_string(),
+            ":b");
+  EXPECT_EQ(Lisple::Dict::get_property(activated, Lisple::keyword("selected-indices"))
+              ->to_string(),
+            "[1]");
 }

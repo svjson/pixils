@@ -182,6 +182,16 @@
         (ui/emit! (:view ctx) :file-dialog/confirm (confirm-result state))
         state))))
 
+(defun activate-entry [state index ctx]
+  (let [entry (entry-at (:entries state) index)
+        next-state (assoc state
+                          :selected-index index
+                          :selected-entry entry
+                          :filename (if (file-entry? entry)
+                                      (:name entry)
+                                      ""))]
+    (confirm-or-navigate next-state ctx)))
+
 (defcomponent ui/file-dialog-path-row
   {:style {:width :fill
            :height 24
@@ -303,7 +313,13 @@
         :file-dialog/up (fn [state event ctx]
                           (do
                             (ui/stop-propagation! event)
-                            (navigate-to state (parent-path (:path state)))))}})
+                            (navigate-to state (parent-path (:path state)))))
+        :list-box/activate (fn [state event ctx]
+                             (do
+                               (ui/stop-propagation! event)
+                               (activate-entry state
+                                               (-> event :payload :index)
+                                               ctx)))}})
 
 (defun make-body [opts]
   (let [state (initial-state opts)]

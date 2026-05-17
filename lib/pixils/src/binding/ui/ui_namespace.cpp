@@ -388,11 +388,17 @@ namespace Pixils::Script
                           MouseEvent,
                           (MouseButtonEventAdapter, MouseButtonEvent),
                           &HostType::MOUSE_EVENT,
-                          (button))
+                          (button),
+                          ("click-count", click_count))
 
   NOBJ_PROP_GET(MouseButtonEventAdapter, button)
   {
     return get_self_object().button;
+  }
+
+  NOBJ_PROP_GET(MouseButtonEventAdapter, click_count)
+  {
+    return Lisple::number(get_self_object().click_count);
   }
 
   NATIVE_SUB_ADAPTER_IMPL(MouseButtonEventAdapter,

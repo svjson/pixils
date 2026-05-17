@@ -936,6 +936,7 @@ namespace Pixils::UI
         MouseButtonEvent ev;
         ev.global_pos = gp;
         ev.button = events.mouse_button_up;
+        ev.click_count = events.mouse_button_up_clicks;
         auto ev_ref = Script::MouseButtonEventAdapter::make_ref(ev);
         bubble_hook(
           chain,
@@ -992,6 +993,7 @@ namespace Pixils::UI
           MouseButtonEvent click_ev;
           click_ev.global_pos = gp;
           click_ev.button = events.mouse_button_up;
+          click_ev.click_count = events.mouse_button_up_clicks;
           auto click_ev_ref = Script::MouseButtonEventAdapter::make_ref(click_ev);
           std::vector<std::shared_ptr<Runtime::View>> click_chain(it, chain.end());
           bubble_hook(
@@ -1003,6 +1005,27 @@ namespace Pixils::UI
             { click_ev.local_pos = local_pos_in_view(gp, click_chain, index); },
             hook_args,
             rt);
+
+          if (events.mouse_button_up_clicks >= 2)
+          {
+            MouseButtonEvent double_click_ev;
+            double_click_ev.global_pos = gp;
+            double_click_ev.button = events.mouse_button_up;
+            double_click_ev.click_count = events.mouse_button_up_clicks;
+            auto double_click_ev_ref =
+              Script::MouseButtonEventAdapter::make_ref(double_click_ev);
+            bubble_hook(
+              click_chain,
+              &Runtime::Mode::on_double_click,
+              double_click_ev_ref,
+              double_click_ev.propagation_stopped,
+              [&](size_t index)
+              {
+                double_click_ev.local_pos = local_pos_in_view(gp, click_chain, index);
+              },
+              hook_args,
+              rt);
+          }
         }
       }
     }
@@ -1060,6 +1083,7 @@ namespace Pixils::UI
       MouseButtonEvent ev;
       ev.global_pos = gp;
       ev.button = events.mouse_button_down;
+      ev.click_count = events.mouse_button_down_clicks;
       auto ev_ref = Script::MouseButtonEventAdapter::make_ref(ev);
       bubble_hook(
         hit_chain,

@@ -185,3 +185,112 @@ TEST_F(FileDialogTest, save_file_dialog_returns_entered_filename_path)
   EXPECT_EQ(get_key(result, "path")->str(), "/projects/new-map.edn");
   EXPECT_EQ(get_key(result, "filename")->str(), "new-map.edn");
 }
+
+TEST_F(FileDialogTest, double_click_directory_navigates_into_it)
+{
+  render_ctx.buffer_dim = {640, 480};
+
+  runtime.eval(R"(
+    (pixils/defmode root-mode
+      {:init (fn [state ctx]
+               (do
+                 (pixils.ui.file-dialog/open-file-dialog!
+                  ctx
+                  {:title "Open Project"
+                   :mode :file-dialog/open
+                   :path "/projects"
+                   :result-event :project/open-result})
+                 {:result nil}))
+       :on {:project/open-result (fn [state event ctx]
+                                   (assoc state :result (:payload event)))}})
+  )");
+
+  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.process_messages();
+  session.update_mode();
+  session.render_mode();
+
+  auto assets = find_list_item_with_label(session.active_mode, "[D] assets");
+  ASSERT_NE(assets, nullptr);
+  input().mouse_down({assets->bounds.x + (assets->bounds.w / 2),
+                      assets->bounds.y + (assets->bounds.h / 2)});
+  update_cycle();
+  input().mouse_up({assets->bounds.x + (assets->bounds.w / 2),
+                    assets->bounds.y + (assets->bounds.h / 2)});
+  update_cycle();
+  session.render_mode();
+  input().mouse_down({assets->bounds.x + (assets->bounds.w / 2),
+                      assets->bounds.y + (assets->bounds.h / 2)},
+                     SDL_BUTTON_LEFT,
+                     2);
+  update_cycle();
+  input().mouse_up({assets->bounds.x + (assets->bounds.w / 2),
+                    assets->bounds.y + (assets->bounds.h / 2)},
+                   SDL_BUTTON_LEFT,
+                   2);
+  update_cycle();
+  update_cycle();
+  session.render_mode();
+
+  ASSERT_EQ(session.active_mode->mode->name, "ui/dialog-frame");
+  auto file_dialog_body = find_mode(session.active_mode, "ui/file-dialog-body");
+  ASSERT_NE(file_dialog_body, nullptr);
+  auto path = get_key(file_dialog_body->state, "path");
+  ASSERT_NE(path, nullptr);
+  EXPECT_EQ(path->str(), "/projects/assets");
+
+  auto terrain = find_list_item_with_label(session.active_mode, "    terrain.edn");
+  ASSERT_NE(terrain, nullptr);
+}
+
+TEST_F(FileDialogTest, double_click_file_confirms_dialog)
+{
+  render_ctx.buffer_dim = {640, 480};
+
+  runtime.eval(R"(
+    (pixils/defmode root-mode
+      {:init (fn [state ctx]
+               (do
+                 (pixils.ui.file-dialog/open-file-dialog!
+                  ctx
+                  {:title "Open Project"
+                   :mode :file-dialog/open
+                   :path "/projects"
+                   :result-event :project/open-result})
+                 {:result nil}))
+       :on {:project/open-result (fn [state event ctx]
+                                   (assoc state :result (:payload event)))}})
+  )");
+
+  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.process_messages();
+  session.update_mode();
+  session.render_mode();
+
+  auto entry = find_list_item_with_label(session.active_mode, "    demo-map.edn");
+  ASSERT_NE(entry, nullptr);
+  input().mouse_down({entry->bounds.x + (entry->bounds.w / 2),
+                      entry->bounds.y + (entry->bounds.h / 2)});
+  update_cycle();
+  input().mouse_up({entry->bounds.x + (entry->bounds.w / 2),
+                    entry->bounds.y + (entry->bounds.h / 2)});
+  update_cycle();
+  session.render_mode();
+  input().mouse_down({entry->bounds.x + (entry->bounds.w / 2),
+                      entry->bounds.y + (entry->bounds.h / 2)},
+                     SDL_BUTTON_LEFT,
+                     2);
+  update_cycle();
+  input().mouse_up({entry->bounds.x + (entry->bounds.w / 2),
+                    entry->bounds.y + (entry->bounds.h / 2)},
+                   SDL_BUTTON_LEFT,
+                   2);
+  update_cycle();
+
+  ASSERT_EQ(session.active_mode->mode->name, "root-mode");
+  auto result = get_key(session.active_mode->state, "result");
+  ASSERT_NE(result, nullptr);
+  EXPECT_EQ(get_key(result, "type")->str(), "confirm");
+  EXPECT_EQ(get_key(result, "path")->str(), "/projects/demo-map.edn");
+  EXPECT_EQ(get_key(result, "filename")->str(), "demo-map.edn");
+}

@@ -47,6 +47,7 @@ namespace Pixils
     auto btn = mouse_button_keyword(event.button);
     if (*btn == *Lisple::Constant::NIL) return;
     mouse_button_down = btn;
+    mouse_button_down_clicks = std::max<uint8_t>(event.clicks, 1);
     Lisple::append(*mouse_held, btn);
   }
 
@@ -55,6 +56,7 @@ namespace Pixils
     auto btn = mouse_button_keyword(event.button);
     if (*btn == *Lisple::Constant::NIL) return;
     mouse_button_up = btn;
+    mouse_button_up_clicks = std::max<uint8_t>(event.clicks, 1);
     auto& children = mouse_held->mut_elements();
     auto it = std::remove_if(children.begin(),
                              children.end(),

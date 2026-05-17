@@ -58,6 +58,7 @@ namespace
     mode.on_key_held = resolve_key_held_handler(runtime, mode.on_key_held);
     mode.on_key_up = resolve_hook(runtime, mode.on_key_up);
     mode.on_click = resolve_hook(runtime, mode.on_click);
+    mode.on_double_click = resolve_hook(runtime, mode.on_double_click);
     mode.on_mouse_down = resolve_hook(runtime, mode.on_mouse_down);
     mode.on_mouse_up = resolve_hook(runtime, mode.on_mouse_up);
     mode.on_mouse_enter = resolve_hook(runtime, mode.on_mouse_enter);
@@ -127,6 +128,7 @@ namespace
     apply_hook(mode.on_mouse_down, "on-mouse-down");
     apply_hook(mode.on_mouse_up, "on-mouse-up");
     apply_hook(mode.on_click, "on-click");
+    apply_hook(mode.on_double_click, "on-double-click");
     apply_hook(mode.on_mouse_enter, "on-mouse-enter");
     apply_hook(mode.on_mouse_leave, "on-mouse-leave");
     apply_hook(mode.on_mouse_motion, "on-mouse-motion");

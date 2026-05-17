@@ -146,7 +146,15 @@ namespace Pixils::Script
   NATIVE_ADAPTER(
     ViewAdapter,
     Runtime::View,
-    (id, bounds, interaction, style, effective_style, on_mouse_down, on_mouse_up, on_click));
+    (id,
+     bounds,
+     interaction,
+     style,
+     effective_style,
+     on_mouse_down,
+     on_mouse_up,
+     on_click,
+     on_double_click));
   /*! @brief ModeAdapter - A Lisple HostObject Adapter for Mode */
   NATIVE_ADAPTER(ModeAdapter, Runtime::Mode, (init, update, render));
   /*! @brief ModeCompositionAdapter - A Lisple HostObject Adapter for ModeComposition */

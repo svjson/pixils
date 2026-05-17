@@ -866,6 +866,7 @@ namespace Pixils::Script
                       (style),
                       ("effective-style", effective_style),
                       ("on-click", on_click),
+                      ("on-double-click", on_double_click),
                       ("on-mouse-down", on_mouse_down),
                       ("on-mouse-up", on_mouse_up));
 
@@ -899,6 +900,14 @@ namespace Pixils::Script
     return v.owned_mode && *v.owned_mode->on_click != *Lisple::Constant::NIL
              ? v.owned_mode->on_click
              : v.mode->on_click;
+  }
+
+  NOBJ_PROP_GET(ViewAdapter, on_double_click)
+  {
+    const Runtime::View& v = object->get_object();
+    return v.owned_mode && *v.owned_mode->on_double_click != *Lisple::Constant::NIL
+             ? v.owned_mode->on_double_click
+             : v.mode->on_double_click;
   }
 
   NOBJ_PROP_GET(ViewAdapter, on_mouse_up)

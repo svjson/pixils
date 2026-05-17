@@ -189,6 +189,15 @@
                                :shift? (held-shift? ctx)
                                :ctrl? (held-ctrl? ctx)})
                     state))
+   :on-double-click (fn [state event ctx]
+                      (do
+                        (ui/emit! (:view ctx)
+                                  :list-box/item-activate
+                                  {:index (:index state)
+                                   :value (:value state)
+                                   :shift? (held-shift? ctx)
+                                   :ctrl? (held-ctrl? ctx)})
+                        state))
    :children [{:mode 'ui/text
                :style {:width :fill}
                :state {:value (ui/bind-state :label)}}]})
@@ -230,7 +239,20 @@
                                              :selected-values values
                                              :value (:value payload)})
                                   (assoc next-state
-                                         :selected-values values))))}})
+                                         :selected-values values))))
+        :list-box/item-activate (fn [state event ctx]
+                                  (let [payload (:payload event)
+                                        selected (list-box-click-selection state payload)
+                                        values (selected-values-for (:options state)
+                                                                    selected)]
+                                    (do
+                                      (ui/stop-propagation! event)
+                                      (ui/emit! (:view ctx)
+                                                :list-box/activate
+                                                (merge payload
+                                                       {:selected-indices selected
+                                                        :selected-values values}))
+                                      state)))}})
 
 (defun stretch-list-box-item [child]
   (assoc child

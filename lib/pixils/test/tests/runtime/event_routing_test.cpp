@@ -2,6 +2,7 @@
 #include "session_fixture.h"
 #include <pixils/ui/style.h>
 
+#include <SDL2/SDL_mouse.h>
 #include <gtest/gtest.h>
 #include <lisple/runtime/dict.h>
 #include <lisple/runtime/value.h>
@@ -30,6 +31,36 @@ TEST_F(EventRoutingTest, on_click_fires_when_mouse_down_and_up_on_same_view)
 
   // Then
   EXPECT_EQ(session.active_mode->state->to_string(), "{:clicks 1}");
+}
+
+TEST_F(EventRoutingTest, on_double_click_fires_for_second_click)
+{
+  runtime.eval(R"(
+    (pixils/defmode clickable {
+      :init (fn [state ctx] {:clicks 0 :double-clicks 0 :click-count 0})
+      :on-click (fn [state ev ctx]
+                  (assoc state :clicks (+ (:clicks state) 1)))
+      :on-double-click (fn [state ev ctx]
+                         (assoc state
+                                :double-clicks (+ (:double-clicks state) 1)
+                                :click-count (:click-count ev)))
+    })
+  )");
+  session.push_mode("clickable", Lisple::Constant::NIL);
+  session.active_mode->bounds = {0, 0, 100, 100};
+
+  input().mouse_down({50, 50});
+  update_cycle();
+  input().mouse_up({50, 50});
+  update_cycle();
+
+  input().mouse_down({50, 50}, SDL_BUTTON_LEFT, 2);
+  update_cycle();
+  input().mouse_up({50, 50}, SDL_BUTTON_LEFT, 2);
+  update_cycle();
+
+  EXPECT_EQ(session.active_mode->state->to_string(),
+            "{:clicks 2 :double-clicks 1 :click-count 2}");
 }
 
 TEST_F(EventRoutingTest, clipped_view_does_not_hit_children_outside_content_rect)
