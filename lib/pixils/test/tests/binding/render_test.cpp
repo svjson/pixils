@@ -500,6 +500,33 @@ TEST_F(RenderTest, deffont_registers_baseline_and_underline_metrics)
   EXPECT_EQ(font->definition.underline->thickness, 2);
 }
 
+TEST_F(RenderTest, defbundle_declares_font_resources_for_ttf_fonts)
+{
+  runtime.eval(R"(
+    (pixils/defbundle fonts {:fonts {:autoega "assets/Ac437_STB_AutoEGA_8x14.ttf"}})
+  )");
+
+  auto font_path = render_ctx.asset_registry->get_font_path("fonts", "autoega");
+
+  ASSERT_TRUE(font_path.has_value());
+  EXPECT_EQ(*font_path, "./assets/Ac437_STB_AutoEGA_8x14.ttf");
+}
+
+TEST_F(RenderTest, deffont_ttf_reports_load_failure)
+{
+  runtime.eval(R"(
+    (pixils/defbundle fonts {:fonts {:missing "assets/missing.ttf"}})
+  )");
+
+  EXPECT_THROW(runtime.eval(R"(
+    (pixils/deffont missing-font
+      {:type :ttf
+       :resource :fonts/missing
+       :size 14})
+  )"),
+               Lisple::InvocationException);
+}
+
 TEST_F(RenderTest, text_with_underline_font_style_renders_fill_rect_for_underline)
 {
   SDLMock::prepared_surfaces["./font.png"] = {8, 8};

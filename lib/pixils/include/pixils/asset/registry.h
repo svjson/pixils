@@ -21,6 +21,9 @@ namespace Pixils::Asset
 
     std::unordered_map<std::string, Bundle> bundles;
     std::unordered_map<std::string, Runtime::ResourceDependencies> declarations;
+    std::unordered_map<std::string,
+                       std::unordered_map<std::string, const Assets::EmbeddedAsset*>>
+      embedded_fonts;
 
    public:
     Registry(RenderContext& ctx, std::string base_path = "");
@@ -40,6 +43,10 @@ namespace Pixils::Asset
     SDL_Surface* get_image_surface(const std::string& bundle, const std::string& asset_id);
     SDL_Texture* get_tint_mask(const std::string& bundle, const std::string& asset_id);
     Mix_Chunk* get_sound(const std::string& bundle, const std::string& asset_id);
+    std::optional<std::string> get_font_path(const std::string& bundle,
+                                             const std::string& asset_id);
+    const Assets::EmbeddedAsset* get_embedded_font(const std::string& bundle,
+                                                   const std::string& asset_id);
   };
 } // namespace Pixils::Asset
 

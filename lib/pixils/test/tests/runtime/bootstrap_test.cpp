@@ -33,8 +33,7 @@ TEST_F(BootstrapTest, loads_embedded_core_ui_modes_into_pixils_mode_registry)
   auto list_box_mode = Lisple::Dict::get_property(modes, Lisple::symbol("ui/list-box"));
   auto combo_box_mode = Lisple::Dict::get_property(modes, Lisple::symbol("ui/combo-box"));
   auto slider_mode = Lisple::Dict::get_property(modes, Lisple::symbol("ui/slider"));
-  auto split_pane_mode =
-    Lisple::Dict::get_property(modes, Lisple::symbol("ui/split-pane"));
+  auto split_pane_mode = Lisple::Dict::get_property(modes, Lisple::symbol("ui/split-pane"));
   auto split_pane_resizer_mode =
     Lisple::Dict::get_property(modes, Lisple::symbol("ui/split-pane-resizer"));
   auto icon_mode = Lisple::Dict::get_property(modes, Lisple::symbol("ui/icon"));
@@ -110,6 +109,14 @@ TEST_F(BootstrapTest, includes_embedded_classic_blue_theme_source)
     { return std::string_view(source.path) == "ui/themes/classic-blue.lisple"; });
 
   ASSERT_NE(classic_blue_theme, sources.end());
+  EXPECT_NE(std::string_view(classic_blue_theme->source).find("(deffont classic-blue-font"),
+            std::string_view::npos);
+  EXPECT_NE(
+    std::string_view(classic_blue_theme->source).find(":resource :pixils/autoega-8x14"),
+    std::string_view::npos);
+  EXPECT_NE(
+    std::string_view(classic_blue_theme->source).find(":font :font/classic-blue-font"),
+    std::string_view::npos);
   EXPECT_NE(
     std::string_view(classic_blue_theme->source).find("(deftheme pixils/classic-blue"),
     std::string_view::npos);

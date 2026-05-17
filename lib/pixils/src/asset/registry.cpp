@@ -146,6 +146,7 @@ namespace Pixils::Asset
   Registry::Registry(RenderContext& ctx, std::string base_path)
     : loader(ctx, std::move(base_path))
   {
+    embedded_fonts["pixils"]["autoega-8x14"] = &Assets::autoega_8x14_ttf;
   }
 
   Registry::~Registry()
@@ -285,5 +286,48 @@ namespace Pixils::Asset
     if (!bundle.sounds.count(asset_id)) return nullptr;
 
     return bundle.sounds.at(asset_id);
+  }
+
+  std::optional<std::string> Registry::get_font_path(const std::string& bundle_id,
+                                                     const std::string& asset_id)
+  {
+    if (!this->is_loaded(bundle_id))
+    {
+      auto it = this->declarations.find(bundle_id);
+      if (it == this->declarations.end()) return std::nullopt;
+      this->load(bundle_id, it->second);
+    }
+
+    Bundle& bundle = this->bundles.at(bundle_id);
+
+    auto font = bundle.fonts.find(asset_id);
+    if (font == bundle.fonts.end()) return std::nullopt;
+
+    return font->second;
+  }
+
+  const Assets::EmbeddedAsset* Registry::get_embedded_font(const std::string& bundle_id,
+                                                          const std::string& asset_id)
+  {
+    auto embedded_bundle = embedded_fonts.find(bundle_id);
+    if (embedded_bundle != embedded_fonts.end())
+    {
+      auto embedded_font = embedded_bundle->second.find(asset_id);
+      if (embedded_font != embedded_bundle->second.end()) return embedded_font->second;
+    }
+
+    if (!this->is_loaded(bundle_id))
+    {
+      auto it = this->declarations.find(bundle_id);
+      if (it == this->declarations.end()) return nullptr;
+      this->load(bundle_id, it->second);
+    }
+
+    Bundle& bundle = this->bundles.at(bundle_id);
+
+    auto font = bundle.embedded_fonts.find(asset_id);
+    if (font == bundle.embedded_fonts.end()) return nullptr;
+
+    return font->second;
   }
 } // namespace Pixils::Asset

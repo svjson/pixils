@@ -3,6 +3,7 @@ find_package(PkgConfig)
 pkg_search_module(SDL2 sdl2)
 pkg_search_module(SDL2IMAGE SDL2_image)
 pkg_search_module(SDL2MIXER SDL2_mixer)
+pkg_search_module(FREETYPE REQUIRED freetype2)
 find_package(X11)
 find_package(lisple REQUIRED)
 
@@ -50,6 +51,7 @@ target_include_directories(pixils_objects
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<BUILD_INTERFACE:${pixils_GENERATED_DIR}>
     $<INSTALL_INTERFACE:include>
+    ${FREETYPE_INCLUDE_DIRS}
 )
 
 target_link_libraries(pixils_objects
@@ -57,6 +59,7 @@ target_link_libraries(pixils_objects
     SDL2
     SDL2_image
     SDL2_mixer
+    ${FREETYPE_LIBRARIES}
     Lisple::lisple_shared
 )
 
@@ -74,6 +77,7 @@ foreach(target pixils_static pixils_shared)
       $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
       $<BUILD_INTERFACE:${pixils_GENERATED_DIR}>
       $<INSTALL_INTERFACE:include>
+      ${FREETYPE_INCLUDE_DIRS}
   )
 
 endforeach()
@@ -83,6 +87,7 @@ target_link_libraries(pixils_shared
     SDL2
     SDL2_image
     SDL2_mixer
+    ${FREETYPE_LIBRARIES}
     Lisple::lisple_shared
 )
 
@@ -91,6 +96,7 @@ target_link_libraries(pixils_static
     SDL2
     SDL2_image
     SDL2_mixer
+    ${FREETYPE_LIBRARIES}
     Lisple::lisple_static
 )
 

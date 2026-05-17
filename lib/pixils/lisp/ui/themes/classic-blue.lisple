@@ -18,6 +18,13 @@
 (def CONTENT-BG {:r 0x2d :g 0x39 :b 0x48})
 (def CONTENT-BORDER {:r 0x5f :g 0x6f :b 0x7f})
 
+(deffont classic-blue-font
+  {:type :ttf
+   :resource :pixils/autoega-8x14
+   :size 14
+   :spacing 0
+   :line-height 14})
+
 (deftheme pixils/classic-blue
   {:vars {:dark {:menu-bg CONTENT-BG
                  :content-bg CONTENT-BG
@@ -37,7 +44,8 @@
                :padding 4}
 
     :ui/app {:background {:r 0x1d :g 0x23 :b 0x2a}
-             :text {:color {:r 0xe6 :g 0xea :b 0xee}}}
+             :text {:font :font/classic-blue-font
+                    :color {:r 0xe6 :g 0xea :b 0xee}}}
 
     :ui/title {:text {:color c/WHITE}}
 

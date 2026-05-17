@@ -27,10 +27,17 @@ namespace Pixils::Runtime
     std::string file_name;
   };
 
+  struct FontDependency
+  {
+    std::string resource_id;
+    std::string file_name;
+  };
+
   struct ResourceDependencies
   {
     std::vector<ImageDependency> images;
     std::vector<SoundDependency> sounds;
+    std::vector<FontDependency> fonts;
   };
 
   struct ModeComposition

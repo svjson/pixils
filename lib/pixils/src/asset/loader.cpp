@@ -78,6 +78,12 @@ namespace Pixils::Asset
                             load_sound_from_file(sound_dep.file_name));
     }
 
+    for (auto& font_dep : deps.fonts)
+    {
+      bundle.fonts.emplace(font_dep.resource_id,
+                           resolve_asset_path(base_path, font_dep.file_name));
+    }
+
     return bundle;
   }
 

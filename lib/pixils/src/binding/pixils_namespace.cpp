@@ -1,6 +1,7 @@
 
 #include "pixils/binding/pixils_namespace.h"
 
+#include <pixils/asset/embedded_assets.h>
 #include <pixils/asset/registry.h>
 #include <pixils/binding/color_namespace.h>
 #include <pixils/binding/mode_definition.h>
@@ -143,6 +144,7 @@ namespace Pixils::Script
       static Lisple::MapSchema font_map_schema({},
                                                {{"type", &Lisple::Type::KEYWORD},
                                                 {"resource", &Lisple::Type::KEYWORD},
+                                                {"size", &Lisple::Type::NUMBER},
                                                 {"spacing", &Lisple::Type::NUMBER},
                                                 {"line-height", &Lisple::Type::NUMBER},
                                                 {"baseline", &Lisple::Type::NUMBER},
@@ -161,9 +163,9 @@ namespace Pixils::Script
 
       auto opts = font_map_schema.bind(*ctx.ctx, *font_def_map);
       auto type = opts.str("type", "bitmap");
-      if (type != "bitmap")
+      if (type != "bitmap" && type != "ttf")
       {
-        throw new Lisple::InvocationException("Invalid font type: " + type);
+        throw Lisple::InvocationException("Invalid font type: " + type);
       }
       auto resource_key = opts.val("resource");
       if (resource_key->type != Lisple::Value::Type::KEYWORD)
@@ -201,6 +203,55 @@ namespace Pixils::Script
             Text::UnderlineMetrics{.offset = underline_opts.i32("offset", 0),
                                    .thickness = underline_opts.i32("thickness", 1)};
         }
+      }
+
+      RenderContext& rc =
+        Lisple::obj<RenderContext>(*ctx.ctx->lookup(ID__PIXILS__RENDER_CONTEXT));
+
+      auto [bundle_key, resource_id] = resource_key->qual();
+
+      if (type == "ttf")
+      {
+        int size = opts.i32("size", line_height > 0 ? line_height : 16);
+        auto font_path = rc.asset_registry->get_font_path(bundle_key, resource_id);
+        const Assets::EmbeddedAsset* embedded_font =
+          font_path ? nullptr
+                    : rc.asset_registry->get_embedded_font(bundle_key, resource_id);
+        if (!font_path && !embedded_font)
+        {
+          throw Lisple::InvocationException("Unknown font resource: " +
+                                            resource_key->to_string());
+        }
+        if (!rc.renderer)
+        {
+          return std::make_unique<Lisple::ExecNode>(Lisple::Constant::NIL);
+        }
+
+        bool registered =
+          font_path ? rc.font_registry->register_ttf_font(font_name,
+                                                          rc.renderer,
+                                                          *font_path,
+                                                          size,
+                                                          font_definition,
+                                                          spacing,
+                                                          line_height,
+                                                          !has_explicit_baseline)
+                    : rc.font_registry->register_ttf_font_data(font_name,
+                                                               rc.renderer,
+                                                               embedded_font->data,
+                                                               embedded_font->size,
+                                                               size,
+                                                               font_definition,
+                                                               spacing,
+                                                               line_height,
+                                                               !has_explicit_baseline);
+        if (!registered)
+        {
+          throw Lisple::InvocationException("Could not load TTF font: " +
+                                            resource_key->to_string());
+        }
+
+        return std::make_unique<Lisple::ExecNode>(Lisple::Constant::NIL);
       }
 
       auto glyphs = opts.val("glyphs");
@@ -256,13 +307,8 @@ namespace Pixils::Script
         font_definition.baseline = std::max(0, inferred_height - 1);
       }
 
-      RenderContext& rc =
-        Lisple::obj<RenderContext>(*ctx.ctx->lookup(ID__PIXILS__RENDER_CONTEXT));
-
-      auto [bundle_key, image_key] = resource_key->qual();
-
-      SDL_Texture* resource_texture = rc.asset_registry->get_image(bundle_key, image_key);
-      SDL_Texture* tint_texture = rc.asset_registry->get_tint_mask(bundle_key, image_key);
+      SDL_Texture* resource_texture = rc.asset_registry->get_image(bundle_key, resource_id);
+      SDL_Texture* tint_texture = rc.asset_registry->get_tint_mask(bundle_key, resource_id);
 
       rc.font_registry->register_font(font_name,
                                       resource_texture,

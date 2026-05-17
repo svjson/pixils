@@ -9,6 +9,11 @@ struct SDL_Texture;
 struct SDL_Surface;
 struct Mix_Chunk;
 
+namespace Pixils::Assets
+{
+  struct EmbeddedAsset;
+}
+
 namespace Pixils::Asset
 {
   struct Bundle
@@ -17,6 +22,8 @@ namespace Pixils::Asset
     std::unordered_map<std::string, SDL_Surface*> image_sources;
     std::unordered_map<std::string, SDL_Texture*> tint_masks;
     std::unordered_map<std::string, Mix_Chunk*> sounds;
+    std::unordered_map<std::string, std::string> fonts;
+    std::unordered_map<std::string, const Assets::EmbeddedAsset*> embedded_fonts;
   };
 } // namespace Pixils::Asset
 

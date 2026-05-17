@@ -28,7 +28,7 @@ namespace Pixils::Script
 
   NATIVE_ADAPTER(ResourceDependenciesAdapter,
                  Pixils::Runtime::ResourceDependencies,
-                 (images, sounds));
+                 (images, sounds, fonts));
 
   class ResourceNamespace : public Lisple::Namespace
   {

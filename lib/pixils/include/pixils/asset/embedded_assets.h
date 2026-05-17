@@ -12,6 +12,7 @@ namespace Pixils::Assets
   };
 
   extern const EmbeddedAsset consolefont_png;
+  extern const EmbeddedAsset autoega_8x14_ttf;
   extern const EmbeddedAsset pixils_logo_png;
   extern const EmbeddedAsset win311_checkmark_png;
   extern const EmbeddedAsset win311_control_button_png;

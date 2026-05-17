@@ -13,6 +13,7 @@ namespace Pixils::Script
   namespace MapKey
   {
     SHKEY(FILE_NAME, "file-name");
+    SHKEY(FONTS, "fonts");
     SHKEY(IMAGES, "images");
     SHKEY(SOUNDS, "sounds");
     SHKEY(TRANSPARENCY_COLOR, "transparency-color");
@@ -60,7 +61,9 @@ namespace Pixils::Script
     {
       static Lisple::MapSchema resources_schema(
         {},
-        {{"images", &Lisple::Type::MAP}, {"sounds", &Lisple::Type::MAP}});
+        {{"images", &Lisple::Type::MAP},
+         {"sounds", &Lisple::Type::MAP},
+         {"fonts", &Lisple::Type::MAP}});
 
       auto opts = resources_schema.bind(ctx, *args[0]);
 
@@ -84,6 +87,15 @@ namespace Pixils::Script
         }
       }
 
+      if (auto font_map = opts.val("fonts"))
+      {
+        for (auto& key : Lisple::Dict::map_keys(*font_map))
+        {
+          auto val = Lisple::Dict::get_property(font_map, *key);
+          deps.fonts.push_back({key->str(), val->str()});
+        }
+      }
+
       return ResourceDependenciesAdapter::make_unique(deps);
     }
   } // namespace Function
@@ -100,6 +112,11 @@ namespace Pixils::Script
   }
 
   NOBJ_PROP_GET(ResourceDependenciesAdapter, sounds)
+  {
+    return Lisple::Constant::NIL;
+  }
+
+  NOBJ_PROP_GET(ResourceDependenciesAdapter, fonts)
   {
     return Lisple::Constant::NIL;
   }
