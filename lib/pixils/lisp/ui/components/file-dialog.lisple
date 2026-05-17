@@ -1,0 +1,344 @@
+(ns pixils.ui.file-dialog
+  (:require pixils
+            [pixils.ui :as ui]
+            [pixils.ui.dialog :as dialog]))
+
+(def default-path "/projects")
+
+(def default-filters
+  [{:label "EDN files (*.edn)"
+    :extensions [".edn"]}
+   {:label "All files (*)"
+    :extensions []}])
+
+(def default-window-position {:x 190 :y 90})
+
+(def default-dialog-style {:width 420})
+
+(def default-body-style
+  {:width :fill
+   :height :shrink
+   :padding 10
+   :layout {:direction :column
+            :gap 8}})
+
+(defun dummy-entry [type name path]
+  {:type type
+   :name name
+   :path path})
+
+(defun list-directory [path]
+  (cond
+    (= path "/")
+    [(dummy-entry :directory "projects" "/projects")
+     (dummy-entry :directory "tmp" "/tmp")]
+
+    (= path "/projects/assets")
+    [(dummy-entry :file "terrain.edn" "/projects/assets/terrain.edn")
+     (dummy-entry :file "tilesets.edn" "/projects/assets/tilesets.edn")]
+
+    (= path "/tmp")
+    [(dummy-entry :file "scratch.edn" "/tmp/scratch.edn")]
+
+    :default
+    [(dummy-entry :directory "assets" "/projects/assets")
+     (dummy-entry :file "tilemap-editor.edn" "/projects/tilemap-editor.edn")
+     (dummy-entry :file "demo-map.edn" "/projects/demo-map.edn")
+     (dummy-entry :file "readme.txt" "/projects/readme.txt")]))
+
+(defun parent-path [path]
+  (cond
+    (= path "/projects/assets") "/projects"
+    (= path "/projects") "/"
+    (= path "/tmp") "/"
+    :default default-path))
+
+(defun join-path [path name]
+  (cond
+    (or (nil? name)
+        (empty? name))
+    path
+
+    (= path "/")
+    (str "/" name)
+
+    :default
+    (str path "/" name)))
+
+(defun normalize-dialog-mode [mode]
+  (case mode
+    :file-dialog/save :file-dialog/save
+    :save :file-dialog/save
+    :default :file-dialog/open))
+
+(defun confirm-label [mode]
+  (case (normalize-dialog-mode mode)
+    :file-dialog/save "Save"
+    :default "Open"))
+
+(defun default-title [mode]
+  (case (normalize-dialog-mode mode)
+    :file-dialog/save "Save File"
+    :default "Open File"))
+
+(defun directory-entry? [entry]
+  (= (:type entry) :directory))
+
+(defun file-entry? [entry]
+  (= (:type entry) :file))
+
+(defun entry-label [entry]
+  (str (if (directory-entry? entry) "[D] " "    ")
+       (:name entry)))
+
+(defun entry-options [entries]
+  (for-indexed [index entry (or entries [])]
+    (merge entry
+           {:value index
+            :label (entry-label entry)})))
+
+(defun entry-at [entries index]
+  (when (and (not (nil? index))
+             (>= index 0)
+             (< index (count entries)))
+    (nth entries index)))
+
+(defun filter-label [filters]
+  (:label (head (or filters default-filters))))
+
+(defun initial-state [opts]
+  (let [path (or (:path opts) default-path)
+        mode (normalize-dialog-mode (:mode opts))
+        filters (or (:filters opts) default-filters)]
+    {:dialog-mode mode
+     :path path
+     :entry-path path
+     :entries (list-directory path)
+     :selected-index nil
+     :selected-entry nil
+     :filename (or (:filename opts) "")
+     :filters filters
+     :filter-label (filter-label filters)}))
+
+(defun entry-list-child [entries selected-index]
+  (merge
+   {:id "entry-list"}
+   (pixils.ui.list-box/make
+    {:options (entry-options entries)
+     :style {:width :fill
+             :height 148}
+     :row-height 22
+     :visible-rows 6
+     :content-width 360
+     :selected-indices (if (nil? selected-index)
+                         []
+                         [selected-index])
+     :hover-highlight? true
+     :toggle-selected? false})))
+
+(defun navigate-to [state path]
+  (assoc state
+         :path path
+         :entry-path nil
+         :entries (list-directory path)
+         :selected-index nil
+         :selected-entry nil
+         :filename ""))
+
+(defun selected-file-path [state]
+  (let [entry (:selected-entry state)
+        filename (or (:filename state) "")]
+    (cond
+      (and entry
+           (file-entry? entry))
+      (:path entry)
+
+      (not (empty? filename))
+      (join-path (:path state) filename)
+
+      :default
+      nil)))
+
+(defun confirm-result [state]
+  {:type :confirm
+   :mode (:dialog-mode state)
+   :path (selected-file-path state)
+   :directory (:path state)
+   :filename (:filename state)
+   :filter (head (or (:filters state) default-filters))})
+
+(defun cancel-result [state]
+  {:type :cancel
+   :mode (:dialog-mode state)
+   :directory (:path state)
+   :filename (:filename state)})
+
+(defun confirm-or-navigate [state ctx]
+  (let [entry (:selected-entry state)]
+    (if (and entry
+             (directory-entry? entry))
+      (navigate-to state (:path entry))
+      (do
+        (ui/emit! (:view ctx) :file-dialog/confirm (confirm-result state))
+        state))))
+
+(defcomponent ui/file-dialog-path-row
+  {:style {:width :fill
+           :height 24
+           :layout {:direction :row
+                    :align-items :center
+                    :gap 6}}
+   :children [{:mode 'ui/text
+               :state {:value "Folder:"}}
+              {:mode 'ui/text-input
+               :style {:width :fill
+                       :height 22}
+               :state {:value (ui/bind-state :path)}}
+              {:mode 'ui/button
+               :state {:label "Up"}
+               :on-click (fn [state event ctx]
+                           (do
+                             (ui/emit! (:view ctx) :file-dialog/up)
+                             state))}]})
+
+(defcomponent ui/file-dialog-name-row
+  {:style {:width :fill
+           :height 24
+           :layout {:direction :row
+                    :align-items :center
+                    :gap 6}}
+   :children [{:mode 'ui/text
+               :state {:value "File:"}}
+              {:mode 'ui/text-input
+               :style {:width :fill
+                       :height 22}
+               :state {:value (ui/bind-state :filename)
+                       :auto-focus? (ui/bind-state :auto-focus-filename?)}}]})
+
+(defcomponent ui/file-dialog-filter-row
+  {:style {:width :fill
+           :height 18
+           :layout {:direction :row
+                    :align-items :center
+                    :gap 6}}
+   :children [{:mode 'ui/text
+               :state {:value "File type:"}}
+              {:mode 'ui/text
+               :class :ui/muted
+               :state {:value (ui/bind-state :filter-label)}}]})
+
+(defun button-row-child [state]
+  {:style {:width :fill
+           :height 24
+           :layout {:direction :row
+                    :gap :space-between}}
+   :state {:dialog-mode (ui/bind-state :dialog-mode)
+           :path (ui/bind-state :path)
+           :selected-entry (ui/bind-state :selected-entry)
+           :filename (ui/bind-state :filename)
+           :filters (ui/bind-state :filters)}
+   :children [{:mode 'ui/button
+               :state {:label "Cancel"
+                       :dialog-mode (ui/bind-state :dialog-mode)
+                       :path (ui/bind-state :path)
+                       :filename (ui/bind-state :filename)
+                       :filters (ui/bind-state :filters)}
+               :on-mouse-up (fn [state event ctx]
+                               (do
+                                 (ui/stop-propagation! event)
+                                 (ui/emit! (:view ctx)
+                                           :file-dialog/cancel
+                                           (cancel-result state))
+                                 state))}
+              {:mode 'ui/button
+               :state {:label (confirm-label (:dialog-mode state))
+                       :dialog-mode (ui/bind-state :dialog-mode)
+                       :path (ui/bind-state :path)
+                       :selected-entry (ui/bind-state :selected-entry)
+                       :filename (ui/bind-state :filename)
+                       :filters (ui/bind-state :filters)}
+               :on-mouse-up (fn [state event ctx]
+                               (do
+                                 (ui/stop-propagation! event)
+                                 (confirm-or-navigate state ctx)))}]})
+
+(defcomponent ui/file-dialog-body
+  {:class :ui/content
+   :style default-body-style
+   :init (fn [state ctx]
+           (let [path (or (:path state) default-path)
+                 filters (or (:filters state) default-filters)]
+             (assoc (assoc (assoc state
+                                  :path path)
+                           :filters filters)
+                    :filter-label
+                    (filter-label filters))))
+   :update (fn [state ctx]
+             (let [path (or (:path state) default-path)]
+               (if (= path (:entry-path state))
+                 state
+                 (let [entries (list-directory path)]
+                   (do
+                     (ui/replace-child! (:view ctx)
+                                        "entry-list"
+                                        (entry-list-child entries nil))
+                     (assoc state
+                            :path path
+                            :entry-path path
+                            :entries entries
+                            :selected-index nil
+                            :selected-entry nil
+                            :filename ""))))))
+   :on {:list-box/change (fn [state event ctx]
+                           (let [index (-> event :payload :value)
+                                 entry (entry-at (:entries state) index)]
+                             (do
+                               (ui/stop-propagation! event)
+                               (assoc state
+                                      :selected-index index
+                                      :selected-entry entry
+                                      :filename (if (file-entry? entry)
+                                                  (:name entry)
+                                                  "")))))
+        :file-dialog/up (fn [state event ctx]
+                          (do
+                            (ui/stop-propagation! event)
+                            (navigate-to state (parent-path (:path state)))))}})
+
+(defun make-body [opts]
+  (let [state (initial-state opts)]
+    {:mode 'ui/file-dialog-body
+     :state (merge state
+                   {:confirm-label (confirm-label (:dialog-mode state))
+                    :auto-focus-filename? (= (:dialog-mode state)
+                                             :file-dialog/save)})
+     :children [{:mode 'ui/file-dialog-path-row
+                 :state {:path (ui/bind-state :path)}}
+                (entry-list-child (:entries state) (:selected-index state))
+                {:mode 'ui/file-dialog-name-row
+                 :state {:filename (ui/bind-state :filename)
+                         :auto-focus-filename? (ui/bind-state :auto-focus-filename?)}}
+                {:mode 'ui/file-dialog-filter-row
+                 :state {:filter-label (ui/bind-state :filter-label)}}
+                (button-row-child state)]}))
+
+(defun result-from-event [state event ctx]
+  (:payload event))
+
+(defun open-file-dialog! [ctx opts]
+  (let [mode (normalize-dialog-mode (:mode opts))
+        state (initial-state (assoc opts :mode mode))]
+    (dialog/open-dialog!
+     ctx
+     (merge opts
+            {:title (or (:title opts)
+                        (default-title mode))
+             :position (or (:position opts) default-window-position)
+             :style (merge default-dialog-style
+                           (or (:style opts) {}))
+             :state state
+             :body (make-body (assoc opts :mode mode))
+             :result-event (or (:result-event opts)
+                               :file-dialog/result)
+             :results {:file-dialog/confirm result-from-event
+                       :file-dialog/cancel result-from-event}}))))

@@ -58,10 +58,10 @@
                    cursor-index (max 0 (min (count value)
                                             (or (:cursor-index state) (count value))))
                    prefix (substr value 0 cursor-index)
-                   cursor-x (:w (r/text-size prefix text-opts))
-                   cursor-h (:h (r/text-size "M" text-opts))
+                   cursor-x (or (:w (r/text-size prefix text-opts)) 0)
+                   cursor-h (or (:h (r/text-size "M" text-opts)) 0)
                    cursor-y (max 0
-                                 (int (/ (- (-> ctx :view :bounds :h)
+                                 (int (/ (- (or (-> ctx :view :bounds :h) 0)
                                            cursor-h)
                                         2)))
                    show-caret? (or (-> ctx :view :interaction :focused)

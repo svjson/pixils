@@ -101,6 +101,7 @@ Lisple components, so applications can use them like any other mode.
 | `ui/scrollbar-corner` | Filler component for the square where two scrollbars meet. |
 | `ui/scroll-pane` | Scrollable viewport composed from a clipped content area and stock scrollbars. |
 | `ui/dialog-frame` | Full-screen overlay used by dialog helpers such as `open-confirm!` and `open-dialog!`. |
+| `ui/file-dialog-body` | File chooser body used by `pixils.ui.file-dialog/open-file-dialog!`. |
 | `ui/icon` | Focusable visual item primitive with selection, activation, and drag events. |
 | `ui/icon-preview` | Non-hit-tested overlay primitive for rendering a dragged icon representation. |
 | `ui/icon-container` | Fill-sized drop surface that turns icon drag releases into generic drop events. |
@@ -202,6 +203,27 @@ return values.
 `open-dialog!` is modal by default. Pass `:modal false` to let events reach modes below the
 dialog frame, or `:dismissable true` to allow Escape/outside-click dismissal. Dismissal uses
 the standard confirm result shape with `:choice :dialog/dismiss`.
+
+`pixils.ui.file-dialog/open-file-dialog!` opens a Pixils-provided file chooser on top of
+`open-dialog!`. It currently uses `pixils.ui.file-dialog/list-directory`, a deterministic
+dummy directory provider, until Lisple exposes enough filesystem operations for a real file
+dialog. The result shape is `{:type :confirm :mode mode :path path :directory directory
+:filename filename :filter filter}` or `{:type :cancel ...}`.
+
+```clojure
+(pixils.ui.file-dialog/open-file-dialog!
+ ctx
+ {:title "Open Project"
+  :mode :file-dialog/open
+  :path "/projects"
+  :filters [{:label "EDN files (*.edn)"
+             :extensions [".edn"]}]
+  :result-event :project/open-result})
+```
+
+Use `:mode :file-dialog/save` for save dialogs. The helper also accepts `:position`,
+`:style`, `:filename`, and `:result-event`.
+
 `ui/icon` is intentionally only the item primitive. It expects an `:item` in
 state, optionally positioned by `:position` on either the state or item map, and
 emits `:ui/icon-select`, `:ui/icon-activate`, `:ui/icon-drag-start`,
