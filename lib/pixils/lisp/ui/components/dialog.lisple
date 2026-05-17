@@ -78,7 +78,7 @@
 
 (defun dialog-result [state choice]
   {:choice choice
-   :payload (:payload state)})
+   :payload (:dialog/payload state)})
 
 (defun stop-dialog-window-mouse-down [state event ctx]
   (do
@@ -117,19 +117,39 @@
    :children (concat (body-children body)
                      [(make-dialog-button-row buttons button-row-style)])})
 
-(defun make-confirm [{:keys [title position state style] :as opts}]
+(defun make-dialog-window [{:keys [title title-bar position state style body] :as opts}]
   (merge
    (pixils.ui.window/make
     {:position (or position default-window-position)
-     :title-bar {:title (or title "Confirm")}
+     :title-bar (or title-bar {:title (or title "Dialog")})
      :style (or style {})
      :state (or state {})
-     :body [(make-dialog-body opts)]})
+     :body (body-children body)})
    {:on-mouse-down stop-dialog-window-mouse-down}))
 
+(defun make-confirm [{:keys [title] :as opts}]
+  (make-dialog-window (merge opts
+                             {:title (or title "Confirm")
+                              :body (make-dialog-body opts)})))
+
 (defun dismiss-dialog! [state]
-  (when (:dismissable state)
+  (when (:dialog/dismissable state)
     (pop-mode! (dialog-result state :dialog/dismiss))))
+
+(defun make-result-handler [handler]
+  (fn [state event ctx]
+    (do
+      (ui/stop-propagation! event)
+      (pop-mode! (apply handler [state event ctx]))
+      state)))
+
+(defun make-result-handlers [results]
+  (reduce (keys (or results {}))
+          {}
+          (fn [handlers event-key]
+            (assoc handlers
+                   event-key
+                   (make-result-handler (get results event-key))))))
 
 (defmode ui/dialog-frame
   {:focusable true
@@ -162,15 +182,28 @@
    :compose {:render :pass}})
 
 (defun open-confirm! [ctx opts]
+  (open-dialog!
+   ctx
+   (merge opts
+          {:title (or (:title opts) "Confirm")
+           :body (make-dialog-body opts)
+           :results {:dialog/button
+                     (fn [state event ctx]
+                       (dialog-result state
+                                      (-> event :payload :choice)))}})))
+
+(defun open-dialog! [ctx opts]
   (do
     (push-mode! 'ui/dialog-frame
-                {:payload (:payload opts)
-                 :dismissable (or (:dismissable opts) false)
-                 :modal (if (nil? (:modal opts))
-                          true
-                          (:modal opts))}
+                (merge (or (:state opts) {})
+                       {:dialog/payload (:payload opts)
+                        :dialog/dismissable (or (:dismissable opts) false)
+                        :dialog/modal (if (nil? (:modal opts))
+                                        true
+                                        (:modal opts))})
                 {:origin {:view (:view ctx)
                           :event (or (:result-event opts)
                                      :dialog/result)}
-                 :children [(make-confirm opts)]})
+                 :on (make-result-handlers (:results opts))
+                 :children [(make-dialog-window opts)]})
     nil))

@@ -163,3 +163,69 @@ TEST_F(DialogTest, dismissable_confirm_returns_dismiss_choice_on_escape)
   EXPECT_EQ(choice->str(), "dialog/dismiss");
   EXPECT_EQ(get_key(payload, "source")->str(), "escape-test");
 }
+
+TEST_F(DialogTest, open_dialog_wraps_custom_result_event_handlers)
+{
+  runtime.eval(R"(
+    (pixils/defcomponent form-body
+      {:children [{:mode 'ui/button
+                   :state {:label "Create"}
+                   :on-click (fn [state event ctx]
+                               (do
+                                 (pixils.ui/emit! (:view ctx)
+                                                  :dialog/confirm
+                                                  {:source :form-button})
+                                 state))}]})
+
+    (pixils/defmode root-mode
+      {:init (fn [state ctx]
+               (do
+                 (pixils.ui.dialog/open-dialog!
+                  ctx
+                  {:title (pixils.ui/bind-state :title)
+                   :style {:width 300}
+                   :state {:title "New Ship"
+                           :name "Falcon"
+                           :type :ship}
+                   :body {:mode 'form-body}
+                   :result-event :component/dialog-result
+                   :results {:dialog/confirm
+                             (fn [state event ctx]
+                               {:name (:name state)
+                                :type (:type state)
+                                :source (-> event :payload :source)})}})
+                 {:result nil}))
+       :on {:component/dialog-result (fn [state event ctx]
+                                       (assoc state :result (:payload event)))}})
+  )");
+
+  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.process_messages();
+  ASSERT_EQ(session.active_mode->mode->name, "ui/dialog-frame");
+  session.render_mode();
+
+  ASSERT_EQ(session.active_mode->children.size(), 1u);
+  ASSERT_EQ(session.active_mode->children[0]->mode->name, "ui/window");
+  ASSERT_TRUE(session.active_mode->children[0]->effective_style.width.has_value());
+  EXPECT_EQ(session.active_mode->children[0]->effective_style.width->fixed_value_or(0), 300);
+
+  auto create_button = find_button_with_label(session.active_mode, "Create");
+  ASSERT_NE(create_button, nullptr);
+  EXPECT_GT(create_button->bounds.w, 0);
+  EXPECT_GT(create_button->bounds.h, 0);
+  input().mouse_down({create_button->bounds.x + (create_button->bounds.w / 2),
+                      create_button->bounds.y + (create_button->bounds.h / 2)},
+                     SDL_BUTTON_LEFT);
+  update_cycle();
+  input().mouse_up({create_button->bounds.x + (create_button->bounds.w / 2),
+                    create_button->bounds.y + (create_button->bounds.h / 2)},
+                   SDL_BUTTON_LEFT);
+  update_cycle();
+
+  ASSERT_EQ(session.active_mode->mode->name, "root-mode");
+  auto result = get_key(session.active_mode->state, "result");
+  ASSERT_NE(result, nullptr);
+  EXPECT_EQ(get_key(result, "name")->str(), "Falcon");
+  EXPECT_EQ(get_key(result, "type")->str(), "ship");
+  EXPECT_EQ(get_key(result, "source")->str(), "form-button");
+}

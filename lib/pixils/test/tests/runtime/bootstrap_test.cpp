@@ -116,6 +116,8 @@ TEST_F(BootstrapTest, includes_embedded_dialog_source)
   ASSERT_NE(dialog, sources.end());
   EXPECT_NE(std::string_view(dialog->source).find("(ns pixils.ui.dialog"),
             std::string_view::npos);
+  EXPECT_NE(std::string_view(dialog->source).find("(defun open-dialog!"),
+            std::string_view::npos);
   EXPECT_NE(std::string_view(dialog->source).find(":dialog/ok-cancel"),
             std::string_view::npos);
 }
