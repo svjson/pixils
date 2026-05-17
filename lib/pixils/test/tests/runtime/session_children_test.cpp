@@ -593,6 +593,65 @@ TEST_F(SessionChildrenTest, root_mode_theme_applies_class_selector_to_active_vie
   EXPECT_EQ(*session.active_mode->effective_style.text->scale, 6);
 }
 
+TEST_F(SessionChildrenTest, theme_defaults_apply_to_views_without_matching_styles)
+{
+  runtime.eval(R"(
+    (pixils/deftheme root-theme
+      {:defaults {:text {:font :font/default
+                         :scale 3}}})
+
+    (pixils/defmode root-mode
+      {:theme 'root-theme
+       :render (fn [state ctx] nil)})
+  )");
+  session.push_mode("root-mode", Lisple::Constant::NIL);
+
+  session.render_mode();
+
+  ASSERT_NE(session.active_mode, nullptr);
+  ASSERT_TRUE(session.active_mode->effective_style.text.has_value());
+  ASSERT_TRUE(session.active_mode->effective_style.text->font.has_value());
+  ASSERT_TRUE(session.active_mode->effective_style.text->scale.has_value());
+  EXPECT_EQ(*session.active_mode->effective_style.text->font, "font/default");
+  EXPECT_EQ(*session.active_mode->effective_style.text->scale, 3);
+}
+
+TEST_F(SessionChildrenTest, inherited_text_style_overrides_theme_defaults)
+{
+  runtime.eval(R"(
+    (pixils/deftheme root-theme
+      {:defaults {:text {:font :font/default
+                         :scale 3}}})
+
+    (pixils/defmode child-mode
+      {:render (fn [state ctx] nil)})
+
+    (pixils/defmode parent-mode
+      {:style {:text {:font :font/panel}}
+       :children [{:mode 'child-mode}]})
+
+    (pixils/defmode root-mode
+      {:theme 'root-theme
+       :children [{:mode 'parent-mode}]})
+  )");
+  session.push_mode("root-mode", Lisple::Constant::NIL);
+
+  session.render_mode();
+
+  ASSERT_NE(session.active_mode, nullptr);
+  ASSERT_EQ(session.active_mode->children.size(), 1u);
+  auto parent = session.active_mode->children[0];
+  ASSERT_NE(parent, nullptr);
+  ASSERT_EQ(parent->children.size(), 1u);
+  auto child = parent->children[0];
+  ASSERT_NE(child, nullptr);
+  ASSERT_TRUE(child->effective_style.text.has_value());
+  ASSERT_TRUE(child->effective_style.text->font.has_value());
+  ASSERT_TRUE(child->effective_style.text->scale.has_value());
+  EXPECT_EQ(*child->effective_style.text->font, "font/panel");
+  EXPECT_EQ(*child->effective_style.text->scale, 3);
+}
+
 TEST_F(SessionChildrenTest, child_override_class_applies_class_selector_to_child_view)
 {
   runtime.eval(R"(
@@ -680,6 +739,38 @@ TEST_F(SessionChildrenTest,
   ASSERT_TRUE(session.active_mode->effective_style.text->font.has_value());
   ASSERT_TRUE(session.active_mode->effective_style.text->scale.has_value());
   EXPECT_EQ(*session.active_mode->effective_style.text->font, "font/console");
+  EXPECT_EQ(*session.active_mode->effective_style.text->scale, 5);
+}
+
+TEST_F(SessionChildrenTest, pushed_root_mode_uses_parent_theme_defaults)
+{
+  // Given
+  runtime.eval(R"(
+    (pixils/deftheme app-theme
+      {:defaults {:text {:font :font/default
+                         :scale 5}}})
+
+    (pixils/defmode popup-mode
+      {:render (fn [state ctx] nil)})
+
+    (pixils/defmode root-mode
+      {:theme 'app-theme
+       :render (fn [state ctx] nil)})
+  )");
+  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.render_mode();
+
+  // When
+  session.push_mode("popup-mode", Lisple::Constant::NIL);
+  session.render_mode();
+
+  // Then
+  ASSERT_NE(session.active_mode, nullptr);
+  ASSERT_EQ(session.active_mode->mode->name, "popup-mode");
+  ASSERT_TRUE(session.active_mode->effective_style.text.has_value());
+  ASSERT_TRUE(session.active_mode->effective_style.text->font.has_value());
+  ASSERT_TRUE(session.active_mode->effective_style.text->scale.has_value());
+  EXPECT_EQ(*session.active_mode->effective_style.text->font, "font/default");
   EXPECT_EQ(*session.active_mode->effective_style.text->scale, 5);
 }
 

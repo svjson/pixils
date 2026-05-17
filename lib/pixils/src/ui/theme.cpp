@@ -352,15 +352,32 @@ namespace Pixils::UI
           resolved.set_style(rule.selector, rule.style);
         }
       }
+
+      auto defaults_it = resolved.variant_defaults.find(*resolved.selected_variant);
+      if (defaults_it != resolved.variant_defaults.end())
+      {
+        if (!resolved.defaults) resolved.defaults = Style{};
+        apply_style_variant(*resolved.defaults, defaults_it->second);
+      }
     }
     return resolved;
   }
 
   void overlay_theme(Theme& out, const Theme& overlay)
   {
+    if (overlay.defaults)
+    {
+      if (!out.defaults) out.defaults = Style{};
+      apply_style_variant(*out.defaults, *overlay.defaults);
+    }
     for (const auto& rule : overlay.rules)
     {
       out.set_style(rule.selector, rule.style);
+    }
+    for (const auto& [variant, defaults] : overlay.variant_defaults)
+    {
+      auto& out_defaults = out.variant_defaults[variant];
+      apply_style_variant(out_defaults, defaults);
     }
     for (const auto& [variant, rules] : overlay.variant_rules)
     {

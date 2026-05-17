@@ -381,7 +381,13 @@ namespace Pixils::UI
         }
       }
 
-      return resolve_style(resolved_style, inherited_style, view->state, view->interaction);
+      return resolve_style(resolved_style,
+                           inherited_style,
+                           view->state,
+                           view->interaction,
+                           view->effective_theme.defaults
+                             ? &*view->effective_theme.defaults
+                             : nullptr);
     }
 
     std::optional<Theme> lookup_theme(Lisple::Runtime& runtime, const std::string& name)

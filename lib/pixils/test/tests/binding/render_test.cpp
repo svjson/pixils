@@ -616,6 +616,30 @@ TEST_F(RenderTest, built_in_text_node_renders_and_measures_without_definition)
   EXPECT_EQ(ops[0].type, RenderOpType::RENDER_COPY);
 }
 
+TEST_F(RenderTest, built_in_text_node_falls_back_to_console_font_when_style_font_is_missing)
+{
+  SDLMock::prepared_surfaces["./font.png"] = {8, 8};
+  runtime.eval(R"(
+    (pixils/defbundle fonts {:images {:atlas "font.png"}})
+    (pixils/deffont console
+      {:type :bitmap
+       :resource :fonts/atlas
+       :glyphs {"A" {:x 0 :y 0 :w 8 :h 8}}})
+    (pixils/defmode root-mode
+      {:children [{:mode 'ui/text
+                   :state {:value "A"}
+                   :style {:text {:font :font/missing}}}]})
+  )");
+
+  session.push_mode("root-mode", Lisple::Constant::NIL);
+
+  ASSERT_NO_THROW(session.render_mode());
+
+  auto& ops = render_target()->render_ops;
+  ASSERT_EQ(ops.size(), 1u);
+  EXPECT_EQ(ops[0].type, RenderOpType::RENDER_COPY);
+}
+
 TEST_F(RenderTest, built_in_text_node_renders_in_local_viewport_coordinates)
 {
   SDLMock::prepared_surfaces["./font.png"] = {16, 12};

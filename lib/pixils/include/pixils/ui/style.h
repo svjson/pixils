@@ -347,7 +347,8 @@ namespace Pixils::UI
   Style resolve_style(const std::optional<Style>& style,
                       const Style* inherited_style,
                       const Lisple::sptr_val& state,
-                      const InteractionState& interaction = {});
+                      const InteractionState& interaction = {},
+                      const Style* default_style = nullptr);
 
   inline Style resolve_style(const std::optional<Style>& style,
                              const Lisple::sptr_val& state,

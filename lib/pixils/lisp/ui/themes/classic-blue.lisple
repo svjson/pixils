@@ -39,13 +39,13 @@
                  :focus-text BUTTON-HIGHLIGHT
                  :split-pane-resizer-size 8}}
    :default-variant :dark
+   :defaults {:text {:font :font/classic-blue-font}}
    :styles
    {:ui/panel {:background PANEL-BG
                :padding 4}
 
     :ui/app {:background {:r 0x1d :g 0x23 :b 0x2a}
-             :text {:font :font/classic-blue-font
-                    :color {:r 0xe6 :g 0xea :b 0xee}}}
+             :text {:color {:r 0xe6 :g 0xea :b 0xee}}}
 
     :ui/title {:text {:color c/WHITE}}
 

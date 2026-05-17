@@ -141,6 +141,64 @@ TEST_F(MenuTest, opened_popup_without_menu_scale_omits_scale_style)
   EXPECT_FALSE(session.active_mode->effective_style.scale.has_value());
 }
 
+TEST_F(MenuTest, classic_blue_menus_use_classic_blue_font)
+{
+  runtime.eval(R"(
+    (def menu-definition
+      {:items [{:label "File"
+                :items [{:label "Open"
+                         :action :file/open}]}]})
+
+    (pixils/defmode root-mode
+      {:theme 'pixils/classic-blue
+       :children [(pixils.ui.menu/make-menu
+                   {}
+                   menu-definition
+                   {})]})
+  )");
+
+  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.update_mode();
+  session.render_mode();
+
+  ASSERT_NE(session.active_mode, nullptr);
+  ASSERT_EQ(session.active_mode->children.size(), 1u);
+  auto menu = session.active_mode->children[0];
+  ASSERT_NE(menu, nullptr);
+  ASSERT_EQ(menu->children.size(), 1u);
+  auto menu_item = menu->children[0];
+  ASSERT_NE(menu_item, nullptr);
+  ASSERT_EQ(menu_item->children.size(), 1u);
+  auto menu_text = menu_item->children[0];
+  ASSERT_NE(menu_text, nullptr);
+  ASSERT_TRUE(menu_text->effective_style.text.has_value());
+  ASSERT_TRUE(menu_text->effective_style.text->font.has_value());
+  EXPECT_EQ(*menu_text->effective_style.text->font, "font/classic-blue-font");
+
+  input().mouse_down({menu_item->bounds.x + menu_item->bounds.w / 2,
+                      menu_item->bounds.y + menu_item->bounds.h / 2});
+  update_cycle();
+  session.render_mode();
+
+  ASSERT_NE(session.active_mode, nullptr);
+  EXPECT_EQ(session.active_mode->mode->name, "ui/popup-menu");
+  ASSERT_EQ(session.active_mode->children.size(), 1u);
+  auto outer = session.active_mode->children[0];
+  ASSERT_NE(outer, nullptr);
+  ASSERT_EQ(outer->children.size(), 1u);
+  auto inner = outer->children[0];
+  ASSERT_NE(inner, nullptr);
+  ASSERT_EQ(inner->children.size(), 1u);
+  auto popup_item = inner->children[0];
+  ASSERT_NE(popup_item, nullptr);
+  ASSERT_FALSE(popup_item->children.empty());
+  auto popup_text = popup_item->children[0];
+  ASSERT_NE(popup_text, nullptr);
+  ASSERT_TRUE(popup_text->effective_style.text.has_value());
+  ASSERT_TRUE(popup_text->effective_style.text->font.has_value());
+  EXPECT_EQ(*popup_text->effective_style.text->font, "font/classic-blue-font");
+}
+
 TEST_F(MenuTest, context_menu_opens_popup_at_mouse_position)
 {
   runtime.eval(R"(

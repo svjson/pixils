@@ -452,6 +452,38 @@ namespace Pixils::Script
       throw Lisple::TypeError("Theme :vars requires :default-variant");
     }
 
+    auto defaults_val =
+      Lisple::Dict::get_property(definition_map, Lisple::keyword("defaults"));
+    if (defaults_val && defaults_val->type != Lisple::Value::Type::NIL)
+    {
+      auto variant_names = variant_names_for_theme(theme);
+      if (variant_names.empty())
+      {
+        auto resolved_value = resolve_theme_vars(theme, std::nullopt, defaults_val);
+        if (resolved_value)
+        {
+          if (!theme.defaults) theme.defaults = UI::Style{};
+          UI::apply_style_variant(*theme.defaults,
+                                  coerce_theme_style(ctx, resolved_value));
+        }
+      }
+      else
+      {
+        for (const auto& variant : variant_names)
+        {
+          auto resolved_value = resolve_theme_vars(theme, variant, defaults_val);
+          if (!resolved_value) continue;
+          auto resolved_style = coerce_theme_style(ctx, resolved_value);
+          UI::apply_style_variant(theme.variant_defaults[variant], resolved_style);
+          if (theme.default_variant && variant == *theme.default_variant)
+          {
+            if (!theme.defaults) theme.defaults = UI::Style{};
+            UI::apply_style_variant(*theme.defaults, resolved_style);
+          }
+        }
+      }
+    }
+
     auto styles_val = Lisple::Dict::get_property(definition_map, Lisple::keyword("styles"));
     if (styles_val && styles_val->type == Lisple::Value::Type::MAP)
     {

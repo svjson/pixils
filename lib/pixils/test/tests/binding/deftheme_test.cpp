@@ -303,6 +303,27 @@ TEST_F(DefThemeTest, deftheme_extend_merges_parent_styles_and_overrides_them)
   EXPECT_EQ(*status_panel->text->font, "font/status");
 }
 
+TEST_F(DefThemeTest, deftheme_defaults_are_created_and_extended)
+{
+  runtime.eval(R"(
+    (pixils/deftheme base-theme
+      {:defaults {:text {:font :font/base
+                         :scale 1}}})
+
+    (pixils/deftheme child-theme
+      {:extend 'base-theme
+       :defaults {:text {:scale 2}}})
+  )");
+
+  Pixils::UI::Theme& theme = get_theme(runtime, "child-theme");
+  ASSERT_TRUE(theme.defaults.has_value());
+  ASSERT_TRUE(theme.defaults->text.has_value());
+  ASSERT_TRUE(theme.defaults->text->font.has_value());
+  ASSERT_TRUE(theme.defaults->text->scale.has_value());
+  EXPECT_EQ(*theme.defaults->text->font, "font/base");
+  EXPECT_EQ(*theme.defaults->text->scale, 2);
+}
+
 TEST_F(DefThemeTest, deftheme_can_compose_visual_and_layout_theme_layers)
 {
   runtime.eval(R"(
@@ -387,6 +408,29 @@ TEST_F(DefThemeTest, deftheme_vars_resolve_default_and_variant_styles)
   ASSERT_TRUE(dark_panel->text.has_value());
   ASSERT_TRUE(dark_panel->text->color.has_value());
   EXPECT_EQ(dark_panel->text->color->r, 4);
+}
+
+TEST_F(DefThemeTest, deftheme_vars_resolve_default_and_variant_defaults)
+{
+  runtime.eval(R"(
+    (pixils/deftheme token-theme
+      {:default-variant :light
+       :vars {:light {:font-name :font/light}
+              :dark {:font-name :font/dark}}
+       :defaults {:text {:font (pixils/var :font-name)}}})
+  )");
+
+  Pixils::UI::Theme& theme = get_theme(runtime, "token-theme");
+  ASSERT_TRUE(theme.defaults.has_value());
+  ASSERT_TRUE(theme.defaults->text.has_value());
+  ASSERT_TRUE(theme.defaults->text->font.has_value());
+  EXPECT_EQ(*theme.defaults->text->font, "font/light");
+
+  auto resolved = theme.resolved_for_variant("dark");
+  ASSERT_TRUE(resolved.defaults.has_value());
+  ASSERT_TRUE(resolved.defaults->text.has_value());
+  ASSERT_TRUE(resolved.defaults->text->font.has_value());
+  EXPECT_EQ(*resolved.defaults->text->font, "font/dark");
 }
 
 TEST_F(DefThemeTest, resolved_theme_variant_falls_back_to_default_when_missing)

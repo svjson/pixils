@@ -63,8 +63,10 @@ namespace Pixils::UI
     std::vector<std::string> extend;
     std::optional<std::string> default_variant = std::nullopt;
     std::optional<std::string> selected_variant = std::nullopt;
+    std::optional<Style> defaults = std::nullopt;
     std::map<std::string, std::map<std::string, Lisple::sptr_val>> vars;
     std::vector<ThemeRule> rules;
+    std::map<std::string, Style> variant_defaults;
     std::map<std::string, std::vector<ThemeRule>> variant_rules;
 
     void set_style(const ThemeSelector& selector, const Style& style);

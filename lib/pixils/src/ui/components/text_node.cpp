@@ -90,6 +90,32 @@ namespace Pixils::UI::Components
                                                           : Text::WrapMode::WORD;
     }
 
+    std::optional<Text::TextRenderOp> make_text_node_render_op(
+      RenderContext& rc,
+      const Style& style,
+      const std::optional<Color>& color = std::nullopt)
+    {
+      auto font_key = text_style_font_key(style);
+      auto text_op = Text::make_text_render_op(rc,
+                                               font_key,
+                                               text_style_scale(style),
+                                               color,
+                                               text_style_font_styles(style),
+                                               text_style_shadows(style),
+                                               text_style_marked_style(style));
+      if (!text_op && font_key != "font/console")
+      {
+        text_op = Text::make_text_render_op(rc,
+                                            "font/console",
+                                            text_style_scale(style),
+                                            color,
+                                            text_style_font_styles(style),
+                                            text_style_shadows(style),
+                                            text_style_marked_style(style));
+      }
+      return text_op;
+    }
+
     namespace Function
     {
       FUNC(TextNodeContentSize, text_node_content_size);
@@ -108,14 +134,7 @@ namespace Pixils::UI::Components
         RenderContext& rc =
           Lisple::obj<RenderContext>(*ctx.lookup(Script::ID__PIXILS__RENDER_CONTEXT));
         const Runtime::View& view = *hook_ctx.current_view;
-        auto text_op =
-          Text::make_text_render_op(rc,
-                                    text_style_font_key(view.effective_style),
-                                    text_style_scale(view.effective_style),
-                                    std::nullopt,
-                                    text_style_font_styles(view.effective_style),
-                                    text_style_shadows(view.effective_style),
-                                    text_style_marked_style(view.effective_style));
+        auto text_op = make_text_node_render_op(rc, view.effective_style);
         if (!text_op) return Lisple::Constant::NIL;
 
         auto layout = Text::layout_text(rc,
@@ -140,14 +159,9 @@ namespace Pixils::UI::Components
           Lisple::obj<RenderContext>(*ctx.lookup(Script::ID__PIXILS__RENDER_CONTEXT));
         const Runtime::View& view = *hook_ctx.current_view;
 
-        auto text_op =
-          Text::make_text_render_op(rc,
-                                    text_style_font_key(view.effective_style),
-                                    text_style_scale(view.effective_style),
-                                    text_style_color(view.effective_style),
-                                    text_style_font_styles(view.effective_style),
-                                    text_style_shadows(view.effective_style),
-                                    text_style_marked_style(view.effective_style));
+        auto text_op = make_text_node_render_op(rc,
+                                                view.effective_style,
+                                                text_style_color(view.effective_style));
         if (!text_op) return Lisple::Constant::NIL;
 
         const Rect content_rect = view.effective_style.content_rect(view.bounds);
