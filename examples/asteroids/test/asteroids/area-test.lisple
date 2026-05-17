@@ -1,0 +1,15 @@
+(ns asteroids.area-test
+  (:require proof.core
+            [asteroids.area :as area]))
+
+(def TEST-AREA {:w 320 :h 200})
+
+(deftest wrap-position-keeps-in-bounds-position
+  (is (= {:x 120 :y 80}
+         (area/wrap-position {:x 120 :y 80} TEST-AREA))))
+
+(deftest wrap-position-wraps-out-of-bounds-position
+  (is (= {:x 320 :y 200}
+         (area/wrap-position {:x -1 :y -1} TEST-AREA)))
+  (is (= {:x 0 :y 0}
+         (area/wrap-position {:x 321 :y 201} TEST-AREA))))
