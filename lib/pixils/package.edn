@@ -3,6 +3,8 @@
  :description "Pixils Lisple runtime and UI package."
  :dependencies []
  :load-roots ["lisp"]
+ :namespace-roots {pixils.ui "lisp/ui"
+                   pixils.ui.theme "lisp/ui/themes"}
  :native-libraries [{:name "pixils-native"
                      :version "0.1.0"
                      :path "native"

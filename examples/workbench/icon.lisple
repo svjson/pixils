@@ -2,7 +2,8 @@
   (:require pixils
             [pixils.render :as r]
             [pixils.ui :as ui]
-            pixils.ui.icon))
+            pixils.ui.icon
+            [pixils.ui.drag :as drag]))
 
 
 
@@ -135,7 +136,7 @@
                {:color (if selected? white black)}))))
 
 (defcomponent workbench-icon
-  (ui/make-draggable
+  (drag/make-draggable
    {:extend 'ui/icon
     :style {:width icon-width
             :height icon-height

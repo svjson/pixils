@@ -9,4 +9,5 @@ Makefile
 libpixils.a
 ext/
 libpixils.so
+lib/pixils/native/
 scratches

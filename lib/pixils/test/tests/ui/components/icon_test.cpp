@@ -55,7 +55,7 @@ TEST_F(IconTest, make_draggable_adds_drag_policy_to_arbitrary_child)
                               (assoc state :move (:payload event)))
             :test/drag-end (fn [state event ctx]
                              (assoc state :end true))}
-       :children [(pixils.ui/make-draggable
+       :children [(pixils.ui.drag/make-draggable
                    {:style {:width 30
                             :height 20}
                     :state {:item {:id :disk}}}

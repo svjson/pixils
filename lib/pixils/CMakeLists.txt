@@ -159,4 +159,20 @@ install(FILES cmake/pixilsConfig.cmake
   DESTINATION lib/cmake/pixils
 )
 
+install(DIRECTORY lisp/
+  DESTINATION share/lisple/pkg/pixils/lisp
+  FILES_MATCHING
+    PATTERN "*.lisple"
+    PATTERN "*.lspl"
+)
+
+install(FILES package.edn
+  DESTINATION share/lisple/pkg/pixils
+)
+
+install(TARGETS pixils_lisple_native
+  LIBRARY DESTINATION share/lisple/pkg/pixils/native
+  RUNTIME DESTINATION share/lisple/pkg/pixils/native
+)
+
 add_subdirectory(test)

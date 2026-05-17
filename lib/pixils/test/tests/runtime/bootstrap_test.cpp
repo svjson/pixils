@@ -116,7 +116,7 @@ TEST_F(BootstrapTest, includes_embedded_dialog_source)
     std::find_if(sources.begin(),
                  sources.end(),
                  [](const Pixils::EmbeddedLisp::Source& source)
-                 { return std::string_view(source.path) == "ui/components/dialog.lisple"; });
+                 { return std::string_view(source.path) == "ui/dialog.lisple"; });
 
   ASSERT_NE(dialog, sources.end());
   EXPECT_NE(std::string_view(dialog->source).find("(ns pixils.ui.dialog"),
@@ -136,7 +136,7 @@ TEST_F(BootstrapTest, includes_embedded_file_dialog_source)
                  [](const Pixils::EmbeddedLisp::Source& source)
                  {
                    return std::string_view(source.path) ==
-                          "ui/components/file-dialog.lisple";
+                          "ui/file-dialog.lisple";
                  });
 
   ASSERT_NE(file_dialog, sources.end());

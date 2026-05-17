@@ -1,4 +1,5 @@
-(ns pixils.ui)
+(ns pixils.ui.drag
+  (:require [pixils.ui :as ui]))
 
 
 
@@ -42,27 +43,27 @@
     (let [payload (:payload event)
           offset (:offset payload)]
       (do
-        (emit! (:view ctx)
-               (draggable-option opts :start-event :ui/drag-start)
-               {:item (:item payload)
-                :offset offset
-                :position (draggable-start-position event offset)})
+        (ui/emit! (:view ctx)
+                  (draggable-option opts :start-event :ui/drag-start)
+                  {:item (:item payload)
+                   :offset offset
+                   :position (draggable-start-position event offset)})
         state))))
 
 (defun draggable-move-handler [opts]
   (fn [state event ctx]
     (do
-      (emit! (:view ctx)
-             (draggable-option opts :move-event :ui/drag-move)
-             {:position (:global-position event)})
+      (ui/emit! (:view ctx)
+                (draggable-option opts :move-event :ui/drag-move)
+                {:position (:global-position event)})
       state)))
 
 (defun draggable-end-handler [opts]
   (fn [state event ctx]
     (do
-      (emit! (:view ctx)
-             (draggable-option opts :end-event :ui/drag-end)
-             nil)
+      (ui/emit! (:view ctx)
+                (draggable-option opts :end-event :ui/drag-end)
+                nil)
       state)))
 
 (defun make-draggable [definition & options]
