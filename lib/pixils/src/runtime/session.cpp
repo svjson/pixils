@@ -290,7 +290,12 @@ namespace Pixils::Runtime
      */
     if (mode_stack.size() > 0)
     {
-      inherited_theme = active_mode->effective_theme;
+      inherited_theme =
+        UI::resolve_effective_theme(active_mode,
+                                    lisple_runtime,
+                                    active_mode->inherited_theme
+                                      ? &*active_mode->inherited_theme
+                                      : nullptr);
       mode_stack.update_state(active_mode->state);
       ctx_stack.push_back(std::move(active_mode));
     }

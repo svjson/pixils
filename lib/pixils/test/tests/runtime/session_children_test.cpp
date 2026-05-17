@@ -742,6 +742,41 @@ TEST_F(SessionChildrenTest,
   EXPECT_EQ(*session.active_mode->effective_style.text->scale, 5);
 }
 
+TEST_F(SessionChildrenTest, pushed_root_mode_from_init_inherits_parent_effective_theme)
+{
+  // Given
+  runtime.eval(R"(
+    (pixils/deftheme app-theme
+      {:styles {'popup-mode {:text {:font :font/console
+                                    :scale 5}}}})
+
+    (pixils/defmode popup-mode
+      {:render (fn [state ctx] nil)})
+
+    (pixils/defmode root-mode
+      {:theme 'app-theme
+       :init (fn [state ctx]
+               (do
+                 (pixils/push-mode! 'popup-mode)
+                 state))
+       :render (fn [state ctx] nil)})
+  )");
+  session.push_mode("root-mode", Lisple::Constant::NIL);
+
+  // When
+  session.process_messages();
+  session.render_mode();
+
+  // Then
+  ASSERT_NE(session.active_mode, nullptr);
+  ASSERT_EQ(session.active_mode->mode->name, "popup-mode");
+  ASSERT_TRUE(session.active_mode->effective_style.text.has_value());
+  ASSERT_TRUE(session.active_mode->effective_style.text->font.has_value());
+  ASSERT_TRUE(session.active_mode->effective_style.text->scale.has_value());
+  EXPECT_EQ(*session.active_mode->effective_style.text->font, "font/console");
+  EXPECT_EQ(*session.active_mode->effective_style.text->scale, 5);
+}
+
 TEST_F(SessionChildrenTest, pushed_root_mode_uses_parent_theme_defaults)
 {
   // Given

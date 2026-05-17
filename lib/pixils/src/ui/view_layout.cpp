@@ -398,9 +398,10 @@ namespace Pixils::UI
       return Lisple::obj<Theme>(*theme_val);
     }
 
-    Theme resolve_effective_theme(const std::shared_ptr<Pixils::Runtime::View>& view,
-                                  Lisple::Runtime& runtime,
-                                  const Theme* inherited_theme)
+    Theme resolve_effective_theme_impl(
+      const std::shared_ptr<Pixils::Runtime::View>& view,
+      Lisple::Runtime& runtime,
+      const Theme* inherited_theme)
     {
       std::optional<std::string> selected_variant =
         view && view->mode ? view->mode->theme_variant : std::nullopt;
@@ -470,7 +471,8 @@ namespace Pixils::UI
       auto cached = pass.natural_size_cache.find(cache_key);
       if (cached != pass.natural_size_cache.end()) return cached->second;
 
-      view->effective_theme = resolve_effective_theme(view, pass.runtime, inherited_theme);
+      view->effective_theme =
+        resolve_effective_theme_impl(view, pass.runtime, inherited_theme);
       view->effective_style =
         resolve_effective_style(view, pass.runtime, inherited_style, selector_path);
 
@@ -918,6 +920,13 @@ namespace Pixils::UI
       return rects;
     }
   } // namespace
+
+  Theme resolve_effective_theme(const std::shared_ptr<Pixils::Runtime::View>& view,
+                                Lisple::Runtime& runtime,
+                                const Theme* inherited_theme)
+  {
+    return resolve_effective_theme_impl(view, runtime, inherited_theme);
+  }
 
   std::vector<Rect> layout_children(
     const std::vector<std::shared_ptr<Pixils::Runtime::View>>& children,

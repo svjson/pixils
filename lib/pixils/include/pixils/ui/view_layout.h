@@ -22,6 +22,15 @@ namespace Pixils::Runtime
 namespace Pixils::UI
 {
   /**
+   * Resolve the theme that applies to a view without requiring a full layout
+   * pass. This is used when a newly pushed mode needs to inherit the current
+   * mode's theme before the current mode has rendered.
+   */
+  Theme resolve_effective_theme(const std::shared_ptr<Pixils::Runtime::View>& view,
+                                Lisple::Runtime& runtime,
+                                const Theme* inherited_theme = nullptr);
+
+  /**
    * Recursively assign bounds to a view tree starting from the given root
    * bounds. Child placement uses the same flow/absolute rules as
    * layout_children, but writes the results onto each live view so later passes
