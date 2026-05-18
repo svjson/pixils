@@ -18,6 +18,7 @@
            :cursor :crosshair}
    :init (fn [state ctx]
            (merge {:offset {:x 0 :y 0}
+                   :tilesets []
                    :layers []}
                   state))
    :update (fn [state ctx]
@@ -36,7 +37,8 @@
                       :default state)))
    :render (fn [state ctx]
              (let [offset (or (:offset state) {:x 0 :y 0})]
-               (tr/render-layers! (:layers state)
+               (tr/render-layers! (:tilesets state)
+                                  (:layers state)
                                   (:hidden-layer-indices state)
                                   offset
                                   (:zoom state)
@@ -56,6 +58,7 @@
            :layout {:direction :row}}
    :children [{:mode 'map-canvas
                :state {:selected-tile (ui/bind-state :selected-tile)
+                       :tilesets (ui/bind-state :tilesets)
                        :selected-layer-index (ui/bind-state :selected-layer-index)
                        :selected-layer-label (ui/bind-state :selected-layer-label)
                        :layers (ui/bind-state :layers)
@@ -106,6 +109,7 @@
            :layout {:direction :column}}
    :children [{:mode 'map-scroll-row
                :state {:selected-tile (ui/bind-state :selected-tile)
+                       :tilesets (ui/bind-state :tilesets)
                        :selected-layer-index (ui/bind-state :selected-layer-index)
                        :selected-layer-label (ui/bind-state :selected-layer-label)
                        :layers (ui/bind-state :layers)

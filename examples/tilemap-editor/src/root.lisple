@@ -40,15 +40,20 @@
                   layer (when (> (count layers) 0)
                           (nth layers (min layer-index (dec (count layers)))))
                   tileset (:tileset layer)
-                  selected-tile (data/tile-id-in tileset (:selected-tile state))
+                  tilesets (or (:tilesets state) [])
+                  selected-tile (data/tile-id-in-definitions tilesets
+                                                             tileset
+                                                             (:selected-tile state))
                   zoom (or (:zoom state) 1)]
               (assoc state
                      :tileset tileset
                      :selected-tileset-index (when tileset
-                                               (data/tileset-index-in (:tilesets state)
+                                               (data/tileset-index-in tilesets
                                                                       tileset))
                      :selected-tile selected-tile
-                     :selected-label (data/tile-label-in tileset selected-tile)
+                     :selected-label (data/tile-label-in-definitions tilesets
+                                                                      tileset
+                                                                      selected-tile)
                      :zoom-label (str "Zoom " zoom "x")
                      :selected-layer-label (or (:label layer) ""))))
   :children [{:mode 'toolbar}

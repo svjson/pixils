@@ -361,7 +361,7 @@
   {:style {:width :fill
            :height :shrink}
    :init (fn [state ctx]
-           (assoc state :tilesets-list (or (:tilesets state) [])))
+           (assoc state :tilesets-list nil))
    :update (fn [state ctx]
              (let [tilesets (or (:tilesets state) [])]
                (do
@@ -546,7 +546,7 @@
            :height :shrink}
    :init (fn [state ctx]
            (assoc state
-                  :row-count (count (or (:layers state) []))
+                  :row-count nil
                   :selected-indices (selected-layer-indices state)))
    :update (fn [state ctx]
              (let [layers (or (:layers state) [])

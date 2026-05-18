@@ -30,25 +30,33 @@
 (defun project-layers [project]
   (data/normalize-layers (-> project :tilemap :layers)))
 
+(defun project-tilesets [project layers]
+  (if (nil? (get-in project [:tilesets 0 :id]))
+    (if (nil? (get-in layers [0 :tileset]))
+      []
+      (data/project-tileset-definitions))
+    (:tilesets project)))
+
 (defun first-layer-tileset [layers]
   (:tileset (head layers)))
 
 (defun open-project! [state payload]
   (let [project (data/normalize-project-document (io/slurp-edn! (:path payload)))
         layers (project-layers project)
-        tileset (first-layer-tileset layers)]
+        tileset (first-layer-tileset layers)
+        tilesets (project-tilesets project layers)]
     (if (valid-project-document? project)
       (assoc state
-             :tilesets (or (:tilesets project) [])
+             :tilesets tilesets
              :layers layers
              :selected-layer-index (when (> (count layers) 0) 0)
              :selected-layer-label (or (:label (head layers)) "")
              :hidden-layer-indices []
              :tileset tileset
              :selected-tileset-index (when tileset
-                                       (data/tileset-index-in (:tilesets project)
+                                       (data/tileset-index-in tilesets
                                                               tileset))
-             :selected-tile (data/tile-id-in tileset 0)
+             :selected-tile (data/tile-id-in-definitions tilesets tileset 0)
              :last-project-open-result payload
              :last-opened-project project)
       (assoc state :last-project-open-error {:reason :invalid-format

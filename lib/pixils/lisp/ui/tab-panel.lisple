@@ -50,22 +50,18 @@
 
 (defcomponent ui/tab
   {:class :ui/tab
-   :update (fn [state ctx]
-             (assoc state
-                    :selected?
-                    (= (:tab-id state) (:selected-tab state))))
    :on-mouse-down (fn [state event ctx]
                     (do
                       (ui/stop-propagation! event)
+                      (when (not (:disabled? state))
+                        (ui/emit! (:view ctx)
+                                  :tab-panel/select
+                                  {:tab (:tab-id state)
+                                   :index (:index state)}))
                       state))
    :on-mouse-up (fn [state event ctx]
                   (do
                     (ui/stop-propagation! event)
-                    (when (not (:disabled? state))
-                      (ui/emit! (:view ctx)
-                                :tab-panel/select
-                                {:tab (:tab-id state)
-                                 :index (:index state)}))
                     state))
    :children [{:mode 'ui/text
                :state {:value (ui/bind-state :label)}}]})
@@ -76,25 +72,24 @@
 (defcomponent ui/tab-panel-body
   {:class :ui/tab-panel-body})
 
-(defun tab-child [index tab]
+(defun tab-child [index tab selected-tab]
   {:mode 'ui/tab
    :state {:index index
            :tab-id (tab-id tab)
            :label (tab-label tab)
            :disabled? (tab-disabled? tab)
-           :selected-tab (ui/bind-state :selected-tab)}})
+           :selected? (= (tab-id tab) selected-tab)}})
 
-(defun tab-strip-child [tabs]
+(defun tab-strip-child [tabs selected-tab]
   {:mode 'ui/tab-strip
    :id "tab-strip"
-   :state {:selected-tab (ui/bind-state :selected-tab)}
    :children (for-indexed [index tab (or tabs [])]
-               (tab-child index tab))})
+               (tab-child index tab selected-tab))})
 
-(defun body-child [tabs selected-tab]
+(defun body-child [tabs selected-tab body-state]
   {:mode 'ui/tab-panel-body
    :id "body"
-   :state (ui/bind-state)
+   :state (or body-state (ui/bind-state))
    :children [(tab-body-child (selected-tab tabs selected-tab))]})
 
 (defcomponent ui/tab-panel
@@ -112,12 +107,17 @@
                  (when (not= tabs (:rendered-tabs state))
                    (ui/replace-child! (:view ctx)
                                       "tab-strip"
-                                      (tab-strip-child tabs)))
+                                      (tab-strip-child tabs selected)))
+                 (when (and (not= selected (:rendered-tab state))
+                            (= tabs (:rendered-tabs state)))
+                   (ui/replace-child! (:view ctx)
+                                      "tab-strip"
+                                      (tab-strip-child tabs selected)))
                  (when (or (not= selected (:rendered-tab state))
                            (not= tabs (:rendered-tabs state)))
                    (ui/replace-child! (:view ctx)
                                       "body"
-                                      (body-child tabs selected)))
+                                      (body-child tabs selected (:body-state state))))
                  (assoc (assoc (assoc state
                                        :selected-tab selected)
                                 :rendered-tab selected)
@@ -133,7 +133,9 @@
                                 (when (not= selected (:selected-tab state))
                                   (ui/replace-child! (:view ctx)
                                                      "body"
-                                                     (body-child tabs selected))
+                                                     (body-child tabs
+                                                                 selected
+                                                                 (:body-state state)))
                                   (ui/emit! (:view ctx)
                                             :tab-panel/change
                                             {:tab selected
@@ -150,6 +152,7 @@
      :style (or style {})
      :state (merge (or state {})
                    {:tabs tabs
+                    :body-state state
                     :selected-tab initial-selected})
-     :children [(tab-strip-child tabs)
-                (body-child tabs selected)]}))
+     :children [(tab-strip-child tabs (selected-tab-id tabs initial-selected))
+                (body-child tabs (selected-tab-id tabs initial-selected) state)]}))

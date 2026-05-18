@@ -1,7 +1,8 @@
 (ns tilemap-editor.view.tilemap.controls-test
   (:require proof.core
             [tilemap-editor.view.tilemap.controls :as controls]
-            [tilemap-editor.view.tilemap.palette :as palette]))
+            [tilemap-editor.view.tilemap.palette :as palette]
+            [tilemap-editor.model.data :as data]))
 
 (deftest empty-layer-list-keeps-minimum-height
   (is (= 78 (controls/layer-list-height [])))
@@ -20,5 +21,8 @@
   (is (not= true (:disabled? (:state (controls/layer-list-box-child [{:label "Ground"}]))))))
 
 (deftest tile-palette-is-disabled-when-empty
-  (is (= true (:disabled? (:state (palette/tile-palette-list-box-child nil)))))
-  (is (not= true (:disabled? (:state (palette/tile-palette-list-box-child :colors))))))
+  (is (= true (:disabled? (:state (palette/tile-palette-list-box-child [] nil)))))
+  (is (not= true
+            (:disabled? (:state (palette/tile-palette-list-box-child
+                                 (data/project-tileset-definitions)
+                                 :colors))))))

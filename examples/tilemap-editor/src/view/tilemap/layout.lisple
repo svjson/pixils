@@ -29,6 +29,7 @@
    :children [{:mode 'map-area
                :style {:height :fill}
                :state {:selected-tile (ui/bind-state :selected-tile)
+                       :tilesets (ui/bind-state :tilesets)
                        :selected-layer-index (ui/bind-state :selected-layer-index)
                        :selected-layer-label (ui/bind-state :selected-layer-label)
                        :layers (ui/bind-state :layers)
@@ -68,6 +69,7 @@
                 :children [{:mode 'map-column
                             :style {:padding {:r 8}}
                             :state {:selected-tile (ui/bind-state :selected-tile)
+                                    :tilesets (ui/bind-state :tilesets)
                                     :selected-layer-index (ui/bind-state :selected-layer-index)
                                     :selected-layer-label (ui/bind-state :selected-layer-label)
                                     :layers (ui/bind-state :layers)

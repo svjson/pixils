@@ -115,6 +115,22 @@ TEST_F(TabPanelTest, clicking_tab_selects_body_and_emits_change)
     Lisple::Dict::get_property(session.active_mode->state, Lisple::keyword("changed-tab"));
   ASSERT_NE(changed, nullptr);
   EXPECT_EQ(changed->to_string(), ":tilesets");
+
+  tab_panel = session.active_mode->children[0];
+  tab_strip = tab_panel->children[0];
+  auto first_tab = tab_strip->children[0];
+  input().mouse_down({first_tab->bounds.x + first_tab->bounds.w / 2,
+                      first_tab->bounds.y + first_tab->bounds.h / 2});
+  update_cycle();
+  input().mouse_up({first_tab->bounds.x + first_tab->bounds.w / 2,
+                    first_tab->bounds.y + first_tab->bounds.h / 2});
+  update_cycle();
+  session.render_mode();
+
+  selected =
+    Lisple::Dict::get_property(tab_panel->state, Lisple::keyword("selected-tab"));
+  ASSERT_NE(selected, nullptr);
+  EXPECT_EQ(selected->to_string(), ":map");
 }
 
 TEST_F(TabPanelTest, tab_panel_uses_bound_selected_tab)

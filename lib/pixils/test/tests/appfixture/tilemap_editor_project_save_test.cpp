@@ -5,6 +5,7 @@
 #include <fstream>
 #include <sstream>
 #include <string>
+#include <vector>
 
 #include <gtest/gtest.h>
 
@@ -32,6 +33,37 @@ namespace
     buffer << in.rdbuf();
     return buffer.str();
   }
+
+  void find_descendant_modes(
+    const std::shared_ptr<Pixils::Runtime::View>& view,
+    const std::string& mode_name,
+    std::vector<std::shared_ptr<Pixils::Runtime::View>>& out)
+  {
+    if (!view) return;
+    if (view->mode && view->mode->name == mode_name) out.push_back(view);
+
+    for (const auto& child : view->children)
+    {
+      find_descendant_modes(child, mode_name, out);
+    }
+  }
+
+  void read_tilemap_editor_sources(Lisple::Runtime& runtime)
+  {
+    runtime.read_file("examples/tilemap-editor/src/assets.lisple");
+    runtime.read_file("examples/tilemap-editor/src/model/data.lisple");
+    runtime.read_file("examples/tilemap-editor/src/model/tilemap.lisple");
+    runtime.read_file("examples/tilemap-editor/src/io/project.lisple");
+    runtime.read_file("examples/tilemap-editor/src/view/tilemap/renderer.lisple");
+    runtime.read_file("examples/tilemap-editor/src/view/tilemap/canvas.lisple");
+    runtime.read_file("examples/tilemap-editor/src/view/tilemap/inspector.lisple");
+    runtime.read_file("examples/tilemap-editor/src/view/tilemap/palette.lisple");
+    runtime.read_file("examples/tilemap-editor/src/view/tilemap/controls.lisple");
+    runtime.read_file("examples/tilemap-editor/src/view/tilemap/layout.lisple");
+    runtime.read_file("examples/tilemap-editor/src/view/tileset/layout.lisple");
+    runtime.read_file("examples/tilemap-editor/src/view/theme.lisple");
+    runtime.read_file("examples/tilemap-editor/src/root.lisple");
+  }
 } // namespace
 
 class TilemapEditorProjectIoTest : public BaseFixture
@@ -44,19 +76,7 @@ class TilemapEditorStartupTest : public RenderFixture
 
 TEST_F(TilemapEditorStartupTest, current_example_main_mode_updates_and_renders)
 {
-  runtime.read_file("examples/tilemap-editor/src/assets.lisple");
-  runtime.read_file("examples/tilemap-editor/src/model/data.lisple");
-  runtime.read_file("examples/tilemap-editor/src/model/tilemap.lisple");
-  runtime.read_file("examples/tilemap-editor/src/io/project.lisple");
-  runtime.read_file("examples/tilemap-editor/src/view/tilemap/renderer.lisple");
-  runtime.read_file("examples/tilemap-editor/src/view/tilemap/canvas.lisple");
-  runtime.read_file("examples/tilemap-editor/src/view/tilemap/inspector.lisple");
-  runtime.read_file("examples/tilemap-editor/src/view/tilemap/palette.lisple");
-  runtime.read_file("examples/tilemap-editor/src/view/tilemap/controls.lisple");
-  runtime.read_file("examples/tilemap-editor/src/view/tilemap/layout.lisple");
-  runtime.read_file("examples/tilemap-editor/src/view/tileset/layout.lisple");
-  runtime.read_file("examples/tilemap-editor/src/view/theme.lisple");
-  runtime.read_file("examples/tilemap-editor/src/root.lisple");
+  read_tilemap_editor_sources(runtime);
 
   session.push_mode("main-mode", Lisple::Constant::NIL);
   session.update_mode();
@@ -87,6 +107,86 @@ TEST_F(TilemapEditorStartupTest, current_example_main_mode_updates_and_renders)
   ASSERT_NE(body, nullptr);
   ASSERT_EQ(body->children.size(), 1u);
   EXPECT_EQ(body->children[0]->mode->name, "tileset-definition-workspace");
+}
+
+TEST_F(TilemapEditorStartupTest, loaded_project_populates_existing_side_panel_controls)
+{
+  read_tilemap_editor_sources(runtime);
+
+  session.push_mode("main-mode", Lisple::Constant::NIL);
+  update_cycle();
+
+  auto origin = Lisple::map({Lisple::keyword("view"),
+                             Pixils::Script::ViewAdapter::make_ref(*session.active_mode),
+                             Lisple::keyword("event"),
+                             Lisple::keyword("project/file-dialog-result")});
+  auto overrides = Lisple::map({Lisple::keyword("origin"), origin});
+  session.push_mode("ui/tab-panel-empty", Lisple::Constant::NIL, overrides);
+  session.pop_mode(runtime.eval(R"({:type :confirm
+                                  :mode :file-dialog/open
+                                  :path "examples/tilemap-editor/example-maps/map1.edn"
+                                  :directory "examples/tilemap-editor/example-maps"
+                                  :filename "map1.edn"})"));
+
+  update_cycle();
+  update_cycle();
+
+  std::vector<std::shared_ptr<Pixils::Runtime::View>> layer_rows;
+  find_descendant_modes(session.active_mode, "layer-row", layer_rows);
+  EXPECT_EQ(layer_rows.size(), 4u);
+
+  std::vector<std::shared_ptr<Pixils::Runtime::View>> tile_swatches;
+  find_descendant_modes(session.active_mode, "tile-swatch", tile_swatches);
+  EXPECT_GT(tile_swatches.size(), 1u);
+
+  std::vector<std::shared_ptr<Pixils::Runtime::View>> combo_boxes;
+  find_descendant_modes(session.active_mode, "ui/combo-box", combo_boxes);
+  ASSERT_GE(combo_boxes.size(), 1u);
+  EXPECT_NE(combo_boxes[0]->state->to_string().find("Background Colors"),
+            std::string::npos);
+
+  session.render_mode();
+  auto tab_panel = session.active_mode->children[1];
+  ASSERT_NE(tab_panel, nullptr);
+  ASSERT_GE(tab_panel->children.size(), 1u);
+  auto tab_strip = tab_panel->children[0];
+  ASSERT_NE(tab_strip, nullptr);
+  ASSERT_GE(tab_strip->children.size(), 2u);
+  auto tilesets_tab = tab_strip->children[1];
+  ASSERT_NE(tilesets_tab, nullptr);
+
+  input().mouse_down({tilesets_tab->bounds.x + tilesets_tab->bounds.w / 2,
+                      tilesets_tab->bounds.y + tilesets_tab->bounds.h / 2});
+  update_cycle();
+  input().mouse_up({tilesets_tab->bounds.x + tilesets_tab->bounds.w / 2,
+                    tilesets_tab->bounds.y + tilesets_tab->bounds.h / 2});
+  update_cycle();
+  session.render_mode();
+
+  tab_panel = session.active_mode->children[1];
+  ASSERT_NE(tab_panel, nullptr);
+  ASSERT_GE(tab_panel->children.size(), 1u);
+  tab_strip = tab_panel->children[0];
+  ASSERT_NE(tab_strip, nullptr);
+  ASSERT_GE(tab_strip->children.size(), 2u);
+  auto map_tab = tab_strip->children[0];
+  ASSERT_NE(map_tab, nullptr);
+
+  input().mouse_down({map_tab->bounds.x + map_tab->bounds.w / 2,
+                      map_tab->bounds.y + map_tab->bounds.h / 2});
+  update_cycle();
+  input().mouse_up({map_tab->bounds.x + map_tab->bounds.w / 2,
+                    map_tab->bounds.y + map_tab->bounds.h / 2});
+  update_cycle();
+  session.render_mode();
+
+  layer_rows.clear();
+  find_descendant_modes(session.active_mode, "layer-row", layer_rows);
+  EXPECT_EQ(layer_rows.size(), 4u);
+
+  tile_swatches.clear();
+  find_descendant_modes(session.active_mode, "tile-swatch", tile_swatches);
+  EXPECT_GT(tile_swatches.size(), 1u);
 }
 
 TEST_F(TilemapEditorProjectIoTest, save_dialog_result_writes_project_edn)
@@ -184,6 +284,7 @@ TEST_F(TilemapEditorProjectIoTest, open_dialog_result_loads_project_edn_layers)
   EXPECT_NE(state.find(R"(:project-path ")" + open_path.string() + R"(")"),
             std::string::npos);
   EXPECT_NE(state.find(R"(:label "Loaded Background")"), std::string::npos);
+  EXPECT_NE(state.find(":tilesets [{:id :colors"), std::string::npos);
   EXPECT_NE(state.find(":selected-layer-index 0"), std::string::npos);
   EXPECT_NE(state.find(":hidden-layer-indices []"), std::string::npos);
   EXPECT_NE(state.find(":last-project-open-result"), std::string::npos);

@@ -81,6 +81,29 @@
   (is (nil? (data/tile-in nil 0)))
   (is (nil? (data/tile-id-in nil 0))))
 
+(deftest tile-options-can-come-from-project-tileset-definitions
+  (let [tilesets [{:id :terrain
+                   :label "Terrain"
+                   :tiles [{:id :grass
+                            :name "Grass"}]}]]
+    (is (= [{:value :grass
+             :label "Grass"}]
+           (data/tile-options-in tilesets :terrain)))
+    (is (= :grass
+           (data/tile-id-in-definitions tilesets :terrain 0)))))
+
+(deftest built-in-project-tileset-definitions-are-available-for-layered-maps
+  (is (= 4 (count (data/make-layered-map))))
+  (is (= 4 (count (data/project-tileset-definitions))))
+  (is (= 4 (count (data/project-tileset-definitions-for-layers
+                   (data/make-layered-map))))))
+
+(deftest legacy-layered-project-without-tilesets-gets-built-in-definitions
+  (is (= 4 (count (project-io/project-tilesets
+                   {}
+                   (data/make-layered-map)))))
+  (is (= [] (project-io/project-tilesets {} []))))
+
 (deftest example-map-loads-through-open-project-path
   (let [state (project-open-state)]
     (is (= 4 (count (:layers state))))
