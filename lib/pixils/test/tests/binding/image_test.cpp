@@ -83,8 +83,8 @@ TEST_F(ImageTest, dynamic_bundle_images_can_be_added_before_first_lookup)
   runtime.eval("(pixils/defbundle-dynamic project-assets)");
 
   // When
-  auto resource = runtime.eval(
-    "(pixils.resource/add-image! :project-assets/ship \"ship.png\")");
+  auto resource =
+    runtime.eval("(pixils.resource/add-image! :project-assets/ship \"ship.png\")");
   auto width = runtime.eval("(pixils.image/width :project-assets/ship)");
   auto height = runtime.eval("(pixils.image/height :project-assets/ship)");
 
@@ -125,16 +125,13 @@ TEST_F(ImageTest, dynamic_bundle_images_can_be_listed)
   // When
   runtime.eval("(pixils.resource/add-image! :project-assets/ship \"ship.png\")");
   auto id = runtime.eval("(:id (head (pixils.resource/list-images :project-assets)))");
-  auto name = runtime.eval("(:name (head (pixils.resource/list-images :project-assets)))");
   auto file_name =
     runtime.eval("(:file-name (head (pixils.resource/list-images :project-assets)))");
 
   // Then
   ASSERT_NE(id, nullptr);
-  ASSERT_NE(name, nullptr);
   ASSERT_NE(file_name, nullptr);
   EXPECT_EQ(id->to_string(), ":project-assets/ship");
-  EXPECT_EQ(name->str(), "ship");
   EXPECT_EQ(file_name->str(), "ship.png");
 }
 
@@ -165,7 +162,6 @@ TEST_F(ImageTest, add_image_requires_dynamic_bundle)
   runtime.eval("(pixils/defbundle static-assets {:images {}})");
 
   // Then
-  EXPECT_THROW(runtime.eval(
-                 "(pixils.resource/add-image! :static-assets/ship \"ship.png\")"),
+  EXPECT_THROW(runtime.eval("(pixils.resource/add-image! :static-assets/ship \"ship.png\")"),
                std::runtime_error);
 }

@@ -8,8 +8,8 @@
 
 #include <lisple/host/accessor.h>
 #include <lisple/host/schema.h>
-#include <lisple/runtime/value.h>
 #include <lisple/runtime/dict.h>
+#include <lisple/runtime/value.h>
 
 namespace Pixils::Script
 {
@@ -19,7 +19,6 @@ namespace Pixils::Script
     SHKEY(FONTS, "fonts");
     SHKEY(ID, "id");
     SHKEY(IMAGES, "images");
-    SHKEY(NAME, "name");
     SHKEY(SOUNDS, "sounds");
     SHKEY(TRANSPARENCY_COLOR, "transparency-color");
   } // namespace MapKey
@@ -62,8 +61,7 @@ namespace Pixils::Script
       return bundle_id;
     }
 
-    std::pair<std::string, std::string> parse_resource_keyword(
-      const Lisple::sptr_val& value)
+    std::pair<std::string, std::string> parse_resource_keyword(const Lisple::sptr_val& value)
     {
       auto [bundle_id, resource_id] = value->qual();
       if (bundle_id.empty() || resource_id.empty())
@@ -77,11 +75,9 @@ namespace Pixils::Script
                                           const Runtime::ImageDependency& dep)
     {
       auto result = Lisple::map({});
-      Lisple::Dict::set_property(
-        result,
-        MapKey::ID,
-        Lisple::keyword(bundle_id + "/" + dep.resource_id));
-      Lisple::Dict::set_property(result, MapKey::NAME, Lisple::string(dep.resource_id));
+      Lisple::Dict::set_property(result,
+                                 MapKey::ID,
+                                 Lisple::keyword(bundle_id + "/" + dep.resource_id));
       Lisple::Dict::set_property(result, MapKey::FILE_NAME, Lisple::string(dep.file_name));
       return result;
     }
@@ -96,11 +92,10 @@ namespace Pixils::Script
 
     EXEC_BODY(MakeResourceDependencies, exec_make_deps)
     {
-      static Lisple::MapSchema resources_schema(
-        {},
-        {{"images", &Lisple::Type::MAP},
-         {"sounds", &Lisple::Type::MAP},
-         {"fonts", &Lisple::Type::MAP}});
+      static Lisple::MapSchema resources_schema({},
+                                                {{"images", &Lisple::Type::MAP},
+                                                 {"sounds", &Lisple::Type::MAP},
+                                                 {"fonts", &Lisple::Type::MAP}});
 
       auto opts = resources_schema.bind(ctx, *args[0]);
 

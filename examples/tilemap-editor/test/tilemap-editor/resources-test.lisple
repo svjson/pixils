@@ -6,6 +6,14 @@
   (is (= :project-assets/tiles.png
          (resources/image-resource-id "/tmp/maps/tiles.png"))))
 
+(deftest image-resource-key-uses_user_supplied_local_id
+  (is (= :project-assets/terrain
+         (resources/image-resource-key "terrain"))))
+
+(deftest file-stem-removes_path_and_extension
+  (is (= "tiles"
+         (resources/file-stem "/tmp/maps/tiles.png"))))
+
 (deftest project-image-resource-entries-ignore_static_editor_assets
   (is (= [{:id :project-assets/tiles.png
            :dependency {:file-name "/tmp/maps/tiles.png"}}]
@@ -13,9 +21,23 @@
           {:images {:editor-assets/spritesheet {:file-name "assets/sheet.png"}
                     :project-assets/tiles.png {:file-name "/tmp/maps/tiles.png"}}}))))
 
+(deftest project-image-resources-use_project_metadata
+  (is (= [{:id :project-assets/terrain
+           :name "Terrain Sheet"
+           :file-name "/tmp/maps/tiles.png"}]
+         (resources/project-image-resources
+          {:images {:project-assets/terrain {:name "Terrain Sheet"
+                                             :file-name "/tmp/maps/tiles.png"}}}))))
+
+(deftest runtime-image-dependency-strips_editor_metadata
+  (is (= {:file-name "/tmp/maps/tiles.png"}
+         (resources/runtime-image-dependency
+          {:file-name "/tmp/maps/tiles.png"
+           :name "Terrain Sheet"}))))
+
 (deftest image-resource-options-preserve-resource-id
   (is (= [{:value :project-assets/tiles.png
-           :label "tiles.png  /tmp/maps/tiles.png"}]
+           :label "tiles.png  tiles.png"}]
          (resources/image-resource-options
           [{:id :project-assets/tiles.png
             :name "tiles.png"
