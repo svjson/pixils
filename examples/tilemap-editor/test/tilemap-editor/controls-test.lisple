@@ -69,6 +69,16 @@
     (is (= {:x 0 :y 0 :w 16 :h 16}
            (get-in next [:tilesets 0 :tiles 0 :source])))))
 
+(deftest tile-definition-type-change-uses-tileset-tile-size
+  (let [state {:selected-tileset-definition-index 0
+               :selected-tileset-tile-index 0
+               :tilesets [{:tile-size 32
+                           :tiles [{:id :night
+                                    :type :color}]}]}
+        next (tileset-layout/set-selected-tile-type state :sprite)]
+    (is (= {:x 0 :y 0 :w 32 :h 32}
+           (get-in next [:tilesets 0 :tiles 0 :source])))))
+
 (deftest tile-definition-color-channel-change-updates-selected-tile
   (let [state {:selected-tileset-definition-index 0
                :selected-tileset-tile-index 0
@@ -90,6 +100,44 @@
     (is (= 0.25 (:scale image-rect)))
     (is (= {:x 20 :y 24 :w 4 :h 4}
            source-rect))))
+
+(deftest sprite-map-preview-position-selects_tile_coordinates
+  (let [image-rect (tileset-layout/sprite-map-preview-image-rect {:w 800
+                                                                  :h 1280})]
+    (is (= {:x 32 :y 96 :w 16 :h 16}
+           (tileset-layout/source-position-from-preview-position
+            {:x 28 :y 27}
+            image-rect
+            {:w 800 :h 1280}
+            16)))))
+
+(deftest sprite-map-preview-source-navigation-clamps_to_asset_bounds
+  (is (= {:x 784 :y 1264 :w 16 :h 16}
+         (tileset-layout/move-source-position {:x 784 :y 1264 :w 16 :h 16}
+                                             16
+                                             16
+                                             16
+                                             {:w 800 :h 1280})))
+  (is (= {:x 0 :y 0 :w 16 :h 16}
+         (tileset-layout/move-source-position {:x 0 :y 0 :w 16 :h 16}
+                                             -16
+                                             -16
+                                             16
+                                             {:w 800 :h 1280}))))
+
+(deftest selected-sprite-source-update-uses_tileset_tile_size
+  (let [state {:selected-tileset-definition-index 0
+               :selected-tileset-tile-index 0
+               :tilesets [{:tile-size 32
+                           :tiles [{:id :hero
+                                    :type :sprite
+                                    :source {:x 0 :y 0 :w 16 :h 16}}]}]}
+        next (tileset-layout/set-selected-tile-source-position state
+                                                               65
+                                                               96
+                                                               {:w 800 :h 1280})]
+    (is (= {:x 64 :y 96 :w 32 :h 32}
+           (get-in next [:tilesets 0 :tiles 0 :source])))))
 
 (deftest tileset-tile-grid-position-and-key-movement
   (is (= 3 (tileset-layout/tile-grid-columns {:w 48 :h 80})))

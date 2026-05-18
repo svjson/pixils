@@ -21,8 +21,10 @@
    {:value :sprite
     :label "Sprite"}])
 (def default-tile-color {:r 0x00 :g 0x00 :b 0x00})
-(def default-tile-source {:x 0 :y 0 :w data/tile-size :h data/tile-size})
 (def default-tile-image :editor-assets/spritesheet)
+
+(defun default-tile-source [tile-size]
+  {:x 0 :y 0 :w tile-size :h tile-size})
 
 (defun tile-grid-stride []
   (+ tile-grid-cell-size tile-grid-gap))
@@ -62,6 +64,10 @@
 (defun selected-tileset-tiles [state]
   (or (:tiles (selected-tileset-definition state)) []))
 
+(defun selected-tileset-tile-size [state]
+  (or (:tile-size (selected-tileset-definition state))
+      data/tile-size))
+
 (defun selected-tileset-tile [state]
   (let [tiles (selected-tileset-tiles state)
         index (:selected-tileset-tile-index state)]
@@ -90,7 +96,7 @@
                             (= (:value option) (:type tile))))]
     (or match 0)))
 
-(defun tile-with-type [tile type]
+(defun tile-with-type [tile type tile-size]
   (case type
     :color
     (assoc tile
@@ -101,7 +107,10 @@
     (assoc tile
            :type :sprite
            :image (or (:image tile) default-tile-image)
-           :source (or (:source tile) default-tile-source))
+           :source (assoc (merge (default-tile-source tile-size)
+                                 (or (:source tile) {}))
+                          :w tile-size
+                          :h tile-size))
 
     :default
     (assoc tile :type type)))
@@ -109,17 +118,56 @@
 (defun set-selected-tile-type [state type]
   (update-selected-tile state
                         (fn [tile]
-                          (tile-with-type tile type))))
+                          (tile-with-type tile
+                                          type
+                                          (selected-tileset-tile-size state)))))
 
 (defun set-selected-tile-color-channel [state channel value]
   (update-selected-tile state
                         (fn [tile]
-                          (let [tile (tile-with-type tile :color)]
+                          (let [tile (tile-with-type tile
+                                                     :color
+                                                     (selected-tileset-tile-size state))]
                             (assoc tile
                                    :color (assoc (or (:color tile)
                                                      default-tile-color)
                                                  channel
                                                  value))))))
+
+(defun clamp-source-coordinate [value max-value tile-size]
+  (* tile-size
+     (int (/ (max 0
+                 (min value
+                      (max 0 (- max-value tile-size))))
+             tile-size))))
+
+(defun source-with-position [source x y tile-size dim]
+  {:x (clamp-source-coordinate x (:w dim) tile-size)
+   :y (clamp-source-coordinate y (:h dim) tile-size)
+   :w tile-size
+   :h tile-size})
+
+(defun set-selected-tile-source-position [state x y dim]
+  (update-selected-tile state
+                        (fn [tile]
+                          (let [tile-size (selected-tileset-tile-size state)
+                                tile (tile-with-type tile :sprite tile-size)]
+                            (assoc tile
+                                   :source (source-with-position (:source tile)
+                                                                 x
+                                                                 y
+                                                                 tile-size
+                                                                 dim))))))
+
+(defun set-selected-tile-source [state source]
+  (update-selected-tile state
+                        (fn [tile]
+                          (let [tile-size (selected-tileset-tile-size state)
+                                tile (tile-with-type tile :sprite tile-size)]
+                            (assoc tile
+                                   :source (assoc source
+                                                  :w tile-size
+                                                  :h tile-size))))))
 
 (defun selected-tileset-definition-indices [state]
   (if (nil? (:selected-tileset-definition-index state))
@@ -332,11 +380,84 @@
      :w (max 2 (* (:w source) scale))
      :h (max 2 (* (:h source) scale))}))
 
+(defun source-position-from-preview-position [position image-rect dim tile-size]
+  (let [scale (:scale image-rect)
+        source-x (/ (- (:x position) (:x image-rect)) scale)
+        source-y (/ (- (:y position) (:y image-rect)) scale)]
+    (source-with-position nil source-x source-y tile-size dim)))
+
+(defun move-source-position [source dx dy tile-size dim]
+  (source-with-position source
+                        (+ (:x source) dx)
+                        (+ (:y source) dy)
+                        tile-size
+                        dim))
+
+(defun sprite-map-preview-source-at-event [state event]
+  (let [tile (:tile state)
+        image (:image tile)
+        tile-size (or (:tile-size state) data/tile-size)]
+    (when image
+      (let [dim (img/size image)
+            image-rect (sprite-map-preview-image-rect dim)]
+        (source-position-from-preview-position (:position event)
+                                               image-rect
+                                               dim
+                                               tile-size)))))
+
+(defun sprite-map-preview-key-source [state event]
+  (let [tile (:tile state)
+        image (:image tile)
+        source (:source tile)
+        tile-size (or (:tile-size state) data/tile-size)
+        delta (case (:key event)
+                :key/left {:x (* -1 tile-size) :y 0}
+                :key/right {:x tile-size :y 0}
+                :key/up {:x 0 :y (* -1 tile-size)}
+                :key/down {:x 0 :y tile-size}
+                :default nil)]
+    (when (and image source delta)
+      (move-source-position source
+                            (:x delta)
+                            (:y delta)
+                            tile-size
+                            (img/size image)))))
+
 (defcomponent sprite-map-preview
-  {:class :ui/content
+  {:focusable true
+   :class :ui/content
    :style {:width sprite-map-preview-width
            :height sprite-map-preview-height
            :clip true}
+   :on-mouse-down (fn [state event ctx]
+                    (let [source (sprite-map-preview-source-at-event state event)]
+                      (do
+                        (ui/stop-propagation! event)
+                        (ui/focus! ctx)
+                        (when source
+                          (ui/emit! (:view ctx)
+                                    :tile-definition/source-position-change
+                                    source))
+                        state)))
+   :on-drag (fn [state event ctx]
+              (let [source (sprite-map-preview-source-at-event state event)]
+                (do
+                  (ui/stop-propagation! event)
+                  (when source
+                    (ui/emit! (:view ctx)
+                              :tile-definition/source-position-change
+                              source))
+                  state)))
+   :on-key-down (fn [state event ctx]
+                  (let [source (sprite-map-preview-key-source state event)]
+                    (if source
+                      (do
+                        (ui/stop-propagation! event)
+                        (ui/emit! (:view ctx)
+                                  :tile-definition/source-position-change
+                                  source)
+                        state)
+                      state)))
    :render (fn [state ctx]
              (let [tile (:tile state)
                    image (:image tile)
@@ -441,17 +562,20 @@
                     :gap 4}}
    :update (fn [state ctx]
              (let [tile (:tile state)
-                   source (:source tile)]
+                   source (:source tile)
+                   tile-size (or (:tile-size state) data/tile-size)]
                (do
                  (assoc-in! ctx
                             [:view :style :visibility]
                             (if (= (:type tile) :sprite) :visible :none))
                  (assoc state
+                        :tile-size tile-size
                         :asset-label (str (:image tile))
                         :source-label (source-label source)))))
    :children [(tile-detail-field-child "Asset" (ui/bind-state :asset-label))
               {:mode 'sprite-map-preview
-               :state {:tile (ui/bind-state :tile)}}
+               :state {:tile (ui/bind-state :tile)
+                       :tile-size (ui/bind-state :tile-size)}}
               (tile-detail-field-child "Source" (ui/bind-state :source-label))]})
 
 (defcomponent tile-definition-panel
@@ -463,6 +587,7 @@
              (let [tile (selected-tileset-tile state)]
                (assoc state
                       :tile tile
+                      :tile-size (selected-tileset-tile-size state)
                       :tile-id (if tile (str (:id tile)) "")
                       :tile-name (or (:name tile) "")
                       :tile-char (or (:char tile) ""))))
@@ -474,13 +599,17 @@
           (let [payload (:payload event)]
             (set-selected-tile-color-channel state
                                              (:channel payload)
-                                             (:value payload))))}
+                                             (:value payload))))
+        :tile-definition/source-position-change
+        (fn [state event ctx]
+          (set-selected-tile-source state (:payload event)))}
    :children [{:mode 'tile-definition-row
                :style {:width :fill
                        :height :shrink
                        :layout {:direction :row
                                 :gap 10}}
                :state {:tile (ui/bind-state :tile)
+                       :tile-size (ui/bind-state :tile-size)
                        :tile-id (ui/bind-state :tile-id)
                        :tile-name (ui/bind-state :tile-name)
                        :tile-char (ui/bind-state :tile-char)}
@@ -513,7 +642,8 @@
                                    :height 22}
                            :state {:tile (ui/bind-state :tile)}}]}
               {:mode 'tile-sprite-editor
-               :state {:tile (ui/bind-state :tile)}}
+               :state {:tile (ui/bind-state :tile)
+                       :tile-size (ui/bind-state :tile-size)}}
               {:mode 'tile-color-editor
                :state {:tile (ui/bind-state :tile)}}]})
 
