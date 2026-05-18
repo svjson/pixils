@@ -1,0 +1,6 @@
+(ns tilemap-editor.root-test
+  (:require proof.core
+            tilemap-editor.root))
+
+(deftest root-registers-main-mode
+  (is (not (nil? (get pixils/modes 'main-mode)))))

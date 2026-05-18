@@ -62,6 +62,41 @@
                  :clip true
                  :text {:color (var :text)}}
 
+    'ui/tab-panel {:background PANEL-BG
+                   :layout {:direction :column}
+                   :text {:color (var :text)}}
+
+    'ui/tab-strip {:background PANEL-BG
+                   :layout {:direction :row}}
+
+    'ui/tab {:background BUTTON-BG
+             :padding [3 10]
+             :border {:color BUTTON-HIGHLIGHT
+                      :thickness 1
+                      :right {:color BUTTON-SHADOW}
+                      :bottom {:color BUTTON-SHADOW}}
+             :text {:color (var :text)}}
+
+    '(ui/tab {:selected? true})
+    {:background CONTENT-BG
+     :border {:color CONTENT-BORDER
+              :thickness 1
+              :bottom {:color CONTENT-BG}}}
+
+    'ui/tab:disabled
+    {:background DISABLED-BG
+     :border {:color DISABLED-BORDER
+              :thickness 1
+              :right {:color BUTTON-SHADOW}
+              :bottom {:color BUTTON-SHADOW}}
+     :text {:color DISABLED-TEXT}}
+
+    'ui/tab-panel-body {:width :fill
+                        :height :fill
+                        :background CONTENT-BG
+                        :border {:color CONTENT-BORDER
+                                 :thickness 1}}
+
     :ui/canvas {:background CONTENT-BG
                 :border {:color CONTENT-BORDER
                          :thickness 1}}

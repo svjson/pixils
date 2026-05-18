@@ -1,6 +1,7 @@
 (ns tilemap-editor.root
   (:require pixils
             [pixils.ui :as ui]
+            [pixils.ui.tab-panel :as tabs]
             [tilemap-editor.controls :as controls]
             [tilemap-editor.data :as data]
             tilemap-editor.workspace))
@@ -29,7 +30,8 @@
            :zoom 1
            :zoom-label "Zoom 1x"
            :show-grid? true
-           :map-offset {:x 0 :y 0}})
+           :map-offset {:x 0 :y 0}
+           :workspace-tab :map})
   :update (fn [state ctx]
             (let [layers (or (:layers state) [])
                   layer-index (or (:selected-layer-index state) 0)
@@ -48,25 +50,55 @@
                      :zoom-label (str "Zoom " zoom "x")
                      :selected-layer-label (or (:label layer) ""))))
   :children [{:mode 'toolbar}
-             {:mode 'workspace
-              :style {:padding {:l 8
-                                :r 8
-                                :b 8}}
-              :state {:selected-tile (ui/bind-state :selected-tile)
-                      :selected-label (ui/bind-state :selected-label)
-                      :selected-tileset-index (ui/bind-state :selected-tileset-index)
-                      :tilesets (ui/bind-state :tilesets)
-                      :tileset (ui/bind-state :tileset)
-                      :selected-layer-index (ui/bind-state :selected-layer-index)
-                      :selected-layer-label (ui/bind-state :selected-layer-label)
-                      :layers (ui/bind-state :layers)
-                      :hidden-layer-indices (ui/bind-state :hidden-layer-indices)
-                      :zoom (ui/bind-state :zoom)
-                      :zoom-label (ui/bind-state :zoom-label)
-                      :show-grid? (ui/bind-state :show-grid?)
-                      :map-offset (ui/bind-state :map-offset)}}]
+             (tabs/make
+              {:selected-tab (ui/bind-state :workspace-tab)
+               :style {:width :fill
+                       :height :fill}
+               :state {:selected-tile (ui/bind-state :selected-tile)
+                       :selected-label (ui/bind-state :selected-label)
+                       :selected-tileset-index (ui/bind-state :selected-tileset-index)
+                       :tilesets (ui/bind-state :tilesets)
+                       :tileset (ui/bind-state :tileset)
+                       :selected-layer-index (ui/bind-state :selected-layer-index)
+                       :selected-layer-label (ui/bind-state :selected-layer-label)
+                       :layers (ui/bind-state :layers)
+                       :hidden-layer-indices (ui/bind-state :hidden-layer-indices)
+                       :zoom (ui/bind-state :zoom)
+                       :zoom-label (ui/bind-state :zoom-label)
+                       :show-grid? (ui/bind-state :show-grid?)
+                       :map-offset (ui/bind-state :map-offset)}
+               :tabs [{:id :map
+                       :label "Map"
+                       :child {:mode 'workspace
+                               :style {:padding {:l 8
+                                                 :r 8
+                                                 :b 8}}
+                               :state {:selected-tile (ui/bind-state :selected-tile)
+                                       :selected-label (ui/bind-state :selected-label)
+                                       :selected-tileset-index (ui/bind-state :selected-tileset-index)
+                                       :tilesets (ui/bind-state :tilesets)
+                                       :tileset (ui/bind-state :tileset)
+                                       :selected-layer-index (ui/bind-state :selected-layer-index)
+                                       :selected-layer-label (ui/bind-state :selected-layer-label)
+                                       :layers (ui/bind-state :layers)
+                                       :hidden-layer-indices (ui/bind-state :hidden-layer-indices)
+                                       :zoom (ui/bind-state :zoom)
+                                       :zoom-label (ui/bind-state :zoom-label)
+                                       :show-grid? (ui/bind-state :show-grid?)
+                                       :map-offset (ui/bind-state :map-offset)}}}
+                      {:id :tilesets
+                       :label "Tilesets"
+                       :child {:mode 'tileset-definition-workspace
+                               :style {:padding 8}
+                               :state {:selected-tileset-index (ui/bind-state :selected-tileset-index)
+                                       :tilesets (ui/bind-state :tilesets)
+                                       :tileset (ui/bind-state :tileset)
+                                       :selected-layer-index (ui/bind-state :selected-layer-index)
+                                       :layers (ui/bind-state :layers)}}}]})]
   :on {:palette/select (fn [state event ctx]
                          (assoc state :selected-tile (:payload event)))
+       :tab-panel/change (fn [state event ctx]
+                           (assoc state :workspace-tab (-> event :payload :tab)))
        :layer/name-dialog-result (fn [state event ctx]
                                    (controls/apply-layer-name-dialog-result
                                     state

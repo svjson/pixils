@@ -1,4 +1,5 @@
 #include "../fixture.h"
+#include "../render_fixture.h"
 
 #include <filesystem>
 #include <fstream>
@@ -36,6 +37,55 @@ namespace
 class TilemapEditorProjectIoTest : public BaseFixture
 {
 };
+
+class TilemapEditorStartupTest : public RenderFixture
+{
+};
+
+TEST_F(TilemapEditorStartupTest, current_example_main_mode_updates_and_renders)
+{
+  runtime.read_file("examples/tilemap-editor/src/assets.lisple");
+  runtime.read_file("examples/tilemap-editor/src/data.lisple");
+  runtime.read_file("examples/tilemap-editor/src/tilemap.lisple");
+  runtime.read_file("examples/tilemap-editor/src/tile-renderer.lisple");
+  runtime.read_file("examples/tilemap-editor/src/canvas.lisple");
+  runtime.read_file("examples/tilemap-editor/src/inspector.lisple");
+  runtime.read_file("examples/tilemap-editor/src/palette.lisple");
+  runtime.read_file("examples/tilemap-editor/src/controls.lisple");
+  runtime.read_file("examples/tilemap-editor/src/workspace.lisple");
+  runtime.read_file("examples/tilemap-editor/src/theme.lisple");
+  runtime.read_file("examples/tilemap-editor/src/root.lisple");
+
+  session.push_mode("main-mode", Lisple::Constant::NIL);
+  session.update_mode();
+  session.render_mode();
+
+  ASSERT_NE(session.active_mode, nullptr);
+  EXPECT_EQ(session.active_mode->mode->name, "main-mode");
+
+  ASSERT_GE(session.active_mode->children.size(), 2u);
+  auto tab_panel = session.active_mode->children[1];
+  ASSERT_NE(tab_panel, nullptr);
+  ASSERT_EQ(tab_panel->children.size(), 2u);
+  auto tab_strip = tab_panel->children[0];
+  ASSERT_NE(tab_strip, nullptr);
+  ASSERT_GE(tab_strip->children.size(), 2u);
+  auto tilesets_tab = tab_strip->children[1];
+  ASSERT_NE(tilesets_tab, nullptr);
+
+  input().mouse_down({tilesets_tab->bounds.x + tilesets_tab->bounds.w / 2,
+                      tilesets_tab->bounds.y + tilesets_tab->bounds.h / 2});
+  update_cycle();
+  input().mouse_up({tilesets_tab->bounds.x + tilesets_tab->bounds.w / 2,
+                    tilesets_tab->bounds.y + tilesets_tab->bounds.h / 2});
+  update_cycle();
+  session.render_mode();
+
+  auto body = tab_panel->children[1];
+  ASSERT_NE(body, nullptr);
+  ASSERT_EQ(body->children.size(), 1u);
+  EXPECT_EQ(body->children[0]->mode->name, "tileset-definition-workspace");
+}
 
 TEST_F(TilemapEditorProjectIoTest, save_dialog_result_writes_project_edn)
 {

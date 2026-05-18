@@ -26,6 +26,31 @@
                         :thickness 1}
                :clip true}
 
+  'ui/tab-panel {:background {:r 0xff :g 0xff :b 0xff}
+                 :layout {:direction :column}}
+
+  'ui/tab-strip {:background {:r 0xff :g 0xff :b 0xff}
+                 :layout {:direction :row}}
+
+  'ui/tab {:padding [3 8]
+           :background {:r 0xcc :g 0xcc :b 0xcc}
+           :border {:color {:r 0x00 :g 0x00 :b 0x00}
+                    :thickness 1}
+           :text {:color {:r 0x00 :g 0x00 :b 0x00}}}
+
+  '(ui/tab {:selected? true})
+  {:background {:r 0xff :g 0xff :b 0xff}}
+
+  'ui/tab:disabled
+  {:background {:r 0xcc :g 0xcc :b 0xcc}
+   :text {:color {:r 0x66 :g 0x66 :b 0x66}}}
+
+  'ui/tab-panel-body {:width :fill
+                      :height :fill
+                      :background {:r 0xff :g 0xff :b 0xff}
+                      :border {:color {:r 0x00 :g 0x00 :b 0x00}
+                               :thickness 1}}
+
   :ui/list-item {:text {:color {:r 0x00 :g 0x00 :b 0x00}}}
 
   :ui/list-item-hover:hover
