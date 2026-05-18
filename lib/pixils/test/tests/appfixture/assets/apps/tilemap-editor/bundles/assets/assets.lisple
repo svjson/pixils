@@ -3,3 +3,5 @@
 
 (defbundle editor-assets
   {:images {:spritesheet "assets/simples_pimples.png"}})
+
+(defbundle-dynamic project-assets)

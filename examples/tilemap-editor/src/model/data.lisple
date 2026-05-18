@@ -778,7 +778,7 @@
 (defun project-document [state]
   {:format project-format
    :version project-format-version
-   :resources project-resources
+   :resources (or (:resources state) project-resources)
    :tilesets (or (:tilesets state) [])
    :tilemap {:width map-width
              :height map-height

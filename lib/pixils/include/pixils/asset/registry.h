@@ -9,6 +9,7 @@
 #include <optional>
 #include <string>
 #include <unordered_map>
+#include <vector>
 
 struct Mix_Chunk;
 struct SDL_Texture;
@@ -47,6 +48,9 @@ namespace Pixils::Asset
     void declare_dynamic_bundle(const std::string& bundle_id);
     void add_image(const std::string& bundle_id,
                    const Runtime::ImageDependency& dependency);
+    void remove_image(const std::string& bundle_id, const std::string& resource_id);
+    std::vector<Runtime::ImageDependency> image_dependencies(
+      const std::string& bundle_id) const;
 
     void load_embedded_assets();
     void load(const std::string& bundle_id, const Runtime::ResourceDependencies& deps);

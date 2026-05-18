@@ -117,6 +117,48 @@ TEST_F(ImageTest, dynamic_bundle_images_can_be_added_after_bundle_is_loaded)
   EXPECT_EQ(height->num().get_int(), 10);
 }
 
+TEST_F(ImageTest, dynamic_bundle_images_can_be_listed)
+{
+  // Given
+  runtime.eval("(pixils/defbundle-dynamic project-assets)");
+
+  // When
+  runtime.eval("(pixils.resource/add-image! :project-assets/ship \"ship.png\")");
+  auto id = runtime.eval("(:id (head (pixils.resource/list-images :project-assets)))");
+  auto name = runtime.eval("(:name (head (pixils.resource/list-images :project-assets)))");
+  auto file_name =
+    runtime.eval("(:file-name (head (pixils.resource/list-images :project-assets)))");
+
+  // Then
+  ASSERT_NE(id, nullptr);
+  ASSERT_NE(name, nullptr);
+  ASSERT_NE(file_name, nullptr);
+  EXPECT_EQ(id->to_string(), ":project-assets/ship");
+  EXPECT_EQ(name->str(), "ship");
+  EXPECT_EQ(file_name->str(), "ship.png");
+}
+
+TEST_F(ImageTest, dynamic_bundle_images_can_be_removed)
+{
+  // Given
+  SDLMock::prepared_surfaces["./ship.png"] = {24, 10};
+  runtime.eval("(pixils/defbundle-dynamic project-assets)");
+  runtime.eval("(pixils.resource/add-image! :project-assets/ship \"ship.png\")");
+  auto width = runtime.eval("(pixils.image/width :project-assets/ship)");
+  ASSERT_EQ(width->num().get_int(), 24);
+
+  // When
+  auto resource = runtime.eval("(pixils.resource/remove-image! :project-assets/ship)");
+  auto missing_width = runtime.eval("(pixils.image/width :project-assets/ship)");
+  auto first = runtime.eval("(head (pixils.resource/list-images :project-assets))");
+
+  // Then
+  ASSERT_NE(resource, nullptr);
+  EXPECT_EQ(resource->to_string(), ":project-assets/ship");
+  EXPECT_EQ(missing_width->type, Lisple::Value::Type::NIL);
+  EXPECT_EQ(first->type, Lisple::Value::Type::NIL);
+}
+
 TEST_F(ImageTest, add_image_requires_dynamic_bundle)
 {
   // Given

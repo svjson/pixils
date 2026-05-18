@@ -4,3 +4,5 @@
 (defbundle editor-assets
   {:images {:spritesheet {:file-name "../assets/simples_pimples.png"
                           :transparency-color "#5a5268"}}})
+
+(defbundle-dynamic project-assets)

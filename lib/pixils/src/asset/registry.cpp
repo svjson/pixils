@@ -303,6 +303,45 @@ namespace Pixils::Asset
     this->loader.load_image_asset(record->second.bundle, dependency);
   }
 
+  void Registry::remove_image(const std::string& bundle_id,
+                              const std::string& resource_id)
+  {
+    auto record = this->bundles.find(bundle_id);
+    if (record == this->bundles.end())
+    {
+      throw std::runtime_error("Unknown bundle: " + bundle_id);
+    }
+    if (!record->second.mutable_bundle)
+    {
+      throw std::runtime_error("Bundle is not dynamic: " + bundle_id);
+    }
+
+    auto& images = record->second.declaration.images;
+    images.erase(std::remove_if(images.begin(),
+                                images.end(),
+                                [&](const Runtime::ImageDependency& image)
+                                {
+                                  return image.resource_id == resource_id;
+                                }),
+                 images.end());
+
+    if (record->second.loaded)
+    {
+      destroy_image_asset(record->second.bundle, resource_id);
+    }
+  }
+
+  std::vector<Runtime::ImageDependency> Registry::image_dependencies(
+    const std::string& bundle_id) const
+  {
+    auto record = this->bundles.find(bundle_id);
+    if (record == this->bundles.end())
+    {
+      throw std::runtime_error("Unknown bundle: " + bundle_id);
+    }
+    return record->second.declaration.images;
+  }
+
   void Registry::load(const std::string& bundle_id,
                       const Runtime::ResourceDependencies& deps)
   {

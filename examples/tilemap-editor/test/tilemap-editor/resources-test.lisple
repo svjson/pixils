@@ -1,0 +1,32 @@
+(ns tilemap-editor.view.resources.layout-test
+  (:require proof.core
+            [tilemap-editor.view.resources.layout :as resources]))
+
+(deftest image-resource-id-uses-project-assets-bundle
+  (is (= :project-assets/tiles.png
+         (resources/image-resource-id "/tmp/maps/tiles.png"))))
+
+(deftest project-image-resource-entries-ignore_static_editor_assets
+  (is (= [{:id :project-assets/tiles.png
+           :dependency {:file-name "/tmp/maps/tiles.png"}}]
+         (resources/project-image-resource-entries
+          {:images {:editor-assets/spritesheet {:file-name "assets/sheet.png"}
+                    :project-assets/tiles.png {:file-name "/tmp/maps/tiles.png"}}}))))
+
+(deftest image-resource-options-preserve-resource-id
+  (is (= [{:value :project-assets/tiles.png
+           :label "tiles.png  /tmp/maps/tiles.png"}]
+         (resources/image-resource-options
+          [{:id :project-assets/tiles.png
+            :name "tiles.png"
+            :file-name "/tmp/maps/tiles.png"}]))))
+
+(deftest selected-resource-helpers-follow-selected-id
+  (let [items [{:id :project-assets/a.png}
+               {:id :project-assets/b.png}]]
+    (is (= 1 (resources/selected-resource-index items :project-assets/b.png)))
+    (is (= [{:id :project-assets/b.png}]
+           [(resources/selected-resource items :project-assets/b.png)]))
+    (is (= [1] (resources/selected-resource-indices
+                items
+                :project-assets/b.png)))))

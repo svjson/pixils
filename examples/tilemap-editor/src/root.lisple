@@ -5,6 +5,7 @@
             [tilemap-editor.view.tilemap.controls :as controls]
             [tilemap-editor.model.data :as data]
             [tilemap-editor.io.project :as project-io]
+            tilemap-editor.view.resources.layout
             tilemap-editor.view.tilemap.layout
             tilemap-editor.view.tileset.layout))
 
@@ -31,6 +32,8 @@
            :project-path nil
            :project-directory nil
            :project-filename "tilemap-project.edn"
+           :resources data/project-resources
+           :selected-image-resource nil
            :project-history-path project-io/default-recent-projects-path
            :recent-projects (project-io/load-recent-projects
                              project-io/default-recent-projects-path)
@@ -93,7 +96,9 @@
                        :zoom (ui/bind-state :zoom)
                        :zoom-label (ui/bind-state :zoom-label)
                        :show-grid? (ui/bind-state :show-grid?)
-                       :map-offset (ui/bind-state :map-offset)}
+                       :map-offset (ui/bind-state :map-offset)
+                       :resources (ui/bind-state :resources)
+                       :selected-image-resource (ui/bind-state :selected-image-resource)}
                :tabs [{:id :map
                        :label "Map"
                        :child {:mode 'workspace
@@ -123,7 +128,14 @@
                                        :tilesets (ui/bind-state :tilesets)
                                        :tileset (ui/bind-state :tileset)
                                        :selected-layer-index (ui/bind-state :selected-layer-index)
-                                       :layers (ui/bind-state :layers)}}}]})]
+                                       :layers (ui/bind-state :layers)}}}
+                      {:id :resources
+                       :label "Resources"
+                       :child {:mode 'resource-explorer-workspace
+                               :style {:padding 8}
+                               :state {:project-directory (ui/bind-state :project-directory)
+                                       :resources (ui/bind-state :resources)
+                                       :selected-image-resource (ui/bind-state :selected-image-resource)}}}]})]
   :on {:palette/select (fn [state event ctx]
                          (assoc state :selected-tile (:payload event)))
        :tab-panel/change (fn [state event ctx]

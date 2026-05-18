@@ -1,0 +1,238 @@
+(ns tilemap-editor.view.resources.layout
+  (:require pixils
+            [lisple.io :as io]
+            [pixils.resource :as res]
+            [pixils.ui :as ui]
+            [pixils.ui.file-dialog :as file-dialog]
+            [pixils.ui.header-panel :as hp]
+            [pixils.ui.list-box :as lb]))
+
+(def project-image-bundle :project-assets)
+(def image-resource-row-height 24)
+
+(def image-file-filters
+  [{:label "Image files (*.png, *.jpg, *.jpeg, *.bmp)"
+    :extensions [".png" ".jpg" ".jpeg" ".bmp"]}
+   {:label "All files (*)"
+    :extensions []}])
+
+(defun image-resource-id [path]
+  (keyword (str "project-assets/" (io/basename path))))
+
+(defun project-image-resource-key? [resource-id]
+  (= ":project-assets/" (substr (str resource-id) 0 16)))
+
+(defun project-image-resource-entries [resources]
+  (let [images (or (:images resources) {})]
+    (filter (map (keys images)
+                 (fn [resource-id]
+                   {:id resource-id
+                    :dependency (get images resource-id)}))
+            (fn [entry]
+              (project-image-resource-key? (:id entry))))))
+
+(defun clear-project-image-bundle! []
+  (for [resource (res/list-images project-image-bundle)]
+    (res/remove-image! (:id resource))))
+
+(defun sync-project-image-resources! [resources]
+  (do
+    (clear-project-image-bundle!)
+    (for [entry (project-image-resource-entries resources)]
+      (res/add-image! (:id entry) (:dependency entry)))
+    resources))
+
+(defun image-resource-options [resources]
+  (map (or resources [])
+       (fn [resource]
+         {:value (:id resource)
+          :label (str (:name resource) "  " (:file-name resource))})))
+
+(defun selected-resource-index [resources selected-id]
+  (when selected-id
+    (find-index (or resources [])
+                (fn [resource]
+                  (= (:id resource) selected-id)))))
+
+(defun selected-resource [resources selected-id]
+  (if-let [index (selected-resource-index resources selected-id)]
+    (nth resources index)
+    nil))
+
+(defun selected-resource-indices [resources selected-id]
+  (if-let [index (selected-resource-index resources selected-id)]
+    [index]
+    []))
+
+(defun open-image-file-dialog! [state ctx]
+  (do
+    (file-dialog/open-file-dialog!
+     ctx
+     {:title "Add Image Resource"
+      :mode :file-dialog/open
+      :path (or (:project-directory state) file-dialog/default-path)
+      :filters image-file-filters
+      :result-event :resource/file-dialog-result})
+    state))
+
+(defun image-file-dialog-result? [payload]
+  (and (= (:type payload) :confirm)
+       (= (:mode payload) :file-dialog/open)
+       (not (nil? (:path payload)))))
+
+(defun add-image-resource! [state payload]
+  (let [resource-id (image-resource-id (:path payload))]
+    (do
+      (res/add-image! resource-id {:file-name (:path payload)})
+      (assoc (assoc-in state
+                       [:resources :images resource-id]
+                       {:file-name (:path payload)})
+             :selected-image-resource resource-id))))
+
+(defun remove-image-resource! [state]
+  (let [resource-id (:selected-image-resource state)]
+    (if resource-id
+      (do
+        (res/remove-image! resource-id)
+        (assoc (update-in state
+                          [:resources :images]
+                          (fn [images]
+                            (dissoc (or images {}) resource-id)))
+               :selected-image-resource nil))
+      state)))
+
+(defun image-resource-list-child [resources]
+  (let [resources (or resources [])]
+    (lb/make {:options (image-resource-options resources)
+              :style {:width :fill
+                      :height :fill}
+              :row-height image-resource-row-height
+              :visible-rows (max 1 (count resources))
+              :content-width 360
+              :disabled? (empty? resources)
+              :selected-indices (ui/bind-state :selected-indices)})))
+
+(defcomponent image-resource-list
+  {:style {:width :fill
+           :height :fill}
+   :init (fn [state ctx]
+           (assoc state
+                  :image-resources nil
+                  :selected-indices []))
+   :update (fn [state ctx]
+             (let [resources (res/list-images project-image-bundle)
+                   selected-indices (selected-resource-indices
+                                     resources
+                                     (:selected-image-resource state))]
+               (do
+                 (when (not= resources (:image-resources state))
+                   (ui/replace-child! (:view ctx)
+                                      "list-box"
+                                      (merge {:id "list-box"}
+                                             (image-resource-list-child resources))))
+                 (assoc state
+                        :image-resources resources
+                        :selected-indices selected-indices))))
+   :on {:list-box/change (fn [state event ctx]
+                           (assoc state
+                                  :selected-image-resource
+                                  (-> event :payload :value)))}
+   :children [(merge {:id "list-box"}
+                     (image-resource-list-child []))]})
+
+(defcomponent image-resource-detail
+  {:style {:width :fill
+           :height :shrink
+           :layout {:direction :column
+                    :gap 6}}
+   :update (fn [state ctx]
+             (let [resource (selected-resource (res/list-images project-image-bundle)
+                                               (:selected-image-resource state))]
+               (assoc state
+                      :resource resource
+                      :id-label (if resource (str (:id resource)) "")
+                      :name-label (or (:name resource) "")
+                      :file-label (or (:file-name resource) ""))))
+   :children [{:mode 'ui/text
+               :class :ui/muted
+               :state {:value "Id"}}
+              {:mode 'ui/text
+               :style {:width :fill}
+               :state {:value (ui/bind-state :id-label)}}
+              {:mode 'ui/text
+               :class :ui/muted
+               :state {:value "Name"}}
+              {:mode 'ui/text
+               :style {:width :fill}
+               :state {:value (ui/bind-state :name-label)}}
+              {:mode 'ui/text
+               :class :ui/muted
+               :state {:value "File"}}
+              {:mode 'ui/text
+               :style {:width :fill}
+               :state {:value (ui/bind-state :file-label)}}]})
+
+(defun make-image-resource-list-panel []
+  (hp/make {:title "Image Resources"
+            :style {:width :fill
+                    :height :fill}
+            :header-style {:layout {:direction :row
+                                    :align-items :center
+                                    :gap 4}}
+            :header-children [{:mode 'ui/button
+                               :class :ui/toolbar-button
+                               :state {:label "+"}
+                               :on-click (fn [state event ctx]
+                                           (do
+                                             (ui/emit! (:view ctx)
+                                                       :resource/add-image)
+                                             state))}
+                              {:mode 'ui/button
+                               :class :ui/toolbar-button
+                               :state {:label "-"}
+                               :on-click (fn [state event ctx]
+                                           (do
+                                             (ui/emit! (:view ctx)
+                                                       :resource/remove-image)
+                                             state))}]
+            :body-style {:padding 8
+                         :height :fill}
+            :body-state {:selected-image-resource (ui/bind-state :selected-image-resource)}
+            :children [{:mode 'image-resource-list
+                        :state {:selected-image-resource
+                                (ui/bind-state :selected-image-resource)}}]}))
+
+(defun make-image-resource-detail-panel []
+  (hp/make {:title "Resource"
+            :style {:width 360
+                    :height :shrink}
+            :body-style {:padding 8
+                         :height :shrink}
+            :body-state {:selected-image-resource (ui/bind-state :selected-image-resource)}
+            :children [{:mode 'image-resource-detail
+                        :state {:selected-image-resource
+                                (ui/bind-state :selected-image-resource)}}]}))
+
+(defcomponent resource-explorer-workspace
+  {:style {:width :fill
+           :height :fill
+           :layout {:direction :row
+                    :gap 8}}
+   :update (fn [state ctx]
+             (if (not= (:resources state) (:synced-resources state))
+               (do
+                 (sync-project-image-resources! (:resources state))
+                 (assoc state :synced-resources (:resources state)))
+               state))
+   :on {:resource/add-image (fn [state event ctx]
+                              (open-image-file-dialog! state ctx))
+        :resource/remove-image (fn [state event ctx]
+                                 (remove-image-resource! state))
+        :resource/file-dialog-result
+        (fn [state event ctx]
+          (let [payload (:payload event)]
+            (if (image-file-dialog-result? payload)
+              (add-image-resource! state payload)
+              state)))}
+   :children [(make-image-resource-list-panel)
+              (make-image-resource-detail-panel)]})
