@@ -13,6 +13,7 @@ namespace Pixils::Script
   inline constexpr std::string_view FN__PIXILS__MAKE_RESOURCE_DEPS =
     "pixils.resource/make-resource-dependencies";
   inline const std::string FN__MAKE_RESOURCE_DEPS = "make-resource-dependencies";
+  inline constexpr std::string_view FN__ADD_IMAGE_BANG = "add-image!";
 
   namespace HostType
   {
@@ -24,6 +25,7 @@ namespace Pixils::Script
   namespace Function
   {
     FUNC(MakeResourceDependencies, make_deps);
+    FUNC(AddImageBang, add_image);
   }
 
   NATIVE_ADAPTER(ResourceDependenciesAdapter,

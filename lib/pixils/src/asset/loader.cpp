@@ -45,31 +45,37 @@ namespace Pixils::Asset
   {
   }
 
+  void Loader::load_image_asset(Bundle& bundle,
+                                const Runtime::ImageDependency& dependency)
+  {
+    SDL_Texture* texture = nullptr;
+    std::string resolved = resolve_asset_path(base_path, dependency.file_name);
+    SDL_Surface* img_surface = IMG_Load(resolved.c_str());
+    if (img_surface)
+    {
+      apply_transparency_color(img_surface, dependency.transparency_color);
+      texture = create_texture(img_surface);
+      bundle.image_sources.emplace(dependency.resource_id, img_surface);
+    }
+    else
+    {
+      texture = SDL_CreateTexture(ctx.renderer,
+                                  SDL_PIXELFORMAT_RGBA8888,
+                                  SDL_TEXTUREACCESS_STATIC,
+                                  16,
+                                  16);
+    }
+
+    bundle.images.emplace(dependency.resource_id, texture);
+  }
+
   Bundle Loader::load_bundle_assets(const Runtime::ResourceDependencies& deps)
   {
     Bundle bundle;
 
     for (auto& img_dep : deps.images)
     {
-      SDL_Texture* texture = nullptr;
-      std::string resolved = resolve_asset_path(base_path, img_dep.file_name);
-      SDL_Surface* img_surface = IMG_Load(resolved.c_str());
-      if (img_surface)
-      {
-        apply_transparency_color(img_surface, img_dep.transparency_color);
-        texture = create_texture(img_surface);
-        bundle.image_sources.emplace(img_dep.resource_id, img_surface);
-      }
-      else
-      {
-        texture = SDL_CreateTexture(ctx.renderer,
-                                    SDL_PIXELFORMAT_RGBA8888,
-                                    SDL_TEXTUREACCESS_STATIC,
-                                    16,
-                                    16);
-      }
-
-      bundle.images.emplace(img_dep.resource_id, texture);
+      load_image_asset(bundle, img_dep);
     }
 
     for (auto& sound_dep : deps.sounds)

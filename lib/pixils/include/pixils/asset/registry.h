@@ -6,6 +6,7 @@
 #include <pixils/context.h>
 #include <pixils/runtime/mode.h>
 
+#include <optional>
 #include <string>
 #include <unordered_map>
 
@@ -17,10 +18,17 @@ namespace Pixils::Asset
 {
   class Registry
   {
+    struct BundleRecord
+    {
+      Runtime::ResourceDependencies declaration;
+      Bundle bundle;
+      bool loaded = false;
+      bool mutable_bundle = false;
+    };
+
     Loader loader;
 
-    std::unordered_map<std::string, Bundle> bundles;
-    std::unordered_map<std::string, Runtime::ResourceDependencies> declarations;
+    std::unordered_map<std::string, BundleRecord> bundles;
     std::unordered_map<std::string,
                        std::unordered_map<std::string, const Assets::EmbeddedAsset*>>
       embedded_fonts;
@@ -34,7 +42,11 @@ namespace Pixils::Asset
     /** Register a bundle's resource dependencies without loading them. The
      *  bundle is loaded on demand the first time get_image is called for it. */
     void declare_bundle(const std::string& bundle_id,
-                        const Runtime::ResourceDependencies& deps);
+                        const Runtime::ResourceDependencies& deps,
+                        bool mutable_bundle = false);
+    void declare_dynamic_bundle(const std::string& bundle_id);
+    void add_image(const std::string& bundle_id,
+                   const Runtime::ImageDependency& dependency);
 
     void load_embedded_assets();
     void load(const std::string& bundle_id, const Runtime::ResourceDependencies& deps);

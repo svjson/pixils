@@ -10,6 +10,8 @@
 #include <SDL2/SDL_pixels.h>
 #include <SDL2/SDL_render.h>
 #include <SDL2/SDL_surface.h>
+#include <algorithm>
+#include <stdexcept>
 
 namespace Pixils::Asset
 {
@@ -141,6 +143,50 @@ namespace Pixils::Asset
       SDL_FreeSurface(mask);
       return texture;
     }
+
+    void destroy_image_asset(Bundle& bundle, const std::string& asset_id)
+    {
+      auto image = bundle.images.find(asset_id);
+      if (image != bundle.images.end())
+      {
+        if (image->second) SDL_DestroyTexture(image->second);
+        bundle.images.erase(image);
+      }
+
+      auto source = bundle.image_sources.find(asset_id);
+      if (source != bundle.image_sources.end())
+      {
+        if (source->second) SDL_FreeSurface(source->second);
+        bundle.image_sources.erase(source);
+      }
+
+      auto tint_mask = bundle.tint_masks.find(asset_id);
+      if (tint_mask != bundle.tint_masks.end())
+      {
+        if (tint_mask->second) SDL_DestroyTexture(tint_mask->second);
+        bundle.tint_masks.erase(tint_mask);
+      }
+    }
+
+    void upsert_image_dependency(Runtime::ResourceDependencies& deps,
+                                 const Runtime::ImageDependency& dependency)
+    {
+      auto existing =
+        std::find_if(deps.images.begin(),
+                     deps.images.end(),
+                     [&](const Runtime::ImageDependency& image)
+                     {
+                       return image.resource_id == dependency.resource_id;
+                     });
+      if (existing == deps.images.end())
+      {
+        deps.images.push_back(dependency);
+      }
+      else
+      {
+        *existing = dependency;
+      }
+    }
   } // namespace
 
   Registry::Registry(RenderContext& ctx, std::string base_path)
@@ -151,8 +197,9 @@ namespace Pixils::Asset
 
   Registry::~Registry()
   {
-    for (auto& [_, bundle] : bundles)
+    for (auto& [_, record] : bundles)
     {
+      auto& bundle = record.bundle;
       for (auto& [__, texture] : bundle.images)
       {
         if (texture) SDL_DestroyTexture(texture);
@@ -195,37 +242,95 @@ namespace Pixils::Asset
     load_image("win95-minimize-button", Assets::win95_minimize_button_png);
     load_image("win95-system-font", Assets::win95systemfont_png);
 
-    bundles.emplace("pixils", std::move(bundle));
+    bundles.emplace("pixils",
+                    BundleRecord{.declaration = {},
+                                 .bundle = std::move(bundle),
+                                 .loaded = true,
+                                 .mutable_bundle = false});
   }
 
   bool Registry::is_loaded(const std::string& bundle_id)
   {
-    return this->bundles.count(bundle_id);
+    auto bundle = this->bundles.find(bundle_id);
+    return bundle != this->bundles.end() && bundle->second.loaded;
   }
 
   void Registry::declare_bundle(const std::string& bundle_id,
-                                const Runtime::ResourceDependencies& deps)
+                                const Runtime::ResourceDependencies& deps,
+                                bool mutable_bundle)
   {
-    this->declarations.emplace(bundle_id, deps);
+    auto existing = this->bundles.find(bundle_id);
+    if (existing != this->bundles.end())
+    {
+      if (existing->second.mutable_bundle != mutable_bundle)
+      {
+        throw std::runtime_error("Bundle already declared with different mutability: " +
+                                 bundle_id);
+      }
+      existing->second.declaration = deps;
+      return;
+    }
+
+    this->bundles.emplace(bundle_id,
+                          BundleRecord{.declaration = deps,
+                                       .bundle = {},
+                                       .loaded = false,
+                                       .mutable_bundle = mutable_bundle});
+  }
+
+  void Registry::declare_dynamic_bundle(const std::string& bundle_id)
+  {
+    declare_bundle(bundle_id, Runtime::ResourceDependencies{}, true);
+  }
+
+  void Registry::add_image(const std::string& bundle_id,
+                           const Runtime::ImageDependency& dependency)
+  {
+    auto record = this->bundles.find(bundle_id);
+    if (record == this->bundles.end())
+    {
+      throw std::runtime_error("Unknown bundle: " + bundle_id);
+    }
+    if (!record->second.mutable_bundle)
+    {
+      throw std::runtime_error("Bundle is not dynamic: " + bundle_id);
+    }
+
+    upsert_image_dependency(record->second.declaration, dependency);
+    if (!record->second.loaded) return;
+
+    destroy_image_asset(record->second.bundle, dependency.resource_id);
+    this->loader.load_image_asset(record->second.bundle, dependency);
   }
 
   void Registry::load(const std::string& bundle_id,
                       const Runtime::ResourceDependencies& deps)
   {
-    Bundle bundle = this->loader.load_bundle_assets(deps);
-    this->bundles.emplace(bundle_id, std::move(bundle));
+    auto record = this->bundles.find(bundle_id);
+    if (record == this->bundles.end())
+    {
+      this->bundles.emplace(bundle_id,
+                            BundleRecord{.declaration = deps,
+                                         .bundle = this->loader.load_bundle_assets(deps),
+                                         .loaded = true,
+                                         .mutable_bundle = false});
+      return;
+    }
+
+    record->second.bundle = this->loader.load_bundle_assets(deps);
+    record->second.loaded = true;
   }
 
   SDL_Texture* Registry::get_image(const std::string& bundle_id, const std::string& asset_id)
   {
     if (!this->is_loaded(bundle_id))
     {
-      auto it = this->declarations.find(bundle_id);
-      if (it == this->declarations.end()) return nullptr;
-      this->load(bundle_id, it->second);
+      auto it = this->bundles.find(bundle_id);
+      if (it == this->bundles.end()) return nullptr;
+      this->load(bundle_id, it->second.declaration);
     }
 
-    Bundle& bundle = this->bundles.at(bundle_id);
+    Bundle& bundle = this->bundles.at(bundle_id).bundle;
 
     if (!bundle.images.count(asset_id)) return nullptr;
 
@@ -237,12 +342,12 @@ namespace Pixils::Asset
   {
     if (!this->is_loaded(bundle_id))
     {
-      auto it = this->declarations.find(bundle_id);
-      if (it == this->declarations.end()) return nullptr;
-      this->load(bundle_id, it->second);
+      auto it = this->bundles.find(bundle_id);
+      if (it == this->bundles.end()) return nullptr;
+      this->load(bundle_id, it->second.declaration);
     }
 
-    Bundle& bundle = this->bundles.at(bundle_id);
+    Bundle& bundle = this->bundles.at(bundle_id).bundle;
 
     auto source = bundle.image_sources.find(asset_id);
     if (source == bundle.image_sources.end()) return nullptr;
@@ -254,12 +359,12 @@ namespace Pixils::Asset
   {
     if (!this->is_loaded(bundle_id))
     {
-      auto it = this->declarations.find(bundle_id);
-      if (it == this->declarations.end()) return nullptr;
-      this->load(bundle_id, it->second);
+      auto it = this->bundles.find(bundle_id);
+      if (it == this->bundles.end()) return nullptr;
+      this->load(bundle_id, it->second.declaration);
     }
 
-    Bundle& bundle = this->bundles.at(bundle_id);
+    Bundle& bundle = this->bundles.at(bundle_id).bundle;
 
     auto cached = bundle.tint_masks.find(asset_id);
     if (cached != bundle.tint_masks.end()) return cached->second;
@@ -276,12 +381,12 @@ namespace Pixils::Asset
   {
     if (!this->is_loaded(bundle_id))
     {
-      auto it = this->declarations.find(bundle_id);
-      if (it == this->declarations.end()) return nullptr;
-      this->load(bundle_id, it->second);
+      auto it = this->bundles.find(bundle_id);
+      if (it == this->bundles.end()) return nullptr;
+      this->load(bundle_id, it->second.declaration);
     }
 
-    Bundle& bundle = this->bundles.at(bundle_id);
+    Bundle& bundle = this->bundles.at(bundle_id).bundle;
 
     if (!bundle.sounds.count(asset_id)) return nullptr;
 
@@ -293,12 +398,12 @@ namespace Pixils::Asset
   {
     if (!this->is_loaded(bundle_id))
     {
-      auto it = this->declarations.find(bundle_id);
-      if (it == this->declarations.end()) return std::nullopt;
-      this->load(bundle_id, it->second);
+      auto it = this->bundles.find(bundle_id);
+      if (it == this->bundles.end()) return std::nullopt;
+      this->load(bundle_id, it->second.declaration);
     }
 
-    Bundle& bundle = this->bundles.at(bundle_id);
+    Bundle& bundle = this->bundles.at(bundle_id).bundle;
 
     auto font = bundle.fonts.find(asset_id);
     if (font == bundle.fonts.end()) return std::nullopt;
@@ -318,12 +423,12 @@ namespace Pixils::Asset
 
     if (!this->is_loaded(bundle_id))
     {
-      auto it = this->declarations.find(bundle_id);
-      if (it == this->declarations.end()) return nullptr;
-      this->load(bundle_id, it->second);
+      auto it = this->bundles.find(bundle_id);
+      if (it == this->bundles.end()) return nullptr;
+      this->load(bundle_id, it->second.declaration);
     }
 
-    Bundle& bundle = this->bundles.at(bundle_id);
+    Bundle& bundle = this->bundles.at(bundle_id).bundle;
 
     auto font = bundle.embedded_fonts.find(asset_id);
     if (font == bundle.embedded_fonts.end()) return nullptr;

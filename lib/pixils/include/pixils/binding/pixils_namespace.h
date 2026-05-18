@@ -84,6 +84,8 @@ namespace Pixils::Script
   {
     /*! @brief Define a resource bundle independent of any mode */
     SPECIAL_FORM_DECL(DefBundleForm, def_bundle);
+    /*! @brief Define a mutable resource bundle for runtime-managed assets */
+    SPECIAL_FORM_DECL(DefBundleDynamicForm, def_bundle_dynamic);
     /*! @brief Define a named custom pointer */
     SPECIAL_FORM_DECL(DefPointerForm, def_pointer);
     /*! @brief Define a custom font */

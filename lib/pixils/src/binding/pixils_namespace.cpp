@@ -134,6 +134,45 @@ namespace Pixils::Script
       throw Lisple::LispleException("defbundle is lower-only");
     }
 
+    /* DefBundleDynamicForm - defbundle-dynamic */
+    SPECIAL_FORM_IMPL(
+      DefBundleDynamicForm,
+      MULTI_SIG((FN_ARGS((&Lisple::Type::SYMBOL, &Lisple::Eval::LITERAL)),
+                 EXEC_DISPATCH(&DefBundleDynamicForm::execnode_def_bundle_dynamic)),
+                (FN_ARGS((&Lisple::Type::SYMBOL, &Lisple::Eval::LITERAL),
+                         (&Lisple::Type::MAP)),
+                 EXEC_DISPATCH(&DefBundleDynamicForm::execnode_def_bundle_dynamic))));
+
+    SFORM_LOWER_IMPL(DefBundleDynamicForm)
+    {
+      auto name =
+        Lisple::exec(*ctx.ctx, *Lisple::lower_literal(ast_node->get_children()[1]))->str();
+
+      Runtime::ResourceDependencies deps;
+      if (ast_node->get_children().size() > 2)
+      {
+        auto map_expr = Lisple::exec(*ctx.ctx, *lower_expr(ctx, ast_node->get_children()[2]));
+        auto deps_coercion = HostType::RESOURCE_DEPENDENCIES.coerce(*ctx.ctx, map_expr);
+        if (!deps_coercion.success)
+        {
+          throw Lisple::TypeError("Invalid dynamic bundle declaration: " +
+                                  map_expr->to_string());
+        }
+        deps = Lisple::obj<Runtime::ResourceDependencies>(*deps_coercion.result);
+      }
+
+      RenderContext& rc =
+        Lisple::obj<RenderContext>(*ctx.ctx->lookup(ID__PIXILS__RENDER_CONTEXT));
+      rc.asset_registry->declare_bundle(name, deps, true);
+
+      return std::make_unique<Lisple::ExecNode>(Lisple::Constant::NIL);
+    }
+
+    EXECNODE_BODY(DefBundleDynamicForm, execnode_def_bundle_dynamic)
+    {
+      throw Lisple::LispleException("defbundle-dynamic is lower-only");
+    }
+
     SPECIAL_FORM_IMPL(DefFontForm,
                       SIG((FN_ARGS((&Lisple::Type::SYMBOL, &Lisple::Eval::LITERAL),
                                    (&Lisple::Type::MAP)),
@@ -1004,6 +1043,7 @@ namespace Pixils::Script
     values.emplace("themes", Lisple::map({}));
     values.emplace("defpointer", Macro::DefPointerForm::make());
     values.emplace("defbundle", Macro::DefBundleForm::make());
+    values.emplace("defbundle-dynamic", Macro::DefBundleDynamicForm::make());
     values.emplace("defmode", Macro::DefModeForm::make());
     values.emplace("defcomponent", Macro::DefModeForm::make());
     values.emplace("deftheme", Macro::DefThemeForm::make());

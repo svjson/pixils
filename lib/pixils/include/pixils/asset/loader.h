@@ -14,6 +14,7 @@ struct SDL_Texture;
 
 namespace Pixils::Runtime
 {
+  struct ImageDependency;
   struct ResourceDependencies;
 }
 
@@ -27,6 +28,7 @@ namespace Pixils::Asset
    public:
     Loader(RenderContext& ctx, std::string base_path = "");
     Bundle load_bundle_assets(const Runtime::ResourceDependencies& deps);
+    void load_image_asset(Bundle& bundle, const Runtime::ImageDependency& dependency);
     SDL_Texture* create_texture(SDL_Surface* surface);
     SDL_Surface* load_surface_from_memory(const unsigned char* data, std::size_t size);
     SDL_Texture* load_texture_from_memory(const unsigned char* data, std::size_t size);
