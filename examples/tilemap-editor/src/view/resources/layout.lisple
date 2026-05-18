@@ -52,6 +52,26 @@
       name
       (substr name 0 (- (count name) (count extension))))))
 
+(defun clean-resource-name-separators [value index out]
+  (if (>= index (count value))
+    (trim out)
+    (let [ch (substr value index 1)]
+      (clean-resource-name-separators
+       value
+       (inc index)
+       (str out
+            (if (or (= ch "-") (= ch "_"))
+              " "
+              ch))))))
+
+(defun default-resource-id [path]
+  (kebab-case (file-stem path)))
+
+(defun default-resource-name [path]
+  (capitalize (clean-resource-name-separators (default-resource-id path)
+                                             0
+                                             "")))
+
 (defun keyword-label [value]
   (let [text (str value)]
     (if (= ":" (substr text 0 1))
@@ -1121,8 +1141,8 @@
                ctx
                :add
                {:bundle-id (:selected-resource-bundle state)
-                :resource-id (file-stem (:path payload))
-                :resource-name (file-stem (:path payload))
+                :resource-id (default-resource-id (:path payload))
+                :resource-name (default-resource-name (:path payload))
                 :file-name (:path payload)})
               state)))
         :resource/bundle-dialog-result

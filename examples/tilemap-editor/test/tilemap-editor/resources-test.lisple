@@ -10,6 +10,14 @@
   (is (= "tiles"
          (resources/file-stem "/tmp/maps/tiles.png"))))
 
+(deftest default-resource-fields-clean_file_stem
+  (is (= "simples-pimples"
+         (resources/default-resource-id "/tmp/maps/Simples_Pimples.png")))
+  (is (= "Simples Pimples"
+         (resources/default-resource-name "/tmp/maps/Simples_Pimples.png")))
+  (is (= "Player Ship"
+         (resources/default-resource-name "/tmp/maps/playerShip.png"))))
+
 (deftest project-bundle-entries-list_project_bundles
   (is (= [{:id :terrain-assets
            :bundle {:images {}}}]
