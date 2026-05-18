@@ -58,7 +58,8 @@ namespace Pixils
     namespaces.push_back(std::make_unique<Lisple::Namespace>(Lisple::make_io_namespace()));
 
     RuntimeConfiguration rtconfig{.native_namespaces = std::move(namespaces),
-                                  .load_path = {"."}};
+                                  .load_path = {"."},
+                                  .namespace_roots = {}};
 
     if (init_fn)
     {
@@ -78,6 +79,7 @@ namespace Pixils
     Lisple::Runtime lisple_runtime(default_namespace,
                                    std::move(rtconfig.native_namespaces),
                                    std::move(fs.release()));
+    lisple_runtime.set_namespace_roots(rtconfig.namespace_roots);
     UI::Components::register_text_node_component(lisple_runtime);
     for (const auto& embedded_source : EmbeddedLisp::core_sources())
     {
@@ -111,7 +113,8 @@ namespace Pixils
     namespaces.push_back(std::make_unique<Lisple::Namespace>(Lisple::make_io_namespace()));
 
     RuntimeConfiguration rtconfig{.native_namespaces = std::move(namespaces),
-                                  .load_path = {"."}};
+                                  .load_path = {"."},
+                                  .namespace_roots = {}};
 
     if (init_fn)
     {
@@ -132,6 +135,7 @@ namespace Pixils
       std::make_unique<Lisple::Runtime>(default_namespace,
                                         std::move(rtconfig.native_namespaces),
                                         std::move(fs.release()));
+    lisple_runtime->set_namespace_roots(rtconfig.namespace_roots);
     UI::Components::register_text_node_component(*lisple_runtime);
     for (const auto& embedded_source : EmbeddedLisp::core_sources())
     {
