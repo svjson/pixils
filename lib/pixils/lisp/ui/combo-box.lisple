@@ -1,5 +1,6 @@
 (ns pixils.ui.combo-box
   (:require pixils
+            pixils.ui.list-box
             [pixils.ui :as ui]))
 
 (def default-row-height 20)

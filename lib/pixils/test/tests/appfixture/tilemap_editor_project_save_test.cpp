@@ -44,8 +44,8 @@ TEST_F(TilemapEditorProjectIoTest, save_dialog_result_writes_project_edn)
   std::error_code ec;
   std::filesystem::remove(save_path, ec);
 
-  runtime.read_file("examples/tilemap-editor/data.lisple");
-  runtime.read_file("examples/tilemap-editor/controls.lisple");
+  runtime.read_file("examples/tilemap-editor/src/data.lisple");
+  runtime.read_file("examples/tilemap-editor/src/controls.lisple");
 
   runtime.eval(R"(
     (tilemap-editor.controls/apply-project-file-dialog-result
@@ -75,7 +75,7 @@ TEST_F(TilemapEditorProjectIoTest, save_dialog_result_writes_project_edn)
 
 TEST_F(TilemapEditorProjectIoTest, default_project_starts_with_empty_layers)
 {
-  runtime.read_file("examples/tilemap-editor/data.lisple");
+  runtime.read_file("examples/tilemap-editor/src/data.lisple");
 
   auto result = runtime.eval(R"(
     (let [layers (tilemap-editor.data/make-layered-map)]
@@ -114,8 +114,8 @@ TEST_F(TilemapEditorProjectIoTest, open_dialog_result_loads_project_edn_layers)
                      :tiles [[:night :void] [:void :night]]}]}})";
   }
 
-  runtime.read_file("examples/tilemap-editor/data.lisple");
-  runtime.read_file("examples/tilemap-editor/controls.lisple");
+  runtime.read_file("examples/tilemap-editor/src/data.lisple");
+  runtime.read_file("examples/tilemap-editor/src/controls.lisple");
 
   auto result = runtime.eval(R"(
     (tilemap-editor.controls/apply-project-file-dialog-result

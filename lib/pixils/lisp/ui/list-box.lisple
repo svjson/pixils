@@ -1,5 +1,6 @@
 (ns pixils.ui.list-box
   (:require pixils
+            pixils.ui.scroll-pane
             [pixils.ui :as ui]))
 
 (def default-row-height 20)

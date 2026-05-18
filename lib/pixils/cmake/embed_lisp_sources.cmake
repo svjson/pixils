@@ -11,6 +11,24 @@ endif()
 file(GLOB_RECURSE PIXILS_LISP_FILES RELATIVE "${PIXILS_LISP_ROOT}" "${PIXILS_LISP_ROOT}/*.lisple")
 list(SORT PIXILS_LISP_FILES)
 
+set(PIXILS_BOOTSTRAP_LISP_FILES
+  ui/base-theme.lisple
+  ui/button.lisple
+  ui/window.lisple
+  ui/dialog.lisple
+  ui/scrollbar.lisple
+  ui/scroll-pane.lisple
+  ui/list-box.lisple
+  ui/combo-box.lisple
+  ui/text-input.lisple
+  ui/file-dialog.lisple
+)
+
+foreach(bootstrap_file IN LISTS PIXILS_BOOTSTRAP_LISP_FILES)
+  list(REMOVE_ITEM PIXILS_LISP_FILES "${bootstrap_file}")
+endforeach()
+list(PREPEND PIXILS_LISP_FILES ${PIXILS_BOOTSTRAP_LISP_FILES})
+
 get_filename_component(PIXILS_LISP_CPP_DIR "${PIXILS_LISP_CPP}" DIRECTORY)
 get_filename_component(PIXILS_LISP_H_DIR "${PIXILS_LISP_H}" DIRECTORY)
 file(MAKE_DIRECTORY "${PIXILS_LISP_CPP_DIR}")

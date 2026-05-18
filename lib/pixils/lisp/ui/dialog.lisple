@@ -1,5 +1,6 @@
 (ns pixils.ui.dialog
   (:require pixils
+            pixils.ui.window
             [pixils.ui :as ui]))
 
 (def dialog-button-presets

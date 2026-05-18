@@ -649,8 +649,15 @@
     (make-layer-from-string-map layer
                                 (get layer-string-maps (:id layer)))))
 
-(defun make-layered-map []
+(defun make-example-layered-map []
   (make-layered-map-from-string-maps tilemap-layers example-layer-string-maps))
+
+(defun make-empty-layered-map []
+  (for-indexed [index layer tilemap-layers]
+    (make-layer layer (make-empty-map))))
+
+(defun make-layered-map []
+  (make-empty-layered-map))
 
 (defun tileset-definition [tileset]
   (assoc tileset

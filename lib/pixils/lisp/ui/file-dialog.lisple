@@ -2,6 +2,7 @@
   (:require pixils
             [lisple.io :as io]
             [pixils.ui :as ui]
+            pixils.ui.combo-box
             [pixils.ui.dialog :as dialog]))
 
 (def default-path (io/current-directory!))

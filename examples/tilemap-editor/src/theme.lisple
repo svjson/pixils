@@ -1,5 +1,6 @@
 (ns tilemap-editor.theme
-  (:require pixils))
+  (:require pixils
+            pixils.ui.theme.classic-blue))
 
 (def editor-bg {:r 0x1d :g 0x23 :b 0x2a})
 (def panel-bg {:r 0x2c :g 0x34 :b 0x3d})

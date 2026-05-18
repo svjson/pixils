@@ -2,5 +2,5 @@
   (:require pixils))
 
 (defbundle editor-assets
-  {:images {:spritesheet {:file-name "assets/simples_pimples.png"
+  {:images {:spritesheet {:file-name "../assets/simples_pimples.png"
                           :transparency-color "#5a5268"}}})

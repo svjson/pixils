@@ -59,10 +59,42 @@
        (= (:mode payload) :file-dialog/save)
        (not (nil? (:path payload)))))
 
+(defun open-project-result? [payload]
+  (and (= (:type payload) :confirm)
+       (= (:mode payload) :file-dialog/open)
+       (not (nil? (:path payload)))))
+
 (defun save-project! [state payload]
   (do
     (io/spit-edn! (:path payload) (data/project-document state))
     payload))
+
+(defun valid-project-document? [project]
+  (= (:format project) data/project-format))
+
+(defun project-layers [project]
+  (-> project :tilemap :layers))
+
+(defun first-layer-tileset [layers]
+  (or (:tileset (head layers)) :colors))
+
+(defun open-project! [state payload]
+  (let [project (io/slurp-edn! (:path payload))
+        layers (project-layers project)
+        tileset (first-layer-tileset layers)]
+    (if (valid-project-document? project)
+      (assoc state
+             :layers layers
+             :selected-layer-index 0
+             :selected-layer-label (:label (head layers))
+             :hidden-layer-indices []
+             :tileset tileset
+             :selected-tileset-index (data/tileset-index tileset)
+             :selected-tile (data/tile-id-in tileset 0)
+             :last-project-open-result payload
+             :last-opened-project project)
+      (assoc state :last-project-open-error {:reason :invalid-format
+                                             :path (:path payload)}))))
 
 (defun open-project-file-dialog! [state ctx mode title]
   (do
@@ -87,7 +119,9 @@
         (do
           (save-project! next-state payload)
           (assoc next-state :last-project-save-result payload))
-        next-state))
+        (if (open-project-result? payload)
+          (open-project! next-state payload)
+          next-state)))
     state))
 
 (defun layer-name-exists? [layers name exclude-index]
