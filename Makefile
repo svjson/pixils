@@ -14,7 +14,7 @@ install:
 	cmake --build build --target install
 
 test:
-	cmake --build build --target testpixils && cd build && ctest --output-on-failure
+	cmake --build build --target testpixils && cd build && ctest --output-on-failure --parallel $$(nproc)
 
 assets:
 	bash scripts/generate_assets.sh

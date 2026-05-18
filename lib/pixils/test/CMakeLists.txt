@@ -1,8 +1,6 @@
 
 include(GoogleTest)
 
-set(CMAKE_BUILD_TYPE Debug)
-
 find_package(sdl2_mock REQUIRED)
 
 get_filename_component(PIXILS_REPO_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../../.." ABSOLUTE)
@@ -48,4 +46,6 @@ target_compile_definitions(testpixils
     PIXILS_LISPLE_INSTALLED_PACKAGE_ROOT="${PIXILS_LISPLE_INSTALLED_PACKAGE_ROOT}"
 )
 
-gtest_discover_tests(testpixils)
+gtest_discover_tests(testpixils
+  WORKING_DIRECTORY "${PIXILS_REPO_ROOT}"
+)
