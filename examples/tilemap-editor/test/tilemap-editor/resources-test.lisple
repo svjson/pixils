@@ -67,9 +67,12 @@
 
 (deftest image-resource-options-preserve-resource-id
   (is (= [{:value :tiles
-           :label "Tiles  tiles"}]
+           :key-label ":terrain-assets/tiles"
+           :name "Tiles"
+           :label ":terrain-assets/tiles"}]
          (resources/image-resource-options
           [{:id :tiles
+            :key :terrain-assets/tiles
             :name "Tiles"
             :file-name "/tmp/maps/tiles.png"}]))))
 
