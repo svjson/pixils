@@ -1,0 +1,402 @@
+(ns tilemap-editor.view.resources.panels
+  (:require pixils
+            [pixils.image :as img]
+            [pixils.render :as r]
+            [pixils.ui :as ui]
+            [pixils.ui.header-panel :as hp]
+            [pixils.ui.list-box :as lb]
+            [pixils.ui.menu :as menu]
+            tilemap-editor.view.resources.model))
+
+(def resource-list-row-height 24)
+
+(def image-preview-width 328)
+
+(def image-preview-height 260)
+
+(def bundle-context-menu
+  {:settings {:mnemonics {:enabled false}}
+   :items [{:label "Edit"
+            :action :resource/context-dummy
+            :payload {:kind :bundle
+                      :command :edit}}
+           {:label "Delete"
+            :action :resource/context-dummy
+            :payload {:kind :bundle
+                      :command :delete}}]})
+
+(def image-resource-context-menu
+  {:settings {:mnemonics {:enabled false}}
+   :items [{:label "Edit"
+            :action :resource/context-dummy
+            :payload {:kind :image
+                      :command :edit}}
+           {:label "Delete"
+            :action :resource/context-dummy
+            :payload {:kind :image
+                      :command :delete}}]})
+
+(defcomponent image-resource-row
+  {:extend 'ui/list-box-item
+   :class :ui/list-item-hover
+   :style {:width :fill
+           :height resource-list-row-height
+           :padding [3 6]
+           :layout {:direction :row
+                    :align-items :center
+                    :gap 6}}
+   :update (fn [state ctx]
+             (assoc state :selected (contains? (:selected-indices state)
+                                               (:index state))))
+   :on-mouse-down (fn [state event ctx]
+                    (do
+                      (ui/stop-propagation! event)
+                      state))
+   :on-mouse-up (fn [state event ctx]
+                  (do
+                    (ui/stop-propagation! event)
+                    (ui/emit! (:view ctx)
+                              :list-box/item-click
+                              {:index (:index state)
+                               :value (:value state)
+                               :shift? false
+                               :ctrl? false})
+                    (when (= (:button event) :right)
+                      (menu/open-context-menu! image-resource-context-menu
+                                               (:global-position event)
+                                               state
+                                               ctx))
+                    state))
+   :on {:menu/select (fn [state event ctx]
+                       (let [payload (:payload event)]
+                         (do
+                           (ui/stop-propagation! event)
+                           (when (= (:type payload) :action)
+                             (ui/emit! (:view ctx)
+                                       :resource/context-command
+                                       {:kind :image
+                                        :bundle-id (:bundle-id state)
+                                        :resource-id (:value state)
+                                        :command (-> payload :payload :command)}))))
+                       state)}
+   :children [{:mode 'ui/text
+               :style {:width :fill}
+               :state {:value (ui/bind-state :key-label)}}
+              {:mode 'ui/text
+               :class :ui/muted
+               :state {:value (ui/bind-state :name)}}]})
+
+(defun image-resource-row-child [index option]
+  {:mode 'image-resource-row
+   :state {:index index
+           :value (:value option)
+           :bundle-id (:bundle-id option)
+           :key-label (:key-label option)
+           :name (:name option)
+           :selected-indices (ui/bind-state :selected-indices)}})
+
+(defcomponent resource-bundle-row
+  {:extend 'ui/list-box-item
+   :class :ui/list-item-hover
+   :style {:width :fill
+           :height resource-list-row-height
+           :padding [3 6]
+           :layout {:direction :row
+                    :align-items :center}}
+   :update (fn [state ctx]
+             (assoc state :selected (contains? (:selected-indices state)
+                                               (:index state))))
+   :on-mouse-down (fn [state event ctx]
+                    (do
+                      (ui/stop-propagation! event)
+                      state))
+   :on-mouse-up (fn [state event ctx]
+                  (do
+                    (ui/stop-propagation! event)
+                    (ui/emit! (:view ctx)
+                              :list-box/item-click
+                              {:index (:index state)
+                               :value (:value state)
+                               :shift? false
+                               :ctrl? false})
+                    (when (= (:button event) :right)
+                      (menu/open-context-menu! bundle-context-menu
+                                               (:global-position event)
+                                               state
+                                               ctx))
+                    state))
+   :on {:menu/select (fn [state event ctx]
+                       (let [payload (:payload event)]
+                         (do
+                           (ui/stop-propagation! event)
+                           (when (= (:type payload) :action)
+                             (ui/emit! (:view ctx)
+                                       :resource/context-command
+                                       {:kind :bundle
+                                        :bundle-id (:value state)
+                                        :command (-> payload :payload :command)}))))
+                       state)}
+   :children [{:mode 'ui/text
+               :style {:width :fill}
+               :state {:value (ui/bind-state :label)}}]})
+
+(defun resource-bundle-row-child [index option]
+  {:mode 'resource-bundle-row
+   :state {:index index
+           :value (:value option)
+           :label (:label option)
+           :selected-indices (ui/bind-state :selected-indices)}})
+
+(defun bundle-list-child [resources]
+  (let [bundles (dynamic-project-bundle-entries resources)]
+    (lb/make {:options (bundle-options resources)
+              :style {:width :fill
+                      :height :fill}
+              :row-height resource-list-row-height
+              :visible-rows (max 1 (count bundles))
+              :content-width 180
+              :disabled? (empty? bundles)
+              :selected-indices (ui/bind-state :selected-indices)
+              :item-child resource-bundle-row-child})))
+
+(defcomponent resource-bundle-list
+  {:style {:width :fill
+           :height :fill}
+   :init (fn [state ctx]
+           (assoc state
+                  :bundles nil
+                  :selected-indices []))
+   :update (fn [state ctx]
+             (let [resources (:resources state)
+                   bundles (project-bundle-entries resources)
+                   selected-indices (selected-bundle-indices
+                                     resources
+                                     (:selected-resource-bundle state))]
+               (do
+                 (when (not= bundles (:bundles state))
+                   (ui/replace-child! (:view ctx)
+                                      "list-box"
+                                      (merge {:id "list-box"}
+                                             (bundle-list-child resources))))
+                 (assoc state
+                        :bundles bundles
+                        :selected-indices selected-indices))))
+   :on {:list-box/change (fn [state event ctx]
+                           (let [bundle-id (-> event :payload :value)]
+                             (assoc state
+                                    :selected-resource-bundle bundle-id
+                                    :selected-image-resource
+                                    (first-image-resource-id (:resources state)
+                                                             bundle-id))))}
+   :children [(merge {:id "list-box"}
+                     (bundle-list-child {}))]})
+
+(defun image-preview-rect [dim]
+  (let [scale (min (/ image-preview-width (:w dim))
+                   (/ image-preview-height (:h dim)))
+        width (* (:w dim) scale)
+        height (* (:h dim) scale)]
+    {:x (/ (- image-preview-width width) 2)
+     :y (/ (- image-preview-height height) 2)
+     :scale scale}))
+
+(defun image-resource-list-child [resources]
+  (let [resources (or resources [])]
+    (lb/make {:options (image-resource-options resources)
+              :style {:width :fill
+                      :height :fill}
+              :row-height resource-list-row-height
+              :visible-rows (max 1 (count resources))
+              :content-width 360
+              :disabled? (empty? resources)
+              :selected-indices (ui/bind-state :selected-indices)
+              :item-child image-resource-row-child})))
+
+(defcomponent image-resource-list
+  {:style {:width :fill
+           :height :fill}
+   :init (fn [state ctx]
+           (assoc state
+                  :image-resources nil
+                  :selected-indices []))
+   :update (fn [state ctx]
+             (let [resources (project-image-resources (:resources state)
+                                                      (:selected-resource-bundle state))
+                   selected-indices (selected-resource-indices
+                                     resources
+                                     (:selected-image-resource state))]
+               (do
+                 (when (not= resources (:image-resources state))
+                   (ui/replace-child! (:view ctx)
+                                      "list-box"
+                                      (merge {:id "list-box"}
+                                             (image-resource-list-child resources))))
+                 (assoc state
+                        :image-resources resources
+                        :selected-indices selected-indices))))
+   :on {:list-box/change (fn [state event ctx]
+                           (assoc state
+                                  :selected-image-resource
+                                  (-> event :payload :value)))}
+   :children [(merge {:id "list-box"}
+                     (image-resource-list-child []))]})
+
+(defcomponent image-resource-detail
+  {:style {:width :fill
+           :height :fill
+           :layout {:direction :column
+                    :gap 8}}
+   :update (fn [state ctx]
+             (let [resource (selected-resource (project-image-resources
+                                                (:resources state)
+                                                (:selected-resource-bundle state))
+                                               (:selected-image-resource state))]
+               (assoc state
+                      :resource resource
+                      :edit-disabled? (nil? resource)
+                      :key-label (if resource (str (:key resource)) "")
+                      :name-label (or (:name resource) "")
+                      :file-label (or (:file-name resource) ""))))
+   :children [{:mode 'ui/button
+               :class :ui/toolbar-button
+               :style {:width :shrink
+                       :height 20}
+               :state {:label "Edit"
+                       :disabled? (ui/bind-state :edit-disabled?)}
+               :on-click (fn [state event ctx]
+                           (do
+                             (ui/emit! (:view ctx)
+                                       :resource/edit-image)
+                             state))}
+              {:mode 'ui/text
+               :class :ui/muted
+               :state {:value "Key"}}
+              {:mode 'ui/text
+               :style {:width :fill}
+               :state {:value (ui/bind-state :key-label)}}
+              {:mode 'ui/text
+               :class :ui/muted
+               :state {:value "Name"}}
+              {:mode 'ui/text
+               :style {:width :fill}
+               :state {:value (ui/bind-state :name-label)}}
+              {:mode 'ui/text
+               :class :ui/muted
+               :state {:value "File"}}
+              {:mode 'ui/text
+               :style {:width :fill}
+               :state {:value (ui/bind-state :file-label)}}
+              {:mode 'image-resource-preview
+               :state {:bundle-id (ui/bind-state :selected-resource-bundle)
+                       :image-id (ui/bind-state :selected-image-resource)}}]})
+
+(defcomponent image-resource-preview
+  {:class :ui/content
+   :style {:width image-preview-width
+           :height image-preview-height}
+   :render (fn [state ctx]
+             (let [image (when (and (:bundle-id state) (:image-id state))
+                           (image-resource-key (:bundle-id state) (:image-id state)))
+                   dim (when image (img/size image))]
+               (do
+                 (r/rect! {:x 0 :y 0
+                           :w image-preview-width
+                           :h image-preview-height}
+                          {:fill true
+                           :color {:r 0x12 :g 0x15 :b 0x18}})
+                 (when dim
+                   (let [rect (image-preview-rect dim)]
+                     (r/image! image
+                               {:pos {:x (:x rect)
+                                      :y (:y rect)}
+                                :scale (:scale rect)})))
+                         (r/rect! {:x 0 :y 0
+                                   :w image-preview-width
+                                   :h image-preview-height}
+                                  {:color {:r 0x00 :g 0x00 :b 0x00}}))))})
+
+(defun make-resource-bundle-list-panel []
+  (hp/make {:title "Bundles"
+            :style {:width 220
+                    :height :fill}
+            :header-style {:layout {:direction :row
+                                    :align-items :center
+                                    :gap 4}}
+            :header-children [{:mode 'ui/button
+                               :class :ui/toolbar-button
+                               :state {:label "+"}
+                               :on-click (fn [state event ctx]
+                                           (do
+                                             (ui/emit! (:view ctx)
+                                                       :resource/add-bundle)
+                                             state))}]
+            :state {:resources (ui/bind-state :resources)
+                    :selected-resource-bundle (ui/bind-state :selected-resource-bundle)
+                    :selected-image-resource (ui/bind-state :selected-image-resource)}
+            :body-style {:padding 8
+                         :height :fill}
+            :body-state {:resources (ui/bind-state :resources)
+                         :selected-resource-bundle (ui/bind-state :selected-resource-bundle)
+                         :selected-image-resource (ui/bind-state :selected-image-resource)}
+            :children [{:mode 'resource-bundle-list
+                        :state {:resources (ui/bind-state :resources)
+                                :selected-resource-bundle
+                                (ui/bind-state :selected-resource-bundle)
+                                :selected-image-resource
+                                (ui/bind-state :selected-image-resource)}}]}))
+
+(defun make-image-resource-list-panel []
+  (hp/make {:title "Images"
+            :style {:width :fill
+                    :height :fill}
+            :header-style {:layout {:direction :row
+                                    :align-items :center
+                                    :gap 4}}
+            :header-children [{:mode 'ui/button
+                               :class :ui/toolbar-button
+                               :state {:label "+"
+                                       :disabled? (ui/bind-state
+                                                   :image-resource-add-disabled?)}
+                               :on-click (fn [state event ctx]
+                                           (do
+                                             (ui/emit! (:view ctx)
+                                                       :resource/add-image)
+                                             state))}
+                              ]
+            :state {:resources (ui/bind-state :resources)
+                    :selected-resource-bundle (ui/bind-state :selected-resource-bundle)
+                    :selected-image-resource (ui/bind-state :selected-image-resource)
+                    :disabled? (ui/bind-state :image-resource-panel-disabled?)
+                    :image-resource-add-disabled? (ui/bind-state
+                                                   :image-resource-add-disabled?)}
+            :body-style {:padding 8
+                         :height :fill}
+            :body-state {:resources (ui/bind-state :resources)
+                         :selected-resource-bundle (ui/bind-state :selected-resource-bundle)
+                         :selected-image-resource (ui/bind-state :selected-image-resource)}
+            :children [{:mode 'image-resource-list
+                        :state {:resources (ui/bind-state :resources)
+                                :selected-resource-bundle
+                                (ui/bind-state :selected-resource-bundle)
+                                :selected-image-resource
+                                (ui/bind-state :selected-image-resource)}}]}))
+
+(defun make-image-resource-detail-panel []
+  (hp/make {:title "Resource"
+            :style {:width 360
+                    :height :fill}
+            :state {:resources (ui/bind-state :resources)
+                    :selected-resource-bundle (ui/bind-state :selected-resource-bundle)
+                    :selected-image-resource (ui/bind-state :selected-image-resource)
+                    :disabled? (ui/bind-state :image-resource-detail-disabled?)}
+            :body-style {:padding 8
+                         :height :fill}
+            :body-state {:resources (ui/bind-state :resources)
+                         :selected-resource-bundle (ui/bind-state :selected-resource-bundle)
+                         :selected-image-resource (ui/bind-state :selected-image-resource)}
+            :children [{:mode 'image-resource-detail
+                        :state {:resources (ui/bind-state :resources)
+                                :selected-resource-bundle
+                                (ui/bind-state :selected-resource-bundle)
+                                :selected-image-resource
+                                (ui/bind-state :selected-image-resource)}}]}))

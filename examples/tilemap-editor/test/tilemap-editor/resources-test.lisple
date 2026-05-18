@@ -1,6 +1,6 @@
-(ns tilemap-editor.view.resources.layout-test
+(ns tilemap-editor.view.resources.model-test
   (:require proof.core
-            [tilemap-editor.view.resources.layout :as resources]))
+            [tilemap-editor.view.resources.model :as resources]))
 
 (deftest image-resource-key-uses_bundle_and_local_id
   (is (= :terrain-assets/terrain
