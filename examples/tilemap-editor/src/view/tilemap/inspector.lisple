@@ -1,4 +1,4 @@
-(ns tilemap-editor.inspector
+(ns tilemap-editor.view.tilemap.inspector
   (:require pixils
             [pixils.render :as r]
             [pixils.ui :as ui]

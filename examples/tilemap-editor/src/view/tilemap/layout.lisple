@@ -1,12 +1,11 @@
-(ns tilemap-editor.workspace
+(ns tilemap-editor.view.tilemap.layout
   (:require pixils
             [pixils.ui :as ui]
-            [pixils.ui.header-panel :as hp]
             [pixils.ui.split-pane :as split]
-            tilemap-editor.canvas
-            [tilemap-editor.controls :as controls]
-            [tilemap-editor.inspector :as inspector]
-            [tilemap-editor.palette :as palette]))
+            tilemap-editor.view.tilemap.canvas
+            [tilemap-editor.view.tilemap.controls :as controls]
+            [tilemap-editor.view.tilemap.inspector :as inspector]
+            [tilemap-editor.view.tilemap.palette :as palette]))
 
 
 
@@ -88,30 +87,3 @@
                                     :selected-layer-label (ui/bind-state :selected-layer-label)
                                     :layers (ui/bind-state :layers)
                                     :hidden-layer-indices (ui/bind-state :hidden-layer-indices)}}]})]})
-
-(defcomponent tileset-definition-sidebar
-  {:class :ui/panel})
-
-(defcomponent tileset-definition-workspace
-  {:style {:width :fill
-           :height :fill
-           :layout {:direction :row
-                    :gap 8}}
-   :children [{:mode 'tileset-definition-sidebar
-               :style {:width 260
-                       :height :fill
-                       :layout {:direction :column
-                                :gap 8}}
-               :state {:selected-tileset-index (ui/bind-state :selected-tileset-index)
-                       :tilesets (ui/bind-state :tilesets)
-                       :layers (ui/bind-state :layers)
-                       :selected-layer-index (ui/bind-state :selected-layer-index)}
-               :children [(controls/make-tileset-controls)]}
-              (hp/make {:title "Tileset Definition"
-                        :style {:width :fill
-                                :height :fill}
-                        :body-style {:padding 8
-                                     :height :fill}
-                        :children [{:mode 'ui/text
-                                    :class :ui/muted
-                                    :state {:value "No tileset selected"}}]})]})

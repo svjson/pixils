@@ -2,7 +2,7 @@
   (:require pixils
             tilemap-editor.assets
             tilemap-editor.root
-            tilemap-editor.theme))
+            tilemap-editor.view.theme))
 
 (defprogram tilemap-editor
   {:display {:resolution {:scale 2}

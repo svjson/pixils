@@ -1,0 +1,32 @@
+(ns tilemap-editor.view.tileset.layout
+  (:require pixils
+            [pixils.ui :as ui]
+            [pixils.ui.header-panel :as hp]
+            [tilemap-editor.view.tilemap.controls :as controls]))
+
+(defcomponent tileset-definition-sidebar
+  {:class :ui/panel})
+
+(defcomponent tileset-definition-workspace
+  {:style {:width :fill
+           :height :fill
+           :layout {:direction :row
+                    :gap 8}}
+   :children [{:mode 'tileset-definition-sidebar
+               :style {:width 260
+                       :height :fill
+                       :layout {:direction :column
+                                :gap 8}}
+               :state {:selected-tileset-index (ui/bind-state :selected-tileset-index)
+                       :tilesets (ui/bind-state :tilesets)
+                       :layers (ui/bind-state :layers)
+                       :selected-layer-index (ui/bind-state :selected-layer-index)}
+               :children [(controls/make-tileset-controls)]}
+              (hp/make {:title "Tileset Definition"
+                        :style {:width :fill
+                                :height :fill}
+                        :body-style {:padding 8
+                                     :height :fill}
+                        :children [{:mode 'ui/text
+                                    :class :ui/muted
+                                    :state {:value "No tileset selected"}}]})]})

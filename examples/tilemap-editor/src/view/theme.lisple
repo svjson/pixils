@@ -1,4 +1,4 @@
-(ns tilemap-editor.theme
+(ns tilemap-editor.view.theme
   (:require pixils
             pixils.ui.theme.classic-blue))
 

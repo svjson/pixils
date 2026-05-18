@@ -2,9 +2,11 @@
   (:require pixils
             [pixils.ui :as ui]
             [pixils.ui.tab-panel :as tabs]
-            [tilemap-editor.controls :as controls]
-            [tilemap-editor.data :as data]
-            tilemap-editor.workspace))
+            [tilemap-editor.view.tilemap.controls :as controls]
+            [tilemap-editor.model.data :as data]
+            [tilemap-editor.io.project :as project-io]
+            tilemap-editor.view.tilemap.layout
+            tilemap-editor.view.tileset.layout))
 
 
 
@@ -112,30 +114,30 @@
                                  state
                                  (:payload event)))
        :project/open (fn [state event ctx]
-                       (controls/open-project-file-dialog! state
-                                                           ctx
-                                                           :file-dialog/open
-                                                           "Open Project"))
+                       (project-io/open-project-file-dialog! state
+                                                             ctx
+                                                             :file-dialog/open
+                                                             "Open Project"))
        :project/save-as (fn [state event ctx]
-                          (controls/open-project-file-dialog! state
-                                                              ctx
-                                                              :file-dialog/save
-                                                              "Save Project As"))
+                          (project-io/open-project-file-dialog! state
+                                                                ctx
+                                                                :file-dialog/save
+                                                                "Save Project As"))
        :project/save (fn [state event ctx]
                        (if (:project-path state)
-                         (controls/apply-project-file-dialog-result
+                         (project-io/apply-project-file-dialog-result
                           state
                           {:type :confirm
                            :mode :file-dialog/save
                            :path (:project-path state)
                            :directory (:project-directory state)
                            :filename (:project-filename state)})
-                         (controls/open-project-file-dialog! state
-                                                             ctx
-                                                             :file-dialog/save
-                                                             "Save Project")))
+                         (project-io/open-project-file-dialog! state
+                                                               ctx
+                                                               :file-dialog/save
+                                                               "Save Project")))
        :project/file-dialog-result (fn [state event ctx]
-                                     (controls/apply-project-file-dialog-result
+                                     (project-io/apply-project-file-dialog-result
                                       state
                                       (:payload event)))
        :app/quit (fn [state event ctx]

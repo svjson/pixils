@@ -1,11 +1,11 @@
-(ns tilemap-editor.palette
+(ns tilemap-editor.view.tilemap.palette
   (:require pixils
             [pixils.render :as r]
             [pixils.ui :as ui]
             [pixils.ui.header-panel :as hp]
             [pixils.ui.list-box :as lb]
-            [tilemap-editor.data :as data]
-            [tilemap-editor.tile-renderer :as tr]))
+            [tilemap-editor.model.data :as data]
+            [tilemap-editor.view.tilemap.renderer :as tr]))
 
 
 

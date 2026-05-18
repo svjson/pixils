@@ -1,8 +1,8 @@
-(ns tilemap-editor.tile-renderer
+(ns tilemap-editor.view.tilemap.renderer
   (:require [pixils.image :as img]
             [pixils.render :as r]
-            [tilemap-editor.data :as data]
-            [tilemap-editor.tilemap :as tm]))
+            [tilemap-editor.model.data :as data]
+            [tilemap-editor.model.tilemap :as tm]))
 
 
 

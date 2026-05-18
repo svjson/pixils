@@ -1,8 +1,8 @@
-(ns tilemap-editor.data-test
+(ns tilemap-editor.model.data-test
   (:require proof.core
-            [tilemap-editor.controls :as controls]
-            [tilemap-editor.data :as data]
-            [tilemap-editor.tilemap :as tilemap]))
+            [tilemap-editor.model.data :as data]
+            [tilemap-editor.io.project :as project-io]
+            [tilemap-editor.model.tilemap :as tilemap]))
 
 (def EXAMPLE-MAP-PATH "example-maps/map1.edn")
 
@@ -45,7 +45,7 @@
                    (nil? (:source tile)))))))
 
 (defun project-open-state []
-  (controls/apply-project-file-dialog-result
+  (project-io/apply-project-file-dialog-result
    {:layers (data/make-layered-map)
     :selected-layer-index 0
     :hidden-layer-indices []}

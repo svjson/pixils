@@ -1,10 +1,10 @@
-(ns tilemap-editor.canvas
+(ns tilemap-editor.view.tilemap.canvas
   (:require pixils
             [pixils.render :as r]
             [pixils.ui :as ui]
-            [tilemap-editor.data :as data]
-            [tilemap-editor.tilemap :as tm]
-            [tilemap-editor.tile-renderer :as tr]))
+            [tilemap-editor.model.data :as data]
+            [tilemap-editor.model.tilemap :as tm]
+            [tilemap-editor.view.tilemap.renderer :as tr]))
 
 
 

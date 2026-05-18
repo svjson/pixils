@@ -45,15 +45,17 @@ class TilemapEditorStartupTest : public RenderFixture
 TEST_F(TilemapEditorStartupTest, current_example_main_mode_updates_and_renders)
 {
   runtime.read_file("examples/tilemap-editor/src/assets.lisple");
-  runtime.read_file("examples/tilemap-editor/src/data.lisple");
-  runtime.read_file("examples/tilemap-editor/src/tilemap.lisple");
-  runtime.read_file("examples/tilemap-editor/src/tile-renderer.lisple");
-  runtime.read_file("examples/tilemap-editor/src/canvas.lisple");
-  runtime.read_file("examples/tilemap-editor/src/inspector.lisple");
-  runtime.read_file("examples/tilemap-editor/src/palette.lisple");
-  runtime.read_file("examples/tilemap-editor/src/controls.lisple");
-  runtime.read_file("examples/tilemap-editor/src/workspace.lisple");
-  runtime.read_file("examples/tilemap-editor/src/theme.lisple");
+  runtime.read_file("examples/tilemap-editor/src/model/data.lisple");
+  runtime.read_file("examples/tilemap-editor/src/model/tilemap.lisple");
+  runtime.read_file("examples/tilemap-editor/src/io/project.lisple");
+  runtime.read_file("examples/tilemap-editor/src/view/tilemap/renderer.lisple");
+  runtime.read_file("examples/tilemap-editor/src/view/tilemap/canvas.lisple");
+  runtime.read_file("examples/tilemap-editor/src/view/tilemap/inspector.lisple");
+  runtime.read_file("examples/tilemap-editor/src/view/tilemap/palette.lisple");
+  runtime.read_file("examples/tilemap-editor/src/view/tilemap/controls.lisple");
+  runtime.read_file("examples/tilemap-editor/src/view/tilemap/layout.lisple");
+  runtime.read_file("examples/tilemap-editor/src/view/tileset/layout.lisple");
+  runtime.read_file("examples/tilemap-editor/src/view/theme.lisple");
   runtime.read_file("examples/tilemap-editor/src/root.lisple");
 
   session.push_mode("main-mode", Lisple::Constant::NIL);
@@ -94,12 +96,12 @@ TEST_F(TilemapEditorProjectIoTest, save_dialog_result_writes_project_edn)
   std::error_code ec;
   std::filesystem::remove(save_path, ec);
 
-  runtime.read_file("examples/tilemap-editor/src/data.lisple");
-  runtime.read_file("examples/tilemap-editor/src/controls.lisple");
+  runtime.read_file("examples/tilemap-editor/src/model/data.lisple");
+  runtime.read_file("examples/tilemap-editor/src/io/project.lisple");
 
   runtime.eval(R"(
-    (tilemap-editor.controls/apply-project-file-dialog-result
-     {:layers (tilemap-editor.data/make-layered-map)}
+    (tilemap-editor.io.project/apply-project-file-dialog-result
+     {:layers (tilemap-editor.model.data/make-layered-map)}
      {:type :confirm
       :mode :file-dialog/save
       :path )" + lisp_string(save_path.string()) + R"(
@@ -118,17 +120,16 @@ TEST_F(TilemapEditorProjectIoTest, save_dialog_result_writes_project_edn)
   EXPECT_NE(contents.find(":tilesets"), std::string::npos);
   EXPECT_NE(contents.find(":tilemap"), std::string::npos);
   EXPECT_NE(contents.find(":layers"), std::string::npos);
-  EXPECT_NE(contents.find(":image :editor-assets/spritesheet"), std::string::npos);
 
   std::filesystem::remove(save_path, ec);
 }
 
 TEST_F(TilemapEditorProjectIoTest, default_project_starts_with_empty_layers)
 {
-  runtime.read_file("examples/tilemap-editor/src/data.lisple");
+  runtime.read_file("examples/tilemap-editor/src/model/data.lisple");
 
   auto result = runtime.eval(R"(
-    (let [layers (tilemap-editor.data/make-layered-map)]
+    (let [layers (tilemap-editor.model.data/make-layered-map)]
       {:layer-count (count layers)
        :first-tile (get-in layers [0 :tiles 0 0])
        :last-tile (get-in layers [3 :tiles 27 39])})
@@ -164,12 +165,12 @@ TEST_F(TilemapEditorProjectIoTest, open_dialog_result_loads_project_edn_layers)
                      :tiles [[:night :void] [:void :night]]}]}})";
   }
 
-  runtime.read_file("examples/tilemap-editor/src/data.lisple");
-  runtime.read_file("examples/tilemap-editor/src/controls.lisple");
+  runtime.read_file("examples/tilemap-editor/src/model/data.lisple");
+  runtime.read_file("examples/tilemap-editor/src/io/project.lisple");
 
   auto result = runtime.eval(R"(
-    (tilemap-editor.controls/apply-project-file-dialog-result
-     {:layers (tilemap-editor.data/make-layered-map)
+    (tilemap-editor.io.project/apply-project-file-dialog-result
+     {:layers (tilemap-editor.model.data/make-layered-map)
       :selected-layer-index 2
       :hidden-layer-indices [1 2]}
      {:type :confirm

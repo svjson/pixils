@@ -1,0 +1,83 @@
+(ns tilemap-editor.io.project
+  (:require [lisple.io :as io]
+            [pixils.ui.file-dialog :as file-dialog]
+            [tilemap-editor.model.data :as data]))
+
+(def project-file-filters
+  [{:label "Pixils project files (*.edn)"
+    :extensions [".edn"]}
+   {:label "All files (*)"
+    :extensions []}])
+
+(defun save-project-result? [payload]
+  (and (= (:type payload) :confirm)
+       (= (:mode payload) :file-dialog/save)
+       (not (nil? (:path payload)))))
+
+(defun open-project-result? [payload]
+  (and (= (:type payload) :confirm)
+       (= (:mode payload) :file-dialog/open)
+       (not (nil? (:path payload)))))
+
+(defun save-project! [state payload]
+  (do
+    (io/spit-edn! (:path payload) (data/project-document state))
+    payload))
+
+(defun valid-project-document? [project]
+  (= (:format project) data/project-format))
+
+(defun project-layers [project]
+  (data/normalize-layers (-> project :tilemap :layers)))
+
+(defun first-layer-tileset [layers]
+  (:tileset (head layers)))
+
+(defun open-project! [state payload]
+  (let [project (data/normalize-project-document (io/slurp-edn! (:path payload)))
+        layers (project-layers project)
+        tileset (first-layer-tileset layers)]
+    (if (valid-project-document? project)
+      (assoc state
+             :tilesets (or (:tilesets project) [])
+             :layers layers
+             :selected-layer-index (when (> (count layers) 0) 0)
+             :selected-layer-label (or (:label (head layers)) "")
+             :hidden-layer-indices []
+             :tileset tileset
+             :selected-tileset-index (when tileset
+                                       (data/tileset-index-in (:tilesets project)
+                                                              tileset))
+             :selected-tile (data/tile-id-in tileset 0)
+             :last-project-open-result payload
+             :last-opened-project project)
+      (assoc state :last-project-open-error {:reason :invalid-format
+                                             :path (:path payload)}))))
+
+(defun open-project-file-dialog! [state ctx mode title]
+  (do
+    (file-dialog/open-file-dialog!
+     ctx
+     {:title title
+      :mode mode
+      :path (or (:project-directory state) file-dialog/default-path)
+      :filename (or (:project-filename state) "tilemap-project.edn")
+      :filters project-file-filters
+      :result-event :project/file-dialog-result})
+    state))
+
+(defun apply-project-file-dialog-result [state payload]
+  (if (= (:type payload) :confirm)
+    (let [next-state (assoc state
+                            :project-path (:path payload)
+                            :project-directory (:directory payload)
+                            :project-filename (:filename payload)
+                            :last-project-file-dialog-result payload)]
+      (if (save-project-result? payload)
+        (do
+          (save-project! next-state payload)
+          (assoc next-state :last-project-save-result payload))
+        (if (open-project-result? payload)
+          (open-project! next-state payload)
+          next-state)))
+    state))
