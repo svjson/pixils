@@ -1,0 +1,8 @@
+(ns tilemap-editor.controls-test
+  (:require proof.core
+            [tilemap-editor.controls :as controls]))
+
+(deftest empty-layer-list-keeps-minimum-height
+  (is (= 78 (controls/layer-list-height [])))
+  (is (= 78 (controls/layer-list-height [1 2])))
+  (is (= 104 (controls/layer-list-height [1 2 3 4]))))

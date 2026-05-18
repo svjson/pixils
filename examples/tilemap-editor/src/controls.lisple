@@ -485,6 +485,9 @@
 
 ;; Layer List
 
+(def layer-list-row-height 26)
+(def layer-list-min-visible-rows 3)
+
 (defcomponent layer-visibility-toggle
   {:class :ui/list-item-hover
    :style {:width 24
@@ -579,6 +582,11 @@
     {:value index
      :label (:label layer)}))
 
+(defun layer-list-height [layers]
+  (* layer-list-row-height
+     (max layer-list-min-visible-rows
+          (count (or layers [])))))
+
 (defun selected-layer-indices [state]
   (if (nil? (:selected-layer-index state))
     []
@@ -587,8 +595,8 @@
 (defun layer-list-box-child [layers]
   (lb/make {:options (layer-options layers)
             :style {:width :fill
-                    :height :shrink}
-            :row-height 26
+                    :height (layer-list-height layers)}
+            :row-height layer-list-row-height
             :visible-rows (count (or layers []))
             :content-width 200
             :state {:layers (ui/bind-state :layers)
