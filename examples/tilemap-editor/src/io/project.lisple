@@ -56,6 +56,7 @@
              :selected-tileset-index (when tileset
                                        (data/tileset-index-in tilesets
                                                               tileset))
+             :selected-tileset-definition-index (when (> (count tilesets) 0) 0)
              :selected-tile (data/tile-id-in-definitions tilesets tileset 0)
              :last-project-open-result payload
              :last-opened-project project)

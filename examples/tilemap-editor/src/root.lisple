@@ -19,6 +19,7 @@
   :init (fn [state ctx]
           {:selected-tile nil
            :selected-tileset-index nil
+           :selected-tileset-definition-index nil
            :tilesets []
            :tileset nil
            :selected-layer-index nil
@@ -41,6 +42,10 @@
                           (nth layers (min layer-index (dec (count layers)))))
                   tileset (:tileset layer)
                   tilesets (or (:tilesets state) [])
+                  tileset-definition-index (when (> (count tilesets) 0)
+                                             (min (or (:selected-tileset-definition-index state)
+                                                      0)
+                                                  (dec (count tilesets))))
                   selected-tile (data/tile-id-in-definitions tilesets
                                                              tileset
                                                              (:selected-tile state))
@@ -50,6 +55,7 @@
                      :selected-tileset-index (when tileset
                                                (data/tileset-index-in tilesets
                                                                       tileset))
+                     :selected-tileset-definition-index tileset-definition-index
                      :selected-tile selected-tile
                      :selected-label (data/tile-label-in-definitions tilesets
                                                                       tileset
@@ -64,6 +70,7 @@
                :state {:selected-tile (ui/bind-state :selected-tile)
                        :selected-label (ui/bind-state :selected-label)
                        :selected-tileset-index (ui/bind-state :selected-tileset-index)
+                       :selected-tileset-definition-index (ui/bind-state :selected-tileset-definition-index)
                        :tilesets (ui/bind-state :tilesets)
                        :tileset (ui/bind-state :tileset)
                        :selected-layer-index (ui/bind-state :selected-layer-index)
@@ -98,6 +105,7 @@
                        :child {:mode 'tileset-definition-workspace
                                :style {:padding 8}
                                :state {:selected-tileset-index (ui/bind-state :selected-tileset-index)
+                                       :selected-tileset-definition-index (ui/bind-state :selected-tileset-definition-index)
                                        :tilesets (ui/bind-state :tilesets)
                                        :tileset (ui/bind-state :tileset)
                                        :selected-layer-index (ui/bind-state :selected-layer-index)

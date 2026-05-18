@@ -2,10 +2,96 @@
   (:require pixils
             [pixils.ui :as ui]
             [pixils.ui.header-panel :as hp]
-            [tilemap-editor.view.tilemap.controls :as controls]))
+            [pixils.ui.list-box :as lb]
+            [tilemap-editor.model.data :as data]))
+
+(def tileset-list-row-height 24)
+
+(defun selected-tileset-definition-indices [state]
+  (if (nil? (:selected-tileset-definition-index state))
+    []
+    [(:selected-tileset-definition-index state)]))
+
+(defun tileset-list-box-child [tilesets]
+  (let [tilesets (or tilesets [])]
+    (lb/make {:options (data/tileset-options-for-definitions tilesets)
+              :style {:width :fill
+                      :height :fill}
+              :row-height tileset-list-row-height
+              :visible-rows (count tilesets)
+              :content-width 220
+              :disabled? (empty? tilesets)
+              :selected-indices (ui/bind-state :selected-indices)
+              :force-selection? true})))
+
+(defcomponent tileset-definition-list
+  {:style {:width :fill
+           :height :fill}
+   :init (fn [state ctx]
+           (assoc state
+                  :tilesets-list nil
+                  :selected-indices (selected-tileset-definition-indices state)))
+   :update (fn [state ctx]
+             (let [tilesets (or (:tilesets state) [])]
+               (do
+                 (when (not= tilesets (:tilesets-list state))
+                   (ui/replace-child! (:view ctx)
+                                      "list-box"
+                                      (merge {:id "list-box"}
+                                             (tileset-list-box-child tilesets))))
+                 (assoc state
+                        :tilesets-list tilesets
+                        :selected-indices (selected-tileset-definition-indices state)))))
+   :on {:list-box/change (fn [state event ctx]
+                           (assoc state
+                                  :selected-tileset-definition-index
+                                  (-> event :payload :value)))}
+   :children [(merge {:id "list-box"}
+                     (tileset-list-box-child []))]})
+
+(defun selected-tileset-definition [state]
+  (let [tilesets (or (:tilesets state) [])]
+    (when (> (count tilesets) 0)
+      (nth tilesets
+           (min (or (:selected-tileset-definition-index state) 0)
+                (dec (count tilesets)))))))
+
+(defcomponent tileset-definition-summary
+  {:style {:width :fill
+           :height :fill
+           :layout {:direction :column
+                    :gap 4}}
+   :update (fn [state ctx]
+             (let [tileset (selected-tileset-definition state)
+                   tile-count (count (or (:tiles tileset) []))]
+               (assoc state
+                      :label (or (:label tileset) "")
+                      :tile-count-label (if tileset
+                                          (str tile-count " tiles")
+                                          "No tile definition set selected"))))
+   :children [{:mode 'ui/text
+               :class :ui/title
+               :state {:value (ui/bind-state :label)}}
+              {:mode 'ui/text
+               :class :ui/muted
+               :state {:value (ui/bind-state :tile-count-label)}}]})
 
 (defcomponent tileset-definition-sidebar
   {:class :ui/panel})
+
+(defun make-tileset-list-panel []
+  (hp/make {:title "Tile Definition Sets"
+            :style {:width :fill
+                    :height :fill}
+            :body-style {:padding 8
+                         :height :fill}
+            :state {:selected-tileset-definition-index (ui/bind-state :selected-tileset-definition-index)
+                    :tilesets (ui/bind-state :tilesets)}
+            :body-state {:selected-tileset-definition-index (ui/bind-state :selected-tileset-definition-index)
+                         :tilesets (ui/bind-state :tilesets)}
+            :children [{:mode 'tileset-definition-list
+                        :state {:selected-tileset-definition-index (ui/bind-state :selected-tileset-definition-index)
+                                :tilesets (ui/bind-state :tilesets)}}]}))
 
 (defcomponent tileset-definition-workspace
   {:style {:width :fill
@@ -17,16 +103,19 @@
                        :height :fill
                        :layout {:direction :column
                                 :gap 8}}
-               :state {:selected-tileset-index (ui/bind-state :selected-tileset-index)
+               :state {:selected-tileset-definition-index (ui/bind-state :selected-tileset-definition-index)
                        :tilesets (ui/bind-state :tilesets)
-                       :layers (ui/bind-state :layers)
-                       :selected-layer-index (ui/bind-state :selected-layer-index)}
-               :children [(controls/make-tileset-controls)]}
+                       :layers (ui/bind-state :layers)}
+               :children [(make-tileset-list-panel)]}
               (hp/make {:title "Tileset Definition"
                         :style {:width :fill
                                 :height :fill}
                         :body-style {:padding 8
                                      :height :fill}
-                        :children [{:mode 'ui/text
-                                    :class :ui/muted
-                                    :state {:value "No tileset selected"}}]})]})
+                        :state {:selected-tileset-definition-index (ui/bind-state :selected-tileset-definition-index)
+                                :tilesets (ui/bind-state :tilesets)}
+                        :body-state {:selected-tileset-definition-index (ui/bind-state :selected-tileset-definition-index)
+                                     :tilesets (ui/bind-state :tilesets)}
+                        :children [{:mode 'tileset-definition-summary
+                                    :state {:selected-tileset-definition-index (ui/bind-state :selected-tileset-definition-index)
+                                            :tilesets (ui/bind-state :tilesets)}}]})]})

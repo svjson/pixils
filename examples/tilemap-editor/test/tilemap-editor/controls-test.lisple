@@ -2,6 +2,7 @@
   (:require proof.core
             [tilemap-editor.view.tilemap.controls :as controls]
             [tilemap-editor.view.tilemap.palette :as palette]
+            [tilemap-editor.view.tileset.layout :as tileset-layout]
             [tilemap-editor.model.data :as data]))
 
 (deftest empty-layer-list-keeps-minimum-height
@@ -26,3 +27,11 @@
             (:disabled? (:state (palette/tile-palette-list-box-child
                                  (data/project-tileset-definitions)
                                  :colors))))))
+
+(deftest tileset-definition-list-is-disabled-when-empty
+  (is (= true (:disabled? (:state (tileset-layout/tileset-list-box-child [])))))
+  (is (= true (:disabled? (:state (tileset-layout/tileset-list-box-child nil)))))
+  (is (not= true
+            (:disabled? (:state (tileset-layout/tileset-list-box-child
+                                 [{:id :terrain
+                                   :label "Terrain"}]))))))

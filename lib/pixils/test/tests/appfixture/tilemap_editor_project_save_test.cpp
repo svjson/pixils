@@ -163,6 +163,16 @@ TEST_F(TilemapEditorStartupTest, loaded_project_populates_existing_side_panel_co
   update_cycle();
   session.render_mode();
 
+  std::vector<std::shared_ptr<Pixils::Runtime::View>> tileset_tab_list_boxes;
+  find_descendant_modes(session.active_mode, "ui/list-box", tileset_tab_list_boxes);
+  ASSERT_GE(tileset_tab_list_boxes.size(), 1u);
+  EXPECT_NE(tileset_tab_list_boxes[0]->state->to_string().find("Background Colors"),
+            std::string::npos);
+
+  std::vector<std::shared_ptr<Pixils::Runtime::View>> tileset_tab_combo_boxes;
+  find_descendant_modes(session.active_mode, "ui/combo-box", tileset_tab_combo_boxes);
+  EXPECT_EQ(tileset_tab_combo_boxes.size(), 0u);
+
   tab_panel = session.active_mode->children[1];
   ASSERT_NE(tab_panel, nullptr);
   ASSERT_GE(tab_panel->children.size(), 1u);
