@@ -5,9 +5,11 @@
             [pixils.render :as r]
             [pixils.resource :as res]
             [pixils.ui :as ui]
+            [pixils.ui.dialog :as dialog]
             [pixils.ui.file-dialog :as file-dialog]
             [pixils.ui.header-panel :as hp]
             [pixils.ui.list-box :as lb]
+            [pixils.ui.menu :as menu]
             pixils.ui.text-input
             [pixils.ui.window :as w]))
 
@@ -20,6 +22,28 @@
     :extensions [".png" ".jpg" ".jpeg" ".bmp"]}
    {:label "All files (*)"
     :extensions []}])
+
+(def bundle-context-menu
+  {:settings {:mnemonics {:enabled false}}
+   :items [{:label "Edit"
+            :action :resource/context-dummy
+            :payload {:kind :bundle
+                      :command :edit}}
+           {:label "Delete"
+            :action :resource/context-dummy
+            :payload {:kind :bundle
+                      :command :delete}}]})
+
+(def image-resource-context-menu
+  {:settings {:mnemonics {:enabled false}}
+   :items [{:label "Edit"
+            :action :resource/context-dummy
+            :payload {:kind :image
+                      :command :edit}}
+           {:label "Delete"
+            :action :resource/context-dummy
+            :payload {:kind :image
+                      :command :delete}}]})
 
 (defun file-stem [path]
   (let [name (io/basename path)
@@ -56,6 +80,7 @@
   (map (dynamic-project-bundle-entries resources)
        (fn [entry]
          {:value (:id entry)
+          :id (:id entry)
           :label (keyword-label (:id entry))})))
 
 (defun selected-bundle-index [resources selected-id]
@@ -68,6 +93,11 @@
   (if-let [index (selected-bundle-index resources selected-id)]
     [index]
     []))
+
+(defun first-bundle-id [resources]
+  (if-let [entry (head (dynamic-project-bundle-entries resources))]
+    (:id entry)
+    nil))
 
 (defun add-resource-bundle! [state payload]
   (let [bundle-id (keyword (:bundle-id payload))]
@@ -82,11 +112,100 @@
              :selected-resource-bundle bundle-id
              :selected-image-resource nil))))
 
-(defun open-resource-bundle-dialog! [state ctx]
+(defun resource-key-in-bundle? [bundle-id value]
+  (and (keyword? value)
+       (= (str ":" (keyword-label bundle-id) "/")
+          (substr (str value) 0 (+ (count (keyword-label bundle-id)) 2)))))
+
+(defun replace-resource-key-bundle [value old-bundle-id new-bundle-id]
+  (if (resource-key-in-bundle? old-bundle-id value)
+    (let [old-prefix (str ":" (keyword-label old-bundle-id) "/")
+          raw (str value)
+          resource-id (substr raw (count old-prefix))]
+      (keyword (str (keyword-label new-bundle-id) "/" resource-id)))
+    value))
+
+(defun replace-resource-key-bundle-in [value old-bundle-id new-bundle-id]
+  (case (type-of value)
+    "keyword" (replace-resource-key-bundle value old-bundle-id new-bundle-id)
+    "vector" (map value
+                  (fn [item]
+                    (replace-resource-key-bundle-in item
+                                                    old-bundle-id
+                                                    new-bundle-id)))
+    "map" (reduce-kv value
+                     {}
+                     (fn [result key item]
+                       (assoc result
+                              key
+                              (replace-resource-key-bundle-in item
+                                                              old-bundle-id
+                                                              new-bundle-id))))
+    :default value))
+
+(defun rename-bundle-in-tile [tile old-bundle-id new-bundle-id]
+  (replace-resource-key-bundle-in tile old-bundle-id new-bundle-id))
+
+(defun rename-bundle-in-tileset [tileset old-bundle-id new-bundle-id]
+  (replace-resource-key-bundle-in tileset old-bundle-id new-bundle-id))
+
+(defun rename-bundle-in-tilesets [tilesets old-bundle-id new-bundle-id]
+  (replace-resource-key-bundle-in (or tilesets [])
+                                  old-bundle-id
+                                  new-bundle-id))
+
+(defun rename-bundle-in-layers [layers old-bundle-id new-bundle-id]
+  (replace-resource-key-bundle-in (or layers [])
+                                  old-bundle-id
+                                  new-bundle-id))
+
+(defun rename-resource-bundle! [state payload]
+  (let [old-bundle-id (:previous-bundle-id payload)
+        new-bundle-id (keyword (:bundle-id payload))
+        bundle (get-in state [:resources :bundles old-bundle-id])]
+    (if (and old-bundle-id
+             new-bundle-id
+             bundle
+             (not (blank? (:bundle-id payload))))
+      (if (= old-bundle-id new-bundle-id)
+        state
+        (do
+          (res/create-bundle! new-bundle-id)
+          (for [resource (res/list-images old-bundle-id)]
+            (res/remove-image! (:id resource)))
+          (assoc (assoc-in state
+                           [:resources :bundles]
+                           (assoc (dissoc (or (-> state :resources :bundles) {})
+                                          old-bundle-id)
+                                  new-bundle-id
+                                  bundle))
+                 :tilesets (rename-bundle-in-tilesets (:tilesets state)
+                                                       old-bundle-id
+                                                       new-bundle-id)
+                 :layers (rename-bundle-in-layers (:layers state)
+                                                   old-bundle-id
+                                                   new-bundle-id)
+                 :selected-resource-bundle new-bundle-id)))
+      state)))
+
+(defun apply-resource-bundle-dialog-result [state payload]
+  (if (= (:type payload) :confirm)
+    (case (:operation payload)
+      :add (add-resource-bundle! state payload)
+      :edit (rename-resource-bundle! state payload)
+      :default state)
+    state))
+
+(defun open-resource-bundle-dialog! [state ctx operation opts]
   (do
     (push-mode! 'resource-bundle-dialog-modal
-                {:title "New Resource Bundle"
-                 :bundle-id ""}
+                {:operation operation
+                 :title (if (= operation :edit)
+                          "Edit Resource Bundle"
+                          "New Resource Bundle")
+                 :button-label (if (= operation :edit) "Update" "Create")
+                 :previous-bundle-id (:previous-bundle-id opts)
+                 :bundle-id (:bundle-id opts)}
                 {:origin {:view (:view ctx)
                           :event :resource/bundle-dialog-result}})
     state))
@@ -143,6 +262,7 @@
   (map (or resources [])
        (fn [resource]
          {:value (:id resource)
+          :bundle-id (:bundle-id resource)
           :key-label (str (:key resource))
           :name (:name resource)
           :label (str (:key resource))})))
@@ -172,7 +292,24 @@
                                :value (:value state)
                                :shift? false
                                :ctrl? false})
+                    (when (= (:button event) :right)
+                      (menu/open-context-menu! image-resource-context-menu
+                                               (:global-position event)
+                                               state
+                                               ctx))
                     state))
+   :on {:menu/select (fn [state event ctx]
+                       (let [payload (:payload event)]
+                         (do
+                           (ui/stop-propagation! event)
+                           (when (= (:type payload) :action)
+                             (ui/emit! (:view ctx)
+                                       :resource/context-command
+                                       {:kind :image
+                                        :bundle-id (:bundle-id state)
+                                        :resource-id (:value state)
+                                        :command (-> payload :payload :command)}))))
+                       state)}
    :children [{:mode 'ui/text
                :style {:width :fill}
                :state {:value (ui/bind-state :key-label)}}
@@ -184,8 +321,61 @@
   {:mode 'image-resource-row
    :state {:index index
            :value (:value option)
+           :bundle-id (:bundle-id option)
            :key-label (:key-label option)
            :name (:name option)
+           :selected-indices (ui/bind-state :selected-indices)}})
+
+(defcomponent resource-bundle-row
+  {:extend 'ui/list-box-item
+   :class :ui/list-item-hover
+   :style {:width :fill
+           :height resource-list-row-height
+           :padding [3 6]
+           :layout {:direction :row
+                    :align-items :center}}
+   :update (fn [state ctx]
+             (assoc state :selected (contains? (:selected-indices state)
+                                               (:index state))))
+   :on-mouse-down (fn [state event ctx]
+                    (do
+                      (ui/stop-propagation! event)
+                      state))
+   :on-mouse-up (fn [state event ctx]
+                  (do
+                    (ui/stop-propagation! event)
+                    (ui/emit! (:view ctx)
+                              :list-box/item-click
+                              {:index (:index state)
+                               :value (:value state)
+                               :shift? false
+                               :ctrl? false})
+                    (when (= (:button event) :right)
+                      (menu/open-context-menu! bundle-context-menu
+                                               (:global-position event)
+                                               state
+                                               ctx))
+                    state))
+   :on {:menu/select (fn [state event ctx]
+                       (let [payload (:payload event)]
+                         (do
+                           (ui/stop-propagation! event)
+                           (when (= (:type payload) :action)
+                             (ui/emit! (:view ctx)
+                                       :resource/context-command
+                                       {:kind :bundle
+                                        :bundle-id (:value state)
+                                        :command (-> payload :payload :command)}))))
+                       state)}
+   :children [{:mode 'ui/text
+               :style {:width :fill}
+               :state {:value (ui/bind-state :label)}}]})
+
+(defun resource-bundle-row-child [index option]
+  {:mode 'resource-bundle-row
+   :state {:index index
+           :value (:value option)
+           :label (:label option)
            :selected-indices (ui/bind-state :selected-indices)}})
 
 (defun bundle-list-child [resources]
@@ -197,7 +387,8 @@
               :visible-rows (max 1 (count bundles))
               :content-width 180
               :disabled? (empty? bundles)
-              :selected-indices (ui/bind-state :selected-indices)})))
+              :selected-indices (ui/bind-state :selected-indices)
+              :item-child resource-bundle-row-child})))
 
 (defcomponent resource-bundle-list
   {:style {:width :fill
@@ -270,7 +461,6 @@
            :selected-image-resource image-id
            :image-resource-panel-disabled? (nil? bundle-id)
            :image-resource-add-disabled? (nil? bundle-id)
-           :image-resource-remove-disabled? (nil? image-id)
            :image-resource-detail-disabled? (nil? image-id))))
 
 (defun open-image-file-dialog! [state ctx]
@@ -375,14 +565,97 @@
   (let [bundle-id (:selected-resource-bundle state)
         resource-id (:selected-image-resource state)]
     (if (and bundle-id resource-id)
-      (do
+      (let [next-resources (update-in (:resources state)
+                                      [:bundles bundle-id :images]
+                                      (fn [images]
+                                        (dissoc (or images {}) resource-id)))]
         (res/remove-image! (image-resource-key bundle-id resource-id))
-        (assoc (update-in state
-                          [:resources :bundles bundle-id :images]
-                          (fn [images]
-                            (dissoc (or images {}) resource-id)))
-               :selected-image-resource nil))
+        (assoc state
+               :resources next-resources
+               :selected-image-resource (first-image-resource-id next-resources
+                                                                  bundle-id)))
       state)))
+
+(defun remove-resource-bundle! [state bundle-id]
+  (if bundle-id
+    (let [next-resources (assoc-in (:resources state)
+                                   [:bundles]
+                                   (dissoc (or (-> state :resources :bundles) {})
+                                           bundle-id))
+          next-bundle-id (first-bundle-id next-resources)]
+      (do
+        (for [resource (res/list-images bundle-id)]
+          (res/remove-image! (:id resource)))
+        (assoc state
+               :resources next-resources
+               :selected-resource-bundle next-bundle-id
+               :selected-image-resource (first-image-resource-id next-resources
+                                                                  next-bundle-id))))
+    state))
+
+(defun open-selected-bundle-dialog! [state ctx bundle-id]
+  (if bundle-id
+    (open-resource-bundle-dialog!
+     state
+     ctx
+     :edit
+     {:previous-bundle-id bundle-id
+      :bundle-id (keyword-label bundle-id)})
+    state))
+
+(defun open-resource-confirm-dialog! [state ctx opts]
+  (do
+    (dialog/open-confirm!
+     ctx
+     {:title (:title opts)
+      :body {:mode 'ui/text
+             :style {:width :fill}
+             :state {:value (:message opts)}}
+      :buttons [:dialog/cancel
+                {:type :dialog/ok
+                 :label (or (:confirm-label opts) "Delete")}]
+      :result-event :resource/confirm-dialog-result
+      :payload (:payload opts)})
+    state))
+
+(defun open-image-delete-confirm-dialog! [state ctx bundle-id resource-id]
+  (if (and bundle-id resource-id)
+    (open-resource-confirm-dialog!
+     state
+     ctx
+     {:title "Delete Image Resource"
+      :message (str "Delete image resource "
+                    (image-resource-key bundle-id resource-id)
+                    "?")
+      :confirm-label "Delete"
+      :payload {:operation :delete-image
+                :bundle-id bundle-id
+                :resource-id resource-id}})
+    state))
+
+(defun open-bundle-delete-confirm-dialog! [state ctx bundle-id]
+  (if bundle-id
+    (open-resource-confirm-dialog!
+     state
+     ctx
+     {:title "Delete Resource Bundle"
+      :message (str "Delete resource bundle " bundle-id "?")
+      :confirm-label "Delete"
+      :payload {:operation :delete-bundle
+                :bundle-id bundle-id}})
+    state))
+
+(defun apply-resource-confirm-dialog-result [state payload]
+  (if (= (:choice payload) :dialog/ok)
+    (let [details (:payload payload)]
+      (case (:operation details)
+        :delete-image (remove-image-resource!
+                       (assoc state
+                              :selected-resource-bundle (:bundle-id details)
+                              :selected-image-resource (:resource-id details)))
+        :delete-bundle (remove-resource-bundle! state (:bundle-id details))
+        :default state))
+    state))
 
 (defun image-preview-rect [dim]
   (let [scale (min (/ image-preview-width (:w dim))
@@ -525,8 +798,9 @@
                        :height 24}
                :state {:value (ui/bind-state :bundle-id)
                        :auto-focus? true}}
-              {:mode 'resource-bundle-dialog-buttons
-               :state {:invalid? (ui/bind-state :invalid?)}}]})
+             {:mode 'resource-bundle-dialog-buttons
+               :state {:invalid? (ui/bind-state :invalid?)
+                       :button-label (ui/bind-state :button-label)}}]})
 
 (defcomponent resource-bundle-dialog-buttons
   {:style {:width :fill
@@ -545,7 +819,7 @@
               {:mode 'ui/button
                :style {:width 78
                        :height 24}
-               :state {:label "Create"
+               :state {:label (ui/bind-state :button-label)
                        :disabled? (ui/bind-state :invalid?)}
                :on-click (fn [state event ctx]
                            (do
@@ -568,15 +842,21 @@
               state
               (do
                 (pop-mode! {:type :confirm
+                            :operation (:operation state)
+                            :previous-bundle-id (:previous-bundle-id state)
                             :bundle-id (:bundle-id state)})
                 state))))}
    :compose {:render :pass}
    :children [(w/make {:position {:x 220 :y 140}
                        :title-bar {:title (ui/bind-state :title)}
                        :state {:title (ui/bind-state :title)
-                               :bundle-id (ui/bind-state :bundle-id)}
+                               :operation (ui/bind-state :operation)
+                               :previous-bundle-id (ui/bind-state :previous-bundle-id)
+                               :bundle-id (ui/bind-state :bundle-id)
+                               :button-label (ui/bind-state :button-label)}
                        :body [{:mode 'resource-bundle-dialog-body
-                               :state {:bundle-id (ui/bind-state :bundle-id)}}]})]})
+                               :state {:bundle-id (ui/bind-state :bundle-id)
+                                       :button-label (ui/bind-state :button-label)}}]})]})
 
 (defcomponent image-resource-metadata-dialog-body
   {:class :ui/content
@@ -742,24 +1022,13 @@
                                              (ui/emit! (:view ctx)
                                                        :resource/add-image)
                                              state))}
-                              {:mode 'ui/button
-                               :class :ui/toolbar-button
-                               :state {:label "-"
-                                       :disabled? (ui/bind-state
-                                                   :image-resource-remove-disabled?)}
-                               :on-click (fn [state event ctx]
-                                           (do
-                                             (ui/emit! (:view ctx)
-                                                       :resource/remove-image)
-                                             state))}]
+                              ]
             :state {:resources (ui/bind-state :resources)
                     :selected-resource-bundle (ui/bind-state :selected-resource-bundle)
                     :selected-image-resource (ui/bind-state :selected-image-resource)
                     :disabled? (ui/bind-state :image-resource-panel-disabled?)
                     :image-resource-add-disabled? (ui/bind-state
-                                                   :image-resource-add-disabled?)
-                    :image-resource-remove-disabled? (ui/bind-state
-                                                      :image-resource-remove-disabled?)}
+                                                   :image-resource-add-disabled?)}
             :body-style {:padding 8
                          :height :fill}
             :body-state {:resources (ui/bind-state :resources)
@@ -805,15 +1074,44 @@
                    (assoc state :synced-resources (:resources state)))
                  state)))
    :on {:resource/add-bundle (fn [state event ctx]
-                               (open-resource-bundle-dialog! state ctx))
+                               (open-resource-bundle-dialog! state
+                                                             ctx
+                                                             :add
+                                                             {:bundle-id ""}))
         :resource/add-image (fn [state event ctx]
                               (if (:selected-resource-bundle state)
                                 (open-image-file-dialog! state ctx)
                                 state))
         :resource/edit-image (fn [state event ctx]
                                (open-selected-image-metadata-dialog! state ctx))
-        :resource/remove-image (fn [state event ctx]
-                                 (remove-image-resource! state))
+        :resource/context-command
+        (fn [state event ctx]
+          (let [payload (:payload event)]
+            (case (:kind payload)
+              :image
+              (case (:command payload)
+                :edit (open-selected-image-metadata-dialog!
+                       (assoc state
+                              :selected-resource-bundle (:bundle-id payload)
+                              :selected-image-resource (:resource-id payload))
+                       ctx)
+                :delete (open-image-delete-confirm-dialog! state
+                                                           ctx
+                                                           (:bundle-id payload)
+                                                           (:resource-id payload))
+                :default state)
+
+              :bundle
+              (case (:command payload)
+                :edit (open-selected-bundle-dialog! state
+                                                    ctx
+                                                    (:bundle-id payload))
+                :delete (open-bundle-delete-confirm-dialog! state
+                                                            ctx
+                                                            (:bundle-id payload))
+                :default state)
+
+              :default state)))
         :resource/file-dialog-result
         (fn [state event ctx]
           (let [payload (:payload event)]
@@ -830,12 +1128,13 @@
         :resource/bundle-dialog-result
         (fn [state event ctx]
           (let [payload (:payload event)]
-            (if (= (:type payload) :confirm)
-              (add-resource-bundle! state payload)
-              state)))
+            (apply-resource-bundle-dialog-result state payload)))
         :resource/metadata-dialog-result
         (fn [state event ctx]
-          (apply-image-metadata-dialog-result state (:payload event)))}
+          (apply-image-metadata-dialog-result state (:payload event)))
+        :resource/confirm-dialog-result
+        (fn [state event ctx]
+          (apply-resource-confirm-dialog-result state (:payload event)))}
    :children [(make-resource-bundle-list-panel)
               (make-image-resource-list-panel)
               (make-image-resource-detail-panel)]})

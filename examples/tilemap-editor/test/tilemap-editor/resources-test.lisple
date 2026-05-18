@@ -52,6 +52,55 @@
                                          :file-name "/tmp/maps/tiles.png"}}}}}
           :terrain-assets))))
 
+(deftest resource-key-bundle-replacement-updates_matching_qualified_keys
+  (is (= :terrain-v2/grass
+         (resources/replace-resource-key-bundle
+          :terrain-assets/grass
+          :terrain-assets
+          :terrain-v2)))
+  (is (= :other/grass
+         (resources/replace-resource-key-bundle
+          :other/grass
+          :terrain-assets
+          :terrain-v2))))
+
+(deftest resource-key-bundle-replacement-walks_nested_tile_data
+  (is (= {:tile {:image :terrain-v2/sheet
+                 :variants [:terrain-v2/one :other/two]}}
+         (resources/replace-resource-key-bundle-in
+          {:tile {:image :terrain-assets/sheet
+                  :variants [:terrain-assets/one :other/two]}}
+          :terrain-assets
+          :terrain-v2))))
+
+(deftest bundle-rename-updates_tileset_image_references
+  (is (= [{:id :terrain
+           :tiles [{:id :grass
+                    :type :sprite
+                    :image :terrain-v2/sheet}
+                   {:id :water
+                    :type :sprite
+                    :image :other/sheet}]}]
+         (resources/rename-bundle-in-tilesets
+          [{:id :terrain
+            :tiles [{:id :grass
+                     :type :sprite
+                     :image :terrain-assets/sheet}
+                    {:id :water
+                     :type :sprite
+                     :image :other/sheet}]}]
+          :terrain-assets
+          :terrain-v2))))
+
+(deftest bundle-rename-updates_layer_resource_references
+  (is (= [{:id :decor
+           :stamp {:image :terrain-v2/decor}}]
+         (resources/rename-bundle-in-layers
+          [{:id :decor
+            :stamp {:image :terrain-assets/decor}}]
+          :terrain-assets
+          :terrain-v2))))
+
 (deftest runtime-image-dependency-strips_editor_metadata
   (is (= {:file-name "/tmp/maps/tiles.png"}
          (resources/runtime-image-dependency
@@ -67,11 +116,13 @@
 
 (deftest image-resource-options-preserve-resource-id
   (is (= [{:value :tiles
+           :bundle-id :terrain-assets
            :key-label ":terrain-assets/tiles"
            :name "Tiles"
            :label ":terrain-assets/tiles"}]
          (resources/image-resource-options
           [{:id :tiles
+            :bundle-id :terrain-assets
             :key :terrain-assets/tiles
             :name "Tiles"
             :file-name "/tmp/maps/tiles.png"}]))))
@@ -95,7 +146,6 @@
     (is (= nil (:selected-image-resource state)))
     (is (= false (:image-resource-panel-disabled? state)))
     (is (= false (:image-resource-add-disabled? state)))
-    (is (= true (:image-resource-remove-disabled? state)))
     (is (= true (:image-resource-detail-disabled? state)))))
 
 (deftest resource-workspace-state-disables_image_panel_without_bundle
@@ -107,5 +157,4 @@
     (is (= nil (:selected-image-resource state)))
     (is (= true (:image-resource-panel-disabled? state)))
     (is (= true (:image-resource-add-disabled? state)))
-    (is (= true (:image-resource-remove-disabled? state)))
     (is (= true (:image-resource-detail-disabled? state)))))
