@@ -158,7 +158,10 @@ namespace Pixils::UI
       const Rect bounds = ctx.bounds;
 
       const Style& style_res = ctx.effective_style;
-      if (style_res.hidden && *style_res.hidden) return;
+      if (style_res.visibility &&
+          (*style_res.visibility == Style::Visibility::HIDDEN ||
+           *style_res.visibility == Style::Visibility::NONE))
+        return;
 
       const float opacity = opacity_factor(style_res);
       if (opacity <= 0.0f) return;

@@ -78,6 +78,30 @@ static std::shared_ptr<View> make_fixed_width_ctx(int width)
   return make_ctx(std::move(s));
 }
 
+static std::shared_ptr<View> make_hidden_fixed_ctx(int height)
+{
+  Style s;
+  s.height = height;
+  s.visibility = Style::Visibility::NONE;
+  return make_ctx(std::move(s));
+}
+
+static std::shared_ptr<View> make_hidden_fixed_width_ctx(int width)
+{
+  Style s;
+  s.width = width;
+  s.visibility = Style::Visibility::NONE;
+  return make_ctx(std::move(s));
+}
+
+static std::shared_ptr<View> make_invisible_fixed_ctx(int height)
+{
+  Style s;
+  s.height = height;
+  s.visibility = Style::Visibility::HIDDEN;
+  return make_ctx(std::move(s));
+}
+
 static std::shared_ptr<View> make_fill_height_ctx()
 {
   Style s;
@@ -591,6 +615,62 @@ TEST_F(LayoutTest, layout_space_between_ignores_absolute_children_when_counting_
   EXPECT_EQ(rects[0].x, 0);
   EXPECT_EQ(rects[1].w, 0);
   EXPECT_EQ(rects[2].x, 160);
+}
+
+TEST_F(LayoutTest, layout_fixed_gap_ignores_hidden_children)
+{
+  std::vector<std::shared_ptr<View>> children;
+  children.push_back(make_fixed_ctx(20));
+  children.push_back(make_hidden_fixed_ctx(80));
+  children.push_back(make_fixed_ctx(20));
+  Rect parent = {0, 0, 100, 200};
+
+  auto rects =
+    layout(children, parent, LayoutDirection::COLUMN, Style::Layout::GapMode::FIXED, 10);
+
+  ASSERT_EQ(rects.size(), 3u);
+  EXPECT_EQ(rects[0].y, 0);
+  EXPECT_EQ(rects[0].h, 20);
+  EXPECT_EQ(rects[1].h, 0);
+  EXPECT_EQ(rects[2].y, 30);
+  EXPECT_EQ(rects[2].h, 20);
+}
+
+TEST_F(LayoutTest, layout_space_between_ignores_hidden_children_when_counting_gaps)
+{
+  std::vector<std::shared_ptr<View>> children;
+  children.push_back(make_fixed_width_ctx(40));
+  children.push_back(make_hidden_fixed_width_ctx(40));
+  children.push_back(make_fixed_width_ctx(40));
+  Rect parent = {0, 0, 200, 40};
+
+  auto rects =
+    layout(children, parent, LayoutDirection::ROW, Style::Layout::GapMode::SPACE_BETWEEN);
+
+  ASSERT_EQ(rects.size(), 3u);
+  EXPECT_EQ(rects[0].x, 0);
+  EXPECT_EQ(rects[1].w, 0);
+  EXPECT_EQ(rects[2].x, 160);
+}
+
+TEST_F(LayoutTest, layout_preserves_space_for_visibility_hidden_children)
+{
+  std::vector<std::shared_ptr<View>> children;
+  children.push_back(make_fixed_ctx(20));
+  children.push_back(make_invisible_fixed_ctx(80));
+  children.push_back(make_fixed_ctx(20));
+  Rect parent = {0, 0, 100, 200};
+
+  auto rects =
+    layout(children, parent, LayoutDirection::COLUMN, Style::Layout::GapMode::FIXED, 10);
+
+  ASSERT_EQ(rects.size(), 3u);
+  EXPECT_EQ(rects[0].y, 0);
+  EXPECT_EQ(rects[0].h, 20);
+  EXPECT_EQ(rects[1].y, 30);
+  EXPECT_EQ(rects[1].h, 80);
+  EXPECT_EQ(rects[2].y, 120);
+  EXPECT_EQ(rects[2].h, 20);
 }
 
 TEST_F(LayoutTest, layout_space_between_noops_with_single_flow_child)

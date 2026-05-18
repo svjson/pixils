@@ -164,7 +164,7 @@ namespace Pixils::UI
     , top(other.top)
     , left(other.left)
     , layout(other.layout)
-    , hidden(other.hidden)
+    , visibility(other.visibility)
     , hit_test(other.hit_test)
     , clip(other.clip)
     , cursor(other.cursor)
@@ -191,7 +191,7 @@ namespace Pixils::UI
     this->top = other.top;
     this->left = other.left;
     this->layout = other.layout;
-    this->hidden = other.hidden;
+    this->visibility = other.visibility;
     this->hit_test = other.hit_test;
     this->clip = other.clip;
     this->cursor = other.cursor;
@@ -420,7 +420,7 @@ namespace Pixils::UI
     if (variant.top) out.top = variant.top;
     if (variant.left) out.left = variant.left;
     if (variant.layout) out.layout = variant.layout;
-    if (variant.hidden) out.hidden = variant.hidden;
+    if (variant.visibility) out.visibility = variant.visibility;
     if (variant.hit_test) out.hit_test = variant.hit_test;
     if (variant.clip) out.clip = variant.clip;
     if (variant.cursor) out.cursor = variant.cursor;

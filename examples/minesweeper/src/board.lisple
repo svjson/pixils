@@ -65,7 +65,9 @@
                                              :mine-layer-mode/flag))
                              (assoc :force-pressed? (-> state :mask :chord-pressed?))
                              (assoc :inhibit-pressed? flagged))]
-               (assoc-in! ctx [:view :style :hidden] (:revealed? (:mask state)))
+               (assoc-in! ctx
+                          [:view :style :visibility]
+                          (if (:revealed? (:mask state)) :none :visible))
                (assoc state :pressed
                       (and (not (:inhibit-pressed? state))
                            (or (:force-pressed? state)

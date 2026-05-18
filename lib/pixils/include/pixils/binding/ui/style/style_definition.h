@@ -25,6 +25,9 @@ namespace Pixils::Script::StyleDefinition
 
   std::optional<UI::Style::BoxSizing> parse_box_sizing(const Lisple::sptr_val& value);
   Lisple::sptr_val box_sizing_to_value(const std::optional<UI::Style::BoxSizing>& value);
+  std::optional<UI::Style::Visibility> parse_visibility(const Lisple::sptr_val& value);
+  Lisple::sptr_val visibility_to_value(
+    const std::optional<UI::Style::Visibility>& value);
   std::optional<int> parse_scale(const Lisple::sptr_val& value);
   Lisple::sptr_val scale_to_value(const std::optional<int>& value);
   std::optional<UI::ImageCursor> parse_image_cursor(Lisple::Context& ctx,

@@ -340,6 +340,29 @@ TEST_F(StyleTest, make_style_with_hit_test_disabled)
   EXPECT_FALSE(*style.hit_test);
 }
 
+TEST_F(StyleTest, make_style_with_visibility)
+{
+  Lisple::sptr_val result =
+    runtime.eval("(pixils.ui.style/make-style {:visibility :hidden})");
+
+  auto style = Lisple::obj<Pixils::UI::Style>(*result);
+  ASSERT_NE(style.visibility, std::nullopt);
+  EXPECT_EQ(*style.visibility, Pixils::UI::Style::Visibility::HIDDEN);
+}
+
+TEST_F(StyleTest, make_style_maps_hidden_sugar_to_visibility)
+{
+  auto hidden_result = runtime.eval("(pixils.ui.style/make-style {:hidden true})");
+  auto visible_result = runtime.eval("(pixils.ui.style/make-style {:hidden false})");
+
+  auto hidden_style = Lisple::obj<Pixils::UI::Style>(*hidden_result);
+  auto visible_style = Lisple::obj<Pixils::UI::Style>(*visible_result);
+  ASSERT_NE(hidden_style.visibility, std::nullopt);
+  ASSERT_NE(visible_style.visibility, std::nullopt);
+  EXPECT_EQ(*hidden_style.visibility, Pixils::UI::Style::Visibility::NONE);
+  EXPECT_EQ(*visible_style.visibility, Pixils::UI::Style::Visibility::VISIBLE);
+}
+
 TEST_F(StyleTest, make_style_with_named_pointer_cursor)
 {
   Lisple::sptr_val result =

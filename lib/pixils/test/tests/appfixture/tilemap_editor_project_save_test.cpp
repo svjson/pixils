@@ -74,6 +74,8 @@ class TilemapEditorProjectIoTest : public BaseFixture
 
 class TilemapEditorStartupTest : public RenderFixture
 {
+ protected:
+  TilemapEditorStartupTest() { render_ctx.buffer_dim = {800, 600}; }
 };
 
 TEST_F(TilemapEditorStartupTest, current_example_main_mode_updates_and_renders)
@@ -184,7 +186,13 @@ TEST_F(TilemapEditorStartupTest, loaded_project_populates_existing_side_panel_co
 
   std::vector<std::shared_ptr<Pixils::Runtime::View>> tileset_tab_combo_boxes;
   find_descendant_modes(session.active_mode, "ui/combo-box", tileset_tab_combo_boxes);
-  EXPECT_EQ(tileset_tab_combo_boxes.size(), 0u);
+  ASSERT_EQ(tileset_tab_combo_boxes.size(), 1u);
+  EXPECT_NE(tileset_tab_combo_boxes[0]->state->to_string().find("Color"),
+            std::string::npos);
+
+  std::vector<std::shared_ptr<Pixils::Runtime::View>> tile_definition_panels;
+  find_descendant_modes(session.active_mode, "tile-definition-panel", tile_definition_panels);
+  EXPECT_EQ(tile_definition_panels.size(), 1u);
 
   std::vector<std::shared_ptr<Pixils::Runtime::View>> tile_grids;
   find_descendant_modes(session.active_mode, "tileset-tile-grid", tile_grids);

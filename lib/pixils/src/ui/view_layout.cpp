@@ -126,6 +126,11 @@ namespace Pixils::UI
       return std::max(1, style.scale.value_or(1));
     }
 
+    bool removes_layout(const Style& style)
+    {
+      return style.visibility && *style.visibility == Style::Visibility::NONE;
+    }
+
     Rect scaled_external_bounds(const Rect& logical_bounds, const Style& style)
     {
       int scale = scale_factor(style);
@@ -476,6 +481,12 @@ namespace Pixils::UI
       view->effective_style =
         resolve_effective_style(view, pass.runtime, inherited_style, selector_path);
 
+      if (removes_layout(view->effective_style))
+      {
+        pass.natural_size_cache.emplace(cache_key, std::nullopt);
+        return std::nullopt;
+      }
+
       auto available_width = resolve_available_content_size(view->effective_style,
                                                             parent_available_width,
                                                             Axis::HORIZONTAL);
@@ -537,6 +548,7 @@ namespace Pixils::UI
                                          child_selector_path);
 
         const Style& child_style = child->effective_style;
+        if (removes_layout(child_style)) continue;
         if (child_style.position && *child_style.position == PositionMode::ABSOLUTE)
           continue;
         flow_count++;
@@ -619,7 +631,7 @@ namespace Pixils::UI
       view->external_bounds = scaled_external_bounds(view->bounds, view->effective_style);
 
       const Style& style = view->effective_style;
-      if (style.hidden && *style.hidden) return;
+      if (removes_layout(style)) return;
       if (view->children.empty()) return;
 
       Rect content = style.content_rect(view->bounds);
@@ -716,6 +728,7 @@ namespace Pixils::UI
       {
         const Style& cs = styles[i];
         const auto& natural = natural_content_sizes[i];
+        if (removes_layout(cs)) continue;
         if (cs.position && *cs.position == PositionMode::ABSOLUTE) continue;
         flow_count++;
 
@@ -791,6 +804,7 @@ namespace Pixils::UI
       for (size_t i = 0; i < children.size(); i++)
       {
         const Style& cs = styles[i];
+        if (removes_layout(cs)) continue;
         if (cs.position && *cs.position == PositionMode::ABSOLUTE) continue;
         if (!fills_axis(cs, row ? Axis::HORIZONTAL : Axis::VERTICAL, false))
           total_fixed += outer_sizes[i];
@@ -801,6 +815,7 @@ namespace Pixils::UI
       for (size_t i = 0; i < children.size(); i++)
       {
         const Style& cs = styles[i];
+        if (removes_layout(cs)) continue;
         if (cs.position && *cs.position == PositionMode::ABSOLUTE) continue;
         if (outer_sizes[i] == 0 &&
             fills_axis(cs, row ? Axis::HORIZONTAL : Axis::VERTICAL, false))
@@ -817,6 +832,7 @@ namespace Pixils::UI
       for (size_t i = 0; i < children.size(); i++)
       {
         const Style& cs = styles[i];
+        if (removes_layout(cs)) continue;
         if (cs.position && *cs.position == PositionMode::ABSOLUTE) continue;
         total_flow_size += outer_sizes[i];
       }
@@ -849,6 +865,12 @@ namespace Pixils::UI
       {
         const Style& cs = styles[i];
         const Style::Insets margin = cs.margin.value_or(Style::Insets{});
+
+        if (removes_layout(cs))
+        {
+          rects.push_back({0, 0, 0, 0});
+          continue;
+        }
 
         if (cs.position && *cs.position == PositionMode::ABSOLUTE)
         {

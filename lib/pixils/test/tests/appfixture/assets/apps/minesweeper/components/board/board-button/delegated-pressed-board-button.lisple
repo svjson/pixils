@@ -8,7 +8,9 @@
    :style {:width 17 :height 17}
    :update (fn [state ctx]
              (let [flagged (-> state :mask :flagged?)]
-               (assoc-in! ctx [:view :style :hidden] (:revealed? (:mask state)))
+               (assoc-in! ctx
+                          [:view :style :visibility]
+                          (if (:revealed? (:mask state)) :none :visible))
                (-> state
                    (assoc :image (when flagged
                                    :mine-layer-mode/flag))

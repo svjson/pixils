@@ -80,7 +80,7 @@ namespace Pixils::Script
                       (rw, "top", top),
                       (rw, "left", left),
                       (layout),
-                      (rw, "hidden", hidden),
+                      (rw, "visibility", visibility),
                       (rw, "hit-test", hit_test),
                       (rw, "clip", clip),
                       (rw, "cursor", cursor),
@@ -229,14 +229,14 @@ namespace Pixils::Script
                                     : Lisple::Constant::NIL;
   }
 
-  NOBJ_PROP_GET(StyleAdapter, hidden)
+  NOBJ_PROP_GET(StyleAdapter, visibility)
   {
-    return StyleDefinition::optional_bool_to_value(get_self_object().hidden);
+    return StyleDefinition::visibility_to_value(get_self_object().visibility);
   }
 
-  NOBJ_PROP_SET(StyleAdapter, hidden)
+  NOBJ_PROP_SET(StyleAdapter, visibility)
   {
-    get_self_object().hidden = StyleDefinition::parse_optional_bool(value);
+    get_self_object().visibility = StyleDefinition::parse_visibility(value);
   }
 
   NOBJ_PROP_GET(StyleAdapter, hit_test)

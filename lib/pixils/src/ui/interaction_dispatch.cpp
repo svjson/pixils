@@ -44,11 +44,19 @@ namespace Pixils::UI
     Style interaction_style(const std::shared_ptr<Runtime::View>& view)
     {
       Style style = resolve_style(view->mode->style, view->state, view->interaction);
-      if (view->effective_style.hidden) style.hidden = view->effective_style.hidden;
+      if (view->effective_style.visibility)
+        style.visibility = view->effective_style.visibility;
       if (view->effective_style.hit_test) style.hit_test = view->effective_style.hit_test;
       if (view->effective_style.clip) style.clip = view->effective_style.clip;
       if (view->effective_style.scale) style.scale = view->effective_style.scale;
       return style;
+    }
+
+    bool suppresses_interaction(const Style& style)
+    {
+      return style.visibility &&
+             (*style.visibility == Style::Visibility::HIDDEN ||
+              *style.visibility == Style::Visibility::NONE);
     }
 
     Rect external_bounds(const std::shared_ptr<Runtime::View>& view, const Style& style)
@@ -786,7 +794,7 @@ namespace Pixils::UI
     {
       if (view->bounds.w == 0) return false;
       auto style = interaction_style(view);
-      if (style.hidden && *style.hidden) return false;
+      if (suppresses_interaction(style)) return false;
       if (style.hit_test && !*style.hit_test) return false;
       if (inherited_clip &&
           (point.x < inherited_clip->x || point.x >= inherited_clip->x + inherited_clip->w ||
@@ -849,8 +857,8 @@ namespace Pixils::UI
     {
       if (!view || !target) return false;
 
-      auto style = resolve_style(view->mode->style, view->state, view->interaction);
-      if (style.hidden && *style.hidden) return false;
+      auto style = interaction_style(view);
+      if (suppresses_interaction(style)) return false;
 
       if (view.get() == target)
       {

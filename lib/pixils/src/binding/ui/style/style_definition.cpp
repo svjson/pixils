@@ -355,6 +355,30 @@ namespace Pixils::Script::StyleDefinition
                                                                        : "border-box");
   }
 
+  std::optional<UI::Style::Visibility> parse_visibility(const Lisple::sptr_val& value)
+  {
+    if (!value || value->type != Lisple::Value::Type::KEYWORD) return std::nullopt;
+    if (value->str() == "visible") return UI::Style::Visibility::VISIBLE;
+    if (value->str() == "hidden") return UI::Style::Visibility::HIDDEN;
+    if (value->str() == "none") return UI::Style::Visibility::NONE;
+    return std::nullopt;
+  }
+
+  Lisple::sptr_val visibility_to_value(const std::optional<UI::Style::Visibility>& value)
+  {
+    if (!value) return Lisple::Constant::NIL;
+    switch (*value)
+    {
+    case UI::Style::Visibility::VISIBLE:
+      return Lisple::keyword("visible");
+    case UI::Style::Visibility::HIDDEN:
+      return Lisple::keyword("hidden");
+    case UI::Style::Visibility::NONE:
+      return Lisple::keyword("none");
+    }
+    return Lisple::Constant::NIL;
+  }
+
   std::optional<int> parse_scale(const Lisple::sptr_val& value)
   {
     if (!value || value->type != Lisple::Value::Type::NUMBER) return std::nullopt;
@@ -831,6 +855,7 @@ namespace Pixils::Script::StyleDefinition
                                            {"position", &Lisple::Type::KEYWORD},
                                            {"top", &Lisple::Type::NUMBER},
                                            {"left", &Lisple::Type::NUMBER},
+                                           {"visibility", &Lisple::Type::KEYWORD},
                                            {"hidden", &Lisple::Type::ANY},
                                            {"hit-test", &Lisple::Type::ANY},
                                            {"clip", &Lisple::Type::ANY},
@@ -863,7 +888,16 @@ namespace Pixils::Script::StyleDefinition
     }
     if (opts.contains("top")) style->top = opts.i32("top");
     if (opts.contains("left")) style->left = opts.i32("left");
-    if (opts.contains("hidden")) style->hidden = parse_optional_bool(opts.val("hidden"));
+    if (opts.contains("visibility"))
+    {
+      style->visibility = parse_visibility(opts.val("visibility"));
+    }
+    else if (opts.contains("hidden"))
+    {
+      style->visibility = parse_optional_bool(opts.val("hidden")).value_or(false)
+                            ? UI::Style::Visibility::NONE
+                            : UI::Style::Visibility::VISIBLE;
+    }
     if (opts.contains("hit-test"))
     {
       style->hit_test = parse_optional_bool(opts.val("hit-test"));

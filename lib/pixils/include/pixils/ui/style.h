@@ -46,6 +46,13 @@ namespace Pixils::UI
       CONTENT_BOX,
     };
 
+    enum class Visibility : uint8_t
+    {
+      VISIBLE,
+      HIDDEN,
+      NONE,
+    };
+
     struct Background
     {
       enum class Fit : uint8_t
@@ -306,9 +313,11 @@ namespace Pixils::UI
     std::optional<Layout> layout;
 
     /**
-     * When true, excluded from hit-testing and rendering. Layout space is preserved.
+     * Visibility controls rendering, hit-testing, and layout participation.
+     * HIDDEN keeps layout space but skips rendering and interaction.
+     * NONE skips layout, rendering, and interaction.
      */
-    std::optional<bool> hidden;
+    std::optional<Visibility> visibility;
 
     /**
      * When false, excluded from hit-testing while still rendering normally.
