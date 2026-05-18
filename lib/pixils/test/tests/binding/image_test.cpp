@@ -53,6 +53,34 @@ TEST_F(ImageTest, image_dependencies_accept_map_with_transparency_color)
   EXPECT_EQ(height->num().get_int(), 8);
 }
 
+TEST_F(ImageTest, resource_dependency_adapter_exposes_images_as_a_map)
+{
+  // When
+  auto file_name = runtime.eval(R"(
+    (:file-name
+      (:ship
+        (:images
+          (pixils.resource/make-resource-dependencies
+            {:images {:ship {:file-name "ship.png"
+                             :transparency-color "#5a5268"}}}))))
+  )");
+  auto red = runtime.eval(R"(
+    (:r
+      (:transparency-color
+        (:ship
+          (:images
+            (pixils.resource/make-resource-dependencies
+              {:images {:ship {:file-name "ship.png"
+                               :transparency-color "#5a5268"}}})))))
+  )");
+
+  // Then
+  ASSERT_NE(file_name, nullptr);
+  ASSERT_NE(red, nullptr);
+  EXPECT_EQ(file_name->str(), "ship.png");
+  EXPECT_EQ(red->num().get_int(), 0x5a);
+}
+
 TEST_F(ImageTest, image_rect_uses_optional_point_offset_for_position)
 {
   // Given
@@ -133,6 +161,41 @@ TEST_F(ImageTest, dynamic_bundle_images_can_be_listed)
   ASSERT_NE(file_name, nullptr);
   EXPECT_EQ(id->to_string(), ":project-assets/ship");
   EXPECT_EQ(file_name->str(), "ship.png");
+}
+
+TEST_F(ImageTest, dynamic_bundle_can_be_created_at_runtime)
+{
+  // Given
+  SDLMock::prepared_surfaces["./ship.png"] = {20, 14};
+
+  // When
+  auto bundle = runtime.eval("(pixils.resource/create-bundle! :project-assets)");
+  runtime.eval("(pixils.resource/add-image! :project-assets/ship \"ship.png\")");
+  auto width = runtime.eval("(pixils.image/width :project-assets/ship)");
+
+  // Then
+  ASSERT_NE(bundle, nullptr);
+  EXPECT_EQ(bundle->to_string(), ":project-assets");
+  ASSERT_NE(width, nullptr);
+  EXPECT_EQ(width->num().get_int(), 20);
+}
+
+TEST_F(ImageTest, dynamic_bundle_can_be_created_with_images)
+{
+  // Given
+  SDLMock::prepared_surfaces["./ship.png"] = {18, 9};
+
+  // When
+  runtime.eval(
+    "(pixils.resource/create-bundle! :project-assets {:images {:ship \"ship.png\"}})");
+  auto id = runtime.eval("(:id (head (pixils.resource/list-images :project-assets)))");
+  auto width = runtime.eval("(pixils.image/width :project-assets/ship)");
+
+  // Then
+  ASSERT_NE(id, nullptr);
+  ASSERT_NE(width, nullptr);
+  EXPECT_EQ(id->to_string(), ":project-assets/ship");
+  EXPECT_EQ(width->num().get_int(), 18);
 }
 
 TEST_F(ImageTest, dynamic_bundle_images_can_be_removed)

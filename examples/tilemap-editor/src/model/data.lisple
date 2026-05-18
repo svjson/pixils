@@ -363,9 +363,11 @@
 (def project-format-version 1)
 
 (def project-resources
-  {:images {:editor-assets/spritesheet
-            {:file-name "assets/simples_pimples.png"
-             :transparency-color "#5a5268"}}})
+  {:bundles {:editor-assets
+             {:dynamic? false
+              :images {:spritesheet
+                       {:file-name "assets/simples_pimples.png"
+                        :transparency-color "#5a5268"}}}}})
 
 (def tileset-options
   (for-indexed [index tileset tilesets]

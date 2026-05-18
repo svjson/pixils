@@ -53,51 +53,16 @@ namespace Pixils::Script
       return dep;
     }
 
-    std::string parse_bundle_keyword(const Lisple::sptr_val& value)
-    {
-      auto [bundle_id, resource_id] = value->qual();
-      if (!bundle_id.empty() && resource_id.empty()) return bundle_id;
-      if (bundle_id.empty()) return value->str();
-      return bundle_id;
-    }
-
-    std::pair<std::string, std::string> parse_resource_keyword(const Lisple::sptr_val& value)
-    {
-      auto [bundle_id, resource_id] = value->qual();
-      if (bundle_id.empty() || resource_id.empty())
-      {
-        throw Lisple::TypeError("Image resource must be a qualified keyword");
-      }
-      return {bundle_id, resource_id};
-    }
-
-    Lisple::sptr_val image_dependency_map(const std::string& bundle_id,
-                                          const Runtime::ImageDependency& dep)
-    {
-      auto result = Lisple::map({});
-      Lisple::Dict::set_property(result,
-                                 MapKey::ID,
-                                 Lisple::keyword(bundle_id + "/" + dep.resource_id));
-      Lisple::Dict::set_property(result, MapKey::FILE_NAME, Lisple::string(dep.file_name));
-      return result;
-    }
-  } // namespace
-
-  namespace Function
-  {
-    /* MakeResourceDependencies */
-    FUNC_IMPL(MakeResourceDependencies,
-              SIG((FN_ARGS((&Lisple::Type::MAP)),
-                   EXEC_DISPATCH(&MakeResourceDependencies::exec_make_deps))));
-
-    EXEC_BODY(MakeResourceDependencies, exec_make_deps)
+    Runtime::ResourceDependencies parse_resource_dependencies(
+      Lisple::Context& ctx,
+      const Lisple::sptr_val& value)
     {
       static Lisple::MapSchema resources_schema({},
                                                 {{"images", &Lisple::Type::MAP},
                                                  {"sounds", &Lisple::Type::MAP},
                                                  {"fonts", &Lisple::Type::MAP}});
 
-      auto opts = resources_schema.bind(ctx, *args[0]);
+      auto opts = resources_schema.bind(ctx, *value);
 
       Runtime::ResourceDependencies deps;
 
@@ -128,7 +93,112 @@ namespace Pixils::Script
         }
       }
 
-      return ResourceDependenciesAdapter::make_unique(deps);
+      return deps;
+    }
+
+    std::string parse_bundle_keyword(const Lisple::sptr_val& value)
+    {
+      auto [bundle_id, resource_id] = value->qual();
+      if (!bundle_id.empty() && resource_id.empty()) return bundle_id;
+      if (bundle_id.empty()) return value->str();
+      return bundle_id;
+    }
+
+    std::pair<std::string, std::string> parse_resource_keyword(const Lisple::sptr_val& value)
+    {
+      auto [bundle_id, resource_id] = value->qual();
+      if (bundle_id.empty() || resource_id.empty())
+      {
+        throw Lisple::TypeError("Image resource must be a qualified keyword");
+      }
+      return {bundle_id, resource_id};
+    }
+
+    Lisple::sptr_val image_dependency_map(const std::string& bundle_id,
+                                          const Runtime::ImageDependency& dep)
+    {
+      auto result = Lisple::map({});
+      Lisple::Dict::set_property(result,
+                                 MapKey::ID,
+                                 Lisple::keyword(bundle_id + "/" + dep.resource_id));
+      Lisple::Dict::set_property(result, MapKey::FILE_NAME, Lisple::string(dep.file_name));
+      return result;
+    }
+
+    Lisple::sptr_val image_dependency_value(const Runtime::ImageDependency& dep)
+    {
+      auto result = Lisple::map({});
+      Lisple::Dict::set_property(result, MapKey::FILE_NAME, Lisple::string(dep.file_name));
+      if (dep.transparency_color)
+      {
+        const Color& color = *dep.transparency_color;
+        Lisple::Dict::set_property(result,
+                                   MapKey::TRANSPARENCY_COLOR,
+                                   ColorAdapter::make_unique(color.r,
+                                                             color.g,
+                                                             color.b,
+                                                             color.a));
+      }
+      return result;
+    }
+
+    Lisple::sptr_val image_dependencies_map(
+      const std::vector<Runtime::ImageDependency>& images)
+    {
+      auto result = Lisple::map({});
+      for (const auto& dep : images)
+      {
+        Lisple::Dict::set_property(result,
+                                   Lisple::keyword(dep.resource_id),
+                                   image_dependency_value(dep));
+      }
+      return result;
+    }
+
+    template <typename T>
+    Lisple::sptr_val file_dependencies_map(const std::vector<T>& deps)
+    {
+      auto result = Lisple::map({});
+      for (const auto& dep : deps)
+      {
+        Lisple::Dict::set_property(result,
+                                   Lisple::keyword(dep.resource_id),
+                                   Lisple::string(dep.file_name));
+      }
+      return result;
+    }
+  } // namespace
+
+  namespace Function
+  {
+    /* MakeResourceDependencies */
+    FUNC_IMPL(MakeResourceDependencies,
+              SIG((FN_ARGS((&Lisple::Type::MAP)),
+                   EXEC_DISPATCH(&MakeResourceDependencies::exec_make_deps))));
+
+    EXEC_BODY(MakeResourceDependencies, exec_make_deps)
+    {
+      return ResourceDependenciesAdapter::make_unique(
+        parse_resource_dependencies(ctx, args[0]));
+    }
+
+    FUNC_IMPL(CreateBundleBang,
+              MULTI_SIG((FN_ARGS((&Lisple::Type::KEYWORD)),
+                         EXEC_DISPATCH(&CreateBundleBang::exec_create_bundle)),
+                        (FN_ARGS((&Lisple::Type::KEYWORD), (&Lisple::Type::MAP)),
+                         EXEC_DISPATCH(&CreateBundleBang::exec_create_bundle))));
+
+    EXEC_BODY(CreateBundleBang, exec_create_bundle)
+    {
+      std::string bundle_id = parse_bundle_keyword(args[0]);
+      Runtime::ResourceDependencies deps =
+        args.size() > 1 ? parse_resource_dependencies(ctx, args[1])
+                        : Runtime::ResourceDependencies{};
+
+      RenderContext& rc =
+        Lisple::obj<RenderContext>(*ctx.lookup(ID__PIXILS__RENDER_CONTEXT));
+      rc.asset_registry->create_dynamic_bundle(bundle_id, deps);
+      return args[0];
     }
 
     FUNC_IMPL(AddImageBang,
@@ -189,23 +259,24 @@ namespace Pixils::Script
 
   NOBJ_PROP_GET(ResourceDependenciesAdapter, images)
   {
-    return Lisple::Constant::NIL;
+    return image_dependencies_map(get_self_object().images);
   }
 
   NOBJ_PROP_GET(ResourceDependenciesAdapter, sounds)
   {
-    return Lisple::Constant::NIL;
+    return file_dependencies_map(get_self_object().sounds);
   }
 
   NOBJ_PROP_GET(ResourceDependenciesAdapter, fonts)
   {
-    return Lisple::Constant::NIL;
+    return file_dependencies_map(get_self_object().fonts);
   }
 
   /* ResourceNamespace */
   ResourceNamespace::ResourceNamespace()
     : Lisple::Namespace(std::string(NS__PIXILS__RESOURCE))
   {
+    values.emplace(FN__CREATE_BUNDLE_BANG, Function::CreateBundleBang::make());
     values.emplace(FN__ADD_IMAGE_BANG, Function::AddImageBang::make());
     values.emplace(FN__REMOVE_IMAGE_BANG, Function::RemoveImageBang::make());
     values.emplace(FN__LIST_IMAGES, Function::ListImages::make());

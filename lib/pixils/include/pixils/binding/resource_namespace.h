@@ -13,6 +13,7 @@ namespace Pixils::Script
   inline constexpr std::string_view FN__PIXILS__MAKE_RESOURCE_DEPS =
     "pixils.resource/make-resource-dependencies";
   inline const std::string FN__MAKE_RESOURCE_DEPS = "make-resource-dependencies";
+  inline constexpr std::string_view FN__CREATE_BUNDLE_BANG = "create-bundle!";
   inline constexpr std::string_view FN__ADD_IMAGE_BANG = "add-image!";
   inline constexpr std::string_view FN__REMOVE_IMAGE_BANG = "remove-image!";
   inline constexpr std::string_view FN__LIST_IMAGES = "list-images";
@@ -27,6 +28,7 @@ namespace Pixils::Script
   namespace Function
   {
     FUNC(MakeResourceDependencies, make_deps);
+    FUNC(CreateBundleBang, create_bundle);
     FUNC(AddImageBang, add_image);
     FUNC(RemoveImageBang, remove_image);
     FUNC(ListImages, list_images);

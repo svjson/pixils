@@ -25,18 +25,19 @@
           (or children [])))
 
 (defun make [{:keys [title init update on state style header-style header-children body-style body-state children]}]
-  (merge {:mode 'ui/header-panel
-          :style (or style {})
-          :state (merge (or state {})
-                        {:title title})
-          :children [{:mode 'ui/header-panel-header
-                      :style (or header-style {})
-                      :state {:title (ui/bind-state :title)}
-                      :children (header-children header-children)}
-                     {:mode 'ui/header-panel-body
-                      :style (or body-style {})
-                      :state (or body-state state {})
-                      :children (or children [])}]}
-         (if init {:init init} {})
-         (if update {:update update} {})
-         (if on {:on on} {})))
+  (let [panel-state (merge (or state {})
+                           {:title title})]
+    (merge {:mode 'ui/header-panel
+            :style (or style {})
+            :state panel-state
+            :children [{:mode 'ui/header-panel-header
+                        :style (or header-style {})
+                        :state panel-state
+                        :children (header-children header-children)}
+                       {:mode 'ui/header-panel-body
+                        :style (or body-style {})
+                        :state (or body-state state {})
+                        :children (or children [])}]}
+           (if init {:init init} {})
+           (if update {:update update} {})
+           (if on {:on on} {}))))

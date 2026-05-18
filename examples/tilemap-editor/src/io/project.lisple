@@ -113,6 +113,7 @@
               :selected-tileset-tile-index (when (> (count (or (:tiles (head tilesets)) [])) 0) 0)
               :selected-tile (data/tile-id-in-definitions tilesets tileset 0)
               :resources (or (:resources project) data/project-resources)
+              :selected-resource-bundle nil
               :selected-image-resource nil
               :last-project-open-result payload
               :last-opened-project project)

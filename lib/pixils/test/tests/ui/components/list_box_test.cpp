@@ -359,6 +359,61 @@ TEST_F(ListBoxTest, list_box_item_hover_highlight_is_opt_in)
   EXPECT_FALSE(first_item->effective_style.background.has_value());
 }
 
+TEST_F(ListBoxTest, clicking_selected_single_select_item_does_not_emit_change)
+{
+  runtime.eval(R"(
+    (pixils/defmode root-mode
+      {:init (fn [state ctx] {:selected [0]
+                              :changes 0})
+       :on {:list-box/change (fn [state event ctx]
+                               (assoc state
+                                      :selected (:selected-indices (:payload event))
+                                      :changes (inc (:changes state))))}
+       :children [(pixils.ui.list-box/make
+                   {:options [{:value :a :label "Alpha"}
+                              {:value :b :label "Beta"}]
+                    :style {:width 100}
+                    :row-height 10
+                    :visible-rows 2
+                    :content-width 100
+                    :selected-indices (pixils.ui/bind-state :selected)})]})
+  )");
+
+  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.update_mode();
+  session.render_mode();
+  session.update_mode();
+  session.render_mode();
+
+  input().mouse_down({5, 5});
+  update_cycle();
+  input().mouse_up({5, 5});
+  update_cycle();
+
+  auto selected =
+    Lisple::Dict::get_property(session.active_mode->state, Lisple::keyword("selected"));
+  auto changes =
+    Lisple::Dict::get_property(session.active_mode->state, Lisple::keyword("changes"));
+  ASSERT_NE(selected, nullptr);
+  ASSERT_NE(changes, nullptr);
+  EXPECT_EQ(selected->to_string(), "[0]");
+  EXPECT_EQ(changes->num().get_int(), 0);
+
+  input().mouse_down({5, 15});
+  update_cycle();
+  input().mouse_up({5, 15});
+  update_cycle();
+
+  selected =
+    Lisple::Dict::get_property(session.active_mode->state, Lisple::keyword("selected"));
+  changes =
+    Lisple::Dict::get_property(session.active_mode->state, Lisple::keyword("changes"));
+  ASSERT_NE(selected, nullptr);
+  ASSERT_NE(changes, nullptr);
+  EXPECT_EQ(selected->to_string(), "[1]");
+  EXPECT_EQ(changes->num().get_int(), 1);
+}
+
 TEST_F(ListBoxTest, list_box_ctrl_and_shift_click_update_selection)
 {
   runtime.eval(R"(

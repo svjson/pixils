@@ -33,6 +33,7 @@
            :project-directory nil
            :project-filename "tilemap-project.edn"
            :resources data/project-resources
+           :selected-resource-bundle nil
            :selected-image-resource nil
            :project-history-path project-io/default-recent-projects-path
            :recent-projects (project-io/load-recent-projects
@@ -98,6 +99,7 @@
                        :show-grid? (ui/bind-state :show-grid?)
                        :map-offset (ui/bind-state :map-offset)
                        :resources (ui/bind-state :resources)
+                       :selected-resource-bundle (ui/bind-state :selected-resource-bundle)
                        :selected-image-resource (ui/bind-state :selected-image-resource)}
                :tabs [{:id :map
                        :label "Map"
@@ -135,6 +137,7 @@
                                :style {:padding 8}
                                :state {:project-directory (ui/bind-state :project-directory)
                                        :resources (ui/bind-state :resources)
+                                       :selected-resource-bundle (ui/bind-state :selected-resource-bundle)
                                        :selected-image-resource (ui/bind-state :selected-image-resource)}}}]})]
   :on {:palette/select (fn [state event ctx]
                          (assoc state :selected-tile (:payload event)))

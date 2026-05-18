@@ -283,6 +283,32 @@ namespace Pixils::Asset
     declare_bundle(bundle_id, Runtime::ResourceDependencies{}, true);
   }
 
+  void Registry::create_dynamic_bundle(const std::string& bundle_id,
+                                       const Runtime::ResourceDependencies& deps)
+  {
+    auto record = this->bundles.find(bundle_id);
+    if (record == this->bundles.end())
+    {
+      this->bundles.emplace(bundle_id,
+                            BundleRecord{.declaration = deps,
+                                         .bundle = {},
+                                         .loaded = false,
+                                         .mutable_bundle = true});
+      return;
+    }
+    if (!record->second.mutable_bundle)
+    {
+      throw std::runtime_error("Bundle is not dynamic: " + bundle_id);
+    }
+
+    for (const auto& image : deps.images)
+    {
+      add_image(bundle_id, image);
+    }
+    if (!deps.sounds.empty()) record->second.declaration.sounds = deps.sounds;
+    if (!deps.fonts.empty()) record->second.declaration.fonts = deps.fonts;
+  }
+
   void Registry::add_image(const std::string& bundle_id,
                            const Runtime::ImageDependency& dependency)
   {

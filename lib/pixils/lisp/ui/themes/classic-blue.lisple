@@ -251,10 +251,10 @@
               :thickness 1}}
 
     [:ui/toolbar-button 'ui/button-inner:disabled]
-    {:background {:color TITLE-BAR-BG}
-     :text {:color {:r 0xa7 :g 0xb0 :b 0xb8}}
+    {:background {:color DISABLED-BG}
+     :text {:color DISABLED-TEXT}
      :border {:line-style :solid
-              :color TITLE-BAR-SHADOW
+              :color PANEL-SHADOW
               :thickness 1}}
 
     'ui/scrollbar {:background {:r 0x20 :g 0x29 :b 0x36}
@@ -407,6 +407,17 @@
               :thickness 1
               :right {:color TITLE-BAR-SHADOW}
               :bottom {:color c/BLACK}}}
+
+    ['ui/header-panel:disabled 'ui/header-panel-header]
+    {:background {:color DISABLED-BG}
+     :text {:color DISABLED-TEXT}
+     :border {:color PANEL-HIGHLIGHT
+              :thickness 1
+              :right {:color PANEL-SHADOW}
+              :bottom {:color PANEL-SHADOW}}}
+
+    ['ui/header-panel:disabled 'ui/header-panel-header :ui/title]
+    {:text {:color DISABLED-TEXT}}
 
     'ui/header-panel-body
     {:border {:color PANEL-SHADOW

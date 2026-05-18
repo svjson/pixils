@@ -46,6 +46,8 @@ namespace Pixils::Asset
                         const Runtime::ResourceDependencies& deps,
                         bool mutable_bundle = false);
     void declare_dynamic_bundle(const std::string& bundle_id);
+    void create_dynamic_bundle(const std::string& bundle_id,
+                               const Runtime::ResourceDependencies& deps = {});
     void add_image(const std::string& bundle_id,
                    const Runtime::ImageDependency& dependency);
     void remove_image(const std::string& bundle_id, const std::string& resource_id);

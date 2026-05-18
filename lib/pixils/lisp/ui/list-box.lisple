@@ -124,6 +124,9 @@
         (single-click-selection state index))
       (single-click-selection state index))))
 
+(defun selection-changed? [previous selected]
+  (not= (or previous []) (or selected [])))
+
 (defun list-box-content-height [options row-height]
   (* (count options) row-height))
 
@@ -250,6 +253,9 @@
                                     selected (if disabled?
                                                (:selected-indices state)
                                                (list-box-click-selection state payload))
+                                    changed? (selection-changed?
+                                              (:selected-indices state)
+                                              selected)
                                     next-state (assoc (assoc state
                                                              :selected-indices selected)
                                                       :anchor-index (:index payload))
@@ -257,7 +263,7 @@
                                                                 selected)]
                                 (do
                                   (ui/stop-propagation! event)
-                                  (when (not disabled?)
+                                  (when (and (not disabled?) changed?)
                                     (ui/emit! (:view ctx)
                                               :list-box/change
                                               {:selected-indices selected

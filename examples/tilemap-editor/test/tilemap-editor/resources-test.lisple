@@ -2,32 +2,55 @@
   (:require proof.core
             [tilemap-editor.view.resources.layout :as resources]))
 
-(deftest image-resource-id-uses-project-assets-bundle
-  (is (= :project-assets/tiles.png
-         (resources/image-resource-id "/tmp/maps/tiles.png"))))
-
-(deftest image-resource-key-uses_user_supplied_local_id
-  (is (= :project-assets/terrain
-         (resources/image-resource-key "terrain"))))
+(deftest image-resource-key-uses_bundle_and_local_id
+  (is (= :terrain-assets/terrain
+         (resources/image-resource-key :terrain-assets "terrain"))))
 
 (deftest file-stem-removes_path_and_extension
   (is (= "tiles"
          (resources/file-stem "/tmp/maps/tiles.png"))))
 
-(deftest project-image-resource-entries-ignore_static_editor_assets
-  (is (= [{:id :project-assets/tiles.png
+(deftest project-bundle-entries-list_project_bundles
+  (is (= [{:id :terrain-assets
+           :bundle {:images {}}}]
+         (resources/project-bundle-entries
+          {:bundles {:terrain-assets {:images {}}}}))))
+
+(deftest project-image-resource-entries_use_selected_bundle
+  (is (= [{:id :tiles
+           :bundle-id :terrain-assets
            :dependency {:file-name "/tmp/maps/tiles.png"}}]
          (resources/project-image-resource-entries
-          {:images {:editor-assets/spritesheet {:file-name "assets/sheet.png"}
-                    :project-assets/tiles.png {:file-name "/tmp/maps/tiles.png"}}}))))
+          {:bundles {:terrain-assets
+                     {:images {:tiles {:file-name "/tmp/maps/tiles.png"}}}
+                     :ui-assets
+                     {:images {:icons {:file-name "/tmp/maps/icons.png"}}}}}
+          :terrain-assets))))
+
+(deftest first-image-resource-id-uses_selected_bundle
+  (is (= :tiles
+         (resources/first-image-resource-id
+          {:bundles {:terrain-assets
+                     {:images {:tiles {:file-name "/tmp/maps/tiles.png"}}}
+                     :ui-assets
+                     {:images {:icons {:file-name "/tmp/maps/icons.png"}}}}}
+          :terrain-assets)))
+  (is (= nil
+         (resources/first-image-resource-id
+          {:bundles {:terrain-assets {:images {}}}}
+          :terrain-assets))))
 
 (deftest project-image-resources-use_project_metadata
-  (is (= [{:id :project-assets/terrain
+  (is (= [{:id :terrain
+           :bundle-id :terrain-assets
+           :key :terrain-assets/terrain
            :name "Terrain Sheet"
            :file-name "/tmp/maps/tiles.png"}]
          (resources/project-image-resources
-          {:images {:project-assets/terrain {:name "Terrain Sheet"
-                                             :file-name "/tmp/maps/tiles.png"}}}))))
+          {:bundles {:terrain-assets
+                     {:images {:terrain {:name "Terrain Sheet"
+                                         :file-name "/tmp/maps/tiles.png"}}}}}
+          :terrain-assets))))
 
 (deftest runtime-image-dependency-strips_editor_metadata
   (is (= {:file-name "/tmp/maps/tiles.png"}
@@ -35,20 +58,51 @@
           {:file-name "/tmp/maps/tiles.png"
            :name "Terrain Sheet"}))))
 
+(deftest runtime-bundle-dependencies-reduces_image_map_by_key_value
+  (is (= {:images {:simples_pimples {:file-name "/tmp/simples_pimples.png"}}}
+         (resources/runtime-bundle-dependencies
+          {:images {:simples_pimples
+                    {:file-name "/tmp/simples_pimples.png"
+                     :name "Simples Pimples"}}}))))
+
 (deftest image-resource-options-preserve-resource-id
-  (is (= [{:value :project-assets/tiles.png
-           :label "tiles.png  tiles.png"}]
+  (is (= [{:value :tiles
+           :label "Tiles  tiles"}]
          (resources/image-resource-options
-          [{:id :project-assets/tiles.png
-            :name "tiles.png"
+          [{:id :tiles
+            :name "Tiles"
             :file-name "/tmp/maps/tiles.png"}]))))
 
 (deftest selected-resource-helpers-follow-selected-id
-  (let [items [{:id :project-assets/a.png}
-               {:id :project-assets/b.png}]]
-    (is (= 1 (resources/selected-resource-index items :project-assets/b.png)))
-    (is (= [{:id :project-assets/b.png}]
-           [(resources/selected-resource items :project-assets/b.png)]))
+  (let [items [{:id :a}
+               {:id :b}]]
+    (is (= 1 (resources/selected-resource-index items :b)))
+    (is (= [{:id :b}]
+           [(resources/selected-resource items :b)]))
     (is (= [1] (resources/selected-resource-indices
                 items
-                :project-assets/b.png)))))
+                :b)))))
+
+(deftest resource-workspace-state-clears_stale_image_selection
+  (let [state (resources/derive-resource-workspace-state
+               {:resources {:bundles {:terrain-assets {:images {}}}}
+                :selected-resource-bundle :terrain-assets
+                :selected-image-resource :simples-pimples})]
+    (is (= :terrain-assets (:selected-resource-bundle state)))
+    (is (= nil (:selected-image-resource state)))
+    (is (= false (:image-resource-panel-disabled? state)))
+    (is (= false (:image-resource-add-disabled? state)))
+    (is (= true (:image-resource-remove-disabled? state)))
+    (is (= true (:image-resource-detail-disabled? state)))))
+
+(deftest resource-workspace-state-disables_image_panel_without_bundle
+  (let [state (resources/derive-resource-workspace-state
+               {:resources {:bundles {}}
+                :selected-resource-bundle :missing
+                :selected-image-resource :simples-pimples})]
+    (is (= nil (:selected-resource-bundle state)))
+    (is (= nil (:selected-image-resource state)))
+    (is (= true (:image-resource-panel-disabled? state)))
+    (is (= true (:image-resource-add-disabled? state)))
+    (is (= true (:image-resource-remove-disabled? state)))
+    (is (= true (:image-resource-detail-disabled? state)))))
