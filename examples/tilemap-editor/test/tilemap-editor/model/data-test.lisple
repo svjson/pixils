@@ -18,6 +18,29 @@
     (is (= [] (:tilesets document)))
     (is (= [] (-> document :tilemap :layers)))))
 
+(deftest project-document-saves_only_project_owned_resources
+  (let [document (data/project-document
+                  {:resources {:bundles {:editor-assets
+                                         {:images {:spritesheet
+                                                   {:file-name "sprites.png"}}}
+                                         :project-assets
+                                         {:dynamic? true
+                                          :images {:tiles
+                                                   {:file-name "tiles.png"
+                                                    :name "Tiles"}}}}}})]
+    (is (= {:bundles {:project-assets
+                      {:images {:tiles
+                                {:file-name "tiles.png"
+                                 :name "Tiles"}}}}}
+           (:resources document)))))
+
+(deftest normalize-project-resources-drops_app_static_bundles
+  (is (= {:bundles {:terrain-assets {:images {}}}}
+         (data/normalize-project-resources
+          {:bundles {:editor-assets {:images {:spritesheet {}}}
+                     :terrain-assets {:dynamic? true
+                                      :images {}}}}))))
+
 (deftest missing-tileset-does-not-fall-back-to-sample-tiles
   (is (= [] (data/tile-options-for nil)))
   (is (nil? (data/tile-in nil 0)))

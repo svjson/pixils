@@ -363,11 +363,28 @@
 (def project-format-version 1)
 
 (def project-resources
-  {:bundles {:editor-assets
-             {:dynamic? false
-              :images {:spritesheet
-                       {:file-name "assets/simples_pimples.png"
-                        :transparency-color "#5a5268"}}}}})
+  {:bundles {}})
+
+(def app-static-bundle-ids [:editor-assets])
+
+(defun app-static-bundle-id? [bundle-id]
+  (contains? app-static-bundle-ids bundle-id))
+
+(defun project-resource-bundle? [bundle-id]
+  (not (app-static-bundle-id? bundle-id)))
+
+(defun project-resource-bundle-document [bundle]
+  (dissoc (or bundle {}) :dynamic?))
+
+(defun normalize-project-resources [resources]
+  {:bundles (reduce-kv (or (:bundles resources) {})
+                       {}
+                       (fn [result bundle-id bundle]
+                         (if (project-resource-bundle? bundle-id)
+                           (assoc result
+                                  bundle-id
+                                  (project-resource-bundle-document bundle))
+                           result)))})
 
 (def tileset-options
   (for-indexed [index tileset tilesets]
@@ -780,7 +797,8 @@
 (defun project-document [state]
   {:format project-format
    :version project-format-version
-   :resources (or (:resources state) project-resources)
+   :resources (normalize-project-resources (or (:resources state)
+                                               project-resources))
    :tilesets (or (:tilesets state) [])
    :tilemap {:width map-width
              :height map-height

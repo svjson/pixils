@@ -24,6 +24,15 @@
          (resources/project-bundle-entries
           {:bundles {:terrain-assets {:images {}}}}))))
 
+(deftest dynamic-project-bundles-ignore_static_editor_assets
+  (is (= [{:id :terrain-assets
+           :bundle {:images {}}}]
+         (resources/dynamic-project-bundle-entries
+          {:bundles {:editor-assets
+                     {:images {:spritesheet {:file-name "sprites.png"}}}
+                     :terrain-assets
+                     {:images {}}}}))))
+
 (deftest project-image-resource-entries_use_selected_bundle
   (is (= [{:id :tiles
            :bundle-id :terrain-assets
@@ -256,6 +265,17 @@
     (is (= [1] (resources/selected-resource-indices
                 items
                 :b)))))
+
+(deftest resource-workspace-state-ignores_static_editor_bundle_selection
+  (let [state (resources/derive-resource-workspace-state
+               {:resources {:bundles {:editor-assets
+                                      {:images {:spritesheet
+                                                {:file-name "sprites.png"}}}}}
+                :selected-resource-bundle :editor-assets
+                :selected-image-resource :spritesheet})]
+    (is (= nil (:selected-resource-bundle state)))
+    (is (= nil (:selected-image-resource state)))
+    (is (= true (:image-resource-panel-disabled? state)))))
 
 (deftest resource-workspace-state-clears_stale_image_selection
   (let [state (resources/derive-resource-workspace-state

@@ -95,8 +95,11 @@
            {:id bundle-id
             :bundle (get bundles bundle-id)}))))
 
+(defun static-project-bundle-id? [bundle-id]
+  (= bundle-id :editor-assets))
+
 (defun dynamic-bundle-entry? [entry]
-  (not= (-> entry :bundle :dynamic?) false))
+  (not (static-project-bundle-id? (:id entry))))
 
 (defun dynamic-project-bundle-entries [resources]
   (filter (project-bundle-entries resources) dynamic-bundle-entry?))

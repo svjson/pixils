@@ -166,9 +166,7 @@
       (res/add-image! (image-resource-key bundle-id resource-id)
                       {:file-name path})
       (assoc
-       (assoc-in (assoc-in state
-                           [:resources :bundles bundle-id :dynamic?]
-                           true)
+       (assoc-in state
                  [:resources :bundles bundle-id :images resource-id]
                  dependency)
        :selected-resource-bundle bundle-id

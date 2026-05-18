@@ -22,7 +22,7 @@
                {:resources {:bundles {}}
                 :selected-resource-bundle nil}
                {:path "assets/simples_pimples.png"})]
-    (is (= true
+    (is (= nil
            (get-in state [:resources :bundles :project-assets :dynamic?])))
     (is (= {:file-name "assets/simples_pimples.png"
             :name "Simples Pimples"}

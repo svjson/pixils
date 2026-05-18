@@ -120,6 +120,12 @@
                      {:dynamic? false
                       :images {:spritesheet {:file-name "sprites.png"}}}}}))))
 
+(deftest image-resource-options-ignore_static_editor_assets_without_dynamic_flag
+  (is (= []
+         (model/image-resource-entries
+          {:bundles {:editor-assets
+                     {:images {:spritesheet {:file-name "sprites.png"}}}}}))))
+
 (deftest import-source-rects-can_select_all_tiles
   (let [state {:selected-tileset-definition-index 0
                :tilesets [{:tiles []}]

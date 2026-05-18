@@ -5,6 +5,7 @@
             [tilemap-editor.view.tilemap.controls :as controls]
             [tilemap-editor.model.data :as data]
             [tilemap-editor.io.project :as project-io]
+            [tilemap-editor.view.resources.model :as resource-model]
             tilemap-editor.view.resources.layout
             tilemap-editor.view.tilemap.layout
             tilemap-editor.view.tileset.layout))
@@ -33,6 +34,7 @@
            :project-directory nil
            :project-filename "tilemap-project.edn"
            :resources data/project-resources
+           :synced-resources nil
            :selected-resource-bundle nil
            :selected-image-resource nil
            :project-history-path project-io/default-recent-projects-path
@@ -44,7 +46,13 @@
            :map-offset {:x 0 :y 0}
            :workspace-tab :map})
   :update (fn [state ctx]
-            (let [layers (or (:layers state) [])
+            (let [resources (:resources state)
+                  state (if (not= resources (:synced-resources state))
+                          (do
+                            (resource-model/sync-project-resources! resources)
+                            (assoc state :synced-resources resources))
+                          state)
+                  layers (or (:layers state) [])
                   layer-index (or (:selected-layer-index state) 0)
                   layer (when (> (count layers) 0)
                           (nth layers (min layer-index (dec (count layers)))))
