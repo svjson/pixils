@@ -606,19 +606,21 @@
     [(:selected-layer-index state)]))
 
 (defun layer-list-box-child [layers]
-  (lb/make {:options (layer-options layers)
-            :style {:width :fill
-                    :height (layer-list-height layers)}
-            :row-height layer-list-row-height
-            :visible-rows (count (or layers []))
-            :content-width 200
-            :state {:layers (ui/bind-state :layers)
-                    :tilesets (ui/bind-state :tilesets)
-                    :hidden-layer-indices (ui/bind-state :hidden-layer-indices)}
-            :item-state-keys [:layers :tilesets :hidden-layer-indices]
-            :selected-indices (ui/bind-state :selected-indices)
-            :force-selection? true
-            :item-child layer-row-child}))
+  (let [layers (or layers [])]
+    (lb/make {:options (layer-options layers)
+              :style {:width :fill
+                      :height (layer-list-height layers)}
+              :row-height layer-list-row-height
+              :visible-rows (count layers)
+              :content-width 200
+              :disabled? (empty? layers)
+              :state {:layers (ui/bind-state :layers)
+                      :tilesets (ui/bind-state :tilesets)
+                      :hidden-layer-indices (ui/bind-state :hidden-layer-indices)}
+              :item-state-keys [:layers :tilesets :hidden-layer-indices]
+              :selected-indices (ui/bind-state :selected-indices)
+              :force-selection? true
+              :item-child layer-row-child})))
 
 (defcomponent layer-list
   {:style {:width :fill

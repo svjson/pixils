@@ -135,6 +135,48 @@ TEST_F(ListBoxTest, forced_selection_skips_disabled_items)
   EXPECT_EQ(disabled->to_string(), "true");
 }
 
+TEST_F(ListBoxTest, classic_blue_disabled_list_box_styles_visible_viewport)
+{
+  runtime.eval(R"(
+    (pixils/defmode root-mode
+      {:theme 'pixils/classic-blue
+       :children [(pixils.ui.list-box/make
+                   {:options []
+                    :disabled? true
+                    :style {:width 100
+                            :height 30}
+                    :row-height 10
+                    :visible-rows 3
+                    :content-width 100})]})
+  )");
+
+  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.update_mode();
+  session.render_mode();
+
+  auto list_box = session.active_mode->children[0];
+  ASSERT_NE(list_box, nullptr);
+  ASSERT_TRUE(list_box->effective_style.background.has_value());
+  ASSERT_TRUE(list_box->effective_style.background->color.has_value());
+  EXPECT_EQ(*list_box->effective_style.background->color,
+            (Pixils::Color{0x25, 0x2d, 0x38, 255}));
+
+  auto scroll_pane = list_box->children[0];
+  ASSERT_NE(scroll_pane, nullptr);
+  ASSERT_TRUE(scroll_pane->effective_style.background.has_value());
+  ASSERT_TRUE(scroll_pane->effective_style.background->color.has_value());
+  EXPECT_EQ(*scroll_pane->effective_style.background->color,
+            (Pixils::Color{0x25, 0x2d, 0x38, 255}));
+
+  auto row = scroll_pane->children[0];
+  auto viewport = row->children[0];
+  ASSERT_NE(viewport, nullptr);
+  ASSERT_TRUE(viewport->effective_style.background.has_value());
+  ASSERT_TRUE(viewport->effective_style.background->color.has_value());
+  EXPECT_EQ(*viewport->effective_style.background->color,
+            (Pixils::Color{0x25, 0x2d, 0x38, 255}));
+}
+
 TEST_F(ListBoxTest, list_box_defaults_to_shrink_width)
 {
   runtime.eval(R"(

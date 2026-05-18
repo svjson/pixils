@@ -92,6 +92,7 @@
               :row-height tile-palette-row-height
               :visible-rows (count options)
               :content-width tile-palette-content-width
+              :disabled? (empty? options)
               :state {:tileset (ui/bind-state :palette-tileset)}
               :item-state-keys [:tileset]
               :selected-indices (ui/bind-state :selected-indices)

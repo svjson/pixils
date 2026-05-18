@@ -1,6 +1,7 @@
 (ns tilemap-editor.controls-test
   (:require proof.core
-            [tilemap-editor.controls :as controls]))
+            [tilemap-editor.controls :as controls]
+            [tilemap-editor.palette :as palette]))
 
 (deftest empty-layer-list-keeps-minimum-height
   (is (= 78 (controls/layer-list-height [])))
@@ -12,3 +13,12 @@
   (is (= true (:disabled? (:state (controls/tileset-combo-child nil)))))
   (is (= false (:disabled? (:state (controls/tileset-combo-child [{:id :terrain
                                                                     :label "Terrain"}]))))))
+
+(deftest layer-list-is-disabled-when-empty
+  (is (= true (:disabled? (:state (controls/layer-list-box-child [])))))
+  (is (= true (:disabled? (:state (controls/layer-list-box-child nil)))))
+  (is (not= true (:disabled? (:state (controls/layer-list-box-child [{:label "Ground"}]))))))
+
+(deftest tile-palette-is-disabled-when-empty
+  (is (= true (:disabled? (:state (palette/tile-palette-list-box-child nil)))))
+  (is (not= true (:disabled? (:state (palette/tile-palette-list-box-child :colors))))))

@@ -78,6 +78,19 @@
                   :border {:color CONTENT-BORDER
                            :thickness 1}}
 
+    'ui/list-box:disabled
+    {:background DISABLED-BG
+     :border {:color DISABLED-BORDER
+              :thickness 1
+              :right {:color BUTTON-SHADOW}
+              :bottom {:color BUTTON-SHADOW}}}
+
+    ['ui/list-box:disabled 'ui/scroll-pane]
+    {:background DISABLED-BG}
+
+    ['ui/list-box:disabled 'ui/scroll-pane-viewport]
+    {:background DISABLED-BG}
+
     'ui/combo-box {:background BUTTON-BG
                    :border {:color BUTTON-HIGHLIGHT
                             :thickness 1
@@ -340,7 +353,7 @@
             :marked-style {:color DISABLED-TEXT}}}
 
     :ui/list-item:disabled
-    {:background CONTENT-BG
+    {:background DISABLED-BG
      :text {:color DISABLED-TEXT}}
 
     'ui/combo-box-trigger:disabled
