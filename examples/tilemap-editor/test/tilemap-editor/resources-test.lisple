@@ -81,6 +81,29 @@
           :terrain-assets
           :terrain-v2))))
 
+(deftest resource-key-replacement-updates_exact_resource_key_only
+  (is (= :terrain-assets/tiles-v2
+         (resources/replace-resource-key
+          :terrain-assets/tiles
+          :terrain-assets/tiles
+          :terrain-assets/tiles-v2)))
+  (is (= :terrain-assets/other
+         (resources/replace-resource-key
+          :terrain-assets/other
+          :terrain-assets/tiles
+          :terrain-assets/tiles-v2))))
+
+(deftest resource-key-replacement-walks_nested_project_data
+  (is (= {:tile {:image :terrain-assets/tiles-v2
+                 :by-key {:terrain-assets/tiles-v2 true
+                          :other/tiles true}}}
+         (resources/replace-resource-key-in
+          {:tile {:image :terrain-assets/tiles
+                  :by-key {:terrain-assets/tiles true
+                           :other/tiles true}}}
+          :terrain-assets/tiles
+          :terrain-assets/tiles-v2))))
+
 (deftest bundle-rename-updates_tileset_image_references
   (is (= [{:id :terrain
            :tiles [{:id :grass
@@ -108,6 +131,95 @@
             :stamp {:image :terrain-assets/decor}}]
           :terrain-assets
           :terrain-v2))))
+
+(deftest resource-rename-updates_tileset_image_references
+  (is (= [{:id :terrain
+           :tiles [{:id :grass
+                    :type :sprite
+                    :image :terrain-assets/sheet-v2}
+                   {:id :water
+                    :type :sprite
+                    :image :terrain-assets/other}]}]
+         (resources/rename-resource-in-tilesets
+          [{:id :terrain
+            :tiles [{:id :grass
+                     :type :sprite
+                     :image :terrain-assets/sheet}
+                    {:id :water
+                     :type :sprite
+                     :image :terrain-assets/other}]}]
+          :terrain-assets
+          :sheet
+          :sheet-v2))))
+
+(deftest resource-rename-updates_layer_resource_references
+  (is (= [{:id :decor
+           :stamp {:image :terrain-assets/decor-v2}}]
+         (resources/rename-resource-in-layers
+          [{:id :decor
+            :stamp {:image :terrain-assets/decor}}]
+          :terrain-assets
+          :decor
+          :decor-v2))))
+
+(deftest resource-usage-counts_tiles_per_tileset
+  (is (= [{:tileset-id :terrain
+	           :label "Terrain"
+	           :count 2}
+	          {:tileset-id :empty
+	           :label "Empty"
+	           :count 0}
+	          {:tileset-id :decor
+	           :label "Decor"
+	           :count 1}]
+         (resources/resource-usage-by-tileset
+          [{:id :terrain
+            :label "Terrain"
+            :tiles [{:type :sprite
+                     :image :terrain-assets/sheet}
+                    {:type :sprite
+                     :image :terrain-assets/sheet}
+                    {:type :sprite
+                     :image :terrain-assets/other}]}
+           {:id :empty
+            :label "Empty"
+            :tiles []}
+           {:id :decor
+            :label "Decor"
+            :tiles [{:type :sprite
+                     :image :terrain-assets/sheet}]}]
+          :terrain-assets/sheet))))
+
+(deftest resource-delete-can_remove_tiles_using_resource
+  (is (= [{:id :terrain
+           :tiles [{:id :water
+                    :type :sprite
+                    :image :terrain-assets/other}
+                   {:id :plain
+                    :type :color}]}]
+         (resources/remove-resource-tiles-from-tilesets
+          [{:id :terrain
+            :tiles [{:id :grass
+                     :type :sprite
+                     :image :terrain-assets/sheet}
+                    {:id :water
+                     :type :sprite
+                     :image :terrain-assets/other}
+                    {:id :plain
+                     :type :color}]}]
+          :terrain-assets/sheet))))
+
+(deftest replacement-resource-options-exclude_current_resource
+  (is (= [{:value :terrain-assets/other
+           :label ":terrain-assets/other  Other"
+           :key :terrain-assets/other}]
+         (resources/replacement-image-resource-options
+          {:bundles {:terrain-assets
+                     {:images {:sheet {:name "Sheet"
+                                       :file-name "sheet.png"}
+                               :other {:name "Other"
+                                       :file-name "other.png"}}}}}
+          :terrain-assets/sheet))))
 
 (deftest runtime-image-dependency-strips_editor_metadata
   (is (= {:file-name "/tmp/maps/tiles.png"}

@@ -140,6 +140,8 @@
                        :child {:mode 'resource-explorer-workspace
                                :style {:padding 8}
                                :state {:project-directory (ui/bind-state :project-directory)
+                                       :tilesets (ui/bind-state :tilesets)
+                                       :layers (ui/bind-state :layers)
                                        :resources (ui/bind-state :resources)
                                        :selected-resource-bundle (ui/bind-state :selected-resource-bundle)
                                        :selected-image-resource (ui/bind-state :selected-image-resource)}}}]})]

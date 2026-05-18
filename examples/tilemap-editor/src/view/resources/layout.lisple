@@ -5,6 +5,7 @@
             [pixils.render :as r]
             [pixils.resource :as res]
             [pixils.ui :as ui]
+            [pixils.ui.combo-box :as cb]
             [pixils.ui.dialog :as dialog]
             [pixils.ui.file-dialog :as file-dialog]
             [pixils.ui.header-panel :as hp]
@@ -16,6 +17,12 @@
 (def resource-list-row-height 24)
 (def image-preview-width 328)
 (def image-preview-height 260)
+
+(def image-delete-action-options
+  [{:value :resource-delete/delete-tiles
+    :label "Also delete all tiles using it"}
+   {:value :resource-delete/replace-resource
+    :label "Select a replacement resource for all tiles using it"}])
 
 (def image-file-filters
   [{:label "Image files (*.png, *.jpg, *.jpeg, *.bmp)"
@@ -163,6 +170,25 @@
                                                               new-bundle-id))))
     :default value))
 
+(defun replace-resource-key [value old-key new-key]
+  (if (= value old-key)
+    new-key
+    value))
+
+(defun replace-resource-key-in [value old-key new-key]
+  (case (type-of value)
+    "keyword" (replace-resource-key value old-key new-key)
+    "vector" (map value
+                  (fn [item]
+                    (replace-resource-key-in item old-key new-key)))
+    "map" (reduce-kv value
+                     {}
+                     (fn [result key item]
+                       (assoc result
+                              (replace-resource-key-in key old-key new-key)
+                              (replace-resource-key-in item old-key new-key))))
+    :default value))
+
 (defun rename-bundle-in-tile [tile old-bundle-id new-bundle-id]
   (replace-resource-key-bundle-in tile old-bundle-id new-bundle-id))
 
@@ -178,6 +204,16 @@
   (replace-resource-key-bundle-in (or layers [])
                                   old-bundle-id
                                   new-bundle-id))
+
+(defun rename-resource-in-tilesets [tilesets bundle-id old-resource-id new-resource-id]
+  (replace-resource-key-in (or tilesets [])
+                           (image-resource-key bundle-id old-resource-id)
+                           (image-resource-key bundle-id new-resource-id)))
+
+(defun rename-resource-in-layers [layers bundle-id old-resource-id new-resource-id]
+  (replace-resource-key-in (or layers [])
+                           (image-resource-key bundle-id old-resource-id)
+                           (image-resource-key bundle-id new-resource-id)))
 
 (defun rename-resource-bundle! [state payload]
   (let [old-bundle-id (:previous-bundle-id payload)
@@ -260,6 +296,64 @@
             :name (or (:name dependency)
                       (keyword-label id))
             :file-name (:file-name dependency)}))))
+
+(defun all-project-image-resources [resources]
+  (reduce (dynamic-project-bundle-entries resources)
+          []
+          (fn [out entry]
+            (concat out
+                    (project-image-resources resources (:id entry))))))
+
+(defun replacement-image-resource-options [resources current-key]
+  (map (filter (all-project-image-resources resources)
+               (fn [resource]
+                 (not= (:key resource) current-key)))
+       (fn [resource]
+         {:value (:key resource)
+          :label (str (:key resource) "  " (:name resource))
+          :key (:key resource)})))
+
+(defun first-replacement-image-key [resources current-key]
+  (if-let [option (head (replacement-image-resource-options resources
+                                                           current-key))]
+    (:key option)
+    nil))
+
+(defun tile-uses-image-resource? [tile resource-key]
+  (and (= (:type tile) :sprite)
+       (= (:image tile) resource-key)))
+
+(defun tileset-resource-usage-count [tileset resource-key]
+  (count (filter (or (:tiles tileset) [])
+                 (fn [tile]
+                   (tile-uses-image-resource? tile resource-key)))))
+
+(defun resource-usage-by-tileset [tilesets resource-key]
+  (map (or tilesets [])
+       (fn [tileset]
+         {:tileset-id (:id tileset)
+          :label (or (:label tileset)
+                     (str (:id tileset)))
+          :count (tileset-resource-usage-count tileset
+                                               resource-key)})))
+
+(defun resource-usage-total [usage]
+  (reduce (or usage [])
+          0
+          (fn [total item]
+            (+ total (:count item)))))
+
+(defun remove-resource-tiles-from-tileset [tileset resource-key]
+  (assoc tileset
+         :tiles
+         (filter (or (:tiles tileset) [])
+                 (fn [tile]
+                   (not (tile-uses-image-resource? tile resource-key))))))
+
+(defun remove-resource-tiles-from-tilesets [tilesets resource-key]
+  (map (or tilesets [])
+       (fn [tileset]
+         (remove-resource-tiles-from-tileset tileset resource-key))))
 
 (defun runtime-bundle-dependencies [bundle]
   {:images (reduce-kv (or (:images bundle) {})
@@ -567,10 +661,21 @@
           (res/remove-image! (image-resource-key bundle-id previous-id)))
         (res/add-image! (image-resource-key bundle-id resource-id)
                         (runtime-image-dependency dependency))
-        (assoc (assoc-in state
-                         [:resources :bundles bundle-id :images]
-                         (assoc images resource-id dependency))
-               :selected-image-resource resource-id))
+        (let [state (assoc (assoc-in state
+                                     [:resources :bundles bundle-id :images]
+                                     (assoc images resource-id dependency))
+                           :selected-image-resource resource-id)]
+          (if (= previous-id resource-id)
+            state
+            (assoc state
+                   :tilesets (rename-resource-in-tilesets (:tilesets state)
+                                                          bundle-id
+                                                          previous-id
+                                                          resource-id)
+                   :layers (rename-resource-in-layers (:layers state)
+                                                      bundle-id
+                                                      previous-id
+                                                      resource-id)))))
       state)))
 
 (defun apply-image-metadata-dialog-result [state payload]
@@ -581,19 +686,38 @@
       :default state)
     state))
 
-(defun remove-image-resource! [state]
-  (let [bundle-id (:selected-resource-bundle state)
-        resource-id (:selected-image-resource state)]
+(defun remove-image-resource! [state bundle-id resource-id action replacement-key]
+  (let [resource-key (image-resource-key bundle-id resource-id)]
     (if (and bundle-id resource-id)
       (let [next-resources (update-in (:resources state)
                                       [:bundles bundle-id :images]
                                       (fn [images]
                                         (dissoc (or images {}) resource-id)))]
         (res/remove-image! (image-resource-key bundle-id resource-id))
-        (assoc state
-               :resources next-resources
-               :selected-image-resource (first-image-resource-id next-resources
-                                                                  bundle-id)))
+        (let [state (assoc state
+                           :resources next-resources
+                           :selected-image-resource
+                           (first-image-resource-id next-resources
+                                                    bundle-id))]
+          (case action
+            :resource-delete/replace-resource
+            (if replacement-key
+              (assoc state
+                     :tilesets (replace-resource-key-in (:tilesets state)
+                                                        resource-key
+                                                        replacement-key)
+                     :layers (replace-resource-key-in (:layers state)
+                                                      resource-key
+                                                      replacement-key))
+              state)
+
+            :resource-delete/delete-tiles
+            (assoc state
+                   :tilesets (remove-resource-tiles-from-tilesets
+                              (:tilesets state)
+                              resource-key))
+
+            :default state)))
       state)))
 
 (defun remove-resource-bundle! [state bundle-id]
@@ -638,19 +762,99 @@
       :payload (:payload opts)})
     state))
 
+(defun delete-action-index [action]
+  (or (find-index image-delete-action-options
+                  (fn [option]
+                    (= (:value option) action)))
+      0))
+
+(defun replacement-index [options key]
+  (find-index (or options [])
+              (fn [option]
+                (= (:value option) key))))
+
+(defun usage-row-child [usage]
+  {:mode 'resource-delete-usage-row
+   :state {:label (:label usage)
+           :count (:count usage)}})
+
+(defun resource-delete-dialog-body-child []
+  {:mode 'resource-delete-dialog-body
+   :state {:usage (ui/bind-state :usage)
+           :delete-action (ui/bind-state :delete-action)
+           :delete-action-index (ui/bind-state :delete-action-index)
+           :replacement-options (ui/bind-state :replacement-options)
+           :replacement-key (ui/bind-state :replacement-key)
+           :replacement-index (ui/bind-state :replacement-index)
+           :replacement-disabled? (ui/bind-state :replacement-disabled?)
+           :invalid? (ui/bind-state :invalid?)}
+   :children (concat
+              [{:mode 'ui/text
+                :class :ui/muted
+                :state {:value "Tiles using this resource"}}
+               {:mode 'resource-delete-usage-list
+                :state {:usage (ui/bind-state :usage)}}
+               {:mode 'ui/text
+                :class :ui/muted
+                :state {:value "Delete behavior"}}
+               (cb/make {:options image-delete-action-options
+                         :selected-index (ui/bind-state :delete-action-index)})
+               {:mode 'ui/text
+                :class :ui/muted
+                :state {:value "Replacement resource"}}
+               (cb/make {:options (ui/bind-state :replacement-options)
+                         :selected-index (ui/bind-state :replacement-index)
+                         :disabled? (ui/bind-state :replacement-disabled?)})]
+              [{:mode 'resource-delete-dialog-buttons
+                :state {:invalid? (ui/bind-state :invalid?)}}])})
+
+(defun open-image-delete-resolution-dialog! [state ctx bundle-id resource-id usage]
+  (let [resource-key (image-resource-key bundle-id resource-id)
+        replacement-options (replacement-image-resource-options (:resources state)
+                                                               resource-key)
+        replacement-key (first-replacement-image-key (:resources state)
+                                                    resource-key)]
+    (do
+      (push-mode! 'image-resource-delete-dialog-modal
+                  {:title "Delete Image Resource"
+                   :bundle-id bundle-id
+                   :resource-id resource-id
+                   :resource-key resource-key
+                   :usage usage
+                   :delete-action :resource-delete/delete-tiles
+                   :delete-action-index 0
+                   :replacement-options replacement-options
+                   :replacement-key replacement-key
+                   :replacement-index (or (replacement-index replacement-options
+                                                             replacement-key)
+                                          0)}
+                  {:origin {:view (:view ctx)
+                            :event :resource/delete-dialog-result}})
+      state)))
+
 (defun open-image-delete-confirm-dialog! [state ctx bundle-id resource-id]
   (if (and bundle-id resource-id)
-    (open-resource-confirm-dialog!
-     state
-     ctx
-     {:title "Delete Image Resource"
-      :message (str "Delete image resource "
-                    (image-resource-key bundle-id resource-id)
-                    "?")
-      :confirm-label "Delete"
-      :payload {:operation :delete-image
-                :bundle-id bundle-id
-                :resource-id resource-id}})
+    (let [usage (resource-usage-by-tileset
+                 (:tilesets state)
+                 (image-resource-key bundle-id resource-id))]
+      (if (> (resource-usage-total usage) 0)
+        (open-image-delete-resolution-dialog! state
+                                              ctx
+                                              bundle-id
+                                              resource-id
+                                              usage)
+        (open-resource-confirm-dialog!
+         state
+         ctx
+         {:title "Delete Image Resource"
+          :message (str "Delete image resource "
+                        (image-resource-key bundle-id resource-id)
+                        "?")
+          :confirm-label "Delete"
+          :payload {:operation :delete-image
+                    :bundle-id bundle-id
+                    :resource-id resource-id
+                    :delete-action :resource-delete/delete-tiles}})))
     state))
 
 (defun open-bundle-delete-confirm-dialog! [state ctx bundle-id]
@@ -669,10 +873,11 @@
   (if (= (:choice payload) :dialog/ok)
     (let [details (:payload payload)]
       (case (:operation details)
-        :delete-image (remove-image-resource!
-                       (assoc state
-                              :selected-resource-bundle (:bundle-id details)
-                              :selected-image-resource (:resource-id details)))
+        :delete-image (remove-image-resource! state
+                                              (:bundle-id details)
+                                              (:resource-id details)
+                                              (:delete-action details)
+                                              (:replacement-key details))
         :delete-bundle (remove-resource-bundle! state (:bundle-id details))
         :default state))
     state))
@@ -796,10 +1001,144 @@
                                {:pos {:x (:x rect)
                                       :y (:y rect)}
                                 :scale (:scale rect)})))
-                 (r/rect! {:x 0 :y 0
-                           :w image-preview-width
-                           :h image-preview-height}
-                          {:color {:r 0x00 :g 0x00 :b 0x00}}))))})
+	                 (r/rect! {:x 0 :y 0
+	                           :w image-preview-width
+	                           :h image-preview-height}
+	                          {:color {:r 0x00 :g 0x00 :b 0x00}}))))})
+
+(defcomponent resource-delete-usage-row
+  {:style {:width :fill
+           :height 20
+           :layout {:direction :row
+                    :align-items :center
+                    :gap 8}}
+   :children [{:mode 'ui/text
+               :style {:width :fill}
+               :state {:value (ui/bind-state :label)}}
+              {:mode 'ui/text
+               :class :ui/muted
+               :style {:width 58
+                       :text {:align :right}}
+               :state {:value (ui/bind-state :count)}}]})
+
+(defun resource-delete-usage-rows-child [usage]
+  {:id "rows"
+   :style {:width :fill
+           :height :shrink
+           :layout {:direction :column
+                    :gap 2}}
+   :children (map (or usage []) usage-row-child)})
+
+(defcomponent resource-delete-usage-list
+  {:style {:width :fill
+           :height :shrink}
+   :init (fn [state ctx]
+           (assoc state :rendered-usage nil))
+   :update (fn [state ctx]
+             (let [usage (or (:usage state) [])]
+               (do
+                 (when (not= usage (:rendered-usage state))
+                   (ui/replace-child! (:view ctx)
+                                      "rows"
+                                      (resource-delete-usage-rows-child usage)))
+                 (assoc state :rendered-usage usage))))
+   :children [(resource-delete-usage-rows-child [])]})
+
+(defcomponent resource-delete-dialog-body
+  {:class :ui/content
+   :style {:width 430
+           :height :shrink
+           :padding 10
+           :layout {:direction :column
+                    :gap 8}}
+   :update (fn [state ctx]
+             (let [replace? (= (:delete-action state)
+                               :resource-delete/replace-resource)]
+               (assoc state
+                      :replacement-disabled? (not replace?)
+                      :invalid? (and replace?
+                                     (nil? (:replacement-key state))))))
+   :on {:combo-box/change
+        (fn [state event ctx]
+          (let [payload (:payload event)
+                value (:value payload)]
+            (case value
+              :resource-delete/delete-tiles
+              (assoc state
+                     :delete-action value
+                     :delete-action-index (:selected-index payload))
+
+              :resource-delete/replace-resource
+              (assoc state
+                     :delete-action value
+                     :delete-action-index (:selected-index payload))
+
+              :default
+              (assoc state
+                     :replacement-key value
+                     :replacement-index (:selected-index payload)))))}})
+
+(defcomponent resource-delete-dialog-buttons
+  {:style {:width :fill
+           :height 24
+           :layout {:direction :row
+                    :gap :space-between}}
+   :children [{:mode 'ui/button
+               :style {:width 78
+                       :height 24}
+               :state {:label "Cancel"}
+               :on-click (fn [state event ctx]
+                           (do
+                             (ui/emit! (:view ctx)
+                                       :resource-delete-dialog/cancel)
+                             state))}
+              {:mode 'ui/button
+               :style {:width 78
+                       :height 24}
+               :state {:label "Delete"
+                       :disabled? (ui/bind-state :invalid?)}
+               :on-click (fn [state event ctx]
+                           (do
+                             (ui/emit! (:view ctx)
+                                       :resource-delete-dialog/confirm)
+                             state))}]})
+
+(defmode image-resource-delete-dialog-modal
+  {:on {:resource-delete-dialog/cancel
+        (fn [state event ctx]
+          (do
+            (ui/stop-propagation! event)
+            (pop-mode! {:type :cancel})
+            state))
+        :resource-delete-dialog/confirm
+        (fn [state event ctx]
+          (do
+            (ui/stop-propagation! event)
+            (if (:invalid? state)
+              state
+              (do
+                (pop-mode! {:type :confirm
+                            :operation :delete-image
+                            :bundle-id (:bundle-id state)
+                            :resource-id (:resource-id state)
+                            :delete-action (:delete-action state)
+                            :replacement-key (:replacement-key state)})
+                state))))}
+   :compose {:render :pass}
+   :children [(w/make {:position {:x 200 :y 120}
+                       :title-bar {:title (ui/bind-state :title)}
+                       :state {:title (ui/bind-state :title)
+                               :bundle-id (ui/bind-state :bundle-id)
+                               :resource-id (ui/bind-state :resource-id)
+                               :delete-action (ui/bind-state :delete-action)
+	                               :delete-action-index (ui/bind-state :delete-action-index)
+	                               :usage (ui/bind-state :usage)
+	                               :replacement-options (ui/bind-state :replacement-options)
+	                               :replacement-key (ui/bind-state :replacement-key)
+	                               :replacement-index (ui/bind-state :replacement-index)
+	                               :replacement-disabled? (ui/bind-state :replacement-disabled?)
+	                               :invalid? (ui/bind-state :invalid?)}
+	                       :body [(resource-delete-dialog-body-child)]})]})
 
 (defcomponent resource-bundle-dialog-body
   {:class :ui/content
@@ -1152,9 +1491,19 @@
         :resource/metadata-dialog-result
         (fn [state event ctx]
           (apply-image-metadata-dialog-result state (:payload event)))
-        :resource/confirm-dialog-result
-        (fn [state event ctx]
-          (apply-resource-confirm-dialog-result state (:payload event)))}
+	        :resource/confirm-dialog-result
+	        (fn [state event ctx]
+	          (apply-resource-confirm-dialog-result state (:payload event)))
+	        :resource/delete-dialog-result
+	        (fn [state event ctx]
+	          (let [payload (:payload event)]
+	            (if (= (:type payload) :confirm)
+	              (remove-image-resource! state
+	                                      (:bundle-id payload)
+	                                      (:resource-id payload)
+	                                      (:delete-action payload)
+	                                      (:replacement-key payload))
+	              state)))}
    :children [(make-resource-bundle-list-panel)
               (make-image-resource-list-panel)
               (make-image-resource-detail-panel)]})
