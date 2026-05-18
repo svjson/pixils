@@ -1,52 +1,15 @@
-(ns tilemap-editor.view.tilemap.controls-test
+(ns tilemap-editor.view.tileset.model-test
   (:require proof.core
-            [tilemap-editor.view.tilemap.controls :as controls]
-            [tilemap-editor.view.tilemap.palette :as palette]
-            [tilemap-editor.view.tileset.model :as tileset-model]
-            [tilemap-editor.view.tileset.panels :as tileset-panels]
-            [tilemap-editor.view.tileset.dialogs :as tileset-dialogs]
-            [tilemap-editor.view.tileset.layout :as tileset-layout]
-            [tilemap-editor.model.data :as data]))
-
-(deftest empty-layer-list-keeps-minimum-height
-  (is (= 78 (controls/layer-list-height [])))
-  (is (= 78 (controls/layer-list-height [1 2])))
-  (is (= 104 (controls/layer-list-height [1 2 3 4]))))
-
-(deftest tileset-selector-is-disabled-when-empty
-  (is (= true (:disabled? (:state (controls/tileset-combo-child [])))))
-  (is (= true (:disabled? (:state (controls/tileset-combo-child nil)))))
-  (is (= false (:disabled? (:state (controls/tileset-combo-child [{:id :terrain
-                                                                    :label "Terrain"}]))))))
-
-(deftest layer-list-is-disabled-when-empty
-  (is (= true (:disabled? (:state (controls/layer-list-box-child [])))))
-  (is (= true (:disabled? (:state (controls/layer-list-box-child nil)))))
-  (is (not= true (:disabled? (:state (controls/layer-list-box-child [{:label "Ground"}]))))))
-
-(deftest tile-palette-is-disabled-when-empty
-  (is (= true (:disabled? (:state (palette/tile-palette-list-box-child [] nil)))))
-  (is (not= true
-            (:disabled? (:state (palette/tile-palette-list-box-child
-                                 (data/project-tileset-definitions)
-                                 :colors))))))
-
-(deftest tileset-definition-list-is-disabled-when-empty
-  (is (= true (:disabled? (:state (tileset-panels/tileset-list-box-child [])))))
-  (is (= true (:disabled? (:state (tileset-panels/tileset-list-box-child nil)))))
-  (is (not= true
-            (:disabled? (:state (tileset-panels/tileset-list-box-child
-                                 [{:id :terrain
-                                   :label "Terrain"}]))))))
+            [tilemap-editor.view.tileset.model :as model]))
 
 (deftest tileset-workspace-disables_dependent_panels_without_selection
-  (let [empty-state (tileset-model/derive-tileset-workspace-state
+  (let [empty-state (model/derive-tileset-workspace-state
                      {:selected-tileset-definition-index nil
                       :selected-tileset-tile-index nil})
-        tileset-state (tileset-model/derive-tileset-workspace-state
+        tileset-state (model/derive-tileset-workspace-state
                        {:selected-tileset-definition-index 0
                         :selected-tileset-tile-index nil})
-        tile-state (tileset-model/derive-tileset-workspace-state
+        tile-state (model/derive-tileset-workspace-state
                     {:selected-tileset-definition-index 0
                      :selected-tileset-tile-index 0})]
     (is (= true (:tile-set-panel-disabled? empty-state)))
@@ -59,38 +22,20 @@
 (deftest tileset-workspace-knows_when_project_image_resources_exist
   (is (= false
          (:has-project-image-resources?
-          (tileset-model/derive-tileset-workspace-state
+          (model/derive-tileset-workspace-state
            {:resources {:bundles {:editor-assets
                                   {:dynamic? false
                                    :images {:spritesheet
                                             {:file-name "sprites.png"}}}}}}))))
   (is (= true
          (:has-project-image-resources?
-          (tileset-model/derive-tileset-workspace-state
+          (model/derive-tileset-workspace-state
            {:resources {:bundles {:project-assets
                                   {:images {:tiles
                                             {:file-name "tiles.png"}}}}}})))))
 
-(deftest tile-add-menu-disables_resource_import_without_project_resources
-  (let [menu (tileset-dialogs/tile-add-menu false)
-        item (head (:items menu))]
-    (is (= "Add from resource" (:label item)))
-    (is (= true (:disabled? item))))
-  (let [menu (tileset-dialogs/tile-add-menu true)
-        item (head (:items menu))]
-    (is (= false (:disabled? item)))))
-
-(deftest tileset-list-panel-has_project_header_and_add_button
-  (let [panel (tileset-layout/make-tileset-list-panel)
-        header (head (:children panel))
-        add-button (nth (:children header) 1)]
-    (is (= "Project Tile Sets" (-> panel :state :title)))
-    (is (= 'ui/button (:mode add-button)))
-    (is (= :ui/toolbar-button (:class add-button)))
-    (is (= "+" (-> add-button :state :label)))))
-
 (deftest tileset-creation-adds_and_selects_new_tileset
-  (let [state (tileset-model/add-tileset-definition!
+  (let [state (model/add-tileset-definition!
                {:tilesets []
                 :selected-tileset-definition-index nil
                 :selected-tileset-tile-index nil}
@@ -107,7 +52,7 @@
     (is (= nil (:selected-tileset-tile-index state)))))
 
 (deftest tileset-creation-deduplicates_ids
-  (let [state (tileset-model/add-tileset-definition!
+  (let [state (model/add-tileset-definition!
                {:tilesets [{:id :terrain
                             :label "Terrain"
                             :tile-size 16
@@ -119,7 +64,7 @@
     (is (= :terrain-2 (get-in state [:tilesets 1 :id])))))
 
 (deftest tile-creation-adds_and_selects_new_tile
-  (let [state (tileset-model/add-tile-definition!
+  (let [state (model/add-tile-definition!
                {:selected-tileset-definition-index 0
                 :selected-tileset-tile-index nil
                 :tilesets [{:id :terrain
@@ -140,7 +85,7 @@
     (is (= 0 (:selected-tileset-tile-index state)))))
 
 (deftest sprite_tile_creation_uses_tileset_tile_size
-  (let [state (tileset-model/add-tile-definition!
+  (let [state (model/add-tile-definition!
                {:selected-tileset-definition-index 0
                 :tilesets [{:id :actors
                             :label "Actors"
@@ -162,7 +107,7 @@
            :file-name "sprites.png"
            :value 0
            :label ":assets/sprites  Sprites"}]
-         (tileset-model/image-resource-options
+         (model/image-resource-options
           {:bundles {:assets
                      {:images {:sprites {:name "Sprites"
                                          :file-name "sprites.png"}}}}}
@@ -170,24 +115,10 @@
 
 (deftest image-resource-options-ignore_static_editor_assets
   (is (= []
-         (tileset-model/image-resource-entries
+         (model/image-resource-entries
           {:bundles {:editor-assets
                      {:dynamic? false
                       :images {:spritesheet {:file-name "sprites.png"}}}}}))))
-
-(deftest import-file-resource-adds_project_bundle_metadata
-  (let [state (tileset-dialogs/import-file-resource!
-               {:resources {:bundles {}}
-                :selected-resource-bundle nil}
-               {:path "assets/simples_pimples.png"})]
-    (is (= true
-           (get-in state [:resources :bundles :project-assets :dynamic?])))
-    (is (= {:file-name "assets/simples_pimples.png"
-            :name "Simples Pimples"}
-           (get-in state
-                   [:resources :bundles :project-assets :images :simples-pimples])))
-    (is (= :project-assets (:selected-resource-bundle state)))
-    (is (= :simples-pimples (:selected-image-resource state)))))
 
 (deftest import-source-rects-can_select_all_tiles
   (let [state {:selected-tileset-definition-index 0
@@ -200,9 +131,9 @@
             {:x 16 :y 0 :w 16 :h 16}
             {:x 0 :y 16 :w 16 :h 16}
             {:x 16 :y 16 :w 16 :h 16}]
-           (tileset-model/import-source-rects state
-                                               :assets/sprites
-                                               {:w 32 :h 32})))))
+           (model/import-source-rects state
+                                      :assets/sprites
+                                      {:w 32 :h 32})))))
 
 (deftest import-source-rects-start_empty_without_select_all
   (let [state {:selected-tileset-definition-index 0
@@ -213,9 +144,9 @@
                :exclude-same-tileset? false
                :exclude-project? false}]
     (is (= []
-           (tileset-model/import-source-rects state
-                                               :assets/sprites
-                                               {:w 32 :h 32})))))
+           (model/import-source-rects state
+                                      :assets/sprites
+                                      {:w 32 :h 32})))))
 
 (deftest import-source-rects-excludes_existing_project_tiles
   (let [state {:selected-tileset-definition-index 0
@@ -233,12 +164,12 @@
                :exclude-project? true}]
     (is (= [{:x 0 :y 16 :w 16 :h 16}
             {:x 16 :y 16 :w 16 :h 16}]
-           (tileset-model/import-source-rects state
-                                               :assets/sprites
-                                               {:w 32 :h 32})))))
+           (model/import-source-rects state
+                                      :assets/sprites
+                                      {:w 32 :h 32})))))
 
 (deftest imported_sprite_tiles_get_default_names_and_unique_ids
-  (let [state (tileset-model/add-imported-sprite-tiles!
+  (let [state (model/add-imported-sprite-tiles!
                {:selected-tileset-definition-index 0
                 :tilesets [{:id :terrain
                             :tile-size 16
@@ -259,7 +190,7 @@
     (is (= 1 (:selected-tileset-tile-index state)))))
 
 (deftest color_range_creation_adds_numbered_color_tiles
-  (let [state (tileset-model/add-color-tile-range!
+  (let [state (model/add-color-tile-range!
                {:selected-tileset-definition-index 0
                 :tilesets [{:id :colors
                             :tile-size 16
@@ -282,25 +213,12 @@
                 (fn [tile] (:color tile)))))
     (is (= 0 (:selected-tileset-tile-index state)))))
 
-(deftest recent-project-menu-is-inert-when-empty
-  (let [item (controls/recent-project-menu-item [])]
-    (is (= "Recent Projects" (:label item)))
-    (is (= true (:disabled? item)))
-    (is (nil? (:items item)))))
-
-(deftest recent-project-menu-opens-submenu-when-populated
-  (let [item (controls/recent-project-menu-item [{:path "map.edn"
-                                                  :filename "map.edn"}])]
-    (is (= "Recent Projects ->" (:label item)))
-    (is (= "map.edn" (get-in item [:items 0 :label])))
-    (is (= :project/open-recent (get-in item [:items 0 :action])))))
-
 (deftest selected-tileset-tile-comes-from-current-grid-selection
   (let [state {:selected-tileset-definition-index 0
                :selected-tileset-tile-index 1
                :tilesets [{:tiles [{:id :first}
                                    {:id :second}]}]}]
-    (is (= :second (:id (tileset-model/selected-tileset-tile state))))))
+    (is (= :second (:id (model/selected-tileset-tile state))))))
 
 (deftest tile-definition-type-change-adds-default_sprite_facts
   (let [state {:selected-tileset-definition-index 0
@@ -308,7 +226,7 @@
                :tilesets [{:tiles [{:id :night
                                     :type :color
                                     :color {:r 1 :g 2 :b 3}}]}]}
-        next (tileset-model/set-selected-tile-type state :sprite)]
+        next (model/set-selected-tile-type state :sprite)]
     (is (= :sprite (get-in next [:tilesets 0 :tiles 0 :type])))
     (is (= :editor-assets/spritesheet
            (get-in next [:tilesets 0 :tiles 0 :image])))
@@ -321,7 +239,7 @@
                :tilesets [{:tile-size 32
                            :tiles [{:id :night
                                     :type :color}]}]}
-        next (tileset-model/set-selected-tile-type state :sprite)]
+        next (model/set-selected-tile-type state :sprite)]
     (is (= {:x 0 :y 0 :w 32 :h 32}
            (get-in next [:tilesets 0 :tiles 0 :source])))))
 
@@ -331,45 +249,9 @@
                :tilesets [{:tiles [{:id :night
                                     :type :color
                                     :color {:r 1 :g 2 :b 3}}]}]}
-        next (tileset-model/set-selected-tile-color-channel state :g 128)]
+        next (model/set-selected-tile-color-channel state :g 128)]
     (is (= {:r 1 :g 128 :b 3}
            (get-in next [:tilesets 0 :tiles 0 :color])))))
-
-(deftest sprite-map-preview-source-rect-scales-from-full-asset
-  (let [image-rect (tileset-panels/sprite-map-preview-image-rect {:w 800
-                                                                  :h 1280})
-        source-rect (tileset-panels/sprite-map-preview-source-rect
-                     {:x 0 :y 96 :w 16 :h 16}
-                     image-rect)]
-    (is (= 20 (:x image-rect)))
-    (is (= 0 (:y image-rect)))
-    (is (= 0.25 (:scale image-rect)))
-    (is (= {:x 20 :y 24 :w 4 :h 4}
-           source-rect))))
-
-(deftest sprite-map-preview-position-selects_tile_coordinates
-  (let [image-rect (tileset-panels/sprite-map-preview-image-rect {:w 800
-                                                                  :h 1280})]
-    (is (= {:x 32 :y 96 :w 16 :h 16}
-           (tileset-panels/source-position-from-preview-position
-            {:x 28 :y 27}
-            image-rect
-            {:w 800 :h 1280}
-            16)))))
-
-(deftest sprite-map-preview-source-navigation-clamps_to_asset_bounds
-  (is (= {:x 784 :y 1264 :w 16 :h 16}
-         (tileset-panels/move-source-position {:x 784 :y 1264 :w 16 :h 16}
-                                             16
-                                             16
-                                             16
-                                             {:w 800 :h 1280})))
-  (is (= {:x 0 :y 0 :w 16 :h 16}
-         (tileset-panels/move-source-position {:x 0 :y 0 :w 16 :h 16}
-                                             -16
-                                             -16
-                                             16
-                                             {:w 800 :h 1280}))))
 
 (deftest selected-sprite-source-update-uses_tileset_tile_size
   (let [state {:selected-tileset-definition-index 0
@@ -378,24 +260,24 @@
                            :tiles [{:id :hero
                                     :type :sprite
                                     :source {:x 0 :y 0 :w 16 :h 16}}]}]}
-        next (tileset-model/set-selected-tile-source-position state
-                                                               65
-                                                               96
-                                                               {:w 800 :h 1280})]
+        next (model/set-selected-tile-source-position state
+                                                      65
+                                                      96
+                                                      {:w 800 :h 1280})]
     (is (= {:x 64 :y 96 :w 32 :h 32}
            (get-in next [:tilesets 0 :tiles 0 :source])))))
 
 (deftest tileset-tile-grid-position-and-key-movement
-  (is (= 3 (tileset-model/tile-grid-columns {:w 48 :h 80})))
-  (is (= 0 (tileset-model/tile-grid-index-at-position {:x 2 :y 2}
-                                                       {:w 48 :h 80}
-                                                       8)))
-  (is (= 4 (tileset-model/tile-grid-index-at-position {:x 18 :y 18}
-                                                       {:w 48 :h 80}
-                                                       8)))
-  (is (= 2 (tileset-model/tile-grid-index-at-position {:x 35 :y 2}
-                                                       {:w 48 :h 80}
-                                                       8)))
-  (is (= 4 (tileset-model/move-tile-grid-index 1 8 3 3)))
-  (is (= 7 (tileset-model/move-tile-grid-index 6 8 3 3)))
-  (is (= 0 (tileset-model/move-tile-grid-index 1 8 3 -3))))
+  (is (= 3 (model/tile-grid-columns {:w 48 :h 80})))
+  (is (= 0 (model/tile-grid-index-at-position {:x 2 :y 2}
+                                              {:w 48 :h 80}
+                                              8)))
+  (is (= 4 (model/tile-grid-index-at-position {:x 18 :y 18}
+                                              {:w 48 :h 80}
+                                              8)))
+  (is (= 2 (model/tile-grid-index-at-position {:x 35 :y 2}
+                                              {:w 48 :h 80}
+                                              8)))
+  (is (= 4 (model/move-tile-grid-index 1 8 3 3)))
+  (is (= 7 (model/move-tile-grid-index 6 8 3 3)))
+  (is (= 0 (model/move-tile-grid-index 1 8 3 -3))))

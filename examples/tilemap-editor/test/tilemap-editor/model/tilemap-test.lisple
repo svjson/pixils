@@ -1,0 +1,8 @@
+(ns tilemap-editor.model.tilemap-test
+  (:require proof.core
+            [tilemap-editor.model.tilemap :as tilemap]))
+
+(deftest tilemap-clamp-bounds-values
+  (is (= 0 (tilemap/clamp -4 0 10)))
+  (is (= 7 (tilemap/clamp 7 0 10)))
+  (is (= 10 (tilemap/clamp 18 0 10))))

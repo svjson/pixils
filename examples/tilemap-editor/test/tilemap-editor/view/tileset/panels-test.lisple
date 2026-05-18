@@ -1,0 +1,47 @@
+(ns tilemap-editor.view.tileset.panels-test
+  (:require proof.core
+            [tilemap-editor.view.tileset.panels :as panels]))
+
+(deftest tileset-definition-list-is-disabled-when-empty
+  (is (= true (:disabled? (:state (panels/tileset-list-box-child [])))))
+  (is (= true (:disabled? (:state (panels/tileset-list-box-child nil)))))
+  (is (not= true
+            (:disabled? (:state (panels/tileset-list-box-child
+                                 [{:id :terrain
+                                   :label "Terrain"}]))))))
+
+(deftest sprite-map-preview-source-rect-scales-from-full-asset
+  (let [image-rect (panels/sprite-map-preview-image-rect {:w 800
+                                                          :h 1280})
+        source-rect (panels/sprite-map-preview-source-rect
+                     {:x 0 :y 96 :w 16 :h 16}
+                     image-rect)]
+    (is (= 20 (:x image-rect)))
+    (is (= 0 (:y image-rect)))
+    (is (= 0.25 (:scale image-rect)))
+    (is (= {:x 20 :y 24 :w 4 :h 4}
+           source-rect))))
+
+(deftest sprite-map-preview-position-selects_tile_coordinates
+  (let [image-rect (panels/sprite-map-preview-image-rect {:w 800
+                                                          :h 1280})]
+    (is (= {:x 32 :y 96 :w 16 :h 16}
+           (panels/source-position-from-preview-position
+            {:x 28 :y 27}
+            image-rect
+            {:w 800 :h 1280}
+            16)))))
+
+(deftest sprite-map-preview-source-navigation-clamps_to_asset_bounds
+  (is (= {:x 784 :y 1264 :w 16 :h 16}
+         (panels/move-source-position {:x 784 :y 1264 :w 16 :h 16}
+                                      16
+                                      16
+                                      16
+                                      {:w 800 :h 1280})))
+  (is (= {:x 0 :y 0 :w 16 :h 16}
+         (panels/move-source-position {:x 0 :y 0 :w 16 :h 16}
+                                      -16
+                                      -16
+                                      16
+                                      {:w 800 :h 1280}))))

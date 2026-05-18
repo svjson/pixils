@@ -1,0 +1,12 @@
+(ns tilemap-editor.view.tileset.layout-test
+  (:require proof.core
+            [tilemap-editor.view.tileset.layout :as layout]))
+
+(deftest tileset-list-panel-has_project_header_and_add_button
+  (let [panel (layout/make-tileset-list-panel)
+        header (head (:children panel))
+        add-button (nth (:children header) 1)]
+    (is (= "Project Tile Sets" (-> panel :state :title)))
+    (is (= 'ui/button (:mode add-button)))
+    (is (= :ui/toolbar-button (:class add-button)))
+    (is (= "+" (-> add-button :state :label)))))

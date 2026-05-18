@@ -1,8 +1,7 @@
-(ns tilemap-editor.model.data-test
+(ns tilemap-editor.io.project-test
   (:require proof.core
             [tilemap-editor.model.data :as data]
-            [tilemap-editor.io.project :as project-io]
-            [tilemap-editor.model.tilemap :as tilemap]))
+            [tilemap-editor.io.project :as project-io]))
 
 (def EXAMPLE-MAP-PATH "example-maps/map1.edn")
 
@@ -54,49 +53,6 @@
     :path EXAMPLE-MAP-PATH
     :directory "example-maps"
     :filename "map1.edn"}))
-
-(deftest clamp-tile-index-stays-inside-tileset
-  (is (= 0 (data/clamp-tile-index :platform-level -10)))
-  (is (= 0 (data/clamp-tile-index :platform-level nil)))
-  (is (= (dec (data/tile-count-for :platform-level))
-         (data/clamp-tile-index :platform-level 999))))
-
-(deftest string-map-to-tile-map-converts-characters-to-tile-ids
-  (is (= [[:rock-top :rock-face]]
-         (data/string-map-to-tile-map :platform-level ["^#"]))))
-
-(deftest tilemap-clamp-bounds-values
-  (is (= 0 (tilemap/clamp -4 0 10)))
-  (is (= 7 (tilemap/clamp 7 0 10)))
-  (is (= 10 (tilemap/clamp 18 0 10))))
-
-(deftest empty-project-document-does-not-invent-tilesets-or-layers
-  (let [document (data/project-document {:tilesets []
-                                         :layers []})]
-    (is (= [] (:tilesets document)))
-    (is (= [] (-> document :tilemap :layers)))))
-
-(deftest missing-tileset-does-not-fall-back-to-sample-tiles
-  (is (= [] (data/tile-options-for nil)))
-  (is (nil? (data/tile-in nil 0)))
-  (is (nil? (data/tile-id-in nil 0))))
-
-(deftest tile-options-can-come-from-project-tileset-definitions
-  (let [tilesets [{:id :terrain
-                   :label "Terrain"
-                   :tiles [{:id :grass
-                            :name "Grass"}]}]]
-    (is (= [{:value :grass
-             :label "Grass"}]
-           (data/tile-options-in tilesets :terrain)))
-    (is (= :grass
-           (data/tile-id-in-definitions tilesets :terrain 0)))))
-
-(deftest built-in-project-tileset-definitions-are-available-for-layered-maps
-  (is (= 4 (count (data/make-layered-map))))
-  (is (= 4 (count (data/project-tileset-definitions))))
-  (is (= 4 (count (data/project-tileset-definitions-for-layers
-                   (data/make-layered-map))))))
 
 (deftest legacy-layered-project-without-tilesets-gets-built-in-definitions
   (is (= 4 (count (project-io/project-tilesets

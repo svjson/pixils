@@ -1,0 +1,26 @@
+(ns tilemap-editor.view.tileset.dialogs-test
+  (:require proof.core
+            [tilemap-editor.view.tileset.dialogs :as dialogs]))
+
+(deftest tile-add-menu-disables_resource_import_without_project_resources
+  (let [menu (dialogs/tile-add-menu false)
+        item (head (:items menu))]
+    (is (= "Add from resource" (:label item)))
+    (is (= true (:disabled? item))))
+  (let [menu (dialogs/tile-add-menu true)
+        item (head (:items menu))]
+    (is (= false (:disabled? item)))))
+
+(deftest import-file-resource-adds_project_bundle_metadata
+  (let [state (dialogs/import-file-resource!
+               {:resources {:bundles {}}
+                :selected-resource-bundle nil}
+               {:path "assets/simples_pimples.png"})]
+    (is (= true
+           (get-in state [:resources :bundles :project-assets :dynamic?])))
+    (is (= {:file-name "assets/simples_pimples.png"
+            :name "Simples Pimples"}
+           (get-in state
+                   [:resources :bundles :project-assets :images :simples-pimples])))
+    (is (= :project-assets (:selected-resource-bundle state)))
+    (is (= :simples-pimples (:selected-image-resource state)))))
