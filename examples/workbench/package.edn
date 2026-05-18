@@ -1,0 +1,10 @@
+{:name workbench
+ :version "0.1.0"
+ :description "Pixils Workbench example."
+ :dependencies {proof {:path "../../../lisple-lang/pkg/proof"}
+                pixils-runner {:path "../../lib/pixils-runner"}
+                pixils-test {:path "../../lib/pixils-test"}}
+ :load-roots ["src"]
+ :namespace-roots {workbench "src"}
+ :config {proof {:test-roots ["test"]}}
+ :entry-points [workbench.core]}

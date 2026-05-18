@@ -2,7 +2,7 @@
   (:require pixils))
 
 (defbundle workbench-assets
-  {:images {:cursor "assets/cursor.png"}})
+  {:images {:cursor "../assets/cursor.png"}})
 
 (defpointer workbench/pointer
   {:image :workbench-assets/cursor

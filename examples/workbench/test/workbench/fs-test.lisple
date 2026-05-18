@@ -1,0 +1,30 @@
+(ns workbench.fs-test
+  (:require proof.core
+            [workbench.fs :as fs]))
+
+(deftest icon-position-places-icons-in-grid
+  (is (= {:x 10 :y 20}
+         (fs/icon-position 0 3 10 20 40 50)))
+  (is (= {:x 90 :y 20}
+         (fs/icon-position 2 3 10 20 40 50)))
+  (is (= {:x 10 :y 70}
+         (fs/icon-position 3 3 10 20 40 50))))
+
+(deftest move-entry-reparents-entry-between-memory-folders
+  (let [backend {:kind :memory
+                 :children {:source [{:id :note
+                                      :title "Note"
+                                      :type :project}]
+                            :target []}}
+        moved (fs/move-entry backend
+                             :source
+                             :target
+                             :note
+                             {:x 100 :y 120})]
+    (is (= [] (get-in moved [:children :source])))
+    (is (= [{:id :note
+             :title "Note"
+             :type :project
+             :parent :target
+             :position {:x 100 :y 120}}]
+           (get-in moved [:children :target])))))
