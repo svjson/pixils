@@ -189,6 +189,34 @@
            (get-in state [:tilesets 0 :tiles 1 :image])))
     (is (= 1 (:selected-tileset-tile-index state)))))
 
+(deftest imported_single_sprite_tiles_create_one_tile_per_resource
+  (let [state (model/add-imported-single-sprite-tiles!
+               {:selected-tileset-definition-index 0
+                :last-imported-image-resources [{:key :project-assets/red-tile}]
+                :tilesets [{:id :terrain
+                            :tile-size 32
+                            :tiles []}]}
+               [{:id :red-tile
+                 :key :project-assets/red-tile
+                 :name "Red Tile"}
+                {:id :blue-tile
+                 :key :project-assets/blue-tile
+                 :name "Blue Tile"}])]
+    (is (= [{:id :red-tile
+             :name "Red Tile"
+             :char "r"
+             :type :sprite
+             :image :project-assets/red-tile
+             :source {:x 0 :y 0 :w 32 :h 32}}
+            {:id :blue-tile
+             :name "Blue Tile"
+             :char "b"
+             :type :sprite
+             :image :project-assets/blue-tile
+             :source {:x 0 :y 0 :w 32 :h 32}}]
+           (get-in state [:tilesets 0 :tiles])))
+    (is (= nil (:last-imported-image-resources state)))))
+
 (deftest color_range_creation_adds_numbered_color_tiles
   (let [state (model/add-color-tile-range!
                {:selected-tileset-definition-index 0

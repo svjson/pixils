@@ -60,25 +60,34 @@
         (fn [state event ctx]
           (let [payload (:payload event)]
             (if (image-file-dialog-result? payload)
-              (let [state (import-file-resource! state payload)]
+              (let [paths (or (:paths payload) [(:path payload)])
+                    multiple? (> (count paths) 1)
+                    state (if multiple?
+                            (import-file-resources! state paths)
+                            (import-file-resource! state payload))]
                 (do
                   (ui/emit! (:view ctx)
                             :project/resources-change
                             {:resources (:resources state)
                              :selected-resource-bundle (:selected-resource-bundle state)
                              :selected-image-resource (:selected-image-resource state)})
-                  (open-tile-import-dialog!
-                   state
-                   ctx
-                   (:selected-resource-bundle state)
-                   (image-resource-key (:selected-resource-bundle state)
-                                       (:selected-image-resource state)))))
+                  (if multiple?
+                    (add-imported-single-sprite-tiles!
+                     state
+                     (:last-imported-image-resources state))
+                    (open-tile-import-dialog!
+                     (dissoc state :last-imported-image-resources)
+                     ctx
+                     (:selected-resource-bundle state)
+                     (image-resource-key (:selected-resource-bundle state)
+                                         (:selected-image-resource state))))))
               state)))
         :tile/add-command
         (fn [state event ctx]
                   (case (-> event :payload :command)
                     :from-resource (open-tile-import-dialog! state ctx nil nil)
-                    :from-file (open-add-from-file-dialog! state ctx)
+                    :from-file (open-add-from-file-dialog! state ctx false)
+                    :from-multiple-files (open-add-from-file-dialog! state ctx true)
             :color (open-tile-create-dialog! state ctx)
             :color-range (open-color-range-dialog! state ctx)
             :default state))}

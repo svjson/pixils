@@ -39,8 +39,7 @@
             :payload {:command :from-file}}
            {:label "Add multiple tiles from multiple files"
             :action :tile/add-menu-dummy
-            :payload {:command :from-multiple-files}
-            :disabled? true}
+            :payload {:command :from-multiple-files}}
            :separator
            {:label "Add color tile"
             :action :tile/add-menu-dummy
@@ -121,14 +120,17 @@
                               :event :tile/import-result}})
         state))))
 
-(defun open-add-from-file-dialog! [state ctx]
+(defun open-add-from-file-dialog! [state ctx multi-file?]
   (do
     (file-dialog/open-file-dialog!
      ctx
-     {:title "Add Tiles from Image"
+     {:title (if multi-file?
+               "Add Tiles from Images"
+               "Add Tiles from Image")
       :mode :file-dialog/open
       :path (or (:project-directory state) file-dialog/default-path)
       :filters image-file-filters
+      :multi-file? multi-file?
       :result-event :tile/file-dialog-result})
     state))
 
@@ -144,26 +146,42 @@
 
 (defun import-file-resource! [state payload]
   (let [bundle-id (resource-bundle-for-import state)
-        resource-root (default-resource-id (:path payload))
+        path (:path payload)
+        resource-root (default-resource-id path)
         images (or (get-in state [:resources :bundles bundle-id :images]) {})
         resource-id (keyword (unique-id-from (map (keys images)
                                                   (fn [id]
                                                     {:id id}))
                                              resource-root
                                              nil))
-        dependency {:file-name (:path payload)
-                    :name (default-resource-name (:path payload))}]
+        dependency {:file-name path
+                    :name (default-resource-name path)}
+        resource {:id resource-id
+                  :bundle-id bundle-id
+                  :key (image-resource-key bundle-id resource-id)
+                  :name (:name dependency)
+                  :file-name path}]
     (do
       (res/create-bundle! bundle-id)
       (res/add-image! (image-resource-key bundle-id resource-id)
-                      {:file-name (:path payload)})
-      (assoc (assoc-in (assoc-in state
-                                 [:resources :bundles bundle-id :dynamic?]
-                                 true)
-                       [:resources :bundles bundle-id :images resource-id]
-                       dependency)
-             :selected-resource-bundle bundle-id
-             :selected-image-resource resource-id))))
+                      {:file-name path})
+      (assoc
+       (assoc-in (assoc-in state
+                           [:resources :bundles bundle-id :dynamic?]
+                           true)
+                 [:resources :bundles bundle-id :images resource-id]
+                 dependency)
+       :selected-resource-bundle bundle-id
+       :selected-image-resource resource-id
+       :last-imported-image-resources
+       (concat (or (:last-imported-image-resources state) [])
+               [resource])))))
+
+(defun import-file-resources! [state paths]
+  (reduce (or paths [])
+          (assoc state :last-imported-image-resources [])
+          (fn [out path]
+            (import-file-resource! out {:path path}))))
 
 (defcomponent tileset-create-dialog-body
   {:class :ui/content

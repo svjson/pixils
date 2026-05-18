@@ -11,6 +11,12 @@
         item (head (:items menu))]
     (is (= false (:disabled? item)))))
 
+(deftest tile-add-menu-enables_multiple_file_import
+  (let [menu (dialogs/tile-add-menu false)
+        item (nth (:items menu) 2)]
+    (is (= "Add multiple tiles from multiple files" (:label item)))
+    (is (= nil (:disabled? item)))))
+
 (deftest import-file-resource-adds_project_bundle_metadata
   (let [state (dialogs/import-file-resource!
                {:resources {:bundles {}}
@@ -24,3 +30,22 @@
                    [:resources :bundles :project-assets :images :simples-pimples])))
     (is (= :project-assets (:selected-resource-bundle state)))
     (is (= :simples-pimples (:selected-image-resource state)))))
+
+(deftest import-file-resources-adds_each_project_resource
+  (let [state (dialogs/import-file-resources!
+               {:resources {:bundles {}}
+                :selected-resource-bundle nil}
+               ["assets/red tile.png"
+                "assets/blue tile.png"])]
+    (is (= {:file-name "assets/red tile.png"
+            :name "Red Tile"}
+           (get-in state
+                   [:resources :bundles :project-assets :images :red-tile])))
+    (is (= {:file-name "assets/blue tile.png"
+            :name "Blue Tile"}
+           (get-in state
+                   [:resources :bundles :project-assets :images :blue-tile])))
+    (is (= [:project-assets/red-tile :project-assets/blue-tile]
+           (map (:last-imported-image-resources state)
+                (fn [resource]
+                  (:key resource)))))))

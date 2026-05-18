@@ -194,6 +194,96 @@ TEST_F(FileDialogTest, open_file_dialog_returns_selected_file)
   EXPECT_EQ(get_key(result, "filename")->str(), "tilemap-editor.edn");
 }
 
+TEST_F(FileDialogTest, open_file_dialog_can_return_multiple_selected_files)
+{
+  render_ctx.buffer_dim = {640, 480};
+  TempProject project;
+
+  runtime.eval(R"(
+    (pixils/defmode root-mode
+      {:init (fn [state ctx]
+               (do
+                 (pixils.ui.file-dialog/open-file-dialog!
+                  ctx
+                  {:title "Open Projects"
+                   :mode :file-dialog/open
+                   :path )" + lisp_string(project.path()) + R"(
+                   :multi-file? true
+                   :result-event :project/open-result})
+                 {:result nil}))
+       :on {:project/open-result (fn [state event ctx]
+                                   (let [payload (:payload event)]
+                                     (assoc state
+                                            :result payload
+                                            :path-count (count (:paths payload))
+                                            :first-path (nth (:paths payload) 0)
+                                            :second-path (nth (:paths payload) 1)
+                                            :first-name (nth (:filenames payload) 0)
+                                            :second-name (nth (:filenames payload) 1))))}})
+  )");
+
+  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.process_messages();
+  ASSERT_EQ(session.active_mode->mode->name, "ui/dialog-frame");
+  session.update_mode();
+  session.render_mode();
+
+  auto first = find_list_item_with_label(session.active_mode, "    demo-map.edn");
+  auto second =
+    find_list_item_with_label(session.active_mode, "    tilemap-editor.edn");
+  ASSERT_NE(first, nullptr);
+  ASSERT_NE(second, nullptr);
+
+  input().mouse_down({first->bounds.x + (first->bounds.w / 2),
+                      first->bounds.y + (first->bounds.h / 2)},
+                     SDL_BUTTON_LEFT);
+  update_cycle();
+  input().mouse_up({first->bounds.x + (first->bounds.w / 2),
+                    first->bounds.y + (first->bounds.h / 2)},
+                   SDL_BUTTON_LEFT);
+  update_cycle();
+
+  input().key_down(SDLK_LCTRL);
+  input().mouse_down({second->bounds.x + (second->bounds.w / 2),
+                      second->bounds.y + (second->bounds.h / 2)},
+                     SDL_BUTTON_LEFT);
+  update_cycle();
+  input().mouse_up({second->bounds.x + (second->bounds.w / 2),
+                    second->bounds.y + (second->bounds.h / 2)},
+                   SDL_BUTTON_LEFT);
+  update_cycle();
+  input().key_up(SDLK_LCTRL);
+  update_cycle();
+  session.render_mode();
+
+  auto open_button = find_button_with_label(session.active_mode, "Open");
+  ASSERT_NE(open_button, nullptr);
+  input().mouse_down({open_button->bounds.x + (open_button->bounds.w / 2),
+                      open_button->bounds.y + (open_button->bounds.h / 2)},
+                     SDL_BUTTON_LEFT);
+  update_cycle();
+  session.render_mode();
+  input().mouse_up({open_button->bounds.x + (open_button->bounds.w / 2),
+                    open_button->bounds.y + (open_button->bounds.h / 2)},
+                   SDL_BUTTON_LEFT);
+  update_cycle();
+
+  ASSERT_EQ(session.active_mode->mode->name, "root-mode");
+  auto result = get_key(session.active_mode->state, "result");
+  ASSERT_NE(result, nullptr);
+  EXPECT_EQ(get_key(result, "type")->str(), "confirm");
+  EXPECT_EQ(get_key(result, "path")->str(), (project.root / "demo-map.edn").string());
+  EXPECT_EQ(get_key(result, "filename")->str(), "demo-map.edn");
+  EXPECT_EQ(get_key(session.active_mode->state, "path-count")->num().get_int(), 2);
+  EXPECT_EQ(get_key(session.active_mode->state, "first-path")->str(),
+            (project.root / "demo-map.edn").string());
+  EXPECT_EQ(get_key(session.active_mode->state, "second-path")->str(),
+            (project.root / "tilemap-editor.edn").string());
+  EXPECT_EQ(get_key(session.active_mode->state, "first-name")->str(), "demo-map.edn");
+  EXPECT_EQ(get_key(session.active_mode->state, "second-name")->str(),
+            "tilemap-editor.edn");
+}
+
 TEST_F(FileDialogTest, save_file_dialog_returns_entered_filename_path)
 {
   render_ctx.buffer_dim = {640, 480};

@@ -360,6 +360,36 @@
                   (concat existing added)))
       state)))
 
+(defun add-imported-single-sprite-tiles! [state resources]
+  (let [tileset-index (:selected-tileset-definition-index state)
+        tileset (selected-tileset-definition state)]
+    (if (and (not (nil? tileset-index))
+             tileset
+             (not (empty? (or resources []))))
+      (let [existing (or (:tiles tileset) [])
+            tile-size (or (:tile-size tileset) data/tile-size)
+            added (reduce (or resources [])
+                          []
+                          (fn [out resource]
+                            (let [root (tile-id-root-for-resource resource)
+                                  name-root (tile-name-root-for-resource resource)
+                                  id (unique-id-from (concat existing out)
+                                                     root
+                                                     nil)]
+                              (concat out
+                                      [(make-imported-sprite-tile
+                                        resource
+                                        (default-tile-source tile-size)
+                                        id
+                                        name-root)]))))
+            first-index (count existing)]
+        (dissoc
+         (assoc-in (assoc state :selected-tileset-tile-index first-index)
+                   [:tilesets tileset-index :tiles]
+                   (concat existing added))
+         :last-imported-image-resources))
+      state)))
+
 (defun add-color-tile-range! [state payload]
   (let [tileset-index (:selected-tileset-definition-index state)
         tileset (selected-tileset-definition state)

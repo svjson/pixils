@@ -208,7 +208,9 @@ the standard confirm result shape with `:choice :dialog/dismiss`.
 `open-dialog!`. It uses the active `lisple.io` filesystem and keeps directories visible
 while applying the selected filter to files. The result shape is
 `{:type :confirm :mode mode :path path :directory directory
-:filename filename :filter filter}` or `{:type :cancel ...}`.
+:filename filename :paths paths :filenames filenames :filter filter}` or
+`{:type :cancel ...}`. `:path` and `:filename` are the first selected file, kept
+for single-file callers.
 
 ```clojure
 (pixils.ui.file-dialog/open-file-dialog!
@@ -222,7 +224,8 @@ while applying the selected filter to files. The result shape is
 ```
 
 Use `:mode :file-dialog/save` for save dialogs. The helper also accepts `:position`,
-`:style`, `:filename`, and `:result-event`.
+`:style`, `:filename`, and `:result-event`. Open dialogs accept `:multi-file? true`
+or `:multi-select? true` to allow selecting more than one file.
 
 `ui/icon` is intentionally only the item primitive. It expects an `:item` in
 state, optionally positioned by `:position` on either the state or item map, and
