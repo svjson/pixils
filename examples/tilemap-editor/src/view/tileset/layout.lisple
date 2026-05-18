@@ -174,6 +174,12 @@
     []
     [(:selected-tileset-definition-index state)]))
 
+(defun derive-tileset-workspace-state [state]
+  (assoc state
+         :tile-set-panel-disabled? (nil? (:selected-tileset-definition-index state))
+         :tile-definition-panel-disabled? (or (nil? (:selected-tileset-definition-index state))
+                                             (nil? (:selected-tileset-tile-index state)))))
+
 (defun tileset-list-box-child [tilesets]
   (let [tilesets (or tilesets [])]
     (lb/make {:options (data/tileset-options-for-definitions tilesets)
@@ -648,9 +654,20 @@
                :state {:tile (ui/bind-state :tile)}}]})
 
 (defun make-tileset-list-panel []
-  (hp/make {:title "Tile Definition Sets"
+  (hp/make {:title "Project Tile Sets"
             :style {:width :shrink
                     :height 160}
+            :header-style {:layout {:direction :row
+                                    :align-items :center
+                                    :gap 4}}
+            :header-children [{:mode 'ui/button
+                               :class :ui/toolbar-button
+                               :state {:label "+"}
+                               :on-click (fn [state event ctx]
+                                           (do
+                                             (ui/emit! (:view ctx)
+                                                       :tileset/add)
+                                             state))}]
             :body-style {:padding 8
                          :height :fill}
             :state {:selected-tileset-definition-index (ui/bind-state :selected-tileset-definition-index)
@@ -669,6 +686,10 @@
            :height :fill
            :layout {:direction :row
                     :gap 8}}
+   :update (fn [state ctx]
+             (derive-tileset-workspace-state state))
+   :on {:tileset/add (fn [state event ctx]
+                       state)}
    :children [(make-tileset-list-panel)
               (hp/make {:title "Tile Set"
                         :style {:width :fill
@@ -679,7 +700,8 @@
                                               :gap 8}}
                         :state {:selected-tileset-definition-index (ui/bind-state :selected-tileset-definition-index)
                                 :selected-tileset-tile-index (ui/bind-state :selected-tileset-tile-index)
-                                :tilesets (ui/bind-state :tilesets)}
+                                :tilesets (ui/bind-state :tilesets)
+                                :disabled? (ui/bind-state :tile-set-panel-disabled?)}
                         :body-state {:selected-tileset-definition-index (ui/bind-state :selected-tileset-definition-index)
                                      :selected-tileset-tile-index (ui/bind-state :selected-tileset-tile-index)
                                      :tilesets (ui/bind-state :tilesets)}
@@ -706,7 +728,8 @@
                                      :height :shrink}
                         :state {:selected-tileset-definition-index (ui/bind-state :selected-tileset-definition-index)
                                 :selected-tileset-tile-index (ui/bind-state :selected-tileset-tile-index)
-                                :tilesets (ui/bind-state :tilesets)}
+                                :tilesets (ui/bind-state :tilesets)
+                                :disabled? (ui/bind-state :tile-definition-panel-disabled?)}
                         :body-state {:selected-tileset-definition-index (ui/bind-state :selected-tileset-definition-index)
                                      :selected-tileset-tile-index (ui/bind-state :selected-tileset-tile-index)
                                      :tilesets (ui/bind-state :tilesets)}

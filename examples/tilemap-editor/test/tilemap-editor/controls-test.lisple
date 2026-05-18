@@ -36,6 +36,32 @@
                                  [{:id :terrain
                                    :label "Terrain"}]))))))
 
+(deftest tileset-workspace-disables_dependent_panels_without_selection
+  (let [empty-state (tileset-layout/derive-tileset-workspace-state
+                     {:selected-tileset-definition-index nil
+                      :selected-tileset-tile-index nil})
+        tileset-state (tileset-layout/derive-tileset-workspace-state
+                       {:selected-tileset-definition-index 0
+                        :selected-tileset-tile-index nil})
+        tile-state (tileset-layout/derive-tileset-workspace-state
+                    {:selected-tileset-definition-index 0
+                     :selected-tileset-tile-index 0})]
+    (is (= true (:tile-set-panel-disabled? empty-state)))
+    (is (= true (:tile-definition-panel-disabled? empty-state)))
+    (is (= false (:tile-set-panel-disabled? tileset-state)))
+    (is (= true (:tile-definition-panel-disabled? tileset-state)))
+    (is (= false (:tile-set-panel-disabled? tile-state)))
+    (is (= false (:tile-definition-panel-disabled? tile-state)))))
+
+(deftest tileset-list-panel-has_project_header_and_add_button
+  (let [panel (tileset-layout/make-tileset-list-panel)
+        header (head (:children panel))
+        add-button (nth (:children header) 1)]
+    (is (= "Project Tile Sets" (-> panel :state :title)))
+    (is (= 'ui/button (:mode add-button)))
+    (is (= :ui/toolbar-button (:class add-button)))
+    (is (= "+" (-> add-button :state :label)))))
+
 (deftest recent-project-menu-is-inert-when-empty
   (let [item (controls/recent-project-menu-item [])]
     (is (= "Recent Projects" (:label item)))
