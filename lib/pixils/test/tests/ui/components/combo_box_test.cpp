@@ -37,6 +37,45 @@ TEST_F(ComboBoxTest, combo_box_trigger_uses_styleable_scrollbar_button)
   ASSERT_TRUE(button->effective_style.border.has_value());
 }
 
+TEST_F(ComboBoxTest, disabled_combo_box_disables_trigger_button_and_does_not_press)
+{
+  runtime.eval(R"(
+    (pixils/defmode root-mode
+      {:children [(pixils.ui.combo-box/make
+                   {:options []
+                    :disabled? true
+                    :style {:width 100}})]})
+  )");
+
+  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.update_mode();
+  session.render_mode();
+
+  ASSERT_NE(session.active_mode, nullptr);
+  ASSERT_EQ(session.active_mode->children.size(), 1u);
+  auto combo = session.active_mode->children[0];
+  ASSERT_NE(combo, nullptr);
+  ASSERT_EQ(combo->children.size(), 1u);
+  auto trigger = combo->children[0];
+  ASSERT_NE(trigger, nullptr);
+  ASSERT_EQ(trigger->children.size(), 2u);
+  auto button = trigger->children[1];
+  ASSERT_NE(button, nullptr);
+
+  auto disabled = Lisple::Dict::get_property(button->state, Lisple::keyword("disabled?"));
+  ASSERT_NE(disabled, nullptr);
+  EXPECT_EQ(disabled->to_string(), "true");
+
+  input().mouse_down({95, 5});
+  update_cycle();
+
+  auto pressed = Lisple::Dict::get_property(button->state, Lisple::keyword("pressed"));
+  ASSERT_NE(pressed, nullptr);
+  EXPECT_EQ(pressed->to_string(), "false");
+  ASSERT_NE(session.active_mode, nullptr);
+  EXPECT_EQ(session.active_mode->mode->name, "root-mode");
+}
+
 TEST_F(ComboBoxTest, combo_box_opens_scrollable_popup_and_reports_selection)
 {
   runtime.eval("(def probe-combo-value (pixils.ui.combo-box/selected-value "

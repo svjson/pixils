@@ -78,6 +78,33 @@ TEST_F(ButtonTest, button_label_uses_base_theme_padding)
   EXPECT_GT(button->bounds.h, 10);
 }
 
+TEST_F(ButtonTest, disabled_button_does_not_fire_click_handler)
+{
+  runtime.eval(R"(
+    (pixils/defmode root-mode
+      {:children [{:mode 'ui/button
+                   :style {:width 40 :height 24}
+                   :state {:label "OK"
+                           :clicks 0
+                           :disabled? true}
+                   :on-click (fn [state event ctx]
+                               (assoc state :clicks (+ (:clicks state) 1)))}]})
+  )");
+
+  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.update_mode();
+  session.render_mode();
+
+  input().mouse_down({10, 10});
+  update_cycle();
+  input().mouse_up({10, 10});
+  update_cycle();
+
+  auto clicks = get_key(session.active_mode->children[0]->state, "clicks");
+  ASSERT_NE(clicks, nullptr);
+  EXPECT_EQ(clicks->to_string(), "0");
+}
+
 TEST_F(ButtonTest, button_label_has_natural_size_inside_window_body)
 {
   runtime.eval(R"(

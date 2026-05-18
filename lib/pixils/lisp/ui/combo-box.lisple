@@ -17,6 +17,9 @@
       (:id option)
       value)))
 
+(defun option-disabled? [option]
+  (= (:disabled? option) true))
+
 (defun selected-option [options selected-index]
   (if (empty? options)
     nil
@@ -49,7 +52,8 @@
         row-height (or (:row-height state) default-row-height)
         max-height (or (:max-height state) default-max-height)
         pos (popup-position (:view ctx))]
-    (when (not (empty? options))
+    (when (and (not (:disabled? state))
+               (not (empty? options)))
       (push-mode!
        'ui/combo-box-popup
        {:options options
@@ -86,7 +90,8 @@
                :state {:value (ui/bind-state :selected-label)}}
               {:mode 'ui/combo-box-button
                :state {:axis :y
-                       :part :end}}]})
+                       :part :end
+                       :disabled? (ui/bind-state :disabled?)}}]})
 
 (defcomponent ui/combo-box
   {:focusable true
@@ -107,11 +112,13 @@
    :on-mouse-down (fn [state event ctx]
                     (do
                       (ui/stop-propagation! event)
-                      (open-popup! state ctx)
+                      (when (not (:disabled? state))
+                        (open-popup! state ctx))
                       state))
    :on {:combo-box/select (fn [state event ctx]
                             (let [payload (:payload event)
                                   index (head (:selected-indices payload))
+                                  option (selected-option (:options state) index)
                                   value (or (:value payload)
                                             (selected-value (:options state) index))
                                   next-state (assoc (assoc state
@@ -119,13 +126,17 @@
                                                     :selected-value value)]
                               (do
                                 (ui/stop-propagation! event)
-                                (ui/emit! (:view ctx)
-                                          :combo-box/change
-                                          {:selected-index index
-                                           :value value})
-                                next-state)))}
+                                (if (option-disabled? option)
+                                  state
+                                  (do
+                                    (ui/emit! (:view ctx)
+                                              :combo-box/change
+                                              {:selected-index index
+                                               :value value})
+                                    next-state)))))}
    :children [{:mode 'ui/combo-box-trigger
-               :state {:selected-label (ui/bind-state :selected-label)}}]})
+               :state {:selected-label (ui/bind-state :selected-label)
+                       :disabled? (ui/bind-state :disabled?)}}]})
 
 (defmode ui/combo-box-popup
   {:on-mouse-down (fn [state event ctx]
@@ -142,10 +153,11 @@
 (defcomponent ui/combo-box-popup-panel
   {:class :ui/combo-box-popup-panel})
 
-(defun make [{:keys [options style selected-index row-height max-height]}]
+(defun make [{:keys [options style selected-index row-height max-height disabled?]}]
   {:mode 'ui/combo-box
    :style (or style {})
    :state {:options (or options [])
            :selected-index selected-index
+           :disabled? disabled?
            :row-height (or row-height default-row-height)
            :max-height (or max-height default-max-height)}})

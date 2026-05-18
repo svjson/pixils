@@ -219,6 +219,10 @@ namespace Pixils::Script
         {
           selector.focus_within = true;
         }
+        else if (suffix == "disabled")
+        {
+          selector.disabled = true;
+        }
         else
         {
           return;

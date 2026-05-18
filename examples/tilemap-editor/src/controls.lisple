@@ -431,10 +431,12 @@
 ;; Tileset Selection
 
 (defun tileset-combo-child [tilesets]
-  (cb/make {:options (data/tileset-options-for-definitions tilesets)
-            :selected-index (ui/bind-state :selected-tileset-index)
-            :row-height 20
-            :max-height 72}))
+  (let [tilesets (or tilesets [])]
+    (cb/make {:options (data/tileset-options-for-definitions tilesets)
+              :selected-index (ui/bind-state :selected-tileset-index)
+              :row-height 20
+              :max-height 72
+              :disabled? (empty? tilesets)})))
 
 (defcomponent tileset-selector
   {:style {:width :fill

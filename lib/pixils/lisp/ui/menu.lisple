@@ -215,6 +215,7 @@
        :item-type (or (:type item) :action)
        :action action
        :payload (:payload item)
+       :disabled? (:disabled? item)
        :value (or (:value item) (:selected-value item))
        :label (:label item)
        :text (:text label-data)
@@ -240,7 +241,8 @@
                                  keymap))})
 
 (defun selectable-item? [node]
-  (not= :separator (:node-type node)))
+  (and (not= :separator (:node-type node))
+       (not (:disabled? node))))
 
 (defun first-selectable-index [items]
   (let [indexed (for-indexed [index item items]
@@ -283,12 +285,13 @@
                   {:index index
                    :item item})
         match (head (filter indexed (fn [entry]
-                                      (= mnemonic-char (-> entry
-                                                           :item
-                                                           :mnemonic
-                                                           :char
-                                                           str
-                                                           upper-case)))))]
+                                      (and (selectable-item? (:item entry))
+                                           (= mnemonic-char (-> entry
+                                                                :item
+                                                                :mnemonic
+                                                                :char
+                                                                str
+                                                                upper-case))))))]
     (if match
       (:index match)
       nil)))
@@ -335,12 +338,14 @@
     (cond
       (and node
            child-view
+           (not (:disabled? node))
            (not (empty? (:items node))))
       (do
         (open-submenu! node state child-view)
         state)
 
       (and node
+           (not (:disabled? node))
            (empty? (:items node))
            (:action node))
       (do
@@ -369,6 +374,7 @@
                   :style {:padding [2 8]}
                   :state {:node item
                           :menu-index index
+                          :disabled? (:disabled? item)
                           :active-index (ui/bind-state :active-index)
                           :pending-open-index (ui/bind-state :pending-open-index)
                           :text (:display-text item)
@@ -408,6 +414,7 @@
    :menu-depth (:menu-depth state)
    :text (:display-text node)
    :shortcut-text (:shortcut-text node)
+   :disabled? (:disabled? node)
    :game (:game state)
    :preferences (:preferences state)})
 
@@ -520,15 +527,17 @@
   {:class :menu/item
    :update (fn [state ctx]
              (let [hovered (-> ctx :view :interaction :hovered)
-                   highlighted (if (nil? (:active-index state))
-                                 hovered
-                                 (= (:menu-index state) (:active-index state)))]
+                   highlighted (and (not (:disabled? state))
+                                    (if (nil? (:active-index state))
+                                      hovered
+                                      (= (:menu-index state) (:active-index state))))]
                (assoc state :highlighted highlighted)))
    :on-mouse-down (fn [state event ctx]
                     (let [node (:node state)]
                       (ui/stop-propagation! event)
                       (cond
                         (and node
+                             (not (:disabled? node))
                              (not (empty? (:items node))))
                         (assoc (assoc state
                                       :active-index
@@ -537,6 +546,7 @@
                                (:menu-index state))
 
                         (and node
+                             (not (:disabled? node))
                              (:action node))
                         (do
                           (ui/emit! (:view ctx)
@@ -558,7 +568,8 @@
                                         :menu-index (:menu-index state)})
                              state)
 
-                           (= :action (:type payload))
+                           (and (= :action (:type payload))
+                                (not (:disabled? state)))
                            (do
                              (ui/emit! (:view ctx)
                                        (:action payload)
@@ -575,20 +586,26 @@
    :style {:layout {:direction :row}}
    :update (fn [state ctx]
              (let [hovered (-> ctx :view :interaction :hovered)
-                   highlighted (if (= :mouse (:input-source state))
-                                 hovered
-                                 (= (:index state) (:highlighted-index state)))]
+                   highlighted (and (not (:disabled? state))
+                                    (if (= :mouse (:input-source state))
+                                      hovered
+                                      (= (:index state) (:highlighted-index state))))]
                (assoc state :highlighted highlighted)))
    :on-mouse-motion (fn [state event ctx]
-                      (assoc (assoc state :input-source :mouse)
-                             :highlighted-index (:index state)))
+                      (if (:disabled? state)
+                        state
+                        (assoc (assoc state :input-source :mouse)
+                               :highlighted-index (:index state))))
    :on-mouse-down (fn [state event ctx]
-                    (open-submenu! (:node state) state (:view ctx))
-                    (ui/stop-propagation! event)
-                    state)
+                    (do
+                      (when (not (:disabled? state))
+                        (open-submenu! (:node state) state (:view ctx)))
+                      (ui/stop-propagation! event)
+                      state))
    :on-mouse-up (fn [state event ctx]
                  (let [node (:node state)]
-                    (when (empty? (:items node))
+                    (when (and (not (:disabled? state))
+                               (empty? (:items node)))
                       (ui/emit! (:view ctx)
                                 :menu/select
                                 {:type :action
@@ -597,7 +614,8 @@
                   state)
    :on {:menu/select (fn [state event ctx]
                        (ui/stop-propagation! event)
-                       (ui/emit! (:view ctx) :menu/select (:payload event))
+                       (when (not (:disabled? state))
+                         (ui/emit! (:view ctx) :menu/select (:payload event)))
                        state)}
    :children [{:mode 'ui/text
                :style {:width :fill}
@@ -614,27 +632,31 @@
    :style {:layout {:direction :row}}
    :update (fn [state ctx]
              (let [hovered (-> ctx :view :interaction :hovered)
-                   highlighted (if (= :mouse (:input-source state))
-                                 hovered
-                                 (= (:index state) (:highlighted-index state)))]
+                   highlighted (and (not (:disabled? state))
+                                    (if (= :mouse (:input-source state))
+                                      hovered
+                                      (= (:index state) (:highlighted-index state))))]
                (assoc (assoc state
                              :highlighted
                              highlighted)
                       :selected
                       (item-selected? (:node state) state))))
    :on-mouse-motion (fn [state event ctx]
-                      (assoc (assoc state :input-source :mouse)
-                             :highlighted-index (:index state)))
+                      (if (:disabled? state)
+                        state
+                        (assoc (assoc state :input-source :mouse)
+                               :highlighted-index (:index state))))
    :on-mouse-down (fn [state event ctx]
                     (ui/stop-propagation! event)
                     state)
    :on-mouse-up (fn [state event ctx]
                   (let [node (:node state)]
-                    (ui/emit! (:view ctx)
-                              :menu/select
-                              {:type :action
-                               :action (:action node)
-                               :payload (:payload node)}))
+                    (when (not (:disabled? state))
+                      (ui/emit! (:view ctx)
+                                :menu/select
+                                {:type :action
+                                 :action (:action node)
+                                 :payload (:payload node)})))
                   state)
    :children [{:mode 'ui/menu-option-indicator
                :state {:selected (ui/bind-state :selected)}}

@@ -6,6 +6,9 @@
 (def BUTTON-HIGHLIGHT {:r 0x67 :g 0x78 :b 0x8f})
 (def BUTTON-SHADOW {:r 0x2d :g 0x36 :b 0x46})
 (def BUTTON-GLYPH {:r 0xf5 :g 0xf6 :b 0xf3})
+(def DISABLED-BG {:r 0x25 :g 0x2d :b 0x38})
+(def DISABLED-BORDER {:r 0x43 :g 0x4d :b 0x5a})
+(def DISABLED-TEXT {:r 0x72 :g 0x7c :b 0x88})
 
 (def TITLE-BAR-BG {:r 0x29 :g 0x3e :b 0x5c})
 (def TITLE-BAR-HIGHLIGHT {:r 0x7c :g 0x8d :b 0xa8})
@@ -80,6 +83,13 @@
                             :thickness 1
                             :right {:color BUTTON-SHADOW}
                             :bottom {:color BUTTON-SHADOW}}}
+
+    'ui/combo-box:disabled
+    {:background DISABLED-BG
+     :border {:color DISABLED-BORDER
+              :thickness 1
+              :right {:color BUTTON-SHADOW}
+              :bottom {:color BUTTON-SHADOW}}}
 
     'ui/combo-box-popup-panel {:background CONTENT-BG
                                :border {:color CONTENT-BORDER
@@ -185,6 +195,20 @@
               :right {:color TITLE-BAR-HIGHLIGHT}
               :bottom {:color TITLE-BAR-HIGHLIGHT}}}
 
+    'ui/button-inner:disabled
+    {:background (var :panel-bg)
+     :text {:color {:r 0xa7 :g 0xb0 :b 0xb8}}
+     :border {:line-style :solid
+              :color (var :panel-shadow)
+              :thickness 1}}
+
+    [:ui/toolbar-button 'ui/button-inner:disabled]
+    {:background {:color TITLE-BAR-BG}
+     :text {:color {:r 0xa7 :g 0xb0 :b 0xb8}}
+     :border {:line-style :solid
+              :color TITLE-BAR-SHADOW
+              :thickness 1}}
+
     'ui/scrollbar {:background {:r 0x20 :g 0x29 :b 0x36}
                    :text {:color {:r 0xe6 :g 0xea :b 0xee}}}
 
@@ -201,6 +225,14 @@
               :thickness 1
               :right {:color BUTTON-HIGHLIGHT}
               :bottom {:color BUTTON-HIGHLIGHT}}}
+
+    'ui/scrollbar-button:disabled
+    {:background DISABLED-BG
+     :border {:color DISABLED-BORDER
+              :thickness 1
+              :right {:color BUTTON-SHADOW}
+              :bottom {:color BUTTON-SHADOW}}
+     :text {:color DISABLED-TEXT}}
 
     'ui/scrollbar-track {:background PANEL-BG}
 
@@ -260,6 +292,10 @@
 
     'ui/text-input-caret {:background (var :text)}
 
+    'ui/text-input-inner:disabled
+    {:background (var :panel-bg)
+     :text {:color {:r 0xa7 :g 0xb0 :b 0xb8}}}
+
 
     'ui/menu-bar
     {:background (var :menu-bg)
@@ -297,6 +333,19 @@
     'ui/popup-menu-option-item
     {:padding [2 2]
      :text {:color c/WHITE}}
+
+    :menu/item:disabled
+    {:background (var :menu-bg)
+     :text {:color DISABLED-TEXT
+            :marked-style {:color DISABLED-TEXT}}}
+
+    :ui/list-item:disabled
+    {:background CONTENT-BG
+     :text {:color DISABLED-TEXT}}
+
+    'ui/combo-box-trigger:disabled
+    {:background DISABLED-BG
+     :text {:color DISABLED-TEXT}}
 
     'ui/header-panel
     {:border {:color c/BLACK

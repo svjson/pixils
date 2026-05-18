@@ -100,6 +100,41 @@ TEST_F(ListBoxTest, list_box_uses_scroll_pane_and_forces_initial_selection)
   EXPECT_EQ(first_value->to_string(), ":a");
 }
 
+TEST_F(ListBoxTest, forced_selection_skips_disabled_items)
+{
+  runtime.eval(R"(
+    (pixils/defmode root-mode
+      {:children [(pixils.ui.list-box/make
+                   {:options [{:value :a :label "Alpha" :disabled? true}
+                              {:value :b :label "Beta"}]
+                    :style {:width 100}
+                    :row-height 10
+                    :visible-rows 2
+                    :content-width 100
+                    :force-selection? true})]})
+  )");
+
+  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.update_mode();
+  session.render_mode();
+
+  auto list_box = session.active_mode->children[0];
+  auto selected =
+    Lisple::Dict::get_property(list_box->state, Lisple::keyword("selected-indices"));
+  ASSERT_NE(selected, nullptr);
+  EXPECT_EQ(selected->to_string(), "[1]");
+
+  auto scroll_pane = list_box->children[0];
+  auto row = scroll_pane->children[0];
+  auto viewport = row->children[0];
+  auto content = viewport->children[0];
+  auto first_item = content->children[0];
+  auto disabled =
+    Lisple::Dict::get_property(first_item->state, Lisple::keyword("disabled?"));
+  ASSERT_NE(disabled, nullptr);
+  EXPECT_EQ(disabled->to_string(), "true");
+}
+
 TEST_F(ListBoxTest, list_box_defaults_to_shrink_width)
 {
   runtime.eval(R"(

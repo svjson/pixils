@@ -47,7 +47,8 @@
    :init (fn [state ctx]
            (let [value (or (:value state) "")]
              (do
-               (when (:auto-focus? state)
+               (when (and (:auto-focus? state)
+                          (not (:disabled? state)))
                  (ui/focus! ctx))
                (-> state
                    (assoc :value value)
@@ -64,8 +65,9 @@
                                  (int (/ (- (or (-> ctx :view :bounds :h) 0)
                                            cursor-h)
                                         2)))
-                   show-caret? (or (-> ctx :view :interaction :focused)
-                                   (-> ctx :view :interaction :focus-within))]
+                   show-caret? (and (not (:disabled? state))
+                                    (or (-> ctx :view :interaction :focused)
+                                        (-> ctx :view :interaction :focus-within)))]
                (-> state
                    (assoc :value value)
                    (assoc :cursor-index cursor-index)
@@ -81,41 +83,44 @@
                        :h (ui/bind-state :cursor-h)
                        :visible? (ui/bind-state :show-caret?)}}]
    :on-key-down (fn [state event ctx]
-                  (let [value (:value state)
-                        cursor-index (:cursor-index state)]
-                    (cond
-                      (= :key/backspace (:key event))
-                      (if (> cursor-index 0)
-                        (-> state
-                            (assoc :value (remove-char-before value cursor-index))
-                            (assoc :cursor-index (dec cursor-index)))
-                        state)
+                  (if (:disabled? state)
+                    state
+                    (let [value (:value state)
+                          cursor-index (:cursor-index state)]
+                      (cond
+                        (= :key/backspace (:key event))
+                        (if (> cursor-index 0)
+                          (-> state
+                              (assoc :value (remove-char-before value cursor-index))
+                              (assoc :cursor-index (dec cursor-index)))
+                          state)
 
-                      (= :key/delete (:key event))
-                      (if (< cursor-index (count value))
-                        (assoc state :value (remove-char-after value cursor-index))
-                        state)
+                        (= :key/delete (:key event))
+                        (if (< cursor-index (count value))
+                          (assoc state :value (remove-char-after value cursor-index))
+                          state)
 
-                      (= :key/left (:key event))
-                      (assoc state :cursor-index (max 0 (dec cursor-index)))
+                        (= :key/left (:key event))
+                        (assoc state :cursor-index (max 0 (dec cursor-index)))
 
-                      (= :key/right (:key event))
-                      (assoc state :cursor-index (min (count value) (+ cursor-index 1)))
+                        (= :key/right (:key event))
+                        (assoc state :cursor-index (min (count value) (+ cursor-index 1)))
 
-                      (= :key/home (:key event))
-                      (assoc state :cursor-index 0)
+                        (= :key/home (:key event))
+                        (assoc state :cursor-index 0)
 
-                      (= :key/end (:key event))
-                      (assoc state :cursor-index (count value))
+                        (= :key/end (:key event))
+                        (assoc state :cursor-index (count value))
 
-                      :default
-                      (if-let [text (kbd/event->text event)]
-                        (-> state
-                            (assoc :value (insert-text-at value cursor-index text))
-                            (assoc :cursor-index (+ cursor-index (count text))))
-                        state))))})
+                        :default
+                        (if-let [text (kbd/event->text event)]
+                          (-> state
+                              (assoc :value (insert-text-at value cursor-index text))
+                              (assoc :cursor-index (+ cursor-index (count text))))
+                          state)))))})
 
 (defcomponent ui/text-input
   {:children [{:mode 'ui/text-input-inner
                :state {:value (ui/bind-state :value)
+                       :disabled? (ui/bind-state :disabled?)
                        :auto-focus? (ui/bind-state :auto-focus?)}}]})

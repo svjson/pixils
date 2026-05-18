@@ -17,6 +17,9 @@
       (:id option)
       value)))
 
+(defun option-disabled? [option]
+  (= (:disabled? option) true))
+
 (defun option-at [options index]
   (nth options index))
 
@@ -26,6 +29,15 @@
 (defun selected-values-for [options indices]
   (map indices (fn [index]
                  (option-value-at options index))))
+
+(defun first-enabled-index [options]
+  (let [match (head (filter (for-indexed [index option (or options [])]
+                              {:index index
+                               :option option})
+                            (fn [entry]
+                              (not (option-disabled? (:option entry))))))]
+    (when match
+      (:index match))))
 
 (defun add-index [indices index]
   (if (contains? indices index)
@@ -183,21 +195,23 @@
                       state))
    :on-mouse-up (fn [state event ctx]
                   (do
-                    (ui/emit! (:view ctx)
-                              :list-box/item-click
-                              {:index (:index state)
-                               :value (:value state)
-                               :shift? (held-shift? ctx)
-                               :ctrl? (held-ctrl? ctx)})
+                    (when (not (:disabled? state))
+                      (ui/emit! (:view ctx)
+                                :list-box/item-click
+                                {:index (:index state)
+                                 :value (:value state)
+                                 :shift? (held-shift? ctx)
+                                 :ctrl? (held-ctrl? ctx)}))
                     state))
    :on-double-click (fn [state event ctx]
                       (do
-                        (ui/emit! (:view ctx)
-                                  :list-box/item-activate
-                                  {:index (:index state)
-                                   :value (:value state)
-                                   :shift? (held-shift? ctx)
-                                   :ctrl? (held-ctrl? ctx)})
+                        (when (not (:disabled? state))
+                          (ui/emit! (:view ctx)
+                                    :list-box/item-activate
+                                    {:index (:index state)
+                                     :value (:value state)
+                                     :shift? (held-shift? ctx)
+                                     :ctrl? (held-ctrl? ctx)}))
                         state))
    :children [{:mode 'ui/text
                :style {:width :fill}
@@ -209,7 +223,11 @@
    :content-size list-box-content-size
    :init (fn [state ctx]
            (let [selected (or (:selected-indices state)
-                              (if (forced-selection? state) [0] []))]
+                              (if (forced-selection? state)
+                                (if-let [index (first-enabled-index (:options state))]
+                                  [index]
+                                  [])
+                                []))]
              (assoc (assoc (assoc (assoc state
                                           :selected-indices selected)
                                    :anchor-index (or (:anchor-index state)
@@ -226,7 +244,12 @@
                     (list-box-content-state state)))
    :on {:list-box/item-click (fn [state event ctx]
                               (let [payload (:payload event)
-                                    selected (list-box-click-selection state payload)
+                                    option (option-at (:options state) (:index payload))
+                                    disabled? (or (:disabled? state)
+                                                  (option-disabled? option))
+                                    selected (if disabled?
+                                               (:selected-indices state)
+                                               (list-box-click-selection state payload))
                                     next-state (assoc (assoc state
                                                              :selected-indices selected)
                                                       :anchor-index (:index payload))
@@ -234,25 +257,32 @@
                                                                 selected)]
                                 (do
                                   (ui/stop-propagation! event)
-                                  (ui/emit! (:view ctx)
-                                            :list-box/change
-                                            {:selected-indices selected
-                                             :selected-values values
-                                             :value (:value payload)})
+                                  (when (not disabled?)
+                                    (ui/emit! (:view ctx)
+                                              :list-box/change
+                                              {:selected-indices selected
+                                               :selected-values values
+                                               :value (:value payload)}))
                                   (assoc next-state
                                          :selected-values values))))
         :list-box/item-activate (fn [state event ctx]
                                   (let [payload (:payload event)
-                                        selected (list-box-click-selection state payload)
+                                        option (option-at (:options state) (:index payload))
+                                        disabled? (or (:disabled? state)
+                                                      (option-disabled? option))
+                                        selected (if disabled?
+                                                   (:selected-indices state)
+                                                   (list-box-click-selection state payload))
                                         values (selected-values-for (:options state)
                                                                     selected)]
                                     (do
                                       (ui/stop-propagation! event)
-                                      (ui/emit! (:view ctx)
-                                                :list-box/activate
-                                                (merge payload
-                                                       {:selected-indices selected
-                                                        :selected-values values}))
+                                      (when (not disabled?)
+                                        (ui/emit! (:view ctx)
+                                                  :list-box/activate
+                                                  (merge payload
+                                                         {:selected-indices selected
+                                                          :selected-values values})))
                                       state)))}})
 
 (defun stretch-list-box-item [child]
@@ -261,26 +291,34 @@
          (merge (or (:style child) {})
                 {:width :fill})))
 
-(defun make-item-child [item-child index option row-height hover-highlight? stretch-items?]
-  (let [child (if item-child
-                (item-child index option)
-                {:mode 'ui/list-box-item
-                 :class (if hover-highlight?
-                          :ui/list-item-hover
-                          [])
-                 :style {:height row-height}
-                 :state {:index index
-                         :value (option-value option)
-                         :label (option-label option)
-                         :selected-indices (ui/bind-state :selected-indices)}})]
-    (if stretch-items?
-      (stretch-list-box-item child)
-      child)))
+(defun make-item-child [item-child index option row-height hover-highlight? stretch-items? parent-disabled?]
+  (let [disabled? (or parent-disabled?
+                      (option-disabled? option))]
+    (let [child (if item-child
+                  (item-child index option)
+                  {:mode 'ui/list-box-item
+                   :class (if hover-highlight?
+                            :ui/list-item-hover
+                            [])
+                   :style {:height row-height}
+                   :state {:index index
+                           :value (option-value option)
+                           :label (option-label option)
+                           :disabled? disabled?
+                           :selected-indices (ui/bind-state :selected-indices)}})]
+      (let [child (assoc child
+                         :state
+                         (merge (or (:state child) {})
+                                {:disabled? disabled?}))]
+        (if stretch-items?
+          (stretch-list-box-item child)
+          child)))))
 
-(defun make [{:keys [options style row-height visible-rows max-height content-width selected-indices multi-select? force-selection? toggle-selected? hover-highlight? item-child item-state-keys state]}]
+(defun make [{:keys [options style row-height visible-rows max-height content-width selected-indices multi-select? force-selection? toggle-selected? hover-highlight? item-child item-state-keys state disabled?]}]
   (let [row-height (or row-height default-row-height)
         visible-rows (or visible-rows default-visible-rows)
         options (or options [])
+        disabled? (or disabled? (:disabled? state))
         content-width (or content-width 160)
         content-height (list-box-content-height options row-height)
         height (list-box-visible-height options row-height visible-rows max-height)
@@ -298,13 +336,15 @@
                     :max-height max-height
                     :content-width content-width
                     :stretch-items? stretch-items?
+                    :disabled? disabled?
                     :item-children (for-indexed [index option options]
                                      (make-item-child item-child
                                                       index
                                                       option
                                                       row-height
                                                       hover-highlight?
-                                                      stretch-items?))
+                                                      stretch-items?
+                                                      disabled?))
                     :selected-indices selected-indices
                     :multi-select? multi-select?
                     :force-selection? force-selection?
@@ -319,4 +359,5 @@
                                                                option
                                                                row-height
                                                                hover-highlight?
-                                                               stretch-items?)))]}))
+                                                               stretch-items?
+                                                               disabled?)))]}))

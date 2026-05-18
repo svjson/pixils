@@ -190,6 +190,13 @@ namespace Pixils::UI
       return Lisple::Constant::NIL;
     }
 
+    bool view_disabled(const std::shared_ptr<Runtime::View>& view)
+    {
+      if (!view) return false;
+      auto disabled = Lisple::Dict::get_property(view->state, Lisple::keyword("disabled?"));
+      return disabled && Lisple::is_truthy(*disabled);
+    }
+
     void fire_hook_on_view(const std::shared_ptr<Runtime::View>& view,
                            const Lisple::sptr_val& hook,
                            const Lisple::sptr_val& ev_ref,
@@ -230,7 +237,7 @@ namespace Pixils::UI
       for (size_t i = 0; i < chain.size(); i++)
       {
         auto& view = chain[i];
-        if (!propagation_stopped)
+        if (!propagation_stopped && !view_disabled(view))
         {
           set_local_pos(i);
           fire_hook_on_view(view, view->mode->*hook_field, ev_ref, hook_args, rt);
@@ -662,12 +669,13 @@ namespace Pixils::UI
       for (size_t i = 0; i < chain.size(); i++)
       {
         auto& view = chain[i];
-        if (!event.propagation_stopped)
+        if (!event.propagation_stopped && !view_disabled(view))
         {
           fire_hook_on_view(view, view->mode->*hook_field, ev_ref, hook_args, rt);
         }
 
-        if (!event.propagation_stopped && hook_field == &Runtime::Mode::on_key_down)
+        if (!event.propagation_stopped && !view_disabled(view) &&
+            hook_field == &Runtime::Mode::on_key_down)
         {
           if (dispatch_action_map_event(chain, i, event, hook_args, rt))
           {
@@ -832,7 +840,7 @@ namespace Pixils::UI
 
     bool is_focusable(const std::shared_ptr<Runtime::View>& view)
     {
-      return view && view->mode && view->mode->focusable;
+      return view && view->mode && view->mode->focusable && !view_disabled(view);
     }
 
     bool find_focus_chain(const std::shared_ptr<Runtime::View>& view,

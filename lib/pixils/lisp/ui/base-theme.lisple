@@ -96,6 +96,12 @@
   '(ui/scrollbar-button {:pressed true})
   {:background {:r 0xcc :g 0xcc :b 0xcc}}
 
+  'ui/scrollbar-button:disabled
+  {:background {:r 0xcc :g 0xcc :b 0xcc}
+   :border {:color {:r 0x66 :g 0x66 :b 0x66}
+            :thickness 1}
+   :text {:color {:r 0x66 :g 0x66 :b 0x66}}}
+
   'ui/scrollbar-track {:background {:r 0xff :g 0xff :b 0xff}}
 
   'ui/scrollbar-handle {:background {:r 0xff :g 0xff :b 0xff}
@@ -181,6 +187,12 @@
    :border {:color {:r 0x00 :g 0x00 :b 0x00}
             :thickness 1}}
 
+  'ui/button-inner:disabled
+  {:text {:color {:r 0x66 :g 0x66 :b 0x66}}
+   :background {:r 0xcc :g 0xcc :b 0xcc}
+   :border {:color {:r 0x66 :g 0x66 :b 0x66}
+            :thickness 1}}
+
   'ui/text-input {:width 80
                   :height 22
                   :background {:r 0xff :g 0xff :b 0xff}
@@ -192,6 +204,10 @@
                         :padding [0 4]
                         :layout {:direction :row
                                  :align-items :center}}
+
+  'ui/text-input-inner:disabled
+  {:text {:color {:r 0x66 :g 0x66 :b 0x66}}
+   :background {:r 0xcc :g 0xcc :b 0xcc}}
 
   'ui/menu-bar {:background {:r 0xff :g 0xff :b 0xff}}
 
@@ -213,6 +229,24 @@
   :menu/item:hover
   {:text {:color {:r 0xff :g 0xff :b 0xff}}
    :background {:r 0x00 :g 0x00 :b 0x00}}
+
+  :menu/item:disabled
+  {:text {:color {:r 0x66 :g 0x66 :b 0x66}
+          :marked-style {:color {:r 0x66 :g 0x66 :b 0x66}}}
+   :background {:r 0xff :g 0xff :b 0xff}}
+
+  :ui/list-item:disabled
+  {:text {:color {:r 0x66 :g 0x66 :b 0x66}}
+   :background {:r 0xff :g 0xff :b 0xff}}
+
+  'ui/combo-box-trigger:disabled
+  {:text {:color {:r 0x66 :g 0x66 :b 0x66}}
+   :background {:r 0xcc :g 0xcc :b 0xcc}}
+
+  'ui/combo-box:disabled
+  {:background {:r 0xcc :g 0xcc :b 0xcc}
+   :border {:color {:r 0x66 :g 0x66 :b 0x66}
+            :thickness 1}}
 
   'ui/menu-option-item {:padding {:t 2 :r 12 :b 2 :l 2}}
 

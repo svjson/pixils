@@ -31,7 +31,8 @@
   set in the state. The :force-pressed? flag can be used to force the
   button into a pressed state regardless of interaction."
   (assoc state :pressed
-         (and (not (:inhibit-pressed? state))
+         (and (not (:disabled? state))
+              (not (:inhibit-pressed? state))
               (or (:force-pressed? state)
                   (and (contains? (-> view :interaction :pressed) :left)
                        (-> view :interaction :hovered))))))
@@ -50,5 +51,6 @@
                          :update button-update
                          :children [{:mode 'ui/button-inner
                                      :state {:pressed (ui/bind-state :pressed)
+                                             :disabled? (ui/bind-state :disabled?)
                                              :image (ui/bind-state :image)
                                              :label (ui/bind-state :label)}}]})

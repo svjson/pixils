@@ -38,6 +38,7 @@ namespace Pixils::UI
     bool hovered = false;
     bool focused = false;
     bool focus_within = false;
+    bool disabled = false;
 
     static ThemeSelector component_type(const std::string& value);
     static ThemeSelector class_name(const std::string& value);

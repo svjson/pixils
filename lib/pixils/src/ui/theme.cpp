@@ -13,13 +13,19 @@ namespace Pixils::UI
       if (selector.hovered && !ctx.interaction.hovered) return false;
       if (selector.focused && !ctx.interaction.focused) return false;
       if (selector.focus_within && !ctx.interaction.focus_within) return false;
+      if (selector.disabled)
+      {
+        auto disabled = Lisple::Dict::get_property(ctx.state, Lisple::keyword("disabled?"));
+        if (!disabled || !Lisple::is_truthy(*disabled)) return false;
+      }
       return true;
     }
 
     int interaction_specificity(const ThemeSelector& selector)
     {
       return static_cast<int>(selector.hovered) + static_cast<int>(selector.focused) +
-             static_cast<int>(selector.focus_within);
+             static_cast<int>(selector.focus_within) +
+             static_cast<int>(selector.disabled);
     }
 
     bool rtval_equal(const Lisple::sptr_val& lhs, const Lisple::sptr_val& rhs)
@@ -139,6 +145,7 @@ namespace Pixils::UI
     if (hovered != other.hovered) return false;
     if (focused != other.focused) return false;
     if (focus_within != other.focus_within) return false;
+    if (disabled != other.disabled) return false;
     if (type == Type::STATE)
     {
       if (!state_maps_equal(state, other.state)) return false;

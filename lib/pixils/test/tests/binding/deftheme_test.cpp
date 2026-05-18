@@ -21,24 +21,28 @@ namespace
   Pixils::UI::ThemeSelector component_selector_with_pseudos(const std::string& value,
                                                             bool hovered = false,
                                                             bool focused = false,
-                                                            bool focus_within = false)
+                                                            bool focus_within = false,
+                                                            bool disabled = false)
   {
     auto selector = Pixils::UI::ThemeSelector::component_type(value);
     selector.hovered = hovered;
     selector.focused = focused;
     selector.focus_within = focus_within;
+    selector.disabled = disabled;
     return selector;
   }
 
   Pixils::UI::ThemeSelector class_selector_with_pseudos(const std::string& value,
                                                         bool hovered = false,
                                                         bool focused = false,
-                                                        bool focus_within = false)
+                                                        bool focus_within = false,
+                                                        bool disabled = false)
   {
     auto selector = Pixils::UI::ThemeSelector::class_name(value);
     selector.hovered = hovered;
     selector.focused = focused;
     selector.focus_within = focus_within;
+    selector.disabled = disabled;
     return selector;
   }
 } // namespace
@@ -223,6 +227,45 @@ TEST_F(DefThemeTest, focus_pseudo_state_selectors_match_interaction_state)
   ASSERT_TRUE(menu_item_matches[0]->text.has_value());
   ASSERT_TRUE(menu_item_matches[0]->text->scale.has_value());
   EXPECT_EQ(*menu_item_matches[0]->text->scale, 6);
+}
+
+TEST_F(DefThemeTest, disabled_pseudo_state_selectors_match_disabled_state)
+{
+  runtime.eval(R"(
+    (pixils/deftheme test-theme
+      {:styles {'button:disabled {:text {:scale 7}}
+                :menu/item:disabled {:text {:scale 8}}}})
+  )");
+
+  Pixils::UI::Theme& theme = get_theme(runtime, "test-theme");
+
+  EXPECT_NE(
+    theme.get_style(component_selector_with_pseudos("button", false, false, false, true)),
+    nullptr);
+  EXPECT_NE(
+    theme.get_style(class_selector_with_pseudos("menu/item", false, false, false, true)),
+    nullptr);
+
+  auto disabled_state =
+    Lisple::map({Lisple::keyword("disabled?"), Lisple::Constant::BOOL_TRUE});
+  auto button_matches = theme.get_matching_styles(
+    Pixils::UI::ThemeMatchContext{.mode_names = {"button"},
+                                  .class_names = {},
+                                  .state = disabled_state,
+                                  .interaction = {}});
+
+  ASSERT_EQ(button_matches.size(), 1u);
+  ASSERT_TRUE(button_matches[0]->text.has_value());
+  ASSERT_TRUE(button_matches[0]->text->scale.has_value());
+  EXPECT_EQ(*button_matches[0]->text->scale, 7);
+
+  auto enabled_matches = theme.get_matching_styles(
+    Pixils::UI::ThemeMatchContext{.mode_names = {"button"},
+                                  .class_names = {},
+                                  .state = Lisple::map({}),
+                                  .interaction = {}});
+
+  EXPECT_TRUE(enabled_matches.empty());
 }
 
 TEST_F(DefThemeTest, descendant_selectors_match_ancestor_focus_chain)
