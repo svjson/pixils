@@ -20,6 +20,7 @@
           {:selected-tile nil
            :selected-tileset-index nil
            :selected-tileset-definition-index nil
+           :selected-tileset-tile-index nil
            :tilesets []
            :tileset nil
            :selected-layer-index nil
@@ -46,6 +47,12 @@
                                              (min (or (:selected-tileset-definition-index state)
                                                       0)
                                                   (dec (count tilesets))))
+                  tileset-definition (when (not (nil? tileset-definition-index))
+                                       (nth tilesets tileset-definition-index))
+                  tileset-tile-count (count (or (:tiles tileset-definition) []))
+                  tileset-tile-index (when (> tileset-tile-count 0)
+                                       (min (or (:selected-tileset-tile-index state) 0)
+                                            (dec tileset-tile-count)))
                   selected-tile (data/tile-id-in-definitions tilesets
                                                              tileset
                                                              (:selected-tile state))
@@ -56,6 +63,7 @@
                                                (data/tileset-index-in tilesets
                                                                       tileset))
                      :selected-tileset-definition-index tileset-definition-index
+                     :selected-tileset-tile-index tileset-tile-index
                      :selected-tile selected-tile
                      :selected-label (data/tile-label-in-definitions tilesets
                                                                       tileset
@@ -71,6 +79,7 @@
                        :selected-label (ui/bind-state :selected-label)
                        :selected-tileset-index (ui/bind-state :selected-tileset-index)
                        :selected-tileset-definition-index (ui/bind-state :selected-tileset-definition-index)
+                       :selected-tileset-tile-index (ui/bind-state :selected-tileset-tile-index)
                        :tilesets (ui/bind-state :tilesets)
                        :tileset (ui/bind-state :tileset)
                        :selected-layer-index (ui/bind-state :selected-layer-index)
@@ -106,6 +115,7 @@
                                :style {:padding 8}
                                :state {:selected-tileset-index (ui/bind-state :selected-tileset-index)
                                        :selected-tileset-definition-index (ui/bind-state :selected-tileset-definition-index)
+                                       :selected-tileset-tile-index (ui/bind-state :selected-tileset-tile-index)
                                        :tilesets (ui/bind-state :tilesets)
                                        :tileset (ui/bind-state :tileset)
                                        :selected-layer-index (ui/bind-state :selected-layer-index)

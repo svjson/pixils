@@ -173,6 +173,19 @@ TEST_F(TilemapEditorStartupTest, loaded_project_populates_existing_side_panel_co
   find_descendant_modes(session.active_mode, "ui/combo-box", tileset_tab_combo_boxes);
   EXPECT_EQ(tileset_tab_combo_boxes.size(), 0u);
 
+  std::vector<std::shared_ptr<Pixils::Runtime::View>> tile_grids;
+  find_descendant_modes(session.active_mode, "tileset-tile-grid", tile_grids);
+  ASSERT_EQ(tile_grids.size(), 1u);
+  auto tile_grid = tile_grids[0];
+  input().mouse_down({tile_grid->bounds.x + 5, tile_grid->bounds.y + 5});
+  update_cycle();
+  input().mouse_up({tile_grid->bounds.x + 5, tile_grid->bounds.y + 5});
+  update_cycle();
+  input().key_down(SDLK_RIGHT);
+  update_cycle();
+  EXPECT_NE(session.active_mode->state->to_string().find(":selected-tileset-tile-index 1"),
+            std::string::npos);
+
   tab_panel = session.active_mode->children[1];
   ASSERT_NE(tab_panel, nullptr);
   ASSERT_GE(tab_panel->children.size(), 1u);

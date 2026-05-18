@@ -35,3 +35,18 @@
             (:disabled? (:state (tileset-layout/tileset-list-box-child
                                  [{:id :terrain
                                    :label "Terrain"}]))))))
+
+(deftest tileset-tile-grid-position-and-key-movement
+  (is (= 3 (tileset-layout/tile-grid-columns {:w 48 :h 80})))
+  (is (= 0 (tileset-layout/tile-grid-index-at-position {:x 2 :y 2}
+                                                       {:w 48 :h 80}
+                                                       8)))
+  (is (= 4 (tileset-layout/tile-grid-index-at-position {:x 18 :y 18}
+                                                       {:w 48 :h 80}
+                                                       8)))
+  (is (= 2 (tileset-layout/tile-grid-index-at-position {:x 35 :y 2}
+                                                       {:w 48 :h 80}
+                                                       8)))
+  (is (= 4 (tileset-layout/move-tile-grid-index 1 8 3 3)))
+  (is (= 7 (tileset-layout/move-tile-grid-index 6 8 3 3)))
+  (is (= 0 (tileset-layout/move-tile-grid-index 1 8 3 -3))))

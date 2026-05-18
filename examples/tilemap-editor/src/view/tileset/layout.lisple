@@ -1,11 +1,53 @@
 (ns tilemap-editor.view.tileset.layout
   (:require pixils
+            [pixils.render :as r]
             [pixils.ui :as ui]
             [pixils.ui.header-panel :as hp]
             [pixils.ui.list-box :as lb]
-            [tilemap-editor.model.data :as data]))
+            [tilemap-editor.model.data :as data]
+            [tilemap-editor.view.tilemap.renderer :as tr]))
 
 (def tileset-list-row-height 24)
+(def tile-grid-cell-size data/tile-size)
+(def tile-grid-gap 0)
+
+(defun tile-grid-stride []
+  (+ tile-grid-cell-size tile-grid-gap))
+
+(defun clamp-index [index item-count]
+  (if (<= item-count 0)
+    nil
+    (max 0 (min (or index 0) (dec item-count)))))
+
+(defun tile-grid-columns [bounds]
+  (max 1 (int (/ (+ (max 1 (:w bounds)) tile-grid-gap)
+                 (tile-grid-stride)))))
+
+(defun tile-grid-index-at-position [position bounds item-count]
+  (let [stride (tile-grid-stride)
+        col (int (/ (:x position) stride))
+        row (int (/ (:y position) stride))
+        index (+ col (* row (tile-grid-columns bounds)))]
+    (if (and (>= (:x position) 0)
+             (>= (:y position) 0)
+             (< (mod (:x position) stride) tile-grid-cell-size)
+             (< (mod (:y position) stride) tile-grid-cell-size)
+             (< index item-count))
+      index
+      nil)))
+
+(defun move-tile-grid-index [index item-count columns delta]
+  (clamp-index (+ (or index 0) delta) item-count))
+
+(defun selected-tileset-definition [state]
+  (let [tilesets (or (:tilesets state) [])]
+    (when (> (count tilesets) 0)
+      (nth tilesets
+           (min (or (:selected-tileset-definition-index state) 0)
+                (dec (count tilesets)))))))
+
+(defun selected-tileset-tiles [state]
+  (or (:tiles (selected-tileset-definition state)) []))
 
 (defun selected-tileset-definition-indices [state]
   (if (nil? (:selected-tileset-definition-index state))
@@ -45,36 +87,112 @@
    :on {:list-box/change (fn [state event ctx]
                            (assoc state
                                   :selected-tileset-definition-index
-                                  (-> event :payload :value)))}
+                                  (-> event :payload :value)
+                                  :selected-tileset-tile-index
+                                  0))}
    :children [(merge {:id "list-box"}
                      (tileset-list-box-child []))]})
 
-(defun selected-tileset-definition [state]
-  (let [tilesets (or (:tilesets state) [])]
-    (when (> (count tilesets) 0)
-      (nth tilesets
-           (min (or (:selected-tileset-definition-index state) 0)
-                (dec (count tilesets)))))))
-
 (defcomponent tileset-definition-summary
   {:style {:width :fill
-           :height :fill
+           :height :shrink
            :layout {:direction :column
                     :gap 4}}
    :update (fn [state ctx]
              (let [tileset (selected-tileset-definition state)
-                   tile-count (count (or (:tiles tileset) []))]
+                   tiles (or (:tiles tileset) [])
+                   tile-count (count tiles)
+                   selected-tile (when (> tile-count 0)
+                                   (nth tiles
+                                        (or (:selected-tileset-tile-index state) 0)))]
                (assoc state
                       :label (or (:label tileset) "")
                       :tile-count-label (if tileset
                                           (str tile-count " tiles")
-                                          "No tile definition set selected"))))
+                                          "No tile definition set selected")
+                      :selected-tile-label (or (:name selected-tile) ""))))
    :children [{:mode 'ui/text
                :class :ui/title
                :state {:value (ui/bind-state :label)}}
               {:mode 'ui/text
                :class :ui/muted
-               :state {:value (ui/bind-state :tile-count-label)}}]})
+               :state {:value (ui/bind-state :tile-count-label)}}
+              {:mode 'ui/text
+               :state {:value (ui/bind-state :selected-tile-label)}}]})
+
+(defun tile-cell-rect [index columns]
+  (let [stride (tile-grid-stride)]
+    {:x (* (mod index columns) stride)
+     :y (* (int (/ index columns)) stride)
+     :w tile-grid-cell-size
+     :h tile-grid-cell-size}))
+
+(defun selected-tile-border-rect [rect]
+  {:x (+ (:x rect) 1)
+   :y (+ (:y rect) 1)
+   :w (- (:w rect) 2)
+   :h (- (:h rect) 2)})
+
+(defun draw-tile-cell! [tile index columns]
+  (when tile
+    (tr/draw-tile! tile (tile-cell-rect index columns))))
+
+(defun draw-selected-tile-cell! [index columns]
+  (when (not (nil? index))
+    (r/rect! (selected-tile-border-rect (tile-cell-rect index columns))
+             {:color {:r 0xff :g 0xcc :b 0x66}})))
+
+(defcomponent tileset-tile-grid
+  {:focusable true
+   :class :ui/content
+   :style {:width :fill
+           :height :fill
+           :clip true}
+   :update (fn [state ctx]
+             (assoc state
+                    :selected-tileset-tile-index
+                    (clamp-index (:selected-tileset-tile-index state)
+                                 (count (selected-tileset-tiles state)))))
+   :on-mouse-down (fn [state event ctx]
+                    (let [tiles (selected-tileset-tiles state)
+                          index (tile-grid-index-at-position (:position event)
+                                                             (-> ctx :view :bounds)
+                                                             (count tiles))]
+                      (do
+                        (ui/stop-propagation! event)
+                        (ui/focus! ctx)
+                        (if (nil? index)
+                          state
+                          (assoc state :selected-tileset-tile-index index)))))
+   :on-key-down (fn [state event ctx]
+                  (let [tiles (selected-tileset-tiles state)
+                        item-count (count tiles)
+                        columns (tile-grid-columns (-> ctx :view :bounds))
+                        current (or (:selected-tileset-tile-index state) 0)
+                        delta (case (:key event)
+                                :key/left -1
+                                :key/right 1
+                                :key/up (* -1 columns)
+                                :key/down columns
+                                :default nil)]
+                    (if (nil? delta)
+                      state
+                      (do
+                        (ui/stop-propagation! event)
+                        (assoc state
+                               :selected-tileset-tile-index
+                               (move-tile-grid-index current
+                                                     item-count
+                                                     columns
+                                                     delta))))))
+   :render (fn [state ctx]
+             (let [tiles (selected-tileset-tiles state)
+                   selected-index (:selected-tileset-tile-index state)
+                   columns (tile-grid-columns (-> ctx :view :bounds))]
+               (do
+                 (for-indexed [index tile tiles]
+                   (draw-tile-cell! tile index columns))
+                 (draw-selected-tile-cell! selected-index columns))))})
 
 (defcomponent tileset-definition-sidebar
   {:class :ui/panel})
@@ -86,11 +204,14 @@
             :body-style {:padding 8
                          :height :fill}
             :state {:selected-tileset-definition-index (ui/bind-state :selected-tileset-definition-index)
+                    :selected-tileset-tile-index (ui/bind-state :selected-tileset-tile-index)
                     :tilesets (ui/bind-state :tilesets)}
             :body-state {:selected-tileset-definition-index (ui/bind-state :selected-tileset-definition-index)
+                         :selected-tileset-tile-index (ui/bind-state :selected-tileset-tile-index)
                          :tilesets (ui/bind-state :tilesets)}
             :children [{:mode 'tileset-definition-list
                         :state {:selected-tileset-definition-index (ui/bind-state :selected-tileset-definition-index)
+                                :selected-tileset-tile-index (ui/bind-state :selected-tileset-tile-index)
                                 :tilesets (ui/bind-state :tilesets)}}]}))
 
 (defcomponent tileset-definition-workspace
@@ -104,6 +225,7 @@
                        :layout {:direction :column
                                 :gap 8}}
                :state {:selected-tileset-definition-index (ui/bind-state :selected-tileset-definition-index)
+                       :selected-tileset-tile-index (ui/bind-state :selected-tileset-tile-index)
                        :tilesets (ui/bind-state :tilesets)
                        :layers (ui/bind-state :layers)}
                :children [(make-tileset-list-panel)]}
@@ -111,11 +233,20 @@
                         :style {:width :fill
                                 :height :fill}
                         :body-style {:padding 8
-                                     :height :fill}
+                                     :height :fill
+                                     :layout {:direction :column
+                                              :gap 8}}
                         :state {:selected-tileset-definition-index (ui/bind-state :selected-tileset-definition-index)
+                                :selected-tileset-tile-index (ui/bind-state :selected-tileset-tile-index)
                                 :tilesets (ui/bind-state :tilesets)}
                         :body-state {:selected-tileset-definition-index (ui/bind-state :selected-tileset-definition-index)
+                                     :selected-tileset-tile-index (ui/bind-state :selected-tileset-tile-index)
                                      :tilesets (ui/bind-state :tilesets)}
                         :children [{:mode 'tileset-definition-summary
                                     :state {:selected-tileset-definition-index (ui/bind-state :selected-tileset-definition-index)
+                                            :selected-tileset-tile-index (ui/bind-state :selected-tileset-tile-index)
+                                            :tilesets (ui/bind-state :tilesets)}}
+                                   {:mode 'tileset-tile-grid
+                                    :state {:selected-tileset-definition-index (ui/bind-state :selected-tileset-definition-index)
+                                            :selected-tileset-tile-index (ui/bind-state :selected-tileset-tile-index)
                                             :tilesets (ui/bind-state :tilesets)}}]})]})
