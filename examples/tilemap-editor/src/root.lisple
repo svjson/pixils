@@ -31,6 +31,9 @@
            :project-path nil
            :project-directory nil
            :project-filename "tilemap-project.edn"
+           :project-history-path project-io/default-recent-projects-path
+           :recent-projects (project-io/load-recent-projects
+                             project-io/default-recent-projects-path)
            :zoom 1
            :zoom-label "Zoom 1x"
            :show-grid? true
@@ -70,7 +73,8 @@
                                                                       selected-tile)
                      :zoom-label (str "Zoom " zoom "x")
                      :selected-layer-label (or (:label layer) ""))))
-  :children [{:mode 'toolbar}
+  :children [{:mode 'toolbar
+              :state {:recent-projects (ui/bind-state :recent-projects)}}
              (tabs/make
               {:selected-tab (ui/bind-state :workspace-tab)
                :style {:width :fill
@@ -141,6 +145,9 @@
                                                              ctx
                                                              :file-dialog/open
                                                              "Open Project"))
+       :project/open-recent (fn [state event ctx]
+                              (project-io/open-recent-project! state
+                                                               (:payload event)))
        :project/save-as (fn [state event ctx]
                           (project-io/open-project-file-dialog! state
                                                                 ctx

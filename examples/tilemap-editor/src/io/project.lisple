@@ -9,6 +9,9 @@
    {:label "All files (*)"
     :extensions []}])
 
+(def default-recent-projects-path "examples/tilemap-editor/.recent-projects.edn")
+(def max-recent-projects 10)
+
 (defun save-project-result? [payload]
   (and (= (:type payload) :confirm)
        (= (:mode payload) :file-dialog/save)
@@ -23,6 +26,55 @@
   (do
     (io/spit-edn! (:path payload) (data/project-document state))
     payload))
+
+(defun recent-project-entry [payload]
+  {:path (:path payload)
+   :directory (:directory payload)
+   :filename (or (:filename payload) (:path payload))})
+
+(defun recent-project-document [projects]
+  {:projects (or projects [])})
+
+(defun recent-projects-from-document [document]
+  (or (:projects document)
+      document
+      []))
+
+(defun load-recent-projects [path]
+  (if (and path (io/exists? path))
+    (recent-projects-from-document (io/slurp-edn! path))
+    []))
+
+(defun first-recent-projects [projects max-count]
+  (map (filter (for-indexed [index project (or projects [])]
+                 {:index index
+                  :project project})
+               (fn [entry]
+                 (< (:index entry) max-count)))
+       :project))
+
+(defun promote-recent-project [projects entry]
+  (if (nil? (:path entry))
+    (or projects [])
+    (first-recent-projects
+     (concat [entry]
+             (filter (or projects [])
+                     (fn [project]
+                       (not= (:path project) (:path entry)))))
+     max-recent-projects)))
+
+(defun write-recent-projects! [path projects]
+  (do
+    (when path
+      (io/spit-edn! path (recent-project-document projects)))
+    projects))
+
+(defun remember-project! [state payload]
+  (let [projects (promote-recent-project (:recent-projects state)
+                                         (recent-project-entry payload))]
+    (do
+      (write-recent-projects! (:project-history-path state) projects)
+      (assoc state :recent-projects projects))))
 
 (defun valid-project-document? [project]
   (= (:format project) data/project-format))
@@ -46,23 +98,35 @@
         tileset (first-layer-tileset layers)
         tilesets (project-tilesets project layers)]
     (if (valid-project-document? project)
-      (assoc state
-             :tilesets tilesets
-             :layers layers
-             :selected-layer-index (when (> (count layers) 0) 0)
-             :selected-layer-label (or (:label (head layers)) "")
-             :hidden-layer-indices []
-             :tileset tileset
-             :selected-tileset-index (when tileset
-                                       (data/tileset-index-in tilesets
-                                                              tileset))
-             :selected-tileset-definition-index (when (> (count tilesets) 0) 0)
-             :selected-tileset-tile-index (when (> (count (or (:tiles (head tilesets)) [])) 0) 0)
-             :selected-tile (data/tile-id-in-definitions tilesets tileset 0)
-             :last-project-open-result payload
-             :last-opened-project project)
+      (remember-project!
+       (assoc state
+              :tilesets tilesets
+              :layers layers
+              :selected-layer-index (when (> (count layers) 0) 0)
+              :selected-layer-label (or (:label (head layers)) "")
+              :hidden-layer-indices []
+              :tileset tileset
+              :selected-tileset-index (when tileset
+                                        (data/tileset-index-in tilesets
+                                                               tileset))
+              :selected-tileset-definition-index (when (> (count tilesets) 0) 0)
+              :selected-tileset-tile-index (when (> (count (or (:tiles (head tilesets)) [])) 0) 0)
+              :selected-tile (data/tile-id-in-definitions tilesets tileset 0)
+              :last-project-open-result payload
+              :last-opened-project project)
+       payload)
       (assoc state :last-project-open-error {:reason :invalid-format
                                              :path (:path payload)}))))
+
+(defun open-recent-project! [state payload]
+  (open-project! (assoc state
+                        :project-path (:path payload)
+                        :project-directory (:directory payload)
+                        :project-filename (:filename payload)
+                        :last-project-file-dialog-result payload)
+                 (assoc payload
+                        :type :confirm
+                        :mode :file-dialog/open)))
 
 (defun open-project-file-dialog! [state ctx mode title]
   (do
@@ -86,7 +150,8 @@
       (if (save-project-result? payload)
         (do
           (save-project! next-state payload)
-          (assoc next-state :last-project-save-result payload))
+          (remember-project! (assoc next-state :last-project-save-result payload)
+                             payload))
         (if (open-project-result? payload)
           (open-project! next-state payload)
           next-state)))

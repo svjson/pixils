@@ -11,3 +11,4 @@ ext/
 libpixils.so
 lib/pixils/native/
 scratches
+examples/tilemap-editor/.recent-projects.edn

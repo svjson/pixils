@@ -319,7 +319,27 @@
 
 (def tilemap-editor-menu-keymap {})
 
-(def tilemap-editor-menu
+(defun recent-project-label [project]
+  (or (:filename project)
+      (:path project)
+      "Untitled Project"))
+
+(defun recent-project-menu-items [projects]
+  (map (or projects [])
+       (fn [project]
+         {:label (recent-project-label project)
+          :action :project/open-recent
+          :payload project})))
+
+(defun recent-project-menu-item [projects]
+  (let [projects (or projects [])]
+    (if (empty? projects)
+      {:label "Recent Projects"
+       :disabled? true}
+      {:label "Recent Projects ->"
+       :items (recent-project-menu-items projects)})))
+
+(defun tilemap-editor-menu [recent-projects]
   {:settings {:mnemonics {:marker "&"}
               :shortcuts {:render true}}
    :items [{:label "&File"
@@ -327,6 +347,8 @@
                      :action :project/new}
                     {:label "&Open Project"
                      :action :project/open}
+                    :separator
+                    (recent-project-menu-item recent-projects)
                     :separator
                     {:label "&Save"
                      :action :project/save}
@@ -336,14 +358,28 @@
                     {:label "&Quit"
                      :action :app/quit}]}]})
 
+(defun tilemap-editor-menu-child [recent-projects]
+  (merge {:id "tilemap-editor-menu"}
+         (menu/make-menu {:style {:width :fill
+                                  :height 22}}
+                         (tilemap-editor-menu recent-projects)
+                         tilemap-editor-menu-keymap)))
+
 (defcomponent toolbar
   {:style {:width :fill
            :height 22
            :layout {:direction :row}}
-   :children [(menu/make-menu {:style {:width :fill
-                                        :height 22}}
-                              tilemap-editor-menu
-                              tilemap-editor-menu-keymap)]})
+   :init (fn [state ctx]
+           (assoc state :rendered-recent-projects nil))
+   :update (fn [state ctx]
+             (let [recent-projects (or (:recent-projects state) [])]
+               (do
+                 (when (not= recent-projects (:rendered-recent-projects state))
+                   (ui/replace-child! (:view ctx)
+                                      "tilemap-editor-menu"
+                                      (tilemap-editor-menu-child recent-projects)))
+                 (assoc state :rendered-recent-projects recent-projects))))
+   :children [(tilemap-editor-menu-child [])]})
 
 
 

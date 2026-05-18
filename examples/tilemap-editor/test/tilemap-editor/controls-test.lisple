@@ -36,6 +36,19 @@
                                  [{:id :terrain
                                    :label "Terrain"}]))))))
 
+(deftest recent-project-menu-is-inert-when-empty
+  (let [item (controls/recent-project-menu-item [])]
+    (is (= "Recent Projects" (:label item)))
+    (is (= true (:disabled? item)))
+    (is (nil? (:items item)))))
+
+(deftest recent-project-menu-opens-submenu-when-populated
+  (let [item (controls/recent-project-menu-item [{:path "map.edn"
+                                                  :filename "map.edn"}])]
+    (is (= "Recent Projects ->" (:label item)))
+    (is (= "map.edn" (get-in item [:items 0 :label])))
+    (is (= :project/open-recent (get-in item [:items 0 :action])))))
+
 (deftest tileset-tile-grid-position-and-key-movement
   (is (= 3 (tileset-layout/tile-grid-columns {:w 48 :h 80})))
   (is (= 0 (tileset-layout/tile-grid-index-at-position {:x 2 :y 2}

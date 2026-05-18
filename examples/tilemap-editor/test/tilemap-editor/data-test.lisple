@@ -104,6 +104,30 @@
                    (data/make-layered-map)))))
   (is (= [] (project-io/project-tilesets {} []))))
 
+(deftest recent-project-history-promotes-existing-projects
+  (let [projects [{:path "first.edn"
+                   :filename "first.edn"}
+                  {:path "second.edn"
+                   :filename "second.edn"}
+                  {:path "third.edn"
+                   :filename "third.edn"}]
+        promoted (project-io/promote-recent-project
+                  projects
+                  {:path "second.edn"
+                   :filename "second.edn"})]
+    (is (= ["second.edn" "first.edn" "third.edn"]
+           (map promoted :path)))))
+
+(deftest recent-project-history-adds-new-projects-first
+  (let [projects [{:path "first.edn"
+                   :filename "first.edn"}]
+        promoted (project-io/promote-recent-project
+                  projects
+                  {:path "new.edn"
+                   :filename "new.edn"})]
+    (is (= ["new.edn" "first.edn"]
+           (map promoted :path)))))
+
 (deftest example-map-loads-through-open-project-path
   (let [state (project-open-state)]
     (is (= 4 (count (:layers state))))

@@ -8,6 +8,8 @@
 #include <vector>
 
 #include <gtest/gtest.h>
+#include <lisple/runtime/dict.h>
+#include <lisple/runtime/value.h>
 
 namespace
 {
@@ -111,10 +113,21 @@ TEST_F(TilemapEditorStartupTest, current_example_main_mode_updates_and_renders)
 
 TEST_F(TilemapEditorStartupTest, loaded_project_populates_existing_side_panel_controls)
 {
+  const auto history_path =
+    std::filesystem::temp_directory_path() / "pixils-tilemap-editor-startup-history.edn";
+  std::error_code ec;
+  std::filesystem::remove(history_path, ec);
+
   read_tilemap_editor_sources(runtime);
 
   session.push_mode("main-mode", Lisple::Constant::NIL);
   update_cycle();
+  Lisple::Dict::set_property(session.active_mode->state,
+                             Lisple::keyword("project-history-path"),
+                             Lisple::string(history_path.string()));
+  Lisple::Dict::set_property(session.active_mode->state,
+                             Lisple::keyword("recent-projects"),
+                             Lisple::vector({}));
 
   auto origin = Lisple::map({Lisple::keyword("view"),
                              Pixils::Script::ViewAdapter::make_ref(*session.active_mode),
@@ -210,6 +223,8 @@ TEST_F(TilemapEditorStartupTest, loaded_project_populates_existing_side_panel_co
   tile_swatches.clear();
   find_descendant_modes(session.active_mode, "tile-swatch", tile_swatches);
   EXPECT_GT(tile_swatches.size(), 1u);
+
+  std::filesystem::remove(history_path, ec);
 }
 
 TEST_F(TilemapEditorProjectIoTest, save_dialog_result_writes_project_edn)
@@ -245,6 +260,47 @@ TEST_F(TilemapEditorProjectIoTest, save_dialog_result_writes_project_edn)
   EXPECT_NE(contents.find(":layers"), std::string::npos);
 
   std::filesystem::remove(save_path, ec);
+}
+
+TEST_F(TilemapEditorProjectIoTest, save_dialog_result_updates_recent_projects)
+{
+  const auto save_path =
+    std::filesystem::temp_directory_path() / "pixils-tilemap-editor-save-history-test.edn";
+  const auto history_path =
+    std::filesystem::temp_directory_path() / "pixils-tilemap-editor-history-test.edn";
+  std::error_code ec;
+  std::filesystem::remove(save_path, ec);
+  std::filesystem::remove(history_path, ec);
+
+  runtime.read_file("examples/tilemap-editor/src/model/data.lisple");
+  runtime.read_file("examples/tilemap-editor/src/io/project.lisple");
+
+  auto result = runtime.eval(R"(
+    (tilemap-editor.io.project/apply-project-file-dialog-result
+     {:layers []
+      :recent-projects []
+      :project-history-path )" + lisp_string(history_path.string()) + R"(}
+     {:type :confirm
+      :mode :file-dialog/save
+      :path )" + lisp_string(save_path.string()) + R"(
+      :directory )" + lisp_string(save_path.parent_path().string()) + R"(
+      :filename "saved-history-project.edn"})
+  )");
+
+  ASSERT_TRUE(std::filesystem::exists(history_path));
+  const std::string state = result->to_string();
+  EXPECT_NE(state.find(":recent-projects [{"), std::string::npos);
+  EXPECT_NE(state.find(R"(:filename "saved-history-project.edn")"),
+            std::string::npos);
+
+  const std::string contents = read_text_file(history_path);
+  EXPECT_NE(contents.find(":projects"), std::string::npos);
+  EXPECT_NE(contents.find(save_path.string()), std::string::npos);
+  EXPECT_NE(contents.find(R"(:filename "saved-history-project.edn")"),
+            std::string::npos);
+
+  std::filesystem::remove(save_path, ec);
+  std::filesystem::remove(history_path, ec);
 }
 
 TEST_F(TilemapEditorProjectIoTest, default_project_starts_with_empty_layers)
