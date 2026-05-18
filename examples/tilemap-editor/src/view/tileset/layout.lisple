@@ -7,6 +7,8 @@
             [pixils.ui.header-panel :as hp]
             [pixils.ui.list-box :as lb]
             [pixils.ui.slider :as sl]
+            pixils.ui.text-input
+            [pixils.ui.window :as w]
             [tilemap-editor.model.data :as data]
             [tilemap-editor.view.tilemap.renderer :as tr]))
 
@@ -22,6 +24,54 @@
     :label "Sprite"}])
 (def default-tile-color {:r 0x00 :g 0x00 :b 0x00})
 (def default-tile-image :editor-assets/spritesheet)
+
+(defun clean-name-separators [value index out]
+  (if (>= index (count value))
+    (trim out)
+    (let [ch (substr value index 1)]
+      (clean-name-separators
+       value
+       (inc index)
+       (str out
+            (if (or (= ch "-") (= ch "_"))
+              " "
+              ch))))))
+
+(defun label-from-id [id]
+  (capitalize (clean-name-separators id 0 "")))
+
+(defun keyword-label [value]
+  (let [text (str value)]
+    (if (= ":" (substr text 0 1))
+      (substr text 1)
+      text)))
+
+(defun item-id-exists? [items id]
+  (> (count (filter (or items [])
+                    (fn [item]
+                      (= (:id item) (keyword id)))))
+     0))
+
+(defun unique-id-from [items root suffix]
+  (let [candidate (if suffix
+                    (str root "-" suffix)
+                    root)]
+    (if (item-id-exists? items candidate)
+      (unique-id-from items
+                      root
+                      (if suffix (inc suffix) 2))
+      candidate)))
+
+(defun unique-tileset-id [tilesets]
+  (unique-id-from (or tilesets []) "tile-set" nil))
+
+(defun unique-tile-id [tiles]
+  (unique-id-from (or tiles []) "tile" nil))
+
+(defun default-tile-char [id]
+  (if (> (count id) 0)
+    (substr id 0 1)
+    ""))
 
 (defun default-tile-source [tile-size]
   {:x 0 :y 0 :w tile-size :h tile-size})
@@ -114,6 +164,58 @@
 
     :default
     (assoc tile :type type)))
+
+(defun make-tileset-definition [id label tile-size]
+  {:id (keyword id)
+   :label label
+   :tile-size tile-size
+   :tiles []})
+
+(defun make-tile-definition [id name ch type tile-size]
+  (tile-with-type {:id (keyword id)
+                   :name name
+                   :char ch}
+                  type
+                  tile-size))
+
+(defun add-tileset-definition! [state payload]
+  (if (and (= (:type payload) :confirm)
+           (not (blank? (:tileset-id payload)))
+           (not (blank? (:tileset-label payload))))
+    (let [tilesets (or (:tilesets state) [])
+          id (unique-id-from tilesets (kebab-case (:tileset-id payload)) nil)
+          index (count tilesets)
+          tileset (make-tileset-definition id
+                                           (:tileset-label payload)
+                                           (or (:tile-size payload)
+                                               data/tile-size))]
+      (assoc state
+             :tilesets (concat tilesets [tileset])
+             :selected-tileset-definition-index index
+             :selected-tileset-tile-index nil))
+    state))
+
+(defun add-tile-definition! [state payload]
+  (let [tileset-index (:selected-tileset-definition-index state)
+        tileset (selected-tileset-definition state)]
+    (if (and (= (:type payload) :confirm)
+             (not (nil? tileset-index))
+             tileset
+             (not (blank? (:tile-id payload)))
+             (not (blank? (:tile-name payload))))
+      (let [tiles (or (:tiles tileset) [])
+            id (unique-id-from tiles (kebab-case (:tile-id payload)) nil)
+            index (count tiles)
+            tile (make-tile-definition id
+                                       (:tile-name payload)
+                                       (or (:tile-char payload) "")
+                                       (or (:tile-type payload) :color)
+                                       (or (:tile-size tileset)
+                                           data/tile-size))]
+        (assoc-in (assoc state :selected-tileset-tile-index index)
+                  [:tilesets tileset-index :tiles]
+                  (concat tiles [tile])))
+      state)))
 
 (defun set-selected-tile-type [state type]
   (update-selected-tile state
@@ -653,6 +755,261 @@
               {:mode 'tile-color-editor
                :state {:tile (ui/bind-state :tile)}}]})
 
+(defun open-tileset-create-dialog! [state ctx]
+  (let [id (unique-tileset-id (:tilesets state))]
+    (do
+      (push-mode! 'tileset-create-dialog-modal
+                  {:tileset-id id
+                   :tileset-label (label-from-id id)
+                   :tile-size data/tile-size}
+                  {:origin {:view (:view ctx)
+                            :event :tileset/dialog-result}})
+      state)))
+
+(defun open-tile-create-dialog! [state ctx]
+  (let [tiles (selected-tileset-tiles state)
+        id (unique-tile-id tiles)]
+    (if (nil? (:selected-tileset-definition-index state))
+      state
+      (do
+        (push-mode! 'tile-create-dialog-modal
+                    {:tile-id id
+                     :tile-name (label-from-id id)
+                     :tile-char (default-tile-char id)
+                     :tile-type :color}
+                    {:origin {:view (:view ctx)
+                              :event :tile/dialog-result}})
+        state))))
+
+(defcomponent tileset-create-dialog-body
+  {:class :ui/content
+   :style {:width 300
+           :height :shrink
+           :padding 10
+           :layout {:direction :column
+                    :gap 8}}
+   :update (fn [state ctx]
+             (assoc state
+                    :invalid? (or (blank? (:tileset-id state))
+                                  (blank? (:tileset-label state)))))
+   :on {:slider/change (fn [state event ctx]
+                         (assoc state :tile-size (:payload event)))}
+   :children [{:mode 'ui/text
+               :class :ui/muted
+               :state {:value "Id"}}
+              {:mode 'ui/text-input
+               :style {:width :fill
+                       :height 24}
+               :state {:value (ui/bind-state :tileset-id)
+                       :auto-focus? true}}
+              {:mode 'ui/text
+               :class :ui/muted
+               :state {:value "Label"}}
+              {:mode 'ui/text-input
+               :style {:width :fill
+                       :height 24}
+               :state {:value (ui/bind-state :tileset-label)}}
+              {:mode 'tile-definition-row
+               :style {:width :fill
+                       :height 24
+                       :layout {:direction :row
+                                :align-items :center
+                                :gap 8}}
+               :state {:tile-size (ui/bind-state :tile-size)}
+               :children [{:mode 'ui/text
+                           :class :ui/muted
+                           :style {:width 58}
+                           :state {:value "Tile size"}}
+                          (sl/make {:value (ui/bind-state :tile-size)
+                                    :min 8
+                                    :max 64
+                                    :step 8})
+                          {:mode 'ui/text
+                           :style {:width 28}
+                           :state {:value (ui/bind-state :tile-size)}}]}
+              {:mode 'tileset-create-dialog-buttons
+               :state {:invalid? (ui/bind-state :invalid?)}}]})
+
+(defcomponent tileset-create-dialog-buttons
+  {:style {:width :fill
+           :height 24
+           :layout {:direction :row
+                    :gap :space-between}}
+   :children [{:mode 'ui/button
+               :style {:width 78
+                       :height 24}
+               :state {:label "Cancel"}
+               :on-click (fn [state event ctx]
+                           (do
+                             (ui/emit! (:view ctx)
+                                       :tileset-create-dialog/cancel)
+                             state))}
+              {:mode 'ui/button
+               :style {:width 78
+                       :height 24}
+               :state {:label "Create"
+                       :disabled? (ui/bind-state :invalid?)}
+               :on-click (fn [state event ctx]
+                           (do
+                             (ui/emit! (:view ctx)
+                                       :tileset-create-dialog/confirm)
+                             state))}]})
+
+(defmode tileset-create-dialog-modal
+  {:on {:tileset-create-dialog/cancel
+        (fn [state event ctx]
+          (do
+            (ui/stop-propagation! event)
+            (pop-mode! {:type :cancel})
+            state))
+        :tileset-create-dialog/confirm
+        (fn [state event ctx]
+          (do
+            (ui/stop-propagation! event)
+            (if (or (blank? (:tileset-id state))
+                    (blank? (:tileset-label state)))
+              state
+              (do
+                (pop-mode! {:type :confirm
+                            :tileset-id (:tileset-id state)
+                            :tileset-label (:tileset-label state)
+                            :tile-size (:tile-size state)})
+                state))))}
+   :compose {:render :pass}
+   :children [(w/make {:position {:x 220 :y 140}
+                       :title-bar {:title "New Tile Set"}
+                       :state {:tileset-id (ui/bind-state :tileset-id)
+                               :tileset-label (ui/bind-state :tileset-label)
+                               :tile-size (ui/bind-state :tile-size)}
+                       :body [{:mode 'tileset-create-dialog-body
+                               :state {:tileset-id (ui/bind-state :tileset-id)
+                                       :tileset-label (ui/bind-state :tileset-label)
+                                       :tile-size (ui/bind-state :tile-size)}}]})]})
+
+(defcomponent tile-create-type-selector
+  {:style {:width :fill
+           :height 22}
+   :update (fn [state ctx]
+             (assoc state
+                    :selected-index
+                    (tile-type-index {:type (:tile-type state)})))
+   :on {:combo-box/change (fn [state event ctx]
+                            (assoc state
+                                   :tile-type
+                                   (-> event :payload :value)))}
+   :children [(cb/make {:options tile-type-options
+                        :selected-index (ui/bind-state :selected-index)})]})
+
+(defcomponent tile-create-dialog-body
+  {:class :ui/content
+   :style {:width 300
+           :height :shrink
+           :padding 10
+           :layout {:direction :column
+                    :gap 8}}
+   :update (fn [state ctx]
+             (assoc state
+                    :invalid? (or (blank? (:tile-id state))
+                                  (blank? (:tile-name state)))))
+   :children [{:mode 'ui/text
+               :class :ui/muted
+               :state {:value "Id"}}
+              {:mode 'ui/text-input
+               :style {:width :fill
+                       :height 24}
+               :state {:value (ui/bind-state :tile-id)
+                       :auto-focus? true}}
+              {:mode 'ui/text
+               :class :ui/muted
+               :state {:value "Name"}}
+              {:mode 'ui/text-input
+               :style {:width :fill
+                       :height 24}
+               :state {:value (ui/bind-state :tile-name)}}
+              {:mode 'ui/text
+               :class :ui/muted
+               :state {:value "Char"}}
+              {:mode 'ui/text-input
+               :style {:width :fill
+                       :height 24}
+               :state {:value (ui/bind-state :tile-char)}}
+              {:mode 'tile-definition-row
+               :style {:width :fill
+                       :height 24
+                       :layout {:direction :row
+                                :align-items :center
+                                :gap 8}}
+               :state {:tile-type (ui/bind-state :tile-type)}
+               :children [{:mode 'ui/text
+                           :class :ui/muted
+                           :style {:width 58}
+                           :state {:value "Type"}}
+                          {:mode 'tile-create-type-selector
+                           :style {:width 160
+                                   :height 22}
+                           :state {:tile-type (ui/bind-state :tile-type)}}]}
+              {:mode 'tile-create-dialog-buttons
+               :state {:invalid? (ui/bind-state :invalid?)}}]})
+
+(defcomponent tile-create-dialog-buttons
+  {:style {:width :fill
+           :height 24
+           :layout {:direction :row
+                    :gap :space-between}}
+   :children [{:mode 'ui/button
+               :style {:width 78
+                       :height 24}
+               :state {:label "Cancel"}
+               :on-click (fn [state event ctx]
+                           (do
+                             (ui/emit! (:view ctx)
+                                       :tile-create-dialog/cancel)
+                             state))}
+              {:mode 'ui/button
+               :style {:width 78
+                       :height 24}
+               :state {:label "Create"
+                       :disabled? (ui/bind-state :invalid?)}
+               :on-click (fn [state event ctx]
+                           (do
+                             (ui/emit! (:view ctx)
+                                       :tile-create-dialog/confirm)
+                             state))}]})
+
+(defmode tile-create-dialog-modal
+  {:on {:tile-create-dialog/cancel
+        (fn [state event ctx]
+          (do
+            (ui/stop-propagation! event)
+            (pop-mode! {:type :cancel})
+            state))
+        :tile-create-dialog/confirm
+        (fn [state event ctx]
+          (do
+            (ui/stop-propagation! event)
+            (if (or (blank? (:tile-id state))
+                    (blank? (:tile-name state)))
+              state
+              (do
+                (pop-mode! {:type :confirm
+                            :tile-id (:tile-id state)
+                            :tile-name (:tile-name state)
+                            :tile-char (:tile-char state)
+                            :tile-type (:tile-type state)})
+                state))))}
+   :compose {:render :pass}
+   :children [(w/make {:position {:x 220 :y 140}
+                       :title-bar {:title "New Tile"}
+                       :state {:tile-id (ui/bind-state :tile-id)
+                               :tile-name (ui/bind-state :tile-name)
+                               :tile-char (ui/bind-state :tile-char)
+                               :tile-type (ui/bind-state :tile-type)}
+                       :body [{:mode 'tile-create-dialog-body
+                               :state {:tile-id (ui/bind-state :tile-id)
+                                       :tile-name (ui/bind-state :tile-name)
+                                       :tile-char (ui/bind-state :tile-char)
+                                       :tile-type (ui/bind-state :tile-type)}}]})]})
+
 (defun make-tileset-list-panel []
   (hp/make {:title "Project Tile Sets"
             :style {:width :shrink
@@ -689,11 +1046,31 @@
    :update (fn [state ctx]
              (derive-tileset-workspace-state state))
    :on {:tileset/add (fn [state event ctx]
-                       state)}
+                       (open-tileset-create-dialog! state ctx))
+        :tileset/add-tile (fn [state event ctx]
+                            (open-tile-create-dialog! state ctx))
+        :tileset/dialog-result (fn [state event ctx]
+                                 (add-tileset-definition! state
+                                                          (:payload event)))
+        :tile/dialog-result (fn [state event ctx]
+                              (add-tile-definition! state (:payload event)))}
    :children [(make-tileset-list-panel)
               (hp/make {:title "Tile Set"
                         :style {:width :fill
                                 :height :fill}
+                        :header-style {:layout {:direction :row
+                                                :align-items :center
+                                                :gap 4}}
+                        :header-children [{:mode 'ui/button
+                                           :class :ui/toolbar-button
+                                           :state {:label "+"
+                                                   :disabled? (ui/bind-state
+                                                               :tile-set-panel-disabled?)}
+                                           :on-click (fn [state event ctx]
+                                                       (do
+                                                         (ui/emit! (:view ctx)
+                                                                   :tileset/add-tile)
+                                                         state))}]
                         :body-style {:padding 8
                                      :height :fill
                                      :layout {:direction :column
