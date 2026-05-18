@@ -456,6 +456,18 @@
 (defun make-tileset-controls []
   (hp/make {:title "Tile Definition Set"
             :style {:width :fill}
+            :header-style {:layout {:direction :row
+                                    :align-items :center
+                                    :gap 4}}
+            :header-children [{:mode 'ui/button
+                               :style {:width 22
+                                       :height 20}
+                               :state {:label "+"}
+                               :on-click (fn [state event ctx]
+                                           (do
+                                             (ui/emit! (:view ctx)
+                                                       :tileset/new)
+                                             state))}]
             :body-style {:padding 8
                          :layout {:direction :column
                                   :gap 4}}
