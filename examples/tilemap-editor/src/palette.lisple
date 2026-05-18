@@ -15,12 +15,14 @@
 (def tile-palette-content-width 160)
 
 (defun selected-layer [state]
-  (nth (:layers state) (or (:selected-layer-index state) 0)))
+  (let [layers (or (:layers state) [])]
+    (when (> (count layers) 0)
+      (nth layers (min (or (:selected-layer-index state) 0)
+                       (dec (count layers)))))))
 
 (defun selected-layer-tileset [state]
   (or (:tileset (selected-layer state))
-      (:palette-tileset state)
-      :colors))
+      (:palette-tileset state)))
 
 (defcomponent tile-swatch-preview
   {:style {:width 14
@@ -123,7 +125,7 @@
                                                   :palette-tileset
                                                   tileset))))))
    :children [(merge {:id "list-box"}
-                     (tile-palette-list-box-child :colors))]})
+                     (tile-palette-list-box-child nil))]})
 
 (defun make-tile-palette []
   (hp/make {:title "Tiles"

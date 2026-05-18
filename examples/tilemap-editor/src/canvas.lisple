@@ -18,7 +18,7 @@
            :cursor :crosshair}
    :init (fn [state ctx]
            (merge {:offset {:x 0 :y 0}
-                   :layers (data/make-layered-map)}
+                   :layers []}
                   state))
    :update (fn [state ctx]
              (tm/clamp-map-offset state ctx))
@@ -43,7 +43,7 @@
                                   (:show-grid? state))
                (r/text! (str "offset " (:x offset) "," (:y offset)
                              "\nzoom " (:zoom state) "x"
-                             "\nlayer " (data/layer-label (:selected-layer-index state)))
+                             "\nlayer " (or (:selected-layer-label state) ""))
                         {:x 8 :y 8}
                         {:color {:r 0xff :g 0xcc :b 0x66}})))})
 
@@ -57,6 +57,7 @@
    :children [{:mode 'map-canvas
                :state {:selected-tile (ui/bind-state :selected-tile)
                        :selected-layer-index (ui/bind-state :selected-layer-index)
+                       :selected-layer-label (ui/bind-state :selected-layer-label)
                        :layers (ui/bind-state :layers)
                        :hidden-layer-indices (ui/bind-state :hidden-layer-indices)
                        :offset (ui/bind-state :map-offset)
@@ -106,6 +107,7 @@
    :children [{:mode 'map-scroll-row
                :state {:selected-tile (ui/bind-state :selected-tile)
                        :selected-layer-index (ui/bind-state :selected-layer-index)
+                       :selected-layer-label (ui/bind-state :selected-layer-label)
                        :layers (ui/bind-state :layers)
                        :hidden-layer-indices (ui/bind-state :hidden-layer-indices)
                        :map-offset (ui/bind-state :map-offset)

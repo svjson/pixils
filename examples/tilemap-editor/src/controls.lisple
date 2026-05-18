@@ -76,7 +76,7 @@
   (data/normalize-layers (-> project :tilemap :layers)))
 
 (defun first-layer-tileset [layers]
-  (or (:tileset (head layers)) :colors))
+  (:tileset (head layers)))
 
 (defun open-project! [state payload]
   (let [project (data/normalize-project-document (io/slurp-edn! (:path payload)))
@@ -84,12 +84,15 @@
         tileset (first-layer-tileset layers)]
     (if (valid-project-document? project)
       (assoc state
+             :tilesets (or (:tilesets project) [])
              :layers layers
-             :selected-layer-index 0
-             :selected-layer-label (:label (head layers))
+             :selected-layer-index (when (> (count layers) 0) 0)
+             :selected-layer-label (or (:label (head layers)) "")
              :hidden-layer-indices []
              :tileset tileset
-             :selected-tileset-index (data/tileset-index tileset)
+             :selected-tileset-index (when tileset
+                                       (data/tileset-index-in (:tilesets project)
+                                                              tileset))
              :selected-tile (data/tile-id-in tileset 0)
              :last-project-open-result payload
              :last-opened-project project)
@@ -427,6 +430,29 @@
 
 ;; Tileset Selection
 
+(defun tileset-combo-child [tilesets]
+  (cb/make {:options (data/tileset-options-for-definitions tilesets)
+            :selected-index (ui/bind-state :selected-tileset-index)
+            :row-height 20
+            :max-height 72}))
+
+(defcomponent tileset-selector
+  {:style {:width :fill
+           :height :shrink}
+   :init (fn [state ctx]
+           (assoc state :tilesets-list (or (:tilesets state) [])))
+   :update (fn [state ctx]
+             (let [tilesets (or (:tilesets state) [])]
+               (do
+                 (when (not= tilesets (:tilesets-list state))
+                   (ui/replace-child! (:view ctx)
+                                      "combo-box"
+                                      (merge {:id "combo-box"}
+                                             (tileset-combo-child tilesets))))
+                 (assoc state :tilesets-list tilesets))))
+   :children [(merge {:id "combo-box"}
+                     (tileset-combo-child []))]})
+
 (defun make-tileset-controls []
   (hp/make {:title "Tile Definition Set"
             :style {:width :fill}
@@ -435,19 +461,22 @@
                                   :gap 4}}
             :state {:selected-tileset-index (ui/bind-state :selected-tileset-index)
                     :selected-layer-index (ui/bind-state :selected-layer-index)
+                    :tilesets (ui/bind-state :tilesets)
                     :layers (ui/bind-state :layers)}
-            :body-state {:selected-tileset-index (ui/bind-state :selected-tileset-index)}
+            :body-state {:selected-tileset-index (ui/bind-state :selected-tileset-index)
+                         :tilesets (ui/bind-state :tilesets)}
             :on {:combo-box/change (fn [state event ctx]
                                       (let [index (-> event :payload :selected-index)]
-                                        (assoc-in (assoc state :selected-tileset-index index)
-                                                  [:layers
-                                                   (or (:selected-layer-index state) 0)
-                                                   :tileset]
-                                                  (data/tileset-key index))))}
-            :children [(cb/make {:options data/tileset-options
-                                  :selected-index (ui/bind-state :selected-tileset-index)
-                                  :row-height 20
-                                  :max-height 72})
+                                        (if (and (not (nil? (:selected-layer-index state)))
+                                                 (> (count (or (:layers state) [])) 0))
+                                          (assoc-in
+                                           (assoc state :selected-tileset-index index)
+                                           [:layers (:selected-layer-index state) :tileset]
+                                           (data/tileset-key-in (:tilesets state) index))
+                                          (assoc state :selected-tileset-index index))))}
+            :children [{:mode 'tileset-selector
+                        :state {:selected-tileset-index (ui/bind-state :selected-tileset-index)
+                                :tilesets (ui/bind-state :tilesets)}}
                        {:mode 'ui/text
                         :class :ui/muted
                         :state {:value "Applies to selected layer"}}]}))
@@ -495,7 +524,8 @@
                       :visible? visible?
                       :visibility-label (if visible? "V" "-")
                       :layer-name (:label layer)
-                      :tileset-label (data/tileset-label (:tileset layer)))))
+                      :tileset-label (data/tileset-label-in (:tilesets state)
+                                                            (:tileset layer)))))
    :on-mouse-down (fn [state event ctx]
                     (do
                       (ui/stop-propagation! event)
@@ -540,6 +570,7 @@
    :state {:index index
            :value index
            :layer (ui/bind-state :layers index)
+           :tilesets (ui/bind-state :tilesets)
            :hidden-layer-indices (ui/bind-state :hidden-layer-indices)
            :selected-indices (ui/bind-state :selected-indices)}})
 
@@ -561,8 +592,9 @@
             :visible-rows (count (or layers []))
             :content-width 200
             :state {:layers (ui/bind-state :layers)
+                    :tilesets (ui/bind-state :tilesets)
                     :hidden-layer-indices (ui/bind-state :hidden-layer-indices)}
-            :item-state-keys [:layers :hidden-layer-indices]
+            :item-state-keys [:layers :tilesets :hidden-layer-indices]
             :selected-indices (ui/bind-state :selected-indices)
             :force-selection? true
             :item-child layer-row-child}))
@@ -594,7 +626,7 @@
                                        (-> event :payload :value))
                              state))}
    :children [(merge {:id "list-box"}
-                     (layer-list-box-child data/tilemap-layers))]})
+                     (layer-list-box-child []))]})
 
 (defun make-layer-controls []
   (hp/make {:title "Layers"
@@ -605,8 +637,10 @@
             :state {:selected-layer-index (ui/bind-state :selected-layer-index)
                     :selected-layer-label (ui/bind-state :selected-layer-label)
                     :hidden-layer-indices (ui/bind-state :hidden-layer-indices)
+                    :tilesets (ui/bind-state :tilesets)
                     :layers (ui/bind-state :layers)}
             :body-state {:layers (ui/bind-state :layers)
+                         :tilesets (ui/bind-state :tilesets)
                          :hidden-layer-indices (ui/bind-state :hidden-layer-indices)
                          :selected-layer-index (ui/bind-state :selected-layer-index)}
             :on {:layer/select (fn [state event ctx]
@@ -655,6 +689,7 @@
                                               state)))}
             :children [{:mode 'layer-list
                         :state {:layers (ui/bind-state :layers)
+                                :tilesets (ui/bind-state :tilesets)
                                 :hidden-layer-indices (ui/bind-state :hidden-layer-indices)
                                 :selected-layer-index (ui/bind-state :selected-layer-index)}}]}))
 

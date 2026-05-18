@@ -30,6 +30,7 @@
                :style {:height :fill}
                :state {:selected-tile (ui/bind-state :selected-tile)
                        :selected-layer-index (ui/bind-state :selected-layer-index)
+                       :selected-layer-label (ui/bind-state :selected-layer-label)
                        :layers (ui/bind-state :layers)
                        :hidden-layer-indices (ui/bind-state :hidden-layer-indices)
                        :map-offset (ui/bind-state :map-offset)
@@ -54,6 +55,7 @@
                 :state {:selected-tile (ui/bind-state :selected-tile)
                         :selected-label (ui/bind-state :selected-label)
                         :selected-tileset-index (ui/bind-state :selected-tileset-index)
+                        :tilesets (ui/bind-state :tilesets)
                         :tileset (ui/bind-state :tileset)
                         :selected-layer-index (ui/bind-state :selected-layer-index)
                         :selected-layer-label (ui/bind-state :selected-layer-label)
@@ -67,6 +69,7 @@
                             :style {:padding {:r 8}}
                             :state {:selected-tile (ui/bind-state :selected-tile)
                                     :selected-layer-index (ui/bind-state :selected-layer-index)
+                                    :selected-layer-label (ui/bind-state :selected-layer-label)
                                     :layers (ui/bind-state :layers)
                                     :hidden-layer-indices (ui/bind-state :hidden-layer-indices)
                                     :map-offset (ui/bind-state :map-offset)
@@ -78,6 +81,7 @@
                             :state {:selected-tile (ui/bind-state :selected-tile)
                                     :selected-label (ui/bind-state :selected-label)
                                     :selected-tileset-index (ui/bind-state :selected-tileset-index)
+                                    :tilesets (ui/bind-state :tilesets)
                                     :tileset (ui/bind-state :tileset)
                                     :selected-layer-index (ui/bind-state :selected-layer-index)
                                     :selected-layer-label (ui/bind-state :selected-layer-label)

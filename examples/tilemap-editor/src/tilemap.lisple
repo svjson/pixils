@@ -35,11 +35,14 @@
         size (scaled-tile-size (:zoom state))
         tile-x (int (/ (+ (:x pos) (:x offset)) size))
         tile-y (int (/ (+ (:y pos) (:y offset)) size))
-        layer-index (or (:selected-layer-index state) 0)]
+        layer-index (or (:selected-layer-index state) 0)
+        layers (or (:layers state) [])]
     (if (and (>= tile-x 0)
              (< tile-x data/map-width)
              (>= tile-y 0)
-             (< tile-y data/map-height))
+             (< tile-y data/map-height)
+             (> (count layers) 0)
+             (< layer-index (count layers)))
       (cond
         (= (:button event) :left)
         (assoc-in state

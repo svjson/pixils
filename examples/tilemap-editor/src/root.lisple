@@ -14,14 +14,15 @@
   :style {:layout {:direction :column
                    :gap 8}}
   :init (fn [state ctx]
-          {:selected-tile :night
-           :selected-tileset-index 0
-           :tileset :colors
-           :selected-layer-index 0
-           :selected-layer-label "Background"
-           :layers (data/make-layered-map)
+          {:selected-tile nil
+           :selected-tileset-index nil
+           :tilesets []
+           :tileset nil
+           :selected-layer-index nil
+           :selected-layer-label ""
+           :layers []
            :hidden-layer-indices []
-           :selected-label "Selected: Night Sky (color)"
+           :selected-label ""
            :project-path nil
            :project-directory nil
            :project-filename "tilemap-project.edn"
@@ -30,17 +31,22 @@
            :show-grid? true
            :map-offset {:x 0 :y 0}})
   :update (fn [state ctx]
-            (let [layer (nth (:layers state) (or (:selected-layer-index state) 0))
+            (let [layers (or (:layers state) [])
+                  layer-index (or (:selected-layer-index state) 0)
+                  layer (when (> (count layers) 0)
+                          (nth layers (min layer-index (dec (count layers)))))
                   tileset (:tileset layer)
                   selected-tile (data/tile-id-in tileset (:selected-tile state))
                   zoom (or (:zoom state) 1)]
               (assoc state
                      :tileset tileset
-                     :selected-tileset-index (data/tileset-index tileset)
+                     :selected-tileset-index (when tileset
+                                               (data/tileset-index-in (:tilesets state)
+                                                                      tileset))
                      :selected-tile selected-tile
                      :selected-label (data/tile-label-in tileset selected-tile)
                      :zoom-label (str "Zoom " zoom "x")
-                     :selected-layer-label (:label layer))))
+                     :selected-layer-label (or (:label layer) ""))))
   :children [{:mode 'toolbar}
              {:mode 'workspace
               :style {:padding {:l 8
@@ -49,6 +55,7 @@
               :state {:selected-tile (ui/bind-state :selected-tile)
                       :selected-label (ui/bind-state :selected-label)
                       :selected-tileset-index (ui/bind-state :selected-tileset-index)
+                      :tilesets (ui/bind-state :tilesets)
                       :tileset (ui/bind-state :tileset)
                       :selected-layer-index (ui/bind-state :selected-layer-index)
                       :selected-layer-label (ui/bind-state :selected-layer-label)

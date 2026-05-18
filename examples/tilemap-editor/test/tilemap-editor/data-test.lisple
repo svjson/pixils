@@ -70,9 +70,21 @@
   (is (= 7 (tilemap/clamp 7 0 10)))
   (is (= 10 (tilemap/clamp 18 0 10))))
 
+(deftest empty-project-document-does-not-invent-tilesets-or-layers
+  (let [document (data/project-document {:tilesets []
+                                         :layers []})]
+    (is (= [] (:tilesets document)))
+    (is (= [] (-> document :tilemap :layers)))))
+
+(deftest missing-tileset-does-not-fall-back-to-sample-tiles
+  (is (= [] (data/tile-options-for nil)))
+  (is (nil? (data/tile-in nil 0)))
+  (is (nil? (data/tile-id-in nil 0))))
+
 (deftest example-map-loads-through-open-project-path
   (let [state (project-open-state)]
     (is (= 4 (count (:layers state))))
+    (is (= 4 (count (:tilesets state))))
     (is (= "Background" (:selected-layer-label state)))
     (is (= :colors (:tileset state)))
     (is (= :night (:selected-tile state)))))
