@@ -73,13 +73,13 @@
   (= (:format project) data/project-format))
 
 (defun project-layers [project]
-  (-> project :tilemap :layers))
+  (data/normalize-layers (-> project :tilemap :layers)))
 
 (defun first-layer-tileset [layers]
   (or (:tileset (head layers)) :colors))
 
 (defun open-project! [state payload]
-  (let [project (io/slurp-edn! (:path payload))
+  (let [project (data/normalize-project-document (io/slurp-edn! (:path payload)))
         layers (project-layers project)
         tileset (first-layer-tileset layers)]
     (if (valid-project-document? project)

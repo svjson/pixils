@@ -638,6 +638,31 @@
 (defun make-layer [definition tiles]
   (assoc definition :tiles tiles))
 
+(defun serialized-nil? [value]
+  (and (= (type-of value) "symbol")
+       (= (str value) "nil")))
+
+(defun normalize-tile-ref [tile-ref]
+  (if (serialized-nil? tile-ref)
+    nil
+    tile-ref))
+
+(defun normalize-tile-row [row]
+  (map row normalize-tile-ref))
+
+(defun normalize-layer [layer]
+  (update layer :tiles (fn [tiles]
+                         (map (or tiles [])
+                              normalize-tile-row))))
+
+(defun normalize-layers [layers]
+  (map (or layers []) normalize-layer))
+
+(defun normalize-project-document [project]
+  (assoc-in project
+            [:tilemap :layers]
+            (normalize-layers (-> project :tilemap :layers))))
+
 (defun make-layer-from-string-map [definition rows]
   (make-layer definition
               (if (and rows (uniform-string-map? rows))
