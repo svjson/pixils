@@ -347,6 +347,26 @@ TEST_F(SessionHooksTest, keyboard_event_to_text_handles_shifted_and_punctuation_
   EXPECT_EQ(session.active_mode->state->to_string(), "{:value \"!,\"}");
 }
 
+TEST_F(SessionHooksTest, keyboard_event_to_text_handles_mode_key_as_altgr)
+{
+  runtime.eval(R"(
+    (pixils/defmode key-mode
+      {:init (fn [state ctx] {:value ""})
+       :on-key-down (fn [state event ctx]
+                      (if-let [text (pixils.keyboard/event->text event)]
+                        (assoc state :value (str (:value state) text))
+                        state))})
+  )");
+  session.push_mode("key-mode", Lisple::Constant::NIL);
+
+  input().key_down(SDLK_MODE);
+  input().clear_transients();
+  input().key_down(SDLK_7);
+  session.update_mode();
+
+  EXPECT_EQ(session.active_mode->state->to_string(), "{:value \"{\"}");
+}
+
 TEST_F(SessionHooksTest, focused_child_mode_on_key_down_bubbles_to_root_mode)
 {
   // Given

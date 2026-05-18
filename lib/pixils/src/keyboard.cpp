@@ -40,6 +40,11 @@ namespace Pixils
 
         return false;
       }
+
+      bool is_altgr_modifier(SDL_Keymod mod)
+      {
+        return (mod & KMOD_RALT) || (mod & KMOD_MODE);
+      }
     } // namespace
 
     /*
@@ -162,6 +167,7 @@ namespace Pixils
       {"right-shift", SDLK_RSHIFT},
       {"left-alt", SDLK_LALT},
       {"right-alt", SDLK_RALT},
+      {"mode", SDLK_MODE},
       {"left-super", SDLK_LGUI},
       {"right-super", SDLK_RGUI},
       {"backspace", SDLK_BACKSPACE},
@@ -237,7 +243,7 @@ namespace Pixils
         }
       }
 
-      if (key_event.keysym.mod & KMOD_ALT || key_event.keysym.mod & KMOD_RALT)
+      if (is_altgr_modifier(static_cast<SDL_Keymod>(key_event.keysym.mod)))
       {
         switch (key_event.keysym.sym)
         {
@@ -429,8 +435,8 @@ namespace Pixils
 
       bool shift = held_keys_contains(held_keys, "key/left-shift") ||
                    held_keys_contains(held_keys, "key/right-shift");
-      bool alt = held_keys_contains(held_keys, "key/left-alt") ||
-                 held_keys_contains(held_keys, "key/right-alt");
+      bool altgr = held_keys_contains(held_keys, "key/right-alt") ||
+                   held_keys_contains(held_keys, "key/mode");
 
       if (shift)
       {
@@ -451,7 +457,7 @@ namespace Pixils
         if (key_name == "less") return std::string(">");
       }
 
-      if (alt)
+      if (altgr)
       {
         if (key_name == "4") return std::string("$");
         if (key_name == "8") return std::string("[");

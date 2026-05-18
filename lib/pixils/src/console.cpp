@@ -49,6 +49,11 @@ namespace Pixils
   Color ERROR_COLOR = Color{0xf6, 0x40, 0x23};
   TextLine EMPTY_LINE = TextLine{{}};
 
+  bool is_altgr_modifier(SDL_Keymod mod)
+  {
+    return (mod & KMOD_RALT) || (mod & KMOD_MODE);
+  }
+
   ConsoleOverlay::ConsoleOverlay(RenderContext& rc,
                                  Lisple::Runtime& runtime,
                                  SDL_Texture* font_map_texture)
@@ -201,12 +206,14 @@ namespace Pixils
 
       cursor_pos.x = input.size();
     }
-    else if (event.keysym.sym == SDLK_PLUS && event.keysym.mod & KMOD_CTRL)
+    else if (event.keysym.sym == SDLK_PLUS && event.keysym.mod & KMOD_CTRL &&
+             !is_altgr_modifier(static_cast<SDL_Keymod>(event.keysym.mod)))
     {
       this->rc.pixel_size = std::min(10, rc.pixel_size + 1);
       this->text_renderer.set_scale(this->rc.pixel_size);
     }
-    else if (event.keysym.sym == SDLK_MINUS && event.keysym.mod & KMOD_CTRL)
+    else if (event.keysym.sym == SDLK_MINUS && event.keysym.mod & KMOD_CTRL &&
+             !is_altgr_modifier(static_cast<SDL_Keymod>(event.keysym.mod)))
     {
       this->rc.pixel_size = std::max(1, rc.pixel_size - 1);
       this->text_renderer.set_scale(this->rc.pixel_size);
