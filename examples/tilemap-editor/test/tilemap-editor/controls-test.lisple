@@ -53,6 +53,30 @@
     (is (= false (:tile-set-panel-disabled? tile-state)))
     (is (= false (:tile-definition-panel-disabled? tile-state)))))
 
+(deftest tileset-workspace-knows_when_project_image_resources_exist
+  (is (= false
+         (:has-project-image-resources?
+          (tileset-layout/derive-tileset-workspace-state
+           {:resources {:bundles {:editor-assets
+                                  {:dynamic? false
+                                   :images {:spritesheet
+                                            {:file-name "sprites.png"}}}}}}))))
+  (is (= true
+         (:has-project-image-resources?
+          (tileset-layout/derive-tileset-workspace-state
+           {:resources {:bundles {:project-assets
+                                  {:images {:tiles
+                                            {:file-name "tiles.png"}}}}}})))))
+
+(deftest tile-add-menu-disables_resource_import_without_project_resources
+  (let [menu (tileset-layout/tile-add-menu false)
+        item (head (:items menu))]
+    (is (= "Add from resource" (:label item)))
+    (is (= true (:disabled? item))))
+  (let [menu (tileset-layout/tile-add-menu true)
+        item (head (:items menu))]
+    (is (= false (:disabled? item)))))
+
 (deftest tileset-list-panel-has_project_header_and_add_button
   (let [panel (tileset-layout/make-tileset-list-panel)
         header (head (:children panel))
@@ -126,6 +150,134 @@
                 :tile-type :sprite})]
     (is (= {:x 0 :y 0 :w 32 :h 32}
            (get-in state [:tilesets 0 :tiles 0 :source])))))
+
+(deftest image-resource-options-list_project_images
+  (is (= [{:id :sprites
+           :bundle-id :assets
+           :key :assets/sprites
+           :name "Sprites"
+           :file-name "sprites.png"
+           :value 0
+           :label ":assets/sprites  Sprites"}]
+         (tileset-layout/image-resource-options
+          {:bundles {:assets
+                     {:images {:sprites {:name "Sprites"
+                                         :file-name "sprites.png"}}}}}
+          :assets))))
+
+(deftest image-resource-options-ignore_static_editor_assets
+  (is (= []
+         (tileset-layout/image-resource-entries
+          {:bundles {:editor-assets
+                     {:dynamic? false
+                      :images {:spritesheet {:file-name "sprites.png"}}}}}))))
+
+(deftest import-file-resource-adds_project_bundle_metadata
+  (let [state (tileset-layout/import-file-resource!
+               {:resources {:bundles {}}
+                :selected-resource-bundle nil}
+               {:path "assets/simples_pimples.png"})]
+    (is (= true
+           (get-in state [:resources :bundles :project-assets :dynamic?])))
+    (is (= {:file-name "assets/simples_pimples.png"
+            :name "Simples Pimples"}
+           (get-in state
+                   [:resources :bundles :project-assets :images :simples-pimples])))
+    (is (= :project-assets (:selected-resource-bundle state)))
+    (is (= :simples-pimples (:selected-image-resource state)))))
+
+(deftest import-source-rects-can_select_all_tiles
+  (let [state {:selected-tileset-definition-index 0
+               :tilesets [{:tiles []}]
+               :tile-size 16
+               :select-all? true
+               :exclude-same-tileset? false
+               :exclude-project? false}]
+    (is (= [{:x 0 :y 0 :w 16 :h 16}
+            {:x 16 :y 0 :w 16 :h 16}
+            {:x 0 :y 16 :w 16 :h 16}
+            {:x 16 :y 16 :w 16 :h 16}]
+           (tileset-layout/import-source-rects state
+                                               :assets/sprites
+                                               {:w 32 :h 32})))))
+
+(deftest import-source-rects-start_empty_without_select_all
+  (let [state {:selected-tileset-definition-index 0
+               :tilesets [{:tiles []}]
+               :tile-size 16
+               :select-all? false
+               :selected-source-indices []
+               :exclude-same-tileset? false
+               :exclude-project? false}]
+    (is (= []
+           (tileset-layout/import-source-rects state
+                                               :assets/sprites
+                                               {:w 32 :h 32})))))
+
+(deftest import-source-rects-excludes_existing_project_tiles
+  (let [state {:selected-tileset-definition-index 0
+               :tilesets [{:tiles [{:id :a
+                                    :type :sprite
+                                    :image :assets/sprites
+                                    :source {:x 0 :y 0 :w 16 :h 16}}]}
+                          {:tiles [{:id :b
+                                    :type :sprite
+                                    :image :assets/sprites
+                                    :source {:x 16 :y 0 :w 16 :h 16}}]}]
+               :tile-size 16
+               :select-all? true
+               :exclude-same-tileset? true
+               :exclude-project? true}]
+    (is (= [{:x 0 :y 16 :w 16 :h 16}
+            {:x 16 :y 16 :w 16 :h 16}]
+           (tileset-layout/import-source-rects state
+                                               :assets/sprites
+                                               {:w 32 :h 32})))))
+
+(deftest imported_sprite_tiles_get_default_names_and_unique_ids
+  (let [state (tileset-layout/add-imported-sprite-tiles!
+               {:selected-tileset-definition-index 0
+                :tilesets [{:id :terrain
+                            :tile-size 16
+                            :tiles [{:id :sprites-1}]}]}
+               {:type :confirm
+                :resource {:id :sprites
+                           :key :assets/sprites
+                           :name "Sprites"}
+                :sources [{:x 0 :y 0 :w 16 :h 16}
+                          {:x 16 :y 0 :w 16 :h 16}]})]
+    (is (= [:sprites-1 :sprites-1-2 :sprites-2]
+           (map (get-in state [:tilesets 0 :tiles])
+                (fn [tile] (:id tile)))))
+    (is (= "Sprites 1"
+           (get-in state [:tilesets 0 :tiles 1 :name])))
+    (is (= :assets/sprites
+           (get-in state [:tilesets 0 :tiles 1 :image])))
+    (is (= 1 (:selected-tileset-tile-index state)))))
+
+(deftest color_range_creation_adds_numbered_color_tiles
+  (let [state (tileset-layout/add-color-tile-range!
+               {:selected-tileset-definition-index 0
+                :tilesets [{:id :colors
+                            :tile-size 16
+                            :tiles []}]}
+               {:type :confirm
+                :tile-id "swatch"
+                :tile-name "Swatch"
+                :count 3
+                :from-color {:r 0 :g 0 :b 0}
+                :to-color {:r 10 :g 20 :b 30}})]
+    (is (= [:swatch-1 :swatch-2 :swatch-3]
+           (map (get-in state [:tilesets 0 :tiles])
+                (fn [tile] (:id tile)))))
+    (is (= "Swatch 2"
+           (get-in state [:tilesets 0 :tiles 1 :name])))
+    (is (= [{:r 0 :g 0 :b 0}
+            {:r 5 :g 10 :b 15}
+            {:r 10 :g 20 :b 30}]
+           (map (get-in state [:tilesets 0 :tiles])
+                (fn [tile] (:color tile)))))
+    (is (= 0 (:selected-tileset-tile-index state)))))
 
 (deftest recent-project-menu-is-inert-when-empty
   (let [item (controls/recent-project-menu-item [])]

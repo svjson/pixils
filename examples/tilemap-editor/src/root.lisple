@@ -130,7 +130,11 @@
                                        :tilesets (ui/bind-state :tilesets)
                                        :tileset (ui/bind-state :tileset)
                                        :selected-layer-index (ui/bind-state :selected-layer-index)
-                                       :layers (ui/bind-state :layers)}}}
+                                       :layers (ui/bind-state :layers)
+                                       :project-directory (ui/bind-state :project-directory)
+                                       :resources (ui/bind-state :resources)
+                                       :selected-resource-bundle (ui/bind-state :selected-resource-bundle)
+                                       :selected-image-resource (ui/bind-state :selected-image-resource)}}}
                       {:id :resources
                        :label "Resources"
                        :child {:mode 'resource-explorer-workspace
@@ -181,9 +185,16 @@
                                                                ctx
                                                                :file-dialog/save
                                                                "Save Project")))
-       :project/file-dialog-result (fn [state event ctx]
-                                     (project-io/apply-project-file-dialog-result
-                                      state
-                                      (:payload event)))
-       :app/quit (fn [state event ctx]
-                   (quit!))}})
+              :project/file-dialog-result (fn [state event ctx]
+                                            (project-io/apply-project-file-dialog-result
+                                             state
+                                             (:payload event)))
+              :project/resources-change
+              (fn [state event ctx]
+                (let [payload (:payload event)]
+                  (assoc state
+                         :resources (:resources payload)
+                         :selected-resource-bundle (:selected-resource-bundle payload)
+                         :selected-image-resource (:selected-image-resource payload))))
+              :app/quit (fn [state event ctx]
+                          (quit!))}})

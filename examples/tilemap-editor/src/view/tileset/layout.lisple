@@ -1,11 +1,16 @@
 (ns tilemap-editor.view.tileset.layout
   (:require pixils
+            [lisple.io :as io]
             [pixils.image :as img]
             [pixils.render :as r]
+            [pixils.resource :as res]
             [pixils.ui :as ui]
+            [pixils.ui.checkbox :as chk]
             [pixils.ui.combo-box :as cb]
+            [pixils.ui.file-dialog :as file-dialog]
             [pixils.ui.header-panel :as hp]
             [pixils.ui.list-box :as lb]
+            [pixils.ui.menu :as menu]
             [pixils.ui.slider :as sl]
             pixils.ui.text-input
             [pixils.ui.window :as w]
@@ -17,6 +22,10 @@
 (def tile-grid-gap 0)
 (def sprite-map-preview-width 240)
 (def sprite-map-preview-height 320)
+(def tile-import-preview-width 360)
+(def tile-import-preview-height 280)
+(def color-range-preview-width 320)
+(def color-range-preview-height 24)
 (def tile-type-options
   [{:value :color
     :label "Color"}
@@ -24,6 +33,33 @@
     :label "Sprite"}])
 (def default-tile-color {:r 0x00 :g 0x00 :b 0x00})
 (def default-tile-image :editor-assets/spritesheet)
+(def default-import-bundle :project-assets)
+(def image-file-filters
+  [{:label "Image files (*.png, *.jpg, *.jpeg, *.bmp)"
+    :extensions [".png" ".jpg" ".jpeg" ".bmp"]}
+   {:label "All files (*)"
+    :extensions []}])
+
+(defun tile-add-menu [has-resources?]
+  {:settings {:mnemonics {:enabled false}}
+   :items [{:label "Add from resource"
+            :action :tile/add-menu-dummy
+            :payload {:command :from-resource}
+            :disabled? (not has-resources?)}
+           {:label "Add from file"
+            :action :tile/add-menu-dummy
+            :payload {:command :from-file}}
+           {:label "Add multiple tiles from multiple files"
+            :action :tile/add-menu-dummy
+            :payload {:command :from-multiple-files}
+            :disabled? true}
+           :separator
+           {:label "Add color tile"
+            :action :tile/add-menu-dummy
+            :payload {:command :color}}
+           {:label "Add range of color tiles"
+            :action :tile/add-menu-dummy
+            :payload {:command :color-range}}]})
 
 (defun clean-name-separators [value index out]
   (if (>= index (count value))
@@ -68,10 +104,106 @@
 (defun unique-tile-id [tiles]
   (unique-id-from (or tiles []) "tile" nil))
 
+(defun unique-color-tile-id [tiles]
+  (unique-id-from (or tiles []) "color" nil))
+
 (defun default-tile-char [id]
   (if (> (count id) 0)
     (substr id 0 1)
     ""))
+
+(defun file-stem [path]
+  (let [name (io/basename path)
+        extension (io/extension name)]
+    (if (blank? extension)
+      name
+      (substr name 0 (- (count name) (count extension))))))
+
+(defun default-resource-id [path]
+  (kebab-case (file-stem path)))
+
+(defun default-resource-name [path]
+  (label-from-id (default-resource-id path)))
+
+(defun image-resource-key [bundle-id resource-id]
+  (keyword (str (keyword-label bundle-id)
+                "/"
+                (keyword-label resource-id))))
+
+(defun project-bundle-entries [resources]
+  (let [bundles (or (:bundles resources) {})]
+    (map (keys bundles)
+         (fn [bundle-id]
+           {:id bundle-id
+            :bundle (get bundles bundle-id)}))))
+
+(defun dynamic-bundle-entry? [entry]
+  (not= (-> entry :bundle :dynamic?) false))
+
+(defun dynamic-project-bundle-entries [resources]
+  (filter (project-bundle-entries resources) dynamic-bundle-entry?))
+
+(defun first-dynamic-bundle-id [resources]
+  (if-let [entry (head (dynamic-project-bundle-entries resources))]
+    (:id entry)
+    nil))
+
+(defun bundle-options [resources]
+  (for-indexed [index entry (dynamic-project-bundle-entries resources)]
+    {:value (:id entry)
+     :id (:id entry)
+     :label (keyword-label (:id entry))}))
+
+(defun bundle-index-by-id [options id]
+  (find-index (or options [])
+              (fn [option]
+                (= (:id option) id))))
+
+(defun bundle-id-at-index [options index]
+  (when (and (not (nil? index))
+             (< index (count (or options []))))
+    (:id (nth options index))))
+
+(defun image-resource-entries-for-bundle [resources bundle-id]
+  (let [images (or (get-in resources [:bundles bundle-id :images]) {})]
+    (map (keys images)
+         (fn [resource-id]
+           (let [dependency (get images resource-id)]
+             {:id resource-id
+              :bundle-id bundle-id
+              :key (image-resource-key bundle-id resource-id)
+              :name (or (:name dependency)
+                        (keyword-label resource-id))
+              :file-name (:file-name dependency)})))))
+
+(defun image-resource-entries [resources]
+  (reduce (dynamic-project-bundle-entries resources)
+          []
+          (fn [out entry]
+            (concat out
+                    (image-resource-entries-for-bundle resources (:id entry))))))
+
+(defun has-project-image-resources? [resources]
+  (not (empty? (image-resource-entries resources))))
+
+(defun image-resource-options [resources bundle-id]
+  (for-indexed [index resource (image-resource-entries-for-bundle resources
+                                                                  bundle-id)]
+    (merge resource
+           {:value index
+            :label (str (:key resource) "  " (:name resource))})))
+
+(defun resource-index-by-key [options key]
+  (find-index (or options [])
+              (fn [option]
+                (= (:key option) key))))
+
+(defun selected-resource-option [state]
+  (let [options (:resource-options state)
+        index (:selected-resource-index state)]
+    (when (and (not (nil? index))
+               (< index (count (or options []))))
+      (nth options index))))
 
 (defun default-tile-source [tile-size]
   {:x 0 :y 0 :w tile-size :h tile-size})
@@ -178,6 +310,26 @@
                   type
                   tile-size))
 
+(defun make-color-tile-definition [id name ch color]
+  {:id (keyword id)
+   :name name
+   :char ch
+   :type :color
+   :color color})
+
+(defun lerp-channel [from to index steps]
+  (if (<= steps 0)
+    from
+    (int (+ from
+            (/ (* (- to from) index)
+               steps)))))
+
+(defun lerp-color [from to index count]
+  (let [steps (dec count)]
+    {:r (lerp-channel (:r from) (:r to) index steps)
+     :g (lerp-channel (:g from) (:g to) index steps)
+     :b (lerp-channel (:b from) (:b to) index steps)}))
+
 (defun add-tileset-definition! [state payload]
   (if (and (= (:type payload) :confirm)
            (not (blank? (:tileset-id payload)))
@@ -217,6 +369,74 @@
                   (concat tiles [tile])))
       state)))
 
+(defun add-imported-sprite-tiles! [state payload]
+  (let [tileset-index (:selected-tileset-definition-index state)
+        tileset (selected-tileset-definition state)
+        resource (:resource payload)
+        sources (or (:sources payload) [])]
+    (if (and (= (:type payload) :confirm)
+             (not (nil? tileset-index))
+             tileset
+             resource
+             (not (empty? sources)))
+      (let [existing (or (:tiles tileset) [])
+            root (tile-id-root-for-resource resource)
+            name-root (tile-name-root-for-resource resource)
+            added (reduce (for-indexed [index source sources]
+                            {:index (inc index)
+                             :source source})
+                          []
+                          (fn [out entry]
+                            (let [id (unique-id-from (concat existing out)
+                                                     (str root "-" (:index entry))
+                                                     nil)]
+                              (concat out
+                                      [(make-imported-sprite-tile
+                                        resource
+                                        (:source entry)
+                                        id
+                                        (str name-root " " (:index entry)))]))))
+            first-index (count existing)]
+        (assoc-in (assoc state :selected-tileset-tile-index first-index)
+                  [:tilesets tileset-index :tiles]
+                  (concat existing added)))
+      state)))
+
+(defun add-color-tile-range! [state payload]
+  (let [tileset-index (:selected-tileset-definition-index state)
+        tileset (selected-tileset-definition state)
+        count (or (:count payload) 8)]
+    (if (and (= (:type payload) :confirm)
+             (not (nil? tileset-index))
+             tileset
+             (not (blank? (:tile-id payload)))
+             (not (blank? (:tile-name payload))))
+      (let [existing (or (:tiles tileset) [])
+            root (kebab-case (:tile-id payload))
+            name-root (:tile-name payload)
+            from-color (or (:from-color payload) default-tile-color)
+            to-color (or (:to-color payload) default-tile-color)
+            added (reduce (range 0 (dec count))
+                          []
+                          (fn [out index]
+                            (let [id (unique-id-from (concat existing out)
+                                                     (str root "-" (inc index))
+                                                     nil)]
+                              (concat out
+                                      [(make-color-tile-definition
+                                        id
+                                        (str name-root " " (inc index))
+                                        (default-tile-char id)
+                                        (lerp-color from-color
+                                                    to-color
+                                                    index
+                                                    count))]))))
+            first-index (count existing)]
+        (assoc-in (assoc state :selected-tileset-tile-index first-index)
+                  [:tilesets tileset-index :tiles]
+                  (concat existing added)))
+      state)))
+
 (defun set-selected-tile-type [state type]
   (update-selected-tile state
                         (fn [tile]
@@ -249,6 +469,82 @@
    :w tile-size
    :h tile-size})
 
+(defun source-grid-columns [dim tile-size]
+  (max 1 (int (/ (:w dim) tile-size))))
+
+(defun source-grid-rows [dim tile-size]
+  (max 1 (int (/ (:h dim) tile-size))))
+
+(defun source-grid-count [dim tile-size]
+  (* (source-grid-columns dim tile-size)
+     (source-grid-rows dim tile-size)))
+
+(defun source-index-rect [index dim tile-size]
+  (let [columns (source-grid-columns dim tile-size)]
+    {:x (* (mod index columns) tile-size)
+     :y (* (int (/ index columns)) tile-size)
+     :w tile-size
+     :h tile-size}))
+
+(defun same-source? [a b]
+  (and (= (:x a) (:x b))
+       (= (:y a) (:y b))
+       (= (:w a) (:w b))
+       (= (:h a) (:h b))))
+
+(defun sprite-tile-uses-source? [tile image source]
+  (and (= (:type tile) :sprite)
+       (= (:image tile) image)
+       (same-source? (:source tile) source)))
+
+(defun tileset-uses-source? [tileset image source]
+  (> (count (filter (or (:tiles tileset) [])
+                    (fn [tile]
+                      (sprite-tile-uses-source? tile image source))))
+     0))
+
+(defun project-uses-source? [tilesets image source]
+  (> (count (filter (or tilesets [])
+                    (fn [tileset]
+                      (tileset-uses-source? tileset image source))))
+     0))
+
+(defun selected-source-indices [state dim]
+  (if (:select-all? state)
+    (range 0 (dec (source-grid-count dim (:tile-size state))))
+    (or (:selected-source-indices state) [])))
+
+(defun import-source-included? [state image source]
+  (let [tileset (selected-tileset-definition state)
+        same? (tileset-uses-source? tileset image source)
+        project? (project-uses-source? (:tilesets state) image source)]
+    (not (or (and (:exclude-same-tileset? state) same?)
+             (and (:exclude-project? state) project?)))))
+
+(defun import-source-rects [state image dim]
+  (let [tile-size (:tile-size state)]
+    (filter (map (selected-source-indices state dim)
+                 (fn [index]
+                   (source-index-rect index dim tile-size)))
+            (fn [source]
+              (import-source-included? state image source)))))
+
+(defun tile-id-root-for-resource [resource]
+  (kebab-case (or (:name resource)
+                  (keyword-label (:id resource))
+                  "tile")))
+
+(defun tile-name-root-for-resource [resource]
+  (label-from-id (tile-id-root-for-resource resource)))
+
+(defun make-imported-sprite-tile [resource source id name]
+  {:id (keyword id)
+   :name name
+   :char (default-tile-char id)
+   :type :sprite
+   :image (:key resource)
+   :source source})
+
 (defun set-selected-tile-source-position [state x y dim]
   (update-selected-tile state
                         (fn [tile]
@@ -279,8 +575,10 @@
 (defun derive-tileset-workspace-state [state]
   (assoc state
          :tile-set-panel-disabled? (nil? (:selected-tileset-definition-index state))
+         :has-project-image-resources? (has-project-image-resources?
+                                        (:resources state))
          :tile-definition-panel-disabled? (or (nil? (:selected-tileset-definition-index state))
-                                             (nil? (:selected-tileset-tile-index state)))))
+                                              (nil? (:selected-tileset-tile-index state)))))
 
 (defun tileset-list-box-child [tilesets]
   (let [tilesets (or tilesets [])]
@@ -768,7 +1066,7 @@
 
 (defun open-tile-create-dialog! [state ctx]
   (let [tiles (selected-tileset-tiles state)
-        id (unique-tile-id tiles)]
+        id (unique-color-tile-id tiles)]
     (if (nil? (:selected-tileset-definition-index state))
       state
       (do
@@ -780,6 +1078,96 @@
                     {:origin {:view (:view ctx)
                               :event :tile/dialog-result}})
         state))))
+
+(defun open-color-range-dialog! [state ctx]
+  (let [id (unique-color-tile-id (selected-tileset-tiles state))]
+    (if (nil? (:selected-tileset-definition-index state))
+      state
+      (do
+        (push-mode! 'color-range-dialog-modal
+                    {:tile-id id
+                     :tile-name (label-from-id id)
+                     :count 8
+                     :from-color {:r 0 :g 0 :b 0}
+                     :to-color {:r 255 :g 255 :b 255}}
+                    {:origin {:view (:view ctx)
+                                      :event :tile/color-range-result}})
+        state))))
+
+(defun open-tile-import-dialog! [state ctx selected-bundle-id selected-resource-key]
+  (let [bundle-options (bundle-options (:resources state))
+        selected-bundle-index (or (bundle-index-by-id bundle-options
+                                                     selected-bundle-id)
+                                  (if (empty? bundle-options) nil 0))
+        selected-bundle-id (bundle-id-at-index bundle-options
+                                               selected-bundle-index)
+        options (image-resource-options (:resources state) selected-bundle-id)
+        selected-index (or (resource-index-by-key options selected-resource-key)
+                           (if (empty? options) nil 0))]
+    (if (or (nil? (:selected-tileset-definition-index state))
+            (nil? selected-bundle-index))
+      state
+      (do
+        (push-mode! 'tile-import-dialog-modal
+                    {:resources (:resources state)
+                     :tilesets (:tilesets state)
+                     :selected-tileset-definition-index (:selected-tileset-definition-index state)
+                     :bundle-options bundle-options
+                     :selected-bundle-index selected-bundle-index
+                     :resource-options options
+                     :selected-resource-index selected-index
+                     :selected-source-indices []
+                     :select-all? false
+                     :exclude-same-tileset? true
+                     :exclude-project? false
+                     :tile-size (selected-tileset-tile-size state)}
+                    {:origin {:view (:view ctx)
+                              :event :tile/import-result}})
+        state))))
+
+(defun open-add-from-file-dialog! [state ctx]
+  (do
+    (file-dialog/open-file-dialog!
+     ctx
+     {:title "Add Tiles from Image"
+      :mode :file-dialog/open
+      :path (or (:project-directory state) file-dialog/default-path)
+      :filters image-file-filters
+      :result-event :tile/file-dialog-result})
+    state))
+
+(defun image-file-dialog-result? [payload]
+  (and (= (:type payload) :confirm)
+       (= (:mode payload) :file-dialog/open)
+       (not (nil? (:path payload)))))
+
+(defun resource-bundle-for-import [state]
+  (or (:selected-resource-bundle state)
+      (first-dynamic-bundle-id (:resources state))
+      default-import-bundle))
+
+(defun import-file-resource! [state payload]
+  (let [bundle-id (resource-bundle-for-import state)
+        resource-root (default-resource-id (:path payload))
+        images (or (get-in state [:resources :bundles bundle-id :images]) {})
+        resource-id (keyword (unique-id-from (map (keys images)
+                                                  (fn [id]
+                                                    {:id id}))
+                                             resource-root
+                                             nil))
+        dependency {:file-name (:path payload)
+                    :name (default-resource-name (:path payload))}]
+    (do
+      (res/create-bundle! bundle-id)
+      (res/add-image! (image-resource-key bundle-id resource-id)
+                      {:file-name (:path payload)})
+      (assoc (assoc-in (assoc-in state
+                                 [:resources :bundles bundle-id :dynamic?]
+                                 true)
+                       [:resources :bundles bundle-id :images resource-id]
+                       dependency)
+             :selected-resource-bundle bundle-id
+             :selected-image-resource resource-id))))
 
 (defcomponent tileset-create-dialog-body
   {:class :ui/content
@@ -929,27 +1317,12 @@
               {:mode 'ui/text
                :class :ui/muted
                :state {:value "Char"}}
-              {:mode 'ui/text-input
-               :style {:width :fill
-                       :height 24}
-               :state {:value (ui/bind-state :tile-char)}}
-              {:mode 'tile-definition-row
-               :style {:width :fill
-                       :height 24
-                       :layout {:direction :row
-                                :align-items :center
-                                :gap 8}}
-               :state {:tile-type (ui/bind-state :tile-type)}
-               :children [{:mode 'ui/text
-                           :class :ui/muted
-                           :style {:width 58}
-                           :state {:value "Type"}}
-                          {:mode 'tile-create-type-selector
-                           :style {:width 160
-                                   :height 22}
-                           :state {:tile-type (ui/bind-state :tile-type)}}]}
-              {:mode 'tile-create-dialog-buttons
-               :state {:invalid? (ui/bind-state :invalid?)}}]})
+                      {:mode 'ui/text-input
+                       :style {:width :fill
+                               :height 24}
+                       :state {:value (ui/bind-state :tile-char)}}
+                      {:mode 'tile-create-dialog-buttons
+                       :state {:invalid? (ui/bind-state :invalid?)}}]})
 
 (defcomponent tile-create-dialog-buttons
   {:style {:width :fill
@@ -991,24 +1364,547 @@
                     (blank? (:tile-name state)))
               state
               (do
-                (pop-mode! {:type :confirm
-                            :tile-id (:tile-id state)
-                            :tile-name (:tile-name state)
-                            :tile-char (:tile-char state)
-                            :tile-type (:tile-type state)})
-                state))))}
+                        (pop-mode! {:type :confirm
+                                    :tile-id (:tile-id state)
+                                    :tile-name (:tile-name state)
+                                    :tile-char (:tile-char state)
+                                    :tile-type :color})
+                        state))))}
    :compose {:render :pass}
    :children [(w/make {:position {:x 220 :y 140}
                        :title-bar {:title "New Tile"}
-                       :state {:tile-id (ui/bind-state :tile-id)
-                               :tile-name (ui/bind-state :tile-name)
-                               :tile-char (ui/bind-state :tile-char)
-                               :tile-type (ui/bind-state :tile-type)}
-                       :body [{:mode 'tile-create-dialog-body
                                :state {:tile-id (ui/bind-state :tile-id)
                                        :tile-name (ui/bind-state :tile-name)
-                                       :tile-char (ui/bind-state :tile-char)
-                                       :tile-type (ui/bind-state :tile-type)}}]})]})
+                                       :tile-char (ui/bind-state :tile-char)}
+                               :body [{:mode 'tile-create-dialog-body
+                                       :state {:tile-id (ui/bind-state :tile-id)
+                                               :tile-name (ui/bind-state :tile-name)
+                                               :tile-char (ui/bind-state :tile-char)}}]})]})
+
+(defcomponent color-range-dialog-body
+  {:class :ui/content
+   :style {:width 340
+           :height :shrink
+           :padding 10
+           :layout {:direction :column
+                    :gap 8}}
+   :update (fn [state ctx]
+             (assoc state
+                    :invalid? (or (blank? (:tile-id state))
+                                  (blank? (:tile-name state)))))
+   :on {:slider/change (fn [state event ctx]
+                         (assoc state :count (:payload event)))
+        :color-range/channel-change
+        (fn [state event ctx]
+          (let [payload (:payload event)
+                color-key (:color-key payload)]
+            (assoc state
+                   color-key
+                   (assoc (or (get state color-key) default-tile-color)
+                          (:channel payload)
+                          (:value payload)))))}
+   :children [{:mode 'ui/text
+               :class :ui/muted
+               :state {:value "Id prefix"}}
+              {:mode 'ui/text-input
+               :style {:width :fill
+                       :height 24}
+               :state {:value (ui/bind-state :tile-id)
+                       :auto-focus? true}}
+              {:mode 'ui/text
+               :class :ui/muted
+               :state {:value "Name prefix"}}
+              {:mode 'ui/text-input
+               :style {:width :fill
+                       :height 24}
+               :state {:value (ui/bind-state :tile-name)}}
+              {:mode 'tile-definition-row
+               :style {:width :fill
+                       :height 24
+                       :layout {:direction :row
+                                :align-items :center
+                                :gap 8}}
+               :state {:count (ui/bind-state :count)}
+               :children [{:mode 'ui/text
+                           :class :ui/muted
+                           :style {:width 58}
+                           :state {:value "Count"}}
+                          (sl/make {:value (ui/bind-state :count)
+                                    :min 2
+                                    :max 64
+                                    :step 1})
+                          {:mode 'ui/text
+                           :style {:width 28}
+                           :state {:value (ui/bind-state :count)}}]}
+              {:mode 'ui/text
+               :class :ui/muted
+               :state {:value "From color"}}
+              {:mode 'color-range-color-editor
+               :state {:color-key :from-color
+                       :color (ui/bind-state :from-color)}}
+              {:mode 'ui/text
+               :class :ui/muted
+               :state {:value "To color"}}
+              {:mode 'color-range-color-editor
+               :state {:color-key :to-color
+                       :color (ui/bind-state :to-color)}}
+              {:mode 'color-range-preview
+               :state {:from-color (ui/bind-state :from-color)
+                       :to-color (ui/bind-state :to-color)
+                       :count (ui/bind-state :count)}}
+              {:mode 'color-range-dialog-buttons
+               :state {:invalid? (ui/bind-state :invalid?)}}]})
+
+(defcomponent color-range-channel-editor
+  {:style {:width :fill
+           :height 24
+           :layout {:direction :row
+                    :align-items :center
+                    :gap 8}}
+   :on {:slider/change (fn [state event ctx]
+                         (do
+                           (ui/stop-propagation! event)
+                           (ui/emit! (:view ctx)
+                                     :color-range/channel-change
+                                     {:color-key (:color-key state)
+                                      :channel (:channel state)
+                                      :value (:payload event)})
+                           state))}
+   :children [{:mode 'ui/text
+               :class :ui/muted
+               :style {:width 18}
+               :state {:value (ui/bind-state :label)}}
+              (sl/make {:value (ui/bind-state :value)
+                        :min 0
+                        :max 255
+                        :step 1})
+              {:mode 'ui/text
+               :style {:width 28}
+               :state {:value (ui/bind-state :value)}}]})
+
+(defun color-range-channel-child [color-key channel label value]
+  {:mode 'color-range-channel-editor
+   :state {:color-key color-key
+           :channel channel
+           :label label
+           :value value}})
+
+(defcomponent color-range-color-swatch
+  {:style {:width 34
+           :height 82}
+   :render (fn [state ctx]
+             (let [color (or (:color state) default-tile-color)]
+               (do
+                 (r/rect! {:x 0 :y 0 :w 34 :h 82}
+                          {:fill true
+                           :color color})
+                 (r/rect! {:x 0 :y 0 :w 34 :h 82}
+                          {:color {:r 0x00 :g 0x00 :b 0x00}}))))})
+
+(defcomponent color-range-color-editor
+  {:style {:width :fill
+           :height :shrink
+           :layout {:direction :row
+                    :align-items :center
+                    :gap 8}}
+   :update (fn [state ctx]
+             (let [color (or (:color state) default-tile-color)]
+               (assoc state
+                      :color color
+                      :r (:r color)
+                      :g (:g color)
+                      :b (:b color))))
+   :children [{:mode 'color-range-color-swatch
+               :state {:color (ui/bind-state :color)}}
+              {:style {:width :fill
+                       :height :shrink
+                       :layout {:direction :column
+                                :gap 4}}
+               :state {:color-key (ui/bind-state :color-key)
+                       :r (ui/bind-state :r)
+                       :g (ui/bind-state :g)
+                       :b (ui/bind-state :b)}
+               :children [(color-range-channel-child (ui/bind-state :color-key)
+                                                     :r
+                                                     "R"
+                                                     (ui/bind-state :r))
+                          (color-range-channel-child (ui/bind-state :color-key)
+                                                     :g
+                                                     "G"
+                                                     (ui/bind-state :g))
+                          (color-range-channel-child (ui/bind-state :color-key)
+                                                     :b
+                                                     "B"
+                                                     (ui/bind-state :b))]}]})
+
+(defcomponent color-range-preview
+  {:class :ui/content
+   :style {:width color-range-preview-width
+           :height color-range-preview-height}
+   :render (fn [state ctx]
+             (let [from-color (or (:from-color state) default-tile-color)
+                   to-color (or (:to-color state) default-tile-color)
+                   count (max 1 (or (:count state) 1))
+                   step-width (/ color-range-preview-width count)]
+               (do
+                 (for [index (range 0 (dec count))]
+                   (r/rect! {:x (* index step-width)
+                             :y 0
+                             :w (+ step-width 1)
+                             :h color-range-preview-height}
+                            {:fill true
+                             :color (lerp-color from-color
+                                                to-color
+                                                index
+                                                count)}))
+                 (r/rect! {:x 0 :y 0
+                           :w color-range-preview-width
+                           :h color-range-preview-height}
+                          {:color {:r 0x00 :g 0x00 :b 0x00}}))))})
+
+(defcomponent color-range-dialog-buttons
+  {:style {:width :fill
+           :height 24
+           :layout {:direction :row
+                    :gap :space-between}}
+   :children [{:mode 'ui/button
+               :style {:width 78
+                       :height 24}
+               :state {:label "Cancel"}
+               :on-click (fn [state event ctx]
+                           (do
+                             (ui/emit! (:view ctx)
+                                       :color-range-dialog/cancel)
+                             state))}
+              {:mode 'ui/button
+               :style {:width 78
+                       :height 24}
+               :state {:label "Create"
+                       :disabled? (ui/bind-state :invalid?)}
+               :on-click (fn [state event ctx]
+                           (do
+                             (ui/emit! (:view ctx)
+                                       :color-range-dialog/confirm)
+                             state))}]})
+
+(defmode color-range-dialog-modal
+  {:on {:color-range-dialog/cancel
+        (fn [state event ctx]
+          (do
+            (ui/stop-propagation! event)
+            (pop-mode! {:type :cancel})
+            state))
+        :color-range-dialog/confirm
+        (fn [state event ctx]
+          (do
+            (ui/stop-propagation! event)
+            (if (or (blank? (:tile-id state))
+                    (blank? (:tile-name state)))
+              state
+              (do
+                (pop-mode! {:type :confirm
+                            :tile-id (:tile-id state)
+                            :tile-name (:tile-name state)
+                            :count (:count state)
+                            :from-color (:from-color state)
+                            :to-color (:to-color state)})
+                state))))}
+   :compose {:render :pass}
+   :children [(w/make {:position {:x 220 :y 140}
+                       :title-bar {:title "New Color Tile Range"}
+                       :state {:tile-id (ui/bind-state :tile-id)
+                               :tile-name (ui/bind-state :tile-name)
+                               :count (ui/bind-state :count)
+                               :from-color (ui/bind-state :from-color)
+                               :to-color (ui/bind-state :to-color)}
+                       :body [{:mode 'color-range-dialog-body
+                               :state {:tile-id (ui/bind-state :tile-id)
+                                       :tile-name (ui/bind-state :tile-name)
+                                       :count (ui/bind-state :count)
+                                       :from-color (ui/bind-state :from-color)
+                                       :to-color (ui/bind-state :to-color)}}]})]})
+
+(defun toggle-index [indices index]
+  (if (contains? (or indices []) index)
+    (filter indices (fn [item] (not= item index)))
+    (concat (or indices []) [index])))
+
+(defun tile-import-preview-image-rect [dim]
+  (let [scale (min (/ tile-import-preview-width (:w dim))
+                   (/ tile-import-preview-height (:h dim)))
+        width (* (:w dim) scale)
+        height (* (:h dim) scale)]
+    {:x (/ (- tile-import-preview-width width) 2)
+     :y (/ (- tile-import-preview-height height) 2)
+     :scale scale}))
+
+(defun tile-import-index-at-position [position image-rect dim tile-size]
+  (let [scale (:scale image-rect)
+        x (/ (- (:x position) (:x image-rect)) scale)
+        y (/ (- (:y position) (:y image-rect)) scale)
+        col (int (/ x tile-size))
+        row (int (/ y tile-size))
+        columns (source-grid-columns dim tile-size)
+        rows (source-grid-rows dim tile-size)
+        index (+ col (* row columns))]
+    (if (and (>= col 0)
+             (>= row 0)
+             (< col columns)
+             (< row rows))
+      index
+      nil)))
+
+(defcomponent tile-import-preview
+  {:focusable true
+   :class :ui/content
+   :style {:width tile-import-preview-width
+           :height tile-import-preview-height
+           :clip true}
+   :update (fn [state ctx]
+             (let [resource (selected-resource-option state)]
+               (assoc state
+                      :resource resource
+                      :image (:key resource))))
+   :on-mouse-down
+   (fn [state event ctx]
+     (let [image (:image state)]
+       (if (or (:select-all? state) (nil? image))
+         state
+         (let [dim (img/size image)
+               rect (tile-import-preview-image-rect dim)
+               index (tile-import-index-at-position (:position event)
+                                                    rect
+                                                    dim
+                                                    (:tile-size state))]
+           (do
+             (ui/stop-propagation! event)
+             (ui/focus! ctx)
+             (if index
+               (assoc state
+                      :selected-source-indices
+                      (toggle-index (:selected-source-indices state) index))
+               state))))))
+   :render
+   (fn [state ctx]
+     (let [image (:image state)
+           dim (when image (img/size image))]
+       (do
+         (r/rect! {:x 0 :y 0
+                   :w tile-import-preview-width
+                   :h tile-import-preview-height}
+                  {:fill true
+                   :color {:r 0x12 :g 0x15 :b 0x18}})
+         (when dim
+           (let [image-rect (tile-import-preview-image-rect dim)
+                 selected (selected-source-indices state dim)
+                 sources (map selected
+                              (fn [index]
+                                (source-index-rect index dim (:tile-size state))))]
+             (do
+               (r/image! image
+                         {:pos {:x (:x image-rect)
+                                :y (:y image-rect)}
+                          :scale (:scale image-rect)})
+               (for [source sources]
+                 (r/rect! {:x (+ (:x image-rect)
+                                  (* (:x source) (:scale image-rect)))
+                           :y (+ (:y image-rect)
+                                  (* (:y source) (:scale image-rect)))
+                           :w (* (:w source) (:scale image-rect))
+                           :h (* (:h source) (:scale image-rect))}
+                          {:color {:r 0xff :g 0xcc :b 0x66}})))))
+         (r/rect! {:x 0 :y 0
+                   :w tile-import-preview-width
+                   :h tile-import-preview-height}
+                  {:color {:r 0x00 :g 0x00 :b 0x00}}))))})
+
+(defcomponent tile-import-dialog-body
+  {:class :ui/content
+   :style {:width 520
+           :height :shrink
+           :padding 10
+           :layout {:direction :column
+                    :gap 8}}
+   :update (fn [state ctx]
+             (let [resource (selected-resource-option state)
+                   dim (when resource (img/size (:key resource)))
+                   sources (when (and resource dim)
+                             (import-source-rects state (:key resource) dim))]
+                      (assoc state
+                             :resource resource
+                             :source-count (count (or sources []))
+                             :source-count-label (str (count (or sources []))
+                                                      " tiles selected")
+                             :invalid? (or (nil? resource)
+                                            (empty? (or sources []))))))
+   :on {:combo-box/change
+        (fn [state event ctx]
+          (let [payload (:payload event)
+                value (:value payload)]
+            (if (keyword? value)
+              (let [options (image-resource-options (:resources state) value)]
+                (assoc state
+                       :selected-bundle-index (:selected-index payload)
+                       :resource-options options
+                       :selected-resource-index (if (empty? options) nil 0)
+                       :selected-source-indices []))
+              (assoc state
+                     :selected-resource-index (:selected-index payload)
+                     :selected-source-indices []))))
+        :checkbox/change
+        (fn [state event ctx]
+          (let [payload (:payload event)]
+            (assoc state (:value payload) (:checked? payload))))}
+   :children [{:mode 'ui/text
+               :class :ui/muted
+               :state {:value "Bundle"}}
+              {:mode 'ui/combo-box
+               :style {:width :fill
+                       :height 22}
+               :state {:options (ui/bind-state :bundle-options)
+                       :selected-index (ui/bind-state :selected-bundle-index)
+                       :row-height 20
+                       :max-height 140}}
+              {:mode 'ui/text
+               :class :ui/muted
+               :state {:value "Resource"}}
+              {:mode 'ui/combo-box
+               :style {:width :fill
+                       :height 22}
+               :state {:options (ui/bind-state :resource-options)
+                       :selected-index (ui/bind-state :selected-resource-index)
+                       :row-height 20
+                       :max-height 140}}
+              {:mode 'tile-import-preview
+               :state {:tilesets (ui/bind-state :tilesets)
+                       :selected-tileset-definition-index (ui/bind-state :selected-tileset-definition-index)
+                       :resource-options (ui/bind-state :resource-options)
+                       :selected-resource-index (ui/bind-state :selected-resource-index)
+                       :selected-source-indices (ui/bind-state :selected-source-indices)
+                       :select-all? (ui/bind-state :select-all?)
+                       :exclude-same-tileset? (ui/bind-state :exclude-same-tileset?)
+                       :exclude-project? (ui/bind-state :exclude-project?)
+                       :tile-size (ui/bind-state :tile-size)}}
+              {:style {:width :fill
+                       :height :shrink
+                       :layout {:direction :column
+                                :gap 4}}
+               :children [(chk/make {:label "Select all tiles"
+                                     :checked? (ui/bind-state :select-all?)
+                                     :value :select-all?})
+                          (chk/make {:label "Exclude tiles already in this tile set"
+                                     :checked? (ui/bind-state :exclude-same-tileset?)
+                                     :value :exclude-same-tileset?})
+                          (chk/make {:label "Exclude tiles already anywhere in project"
+                                     :checked? (ui/bind-state :exclude-project?)
+                                     :value :exclude-project?})]}
+              {:mode 'ui/text
+               :class :ui/muted
+               :state {:value (ui/bind-state :source-count-label)}}
+              {:mode 'tile-import-dialog-buttons
+               :state {:invalid? (ui/bind-state :invalid?)}}]})
+
+(defcomponent tile-import-dialog-buttons
+  {:style {:width :fill
+           :height 24
+           :layout {:direction :row
+                    :gap :space-between}}
+   :children [{:mode 'ui/button
+               :style {:width 78
+                       :height 24}
+               :state {:label "Cancel"}
+               :on-click (fn [state event ctx]
+                           (do
+                             (ui/emit! (:view ctx)
+                                       :tile-import-dialog/cancel)
+                             state))}
+              {:mode 'ui/button
+               :style {:width 78
+                       :height 24}
+               :state {:label "Add"
+                       :disabled? (ui/bind-state :invalid?)}
+               :on-click (fn [state event ctx]
+                           (do
+                             (ui/emit! (:view ctx)
+                                       :tile-import-dialog/confirm)
+                             state))}]})
+
+(defmode tile-import-dialog-modal
+  {:on {:tile-import-dialog/cancel
+        (fn [state event ctx]
+          (do
+            (ui/stop-propagation! event)
+            (pop-mode! {:type :cancel})
+            state))
+        :tile-import-dialog/confirm
+        (fn [state event ctx]
+          (do
+            (ui/stop-propagation! event)
+            (let [resource (selected-resource-option state)
+                  dim (when resource (img/size (:key resource)))
+                  sources (when (and resource dim)
+                            (import-source-rects state (:key resource) dim))]
+              (if (or (nil? resource)
+                      (empty? (or sources [])))
+                state
+                (do
+                  (pop-mode! {:type :confirm
+                              :resource resource
+                              :sources sources})
+                  state)))))}
+   :compose {:render :pass}
+   :children [(w/make {:position {:x 160 :y 80}
+                               :title-bar {:title "Add Tiles from Resource"}
+                               :state {:resources (ui/bind-state :resources)
+                                       :tilesets (ui/bind-state :tilesets)
+                                       :selected-tileset-definition-index
+                                       (ui/bind-state :selected-tileset-definition-index)
+                                       :bundle-options (ui/bind-state :bundle-options)
+                                       :selected-bundle-index (ui/bind-state :selected-bundle-index)
+                                       :resource-options (ui/bind-state :resource-options)
+                                       :selected-resource-index (ui/bind-state :selected-resource-index)
+                                       :selected-source-indices (ui/bind-state :selected-source-indices)
+                               :select-all? (ui/bind-state :select-all?)
+                               :exclude-same-tileset? (ui/bind-state :exclude-same-tileset?)
+                               :exclude-project? (ui/bind-state :exclude-project?)
+                               :tile-size (ui/bind-state :tile-size)}
+                       :body [{:mode 'tile-import-dialog-body
+                                       :state {:resources (ui/bind-state :resources)
+                                               :tilesets (ui/bind-state :tilesets)
+                                               :selected-tileset-definition-index
+                                               (ui/bind-state :selected-tileset-definition-index)
+                                               :bundle-options (ui/bind-state :bundle-options)
+                                               :selected-bundle-index (ui/bind-state :selected-bundle-index)
+                                               :resource-options (ui/bind-state :resource-options)
+                                               :selected-resource-index (ui/bind-state :selected-resource-index)
+                                       :selected-source-indices (ui/bind-state :selected-source-indices)
+                                       :select-all? (ui/bind-state :select-all?)
+                                       :exclude-same-tileset? (ui/bind-state :exclude-same-tileset?)
+                                       :exclude-project? (ui/bind-state :exclude-project?)
+                                       :tile-size (ui/bind-state :tile-size)}}]})]})
+
+(defcomponent tile-add-menu-button
+  {:extend 'ui/button
+   :class :ui/toolbar-button
+   :on-mouse-up (fn [state event ctx]
+                  (do
+                    (ui/stop-propagation! event)
+                    (when (not (:disabled? state))
+                      (menu/open-context-menu!
+                       (tile-add-menu (:has-project-image-resources? state))
+                       (:global-position event)
+                       state
+                       ctx))
+                    state))
+   :on {:menu/select (fn [state event ctx]
+                       (let [payload (:payload event)]
+                         (do
+                           (ui/stop-propagation! event)
+                           (when (= (:type payload) :action)
+                             (ui/emit! (:view ctx)
+                                       :tile/add-command
+                                       (-> payload :payload)))))
+                       state)}})
 
 (defun make-tileset-list-panel []
   (hp/make {:title "Project Tile Sets"
@@ -1053,7 +1949,39 @@
                                  (add-tileset-definition! state
                                                           (:payload event)))
         :tile/dialog-result (fn [state event ctx]
-                              (add-tile-definition! state (:payload event)))}
+                              (add-tile-definition! state (:payload event)))
+        :tile/color-range-result (fn [state event ctx]
+                                   (add-color-tile-range! state
+                                                          (:payload event)))
+        :tile/import-result (fn [state event ctx]
+                              (add-imported-sprite-tiles! state
+                                                          (:payload event)))
+        :tile/file-dialog-result
+        (fn [state event ctx]
+          (let [payload (:payload event)]
+            (if (image-file-dialog-result? payload)
+              (let [state (import-file-resource! state payload)]
+                (do
+                  (ui/emit! (:view ctx)
+                            :project/resources-change
+                            {:resources (:resources state)
+                             :selected-resource-bundle (:selected-resource-bundle state)
+                             :selected-image-resource (:selected-image-resource state)})
+                  (open-tile-import-dialog!
+                   state
+                   ctx
+                   (:selected-resource-bundle state)
+                   (image-resource-key (:selected-resource-bundle state)
+                                       (:selected-image-resource state)))))
+              state)))
+        :tile/add-command
+        (fn [state event ctx]
+                  (case (-> event :payload :command)
+                    :from-resource (open-tile-import-dialog! state ctx nil nil)
+                    :from-file (open-add-from-file-dialog! state ctx)
+            :color (open-tile-create-dialog! state ctx)
+            :color-range (open-color-range-dialog! state ctx)
+            :default state))}
    :children [(make-tileset-list-panel)
               (hp/make {:title "Tile Set"
                         :style {:width :fill
@@ -1061,16 +1989,16 @@
                         :header-style {:layout {:direction :row
                                                 :align-items :center
                                                 :gap 4}}
-                        :header-children [{:mode 'ui/button
-                                           :class :ui/toolbar-button
+                        :header-children [{:mode 'tile-add-menu-button
                                            :state {:label "+"
                                                    :disabled? (ui/bind-state
-                                                               :tile-set-panel-disabled?)}
-                                           :on-click (fn [state event ctx]
-                                                       (do
-                                                         (ui/emit! (:view ctx)
-                                                                   :tileset/add-tile)
-                                                         state))}]
+                                                               :tile-set-panel-disabled?)
+                                                   :tile-set-panel-disabled?
+                                                   (ui/bind-state
+                                                    :tile-set-panel-disabled?)
+                                                   :has-project-image-resources?
+                                                   (ui/bind-state
+                                                    :has-project-image-resources?)}}]
                         :body-style {:padding 8
                                      :height :fill
                                      :layout {:direction :column
@@ -1078,6 +2006,10 @@
                         :state {:selected-tileset-definition-index (ui/bind-state :selected-tileset-definition-index)
                                 :selected-tileset-tile-index (ui/bind-state :selected-tileset-tile-index)
                                 :tilesets (ui/bind-state :tilesets)
+                                :has-project-image-resources?
+                                (ui/bind-state :has-project-image-resources?)
+                                :tile-set-panel-disabled?
+                                (ui/bind-state :tile-set-panel-disabled?)
                                 :disabled? (ui/bind-state :tile-set-panel-disabled?)}
                         :body-state {:selected-tileset-definition-index (ui/bind-state :selected-tileset-definition-index)
                                      :selected-tileset-tile-index (ui/bind-state :selected-tileset-tile-index)
