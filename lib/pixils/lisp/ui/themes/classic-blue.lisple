@@ -160,6 +160,31 @@
               :right {:color (var :button-highlight) :thickness 1}
               :bottom {:color (var :button-highlight) :thickness 1}}}
 
+    [:ui/toolbar-button 'ui/button-inner]
+    {:background {:color TITLE-BAR-BG}
+     :text {:color c/WHITE}
+     :border {:line-style :solid
+              :color TITLE-BAR-HIGHLIGHT
+              :thickness 1
+              :right {:color TITLE-BAR-SHADOW}
+              :bottom {:color c/BLACK}}}
+
+    [:ui/toolbar-button 'ui/button-inner:hover]
+    {:background {:color TITLE-BAR-BG}
+     :text {:color c/WHITE}
+     :border {:line-style :solid
+              :color TITLE-BAR-HIGHLIGHT
+              :thickness 1
+              :right {:color TITLE-BAR-SHADOW}
+              :bottom {:color c/BLACK}}}
+
+    [:ui/toolbar-button '(ui/button-inner {:pressed true})]
+    {:border {:line-style :solid
+              :color c/BLACK
+              :thickness 1
+              :right {:color TITLE-BAR-HIGHLIGHT}
+              :bottom {:color TITLE-BAR-HIGHLIGHT}}}
+
     'ui/scrollbar {:background {:r 0x20 :g 0x29 :b 0x36}
                    :text {:color {:r 0xe6 :g 0xea :b 0xee}}}
 

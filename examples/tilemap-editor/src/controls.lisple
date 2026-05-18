@@ -460,8 +460,7 @@
                                     :align-items :center
                                     :gap 4}}
             :header-children [{:mode 'ui/button
-                               :style {:width 22
-                                       :height 20}
+                               :class :ui/toolbar-button
                                :state {:label "+"}
                                :on-click (fn [state event ctx]
                                            (do

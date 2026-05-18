@@ -166,6 +166,13 @@
   ['ui/button-inner 'ui/text]
   {:padding [3 6]}
 
+  :ui/toolbar-button
+  {:width 18
+   :height 18}
+
+  [:ui/toolbar-button 'ui/button-inner 'ui/text]
+  {:padding [0 3]}
+
   'ui/button-inner:hover
   {:text {:color {:r 0xff :g 0xff :b 0xff}}
    :background {:r 0x00 :g 0x00 :b 0x00}
