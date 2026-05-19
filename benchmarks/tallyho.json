@@ -1,0 +1,43 @@
+{
+  "version": 1,
+  "project": {
+    "name": "Pixils",
+    "description": "Pixils benchmark history"
+  },
+  "data": {
+    "snapshotPattern": "^(?<index>\\d+)[_-](?<description>.+?)(?:_(?<hash>[a-f0-9]{6,40}))?$",
+    "snapshotRoot": "pixils",
+    "layouts": [
+      {"glob": "{snapshot}/{category}/*.csv", "categoryFromPath": true},
+      {"glob": "{snapshot}/*.csv"}
+    ],
+    "columns": {
+      "timestamp": ["timestamp", "ts", "time"],
+      "benchmark": ["benchmark", "bench", "name", "test", "case"],
+      "category": ["category", "suite", "group"],
+      "ignore": ["goalpost", "run"]
+    }
+  },
+  "server": {
+    "port": 3479
+  },
+  "metrics": {
+    "primary": ["mean_time_ms", "render_view_calls", "layout_view_tree_calls", "total_time_ms"],
+    "groups": [
+      {"id": "time", "label": "Time", "order": 10},
+      {"id": "rendering", "label": "Rendering", "order": 20},
+      {"id": "style", "label": "Style", "order": 30},
+      {"id": "runtime", "label": "Runtime", "order": 40},
+      {"id": "allocation", "label": "Allocation", "order": 50},
+      {"id": "other", "label": "Other", "order": 100}
+    ],
+    "columns": {
+      "mean_time_ms": { "label": "Mean time", "group": "time", "kind": "time", "unit": "ms" },
+      "total_time_ms": { "label": "Total time", "group": "time", "kind": "time", "unit": "ms" },
+      "layout_view_tree_calls": { "label": "Layout view tree calls", "group": "rendering", "kind": "count" },
+      "render_view_calls": { "label": "Render view calls", "group": "rendering", "kind": "count" },
+      "style_view_cache_hits": { "label": "Style view cache hits", "group": "style", "kind": "count" },
+      "runtime_render_mode_calls": { "label": "Runtime render mode calls", "group": "runtime", "kind": "count" }
+    }
+  }
+}
