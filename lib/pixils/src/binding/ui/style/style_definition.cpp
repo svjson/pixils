@@ -18,11 +18,83 @@ namespace Pixils::Script::StyleDefinition
 {
   namespace
   {
-    void apply_border_props(UI::Style::Border& border, Lisple::MapSchema::Inspector& opts)
+    Lisple::sptr_val map_like_value(const Lisple::sptr_val& value)
+    {
+      if (!value) return nullptr;
+      if (value->type == Lisple::Value::Type::MAP) return value;
+      if (value->type == Lisple::Value::Type::NATIVE_OBJECT &&
+          value->nobj()->structural_kind() == Lisple::NativeObjectStructuralKind::MAP)
+      {
+        return Lisple::map(value->nobj()->native_children());
+      }
+      return nullptr;
+    }
+
+    std::optional<uint8_t> parse_color_channel(const Lisple::sptr_val& value,
+                                               const std::string& key)
+    {
+      auto channel = Lisple::Dict::get_property(value, Lisple::keyword(key));
+      if (!channel || channel->type == Lisple::Value::Type::NIL) return std::nullopt;
+      if (channel->type != Lisple::Value::Type::NUMBER) return std::nullopt;
+      return channel->ui8();
+    }
+
+    std::optional<Color> parse_color_value(Lisple::Context&, const Lisple::sptr_val& value)
+    {
+      if (!value || value->type == Lisple::Value::Type::NIL) return std::nullopt;
+
+      if (HostType::COLOR.is_type_of(*value))
+      {
+        return Lisple::obj<Color>(*value);
+      }
+
+      if (value->type != Lisple::Value::Type::MAP &&
+          value->type != Lisple::Value::Type::NATIVE_OBJECT)
+      {
+        return std::nullopt;
+      }
+
+      auto r = parse_color_channel(value, "r");
+      auto g = parse_color_channel(value, "g");
+      auto b = parse_color_channel(value, "b");
+      if (!r || !g || !b) return std::nullopt;
+
+      auto a = parse_color_channel(value, "a").value_or(0xff);
+      return Color{*r, *g, *b, a};
+    }
+
+    std::optional<Color> optional_color(Lisple::Context& ctx,
+                                        Lisple::MapSchema::Inspector& opts,
+                                        const std::string& key)
+    {
+      if (!opts.contains(key)) return std::nullopt;
+      if (opts.val(key)->type == Lisple::Value::Type::NIL) return std::nullopt;
+
+      auto color = parse_color_value(ctx, opts.val(key));
+      if (!color)
+      {
+        throw Lisple::TypeError("Invalid color declaration: " + opts.val(key)->to_string());
+      }
+      return color;
+    }
+
+    Color required_color(Lisple::Context& ctx, const Lisple::sptr_val& value)
+    {
+      auto color = parse_color_value(ctx, value);
+      if (!color)
+      {
+        throw Lisple::TypeError("Invalid color declaration: " + value->to_string());
+      }
+      return *color;
+    }
+
+    void apply_border_props(Lisple::Context& ctx,
+                            UI::Style::Border& border,
+                            Lisple::MapSchema::Inspector& opts)
     {
       if (opts.contains("thickness")) border.thickness = opts.i32("thickness");
       border.line_style = parse_line_style(opts.val("line-style"));
-      border.color = opts.optional_obj<Color>("color");
+      border.color = optional_color(ctx, opts, "color");
       border.trim = parse_trim(opts.val("trim"));
     }
 
@@ -62,14 +134,15 @@ namespace Pixils::Script::StyleDefinition
     {
       if (!value || value->type == Lisple::Value::Type::NIL) return std::nullopt;
 
-      static Lisple::MapSchema shadow_schema(
-        {{"offset", &HostType::POINT}, {"color", &HostType::COLOR}},
-        {});
+      static Lisple::MapSchema shadow_schema({{"offset", &HostType::POINT},
+                                              {"color", &Lisple::Type::ANY}},
+                                             {});
 
       auto parse_one = [&](const Lisple::sptr_val& shadow_value)
       {
         auto sh = shadow_schema.bind(ctx, *shadow_value);
-        return Pixils::Text::Shadow(sh.obj<Point>("offset"), sh.obj<Color>("color"));
+        return Pixils::Text::Shadow(sh.obj<Point>("offset"),
+                                    required_color(ctx, sh.val("color")));
       };
 
       std::vector<Pixils::Text::Shadow> shadows;
@@ -206,24 +279,25 @@ namespace Pixils::Script::StyleDefinition
       const Lisple::sptr_val& value)
     {
       if (!value || value->type == Lisple::Value::Type::NIL) return std::nullopt;
-      if (value->type != Lisple::Value::Type::MAP) return std::nullopt;
+      auto source = map_like_value(value);
+      if (!source) return std::nullopt;
 
       static Lisple::MapSchema inline_schema({},
                                              {{"enabled", &Lisple::Type::BOOL},
                                               {"marker", &Lisple::Type::ANY},
-                                              {"color", &HostType::COLOR},
+                                              {"color", &Lisple::Type::ANY},
                                               {"font", &Lisple::Type::KEYWORD},
                                               {"scale", &Lisple::Type::NUMBER},
                                               {"font-styles", &Lisple::Type::ANY},
                                               {"shadow", &Lisple::Type::ANY}});
 
-      auto inline_source = value;
-      if (Lisple::Dict::contains_key(*value, "color"))
+      auto inline_source = source;
+      if (Lisple::Dict::contains_key(*source, "color"))
       {
-        auto color_value = Lisple::Dict::get_property(*value, "color");
+        auto color_value = Lisple::Dict::get_property(*source, "color");
         if (parse_text_use_font_color(color_value))
         {
-          inline_source = Lisple::Dict::shallow_copy(value);
+          inline_source = Lisple::Dict::shallow_copy(source);
           Lisple::Dict::set_property(inline_source,
                                      Lisple::keyword("color"),
                                      Lisple::Constant::NIL);
@@ -247,7 +321,7 @@ namespace Pixils::Script::StyleDefinition
       else if (opts.contains("color"))
       {
         marked_style.use_font_color = false;
-        marked_style.color = opts.optional_obj<Color>("color");
+        marked_style.color = optional_color(ctx, opts, "color");
       }
 
       if (opts.contains("font")) marked_style.font = opts.str("font");
@@ -267,7 +341,7 @@ namespace Pixils::Script::StyleDefinition
 
   std::optional<UI::Style::Size> parse_size(const Lisple::sptr_val& value)
   {
-    if (!value || *value == *Lisple::Constant::NIL) return std::nullopt;
+    if (!value || value->type == Lisple::Value::Type::NIL) return std::nullopt;
 
     switch (value->type)
     {
@@ -294,7 +368,7 @@ namespace Pixils::Script::StyleDefinition
 
   std::optional<UI::Style::Trim> parse_trim(const Lisple::sptr_val& value)
   {
-    if (!value || *value == *Lisple::Constant::NIL) return std::nullopt;
+    if (!value || value->type == Lisple::Value::Type::NIL) return std::nullopt;
 
     switch (value->type)
     {
@@ -440,7 +514,7 @@ namespace Pixils::Script::StyleDefinition
   std::optional<UI::CursorSpec> parse_cursor(Lisple::Context& ctx,
                                              const Lisple::sptr_val& value)
   {
-    if (!value || *value == *Lisple::Constant::NIL) return std::nullopt;
+    if (!value || value->type == Lisple::Value::Type::NIL) return std::nullopt;
 
     if (auto system = parse_system_cursor(value))
     {
@@ -695,7 +769,7 @@ namespace Pixils::Script::StyleDefinition
 
   std::optional<bool> parse_optional_bool(const Lisple::sptr_val& value)
   {
-    if (!value || *value == *Lisple::Constant::NIL) return std::nullopt;
+    if (!value || value->type == Lisple::Value::Type::NIL) return std::nullopt;
     return Lisple::is_truthy(*value);
   }
 
@@ -708,16 +782,22 @@ namespace Pixils::Script::StyleDefinition
   std::unique_ptr<UI::Style::Layout::Gap> build_layout_gap(Lisple::Context& ctx,
                                                            const Lisple::sptr_val& value)
   {
-    if (!value || *value == *Lisple::Constant::NIL) return nullptr;
+    if (!value || value->type == Lisple::Value::Type::NIL) return nullptr;
 
-    if (value->type == Lisple::Value::Type::MAP)
+    if (HostType::STYLE_LAYOUT_GAP.is_type_of(*value))
+    {
+      return std::make_unique<UI::Style::Layout::Gap>(
+        Lisple::obj<UI::Style::Layout::Gap>(*value));
+    }
+
+    if (auto source = map_like_value(value))
     {
       static Lisple::MapSchema gap_schema(
         {},
         {{"mode", &Lisple::Type::KEYWORD}, {"size", &Lisple::Type::NUMBER}});
 
       auto gap = std::make_unique<UI::Style::Layout::Gap>();
-      auto opts = gap_schema.bind(ctx, *value);
+      auto opts = gap_schema.bind(ctx, *source);
       if (opts.contains("mode")) gap->mode = parse_layout_gap_mode(opts.val("mode"));
       if (opts.contains("size")) gap->size = opts.i32("size");
       return gap;
@@ -744,10 +824,18 @@ namespace Pixils::Script::StyleDefinition
   std::unique_ptr<UI::Style::Text> build_text(Lisple::Context& ctx,
                                               const Lisple::sptr_val& value)
   {
-    if (!value || value->type != Lisple::Value::Type::MAP) return nullptr;
+    if (!value || value->type == Lisple::Value::Type::NIL) return nullptr;
+
+    if (HostType::STYLE_TEXT.is_type_of(*value))
+    {
+      return std::make_unique<UI::Style::Text>(Lisple::obj<UI::Style::Text>(*value));
+    }
+
+    auto source = map_like_value(value);
+    if (!source) return nullptr;
 
     static Lisple::MapSchema text_schema({},
-                                         {{"color", &HostType::COLOR},
+                                         {{"color", &Lisple::Type::ANY},
                                           {"font", &Lisple::Type::KEYWORD},
                                           {"scale", &Lisple::Type::NUMBER},
                                           {"font-styles", &Lisple::Type::ANY},
@@ -757,15 +845,15 @@ namespace Pixils::Script::StyleDefinition
                                           {"marked-style", &Lisple::Type::ANY}});
 
     auto text = std::make_unique<UI::Style::Text>();
-    auto text_source = value;
-    if (Lisple::Dict::contains_key(*value, "color"))
+    auto text_source = source;
+    if (Lisple::Dict::contains_key(*source, "color"))
     {
-      auto color_value = Lisple::Dict::get_property(*value, "color");
+      auto color_value = Lisple::Dict::get_property(*source, "color");
 
       if (parse_text_use_font_color(color_value))
       {
         text->use_font_color = true;
-        text_source = Lisple::Dict::shallow_copy(value);
+        text_source = Lisple::Dict::shallow_copy(source);
         Lisple::Dict::set_property(text_source,
                                    Lisple::keyword("color"),
                                    Lisple::Constant::NIL);
@@ -773,7 +861,7 @@ namespace Pixils::Script::StyleDefinition
     }
 
     auto opts = text_schema.bind(ctx, *text_source);
-    text->color = opts.optional_obj<Color>("color");
+    text->color = optional_color(ctx, opts, "color");
 
     if (opts.contains("font"))
     {
@@ -815,15 +903,24 @@ namespace Pixils::Script::StyleDefinition
   std::unique_ptr<UI::Style::Layout> build_layout(Lisple::Context& ctx,
                                                   const Lisple::sptr_val& value)
   {
-    if (!value || value->type != Lisple::Value::Type::MAP) return nullptr;
+    if (!value || value->type == Lisple::Value::Type::NIL) return nullptr;
+
+    if (HostType::STYLE_LAYOUT.is_type_of(*value))
+    {
+      return std::make_unique<UI::Style::Layout>(
+        Lisple::obj<UI::Style::Layout>(*value));
+    }
+
+    auto source = map_like_value(value);
+    if (!source) return nullptr;
 
     static Lisple::MapSchema layout_schema({},
                                            {{"direction", &Lisple::Type::KEYWORD},
                                             {"align-items", &Lisple::Type::KEYWORD},
-                                            {"gap", &HostType::STYLE_LAYOUT_GAP}});
+                                            {"gap", &Lisple::Type::ANY}});
 
     auto layout = std::make_unique<UI::Style::Layout>();
-    auto opts = layout_schema.bind(ctx, *value);
+    auto opts = layout_schema.bind(ctx, *source);
     if (opts.contains("direction"))
     {
       layout->direction = parse_layout_direction(opts.val("direction"));
@@ -832,21 +929,29 @@ namespace Pixils::Script::StyleDefinition
     {
       layout->align_items = parse_layout_align_items(opts.val("align-items"));
     }
-    layout->gap = opts.optional_obj<UI::Style::Layout::Gap>("gap");
+    if (auto gap = build_layout_gap(ctx, opts.val("gap"))) layout->gap = *gap;
     return layout;
   }
 
   std::unique_ptr<UI::Style> build_style(Lisple::Context& ctx, const Lisple::sptr_val& value)
   {
-    if (!value || value->type != Lisple::Value::Type::MAP) return nullptr;
+    if (!value || value->type == Lisple::Value::Type::NIL) return nullptr;
+
+    if (HostType::STYLE.is_type_of(*value))
+    {
+      return std::make_unique<UI::Style>(Lisple::obj<UI::Style>(*value));
+    }
+
+    auto source = map_like_value(value);
+    if (!source) return nullptr;
 
     static Lisple::MapSchema style_schema({},
-                                          {{"background", &HostType::STYLE_BACKGROUND},
-                                           {"margin", &HostType::STYLE_INSETS},
-                                           {"border", &HostType::BORDER_STYLE},
-                                           {"padding", &HostType::STYLE_INSETS},
-                                           {"layout", &HostType::STYLE_LAYOUT},
-                                           {"text", &HostType::STYLE_TEXT},
+                                          {{"background", &Lisple::Type::ANY},
+                                           {"margin", &Lisple::Type::ANY},
+                                           {"border", &Lisple::Type::ANY},
+                                           {"padding", &Lisple::Type::ANY},
+                                           {"layout", &Lisple::Type::ANY},
+                                           {"text", &Lisple::Type::ANY},
                                            {"box-sizing", &Lisple::Type::KEYWORD},
                                            {"scale", &Lisple::Type::NUMBER},
                                            {"opacity", &Lisple::Type::NUMBER},
@@ -860,19 +965,20 @@ namespace Pixils::Script::StyleDefinition
                                            {"hit-test", &Lisple::Type::ANY},
                                            {"clip", &Lisple::Type::ANY},
                                            {"cursor", &Lisple::Type::ANY},
-                                           {"hover", &HostType::STYLE},
-                                           {"focus-within", &HostType::STYLE},
-                                           {"focus", &HostType::STYLE}});
+                                           {"hover", &Lisple::Type::ANY},
+                                           {"focus-within", &Lisple::Type::ANY},
+                                           {"focus", &Lisple::Type::ANY}});
 
     auto style = std::make_unique<UI::Style>();
-    auto opts = style_schema.bind(ctx, *value);
+    auto opts = style_schema.bind(ctx, *source);
 
-    style->background = opts.optional_obj<UI::Style::Background>("background");
-    style->margin = opts.optional_obj<UI::Style::Insets>("margin");
-    style->padding = opts.optional_obj<UI::Style::Insets>("padding");
-    style->border = opts.optional_obj<UI::Style::BorderStyle>("border");
-    style->layout = opts.optional_obj<UI::Style::Layout>("layout");
-    style->text = opts.optional_obj<UI::Style::Text>("text");
+    if (auto background = build_background(ctx, opts.val("background")))
+      style->background = *background;
+    if (auto margin = build_insets(ctx, opts.val("margin"))) style->margin = *margin;
+    if (auto padding = build_insets(ctx, opts.val("padding"))) style->padding = *padding;
+    if (auto border = build_border_style(ctx, opts.val("border"))) style->border = *border;
+    if (auto layout = build_layout(ctx, opts.val("layout"))) style->layout = *layout;
+    if (auto text = build_text(ctx, opts.val("text"))) style->text = *text;
     style->opacity = parse_opacity(opts, "opacity");
     if (opts.contains("box-sizing"))
     {
@@ -905,19 +1011,19 @@ namespace Pixils::Script::StyleDefinition
     if (opts.contains("clip")) style->clip = parse_optional_bool(opts.val("clip"));
     if (opts.contains("cursor")) style->cursor = parse_cursor(ctx, opts.val("cursor"));
 
-    auto hover_style = opts.optional_obj<UI::Style>("hover");
-    if (hover_style) style->hover = std::make_unique<UI::Style>(*hover_style);
+    auto hover_style = build_style(ctx, opts.val("hover"));
+    if (hover_style) style->hover = std::move(hover_style);
 
-    auto focus_within_style = opts.optional_obj<UI::Style>("focus-within");
+    auto focus_within_style = build_style(ctx, opts.val("focus-within"));
     if (focus_within_style)
     {
-      style->focus_within = std::make_unique<UI::Style>(*focus_within_style);
+      style->focus_within = std::move(focus_within_style);
     }
 
-    auto focus_style = opts.optional_obj<UI::Style>("focus");
+    auto focus_style = build_style(ctx, opts.val("focus"));
     if (focus_style)
     {
-      style->focus = std::make_unique<UI::Style>(*focus_style);
+      style->focus = std::move(focus_style);
     }
 
     return style;
@@ -926,11 +1032,17 @@ namespace Pixils::Script::StyleDefinition
   std::unique_ptr<UI::Style::Background> build_background(Lisple::Context& ctx,
                                                           const Lisple::sptr_val& value)
   {
-    if (!value || *value == *Lisple::Constant::NIL) return nullptr;
+    if (!value || value->type == Lisple::Value::Type::NIL) return nullptr;
 
-    if (HostType::COLOR.is_type_of(*value))
+    if (HostType::STYLE_BACKGROUND.is_type_of(*value))
     {
-      return std::make_unique<UI::Style::Background>(Lisple::obj<Color>(*value));
+      return std::make_unique<UI::Style::Background>(
+        Lisple::obj<UI::Style::Background>(*value));
+    }
+
+    if (auto color = parse_color_value(ctx, value))
+    {
+      return std::make_unique<UI::Style::Background>(*color);
     }
 
     if (value->type == Lisple::Value::Type::KEYWORD)
@@ -938,20 +1050,11 @@ namespace Pixils::Script::StyleDefinition
       return std::make_unique<UI::Style::Background>(value->qual());
     }
 
-    if (value->type != Lisple::Value::Type::MAP) return nullptr;
-
-    if (Lisple::Dict::contains_key(*value, "r"))
-    {
-      auto color_value = value;
-      auto coercion = HostType::COLOR.coerce(ctx, color_value);
-      if (coercion.success)
-      {
-        return std::make_unique<UI::Style::Background>(Lisple::obj<Color>(*coercion.result));
-      }
-    }
+    auto source = map_like_value(value);
+    if (!source) return nullptr;
 
     static Lisple::MapSchema background_schema({},
-                                               {{"color", &HostType::COLOR},
+                                               {{"color", &Lisple::Type::ANY},
                                                 {"image", &Lisple::Type::KEYWORD},
                                                 {"source", &HostType::RECT},
                                                 {"fit", &Lisple::Type::KEYWORD},
@@ -960,8 +1063,8 @@ namespace Pixils::Script::StyleDefinition
                                                 {"opacity", &Lisple::Type::NUMBER}});
 
     auto bg = std::make_unique<UI::Style::Background>();
-    auto opts = background_schema.bind(ctx, *value);
-    bg->color = opts.optional_obj<Color>("color");
+    auto opts = background_schema.bind(ctx, *source);
+    bg->color = optional_color(ctx, opts, "color");
 
     auto image_key = opts.val("image");
     if (image_key->type != Lisple::Value::Type::NIL)
@@ -980,51 +1083,75 @@ namespace Pixils::Script::StyleDefinition
   std::unique_ptr<UI::Style::Border> build_border(Lisple::Context& ctx,
                                                   const Lisple::sptr_val& value)
   {
-    if (!value || value->type != Lisple::Value::Type::MAP) return nullptr;
+    if (!value || value->type == Lisple::Value::Type::NIL) return nullptr;
+
+    if (HostType::BORDER.is_type_of(*value))
+    {
+      return std::make_unique<UI::Style::Border>(
+        Lisple::obj<UI::Style::Border>(*value));
+    }
+
+    auto source = map_like_value(value);
+    if (!source) return nullptr;
 
     static Lisple::MapSchema border_schema({},
                                            {{"thickness", &Lisple::Type::NUMBER},
                                             {"line-style", &Lisple::Type::KEYWORD},
-                                            {"color", &HostType::COLOR},
+                                            {"color", &Lisple::Type::ANY},
                                             {"trim", &Lisple::Type::ANY}});
 
     auto border = std::make_unique<UI::Style::Border>();
-    auto opts = border_schema.bind(ctx, *value);
-    apply_border_props(*border, opts);
+    auto opts = border_schema.bind(ctx, *source);
+    apply_border_props(ctx, *border, opts);
     return border;
   }
 
   std::unique_ptr<UI::Style::BorderStyle> build_border_style(Lisple::Context& ctx,
                                                              const Lisple::sptr_val& value)
   {
-    if (!value || value->type != Lisple::Value::Type::MAP) return nullptr;
+    if (!value || value->type == Lisple::Value::Type::NIL) return nullptr;
+
+    if (HostType::BORDER_STYLE.is_type_of(*value))
+    {
+      return std::make_unique<UI::Style::BorderStyle>(
+        Lisple::obj<UI::Style::BorderStyle>(*value));
+    }
+
+    auto source = map_like_value(value);
+    if (!source) return nullptr;
 
     static Lisple::MapSchema border_style_schema({},
                                                  {{"thickness", &Lisple::Type::NUMBER},
                                                   {"line-style", &Lisple::Type::KEYWORD},
-                                                  {"color", &HostType::COLOR},
+                                                  {"color", &Lisple::Type::ANY},
                                                   {"trim", &Lisple::Type::ANY},
-                                                  {"top", &HostType::BORDER},
-                                                  {"right", &HostType::BORDER},
-                                                  {"bottom", &HostType::BORDER},
-                                                  {"left", &HostType::BORDER}});
+                                                  {"top", &Lisple::Type::ANY},
+                                                  {"right", &Lisple::Type::ANY},
+                                                  {"bottom", &Lisple::Type::ANY},
+                                                  {"left", &Lisple::Type::ANY}});
 
     auto border = std::make_unique<UI::Style::BorderStyle>();
-    auto opts = border_style_schema.bind(ctx, *value);
-    apply_border_props(*border, opts);
-    border->t = opts.optional_obj<UI::Style::Border>("top");
-    border->r = opts.optional_obj<UI::Style::Border>("right");
-    border->b = opts.optional_obj<UI::Style::Border>("bottom");
-    border->l = opts.optional_obj<UI::Style::Border>("left");
+    auto opts = border_style_schema.bind(ctx, *source);
+    apply_border_props(ctx, *border, opts);
+    if (auto top = build_border(ctx, opts.val("top"))) border->t = *top;
+    if (auto right = build_border(ctx, opts.val("right"))) border->r = *right;
+    if (auto bottom = build_border(ctx, opts.val("bottom"))) border->b = *bottom;
+    if (auto left = build_border(ctx, opts.val("left"))) border->l = *left;
     return border;
   }
 
   std::unique_ptr<UI::Style::Insets> build_insets(Lisple::Context& ctx,
                                                   const Lisple::sptr_val& value)
   {
-    if (!value || *value == *Lisple::Constant::NIL) return nullptr;
+    if (!value || value->type == Lisple::Value::Type::NIL) return nullptr;
 
-    if (value->type == Lisple::Value::Type::MAP)
+    if (HostType::STYLE_INSETS.is_type_of(*value))
+    {
+      return std::make_unique<UI::Style::Insets>(
+        Lisple::obj<UI::Style::Insets>(*value));
+    }
+
+    if (auto source = map_like_value(value))
     {
       static Lisple::MapSchema insets_map_schema({},
                                                  {{"t", &Lisple::Type::NUMBER},
@@ -1033,7 +1160,7 @@ namespace Pixils::Script::StyleDefinition
                                                   {"l", &Lisple::Type::NUMBER}});
 
       auto insets = std::make_unique<UI::Style::Insets>();
-      auto opts = insets_map_schema.bind(ctx, *value);
+      auto opts = insets_map_schema.bind(ctx, *source);
       insets->t = opts.i32("t", 0);
       insets->r = opts.i32("r", 0);
       insets->b = opts.i32("b", 0);

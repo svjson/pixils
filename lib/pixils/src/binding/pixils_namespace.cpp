@@ -72,6 +72,38 @@ namespace Pixils::Script
     inline const Lisple::sptr_val H = Lisple::keyword("h");
   } // namespace Key
 
+  namespace
+  {
+    void set_runtime_map_key_property(Lisple::sptr_val& target,
+                                      const Lisple::sptr_val& property,
+                                      const Lisple::sptr_val& value)
+    {
+      if (target->type != Lisple::Value::Type::MAP)
+      {
+        Lisple::Dict::set_property(target, property, value);
+        return;
+      }
+
+      auto& elements = target->mut_elements();
+      if (elements.size() % 2 != 0)
+      {
+        throw Lisple::LispleException("Invalid map structure");
+      }
+
+      for (size_t i = 0; i < elements.size(); i += 2)
+      {
+        if (*elements[i] == *property)
+        {
+          elements[i + 1] = value;
+          return;
+        }
+      }
+
+      elements.push_back(property);
+      elements.push_back(value);
+    }
+  } // namespace
+
   namespace Macro
   {
     /* DefPointerForm - defpointer */
@@ -422,7 +454,7 @@ namespace Pixils::Script
           opts.i32(std::get<std::string>(MapKey::TARGET_FRAME_RATE->value));
       }
 
-      Lisple::Dict::set_property(programs, Lisple::symbol(name), program);
+      set_runtime_map_key_property(programs, Lisple::symbol(name), program);
 
       return std::make_unique<Lisple::ExecNode>(Lisple::Constant::NIL);
     }
@@ -448,7 +480,7 @@ namespace Pixils::Script
         Lisple::exec(*ctx.ctx, *Lisple::lower_expr(ctx, ast_node->get_children()[2]));
 
       auto theme = build_theme_from_definition(*ctx.ctx, name, theme_expr);
-      Lisple::Dict::set_property(themes, name_expr, ThemeAdapter::make_unique(theme));
+      set_runtime_map_key_property(themes, name_expr, ThemeAdapter::make_unique(theme));
 
       return std::make_unique<Lisple::ExecNode>(Lisple::Constant::NIL);
     }
@@ -474,14 +506,14 @@ namespace Pixils::Script
       Lisple::LowerContext lctx{ctx};
       auto mode_expr =
         Lisple::exec(*ctx.ctx, *Lisple::lower_expr(lctx, ast_node->get_children()[2]));
-      Lisple::Dict::set_property(mode_expr, MapKey::NAME, name_str);
+      set_runtime_map_key_property(mode_expr, MapKey::NAME, name_str);
       auto mode_coercion = HostType::MODE.coerce(*ctx.ctx, mode_expr);
       if (!mode_coercion.success)
       {
         throw Lisple::TypeError("Invalid mode declaration: " + mode_expr->to_string());
       }
 
-      Lisple::Dict::set_property(modes, name_expr, mode_coercion.result);
+      set_runtime_map_key_property(modes, name_expr, mode_coercion.result);
 
       RenderContext& rc =
         Lisple::obj<RenderContext>(*ctx.ctx->lookup(ID__PIXILS__RENDER_CONTEXT));

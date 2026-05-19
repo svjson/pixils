@@ -31,6 +31,18 @@ TEST_F(DefModeTest, defmode_with_no_args_is_created_with_nil_hooks)
   EXPECT_EQ(*mode.render, *Lisple::Constant::NIL);
 }
 
+TEST_F(DefModeTest, defmode_injects_name_when_top_level_value_matches_name_key)
+{
+  // When
+  runtime.eval("(pixils/defmode test-mode {:render 'name})");
+
+  // Then
+  Pixils::Runtime::Mode& mode = get_mode(runtime, "test-mode");
+  EXPECT_EQ(mode.name, "test-mode");
+  ASSERT_EQ(mode.render->type, Lisple::Value::Type::SYMBOL);
+  EXPECT_EQ(mode.render->str(), "name");
+}
+
 TEST_F(DefModeTest, defmode_extend_preserves_selector_ancestry_for_theme_matching)
 {
   runtime.eval(R"(

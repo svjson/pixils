@@ -26,6 +26,13 @@ namespace Pixils::Script
   {
     namespace
     {
+      bool native_host_type_named(const Lisple::sptr_val& value,
+                                  const Lisple::HostTypeRef& type_ref)
+      {
+        return value && value->type == Lisple::Value::Type::NATIVE_OBJECT &&
+               value->nobj()->get_host_type()->to_string() == type_ref.to_string();
+      }
+
       Lisple::sptr_val resolve_view_target(const Lisple::sptr_val& target,
                                            const std::string& fn_name)
       {
@@ -34,12 +41,14 @@ namespace Pixils::Script
           return Lisple::Constant::NIL;
         }
 
-        if (HostType::VIEW.is_type_of(*target))
+        if (HostType::VIEW.is_type_of(*target) ||
+            native_host_type_named(target, HostType::VIEW))
         {
           return target;
         }
 
-        if (!Script::HostType::HOOK_CONTEXT.is_type_of(*target))
+        if (!Script::HostType::HOOK_CONTEXT.is_type_of(*target) &&
+            !native_host_type_named(target, Script::HostType::HOOK_CONTEXT))
         {
           throw Lisple::TypeError(fn_name + " target must be a view or hook context");
         }
@@ -192,14 +201,20 @@ namespace Pixils::Script
     /** EmitFunction - emit */
     FUNC_IMPL(
       EmitBangFunction,
-      MULTI_SIG((FN_ARGS((&HostType::VIEW), (&Lisple::Type::KEYWORD), (&Lisple::Type::ANY)),
+      MULTI_SIG((FN_ARGS((&Lisple::Type::ANY), (&Lisple::Type::KEYWORD), (&Lisple::Type::ANY)),
                  EXEC_DISPATCH(&EmitBangFunction::exec_emit)),
-                (FN_ARGS((&HostType::VIEW), (&Lisple::Type::KEYWORD)),
+                (FN_ARGS((&Lisple::Type::ANY), (&Lisple::Type::KEYWORD)),
                  EXEC_DISPATCH(&EmitBangFunction::exec_emit))))
 
     EXEC_BODY(EmitBangFunction, exec_emit)
     {
-      Runtime::View& view = Lisple::obj<Runtime::View>(*args[0]);
+      auto target = resolve_view_target(args[0], "ui/emit!");
+      if (!target || target->type == Lisple::Value::Type::NIL)
+      {
+        return Lisple::Constant::NIL;
+      }
+
+      Runtime::View& view = Lisple::obj<Runtime::View>(*target);
       auto source_mode = view.mode ? Lisple::symbol(view.mode->name) : Lisple::Constant::NIL;
       view.emit_event(CustomEvent{args[1],
                                   args.size() > 2 ? args[2] : Lisple::Constant::NIL,
@@ -233,12 +248,18 @@ namespace Pixils::Script
 
     /** ReplaceChildBangFunction - replace-child! */
     FUNC_IMPL(ReplaceChildBangFunction,
-              SIG((FN_ARGS((&HostType::VIEW), (&Lisple::Type::ANY), (&Lisple::Type::MAP)),
+              SIG((FN_ARGS((&Lisple::Type::ANY), (&Lisple::Type::ANY), (&Lisple::Type::MAP)),
                    EXEC_DISPATCH(&ReplaceChildBangFunction::exec_replace_child))));
 
     EXEC_BODY(ReplaceChildBangFunction, exec_replace_child)
     {
-      Runtime::View& view = Lisple::obj<Runtime::View>(*args[0]);
+      auto target = resolve_view_target(args[0], "ui/replace-child!");
+      if (!target || target->type == Lisple::Value::Type::NIL)
+      {
+        return Lisple::Constant::NIL;
+      }
+
+      Runtime::View& view = Lisple::obj<Runtime::View>(*target);
       if (args[1]->type != Lisple::Value::Type::STRING &&
           args[1]->type != Lisple::Value::Type::SYMBOL &&
           args[1]->type != Lisple::Value::Type::KEYWORD)
