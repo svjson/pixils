@@ -367,7 +367,7 @@ namespace Pixils::UI
       auto it = resolved.variant_rules.find(*resolved.selected_variant);
       if (it != resolved.variant_rules.end())
       {
-        auto variant_rules = it->second;
+        const auto& variant_rules = it->second;
         for (const auto& rule : variant_rules)
         {
           resolved.set_style(rule.selector, rule.style);

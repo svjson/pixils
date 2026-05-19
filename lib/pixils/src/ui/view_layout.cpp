@@ -751,7 +751,7 @@ namespace Pixils::UI
 
       LayoutDirection direction = layout.direction.value_or(LayoutDirection::COLUMN);
       bool row = direction == LayoutDirection::ROW;
-      std::vector<Style> styles;
+      std::vector<const Style*> styles;
       std::vector<std::optional<Dimension>> natural_content_sizes;
       std::vector<int> logical_outer_sizes(children.size(), 0);
       std::vector<int> outer_sizes(children.size(), 0);
@@ -768,7 +768,7 @@ namespace Pixils::UI
                                                                        inherited_style,
                                                                        inherited_theme,
                                                                        child_selector_path));
-        styles.push_back(child->effective_style);
+        styles.push_back(&child->effective_style);
       }
 
       int total_fixed = 0;
@@ -777,7 +777,7 @@ namespace Pixils::UI
       std::vector<size_t> shrink_indices;
       for (size_t i = 0; i < children.size(); i++)
       {
-        const Style& cs = styles[i];
+        const Style& cs = *styles[i];
         const auto& natural = natural_content_sizes[i];
         if (removes_layout(cs)) continue;
         if (cs.position && *cs.position == PositionMode::ABSOLUTE) continue;
@@ -854,7 +854,7 @@ namespace Pixils::UI
       total_fixed = 0;
       for (size_t i = 0; i < children.size(); i++)
       {
-        const Style& cs = styles[i];
+        const Style& cs = *styles[i];
         if (removes_layout(cs)) continue;
         if (cs.position && *cs.position == PositionMode::ABSOLUTE) continue;
         if (!fills_axis(cs, row ? Axis::HORIZONTAL : Axis::VERTICAL, false))
@@ -865,7 +865,7 @@ namespace Pixils::UI
         fill_count > 0 ? (available - total_fixed - total_fixed_gap) / fill_count : 0;
       for (size_t i = 0; i < children.size(); i++)
       {
-        const Style& cs = styles[i];
+        const Style& cs = *styles[i];
         if (removes_layout(cs)) continue;
         if (cs.position && *cs.position == PositionMode::ABSOLUTE) continue;
         if (outer_sizes[i] == 0 &&
@@ -882,7 +882,7 @@ namespace Pixils::UI
       int total_flow_size = 0;
       for (size_t i = 0; i < children.size(); i++)
       {
-        const Style& cs = styles[i];
+        const Style& cs = *styles[i];
         if (removes_layout(cs)) continue;
         if (cs.position && *cs.position == PositionMode::ABSOLUTE) continue;
         total_flow_size += outer_sizes[i];
@@ -914,7 +914,7 @@ namespace Pixils::UI
       int flow_index = 0;
       for (size_t i = 0; i < children.size(); i++)
       {
-        const Style& cs = styles[i];
+        const Style& cs = *styles[i];
         const Style::Insets margin = cs.margin.value_or(Style::Insets{});
 
         if (removes_layout(cs))

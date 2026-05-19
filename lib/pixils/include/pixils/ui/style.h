@@ -270,6 +270,7 @@ namespace Pixils::UI
 
     Style();
     Style(const Style& other);
+    Style(Style&& other) noexcept = default;
 
 #ifdef PIXILS_ENABLE_BENCHMARK_COUNTERS
     static void* operator new(std::size_t size);
@@ -278,6 +279,7 @@ namespace Pixils::UI
 #endif
 
     void operator=(const Style& other);
+    Style& operator=(Style&& other) noexcept = default;
 
     /** Visual */
     std::optional<Background> background = std::nullopt;
