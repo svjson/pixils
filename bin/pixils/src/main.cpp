@@ -77,7 +77,9 @@ namespace
 
     LaunchTarget target{
       .asset_base_path = asset_base_path,
-      .load_path = Lisple::Package::merge_load_paths(plan),
+      .load_path = Lisple::Package::merge_load_paths(
+        plan,
+        {std::filesystem::current_path().string(), "/"}),
       .namespace_roots = plan.namespace_roots,
       .source_files = {},
       .entry_points = manifest.entry_points,
