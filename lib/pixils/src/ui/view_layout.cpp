@@ -96,6 +96,7 @@ namespace Pixils::UI
       hash_combine(seed, std::hash<const Pixils::Runtime::View*>{}(view.get()));
       if (!view) return;
 
+      PIXILS_BENCHMARK_COUNT(layout_dependency_signature_nodes);
       hash_combine(seed, std::hash<const Pixils::Runtime::Mode*>{}(view->mode));
       hash_combine(seed, std::hash<const Lisple::Value*>{}(view->state.get()));
       hash_combine(seed, std::hash<bool>{}(view->interaction.hovered));
@@ -113,6 +114,8 @@ namespace Pixils::UI
     size_t natural_size_dependency_signature(
       const std::shared_ptr<Pixils::Runtime::View>& view)
     {
+      PIXILS_BENCHMARK_COUNT(layout_dependency_signature_calls);
+      PIXILS_BENCHMARK_TIME_BLOCK(layout_dependency_signature_time_ns);
       size_t seed = 0;
       append_view_dependency_signature(seed, view);
 
@@ -139,6 +142,7 @@ namespace Pixils::UI
                                        size_t subtree_signature,
                                        const std::optional<Dimension>& value)
     {
+      PIXILS_BENCHMARK_COUNT(layout_natural_size_persistent_cache_stores);
       view.natural_content_size_cache.valid = true;
       view.natural_content_size_cache.available_width = available_width;
       view.natural_content_size_cache.available_height = available_height;
@@ -608,6 +612,7 @@ namespace Pixils::UI
       if (cached != pass.natural_size_cache.end())
       {
         PIXILS_BENCHMARK_COUNT(layout_natural_size_cache_hits);
+        PIXILS_BENCHMARK_COUNT(layout_natural_size_pass_cache_hits);
         return cached->second;
       }
 
@@ -636,6 +641,7 @@ namespace Pixils::UI
                                        subtree_signature))
         {
           PIXILS_BENCHMARK_COUNT(layout_natural_size_cache_hits);
+          PIXILS_BENCHMARK_COUNT(layout_natural_size_persistent_cache_hits);
           pass.natural_size_cache.emplace(cache_key, view->natural_content_size_cache.value);
           return view->natural_content_size_cache.value;
         }

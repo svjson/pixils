@@ -27,6 +27,7 @@ namespace Pixils::UI
 
     bool rtval_equal(const Lisple::sptr_val& lhs, const Lisple::sptr_val& rhs)
     {
+      PIXILS_BENCHMARK_COUNT(view_state_equality_checks);
       if (lhs == rhs) return true;
       if (!lhs || !rhs) return false;
       if (lhs->type != rhs->type) return false;
@@ -37,8 +38,13 @@ namespace Pixils::UI
     void assign_state_if_changed(Lisple::sptr_val& target,
                                  const Lisple::sptr_val& next_state)
     {
-      if (!rtval_equal(target, next_state))
+      if (rtval_equal(target, next_state))
       {
+        PIXILS_BENCHMARK_COUNT(view_state_assignments_preserved);
+      }
+      else
+      {
+        PIXILS_BENCHMARK_COUNT(view_state_assignments_replaced);
         target = next_state;
       }
     }

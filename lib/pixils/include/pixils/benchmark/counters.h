@@ -1,8 +1,8 @@
 #ifndef PIXILS__BENCHMARK__COUNTERS_H
 #define PIXILS__BENCHMARK__COUNTERS_H
 
-#include <cstdint>
 #include <cstddef>
+#include <cstdint>
 #include <string_view>
 
 #ifdef PIXILS_ENABLE_BENCHMARK_COUNTERS
@@ -20,7 +20,13 @@ namespace Pixils::Benchmark
     layout_content_size_hook_calls,
     layout_content_size_hook_time_ns,
     layout_natural_size_cache_hits,
+    layout_natural_size_pass_cache_hits,
+    layout_natural_size_persistent_cache_hits,
+    layout_natural_size_persistent_cache_stores,
     layout_natural_size_cache_misses,
+    layout_dependency_signature_calls,
+    layout_dependency_signature_nodes,
+    layout_dependency_signature_time_ns,
     layout_dirty_cache_hits,
     layout_dirty_cache_misses,
     layout_invalidations,
@@ -44,6 +50,9 @@ namespace Pixils::Benchmark
     runtime_update_mode_calls,
     runtime_render_time_ns,
     runtime_update_time_ns,
+    view_state_equality_checks,
+    view_state_assignments_preserved,
+    view_state_assignments_replaced,
     event_handler_invocations,
     events_bubbled,
     ui_style_allocations,
@@ -115,9 +124,7 @@ namespace Pixils::Benchmark
     ~ScopedTimer()
     {
       const auto end = std::chrono::steady_clock::now();
-      add(id,
-          std::chrono::duration_cast<std::chrono::nanoseconds>(end - start)
-            .count());
+      add(id, std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count());
     }
 
    private:

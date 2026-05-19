@@ -99,10 +99,9 @@ namespace Pixils::Benchmark
     {
       std::vector<std::string> dirty;
       std::array<char, 512> buffer{};
-      FILE* pipe =
-        popen("git status --porcelain=v1 --untracked-files=no -- lib/pixils "
-              "2>/dev/null",
-              "r");
+      FILE* pipe = popen("git status --porcelain=v1 --untracked-files=no -- lib/pixils "
+                         "2>/dev/null",
+                         "r");
       if (!pipe) return dirty;
 
       std::string output;
@@ -144,7 +143,13 @@ namespace Pixils::Benchmark
                      MetricId::layout_content_size_hook_calls,
                      MetricId::layout_content_size_hook_time_ns,
                      MetricId::layout_natural_size_cache_hits,
+                     MetricId::layout_natural_size_pass_cache_hits,
+                     MetricId::layout_natural_size_persistent_cache_hits,
+                     MetricId::layout_natural_size_persistent_cache_stores,
                      MetricId::layout_natural_size_cache_misses,
+                     MetricId::layout_dependency_signature_calls,
+                     MetricId::layout_dependency_signature_nodes,
+                     MetricId::layout_dependency_signature_time_ns,
                      MetricId::layout_dirty_cache_hits,
                      MetricId::layout_dirty_cache_misses,
                      MetricId::layout_invalidations,
@@ -244,6 +249,9 @@ namespace Pixils::Benchmark
                      MetricId::runtime_update_mode_calls,
                      MetricId::runtime_render_time_ns,
                      MetricId::runtime_update_time_ns,
+                     MetricId::view_state_equality_checks,
+                     MetricId::view_state_assignments_preserved,
+                     MetricId::view_state_assignments_replaced,
                      MetricId::event_handler_invocations,
                      MetricId::events_bubbled});
   }
@@ -258,7 +266,13 @@ namespace Pixils::Benchmark
                      MetricId::layout_content_size_hook_calls,
                      MetricId::layout_content_size_hook_time_ns,
                      MetricId::layout_natural_size_cache_hits,
+                     MetricId::layout_natural_size_pass_cache_hits,
+                     MetricId::layout_natural_size_persistent_cache_hits,
+                     MetricId::layout_natural_size_persistent_cache_stores,
                      MetricId::layout_natural_size_cache_misses,
+                     MetricId::layout_dependency_signature_calls,
+                     MetricId::layout_dependency_signature_nodes,
+                     MetricId::layout_dependency_signature_time_ns,
                      MetricId::layout_dirty_cache_hits,
                      MetricId::layout_dirty_cache_misses,
                      MetricId::layout_invalidations,
@@ -330,6 +344,9 @@ namespace Pixils::Benchmark
                      MetricId::runtime_update_mode_calls,
                      MetricId::runtime_render_time_ns,
                      MetricId::runtime_update_time_ns,
+                     MetricId::view_state_equality_checks,
+                     MetricId::view_state_assignments_preserved,
+                     MetricId::view_state_assignments_replaced,
                      MetricId::layout_view_tree_calls,
                      MetricId::layout_view_tree_nodes,
                      MetricId::layout_children_calls,
@@ -337,7 +354,13 @@ namespace Pixils::Benchmark
                      MetricId::layout_content_size_hook_calls,
                      MetricId::layout_content_size_hook_time_ns,
                      MetricId::layout_natural_size_cache_hits,
+                     MetricId::layout_natural_size_pass_cache_hits,
+                     MetricId::layout_natural_size_persistent_cache_hits,
+                     MetricId::layout_natural_size_persistent_cache_stores,
                      MetricId::layout_natural_size_cache_misses,
+                     MetricId::layout_dependency_signature_calls,
+                     MetricId::layout_dependency_signature_nodes,
+                     MetricId::layout_dependency_signature_time_ns,
                      MetricId::layout_dirty_cache_hits,
                      MetricId::layout_dirty_cache_misses,
                      MetricId::layout_invalidations,
@@ -449,8 +472,7 @@ namespace Pixils::Benchmark
     }
     const auto end = std::chrono::steady_clock::now();
 
-    const auto elapsed =
-      std::chrono::duration<double, std::milli>(end - start).count();
+    const auto elapsed = std::chrono::duration<double, std::milli>(end - start).count();
 
     last_result = Result{.benchmark_name = benchmark_name,
                          .category = category_spec,
@@ -555,8 +577,7 @@ namespace Pixils::Benchmark
     }
 
     out << result.timestamp_ms << "," << csv_field(active_config.goalpost) << ","
-        << csv_field(active_config.run_name) << ","
-        << csv_field(result.category.name) << ","
+        << csv_field(active_config.run_name) << "," << csv_field(result.category.name) << ","
         << csv_field(result.benchmark_name) << "," << result.iterations << ","
         << result.total_time_ms << "," << result.mean_time_ms;
     for (MetricId id : result.category.metrics)
