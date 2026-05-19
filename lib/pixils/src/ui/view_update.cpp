@@ -25,6 +25,24 @@ namespace Pixils::UI
       return view.state_binding && view.state_binding->type != Lisple::Value::Type::NIL;
     }
 
+    bool rtval_equal(const Lisple::sptr_val& lhs, const Lisple::sptr_val& rhs)
+    {
+      if (lhs == rhs) return true;
+      if (!lhs || !rhs) return false;
+      if (lhs->type != rhs->type) return false;
+
+      return *lhs == *rhs;
+    }
+
+    void assign_state_if_changed(Lisple::sptr_val& target,
+                                 const Lisple::sptr_val& next_state)
+    {
+      if (!rtval_equal(target, next_state))
+      {
+        target = next_state;
+      }
+    }
+
     void run_update_hook(const std::shared_ptr<Runtime::View>& view,
                          Runtime::HookArguments& hook_args,
                          Lisple::Runtime& rt)
@@ -33,7 +51,9 @@ namespace Pixils::UI
 
       Lisple::obj<HookContext>(*hook_args.update_args[1]).current_view = view;
       Lisple::sptr_val_v args = {view->state, hook_args.update_args[1]};
-      view->state = Runtime::invoke_hook(rt, view, view->mode->update, args, view->state);
+      assign_state_if_changed(
+        view->state,
+        Runtime::invoke_hook(rt, view, view->mode->update, args, view->state));
     }
 
     void bubble_child_events_to_subject(Runtime::View& subject,
@@ -111,7 +131,7 @@ namespace Pixils::UI
 
       if (parent_state && has_state_binding(view))
       {
-        view.state = Runtime::extract_state(*parent_state, view);
+        assign_state_if_changed(view.state, Runtime::extract_state(*parent_state, view));
       }
 
       update_interaction(view, mouse_pos, mouse_state, focus_state);
@@ -135,7 +155,8 @@ namespace Pixils::UI
 
       if (parent_state && has_state_binding(view))
       {
-        *parent_state = Runtime::merge_state(*parent_state, view, view.state);
+        assign_state_if_changed(*parent_state,
+                                Runtime::merge_state(*parent_state, view, view.state));
       }
     }
 

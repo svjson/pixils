@@ -8,6 +8,8 @@
 #include <pixils/ui/style_view.h>
 #include <pixils/ui/theme.h>
 
+#include <cstddef>
+#include <cstdint>
 #include <lisple/runtime/value.h>
 #include <optional>
 
@@ -48,6 +50,24 @@ namespace Pixils::Runtime
     UI::StyleView style_view;
     UI::Theme effective_theme;
     UI::Style effective_style;
+    struct NaturalContentSizeCache
+    {
+      bool valid = false;
+      std::optional<int> available_width = std::nullopt;
+      std::optional<int> available_height = std::nullopt;
+      std::uint64_t style_generation = 0;
+      std::size_t subtree_signature = 0;
+      std::optional<Dimension> value = std::nullopt;
+    };
+    NaturalContentSizeCache natural_content_size_cache;
+    struct LayoutCache
+    {
+      bool valid = false;
+      Rect requested_bounds = {0, 0, 0, 0};
+      std::uint64_t style_generation = 0;
+      std::size_t dependency_signature = 0;
+    };
+    LayoutCache layout_cache;
     std::vector<std::shared_ptr<View>> children;
     std::vector<CustomEvent> emitted_events;
     std::vector<QueuedChildReplacement> pending_child_replacements;

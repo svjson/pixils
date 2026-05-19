@@ -1,9 +1,9 @@
 #include "pixils/ui/view_layout.h"
 
 #include <pixils/benchmark/counters.h>
+#include <pixils/binding/pixils_namespace.h>
 #include <pixils/binding/ui/style/style_host_type.h>
 #include <pixils/binding/ui/style/theme_definition.h>
-#include <pixils/binding/pixils_namespace.h>
 #include <pixils/hook_context.h>
 #include <pixils/runtime/hook_invocation.h>
 #include <pixils/runtime/view.h>
@@ -26,6 +26,8 @@ namespace Pixils::UI
       HORIZONTAL,
       VERTICAL,
     };
+
+    constexpr size_t MAX_PERSISTENT_NATURAL_SIZE_CHILDREN = 256;
 
     struct NaturalSizeCacheKey
     {
@@ -61,15 +63,20 @@ namespace Pixils::UI
       }
     };
 
+    using NaturalSizeCache = std::
+      unordered_map<NaturalSizeCacheKey, std::optional<Dimension>, NaturalSizeCacheKeyHash>;
+
     struct LayoutPass
     {
       Lisple::Runtime& runtime;
       const Lisple::sptr_val& hook_ctx;
-      std::unordered_map<NaturalSizeCacheKey,
-                         std::optional<Dimension>,
-                         NaturalSizeCacheKeyHash>
-        natural_size_cache;
+      NaturalSizeCache natural_size_cache;
     };
+
+    void hash_combine(size_t& seed, size_t value)
+    {
+      seed ^= value + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+    }
 
     NaturalSizeCacheKey natural_size_cache_key(
       const std::shared_ptr<Pixils::Runtime::View>& view,
@@ -81,6 +88,89 @@ namespace Pixils::UI
                                  .available_width = available_width.value_or(0),
                                  .has_available_height = available_height.has_value(),
                                  .available_height = available_height.value_or(0)};
+    }
+
+    void append_view_dependency_signature(size_t& seed,
+                                          const std::shared_ptr<Pixils::Runtime::View>& view)
+    {
+      hash_combine(seed, std::hash<const Pixils::Runtime::View*>{}(view.get()));
+      if (!view) return;
+
+      hash_combine(seed, std::hash<const Pixils::Runtime::Mode*>{}(view->mode));
+      hash_combine(seed, std::hash<const Lisple::Value*>{}(view->state.get()));
+      hash_combine(seed, std::hash<bool>{}(view->interaction.hovered));
+      hash_combine(seed, std::hash<bool>{}(view->interaction.focused));
+      hash_combine(seed, std::hash<bool>{}(view->interaction.focus_within));
+      hash_combine(seed, std::hash<std::uint64_t>{}(view->style_view.generation()));
+      hash_combine(seed, std::hash<size_t>{}(view->children.size()));
+
+      for (const auto& child : view->children)
+      {
+        append_view_dependency_signature(seed, child);
+      }
+    }
+
+    size_t natural_size_dependency_signature(
+      const std::shared_ptr<Pixils::Runtime::View>& view)
+    {
+      size_t seed = 0;
+      append_view_dependency_signature(seed, view);
+
+      return seed;
+    }
+
+    bool natural_size_cache_matches(
+      const Pixils::Runtime::View::NaturalContentSizeCache& cache,
+      const std::optional<int>& available_width,
+      const std::optional<int>& available_height,
+      std::uint64_t style_generation,
+      size_t subtree_signature)
+    {
+      return cache.valid && cache.available_width == available_width &&
+             cache.available_height == available_height &&
+             cache.style_generation == style_generation &&
+             cache.subtree_signature == subtree_signature;
+    }
+
+    void remember_natural_content_size(Pixils::Runtime::View& view,
+                                       const std::optional<int>& available_width,
+                                       const std::optional<int>& available_height,
+                                       std::uint64_t style_generation,
+                                       size_t subtree_signature,
+                                       const std::optional<Dimension>& value)
+    {
+      view.natural_content_size_cache.valid = true;
+      view.natural_content_size_cache.available_width = available_width;
+      view.natural_content_size_cache.available_height = available_height;
+      view.natural_content_size_cache.style_generation = style_generation;
+      view.natural_content_size_cache.subtree_signature = subtree_signature;
+      view.natural_content_size_cache.value = value;
+    }
+
+    bool rect_equals(const Rect& a, const Rect& b)
+    {
+      return a.x == b.x && a.y == b.y && a.w == b.w && a.h == b.h;
+    }
+
+    bool layout_cache_matches(const Pixils::Runtime::View::LayoutCache& cache,
+                              const Rect& requested_bounds,
+                              std::uint64_t style_generation,
+                              size_t dependency_signature)
+    {
+      return cache.valid && rect_equals(cache.requested_bounds, requested_bounds) &&
+             cache.style_generation == style_generation &&
+             cache.dependency_signature == dependency_signature;
+    }
+
+    void remember_layout(Pixils::Runtime::View& view,
+                         const Rect& requested_bounds,
+                         std::uint64_t style_generation,
+                         size_t dependency_signature)
+    {
+      view.layout_cache.valid = true;
+      view.layout_cache.requested_bounds = requested_bounds;
+      view.layout_cache.style_generation = style_generation;
+      view.layout_cache.dependency_signature = dependency_signature;
     }
 
     Dimension calculate_outer_size(const Style& style, const Dimension& content_size)
@@ -173,6 +263,12 @@ namespace Pixils::UI
       return std::nullopt;
     }
 
+    bool has_content_size_hook(const std::shared_ptr<Pixils::Runtime::View>& view)
+    {
+      return view && view->mode && view->mode->content_size &&
+             view->mode->content_size->type != Lisple::Value::Type::NIL;
+    }
+
     std::optional<Dimension> invoke_content_size_hook(
       const std::shared_ptr<Pixils::Runtime::View>& child,
       Lisple::Runtime& runtime,
@@ -181,9 +277,7 @@ namespace Pixils::UI
       const std::optional<int>& available_height)
     {
       if (!hook_ctx || hook_ctx->type == Lisple::Value::Type::NIL) return std::nullopt;
-      if (!child->mode || !child->mode->content_size ||
-          child->mode->content_size->type == Lisple::Value::Type::NIL)
-        return std::nullopt;
+      if (!has_content_size_hook(child)) return std::nullopt;
 
       PIXILS_BENCHMARK_COUNT(layout_content_size_hook_calls);
       PIXILS_BENCHMARK_TIME_BLOCK(layout_content_size_hook_time_ns);
@@ -332,7 +426,8 @@ namespace Pixils::UI
 
       PIXILS_BENCHMARK_COUNT(runtime_style_source_resolve_calls);
 
-      auto resolved_value = Script::resolve_theme_vars(theme, theme.selected_variant, source);
+      auto resolved_value =
+        Script::resolve_theme_vars(theme, theme.selected_variant, source);
       if (!resolved_value) return std::nullopt;
 
       Lisple::Context ctx(runtime);
@@ -394,13 +489,12 @@ namespace Pixils::UI
         }
       }
 
-      return resolve_style(resolved_style,
-                           inherited_style,
-                           view->state,
-                           view->interaction,
-                           view->effective_theme.defaults
-                             ? &*view->effective_theme.defaults
-                             : nullptr);
+      return resolve_style(
+        resolved_style,
+        inherited_style,
+        view->state,
+        view->interaction,
+        view->effective_theme.defaults ? &*view->effective_theme.defaults : nullptr);
     }
 
     std::optional<Theme> lookup_theme(Lisple::Runtime& runtime, const std::string& name)
@@ -411,10 +505,9 @@ namespace Pixils::UI
       return Lisple::obj<Theme>(*theme_val);
     }
 
-    Theme resolve_effective_theme_impl(
-      const std::shared_ptr<Pixils::Runtime::View>& view,
-      Lisple::Runtime& runtime,
-      const Theme* inherited_theme)
+    Theme resolve_effective_theme_impl(const std::shared_ptr<Pixils::Runtime::View>& view,
+                                       Lisple::Runtime& runtime,
+                                       const Theme* inherited_theme)
     {
       std::optional<std::string> selected_variant =
         view && view->mode ? view->mode->theme_variant : std::nullopt;
@@ -427,11 +520,12 @@ namespace Pixils::UI
         selected_variant = view->inherited_theme->selected_variant;
       }
 
-      Theme theme = inherited_theme
-                      ? inherited_theme->resolved_for_variant(selected_variant)
-                      : (view && view->inherited_theme
-                           ? view->inherited_theme->resolved_for_variant(selected_variant)
-                           : default_base_theme(runtime).resolved_for_variant(selected_variant));
+      Theme theme =
+        inherited_theme
+          ? inherited_theme->resolved_for_variant(selected_variant)
+          : (view && view->inherited_theme
+               ? view->inherited_theme->resolved_for_variant(selected_variant)
+               : default_base_theme(runtime).resolved_for_variant(selected_variant));
       if (!view || !view->mode || !view->mode->theme) return theme;
 
       for (const auto& theme_name : *view->mode->theme)
@@ -447,16 +541,14 @@ namespace Pixils::UI
       return theme;
     }
 
-    void resolve_style_view_snapshot(
-      const std::shared_ptr<Pixils::Runtime::View>& view,
-      Lisple::Runtime& runtime,
-      const Style* inherited_style,
-      const Theme* inherited_theme,
-      const std::vector<ThemeMatchContext>& selector_path)
+    void resolve_style_view_snapshot(const std::shared_ptr<Pixils::Runtime::View>& view,
+                                     Lisple::Runtime& runtime,
+                                     const Style* inherited_style,
+                                     const Theme* inherited_theme,
+                                     const std::vector<ThemeMatchContext>& selector_path)
     {
-      const auto parent_generation = view->style_view.parent()
-                                       ? view->style_view.parent()->generation()
-                                       : 0;
+      const auto parent_generation =
+        view->style_view.parent() ? view->style_view.parent()->generation() : 0;
       if (view->style_view.valid_for(view->mode,
                                      view->state.get(),
                                      view->interaction,
@@ -518,7 +610,6 @@ namespace Pixils::UI
         PIXILS_BENCHMARK_COUNT(layout_natural_size_cache_hits);
         return cached->second;
       }
-      PIXILS_BENCHMARK_COUNT(layout_natural_size_cache_misses);
 
       resolve_style_view_snapshot(view,
                                   pass.runtime,
@@ -526,9 +617,41 @@ namespace Pixils::UI
                                   inherited_theme,
                                   selector_path);
 
+      const bool cacheable_natural_size =
+        has_content_size_hook(view) ||
+        (!view->children.empty() &&
+         view->children.size() <= MAX_PERSISTENT_NATURAL_SIZE_CHILDREN) ||
+        removes_layout(view->effective_style);
+
+      std::uint64_t style_generation = 0;
+      size_t subtree_signature = 0;
+      if (cacheable_natural_size)
+      {
+        style_generation = view->style_view.generation();
+        subtree_signature = natural_size_dependency_signature(view);
+        if (natural_size_cache_matches(view->natural_content_size_cache,
+                                       parent_available_width,
+                                       parent_available_height,
+                                       style_generation,
+                                       subtree_signature))
+        {
+          PIXILS_BENCHMARK_COUNT(layout_natural_size_cache_hits);
+          pass.natural_size_cache.emplace(cache_key, view->natural_content_size_cache.value);
+          return view->natural_content_size_cache.value;
+        }
+      }
+
+      PIXILS_BENCHMARK_COUNT(layout_natural_size_cache_misses);
+
       if (removes_layout(view->effective_style))
       {
         pass.natural_size_cache.emplace(cache_key, std::nullopt);
+        remember_natural_content_size(*view,
+                                      parent_available_width,
+                                      parent_available_height,
+                                      style_generation,
+                                      subtree_signature,
+                                      std::nullopt);
         return std::nullopt;
       }
 
@@ -546,6 +669,12 @@ namespace Pixils::UI
                                                   available_height))
       {
         pass.natural_size_cache.emplace(cache_key, natural);
+        remember_natural_content_size(*view,
+                                      parent_available_width,
+                                      parent_available_height,
+                                      style_generation,
+                                      subtree_signature,
+                                      natural);
         return natural;
       }
       if (view->children.empty())
@@ -560,6 +689,16 @@ namespace Pixils::UI
                                                        available_height,
                                                        selector_path);
       pass.natural_size_cache.emplace(cache_key, natural);
+      if (cacheable_natural_size)
+      {
+        const auto resolved_subtree_signature = natural_size_dependency_signature(view);
+        remember_natural_content_size(*view,
+                                      parent_available_width,
+                                      parent_available_height,
+                                      style_generation,
+                                      resolved_subtree_signature,
+                                      natural);
+      }
       return natural;
     }
 
@@ -646,14 +785,31 @@ namespace Pixils::UI
 
       PIXILS_BENCHMARK_COUNT(layout_view_tree_nodes);
 
-      auto natural_content_size =
-        calculate_natural_content_size(view,
-                                       pass,
-                                       bounds.w,
-                                       bounds.h,
-                                       inherited_style,
-                                       inherited_theme,
-                                       selector_path);
+      resolve_style_view_snapshot(view,
+                                  pass.runtime,
+                                  inherited_style,
+                                  inherited_theme,
+                                  selector_path);
+      const auto style_generation = view->style_view.generation();
+      const auto dependency_signature = natural_size_dependency_signature(view);
+      if (layout_cache_matches(view->layout_cache,
+                               bounds,
+                               style_generation,
+                               dependency_signature))
+      {
+        PIXILS_BENCHMARK_COUNT(layout_dirty_cache_hits);
+        PIXILS_BENCHMARK_ADD(layout_skipped_clean_subtrees, 1);
+        return;
+      }
+      PIXILS_BENCHMARK_COUNT(layout_dirty_cache_misses);
+
+      auto natural_content_size = calculate_natural_content_size(view,
+                                                                 pass,
+                                                                 bounds.w,
+                                                                 bounds.h,
+                                                                 inherited_style,
+                                                                 inherited_theme,
+                                                                 selector_path);
       int resolved_w = inherited_style ? bounds.w
                                        : resolve_outer_size(view->effective_style,
                                                             natural_content_size,
@@ -678,8 +834,16 @@ namespace Pixils::UI
       view->external_bounds = scaled_external_bounds(view->bounds, view->effective_style);
 
       const Style& style = view->effective_style;
-      if (removes_layout(style)) return;
-      if (view->children.empty()) return;
+      if (removes_layout(style))
+      {
+        remember_layout(*view, bounds, style_generation, dependency_signature);
+        return;
+      }
+      if (view->children.empty())
+      {
+        remember_layout(*view, bounds, style_generation, dependency_signature);
+        return;
+      }
 
       Rect content = style.content_rect(view->bounds);
       auto child_rects =
@@ -734,6 +898,9 @@ namespace Pixils::UI
                               &view->effective_theme,
                               child_selector_path);
       }
+
+      const auto resolved_dependency_signature = natural_size_dependency_signature(view);
+      remember_layout(*view, bounds, style_generation, resolved_dependency_signature);
     }
 
     std::vector<Rect> layout_children_with_selector_path(
