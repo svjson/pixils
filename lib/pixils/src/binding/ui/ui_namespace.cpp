@@ -308,6 +308,7 @@ namespace Pixils::Script
       Runtime::Mode& mode = ensure_instance_mode(view);
       apply_runtime_style(mode, ctx, args[1]);
       view.style_view.invalidate();
+      view.mark_style_changed();
 
       return target;
     }

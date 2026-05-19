@@ -217,20 +217,29 @@ namespace Pixils::UI
       auto new_state = Runtime::invoke_hook(rt, view, hook, args, view->state);
       if (new_state->type != Lisple::Value::Type::NIL)
       {
-        view->state = new_state;
-        for (auto& child : view->children)
+        if (view->set_state_if_changed(new_state))
         {
-          restore_view_tree(child, view->state);
+          for (auto& child : view->children)
+          {
+            restore_view_tree(child, view->state);
+          }
         }
       }
+    }
+
+    void merge_child_state_into_parent(const std::shared_ptr<Runtime::View>& child,
+                                       const std::shared_ptr<Runtime::View>& parent)
+    {
+      if (!child || !parent) return;
+      parent->set_state_if_changed(
+        Runtime::merge_state(parent->state, *child, child->state));
     }
 
     void propagate_state_up_chain(const std::vector<std::shared_ptr<Runtime::View>>& chain)
     {
       for (size_t i = 0; i + 1 < chain.size(); i++)
       {
-        chain[i + 1]->state =
-          Runtime::merge_state(chain[i + 1]->state, *chain[i], chain[i]->state);
+        merge_child_state_into_parent(chain[i], chain[i + 1]);
       }
     }
 
@@ -252,8 +261,7 @@ namespace Pixils::UI
         }
         if (i + 1 < chain.size())
         {
-          chain[i + 1]->state =
-            Runtime::merge_state(chain[i + 1]->state, *view, view->state);
+          merge_child_state_into_parent(view, chain[i + 1]);
         }
       }
     }
@@ -283,11 +291,14 @@ namespace Pixils::UI
              receiver_index < chain.size() && !bubbled_events.empty();
              receiver_index++)
         {
-          auto parent_state =
-            (receiver_index + 1 < chain.size()) ? &chain[receiver_index + 1]->state
-                                                : nullptr;
+          auto parent_state = (receiver_index + 1 < chain.size())
+                                ? &chain[receiver_index + 1]->state
+                                : nullptr;
+          auto parent_view =
+            (receiver_index + 1 < chain.size()) ? chain[receiver_index + 1].get() : nullptr;
           bubbled_events = process_view_events(*chain[receiver_index],
                                                parent_state,
+                                               parent_view,
                                                view_ctx,
                                                bubbled_events,
                                                rt,
@@ -624,18 +635,19 @@ namespace Pixils::UI
         std::vector<CustomEvent> events{*action_event};
         auto view_ctx = hook_args.update_args[1];
         auto bubbled_events =
-          process_view_events(*view, nullptr, view_ctx, events, rt, nullptr);
+          process_view_events(*view, nullptr, nullptr, view_ctx, events, rt, nullptr);
 
         for (size_t j = i; j + 1 < chain.size(); j++)
         {
-          chain[j + 1]->state =
-            Runtime::merge_state(chain[j + 1]->state, *chain[j], chain[j]->state);
+          merge_child_state_into_parent(chain[j], chain[j + 1]);
 
           if (!bubbled_events.empty())
           {
             auto parent_state = (j + 2 < chain.size()) ? &chain[j + 2]->state : nullptr;
+            auto parent_view = (j + 2 < chain.size()) ? chain[j + 2].get() : nullptr;
             bubbled_events = process_view_events(*chain[j + 1],
                                                  parent_state,
+                                                 parent_view,
                                                  view_ctx,
                                                  bubbled_events,
                                                  rt,
@@ -693,8 +705,7 @@ namespace Pixils::UI
 
         if (i + 1 < chain.size())
         {
-          chain[i + 1]->state =
-            Runtime::merge_state(chain[i + 1]->state, *view, view->state);
+          merge_child_state_into_parent(view, chain[i + 1]);
         }
       }
     }
@@ -772,8 +783,7 @@ namespace Pixils::UI
           {
             if (i + 1 < chain.size())
             {
-              chain[i + 1]->state =
-                Runtime::merge_state(chain[i + 1]->state, *view, view->state);
+              merge_child_state_into_parent(view, chain[i + 1]);
             }
             return;
           }
@@ -781,8 +791,7 @@ namespace Pixils::UI
 
         if (i + 1 < chain.size())
         {
-          chain[i + 1]->state =
-            Runtime::merge_state(chain[i + 1]->state, *view, view->state);
+          merge_child_state_into_parent(view, chain[i + 1]);
         }
       }
     }

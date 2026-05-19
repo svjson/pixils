@@ -174,7 +174,13 @@ namespace Pixils::Runtime
       for (size_t i = 0; i < path.size() && !events.empty(); i++)
       {
         Lisple::sptr_val* parent_state = i + 1 < path.size() ? &path[i + 1]->state : nullptr;
-        events = UI::process_view_events(*path[i], parent_state, hook_ctx, events, runtime);
+        Runtime::View* parent_view = i + 1 < path.size() ? path[i + 1].get() : nullptr;
+        events = UI::process_view_events(*path[i],
+                                         parent_state,
+                                         parent_view,
+                                         hook_ctx,
+                                         events,
+                                         runtime);
       }
     }
 
@@ -239,7 +245,7 @@ namespace Pixils::Runtime
 
       auto restored_frame = mode_stack.peek();
       auto saved_state = restored_frame.second;
-      active_mode->state = saved_state;
+      active_mode->set_state_if_changed(saved_state);
       for (auto& child : active_mode->children)
       {
         Pixils::UI::restore_view_tree(child, active_mode->state);
@@ -329,6 +335,7 @@ namespace Pixils::Runtime
     {
       this->active_mode->children.push_back(
         Pixils::UI::build_view_tree(slot, modes, lisple_runtime));
+      this->active_mode->mark_children_changed();
       Pixils::UI::attach_style_view_tree(this->active_mode->children.back(),
                                          this->active_mode.get());
       parent_state = Pixils::UI::init_view_tree(assets,
@@ -338,7 +345,7 @@ namespace Pixils::Runtime
                                                 parent_state);
     }
 
-    this->active_mode->state = parent_state;
+    this->active_mode->set_state_if_changed(parent_state);
     this->hook_args.update_state(parent_state);
   }
 

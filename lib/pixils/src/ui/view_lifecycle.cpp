@@ -271,6 +271,7 @@ namespace Pixils::UI
   {
     if (!view) return;
 
+    view->set_parent(parent);
     view->style_view.set_parent(parent ? &parent->style_view : nullptr);
     for (auto& child : view->children)
     {
@@ -288,15 +289,16 @@ namespace Pixils::UI
 
     if (!assets.is_loaded(ctx.mode->name)) assets.load(ctx.mode->name, ctx.mode->resources);
 
-    ctx.state = Runtime::extract_state(parent_state, ctx);
+    ctx.set_state_if_changed(Runtime::extract_state(parent_state, ctx));
 
     Lisple::sptr_val_v init_args = {ctx.state, init_hook_ctx};
     auto new_state = Runtime::invoke_hook(runtime, view, ctx.mode->init, init_args);
-    if (new_state->type != Lisple::Value::Type::NIL) ctx.state = new_state;
+    if (new_state->type != Lisple::Value::Type::NIL) ctx.set_state_if_changed(new_state);
 
     for (auto& grandchild : ctx.children)
     {
-      ctx.state = init_view_tree(assets, runtime, init_hook_ctx, grandchild, ctx.state);
+      ctx.set_state_if_changed(
+        init_view_tree(assets, runtime, init_hook_ctx, grandchild, ctx.state));
     }
 
     return Runtime::merge_state(parent_state, ctx, ctx.state);
@@ -314,14 +316,14 @@ namespace Pixils::UI
     Lisple::sptr_val_v init_args = {ctx.state, init_hook_ctx};
     auto new_state =
       Runtime::invoke_hook(runtime, view, ctx.mode->init, init_args, ctx.state);
-    ctx.state = new_state;
+    ctx.set_state_if_changed(new_state);
   }
 
   void restore_view_tree(const std::shared_ptr<Runtime::View>& view,
                          const Lisple::sptr_val& parent_state)
   {
     auto& ctx = *view;
-    ctx.state = Runtime::extract_state(parent_state, ctx);
+    ctx.set_state_if_changed(Runtime::extract_state(parent_state, ctx));
     for (auto& grandchild : ctx.children)
     {
       restore_view_tree(grandchild, ctx.state);

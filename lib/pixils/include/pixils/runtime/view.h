@@ -32,6 +32,7 @@ namespace Pixils::Runtime
   struct View
   {
     std::string id;
+    View* parent = nullptr;
     Lisple::sptr_val state_binding = Lisple::Constant::NIL;
     Mode* mode = nullptr;
     UI::InteractionState interaction;
@@ -50,6 +51,11 @@ namespace Pixils::Runtime
     UI::StyleView style_view;
     UI::Theme effective_theme;
     UI::Style effective_style;
+    std::uint64_t state_generation = 1;
+    std::uint64_t interaction_generation = 1;
+    std::uint64_t children_generation = 1;
+    std::uint64_t style_generation = 1;
+    std::uint64_t subtree_generation = 1;
     struct NaturalContentSizeCache
     {
       bool valid = false;
@@ -72,6 +78,13 @@ namespace Pixils::Runtime
     std::vector<CustomEvent> emitted_events;
     std::vector<QueuedChildReplacement> pending_child_replacements;
 
+    void set_parent(View* parent);
+    void touch_subtree_generation();
+    void mark_state_changed();
+    void mark_interaction_changed();
+    void mark_children_changed();
+    void mark_style_changed();
+    bool set_state_if_changed(const Lisple::sptr_val& next_state);
     void emit_event(const CustomEvent& event);
     void drain_events(std::vector<CustomEvent>& collected);
     void queue_replace_child(const std::string& child_id, ChildSlot child_slot);

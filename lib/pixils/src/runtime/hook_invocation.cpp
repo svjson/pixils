@@ -56,6 +56,7 @@ namespace Pixils::Runtime
         parent_state =
           UI::init_view_tree(*assets, runtime, hook_ctx, new_child, parent_state);
         *child_it = std::move(new_child);
+        view->mark_children_changed();
       }
 
       for (auto& child : view->children)

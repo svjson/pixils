@@ -18,7 +18,7 @@ namespace Pixils::UI
     void restore_subtree_state(const std::shared_ptr<Runtime::View>& view,
                                const Lisple::sptr_val& parent_state)
     {
-      view->state = Runtime::extract_state(parent_state, *view);
+      view->set_state_if_changed(Runtime::extract_state(parent_state, *view));
       for (auto& child : view->children)
       {
         restore_subtree_state(child, view->state);
@@ -29,6 +29,7 @@ namespace Pixils::UI
 
   std::vector<CustomEvent> process_view_events(Runtime::View& receiver,
                                                Lisple::sptr_val* parent_state,
+                                               Runtime::View* parent_view,
                                                Lisple::sptr_val& view_ctx,
                                                std::vector<CustomEvent>& events,
                                                Lisple::Runtime& runtime,
@@ -54,15 +55,25 @@ namespace Pixils::UI
         Runtime::invoke_hook(runtime, receiver_ref, it->second, event_args, receiver.state);
       if (new_state->type != Lisple::Value::Type::NIL)
       {
-        receiver.state = new_state;
-        if (receiver_state_updated) *receiver_state_updated = true;
-        for (auto& child : receiver.children)
+        if (receiver.set_state_if_changed(new_state))
         {
-          restore_subtree_state(child, receiver.state);
+          if (receiver_state_updated) *receiver_state_updated = true;
+          for (auto& child : receiver.children)
+          {
+            restore_subtree_state(child, receiver.state);
+          }
         }
         if (parent_state)
         {
-          *parent_state = Runtime::merge_state(*parent_state, receiver, receiver.state);
+          auto merged = Runtime::merge_state(*parent_state, receiver, receiver.state);
+          if (parent_view)
+          {
+            parent_view->set_state_if_changed(merged);
+          }
+          else
+          {
+            *parent_state = merged;
+          }
         }
       }
       if (!event.propagation_stopped)

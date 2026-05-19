@@ -37,13 +37,15 @@ namespace Pixils::Runtime
       auto ctx_parent_state = ctx.state;
       emitted_events = UI::process_view_events(ctx,
                                                &ctx_parent_state,
+                                               nullptr,
                                                rargs.back(),
                                                emitted_events,
                                                lisple_runtime);
       rargs[0] = ctx.state;
       if (ctx.mode->update && ctx.mode->update->type != Lisple::Value::Type::NIL)
       {
-        ctx.state = invoke_hook(lisple_runtime, view, ctx.mode->update, rargs, ctx.state);
+        ctx.set_state_if_changed(
+          invoke_hook(lisple_runtime, view, ctx.mode->update, rargs, ctx.state));
       }
       mode_stack.update_state(ctx.state, update_stack.size() - i);
 

@@ -25,6 +25,7 @@ namespace Pixils::UI
    */
   std::vector<CustomEvent> process_view_events(Runtime::View& receiver,
                                                Lisple::sptr_val* parent_state,
+                                               Runtime::View* parent_view,
                                                Lisple::sptr_val& view_ctx,
                                                std::vector<CustomEvent>& events,
                                                Lisple::Runtime& runtime,

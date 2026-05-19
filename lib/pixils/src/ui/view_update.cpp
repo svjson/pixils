@@ -10,6 +10,7 @@
 #include <lisple/host/object.h>
 #include <lisple/runtime.h>
 #include <lisple/runtime/value.h>
+#include <utility>
 
 namespace Pixils::UI
 {
@@ -25,30 +26,6 @@ namespace Pixils::UI
       return view.state_binding && view.state_binding->type != Lisple::Value::Type::NIL;
     }
 
-    bool rtval_equal(const Lisple::sptr_val& lhs, const Lisple::sptr_val& rhs)
-    {
-      PIXILS_BENCHMARK_COUNT(view_state_equality_checks);
-      if (lhs == rhs) return true;
-      if (!lhs || !rhs) return false;
-      if (lhs->type != rhs->type) return false;
-
-      return *lhs == *rhs;
-    }
-
-    void assign_state_if_changed(Lisple::sptr_val& target,
-                                 const Lisple::sptr_val& next_state)
-    {
-      if (rtval_equal(target, next_state))
-      {
-        PIXILS_BENCHMARK_COUNT(view_state_assignments_preserved);
-      }
-      else
-      {
-        PIXILS_BENCHMARK_COUNT(view_state_assignments_replaced);
-        target = next_state;
-      }
-    }
-
     void run_update_hook(const std::shared_ptr<Runtime::View>& view,
                          Runtime::HookArguments& hook_args,
                          Lisple::Runtime& rt)
@@ -57,21 +34,25 @@ namespace Pixils::UI
 
       Lisple::obj<HookContext>(*hook_args.update_args[1]).current_view = view;
       Lisple::sptr_val_v args = {view->state, hook_args.update_args[1]};
-      assign_state_if_changed(
-        view->state,
+      view->set_state_if_changed(
         Runtime::invoke_hook(rt, view, view->mode->update, args, view->state));
     }
 
     void bubble_child_events_to_subject(Runtime::View& subject,
                                         Lisple::sptr_val* subject_parent_state,
+                                        Runtime::View* subject_parent_view,
                                         const std::shared_ptr<Runtime::View>& child,
                                         Lisple::sptr_val& view_ctx,
                                         Lisple::Runtime& rt)
     {
       std::vector<CustomEvent> emitted_events;
       child->drain_events(emitted_events);
-      emitted_events =
-        process_view_events(subject, subject_parent_state, view_ctx, emitted_events, rt);
+      emitted_events = process_view_events(subject,
+                                           subject_parent_state,
+                                           subject_parent_view,
+                                           view_ctx,
+                                           emitted_events,
+                                           rt);
 
       for (auto& event : emitted_events)
       {
@@ -84,26 +65,27 @@ namespace Pixils::UI
                             const MouseState& mouse_state,
                             const FocusState& focus_state)
     {
-      view.interaction.hovered = false;
+      auto next_interaction = view.interaction;
+      next_interaction.hovered = false;
       for (auto& weak_v : mouse_state.hovered_chain)
       {
         if (auto v = weak_v.lock(); v && v.get() == &view)
         {
-          view.interaction.hovered = true;
+          next_interaction.hovered = true;
           break;
         }
       }
-      view.interaction.focused = false;
-      view.interaction.focus_within = false;
+      next_interaction.focused = false;
+      next_interaction.focus_within = false;
 
-      view.interaction.pressed.clear();
+      next_interaction.pressed.clear();
       for (auto& [btn, chain] : mouse_state.button_chains)
       {
         for (auto& weak_v : chain)
         {
           if (auto v = weak_v.lock(); v && v.get() == &view)
           {
-            view.interaction.pressed.insert(btn);
+            next_interaction.pressed.insert(btn);
             break;
           }
         }
@@ -112,16 +94,25 @@ namespace Pixils::UI
       auto focused_view = focus_state.focused.lock();
       if (focused_view && focused_view.get() == &view)
       {
-        view.interaction.focused = true;
+        next_interaction.focused = true;
       }
 
       for (auto& weak_v : focus_state.focus_chain)
       {
         if (auto v = weak_v.lock(); v && v.get() == &view)
         {
-          view.interaction.focus_within = true;
+          next_interaction.focus_within = true;
           break;
         }
+      }
+
+      if (view.interaction.hovered != next_interaction.hovered ||
+          view.interaction.focused != next_interaction.focused ||
+          view.interaction.focus_within != next_interaction.focus_within ||
+          view.interaction.pressed != next_interaction.pressed)
+      {
+        view.interaction = std::move(next_interaction);
+        view.mark_interaction_changed();
       }
     }
 
@@ -129,6 +120,7 @@ namespace Pixils::UI
                              const MouseState& mouse_state,
                              const FocusState& focus_state,
                              Lisple::sptr_val* parent_state,
+                             Runtime::View* parent_view,
                              const Point& mouse_pos,
                              Runtime::HookArguments& hook_args,
                              Lisple::Runtime& rt)
@@ -137,7 +129,7 @@ namespace Pixils::UI
 
       if (parent_state && has_state_binding(view))
       {
-        assign_state_if_changed(view.state, Runtime::extract_state(*parent_state, view));
+        view.set_state_if_changed(Runtime::extract_state(*parent_state, view));
       }
 
       update_interaction(view, mouse_pos, mouse_state, focus_state);
@@ -149,11 +141,13 @@ namespace Pixils::UI
                             mouse_state,
                             focus_state,
                             &view.state,
+                            &view,
                             mouse_pos,
                             hook_args,
                             rt);
         bubble_child_events_to_subject(view,
                                        parent_state,
+                                       parent_view,
                                        child,
                                        hook_args.update_args[1],
                                        rt);
@@ -161,8 +155,15 @@ namespace Pixils::UI
 
       if (parent_state && has_state_binding(view))
       {
-        assign_state_if_changed(*parent_state,
-                                Runtime::merge_state(*parent_state, view, view.state));
+        auto merged = Runtime::merge_state(*parent_state, view, view.state);
+        if (parent_view)
+        {
+          parent_view->set_state_if_changed(merged);
+        }
+        else
+        {
+          *parent_state = merged;
+        }
       }
     }
 
@@ -197,6 +198,7 @@ namespace Pixils::UI
     update_view_subtree(root,
                         mouse_state,
                         focus_state,
+                        nullptr,
                         nullptr,
                         mouse_pos,
                         hook_args,

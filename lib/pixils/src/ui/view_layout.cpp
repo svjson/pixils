@@ -98,17 +98,7 @@ namespace Pixils::UI
 
       PIXILS_BENCHMARK_COUNT(layout_dependency_signature_nodes);
       hash_combine(seed, std::hash<const Pixils::Runtime::Mode*>{}(view->mode));
-      hash_combine(seed, std::hash<const Lisple::Value*>{}(view->state.get()));
-      hash_combine(seed, std::hash<bool>{}(view->interaction.hovered));
-      hash_combine(seed, std::hash<bool>{}(view->interaction.focused));
-      hash_combine(seed, std::hash<bool>{}(view->interaction.focus_within));
-      hash_combine(seed, std::hash<std::uint64_t>{}(view->style_view.generation()));
-      hash_combine(seed, std::hash<size_t>{}(view->children.size()));
-
-      for (const auto& child : view->children)
-      {
-        append_view_dependency_signature(seed, child);
-      }
+      hash_combine(seed, std::hash<std::uint64_t>{}(view->subtree_generation));
     }
 
     size_t natural_size_dependency_signature(
