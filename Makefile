@@ -16,6 +16,10 @@ install:
 test:
 	cmake --build build --target testpixils && cd build && ctest --output-on-failure --parallel $$(nproc)
 
+benchmark:
+	cmake --build build --target benchmarkpixils
+	build/lib/pixils/benchmark/benchmarkpixils $(BENCHMARK_ARGS)
+
 assets:
 	bash scripts/generate_assets.sh
 
