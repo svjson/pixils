@@ -21,6 +21,7 @@ set(PIXILS_BOOTSTRAP_LISP_FILES
   ui/list-box.lisple
   ui/combo-box.lisple
   ui/text-input.lisple
+  ui/number-input.lisple
   ui/file-dialog.lisple
 )
 

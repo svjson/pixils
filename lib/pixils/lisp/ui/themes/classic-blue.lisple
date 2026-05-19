@@ -21,6 +21,15 @@
 (def CONTENT-BG {:r 0x2d :g 0x39 :b 0x48})
 (def CONTENT-BORDER {:r 0x5f :g 0x6f :b 0x7f})
 
+(def TEXT-INPUT-FRAME-STYLE
+  {:width 80
+   :background (var :content-bg)
+   :border {:color (var :panel-shadow)
+            :thickness 1
+            :right {:color (var :panel-highlight)}
+            :bottom {:color (var :panel-highlight)}}
+   :text {:color (var :text)}})
+
 (deffont classic-blue-font
   {:type :ttf
    :resource :pixils/autoega-8x14
@@ -326,13 +335,9 @@
     'ui/window-minimize-button {:width 18
                                 :height 18}
 
-    'ui/text-input {:width 80
-                    :background (var :content-bg)
-                    :border {:color (var :panel-shadow)
-                             :thickness 1
-                             :right {:color (var :panel-highlight)}
-                             :bottom {:color (var :panel-highlight)}}
-                    :text {:color (var :text)}}
+    'ui/text-input TEXT-INPUT-FRAME-STYLE
+
+    'ui/number-input TEXT-INPUT-FRAME-STYLE
 
     'ui/text-input-inner {:width :fill
                           :background (var :panel-bg)

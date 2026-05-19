@@ -18,6 +18,8 @@ TEST_F(BootstrapTest, loads_embedded_core_ui_modes_into_pixils_mode_registry)
 
   auto text_mode = Lisple::Dict::get_property(modes, Lisple::symbol("ui/text"));
   auto text_input_mode = Lisple::Dict::get_property(modes, Lisple::symbol("ui/text-input"));
+  auto number_input_mode =
+    Lisple::Dict::get_property(modes, Lisple::symbol("ui/number-input"));
   auto button_mode = Lisple::Dict::get_property(modes, Lisple::symbol("ui/button"));
   auto checkbox_mode = Lisple::Dict::get_property(modes, Lisple::symbol("ui/checkbox"));
   auto scrollbar_mode = Lisple::Dict::get_property(modes, Lisple::symbol("ui/scrollbar"));
@@ -48,6 +50,7 @@ TEST_F(BootstrapTest, loads_embedded_core_ui_modes_into_pixils_mode_registry)
 
   ASSERT_NE(text_mode, nullptr);
   ASSERT_NE(text_input_mode, nullptr);
+  ASSERT_NE(number_input_mode, nullptr);
   ASSERT_NE(button_mode, nullptr);
   ASSERT_NE(checkbox_mode, nullptr);
   ASSERT_NE(scrollbar_mode, nullptr);
@@ -70,6 +73,7 @@ TEST_F(BootstrapTest, loads_embedded_core_ui_modes_into_pixils_mode_registry)
 
   EXPECT_EQ(Lisple::obj<Pixils::Runtime::Mode>(*text_mode).name, "ui/text");
   EXPECT_EQ(Lisple::obj<Pixils::Runtime::Mode>(*text_input_mode).name, "ui/text-input");
+  EXPECT_EQ(Lisple::obj<Pixils::Runtime::Mode>(*number_input_mode).name, "ui/number-input");
   EXPECT_EQ(Lisple::obj<Pixils::Runtime::Mode>(*button_mode).name, "ui/button");
   EXPECT_EQ(Lisple::obj<Pixils::Runtime::Mode>(*checkbox_mode).name, "ui/checkbox");
   EXPECT_EQ(Lisple::obj<Pixils::Runtime::Mode>(*scrollbar_mode).name, "ui/scrollbar");
@@ -77,8 +81,7 @@ TEST_F(BootstrapTest, loads_embedded_core_ui_modes_into_pixils_mode_registry)
             "ui/scrollbar-button");
   EXPECT_EQ(Lisple::obj<Pixils::Runtime::Mode>(*scroll_pane_mode).name, "ui/scroll-pane");
   EXPECT_EQ(Lisple::obj<Pixils::Runtime::Mode>(*header_panel_mode).name, "ui/header-panel");
-  EXPECT_EQ(Lisple::obj<Pixils::Runtime::Mode>(*dialog_frame_mode).name,
-            "ui/dialog-frame");
+  EXPECT_EQ(Lisple::obj<Pixils::Runtime::Mode>(*dialog_frame_mode).name, "ui/dialog-frame");
   EXPECT_EQ(Lisple::obj<Pixils::Runtime::Mode>(*file_dialog_body_mode).name,
             "ui/file-dialog-body");
   EXPECT_EQ(Lisple::obj<Pixils::Runtime::Mode>(*window_mode).name, "ui/window");
@@ -138,10 +141,7 @@ TEST_F(BootstrapTest, includes_embedded_file_dialog_source)
     std::find_if(sources.begin(),
                  sources.end(),
                  [](const Pixils::EmbeddedLisp::Source& source)
-                 {
-                   return std::string_view(source.path) ==
-                          "ui/file-dialog.lisple";
-                 });
+                 { return std::string_view(source.path) == "ui/file-dialog.lisple"; });
 
   ASSERT_NE(file_dialog, sources.end());
   EXPECT_NE(std::string_view(file_dialog->source).find("(ns pixils.ui.file-dialog"),

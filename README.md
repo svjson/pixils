@@ -94,6 +94,7 @@ Lisple components, so applications can use them like any other mode.
 | `ui/button` | Focusable button wrapper with inner text/content styling. |
 | `ui/checkbox` | Focusable boolean toggle with a styleable box and label. |
 | `ui/text-input` | Basic editable single-line text field. |
+| `ui/number-input` | Integer text field with numeric filtering, min/max clamping, and keyboard stepping. |
 | `ui/menu-bar`, `ui/popup-menu` | Data-driven menu controls. |
 | `ui/window` | Lightweight draggable window primitive. |
 | `ui/header-panel` | Static content panel with a styled header/title region. |
@@ -130,6 +131,20 @@ header/body structure stays consistent while applications provide body children:
   {:title "Inspector"
    :children [{:mode 'ui/text
                :state {:value "Selected: Grass"}}]})
+```
+
+`ui/number-input` reuses the same text editing core as `ui/text-input`, but only
+accepts integer text. Bind `:value` to numeric state, use optional `:min`, `:max`,
+and `:step`, and listen for `:number-input/change` when an ancestor needs the
+change payload. Up/down arrows step the value and clamp it to the configured
+range.
+
+```clojure
+{:mode 'ui/number-input
+ :state {:value (pixils.ui/bind-state :tile-size)
+         :min 1
+         :max 64
+         :step 1}}
 ```
 
 The scrollbar uses its effective style as its visual default: `:background` for

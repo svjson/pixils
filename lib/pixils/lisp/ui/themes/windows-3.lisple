@@ -4,6 +4,12 @@
             [pixils.point :as pt]
             [pixils.render :as r]))
 
+(def TEXT-INPUT-FRAME-STYLE
+  {:width 80
+   :border {:line-style :solid
+            :color (var :border)
+            :thickness 1}})
+
 
 
 ;; Win 3.11 Sans Serif System Font
@@ -378,10 +384,10 @@
                       :bottom {:color (var :highlight) :thickness 1}}}
 
             'ui/text-input
-            {:width 80
-             :border {:line-style :solid
-                      :color (var :border)
-                      :thickness 1}}
+            TEXT-INPUT-FRAME-STYLE
+
+            'ui/number-input
+            TEXT-INPUT-FRAME-STYLE
 
             'ui/text-input-inner
             {:width :fill

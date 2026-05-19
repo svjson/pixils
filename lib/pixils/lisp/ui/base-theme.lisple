@@ -1,6 +1,13 @@
 (ns pixils.ui.base-theme
   (:require pixils))
 
+(def TEXT-INPUT-FRAME-STYLE
+  {:width 80
+   :height 22
+   :background {:r 0xff :g 0xff :b 0xff}
+   :border {:color {:r 0x00 :g 0x00 :b 0x00}
+            :thickness 1}})
+
 (def definition
   {:default-variant :base
  :vars {:base {:split-pane-resizer-size 6}}
@@ -218,11 +225,9 @@
    :border {:color {:r 0x66 :g 0x66 :b 0x66}
             :thickness 1}}
 
-  'ui/text-input {:width 80
-                  :height 22
-                  :background {:r 0xff :g 0xff :b 0xff}
-                  :border {:color {:r 0x00 :g 0x00 :b 0x00}
-                           :thickness 1}}
+  'ui/text-input TEXT-INPUT-FRAME-STYLE
+
+  'ui/number-input TEXT-INPUT-FRAME-STYLE
 
   'ui/text-input-inner {:width :fill
                         :height :fill

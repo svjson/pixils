@@ -26,6 +26,21 @@
   (str (substr value 0 cursor-index)
        (substr value (inc cursor-index))))
 
+(defun text-input-accepts-value? [state value]
+  (if-let [accept-value? (:accept-value? state)]
+    (apply accept-value? [value state])
+    true))
+
+(defun text-input-change [state value cursor-index ctx]
+  (if (text-input-accepts-value? state value)
+    (do
+      (when (not= (:emit-change? state) false)
+        (ui/emit! (:view ctx) :text-input/change {:value value}))
+      (-> state
+          (assoc :value value)
+          (assoc :cursor-index cursor-index)))
+    state))
+
 (defcomponent ui/text-input-caret
   {:style {:width 1}
    :update (fn [state ctx]
@@ -92,14 +107,18 @@
                       (cond
                         (= :key/backspace (:key event))
                         (if (> cursor-index 0)
-                          (-> state
-                              (assoc :value (remove-char-before value cursor-index))
-                              (assoc :cursor-index (dec cursor-index)))
+                          (text-input-change state
+                                             (remove-char-before value cursor-index)
+                                             (dec cursor-index)
+                                             ctx)
                           state)
 
                         (= :key/delete (:key event))
                         (if (< cursor-index (count value))
-                          (assoc state :value (remove-char-after value cursor-index))
+                          (text-input-change state
+                                             (remove-char-after value cursor-index)
+                                             cursor-index
+                                             ctx)
                           state)
 
                         (= :key/left (:key event))
@@ -116,13 +135,16 @@
 
                         :default
                         (if-let [text (kbd/event->text event)]
-                          (-> state
-                              (assoc :value (insert-text-at value cursor-index text))
-                              (assoc :cursor-index (+ cursor-index (count text))))
+                          (text-input-change state
+                                             (insert-text-at value cursor-index text)
+                                             (+ cursor-index (count text))
+                                             ctx)
                           state)))))})
 
 (defcomponent ui/text-input
   {:children [{:mode 'ui/text-input-inner
                :state {:value (ui/bind-state :value)
                        :disabled? (ui/bind-state :disabled?)
-                       :auto-focus? (ui/bind-state :auto-focus?)}}]})
+                       :auto-focus? (ui/bind-state :auto-focus?)
+                       :accept-value? (ui/bind-state :accept-value?)
+                       :emit-change? (ui/bind-state :emit-change?)}}]})
