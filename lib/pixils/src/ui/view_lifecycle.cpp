@@ -208,7 +208,9 @@ namespace Pixils::UI
 
     attach_view_mode(view, base_mode, overrides, runtime);
 
-    return std::make_shared<Runtime::View>(std::move(view));
+    auto root = std::make_shared<Runtime::View>(std::move(view));
+    attach_style_view_tree(root, nullptr);
+    return root;
   }
 
   void attach_view_mode(Runtime::View& view,
@@ -259,7 +261,21 @@ namespace Pixils::UI
       view.children.push_back(build_view_tree(grandchild_slot, modes, runtime));
     }
 
-    return std::make_shared<Runtime::View>(std::move(view));
+    auto root = std::make_shared<Runtime::View>(std::move(view));
+    attach_style_view_tree(root, nullptr);
+    return root;
+  }
+
+  void attach_style_view_tree(const std::shared_ptr<Runtime::View>& view,
+                              Runtime::View* parent)
+  {
+    if (!view) return;
+
+    view->style_view.set_parent(parent ? &parent->style_view : nullptr);
+    for (auto& child : view->children)
+    {
+      attach_style_view_tree(child, view.get());
+    }
   }
 
   Lisple::sptr_val init_view_tree(Asset::Registry& assets,

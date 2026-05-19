@@ -329,6 +329,8 @@ namespace Pixils::Runtime
     {
       this->active_mode->children.push_back(
         Pixils::UI::build_view_tree(slot, modes, lisple_runtime));
+      Pixils::UI::attach_style_view_tree(this->active_mode->children.back(),
+                                         this->active_mode.get());
       parent_state = Pixils::UI::init_view_tree(assets,
                                                 lisple_runtime,
                                                 hook_args.init_args[1],

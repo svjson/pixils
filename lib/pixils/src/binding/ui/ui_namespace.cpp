@@ -286,6 +286,7 @@ namespace Pixils::Script
       Runtime::View& view = Lisple::obj<Runtime::View>(*target);
       Runtime::Mode& mode = ensure_instance_mode(view);
       apply_runtime_style(mode, ctx, args[1]);
+      view.style_view.invalidate();
 
       return target;
     }

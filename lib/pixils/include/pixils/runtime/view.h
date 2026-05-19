@@ -5,6 +5,7 @@
 #include "pixils/ui/event.h"
 #include <pixils/runtime/mode.h>
 #include <pixils/ui/interaction.h>
+#include <pixils/ui/style_view.h>
 #include <pixils/ui/theme.h>
 
 #include <lisple/runtime/value.h>
@@ -44,6 +45,7 @@ namespace Pixils::Runtime
     Rect bounds = {0, 0, 0, 0};
     Rect external_bounds = {0, 0, 0, 0};
     std::optional<UI::Theme> inherited_theme = std::nullopt;
+    UI::StyleView style_view;
     UI::Theme effective_theme;
     UI::Style effective_style;
     std::vector<std::shared_ptr<View>> children;

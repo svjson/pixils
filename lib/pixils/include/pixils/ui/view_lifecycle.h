@@ -38,6 +38,9 @@ namespace Pixils::UI
                                                  const Lisple::sptr_val& modes,
                                                  Lisple::Runtime& runtime);
 
+  void attach_style_view_tree(const std::shared_ptr<Runtime::View>& view,
+                              Runtime::View* parent);
+
   Lisple::sptr_val init_view_tree(Asset::Registry& assets,
                                   Lisple::Runtime& runtime,
                                   const Lisple::sptr_val& init_hook_ctx,

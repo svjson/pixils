@@ -52,6 +52,7 @@ namespace Pixils::Runtime
         }
 
         auto new_child = UI::build_view_tree(replacement.child_slot, modes, runtime);
+        UI::attach_style_view_tree(new_child, view.get());
         parent_state =
           UI::init_view_tree(*assets, runtime, hook_ctx, new_child, parent_state);
         *child_it = std::move(new_child);

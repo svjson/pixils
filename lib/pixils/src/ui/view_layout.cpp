@@ -446,6 +446,37 @@ namespace Pixils::UI
       return theme;
     }
 
+    void resolve_style_view_snapshot(
+      const std::shared_ptr<Pixils::Runtime::View>& view,
+      Lisple::Runtime& runtime,
+      const Style* inherited_style,
+      const Theme* inherited_theme,
+      const std::vector<ThemeMatchContext>& selector_path)
+    {
+      const auto parent_generation = view->style_view.parent()
+                                       ? view->style_view.parent()->generation()
+                                       : 0;
+      if (view->style_view.valid_for(view->mode,
+                                     view->state.get(),
+                                     view->interaction,
+                                     inherited_theme,
+                                     parent_generation))
+      {
+        PIXILS_BENCHMARK_COUNT(style_view_cache_hits);
+        return;
+      }
+
+      PIXILS_BENCHMARK_COUNT(style_view_cache_misses);
+      view->effective_theme = resolve_effective_theme_impl(view, runtime, inherited_theme);
+      view->effective_style =
+        resolve_effective_style(view, runtime, inherited_style, selector_path);
+      view->style_view.mark_resolved(view->mode,
+                                     view->state.get(),
+                                     view->interaction,
+                                     inherited_theme,
+                                     parent_generation);
+    }
+
     std::optional<Dimension> calculate_child_tree_content_size(
       const std::shared_ptr<Pixils::Runtime::View>& view,
       LayoutPass& pass,
@@ -487,10 +518,11 @@ namespace Pixils::UI
         return cached->second;
       }
 
-      view->effective_theme =
-        resolve_effective_theme_impl(view, pass.runtime, inherited_theme);
-      view->effective_style =
-        resolve_effective_style(view, pass.runtime, inherited_style, selector_path);
+      resolve_style_view_snapshot(view,
+                                  pass.runtime,
+                                  inherited_style,
+                                  inherited_theme,
+                                  selector_path);
 
       if (removes_layout(view->effective_style))
       {
