@@ -12,8 +12,7 @@
 
 namespace Pixils::Benchmark
 {
-  inline constexpr std::size_t METRIC_COUNT =
-    static_cast<std::size_t>(MetricId::count);
+  inline constexpr std::size_t METRIC_COUNT = static_cast<std::size_t>(MetricId::count);
   using MetricValues = std::array<std::int64_t, METRIC_COUNT>;
 
   struct Config
@@ -22,7 +21,7 @@ namespace Pixils::Benchmark
     bool allow_dirty_worktree = false;
     std::string output_dir = "benchmarks/pixils";
     // Change this manually when starting a new benchmark goalpost.
-    std::string goalpost = "002_style_theme_view_cache";
+    std::string goalpost = "003_new_counter_baseline";
     std::string run_name = "history";
     std::vector<std::string> category_filter;
   };
