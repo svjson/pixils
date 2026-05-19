@@ -1,7 +1,8 @@
 #include "benchmark.h"
 
+#include <array>
 #include <chrono>
-#include <algorithm>
+#include <cstdio>
 #include <filesystem>
 #include <fstream>
 #include <iomanip>
@@ -75,47 +76,51 @@ namespace Pixils::Benchmark
       return out.str();
     }
 
-    std::size_t csv_field_count(const std::string& line)
+    std::string status_path(std::string_view line)
     {
-      return static_cast<std::size_t>(
-               std::count(line.begin(), line.end(), ',')) +
-             1;
+      if (line.size() < 4) return {};
+      std::string path(line.substr(3));
+      const auto rename_arrow = path.find(" -> ");
+      if (rename_arrow != std::string::npos)
+      {
+        path = path.substr(rename_arrow + 4);
+      }
+      if (!path.empty() && path.front() == '"') return {};
+      return path;
     }
 
-    void ensure_csv_schema(const std::filesystem::path& file_name,
-                           const std::string& expected_header)
+    bool path_is_under_benchmark_harness(const std::string& path)
     {
-      std::ifstream in(file_name);
-      if (!in.good()) return;
+      constexpr std::string_view prefix = "lib/pixils/benchmark/";
+      return path.rfind(prefix, 0) == 0;
+    }
 
-      std::vector<std::string> lines;
+    std::vector<std::string> dirty_tracked_paths_in_pixils_library()
+    {
+      std::vector<std::string> dirty;
+      std::array<char, 512> buffer{};
+      FILE* pipe =
+        popen("git status --porcelain=v1 --untracked-files=no -- lib/pixils "
+              "2>/dev/null",
+              "r");
+      if (!pipe) return dirty;
+
+      std::string output;
+      while (fgets(buffer.data(), static_cast<int>(buffer.size()), pipe) != nullptr)
+      {
+        output += buffer.data();
+      }
+      pclose(pipe);
+
+      std::istringstream lines(output);
       std::string line;
-      while (std::getline(in, line))
+      while (std::getline(lines, line))
       {
-        lines.push_back(line);
+        const auto path = status_path(line);
+        if (path.empty() || path_is_under_benchmark_harness(path)) continue;
+        dirty.push_back(path);
       }
-      in.close();
-
-      if (lines.empty() || lines.front() == expected_header) return;
-
-      const auto old_field_count = csv_field_count(lines.front());
-      const auto new_field_count = csv_field_count(expected_header);
-      lines.front() = expected_header;
-
-      if (old_field_count < new_field_count)
-      {
-        const std::string padding(new_field_count - old_field_count, ',');
-        for (std::size_t i = 1; i < lines.size(); i++)
-        {
-          lines[i] += padding;
-        }
-      }
-
-      std::ofstream out(file_name, std::ios::trunc);
-      for (const auto& output_line : lines)
-      {
-        out << output_line << "\n";
-      }
+      return dirty;
     }
   } // namespace
 
@@ -151,7 +156,9 @@ namespace Pixils::Benchmark
                      MetricId::runtime_style_source_resolve_calls,
                      MetricId::theme_matching_calls,
                      MetricId::theme_rule_match_checks,
-                     MetricId::theme_rules_matched});
+                     MetricId::theme_rules_matched,
+                     MetricId::style_view_cache_hits,
+                     MetricId::style_view_cache_misses});
   }
 
   Category render_category()
@@ -175,7 +182,9 @@ namespace Pixils::Benchmark
                      MetricId::runtime_style_source_resolve_calls,
                      MetricId::theme_matching_calls,
                      MetricId::theme_rule_match_checks,
-                     MetricId::theme_rules_matched});
+                     MetricId::theme_rules_matched,
+                     MetricId::style_view_cache_hits,
+                     MetricId::style_view_cache_misses});
   }
 
   Category runtime_category()
@@ -214,7 +223,9 @@ namespace Pixils::Benchmark
                      MetricId::runtime_style_source_resolve_calls,
                      MetricId::theme_matching_calls,
                      MetricId::theme_rule_match_checks,
-                     MetricId::theme_rules_matched});
+                     MetricId::theme_rules_matched,
+                     MetricId::style_view_cache_hits,
+                     MetricId::style_view_cache_misses});
   }
 
   Category appfixture_category()
@@ -248,7 +259,9 @@ namespace Pixils::Benchmark
                      MetricId::runtime_style_source_resolve_calls,
                      MetricId::theme_matching_calls,
                      MetricId::theme_rule_match_checks,
-                     MetricId::theme_rules_matched});
+                     MetricId::theme_rules_matched,
+                     MetricId::style_view_cache_hits,
+                     MetricId::style_view_cache_misses});
   }
 
   bool category_enabled(const std::string& name)
@@ -327,6 +340,32 @@ namespace Pixils::Benchmark
       .count();
   }
 
+  void validate_csv_output_allowed()
+  {
+    if (!active_config.csv_enabled || active_config.allow_dirty_worktree) return;
+
+    const auto dirty = dirty_tracked_paths_in_pixils_library();
+    if (dirty.empty()) return;
+
+    std::ostringstream message;
+    message << "Refusing to write benchmark CSVs with dirty tracked lib/pixils "
+               "library files.\n"
+            << "Use --no-csv for exploratory runs, or --allow-dirty-worktree "
+               "if this is intentional.\n"
+            << "Dirty tracked paths under lib/pixils, excluding "
+               "lib/pixils/benchmark:\n";
+    constexpr std::size_t max_paths = 12;
+    for (std::size_t i = 0; i < dirty.size() && i < max_paths; i++)
+    {
+      message << "  " << dirty[i] << "\n";
+    }
+    if (dirty.size() > max_paths)
+    {
+      message << "  ... and " << (dirty.size() - max_paths) << " more\n";
+    }
+    throw std::runtime_error(message.str());
+  }
+
   void print_result(const Result& result)
   {
     std::cout << "----------------------------------------------------\n";
@@ -350,27 +389,31 @@ namespace Pixils::Benchmark
                      safe_path_part(result.category.name);
     const auto file_name = dir / (safe_path_part(result.benchmark_name) + ".csv");
 
-    std::filesystem::create_directories(dir);
-
     const std::string header = csv_header(result.category);
-
-    bool empty = true;
+    const bool exists = std::filesystem::exists(file_name);
+    bool write_header = true;
     {
       std::ifstream in(file_name);
       if (in.good())
       {
-        empty = in.peek() == std::ifstream::traits_type::eof();
+        std::string existing_header;
+        std::getline(in, existing_header);
+        write_header = existing_header.empty();
+        if (!existing_header.empty() && existing_header != header)
+        {
+          throw std::runtime_error(
+            "Benchmark CSV schema mismatch for " + file_name.string() +
+            ". Start a new goalpost directory or migrate the file explicitly.");
+        }
       }
     }
-    if (!empty)
-    {
-      ensure_csv_schema(file_name, header);
-    }
 
-    std::ofstream out(file_name, std::ios::app);
+    std::filesystem::create_directories(dir);
+
+    std::ofstream out(file_name, exists ? std::ios::app : std::ios::trunc);
     out << std::setprecision(12);
 
-    if (empty)
+    if (write_header)
     {
       out << header << "\n";
     }

@@ -38,6 +38,8 @@ namespace Pixils::Benchmark
     theme_matching_calls,
     theme_rule_match_checks,
     theme_rules_matched,
+    style_view_cache_hits,
+    style_view_cache_misses,
     count,
   };
 

@@ -19,6 +19,7 @@ namespace Pixils::Benchmark
   struct Config
   {
     bool csv_enabled = true;
+    bool allow_dirty_worktree = false;
     std::string output_dir = "benchmarks/pixils";
     // Change this manually when starting a new benchmark goalpost.
     std::string goalpost = "001_style_resolution_baseline";
@@ -72,6 +73,7 @@ namespace Pixils::Benchmark
   };
 
   std::int64_t now_ms();
+  void validate_csv_output_allowed();
   void print_result(const Result& result);
   void write_csv_result(const Result& result);
 } // namespace Pixils::Benchmark

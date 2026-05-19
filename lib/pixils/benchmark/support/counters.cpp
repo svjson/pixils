@@ -41,6 +41,8 @@ namespace Pixils::Benchmark
       {MetricId::theme_matching_calls, "theme_matching_calls"},
       {MetricId::theme_rule_match_checks, "theme_rule_match_checks"},
       {MetricId::theme_rules_matched, "theme_rules_matched"},
+      {MetricId::style_view_cache_hits, "style_view_cache_hits"},
+      {MetricId::style_view_cache_misses, "style_view_cache_misses"},
     }};
 
     constexpr std::size_t metric_index(MetricId id)
