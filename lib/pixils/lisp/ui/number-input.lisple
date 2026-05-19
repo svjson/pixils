@@ -3,42 +3,20 @@
             [pixils.ui :as ui]
             pixils.ui.text-input))
 
-(defun digit? [ch]
-  (or (= ch "0")
-      (= ch "1")
-      (= ch "2")
-      (= ch "3")
-      (= ch "4")
-      (= ch "5")
-      (= ch "6")
-      (= ch "7")
-      (= ch "8")
-      (= ch "9")))
-
-(defun digits-from? [value index]
-  (if (>= index (count value))
-    true
-    (and (digit? (substr value index 1))
-         (digits-from? value (inc index)))))
-
 (defun allows-negative? [state]
   (or (= (:allow-negative? state) true)
       (nil? (:min state))
       (< (:min state) 0)))
 
 (defun integer-text? [value state]
-  (let [text (or value "")]
+  (let [text (or value "")
+        parsed (int text)]
     (cond
       (= text "") true
       (= text "-") (allows-negative? state)
-      (= (substr text 0 1) "-") (and (allows-negative? state)
-                                     (> (count text) 1)
-                                     (digits-from? text 1))
-      :default (digits-from? text 0))))
-
-(defun complete-integer-text? [value]
-  (and (not= value "")
-       (not= value "-")))
+      (nil? parsed) false
+      (= (substr text 0 1) "-") (allows-negative? state)
+      :default true)))
 
 (defun clamp-number [value state]
   (let [min-value (:min state)
@@ -74,11 +52,11 @@
           (assoc :invalid? false)))))
 
 (defun commit-number-input-text [state text ctx]
-  (let [complete? (complete-integer-text? text)
-        value (when complete? (clamp-number (int text) state))
-        normalized-text (if complete?
-                          (number-input-text value)
-                          text)]
+  (let [parsed (int text)
+        value (when (not (nil? parsed)) (clamp-number parsed state))
+        normalized-text (if (nil? value)
+                          text
+                          (number-input-text value))]
     (do
       (ui/emit! (:view ctx) :number-input/change {:value value
                                                   :text normalized-text})
@@ -88,7 +66,7 @@
           (assoc :text-value normalized-text)
           (assoc :last-text-value normalized-text)
           (assoc :invalid? (and (> (count text) 0)
-                                (not complete?)))))))
+                                (nil? value)))))))
 
 (defun commit-number-input-text-if-changed [state ctx]
   (let [text (or (:text-value state) "")]
