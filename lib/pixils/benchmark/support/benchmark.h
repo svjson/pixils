@@ -22,7 +22,7 @@ namespace Pixils::Benchmark
     bool allow_dirty_worktree = false;
     std::string output_dir = "benchmarks/pixils";
     // Change this manually when starting a new benchmark goalpost.
-    std::string goalpost = "001_style_resolution_baseline";
+    std::string goalpost = "002_style_theme_view_cache";
     std::string run_name = "history";
     std::vector<std::string> category_filter;
   };
