@@ -425,6 +425,7 @@ namespace Pixils::Runtime
   void Session::render_mode()
   {
     PIXILS_BENCHMARK_COUNT(runtime_render_mode_calls);
+    PIXILS_BENCHMARK_TIME_BLOCK(runtime_render_time_ns);
 
     auto render_stack = mode_stack.get_render_stack();
     Rect full = {0, 0, render_ctx.buffer_dim.w, render_ctx.buffer_dim.h};

@@ -18,6 +18,7 @@ namespace Pixils::Runtime
   void Session::update_mode()
   {
     PIXILS_BENCHMARK_COUNT(runtime_update_mode_calls);
+    PIXILS_BENCHMARK_TIME_BLOCK(runtime_update_time_ns);
 
     auto update_stack = mode_stack.get_update_stack();
 

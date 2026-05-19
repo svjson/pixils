@@ -316,6 +316,10 @@ namespace Pixils::UI
     std::vector<MatchingRule> matching;
     const auto& source_rules = rules;
     matching.reserve(source_rules.size());
+    PIXILS_BENCHMARK_ADD(theme_index_candidate_rules,
+                         static_cast<std::int64_t>(source_rules.size()));
+    PIXILS_BENCHMARK_ADD(theme_full_selector_match_checks,
+                         static_cast<std::int64_t>(source_rules.size()));
     PIXILS_BENCHMARK_ADD(theme_rule_match_checks,
                          static_cast<std::int64_t>(source_rules.size()));
 
@@ -326,6 +330,9 @@ namespace Pixils::UI
         matching.push_back(MatchingRule{.rule = &source_rules[i]});
       }
     }
+    PIXILS_BENCHMARK_ADD(theme_rules_rejected,
+                         static_cast<std::int64_t>(source_rules.size() -
+                                                   matching.size()));
     PIXILS_BENCHMARK_ADD(theme_rules_matched,
                          static_cast<std::int64_t>(matching.size()));
 

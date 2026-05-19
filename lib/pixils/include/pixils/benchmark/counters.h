@@ -5,6 +5,10 @@
 #include <cstddef>
 #include <string_view>
 
+#ifdef PIXILS_ENABLE_BENCHMARK_COUNTERS
+#include <chrono>
+#endif
+
 namespace Pixils::Benchmark
 {
   enum class MetricId : std::uint16_t
@@ -14,14 +18,32 @@ namespace Pixils::Benchmark
     layout_children_calls,
     layout_children_items,
     layout_content_size_hook_calls,
+    layout_content_size_hook_time_ns,
     layout_natural_size_cache_hits,
+    layout_natural_size_cache_misses,
+    layout_dirty_cache_hits,
+    layout_dirty_cache_misses,
+    layout_invalidations,
+    layout_skipped_clean_subtrees,
+    layout_dirty_subtree_nodes,
+    layout_time_ns,
     render_view_calls,
     render_view_nodes,
     render_hook_calls,
+    render_hook_time_ns,
+    render_temporary_texture_creations,
+    render_offscreen_passes,
+    render_texture_queries,
+    render_copy_calls,
+    render_fill_rect_calls,
+    render_image_lookup_calls,
+    render_time_ns,
     runtime_push_mode_calls,
     runtime_pop_mode_calls,
     runtime_render_mode_calls,
     runtime_update_mode_calls,
+    runtime_render_time_ns,
+    runtime_update_time_ns,
     event_handler_invocations,
     events_bubbled,
     ui_style_allocations,
@@ -32,14 +54,39 @@ namespace Pixils::Benchmark
     ui_style_focus_within_allocations,
     ui_style_focus_allocations,
     style_resolve_calls,
+    style_resolve_time_ns,
     style_variant_apply_calls,
     style_layer_resolve_calls,
     runtime_style_source_resolve_calls,
     theme_matching_calls,
+    theme_index_candidate_rules,
+    theme_full_selector_match_checks,
     theme_rule_match_checks,
+    theme_rules_rejected,
     theme_rules_matched,
     style_view_cache_hits,
     style_view_cache_misses,
+    style_view_resolutions,
+    style_view_invalidations,
+    style_view_property_lookup_calls,
+    style_view_property_cache_hits,
+    style_view_property_cache_misses,
+    style_view_parent_steps,
+    style_view_inherited_fallthroughs,
+    text_render_op_creations,
+    text_render_op_failures,
+    text_measure_calls,
+    text_measure_time_ns,
+    text_line_measure_calls,
+    text_layout_calls,
+    text_layout_time_ns,
+    text_render_calls,
+    text_render_time_ns,
+    text_render_lines,
+    text_render_segments,
+    text_renderer_size_calls,
+    text_renderer_glyphs_measured,
+    text_renderer_glyphs_rendered,
     count,
   };
 
@@ -55,17 +102,46 @@ namespace Pixils::Benchmark
   std::int64_t value(MetricId id);
   const MetricDefinition* metric_definitions();
   std::size_t metric_definition_count();
+
+  class ScopedTimer
+  {
+   public:
+    explicit ScopedTimer(MetricId id)
+      : id(id)
+      , start(std::chrono::steady_clock::now())
+    {
+    }
+
+    ~ScopedTimer()
+    {
+      const auto end = std::chrono::steady_clock::now();
+      add(id,
+          std::chrono::duration_cast<std::chrono::nanoseconds>(end - start)
+            .count());
+    }
+
+   private:
+    MetricId id;
+    std::chrono::steady_clock::time_point start;
+  };
 #endif
 } // namespace Pixils::Benchmark
 
 #ifdef PIXILS_ENABLE_BENCHMARK_COUNTERS
+#define PIXILS_BENCHMARK_CONCAT_IMPL(a, b) a##b
+#define PIXILS_BENCHMARK_CONCAT(a, b) PIXILS_BENCHMARK_CONCAT_IMPL(a, b)
 #define PIXILS_BENCHMARK_COUNT(metric_id) \
   ::Pixils::Benchmark::add(::Pixils::Benchmark::MetricId::metric_id)
 #define PIXILS_BENCHMARK_ADD(metric_id, amount) \
   ::Pixils::Benchmark::add(::Pixils::Benchmark::MetricId::metric_id, (amount))
+#define PIXILS_BENCHMARK_TIME_BLOCK(metric_id) \
+  ::Pixils::Benchmark::ScopedTimer PIXILS_BENCHMARK_CONCAT( \
+    pixils_benchmark_timer_, \
+    __COUNTER__)(::Pixils::Benchmark::MetricId::metric_id)
 #else
 #define PIXILS_BENCHMARK_COUNT(metric_id) ((void)0)
 #define PIXILS_BENCHMARK_ADD(metric_id, amount) ((void)0)
+#define PIXILS_BENCHMARK_TIME_BLOCK(metric_id) ((void)0)
 #endif
 
 #endif /* PIXILS__BENCHMARK__COUNTERS_H */

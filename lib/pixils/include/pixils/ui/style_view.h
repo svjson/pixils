@@ -1,6 +1,7 @@
 #ifndef PIXILS__UI__STYLE_VIEW_H
 #define PIXILS__UI__STYLE_VIEW_H
 
+#include <pixils/benchmark/counters.h>
 #include <pixils/ui/interaction.h>
 #include <pixils/ui/theme.h>
 
@@ -22,6 +23,7 @@ namespace Pixils::UI
 
     void invalidate()
     {
+      PIXILS_BENCHMARK_COUNT(style_view_invalidations);
       cache_valid = false;
       local_generation++;
     }
@@ -54,6 +56,7 @@ namespace Pixils::UI
       focus_within_key = interaction.focus_within;
       cache_valid = true;
       resolved_generation++;
+      PIXILS_BENCHMARK_COUNT(style_view_resolutions);
     }
 
     std::uint64_t generation() const { return resolved_generation + local_generation; }

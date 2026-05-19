@@ -510,6 +510,7 @@ namespace Pixils::UI
                           const Style* default_style)
   {
     PIXILS_BENCHMARK_COUNT(style_resolve_calls);
+    PIXILS_BENCHMARK_TIME_BLOCK(style_resolve_time_ns);
 
     UI::Style result;
     if (default_style)

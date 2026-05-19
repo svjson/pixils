@@ -1,5 +1,6 @@
 
 #include <pixils/context.h>
+#include <pixils/benchmark/counters.h>
 #include <pixils/font_registry.h>
 #include <pixils/geom.h>
 #include <pixils/text.h>
@@ -433,6 +434,8 @@ namespace Pixils
         cursor.w = char_rect.w * scale;
         cursor.h = char_rect.h * scale;
 
+        PIXILS_BENCHMARK_COUNT(text_renderer_glyphs_rendered);
+        PIXILS_BENCHMARK_COUNT(render_copy_calls);
         SDL_RenderCopy(rc.renderer, font, &char_rect, &cursor);
         cursor.x += cursor.w + (spacing * scale);
       }
@@ -440,6 +443,7 @@ namespace Pixils
 
     SDL_Rect Renderer::get_rendered_size(RenderContext&, const std::string& string) const
     {
+      PIXILS_BENCHMARK_COUNT(text_renderer_size_calls);
       SDL_Rect rect{0, 0, 0, 0};
 
       for (size_t i = 0; i < string.size(); i++)
@@ -450,6 +454,7 @@ namespace Pixils
         {
           const SDL_Rect& char_rect = *font_map.get_char_rect(c);
           rect.w += char_rect.w + spacing;
+          PIXILS_BENCHMARK_COUNT(text_renderer_glyphs_measured);
         }
       }
       rect.h = line_height;
@@ -496,10 +501,18 @@ namespace Pixils
       const std::vector<Shadow>& shadows,
       const std::optional<InlineTextStyleSpec>& inline_style)
     {
-      if (!rc.font_registry) return std::nullopt;
+      if (!rc.font_registry)
+      {
+        PIXILS_BENCHMARK_COUNT(text_render_op_failures);
+        return std::nullopt;
+      }
 
       BitmapFont* font = rc.font_registry->get_font(font_key);
-      if (!font) return std::nullopt;
+      if (!font)
+      {
+        PIXILS_BENCHMARK_COUNT(text_render_op_failures);
+        return std::nullopt;
+      }
 
       font->renderer.set_scale(scale);
       font->tint_renderer.set_scale(scale);
@@ -516,7 +529,11 @@ namespace Pixils
       {
         std::string inline_font_key = inline_style->font_key.value_or(font_key);
         BitmapFont* inline_font = rc.font_registry->get_font(inline_font_key);
-        if (!inline_font) return std::nullopt;
+        if (!inline_font)
+        {
+          PIXILS_BENCHMARK_COUNT(text_render_op_failures);
+          return std::nullopt;
+        }
 
         int inline_scale = inline_style->scale.value_or(scale);
         inline_font->renderer.set_scale(inline_scale);
@@ -543,6 +560,7 @@ namespace Pixils
         };
       }
 
+      PIXILS_BENCHMARK_COUNT(text_render_op_creations);
       return op;
     }
 
@@ -550,6 +568,7 @@ namespace Pixils
                                           const TextRenderOp& op,
                                           const std::string& string)
     {
+      PIXILS_BENCHMARK_COUNT(text_line_measure_calls);
       SDL_Rect rect{0, 0, 0, op_line_height(op)};
       auto segments = split_inline_segments(string, op);
       for (const auto& segment : segments)
@@ -563,6 +582,8 @@ namespace Pixils
                                      const TextRenderOp& op,
                                      const std::string& string)
     {
+      PIXILS_BENCHMARK_COUNT(text_measure_calls);
+      PIXILS_BENCHMARK_TIME_BLOCK(text_measure_time_ns);
       SDL_Rect rect{0, 0, 0, 0};
       const int line_height = op_line_height(op);
 
@@ -587,6 +608,8 @@ namespace Pixils
                        WrapMode wrap_mode,
                        std::optional<int> max_width)
     {
+      PIXILS_BENCHMARK_COUNT(text_layout_calls);
+      PIXILS_BENCHMARK_TIME_BLOCK(text_layout_time_ns);
       Layout layout;
       const int line_height = op_line_height(op);
       const bool should_wrap = wrap_mode == WrapMode::WORD && max_width && *max_width > 0;
@@ -688,9 +711,12 @@ namespace Pixils
                           int x,
                           int y)
     {
+      PIXILS_BENCHMARK_COUNT(text_render_lines);
       auto mutable_op = op;
       int cursor_x = x;
       auto segments = split_inline_segments(text, mutable_op);
+      PIXILS_BENCHMARK_ADD(text_render_segments,
+                           static_cast<std::int64_t>(segments.size()));
 
       for (const auto& segment : segments)
       {
@@ -736,6 +762,8 @@ namespace Pixils
                      int x,
                      int y)
     {
+      PIXILS_BENCHMARK_COUNT(text_render_calls);
+      PIXILS_BENCHMARK_TIME_BLOCK(text_render_time_ns);
       const int line_height = op_line_height(op);
       auto layout = layout_text(rc, op, text, WrapMode::NONE, std::nullopt);
       for (size_t i = 0; i < layout.lines.size(); i++)
@@ -830,6 +858,9 @@ namespace Pixils
                              const std::string& text,
                              const SDL_Color& color)
     {
+      PIXILS_BENCHMARK_COUNT(text_render_calls);
+      PIXILS_BENCHMARK_TIME_BLOCK(text_render_time_ns);
+      PIXILS_BENCHMARK_COUNT(text_render_lines);
       int align_mod = 0;
       switch (alignment)
       {
@@ -846,7 +877,10 @@ namespace Pixils
       auto render_segments = [&](int x, int y, const SDL_Color& base_color, bool use_alt)
       {
         int cursor_x = x;
-        for (const auto& segment : split_marker_segments(text))
+        auto segments = split_marker_segments(text);
+        PIXILS_BENCHMARK_ADD(text_render_segments,
+                             static_cast<std::int64_t>(segments.size()));
+        for (const auto& segment : segments)
         {
           const SDL_Color& segment_color =
             use_alt && segment.use_inline_style ? alt_color : base_color;
@@ -927,6 +961,7 @@ namespace Pixils
                              background_color.g,
                              background_color.b,
                              background_color.a);
+      PIXILS_BENCHMARK_COUNT(render_fill_rect_calls);
       SDL_RenderFillRect(rc.renderer, &bg_rect);
 
       print(rc, text, color);

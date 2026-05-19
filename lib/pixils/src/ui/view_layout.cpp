@@ -186,6 +186,7 @@ namespace Pixils::UI
         return std::nullopt;
 
       PIXILS_BENCHMARK_COUNT(layout_content_size_hook_calls);
+      PIXILS_BENCHMARK_TIME_BLOCK(layout_content_size_hook_time_ns);
 
       HookContext& native_hook_ctx = Lisple::obj<HookContext>(*hook_ctx);
       auto previous_width = native_hook_ctx.available_width;
@@ -517,6 +518,7 @@ namespace Pixils::UI
         PIXILS_BENCHMARK_COUNT(layout_natural_size_cache_hits);
         return cached->second;
       }
+      PIXILS_BENCHMARK_COUNT(layout_natural_size_cache_misses);
 
       resolve_style_view_snapshot(view,
                                   pass.runtime,
@@ -1024,6 +1026,7 @@ namespace Pixils::UI
                         const Lisple::sptr_val& hook_ctx)
   {
     PIXILS_BENCHMARK_COUNT(layout_view_tree_calls);
+    PIXILS_BENCHMARK_TIME_BLOCK(layout_time_ns);
 
     LayoutPass pass{.runtime = runtime, .hook_ctx = hook_ctx, .natural_size_cache = {}};
     layout_view_tree_impl(view,
