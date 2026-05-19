@@ -1,6 +1,7 @@
 #include "pixils/ui/view_render.h"
 
 #include <pixils/asset/registry.h>
+#include <pixils/benchmark/counters.h>
 #include <pixils/context.h>
 #include <pixils/runtime/hook_invocation.h>
 #include <pixils/runtime/view.h>
@@ -154,6 +155,8 @@ namespace Pixils::UI
                           const Point& origin,
                           bool allow_scale_boundary)
     {
+      PIXILS_BENCHMARK_COUNT(render_view_nodes);
+
       Pixils::Runtime::View& ctx = *view_ptr;
       const Rect bounds = ctx.bounds;
 
@@ -321,6 +324,7 @@ namespace Pixils::UI
         SDL_RenderSetViewport(render_ctx.renderer, &viewport);
         set_clip(render_ctx, content_clip, origin, content);
 
+        PIXILS_BENCHMARK_COUNT(render_hook_calls);
         Lisple::sptr_val_v rargs = {ctx.state, render_hook_ctx};
         Runtime::invoke_hook(runtime, view_ptr, ctx.mode->render, rargs);
 
@@ -350,6 +354,8 @@ namespace Pixils::UI
                    const Lisple::sptr_val& render_hook_ctx,
                    const std::shared_ptr<Pixils::Runtime::View>& view_ptr)
   {
+    PIXILS_BENCHMARK_COUNT(render_view_calls);
+
     render_view_impl(render_ctx,
                      runtime,
                      render_hook_ctx,

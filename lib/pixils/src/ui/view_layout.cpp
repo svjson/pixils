@@ -1,5 +1,6 @@
 #include "pixils/ui/view_layout.h"
 
+#include <pixils/benchmark/counters.h>
 #include <pixils/binding/ui/style/style_host_type.h>
 #include <pixils/binding/ui/style/theme_definition.h>
 #include <pixils/binding/pixils_namespace.h>
@@ -184,6 +185,8 @@ namespace Pixils::UI
           child->mode->content_size->type == Lisple::Value::Type::NIL)
         return std::nullopt;
 
+      PIXILS_BENCHMARK_COUNT(layout_content_size_hook_calls);
+
       HookContext& native_hook_ctx = Lisple::obj<HookContext>(*hook_ctx);
       auto previous_width = native_hook_ctx.available_width;
       auto previous_height = native_hook_ctx.available_height;
@@ -299,6 +302,8 @@ namespace Pixils::UI
                                              const Theme& theme,
                                              Lisple::Runtime& runtime)
     {
+      PIXILS_BENCHMARK_COUNT(style_layer_resolve_calls);
+
       if (layer.style) return layer.style;
       if (!layer.source || layer.source->type == Lisple::Value::Type::NIL)
         return std::nullopt;
@@ -323,6 +328,8 @@ namespace Pixils::UI
                                               Lisple::Runtime& runtime)
     {
       if (!source || source->type == Lisple::Value::Type::NIL) return std::nullopt;
+
+      PIXILS_BENCHMARK_COUNT(runtime_style_source_resolve_calls);
 
       auto resolved_value = Script::resolve_theme_vars(theme, theme.selected_variant, source);
       if (!resolved_value) return std::nullopt;
@@ -474,7 +481,11 @@ namespace Pixils::UI
       auto cache_key =
         natural_size_cache_key(view, parent_available_width, parent_available_height);
       auto cached = pass.natural_size_cache.find(cache_key);
-      if (cached != pass.natural_size_cache.end()) return cached->second;
+      if (cached != pass.natural_size_cache.end())
+      {
+        PIXILS_BENCHMARK_COUNT(layout_natural_size_cache_hits);
+        return cached->second;
+      }
 
       view->effective_theme =
         resolve_effective_theme_impl(view, pass.runtime, inherited_theme);
@@ -599,6 +610,8 @@ namespace Pixils::UI
     {
       if (!view) return;
 
+      PIXILS_BENCHMARK_COUNT(layout_view_tree_nodes);
+
       auto natural_content_size =
         calculate_natural_content_size(view,
                                        pass,
@@ -698,6 +711,10 @@ namespace Pixils::UI
       const Theme* inherited_theme,
       const std::vector<ThemeMatchContext>& parent_selector_path)
     {
+      PIXILS_BENCHMARK_COUNT(layout_children_calls);
+      PIXILS_BENCHMARK_ADD(layout_children_items,
+                           static_cast<std::int64_t>(children.size()));
+
       LayoutDirection direction = layout.direction.value_or(LayoutDirection::COLUMN);
       bool row = direction == LayoutDirection::ROW;
       std::vector<Style> styles;
@@ -974,6 +991,8 @@ namespace Pixils::UI
                         Lisple::Runtime& runtime,
                         const Lisple::sptr_val& hook_ctx)
   {
+    PIXILS_BENCHMARK_COUNT(layout_view_tree_calls);
+
     LayoutPass pass{.runtime = runtime, .hook_ctx = hook_ctx, .natural_size_cache = {}};
     layout_view_tree_impl(view,
                           bounds,

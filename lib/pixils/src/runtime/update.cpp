@@ -1,3 +1,4 @@
+#include <pixils/benchmark/counters.h>
 #include <pixils/binding/ui/ui_namespace.h>
 #include <pixils/runtime/hook_invocation.h>
 #include <pixils/runtime/session.h>
@@ -16,6 +17,8 @@ namespace Pixils::Runtime
 {
   void Session::update_mode()
   {
+    PIXILS_BENCHMARK_COUNT(runtime_update_mode_calls);
+
     auto update_stack = mode_stack.get_update_stack();
 
     std::vector<CustomEvent> emitted_events;

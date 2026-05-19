@@ -2,6 +2,7 @@
 #include "pixils/runtime/session.h"
 
 #include <pixils/asset/registry.h>
+#include <pixils/benchmark/counters.h>
 #include <pixils/binding/mode_definition.h>
 #include <pixils/binding/pixils_namespace.h>
 #include <pixils/binding/point_namespace.h>
@@ -213,6 +214,8 @@ namespace Pixils::Runtime
 
   void Session::pop_mode(const Lisple::sptr_val& payload)
   {
+    PIXILS_BENCHMARK_COUNT(runtime_pop_mode_calls);
+
     if (mode_stack.size() > 1)
     {
       auto popped_frame = mode_stack.peek();
@@ -283,6 +286,8 @@ namespace Pixils::Runtime
                           const Lisple::sptr_val& state,
                           const Lisple::sptr_val& overrides)
   {
+    PIXILS_BENCHMARK_COUNT(runtime_push_mode_calls);
+
     std::optional<UI::Theme> inherited_theme = std::nullopt;
     /**
      * Flush the current active context's state to the Lisple stack before pushing,
@@ -417,6 +422,8 @@ namespace Pixils::Runtime
 
   void Session::render_mode()
   {
+    PIXILS_BENCHMARK_COUNT(runtime_render_mode_calls);
+
     auto render_stack = mode_stack.get_render_stack();
     Rect full = {0, 0, render_ctx.buffer_dim.w, render_ctx.buffer_dim.h};
 

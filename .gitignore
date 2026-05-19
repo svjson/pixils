@@ -12,3 +12,4 @@ libpixils.so
 lib/pixils/native/
 scratches
 examples/tilemap-editor/.recent-projects.edn
+cmake_test_discovery*.json

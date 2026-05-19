@@ -43,26 +43,40 @@ add_custom_command(
 
 add_library(pixils INTERFACE)
 add_library(pixils_objects OBJECT ${pixils_SOURCES} ${pixils_EMBEDDED_LISP_CPP})
+add_library(pixils_benchmark_objects OBJECT ${pixils_SOURCES} ${pixils_EMBEDDED_LISP_CPP})
 
-set_target_properties(pixils_objects PROPERTIES
-  POSITION_INDEPENDENT_CODE ON
-)
+foreach(target pixils_objects pixils_benchmark_objects)
 
-target_include_directories(pixils_objects
-  PUBLIC
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-    $<BUILD_INTERFACE:${pixils_GENERATED_DIR}>
-    $<INSTALL_INTERFACE:include>
-    ${FREETYPE_INCLUDE_DIRS}
-)
+  set_target_properties(${target} PROPERTIES
+    POSITION_INDEPENDENT_CODE ON
+  )
 
-target_link_libraries(pixils_objects
+  target_include_directories(${target}
+    PUBLIC
+      $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+      $<BUILD_INTERFACE:${pixils_GENERATED_DIR}>
+      $<INSTALL_INTERFACE:include>
+      ${FREETYPE_INCLUDE_DIRS}
+  )
+
+  target_link_libraries(${target}
+    PRIVATE
+      SDL2
+      SDL2_image
+      SDL2_mixer
+      ${FREETYPE_LIBRARIES}
+      Lisple::lisple_shared
+  )
+
+endforeach()
+
+target_compile_definitions(pixils_benchmark_objects
   PRIVATE
-    SDL2
-    SDL2_image
-    SDL2_mixer
-    ${FREETYPE_LIBRARIES}
-    Lisple::lisple_shared
+    PIXILS_ENABLE_BENCHMARK_COUNTERS
+)
+
+set_target_properties(pixils_benchmark_objects PROPERTIES
+  EXCLUDE_FROM_ALL ON
 )
 
 add_library(pixils_static STATIC $<TARGET_OBJECTS:pixils_objects>)
@@ -176,3 +190,4 @@ install(TARGETS pixils_lisple_native
 )
 
 add_subdirectory(test)
+add_subdirectory(benchmark)

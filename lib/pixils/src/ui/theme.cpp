@@ -1,3 +1,4 @@
+#include <pixils/benchmark/counters.h>
 #include <pixils/ui/theme.h>
 
 #include <algorithm>
@@ -305,6 +306,8 @@ namespace Pixils::UI
   std::vector<const Style*> Theme::get_matching_styles(
     const std::vector<ThemeMatchContext>& path) const
   {
+    PIXILS_BENCHMARK_COUNT(theme_matching_calls);
+
     struct MatchingRule
     {
       const ThemeRule* rule;
@@ -313,6 +316,8 @@ namespace Pixils::UI
     std::vector<MatchingRule> matching;
     const auto& source_rules = rules;
     matching.reserve(source_rules.size());
+    PIXILS_BENCHMARK_ADD(theme_rule_match_checks,
+                         static_cast<std::int64_t>(source_rules.size()));
 
     for (size_t i = 0; i < source_rules.size(); i++)
     {
@@ -321,6 +326,8 @@ namespace Pixils::UI
         matching.push_back(MatchingRule{.rule = &source_rules[i]});
       }
     }
+    PIXILS_BENCHMARK_ADD(theme_rules_matched,
+                         static_cast<std::int64_t>(matching.size()));
 
     std::stable_sort(
       matching.begin(),

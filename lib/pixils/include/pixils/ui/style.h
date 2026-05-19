@@ -8,6 +8,7 @@
 #include <pixils/ui/interaction.h>
 
 #include <SDL2/SDL_render.h>
+#include <cstddef>
 #include <memory>
 #include <optional>
 #include <vector>
@@ -269,6 +270,12 @@ namespace Pixils::UI
 
     Style();
     Style(const Style& other);
+
+#ifdef PIXILS_ENABLE_BENCHMARK_COUNTERS
+    static void* operator new(std::size_t size);
+    static void operator delete(void* ptr) noexcept;
+    static void operator delete(void* ptr, std::size_t size) noexcept;
+#endif
 
     void operator=(const Style& other);
 

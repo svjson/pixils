@@ -1,13 +1,39 @@
 
 #include "pixils/ui/style.h"
 
+#include <pixils/benchmark/counters.h>
+
 #include <lisple/runtime/dict.h>
 #include <lisple/runtime/value.h>
+
+#include <new>
 
 namespace Pixils::UI
 {
   namespace
   {
+    std::unique_ptr<Style> clone_hover_style(const std::unique_ptr<Style>& style)
+    {
+      if (!style) return nullptr;
+      PIXILS_BENCHMARK_COUNT(ui_style_hover_allocations);
+      return std::make_unique<Style>(*style);
+    }
+
+    std::unique_ptr<Style> clone_focus_within_style(
+      const std::unique_ptr<Style>& style)
+    {
+      if (!style) return nullptr;
+      PIXILS_BENCHMARK_COUNT(ui_style_focus_within_allocations);
+      return std::make_unique<Style>(*style);
+    }
+
+    std::unique_ptr<Style> clone_focus_style(const std::unique_ptr<Style>& style)
+    {
+      if (!style) return nullptr;
+      PIXILS_BENCHMARK_COUNT(ui_style_focus_allocations);
+      return std::make_unique<Style>(*style);
+    }
+
     int horizontal_padding(const Style& style)
     {
       return style.padding ? style.padding->l + style.padding->r : 0;
@@ -111,7 +137,28 @@ namespace Pixils::UI
   } // namespace
 
   /** Style */
-  Style::Style() {}
+  Style::Style()
+  {
+    PIXILS_BENCHMARK_COUNT(ui_style_default_constructed);
+  }
+
+#ifdef PIXILS_ENABLE_BENCHMARK_COUNTERS
+  void* Style::operator new(std::size_t size)
+  {
+    PIXILS_BENCHMARK_COUNT(ui_style_allocations);
+    return ::operator new(size);
+  }
+
+  void Style::operator delete(void* ptr) noexcept
+  {
+    ::operator delete(ptr);
+  }
+
+  void Style::operator delete(void* ptr, std::size_t) noexcept
+  {
+    ::operator delete(ptr);
+  }
+#endif
 
   Style::Size::Size(int fixed_value)
     : mode(Mode::FIXED)
@@ -168,15 +215,17 @@ namespace Pixils::UI
     , hit_test(other.hit_test)
     , clip(other.clip)
     , cursor(other.cursor)
-    , hover(other.hover ? std::make_unique<Style>(*other.hover) : nullptr)
-    , focus_within(other.focus_within ? std::make_unique<Style>(*other.focus_within)
-                                      : nullptr)
-    , focus(other.focus ? std::make_unique<Style>(*other.focus) : nullptr)
+    , hover(clone_hover_style(other.hover))
+    , focus_within(clone_focus_within_style(other.focus_within))
+    , focus(clone_focus_style(other.focus))
   {
+    PIXILS_BENCHMARK_COUNT(ui_style_copied);
   }
 
   void Style::operator=(const Style& other)
   {
+    PIXILS_BENCHMARK_COUNT(ui_style_assigned);
+
     this->background = other.background;
     this->margin = other.margin;
     this->padding = other.padding;
@@ -195,10 +244,9 @@ namespace Pixils::UI
     this->hit_test = other.hit_test;
     this->clip = other.clip;
     this->cursor = other.cursor;
-    this->hover = other.hover ? std::make_unique<Style>(*other.hover) : nullptr;
-    this->focus_within =
-      other.focus_within ? std::make_unique<Style>(*other.focus_within) : nullptr;
-    this->focus = other.focus ? std::make_unique<Style>(*other.focus) : nullptr;
+    this->hover = clone_hover_style(other.hover);
+    this->focus_within = clone_focus_within_style(other.focus_within);
+    this->focus = clone_focus_style(other.focus);
   }
 
   /** Style::Background */
@@ -388,6 +436,8 @@ namespace Pixils::UI
    */
   void apply_style_variant(Style& out, const Style& variant)
   {
+    PIXILS_BENCHMARK_COUNT(style_variant_apply_calls);
+
     if (variant.background)
     {
       if (!out.background) out.background = Style::Background();
@@ -426,13 +476,18 @@ namespace Pixils::UI
     if (variant.cursor) out.cursor = variant.cursor;
     if (variant.hover)
     {
-      if (!out.hover) out.hover = std::make_unique<Style>();
+      if (!out.hover)
+      {
+        PIXILS_BENCHMARK_COUNT(ui_style_hover_allocations);
+        out.hover = std::make_unique<Style>();
+      }
       apply_style_variant(*out.hover, *variant.hover);
     }
     if (variant.focus_within)
     {
       if (!out.focus_within)
       {
+        PIXILS_BENCHMARK_COUNT(ui_style_focus_within_allocations);
         out.focus_within = std::make_unique<Style>();
       }
       apply_style_variant(*out.focus_within, *variant.focus_within);
@@ -441,6 +496,7 @@ namespace Pixils::UI
     {
       if (!out.focus)
       {
+        PIXILS_BENCHMARK_COUNT(ui_style_focus_allocations);
         out.focus = std::make_unique<Style>();
       }
       apply_style_variant(*out.focus, *variant.focus);
@@ -453,6 +509,8 @@ namespace Pixils::UI
                           const InteractionState& interaction,
                           const Style* default_style)
   {
+    PIXILS_BENCHMARK_COUNT(style_resolve_calls);
+
     UI::Style result;
     if (default_style)
     {

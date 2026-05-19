@@ -1,5 +1,6 @@
 #include "pixils/ui/view_events.h"
 
+#include <pixils/benchmark/counters.h>
 #include <pixils/binding/ui/ui_namespace.h>
 #include <pixils/hook_context.h>
 #include <pixils/runtime/hook_invocation.h>
@@ -40,10 +41,12 @@ namespace Pixils::UI
       if (it == receiver.mode->event_handlers.end() ||
           it->second->type != Lisple::Value::Type::FUNCTION)
       {
+        PIXILS_BENCHMARK_COUNT(events_bubbled);
         bubbled_events.push_back(event);
         continue;
       }
 
+      PIXILS_BENCHMARK_COUNT(event_handler_invocations);
       auto event_ref = Script::CustomEventAdapter::make_ref(event);
       Lisple::sptr_val_v event_args{receiver.state, event_ref, view_ctx};
       auto receiver_ref = std::shared_ptr<Runtime::View>(&receiver, [](Runtime::View*) {});
@@ -64,6 +67,7 @@ namespace Pixils::UI
       }
       if (!event.propagation_stopped)
       {
+        PIXILS_BENCHMARK_COUNT(events_bubbled);
         bubbled_events.push_back(event);
       }
     }
