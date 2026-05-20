@@ -404,9 +404,9 @@ TEST_F(TilemapEditorStartupTest, loaded_project_with_resources_opens_resource_an
   ASSERT_GE(tab_panel->children.size(), 1u);
   auto tab_strip = tab_panel->children[0];
   ASSERT_NE(tab_strip, nullptr);
-  ASSERT_GE(tab_strip->children.size(), 3u);
+  ASSERT_GE(tab_strip->children.size(), 4u);
 
-  auto resources_tab = tab_strip->children[2];
+  auto resources_tab = tab_strip->children[3];
   ASSERT_NE(resources_tab, nullptr);
   input().mouse_down({resources_tab->bounds.x + resources_tab->bounds.w / 2,
                       resources_tab->bounds.y + resources_tab->bounds.h / 2});

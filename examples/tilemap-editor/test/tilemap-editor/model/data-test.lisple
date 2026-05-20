@@ -4,8 +4,10 @@
 
 (deftest empty-project-document-does-not-invent-tilesets-or-layers
   (let [document (data/project-document {:tilesets []
+                                         :brushes []
                                          :layers []})]
     (is (= [] (:tilesets document)))
+    (is (= [] (:brushes document)))
     (is (= [] (-> document :tilemap :layers)))))
 
 (deftest project-document-saves_only_project_owned_resources
@@ -55,3 +57,15 @@
     (is (= data/map-height (count tilemap)))
     (is (= data/map-width (count (head tilemap))))
     (is (= nil (get-in tilemap [0 0])))))
+
+(deftest normalize-project-document-normalizes_brush_pattern_layers
+  (let [document (data/normalize-project-document
+                  {:brushes [{:id :brush
+                              :kind :pattern
+                              :pattern {:layers [{:id :stamp
+                                                   :tileset :terrain
+                                                   :tiles [[:grass nil]]}]}}]
+                   :tilemap {:layers []}})]
+    (is (= [[:grass nil]]
+           (get-in document
+                   [:brushes 0 :pattern :layers 0 :tiles])))))

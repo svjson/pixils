@@ -141,6 +141,23 @@
           :terrain-assets
           :terrain-v2))))
 
+(deftest bundle-rename-updates_brush_resource_references
+  (is (= [{:id :stamp-brush
+           :kind :pattern
+           :pattern {:layers [{:id :decor
+                                :tileset :terrain
+                                :tiles [[{:image :terrain-v2/decor}
+                                         {:image :other/decor}]]}]}}]
+         (resources/rename-bundle-in-brushes
+          [{:id :stamp-brush
+            :kind :pattern
+            :pattern {:layers [{:id :decor
+                                 :tileset :terrain
+                                 :tiles [[{:image :terrain-assets/decor}
+                                          {:image :other/decor}]]}]}}]
+          :terrain-assets
+          :terrain-v2))))
+
 (deftest resource-rename-updates_tileset_image_references
   (is (= [{:id :terrain
            :tiles [{:id :grass
@@ -167,6 +184,24 @@
          (resources/rename-resource-in-layers
           [{:id :decor
             :stamp {:image :terrain-assets/decor}}]
+          :terrain-assets
+          :decor
+          :decor-v2))))
+
+(deftest resource-rename-updates_brush_resource_references
+  (is (= [{:id :stamp-brush
+           :kind :pattern
+           :pattern {:layers [{:id :decor
+                                :tileset :terrain
+                                :tiles [[{:image :terrain-assets/decor-v2}
+                                         {:image :terrain-assets/other}]]}]}}]
+         (resources/rename-resource-in-brushes
+          [{:id :stamp-brush
+            :kind :pattern
+            :pattern {:layers [{:id :decor
+                                 :tileset :terrain
+                                 :tiles [[{:image :terrain-assets/decor}
+                                          {:image :terrain-assets/other}]]}]}}]
           :terrain-assets
           :decor
           :decor-v2))))

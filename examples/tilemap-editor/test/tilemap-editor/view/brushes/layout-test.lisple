@@ -1,0 +1,12 @@
+(ns tilemap-editor.view.brushes.layout-test
+  (:require proof.core
+            [tilemap-editor.view.brushes.layout :as layout]))
+
+(deftest brush-list-panel-has_project_header_and_add_button
+  (let [panel (layout/make-brush-list-panel)
+        header (head (:children panel))
+        add-button (nth (:children header) 1)]
+    (is (= "Project Brushes" (-> panel :state :title)))
+    (is (= 'ui/button (:mode add-button)))
+    (is (= :ui/toolbar-button (:class add-button)))
+    (is (= "+" (-> add-button :state :label)))))

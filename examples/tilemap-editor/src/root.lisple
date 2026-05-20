@@ -7,6 +7,7 @@
             [tilemap-editor.io.project :as project-io]
             [tilemap-editor.view.resources.model :as resource-model]
             [tilemap-editor.view.tileset.model :as tileset-model]
+            tilemap-editor.view.brushes.layout
             tilemap-editor.view.resources.layout
             tilemap-editor.view.tilemap.layout
             tilemap-editor.view.tileset.dialogs
@@ -54,6 +55,8 @@
            :selected-tileset-tile-indices []
            :tilesets []
            :tileset nil
+           :brushes []
+           :selected-brush-index nil
            :selected-layer-index nil
            :selected-layer-label ""
            :layers []
@@ -142,6 +145,8 @@
                        :selected-tileset-tile-indices (ui/bind-state :selected-tileset-tile-indices)
                        :tilesets (ui/bind-state :tilesets)
                        :tileset (ui/bind-state :tileset)
+                       :brushes (ui/bind-state :brushes)
+                       :selected-brush-index (ui/bind-state :selected-brush-index)
                        :selected-layer-index (ui/bind-state :selected-layer-index)
                        :selected-layer-label (ui/bind-state :selected-layer-label)
                        :layers (ui/bind-state :layers)
@@ -188,6 +193,14 @@
                                        :resources (ui/bind-state :resources)
                                        :selected-resource-bundle (ui/bind-state :selected-resource-bundle)
                                        :selected-image-resource (ui/bind-state :selected-image-resource)}}}
+                      {:id :brushes
+                       :label "Brushes"
+                       :child {:mode 'brush-definition-workspace
+                               :style {:padding 8}
+                               :state {:brushes (ui/bind-state :brushes)
+                                       :selected-brush-index (ui/bind-state :selected-brush-index)
+                                       :tilesets (ui/bind-state :tilesets)
+                                       :layers (ui/bind-state :layers)}}}
                       {:id :resources
                        :label "Resources"
                        :child {:mode 'resource-explorer-workspace

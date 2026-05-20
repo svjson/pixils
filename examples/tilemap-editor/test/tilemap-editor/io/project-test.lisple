@@ -69,6 +69,11 @@
          (project-io/project-tilesets {:tilesets [{:id :terrain}]})))
   (is (= [] (project-io/project-tilesets {}))))
 
+(deftest project-brushes-come-from-project-document
+  (is (= [{:id :brush}]
+         (project-io/project-brushes {:brushes [{:id :brush}]})))
+  (is (= [] (project-io/project-brushes {}))))
+
 (deftest recent-project-history-promotes-existing-projects
   (let [projects [{:path "first.edn"
                    :filename "first.edn"}

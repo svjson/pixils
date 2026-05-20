@@ -1,0 +1,115 @@
+(ns tilemap-editor.view.brushes.model
+  (:require pixils))
+
+(def default-pattern-size {:w 1 :h 1})
+(def default-pattern-anchor {:x 0 :y 0})
+
+(defun keyword-label [value]
+  (let [text (str value)]
+    (if (= ":" (substr text 0 1))
+      (substr text 1)
+      text)))
+
+(defun clean-name-separators [value index out]
+  (if (>= index (count value))
+    (trim out)
+    (let [ch (substr value index 1)]
+      (clean-name-separators
+       value
+       (inc index)
+       (str out
+            (if (or (= ch "-") (= ch "_"))
+              " "
+              ch))))))
+
+(defun brush-id-exists? [brushes id]
+  (> (count (filter (or brushes [])
+                    (fn [brush]
+                      (= (:id brush) (keyword id)))))
+     0))
+
+(defun unique-id-from [brushes root suffix]
+  (let [candidate (if suffix
+                    (str root "-" suffix)
+                    root)]
+    (if (brush-id-exists? brushes candidate)
+      (unique-id-from brushes
+                      root
+                      (if suffix (inc suffix) 2))
+      candidate)))
+
+(defun unique-brush-id [brushes]
+  (unique-id-from (or brushes []) "brush" nil))
+
+(defun brush-label-from-id [id]
+  (capitalize (clean-name-separators (keyword-label id) 0 "")))
+
+(defun make-pattern-brush [id label]
+  {:id (keyword id)
+   :label label
+   :kind :pattern
+   :pattern {:size default-pattern-size
+             :anchor default-pattern-anchor
+             :layers []}})
+
+(defun brush-options [brushes]
+  (for-indexed [index brush (or brushes [])]
+    {:value index
+     :label (:label brush)}))
+
+(defun selected-brush-index [brushes index]
+  (let [brushes (or brushes [])]
+    (if (empty? brushes)
+      nil
+      (min (or index 0) (dec (count brushes))))))
+
+(defun selected-brush [brushes index]
+  (if-let [selected-index (selected-brush-index brushes index)]
+    (nth brushes selected-index)
+    nil))
+
+(defun selected-brush-indices [brushes index]
+  (if-let [selected-index (selected-brush-index brushes index)]
+    [selected-index]
+    []))
+
+(defun brush-kind-label [brush]
+  (case (:kind brush)
+    :pattern "Pattern"
+    :marching "Marching Rules"
+    :terrain-rules "Terrain Rules"
+    :default (str (:kind brush))))
+
+(defun pattern-layer-count [brush]
+  (count (or (-> brush :pattern :layers) [])))
+
+(defun brush-summary [brush]
+  (case (:kind brush)
+    :pattern
+    (let [size (-> brush :pattern :size)]
+      (str (:w size) "x" (:h size) ", "
+           (pattern-layer-count brush) " layers"))
+
+    :marching
+    (str (count (or (-> brush :ruleset :rules) [])) " rules")
+
+    :terrain-rules
+    (str (count (or (-> brush :ruleset :rules) [])) " rules")
+
+    :default ""))
+
+(defun add-pattern-brush! [state]
+  (let [brushes (or (:brushes state) [])
+        id (unique-brush-id brushes)
+        brush (make-pattern-brush id (brush-label-from-id id))
+        index (count brushes)]
+    (assoc state
+           :brushes (concat brushes [brush])
+           :selected-brush-index index)))
+
+(defun derive-brush-workspace-state [state]
+  (let [index (selected-brush-index (:brushes state)
+                                    (:selected-brush-index state))]
+    (assoc state
+           :selected-brush-index index
+           :brush-detail-panel-disabled? (nil? index))))

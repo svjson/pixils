@@ -72,6 +72,11 @@
                           :tileset :terrain}
                          {:id :details
                           :tileset :decor}]
+                :brushes [{:id :stamp-brush
+                           :kind :pattern
+                           :pattern {:layers [{:id :stamp
+                                                :tileset :terrain
+                                                :tiles [[:grass]]}]}}]
                 :tilesets [{:id :terrain
                             :label "Terrain"
                             :tile-size 16
@@ -103,6 +108,8 @@
     (is (= :world-terrain (:tileset state)))
     (is (= :world-terrain (get-in state [:layers 0 :tileset])))
     (is (= :decor (get-in state [:layers 1 :tileset])))
+    (is (= :world-terrain
+           (get-in state [:brushes 0 :pattern :layers 0 :tileset])))
     (is (= 0 (:selected-tileset-definition-index state)))
     (is (= 1 (:selected-tileset-tile-index state)))))
 
@@ -185,7 +192,16 @@
                                   [0 1 2 3]]}
                          {:id :actor
                           :tileset :actors
-                          :tiles [[:hero :water]]}]}
+                          :tiles [[:hero :water]]}]
+                :brushes [{:id :stamp-brush
+                           :kind :pattern
+                           :pattern {:layers [{:id :stamp
+                                                :tileset :terrain
+                                                :tiles [[:grass :water :lava :stone]
+                                                        [0 1 2 3]]}
+                                               {:id :actor-stamp
+                                                :tileset :actors
+                                                :tiles [[:hero :water]]}]}}]}
                {:choice :dialog/ok
                 :payload {:operation :delete-tiles
                           :tile-indices [1 2]}})]
@@ -197,6 +213,11 @@
            (get-in state [:layers 0 :tiles])))
     (is (= [[:hero :water]]
            (get-in state [:layers 1 :tiles])))
+    (is (= [[:grass nil nil :stone]
+            [0 nil nil 1]]
+           (get-in state [:brushes 0 :pattern :layers 0 :tiles])))
+    (is (= [[:hero :water]]
+           (get-in state [:brushes 0 :pattern :layers 1 :tiles])))
     (is (= 1 (:selected-tileset-tile-index state)))
     (is (= [1] (:selected-tileset-tile-indices state)))))
 

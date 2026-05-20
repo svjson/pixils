@@ -159,6 +159,11 @@
                                   old-bundle-id
                                   new-bundle-id))
 
+(defun rename-bundle-in-brushes [brushes old-bundle-id new-bundle-id]
+  (replace-resource-key-bundle-in (or brushes [])
+                                  old-bundle-id
+                                  new-bundle-id))
+
 (defun rename-resource-in-tilesets [tilesets bundle-id old-resource-id new-resource-id]
   (replace-resource-key-in (or tilesets [])
                            (image-resource-key bundle-id old-resource-id)
@@ -166,6 +171,11 @@
 
 (defun rename-resource-in-layers [layers bundle-id old-resource-id new-resource-id]
   (replace-resource-key-in (or layers [])
+                           (image-resource-key bundle-id old-resource-id)
+                           (image-resource-key bundle-id new-resource-id)))
+
+(defun rename-resource-in-brushes [brushes bundle-id old-resource-id new-resource-id]
+  (replace-resource-key-in (or brushes [])
                            (image-resource-key bundle-id old-resource-id)
                            (image-resource-key bundle-id new-resource-id)))
 
@@ -195,6 +205,9 @@
                  :layers (rename-bundle-in-layers (:layers state)
                                                    old-bundle-id
                                                    new-bundle-id)
+                 :brushes (rename-bundle-in-brushes (:brushes state)
+                                                     old-bundle-id
+                                                     new-bundle-id)
                  :selected-resource-bundle new-bundle-id)))
       state)))
 
@@ -410,7 +423,11 @@
                    :layers (rename-resource-in-layers (:layers state)
                                                       bundle-id
                                                       previous-id
-                                                      resource-id)))))
+                                                      resource-id)
+                   :brushes (rename-resource-in-brushes (:brushes state)
+                                                        bundle-id
+                                                        previous-id
+                                                        resource-id)))))
       state)))
 
 (defun apply-image-metadata-dialog-result [state payload]
@@ -443,7 +460,10 @@
                                                         replacement-key)
                      :layers (replace-resource-key-in (:layers state)
                                                       resource-key
-                                                      replacement-key))
+                                                      replacement-key)
+                     :brushes (replace-resource-key-in (:brushes state)
+                                                       resource-key
+                                                       replacement-key))
               state)
 
             :resource-delete/delete-tiles

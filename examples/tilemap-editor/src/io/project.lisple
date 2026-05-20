@@ -85,6 +85,9 @@
 (defun project-tilesets [project]
   (or (:tilesets project) []))
 
+(defun project-brushes [project]
+  (or (:brushes project) data/project-brushes))
+
 (defun first-layer-tileset [layers]
   (:tileset (head layers)))
 
@@ -92,11 +95,14 @@
   (let [project (data/normalize-project-document (io/slurp-edn! (:path payload)))
         layers (project-layers project)
         tileset (first-layer-tileset layers)
-        tilesets (project-tilesets project)]
+        tilesets (project-tilesets project)
+        brushes (project-brushes project)]
     (if (valid-project-document? project)
       (remember-project!
        (assoc state
               :tilesets tilesets
+              :brushes brushes
+              :selected-brush-index (when (> (count brushes) 0) 0)
               :layers layers
               :selected-layer-index (when (> (count layers) 0) 0)
               :selected-layer-label (or (:label (head layers)) "")

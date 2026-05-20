@@ -397,14 +397,37 @@
              :selected-tileset-tile-indices []))
     state))
 
+(defun rename-tileset-in-brush-value [value old-id new-id]
+  (case (type-of value)
+    "vector" (map value
+                  (fn [item]
+                    (rename-tileset-in-brush-value item old-id new-id)))
+    "map" (reduce-kv value
+                     {}
+                     (fn [result key item]
+                       (assoc result
+                              key
+                              (rename-tileset-in-brush-value
+                               (if (and (= key :tileset)
+                                        (= item old-id))
+                                 new-id
+                                 item)
+                               old-id
+                               new-id))))
+    :default value))
+
+(defun rename-tileset-in-brushes [brushes old-id new-id]
+  (rename-tileset-in-brush-value (or brushes []) old-id new-id))
+
 (defun rename-tileset-references [state old-id new-id]
   (assoc
-   (assoc state
-          :layers (map (or (:layers state) [])
-                       (fn [layer]
-                         (if (= (:tileset layer) old-id)
-                           (assoc layer :tileset new-id)
-                           layer))))
+   (assoc (assoc state
+                 :layers (map (or (:layers state) [])
+                              (fn [layer]
+                                (if (= (:tileset layer) old-id)
+                                  (assoc layer :tileset new-id)
+                                  layer))))
+          :brushes (rename-tileset-in-brushes (:brushes state) old-id new-id))
    :tileset (if (= (:tileset state) old-id)
               new-id
               (:tileset state))))
@@ -490,6 +513,39 @@
                                             deleted-ids
                                             deleted-indices))))
 
+(defun remove-deleted-tile-refs-in-brush-value [value tileset-id deleted-ids deleted-indices]
+  (case (type-of value)
+    "vector" (map value
+                  (fn [item]
+                    (remove-deleted-tile-refs-in-brush-value item
+                                                             tileset-id
+                                                             deleted-ids
+                                                             deleted-indices)))
+    "map" (let [layer (if (and (:tiles value)
+                               (:tileset value))
+                        (remove-deleted-tile-refs-in-layer value
+                                                           tileset-id
+                                                           deleted-ids
+                                                           deleted-indices)
+                        value)]
+            (reduce-kv layer
+                       {}
+                       (fn [result key item]
+                         (assoc result
+                                key
+                                (remove-deleted-tile-refs-in-brush-value
+                                 item
+                                 tileset-id
+                                 deleted-ids
+                                 deleted-indices)))))
+    :default value))
+
+(defun remove-deleted-tile-refs-in-brushes [brushes tileset-id deleted-ids deleted-indices]
+  (remove-deleted-tile-refs-in-brush-value (or brushes [])
+                                           tileset-id
+                                           deleted-ids
+                                           deleted-indices))
+
 (defun remove-tiles-at-indices [tiles indices]
   (map (filter (for-indexed [index tile (or tiles [])]
                  {:index index
@@ -531,6 +587,11 @@
                             (:id tileset)
                             deleted-ids
                             selection)
+                   :brushes (remove-deleted-tile-refs-in-brushes
+                             (:brushes state)
+                             (:id tileset)
+                             deleted-ids
+                             selection)
                    :selected-tileset-tile-index next-index
                    :selected-tileset-tile-indices next-selection))))
       state)))

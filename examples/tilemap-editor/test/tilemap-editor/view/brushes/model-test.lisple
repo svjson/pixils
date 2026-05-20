@@ -1,0 +1,35 @@
+(ns tilemap-editor.view.brushes.model-test
+  (:require proof.core
+            [tilemap-editor.view.brushes.model :as model]))
+
+(deftest brush-workspace-selects_first_available_brush
+  (let [state (model/derive-brush-workspace-state
+               {:brushes [{:id :brush
+                           :label "Brush"}]
+                :selected-brush-index nil})]
+    (is (= 0 (:selected-brush-index state)))
+    (is (= false (:brush-detail-panel-disabled? state)))))
+
+(deftest brush-workspace-disables_detail_without_brushes
+  (let [state (model/derive-brush-workspace-state
+               {:brushes []
+                :selected-brush-index 0})]
+    (is (nil? (:selected-brush-index state)))
+    (is (= true (:brush-detail-panel-disabled? state)))))
+
+(deftest pattern-brush-creation-adds_selected_project_brush
+  (let [state (model/add-pattern-brush! {:brushes []})]
+    (is (= 0 (:selected-brush-index state)))
+    (is (= :brush (get-in state [:brushes 0 :id])))
+    (is (= "Brush" (get-in state [:brushes 0 :label])))
+    (is (= :pattern (get-in state [:brushes 0 :kind])))
+    (is (= {:w 1 :h 1} (get-in state [:brushes 0 :pattern :size])))
+    (is (= {:x 0 :y 0} (get-in state [:brushes 0 :pattern :anchor])))
+    (is (= [] (get-in state [:brushes 0 :pattern :layers])))))
+
+(deftest pattern-brush-creation-deduplicates_ids
+  (let [state (model/add-pattern-brush!
+               {:brushes [{:id :brush
+                           :label "Brush"}]})]
+    (is (= :brush-2 (get-in state [:brushes 1 :id])))
+    (is (= "Brush 2" (get-in state [:brushes 1 :label])))))

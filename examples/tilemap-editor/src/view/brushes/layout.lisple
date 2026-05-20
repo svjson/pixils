@@ -1,0 +1,184 @@
+(ns tilemap-editor.view.brushes.layout
+  (:require pixils
+            [pixils.ui :as ui]
+            [pixils.ui.header-panel :as hp]
+            [pixils.ui.list-box :as lb]
+            [tilemap-editor.view.brushes.model :as model]))
+
+(def brush-list-row-height 24)
+
+(defcomponent brush-row
+  {:extend 'ui/list-box-item
+   :class :ui/list-item-hover
+   :style {:width :fill
+           :height brush-list-row-height
+           :padding [3 6]
+           :layout {:direction :row
+                    :align-items :center
+                    :gap 6}}
+   :update (fn [state ctx]
+             (assoc state :selected (contains? (:selected-indices state)
+                                               (:index state))))
+   :on-mouse-down (fn [state event ctx]
+                    (do
+                      (ui/stop-propagation! event)
+                      state))
+   :on-mouse-up (fn [state event ctx]
+                  (do
+                    (ui/stop-propagation! event)
+                    (ui/emit! (:view ctx)
+                              :list-box/item-click
+                              {:index (:index state)
+                               :value (:value state)
+                               :shift? false
+                               :ctrl? false})
+                    state))
+   :children [{:mode 'ui/text
+               :style {:width :fill}
+               :state {:value (ui/bind-state :label)}}
+              {:mode 'ui/text
+               :class :ui/muted
+               :state {:value (ui/bind-state :kind-label)}}]})
+
+(defun brush-row-child [index option]
+  {:mode 'brush-row
+   :state {:index index
+           :value (:value option)
+           :label (:label option)
+           :kind-label (:kind-label option)
+           :selected-indices (ui/bind-state :selected-indices)}})
+
+(defun brush-options [brushes]
+  (map (model/brush-options brushes)
+       (fn [option]
+         (assoc option
+                :kind-label (model/brush-kind-label
+                             (nth (or brushes []) (:value option)))))))
+
+(defun brush-list-child [brushes selected-index]
+  (let [brushes (or brushes [])
+        options (brush-options brushes)]
+    (lb/make {:options options
+              :style {:width :fill
+                      :height :fill}
+              :row-height brush-list-row-height
+              :visible-rows (max 1 (count options))
+              :content-width 220
+              :disabled? (empty? options)
+              :selected-indices (model/selected-brush-indices brushes selected-index)
+              :force-selection? true
+              :item-child brush-row-child})))
+
+(defcomponent brush-list
+  {:style {:width :fill
+           :height :fill}
+   :init (fn [state ctx]
+           (assoc state
+                  :rendered-brushes nil
+                  :rendered-selected-index nil))
+   :update (fn [state ctx]
+             (let [brushes (or (:brushes state) [])
+                   selected-index (:selected-brush-index state)]
+               (do
+                 (when (or (not= brushes (:rendered-brushes state))
+                           (not= selected-index (:rendered-selected-index state)))
+                   (ui/replace-child! (:view ctx)
+                                      "list-box"
+                                      (merge {:id "list-box"}
+                                             (brush-list-child brushes
+                                                               selected-index))))
+                 (assoc state
+                        :rendered-brushes brushes
+                        :rendered-selected-index selected-index))))
+   :on {:list-box/change (fn [state event ctx]
+                           (do
+                             (ui/stop-propagation! event)
+                             (ui/emit! (:view ctx)
+                                       :brush/select
+                                       (-> event :payload :value))
+                             state))}
+   :children [(merge {:id "list-box"}
+                     (brush-list-child [] nil))]})
+
+(defun make-brush-list-panel []
+  (hp/make {:title "Project Brushes"
+            :style {:width 260
+                    :height :fill}
+            :header-style {:layout {:direction :row
+                                    :align-items :center
+                                    :gap 4}}
+            :header-children [{:mode 'ui/button
+                               :class :ui/toolbar-button
+                               :state {:label "+"}
+                               :on-click (fn [state event ctx]
+                                           (do
+                                             (ui/emit! (:view ctx)
+                                                       :brush/add)
+                                             state))}]
+            :body-style {:padding 8
+                         :height :fill}
+            :state {:brushes (ui/bind-state :brushes)
+                    :selected-brush-index (ui/bind-state :selected-brush-index)}
+            :body-state {:brushes (ui/bind-state :brushes)
+                         :selected-brush-index (ui/bind-state :selected-brush-index)}
+            :children [{:mode 'brush-list
+                        :state {:brushes (ui/bind-state :brushes)
+                                :selected-brush-index (ui/bind-state :selected-brush-index)}}]}))
+
+(defcomponent brush-detail
+  {:style {:width :fill
+           :height :shrink
+           :layout {:direction :column
+                    :gap 4}}
+   :update (fn [state ctx]
+             (let [brush (model/selected-brush (:brushes state)
+                                               (:selected-brush-index state))]
+               (assoc state
+                      :label (or (:label brush) "")
+                      :id-label (if brush (str (:id brush)) "")
+                      :kind-label (if brush (model/brush-kind-label brush) "")
+                      :summary (if brush (model/brush-summary brush) ""))))
+   :children [{:mode 'ui/text
+               :class :ui/title
+               :state {:value (ui/bind-state :label)}}
+              {:mode 'ui/text
+               :class :ui/muted
+               :state {:value (ui/bind-state :id-label)}}
+              {:mode 'ui/text
+               :state {:value (ui/bind-state :kind-label)}}
+              {:mode 'ui/text
+               :class :ui/muted
+               :state {:value (ui/bind-state :summary)}}]})
+
+(defun make-brush-detail-panel []
+  (hp/make {:title "Brush Definition"
+            :style {:width :fill
+                    :height :fill}
+            :body-style {:padding 8
+                         :height :fill
+                         :layout {:direction :column
+                                  :gap 8}}
+            :state {:brushes (ui/bind-state :brushes)
+                    :selected-brush-index (ui/bind-state :selected-brush-index)
+                    :disabled? (ui/bind-state :brush-detail-panel-disabled?)}
+            :body-state {:brushes (ui/bind-state :brushes)
+                         :selected-brush-index (ui/bind-state :selected-brush-index)}
+            :children [{:mode 'brush-detail
+                        :state {:brushes (ui/bind-state :brushes)
+                                :selected-brush-index (ui/bind-state :selected-brush-index)}}]}))
+
+(defcomponent brush-definition-workspace
+  {:style {:width :fill
+           :height :fill
+           :layout {:direction :row
+                    :gap 8}}
+   :init (fn [state ctx]
+           (model/derive-brush-workspace-state state))
+   :update (fn [state ctx]
+             (model/derive-brush-workspace-state state))
+   :on {:brush/add (fn [state event ctx]
+                     (model/add-pattern-brush! state))
+        :brush/select (fn [state event ctx]
+                        (assoc state :selected-brush-index (:payload event)))}
+   :children [(make-brush-list-panel)
+              (make-brush-detail-panel)]})

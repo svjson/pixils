@@ -10,6 +10,8 @@
 (def project-resources
   {:bundles {}})
 
+(def project-brushes [])
+
 (def app-static-bundle-ids [:editor-assets])
 
 (defun app-static-bundle-id? [bundle-id]
@@ -130,10 +132,29 @@
 (defun normalize-layers [layers]
   (map (or layers []) normalize-layer))
 
+(defun normalize-brush-value [value]
+  (case (type-of value)
+    "vector" (map value normalize-brush-value)
+    "map" (let [normalized (if (and (:tiles value)
+                                    (:tileset value))
+                             (normalize-layer value)
+                             value)]
+            (reduce-kv normalized
+                       {}
+                       (fn [result key item]
+                         (assoc result
+                                key
+                                (normalize-brush-value item)))))
+    :default value))
+
+(defun normalize-brushes [brushes]
+  (normalize-brush-value (or brushes [])))
+
 (defun normalize-project-document [project]
-  (assoc-in project
-            [:tilemap :layers]
-            (normalize-layers (-> project :tilemap :layers))))
+  (assoc (assoc-in project
+                   [:tilemap :layers]
+                   (normalize-layers (-> project :tilemap :layers)))
+         :brushes (normalize-brushes (:brushes project))))
 
 (defun project-document [state]
   {:format project-format
@@ -141,6 +162,7 @@
    :resources (normalize-project-resources (or (:resources state)
                                                project-resources))
    :tilesets (or (:tilesets state) [])
+   :brushes (or (:brushes state) project-brushes)
    :tilemap {:width map-width
              :height map-height
              :tile-size tile-size
