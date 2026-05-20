@@ -157,6 +157,7 @@
               :content-width 180
               :disabled? (empty? bundles)
               :selected-indices (ui/bind-state :selected-indices)
+              :force-selection? true
               :item-child resource-bundle-row-child})))
 
 (defcomponent resource-bundle-list
@@ -210,6 +211,7 @@
               :content-width 360
               :disabled? (empty? resources)
               :selected-indices (ui/bind-state :selected-indices)
+              :force-selection? true
               :item-child image-resource-row-child})))
 
 (defcomponent image-resource-list

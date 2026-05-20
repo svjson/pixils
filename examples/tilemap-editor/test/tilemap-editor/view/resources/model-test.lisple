@@ -277,6 +277,31 @@
     (is (= nil (:selected-image-resource state)))
     (is (= true (:image-resource-panel-disabled? state)))))
 
+(deftest resource-workspace-state-selects_first_available_bundle
+  (let [state (resources/derive-resource-workspace-state
+               {:resources {:bundles {:terrain-assets {:images {}}
+                                      :ui-assets {:images {}}}}
+                :selected-resource-bundle nil
+                :selected-image-resource nil})]
+    (is (= :terrain-assets (:selected-resource-bundle state)))
+    (is (= nil (:selected-image-resource state)))
+    (is (= false (:image-resource-panel-disabled? state)))
+    (is (= false (:image-resource-add-disabled? state)))
+    (is (= true (:image-resource-detail-disabled? state)))))
+
+(deftest resource-workspace-state-selects_first_available_image_resource
+  (let [state (resources/derive-resource-workspace-state
+               {:resources {:bundles {:terrain-assets
+                                      {:images {:tiles
+                                                {:file-name "/tmp/tiles.png"}
+                                                :decor
+                                                {:file-name "/tmp/decor.png"}}}}}
+                :selected-resource-bundle :terrain-assets
+                :selected-image-resource nil})]
+    (is (= :terrain-assets (:selected-resource-bundle state)))
+    (is (= :tiles (:selected-image-resource state)))
+    (is (= false (:image-resource-detail-disabled? state)))))
+
 (deftest resource-workspace-state-clears_stale_image_selection
   (let [state (resources/derive-resource-workspace-state
                {:resources {:bundles {:terrain-assets {:images {}}}}

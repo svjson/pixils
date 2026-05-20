@@ -339,13 +339,13 @@
 
 (defun selected-bundle-id [resources selected-id]
   (if (nil? (selected-bundle-index resources selected-id))
-    nil
+    (first-bundle-id resources)
     selected-id))
 
 (defun selected-image-resource-id [resources bundle-id selected-id]
   (if (nil? (selected-resource-index (project-image-resources resources bundle-id)
                                      selected-id))
-    nil
+    (first-image-resource-id resources bundle-id)
     selected-id))
 
 (defun derive-resource-workspace-state [state]
