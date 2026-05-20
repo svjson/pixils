@@ -21,7 +21,7 @@ namespace Pixils
 
     SDL_DisplayMode display_mode;
 
-    if (SDL_GetCurrentDisplayMode(0, &display_mode) == 0)
+    if (SDL_GetCurrentDisplayMode(0, &display_mode) != 0)
     {
       std::cerr << "Warning: Could not read screen resolution from the current display mode"
                 << std::endl;
