@@ -23,6 +23,7 @@
            :selected-tileset-index nil
            :selected-tileset-definition-index nil
            :selected-tileset-tile-index nil
+           :selected-tileset-tile-indices []
            :tilesets []
            :tileset nil
            :selected-layer-index nil
@@ -68,6 +69,16 @@
                   tileset-tile-index (when (> tileset-tile-count 0)
                                        (min (or (:selected-tileset-tile-index state) 0)
                                             (dec tileset-tile-count)))
+                  tileset-tile-indices (filter (or (:selected-tileset-tile-indices state)
+                                                    [])
+                                                (fn [index]
+                                                  (and (not (nil? index))
+                                                       (>= index 0)
+                                                       (< index tileset-tile-count))))
+                  tileset-tile-indices (if (or (not (empty? tileset-tile-indices))
+                                               (nil? tileset-tile-index))
+                                         tileset-tile-indices
+                                         [tileset-tile-index])
                   selected-tile (data/tile-id tilesets
                                               tileset
                                               (:selected-tile state))
@@ -79,6 +90,7 @@
                                                                    tileset))
                      :selected-tileset-definition-index tileset-definition-index
                      :selected-tileset-tile-index tileset-tile-index
+                     :selected-tileset-tile-indices tileset-tile-indices
                      :selected-tile selected-tile
                      :selected-label (data/tile-label tilesets
                                                       tileset
@@ -96,6 +108,7 @@
                        :selected-tileset-index (ui/bind-state :selected-tileset-index)
                        :selected-tileset-definition-index (ui/bind-state :selected-tileset-definition-index)
                        :selected-tileset-tile-index (ui/bind-state :selected-tileset-tile-index)
+                       :selected-tileset-tile-indices (ui/bind-state :selected-tileset-tile-indices)
                        :tilesets (ui/bind-state :tilesets)
                        :tileset (ui/bind-state :tileset)
                        :selected-layer-index (ui/bind-state :selected-layer-index)
@@ -135,6 +148,7 @@
                                :state {:selected-tileset-index (ui/bind-state :selected-tileset-index)
                                        :selected-tileset-definition-index (ui/bind-state :selected-tileset-definition-index)
                                        :selected-tileset-tile-index (ui/bind-state :selected-tileset-tile-index)
+                                       :selected-tileset-tile-indices (ui/bind-state :selected-tileset-tile-indices)
                                        :tilesets (ui/bind-state :tilesets)
                                        :tileset (ui/bind-state :tileset)
                                        :selected-layer-index (ui/bind-state :selected-layer-index)

@@ -217,6 +217,57 @@
 (defun move-tile-grid-index [index item-count columns delta]
   (clamp-index (+ (or index 0) delta) item-count))
 
+(defun valid-tile-indices [indices item-count]
+  (filter (or indices [])
+          (fn [index]
+            (and (number? index)
+                 (>= index 0)
+                 (< index item-count)))))
+
+(defun selected-tileset-tile-selection [state]
+  (let [tiles (selected-tileset-tiles state)
+        selection (valid-tile-indices (:selected-tileset-tile-indices state)
+                                      (count tiles))]
+    (if (or (not (empty? selection))
+            (nil? (:selected-tileset-tile-index state)))
+      selection
+      (valid-tile-indices [(:selected-tileset-tile-index state)]
+                          (count tiles)))))
+
+(defun tile-grid-selection-range [anchor index columns item-count]
+  (let [columns (max 1 (or columns 1))
+        start (min (or anchor index 0) (or index anchor 0))
+        end (max (or anchor index 0) (or index anchor 0))
+        start-col (mod start columns)
+        start-row (int (/ start columns))
+        end-col (mod end columns)
+        end-row (int (/ end columns))
+        left (min start-col end-col)
+        right (max start-col end-col)
+        top (min start-row end-row)
+        bottom (max start-row end-row)]
+    (reduce (range top bottom)
+            []
+            (fn [out row]
+              (concat out
+                      (filter (map (range left right)
+                                   (fn [col]
+                                     (+ col (* row columns))))
+                              (fn [tile-index]
+                                (< tile-index item-count))))))))
+
+(defun select-tileset-tile-index [state index]
+  (assoc state
+         :selected-tileset-tile-index index
+         :selected-tileset-tile-indices (if (nil? index) [] [index])
+         :tile-grid-selection-anchor index))
+
+(defun select-tileset-tile-range [state anchor index columns item-count]
+  (let [selection (tile-grid-selection-range anchor index columns item-count)]
+    (assoc state
+           :selected-tileset-tile-index index
+           :selected-tileset-tile-indices selection)))
+
 (defun selected-tileset-definition [state]
   (let [tilesets (or (:tilesets state) [])]
     (when (> (count tilesets) 0)
@@ -342,7 +393,8 @@
       (assoc state
              :tilesets (concat tilesets [tileset])
              :selected-tileset-definition-index index
-             :selected-tileset-tile-index nil))
+             :selected-tileset-tile-index nil
+             :selected-tileset-tile-indices []))
     state))
 
 (defun rename-tileset-references [state old-id new-id]
@@ -384,6 +436,105 @@
                :selected-tileset-definition-index index))
       state)))
 
+(defun tile-ids-at-indices [tiles indices]
+  (map (filter (for-indexed [index tile (or tiles [])]
+                 {:index index
+                  :tile tile})
+               (fn [entry]
+                 (contains? indices (:index entry))))
+       (fn [entry]
+         (:id (:tile entry)))))
+
+(defun deleted-index-count-before [indices index]
+  (count (filter (or indices [])
+                 (fn [deleted-index]
+                   (< deleted-index index)))))
+
+(defun remove-deleted-tile-ref [tile-ref deleted-ids deleted-indices]
+  (cond
+    (nil? tile-ref)
+    nil
+
+    (keyword? tile-ref)
+    (if (contains? deleted-ids tile-ref)
+      nil
+      tile-ref)
+
+    (number? tile-ref)
+    (cond
+      (contains? deleted-indices tile-ref) nil
+      :default (- tile-ref
+                  (deleted-index-count-before deleted-indices tile-ref)))
+
+    :default
+    tile-ref))
+
+(defun remove-deleted-tile-refs-in-layer [layer tileset-id deleted-ids deleted-indices]
+  (if (= (:tileset layer) tileset-id)
+    (update layer :tiles
+            (fn [rows]
+              (map (or rows [])
+                   (fn [row]
+                     (map (or row [])
+                          (fn [tile-ref]
+                            (remove-deleted-tile-ref tile-ref
+                                                     deleted-ids
+                                                     deleted-indices)))))))
+    layer))
+
+(defun remove-deleted-tile-refs-in-layers [layers tileset-id deleted-ids deleted-indices]
+  (map (or layers [])
+       (fn [layer]
+         (remove-deleted-tile-refs-in-layer layer
+                                            tileset-id
+                                            deleted-ids
+                                            deleted-indices))))
+
+(defun remove-tiles-at-indices [tiles indices]
+  (map (filter (for-indexed [index tile (or tiles [])]
+                 {:index index
+                  :tile tile})
+               (fn [entry]
+                 (not (contains? indices (:index entry)))))
+       (fn [entry]
+         (:tile entry))))
+
+(defun selected-tile-index-after-delete [selection remaining-count]
+  (if (<= remaining-count 0)
+    nil
+    (min (or (head selection) 0)
+         (dec remaining-count))))
+
+(defun delete-tileset-tiles! [state payload]
+  (let [tilesets (or (:tilesets state) [])
+        tileset-index (:selected-tileset-definition-index state)]
+    (if (and (= (:choice payload) :dialog/ok)
+             (= (-> payload :payload :operation) :delete-tiles)
+             (not (nil? tileset-index))
+             (< tileset-index (count tilesets)))
+      (let [tileset (nth tilesets tileset-index)
+            tiles (or (:tiles tileset) [])
+            selection (valid-tile-indices (-> payload :payload :tile-indices)
+                                          (count tiles))]
+        (if (empty? selection)
+          state
+          (let [deleted-ids (tile-ids-at-indices tiles selection)
+                remaining (remove-tiles-at-indices tiles selection)
+                next-index (selected-tile-index-after-delete selection
+                                                             (count remaining))
+                next-selection (if (nil? next-index) [] [next-index])]
+            (assoc (assoc-in state
+                             [:tilesets tileset-index :tiles]
+                             remaining)
+                   :layers (remove-deleted-tile-refs-in-layers
+                            (:layers state)
+                            (:id tileset)
+                            deleted-ids
+                            selection)
+                   :selected-tileset-tile-index next-index
+                   :selected-tileset-tile-indices next-selection))))
+      state)))
+
 (defun add-tile-definition! [state payload]
   (let [tileset-index (:selected-tileset-definition-index state)
         tileset (selected-tileset-definition state)]
@@ -401,7 +552,9 @@
                                        (or (:tile-type payload) :color)
                                        (or (:tile-size tileset)
                                            data/tile-size))]
-        (assoc-in (assoc state :selected-tileset-tile-index index)
+        (assoc-in (assoc state
+                         :selected-tileset-tile-index index
+                         :selected-tileset-tile-indices [index])
                   [:tilesets tileset-index :tiles]
                   (concat tiles [tile])))
       state)))
@@ -434,7 +587,9 @@
                                         id
                                         (str name-root " " (:index entry)))]))))
             first-index (count existing)]
-        (assoc-in (assoc state :selected-tileset-tile-index first-index)
+        (assoc-in (assoc state
+                         :selected-tileset-tile-index first-index
+                         :selected-tileset-tile-indices [first-index])
                   [:tilesets tileset-index :tiles]
                   (concat existing added)))
       state)))
@@ -463,7 +618,9 @@
                                         name-root)]))))
             first-index (count existing)]
         (dissoc
-         (assoc-in (assoc state :selected-tileset-tile-index first-index)
+         (assoc-in (assoc state
+                          :selected-tileset-tile-index first-index
+                          :selected-tileset-tile-indices [first-index])
                    [:tilesets tileset-index :tiles]
                    (concat existing added))
          :last-imported-image-resources))
@@ -499,7 +656,9 @@
                                                     index
                                                     count))]))))
             first-index (count existing)]
-        (assoc-in (assoc state :selected-tileset-tile-index first-index)
+        (assoc-in (assoc state
+                         :selected-tileset-tile-index first-index
+                         :selected-tileset-tile-indices [first-index])
                   [:tilesets tileset-index :tiles]
                   (concat existing added)))
       state)))

@@ -25,13 +25,16 @@
                          :height :fill}
             :state {:selected-tileset-definition-index (ui/bind-state :selected-tileset-definition-index)
                     :selected-tileset-tile-index (ui/bind-state :selected-tileset-tile-index)
+                    :selected-tileset-tile-indices (ui/bind-state :selected-tileset-tile-indices)
                     :tilesets (ui/bind-state :tilesets)}
             :body-state {:selected-tileset-definition-index (ui/bind-state :selected-tileset-definition-index)
                          :selected-tileset-tile-index (ui/bind-state :selected-tileset-tile-index)
+                         :selected-tileset-tile-indices (ui/bind-state :selected-tileset-tile-indices)
                          :tilesets (ui/bind-state :tilesets)}
             :children [{:mode 'tileset-definition-list
                         :state {:selected-tileset-definition-index (ui/bind-state :selected-tileset-definition-index)
                                 :selected-tileset-tile-index (ui/bind-state :selected-tileset-tile-index)
+                                :selected-tileset-tile-indices (ui/bind-state :selected-tileset-tile-indices)
                                 :tilesets (ui/bind-state :tilesets)}}]}))
 
 (defcomponent tileset-definition-workspace
@@ -58,6 +61,16 @@
         :tileset/edit-dialog-result
         (fn [state event ctx]
           (edit-tileset-definition! state (:payload event)))
+        :tile/context-command
+        (fn [state event ctx]
+          (case (-> event :payload :command)
+            :delete (open-tile-delete-confirm-dialog! state
+                                                      ctx
+                                                      (-> event :payload :tile-indices))
+            :default state))
+        :tile/delete-confirm-result
+        (fn [state event ctx]
+          (delete-tileset-tiles! state (:payload event)))
         :tile/dialog-result (fn [state event ctx]
                               (add-tile-definition! state (:payload event)))
         :tile/color-range-result (fn [state event ctx]
@@ -124,6 +137,7 @@
                                               :gap 8}}
                         :state {:selected-tileset-definition-index (ui/bind-state :selected-tileset-definition-index)
                                 :selected-tileset-tile-index (ui/bind-state :selected-tileset-tile-index)
+                                :selected-tileset-tile-indices (ui/bind-state :selected-tileset-tile-indices)
                                 :tilesets (ui/bind-state :tilesets)
                                 :has-project-image-resources?
                                 (ui/bind-state :has-project-image-resources?)
@@ -132,10 +146,12 @@
                                 :disabled? (ui/bind-state :tile-set-panel-disabled?)}
                         :body-state {:selected-tileset-definition-index (ui/bind-state :selected-tileset-definition-index)
                                      :selected-tileset-tile-index (ui/bind-state :selected-tileset-tile-index)
+                                     :selected-tileset-tile-indices (ui/bind-state :selected-tileset-tile-indices)
                                      :tilesets (ui/bind-state :tilesets)}
                         :children [{:mode 'tileset-definition-summary
                                     :state {:selected-tileset-definition-index (ui/bind-state :selected-tileset-definition-index)
                                             :selected-tileset-tile-index (ui/bind-state :selected-tileset-tile-index)
+                                            :selected-tileset-tile-indices (ui/bind-state :selected-tileset-tile-indices)
                                             :tilesets (ui/bind-state :tilesets)}}
                                    {:mode 'tile-definition-row
                                     :style {:width :fill
@@ -144,10 +160,12 @@
                                                      :gap 8}}
                                     :state {:selected-tileset-definition-index (ui/bind-state :selected-tileset-definition-index)
                                             :selected-tileset-tile-index (ui/bind-state :selected-tileset-tile-index)
+                                            :selected-tileset-tile-indices (ui/bind-state :selected-tileset-tile-indices)
                                             :tilesets (ui/bind-state :tilesets)}
                                     :children [{:mode 'tileset-tile-grid
                                                 :state {:selected-tileset-definition-index (ui/bind-state :selected-tileset-definition-index)
                                                         :selected-tileset-tile-index (ui/bind-state :selected-tileset-tile-index)
+                                                        :selected-tileset-tile-indices (ui/bind-state :selected-tileset-tile-indices)
                                                         :tilesets (ui/bind-state :tilesets)}}]}]})
               (hp/make {:title "Tile Definition"
                         :style {:width :shrink
@@ -156,12 +174,15 @@
                                      :height :shrink}
                         :state {:selected-tileset-definition-index (ui/bind-state :selected-tileset-definition-index)
                                 :selected-tileset-tile-index (ui/bind-state :selected-tileset-tile-index)
+                                :selected-tileset-tile-indices (ui/bind-state :selected-tileset-tile-indices)
                                 :tilesets (ui/bind-state :tilesets)
                                 :disabled? (ui/bind-state :tile-definition-panel-disabled?)}
                         :body-state {:selected-tileset-definition-index (ui/bind-state :selected-tileset-definition-index)
                                      :selected-tileset-tile-index (ui/bind-state :selected-tileset-tile-index)
+                                     :selected-tileset-tile-indices (ui/bind-state :selected-tileset-tile-indices)
                                      :tilesets (ui/bind-state :tilesets)}
                         :children [{:mode 'tile-definition-panel
                                     :state {:selected-tileset-definition-index (ui/bind-state :selected-tileset-definition-index)
                                             :selected-tileset-tile-index (ui/bind-state :selected-tileset-tile-index)
+                                            :selected-tileset-tile-indices (ui/bind-state :selected-tileset-tile-indices)
                                             :tilesets (ui/bind-state :tilesets)}}]})]})

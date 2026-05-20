@@ -159,6 +159,47 @@
            (get-in state [:tilesets 0 :tiles 0])))
     (is (= 0 (:selected-tileset-tile-index state)))))
 
+(deftest tile-grid-selection-range-selects-rectangular_tiles
+  (is (= [1 2 5 6]
+         (model/tile-grid-selection-range 1 6 4 10))))
+
+(deftest tileset-tile-delete-removes-selected-tiles-and-layer_refs
+  (let [state (model/delete-tileset-tiles!
+               {:selected-tileset-definition-index 0
+                :selected-tileset-tile-index 1
+                :selected-tileset-tile-indices [1 2]
+                :tilesets [{:id :terrain
+                            :label "Terrain"
+                            :tile-size 16
+                            :tiles [{:id :grass}
+                                    {:id :water}
+                                    {:id :lava}
+                                    {:id :stone}]}
+                           {:id :actors
+                            :label "Actors"
+                            :tile-size 16
+                            :tiles [{:id :hero}]}]
+                :layers [{:id :level
+                          :tileset :terrain
+                          :tiles [[:grass :water :lava :stone]
+                                  [0 1 2 3]]}
+                         {:id :actor
+                          :tileset :actors
+                          :tiles [[:hero :water]]}]}
+               {:choice :dialog/ok
+                :payload {:operation :delete-tiles
+                          :tile-indices [1 2]}})]
+    (is (= [{:id :grass}
+            {:id :stone}]
+           (get-in state [:tilesets 0 :tiles])))
+    (is (= [[:grass nil nil :stone]
+            [0 nil nil 1]]
+           (get-in state [:layers 0 :tiles])))
+    (is (= [[:hero :water]]
+           (get-in state [:layers 1 :tiles])))
+    (is (= 1 (:selected-tileset-tile-index state)))
+    (is (= [1] (:selected-tileset-tile-indices state)))))
+
 (deftest sprite_tile_creation_uses_tileset_tile_size
   (let [state (model/add-tile-definition!
                {:selected-tileset-definition-index 0

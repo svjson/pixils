@@ -7,6 +7,7 @@
             [pixils.ui :as ui]
             [pixils.ui.checkbox :as chk]
             [pixils.ui.combo-box :as cb]
+            [pixils.ui.dialog :as dialog]
             [pixils.ui.file-dialog :as file-dialog]
             [pixils.ui.menu :as menu]
             [pixils.ui.slider :as sl]
@@ -79,8 +80,32 @@
         (assoc state
                :selected-tileset-definition-index index
                :selected-tileset-tile-index
-               (if (empty? (or (:tiles tileset) [])) nil 0)))
+               (if (empty? (or (:tiles tileset) [])) nil 0)
+               :selected-tileset-tile-indices
+               (if (empty? (or (:tiles tileset) [])) [] [0])))
       state)))
+
+(defun open-tile-delete-confirm-dialog! [state ctx tile-indices]
+  (let [indices (or tile-indices (selected-tileset-tile-selection state))
+        count (count indices)]
+    (if (<= count 0)
+      state
+      (do
+        (dialog/open-confirm!
+         ctx
+         {:title "Delete Tiles"
+          :body {:mode 'ui/text
+                 :style {:width :fill}
+                 :state {:value (if (= count 1)
+                                  "Delete 1 tile?"
+                                  (str "Delete " count " tiles?"))}}
+          :buttons [:dialog/cancel
+                    {:type :dialog/ok
+                     :label "Delete"}]
+          :result-event :tile/delete-confirm-result
+          :payload {:operation :delete-tiles
+                    :tile-indices indices}})
+        state))))
 
 (defun open-tile-create-dialog! [state ctx]
   (let [tiles (selected-tileset-tiles state)

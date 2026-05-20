@@ -24,6 +24,12 @@
             :action :tileset/context-dummy
             :payload {:command :edit}}]})
 
+(def tile-context-menu
+  {:settings {:mnemonics {:enabled false}}
+   :items [{:label "Delete"
+            :action :tile/context-dummy
+            :payload {:command :delete}}]})
+
 (defcomponent tileset-definition-row
   {:extend 'ui/list-box-item
    :class :ui/list-item-hover
@@ -112,7 +118,9 @@
                                   :selected-tileset-definition-index
                                   (-> event :payload :value)
                                   :selected-tileset-tile-index
-                                  0))}
+                                  0
+                                  :selected-tileset-tile-indices
+                                  [0]))}
    :children [(merge {:id "list-box"}
                      (tileset-list-box-child []))]})
 
@@ -165,6 +173,27 @@
     (r/rect! (selected-tile-border-rect (tile-cell-rect index columns))
              {:color {:r 0xff :g 0xcc :b 0x66}})))
 
+(defun draw-selected-tile-cells! [indices columns]
+  (for [index (or indices [])]
+    (draw-selected-tile-cell! index columns)))
+
+(defun select-tile-grid-drag-range [state event ctx]
+  (let [tiles (selected-tileset-tiles state)
+        item-count (count tiles)
+        index (tile-grid-index-at-position (:position event)
+                                           (-> ctx :view :bounds)
+                                           item-count)]
+    (if (and (:tile-grid-selecting? state)
+             (not (nil? index)))
+      (do
+        (ui/stop-propagation! event)
+        (select-tileset-tile-range state
+                                   (:tile-grid-selection-anchor state)
+                                   index
+                                   (tile-grid-columns (-> ctx :view :bounds))
+                                   item-count))
+      state)))
+
 (defcomponent tileset-tile-grid
   {:focusable true
    :class :ui/content
@@ -172,10 +201,16 @@
            :height :fill
            :clip true}
    :update (fn [state ctx]
-             (assoc state
-                    :selected-tileset-tile-index
-                    (clamp-index (:selected-tileset-tile-index state)
-                                 (count (selected-tileset-tiles state)))))
+             (let [item-count (count (selected-tileset-tiles state))
+                   selected-index (clamp-index (:selected-tileset-tile-index state)
+                                               item-count)
+                   selection (selected-tileset-tile-selection
+                              (assoc state
+                                     :selected-tileset-tile-index
+                                     selected-index))]
+               (assoc state
+                      :selected-tileset-tile-index selected-index
+                      :selected-tileset-tile-indices selection)))
    :on-mouse-down (fn [state event ctx]
                     (let [tiles (selected-tileset-tiles state)
                           index (tile-grid-index-at-position (:position event)
@@ -184,9 +219,35 @@
                       (do
                         (ui/stop-propagation! event)
                         (ui/focus! ctx)
-                        (if (nil? index)
+                        (cond
+                          (nil? index)
                           state
-                          (assoc state :selected-tileset-tile-index index)))))
+
+                          (= (:button event) :right)
+                          (if (contains? (selected-tileset-tile-selection state)
+                                         index)
+                            state
+                            (select-tileset-tile-index state index))
+
+                          :default
+                          (assoc (select-tileset-tile-index state index)
+                                 :tile-grid-selecting? true)))))
+   :on-drag-start (fn [state event ctx]
+                    (select-tile-grid-drag-range state event ctx))
+   :on-drag (fn [state event ctx]
+              (select-tile-grid-drag-range state event ctx))
+   :on-drag-end (fn [state event ctx]
+                  (assoc state :tile-grid-selecting? false))
+   :on-mouse-up (fn [state event ctx]
+                  (do
+                    (ui/stop-propagation! event)
+                    (when (and (= (:button event) :right)
+                               (not (empty? (selected-tileset-tile-selection state))))
+                      (menu/open-context-menu! tile-context-menu
+                                               (:global-position event)
+                                               state
+                                               ctx))
+                    (assoc state :tile-grid-selecting? false)))
    :on-key-down (fn [state event ctx]
                   (let [tiles (selected-tileset-tiles state)
                         item-count (count tiles)
@@ -197,25 +258,45 @@
                                 :key/right 1
                                 :key/up (* -1 columns)
                                 :key/down columns
+                                :key/delete :delete
                                 :default nil)]
                     (if (nil? delta)
                       state
                       (do
                         (ui/stop-propagation! event)
-                        (assoc state
-                               :selected-tileset-tile-index
-                               (move-tile-grid-index current
-                                                     item-count
-                                                     columns
-                                                     delta))))))
+                        (if (= delta :delete)
+                          (do
+                            (when (not (empty? (selected-tileset-tile-selection state)))
+                              (ui/emit! (:view ctx)
+                                        :tile/context-command
+                                        {:command :delete
+                                         :tile-indices
+                                         (selected-tileset-tile-selection state)}))
+                            state)
+                          (let [index (move-tile-grid-index current
+                                                            item-count
+                                                            columns
+                                                            delta)]
+                            (select-tileset-tile-index state index)))))))
+   :on {:menu/select (fn [state event ctx]
+                       (let [payload (:payload event)]
+                         (do
+                           (ui/stop-propagation! event)
+                           (when (= (:type payload) :action)
+                             (ui/emit! (:view ctx)
+                                       :tile/context-command
+                                       {:command (-> payload :payload :command)
+                                        :tile-indices
+                                        (selected-tileset-tile-selection state)}))))
+                       state)}
    :render (fn [state ctx]
              (let [tiles (selected-tileset-tiles state)
-                   selected-index (:selected-tileset-tile-index state)
+                   selection (selected-tileset-tile-selection state)
                    columns (tile-grid-columns (-> ctx :view :bounds))]
                (do
                  (for-indexed [index tile tiles]
                    (draw-tile-cell! tile index columns))
-                 (draw-selected-tile-cell! selected-index columns))))})
+                 (draw-selected-tile-cells! selection columns))))})
 
 (defcomponent tile-preview
   {:class :ui/content
