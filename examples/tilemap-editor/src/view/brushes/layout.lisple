@@ -1,9 +1,14 @@
 (ns tilemap-editor.view.brushes.layout
   (:require pixils
+            [pixils.render :as r]
             [pixils.ui :as ui]
+            [pixils.ui.combo-box :as cb]
             [pixils.ui.header-panel :as hp]
             [pixils.ui.list-box :as lb]
-            [tilemap-editor.view.brushes.model :as model]))
+            [pixils.ui.number-input :as ni]
+            [tilemap-editor.model.data :as data]
+            [tilemap-editor.view.brushes.model :as model]
+            [tilemap-editor.view.tilemap.renderer :as tr]))
 
 (def brush-list-row-height 24)
 
@@ -125,11 +130,440 @@
                         :state {:brushes (ui/bind-state :brushes)
                                 :selected-brush-index (ui/bind-state :selected-brush-index)}}]}))
 
+(def pattern-layer-row-height 24)
+(def brush-tile-row-height 22)
+(def brush-grid-cell-size 32)
+
+(defcomponent pattern-layer-row
+  {:extend 'ui/list-box-item
+   :class :ui/list-item-hover
+   :style {:width :fill
+           :height pattern-layer-row-height
+           :padding [3 6]
+           :layout {:direction :row
+                    :align-items :center}}
+   :update (fn [state ctx]
+             (assoc state :selected (contains? (:selected-indices state)
+                                               (:index state))))
+   :on-mouse-down (fn [state event ctx]
+                    (do
+                      (ui/stop-propagation! event)
+                      state))
+   :on-mouse-up (fn [state event ctx]
+                  (do
+                    (ui/stop-propagation! event)
+                    (ui/emit! (:view ctx)
+                              :list-box/item-click
+                              {:index (:index state)
+                               :value (:value state)
+                               :shift? false
+                               :ctrl? false})
+                    state))
+   :children [{:mode 'ui/text
+               :style {:width :fill}
+               :state {:value (ui/bind-state :label)}}]})
+
+(defun pattern-layer-row-child [index option]
+  {:mode 'pattern-layer-row
+   :state {:index index
+           :value (:value option)
+           :label (:label option)
+           :selected-indices (ui/bind-state :selected-indices)}})
+
+(defun pattern-layer-list-child [brush selected-layer-index]
+  (let [options (model/pattern-layer-options brush)]
+    (lb/make {:options options
+              :style {:width :fill
+                      :height :fill}
+              :row-height pattern-layer-row-height
+              :visible-rows (max 1 (count options))
+              :content-width 168
+              :disabled? (empty? options)
+              :selected-indices (model/selected-pattern-layer-indices
+                                 brush
+                                 selected-layer-index)
+              :force-selection? true
+              :item-child pattern-layer-row-child})))
+
+(defcomponent pattern-layer-list
+  {:style {:width :fill
+           :height :fill}
+   :init (fn [state ctx]
+           (assoc state
+                  :rendered-brush nil
+                  :rendered-selected-layer-index nil))
+   :update (fn [state ctx]
+             (let [brush (model/selected-brush (:brushes state)
+                                               (:selected-brush-index state))
+                   selected-layer-index (:selected-brush-layer-index state)]
+               (do
+                 (when (or (not= brush (:rendered-brush state))
+                           (not= selected-layer-index
+                                 (:rendered-selected-layer-index state)))
+                   (ui/replace-child! (:view ctx)
+                                      "pattern-layer-list-box"
+                                      (merge {:id "pattern-layer-list-box"}
+                                             (pattern-layer-list-child
+                                              brush
+                                              selected-layer-index))))
+                 (assoc state
+                        :rendered-brush brush
+                        :rendered-selected-layer-index selected-layer-index))))
+   :on {:list-box/change (fn [state event ctx]
+                           (do
+                             (ui/stop-propagation! event)
+                             (ui/emit! (:view ctx)
+                                       :brush/layer-select
+                                       (-> event :payload :value))
+                             state))}
+   :children [(merge {:id "pattern-layer-list-box"}
+                     (pattern-layer-list-child nil nil))]})
+
+(defun pattern-layer-tileset-combo-child [tilesets selected-index disabled?]
+  (cb/make {:options (data/tileset-options tilesets)
+            :selected-index selected-index
+            :disabled? (if (or disabled? (empty? (or tilesets [])))
+                         true
+                         false)}))
+
+(defcomponent pattern-layer-tileset-selector
+  {:style {:width :fill
+           :height 22}
+   :init (fn [state ctx]
+           (assoc state
+                  :rendered-tilesets nil
+                  :rendered-selected-index nil
+                  :rendered-disabled? nil))
+   :update (fn [state ctx]
+             (let [brush (model/selected-brush (:brushes state)
+                                               (:selected-brush-index state))
+                   tileset (model/selected-pattern-layer-tileset
+                            brush
+                            (:selected-brush-layer-index state))
+                   tilesets (or (:tilesets state) [])
+                   disabled? (or (:brush-layer-panel-disabled? state)
+                                 (empty? tilesets))
+                   selected-index (model/tileset-index tilesets tileset)]
+               (do
+                 (when (or (not= tilesets (:rendered-tilesets state))
+                           (not= selected-index (:rendered-selected-index state))
+                           (not= disabled? (:rendered-disabled? state)))
+                   (ui/replace-child! (:view ctx)
+                                      "pattern-layer-tileset-combo"
+                                      (merge {:id "pattern-layer-tileset-combo"}
+                                             (pattern-layer-tileset-combo-child
+                                              tilesets
+                                              selected-index
+                                              disabled?))))
+                 (assoc state
+                        :selected-tileset-index selected-index
+                        :disabled? disabled?
+                        :rendered-tilesets tilesets
+                        :rendered-selected-index selected-index
+                        :rendered-disabled? disabled?))))
+   :on {:combo-box/change (fn [state event ctx]
+                            (do
+                              (ui/emit! (:view ctx)
+                                        :brush/layer-tileset-change
+                                        (-> event :payload :selected-index))
+                              state))}
+   :children [(merge {:id "pattern-layer-tileset-combo"}
+                     (pattern-layer-tileset-combo-child [] nil true))]})
+
+(defcomponent pattern-size-input
+  {:style {:width :fill
+           :height 24
+           :layout {:direction :row
+                    :align-items :center
+                    :gap 6}}
+   :on {:number-input/change (fn [state event ctx]
+                               (do
+                                 (ui/emit! (:view ctx)
+                                           :brush/size-change
+                                           {:dimension (:dimension state)
+                                            :value (-> event :payload :value)})
+                                 state))}
+   :children [{:mode 'ui/text
+               :class :ui/muted
+               :style {:width 48}
+               :state {:value (ui/bind-state :label)}}
+              (ni/make {:value (ui/bind-state :value)
+                        :min 1
+                        :max 32
+                        :step 1
+                        :style {:width 64
+                                :height 22}})]})
+
+(defun pattern-size-input-child [dimension label value]
+  {:mode 'pattern-size-input
+   :state {:dimension dimension
+           :label label
+           :value value}})
+
+(defcomponent pattern-controls
+  {:style {:width 188
+           :height :fill
+           :layout {:direction :column
+                    :gap 8}}
+   :update (fn [state ctx]
+             (let [brush (model/selected-brush (:brushes state)
+                                               (:selected-brush-index state))]
+               (assoc state
+                      :width (model/pattern-width brush)
+                      :height-value (model/pattern-height brush)
+                      :layer-add-disabled? (or (:brush-detail-panel-disabled? state)
+                                               (empty? (or (:tilesets state) []))))))
+   :on {:list-box/change (fn [state event ctx]
+                           (do
+                             (ui/stop-propagation! event)
+                             state))}
+   :children [{:mode 'ui/text
+               :class :ui/title
+               :state {:value "Pattern"}}
+              (pattern-size-input-child :w "Width" (ui/bind-state :width))
+              (pattern-size-input-child :h "Height" (ui/bind-state :height-value))
+              {:mode 'ui/button
+               :class :ui/toolbar-button
+               :style {:width 24
+                       :height 22}
+               :state {:label "+"
+                       :disabled? (ui/bind-state :layer-add-disabled?)}
+               :on-click (fn [state event ctx]
+                           (do
+                             (when (not (:disabled? state))
+                               (ui/emit! (:view ctx) :brush/layer-add))
+                             state))}
+              {:mode 'pattern-layer-list
+               :style {:height 96}
+               :state {:brushes (ui/bind-state :brushes)
+                       :selected-brush-index (ui/bind-state :selected-brush-index)
+                       :selected-brush-layer-index
+                       (ui/bind-state :selected-brush-layer-index)}}
+              {:mode 'ui/text
+               :class :ui/muted
+               :state {:value "Tile Set"}}
+              {:mode 'pattern-layer-tileset-selector
+               :state {:brushes (ui/bind-state :brushes)
+                       :selected-brush-index (ui/bind-state :selected-brush-index)
+                       :selected-brush-layer-index
+                       (ui/bind-state :selected-brush-layer-index)
+                       :brush-layer-panel-disabled?
+                       (ui/bind-state :brush-layer-panel-disabled?)
+                       :tilesets (ui/bind-state :tilesets)}}]})
+
+(defcomponent brush-tile-preview
+  {:style {:width 14
+           :height 14}
+   :render (fn [state ctx]
+             (let [bounds (-> ctx :view :bounds)
+                   rect {:x 0 :y 0 :w (:w bounds) :h (:h bounds)}]
+               (do
+                 (r/rect! rect {:fill true
+                                :color {:r 0x12 :g 0x15 :b 0x18}})
+                 (tr/draw-tile! (:tile state) rect)
+                 (r/rect! rect {:color {:r 0xe6 :g 0xea :b 0xee}}))))})
+
+(defcomponent brush-tile-row
+  {:extend 'ui/list-box-item
+   :style {:width :fill
+           :height brush-tile-row-height
+           :padding [4 6]
+           :layout {:direction :row
+                    :align-items :center
+                    :gap 6}}
+   :update (fn [state ctx]
+             (let [tile (data/tile-in (:tilesets state)
+                                      (:tileset state)
+                                      (:tile-id state))]
+               (assoc state
+                      :selected (contains? (:selected-indices state)
+                                           (:index state))
+                      :tile tile
+                      :name (:name tile))))
+   :on-mouse-down (fn [state event ctx]
+                    (do
+                      (ui/stop-propagation! event)
+                      state))
+   :on-mouse-up (fn [state event ctx]
+                  (do
+                    (ui/stop-propagation! event)
+                    (ui/emit! (:view ctx)
+                              :list-box/item-click
+                              {:index (:index state)
+                               :value (:value state)
+                               :shift? false
+                               :ctrl? false})
+                    state))
+   :children [{:mode 'brush-tile-preview
+               :state {:tile (ui/bind-state :tile)}}
+              {:mode 'ui/text
+               :state {:value (ui/bind-state :name)}}]})
+
+(defun brush-tile-row-child [index option]
+  {:mode 'brush-tile-row
+   :state {:index index
+           :value (:value option)
+           :tile-id (:value option)
+           :tileset (ui/bind-state :tileset)
+           :tilesets (ui/bind-state :tilesets)
+           :selected-indices (ui/bind-state :selected-indices)}})
+
+(defun brush-selected-tile-indices [tilesets tileset selected-tile]
+  (if (or (nil? tileset) (nil? selected-tile))
+    []
+    [(data/tile-index tilesets tileset selected-tile)]))
+
+(defun brush-tile-palette-list-child [tilesets tileset selected-tile disabled?]
+  (let [options (data/tile-options tilesets tileset)]
+    (lb/make {:options options
+              :style {:width :fill
+                      :height :fill}
+              :row-height brush-tile-row-height
+              :visible-rows (count options)
+              :content-width 168
+              :disabled? (if (or disabled? (empty? options)) true false)
+              :state {:tileset (ui/bind-state :palette-tileset)
+                      :tilesets (ui/bind-state :tilesets)}
+              :item-state-keys [:tileset :tilesets]
+              :selected-indices (brush-selected-tile-indices tilesets
+                                                             tileset
+                                                             selected-tile)
+              :force-selection? true
+              :item-child brush-tile-row-child})))
+
+(defcomponent brush-tile-palette
+  {:style {:width 188
+           :height :fill}
+   :init (fn [state ctx]
+           (assoc state
+                  :palette-tileset nil
+                  :palette-tilesets nil
+                  :palette-selected-tile nil
+                  :palette-disabled? nil))
+   :update (fn [state ctx]
+             (let [brush (model/selected-brush (:brushes state)
+                                               (:selected-brush-index state))
+                   tileset (model/selected-pattern-layer-tileset
+                            brush
+                            (:selected-brush-layer-index state))
+                   selected-tile (:brush-selected-tile state)
+                   disabled? (or (:brush-layer-panel-disabled? state)
+                                 (nil? tileset))]
+               (do
+                 (when (or (not= tileset (:palette-tileset state))
+                           (not= (:tilesets state) (:palette-tilesets state))
+                           (not= selected-tile (:palette-selected-tile state))
+                           (not= disabled? (:palette-disabled? state)))
+                   (ui/replace-child!
+                    (:view ctx)
+                    "brush-tile-list-box"
+                    (merge {:id "brush-tile-list-box"}
+                           (brush-tile-palette-list-child (:tilesets state)
+                                                          tileset
+                                                          selected-tile
+                                                          disabled?))))
+                 (assoc state
+                        :palette-tileset tileset
+                        :palette-tilesets (:tilesets state)
+                        :palette-selected-tile selected-tile
+                        :palette-disabled? disabled?))))
+   :on {:list-box/change (fn [state event ctx]
+                           (do
+                             (ui/stop-propagation! event)
+                             (ui/emit! (:view ctx)
+                                       :brush/tile-select
+                                       (-> event :payload :value))
+                             state))}
+   :children [(merge {:id "brush-tile-list-box"}
+                     (brush-tile-palette-list-child [] nil nil true))]})
+
+(defun brush-grid-rect [x y]
+  {:x (* x brush-grid-cell-size)
+   :y (* y brush-grid-cell-size)
+   :w brush-grid-cell-size
+   :h brush-grid-cell-size})
+
+(defun draw-brush-layer! [tilesets layer width height]
+  (dotimes [y height]
+    (dotimes [x width]
+      (let [row (nth (or (:tiles layer) []) y)
+            tile-ref (nth (or row []) x)]
+        (when (not (nil? tile-ref))
+          (tr/draw-tile! (data/tile-in tilesets (:tileset layer) tile-ref)
+                         (brush-grid-rect x y)))))))
+
+(defun draw-brush-grid-overlay! [width height anchor]
+  (do
+    (dotimes [y height]
+      (dotimes [x width]
+        (r/rect! (brush-grid-rect x y)
+                 {:color {:r 0x1f :g 0x26 :b 0x2d}})))
+    (r/rect! (brush-grid-rect (:x anchor) (:y anchor))
+             {:color {:r 0xff :g 0xcc :b 0x66}})))
+
+(defcomponent pattern-grid
+  {:focusable true
+   :class :ui/canvas
+   :style {:width :shrink
+           :height :shrink
+           :cursor :crosshair}
+   :update (fn [state ctx]
+             (let [brush (model/selected-brush (:brushes state)
+                                               (:selected-brush-index state))
+                   width (model/pattern-width brush)
+                   height (model/pattern-height brush)]
+               (do
+                 (assoc-in! ctx [:view :style :width] (* width brush-grid-cell-size))
+                 (assoc-in! ctx [:view :style :height] (* height brush-grid-cell-size))
+                 (assoc state :brush brush :width width :height height))))
+   :on-mouse-down (fn [state event ctx]
+                    (let [pos (:position event)
+                          x (int (/ (:x pos) brush-grid-cell-size))
+                          y (int (/ (:y pos) brush-grid-cell-size))]
+                      (cond
+                        (= (:button event) :left)
+                        (model/set-pattern-tile! state x y (:brush-selected-tile state))
+
+                        (= (:button event) :right)
+                        (model/set-pattern-tile! state x y nil)
+
+                        :default
+                        state)))
+   :on-drag (fn [state event ctx]
+              (let [pos (:position event)
+                    x (int (/ (:x pos) brush-grid-cell-size))
+                    y (int (/ (:y pos) brush-grid-cell-size))]
+                (cond
+                  (= (:button event) :left)
+                  (model/set-pattern-tile! state x y (:brush-selected-tile state))
+
+                  (= (:button event) :right)
+                  (model/set-pattern-tile! state x y nil)
+
+                  :default
+                  state)))
+   :render (fn [state ctx]
+             (let [brush (:brush state)
+                   width (or (:width state) 1)
+                   height (or (:height state) 1)
+                   layers (or (-> brush :pattern :layers) [])
+                   anchor (or (-> brush :pattern :anchor) {:x 0 :y 0})]
+               (do
+                 (r/rect! {:x 0
+                           :y 0
+                           :w (* width brush-grid-cell-size)
+                           :h (* height brush-grid-cell-size)}
+                          {:fill true
+                           :color {:r 0x0b :g 0x0d :b 0x10}})
+                 (for [layer layers]
+                   (draw-brush-layer! (:tilesets state) layer width height))
+                 (draw-brush-grid-overlay! width height anchor))))})
+
 (defcomponent brush-detail
   {:style {:width :fill
-           :height :shrink
+           :height :fill
            :layout {:direction :column
-                    :gap 4}}
+                    :gap 8}}
    :update (fn [state ctx]
              (let [brush (model/selected-brush (:brushes state)
                                                (:selected-brush-index state))]
@@ -138,6 +572,28 @@
                       :id-label (if brush (str (:id brush)) "")
                       :kind-label (if brush (model/brush-kind-label brush) "")
                       :summary (if brush (model/brush-summary brush) ""))))
+   :children [{:mode 'brush-detail-header
+               :state {:label (ui/bind-state :label)
+                       :id-label (ui/bind-state :id-label)
+                       :kind-label (ui/bind-state :kind-label)
+                       :summary (ui/bind-state :summary)}}
+              {:mode 'pattern-brush-editor
+               :state {:brushes (ui/bind-state :brushes)
+                       :selected-brush-index (ui/bind-state :selected-brush-index)
+                       :selected-brush-layer-index
+                       (ui/bind-state :selected-brush-layer-index)
+                       :brush-detail-panel-disabled?
+                       (ui/bind-state :brush-detail-panel-disabled?)
+                       :brush-layer-panel-disabled?
+                       (ui/bind-state :brush-layer-panel-disabled?)
+                       :brush-selected-tile (ui/bind-state :brush-selected-tile)
+                       :tilesets (ui/bind-state :tilesets)}}]})
+
+(defcomponent brush-detail-header
+  {:style {:width :fill
+           :height :shrink
+           :layout {:direction :column
+                    :gap 3}}
    :children [{:mode 'ui/text
                :class :ui/title
                :state {:value (ui/bind-state :label)}}
@@ -150,6 +606,38 @@
                :class :ui/muted
                :state {:value (ui/bind-state :summary)}}]})
 
+(defcomponent pattern-brush-editor
+  {:style {:width :fill
+           :height :fill
+           :layout {:direction :row
+                    :gap 12}}
+   :children [{:mode 'pattern-controls
+               :state {:brushes (ui/bind-state :brushes)
+                       :selected-brush-index (ui/bind-state :selected-brush-index)
+                       :selected-brush-layer-index
+                       (ui/bind-state :selected-brush-layer-index)
+                       :brush-detail-panel-disabled?
+                       (ui/bind-state :brush-detail-panel-disabled?)
+                       :brush-layer-panel-disabled?
+                       (ui/bind-state :brush-layer-panel-disabled?)
+                       :tilesets (ui/bind-state :tilesets)}}
+              {:mode 'pattern-grid
+               :state {:brushes (ui/bind-state :brushes)
+                       :selected-brush-index (ui/bind-state :selected-brush-index)
+                       :selected-brush-layer-index
+                       (ui/bind-state :selected-brush-layer-index)
+                       :brush-selected-tile (ui/bind-state :brush-selected-tile)
+                       :tilesets (ui/bind-state :tilesets)}}
+              {:mode 'brush-tile-palette
+               :state {:brushes (ui/bind-state :brushes)
+                       :selected-brush-index (ui/bind-state :selected-brush-index)
+                       :selected-brush-layer-index
+                       (ui/bind-state :selected-brush-layer-index)
+                       :brush-layer-panel-disabled?
+                       (ui/bind-state :brush-layer-panel-disabled?)
+                       :brush-selected-tile (ui/bind-state :brush-selected-tile)
+                       :tilesets (ui/bind-state :tilesets)}}]})
+
 (defun make-brush-detail-panel []
   (hp/make {:title "Brush Definition"
             :style {:width :fill
@@ -160,12 +648,36 @@
                                   :gap 8}}
             :state {:brushes (ui/bind-state :brushes)
                     :selected-brush-index (ui/bind-state :selected-brush-index)
+                    :selected-brush-layer-index
+                    (ui/bind-state :selected-brush-layer-index)
+                    :brush-detail-panel-disabled?
+                    (ui/bind-state :brush-detail-panel-disabled?)
+                    :brush-layer-panel-disabled?
+                    (ui/bind-state :brush-layer-panel-disabled?)
+                    :brush-selected-tile (ui/bind-state :brush-selected-tile)
+                    :tilesets (ui/bind-state :tilesets)
                     :disabled? (ui/bind-state :brush-detail-panel-disabled?)}
             :body-state {:brushes (ui/bind-state :brushes)
-                         :selected-brush-index (ui/bind-state :selected-brush-index)}
+                         :selected-brush-index (ui/bind-state :selected-brush-index)
+                         :selected-brush-layer-index
+                         (ui/bind-state :selected-brush-layer-index)
+                         :brush-detail-panel-disabled?
+                         (ui/bind-state :brush-detail-panel-disabled?)
+                         :brush-layer-panel-disabled?
+                         (ui/bind-state :brush-layer-panel-disabled?)
+                         :brush-selected-tile (ui/bind-state :brush-selected-tile)
+                         :tilesets (ui/bind-state :tilesets)}
             :children [{:mode 'brush-detail
                         :state {:brushes (ui/bind-state :brushes)
-                                :selected-brush-index (ui/bind-state :selected-brush-index)}}]}))
+                                :selected-brush-index (ui/bind-state :selected-brush-index)
+                                :selected-brush-layer-index
+                                (ui/bind-state :selected-brush-layer-index)
+                                :brush-detail-panel-disabled?
+                                (ui/bind-state :brush-detail-panel-disabled?)
+                                :brush-layer-panel-disabled?
+                                (ui/bind-state :brush-layer-panel-disabled?)
+                                :brush-selected-tile (ui/bind-state :brush-selected-tile)
+                                :tilesets (ui/bind-state :tilesets)}}]}))
 
 (defcomponent brush-definition-workspace
   {:style {:width :fill
@@ -179,6 +691,28 @@
    :on {:brush/add (fn [state event ctx]
                      (model/add-pattern-brush! state))
         :brush/select (fn [state event ctx]
-                        (assoc state :selected-brush-index (:payload event)))}
+                        (let [brush (model/selected-brush (:brushes state)
+                                                          (:payload event))]
+                          (assoc state
+                                 :selected-brush-index (:payload event)
+                                 :selected-brush-layer-index
+                                 (model/selected-pattern-layer-index brush nil)
+                                 :brush-selected-tile nil)))
+        :brush/layer-add (fn [state event ctx]
+                           (model/add-pattern-layer! state))
+        :brush/layer-select (fn [state event ctx]
+                              (assoc state
+                                     :selected-brush-layer-index (:payload event)
+                                     :brush-selected-tile nil))
+        :brush/layer-tileset-change
+        (fn [state event ctx]
+          (model/set-pattern-layer-tileset! state (:payload event)))
+        :brush/size-change (fn [state event ctx]
+                             (let [payload (:payload event)]
+                               (model/set-pattern-size! state
+                                                        (:dimension payload)
+                                                        (:value payload))))
+        :brush/tile-select (fn [state event ctx]
+                             (assoc state :brush-selected-tile (:payload event)))}
    :children [(make-brush-list-panel)
               (make-brush-detail-panel)]})

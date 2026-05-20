@@ -103,6 +103,9 @@
               :tilesets tilesets
               :brushes brushes
               :selected-brush-index (when (> (count brushes) 0) 0)
+              :selected-brush-layer-index
+              (when (> (count (or (-> (head brushes) :pattern :layers) [])) 0) 0)
+              :brush-selected-tile nil
               :layers layers
               :selected-layer-index (when (> (count layers) 0) 0)
               :selected-layer-label (or (:label (head layers)) "")

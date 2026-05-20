@@ -1,8 +1,8 @@
 (ns tilemap-editor.view.brushes.model
   (:require pixils))
 
-(def default-pattern-size {:w 1 :h 1})
-(def default-pattern-anchor {:x 0 :y 0})
+(def default-pattern-size {:w 3 :h 3})
+(def default-pattern-anchor {:x 1 :y 1})
 
 (defun keyword-label [value]
   (let [text (str value)]
@@ -52,6 +52,84 @@
              :anchor default-pattern-anchor
              :layers []}})
 
+(defun clamp [value low high]
+  (max low (min high value)))
+
+(defun pattern-width [brush]
+  (or (-> brush :pattern :size :w) (:w default-pattern-size)))
+
+(defun pattern-height [brush]
+  (or (-> brush :pattern :size :h) (:h default-pattern-size)))
+
+(defun make-empty-pattern-row [width]
+  (dotimes [x width] nil))
+
+(defun make-empty-pattern-tiles [width height]
+  (dotimes [y height] (make-empty-pattern-row width)))
+
+(defun resize-pattern-row [row width]
+  (dotimes [x width]
+    (nth (or row []) x)))
+
+(defun resize-pattern-tiles [tiles width height]
+  (dotimes [y height]
+    (resize-pattern-row (nth (or tiles []) y) width)))
+
+(defun resize-pattern-layer [layer width height]
+  (assoc layer :tiles (resize-pattern-tiles (:tiles layer) width height)))
+
+(defun resize-pattern-layers [layers width height]
+  (map (or layers [])
+       (fn [layer]
+         (resize-pattern-layer layer width height))))
+
+(defun tileset-id [tilesets index]
+  (let [items (or tilesets [])]
+    (when (> (count items) 0)
+      (:id (nth items (or index 0))))))
+
+(defun first-tileset-id [tilesets]
+  (tileset-id tilesets 0))
+
+(defun pattern-layer-id-exists? [layers id]
+  (> (count (filter (or layers [])
+                    (fn [layer]
+                      (= (:id layer) id))))
+     0))
+
+(defun unique-pattern-layer-id-from [layers root suffix]
+  (let [candidate (keyword (if suffix
+                             (str root "-" suffix)
+                             root))]
+    (if (pattern-layer-id-exists? layers candidate)
+      (unique-pattern-layer-id-from layers
+                                    root
+                                    (if suffix (inc suffix) 2))
+      candidate)))
+
+(defun unique-pattern-layer-id [layers]
+  (unique-pattern-layer-id-from layers "layer" nil))
+
+(defun make-pattern-layer [layers tilesets width height]
+  {:id (unique-pattern-layer-id layers)
+   :label (str "Layer " (inc (count (or layers []))))
+   :kind :tile
+   :tileset (first-tileset-id tilesets)
+   :tiles (make-empty-pattern-tiles width height)})
+
+(defun make-initial-pattern-layers [tilesets width height]
+  (if (empty? (or tilesets []))
+    []
+    [(make-pattern-layer [] tilesets width height)]))
+
+(defun make-pattern-brush-for-state [state id label]
+  (let [size default-pattern-size]
+    (assoc-in (make-pattern-brush id label)
+              [:pattern :layers]
+              (make-initial-pattern-layers (:tilesets state)
+                                           (:w size)
+                                           (:h size)))))
+
 (defun brush-options [brushes]
   (for-indexed [index brush (or brushes [])]
     {:value index
@@ -72,6 +150,78 @@
   (if-let [selected-index (selected-brush-index brushes index)]
     [selected-index]
     []))
+
+(defun selected-pattern-layer-index [brush index]
+  (let [layers (or (-> brush :pattern :layers) [])]
+    (if (empty? layers)
+      nil
+      (min (or index 0) (dec (count layers))))))
+
+(defun selected-pattern-layer [brush index]
+  (if-let [selected-index (selected-pattern-layer-index brush index)]
+    (nth (-> brush :pattern :layers) selected-index)
+    nil))
+
+(defun selected-pattern-layer-indices [brush index]
+  (if-let [selected-index (selected-pattern-layer-index brush index)]
+    [selected-index]
+    []))
+
+(defun selected-pattern-layer-tileset [brush index]
+  (:tileset (selected-pattern-layer brush index)))
+
+(defun pattern-layer-options [brush]
+  (for-indexed [index layer (or (-> brush :pattern :layers) [])]
+    {:value index
+     :label (or (:label layer) (str (:id layer)))}))
+
+(defun tileset-index [tilesets id]
+  (if id
+    (find-index (or tilesets [])
+                (fn [tileset]
+                  (= (:id tileset) id)))
+    nil))
+
+(defun clamp-pattern-size [value]
+  (clamp (or value 1) 1 32))
+
+(defun replace-selected-brush [brushes index brush]
+  (for-indexed [brush-index item (or brushes [])]
+    (if (= brush-index index)
+      brush
+      item)))
+
+(defun ensure-pattern-brush-editable [state brush-index]
+  (let [brushes (or (:brushes state) [])
+        brush (selected-brush brushes brush-index)
+        tilesets (or (:tilesets state) [])
+        first-tileset (first-tileset-id tilesets)]
+    (if (and brush (= (:kind brush) :pattern) first-tileset)
+      (let [layers (or (-> brush :pattern :layers) [])
+            layer-index (selected-pattern-layer-index brush
+                                                      (:selected-brush-layer-index state))]
+        (cond
+          (empty? layers)
+          (let [layer (make-pattern-layer []
+                                          tilesets
+                                          (pattern-width brush)
+                                          (pattern-height brush))
+                next-brush (assoc-in brush [:pattern :layers] [layer])]
+            (assoc state
+                   :brushes (replace-selected-brush brushes brush-index next-brush)
+                   :selected-brush-layer-index 0))
+
+          (nil? (:tileset (nth layers (or layer-index 0))))
+          (let [next-brush (assoc-in brush
+                                     [:pattern :layers (or layer-index 0) :tileset]
+                                     first-tileset)]
+            (assoc state
+                   :brushes (replace-selected-brush brushes brush-index next-brush)
+                   :selected-brush-layer-index (or layer-index 0)))
+
+          :default
+          state))
+      state)))
 
 (defun brush-kind-label [brush]
   (case (:kind brush)
@@ -101,15 +251,105 @@
 (defun add-pattern-brush! [state]
   (let [brushes (or (:brushes state) [])
         id (unique-brush-id brushes)
-        brush (make-pattern-brush id (brush-label-from-id id))
+        brush (make-pattern-brush-for-state state id (brush-label-from-id id))
         index (count brushes)]
     (assoc state
            :brushes (concat brushes [brush])
-           :selected-brush-index index)))
+           :selected-brush-index index
+           :selected-brush-layer-index (selected-pattern-layer-index brush nil))))
+
+(defun add-pattern-layer! [state]
+  (let [brushes (or (:brushes state) [])
+        brush-index (selected-brush-index brushes (:selected-brush-index state))
+        brush (selected-brush brushes brush-index)]
+    (if (and brush
+             (= (:kind brush) :pattern)
+             (first-tileset-id (:tilesets state)))
+      (let [layers (or (-> brush :pattern :layers) [])
+            width (pattern-width brush)
+            height (pattern-height brush)
+            layer (make-pattern-layer layers (:tilesets state) width height)
+            layer-index (count layers)
+            next-brush (assoc-in brush [:pattern :layers] (concat layers [layer]))]
+        (assoc state
+               :brushes (replace-selected-brush brushes brush-index next-brush)
+               :selected-brush-layer-index layer-index))
+      state)))
+
+(defun set-pattern-size! [state dimension value]
+  (let [brushes (or (:brushes state) [])
+        brush-index (selected-brush-index brushes (:selected-brush-index state))
+        brush (selected-brush brushes brush-index)]
+    (if (and brush (= (:kind brush) :pattern))
+      (let [width (if (= dimension :w)
+                    (clamp-pattern-size value)
+                    (pattern-width brush))
+            height (if (= dimension :h)
+                     (clamp-pattern-size value)
+                     (pattern-height brush))
+            layers (resize-pattern-layers (-> brush :pattern :layers)
+                                          width
+                                          height)
+            anchor {:x (clamp (or (-> brush :pattern :anchor :x) 0)
+                              0
+                              (dec width))
+                    :y (clamp (or (-> brush :pattern :anchor :y) 0)
+                              0
+                              (dec height))}
+            next-brush (-> brush
+                           (assoc-in [:pattern :size] {:w width :h height})
+                           (assoc-in [:pattern :anchor] anchor)
+                           (assoc-in [:pattern :layers] layers))]
+        (assoc state :brushes (replace-selected-brush brushes
+                                                      brush-index
+                                                      next-brush)))
+      state)))
+
+(defun set-pattern-layer-tileset! [state tileset-index]
+  (let [brushes (or (:brushes state) [])
+        brush-index (selected-brush-index brushes (:selected-brush-index state))
+        brush (selected-brush brushes brush-index)
+        layer-index (selected-pattern-layer-index brush
+                                                  (:selected-brush-layer-index state))
+        tileset (tileset-id (:tilesets state) tileset-index)]
+    (if (and brush (not (nil? layer-index)) tileset)
+      (let [next-brush (assoc-in brush
+                                 [:pattern :layers layer-index :tileset]
+                                 tileset)]
+        (assoc state
+               :brushes (replace-selected-brush brushes brush-index next-brush)
+               :brush-selected-tile nil))
+      state)))
+
+(defun set-pattern-tile! [state x y tile-ref]
+  (let [brushes (or (:brushes state) [])
+        brush-index (selected-brush-index brushes (:selected-brush-index state))
+        brush (selected-brush brushes brush-index)
+        layer-index (selected-pattern-layer-index brush
+                                                  (:selected-brush-layer-index state))]
+    (if (and brush
+             (not (nil? layer-index))
+             (>= x 0)
+             (< x (pattern-width brush))
+             (>= y 0)
+             (< y (pattern-height brush)))
+      (let [next-brush (assoc-in brush
+                                 [:pattern :layers layer-index :tiles y x]
+                                 tile-ref)]
+        (assoc state :brushes (replace-selected-brush brushes
+                                                      brush-index
+                                                      next-brush)))
+      state)))
 
 (defun derive-brush-workspace-state [state]
   (let [index (selected-brush-index (:brushes state)
-                                    (:selected-brush-index state))]
+                                    (:selected-brush-index state))
+        state (ensure-pattern-brush-editable state index)
+        brush (selected-brush (:brushes state) index)
+        layer-index (selected-pattern-layer-index brush
+                                                  (:selected-brush-layer-index state))]
     (assoc state
            :selected-brush-index index
-           :brush-detail-panel-disabled? (nil? index))))
+           :selected-brush-layer-index layer-index
+           :brush-detail-panel-disabled? (nil? index)
+           :brush-layer-panel-disabled? (nil? layer-index))))

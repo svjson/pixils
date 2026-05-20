@@ -10,3 +10,17 @@
     (is (= 'ui/button (:mode add-button)))
     (is (= :ui/toolbar-button (:class add-button)))
     (is (= "+" (-> add-button :state :label)))))
+
+(deftest pattern-layer-tileset-combo-lists_tilesets
+  (let [combo (layout/pattern-layer-tileset-combo-child
+               [{:id :terrain
+                 :label "Terrain"}
+                {:id :decor
+                 :label "Decor"}]
+               1
+               false)]
+    (is (= [{:value 0 :label "Terrain"}
+            {:value 1 :label "Decor"}]
+           (-> combo :state :options)))
+    (is (= 1 (-> combo :state :selected-index)))
+    (is (= false (-> combo :state :disabled?)))))

@@ -57,6 +57,8 @@
            :tileset nil
            :brushes []
            :selected-brush-index nil
+           :selected-brush-layer-index nil
+           :brush-selected-tile nil
            :selected-layer-index nil
            :selected-layer-label ""
            :layers []
@@ -147,6 +149,8 @@
                        :tileset (ui/bind-state :tileset)
                        :brushes (ui/bind-state :brushes)
                        :selected-brush-index (ui/bind-state :selected-brush-index)
+                       :selected-brush-layer-index (ui/bind-state :selected-brush-layer-index)
+                       :brush-selected-tile (ui/bind-state :brush-selected-tile)
                        :selected-layer-index (ui/bind-state :selected-layer-index)
                        :selected-layer-label (ui/bind-state :selected-layer-label)
                        :layers (ui/bind-state :layers)
@@ -199,6 +203,9 @@
                                :style {:padding 8}
                                :state {:brushes (ui/bind-state :brushes)
                                        :selected-brush-index (ui/bind-state :selected-brush-index)
+                                       :selected-brush-layer-index
+                                       (ui/bind-state :selected-brush-layer-index)
+                                       :brush-selected-tile (ui/bind-state :brush-selected-tile)
                                        :tilesets (ui/bind-state :tilesets)
                                        :layers (ui/bind-state :layers)}}}
                       {:id :resources
