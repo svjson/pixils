@@ -270,15 +270,16 @@
         tile-size (or (:tile-size state) data/tile-size)]
     (when image
       (let [dim (img/size image)
-            image-rect (sprite-map-preview-image-rect dim)]
-        (source-position-from-preview-position (:position event)
-                                               image-rect
-                                               dim
-                                               tile-size
-                                               (source-position-snap-enabled?
-                                                state)
-                                               (source-position-snap-interval
-                                                state))))))
+            image-rect (when dim (sprite-map-preview-image-rect dim))]
+        (when dim
+          (source-position-from-preview-position (:position event)
+                                                 image-rect
+                                                 dim
+                                                 tile-size
+                                                 (source-position-snap-enabled?
+                                                  state)
+                                                 (source-position-snap-interval
+                                                  state)))))))
 
 (defun sprite-map-preview-key-source [state event]
   (let [tile (:tile state)
@@ -293,13 +294,15 @@
                 :key/down {:x 0 :y step}
                 :default nil)]
     (when (and image source delta)
-      (move-source-position source
-                            (:x delta)
-                            (:y delta)
-                            tile-size
-                            (img/size image)
-                            (source-position-snap-enabled? state)
-                            (source-position-snap-interval state)))))
+      (let [dim (img/size image)]
+        (when dim
+          (move-source-position source
+                                (:x delta)
+                                (:y delta)
+                                tile-size
+                                dim
+                                (source-position-snap-enabled? state)
+                                (source-position-snap-interval state)))))))
 
 (defcomponent sprite-map-preview
   {:focusable true
@@ -348,14 +351,15 @@
                            :color {:r 0x12 :g 0x15 :b 0x18}})
                  (when (and image source)
                    (let [dim (img/size image)
-                         image-rect (sprite-map-preview-image-rect dim)]
-                     (do
-                       (r/image! image
-                                 {:pos {:x (:x image-rect)
-                                        :y (:y image-rect)}
-                                  :scale (:scale image-rect)})
-                       (r/rect! (sprite-map-preview-source-rect source image-rect)
-                                {:color {:r 0xff :g 0xcc :b 0x66}}))))
+                         image-rect (when dim (sprite-map-preview-image-rect dim))]
+                     (when dim
+                       (do
+                         (r/image! image
+                                   {:pos {:x (:x image-rect)
+                                          :y (:y image-rect)}
+                                    :scale (:scale image-rect)})
+                         (r/rect! (sprite-map-preview-source-rect source image-rect)
+                                  {:color {:r 0xff :g 0xcc :b 0x66}})))))
                  (r/rect! {:x 0 :y 0
                            :w sprite-map-preview-width
                            :h sprite-map-preview-height}
