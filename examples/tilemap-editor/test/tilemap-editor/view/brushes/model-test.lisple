@@ -110,6 +110,34 @@
             [:g :h]]
            (get-in state [:brushes 0 :pattern :layers 0 :tiles])))))
 
+(deftest pattern-anchor-update-clamps_to_pattern_size
+  (let [state (model/set-pattern-anchor!
+               {:selected-brush-index 0
+                :brushes [{:id :brush
+                           :kind :pattern
+                           :pattern {:size {:w 3 :h 2}
+                                     :anchor {:x 1 :y 1}
+                                     :layers []}}]}
+               :x
+               9)
+        state (model/set-pattern-anchor! state :y -2)]
+    (is (= {:x 2 :y 0}
+           (get-in state [:brushes 0 :pattern :anchor])))))
+
+(deftest pattern-size-update-clamps_existing_anchor
+  (let [state (model/set-pattern-size!
+               {:selected-brush-index 0
+                :brushes [{:id :brush
+                           :kind :pattern
+                           :pattern {:size {:w 4 :h 4}
+                                     :anchor {:x 3 :y 3}
+                                     :layers []}}]}
+               :w
+               2)
+        state (model/set-pattern-size! state :h 1)]
+    (is (= {:x 1 :y 0}
+           (get-in state [:brushes 0 :pattern :anchor])))))
+
 (deftest pattern-layer-clear-empties_selected_layer
   (let [state (model/clear-pattern-layer!
                {:selected-brush-index 0

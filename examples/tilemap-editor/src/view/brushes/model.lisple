@@ -61,6 +61,13 @@
 (defun pattern-height [brush]
   (or (-> brush :pattern :size :h) (:h default-pattern-size)))
 
+(defun pattern-anchor [brush]
+  (let [anchor (or (-> brush :pattern :anchor) default-pattern-anchor)
+        width (pattern-width brush)
+        height (pattern-height brush)]
+    {:x (clamp (or (:x anchor) 0) 0 (dec width))
+     :y (clamp (or (:y anchor) 0) 0 (dec height))}))
+
 (defun make-empty-pattern-row [width]
   (dotimes [x width] nil))
 
@@ -363,6 +370,26 @@
                            (assoc-in [:pattern :size] {:w width :h height})
                            (assoc-in [:pattern :anchor] anchor)
                            (assoc-in [:pattern :layers] layers))]
+        (assoc state :brushes (replace-selected-brush brushes
+                                                      brush-index
+                                                      next-brush)))
+      state)))
+
+(defun set-pattern-anchor! [state dimension value]
+  (let [brushes (or (:brushes state) [])
+        brush-index (selected-brush-index brushes (:selected-brush-index state))
+        brush (selected-brush brushes brush-index)]
+    (if (and brush (= (:kind brush) :pattern))
+      (let [current (pattern-anchor brush)
+            width (pattern-width brush)
+            height (pattern-height brush)
+            anchor {:x (if (= dimension :x)
+                         (clamp (or value 0) 0 (dec width))
+                         (:x current))
+                    :y (if (= dimension :y)
+                         (clamp (or value 0) 0 (dec height))
+                         (:y current))}
+            next-brush (assoc-in brush [:pattern :anchor] anchor)]
         (assoc state :brushes (replace-selected-brush brushes
                                                       brush-index
                                                       next-brush)))

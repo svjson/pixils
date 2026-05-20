@@ -301,6 +301,37 @@
            :label label
            :value value}})
 
+(defcomponent pattern-anchor-input
+  {:style {:width :fill
+           :height 24
+           :layout {:direction :row
+                    :align-items :center
+                    :gap 6}}
+   :on {:number-input/change (fn [state event ctx]
+                               (do
+                                 (ui/emit! (:view ctx)
+                                           :brush/anchor-change
+                                           {:dimension (:dimension state)
+                                            :value (-> event :payload :value)})
+                                 state))}
+   :children [{:mode 'ui/text
+               :class :ui/muted
+               :style {:width 48}
+               :state {:value (ui/bind-state :label)}}
+              (ni/make {:value (ui/bind-state :value)
+                        :min 0
+                        :max (ui/bind-state :max-value)
+                        :step 1
+                        :style {:width 64
+                                :height 22}})]})
+
+(defun pattern-anchor-input-child [dimension label value max-value]
+  {:mode 'pattern-anchor-input
+   :state {:dimension dimension
+           :label label
+           :value value
+           :max-value max-value}})
+
 (defcomponent pattern-layer-actions
   {:style {:width :fill
            :height 24
@@ -335,10 +366,17 @@
    :update (fn [state ctx]
              (let [brush (model/selected-brush (:brushes state)
                                                (:selected-brush-index state))
-                   layer-count (model/pattern-layer-count brush)]
+                   layer-count (model/pattern-layer-count brush)
+                   anchor (model/pattern-anchor brush)
+                   width (model/pattern-width brush)
+                   height (model/pattern-height brush)]
                (assoc state
-                      :width (model/pattern-width brush)
-                      :height-value (model/pattern-height brush)
+                      :width width
+                      :height-value height
+                      :anchor-x (:x anchor)
+                      :anchor-y (:y anchor)
+                      :anchor-max-x (dec width)
+                      :anchor-max-y (dec height)
                       :layer-add-disabled? (or (:brush-detail-panel-disabled? state)
                                                (empty? (or (:tilesets state) [])))
                       :layer-clear-disabled? (:brush-layer-panel-disabled? state)
@@ -353,6 +391,17 @@
                :state {:value "Pattern"}}
               (pattern-size-input-child :w "Width" (ui/bind-state :width))
               (pattern-size-input-child :h "Height" (ui/bind-state :height-value))
+              {:mode 'ui/text
+               :class :ui/muted
+               :state {:value "Anchor"}}
+              (pattern-anchor-input-child :x
+                                          "X"
+                                          (ui/bind-state :anchor-x)
+                                          (ui/bind-state :anchor-max-x))
+              (pattern-anchor-input-child :y
+                                          "Y"
+                                          (ui/bind-state :anchor-y)
+                                          (ui/bind-state :anchor-max-y))
               {:mode 'ui/button
                :class :ui/toolbar-button
                :style {:width 24
@@ -781,6 +830,11 @@
                                (model/set-pattern-size! state
                                                         (:dimension payload)
                                                         (:value payload))))
+        :brush/anchor-change (fn [state event ctx]
+                               (let [payload (:payload event)]
+                                 (model/set-pattern-anchor! state
+                                                            (:dimension payload)
+                                                            (:value payload))))
         :brush/tile-select (fn [state event ctx]
                              (assoc state :brush-selected-tile (:payload event)))}
    :children [(make-brush-list-panel)
