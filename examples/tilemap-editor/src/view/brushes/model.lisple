@@ -191,6 +191,22 @@
       brush
       item)))
 
+(defun remove-pattern-layer-at [layers delete-index]
+  (map (filter (for-indexed [index layer (or layers [])]
+                 {:index index
+                  :layer layer})
+               (fn [entry]
+                 (not= (:index entry) delete-index)))
+       :layer))
+
+(defun selected-pattern-layer-index-after-delete [selected-index delete-index remaining-count]
+  (let [selected-index (or selected-index 0)]
+    (cond
+      (<= remaining-count 0) nil
+      (< selected-index delete-index) selected-index
+      (> selected-index delete-index) (dec selected-index)
+      :default (min delete-index (dec remaining-count)))))
+
 (defun ensure-pattern-brush-editable [state brush-index]
   (let [brushes (or (:brushes state) [])
         brush (selected-brush brushes brush-index)
@@ -275,6 +291,53 @@
                :brushes (replace-selected-brush brushes brush-index next-brush)
                :selected-brush-layer-index layer-index))
       state)))
+
+(defun clear-pattern-layer! [state]
+  (let [brushes (or (:brushes state) [])
+        brush-index (selected-brush-index brushes (:selected-brush-index state))
+        brush (selected-brush brushes brush-index)
+        layer-index (selected-pattern-layer-index brush
+                                                  (:selected-brush-layer-index state))]
+    (if (and brush
+             (= (:kind brush) :pattern)
+             (not (nil? layer-index)))
+      (let [next-brush (assoc-in brush
+                                 [:pattern :layers layer-index :tiles]
+                                 (make-empty-pattern-tiles (pattern-width brush)
+                                                           (pattern-height brush)))]
+        (assoc state :brushes (replace-selected-brush brushes
+                                                      brush-index
+                                                      next-brush)))
+      state)))
+
+(defun delete-pattern-layer! [state delete-index]
+  (let [brushes (or (:brushes state) [])
+        brush-index (selected-brush-index brushes (:selected-brush-index state))
+        brush (selected-brush brushes brush-index)
+        layers (or (-> brush :pattern :layers) [])]
+    (if (and brush
+             (= (:kind brush) :pattern)
+             (> (count layers) 1)
+             (not (nil? delete-index))
+             (>= delete-index 0)
+             (< delete-index (count layers)))
+      (let [next-layers (remove-pattern-layer-at layers delete-index)
+            next-layer-index (selected-pattern-layer-index-after-delete
+                              (:selected-brush-layer-index state)
+                              delete-index
+                              (count next-layers))
+            next-brush (assoc-in brush [:pattern :layers] next-layers)]
+        (assoc state
+               :brushes (replace-selected-brush brushes brush-index next-brush)
+               :selected-brush-layer-index next-layer-index
+               :brush-selected-tile nil))
+      state)))
+
+(defun apply-pattern-layer-delete-result! [state payload]
+  (if (and (= (:choice payload) :dialog/ok)
+           (= (-> payload :payload :operation) :delete-pattern-layer))
+    (delete-pattern-layer! state (-> payload :payload :index))
+    state))
 
 (defun set-pattern-size! [state dimension value]
   (let [brushes (or (:brushes state) [])

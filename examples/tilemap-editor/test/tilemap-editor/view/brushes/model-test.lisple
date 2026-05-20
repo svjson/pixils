@@ -110,6 +110,69 @@
             [:g :h]]
            (get-in state [:brushes 0 :pattern :layers 0 :tiles])))))
 
+(deftest pattern-layer-clear-empties_selected_layer
+  (let [state (model/clear-pattern-layer!
+               {:selected-brush-index 0
+                :selected-brush-layer-index 1
+                :brushes [{:id :brush
+                           :kind :pattern
+                           :pattern {:size {:w 2 :h 2}
+                                     :anchor {:x 0 :y 0}
+                                     :layers [{:id :base
+                                               :tileset :terrain
+                                               :tiles [[:a nil]
+                                                       [nil nil]]}
+                                              {:id :detail
+                                               :tileset :terrain
+                                               :tiles [[:b :c]
+                                                       [:d nil]]}]}}]})]
+    (is (= [[:a nil]
+            [nil nil]]
+           (get-in state [:brushes 0 :pattern :layers 0 :tiles])))
+    (is (= [[nil nil]
+            [nil nil]]
+           (get-in state [:brushes 0 :pattern :layers 1 :tiles])))))
+
+(deftest pattern-layer-delete-removes_selected_layer_and_selects_neighbor
+  (let [state (model/delete-pattern-layer!
+               {:selected-brush-index 0
+                :selected-brush-layer-index 1
+                :brush-selected-tile :grass
+                :brushes [{:id :brush
+                           :kind :pattern
+                           :pattern {:size {:w 1 :h 1}
+                                     :anchor {:x 0 :y 0}
+                                     :layers [{:id :base
+                                               :tileset :terrain
+                                               :tiles [[:a]]}
+                                              {:id :detail
+                                               :tileset :terrain
+                                               :tiles [[:b]]}
+                                              {:id :top
+                                               :tileset :terrain
+                                               :tiles [[:c]]}]}}]}
+               1)]
+    (is (= [:base :top]
+           (map (get-in state [:brushes 0 :pattern :layers]) :id)))
+    (is (= 1 (:selected-brush-layer-index state)))
+    (is (nil? (:brush-selected-tile state)))))
+
+(deftest pattern-layer-delete-keeps_last_layer
+  (let [state (model/delete-pattern-layer!
+               {:selected-brush-index 0
+                :selected-brush-layer-index 0
+                :brushes [{:id :brush
+                           :kind :pattern
+                           :pattern {:size {:w 1 :h 1}
+                                     :anchor {:x 0 :y 0}
+                                     :layers [{:id :base
+                                               :tileset :terrain
+                                               :tiles [[:a]]}]}}]}
+               0)]
+    (is (= [:base]
+           (map (get-in state [:brushes 0 :pattern :layers]) :id)))
+    (is (= 0 (:selected-brush-layer-index state)))))
+
 (deftest pattern-grid-paint-updates_selected_layer
   (let [state (model/set-pattern-tile!
                {:selected-brush-index 0

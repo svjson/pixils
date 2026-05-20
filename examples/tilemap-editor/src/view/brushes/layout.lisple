@@ -3,6 +3,7 @@
             [pixils.render :as r]
             [pixils.ui :as ui]
             [pixils.ui.combo-box :as cb]
+            [pixils.ui.dialog :as dialog]
             [pixils.ui.header-panel :as hp]
             [pixils.ui.list-box :as lb]
             [pixils.ui.number-input :as ni]
@@ -300,6 +301,32 @@
            :label label
            :value value}})
 
+(defcomponent pattern-layer-actions
+  {:style {:width :fill
+           :height 24
+           :layout {:direction :row
+                    :gap 6}}
+   :children [{:mode 'ui/button
+               :style {:width 58
+                       :height 22}
+               :state {:label "Clear"
+                       :disabled? (ui/bind-state :layer-clear-disabled?)}
+               :on-click (fn [state event ctx]
+                           (do
+                             (when (not (:disabled? state))
+                               (ui/emit! (:view ctx) :brush/layer-clear))
+                             state))}
+              {:mode 'ui/button
+               :style {:width 58
+                       :height 22}
+               :state {:label "Delete"
+                       :disabled? (ui/bind-state :layer-delete-disabled?)}
+               :on-click (fn [state event ctx]
+                           (do
+                             (when (not (:disabled? state))
+                               (ui/emit! (:view ctx) :brush/layer-delete))
+                             state))}]})
+
 (defcomponent pattern-controls
   {:style {:width 188
            :height :fill
@@ -307,12 +334,16 @@
                     :gap 8}}
    :update (fn [state ctx]
              (let [brush (model/selected-brush (:brushes state)
-                                               (:selected-brush-index state))]
+                                               (:selected-brush-index state))
+                   layer-count (model/pattern-layer-count brush)]
                (assoc state
                       :width (model/pattern-width brush)
                       :height-value (model/pattern-height brush)
                       :layer-add-disabled? (or (:brush-detail-panel-disabled? state)
-                                               (empty? (or (:tilesets state) []))))))
+                                               (empty? (or (:tilesets state) [])))
+                      :layer-clear-disabled? (:brush-layer-panel-disabled? state)
+                      :layer-delete-disabled? (or (:brush-layer-panel-disabled? state)
+                                                  (<= layer-count 1)))))
    :on {:list-box/change (fn [state event ctx]
                            (do
                              (ui/stop-propagation! event)
@@ -333,6 +364,11 @@
                              (when (not (:disabled? state))
                                (ui/emit! (:view ctx) :brush/layer-add))
                              state))}
+              {:mode 'pattern-layer-actions
+               :state {:layer-clear-disabled?
+                       (ui/bind-state :layer-clear-disabled?)
+                       :layer-delete-disabled?
+                       (ui/bind-state :layer-delete-disabled?)}}
               {:mode 'pattern-layer-list
                :style {:height 96}
                :state {:brushes (ui/bind-state :brushes)
@@ -679,6 +715,32 @@
                                 :brush-selected-tile (ui/bind-state :brush-selected-tile)
                                 :tilesets (ui/bind-state :tilesets)}}]}))
 
+(defun open-pattern-layer-delete-confirm-dialog! [state ctx]
+  (let [brush (model/selected-brush (:brushes state)
+                                    (:selected-brush-index state))
+        layer-index (model/selected-pattern-layer-index
+                     brush
+                     (:selected-brush-layer-index state))
+        layers (or (-> brush :pattern :layers) [])
+        layer (when (not (nil? layer-index)) (nth layers layer-index))
+        label (or (:label layer) (str (:id layer)))]
+    (if (and layer (> (count layers) 1))
+      (do
+        (dialog/open-confirm!
+         ctx
+         {:title "Delete Brush Layer"
+          :body {:mode 'ui/text
+                 :style {:width :fill}
+                 :state {:value (str "Delete brush layer \"" label "\"?")}}
+          :buttons [:dialog/cancel
+                    {:type :dialog/ok
+                     :label "Delete"}]
+          :result-event :brush/layer-delete-confirm-result
+          :payload {:operation :delete-pattern-layer
+                    :index layer-index}})
+        state)
+      state)))
+
 (defcomponent brush-definition-workspace
   {:style {:width :fill
            :height :fill
@@ -700,6 +762,13 @@
                                  :brush-selected-tile nil)))
         :brush/layer-add (fn [state event ctx]
                            (model/add-pattern-layer! state))
+        :brush/layer-clear (fn [state event ctx]
+                             (model/clear-pattern-layer! state))
+        :brush/layer-delete (fn [state event ctx]
+                              (open-pattern-layer-delete-confirm-dialog! state ctx))
+        :brush/layer-delete-confirm-result
+        (fn [state event ctx]
+          (model/apply-pattern-layer-delete-result! state (:payload event)))
         :brush/layer-select (fn [state event ctx]
                               (assoc state
                                      :selected-brush-layer-index (:payload event)
