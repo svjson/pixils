@@ -119,6 +119,7 @@ TEST_F(TilemapEditorStartupTest, loaded_project_populates_existing_side_panel_co
     std::filesystem::temp_directory_path() / "pixils-tilemap-editor-startup-history.edn";
   std::error_code ec;
   std::filesystem::remove(history_path, ec);
+  SDLMock::prepared_surfaces["./../assets/simples_pimples.png"] = {800, 1280};
 
   read_tilemap_editor_sources(runtime);
 
@@ -145,6 +146,16 @@ TEST_F(TilemapEditorStartupTest, loaded_project_populates_existing_side_panel_co
 
   update_cycle();
   update_cycle();
+
+  auto resource_width = runtime.eval("(pixils.image/width :project-assets/simples-pimples)");
+  auto resource_height =
+    runtime.eval("(pixils.image/height :project-assets/simples-pimples)");
+  ASSERT_NE(resource_width, nullptr);
+  ASSERT_NE(resource_height, nullptr);
+  ASSERT_EQ(resource_width->type, Lisple::Value::Type::NUMBER);
+  ASSERT_EQ(resource_height->type, Lisple::Value::Type::NUMBER);
+  EXPECT_EQ(resource_width->num().get_int(), 800);
+  EXPECT_EQ(resource_height->num().get_int(), 1280);
 
   std::vector<std::shared_ptr<Pixils::Runtime::View>> layer_rows;
   find_descendant_modes(session.active_mode, "layer-row", layer_rows);
@@ -434,15 +445,11 @@ TEST_F(TilemapEditorProjectIoTest, default_project_starts_with_empty_layers)
 
   auto result = runtime.eval(R"(
     (let [layers (tilemap-editor.model.data/make-layered-map)]
-      {:layer-count (count layers)
-       :first-tile (get-in layers [0 :tiles 0 0])
-       :last-tile (get-in layers [3 :tiles 27 39])})
+      {:layer-count (count layers)})
   )");
 
   const std::string state = result->to_string();
-  EXPECT_NE(state.find(":layer-count 4"), std::string::npos);
-  EXPECT_NE(state.find(":first-tile nil"), std::string::npos);
-  EXPECT_NE(state.find(":last-tile nil"), std::string::npos);
+  EXPECT_NE(state.find(":layer-count 0"), std::string::npos);
 }
 
 TEST_F(TilemapEditorProjectIoTest, open_dialog_result_loads_project_edn_layers)
@@ -488,7 +495,7 @@ TEST_F(TilemapEditorProjectIoTest, open_dialog_result_loads_project_edn_layers)
   EXPECT_NE(state.find(R"(:project-path ")" + open_path.string() + R"(")"),
             std::string::npos);
   EXPECT_NE(state.find(R"(:label "Loaded Background")"), std::string::npos);
-  EXPECT_NE(state.find(":tilesets [{:id :colors"), std::string::npos);
+  EXPECT_NE(state.find(":tilesets []"), std::string::npos);
   EXPECT_NE(state.find(":selected-layer-index 0"), std::string::npos);
   EXPECT_NE(state.find(":hidden-layer-indices []"), std::string::npos);
   EXPECT_NE(state.find(":last-project-open-result"), std::string::npos);

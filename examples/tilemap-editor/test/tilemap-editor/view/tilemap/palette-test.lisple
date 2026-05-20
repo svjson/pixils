@@ -5,7 +5,7 @@
 
 (deftest tile-palette-is-disabled-when-empty
   (is (= true (:disabled? (:state (palette/tile-palette-list-box-child [] nil)))))
-  (is (not= true
-            (:disabled? (:state (palette/tile-palette-list-box-child
-                                 (data/project-tileset-definitions)
-                                 :colors))))))
+  (is (= true
+         (:disabled? (:state (palette/tile-palette-list-box-child
+                              (data/project-tileset-definitions)
+                              :colors))))))

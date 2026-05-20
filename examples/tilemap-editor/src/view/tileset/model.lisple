@@ -15,7 +15,7 @@
 
 (def default-tile-color {:r 0x00 :g 0x00 :b 0x00})
 
-(def default-tile-image :editor-assets/spritesheet)
+(def default-tile-image nil)
 
 (def default-import-bundle :project-assets)
 

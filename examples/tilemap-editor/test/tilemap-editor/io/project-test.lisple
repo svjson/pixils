@@ -28,20 +28,30 @@
                                    (not (keyword? (:ref entry)))
                                    (not (number? (:ref entry))))))))))
 
-(defun unresolved-tile-refs [layer]
+(defun unresolved-tile-refs [tilesets layer]
   (let [tileset (:tileset layer)]
     (filter (layer-tile-refs layer)
             (fn [tile-ref]
-              (nil? (data/tile-in tileset tile-ref))))))
+              (nil? (data/tile-in-definitions tilesets tileset tile-ref))))))
 
-(defun sprite-tiles-without-source [layer]
+(defun sprite-tiles-without-source [tilesets layer]
   (let [tileset (:tileset layer)]
     (filter (map (layer-tile-refs layer)
                  (fn [tile-ref]
-                   (data/tile-in tileset tile-ref)))
+                   (data/tile-in-definitions tilesets tileset tile-ref)))
             (fn [tile]
               (and (= (:type tile) :sprite)
                    (nil? (:source tile)))))))
+
+(defun tileset-image-refs [tilesets]
+  (reduce (or tilesets [])
+          []
+          (fn [result tileset]
+            (concat result
+                    (map (filter (or (:tiles tileset) [])
+                                 (fn [tile]
+                                   (= (:type tile) :sprite)))
+                         :image)))))
 
 (defun project-open-state []
   (project-io/apply-project-file-dialog-result
@@ -54,10 +64,11 @@
     :directory "example-maps"
     :filename "map1.edn"}))
 
-(deftest legacy-layered-project-without-tilesets-gets-built-in-definitions
-  (is (= 4 (count (project-io/project-tilesets
-                   {}
-                   (data/make-layered-map)))))
+(deftest legacy-layered-project-without-tilesets-stays-without-tilesets
+  (is (= [] (project-io/project-tilesets
+             {}
+             [{:id :scene/background
+               :tileset :colors}])))
   (is (= [] (project-io/project-tilesets {} []))))
 
 (deftest recent-project-history-promotes-existing-projects
@@ -92,6 +103,25 @@
     (is (= :colors (:tileset state)))
     (is (= :night (:selected-tile state)))))
 
+(deftest example-map-owns-its-image-resource
+  (let [state (project-open-state)
+        image-refs (tileset-image-refs (:tilesets state))]
+    (is (= "../assets/simples_pimples.png"
+           (get-in state
+                   [:resources
+                    :bundles
+                    :project-assets
+                    :images
+                    :simples-pimples
+                    :file-name])))
+    (is (= [] (filter image-refs
+                      (fn [image]
+                        (= image :editor-assets/spritesheet)))))
+    (is (> (count image-refs) 0))
+    (is (= [] (filter image-refs
+                      (fn [image]
+                        (not= image :project-assets/simples-pimples)))))))
+
 (deftest example-map-layer-tile-references-resolve-to-renderable-tiles
   (let [state (project-open-state)]
     (is (= []
@@ -103,9 +133,10 @@
            (reduce (:layers state)
                    []
                    (fn [result layer]
-                     (concat result (unresolved-tile-refs layer))))))
+                     (concat result (unresolved-tile-refs (:tilesets state) layer))))))
     (is (= []
            (reduce (:layers state)
                    []
                    (fn [result layer]
-                     (concat result (sprite-tiles-without-source layer))))))))
+                     (concat result
+                             (sprite-tiles-without-source (:tilesets state) layer))))))))

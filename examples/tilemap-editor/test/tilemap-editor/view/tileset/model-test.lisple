@@ -262,8 +262,7 @@
                                     :color {:r 1 :g 2 :b 3}}]}]}
         next (model/set-selected-tile-type state :sprite)]
     (is (= :sprite (get-in next [:tilesets 0 :tiles 0 :type])))
-    (is (= :editor-assets/spritesheet
-           (get-in next [:tilesets 0 :tiles 0 :image])))
+    (is (nil? (get-in next [:tilesets 0 :tiles 0 :image])))
     (is (= {:x 0 :y 0 :w 16 :h 16}
            (get-in next [:tilesets 0 :tiles 0 :source])))))
 
