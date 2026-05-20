@@ -71,7 +71,7 @@
       (dotimes [x data/map-width]
         (let [tile-ref (nth (nth tiles y) x)]
           (when (not (nil? tile-ref))
-            (draw-tile! (data/tile-in-definitions tileset-definitions
+            (draw-tile! (data/tile-in tileset-definitions
                                                    tileset
                                                    tile-ref)
                         (tile-rect x y offset zoom))))))))

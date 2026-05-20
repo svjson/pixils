@@ -32,13 +32,13 @@
   (let [tileset (:tileset layer)]
     (filter (layer-tile-refs layer)
             (fn [tile-ref]
-              (nil? (data/tile-in-definitions tilesets tileset tile-ref))))))
+              (nil? (data/tile-in tilesets tileset tile-ref))))))
 
 (defun sprite-tiles-without-source [tilesets layer]
   (let [tileset (:tileset layer)]
     (filter (map (layer-tile-refs layer)
                  (fn [tile-ref]
-                   (data/tile-in-definitions tilesets tileset tile-ref)))
+                   (data/tile-in tilesets tileset tile-ref)))
             (fn [tile]
               (and (= (:type tile) :sprite)
                    (nil? (:source tile)))))))
@@ -64,12 +64,10 @@
     :directory "example-maps"
     :filename "map1.edn"}))
 
-(deftest legacy-layered-project-without-tilesets-stays-without-tilesets
-  (is (= [] (project-io/project-tilesets
-             {}
-             [{:id :scene/background
-               :tileset :colors}])))
-  (is (= [] (project-io/project-tilesets {} []))))
+(deftest project-tilesets-come-from-project-document
+  (is (= [{:id :terrain}]
+         (project-io/project-tilesets {:tilesets [{:id :terrain}]})))
+  (is (= [] (project-io/project-tilesets {}))))
 
 (deftest recent-project-history-promotes-existing-projects
   (let [projects [{:path "first.edn"

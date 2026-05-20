@@ -2,15 +2,6 @@
   (:require proof.core
             [tilemap-editor.model.data :as data]))
 
-(deftest clamp-tile-index-stays-inside-tileset
-  (is (= 0 (data/clamp-tile-index :platform-level -10)))
-  (is (= 0 (data/clamp-tile-index :platform-level nil)))
-  (is (= 0 (data/clamp-tile-index :platform-level 999))))
-
-(deftest string-map-to-tile-map-does-not-use-sample-tile-ids
-  (is (= [[nil nil]]
-         (data/string-map-to-tile-map :platform-level ["^#"]))))
-
 (deftest empty-project-document-does-not-invent-tilesets-or-layers
   (let [document (data/project-document {:tilesets []
                                          :layers []})]
@@ -40,24 +31,21 @@
                      :terrain-assets {:dynamic? true
                                       :images {}}}}))))
 
-(deftest missing-tileset-does-not-fall-back-to-sample-tiles
-  (is (= [] (data/tile-options-for nil)))
-  (is (nil? (data/tile-in nil 0)))
-  (is (nil? (data/tile-id-in nil 0))))
+(deftest missing-tileset-has-no-tile-options
+  (is (= [] (data/tile-options [] nil)))
+  (is (nil? (data/tile-in [] nil 0)))
+  (is (nil? (data/tile-id [] nil 0))))
 
-(deftest tile-options-can-come-from-project-tileset-definitions
+(deftest tile-options-come-from-project-tilesets
   (let [tilesets [{:id :terrain
                    :label "Terrain"
                    :tiles [{:id :grass
                             :name "Grass"}]}]]
     (is (= [{:value :grass
              :label "Grass"}]
-           (data/tile-options-in tilesets :terrain)))
+           (data/tile-options tilesets :terrain)))
     (is (= :grass
-           (data/tile-id-in-definitions tilesets :terrain 0)))))
+           (data/tile-id tilesets :terrain 0)))))
 
-(deftest built-in-project-tileset-definitions-stay-empty
-  (is (= [] (data/make-layered-map)))
-  (is (= [] (data/project-tileset-definitions)))
-  (is (= [] (data/project-tileset-definitions-for-layers
-             (data/make-layered-map)))))
+(deftest default-project-layered-map-is-empty
+  (is (= [] (data/make-layered-map))))

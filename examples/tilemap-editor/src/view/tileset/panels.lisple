@@ -18,7 +18,7 @@
 
 (defun tileset-list-box-child [tilesets]
   (let [tilesets (or tilesets [])]
-    (lb/make {:options (data/tileset-options-for-definitions tilesets)
+    (lb/make {:options (data/tileset-options tilesets)
               :style {:width :shrink
                       :height :fill}
               :row-height tileset-list-row-height

@@ -68,21 +68,21 @@
                   tileset-tile-index (when (> tileset-tile-count 0)
                                        (min (or (:selected-tileset-tile-index state) 0)
                                             (dec tileset-tile-count)))
-                  selected-tile (data/tile-id-in-definitions tilesets
-                                                             tileset
-                                                             (:selected-tile state))
+                  selected-tile (data/tile-id tilesets
+                                              tileset
+                                              (:selected-tile state))
                   zoom (or (:zoom state) 1)]
               (assoc state
                      :tileset tileset
                      :selected-tileset-index (when tileset
-                                               (data/tileset-index-in tilesets
-                                                                      tileset))
+                                               (data/tileset-index tilesets
+                                                                   tileset))
                      :selected-tileset-definition-index tileset-definition-index
                      :selected-tileset-tile-index tileset-tile-index
                      :selected-tile selected-tile
-                     :selected-label (data/tile-label-in-definitions tilesets
-                                                                      tileset
-                                                                      selected-tile)
+                     :selected-label (data/tile-label tilesets
+                                                      tileset
+                                                      selected-tile)
                      :zoom-label (str "Zoom " zoom "x")
                      :selected-layer-label (or (:label layer) ""))))
   :children [{:mode 'toolbar

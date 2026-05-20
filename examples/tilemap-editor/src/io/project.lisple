@@ -82,12 +82,8 @@
 (defun project-layers [project]
   (data/normalize-layers (-> project :tilemap :layers)))
 
-(defun project-tilesets [project layers]
-  (if (nil? (get-in project [:tilesets 0 :id]))
-    (if (nil? (get-in layers [0 :tileset]))
-      []
-      (data/project-tileset-definitions))
-    (:tilesets project)))
+(defun project-tilesets [project]
+  (or (:tilesets project) []))
 
 (defun first-layer-tileset [layers]
   (:tileset (head layers)))
@@ -96,7 +92,7 @@
   (let [project (data/normalize-project-document (io/slurp-edn! (:path payload)))
         layers (project-layers project)
         tileset (first-layer-tileset layers)
-        tilesets (project-tilesets project layers)]
+        tilesets (project-tilesets project)]
     (if (valid-project-document? project)
       (remember-project!
        (assoc state
@@ -107,11 +103,11 @@
               :hidden-layer-indices []
               :tileset tileset
               :selected-tileset-index (when tileset
-                                        (data/tileset-index-in tilesets
+                                        (data/tileset-index tilesets
                                                                tileset))
               :selected-tileset-definition-index (when (> (count tilesets) 0) 0)
               :selected-tileset-tile-index (when (> (count (or (:tiles (head tilesets)) [])) 0) 0)
-              :selected-tile (data/tile-id-in-definitions tilesets tileset 0)
+              :selected-tile (data/tile-id tilesets tileset 0)
               :resources (data/normalize-project-resources
                           (or (:resources project) data/project-resources))
               :selected-resource-bundle nil

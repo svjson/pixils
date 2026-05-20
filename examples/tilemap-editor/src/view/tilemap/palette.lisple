@@ -45,7 +45,7 @@
                     :align-items :center
                     :gap 6}}
    :update (fn [state ctx]
-             (let [tile (data/tile-in-definitions (:tilesets state)
+             (let [tile (data/tile-in (:tilesets state)
                                                    (:tileset state)
                                                    (:tile-id state))]
                (assoc (assoc (assoc state
@@ -75,7 +75,7 @@
 (defun selected-tile-indices [state]
   (if (nil? (:selected-tile state))
     []
-    [(data/tile-index-in-definitions (:tilesets state)
+    [(data/tile-index (:tilesets state)
                                      (selected-layer-tileset state)
                                      (:selected-tile state))]))
 
@@ -89,7 +89,7 @@
            :selected-indices (ui/bind-state :selected-indices)}})
 
 (defun tile-palette-list-box-child [tilesets tileset]
-  (let [options (data/tile-options-in tilesets tileset)]
+  (let [options (data/tile-options tilesets tileset)]
     (lb/make {:options options
               :style {:width :fill
                       :height :fill}
@@ -116,7 +116,7 @@
                     :selected-indices (selected-tile-indices state))))
    :update (fn [state ctx]
              (let [tileset (selected-layer-tileset state)
-                   tile-count (data/tile-count-in (:tilesets state) tileset)]
+                   tile-count (data/tile-count (:tilesets state) tileset)]
                (do
                  (when (or (not= tileset (:palette-tileset state))
                            (not= (:tilesets state) (:palette-tilesets state))

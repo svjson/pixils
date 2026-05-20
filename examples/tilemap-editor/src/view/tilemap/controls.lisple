@@ -387,7 +387,7 @@
 
 (defun tileset-combo-child [tilesets]
   (let [tilesets (or tilesets [])]
-    (cb/make {:options (data/tileset-options-for-definitions tilesets)
+    (cb/make {:options (data/tileset-options tilesets)
               :selected-index (ui/bind-state :selected-tileset-index)
               :row-height 20
               :max-height 72
@@ -440,7 +440,7 @@
                                           (assoc-in
                                            (assoc state :selected-tileset-index index)
                                            [:layers (:selected-layer-index state) :tileset]
-                                           (data/tileset-key-in (:tilesets state) index))
+                                           (data/tileset-key (:tilesets state) index))
                                           (assoc state :selected-tileset-index index))))}
             :children [{:mode 'tileset-selector
                         :state {:selected-tileset-index (ui/bind-state :selected-tileset-index)
@@ -495,7 +495,7 @@
                       :visible? visible?
                       :visibility-label (if visible? "V" "-")
                       :layer-name (:label layer)
-                      :tileset-label (data/tileset-label-in (:tilesets state)
+                      :tileset-label (data/tileset-label (:tilesets state)
                                                             (:tileset layer)))))
    :on-mouse-down (fn [state event ctx]
                     (do

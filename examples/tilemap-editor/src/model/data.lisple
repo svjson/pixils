@@ -4,18 +4,6 @@
 (def map-width 40)
 (def map-height 28)
 
-(def color-tile-types [])
-
-(def platform-level-tile-types [])
-
-(def platform-actor-tile-types [])
-
-(def platform-foreground-tile-types [])
-
-(def tile-types platform-level-tile-types)
-
-(def tilesets [])
-
 (def project-format :pixils.tilemap-editor/project)
 (def project-format-version 1)
 
@@ -43,213 +31,76 @@
                                   (project-resource-bundle-document bundle))
                            result)))})
 
-(def tileset-options
-  (for-indexed [index tileset tilesets]
+(defun tileset-options [tilesets]
+  (for-indexed [index tileset (or tilesets [])]
     {:value index
      :label (:label tileset)}))
 
-(defun tileset-options-for-definitions [tileset-definitions]
-  (for-indexed [index tileset (or tileset-definitions [])]
-    {:value index
-     :label (:label tileset)}))
-
-(def tilemap-layers [])
-
-(def layer-options
-  (for-indexed [index layer tilemap-layers]
-    {:value index
-     :label (:label layer)}))
-
-(defun tileset-key [index]
-  (:id (nth tilesets (or index 0))))
-
-(defun tileset-key-in [tileset-definitions index]
-  (let [items (or tileset-definitions [])]
+(defun tileset-key [tilesets index]
+  (let [items (or tilesets [])]
     (when (> (count items) 0)
       (:id (nth items (or index 0))))))
 
-(defun tileset-index [tileset]
-  (let [match (find-index tilesets (fn [item]
-                                     (= (:id item) tileset)))]
-    (or match 0)))
-
-(defun tileset-index-in [tileset-definitions tileset]
-  (let [match (find-index (or tileset-definitions [])
+(defun tileset-index [tilesets tileset]
+  (let [match (find-index (or tilesets [])
                           (fn [item]
                             (= (:id item) tileset)))]
     (or match 0)))
 
-(defun tileset-definition-in [tileset-definitions tileset]
-  (head (filter (or tileset-definitions [])
+(defun tileset-definition [tilesets tileset]
+  (head (filter (or tilesets [])
                 (fn [item]
                   (= (:id item) tileset)))))
 
-(defun tileset-label [tileset]
-  (or (:label (nth tilesets (tileset-index tileset))) ""))
-
-(defun tileset-label-in [tileset-definitions tileset]
-  (let [items (or tileset-definitions [])]
+(defun tileset-label [tilesets tileset]
+  (let [items (or tilesets [])]
     (if (> (count items) 0)
-      (or (:label (nth items (tileset-index-in tileset-definitions tileset))) "")
+      (or (:label (nth items (tileset-index tilesets tileset))) "")
       "")))
 
-(defun layer-key [index]
-  (:id (nth tilemap-layers (or index 0))))
+(defun tileset-tiles [tilesets tileset]
+  (or (:tiles (tileset-definition tilesets tileset)) []))
 
-(defun layer-label [index]
-  (:label (nth tilemap-layers (or index 0))))
+(defun tile-count [tilesets tileset]
+  (count (tileset-tiles tilesets tileset)))
 
-(defun tile-types-for [tileset]
+(defun clamp-tile-index [tilesets tileset index]
+  (let [count (tile-count tilesets tileset)]
+    (if (= count 0)
+      0
+      (max 0 (min (dec count) (or index 0))))))
+
+(defun tile-index [tilesets tileset tile-ref]
+  (if (keyword? tile-ref)
+    (let [match (find-index (tileset-tiles tilesets tileset)
+                            (fn [tile]
+                              (= (:id tile) tile-ref)))]
+      (or match 0))
+    (clamp-tile-index tilesets tileset tile-ref)))
+
+(defun tile-id [tilesets tileset tile-ref]
+  (let [tiles (tileset-tiles tilesets tileset)]
+    (when (> (count tiles) 0)
+      (:id (nth tiles (tile-index tilesets tileset tile-ref))))))
+
+(defun tile-options [tilesets tileset]
+  (for-indexed [index tile (tileset-tiles tilesets tileset)]
+    {:value (:id tile)
+     :label (:name tile)}))
+
+(defun tile-in [tilesets tileset tile-ref]
+  (let [tiles (tileset-tiles tilesets tileset)]
+    (when (> (count tiles) 0)
+      (nth tiles (tile-index tilesets tileset tile-ref)))))
+
+(defun tile-label [tilesets tileset tile-ref]
+  (let [tile (tile-in tilesets tileset tile-ref)]
+    (if tile
+      (str "Selected: " (:name tile) " (" (:type tile) ")")
+      "")))
+
+(defun make-layered-map []
   [])
-
-(defun tile-types-in [tileset-definitions tileset]
-  (let [definition (tileset-definition-in tileset-definitions tileset)]
-    (or (:tiles definition)
-        (tile-types-for tileset))))
-
-(defun tile-count-for [tileset]
-  (count (tile-types-for tileset)))
-
-(defun tile-count-in [tileset-definitions tileset]
-  (count (tile-types-in tileset-definitions tileset)))
-
-(defun clamp-tile-index [tileset index]
-  (let [count (tile-count-for tileset)]
-    (if (= count 0)
-      0
-      (max 0 (min (dec count) (or index 0))))))
-
-(defun tile-index-in [tileset tile-ref]
-  (if (keyword? tile-ref)
-    (let [match (find-index (tile-types-for tileset)
-                            (fn [tile]
-                              (= (:id tile) tile-ref)))]
-      (or match 0))
-    (clamp-tile-index tileset tile-ref)))
-
-(defun clamp-tile-index-in [tileset-definitions tileset index]
-  (let [count (tile-count-in tileset-definitions tileset)]
-    (if (= count 0)
-      0
-      (max 0 (min (dec count) (or index 0))))))
-
-(defun tile-index-in-definitions [tileset-definitions tileset tile-ref]
-  (if (keyword? tile-ref)
-    (let [match (find-index (tile-types-in tileset-definitions tileset)
-                            (fn [tile]
-                              (= (:id tile) tile-ref)))]
-      (or match 0))
-    (clamp-tile-index-in tileset-definitions tileset tile-ref)))
-
-(defun tile-id-in [tileset tile-ref]
-  (let [types (tile-types-for tileset)]
-    (when (> (count types) 0)
-      (:id (nth types (tile-index-in tileset tile-ref))))))
-
-(defun tile-id-in-definitions [tileset-definitions tileset tile-ref]
-  (let [types (tile-types-in tileset-definitions tileset)]
-    (when (> (count types) 0)
-      (:id (nth types (tile-index-in-definitions tileset-definitions
-                                                 tileset
-                                                 tile-ref))))))
-
-(defun tile-char-match? [tile ch]
-  (and (not (nil? (:char tile)))
-       (= (:char tile) ch)))
-
-(defun tile-id-for-char [tileset ch]
-  (let [tile (head (filter (tile-types-for tileset)
-                           (fn [candidate]
-                             (tile-char-match? candidate ch))))]
-    (when tile
-      (:id tile))))
-
-(defun tile-options-for [tileset]
-  (for-indexed [index tile (tile-types-for tileset)]
-    {:value (:id tile)
-     :label (:name tile)}))
-
-(defun tile-options-in [tileset-definitions tileset]
-  (for-indexed [index tile (tile-types-in tileset-definitions tileset)]
-    {:value (:id tile)
-     :label (:name tile)}))
-
-(defun tile-in [tileset tile-ref]
-  (let [types (tile-types-for tileset)]
-    (when (> (count types) 0)
-      (nth types (tile-index-in tileset tile-ref)))))
-
-(defun tile-in-definitions [tileset-definitions tileset tile-ref]
-  (let [types (tile-types-in tileset-definitions tileset)]
-    (when (> (count types) 0)
-      (nth types (tile-index-in-definitions tileset-definitions
-                                            tileset
-                                            tile-ref)))))
-
-(defun tile [tile-ref]
-  (tile-in :platform-level tile-ref))
-
-(defun tile-color [tile-ref]
-  (:color (tile tile-ref)))
-
-(defun tile-name [tile-ref]
-  (:name (tile tile-ref)))
-
-(defun tile-name-in [tileset tile-ref]
-  (:name (tile-in tileset tile-ref)))
-
-(defun tile-label-in [tileset tile-ref]
-  (let [tile (tile-in tileset tile-ref)]
-    (if tile
-      (str "Selected: " (:name tile) " (" (:type tile) ")")
-      "")))
-
-(defun tile-label-in-definitions [tileset-definitions tileset tile-ref]
-  (let [tile (tile-in-definitions tileset-definitions tileset tile-ref)]
-    (if tile
-      (str "Selected: " (:name tile) " (" (:type tile) ")")
-      "")))
-
-(defun tile-label [tile-ref]
-  (tile-label-in :platform-level tile-ref))
-
-(def background-map-strings [])
-
-(def level-map-strings [])
-
-(def actor-map-strings [])
-
-(def foreground-map-strings [])
-
-(def example-layer-string-maps {})
-
-(defun string-map-width [rows]
-  (count (or (head rows) "")))
-
-(defun uniform-string-map? [rows]
-  (let [width (string-map-width rows)]
-    (= 0 (count (filter rows (fn [row]
-                               (not= (count row) width)))))))
-
-(defun string-row-to-tile-ids [tileset row width]
-  (dotimes [x width]
-    (tile-id-for-char tileset (substr row x 1))))
-
-(defun string-map-to-tile-map [tileset rows]
-  (let [width (string-map-width rows)]
-    (dotimes [y (count rows)]
-      (string-row-to-tile-ids tileset (nth rows y) width))))
-
-(defun make-empty-row []
-  (dotimes [x map-width]
-    nil))
-
-(defun make-empty-map []
-  (dotimes [y map-height]
-    (make-empty-row)))
-
-(defun make-layer [definition tiles]
-  (assoc definition :tiles tiles))
 
 (defun serialized-nil? [value]
   (and (= (type-of value) "symbol")
@@ -275,40 +126,6 @@
   (assoc-in project
             [:tilemap :layers]
             (normalize-layers (-> project :tilemap :layers))))
-
-(defun make-layer-from-string-map [definition rows]
-  (make-layer definition
-              (if (and rows (uniform-string-map? rows))
-                (string-map-to-tile-map (:tileset definition) rows)
-                (make-empty-map))))
-
-(defun make-layered-map-from-string-maps [layer-definitions layer-string-maps]
-  (for-indexed [index layer layer-definitions]
-    (make-layer-from-string-map layer
-                                (get layer-string-maps (:id layer)))))
-
-(defun make-example-layered-map []
-  (make-layered-map-from-string-maps tilemap-layers example-layer-string-maps))
-
-(defun make-empty-layered-map []
-  (for-indexed [index layer tilemap-layers]
-    (make-layer layer (make-empty-map))))
-
-(defun make-layered-map []
-  (make-empty-layered-map))
-
-(defun tileset-definition [tileset]
-  (assoc tileset
-         :tile-size tile-size
-         :tiles (tile-types-for (:id tileset))))
-
-(defun project-tileset-definitions []
-  (map tilesets tileset-definition))
-
-(defun project-tileset-definitions-for-layers [layers]
-  (if (empty? (or layers []))
-    []
-    (project-tileset-definitions)))
 
 (defun project-document [state]
   {:format project-format
