@@ -66,6 +66,40 @@
                               (if suffix (inc suffix) 2))
       candidate)))
 
+(defun layer-id-exists? [layers id]
+  (> (count (filter (or layers [])
+                    (fn [layer]
+                      (= (:id layer) id))))
+     0))
+
+(defun unique-layer-id-from [layers root suffix]
+  (let [candidate (if suffix
+                    (str root "-" suffix)
+                    root)
+        id (keyword (str "scene/" candidate))]
+    (if (layer-id-exists? layers id)
+      (unique-layer-id-from layers
+                            root
+                            (if suffix (inc suffix) 2))
+      id)))
+
+(defun make-empty-layer [layers tilesets name]
+  {:id (unique-layer-id-from layers (kebab-case name) nil)
+   :label name
+   :kind :tile
+   :tileset (data/tileset-key tilesets 0)
+   :order (* (count (or layers [])) 10)
+   :tiles (data/make-empty-map)})
+
+(defun append-layer [state name]
+  (let [layers (or (:layers state) [])
+        layer (make-empty-layer layers (:tilesets state) name)
+        index (count layers)]
+    (assoc state
+           :layers (concat layers [layer])
+           :selected-layer-index index
+           :selected-layer-label (:label layer))))
+
 (defun rename-layer [layers index name]
   (for-indexed [layer-index layer (or layers [])]
     (if (= layer-index index)
@@ -158,6 +192,17 @@
                           :event :layer/name-dialog-result}})
     state))
 
+(defun open-layer-add-dialog! [state ctx]
+  (open-layer-name-dialog! state
+                           ctx
+                           :add
+                           nil
+                           "New Layer"
+                           (unique-layer-name-from (:layers state)
+                                                   "Layer"
+                                                   nil
+                                                   nil)))
+
 (defun open-layer-confirm-dialog! [state ctx operation index title message confirm-label]
   (do
     (dialog/open-confirm!
@@ -221,6 +266,10 @@
           layers (:layers state)
           requested-name (:name payload)]
       (case operation
+        :add
+        (let [name (unique-layer-name-from layers requested-name nil nil)]
+          (append-layer state name))
+
         :rename
         (let [name (unique-layer-name-from layers requested-name index nil)]
           (assoc state
@@ -609,6 +658,17 @@
 (defun make-layer-controls []
   (hp/make {:title "Layers"
             :style {:width :fill}
+            :header-style {:layout {:direction :row
+                                    :align-items :center
+                                    :gap 4}}
+            :header-children [{:mode 'ui/button
+                               :class :ui/toolbar-button
+                               :state {:label "+"}
+                               :on-click (fn [state event ctx]
+                                           (do
+                                             (ui/emit! (:view ctx)
+                                                       :layer/add)
+                                             state))}]
             :body-style {:padding 8
                          :layout {:direction :column
                                   :gap 4}}
@@ -623,6 +683,8 @@
                          :selected-layer-index (ui/bind-state :selected-layer-index)}
             :on {:layer/select (fn [state event ctx]
                                   (assoc state :selected-layer-index (:payload event)))
+                 :layer/add (fn [state event ctx]
+                              (open-layer-add-dialog! state ctx))
                  :layer/toggle-visible (fn [state event ctx]
                                          (assoc state
                                                 :hidden-layer-indices

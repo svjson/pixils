@@ -49,3 +49,9 @@
 
 (deftest default-project-layered-map-is-empty
   (is (= [] (data/make-layered-map))))
+
+(deftest empty-map-uses-project-dimensions
+  (let [tilemap (data/make-empty-map)]
+    (is (= data/map-height (count tilemap)))
+    (is (= data/map-width (count (head tilemap))))
+    (is (= nil (get-in tilemap [0 0])))))

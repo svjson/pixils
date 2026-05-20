@@ -1,5 +1,6 @@
 (ns tilemap-editor.view.tilemap.controls-test
   (:require proof.core
+            [tilemap-editor.model.data :as data]
             [tilemap-editor.view.tilemap.controls :as controls]))
 
 (deftest empty-layer-list-keeps-minimum-height
@@ -17,6 +18,41 @@
   (is (= true (:disabled? (:state (controls/layer-list-box-child [])))))
   (is (= true (:disabled? (:state (controls/layer-list-box-child nil)))))
   (is (not= true (:disabled? (:state (controls/layer-list-box-child [{:label "Ground"}]))))))
+
+(deftest layer-controls-has_add_button
+  (let [panel (controls/make-layer-controls)]
+    (is (= "+" (get-in panel [:children 0 :children 1 :state :label])))))
+
+(deftest append-layer-adds_blank_tile_layer_and_selects_it
+  (let [state (controls/append-layer
+               {:layers []
+                :tilesets [{:id :terrain
+                            :label "Terrain"}]}
+               "Terrain")]
+    (is (= 0 (:selected-layer-index state)))
+    (is (= "Terrain" (:selected-layer-label state)))
+    (is (= :scene/terrain (get-in state [:layers 0 :id])))
+    (is (= :terrain (get-in state [:layers 0 :tileset])))
+    (is (= data/map-height (count (get-in state [:layers 0 :tiles]))))
+    (is (= data/map-width (count (get-in state [:layers 0 :tiles 0]))))))
+
+(deftest layer-add-dialog-result-appends_unique_layer
+  (let [state (controls/apply-layer-name-dialog-result
+               {:layers [{:id :scene/layer
+                          :label "Layer"}]}
+               {:type :confirm
+                :operation :add
+                :name "Layer"})]
+    (is (= "Layer 2" (get-in state [:layers 1 :label])))
+    (is (= :scene/layer-2 (get-in state [:layers 1 :id])))
+    (is (= 1 (:selected-layer-index state)))))
+
+(deftest append-layer-deduplicates_layer_ids
+  (let [state (controls/append-layer
+               {:layers [{:id :scene/terrain
+                          :label "Terrain"}]}
+               "Terrain")]
+    (is (= :scene/terrain-2 (get-in state [:layers 1 :id])))))
 
 (deftest recent-project-menu-is-inert-when-empty
   (let [item (controls/recent-project-menu-item [])]

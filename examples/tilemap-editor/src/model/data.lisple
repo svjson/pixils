@@ -99,6 +99,14 @@
       (str "Selected: " (:name tile) " (" (:type tile) ")")
       "")))
 
+(defun make-empty-row []
+  (dotimes [x map-width]
+    nil))
+
+(defun make-empty-map []
+  (dotimes [y map-height]
+    (make-empty-row)))
+
 (defun make-layered-map []
   [])
 
