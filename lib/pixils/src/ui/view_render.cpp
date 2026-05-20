@@ -182,7 +182,7 @@ namespace Pixils::UI
                                                  bounds.h);
         SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_BLEND);
 
-        SDL_SetRenderTarget(render_ctx.renderer, texture);
+        render_ctx.set_render_target(texture);
         SDL_RenderSetViewport(render_ctx.renderer, nullptr);
         SDL_RenderSetClipRect(render_ctx.renderer, nullptr);
         SDL_SetRenderDrawColor(render_ctx.renderer, 0, 0, 0, 0);
@@ -197,7 +197,7 @@ namespace Pixils::UI
                          {static_cast<float>(bounds.x), static_cast<float>(bounds.y)},
                          false);
 
-        SDL_SetRenderTarget(render_ctx.renderer, target_texture);
+        render_ctx.set_render_target(target_texture);
         SDL_RenderSetViewport(render_ctx.renderer, nullptr);
         set_clip(render_ctx, inherited_clip, origin);
 

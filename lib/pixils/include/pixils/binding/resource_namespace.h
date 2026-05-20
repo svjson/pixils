@@ -15,6 +15,7 @@ namespace Pixils::Script
   inline const std::string FN__MAKE_RESOURCE_DEPS = "make-resource-dependencies";
   inline constexpr std::string_view FN__CREATE_BUNDLE_BANG = "create-bundle!";
   inline constexpr std::string_view FN__ADD_IMAGE_BANG = "add-image!";
+  inline constexpr std::string_view FN__CREATE_IMAGE_BANG = "create-image!";
   inline constexpr std::string_view FN__REMOVE_IMAGE_BANG = "remove-image!";
   inline constexpr std::string_view FN__LIST_IMAGES = "list-images";
 
@@ -30,9 +31,10 @@ namespace Pixils::Script
     FUNC(MakeResourceDependencies, make_deps);
     FUNC(CreateBundleBang, create_bundle);
     FUNC(AddImageBang, add_image);
+    FUNC(CreateImageBang, create_image);
     FUNC(RemoveImageBang, remove_image);
     FUNC(ListImages, list_images);
-  }
+  } // namespace Function
 
   NATIVE_ADAPTER(ResourceDependenciesAdapter,
                  Pixils::Runtime::ResourceDependencies,

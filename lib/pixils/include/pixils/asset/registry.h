@@ -4,6 +4,7 @@
 #include <pixils/asset/bundle.h>
 #include <pixils/asset/loader.h>
 #include <pixils/context.h>
+#include <pixils/geom.h>
 #include <pixils/runtime/mode.h>
 
 #include <optional>
@@ -23,6 +24,7 @@ namespace Pixils::Asset
     {
       Runtime::ResourceDependencies declaration;
       Bundle bundle;
+      std::unordered_map<std::string, Dimension> generated_images;
       bool loaded = false;
       bool mutable_bundle = false;
     };
@@ -39,6 +41,7 @@ namespace Pixils::Asset
     ~Registry();
 
     bool is_loaded(const std::string& bundle_id);
+    bool is_dynamic_bundle(const std::string& bundle_id) const;
 
     /** Register a bundle's resource dependencies without loading them. The
      *  bundle is loaded on demand the first time get_image is called for it. */
@@ -48,10 +51,15 @@ namespace Pixils::Asset
     void declare_dynamic_bundle(const std::string& bundle_id);
     void create_dynamic_bundle(const std::string& bundle_id,
                                const Runtime::ResourceDependencies& deps = {});
-    void add_image(const std::string& bundle_id,
-                   const Runtime::ImageDependency& dependency);
+    void add_image(const std::string& bundle_id, const Runtime::ImageDependency& dependency);
+    void add_generated_image(const std::string& bundle_id,
+                             const std::string& resource_id,
+                             SDL_Texture* texture,
+                             Dimension size);
     void remove_image(const std::string& bundle_id, const std::string& resource_id);
     std::vector<Runtime::ImageDependency> image_dependencies(
+      const std::string& bundle_id) const;
+    std::unordered_map<std::string, Dimension> generated_image_sizes(
       const std::string& bundle_id) const;
 
     void load_embedded_assets();

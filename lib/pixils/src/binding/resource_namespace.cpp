@@ -5,11 +5,18 @@
 #include <pixils/binding/pixils_namespace.h>
 #include <pixils/binding/resource_namespace.h>
 #include <pixils/context.h>
+#include <pixils/geom.h>
 
+#include <SDL2/SDL_blendmode.h>
+#include <SDL2/SDL_pixels.h>
+#include <SDL2/SDL_render.h>
+#include <lisple/exception.h>
 #include <lisple/host/accessor.h>
 #include <lisple/host/schema.h>
 #include <lisple/runtime/dict.h>
 #include <lisple/runtime/value.h>
+#include <memory>
+#include <stdexcept>
 
 namespace Pixils::Script
 {
@@ -19,12 +26,29 @@ namespace Pixils::Script
     SHKEY(FONTS, "fonts");
     SHKEY(ID, "id");
     SHKEY(IMAGES, "images");
+    SHKEY(SIZE, "size");
     SHKEY(SOUNDS, "sounds");
+    SHKEY(RESOURCE_SOURCE, "source");
     SHKEY(TRANSPARENCY_COLOR, "transparency-color");
   } // namespace MapKey
 
   namespace
   {
+    struct RenderTargetGuard
+    {
+      RenderContext& rc;
+      SDL_Texture* previous_target;
+
+      RenderTargetGuard(RenderContext& rc, SDL_Texture* target)
+        : rc(rc)
+        , previous_target(rc.current_render_target)
+      {
+        rc.set_render_target(target);
+      }
+
+      ~RenderTargetGuard() { rc.set_render_target(previous_target); }
+    };
+
     Runtime::ImageDependency parse_image_dependency(Lisple::Context& ctx,
                                                     const std::string& resource_id,
                                                     const Lisple::sptr_val& value)
@@ -40,9 +64,8 @@ namespace Pixils::Script
                                 "or a map");
       }
 
-      static Lisple::MapSchema image_schema(
-        {{"file-name", &Lisple::Type::STRING}},
-        {{"transparency-color", &HostType::COLOR}});
+      static Lisple::MapSchema image_schema({{"file-name", &Lisple::Type::STRING}},
+                                            {{"transparency-color", &HostType::COLOR}});
 
       auto opts = image_schema.bind(ctx, *value);
       Runtime::ImageDependency dep{resource_id, opts.str("file-name")};
@@ -53,9 +76,8 @@ namespace Pixils::Script
       return dep;
     }
 
-    Runtime::ResourceDependencies parse_resource_dependencies(
-      Lisple::Context& ctx,
-      const Lisple::sptr_val& value)
+    Runtime::ResourceDependencies parse_resource_dependencies(Lisple::Context& ctx,
+                                                              const Lisple::sptr_val& value)
     {
       static Lisple::MapSchema resources_schema({},
                                                 {{"images", &Lisple::Type::MAP},
@@ -125,6 +147,23 @@ namespace Pixils::Script
       return result;
     }
 
+    Lisple::sptr_val generated_image_map(const std::string& bundle_id,
+                                         const std::string& resource_id,
+                                         const Dimension& size)
+    {
+      auto result = Lisple::map({});
+      Lisple::Dict::set_property(result,
+                                 MapKey::ID,
+                                 Lisple::keyword(bundle_id + "/" + resource_id));
+      Lisple::Dict::set_property(result,
+                                 MapKey::RESOURCE_SOURCE,
+                                 Lisple::keyword("generated"));
+      Lisple::Dict::set_property(result,
+                                 MapKey::SIZE,
+                                 DimensionAdapter::make_unique(size.w, size.h));
+      return result;
+    }
+
     Lisple::sptr_val image_dependency_value(const Runtime::ImageDependency& dep)
     {
       auto result = Lisple::map({});
@@ -132,12 +171,10 @@ namespace Pixils::Script
       if (dep.transparency_color)
       {
         const Color& color = *dep.transparency_color;
-        Lisple::Dict::set_property(result,
-                                   MapKey::TRANSPARENCY_COLOR,
-                                   ColorAdapter::make_unique(color.r,
-                                                             color.g,
-                                                             color.b,
-                                                             color.a));
+        Lisple::Dict::set_property(
+          result,
+          MapKey::TRANSPARENCY_COLOR,
+          ColorAdapter::make_unique(color.r, color.g, color.b, color.a));
       }
       return result;
     }
@@ -155,8 +192,7 @@ namespace Pixils::Script
       return result;
     }
 
-    template <typename T>
-    Lisple::sptr_val file_dependencies_map(const std::vector<T>& deps)
+    template <typename T> Lisple::sptr_val file_dependencies_map(const std::vector<T>& deps)
     {
       auto result = Lisple::map({});
       for (const auto& dep : deps)
@@ -191,9 +227,9 @@ namespace Pixils::Script
     EXEC_BODY(CreateBundleBang, exec_create_bundle)
     {
       std::string bundle_id = parse_bundle_keyword(args[0]);
-      Runtime::ResourceDependencies deps =
-        args.size() > 1 ? parse_resource_dependencies(ctx, args[1])
-                        : Runtime::ResourceDependencies{};
+      Runtime::ResourceDependencies deps = args.size() > 1
+                                             ? parse_resource_dependencies(ctx, args[1])
+                                             : Runtime::ResourceDependencies{};
 
       RenderContext& rc =
         Lisple::obj<RenderContext>(*ctx.lookup(ID__PIXILS__RENDER_CONTEXT));
@@ -215,6 +251,72 @@ namespace Pixils::Script
         Lisple::obj<RenderContext>(*ctx.lookup(ID__PIXILS__RENDER_CONTEXT));
       rc.asset_registry->add_image(bundle_id,
                                    parse_image_dependency(ctx, resource_id, args[1]));
+      return args[0];
+    }
+
+    FUNC_IMPL(CreateImageBang,
+              SIG((FN_ARGS((&Lisple::Type::KEYWORD),
+                           (&Lisple::Type::MAP),
+                           (&Lisple::Type::FUNCTION)),
+                   EXEC_DISPATCH(&CreateImageBang::exec_create_image))));
+
+    EXEC_BODY(CreateImageBang, exec_create_image)
+    {
+      static Lisple::MapSchema create_image_opts_schema({{"size", &HostType::DIMENSION}},
+                                                        {{"clear", &HostType::COLOR}});
+
+      auto [bundle_id, resource_id] = parse_resource_keyword(args[0]);
+      auto opts = create_image_opts_schema.bind(ctx, *args[1]);
+      const Dimension& size = opts.obj<Dimension>("size");
+      if (size.w <= 0 || size.h <= 0)
+      {
+        throw Lisple::TypeError("Generated image size must be positive");
+      }
+
+      RenderContext& rc =
+        Lisple::obj<RenderContext>(*ctx.lookup(ID__PIXILS__RENDER_CONTEXT));
+      if (!rc.asset_registry->is_dynamic_bundle(bundle_id))
+      {
+        throw std::runtime_error("Bundle is not dynamic: " + bundle_id);
+      }
+      if (!rc.renderer)
+      {
+        throw std::runtime_error("Cannot create image without an SDL renderer");
+      }
+
+      std::unique_ptr<SDL_Texture, decltype(&SDL_DestroyTexture)> texture(
+        SDL_CreateTexture(rc.renderer,
+                          SDL_PIXELFORMAT_RGBA8888,
+                          SDL_TEXTUREACCESS_TARGET,
+                          size.w,
+                          size.h),
+        SDL_DestroyTexture);
+      if (!texture)
+      {
+        throw std::runtime_error("Failed to create generated image texture: " + bundle_id +
+                                 "/" + resource_id);
+      }
+
+      SDL_SetTextureBlendMode(texture.get(), SDL_BLENDMODE_BLEND);
+
+      {
+        RenderTargetGuard target_guard(rc, texture.get());
+
+        Color clear = opts.optional_obj<Color>("clear").value_or(Color{0, 0, 0, 0});
+        SDL_SetRenderDrawColor(rc.renderer, clear.r, clear.g, clear.b, clear.a);
+        SDL_RenderClear(rc.renderer);
+        SDL_SetRenderDrawColor(rc.renderer, 0xff, 0xff, 0xff, 0xff);
+
+        Lisple::sptr_val_v callback_args;
+        args[2]->exec().execute(ctx, callback_args);
+      }
+
+      SDL_Texture* committed_texture = texture.get();
+      rc.asset_registry->add_generated_image(bundle_id,
+                                             resource_id,
+                                             committed_texture,
+                                             size);
+      texture.release();
       return args[0];
     }
 
@@ -247,6 +349,11 @@ namespace Pixils::Script
       {
         resources.push_back(image_dependency_map(bundle_id, dep));
       }
+      for (const auto& [resource_id, size] :
+           rc.asset_registry->generated_image_sizes(bundle_id))
+      {
+        resources.push_back(generated_image_map(bundle_id, resource_id, size));
+      }
       return Lisple::vector(resources);
     }
   } // namespace Function
@@ -278,6 +385,7 @@ namespace Pixils::Script
   {
     values.emplace(FN__CREATE_BUNDLE_BANG, Function::CreateBundleBang::make());
     values.emplace(FN__ADD_IMAGE_BANG, Function::AddImageBang::make());
+    values.emplace(FN__CREATE_IMAGE_BANG, Function::CreateImageBang::make());
     values.emplace(FN__REMOVE_IMAGE_BANG, Function::RemoveImageBang::make());
     values.emplace(FN__LIST_IMAGES, Function::ListImages::make());
     values.emplace(FN__MAKE_RESOURCE_DEPS, Function::MakeResourceDependencies::make());

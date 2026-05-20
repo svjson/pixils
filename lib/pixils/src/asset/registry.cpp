@@ -171,13 +171,10 @@ namespace Pixils::Asset
     void upsert_image_dependency(Runtime::ResourceDependencies& deps,
                                  const Runtime::ImageDependency& dependency)
     {
-      auto existing =
-        std::find_if(deps.images.begin(),
-                     deps.images.end(),
-                     [&](const Runtime::ImageDependency& image)
-                     {
-                       return image.resource_id == dependency.resource_id;
-                     });
+      auto existing = std::find_if(deps.images.begin(),
+                                   deps.images.end(),
+                                   [&](const Runtime::ImageDependency& image)
+                                   { return image.resource_id == dependency.resource_id; });
       if (existing == deps.images.end())
       {
         deps.images.push_back(dependency);
@@ -186,6 +183,17 @@ namespace Pixils::Asset
       {
         *existing = dependency;
       }
+    }
+
+    void erase_image_dependency(Runtime::ResourceDependencies& deps,
+                                const std::string& resource_id)
+    {
+      auto& images = deps.images;
+      images.erase(std::remove_if(images.begin(),
+                                  images.end(),
+                                  [&](const Runtime::ImageDependency& image)
+                                  { return image.resource_id == resource_id; }),
+                   images.end());
     }
   } // namespace
 
@@ -245,6 +253,7 @@ namespace Pixils::Asset
     bundles.emplace("pixils",
                     BundleRecord{.declaration = {},
                                  .bundle = std::move(bundle),
+                                 .generated_images = {},
                                  .loaded = true,
                                  .mutable_bundle = false});
   }
@@ -253,6 +262,16 @@ namespace Pixils::Asset
   {
     auto bundle = this->bundles.find(bundle_id);
     return bundle != this->bundles.end() && bundle->second.loaded;
+  }
+
+  bool Registry::is_dynamic_bundle(const std::string& bundle_id) const
+  {
+    auto bundle = this->bundles.find(bundle_id);
+    if (bundle == this->bundles.end())
+    {
+      throw std::runtime_error("Unknown bundle: " + bundle_id);
+    }
+    return bundle->second.mutable_bundle;
   }
 
   void Registry::declare_bundle(const std::string& bundle_id,
@@ -274,6 +293,7 @@ namespace Pixils::Asset
     this->bundles.emplace(bundle_id,
                           BundleRecord{.declaration = deps,
                                        .bundle = {},
+                                       .generated_images = {},
                                        .loaded = false,
                                        .mutable_bundle = mutable_bundle});
   }
@@ -292,6 +312,7 @@ namespace Pixils::Asset
       this->bundles.emplace(bundle_id,
                             BundleRecord{.declaration = deps,
                                          .bundle = {},
+                                         .generated_images = {},
                                          .loaded = false,
                                          .mutable_bundle = true});
       return;
@@ -323,14 +344,46 @@ namespace Pixils::Asset
     }
 
     upsert_image_dependency(record->second.declaration, dependency);
+    record->second.generated_images.erase(dependency.resource_id);
     if (!record->second.loaded) return;
 
     destroy_image_asset(record->second.bundle, dependency.resource_id);
     this->loader.load_image_asset(record->second.bundle, dependency);
   }
 
-  void Registry::remove_image(const std::string& bundle_id,
-                              const std::string& resource_id)
+  void Registry::add_generated_image(const std::string& bundle_id,
+                                     const std::string& resource_id,
+                                     SDL_Texture* texture,
+                                     Dimension size)
+  {
+    auto record = this->bundles.find(bundle_id);
+    if (record == this->bundles.end())
+    {
+      throw std::runtime_error("Unknown bundle: " + bundle_id);
+    }
+    if (!record->second.mutable_bundle)
+    {
+      throw std::runtime_error("Bundle is not dynamic: " + bundle_id);
+    }
+    if (!texture)
+    {
+      throw std::runtime_error("Generated image texture is null: " + bundle_id + "/" +
+                               resource_id);
+    }
+
+    if (!record->second.loaded)
+    {
+      record->second.bundle = this->loader.load_bundle_assets(record->second.declaration);
+      record->second.loaded = true;
+    }
+
+    erase_image_dependency(record->second.declaration, resource_id);
+    destroy_image_asset(record->second.bundle, resource_id);
+    record->second.bundle.images.emplace(resource_id, texture);
+    record->second.generated_images[resource_id] = size;
+  }
+
+  void Registry::remove_image(const std::string& bundle_id, const std::string& resource_id)
   {
     auto record = this->bundles.find(bundle_id);
     if (record == this->bundles.end())
@@ -342,14 +395,8 @@ namespace Pixils::Asset
       throw std::runtime_error("Bundle is not dynamic: " + bundle_id);
     }
 
-    auto& images = record->second.declaration.images;
-    images.erase(std::remove_if(images.begin(),
-                                images.end(),
-                                [&](const Runtime::ImageDependency& image)
-                                {
-                                  return image.resource_id == resource_id;
-                                }),
-                 images.end());
+    erase_image_dependency(record->second.declaration, resource_id);
+    record->second.generated_images.erase(resource_id);
 
     if (record->second.loaded)
     {
@@ -368,6 +415,17 @@ namespace Pixils::Asset
     return record->second.declaration.images;
   }
 
+  std::unordered_map<std::string, Dimension> Registry::generated_image_sizes(
+    const std::string& bundle_id) const
+  {
+    auto record = this->bundles.find(bundle_id);
+    if (record == this->bundles.end())
+    {
+      throw std::runtime_error("Unknown bundle: " + bundle_id);
+    }
+    return record->second.generated_images;
+  }
+
   void Registry::load(const std::string& bundle_id,
                       const Runtime::ResourceDependencies& deps)
   {
@@ -377,6 +435,7 @@ namespace Pixils::Asset
       this->bundles.emplace(bundle_id,
                             BundleRecord{.declaration = deps,
                                          .bundle = this->loader.load_bundle_assets(deps),
+                                         .generated_images = {},
                                          .loaded = true,
                                          .mutable_bundle = false});
       return;
@@ -477,7 +536,7 @@ namespace Pixils::Asset
   }
 
   const Assets::EmbeddedAsset* Registry::get_embedded_font(const std::string& bundle_id,
-                                                          const std::string& asset_id)
+                                                           const std::string& asset_id)
   {
     auto embedded_bundle = embedded_fonts.find(bundle_id);
     if (embedded_bundle != embedded_fonts.end())

@@ -3,7 +3,6 @@
 #define __PIXILS__RENDER_CONTEXT_H_
 
 #include "geom.h"
-
 #include <pixils/ui/style.h>
 
 #include <memory>
@@ -42,6 +41,13 @@ namespace Pixils
      * @brief The buffer texture that all in-game drawing happens against
      */
     SDL_Texture* buffer_texture = nullptr;
+    /*!
+     * @brief The render target Pixils most recently selected on the SDL renderer.
+     *
+     * SDL exposes this via SDL_GetRenderTarget, but keeping it here makes target
+     * restoration testable against the SDL mock as well.
+     */
+    SDL_Texture* current_render_target = nullptr;
     /*!
      * @brief The current size/dimension of the in-memory buffer
      */
@@ -113,6 +119,8 @@ namespace Pixils
      * @brief Updates the screen
      */
     void finalize_frame();
+
+    void set_render_target(SDL_Texture* target);
 
    private:
     /*!

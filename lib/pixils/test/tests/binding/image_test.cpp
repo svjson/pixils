@@ -1,4 +1,5 @@
 #include "../fixture.h"
+#include "../render_fixture.h"
 
 #include <gtest/gtest.h>
 #include <sdl2_mock/mock_resources.h>
@@ -7,6 +8,10 @@ class ImageTest : public BaseFixture
 {
  protected:
   void TearDown() override { SDLMock::reset_mocks(); }
+};
+
+class GeneratedImageTest : public RenderFixture
+{
 };
 
 TEST_F(ImageTest, image_metadata_functions_load_declared_images_on_demand)
@@ -226,5 +231,143 @@ TEST_F(ImageTest, add_image_requires_dynamic_bundle)
 
   // Then
   EXPECT_THROW(runtime.eval("(pixils.resource/add-image! :static-assets/ship \"ship.png\")"),
+               std::runtime_error);
+}
+
+TEST_F(GeneratedImageTest, dynamic_bundle_images_can_be_created_from_lisp_drawing)
+{
+  // Given
+  runtime.eval("(pixils/defbundle-dynamic project-assets)");
+
+  // When
+  auto resource = runtime.eval(R"(
+    (pixils.resource/create-image!
+      :project-assets/brush
+      {:size {:w 12 :h 7}}
+      (fn []
+        (pixils.render/rect!
+          {:x 1 :y 2 :w 3 :h 4}
+          {:fill true
+           :color {:r 255 :g 0 :b 0}})))
+  )");
+  auto width = runtime.eval("(pixils.image/width :project-assets/brush)");
+  auto height = runtime.eval("(pixils.image/height :project-assets/brush)");
+  runtime.eval("(pixils.render/image! :project-assets/brush {:pos {:x 5 :y 6}})");
+
+  // Then
+  ASSERT_NE(resource, nullptr);
+  EXPECT_EQ(resource->to_string(), ":project-assets/brush");
+  ASSERT_NE(width, nullptr);
+  ASSERT_NE(height, nullptr);
+  EXPECT_EQ(width->num().get_int(), 12);
+  EXPECT_EQ(height->num().get_int(), 7);
+
+  auto& ops = render_target()->render_ops;
+  ASSERT_EQ(ops.size(), 1u);
+  EXPECT_EQ(ops[0].type, RenderOpType::RENDER_COPY);
+  EXPECT_EQ(ops[0].rendered_rect.x, 5);
+  EXPECT_EQ(ops[0].rendered_rect.y, 6);
+  EXPECT_EQ(ops[0].rendered_rect.w, 12);
+  EXPECT_EQ(ops[0].rendered_rect.h, 7);
+  ASSERT_EQ(ops[0].sub_ops.size(), 1u);
+  EXPECT_EQ(ops[0].sub_ops[0].type, RenderOpType::FILL_RECT);
+  EXPECT_EQ(ops[0].sub_ops[0].rendered_rect.x, 1);
+  EXPECT_EQ(ops[0].sub_ops[0].rendered_rect.y, 2);
+  EXPECT_EQ(ops[0].sub_ops[0].rendered_rect.w, 3);
+  EXPECT_EQ(ops[0].sub_ops[0].rendered_rect.h, 4);
+}
+
+TEST_F(GeneratedImageTest, generated_dynamic_bundle_images_can_be_listed)
+{
+  // Given
+  runtime.eval("(pixils/defbundle-dynamic project-assets)");
+
+  // When
+  runtime.eval(R"(
+    (pixils.resource/create-image!
+      :project-assets/brush
+      {:size {:w 9 :h 11}}
+      (fn [] nil))
+  )");
+  auto id = runtime.eval("(:id (head (pixils.resource/list-images :project-assets)))");
+  auto source =
+    runtime.eval("(:source (head (pixils.resource/list-images :project-assets)))");
+  auto width =
+    runtime.eval("(:w (:size (head (pixils.resource/list-images :project-assets))))");
+  auto height =
+    runtime.eval("(:h (:size (head (pixils.resource/list-images :project-assets))))");
+
+  // Then
+  ASSERT_NE(id, nullptr);
+  ASSERT_NE(source, nullptr);
+  ASSERT_NE(width, nullptr);
+  ASSERT_NE(height, nullptr);
+  EXPECT_EQ(id->to_string(), ":project-assets/brush");
+  EXPECT_EQ(source->to_string(), ":generated");
+  EXPECT_EQ(width->num().get_int(), 9);
+  EXPECT_EQ(height->num().get_int(), 11);
+}
+
+TEST_F(GeneratedImageTest, generated_dynamic_bundle_images_can_be_removed)
+{
+  // Given
+  runtime.eval("(pixils/defbundle-dynamic project-assets)");
+  runtime.eval(R"(
+    (pixils.resource/create-image!
+      :project-assets/brush
+      {:size {:w 8 :h 8}}
+      (fn [] nil))
+  )");
+  auto width = runtime.eval("(pixils.image/width :project-assets/brush)");
+  ASSERT_EQ(width->num().get_int(), 8);
+
+  // When
+  auto resource = runtime.eval("(pixils.resource/remove-image! :project-assets/brush)");
+  auto missing_width = runtime.eval("(pixils.image/width :project-assets/brush)");
+  auto first = runtime.eval("(head (pixils.resource/list-images :project-assets))");
+
+  // Then
+  ASSERT_NE(resource, nullptr);
+  EXPECT_EQ(resource->to_string(), ":project-assets/brush");
+  EXPECT_EQ(missing_width->type, Lisple::Value::Type::NIL);
+  EXPECT_EQ(first->type, Lisple::Value::Type::NIL);
+}
+
+TEST_F(GeneratedImageTest, create_image_restores_existing_render_target)
+{
+  // Given
+  runtime.eval("(pixils/defbundle-dynamic project-assets)");
+  SDL_Texture* previous_target = SDL_CreateTexture(render_ctx.renderer,
+                                                   SDL_PIXELFORMAT_RGBA8888,
+                                                   SDL_TEXTUREACCESS_TARGET,
+                                                   20,
+                                                   20);
+  render_ctx.set_render_target(previous_target);
+
+  // When
+  runtime.eval(R"(
+    (pixils.resource/create-image!
+      :project-assets/brush
+      {:size {:w 4 :h 4}}
+      (fn [] nil))
+  )");
+
+  // Then
+  EXPECT_EQ(render_target(), previous_target);
+  EXPECT_EQ(render_ctx.current_render_target, previous_target);
+}
+
+TEST_F(GeneratedImageTest, create_image_requires_dynamic_bundle)
+{
+  // Given
+  runtime.eval("(pixils/defbundle static-assets {:images {}})");
+
+  // Then
+  EXPECT_THROW(runtime.eval(R"(
+    (pixils.resource/create-image!
+      :static-assets/brush
+      {:size {:w 4 :h 4}}
+      (fn [] nil))
+  )"),
                std::runtime_error);
 }

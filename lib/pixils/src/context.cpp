@@ -84,7 +84,7 @@ namespace Pixils
     Color& bg = display.background;
 
     SDL_GetWindowSize(window, &window_rect.w, &window_rect.h);
-    SDL_SetRenderTarget(renderer, nullptr);
+    set_render_target(nullptr);
     SDL_SetRenderDrawColor(renderer, bg.r, bg.g, bg.b, 0xff);
     SDL_RenderClear(renderer);
   }
@@ -117,7 +117,7 @@ namespace Pixils
   void RenderContext::clear_buffer()
   {
     SDL_SetTextureBlendMode(buffer_texture, SDL_BLENDMODE_BLEND);
-    SDL_SetRenderTarget(this->renderer, this->buffer_texture);
+    set_render_target(this->buffer_texture);
     SDL_SetRenderDrawColor(renderer, 0x00, 0x00, 0x00, 0xff);
     SDL_RenderClear(renderer);
     SDL_SetRenderDrawColor(renderer, 0xff, 0xff, 0xff, 0xff);
@@ -131,14 +131,14 @@ namespace Pixils
                                              buffer_dim.w,
                                              buffer_dim.h);
     SDL_SetTextureBlendMode(buffer_texture, SDL_BLENDMODE_BLEND);
-    SDL_SetRenderTarget(this->renderer, this->buffer_texture);
+    set_render_target(this->buffer_texture);
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
     SDL_RenderClear(renderer);
   }
 
   void RenderContext::flush_buffer(Display& display)
   {
-    SDL_SetRenderTarget(this->renderer, nullptr);
+    set_render_target(nullptr);
 
     SDL_Rect target = application_target_rect(display).to_SDL_rect();
 
@@ -148,5 +148,11 @@ namespace Pixils
   void RenderContext::finalize_frame()
   {
     SDL_RenderPresent(renderer);
+  }
+
+  void RenderContext::set_render_target(SDL_Texture* target)
+  {
+    SDL_SetRenderTarget(renderer, target);
+    current_render_target = target;
   }
 } // namespace Pixils

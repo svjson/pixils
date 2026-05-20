@@ -1227,6 +1227,11 @@ Accepts the same `:font` and `:scale` options as `text!`.
 
 | Symbol                      | Description |
 |-----------------------------|-------------|
+| `create-bundle!`            | Create or update a dynamic bundle at runtime. Args: bundle keyword, optional resource dependency map. |
+| `add-image!`                | Add or replace a file-backed image in a dynamic bundle. Args: qualified image keyword and file dependency. |
+| `create-image!`             | Create or replace a generated image in a dynamic bundle. Args: qualified image keyword, `{:size {:w :h} :clear color}`, and a zero-arg drawing function. Drawing commands inside the function target the new image. |
+| `remove-image!`             | Remove a file-backed or generated image from a dynamic bundle. Args: qualified image keyword. |
+| `list-images`               | List image resources in a bundle. Generated images include `:source :generated` and `:size`. |
 | `make-resource-dependencies`| Declare resource dependencies explicitly. Takes `{:images {:id "file.png"} :sounds {:id "file.wav"}}`. The plain map form in `:resources` is equivalent and preferred. |
 
 ## Using Pixils as a library

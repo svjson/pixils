@@ -202,7 +202,7 @@ namespace Pixils
           console->get_open_state() == ConsoleOverlay::OPENING ||
           console->get_open_state() == ConsoleOverlay::State::CLOSING)
       {
-        SDL_SetRenderTarget(ctx.renderer, nullptr);
+        ctx.set_render_target(nullptr);
         console->set_window_size(
           {ctx.window_rect.x, ctx.window_rect.y, ctx.window_rect.w, ctx.window_rect.h});
         console->tick();
@@ -476,7 +476,7 @@ namespace Pixils
                   source_rect.w * scale,
                   source_rect.h * scale};
 
-    SDL_SetRenderTarget(ctx.renderer, ctx.buffer_texture);
+    ctx.set_render_target(ctx.buffer_texture);
     SDL_RenderCopy(ctx.renderer, texture, source_ptr, &dest);
   }
 
