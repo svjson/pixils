@@ -129,6 +129,8 @@
            :height 18}
    :init (fn [state ctx]
            (assoc state :value (slider-value state)))
+   :update (fn [state ctx]
+             (assoc state :value (slider-value state)))
    :on-mouse-down (fn [state event ctx]
                     (do
                       (ui/stop-propagation! event)

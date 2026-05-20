@@ -49,9 +49,10 @@
    :init (fn [state ctx]
            (assoc state :checked? (checked? state)))
    :update (fn [state ctx]
-             (assoc state :pressed
-                    (and (contains? (-> ctx :view :interaction :pressed) :left)
-                         (-> ctx :view :interaction :hovered))))
+             (assoc state
+                    :checked? (checked? state)
+                    :pressed (and (contains? (-> ctx :view :interaction :pressed) :left)
+                                  (-> ctx :view :interaction :hovered))))
    :on-click (fn [state event ctx]
                (let [checked? (not (checked? state))]
                  (do

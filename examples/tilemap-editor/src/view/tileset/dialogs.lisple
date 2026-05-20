@@ -112,9 +112,13 @@
                      :resource-options options
                      :selected-resource-index selected-index
                      :selected-source-indices []
+                     :selected-sources []
                      :select-all? false
                      :exclude-same-tileset? true
                      :exclude-project? false
+                     :source-snap-to-grid? true
+                     :source-snap-interval (selected-tileset-tile-size state)
+                     :source-snap-interval-custom? false
                      :tile-size (selected-tileset-tile-size state)}
                     {:origin {:view (:view ctx)
                               :event :tile/import-result}})
@@ -666,6 +670,38 @@
       index
       nil)))
 
+(defun tile-import-snap-enabled? [state]
+  (not= (:source-snap-to-grid? state) false))
+
+(defun tile-import-snap-interval [state]
+  (import-source-snap-interval state))
+
+(defun tile-import-source-at-position [position image-rect dim tile-size snap-to-grid? snap-interval]
+  (let [scale (:scale image-rect)
+        source-x (/ (- (:x position) (:x image-rect)) scale)
+        source-y (/ (- (:y position) (:y image-rect)) scale)]
+    (when (and (>= source-x 0)
+               (>= source-y 0)
+               (< source-x (:w dim))
+               (< source-y (:h dim)))
+      (source-with-position nil
+                            source-x
+                            source-y
+                            tile-size
+                            dim
+                            snap-to-grid?
+                            snap-interval))))
+
+(defun toggle-source [sources source]
+  (if (> (count (filter (or sources [])
+                        (fn [item]
+                          (same-source? item source))))
+         0)
+    (filter (or sources [])
+            (fn [item]
+              (not (same-source? item source))))
+    (concat (or sources []) [source])))
+
 (defcomponent tile-import-preview
   {:focusable true
    :class :ui/content
@@ -684,17 +720,21 @@
          state
          (let [dim (img/size image)
                rect (tile-import-preview-image-rect dim)
-               index (tile-import-index-at-position (:position event)
-                                                    rect
-                                                    dim
-                                                    (:tile-size state))]
+               source (tile-import-source-at-position
+                       (:position event)
+                       rect
+                       dim
+                       (:tile-size state)
+                       (tile-import-snap-enabled? state)
+                       (tile-import-snap-interval state))]
            (do
              (ui/stop-propagation! event)
              (ui/focus! ctx)
-             (if index
+             (if source
                (assoc state
-                      :selected-source-indices
-                      (toggle-index (:selected-source-indices state) index))
+                      :selected-sources
+                      (toggle-source (:selected-sources state) source)
+                      :selected-source-indices [])
                state))))))
    :render
    (fn [state ctx]
@@ -708,10 +748,7 @@
                    :color {:r 0x12 :g 0x15 :b 0x18}})
          (when dim
            (let [image-rect (tile-import-preview-image-rect dim)
-                 selected (selected-source-indices state dim)
-                 sources (map selected
-                              (fn [index]
-                                (source-index-rect index dim (:tile-size state))))]
+                 sources (selected-source-rects state dim)]
              (do
                (r/image! image
                          {:pos {:x (:x image-rect)
@@ -732,18 +769,29 @@
 
 (defcomponent tile-import-dialog-body
   {:class :ui/content
-   :style {:width 520
+   :style {:width 440
            :height :shrink
            :padding 10
            :layout {:direction :column
                     :gap 8}}
+   :init (fn [state ctx]
+           (let [snap-interval (tile-import-snap-interval state)]
+             (assoc state
+                    :source-snap-to-grid? (tile-import-snap-enabled? state)
+                    :source-snap-interval snap-interval
+                    :source-snap-interval-label (str snap-interval))))
    :update (fn [state ctx]
              (let [resource (selected-resource-option state)
                    dim (when resource (img/size (:key resource)))
                    sources (when (and resource dim)
-                             (import-source-rects state (:key resource) dim))]
+                             (import-source-rects state (:key resource) dim))
+                   snap-interval (tile-import-snap-interval state)]
                       (assoc state
                              :resource resource
+                             :source-snap-to-grid?
+                             (tile-import-snap-enabled? state)
+                             :source-snap-interval snap-interval
+                             :source-snap-interval-label (str snap-interval)
                              :source-count (count (or sources []))
                              :source-count-label (str (count (or sources []))
                                                       " tiles selected")
@@ -759,14 +807,21 @@
                        :selected-bundle-index (:selected-index payload)
                        :resource-options options
                        :selected-resource-index (if (empty? options) nil 0)
-                       :selected-source-indices []))
+                       :selected-source-indices []
+                       :selected-sources []))
               (assoc state
                      :selected-resource-index (:selected-index payload)
-                     :selected-source-indices []))))
+                     :selected-source-indices []
+                     :selected-sources []))))
         :checkbox/change
         (fn [state event ctx]
           (let [payload (:payload event)]
-            (assoc state (:value payload) (:checked? payload))))}
+            (assoc state (:value payload) (:checked? payload))))
+        :slider/change
+        (fn [state event ctx]
+          (assoc state
+                 :source-snap-interval (:payload event)
+                 :source-snap-interval-custom? true))}
    :children [{:mode 'ui/text
                :class :ui/muted
                :state {:value "Bundle"}}
@@ -793,23 +848,77 @@
                        :resource-options (ui/bind-state :resource-options)
                        :selected-resource-index (ui/bind-state :selected-resource-index)
                        :selected-source-indices (ui/bind-state :selected-source-indices)
+                       :selected-sources (ui/bind-state :selected-sources)
                        :select-all? (ui/bind-state :select-all?)
                        :exclude-same-tileset? (ui/bind-state :exclude-same-tileset?)
                        :exclude-project? (ui/bind-state :exclude-project?)
+                       :source-snap-to-grid? (ui/bind-state :source-snap-to-grid?)
+                       :source-snap-interval (ui/bind-state :source-snap-interval)
+                       :source-snap-interval-custom?
+                       (ui/bind-state :source-snap-interval-custom?)
                        :tile-size (ui/bind-state :tile-size)}}
               {:style {:width :fill
                        :height :shrink
-                       :layout {:direction :column
-                                :gap 4}}
-               :children [(chk/make {:label "Select all tiles"
-                                     :checked? (ui/bind-state :select-all?)
-                                     :value :select-all?})
-                          (chk/make {:label "Exclude tiles already in this tile set"
-                                     :checked? (ui/bind-state :exclude-same-tileset?)
-                                     :value :exclude-same-tileset?})
-                          (chk/make {:label "Exclude tiles already anywhere in project"
-                                     :checked? (ui/bind-state :exclude-project?)
-                                     :value :exclude-project?})]}
+                       :layout {:direction :row
+                                :gap 8}}
+               :state {:source-snap-to-grid? (ui/bind-state :source-snap-to-grid?)
+                       :source-snap-interval (ui/bind-state :source-snap-interval)
+                       :source-snap-interval-label (ui/bind-state :source-snap-interval-label)}
+               :children [{:style {:width 160
+                                   :height :shrink
+                                   :layout {:direction :column
+                                            :gap 2}}
+                           :state {:select-all? (ui/bind-state :select-all?)
+                                   :exclude-same-tileset? (ui/bind-state
+                                                           :exclude-same-tileset?)
+                                   :exclude-project? (ui/bind-state
+                                                      :exclude-project?)}
+                           :children [(chk/make {:label "Select all"
+                                                 :checked? (ui/bind-state :select-all?)
+                                                 :value :select-all?})
+                                      {:mode 'ui/text
+                                       :class :ui/muted
+                                       :style {:height 16}
+                                       :state {:value "Exclude:"}}
+                                      (chk/make {:label "Present in tile set"
+                                                 :checked? (ui/bind-state
+                                                            :exclude-same-tileset?)
+                                                 :value :exclude-same-tileset?})
+                                      (chk/make {:label "Present in project"
+                                                 :checked? (ui/bind-state :exclude-project?)
+                                                 :value :exclude-project?})]}
+                          {:style {:width 252
+                                   :height :shrink
+                                   :layout {:direction :column
+                                            :gap 4}}
+                           :state {:source-snap-to-grid? (ui/bind-state
+                                                          :source-snap-to-grid?)
+                                   :source-snap-interval (ui/bind-state
+                                                          :source-snap-interval)
+                                   :source-snap-interval-label (ui/bind-state
+                                                                :source-snap-interval-label)}
+                           :children [(chk/make {:label "Snap"
+                                                 :checked? (ui/bind-state :source-snap-to-grid?)
+                                                 :value :source-snap-to-grid?})
+                                      {:style {:width :fill
+                                               :height 24
+                                               :layout {:direction :row
+                                                        :align-items :center
+                                                        :gap 8}}
+                                       :state {:source-snap-interval
+                                               (ui/bind-state
+                                                :source-snap-interval)
+                                               :source-snap-interval-label
+                                               (ui/bind-state
+                                                :source-snap-interval-label)}
+                                       :children [(sl/make {:value (ui/bind-state :source-snap-interval)
+                                                            :min 1
+                                                            :max 128
+                                                            :step 1})
+                                                  {:mode 'ui/text
+                                                   :style {:width 28}
+                                                   :state {:value (ui/bind-state
+                                                                   :source-snap-interval-label)}}]}]}]}
               {:mode 'ui/text
                :class :ui/muted
                :state {:value (ui/bind-state :source-count-label)}}
@@ -876,9 +985,14 @@
                                        :resource-options (ui/bind-state :resource-options)
                                        :selected-resource-index (ui/bind-state :selected-resource-index)
                                        :selected-source-indices (ui/bind-state :selected-source-indices)
+                               :selected-sources (ui/bind-state :selected-sources)
                                :select-all? (ui/bind-state :select-all?)
                                :exclude-same-tileset? (ui/bind-state :exclude-same-tileset?)
                                :exclude-project? (ui/bind-state :exclude-project?)
+                               :source-snap-to-grid? (ui/bind-state :source-snap-to-grid?)
+                               :source-snap-interval (ui/bind-state :source-snap-interval)
+                               :source-snap-interval-custom?
+                               (ui/bind-state :source-snap-interval-custom?)
                                :tile-size (ui/bind-state :tile-size)}
                        :body [{:mode 'tile-import-dialog-body
                                        :state {:resources (ui/bind-state :resources)
@@ -890,9 +1004,14 @@
                                                :resource-options (ui/bind-state :resource-options)
                                                :selected-resource-index (ui/bind-state :selected-resource-index)
                                        :selected-source-indices (ui/bind-state :selected-source-indices)
+                                       :selected-sources (ui/bind-state :selected-sources)
                                        :select-all? (ui/bind-state :select-all?)
                                        :exclude-same-tileset? (ui/bind-state :exclude-same-tileset?)
                                        :exclude-project? (ui/bind-state :exclude-project?)
+                                       :source-snap-to-grid? (ui/bind-state :source-snap-to-grid?)
+                                       :source-snap-interval (ui/bind-state :source-snap-interval)
+                                       :source-snap-interval-custom?
+                                       (ui/bind-state :source-snap-interval-custom?)
                                        :tile-size (ui/bind-state :tile-size)}}]})]})
 
 (defcomponent tile-add-menu-button

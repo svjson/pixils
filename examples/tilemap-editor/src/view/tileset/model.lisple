@@ -447,18 +447,30 @@
                                                  channel
                                                  value))))))
 
-(defun clamp-source-coordinate [value max-value tile-size]
-  (* tile-size
-     (int (/ (max 0
-                 (min value
-                      (max 0 (- max-value tile-size))))
-             tile-size))))
+(defun source-snap-interval [tile-size value]
+  (max 1 (or value tile-size)))
 
-(defun source-with-position [source x y tile-size dim]
-  {:x (clamp-source-coordinate x (:w dim) tile-size)
-   :y (clamp-source-coordinate y (:h dim) tile-size)
-   :w tile-size
-   :h tile-size})
+(defun clamp-source-coordinate [value max-value tile-size snap-to-grid? snap-interval]
+  (let [max-coordinate (max 0 (- max-value tile-size))
+        clamped (max 0 (min value max-coordinate))]
+    (if snap-to-grid?
+      (* snap-interval (int (/ clamped snap-interval)))
+      (int clamped))))
+
+(defun source-with-position [source x y tile-size dim snap-to-grid? snap-interval]
+  (let [snap-interval (source-snap-interval tile-size snap-interval)]
+    {:x (clamp-source-coordinate x
+                                 (:w dim)
+                                 tile-size
+                                 snap-to-grid?
+                                 snap-interval)
+     :y (clamp-source-coordinate y
+                                 (:h dim)
+                                 tile-size
+                                 snap-to-grid?
+                                 snap-interval)
+     :w tile-size
+     :h tile-size}))
 
 (defun source-grid-columns [dim tile-size]
   (max 1 (int (/ (:w dim) tile-size))))
@@ -474,6 +486,25 @@
   (let [columns (source-grid-columns dim tile-size)]
     {:x (* (mod index columns) tile-size)
      :y (* (int (/ index columns)) tile-size)
+     :w tile-size
+     :h tile-size}))
+
+(defun source-grid-columns-for-interval [dim tile-size interval]
+  (max 1 (inc (int (/ (max 0 (- (:w dim) tile-size))
+                      interval)))))
+
+(defun source-grid-rows-for-interval [dim tile-size interval]
+  (max 1 (inc (int (/ (max 0 (- (:h dim) tile-size))
+                      interval)))))
+
+(defun source-grid-count-for-interval [dim tile-size interval]
+  (* (source-grid-columns-for-interval dim tile-size interval)
+     (source-grid-rows-for-interval dim tile-size interval)))
+
+(defun source-index-rect-for-interval [index dim tile-size interval]
+  (let [columns (source-grid-columns-for-interval dim tile-size interval)]
+    {:x (* (mod index columns) interval)
+     :y (* (int (/ index columns)) interval)
      :w tile-size
      :h tile-size}))
 
@@ -500,10 +531,31 @@
                       (tileset-uses-source? tileset image source))))
      0))
 
+(defun import-source-snap-interval [state]
+  (let [tile-size (:tile-size state)]
+    (if (:source-snap-interval-custom? state)
+      (source-snap-interval tile-size (:source-snap-interval state))
+      tile-size)))
+
 (defun selected-source-indices [state dim]
-  (if (:select-all? state)
-    (range 0 (dec (source-grid-count dim (:tile-size state))))
-    (or (:selected-source-indices state) [])))
+  (let [tile-size (:tile-size state)
+        interval (import-source-snap-interval state)]
+    (if (:select-all? state)
+      (range 0 (dec (source-grid-count-for-interval dim tile-size interval)))
+      (or (:selected-source-indices state) []))))
+
+(defun selected-source-rects [state dim]
+  (let [tile-size (:tile-size state)
+        interval (import-source-snap-interval state)]
+    (if (:select-all? state)
+      (map (selected-source-indices state dim)
+           (fn [index]
+             (source-index-rect-for-interval index dim tile-size interval)))
+      (if (:selected-sources state)
+        (or (:selected-sources state) [])
+        (map (selected-source-indices state dim)
+             (fn [index]
+               (source-index-rect-for-interval index dim tile-size interval)))))))
 
 (defun import-source-included? [state image source]
   (let [tileset (selected-tileset-definition state)
@@ -513,12 +565,9 @@
              (and (:exclude-project? state) project?)))))
 
 (defun import-source-rects [state image dim]
-  (let [tile-size (:tile-size state)]
-    (filter (map (selected-source-indices state dim)
-                 (fn [index]
-                   (source-index-rect index dim tile-size)))
-            (fn [source]
-              (import-source-included? state image source)))))
+  (filter (selected-source-rects state dim)
+          (fn [source]
+            (import-source-included? state image source))))
 
 (defun tile-id-root-for-resource [resource]
   (kebab-case (or (:name resource)
@@ -546,7 +595,9 @@
                                                                  x
                                                                  y
                                                                  tile-size
-                                                                 dim))))))
+                                                                 dim
+                                                                 true
+                                                                 tile-size))))))
 
 (defun set-selected-tile-source [state source]
   (update-selected-tile state

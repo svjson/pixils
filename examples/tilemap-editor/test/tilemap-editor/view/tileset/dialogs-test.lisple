@@ -49,3 +49,27 @@
            (map (:last-imported-image-resources state)
                 (fn [resource]
                   (:key resource)))))))
+
+(deftest tile-import-source-position-supports_custom_snap_interval
+  (let [image-rect (dialogs/tile-import-preview-image-rect {:w 800
+                                                            :h 1280})]
+    (is (= {:x 32 :y 104 :w 16 :h 16}
+           (dialogs/tile-import-source-at-position
+            {:x 99.9375 :y 23.625}
+            image-rect
+            {:w 800 :h 1280}
+            16
+            true
+            8)))))
+
+(deftest tile-import-source-position-supports_unsnapped_coordinates
+  (let [image-rect (dialogs/tile-import-preview-image-rect {:w 800
+                                                            :h 1280})]
+    (is (= {:x 34 :y 108 :w 16 :h 16}
+           (dialogs/tile-import-source-at-position
+            {:x 99.9375 :y 23.625}
+            image-rect
+            {:w 800 :h 1280}
+            16
+            false
+            16)))))
