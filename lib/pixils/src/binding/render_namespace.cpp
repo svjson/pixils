@@ -88,6 +88,7 @@ namespace Pixils::Script
           Lisple::obj<RenderContext>(*ctx.lookup(ID__PIXILS__RENDER_CONTEXT));
 
         SDL_Texture* texture = rc.asset_registry->get_image(asset_bundle, asset_key);
+        if (!texture) return Lisple::Constant::NIL;
 
         Point& pos = opts.obj<Point>("pos");
         float scale = opts.f32("scale", 1.0f);
@@ -113,25 +114,22 @@ namespace Pixils::Script
         dim.h *= scale;
         const SDL_Rect* source_ptr = source_rect ? &*source_rect : nullptr;
 
-        if (texture)
+        SDL_SetTextureAlphaMod(texture, alpha);
+        if (rotation == 0.0f)
         {
-          SDL_SetTextureAlphaMod(texture, alpha);
-          if (rotation == 0.0f)
-          {
-            SDL_RenderCopy(rc.renderer, texture, source_ptr, &dim);
-          }
-          else
-          {
-            SDL_RenderCopyEx(rc.renderer,
-                             texture,
-                             source_ptr,
-                             &dim,
-                             static_cast<double>(rotation) * RADIANS_TO_DEGREES,
-                             nullptr,
-                             SDL_FLIP_NONE);
-          }
-          if (alpha != 255) SDL_SetTextureAlphaMod(texture, 255);
+          SDL_RenderCopy(rc.renderer, texture, source_ptr, &dim);
         }
+        else
+        {
+          SDL_RenderCopyEx(rc.renderer,
+                           texture,
+                           source_ptr,
+                           &dim,
+                           static_cast<double>(rotation) * RADIANS_TO_DEGREES,
+                           nullptr,
+                           SDL_FLIP_NONE);
+        }
+        if (alpha != 255) SDL_SetTextureAlphaMod(texture, 255);
       }
 
       return Lisple::Constant::NIL;

@@ -135,6 +135,24 @@ TEST_F(RenderTest, image_accepts_opacity)
   EXPECT_EQ(ops[0].rendered_rect.y, 18);
 }
 
+TEST_F(RenderTest, image_missing_asset_is_noop)
+{
+  runtime.eval(R"(
+    (pixils/defbundle-dynamic project-assets)
+    (pixils/defmode test-mode {
+      :render (fn [state ctx]
+                (pixils.render/image!
+                  :project-assets/missing
+                  {:pos {:x 12 :y 18}}))
+    })
+  )");
+  session.push_mode("test-mode", Lisple::Constant::NIL);
+
+  ASSERT_NO_THROW(session.render_mode());
+
+  EXPECT_TRUE(render_target()->render_ops.empty());
+}
+
 TEST_F(RenderTest, style_background_image_renders_once_without_repeat)
 {
   SDLMock::prepared_surfaces["./checkmark.png"] = {7, 7};
