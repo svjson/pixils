@@ -43,11 +43,21 @@
              (derive-tileset-workspace-state state))
    :on {:tileset/add (fn [state event ctx]
                        (open-tileset-create-dialog! state ctx))
+        :tileset/context-command
+        (fn [state event ctx]
+          (case (-> event :payload :command)
+            :edit (open-tileset-edit-dialog! state
+                                             ctx
+                                             (-> event :payload :tileset-index))
+            :default state))
         :tileset/add-tile (fn [state event ctx]
                             (open-tile-create-dialog! state ctx))
         :tileset/dialog-result (fn [state event ctx]
                                  (add-tileset-definition! state
                                                           (:payload event)))
+        :tileset/edit-dialog-result
+        (fn [state event ctx]
+          (edit-tileset-definition! state (:payload event)))
         :tile/dialog-result (fn [state event ctx]
                               (add-tile-definition! state (:payload event)))
         :tile/color-range-result (fn [state event ctx]

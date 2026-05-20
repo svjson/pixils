@@ -46,6 +46,15 @@
                       (= (:id item) (keyword id)))))
      0))
 
+(defun item-id-exists-except? [items id exclude-index]
+  (> (count (filter (for-indexed [index item (or items [])]
+                      {:index index
+                       :item item})
+                    (fn [entry]
+                      (and (= (:id (:item entry)) (keyword id))
+                           (not= (:index entry) exclude-index)))))
+     0))
+
 (defun unique-id-from [items root suffix]
   (let [candidate (if suffix
                     (str root "-" suffix)
@@ -54,6 +63,17 @@
       (unique-id-from items
                       root
                       (if suffix (inc suffix) 2))
+      candidate)))
+
+(defun unique-id-from-except [items root exclude-index suffix]
+  (let [candidate (if suffix
+                    (str root "-" suffix)
+                    root)]
+    (if (item-id-exists-except? items candidate exclude-index)
+      (unique-id-from-except items
+                             root
+                             exclude-index
+                             (if suffix (inc suffix) 2))
       candidate)))
 
 (defun unique-tileset-id [tilesets]
@@ -258,6 +278,23 @@
     :default
     (assoc tile :type type)))
 
+(defun tile-with-size [tile tile-size]
+  (if (or (= (:type tile) :sprite)
+          (:source tile))
+    (assoc tile
+           :source (assoc (merge (default-tile-source tile-size)
+                                 (or (:source tile) {}))
+                          :w tile-size
+                          :h tile-size))
+    tile))
+
+(defun tileset-with-tile-size [tileset tile-size]
+  (assoc (assoc tileset
+                :tile-size tile-size)
+         :tiles (map (or (:tiles tileset) [])
+                     (fn [tile]
+                       (tile-with-size tile tile-size)))))
+
 (defun make-tileset-definition [id label tile-size]
   {:id (keyword id)
    :label label
@@ -307,6 +344,45 @@
              :selected-tileset-definition-index index
              :selected-tileset-tile-index nil))
     state))
+
+(defun rename-tileset-references [state old-id new-id]
+  (assoc
+   (assoc state
+          :layers (map (or (:layers state) [])
+                       (fn [layer]
+                         (if (= (:tileset layer) old-id)
+                           (assoc layer :tileset new-id)
+                           layer))))
+   :tileset (if (= (:tileset state) old-id)
+              new-id
+              (:tileset state))))
+
+(defun edit-tileset-definition! [state payload]
+  (let [tilesets (or (:tilesets state) [])
+        index (:tileset-index payload)]
+    (if (and (= (:type payload) :confirm)
+             (not (nil? index))
+             (< index (count tilesets))
+             (not (blank? (:tileset-id payload)))
+             (not (blank? (:tileset-label payload))))
+      (let [old-tileset (nth tilesets index)
+            old-id (:id old-tileset)
+            tile-size (or (:tile-size payload)
+                          data/tile-size)
+            new-id (keyword (unique-id-from-except
+                             tilesets
+                             (kebab-case (:tileset-id payload))
+                             index
+                             nil))
+            next-state (assoc-in
+                        state
+                        [:tilesets index]
+                        (assoc (tileset-with-tile-size old-tileset tile-size)
+                               :id new-id
+                               :label (:tileset-label payload)))]
+        (assoc (rename-tileset-references next-state old-id new-id)
+               :selected-tileset-definition-index index))
+      state)))
 
 (defun add-tile-definition! [state payload]
   (let [tileset-index (:selected-tileset-definition-index state)

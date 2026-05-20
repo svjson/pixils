@@ -63,6 +63,81 @@
                 :tile-size 16})]
     (is (= :terrain-2 (get-in state [:tilesets 1 :id])))))
 
+(deftest tileset-edit-updates-definition-and-references
+  (let [state (model/edit-tileset-definition!
+               {:tileset :terrain
+                :selected-tileset-definition-index 0
+                :selected-tileset-tile-index 1
+                :layers [{:id :ground
+                          :tileset :terrain}
+                         {:id :details
+                          :tileset :decor}]
+                :tilesets [{:id :terrain
+                            :label "Terrain"
+                            :tile-size 16
+                            :tiles [{:id :grass
+                                     :type :sprite
+                                     :source {:x 8 :y 16 :w 16 :h 16}}
+                                    {:id :water
+                                     :type :color
+                                     :color {:r 0 :g 0 :b 255}}]}
+                           {:id :decor
+                            :label "Decor"
+                            :tile-size 16
+                            :tiles []}]}
+               {:type :confirm
+                :tileset-index 0
+                :tileset-id "world terrain"
+                :tileset-label "World Terrain"
+                :tile-size 32})]
+    (is (= {:id :world-terrain
+            :label "World Terrain"
+            :tile-size 32
+            :tiles [{:id :grass
+                     :type :sprite
+                     :source {:x 8 :y 16 :w 32 :h 32}}
+                    {:id :water
+                     :type :color
+                     :color {:r 0 :g 0 :b 255}}]}
+           (get-in state [:tilesets 0])))
+    (is (= :world-terrain (:tileset state)))
+    (is (= :world-terrain (get-in state [:layers 0 :tileset])))
+    (is (= :decor (get-in state [:layers 1 :tileset])))
+    (is (= 0 (:selected-tileset-definition-index state)))
+    (is (= 1 (:selected-tileset-tile-index state)))))
+
+(deftest tileset-edit-adds-source-dimensions-to-existing-sprite-tiles
+  (let [state (model/edit-tileset-definition!
+               {:tilesets [{:id :terrain
+                            :label "Terrain"
+                            :tile-size 16
+                            :tiles [{:id :grass
+                                     :type :sprite}]}]}
+               {:type :confirm
+                :tileset-index 0
+                :tileset-id "terrain"
+                :tileset-label "Terrain"
+                :tile-size 32})]
+    (is (= {:x 0 :y 0 :w 32 :h 32}
+           (get-in state [:tilesets 0 :tiles 0 :source])))))
+
+(deftest tileset-edit-deduplicates-id-excluding-current-tileset
+  (let [state (model/edit-tileset-definition!
+               {:tilesets [{:id :terrain
+                            :label "Terrain"
+                            :tile-size 16
+                            :tiles []}
+                           {:id :decor
+                            :label "Decor"
+                            :tile-size 16
+                            :tiles []}]}
+               {:type :confirm
+                :tileset-index 0
+                :tileset-id "decor"
+                :tileset-label "Decor Copy"
+                :tile-size 16})]
+    (is (= :decor-2 (get-in state [:tilesets 0 :id])))))
+
 (deftest tile-creation-adds_and_selects_new_tile
   (let [state (model/add-tile-definition!
                {:selected-tileset-definition-index 0

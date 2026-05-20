@@ -47,13 +47,13 @@
              (do (assoc-in! ctx [:view :style :position] :absolute)
                  (assoc-in! ctx [:view :style :left] (:x state))
                  (assoc-in! ctx [:view :style :top] (:y state))
-                 (assoc-in! ctx [:view :style :height] (:h state))
+                 (assoc-in! ctx [:view :style :height] (or (:h state) 0))
                  (assoc-in! ctx
                             [:view :style :visibility]
                             (if (:visible? state) :visible :none))
                  state))
    :render (fn [state ctx]
-             (r/rect! {:x 0 :y 0 :w 1 :h (:h state)}
+             (r/rect! {:x 0 :y 0 :w 1 :h (or (:h state) 0)}
                       {:fill true
                        :color (or (-> ctx :view :effective-style :background)
                                   (-> ctx :view :effective-style :text :color)

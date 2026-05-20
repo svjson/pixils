@@ -54,9 +54,32 @@
       (push-mode! 'tileset-create-dialog-modal
                   {:tileset-id id
                    :tileset-label (label-from-id id)
-                   :tile-size data/tile-size}
+                   :tile-size data/tile-size
+                   :confirm-label "Create"}
                   {:origin {:view (:view ctx)
                             :event :tileset/dialog-result}})
+      state)))
+
+(defun open-tileset-edit-dialog! [state ctx tileset-index]
+  (let [tilesets (or (:tilesets state) [])
+        index (or tileset-index (:selected-tileset-definition-index state))
+        tileset (when (and (not (nil? index))
+                           (< index (count tilesets)))
+                  (nth tilesets index))]
+    (if tileset
+      (do
+        (push-mode! 'tileset-edit-dialog-modal
+                    {:tileset-index index
+                     :tileset-id (keyword-label (:id tileset))
+                     :tileset-label (:label tileset)
+                     :tile-size (or (:tile-size tileset) data/tile-size)
+                     :confirm-label "Save"}
+                    {:origin {:view (:view ctx)
+                              :event :tileset/edit-dialog-result}})
+        (assoc state
+               :selected-tileset-definition-index index
+               :selected-tileset-tile-index
+               (if (empty? (or (:tiles tileset) [])) nil 0)))
       state)))
 
 (defun open-tile-create-dialog! [state ctx]
@@ -232,7 +255,8 @@
                            :style {:width 28}
                            :state {:value (ui/bind-state :tile-size)}}]}
               {:mode 'tileset-create-dialog-buttons
-               :state {:invalid? (ui/bind-state :invalid?)}}]})
+               :state {:invalid? (ui/bind-state :invalid?)
+                       :confirm-label (ui/bind-state :confirm-label)}}]})
 
 (defcomponent tileset-create-dialog-buttons
   {:style {:width :fill
@@ -251,7 +275,7 @@
               {:mode 'ui/button
                :style {:width 78
                        :height 24}
-               :state {:label "Create"
+               :state {:label (ui/bind-state :confirm-label)
                        :disabled? (ui/bind-state :invalid?)}
                :on-click (fn [state event ctx]
                            (do
@@ -277,18 +301,57 @@
                 (pop-mode! {:type :confirm
                             :tileset-id (:tileset-id state)
                             :tileset-label (:tileset-label state)
-                            :tile-size (:tile-size state)})
+                            :tile-size (:tile-size state)
+                            :tileset-index (:tileset-index state)})
                 state))))}
    :compose {:render :pass}
    :children [(w/make {:position {:x 220 :y 140}
                        :title-bar {:title "New Tile Set"}
                        :state {:tileset-id (ui/bind-state :tileset-id)
                                :tileset-label (ui/bind-state :tileset-label)
-                               :tile-size (ui/bind-state :tile-size)}
+                               :tile-size (ui/bind-state :tile-size)
+                               :confirm-label (ui/bind-state :confirm-label)}
                        :body [{:mode 'tileset-create-dialog-body
                                :state {:tileset-id (ui/bind-state :tileset-id)
                                        :tileset-label (ui/bind-state :tileset-label)
-                                       :tile-size (ui/bind-state :tile-size)}}]})]})
+                                       :tile-size (ui/bind-state :tile-size)
+                                       :confirm-label (ui/bind-state :confirm-label)}}]})]})
+
+(defmode tileset-edit-dialog-modal
+  {:on {:tileset-create-dialog/cancel
+        (fn [state event ctx]
+          (do
+            (ui/stop-propagation! event)
+            (pop-mode! {:type :cancel})
+            state))
+        :tileset-create-dialog/confirm
+        (fn [state event ctx]
+          (do
+            (ui/stop-propagation! event)
+            (if (or (blank? (:tileset-id state))
+                    (blank? (:tileset-label state)))
+              state
+              (do
+                (pop-mode! {:type :confirm
+                            :tileset-index (:tileset-index state)
+                            :tileset-id (:tileset-id state)
+                            :tileset-label (:tileset-label state)
+                            :tile-size (:tile-size state)})
+                state))))}
+   :compose {:render :pass}
+   :children [(w/make {:position {:x 220 :y 140}
+                       :title-bar {:title "Edit Tile Set"}
+                       :state {:tileset-index (ui/bind-state :tileset-index)
+                               :tileset-id (ui/bind-state :tileset-id)
+                               :tileset-label (ui/bind-state :tileset-label)
+                               :tile-size (ui/bind-state :tile-size)
+                               :confirm-label (ui/bind-state :confirm-label)}
+                       :body [{:mode 'tileset-create-dialog-body
+                               :state {:tileset-index (ui/bind-state :tileset-index)
+                                       :tileset-id (ui/bind-state :tileset-id)
+                                       :tileset-label (ui/bind-state :tileset-label)
+                                       :tile-size (ui/bind-state :tile-size)
+                                       :confirm-label (ui/bind-state :confirm-label)}}]})]})
 
 (defcomponent tile-create-type-selector
   {:style {:width :fill
