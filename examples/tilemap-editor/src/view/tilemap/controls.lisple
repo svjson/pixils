@@ -434,30 +434,39 @@
 
 ;; Tileset Selection
 
-(defun tileset-combo-child [tilesets]
+(defun tileset-combo-child [tilesets disabled?]
   (let [tilesets (or tilesets [])]
     (cb/make {:options (data/tileset-options tilesets)
               :selected-index (ui/bind-state :selected-tileset-index)
               :row-height 20
               :max-height 72
-              :disabled? (empty? tilesets)})))
+              :disabled? (if (or disabled? (empty? tilesets))
+                            true
+                            false)})))
 
 (defcomponent tileset-selector
   {:style {:width :fill
            :height :shrink}
    :init (fn [state ctx]
-           (assoc state :tilesets-list nil))
+           (assoc state
+                  :tilesets-list nil
+                  :rendered-disabled? nil))
    :update (fn [state ctx]
-             (let [tilesets (or (:tilesets state) [])]
+             (let [tilesets (or (:tilesets state) [])
+                   disabled? (:disabled? state)]
                (do
-                 (when (not= tilesets (:tilesets-list state))
+                 (when (or (not= tilesets (:tilesets-list state))
+                           (not= disabled? (:rendered-disabled? state)))
                    (ui/replace-child! (:view ctx)
                                       "combo-box"
                                       (merge {:id "combo-box"}
-                                             (tileset-combo-child tilesets))))
-                 (assoc state :tilesets-list tilesets))))
+                                             (tileset-combo-child tilesets
+                                                                  disabled?))))
+                 (assoc state
+                        :tilesets-list tilesets
+                        :rendered-disabled? disabled?))))
    :children [(merge {:id "combo-box"}
-                     (tileset-combo-child []))]})
+                     (tileset-combo-child [] true))]})
 
 (defun make-tileset-controls []
   (hp/make {:title "Tile Definition Set"
@@ -479,21 +488,26 @@
             :state {:selected-tileset-index (ui/bind-state :selected-tileset-index)
                     :selected-layer-index (ui/bind-state :selected-layer-index)
                     :tilesets (ui/bind-state :tilesets)
-                    :layers (ui/bind-state :layers)}
+                    :layers (ui/bind-state :layers)
+                    :disabled? (ui/bind-state :map-layer-panel-disabled?)}
             :body-state {:selected-tileset-index (ui/bind-state :selected-tileset-index)
-                         :tilesets (ui/bind-state :tilesets)}
+                         :tilesets (ui/bind-state :tilesets)
+                         :disabled? (ui/bind-state :map-layer-panel-disabled?)}
             :on {:combo-box/change (fn [state event ctx]
                                       (let [index (-> event :payload :selected-index)]
-                                        (if (and (not (nil? (:selected-layer-index state)))
-                                                 (> (count (or (:layers state) [])) 0))
-                                          (assoc-in
-                                           (assoc state :selected-tileset-index index)
-                                           [:layers (:selected-layer-index state) :tileset]
-                                           (data/tileset-key (:tilesets state) index))
-                                          (assoc state :selected-tileset-index index))))}
+                                        (if (:disabled? state)
+                                          state
+                                          (if (and (not (nil? (:selected-layer-index state)))
+                                                   (> (count (or (:layers state) [])) 0))
+                                            (assoc-in
+                                             (assoc state :selected-tileset-index index)
+                                             [:layers (:selected-layer-index state) :tileset]
+                                             (data/tileset-key (:tilesets state) index))
+                                            (assoc state :selected-tileset-index index)))))}
             :children [{:mode 'tileset-selector
                         :state {:selected-tileset-index (ui/bind-state :selected-tileset-index)
-                                :tilesets (ui/bind-state :tilesets)}}
+                                :tilesets (ui/bind-state :tilesets)
+                                :disabled? (ui/bind-state :disabled?)}}
                        {:mode 'ui/text
                         :class :ui/muted
                         :state {:value "Applies to selected layer"}}]}))

@@ -11,11 +11,19 @@
 
 ;; Workspace layout
 
+(defun derive-map-workspace-state [state]
+  (assoc state :map-layer-panel-disabled?
+         (empty? (or (:layers state) []))))
+
 (defcomponent side-panel
   {:style {:width :fill
            :height :fill
            :layout {:direction :column
                     :gap 8}}
+   :init (fn [state ctx]
+           (derive-map-workspace-state state))
+   :update (fn [state ctx]
+             (derive-map-workspace-state state))
    :children [(controls/make-layer-controls)
               (controls/make-tileset-controls)
               (palette/make-tile-palette)

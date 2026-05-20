@@ -4,3 +4,23 @@
 
 (deftest root-registers-main-mode
   (is (not (nil? (get pixils/modes 'main-mode)))))
+
+(deftest tileset-shortcut-request-switches_tab_before_dialog
+  (let [state (tilemap-editor.root/request-tileset-shortcut-dialog
+               {:workspace-tab :map
+                :pending-tileset-shortcut-dialog? false})]
+    (is (= :tilesets (:workspace-tab state)))
+    (is (= true (:pending-tileset-shortcut-dialog? state)))))
+
+(deftest tileset-shortcut-dialog-result-adds_tileset
+  (let [state (tilemap-editor.root/apply-tileset-shortcut-dialog-result
+               {:tilesets []
+                :selected-tileset-definition-index nil}
+               {:type :confirm
+                :tileset-id "terrain"
+                :tileset-label "Terrain"
+                :tile-size 24})]
+    (is (= :terrain (get-in state [:tilesets 0 :id])))
+    (is (= "Terrain" (get-in state [:tilesets 0 :label])))
+    (is (= 24 (get-in state [:tilesets 0 :tile-size])))
+    (is (= 0 (:selected-tileset-definition-index state)))))

@@ -9,10 +9,16 @@
   (is (= 104 (controls/layer-list-height [1 2 3 4]))))
 
 (deftest tileset-selector-is-disabled-when-empty
-  (is (= true (:disabled? (:state (controls/tileset-combo-child [])))))
-  (is (= true (:disabled? (:state (controls/tileset-combo-child nil)))))
+  (is (= true (:disabled? (:state (controls/tileset-combo-child [] false)))))
+  (is (= true (:disabled? (:state (controls/tileset-combo-child nil false)))))
   (is (= false (:disabled? (:state (controls/tileset-combo-child [{:id :terrain
-                                                                    :label "Terrain"}]))))))
+                                                                    :label "Terrain"}]
+                                                                   false))))))
+
+(deftest tileset-selector-is-disabled_without_layers
+  (is (= true (:disabled? (:state (controls/tileset-combo-child [{:id :terrain
+                                                                   :label "Terrain"}]
+                                                                  true))))))
 
 (deftest layer-list-is-disabled-when-empty
   (is (= true (:disabled? (:state (controls/layer-list-box-child [])))))

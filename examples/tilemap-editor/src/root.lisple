@@ -6,13 +6,41 @@
             [tilemap-editor.model.data :as data]
             [tilemap-editor.io.project :as project-io]
             [tilemap-editor.view.resources.model :as resource-model]
+            [tilemap-editor.view.tileset.model :as tileset-model]
             tilemap-editor.view.resources.layout
             tilemap-editor.view.tilemap.layout
+            tilemap-editor.view.tileset.dialogs
             tilemap-editor.view.tileset.layout))
 
 
 
 ;; Root mode
+
+(defun request-tileset-shortcut-dialog [state]
+  (assoc state
+         :workspace-tab :tilesets
+         :pending-tileset-shortcut-dialog? true))
+
+(defun open-tileset-shortcut-dialog! [state ctx]
+  (let [id (tileset-model/unique-tileset-id (:tilesets state))]
+    (do
+      (push-mode! 'tileset-create-dialog-modal
+                  {:tileset-id id
+                   :tileset-label (tileset-model/label-from-id id)
+                   :tile-size data/tile-size
+                   :confirm-label "Create"}
+                  {:origin {:view (:view ctx)
+                            :event :tileset/shortcut-dialog-result}})
+      (assoc state :pending-tileset-shortcut-dialog? false))))
+
+(defun open-pending-tileset-shortcut-dialog! [state ctx]
+  (if (and (:pending-tileset-shortcut-dialog? state)
+           (= (:workspace-tab state) :tilesets))
+    (open-tileset-shortcut-dialog! state ctx)
+    state))
+
+(defun apply-tileset-shortcut-dialog-result [state payload]
+  (tileset-model/add-tileset-definition! state payload))
 
 (defmode main-mode
  {:class :ui/app
@@ -45,7 +73,8 @@
            :zoom-label "Zoom 1x"
            :show-grid? true
            :map-offset {:x 0 :y 0}
-           :workspace-tab :map})
+           :workspace-tab :map
+           :pending-tileset-shortcut-dialog? false})
   :update (fn [state ctx]
             (let [resources (:resources state)
                   state (if (not= resources (:synced-resources state))
@@ -83,20 +112,22 @@
                                               tileset
                                               (:selected-tile state))
                   zoom (or (:zoom state) 1)]
-              (assoc state
-                     :tileset tileset
-                     :selected-tileset-index (when tileset
-                                               (data/tileset-index tilesets
-                                                                   tileset))
-                     :selected-tileset-definition-index tileset-definition-index
-                     :selected-tileset-tile-index tileset-tile-index
-                     :selected-tileset-tile-indices tileset-tile-indices
-                     :selected-tile selected-tile
-                     :selected-label (data/tile-label tilesets
-                                                      tileset
-                                                      selected-tile)
-                     :zoom-label (str "Zoom " zoom "x")
-                     :selected-layer-label (or (:label layer) ""))))
+              (open-pending-tileset-shortcut-dialog!
+               (assoc state
+                      :tileset tileset
+                      :selected-tileset-index (when tileset
+                                                (data/tileset-index tilesets
+                                                                    tileset))
+                      :selected-tileset-definition-index tileset-definition-index
+                      :selected-tileset-tile-index tileset-tile-index
+                      :selected-tileset-tile-indices tileset-tile-indices
+                      :selected-tile selected-tile
+                      :selected-label (data/tile-label tilesets
+                                                       tileset
+                                                       selected-tile)
+                      :zoom-label (str "Zoom " zoom "x")
+                      :selected-layer-label (or (:label layer) ""))
+               ctx)))
   :children [{:mode 'toolbar
               :state {:recent-projects (ui/bind-state :recent-projects)}}
              (tabs/make
@@ -183,6 +214,11 @@
                                 (controls/apply-layer-move-command
                                  state
                                  (:payload event)))
+       :tileset/new (fn [state event ctx]
+                      (request-tileset-shortcut-dialog state))
+       :tileset/shortcut-dialog-result
+       (fn [state event ctx]
+         (apply-tileset-shortcut-dialog-result state (:payload event)))
        :project/open (fn [state event ctx]
                        (project-io/open-project-file-dialog! state
                                                              ctx

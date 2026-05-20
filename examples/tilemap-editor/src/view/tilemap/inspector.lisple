@@ -12,7 +12,8 @@
                          :layout {:direction :column
                                   :gap 4}}
             :state {:selected-label (ui/bind-state :selected-label)
-                    :selected-layer-label (ui/bind-state :selected-layer-label)}
+                    :selected-layer-label (ui/bind-state :selected-layer-label)
+                    :disabled? (ui/bind-state :map-layer-panel-disabled?)}
             :body-state {:selected-label (ui/bind-state :selected-label)
                          :selected-layer-label (ui/bind-state :selected-layer-label)}
             :children [{:mode 'ui/text

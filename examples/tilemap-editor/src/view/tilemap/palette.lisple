@@ -21,8 +21,10 @@
                        (dec (count layers)))))))
 
 (defun selected-layer-tileset [state]
-  (or (:tileset (selected-layer state))
-      (:palette-tileset state)))
+  (let [layer (selected-layer state)]
+    (when layer
+      (or (:tileset layer)
+          (:palette-tileset state)))))
 
 (defcomponent tile-swatch-preview
   {:style {:width 14
@@ -73,7 +75,9 @@
                :state {:value (ui/bind-state :name)}}]})
 
 (defun selected-tile-indices [state]
-  (if (nil? (:selected-tile state))
+  (if (or (:disabled? state)
+          (nil? (selected-layer state))
+          (nil? (:selected-tile state)))
     []
     [(data/tile-index (:tilesets state)
                                      (selected-layer-tileset state)
@@ -88,7 +92,7 @@
            :tilesets (ui/bind-state :tilesets)
            :selected-indices (ui/bind-state :selected-indices)}})
 
-(defun tile-palette-list-box-child [tilesets tileset]
+(defun tile-palette-list-box-child [tilesets tileset disabled?]
   (let [options (data/tile-options tilesets tileset)]
     (lb/make {:options options
               :style {:width :fill
@@ -96,7 +100,9 @@
               :row-height tile-palette-row-height
               :visible-rows (count options)
               :content-width tile-palette-content-width
-              :disabled? (empty? options)
+              :disabled? (if (or disabled? (empty? options))
+                            true
+                            false)
               :state {:tileset (ui/bind-state :palette-tileset)
                       :tilesets (ui/bind-state :tilesets)}
               :item-state-keys [:tileset :tilesets]
@@ -113,29 +119,34 @@
                     :palette-tileset tileset
                     :palette-tilesets nil
                     :tile-count nil
+                    :rendered-disabled? nil
                     :selected-indices (selected-tile-indices state))))
    :update (fn [state ctx]
              (let [tileset (selected-layer-tileset state)
-                   tile-count (data/tile-count (:tilesets state) tileset)]
+                   tile-count (data/tile-count (:tilesets state) tileset)
+                   disabled? (:disabled? state)]
                (do
                  (when (or (not= tileset (:palette-tileset state))
                            (not= (:tilesets state) (:palette-tilesets state))
-                           (not= tile-count (:tile-count state)))
+                           (not= tile-count (:tile-count state))
+                           (not= disabled? (:rendered-disabled? state)))
                    (ui/replace-child! (:view ctx)
                                       "list-box"
                                       (merge {:id "list-box"}
                                              (tile-palette-list-box-child (:tilesets state)
-                                                                         tileset))))
+                                                                         tileset
+                                                                         disabled?))))
                  (assoc state
                         :palette-tileset tileset
                         :palette-tilesets (:tilesets state)
                         :tile-count tile-count
+                        :rendered-disabled? disabled?
                         :selected-indices (selected-tile-indices
                                            (assoc state
                                                   :palette-tileset
                                                   tileset))))))
    :children [(merge {:id "list-box"}
-                     (tile-palette-list-box-child [] nil))]})
+                     (tile-palette-list-box-child [] nil true))]})
 
 (defun make-tile-palette []
   (hp/make {:title "Tiles"
@@ -147,11 +158,13 @@
             :state {:selected-tile (ui/bind-state :selected-tile)
                     :tilesets (ui/bind-state :tilesets)
                     :selected-layer-index (ui/bind-state :selected-layer-index)
-                    :layers (ui/bind-state :layers)}
+                    :layers (ui/bind-state :layers)
+                    :disabled? (ui/bind-state :map-layer-panel-disabled?)}
             :body-state {:selected-tile (ui/bind-state :selected-tile)
                          :tilesets (ui/bind-state :tilesets)
                          :selected-layer-index (ui/bind-state :selected-layer-index)
-                         :layers (ui/bind-state :layers)}
+                         :layers (ui/bind-state :layers)
+                         :disabled? (ui/bind-state :map-layer-panel-disabled?)}
             :update (fn [state ctx]
                       (assoc state
                              :selected-indices
@@ -159,12 +172,14 @@
             :on {:list-box/change (fn [state event ctx]
                                     (do
                                       (ui/stop-propagation! event)
-                                      (ui/emit! (:view ctx)
-                                                :palette/select
-                                                (-> event :payload :value))
+                                      (when (not (:disabled? state))
+                                        (ui/emit! (:view ctx)
+                                                  :palette/select
+                                                  (-> event :payload :value)))
                                       state))}
             :children [{:mode 'tile-palette-list
                         :state {:selected-tile (ui/bind-state :selected-tile)
                                 :tilesets (ui/bind-state :tilesets)
                                 :selected-layer-index (ui/bind-state :selected-layer-index)
-                                :layers (ui/bind-state :layers)}}]}))
+                                :layers (ui/bind-state :layers)
+                                :disabled? (ui/bind-state :disabled?)}}]}))

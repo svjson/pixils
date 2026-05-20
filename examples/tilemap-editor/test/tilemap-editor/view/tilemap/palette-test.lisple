@@ -4,8 +4,25 @@
             [tilemap-editor.model.data :as data]))
 
 (deftest tile-palette-is-disabled-when-empty
-  (is (= true (:disabled? (:state (palette/tile-palette-list-box-child [] nil)))))
+  (is (= true (:disabled? (:state (palette/tile-palette-list-box-child [] nil false)))))
   (is (= true
          (:disabled? (:state (palette/tile-palette-list-box-child
                               []
-                              :colors))))))
+                              :colors
+                              false))))))
+
+(deftest tile-palette-is-disabled_without_layers
+  (let [tilesets [{:id :colors
+                   :label "Colors"
+                   :tiles [{:id :grass
+                            :name "Grass"}]}]]
+    (is (= true
+           (:disabled? (:state (palette/tile-palette-list-box-child
+                                tilesets
+                                :colors
+                                true)))))
+    (is (not= true
+              (:disabled? (:state (palette/tile-palette-list-box-child
+                                   tilesets
+                                   :colors
+                                   false)))))))

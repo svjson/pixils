@@ -1,0 +1,14 @@
+(ns tilemap-editor.view.tilemap.layout-test
+  (:require proof.core
+            [tilemap-editor.view.tilemap.layout :as layout]))
+
+(deftest map-workspace-disables_dependent_panels_without_layers
+  (is (= true
+         (:map-layer-panel-disabled?
+          (layout/derive-map-workspace-state {:layers []}))))
+  (is (= true
+         (:map-layer-panel-disabled?
+          (layout/derive-map-workspace-state {:layers nil}))))
+  (is (= false
+         (:map-layer-panel-disabled?
+          (layout/derive-map-workspace-state {:layers [{:id :scene/ground}]})))))
