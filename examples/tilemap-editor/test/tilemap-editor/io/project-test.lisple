@@ -74,6 +74,21 @@
          (project-io/project-brushes {:brushes [{:id :brush}]})))
   (is (= [] (project-io/project-brushes {}))))
 
+(deftest project-layer-profiles-default_from_legacy_layers
+  (let [profiles (project-io/project-layer-profiles
+                  {:tilemap {:layers [{:id :scene/ground
+                                       :label "Ground"
+                                       :tileset :terrain
+                                       :tiles [[:grass]]}]}})]
+    (is (= data/default-layer-profile-id
+           (:id (head profiles))))
+    (is (= :scene/ground
+           (get-in profiles [0 :layers 0 :id])))
+    (is (= :source
+           (get-in profiles [0 :layers 0 :role])))
+    (is (= :tile-ref
+           (get-in profiles [0 :layers 0 :data-kind])))))
+
 (deftest recent-project-history-promotes-existing-projects
   (let [projects [{:path "first.edn"
                    :filename "first.edn"}
@@ -102,6 +117,8 @@
   (let [state (project-open-state)]
     (is (= 4 (count (:layers state))))
     (is (= 4 (count (:tilesets state))))
+    (is (= data/default-layer-profile-id (:selected-layer-profile-id state)))
+    (is (= 4 (count (get-in state [:layer-profiles 0 :layers]))))
     (is (= "Background" (:selected-layer-label state)))
     (is (= :colors (:tileset state)))
     (is (= :night (:selected-tile state)))))

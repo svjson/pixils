@@ -82,6 +82,12 @@
 (defun project-layers [project]
   (data/normalize-layers (-> project :tilemap :layers)))
 
+(defun project-layer-profiles [project]
+  (let [profiles (:layer-profiles project)]
+    (if (empty? (or profiles []))
+      (data/default-layer-profiles (project-layers project))
+      (data/normalize-layer-profiles profiles))))
+
 (defun project-tilesets [project]
   (or (:tilesets project) []))
 
@@ -94,6 +100,10 @@
 (defun open-project! [state payload]
   (let [project (data/normalize-project-document (io/slurp-edn! (:path payload)))
         layers (project-layers project)
+        layer-profiles (project-layer-profiles project)
+        layer-profile-id (data/selected-layer-profile-id
+                          layer-profiles
+                          (-> project :tilemap :layer-profile))
         tileset (first-layer-tileset layers)
         tilesets (project-tilesets project)
         brushes (project-brushes project)]
@@ -106,6 +116,8 @@
               :selected-brush-layer-index
               (when (> (count (or (-> (head brushes) :pattern :layers) [])) 0) 0)
               :brush-selected-tile nil
+              :layer-profiles layer-profiles
+              :selected-layer-profile-id layer-profile-id
               :layers layers
               :selected-layer-index (when (> (count layers) 0) 0)
               :selected-layer-label (or (:label (head layers)) "")

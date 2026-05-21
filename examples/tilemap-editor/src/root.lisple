@@ -55,6 +55,8 @@
            :selected-tileset-tile-indices []
            :tilesets []
            :tileset nil
+           :layer-profiles []
+           :selected-layer-profile-id nil
            :brushes []
            :selected-brush-index nil
            :selected-brush-layer-index nil

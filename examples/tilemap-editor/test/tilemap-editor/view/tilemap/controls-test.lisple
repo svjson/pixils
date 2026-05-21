@@ -39,6 +39,8 @@
     (is (= "Terrain" (:selected-layer-label state)))
     (is (= :scene/terrain (get-in state [:layers 0 :id])))
     (is (= :terrain (get-in state [:layers 0 :tileset])))
+    (is (= :source (get-in state [:layers 0 :role])))
+    (is (= :tile-ref (get-in state [:layers 0 :data-kind])))
     (is (= data/map-height (count (get-in state [:layers 0 :tiles]))))
     (is (= data/map-width (count (get-in state [:layers 0 :tiles 0]))))))
 

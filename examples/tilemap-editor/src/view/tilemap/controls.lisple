@@ -87,6 +87,8 @@
   {:id (unique-layer-id-from layers (kebab-case name) nil)
    :label name
    :kind :tile
+   :role :source
+   :data-kind :tile-ref
    :tileset (data/tileset-key tilesets 0)
    :order (* (count (or layers [])) 10)
    :tiles (data/make-empty-map)})

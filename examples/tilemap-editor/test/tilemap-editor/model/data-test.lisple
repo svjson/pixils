@@ -8,6 +8,7 @@
                                          :layers []})]
     (is (= [] (:tilesets document)))
     (is (= [] (:brushes document)))
+    (is (= [] (:layer-profiles document)))
     (is (= [] (-> document :tilemap :layers)))))
 
 (deftest project-document-saves_only_project_owned_resources
@@ -57,6 +58,58 @@
     (is (= data/map-height (count tilemap)))
     (is (= data/map-width (count (head tilemap))))
     (is (= nil (get-in tilemap [0 0])))))
+
+(deftest normalize-layer-adds_source_tile_ref_defaults
+  (let [layer (data/normalize-layer {:id :scene/ground
+                                     :label "Ground"
+                                     :tileset :terrain
+                                     :tiles [[:grass nil]]})]
+    (is (= :tile (:kind layer)))
+    (is (= :source (:role layer)))
+    (is (= :tile-ref (:data-kind layer)))
+    (is (= [[:grass nil]] (:tiles layer)))))
+
+(deftest project-document-creates_default_layer_profile_from_layers
+  (let [document (data/project-document
+                  {:tilesets []
+                   :brushes []
+                   :layers [{:id :scene/ground
+                             :label "Ground"
+                             :kind :tile
+                             :tileset :terrain
+                             :tiles [[:grass nil]]}]})]
+    (is (= data/default-layer-profile-id
+           (-> document :tilemap :layer-profile)))
+    (is (= [{:id data/default-layer-profile-id
+             :label data/default-layer-profile-label
+             :layers [{:id :scene/ground
+                       :label "Ground"
+                       :kind :tile
+                       :tileset :terrain
+                       :role :source
+                       :data-kind :tile-ref}]}]
+           (:layer-profiles document)))))
+
+(deftest selected-layer-profile-id-falls_back_to_existing_profile
+  (is (= :overworld
+         (data/selected-layer-profile-id [{:id :overworld}]
+                                         :missing))))
+
+(deftest normalize-project-document-defaults_legacy_layers_to_profile
+  (let [document (data/normalize-project-document
+                  {:format data/project-format
+                   :tilemap {:layers [{:id :scene/ground
+                                       :label "Ground"
+                                       :tileset :terrain
+                                       :tiles [[:grass nil]]}]}})]
+    (is (= data/default-layer-profile-id
+           (-> document :tilemap :layer-profile)))
+    (is (= :source
+           (get-in document [:tilemap :layers 0 :role])))
+    (is (= :tile-ref
+           (get-in document [:tilemap :layers 0 :data-kind])))
+    (is (= :scene/ground
+           (get-in document [:layer-profiles 0 :layers 0 :id])))))
 
 (deftest normalize-project-document-normalizes_brush_pattern_layers
   (let [document (data/normalize-project-document

@@ -11,6 +11,8 @@
   {:bundles {}})
 
 (def project-brushes [])
+(def default-layer-profile-id :default)
+(def default-layer-profile-label "Default")
 
 (def app-static-bundle-ids [:editor-assets])
 
@@ -124,20 +126,100 @@
 (defun normalize-tile-row [row]
   (map row normalize-tile-ref))
 
-(defun normalize-layer [layer]
+(defun normalize-layer-tiles [layer]
   (update layer :tiles (fn [tiles]
                          (map (or tiles [])
                               normalize-tile-row))))
 
+(defun normalize-layer [layer]
+  (assoc (normalize-layer-tiles layer)
+         :kind (or (:kind layer) :tile)
+         :role (or (:role layer) :source)
+         :data-kind (or (:data-kind layer) :tile-ref)))
+
 (defun normalize-layers [layers]
   (map (or layers []) normalize-layer))
+
+(defun layer-profile-layer-definition [layer]
+  (dissoc (assoc (or layer {})
+                 :kind (or (:kind layer) :tile)
+                 :role (or (:role layer) :source)
+                 :data-kind (or (:data-kind layer) :tile-ref))
+          :tiles))
+
+(defun source-layer-definitions [layers]
+  (map (filter (or layers [])
+               (fn [layer]
+                 (not= (:role layer) :derived)))
+       layer-profile-layer-definition))
+
+(defun normalize-layer-profile-layer [layer]
+  (layer-profile-layer-definition layer))
+
+(defun normalize-layer-profile [profile]
+  (assoc (or profile {})
+         :id (or (:id profile) default-layer-profile-id)
+         :label (or (:label profile) default-layer-profile-label)
+         :layers (map (or (:layers profile) [])
+                      normalize-layer-profile-layer)))
+
+(defun normalize-layer-profiles [profiles]
+  (map (or profiles []) normalize-layer-profile))
+
+(defun default-layer-profile [layers]
+  {:id default-layer-profile-id
+   :label default-layer-profile-label
+   :layers (source-layer-definitions layers)})
+
+(defun default-layer-profiles [layers]
+  (if (empty? (or layers []))
+    []
+    [(default-layer-profile layers)]))
+
+(defun first-layer-profile-id [profiles]
+  (:id (head (or profiles []))))
+
+(defun layer-profile-id-exists? [profiles profile-id]
+  (> (count (filter (or profiles [])
+                    (fn [profile]
+                      (= (:id profile) profile-id))))
+     0))
+
+(defun selected-layer-profile-id [profiles requested-id]
+  (if (layer-profile-id-exists? profiles requested-id)
+    requested-id
+    (first-layer-profile-id profiles)))
+
+(defun derived-layer-definition? [layer]
+  (= (:role layer) :derived))
+
+(defun layer-profile-derived-layers [profile]
+  (filter (or (:layers profile) []) derived-layer-definition?))
+
+(defun sync-layer-profile [profile layers]
+  (assoc profile
+         :layers
+         (concat (source-layer-definitions layers)
+                 (layer-profile-derived-layers profile))))
+
+(defun sync-layer-profiles [profiles profile-id layers]
+  (let [profiles (normalize-layer-profiles profiles)
+        profile-id (selected-layer-profile-id profiles profile-id)]
+    (cond
+      (empty? profiles) (default-layer-profiles layers)
+      (nil? profile-id) profiles
+      :default (map profiles
+                    (fn [profile]
+                      (if (= (:id profile) profile-id)
+                        (sync-layer-profile profile layers)
+                        profile))))))
 
 (defun normalize-brush-value [value]
   (case (type-of value)
     "vector" (map value normalize-brush-value)
     "map" (let [normalized (if (and (:tiles value)
                                     (:tileset value))
-                             (normalize-layer value)
+                             (normalize-layer-tiles value)
                              value)]
             (reduce-kv normalized
                        {}
@@ -151,19 +233,45 @@
   (normalize-brush-value (or brushes [])))
 
 (defun normalize-project-document [project]
-  (assoc (assoc-in project
-                   [:tilemap :layers]
-                   (normalize-layers (-> project :tilemap :layers)))
-         :brushes (normalize-brushes (:brushes project))))
+  (let [layers (normalize-layers (-> project :tilemap :layers))
+        layer-profiles (let [profiles (normalize-layer-profiles
+                                       (:layer-profiles project))]
+                         (if (empty? profiles)
+                           (default-layer-profiles layers)
+                           profiles))
+        layer-profile-id (selected-layer-profile-id
+                          layer-profiles
+                          (-> project :tilemap :layer-profile))]
+    (assoc (assoc-in (assoc-in project
+                               [:tilemap :layers]
+                               layers)
+                     [:tilemap :layer-profile]
+                     layer-profile-id)
+           :layer-profiles layer-profiles
+           :brushes (normalize-brushes (:brushes project)))))
+
+(defun tilemap-document [state layers layer-profile-id]
+  (let [document {:width map-width
+                  :height map-height
+                  :tile-size tile-size
+                  :layers layers}]
+    (if layer-profile-id
+      (assoc document :layer-profile layer-profile-id)
+      document)))
 
 (defun project-document [state]
-  {:format project-format
-   :version project-format-version
-   :resources (normalize-project-resources (or (:resources state)
-                                               project-resources))
-   :tilesets (or (:tilesets state) [])
-   :brushes (or (:brushes state) project-brushes)
-   :tilemap {:width map-width
-             :height map-height
-             :tile-size tile-size
-             :layers (or (:layers state) [])}})
+  (let [layers (normalize-layers (:layers state))
+        layer-profiles (sync-layer-profiles (:layer-profiles state)
+                                            (:selected-layer-profile-id state)
+                                            layers)
+        layer-profile-id (selected-layer-profile-id
+                          layer-profiles
+                          (:selected-layer-profile-id state))]
+    {:format project-format
+     :version project-format-version
+     :resources (normalize-project-resources (or (:resources state)
+                                                 project-resources))
+     :tilesets (or (:tilesets state) [])
+     :layer-profiles layer-profiles
+     :brushes (or (:brushes state) project-brushes)
+     :tilemap (tilemap-document state layers layer-profile-id)}))
