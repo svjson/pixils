@@ -541,6 +541,36 @@
                   (fn [rule]
                     (= (:id rule) rule-id))))))
 
+(defun selected-rule-stamp-layer [state]
+  (head (or (-> (selected-terrain-rule state) :output :layers) [])))
+
+(defun selected-rule-stamp-tileset [state]
+  (:tileset (selected-rule-stamp-layer state)))
+
+(defun first-rule-stamp-tile [state]
+  (data/tile-id (:tilesets state)
+                (selected-rule-stamp-tileset state)
+                0))
+
+(defun rule-stamp-tile-exists? [state tile-ref]
+  (not (nil? (head (filter (data/tile-options
+                            (:tilesets state)
+                            (selected-rule-stamp-tileset state))
+                           (fn [option]
+                             (= (:value option) tile-ref)))))))
+
+(defun selected-rule-stamp-tile [state]
+  (or (when (rule-stamp-tile-exists? state (:terrain-rule-selected-tile state))
+        (:terrain-rule-selected-tile state))
+      (first-rule-stamp-tile state)))
+
+(defun selected-rule-stamp-tile-indices [state]
+  (let [tile-ref (selected-rule-stamp-tile state)
+        tileset (selected-rule-stamp-tileset state)]
+    (if (and tile-ref tileset)
+      [(data/tile-index (:tilesets state) tileset tile-ref)]
+      [])))
+
 (defun terrain-rule-options [state]
   (for-indexed [index rule (terrain-rules-for-selected-terrain state)]
     {:value (:id rule)
@@ -575,24 +605,28 @@
            (update-fn rule)
            rule))))
 
+(defun ensure-terrain-ruleset [state]
+  (if (selected-terrain-ruleset-id state)
+    state
+    (add-terrain-ruleset state)))
+
 (defun add-terrain-rule [state]
-  (let [state (if (selected-terrain-ruleset-id state)
-                state
-                (add-terrain-ruleset state))
-        ruleset-id (selected-terrain-ruleset-id state)]
-    (if (and ruleset-id (selected-terrain-id state))
-      (let [rule (make-terrain-rule state)]
-        (assoc state
-               :rulesets (update-ruleset
-                          (:rulesets state)
-                          ruleset-id
-                          (fn [ruleset]
-                            (assoc ruleset
-                                   :rules
-                                   (concat (or (:rules ruleset) []) [rule]))))
-               :selected-terrain-ruleset-id ruleset-id
-               :selected-terrain-rule-id (:id rule)))
-      state)))
+  (let [state (derive-terrain-workspace-state state)
+        state-with-ruleset (ensure-terrain-ruleset state)]
+    (let [ruleset-id (selected-terrain-ruleset-id state-with-ruleset)]
+      (if (and ruleset-id (selected-terrain-id state-with-ruleset))
+        (let [rule (make-terrain-rule state-with-ruleset)]
+          (assoc state-with-ruleset
+                 :rulesets (update-ruleset
+                            (:rulesets state-with-ruleset)
+                            ruleset-id
+                            (fn [ruleset]
+                              (assoc ruleset
+                                     :rules
+                                     (concat (or (:rules ruleset) []) [rule]))))
+                 :selected-terrain-ruleset-id ruleset-id
+                 :selected-terrain-rule-id (:id rule)))
+        state-with-ruleset))))
 
 (defun set-selected-rule-terrain [state terrain-id]
   (let [ruleset-id (selected-terrain-ruleset-id state)
@@ -649,8 +683,45 @@
                                               rule-id
                                               (fn [rule]
                                                 (assoc-in rule
-                                                          [:match direction]
-                                                          condition)))))))
+                                                         [:match direction]
+                                                         condition)))))))
+      state)))
+
+(defun set-selected-rule-stamp-tile [state x y tile-ref]
+  (let [ruleset-id (selected-terrain-ruleset-id state)
+        rule-id (or (:selected-terrain-rule-id state)
+                    (selected-terrain-rule-id state))]
+    (if (and ruleset-id
+             rule-id
+             (>= x 0)
+             (< x 3)
+             (>= y 0)
+             (< y 3))
+      (assoc state
+             :rulesets (update-ruleset
+                        (:rulesets state)
+                        ruleset-id
+                        (fn [ruleset]
+                          (assoc ruleset
+                                 :rules
+                                 (update-rule
+                                  (:rules ruleset)
+                                  rule-id
+                                  (fn [rule]
+                                    (if (> (count (or (-> rule
+                                                          :output
+                                                          :layers)
+                                                     []))
+                                           0)
+                                      (assoc-in rule
+                                                [:output
+                                                 :layers
+                                                 0
+                                                 :tiles
+                                                 y
+                                                 x]
+                                                tile-ref)
+                                      rule)))))))
       state)))
 
 (defun match-condition-options [terrain-set]

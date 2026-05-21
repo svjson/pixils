@@ -51,6 +51,26 @@ namespace
     }
   }
 
+  std::shared_ptr<Pixils::Runtime::View> find_descendant_mode_containing_state(
+    const std::shared_ptr<Pixils::Runtime::View>& view,
+    const std::string& mode_name,
+    const std::string& state_text)
+  {
+    if (!view) return nullptr;
+    if (view->mode && view->mode->name == mode_name && view->state &&
+        view->state->to_string().find(state_text) != std::string::npos)
+    {
+      return view;
+    }
+
+    for (const auto& child : view->children)
+    {
+      auto match = find_descendant_mode_containing_state(child, mode_name, state_text);
+      if (match) return match;
+    }
+    return nullptr;
+  }
+
   void read_tilemap_editor_sources(Lisple::Runtime& runtime)
   {
     runtime.read_file("examples/tilemap-editor/src/assets.lisple");
@@ -546,6 +566,151 @@ TEST_F(TilemapEditorStartupTest, loaded_project_brush_tab_lists_layer_tilesets)
             std::string::npos);
   EXPECT_NE(combos[0]->state->to_string().find(":disabled? false"),
             std::string::npos);
+
+  std::filesystem::remove(history_path, ec);
+  std::filesystem::remove(project_path, ec);
+}
+
+TEST_F(TilemapEditorStartupTest, terrain_rule_add_button_creates_visible_rule)
+{
+  const auto history_path =
+    std::filesystem::temp_directory_path() /
+    "pixils-tilemap-editor-terrain-rule-history.edn";
+  const auto project_path =
+    std::filesystem::temp_directory_path() /
+    "pixils-tilemap-editor-terrain-rule-project.edn";
+  std::error_code ec;
+  std::filesystem::remove(history_path, ec);
+  std::filesystem::remove(project_path, ec);
+
+  {
+    std::ofstream out(project_path);
+    out << R"({:format :pixils.tilemap-editor/project
+ :version 1
+ :resources {:bundles {}}
+ :tilesets [{:id :terrain
+             :label "Terrain"
+             :tile-size 16
+             :tiles [{:id :grass-fill
+                      :name "Grass Fill"
+                      :char "g"
+                      :type :color
+                      :color {:r 0 :g 255 :b 0}}]}]
+ :terrain-sets [{:id :overworld
+                 :label "Overworld"
+                 :tileset :terrain
+                 :terrains [{:id :grass
+                             :label "Grass"
+                             :tile :grass-fill}]}]
+ :rulesets []
+ :layer-profiles [{:id :default
+                   :label "Default"
+                   :layers [{:id :scene/terrain
+                             :label "Terrain Source"
+                             :kind :terrain
+                             :data-kind :terrain
+                             :terrain-set :overworld}
+                            {:id :scene/terrain-visuals
+                             :label "Terrain Visuals"
+                             :kind :tile
+                             :data-kind :tile-ref
+                             :tileset :terrain}]}]
+ :tilemap {:width 2
+           :height 2
+           :tile-size 16
+           :layer-profile :default
+           :layers []}})";
+  }
+
+  read_tilemap_editor_sources(runtime);
+
+  session.push_mode("main-mode", Lisple::Constant::NIL);
+  update_cycle();
+  Lisple::Dict::set_property(session.active_mode->state,
+                             Lisple::keyword("project-history-path"),
+                             Lisple::string(history_path.string()));
+  Lisple::Dict::set_property(session.active_mode->state,
+                             Lisple::keyword("recent-projects"),
+                             Lisple::vector({}));
+
+  auto origin = Lisple::map({Lisple::keyword("view"),
+                             Pixils::Script::ViewAdapter::make_ref(*session.active_mode),
+                             Lisple::keyword("event"),
+                             Lisple::keyword("project/file-dialog-result")});
+  auto overrides = Lisple::map({Lisple::keyword("origin"), origin});
+  session.push_mode("ui/tab-panel-empty", Lisple::Constant::NIL, overrides);
+  session.pop_mode(runtime.eval(R"({:type :confirm
+                                  :mode :file-dialog/open
+                                  :path )" + lisp_string(project_path.string()) + R"(
+                                  :directory )" +
+                                 lisp_string(project_path.parent_path().string()) + R"(
+                                  :filename "terrain-rule-project.edn"})"));
+
+  update_cycle();
+  update_cycle();
+  session.render_mode();
+
+  auto tab_panel = session.active_mode->children[1];
+  ASSERT_NE(tab_panel, nullptr);
+  auto tab_strip = tab_panel->children[0];
+  ASSERT_GE(tab_strip->children.size(), 5u);
+
+  auto terrains_tab = tab_strip->children[4];
+  ASSERT_NE(terrains_tab, nullptr);
+  input().mouse_down({terrains_tab->bounds.x + terrains_tab->bounds.w / 2,
+                      terrains_tab->bounds.y + terrains_tab->bounds.h / 2});
+  update_cycle();
+  input().mouse_up({terrains_tab->bounds.x + terrains_tab->bounds.w / 2,
+                    terrains_tab->bounds.y + terrains_tab->bounds.h / 2});
+  update_cycle();
+  update_cycle();
+  session.render_mode();
+
+  auto terrain_detail_tab =
+    find_descendant_mode_containing_state(session.active_mode,
+                                          "ui/tab",
+                                          ":label \"Terrain\"");
+  ASSERT_NE(terrain_detail_tab, nullptr);
+  input().mouse_down({terrain_detail_tab->bounds.x + terrain_detail_tab->bounds.w / 2,
+                      terrain_detail_tab->bounds.y + terrain_detail_tab->bounds.h / 2});
+  update_cycle();
+  input().mouse_up({terrain_detail_tab->bounds.x + terrain_detail_tab->bounds.w / 2,
+                    terrain_detail_tab->bounds.y + terrain_detail_tab->bounds.h / 2});
+  update_cycle();
+  update_cycle();
+  session.render_mode();
+
+  auto add_rule_button =
+    find_descendant_mode_containing_state(session.active_mode,
+                                          "ui/button",
+                                          "Add rule");
+  ASSERT_NE(add_rule_button, nullptr);
+  input().mouse_down({add_rule_button->bounds.x + add_rule_button->bounds.w / 2,
+                      add_rule_button->bounds.y + add_rule_button->bounds.h / 2});
+  update_cycle();
+  input().mouse_up({add_rule_button->bounds.x + add_rule_button->bounds.w / 2,
+                    add_rule_button->bounds.y + add_rule_button->bounds.h / 2});
+  update_cycle();
+  update_cycle();
+  session.render_mode();
+
+  EXPECT_NE(session.active_mode->state->to_string().find(":overworld-rules"),
+            std::string::npos);
+  EXPECT_NE(session.active_mode->state->to_string().find(":selected-terrain-rule-id :rule"),
+            std::string::npos);
+
+  auto rule_list = find_descendant_mode_containing_state(session.active_mode,
+                                                        "terrain-rule-list",
+                                                        ":rule");
+  EXPECT_NE(rule_list, nullptr);
+  auto rule_editor = find_descendant_mode_containing_state(session.active_mode,
+                                                          "terrain-rule-visual-editor",
+                                                          ":rule");
+  EXPECT_NE(rule_editor, nullptr);
+  auto rule_row = find_descendant_mode_containing_state(session.active_mode,
+                                                       "terrain-rule-row",
+                                                       ":rule");
+  EXPECT_NE(rule_row, nullptr);
 
   std::filesystem::remove(history_path, ec);
   std::filesystem::remove(project_path, ec);
