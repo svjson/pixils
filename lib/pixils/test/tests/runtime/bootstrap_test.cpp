@@ -21,6 +21,10 @@ TEST_F(BootstrapTest, loads_embedded_core_ui_modes_into_pixils_mode_registry)
   auto number_input_mode =
     Lisple::Dict::get_property(modes, Lisple::symbol("ui/number-input"));
   auto button_mode = Lisple::Dict::get_property(modes, Lisple::symbol("ui/button"));
+  auto toggle_button_mode =
+    Lisple::Dict::get_property(modes, Lisple::symbol("ui/toggle-button"));
+  auto toggle_button_group_mode =
+    Lisple::Dict::get_property(modes, Lisple::symbol("ui/toggle-button-group"));
   auto checkbox_mode = Lisple::Dict::get_property(modes, Lisple::symbol("ui/checkbox"));
   auto scrollbar_mode = Lisple::Dict::get_property(modes, Lisple::symbol("ui/scrollbar"));
   auto scrollbar_button_mode =
@@ -52,6 +56,8 @@ TEST_F(BootstrapTest, loads_embedded_core_ui_modes_into_pixils_mode_registry)
   ASSERT_NE(text_input_mode, nullptr);
   ASSERT_NE(number_input_mode, nullptr);
   ASSERT_NE(button_mode, nullptr);
+  ASSERT_NE(toggle_button_mode, nullptr);
+  ASSERT_NE(toggle_button_group_mode, nullptr);
   ASSERT_NE(checkbox_mode, nullptr);
   ASSERT_NE(scrollbar_mode, nullptr);
   ASSERT_NE(scrollbar_button_mode, nullptr);
@@ -75,6 +81,10 @@ TEST_F(BootstrapTest, loads_embedded_core_ui_modes_into_pixils_mode_registry)
   EXPECT_EQ(Lisple::obj<Pixils::Runtime::Mode>(*text_input_mode).name, "ui/text-input");
   EXPECT_EQ(Lisple::obj<Pixils::Runtime::Mode>(*number_input_mode).name, "ui/number-input");
   EXPECT_EQ(Lisple::obj<Pixils::Runtime::Mode>(*button_mode).name, "ui/button");
+  EXPECT_EQ(Lisple::obj<Pixils::Runtime::Mode>(*toggle_button_mode).name,
+            "ui/toggle-button");
+  EXPECT_EQ(Lisple::obj<Pixils::Runtime::Mode>(*toggle_button_group_mode).name,
+            "ui/toggle-button-group");
   EXPECT_EQ(Lisple::obj<Pixils::Runtime::Mode>(*checkbox_mode).name, "ui/checkbox");
   EXPECT_EQ(Lisple::obj<Pixils::Runtime::Mode>(*scrollbar_mode).name, "ui/scrollbar");
   EXPECT_EQ(Lisple::obj<Pixils::Runtime::Mode>(*scrollbar_button_mode).name,

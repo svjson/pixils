@@ -92,6 +92,8 @@ Lisple components, so applications can use them like any other mode.
 |-----------|---------|
 | `ui/text` | Styled text node with scaling, alignment, and word wrapping. |
 | `ui/button` | Focusable button wrapper with inner text/content styling. |
+| `ui/toggle-button` | Button subtype that keeps a persistent toggled state and renders toggled-on as pressed. |
+| `ui/toggle-button-group` | Data-driven group of toggle buttons with optional forced selection. |
 | `ui/checkbox` | Focusable boolean toggle with a styleable box and label. |
 | `ui/text-input` | Basic editable single-line text field. |
 | `ui/number-input` | Integer text field with numeric filtering, min/max clamping, and keyboard stepping. |
@@ -106,6 +108,63 @@ Lisple components, so applications can use them like any other mode.
 | `ui/icon` | Focusable visual item primitive with selection, activation, and drag events. |
 | `ui/icon-preview` | Non-hit-tested overlay primitive for rendering a dragged icon representation. |
 | `ui/icon-container` | Fill-sized drop surface that turns icon drag releases into generic drop events. |
+
+`ui/toggle-button` is a subtype of `ui/button`. It accepts the same public
+button state, plus `:toggled?`. When `:toggled?` is true, the button is treated
+as pressed even when the mouse is not down. On click it toggles `:toggled?` and
+emits `:toggle-button/change` with `{:toggled? bool :value value :index index}`.
+
+```clojure
+(pixils/defmode toolbar
+  {:on {:toggle-button/change
+        (fn [state event ctx]
+          (assoc state :grid-visible? (-> event :payload :toggled?)))}
+   :children [(pixils.ui.button/make-toggle-button
+               {:label "Grid"
+                :value :grid
+                :toggled? (pixils.ui/bind-state :grid-visible?)})]})
+```
+
+Standalone toggle buttons may be switched off by clicking them again. Add
+`:selection-required? true` or `:force-selection? true` when a standalone toggle
+must stay on after it has become selected.
+
+```clojure
+{:mode 'ui/toggle-button
+ :state {:label "Snap"
+         :value :snap
+         :toggled? true
+         :selection-required? true}}
+```
+
+For mutually exclusive buttons, use `pixils.ui.button/make-toggle-button-group`.
+Each entry in `:buttons` should provide at least `:label` and `:value`. The group
+stores the selected button value in `:selected`, updates child `:toggled?` states,
+and emits `:toggle-button-group/change` with
+`{:selected value :value value :index index}`.
+
+```clojure
+(pixils/defmode tools-panel
+  {:on {:toggle-button-group/change
+        (fn [state event ctx]
+          (assoc state :tool (-> event :payload :selected)))}
+   :children [(pixils.ui.button/make-toggle-button-group
+               {:buttons [{:label "Draw" :value :draw}
+                          {:label "Erase" :value :erase}
+                          {:label "Fill" :value :fill}]
+                :selected (pixils.ui/bind-state :tool)
+                :button-row-style {:layout {:direction :row}}})]})
+```
+
+Grouped toggle semantics are configured with `:selection-required?`:
+
+| Setting | Behavior |
+|---------|----------|
+| omitted or `false` | Clicking the selected button clears the selection, so no button may be toggled on. |
+| `true` | One selectable button is always toggled on. If `:selected` is missing or disabled, the first selectable button is chosen. |
+
+`:force-selection? true` is accepted as an alias for `:selection-required? true`
+on both standalone toggle buttons and groups.
 
 `ui/menu-bar` is usually created with `pixils.ui.menu/make-menu` from a menu
 definition and action map. The first argument can be either the menu state map
