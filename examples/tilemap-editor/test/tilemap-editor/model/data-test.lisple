@@ -135,6 +135,15 @@
                          :tile :grass}]}]
            (:terrain-sets document)))))
 
+(deftest project-document-saves_rulesets
+  (let [document (data/project-document
+                  {:rulesets [{:id :grass-marching
+                               :kind :marching-4}]
+                   :layers []})]
+    (is (= [{:id :grass-marching
+             :kind :marching-4}]
+           (:rulesets document)))))
+
 (deftest selected-layer-profile-id-falls_back_to_existing_profile
   (is (= :overworld
          (data/selected-layer-profile-id [{:id :overworld}]

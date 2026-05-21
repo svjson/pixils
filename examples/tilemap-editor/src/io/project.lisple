@@ -94,6 +94,9 @@
 (defun project-terrain-sets [project]
   (or (:terrain-sets project) data/project-terrain-sets))
 
+(defun project-rulesets [project]
+  (or (:rulesets project) data/project-rulesets))
+
 (defun project-brushes [project]
   (or (:brushes project) data/project-brushes))
 
@@ -110,12 +113,14 @@
         tileset (first-layer-tileset layers)
         tilesets (project-tilesets project)
         terrain-sets (project-terrain-sets project)
+        rulesets (project-rulesets project)
         brushes (project-brushes project)]
     (if (valid-project-document? project)
       (remember-project!
        (assoc state
               :tilesets tilesets
               :terrain-sets terrain-sets
+              :rulesets rulesets
               :brushes brushes
               :selected-brush-index (when (> (count brushes) 0) 0)
               :selected-brush-layer-index

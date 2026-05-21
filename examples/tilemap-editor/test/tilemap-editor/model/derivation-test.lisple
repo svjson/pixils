@@ -1,0 +1,111 @@
+(ns tilemap-editor.model.derivation-test
+  (:require proof.core
+            [tilemap-editor.model.data :as data]
+            [tilemap-editor.model.derivation :as derivation]))
+
+(defun terrain-row [values]
+  (concat values (dotimes [x (- data/map-width (count values))] nil)))
+
+(defun terrain-map [rows]
+  (concat (map rows terrain-row)
+          (dotimes [y (- data/map-height (count rows))]
+            (data/make-empty-row))))
+
+(defun terrain-layer [tiles]
+  {:id :scene/terrain
+   :label "Terrain"
+   :role :source
+   :data-kind :terrain
+   :terrain-set :overworld
+   :tiles tiles})
+
+(def marching-ruleset
+  {:id :grass-marching
+   :kind :marching-4
+   :source-layer :scene/terrain
+   :terrain :grass
+   :output-tileset :overworld
+   :tiles-by-mask {0 :grass-0
+                   1 :grass-n
+                   2 :grass-e
+                   3 :grass-ne
+                   4 :grass-s
+                   5 :grass-ns
+                   6 :grass-es
+                   7 :grass-nes
+                   8 :grass-w
+                   9 :grass-nw
+                   10 :grass-ew
+                   11 :grass-new
+                   12 :grass-sw
+                   13 :grass-nsw
+                   14 :grass-esw
+                   15 :grass-fill}})
+
+(def derived-definition
+  {:id :scene/terrain-visuals
+   :label "Terrain Visuals"
+   :role :derived
+   :kind :marching-4
+   :source-layers [:scene/terrain]
+   :ruleset :grass-marching
+   :persistence :ephemeral})
+
+(deftest marching-4-mask-uses_cardinal_neighbor_bits
+  (let [layer (terrain-layer (terrain-map [[nil :grass nil]
+                                           [:grass :grass :grass]
+                                           [nil :grass nil]]))]
+    (is (= 15 (derivation/marching-4-mask layer :grass 1 1)))
+    (is (= 4 (derivation/marching-4-mask layer :grass 1 0)))))
+
+(deftest marching-4-derives_tile_refs_for_matching_terrain
+  (let [source (terrain-layer (terrain-map [[nil :grass nil]
+                                           [:grass :grass :grass]
+                                           [nil :grass nil]]))
+        tilemap {:layers [source]}
+        layer-profile {:id :default
+                       :layers [source derived-definition]}
+        derived (derivation/derive-layer tilemap
+                                         layer-profile
+                                         [marching-ruleset]
+                                         :scene/terrain-visuals)]
+    (is (= :scene/terrain-visuals (:id derived)))
+    (is (= :derived (:role derived)))
+    (is (= :tile-ref (:data-kind derived)))
+    (is (= :overworld (:tileset derived)))
+    (is (= :grass-fill (get-in derived [:tiles 1 1])))
+    (is (= :grass-s (get-in derived [:tiles 0 1])))
+    (is (nil? (get-in derived [:tiles 0 0])))))
+
+(deftest render-layers-projects_source_and_derived_profile_layers
+  (let [source (terrain-layer (terrain-map [[nil :grass nil]
+                                           [:grass :grass :grass]
+                                           [nil :grass nil]]))
+        tilemap {:layers [source]}
+        layer-profile {:id :default
+                       :layers [source derived-definition]}
+        layers (derivation/render-layers tilemap
+                                         layer-profile
+                                         [marching-ruleset])]
+    (is (= [:scene/terrain :scene/terrain-visuals]
+           (map layers :id)))
+    (is (= :terrain (get-in layers [0 :data-kind])))
+    (is (= :tile-ref (get-in layers [1 :data-kind])))
+    (is (= :grass-fill (get-in layers [1 :tiles 1 1])))))
+
+(deftest render-layers-uses_materialized_derived_layer_when_declared
+  (let [source (terrain-layer (terrain-map [[:grass]]))
+        materialized {:id :scene/terrain-visuals
+                      :role :derived
+                      :data-kind :tile-ref
+                      :tileset :overworld
+                      :tiles (terrain-map [[:materialized]])}
+        definition (assoc derived-definition :persistence :materialized)
+        tilemap {:layers [source materialized]}
+        layer-profile {:id :default
+                       :layers [source definition]}
+        layers (derivation/render-layers tilemap
+                                         layer-profile
+                                         [marching-ruleset])]
+    (is (= :materialized
+           (get-in layers [1 :tiles 0 0])))))

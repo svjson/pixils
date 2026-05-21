@@ -75,6 +75,12 @@
           {:terrain-sets [{:id :overworld}]})))
   (is (= [] (project-io/project-terrain-sets {}))))
 
+(deftest project-rulesets-come-from-project-document
+  (is (= [{:id :grass-marching}]
+         (project-io/project-rulesets
+          {:rulesets [{:id :grass-marching}]})))
+  (is (= [] (project-io/project-rulesets {}))))
+
 (deftest project-brushes-come-from-project-document
   (is (= [{:id :brush}]
          (project-io/project-brushes {:brushes [{:id :brush}]})))

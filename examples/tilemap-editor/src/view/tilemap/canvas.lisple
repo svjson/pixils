@@ -3,6 +3,7 @@
             [pixils.render :as r]
             [pixils.ui :as ui]
             [tilemap-editor.model.data :as data]
+            [tilemap-editor.model.derivation :as derivation]
             [tilemap-editor.model.tilemap :as tm]
             [tilemap-editor.view.tilemap.renderer :as tr]))
 
@@ -20,6 +21,8 @@
             (merge {:offset {:x 0 :y 0}
                    :tilesets []
                    :terrain-sets []
+                   :rulesets []
+                   :layer-profiles []
                    :brushes []
                    :layers []}
                   state))
@@ -39,13 +42,20 @@
                       :default state)))
    :render (fn [state ctx]
              (let [offset (or (:offset state) {:x 0 :y 0})]
-               (tr/render-layers! (:tilesets state)
-                                  (:terrain-sets state)
-                                  (:layers state)
-                                  (:hidden-layer-indices state)
-                                  offset
-                                  (:zoom state)
-                                  (:show-grid? state))
+               (let [layer-profile (data/layer-profile-by-id
+                                    (:layer-profiles state)
+                                    (:selected-layer-profile-id state))
+                     render-layers (derivation/render-layers
+                                    {:layers (:layers state)}
+                                    layer-profile
+                                    (:rulesets state))]
+                 (tr/render-layers! (:tilesets state)
+                                    (:terrain-sets state)
+                                    render-layers
+                                    (:hidden-layer-indices state)
+                                    offset
+                                    (:zoom state)
+                                    (:show-grid? state)))
                (r/text! (str "offset " (:x offset) "," (:y offset)
                              "\nzoom " (:zoom state) "x"
                              "\nlayer " (or (:selected-layer-label state) ""))
@@ -63,6 +73,10 @@
                :state {:selected-tile (ui/bind-state :selected-tile)
                        :tilesets (ui/bind-state :tilesets)
                        :terrain-sets (ui/bind-state :terrain-sets)
+                       :rulesets (ui/bind-state :rulesets)
+                       :layer-profiles (ui/bind-state :layer-profiles)
+                       :selected-layer-profile-id
+                       (ui/bind-state :selected-layer-profile-id)
                        :brushes (ui/bind-state :brushes)
                        :selected-brush-index
                        (ui/bind-state :selected-brush-index)
@@ -119,6 +133,10 @@
                :state {:selected-tile (ui/bind-state :selected-tile)
                        :tilesets (ui/bind-state :tilesets)
                        :terrain-sets (ui/bind-state :terrain-sets)
+                       :rulesets (ui/bind-state :rulesets)
+                       :layer-profiles (ui/bind-state :layer-profiles)
+                       :selected-layer-profile-id
+                       (ui/bind-state :selected-layer-profile-id)
                        :brushes (ui/bind-state :brushes)
                        :selected-brush-index
                        (ui/bind-state :selected-brush-index)

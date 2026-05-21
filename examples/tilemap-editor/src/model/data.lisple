@@ -12,6 +12,7 @@
 
 (def project-brushes [])
 (def project-terrain-sets [])
+(def project-rulesets [])
 (def default-layer-profile-id :default)
 (def default-layer-profile-label "Default")
 
@@ -363,6 +364,7 @@
                      layer-profile-id)
            :layer-profiles layer-profiles
            :terrain-sets (or (:terrain-sets project) project-terrain-sets)
+           :rulesets (or (:rulesets project) project-rulesets)
            :brushes (normalize-brushes (:brushes project) layer-profile))))
 
 (defun tilemap-document [state layers layer-profile-id]
@@ -389,6 +391,7 @@
                                                  project-resources))
      :tilesets (or (:tilesets state) [])
      :terrain-sets (or (:terrain-sets state) project-terrain-sets)
+     :rulesets (or (:rulesets state) project-rulesets)
      :layer-profiles layer-profiles
      :brushes (normalize-brushes (or (:brushes state) project-brushes)
                                  layer-profile)

@@ -1,0 +1,116 @@
+(ns tilemap-editor.model.derivation
+  (:require [tilemap-editor.model.data :as data]))
+
+(def north-bit 1)
+(def east-bit 2)
+(def south-bit 4)
+(def west-bit 8)
+
+(defun layer-by-id [layers layer-id]
+  (head (filter (or layers [])
+                (fn [layer]
+                  (= (:id layer) layer-id)))))
+
+(defun ruleset-by-id [rulesets ruleset-id]
+  (head (filter (or rulesets [])
+                (fn [ruleset]
+                  (= (:id ruleset) ruleset-id)))))
+
+(defun cell-at [layer x y]
+  (if (and layer
+           (>= x 0)
+           (< x data/map-width)
+           (>= y 0)
+           (< y data/map-height))
+    (nth (nth (or (:tiles layer) []) y) x)
+    nil))
+
+(defun terrain-at? [layer terrain x y]
+  (= (cell-at layer x y) terrain))
+
+(defun marching-4-mask [layer terrain x y]
+  (+ (if (terrain-at? layer terrain x (dec y)) north-bit 0)
+     (if (terrain-at? layer terrain (inc x) y) east-bit 0)
+     (if (terrain-at? layer terrain x (inc y)) south-bit 0)
+     (if (terrain-at? layer terrain (dec x) y) west-bit 0)))
+
+(defun marching-4-tile-for-mask [ruleset mask]
+  (get (:tiles-by-mask ruleset) mask))
+
+(defun derive-marching-4-row [source-layer ruleset y]
+  (dotimes [x data/map-width]
+    (if (terrain-at? source-layer (:terrain ruleset) x y)
+      (marching-4-tile-for-mask ruleset
+                                (marching-4-mask source-layer
+                                                  (:terrain ruleset)
+                                                  x
+                                                  y))
+      nil)))
+
+(defun derive-marching-4-tiles [source-layer ruleset]
+  (dotimes [y data/map-height]
+    (derive-marching-4-row source-layer ruleset y)))
+
+(defun derived-layer-base [definition ruleset]
+  {:id (:id definition)
+   :label (or (:label definition) (str (:id definition)))
+   :kind :tile
+   :role :derived
+   :data-kind :tile-ref
+   :tileset (:output-tileset ruleset)
+   :source-layers (or (:source-layers definition)
+                      [(:source-layer ruleset)])
+   :ruleset (:id ruleset)
+   :persistence (or (:persistence definition) :ephemeral)})
+
+(defun derive-marching-4-layer [tilemap definition ruleset]
+  (let [source-layer (layer-by-id (:layers tilemap)
+                                  (or (:source-layer ruleset)
+                                      (head (:source-layers definition))))]
+    (if source-layer
+      (assoc (derived-layer-base definition ruleset)
+             :tiles (derive-marching-4-tiles source-layer ruleset))
+      nil)))
+
+(defun derive-layer [tilemap layer-profile rulesets derived-layer-id]
+  (let [definition (layer-by-id (:layers layer-profile) derived-layer-id)
+        ruleset (ruleset-by-id rulesets (:ruleset definition))]
+    (case (:kind definition)
+      :marching-4 (derive-marching-4-layer tilemap definition ruleset)
+      :default nil)))
+
+(defun layer-in-profile? [profile layer]
+  (not (nil? (layer-by-id (:layers profile) (:id layer)))))
+
+(defun profile-source-render-layer [tilemap definition]
+  (layer-by-id (:layers tilemap) (:id definition)))
+
+(defun profile-derived-render-layer [tilemap profile rulesets definition]
+  (or (when (= (:persistence definition) :materialized)
+        (layer-by-id (:layers tilemap) (:id definition)))
+      (derive-layer tilemap profile rulesets (:id definition))))
+
+(defun profile-render-layer [tilemap profile rulesets definition]
+  (if (= (:role definition) :derived)
+    (profile-derived-render-layer tilemap profile rulesets definition)
+    (profile-source-render-layer tilemap definition)))
+
+(defun render-layers-from-profile [tilemap profile rulesets]
+  (filter (map (or (:layers profile) [])
+               (fn [definition]
+                 (profile-render-layer tilemap profile rulesets definition)))
+          (fn [layer]
+            (not (nil? layer)))))
+
+(defun unprofiled-render-layers [tilemap profile]
+  (filter (or (:layers tilemap) [])
+          (fn [layer]
+            (not (layer-in-profile? profile layer)))))
+
+(defun render-layers [tilemap layer-profile rulesets]
+  (let [profile (or layer-profile {:layers []})
+        profile-layers (render-layers-from-profile tilemap profile rulesets)]
+    (if (empty? profile-layers)
+      (or (:layers tilemap) [])
+      (concat profile-layers
+              (unprofiled-render-layers tilemap profile)))))

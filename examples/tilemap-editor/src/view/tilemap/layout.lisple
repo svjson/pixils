@@ -39,6 +39,10 @@
                :state {:selected-tile (ui/bind-state :selected-tile)
                        :tilesets (ui/bind-state :tilesets)
                        :terrain-sets (ui/bind-state :terrain-sets)
+                       :rulesets (ui/bind-state :rulesets)
+                       :layer-profiles (ui/bind-state :layer-profiles)
+                       :selected-layer-profile-id
+                       (ui/bind-state :selected-layer-profile-id)
                        :brushes (ui/bind-state :brushes)
                        :selected-brush-index
                        (ui/bind-state :selected-brush-index)
@@ -72,6 +76,10 @@
                         :tilesets (ui/bind-state :tilesets)
                         :tileset (ui/bind-state :tileset)
                         :terrain-sets (ui/bind-state :terrain-sets)
+                        :rulesets (ui/bind-state :rulesets)
+                        :layer-profiles (ui/bind-state :layer-profiles)
+                        :selected-layer-profile-id
+                        (ui/bind-state :selected-layer-profile-id)
                         :brushes (ui/bind-state :brushes)
                         :selected-brush-index
                         (ui/bind-state :selected-brush-index)
@@ -89,6 +97,10 @@
                             :state {:selected-tile (ui/bind-state :selected-tile)
                                     :tilesets (ui/bind-state :tilesets)
                                     :terrain-sets (ui/bind-state :terrain-sets)
+                                    :rulesets (ui/bind-state :rulesets)
+                                    :layer-profiles (ui/bind-state :layer-profiles)
+                                    :selected-layer-profile-id
+                                    (ui/bind-state :selected-layer-profile-id)
                                     :brushes (ui/bind-state :brushes)
                                     :selected-brush-index
                                     (ui/bind-state :selected-brush-index)
@@ -110,6 +122,10 @@
                                     :tilesets (ui/bind-state :tilesets)
                                     :tileset (ui/bind-state :tileset)
                                     :terrain-sets (ui/bind-state :terrain-sets)
+                                    :rulesets (ui/bind-state :rulesets)
+                                    :layer-profiles (ui/bind-state :layer-profiles)
+                                    :selected-layer-profile-id
+                                    (ui/bind-state :selected-layer-profile-id)
                                     :brushes (ui/bind-state :brushes)
                                     :selected-brush-index
                                     (ui/bind-state :selected-brush-index)
