@@ -350,6 +350,9 @@
 
 (def terrain-rule-list-row-height 24)
 (def terrain-rule-grid-cell-size 32)
+(def terrain-rule-grid-gap 2)
+(def terrain-rule-grid-size (+ (* terrain-rule-grid-cell-size 3)
+                               (* terrain-rule-grid-gap 2)))
 (def terrain-stamp-tile-row-height 24)
 
 (defun terrain-rule-center-terrain-id [rule fallback]
@@ -375,6 +378,14 @@
                                 (model/selected-terrain-rule state)
                                 (:id terrain)))))
 
+(defun terrain-rule-main-tile [state]
+  (let [terrain-set (model/selected-terrain-set
+                     (:terrain-sets state)
+                     (:selected-terrain-set-index state))
+        terrain (model/selected-terrain terrain-set
+                                        (:selected-terrain-index state))]
+    (terrain-rule-terrain-tile state (:id terrain))))
+
 (defun match-cell-condition [rule direction]
   (or (get (or (:match rule) {}) direction) :ignore))
 
@@ -387,7 +398,7 @@
   (case condition
     :ignore nil
     :same (terrain-rule-center-tile state)
-    :not-same (terrain-rule-center-tile state)
+    :not-same nil
     :default (if-let [terrain-id (condition-terrain-id condition)]
                (terrain-rule-terrain-tile state terrain-id)
                nil)))
@@ -417,6 +428,17 @@
              {:x 5 :y (- terrain-rule-grid-cell-size 6)}
              color)))
 
+(defun draw-match-any-other! []
+  (let [color {:r 0x5d :g 0xc9 :b 0x9a}
+        center (/ terrain-rule-grid-cell-size 2)]
+    (do
+      (r/rect! {:x 9 :y 9 :w 14 :h 14} {:color color})
+      (r/line! {:x center :y 4} {:x center :y 9} color)
+      (r/line! {:x center :y 23} {:x center :y 28} color)
+      (r/line! {:x 4 :y center} {:x 9 :y center} color)
+      (r/line! {:x 23 :y center} {:x 28 :y center} color)
+      (r/text! "?" {:x 12 :y 9} {:color color}))))
+
 (defun draw-match-cell! [state ctx]
   (let [condition (:condition state)
         tile (:tile state)]
@@ -431,9 +453,15 @@
       (when (= condition :ignore)
         (draw-rule-grid-cell-cross! {:r 0x86 :g 0x91 :b 0x9b}))
       (when (= condition :not-same)
-        (draw-rule-grid-cell-cross! {:r 0xe6 :g 0x6b :b 0x6b}))
-      (draw-rule-grid-cell-border! (if (:center? state)
+        (draw-match-any-other!))
+      (draw-rule-grid-cell-border! (cond
+                                     (:center? state)
                                      {:r 0xff :g 0xcc :b 0x66}
+
+                                     (:selected? state)
+                                     {:r 0x5a :g 0x9d :b 0xff}
+
+                                     :default
                                      {:r 0x1f :g 0x26 :b 0x2d})))))
 
 (defcomponent terrain-match-tile-cell
@@ -448,14 +476,23 @@
                                (match-cell-condition rule (:direction state)))]
                (assoc state
                       :condition condition
-                      :tile (match-cell-tile state condition))))
+                      :selected? (and (not (:center? state))
+                                      (= (:direction state)
+                                         (:selected-terrain-rule-match-direction
+                                          state)))
+                      :tile (if (:center? state)
+                              (terrain-rule-main-tile state)
+                              (match-cell-tile state condition)))))
    :on-mouse-down (fn [state event ctx]
                     (do
                       (ui/stop-propagation! event)
                       (when (and (not (:center? state)) (:direction state))
                         (ui/emit! (:view ctx)
                                   :terrain/rule-match-cycle
-                                  (:direction state)))
+                                  {:direction (:direction state)
+                                   :step (if (= (:button event) :right)
+                                           1
+                                           -1)}))
                       state))
    :render draw-match-cell!})
 
@@ -472,6 +509,8 @@
            (ui/bind-state :selected-terrain-ruleset-id)
            :selected-terrain-rule-id
            (ui/bind-state :selected-terrain-rule-id)
+           :selected-terrain-rule-match-direction
+           (ui/bind-state :selected-terrain-rule-match-direction)
            :tilesets (ui/bind-state :tilesets)}})
 
 (defun terrain-match-center-cell-child []
@@ -487,20 +526,23 @@
            (ui/bind-state :selected-terrain-ruleset-id)
            :selected-terrain-rule-id
            (ui/bind-state :selected-terrain-rule-id)
+           :selected-terrain-rule-match-direction
+           (ui/bind-state :selected-terrain-rule-match-direction)
            :tilesets (ui/bind-state :tilesets)}})
 
 (defun terrain-rule-grid-row [left center right]
-  {:style {:width :shrink
+  {:style {:width terrain-rule-grid-size
            :height terrain-rule-grid-cell-size
            :layout {:direction :row
-                    :gap 2}}
+                    :gap terrain-rule-grid-gap}}
+   :state (ui/bind-state)
    :children [left center right]})
 
 (defcomponent visual-terrain-match-grid
   {:style {:width :shrink
            :height :shrink
            :layout {:direction :column
-                    :gap 2}}
+                    :gap terrain-rule-grid-gap}}
    :children [(terrain-rule-grid-row (terrain-match-tile-cell-child :nw)
                                      (terrain-match-tile-cell-child :n)
                                      (terrain-match-tile-cell-child :ne))
@@ -521,81 +563,97 @@
   (let [layer (stamp-layer-for-selected-rule state)]
     (data/tile-in (:tilesets state) (:tileset layer) tile-ref)))
 
-(defun stamp-grid-rect [x y]
-  {:x (* x terrain-rule-grid-cell-size)
-   :y (* y terrain-rule-grid-cell-size)
-   :w terrain-rule-grid-cell-size
-   :h terrain-rule-grid-cell-size})
+(defun secondary-mouse-button? [event]
+  (= (:button event) :right))
 
-(defcomponent terrain-stamp-grid-preview
+(defun emit-stamp-grid-cell-paint! [state event ctx]
+  (let [tile-ref (if (secondary-mouse-button? event)
+                   nil
+                   (model/selected-rule-stamp-tile state))]
+    (do
+      (ui/stop-propagation! event)
+      (ui/emit! (:view ctx)
+                :terrain/rule-stamp-paint
+                {:x (:stamp-x state)
+                 :y (:stamp-y state)
+                 :tile tile-ref})
+      state)))
+
+(defcomponent terrain-stamp-grid-cell
   {:focusable true
    :class :ui/canvas
-   :style {:width (* terrain-rule-grid-cell-size 3)
-           :height (* terrain-rule-grid-cell-size 3)
+   :style {:width terrain-rule-grid-cell-size
+           :height terrain-rule-grid-cell-size
            :cursor :crosshair}
-   :on-mouse-down (fn [state event ctx]
-                    (let [pos (:position event)
-                          x (int (/ (:x pos) terrain-rule-grid-cell-size))
-                          y (int (/ (:y pos) terrain-rule-grid-cell-size))]
-                      (cond
-                        (= (:button event) :left)
-                        (model/set-selected-rule-stamp-tile
-                         state
-                         x
-                         y
-                         (model/selected-rule-stamp-tile state))
-
-                        (= (:button event) :right)
-                        (model/set-selected-rule-stamp-tile state x y nil)
-
-                        :default
-                        state)))
-   :on-drag (fn [state event ctx]
-              (let [pos (:position event)
-                    x (int (/ (:x pos) terrain-rule-grid-cell-size))
-                    y (int (/ (:y pos) terrain-rule-grid-cell-size))]
-                (cond
-                  (= (:button event) :left)
-                  (model/set-selected-rule-stamp-tile
-                   state
-                   x
-                   y
-                   (model/selected-rule-stamp-tile state))
-
-                  (= (:button event) :right)
-                  (model/set-selected-rule-stamp-tile state x y nil)
-
-                  :default
-                  state)))
+   :on-mouse-down emit-stamp-grid-cell-paint!
+   :on-click emit-stamp-grid-cell-paint!
+   :on-drag emit-stamp-grid-cell-paint!
    :render (fn [state ctx]
              (let [layer (stamp-layer-for-selected-rule state)
                    rows (or (:tiles layer) [])
-                   anchor (stamp-grid-anchor state)]
+                   anchor (stamp-grid-anchor state)
+                   x (:stamp-x state)
+                   y (:stamp-y state)
+                   tile-ref (nth (or (nth rows y) []) x)
+                   tile (stamp-grid-tile state tile-ref)]
                (do
                  (r/rect! {:x 0
                            :y 0
-                           :w (* terrain-rule-grid-cell-size 3)
-                           :h (* terrain-rule-grid-cell-size 3)}
+                           :w terrain-rule-grid-cell-size
+                           :h terrain-rule-grid-cell-size}
                           {:fill true
                            :color {:r 0x0b :g 0x0d :b 0x10}})
-                 (dotimes [y 3]
-                   (dotimes [x 3]
-                     (let [tile-ref (nth (or (nth rows y) []) x)
-                           tile (stamp-grid-tile state tile-ref)]
-                       (do
-                         (when tile
-                           (tr/draw-tile! tile
-                                          {:x (+ (* x terrain-rule-grid-cell-size)
-                                                 4)
-                                           :y (+ (* y terrain-rule-grid-cell-size)
-                                                 4)
-                                           :w (- terrain-rule-grid-cell-size 8)
-                                           :h (- terrain-rule-grid-cell-size 8)}))
-                         (r/rect! (stamp-grid-rect x y)
-                                  {:color (if (and (= x (:x anchor))
-                                                   (= y (:y anchor)))
-                                            {:r 0xff :g 0xcc :b 0x66}
-                                            {:r 0x1f :g 0x26 :b 0x2d})}))))))))})
+                 (when tile
+                   (tr/draw-tile! tile
+                                  {:x 4
+                                   :y 4
+                                   :w (- terrain-rule-grid-cell-size 8)
+                                   :h (- terrain-rule-grid-cell-size 8)}))
+                 (r/rect! {:x 0
+                           :y 0
+                           :w terrain-rule-grid-cell-size
+                           :h terrain-rule-grid-cell-size}
+                          {:color (if (and (= x (:x anchor))
+                                           (= y (:y anchor)))
+                                    {:r 0xff :g 0xcc :b 0x66}
+                                    {:r 0x1f :g 0x26 :b 0x2d})}))))})
+
+(defun terrain-stamp-grid-cell-child [x y]
+  {:mode 'terrain-stamp-grid-cell
+   :state {:stamp-x x
+           :stamp-y y
+           :rulesets (ui/bind-state :rulesets)
+           :selected-terrain-ruleset-id
+           (ui/bind-state :selected-terrain-ruleset-id)
+           :selected-terrain-rule-id
+           (ui/bind-state :selected-terrain-rule-id)
+           :terrain-rule-selected-tile
+           (ui/bind-state :terrain-rule-selected-tile)
+           :terrain-sets (ui/bind-state :terrain-sets)
+           :selected-terrain-set-index
+           (ui/bind-state :selected-terrain-set-index)
+           :selected-terrain-index
+           (ui/bind-state :selected-terrain-index)
+           :tilesets (ui/bind-state :tilesets)}})
+
+(defun terrain-stamp-grid-row [y]
+  {:style {:width terrain-rule-grid-size
+           :height terrain-rule-grid-cell-size
+           :layout {:direction :row
+                    :gap terrain-rule-grid-gap}}
+   :state (ui/bind-state)
+   :children [(terrain-stamp-grid-cell-child 0 y)
+              (terrain-stamp-grid-cell-child 1 y)
+              (terrain-stamp-grid-cell-child 2 y)]})
+
+(defcomponent terrain-stamp-grid-preview
+  {:style {:width terrain-rule-grid-size
+           :height terrain-rule-grid-size
+           :layout {:direction :column
+                    :gap terrain-rule-grid-gap}}
+   :children [(terrain-stamp-grid-row 0)
+              (terrain-stamp-grid-row 1)
+              (terrain-stamp-grid-row 2)]})
 
 (defcomponent terrain-stamp-tile-preview
   {:style {:width 14
@@ -670,8 +728,7 @@
                       :tilesets (ui/bind-state :tilesets)}
               :item-state-keys [:tileset
                                 :tilesets]
-              :selected-indices (model/selected-rule-stamp-tile-indices
-                                 state)
+              :selected-indices (ui/bind-state :selected-indices)
               :force-selection? true
               :item-child terrain-stamp-tile-row-child})))
 
@@ -682,17 +739,17 @@
            (assoc state
                   :rendered-tileset nil
                   :rendered-tilesets nil
-                  :rendered-selected-tile nil
-                  :rendered-disabled? nil))
+                  :rendered-disabled? nil
+                  :selected-indices []))
    :update (fn [state ctx]
              (let [tileset (model/selected-rule-stamp-tileset state)
                    selected-tile (model/selected-rule-stamp-tile state)
+                   selected-indices (model/selected-rule-stamp-tile-indices
+                                     state)
                    disabled? (nil? (model/selected-terrain-rule state))]
                (do
                  (when (or (not= tileset (:rendered-tileset state))
                            (not= (:tilesets state) (:rendered-tilesets state))
-                           (not= selected-tile
-                                 (:rendered-selected-tile state))
                            (not= disabled? (:rendered-disabled? state)))
                    (ui/replace-child!
                     (:view ctx)
@@ -704,8 +761,9 @@
                  (assoc state
                         :rendered-tileset tileset
                         :rendered-tilesets (:tilesets state)
-                        :rendered-selected-tile selected-tile
-                        :rendered-disabled? disabled?))))
+                        :rendered-disabled? disabled?
+                        :selected-tile selected-tile
+                        :selected-indices selected-indices))))
    :on {:list-box/change (fn [state event ctx]
                            (do
                              (ui/stop-propagation! event)
@@ -754,25 +812,34 @@
            :layout {:direction :column
                     :gap 8}}
    :state (ui/bind-state)
-   :children [{:style {:width :shrink
+   :children [{:style {:width :fill
                        :height :shrink
                        :layout {:direction :row
                                 :align-items :center
                                 :gap 10}}
                :state (ui/bind-state)
                :children [{:mode 'visual-terrain-match-grid
-                           :state {:terrain-sets (ui/bind-state :terrain-sets)
+                           :state {:terrain-sets
+                                   (ui/bind-state :terrain-sets)
                                    :selected-terrain-set-index
-                                   (ui/bind-state :selected-terrain-set-index)
+                                   (ui/bind-state
+                                    :selected-terrain-set-index)
                                    :selected-terrain-index
-                                   (ui/bind-state :selected-terrain-index)
-                                   :rulesets (ui/bind-state :rulesets)
+                                   (ui/bind-state
+                                    :selected-terrain-index)
+                                   :rulesets
+                                   (ui/bind-state :rulesets)
                                    :selected-terrain-ruleset-id
                                    (ui/bind-state
                                     :selected-terrain-ruleset-id)
                                    :selected-terrain-rule-id
-                                   (ui/bind-state :selected-terrain-rule-id)
-                                   :tilesets (ui/bind-state :tilesets)}}
+                                   (ui/bind-state
+                                    :selected-terrain-rule-id)
+                                   :selected-terrain-rule-match-direction
+                                   (ui/bind-state
+                                    :selected-terrain-rule-match-direction)
+                                   :tilesets
+                                   (ui/bind-state :tilesets)}}
                           {:mode 'terrain-rule-arrow}
                           {:mode 'terrain-stamp-grid-preview
                            :state {:rulesets (ui/bind-state :rulesets)
@@ -795,6 +862,9 @@
                        (ui/bind-state :selected-terrain-ruleset-id)
                        :selected-terrain-rule-id
                        (ui/bind-state :selected-terrain-rule-id)
+                       :selected-terrain-rule-match-direction
+                       (ui/bind-state
+                        :selected-terrain-rule-match-direction)
                        :terrain-rule-selected-tile
                        (ui/bind-state :terrain-rule-selected-tile)
                        :terrain-sets (ui/bind-state :terrain-sets)
@@ -1020,6 +1090,9 @@
                                                :selected-terrain-rule-id
                                                (ui/bind-state
                                                 :selected-terrain-rule-id)
+                                               :selected-terrain-rule-match-direction
+                                               (ui/bind-state
+                                                :selected-terrain-rule-match-direction)
                                                :terrain-rule-selected-tile
                                                (ui/bind-state
                                                 :terrain-rule-selected-tile)
@@ -1054,6 +1127,8 @@
             (ui/bind-state :selected-terrain-ruleset-id)
             :selected-terrain-rule-id
             (ui/bind-state :selected-terrain-rule-id)
+            :selected-terrain-rule-match-direction
+            (ui/bind-state :selected-terrain-rule-match-direction)
             :terrain-rule-selected-tile
             (ui/bind-state :terrain-rule-selected-tile)
             :set-id (ui/bind-state :set-id)
@@ -1111,6 +1186,9 @@
                             :selected-terrain-rule-id
                             (ui/bind-state
                              :selected-terrain-rule-id)
+                            :selected-terrain-rule-match-direction
+                            (ui/bind-state
+                             :selected-terrain-rule-match-direction)
                             :terrain-rule-selected-tile
                             (ui/bind-state
                              :terrain-rule-selected-tile)}}}]}))
@@ -1189,6 +1267,8 @@
                     (ui/bind-state :selected-terrain-ruleset-id)
                     :selected-terrain-rule-id
                     (ui/bind-state :selected-terrain-rule-id)
+                    :selected-terrain-rule-match-direction
+                    (ui/bind-state :selected-terrain-rule-match-direction)
                     :terrain-rule-selected-tile
                     (ui/bind-state :terrain-rule-selected-tile)
                     :disabled? (ui/bind-state :terrain-detail-panel-disabled?)}
@@ -1207,6 +1287,9 @@
                          (ui/bind-state :selected-terrain-ruleset-id)
                          :selected-terrain-rule-id
                          (ui/bind-state :selected-terrain-rule-id)
+                         :selected-terrain-rule-match-direction
+                         (ui/bind-state
+                          :selected-terrain-rule-match-direction)
                          :terrain-rule-selected-tile
                          (ui/bind-state :terrain-rule-selected-tile)}
             :children [{:mode 'terrain-detail-editor
@@ -1225,6 +1308,9 @@
                                 (ui/bind-state :selected-terrain-ruleset-id)
                                 :selected-terrain-rule-id
                                 (ui/bind-state :selected-terrain-rule-id)
+                                :selected-terrain-rule-match-direction
+                                (ui/bind-state
+                                 :selected-terrain-rule-match-direction)
                                 :terrain-rule-selected-tile
                                 (ui/bind-state
                                  :terrain-rule-selected-tile)}}]}))
@@ -1300,15 +1386,30 @@
         :terrain/rule-match-change
         (fn [state event ctx]
           (let [payload (:payload event)]
-            (model/set-selected-rule-match-condition state
-                                                     (:direction payload)
-                                                     (:value payload))))
+            (assoc (model/set-selected-rule-match-condition state
+                                                            (:direction payload)
+                                                            (:value payload))
+                   :selected-terrain-rule-match-direction
+                   (:direction payload))))
         :terrain/rule-match-cycle
         (fn [state event ctx]
-          (model/cycle-selected-rule-match-condition state (:payload event)))
+          (let [payload (:payload event)]
+            (assoc (model/cycle-selected-rule-match-condition
+                    state
+                    (:direction payload)
+                    (:step payload))
+                 :selected-terrain-rule-match-direction
+                 (:direction payload))))
         :terrain/rule-stamp-tile-select
         (fn [state event ctx]
-          (assoc state :terrain-rule-selected-tile (:payload event)))}
+          (assoc state :terrain-rule-selected-tile (:payload event)))
+        :terrain/rule-stamp-paint
+        (fn [state event ctx]
+          (let [payload (:payload event)]
+            (model/set-selected-rule-stamp-tile state
+                                                (:x payload)
+                                                (:y payload)
+                                                (:tile payload))))}
    :children [{:mode 'terrain-definition-selector-column
                :state {:terrain-sets (ui/bind-state :terrain-sets)
                        :selected-terrain-set-index

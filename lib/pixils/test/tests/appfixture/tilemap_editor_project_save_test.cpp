@@ -1,16 +1,15 @@
 #include "../fixture.h"
 #include "../render_fixture.h"
 
+#include <SDL2/SDL_mouse.h>
 #include <filesystem>
 #include <fstream>
-#include <sstream>
-#include <string>
-#include <vector>
-
-#include <SDL2/SDL_mouse.h>
 #include <gtest/gtest.h>
 #include <lisple/runtime/dict.h>
 #include <lisple/runtime/value.h>
+#include <sstream>
+#include <string>
+#include <vector>
 
 namespace
 {
@@ -37,10 +36,9 @@ namespace
     return buffer.str();
   }
 
-  void find_descendant_modes(
-    const std::shared_ptr<Pixils::Runtime::View>& view,
-    const std::string& mode_name,
-    std::vector<std::shared_ptr<Pixils::Runtime::View>>& out)
+  void find_descendant_modes(const std::shared_ptr<Pixils::Runtime::View>& view,
+                             const std::string& mode_name,
+                             std::vector<std::shared_ptr<Pixils::Runtime::View>>& out)
   {
     if (!view) return;
     if (view->mode && view->mode->name == mode_name) out.push_back(view);
@@ -189,8 +187,7 @@ TEST_F(TilemapEditorStartupTest, loaded_project_populates_existing_side_panel_co
   std::vector<std::shared_ptr<Pixils::Runtime::View>> combo_boxes;
   find_descendant_modes(session.active_mode, "ui/combo-box", combo_boxes);
   ASSERT_GE(combo_boxes.size(), 1u);
-  EXPECT_NE(combo_boxes[0]->state->to_string().find("Background Colors"),
-            std::string::npos);
+  EXPECT_NE(combo_boxes[0]->state->to_string().find("Background Colors"), std::string::npos);
 
   session.render_mode();
   auto tab_panel = session.active_mode->children[1];
@@ -219,11 +216,12 @@ TEST_F(TilemapEditorStartupTest, loaded_project_populates_existing_side_panel_co
   std::vector<std::shared_ptr<Pixils::Runtime::View>> tileset_tab_combo_boxes;
   find_descendant_modes(session.active_mode, "ui/combo-box", tileset_tab_combo_boxes);
   ASSERT_EQ(tileset_tab_combo_boxes.size(), 1u);
-  EXPECT_NE(tileset_tab_combo_boxes[0]->state->to_string().find("Color"),
-            std::string::npos);
+  EXPECT_NE(tileset_tab_combo_boxes[0]->state->to_string().find("Color"), std::string::npos);
 
   std::vector<std::shared_ptr<Pixils::Runtime::View>> tile_definition_panels;
-  find_descendant_modes(session.active_mode, "tile-definition-panel", tile_definition_panels);
+  find_descendant_modes(session.active_mode,
+                        "tile-definition-panel",
+                        tile_definition_panels);
   EXPECT_EQ(tile_definition_panels.size(), 1u);
 
   std::vector<std::shared_ptr<Pixils::Runtime::View>> tile_grids;
@@ -248,11 +246,11 @@ TEST_F(TilemapEditorStartupTest, loaded_project_populates_existing_side_panel_co
   auto map_tab = tab_strip->children[0];
   ASSERT_NE(map_tab, nullptr);
 
-  input().mouse_down({map_tab->bounds.x + map_tab->bounds.w / 2,
-                      map_tab->bounds.y + map_tab->bounds.h / 2});
+  input().mouse_down(
+    {map_tab->bounds.x + map_tab->bounds.w / 2, map_tab->bounds.y + map_tab->bounds.h / 2});
   update_cycle();
-  input().mouse_up({map_tab->bounds.x + map_tab->bounds.w / 2,
-                    map_tab->bounds.y + map_tab->bounds.h / 2});
+  input().mouse_up(
+    {map_tab->bounds.x + map_tab->bounds.w / 2, map_tab->bounds.y + map_tab->bounds.h / 2});
   update_cycle();
   session.render_mode();
 
@@ -267,14 +265,13 @@ TEST_F(TilemapEditorStartupTest, loaded_project_populates_existing_side_panel_co
   std::filesystem::remove(history_path, ec);
 }
 
-TEST_F(TilemapEditorStartupTest, loads_sprite_project_after_empty_tileset_tab_with_missing_image)
+TEST_F(TilemapEditorStartupTest,
+       loads_sprite_project_after_empty_tileset_tab_with_missing_image)
 {
-  const auto history_path =
-    std::filesystem::temp_directory_path() /
-    "pixils-tilemap-editor-missing-image-history.edn";
-  const auto project_path =
-    std::filesystem::temp_directory_path() /
-    "pixils-tilemap-editor-missing-image-project.edn";
+  const auto history_path = std::filesystem::temp_directory_path() /
+                            "pixils-tilemap-editor-missing-image-history.edn";
+  const auto project_path = std::filesystem::temp_directory_path() /
+                            "pixils-tilemap-editor-missing-image-project.edn";
   std::error_code ec;
   std::filesystem::remove(history_path, ec);
   std::filesystem::remove(project_path, ec);
@@ -333,9 +330,10 @@ TEST_F(TilemapEditorStartupTest, loads_sprite_project_after_empty_tileset_tab_wi
   session.push_mode("ui/tab-panel-empty", Lisple::Constant::NIL, overrides);
   session.pop_mode(runtime.eval(R"({:type :confirm
                                   :mode :file-dialog/open
-                                  :path )" + lisp_string(project_path.string()) + R"(
+                                  :path )" +
+                                lisp_string(project_path.string()) + R"(
                                   :directory )" +
-                                 lisp_string(project_path.parent_path().string()) + R"(
+                                lisp_string(project_path.parent_path().string()) + R"(
                                   :filename "sprite-project.edn"})"));
 
   update_cycle();
@@ -353,14 +351,13 @@ TEST_F(TilemapEditorStartupTest, loads_sprite_project_after_empty_tileset_tab_wi
   std::filesystem::remove(project_path, ec);
 }
 
-TEST_F(TilemapEditorStartupTest, loaded_project_with_resources_opens_resource_and_tileset_tabs)
+TEST_F(TilemapEditorStartupTest,
+       loaded_project_with_resources_opens_resource_and_tileset_tabs)
 {
   const auto history_path =
-    std::filesystem::temp_directory_path() /
-    "pixils-tilemap-editor-resource-history.edn";
+    std::filesystem::temp_directory_path() / "pixils-tilemap-editor-resource-history.edn";
   const auto project_path =
-    std::filesystem::temp_directory_path() /
-    "pixils-tilemap-editor-resource-project.edn";
+    std::filesystem::temp_directory_path() / "pixils-tilemap-editor-resource-project.edn";
   std::error_code ec;
   std::filesystem::remove(history_path, ec);
   std::filesystem::remove(project_path, ec);
@@ -410,9 +407,10 @@ TEST_F(TilemapEditorStartupTest, loaded_project_with_resources_opens_resource_an
   session.push_mode("ui/tab-panel-empty", Lisple::Constant::NIL, overrides);
   session.pop_mode(runtime.eval(R"({:type :confirm
                                   :mode :file-dialog/open
-                                  :path )" + lisp_string(project_path.string()) + R"(
+                                  :path )" +
+                                lisp_string(project_path.string()) + R"(
                                   :directory )" +
-                                 lisp_string(project_path.parent_path().string()) + R"(
+                                lisp_string(project_path.parent_path().string()) + R"(
                                   :filename "resource-project.edn"})"));
 
   update_cycle();
@@ -442,10 +440,8 @@ TEST_F(TilemapEditorStartupTest, loaded_project_with_resources_opens_resource_an
   std::vector<std::shared_ptr<Pixils::Runtime::View>> bundle_rows;
   find_descendant_modes(session.active_mode, "resource-bundle-row", bundle_rows);
   ASSERT_EQ(bundle_rows.size(), 1u);
-  EXPECT_NE(bundle_rows[0]->state->to_string().find("project-assets"),
-            std::string::npos);
-  EXPECT_EQ(bundle_rows[0]->state->to_string().find("editor-assets"),
-            std::string::npos);
+  EXPECT_NE(bundle_rows[0]->state->to_string().find("project-assets"), std::string::npos);
+  EXPECT_EQ(bundle_rows[0]->state->to_string().find("editor-assets"), std::string::npos);
 
   tab_panel = session.active_mode->children[1];
   ASSERT_NE(tab_panel, nullptr);
@@ -473,11 +469,9 @@ TEST_F(TilemapEditorStartupTest, loaded_project_with_resources_opens_resource_an
 TEST_F(TilemapEditorStartupTest, loaded_project_brush_tab_lists_layer_tilesets)
 {
   const auto history_path =
-    std::filesystem::temp_directory_path() /
-    "pixils-tilemap-editor-brush-history.edn";
+    std::filesystem::temp_directory_path() / "pixils-tilemap-editor-brush-history.edn";
   const auto project_path =
-    std::filesystem::temp_directory_path() /
-    "pixils-tilemap-editor-brush-project.edn";
+    std::filesystem::temp_directory_path() / "pixils-tilemap-editor-brush-project.edn";
   std::error_code ec;
   std::filesystem::remove(history_path, ec);
   std::filesystem::remove(project_path, ec);
@@ -526,9 +520,10 @@ TEST_F(TilemapEditorStartupTest, loaded_project_brush_tab_lists_layer_tilesets)
   session.push_mode("ui/tab-panel-empty", Lisple::Constant::NIL, overrides);
   session.pop_mode(runtime.eval(R"({:type :confirm
                                   :mode :file-dialog/open
-                                  :path )" + lisp_string(project_path.string()) + R"(
+                                  :path )" +
+                                lisp_string(project_path.string()) + R"(
                                   :directory )" +
-                                 lisp_string(project_path.parent_path().string()) + R"(
+                                lisp_string(project_path.parent_path().string()) + R"(
                                   :filename "brush-project.edn"})"));
 
   update_cycle();
@@ -552,20 +547,15 @@ TEST_F(TilemapEditorStartupTest, loaded_project_brush_tab_lists_layer_tilesets)
   session.render_mode();
 
   std::vector<std::shared_ptr<Pixils::Runtime::View>> selectors;
-  find_descendant_modes(session.active_mode,
-                        "pattern-layer-tileset-selector",
-                        selectors);
+  find_descendant_modes(session.active_mode, "pattern-layer-tileset-selector", selectors);
   ASSERT_EQ(selectors.size(), 1u);
-  EXPECT_NE(selectors[0]->state->to_string().find(":loaded"),
-            std::string::npos);
+  EXPECT_NE(selectors[0]->state->to_string().find(":loaded"), std::string::npos);
 
   std::vector<std::shared_ptr<Pixils::Runtime::View>> combos;
   find_descendant_modes(session.active_mode, "ui/combo-box", combos);
   ASSERT_GE(combos.size(), 1u);
-  EXPECT_NE(combos[0]->state->to_string().find("Loaded"),
-            std::string::npos);
-  EXPECT_NE(combos[0]->state->to_string().find(":disabled? false"),
-            std::string::npos);
+  EXPECT_NE(combos[0]->state->to_string().find("Loaded"), std::string::npos);
+  EXPECT_NE(combos[0]->state->to_string().find(":disabled? false"), std::string::npos);
 
   std::filesystem::remove(history_path, ec);
   std::filesystem::remove(project_path, ec);
@@ -573,12 +563,10 @@ TEST_F(TilemapEditorStartupTest, loaded_project_brush_tab_lists_layer_tilesets)
 
 TEST_F(TilemapEditorStartupTest, terrain_rule_add_button_creates_visible_rule)
 {
-  const auto history_path =
-    std::filesystem::temp_directory_path() /
-    "pixils-tilemap-editor-terrain-rule-history.edn";
-  const auto project_path =
-    std::filesystem::temp_directory_path() /
-    "pixils-tilemap-editor-terrain-rule-project.edn";
+  const auto history_path = std::filesystem::temp_directory_path() /
+                            "pixils-tilemap-editor-terrain-rule-history.edn";
+  const auto project_path = std::filesystem::temp_directory_path() /
+                            "pixils-tilemap-editor-terrain-rule-project.edn";
   std::error_code ec;
   std::filesystem::remove(history_path, ec);
   std::filesystem::remove(project_path, ec);
@@ -595,13 +583,21 @@ TEST_F(TilemapEditorStartupTest, terrain_rule_add_button_creates_visible_rule)
                       :name "Grass Fill"
                       :char "g"
                       :type :color
-                      :color {:r 0 :g 255 :b 0}}]}]
+                      :color {:r 0 :g 255 :b 0}}
+                     {:id :water-fill
+                      :name "Water Fill"
+                      :char "w"
+                      :type :color
+                      :color {:r 0 :g 0 :b 255}}]}]
  :terrain-sets [{:id :overworld
                  :label "Overworld"
                  :tileset :terrain
                  :terrains [{:id :grass
                              :label "Grass"
-                             :tile :grass-fill}]}]
+                             :tile :grass-fill}
+                            {:id :water
+                             :label "Water"
+                             :tile :water-fill}]}]
  :rulesets []
  :layer-profiles [{:id :default
                    :label "Default"
@@ -641,9 +637,10 @@ TEST_F(TilemapEditorStartupTest, terrain_rule_add_button_creates_visible_rule)
   session.push_mode("ui/tab-panel-empty", Lisple::Constant::NIL, overrides);
   session.pop_mode(runtime.eval(R"({:type :confirm
                                   :mode :file-dialog/open
-                                  :path )" + lisp_string(project_path.string()) + R"(
+                                  :path )" +
+                                lisp_string(project_path.string()) + R"(
                                   :directory )" +
-                                 lisp_string(project_path.parent_path().string()) + R"(
+                                lisp_string(project_path.parent_path().string()) + R"(
                                   :filename "terrain-rule-project.edn"})"));
 
   update_cycle();
@@ -666,10 +663,9 @@ TEST_F(TilemapEditorStartupTest, terrain_rule_add_button_creates_visible_rule)
   update_cycle();
   session.render_mode();
 
-  auto terrain_detail_tab =
-    find_descendant_mode_containing_state(session.active_mode,
-                                          "ui/tab",
-                                          ":label \"Terrain\"");
+  auto terrain_detail_tab = find_descendant_mode_containing_state(session.active_mode,
+                                                                  "ui/tab",
+                                                                  ":label \"Terrain\"");
   ASSERT_NE(terrain_detail_tab, nullptr);
   input().mouse_down({terrain_detail_tab->bounds.x + terrain_detail_tab->bounds.w / 2,
                       terrain_detail_tab->bounds.y + terrain_detail_tab->bounds.h / 2});
@@ -681,9 +677,7 @@ TEST_F(TilemapEditorStartupTest, terrain_rule_add_button_creates_visible_rule)
   session.render_mode();
 
   auto add_rule_button =
-    find_descendant_mode_containing_state(session.active_mode,
-                                          "ui/button",
-                                          "Add rule");
+    find_descendant_mode_containing_state(session.active_mode, "ui/button", "Add rule");
   ASSERT_NE(add_rule_button, nullptr);
   input().mouse_down({add_rule_button->bounds.x + add_rule_button->bounds.w / 2,
                       add_rule_button->bounds.y + add_rule_button->bounds.h / 2});
@@ -699,18 +693,95 @@ TEST_F(TilemapEditorStartupTest, terrain_rule_add_button_creates_visible_rule)
   EXPECT_NE(session.active_mode->state->to_string().find(":selected-terrain-rule-id :rule"),
             std::string::npos);
 
-  auto rule_list = find_descendant_mode_containing_state(session.active_mode,
-                                                        "terrain-rule-list",
-                                                        ":rule");
+  auto rule_list =
+    find_descendant_mode_containing_state(session.active_mode, "terrain-rule-list", ":rule");
   EXPECT_NE(rule_list, nullptr);
   auto rule_editor = find_descendant_mode_containing_state(session.active_mode,
-                                                          "terrain-rule-visual-editor",
-                                                          ":rule");
+                                                           "terrain-rule-visual-editor",
+                                                           ":rule");
   EXPECT_NE(rule_editor, nullptr);
-  auto rule_row = find_descendant_mode_containing_state(session.active_mode,
-                                                       "terrain-rule-row",
-                                                       ":rule");
+  auto rule_row =
+    find_descendant_mode_containing_state(session.active_mode, "terrain-rule-row", ":rule");
   EXPECT_NE(rule_row, nullptr);
+
+  auto center_cell = find_descendant_mode_containing_state(session.active_mode,
+                                                           "terrain-match-tile-cell",
+                                                           ":center? true");
+  ASSERT_NE(center_cell, nullptr);
+  EXPECT_NE(center_cell->state->to_string().find(":grass-fill"), std::string::npos);
+
+  auto north_cell = find_descendant_mode_containing_state(session.active_mode,
+                                                          "terrain-match-tile-cell",
+                                                          ":direction :n ");
+  ASSERT_NE(north_cell, nullptr);
+  auto click_north_cell = [&](int button)
+  {
+    input().mouse_down({north_cell->bounds.x + north_cell->bounds.w / 2,
+                        north_cell->bounds.y + north_cell->bounds.h / 2},
+                       button);
+    update_cycle();
+    input().mouse_up({north_cell->bounds.x + north_cell->bounds.w / 2,
+                      north_cell->bounds.y + north_cell->bounds.h / 2},
+                     button);
+    update_cycle();
+    update_cycle();
+  };
+  click_north_cell(SDL_BUTTON_RIGHT);
+  EXPECT_NE(session.active_mode->state->to_string().find(":n :same"), std::string::npos);
+  EXPECT_NE(session.active_mode->state->to_string().find(
+              ":selected-terrain-rule-match-direction :n"),
+            std::string::npos);
+
+  click_north_cell(SDL_BUTTON_RIGHT);
+  EXPECT_NE(session.active_mode->state->to_string().find(":n :not-same"), std::string::npos);
+
+  click_north_cell(SDL_BUTTON_RIGHT);
+  EXPECT_NE(session.active_mode->state->to_string().find(":n {:terrain :water}"),
+            std::string::npos);
+
+  click_north_cell(SDL_BUTTON_LEFT);
+  EXPECT_NE(session.active_mode->state->to_string().find(":n :not-same"), std::string::npos);
+
+  auto water_tile_row = find_descendant_mode_containing_state(session.active_mode,
+                                                              "terrain-stamp-tile-row",
+                                                              ":value :water-fill");
+  ASSERT_NE(water_tile_row, nullptr);
+  input().mouse_down({water_tile_row->bounds.x + water_tile_row->bounds.w / 2,
+                      water_tile_row->bounds.y + water_tile_row->bounds.h / 2});
+  update_cycle();
+  input().mouse_up({water_tile_row->bounds.x + water_tile_row->bounds.w / 2,
+                    water_tile_row->bounds.y + water_tile_row->bounds.h / 2});
+  update_cycle();
+  update_cycle();
+  EXPECT_NE(
+    session.active_mode->state->to_string().find(":terrain-rule-selected-tile :water-fill"),
+    std::string::npos);
+
+  std::vector<std::shared_ptr<Pixils::Runtime::View>> stamp_cells;
+  find_descendant_modes(session.active_mode, "terrain-stamp-grid-cell", stamp_cells);
+  ASSERT_EQ(stamp_cells.size(), 9u);
+  std::shared_ptr<Pixils::Runtime::View> stamp_cell;
+  for (const auto& cell : stamp_cells)
+  {
+    const auto state_text = cell->state ? cell->state->to_string() : "";
+    if (state_text.find(":stamp-x 2") != std::string::npos &&
+        state_text.find(":stamp-y 1") != std::string::npos)
+    {
+      stamp_cell = cell;
+      break;
+    }
+  }
+  ASSERT_NE(stamp_cell, nullptr);
+  input().mouse_down({stamp_cell->bounds.x + stamp_cell->bounds.w / 2,
+                      stamp_cell->bounds.y + stamp_cell->bounds.h / 2});
+  update_cycle();
+  input().mouse_up({stamp_cell->bounds.x + stamp_cell->bounds.w / 2,
+                    stamp_cell->bounds.y + stamp_cell->bounds.h / 2});
+  update_cycle();
+  update_cycle();
+  EXPECT_NE(session.active_mode->state->to_string().find(
+              ":tiles [[nil nil nil] [nil :grass-fill :water-fill] [nil nil nil]]"),
+            std::string::npos);
 
   std::filesystem::remove(history_path, ec);
   std::filesystem::remove(project_path, ec);
@@ -718,12 +789,10 @@ TEST_F(TilemapEditorStartupTest, terrain_rule_add_button_creates_visible_rule)
 
 TEST_F(TilemapEditorStartupTest, tileset_row_context_menu_opens_edit_dialog)
 {
-  const auto history_path =
-    std::filesystem::temp_directory_path() /
-    "pixils-tilemap-editor-tileset-context-history.edn";
-  const auto project_path =
-    std::filesystem::temp_directory_path() /
-    "pixils-tilemap-editor-tileset-context-project.edn";
+  const auto history_path = std::filesystem::temp_directory_path() /
+                            "pixils-tilemap-editor-tileset-context-history.edn";
+  const auto project_path = std::filesystem::temp_directory_path() /
+                            "pixils-tilemap-editor-tileset-context-project.edn";
   std::error_code ec;
   std::filesystem::remove(history_path, ec);
   std::filesystem::remove(project_path, ec);
@@ -766,9 +835,10 @@ TEST_F(TilemapEditorStartupTest, tileset_row_context_menu_opens_edit_dialog)
   session.push_mode("ui/tab-panel-empty", Lisple::Constant::NIL, overrides);
   session.pop_mode(runtime.eval(R"({:type :confirm
                                   :mode :file-dialog/open
-                                  :path )" + lisp_string(project_path.string()) + R"(
+                                  :path )" +
+                                lisp_string(project_path.string()) + R"(
                                   :directory )" +
-                                 lisp_string(project_path.parent_path().string()) + R"(
+                                lisp_string(project_path.parent_path().string()) + R"(
                                   :filename "tileset-context-project.edn"})"));
 
   update_cycle();
@@ -794,12 +864,10 @@ TEST_F(TilemapEditorStartupTest, tileset_row_context_menu_opens_edit_dialog)
   find_descendant_modes(session.active_mode, "tileset-definition-row", rows);
   ASSERT_EQ(rows.size(), 1u);
   auto row = rows[0];
-  input().mouse_down({row->bounds.x + row->bounds.w / 2,
-                      row->bounds.y + row->bounds.h / 2},
+  input().mouse_down({row->bounds.x + row->bounds.w / 2, row->bounds.y + row->bounds.h / 2},
                      SDL_BUTTON_RIGHT);
   update_cycle();
-  input().mouse_up({row->bounds.x + row->bounds.w / 2,
-                    row->bounds.y + row->bounds.h / 2},
+  input().mouse_up({row->bounds.x + row->bounds.w / 2, row->bounds.y + row->bounds.h / 2},
                    SDL_BUTTON_RIGHT);
   update_cycle();
   session.render_mode();
@@ -834,11 +902,9 @@ TEST_F(TilemapEditorStartupTest, tileset_row_context_menu_opens_edit_dialog)
 TEST_F(TilemapEditorStartupTest, tileset_tile_grid_drag_selects_and_delete_prompts)
 {
   const auto history_path =
-    std::filesystem::temp_directory_path() /
-    "pixils-tilemap-editor-tile-delete-history.edn";
+    std::filesystem::temp_directory_path() / "pixils-tilemap-editor-tile-delete-history.edn";
   const auto project_path =
-    std::filesystem::temp_directory_path() /
-    "pixils-tilemap-editor-tile-delete-project.edn";
+    std::filesystem::temp_directory_path() / "pixils-tilemap-editor-tile-delete-project.edn";
   std::error_code ec;
   std::filesystem::remove(history_path, ec);
   std::filesystem::remove(project_path, ec);
@@ -891,9 +957,10 @@ TEST_F(TilemapEditorStartupTest, tileset_tile_grid_drag_selects_and_delete_promp
   session.push_mode("ui/tab-panel-empty", Lisple::Constant::NIL, overrides);
   session.pop_mode(runtime.eval(R"({:type :confirm
                                   :mode :file-dialog/open
-                                  :path )" + lisp_string(project_path.string()) + R"(
+                                  :path )" +
+                                lisp_string(project_path.string()) + R"(
                                   :directory )" +
-                                 lisp_string(project_path.parent_path().string()) + R"(
+                                lisp_string(project_path.parent_path().string()) + R"(
                                   :filename "tile-delete-project.edn"})"));
 
   update_cycle();
@@ -931,9 +998,9 @@ TEST_F(TilemapEditorStartupTest, tileset_tile_grid_drag_selects_and_delete_promp
   update_cycle();
   session.render_mode();
 
-  EXPECT_NE(session.active_mode->state->to_string().find(
-              ":selected-tileset-tile-indices [0 1]"),
-            std::string::npos);
+  EXPECT_NE(
+    session.active_mode->state->to_string().find(":selected-tileset-tile-indices [0 1]"),
+    std::string::npos);
 
   input().key_down(SDLK_DELETE);
   update_cycle();
@@ -954,11 +1021,9 @@ TEST_F(TilemapEditorStartupTest, tileset_tile_grid_drag_selects_and_delete_promp
   find_descendant_modes(session.active_mode, "tileset-tile-grid", tile_grids);
   ASSERT_EQ(tile_grids.size(), 1u);
   tile_grid = tile_grids[0];
-  input().mouse_down({tile_grid->bounds.x + 21, tile_grid->bounds.y + 5},
-                     SDL_BUTTON_RIGHT);
+  input().mouse_down({tile_grid->bounds.x + 21, tile_grid->bounds.y + 5}, SDL_BUTTON_RIGHT);
   update_cycle();
-  input().mouse_up({tile_grid->bounds.x + 21, tile_grid->bounds.y + 5},
-                   SDL_BUTTON_RIGHT);
+  input().mouse_up({tile_grid->bounds.x + 21, tile_grid->bounds.y + 5}, SDL_BUTTON_RIGHT);
   update_cycle();
   session.render_mode();
 
@@ -1002,15 +1067,16 @@ TEST_F(TilemapEditorProjectIoTest, save_dialog_result_writes_project_edn)
      {:layers (tilemap-editor.model.data/make-layered-map)}
      {:type :confirm
       :mode :file-dialog/save
-      :path )" + lisp_string(save_path.string()) + R"(
-      :directory )" + lisp_string(save_path.parent_path().string()) + R"(
+      :path )" +
+               lisp_string(save_path.string()) + R"(
+      :directory )" +
+               lisp_string(save_path.parent_path().string()) + R"(
       :filename "saved-project.edn"})
   )");
 
   ASSERT_TRUE(std::filesystem::exists(save_path));
   const std::string contents = read_text_file(save_path);
-  EXPECT_NE(contents.find(":format :pixils.tilemap-editor/project"),
-            std::string::npos);
+  EXPECT_NE(contents.find(":format :pixils.tilemap-editor/project"), std::string::npos);
   EXPECT_NE(contents.find(":version 1"), std::string::npos);
   EXPECT_NE(contents.find(":resources"), std::string::npos);
   EXPECT_EQ(contents.find("editor-assets"), std::string::npos);
@@ -1039,25 +1105,26 @@ TEST_F(TilemapEditorProjectIoTest, save_dialog_result_updates_recent_projects)
     (tilemap-editor.io.project/apply-project-file-dialog-result
      {:layers []
       :recent-projects []
-      :project-history-path )" + lisp_string(history_path.string()) + R"(}
+      :project-history-path )" +
+                             lisp_string(history_path.string()) + R"(}
      {:type :confirm
       :mode :file-dialog/save
-      :path )" + lisp_string(save_path.string()) + R"(
-      :directory )" + lisp_string(save_path.parent_path().string()) + R"(
+      :path )" + lisp_string(save_path.string()) +
+                             R"(
+      :directory )" + lisp_string(save_path.parent_path().string()) +
+                             R"(
       :filename "saved-history-project.edn"})
   )");
 
   ASSERT_TRUE(std::filesystem::exists(history_path));
   const std::string state = result->to_string();
   EXPECT_NE(state.find(":recent-projects [{"), std::string::npos);
-  EXPECT_NE(state.find(R"(:filename "saved-history-project.edn")"),
-            std::string::npos);
+  EXPECT_NE(state.find(R"(:filename "saved-history-project.edn")"), std::string::npos);
 
   const std::string contents = read_text_file(history_path);
   EXPECT_NE(contents.find(":projects"), std::string::npos);
   EXPECT_NE(contents.find(save_path.string()), std::string::npos);
-  EXPECT_NE(contents.find(R"(:filename "saved-history-project.edn")"),
-            std::string::npos);
+  EXPECT_NE(contents.find(R"(:filename "saved-history-project.edn")"), std::string::npos);
 
   std::filesystem::remove(save_path, ec);
   std::filesystem::remove(history_path, ec);
@@ -1110,8 +1177,10 @@ TEST_F(TilemapEditorProjectIoTest, open_dialog_result_loads_project_edn_layers)
       :hidden-layer-indices [1 2]}
      {:type :confirm
       :mode :file-dialog/open
-      :path )" + lisp_string(open_path.string()) + R"(
-      :directory )" + lisp_string(open_path.parent_path().string()) + R"(
+      :path )" + lisp_string(open_path.string()) +
+                             R"(
+      :directory )" + lisp_string(open_path.parent_path().string()) +
+                             R"(
       :filename "loaded-project.edn"})
   )");
 

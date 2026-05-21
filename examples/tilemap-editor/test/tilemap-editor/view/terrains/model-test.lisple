@@ -308,22 +308,30 @@
              :label "Grass N"}]
            (model/terrain-rule-options state)))))
 
-(deftest terrain-rule-match-cycle-advances_visual_condition_options
-  (let [state (model/cycle-selected-rule-match-condition
-               {:terrain-sets [{:id :overworld
-                                :terrains [{:id :grass}
-                                           {:id :water}]}]
-                :selected-terrain-set-index 0
-                :selected-terrain-index 0
-                :rulesets [{:id :overworld-rules
-                            :terrain-set :overworld
-                            :rules [{:id :rule
-                                     :terrain :grass
-                                     :match {:n :ignore}}]}]
-                :selected-terrain-ruleset-id :overworld-rules
-                :selected-terrain-rule-id :rule}
-               :n)]
-    (is (= :same (get-in state [:rulesets 0 :rules 0 :match :n])))))
+(deftest terrain-rule-match-cycle-steps_visual_condition_options
+  (let [base-state {:terrain-sets [{:id :overworld
+                                    :terrains [{:id :grass}
+                                               {:id :water}]}]
+                    :selected-terrain-set-index 0
+                    :selected-terrain-index 0
+                    :rulesets [{:id :overworld-rules
+                                :terrain-set :overworld
+                                :rules [{:id :rule
+                                         :terrain :grass
+                                         :match {:n :ignore}}]}]
+                    :selected-terrain-ruleset-id :overworld-rules
+                    :selected-terrain-rule-id :rule}
+        right-state (model/cycle-selected-rule-match-condition
+                     base-state
+                     :n
+                     1)
+        left-state (model/cycle-selected-rule-match-condition
+                    base-state
+                    :n
+                    -1)]
+    (is (= :same (get-in right-state [:rulesets 0 :rules 0 :match :n])))
+    (is (= {:terrain :water}
+           (get-in left-state [:rulesets 0 :rules 0 :match :n])))))
 
 (deftest terrain-rule-stamp-tile-edit-updates_selected_rule_stamp_grid
   (let [state (model/set-selected-rule-stamp-tile

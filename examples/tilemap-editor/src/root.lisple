@@ -62,6 +62,7 @@
            :rulesets []
            :selected-terrain-ruleset-id nil
            :selected-terrain-rule-id nil
+           :selected-terrain-rule-match-direction :n
            :terrain-rule-selected-tile nil
            :layer-profiles []
            :selected-layer-profile-id nil
@@ -173,6 +174,9 @@
                        (ui/bind-state :selected-terrain-ruleset-id)
                        :selected-terrain-rule-id
                        (ui/bind-state :selected-terrain-rule-id)
+                       :selected-terrain-rule-match-direction
+                       (ui/bind-state
+                        :selected-terrain-rule-match-direction)
                        :terrain-rule-selected-tile
                        (ui/bind-state :terrain-rule-selected-tile)
                        :layer-profiles (ui/bind-state :layer-profiles)
@@ -288,6 +292,9 @@
                                        :selected-terrain-rule-id
                                        (ui/bind-state
                                         :selected-terrain-rule-id)
+                                       :selected-terrain-rule-match-direction
+                                       (ui/bind-state
+                                        :selected-terrain-rule-match-direction)
                                        :terrain-rule-selected-tile
                                        (ui/bind-state
                                         :terrain-rule-selected-tile)}}}]})]

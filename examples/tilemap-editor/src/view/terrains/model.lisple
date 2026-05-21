@@ -724,42 +724,54 @@
                                       rule)))))))
       state)))
 
-(defun match-condition-options [terrain-set]
+(defun terrain-condition-option [terrain]
+  {:value (:id terrain)
+   :label (str "Terrain: "
+               (or (:label terrain)
+                   (:name terrain)
+                   (str (:id terrain))))})
+
+(defun match-condition-options [terrain-set center-terrain-id]
   (concat [{:value :ignore
             :label "Ignore"}
            {:value :same
             :label "Same"}
            {:value :not-same
-            :label "Not same"}]
-          (map (or (:terrains terrain-set) [])
-               (fn [terrain]
-                 {:value (:id terrain)
-                  :label (str "Terrain: "
-                              (or (:label terrain)
-                                  (:name terrain)
-                                  (str (:id terrain))))}))))
+            :label "Any other terrain"}]
+          (map (filter (or (:terrains terrain-set) [])
+                       (fn [terrain]
+                         (not= (:id terrain) center-terrain-id)))
+               terrain-condition-option)))
 
-(defun match-condition-index [terrain-set condition]
+(defun match-condition-index [terrain-set center-terrain-id condition]
   (let [value (match-condition-option-value condition)
-        match (find-index (match-condition-options terrain-set)
+        match (find-index (match-condition-options terrain-set
+                                                   center-terrain-id)
                           (fn [option]
                             (= (:value option) value)))]
     (or match 0)))
 
-(defun next-match-condition-value [terrain-set condition]
-  (let [options (match-condition-options terrain-set)
-        index (match-condition-index terrain-set condition)
+(defun step-match-condition-value [terrain-set center-terrain-id condition step]
+  (let [options (match-condition-options terrain-set center-terrain-id)
+        index (match-condition-index terrain-set
+                                     center-terrain-id
+                                     condition)
         next-index (if (empty? options)
                      0
-                     (mod (inc index) (count options)))]
+                     (mod (+ index step (count options))
+                          (count options)))]
     (:value (nth options next-index))))
 
-(defun cycle-selected-rule-match-condition [state direction]
+(defun cycle-selected-rule-match-condition [state direction step]
   (let [terrain-set (selected-terrain-set (:terrain-sets state)
                                           (:selected-terrain-set-index state))
         rule (selected-terrain-rule state)
+        center-terrain-id (terrain-rule-center rule)
         condition (get (or (:match rule) {}) direction)
-        next-value (next-match-condition-value terrain-set condition)]
+        next-value (step-match-condition-value terrain-set
+                                               center-terrain-id
+                                               condition
+                                               step)]
     (set-selected-rule-match-condition state direction next-value)))
 
 (defun terrain-rule-output-summary [rule]

@@ -91,7 +91,8 @@
     (case condition
       :ignore true
       :same (= value center-terrain)
-      :not-same (not= value center-terrain)
+      :not-same (and (not (nil? value))
+                     (not= value center-terrain))
       :default
       (if (= (type-of condition) "map")
         (= value (:terrain condition))
