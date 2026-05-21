@@ -9,6 +9,7 @@
             [tilemap-editor.view.tileset.model :as tileset-model]
             tilemap-editor.view.brushes.layout
             tilemap-editor.view.resources.layout
+            tilemap-editor.view.terrains.layout
             tilemap-editor.view.tilemap.layout
             tilemap-editor.view.tileset.dialogs
             tilemap-editor.view.tileset.layout))
@@ -56,6 +57,8 @@
            :tilesets []
            :tileset nil
            :terrain-sets []
+           :selected-terrain-set-index nil
+           :selected-terrain-index nil
            :rulesets []
            :layer-profiles []
            :selected-layer-profile-id nil
@@ -158,6 +161,10 @@
                        :tilesets (ui/bind-state :tilesets)
                        :tileset (ui/bind-state :tileset)
                        :terrain-sets (ui/bind-state :terrain-sets)
+                       :selected-terrain-set-index
+                       (ui/bind-state :selected-terrain-set-index)
+                       :selected-terrain-index
+                       (ui/bind-state :selected-terrain-index)
                        :rulesets (ui/bind-state :rulesets)
                        :layer-profiles (ui/bind-state :layer-profiles)
                        :selected-layer-profile-id
@@ -248,7 +255,16 @@
                                        :terrain-sets (ui/bind-state :terrain-sets)
                                        :resources (ui/bind-state :resources)
                                        :selected-resource-bundle (ui/bind-state :selected-resource-bundle)
-                                       :selected-image-resource (ui/bind-state :selected-image-resource)}}}]})]
+                                       :selected-image-resource (ui/bind-state :selected-image-resource)}}}
+                      {:id :terrains
+                       :label "Terrains"
+                       :child {:mode 'terrain-definition-workspace
+                               :style {:padding 8}
+                               :state {:terrain-sets (ui/bind-state :terrain-sets)
+                                       :selected-terrain-set-index
+                                       (ui/bind-state :selected-terrain-set-index)
+                                       :selected-terrain-index
+                                       (ui/bind-state :selected-terrain-index)}}}]})]
   :on {:palette/select (fn [state event ctx]
                          (assoc state :selected-tile (:payload event)))
        :palette/brush-select (fn [state event ctx]

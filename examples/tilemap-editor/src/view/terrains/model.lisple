@@ -1,0 +1,123 @@
+(ns tilemap-editor.view.terrains.model)
+
+(defun terrain-set-options [terrain-sets]
+  (for-indexed [index terrain-set (or terrain-sets [])]
+    {:value index
+     :label (or (:label terrain-set) (:name terrain-set) (str (:id terrain-set)))}))
+
+(defun terrain-options [terrain-set]
+  (for-indexed [index terrain (or (:terrains terrain-set) [])]
+    {:value index
+     :label (or (:label terrain) (:name terrain) (str (:id terrain)))}))
+
+(defun selected-terrain-set-index [terrain-sets index]
+  (let [terrain-sets (or terrain-sets [])]
+    (when (> (count terrain-sets) 0)
+      (min (max (or index 0) 0)
+           (dec (count terrain-sets))))))
+
+(defun selected-terrain-set [terrain-sets index]
+  (if-let [index (selected-terrain-set-index terrain-sets index)]
+    (nth terrain-sets index)
+    nil))
+
+(defun selected-terrain-index [terrain-set index]
+  (let [terrains (or (:terrains terrain-set) [])]
+    (when (> (count terrains) 0)
+      (min (max (or index 0) 0)
+           (dec (count terrains))))))
+
+(defun selected-terrain [terrain-set index]
+  (if-let [index (selected-terrain-index terrain-set index)]
+    (nth (or (:terrains terrain-set) []) index)
+    nil))
+
+(defun selected-terrain-set-indices [terrain-sets index]
+  (if-let [index (selected-terrain-set-index terrain-sets index)]
+    [index]
+    []))
+
+(defun selected-terrain-indices [terrain-set index]
+  (if-let [index (selected-terrain-index terrain-set index)]
+    [index]
+    []))
+
+(defun id-exists? [items id]
+  (> (count (filter (or items [])
+                    (fn [item]
+                      (= (:id item) id))))
+     0))
+
+(defun unique-id-from [items root suffix]
+  (let [candidate (if suffix
+                    (str root "-" suffix)
+                    root)
+        id (keyword candidate)]
+    (if (id-exists? items id)
+      (unique-id-from items
+                      root
+                      (if suffix (inc suffix) 2))
+      id)))
+
+(defun unique-terrain-set-id [terrain-sets]
+  (unique-id-from terrain-sets "terrain-set" nil))
+
+(defun unique-terrain-id [terrains]
+  (unique-id-from terrains "terrain" nil))
+
+(defun make-terrain-set [terrain-sets]
+  (let [id (unique-terrain-set-id terrain-sets)]
+    {:id id
+     :label "Terrain set"
+     :terrains []}))
+
+(defun make-terrain [terrain-set]
+  (let [id (unique-terrain-id (:terrains terrain-set))]
+    {:id id
+     :label "Terrain"}))
+
+(defun add-terrain-set [state]
+  (let [terrain-sets (or (:terrain-sets state) [])
+        terrain-set (make-terrain-set terrain-sets)
+        index (count terrain-sets)]
+    (assoc state
+           :terrain-sets (concat terrain-sets [terrain-set])
+           :selected-terrain-set-index index
+           :selected-terrain-index nil)))
+
+(defun update-terrain-set-at [terrain-sets index update-fn]
+  (for-indexed [terrain-set-index terrain-set (or terrain-sets [])]
+    (if (= terrain-set-index index)
+      (update-fn terrain-set)
+      terrain-set)))
+
+(defun add-terrain [state]
+  (if-let [set-index (selected-terrain-set-index (:terrain-sets state)
+                                                 (:selected-terrain-set-index state))]
+    (let [terrain-set (nth (:terrain-sets state) set-index)
+          terrains (or (:terrains terrain-set) [])
+          terrain (make-terrain terrain-set)
+          terrain-index (count terrains)]
+      (assoc state
+             :terrain-sets (update-terrain-set-at
+                            (:terrain-sets state)
+                            set-index
+                            (fn [terrain-set]
+                              (assoc terrain-set
+                                     :terrains (concat terrains [terrain]))))
+             :selected-terrain-set-index set-index
+             :selected-terrain-index terrain-index))
+    state))
+
+(defun derive-terrain-workspace-state [state]
+  (let [terrain-sets (or (:terrain-sets state) [])
+        set-index (selected-terrain-set-index terrain-sets
+                                              (:selected-terrain-set-index state))
+        terrain-set (selected-terrain-set terrain-sets set-index)
+        terrain-index (selected-terrain-index terrain-set
+                                              (:selected-terrain-index state))]
+    (assoc state
+           :selected-terrain-set-index set-index
+           :selected-terrain-index terrain-index
+           :terrain-list-panel-disabled? (nil? set-index)
+           :terrain-detail-panel-disabled? (nil? terrain-index))))

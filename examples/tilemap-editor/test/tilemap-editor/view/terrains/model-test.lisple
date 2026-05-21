@@ -1,0 +1,52 @@
+(ns tilemap-editor.view.terrains.model-test
+  (:require proof.core
+            [tilemap-editor.view.terrains.model :as model]))
+
+(deftest terrain-workspace-selects_first_available_set_and_terrain
+  (let [state (model/derive-terrain-workspace-state
+               {:terrain-sets [{:id :overworld
+                                :terrains [{:id :grass}]}]})]
+    (is (= 0 (:selected-terrain-set-index state)))
+    (is (= 0 (:selected-terrain-index state)))
+    (is (= false (:terrain-list-panel-disabled? state)))
+    (is (= false (:terrain-detail-panel-disabled? state)))))
+
+(deftest terrain-workspace-disables_detail_without_terrains
+  (let [state (model/derive-terrain-workspace-state
+               {:terrain-sets [{:id :overworld
+                                :terrains []}]})]
+    (is (= 0 (:selected-terrain-set-index state)))
+    (is (nil? (:selected-terrain-index state)))
+    (is (= false (:terrain-list-panel-disabled? state)))
+    (is (= true (:terrain-detail-panel-disabled? state)))))
+
+(deftest terrain-set-creation-adds_and_selects_new_set
+  (let [state (model/add-terrain-set {:terrain-sets []})]
+    (is (= :terrain-set (get-in state [:terrain-sets 0 :id])))
+    (is (= "Terrain set" (get-in state [:terrain-sets 0 :label])))
+    (is (= [] (get-in state [:terrain-sets 0 :terrains])))
+    (is (= 0 (:selected-terrain-set-index state)))
+    (is (nil? (:selected-terrain-index state)))))
+
+(deftest terrain-set-creation-deduplicates_ids
+  (let [state (model/add-terrain-set
+               {:terrain-sets [{:id :terrain-set
+                                :label "Terrain set"}]})]
+    (is (= :terrain-set-2 (get-in state [:terrain-sets 1 :id])))))
+
+(deftest terrain-creation-adds_to_selected_set
+  (let [state (model/add-terrain
+               {:terrain-sets [{:id :overworld
+                                :terrains []}]
+                :selected-terrain-set-index 0})]
+    (is (= :terrain (get-in state [:terrain-sets 0 :terrains 0 :id])))
+    (is (= "Terrain" (get-in state [:terrain-sets 0 :terrains 0 :label])))
+    (is (= 0 (:selected-terrain-index state)))))
+
+(deftest terrain-creation-deduplicates_ids
+  (let [state (model/add-terrain
+               {:terrain-sets [{:id :overworld
+                                :terrains [{:id :terrain
+                                            :label "Terrain"}]}]
+                :selected-terrain-set-index 0})]
+    (is (= :terrain-2 (get-in state [:terrain-sets 0 :terrains 1 :id])))))

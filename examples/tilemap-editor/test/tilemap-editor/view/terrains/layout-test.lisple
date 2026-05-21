@@ -1,0 +1,20 @@
+(ns tilemap-editor.view.terrains.layout-test
+  (:require proof.core
+            [tilemap-editor.view.terrains.layout :as layout]))
+
+(deftest terrain-set-list-panel-has_header_and_add_button
+  (let [panel (layout/make-terrain-set-list-panel)
+        header (head (:children panel))
+        add-button (nth (:children header) 1)]
+    (is (= "Terrain Sets" (-> panel :state :title)))
+    (is (= 'ui/button (:mode add-button)))
+    (is (= :ui/toolbar-button (:class add-button)))
+    (is (= "+" (-> add-button :state :label)))))
+
+(deftest terrain-list-panel-has_disabled_bound_add_button
+  (let [panel (layout/make-terrain-list-panel)
+        header (head (:children panel))
+        add-button (nth (:children header) 1)]
+    (is (= "Terrains" (-> panel :state :title)))
+    (is (= "+" (-> add-button :state :label)))
+    (is (not (nil? (-> add-button :state :disabled?))))))

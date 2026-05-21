@@ -1,0 +1,295 @@
+(ns tilemap-editor.view.terrains.layout
+  (:require pixils
+            [pixils.ui :as ui]
+            [pixils.ui.header-panel :as hp]
+            [pixils.ui.list-box :as lb]
+            [tilemap-editor.view.terrains.model :as model]))
+
+(def terrain-list-row-height 24)
+
+(defcomponent terrain-row
+  {:extend 'ui/list-box-item
+   :class :ui/list-item-hover
+   :style {:width :fill
+           :height terrain-list-row-height
+           :padding [3 6]
+           :layout {:direction :row
+                    :align-items :center}}
+   :update (fn [state ctx]
+             (assoc state :selected (contains? (:selected-indices state)
+                                               (:index state))))
+   :on-mouse-down (fn [state event ctx]
+                    (do
+                      (ui/stop-propagation! event)
+                      state))
+   :on-mouse-up (fn [state event ctx]
+                  (do
+                    (ui/stop-propagation! event)
+                    (ui/emit! (:view ctx)
+                              :list-box/item-click
+                              {:index (:index state)
+                               :value (:value state)
+                               :shift? false
+                               :ctrl? false})
+                    state))
+   :children [{:mode 'ui/text
+               :style {:width :fill}
+               :state {:value (ui/bind-state :label)}}]})
+
+(defun terrain-row-child [index option]
+  {:mode 'terrain-row
+   :state {:index index
+           :value (:value option)
+           :label (:label option)
+           :selected-indices (ui/bind-state :selected-indices)}})
+
+(defun terrain-set-list-child [terrain-sets selected-index]
+  (let [terrain-sets (or terrain-sets [])
+        options (model/terrain-set-options terrain-sets)]
+    (lb/make {:options options
+              :style {:width :fill
+                      :height :fill}
+              :row-height terrain-list-row-height
+              :visible-rows (max 1 (count options))
+              :content-width 220
+              :disabled? (empty? options)
+              :selected-indices (model/selected-terrain-set-indices
+                                 terrain-sets
+                                 selected-index)
+              :force-selection? true
+              :item-child terrain-row-child})))
+
+(defcomponent terrain-set-list
+  {:style {:width :fill
+           :height :fill}
+   :init (fn [state ctx]
+           (assoc state
+                  :rendered-terrain-sets nil
+                  :rendered-selected-index nil))
+   :update (fn [state ctx]
+             (let [terrain-sets (or (:terrain-sets state) [])
+                   selected-index (:selected-terrain-set-index state)]
+               (do
+                 (when (or (not= terrain-sets (:rendered-terrain-sets state))
+                           (not= selected-index (:rendered-selected-index state)))
+                   (ui/replace-child! (:view ctx)
+                                      "terrain-set-list-box"
+                                      (merge {:id "terrain-set-list-box"}
+                                             (terrain-set-list-child
+                                              terrain-sets
+                                              selected-index))))
+                 (assoc state
+                        :rendered-terrain-sets terrain-sets
+                        :rendered-selected-index selected-index))))
+   :on {:list-box/change (fn [state event ctx]
+                           (do
+                             (ui/stop-propagation! event)
+                             (ui/emit! (:view ctx)
+                                       :terrain/set-select
+                                       (-> event :payload :value))
+                             state))}
+   :children [(merge {:id "terrain-set-list-box"}
+                     (terrain-set-list-child [] nil))]})
+
+(defun terrain-list-child [terrain-set selected-index disabled?]
+  (let [options (model/terrain-options terrain-set)]
+    (lb/make {:options options
+              :style {:width :fill
+                      :height :fill}
+              :row-height terrain-list-row-height
+              :visible-rows (max 1 (count options))
+              :content-width 220
+              :disabled? (if (or disabled? (empty? options)) true false)
+              :selected-indices (if disabled?
+                                  []
+                                  (model/selected-terrain-indices terrain-set
+                                                                  selected-index))
+              :force-selection? true
+              :item-child terrain-row-child})))
+
+(defcomponent terrain-list
+  {:style {:width :fill
+           :height :fill}
+   :init (fn [state ctx]
+           (assoc state
+                  :rendered-terrain-set nil
+                  :rendered-selected-index nil
+                  :rendered-disabled? nil))
+   :update (fn [state ctx]
+             (let [terrain-set (model/selected-terrain-set
+                                (:terrain-sets state)
+                                (:selected-terrain-set-index state))
+                   selected-index (:selected-terrain-index state)
+                   disabled? (:terrain-list-panel-disabled? state)]
+               (do
+                 (when (or (not= terrain-set (:rendered-terrain-set state))
+                           (not= selected-index (:rendered-selected-index state))
+                           (not= disabled? (:rendered-disabled? state)))
+                   (ui/replace-child! (:view ctx)
+                                      "terrain-list-box"
+                                      (merge {:id "terrain-list-box"}
+                                             (terrain-list-child terrain-set
+                                                                 selected-index
+                                                                 disabled?))))
+                 (assoc state
+                        :rendered-terrain-set terrain-set
+                        :rendered-selected-index selected-index
+                        :rendered-disabled? disabled?))))
+   :on {:list-box/change (fn [state event ctx]
+                           (do
+                             (ui/stop-propagation! event)
+                             (ui/emit! (:view ctx)
+                                       :terrain/select
+                                       (-> event :payload :value))
+                             state))}
+   :children [(merge {:id "terrain-list-box"}
+                     (terrain-list-child nil nil true))]})
+
+(defun make-terrain-set-list-panel []
+  (hp/make {:title "Terrain Sets"
+            :style {:width 260
+                    :height :fill}
+            :header-style {:layout {:direction :row
+                                    :align-items :center
+                                    :gap 4}}
+            :header-children [{:mode 'ui/button
+                               :class :ui/toolbar-button
+                               :state {:label "+"}
+                               :on-click (fn [state event ctx]
+                                           (do
+                                             (ui/emit! (:view ctx)
+                                                       :terrain/add-set)
+                                             state))}]
+            :body-style {:padding 8
+                         :height :fill}
+            :state {:terrain-sets (ui/bind-state :terrain-sets)
+                    :selected-terrain-set-index
+                    (ui/bind-state :selected-terrain-set-index)}
+            :body-state {:terrain-sets (ui/bind-state :terrain-sets)
+                         :selected-terrain-set-index
+                         (ui/bind-state :selected-terrain-set-index)}
+            :children [{:mode 'terrain-set-list
+                        :state {:terrain-sets (ui/bind-state :terrain-sets)
+                                :selected-terrain-set-index
+                                (ui/bind-state :selected-terrain-set-index)}}]}))
+
+(defun make-terrain-list-panel []
+  (hp/make {:title "Terrains"
+            :style {:width 260
+                    :height :fill}
+            :header-style {:layout {:direction :row
+                                    :align-items :center
+                                    :gap 4}}
+            :header-children [{:mode 'ui/button
+                               :class :ui/toolbar-button
+                               :state {:label "+"
+                                       :disabled?
+                                       (ui/bind-state
+                                        :terrain-list-panel-disabled?)}
+                               :on-click (fn [state event ctx]
+                                           (do
+                                             (when (not (:disabled? state))
+                                               (ui/emit! (:view ctx)
+                                                         :terrain/add))
+                                             state))}]
+            :body-style {:padding 8
+                         :height :fill}
+            :state {:terrain-sets (ui/bind-state :terrain-sets)
+                    :selected-terrain-set-index
+                    (ui/bind-state :selected-terrain-set-index)
+                    :selected-terrain-index
+                    (ui/bind-state :selected-terrain-index)
+                    :terrain-list-panel-disabled?
+                    (ui/bind-state :terrain-list-panel-disabled?)}
+            :body-state {:terrain-sets (ui/bind-state :terrain-sets)
+                         :selected-terrain-set-index
+                         (ui/bind-state :selected-terrain-set-index)
+                         :selected-terrain-index
+                         (ui/bind-state :selected-terrain-index)
+                         :terrain-list-panel-disabled?
+                         (ui/bind-state :terrain-list-panel-disabled?)}
+            :children [{:mode 'terrain-list
+                        :state {:terrain-sets (ui/bind-state :terrain-sets)
+                                :selected-terrain-set-index
+                                (ui/bind-state :selected-terrain-set-index)
+                                :selected-terrain-index
+                                (ui/bind-state :selected-terrain-index)
+                                :terrain-list-panel-disabled?
+                                (ui/bind-state
+                                 :terrain-list-panel-disabled?)}}]}))
+
+(defcomponent terrain-detail
+  {:style {:width :fill
+           :height :fill
+           :layout {:direction :column
+                    :gap 8}}
+   :update (fn [state ctx]
+             (let [terrain-set (model/selected-terrain-set
+                                (:terrain-sets state)
+                                (:selected-terrain-set-index state))
+                   terrain (model/selected-terrain terrain-set
+                                                   (:selected-terrain-index state))]
+               (assoc state
+                      :terrain-set-label (or (:label terrain-set) "")
+                      :terrain-id-label (if terrain (str (:id terrain)) "")
+                      :terrain-label (or (:label terrain) (:name terrain) "")
+                      :terrain-count-label
+                      (str (count (or (:terrains terrain-set) []))))))
+   :children [{:mode 'ui/text
+               :class :ui/title
+               :state {:value (ui/bind-state :terrain-label)}}
+              {:mode 'ui/text
+               :class :ui/muted
+               :state {:value (ui/bind-state :terrain-id-label)}}
+              {:mode 'ui/text
+               :state {:value (ui/bind-state :terrain-set-label)}}
+              {:mode 'ui/text
+               :class :ui/muted
+               :state {:value (ui/bind-state :terrain-count-label)}}]})
+
+(defun make-terrain-detail-panel []
+  (hp/make {:title "Terrain Definition"
+            :style {:width :fill
+                    :height :fill}
+            :body-style {:padding 8
+                         :height :fill}
+            :state {:terrain-sets (ui/bind-state :terrain-sets)
+                    :selected-terrain-set-index
+                    (ui/bind-state :selected-terrain-set-index)
+                    :selected-terrain-index
+                    (ui/bind-state :selected-terrain-index)
+                    :disabled? (ui/bind-state :terrain-detail-panel-disabled?)}
+            :body-state {:terrain-sets (ui/bind-state :terrain-sets)
+                         :selected-terrain-set-index
+                         (ui/bind-state :selected-terrain-set-index)
+                         :selected-terrain-index
+                         (ui/bind-state :selected-terrain-index)}
+            :children [{:mode 'terrain-detail
+                        :state {:terrain-sets (ui/bind-state :terrain-sets)
+                                :selected-terrain-set-index
+                                (ui/bind-state :selected-terrain-set-index)
+                                :selected-terrain-index
+                                (ui/bind-state :selected-terrain-index)}}]}))
+
+(defcomponent terrain-definition-workspace
+  {:style {:width :fill
+           :height :fill
+           :layout {:direction :row
+                    :gap 8}}
+   :init (fn [state ctx]
+           (model/derive-terrain-workspace-state state))
+   :update (fn [state ctx]
+             (model/derive-terrain-workspace-state state))
+   :on {:terrain/add-set (fn [state event ctx]
+                           (model/add-terrain-set state))
+        :terrain/set-select (fn [state event ctx]
+                              (assoc state
+                                     :selected-terrain-set-index (:payload event)
+                                     :selected-terrain-index nil))
+        :terrain/add (fn [state event ctx]
+                       (model/add-terrain state))
+        :terrain/select (fn [state event ctx]
+                          (assoc state :selected-terrain-index (:payload event)))}
+   :children [(make-terrain-set-list-panel)
+              (make-terrain-list-panel)
+              (make-terrain-detail-panel)]})
