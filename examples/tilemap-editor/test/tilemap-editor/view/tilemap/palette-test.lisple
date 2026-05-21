@@ -26,3 +26,20 @@
                                    tilesets
                                    :colors
                                    false)))))))
+
+(deftest brush-palette-is-disabled-when-empty
+  (is (= true
+         (:disabled? (:state (palette/brush-palette-list-box-child
+                              []
+                              false
+                              nil))))))
+
+(deftest brush-palette-selects_first_available_brush
+  (let [brushes [{:id :stamp
+                  :label "Stamp"
+                  :kind :pattern}]]
+    (is (= [0]
+           (:selected-indices
+            (:state (palette/brush-palette-list-box-child brushes
+                                                          false
+                                                          nil)))))))

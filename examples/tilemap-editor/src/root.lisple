@@ -59,6 +59,7 @@
            :selected-brush-index nil
            :selected-brush-layer-index nil
            :brush-selected-tile nil
+           :map-palette-tab :tiles
            :selected-layer-index nil
            :selected-layer-label ""
            :layers []
@@ -151,6 +152,7 @@
                        :selected-brush-index (ui/bind-state :selected-brush-index)
                        :selected-brush-layer-index (ui/bind-state :selected-brush-layer-index)
                        :brush-selected-tile (ui/bind-state :brush-selected-tile)
+                       :map-palette-tab (ui/bind-state :map-palette-tab)
                        :selected-layer-index (ui/bind-state :selected-layer-index)
                        :selected-layer-label (ui/bind-state :selected-layer-label)
                        :layers (ui/bind-state :layers)
@@ -173,6 +175,11 @@
                                        :selected-tileset-index (ui/bind-state :selected-tileset-index)
                                        :tilesets (ui/bind-state :tilesets)
                                        :tileset (ui/bind-state :tileset)
+                                       :brushes (ui/bind-state :brushes)
+                                       :selected-brush-index
+                                       (ui/bind-state :selected-brush-index)
+                                       :map-palette-tab
+                                       (ui/bind-state :map-palette-tab)
                                        :selected-layer-index (ui/bind-state :selected-layer-index)
                                        :selected-layer-label (ui/bind-state :selected-layer-label)
                                        :layers (ui/bind-state :layers)
@@ -220,6 +227,11 @@
                                        :selected-image-resource (ui/bind-state :selected-image-resource)}}}]})]
   :on {:palette/select (fn [state event ctx]
                          (assoc state :selected-tile (:payload event)))
+       :palette/brush-select (fn [state event ctx]
+                               (assoc state :selected-brush-index
+                                      (:payload event)))
+       :palette/tab-select (fn [state event ctx]
+                             (assoc state :map-palette-tab (:payload event)))
        :tab-panel/change (fn [state event ctx]
                            (assoc state :workspace-tab (-> event :payload :tab)))
        :layer/name-dialog-result (fn [state event ctx]

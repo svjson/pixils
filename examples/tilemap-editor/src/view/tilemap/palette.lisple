@@ -4,7 +4,9 @@
             [pixils.ui :as ui]
             [pixils.ui.header-panel :as hp]
             [pixils.ui.list-box :as lb]
+            [pixils.ui.tab-panel :as tabs]
             [tilemap-editor.model.data :as data]
+            [tilemap-editor.view.brushes.model :as brush-model]
             [tilemap-editor.view.tilemap.renderer :as tr]))
 
 
@@ -148,8 +150,136 @@
    :children [(merge {:id "list-box"}
                      (tile-palette-list-box-child [] nil true))]})
 
+(defcomponent brush-palette-row
+  {:extend 'ui/list-box-item
+   :style {:width :fill
+           :height tile-palette-row-height
+           :padding [4 6]
+           :layout {:direction :row
+                    :align-items :center
+                    :gap 6}}
+   :update (fn [state ctx]
+             (assoc state
+                    :selected (contains? (:selected-indices state)
+                                         (:index state))
+                    :name (or (:label state) "")))
+   :on-mouse-down (fn [state event ctx]
+                    (do
+                      (ui/stop-propagation! event)
+                      state))
+   :on-mouse-up (fn [state event ctx]
+                  (do
+                    (ui/stop-propagation! event)
+                    (ui/emit! (:view ctx)
+                              :list-box/item-click
+                              {:index (:index state)
+                               :value (:value state)
+                               :shift? false
+                               :ctrl? false})
+                    state))
+   :children [{:mode 'ui/text
+               :state {:value (ui/bind-state :name)}}]})
+
+(defun brush-palette-row-child [index option]
+  {:mode 'brush-palette-row
+   :state {:index index
+           :value (:value option)
+           :label (:label option)
+           :selected-indices (ui/bind-state :selected-indices)}})
+
+(defun selected-brush-indices [state]
+  (if (:disabled? state)
+    []
+    (brush-model/selected-brush-indices (:brushes state)
+                                        (:selected-brush-index state))))
+
+(defun brush-palette-list-box-child [brushes disabled? selected-index]
+  (let [options (brush-model/brush-options brushes)]
+    (lb/make {:options options
+              :style {:width :fill
+                      :height :fill}
+              :row-height tile-palette-row-height
+              :visible-rows (count options)
+              :content-width tile-palette-content-width
+              :disabled? (if (or disabled? (empty? options))
+                            true
+                            false)
+              :selected-indices (if disabled?
+                                  []
+                                  (brush-model/selected-brush-indices
+                                   brushes
+                                   selected-index))
+              :force-selection? true
+              :item-child brush-palette-row-child})))
+
+(defcomponent brush-palette-list
+  {:style {:width :fill
+           :height :fill}
+   :init (fn [state ctx]
+           (assoc state
+                  :rendered-brushes nil
+                  :rendered-selected-brush-index nil
+                  :rendered-disabled? nil
+                  :selected-indices (selected-brush-indices state)))
+   :update (fn [state ctx]
+             (let [brushes (or (:brushes state) [])
+                   selected-index (:selected-brush-index state)
+                   disabled? (:disabled? state)]
+               (do
+                 (when (or (not= brushes (:rendered-brushes state))
+                           (not= selected-index
+                                 (:rendered-selected-brush-index state))
+                           (not= disabled? (:rendered-disabled? state)))
+                   (ui/replace-child!
+                    (:view ctx)
+                    "brush-list-box"
+                    (merge {:id "brush-list-box"}
+                           (brush-palette-list-box-child brushes
+                                                         disabled?
+                                                         selected-index))))
+                 (assoc state
+                        :rendered-brushes brushes
+                        :rendered-selected-brush-index selected-index
+                        :rendered-disabled? disabled?
+                        :selected-indices (selected-brush-indices state)))))
+   :children [(merge {:id "brush-list-box"}
+                     (brush-palette-list-box-child [] true nil))]})
+
+(defcomponent tile-palette-tabs
+  {:style {:width :fill
+           :height :fill}
+   :children [(tabs/make
+               {:selected-tab (ui/bind-state :map-palette-tab)
+                :style {:width :fill
+                        :height :fill}
+                :state {:selected-tile (ui/bind-state :selected-tile)
+                        :tilesets (ui/bind-state :tilesets)
+                        :selected-layer-index (ui/bind-state :selected-layer-index)
+                        :layers (ui/bind-state :layers)
+                        :brushes (ui/bind-state :brushes)
+                        :selected-brush-index
+                        (ui/bind-state :selected-brush-index)
+                        :disabled? (ui/bind-state :disabled?)}
+                :tabs [{:id :tiles
+                        :label "Tile"
+                        :child {:mode 'tile-palette-list
+                                :state {:selected-tile
+                                        (ui/bind-state :selected-tile)
+                                        :tilesets (ui/bind-state :tilesets)
+                                        :selected-layer-index
+                                        (ui/bind-state :selected-layer-index)
+                                        :layers (ui/bind-state :layers)
+                                        :disabled? (ui/bind-state :disabled?)}}}
+                       {:id :brushes
+                        :label "Brush"
+                        :child {:mode 'brush-palette-list
+                                :state {:brushes (ui/bind-state :brushes)
+                                        :selected-brush-index
+                                        (ui/bind-state :selected-brush-index)
+                                        :disabled? (ui/bind-state :disabled?)}}}]})]})
+
 (defun make-tile-palette []
-  (hp/make {:title "Tiles"
+  (hp/make {:title "Palette"
             :style {:width :fill
                     :height 176}
             :body-style {:padding 8
@@ -159,11 +289,17 @@
                     :tilesets (ui/bind-state :tilesets)
                     :selected-layer-index (ui/bind-state :selected-layer-index)
                     :layers (ui/bind-state :layers)
+                    :brushes (ui/bind-state :brushes)
+                    :selected-brush-index (ui/bind-state :selected-brush-index)
+                    :map-palette-tab (ui/bind-state :map-palette-tab)
                     :disabled? (ui/bind-state :map-layer-panel-disabled?)}
             :body-state {:selected-tile (ui/bind-state :selected-tile)
                          :tilesets (ui/bind-state :tilesets)
                          :selected-layer-index (ui/bind-state :selected-layer-index)
                          :layers (ui/bind-state :layers)
+                         :brushes (ui/bind-state :brushes)
+                         :selected-brush-index (ui/bind-state :selected-brush-index)
+                         :map-palette-tab (ui/bind-state :map-palette-tab)
                          :disabled? (ui/bind-state :map-layer-panel-disabled?)}
             :update (fn [state ctx]
                       (assoc state
@@ -173,13 +309,32 @@
                                     (do
                                       (ui/stop-propagation! event)
                                       (when (not (:disabled? state))
-                                        (ui/emit! (:view ctx)
-                                                  :palette/select
-                                                  (-> event :payload :value)))
-                                      state))}
-            :children [{:mode 'tile-palette-list
+                                        (if (= (:map-palette-tab state)
+                                               :brushes)
+                                          (ui/emit! (:view ctx)
+                                                    :palette/brush-select
+                                                    (-> event :payload :value))
+                                          (ui/emit! (:view ctx)
+                                                    :palette/select
+                                                    (-> event :payload :value))))
+                                      state))
+                  :tab-panel/change (fn [state event ctx]
+                                      (let [tab (-> event :payload :tab)]
+                                        (do
+                                          (ui/stop-propagation! event)
+                                          (ui/emit! (:view ctx)
+                                                    :palette/tab-select
+                                                    tab)
+                                          (assoc state :map-palette-tab tab))))}
+            :children [{:mode 'tile-palette-tabs
                         :state {:selected-tile (ui/bind-state :selected-tile)
                                 :tilesets (ui/bind-state :tilesets)
-                                :selected-layer-index (ui/bind-state :selected-layer-index)
+                                :selected-layer-index
+                                (ui/bind-state :selected-layer-index)
                                 :layers (ui/bind-state :layers)
+                                :brushes (ui/bind-state :brushes)
+                                :selected-brush-index
+                                (ui/bind-state :selected-brush-index)
+                                :map-palette-tab
+                                (ui/bind-state :map-palette-tab)
                                 :disabled? (ui/bind-state :disabled?)}}]}))

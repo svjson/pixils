@@ -1,8 +1,68 @@
 (ns tilemap-editor.model.tilemap-test
   (:require proof.core
+            [tilemap-editor.model.data :as data]
             [tilemap-editor.model.tilemap :as tilemap]))
 
 (deftest tilemap-clamp-bounds-values
   (is (= 0 (tilemap/clamp -4 0 10)))
   (is (= 7 (tilemap/clamp 7 0 10)))
   (is (= 10 (tilemap/clamp 18 0 10))))
+
+(defun pattern-brush []
+  {:id :stamp
+   :label "Stamp"
+   :kind :pattern
+   :pattern {:size {:w 3 :h 3}
+             :anchor {:x 1 :y 1}
+             :layers [{:id :terrain
+                       :tileset :terrain
+                       :tiles [[nil :grass nil]
+                               [:water :grass nil]
+                               [nil nil :rock]]}
+                      {:id :props
+                       :tileset :props
+                       :tiles [[:crate nil nil]
+                               [nil nil nil]
+                               [nil nil nil]]}]}})
+
+(defun brush-paint-state []
+  {:selected-layer-index 0
+   :map-palette-tab :brushes
+   :selected-brush-index 0
+   :zoom 1
+   :offset {:x 0 :y 0}
+   :layers [{:id :ground
+             :label "Ground"
+             :tileset :terrain
+             :tiles (data/make-empty-map)}]
+   :brushes [(pattern-brush)]})
+
+(defun paint-event [button x y]
+  {:button button
+   :position {:x (* x data/tile-size)
+              :y (* y data/tile-size)}})
+
+(deftest tilemap-paint-stamps_selected_pattern_brush
+  (let [state (tilemap/paint-map-at (brush-paint-state)
+                                    (paint-event :left 5 6))]
+    (is (= :grass (get-in state [:layers 0 :tiles 5 5])))
+    (is (= :water (get-in state [:layers 0 :tiles 6 4])))
+    (is (= :grass (get-in state [:layers 0 :tiles 6 5])))
+    (is (= :rock (get-in state [:layers 0 :tiles 7 6])))
+    (is (nil? (get-in state [:layers 0 :tiles 5 4])))))
+
+(deftest tilemap-paint-ignores_brush_layers_for_other_tilesets
+  (let [state (tilemap/paint-map-at (brush-paint-state)
+                                    (paint-event :left 5 6))]
+    (is (nil? (get-in state [:layers 0 :tiles 5 4])))))
+
+(deftest tilemap-right_paint-clears_pattern_footprint
+  (let [state (assoc-in (brush-paint-state)
+                        [:layers 0 :tiles 5 5]
+                        :grass)
+        state (assoc-in state [:layers 0 :tiles 6 4] :water)
+        state (assoc-in state [:layers 0 :tiles 7 6] :rock)
+        state (tilemap/paint-map-at state (paint-event :right 5 6))]
+    (is (nil? (get-in state [:layers 0 :tiles 5 5])))
+    (is (nil? (get-in state [:layers 0 :tiles 6 4])))
+    (is (nil? (get-in state [:layers 0 :tiles 7 6])))))

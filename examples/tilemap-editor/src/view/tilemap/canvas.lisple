@@ -19,6 +19,7 @@
    :init (fn [state ctx]
            (merge {:offset {:x 0 :y 0}
                    :tilesets []
+                   :brushes []
                    :layers []}
                   state))
    :update (fn [state ctx]
@@ -59,6 +60,10 @@
    :children [{:mode 'map-canvas
                :state {:selected-tile (ui/bind-state :selected-tile)
                        :tilesets (ui/bind-state :tilesets)
+                       :brushes (ui/bind-state :brushes)
+                       :selected-brush-index
+                       (ui/bind-state :selected-brush-index)
+                       :map-palette-tab (ui/bind-state :map-palette-tab)
                        :selected-layer-index (ui/bind-state :selected-layer-index)
                        :selected-layer-label (ui/bind-state :selected-layer-label)
                        :layers (ui/bind-state :layers)
@@ -110,6 +115,10 @@
    :children [{:mode 'map-scroll-row
                :state {:selected-tile (ui/bind-state :selected-tile)
                        :tilesets (ui/bind-state :tilesets)
+                       :brushes (ui/bind-state :brushes)
+                       :selected-brush-index
+                       (ui/bind-state :selected-brush-index)
+                       :map-palette-tab (ui/bind-state :map-palette-tab)
                        :selected-layer-index (ui/bind-state :selected-layer-index)
                        :selected-layer-label (ui/bind-state :selected-layer-label)
                        :layers (ui/bind-state :layers)

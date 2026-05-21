@@ -29,12 +29,174 @@
     (assoc state :offset {:x (clamp (:x offset) 0 (max-scroll-x state ctx))
                           :y (clamp (:y offset) 0 (max-scroll-y state ctx))})))
 
-(defun paint-map-at [state event]
+(defun selected-index [items index]
+  (let [items (or items [])]
+    (if (empty? items)
+      nil
+      (min (or index 0) (dec (count items))))))
+
+(defun selected-brush [brushes index]
+  (if-let [selected (selected-index brushes index)]
+    (nth brushes selected)
+    nil))
+
+(defun selected-layer [layers index]
+  (if-let [selected (selected-index layers index)]
+    (nth layers selected)
+    nil))
+
+(defun pattern-width [brush]
+  (or (-> brush :pattern :size :w) 1))
+
+(defun pattern-height [brush]
+  (or (-> brush :pattern :size :h) 1))
+
+(defun pattern-anchor [brush]
+  (let [anchor (or (-> brush :pattern :anchor) {:x 0 :y 0})
+        width (pattern-width brush)
+        height (pattern-height brush)]
+    {:x (clamp (or (:x anchor) 0) 0 (dec width))
+     :y (clamp (or (:y anchor) 0) 0 (dec height))}))
+
+(defun in-map-bounds? [x y]
+  (and (>= x 0)
+       (< x data/map-width)
+       (>= y 0)
+       (< y data/map-height)))
+
+(defun map-tile-position [state event]
   (let [offset (or (:offset state) {:x 0 :y 0})
         pos (:position event)
-        size (scaled-tile-size (:zoom state))
-        tile-x (int (/ (+ (:x pos) (:x offset)) size))
-        tile-y (int (/ (+ (:y pos) (:y offset)) size))
+        size (scaled-tile-size (:zoom state))]
+    {:x (int (/ (+ (:x pos) (:x offset)) size))
+     :y (int (/ (+ (:y pos) (:y offset)) size))}))
+
+(defun set-map-tile [state layer-index x y tile-ref]
+  (if (in-map-bounds? x y)
+    (assoc-in state [:layers layer-index :tiles y x] tile-ref)
+    state))
+
+(defun stamp-pattern-cell [state layer-index target-x target-y anchor cell]
+  (let [tile-ref (:tile-ref cell)
+        map-x (+ (- target-x (:x anchor)) (:x cell))
+        map-y (+ (- target-y (:y anchor)) (:y cell))]
+    (if (and (not (nil? tile-ref))
+             (in-map-bounds? map-x map-y))
+      (set-map-tile state layer-index map-x map-y tile-ref)
+      state)))
+
+(defun stamp-pattern-row [state layer-index target-x target-y anchor row]
+  (reduce (for-indexed [x tile-ref (or (:tiles row) [])]
+            {:x x
+             :y (:y row)
+             :tile-ref tile-ref})
+          state
+          (fn [out cell]
+            (stamp-pattern-cell out
+                                layer-index
+                                target-x
+                                target-y
+                                anchor
+                                cell))))
+
+(defun stamp-pattern-layer [state layer-index map-tileset target-x target-y brush layer]
+  (if (= (:tileset layer) map-tileset)
+    (let [anchor (pattern-anchor brush)]
+      (reduce (for-indexed [y row (or (:tiles layer) [])]
+                {:y y
+                 :tiles row})
+              state
+              (fn [out row]
+                (stamp-pattern-row out
+                                   layer-index
+                                   target-x
+                                   target-y
+                                   anchor
+                                   row))))
+    state))
+
+(defun stamp-pattern-brush [state layer-index target-x target-y brush]
+  (let [layer (selected-layer (:layers state) layer-index)
+        map-tileset (:tileset layer)]
+    (if (and brush
+             (= (:kind brush) :pattern)
+             map-tileset)
+      (reduce (or (-> brush :pattern :layers) [])
+              state
+              (fn [out pattern-layer]
+                (stamp-pattern-layer out
+                                     layer-index
+                                     map-tileset
+                                     target-x
+                                     target-y
+                                     brush
+                                     pattern-layer)))
+      state)))
+
+(defun pattern-brush-has-tileset? [brush tileset]
+  (> (count (filter (or (-> brush :pattern :layers) [])
+                    (fn [layer]
+                      (= (:tileset layer) tileset))))
+     0))
+
+(defun clear-pattern-footprint-row [state layer-index target-x target-y anchor y width]
+  (reduce (range 0 (dec width))
+          state
+          (fn [out x]
+            (set-map-tile out
+                          layer-index
+                          (+ (- target-x (:x anchor)) x)
+                          (+ (- target-y (:y anchor)) y)
+                          nil))))
+
+(defun clear-pattern-footprint [state layer-index target-x target-y brush]
+  (let [layer (selected-layer (:layers state) layer-index)
+        map-tileset (:tileset layer)]
+    (if (and brush
+             (= (:kind brush) :pattern)
+             (pattern-brush-has-tileset? brush map-tileset))
+      (let [anchor (pattern-anchor brush)
+            width (pattern-width brush)
+            height (pattern-height brush)]
+        (reduce (range 0 (dec height))
+                state
+                (fn [out y]
+                  (clear-pattern-footprint-row out
+                                               layer-index
+                                               target-x
+                                               target-y
+                                               anchor
+                                               y
+                                               width))))
+      state)))
+
+(defun paint-tile-at [state layer-index tile-x tile-y event]
+  (cond
+    (= (:button event) :left)
+    (set-map-tile state layer-index tile-x tile-y (:selected-tile state))
+
+    (= (:button event) :right)
+    (set-map-tile state layer-index tile-x tile-y nil)
+
+    :default
+    state))
+
+(defun paint-brush-at [state layer-index tile-x tile-y event]
+  (let [brush (selected-brush (:brushes state) (:selected-brush-index state))]
+    (cond
+      (= (:button event) :left)
+      (stamp-pattern-brush state layer-index tile-x tile-y brush)
+
+      (= (:button event) :right)
+      (clear-pattern-footprint state layer-index tile-x tile-y brush)
+
+      :default
+      state)))
+
+(defun paint-map-at [state event]
+  (let [tile-pos (map-tile-position state event)
+        tile-x (:x tile-pos)
+        tile-y (:y tile-pos)
         layer-index (or (:selected-layer-index state) 0)
         layers (or (:layers state) [])]
     (if (and (>= tile-x 0)
@@ -43,15 +205,7 @@
              (< tile-y data/map-height)
              (> (count layers) 0)
              (< layer-index (count layers)))
-      (cond
-        (= (:button event) :left)
-        (assoc-in state
-                  [:layers layer-index :tiles tile-y tile-x]
-                  (:selected-tile state))
-
-        (= (:button event) :right)
-        (assoc-in state [:layers layer-index :tiles tile-y tile-x] nil)
-
-        :default
-        state)
+      (if (= (:map-palette-tab state) :brushes)
+        (paint-brush-at state layer-index tile-x tile-y event)
+        (paint-tile-at state layer-index tile-x tile-y event))
       state)))
