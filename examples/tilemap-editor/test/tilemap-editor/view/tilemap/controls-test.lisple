@@ -29,6 +29,12 @@
   (let [panel (controls/make-layer-controls)]
     (is (= "+" (get-in panel [:children 0 :children 1 :state :label])))))
 
+(deftest layer-type-options-show_disabled_terrain_without_sets
+  (let [options (controls/layer-data-kind-options-for [])]
+    (is (= "Tile layer" (get-in options [0 :label])))
+    (is (= "Terrain layer" (get-in options [1 :label])))
+    (is (= true (get-in options [1 :disabled?])))))
+
 (deftest append-layer-adds_blank_tile_layer_and_selects_it
   (let [state (controls/append-layer
                {:layers []
@@ -44,6 +50,24 @@
     (is (= data/map-height (count (get-in state [:layers 0 :tiles]))))
     (is (= data/map-width (count (get-in state [:layers 0 :tiles 0]))))))
 
+(deftest append-layer-adds_blank_terrain_layer_when_requested
+  (let [state (controls/append-layer
+               {:layers []
+                :terrain-sets [{:id :overworld
+                                :label "Overworld"}]}
+               {:name "Terrain"
+                :data-kind :terrain
+                :terrain-set-index 0})]
+    (is (= 0 (:selected-layer-index state)))
+    (is (= "Terrain" (:selected-layer-label state)))
+    (is (= :scene/terrain (get-in state [:layers 0 :id])))
+    (is (= :source (get-in state [:layers 0 :role])))
+    (is (= :terrain (get-in state [:layers 0 :data-kind])))
+    (is (= :overworld (get-in state [:layers 0 :terrain-set])))
+    (is (nil? (get-in state [:layers 0 :tileset])))
+    (is (= data/map-height (count (get-in state [:layers 0 :tiles]))))
+    (is (= data/map-width (count (get-in state [:layers 0 :tiles 0]))))))
+
 (deftest layer-add-dialog-result-appends_unique_layer
   (let [state (controls/apply-layer-name-dialog-result
                {:layers [{:id :scene/layer
@@ -54,6 +78,19 @@
     (is (= "Layer 2" (get-in state [:layers 1 :label])))
     (is (= :scene/layer-2 (get-in state [:layers 1 :id])))
     (is (= 1 (:selected-layer-index state)))))
+
+(deftest layer-add-dialog-result-appends_terrain_layer
+  (let [state (controls/apply-layer-name-dialog-result
+               {:layers []
+                :terrain-sets [{:id :overworld
+                                :label "Overworld"}]}
+               {:type :confirm
+                :operation :add
+                :name "Terrain"
+                :data-kind :terrain
+                :terrain-set-index 0})]
+    (is (= :terrain (get-in state [:layers 0 :data-kind])))
+    (is (= :overworld (get-in state [:layers 0 :terrain-set])))))
 
 (deftest append-layer-deduplicates_layer_ids
   (let [state (controls/append-layer

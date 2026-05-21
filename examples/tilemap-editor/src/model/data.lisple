@@ -105,6 +105,22 @@
       (str "Selected: " (:name tile) " (" (:type tile) ")")
       "")))
 
+(defun terrain-set-options [terrain-sets]
+  (for-indexed [index terrain-set (or terrain-sets [])]
+    {:value index
+     :label (or (:label terrain-set) (:name terrain-set) (str (:id terrain-set)))}))
+
+(defun terrain-set-key [terrain-sets index]
+  (let [items (or terrain-sets [])]
+    (when (> (count items) 0)
+      (:id (nth items (or index 0))))))
+
+(defun terrain-set-index [terrain-sets terrain-set]
+  (let [match (find-index (or terrain-sets [])
+                          (fn [item]
+                            (= (:id item) terrain-set)))]
+    (or match 0)))
+
 (defun terrain-set-definition [terrain-sets terrain-set]
   (head (filter (or terrain-sets [])
                 (fn [item]
