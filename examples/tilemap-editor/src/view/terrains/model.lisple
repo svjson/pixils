@@ -49,6 +49,12 @@
                       (= (:id item) id))))
      0))
 
+(defun keyword-label [value]
+  (let [text (str value)]
+    (if (= ":" (substr text 0 1))
+      (substr text 1)
+      text)))
+
 (defun unique-id-from [items root suffix]
   (let [candidate (if suffix
                     (str root "-" suffix)
@@ -59,6 +65,30 @@
                       root
                       (if suffix (inc suffix) 2))
       id)))
+
+(defun unique-id-from-except [items root exclude-index suffix]
+  (let [candidate (if suffix
+                    (str root "-" suffix)
+                    root)
+        id (keyword candidate)
+        exists? (> (count (filter (for-indexed [index item (or items [])]
+                                    {:index index
+                                     :id (:id item)})
+                                  (fn [entry]
+                                    (and (= (:id entry) id)
+                                         (not= (:index entry)
+                                               exclude-index)))))
+                   0)]
+    (if exists?
+      (unique-id-from-except items
+                             root
+                             exclude-index
+                             (if suffix (inc suffix) 2))
+      id)))
+
+(defun id-from-input [items value exclude-index]
+  (when (not (blank? value))
+    (unique-id-from-except items (kebab-case value) exclude-index nil)))
 
 (defun unique-terrain-set-id [terrain-sets]
   (unique-id-from terrain-sets "terrain-set" nil))
@@ -140,6 +170,184 @@
 (defun set-selected-terrain-label [state label]
   (if-let [path (selected-terrain-path state)]
     (assoc-in state (concat path [:label]) label)
+    state))
+
+(defun replace-terrain-set-reference [value old-id new-id]
+  (case (type-of value)
+    "vector" (map value
+                  (fn [item]
+                    (replace-terrain-set-reference item old-id new-id)))
+    "map" (reduce-kv value
+                     {}
+                     (fn [result key item]
+                       (assoc result
+                              key
+                              (replace-terrain-set-reference
+                               (if (and (= key :terrain-set)
+                                        (= item old-id))
+                                 new-id
+                                 item)
+                               old-id
+                               new-id))))
+    :default value))
+
+(defun rename-terrain-set-references [state old-id new-id]
+  (assoc state
+         :layers (replace-terrain-set-reference (:layers state) old-id new-id)
+         :layer-profiles (replace-terrain-set-reference (:layer-profiles state)
+                                                        old-id
+                                                        new-id)
+         :brushes (replace-terrain-set-reference (:brushes state) old-id new-id)
+         :rulesets (replace-terrain-set-reference (:rulesets state)
+                                                  old-id
+                                                  new-id)))
+
+(defun set-selected-terrain-set-id [state value]
+  (if-let [set-index (selected-terrain-set-index (:terrain-sets state)
+                                                 (:selected-terrain-set-index state))]
+    (let [terrain-sets (or (:terrain-sets state) [])
+          old-id (get-in state [:terrain-sets set-index :id])]
+      (if-let [new-id (id-from-input terrain-sets value set-index)]
+        (let [next-state (assoc-in state [:terrain-sets set-index :id] new-id)]
+          (rename-terrain-set-references next-state old-id new-id))
+        state))
+    state))
+
+(defun replace-terrain-ref [value old-id new-id]
+  (if (= value old-id) new-id value))
+
+(defun replace-terrain-refs-in-tiles [tiles old-id new-id]
+  (map (or tiles [])
+       (fn [row]
+         (map (or row [])
+              (fn [cell]
+                (replace-terrain-ref cell old-id new-id))))))
+
+(defun replace-terrain-refs-in-layer [layer terrain-set old-id new-id]
+  (if (and (= (:data-kind layer) :terrain)
+           (= (:terrain-set layer) terrain-set))
+    (assoc layer :tiles (replace-terrain-refs-in-tiles (:tiles layer)
+                                                       old-id
+                                                       new-id))
+    layer))
+
+(defun replace-terrain-refs-in-layers [layers terrain-set old-id new-id]
+  (map (or layers [])
+       (fn [layer]
+         (replace-terrain-refs-in-layer layer terrain-set old-id new-id))))
+
+(defun replace-terrain-refs-in-brush-value [value terrain-set old-id new-id]
+  (case (type-of value)
+    "vector" (map value
+                  (fn [item]
+                    (replace-terrain-refs-in-brush-value item
+                                                         terrain-set
+                                                         old-id
+                                                         new-id)))
+    "map" (let [value (if (and (= (:data-kind value) :terrain)
+                               (= (:terrain-set value) terrain-set)
+                               (:tiles value))
+                        (assoc value :tiles (replace-terrain-refs-in-tiles
+                                             (:tiles value)
+                                             old-id
+                                             new-id))
+                        value)]
+            (reduce-kv value
+                       {}
+                       (fn [result key item]
+                         (assoc result
+                                key
+                                (replace-terrain-refs-in-brush-value item
+                                                                     terrain-set
+                                                                     old-id
+                                                                     new-id)))))
+    :default value))
+
+(defun terrain-source-layer-id? [layer terrain-set]
+  (and (= (:data-kind layer) :terrain)
+       (= (:terrain-set layer) terrain-set)
+       (:id layer)))
+
+(defun terrain-source-layer-ids-in [layers terrain-set]
+  (map (filter (or layers [])
+               (fn [layer]
+                 (terrain-source-layer-id? layer terrain-set)))
+       :id))
+
+(defun terrain-source-layer-ids [state terrain-set]
+  (concat (terrain-source-layer-ids-in (:layers state) terrain-set)
+          (apply concat
+                 (map (or (:layer-profiles state) [])
+                      (fn [profile]
+                        (terrain-source-layer-ids-in (:layers profile)
+                                                     terrain-set))))))
+
+(defun ruleset-source-layer-matches? [ruleset source-layer-ids]
+  (or (contains? source-layer-ids (:source-layer ruleset))
+      (> (count (filter (or (:source-layers ruleset) [])
+                        (fn [source-layer]
+                          (contains? source-layer-ids source-layer))))
+         0)))
+
+(defun replace-terrain-rule-reference [value old-id new-id]
+  (case (type-of value)
+    "vector" (map value
+                  (fn [item]
+                    (replace-terrain-rule-reference item old-id new-id)))
+    "map" (reduce-kv value
+                     {}
+                     (fn [result key item]
+                       (assoc result
+                              key
+                              (replace-terrain-rule-reference
+                               (if (and (= key :terrain)
+                                        (= item old-id))
+                                 new-id
+                                 item)
+                               old-id
+                               new-id))))
+    :default value))
+
+(defun replace-terrain-refs-in-rulesets [rulesets source-layer-ids old-id new-id]
+  (map (or rulesets [])
+       (fn [ruleset]
+         (if (ruleset-source-layer-matches? ruleset source-layer-ids)
+           (replace-terrain-rule-reference ruleset old-id new-id)
+           ruleset))))
+
+(defun rename-terrain-references [state terrain-set old-id new-id]
+  (let [source-layer-ids (terrain-source-layer-ids state terrain-set)]
+    (assoc state
+           :layers (replace-terrain-refs-in-layers (:layers state)
+                                                   terrain-set
+                                                   old-id
+                                                   new-id)
+           :brushes (replace-terrain-refs-in-brush-value (:brushes state)
+                                                         terrain-set
+                                                         old-id
+                                                         new-id)
+           :rulesets (replace-terrain-refs-in-rulesets (:rulesets state)
+                                                       source-layer-ids
+                                                       old-id
+                                                       new-id))))
+
+(defun set-selected-terrain-id [state value]
+  (if-let [set-index (selected-terrain-set-index (:terrain-sets state)
+                                                 (:selected-terrain-set-index state))]
+    (let [terrain-set (nth (:terrain-sets state) set-index)]
+      (if-let [terrain-index (selected-terrain-index
+                              terrain-set
+                              (:selected-terrain-index state))]
+        (let [terrains (or (:terrains terrain-set) [])
+              old-id (get-in state [:terrain-sets set-index :terrains terrain-index :id])
+              terrain-set-id (:id terrain-set)]
+          (if-let [new-id (id-from-input terrains value terrain-index)]
+            (let [next-state (assoc-in state
+                                       [:terrain-sets set-index :terrains terrain-index :id]
+                                       new-id)]
+              (rename-terrain-references next-state terrain-set-id old-id new-id))
+            state))
+        state))
     state))
 
 (defun terrain-tile-valid? [tilesets tileset tile]

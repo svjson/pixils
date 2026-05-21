@@ -5,6 +5,7 @@
             [pixils.ui.combo-box :as cb]
             [pixils.ui.header-panel :as hp]
             [pixils.ui.list-box :as lb]
+            [pixils.ui.tab-panel :as tabs]
             pixils.ui.text-input
             [tilemap-editor.model.data :as data]
             [tilemap-editor.view.tilemap.renderer :as tr]
@@ -152,7 +153,7 @@
 
 (defun make-terrain-set-list-panel []
   (hp/make {:title "Terrain Sets"
-            :style {:width 260
+            :style {:width :fill
                     :height :fill}
             :header-style {:layout {:direction :row
                                     :align-items :center
@@ -180,7 +181,7 @@
 
 (defun make-terrain-list-panel []
   (hp/make {:title "Terrains"
-            :style {:width 260
+            :style {:width :fill
                     :height :fill}
             :header-style {:layout {:direction :row
                                     :align-items :center
@@ -325,31 +326,15 @@
                         (ui/bind-state :selected-preview-tile-index)
                         :disabled? (ui/bind-state :disabled?)})]})
 
-(defcomponent terrain-detail-editor
+(defcomponent terrain-set-detail-editor
   {:style {:width :fill
            :height :fill
            :layout {:direction :column
                     :gap 8}}
-   :update (fn [state ctx]
-             (let [terrain-set (model/selected-terrain-set
-                                (:terrain-sets state)
-                                (:selected-terrain-set-index state))
-                   terrain (model/selected-terrain terrain-set
-                                                   (:selected-terrain-index state))]
-               (assoc state
-                      :terrain-set terrain-set
-                      :terrain terrain
-                      :set-disabled? (nil? terrain-set)
-                      :terrain-disabled? (nil? terrain)
-                      :set-label (or (:label terrain-set) "")
-                      :terrain-id (if terrain (str (:id terrain)) "")
-                      :terrain-label (or (:label terrain) (:name terrain) "")
-                      :preview-tile (terrain-preview-tile (:tilesets state)
-                                                          terrain-set
-                                                          terrain))))
-   :children [{:mode 'ui/text
-               :class :ui/title
-               :state {:value "Terrain Set"}}
+   :children [(terrain-edit-field-child :set-id
+                                        "Id"
+                                        (ui/bind-state :set-id)
+                                        (ui/bind-state :set-disabled?))
               (terrain-edit-field-child :set-label
                                         "Name"
                                         (ui/bind-state :set-label)
@@ -361,19 +346,23 @@
                :state {:terrain-sets (ui/bind-state :terrain-sets)
                        :selected-terrain-set-index
                        (ui/bind-state :selected-terrain-set-index)
-                       :tilesets (ui/bind-state :tilesets)}}
-              {:mode 'ui/text
-               :class :ui/title
-               :state {:value "Terrain"}}
-              {:mode 'terrain-preview
+                       :tilesets (ui/bind-state :tilesets)}}]})
+
+(defcomponent terrain-value-detail-editor
+  {:style {:width :fill
+           :height :fill
+           :layout {:direction :column
+                    :gap 8}}
+   :children [{:mode 'terrain-preview
                :state {:tile (ui/bind-state :preview-tile)}}
+              (terrain-edit-field-child :terrain-id
+                                        "Id"
+                                        (ui/bind-state :terrain-id)
+                                        (ui/bind-state :terrain-disabled?))
               (terrain-edit-field-child :terrain-label
                                         "Name"
                                         (ui/bind-state :terrain-label)
                                         (ui/bind-state :terrain-disabled?))
-              {:mode 'ui/text
-               :class :ui/muted
-               :state {:value (ui/bind-state :terrain-id)}}
               {:mode 'ui/text
                :class :ui/muted
                :state {:value "Preview tile"}}
@@ -384,6 +373,90 @@
                        :selected-terrain-index
                        (ui/bind-state :selected-terrain-index)
                        :tilesets (ui/bind-state :tilesets)}}]})
+
+(defcomponent terrain-detail-editor
+  {:style {:width :fill
+           :height :fill}
+   :update (fn [state ctx]
+             (let [terrain-set (model/selected-terrain-set
+                                (:terrain-sets state)
+                                (:selected-terrain-set-index state))
+                   terrain (model/selected-terrain terrain-set
+                                                   (:selected-terrain-index state))]
+               (assoc state
+                      :terrain-set terrain-set
+                      :terrain terrain
+                      :set-disabled? (nil? terrain-set)
+                      :terrain-disabled? (nil? terrain)
+                      :set-id (if terrain-set
+                                (model/keyword-label (:id terrain-set))
+                                "")
+                      :set-label (or (:label terrain-set) "")
+                      :terrain-id (if terrain
+                                    (model/keyword-label (:id terrain))
+                                    "")
+                      :terrain-label (or (:label terrain) (:name terrain) "")
+                      :preview-tile (terrain-preview-tile (:tilesets state)
+                                                          terrain-set
+                                                          terrain))))
+   :on {:tab-panel/change (fn [state event ctx]
+                            (do
+                              (ui/stop-propagation! event)
+                              (assoc state
+                                     :terrain-detail-tab
+                                     (-> event :payload :tab))))}
+   :children [(tabs/make
+               {:selected-tab (ui/bind-state :terrain-detail-tab)
+                :style {:width :fill
+                        :height :fill}
+                :state {:terrain-sets (ui/bind-state :terrain-sets)
+                        :tilesets (ui/bind-state :tilesets)
+                        :selected-terrain-set-index
+                        (ui/bind-state :selected-terrain-set-index)
+                        :selected-terrain-index
+                        (ui/bind-state :selected-terrain-index)
+                        :set-id (ui/bind-state :set-id)
+                        :set-label (ui/bind-state :set-label)
+                        :set-disabled? (ui/bind-state :set-disabled?)
+                        :terrain-id (ui/bind-state :terrain-id)
+                        :terrain-label (ui/bind-state :terrain-label)
+                        :terrain-disabled? (ui/bind-state :terrain-disabled?)
+                        :preview-tile (ui/bind-state :preview-tile)}
+                :tabs [{:id :terrain-set
+                        :label "Terrain Set"
+                        :child {:mode 'terrain-set-detail-editor
+                                :style {:padding 8}
+                                :state {:terrain-sets
+                                        (ui/bind-state :terrain-sets)
+                                        :tilesets (ui/bind-state :tilesets)
+                                        :selected-terrain-set-index
+                                        (ui/bind-state
+                                         :selected-terrain-set-index)
+                                        :set-id (ui/bind-state :set-id)
+                                        :set-label (ui/bind-state :set-label)
+                                        :set-disabled?
+                                        (ui/bind-state :set-disabled?)}}}
+                       {:id :terrain
+                        :label "Terrain"
+                        :child {:mode 'terrain-value-detail-editor
+                                :style {:padding 8}
+                                :state {:terrain-sets
+                                        (ui/bind-state :terrain-sets)
+                                        :tilesets (ui/bind-state :tilesets)
+                                        :selected-terrain-set-index
+                                        (ui/bind-state
+                                         :selected-terrain-set-index)
+                                        :selected-terrain-index
+                                        (ui/bind-state
+                                         :selected-terrain-index)
+                                        :terrain-id
+                                        (ui/bind-state :terrain-id)
+                                        :terrain-label
+                                        (ui/bind-state :terrain-label)
+                                        :terrain-disabled?
+                                        (ui/bind-state :terrain-disabled?)
+                                        :preview-tile
+                                        (ui/bind-state :preview-tile)}}}]})]})
 
 (defun make-terrain-detail-panel []
   (hp/make {:title "Terrain Definition"
@@ -412,6 +485,14 @@
                                 :selected-terrain-index
                                 (ui/bind-state :selected-terrain-index)}}]}))
 
+(defcomponent terrain-definition-selector-column
+  {:style {:width 300
+           :height :fill
+           :layout {:direction :column
+                    :gap 8}}
+   :children [(make-terrain-set-list-panel)
+              (make-terrain-list-panel)]})
+
 (defcomponent terrain-definition-workspace
   {:style {:width :fill
            :height :fill
@@ -435,8 +516,14 @@
         (fn [state event ctx]
           (let [payload (:payload event)]
             (case (:field payload)
+              :set-id
+              (model/set-selected-terrain-set-id state (:value payload))
+
               :set-label
               (model/set-selected-terrain-set-label state (:value payload))
+
+              :terrain-id
+              (model/set-selected-terrain-id state (:value payload))
 
               :terrain-label
               (model/set-selected-terrain-label state (:value payload))
@@ -451,6 +538,12 @@
                                (model/set-selected-terrain-tile
                                 state
                                 (:payload event)))}
-   :children [(make-terrain-set-list-panel)
-              (make-terrain-list-panel)
+   :children [{:mode 'terrain-definition-selector-column
+               :state {:terrain-sets (ui/bind-state :terrain-sets)
+                       :selected-terrain-set-index
+                       (ui/bind-state :selected-terrain-set-index)
+                       :selected-terrain-index
+                       (ui/bind-state :selected-terrain-index)
+                       :terrain-list-panel-disabled?
+                       (ui/bind-state :terrain-list-panel-disabled?)}}
               (make-terrain-detail-panel)]})

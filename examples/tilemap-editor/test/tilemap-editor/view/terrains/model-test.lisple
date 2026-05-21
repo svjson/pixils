@@ -81,6 +81,95 @@
     (is (= "World" (get-in state [:terrain-sets 0 :label])))
     (is (= "Meadow" (get-in state [:terrain-sets 0 :terrains 0 :label])))))
 
+(deftest terrain-set-id-change-updates_project_references
+  (let [state (model/set-selected-terrain-set-id
+               {:terrain-sets [{:id :overworld
+                                :label "Overworld"
+                                :terrains [{:id :grass}]}]
+                :selected-terrain-set-index 0
+                :layers [{:id :scene/terrain
+                          :data-kind :terrain
+                          :terrain-set :overworld}]
+                :layer-profiles [{:id :default
+                                  :layers [{:id :scene/terrain
+                                            :data-kind :terrain
+                                            :terrain-set :overworld}]}]
+                :brushes [{:id :brush
+                           :pattern {:layers [{:data-kind :terrain
+                                               :terrain-set :overworld
+                                               :tiles [[:grass]]}]}}]
+                :rulesets [{:id :grass-marching
+                            :terrain-set :overworld}]}
+               "world")]
+    (is (= :world (get-in state [:terrain-sets 0 :id])))
+    (is (= :world (get-in state [:layers 0 :terrain-set])))
+    (is (= :world (get-in state [:layer-profiles 0 :layers 0 :terrain-set])))
+    (is (= :world (get-in state [:brushes 0 :pattern :layers 0 :terrain-set])))
+    (is (= :world (get-in state [:rulesets 0 :terrain-set])))))
+
+(deftest terrain-set-id-change-deduplicates_ids
+  (let [state (model/set-selected-terrain-set-id
+               {:terrain-sets [{:id :world}
+                               {:id :overworld}]
+                :selected-terrain-set-index 1}
+               "world")]
+    (is (= :world-2 (get-in state [:terrain-sets 1 :id])))))
+
+(deftest terrain-id-change-updates_project_references
+  (let [state (model/set-selected-terrain-id
+               {:terrain-sets [{:id :overworld
+                                :terrains [{:id :grass}]}]
+                :selected-terrain-set-index 0
+                :selected-terrain-index 0
+                :layers [{:id :scene/terrain
+                          :data-kind :terrain
+                          :terrain-set :overworld
+                          :tiles [[:grass nil]
+                                  [:water :grass]]}
+                         {:id :scene/other
+                          :data-kind :terrain
+                          :terrain-set :other
+                          :tiles [[:grass]]}]
+                :layer-profiles [{:id :default
+                                  :layers [{:id :scene/terrain
+                                            :data-kind :terrain
+                                            :terrain-set :overworld}]}]
+                :brushes [{:id :brush
+                           :pattern {:layers [{:data-kind :terrain
+                                               :terrain-set :overworld
+                                               :tiles [[:grass nil]]}
+                                              {:data-kind :terrain
+                                               :terrain-set :other
+                                               :tiles [[:grass]]}]}}]
+                :rulesets [{:id :grass-marching
+                            :source-layer :scene/terrain
+                            :terrain :grass}
+                           {:id :other-marching
+                            :source-layer :scene/other
+                            :terrain :grass}]}
+               "meadow")]
+    (is (= :meadow (get-in state [:terrain-sets 0 :terrains 0 :id])))
+    (is (= [[:meadow nil]
+            [:water :meadow]]
+           (get-in state [:layers 0 :tiles])))
+    (is (= [[:grass]] (get-in state [:layers 1 :tiles])))
+    (is (= [[:meadow nil]]
+           (get-in state [:brushes 0 :pattern :layers 0 :tiles])))
+    (is (= [[:grass]]
+           (get-in state [:brushes 0 :pattern :layers 1 :tiles])))
+    (is (= :meadow (get-in state [:rulesets 0 :terrain])))
+    (is (= :grass (get-in state [:rulesets 1 :terrain])))))
+
+(deftest terrain-id-change-deduplicates_ids
+  (let [state (model/set-selected-terrain-id
+               {:terrain-sets [{:id :overworld
+                                :terrains [{:id :meadow}
+                                           {:id :grass}]}]
+                :selected-terrain-set-index 0
+                :selected-terrain-index 1}
+               "meadow")]
+    (is (= :meadow-2 (get-in state [:terrain-sets 0 :terrains 1 :id])))))
+
 (deftest terrain-detail-preview_changes_update_selected_records
   (let [state {:terrain-sets [{:id :overworld
                                :tileset :old
