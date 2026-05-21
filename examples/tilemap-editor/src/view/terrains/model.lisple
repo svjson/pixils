@@ -1,4 +1,5 @@
-(ns tilemap-editor.view.terrains.model)
+(ns tilemap-editor.view.terrains.model
+  (:require [tilemap-editor.model.data :as data]))
 
 (defun terrain-set-options [terrain-sets]
   (for-indexed [index terrain-set (or terrain-sets [])]
@@ -65,20 +66,26 @@
 (defun unique-terrain-id [terrains]
   (unique-id-from terrains "terrain" nil))
 
-(defun make-terrain-set [terrain-sets]
+(defun make-terrain-set [terrain-sets tilesets]
   (let [id (unique-terrain-set-id terrain-sets)]
-    {:id id
-     :label "Terrain set"
-     :terrains []}))
+    (merge {:id id
+            :label "Terrain set"
+            :terrains []}
+           (if-let [tileset (data/tileset-key tilesets 0)]
+             {:tileset tileset}
+             {}))))
 
-(defun make-terrain [terrain-set]
+(defun make-terrain [terrain-set tilesets]
   (let [id (unique-terrain-id (:terrains terrain-set))]
-    {:id id
-     :label "Terrain"}))
+    (merge {:id id
+            :label "Terrain"}
+           (if-let [tile (data/tile-id tilesets (:tileset terrain-set) 0)]
+             {:tile tile}
+             {}))))
 
 (defun add-terrain-set [state]
   (let [terrain-sets (or (:terrain-sets state) [])
-        terrain-set (make-terrain-set terrain-sets)
+        terrain-set (make-terrain-set terrain-sets (:tilesets state))
         index (count terrain-sets)]
     (assoc state
            :terrain-sets (concat terrain-sets [terrain-set])
@@ -96,7 +103,7 @@
                                                  (:selected-terrain-set-index state))]
     (let [terrain-set (nth (:terrain-sets state) set-index)
           terrains (or (:terrains terrain-set) [])
-          terrain (make-terrain terrain-set)
+          terrain (make-terrain terrain-set (:tilesets state))
           terrain-index (count terrains)]
       (assoc state
              :terrain-sets (update-terrain-set-at
@@ -107,6 +114,57 @@
                                      :terrains (concat terrains [terrain]))))
              :selected-terrain-set-index set-index
              :selected-terrain-index terrain-index))
+    state))
+
+(defun selected-terrain-set-path [state]
+  (if-let [set-index (selected-terrain-set-index (:terrain-sets state)
+                                                 (:selected-terrain-set-index state))]
+    [:terrain-sets set-index]
+    nil))
+
+(defun selected-terrain-path [state]
+  (if-let [set-index (selected-terrain-set-index (:terrain-sets state)
+                                                 (:selected-terrain-set-index state))]
+    (let [terrain-set (nth (:terrain-sets state) set-index)]
+      (if-let [terrain-index (selected-terrain-index terrain-set
+                                                     (:selected-terrain-index state))]
+        [:terrain-sets set-index :terrains terrain-index]
+        nil))
+    nil))
+
+(defun set-selected-terrain-set-label [state label]
+  (if-let [path (selected-terrain-set-path state)]
+    (assoc-in state (concat path [:label]) label)
+    state))
+
+(defun set-selected-terrain-label [state label]
+  (if-let [path (selected-terrain-path state)]
+    (assoc-in state (concat path [:label]) label)
+    state))
+
+(defun terrain-tile-valid? [tilesets tileset tile]
+  (and tile
+       (= tile (data/tile-id tilesets tileset tile))))
+
+(defun first-tile-for [tilesets tileset]
+  (data/tile-id tilesets tileset 0))
+
+(defun set-selected-terrain-set-tileset [state tileset-index]
+  (if-let [set-path (selected-terrain-set-path state)]
+    (let [tileset (data/tileset-key (:tilesets state) tileset-index)
+          state (assoc-in state (concat set-path [:tileset]) tileset)]
+      (if-let [terrain-path (selected-terrain-path state)]
+        (let [tile (get-in state (concat terrain-path [:tile]))]
+          (if (terrain-tile-valid? (:tilesets state) tileset tile)
+            state
+            (assoc-in state (concat terrain-path [:tile])
+                      (first-tile-for (:tilesets state) tileset))))
+        state))
+    state))
+
+(defun set-selected-terrain-tile [state tile]
+  (if-let [path (selected-terrain-path state)]
+    (assoc-in state (concat path [:tile]) tile)
     state))
 
 (defun derive-terrain-workspace-state [state]

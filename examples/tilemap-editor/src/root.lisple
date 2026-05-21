@@ -261,6 +261,7 @@
                        :child {:mode 'terrain-definition-workspace
                                :style {:padding 8}
                                :state {:terrain-sets (ui/bind-state :terrain-sets)
+                                       :tilesets (ui/bind-state :tilesets)
                                        :selected-terrain-set-index
                                        (ui/bind-state :selected-terrain-set-index)
                                        :selected-terrain-index

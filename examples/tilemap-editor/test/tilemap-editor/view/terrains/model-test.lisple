@@ -34,6 +34,13 @@
                                 :label "Terrain set"}]})]
     (is (= :terrain-set-2 (get-in state [:terrain-sets 1 :id])))))
 
+(deftest terrain-set-creation-defaults_preview_tileset
+  (let [state (model/add-terrain-set
+               {:terrain-sets []
+                :tilesets [{:id :overworld
+                            :label "Overworld"}]})]
+    (is (= :overworld (get-in state [:terrain-sets 0 :tileset])))))
+
 (deftest terrain-creation-adds_to_selected_set
   (let [state (model/add-terrain
                {:terrain-sets [{:id :overworld
@@ -50,3 +57,43 @@
                                             :label "Terrain"}]}]
                 :selected-terrain-set-index 0})]
     (is (= :terrain-2 (get-in state [:terrain-sets 0 :terrains 1 :id])))))
+
+(deftest terrain-creation-defaults_preview_tile
+  (let [state (model/add-terrain
+               {:terrain-sets [{:id :overworld
+                                :tileset :overworld-tiles
+                                :terrains []}]
+                :tilesets [{:id :overworld-tiles
+                            :tiles [{:id :grass
+                                     :name "Grass"}]}]
+                :selected-terrain-set-index 0})]
+    (is (= :grass (get-in state [:terrain-sets 0 :terrains 0 :tile])))))
+
+(deftest terrain-detail-label_changes_update_selected_records
+  (let [state {:terrain-sets [{:id :overworld
+                               :label "Overworld"
+                               :terrains [{:id :grass
+                                           :label "Grass"}]}]
+               :selected-terrain-set-index 0
+               :selected-terrain-index 0}
+        state (model/set-selected-terrain-set-label state "World")
+        state (model/set-selected-terrain-label state "Meadow")]
+    (is (= "World" (get-in state [:terrain-sets 0 :label])))
+    (is (= "Meadow" (get-in state [:terrain-sets 0 :terrains 0 :label])))))
+
+(deftest terrain-detail-preview_changes_update_selected_records
+  (let [state {:terrain-sets [{:id :overworld
+                               :tileset :old
+                               :terrains [{:id :grass
+                                           :tile :missing}]}]
+               :tilesets [{:id :old
+                           :tiles [{:id :old-tile}]}
+                          {:id :new
+                           :tiles [{:id :new-tile}
+                                   {:id :other-tile}]}]
+               :selected-terrain-set-index 0
+               :selected-terrain-index 0}
+        state (model/set-selected-terrain-set-tileset state 1)
+        state (model/set-selected-terrain-tile state :other-tile)]
+    (is (= :new (get-in state [:terrain-sets 0 :tileset])))
+    (is (= :other-tile (get-in state [:terrain-sets 0 :terrains 0 :tile])))))
