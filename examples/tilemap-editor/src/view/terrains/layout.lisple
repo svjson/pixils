@@ -348,11 +348,354 @@
                        (ui/bind-state :selected-terrain-set-index)
                        :tilesets (ui/bind-state :tilesets)}}]})
 
+(def terrain-rule-list-row-height 24)
+(def terrain-rule-grid-cell-size 32)
+
+(defun terrain-rule-center-terrain-id [rule fallback]
+  (or (model/terrain-rule-center rule) fallback))
+
+(defun terrain-rule-terrain-tile [state terrain-id]
+  (let [terrain-set (model/selected-terrain-set
+                     (:terrain-sets state)
+                     (:selected-terrain-set-index state))]
+    (data/terrain-tile-in (:tilesets state)
+                          (:terrain-sets state)
+                          (:id terrain-set)
+                          terrain-id)))
+
+(defun terrain-rule-center-tile [state]
+  (let [terrain-set (model/selected-terrain-set
+                     (:terrain-sets state)
+                     (:selected-terrain-set-index state))
+        terrain (model/selected-terrain terrain-set
+                                        (:selected-terrain-index state))]
+    (terrain-rule-terrain-tile state
+                               (terrain-rule-center-terrain-id
+                                (model/selected-terrain-rule state)
+                                (:id terrain)))))
+
+(defun match-cell-condition [rule direction]
+  (or (get (or (:match rule) {}) direction) :ignore))
+
+(defun condition-terrain-id [condition]
+  (if (= (type-of condition) "map")
+    (:terrain condition)
+    nil))
+
+(defun match-cell-tile [state condition]
+  (case condition
+    :ignore nil
+    :same (terrain-rule-center-tile state)
+    :not-same (terrain-rule-center-tile state)
+    :default (if-let [terrain-id (condition-terrain-id condition)]
+               (terrain-rule-terrain-tile state terrain-id)
+               nil)))
+
+(defun draw-rule-grid-cell-background! []
+  (r/rect! {:x 0
+            :y 0
+            :w terrain-rule-grid-cell-size
+            :h terrain-rule-grid-cell-size}
+           {:fill true
+            :color {:r 0x0b :g 0x0d :b 0x10}}))
+
+(defun draw-rule-grid-cell-border! [color]
+  (r/rect! {:x 0
+            :y 0
+            :w terrain-rule-grid-cell-size
+            :h terrain-rule-grid-cell-size}
+           {:color color}))
+
+(defun draw-rule-grid-cell-cross! [color]
+  (do
+    (r/line! {:x 5 :y 5}
+             {:x (- terrain-rule-grid-cell-size 6)
+              :y (- terrain-rule-grid-cell-size 6)}
+             color)
+    (r/line! {:x (- terrain-rule-grid-cell-size 6) :y 5}
+             {:x 5 :y (- terrain-rule-grid-cell-size 6)}
+             color)))
+
+(defun draw-match-cell! [state ctx]
+  (let [condition (:condition state)
+        tile (:tile state)]
+    (do
+      (draw-rule-grid-cell-background!)
+      (when tile
+        (tr/draw-tile! tile
+                       {:x 4
+                        :y 4
+                        :w (- terrain-rule-grid-cell-size 8)
+                        :h (- terrain-rule-grid-cell-size 8)}))
+      (when (= condition :ignore)
+        (draw-rule-grid-cell-cross! {:r 0x86 :g 0x91 :b 0x9b}))
+      (when (= condition :not-same)
+        (draw-rule-grid-cell-cross! {:r 0xe6 :g 0x6b :b 0x6b}))
+      (draw-rule-grid-cell-border! (if (:center? state)
+                                     {:r 0xff :g 0xcc :b 0x66}
+                                     {:r 0x1f :g 0x26 :b 0x2d})))))
+
+(defcomponent terrain-match-tile-cell
+  {:class :ui/canvas
+   :style {:width terrain-rule-grid-cell-size
+           :height terrain-rule-grid-cell-size
+           :cursor :pointer}
+   :update (fn [state ctx]
+             (let [rule (model/selected-terrain-rule state)
+                   condition (if (:center? state)
+                               :same
+                               (match-cell-condition rule (:direction state)))]
+               (assoc state
+                      :condition condition
+                      :tile (match-cell-tile state condition))))
+   :on-mouse-down (fn [state event ctx]
+                    (do
+                      (ui/stop-propagation! event)
+                      (when (and (not (:center? state)) (:direction state))
+                        (ui/emit! (:view ctx)
+                                  :terrain/rule-match-cycle
+                                  (:direction state)))
+                      state))
+   :render draw-match-cell!})
+
+(defun terrain-match-tile-cell-child [direction]
+  {:mode 'terrain-match-tile-cell
+   :state {:direction direction
+           :terrain-sets (ui/bind-state :terrain-sets)
+           :selected-terrain-set-index
+           (ui/bind-state :selected-terrain-set-index)
+           :selected-terrain-index
+           (ui/bind-state :selected-terrain-index)
+           :rulesets (ui/bind-state :rulesets)
+           :selected-terrain-ruleset-id
+           (ui/bind-state :selected-terrain-ruleset-id)
+           :selected-terrain-rule-id
+           (ui/bind-state :selected-terrain-rule-id)
+           :tilesets (ui/bind-state :tilesets)}})
+
+(defun terrain-match-center-cell-child []
+  {:mode 'terrain-match-tile-cell
+   :state {:center? true
+           :terrain-sets (ui/bind-state :terrain-sets)
+           :selected-terrain-set-index
+           (ui/bind-state :selected-terrain-set-index)
+           :selected-terrain-index
+           (ui/bind-state :selected-terrain-index)
+           :rulesets (ui/bind-state :rulesets)
+           :selected-terrain-ruleset-id
+           (ui/bind-state :selected-terrain-ruleset-id)
+           :selected-terrain-rule-id
+           (ui/bind-state :selected-terrain-rule-id)
+           :tilesets (ui/bind-state :tilesets)}})
+
+(defun terrain-rule-grid-row [left center right]
+  {:style {:width :shrink
+           :height terrain-rule-grid-cell-size
+           :layout {:direction :row
+                    :gap 2}}
+   :children [left center right]})
+
+(defcomponent visual-terrain-match-grid
+  {:style {:width :shrink
+           :height :shrink
+           :layout {:direction :column
+                    :gap 2}}
+   :children [(terrain-rule-grid-row (terrain-match-tile-cell-child :nw)
+                                     (terrain-match-tile-cell-child :n)
+                                     (terrain-match-tile-cell-child :ne))
+              (terrain-rule-grid-row (terrain-match-tile-cell-child :w)
+                                     (terrain-match-center-cell-child)
+                                     (terrain-match-tile-cell-child :e))
+              (terrain-rule-grid-row (terrain-match-tile-cell-child :sw)
+                                     (terrain-match-tile-cell-child :s)
+                                     (terrain-match-tile-cell-child :se))]})
+
+(defun stamp-layer-for-selected-rule [state]
+  (head (or (-> (model/selected-terrain-rule state) :output :layers) [])))
+
+(defun stamp-grid-anchor [state]
+  (or (-> (model/selected-terrain-rule state) :output :anchor) {:x 1 :y 1}))
+
+(defun stamp-grid-tile [state tile-ref]
+  (let [layer (stamp-layer-for-selected-rule state)]
+    (data/tile-in (:tilesets state) (:tileset layer) tile-ref)))
+
+(defun stamp-grid-rect [x y]
+  {:x (* x terrain-rule-grid-cell-size)
+   :y (* y terrain-rule-grid-cell-size)
+   :w terrain-rule-grid-cell-size
+   :h terrain-rule-grid-cell-size})
+
+(defcomponent terrain-stamp-grid-preview
+  {:class :ui/canvas
+   :style {:width (* terrain-rule-grid-cell-size 3)
+           :height (* terrain-rule-grid-cell-size 3)}
+   :render (fn [state ctx]
+             (let [layer (stamp-layer-for-selected-rule state)
+                   rows (or (:tiles layer) [])
+                   anchor (stamp-grid-anchor state)]
+               (do
+                 (r/rect! {:x 0
+                           :y 0
+                           :w (* terrain-rule-grid-cell-size 3)
+                           :h (* terrain-rule-grid-cell-size 3)}
+                          {:fill true
+                           :color {:r 0x0b :g 0x0d :b 0x10}})
+                 (dotimes [y 3]
+                   (dotimes [x 3]
+                     (let [tile-ref (nth (or (nth rows y) []) x)
+                           tile (stamp-grid-tile state tile-ref)]
+                       (do
+                         (when tile
+                           (tr/draw-tile! tile
+                                          {:x (+ (* x terrain-rule-grid-cell-size)
+                                                 4)
+                                           :y (+ (* y terrain-rule-grid-cell-size)
+                                                 4)
+                                           :w (- terrain-rule-grid-cell-size 8)
+                                           :h (- terrain-rule-grid-cell-size 8)}))
+                         (r/rect! (stamp-grid-rect x y)
+                                  {:color (if (and (= x (:x anchor))
+                                                   (= y (:y anchor)))
+                                            {:r 0xff :g 0xcc :b 0x66}
+                                            {:r 0x1f :g 0x26 :b 0x2d})}))))))))})
+
+(defcomponent terrain-rule-arrow
+  {:class :ui/canvas
+   :style {:width 36
+           :height (* terrain-rule-grid-cell-size 3)}
+   :render (fn [state ctx]
+             (let [color {:r 0xe6 :g 0xea :b 0xee}
+                   y (/ (* terrain-rule-grid-cell-size 3) 2)]
+               (do
+                 (r/line! {:x 5 :y y} {:x 30 :y y} color)
+                 (r/line! {:x 23 :y (- y 7)} {:x 30 :y y} color)
+                 (r/line! {:x 23 :y (+ y 7)} {:x 30 :y y} color))))})
+
+(defcomponent terrain-rule-visual-editor
+  {:style {:width :fill
+           :height :shrink
+           :layout {:direction :row
+                    :align-items :center
+                    :gap 10}}
+   :children [{:mode 'visual-terrain-match-grid
+               :state {:terrain-sets (ui/bind-state :terrain-sets)
+                       :selected-terrain-set-index
+                       (ui/bind-state :selected-terrain-set-index)
+                       :selected-terrain-index
+                       (ui/bind-state :selected-terrain-index)
+                       :rulesets (ui/bind-state :rulesets)
+                       :selected-terrain-ruleset-id
+                       (ui/bind-state :selected-terrain-ruleset-id)
+                       :selected-terrain-rule-id
+                       (ui/bind-state :selected-terrain-rule-id)
+                       :tilesets (ui/bind-state :tilesets)}}
+              {:mode 'terrain-rule-arrow}
+              {:mode 'terrain-stamp-grid-preview
+               :state {:rulesets (ui/bind-state :rulesets)
+                       :selected-terrain-ruleset-id
+                       (ui/bind-state :selected-terrain-ruleset-id)
+                       :selected-terrain-rule-id
+                       (ui/bind-state :selected-terrain-rule-id)
+                       :tilesets (ui/bind-state :tilesets)}}]})
+
+(defcomponent terrain-rule-row
+  {:extend 'ui/list-box-item
+   :class :ui/list-item-hover
+   :style {:width :fill
+           :height terrain-rule-list-row-height
+           :padding [3 6]
+           :layout {:direction :row
+                    :align-items :center}}
+   :update (fn [state ctx]
+             (assoc state :selected (contains? (:selected-indices state)
+                                               (:index state))))
+   :on-mouse-down (fn [state event ctx]
+                    (do
+                      (ui/stop-propagation! event)
+                      state))
+   :on-mouse-up (fn [state event ctx]
+                  (do
+                    (ui/stop-propagation! event)
+                    (ui/emit! (:view ctx)
+                              :list-box/item-click
+                              {:index (:index state)
+                               :value (:value state)
+                               :shift? false
+                               :ctrl? false})
+                    state))
+   :children [{:mode 'ui/text
+               :style {:width :fill}
+               :state {:value (ui/bind-state :label)}}]})
+
+(defun terrain-rule-row-child [index option]
+  {:mode 'terrain-rule-row
+   :state {:index index
+           :value (:value option)
+           :label (:label option)
+           :selected-indices (ui/bind-state :selected-indices)}})
+
+(defun terrain-rule-list-child [state]
+  (let [options (model/terrain-rule-options state)]
+    (lb/make {:options options
+              :style {:width :fill
+                      :height :fill}
+              :row-height terrain-rule-list-row-height
+              :visible-rows 5
+              :content-width 180
+              :disabled? (empty? options)
+              :selected-indices (if-let [index (model/selected-terrain-rule-index
+                                                state)]
+                                  [index]
+                                  [])
+              :force-selection? true
+              :item-child terrain-rule-row-child})))
+
+(defcomponent terrain-rule-list
+  {:style {:width :fill
+           :height :fill}
+   :init (fn [state ctx]
+           (assoc state
+                  :rendered-rulesets nil
+                  :rendered-terrain-index nil
+                  :rendered-rule-id nil))
+   :update (fn [state ctx]
+             (let [rulesets (or (:rulesets state) [])
+                   terrain-index (:selected-terrain-index state)
+                   rule-id (model/selected-terrain-rule-id state)]
+               (do
+                 (when (or (not= rulesets (:rendered-rulesets state))
+                           (not= terrain-index (:rendered-terrain-index state))
+                           (not= rule-id (:rendered-rule-id state)))
+                   (ui/replace-child! (:view ctx)
+                                      "terrain-rule-list-box"
+                                      (merge {:id "terrain-rule-list-box"}
+                                             (terrain-rule-list-child state))))
+                 (assoc state
+                        :rendered-rulesets rulesets
+                        :rendered-terrain-index terrain-index
+                        :rendered-rule-id rule-id))))
+   :on {:list-box/change (fn [state event ctx]
+                           (do
+                             (ui/stop-propagation! event)
+                             (ui/emit! (:view ctx)
+                                       :terrain/rule-select
+                                       (-> event :payload :value))
+                             state))}
+   :children [(merge {:id "terrain-rule-list-box"}
+                     (terrain-rule-list-child {}))]})
+
 (defcomponent terrain-value-detail-editor
   {:style {:width :fill
            :height :fill
            :layout {:direction :column
                     :gap 8}}
+   :update (fn [state ctx]
+             (assoc state
+                    :rule-add-disabled?
+                    (nil? (model/selected-terrain-id state))
+                    :selected-rule? (not (nil? (model/selected-terrain-rule
+                                                state)))))
    :children [{:mode 'terrain-preview
                :state {:tile (ui/bind-state :preview-tile)}}
               (terrain-edit-field-child :terrain-id
@@ -372,7 +715,162 @@
                        (ui/bind-state :selected-terrain-set-index)
                        :selected-terrain-index
                        (ui/bind-state :selected-terrain-index)
-                       :tilesets (ui/bind-state :tilesets)}}]})
+                       :tilesets (ui/bind-state :tilesets)}}
+              {:mode 'ui/text
+               :class :ui/title
+               :state {:value "Rules"}}
+              {:style {:width :fill
+                       :height :fill
+                       :layout {:direction :row
+                                :gap 12}}
+               :children [{:style {:width 196
+                                    :height :fill
+                                    :layout {:direction :column
+                                             :gap 6}}
+                           :children [{:style {:width :fill
+                                               :height 24
+                                               :layout {:direction :row
+                                                        :align-items :center
+                                                        :gap 6}}
+                                       :children [{:mode 'ui/text
+                                                   :style {:width :fill}
+                                                   :state {:value "Terrain rules"}}
+                                                  {:mode 'ui/button
+                                                   :class :ui/toolbar-button
+                                                   :state {:label "+"
+                                                           :disabled?
+                                                           (ui/bind-state
+                                                            :rule-add-disabled?)}
+                                                   :on-click
+                                                   (fn [state event ctx]
+                                                     (do
+                                                       (when (not (:disabled?
+                                                                   state))
+                                                         (ui/emit! (:view ctx)
+                                                                   :terrain/rule-add))
+                                                       state))}]}
+                                      {:mode 'terrain-rule-list
+                                       :state {:terrain-sets
+                                               (ui/bind-state :terrain-sets)
+                                               :selected-terrain-set-index
+                                               (ui/bind-state
+                                                :selected-terrain-set-index)
+                                               :selected-terrain-index
+                                               (ui/bind-state
+                                                :selected-terrain-index)
+                                               :rulesets
+                                               (ui/bind-state :rulesets)
+                                               :selected-terrain-ruleset-id
+                                               (ui/bind-state
+                                                :selected-terrain-ruleset-id)
+                                               :selected-terrain-rule-id
+                                               (ui/bind-state
+                                                :selected-terrain-rule-id)}}]}
+                          {:style {:width :fill
+                                   :height :fill
+                                   :layout {:direction :column
+                                            :gap 6}}
+                           :children [{:mode 'terrain-rule-visual-editor
+                                       :state {:terrain-sets
+                                               (ui/bind-state :terrain-sets)
+                                               :selected-terrain-set-index
+                                               (ui/bind-state
+                                                :selected-terrain-set-index)
+                                               :selected-terrain-index
+                                               (ui/bind-state
+                                                :selected-terrain-index)
+                                               :rulesets
+                                               (ui/bind-state :rulesets)
+                                               :selected-terrain-ruleset-id
+                                               (ui/bind-state
+                                                :selected-terrain-ruleset-id)
+                                               :selected-terrain-rule-id
+                                               (ui/bind-state
+                                                :selected-terrain-rule-id)
+                                               :tilesets
+                                               (ui/bind-state :tilesets)}}]}]}]})
+
+
+(defcomponent terrain-detail-empty
+  {:style {:width :fill
+           :height :fill}})
+
+(defun terrain-detail-tabs-child [terrain-tab-disabled?]
+  (tabs/make
+   {:selected-tab (ui/bind-state :terrain-detail-tab)
+    :style {:width :fill
+            :height :fill}
+    :state {:terrain-sets (ui/bind-state :terrain-sets)
+            :tilesets (ui/bind-state :tilesets)
+            :rulesets (ui/bind-state :rulesets)
+            :layers (ui/bind-state :layers)
+            :layer-profiles (ui/bind-state :layer-profiles)
+            :selected-layer-profile-id
+            (ui/bind-state :selected-layer-profile-id)
+            :selected-terrain-set-index
+            (ui/bind-state :selected-terrain-set-index)
+            :selected-terrain-index
+            (ui/bind-state :selected-terrain-index)
+            :selected-terrain-ruleset-id
+            (ui/bind-state :selected-terrain-ruleset-id)
+            :selected-terrain-rule-id
+            (ui/bind-state :selected-terrain-rule-id)
+            :set-id (ui/bind-state :set-id)
+            :set-label (ui/bind-state :set-label)
+            :set-disabled? (ui/bind-state :set-disabled?)
+            :terrain-id (ui/bind-state :terrain-id)
+            :terrain-label (ui/bind-state :terrain-label)
+            :terrain-disabled? (ui/bind-state :terrain-disabled?)
+            :preview-tile (ui/bind-state :preview-tile)}
+    :tabs [{:id :terrain-set
+            :label "Terrain Set"
+            :child {:mode 'terrain-set-detail-editor
+                    :style {:padding 8}
+                    :state {:terrain-sets
+                            (ui/bind-state :terrain-sets)
+                            :tilesets (ui/bind-state :tilesets)
+                            :selected-terrain-set-index
+                            (ui/bind-state
+                             :selected-terrain-set-index)
+                            :set-id (ui/bind-state :set-id)
+                            :set-label (ui/bind-state :set-label)
+                            :set-disabled?
+                            (ui/bind-state :set-disabled?)}}}
+           {:id :terrain
+            :label "Terrain"
+            :disabled? terrain-tab-disabled?
+            :child {:mode 'terrain-value-detail-editor
+                    :style {:padding 8}
+                    :state {:terrain-sets
+                            (ui/bind-state :terrain-sets)
+                            :tilesets (ui/bind-state :tilesets)
+                            :selected-terrain-set-index
+                            (ui/bind-state
+                             :selected-terrain-set-index)
+                            :selected-terrain-index
+                            (ui/bind-state
+                             :selected-terrain-index)
+                            :terrain-id
+                            (ui/bind-state :terrain-id)
+                            :terrain-label
+                            (ui/bind-state :terrain-label)
+                            :terrain-disabled?
+                            (ui/bind-state :terrain-disabled?)
+                            :preview-tile
+                            (ui/bind-state :preview-tile)
+                            :rulesets (ui/bind-state :rulesets)
+                            :selected-terrain-ruleset-id
+                            (ui/bind-state
+                             :selected-terrain-ruleset-id)
+                            :selected-terrain-rule-id
+                            (ui/bind-state
+                             :selected-terrain-rule-id)}}}]}))
+
+(defun terrain-detail-content-child [visible? terrain-tab-disabled?]
+  (merge {:id "terrain-detail-content"}
+         (if visible?
+           (terrain-detail-tabs-child terrain-tab-disabled?)
+           {:mode 'terrain-detail-empty})))
 
 (defcomponent terrain-detail-editor
   {:style {:width :fill
@@ -382,81 +880,44 @@
                                 (:terrain-sets state)
                                 (:selected-terrain-set-index state))
                    terrain (model/selected-terrain terrain-set
-                                                   (:selected-terrain-index state))]
-               (assoc state
-                      :terrain-set terrain-set
-                      :terrain terrain
-                      :set-disabled? (nil? terrain-set)
-                      :terrain-disabled? (nil? terrain)
-                      :set-id (if terrain-set
-                                (model/keyword-label (:id terrain-set))
-                                "")
-                      :set-label (or (:label terrain-set) "")
-                      :terrain-id (if terrain
-                                    (model/keyword-label (:id terrain))
-                                    "")
-                      :terrain-label (or (:label terrain) (:name terrain) "")
-                      :preview-tile (terrain-preview-tile (:tilesets state)
-                                                          terrain-set
-                                                          terrain))))
+                                                   (:selected-terrain-index state))
+                   visible? (not (nil? terrain-set))
+                   terrain-tab-disabled? (nil? terrain)]
+               (do
+                 (when (or (not= visible? (:rendered-visible? state))
+                           (not= terrain-tab-disabled?
+                                 (:rendered-terrain-tab-disabled? state)))
+                   (ui/replace-child! (:view ctx)
+                                      "terrain-detail-content"
+                                      (terrain-detail-content-child
+                                       visible?
+                                       terrain-tab-disabled?)))
+                 (assoc state
+                        :rendered-visible? visible?
+                        :rendered-terrain-tab-disabled?
+                        terrain-tab-disabled?
+                        :terrain-set terrain-set
+                        :terrain terrain
+                        :set-disabled? (nil? terrain-set)
+                        :terrain-disabled? (nil? terrain)
+                        :set-id (if terrain-set
+                                  (model/keyword-label (:id terrain-set))
+                                  "")
+                        :set-label (or (:label terrain-set) "")
+                        :terrain-id (if terrain
+                                      (model/keyword-label (:id terrain))
+                                      "")
+                        :terrain-label (or (:label terrain) (:name terrain) "")
+                        :preview-tile (terrain-preview-tile (:tilesets state)
+                                                            terrain-set
+                                                            terrain)))))
    :on {:tab-panel/change (fn [state event ctx]
                             (do
                               (ui/stop-propagation! event)
                               (assoc state
                                      :terrain-detail-tab
                                      (-> event :payload :tab))))}
-   :children [(tabs/make
-               {:selected-tab (ui/bind-state :terrain-detail-tab)
-                :style {:width :fill
-                        :height :fill}
-                :state {:terrain-sets (ui/bind-state :terrain-sets)
-                        :tilesets (ui/bind-state :tilesets)
-                        :selected-terrain-set-index
-                        (ui/bind-state :selected-terrain-set-index)
-                        :selected-terrain-index
-                        (ui/bind-state :selected-terrain-index)
-                        :set-id (ui/bind-state :set-id)
-                        :set-label (ui/bind-state :set-label)
-                        :set-disabled? (ui/bind-state :set-disabled?)
-                        :terrain-id (ui/bind-state :terrain-id)
-                        :terrain-label (ui/bind-state :terrain-label)
-                        :terrain-disabled? (ui/bind-state :terrain-disabled?)
-                        :preview-tile (ui/bind-state :preview-tile)}
-                :tabs [{:id :terrain-set
-                        :label "Terrain Set"
-                        :child {:mode 'terrain-set-detail-editor
-                                :style {:padding 8}
-                                :state {:terrain-sets
-                                        (ui/bind-state :terrain-sets)
-                                        :tilesets (ui/bind-state :tilesets)
-                                        :selected-terrain-set-index
-                                        (ui/bind-state
-                                         :selected-terrain-set-index)
-                                        :set-id (ui/bind-state :set-id)
-                                        :set-label (ui/bind-state :set-label)
-                                        :set-disabled?
-                                        (ui/bind-state :set-disabled?)}}}
-                       {:id :terrain
-                        :label "Terrain"
-                        :child {:mode 'terrain-value-detail-editor
-                                :style {:padding 8}
-                                :state {:terrain-sets
-                                        (ui/bind-state :terrain-sets)
-                                        :tilesets (ui/bind-state :tilesets)
-                                        :selected-terrain-set-index
-                                        (ui/bind-state
-                                         :selected-terrain-set-index)
-                                        :selected-terrain-index
-                                        (ui/bind-state
-                                         :selected-terrain-index)
-                                        :terrain-id
-                                        (ui/bind-state :terrain-id)
-                                        :terrain-label
-                                        (ui/bind-state :terrain-label)
-                                        :terrain-disabled?
-                                        (ui/bind-state :terrain-disabled?)
-                                        :preview-tile
-                                        (ui/bind-state :preview-tile)}}}]})]})
+   :children [(terrain-detail-content-child false true)]})
 
 (defun make-terrain-detail-panel []
   (hp/make {:title "Terrain Definition"
@@ -466,24 +927,51 @@
                          :height :fill}
             :state {:terrain-sets (ui/bind-state :terrain-sets)
                     :tilesets (ui/bind-state :tilesets)
+                    :rulesets (ui/bind-state :rulesets)
+                    :layers (ui/bind-state :layers)
+                    :layer-profiles (ui/bind-state :layer-profiles)
+                    :selected-layer-profile-id
+                    (ui/bind-state :selected-layer-profile-id)
                     :selected-terrain-set-index
                     (ui/bind-state :selected-terrain-set-index)
                     :selected-terrain-index
                     (ui/bind-state :selected-terrain-index)
+                    :selected-terrain-ruleset-id
+                    (ui/bind-state :selected-terrain-ruleset-id)
+                    :selected-terrain-rule-id
+                    (ui/bind-state :selected-terrain-rule-id)
                     :disabled? (ui/bind-state :terrain-detail-panel-disabled?)}
             :body-state {:terrain-sets (ui/bind-state :terrain-sets)
                          :tilesets (ui/bind-state :tilesets)
+                         :rulesets (ui/bind-state :rulesets)
+                         :layers (ui/bind-state :layers)
+                         :layer-profiles (ui/bind-state :layer-profiles)
+                         :selected-layer-profile-id
+                         (ui/bind-state :selected-layer-profile-id)
                          :selected-terrain-set-index
                          (ui/bind-state :selected-terrain-set-index)
                          :selected-terrain-index
-                         (ui/bind-state :selected-terrain-index)}
+                         (ui/bind-state :selected-terrain-index)
+                         :selected-terrain-ruleset-id
+                         (ui/bind-state :selected-terrain-ruleset-id)
+                         :selected-terrain-rule-id
+                         (ui/bind-state :selected-terrain-rule-id)}
             :children [{:mode 'terrain-detail-editor
                         :state {:terrain-sets (ui/bind-state :terrain-sets)
                                 :tilesets (ui/bind-state :tilesets)
+                                :rulesets (ui/bind-state :rulesets)
+                                :layers (ui/bind-state :layers)
+                                :layer-profiles (ui/bind-state :layer-profiles)
+                                :selected-layer-profile-id
+                                (ui/bind-state :selected-layer-profile-id)
                                 :selected-terrain-set-index
                                 (ui/bind-state :selected-terrain-set-index)
                                 :selected-terrain-index
-                                (ui/bind-state :selected-terrain-index)}}]}))
+                                (ui/bind-state :selected-terrain-index)
+                                :selected-terrain-ruleset-id
+                                (ui/bind-state :selected-terrain-ruleset-id)
+                                :selected-terrain-rule-id
+                                (ui/bind-state :selected-terrain-rule-id)}}]}))
 
 (defcomponent terrain-definition-selector-column
   {:style {:width 300
@@ -537,7 +1025,31 @@
         :terrain/tile-change (fn [state event ctx]
                                (model/set-selected-terrain-tile
                                 state
-                                (:payload event)))}
+                                (:payload event)))
+        :terrain/ruleset-add (fn [state event ctx]
+                               (model/add-terrain-ruleset state))
+        :terrain/ruleset-select
+        (fn [state event ctx]
+          (assoc state
+                 :selected-terrain-ruleset-id (:payload event)
+                 :selected-terrain-rule-id nil))
+        :terrain/rule-add (fn [state event ctx]
+                            (model/add-terrain-rule state))
+        :terrain/rule-select
+        (fn [state event ctx]
+          (assoc state :selected-terrain-rule-id (:payload event)))
+        :terrain/rule-terrain-change
+        (fn [state event ctx]
+          (model/set-selected-rule-terrain state (:payload event)))
+        :terrain/rule-match-change
+        (fn [state event ctx]
+          (let [payload (:payload event)]
+            (model/set-selected-rule-match-condition state
+                                                     (:direction payload)
+                                                     (:value payload))))
+        :terrain/rule-match-cycle
+        (fn [state event ctx]
+          (model/cycle-selected-rule-match-condition state (:payload event)))}
    :children [{:mode 'terrain-definition-selector-column
                :state {:terrain-sets (ui/bind-state :terrain-sets)
                        :selected-terrain-set-index

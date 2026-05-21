@@ -6,6 +6,16 @@
 (def south-bit 4)
 (def west-bit 8)
 
+(def terrain-stamp-directions
+  {:nw {:dx -1 :dy -1}
+   :n {:dx 0 :dy -1}
+   :ne {:dx 1 :dy -1}
+   :w {:dx -1 :dy 0}
+   :e {:dx 1 :dy 0}
+   :sw {:dx -1 :dy 1}
+   :s {:dx 0 :dy 1}
+   :se {:dx 1 :dy 1}})
+
 (defun layer-by-id [layers layer-id]
   (head (filter (or layers [])
                 (fn [layer]
@@ -57,7 +67,7 @@
    :kind :tile
    :role :derived
    :data-kind :tile-ref
-   :tileset (:output-tileset ruleset)
+   :tileset (or (:tileset definition) (:output-tileset ruleset))
    :source-layers (or (:source-layers definition)
                       [(:source-layer ruleset)])
    :ruleset (:id ruleset)
@@ -72,11 +82,147 @@
              :tiles (derive-marching-4-tiles source-layer ruleset))
       nil)))
 
+(defun terrain-match-center [rule]
+  (or (:terrain rule)
+      (-> rule :match :center :terrain)))
+
+(defun terrain-match-condition? [source-layer center-terrain condition x y]
+  (let [value (cell-at source-layer x y)]
+    (case condition
+      :ignore true
+      :same (= value center-terrain)
+      :not-same (not= value center-terrain)
+      :default
+      (if (= (type-of condition) "map")
+        (= value (:terrain condition))
+        true))))
+
+(defun terrain-stamp-rule-matches? [source-layer rule x y]
+  (let [center-terrain (terrain-match-center rule)
+        match (or (:match rule) {})]
+    (and (= (cell-at source-layer x y) center-terrain)
+         (= 0
+            (count (filter
+                    (reduce-kv terrain-stamp-directions
+                               []
+                               (fn [checks direction offset]
+                                 (let [condition (get match direction)]
+                                   (if (or (nil? condition)
+                                           (= condition :ignore))
+                                     checks
+                                     (concat checks
+                                             [(terrain-match-condition?
+                                               source-layer
+                                               center-terrain
+                                               condition
+                                               (+ x (:dx offset))
+                                               (+ y (:dy offset)))])))))
+                    (fn [matched?]
+                      (= matched? false))))))))
+
+(defun empty-derived-tiles []
+  (dotimes [y data/map-height]
+    (data/make-empty-row)))
+
+(defun in-map-bounds? [x y]
+  (and (>= x 0)
+       (< x data/map-width)
+       (>= y 0)
+       (< y data/map-height)))
+
+(defun stamp-output-layer-matches? [definition output-layer]
+  (= (:target-layer output-layer) (:id definition)))
+
+(defun stamp-tile [tiles x y tile]
+  (if (and tile (in-map-bounds? x y))
+    (:tiles (assoc-in {:tiles tiles} [:tiles y x] tile))
+    tiles))
+
+(defun output-layer-tile-entries [output-layer]
+  (apply concat
+         (for-indexed [tile-y row (or (:tiles output-layer) [])]
+           (for-indexed [tile-x tile (or row [])]
+             {:x tile-x
+              :y tile-y
+              :tile tile}))))
+
+(defun apply-stamp-output-layer [tiles source-x source-y output output-layer]
+  (let [anchor (or (:anchor output) {:x 0 :y 0})]
+    (reduce (output-layer-tile-entries output-layer)
+            tiles
+            (fn [next-tiles entry]
+              (stamp-tile next-tiles
+                          (+ source-x
+                             (:x entry)
+                             (- (:x anchor)))
+                          (+ source-y
+                             (:y entry)
+                             (- (:y anchor)))
+                          (:tile entry))))))
+
+(defun apply-terrain-stamp-rule [tiles definition source-layer rule x y]
+  (if (terrain-stamp-rule-matches? source-layer rule x y)
+    (reduce (or (-> rule :output :layers) [])
+            tiles
+            (fn [next-tiles output-layer]
+              (if (stamp-output-layer-matches? definition output-layer)
+                (apply-stamp-output-layer next-tiles
+                                          x
+                                          y
+                                          (:output rule)
+                                          output-layer)
+                next-tiles)))
+    tiles))
+
+(defun derive-terrain-stamp-tiles [source-layer definition ruleset]
+  (reduce (or (:rules ruleset) [])
+          (empty-derived-tiles)
+          (fn [tiles rule]
+            (reduce (apply concat
+                           (dotimes [y data/map-height]
+                             (dotimes [x data/map-width]
+                               {:x x
+                                :y y})))
+                    tiles
+                    (fn [next-tiles pos]
+                      (apply-terrain-stamp-rule next-tiles
+                                                definition
+                                                source-layer
+                                                rule
+                                                (:x pos)
+                                                (:y pos)))))))
+
+(defun terrain-stamp-output-layer [definition ruleset]
+  (head (apply concat
+               (map (or (:rules ruleset) [])
+                    (fn [rule]
+                      (filter (or (-> rule :output :layers) [])
+                              (fn [output-layer]
+                                (stamp-output-layer-matches?
+                                 definition
+                                 output-layer))))))))
+
+(defun derive-terrain-stamp-layer [tilemap definition ruleset]
+  (let [source-layer (layer-by-id (:layers tilemap)
+                                  (or (:source-layer ruleset)
+                                      (head (:source-layers definition))))
+        output-layer (terrain-stamp-output-layer definition ruleset)]
+    (if source-layer
+      (assoc (derived-layer-base definition ruleset)
+             :tileset (or (:tileset definition)
+                          (:tileset output-layer)
+                          (:output-tileset ruleset))
+             :tiles (derive-terrain-stamp-tiles source-layer
+                                                definition
+                                                ruleset))
+      nil)))
+
 (defun derive-layer [tilemap layer-profile rulesets derived-layer-id]
   (let [definition (layer-by-id (:layers layer-profile) derived-layer-id)
         ruleset (ruleset-by-id rulesets (:ruleset definition))]
     (case (:kind definition)
       :marching-4 (derive-marching-4-layer tilemap definition ruleset)
+      :terrain-stamp (derive-terrain-stamp-layer tilemap definition ruleset)
       :default nil)))
 
 (defun layer-in-profile? [profile layer]

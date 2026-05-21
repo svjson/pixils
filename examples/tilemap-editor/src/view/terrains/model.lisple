@@ -96,6 +96,12 @@
 (defun unique-terrain-id [terrains]
   (unique-id-from terrains "terrain" nil))
 
+(defun unique-ruleset-id [rulesets terrain-set-id]
+  (unique-id-from rulesets (str (keyword-label terrain-set-id) "-rules") nil))
+
+(defun unique-rule-id [rules]
+  (unique-id-from rules "rule" nil))
+
 (defun make-terrain-set [terrain-sets tilesets]
   (let [id (unique-terrain-set-id terrain-sets)]
     (merge {:id id
@@ -375,15 +381,335 @@
     (assoc-in state (concat path [:tile]) tile)
     state))
 
+(def neighbor-directions [:nw :n :ne :w :e :sw :s :se])
+
+(def default-rule-match
+  {:nw :ignore
+   :n :ignore
+   :ne :ignore
+   :w :ignore
+   :e :ignore
+   :sw :ignore
+   :s :ignore
+   :se :ignore})
+
+(defun selected-terrain-set-id [state]
+  (:id (selected-terrain-set (:terrain-sets state)
+                             (:selected-terrain-set-index state))))
+
+(defun selected-terrain-id [state]
+  (:id (selected-terrain
+        (selected-terrain-set (:terrain-sets state)
+                              (:selected-terrain-set-index state))
+        (:selected-terrain-index state))))
+
+(defun active-layer-profile [state]
+  (data/layer-profile-by-id (:layer-profiles state)
+                            (:selected-layer-profile-id state)))
+
+(defun profile-layers [state]
+  (let [profile (active-layer-profile state)]
+    (if profile
+      (:layers profile)
+      (:layers state))))
+
+(defun terrain-source-layer? [layer terrain-set-id]
+  (and (= (:data-kind layer) :terrain)
+       (= (:terrain-set layer) terrain-set-id)))
+
+(defun terrain-source-layers [state terrain-set-id]
+  (filter (profile-layers state)
+          (fn [layer]
+            (terrain-source-layer? layer terrain-set-id))))
+
+(defun tile-output-layer? [layer]
+  (and (= (:data-kind layer) :tile-ref)
+       (:tileset layer)))
+
+(defun tile-output-layers [state]
+  (filter (profile-layers state) tile-output-layer?))
+
+(defun first-source-layer-id [state terrain-set-id]
+  (:id (head (terrain-source-layers state terrain-set-id))))
+
+(defun first-output-layer [state]
+  (head (tile-output-layers state)))
+
+(defun center-stamp-tiles [tile]
+  [[nil nil nil]
+   [nil tile nil]
+   [nil nil nil]])
+
+(defun default-output-stamp-layer [state terrain-set terrain]
+  (let [output-layer (first-output-layer state)
+        tileset (or (:tileset output-layer) (:tileset terrain-set))
+        tile (or (:tile terrain)
+                 (first-tile-for (:tilesets state) tileset))]
+    {:id :layer
+     :data-kind :tile-ref
+     :target-layer (:id output-layer)
+     :tileset tileset
+     :tiles (center-stamp-tiles tile)}))
+
+(defun default-rule-output [state terrain-set terrain]
+  {:anchor {:x 1 :y 1}
+   :layers [(default-output-stamp-layer state terrain-set terrain)]})
+
+(defun make-terrain-ruleset [state]
+  (let [terrain-set (selected-terrain-set (:terrain-sets state)
+                                          (:selected-terrain-set-index state))
+        terrain-set-id (:id terrain-set)
+        id (unique-ruleset-id (:rulesets state) terrain-set-id)]
+    {:id id
+     :label "Terrain rules"
+     :kind :terrain-stamp
+     :terrain-set terrain-set-id
+     :source-layer (first-source-layer-id state terrain-set-id)
+     :rules []}))
+
+(defun make-terrain-rule [state]
+  (let [terrain-set (selected-terrain-set (:terrain-sets state)
+                                          (:selected-terrain-set-index state))
+        terrain (selected-terrain terrain-set
+                                  (:selected-terrain-index state))
+        ruleset (selected-terrain-ruleset state)
+        id (unique-rule-id (:rules ruleset))]
+    {:id id
+     :label "Rule"
+     :terrain (:id terrain)
+     :match default-rule-match
+     :output (default-rule-output state terrain-set terrain)}))
+
+(defun ruleset-for-terrain-set? [ruleset terrain-set-id]
+  (= (:terrain-set ruleset) terrain-set-id))
+
+(defun terrain-rulesets [state]
+  (let [terrain-set-id (selected-terrain-set-id state)]
+    (filter (or (:rulesets state) [])
+            (fn [ruleset]
+              (ruleset-for-terrain-set? ruleset terrain-set-id)))))
+
+(defun selected-terrain-ruleset-id [state]
+  (let [rulesets (terrain-rulesets state)
+        requested (:selected-terrain-ruleset-id state)
+        match (head (filter rulesets
+                            (fn [ruleset]
+                              (= (:id ruleset) requested))))]
+    (or (:id match)
+        (:id (head rulesets)))))
+
+(defun selected-terrain-ruleset [state]
+  (let [selected-id (selected-terrain-ruleset-id state)]
+    (head (filter (or (:rulesets state) [])
+                  (fn [ruleset]
+                    (= (:id ruleset) selected-id))))))
+
+(defun terrain-ruleset-options [state]
+  (for-indexed [index ruleset (terrain-rulesets state)]
+    {:value (:id ruleset)
+     :label (or (:label ruleset) (str (:id ruleset)))}))
+
+(defun selected-terrain-ruleset-index [state]
+  (let [selected-id (selected-terrain-ruleset-id state)]
+    (find-index (terrain-rulesets state)
+                (fn [ruleset]
+                  (= (:id ruleset) selected-id)))))
+
+(defun terrain-rule-center [rule]
+  (or (:terrain rule)
+      (-> rule :match :center :terrain)))
+
+(defun terrain-rules-for-selected-terrain [state]
+  (let [terrain-id (selected-terrain-id state)]
+    (filter (or (:rules (selected-terrain-ruleset state)) [])
+            (fn [rule]
+              (= (terrain-rule-center rule) terrain-id)))))
+
+(defun selected-terrain-rule-id [state]
+  (let [ruleset (selected-terrain-ruleset state)
+        rules (terrain-rules-for-selected-terrain state)
+        requested (:selected-terrain-rule-id state)
+        match (head (filter rules
+                            (fn [rule]
+                              (= (:id rule) requested))))]
+    (or (:id match)
+        (:id (head rules)))))
+
+(defun selected-terrain-rule [state]
+  (let [rule-id (selected-terrain-rule-id state)]
+    (head (filter (terrain-rules-for-selected-terrain state)
+                  (fn [rule]
+                    (= (:id rule) rule-id))))))
+
+(defun terrain-rule-options [state]
+  (for-indexed [index rule (terrain-rules-for-selected-terrain state)]
+    {:value (:id rule)
+     :label (or (:label rule) (str (:id rule)))}))
+
+(defun selected-terrain-rule-index [state]
+  (let [rule-id (selected-terrain-rule-id state)]
+    (find-index (terrain-rules-for-selected-terrain state)
+                (fn [rule]
+                  (= (:id rule) rule-id)))))
+
+(defun add-terrain-ruleset [state]
+  (if (selected-terrain-set-id state)
+    (let [ruleset (make-terrain-ruleset state)]
+      (assoc state
+             :rulesets (concat (or (:rulesets state) []) [ruleset])
+             :selected-terrain-ruleset-id (:id ruleset)
+             :selected-terrain-rule-id nil))
+    state))
+
+(defun update-ruleset [rulesets ruleset-id update-fn]
+  (map (or rulesets [])
+       (fn [ruleset]
+         (if (= (:id ruleset) ruleset-id)
+           (update-fn ruleset)
+           ruleset))))
+
+(defun update-rule [rules rule-id update-fn]
+  (map (or rules [])
+       (fn [rule]
+         (if (= (:id rule) rule-id)
+           (update-fn rule)
+           rule))))
+
+(defun add-terrain-rule [state]
+  (let [state (if (selected-terrain-ruleset-id state)
+                state
+                (add-terrain-ruleset state))
+        ruleset-id (selected-terrain-ruleset-id state)]
+    (if (and ruleset-id (selected-terrain-id state))
+      (let [rule (make-terrain-rule state)]
+        (assoc state
+               :rulesets (update-ruleset
+                          (:rulesets state)
+                          ruleset-id
+                          (fn [ruleset]
+                            (assoc ruleset
+                                   :rules
+                                   (concat (or (:rules ruleset) []) [rule]))))
+               :selected-terrain-ruleset-id ruleset-id
+               :selected-terrain-rule-id (:id rule)))
+      state)))
+
+(defun set-selected-rule-terrain [state terrain-id]
+  (let [ruleset-id (selected-terrain-ruleset-id state)
+        rule-id (or (:selected-terrain-rule-id state)
+                    (selected-terrain-rule-id state))]
+    (if (and ruleset-id rule-id)
+      (assoc state
+             :rulesets (update-ruleset
+                        (:rulesets state)
+                        ruleset-id
+                        (fn [ruleset]
+                          (assoc ruleset
+                                 :rules
+                                 (update-rule (:rules ruleset)
+                                              rule-id
+                                              (fn [rule]
+                                                (assoc rule
+                                                       :terrain
+                                                       terrain-id)))))))
+      state)))
+
+(defun match-condition-from-option [value]
+  (case value
+    :ignore :ignore
+    :same :same
+    :not-same :not-same
+    :default
+    {:terrain value}))
+
+(defun match-condition-option-value [condition]
+  (case condition
+    :ignore :ignore
+    :same :same
+    :not-same :not-same
+    :default
+    (if (= (type-of condition) "map")
+      (:terrain condition)
+      :ignore)))
+
+(defun set-selected-rule-match-condition [state direction value]
+  (let [ruleset-id (selected-terrain-ruleset-id state)
+        rule-id (or (:selected-terrain-rule-id state)
+                    (selected-terrain-rule-id state))
+        condition (match-condition-from-option value)]
+    (if (and ruleset-id rule-id (contains? neighbor-directions direction))
+      (assoc state
+             :rulesets (update-ruleset
+                        (:rulesets state)
+                        ruleset-id
+                        (fn [ruleset]
+                          (assoc ruleset
+                                 :rules
+                                 (update-rule (:rules ruleset)
+                                              rule-id
+                                              (fn [rule]
+                                                (assoc-in rule
+                                                          [:match direction]
+                                                          condition)))))))
+      state)))
+
+(defun match-condition-options [terrain-set]
+  (concat [{:value :ignore
+            :label "Ignore"}
+           {:value :same
+            :label "Same"}
+           {:value :not-same
+            :label "Not same"}]
+          (map (or (:terrains terrain-set) [])
+               (fn [terrain]
+                 {:value (:id terrain)
+                  :label (str "Terrain: "
+                              (or (:label terrain)
+                                  (:name terrain)
+                                  (str (:id terrain))))}))))
+
+(defun match-condition-index [terrain-set condition]
+  (let [value (match-condition-option-value condition)
+        match (find-index (match-condition-options terrain-set)
+                          (fn [option]
+                            (= (:value option) value)))]
+    (or match 0)))
+
+(defun next-match-condition-value [terrain-set condition]
+  (let [options (match-condition-options terrain-set)
+        index (match-condition-index terrain-set condition)
+        next-index (if (empty? options)
+                     0
+                     (mod (inc index) (count options)))]
+    (:value (nth options next-index))))
+
+(defun cycle-selected-rule-match-condition [state direction]
+  (let [terrain-set (selected-terrain-set (:terrain-sets state)
+                                          (:selected-terrain-set-index state))
+        rule (selected-terrain-rule state)
+        condition (get (or (:match rule) {}) direction)
+        next-value (next-match-condition-value terrain-set condition)]
+    (set-selected-rule-match-condition state direction next-value)))
+
+(defun terrain-rule-output-summary [rule]
+  (let [layers (or (-> rule :output :layers) [])]
+    (str (count layers) " output layers")))
+
 (defun derive-terrain-workspace-state [state]
   (let [terrain-sets (or (:terrain-sets state) [])
         set-index (selected-terrain-set-index terrain-sets
                                               (:selected-terrain-set-index state))
         terrain-set (selected-terrain-set terrain-sets set-index)
         terrain-index (selected-terrain-index terrain-set
-                                              (:selected-terrain-index state))]
+                                              (:selected-terrain-index state))
+        state (assoc state
+                     :selected-terrain-set-index set-index
+                     :selected-terrain-index terrain-index)
+        ruleset-id (selected-terrain-ruleset-id state)
+        rule-id (selected-terrain-rule-id
+                 (assoc state :selected-terrain-ruleset-id ruleset-id))]
     (assoc state
-           :selected-terrain-set-index set-index
-           :selected-terrain-index terrain-index
+           :selected-terrain-ruleset-id ruleset-id
+           :selected-terrain-rule-id rule-id
            :terrain-list-panel-disabled? (nil? set-index)
-           :terrain-detail-panel-disabled? (nil? terrain-index))))
+           :terrain-detail-panel-disabled? (nil? set-index))))

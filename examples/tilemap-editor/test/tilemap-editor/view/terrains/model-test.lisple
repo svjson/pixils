@@ -11,14 +11,14 @@
     (is (= false (:terrain-list-panel-disabled? state)))
     (is (= false (:terrain-detail-panel-disabled? state)))))
 
-(deftest terrain-workspace-disables_detail_without_terrains
+(deftest terrain-workspace-keeps_detail_enabled_without_terrains
   (let [state (model/derive-terrain-workspace-state
                {:terrain-sets [{:id :overworld
                                 :terrains []}]})]
     (is (= 0 (:selected-terrain-set-index state)))
     (is (nil? (:selected-terrain-index state)))
     (is (= false (:terrain-list-panel-disabled? state)))
-    (is (= true (:terrain-detail-panel-disabled? state)))))
+    (is (= false (:terrain-detail-panel-disabled? state)))))
 
 (deftest terrain-set-creation-adds_and_selects_new_set
   (let [state (model/add-terrain-set {:terrain-sets []})]
@@ -186,3 +186,98 @@
         state (model/set-selected-terrain-tile state :other-tile)]
     (is (= :new (get-in state [:terrain-sets 0 :tileset])))
     (is (= :other-tile (get-in state [:terrain-sets 0 :terrains 0 :tile])))))
+
+(deftest terrain-ruleset-creation-adds_selected_terrain_stamp_ruleset
+  (let [state (model/add-terrain-ruleset
+               {:terrain-sets [{:id :overworld
+                                :terrains [{:id :grass}]}]
+                :selected-terrain-set-index 0
+                :layers [{:id :scene/terrain
+                          :data-kind :terrain
+                          :terrain-set :overworld}]})]
+    (is (= :overworld-rules (get-in state [:rulesets 0 :id])))
+    (is (= :terrain-stamp (get-in state [:rulesets 0 :kind])))
+    (is (= :overworld (get-in state [:rulesets 0 :terrain-set])))
+    (is (= :scene/terrain (get-in state [:rulesets 0 :source-layer])))
+    (is (= :overworld-rules (:selected-terrain-ruleset-id state)))))
+
+(deftest terrain-rule-creation-adds_brush_shaped_output_stamp
+  (let [state (model/add-terrain-rule
+               {:terrain-sets [{:id :overworld
+                                :tileset :terrain
+                                :terrains [{:id :grass
+                                            :tile :grass-fill}]}]
+                :selected-terrain-set-index 0
+                :selected-terrain-index 0
+                :rulesets [{:id :overworld-rules
+                            :kind :terrain-stamp
+                            :terrain-set :overworld
+                            :rules []}]
+                :selected-terrain-ruleset-id :overworld-rules
+                :layer-profiles [{:id :default
+                                  :layers [{:id :scene/terrain-visuals
+                                            :data-kind :tile-ref
+                                            :tileset :terrain}]}]
+                :selected-layer-profile-id :default})]
+    (is (= :rule (get-in state [:rulesets 0 :rules 0 :id])))
+    (is (= :grass (get-in state [:rulesets 0 :rules 0 :terrain])))
+    (is (= :scene/terrain-visuals
+           (get-in state [:rulesets 0 :rules 0 :output :layers 0 :target-layer])))
+    (is (= [[nil nil nil]
+            [nil :grass-fill nil]
+            [nil nil nil]]
+           (get-in state [:rulesets 0 :rules 0 :output :layers 0 :tiles])))
+    (is (= :rule (:selected-terrain-rule-id state)))))
+
+(deftest terrain-rule-match-change-stores_specific_terrain_condition
+  (let [state (model/set-selected-rule-match-condition
+               {:terrain-sets [{:id :overworld
+                                :terrains [{:id :grass}
+                                           {:id :water}]}]
+                :selected-terrain-set-index 0
+                :rulesets [{:id :overworld-rules
+                            :terrain-set :overworld
+                            :rules [{:id :rule
+                                     :match {}}]}]
+                :selected-terrain-ruleset-id :overworld-rules
+                :selected-terrain-rule-id :rule}
+               :n
+               :water)]
+    (is (= {:terrain :water}
+           (get-in state [:rulesets 0 :rules 0 :match :n])))))
+
+(deftest terrain-rule-options-show_only_selected_terrain_rules
+  (let [state {:terrain-sets [{:id :overworld
+                               :terrains [{:id :grass}
+                                          {:id :water}]}]
+               :selected-terrain-set-index 0
+               :selected-terrain-index 0
+               :rulesets [{:id :overworld-rules
+                           :terrain-set :overworld
+                           :rules [{:id :grass-n
+                                    :label "Grass N"
+                                    :terrain :grass}
+                                   {:id :water-n
+                                    :label "Water N"
+                                    :terrain :water}]}]
+               :selected-terrain-ruleset-id :overworld-rules}]
+    (is (= [{:value :grass-n
+             :label "Grass N"}]
+           (model/terrain-rule-options state)))))
+
+(deftest terrain-rule-match-cycle-advances_visual_condition_options
+  (let [state (model/cycle-selected-rule-match-condition
+               {:terrain-sets [{:id :overworld
+                                :terrains [{:id :grass}
+                                           {:id :water}]}]
+                :selected-terrain-set-index 0
+                :selected-terrain-index 0
+                :rulesets [{:id :overworld-rules
+                            :terrain-set :overworld
+                            :rules [{:id :rule
+                                     :terrain :grass
+                                     :match {:n :ignore}}]}]
+                :selected-terrain-ruleset-id :overworld-rules
+                :selected-terrain-rule-id :rule}
+               :n)]
+    (is (= :same (get-in state [:rulesets 0 :rules 0 :match :n])))))

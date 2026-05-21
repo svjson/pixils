@@ -109,3 +109,72 @@
                                          [marching-ruleset])]
     (is (= :materialized
            (get-in layers [1 :tiles 0 0])))))
+
+(def terrain-stamp-ruleset
+  {:id :shore-rules
+   :kind :terrain-stamp
+   :terrain-set :overworld
+   :source-layer :scene/terrain
+   :rules [{:id :grass-north-water
+            :terrain :grass
+            :match {:n {:terrain :water}
+                    :e :ignore
+                    :s :same
+                    :w :ignore}
+            :output {:anchor {:x 1 :y 1}
+                     :layers [{:target-layer :scene/terrain-visuals
+                               :tileset :overworld
+                               :tiles [[nil :shore-n nil]
+                                       [nil :grass-fill :grass-edge-e]
+                                       [nil nil nil]]}
+                              {:target-layer :scene/decor
+                               :tileset :decor
+                               :tiles [[nil nil nil]
+                                       [:foam nil nil]
+                                       [nil nil nil]]}]}}]})
+
+(deftest terrain-stamp-rules-match_8_neighbor_conditions
+  (let [source (terrain-layer (terrain-map [[:water :water :water]
+                                           [:grass :grass :grass]
+                                           [nil :grass nil]]))
+        rule (head (:rules terrain-stamp-ruleset))]
+    (is (= true
+           (derivation/terrain-stamp-rule-matches? source rule 1 1)))
+    (is (= false
+           (derivation/terrain-stamp-rule-matches? source rule 0 1)))))
+
+(deftest terrain-stamp-derives_offset_outputs_for_target_layer
+  (let [source (terrain-layer (terrain-map [[:water :water :water]
+                                           [:grass :grass :grass]
+                                           [nil :grass nil]]))
+        tilemap {:layers [source]}
+        layer-profile {:id :default
+                       :layers [source
+                                {:id :scene/terrain-visuals
+                                 :label "Terrain Visuals"
+                                 :role :derived
+                                 :kind :terrain-stamp
+                                 :data-kind :tile-ref
+                                 :tileset :overworld
+                                 :source-layers [:scene/terrain]
+                                 :ruleset :shore-rules}
+                                {:id :scene/decor
+                                 :label "Decor"
+                                 :role :derived
+                                 :kind :terrain-stamp
+                                 :data-kind :tile-ref
+                                 :tileset :decor
+                                 :source-layers [:scene/terrain]
+                                 :ruleset :shore-rules}]}
+        terrain-visuals (derivation/derive-layer tilemap
+                                                 layer-profile
+                                                 [terrain-stamp-ruleset]
+                                                 :scene/terrain-visuals)
+        decor (derivation/derive-layer tilemap
+                                       layer-profile
+                                       [terrain-stamp-ruleset]
+                                       :scene/decor)]
+    (is (= :shore-n (get-in terrain-visuals [:tiles 0 1])))
+    (is (= :grass-fill (get-in terrain-visuals [:tiles 1 1])))
+    (is (= :grass-edge-e (get-in terrain-visuals [:tiles 1 2])))
+    (is (= :foam (get-in decor [:tiles 1 0])))))

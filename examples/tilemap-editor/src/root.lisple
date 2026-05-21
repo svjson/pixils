@@ -60,6 +60,8 @@
            :selected-terrain-set-index nil
            :selected-terrain-index nil
            :rulesets []
+           :selected-terrain-ruleset-id nil
+           :selected-terrain-rule-id nil
            :layer-profiles []
            :selected-layer-profile-id nil
            :brushes []
@@ -166,6 +168,10 @@
                        :selected-terrain-index
                        (ui/bind-state :selected-terrain-index)
                        :rulesets (ui/bind-state :rulesets)
+                       :selected-terrain-ruleset-id
+                       (ui/bind-state :selected-terrain-ruleset-id)
+                       :selected-terrain-rule-id
+                       (ui/bind-state :selected-terrain-rule-id)
                        :layer-profiles (ui/bind-state :layer-profiles)
                        :selected-layer-profile-id
                        (ui/bind-state :selected-layer-profile-id)
@@ -262,10 +268,23 @@
                                :style {:padding 8}
                                :state {:terrain-sets (ui/bind-state :terrain-sets)
                                        :tilesets (ui/bind-state :tilesets)
+                                       :rulesets (ui/bind-state :rulesets)
+                                       :layers (ui/bind-state :layers)
+                                       :layer-profiles
+                                       (ui/bind-state :layer-profiles)
+                                       :selected-layer-profile-id
+                                       (ui/bind-state
+                                        :selected-layer-profile-id)
                                        :selected-terrain-set-index
                                        (ui/bind-state :selected-terrain-set-index)
                                        :selected-terrain-index
-                                       (ui/bind-state :selected-terrain-index)}}}]})]
+                                       (ui/bind-state :selected-terrain-index)
+                                       :selected-terrain-ruleset-id
+                                       (ui/bind-state
+                                        :selected-terrain-ruleset-id)
+                                       :selected-terrain-rule-id
+                                       (ui/bind-state
+                                        :selected-terrain-rule-id)}}}]})]
   :on {:palette/select (fn [state event ctx]
                          (assoc state :selected-tile (:payload event)))
        :palette/brush-select (fn [state event ctx]
