@@ -37,6 +37,34 @@
              :tiles (data/make-empty-map)}]
    :brushes [(pattern-brush)]})
 
+(defun targeted-brush-paint-state []
+  {:selected-layer-index 1
+   :map-palette-tab :brushes
+   :selected-brush-index 0
+   :zoom 1
+   :offset {:x 0 :y 0}
+   :layers [{:id :scene/ground
+             :label "Ground"
+             :tileset :terrain
+             :tiles (data/make-empty-map)}
+            {:id :scene/props
+             :label "Props"
+             :tileset :props
+             :tiles (data/make-empty-map)}]
+   :brushes [{:id :stamp
+              :label "Stamp"
+              :kind :pattern
+              :pattern {:size {:w 1 :h 1}
+                        :anchor {:x 0 :y 0}
+                        :layers [{:id :terrain
+                                  :target-layer :scene/ground
+                                  :tileset :terrain
+                                  :tiles [[:grass]]}
+                                 {:id :props
+                                  :target-layer :scene/props
+                                  :tileset :props
+                                  :tiles [[:crate]]}]}}]})
+
 (defun paint-event [button x y]
   {:button button
    :position {:x (* x data/tile-size)
@@ -50,6 +78,12 @@
     (is (= :grass (get-in state [:layers 0 :tiles 6 5])))
     (is (= :rock (get-in state [:layers 0 :tiles 7 6])))
     (is (nil? (get-in state [:layers 0 :tiles 5 4])))))
+
+(deftest tilemap-paint-stamps_targeted_pattern_layers_by_map_layer_id
+  (let [state (tilemap/paint-map-at (targeted-brush-paint-state)
+                                    (paint-event :left 5 6))]
+    (is (= :grass (get-in state [:layers 0 :tiles 6 5])))
+    (is (= :crate (get-in state [:layers 1 :tiles 6 5])))))
 
 (deftest tilemap-paint-ignores_brush_layers_for_other_tilesets
   (let [state (tilemap/paint-map-at (brush-paint-state)

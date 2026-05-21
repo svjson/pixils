@@ -118,7 +118,15 @@
                               :pattern {:layers [{:id :stamp
                                                    :tileset :terrain
                                                    :tiles [[:grass nil]]}]}}]
+                   :layer-profiles [{:id :default
+                                     :layers [{:id :scene/terrain
+                                               :role :source
+                                               :data-kind :tile-ref
+                                               :tileset :terrain}]}]
                    :tilemap {:layers []}})]
     (is (= [[:grass nil]]
            (get-in document
-                   [:brushes 0 :pattern :layers 0 :tiles])))))
+                   [:brushes 0 :pattern :layers 0 :tiles])))
+    (is (= :scene/terrain
+           (get-in document
+                   [:brushes 0 :pattern :layers 0 :target-layer])))))

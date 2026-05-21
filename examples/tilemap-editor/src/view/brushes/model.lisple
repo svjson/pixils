@@ -1,5 +1,6 @@
 (ns tilemap-editor.view.brushes.model
-  (:require pixils))
+  (:require pixils
+            [tilemap-editor.model.data :as data]))
 
 (def default-pattern-size {:w 3 :h 3})
 (def default-pattern-anchor {:x 1 :y 1})
@@ -98,6 +99,28 @@
 (defun first-tileset-id [tilesets]
   (tileset-id tilesets 0))
 
+(defun selected-layer-profile [state]
+  (data/layer-profile-by-id (:layer-profiles state)
+                            (:selected-layer-profile-id state)))
+
+(defun first-profile-source-layer [state]
+  (head (filter (or (:layers (selected-layer-profile state)) [])
+                (fn [layer]
+                  (not= (:role layer) :derived)))))
+
+(defun layer-target-for-tileset [state tileset]
+  (data/target-layer-for-tileset (selected-layer-profile state) tileset))
+
+(defun tileset-for-layer-target [state target-layer]
+  (data/tileset-for-target-layer (selected-layer-profile state) target-layer))
+
+(defun first-pattern-layer-tileset [state]
+  (or (:tileset (first-profile-source-layer state))
+      (first-tileset-id (:tilesets state))))
+
+(defun first-pattern-layer-target [state]
+  (:id (first-profile-source-layer state)))
+
 (defun pattern-layer-id-exists? [layers id]
   (> (count (filter (or layers [])
                     (fn [layer]
@@ -117,23 +140,45 @@
 (defun unique-pattern-layer-id [layers]
   (unique-pattern-layer-id-from layers "layer" nil))
 
-(defun make-pattern-layer [layers tilesets width height]
-  {:id (unique-pattern-layer-id layers)
-   :label (str "Layer " (inc (count (or layers []))))
-   :kind :tile
-   :tileset (first-tileset-id tilesets)
-   :tiles (make-empty-pattern-tiles width height)})
+(defun normalize-pattern-layer-target [state layer]
+  (let [target-layer (:target-layer layer)
+        tileset (:tileset layer)
+        tileset-from-target (tileset-for-layer-target state target-layer)
+        target-from-tileset (layer-target-for-tileset state tileset)
+        layer (if tileset-from-target
+                (assoc layer :tileset tileset-from-target)
+                layer)]
+    (if (and (nil? target-layer) target-from-tileset)
+      (assoc layer :target-layer target-from-tileset)
+      layer)))
 
-(defun make-initial-pattern-layers [tilesets width height]
-  (if (empty? (or tilesets []))
+(defun normalize-pattern-layers-targets [state layers]
+  (map (or layers [])
+       (fn [layer]
+         (normalize-pattern-layer-target state layer))))
+
+(defun make-pattern-layer [layers state width height]
+  (let [tileset (first-pattern-layer-tileset state)
+        target-layer (first-pattern-layer-target state)
+        layer {:id (unique-pattern-layer-id layers)
+               :label (str "Layer " (inc (count (or layers []))))
+               :kind :tile
+               :tileset tileset
+               :tiles (make-empty-pattern-tiles width height)}]
+    (if target-layer
+      (assoc layer :target-layer target-layer)
+      layer)))
+
+(defun make-initial-pattern-layers [state width height]
+  (if (nil? (first-pattern-layer-tileset state))
     []
-    [(make-pattern-layer [] tilesets width height)]))
+    [(make-pattern-layer [] state width height)]))
 
 (defun make-pattern-brush-for-state [state id label]
   (let [size default-pattern-size]
     (assoc-in (make-pattern-brush id label)
               [:pattern :layers]
-              (make-initial-pattern-layers (:tilesets state)
+              (make-initial-pattern-layers state
                                            (:w size)
                                            (:h size)))))
 
@@ -218,15 +263,18 @@
   (let [brushes (or (:brushes state) [])
         brush (selected-brush brushes brush-index)
         tilesets (or (:tilesets state) [])
-        first-tileset (first-tileset-id tilesets)]
+        first-tileset (first-pattern-layer-tileset state)]
     (if (and brush (= (:kind brush) :pattern) first-tileset)
-      (let [layers (or (-> brush :pattern :layers) [])
+      (let [layers (normalize-pattern-layers-targets
+                    state
+                    (or (-> brush :pattern :layers) []))
+            brush (assoc-in brush [:pattern :layers] layers)
             layer-index (selected-pattern-layer-index brush
                                                       (:selected-brush-layer-index state))]
         (cond
           (empty? layers)
           (let [layer (make-pattern-layer []
-                                          tilesets
+                                          state
                                           (pattern-width brush)
                                           (pattern-height brush))
                 next-brush (assoc-in brush [:pattern :layers] [layer])]
@@ -243,7 +291,9 @@
                    :selected-brush-layer-index (or layer-index 0)))
 
           :default
-          state))
+          (assoc state
+                 :brushes (replace-selected-brush brushes brush-index brush)
+                 :selected-brush-layer-index (or layer-index 0))))
       state)))
 
 (defun brush-kind-label [brush]
@@ -287,11 +337,11 @@
         brush (selected-brush brushes brush-index)]
     (if (and brush
              (= (:kind brush) :pattern)
-             (first-tileset-id (:tilesets state)))
+             (first-pattern-layer-tileset state))
       (let [layers (or (-> brush :pattern :layers) [])
             width (pattern-width brush)
             height (pattern-height brush)
-            layer (make-pattern-layer layers (:tilesets state) width height)
+            layer (make-pattern-layer layers state width height)
             layer-index (count layers)
             next-brush (assoc-in brush [:pattern :layers] (concat layers [layer]))]
         (assoc state
@@ -403,9 +453,15 @@
                                                   (:selected-brush-layer-index state))
         tileset (tileset-id (:tilesets state) tileset-index)]
     (if (and brush (not (nil? layer-index)) tileset)
-      (let [next-brush (assoc-in brush
-                                 [:pattern :layers layer-index :tileset]
-                                 tileset)]
+      (let [target-layer (layer-target-for-tileset state tileset)
+            layer (assoc (nth (-> brush :pattern :layers) layer-index)
+                         :tileset tileset)
+            layer (if target-layer
+                    (assoc layer :target-layer target-layer)
+                    (dissoc layer :target-layer))
+            next-brush (assoc-in brush
+                                 [:pattern :layers layer-index]
+                                 layer)]
         (assoc state
                :brushes (replace-selected-brush brushes brush-index next-brush)
                :brush-selected-tile nil))

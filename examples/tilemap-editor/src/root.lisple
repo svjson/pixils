@@ -150,6 +150,9 @@
                        :selected-tileset-tile-indices (ui/bind-state :selected-tileset-tile-indices)
                        :tilesets (ui/bind-state :tilesets)
                        :tileset (ui/bind-state :tileset)
+                       :layer-profiles (ui/bind-state :layer-profiles)
+                       :selected-layer-profile-id
+                       (ui/bind-state :selected-layer-profile-id)
                        :brushes (ui/bind-state :brushes)
                        :selected-brush-index (ui/bind-state :selected-brush-index)
                        :selected-brush-layer-index (ui/bind-state :selected-brush-layer-index)
@@ -216,6 +219,9 @@
                                        (ui/bind-state :selected-brush-layer-index)
                                        :brush-selected-tile (ui/bind-state :brush-selected-tile)
                                        :tilesets (ui/bind-state :tilesets)
+                                       :layer-profiles (ui/bind-state :layer-profiles)
+                                       :selected-layer-profile-id
+                                       (ui/bind-state :selected-layer-profile-id)
                                        :layers (ui/bind-state :layers)}}}
                       {:id :resources
                        :label "Resources"

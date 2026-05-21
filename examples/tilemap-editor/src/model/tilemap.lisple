@@ -45,6 +45,11 @@
     (nth layers selected)
     nil))
 
+(defun layer-index-by-id [layers layer-id]
+  (find-index (or layers [])
+              (fn [layer]
+                (= (:id layer) layer-id))))
+
 (defun pattern-width [brush]
   (or (-> brush :pattern :size :w) 1))
 
@@ -99,8 +104,8 @@
                                 anchor
                                 cell))))
 
-(defun stamp-pattern-layer [state layer-index map-tileset target-x target-y brush layer]
-  (if (= (:tileset layer) map-tileset)
+(defun stamp-pattern-layer [state layer-index target-x target-y brush layer]
+  (if (not (nil? layer-index))
     (let [anchor (pattern-anchor brush)]
       (reduce (for-indexed [y row (or (:tiles layer) [])]
                 {:y y
@@ -115,29 +120,33 @@
                                    row))))
     state))
 
-(defun stamp-pattern-brush [state layer-index target-x target-y brush]
-  (let [layer (selected-layer (:layers state) layer-index)
-        map-tileset (:tileset layer)]
-    (if (and brush
-             (= (:kind brush) :pattern)
-             map-tileset)
-      (reduce (or (-> brush :pattern :layers) [])
-              state
-              (fn [out pattern-layer]
-                (stamp-pattern-layer out
-                                     layer-index
-                                     map-tileset
-                                     target-x
-                                     target-y
-                                     brush
-                                     pattern-layer)))
-      state)))
+(defun legacy-pattern-layer-target-index [state selected-layer-index pattern-layer]
+  (let [layer (selected-layer (:layers state) selected-layer-index)]
+    (if (= (:tileset pattern-layer) (:tileset layer))
+      selected-layer-index
+      nil)))
 
-(defun pattern-brush-has-tileset? [brush tileset]
-  (> (count (filter (or (-> brush :pattern :layers) [])
-                    (fn [layer]
-                      (= (:tileset layer) tileset))))
-     0))
+(defun pattern-layer-target-index [state selected-layer-index pattern-layer]
+  (if (:target-layer pattern-layer)
+    (layer-index-by-id (:layers state) (:target-layer pattern-layer))
+    (legacy-pattern-layer-target-index state
+                                       selected-layer-index
+                                       pattern-layer)))
+
+(defun stamp-pattern-brush [state layer-index target-x target-y brush]
+  (if (and brush (= (:kind brush) :pattern))
+    (reduce (or (-> brush :pattern :layers) [])
+            state
+            (fn [out pattern-layer]
+              (stamp-pattern-layer out
+                                   (pattern-layer-target-index state
+                                                               layer-index
+                                                               pattern-layer)
+                                   target-x
+                                   target-y
+                                   brush
+                                   pattern-layer)))
+    state))
 
 (defun clear-pattern-footprint-row [state layer-index target-x target-y anchor y width]
   (reduce (range 0 (dec width))
@@ -150,25 +159,30 @@
                           nil))))
 
 (defun clear-pattern-footprint [state layer-index target-x target-y brush]
-  (let [layer (selected-layer (:layers state) layer-index)
-        map-tileset (:tileset layer)]
-    (if (and brush
-             (= (:kind brush) :pattern)
-             (pattern-brush-has-tileset? brush map-tileset))
-      (let [anchor (pattern-anchor brush)
-            width (pattern-width brush)
-            height (pattern-height brush)]
-        (reduce (range 0 (dec height))
-                state
-                (fn [out y]
-                  (clear-pattern-footprint-row out
-                                               layer-index
-                                               target-x
-                                               target-y
-                                               anchor
-                                               y
-                                               width))))
-      state)))
+  (if (and brush (= (:kind brush) :pattern))
+    (let [anchor (pattern-anchor brush)
+          width (pattern-width brush)
+          height (pattern-height brush)]
+      (reduce (or (-> brush :pattern :layers) [])
+              state
+              (fn [out pattern-layer]
+                (let [target-layer-index (pattern-layer-target-index
+                                          state
+                                          layer-index
+                                          pattern-layer)]
+                  (if (nil? target-layer-index)
+                    out
+                    (reduce (range 0 (dec height))
+                            out
+                            (fn [row-out y]
+                              (clear-pattern-footprint-row row-out
+                                                           target-layer-index
+                                                           target-x
+                                                           target-y
+                                                           anchor
+                                                           y
+                                                           width))))))))
+    state))
 
 (defun paint-tile-at [state layer-index tile-x tile-y event]
   (cond
