@@ -11,6 +11,7 @@
   {:bundles {}})
 
 (def project-brushes [])
+(def project-terrain-sets [])
 (def default-layer-profile-id :default)
 (def default-layer-profile-label "Default")
 
@@ -102,6 +103,81 @@
     (if tile
       (str "Selected: " (:name tile) " (" (:type tile) ")")
       "")))
+
+(defun terrain-set-definition [terrain-sets terrain-set]
+  (head (filter (or terrain-sets [])
+                (fn [item]
+                  (= (:id item) terrain-set)))))
+
+(defun terrain-definitions [terrain-sets terrain-set]
+  (or (:terrains (terrain-set-definition terrain-sets terrain-set)) []))
+
+(defun terrain-count [terrain-sets terrain-set]
+  (count (terrain-definitions terrain-sets terrain-set)))
+
+(defun clamp-terrain-index [terrain-sets terrain-set index]
+  (let [count (terrain-count terrain-sets terrain-set)]
+    (if (= count 0)
+      0
+      (max 0 (min (dec count) (or index 0))))))
+
+(defun terrain-index [terrain-sets terrain-set terrain-ref]
+  (if (keyword? terrain-ref)
+    (let [match (find-index (terrain-definitions terrain-sets terrain-set)
+                            (fn [terrain]
+                              (= (:id terrain) terrain-ref)))]
+      (or match 0))
+    (clamp-terrain-index terrain-sets terrain-set terrain-ref)))
+
+(defun terrain-id [terrain-sets terrain-set terrain-ref]
+  (let [terrains (terrain-definitions terrain-sets terrain-set)]
+    (when (> (count terrains) 0)
+      (:id (nth terrains (terrain-index terrain-sets terrain-set terrain-ref))))))
+
+(defun terrain-in [terrain-sets terrain-set terrain-ref]
+  (let [terrains (terrain-definitions terrain-sets terrain-set)]
+    (when (> (count terrains) 0)
+      (nth terrains (terrain-index terrain-sets terrain-set terrain-ref)))))
+
+(defun terrain-options [terrain-sets terrain-set]
+  (for-indexed [index terrain (terrain-definitions terrain-sets terrain-set)]
+    {:value (:id terrain)
+     :label (or (:label terrain) (:name terrain) (str (:id terrain)))}))
+
+(defun terrain-preview-tileset [terrain-set terrain]
+  (or (:tileset terrain)
+      (:tileset terrain-set)))
+
+(defun terrain-preview-tile [terrain]
+  (or (:tile terrain)
+      (:preview-tile terrain)
+      (:preview terrain)))
+
+(defun terrain-tile-in [tilesets terrain-sets terrain-set terrain-ref]
+  (let [terrain-set-definition (terrain-set-definition terrain-sets terrain-set)
+        terrain (terrain-in terrain-sets terrain-set terrain-ref)]
+    (when terrain
+      (tile-in tilesets
+               (terrain-preview-tileset terrain-set-definition terrain)
+               (terrain-preview-tile terrain)))))
+
+(defun terrain-label [terrain-sets terrain-set terrain-ref]
+  (let [terrain (terrain-in terrain-sets terrain-set terrain-ref)]
+    (if terrain
+      (str "Selected: "
+           (or (:label terrain) (:name terrain) (str (:id terrain)))
+           " (terrain)")
+      "")))
+
+(defun source-layer-value-id [tilesets terrain-sets layer value]
+  (if (= (:data-kind layer) :terrain)
+    (terrain-id terrain-sets (:terrain-set layer) value)
+    (tile-id tilesets (:tileset layer) value)))
+
+(defun source-layer-value-label [tilesets terrain-sets layer value]
+  (if (= (:data-kind layer) :terrain)
+    (terrain-label terrain-sets (:terrain-set layer) value)
+    (tile-label tilesets (:tileset layer) value)))
 
 (defun make-empty-row []
   (dotimes [x map-width]
@@ -286,6 +362,7 @@
                      [:tilemap :layer-profile]
                      layer-profile-id)
            :layer-profiles layer-profiles
+           :terrain-sets (or (:terrain-sets project) project-terrain-sets)
            :brushes (normalize-brushes (:brushes project) layer-profile))))
 
 (defun tilemap-document [state layers layer-profile-id]
@@ -311,6 +388,7 @@
      :resources (normalize-project-resources (or (:resources state)
                                                  project-resources))
      :tilesets (or (:tilesets state) [])
+     :terrain-sets (or (:terrain-sets state) project-terrain-sets)
      :layer-profiles layer-profiles
      :brushes (normalize-brushes (or (:brushes state) project-brushes)
                                  layer-profile)

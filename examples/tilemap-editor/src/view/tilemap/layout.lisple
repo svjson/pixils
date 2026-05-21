@@ -38,6 +38,7 @@
                :style {:height :fill}
                :state {:selected-tile (ui/bind-state :selected-tile)
                        :tilesets (ui/bind-state :tilesets)
+                       :terrain-sets (ui/bind-state :terrain-sets)
                        :brushes (ui/bind-state :brushes)
                        :selected-brush-index
                        (ui/bind-state :selected-brush-index)
@@ -70,6 +71,7 @@
                         :selected-tileset-index (ui/bind-state :selected-tileset-index)
                         :tilesets (ui/bind-state :tilesets)
                         :tileset (ui/bind-state :tileset)
+                        :terrain-sets (ui/bind-state :terrain-sets)
                         :brushes (ui/bind-state :brushes)
                         :selected-brush-index
                         (ui/bind-state :selected-brush-index)
@@ -86,6 +88,7 @@
                             :style {:padding {:r 8}}
                             :state {:selected-tile (ui/bind-state :selected-tile)
                                     :tilesets (ui/bind-state :tilesets)
+                                    :terrain-sets (ui/bind-state :terrain-sets)
                                     :brushes (ui/bind-state :brushes)
                                     :selected-brush-index
                                     (ui/bind-state :selected-brush-index)
@@ -106,6 +109,7 @@
                                     :selected-tileset-index (ui/bind-state :selected-tileset-index)
                                     :tilesets (ui/bind-state :tilesets)
                                     :tileset (ui/bind-state :tileset)
+                                    :terrain-sets (ui/bind-state :terrain-sets)
                                     :brushes (ui/bind-state :brushes)
                                     :selected-brush-index
                                     (ui/bind-state :selected-brush-index)

@@ -69,6 +69,12 @@
          (project-io/project-tilesets {:tilesets [{:id :terrain}]})))
   (is (= [] (project-io/project-tilesets {}))))
 
+(deftest project-terrain-sets-come-from-project-document
+  (is (= [{:id :overworld}]
+         (project-io/project-terrain-sets
+          {:terrain-sets [{:id :overworld}]})))
+  (is (= [] (project-io/project-terrain-sets {}))))
+
 (deftest project-brushes-come-from-project-document
   (is (= [{:id :brush}]
          (project-io/project-brushes {:brushes [{:id :brush}]})))

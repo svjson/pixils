@@ -17,8 +17,9 @@
            :height :fill
            :cursor :crosshair}
    :init (fn [state ctx]
-           (merge {:offset {:x 0 :y 0}
+            (merge {:offset {:x 0 :y 0}
                    :tilesets []
+                   :terrain-sets []
                    :brushes []
                    :layers []}
                   state))
@@ -39,6 +40,7 @@
    :render (fn [state ctx]
              (let [offset (or (:offset state) {:x 0 :y 0})]
                (tr/render-layers! (:tilesets state)
+                                  (:terrain-sets state)
                                   (:layers state)
                                   (:hidden-layer-indices state)
                                   offset
@@ -60,6 +62,7 @@
    :children [{:mode 'map-canvas
                :state {:selected-tile (ui/bind-state :selected-tile)
                        :tilesets (ui/bind-state :tilesets)
+                       :terrain-sets (ui/bind-state :terrain-sets)
                        :brushes (ui/bind-state :brushes)
                        :selected-brush-index
                        (ui/bind-state :selected-brush-index)
@@ -115,6 +118,7 @@
    :children [{:mode 'map-scroll-row
                :state {:selected-tile (ui/bind-state :selected-tile)
                        :tilesets (ui/bind-state :tilesets)
+                       :terrain-sets (ui/bind-state :terrain-sets)
                        :brushes (ui/bind-state :brushes)
                        :selected-brush-index
                        (ui/bind-state :selected-brush-index)

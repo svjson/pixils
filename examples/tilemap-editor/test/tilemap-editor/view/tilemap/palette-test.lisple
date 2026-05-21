@@ -27,6 +27,32 @@
                                    :colors
                                    false)))))))
 
+(deftest terrain-palette-lists_terrain_values
+  (let [child (palette/source-palette-list-box-child
+               {:terrain-sets [{:id :overworld
+                                :terrains [{:id :grass
+                                            :label "Grass"}]}]
+                :layers [{:id :scene/terrain
+                          :data-kind :terrain
+                          :terrain-set :overworld}]
+                :selected-layer-index 0
+                :selected-tile :grass}
+               false)]
+    (is (not= true (:disabled? (:state child))))
+    (is (= [{:value :grass
+             :label "Grass"}]
+           (:options (:state child))))
+    (is (= [0]
+           (palette/selected-tile-indices
+            {:terrain-sets [{:id :overworld
+                             :terrains [{:id :grass
+                                         :label "Grass"}]}]
+             :layers [{:id :scene/terrain
+                       :data-kind :terrain
+                       :terrain-set :overworld}]
+             :selected-layer-index 0
+             :selected-tile :grass})))))
+
 (deftest brush-palette-is-disabled-when-empty
   (is (= true
          (:disabled? (:state (palette/brush-palette-list-box-child

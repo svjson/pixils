@@ -64,17 +64,28 @@
      :w size
      :h size}))
 
-(defun render-layer! [tileset-definitions layer offset zoom]
-  (let [tiles (:tiles layer)
-        tileset (:tileset layer)]
+(defun layer-cell-tile [tileset-definitions terrain-sets layer tile-ref]
+  (if (= (:data-kind layer) :terrain)
+    (data/terrain-tile-in tileset-definitions
+                          terrain-sets
+                          (:terrain-set layer)
+                          tile-ref)
+    (data/tile-in tileset-definitions
+                  (:tileset layer)
+                  tile-ref)))
+
+(defun render-layer! [tileset-definitions terrain-sets layer offset zoom]
+  (let [tiles (:tiles layer)]
     (dotimes [y data/map-height]
       (dotimes [x data/map-width]
         (let [tile-ref (nth (nth tiles y) x)]
           (when (not (nil? tile-ref))
-            (draw-tile! (data/tile-in tileset-definitions
-                                                   tileset
-                                                   tile-ref)
-                        (tile-rect x y offset zoom))))))))
+            (let [tile (layer-cell-tile tileset-definitions
+                                        terrain-sets
+                                        layer
+                                        tile-ref)]
+              (when tile
+                (draw-tile! tile (tile-rect x y offset zoom))))))))))
 
 (defun render-grid-overlay! [offset zoom]
   (dotimes [y data/map-height]
@@ -82,10 +93,10 @@
       (r/rect! (tile-rect x y offset zoom)
                {:color {:r 0x12 :g 0x15 :b 0x18}}))))
 
-(defun render-layers! [tileset-definitions layers hidden-layer-indices offset zoom show-grid?]
+(defun render-layers! [tileset-definitions terrain-sets layers hidden-layer-indices offset zoom show-grid?]
   (do
     (for-indexed [index layer layers]
       (when (not (contains? (or hidden-layer-indices []) index))
-        (render-layer! tileset-definitions layer offset zoom)))
+        (render-layer! tileset-definitions terrain-sets layer offset zoom)))
     (when show-grid?
       (render-grid-overlay! offset zoom))))

@@ -28,6 +28,26 @@
       (or (:tileset layer)
           (:palette-tileset state)))))
 
+(defun selected-layer-terrain-set [state]
+  (let [layer (selected-layer state)]
+    (when layer
+      (or (:terrain-set layer)
+          (:palette-terrain-set state)))))
+
+(defun selected-layer-data-kind [state]
+  (or (:data-kind (selected-layer state))
+      :tile-ref))
+
+(defun source-options [state]
+  (if (= (selected-layer-data-kind state) :terrain)
+    (data/terrain-options (:terrain-sets state)
+                          (selected-layer-terrain-set state))
+    (data/tile-options (:tilesets state)
+                       (selected-layer-tileset state))))
+
+(defun source-option-count [state]
+  (count (source-options state)))
+
 (defcomponent tile-swatch-preview
   {:style {:width 14
            :height 14}
@@ -49,14 +69,19 @@
                     :align-items :center
                     :gap 6}}
    :update (fn [state ctx]
-             (let [tile (data/tile-in (:tilesets state)
-                                                   (:tileset state)
-                                                   (:tile-id state))]
+             (let [tile (if (= (:data-kind state) :terrain)
+                          (data/terrain-tile-in (:tilesets state)
+                                                (:terrain-sets state)
+                                                (:terrain-set state)
+                                                (:tile-id state))
+                          (data/tile-in (:tilesets state)
+                                        (:tileset state)
+                                        (:tile-id state)))]
                (assoc (assoc (assoc state
                                     :selected (contains? (:selected-indices state)
                                                          (:index state)))
                              :tile tile)
-                      :name (:name tile))))
+                      :name (or (:label state) (:name tile)))))
    :on-mouse-down (fn [state event ctx]
                     (do
                       (ui/stop-propagation! event)
@@ -81,17 +106,25 @@
           (nil? (selected-layer state))
           (nil? (:selected-tile state)))
     []
-    [(data/tile-index (:tilesets state)
-                                     (selected-layer-tileset state)
-                                     (:selected-tile state))]))
+    (if (= (selected-layer-data-kind state) :terrain)
+      [(data/terrain-index (:terrain-sets state)
+                           (selected-layer-terrain-set state)
+                           (:selected-tile state))]
+      [(data/tile-index (:tilesets state)
+                        (selected-layer-tileset state)
+                        (:selected-tile state))])))
 
 (defun tile-swatch-child [index option]
   {:mode 'tile-swatch
    :state {:index index
            :value (:value option)
+           :label (:label option)
            :tile-id (:value option)
            :tileset (ui/bind-state :tileset)
+           :terrain-set (ui/bind-state :terrain-set)
+           :data-kind (ui/bind-state :data-kind)
            :tilesets (ui/bind-state :tilesets)
+           :terrain-sets (ui/bind-state :terrain-sets)
            :selected-indices (ui/bind-state :selected-indices)}})
 
 (defun tile-palette-list-box-child [tilesets tileset disabled?]
@@ -112,43 +145,83 @@
               :force-selection? true
               :item-child tile-swatch-child})))
 
+(defun source-palette-list-box-child [state disabled?]
+  (let [options (source-options state)]
+    (lb/make {:options options
+              :style {:width :fill
+                      :height :fill}
+              :row-height tile-palette-row-height
+              :visible-rows (count options)
+              :content-width tile-palette-content-width
+              :disabled? (if (or disabled? (empty? options))
+                            true
+                            false)
+              :state {:tileset (ui/bind-state :palette-tileset)
+                      :terrain-set (ui/bind-state :palette-terrain-set)
+                      :data-kind (ui/bind-state :palette-data-kind)
+                      :tilesets (ui/bind-state :tilesets)
+                      :terrain-sets (ui/bind-state :terrain-sets)}
+              :item-state-keys [:tileset
+                                :terrain-set
+                                :data-kind
+                                :tilesets
+                                :terrain-sets]
+              :selected-indices (ui/bind-state :selected-indices)
+              :force-selection? true
+              :item-child tile-swatch-child})))
+
 (defcomponent tile-palette-list
   {:style {:width :fill
            :height :fill}
    :init (fn [state ctx]
-           (let [tileset (selected-layer-tileset state)]
+           (let [tileset (selected-layer-tileset state)
+                 terrain-set (selected-layer-terrain-set state)
+                 data-kind (selected-layer-data-kind state)]
              (assoc state
                     :palette-tileset tileset
+                    :palette-terrain-set terrain-set
+                    :palette-data-kind data-kind
                     :palette-tilesets nil
-                    :tile-count nil
+                    :palette-terrain-sets nil
+                    :option-count nil
                     :rendered-disabled? nil
                     :selected-indices (selected-tile-indices state))))
    :update (fn [state ctx]
              (let [tileset (selected-layer-tileset state)
-                   tile-count (data/tile-count (:tilesets state) tileset)
+                   terrain-set (selected-layer-terrain-set state)
+                   data-kind (selected-layer-data-kind state)
+                   source-state (assoc (assoc state
+                                              :palette-tileset tileset)
+                                       :palette-terrain-set terrain-set
+                                       :palette-data-kind data-kind)
+                   option-count (source-option-count source-state)
                    disabled? (:disabled? state)]
                (do
                  (when (or (not= tileset (:palette-tileset state))
+                           (not= terrain-set (:palette-terrain-set state))
+                           (not= data-kind (:palette-data-kind state))
                            (not= (:tilesets state) (:palette-tilesets state))
-                           (not= tile-count (:tile-count state))
+                           (not= (:terrain-sets state)
+                                 (:palette-terrain-sets state))
+                           (not= option-count (:option-count state))
                            (not= disabled? (:rendered-disabled? state)))
                    (ui/replace-child! (:view ctx)
                                       "list-box"
                                       (merge {:id "list-box"}
-                                             (tile-palette-list-box-child (:tilesets state)
-                                                                         tileset
-                                                                         disabled?))))
+                                             (source-palette-list-box-child
+                                              source-state
+                                              disabled?))))
                  (assoc state
                         :palette-tileset tileset
+                        :palette-terrain-set terrain-set
+                        :palette-data-kind data-kind
                         :palette-tilesets (:tilesets state)
-                        :tile-count tile-count
+                        :palette-terrain-sets (:terrain-sets state)
+                        :option-count option-count
                         :rendered-disabled? disabled?
-                        :selected-indices (selected-tile-indices
-                                           (assoc state
-                                                  :palette-tileset
-                                                  tileset))))))
+                        :selected-indices (selected-tile-indices source-state)))))
    :children [(merge {:id "list-box"}
-                     (tile-palette-list-box-child [] nil true))]})
+                     (source-palette-list-box-child {} true))]})
 
 (defcomponent brush-palette-row
   {:extend 'ui/list-box-item
@@ -254,6 +327,7 @@
                         :height :fill}
                 :state {:selected-tile (ui/bind-state :selected-tile)
                         :tilesets (ui/bind-state :tilesets)
+                        :terrain-sets (ui/bind-state :terrain-sets)
                         :selected-layer-index (ui/bind-state :selected-layer-index)
                         :layers (ui/bind-state :layers)
                         :brushes (ui/bind-state :brushes)
@@ -266,6 +340,7 @@
                                 :state {:selected-tile
                                         (ui/bind-state :selected-tile)
                                         :tilesets (ui/bind-state :tilesets)
+                                        :terrain-sets (ui/bind-state :terrain-sets)
                                         :selected-layer-index
                                         (ui/bind-state :selected-layer-index)
                                         :layers (ui/bind-state :layers)
@@ -287,6 +362,7 @@
                                   :gap 4}}
             :state {:selected-tile (ui/bind-state :selected-tile)
                     :tilesets (ui/bind-state :tilesets)
+                    :terrain-sets (ui/bind-state :terrain-sets)
                     :selected-layer-index (ui/bind-state :selected-layer-index)
                     :layers (ui/bind-state :layers)
                     :brushes (ui/bind-state :brushes)
@@ -295,6 +371,7 @@
                     :disabled? (ui/bind-state :map-layer-panel-disabled?)}
             :body-state {:selected-tile (ui/bind-state :selected-tile)
                          :tilesets (ui/bind-state :tilesets)
+                         :terrain-sets (ui/bind-state :terrain-sets)
                          :selected-layer-index (ui/bind-state :selected-layer-index)
                          :layers (ui/bind-state :layers)
                          :brushes (ui/bind-state :brushes)
@@ -329,6 +406,7 @@
             :children [{:mode 'tile-palette-tabs
                         :state {:selected-tile (ui/bind-state :selected-tile)
                                 :tilesets (ui/bind-state :tilesets)
+                                :terrain-sets (ui/bind-state :terrain-sets)
                                 :selected-layer-index
                                 (ui/bind-state :selected-layer-index)
                                 :layers (ui/bind-state :layers)

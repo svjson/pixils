@@ -50,6 +50,40 @@
     (is (= :grass
            (data/tile-id tilesets :terrain 0)))))
 
+(deftest terrain-options-come-from_project_terrain_sets
+  (let [terrain-sets [{:id :overworld
+                       :label "Overworld"
+                       :tileset :terrain
+                       :terrains [{:id :grass
+                                   :label "Grass"
+                                   :tile :grass}
+                                  {:id :water
+                                   :label "Water"
+                                   :tile :water}]}]]
+    (is (= [{:value :grass
+             :label "Grass"}
+            {:value :water
+             :label "Water"}]
+           (data/terrain-options terrain-sets :overworld)))
+    (is (= :grass
+           (data/terrain-id terrain-sets :overworld 0)))))
+
+(deftest terrain-preview-resolves_to_tileset_tile
+  (let [tilesets [{:id :terrain
+                   :tiles [{:id :grass
+                            :name "Grass"
+                            :type :color}]}]
+        terrain-sets [{:id :overworld
+                       :tileset :terrain
+                       :terrains [{:id :grass
+                                   :label "Grass"
+                                   :tile :grass}]}]]
+    (is (= :grass
+           (:id (data/terrain-tile-in tilesets
+                                      terrain-sets
+                                      :overworld
+                                      :grass))))))
+
 (deftest default-project-layered-map-is-empty
   (is (= [] (data/make-layered-map))))
 
@@ -89,6 +123,17 @@
                        :role :source
                        :data-kind :tile-ref}]}]
            (:layer-profiles document)))))
+
+(deftest project-document-saves_terrain_sets
+  (let [document (data/project-document
+                  {:terrain-sets [{:id :overworld
+                                   :terrains [{:id :grass
+                                               :tile :grass}]}]
+                   :layers []})]
+    (is (= [{:id :overworld
+             :terrains [{:id :grass
+                         :tile :grass}]}]
+           (:terrain-sets document)))))
 
 (deftest selected-layer-profile-id-falls_back_to_existing_profile
   (is (= :overworld

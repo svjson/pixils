@@ -55,6 +55,7 @@
            :selected-tileset-tile-indices []
            :tilesets []
            :tileset nil
+           :terrain-sets []
            :layer-profiles []
            :selected-layer-profile-id nil
            :brushes []
@@ -96,6 +97,7 @@
                           (nth layers (min layer-index (dec (count layers)))))
                   tileset (:tileset layer)
                   tilesets (or (:tilesets state) [])
+                  terrain-sets (or (:terrain-sets state) [])
                   tileset-definition-index (when (> (count tilesets) 0)
                                              (min (or (:selected-tileset-definition-index state)
                                                       0)
@@ -116,9 +118,11 @@
                                                (nil? tileset-tile-index))
                                          tileset-tile-indices
                                          [tileset-tile-index])
-                  selected-tile (data/tile-id tilesets
-                                              tileset
-                                              (:selected-tile state))
+                  selected-tile (data/source-layer-value-id
+                                 tilesets
+                                 terrain-sets
+                                 layer
+                                 (:selected-tile state))
                   zoom (or (:zoom state) 1)]
               (open-pending-tileset-shortcut-dialog!
                (assoc state
@@ -130,9 +134,11 @@
                       :selected-tileset-tile-index tileset-tile-index
                       :selected-tileset-tile-indices tileset-tile-indices
                       :selected-tile selected-tile
-                      :selected-label (data/tile-label tilesets
-                                                       tileset
-                                                       selected-tile)
+                      :selected-label (data/source-layer-value-label
+                                       tilesets
+                                       terrain-sets
+                                       layer
+                                       selected-tile)
                       :zoom-label (str "Zoom " zoom "x")
                       :selected-layer-label (or (:label layer) ""))
                ctx)))
@@ -150,6 +156,7 @@
                        :selected-tileset-tile-indices (ui/bind-state :selected-tileset-tile-indices)
                        :tilesets (ui/bind-state :tilesets)
                        :tileset (ui/bind-state :tileset)
+                       :terrain-sets (ui/bind-state :terrain-sets)
                        :layer-profiles (ui/bind-state :layer-profiles)
                        :selected-layer-profile-id
                        (ui/bind-state :selected-layer-profile-id)
@@ -180,6 +187,7 @@
                                        :selected-tileset-index (ui/bind-state :selected-tileset-index)
                                        :tilesets (ui/bind-state :tilesets)
                                        :tileset (ui/bind-state :tileset)
+                                       :terrain-sets (ui/bind-state :terrain-sets)
                                        :brushes (ui/bind-state :brushes)
                                        :selected-brush-index
                                        (ui/bind-state :selected-brush-index)
@@ -219,6 +227,7 @@
                                        (ui/bind-state :selected-brush-layer-index)
                                        :brush-selected-tile (ui/bind-state :brush-selected-tile)
                                        :tilesets (ui/bind-state :tilesets)
+                                       :terrain-sets (ui/bind-state :terrain-sets)
                                        :layer-profiles (ui/bind-state :layer-profiles)
                                        :selected-layer-profile-id
                                        (ui/bind-state :selected-layer-profile-id)
@@ -230,6 +239,7 @@
                                :state {:project-directory (ui/bind-state :project-directory)
                                        :tilesets (ui/bind-state :tilesets)
                                        :layers (ui/bind-state :layers)
+                                       :terrain-sets (ui/bind-state :terrain-sets)
                                        :resources (ui/bind-state :resources)
                                        :selected-resource-bundle (ui/bind-state :selected-resource-bundle)
                                        :selected-image-resource (ui/bind-state :selected-image-resource)}}}]})]

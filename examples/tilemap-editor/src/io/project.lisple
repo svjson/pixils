@@ -91,6 +91,9 @@
 (defun project-tilesets [project]
   (or (:tilesets project) []))
 
+(defun project-terrain-sets [project]
+  (or (:terrain-sets project) data/project-terrain-sets))
+
 (defun project-brushes [project]
   (or (:brushes project) data/project-brushes))
 
@@ -106,11 +109,13 @@
                           (-> project :tilemap :layer-profile))
         tileset (first-layer-tileset layers)
         tilesets (project-tilesets project)
+        terrain-sets (project-terrain-sets project)
         brushes (project-brushes project)]
     (if (valid-project-document? project)
       (remember-project!
        (assoc state
               :tilesets tilesets
+              :terrain-sets terrain-sets
               :brushes brushes
               :selected-brush-index (when (> (count brushes) 0) 0)
               :selected-brush-layer-index
@@ -128,7 +133,11 @@
                                                                tileset))
               :selected-tileset-definition-index (when (> (count tilesets) 0) 0)
               :selected-tileset-tile-index (when (> (count (or (:tiles (head tilesets)) [])) 0) 0)
-              :selected-tile (data/tile-id tilesets tileset 0)
+              :selected-tile (data/source-layer-value-id
+                              tilesets
+                              terrain-sets
+                              (head layers)
+                              0)
               :resources (data/normalize-project-resources
                           (or (:resources project) data/project-resources))
               :selected-resource-bundle nil
