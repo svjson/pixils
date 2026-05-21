@@ -108,18 +108,37 @@
                 (fn [layer]
                   (not= (:role layer) :derived)))))
 
+(defun first-profile-renderable-source-layer [state]
+  (head (filter (or (:layers (selected-layer-profile state)) [])
+                (fn [layer]
+                  (and (not= (:role layer) :derived)
+                       (or (:tileset layer)
+                           (:terrain-set layer)))))))
+
 (defun layer-target-for-tileset [state tileset]
   (data/target-layer-for-tileset (selected-layer-profile state) tileset))
 
 (defun tileset-for-layer-target [state target-layer]
   (data/tileset-for-target-layer (selected-layer-profile state) target-layer))
 
+(defun source-layer-for-target [state target-layer]
+  (data/layer-profile-layer-by-id (selected-layer-profile state) target-layer))
+
 (defun first-pattern-layer-tileset [state]
-  (or (:tileset (first-profile-source-layer state))
+  (or (:tileset (first-profile-renderable-source-layer state))
       (first-tileset-id (:tilesets state))))
 
 (defun first-pattern-layer-target [state]
-  (:id (first-profile-source-layer state)))
+  (:id (first-profile-renderable-source-layer state)))
+
+(defun first-pattern-source-layer [state]
+  (or (first-profile-renderable-source-layer state)
+      (when (first-tileset-id (:tilesets state))
+        {:data-kind :tile-ref
+         :tileset (first-tileset-id (:tilesets state))})))
+
+(defun pattern-layer-has-source? [state]
+  (not (nil? (first-pattern-source-layer state))))
 
 (defun pattern-layer-id-exists? [layers id]
   (> (count (filter (or layers [])
@@ -143,14 +162,30 @@
 (defun normalize-pattern-layer-target [state layer]
   (let [target-layer (:target-layer layer)
         tileset (:tileset layer)
+        profile-layer (source-layer-for-target state target-layer)
         tileset-from-target (tileset-for-layer-target state target-layer)
         target-from-tileset (layer-target-for-tileset state tileset)
         layer (if tileset-from-target
                 (assoc layer :tileset tileset-from-target)
                 layer)]
-    (if (and (nil? target-layer) target-from-tileset)
-      (assoc layer :target-layer target-from-tileset)
-      layer)))
+    (cond
+      profile-layer
+      (merge layer
+             {:data-kind (or (:data-kind profile-layer) :tile-ref)}
+             (if (:tileset profile-layer)
+               {:tileset (:tileset profile-layer)}
+               {})
+             (if (:terrain-set profile-layer)
+               {:terrain-set (:terrain-set profile-layer)}
+               {}))
+
+      (and (nil? target-layer) target-from-tileset)
+      (assoc layer
+             :target-layer target-from-tileset
+             :data-kind :tile-ref)
+
+      :default
+      (assoc layer :data-kind (or (:data-kind layer) :tile-ref)))))
 
 (defun normalize-pattern-layers-targets [state layers]
   (map (or layers [])
@@ -158,19 +193,27 @@
          (normalize-pattern-layer-target state layer))))
 
 (defun make-pattern-layer [layers state width height]
-  (let [tileset (first-pattern-layer-tileset state)
-        target-layer (first-pattern-layer-target state)
+  (let [source-layer (first-pattern-source-layer state)
+        data-kind (or (:data-kind source-layer) :tile-ref)
+        target-layer (:id source-layer)
         layer {:id (unique-pattern-layer-id layers)
                :label (str "Layer " (inc (count (or layers []))))
                :kind :tile
-               :tileset tileset
+               :data-kind data-kind
                :tiles (make-empty-pattern-tiles width height)}]
-    (if target-layer
-      (assoc layer :target-layer target-layer)
-      layer)))
+    (merge layer
+           (if target-layer
+             {:target-layer target-layer}
+             {})
+           (if (:tileset source-layer)
+             {:tileset (:tileset source-layer)}
+             {})
+           (if (:terrain-set source-layer)
+             {:terrain-set (:terrain-set source-layer)}
+             {}))))
 
 (defun make-initial-pattern-layers [state width height]
-  (if (nil? (first-pattern-layer-tileset state))
+  (if (not (pattern-layer-has-source? state))
     []
     [(make-pattern-layer [] state width height)]))
 
@@ -262,9 +305,8 @@
 (defun ensure-pattern-brush-editable [state brush-index]
   (let [brushes (or (:brushes state) [])
         brush (selected-brush brushes brush-index)
-        tilesets (or (:tilesets state) [])
-        first-tileset (first-pattern-layer-tileset state)]
-    (if (and brush (= (:kind brush) :pattern) first-tileset)
+        first-source-layer (first-pattern-source-layer state)]
+    (if (and brush (= (:kind brush) :pattern) first-source-layer)
       (let [layers (normalize-pattern-layers-targets
                     state
                     (or (-> brush :pattern :layers) []))
@@ -282,10 +324,30 @@
                    :brushes (replace-selected-brush brushes brush-index next-brush)
                    :selected-brush-layer-index 0))
 
-          (nil? (:tileset (nth layers (or layer-index 0))))
+          (nil? (:data-kind (nth layers (or layer-index 0))))
+          (let [next-brush (assoc-in brush
+                                     [:pattern :layers (or layer-index 0)]
+                                     (normalize-pattern-layer-target
+                                      state
+                                      (nth layers (or layer-index 0))))]
+            (assoc state
+                   :brushes (replace-selected-brush brushes brush-index next-brush)
+                   :selected-brush-layer-index (or layer-index 0)))
+
+          (and (= (:data-kind (nth layers (or layer-index 0))) :tile-ref)
+               (nil? (:tileset (nth layers (or layer-index 0)))))
           (let [next-brush (assoc-in brush
                                      [:pattern :layers (or layer-index 0) :tileset]
-                                     first-tileset)]
+                                     (:tileset first-source-layer))]
+            (assoc state
+                   :brushes (replace-selected-brush brushes brush-index next-brush)
+                   :selected-brush-layer-index (or layer-index 0)))
+
+          (and (= (:data-kind (nth layers (or layer-index 0))) :terrain)
+               (nil? (:terrain-set (nth layers (or layer-index 0)))))
+          (let [next-brush (assoc-in brush
+                                     [:pattern :layers (or layer-index 0) :terrain-set]
+                                     (:terrain-set first-source-layer))]
             (assoc state
                    :brushes (replace-selected-brush brushes brush-index next-brush)
                    :selected-brush-layer-index (or layer-index 0)))
@@ -337,7 +399,7 @@
         brush (selected-brush brushes brush-index)]
     (if (and brush
              (= (:kind brush) :pattern)
-             (first-pattern-layer-tileset state))
+             (pattern-layer-has-source? state))
       (let [layers (or (-> brush :pattern :layers) [])
             width (pattern-width brush)
             height (pattern-height brush)
@@ -466,6 +528,31 @@
                :brushes (replace-selected-brush brushes brush-index next-brush)
                :brush-selected-tile nil))
       state)))
+
+(defun set-pattern-layer-terrain-set! [state terrain-set-index]
+  (let [brushes (or (:brushes state) [])
+        brush-index (selected-brush-index brushes (:selected-brush-index state))
+        brush (selected-brush brushes brush-index)
+        layer-index (selected-pattern-layer-index brush
+                                                  (:selected-brush-layer-index state))
+        terrain-set (data/terrain-set-key (:terrain-sets state) terrain-set-index)]
+    (if (and brush (not (nil? layer-index)) terrain-set)
+      (let [layer (assoc (nth (-> brush :pattern :layers) layer-index)
+                         :data-kind :terrain
+                         :terrain-set terrain-set)
+            next-brush (assoc-in brush
+                                 [:pattern :layers layer-index]
+                                 layer)]
+        (assoc state
+               :brushes (replace-selected-brush brushes brush-index next-brush)
+               :brush-selected-tile nil))
+      state)))
+
+(defun selected-pattern-layer-data-kind [brush index]
+  (or (:data-kind (selected-pattern-layer brush index)) :tile-ref))
+
+(defun selected-pattern-layer-terrain-set [brush index]
+  (:terrain-set (selected-pattern-layer brush index)))
 
 (defun set-pattern-tile! [state x y tile-ref]
   (let [brushes (or (:brushes state) [])

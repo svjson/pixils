@@ -110,6 +110,23 @@
     (is (= :terrain
            (get-in state [:brushes 0 :pattern :layers 0 :tileset])))))
 
+(deftest pattern-brush-creation-targets_terrain_profile_layer
+  (let [state (model/add-pattern-brush!
+               {:brushes []
+                :terrain-sets [{:id :overworld}]
+                :layer-profiles [{:id :default
+                                  :layers [{:id :scene/terrain
+                                            :role :source
+                                            :data-kind :terrain
+                                            :terrain-set :overworld}]}]
+                :selected-layer-profile-id :default})]
+    (is (= :scene/terrain
+           (get-in state [:brushes 0 :pattern :layers 0 :target-layer])))
+    (is (= :terrain
+           (get-in state [:brushes 0 :pattern :layers 0 :data-kind])))
+    (is (= :overworld
+           (get-in state [:brushes 0 :pattern :layers 0 :terrain-set])))
+    (is (nil? (get-in state [:brushes 0 :pattern :layers 0 :tileset])))))
 
 (deftest pattern-brush-creation-deduplicates_ids
   (let [state (model/add-pattern-brush!
@@ -128,6 +145,27 @@
                                      :layers []}}]
                 :tilesets []})]
     (is (= [] (get-in state [:brushes 0 :pattern :layers])))))
+
+(deftest pattern-layer-add-allows_terrain_source_without_tileset
+  (let [state (model/add-pattern-layer!
+               {:selected-brush-index 0
+                :brushes [{:id :brush
+                           :kind :pattern
+                           :pattern {:size {:w 1 :h 1}
+                                     :anchor {:x 0 :y 0}
+                                     :layers []}}]
+                :terrain-sets [{:id :overworld}]
+                :layer-profiles [{:id :default
+                                  :layers [{:id :scene/terrain
+                                            :role :source
+                                            :data-kind :terrain
+                                            :terrain-set :overworld}]}]
+                :selected-layer-profile-id :default
+                :tilesets []})]
+    (is (= :terrain
+           (get-in state [:brushes 0 :pattern :layers 0 :data-kind])))
+    (is (= :overworld
+           (get-in state [:brushes 0 :pattern :layers 0 :terrain-set])))))
 
 (deftest pattern-layer-tileset-change-updates_target_layer
   (let [state (model/set-pattern-layer-tileset!
@@ -159,6 +197,25 @@
     (is (= :scene/props
            (get-in state [:brushes 0 :pattern :layers 0 :target-layer])))))
 
+(deftest pattern-layer-terrain-set-change-updates_selected_layer
+  (let [state (model/set-pattern-layer-terrain-set!
+               {:selected-brush-index 0
+                :selected-brush-layer-index 0
+                :terrain-sets [{:id :overworld}
+                               {:id :dungeon}]
+                :brushes [{:id :brush
+                           :kind :pattern
+                           :pattern {:size {:w 1 :h 1}
+                                     :anchor {:x 0 :y 0}
+                                     :layers [{:id :layer
+                                               :data-kind :terrain
+                                               :terrain-set :overworld
+                                               :tiles [[nil]]}]}}]}
+               1)]
+    (is (= :terrain
+           (get-in state [:brushes 0 :pattern :layers 0 :data-kind])))
+    (is (= :dungeon
+           (get-in state [:brushes 0 :pattern :layers 0 :terrain-set])))))
 
 (deftest pattern-size-update-resizes_existing_layers
   (let [state (model/set-pattern-size!

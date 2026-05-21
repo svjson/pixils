@@ -220,56 +220,84 @@
    :children [(merge {:id "pattern-layer-list-box"}
                      (pattern-layer-list-child nil nil))]})
 
-(defun pattern-layer-tileset-combo-child [tilesets selected-index disabled?]
-  (cb/make {:options (data/tileset-options tilesets)
+(defun pattern-layer-source-label [brush selected-layer-index]
+  (let [layer (model/selected-pattern-layer brush selected-layer-index)]
+    (if (= (:data-kind layer) :terrain)
+      "Terrain Set"
+      "Tile Set")))
+
+(defun pattern-layer-source-combo-child [options selected-index disabled?]
+  (cb/make {:options options
             :selected-index selected-index
-            :disabled? (if (or disabled? (empty? (or tilesets [])))
+            :disabled? (if (or disabled? (empty? (or options [])))
                          true
                          false)}))
 
+(defun pattern-layer-tileset-combo-child [tilesets selected-index disabled?]
+  (pattern-layer-source-combo-child (data/tileset-options tilesets)
+                                    selected-index
+                                    disabled?))
+
 (defcomponent pattern-layer-tileset-selector
   {:style {:width :fill
-           :height 22}
+   :height 22}
    :init (fn [state ctx]
            (assoc state
-                  :rendered-tilesets nil
+                  :rendered-options nil
                   :rendered-selected-index nil
                   :rendered-disabled? nil))
    :update (fn [state ctx]
              (let [brush (model/selected-brush (:brushes state)
                                                (:selected-brush-index state))
+                   data-kind (model/selected-pattern-layer-data-kind
+                              brush
+                              (:selected-brush-layer-index state))
                    tileset (model/selected-pattern-layer-tileset
                             brush
                             (:selected-brush-layer-index state))
+                   terrain-set (model/selected-pattern-layer-terrain-set
+                                brush
+                                (:selected-brush-layer-index state))
                    tilesets (or (:tilesets state) [])
+                   terrain-sets (or (:terrain-sets state) [])
+                   options (if (= data-kind :terrain)
+                             (data/terrain-set-options terrain-sets)
+                             (data/tileset-options tilesets))
                    disabled? (or (:brush-layer-panel-disabled? state)
-                                 (empty? tilesets))
-                   selected-index (model/tileset-index tilesets tileset)]
+                                 (empty? options))
+                   selected-index (if (= data-kind :terrain)
+                                    (data/terrain-set-index terrain-sets terrain-set)
+                                    (model/tileset-index tilesets tileset))]
                (do
-                 (when (or (not= tilesets (:rendered-tilesets state))
+                 (when (or (not= options (:rendered-options state))
                            (not= selected-index (:rendered-selected-index state))
                            (not= disabled? (:rendered-disabled? state)))
                    (ui/replace-child! (:view ctx)
                                       "pattern-layer-tileset-combo"
                                       (merge {:id "pattern-layer-tileset-combo"}
-                                             (pattern-layer-tileset-combo-child
-                                              tilesets
+                                             (pattern-layer-source-combo-child
+                                              options
                                               selected-index
                                               disabled?))))
                  (assoc state
                         :selected-tileset-index selected-index
+                        :data-kind data-kind
                         :disabled? disabled?
-                        :rendered-tilesets tilesets
+                        :rendered-options options
                         :rendered-selected-index selected-index
                         :rendered-disabled? disabled?))))
    :on {:combo-box/change (fn [state event ctx]
                             (do
-                              (ui/emit! (:view ctx)
-                                        :brush/layer-tileset-change
-                                        (-> event :payload :selected-index))
+                              (if (= (:data-kind state) :terrain)
+                                (ui/emit! (:view ctx)
+                                          :brush/layer-terrain-set-change
+                                          (-> event :payload :selected-index))
+                                (ui/emit! (:view ctx)
+                                          :brush/layer-tileset-change
+                                          (-> event :payload :selected-index)))
                               state))}
    :children [(merge {:id "pattern-layer-tileset-combo"}
-                     (pattern-layer-tileset-combo-child [] nil true))]})
+                     (pattern-layer-source-combo-child [] nil true))]})
 
 (defcomponent pattern-size-input
   {:style {:width :fill
@@ -373,12 +401,16 @@
                (assoc state
                       :width width
                       :height-value height
+                      :source-label (pattern-layer-source-label
+                                     brush
+                                     (:selected-brush-layer-index state))
                       :anchor-x (:x anchor)
                       :anchor-y (:y anchor)
                       :anchor-max-x (dec width)
                       :anchor-max-y (dec height)
                       :layer-add-disabled? (or (:brush-detail-panel-disabled? state)
-                                               (empty? (or (:tilesets state) [])))
+                                               (not (model/pattern-layer-has-source?
+                                                     state)))
                       :layer-clear-disabled? (:brush-layer-panel-disabled? state)
                       :layer-delete-disabled? (or (:brush-layer-panel-disabled? state)
                                                   (<= layer-count 1)))))
@@ -426,7 +458,7 @@
                        (ui/bind-state :selected-brush-layer-index)}}
               {:mode 'ui/text
                :class :ui/muted
-               :state {:value "Tile Set"}}
+               :state {:value (ui/bind-state :source-label)}}
               {:mode 'pattern-layer-tileset-selector
                :state {:brushes (ui/bind-state :brushes)
                        :selected-brush-index (ui/bind-state :selected-brush-index)
@@ -434,7 +466,8 @@
                        (ui/bind-state :selected-brush-layer-index)
                        :brush-layer-panel-disabled?
                        (ui/bind-state :brush-layer-panel-disabled?)
-                       :tilesets (ui/bind-state :tilesets)}}]})
+                       :tilesets (ui/bind-state :tilesets)
+                       :terrain-sets (ui/bind-state :terrain-sets)}}]})
 
 (defcomponent brush-tile-preview
   {:style {:width 14
@@ -457,14 +490,12 @@
                     :align-items :center
                     :gap 6}}
    :update (fn [state ctx]
-             (let [tile (data/tile-in (:tilesets state)
-                                      (:tileset state)
-                                      (:tile-id state))]
+             (let [tile (brush-source-tile state (:value state))]
                (assoc state
                       :selected (contains? (:selected-indices state)
                                            (:index state))
                       :tile tile
-                      :name (:name tile))))
+                      :name (or (:label state) (:name tile)))))
    :on-mouse-down (fn [state event ctx]
                     (do
                       (ui/stop-propagation! event)
@@ -484,22 +515,46 @@
               {:mode 'ui/text
                :state {:value (ui/bind-state :name)}}]})
 
+(defun brush-source-tile [state value]
+  (if (= (:data-kind state) :terrain)
+    (data/terrain-tile-in (:tilesets state)
+                          (:terrain-sets state)
+                          (:terrain-set state)
+                          value)
+    (data/tile-in (:tilesets state)
+                  (:tileset state)
+                  value)))
+
 (defun brush-tile-row-child [index option]
   {:mode 'brush-tile-row
    :state {:index index
            :value (:value option)
-           :tile-id (:value option)
+           :label (:label option)
+           :data-kind (ui/bind-state :data-kind)
            :tileset (ui/bind-state :tileset)
+           :terrain-set (ui/bind-state :terrain-set)
            :tilesets (ui/bind-state :tilesets)
+           :terrain-sets (ui/bind-state :terrain-sets)
            :selected-indices (ui/bind-state :selected-indices)}})
 
-(defun brush-selected-tile-indices [tilesets tileset selected-tile]
-  (if (or (nil? tileset) (nil? selected-tile))
-    []
-    [(data/tile-index tilesets tileset selected-tile)]))
+(defun brush-source-options [state]
+  (if (= (:data-kind state) :terrain)
+    (data/terrain-options (:terrain-sets state) (:terrain-set state))
+    (data/tile-options (:tilesets state) (:tileset state))))
 
-(defun brush-tile-palette-list-child [tilesets tileset selected-tile disabled?]
-  (let [options (data/tile-options tilesets tileset)]
+(defun brush-selected-tile-indices [state selected-tile]
+  (if (nil? selected-tile)
+    []
+    (if (= (:data-kind state) :terrain)
+      [(data/terrain-index (:terrain-sets state)
+                           (:terrain-set state)
+                           selected-tile)]
+      [(data/tile-index (:tilesets state)
+                        (:tileset state)
+                        selected-tile)])))
+
+(defun brush-tile-palette-list-child [state selected-tile disabled?]
+  (let [options (brush-source-options state)]
     (lb/make {:options options
               :style {:width :fill
                       :height :fill}
@@ -507,12 +562,17 @@
               :visible-rows (count options)
               :content-width 168
               :disabled? (if (or disabled? (empty? options)) true false)
-              :state {:tileset (ui/bind-state :palette-tileset)
-                      :tilesets (ui/bind-state :tilesets)}
-              :item-state-keys [:tileset :tilesets]
-              :selected-indices (brush-selected-tile-indices tilesets
-                                                             tileset
-                                                             selected-tile)
+              :state {:data-kind (ui/bind-state :palette-data-kind)
+                      :tileset (ui/bind-state :palette-tileset)
+                      :terrain-set (ui/bind-state :palette-terrain-set)
+                      :tilesets (ui/bind-state :tilesets)
+                      :terrain-sets (ui/bind-state :terrain-sets)}
+              :item-state-keys [:data-kind
+                                :tileset
+                                :terrain-set
+                                :tilesets
+                                :terrain-sets]
+              :selected-indices (brush-selected-tile-indices state selected-tile)
               :force-selection? true
               :item-child brush-tile-row-child})))
 
@@ -522,7 +582,10 @@
    :init (fn [state ctx]
            (assoc state
                   :palette-tileset nil
+                  :palette-terrain-set nil
+                  :palette-data-kind nil
                   :palette-tilesets nil
+                  :palette-terrain-sets nil
                   :palette-selected-tile nil
                   :palette-disabled? nil))
    :update (fn [state ctx]
@@ -531,25 +594,44 @@
                    tileset (model/selected-pattern-layer-tileset
                             brush
                             (:selected-brush-layer-index state))
+                   terrain-set (model/selected-pattern-layer-terrain-set
+                                brush
+                                (:selected-brush-layer-index state))
+                   data-kind (model/selected-pattern-layer-data-kind
+                              brush
+                              (:selected-brush-layer-index state))
                    selected-tile (:brush-selected-tile state)
                    disabled? (or (:brush-layer-panel-disabled? state)
-                                 (nil? tileset))]
+                                 (and (not= data-kind :terrain)
+                                      (nil? tileset))
+                                 (and (= data-kind :terrain)
+                                      (nil? terrain-set)))
+                   palette-state (assoc state
+                                        :data-kind data-kind
+                                        :tileset tileset
+                                        :terrain-set terrain-set)]
                (do
                  (when (or (not= tileset (:palette-tileset state))
+                           (not= terrain-set (:palette-terrain-set state))
+                           (not= data-kind (:palette-data-kind state))
                            (not= (:tilesets state) (:palette-tilesets state))
+                           (not= (:terrain-sets state)
+                                 (:palette-terrain-sets state))
                            (not= selected-tile (:palette-selected-tile state))
                            (not= disabled? (:palette-disabled? state)))
                    (ui/replace-child!
                     (:view ctx)
                     "brush-tile-list-box"
                     (merge {:id "brush-tile-list-box"}
-                           (brush-tile-palette-list-child (:tilesets state)
-                                                          tileset
+                           (brush-tile-palette-list-child palette-state
                                                           selected-tile
                                                           disabled?))))
                  (assoc state
+                        :palette-data-kind data-kind
                         :palette-tileset tileset
+                        :palette-terrain-set terrain-set
                         :palette-tilesets (:tilesets state)
+                        :palette-terrain-sets (:terrain-sets state)
                         :palette-selected-tile selected-tile
                         :palette-disabled? disabled?))))
    :on {:list-box/change (fn [state event ctx]
@@ -560,7 +642,7 @@
                                        (-> event :payload :value))
                              state))}
    :children [(merge {:id "brush-tile-list-box"}
-                     (brush-tile-palette-list-child [] nil nil true))]})
+                     (brush-tile-palette-list-child {} nil true))]})
 
 (defun brush-grid-rect [x y]
   {:x (* x brush-grid-cell-size)
@@ -568,13 +650,21 @@
    :w brush-grid-cell-size
    :h brush-grid-cell-size})
 
-(defun draw-brush-layer! [tilesets layer width height]
+(defun brush-layer-tile [tilesets terrain-sets layer tile-ref]
+  (if (= (:data-kind layer) :terrain)
+    (data/terrain-tile-in tilesets terrain-sets (:terrain-set layer) tile-ref)
+    (data/tile-in tilesets (:tileset layer) tile-ref)))
+
+(defun draw-brush-layer! [tilesets terrain-sets layer width height]
   (dotimes [y height]
     (dotimes [x width]
       (let [row (nth (or (:tiles layer) []) y)
             tile-ref (nth (or row []) x)]
         (when (not (nil? tile-ref))
-          (tr/draw-tile! (data/tile-in tilesets (:tileset layer) tile-ref)
+          (tr/draw-tile! (brush-layer-tile tilesets
+                                           terrain-sets
+                                           layer
+                                           tile-ref)
                          (brush-grid-rect x y)))))))
 
 (defun draw-brush-grid-overlay! [width height anchor]
@@ -641,7 +731,11 @@
                           {:fill true
                            :color {:r 0x0b :g 0x0d :b 0x10}})
                  (for [layer layers]
-                   (draw-brush-layer! (:tilesets state) layer width height))
+                   (draw-brush-layer! (:tilesets state)
+                                      (:terrain-sets state)
+                                      layer
+                                      width
+                                      height))
                  (draw-brush-grid-overlay! width height anchor))))})
 
 (defcomponent brush-detail
@@ -672,7 +766,8 @@
                        :brush-layer-panel-disabled?
                        (ui/bind-state :brush-layer-panel-disabled?)
                        :brush-selected-tile (ui/bind-state :brush-selected-tile)
-                       :tilesets (ui/bind-state :tilesets)}}]})
+                       :tilesets (ui/bind-state :tilesets)
+                       :terrain-sets (ui/bind-state :terrain-sets)}}]})
 
 (defcomponent brush-detail-header
   {:style {:width :fill
@@ -705,14 +800,16 @@
                        (ui/bind-state :brush-detail-panel-disabled?)
                        :brush-layer-panel-disabled?
                        (ui/bind-state :brush-layer-panel-disabled?)
-                       :tilesets (ui/bind-state :tilesets)}}
+                       :tilesets (ui/bind-state :tilesets)
+                       :terrain-sets (ui/bind-state :terrain-sets)}}
               {:mode 'pattern-grid
                :state {:brushes (ui/bind-state :brushes)
                        :selected-brush-index (ui/bind-state :selected-brush-index)
                        :selected-brush-layer-index
                        (ui/bind-state :selected-brush-layer-index)
                        :brush-selected-tile (ui/bind-state :brush-selected-tile)
-                       :tilesets (ui/bind-state :tilesets)}}
+                       :tilesets (ui/bind-state :tilesets)
+                       :terrain-sets (ui/bind-state :terrain-sets)}}
               {:mode 'brush-tile-palette
                :state {:brushes (ui/bind-state :brushes)
                        :selected-brush-index (ui/bind-state :selected-brush-index)
@@ -721,7 +818,8 @@
                        :brush-layer-panel-disabled?
                        (ui/bind-state :brush-layer-panel-disabled?)
                        :brush-selected-tile (ui/bind-state :brush-selected-tile)
-                       :tilesets (ui/bind-state :tilesets)}}]})
+                       :tilesets (ui/bind-state :tilesets)
+                       :terrain-sets (ui/bind-state :terrain-sets)}}]})
 
 (defun make-brush-detail-panel []
   (hp/make {:title "Brush Definition"
@@ -741,6 +839,7 @@
                     (ui/bind-state :brush-layer-panel-disabled?)
                     :brush-selected-tile (ui/bind-state :brush-selected-tile)
                     :tilesets (ui/bind-state :tilesets)
+                    :terrain-sets (ui/bind-state :terrain-sets)
                     :disabled? (ui/bind-state :brush-detail-panel-disabled?)}
             :body-state {:brushes (ui/bind-state :brushes)
                          :selected-brush-index (ui/bind-state :selected-brush-index)
@@ -751,7 +850,8 @@
                          :brush-layer-panel-disabled?
                          (ui/bind-state :brush-layer-panel-disabled?)
                          :brush-selected-tile (ui/bind-state :brush-selected-tile)
-                         :tilesets (ui/bind-state :tilesets)}
+                         :tilesets (ui/bind-state :tilesets)
+                         :terrain-sets (ui/bind-state :terrain-sets)}
             :children [{:mode 'brush-detail
                         :state {:brushes (ui/bind-state :brushes)
                                 :selected-brush-index (ui/bind-state :selected-brush-index)
@@ -762,7 +862,8 @@
                                 :brush-layer-panel-disabled?
                                 (ui/bind-state :brush-layer-panel-disabled?)
                                 :brush-selected-tile (ui/bind-state :brush-selected-tile)
-                                :tilesets (ui/bind-state :tilesets)}}]}))
+                                :tilesets (ui/bind-state :tilesets)
+                                :terrain-sets (ui/bind-state :terrain-sets)}}]}))
 
 (defun open-pattern-layer-delete-confirm-dialog! [state ctx]
   (let [brush (model/selected-brush (:brushes state)
@@ -825,6 +926,9 @@
         :brush/layer-tileset-change
         (fn [state event ctx]
           (model/set-pattern-layer-tileset! state (:payload event)))
+        :brush/layer-terrain-set-change
+        (fn [state event ctx]
+          (model/set-pattern-layer-terrain-set! state (:payload event)))
         :brush/size-change (fn [state event ctx]
                              (let [payload (:payload event)]
                                (model/set-pattern-size! state

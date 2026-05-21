@@ -24,3 +24,18 @@
            (-> combo :state :options)))
     (is (= 1 (-> combo :state :selected-index)))
     (is (= false (-> combo :state :disabled?)))))
+
+(deftest brush-palette-lists_terrain_values_for_terrain_layer
+  (let [child (layout/brush-tile-palette-list-child
+               {:data-kind :terrain
+                :terrain-set :overworld
+                :terrain-sets [{:id :overworld
+                                :terrains [{:id :grass
+                                            :label "Grass"}]}]}
+               :grass
+               false)]
+    (is (= [{:value :grass
+             :label "Grass"}]
+           (-> child :state :options)))
+    (is (= [0] (-> child :state :selected-indices)))
+    (is (not= true (-> child :state :disabled?)))))
