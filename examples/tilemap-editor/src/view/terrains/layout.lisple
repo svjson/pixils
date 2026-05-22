@@ -353,7 +353,9 @@
 (def terrain-rule-grid-gap 2)
 (def terrain-rule-grid-size (+ (* terrain-rule-grid-cell-size 3)
                                (* terrain-rule-grid-gap 2)))
-(def terrain-stamp-tile-row-height 24)
+(def terrain-stamp-tile-picker-cell-size 32)
+(def terrain-stamp-tile-picker-gap 2)
+(def terrain-stamp-tile-picker-height 116)
 
 (defun terrain-rule-center-terrain-id [rule fallback]
   (or (model/terrain-rule-center rule) fallback))
@@ -560,11 +562,15 @@
   (or (-> (model/selected-terrain-rule state) :output :anchor) {:x 1 :y 1}))
 
 (defun stamp-grid-tile [state tile-ref]
-  (let [layer (stamp-layer-for-selected-rule state)]
-    (data/tile-in (:tilesets state) (:tileset layer) tile-ref)))
+  (when (not (nil? tile-ref))
+    (let [layer (stamp-layer-for-selected-rule state)]
+      (data/tile-in (:tilesets state) (:tileset layer) tile-ref))))
 
 (defun secondary-mouse-button? [event]
   (= (:button event) :right))
+
+(defun terrain-stamp-tile-drag-payload? [payload]
+  (= (:kind payload) :terrain-rule-stamp-tile))
 
 (defun emit-stamp-grid-cell-paint! [state event ctx]
   (let [tile-ref (if (secondary-mouse-button? event)
@@ -579,6 +585,17 @@
                  :tile tile-ref})
       state)))
 
+(defun emit-stamp-grid-cell-drop! [state event ctx]
+  (let [payload (:payload event)]
+    (if (terrain-stamp-tile-drag-payload? payload)
+      (do
+        (ui/stop-propagation! event)
+        (model/set-selected-rule-stamp-tile state
+                                            (:stamp-x state)
+                                            (:stamp-y state)
+                                            (:tile payload)))
+      state)))
+
 (defcomponent terrain-stamp-grid-cell
   {:focusable true
    :class :ui/canvas
@@ -588,6 +605,7 @@
    :on-mouse-down emit-stamp-grid-cell-paint!
    :on-click emit-stamp-grid-cell-paint!
    :on-drag emit-stamp-grid-cell-paint!
+   :on-drop emit-stamp-grid-cell-drop!
    :render (fn [state ctx]
              (let [layer (stamp-layer-for-selected-rule state)
                    rows (or (:tiles layer) [])
@@ -655,124 +673,158 @@
               (terrain-stamp-grid-row 1)
               (terrain-stamp-grid-row 2)]})
 
-(defcomponent terrain-stamp-tile-preview
-  {:style {:width 14
-           :height 14}
-   :render (fn [state ctx]
-             (let [bounds (-> ctx :view :bounds)
-                   rect {:x 0 :y 0 :w (:w bounds) :h (:h bounds)}]
-               (do
-                 (r/rect! rect {:fill true
-                                :color {:r 0x12 :g 0x15 :b 0x18}})
-                 (tr/draw-tile! (:tile state) rect)
-                 (r/rect! rect {:color {:r 0xe6 :g 0xea :b 0xee}}))))})
+(defun terrain-stamp-tile-picker-stride []
+  (+ terrain-stamp-tile-picker-cell-size terrain-stamp-tile-picker-gap))
 
-(defcomponent terrain-stamp-tile-row
-  {:extend 'ui/list-box-item
-   :class :ui/list-item-hover
-   :style {:width :fill
-           :height terrain-stamp-tile-row-height
-           :padding [4 6]
-           :layout {:direction :row
-                    :align-items :center
-                    :gap 6}}
-   :update (fn [state ctx]
-             (let [tile (data/tile-in (:tilesets state)
-                                      (:tileset state)
-                                      (:value state))]
-               (assoc state
-                      :selected (contains? (:selected-indices state)
-                                           (:index state))
-                      :tile tile
-                      :name (or (:label state) (:name tile)))))
-   :on-mouse-down (fn [state event ctx]
-                    (do
-                      (ui/stop-propagation! event)
-                      state))
-   :on-mouse-up (fn [state event ctx]
-                  (do
-                    (ui/stop-propagation! event)
-                    (ui/emit! (:view ctx)
-                              :list-box/item-click
-                              {:index (:index state)
-                               :value (:value state)
-                               :shift? false
-                               :ctrl? false})
-                    state))
-   :children [{:mode 'terrain-stamp-tile-preview
-               :state {:tile (ui/bind-state :tile)}}
-              {:mode 'ui/text
-               :style {:width :fill}
-               :state {:value (ui/bind-state :name)}}]})
+(defun terrain-stamp-tile-picker-columns [bounds]
+  (max 1 (int (/ (+ (max 1 (or (:w bounds) 1)) terrain-stamp-tile-picker-gap)
+                 (terrain-stamp-tile-picker-stride)))))
 
-(defun terrain-stamp-tile-row-child [index option]
-  {:mode 'terrain-stamp-tile-row
-   :state {:index index
-           :value (:value option)
-           :label (:label option)
-           :tileset (ui/bind-state :tileset)
-           :tilesets (ui/bind-state :tilesets)
-           :selected-indices (ui/bind-state :selected-indices)}})
+(defun terrain-stamp-tile-picker-index-at-position [position bounds item-count]
+  (let [stride (terrain-stamp-tile-picker-stride)
+        col (int (/ (:x position) stride))
+        row (int (/ (:y position) stride))
+        index (+ col (* row (terrain-stamp-tile-picker-columns bounds)))]
+    (if (and (>= (:x position) 0)
+             (>= (:y position) 0)
+             (< (mod (:x position) stride)
+                terrain-stamp-tile-picker-cell-size)
+             (< (mod (:y position) stride)
+                terrain-stamp-tile-picker-cell-size)
+             (< index item-count))
+      index
+      nil)))
 
-(defun terrain-stamp-tile-palette-list-child [state disabled?]
-  (let [tileset (model/selected-rule-stamp-tileset state)
-        options (data/tile-options (:tilesets state) tileset)]
-    (lb/make {:options options
-              :style {:width :fill
-                      :height :fill}
-              :row-height terrain-stamp-tile-row-height
-              :visible-rows (max 1 (count options))
-              :content-width 168
-              :disabled? (if (or disabled? (empty? options)) true false)
-              :state {:tileset tileset
-                      :tilesets (ui/bind-state :tilesets)}
-              :item-state-keys [:tileset
-                                :tilesets]
-              :selected-indices (ui/bind-state :selected-indices)
-              :force-selection? true
-              :item-child terrain-stamp-tile-row-child})))
+(defun terrain-stamp-tile-picker-cell-rect [index columns]
+  (let [columns (max 1 (or columns 1))
+        stride (terrain-stamp-tile-picker-stride)]
+    {:x (* (mod index columns) stride)
+     :y (* (int (/ index columns)) stride)
+     :w terrain-stamp-tile-picker-cell-size
+     :h terrain-stamp-tile-picker-cell-size}))
 
-(defcomponent terrain-stamp-tile-palette
-  {:style {:width 260
-           :height 116}
-   :init (fn [state ctx]
-           (assoc state
-                  :rendered-tileset nil
-                  :rendered-tilesets nil
-                  :rendered-disabled? nil
-                  :selected-indices []))
+(defun terrain-stamp-tile-picker-selected-rect [rect]
+  {:x (+ (:x rect) 1)
+   :y (+ (:y rect) 1)
+   :w (- (:w rect) 2)
+   :h (- (:h rect) 2)})
+
+(defun terrain-stamp-tile-options [state]
+  (let [tileset (model/selected-rule-stamp-tileset state)]
+    (concat [{:value nil
+              :label "No tile"}]
+            (data/tile-options (:tilesets state) tileset))))
+
+(defun terrain-stamp-tile-picker-selected-indices [state]
+  (let [tile-ref (model/selected-rule-stamp-tile state)
+        options (terrain-stamp-tile-options state)
+        index (find-index options
+                          (fn [option]
+                            (= (:value option) tile-ref)))]
+    (if (nil? index) [] [index])))
+
+(defun terrain-stamp-tile-at-picker-index [state index]
+  (when (not (nil? index))
+    (nth (terrain-stamp-tile-options state) index)))
+
+(defun terrain-stamp-tile-drag-payload [state event ctx]
+  (let [options (terrain-stamp-tile-options state)
+        index (terrain-stamp-tile-picker-index-at-position
+               (:start-position event)
+               (-> ctx :view :bounds)
+               (count options))
+        option (terrain-stamp-tile-at-picker-index state index)]
+    (if option
+      {:kind :terrain-rule-stamp-tile
+       :tileset (model/selected-rule-stamp-tileset state)
+       :tile (:value option)}
+      nil)))
+
+(defun select-terrain-stamp-tile-at-event! [state event ctx]
+  (let [options (terrain-stamp-tile-options state)
+        index (terrain-stamp-tile-picker-index-at-position
+               (:position event)
+               (-> ctx :view :bounds)
+               (count options))
+        option (terrain-stamp-tile-at-picker-index state index)]
+    (do
+      (ui/stop-propagation! event)
+      (ui/focus! ctx)
+      (when (not (nil? index))
+        (ui/emit! (:view ctx)
+                  :terrain/rule-stamp-tile-select
+                  (:value option)))
+      state)))
+
+(defun draw-no-tile-picker-mark! [rect]
+  (let [color {:r 0x86 :g 0x91 :b 0x9b}
+        inset 7]
+    (do
+      (r/line! {:x (+ (:x rect) inset)
+                :y (+ (:y rect) inset)}
+               {:x (- (+ (:x rect) (:w rect)) inset)
+                :y (- (+ (:y rect) (:h rect)) inset)}
+               color)
+      (r/line! {:x (- (+ (:x rect) (:w rect)) inset)
+                :y (+ (:y rect) inset)}
+               {:x (+ (:x rect) inset)
+                :y (- (+ (:y rect) (:h rect)) inset)}
+               color))))
+
+(defun draw-terrain-stamp-tile-picker-cell! [state option index columns]
+  (let [rect (terrain-stamp-tile-picker-cell-rect index columns)
+        tile (when (not (nil? (:value option)))
+               (data/tile-in (:tilesets state)
+                             (model/selected-rule-stamp-tileset state)
+                             (:value option)))]
+    (do
+      (r/rect! rect {:fill true
+                     :color {:r 0x12 :g 0x15 :b 0x18}})
+      (when tile
+        (tr/draw-tile! tile
+                       {:x (+ (:x rect) 4)
+                        :y (+ (:y rect) 4)
+                        :w (- (:w rect) 8)
+                        :h (- (:h rect) 8)}))
+      (when (nil? (:value option))
+        (draw-no-tile-picker-mark! rect))
+      (r/rect! rect {:color {:r 0x1f :g 0x26 :b 0x2d}})
+      (when (contains? (:selected-indices state) index)
+        (r/rect! (terrain-stamp-tile-picker-selected-rect rect)
+                 {:color {:r 0xff :g 0xcc :b 0x66}})))))
+
+(defcomponent terrain-stamp-tile-picker
+  {:focusable true
+   :class :ui/content
+   :style {:width 260
+           :height terrain-stamp-tile-picker-height
+           :clip true
+           :cursor :pointer}
+   :drag {:start {:mode :threshold
+                  :distance 3}
+          :payload terrain-stamp-tile-drag-payload}
    :update (fn [state ctx]
              (let [tileset (model/selected-rule-stamp-tileset state)
                    selected-tile (model/selected-rule-stamp-tile state)
-                   selected-indices (model/selected-rule-stamp-tile-indices
+                   selected-indices (terrain-stamp-tile-picker-selected-indices
                                      state)
                    disabled? (nil? (model/selected-terrain-rule state))]
-               (do
-                 (when (or (not= tileset (:rendered-tileset state))
-                           (not= (:tilesets state) (:rendered-tilesets state))
-                           (not= disabled? (:rendered-disabled? state)))
-                   (ui/replace-child!
-                    (:view ctx)
-                    "terrain-stamp-tile-list-box"
-                    (merge {:id "terrain-stamp-tile-list-box"}
-                           (terrain-stamp-tile-palette-list-child
-                            state
-                            disabled?))))
-                 (assoc state
-                        :rendered-tileset tileset
-                        :rendered-tilesets (:tilesets state)
-                        :rendered-disabled? disabled?
-                        :selected-tile selected-tile
-                        :selected-indices selected-indices))))
-   :on {:list-box/change (fn [state event ctx]
-                           (do
-                             (ui/stop-propagation! event)
-                             (ui/emit! (:view ctx)
-                                       :terrain/rule-stamp-tile-select
-                                       (-> event :payload :value))
-                             state))}
-   :children [(merge {:id "terrain-stamp-tile-list-box"}
-                     (terrain-stamp-tile-palette-list-child {} true))]})
+               (assoc state
+                      :tileset tileset
+                      :disabled? disabled?
+                      :selected-tile selected-tile
+                      :selected-indices selected-indices)))
+   :on-mouse-down select-terrain-stamp-tile-at-event!
+   :render (fn [state ctx]
+             (let [options (terrain-stamp-tile-options state)
+                   columns (terrain-stamp-tile-picker-columns
+                            (-> ctx :view :bounds))]
+               (for-indexed [index option options]
+                 (draw-terrain-stamp-tile-picker-cell!
+                  state
+                  option
+                  index
+                  columns))))})
 
 (defcomponent terrain-rule-arrow
   {:class :ui/canvas
@@ -856,7 +908,7 @@
                                    :selected-terrain-index
                                    (ui/bind-state :selected-terrain-index)
                                    :tilesets (ui/bind-state :tilesets)}}]}
-              {:mode 'terrain-stamp-tile-palette
+              {:mode 'terrain-stamp-tile-picker
                :state {:rulesets (ui/bind-state :rulesets)
                        :selected-terrain-ruleset-id
                        (ui/bind-state :selected-terrain-ruleset-id)

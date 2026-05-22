@@ -18,3 +18,8 @@
     (is (= "Terrains" (-> panel :state :title)))
     (is (= "+" (-> add-button :state :label)))
     (is (not (nil? (-> add-button :state :disabled?))))))
+
+(deftest stamp-tile-picker-columns-tolerates_unlaid_out_bounds
+  (is (= 1 (layout/terrain-stamp-tile-picker-columns nil)))
+  (is (= {:x 0 :y 0 :w 32 :h 32}
+         (layout/terrain-stamp-tile-picker-cell-rect 0 nil))))

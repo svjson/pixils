@@ -152,7 +152,8 @@
                :state {:value (ui/bind-state :selected-tile-label)}}]})
 
 (defun tile-cell-rect [index columns]
-  (let [stride (tile-grid-stride)]
+  (let [columns (max 1 (or columns 1))
+        stride (tile-grid-stride)]
     {:x (* (mod index columns) stride)
      :y (* (int (/ index columns)) stride)
      :w tile-grid-cell-size

@@ -742,21 +742,6 @@ TEST_F(TilemapEditorStartupTest, terrain_rule_add_button_creates_visible_rule)
   click_north_cell(SDL_BUTTON_LEFT);
   EXPECT_NE(session.active_mode->state->to_string().find(":n :not-same"), std::string::npos);
 
-  auto water_tile_row = find_descendant_mode_containing_state(session.active_mode,
-                                                              "terrain-stamp-tile-row",
-                                                              ":value :water-fill");
-  ASSERT_NE(water_tile_row, nullptr);
-  input().mouse_down({water_tile_row->bounds.x + water_tile_row->bounds.w / 2,
-                      water_tile_row->bounds.y + water_tile_row->bounds.h / 2});
-  update_cycle();
-  input().mouse_up({water_tile_row->bounds.x + water_tile_row->bounds.w / 2,
-                    water_tile_row->bounds.y + water_tile_row->bounds.h / 2});
-  update_cycle();
-  update_cycle();
-  EXPECT_NE(
-    session.active_mode->state->to_string().find(":terrain-rule-selected-tile :water-fill"),
-    std::string::npos);
-
   std::vector<std::shared_ptr<Pixils::Runtime::View>> stamp_cells;
   find_descendant_modes(session.active_mode, "terrain-stamp-grid-cell", stamp_cells);
   ASSERT_EQ(stamp_cells.size(), 9u);
@@ -772,16 +757,187 @@ TEST_F(TilemapEditorStartupTest, terrain_rule_add_button_creates_visible_rule)
     }
   }
   ASSERT_NE(stamp_cell, nullptr);
-  input().mouse_down({stamp_cell->bounds.x + stamp_cell->bounds.w / 2,
-                      stamp_cell->bounds.y + stamp_cell->bounds.h / 2});
+
+  std::vector<std::shared_ptr<Pixils::Runtime::View>> tile_pickers;
+  find_descendant_modes(session.active_mode, "terrain-stamp-tile-picker", tile_pickers);
+  ASSERT_EQ(tile_pickers.size(), 1u);
+  auto tile_picker = tile_pickers[0];
+  const InputSimulator::Coord water_tile_position{
+    static_cast<int>(tile_picker->bounds.x + 84),
+    static_cast<int>(tile_picker->bounds.y + 16)};
+  const InputSimulator::Coord no_tile_position{static_cast<int>(tile_picker->bounds.x + 16),
+                                               static_cast<int>(tile_picker->bounds.y + 16)};
+  const InputSimulator::Coord stamp_cell_position{
+    static_cast<int>(stamp_cell->bounds.x + stamp_cell->bounds.w / 2),
+    static_cast<int>(stamp_cell->bounds.y + stamp_cell->bounds.h / 2)};
+  input().mouse_down(water_tile_position);
   update_cycle();
-  input().mouse_up({stamp_cell->bounds.x + stamp_cell->bounds.w / 2,
-                    stamp_cell->bounds.y + stamp_cell->bounds.h / 2});
+  EXPECT_NE(
+    session.active_mode->state->to_string().find(":terrain-rule-selected-tile :water-fill"),
+    std::string::npos);
+  input().mouse_move(stamp_cell_position);
   update_cycle();
+  input().mouse_up(stamp_cell_position);
   update_cycle();
   EXPECT_NE(session.active_mode->state->to_string().find(
               ":tiles [[nil nil nil] [nil :grass-fill :water-fill] [nil nil nil]]"),
             std::string::npos);
+
+  input().mouse_down(no_tile_position);
+  update_cycle();
+  input().mouse_move(stamp_cell_position);
+  update_cycle();
+  input().mouse_up(stamp_cell_position);
+  update_cycle();
+  EXPECT_NE(session.active_mode->state->to_string().find(
+              ":tiles [[nil nil nil] [nil :grass-fill nil] [nil nil nil]]"),
+            std::string::npos);
+
+  std::filesystem::remove(history_path, ec);
+  std::filesystem::remove(project_path, ec);
+}
+
+TEST_F(TilemapEditorStartupTest, loaded_terrain_rule_normalizes_legacy_sprite_sources)
+{
+  const auto history_path = std::filesystem::temp_directory_path() /
+                            "pixils-tilemap-editor-terrain-rule-legacy-source-history.edn";
+  const auto project_path = std::filesystem::temp_directory_path() /
+                            "pixils-tilemap-editor-terrain-rule-legacy-source-project.edn";
+  std::error_code ec;
+  std::filesystem::remove(history_path, ec);
+  std::filesystem::remove(project_path, ec);
+
+  {
+    std::ofstream out(project_path);
+    out << R"({:format :pixils.tilemap-editor/project
+ :version 1
+ :resources {:bundles {:project-assets
+                       {:images {:spritesheet
+                                 {:file-name "examples/tilemap-editor/assets/simples_pimples.png"
+                                  :name "Spritesheet"}}}}}
+ :tilesets [{:id :terrain
+             :label "Terrain"
+             :tile-size 16
+             :tiles [{:id :grass-fill
+                      :name "Grass Fill"
+                      :char "g"
+                      :type :sprite
+                      :image :project-assets/spritesheet
+                      :source {:x 0 :y 0}}]}]
+ :terrain-sets [{:id :overworld
+                 :label "Overworld"
+                 :tileset :terrain
+                 :terrains [{:id :grass
+                             :label "Grass"
+                             :tile :grass-fill}]}]
+ :rulesets [{:id :overworld-rules
+             :label "Overworld Rules"
+             :kind :terrain-stamp
+             :terrain-set :overworld
+             :source-layer :scene/terrain
+             :rules [{:id :rule
+                      :label "Rule"
+                      :terrain :grass
+                      :match {:nw :ignore
+                              :n :same
+                              :ne :ignore
+                              :w :ignore
+                              :e :ignore
+                              :sw :ignore
+                              :s :ignore
+                              :se :ignore}
+                      :output {:anchor {:x 1 :y 1}
+                               :layers [{:id :layer
+                                         :data-kind :tile-ref
+                                         :target-layer :scene/terrain-visuals
+                                         :tileset :terrain
+                                         :tiles [[nil nil nil]
+                                                 [nil :grass-fill nil]
+                                                 [nil nil nil]]}]}}]}]
+ :layer-profiles [{:id :default
+                   :label "Default"
+                   :layers [{:id :scene/terrain
+                             :label "Terrain Source"
+                             :kind :terrain
+                             :data-kind :terrain
+                             :terrain-set :overworld}
+                            {:id :scene/terrain-visuals
+                             :label "Terrain Visuals"
+                             :kind :tile
+                             :data-kind :tile-ref
+                             :tileset :terrain}]}]
+ :tilemap {:width 2
+           :height 2
+           :tile-size 16
+           :layer-profile :default
+           :layers []}})";
+  }
+
+  read_tilemap_editor_sources(runtime);
+
+  session.push_mode("main-mode", Lisple::Constant::NIL);
+  update_cycle();
+  Lisple::Dict::set_property(session.active_mode->state,
+                             Lisple::keyword("project-history-path"),
+                             Lisple::string(history_path.string()));
+  Lisple::Dict::set_property(session.active_mode->state,
+                             Lisple::keyword("recent-projects"),
+                             Lisple::vector({}));
+
+  auto origin = Lisple::map({Lisple::keyword("view"),
+                             Pixils::Script::ViewAdapter::make_ref(*session.active_mode),
+                             Lisple::keyword("event"),
+                             Lisple::keyword("project/file-dialog-result")});
+  auto overrides = Lisple::map({Lisple::keyword("origin"), origin});
+  session.push_mode("ui/tab-panel-empty", Lisple::Constant::NIL, overrides);
+  session.pop_mode(runtime.eval(R"({:type :confirm
+                                  :mode :file-dialog/open
+                                  :path )" +
+                                lisp_string(project_path.string()) + R"(
+                                  :directory )" +
+                                lisp_string(project_path.parent_path().string()) + R"(
+                                  :filename "terrain-rule-legacy-source-project.edn"})"));
+
+  update_cycle();
+  update_cycle();
+  session.render_mode();
+
+  EXPECT_NE(session.active_mode->state->to_string().find(":source {:x 0 :y 0 :w 16 :h 16}"),
+            std::string::npos);
+
+  auto tab_panel = session.active_mode->children[1];
+  ASSERT_NE(tab_panel, nullptr);
+  auto tab_strip = tab_panel->children[0];
+  ASSERT_GE(tab_strip->children.size(), 5u);
+
+  auto terrains_tab = tab_strip->children[4];
+  ASSERT_NE(terrains_tab, nullptr);
+  input().mouse_down({terrains_tab->bounds.x + terrains_tab->bounds.w / 2,
+                      terrains_tab->bounds.y + terrains_tab->bounds.h / 2});
+  update_cycle();
+  input().mouse_up({terrains_tab->bounds.x + terrains_tab->bounds.w / 2,
+                    terrains_tab->bounds.y + terrains_tab->bounds.h / 2});
+  update_cycle();
+  update_cycle();
+  session.render_mode();
+
+  auto terrain_detail_tab = find_descendant_mode_containing_state(session.active_mode,
+                                                                  "ui/tab",
+                                                                  ":label \"Terrain\"");
+  ASSERT_NE(terrain_detail_tab, nullptr);
+  input().mouse_down({terrain_detail_tab->bounds.x + terrain_detail_tab->bounds.w / 2,
+                      terrain_detail_tab->bounds.y + terrain_detail_tab->bounds.h / 2});
+  update_cycle();
+  input().mouse_up({terrain_detail_tab->bounds.x + terrain_detail_tab->bounds.w / 2,
+                    terrain_detail_tab->bounds.y + terrain_detail_tab->bounds.h / 2});
+  update_cycle();
+  update_cycle();
+  session.render_mode();
+
+  auto rule_editor = find_descendant_mode_containing_state(session.active_mode,
+                                                           "terrain-rule-visual-editor",
+                                                           ":rule");
+  EXPECT_NE(rule_editor, nullptr);
 
   std::filesystem::remove(history_path, ec);
   std::filesystem::remove(project_path, ec);

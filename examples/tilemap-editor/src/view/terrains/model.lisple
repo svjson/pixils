@@ -560,9 +560,12 @@
                              (= (:value option) tile-ref)))))))
 
 (defun selected-rule-stamp-tile [state]
-  (or (when (rule-stamp-tile-exists? state (:terrain-rule-selected-tile state))
-        (:terrain-rule-selected-tile state))
-      (first-rule-stamp-tile state)))
+  (let [requested (:terrain-rule-selected-tile state)]
+    (if (nil? requested)
+      nil
+      (or (when (rule-stamp-tile-exists? state requested)
+            requested)
+          (first-rule-stamp-tile state)))))
 
 (defun selected-rule-stamp-tile-indices [state]
   (let [tile-ref (selected-rule-stamp-tile state)

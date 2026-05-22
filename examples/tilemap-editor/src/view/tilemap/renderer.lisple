@@ -16,31 +16,46 @@
   (min (/ (:w rect) source-width)
        (/ (:h rect) source-height)))
 
+(defun valid-dim? [dim]
+  (and dim
+       (:w dim)
+       (:h dim)
+       (> (:w dim) 0)
+       (> (:h dim) 0)))
+
+(defun draw-missing-tile! [rect]
+  (r/rect! rect {:fill true
+                 :color {:r 0xff :g 0x00 :b 0xff}}))
+
 (defun draw-color-tile! [tile rect]
   (r/rect! rect {:fill true
                  :color (:color tile)}))
 
 (defun draw-image-tile! [tile rect]
-  (let [dim (img/size (:image tile))
-        scale (fit-scale (:w dim) (:h dim) rect)
-        width (* (:w dim) scale)
-        height (* (:h dim) scale)]
-    (do
-      (r/rect! rect {:fill true
-                     :color {:r 0x12 :g 0x15 :b 0x18}})
-      (r/image! (:image tile)
-                {:pos (centered-pos rect width height)
-                 :scale scale}))))
+  (let [dim (img/size (:image tile))]
+    (if (valid-dim? dim)
+      (let [scale (fit-scale (:w dim) (:h dim) rect)
+            width (* (:w dim) scale)
+            height (* (:h dim) scale)]
+        (do
+          (r/rect! rect {:fill true
+                         :color {:r 0x12 :g 0x15 :b 0x18}})
+          (r/image! (:image tile)
+                    {:pos (centered-pos rect width height)
+                     :scale scale})))
+      (draw-missing-tile! rect))))
 
 (defun draw-sprite-tile! [tile rect]
-  (let [source (:source tile)
-        scale (fit-scale (:w source) (:h source) rect)
-        width (* (:w source) scale)
-        height (* (:h source) scale)]
-    (r/image! (:image tile)
-              {:pos (centered-pos rect width height)
-               :source source
-               :scale scale})))
+  (let [source (:source tile)]
+    (if (valid-dim? source)
+      (let [scale (fit-scale (:w source) (:h source) rect)
+            width (* (:w source) scale)
+            height (* (:h source) scale)]
+        (r/image! (:image tile)
+                  {:pos (centered-pos rect width height)
+                   :source source
+                   :scale scale}))
+      (draw-missing-tile! rect))))
 
 (defun draw-tile! [tile rect]
   (cond
@@ -54,8 +69,7 @@
     (draw-sprite-tile! tile rect)
 
     :default
-    (r/rect! rect {:fill true
-                   :color {:r 0xff :g 0x00 :b 0xff}})))
+    (draw-missing-tile! rect)))
 
 (defun tile-rect [x y offset zoom]
   (let [size (tm/scaled-tile-size zoom)]

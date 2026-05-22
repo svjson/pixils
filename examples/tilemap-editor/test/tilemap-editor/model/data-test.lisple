@@ -50,6 +50,45 @@
     (is (= :grass
            (data/tile-id tilesets :terrain 0)))))
 
+(deftest nil-tile-ref-means_no_tile
+  (let [tilesets [{:id :terrain
+                   :label "Terrain"
+                   :tiles [{:id :grass
+                            :name "Grass"}]}]]
+    (is (nil? (data/tile-in tilesets :terrain nil)))
+    (is (nil? (data/tile-id tilesets :terrain nil)))))
+
+(deftest normalize-project-document-adds_sprite_source_dimensions
+  (let [document (data/normalize-project-document
+                  {:format data/project-format
+                   :tilesets [{:id :terrain
+                               :tile-size 32
+                               :tiles [{:id :grass
+                                        :type :sprite
+                                        :source {:x 8 :y 16}}]}]
+                   :tilemap {:layers []}})]
+    (is (= {:x 8 :y 16 :w 32 :h 32}
+           (get-in document [:tilesets 0 :tiles 0 :source])))))
+
+(deftest normalize-project-document-normalizes_ruleset_stamp_nil_cells
+  (let [document (data/normalize-project-document
+                  {:format data/project-format
+                   :rulesets [{:id :overworld-rules
+                               :rules [{:id :rule
+                                        :output {:layers [{:id :stamp
+                                                          :tileset :terrain
+                                                          :tiles [[nil
+                                                                   :grass]]}]}}]}]
+                   :layer-profiles [{:id :default
+                                     :layers [{:id :scene/terrain
+                                               :role :source
+                                               :data-kind :tile-ref
+                                               :tileset :terrain}]}]
+                   :tilemap {:layers []}})]
+    (is (= nil
+           (get-in document
+                   [:rulesets 0 :rules 0 :output :layers 0 :tiles 0 0])))))
+
 (deftest terrain-options-come-from_project_terrain_sets
   (let [terrain-sets [{:id :overworld
                        :label "Overworld"

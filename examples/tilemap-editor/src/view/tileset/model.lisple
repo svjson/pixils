@@ -198,7 +198,7 @@
     (max 0 (min (or index 0) (dec item-count)))))
 
 (defun tile-grid-columns [bounds]
-  (max 1 (int (/ (+ (max 1 (:w bounds)) tile-grid-gap)
+  (max 1 (int (/ (+ (max 1 (or (:w bounds) 1)) tile-grid-gap)
                  (tile-grid-stride)))))
 
 (defun tile-grid-index-at-position [position bounds item-count]

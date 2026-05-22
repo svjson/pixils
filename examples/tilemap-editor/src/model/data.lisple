@@ -67,6 +67,36 @@
 (defun tileset-tiles [tilesets tileset]
   (or (:tiles (tileset-definition tilesets tileset)) []))
 
+(defun default-tile-source [tile-size]
+  {:x 0
+   :y 0
+   :w tile-size
+   :h tile-size})
+
+(defun normalize-sprite-source [source source-size]
+  (let [source-size (or source-size tile-size)
+        source (merge (default-tile-source source-size)
+                      (or source {}))]
+    (assoc source
+           :w (or (:w source) source-size)
+           :h (or (:h source) source-size))))
+
+(defun normalize-tileset-tile [tile tile-size]
+  (if (= (:type tile) :sprite)
+    (assoc tile :source (normalize-sprite-source (:source tile) tile-size))
+    tile))
+
+(defun normalize-tileset [tileset]
+  (let [tile-size (or (:tile-size tileset) tile-size)]
+    (assoc tileset
+           :tile-size tile-size
+           :tiles (map (or (:tiles tileset) [])
+                       (fn [tile]
+                         (normalize-tileset-tile tile tile-size))))))
+
+(defun normalize-tilesets [tilesets]
+  (map (or tilesets []) normalize-tileset))
+
 (defun tile-count [tilesets tileset]
   (count (tileset-tiles tilesets tileset)))
 
@@ -75,6 +105,14 @@
     (if (= count 0)
       0
       (max 0 (min (dec count) (or index 0))))))
+
+(defun serialized-nil? [value]
+  (and (= (type-of value) "symbol")
+       (= (str value) "nil")))
+
+(defun absent-tile-ref? [tile-ref]
+  (or (nil? tile-ref)
+      (serialized-nil? tile-ref)))
 
 (defun tile-index [tilesets tileset tile-ref]
   (if (keyword? tile-ref)
@@ -85,9 +123,10 @@
     (clamp-tile-index tilesets tileset tile-ref)))
 
 (defun tile-id [tilesets tileset tile-ref]
-  (let [tiles (tileset-tiles tilesets tileset)]
-    (when (> (count tiles) 0)
-      (:id (nth tiles (tile-index tilesets tileset tile-ref))))))
+  (when (not (absent-tile-ref? tile-ref))
+    (let [tiles (tileset-tiles tilesets tileset)]
+      (when (> (count tiles) 0)
+        (:id (nth tiles (tile-index tilesets tileset tile-ref)))))))
 
 (defun tile-options [tilesets tileset]
   (for-indexed [index tile (tileset-tiles tilesets tileset)]
@@ -95,9 +134,10 @@
      :label (:name tile)}))
 
 (defun tile-in [tilesets tileset tile-ref]
-  (let [tiles (tileset-tiles tilesets tileset)]
-    (when (> (count tiles) 0)
-      (nth tiles (tile-index tilesets tileset tile-ref)))))
+  (when (not (absent-tile-ref? tile-ref))
+    (let [tiles (tileset-tiles tilesets tileset)]
+      (when (> (count tiles) 0)
+        (nth tiles (tile-index tilesets tileset tile-ref))))))
 
 (defun tile-label [tilesets tileset tile-ref]
   (let [tile (tile-in tilesets tileset tile-ref)]
@@ -206,10 +246,6 @@
 
 (defun make-layered-map []
   [])
-
-(defun serialized-nil? [value]
-  (and (= (type-of value) "symbol")
-       (= (str value) "nil")))
 
 (defun normalize-tile-ref [tile-ref]
   (if (serialized-nil? tile-ref)
@@ -362,6 +398,9 @@
 (defun normalize-brushes [brushes profile]
   (normalize-brush-value (or brushes []) profile))
 
+(defun normalize-rulesets [rulesets profile]
+  (normalize-brush-value (or rulesets []) profile))
+
 (defun normalize-project-document [project]
   (let [layers (normalize-layers (-> project :tilemap :layers))
         layer-profiles (let [profiles (normalize-layer-profiles
@@ -372,15 +411,17 @@
         layer-profile-id (selected-layer-profile-id
                           layer-profiles
                           (-> project :tilemap :layer-profile))
-        layer-profile (layer-profile-by-id layer-profiles layer-profile-id)]
+        layer-profile (layer-profile-by-id layer-profiles layer-profile-id)
+        tilesets (normalize-tilesets (:tilesets project))]
     (assoc (assoc-in (assoc-in project
                                [:tilemap :layers]
                                layers)
                      [:tilemap :layer-profile]
                      layer-profile-id)
+           :tilesets tilesets
            :layer-profiles layer-profiles
            :terrain-sets (or (:terrain-sets project) project-terrain-sets)
-           :rulesets (or (:rulesets project) project-rulesets)
+           :rulesets (normalize-rulesets (:rulesets project) layer-profile)
            :brushes (normalize-brushes (:brushes project) layer-profile))))
 
 (defun tilemap-document [state layers layer-profile-id]
@@ -405,9 +446,9 @@
      :version project-format-version
      :resources (normalize-project-resources (or (:resources state)
                                                  project-resources))
-     :tilesets (or (:tilesets state) [])
+     :tilesets (normalize-tilesets (:tilesets state))
      :terrain-sets (or (:terrain-sets state) project-terrain-sets)
-     :rulesets (or (:rulesets state) project-rulesets)
+     :rulesets (normalize-rulesets (:rulesets state) layer-profile)
      :layer-profiles layer-profiles
      :brushes (normalize-brushes (or (:brushes state) project-brushes)
                                  layer-profile)

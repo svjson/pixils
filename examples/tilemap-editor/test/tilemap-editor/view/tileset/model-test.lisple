@@ -474,6 +474,7 @@
 
 (deftest tileset-tile-grid-position-and-key-movement
   (is (= 3 (model/tile-grid-columns {:w 48 :h 80})))
+  (is (= 1 (model/tile-grid-columns nil)))
   (is (= 0 (model/tile-grid-index-at-position {:x 2 :y 2}
                                               {:w 48 :h 80}
                                               8)))
