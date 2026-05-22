@@ -401,6 +401,7 @@
     :ignore nil
     :same (terrain-rule-center-tile state)
     :not-same nil
+    :other-terrain nil
     :default (if-let [terrain-id (condition-terrain-id condition)]
                (terrain-rule-terrain-tile state terrain-id)
                nil)))
@@ -441,6 +442,12 @@
       (r/line! {:x 23 :y center} {:x 28 :y center} color)
       (r/text! "?" {:x 12 :y 9} {:color color}))))
 
+(defun draw-match-other-terrain! []
+  (let [color {:r 0xf0 :g 0xb4 :b 0x4f}]
+    (do
+      (r/rect! {:x 8 :y 8 :w 16 :h 16} {:color color})
+      (r/text! "T" {:x 12 :y 9} {:color color}))))
+
 (defun draw-match-cell! [state ctx]
   (let [condition (:condition state)
         tile (:tile state)]
@@ -456,6 +463,8 @@
         (draw-rule-grid-cell-cross! {:r 0x86 :g 0x91 :b 0x9b}))
       (when (= condition :not-same)
         (draw-match-any-other!))
+      (when (= condition :other-terrain)
+        (draw-match-other-terrain!))
       (draw-rule-grid-cell-border! (cond
                                      (:center? state)
                                      {:r 0xff :g 0xcc :b 0x66}

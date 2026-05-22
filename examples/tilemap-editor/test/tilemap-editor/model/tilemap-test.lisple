@@ -65,6 +65,52 @@
                                   :tileset :props
                                   :tiles [[:crate]]}]}}]})
 
+(defun terrain-row [values]
+  (concat values (dotimes [x (- data/map-width (count values))] nil)))
+
+(defun terrain-map [rows]
+  (concat (map rows terrain-row)
+          (dotimes [y (- data/map-height (count rows))]
+            (data/make-empty-row))))
+
+(def terrain-stamp-rule
+  {:id :grass-north-water
+   :terrain :grass
+   :match {:n {:terrain :water}
+           :e :ignore
+           :s :ignore
+           :w :ignore}
+   :output {:anchor {:x 1 :y 1}
+            :layers [{:target-layer :scene/visuals
+                      :tileset :overworld
+                      :tiles [[nil :shore-n nil]
+                              [nil :grass-fill nil]
+                              [nil nil nil]]}]}})
+
+(defun terrain-paint-state [terrain-tiles selected-tile]
+  {:selected-layer-index 0
+   :map-palette-tab :tiles
+   :selected-tile selected-tile
+   :zoom 1
+   :offset {:x 0 :y 0}
+   :layers [{:id :scene/terrain
+             :label "Terrain"
+             :role :source
+             :data-kind :terrain
+             :terrain-set :overworld
+             :tiles terrain-tiles}
+            {:id :scene/visuals
+             :label "Visuals"
+             :role :source
+             :data-kind :tile-ref
+             :tileset :overworld
+             :tiles (data/make-empty-map)}]
+   :rulesets [{:id :shore-rules
+               :kind :terrain-stamp
+               :terrain-set :overworld
+               :source-layer :scene/terrain
+               :rules [terrain-stamp-rule]}]})
+
 (defun paint-event [button x y]
   {:button button
    :position {:x (* x data/tile-size)
@@ -100,3 +146,36 @@
     (is (nil? (get-in state [:layers 0 :tiles 5 5])))
     (is (nil? (get-in state [:layers 0 :tiles 6 4])))
     (is (nil? (get-in state [:layers 0 :tiles 7 6])))))
+
+(deftest tilemap-paint-terrain-materializes_matching_stamp_rule
+  (let [state (tilemap/paint-map-at
+               (terrain-paint-state (terrain-map [[nil :water nil]])
+                                    :grass)
+               (paint-event :left 1 1))]
+    (is (= :grass (get-in state [:layers 0 :tiles 1 1])))
+    (is (= :shore-n (get-in state [:layers 1 :tiles 0 1])))
+    (is (= :grass-fill (get-in state [:layers 1 :tiles 1 1])))))
+
+(deftest tilemap-paint-terrain-refreshes_neighbor_stamp_rules
+  (let [state (tilemap/paint-map-at
+               (terrain-paint-state (terrain-map [[nil nil nil]
+                                                  [nil :grass nil]])
+                                    :water)
+               (paint-event :left 1 0))
+        cleared (tilemap/paint-map-at state (paint-event :right 1 0))]
+    (is (= :water (get-in state [:layers 0 :tiles 0 1])))
+    (is (= :shore-n (get-in state [:layers 1 :tiles 0 1])))
+    (is (= :grass-fill (get-in state [:layers 1 :tiles 1 1])))
+    (is (nil? (get-in cleared [:layers 0 :tiles 0 1])))
+    (is (nil? (get-in cleared [:layers 1 :tiles 0 1])))
+    (is (nil? (get-in cleared [:layers 1 :tiles 1 1])))))
+
+(deftest tilemap-paint-terrain-ruleset_without_source_layer_uses_matching_terrain_set
+  (let [state (assoc-in (terrain-paint-state (terrain-map [[nil :water nil]])
+                                             :grass)
+                        [:rulesets 0 :source-layer]
+                        nil)
+        state (tilemap/paint-map-at state (paint-event :left 1 1))]
+    (is (= :grass (get-in state [:layers 0 :tiles 1 1])))
+    (is (= :shore-n (get-in state [:layers 1 :tiles 0 1])))
+    (is (= :grass-fill (get-in state [:layers 1 :tiles 1 1])))))

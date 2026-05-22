@@ -736,11 +736,16 @@ TEST_F(TilemapEditorStartupTest, terrain_rule_add_button_creates_visible_rule)
   EXPECT_NE(session.active_mode->state->to_string().find(":n :not-same"), std::string::npos);
 
   click_north_cell(SDL_BUTTON_RIGHT);
-  EXPECT_NE(session.active_mode->state->to_string().find(":n {:terrain :water}"),
+  EXPECT_NE(session.active_mode->state->to_string().find(":n :other-terrain"),
             std::string::npos);
 
   click_north_cell(SDL_BUTTON_LEFT);
   EXPECT_NE(session.active_mode->state->to_string().find(":n :not-same"), std::string::npos);
+
+  click_north_cell(SDL_BUTTON_RIGHT);
+  click_north_cell(SDL_BUTTON_RIGHT);
+  EXPECT_NE(session.active_mode->state->to_string().find(":n {:terrain :water}"),
+            std::string::npos);
 
   std::vector<std::shared_ptr<Pixils::Runtime::View>> stamp_cells;
   find_descendant_modes(session.active_mode, "terrain-stamp-grid-cell", stamp_cells);

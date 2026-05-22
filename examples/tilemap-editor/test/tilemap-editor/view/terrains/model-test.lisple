@@ -289,6 +289,23 @@
     (is (= {:terrain :water}
            (get-in state [:rulesets 0 :rules 0 :match :n])))))
 
+(deftest terrain-rule-match-change-stores_other_terrain_condition
+  (let [state (model/set-selected-rule-match-condition
+               {:terrain-sets [{:id :overworld
+                                :terrains [{:id :grass}
+                                           {:id :water}]}]
+                :selected-terrain-set-index 0
+                :rulesets [{:id :overworld-rules
+                            :terrain-set :overworld
+                            :rules [{:id :rule
+                                     :match {}}]}]
+                :selected-terrain-ruleset-id :overworld-rules
+                :selected-terrain-rule-id :rule}
+               :n
+               :other-terrain)]
+    (is (= :other-terrain
+           (get-in state [:rulesets 0 :rules 0 :match :n])))))
+
 (deftest terrain-rule-options-show_only_selected_terrain_rules
   (let [state {:terrain-sets [{:id :overworld
                                :terrains [{:id :grass}
@@ -328,10 +345,18 @@
         left-state (model/cycle-selected-rule-match-condition
                     base-state
                     :n
-                    -1)]
+                    -1)
+        other-state (model/cycle-selected-rule-match-condition
+                     (assoc-in base-state
+                               [:rulesets 0 :rules 0 :match :n]
+                               :not-same)
+                     :n
+                     1)]
     (is (= :same (get-in right-state [:rulesets 0 :rules 0 :match :n])))
     (is (= {:terrain :water}
-           (get-in left-state [:rulesets 0 :rules 0 :match :n])))))
+           (get-in left-state [:rulesets 0 :rules 0 :match :n])))
+    (is (= :other-terrain
+           (get-in other-state [:rulesets 0 :rules 0 :match :n])))))
 
 (deftest terrain-rule-stamp-tile-edit-updates_selected_rule_stamp_grid
   (let [state (model/set-selected-rule-stamp-tile

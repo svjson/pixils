@@ -656,6 +656,7 @@
     :ignore :ignore
     :same :same
     :not-same :not-same
+    :other-terrain :other-terrain
     :default
     {:terrain value}))
 
@@ -664,6 +665,7 @@
     :ignore :ignore
     :same :same
     :not-same :not-same
+    :other-terrain :other-terrain
     :default
     (if (= (type-of condition) "map")
       (:terrain condition)
@@ -740,7 +742,9 @@
            {:value :same
             :label "Same"}
            {:value :not-same
-            :label "Any other terrain"}]
+            :label "Not same"}
+           {:value :other-terrain
+            :label "Other terrain"}]
           (map (filter (or (:terrains terrain-set) [])
                        (fn [terrain]
                          (not= (:id terrain) center-terrain-id)))
