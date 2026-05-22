@@ -34,6 +34,9 @@
             '-' {:x 127 :y 25 :w 4 :h 10}
             '/' {:x 132 :y 25 :w 4 :h 12}
             ':' {:x 137 :y 25 :w 2 :h 10}
+            '<' {:x 144 :y 25 :w 6 :h 10}
+            '=' {:x 151 :y 25 :w 6 :h 10}
+            '>' {:x 158 :y 25 :w 6 :h 10}
             '0' {:x 179 :y 11 :w 6 :h 10}
             '1' {:x 186 :y 11 :w 4 :h 10}
             '2' {:x 191 :y 11 :w 6 :h 10}
@@ -193,6 +196,46 @@
                                   :thickness 1}
                          :clip true
                          :text {:color (var :content-text)}}
+
+            'ui/tab-panel {:background (var :panel-bg)
+                           :layout {:direction :column}
+                           :text {:color (var :text)}}
+
+            'ui/tab-strip {:background (var :panel-bg)
+                           :layout {:direction :row}
+                           :padding {:t 2 :l 2}}
+
+            'ui/tab {:background (var :panel-bg)
+                     :margin {:t 2 :r 1}
+                     :padding [2 9]
+                     :border {:line-style :solid
+                              :color (var :highlight)
+                              :thickness 1
+                              :right {:color (var :border)}
+                              :bottom {:color (var :border)}}
+                     :text {:color (var :text)}}
+
+            '(ui/tab {:selected? true})
+            {:background (var :panel-bg)
+             :margin {:t 0 :r 1}
+             :padding [2 9 4 9]
+             :border {:line-style :solid
+                      :color (var :highlight)
+                      :thickness 1
+                      :right {:color (var :border)}
+                      :bottom {:color (var :panel-bg)}}}
+
+            'ui/tab:disabled
+            {:background (var :panel-bg)
+             :text {:color (var :muted-text)}}
+
+            'ui/tab-panel-body {:width :fill
+                                :height :fill
+                                :background (var :panel-bg)
+                                :border {:line-style :solid
+                                         :color (var :border)
+                                         :thickness 1}
+                                :text {:color (var :text)}}
 
             :ui/list-item {:text {:color (var :field-text)}}
 

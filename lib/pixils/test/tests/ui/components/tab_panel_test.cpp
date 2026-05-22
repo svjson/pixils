@@ -1,10 +1,65 @@
 #include "../../render_fixture.h"
+#include <pixils/program.h>
+#include <pixils/ui/style.h>
+#include <pixils/ui/view_layout.h>
 
 #include <gtest/gtest.h>
 #include <lisple/runtime/dict.h>
 #include <lisple/runtime/value.h>
+#include <string>
 
-using TabPanelTest = RenderFixture;
+class TabPanelTest : public RenderFixture
+{
+ protected:
+  struct RenderedTabs
+  {
+    std::shared_ptr<Pixils::Runtime::View> tab_panel;
+    std::shared_ptr<Pixils::Runtime::View> tab_strip;
+    std::shared_ptr<Pixils::Runtime::View> selected_tab;
+    std::shared_ptr<Pixils::Runtime::View> inactive_tab;
+    std::shared_ptr<Pixils::Runtime::View> body;
+  };
+
+  RenderedTabs render_tabs_for_theme(const std::string& theme)
+  {
+    runtime.eval(std::string(R"(
+      (pixils/defcomponent map-body {})
+      (pixils/defcomponent tilesets-body {})
+
+      (pixils/defprogram tab-test-program
+        {:theme ')") + theme + R"(
+         :initial-mode 'root-mode})
+
+      (pixils/defmode root-mode
+        {:children [(pixils.ui.tab-panel/make
+                     {:selected-tab :map
+                      :tabs [{:id :map
+                              :label "Map"
+                              :child {:mode 'map-body}}
+                             {:id :tilesets
+                              :label "Tilesets"
+                              :child {:mode 'tilesets-body}}]})]})
+    )");
+
+    Pixils::load_program(runtime, session);
+    session.update_mode();
+    Pixils::UI::layout_view_tree(session.active_mode,
+                                 {0, 0, render_ctx.buffer_dim.w, render_ctx.buffer_dim.h},
+                                 runtime,
+                                 hook_args.render_args[1]);
+
+    RenderedTabs tabs;
+    if (!session.active_mode || session.active_mode->children.empty()) return tabs;
+    tabs.tab_panel = session.active_mode->children[0];
+    if (!tabs.tab_panel || tabs.tab_panel->children.size() < 2) return tabs;
+    tabs.tab_strip = tabs.tab_panel->children[0];
+    tabs.body = tabs.tab_panel->children[1];
+    if (!tabs.tab_strip || tabs.tab_strip->children.size() < 2) return tabs;
+    tabs.selected_tab = tabs.tab_strip->children[0];
+    tabs.inactive_tab = tabs.tab_strip->children[1];
+    return tabs;
+  }
+};
 
 namespace
 {
@@ -127,8 +182,7 @@ TEST_F(TabPanelTest, clicking_tab_selects_body_and_emits_change)
   update_cycle();
   session.render_mode();
 
-  selected =
-    Lisple::Dict::get_property(tab_panel->state, Lisple::keyword("selected-tab"));
+  selected = Lisple::Dict::get_property(tab_panel->state, Lisple::keyword("selected-tab"));
   ASSERT_NE(selected, nullptr);
   EXPECT_EQ(selected->to_string(), ":map");
 }
@@ -240,4 +294,166 @@ TEST_F(TabPanelTest, disabled_tab_does_not_select)
   auto active = active_tab_child(tab_panel);
   ASSERT_NE(active, nullptr);
   EXPECT_EQ(active->mode->name, "map-body");
+}
+
+TEST_F(TabPanelTest, classic_blue_theme_makes_selected_tab_raised_and_brighter)
+{
+  runtime.eval(R"(
+    (pixils/defcomponent map-body {})
+    (pixils/defcomponent tilesets-body {})
+
+    (pixils/defprogram tab-test-program
+      {:theme 'pixils/classic-blue
+       :initial-mode 'root-mode})
+
+    (pixils/defmode root-mode
+      {:children [(pixils.ui.tab-panel/make
+                   {:selected-tab :map
+                    :tabs [{:id :map
+                            :label "Map"
+                            :child {:mode 'map-body}}
+                           {:id :tilesets
+                            :label "Tilesets"
+                            :child {:mode 'tilesets-body}}]})]})
+  )");
+
+  Pixils::load_program(runtime, session);
+  session.update_mode();
+  session.render_mode();
+
+  ASSERT_NE(session.active_mode, nullptr);
+  ASSERT_EQ(session.active_mode->children.size(), 1u);
+  auto tab_panel = session.active_mode->children[0];
+  ASSERT_NE(tab_panel, nullptr);
+  ASSERT_EQ(tab_panel->children.size(), 2u);
+  auto tab_strip = tab_panel->children[0];
+  ASSERT_NE(tab_strip, nullptr);
+  ASSERT_EQ(tab_strip->children.size(), 2u);
+
+  auto selected_tab = tab_strip->children[0];
+  auto inactive_tab = tab_strip->children[1];
+  ASSERT_NE(selected_tab, nullptr);
+  ASSERT_NE(inactive_tab, nullptr);
+
+  ASSERT_TRUE(selected_tab->effective_style.background.has_value());
+  ASSERT_TRUE(selected_tab->effective_style.background->color.has_value());
+  ASSERT_TRUE(inactive_tab->effective_style.background.has_value());
+  ASSERT_TRUE(inactive_tab->effective_style.background->color.has_value());
+  EXPECT_EQ(*selected_tab->effective_style.background->color,
+            (Pixils::Color{0x3d, 0x4a, 0x5e, 255}));
+  EXPECT_EQ(*inactive_tab->effective_style.background->color,
+            (Pixils::Color{0x2d, 0x39, 0x48, 255}));
+
+  ASSERT_TRUE(selected_tab->effective_style.margin.has_value());
+  ASSERT_TRUE(inactive_tab->effective_style.margin.has_value());
+  EXPECT_EQ(selected_tab->effective_style.margin->t, 0);
+  EXPECT_EQ(inactive_tab->effective_style.margin->t, 2);
+  EXPECT_LT(selected_tab->bounds.y, inactive_tab->bounds.y);
+  EXPECT_EQ(selected_tab->bounds.y + selected_tab->bounds.h,
+            tab_strip->bounds.y + tab_strip->bounds.h);
+}
+
+TEST_F(TabPanelTest, windows_95_theme_uses_property_sheet_tabs)
+{
+  auto tabs = render_tabs_for_theme("pixils/windows-95");
+  ASSERT_NE(tabs.tab_strip, nullptr);
+  ASSERT_NE(tabs.selected_tab, nullptr);
+  ASSERT_NE(tabs.inactive_tab, nullptr);
+  ASSERT_NE(tabs.body, nullptr);
+
+  const Pixils::Color panel{0xb8, 0xb8, 0xb8, 255};
+  const Pixils::Color highlight{0xdf, 0xdf, 0xdf, 255};
+  const Pixils::Color shadow{0x7f, 0x7f, 0x7f, 255};
+
+  ASSERT_TRUE(tabs.tab_strip->effective_style.background.has_value());
+  ASSERT_TRUE(tabs.tab_strip->effective_style.background->color.has_value());
+  ASSERT_TRUE(tabs.selected_tab->effective_style.background.has_value());
+  ASSERT_TRUE(tabs.selected_tab->effective_style.background->color.has_value());
+  ASSERT_TRUE(tabs.inactive_tab->effective_style.background.has_value());
+  ASSERT_TRUE(tabs.inactive_tab->effective_style.background->color.has_value());
+  ASSERT_TRUE(tabs.body->effective_style.background.has_value());
+  ASSERT_TRUE(tabs.body->effective_style.background->color.has_value());
+  EXPECT_EQ(*tabs.tab_strip->effective_style.background->color, panel);
+  EXPECT_EQ(*tabs.selected_tab->effective_style.background->color, panel);
+  EXPECT_EQ(*tabs.inactive_tab->effective_style.background->color, panel);
+  EXPECT_EQ(*tabs.body->effective_style.background->color, panel);
+
+  ASSERT_TRUE(tabs.selected_tab->effective_style.margin.has_value());
+  ASSERT_TRUE(tabs.inactive_tab->effective_style.margin.has_value());
+  EXPECT_EQ(tabs.selected_tab->effective_style.margin->t, 0);
+  EXPECT_EQ(tabs.inactive_tab->effective_style.margin->t, 2);
+  EXPECT_LT(tabs.selected_tab->bounds.y, tabs.inactive_tab->bounds.y);
+  EXPECT_EQ(tabs.selected_tab->bounds.y + tabs.selected_tab->bounds.h,
+            tabs.tab_strip->bounds.y + tabs.tab_strip->bounds.h);
+
+  ASSERT_TRUE(tabs.selected_tab->effective_style.border.has_value());
+  EXPECT_EQ(tabs.selected_tab->effective_style.border->line_style,
+            Pixils::UI::Style::LineStyle::BEVEL);
+  auto selected_top = tabs.selected_tab->effective_style.border->top_color();
+  auto selected_right = tabs.selected_tab->effective_style.border->right_color();
+  auto selected_bottom = tabs.selected_tab->effective_style.border->bottom_color();
+  ASSERT_TRUE(selected_top.has_value());
+  ASSERT_TRUE(selected_right.has_value());
+  ASSERT_TRUE(selected_bottom.has_value());
+  EXPECT_EQ(*selected_top, highlight);
+  EXPECT_EQ(*selected_right, shadow);
+  EXPECT_EQ(*selected_bottom, panel);
+
+  ASSERT_TRUE(tabs.body->effective_style.border.has_value());
+  EXPECT_EQ(tabs.body->effective_style.border->line_style,
+            Pixils::UI::Style::LineStyle::BEVEL);
+}
+
+TEST_F(TabPanelTest, windows_3_theme_uses_classic_property_sheet_tabs)
+{
+  auto tabs = render_tabs_for_theme("pixils/windows-3");
+  ASSERT_NE(tabs.tab_strip, nullptr);
+  ASSERT_NE(tabs.selected_tab, nullptr);
+  ASSERT_NE(tabs.inactive_tab, nullptr);
+  ASSERT_NE(tabs.body, nullptr);
+
+  const Pixils::Color panel{0xc0, 0xc7, 0xc8, 255};
+  const Pixils::Color highlight{255, 255, 255, 255};
+  const Pixils::Color black{0, 0, 0, 255};
+
+  ASSERT_TRUE(tabs.tab_strip->effective_style.background.has_value());
+  ASSERT_TRUE(tabs.tab_strip->effective_style.background->color.has_value());
+  ASSERT_TRUE(tabs.selected_tab->effective_style.background.has_value());
+  ASSERT_TRUE(tabs.selected_tab->effective_style.background->color.has_value());
+  ASSERT_TRUE(tabs.inactive_tab->effective_style.background.has_value());
+  ASSERT_TRUE(tabs.inactive_tab->effective_style.background->color.has_value());
+  ASSERT_TRUE(tabs.body->effective_style.background.has_value());
+  ASSERT_TRUE(tabs.body->effective_style.background->color.has_value());
+  EXPECT_EQ(*tabs.tab_strip->effective_style.background->color, panel);
+  EXPECT_EQ(*tabs.selected_tab->effective_style.background->color, panel);
+  EXPECT_EQ(*tabs.inactive_tab->effective_style.background->color, panel);
+  EXPECT_EQ(*tabs.body->effective_style.background->color, panel);
+
+  ASSERT_TRUE(tabs.selected_tab->effective_style.margin.has_value());
+  ASSERT_TRUE(tabs.inactive_tab->effective_style.margin.has_value());
+  EXPECT_EQ(tabs.selected_tab->effective_style.margin->t, 0);
+  EXPECT_EQ(tabs.inactive_tab->effective_style.margin->t, 2);
+  EXPECT_LT(tabs.selected_tab->bounds.y, tabs.inactive_tab->bounds.y);
+  EXPECT_EQ(tabs.selected_tab->bounds.y + tabs.selected_tab->bounds.h,
+            tabs.tab_strip->bounds.y + tabs.tab_strip->bounds.h);
+
+  ASSERT_TRUE(tabs.selected_tab->effective_style.border.has_value());
+  EXPECT_EQ(tabs.selected_tab->effective_style.border->line_style,
+            Pixils::UI::Style::LineStyle::SOLID);
+  auto selected_top = tabs.selected_tab->effective_style.border->top_color();
+  auto selected_right = tabs.selected_tab->effective_style.border->right_color();
+  auto selected_bottom = tabs.selected_tab->effective_style.border->bottom_color();
+  ASSERT_TRUE(selected_top.has_value());
+  ASSERT_TRUE(selected_right.has_value());
+  ASSERT_TRUE(selected_bottom.has_value());
+  EXPECT_EQ(*selected_top, highlight);
+  EXPECT_EQ(*selected_right, black);
+  EXPECT_EQ(*selected_bottom, panel);
+
+  ASSERT_TRUE(tabs.body->effective_style.border.has_value());
+  EXPECT_EQ(tabs.body->effective_style.border->line_style,
+            Pixils::UI::Style::LineStyle::SOLID);
+  auto body_top = tabs.body->effective_style.border->top_color();
+  ASSERT_TRUE(body_top.has_value());
+  EXPECT_EQ(*body_top, black);
 }

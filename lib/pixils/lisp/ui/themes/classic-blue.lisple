@@ -78,7 +78,8 @@
     'ui/tab-strip {:background PANEL-BG
                    :layout {:direction :row}}
 
-    'ui/tab {:background BUTTON-BG
+    'ui/tab {:background CONTENT-BG
+             :margin {:t 2}
              :padding [3 10]
              :border {:color BUTTON-HIGHLIGHT
                       :thickness 1
@@ -87,10 +88,13 @@
              :text {:color (var :text)}}
 
     '(ui/tab {:selected? true})
-    {:background CONTENT-BG
-     :border {:color CONTENT-BORDER
+    {:background BUTTON-BG
+     :margin {:t 0}
+     :padding [3 10 5 10]
+     :border {:color BUTTON-HIGHLIGHT
               :thickness 1
-              :bottom {:color CONTENT-BG}}}
+              :right {:color BUTTON-SHADOW}
+              :bottom {:color BUTTON-BG}}}
 
     'ui/tab:disabled
     {:background DISABLED-BG

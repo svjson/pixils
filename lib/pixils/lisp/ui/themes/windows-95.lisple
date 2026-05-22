@@ -15,6 +15,13 @@
                         :thickness 1}}
    :glyphs {' ' {:x 144 :y 11 :w 1 :h 11}
             '.' {:x 73 :y 22 :w 1 :h 10}
+            ',' {:x 76 :y 22 :w 2 :h 10}
+            '<' {:x 78 :y 22 :w 4 :h 10}
+            '=' {:x 83 :y 22 :w 5 :h 10}
+            '>' {:x 89 :y 22 :w 4 :h 10}
+            '+' {:x 94 :y 22 :w 5 :h 10}
+            '-' {:x 100 :y 22 :w 2 :h 10}
+            ':' {:x 103 :y 22 :w 1 :h 10}
             '?' {:x 67 :y 22 :w 6 :h 10}
             '(' {:x 61 :y 22 :w 2 :h 12}
             ')' {:x 64 :y 22 :w 2 :h 12}
@@ -26,7 +33,7 @@
             '5' {:x 30 :y 22 :w 5 :h 9}
             '6' {:x 36 :y 22 :w 5 :h 9}
             '7' {:x 42 :y 22 :w 5 :h 9}
-            '8' {:x 48 :y 22 :w 5 :h 9}
+            '8' {:x 47 :y 22 :w 5 :h 9}
             '9' {:x 54 :y 22 :w 5 :h 9}
             'A' {:x 0 :y 0 :w 7 :h 9}
             'B' {:x 8 :y 0 :w 5 :h 9}
@@ -43,7 +50,7 @@
             'M' {:x 77 :y 0 :w 7 :h 9}
             'N' {:x 85 :y 0 :w 6 :h 9}
             'O' {:x 92 :y 0 :w 6 :h 9}
-            'P' {:x 99 :y 0 :w 6 :h 9}
+            'P' {:x 99 :y 0 :w 7 :h 9}
             'Q' {:x 107 :y 0 :w 6 :h 10}
             'R' {:x 114 :y 0 :w 6 :h 10}
             'S' {:x 121 :y 0 :w 5 :h 9}
@@ -150,6 +157,48 @@
                                   :thickness 1}
                          :clip true
                          :text {:color (var :content-text)}}
+
+            'ui/tab-panel {:background (var :panel-bg)
+                           :layout {:direction :column}
+                           :text {:color (var :text)}}
+
+            'ui/tab-strip {:background (var :panel-bg)
+                           :layout {:direction :row}
+                           :padding {:t 2 :l 2}}
+
+            'ui/tab {:background (var :panel-bg)
+                     :margin {:t 2 :r 1}
+                     :padding [3 10]
+                     :border {:line-style :bevel
+                              :color (var :highlight)
+                              :thickness 1
+                              :right {:color (var :panel-shadow)}
+                              :bottom {:color (var :panel-shadow)}}
+                     :text {:color (var :text)}}
+
+            '(ui/tab {:selected? true})
+            {:background (var :panel-bg)
+             :margin {:t 0 :r 1}
+             :padding [3 10 5 10]
+             :border {:line-style :bevel
+                      :color (var :highlight)
+                      :thickness 1
+                      :right {:color (var :panel-shadow)}
+                      :bottom {:color (var :panel-bg)}}}
+
+            'ui/tab:disabled
+            {:background (var :panel-bg)
+             :text {:color (var :muted-text)}}
+
+            'ui/tab-panel-body {:width :fill
+                                :height :fill
+                                :background (var :panel-bg)
+                                :border {:line-style :bevel
+                                         :color (var :highlight)
+                                         :thickness 1
+                                         :right {:color (var :panel-shadow)}
+                                         :bottom {:color (var :panel-shadow)}}
+                                :text {:color (var :text)}}
 
             :ui/list-item {:text {:color (var :field-text)}}
 
