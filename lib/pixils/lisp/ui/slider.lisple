@@ -74,20 +74,78 @@
            (slider-min state)
            (slider-max state))))
 
+(defun slider-style [ctx]
+  (or (-> ctx :view :effective-style)
+      (-> ctx :view :style)))
+
 (defun slider-track-color [state ctx]
   (or (:track-color state)
-      (-> ctx :view :style :border :color)
+      (-> (slider-style ctx) :border :color)
       default-track-color))
 
 (defun slider-handle-color [state ctx]
   (or (:handle-color state)
-      (-> ctx :view :style :background)
+      (-> (slider-style ctx) :background)
       default-handle-color))
 
 (defun slider-border-color [state ctx]
   (or (:border-color state)
-      (-> ctx :view :style :border :color)
+      (-> (slider-style ctx) :border :color)
       default-border-color))
+
+(defun slider-border-top-color [state ctx]
+  (or (:border-color state)
+      (-> (slider-style ctx) :border :top :color)
+      (slider-border-color state ctx)))
+
+(defun slider-border-bottom-color [state ctx]
+  (or (:border-color state)
+      (-> (slider-style ctx) :border :bottom :color)
+      (-> (slider-style ctx) :border :right :color)
+      (slider-border-color state ctx)))
+
+(defun slider-border-thickness [ctx]
+  (or (-> (slider-style ctx) :border :thickness)
+      1))
+
+(defun slider-bevel? [ctx]
+  (or (= (-> (slider-style ctx) :border :line-style) :bevel)
+      (-> (slider-style ctx) :border :top :color)
+      (-> (slider-style ctx) :border :right :color)
+      (-> (slider-style ctx) :border :bottom :color)
+      (-> (slider-style ctx) :border :left :color)))
+
+(defun draw-slider-bevel! [rect tl-color br-color thickness]
+  (dotimes [n thickness]
+    (do
+      (r/line! {:x (+ (:x rect) n)
+                :y (+ (:y rect) n)}
+               {:x (- (+ (:x rect) (:w rect)) (+ 1 n))
+                :y (+ (:y rect) n)}
+               tl-color)
+      (r/line! {:x (+ (:x rect) n)
+                :y (+ (:y rect) n)}
+               {:x (+ (:x rect) n)
+                :y (- (+ (:y rect) (:h rect)) (+ 1 n))}
+               tl-color)
+      (r/line! {:x (+ (:x rect) n)
+                :y (- (+ (:y rect) (:h rect)) (+ 1 n))}
+               {:x (- (+ (:x rect) (:w rect)) (+ 1 n))
+                :y (- (+ (:y rect) (:h rect)) (+ 1 n))}
+               br-color)
+      (r/line! {:x (- (+ (:x rect) (:w rect)) (+ 1 n))
+                :y (+ (:y rect) n)}
+               {:x (- (+ (:x rect) (:w rect)) (+ 1 n))
+                :y (- (+ (:y rect) (:h rect)) (+ 1 n))}
+               br-color))))
+
+(defun draw-slider-handle-border! [state ctx rect]
+  (if (slider-bevel? ctx)
+    (draw-slider-bevel! rect
+                        (slider-border-top-color state ctx)
+                        (slider-border-bottom-color state ctx)
+                        (slider-border-thickness ctx))
+    (r/rect! rect {:color (slider-border-color state ctx)})))
 
 (defun slider-track-rect [state ctx]
   (let [axis (slider-axis-size state ctx)
@@ -145,8 +203,7 @@
                (r/rect! (slider-handle-rect state ctx)
                         {:fill true
                          :color (slider-handle-color state ctx)})
-               (r/rect! (slider-handle-rect state ctx)
-                        {:color (slider-border-color state ctx)})))})
+               (draw-slider-handle-border! state ctx (slider-handle-rect state ctx))))})
 
 (defun make [{:keys [style value min max step axis]}]
   {:mode 'ui/slider
