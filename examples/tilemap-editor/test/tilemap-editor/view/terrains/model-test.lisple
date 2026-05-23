@@ -69,6 +69,63 @@
                 :selected-terrain-set-index 0})]
     (is (= :grass (get-in state [:terrain-sets 0 :terrains 0 :tile])))))
 
+(deftest terrain-duplicate-inserts_copy_after_selected_terrain
+  (let [state (model/duplicate-selected-terrain
+               {:terrain-sets [{:id :overworld
+                                :terrains [{:id :grass
+                                            :label "Grass"
+                                            :tile :grass-tile}
+                                           {:id :water
+                                            :label "Water"
+                                            :tile :water-tile}]}]
+                :rulesets [{:id :overworld-rules
+                            :terrain-set :overworld
+                            :rules [{:id :edge
+                                     :label "Edge"
+                                     :terrain :grass
+                                     :exclusive? true
+                                     :match {:n :same
+                                             :s {:terrain :grass}}
+                                     :output {:anchor {:x 1 :y 1}}}
+                                    {:id :shore
+                                     :terrain :water}]}]
+                :selected-terrain-set-index 0
+                :selected-terrain-index 0}
+               "Meadow")
+        terrains (get-in state [:terrain-sets 0 :terrains])
+        duplicate (nth terrains 1)
+        rules (get-in state [:rulesets 0 :rules])
+        duplicated-rule (nth rules 1)]
+    (is (= [:grass :meadow :water]
+           (map terrains :id)))
+    (is (= [:edge :edge-copy :shore]
+           (map rules :id)))
+    (is (= 1 (:selected-terrain-index state)))
+    (is (nil? (:selected-terrain-rule-id state)))
+    (is (= "Meadow" (:label duplicate)))
+    (is (= :grass-tile (:tile duplicate)))
+    (is (= "Edge Copy" (:label duplicated-rule)))
+    (is (= :meadow (:terrain duplicated-rule)))
+    (is (= true (:exclusive? duplicated-rule)))
+    (is (= {:n :same
+            :s {:terrain :meadow}}
+           (:match duplicated-rule)))
+    (is (= {:anchor {:x 1 :y 1}} (:output duplicated-rule)))))
+
+(deftest terrain-duplicate-deduplicates_name_and_id
+  (let [state (model/duplicate-selected-terrain
+               {:terrain-sets [{:id :overworld
+                                :terrains [{:id :grass
+                                            :label "Grass"}
+                                           {:id :grass-copy
+                                            :label "Grass Copy"}]}]
+                :selected-terrain-set-index 0
+                :selected-terrain-index 0}
+               "Grass Copy")
+        duplicate (nth (get-in state [:terrain-sets 0 :terrains]) 1)]
+    (is (= :grass-copy-2 (:id duplicate)))
+    (is (= "Grass Copy 2" (:label duplicate)))))
+
 (deftest terrain-detail-label_changes_update_selected_records
   (let [state {:terrain-sets [{:id :overworld
                                :label "Overworld"

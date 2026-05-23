@@ -96,6 +96,26 @@
 (defun unique-terrain-id [terrains]
   (unique-id-from terrains "terrain" nil))
 
+(defun terrain-name-exists? [terrains name exclude-index]
+  (> (count (filter (for-indexed [index terrain (or terrains [])]
+                      {:index index
+                       :label (:label terrain)})
+                    (fn [entry]
+                      (and (= (:label entry) name)
+                           (not= (:index entry) exclude-index)))))
+     0))
+
+(defun unique-terrain-name-from [terrains root-name exclude-index suffix]
+  (let [candidate (if suffix
+                    (str root-name " " suffix)
+                    root-name)]
+    (if (terrain-name-exists? terrains candidate exclude-index)
+      (unique-terrain-name-from terrains
+                                root-name
+                                exclude-index
+                                (if suffix (inc suffix) 2))
+      candidate)))
+
 (defun unique-ruleset-id [rulesets terrain-set-id]
   (unique-id-from rulesets (str (keyword-label terrain-set-id) "-rules") nil))
 
@@ -151,6 +171,79 @@
              :selected-terrain-set-index set-index
              :selected-terrain-index terrain-index))
     state))
+
+(defun terrain-label [terrain]
+  (or (:label terrain)
+      (:name terrain)
+      (keyword-label (:id terrain))
+      "Terrain"))
+
+(defun duplicate-terrain-name [terrains terrain]
+  (unique-terrain-name-from terrains
+                            (str (terrain-label terrain) " Copy")
+                            nil
+                            nil))
+
+(defun duplicate-terrain [terrains terrain name]
+  (let [requested-name (if (blank? name)
+                         (duplicate-terrain-name terrains terrain)
+                         name)
+        label (unique-terrain-name-from terrains
+                                        requested-name
+                                        nil
+                                        nil)]
+    (assoc (assoc terrain
+                  :id (unique-id-from terrains (kebab-case label) nil))
+           :label label)))
+
+(defun insert-terrain-after [terrains terrain-index duplicate]
+  (apply concat
+         (for-indexed [index terrain (or terrains [])]
+           (if (= index terrain-index)
+             [terrain duplicate]
+             [terrain]))))
+
+(defun duplicate-selected-terrain [state name]
+  (if-let [set-index (selected-terrain-set-index (:terrain-sets state)
+                                                 (:selected-terrain-set-index state))]
+    (let [terrain-set (nth (:terrain-sets state) set-index)
+          terrain-index (selected-terrain-index terrain-set
+                                                (:selected-terrain-index state))
+          terrains (or (:terrains terrain-set) [])
+          terrain (when (not (nil? terrain-index))
+                    (nth terrains terrain-index))
+          duplicate (when terrain
+                      (duplicate-terrain terrains terrain name))]
+      (if duplicate
+        (assoc state
+               :terrain-sets (update-terrain-set-at
+                              (:terrain-sets state)
+                              set-index
+                              (fn [terrain-set]
+                                (assoc terrain-set
+                                       :terrains (insert-terrain-after
+                                                  terrains
+                                                  terrain-index
+                                                  duplicate))))
+               :rulesets (duplicate-terrain-rulesets
+                          (:rulesets state)
+                          (:id terrain-set)
+                          (:id terrain)
+                          (:id duplicate))
+               :selected-terrain-set-index set-index
+               :selected-terrain-index (inc terrain-index)
+               :selected-terrain-rule-id nil)
+        state))
+    state))
+
+(defun terrain-label-by-index [state terrain-index]
+  (let [terrain-set (selected-terrain-set (:terrain-sets state)
+                                          (:selected-terrain-set-index state))
+        terrain (when (and terrain-set
+                           (not (nil? terrain-index))
+                           (< terrain-index (count (or (:terrains terrain-set) []))))
+                  (nth (:terrains terrain-set) terrain-index))]
+    (terrain-label terrain)))
 
 (defun selected-terrain-set-path [state]
   (if-let [set-index (selected-terrain-set-index (:terrain-sets state)
@@ -313,6 +406,39 @@
                                old-id
                                new-id))))
     :default value))
+
+(defun duplicate-terrain-rule [rules rule old-id new-id]
+  (let [duplicate (replace-terrain-rule-reference rule old-id new-id)]
+    (assoc (assoc duplicate
+                  :id (unique-id-from rules
+                                      (str (keyword-label (:id rule)) "-copy")
+                                      nil))
+           :label (duplicate-rule-label rule))))
+
+(defun duplicate-rules-for-terrain [rules old-id new-id]
+  (reduce (or rules [])
+          []
+          (fn [result rule]
+            (let [result-with-rule (concat result [rule])]
+              (if (= (terrain-rule-center rule) old-id)
+                (concat result-with-rule
+                        [(duplicate-terrain-rule
+                          (concat result-with-rule (or rules []))
+                          rule
+                          old-id
+                          new-id)])
+                result-with-rule)))))
+
+(defun duplicate-terrain-rulesets [rulesets terrain-set-id old-id new-id]
+  (map (or rulesets [])
+       (fn [ruleset]
+         (if (= (:terrain-set ruleset) terrain-set-id)
+           (assoc ruleset
+                  :rules (duplicate-rules-for-terrain
+                          (:rules ruleset)
+                          old-id
+                          new-id))
+           ruleset))))
 
 (defun replace-terrain-refs-in-rulesets [rulesets source-layer-ids old-id new-id]
   (map (or rulesets [])
