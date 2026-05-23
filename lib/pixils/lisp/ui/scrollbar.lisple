@@ -117,6 +117,14 @@
          0
          (scrollbar-max state ctx)))
 
+(defun scrollbar-left-pressed? [ctx]
+  (contains? (-> ctx :view :interaction :pressed) :left))
+
+(defun scrollbar-clear-active-state [state]
+  (assoc (assoc (assoc state :grab-offset nil)
+                :drag-kind nil)
+         :active-part nil))
+
 (defun scrollbar-start-button-hit? [state event ctx]
   (< (scrollbar-event-coord state event)
      (scrollbar-button-size state ctx)))
@@ -473,11 +481,15 @@
   {:focusable true
    :content-size scrollbar-content-size
    :update (fn [state ctx]
-             (do
-               (ui/style! ctx {:layout {:direction (if (= (:axis state) :x)
-                                                      :row
-                                                      :column)}})
-               state))
+             (let [state (if (and (:active-part state)
+                                  (not (scrollbar-left-pressed? ctx)))
+                           (scrollbar-clear-active-state state)
+                           state)]
+               (do
+                 (ui/style! ctx {:layout {:direction (if (= (:axis state) :x)
+                                                        :row
+                                                        :column)}})
+                 state)))
    :on-mouse-down (fn [state event ctx]
                     (do
                       (ui/stop-propagation! event)
@@ -507,14 +519,16 @@
                                    :active-part :track
                                    :value
                                    (scrollbar-value-at next-state event ctx)))))))
+   :on-mouse-up (fn [state event ctx]
+                  (do
+                    (ui/stop-propagation! event)
+                    (scrollbar-clear-active-state state)))
    :on-drag (fn [state event ctx]
               (if (= (:drag-kind state) :button)
                 state
                 (assoc state :value (scrollbar-value-at state event ctx))))
    :on-drag-end (fn [state event ctx]
-                  (assoc (assoc (assoc state :grab-offset nil)
-                                :drag-kind nil)
-                         :active-part nil))
+                  (scrollbar-clear-active-state state))
    :children [{:mode 'ui/scrollbar-button
                :state {:axis (ui/bind-state :axis)
                        :part :start

@@ -8,6 +8,15 @@
 
 using ScrollbarTest = RenderFixture;
 
+namespace
+{
+  Lisple::sptr_val get_state_key(const std::shared_ptr<Pixils::Runtime::View>& view,
+                                 const std::string& key)
+  {
+    return Lisple::Dict::get_property(view->state, Lisple::keyword(key));
+  }
+} // namespace
+
 TEST_F(ScrollbarTest, scrollbar_lays_out_button_children_from_axis)
 {
   runtime.eval(R"(
@@ -73,6 +82,52 @@ TEST_F(ScrollbarTest, scrollbar_button_children_bubble_click_behavior_to_scrollb
   auto value = Lisple::Dict::get_property(scrollbar->state, Lisple::keyword("value"));
   ASSERT_NE(value, nullptr);
   EXPECT_EQ(value->num().get_int(), 5);
+}
+
+TEST_F(ScrollbarTest, scrollbar_handle_pressed_state_clears_after_click)
+{
+  runtime.eval(R"(
+    (pixils/defmode root-mode
+      {:children [{:mode 'ui/scrollbar
+                   :style {:height 200}
+                   :state {:axis :y :content-size 400 :value 0}}]})
+  )");
+
+  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.update_mode();
+  session.render_mode();
+
+  ASSERT_NE(session.active_mode, nullptr);
+  ASSERT_EQ(session.active_mode->children.size(), 1u);
+  auto scrollbar = session.active_mode->children[0];
+  ASSERT_NE(scrollbar, nullptr);
+  ASSERT_EQ(scrollbar->children.size(), 3u);
+  auto track = scrollbar->children[1];
+  ASSERT_NE(track, nullptr);
+  ASSERT_EQ(track->children.size(), 1u);
+  auto handle = track->children[0];
+  ASSERT_NE(handle, nullptr);
+
+  input().mouse_down({5, 20});
+  update_cycle();
+
+  auto active_part = get_state_key(scrollbar, "active-part");
+  auto pressed = get_state_key(handle, "pressed");
+  ASSERT_NE(active_part, nullptr);
+  ASSERT_NE(pressed, nullptr);
+  EXPECT_EQ(active_part->to_string(), ":handle");
+  EXPECT_EQ(pressed->to_string(), "true");
+
+  input().mouse_up({5, 20});
+  update_cycle();
+  update_cycle();
+
+  active_part = get_state_key(scrollbar, "active-part");
+  pressed = get_state_key(handle, "pressed");
+  ASSERT_NE(active_part, nullptr);
+  ASSERT_NE(pressed, nullptr);
+  EXPECT_EQ(active_part->to_string(), "nil");
+  EXPECT_EQ(pressed->to_string(), "false");
 }
 
 TEST_F(ScrollbarTest, windows_95_scrollbar_buttons_use_generated_theme_symbols)
