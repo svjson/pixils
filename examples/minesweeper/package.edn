@@ -4,6 +4,7 @@
  :dependencies {proof {:path "../../../lisple-lang/pkg/proof"}
                 pixils-runner {:path "../../lib/pixils-runner"}
                 pixils-test {:path "../../lib/pixils-test"}}
+ :run pixils-runner
  :load-roots ["src"]
  :namespace-roots {pixils.examples.minesweeper "src"}
  :config {proof {:test-roots ["test"]}}
