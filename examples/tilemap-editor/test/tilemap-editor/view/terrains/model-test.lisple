@@ -368,6 +368,37 @@
                "North edge")]
     (is (= "North edge" (get-in state [:rulesets 0 :rules 0 :label])))))
 
+(deftest terrain-rule-exclusive-change-updates_selected_rule
+  (let [state (model/set-selected-terrain-rule-exclusive
+               {:terrain-sets [{:id :overworld
+                                :terrains [{:id :grass}]}]
+                :selected-terrain-set-index 0
+                :selected-terrain-index 0
+                :rulesets [{:id :overworld-rules
+                            :terrain-set :overworld
+                            :rules [{:id :rule
+                                     :label "Rule"
+                                     :terrain :grass}]}]
+                :selected-terrain-ruleset-id :overworld-rules
+                :selected-terrain-rule-id :rule}
+               true)]
+    (is (= true (get-in state [:rulesets 0 :rules 0 :exclusive?])))))
+
+(deftest terrain-workspace-state-derives_selected_rule_exclusive_flag
+  (let [state (model/derive-terrain-workspace-state
+               {:terrain-sets [{:id :overworld
+                                :terrains [{:id :grass}]}]
+                :selected-terrain-set-index 0
+                :selected-terrain-index 0
+                :rulesets [{:id :overworld-rules
+                            :terrain-set :overworld
+                            :rules [{:id :edge
+                                     :terrain :grass
+                                     :exclusive? true}]}]
+                :selected-terrain-ruleset-id :overworld-rules
+                :selected-terrain-rule-id :edge})]
+    (is (= true (:selected-terrain-rule-exclusive? state)))))
+
 (deftest terrain-rule-move-reorders_visible_rules_only
   (let [base-state {:terrain-sets [{:id :overworld
                                     :terrains [{:id :grass}

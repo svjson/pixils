@@ -262,6 +262,95 @@
                  1)]
     (is (= [] patches))))
 
+(deftest terrain-stamp-apply_patches_stop_after_exclusive_match
+  (let [source (terrain-layer (terrain-map [[nil nil nil]
+                                           [nil :grass nil]]))
+        ruleset (assoc terrain-stamp-ruleset
+                       :rules [{:id :first
+                                :terrain :grass
+                                :exclusive? true
+                                :output {:anchor {:x 1 :y 1}
+                                         :layers [{:target-layer
+                                                   :scene/terrain-visuals
+                                                   :tileset :overworld
+                                                   :tiles [[nil nil nil]
+                                                           [nil :first nil]
+                                                           [nil nil nil]]}]}}
+                               {:id :second
+                                :terrain :grass
+                                :output {:anchor {:x 1 :y 1}
+                                         :layers [{:target-layer
+                                                   :scene/terrain-visuals
+                                                   :tileset :overworld
+                                                   :tiles [[nil nil nil]
+                                                           [nil :second nil]
+                                                           [nil nil nil]]}]}}])
+        patches (derivation/terrain-stamp-apply-patches-at source
+                                                           ruleset
+                                                           1
+                                                           1)]
+    (is (= [[:first]]
+           (map patches (fn [patch]
+                          (map (:cells patch)
+                               (fn [cell] (:tile cell)))))))))
+
+(deftest terrain-stamp-derivation_continues_after_non_exclusive_match
+  (let [source (terrain-layer (terrain-map [[nil nil nil]
+                                           [nil :grass nil]]))
+        definition {:id :scene/terrain-visuals}
+        ruleset (assoc terrain-stamp-ruleset
+                       :rules [{:id :first
+                                :terrain :grass
+                                :output {:anchor {:x 1 :y 1}
+                                         :layers [{:target-layer
+                                                   :scene/terrain-visuals
+                                                   :tileset :overworld
+                                                   :tiles [[nil nil nil]
+                                                           [nil :first nil]
+                                                           [nil nil nil]]}]}}
+                               {:id :second
+                                :terrain :grass
+                                :output {:anchor {:x 1 :y 1}
+                                         :layers [{:target-layer
+                                                   :scene/terrain-visuals
+                                                   :tileset :overworld
+                                                   :tiles [[nil nil nil]
+                                                           [nil :second nil]
+                                                           [nil nil nil]]}]}}])
+        tiles (derivation/derive-terrain-stamp-tiles source
+                                                     definition
+                                                     ruleset)]
+    (is (= :second (get-in tiles [1 1])))))
+
+(deftest terrain-stamp-derivation_stops_after_exclusive_match
+  (let [source (terrain-layer (terrain-map [[nil nil nil]
+                                           [nil :grass nil]]))
+        definition {:id :scene/terrain-visuals}
+        ruleset (assoc terrain-stamp-ruleset
+                       :rules [{:id :first
+                                :terrain :grass
+                                :exclusive? true
+                                :output {:anchor {:x 1 :y 1}
+                                         :layers [{:target-layer
+                                                   :scene/terrain-visuals
+                                                   :tileset :overworld
+                                                   :tiles [[nil nil nil]
+                                                           [nil :first nil]
+                                                           [nil nil nil]]}]}}
+                               {:id :second
+                                :terrain :grass
+                                :output {:anchor {:x 1 :y 1}
+                                         :layers [{:target-layer
+                                                   :scene/terrain-visuals
+                                                   :tileset :overworld
+                                                   :tiles [[nil nil nil]
+                                                           [nil :second nil]
+                                                           [nil nil nil]]}]}}])
+        tiles (derivation/derive-terrain-stamp-tiles source
+                                                     definition
+                                                     ruleset)]
+    (is (= :first (get-in tiles [1 1])))))
+
 (deftest terrain-stamp-clear_patches_use_output_footprints
   (let [source (terrain-layer (terrain-map [[nil nil nil]
                                            [nil :grass nil]]))

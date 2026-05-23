@@ -177,37 +177,52 @@
                              (- (:y anchor)))
                           (:tile entry))))))
 
-(defun apply-terrain-stamp-rule [tiles definition source-layer rule x y]
-  (if (terrain-stamp-rule-matches? source-layer rule x y)
-    (reduce (or (-> rule :output :layers) [])
-            tiles
-            (fn [next-tiles output-layer]
-              (if (stamp-output-layer-matches? definition output-layer)
-                (apply-stamp-output-layer next-tiles
-                                          x
-                                          y
-                                          (:output rule)
-                                          output-layer)
-                next-tiles)))
-    tiles))
+(defun terrain-stamp-rule-exclusive? [rule]
+  (= (:exclusive? rule) true))
+
+(defun apply-terrain-stamp-rule-output [tiles definition rule x y]
+  (reduce (or (-> rule :output :layers) [])
+          tiles
+          (fn [next-tiles output-layer]
+            (if (stamp-output-layer-matches? definition output-layer)
+              (apply-stamp-output-layer next-tiles
+                                        x
+                                        y
+                                        (:output rule)
+                                        output-layer)
+              next-tiles))))
+
+(defun apply-terrain-stamp-rules-at-position [tiles definition source-layer rules x y]
+  (:tiles
+   (reduce (or rules [])
+           {:tiles tiles
+            :done? false}
+           (fn [result rule]
+             (if (:done? result)
+               result
+               (if (terrain-stamp-rule-matches? source-layer rule x y)
+                 {:tiles (apply-terrain-stamp-rule-output (:tiles result)
+                                                          definition
+                                                          rule
+                                                          x
+                                                          y)
+                  :done? (terrain-stamp-rule-exclusive? rule)}
+                 result))))))
 
 (defun derive-terrain-stamp-tiles [source-layer definition ruleset]
-  (reduce (or (:rules ruleset) [])
+  (reduce (apply concat
+                 (dotimes [y data/map-height]
+                   (dotimes [x data/map-width]
+                     {:x x
+                      :y y})))
           (empty-derived-tiles)
-          (fn [tiles rule]
-            (reduce (apply concat
-                           (dotimes [y data/map-height]
-                             (dotimes [x data/map-width]
-                               {:x x
-                                :y y})))
-                    tiles
-                    (fn [next-tiles pos]
-                      (apply-terrain-stamp-rule next-tiles
-                                                definition
-                                                source-layer
-                                                rule
-                                                (:x pos)
-                                                (:y pos)))))))
+          (fn [tiles pos]
+            (apply-terrain-stamp-rules-at-position tiles
+                                                   definition
+                                                   source-layer
+                                                   (:rules ruleset)
+                                                   (:x pos)
+                                                   (:y pos)))))
 
 (defun terrain-stamp-output-layer [definition ruleset]
   (head (apply concat
@@ -290,15 +305,13 @@
           (fn [patch]
             (not (nil? patch)))))
 
-(defun terrain-stamp-rule-apply-patches [source-layer ruleset rule source-x source-y]
-  (if (terrain-stamp-rule-matches? source-layer rule source-x source-y)
-    (terrain-stamp-rule-patches-with source-layer
-                                     ruleset
-                                     rule
-                                     source-x
-                                     source-y
-                                     (fn [entry] (:tile entry)))
-    []))
+(defun terrain-stamp-matching-rule-apply-patches [source-layer ruleset rule source-x source-y]
+  (terrain-stamp-rule-patches-with source-layer
+                                   ruleset
+                                   rule
+                                   source-x
+                                   source-y
+                                   (fn [entry] (:tile entry))))
 
 (defun terrain-stamp-rule-clear-patches [source-layer ruleset rule source-x source-y]
   (terrain-stamp-rule-patches-with source-layer
@@ -309,14 +322,23 @@
                                    (fn [entry] nil)))
 
 (defun terrain-stamp-apply-patches-at [source-layer ruleset source-x source-y]
-  (apply concat
-         (map (or (:rules ruleset) [])
-              (fn [rule]
-                (terrain-stamp-rule-apply-patches source-layer
-                                                  ruleset
-                                                  rule
-                                                  source-x
-                                                  source-y)))))
+  (:patches
+   (reduce (or (:rules ruleset) [])
+           {:patches []
+            :done? false}
+           (fn [result rule]
+             (if (:done? result)
+               result
+               (if (terrain-stamp-rule-matches? source-layer rule source-x source-y)
+                 {:patches (concat (:patches result)
+                                   (terrain-stamp-matching-rule-apply-patches
+                                    source-layer
+                                    ruleset
+                                    rule
+                                    source-x
+                                    source-y))
+                  :done? (terrain-stamp-rule-exclusive? rule)}
+                 result))))))
 
 (defun terrain-stamp-clear-patches-at [source-layer ruleset source-x source-y]
   (apply concat

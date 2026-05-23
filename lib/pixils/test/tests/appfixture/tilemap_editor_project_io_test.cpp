@@ -40,6 +40,59 @@ TEST_F(TilemapEditorProjectIoTest, save_dialog_result_writes_project_edn)
   std::filesystem::remove(save_path, ec);
 }
 
+TEST_F(TilemapEditorProjectIoTest, save_and_open_round_trips_terrain_rule_exclusive_flag)
+{
+  const auto save_path = std::filesystem::temp_directory_path() /
+                         "pixils-tilemap-editor-exclusive-rule-save-test.edn";
+  std::error_code ec;
+  std::filesystem::remove(save_path, ec);
+
+  runtime.read_file("examples/tilemap-editor/src/model/data.lisple");
+  runtime.read_file("examples/tilemap-editor/src/model/derivation.lisple");
+  runtime.read_file("examples/tilemap-editor/src/model/tilemap.lisple");
+  runtime.read_file("examples/tilemap-editor/src/io/project.lisple");
+
+  runtime.eval(R"(
+    (tilemap-editor.io.project/apply-project-file-dialog-result
+     {:layers []
+      :rulesets [{:id :overworld-rules
+                  :kind :terrain-stamp
+                  :terrain-set :overworld
+                  :rules [{:id :edge
+                           :terrain :grass
+                           :exclusive? true
+                           :output {:layers []}}]}]}
+     {:type :confirm
+      :mode :file-dialog/save
+      :path )" +
+               lisp_string(save_path.string()) + R"(
+      :directory )" +
+               lisp_string(save_path.parent_path().string()) + R"(
+      :filename "exclusive-rule-project.edn"})
+  )");
+
+  ASSERT_TRUE(std::filesystem::exists(save_path));
+  const std::string contents = read_text_file(save_path);
+  EXPECT_NE(contents.find(":exclusive? true"), std::string::npos);
+
+  auto result = runtime.eval(R"(
+    (tilemap-editor.io.project/apply-project-file-dialog-result
+     {:layers []
+      :selected-layer-index nil}
+     {:type :confirm
+      :mode :file-dialog/open
+      :path )" +
+                             lisp_string(save_path.string()) + R"(
+      :directory )" +
+                             lisp_string(save_path.parent_path().string()) + R"(
+      :filename "exclusive-rule-project.edn"})
+  )");
+
+  EXPECT_NE(result->to_string().find(":exclusive? true"), std::string::npos);
+
+  std::filesystem::remove(save_path, ec);
+}
+
 TEST_F(TilemapEditorProjectIoTest, save_dialog_result_updates_recent_projects)
 {
   const auto save_path =

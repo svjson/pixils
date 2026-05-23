@@ -158,6 +158,23 @@
     (is (= :shore-n (get-in state [:terrain-stamp-layers 0 :tiles 0 1])))
     (is (= :grass-fill (get-in state [:terrain-stamp-layers 0 :tiles 1 1])))))
 
+(deftest tilemap-paint-terrain-stops_after_exclusive_stamp_rule
+  (let [second-rule (assoc terrain-stamp-rule
+                           :id :second
+                           :output {:anchor {:x 1 :y 1}
+                                    :layers [{:target-layer :scene/visuals
+                                              :tileset :overworld
+                                              :tiles [[nil nil nil]
+                                                      [nil :second-fill nil]
+                                                      [nil nil nil]]}]})
+        state (assoc-in (terrain-paint-state (terrain-map [[nil :water nil]])
+                                             :grass)
+                        [:rulesets 0 :rules]
+                        [(assoc terrain-stamp-rule :exclusive? true)
+                         second-rule])
+        state (tilemap/paint-map-at state (paint-event :left 1 1))]
+    (is (= :grass-fill (get-in state [:terrain-stamp-layers 0 :tiles 1 1])))))
+
 (deftest tilemap-paint-terrain-can_bake_matching_stamp_rule
   (let [state (assoc (terrain-paint-state (terrain-map [[nil :water nil]])
                                           :grass)

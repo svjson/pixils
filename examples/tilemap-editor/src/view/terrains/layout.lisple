@@ -2,6 +2,7 @@
   (:require pixils
             [pixils.render :as r]
             [pixils.ui :as ui]
+            [pixils.ui.checkbox :as chk]
             [pixils.ui.combo-box :as cb]
             [pixils.ui.dialog :as dialog]
             [pixils.ui.header-panel :as hp]
@@ -868,6 +869,13 @@
                  (r/line! {:x 23 :y (- y 7)} {:x 30 :y y} color)
                  (r/line! {:x 23 :y (+ y 7)} {:x 30 :y y} color))))})
 
+(defun terrain-rule-application-options-child []
+  (chk/make {:label "Exclusive"
+             :value :terrain-rule-exclusive
+             :checked? (ui/bind-state :selected-terrain-rule-exclusive?)
+             :style {:width :fill
+                     :height 24}}))
+
 (defun terrain-rule-add-button-child [label class]
   (merge {:mode 'ui/button
           :state {:label label}
@@ -938,6 +946,7 @@
                                    :selected-terrain-index
                                    (ui/bind-state :selected-terrain-index)
                                    :tilesets (ui/bind-state :tilesets)}}]}
+              (terrain-rule-application-options-child)
               {:mode 'terrain-stamp-tile-picker
                :state {:rulesets (ui/bind-state :rulesets)
                        :selected-terrain-ruleset-id
@@ -1278,6 +1287,9 @@
                                                :selected-terrain-rule-id
                                                (ui/bind-state
                                                 :selected-terrain-rule-id)
+                                               :selected-terrain-rule-exclusive?
+                                               (ui/bind-state
+                                                :selected-terrain-rule-exclusive?)
                                                :selected-terrain-rule-match-direction
                                                (ui/bind-state
                                                 :selected-terrain-rule-match-direction)
@@ -1315,6 +1327,8 @@
             (ui/bind-state :selected-terrain-ruleset-id)
             :selected-terrain-rule-id
             (ui/bind-state :selected-terrain-rule-id)
+            :selected-terrain-rule-exclusive?
+            (ui/bind-state :selected-terrain-rule-exclusive?)
             :selected-terrain-rule-match-direction
             (ui/bind-state :selected-terrain-rule-match-direction)
             :terrain-rule-selected-tile
@@ -1374,6 +1388,9 @@
                             :selected-terrain-rule-id
                             (ui/bind-state
                              :selected-terrain-rule-id)
+                            :selected-terrain-rule-exclusive?
+                            (ui/bind-state
+                             :selected-terrain-rule-exclusive?)
                             :selected-terrain-rule-match-direction
                             (ui/bind-state
                              :selected-terrain-rule-match-direction)
@@ -1455,6 +1472,8 @@
                     (ui/bind-state :selected-terrain-ruleset-id)
                     :selected-terrain-rule-id
                     (ui/bind-state :selected-terrain-rule-id)
+                    :selected-terrain-rule-exclusive?
+                    (ui/bind-state :selected-terrain-rule-exclusive?)
                     :selected-terrain-rule-match-direction
                     (ui/bind-state :selected-terrain-rule-match-direction)
                     :terrain-rule-selected-tile
@@ -1475,6 +1494,8 @@
                          (ui/bind-state :selected-terrain-ruleset-id)
                          :selected-terrain-rule-id
                          (ui/bind-state :selected-terrain-rule-id)
+                         :selected-terrain-rule-exclusive?
+                         (ui/bind-state :selected-terrain-rule-exclusive?)
                          :selected-terrain-rule-match-direction
                          (ui/bind-state
                           :selected-terrain-rule-match-direction)
@@ -1496,6 +1517,9 @@
                                 (ui/bind-state :selected-terrain-ruleset-id)
                                 :selected-terrain-rule-id
                                 (ui/bind-state :selected-terrain-rule-id)
+                                :selected-terrain-rule-exclusive?
+                                (ui/bind-state
+                                 :selected-terrain-rule-exclusive?)
                                 :selected-terrain-rule-match-direction
                                 (ui/bind-state
                                  :selected-terrain-rule-match-direction)
@@ -1638,9 +1662,20 @@
              (assoc (model/cycle-selected-rule-match-condition
                      state
                      (:direction payload)
-                     (:step payload))
-                    :selected-terrain-rule-match-direction
-                    (:direction payload)))))
+                    (:step payload))
+                   :selected-terrain-rule-match-direction
+                   (:direction payload)))))
+        :checkbox/change
+        (fn [state event ctx]
+          (let [payload (:payload event)]
+            (if (= (:value payload) :terrain-rule-exclusive)
+              (do
+                (ui/stop-propagation! event)
+                (tilemap/rebuild-terrain-stamp-preview
+                 (model/set-selected-terrain-rule-exclusive
+                  state
+                  (:checked? payload))))
+              state)))
         :terrain/rule-stamp-tile-select
         (fn [state event ctx]
           (assoc state :terrain-rule-selected-tile (:payload event)))

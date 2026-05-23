@@ -177,11 +177,29 @@
 (deftest project-document-saves_rulesets
   (let [document (data/project-document
                   {:rulesets [{:id :grass-marching
-                               :kind :marching-4}]
+                               :kind :marching-4
+                               :rules [{:id :grass-edge
+                                        :terrain :grass
+                                        :exclusive? true}]}]
                    :layers []})]
     (is (= [{:id :grass-marching
-             :kind :marching-4}]
+             :kind :marching-4
+             :rules [{:id :grass-edge
+                      :terrain :grass
+                      :exclusive? true}]}]
            (:rulesets document)))))
+
+(deftest normalize-project-document-preserves_ruleset_exclusive_flag
+  (let [document (data/normalize-project-document
+                  {:format data/project-format
+                   :rulesets [{:id :overworld-rules
+                               :kind :terrain-stamp
+                               :rules [{:id :rule
+                                        :terrain :grass
+                                        :exclusive? true}]}]
+                   :tilemap {:layers []}})]
+    (is (= true
+           (get-in document [:rulesets 0 :rules 0 :exclusive?])))))
 
 (deftest selected-layer-profile-id-falls_back_to_existing_profile
   (is (= :overworld

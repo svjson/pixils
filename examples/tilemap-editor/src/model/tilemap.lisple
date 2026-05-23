@@ -322,17 +322,6 @@
                                                 source-x
                                                 source-y)))
 
-(defun apply-rule-output-at [state source-layer ruleset source-x source-y rule]
-  (apply-terrain-stamp-patches
-   state
-   source-layer
-   ruleset
-   (derivation/terrain-stamp-rule-apply-patches source-layer
-                                                ruleset
-                                                rule
-                                                source-x
-                                                source-y)))
-
 (defun refresh-terrain-stamp-rules-at [state source-layer positions rulesets apply-fn]
   (reduce positions
           state
@@ -364,11 +353,21 @@
                                                           rule))))
 
 (defun apply-terrain-stamp-rules [state source-layer positions rulesets]
-  (refresh-terrain-stamp-rules-at state
-                                  source-layer
-                                  positions
-                                  rulesets
-                                  apply-rule-output-at))
+  (reduce positions
+          state
+          (fn [out pos]
+            (reduce rulesets
+                    out
+                    (fn [ruleset-out ruleset]
+                      (apply-terrain-stamp-patches
+                       ruleset-out
+                       source-layer
+                       ruleset
+                       (derivation/terrain-stamp-apply-patches-at
+                        source-layer
+                        ruleset
+                        (:x pos)
+                        (:y pos))))))))
 
 (defun rebuild-terrain-stamp-preview-for-layer [state layer]
   (let [rulesets (terrain-preview-rulesets-for-layer state layer)]

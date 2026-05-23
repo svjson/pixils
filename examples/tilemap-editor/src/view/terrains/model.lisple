@@ -686,6 +686,26 @@
                                                 (assoc rule :label label)))))))
       state)))
 
+(defun set-selected-terrain-rule-exclusive [state exclusive?]
+  (let [ruleset-id (selected-terrain-ruleset-id state)
+        rule-id (or (:selected-terrain-rule-id state)
+                    (selected-terrain-rule-id state))]
+    (if (and ruleset-id rule-id)
+      (assoc (assoc state :selected-terrain-rule-exclusive? exclusive?)
+             :rulesets (update-ruleset
+                        (:rulesets state)
+                        ruleset-id
+                        (fn [ruleset]
+                          (assoc ruleset
+                                 :rules
+                                 (update-rule (:rules ruleset)
+                                              rule-id
+                                              (fn [rule]
+                                                (assoc rule
+                                                       :exclusive?
+                                                       exclusive?)))))))
+      state)))
+
 (defun terrain-rule-move-target-id [state rule-id direction]
   (let [rules (terrain-rules-for-selected-terrain state)
         index (rule-index-by-id rules rule-id)
@@ -906,9 +926,15 @@
                      :selected-terrain-index terrain-index)
         ruleset-id (selected-terrain-ruleset-id state)
         rule-id (selected-terrain-rule-id
-                 (assoc state :selected-terrain-ruleset-id ruleset-id))]
+                 (assoc state :selected-terrain-ruleset-id ruleset-id))
+        selected-rule (selected-terrain-rule
+                       (assoc state
+                              :selected-terrain-ruleset-id ruleset-id
+                              :selected-terrain-rule-id rule-id))]
     (assoc state
            :selected-terrain-ruleset-id ruleset-id
            :selected-terrain-rule-id rule-id
+           :selected-terrain-rule-exclusive? (= (:exclusive? selected-rule)
+                                                true)
            :terrain-list-panel-disabled? (nil? set-index)
            :terrain-detail-panel-disabled? (nil? set-index))))
