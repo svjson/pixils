@@ -12,7 +12,8 @@
   {:default-variant :base
    :vars {:base {:split-pane-resizer-size 6
                  :menu-option-indicator {:ensure-generated-checkmark? true
-                                         :selected-image :pixils-ui/menu-option-checkmark}}}
+                                         :selected-image :pixils-ui/menu-option-checkmark}
+                 :menu-submenu-indicator {:text ">"}}}
  :styles
  {:ui/app {:background {:r 0xff :g 0xff :b 0xff}
            :text {:color {:r 0x00 :g 0x00 :b 0x00}}}
@@ -289,6 +290,11 @@
                              :box-sizing :content-box
                              :width 8
                              :height 10}
+
+  'ui/menu-submenu-indicator {:margin {:l 8 :r 2}
+                              :box-sizing :content-box
+                              :width 8
+                              :height 10}
 
   'ui/menu-separator
   {:height 1

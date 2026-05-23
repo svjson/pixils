@@ -272,6 +272,148 @@ TEST_F(MenuTest, base_theme_generates_stock_menu_option_checkmark_image)
   EXPECT_EQ(render_target()->render_ops.back().rendered_rect.h, 10);
 }
 
+TEST_F(MenuTest, popup_submenu_items_receive_theme_indicator)
+{
+  runtime.eval(R"(
+    (def menu-definition
+      {:items [{:label "File"
+                :items [{:label "Recent"
+                         :items [{:label "Map"
+                                  :action :file/open-recent}]}
+                        {:label "Open"
+                         :action :file/open}]}]})
+
+    (pixils/defmode root-mode
+      {:theme 'pixils/classic-blue
+       :children [(pixils.ui.menu/make-menu
+                   {}
+                   menu-definition
+                   {})]})
+  )");
+
+  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.update_mode();
+  session.render_mode();
+
+  auto menu_item = session.active_mode->children[0]->children[0];
+  input().mouse_down({menu_item->bounds.x + menu_item->bounds.w / 2,
+                      menu_item->bounds.y + menu_item->bounds.h / 2});
+  update_cycle();
+  session.render_mode();
+
+  ASSERT_NE(session.active_mode, nullptr);
+  ASSERT_EQ(session.active_mode->mode->name, "ui/popup-menu");
+  auto inner = session.active_mode->children[0]->children[0];
+  ASSERT_EQ(inner->children.size(), 2u);
+
+  auto submenu_item = inner->children[0];
+  auto leaf_item = inner->children[1];
+  ASSERT_EQ(submenu_item->children.size(), 3u);
+  ASSERT_EQ(leaf_item->children.size(), 3u);
+
+  auto submenu_indicator = submenu_item->children[2];
+  auto leaf_indicator = leaf_item->children[2];
+  ASSERT_NE(submenu_indicator, nullptr);
+  ASSERT_NE(leaf_indicator, nullptr);
+  EXPECT_EQ(submenu_indicator->mode->name, "ui/menu-submenu-indicator");
+  EXPECT_EQ(leaf_indicator->mode->name, "ui/menu-submenu-indicator");
+
+  auto submenu_state =
+    Lisple::Dict::get_property(submenu_indicator->state, Lisple::keyword("has-submenu"));
+  auto leaf_state =
+    Lisple::Dict::get_property(leaf_indicator->state, Lisple::keyword("has-submenu"));
+  ASSERT_NE(submenu_state, nullptr);
+  ASSERT_NE(leaf_state, nullptr);
+  EXPECT_EQ(submenu_state->to_string(), "true");
+  EXPECT_EQ(leaf_state->to_string(), "false");
+
+  ASSERT_TRUE(submenu_indicator->effective_theme.vars.count("dark") > 0);
+  ASSERT_TRUE(submenu_indicator->effective_theme.vars.at("dark").count(
+                "menu-submenu-indicator") > 0);
+  auto indicator_var =
+    submenu_indicator->effective_theme.vars.at("dark").at("menu-submenu-indicator");
+  ASSERT_NE(indicator_var, nullptr);
+  EXPECT_EQ(indicator_var->to_string(), "{:text \">\"}");
+}
+
+TEST_F(MenuTest, windows_95_submenu_indicator_generates_chevron_images)
+{
+  runtime.eval(R"(
+    (pixils/defmode root-mode
+      {:theme 'pixils/windows-95
+       :style {:layout {:direction :row}}
+       :children [{:mode 'ui/menu-submenu-indicator
+                   :state {:has-submenu true
+                           :highlighted false}}
+                  {:mode 'ui/menu-submenu-indicator
+                   :state {:has-submenu true
+                           :highlighted true}}]})
+  )");
+
+  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.update_mode();
+  session.render_mode();
+
+  auto normal_source = runtime.eval(R"(
+    (:source
+     (head
+      (filter (pixils.resource/list-images :pixils-ui)
+              (fn [resource]
+                (= (:id resource) :pixils-ui/windows-95-submenu-chevron)))))
+  )");
+  auto highlighted_source = runtime.eval(R"(
+    (:source
+     (head
+      (filter (pixils.resource/list-images :pixils-ui)
+              (fn [resource]
+                (= (:id resource) :pixils-ui/windows-95-submenu-chevron-highlighted)))))
+  )");
+
+  ASSERT_NE(normal_source, nullptr);
+  ASSERT_NE(highlighted_source, nullptr);
+  EXPECT_EQ(normal_source->to_string(), ":generated");
+  EXPECT_EQ(highlighted_source->to_string(), ":generated");
+}
+
+TEST_F(MenuTest, windows_3_submenu_indicator_generates_chevron_images)
+{
+  runtime.eval(R"(
+    (pixils/defmode root-mode
+      {:theme 'pixils/windows-3
+       :style {:layout {:direction :row}}
+       :children [{:mode 'ui/menu-submenu-indicator
+                   :state {:has-submenu true
+                           :highlighted false}}
+                  {:mode 'ui/menu-submenu-indicator
+                   :state {:has-submenu true
+                           :highlighted true}}]})
+  )");
+
+  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.update_mode();
+  session.render_mode();
+
+  auto normal_source = runtime.eval(R"(
+    (:source
+     (head
+      (filter (pixils.resource/list-images :pixils-ui)
+              (fn [resource]
+                (= (:id resource) :pixils-ui/windows-3-submenu-chevron)))))
+  )");
+  auto highlighted_source = runtime.eval(R"(
+    (:source
+     (head
+      (filter (pixils.resource/list-images :pixils-ui)
+              (fn [resource]
+                (= (:id resource) :pixils-ui/windows-3-submenu-chevron-highlighted)))))
+  )");
+
+  ASSERT_NE(normal_source, nullptr);
+  ASSERT_NE(highlighted_source, nullptr);
+  EXPECT_EQ(normal_source->to_string(), ":generated");
+  EXPECT_EQ(highlighted_source->to_string(), ":generated");
+}
+
 TEST_F(MenuTest, context_menu_opens_popup_at_mouse_position)
 {
   runtime.eval(R"(

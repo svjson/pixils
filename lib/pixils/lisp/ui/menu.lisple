@@ -19,13 +19,27 @@
 
 (def generated-menu-option-checkmark :pixils-ui/menu-option-checkmark)
 
+(def generated-menu-submenu-chevron-windows-3
+  :pixils-ui/windows-3-submenu-chevron)
+
+(def generated-menu-submenu-chevron-windows-3-highlighted
+  :pixils-ui/windows-3-submenu-chevron-highlighted)
+
+(def generated-menu-submenu-chevron-windows-95
+  :pixils-ui/windows-95-submenu-chevron)
+
+(def generated-menu-submenu-chevron-windows-95-highlighted
+  :pixils-ui/windows-95-submenu-chevron-highlighted)
+
 (def generated-menu-option-checkmark-color {:r 0x00 :g 0x00 :b 0x00})
 
-(defun generated-menu-option-checkmark-exists? []
+(def generated-menu-highlight-color {:r 0xff :g 0xff :b 0xff})
+
+(defun generated-menu-image-exists? [id]
   (not (nil? (head (filter (res/list-images :pixils-ui)
                            (fn [resource]
                              (= (:id resource)
-                                generated-menu-option-checkmark)))))))
+                                id)))))))
 
 (defun draw-generated-menu-option-checkmark! []
   (let [color generated-menu-option-checkmark-color]
@@ -46,10 +60,77 @@
 (defun ensure-generated-menu-option-checkmark! []
   (do
     (res/create-bundle! :pixils-ui)
-    (when (not (generated-menu-option-checkmark-exists?))
+    (when (not (generated-menu-image-exists? generated-menu-option-checkmark))
       (res/create-image! generated-menu-option-checkmark
                          {:size {:w 8 :h 10}}
                          draw-generated-menu-option-checkmark!))))
+
+(defun draw-generated-windows-3-submenu-chevron-with-color! [color]
+  (do
+    (r/line! {:x 2 :y 2} {:x 2 :y 2} color)
+    (r/line! {:x 2 :y 3} {:x 3 :y 3} color)
+    (r/line! {:x 2 :y 4} {:x 4 :y 4} color)
+    (r/line! {:x 2 :y 5} {:x 5 :y 5} color)
+    (r/line! {:x 2 :y 6} {:x 4 :y 6} color)
+    (r/line! {:x 2 :y 7} {:x 3 :y 7} color)
+    (r/line! {:x 2 :y 8} {:x 2 :y 8} color)))
+
+(defun draw-generated-windows-3-submenu-chevron! []
+  (draw-generated-windows-3-submenu-chevron-with-color!
+   generated-menu-option-checkmark-color))
+
+(defun draw-generated-windows-3-submenu-chevron-highlighted! []
+  (draw-generated-windows-3-submenu-chevron-with-color!
+   generated-menu-highlight-color))
+
+(defun draw-generated-windows-95-submenu-chevron-with-color! [color]
+  (do
+    (r/line! {:x 2 :y 2} {:x 2 :y 2} color)
+    (r/line! {:x 2 :y 3} {:x 3 :y 3} color)
+    (r/line! {:x 2 :y 4} {:x 4 :y 4} color)
+    (r/line! {:x 2 :y 5} {:x 5 :y 5} color)
+    (r/line! {:x 2 :y 6} {:x 4 :y 6} color)
+    (r/line! {:x 2 :y 7} {:x 3 :y 7} color)
+    (r/line! {:x 2 :y 8} {:x 2 :y 8} color)))
+
+(defun draw-generated-windows-95-submenu-chevron! []
+  (draw-generated-windows-95-submenu-chevron-with-color!
+   generated-menu-option-checkmark-color))
+
+(defun draw-generated-windows-95-submenu-chevron-highlighted! []
+  (draw-generated-windows-95-submenu-chevron-with-color!
+   generated-menu-highlight-color))
+
+(defun ensure-generated-menu-submenu-chevron-pair! [image highlighted-image draw! draw-highlighted!]
+  (do
+    (res/create-bundle! :pixils-ui)
+    (when (not (generated-menu-image-exists? image))
+      (res/create-image! image
+                         {:size {:w 8 :h 10}}
+                         draw!))
+    (when (not (generated-menu-image-exists? highlighted-image))
+      (res/create-image! highlighted-image
+                         {:size {:w 8 :h 10}}
+                         draw-highlighted!))))
+
+(defun ensure-generated-menu-submenu-chevron! [kind]
+  (cond
+    (= kind :windows-3)
+    (ensure-generated-menu-submenu-chevron-pair!
+     generated-menu-submenu-chevron-windows-3
+     generated-menu-submenu-chevron-windows-3-highlighted
+     draw-generated-windows-3-submenu-chevron!
+     draw-generated-windows-3-submenu-chevron-highlighted!)
+
+    (= kind :windows-95)
+    (ensure-generated-menu-submenu-chevron-pair!
+     generated-menu-submenu-chevron-windows-95
+     generated-menu-submenu-chevron-windows-95-highlighted
+     draw-generated-windows-95-submenu-chevron!
+     draw-generated-windows-95-submenu-chevron-highlighted!)
+
+    :default
+    nil))
 
 (def shortcut-key-names
   {:key/alt "Alt"
@@ -452,6 +533,7 @@
    :text (:display-text node)
    :shortcut-text (:shortcut-text node)
    :disabled? (:disabled? node)
+   :has-submenu (not (empty? (:items node)))
    :option-state (:option-state state)
    :game (:game state)
    :preferences (:preferences state)})
@@ -664,7 +746,36 @@
                :state {:value (ui/bind-state :text)}}
               {:mode 'ui/text
                :class :menu/shortcut-column
-               :state {:value (ui/bind-state :shortcut-text)}}]})
+               :state {:value (ui/bind-state :shortcut-text)}}
+              {:mode 'ui/menu-submenu-indicator
+               :state {:has-submenu (ui/bind-state :has-submenu)
+                       :highlighted (ui/bind-state :highlighted)}}]})
+
+(defun render-menu-submenu-indicator! [state ctx]
+  (let [indicator (ui/theme-var ctx :menu-submenu-indicator {})
+        highlighted (:highlighted state)
+        text (if (:has-submenu state)
+               (or (if highlighted (:highlighted-text indicator) nil)
+                   (:text indicator)
+                   "")
+               "")
+        image (if (:has-submenu state)
+                (or (if highlighted (:highlighted-image indicator) nil)
+                    (:image indicator))
+                nil)
+        text-args (menu-option-indicator-text-args (-> ctx :view :effective-style))]
+    (do
+      (when (and (:has-submenu state)
+                 (:generated-chevron indicator))
+        (ensure-generated-menu-submenu-chevron! (:generated-chevron indicator)))
+      (when image
+        (r/image! image {:x 0 :y 0}))
+      (when (not (empty? text))
+        (r/text! text {:x 0 :y 0} text-args)))))
+
+(defcomponent ui/menu-submenu-indicator
+  {:class :menu/submenu-indicator
+   :render render-menu-submenu-indicator!})
 
 (defun menu-option-indicator-text [state indicator]
   (if (:selected state)
