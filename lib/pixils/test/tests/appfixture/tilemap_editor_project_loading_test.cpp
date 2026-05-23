@@ -1,0 +1,265 @@
+#include "tilemap_editor_test_support.h"
+
+#include <SDL2/SDL_mouse.h>
+#include <gtest/gtest.h>
+
+TEST_F(TilemapEditorStartupTest, current_example_main_mode_updates_and_renders)
+{
+  read_tilemap_editor_sources(runtime);
+
+  session.push_mode("main-mode", Lisple::Constant::NIL);
+  session.update_mode();
+  session.render_mode();
+
+  ASSERT_NE(session.active_mode, nullptr);
+  EXPECT_EQ(session.active_mode->mode->name, "main-mode");
+
+  ASSERT_GE(session.active_mode->children.size(), 2u);
+  auto tab_panel = session.active_mode->children[1];
+  ASSERT_NE(tab_panel, nullptr);
+  ASSERT_EQ(tab_panel->children.size(), 2u);
+  auto tab_strip = tab_panel->children[0];
+  ASSERT_NE(tab_strip, nullptr);
+  ASSERT_GE(tab_strip->children.size(), 2u);
+  auto tilesets_tab = tab_strip->children[1];
+  ASSERT_NE(tilesets_tab, nullptr);
+
+  input().mouse_down({tilesets_tab->bounds.x + tilesets_tab->bounds.w / 2,
+                      tilesets_tab->bounds.y + tilesets_tab->bounds.h / 2});
+  update_cycle();
+  input().mouse_up({tilesets_tab->bounds.x + tilesets_tab->bounds.w / 2,
+                    tilesets_tab->bounds.y + tilesets_tab->bounds.h / 2});
+  update_cycle();
+  session.render_mode();
+
+  auto body = tab_panel->children[1];
+  ASSERT_NE(body, nullptr);
+  ASSERT_EQ(body->children.size(), 1u);
+  EXPECT_EQ(body->children[0]->mode->name, "tileset-definition-workspace");
+}
+
+TEST_F(TilemapEditorStartupTest, loaded_project_populates_existing_side_panel_controls)
+{
+  const auto history_path =
+    std::filesystem::temp_directory_path() / "pixils-tilemap-editor-startup-history.edn";
+  std::error_code ec;
+  std::filesystem::remove(history_path, ec);
+  SDLMock::prepared_surfaces["./../assets/simples_pimples.png"] = {800, 1280};
+
+  read_tilemap_editor_sources(runtime);
+
+  session.push_mode("main-mode", Lisple::Constant::NIL);
+  update_cycle();
+  Lisple::Dict::set_property(session.active_mode->state,
+                             Lisple::keyword("project-history-path"),
+                             Lisple::string(history_path.string()));
+  Lisple::Dict::set_property(session.active_mode->state,
+                             Lisple::keyword("recent-projects"),
+                             Lisple::vector({}));
+
+  auto origin = Lisple::map({Lisple::keyword("view"),
+                             Pixils::Script::ViewAdapter::make_ref(*session.active_mode),
+                             Lisple::keyword("event"),
+                             Lisple::keyword("project/file-dialog-result")});
+  auto overrides = Lisple::map({Lisple::keyword("origin"), origin});
+  session.push_mode("ui/tab-panel-empty", Lisple::Constant::NIL, overrides);
+  session.pop_mode(runtime.eval(R"({:type :confirm
+                                  :mode :file-dialog/open
+                                  :path "examples/tilemap-editor/example-maps/map1.edn"
+                                  :directory "examples/tilemap-editor/example-maps"
+                                  :filename "map1.edn"})"));
+
+  update_cycle();
+  update_cycle();
+
+  auto resource_width = runtime.eval("(pixils.image/width :project-assets/simples-pimples)");
+  auto resource_height =
+    runtime.eval("(pixils.image/height :project-assets/simples-pimples)");
+  ASSERT_NE(resource_width, nullptr);
+  ASSERT_NE(resource_height, nullptr);
+  ASSERT_EQ(resource_width->type, Lisple::Value::Type::NUMBER);
+  ASSERT_EQ(resource_height->type, Lisple::Value::Type::NUMBER);
+  EXPECT_EQ(resource_width->num().get_int(), 800);
+  EXPECT_EQ(resource_height->num().get_int(), 1280);
+
+  std::vector<std::shared_ptr<Pixils::Runtime::View>> layer_rows;
+  find_descendant_modes(session.active_mode, "layer-row", layer_rows);
+  EXPECT_EQ(layer_rows.size(), 4u);
+
+  std::vector<std::shared_ptr<Pixils::Runtime::View>> tile_swatches;
+  find_descendant_modes(session.active_mode, "tile-swatch", tile_swatches);
+  EXPECT_GT(tile_swatches.size(), 1u);
+
+  std::vector<std::shared_ptr<Pixils::Runtime::View>> combo_boxes;
+  find_descendant_modes(session.active_mode, "ui/combo-box", combo_boxes);
+  ASSERT_GE(combo_boxes.size(), 1u);
+  auto has_background_colors_combo = false;
+  for (const auto& combo_box : combo_boxes)
+  {
+    has_background_colors_combo =
+      has_background_colors_combo ||
+      combo_box->state->to_string().find("Background Colors") != std::string::npos;
+  }
+  EXPECT_TRUE(has_background_colors_combo);
+
+  session.render_mode();
+  auto tab_panel = session.active_mode->children[1];
+  ASSERT_NE(tab_panel, nullptr);
+  ASSERT_GE(tab_panel->children.size(), 1u);
+  auto tab_strip = tab_panel->children[0];
+  ASSERT_NE(tab_strip, nullptr);
+  ASSERT_GE(tab_strip->children.size(), 2u);
+  auto tilesets_tab = tab_strip->children[1];
+  ASSERT_NE(tilesets_tab, nullptr);
+
+  input().mouse_down({tilesets_tab->bounds.x + tilesets_tab->bounds.w / 2,
+                      tilesets_tab->bounds.y + tilesets_tab->bounds.h / 2});
+  update_cycle();
+  input().mouse_up({tilesets_tab->bounds.x + tilesets_tab->bounds.w / 2,
+                    tilesets_tab->bounds.y + tilesets_tab->bounds.h / 2});
+  update_cycle();
+  session.render_mode();
+
+  std::vector<std::shared_ptr<Pixils::Runtime::View>> tileset_tab_list_boxes;
+  find_descendant_modes(session.active_mode, "ui/list-box", tileset_tab_list_boxes);
+  ASSERT_GE(tileset_tab_list_boxes.size(), 1u);
+  EXPECT_NE(tileset_tab_list_boxes[0]->state->to_string().find("Background Colors"),
+            std::string::npos);
+
+  std::vector<std::shared_ptr<Pixils::Runtime::View>> tileset_tab_combo_boxes;
+  find_descendant_modes(session.active_mode, "ui/combo-box", tileset_tab_combo_boxes);
+  ASSERT_EQ(tileset_tab_combo_boxes.size(), 1u);
+  EXPECT_NE(tileset_tab_combo_boxes[0]->state->to_string().find("Color"), std::string::npos);
+
+  std::vector<std::shared_ptr<Pixils::Runtime::View>> tile_definition_panels;
+  find_descendant_modes(session.active_mode,
+                        "tile-definition-panel",
+                        tile_definition_panels);
+  EXPECT_EQ(tile_definition_panels.size(), 1u);
+
+  std::vector<std::shared_ptr<Pixils::Runtime::View>> tile_grids;
+  find_descendant_modes(session.active_mode, "tileset-tile-grid", tile_grids);
+  ASSERT_EQ(tile_grids.size(), 1u);
+  auto tile_grid = tile_grids[0];
+  input().mouse_down({tile_grid->bounds.x + 5, tile_grid->bounds.y + 5});
+  update_cycle();
+  input().mouse_up({tile_grid->bounds.x + 5, tile_grid->bounds.y + 5});
+  update_cycle();
+  input().key_down(SDLK_RIGHT);
+  update_cycle();
+  EXPECT_NE(session.active_mode->state->to_string().find(":selected-tileset-tile-index 1"),
+            std::string::npos);
+
+  tab_panel = session.active_mode->children[1];
+  ASSERT_NE(tab_panel, nullptr);
+  ASSERT_GE(tab_panel->children.size(), 1u);
+  tab_strip = tab_panel->children[0];
+  ASSERT_NE(tab_strip, nullptr);
+  ASSERT_GE(tab_strip->children.size(), 2u);
+  auto map_tab = tab_strip->children[0];
+  ASSERT_NE(map_tab, nullptr);
+
+  input().mouse_down(
+    {map_tab->bounds.x + map_tab->bounds.w / 2, map_tab->bounds.y + map_tab->bounds.h / 2});
+  update_cycle();
+  input().mouse_up(
+    {map_tab->bounds.x + map_tab->bounds.w / 2, map_tab->bounds.y + map_tab->bounds.h / 2});
+  update_cycle();
+  session.render_mode();
+
+  layer_rows.clear();
+  find_descendant_modes(session.active_mode, "layer-row", layer_rows);
+  EXPECT_EQ(layer_rows.size(), 4u);
+
+  tile_swatches.clear();
+  find_descendant_modes(session.active_mode, "tile-swatch", tile_swatches);
+  EXPECT_GT(tile_swatches.size(), 1u);
+
+  std::filesystem::remove(history_path, ec);
+}
+
+TEST_F(TilemapEditorStartupTest,
+       loads_sprite_project_after_empty_tileset_tab_with_missing_image)
+{
+  const auto history_path = std::filesystem::temp_directory_path() /
+                            "pixils-tilemap-editor-missing-image-history.edn";
+  const auto project_path = std::filesystem::temp_directory_path() /
+                            "pixils-tilemap-editor-missing-image-project.edn";
+  std::error_code ec;
+  std::filesystem::remove(history_path, ec);
+  std::filesystem::remove(project_path, ec);
+
+  {
+    std::ofstream out(project_path);
+    out << R"({:format :pixils.tilemap-editor/project
+ :version 1
+ :resources {:bundles {:project-assets
+                       {:images {:missing
+                                 {:file-name "does-not-exist.png"
+                                  :name "Missing Spritesheet"}}}}}
+ :tilesets [{:id :sprites
+             :label "Sprites"
+             :tile-size 16
+             :tiles [{:id :sprite
+                      :name "Sprite"
+                      :char "s"
+                      :type :sprite
+                      :image :project-assets/missing
+                      :source {:x 0 :y 0 :w 16 :h 16}}]}]
+ :tilemap {:width 2
+           :height 2
+           :tile-size 16
+           :layers []}})";
+  }
+
+  read_tilemap_editor_sources(runtime);
+
+  session.push_mode("main-mode", Lisple::Constant::NIL);
+  update_cycle();
+  Lisple::Dict::set_property(session.active_mode->state,
+                             Lisple::keyword("project-history-path"),
+                             Lisple::string(history_path.string()));
+  Lisple::Dict::set_property(session.active_mode->state,
+                             Lisple::keyword("recent-projects"),
+                             Lisple::vector({}));
+  session.render_mode();
+
+  auto tab_panel = session.active_mode->children[1];
+  auto tab_strip = tab_panel->children[0];
+  auto tilesets_tab = tab_strip->children[1];
+  input().mouse_down({tilesets_tab->bounds.x + tilesets_tab->bounds.w / 2,
+                      tilesets_tab->bounds.y + tilesets_tab->bounds.h / 2});
+  update_cycle();
+  input().mouse_up({tilesets_tab->bounds.x + tilesets_tab->bounds.w / 2,
+                    tilesets_tab->bounds.y + tilesets_tab->bounds.h / 2});
+  update_cycle();
+  session.render_mode();
+
+  auto origin = Lisple::map({Lisple::keyword("view"),
+                             Pixils::Script::ViewAdapter::make_ref(*session.active_mode),
+                             Lisple::keyword("event"),
+                             Lisple::keyword("project/file-dialog-result")});
+  auto overrides = Lisple::map({Lisple::keyword("origin"), origin});
+  session.push_mode("ui/tab-panel-empty", Lisple::Constant::NIL, overrides);
+  session.pop_mode(runtime.eval(R"({:type :confirm
+                                  :mode :file-dialog/open
+                                  :path )" +
+                                lisp_string(project_path.string()) + R"(
+                                  :directory )" +
+                                lisp_string(project_path.parent_path().string()) + R"(
+                                  :filename "sprite-project.edn"})"));
+
+  update_cycle();
+  update_cycle();
+  session.render_mode();
+
+  EXPECT_NE(session.active_mode->state->to_string().find(":workspace-tab :tilesets"),
+            std::string::npos);
+
+  std::vector<std::shared_ptr<Pixils::Runtime::View>> sprite_previews;
+  find_descendant_modes(session.active_mode, "sprite-map-preview", sprite_previews);
+  ASSERT_EQ(sprite_previews.size(), 1u);
+
+  std::filesystem::remove(history_path, ec);
+  std::filesystem::remove(project_path, ec);
+}
