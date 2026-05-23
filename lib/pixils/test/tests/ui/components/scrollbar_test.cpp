@@ -301,8 +301,110 @@ TEST_F(ScrollbarTest, windows_3_scrollbar_buttons_use_generated_theme_symbols)
                          op.rendered_rect.y == 3 &&
                          op.rendered_rect.w == 7 &&
                          op.rendered_rect.h == 7;
-                });
+  });
   EXPECT_TRUE(centered_start_arrow);
+}
+
+TEST_F(ScrollbarTest, classic_blue_scrollbar_buttons_use_generated_theme_symbols)
+{
+  runtime.eval(R"(
+    (pixils/defmode root-mode
+      {:theme 'pixils/classic-blue
+       :children [{:mode 'ui/scrollbar
+                   :style {:width 50 :height 14}
+                   :state {:axis :x :content-size 100 :value 0}}
+                  {:mode 'ui/scrollbar
+                   :style {:width 14 :height 50}
+                   :state {:axis :y :content-size 100 :value 0}}]})
+  )");
+
+  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.update_mode();
+  session.render_mode();
+  runtime.eval(R"(
+    (defun resource-size [bundle id]
+      (:size
+       (head
+        (filter (pixils.resource/list-images bundle)
+                (fn [resource]
+                  (= (:id resource) id))))))
+  )");
+
+  auto up = runtime.eval(R"(
+    (:source (head (filter (pixils.resource/list-images :classic-blue-theme)
+                           (fn [resource]
+                             (= (:id resource) :classic-blue-theme/scrollbar-arrow-up)))))
+  )");
+  auto down = runtime.eval(R"(
+    (:source (head (filter (pixils.resource/list-images :classic-blue-theme)
+                           (fn [resource]
+                             (= (:id resource) :classic-blue-theme/scrollbar-arrow-down)))))
+  )");
+  auto left = runtime.eval(R"(
+    (:source (head (filter (pixils.resource/list-images :classic-blue-theme)
+                           (fn [resource]
+                             (= (:id resource) :classic-blue-theme/scrollbar-arrow-left)))))
+  )");
+  auto right = runtime.eval(R"(
+    (:source (head (filter (pixils.resource/list-images :classic-blue-theme)
+                           (fn [resource]
+                             (= (:id resource) :classic-blue-theme/scrollbar-arrow-right)))))
+  )");
+
+  ASSERT_NE(up, nullptr);
+  ASSERT_NE(down, nullptr);
+  ASSERT_NE(left, nullptr);
+  ASSERT_NE(right, nullptr);
+  EXPECT_EQ(up->to_string(), ":generated");
+  EXPECT_EQ(down->to_string(), ":generated");
+  EXPECT_EQ(left->to_string(), ":generated");
+  EXPECT_EQ(right->to_string(), ":generated");
+  EXPECT_EQ(runtime.eval("(:w (resource-size :classic-blue-theme "
+                         ":classic-blue-theme/scrollbar-arrow-up))")
+              ->num()
+              .get_int(),
+            7);
+  EXPECT_EQ(runtime.eval("(:h (resource-size :classic-blue-theme "
+                         ":classic-blue-theme/scrollbar-arrow-up))")
+              ->num()
+              .get_int(),
+            4);
+  EXPECT_EQ(runtime.eval("(:w (resource-size :classic-blue-theme "
+                         ":classic-blue-theme/scrollbar-arrow-down))")
+              ->num()
+              .get_int(),
+            7);
+  EXPECT_EQ(runtime.eval("(:h (resource-size :classic-blue-theme "
+                         ":classic-blue-theme/scrollbar-arrow-down))")
+              ->num()
+              .get_int(),
+            4);
+  EXPECT_EQ(runtime.eval("(:w (resource-size :classic-blue-theme "
+                         ":classic-blue-theme/scrollbar-arrow-left))")
+              ->num()
+              .get_int(),
+            4);
+  EXPECT_EQ(runtime.eval("(:h (resource-size :classic-blue-theme "
+                         ":classic-blue-theme/scrollbar-arrow-left))")
+              ->num()
+              .get_int(),
+            7);
+  EXPECT_EQ(runtime.eval("(:w (resource-size :classic-blue-theme "
+                         ":classic-blue-theme/scrollbar-arrow-right))")
+              ->num()
+              .get_int(),
+            4);
+  EXPECT_EQ(runtime.eval("(:h (resource-size :classic-blue-theme "
+                         ":classic-blue-theme/scrollbar-arrow-right))")
+              ->num()
+              .get_int(),
+            7);
+
+  auto copy_ops = std::count_if(render_target()->render_ops.begin(),
+                                render_target()->render_ops.end(),
+                                [](const auto& op)
+                                { return op.type == RenderOpType::RENDER_COPY; });
+  EXPECT_GE(copy_ops, 4);
 }
 
 TEST_F(ScrollbarTest, windows_3_scrollbar_handle_uses_fixed_theme_size)

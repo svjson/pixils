@@ -1,6 +1,79 @@
 (ns pixils.ui.theme.classic-blue
   (:require pixils
-            [pixils.color :as c]))
+            [pixils.color :as c]
+            [pixils.render :as r]
+            [pixils.ui.theme-assets :as theme-assets]))
+
+(def theme-bundle :classic-blue-theme)
+(def scrollbar-arrow-up :classic-blue-theme/scrollbar-arrow-up)
+(def scrollbar-arrow-down :classic-blue-theme/scrollbar-arrow-down)
+(def scrollbar-arrow-left :classic-blue-theme/scrollbar-arrow-left)
+(def scrollbar-arrow-right :classic-blue-theme/scrollbar-arrow-right)
+
+(defun draw-classic-scrollbar-arrow-with-color! [direction color]
+  (case direction
+    :up (do
+          (r/line! {:x 3 :y 0} {:x 3 :y 0} color)
+          (r/line! {:x 2 :y 1} {:x 4 :y 1} color)
+          (r/line! {:x 1 :y 2} {:x 5 :y 2} color)
+          (r/line! {:x 0 :y 3} {:x 1 :y 3} color)
+          (r/line! {:x 5 :y 3} {:x 6 :y 3} color))
+    :down (do
+            (r/line! {:x 0 :y 0} {:x 1 :y 0} color)
+            (r/line! {:x 5 :y 0} {:x 6 :y 0} color)
+            (r/line! {:x 1 :y 1} {:x 5 :y 1} color)
+            (r/line! {:x 2 :y 2} {:x 4 :y 2} color)
+            (r/line! {:x 3 :y 3} {:x 3 :y 3} color))
+    :left (do
+            (r/line! {:x 3 :y 0} {:x 3 :y 0} color)
+            (r/line! {:x 2 :y 1} {:x 3 :y 1} color)
+            (r/line! {:x 1 :y 2} {:x 2 :y 2} color)
+            (r/line! {:x 0 :y 3} {:x 2 :y 3} color)
+            (r/line! {:x 1 :y 4} {:x 2 :y 4} color)
+            (r/line! {:x 2 :y 5} {:x 3 :y 5} color)
+            (r/line! {:x 3 :y 6} {:x 3 :y 6} color))
+    :right (do
+             (r/line! {:x 0 :y 0} {:x 0 :y 0} color)
+             (r/line! {:x 0 :y 1} {:x 1 :y 1} color)
+             (r/line! {:x 1 :y 2} {:x 2 :y 2} color)
+             (r/line! {:x 1 :y 3} {:x 3 :y 3} color)
+             (r/line! {:x 1 :y 4} {:x 2 :y 4} color)
+             (r/line! {:x 0 :y 5} {:x 1 :y 5} color)
+             (r/line! {:x 0 :y 6} {:x 0 :y 6} color))
+    :default nil))
+
+(defun draw-scrollbar-arrow-up! []
+  (draw-classic-scrollbar-arrow-with-color! :up c/WHITE))
+
+(defun draw-scrollbar-arrow-down! []
+  (draw-classic-scrollbar-arrow-with-color! :down c/WHITE))
+
+(defun draw-scrollbar-arrow-left! []
+  (draw-classic-scrollbar-arrow-with-color! :left c/WHITE))
+
+(defun draw-scrollbar-arrow-right! []
+  (draw-classic-scrollbar-arrow-with-color! :right c/WHITE))
+
+(defun ensure-classic-blue-theme-assets! []
+  (do
+    (theme-assets/ensure-generated-image! theme-bundle
+                                          scrollbar-arrow-up
+                                          {:size {:w 7 :h 4}}
+                                          draw-scrollbar-arrow-up!)
+    (theme-assets/ensure-generated-image! theme-bundle
+                                          scrollbar-arrow-down
+                                          {:size {:w 7 :h 4}}
+                                          draw-scrollbar-arrow-down!)
+    (theme-assets/ensure-generated-image! theme-bundle
+                                          scrollbar-arrow-left
+                                          {:size {:w 4 :h 7}}
+                                          draw-scrollbar-arrow-left!)
+    (theme-assets/ensure-generated-image! theme-bundle
+                                          scrollbar-arrow-right
+                                          {:size {:w 4 :h 7}}
+                                          draw-scrollbar-arrow-right!)))
+
+(ensure-classic-blue-theme-assets!)
 
 (def BUTTON-BG {:r 0x3d :g 0x4a :b 0x5e})
 (def BUTTON-HIGHLIGHT {:r 0x67 :g 0x78 :b 0x8f})
@@ -53,7 +126,11 @@
                  :scrollbar-size 14
                  :menu-option-indicator {:selected-text "[x]"
                                          :unselected-text "[ ]"}
-                 :menu-submenu-indicator {:text ">"}}}
+                 :menu-submenu-indicator {:text ">"}
+                 :scrollbar-button-symbols {:up-image :classic-blue-theme/scrollbar-arrow-up
+                                            :down-image :classic-blue-theme/scrollbar-arrow-down
+                                            :left-image :classic-blue-theme/scrollbar-arrow-left
+                                            :right-image :classic-blue-theme/scrollbar-arrow-right}}}
    :default-variant :dark
    :defaults {:text {:font :font/classic-blue-font}}
    :styles
