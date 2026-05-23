@@ -2,7 +2,7 @@
  :version "0.1.0"
  :description "Pixils test support package."
  :dependencies {pixils {:path "../pixils"}
-                proof {:path "../../../lisple-lang/pkg/proof"}}
+                proof "0.1.0"}
  :load-roots ["src"]
  :entry-points [pixils.test]
  :test-entry-points [pixils.test.package-test]}
