@@ -1,5 +1,6 @@
 (ns pixils.ui.menu
   (:require pixils
+            [pixils.image :as img]
             [pixils.keyboard :as kbd]
             [pixils.render :as r]
             [pixils.ui :as ui]))
@@ -650,7 +651,11 @@
         text-args (menu-option-indicator-text-args (-> ctx :view :effective-style))]
     (do
       (when image
-        (r/image! image {:x 0 :y 0}))
+        (let [dim (img/size image)
+              y (if dim
+                  (int (/ (- (-> ctx :view :bounds :h) (:h dim)) 2))
+                  0)]
+          (r/image! image {:x 0 :y y})))
       (when (not (empty? text))
         (r/text! text {:x 0 :y 0} text-args)))))
 

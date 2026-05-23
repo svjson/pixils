@@ -6,6 +6,9 @@
 (def default-offset {:x 0 :y 0})
 (def default-scrollbar-size 14)
 
+(defun scroll-pane-scrollbar-size [ctx]
+  (ui/theme-var ctx :scrollbar-size default-scrollbar-size))
+
 (defun scroll-pane-content-size [state]
   (or (:content-size state) default-content-size))
 
@@ -27,6 +30,9 @@
      :height (if (:content-height-explicit? state)
                (or (:h size) 0)
                :fill)}))
+
+(defun scroll-pane-footer-content-size [state ctx]
+  {:w 0 :h default-scrollbar-size})
 
 (defcomponent ui/scroll-pane-content
   {})
@@ -56,8 +62,7 @@
                        :content-height-explicit? (ui/bind-state :content-height-explicit?)}}
               {:mode 'ui/scrollbar
                :class :scroll-pane/vertical-scrollbar
-               :style {:width 14
-                       :height :fill}
+               :style {:height :fill}
                :state {:axis :y
                        :value (ui/bind-state :offset :y)
                        :step (ui/bind-state :step)
@@ -65,20 +70,19 @@
 
 (defcomponent ui/scroll-pane-footer
   {:style {:width :fill
-           :height 14
            :layout {:direction :row}}
+   :content-size scroll-pane-footer-content-size
    :children [{:mode 'ui/scrollbar
                :class :scroll-pane/horizontal-scrollbar
                :style {:width :fill
-                       :height 14}
+                       :height :fill}
                :state {:axis :x
                        :value (ui/bind-state :offset :x)
                        :step (ui/bind-state :step)
                        :content-size (ui/bind-state :content-size :w)}}
               {:mode 'ui/scrollbar-corner
                :class :scroll-pane/corner
-               :style {:width 14
-                       :height 14}}]})
+               :style {}}]})
 
 (defun scroll-pane-content-state-binding [key]
   (if (nil? key)
@@ -123,8 +127,7 @@
 (defun scroll-pane-vertical-scrollbar-child []
   {:mode 'ui/scrollbar
    :class :scroll-pane/vertical-scrollbar
-   :style {:width 14
-           :height :fill}
+   :style {:height :fill}
    :state {:axis :y
            :value (ui/bind-state :offset :y)
            :step (ui/bind-state :step)
@@ -134,7 +137,7 @@
   {:mode 'ui/scrollbar
    :class :scroll-pane/horizontal-scrollbar
    :style {:width :fill
-           :height 14}
+           :height :fill}
    :state {:axis :x
            :value (ui/bind-state :offset :x)
            :step (ui/bind-state :step)
@@ -143,8 +146,7 @@
 (defun scroll-pane-corner-child []
   {:mode 'ui/scrollbar-corner
    :class :scroll-pane/corner
-   :style {:width 14
-           :height 14}})
+   :style {}})
 
 (defun scroll-pane-row-child [content-size content-state-key children scroll-x? scroll-y? effective-scroll-y? content-width-explicit? content-height-explicit? viewport-fill-width? viewport-fill-height?]
   {:mode 'ui/scroll-pane-row
@@ -212,10 +214,11 @@
 
 (defun scroll-pane-available-row-height [state ctx]
   (let [bounds (-> ctx :view :bounds)
-        height (or (:h bounds) 0)]
+        height (or (:h bounds) 0)
+        scrollbar-size (scroll-pane-scrollbar-size ctx)]
     (if (= (:scroll-x? state) false)
       height
-      (max 0 (- height default-scrollbar-size)))))
+      (max 0 (- height scrollbar-size)))))
 
 (defun scroll-pane-effective-scroll-y? [state ctx]
   (cond
@@ -244,13 +247,14 @@
 (defun scroll-pane-preferred-size [state ctx]
   (let [size (scroll-pane-content-size state)
         width (or (:w size) 0)
-        height (or (:h size) 0)]
+        height (or (:h size) 0)
+        scrollbar-size (scroll-pane-scrollbar-size ctx)]
     {:w (+ width (if (scroll-pane-preferred-scroll-y? state ctx)
-                   default-scrollbar-size
+                   scrollbar-size
                    0))
      :h (+ height (if (= (:scroll-x? state) false)
                     0
-                    default-scrollbar-size))}))
+                    scrollbar-size))}))
 
 (defun scroll-pane-child-at [children index]
   (if (> (count children) index)

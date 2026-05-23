@@ -41,6 +41,7 @@
 (def definition
   {:default-variant :base
    :vars {:base {:split-pane-resizer-size 6
+                 :scrollbar-size 14
                  :menu-option-indicator {:selected-image :base-theme/menu-option-checkmark}
                  :menu-submenu-indicator {:text ">"}}}
  :styles

@@ -297,3 +297,54 @@ TEST_F(ScrollPaneTest, scroll_pane_keeps_explicit_content_size_when_child_grows)
   ASSERT_NE(content_height, nullptr);
   EXPECT_EQ(content_height->num().get_int(), 80);
 }
+
+TEST_F(ScrollPaneTest, windows_3_scroll_pane_uses_theme_scrollbar_size)
+{
+  runtime.eval(R"(
+    (pixils/defmode content-mode {})
+    (pixils/defmode root-mode
+      {:theme 'pixils/windows-3
+       :children [(pixils.ui.scroll-pane/make
+                   {:style {:width 50 :height 40}
+                    :content-size {:w 100 :h 80}
+                    :children [{:mode 'content-mode
+                                :style {:width 100 :height 80}}]})]})
+  )");
+
+  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.update_mode();
+  session.render_mode();
+
+  ASSERT_NE(session.active_mode, nullptr);
+  ASSERT_EQ(session.active_mode->children.size(), 1u);
+  auto pane = session.active_mode->children[0];
+  ASSERT_NE(pane, nullptr);
+  ASSERT_EQ(pane->children.size(), 2u);
+
+  auto row = pane->children[0];
+  auto footer = pane->children[1];
+  ASSERT_NE(row, nullptr);
+  ASSERT_NE(footer, nullptr);
+  ASSERT_EQ(row->children.size(), 2u);
+
+  auto viewport = row->children[0];
+  auto vertical_scrollbar = row->children[1];
+  ASSERT_NE(viewport, nullptr);
+  ASSERT_NE(vertical_scrollbar, nullptr);
+  ASSERT_EQ(vertical_scrollbar->children.size(), 3u);
+
+  EXPECT_EQ(viewport->bounds.w, 33);
+  EXPECT_EQ(vertical_scrollbar->bounds.x, 33);
+  EXPECT_EQ(vertical_scrollbar->bounds.w, 17);
+  EXPECT_EQ(footer->bounds.y, 23);
+  EXPECT_EQ(footer->bounds.h, 17);
+
+  auto vertical_start_button = vertical_scrollbar->children[0];
+  ASSERT_NE(vertical_start_button, nullptr);
+  EXPECT_EQ(vertical_start_button->bounds.w, 15);
+  EXPECT_EQ(vertical_start_button->bounds.h, 15);
+  EXPECT_EQ(vertical_start_button->effective_style.content_rect(vertical_start_button->bounds).w,
+            12);
+  EXPECT_EQ(vertical_start_button->effective_style.content_rect(vertical_start_button->bounds).h,
+            12);
+}

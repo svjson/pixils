@@ -1,11 +1,38 @@
 (ns pixils.ui.button
   (:require pixils
             [pixils.color :as c]
+            [pixils.image :as img]
             [pixils.render :as r]
             [pixils.ui :as ui]))
 
 
 ;; Inner button
+
+(defun button-border-side-thickness [ctx side]
+  (let [border (-> ctx :view :effective-style :border)
+        side-style (get border side)]
+    (or (:thickness side-style)
+        (:thickness border)
+        0)))
+
+(defun button-padding-side [ctx side]
+  (or (get (-> ctx :view :effective-style :padding) side)
+      0))
+
+(defun button-content-origin-inset [ctx side]
+  (+ (button-border-side-thickness ctx side)
+     (button-padding-side ctx side)))
+
+(defun button-image-position [state ctx image]
+  (let [bounds (-> ctx :view :bounds)
+        dim (img/size image)
+        left (button-content-origin-inset ctx :left)
+        top (button-content-origin-inset ctx :top)]
+    (if (and dim (:w dim) (:h dim))
+      {:x (- (int (/ (- (:w bounds) (:w dim)) 2)) left)
+       :y (- (int (/ (- (:h bounds) (:h dim)) 2)) top)}
+      {:x 0
+       :y 0})))
 
 (defcomponent ui/button-inner {:style {:width :fill
                                        :height :fill}
@@ -14,12 +41,12 @@
                                                    :text {:align :center}}
                                            :state {:value (ui/bind-state :label)}}]
                                :render (fn [state {:keys [view] :as ctx}]
-                                         (let [bw (-> view :bounds :w)
-                                               bh (-> view :bounds :h)
-                                               pressed (:pressed state)
-                                               offset (if pressed 1 0)]
-                                           (when (keyword? (:image state))
-                                             (r/image! (:image state) {:x 0 :y 0}))))})
+                                         (when (keyword? (:image state))
+                                           (r/image! (:image state)
+                                                     {:pos (button-image-position
+                                                            state
+                                                            ctx
+                                                            (:image state))})))})
 
 
 ;; Outer button component

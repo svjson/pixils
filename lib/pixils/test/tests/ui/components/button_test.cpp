@@ -4,6 +4,8 @@
 #include <lisple/runtime/dict.h>
 #include <sdl2_mock/mock_resources.h>
 
+#include <algorithm>
+
 using ButtonTest = RenderFixture;
 
 namespace
@@ -76,6 +78,58 @@ TEST_F(ButtonTest, button_label_uses_base_theme_padding)
   EXPECT_EQ(label_value->str(), "OK");
   EXPECT_GT(button->bounds.w, 20);
   EXPECT_GT(button->bounds.h, 10);
+}
+
+TEST_F(ButtonTest, button_state_image_is_centered_inside_button_inner)
+{
+  SDLMock::prepared_surfaces["./brush.png"] = {10, 8};
+  runtime.eval(R"(
+    (pixils/defbundle icons {:images {:brush "brush.png"}})
+    (pixils/defmode root-mode
+      {:children [{:mode 'ui/button
+                   :style {:width 28 :height 28}
+                   :state {:image :icons/brush}}]})
+  )");
+
+  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.render_mode();
+
+  auto& ops = render_target()->render_ops;
+  auto copy = std::find_if(ops.begin(), ops.end(), [](const auto& op) {
+    return op.type == RenderOpType::RENDER_COPY;
+  });
+  ASSERT_NE(copy, ops.end());
+  EXPECT_EQ(copy->rendered_rect.x, 8);
+  EXPECT_EQ(copy->rendered_rect.y, 9);
+  EXPECT_EQ(copy->rendered_rect.w, 10);
+  EXPECT_EQ(copy->rendered_rect.h, 8);
+}
+
+TEST_F(ButtonTest, pressed_button_state_image_stays_centered)
+{
+  SDLMock::prepared_surfaces["./brush.png"] = {10, 8};
+  runtime.eval(R"(
+    (pixils/defbundle icons {:images {:brush "brush.png"}})
+    (pixils/defmode root-mode
+      {:children [{:mode 'ui/toggle-button
+                   :style {:width 28 :height 28}
+                   :state {:image :icons/brush
+                           :toggled? true}}]})
+  )");
+
+  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.update_mode();
+  session.render_mode();
+
+  auto& ops = render_target()->render_ops;
+  auto copy = std::find_if(ops.begin(), ops.end(), [](const auto& op) {
+    return op.type == RenderOpType::RENDER_COPY;
+  });
+  ASSERT_NE(copy, ops.end());
+  EXPECT_EQ(copy->rendered_rect.x, 8);
+  EXPECT_EQ(copy->rendered_rect.y, 9);
+  EXPECT_EQ(copy->rendered_rect.w, 10);
+  EXPECT_EQ(copy->rendered_rect.h, 8);
 }
 
 TEST_F(ButtonTest, disabled_button_does_not_fire_click_handler)

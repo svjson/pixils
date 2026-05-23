@@ -4,6 +4,8 @@
 #include <lisple/runtime/dict.h>
 #include <lisple/runtime/value.h>
 
+#include <algorithm>
+
 using ScrollbarTest = RenderFixture;
 
 TEST_F(ScrollbarTest, scrollbar_lays_out_button_children_from_axis)
@@ -71,4 +73,234 @@ TEST_F(ScrollbarTest, scrollbar_button_children_bubble_click_behavior_to_scrollb
   auto value = Lisple::Dict::get_property(scrollbar->state, Lisple::keyword("value"));
   ASSERT_NE(value, nullptr);
   EXPECT_EQ(value->num().get_int(), 5);
+}
+
+TEST_F(ScrollbarTest, windows_95_scrollbar_buttons_use_generated_theme_symbols)
+{
+  runtime.eval(R"(
+    (pixils/defmode root-mode
+      {:theme 'pixils/windows-95
+       :children [{:mode 'ui/scrollbar
+                   :style {:width 50 :height 10}
+                   :state {:axis :x :content-size 100 :value 0}}
+                  {:mode 'ui/scrollbar
+                   :style {:width 10 :height 50}
+                   :state {:axis :y :content-size 100 :value 0}}]})
+  )");
+
+  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.update_mode();
+  session.render_mode();
+  runtime.eval(R"(
+    (defun resource-size [bundle id]
+      (:size
+       (head
+        (filter (pixils.resource/list-images bundle)
+                (fn [resource]
+                  (= (:id resource) id))))))
+  )");
+
+  auto up = runtime.eval(R"(
+    (:source (head (filter (pixils.resource/list-images :windows-95-theme)
+                           (fn [resource]
+                             (= (:id resource) :windows-95-theme/scrollbar-arrow-up)))))
+  )");
+  auto down = runtime.eval(R"(
+    (:source (head (filter (pixils.resource/list-images :windows-95-theme)
+                           (fn [resource]
+                             (= (:id resource) :windows-95-theme/scrollbar-arrow-down)))))
+  )");
+  auto left = runtime.eval(R"(
+    (:source (head (filter (pixils.resource/list-images :windows-95-theme)
+                           (fn [resource]
+                             (= (:id resource) :windows-95-theme/scrollbar-arrow-left)))))
+  )");
+  auto right = runtime.eval(R"(
+    (:source (head (filter (pixils.resource/list-images :windows-95-theme)
+                           (fn [resource]
+                             (= (:id resource) :windows-95-theme/scrollbar-arrow-right)))))
+  )");
+
+  ASSERT_NE(up, nullptr);
+  ASSERT_NE(down, nullptr);
+  ASSERT_NE(left, nullptr);
+  ASSERT_NE(right, nullptr);
+  EXPECT_EQ(up->to_string(), ":generated");
+  EXPECT_EQ(down->to_string(), ":generated");
+  EXPECT_EQ(left->to_string(), ":generated");
+  EXPECT_EQ(right->to_string(), ":generated");
+  EXPECT_EQ(runtime.eval("(:w (resource-size :windows-95-theme "
+                         ":windows-95-theme/scrollbar-arrow-up))")
+              ->num()
+              .get_int(),
+            7);
+  EXPECT_EQ(runtime.eval("(:h (resource-size :windows-95-theme "
+                         ":windows-95-theme/scrollbar-arrow-up))")
+              ->num()
+              .get_int(),
+            4);
+  EXPECT_EQ(runtime.eval("(:w (resource-size :windows-95-theme "
+                         ":windows-95-theme/scrollbar-arrow-down))")
+              ->num()
+              .get_int(),
+            7);
+  EXPECT_EQ(runtime.eval("(:h (resource-size :windows-95-theme "
+                         ":windows-95-theme/scrollbar-arrow-down))")
+              ->num()
+              .get_int(),
+            4);
+  EXPECT_EQ(runtime.eval("(:w (resource-size :windows-95-theme "
+                         ":windows-95-theme/scrollbar-arrow-left))")
+              ->num()
+              .get_int(),
+            4);
+  EXPECT_EQ(runtime.eval("(:h (resource-size :windows-95-theme "
+                         ":windows-95-theme/scrollbar-arrow-left))")
+              ->num()
+              .get_int(),
+            7);
+  EXPECT_EQ(runtime.eval("(:w (resource-size :windows-95-theme "
+                         ":windows-95-theme/scrollbar-arrow-right))")
+              ->num()
+              .get_int(),
+            4);
+  EXPECT_EQ(runtime.eval("(:h (resource-size :windows-95-theme "
+                         ":windows-95-theme/scrollbar-arrow-right))")
+              ->num()
+              .get_int(),
+            7);
+
+  auto copy_ops = std::count_if(render_target()->render_ops.begin(),
+                                render_target()->render_ops.end(),
+                                [](const auto& op)
+                                { return op.type == RenderOpType::RENDER_COPY; });
+  EXPECT_GE(copy_ops, 4);
+}
+
+TEST_F(ScrollbarTest, windows_3_scrollbar_buttons_use_generated_theme_symbols)
+{
+  runtime.eval(R"(
+    (pixils/defmode root-mode
+      {:theme 'pixils/windows-3
+       :children [{:mode 'ui/scrollbar
+                   :style {:width 60}
+                   :state {:axis :x :content-size 100 :value 0}}
+                  {:mode 'ui/scrollbar
+                   :style {:height 60}
+                   :state {:axis :y :content-size 100 :value 0}}]})
+  )");
+
+  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.update_mode();
+  session.render_mode();
+  runtime.eval(R"(
+    (defun resource-size [bundle id]
+      (:size
+       (head
+        (filter (pixils.resource/list-images bundle)
+                (fn [resource]
+                  (= (:id resource) id))))))
+  )");
+
+  auto up = runtime.eval(R"(
+    (:source (head (filter (pixils.resource/list-images :windows-3-theme)
+                           (fn [resource]
+                             (= (:id resource) :windows-3-theme/scrollbar-arrow-up)))))
+  )");
+  auto down = runtime.eval(R"(
+    (:source (head (filter (pixils.resource/list-images :windows-3-theme)
+                           (fn [resource]
+                             (= (:id resource) :windows-3-theme/scrollbar-arrow-down)))))
+  )");
+  auto left = runtime.eval(R"(
+    (:source (head (filter (pixils.resource/list-images :windows-3-theme)
+                           (fn [resource]
+                             (= (:id resource) :windows-3-theme/scrollbar-arrow-left)))))
+  )");
+  auto right = runtime.eval(R"(
+    (:source (head (filter (pixils.resource/list-images :windows-3-theme)
+                           (fn [resource]
+                             (= (:id resource) :windows-3-theme/scrollbar-arrow-right)))))
+  )");
+
+  ASSERT_NE(up, nullptr);
+  ASSERT_NE(down, nullptr);
+  ASSERT_NE(left, nullptr);
+  ASSERT_NE(right, nullptr);
+  EXPECT_EQ(up->to_string(), ":generated");
+  EXPECT_EQ(down->to_string(), ":generated");
+  EXPECT_EQ(left->to_string(), ":generated");
+  EXPECT_EQ(right->to_string(), ":generated");
+
+  ASSERT_NE(session.active_mode, nullptr);
+  ASSERT_EQ(session.active_mode->children.size(), 2u);
+  auto horizontal_scrollbar = session.active_mode->children[0];
+  auto vertical_scrollbar = session.active_mode->children[1];
+  ASSERT_NE(horizontal_scrollbar, nullptr);
+  ASSERT_NE(vertical_scrollbar, nullptr);
+  ASSERT_EQ(horizontal_scrollbar->children.size(), 3u);
+  ASSERT_EQ(vertical_scrollbar->children.size(), 3u);
+  EXPECT_EQ(horizontal_scrollbar->children[0]->bounds.w, 15);
+  EXPECT_EQ(horizontal_scrollbar->children[0]->bounds.h, 15);
+  EXPECT_EQ(vertical_scrollbar->children[0]->bounds.w, 15);
+  EXPECT_EQ(vertical_scrollbar->children[0]->bounds.h, 15);
+
+  EXPECT_EQ(runtime.eval("(:w (resource-size :windows-3-theme "
+                         ":windows-3-theme/scrollbar-arrow-up))")
+              ->num()
+              .get_int(),
+            7);
+  EXPECT_EQ(runtime.eval("(:h (resource-size :windows-3-theme "
+                         ":windows-3-theme/scrollbar-arrow-up))")
+              ->num()
+              .get_int(),
+            7);
+  EXPECT_EQ(runtime.eval("(:w (resource-size :windows-3-theme "
+                         ":windows-3-theme/scrollbar-arrow-down))")
+              ->num()
+              .get_int(),
+            7);
+  EXPECT_EQ(runtime.eval("(:h (resource-size :windows-3-theme "
+                         ":windows-3-theme/scrollbar-arrow-down))")
+              ->num()
+              .get_int(),
+            7);
+  EXPECT_EQ(runtime.eval("(:w (resource-size :windows-3-theme "
+                         ":windows-3-theme/scrollbar-arrow-left))")
+              ->num()
+              .get_int(),
+            7);
+  EXPECT_EQ(runtime.eval("(:h (resource-size :windows-3-theme "
+                         ":windows-3-theme/scrollbar-arrow-left))")
+              ->num()
+              .get_int(),
+            7);
+  EXPECT_EQ(runtime.eval("(:w (resource-size :windows-3-theme "
+                         ":windows-3-theme/scrollbar-arrow-right))")
+              ->num()
+              .get_int(),
+            7);
+  EXPECT_EQ(runtime.eval("(:h (resource-size :windows-3-theme "
+                         ":windows-3-theme/scrollbar-arrow-right))")
+              ->num()
+              .get_int(),
+            7);
+
+  auto copy_ops = std::count_if(render_target()->render_ops.begin(),
+                                render_target()->render_ops.end(),
+                                [](const auto& op)
+                                { return op.type == RenderOpType::RENDER_COPY; });
+  EXPECT_GE(copy_ops, 4);
+
+  auto centered_start_arrow =
+    std::any_of(render_target()->render_ops.begin(),
+                render_target()->render_ops.end(),
+                [](const auto& op) {
+                  return op.type == RenderOpType::RENDER_COPY &&
+                         op.rendered_rect.x == 4 &&
+                         op.rendered_rect.y == 4 &&
+                         op.rendered_rect.w == 7 &&
+                         op.rendered_rect.h == 7;
+                });
+  EXPECT_TRUE(centered_start_arrow);
 }

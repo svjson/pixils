@@ -376,13 +376,21 @@ TEST_F(MenuTest, windows_95_submenu_indicator_generates_chevron_images)
   session.push_mode("root-mode", Lisple::Constant::NIL);
   session.update_mode();
   session.render_mode();
+  runtime.eval(R"(
+    (defun resource-size [bundle id]
+      (:size
+       (head
+        (filter (pixils.resource/list-images bundle)
+                (fn [resource]
+                  (= (:id resource) id))))))
+  )");
 
   auto normal_source = runtime.eval(R"(
     (:source
      (head
       (filter (pixils.resource/list-images :windows-95-theme)
               (fn [resource]
-                (= (:id resource) :windows-95-theme/submenu-chevron)))))
+                (= (:id resource) :windows-95-theme/scrollbar-arrow-right)))))
   )");
   auto highlighted_source = runtime.eval(R"(
     (:source
@@ -396,6 +404,26 @@ TEST_F(MenuTest, windows_95_submenu_indicator_generates_chevron_images)
   ASSERT_NE(highlighted_source, nullptr);
   EXPECT_EQ(normal_source->to_string(), ":generated");
   EXPECT_EQ(highlighted_source->to_string(), ":generated");
+  EXPECT_EQ(runtime.eval("(:w (resource-size :windows-95-theme "
+                         ":windows-95-theme/scrollbar-arrow-right))")
+              ->num()
+              .get_int(),
+            4);
+  EXPECT_EQ(runtime.eval("(:h (resource-size :windows-95-theme "
+                         ":windows-95-theme/scrollbar-arrow-right))")
+              ->num()
+              .get_int(),
+            7);
+  EXPECT_EQ(runtime.eval("(:w (resource-size :windows-95-theme "
+                         ":windows-95-theme/submenu-chevron-highlighted))")
+              ->num()
+              .get_int(),
+            4);
+  EXPECT_EQ(runtime.eval("(:h (resource-size :windows-95-theme "
+                         ":windows-95-theme/submenu-chevron-highlighted))")
+              ->num()
+              .get_int(),
+            7);
 }
 
 TEST_F(MenuTest, windows_3_submenu_indicator_generates_chevron_images)
@@ -415,13 +443,21 @@ TEST_F(MenuTest, windows_3_submenu_indicator_generates_chevron_images)
   session.push_mode("root-mode", Lisple::Constant::NIL);
   session.update_mode();
   session.render_mode();
+  runtime.eval(R"(
+    (defun resource-size [bundle id]
+      (:size
+       (head
+        (filter (pixils.resource/list-images bundle)
+                (fn [resource]
+                  (= (:id resource) id))))))
+  )");
 
   auto normal_source = runtime.eval(R"(
     (:source
      (head
       (filter (pixils.resource/list-images :windows-3-theme)
               (fn [resource]
-                (= (:id resource) :windows-3-theme/submenu-chevron)))))
+                (= (:id resource) :windows-3-theme/chevron-right)))))
   )");
   auto highlighted_source = runtime.eval(R"(
     (:source
@@ -435,6 +471,26 @@ TEST_F(MenuTest, windows_3_submenu_indicator_generates_chevron_images)
   ASSERT_NE(highlighted_source, nullptr);
   EXPECT_EQ(normal_source->to_string(), ":generated");
   EXPECT_EQ(highlighted_source->to_string(), ":generated");
+  EXPECT_EQ(runtime.eval("(:w (resource-size :windows-3-theme "
+                         ":windows-3-theme/chevron-right))")
+              ->num()
+              .get_int(),
+            4);
+  EXPECT_EQ(runtime.eval("(:h (resource-size :windows-3-theme "
+                         ":windows-3-theme/chevron-right))")
+              ->num()
+              .get_int(),
+            7);
+  EXPECT_EQ(runtime.eval("(:w (resource-size :windows-3-theme "
+                         ":windows-3-theme/submenu-chevron-highlighted))")
+              ->num()
+              .get_int(),
+            4);
+  EXPECT_EQ(runtime.eval("(:h (resource-size :windows-3-theme "
+                         ":windows-3-theme/submenu-chevron-highlighted))")
+              ->num()
+              .get_int(),
+            7);
 }
 
 TEST_F(MenuTest, context_menu_opens_popup_at_mouse_position)

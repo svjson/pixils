@@ -50,6 +50,7 @@
                  :text c/WHITE
                  :focus-text BUTTON-HIGHLIGHT
                  :split-pane-resizer-size 8
+                 :scrollbar-size 14
                  :menu-option-indicator {:selected-text "[x]"
                                          :unselected-text "[ ]"}
                  :menu-submenu-indicator {:text ">"}}}

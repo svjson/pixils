@@ -1,5 +1,6 @@
 (ns pixils.ui.scrollbar
   (:require pixils
+            [pixils.image :as img]
             [pixils.render :as r]
             [pixils.ui :as ui]))
 
@@ -10,6 +11,7 @@
 (def default-handle-pressed-color {:r 0xcc :g 0xcc :b 0xcc})
 (def default-glyph-color {:r 0x00 :g 0x00 :b 0x00})
 (def default-border-thickness 1)
+(def default-scrollbar-size 14)
 
 (defun clamp [value low high]
   (max low (min high value)))
@@ -307,16 +309,66 @@
                         color))
       :default nil)))
 
+(defun scrollbar-button-symbols [ctx]
+  (ui/theme-var ctx :scrollbar-button-symbols {}))
+
 (defun scrollbar-button-direction [state]
   (if (= (:axis state) :x)
     (if (= (:part state) :start) :left :right)
     (if (= (:part state) :start) :up :down)))
+
+(defun scrollbar-button-symbol-image [state ctx]
+  (let [symbols (scrollbar-button-symbols ctx)]
+    (case (scrollbar-button-direction state)
+      :up (:up-image symbols)
+      :down (:down-image symbols)
+      :left (:left-image symbols)
+      :right (:right-image symbols)
+      :default nil)))
+
+(defun centered-image-pos [rect dim]
+  {:x (+ (:x rect) (int (/ (- (:w rect) (:w dim)) 2)))
+   :y (+ (:y rect) (int (/ (- (:h rect) (:h dim)) 2)))})
+
+(defun scrollbar-border-side-thickness [ctx side]
+  (let [border (-> ctx :view :style :border)
+        side-style (get border side)]
+    (or (:thickness side-style)
+        (:thickness border)
+        0)))
+
+(defun scrollbar-symbol-rect [ctx rect]
+  (let [left (scrollbar-border-side-thickness ctx :left)
+        top (scrollbar-border-side-thickness ctx :top)
+        right (scrollbar-border-side-thickness ctx :right)
+        bottom (scrollbar-border-side-thickness ctx :bottom)]
+    {:x (+ (:x rect) left)
+     :y (+ (:y rect) top)
+     :w (max 0 (- (:w rect) left right))
+     :h (max 0 (- (:h rect) top bottom))}))
+
+(defun draw-scrollbar-symbol-image! [image rect]
+  (let [dim (img/size image)]
+    (when dim
+      (do
+        (r/image! image {:pos (centered-image-pos rect dim)})
+        true))))
+
+(defun draw-scrollbar-button-symbol! [state ctx rect]
+  (let [image (scrollbar-button-symbol-image state ctx)]
+    (if (and image (draw-scrollbar-symbol-image! image rect))
+      nil
+      (draw-scrollbar-arrow! state ctx rect (scrollbar-button-direction state)))))
 
 (defun scrollbar-button-content-size [state ctx]
   (let [fallback 12
         size (if (= (:axis state) :x)
                (or (:available-height ctx) fallback)
                (or (:available-width ctx) fallback))]
+    {:w size :h size}))
+
+(defun scrollbar-content-size [state ctx]
+  (let [size (ui/theme-var ctx :scrollbar-size default-scrollbar-size)]
     {:w size :h size}))
 
 (defcomponent ui/scrollbar-button
@@ -327,13 +379,13 @@
                     (and (not (:disabled? state))
                          (contains? (-> ctx :view :interaction :pressed) :left))))
    :render (fn [state ctx]
-             (draw-scrollbar-arrow! state
-                                    ctx
-                                    {:x 0
-                                     :y 0
-                                     :w (-> ctx :view :bounds :w)
-                                     :h (-> ctx :view :bounds :h)}
-                                    (scrollbar-button-direction state)))})
+             (let [rect {:x 0
+                         :y 0
+                         :w (-> ctx :view :bounds :w)
+                         :h (-> ctx :view :bounds :h)}]
+               (draw-scrollbar-button-symbol! state
+                                              ctx
+                                              (scrollbar-symbol-rect ctx rect))))})
 
 (defcomponent ui/combo-box-button
   {:extend 'ui/scrollbar-button
@@ -361,6 +413,7 @@
 
 (defcomponent ui/scrollbar
   {:focusable true
+   :content-size scrollbar-content-size
    :update (fn [state ctx]
              (do
                (ui/style! ctx {:layout {:direction (if (= (:axis state) :x)
@@ -420,4 +473,5 @@
                        :part :end
                        :glyph-color (ui/bind-state :glyph-color)}}]})
 
-(defcomponent ui/scrollbar-corner {})
+(defcomponent ui/scrollbar-corner
+  {:content-size scrollbar-content-size})

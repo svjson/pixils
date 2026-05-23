@@ -6,7 +6,10 @@
 
 (def theme-bundle :windows-95-theme)
 (def menu-option-checkmark :windows-95-theme/menu-option-checkmark)
-(def submenu-chevron :windows-95-theme/submenu-chevron)
+(def scrollbar-arrow-up :windows-95-theme/scrollbar-arrow-up)
+(def scrollbar-arrow-down :windows-95-theme/scrollbar-arrow-down)
+(def scrollbar-arrow-left :windows-95-theme/scrollbar-arrow-left)
+(def scrollbar-arrow-right :windows-95-theme/scrollbar-arrow-right)
 (def submenu-chevron-highlighted :windows-95-theme/submenu-chevron-highlighted)
 
 (defun draw-menu-option-checkmark! []
@@ -25,21 +28,53 @@
       (r/line! {:x 2 :y 8} {:x 4 :y 8} color)
       (r/line! {:x 3 :y 9} {:x 3 :y 9} color))))
 
-(defun draw-submenu-chevron-with-color! [color]
-  (do
-    (r/line! {:x 2 :y 2} {:x 2 :y 2} color)
-    (r/line! {:x 2 :y 3} {:x 3 :y 3} color)
-    (r/line! {:x 2 :y 4} {:x 4 :y 4} color)
-    (r/line! {:x 2 :y 5} {:x 5 :y 5} color)
-    (r/line! {:x 2 :y 6} {:x 4 :y 6} color)
-    (r/line! {:x 2 :y 7} {:x 3 :y 7} color)
-    (r/line! {:x 2 :y 8} {:x 2 :y 8} color)))
+(defun draw-filled-arrow-with-color! [direction color]
+  (case direction
+    :up (do
+          (r/line! {:x 3 :y 0} {:x 3 :y 0} color)
+          (r/line! {:x 2 :y 1} {:x 4 :y 1} color)
+          (r/line! {:x 1 :y 2} {:x 5 :y 2} color)
+          (r/line! {:x 0 :y 3} {:x 6 :y 3} color))
+    :down (do
+            (r/line! {:x 0 :y 0} {:x 6 :y 0} color)
+            (r/line! {:x 1 :y 1} {:x 5 :y 1} color)
+            (r/line! {:x 2 :y 2} {:x 4 :y 2} color)
+            (r/line! {:x 3 :y 3} {:x 3 :y 3} color))
+    :left (do
+            (r/line! {:x 3 :y 0} {:x 3 :y 0} color)
+            (r/line! {:x 2 :y 1} {:x 3 :y 1} color)
+            (r/line! {:x 1 :y 2} {:x 3 :y 2} color)
+            (r/line! {:x 0 :y 3} {:x 3 :y 3} color)
+            (r/line! {:x 1 :y 4} {:x 3 :y 4} color)
+            (r/line! {:x 2 :y 5} {:x 3 :y 5} color)
+            (r/line! {:x 3 :y 6} {:x 3 :y 6} color))
+    :right (do
+             (r/line! {:x 0 :y 0} {:x 0 :y 0} color)
+             (r/line! {:x 0 :y 1} {:x 1 :y 1} color)
+             (r/line! {:x 0 :y 2} {:x 2 :y 2} color)
+             (r/line! {:x 0 :y 3} {:x 3 :y 3} color)
+             (r/line! {:x 0 :y 4} {:x 2 :y 4} color)
+             (r/line! {:x 0 :y 5} {:x 1 :y 5} color)
+             (r/line! {:x 0 :y 6} {:x 0 :y 6} color))
+    :default nil))
 
-(defun draw-submenu-chevron! []
-  (draw-submenu-chevron-with-color! c/BLACK))
+(defun draw-submenu-chevron-with-color! [color]
+  (draw-filled-arrow-with-color! :right color))
 
 (defun draw-submenu-chevron-highlighted! []
   (draw-submenu-chevron-with-color! c/WHITE))
+
+(defun draw-scrollbar-arrow-up! []
+  (draw-filled-arrow-with-color! :up c/BLACK))
+
+(defun draw-scrollbar-arrow-down! []
+  (draw-filled-arrow-with-color! :down c/BLACK))
+
+(defun draw-scrollbar-arrow-left! []
+  (draw-filled-arrow-with-color! :left c/BLACK))
+
+(defun draw-scrollbar-arrow-right! []
+  (draw-filled-arrow-with-color! :right c/BLACK))
 
 (defun ensure-windows-95-theme-assets! []
   (do
@@ -48,13 +83,25 @@
                                           {:size {:w 8 :h 10}}
                                           draw-menu-option-checkmark!)
     (theme-assets/ensure-generated-image! theme-bundle
-                                          submenu-chevron
-                                          {:size {:w 8 :h 10}}
-                                          draw-submenu-chevron!)
-    (theme-assets/ensure-generated-image! theme-bundle
                                           submenu-chevron-highlighted
-                                          {:size {:w 8 :h 10}}
-                                          draw-submenu-chevron-highlighted!)))
+                                          {:size {:w 4 :h 7}}
+                                          draw-submenu-chevron-highlighted!)
+    (theme-assets/ensure-generated-image! theme-bundle
+                                          scrollbar-arrow-up
+                                          {:size {:w 7 :h 4}}
+                                          draw-scrollbar-arrow-up!)
+    (theme-assets/ensure-generated-image! theme-bundle
+                                          scrollbar-arrow-down
+                                          {:size {:w 7 :h 4}}
+                                          draw-scrollbar-arrow-down!)
+    (theme-assets/ensure-generated-image! theme-bundle
+                                          scrollbar-arrow-left
+                                          {:size {:w 4 :h 7}}
+                                          draw-scrollbar-arrow-left!)
+    (theme-assets/ensure-generated-image! theme-bundle
+                                          scrollbar-arrow-right
+                                          {:size {:w 4 :h 7}}
+                                          draw-scrollbar-arrow-right!)))
 
 (ensure-windows-95-theme-assets!)
 
@@ -173,9 +220,14 @@
                   :border c/BLACK
                   :highlight PANEL-LIGHT
                   :split-pane-resizer-size 6
+                  :scrollbar-size 14
                   :menu-option-indicator {:selected-image :windows-95-theme/menu-option-checkmark}
-                  :menu-submenu-indicator {:image :windows-95-theme/submenu-chevron
-                                           :highlighted-image :windows-95-theme/submenu-chevron-highlighted}}
+                  :menu-submenu-indicator {:image :windows-95-theme/scrollbar-arrow-right
+                                           :highlighted-image :windows-95-theme/submenu-chevron-highlighted}
+                  :scrollbar-button-symbols {:up-image :windows-95-theme/scrollbar-arrow-up
+                                             :down-image :windows-95-theme/scrollbar-arrow-down
+                                             :left-image :windows-95-theme/scrollbar-arrow-left
+                                             :right-image :windows-95-theme/scrollbar-arrow-right}}
           :dark {:desktop-bg {:r 0x12 :g 0x2f :b 0x33}
                  :panel-bg {:r 0x33 :g 0x36 :b 0x39}
                  :panel-highlight {:r 0x58 :g 0x5d :b 0x63}
@@ -193,9 +245,14 @@
                  :border {:r 0x05 :g 0x06 :b 0x07}
                  :highlight {:r 0x58 :g 0x5d :b 0x63}
                  :split-pane-resizer-size 6
+                 :scrollbar-size 14
                  :menu-option-indicator {:selected-image :windows-95-theme/menu-option-checkmark}
-                 :menu-submenu-indicator {:image :windows-95-theme/submenu-chevron
-                                          :highlighted-image :windows-95-theme/submenu-chevron-highlighted}}}
+                 :menu-submenu-indicator {:image :windows-95-theme/scrollbar-arrow-right
+                                          :highlighted-image :windows-95-theme/submenu-chevron-highlighted}
+                 :scrollbar-button-symbols {:up-image :windows-95-theme/scrollbar-arrow-up
+                                            :down-image :windows-95-theme/scrollbar-arrow-down
+                                            :left-image :windows-95-theme/scrollbar-arrow-left
+                                            :right-image :windows-95-theme/scrollbar-arrow-right}}}
    :defaults {:text {:font :font/win95-system-font}}
    :styles {:ui/app {:background (var :desktop-bg)
                      :text {:color (var :text)}}
