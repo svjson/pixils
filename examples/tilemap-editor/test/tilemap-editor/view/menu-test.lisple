@@ -15,6 +15,26 @@
     (is (= "map.edn" (get-in item [:items 0 :label])))
     (is (= :project/open-recent (get-in item [:items 0 :action])))))
 
+(deftest menu-keymap-binds_project_and_view_actions
+  (is (= :project/new
+         (get menu/tilemap-editor-menu-keymap [:key/ctrl :key/shift :key/n])))
+  (is (= :project/open
+         (get menu/tilemap-editor-menu-keymap [:key/ctrl :key/o])))
+  (is (= :project/save
+         (get menu/tilemap-editor-menu-keymap [:key/ctrl :key/s])))
+  (is (= :project/save-as
+         (get menu/tilemap-editor-menu-keymap [:key/ctrl :key/shift :key/s])))
+  (is (= :view/toggle-grid
+         (get menu/tilemap-editor-menu-keymap [:key/ctrl :key/g])))
+  (is (= :view/toggle-terrain-rules
+         (get menu/tilemap-editor-menu-keymap [:key/ctrl :key/t])))
+  (is (= {:action :terrain-rules/set-application
+          :payload :preview}
+         (get menu/tilemap-editor-menu-keymap [:key/ctrl :key/alt :key/p])))
+  (is (= {:action :terrain-rules/set-application
+          :payload :paint-baked}
+         (get menu/tilemap-editor-menu-keymap [:key/ctrl :key/alt :key/b]))))
+
 (deftest option-menu-reflects_current_view_state
   (let [menu (menu/tilemap-editor-menu
               {:show-grid? false
@@ -30,11 +50,15 @@
            (get-in options [1 :selected-path])))
     (is (= "&Preview Layer" (get-in options [3 :items 0 :label])))
     (is (= :option (get-in options [3 :items 0 :type])))
+    (is (= [:key/ctrl :key/alt :key/p]
+           (get-in options [3 :items 0 :shortcut])))
     (is (= :preview (get-in options [3 :items 0 :value])))
     (is (= [:option-state :terrain-rule-application]
            (get-in options [3 :items 0 :selected-path])))
     (is (= "&Bake Into Map Data" (get-in options [3 :items 1 :label])))
     (is (= :option (get-in options [3 :items 1 :type])))
+    (is (= [:key/ctrl :key/alt :key/b]
+           (get-in options [3 :items 1 :shortcut])))
     (is (= :paint-baked (get-in options [3 :items 1 :value])))
     (is (= [:option-state :terrain-rule-application]
            (get-in options [3 :items 1 :selected-path])))))

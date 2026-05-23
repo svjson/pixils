@@ -80,6 +80,7 @@ inline void read_tilemap_editor_sources(Lisple::Runtime& runtime)
   runtime.read_file("examples/tilemap-editor/src/view/tilemap/controls.lisple");
   runtime.read_file("examples/tilemap-editor/src/view/tilemap/layout.lisple");
   runtime.read_file("examples/tilemap-editor/src/view/tileset/layout.lisple");
+  runtime.read_file("examples/tilemap-editor/src/view/menu.lisple");
   runtime.read_file("examples/tilemap-editor/src/view/theme.lisple");
   runtime.read_file("examples/tilemap-editor/src/root.lisple");
 }

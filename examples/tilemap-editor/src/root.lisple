@@ -8,7 +8,7 @@
             [tilemap-editor.view.resources.model :as resource-model]
             [tilemap-editor.view.tileset.model :as tileset-model]
             tilemap-editor.view.brushes.layout
-            tilemap-editor.view.menu
+            [tilemap-editor.view.menu :as app-menu]
             tilemap-editor.view.resources.layout
             tilemap-editor.view.terrains.layout
             tilemap-editor.view.tilemap.layout
@@ -47,6 +47,7 @@
 
 (defmode main-mode
  {:class :ui/app
+  :action-map app-menu/tilemap-editor-menu-keymap
   :style {:layout {:direction :column
                    :gap 8}}
   :init (fn [state ctx]

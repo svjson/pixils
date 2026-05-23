@@ -4,7 +4,17 @@
             [pixils.ui.menu :as menu]))
 
 
-(def tilemap-editor-menu-keymap {})
+(def tilemap-editor-menu-keymap
+  {[:key/ctrl :key/shift :key/n] :project/new
+   [:key/ctrl :key/o] :project/open
+   [:key/ctrl :key/s] :project/save
+   [:key/ctrl :key/shift :key/s] :project/save-as
+   [:key/ctrl :key/g] :view/toggle-grid
+   [:key/ctrl :key/t] :view/toggle-terrain-rules
+   [:key/ctrl :key/alt :key/p] {:action :terrain-rules/set-application
+                                :payload :preview}
+   [:key/ctrl :key/alt :key/b] {:action :terrain-rules/set-application
+                                :payload :paint-baked}})
 
 (defun normalized-menu-state [state]
   (if (= (type-of state) "map")
@@ -71,6 +81,7 @@
                        :items [{:label "&Preview Layer"
                                 :type :option
                                 :action :terrain-rules/set-application
+                                :shortcut [:key/ctrl :key/alt :key/p]
                                 :value :preview
                                 :selected-path [:option-state
                                                 :terrain-rule-application]
@@ -78,6 +89,7 @@
                                {:label "&Bake Into Map Data"
                                 :type :option
                                 :action :terrain-rules/set-application
+                                :shortcut [:key/ctrl :key/alt :key/b]
                                 :value :paint-baked
                                 :selected-path [:option-state
                                                 :terrain-rule-application]
