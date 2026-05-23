@@ -5,7 +5,12 @@
 
 (def theme-bundle :base-theme)
 (def menu-option-checkmark :base-theme/menu-option-checkmark)
+(def scrollbar-arrow-up :base-theme/scrollbar-arrow-up)
+(def scrollbar-arrow-down :base-theme/scrollbar-arrow-down)
+(def scrollbar-arrow-left :base-theme/scrollbar-arrow-left)
+(def scrollbar-arrow-right :base-theme/scrollbar-arrow-right)
 (def menu-option-checkmark-color {:r 0x00 :g 0x00 :b 0x00})
+(def scrollbar-arrow-color {:r 0x00 :g 0x00 :b 0x00})
 
 (defun draw-menu-option-checkmark! []
   (let [color menu-option-checkmark-color]
@@ -23,11 +28,58 @@
       (r/line! {:x 2 :y 8} {:x 4 :y 8} color)
       (r/line! {:x 3 :y 9} {:x 3 :y 9} color))))
 
+(defun draw-outline-scrollbar-arrow-up-with-color! [color]
+  (do
+    (r/line! {:x 4 :y 0} {:x 4 :y 0} color)
+    (r/line! {:x 3 :y 1} {:x 3 :y 1} color)
+    (r/line! {:x 5 :y 1} {:x 5 :y 1} color)
+    (r/line! {:x 2 :y 2} {:x 2 :y 2} color)
+    (r/line! {:x 6 :y 2} {:x 6 :y 2} color)
+    (r/line! {:x 1 :y 3} {:x 1 :y 3} color)
+    (r/line! {:x 7 :y 3} {:x 7 :y 3} color)
+    (r/line! {:x 0 :y 4} {:x 3 :y 4} color)
+    (r/line! {:x 5 :y 4} {:x 8 :y 4} color)
+    (r/line! {:x 3 :y 5} {:x 3 :y 7} color)
+    (r/line! {:x 5 :y 5} {:x 5 :y 7} color)
+    (r/line! {:x 3 :y 8} {:x 5 :y 8} color)))
+
+(defun draw-scrollbar-arrow-up! []
+  (draw-outline-scrollbar-arrow-up-with-color! scrollbar-arrow-color))
+
+(defun draw-scrollbar-arrow-down! []
+  (r/image! scrollbar-arrow-up {:pos {:x 0 :y 0}
+                                :rotation 3.14159265}))
+
+(defun draw-scrollbar-arrow-left! []
+  (r/image! scrollbar-arrow-up {:pos {:x 0 :y 0}
+                                :rotation -1.57079633}))
+
+(defun draw-scrollbar-arrow-right! []
+  (r/image! scrollbar-arrow-up {:pos {:x 0 :y 0}
+                                :rotation 1.57079633}))
+
 (defun ensure-base-theme-assets! []
-  (theme-assets/ensure-generated-image! theme-bundle
-                                        menu-option-checkmark
-                                        {:size {:w 8 :h 10}}
-                                        draw-menu-option-checkmark!))
+  (do
+    (theme-assets/ensure-generated-image! theme-bundle
+                                          menu-option-checkmark
+                                          {:size {:w 8 :h 10}}
+                                          draw-menu-option-checkmark!)
+    (theme-assets/ensure-generated-image! theme-bundle
+                                          scrollbar-arrow-up
+                                          {:size {:w 9 :h 9}}
+                                          draw-scrollbar-arrow-up!)
+    (theme-assets/ensure-generated-image! theme-bundle
+                                          scrollbar-arrow-down
+                                          {:size {:w 9 :h 9}}
+                                          draw-scrollbar-arrow-down!)
+    (theme-assets/ensure-generated-image! theme-bundle
+                                          scrollbar-arrow-left
+                                          {:size {:w 9 :h 9}}
+                                          draw-scrollbar-arrow-left!)
+    (theme-assets/ensure-generated-image! theme-bundle
+                                          scrollbar-arrow-right
+                                          {:size {:w 9 :h 9}}
+                                          draw-scrollbar-arrow-right!)))
 
 (ensure-base-theme-assets!)
 
@@ -43,7 +95,11 @@
    :vars {:base {:split-pane-resizer-size 6
                  :scrollbar-size 14
                  :menu-option-indicator {:selected-image :base-theme/menu-option-checkmark}
-                 :menu-submenu-indicator {:text ">"}}}
+                 :menu-submenu-indicator {:text ">"}
+                 :scrollbar-button-symbols {:up-image :base-theme/scrollbar-arrow-up
+                                            :down-image :base-theme/scrollbar-arrow-down
+                                            :left-image :base-theme/scrollbar-arrow-left
+                                            :right-image :base-theme/scrollbar-arrow-right}}}
  :styles
  {:ui/app {:background {:r 0xff :g 0xff :b 0xff}
            :text {:color {:r 0x00 :g 0x00 :b 0x00}}}

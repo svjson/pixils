@@ -60,6 +60,84 @@ TEST_F(ScrollbarTest, scrollbar_lays_out_button_children_from_axis)
   EXPECT_EQ(end_button->bounds.h, 10);
 }
 
+TEST_F(ScrollbarTest, vertical_scrollbar_shrinks_parts_when_axis_is_too_short)
+{
+  runtime.eval(R"(
+    (pixils/defmode root-mode
+      {:children [{:mode 'ui/scrollbar
+                   :style {:width 14 :height 20}
+                   :state {:axis :y :content-size 100 :value 0}}]})
+  )");
+
+  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.update_mode();
+  session.render_mode();
+
+  ASSERT_NE(session.active_mode, nullptr);
+  ASSERT_EQ(session.active_mode->children.size(), 1u);
+  auto scrollbar = session.active_mode->children[0];
+  ASSERT_NE(scrollbar, nullptr);
+  ASSERT_EQ(scrollbar->children.size(), 3u);
+
+  auto start_button = scrollbar->children[0];
+  auto track = scrollbar->children[1];
+  auto end_button = scrollbar->children[2];
+  ASSERT_NE(start_button, nullptr);
+  ASSERT_NE(track, nullptr);
+  ASSERT_NE(end_button, nullptr);
+  ASSERT_EQ(track->children.size(), 1u);
+  auto handle = track->children[0];
+  ASSERT_NE(handle, nullptr);
+
+  EXPECT_LT(start_button->bounds.h, 14);
+  EXPECT_EQ(start_button->bounds.y, scrollbar->bounds.y);
+  EXPECT_EQ(track->bounds.y, start_button->bounds.y + start_button->bounds.h);
+  EXPECT_EQ(end_button->bounds.y + end_button->bounds.h,
+            scrollbar->bounds.y + scrollbar->bounds.h);
+  EXPECT_LE(handle->bounds.y + handle->bounds.h, track->bounds.y + track->bounds.h);
+  EXPECT_LE(start_button->bounds.h + track->bounds.h + end_button->bounds.h,
+            scrollbar->bounds.h);
+}
+
+TEST_F(ScrollbarTest, horizontal_scrollbar_shrinks_parts_when_axis_is_too_short)
+{
+  runtime.eval(R"(
+    (pixils/defmode root-mode
+      {:children [{:mode 'ui/scrollbar
+                   :style {:width 20 :height 14}
+                   :state {:axis :x :content-size 100 :value 0}}]})
+  )");
+
+  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.update_mode();
+  session.render_mode();
+
+  ASSERT_NE(session.active_mode, nullptr);
+  ASSERT_EQ(session.active_mode->children.size(), 1u);
+  auto scrollbar = session.active_mode->children[0];
+  ASSERT_NE(scrollbar, nullptr);
+  ASSERT_EQ(scrollbar->children.size(), 3u);
+
+  auto start_button = scrollbar->children[0];
+  auto track = scrollbar->children[1];
+  auto end_button = scrollbar->children[2];
+  ASSERT_NE(start_button, nullptr);
+  ASSERT_NE(track, nullptr);
+  ASSERT_NE(end_button, nullptr);
+  ASSERT_EQ(track->children.size(), 1u);
+  auto handle = track->children[0];
+  ASSERT_NE(handle, nullptr);
+
+  EXPECT_LT(start_button->bounds.w, 14);
+  EXPECT_EQ(start_button->bounds.x, scrollbar->bounds.x);
+  EXPECT_EQ(track->bounds.x, start_button->bounds.x + start_button->bounds.w);
+  EXPECT_EQ(end_button->bounds.x + end_button->bounds.w,
+            scrollbar->bounds.x + scrollbar->bounds.w);
+  EXPECT_LE(handle->bounds.x + handle->bounds.w, track->bounds.x + track->bounds.w);
+  EXPECT_LE(start_button->bounds.w + track->bounds.w + end_button->bounds.w,
+            scrollbar->bounds.w);
+}
+
 TEST_F(ScrollbarTest, scrollbar_button_children_bubble_click_behavior_to_scrollbar)
 {
   runtime.eval(R"(
@@ -217,6 +295,108 @@ TEST_F(ScrollbarTest, scrollbar_handle_pressed_state_clears_after_click)
   ASSERT_NE(pressed, nullptr);
   EXPECT_EQ(active_part->to_string(), "nil");
   EXPECT_EQ(pressed->to_string(), "false");
+}
+
+TEST_F(ScrollbarTest, base_theme_scrollbar_buttons_use_generated_outline_arrows)
+{
+  runtime.eval(R"(
+    (pixils/defmode root-mode
+      {:children [{:mode 'ui/scrollbar
+                   :style {:width 50 :height 14}
+                   :state {:axis :x :content-size 100 :value 0}}
+                  {:mode 'ui/scrollbar
+                   :style {:width 14 :height 50}
+                   :state {:axis :y :content-size 100 :value 0}}]})
+  )");
+
+  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.update_mode();
+  session.render_mode();
+  runtime.eval(R"(
+    (defun resource-size [bundle id]
+      (:size
+       (head
+        (filter (pixils.resource/list-images bundle)
+                (fn [resource]
+                  (= (:id resource) id))))))
+  )");
+
+  auto up = runtime.eval(R"(
+    (:source (head (filter (pixils.resource/list-images :base-theme)
+                           (fn [resource]
+                             (= (:id resource) :base-theme/scrollbar-arrow-up)))))
+  )");
+  auto down = runtime.eval(R"(
+    (:source (head (filter (pixils.resource/list-images :base-theme)
+                           (fn [resource]
+                             (= (:id resource) :base-theme/scrollbar-arrow-down)))))
+  )");
+  auto left = runtime.eval(R"(
+    (:source (head (filter (pixils.resource/list-images :base-theme)
+                           (fn [resource]
+                             (= (:id resource) :base-theme/scrollbar-arrow-left)))))
+  )");
+  auto right = runtime.eval(R"(
+    (:source (head (filter (pixils.resource/list-images :base-theme)
+                           (fn [resource]
+                             (= (:id resource) :base-theme/scrollbar-arrow-right)))))
+  )");
+
+  ASSERT_NE(up, nullptr);
+  ASSERT_NE(down, nullptr);
+  ASSERT_NE(left, nullptr);
+  ASSERT_NE(right, nullptr);
+  EXPECT_EQ(up->to_string(), ":generated");
+  EXPECT_EQ(down->to_string(), ":generated");
+  EXPECT_EQ(left->to_string(), ":generated");
+  EXPECT_EQ(right->to_string(), ":generated");
+
+  EXPECT_EQ(runtime.eval("(:w (resource-size :base-theme "
+                         ":base-theme/scrollbar-arrow-up))")
+              ->num()
+              .get_int(),
+            9);
+  EXPECT_EQ(runtime.eval("(:h (resource-size :base-theme "
+                         ":base-theme/scrollbar-arrow-up))")
+              ->num()
+              .get_int(),
+            9);
+  EXPECT_EQ(runtime.eval("(:w (resource-size :base-theme "
+                         ":base-theme/scrollbar-arrow-down))")
+              ->num()
+              .get_int(),
+            9);
+  EXPECT_EQ(runtime.eval("(:h (resource-size :base-theme "
+                         ":base-theme/scrollbar-arrow-down))")
+              ->num()
+              .get_int(),
+            9);
+  EXPECT_EQ(runtime.eval("(:w (resource-size :base-theme "
+                         ":base-theme/scrollbar-arrow-left))")
+              ->num()
+              .get_int(),
+            9);
+  EXPECT_EQ(runtime.eval("(:h (resource-size :base-theme "
+                         ":base-theme/scrollbar-arrow-left))")
+              ->num()
+              .get_int(),
+            9);
+  EXPECT_EQ(runtime.eval("(:w (resource-size :base-theme "
+                         ":base-theme/scrollbar-arrow-right))")
+              ->num()
+              .get_int(),
+            9);
+  EXPECT_EQ(runtime.eval("(:h (resource-size :base-theme "
+                         ":base-theme/scrollbar-arrow-right))")
+              ->num()
+              .get_int(),
+            9);
+
+  auto copy_ops = std::count_if(render_target()->render_ops.begin(),
+                                render_target()->render_ops.end(),
+                                [](const auto& op)
+                                { return op.type == RenderOpType::RENDER_COPY; });
+  EXPECT_GE(copy_ops, 4);
 }
 
 TEST_F(ScrollbarTest, windows_95_scrollbar_buttons_use_generated_theme_symbols)

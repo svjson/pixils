@@ -342,11 +342,11 @@ TEST_F(ScrollPaneTest, windows_3_scroll_pane_uses_theme_scrollbar_size)
   auto vertical_start_button = vertical_scrollbar->children[0];
   ASSERT_NE(vertical_start_button, nullptr);
   EXPECT_EQ(vertical_start_button->bounds.w, 15);
-  EXPECT_EQ(vertical_start_button->bounds.h, 15);
+  EXPECT_LT(vertical_start_button->bounds.h, 15);
   EXPECT_EQ(vertical_start_button->effective_style.content_rect(vertical_start_button->bounds).w,
             12);
-  EXPECT_EQ(vertical_start_button->effective_style.content_rect(vertical_start_button->bounds).h,
-            12);
+  EXPECT_LE(vertical_start_button->bounds.y + vertical_start_button->bounds.h,
+            vertical_scrollbar->bounds.y + vertical_scrollbar->bounds.h);
 }
 
 TEST_F(ScrollPaneTest, windows_3_scroll_pane_uses_fixed_vertical_scrollbar_handle)

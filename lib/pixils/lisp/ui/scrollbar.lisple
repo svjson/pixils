@@ -26,8 +26,20 @@
     (-> ctx :view :bounds :h)
     (-> ctx :view :bounds :w)))
 
+(defun scrollbar-min-handle-size [ctx]
+  (or (scrollbar-fixed-handle-size ctx) 12))
+
+(defun scrollbar-constrained-button-size [viewport cross ctx]
+  (let [min-handle (scrollbar-min-handle-size ctx)
+        normal-required (+ (* 2 cross) min-handle)]
+    (if (< viewport normal-required)
+      (max 1 (min cross (int (/ (max 0 (- viewport min-handle)) 2))))
+      cross)))
+
 (defun scrollbar-button-size [state ctx]
-  (scrollbar-cross-size state ctx))
+  (scrollbar-constrained-button-size (scrollbar-viewport-size state ctx)
+                                     (scrollbar-cross-size state ctx)
+                                     ctx))
 
 (defun scrollbar-track-start [state ctx]
   (scrollbar-button-size state ctx))
@@ -76,7 +88,7 @@
   (let [page (min visible content)]
     (if (<= content 0)
       track
-      (max 12 (min track (int (/ (* track page) content)))))))
+      (max 1 (min track (max 12 (int (/ (* track page) content))))))))
 
 (defun scrollbar-style-border-side-thickness [ctx side]
   (let [border (or (-> ctx :view :effective-style :border)
@@ -467,10 +479,21 @@
 
 (defun scrollbar-button-content-size [state ctx]
   (let [fallback 12
-        size (if (= (:axis state) :x)
-               (or (:available-height ctx) fallback)
-               (or (:available-width ctx) fallback))]
-    {:w size :h size}))
+        axis (:axis state)
+        cross (if (= axis :x)
+                (or (:available-height ctx) fallback)
+                (or (:available-width ctx) fallback))
+        viewport (if (= axis :x)
+                   (or (:viewport-size state)
+                       (:available-width ctx)
+                       cross)
+                   (or (:viewport-size state)
+                       (:available-height ctx)
+                       cross))
+        size (scrollbar-constrained-button-size viewport cross ctx)]
+    (if (= axis :x)
+      {:w size :h cross}
+      {:w cross :h size})))
 
 (defun scrollbar-content-size [state ctx]
   (let [size (ui/theme-var ctx :scrollbar-size default-scrollbar-size)]
@@ -579,6 +602,7 @@
    :children [{:mode 'ui/scrollbar-button
                :state {:axis (ui/bind-state :axis)
                        :part :start
+                       :viewport-size (ui/bind-state :viewport-size)
                        :glyph-color (ui/bind-state :glyph-color)}}
               {:mode 'ui/scrollbar-track
                :style {:width :fill
@@ -591,6 +615,7 @@
               {:mode 'ui/scrollbar-button
                :state {:axis (ui/bind-state :axis)
                        :part :end
+                       :viewport-size (ui/bind-state :viewport-size)
                        :glyph-color (ui/bind-state :glyph-color)}}]})
 
 (defcomponent ui/scrollbar-corner
