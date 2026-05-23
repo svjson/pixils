@@ -199,6 +199,79 @@ TEST_F(MenuTest, classic_blue_menus_use_classic_blue_font)
   EXPECT_EQ(*popup_text->effective_style.text->font, "font/classic-blue-font");
 }
 
+TEST_F(MenuTest, classic_blue_menu_option_indicator_uses_theme_text)
+{
+  runtime.eval(R"(
+    (pixils/defmode root-mode
+      {:theme 'pixils/classic-blue
+       :style {:layout {:direction :row}}
+       :children [{:mode 'ui/menu-option-indicator
+                   :state {:selected true}}
+                  {:mode 'ui/menu-option-indicator
+                   :state {:selected false}}]})
+  )");
+
+  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.update_mode();
+  session.render_mode();
+
+  ASSERT_NE(session.active_mode, nullptr);
+  ASSERT_EQ(session.active_mode->children.size(), 2u);
+  auto selected_indicator = session.active_mode->children[0];
+  auto unselected_indicator = session.active_mode->children[1];
+  ASSERT_NE(selected_indicator, nullptr);
+  ASSERT_NE(unselected_indicator, nullptr);
+  EXPECT_EQ(selected_indicator->mode->name, "ui/menu-option-indicator");
+  EXPECT_EQ(unselected_indicator->mode->name, "ui/menu-option-indicator");
+  ASSERT_TRUE(selected_indicator->effective_style.text.has_value());
+  ASSERT_TRUE(selected_indicator->effective_style.text->font.has_value());
+  EXPECT_EQ(*selected_indicator->effective_style.text->font, "font/classic-blue-font");
+  ASSERT_TRUE(selected_indicator->effective_theme.default_variant.has_value());
+  EXPECT_EQ(*selected_indicator->effective_theme.default_variant, "dark");
+  ASSERT_TRUE(selected_indicator->effective_theme.vars.count("dark") > 0);
+  ASSERT_TRUE(selected_indicator->effective_theme.vars.at("dark").count(
+                "menu-option-indicator") > 0);
+  auto indicator_var =
+    selected_indicator->effective_theme.vars.at("dark").at("menu-option-indicator");
+  ASSERT_NE(indicator_var, nullptr);
+  EXPECT_EQ(indicator_var->to_string(), "{:selected-text \"[x]\" :unselected-text \"[ ]\"}");
+}
+
+TEST_F(MenuTest, base_theme_generates_stock_menu_option_checkmark_image)
+{
+  runtime.eval(R"(
+    (pixils/defmode root-mode
+      {:children [{:mode 'ui/menu-option-indicator
+                   :state {:selected true}}]})
+  )");
+
+  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.update_mode();
+  session.render_mode();
+
+  auto id = runtime.eval("(:id (head (pixils.resource/list-images :pixils-ui)))");
+  auto source =
+    runtime.eval("(:source (head (pixils.resource/list-images :pixils-ui)))");
+  auto width =
+    runtime.eval("(:w (:size (head (pixils.resource/list-images :pixils-ui))))");
+  auto height =
+    runtime.eval("(:h (:size (head (pixils.resource/list-images :pixils-ui))))");
+
+  ASSERT_NE(id, nullptr);
+  ASSERT_NE(source, nullptr);
+  ASSERT_NE(width, nullptr);
+  ASSERT_NE(height, nullptr);
+  EXPECT_EQ(id->to_string(), ":pixils-ui/menu-option-checkmark");
+  EXPECT_EQ(source->to_string(), ":generated");
+  EXPECT_EQ(width->num().get_int(), 8);
+  EXPECT_EQ(height->num().get_int(), 10);
+
+  ASSERT_FALSE(render_target()->render_ops.empty());
+  EXPECT_EQ(render_target()->render_ops.back().type, RenderOpType::RENDER_COPY);
+  EXPECT_EQ(render_target()->render_ops.back().rendered_rect.w, 8);
+  EXPECT_EQ(render_target()->render_ops.back().rendered_rect.h, 10);
+}
+
 TEST_F(MenuTest, context_menu_opens_popup_at_mouse_position)
 {
   runtime.eval(R"(

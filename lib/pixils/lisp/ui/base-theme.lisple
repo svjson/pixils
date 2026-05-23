@@ -10,7 +10,9 @@
 
 (def definition
   {:default-variant :base
- :vars {:base {:split-pane-resizer-size 6}}
+   :vars {:base {:split-pane-resizer-size 6
+                 :menu-option-indicator {:ensure-generated-checkmark? true
+                                         :selected-image :pixils-ui/menu-option-checkmark}}}
  :styles
  {:ui/app {:background {:r 0xff :g 0xff :b 0xff}
            :text {:color {:r 0x00 :g 0x00 :b 0x00}}}
@@ -287,9 +289,6 @@
                              :box-sizing :content-box
                              :width 8
                              :height 10}
-
-  '(ui/menu-option-indicator {:selected true})
-  {:background {:image :pixils/console-font}}
 
   'ui/menu-separator
   {:height 1

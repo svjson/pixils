@@ -1,6 +1,8 @@
 (ns pixils.ui.menu
   (:require pixils
             [pixils.keyboard :as kbd]
+            [pixils.render :as r]
+            [pixils.resource :as res]
             [pixils.ui :as ui]))
 
 
@@ -14,6 +16,40 @@
                :trigger :alt
                :style :underline}
    :shortcuts {:render true}})
+
+(def generated-menu-option-checkmark :pixils-ui/menu-option-checkmark)
+
+(def generated-menu-option-checkmark-color {:r 0x00 :g 0x00 :b 0x00})
+
+(defun generated-menu-option-checkmark-exists? []
+  (not (nil? (head (filter (res/list-images :pixils-ui)
+                           (fn [resource]
+                             (= (:id resource)
+                                generated-menu-option-checkmark)))))))
+
+(defun draw-generated-menu-option-checkmark! []
+  (let [color generated-menu-option-checkmark-color]
+    (do
+      (r/line! {:x 7 :y 0} {:x 7 :y 1} color)
+      (r/line! {:x 6 :y 2} {:x 7 :y 2} color)
+      (r/line! {:x 6 :y 3} {:x 6 :y 3} color)
+      (r/line! {:x 5 :y 4} {:x 6 :y 4} color)
+      (r/line! {:x 0 :y 5} {:x 1 :y 5} color)
+      (r/line! {:x 5 :y 5} {:x 5 :y 5} color)
+      (r/line! {:x 1 :y 6} {:x 2 :y 6} color)
+      (r/line! {:x 4 :y 6} {:x 5 :y 6} color)
+      (r/line! {:x 2 :y 7} {:x 2 :y 7} color)
+      (r/line! {:x 4 :y 7} {:x 4 :y 7} color)
+      (r/line! {:x 2 :y 8} {:x 4 :y 8} color)
+      (r/line! {:x 3 :y 9} {:x 3 :y 9} color))))
+
+(defun ensure-generated-menu-option-checkmark! []
+  (do
+    (res/create-bundle! :pixils-ui)
+    (when (not (generated-menu-option-checkmark-exists?))
+      (res/create-image! generated-menu-option-checkmark
+                         {:size {:w 8 :h 10}}
+                         draw-generated-menu-option-checkmark!))))
 
 (def shortcut-key-names
   {:key/alt "Alt"
@@ -422,7 +458,7 @@
 
 (defun popup-option-item-state [node state]
   (merge (popup-item-state node state)
-         {:selected false}))
+         {:selected (item-selected? node state)}))
 
 (defun popup-item-child [node state]
   (cond
@@ -630,8 +666,45 @@
                :class :menu/shortcut-column
                :state {:value (ui/bind-state :shortcut-text)}}]})
 
+(defun menu-option-indicator-text [state indicator]
+  (if (:selected state)
+    (or (:selected-text indicator) "")
+    (or (:unselected-text indicator) "")))
+
+(defun menu-option-indicator-image [state indicator]
+  (if (:selected state)
+    (:selected-image indicator)
+    nil))
+
+(defun menu-option-indicator-text-args [style]
+  (reduce-kv (or (:text style) {})
+             {}
+             (fn [arg-map k v]
+               (if (nil? v)
+                 arg-map
+                 (merge arg-map {k (if (= k :font)
+                                    (if (keyword? v)
+                                      v
+                                      (keyword v))
+                                    v)})))))
+
+(defun render-menu-option-indicator! [state ctx]
+  (let [indicator (ui/theme-var ctx :menu-option-indicator {})
+        image (menu-option-indicator-image state indicator)
+        text (menu-option-indicator-text state indicator)
+        text-args (menu-option-indicator-text-args (-> ctx :view :effective-style))]
+    (do
+      (when (and (:selected state)
+                 (:ensure-generated-checkmark? indicator))
+        (ensure-generated-menu-option-checkmark!))
+      (when image
+        (r/image! image {:x 0 :y 0}))
+      (when (not (empty? text))
+        (r/text! text {:x 0 :y 0} text-args)))))
+
 (defcomponent ui/menu-option-indicator
-  {:class :menu/option-indicator})
+  {:class :menu/option-indicator
+   :render render-menu-option-indicator!})
 
 (defcomponent ui/popup-menu-option-item
   {:class :menu/item

@@ -49,7 +49,9 @@
                  :border c/BLACK
                  :text c/WHITE
                  :focus-text BUTTON-HIGHLIGHT
-                 :split-pane-resizer-size 8}}
+                 :split-pane-resizer-size 8
+                 :menu-option-indicator {:selected-text "[x]"
+                                         :unselected-text "[ ]"}}}
    :default-variant :dark
    :defaults {:text {:font :font/classic-blue-font}}
    :styles
@@ -373,7 +375,7 @@
 
     'ui/menu-option-indicator {:margin {:l 2 :r 4}
                                :box-sizing :content-box
-                               :width 8
+                               :width 24
                                :height 10}
 
     'ui/popup-menu-inner

@@ -116,7 +116,9 @@
                   :menu-bg PANEL-COLOR
                   :border c/BLACK
                   :highlight PANEL-LIGHT
-                  :split-pane-resizer-size 6}
+                  :split-pane-resizer-size 6
+                  :menu-option-indicator {:ensure-generated-checkmark? true
+                                          :selected-image :pixils-ui/menu-option-checkmark}}
           :dark {:desktop-bg {:r 0x12 :g 0x2f :b 0x33}
                  :panel-bg {:r 0x33 :g 0x36 :b 0x39}
                  :panel-highlight {:r 0x58 :g 0x5d :b 0x63}
@@ -133,7 +135,9 @@
                  :menu-bg {:r 0x33 :g 0x36 :b 0x39}
                  :border {:r 0x05 :g 0x06 :b 0x07}
                  :highlight {:r 0x58 :g 0x5d :b 0x63}
-                 :split-pane-resizer-size 6}}
+                 :split-pane-resizer-size 6
+                 :menu-option-indicator {:ensure-generated-checkmark? true
+                                         :selected-image :pixils-ui/menu-option-checkmark}}}
    :defaults {:text {:font :font/win95-system-font}}
    :styles {:ui/app {:background (var :desktop-bg)
                      :text {:color (var :text)}}
@@ -429,9 +433,6 @@
              :box-sizing :content-box
              :width 8
              :height 10}
-
-            '(ui/menu-option-indicator {:selected true})
-            {:background {:image :pixils/win311-checkmark}}
 
             'ui/menu-separator {:height 2
                                 :margin {:t 3 :r 2 :b 2 :l 2}
