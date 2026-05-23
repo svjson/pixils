@@ -45,7 +45,7 @@
     (if (empty? projects)
       {:label "Recent Projects"
        :disabled? true}
-      {:label "Recent Projects ->"
+      {:label "Recent Projects"
        :items (recent-project-menu-items projects)})))
 
 (defun tilemap-editor-menu [state]
@@ -77,7 +77,7 @@
                        :action :view/toggle-terrain-rules
                        :selected-path [:option-state :show-terrain-rules?]}
                       :separator
-                      {:label "Terrain Rule &Application ->"
+                      {:label "Terrain Rule &Application"
                        :items [{:label "&Preview Only"
                                 :type :option
                                 :action :terrain-rules/set-application

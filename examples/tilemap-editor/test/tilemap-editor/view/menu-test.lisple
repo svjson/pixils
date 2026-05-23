@@ -11,7 +11,7 @@
 (deftest recent-project-menu-opens-submenu-when-populated
   (let [item (menu/recent-project-menu-item [{:path "map.edn"
                                               :filename "map.edn"}])]
-    (is (= "Recent Projects ->" (:label item)))
+    (is (= "Recent Projects" (:label item)))
     (is (= "map.edn" (get-in item [:items 0 :label])))
     (is (= :project/open-recent (get-in item [:items 0 :action])))))
 
