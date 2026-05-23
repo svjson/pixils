@@ -16,6 +16,7 @@
 #include <gtest/gtest.h>
 #include <lisple/runtime.h>
 #include <lisple/runtime/value.h>
+#include <utility>
 
 /**
  * Test fixture providing a minimal Pixils runtime and Session with no SDL
@@ -33,7 +34,12 @@ class SessionFixture : public BaseFixture
   Pixils::Runtime::Session session;
 
   SessionFixture()
-    : BaseFixture()
+    : SessionFixture(Pixils::RenderContext{})
+  {
+  }
+
+  explicit SessionFixture(Pixils::RenderContext initial_render_ctx)
+    : BaseFixture(std::move(initial_render_ctx))
     , assets(render_ctx)
     , input_simulator(events)
     , hook_ctx{&events, &render_ctx}

@@ -18,6 +18,7 @@ namespace Pixils::Script
   inline constexpr std::string_view FN__CREATE_IMAGE_BANG = "create-image!";
   inline constexpr std::string_view FN__REMOVE_IMAGE_BANG = "remove-image!";
   inline constexpr std::string_view FN__LIST_IMAGES = "list-images";
+  inline constexpr std::string_view FN__CAN_CREATE_IMAGES = "can-create-images?";
 
   namespace HostType
   {
@@ -34,6 +35,7 @@ namespace Pixils::Script
     FUNC(CreateImageBang, create_image);
     FUNC(RemoveImageBang, remove_image);
     FUNC(ListImages, list_images);
+    FUNC(CanCreateImages, can_create_images);
   } // namespace Function
 
   NATIVE_ADAPTER(ResourceDependenciesAdapter,

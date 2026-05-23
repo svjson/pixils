@@ -8,6 +8,7 @@
 #include <gtest/gtest.h>
 #include <lisple/runtime.h>
 #include <lisple/runtime/value.h>
+#include <utility>
 
 class BaseFixture : public ::testing::Test
 {
@@ -16,8 +17,13 @@ class BaseFixture : public ::testing::Test
   Lisple::Runtime runtime;
 
   BaseFixture()
-    : render_ctx{}
-    , runtime(Pixils::init_lisple_runtime(render_ctx, "test", {}))
+    : BaseFixture(Pixils::RenderContext{})
+  {
+  }
+
+  explicit BaseFixture(Pixils::RenderContext initial_render_ctx)
+    : render_ctx(std::move(initial_render_ctx))
+    , runtime(Pixils::init_lisple_runtime(this->render_ctx, "test", {}))
   {
   }
 };

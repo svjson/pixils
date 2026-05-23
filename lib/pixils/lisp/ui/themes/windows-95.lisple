@@ -1,6 +1,62 @@
 (ns pixils.ui.theme.windows-95
   (:require pixils
-            [pixils.color :as c]))
+            [pixils.color :as c]
+            [pixils.render :as r]
+            [pixils.ui.theme-assets :as theme-assets]))
+
+(def theme-bundle :windows-95-theme)
+(def menu-option-checkmark :windows-95-theme/menu-option-checkmark)
+(def submenu-chevron :windows-95-theme/submenu-chevron)
+(def submenu-chevron-highlighted :windows-95-theme/submenu-chevron-highlighted)
+
+(defun draw-menu-option-checkmark! []
+  (let [color c/BLACK]
+    (do
+      (r/line! {:x 7 :y 0} {:x 7 :y 1} color)
+      (r/line! {:x 6 :y 2} {:x 7 :y 2} color)
+      (r/line! {:x 6 :y 3} {:x 6 :y 3} color)
+      (r/line! {:x 5 :y 4} {:x 6 :y 4} color)
+      (r/line! {:x 0 :y 5} {:x 1 :y 5} color)
+      (r/line! {:x 5 :y 5} {:x 5 :y 5} color)
+      (r/line! {:x 1 :y 6} {:x 2 :y 6} color)
+      (r/line! {:x 4 :y 6} {:x 5 :y 6} color)
+      (r/line! {:x 2 :y 7} {:x 2 :y 7} color)
+      (r/line! {:x 4 :y 7} {:x 4 :y 7} color)
+      (r/line! {:x 2 :y 8} {:x 4 :y 8} color)
+      (r/line! {:x 3 :y 9} {:x 3 :y 9} color))))
+
+(defun draw-submenu-chevron-with-color! [color]
+  (do
+    (r/line! {:x 2 :y 2} {:x 2 :y 2} color)
+    (r/line! {:x 2 :y 3} {:x 3 :y 3} color)
+    (r/line! {:x 2 :y 4} {:x 4 :y 4} color)
+    (r/line! {:x 2 :y 5} {:x 5 :y 5} color)
+    (r/line! {:x 2 :y 6} {:x 4 :y 6} color)
+    (r/line! {:x 2 :y 7} {:x 3 :y 7} color)
+    (r/line! {:x 2 :y 8} {:x 2 :y 8} color)))
+
+(defun draw-submenu-chevron! []
+  (draw-submenu-chevron-with-color! c/BLACK))
+
+(defun draw-submenu-chevron-highlighted! []
+  (draw-submenu-chevron-with-color! c/WHITE))
+
+(defun ensure-windows-95-theme-assets! []
+  (do
+    (theme-assets/ensure-generated-image! theme-bundle
+                                          menu-option-checkmark
+                                          {:size {:w 8 :h 10}}
+                                          draw-menu-option-checkmark!)
+    (theme-assets/ensure-generated-image! theme-bundle
+                                          submenu-chevron
+                                          {:size {:w 8 :h 10}}
+                                          draw-submenu-chevron!)
+    (theme-assets/ensure-generated-image! theme-bundle
+                                          submenu-chevron-highlighted
+                                          {:size {:w 8 :h 10}}
+                                          draw-submenu-chevron-highlighted!)))
+
+(ensure-windows-95-theme-assets!)
 
 
 
@@ -117,11 +173,9 @@
                   :border c/BLACK
                   :highlight PANEL-LIGHT
                   :split-pane-resizer-size 6
-                  :menu-option-indicator {:ensure-generated-checkmark? true
-                                          :selected-image :pixils-ui/menu-option-checkmark}
-                  :menu-submenu-indicator {:generated-chevron :windows-95
-                                           :image :pixils-ui/windows-95-submenu-chevron
-                                           :highlighted-image :pixils-ui/windows-95-submenu-chevron-highlighted}}
+                  :menu-option-indicator {:selected-image :windows-95-theme/menu-option-checkmark}
+                  :menu-submenu-indicator {:image :windows-95-theme/submenu-chevron
+                                           :highlighted-image :windows-95-theme/submenu-chevron-highlighted}}
           :dark {:desktop-bg {:r 0x12 :g 0x2f :b 0x33}
                  :panel-bg {:r 0x33 :g 0x36 :b 0x39}
                  :panel-highlight {:r 0x58 :g 0x5d :b 0x63}
@@ -139,11 +193,9 @@
                  :border {:r 0x05 :g 0x06 :b 0x07}
                  :highlight {:r 0x58 :g 0x5d :b 0x63}
                  :split-pane-resizer-size 6
-                 :menu-option-indicator {:ensure-generated-checkmark? true
-                                         :selected-image :pixils-ui/menu-option-checkmark}
-                 :menu-submenu-indicator {:generated-chevron :windows-95
-                                          :image :pixils-ui/windows-95-submenu-chevron
-                                          :highlighted-image :pixils-ui/windows-95-submenu-chevron-highlighted}}}
+                 :menu-option-indicator {:selected-image :windows-95-theme/menu-option-checkmark}
+                 :menu-submenu-indicator {:image :windows-95-theme/submenu-chevron
+                                          :highlighted-image :windows-95-theme/submenu-chevron-highlighted}}}
    :defaults {:text {:font :font/win95-system-font}}
    :styles {:ui/app {:background (var :desktop-bg)
                      :text {:color (var :text)}}

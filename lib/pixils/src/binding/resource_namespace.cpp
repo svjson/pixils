@@ -356,6 +356,17 @@ namespace Pixils::Script
       }
       return Lisple::vector(resources);
     }
+
+    FUNC_IMPL(CanCreateImages,
+              SIG((NO_ARGS, EXEC_DISPATCH(&CanCreateImages::exec_can_create_images))));
+
+    EXEC_BODY(CanCreateImages, exec_can_create_images)
+    {
+      RenderContext& rc =
+        Lisple::obj<RenderContext>(*ctx.lookup(ID__PIXILS__RENDER_CONTEXT));
+      return (rc.asset_registry && rc.renderer) ? Lisple::Constant::BOOL_TRUE
+                                                : Lisple::Constant::BOOL_FALSE;
+    }
   } // namespace Function
 
   /* ResourceDependenciesAdapter */
@@ -388,6 +399,7 @@ namespace Pixils::Script
     values.emplace(FN__CREATE_IMAGE_BANG, Function::CreateImageBang::make());
     values.emplace(FN__REMOVE_IMAGE_BANG, Function::RemoveImageBang::make());
     values.emplace(FN__LIST_IMAGES, Function::ListImages::make());
+    values.emplace(FN__CAN_CREATE_IMAGES, Function::CanCreateImages::make());
     values.emplace(FN__MAKE_RESOURCE_DEPS, Function::MakeResourceDependencies::make());
   }
 } // namespace Pixils::Script

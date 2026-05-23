@@ -2,7 +2,41 @@
   (:require pixils
             [pixils.color :as c]
             [pixils.point :as pt]
-            [pixils.render :as r]))
+            [pixils.render :as r]
+            [pixils.ui.theme-assets :as theme-assets]))
+
+(def theme-bundle :windows-3-theme)
+(def submenu-chevron :windows-3-theme/submenu-chevron)
+(def submenu-chevron-highlighted :windows-3-theme/submenu-chevron-highlighted)
+
+(defun draw-submenu-chevron-with-color! [color]
+  (do
+    (r/line! {:x 2 :y 2} {:x 2 :y 2} color)
+    (r/line! {:x 2 :y 3} {:x 3 :y 3} color)
+    (r/line! {:x 2 :y 4} {:x 4 :y 4} color)
+    (r/line! {:x 2 :y 5} {:x 5 :y 5} color)
+    (r/line! {:x 2 :y 6} {:x 4 :y 6} color)
+    (r/line! {:x 2 :y 7} {:x 3 :y 7} color)
+    (r/line! {:x 2 :y 8} {:x 2 :y 8} color)))
+
+(defun draw-submenu-chevron! []
+  (draw-submenu-chevron-with-color! c/BLACK))
+
+(defun draw-submenu-chevron-highlighted! []
+  (draw-submenu-chevron-with-color! c/WHITE))
+
+(defun ensure-windows-3-theme-assets! []
+  (do
+    (theme-assets/ensure-generated-image! theme-bundle
+                                          submenu-chevron
+                                          {:size {:w 8 :h 10}}
+                                          draw-submenu-chevron!)
+    (theme-assets/ensure-generated-image! theme-bundle
+                                          submenu-chevron-highlighted
+                                          {:size {:w 8 :h 10}}
+                                          draw-submenu-chevron-highlighted!)))
+
+(ensure-windows-3-theme-assets!)
 
 (def TEXT-INPUT-FRAME-STYLE
   {:width 80
@@ -157,9 +191,8 @@
                   :border c/BLACK
                   :highlight c/WHITE
                   :split-pane-resizer-size 8
-                  :menu-submenu-indicator {:generated-chevron :windows-3
-                                           :image :pixils-ui/windows-3-submenu-chevron
-                                           :highlighted-image :pixils-ui/windows-3-submenu-chevron-highlighted}}
+                  :menu-submenu-indicator {:image :windows-3-theme/submenu-chevron
+                                           :highlighted-image :windows-3-theme/submenu-chevron-highlighted}}
           :dark {:desktop-bg {:r 0x18 :g 0x28 :b 0x2a}
                  :panel-bg {:r 0x32 :g 0x35 :b 0x38}
                  :panel-shadow {:r 0x1b :g 0x1d :b 0x20}
@@ -176,9 +209,8 @@
                  :border {:r 0x05 :g 0x06 :b 0x07}
                  :highlight {:r 0x69 :g 0x70 :b 0x76}
                  :split-pane-resizer-size 8
-                 :menu-submenu-indicator {:generated-chevron :windows-3
-                                          :image :pixils-ui/windows-3-submenu-chevron
-                                          :highlighted-image :pixils-ui/windows-3-submenu-chevron-highlighted}}}
+                 :menu-submenu-indicator {:image :windows-3-theme/submenu-chevron
+                                          :highlighted-image :windows-3-theme/submenu-chevron-highlighted}}}
    :defaults {:text {:font :font/win3-system-font}}
    :styles {:ui/app {:background (var :desktop-bg)
                      :text {:color (var :text)}}

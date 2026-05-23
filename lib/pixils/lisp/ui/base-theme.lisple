@@ -1,5 +1,35 @@
 (ns pixils.ui.base-theme
-  (:require pixils))
+  (:require pixils
+            [pixils.render :as r]
+            [pixils.ui.theme-assets :as theme-assets]))
+
+(def theme-bundle :base-theme)
+(def menu-option-checkmark :base-theme/menu-option-checkmark)
+(def menu-option-checkmark-color {:r 0x00 :g 0x00 :b 0x00})
+
+(defun draw-menu-option-checkmark! []
+  (let [color menu-option-checkmark-color]
+    (do
+      (r/line! {:x 7 :y 0} {:x 7 :y 1} color)
+      (r/line! {:x 6 :y 2} {:x 7 :y 2} color)
+      (r/line! {:x 6 :y 3} {:x 6 :y 3} color)
+      (r/line! {:x 5 :y 4} {:x 6 :y 4} color)
+      (r/line! {:x 0 :y 5} {:x 1 :y 5} color)
+      (r/line! {:x 5 :y 5} {:x 5 :y 5} color)
+      (r/line! {:x 1 :y 6} {:x 2 :y 6} color)
+      (r/line! {:x 4 :y 6} {:x 5 :y 6} color)
+      (r/line! {:x 2 :y 7} {:x 2 :y 7} color)
+      (r/line! {:x 4 :y 7} {:x 4 :y 7} color)
+      (r/line! {:x 2 :y 8} {:x 4 :y 8} color)
+      (r/line! {:x 3 :y 9} {:x 3 :y 9} color))))
+
+(defun ensure-base-theme-assets! []
+  (theme-assets/ensure-generated-image! theme-bundle
+                                        menu-option-checkmark
+                                        {:size {:w 8 :h 10}}
+                                        draw-menu-option-checkmark!))
+
+(ensure-base-theme-assets!)
 
 (def TEXT-INPUT-FRAME-STYLE
   {:width 80
@@ -11,8 +41,7 @@
 (def definition
   {:default-variant :base
    :vars {:base {:split-pane-resizer-size 6
-                 :menu-option-indicator {:ensure-generated-checkmark? true
-                                         :selected-image :pixils-ui/menu-option-checkmark}
+                 :menu-option-indicator {:selected-image :base-theme/menu-option-checkmark}
                  :menu-submenu-indicator {:text ">"}}}
  :styles
  {:ui/app {:background {:r 0xff :g 0xff :b 0xff}

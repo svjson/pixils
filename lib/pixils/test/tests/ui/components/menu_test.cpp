@@ -249,19 +249,42 @@ TEST_F(MenuTest, base_theme_generates_stock_menu_option_checkmark_image)
   session.update_mode();
   session.render_mode();
 
-  auto id = runtime.eval("(:id (head (pixils.resource/list-images :pixils-ui)))");
-  auto source =
-    runtime.eval("(:source (head (pixils.resource/list-images :pixils-ui)))");
-  auto width =
-    runtime.eval("(:w (:size (head (pixils.resource/list-images :pixils-ui))))");
-  auto height =
-    runtime.eval("(:h (:size (head (pixils.resource/list-images :pixils-ui))))");
+  auto id = runtime.eval(R"(
+    (:id
+     (head
+      (filter (pixils.resource/list-images :base-theme)
+              (fn [resource]
+                (= (:id resource) :base-theme/menu-option-checkmark)))))
+  )");
+  auto source = runtime.eval(R"(
+    (:source
+     (head
+      (filter (pixils.resource/list-images :base-theme)
+              (fn [resource]
+                (= (:id resource) :base-theme/menu-option-checkmark)))))
+  )");
+  auto width = runtime.eval(R"(
+    (:w
+     (:size
+      (head
+       (filter (pixils.resource/list-images :base-theme)
+               (fn [resource]
+                 (= (:id resource) :base-theme/menu-option-checkmark))))))
+  )");
+  auto height = runtime.eval(R"(
+    (:h
+     (:size
+      (head
+       (filter (pixils.resource/list-images :base-theme)
+               (fn [resource]
+                 (= (:id resource) :base-theme/menu-option-checkmark))))))
+  )");
 
   ASSERT_NE(id, nullptr);
   ASSERT_NE(source, nullptr);
   ASSERT_NE(width, nullptr);
   ASSERT_NE(height, nullptr);
-  EXPECT_EQ(id->to_string(), ":pixils-ui/menu-option-checkmark");
+  EXPECT_EQ(id->to_string(), ":base-theme/menu-option-checkmark");
   EXPECT_EQ(source->to_string(), ":generated");
   EXPECT_EQ(width->num().get_int(), 8);
   EXPECT_EQ(height->num().get_int(), 10);
@@ -357,16 +380,16 @@ TEST_F(MenuTest, windows_95_submenu_indicator_generates_chevron_images)
   auto normal_source = runtime.eval(R"(
     (:source
      (head
-      (filter (pixils.resource/list-images :pixils-ui)
+      (filter (pixils.resource/list-images :windows-95-theme)
               (fn [resource]
-                (= (:id resource) :pixils-ui/windows-95-submenu-chevron)))))
+                (= (:id resource) :windows-95-theme/submenu-chevron)))))
   )");
   auto highlighted_source = runtime.eval(R"(
     (:source
      (head
-      (filter (pixils.resource/list-images :pixils-ui)
+      (filter (pixils.resource/list-images :windows-95-theme)
               (fn [resource]
-                (= (:id resource) :pixils-ui/windows-95-submenu-chevron-highlighted)))))
+                (= (:id resource) :windows-95-theme/submenu-chevron-highlighted)))))
   )");
 
   ASSERT_NE(normal_source, nullptr);
@@ -396,16 +419,16 @@ TEST_F(MenuTest, windows_3_submenu_indicator_generates_chevron_images)
   auto normal_source = runtime.eval(R"(
     (:source
      (head
-      (filter (pixils.resource/list-images :pixils-ui)
+      (filter (pixils.resource/list-images :windows-3-theme)
               (fn [resource]
-                (= (:id resource) :pixils-ui/windows-3-submenu-chevron)))))
+                (= (:id resource) :windows-3-theme/submenu-chevron)))))
   )");
   auto highlighted_source = runtime.eval(R"(
     (:source
      (head
-      (filter (pixils.resource/list-images :pixils-ui)
+      (filter (pixils.resource/list-images :windows-3-theme)
               (fn [resource]
-                (= (:id resource) :pixils-ui/windows-3-submenu-chevron-highlighted)))))
+                (= (:id resource) :windows-3-theme/submenu-chevron-highlighted)))))
   )");
 
   ASSERT_NE(normal_source, nullptr);

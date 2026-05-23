@@ -17,15 +17,23 @@ class RenderFixture : public SessionFixture
 {
  protected:
   RenderFixture()
+    : SessionFixture(make_render_context())
   {
-    render_ctx.renderer = SDL_CreateRenderer(nullptr, 0, 0);
-    render_ctx.buffer_texture = render_ctx.renderer->default_render_target;
-    render_ctx.buffer_dim = {320, 200};
   }
 
   void TearDown() override { SDLMock::reset_mocks(); }
 
   SDL_Texture* render_target() { return render_ctx.renderer->render_target; }
+
+ private:
+  static Pixils::RenderContext make_render_context()
+  {
+    Pixils::RenderContext ctx{};
+    ctx.renderer = SDL_CreateRenderer(nullptr, 0, 0);
+    ctx.buffer_texture = ctx.renderer->default_render_target;
+    ctx.buffer_dim = {320, 200};
+    return ctx;
+  }
 };
 
 #endif /* PIXILS__TEST__RENDER_FIXTURE_H */

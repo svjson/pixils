@@ -12,6 +12,7 @@ file(GLOB_RECURSE PIXILS_LISP_FILES RELATIVE "${PIXILS_LISP_ROOT}" "${PIXILS_LIS
 list(SORT PIXILS_LISP_FILES)
 
 set(PIXILS_BOOTSTRAP_LISP_FILES
+  ui/theme-assets.lisple
   ui/base-theme.lisple
   ui/button.lisple
   ui/window.lisple

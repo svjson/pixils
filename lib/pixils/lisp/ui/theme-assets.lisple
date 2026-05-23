@@ -1,0 +1,17 @@
+(ns pixils.ui.theme-assets
+  (:require [pixils.resource :as res]))
+
+(defun can-create-generated-images? []
+  (res/can-create-images?))
+
+(defun generated-image-exists? [bundle id]
+  (not (nil? (head (filter (res/list-images bundle)
+                           (fn [resource]
+                             (= (:id resource)
+                                id)))))))
+
+(defun ensure-generated-image! [bundle id opts draw!]
+  (when (can-create-generated-images?)
+    (res/create-bundle! bundle)
+    (when (not (generated-image-exists? bundle id))
+      (res/create-image! id opts draw!))))
