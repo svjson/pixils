@@ -613,6 +613,38 @@
            (update-fn rule)
            rule))))
 
+(defun rule-index-by-id [rules rule-id]
+  (find-index (or rules [])
+              (fn [rule]
+                (= (:id rule) rule-id))))
+
+(defun rule-by-id [rules rule-id]
+  (head (filter (or rules [])
+                (fn [rule]
+                  (= (:id rule) rule-id)))))
+
+(defun terrain-rule-label-by-id [state rule-id]
+  (or (:label (rule-by-id (or (:rules (selected-terrain-ruleset state)) [])
+                          rule-id))
+      (str rule-id)))
+
+(defun remove-rule-by-id [rules rule-id]
+  (filter (or rules [])
+          (fn [rule]
+            (not= (:id rule) rule-id))))
+
+(defun swap-rules-by-id [rules a-id b-id]
+  (let [a-index (rule-index-by-id rules a-id)
+        b-index (rule-index-by-id rules b-id)]
+    (if (and (not (nil? a-index))
+             (not (nil? b-index)))
+      (for-indexed [index rule (or rules [])]
+        (cond
+          (= index a-index) (nth rules b-index)
+          (= index b-index) (nth rules a-index)
+          :default rule))
+      rules)))
+
 (defun ensure-terrain-ruleset [state]
   (if (selected-terrain-ruleset-id state)
     state
@@ -635,6 +667,78 @@
                  :selected-terrain-ruleset-id ruleset-id
                  :selected-terrain-rule-id (:id rule)))
         state-with-ruleset))))
+
+(defun set-selected-terrain-rule-label [state label]
+  (let [ruleset-id (selected-terrain-ruleset-id state)
+        rule-id (or (:selected-terrain-rule-id state)
+                    (selected-terrain-rule-id state))]
+    (if (and ruleset-id rule-id)
+      (assoc state
+             :rulesets (update-ruleset
+                        (:rulesets state)
+                        ruleset-id
+                        (fn [ruleset]
+                          (assoc ruleset
+                                 :rules
+                                 (update-rule (:rules ruleset)
+                                              rule-id
+                                              (fn [rule]
+                                                (assoc rule :label label)))))))
+      state)))
+
+(defun terrain-rule-move-target-id [state rule-id direction]
+  (let [rules (terrain-rules-for-selected-terrain state)
+        index (rule-index-by-id rules rule-id)
+        target-index (case direction
+                       :up (when (and index (> index 0))
+                             (dec index))
+                       :down (when (and index (< index (dec (count rules))))
+                               (inc index))
+                       :default nil)]
+    (:id (when (not (nil? target-index))
+           (nth rules target-index)))))
+
+(defun move-selected-terrain-rule [state direction]
+  (let [ruleset-id (selected-terrain-ruleset-id state)
+        rule-id (or (:selected-terrain-rule-id state)
+                    (selected-terrain-rule-id state))
+        target-id (terrain-rule-move-target-id state rule-id direction)]
+    (if (and ruleset-id rule-id target-id)
+      (assoc state
+             :rulesets (update-ruleset
+                        (:rulesets state)
+                        ruleset-id
+                        (fn [ruleset]
+                          (assoc ruleset
+                                 :rules
+                                 (swap-rules-by-id (:rules ruleset)
+                                                   rule-id
+                                                   target-id)))))
+      state)))
+
+(defun delete-selected-terrain-rule [state]
+  (let [ruleset-id (selected-terrain-ruleset-id state)
+        rule-id (or (:selected-terrain-rule-id state)
+                    (selected-terrain-rule-id state))
+        rules (terrain-rules-for-selected-terrain state)
+        index (rule-index-by-id rules rule-id)
+        remaining (remove-rule-by-id rules rule-id)
+        next-index (when (> (count remaining) 0)
+                     (min (or index 0) (dec (count remaining))))
+        next-rule-id (:id (when (not (nil? next-index))
+                            (nth remaining next-index)))]
+    (if (and ruleset-id rule-id)
+      (assoc (assoc state
+                    :rulesets (update-ruleset
+                               (:rulesets state)
+                               ruleset-id
+                               (fn [ruleset]
+                                 (assoc ruleset
+                                        :rules
+                                        (remove-rule-by-id (:rules ruleset)
+                                                           rule-id)))))
+             :selected-terrain-rule-id next-rule-id)
+      state)))
 
 (defun set-selected-rule-terrain [state terrain-id]
   (let [ruleset-id (selected-terrain-ruleset-id state)

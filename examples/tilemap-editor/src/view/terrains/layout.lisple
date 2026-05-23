@@ -3,10 +3,13 @@
             [pixils.render :as r]
             [pixils.ui :as ui]
             [pixils.ui.combo-box :as cb]
+            [pixils.ui.dialog :as dialog]
             [pixils.ui.header-panel :as hp]
             [pixils.ui.list-box :as lb]
+            [pixils.ui.menu :as menu]
             [pixils.ui.tab-panel :as tabs]
             pixils.ui.text-input
+            [pixils.ui.window :as w]
             [tilemap-editor.model.data :as data]
             [tilemap-editor.model.tilemap :as tilemap]
             [tilemap-editor.view.tilemap.renderer :as tr]
@@ -350,6 +353,23 @@
                        :tilesets (ui/bind-state :tilesets)}}]})
 
 (def terrain-rule-list-row-height 24)
+
+(def terrain-rule-context-menu
+  {:settings {:mnemonics {:enabled false}}
+   :items [{:label "Rename Rule"
+            :action :terrain/rule-context-dummy
+            :payload {:command :rename}}
+           :separator
+           {:label "Move Up"
+            :action :terrain/rule-context-dummy
+            :payload {:command :move-up}}
+           {:label "Move Down"
+            :action :terrain/rule-context-dummy
+            :payload {:command :move-down}}
+           :separator
+           {:label "Delete Rule"
+            :action :terrain/rule-context-dummy
+            :payload {:command :delete}}]})
 (def terrain-rule-grid-cell-size 32)
 (def terrain-rule-grid-gap 2)
 (def terrain-rule-grid-size (+ (* terrain-rule-grid-cell-size 3)
@@ -996,7 +1016,22 @@
                                :value (:value state)
                                :shift? false
                                :ctrl? false})
+                    (when (= (:button event) :right)
+                      (menu/open-context-menu! terrain-rule-context-menu
+                                               (:global-position event)
+                                               state
+                                               ctx))
                     state))
+   :on {:menu/select (fn [state event ctx]
+                       (let [payload (:payload event)]
+                         (do
+                           (ui/stop-propagation! event)
+                           (when (= (:type payload) :action)
+                             (ui/emit! (:view ctx)
+                                       :terrain/rule-context-command
+                                       {:rule-id (:value state)
+                                        :command (-> payload :payload :command)}))))
+                       state)}
    :children [{:mode 'ui/text
                :style {:width :fill}
                :state {:value (ui/bind-state :label)}}]})
@@ -1057,6 +1092,97 @@
                              state))}
    :children [(merge {:id "terrain-rule-list-box"}
                      (terrain-rule-list-child {}))]})
+
+(defun open-terrain-rule-name-dialog! [state ctx rule-id name]
+  (do
+    (push-mode! 'terrain-rule-name-dialog-modal
+                {:rule-id rule-id
+                 :name name}
+                {:origin {:view (:view ctx)
+                          :event :terrain/rule-name-dialog-result}})
+    state))
+
+(defun open-terrain-rule-delete-confirm-dialog! [state ctx rule-id name]
+  (do
+    (dialog/open-confirm!
+     ctx
+     {:title "Delete Terrain Rule"
+      :body {:mode 'ui/text
+             :style {:width :fill}
+             :state {:value (str "Delete terrain rule \"" name "\"?")}}
+      :buttons [:dialog/cancel
+                {:type :dialog/ok
+                 :label "Delete"}]
+      :result-event :terrain/rule-delete-confirm-result
+      :payload {:rule-id rule-id}})
+    state))
+
+(defcomponent terrain-rule-name-dialog-body
+  {:class :ui/content
+   :style {:width 260
+           :height :shrink
+           :padding 10
+           :layout {:direction :column
+                    :gap 8}}
+   :children [{:mode 'ui/text
+               :state {:value "Rule name:"}}
+              {:mode 'ui/text-input
+               :style {:width :fill
+                       :height 24}
+               :state {:value (ui/bind-state :name)
+                       :auto-focus? true}}
+              {:mode 'terrain-rule-name-dialog-buttons
+               :state {:name (ui/bind-state :name)}}]})
+
+(defcomponent terrain-rule-name-dialog-buttons
+  {:style {:width :fill
+           :height 24
+           :layout {:direction :row
+                    :gap :space-between}}
+   :children [{:mode 'ui/button
+               :style {:width 78
+                       :height 24}
+               :state {:label "Cancel"}
+               :on-click (fn [state event ctx]
+                           (do
+                             (ui/emit! (:view ctx)
+                                       :terrain-rule-name-dialog/cancel)
+                             state))}
+              {:mode 'ui/button
+               :style {:width 78
+                       :height 24}
+               :state {:label "OK"
+                       :name (ui/bind-state :name)}
+               :on-click (fn [state event ctx]
+                           (do
+                             (ui/emit! (:view ctx)
+                                       :terrain-rule-name-dialog/confirm
+                                       {:name (:name state)})
+                             state))}]})
+
+(defmode terrain-rule-name-dialog-modal
+  {:on {:terrain-rule-name-dialog/cancel
+        (fn [state event ctx]
+          (do
+            (ui/stop-propagation! event)
+            (pop-mode! {:type :cancel
+                        :rule-id (:rule-id state)})
+            state))
+        :terrain-rule-name-dialog/confirm
+        (fn [state event ctx]
+          (do
+            (ui/stop-propagation! event)
+            (pop-mode! {:type :confirm
+                        :rule-id (:rule-id state)
+                        :name (-> event :payload :name)})
+            state))}
+   :compose {:render :pass}
+   :children [(w/make {:position {:x 240 :y 150}
+                       :title-bar {:title "Rename Terrain Rule"}
+                       :state {:rule-id (ui/bind-state :rule-id)
+                               :name (ui/bind-state :name)}
+                       :body [{:mode 'terrain-rule-name-dialog-body
+                               :state {:name (ui/bind-state :name)}}]})]})
 
 (defcomponent terrain-value-detail-editor
   {:style {:width :fill
@@ -1448,6 +1574,50 @@
         :terrain/rule-select
         (fn [state event ctx]
           (assoc state :selected-terrain-rule-id (:payload event)))
+        :terrain/rule-context-command
+        (fn [state event ctx]
+          (let [payload (:payload event)
+                rule-id (:rule-id payload)
+                command (:command payload)
+                state (assoc state :selected-terrain-rule-id rule-id)
+                name (model/terrain-rule-label-by-id state rule-id)]
+            (case command
+              :rename
+              (open-terrain-rule-name-dialog! state ctx rule-id name)
+
+              :move-up
+              (tilemap/rebuild-terrain-stamp-preview
+               (model/move-selected-terrain-rule state :up))
+
+              :move-down
+              (tilemap/rebuild-terrain-stamp-preview
+               (model/move-selected-terrain-rule state :down))
+
+              :delete
+              (open-terrain-rule-delete-confirm-dialog! state ctx rule-id name)
+
+              :default
+              state)))
+        :terrain/rule-name-dialog-result
+        (fn [state event ctx]
+          (let [payload (:payload event)]
+            (if (= (:type payload) :confirm)
+              (tilemap/rebuild-terrain-stamp-preview
+               (model/set-selected-terrain-rule-label
+                (assoc state :selected-terrain-rule-id (:rule-id payload))
+                (:name payload)))
+              state)))
+        :terrain/rule-delete-confirm-result
+        (fn [state event ctx]
+          (let [payload (:payload event)]
+            (if (and (= (:choice payload) :dialog/ok)
+                     (-> payload :payload :rule-id))
+              (tilemap/rebuild-terrain-stamp-preview
+               (model/delete-selected-terrain-rule
+                (assoc state
+                       :selected-terrain-rule-id
+                       (-> payload :payload :rule-id))))
+              state)))
         :terrain/rule-terrain-change
         (fn [state event ctx]
           (tilemap/rebuild-terrain-stamp-preview

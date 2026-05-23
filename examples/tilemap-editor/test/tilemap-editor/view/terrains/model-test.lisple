@@ -352,6 +352,60 @@
              :label "Grass N"}]
            (model/terrain-rule-options state)))))
 
+(deftest terrain-rule-label-change-renames_selected_rule
+  (let [state (model/set-selected-terrain-rule-label
+               {:terrain-sets [{:id :overworld
+                                :terrains [{:id :grass}]}]
+                :selected-terrain-set-index 0
+                :selected-terrain-index 0
+                :rulesets [{:id :overworld-rules
+                            :terrain-set :overworld
+                            :rules [{:id :rule
+                                     :label "Rule"
+                                     :terrain :grass}]}]
+                :selected-terrain-ruleset-id :overworld-rules
+                :selected-terrain-rule-id :rule}
+               "North edge")]
+    (is (= "North edge" (get-in state [:rulesets 0 :rules 0 :label])))))
+
+(deftest terrain-rule-move-reorders_visible_rules_only
+  (let [base-state {:terrain-sets [{:id :overworld
+                                    :terrains [{:id :grass}
+                                               {:id :water}]}]
+                    :selected-terrain-set-index 0
+                    :selected-terrain-index 0
+                    :rulesets [{:id :overworld-rules
+                                :terrain-set :overworld
+                                :rules [{:id :grass-a :terrain :grass}
+                                        {:id :water-a :terrain :water}
+                                        {:id :grass-b :terrain :grass}]}]
+                    :selected-terrain-ruleset-id :overworld-rules
+                    :selected-terrain-rule-id :grass-b}
+        moved-up (model/move-selected-terrain-rule base-state :up)
+        moved-down (model/move-selected-terrain-rule
+                    (assoc base-state :selected-terrain-rule-id :grass-a)
+                    :down)]
+    (is (= [:grass-b :water-a :grass-a]
+           (map (get-in moved-up [:rulesets 0 :rules]) :id)))
+    (is (= [:grass-b :water-a :grass-a]
+           (map (get-in moved-down [:rulesets 0 :rules]) :id)))))
+
+(deftest terrain-rule-delete-removes_selected_rule_and_selects_neighbor
+  (let [state (model/delete-selected-terrain-rule
+               {:terrain-sets [{:id :overworld
+                                :terrains [{:id :grass}]}]
+                :selected-terrain-set-index 0
+                :selected-terrain-index 0
+                :rulesets [{:id :overworld-rules
+                            :terrain-set :overworld
+                            :rules [{:id :rule-a :terrain :grass}
+                                    {:id :rule-b :terrain :grass}]}]
+                :selected-terrain-ruleset-id :overworld-rules
+                :selected-terrain-rule-id :rule-a})]
+    (is (= [:rule-b]
+           (map (get-in state [:rulesets 0 :rules]) :id)))
+    (is (= :rule-b (:selected-terrain-rule-id state)))))
+
 (deftest terrain-rule-match-cycle-steps_visual_condition_options
   (let [base-state {:terrain-sets [{:id :overworld
                                     :terrains [{:id :grass}
