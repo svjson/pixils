@@ -39,13 +39,30 @@
 (defun scrollbar-max [state ctx]
   (max 0 (- (:content-size state) (scrollbar-viewport-size state ctx))))
 
-(defun scrollbar-handle-size [state ctx]
-  (let [track (scrollbar-track-size state ctx)
-        content (:content-size state)
-        page (min track content)]
+(defun scrollbar-fixed-handle-size [ctx]
+  (ui/theme-var ctx :scrollbar-handle-size nil))
+
+(defun scrollbar-proportional-handle-size [track content]
+  (let [page (min track content)]
     (if (<= content 0)
       track
       (max 12 (min track (int (/ (* track page) content)))))))
+
+(defun scrollbar-style-border-side-thickness [ctx side]
+  (let [border (or (-> ctx :view :effective-style :border)
+                   (-> ctx :view :style :border))
+        side-style (get border side)]
+    (or (:thickness side-style)
+        (:thickness border)
+        0)))
+
+(defun scrollbar-handle-size [state ctx]
+  (let [track (scrollbar-track-size state ctx)
+        content (:content-size state)
+        fixed (scrollbar-fixed-handle-size ctx)]
+    (if fixed
+      (max 1 (min track fixed))
+      (scrollbar-proportional-handle-size track content))))
 
 (defun scrollbar-handle-pos [state ctx]
   (let [track-start (scrollbar-track-start state ctx)
@@ -142,13 +159,17 @@
 
 (defun scrollbar-track-axis-size [state ctx]
   (if (= (:axis state) :x)
-    (-> ctx :view :bounds :w)
-    (-> ctx :view :bounds :h)))
+    (or (:available-width ctx)
+        (-> ctx :view :bounds :w))
+    (or (:available-height ctx)
+        (-> ctx :view :bounds :h))))
 
 (defun scrollbar-track-cross-size [state ctx]
   (if (= (:axis state) :x)
-    (-> ctx :view :bounds :h)
-    (-> ctx :view :bounds :w)))
+    (or (:available-height ctx)
+        (-> ctx :view :bounds :h))
+    (or (:available-width ctx)
+        (-> ctx :view :bounds :w))))
 
 (defun scrollbar-track-viewport-size [state ctx]
   (+ (scrollbar-track-axis-size state ctx)
@@ -161,10 +182,10 @@
 (defun scrollbar-track-handle-size [state ctx]
   (let [track (scrollbar-track-axis-size state ctx)
         content (:content-size state)
-        page (min track content)]
-    (if (<= content 0)
-      track
-      (max 12 (min track (int (/ (* track page) content)))))))
+        fixed (scrollbar-fixed-handle-size ctx)]
+    (if fixed
+      (max 1 (min track fixed))
+      (scrollbar-proportional-handle-size track content))))
 
 (defun scrollbar-track-handle-pos [state ctx]
   (let [track (scrollbar-track-axis-size state ctx)
@@ -177,20 +198,58 @@
       (int (/ (* value span) max-value)))))
 
 (defun scrollbar-track-handle-style [state ctx]
-  (let [pos (scrollbar-track-handle-pos state ctx)
-        handle (scrollbar-track-handle-size state ctx)
-        cross (scrollbar-track-cross-size state ctx)]
+  (let [pos (scrollbar-track-handle-pos state ctx)]
     (if (= (:axis state) :x)
       {:position :absolute
        :left pos
        :top 0
-       :width handle
-       :height cross}
+       :height :fill}
       {:position :absolute
        :left 0
        :top pos
-       :width cross
-       :height handle})))
+       :width :fill})))
+
+(defun scrollbar-handle-content-axis-size [state ctx]
+  (if (= (:axis state) :x)
+    (or (:available-width ctx) 12)
+    (or (:available-height ctx) 12)))
+
+(defun scrollbar-handle-content-cross-size [state ctx]
+  (if (= (:axis state) :x)
+    (or (:available-height ctx) 12)
+    (or (:available-width ctx) 12)))
+
+(defun scrollbar-handle-content-handle-size [state ctx]
+  (let [track (scrollbar-handle-content-axis-size state ctx)
+        cross (scrollbar-handle-content-cross-size state ctx)
+        content (or (:content-size state) 0)
+        viewport (+ track (* 2 cross))
+        max-value (max 0 (- content viewport))
+        fixed (scrollbar-fixed-handle-size ctx)]
+    (if fixed
+      (max 1 (min track fixed))
+      (if (> max-value 0)
+        (scrollbar-proportional-handle-size track content)
+        track))))
+
+(defun scrollbar-handle-content-size [state ctx]
+  (let [handle (scrollbar-handle-content-handle-size state ctx)
+        cross (scrollbar-handle-content-cross-size state ctx)
+        handle-border (if (= (:axis state) :x)
+                        (+ (scrollbar-style-border-side-thickness ctx :left)
+                           (scrollbar-style-border-side-thickness ctx :right))
+                        (+ (scrollbar-style-border-side-thickness ctx :top)
+                           (scrollbar-style-border-side-thickness ctx :bottom)))
+        cross-border (if (= (:axis state) :x)
+                       (+ (scrollbar-style-border-side-thickness ctx :top)
+                          (scrollbar-style-border-side-thickness ctx :bottom))
+                       (+ (scrollbar-style-border-side-thickness ctx :left)
+                          (scrollbar-style-border-side-thickness ctx :right)))
+        handle-content (max 1 (- handle handle-border))
+        cross-content (max 1 (- cross cross-border))]
+    (if (= (:axis state) :x)
+      {:w handle-content :h cross-content}
+      {:w cross-content :h handle-content})))
 
 (defun scrollbar-background-color [state ctx key fallback]
   (or (get state key)
@@ -331,11 +390,7 @@
    :y (+ (:y rect) (int (/ (- (:h rect) (:h dim)) 2)))})
 
 (defun scrollbar-border-side-thickness [ctx side]
-  (let [border (-> ctx :view :style :border)
-        side-style (get border side)]
-    (or (:thickness side-style)
-        (:thickness border)
-        0)))
+  (scrollbar-style-border-side-thickness ctx side))
 
 (defun scrollbar-symbol-rect [ctx rect]
   (let [left (scrollbar-border-side-thickness ctx :left)
@@ -394,7 +449,8 @@
            :height :fill}})
 
 (defcomponent ui/scrollbar-handle
-  {:update (fn [state ctx]
+  {:content-size scrollbar-handle-content-size
+   :update (fn [state ctx]
              (assoc state
                     :pressed
                     (= (:active-part state) :handle)))})
@@ -409,7 +465,9 @@
                    state)
                  state)))
    :children [{:mode 'ui/scrollbar-handle
-               :state {:active-part (ui/bind-state :active-part)}}]})
+               :state {:axis (ui/bind-state :axis)
+                       :content-size (ui/bind-state :content-size)
+                       :active-part (ui/bind-state :active-part)}}]})
 
 (defcomponent ui/scrollbar
   {:focusable true

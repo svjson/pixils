@@ -297,10 +297,167 @@ TEST_F(ScrollbarTest, windows_3_scrollbar_buttons_use_generated_theme_symbols)
                 render_target()->render_ops.end(),
                 [](const auto& op) {
                   return op.type == RenderOpType::RENDER_COPY &&
-                         op.rendered_rect.x == 4 &&
-                         op.rendered_rect.y == 4 &&
+                         op.rendered_rect.x == 3 &&
+                         op.rendered_rect.y == 3 &&
                          op.rendered_rect.w == 7 &&
                          op.rendered_rect.h == 7;
                 });
   EXPECT_TRUE(centered_start_arrow);
+}
+
+TEST_F(ScrollbarTest, windows_3_scrollbar_handle_uses_fixed_theme_size)
+{
+  runtime.eval(R"(
+    (pixils/defmode root-mode
+      {:theme 'pixils/windows-3
+       :style {:layout {:direction :column}}
+       :children [{:mode 'ui/scrollbar
+                   :style {:height 200}
+                   :state {:axis :y :content-size 400 :value 0}}
+                  {:mode 'ui/scrollbar
+                   :style {:height 200}
+                   :state {:axis :y :content-size 800 :value 0}}
+                  {:mode 'ui/scrollbar
+                   :style {:width 200}
+                   :state {:axis :x :content-size 400 :value 0}}]})
+  )");
+
+  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.update_mode();
+  session.render_mode();
+
+  ASSERT_NE(session.active_mode, nullptr);
+  ASSERT_EQ(session.active_mode->children.size(), 3u);
+  auto short_content_scrollbar = session.active_mode->children[0];
+  auto long_content_scrollbar = session.active_mode->children[1];
+  auto horizontal_scrollbar = session.active_mode->children[2];
+  ASSERT_NE(short_content_scrollbar, nullptr);
+  ASSERT_NE(long_content_scrollbar, nullptr);
+  ASSERT_NE(horizontal_scrollbar, nullptr);
+  ASSERT_EQ(short_content_scrollbar->children.size(), 3u);
+  ASSERT_EQ(long_content_scrollbar->children.size(), 3u);
+  ASSERT_EQ(horizontal_scrollbar->children.size(), 3u);
+
+  auto short_track = short_content_scrollbar->children[1];
+  auto long_track = long_content_scrollbar->children[1];
+  auto horizontal_track = horizontal_scrollbar->children[1];
+  ASSERT_NE(short_track, nullptr);
+  ASSERT_NE(long_track, nullptr);
+  ASSERT_NE(horizontal_track, nullptr);
+  ASSERT_EQ(short_track->children.size(), 1u);
+  ASSERT_EQ(long_track->children.size(), 1u);
+  ASSERT_EQ(horizontal_track->children.size(), 1u);
+  EXPECT_GT(short_track->bounds.h, 100);
+  EXPECT_GT(long_track->bounds.h, 100);
+  EXPECT_GT(horizontal_track->bounds.w, 100);
+
+  EXPECT_EQ(short_track->children[0]->bounds.h, 15);
+  EXPECT_EQ(long_track->children[0]->bounds.h, 15);
+  EXPECT_EQ(horizontal_track->children[0]->bounds.w, 15);
+  EXPECT_EQ(short_track->children[0]->bounds.w, short_track->bounds.w);
+  EXPECT_EQ(long_track->children[0]->bounds.w, long_track->bounds.w);
+  EXPECT_EQ(horizontal_track->children[0]->bounds.h, horizontal_track->bounds.h);
+}
+
+TEST_F(ScrollbarTest, windows_3_scrollbar_handle_stays_fixed_without_scroll_range)
+{
+  runtime.eval(R"(
+    (pixils/defmode root-mode
+      {:theme 'pixils/windows-3
+       :children [{:mode 'ui/scrollbar
+                   :style {:height 200}
+                   :state {:axis :y :content-size 100 :value 0}}]})
+  )");
+
+  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.update_mode();
+  session.render_mode();
+
+  ASSERT_NE(session.active_mode, nullptr);
+  ASSERT_EQ(session.active_mode->children.size(), 1u);
+  auto scrollbar = session.active_mode->children[0];
+  ASSERT_NE(scrollbar, nullptr);
+  ASSERT_EQ(scrollbar->children.size(), 3u);
+
+  auto track = scrollbar->children[1];
+  ASSERT_NE(track, nullptr);
+  ASSERT_EQ(track->children.size(), 1u);
+  auto handle = track->children[0];
+  ASSERT_NE(handle, nullptr);
+
+  EXPECT_GT(track->bounds.h, 100);
+  EXPECT_EQ(handle->bounds.h, 15);
+  EXPECT_LT(handle->bounds.h, track->bounds.h);
+  EXPECT_EQ(handle->bounds.w, track->bounds.w);
+}
+
+TEST_F(ScrollbarTest, windows_95_scrollbar_handle_stays_proportional)
+{
+  runtime.eval(R"(
+    (pixils/defmode root-mode
+      {:theme 'pixils/windows-95
+       :style {:layout {:direction :row}}
+       :children [{:mode 'ui/scrollbar
+                   :style {:height 200}
+                   :state {:axis :y :content-size 400 :value 0}}
+                  {:mode 'ui/scrollbar
+                   :style {:height 200}
+                   :state {:axis :y :content-size 800 :value 0}}]})
+  )");
+
+  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.update_mode();
+  session.render_mode();
+
+  ASSERT_NE(session.active_mode, nullptr);
+  ASSERT_EQ(session.active_mode->children.size(), 2u);
+  auto short_content_scrollbar = session.active_mode->children[0];
+  auto long_content_scrollbar = session.active_mode->children[1];
+  ASSERT_NE(short_content_scrollbar, nullptr);
+  ASSERT_NE(long_content_scrollbar, nullptr);
+  ASSERT_EQ(short_content_scrollbar->children.size(), 3u);
+  ASSERT_EQ(long_content_scrollbar->children.size(), 3u);
+
+  auto short_track = short_content_scrollbar->children[1];
+  auto long_track = long_content_scrollbar->children[1];
+  ASSERT_NE(short_track, nullptr);
+  ASSERT_NE(long_track, nullptr);
+  ASSERT_EQ(short_track->children.size(), 1u);
+  ASSERT_EQ(long_track->children.size(), 1u);
+  EXPECT_GT(short_track->bounds.h, 100);
+  EXPECT_GT(long_track->bounds.h, 100);
+
+  EXPECT_GT(short_track->children[0]->bounds.h, long_track->children[0]->bounds.h);
+  EXPECT_EQ(short_track->children[0]->bounds.w, short_track->bounds.w);
+  EXPECT_EQ(long_track->children[0]->bounds.w, long_track->bounds.w);
+}
+
+TEST_F(ScrollbarTest, windows_95_scrollbar_handle_fills_track_without_scroll_range)
+{
+  runtime.eval(R"(
+    (pixils/defmode root-mode
+      {:theme 'pixils/windows-95
+       :children [{:mode 'ui/scrollbar
+                   :style {:height 200}
+                   :state {:axis :y :content-size 100 :value 0}}]})
+  )");
+
+  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.update_mode();
+  session.render_mode();
+
+  ASSERT_NE(session.active_mode, nullptr);
+  ASSERT_EQ(session.active_mode->children.size(), 1u);
+  auto scrollbar = session.active_mode->children[0];
+  ASSERT_NE(scrollbar, nullptr);
+  ASSERT_EQ(scrollbar->children.size(), 3u);
+
+  auto track = scrollbar->children[1];
+  ASSERT_NE(track, nullptr);
+  ASSERT_EQ(track->children.size(), 1u);
+  auto handle = track->children[0];
+  ASSERT_NE(handle, nullptr);
+
+  EXPECT_GT(handle->bounds.h, 100);
+  EXPECT_EQ(handle->bounds.w, track->bounds.w);
 }
