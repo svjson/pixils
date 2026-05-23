@@ -1,4 +1,8 @@
 (ns pixils.runner
-  (:require pixils))
+  (:require pixils
+            [pixils.runner.native :as native]))
 
 (def runner-package-loaded? true)
+
+(defun run [context]
+  (native/run! context))

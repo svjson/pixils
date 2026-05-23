@@ -13,7 +13,7 @@ set(PIXILS_LISPLE_INSTALLED_PACKAGE_ROOT "$ENV{HOME}/.local/share/lisple/pkg")
 file(GLOB_RECURSE TEST_SOURCES CONFIGURE_DEPENDS tests/*.cpp)
 
 add_executable(testpixils ${TEST_SOURCES})
-add_dependencies(testpixils pixils_lisple_native)
+add_dependencies(testpixils pixils_lisple_native pixils_runner_lisple_native)
 
 set_target_properties(testpixils PROPERTIES
   BUILD_RPATH "$<TARGET_FILE_DIR:pixils_lisple_native>"

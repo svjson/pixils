@@ -1,8 +1,7 @@
+#include <algorithm>
+#include <gtest/gtest.h>
 #include <lisple-package/manifest.h>
 #include <lisple-package/native_loader.h>
-
-#include <gtest/gtest.h>
-
 #include <lisple/io/dir_root_file_system.h>
 #include <lisple/runtime.h>
 
@@ -19,10 +18,9 @@ namespace
   Lisple::Package::LoadPlan resolve_test_package(const std::string& package_dir)
   {
     Lisple::DirRootFileSystem manifest_fs("/");
-    return Lisple::Package::resolve_load_plan(
-      manifest_fs,
-      package_dir,
-      test_package_resolve_options());
+    return Lisple::Package::resolve_load_plan(manifest_fs,
+                                              package_dir,
+                                              test_package_resolve_options());
   }
 } // namespace
 
@@ -35,8 +33,7 @@ TEST(PixilsLisplePackageTest, loads_native_package_and_runs_lisple_proof_tests)
   Lisple::Runtime runtime(fs.get());
   native_packages = Lisple::Package::load_native_libraries(runtime, plan);
 
-  runtime.eval(
-    "(ns pixils.package-test-runner (:require proof.core pixils.package-test))");
+  runtime.eval("(ns pixils.package-test-runner (:require proof.core pixils.package-test))");
 
   auto summary = runtime.eval("(result-summary (run))");
 
@@ -47,6 +44,14 @@ TEST(PixilsLisplePackageTest, pixils_runner_package_loads)
 {
   auto plan = resolve_test_package(PIXILS_RUNNER_PACKAGE_DIR);
 
+  auto runner_package = std::find_if(plan.packages.begin(),
+                                     plan.packages.end(),
+                                     [](const Lisple::Package::PackageInfo& package)
+                                     { return package.name == "pixils-runner"; });
+  ASSERT_NE(runner_package, plan.packages.end());
+  ASSERT_TRUE(runner_package->tools.count("run"));
+  EXPECT_EQ(runner_package->tools.at("run"), "pixils.runner/run");
+
   auto fs = Lisple::Package::make_load_path_file_system(plan);
   Lisple::Package::LoadedNativePackages native_packages;
   Lisple::Runtime runtime(fs.get());
@@ -55,6 +60,9 @@ TEST(PixilsLisplePackageTest, pixils_runner_package_loads)
   runtime.eval("(ns pixils.runner-package-test (:require pixils.runner))");
 
   EXPECT_EQ(runtime.eval("pixils.runner/runner-package-loaded?")->to_string(), "true");
+  EXPECT_EQ(runtime.eval("(nil? (resolve 'pixils.runner/run))")->to_string(), "false");
+  EXPECT_EQ(runtime.eval("(nil? (resolve 'pixils.runner.native/run!))")->to_string(),
+            "false");
 }
 
 TEST(PixilsLisplePackageTest, pixils_test_package_loads)
@@ -80,9 +88,8 @@ TEST(PixilsLisplePackageTest, pixils_test_package_runs_proof_tests)
   Lisple::Runtime runtime(fs.get());
   native_packages = Lisple::Package::load_native_libraries(runtime, plan);
 
-  runtime.eval(
-    "(ns pixils.test-package-proof-runner "
-    "(:require proof.core pixils.test.package-test))");
+  runtime.eval("(ns pixils.test-package-proof-runner "
+               "(:require proof.core pixils.test.package-test))");
 
   auto summary = runtime.eval("(result-summary (run))");
 

@@ -3,5 +3,10 @@
  :description "Pixils application runner package."
  :dependencies {pixils {:path "../pixils"}}
  :load-roots ["src"]
+ :native-libraries [{:name "pixils-runner-native"
+                     :version "0.1.0"
+                     :path "native"
+                     :namespaces [pixils.runner.native]}]
+ :tools {run pixils.runner/run}
  :entry-points [pixils.runner]
  :test-entry-points []}

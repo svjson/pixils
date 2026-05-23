@@ -22,6 +22,30 @@ pixils path/to/main.lisple
 pixils path/to/app/          # loads main.lisple from that directory
 ```
 
+## Running through `lisple`
+
+Package-based applications can launch through Lisple's package tool mechanism
+instead of invoking the `pixils` CLI binary directly. Add `pixils-runner` as a
+dependency and declare it as the package runner:
+
+```clojure
+{:name my-pixils-app
+ :dependencies {pixils-runner {:path "../lib/pixils-runner"}}
+ :load-roots ["src"]
+ :entry-points [my-pixils-app.core]
+ :run pixils-runner}
+```
+
+Then run the application package with:
+
+```bash
+lisple pixils-runner
+```
+
+The runner resolves the application package root from Lisple's tool context,
+loads the app entry points into a Pixils runtime, initializes SDL, and starts
+the Pixils client in-process.
+
 ## Writing an application
 
 A Pixils application is a single `.lisple` file (or a collection of files loaded from
