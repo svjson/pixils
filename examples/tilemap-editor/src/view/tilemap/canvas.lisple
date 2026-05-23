@@ -106,6 +106,14 @@
 
 ;; Scroll controls
 
+(def default-map-scrollbar-size 14)
+
+(defun map-scrollbar-size [ctx]
+  (ui/theme-var ctx :scrollbar-size default-map-scrollbar-size))
+
+(defun map-scroll-footer-content-size [state ctx]
+  {:w 0 :h (map-scrollbar-size ctx)})
+
 (defcomponent map-scroll-row
   {:style {:width :fill
            :height :fill
@@ -141,8 +149,7 @@
                        :show-grid? (ui/bind-state :show-grid?)}}
               {:mode 'ui/scrollbar
                :class :scrollbar/v
-               :style {:width 14
-                       :height :fill}
+               :style {:height :fill}
                :state {:axis :y
                        :value (ui/bind-state :map-offset :y)
                        :step (ui/bind-state :tile-size)
@@ -153,20 +160,18 @@
                       :content-height (* data/map-height size))))})
 
 (defcomponent map-scroll-footer
-  {:style {:width :fill
-           :height 14
+  {:content-size map-scroll-footer-content-size
+   :style {:width :fill
            :layout {:direction :row}}
    :children [{:mode 'ui/scrollbar
                :class :scrollbar/h
                :style {:width :fill
-                       :height 14}
+                       :height :fill}
                :state {:axis :x
                        :value (ui/bind-state :map-offset :x)
                        :step (ui/bind-state :tile-size)
                        :content-size (ui/bind-state :content-width)}}
-              {:mode 'ui/scrollbar-corner
-               :style {:width 14
-                       :height 14}}]
+              {:mode 'ui/scrollbar-corner}]
    :update (fn [state ctx]
              (let [size (tm/scaled-tile-size (:zoom state))]
                (assoc (assoc state :tile-size size)
