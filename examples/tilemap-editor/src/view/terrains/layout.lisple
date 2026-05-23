@@ -8,6 +8,7 @@
             [pixils.ui.header-panel :as hp]
             [pixils.ui.list-box :as lb]
             [pixils.ui.menu :as menu]
+            [pixils.ui.scroll-pane :as sp]
             [pixils.ui.tab-panel :as tabs]
             pixils.ui.text-input
             [pixils.ui.window :as w]
@@ -360,6 +361,9 @@
    :items [{:label "Rename Rule"
             :action :terrain/rule-context-dummy
             :payload {:command :rename}}
+           {:label "Duplicate"
+            :action :terrain/rule-context-dummy
+            :payload {:command :duplicate}}
            :separator
            {:label "Move Up"
             :action :terrain/rule-context-dummy
@@ -375,6 +379,7 @@
 (def terrain-rule-grid-gap 2)
 (def terrain-rule-grid-size (+ (* terrain-rule-grid-cell-size 3)
                                (* terrain-rule-grid-gap 2)))
+(def terrain-stamp-tile-picker-width 260)
 (def terrain-stamp-tile-picker-cell-size 32)
 (def terrain-stamp-tile-picker-gap 2)
 (def terrain-stamp-tile-picker-height 116)
@@ -734,6 +739,33 @@
      :w terrain-stamp-tile-picker-cell-size
      :h terrain-stamp-tile-picker-cell-size}))
 
+(defun terrain-stamp-tile-picker-content-height [item-count columns]
+  (let [columns (max 1 (or columns 1))
+        rows (max 1 (int (/ (+ (max 0 (or item-count 0))
+                               (dec columns))
+                            columns)))]
+    (+ (* rows terrain-stamp-tile-picker-cell-size)
+       (* (dec rows) terrain-stamp-tile-picker-gap))))
+
+(defun terrain-stamp-tile-picker-content-size [state]
+  (let [options (terrain-stamp-tile-options state)
+        columns (terrain-stamp-tile-picker-columns
+                 {:w terrain-stamp-tile-picker-width})]
+    {:h (terrain-stamp-tile-picker-content-height (count options)
+                                                  columns)}))
+
+(defun terrain-stamp-tile-picker-content-state [state]
+  {:rulesets (:rulesets state)
+   :selected-terrain-ruleset-id (:selected-terrain-ruleset-id state)
+   :selected-terrain-rule-id (:selected-terrain-rule-id state)
+   :selected-terrain-rule-match-direction
+   (:selected-terrain-rule-match-direction state)
+   :terrain-rule-selected-tile (:terrain-rule-selected-tile state)
+   :terrain-sets (:terrain-sets state)
+   :selected-terrain-set-index (:selected-terrain-set-index state)
+   :selected-terrain-index (:selected-terrain-index state)
+   :tilesets (:tilesets state)})
+
 (defun terrain-stamp-tile-picker-selected-rect [rect]
   {:x (+ (:x rect) 1)
    :y (+ (:y rect) 1)
@@ -827,8 +859,8 @@
 (defcomponent terrain-stamp-tile-picker
   {:focusable true
    :class :ui/content
-   :style {:width 260
-           :height terrain-stamp-tile-picker-height
+   :style {:width :fill
+           :height :fill
            :clip true
            :cursor :pointer}
    :drag {:start {:mode :threshold
@@ -856,6 +888,28 @@
                   option
                   index
                   columns))))})
+
+(defcomponent terrain-stamp-tile-picker-scroll-pane
+  {:style {:width terrain-stamp-tile-picker-width
+           :height terrain-stamp-tile-picker-height}
+   :update (fn [state ctx]
+             (assoc state
+                    :content-size
+                    (terrain-stamp-tile-picker-content-size state)
+                    :picker-state
+                    (terrain-stamp-tile-picker-content-state state)))
+   :children [(sp/make {:style {:width :fill
+                                :height :fill}
+                        :content-size {:h terrain-stamp-tile-picker-height}
+                        :state {:content-size (ui/bind-state :content-size)
+                                :content-state (ui/bind-state :picker-state)}
+                        :scroll-x? false
+                        :scroll-y? :auto
+                        :step (terrain-stamp-tile-picker-stride)
+                        :children [{:mode 'terrain-stamp-tile-picker
+                                    :style {:width :fill
+                                            :height :fill}
+                                    :state (ui/bind-state)}]})]})
 
 (defcomponent terrain-rule-arrow
   {:class :ui/canvas
@@ -947,7 +1001,7 @@
                                    (ui/bind-state :selected-terrain-index)
                                    :tilesets (ui/bind-state :tilesets)}}]}
               (terrain-rule-application-options-child)
-              {:mode 'terrain-stamp-tile-picker
+              {:mode 'terrain-stamp-tile-picker-scroll-pane
                :state {:rulesets (ui/bind-state :rulesets)
                        :selected-terrain-ruleset-id
                        (ui/bind-state :selected-terrain-ruleset-id)
@@ -1608,6 +1662,10 @@
             (case command
               :rename
               (open-terrain-rule-name-dialog! state ctx rule-id name)
+
+              :duplicate
+              (tilemap/rebuild-terrain-stamp-preview
+               (model/duplicate-selected-terrain-rule state))
 
               :move-up
               (tilemap/rebuild-terrain-stamp-preview

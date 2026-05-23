@@ -633,6 +633,27 @@
           (fn [rule]
             (not= (:id rule) rule-id))))
 
+(defun duplicate-rule-label [rule]
+  (str (or (:label rule)
+           (keyword-label (:id rule))
+           "Rule")
+       " Copy"))
+
+(defun duplicate-rule [rules rule]
+  (assoc (assoc rule
+                :id (unique-id-from rules
+                                    (str (keyword-label (:id rule)) "-copy")
+                                    nil))
+         :label (duplicate-rule-label rule)))
+
+(defun insert-rule-after [rules rule-id duplicate]
+  (apply concat
+         (map (or rules [])
+              (fn [rule]
+                (if (= (:id rule) rule-id)
+                  [rule duplicate]
+                  [rule])))))
+
 (defun swap-rules-by-id [rules a-id b-id]
   (let [a-index (rule-index-by-id rules a-id)
         b-index (rule-index-by-id rules b-id)]
@@ -704,6 +725,27 @@
                                                 (assoc rule
                                                        :exclusive?
                                                        exclusive?)))))))
+      state)))
+
+(defun duplicate-selected-terrain-rule [state]
+  (let [ruleset-id (selected-terrain-ruleset-id state)
+        rule-id (or (:selected-terrain-rule-id state)
+                    (selected-terrain-rule-id state))
+        ruleset (selected-terrain-ruleset state)
+        rule (rule-by-id (:rules ruleset) rule-id)
+        duplicate (when rule (duplicate-rule (:rules ruleset) rule))]
+    (if (and ruleset-id rule-id duplicate)
+      (assoc state
+             :selected-terrain-rule-id (:id duplicate)
+             :rulesets (update-ruleset
+                        (:rulesets state)
+                        ruleset-id
+                        (fn [ruleset]
+                          (assoc ruleset
+                                 :rules
+                                 (insert-rule-after (:rules ruleset)
+                                                    rule-id
+                                                    duplicate)))))
       state)))
 
 (defun terrain-rule-move-target-id [state rule-id direction]

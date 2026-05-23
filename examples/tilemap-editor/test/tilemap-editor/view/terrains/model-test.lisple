@@ -437,6 +437,35 @@
            (map (get-in state [:rulesets 0 :rules]) :id)))
     (is (= :rule-b (:selected-terrain-rule-id state)))))
 
+(deftest terrain-rule-duplicate-inserts_copy_after_selected_rule
+  (let [state (model/duplicate-selected-terrain-rule
+               {:terrain-sets [{:id :overworld
+                                :terrains [{:id :grass}]}]
+                :selected-terrain-set-index 0
+                :selected-terrain-index 0
+                :rulesets [{:id :overworld-rules
+                            :terrain-set :overworld
+                            :rules [{:id :rule-a
+                                     :label "North edge"
+                                     :terrain :grass
+                                     :exclusive? true
+                                     :match {:n :same}
+                                     :output {:anchor {:x 1 :y 1}}}
+                                    {:id :rule-b
+                                     :terrain :grass}]}]
+                :selected-terrain-ruleset-id :overworld-rules
+                :selected-terrain-rule-id :rule-a})
+        rules (get-in state [:rulesets 0 :rules])
+        duplicate (nth rules 1)]
+    (is (= [:rule-a :rule-a-copy :rule-b]
+           (map rules :id)))
+    (is (= :rule-a-copy (:selected-terrain-rule-id state)))
+    (is (= "North edge Copy" (:label duplicate)))
+    (is (= :grass (:terrain duplicate)))
+    (is (= true (:exclusive? duplicate)))
+    (is (= {:n :same} (:match duplicate)))
+    (is (= {:anchor {:x 1 :y 1}} (:output duplicate)))))
+
 (deftest terrain-rule-match-cycle-steps_visual_condition_options
   (let [base-state {:terrain-sets [{:id :overworld
                                     :terrains [{:id :grass}

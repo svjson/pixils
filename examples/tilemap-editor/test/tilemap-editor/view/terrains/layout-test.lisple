@@ -23,3 +23,15 @@
   (is (= 1 (layout/terrain-stamp-tile-picker-columns nil)))
   (is (= {:x 0 :y 0 :w 32 :h 32}
          (layout/terrain-stamp-tile-picker-cell-rect 0 nil))))
+
+(deftest stamp-tile-picker-content-height-grows_for_hidden_rows
+  (is (= 32 (layout/terrain-stamp-tile-picker-content-height 7 7)))
+  (is (= 66 (layout/terrain-stamp-tile-picker-content-height 8 7)))
+  (is (> (layout/terrain-stamp-tile-picker-content-height 22 7)
+         layout/terrain-stamp-tile-picker-height)))
+
+(deftest terrain-rule-context-menu-includes_duplicate_command
+  (let [items (:items layout/terrain-rule-context-menu)
+        duplicate (nth items 1)]
+    (is (= "Duplicate" (:label duplicate)))
+    (is (= :duplicate (-> duplicate :payload :command)))))
