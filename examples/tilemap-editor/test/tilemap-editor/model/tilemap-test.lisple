@@ -141,6 +141,38 @@
     (is (= {:x 1 :y 1 :w 1 :h 1}
            (-> state :map-selection :rect)))))
 
+(deftest tilemap-clear-selection-clears_selected_region_on_selected_layer
+  (let [state {:selected-layer-index 0
+               :map-selection {:rect {:x 1 :y 1 :w 2 :h 2}
+                               :active? false}
+               :layers [{:id :ground
+                         :tiles (data/make-empty-map)}
+                        {:id :props
+                         :tiles (data/make-empty-map)}]}
+        state (assoc-in state [:layers 0 :tiles 1 1] :grass)
+        state (assoc-in state [:layers 0 :tiles 1 2] :water)
+        state (assoc-in state [:layers 0 :tiles 2 1] :rock)
+        state (assoc-in state [:layers 0 :tiles 0 0] :keep)
+        state (assoc-in state [:layers 1 :tiles 1 1] :crate)
+        cleared (tilemap/clear-map-selection state)]
+    (is (nil? (get-in cleared [:layers 0 :tiles 1 1])))
+    (is (nil? (get-in cleared [:layers 0 :tiles 1 2])))
+    (is (nil? (get-in cleared [:layers 0 :tiles 2 1])))
+    (is (= :keep (get-in cleared [:layers 0 :tiles 0 0])))
+    (is (= :crate (get-in cleared [:layers 1 :tiles 1 1])))))
+
+(deftest tilemap-clear-selection-refreshes_terrain_rule_outputs
+  (let [state (tilemap/rebuild-terrain-stamp-preview
+               (terrain-paint-state (terrain-map [[nil :water nil]
+                                                  [nil :grass nil]])
+                                    nil))
+        state (assoc state :map-selection {:rect {:x 1 :y 1 :w 1 :h 1}
+                                           :active? false})
+        cleared (tilemap/clear-map-selection state)]
+    (is (nil? (get-in cleared [:layers 0 :tiles 1 1])))
+    (is (nil? (get-in cleared [:terrain-stamp-layers 0 :tiles 0 1])))
+    (is (nil? (get-in cleared [:terrain-stamp-layers 0 :tiles 1 1])))))
+
 (deftest tilemap-paint-stamps_selected_pattern_brush
   (let [state (tilemap/paint-map-at (brush-paint-state)
                                     (paint-event :left 5 6))]

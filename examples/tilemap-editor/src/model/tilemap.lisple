@@ -145,6 +145,14 @@
                                                         false)))
       state)))
 
+(defun map-selection-positions [selection]
+  (let [rect (:rect selection)]
+    (apply concat
+           (dotimes [dy (:h rect)]
+             (dotimes [dx (:w rect)]
+               {:x (+ (:x rect) dx)
+                :y (+ (:y rect) dy)})))))
+
 (defun set-map-tile [state layer-index x y tile-ref]
   (if (in-map-bounds? x y)
     (assoc-in state [:layers layer-index :tiles y x] tile-ref)
@@ -593,6 +601,26 @@
       (clear-pattern-footprint state layer-index tile-x tile-y brush)
 
       :default
+      state)))
+
+(defun clear-map-selection-cell [state layer-index pos]
+  (refresh-terrain-stamp-rules-around
+   (set-map-tile state layer-index (:x pos) (:y pos) nil)
+   layer-index
+   (:x pos)
+   (:y pos)))
+
+(defun clear-map-selection [state]
+  (let [selection (:map-selection state)
+        layer-index (selected-index (:layers state) (:selected-layer-index state))]
+    (if (and selection
+             (:rect selection)
+             (not (:active? selection))
+             (not (nil? layer-index)))
+      (reduce (map-selection-positions selection)
+              state
+              (fn [out pos]
+                (clear-map-selection-cell out layer-index pos)))
       state)))
 
 (defun paint-map-at [state event]

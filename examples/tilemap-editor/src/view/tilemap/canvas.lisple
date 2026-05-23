@@ -65,6 +65,8 @@
    :on-key-down (fn [state event ctx]
                   (let [step (tm/scaled-tile-size (:zoom state))]
                     (case (:key event)
+                      :key/delete (tm/clear-map-selection state)
+                      :key/backspace (tm/clear-map-selection state)
                       :key/left (tm/pan-map state ctx (* -1 step) 0)
                       :key/right (tm/pan-map state ctx step 0)
                       :key/up (tm/pan-map state ctx 0 (* -1 step))
