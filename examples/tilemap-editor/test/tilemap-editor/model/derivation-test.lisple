@@ -328,6 +328,31 @@
     (is (nil? (get-in layers [0 :tiles 1 1])))
     (is (= :column-fill (get-in layers [1 :tiles 1 1])))))
 
+(deftest render-layers-can_hide_painted_terrain_stamp_preview
+  (let [source (terrain-layer (terrain-map [[nil :grass nil]
+                                           [nil :grass nil]]))
+        stamp-layer {:id :grass-column/overworld
+                     :label "Grass Column"
+                     :kind :tile
+                     :role :derived
+                     :data-kind :tile-ref
+                     :tileset :overworld
+                     :source-layers [:scene/terrain]
+                     :ruleset :grass-column
+                     :replaces-source? true
+                     :persistence :ephemeral
+                     :tiles (terrain-map [[nil nil nil]
+                                          [nil :column-fill nil]])}
+        layers (derivation/render-layers {:layers [source]
+                                          :terrain-stamp-layers [stamp-layer]
+                                          :show-terrain-rules? false}
+                                         {:id :default
+                                          :layers [source]}
+                                         [])]
+    (is (= [:scene/terrain]
+           (map layers :id)))
+    (is (= :grass (get-in layers [0 :tiles 1 1])))))
+
 (deftest render-layers-masks_source_terrain_for_materialized_stamp_target
   (let [source (terrain-layer (terrain-map [[nil :grass nil]
                                            [nil :grass nil]]))

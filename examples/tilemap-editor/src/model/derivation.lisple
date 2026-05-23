@@ -442,9 +442,14 @@
 (defun render-layers [tilemap layer-profile rulesets]
   (let [profile (or layer-profile {:layers []})
         profile-layers (render-layers-from-profile tilemap profile rulesets)
-        stamp-layers (or (:terrain-stamp-layers tilemap) [])
-        replacement-layers (concat (or (:terrain-stamp-replacements tilemap) [])
-                                   stamp-layers)
+        show-rules? (not= (:show-terrain-rules? tilemap) false)
+        stamp-layers (if show-rules?
+                       (or (:terrain-stamp-layers tilemap) [])
+                       [])
+        replacement-layers (if show-rules?
+                             (concat (or (:terrain-stamp-replacements tilemap) [])
+                                     stamp-layers)
+                             [])
         layers (if (empty? profile-layers)
                  (concat (or (:layers tilemap) [])
                          stamp-layers)

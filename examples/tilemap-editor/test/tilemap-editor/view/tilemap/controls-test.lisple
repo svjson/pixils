@@ -98,16 +98,3 @@
                           :label "Terrain"}]}
                "Terrain")]
     (is (= :scene/terrain-2 (get-in state [:layers 1 :id])))))
-
-(deftest recent-project-menu-is-inert-when-empty
-  (let [item (controls/recent-project-menu-item [])]
-    (is (= "Recent Projects" (:label item)))
-    (is (= true (:disabled? item)))
-    (is (nil? (:items item)))))
-
-(deftest recent-project-menu-opens-submenu-when-populated
-  (let [item (controls/recent-project-menu-item [{:path "map.edn"
-                                                  :filename "map.edn"}])]
-    (is (= "Recent Projects ->" (:label item)))
-    (is (= "map.edn" (get-in item [:items 0 :label])))
-    (is (= :project/open-recent (get-in item [:items 0 :action])))))

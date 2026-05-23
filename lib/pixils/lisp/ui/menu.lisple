@@ -379,6 +379,7 @@
                           :pending-open-index (ui/bind-state :pending-open-index)
                           :text (:display-text item)
                           :menu-scale (ui/bind-state :menu-scale)
+                          :option-state (ui/bind-state :option-state)
                           :game (ui/bind-state :game)
                           :preferences (ui/bind-state :preferences)}})}))
 
@@ -415,6 +416,7 @@
    :text (:display-text node)
    :shortcut-text (:shortcut-text node)
    :disabled? (:disabled? node)
+   :option-state (:option-state state)
    :game (:game state)
    :preferences (:preferences state)})
 
@@ -455,6 +457,7 @@
             :input-source (ui/bind-state :input-source)
             :menu-depth (ui/bind-state :menu-depth)
             :menu-scale (ui/bind-state :menu-scale)
+            :option-state (ui/bind-state :option-state)
             :game (ui/bind-state :game)
             :preferences (ui/bind-state :preferences)}
     :style {:position :absolute
@@ -468,6 +471,7 @@
                         :input-source (ui/bind-state :input-source)
                         :menu-depth (ui/bind-state :menu-depth)
                         :menu-scale (ui/bind-state :menu-scale)
+                        :option-state (ui/bind-state :option-state)
                         :game (ui/bind-state :game)
                         :preferences (ui/bind-state :preferences)}
                 :children (for-indexed [index item items]
@@ -477,6 +481,7 @@
                                                            :input-source (ui/bind-state :input-source)
                                                            :menu-depth (ui/bind-state :menu-depth)
                                                            :menu-scale (ui/bind-state :menu-scale)
+                                                           :option-state (ui/bind-state :option-state)
                                                            :game (ui/bind-state :game)
                                                            :preferences (ui/bind-state :preferences)})
                                    {:style {:width :fill}}))}]}])
@@ -490,6 +495,7 @@
       :input-source :mouse
       :menu-depth (or (:menu-depth state) 0)
       :menu-scale (:menu-scale state)
+      :option-state (:option-state state)
       :game (:game state)
       :preferences (:preferences state)}
      {:origin {:view origin-view :event :menu/select}

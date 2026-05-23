@@ -1,0 +1,40 @@
+(ns tilemap-editor.view.menu-test
+  (:require proof.core
+            [tilemap-editor.view.menu :as menu]))
+
+(deftest recent-project-menu-is-inert-when-empty
+  (let [item (menu/recent-project-menu-item [])]
+    (is (= "Recent Projects" (:label item)))
+    (is (= true (:disabled? item)))
+    (is (nil? (:items item)))))
+
+(deftest recent-project-menu-opens-submenu-when-populated
+  (let [item (menu/recent-project-menu-item [{:path "map.edn"
+                                              :filename "map.edn"}])]
+    (is (= "Recent Projects ->" (:label item)))
+    (is (= "map.edn" (get-in item [:items 0 :label])))
+    (is (= :project/open-recent (get-in item [:items 0 :action])))))
+
+(deftest option-menu-reflects_current_view_state
+  (let [menu (menu/tilemap-editor-menu
+              {:show-grid? false
+               :show-terrain-rules? true
+               :terrain-rule-application :paint-baked})
+        options (get-in menu [:items 1 :items])]
+    (is (= "Show &Grid" (get-in options [0 :label])))
+    (is (= :toggle (get-in options [0 :type])))
+    (is (= [:option-state :show-grid?] (get-in options [0 :selected-path])))
+    (is (= "Show Terrain &Rules" (get-in options [1 :label])))
+    (is (= :toggle (get-in options [1 :type])))
+    (is (= [:option-state :show-terrain-rules?]
+           (get-in options [1 :selected-path])))
+    (is (= "&Preview Layer" (get-in options [3 :items 0 :label])))
+    (is (= :option (get-in options [3 :items 0 :type])))
+    (is (= :preview (get-in options [3 :items 0 :value])))
+    (is (= [:option-state :terrain-rule-application]
+           (get-in options [3 :items 0 :selected-path])))
+    (is (= "&Bake Into Map Data" (get-in options [3 :items 1 :label])))
+    (is (= :option (get-in options [3 :items 1 :type])))
+    (is (= :paint-baked (get-in options [3 :items 1 :value])))
+    (is (= [:option-state :terrain-rule-application]
+           (get-in options [3 :items 1 :selected-path])))))

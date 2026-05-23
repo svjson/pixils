@@ -8,6 +8,7 @@
             [tilemap-editor.view.resources.model :as resource-model]
             [tilemap-editor.view.tileset.model :as tileset-model]
             tilemap-editor.view.brushes.layout
+            tilemap-editor.view.menu
             tilemap-editor.view.resources.layout
             tilemap-editor.view.terrains.layout
             tilemap-editor.view.tilemap.layout
@@ -74,6 +75,8 @@
            :selected-layer-index nil
            :selected-layer-label ""
            :layers []
+           :terrain-rule-application :preview
+           :show-terrain-rules? true
            :terrain-stamp-layers []
            :terrain-stamp-replacements []
            :hidden-layer-indices []
@@ -153,7 +156,12 @@
                       :selected-layer-label (or (:label layer) ""))
                ctx)))
   :children [{:mode 'toolbar
-              :state {:recent-projects (ui/bind-state :recent-projects)}}
+              :state {:recent-projects (ui/bind-state :recent-projects)
+                      :show-grid? (ui/bind-state :show-grid?)
+                      :show-terrain-rules?
+                      (ui/bind-state :show-terrain-rules?)
+                      :terrain-rule-application
+                      (ui/bind-state :terrain-rule-application)}}
              (tabs/make
               {:selected-tab (ui/bind-state :workspace-tab)
                :style {:width :fill
@@ -195,6 +203,14 @@
                        :hidden-layer-indices (ui/bind-state :hidden-layer-indices)
                        :zoom (ui/bind-state :zoom)
                        :zoom-label (ui/bind-state :zoom-label)
+                       :terrain-rule-application
+                       (ui/bind-state :terrain-rule-application)
+                       :terrain-stamp-layers
+                       (ui/bind-state :terrain-stamp-layers)
+                       :terrain-stamp-replacements
+                       (ui/bind-state :terrain-stamp-replacements)
+                       :show-terrain-rules?
+                       (ui/bind-state :show-terrain-rules?)
                        :show-grid? (ui/bind-state :show-grid?)
                        :map-offset (ui/bind-state :map-offset)
                        :resources (ui/bind-state :resources)
@@ -227,6 +243,14 @@
                                        :hidden-layer-indices (ui/bind-state :hidden-layer-indices)
                                        :zoom (ui/bind-state :zoom)
                                        :zoom-label (ui/bind-state :zoom-label)
+                                       :terrain-rule-application
+                                       (ui/bind-state :terrain-rule-application)
+                                       :terrain-stamp-layers
+                                       (ui/bind-state :terrain-stamp-layers)
+                                       :terrain-stamp-replacements
+                                       (ui/bind-state :terrain-stamp-replacements)
+                                       :show-terrain-rules?
+                                       (ui/bind-state :show-terrain-rules?)
                                        :show-grid? (ui/bind-state :show-grid?)
                                        :map-offset (ui/bind-state :map-offset)}}}
                       {:id :tilesets
@@ -363,5 +387,17 @@
                          :resources (:resources payload)
                          :selected-resource-bundle (:selected-resource-bundle payload)
                          :selected-image-resource (:selected-image-resource payload))))
+              :view/toggle-grid (fn [state event ctx]
+                                  (assoc state
+                                         :show-grid?
+                                         (not (:show-grid? state))))
+              :view/toggle-terrain-rules
+              (fn [state event ctx]
+                (assoc state
+                       :show-terrain-rules?
+                       (not (:show-terrain-rules? state))))
+              :terrain-rules/set-application
+              (fn [state event ctx]
+                (assoc state :terrain-rule-application (:payload event)))
               :app/quit (fn [state event ctx]
                           (quit!))}})

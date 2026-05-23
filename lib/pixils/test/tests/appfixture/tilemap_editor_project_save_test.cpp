@@ -187,7 +187,14 @@ TEST_F(TilemapEditorStartupTest, loaded_project_populates_existing_side_panel_co
   std::vector<std::shared_ptr<Pixils::Runtime::View>> combo_boxes;
   find_descendant_modes(session.active_mode, "ui/combo-box", combo_boxes);
   ASSERT_GE(combo_boxes.size(), 1u);
-  EXPECT_NE(combo_boxes[0]->state->to_string().find("Background Colors"), std::string::npos);
+  auto has_background_colors_combo = false;
+  for (const auto& combo_box : combo_boxes)
+  {
+    has_background_colors_combo =
+      has_background_colors_combo ||
+      combo_box->state->to_string().find("Background Colors") != std::string::npos;
+  }
+  EXPECT_TRUE(has_background_colors_combo);
 
   session.render_mode();
   auto tab_panel = session.active_mode->children[1];

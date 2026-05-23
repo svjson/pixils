@@ -50,14 +50,21 @@
                        :selected-layer-index (ui/bind-state :selected-layer-index)
                        :selected-layer-label (ui/bind-state :selected-layer-label)
                        :layers (ui/bind-state :layers)
+                       :terrain-rule-application
+                       (ui/bind-state :terrain-rule-application)
+                       :terrain-stamp-layers
+                       (ui/bind-state :terrain-stamp-layers)
+                       :terrain-stamp-replacements
+                       (ui/bind-state :terrain-stamp-replacements)
                        :hidden-layer-indices (ui/bind-state :hidden-layer-indices)
                        :map-offset (ui/bind-state :map-offset)
                        :zoom (ui/bind-state :zoom)
+                       :show-terrain-rules?
+                       (ui/bind-state :show-terrain-rules?)
                        :show-grid? (ui/bind-state :show-grid?)}}
               {:mode 'map-view-controls
                :state {:zoom (ui/bind-state :zoom)
-                       :zoom-label (ui/bind-state :zoom-label)
-                       :show-grid? (ui/bind-state :show-grid?)}}]})
+                       :zoom-label (ui/bind-state :zoom-label)}}]})
 
 (defcomponent workspace
   {:style {:width :fill
@@ -87,10 +94,18 @@
                         :selected-layer-index (ui/bind-state :selected-layer-index)
                         :selected-layer-label (ui/bind-state :selected-layer-label)
                         :layers (ui/bind-state :layers)
+                        :terrain-rule-application
+                        (ui/bind-state :terrain-rule-application)
+                        :terrain-stamp-layers
+                        (ui/bind-state :terrain-stamp-layers)
+                        :terrain-stamp-replacements
+                        (ui/bind-state :terrain-stamp-replacements)
                         :hidden-layer-indices (ui/bind-state :hidden-layer-indices)
                         :map-offset (ui/bind-state :map-offset)
                         :zoom (ui/bind-state :zoom)
                         :zoom-label (ui/bind-state :zoom-label)
+                        :show-terrain-rules?
+                        (ui/bind-state :show-terrain-rules?)
                         :show-grid? (ui/bind-state :show-grid?)}
                 :children [{:mode 'map-column
                             :style {:padding {:r 8}}
@@ -109,10 +124,18 @@
                                     :selected-layer-index (ui/bind-state :selected-layer-index)
                                     :selected-layer-label (ui/bind-state :selected-layer-label)
                                     :layers (ui/bind-state :layers)
+                                    :terrain-rule-application
+                                    (ui/bind-state :terrain-rule-application)
+                                    :terrain-stamp-layers
+                                    (ui/bind-state :terrain-stamp-layers)
+                                    :terrain-stamp-replacements
+                                    (ui/bind-state :terrain-stamp-replacements)
                                     :hidden-layer-indices (ui/bind-state :hidden-layer-indices)
                                     :map-offset (ui/bind-state :map-offset)
                                     :zoom (ui/bind-state :zoom)
                                     :zoom-label (ui/bind-state :zoom-label)
+                                    :show-terrain-rules?
+                                    (ui/bind-state :show-terrain-rules?)
                                     :show-grid? (ui/bind-state :show-grid?)}}
                            {:mode 'side-panel
                             :style {:padding {:l 8}}

@@ -1,0 +1,112 @@
+(ns tilemap-editor.view.menu
+  (:require pixils
+            [pixils.ui :as ui]
+            [pixils.ui.menu :as menu]))
+
+
+(def tilemap-editor-menu-keymap {})
+
+(defun normalized-menu-state [state]
+  (if (= (type-of state) "map")
+    {:recent-projects (or (:recent-projects state) [])
+     :show-grid? (not= (:show-grid? state) false)
+     :show-terrain-rules? (not= (:show-terrain-rules? state) false)
+     :terrain-rule-application (or (:terrain-rule-application state)
+                                   :preview)}
+    {:recent-projects (or state [])
+     :show-grid? true
+     :show-terrain-rules? true
+     :terrain-rule-application :preview}))
+
+(defun recent-project-label [project]
+  (or (:filename project)
+      (:path project)
+      "Untitled Project"))
+
+(defun recent-project-menu-items [projects]
+  (map (or projects [])
+       (fn [project]
+         {:label (recent-project-label project)
+          :action :project/open-recent
+          :payload project})))
+
+(defun recent-project-menu-item [projects]
+  (let [projects (or projects [])]
+    (if (empty? projects)
+      {:label "Recent Projects"
+       :disabled? true}
+      {:label "Recent Projects ->"
+       :items (recent-project-menu-items projects)})))
+
+(defun tilemap-editor-menu [state]
+  (let [state (normalized-menu-state state)]
+    {:settings {:mnemonics {:marker "&"}
+                :shortcuts {:render true}}
+     :items [{:label "&File"
+              :items [{:label "&New Project"
+                       :action :project/new}
+                      {:label "&Open Project"
+                       :action :project/open}
+                      :separator
+                      (recent-project-menu-item (:recent-projects state))
+                      :separator
+                      {:label "&Save"
+                       :action :project/save}
+                      {:label "Save &As..."
+                       :action :project/save-as}
+                      :separator
+                      {:label "&Quit"
+                       :action :app/quit}]}
+             {:label "&Options"
+              :items [{:label "Show &Grid"
+                       :type :toggle
+                       :action :view/toggle-grid
+                       :selected-path [:option-state :show-grid?]}
+                      {:label "Show Terrain &Rules"
+                       :type :toggle
+                       :action :view/toggle-terrain-rules
+                       :selected-path [:option-state :show-terrain-rules?]}
+                      :separator
+                      {:label "Terrain Rules On &Paint ->"
+                       :items [{:label "&Preview Layer"
+                                :type :option
+                                :action :terrain-rules/set-application
+                                :value :preview
+                                :selected-path [:option-state
+                                                :terrain-rule-application]
+                                :payload :preview}
+                               {:label "&Bake Into Map Data"
+                                :type :option
+                                :action :terrain-rules/set-application
+                                :value :paint-baked
+                                :selected-path [:option-state
+                                                :terrain-rule-application]
+                                :payload :paint-baked}]}]}]}))
+
+(defun tilemap-editor-menu-child [state]
+  (let [state (normalized-menu-state state)]
+    (merge {:id "tilemap-editor-menu"}
+           (menu/make-menu {:style {:width :fill
+                                    :height 22}
+                            :state {:option-state state}}
+                           (tilemap-editor-menu state)
+                           tilemap-editor-menu-keymap))))
+
+(defun toolbar-menu-state [state]
+  (normalized-menu-state state))
+
+(defcomponent toolbar
+  {:style {:width :fill
+           :height 22
+           :layout {:direction :row}}
+   :init (fn [state ctx]
+           (assoc state :rendered-menu-state nil))
+   :update (fn [state ctx]
+             (let [menu-state (toolbar-menu-state state)]
+               (do
+                 (when (not= menu-state (:rendered-menu-state state))
+                   (ui/replace-child! (:view ctx)
+                                      "tilemap-editor-menu"
+                                      (tilemap-editor-menu-child menu-state)))
+                 (assoc state :rendered-menu-state menu-state))))
+   :children [(tilemap-editor-menu-child [])]})

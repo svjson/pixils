@@ -146,6 +146,17 @@
       (assoc-in state [collection-key layer-index :tiles y x] tile-ref)
       state)))
 
+(defun terrain-rule-application [state ruleset]
+  (or (:application ruleset)
+      (:terrain-rule-application state)
+      :preview))
+
+(defun terrain-rule-preview? [state ruleset]
+  (= (terrain-rule-application state ruleset) :preview))
+
+(defun terrain-rule-baked? [state ruleset]
+  (= (terrain-rule-application state ruleset) :paint-baked))
+
 (defun terrain-source-layer? [layer]
   (= (:data-kind layer) :terrain))
 
@@ -208,8 +219,9 @@
                                 (:y cell)
                                 (:tile cell)))
 
-(defun apply-terrain-stamp-patch-cell [state target-layer-index layer-id cell]
-  (if target-layer-index
+(defun apply-terrain-stamp-patch-cell [state application target-layer-index layer-id cell]
+  (if (and (= application :paint-baked)
+           target-layer-index)
     (apply-target-patch-cell state target-layer-index layer-id cell)
     (apply-auto-patch-cell state layer-id cell)))
 
@@ -217,7 +229,9 @@
   (let [output-layer (:output-layer patch)
         target-layer-index (layer-index-by-id (:layers state)
                                               (:target-layer output-layer))
-        collection-key (if target-layer-index
+        application (terrain-rule-application state ruleset)
+        collection-key (if (and (= application :paint-baked)
+                                target-layer-index)
                          :terrain-stamp-replacements
                          :terrain-stamp-layers)
         state (ensure-terrain-stamp-layer state
@@ -230,6 +244,7 @@
             state
             (fn [out cell]
               (apply-terrain-stamp-patch-cell out
+                                              application
                                               target-layer-index
                                               layer-id
                                               cell)))))

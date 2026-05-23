@@ -50,7 +50,9 @@
                                      :terrain-stamp-layers
                                      (:terrain-stamp-layers state)
                                      :terrain-stamp-replacements
-                                     (:terrain-stamp-replacements state)}
+                                     (:terrain-stamp-replacements state)
+                                     :show-terrain-rules?
+                                     (:show-terrain-rules? state)}
                                     layer-profile
                                     (:rulesets state))]
                  (tr/render-layers! (:tilesets state)
@@ -88,6 +90,8 @@
                        :selected-layer-index (ui/bind-state :selected-layer-index)
                        :selected-layer-label (ui/bind-state :selected-layer-label)
                        :layers (ui/bind-state :layers)
+                       :terrain-rule-application
+                       (ui/bind-state :terrain-rule-application)
                        :terrain-stamp-layers
                        (ui/bind-state :terrain-stamp-layers)
                        :terrain-stamp-replacements
@@ -95,6 +99,8 @@
                        :hidden-layer-indices (ui/bind-state :hidden-layer-indices)
                        :offset (ui/bind-state :map-offset)
                        :zoom (ui/bind-state :zoom)
+                       :show-terrain-rules?
+                       (ui/bind-state :show-terrain-rules?)
                        :show-grid? (ui/bind-state :show-grid?)}}
               {:mode 'ui/scrollbar
                :class :scrollbar/v
@@ -152,9 +158,17 @@
                        :selected-layer-index (ui/bind-state :selected-layer-index)
                        :selected-layer-label (ui/bind-state :selected-layer-label)
                        :layers (ui/bind-state :layers)
+                       :terrain-rule-application
+                       (ui/bind-state :terrain-rule-application)
+                       :terrain-stamp-layers
+                       (ui/bind-state :terrain-stamp-layers)
+                       :terrain-stamp-replacements
+                       (ui/bind-state :terrain-stamp-replacements)
                        :hidden-layer-indices (ui/bind-state :hidden-layer-indices)
                        :map-offset (ui/bind-state :map-offset)
                        :zoom (ui/bind-state :zoom)
+                       :show-terrain-rules?
+                       (ui/bind-state :show-terrain-rules?)
                        :show-grid? (ui/bind-state :show-grid?)}}
               {:mode 'map-scroll-footer
                :state {:map-offset (ui/bind-state :map-offset)
