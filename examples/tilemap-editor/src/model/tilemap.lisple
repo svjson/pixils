@@ -93,6 +93,59 @@
     (assoc-in state [:layers layer-index :tiles y x] tile-ref)
     state))
 
+(defun make-terrain-stamp-layer [source-layer ruleset output-layer]
+  {:id (:id output-layer)
+   :label (or (:label output-layer) (:label ruleset) (str (:id ruleset)))
+   :kind :tile
+   :role :derived
+   :data-kind :tile-ref
+   :tileset (or (:tileset output-layer) (:output-tileset ruleset))
+   :source-layers [(:id source-layer)]
+   :target-layer (:target-layer output-layer)
+   :ruleset (:id ruleset)
+   :replaces-source? true
+   :persistence :ephemeral
+   :tiles (data/make-empty-map)})
+
+(defun terrain-stamp-layer-index [state collection-key layer-id]
+  (layer-index-by-id (or (get state collection-key) []) layer-id))
+
+(defun terrain-stamp-layer [state collection-key layer-id]
+  (let [index (terrain-stamp-layer-index state collection-key layer-id)]
+    (if (nil? index)
+      nil
+      (nth (or (get state collection-key) []) index))))
+
+(defun terrain-stamp-layer-cell [state collection-key layer-id x y]
+  (derivation/cell-at (terrain-stamp-layer state collection-key layer-id) x y))
+
+(defun merge-source-layer-id [layer source-layer-id]
+  (let [source-layers (or (:source-layers layer) [])]
+    (if (contains? source-layers source-layer-id)
+      layer
+      (assoc layer :source-layers (concat source-layers [source-layer-id])))))
+
+(defun ensure-terrain-stamp-layer [state collection-key source-layer ruleset output-layer]
+  (let [layer-id (:id output-layer)
+        layer-index (terrain-stamp-layer-index state collection-key layer-id)]
+    (if (nil? layer-index)
+      (assoc state
+             collection-key
+             (concat (or (get state collection-key) [])
+                     [(make-terrain-stamp-layer source-layer ruleset output-layer)]))
+      (assoc-in state
+                [collection-key layer-index]
+                (merge-source-layer-id (nth (or (get state collection-key) [])
+                                            layer-index)
+                                       (:id source-layer))))))
+
+(defun set-terrain-stamp-layer-tile [state collection-key layer-id x y tile-ref]
+  (let [layer-index (terrain-stamp-layer-index state collection-key layer-id)]
+    (if (and (not (nil? layer-index))
+             (in-map-bounds? x y))
+      (assoc-in state [collection-key layer-index :tiles y x] tile-ref)
+      state)))
+
 (defun terrain-source-layer? [layer]
   (= (:data-kind layer) :terrain))
 
@@ -118,64 +171,96 @@
           (fn [pos]
             (in-map-bounds? (:x pos) (:y pos)))))
 
-(defun output-layer-tile-entries [output-layer]
-  (apply concat
-         (for-indexed [tile-y row (or (:tiles output-layer) [])]
-           (for-indexed [tile-x tile-ref (or row [])]
-             {:x tile-x
-              :y tile-y
-              :tile-ref tile-ref}))))
-
-(defun stamp-output-entry [state target-layer-index source-x source-y anchor entry tile-ref]
-  (if (:tile-ref entry)
-    (set-map-tile state
-                  target-layer-index
-                  (+ source-x (:x entry) (- (:x anchor)))
-                  (+ source-y (:y entry) (- (:y anchor)))
-                  tile-ref)
+(defun clear-target-stamp-entry [state target-layer-index layer-id x y]
+  (if (not (nil? (terrain-stamp-layer-cell state
+                                           :terrain-stamp-replacements
+                                           layer-id
+                                           x
+                                           y)))
+    (set-terrain-stamp-layer-tile
+     (set-map-tile state target-layer-index x y nil)
+     :terrain-stamp-replacements
+     layer-id
+     x
+     y
+     nil)
     state))
 
-(defun stamp-output-layer [state source-x source-y output output-layer tile-fn]
-  (let [target-layer-index (layer-index-by-id (:layers state)
+(defun apply-target-patch-cell [state target-layer-index layer-id cell]
+  (let [x (:x cell)
+        y (:y cell)
+        tile-ref (:tile cell)]
+    (if tile-ref
+      (set-terrain-stamp-layer-tile
+       (set-map-tile state target-layer-index x y tile-ref)
+       :terrain-stamp-replacements
+       layer-id
+       x
+       y
+       true)
+      (clear-target-stamp-entry state target-layer-index layer-id x y))))
+
+(defun apply-auto-patch-cell [state layer-id cell]
+  (set-terrain-stamp-layer-tile state
+                                :terrain-stamp-layers
+                                layer-id
+                                (:x cell)
+                                (:y cell)
+                                (:tile cell)))
+
+(defun apply-terrain-stamp-patch-cell [state target-layer-index layer-id cell]
+  (if target-layer-index
+    (apply-target-patch-cell state target-layer-index layer-id cell)
+    (apply-auto-patch-cell state layer-id cell)))
+
+(defun apply-terrain-stamp-patch [state source-layer ruleset patch]
+  (let [output-layer (:output-layer patch)
+        target-layer-index (layer-index-by-id (:layers state)
                                               (:target-layer output-layer))
-        anchor (or (:anchor output) {:x 0 :y 0})]
-    (if (nil? target-layer-index)
-      state
-      (reduce (output-layer-tile-entries output-layer)
-              state
-              (fn [out entry]
-                (stamp-output-entry out
-                                    target-layer-index
-                                    source-x
-                                    source-y
-                                    anchor
-                                    entry
-                                    (tile-fn entry)))))))
-
-(defun clear-rule-output-at [state source-x source-y rule]
-  (reduce (or (-> rule :output :layers) [])
-          state
-          (fn [out output-layer]
-            (stamp-output-layer out
-                                source-x
-                                source-y
-                                (:output rule)
-                                output-layer
-                                (fn [entry] nil)))))
-
-(defun apply-rule-output-at [state source-layer source-x source-y rule]
-  (if (derivation/terrain-stamp-rule-matches? source-layer rule source-x source-y)
-    (reduce (or (-> rule :output :layers) [])
+        collection-key (if target-layer-index
+                         :terrain-stamp-replacements
+                         :terrain-stamp-layers)
+        state (ensure-terrain-stamp-layer state
+                                          collection-key
+                                          source-layer
+                                          ruleset
+                                          output-layer)
+        layer-id (:id output-layer)]
+    (reduce (or (:cells patch) [])
             state
-            (fn [out output-layer]
-              (stamp-output-layer out
-                                  source-x
-                                  source-y
-                                  (:output rule)
-                                  output-layer
-                                  (fn [entry]
-                                    (:tile-ref entry)))))
-    state))
+            (fn [out cell]
+              (apply-terrain-stamp-patch-cell out
+                                              target-layer-index
+                                              layer-id
+                                              cell)))))
+
+(defun apply-terrain-stamp-patches [state source-layer ruleset patches]
+  (reduce patches
+          state
+          (fn [out patch]
+            (apply-terrain-stamp-patch out source-layer ruleset patch))))
+
+(defun clear-rule-output-at [state source-layer ruleset source-x source-y rule]
+  (apply-terrain-stamp-patches
+   state
+   source-layer
+   ruleset
+   (derivation/terrain-stamp-rule-clear-patches source-layer
+                                                ruleset
+                                                rule
+                                                source-x
+                                                source-y)))
+
+(defun apply-rule-output-at [state source-layer ruleset source-x source-y rule]
+  (apply-terrain-stamp-patches
+   state
+   source-layer
+   ruleset
+   (derivation/terrain-stamp-rule-apply-patches source-layer
+                                                ruleset
+                                                rule
+                                                source-x
+                                                source-y)))
 
 (defun refresh-terrain-stamp-rules-at [state source-layer positions rulesets apply-fn]
   (reduce positions
@@ -189,6 +274,7 @@
                               (fn [rule-out rule]
                                 (apply-fn rule-out
                                           source-layer
+                                          ruleset
                                           (:x pos)
                                           (:y pos)
                                           rule))))))))
@@ -198,8 +284,13 @@
                                   source-layer
                                   positions
                                   rulesets
-                                  (fn [out source-layer x y rule]
-                                    (clear-rule-output-at out x y rule))))
+                                  (fn [out source-layer ruleset x y rule]
+                                    (clear-rule-output-at out
+                                                          source-layer
+                                                          ruleset
+                                                          x
+                                                          y
+                                                          rule))))
 
 (defun apply-terrain-stamp-rules [state source-layer positions rulesets]
   (refresh-terrain-stamp-rules-at state

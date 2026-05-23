@@ -237,121 +237,114 @@
       (:id output-layer)
       (targetless-terrain-stamp-output-layer-key ruleset output-layer)))
 
-(defun terrain-stamp-output-layer-matches-key? [ruleset output-layer key]
-  (= (terrain-stamp-output-layer-key ruleset output-layer) key))
+(defun stamp-output-position [source-x source-y output entry]
+  (let [anchor (or (:anchor output) {:x 0 :y 0})]
+    {:x (+ source-x (:x entry) (- (:x anchor)))
+     :y (+ source-y (:y entry) (- (:y anchor)))}))
 
-(defun terrain-stamp-output-layer-entries [ruleset]
+(defun stamp-output-patch-cell [source-x source-y output entry tile]
+  (let [pos (stamp-output-position source-x source-y output entry)]
+    {:x (:x pos)
+     :y (:y pos)
+     :tile tile}))
+
+(defun stamp-output-patch-cells [source-x source-y output output-layer tile-fn]
+  (filter (map (output-layer-tile-entries output-layer)
+               (fn [entry]
+                 (when (:tile entry)
+                   (stamp-output-patch-cell source-x
+                                            source-y
+                                            output
+                                            entry
+                                            (tile-fn entry)))))
+          (fn [cell]
+            (and cell
+                 (in-map-bounds? (:x cell) (:y cell))))))
+
+(defun terrain-stamp-output-patch [source-layer ruleset rule source-x source-y output-layer tile-fn]
+  (let [cells (stamp-output-patch-cells source-x
+                                        source-y
+                                        (:output rule)
+                                        output-layer
+                                        tile-fn)]
+    (when (not (empty? cells))
+      {:source-layer (:id source-layer)
+       :source-position {:x source-x :y source-y}
+       :ruleset (:id ruleset)
+       :rule (:id rule)
+       :output-layer (assoc (dissoc output-layer :tiles)
+                            :id (terrain-stamp-output-layer-key ruleset
+                                                                output-layer))
+       :cells cells})))
+
+(defun terrain-stamp-rule-patches-with [source-layer ruleset rule source-x source-y tile-fn]
+  (filter (map (or (-> rule :output :layers) [])
+               (fn [output-layer]
+                 (terrain-stamp-output-patch source-layer
+                                             ruleset
+                                             rule
+                                             source-x
+                                             source-y
+                                             output-layer
+                                             tile-fn)))
+          (fn [patch]
+            (not (nil? patch)))))
+
+(defun terrain-stamp-rule-apply-patches [source-layer ruleset rule source-x source-y]
+  (if (terrain-stamp-rule-matches? source-layer rule source-x source-y)
+    (terrain-stamp-rule-patches-with source-layer
+                                     ruleset
+                                     rule
+                                     source-x
+                                     source-y
+                                     (fn [entry] (:tile entry)))
+    []))
+
+(defun terrain-stamp-rule-clear-patches [source-layer ruleset rule source-x source-y]
+  (terrain-stamp-rule-patches-with source-layer
+                                   ruleset
+                                   rule
+                                   source-x
+                                   source-y
+                                   (fn [entry] nil)))
+
+(defun terrain-stamp-apply-patches-at [source-layer ruleset source-x source-y]
   (apply concat
          (map (or (:rules ruleset) [])
               (fn [rule]
-                (or (-> rule :output :layers) [])))))
+                (terrain-stamp-rule-apply-patches source-layer
+                                                  ruleset
+                                                  rule
+                                                  source-x
+                                                  source-y)))))
 
-(defun terrain-stamp-output-layer-keys [ruleset]
-  (reduce (terrain-stamp-output-layer-entries ruleset)
-          []
-          (fn [keys output-layer]
-            (let [key (terrain-stamp-output-layer-key ruleset output-layer)]
-              (if (or (nil? key)
-                      (contains? keys key))
-                keys
-                (concat keys [key]))))))
-
-(defun first-terrain-stamp-output-layer-for-key [ruleset key]
-  (head (filter (terrain-stamp-output-layer-entries ruleset)
-                (fn [output-layer]
-                  (terrain-stamp-output-layer-matches-key? ruleset
-                                                           output-layer
-                                                           key)))))
-
-(defun target-layer-declared? [tilemap profile target-layer]
-  (and target-layer
-       (or (not (nil? (layer-by-id (:layers tilemap) target-layer)))
-           (not (nil? (layer-by-id (:layers profile) target-layer))))))
-
-(defun terrain-stamp-output-layer-needs-auto? [tilemap profile output-layer]
-  (not (target-layer-declared? tilemap profile (:target-layer output-layer))))
-
-(defun apply-terrain-stamp-rule-for-output-key [tiles source-layer ruleset rule key x y]
-  (if (terrain-stamp-rule-matches? source-layer rule x y)
-    (reduce (or (-> rule :output :layers) [])
-            tiles
-            (fn [next-tiles output-layer]
-              (if (terrain-stamp-output-layer-matches-key? ruleset
-                                                           output-layer
-                                                           key)
-                (apply-stamp-output-layer next-tiles
-                                          x
-                                          y
-                                          (:output rule)
-                                          output-layer)
-                next-tiles)))
-    tiles))
-
-(defun derive-terrain-stamp-tiles-for-output-key [source-layer ruleset key]
-  (reduce (or (:rules ruleset) [])
-          (empty-derived-tiles)
-          (fn [tiles rule]
-            (reduce (apply concat
-                           (dotimes [y data/map-height]
-                             (dotimes [x data/map-width]
-                               {:x x
-                                :y y})))
-                    tiles
-                    (fn [next-tiles pos]
-                      (apply-terrain-stamp-rule-for-output-key next-tiles
-                                                               source-layer
-                                                               ruleset
-                                                               rule
-                                                               key
-                                                               (:x pos)
-                                                               (:y pos)))))))
-
-(defun implicit-terrain-stamp-layer-id [ruleset key]
-  (or key (:id ruleset)))
-
-(defun implicit-terrain-stamp-render-layer [source-layer ruleset key]
-  (let [output-layer (first-terrain-stamp-output-layer-for-key ruleset key)]
-    (when output-layer
-      {:id (implicit-terrain-stamp-layer-id ruleset key)
-       :label (or (:label output-layer) (:label ruleset) (str (:id ruleset)))
-       :kind :tile
-       :role :derived
-       :data-kind :tile-ref
-       :tileset (or (:tileset output-layer) (:output-tileset ruleset))
-       :source-layers [(:id source-layer)]
-       :ruleset (:id ruleset)
-       :replaces-source? true
-       :persistence :ephemeral
-       :tiles (derive-terrain-stamp-tiles-for-output-key source-layer
-                                                         ruleset
-                                                         key)})))
-
-(defun implicit-terrain-stamp-render-layers-for-ruleset [tilemap profile ruleset]
-  (let [source-layer (terrain-source-layer-for-ruleset (:layers tilemap) ruleset)]
-    (if (and source-layer (= (:kind ruleset) :terrain-stamp))
-      (filter (map (terrain-stamp-output-layer-keys ruleset)
-                   (fn [key]
-                     (let [output-layer (first-terrain-stamp-output-layer-for-key
-                                         ruleset
-                                         key)]
-                       (when (terrain-stamp-output-layer-needs-auto?
-                              tilemap
-                              profile
-                              output-layer)
-                         (implicit-terrain-stamp-render-layer source-layer
-                                                              ruleset
-                                                              key)))))
-              (fn [layer]
-                (not (nil? layer))))
-      [])))
-
-(defun implicit-terrain-stamp-render-layers [tilemap profile rulesets]
+(defun terrain-stamp-clear-patches-at [source-layer ruleset source-x source-y]
   (apply concat
-         (map (or rulesets [])
-              (fn [ruleset]
-                (implicit-terrain-stamp-render-layers-for-ruleset tilemap
-                                                                  profile
-                                                                  ruleset)))))
+         (map (or (:rules ruleset) [])
+              (fn [rule]
+                (terrain-stamp-rule-clear-patches source-layer
+                                                  ruleset
+                                                  rule
+                                                  source-x
+                                                  source-y)))))
+
+(defun terrain-stamp-apply-patches-for-positions [source-layer ruleset positions]
+  (apply concat
+         (map (or positions [])
+              (fn [pos]
+                (terrain-stamp-apply-patches-at source-layer
+                                                ruleset
+                                                (:x pos)
+                                                (:y pos))))))
+
+(defun terrain-stamp-clear-patches-for-positions [source-layer ruleset positions]
+  (apply concat
+         (map (or positions [])
+              (fn [pos]
+                (terrain-stamp-clear-patches-at source-layer
+                                                ruleset
+                                                (:x pos)
+                                                (:y pos))))))
 
 (defun derive-terrain-stamp-layer [tilemap definition ruleset]
   (let [source-layer (or (layer-by-id (:layers tilemap)
@@ -407,47 +400,6 @@
           (fn [layer]
             (not (layer-in-profile? profile layer)))))
 
-(defun terrain-stamp-target-layer-ids [ruleset]
-  (reduce (terrain-stamp-output-layer-entries ruleset)
-          []
-          (fn [ids output-layer]
-            (let [target-layer (:target-layer output-layer)]
-              (if (or (nil? target-layer)
-                      (contains? ids target-layer))
-                ids
-                (concat ids [target-layer]))))))
-
-(defun terrain-stamp-source-layer-id [tilemap ruleset]
-  (:id (terrain-source-layer-for-ruleset (:layers tilemap) ruleset)))
-
-(defun terrain-stamp-source-layer-ids-for-target [tilemap rulesets target-layer-id]
-  (reduce (or rulesets [])
-          []
-          (fn [ids ruleset]
-            (let [source-layer-id (terrain-stamp-source-layer-id tilemap ruleset)]
-              (if (and (= (:kind ruleset) :terrain-stamp)
-                       source-layer-id
-                       (contains? (terrain-stamp-target-layer-ids ruleset)
-                                  target-layer-id)
-                       (not (contains? ids source-layer-id)))
-                (concat ids [source-layer-id])
-                ids)))))
-
-(defun annotate-terrain-stamp-output-layer [tilemap rulesets layer]
-  (let [source-layer-ids (terrain-stamp-source-layer-ids-for-target tilemap
-                                                                    rulesets
-                                                                    (:id layer))]
-    (if (empty? source-layer-ids)
-      layer
-      (assoc layer
-             :terrain-stamp-source-layers source-layer-ids
-             :replaces-source? true))))
-
-(defun annotate-terrain-stamp-output-layers [tilemap rulesets layers]
-  (map layers
-       (fn [layer]
-         (annotate-terrain-stamp-output-layer tilemap rulesets layer))))
-
 (defun replacement-layer-source-ids [layer]
   (or (:terrain-stamp-source-layers layer)
       (if (:replaces-source? layer)
@@ -482,27 +434,23 @@
                                                        row)))
     layer))
 
-(defun mask-source-layers-with-replacements [layers]
-  (let [replacement-layers (filter layers
-                                   (fn [layer]
-                                     (:replaces-source? layer)))]
-    (map layers
-         (fn [layer]
-           (mask-source-layer-with-replacements replacement-layers layer)))))
+(defun mask-source-layers-with-replacements [layers replacement-layers]
+  (map layers
+       (fn [layer]
+         (mask-source-layer-with-replacements replacement-layers layer))))
 
 (defun render-layers [tilemap layer-profile rulesets]
   (let [profile (or layer-profile {:layers []})
         profile-layers (render-layers-from-profile tilemap profile rulesets)
-        implicit-layers (implicit-terrain-stamp-render-layers tilemap
-                                                              profile
-                                                              rulesets)]
+        stamp-layers (or (:terrain-stamp-layers tilemap) [])
+        replacement-layers (concat (or (:terrain-stamp-replacements tilemap) [])
+                                   stamp-layers)
+        layers (if (empty? profile-layers)
+                 (concat (or (:layers tilemap) [])
+                         stamp-layers)
+                 (concat profile-layers
+                         (unprofiled-render-layers tilemap profile)
+                         stamp-layers))]
     (mask-source-layers-with-replacements
-     (annotate-terrain-stamp-output-layers
-      tilemap
-      rulesets
-      (if (empty? profile-layers)
-        (concat (or (:layers tilemap) [])
-                implicit-layers)
-        (concat profile-layers
-                (unprofiled-render-layers tilemap profile)
-                implicit-layers))))))
+     layers
+     replacement-layers)))

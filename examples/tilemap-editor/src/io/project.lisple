@@ -131,6 +131,8 @@
               :layers layers
               :selected-layer-index (when (> (count layers) 0) 0)
               :selected-layer-label (or (:label (head layers)) "")
+              :terrain-stamp-layers []
+              :terrain-stamp-replacements []
               :hidden-layer-indices []
               :tileset tileset
               :selected-tileset-index (when tileset

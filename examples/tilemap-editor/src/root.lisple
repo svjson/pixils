@@ -74,6 +74,8 @@
            :selected-layer-index nil
            :selected-layer-label ""
            :layers []
+           :terrain-stamp-layers []
+           :terrain-stamp-replacements []
            :hidden-layer-indices []
            :selected-label ""
            :project-path nil

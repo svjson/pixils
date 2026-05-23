@@ -46,7 +46,11 @@
                                     (:layer-profiles state)
                                     (:selected-layer-profile-id state))
                      render-layers (derivation/render-layers
-                                    {:layers (:layers state)}
+                                    {:layers (:layers state)
+                                     :terrain-stamp-layers
+                                     (:terrain-stamp-layers state)
+                                     :terrain-stamp-replacements
+                                     (:terrain-stamp-replacements state)}
                                     layer-profile
                                     (:rulesets state))]
                  (tr/render-layers! (:tilesets state)
@@ -84,6 +88,10 @@
                        :selected-layer-index (ui/bind-state :selected-layer-index)
                        :selected-layer-label (ui/bind-state :selected-layer-label)
                        :layers (ui/bind-state :layers)
+                       :terrain-stamp-layers
+                       (ui/bind-state :terrain-stamp-layers)
+                       :terrain-stamp-replacements
+                       (ui/bind-state :terrain-stamp-replacements)
                        :hidden-layer-indices (ui/bind-state :hidden-layer-indices)
                        :offset (ui/bind-state :map-offset)
                        :zoom (ui/bind-state :zoom)

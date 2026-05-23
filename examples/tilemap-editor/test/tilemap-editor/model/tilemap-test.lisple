@@ -154,7 +154,38 @@
                (paint-event :left 1 1))]
     (is (= :grass (get-in state [:layers 0 :tiles 1 1])))
     (is (= :shore-n (get-in state [:layers 1 :tiles 0 1])))
-    (is (= :grass-fill (get-in state [:layers 1 :tiles 1 1])))))
+    (is (= :grass-fill (get-in state [:layers 1 :tiles 1 1])))
+    (is (= true
+           (get-in state [:terrain-stamp-replacements 0 :tiles 1 1])))))
+
+(deftest tilemap-paint-terrain-does_not_apply_matching_rules_across_whole_map
+  (let [state (tilemap/paint-map-at
+               (terrain-paint-state (terrain-map [[nil :water nil nil :water]
+                                                  [nil nil nil nil :grass]])
+                                    :grass)
+               (paint-event :left 1 1))]
+    (is (= :grass-fill (get-in state [:layers 1 :tiles 1 1])))
+    (is (nil? (get-in state [:layers 1 :tiles 1 4])))))
+
+(deftest tilemap-paint-terrain-uses_auto_stamp_layer_without_target_layer
+  (let [state (assoc-in (terrain-paint-state (terrain-map [[nil :water nil]])
+                                             :grass)
+                        [:rulesets 0 :rules 0 :output :layers 0 :target-layer]
+                        nil)
+        state (tilemap/paint-map-at state (paint-event :left 1 1))]
+    (is (= :grass (get-in state [:layers 0 :tiles 1 1])))
+    (is (= :shore-n (get-in state [:terrain-stamp-layers 0 :tiles 0 1])))
+    (is (= :grass-fill (get-in state [:terrain-stamp-layers 0 :tiles 1 1])))))
+
+(deftest tilemap-paint-terrain-does_not_clear_manual_target_tiles
+  (let [state (assoc-in (terrain-paint-state (terrain-map [[nil :water nil]
+                                                          [nil :grass nil]])
+                                             nil)
+                        [:layers 1 :tiles 1 1]
+                        :manual)
+        state (tilemap/paint-map-at state (paint-event :right 1 1))]
+    (is (nil? (get-in state [:layers 0 :tiles 1 1])))
+    (is (= :manual (get-in state [:layers 1 :tiles 1 1])))))
 
 (deftest tilemap-paint-terrain-refreshes_neighbor_stamp_rules
   (let [state (tilemap/paint-map-at
