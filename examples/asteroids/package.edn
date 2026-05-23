@@ -1,7 +1,7 @@
 {:name asteroids
  :version "0.1.0"
  :description "Pixils Asteroids example."
- :dependencies {proof {:path "../../../lisple-lang/pkg/proof"}
+ :dependencies {proof "0.1.0"
                 pixils-runner {:path "../../lib/pixils-runner"}
                 pixils-test {:path "../../lib/pixils-test"}}
  :load-roots ["src"]
