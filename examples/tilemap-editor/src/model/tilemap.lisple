@@ -62,6 +62,13 @@
    {:dx 0 :dy 1}
    {:dx 1 :dy 1}])
 
+(defun all-map-positions []
+  (apply concat
+         (dotimes [y data/map-height]
+           (dotimes [x data/map-width]
+             {:x x
+              :y y}))))
+
 (defun pattern-width [brush]
   (or (-> brush :pattern :size :w) 1))
 
@@ -106,6 +113,43 @@
    :replaces-source? true
    :persistence :ephemeral
    :tiles (data/make-empty-map)})
+
+(defun terrain-stamp-patch-target-layer-id [output-layer]
+  (or (:target-layer output-layer)
+      (:id output-layer)))
+
+(defun tile-ref-layer-index-by-id [layers layer-id]
+  (let [index (layer-index-by-id layers layer-id)
+        layer (when (not (nil? index))
+                (nth layers index))]
+    (if (= (:data-kind layer) :tile-ref)
+      index
+      nil)))
+
+(defun make-terrain-stamp-target-layer [state source-layer ruleset output-layer]
+  (let [layer-id (terrain-stamp-patch-target-layer-id output-layer)]
+    {:id layer-id
+     :label (or (:label output-layer) (:label ruleset) (str layer-id))
+     :kind :tile
+     :role :source
+     :data-kind :tile-ref
+     :tileset (or (:tileset output-layer) (:output-tileset ruleset))
+     :order (* (count (or (:layers state) [])) 10)
+     :tiles (data/make-empty-map)}))
+
+(defun ensure-terrain-stamp-target-layer [state source-layer ruleset output-layer]
+  (let [layer-id (terrain-stamp-patch-target-layer-id output-layer)]
+    (if (or (nil? layer-id)
+            (not (nil? (layer-index-by-id (:layers state) layer-id)))
+            (not (nil? (tile-ref-layer-index-by-id (:layers state) layer-id))))
+      state
+      (assoc state
+             :layers
+             (concat (or (:layers state) [])
+                     [(make-terrain-stamp-target-layer state
+                                                       source-layer
+                                                       ruleset
+                                                       output-layer)])))))
 
 (defun terrain-stamp-layer-index [state collection-key layer-id]
   (layer-index-by-id (or (get state collection-key) []) layer-id))
@@ -174,6 +218,11 @@
           (fn [ruleset]
             (ruleset-applies-to-layer? ruleset layer))))
 
+(defun terrain-preview-rulesets-for-layer [state layer]
+  (filter (terrain-stamp-rulesets-for-layer state layer)
+          (fn [ruleset]
+            (terrain-rule-preview? state ruleset))))
+
 (defun affected-terrain-positions [x y]
   (filter (map terrain-refresh-offsets
                (fn [offset]
@@ -227,9 +276,16 @@
 
 (defun apply-terrain-stamp-patch [state source-layer ruleset patch]
   (let [output-layer (:output-layer patch)
-        target-layer-index (layer-index-by-id (:layers state)
-                                              (:target-layer output-layer))
         application (terrain-rule-application state ruleset)
+        state (if (= application :paint-baked)
+                (ensure-terrain-stamp-target-layer state
+                                                   source-layer
+                                                   ruleset
+                                                   output-layer)
+                state)
+        target-layer-index (tile-ref-layer-index-by-id
+                            (:layers state)
+                            (terrain-stamp-patch-target-layer-id output-layer))
         collection-key (if (and (= application :paint-baked)
                                 target-layer-index)
                          :terrain-stamp-replacements
@@ -313,6 +369,31 @@
                                   positions
                                   rulesets
                                   apply-rule-output-at))
+
+(defun rebuild-terrain-stamp-preview-for-layer [state layer]
+  (let [rulesets (terrain-preview-rulesets-for-layer state layer)]
+    (if (or (not (terrain-source-layer? layer))
+            (empty? rulesets))
+      state
+      (apply-terrain-stamp-rules state
+                                 layer
+                                 (all-map-positions)
+                                 rulesets))))
+
+(defun rebuild-terrain-stamp-preview [state]
+  (reduce (for-indexed [index layer (or (:layers state) [])]
+            {:index index
+             :layer layer})
+          (assoc state :terrain-stamp-layers [])
+          (fn [out entry]
+            (rebuild-terrain-stamp-preview-for-layer out
+                                                     (:layer entry)))))
+
+(defun set-terrain-rule-application [state application]
+  (let [state (assoc state :terrain-rule-application application)]
+    (if (= application :preview)
+      (rebuild-terrain-stamp-preview state)
+      (assoc state :terrain-stamp-layers []))))
 
 (defun refresh-terrain-stamp-rules-around [state layer-index tile-x tile-y]
   (let [source-layer (nth (:layers state) layer-index)

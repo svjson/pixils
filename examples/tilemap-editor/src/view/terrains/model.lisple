@@ -404,8 +404,13 @@
         (:selected-terrain-index state))))
 
 (defun active-layer-profile [state]
-  (data/layer-profile-by-id (:layer-profiles state)
-                            (:selected-layer-profile-id state)))
+  (let [profiles (if (empty? (or (:layers state) []))
+                   (:layer-profiles state)
+                   (data/sync-layer-profiles (:layer-profiles state)
+                                             (:selected-layer-profile-id state)
+                                             (:layers state)))]
+    (data/layer-profile-by-id profiles
+                              (:selected-layer-profile-id state))))
 
 (defun profile-layers [state]
   (let [profile (active-layer-profile state)]

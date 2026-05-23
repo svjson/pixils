@@ -72,13 +72,13 @@
                        :type :toggle
                        :action :view/toggle-grid
                        :selected-path [:option-state :show-grid?]}
-                      {:label "Show Terrain &Rules"
+                      {:label "Show Terrain Rule &Output"
                        :type :toggle
                        :action :view/toggle-terrain-rules
                        :selected-path [:option-state :show-terrain-rules?]}
                       :separator
-                      {:label "Terrain Rules On &Paint ->"
-                       :items [{:label "&Preview Layer"
+                      {:label "Terrain Rule &Application ->"
+                       :items [{:label "&Preview Only"
                                 :type :option
                                 :action :terrain-rules/set-application
                                 :shortcut [:key/ctrl :key/alt :key/p]
@@ -86,7 +86,7 @@
                                 :selected-path [:option-state
                                                 :terrain-rule-application]
                                 :payload :preview}
-                               {:label "&Bake Into Map Data"
+                               {:label "&Bake On Paint"
                                 :type :option
                                 :action :terrain-rules/set-application
                                 :shortcut [:key/ctrl :key/alt :key/b]

@@ -4,6 +4,7 @@
             [pixils.ui.tab-panel :as tabs]
             [tilemap-editor.view.tilemap.controls :as controls]
             [tilemap-editor.model.data :as data]
+            [tilemap-editor.model.tilemap :as tilemap]
             [tilemap-editor.io.project :as project-io]
             [tilemap-editor.view.resources.model :as resource-model]
             [tilemap-editor.view.tileset.model :as tileset-model]
@@ -394,11 +395,13 @@
                                          (not (:show-grid? state))))
               :view/toggle-terrain-rules
               (fn [state event ctx]
-                (assoc state
-                       :show-terrain-rules?
-                       (not (:show-terrain-rules? state))))
+                (let [show? (not (:show-terrain-rules? state))
+                      state (assoc state :show-terrain-rules? show?)]
+                  (if show?
+                    (tilemap/rebuild-terrain-stamp-preview state)
+                    state)))
               :terrain-rules/set-application
               (fn [state event ctx]
-                (assoc state :terrain-rule-application (:payload event)))
+                (tilemap/set-terrain-rule-application state (:payload event)))
               :app/quit (fn [state event ctx]
                           (quit!))}})

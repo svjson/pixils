@@ -1,7 +1,8 @@
 (ns tilemap-editor.io.project
   (:require [lisple.io :as io]
             [pixils.ui.file-dialog :as file-dialog]
-            [tilemap-editor.model.data :as data]))
+            [tilemap-editor.model.data :as data]
+            [tilemap-editor.model.tilemap :as tilemap]))
 
 (def project-file-filters
   [{:label "Pixils project files (*.edn)"
@@ -117,42 +118,43 @@
         brushes (project-brushes project)]
     (if (valid-project-document? project)
       (remember-project!
-       (assoc state
-              :tilesets tilesets
-              :terrain-sets terrain-sets
-              :rulesets rulesets
-              :brushes brushes
-              :selected-brush-index (when (> (count brushes) 0) 0)
-              :selected-brush-layer-index
-              (when (> (count (or (-> (head brushes) :pattern :layers) [])) 0) 0)
-              :brush-selected-tile nil
-              :layer-profiles layer-profiles
-              :selected-layer-profile-id layer-profile-id
-              :layers layers
-              :selected-layer-index (when (> (count layers) 0) 0)
-              :selected-layer-label (or (:label (head layers)) "")
-              :terrain-rule-application :preview
-              :show-terrain-rules? true
-              :terrain-stamp-layers []
-              :terrain-stamp-replacements []
-              :hidden-layer-indices []
-              :tileset tileset
-              :selected-tileset-index (when tileset
-                                        (data/tileset-index tilesets
-                                                               tileset))
-              :selected-tileset-definition-index (when (> (count tilesets) 0) 0)
-              :selected-tileset-tile-index (when (> (count (or (:tiles (head tilesets)) [])) 0) 0)
-              :selected-tile (data/source-layer-value-id
-                              tilesets
-                              terrain-sets
-                              (head layers)
-                              0)
-              :resources (data/normalize-project-resources
-                          (or (:resources project) data/project-resources))
-              :selected-resource-bundle nil
-              :selected-image-resource nil
-              :last-project-open-result payload
-              :last-opened-project project)
+       (tilemap/rebuild-terrain-stamp-preview
+        (assoc state
+               :tilesets tilesets
+               :terrain-sets terrain-sets
+               :rulesets rulesets
+               :brushes brushes
+               :selected-brush-index (when (> (count brushes) 0) 0)
+               :selected-brush-layer-index
+               (when (> (count (or (-> (head brushes) :pattern :layers) [])) 0) 0)
+               :brush-selected-tile nil
+               :layer-profiles layer-profiles
+               :selected-layer-profile-id layer-profile-id
+               :layers layers
+               :selected-layer-index (when (> (count layers) 0) 0)
+               :selected-layer-label (or (:label (head layers)) "")
+               :terrain-rule-application :preview
+               :show-terrain-rules? true
+               :terrain-stamp-layers []
+               :terrain-stamp-replacements []
+               :hidden-layer-indices []
+               :tileset tileset
+               :selected-tileset-index (when tileset
+                                         (data/tileset-index tilesets
+                                                             tileset))
+               :selected-tileset-definition-index (when (> (count tilesets) 0) 0)
+               :selected-tileset-tile-index (when (> (count (or (:tiles (head tilesets)) [])) 0) 0)
+               :selected-tile (data/source-layer-value-id
+                               tilesets
+                               terrain-sets
+                               (head layers)
+                               0)
+               :resources (data/normalize-project-resources
+                           (or (:resources project) data/project-resources))
+               :selected-resource-bundle nil
+               :selected-image-resource nil
+               :last-project-open-result payload
+               :last-opened-project project))
        payload)
       (assoc state :last-project-open-error {:reason :invalid-format
                                              :path (:path payload)}))))

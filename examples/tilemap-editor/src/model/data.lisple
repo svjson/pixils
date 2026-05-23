@@ -393,7 +393,9 @@
                          (assoc result
                                 key
                                 (normalize-brush-value item profile)))))
-    :default value))
+    :default (if (serialized-nil? value)
+               nil
+               value)))
 
 (defun normalize-brushes [brushes profile]
   (normalize-brush-value (or brushes []) profile))

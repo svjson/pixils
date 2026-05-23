@@ -199,6 +199,19 @@
     (is (= :shore-n (get-in state [:terrain-stamp-layers 0 :tiles 0 1])))
     (is (= :grass-fill (get-in state [:terrain-stamp-layers 0 :tiles 1 1])))))
 
+(deftest tilemap-paint-terrain-bakes_to_materialized_layer_without_target_layer
+  (let [state (assoc-in (terrain-paint-state (terrain-map [[nil :water nil]])
+                                             :grass)
+                        [:rulesets 0 :rules 0 :output :layers 0 :target-layer]
+                        nil)
+        state (assoc state :terrain-rule-application :paint-baked)
+        state (tilemap/paint-map-at state (paint-event :left 1 1))]
+    (is (= :shore-rules/overworld (get-in state [:layers 2 :id])))
+    (is (= :tile-ref (get-in state [:layers 2 :data-kind])))
+    (is (= :shore-n (get-in state [:layers 2 :tiles 0 1])))
+    (is (= :grass-fill (get-in state [:layers 2 :tiles 1 1])))
+    (is (= true (get-in state [:terrain-stamp-replacements 0 :tiles 1 1])))))
+
 (deftest tilemap-paint-terrain-does_not_clear_manual_target_tiles
   (let [state (assoc (terrain-paint-state (terrain-map [[nil :water nil]
                                                        [nil :grass nil]])
@@ -235,3 +248,21 @@
     (is (= :grass (get-in state [:layers 0 :tiles 1 1])))
     (is (= :shore-n (get-in state [:terrain-stamp-layers 0 :tiles 0 1])))
     (is (= :grass-fill (get-in state [:terrain-stamp-layers 0 :tiles 1 1])))))
+
+(deftest tilemap-rebuild-terrain-stamp-preview_builds_whole_map_cache
+  (let [state (tilemap/rebuild-terrain-stamp-preview
+               (terrain-paint-state (terrain-map [[nil :water nil]
+                                                  [nil :grass nil]])
+                                    :grass))]
+    (is (= :shore-n (get-in state [:terrain-stamp-layers 0 :tiles 0 1])))
+    (is (= :grass-fill (get-in state [:terrain-stamp-layers 0 :tiles 1 1])))))
+
+(deftest tilemap-set-terrain-rule-application_rebuilds_or_clears_preview_cache
+  (let [state (tilemap/rebuild-terrain-stamp-preview
+               (terrain-paint-state (terrain-map [[nil :water nil]
+                                                  [nil :grass nil]])
+                                    :grass))
+        baked (tilemap/set-terrain-rule-application state :paint-baked)
+        preview (tilemap/set-terrain-rule-application baked :preview)]
+    (is (= [] (:terrain-stamp-layers baked)))
+    (is (= :grass-fill (get-in preview [:terrain-stamp-layers 0 :tiles 1 1])))))

@@ -8,6 +8,7 @@
             [pixils.ui.tab-panel :as tabs]
             pixils.ui.text-input
             [tilemap-editor.model.data :as data]
+            [tilemap-editor.model.tilemap :as tilemap]
             [tilemap-editor.view.tilemap.renderer :as tr]
             [tilemap-editor.view.terrains.model :as model]))
 
@@ -1408,13 +1409,15 @@
           (let [payload (:payload event)]
             (case (:field payload)
               :set-id
-              (model/set-selected-terrain-set-id state (:value payload))
+              (tilemap/rebuild-terrain-stamp-preview
+               (model/set-selected-terrain-set-id state (:value payload)))
 
               :set-label
               (model/set-selected-terrain-set-label state (:value payload))
 
               :terrain-id
-              (model/set-selected-terrain-id state (:value payload))
+              (tilemap/rebuild-terrain-stamp-preview
+               (model/set-selected-terrain-id state (:value payload)))
 
               :terrain-label
               (model/set-selected-terrain-label state (:value payload))
@@ -1422,55 +1425,63 @@
               :default
               state)))
         :terrain/tileset-change (fn [state event ctx]
-                                  (model/set-selected-terrain-set-tileset
-                                   state
-                                   (:payload event)))
+                                  (tilemap/rebuild-terrain-stamp-preview
+                                   (model/set-selected-terrain-set-tileset
+                                    state
+                                    (:payload event))))
         :terrain/tile-change (fn [state event ctx]
-                               (model/set-selected-terrain-tile
-                                state
-                                (:payload event)))
+                               (tilemap/rebuild-terrain-stamp-preview
+                                (model/set-selected-terrain-tile
+                                 state
+                                 (:payload event))))
         :terrain/ruleset-add (fn [state event ctx]
-                               (model/add-terrain-ruleset state))
+                               (tilemap/rebuild-terrain-stamp-preview
+                                (model/add-terrain-ruleset state)))
         :terrain/ruleset-select
         (fn [state event ctx]
           (assoc state
                  :selected-terrain-ruleset-id (:payload event)
                  :selected-terrain-rule-id nil))
         :terrain/rule-add (fn [state event ctx]
-                            (model/add-terrain-rule state))
+                            (tilemap/rebuild-terrain-stamp-preview
+                             (model/add-terrain-rule state)))
         :terrain/rule-select
         (fn [state event ctx]
           (assoc state :selected-terrain-rule-id (:payload event)))
         :terrain/rule-terrain-change
         (fn [state event ctx]
-          (model/set-selected-rule-terrain state (:payload event)))
+          (tilemap/rebuild-terrain-stamp-preview
+           (model/set-selected-rule-terrain state (:payload event))))
         :terrain/rule-match-change
         (fn [state event ctx]
           (let [payload (:payload event)]
-            (assoc (model/set-selected-rule-match-condition state
-                                                            (:direction payload)
-                                                            (:value payload))
-                   :selected-terrain-rule-match-direction
-                   (:direction payload))))
+            (tilemap/rebuild-terrain-stamp-preview
+             (assoc (model/set-selected-rule-match-condition state
+                                                             (:direction payload)
+                                                             (:value payload))
+                    :selected-terrain-rule-match-direction
+                    (:direction payload)))))
         :terrain/rule-match-cycle
         (fn [state event ctx]
           (let [payload (:payload event)]
-            (assoc (model/cycle-selected-rule-match-condition
-                    state
-                    (:direction payload)
-                    (:step payload))
-                 :selected-terrain-rule-match-direction
-                 (:direction payload))))
+            (tilemap/rebuild-terrain-stamp-preview
+             (assoc (model/cycle-selected-rule-match-condition
+                     state
+                     (:direction payload)
+                     (:step payload))
+                    :selected-terrain-rule-match-direction
+                    (:direction payload)))))
         :terrain/rule-stamp-tile-select
         (fn [state event ctx]
           (assoc state :terrain-rule-selected-tile (:payload event)))
         :terrain/rule-stamp-paint
         (fn [state event ctx]
           (let [payload (:payload event)]
-            (model/set-selected-rule-stamp-tile state
-                                                (:x payload)
-                                                (:y payload)
-                                                (:tile payload))))}
+            (tilemap/rebuild-terrain-stamp-preview
+             (model/set-selected-rule-stamp-tile state
+                                                 (:x payload)
+                                                 (:y payload)
+                                                 (:tile payload)))))}
    :children [{:mode 'terrain-definition-selector-column
                :state {:terrain-sets (ui/bind-state :terrain-sets)
                        :selected-terrain-set-index

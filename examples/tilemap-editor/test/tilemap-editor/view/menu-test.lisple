@@ -44,18 +44,18 @@
     (is (= "Show &Grid" (get-in options [0 :label])))
     (is (= :toggle (get-in options [0 :type])))
     (is (= [:option-state :show-grid?] (get-in options [0 :selected-path])))
-    (is (= "Show Terrain &Rules" (get-in options [1 :label])))
+    (is (= "Show Terrain Rule &Output" (get-in options [1 :label])))
     (is (= :toggle (get-in options [1 :type])))
     (is (= [:option-state :show-terrain-rules?]
            (get-in options [1 :selected-path])))
-    (is (= "&Preview Layer" (get-in options [3 :items 0 :label])))
+    (is (= "&Preview Only" (get-in options [3 :items 0 :label])))
     (is (= :option (get-in options [3 :items 0 :type])))
     (is (= [:key/ctrl :key/alt :key/p]
            (get-in options [3 :items 0 :shortcut])))
     (is (= :preview (get-in options [3 :items 0 :value])))
     (is (= [:option-state :terrain-rule-application]
            (get-in options [3 :items 0 :selected-path])))
-    (is (= "&Bake Into Map Data" (get-in options [3 :items 1 :label])))
+    (is (= "&Bake On Paint" (get-in options [3 :items 1 :label])))
     (is (= :option (get-in options [3 :items 1 :type])))
     (is (= [:key/ctrl :key/alt :key/b]
            (get-in options [3 :items 1 :shortcut])))

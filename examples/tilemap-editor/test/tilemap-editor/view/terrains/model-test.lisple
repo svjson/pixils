@@ -229,6 +229,33 @@
            (get-in state [:rulesets 0 :rules 0 :output :layers 0 :tiles])))
     (is (= :rule (:selected-terrain-rule-id state)))))
 
+(deftest terrain-rule-creation-uses_live_tile_layers_when_profile_is_stale
+  (let [state (model/add-terrain-rule
+               {:terrain-sets [{:id :overworld
+                                :tileset :terrain
+                                :terrains [{:id :grass
+                                            :tile :grass-fill}]}]
+                :selected-terrain-set-index 0
+                :selected-terrain-index 0
+                :rulesets [{:id :overworld-rules
+                            :kind :terrain-stamp
+                            :terrain-set :overworld
+                            :rules []}]
+                :selected-terrain-ruleset-id :overworld-rules
+                :layers [{:id :scene/terrain
+                          :data-kind :terrain
+                          :terrain-set :overworld}
+                         {:id :scene/visuals
+                          :data-kind :tile-ref
+                          :tileset :terrain}]
+                :layer-profiles [{:id :default
+                                  :layers [{:id :scene/terrain
+                                            :data-kind :terrain
+                                            :terrain-set :overworld}]}]
+                :selected-layer-profile-id :default})]
+    (is (= :scene/visuals
+           (get-in state [:rulesets 0 :rules 0 :output :layers 0 :target-layer])))))
+
 (deftest terrain-rule-creation-creates_ruleset_when_needed
   (let [state (model/add-terrain-rule
                {:terrain-sets [{:id :overworld

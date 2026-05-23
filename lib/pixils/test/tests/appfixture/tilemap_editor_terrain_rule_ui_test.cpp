@@ -389,3 +389,141 @@ TEST_F(TilemapEditorStartupTest, loaded_terrain_rule_normalizes_legacy_sprite_so
   std::filesystem::remove(history_path, ec);
   std::filesystem::remove(project_path, ec);
 }
+
+TEST_F(TilemapEditorStartupTest, painting_terrain_on_canvas_applies_terrain_stamp_rules)
+{
+  const auto history_path = std::filesystem::temp_directory_path() /
+                            "pixils-tilemap-editor-terrain-rule-paint-history.edn";
+  const auto project_path = std::filesystem::temp_directory_path() /
+                            "pixils-tilemap-editor-terrain-rule-paint-project.edn";
+  std::error_code ec;
+  std::filesystem::remove(history_path, ec);
+  std::filesystem::remove(project_path, ec);
+
+  {
+    std::ofstream out(project_path);
+    out << R"({:format :pixils.tilemap-editor/project
+ :version 1
+ :resources {:bundles {}}
+ :tilesets [{:id :terrain
+             :label "Terrain"
+             :tile-size 16
+             :tiles [{:id :grass-fill
+                      :name "Grass Fill"
+                      :type :color
+                      :color {:r 0 :g 255 :b 0}}
+                     {:id :water-fill
+                      :name "Water Fill"
+                      :type :color
+                      :color {:r 0 :g 0 :b 255}}
+                     {:id :shore-n
+                      :name "Shore North"
+                      :type :color
+                      :color {:r 255 :g 255 :b 0}}]}]
+ :terrain-sets [{:id :overworld
+                 :label "Overworld"
+                 :tileset :terrain
+                 :terrains [{:id :grass
+                             :label "Grass"
+                             :tile :grass-fill}
+                            {:id :water
+                             :label "Water"
+                             :tile :water-fill}]}]
+ :rulesets [{:id :shore-rules
+             :kind :terrain-stamp
+             :terrain-set :overworld
+             :source-layer nil
+             :rules [{:id :grass-north-water
+                      :terrain :grass
+                      :match {:nw :ignore
+                              :n {:terrain :water}
+                              :ne :ignore
+                              :w :ignore
+                              :e :ignore
+                              :sw :ignore
+                              :s :ignore
+                              :se :ignore}
+                      :output {:anchor {:x 1 :y 1}
+                               :layers [{:id :layer
+                                         :target-layer nil
+                                         :tileset :terrain
+                                         :tiles [[nil :shore-n nil]
+                                                 [nil :grass-fill nil]
+                                                 [nil nil nil]]}]}}]}]
+ :layer-profiles [{:id :default
+                   :label "Default"
+                   :layers [{:id :scene/terrain
+                             :label "Terrain Source"
+                             :kind :tile
+                             :role :source
+                             :data-kind :terrain
+                             :terrain-set :overworld}]}]
+ :tilemap {:width 32
+           :height 32
+           :tile-size 16
+           :layer-profile :default
+           :layers [{:id :scene/terrain
+                     :label "Terrain Source"
+                     :kind :tile
+                     :role :source
+                     :data-kind :terrain
+                     :terrain-set :overworld
+                     :tiles [[nil :water nil]]}]}})";
+  }
+
+  read_tilemap_editor_sources(runtime);
+
+  session.push_mode("main-mode", Lisple::Constant::NIL);
+  update_cycle();
+  Lisple::Dict::set_property(session.active_mode->state,
+                             Lisple::keyword("project-history-path"),
+                             Lisple::string(history_path.string()));
+  Lisple::Dict::set_property(session.active_mode->state,
+                             Lisple::keyword("recent-projects"),
+                             Lisple::vector({}));
+
+  auto origin = Lisple::map({Lisple::keyword("view"),
+                             Pixils::Script::ViewAdapter::make_ref(*session.active_mode),
+                             Lisple::keyword("event"),
+                             Lisple::keyword("project/file-dialog-result")});
+  auto overrides = Lisple::map({Lisple::keyword("origin"), origin});
+  session.push_mode("ui/tab-panel-empty", Lisple::Constant::NIL, overrides);
+  session.pop_mode(runtime.eval(R"({:type :confirm
+                                  :mode :file-dialog/open
+                                  :path )" +
+                                lisp_string(project_path.string()) + R"(
+                                  :directory )" +
+                                lisp_string(project_path.parent_path().string()) + R"(
+                                  :filename "terrain-rule-paint-project.edn"})"));
+
+  update_cycle();
+  update_cycle();
+  session.render_mode();
+
+  std::vector<std::shared_ptr<Pixils::Runtime::View>> canvases;
+  find_descendant_modes(session.active_mode, "map-canvas", canvases);
+  ASSERT_EQ(canvases.size(), 1u);
+  auto canvas = canvases[0];
+
+  Lisple::Dict::set_property(session.active_mode->state,
+                             Lisple::keyword("terrain-rule-application"),
+                             Lisple::keyword("paint-baked"));
+  update_cycle();
+  update_cycle();
+
+  input().mouse_down({canvas->bounds.x + 16 + 2, canvas->bounds.y + 16 + 2});
+  update_cycle();
+  input().mouse_up({canvas->bounds.x + 16 + 2, canvas->bounds.y + 16 + 2});
+  update_cycle();
+  update_cycle();
+
+  const auto baked_state_text = session.active_mode->state->to_string();
+  EXPECT_NE(baked_state_text.find(":terrain-stamp-replacements"), std::string::npos);
+  EXPECT_NE(baked_state_text.find(":id :layer :label \":shore-rules\""),
+            std::string::npos);
+  EXPECT_NE(baked_state_text.find(":shore-n"), std::string::npos);
+  EXPECT_NE(baked_state_text.find(":grass-fill"), std::string::npos);
+
+  std::filesystem::remove(history_path, ec);
+  std::filesystem::remove(project_path, ec);
+}

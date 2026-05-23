@@ -10,6 +10,8 @@ TEST_F(TilemapEditorProjectIoTest, save_dialog_result_writes_project_edn)
   std::filesystem::remove(save_path, ec);
 
   runtime.read_file("examples/tilemap-editor/src/model/data.lisple");
+  runtime.read_file("examples/tilemap-editor/src/model/derivation.lisple");
+  runtime.read_file("examples/tilemap-editor/src/model/tilemap.lisple");
   runtime.read_file("examples/tilemap-editor/src/io/project.lisple");
 
   runtime.eval(R"(
@@ -49,6 +51,8 @@ TEST_F(TilemapEditorProjectIoTest, save_dialog_result_updates_recent_projects)
   std::filesystem::remove(history_path, ec);
 
   runtime.read_file("examples/tilemap-editor/src/model/data.lisple");
+  runtime.read_file("examples/tilemap-editor/src/model/derivation.lisple");
+  runtime.read_file("examples/tilemap-editor/src/model/tilemap.lisple");
   runtime.read_file("examples/tilemap-editor/src/io/project.lisple");
 
   auto result = runtime.eval(R"(
@@ -118,6 +122,8 @@ TEST_F(TilemapEditorProjectIoTest, open_dialog_result_loads_project_edn_layers)
   }
 
   runtime.read_file("examples/tilemap-editor/src/model/data.lisple");
+  runtime.read_file("examples/tilemap-editor/src/model/derivation.lisple");
+  runtime.read_file("examples/tilemap-editor/src/model/tilemap.lisple");
   runtime.read_file("examples/tilemap-editor/src/io/project.lisple");
 
   auto result = runtime.eval(R"(
