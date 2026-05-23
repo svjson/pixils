@@ -36,14 +36,44 @@
   (max 1 (- (scrollbar-viewport-size state ctx)
             (* 2 (scrollbar-button-size state ctx)))))
 
+(defun scrollbar-visible-size [state ctx]
+  (or (:viewport-size state)
+      (scrollbar-viewport-size state ctx)))
+
 (defun scrollbar-max [state ctx]
-  (max 0 (- (:content-size state) (scrollbar-viewport-size state ctx))))
+  (max 0 (- (:content-size state) (scrollbar-visible-size state ctx))))
 
 (defun scrollbar-fixed-handle-size [ctx]
   (ui/theme-var ctx :scrollbar-handle-size nil))
 
-(defun scrollbar-proportional-handle-size [track content]
-  (let [page (min track content)]
+(defun view-axis-size [view axis]
+  (if view
+    (let [bounds (:bounds view)]
+      (if (= axis :x)
+        (or (:w bounds) 0)
+        (or (:h bounds) 0)))
+    0))
+
+(defun positive-size [size]
+  (if (> (or size 0) 0)
+    size
+    nil))
+
+(defun scrollbar-rendered-handle-size [ctx axis]
+  (let [children (ui/children ctx)
+        track (if (> (count children) 1)
+                (nth children 1)
+                nil)
+        track-children (if track
+                         (ui/children track)
+                         [])
+        handle (if (> (count track-children) 0)
+                 (nth track-children 0)
+                 nil)]
+    (positive-size (view-axis-size handle axis))))
+
+(defun scrollbar-proportional-handle-size [track content visible]
+  (let [page (min visible content)]
     (if (<= content 0)
       track
       (max 12 (min track (int (/ (* track page) content)))))))
@@ -57,12 +87,15 @@
         0)))
 
 (defun scrollbar-handle-size [state ctx]
-  (let [track (scrollbar-track-size state ctx)
-        content (:content-size state)
-        fixed (scrollbar-fixed-handle-size ctx)]
-    (if fixed
-      (max 1 (min track fixed))
-      (scrollbar-proportional-handle-size track content))))
+  (or (scrollbar-rendered-handle-size ctx (:axis state))
+      (let [track (scrollbar-track-size state ctx)
+            content (:content-size state)
+            fixed (scrollbar-fixed-handle-size ctx)]
+        (if fixed
+          (max 1 (min track fixed))
+          (scrollbar-proportional-handle-size track
+                                              content
+                                              (scrollbar-visible-size state ctx))))))
 
 (defun scrollbar-handle-pos [state ctx]
   (let [track-start (scrollbar-track-start state ctx)
@@ -180,20 +213,28 @@
         (-> ctx :view :bounds :w))))
 
 (defun scrollbar-track-viewport-size [state ctx]
-  (+ (scrollbar-track-axis-size state ctx)
-     (* 2 (scrollbar-track-cross-size state ctx))))
+  (or (:viewport-size state)
+      (+ (scrollbar-track-axis-size state ctx)
+         (* 2 (scrollbar-track-cross-size state ctx)))))
 
 (defun scrollbar-track-max [state ctx]
   (max 0 (- (:content-size state)
             (scrollbar-track-viewport-size state ctx))))
 
 (defun scrollbar-track-handle-size [state ctx]
-  (let [track (scrollbar-track-axis-size state ctx)
-        content (:content-size state)
-        fixed (scrollbar-fixed-handle-size ctx)]
-    (if fixed
-      (max 1 (min track fixed))
-      (scrollbar-proportional-handle-size track content))))
+  (or (let [children (ui/children ctx)
+            handle (if (> (count children) 0)
+                     (nth children 0)
+                     nil)]
+        (positive-size (view-axis-size handle (:axis state))))
+      (let [track (scrollbar-track-axis-size state ctx)
+            content (:content-size state)
+            fixed (scrollbar-fixed-handle-size ctx)]
+        (if fixed
+          (max 1 (min track fixed))
+          (scrollbar-proportional-handle-size track
+                                              content
+                                              (scrollbar-track-viewport-size state ctx))))))
 
 (defun scrollbar-track-handle-pos [state ctx]
   (let [track (scrollbar-track-axis-size state ctx)
@@ -231,13 +272,14 @@
   (let [track (scrollbar-handle-content-axis-size state ctx)
         cross (scrollbar-handle-content-cross-size state ctx)
         content (or (:content-size state) 0)
-        viewport (+ track (* 2 cross))
+        viewport (or (:viewport-size state)
+                     (+ track (* 2 cross)))
         max-value (max 0 (- content viewport))
         fixed (scrollbar-fixed-handle-size ctx)]
     (if fixed
       (max 1 (min track fixed))
       (if (> max-value 0)
-        (scrollbar-proportional-handle-size track content)
+        (scrollbar-proportional-handle-size track content viewport)
         track))))
 
 (defun scrollbar-handle-content-size [state ctx]
@@ -475,6 +517,7 @@
    :children [{:mode 'ui/scrollbar-handle
                :state {:axis (ui/bind-state :axis)
                        :content-size (ui/bind-state :content-size)
+                       :viewport-size (ui/bind-state :viewport-size)
                        :active-part (ui/bind-state :active-part)}}]})
 
 (defcomponent ui/scrollbar
@@ -523,6 +566,10 @@
                   (do
                     (ui/stop-propagation! event)
                     (scrollbar-clear-active-state state)))
+   :on-drag-start (fn [state event ctx]
+                    (if (= (:drag-kind state) :button)
+                      state
+                      (assoc state :value (scrollbar-value-at state event ctx))))
    :on-drag (fn [state event ctx]
               (if (= (:drag-kind state) :button)
                 state
@@ -539,6 +586,7 @@
                :state {:axis (ui/bind-state :axis)
                        :content-size (ui/bind-state :content-size)
                        :value (ui/bind-state :value)
+                       :viewport-size (ui/bind-state :viewport-size)
                        :active-part (ui/bind-state :active-part)}}
               {:mode 'ui/scrollbar-button
                :state {:axis (ui/bind-state :axis)

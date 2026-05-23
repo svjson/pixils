@@ -84,6 +84,95 @@ TEST_F(ScrollbarTest, scrollbar_button_children_bubble_click_behavior_to_scrollb
   EXPECT_EQ(value->num().get_int(), 5);
 }
 
+TEST_F(ScrollbarTest, proportional_handle_uses_viewport_size_for_page_ratio)
+{
+  runtime.eval(R"(
+    (pixils/defmode root-mode
+      {:children [{:mode 'ui/scrollbar
+                   :style {:height 200}
+                   :state {:axis :y :content-size 400 :value 0}}]})
+  )");
+
+  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.update_mode();
+  session.render_mode();
+
+  ASSERT_NE(session.active_mode, nullptr);
+  ASSERT_EQ(session.active_mode->children.size(), 1u);
+  auto scrollbar = session.active_mode->children[0];
+  ASSERT_NE(scrollbar, nullptr);
+  ASSERT_EQ(scrollbar->children.size(), 3u);
+
+  auto track = scrollbar->children[1];
+  ASSERT_NE(track, nullptr);
+  ASSERT_EQ(track->children.size(), 1u);
+
+  auto handle = track->children[0];
+  ASSERT_NE(handle, nullptr);
+  EXPECT_EQ(scrollbar->bounds.h, 200);
+  EXPECT_EQ(track->bounds.h, 172);
+  EXPECT_EQ(handle->bounds.h, 82);
+}
+
+TEST_F(ScrollbarTest, proportional_handle_at_max_reaches_track_end)
+{
+  runtime.eval(R"(
+    (pixils/defmode root-mode
+      {:children [{:mode 'ui/scrollbar
+                   :style {:height 200}
+                   :state {:axis :y :content-size 400 :value 200}}]})
+  )");
+
+  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.update_mode();
+  session.render_mode();
+  session.update_mode();
+  session.render_mode();
+
+  ASSERT_NE(session.active_mode, nullptr);
+  ASSERT_EQ(session.active_mode->children.size(), 1u);
+  auto scrollbar = session.active_mode->children[0];
+  ASSERT_NE(scrollbar, nullptr);
+  ASSERT_EQ(scrollbar->children.size(), 3u);
+
+  auto track = scrollbar->children[1];
+  ASSERT_NE(track, nullptr);
+  ASSERT_EQ(track->children.size(), 1u);
+
+  auto handle = track->children[0];
+  ASSERT_NE(handle, nullptr);
+  EXPECT_EQ(handle->bounds.y + handle->bounds.h, track->bounds.y + track->bounds.h);
+}
+
+TEST_F(ScrollbarTest, dragging_proportional_handle_to_end_sets_max_value)
+{
+  runtime.eval(R"(
+    (pixils/defmode root-mode
+      {:children [{:mode 'ui/scrollbar
+                   :style {:height 200}
+                   :state {:axis :y :content-size 400 :value 0}}]})
+  )");
+
+  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.update_mode();
+  session.render_mode();
+
+  ASSERT_NE(session.active_mode, nullptr);
+  ASSERT_EQ(session.active_mode->children.size(), 1u);
+  auto scrollbar = session.active_mode->children[0];
+  ASSERT_NE(scrollbar, nullptr);
+
+  input().mouse_down({scrollbar->bounds.x + 5, scrollbar->bounds.y + 20});
+  update_cycle();
+  input().mouse_move({scrollbar->bounds.x + 5,
+                      scrollbar->bounds.y + scrollbar->bounds.h - 15});
+  update_cycle();
+
+  auto value = get_state_key(scrollbar, "value");
+  ASSERT_NE(value, nullptr);
+  EXPECT_EQ(value->num().get_int(), 200);
+}
+
 TEST_F(ScrollbarTest, scrollbar_handle_pressed_state_clears_after_click)
 {
   runtime.eval(R"(
