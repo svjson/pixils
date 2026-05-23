@@ -116,6 +116,31 @@
    :position {:x (* x data/tile-size)
               :y (* y data/tile-size)}})
 
+(deftest tilemap-normalizes_rectangular_selection
+  (is (= {:x 2 :y 3 :w 5 :h 4}
+         (tilemap/normalize-selection-rect {:x 6 :y 6}
+                                           {:x 2 :y 3}))))
+
+(deftest tilemap-select-tool_tracks_dragged_rectangle
+  (let [state {:map-tool :select
+               :zoom 1
+               :offset {:x 0 :y 0}}
+        state (tilemap/map-canvas-mouse-down state (paint-event :left 5 6))
+        state (tilemap/map-canvas-drag state (paint-event :left 7 4))
+        state (tilemap/map-canvas-mouse-up state (paint-event :left 7 4))]
+    (is (= {:x 5 :y 4 :w 3 :h 3}
+           (-> state :map-selection :rect)))
+    (is (= false (-> state :map-selection :active?)))))
+
+(deftest tilemap-select-tool_does_not_paint_selected_layer
+  (let [state (assoc (terrain-paint-state (terrain-map [[nil nil nil]])
+                                          :grass)
+                     :map-tool :select)
+        state (tilemap/map-canvas-mouse-down state (paint-event :left 1 1))]
+    (is (nil? (get-in state [:layers 0 :tiles 1 1])))
+    (is (= {:x 1 :y 1 :w 1 :h 1}
+           (-> state :map-selection :rect)))))
+
 (deftest tilemap-paint-stamps_selected_pattern_brush
   (let [state (tilemap/paint-map-at (brush-paint-state)
                                     (paint-event :left 5 6))]

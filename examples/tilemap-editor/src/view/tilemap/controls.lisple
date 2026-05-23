@@ -1,12 +1,15 @@
 (ns tilemap-editor.view.tilemap.controls
   (:require pixils
+            [pixils.render :as r]
             [pixils.ui :as ui]
+            [pixils.ui.button :as button]
             [pixils.ui.combo-box :as cb]
             [pixils.ui.header-panel :as hp]
             [pixils.ui.list-box :as lb]
             [pixils.ui.menu :as menu]
             [pixils.ui.dialog :as dialog]
             [pixils.ui.slider :as sl]
+            [pixils.ui.theme-assets :as theme-assets]
             pixils.ui.text-input
             [pixils.ui.window :as w]
             [tilemap-editor.model.data :as data]))
@@ -14,6 +17,98 @@
 
 
 ;; Editor controls
+
+(def map-tool-button-size 28)
+(def map-tool-icon-size 20)
+(def map-tool-icon-bundle :tilemap-editor-tools)
+(def paint-tool-icon :tilemap-editor-tools/paint-20)
+(def select-tool-icon :tilemap-editor-tools/select-20)
+(def map-tool-icon-color {:r 0xff :g 0xcc :b 0x66})
+
+(defun draw-paint-tool-icon! [color]
+  (do
+    (r/line! {:x 12 :y 1} {:x 18 :y 7} color)
+    (r/line! {:x 11 :y 2} {:x 17 :y 8} color)
+    (r/line! {:x 10 :y 4} {:x 15 :y 9} color)
+    (r/rect! {:x 4 :y 9 :w 9 :h 5} {:color color})
+    (r/line! {:x 4 :y 14} {:x 1 :y 18} color)
+    (r/line! {:x 7 :y 14} {:x 5 :y 18} color)
+    (r/line! {:x 10 :y 14} {:x 9 :y 18} color)))
+
+(defun draw-select-tool-icon! [color]
+  (do
+    (r/line! {:x 4 :y 4} {:x 8 :y 4} color)
+    (r/line! {:x 12 :y 4} {:x 16 :y 4} color)
+    (r/line! {:x 4 :y 16} {:x 8 :y 16} color)
+    (r/line! {:x 12 :y 16} {:x 16 :y 16} color)
+    (r/line! {:x 4 :y 4} {:x 4 :y 8} color)
+    (r/line! {:x 4 :y 12} {:x 4 :y 16} color)
+    (r/line! {:x 16 :y 4} {:x 16 :y 8} color)
+    (r/line! {:x 16 :y 12} {:x 16 :y 16} color)
+    (r/rect! {:x 2 :y 2 :w 4 :h 4} {:color color})
+    (r/rect! {:x 15 :y 15 :w 4 :h 4} {:color color})))
+
+(defun draw-paint-tool-image! []
+  (draw-paint-tool-icon! map-tool-icon-color))
+
+(defun draw-select-tool-image! []
+  (draw-select-tool-icon! map-tool-icon-color))
+
+(defun ensure-map-tool-assets! []
+  (do
+    (theme-assets/ensure-generated-image! map-tool-icon-bundle
+                                          paint-tool-icon
+                                          {:size {:w map-tool-icon-size
+                                                  :h map-tool-icon-size}}
+                                          draw-paint-tool-image!)
+    (theme-assets/ensure-generated-image! map-tool-icon-bundle
+                                          select-tool-icon
+                                          {:size {:w map-tool-icon-size
+                                                  :h map-tool-icon-size}}
+                                          draw-select-tool-image!)))
+
+(ensure-map-tool-assets!)
+
+(def map-tool-buttons
+  [{:value :paint
+    :label ""
+    :image paint-tool-icon
+    :style {:width map-tool-button-size
+            :height map-tool-button-size}}
+   {:value :select
+    :label ""
+    :image select-tool-icon
+    :style {:width map-tool-button-size
+            :height map-tool-button-size}}])
+
+(defcomponent map-tool-grid
+  {:style {:width :fill
+           :height :shrink
+           :layout {:direction :row
+                    :gap 6}}
+   :on {:toggle-button-group/change
+        (fn [state event ctx]
+          (let [tool (-> event :payload :selected)]
+            (do
+              (ui/stop-propagation! event)
+              (ui/emit! (:view ctx) :map/tool-select tool)
+              (assoc state :map-tool tool))))}
+   :children [(button/make-toggle-button-group
+               {:buttons map-tool-buttons
+                :selected (ui/bind-state :map-tool)
+                :selection-required? true
+                :button-row-style {:layout {:direction :row
+                                            :gap 6}}})]})
+
+(defun make-map-tool-controls []
+  (hp/make {:title "Tools"
+            :style {:width :fill}
+            :body-style {:padding 8
+                         :layout {:direction :column
+                                  :gap 4}}
+            :body-state {:map-tool (ui/bind-state :map-tool)}
+            :children [{:mode 'map-tool-grid
+                        :state {:map-tool (ui/bind-state :map-tool)}}]}))
 
 (defun layer-visible? [hidden-layer-indices index]
   (not (contains? (or hidden-layer-indices []) index)))

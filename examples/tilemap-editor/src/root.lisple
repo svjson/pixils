@@ -77,6 +77,8 @@
            :selected-layer-index nil
            :selected-layer-label ""
            :layers []
+           :map-tool :paint
+           :map-selection nil
            :terrain-rule-application :preview
            :show-terrain-rules? true
            :terrain-stamp-layers []
@@ -199,6 +201,8 @@
                        :selected-brush-layer-index (ui/bind-state :selected-brush-layer-index)
                        :brush-selected-tile (ui/bind-state :brush-selected-tile)
                        :map-palette-tab (ui/bind-state :map-palette-tab)
+                       :map-tool (ui/bind-state :map-tool)
+                       :map-selection (ui/bind-state :map-selection)
                        :selected-layer-index (ui/bind-state :selected-layer-index)
                        :selected-layer-label (ui/bind-state :selected-layer-label)
                        :layers (ui/bind-state :layers)
@@ -239,6 +243,8 @@
                                        (ui/bind-state :selected-brush-index)
                                        :map-palette-tab
                                        (ui/bind-state :map-palette-tab)
+                                       :map-tool (ui/bind-state :map-tool)
+                                       :map-selection (ui/bind-state :map-selection)
                                        :selected-layer-index (ui/bind-state :selected-layer-index)
                                        :selected-layer-label (ui/bind-state :selected-layer-label)
                                        :layers (ui/bind-state :layers)
@@ -333,6 +339,13 @@
                                       (:payload event)))
        :palette/tab-select (fn [state event ctx]
                              (assoc state :map-palette-tab (:payload event)))
+       :map/tool-select (fn [state event ctx]
+                          (let [tool (or (:payload event) :paint)]
+                            (assoc state
+                                   :map-tool tool
+                                   :map-selection (if (= tool :select)
+                                                    (:map-selection state)
+                                                    nil))))
        :tab-panel/change (fn [state event ctx]
                            (assoc state :workspace-tab (-> event :payload :tab)))
        :layer/name-dialog-result (fn [state event ctx]

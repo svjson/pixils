@@ -24,7 +24,8 @@
            (derive-map-workspace-state state))
    :update (fn [state ctx]
              (derive-map-workspace-state state))
-   :children [(controls/make-layer-controls)
+   :children [(controls/make-map-tool-controls)
+              (controls/make-layer-controls)
               (controls/make-tileset-controls)
               (palette/make-tile-palette)
               (inspector/make-inspector-panel)]})
@@ -47,6 +48,8 @@
                        :selected-brush-index
                        (ui/bind-state :selected-brush-index)
                        :map-palette-tab (ui/bind-state :map-palette-tab)
+                       :map-tool (ui/bind-state :map-tool)
+                       :map-selection (ui/bind-state :map-selection)
                        :selected-layer-index (ui/bind-state :selected-layer-index)
                        :selected-layer-label (ui/bind-state :selected-layer-label)
                        :layers (ui/bind-state :layers)
@@ -91,6 +94,8 @@
                         :selected-brush-index
                         (ui/bind-state :selected-brush-index)
                         :map-palette-tab (ui/bind-state :map-palette-tab)
+                        :map-tool (ui/bind-state :map-tool)
+                        :map-selection (ui/bind-state :map-selection)
                         :selected-layer-index (ui/bind-state :selected-layer-index)
                         :selected-layer-label (ui/bind-state :selected-layer-label)
                         :layers (ui/bind-state :layers)
@@ -121,6 +126,8 @@
                                     (ui/bind-state :selected-brush-index)
                                     :map-palette-tab
                                     (ui/bind-state :map-palette-tab)
+                                    :map-tool (ui/bind-state :map-tool)
+                                    :map-selection (ui/bind-state :map-selection)
                                     :selected-layer-index (ui/bind-state :selected-layer-index)
                                     :selected-layer-label (ui/bind-state :selected-layer-label)
                                     :layers (ui/bind-state :layers)
@@ -154,6 +161,7 @@
                                     (ui/bind-state :selected-brush-index)
                                     :map-palette-tab
                                     (ui/bind-state :map-palette-tab)
+                                    :map-tool (ui/bind-state :map-tool)
                                     :selected-layer-index (ui/bind-state :selected-layer-index)
                                     :selected-layer-label (ui/bind-state :selected-layer-label)
                                     :layers (ui/bind-state :layers)

@@ -11,6 +11,32 @@
 
 ;; Map canvas
 
+(defun selection-screen-rect [selection offset zoom]
+  (let [rect (:rect selection)
+        size (tm/scaled-tile-size zoom)]
+    {:x (- (* (:x rect) size) (:x offset))
+     :y (- (* (:y rect) size) (:y offset))
+     :w (* (:w rect) size)
+     :h (* (:h rect) size)}))
+
+(defun draw-selection-corner! [x y dx dy color]
+  (do
+    (r/line! {:x x :y y} {:x (+ x (* dx 8)) :y y} color)
+    (r/line! {:x x :y y} {:x x :y (+ y (* dy 8))} color)))
+
+(defun draw-selection-overlay! [selection offset zoom]
+  (when selection
+    (let [rect (selection-screen-rect selection offset zoom)
+          right (dec (+ (:x rect) (:w rect)))
+          bottom (dec (+ (:y rect) (:h rect)))
+          color {:r 0xff :g 0xcc :b 0x66}]
+      (do
+        (r/rect! rect {:color color})
+        (draw-selection-corner! (:x rect) (:y rect) 1 1 color)
+        (draw-selection-corner! right (:y rect) -1 1 color)
+        (draw-selection-corner! (:x rect) bottom 1 -1 color)
+        (draw-selection-corner! right bottom -1 -1 color)))))
+
 (defcomponent map-canvas
   {:focusable true
    :class :ui/canvas
@@ -24,14 +50,18 @@
                    :rulesets []
                    :layer-profiles []
                    :brushes []
-                   :layers []}
+                   :layers []
+                   :map-tool :paint
+                   :map-selection nil}
                   state))
    :update (fn [state ctx]
              (tm/clamp-map-offset state ctx))
    :on-mouse-down (fn [state event ctx]
-                    (tm/paint-map-at state event))
+                    (tm/map-canvas-mouse-down state event))
    :on-drag (fn [state event ctx]
-              (tm/paint-map-at state event))
+              (tm/map-canvas-drag state event))
+   :on-mouse-up (fn [state event ctx]
+                  (tm/map-canvas-mouse-up state event))
    :on-key-down (fn [state event ctx]
                   (let [step (tm/scaled-tile-size (:zoom state))]
                     (case (:key event)
@@ -61,7 +91,10 @@
                                     (:hidden-layer-indices state)
                                     offset
                                     (:zoom state)
-                                    (:show-grid? state)))
+                                    (:show-grid? state))
+                 (draw-selection-overlay! (:map-selection state)
+                                          offset
+                                          (:zoom state)))
                (r/text! (str "offset " (:x offset) "," (:y offset)
                              "\nzoom " (:zoom state) "x"
                              "\nlayer " (or (:selected-layer-label state) ""))
@@ -87,6 +120,8 @@
                        :selected-brush-index
                        (ui/bind-state :selected-brush-index)
                        :map-palette-tab (ui/bind-state :map-palette-tab)
+                       :map-tool (ui/bind-state :map-tool)
+                       :map-selection (ui/bind-state :map-selection)
                        :selected-layer-index (ui/bind-state :selected-layer-index)
                        :selected-layer-label (ui/bind-state :selected-layer-label)
                        :layers (ui/bind-state :layers)
@@ -155,6 +190,8 @@
                        :selected-brush-index
                        (ui/bind-state :selected-brush-index)
                        :map-palette-tab (ui/bind-state :map-palette-tab)
+                       :map-tool (ui/bind-state :map-tool)
+                       :map-selection (ui/bind-state :map-selection)
                        :selected-layer-index (ui/bind-state :selected-layer-index)
                        :selected-layer-label (ui/bind-state :selected-layer-label)
                        :layers (ui/bind-state :layers)

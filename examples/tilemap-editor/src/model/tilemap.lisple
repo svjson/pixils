@@ -95,6 +95,56 @@
     {:x (int (/ (+ (:x pos) (:x offset)) size))
      :y (int (/ (+ (:y pos) (:y offset)) size))}))
 
+(defun bounded-map-tile-position [state event]
+  (let [pos (map-tile-position state event)]
+    {:x (clamp (:x pos) 0 (dec data/map-width))
+     :y (clamp (:y pos) 0 (dec data/map-height))}))
+
+(defun normalize-selection-rect [anchor current]
+  (let [x1 (:x anchor)
+        y1 (:y anchor)
+        x2 (:x current)
+        y2 (:y current)
+        left (min x1 x2)
+        top (min y1 y2)
+        right (max x1 x2)
+        bottom (max y1 y2)]
+    {:x left
+     :y top
+     :w (inc (- right left))
+     :h (inc (- bottom top))}))
+
+(defun make-map-selection [anchor current active?]
+  {:anchor anchor
+   :current current
+   :rect (normalize-selection-rect anchor current)
+   :active? active?})
+
+(defun start-map-selection [state event]
+  (let [pos (map-tile-position state event)]
+    (if (and (= (:button event) :left)
+             (in-map-bounds? (:x pos) (:y pos)))
+      (assoc state :map-selection (make-map-selection pos pos true))
+      state)))
+
+(defun update-map-selection [state event]
+  (let [selection (:map-selection state)]
+    (if (:active? selection)
+      (let [pos (bounded-map-tile-position state event)]
+        (assoc state :map-selection (make-map-selection (:anchor selection)
+                                                        pos
+                                                        true)))
+      state)))
+
+(defun finish-map-selection [state event]
+  (let [selection (:map-selection state)]
+    (if (:active? selection)
+      (let [pos (bounded-map-tile-position state event)]
+        (assoc state :map-selection (make-map-selection (:anchor selection)
+                                                        pos
+                                                        false)))
+      state)))
+
 (defun set-map-tile [state layer-index x y tile-ref]
   (if (in-map-bounds? x y)
     (assoc-in state [:layers layer-index :tiles y x] tile-ref)
@@ -561,3 +611,18 @@
         (paint-brush-at state layer-index tile-x tile-y event)
         (paint-tile-at state layer-index tile-x tile-y event))
       state)))
+
+(defun map-canvas-mouse-down [state event]
+  (if (= (:map-tool state) :select)
+    (start-map-selection state event)
+    (paint-map-at state event)))
+
+(defun map-canvas-drag [state event]
+  (if (= (:map-tool state) :select)
+    (update-map-selection state event)
+    (paint-map-at state event)))
+
+(defun map-canvas-mouse-up [state event]
+  (if (= (:map-tool state) :select)
+    (finish-map-selection state event)
+    state))
