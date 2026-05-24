@@ -165,6 +165,34 @@
     (is (= {:x 1 :y 1 :w 1 :h 1}
            (-> state :map-selection :rect)))))
 
+(deftest tilemap-paint-tool_skips_repeated_drag_samples
+  (let [state (assoc (terrain-paint-state (terrain-map [[nil nil nil]
+                                                       [nil :grass nil]])
+                                         :water)
+                     :terrain-stamp-layers [{:id :sentinel
+                                             :tiles (terrain-map [[:keep]])}])
+        state (tilemap/map-canvas-mouse-down state (paint-event :left 1 0))
+        repeated (tilemap/map-canvas-drag state (paint-event :left 1 0))]
+    (is (= state repeated))
+    (is (= {:x 1
+            :y 0
+            :button :left
+            :layer-index 0
+            :palette-tab :tiles
+            :selected-tile :water
+            :selected-brush-index nil}
+           (:last-map-paint-sample state)))))
+
+(deftest tilemap-paint-tool_paints_when_drag_enters_new_tile
+  (let [state (terrain-paint-state (terrain-map [[nil nil nil]])
+                                   :water)
+        state (tilemap/map-canvas-mouse-down state (paint-event :left 0 0))
+        state (tilemap/map-canvas-drag state (paint-event :left 1 0))
+        state (tilemap/map-canvas-mouse-up state (paint-event :left 1 0))]
+    (is (= :water (get-in state [:layers 0 :tiles 0 0])))
+    (is (= :water (get-in state [:layers 0 :tiles 0 1])))
+    (is (nil? (:last-map-paint-sample state)))))
+
 (deftest tilemap-clear-selection-clears_selected_region_on_selected_layer
   (let [state {:selected-layer-index 0
                :map-selection {:rect {:x 1 :y 1 :w 2 :h 2}
@@ -329,6 +357,15 @@
     (is (= :shore-n (get-in state [:terrain-stamp-layers 0 :tiles 1 1])))
     (is (nil? (get-in cleared [:layers 0 :tiles 0 1])))
     (is (nil? (get-in cleared [:terrain-stamp-layers 0 :tiles 1 1])))))
+
+(deftest tilemap-paint-terrain-skips_rule_refresh_when_cell_is_unchanged
+  (let [state (assoc (terrain-paint-state (terrain-map [[nil nil nil]
+                                                       [nil :grass nil]])
+                                         :grass)
+                     :terrain-stamp-layers [{:id :sentinel
+                                             :tiles (terrain-map [[:keep]])}])
+        painted (tilemap/paint-map-at state (paint-event :left 1 1))]
+    (is (= state painted))))
 
 (deftest tilemap-paint-terrain-refreshes_second_order_signature_dependents
   (let [state {:selected-layer-index 0
