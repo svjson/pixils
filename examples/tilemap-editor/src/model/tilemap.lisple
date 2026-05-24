@@ -368,6 +368,18 @@
 (defun terrain-stamp-source-layer-for-ruleset [state layer ruleset]
   layer)
 
+(defun source-less-ruleset? [ruleset]
+  (and (nil? (:source-layer ruleset))
+       (empty? (or (:source-layers ruleset) []))))
+
+(defun terrain-stamp-source-layers-for-ruleset [state layer ruleset]
+  (if (source-less-ruleset? ruleset)
+    (filter (or (:layers state) [])
+            (fn [source-layer]
+              (and (= (:data-kind source-layer) :terrain)
+                   (= (:terrain-set source-layer) (:terrain-set ruleset)))))
+    [(terrain-stamp-source-layer-for-ruleset state layer ruleset)]))
+
 (defun offset-terrain-positions [offsets x y]
   (filter (map offsets
                (fn [offset]
@@ -653,14 +665,18 @@
         (reduce rulesets
                 cleared
                 (fn [out ruleset]
-                  (apply-terrain-stamp-rules
-                   out
-                   (terrain-stamp-source-layer-for-ruleset out
-                                                           refreshed-layer
-                                                           ruleset)
-                   positions
-                   effective-source-positions
-                   [ruleset])))))))
+                  (reduce (terrain-stamp-source-layers-for-ruleset
+                           out
+                           refreshed-layer
+                           ruleset)
+                          out
+                          (fn [source-out source-layer]
+                            (apply-terrain-stamp-rules
+                             source-out
+                             source-layer
+                             positions
+                             effective-source-positions
+                             [ruleset])))))))))
 
 (defun refresh-terrain-stamp-rules-around [state layer-index tile-x tile-y]
   (refresh-terrain-stamp-rules-for-positions state

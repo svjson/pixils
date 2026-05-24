@@ -468,6 +468,49 @@
     (is (= :grass (get-in state [:layers 0 :tiles 1 1])))
     (is (= :shore-n (get-in state [:terrain-stamp-layers 0 :tiles 1 1])))))
 
+(deftest tilemap-source_less_rules_reapply_other_matching_sources_after_clear
+  (let [state (terrain-paint-state (terrain-map [[nil :water nil]
+                                                 [nil :grass nil]])
+                                   :terrain)
+        ground-ruleset (assoc-in (head (:rulesets state))
+                                 [:rules 0 :output :layers 0 :target-layer]
+                                 nil)
+        ground-ruleset (assoc-in ground-ruleset
+                                 [:rules 0 :output :layers 0 :id]
+                                 :layer)
+        forest-ruleset {:id :forest-rules
+                        :kind :terrain-stamp
+                        :terrain-set :forest-set
+                        :source-layer nil
+                        :rules [{:id :forest-fill
+                                 :terrain :terrain
+                                 :match {}
+                                 :output {:anchor {:x 1 :y 1}
+                                          :layers [{:id :layer
+                                                    :tileset :overworld
+                                                    :tiles [[nil nil nil]
+                                                            [nil :forest-fill nil]
+                                                            [nil nil nil]]}]}}]}
+        state (assoc state
+                     :selected-layer-index 2
+                     :terrain-sets [{:id :overworld}
+                                    {:id :forest-set}]
+                     :rulesets [(assoc ground-ruleset :source-layer nil)
+                                forest-ruleset]
+                     :layers (concat (:layers state)
+                                     [{:id :scene/forest-mask
+                                       :label "Forest Mask"
+                                       :role :source
+                                       :data-kind :terrain
+                                       :terrain-set :forest-set
+                                       :tiles (data/make-empty-map)}]))
+        state (tilemap/rebuild-terrain-stamp-preview state)
+        painted (tilemap/paint-map-at state (paint-event :left 1 1))]
+    (is (= :shore-n (get-in state [:terrain-stamp-layers 0 :tiles 1 1])))
+    (is (= :terrain (get-in painted [:layers 2 :tiles 1 1])))
+    (is (= :shore-n (get-in painted [:terrain-stamp-layers 0 :tiles 1 1])))
+    (is (= :forest-fill (get-in painted [:terrain-stamp-layers 1 :tiles 1 1])))))
+
 (deftest tilemap-source_less_rules_do_not_use_visual_tiles_as_source
   (let [state (source-less-visual-paint-state
                (terrain-map [[nil :water-fill nil]])

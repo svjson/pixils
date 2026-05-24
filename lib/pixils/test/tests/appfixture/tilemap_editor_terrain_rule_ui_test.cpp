@@ -668,7 +668,7 @@ TEST_F(TilemapEditorStartupTest, painting_terrain_on_canvas_applies_terrain_stam
 
   const auto baked_state_text = session.active_mode->state->to_string();
   EXPECT_NE(baked_state_text.find(":terrain-stamp-replacements"), std::string::npos);
-  EXPECT_NE(baked_state_text.find(":id :layer :label \":shore-rules\""),
+  EXPECT_NE(baked_state_text.find(":id :shore-rules/layer :label \":shore-rules\""),
             std::string::npos);
   EXPECT_NE(baked_state_text.find(":shore-n"), std::string::npos);
   EXPECT_NE(baked_state_text.find(":grass-fill"), std::string::npos);

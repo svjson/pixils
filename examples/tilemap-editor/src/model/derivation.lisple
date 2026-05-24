@@ -477,13 +477,13 @@
 (defun targetless-terrain-stamp-output-layer-key [ruleset output-layer]
   (keyword (str (id-label (:id ruleset))
                 "/"
-                (id-label (or (:tileset output-layer)
+                (id-label (or (:id output-layer)
+                              (:tileset output-layer)
                               (:output-tileset ruleset)
                               "output")))))
 
 (defun terrain-stamp-output-layer-key [ruleset output-layer]
   (or (:target-layer output-layer)
-      (:id output-layer)
       (targetless-terrain-stamp-output-layer-key ruleset output-layer)))
 
 (defun output-layer-terrain-signatures [output-layer]
