@@ -193,6 +193,34 @@
     (is (= :water (get-in state [:layers 0 :tiles 0 1])))
     (is (nil? (:last-map-paint-sample state)))))
 
+(deftest tilemap-line-tool_paints_line_on_mouse_up
+  (let [state (assoc (terrain-paint-state (terrain-map [[nil nil nil nil]])
+                                          :water)
+                     :map-tool :line)
+        state (tilemap/map-canvas-mouse-down state (paint-event :left 0 0))
+        dragging (tilemap/map-canvas-drag state (paint-event :left 3 0))
+        painted (tilemap/map-canvas-mouse-up dragging (paint-event :left 3 0))]
+    (is (nil? (get-in dragging [:layers 0 :tiles 0 0])))
+    (is (= :water (get-in painted [:layers 0 :tiles 0 0])))
+    (is (= :water (get-in painted [:layers 0 :tiles 0 1])))
+    (is (= :water (get-in painted [:layers 0 :tiles 0 2])))
+    (is (= :water (get-in painted [:layers 0 :tiles 0 3])))
+    (is (nil? (:map-line painted)))))
+
+(deftest tilemap-fill-tool_paints_contiguous_region
+  (let [state (assoc (terrain-paint-state
+                      (terrain-map [[:grass :grass :water]
+                                    [:grass :water :water]
+                                    [nil :grass :grass]])
+                      :desert)
+                     :map-tool :fill)
+        painted (tilemap/map-canvas-mouse-down state (paint-event :left 0 0))]
+    (is (= :desert (get-in painted [:layers 0 :tiles 0 0])))
+    (is (= :desert (get-in painted [:layers 0 :tiles 0 1])))
+    (is (= :desert (get-in painted [:layers 0 :tiles 1 0])))
+    (is (= :water (get-in painted [:layers 0 :tiles 1 1])))
+    (is (= :grass (get-in painted [:layers 0 :tiles 2 1])))))
+
 (deftest tilemap-clear-selection-clears_selected_region_on_selected_layer
   (let [state {:selected-layer-index 0
                :map-selection {:rect {:x 1 :y 1 :w 2 :h 2}

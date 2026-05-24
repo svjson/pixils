@@ -37,6 +37,22 @@
         (draw-selection-corner! (:x rect) bottom 1 -1 color)
         (draw-selection-corner! right bottom -1 -1 color)))))
 
+(defun tile-screen-rect [pos offset zoom]
+  (let [size (tm/scaled-tile-size zoom)]
+    {:x (- (* (:x pos) size) (:x offset))
+     :y (- (* (:y pos) size) (:y offset))
+     :w size
+     :h size}))
+
+(defun draw-line-overlay! [line offset zoom]
+  (when (:active? line)
+    (let [color {:r 0xff :g 0xcc :b 0x66}]
+      (do
+        (map (tm/line-positions (:anchor line) (:current line))
+             (fn [pos]
+               (r/rect! (tile-screen-rect pos offset zoom) {:color color})))
+        nil))))
+
 (defcomponent map-canvas
   {:focusable true
    :class :ui/canvas
@@ -52,7 +68,8 @@
                    :brushes []
                    :layers []
                    :map-tool :paint
-                   :map-selection nil}
+                   :map-selection nil
+                   :map-line nil}
                   state))
    :update (fn [state ctx]
              (tm/clamp-map-offset state ctx))
@@ -96,7 +113,10 @@
                                     (:show-grid? state))
                  (draw-selection-overlay! (:map-selection state)
                                           offset
-                                          (:zoom state)))
+                                          (:zoom state))
+                 (draw-line-overlay! (:map-line state)
+                                     offset
+                                     (:zoom state)))
                (r/text! (str "offset " (:x offset) "," (:y offset)
                              "\nzoom " (:zoom state) "x"
                              "\nlayer " (or (:selected-layer-label state) ""))
@@ -132,6 +152,7 @@
                        :map-palette-tab (ui/bind-state :map-palette-tab)
                        :map-tool (ui/bind-state :map-tool)
                        :map-selection (ui/bind-state :map-selection)
+                       :map-line (ui/bind-state :map-line)
                        :selected-layer-index (ui/bind-state :selected-layer-index)
                        :selected-layer-label (ui/bind-state :selected-layer-label)
                        :layers (ui/bind-state :layers)
@@ -199,6 +220,7 @@
                        :map-palette-tab (ui/bind-state :map-palette-tab)
                        :map-tool (ui/bind-state :map-tool)
                        :map-selection (ui/bind-state :map-selection)
+                       :map-line (ui/bind-state :map-line)
                        :selected-layer-index (ui/bind-state :selected-layer-index)
                        :selected-layer-label (ui/bind-state :selected-layer-label)
                        :layers (ui/bind-state :layers)

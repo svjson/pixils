@@ -155,6 +155,53 @@
                {:x (+ (:x rect) dx)
                 :y (+ (:y rect) dy)})))))
 
+(defun abs-int [value]
+  (if (< value 0)
+    (* value -1)
+    value))
+
+(defun sign-int [value]
+  (cond
+    (< value 0) -1
+    (> value 0) 1
+    :default 0))
+
+(defun line-positions-step [x y end-x end-y dx dy sx sy err positions]
+  (let [positions (concat positions [{:x x :y y}])]
+    (if (and (= x end-x) (= y end-y))
+      positions
+      (let [e2 (* 2 err)
+            move-x (> e2 (* -1 dy))
+            move-y (< e2 dx)]
+        (line-positions-step (if move-x (+ x sx) x)
+                             (if move-y (+ y sy) y)
+                             end-x
+                             end-y
+                             dx
+                             dy
+                             sx
+                             sy
+                             (+ err
+                                (if move-x (* -1 dy) 0)
+                                (if move-y dx 0))
+                             positions)))))
+
+(defun line-positions [start end]
+  (let [dx (abs-int (- (:x end) (:x start)))
+        dy (abs-int (- (:y end) (:y start)))
+        sx (sign-int (- (:x end) (:x start)))
+        sy (sign-int (- (:y end) (:y start)))]
+    (line-positions-step (:x start)
+                         (:y start)
+                         (:x end)
+                         (:y end)
+                         dx
+                         dy
+                         sx
+                         sy
+                         (- dx dy)
+                         [])))
+
 (defun set-map-tile [state layer-index x y tile-ref]
   (if (in-map-bounds? x y)
     (let [state (assoc-in state [:layers layer-index :tiles y x] tile-ref)
@@ -725,19 +772,14 @@
     state))
 
 (defun paint-tile-at [state layer-index tile-x tile-y event]
-  (let [tile-ref (case (:button event)
-                   :left (:selected-tile state)
-                   :right nil
-                   :default :tilemap/unchanged)
-        layer (nth (or (:layers state) []) layer-index)]
-    (if (or (= tile-ref :tilemap/unchanged)
-            (= (derivation/cell-at layer tile-x tile-y) tile-ref))
+  (let [tile-ref (map-edit-value-for-button state (:button event))]
+    (if (= tile-ref :tilemap/unchanged)
       state
-      (refresh-terrain-stamp-rules-around
-       (set-map-tile state layer-index tile-x tile-y tile-ref)
+      (paint-map-positions state
        layer-index
-       tile-x
-       tile-y))))
+       [{:x tile-x
+         :y tile-y}]
+       tile-ref))))
 
 (defun paint-brush-at [state layer-index tile-x tile-y event]
   (let [brush (selected-brush (:brushes state) (:selected-brush-index state))]
@@ -751,6 +793,91 @@
       :default
       state)))
 
+(defun same-position? [a b]
+  (and (= (:x a) (:x b))
+       (= (:y a) (:y b))))
+
+(defun fill-neighbor-positions [pos]
+  [{:x (:x pos) :y (dec (:y pos))}
+   {:x (inc (:x pos)) :y (:y pos)}
+   {:x (:x pos) :y (inc (:y pos))}
+   {:x (dec (:x pos)) :y (:y pos)}])
+
+(defun flood-fill-positions-step [layer target pending seen positions]
+  (if (empty? pending)
+    positions
+    (let [pos (head pending)
+          pending (filter pending
+                          (fn [candidate]
+                            (not (same-position? candidate pos))))]
+      (if (or (get-in seen [(:y pos) (:x pos)])
+              (not (in-map-bounds? (:x pos) (:y pos)))
+              (not= (derivation/cell-at layer (:x pos) (:y pos)) target))
+        (flood-fill-positions-step layer target pending seen positions)
+        (flood-fill-positions-step layer
+                                   target
+                                   (concat pending (fill-neighbor-positions pos))
+                                   (assoc-in seen [(:y pos) (:x pos)] true)
+                                   (concat positions [pos]))))))
+
+(defun flood-fill-positions [layer start]
+  (flood-fill-positions-step layer
+                             (derivation/cell-at layer (:x start) (:y start))
+                             [start]
+                             {}
+                             []))
+
+(defun fill-map-at [state layer-index tile-x tile-y event]
+  (let [tile-ref (map-edit-value-for-button state (:button event))
+        layer (nth (or (:layers state) []) layer-index)]
+    (if (or (= tile-ref :tilemap/unchanged)
+            (= (derivation/cell-at layer tile-x tile-y) tile-ref))
+      state
+      (paint-map-positions state
+                           layer-index
+                           (flood-fill-positions layer {:x tile-x :y tile-y})
+                           tile-ref))))
+
+(defun make-map-line [anchor current button active?]
+  {:anchor anchor
+   :current current
+   :button button
+   :active? active?})
+
+(defun start-map-line [state event]
+  (let [pos (map-tile-position state event)]
+    (if (and (or (= (:button event) :left)
+                 (= (:button event) :right))
+             (in-map-bounds? (:x pos) (:y pos)))
+      (assoc state :map-line (make-map-line pos pos (:button event) true))
+      state)))
+
+(defun update-map-line [state event]
+  (let [line (:map-line state)]
+    (if (:active? line)
+      (let [pos (bounded-map-tile-position state event)]
+        (assoc state :map-line (make-map-line (:anchor line)
+                                              pos
+                                              (:button line)
+                                              true)))
+      state)))
+
+(defun finish-map-line [state event]
+  (let [line (:map-line state)
+        layer-index (or (:selected-layer-index state) 0)
+        layers (or (:layers state) [])]
+    (if (and (:active? line)
+             (> (count layers) 0)
+             (< layer-index (count layers)))
+      (let [pos (bounded-map-tile-position state event)
+            tile-ref (map-edit-value-for-button state (:button line))]
+        (dissoc (paint-map-positions state
+                                     layer-index
+                                     (line-positions (:anchor line) pos)
+                                     tile-ref)
+                :map-line))
+      (dissoc state :map-line))))
+
 (defun map-cell-clear-changes? [layer pos]
   (or (not (nil? (derivation/cell-at layer (:x pos) (:y pos))))
       (not (nil? (get-in layer [:terrain-signatures (:y pos) (:x pos)])))))
@@ -760,6 +887,32 @@
           state
           (fn [out pos]
             (set-map-tile out layer-index (:x pos) (:y pos) nil))))
+
+(defun map-edit-value-for-button [state button]
+  (case button
+    :left (:selected-tile state)
+    :right nil
+    :default :tilemap/unchanged))
+
+(defun map-cell-paint-changes? [layer pos tile-ref]
+  (and (not= tile-ref :tilemap/unchanged)
+       (or (not= (derivation/cell-at layer (:x pos) (:y pos)) tile-ref)
+           (not (nil? (get-in layer [:terrain-signatures (:y pos) (:x pos)]))))))
+
+(defun paint-map-positions [state layer-index positions tile-ref]
+  (let [layer (nth (or (:layers state) []) layer-index)
+        changed-positions (filter (or positions [])
+                                  (fn [pos]
+                                    (map-cell-paint-changes? layer
+                                                             pos
+                                                             tile-ref)))]
+    (refresh-terrain-stamp-rules-for-positions
+     (reduce changed-positions
+             state
+             (fn [out pos]
+               (set-map-tile out layer-index (:x pos) (:y pos) tile-ref)))
+     layer-index
+     changed-positions)))
 
 (defun clear-map-selection [state]
   (let [selection (:map-selection state)
@@ -796,6 +949,21 @@
         (paint-tile-at state layer-index tile-x tile-y event))
       state)))
 
+(defun fill-map-from-event [state event]
+  (let [tile-pos (map-tile-position state event)
+        tile-x (:x tile-pos)
+        tile-y (:y tile-pos)
+        layer-index (or (:selected-layer-index state) 0)
+        layers (or (:layers state) [])]
+    (if (and (>= tile-x 0)
+             (< tile-x data/map-width)
+             (>= tile-y 0)
+             (< tile-y data/map-height)
+             (> (count layers) 0)
+             (< layer-index (count layers)))
+      (fill-map-at state layer-index tile-x tile-y event)
+      state)))
+
 (defun map-paint-sample [state event]
   (let [tile-pos (map-tile-position state event)
         tile-x (:x tile-pos)
@@ -823,23 +991,28 @@
       state)))
 
 (defun map-canvas-mouse-down [state event]
-  (if (= (:map-tool state) :select)
-    (start-map-selection state event)
-    (let [sample (map-paint-sample state event)]
-      (paint-map-sample (dissoc state :last-map-paint-sample)
-                        event
-                        sample))))
+  (case (:map-tool state)
+    :select (start-map-selection state event)
+    :line (start-map-line (dissoc state :last-map-paint-sample) event)
+    :fill (fill-map-from-event (dissoc state :last-map-paint-sample) event)
+    :default (let [sample (map-paint-sample state event)]
+               (paint-map-sample (dissoc state :last-map-paint-sample)
+                                 event
+                                 sample))))
 
 (defun map-canvas-drag [state event]
-  (if (= (:map-tool state) :select)
-    (update-map-selection state event)
-    (let [sample (map-paint-sample state event)]
-      (if (and sample
-               (= sample (:last-map-paint-sample state)))
-        state
-        (paint-map-sample state event sample)))))
+  (case (:map-tool state)
+    :select (update-map-selection state event)
+    :line (update-map-line state event)
+    :fill state
+    :default (let [sample (map-paint-sample state event)]
+               (if (and sample
+                        (= sample (:last-map-paint-sample state)))
+                 state
+                 (paint-map-sample state event sample)))))
 
 (defun map-canvas-mouse-up [state event]
-  (if (= (:map-tool state) :select)
-    (finish-map-selection state event)
-    (dissoc state :last-map-paint-sample)))
+  (case (:map-tool state)
+    :select (finish-map-selection state event)
+    :line (finish-map-line state event)
+    :default (dissoc state :last-map-paint-sample)))
