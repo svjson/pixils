@@ -213,7 +213,7 @@ TEST_F(TilemapEditorStartupTest, terrain_rule_add_button_creates_visible_rule)
   for (const auto& cell : stamp_cells)
   {
     const auto state_text = cell->state ? cell->state->to_string() : "";
-    if (state_text.find(":stamp-x 2") != std::string::npos &&
+    if (state_text.find(":stamp-x 1") != std::string::npos &&
         state_text.find(":stamp-y 1") != std::string::npos)
     {
       stamp_cell = cell;
@@ -244,7 +244,7 @@ TEST_F(TilemapEditorStartupTest, terrain_rule_add_button_creates_visible_rule)
   input().mouse_up(stamp_cell_position);
   update_cycle();
   EXPECT_NE(session.active_mode->state->to_string().find(
-              ":tiles [[nil nil nil] [nil :grass-fill :water-fill] [nil nil nil]]"),
+              ":tiles [[nil nil nil] [nil :water-fill nil] [nil nil nil]]"),
             std::string::npos);
 
   input().mouse_down(no_tile_position);
@@ -254,7 +254,7 @@ TEST_F(TilemapEditorStartupTest, terrain_rule_add_button_creates_visible_rule)
   input().mouse_up(stamp_cell_position);
   update_cycle();
   EXPECT_NE(session.active_mode->state->to_string().find(
-              ":tiles [[nil nil nil] [nil :grass-fill nil] [nil nil nil]]"),
+              ":tiles [[nil nil nil] [nil nil nil] [nil nil nil]]"),
             std::string::npos);
 
   std::filesystem::remove(history_path, ec);

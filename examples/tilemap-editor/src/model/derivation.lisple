@@ -244,19 +244,19 @@
               :y tile-y
               :tile tile}))))
 
+(defun output-anchor [output]
+  (or (:anchor output) {:x 0 :y 0}))
+
+(defun output-layer-anchor-entry [output output-layer]
+  (let [anchor (output-anchor output)]
+    {:x (:x anchor)
+     :y (:y anchor)
+     :tile (nth (or (nth (or (:tiles output-layer) []) (:y anchor)) [])
+                (:x anchor))}))
+
 (defun apply-stamp-output-layer [tiles source-x source-y output output-layer]
-  (let [anchor (or (:anchor output) {:x 0 :y 0})]
-    (reduce (output-layer-tile-entries output-layer)
-            tiles
-            (fn [next-tiles entry]
-              (stamp-tile next-tiles
-                          (+ source-x
-                             (:x entry)
-                             (- (:x anchor)))
-                          (+ source-y
-                             (:y entry)
-                             (- (:y anchor)))
-                          (:tile entry))))))
+  (let [entry (output-layer-anchor-entry output output-layer)]
+    (stamp-tile tiles source-x source-y (:tile entry))))
 
 (defun terrain-stamp-rule-exclusive? [rule]
   (= (:exclusive? rule) true))
@@ -373,7 +373,7 @@
   (nth (or (nth (output-layer-terrain-signatures output-layer) y) []) x))
 
 (defun stamp-output-position [source-x source-y output entry]
-  (let [anchor (or (:anchor output) {:x 0 :y 0})]
+  (let [anchor (output-anchor output)]
     {:x (+ source-x (:x entry) (- (:x anchor)))
      :y (+ source-y (:y entry) (- (:y anchor)))}))
 
@@ -385,7 +385,7 @@
      :terrain-signature terrain-signature}))
 
 (defun stamp-output-patch-cells [source-x source-y output output-layer tile-fn signature-fn]
-  (filter (map (output-layer-tile-entries output-layer)
+  (filter (map [(output-layer-anchor-entry output output-layer)]
                (fn [entry]
                  (when (:tile entry)
                    (stamp-output-patch-cell source-x

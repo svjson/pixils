@@ -525,10 +525,7 @@
    :y (max 0 (min 2 (or y 1)))})
 
 (defun selected-rule-output-position [state]
-  (let [requested (or (:selected-terrain-rule-output-position state)
-                      (-> (selected-terrain-rule state) :output :anchor)
-                      {:x 1 :y 1})]
-    (output-grid-position (:x requested) (:y requested))))
+  (output-grid-position 1 1))
 
 (defun empty-terrain-signature-row []
   [nil nil nil])
@@ -1130,13 +1127,12 @@
 (defun set-selected-rule-stamp-tile [state x y tile-ref]
   (let [ruleset-id (selected-terrain-ruleset-id state)
         rule-id (or (:selected-terrain-rule-id state)
-                    (selected-terrain-rule-id state))]
+                    (selected-terrain-rule-id state))
+        pos (selected-rule-output-position state)]
     (if (and ruleset-id
              rule-id
-             (>= x 0)
-             (< x 3)
-             (>= y 0)
-             (< y 3))
+             (= x (:x pos))
+             (= y (:y pos)))
       (assoc state
              :rulesets (update-ruleset
                         (:rulesets state)

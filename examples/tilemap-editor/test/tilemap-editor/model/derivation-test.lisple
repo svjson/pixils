@@ -124,13 +124,13 @@
             :output {:anchor {:x 1 :y 1}
                      :layers [{:target-layer :scene/terrain-visuals
                                :tileset :overworld
-                               :tiles [[nil :shore-n nil]
-                                       [nil :grass-fill :grass-edge-e]
+                               :tiles [[nil nil nil]
+                                       [nil :shore-n nil]
                                        [nil nil nil]]}
                               {:target-layer :scene/decor
                                :tileset :decor
                                :tiles [[nil nil nil]
-                                       [:foam nil nil]
+                                       [nil :foam nil]
                                        [nil nil nil]]}]}}]})
 
 (deftest terrain-stamp-rules-match_8_neighbor_conditions
@@ -262,7 +262,7 @@
     (is (= true
            (derivation/terrain-stamp-rule-matches? source rule 1 1)))))
 
-(deftest terrain-stamp-derives_offset_outputs_for_target_layer
+(deftest terrain-stamp-derives_center_outputs_for_target_layer
   (let [source (terrain-layer (terrain-map [[:water :water :water]
                                            [:grass :grass :grass]
                                            [nil :grass nil]]))
@@ -293,10 +293,10 @@
                                        layer-profile
                                        [terrain-stamp-ruleset]
                                        :scene/decor)]
-    (is (= :shore-n (get-in terrain-visuals [:tiles 0 1])))
-    (is (= :grass-fill (get-in terrain-visuals [:tiles 1 1])))
-    (is (= :grass-edge-e (get-in terrain-visuals [:tiles 1 2])))
-    (is (= :foam (get-in decor [:tiles 1 0])))))
+    (is (= :shore-n (get-in terrain-visuals [:tiles 1 1])))
+    (is (nil? (get-in terrain-visuals [:tiles 0 1])))
+    (is (nil? (get-in terrain-visuals [:tiles 1 2])))
+    (is (= :foam (get-in decor [:tiles 1 1])))))
 
 (deftest terrain-stamp-apply_patches_include_target_and_auto_outputs
   (let [source (terrain-layer (terrain-map [[:water :water :water]
@@ -310,8 +310,8 @@
                                                [nil :grass-fill nil]
                                                [nil nil nil]]}
                                       {:tileset :overworld
-                                       :tiles [[nil :grass-cap nil]
-                                               [nil nil nil]
+                                       :tiles [[nil nil nil]
+                                               [nil :grass-cap nil]
                                                [nil nil nil]]}]})
         ruleset (assoc terrain-stamp-ruleset
                        :rules [rule])
@@ -329,7 +329,7 @@
              :terrain-signature signature}]
            (:cells (head patches))))
     (is (= [{:x 1
-             :y 0
+             :y 1
              :tile :grass-cap
              :terrain-signature signature}]
            (:cells (nth patches 1))))))
@@ -433,7 +433,7 @@
                                                      ruleset)]
     (is (= :first (get-in tiles [1 1])))))
 
-(deftest terrain-stamp-clear_patches_use_output_footprints
+(deftest terrain-stamp-clear_patches_use_center_output_footprints
   (let [source (terrain-layer (terrain-map [[nil nil nil]
                                            [nil :grass nil]]))
         patches (derivation/terrain-stamp-clear-patches-at
@@ -444,11 +444,9 @@
     (is (= [:scene/terrain-visuals :scene/decor]
            (map patches (fn [patch]
                           (-> patch :output-layer :id)))))
-    (is (= [{:x 1 :y 0 :tile nil :terrain-signature nil}
-            {:x 1 :y 1 :tile nil :terrain-signature nil}
-            {:x 2 :y 1 :tile nil :terrain-signature nil}]
+    (is (= [{:x 1 :y 1 :tile nil :terrain-signature nil}]
            (:cells (head patches))))
-    (is (= [{:x 0 :y 1 :tile nil :terrain-signature nil}]
+    (is (= [{:x 1 :y 1 :tile nil :terrain-signature nil}]
            (:cells (nth patches 1))))))
 
 (deftest render-layers-does_not_derive_implicit_terrain_stamp_layer

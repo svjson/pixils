@@ -580,7 +580,7 @@
     (is (= :any-terrain
            (get-in any-state [:rulesets 0 :rules 0 :match :s])))))
 
-(deftest terrain-rule-stamp-tile-edit-updates_selected_rule_stamp_grid
+(deftest terrain-rule-stamp-tile-edit-updates_center_stamp_cell
   (let [state (model/set-selected-rule-stamp-tile
                {:terrain-sets [{:id :overworld
                                 :terrains [{:id :grass}]}]
@@ -596,11 +596,11 @@
                                                                 [nil nil nil]]}]}}]}]
                 :selected-terrain-ruleset-id :overworld-rules
                 :selected-terrain-rule-id :rule}
-               2
+               1
                1
                :shore)]
     (is (= [[nil nil nil]
-            [nil :grass :shore]
+            [nil :shore nil]
             [nil nil nil]]
            (get-in state
                    [:rulesets 0 :rules 0 :output :layers 0 :tiles])))
@@ -615,8 +615,29 @@
                     0
                     :terrain-signatures
                     1
-                    2
+                    1
                     :center])))))
+
+(deftest terrain-rule-stamp-tile-edit-ignores_non_center_cells
+  (let [initial-state {:terrain-sets [{:id :overworld
+                                       :terrains [{:id :grass}]}]
+                       :selected-terrain-set-index 0
+                       :selected-terrain-index 0
+                       :rulesets [{:id :overworld-rules
+                                   :terrain-set :overworld
+                                   :rules [{:id :rule
+                                            :terrain :grass
+                                            :output {:layers [{:tileset :terrain
+                                                               :tiles [[nil nil nil]
+                                                                       [nil :grass nil]
+                                                                       [nil nil nil]]}]}}]}]
+                       :selected-terrain-ruleset-id :overworld-rules
+                       :selected-terrain-rule-id :rule}
+        state (model/set-selected-rule-stamp-tile initial-state
+                                                  2
+                                                  1
+                                                  :shore)]
+    (is (= initial-state state))))
 
 (deftest terrain-rule-stamp-tile-edit-can_clear_cells
   (let [state (model/set-selected-rule-stamp-tile

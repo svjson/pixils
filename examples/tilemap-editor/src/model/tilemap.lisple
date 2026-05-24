@@ -294,39 +294,9 @@
 (defun terrain-rule-baked? [state ruleset]
   (= (terrain-rule-application state ruleset) :paint-baked))
 
-(defun terrain-source-layer? [layer]
-  (= (:data-kind layer) :terrain))
-
-(defun tile-ref-source-layer? [layer]
-  (= (:data-kind layer) :tile-ref))
-
-(defun ruleset-has-explicit-source? [ruleset]
-  (or (:source-layer ruleset)
-      (not (empty? (or (:source-layers ruleset) [])))))
-
 (defun ruleset-explicitly-applies-to-layer? [ruleset layer]
   (or (= (:source-layer ruleset) (:id layer))
       (contains? (or (:source-layers ruleset) []) (:id layer))))
-
-(defun output-layer-targets-layer? [layer output-layer]
-  (or (= (:target-layer output-layer) (:id layer))
-      (and (nil? (:target-layer output-layer))
-           (= (:tileset output-layer) (:tileset layer)))
-      (= (:tileset output-layer) (:tileset layer))))
-
-(defun ruleset-outputs-target-layer? [ruleset layer]
-  (> (count (filter (apply concat
-                           (map (or (:rules ruleset) [])
-                                (fn [rule]
-                                  (or (-> rule :output :layers) []))))
-                    (fn [output-layer]
-                      (output-layer-targets-layer? layer output-layer))))
-     0))
-
-(defun source-less-ruleset-applies-to-layer? [ruleset layer]
-  (and (not (ruleset-has-explicit-source? ruleset))
-       (tile-ref-source-layer? layer)
-       (ruleset-outputs-target-layer? ruleset layer)))
 
 (defun ruleset-applies-to-layer? [ruleset layer]
   (and (= (:kind ruleset) :terrain-stamp)
@@ -334,8 +304,7 @@
            (and (nil? (:source-layer ruleset))
                 (empty? (or (:source-layers ruleset) []))
                 (= (:data-kind layer) :terrain)
-                (= (:terrain-set ruleset) (:terrain-set layer)))
-           (source-less-ruleset-applies-to-layer? ruleset layer))))
+                (= (:terrain-set ruleset) (:terrain-set layer))))))
 
 (defun terrain-stamp-rulesets-for-layer [state layer]
   (filter (or (:rulesets state) [])
@@ -347,89 +316,19 @@
           (fn [ruleset]
             (terrain-rule-preview? state ruleset))))
 
-(defun assoc-tile-signature [catalog tile-ref signature replace?]
-  (if (and tile-ref
-           signature
-           (or replace?
-               (not (contains? catalog tile-ref))))
-    (assoc catalog tile-ref signature)
-    catalog))
-
-(defun terrain-definition-signature-catalog [state ruleset layer]
-  (let [terrain-set (data/terrain-set-definition (:terrain-sets state)
-                                                 (:terrain-set ruleset))]
-    (reduce (or (:terrains terrain-set) [])
-            {}
-            (fn [catalog terrain]
-              (if (= (data/terrain-preview-tileset terrain-set terrain)
-                     (:tileset layer))
-                (assoc-tile-signature
-                 catalog
-                 (data/terrain-preview-tile terrain)
-                 (derivation/solid-terrain-signature (:id terrain))
-                 false)
-                catalog)))))
-
-(defun output-layer-terrain-signature-at [output-layer x y]
-  (nth (or (nth (derivation/output-layer-terrain-signatures output-layer) y) []) x))
-
-(defun output-layer-tile-entries [output-layer]
-  (apply concat
-         (for-indexed [tile-y row (or (:tiles output-layer) [])]
-           (for-indexed [tile-x tile (or row [])]
-             {:x tile-x
-              :y tile-y
-              :tile tile}))))
-
-(defun add-output-signatures-to-catalog [catalog layer rule output-layer]
-  (if (output-layer-targets-layer? layer output-layer)
-    (reduce (output-layer-tile-entries output-layer)
-            catalog
-            (fn [result entry]
-              (let [signature (output-layer-terrain-signature-at output-layer
-                                                                 (:x entry)
-                                                                 (:y entry))
-                    fallback (derivation/default-terrain-signature-for-rule rule)]
-                (assoc-tile-signature result
-                                      (:tile entry)
-                                      (or signature fallback)
-                                      (not (nil? signature))))))
-    catalog))
-
-(defun add-ruleset-output-signatures-to-catalog [catalog ruleset layer]
-  (reduce (or (:rules ruleset) [])
-          catalog
-          (fn [catalog rule]
-            (reduce (or (-> rule :output :layers) [])
-                    catalog
-                    (fn [result output-layer]
-                      (add-output-signatures-to-catalog result
-                                                       layer
-                                                       rule
-                                                       output-layer))))))
-
-(defun terrain-signature-catalog [state ruleset layer]
-  (add-ruleset-output-signatures-to-catalog
-   (terrain-definition-signature-catalog state ruleset layer)
-   ruleset
-   layer))
-
 (defun terrain-stamp-source-layer-for-ruleset [state layer ruleset]
-  (if (tile-ref-source-layer? layer)
-    (assoc layer
-           :data-kind :terrain-signature
-           :terrain-set (:terrain-set ruleset)
-           :terrain-signatures-by-tile
-           (terrain-signature-catalog state ruleset layer))
-    layer))
+  layer)
 
-(defun affected-terrain-positions [x y]
-  (filter (map terrain-refresh-offsets
+(defun offset-terrain-positions [offsets x y]
+  (filter (map offsets
                (fn [offset]
                  {:x (+ x (:dx offset))
                   :y (+ y (:dy offset))}))
           (fn [pos]
             (in-map-bounds? (:x pos) (:y pos)))))
+
+(defun affected-terrain-positions [x y]
+  (offset-terrain-positions terrain-refresh-offsets x y))
 
 (defun clear-target-stamp-entry [state target-layer-index layer-id x y]
   (if (not (nil? (terrain-stamp-layer-cell state
