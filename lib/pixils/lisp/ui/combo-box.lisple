@@ -38,6 +38,45 @@
       (option-value option)
       nil)))
 
+(defun next-enabled-index-from [options index direction]
+  (if (or (< index 0)
+          (>= index (count options)))
+    nil
+    (let [option (nth options index)]
+      (if (option-disabled? option)
+        (next-enabled-index-from options (+ index direction) direction)
+        index))))
+
+(defun next-enabled-index [options selected-index direction]
+  (next-enabled-index-from (or options [])
+                           (+ (or selected-index 0) direction)
+                           direction))
+
+(defun select-index [state index ctx]
+  (if (nil? index)
+    state
+    (let [option (selected-option (:options state) index)
+          value (selected-value (:options state) index)]
+      (if (or (nil? option)
+              (option-disabled? option))
+        state
+        (do
+          (ui/emit! (:view ctx)
+                    :combo-box/change
+                    {:selected-index index
+                     :value value})
+          (assoc (assoc state
+                        :selected-index index)
+                 :selected-value value))))))
+
+(defun step-selection [state direction ctx]
+  (if (:disabled? state)
+    state
+    (let [index (next-enabled-index (:options state)
+                                    (:selected-index state)
+                                    direction)]
+      (select-index state index ctx))))
+
 (defun popup-position [anchor-view]
   (let [bounds (:bounds anchor-view)]
     {:left (:x bounds)
@@ -115,25 +154,28 @@
                       (when (not (:disabled? state))
                         (open-popup! state ctx))
                       state))
+   :on-key-down (fn [state event ctx]
+                  (if (:disabled? state)
+                    state
+                    (case (:key event)
+                      :key/up
+                      (do
+                        (ui/stop-propagation! event)
+                        (step-selection state -1 ctx))
+
+                      :key/down
+                      (do
+                        (ui/stop-propagation! event)
+                        (step-selection state 1 ctx))
+
+                      :default state)))
    :on {:combo-box/select (fn [state event ctx]
                             (let [payload (:payload event)
-                                  index (head (:selected-indices payload))
-                                  option (selected-option (:options state) index)
-                                  value (or (:value payload)
-                                            (selected-value (:options state) index))
-                                  next-state (assoc (assoc state
-                                                           :selected-index index)
-                                                    :selected-value value)]
+                                  index (head (:selected-indices payload))]
                               (do
                                 (ui/stop-propagation! event)
-                                (if (option-disabled? option)
-                                  state
-                                  (do
-                                    (ui/emit! (:view ctx)
-                                              :combo-box/change
-                                              {:selected-index index
-                                               :value value})
-                                    next-state)))))}
+                                (ui/focus! ctx)
+                                (select-index state index ctx))))}
    :children [{:mode 'ui/combo-box-trigger
                :state {:selected-label (ui/bind-state :selected-label)
                        :disabled? (ui/bind-state :disabled?)}}]})

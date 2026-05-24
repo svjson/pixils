@@ -1,10 +1,20 @@
 #include "../../render_fixture.h"
 
 #include <gtest/gtest.h>
+#include <SDL2/SDL_keycode.h>
 #include <lisple/runtime/dict.h>
 #include <lisple/runtime/value.h>
 
 using ComboBoxTest = RenderFixture;
+
+namespace
+{
+  Lisple::sptr_val get_state_key(const std::shared_ptr<Pixils::Runtime::View>& view,
+                                 const std::string& key)
+  {
+    return Lisple::Dict::get_property(view->state, Lisple::keyword(key));
+  }
+} // namespace
 
 TEST_F(ComboBoxTest, combo_box_trigger_uses_styleable_scrollbar_button)
 {
@@ -74,6 +84,67 @@ TEST_F(ComboBoxTest, disabled_combo_box_disables_trigger_button_and_does_not_pre
   EXPECT_EQ(pressed->to_string(), "false");
   ASSERT_NE(session.active_mode, nullptr);
   EXPECT_EQ(session.active_mode->mode->name, "root-mode");
+}
+
+TEST_F(ComboBoxTest, focused_combo_box_arrow_keys_change_selection_without_opening)
+{
+  runtime.eval(R"(
+    (pixils/defmode root-mode
+      {:init (fn [state ctx] {:selected-index 0 :focused? false})
+       :update (fn [state ctx]
+                 (do
+                   (when (not (:focused? state))
+                     (pixils.ui/focus! (head (pixils.ui/children ctx))))
+                   (assoc state :focused? true)))
+       :on {:combo-box/change (fn [state event ctx]
+                                (assoc (assoc state
+                                              :selected-index
+                                              (:selected-index (:payload event)))
+                                       :value
+                                       (:value (:payload event))))}
+       :children [(pixils.ui.combo-box/make
+                   {:options [{:value :a :label "Alpha"}
+                              {:value :b :label "Beta" :disabled? true}
+                              {:value :c :label "Gamma"}]
+                    :style {:width 100}
+                    :selected-index (pixils.ui/bind-state :selected-index)})]})
+  )");
+
+  session.push_mode("root-mode", Lisple::Constant::NIL);
+  update_cycle();
+  render_cycle();
+
+  ASSERT_NE(session.active_mode, nullptr);
+  ASSERT_EQ(session.active_mode->children.size(), 1u);
+  auto combo = session.active_mode->children[0];
+  ASSERT_NE(combo, nullptr);
+  EXPECT_TRUE(combo->interaction.focused);
+
+  input().key_down(SDLK_DOWN);
+  update_cycle();
+  input().key_up(SDLK_DOWN);
+  update_cycle();
+
+  ASSERT_NE(session.active_mode, nullptr);
+  EXPECT_EQ(session.active_mode->mode->name, "root-mode");
+  auto selected_index = get_state_key(session.active_mode, "selected-index");
+  auto value = get_state_key(session.active_mode, "value");
+  ASSERT_NE(selected_index, nullptr);
+  ASSERT_NE(value, nullptr);
+  EXPECT_EQ(selected_index->num().get_int(), 2);
+  EXPECT_EQ(value->to_string(), ":c");
+
+  input().key_down(SDLK_UP);
+  update_cycle();
+  input().key_up(SDLK_UP);
+  update_cycle();
+
+  selected_index = get_state_key(session.active_mode, "selected-index");
+  value = get_state_key(session.active_mode, "value");
+  ASSERT_NE(selected_index, nullptr);
+  ASSERT_NE(value, nullptr);
+  EXPECT_EQ(selected_index->num().get_int(), 0);
+  EXPECT_EQ(value->to_string(), ":a");
 }
 
 TEST_F(ComboBoxTest, combo_box_opens_scrollable_popup_and_reports_selection)
@@ -186,6 +257,9 @@ TEST_F(ComboBoxTest, combo_box_opens_scrollable_popup_and_reports_selection)
   EXPECT_EQ(selected_index->num().get_int(), 1);
   EXPECT_EQ(payload->to_string(), "{:selected-index 1 :value :b}");
   EXPECT_EQ(value->to_string(), ":b");
+  auto combo = session.active_mode->children[0];
+  ASSERT_NE(combo, nullptr);
+  EXPECT_TRUE(combo->interaction.focused);
 }
 
 TEST_F(ComboBoxTest, combo_box_popup_omits_scrollbar_when_options_fit)
