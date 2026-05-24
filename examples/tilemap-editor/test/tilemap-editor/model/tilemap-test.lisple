@@ -225,6 +225,18 @@
     (is (nil? (get-in cleared [:terrain-stamp-layers 0 :tiles 0 1])))
     (is (nil? (get-in cleared [:terrain-stamp-layers 0 :tiles 1 1])))))
 
+(deftest tilemap-clear-selection-skips_rule_refresh_when_cells_are_unchanged
+  (let [state (assoc (terrain-paint-state (terrain-map [[nil nil nil]
+                                                       [nil nil nil]])
+                                         nil)
+                     :map-selection {:rect {:x 1 :y 1 :w 1 :h 1}
+                                     :active? false}
+                     :terrain-stamp-layers [{:id :scene/visuals
+                                             :tiles (terrain-map [[nil nil nil]
+                                                                  [nil :keep nil]])}])
+        cleared (tilemap/clear-map-selection state)]
+    (is (= state cleared))))
+
 (deftest tilemap-paint-stamps_selected_pattern_brush
   (let [state (tilemap/paint-map-at (brush-paint-state)
                                     (paint-event :left 5 6))]

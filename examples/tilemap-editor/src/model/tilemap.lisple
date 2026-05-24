@@ -335,6 +335,28 @@
 (defun effective-source-terrain-positions [x y]
   (offset-terrain-positions terrain-effective-source-offsets x y))
 
+(defun add-unique-position [result pos]
+  (if (get-in result [:seen (:y pos) (:x pos)])
+    result
+    {:seen (assoc-in (:seen result) [(:y pos) (:x pos)] true)
+     :positions (concat (:positions result) [pos])}))
+
+(defun unique-offset-terrain-positions [positions offsets]
+  (:positions
+   (reduce (or positions [])
+           {:seen {}
+            :positions []}
+           (fn [result pos]
+             (reduce (offset-terrain-positions offsets (:x pos) (:y pos))
+                     result
+                     add-unique-position)))))
+
+(defun affected-terrain-positions-for [positions]
+  (unique-offset-terrain-positions positions terrain-refresh-offsets))
+
+(defun effective-source-terrain-positions-for [positions]
+  (unique-offset-terrain-positions positions terrain-effective-source-offsets))
+
 (defun clear-target-stamp-entry [state target-layer-index layer-id x y]
   (if (not (nil? (terrain-stamp-layer-cell state
                                            :terrain-stamp-replacements
@@ -561,15 +583,15 @@
       (rebuild-terrain-stamp-preview state)
       (assoc state :terrain-stamp-layers []))))
 
-(defun refresh-terrain-stamp-rules-around [state layer-index tile-x tile-y]
+(defun refresh-terrain-stamp-rules-for-positions [state layer-index source-positions]
   (let [layer (nth (:layers state) layer-index)
         rulesets (terrain-stamp-rulesets-for-layer state layer)]
-    (if (empty? rulesets)
+    (if (or (empty? source-positions)
+            (empty? rulesets))
       state
-      (let [positions (affected-terrain-positions tile-x tile-y)
-            effective-source-positions (effective-source-terrain-positions
-                                        tile-x
-                                        tile-y)
+      (let [positions (affected-terrain-positions-for source-positions)
+            effective-source-positions (effective-source-terrain-positions-for
+                                        source-positions)
             cleared (reduce rulesets
                             state
                             (fn [out ruleset]
@@ -592,6 +614,12 @@
                    positions
                    effective-source-positions
                    [ruleset])))))))
+
+(defun refresh-terrain-stamp-rules-around [state layer-index tile-x tile-y]
+  (refresh-terrain-stamp-rules-for-positions state
+                                             layer-index
+                                             [{:x tile-x
+                                               :y tile-y}]))
 
 (defun stamp-pattern-cell [state layer-index target-x target-y anchor cell]
   (let [tile-ref (:tile-ref cell)
@@ -723,12 +751,15 @@
       :default
       state)))
 
-(defun clear-map-selection-cell [state layer-index pos]
-  (refresh-terrain-stamp-rules-around
-   (set-map-tile state layer-index (:x pos) (:y pos) nil)
-   layer-index
-   (:x pos)
-   (:y pos)))
+(defun map-cell-clear-changes? [layer pos]
+  (or (not (nil? (derivation/cell-at layer (:x pos) (:y pos))))
+      (not (nil? (get-in layer [:terrain-signatures (:y pos) (:x pos)])))))
+
+(defun clear-map-selection-cells [state layer-index positions]
+  (reduce positions
+          state
+          (fn [out pos]
+            (set-map-tile out layer-index (:x pos) (:y pos) nil))))
 
 (defun clear-map-selection [state]
   (let [selection (:map-selection state)
@@ -737,10 +768,15 @@
              (:rect selection)
              (not (:active? selection))
              (not (nil? layer-index)))
-      (reduce (map-selection-positions selection)
-              state
-              (fn [out pos]
-                (clear-map-selection-cell out layer-index pos)))
+      (let [positions (map-selection-positions selection)
+            layer (nth (or (:layers state) []) layer-index)
+            changed-positions (filter positions
+                                      (fn [pos]
+                                        (map-cell-clear-changes? layer pos)))]
+        (refresh-terrain-stamp-rules-for-positions
+         (clear-map-selection-cells state layer-index changed-positions)
+         layer-index
+         changed-positions))
       state)))
 
 (defun paint-map-at [state event]
