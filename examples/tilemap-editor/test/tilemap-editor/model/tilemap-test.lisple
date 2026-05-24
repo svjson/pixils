@@ -330,6 +330,58 @@
     (is (nil? (get-in cleared [:layers 0 :tiles 0 1])))
     (is (nil? (get-in cleared [:terrain-stamp-layers 0 :tiles 1 1])))))
 
+(deftest tilemap-paint-terrain-refreshes_second_order_signature_dependents
+  (let [state {:selected-layer-index 0
+               :map-palette-tab :tiles
+               :selected-tile :desert
+               :zoom 1
+               :offset {:x 0 :y 0}
+               :layers [{:id :scene/terrain
+                         :label "Terrain"
+                         :role :source
+                         :data-kind :terrain
+                         :terrain-set :overworld
+                         :tiles (terrain-map [[nil nil nil nil]
+                                              [:grass :desert :grass nil]])}
+                        {:id :scene/visuals
+                         :label "Visuals"
+                         :role :source
+                         :data-kind :tile-ref
+                         :tileset :overworld
+                         :tiles (data/make-empty-map)}]
+               :rulesets [{:id :edge-rules
+                           :kind :terrain-stamp
+                           :terrain-set :overworld
+                           :source-layer :scene/terrain
+                           :rules [{:id :grass-needs-east-same
+                                    :terrain :grass
+                                    :match {:e :same}
+                                    :output {:anchor {:x 1 :y 1}
+                                             :layers [{:target-layer :scene/visuals
+                                                       :tileset :overworld
+                                                       :tiles [[nil nil nil]
+                                                               [nil :grass-edge nil]
+                                                               [nil nil nil]]}]}}
+                                   {:id :desert-east-grass-advertises-west-grass
+                                    :terrain :desert
+                                    :match {:e {:terrain :grass}}
+                                    :output {:anchor {:x 1 :y 1}
+                                             :layers [{:target-layer :scene/visuals
+                                                       :tileset :overworld
+                                                       :tiles [[nil nil nil]
+                                                               [nil :desert-edge nil]
+                                                               [nil nil nil]]
+                                                       :terrain-signatures
+                                                       [[nil nil nil]
+                                                        [nil {:center :desert
+                                                              :w :grass}
+                                                         nil]
+                                                        [nil nil nil]]}]}}]}]}
+        state (tilemap/rebuild-terrain-stamp-preview state)
+        painted (tilemap/paint-map-at state (paint-event :left 2 1))]
+    (is (= :grass-edge (get-in state [:terrain-stamp-layers 0 :tiles 1 0])))
+    (is (nil? (get-in painted [:terrain-stamp-layers 0 :tiles 1 0])))))
+
 (deftest tilemap-paint-terrain-ruleset_without_source_layer_uses_matching_terrain_set
   (let [state (assoc-in (terrain-paint-state (terrain-map [[nil :water nil]])
                                              :grass)

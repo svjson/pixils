@@ -262,6 +262,51 @@
     (is (= true
            (derivation/terrain-stamp-rule-matches? source rule 1 1)))))
 
+(deftest terrain-stamp-derivation_uses_adjacent_output_edge_ownership
+  (let [source (terrain-layer (terrain-map [[nil nil nil nil]
+                                           [nil :grass :desert nil]
+                                           [nil :grass :desert nil]]))
+        ruleset {:id :edge-rules
+                 :kind :terrain-stamp
+                 :terrain-set :overworld
+                 :source-layer :scene/terrain
+                 :rules [{:id :grass-shore-n
+                          :terrain :grass
+                          :match {:n :none
+                                  :e :same}
+                          :output {:anchor {:x 1 :y 1}
+                                   :layers [{:target-layer :scene/terrain-visuals
+                                             :tileset :overworld
+                                             :tiles [[nil nil nil]
+                                                     [nil :grass-shore-n nil]
+                                                     [nil nil nil]]}]}}
+                         {:id :desert-to-grass-w
+                          :terrain :desert
+                          :match {:w {:terrain :grass}}
+                          :output {:anchor {:x 1 :y 1}
+                                   :layers [{:target-layer :scene/terrain-visuals
+                                             :tileset :overworld
+                                             :tiles [[nil nil nil]
+                                                     [nil :desert-grass-w nil]
+                                                     [nil nil nil]]}]}}]}
+        tilemap {:layers [source]}
+        layer-profile {:id :default
+                       :layers [source
+                                {:id :scene/terrain-visuals
+                                 :label "Terrain Visuals"
+                                 :role :derived
+                                 :kind :terrain-stamp
+                                 :data-kind :tile-ref
+                                 :tileset :overworld
+                                 :source-layers [:scene/terrain]
+                                 :ruleset :edge-rules}]}
+        derived (derivation/derive-layer tilemap
+                                         layer-profile
+                                         [ruleset]
+                                         :scene/terrain-visuals)]
+    (is (= :grass-shore-n (get-in derived [:tiles 1 1])))
+    (is (= :desert-grass-w (get-in derived [:tiles 1 2])))))
+
 (deftest terrain-stamp-derives_center_outputs_for_target_layer
   (let [source (terrain-layer (terrain-map [[:water :water :water]
                                            [:grass :grass :grass]
