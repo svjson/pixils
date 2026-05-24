@@ -16,6 +16,19 @@
    :s {:dx 0 :dy 1}
    :se {:dx 1 :dy 1}})
 
+(def opposite-terrain-stamp-directions
+  {:nw :se
+   :n :s
+   :ne :sw
+   :w :e
+   :e :w
+   :sw :ne
+   :s :n
+   :se :nw})
+
+(def terrain-signature-directions [:nw :n :ne :w :center :e :sw :s :se])
+(def unknown-terrain-value :terrain/unknown)
+
 (defun layer-by-id [layers layer-id]
   (head (filter (or layers [])
                 (fn [layer]
@@ -49,6 +62,62 @@
            (< y data/map-height))
     (nth (nth (or (:tiles layer) []) y) x)
     nil))
+
+(defun terrain-signature-source-layer? [layer]
+  (= (:data-kind layer) :terrain-signature))
+
+(defun terrain-signature-at [layer x y]
+  (let [tile-ref (cell-at layer x y)
+        cell-signature (nth (or (nth (or (:terrain-signatures layer) []) y) []) x)]
+    (cond
+      cell-signature cell-signature
+      (nil? tile-ref) nil
+      :default (or (get (:terrain-signatures-by-tile layer) tile-ref)
+                   unknown-terrain-value))))
+
+(defun terrain-signature-direction-value [signature direction]
+  (cond
+    (nil? signature) nil
+    (= signature unknown-terrain-value) unknown-terrain-value
+    (contains? signature direction)
+    (let [value (get signature direction)]
+      (if (= value :none)
+        nil
+        value))
+    :default unknown-terrain-value))
+
+(defun terrain-signature-neighbor-value-at [source-layer direction x y]
+  (let [offset (get terrain-stamp-directions direction)
+        neighbor-signature (terrain-signature-at source-layer
+                                                 (+ x (:dx offset))
+                                                 (+ y (:dy offset)))]
+    (if (nil? neighbor-signature)
+      nil
+      (let [opposite-value (terrain-signature-direction-value
+                            neighbor-signature
+                            (get opposite-terrain-stamp-directions direction))]
+        (if (= opposite-value unknown-terrain-value)
+          (terrain-signature-direction-value neighbor-signature :center)
+          opposite-value)))))
+
+(defun terrain-signature-value-at [source-layer direction x y]
+  (let [signature (terrain-signature-at source-layer x y)
+        center-value (terrain-signature-direction-value signature :center)
+        direction (or direction :center)
+        direction-value (terrain-signature-direction-value signature direction)]
+    (if (= direction :center)
+      center-value
+      (if (and (not= direction-value unknown-terrain-value)
+               (not= direction-value center-value))
+        direction-value
+        (terrain-signature-neighbor-value-at source-layer direction x y)))))
+
+(defun terrain-value-at [source-layer direction x y]
+  (if (terrain-signature-source-layer? source-layer)
+    (terrain-signature-value-at source-layer direction x y)
+    (if-let [offset (get terrain-stamp-directions direction)]
+      (cell-at source-layer (+ x (:dx offset)) (+ y (:dy offset)))
+      (cell-at source-layer x y))))
 
 (defun terrain-at? [layer terrain x y]
   (= (cell-at layer x y) terrain))
@@ -101,23 +170,34 @@
   (or (:terrain rule)
       (-> rule :match :center :terrain)))
 
-(defun terrain-match-condition? [source-layer center-terrain condition x y]
-  (let [value (cell-at source-layer x y)]
-    (case condition
-      :ignore true
-      :same (= value center-terrain)
-      :not-same (not= value center-terrain)
-      :other-terrain (and (not (nil? value))
-                          (not= value center-terrain))
-      :default
-      (if (= (type-of condition) "map")
-        (= value (:terrain condition))
-        true))))
+(defun known-terrain-value? [value]
+  (and (not (nil? value))
+       (not= value unknown-terrain-value)))
+
+(defun terrain-match-condition-value? [center-terrain condition value]
+  (case condition
+    :ignore true
+    :same (= value center-terrain)
+    :none (nil? value)
+    :any-terrain (known-terrain-value? value)
+    :not-same (and (known-terrain-value? value)
+                   (not= value center-terrain))
+    :other-terrain (and (known-terrain-value? value)
+                        (not= value center-terrain))
+    :default
+    (if (= (type-of condition) "map")
+      (= value (:terrain condition))
+      true)))
+
+(defun terrain-match-condition? [source-layer center-terrain direction condition x y]
+  (terrain-match-condition-value? center-terrain
+                                  condition
+                                  (terrain-value-at source-layer direction x y)))
 
 (defun terrain-stamp-rule-matches? [source-layer rule x y]
   (let [center-terrain (terrain-match-center rule)
         match (or (:match rule) {})]
-    (and (= (cell-at source-layer x y) center-terrain)
+    (and (= (terrain-value-at source-layer :center x y) center-terrain)
          (= 0
             (count (filter
                     (reduce-kv terrain-stamp-directions
@@ -131,9 +211,10 @@
                                              [(terrain-match-condition?
                                                source-layer
                                                center-terrain
+                                               direction
                                                condition
-                                               (+ x (:dx offset))
-                                               (+ y (:dy offset)))])))))
+                                               x
+                                               y)])))))
                     (fn [matched?]
                       (= matched? false))))))))
 
@@ -179,6 +260,36 @@
 
 (defun terrain-stamp-rule-exclusive? [rule]
   (= (:exclusive? rule) true))
+
+(defun solid-terrain-signature [terrain-id]
+  (reduce terrain-signature-directions
+          {}
+          (fn [result direction]
+            (assoc result direction terrain-id))))
+
+(defun match-condition-signature-value [center-terrain-id condition]
+  (case condition
+    :same center-terrain-id
+    :none :none
+    :default
+    (if (= (type-of condition) "map")
+      (:terrain condition)
+      nil)))
+
+(defun default-terrain-signature-for-rule [rule]
+  (let [center-terrain-id (terrain-match-center rule)]
+    (reduce-kv (or (:match rule) {})
+               (solid-terrain-signature center-terrain-id)
+               (fn [signature direction condition]
+                 (if-let [value (match-condition-signature-value
+                                  center-terrain-id
+                                  condition)]
+                   (assoc signature direction value)
+                   (if (or (= condition :not-same)
+                           (= condition :other-terrain)
+                           (= condition :any-terrain))
+                     (dissoc signature direction)
+                     signature))))))
 
 (defun apply-terrain-stamp-rule-output [tiles definition rule x y]
   (reduce (or (-> rule :output :layers) [])
@@ -252,18 +363,28 @@
       (:id output-layer)
       (targetless-terrain-stamp-output-layer-key ruleset output-layer)))
 
+(defun output-layer-terrain-signatures [output-layer]
+  (or (:terrain-signatures output-layer)
+      [[nil nil nil]
+       [nil nil nil]
+       [nil nil nil]]))
+
+(defun output-layer-terrain-signature-at [output-layer x y]
+  (nth (or (nth (output-layer-terrain-signatures output-layer) y) []) x))
+
 (defun stamp-output-position [source-x source-y output entry]
   (let [anchor (or (:anchor output) {:x 0 :y 0})]
     {:x (+ source-x (:x entry) (- (:x anchor)))
      :y (+ source-y (:y entry) (- (:y anchor)))}))
 
-(defun stamp-output-patch-cell [source-x source-y output entry tile]
+(defun stamp-output-patch-cell [source-x source-y output entry tile terrain-signature]
   (let [pos (stamp-output-position source-x source-y output entry)]
     {:x (:x pos)
      :y (:y pos)
-     :tile tile}))
+     :tile tile
+     :terrain-signature terrain-signature}))
 
-(defun stamp-output-patch-cells [source-x source-y output output-layer tile-fn]
+(defun stamp-output-patch-cells [source-x source-y output output-layer tile-fn signature-fn]
   (filter (map (output-layer-tile-entries output-layer)
                (fn [entry]
                  (when (:tile entry)
@@ -271,17 +392,19 @@
                                             source-y
                                             output
                                             entry
-                                            (tile-fn entry)))))
+                                            (tile-fn entry)
+                                            (signature-fn entry)))))
           (fn [cell]
             (and cell
                  (in-map-bounds? (:x cell) (:y cell))))))
 
-(defun terrain-stamp-output-patch [source-layer ruleset rule source-x source-y output-layer tile-fn]
+(defun terrain-stamp-output-patch [source-layer ruleset rule source-x source-y output-layer tile-fn signature-fn]
   (let [cells (stamp-output-patch-cells source-x
                                         source-y
                                         (:output rule)
                                         output-layer
-                                        tile-fn)]
+                                        tile-fn
+                                        signature-fn)]
     (when (not (empty? cells))
       {:source-layer (:id source-layer)
        :source-position {:x source-x :y source-y}
@@ -301,17 +424,29 @@
                                              source-x
                                              source-y
                                              output-layer
-                                             tile-fn)))
+                                             tile-fn
+                                             (fn [entry] nil))))
           (fn [patch]
             (not (nil? patch)))))
 
 (defun terrain-stamp-matching-rule-apply-patches [source-layer ruleset rule source-x source-y]
-  (terrain-stamp-rule-patches-with source-layer
-                                   ruleset
-                                   rule
-                                   source-x
-                                   source-y
-                                   (fn [entry] (:tile entry))))
+  (filter (map (or (-> rule :output :layers) [])
+               (fn [output-layer]
+                 (terrain-stamp-output-patch
+                  source-layer
+                  ruleset
+                  rule
+                  source-x
+                  source-y
+                  output-layer
+                  (fn [entry] (:tile entry))
+                  (fn [entry]
+                    (or (output-layer-terrain-signature-at output-layer
+                                                           (:x entry)
+                                                           (:y entry))
+                        (default-terrain-signature-for-rule rule))))))
+          (fn [patch]
+            (not (nil? patch)))))
 
 (defun terrain-stamp-rule-clear-patches [source-layer ruleset rule source-x source-y]
   (terrain-stamp-rule-patches-with source-layer

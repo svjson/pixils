@@ -508,6 +508,7 @@
     state))
 
 (def neighbor-directions [:nw :n :ne :w :e :sw :s :se])
+(def terrain-signature-directions [:nw :n :ne :w :center :e :sw :s :se])
 
 (def default-rule-match
   {:nw :ignore
@@ -518,6 +519,75 @@
    :sw :ignore
    :s :ignore
    :se :ignore})
+
+(defun output-grid-position [x y]
+  {:x (max 0 (min 2 (or x 1)))
+   :y (max 0 (min 2 (or y 1)))})
+
+(defun selected-rule-output-position [state]
+  (let [requested (or (:selected-terrain-rule-output-position state)
+                      (-> (selected-terrain-rule state) :output :anchor)
+                      {:x 1 :y 1})]
+    (output-grid-position (:x requested) (:y requested))))
+
+(defun empty-terrain-signature-row []
+  [nil nil nil])
+
+(defun empty-terrain-signature-grid []
+  [(empty-terrain-signature-row)
+   (empty-terrain-signature-row)
+   (empty-terrain-signature-row)])
+
+(defun output-layer-terrain-signatures [output-layer]
+  (or (:terrain-signatures output-layer)
+      (empty-terrain-signature-grid)))
+
+(defun solid-terrain-signature [terrain-id]
+  (reduce terrain-signature-directions
+          {}
+          (fn [result direction]
+            (assoc result direction terrain-id))))
+
+(defun match-condition-signature-value [center-terrain-id condition]
+  (case condition
+    :same center-terrain-id
+    :none :none
+    :default
+    (if (= (type-of condition) "map")
+      (:terrain condition)
+      nil)))
+
+(defun default-terrain-signature-for-rule [rule]
+  (let [center-terrain-id (terrain-rule-center rule)]
+    (reduce-kv (or (:match rule) {})
+               (solid-terrain-signature center-terrain-id)
+               (fn [signature direction condition]
+                 (if-let [value (match-condition-signature-value
+                                  center-terrain-id
+                                  condition)]
+                   (assoc signature direction value)
+                   (if (or (= condition :not-same)
+                           (= condition :other-terrain)
+                           (= condition :any-terrain))
+                     (dissoc signature direction)
+                     signature))))))
+
+(defun output-layer-terrain-signature-at [output-layer x y]
+  (nth (or (nth (output-layer-terrain-signatures output-layer) y) []) x))
+
+(defun rule-output-terrain-signature-at [rule x y]
+  (or (output-layer-terrain-signature-at (head (or (-> rule :output :layers)
+                                                   []))
+                                         x
+                                         y)
+      (default-terrain-signature-for-rule rule)))
+
+(defun selected-rule-output-terrain-signature [state]
+  (let [rule (selected-terrain-rule state)
+        pos (selected-rule-output-position state)]
+    (if rule
+      (rule-output-terrain-signature-at rule (:x pos) (:y pos))
+      {})))
 
 (defun selected-terrain-set-id [state]
   (:id (selected-terrain-set (:terrain-sets state)
@@ -948,10 +1018,76 @@
                                                        terrain-id)))))))
       state)))
 
+(defun terrain-signature-option-value [value]
+  (if (= value :unknown)
+    nil
+    value))
+
+(defun set-terrain-signature-value [signature direction value]
+  (let [value (terrain-signature-option-value value)]
+    (if (nil? value)
+      (dissoc (or signature {}) direction)
+      (assoc (or signature {}) direction value))))
+
+(defun set-selected-rule-output-terrain-signature [state direction value]
+  (let [ruleset-id (selected-terrain-ruleset-id state)
+        rule-id (or (:selected-terrain-rule-id state)
+                    (selected-terrain-rule-id state))
+        pos (selected-rule-output-position state)]
+    (if (and ruleset-id
+             rule-id
+             (contains? terrain-signature-directions direction))
+      (assoc state
+             :rulesets (update-ruleset
+                        (:rulesets state)
+                        ruleset-id
+                        (fn [ruleset]
+                          (assoc ruleset
+                                 :rules
+                                 (update-rule
+                                  (:rules ruleset)
+                                  rule-id
+                                  (fn [rule]
+                                    (let [output-layer
+                                          (head (or (-> rule
+                                                        :output
+                                                        :layers)
+                                                    []))
+                                          signature
+                                          (rule-output-terrain-signature-at
+                                           rule
+                                           (:x pos)
+                                           (:y pos))
+                                          next-signature
+                                          (set-terrain-signature-value
+                                           signature
+                                           direction
+                                           value)
+                                          signatures
+                                          (output-layer-terrain-signatures
+                                           output-layer)]
+                                      (assoc-in
+                                       (assoc-in rule
+                                                 [:output
+                                                  :layers
+                                                  0
+                                                  :terrain-signatures]
+                                                 signatures)
+                                       [:output
+                                        :layers
+                                        0
+                                        :terrain-signatures
+                                        (:y pos)
+                                        (:x pos)]
+                                       next-signature))))))))
+      state)))
+
 (defun match-condition-from-option [value]
   (case value
     :ignore :ignore
     :same :same
+    :none :none
+    :any-terrain :any-terrain
     :not-same :not-same
     :other-terrain :other-terrain
     :default
@@ -961,8 +1097,10 @@
   (case condition
     :ignore :ignore
     :same :same
+    :none :none
+    :any-terrain :any-terrain
     :not-same :not-same
-    :other-terrain :other-terrain
+    :other-terrain :not-same
     :default
     (if (= (type-of condition) "map")
       (:terrain condition)
@@ -1013,16 +1151,48 @@
                                     (if (> (count (or (-> rule
                                                           :output
                                                           :layers)
-                                                     []))
+                                                      []))
                                            0)
-                                      (assoc-in rule
-                                                [:output
-                                                 :layers
-                                                 0
-                                                 :tiles
-                                                 y
-                                                 x]
-                                                tile-ref)
+                                      (let [output-layer
+                                            (head (or (-> rule
+                                                          :output
+                                                          :layers)
+                                                      []))
+                                            signatures
+                                            (output-layer-terrain-signatures
+                                             output-layer)
+                                            existing-signature
+                                            (output-layer-terrain-signature-at
+                                             output-layer
+                                             x
+                                             y)
+                                            signature
+                                            (when tile-ref
+                                              (or existing-signature
+                                                  (default-terrain-signature-for-rule
+                                                   rule)))]
+                                        (assoc-in
+                                         (assoc-in
+                                          (assoc-in rule
+                                                    [:output
+                                                     :layers
+                                                     0
+                                                     :tiles
+                                                     y
+                                                     x]
+                                                    tile-ref)
+                                          [:output
+                                           :layers
+                                           0
+                                           :terrain-signatures]
+                                          signatures)
+                                         [:output
+                                          :layers
+                                          0
+                                          :terrain-signatures
+                                          y
+                                          x]
+                                         signature))
                                       rule)))))))
       state)))
 
@@ -1038,14 +1208,54 @@
             :label "Ignore"}
            {:value :same
             :label "Same"}
+           {:value :none
+            :label "Empty"}
+           {:value :any-terrain
+            :label "Any terrain"}
            {:value :not-same
-            :label "Not same"}
-           {:value :other-terrain
-            :label "Other terrain"}]
+            :label "Different terrain"}]
           (map (filter (or (:terrains terrain-set) [])
                        (fn [terrain]
                          (not= (:id terrain) center-terrain-id)))
                terrain-condition-option)))
+
+(defun terrain-signature-condition-option [terrain]
+  {:value (:id terrain)
+   :label (or (:label terrain)
+              (:name terrain)
+              (str (:id terrain)))})
+
+(defun terrain-signature-options [terrain-set]
+  (concat [{:value :unknown
+            :label "Unknown"}
+           {:value :none
+            :label "None"}]
+          (map (or (:terrains terrain-set) [])
+               terrain-signature-condition-option)))
+
+(defun terrain-signature-option-index [terrain-set value]
+  (let [value (or value :unknown)
+        match (find-index (terrain-signature-options terrain-set)
+                          (fn [option]
+                            (= (:value option) value)))]
+    (or match 0)))
+
+(defun step-terrain-signature-value [terrain-set value step]
+  (let [options (terrain-signature-options terrain-set)
+        index (terrain-signature-option-index terrain-set value)
+        next-index (if (empty? options)
+                     0
+                     (mod (+ index step (count options))
+                          (count options)))]
+    (:value (nth options next-index))))
+
+(defun cycle-selected-rule-output-terrain-signature [state direction step]
+  (let [terrain-set (selected-terrain-set (:terrain-sets state)
+                                          (:selected-terrain-set-index state))
+        signature (selected-rule-output-terrain-signature state)
+        value (get (or signature {}) direction)
+        next-value (step-terrain-signature-value terrain-set value step)]
+    (set-selected-rule-output-terrain-signature state direction next-value)))
 
 (defun match-condition-index [terrain-set center-terrain-id condition]
   (let [value (match-condition-option-value condition)
@@ -1104,5 +1314,10 @@
            :selected-terrain-rule-id rule-id
            :selected-terrain-rule-exclusive? (= (:exclusive? selected-rule)
                                                 true)
+           :selected-terrain-rule-output-position
+           (selected-rule-output-position
+            (assoc state
+                   :selected-terrain-ruleset-id ruleset-id
+                   :selected-terrain-rule-id rule-id))
            :terrain-list-panel-disabled? (nil? set-index)
            :terrain-detail-panel-disabled? (nil? set-index))))

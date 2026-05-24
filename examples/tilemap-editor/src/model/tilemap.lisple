@@ -155,8 +155,20 @@
 
 (defun set-map-tile [state layer-index x y tile-ref]
   (if (in-map-bounds? x y)
-    (assoc-in state [:layers layer-index :tiles y x] tile-ref)
+    (let [state (assoc-in state [:layers layer-index :tiles y x] tile-ref)
+          layer (nth (or (:layers state) []) layer-index)]
+      (if (:terrain-signatures layer)
+        (assoc-in state [:layers layer-index :terrain-signatures y x] nil)
+        state))
     state))
+
+(defun make-empty-signature-row []
+  (dotimes [x data/map-width]
+    nil))
+
+(defun make-empty-signature-map []
+  (dotimes [y data/map-height]
+    (make-empty-signature-row)))
 
 (defun make-terrain-stamp-layer [source-layer ruleset output-layer]
   {:id (:id output-layer)
@@ -170,7 +182,8 @@
    :ruleset (:id ruleset)
    :replaces-source? true
    :persistence :ephemeral
-   :tiles (data/make-empty-map)})
+   :tiles (data/make-empty-map)
+   :terrain-signatures (make-empty-signature-map)})
 
 (defun terrain-stamp-patch-target-layer-id [output-layer]
   (or (:target-layer output-layer)
@@ -193,7 +206,8 @@
      :data-kind :tile-ref
      :tileset (or (:tileset output-layer) (:output-tileset ruleset))
      :order (* (count (or (:layers state) [])) 10)
-     :tiles (data/make-empty-map)}))
+     :tiles (data/make-empty-map)
+     :terrain-signatures (make-empty-signature-map)}))
 
 (defun ensure-terrain-stamp-target-layer [state source-layer ruleset output-layer]
   (let [layer-id (terrain-stamp-patch-target-layer-id output-layer)]
@@ -248,6 +262,27 @@
       (assoc-in state [collection-key layer-index :tiles y x] tile-ref)
       state)))
 
+(defun set-terrain-stamp-layer-signature [state collection-key layer-id x y signature]
+  (let [layer-index (terrain-stamp-layer-index state collection-key layer-id)]
+    (if (and (not (nil? layer-index))
+             (in-map-bounds? x y))
+      (assoc-in state
+                [collection-key layer-index :terrain-signatures y x]
+                signature)
+      state)))
+
+(defun set-map-terrain-signature [state layer-index x y signature]
+  (if (and (not (nil? layer-index))
+           (in-map-bounds? x y))
+    (let [layer (nth (or (:layers state) []) layer-index)
+          state (if (:terrain-signatures layer)
+                  state
+                  (assoc-in state
+                            [:layers layer-index :terrain-signatures]
+                            (make-empty-signature-map)))]
+      (assoc-in state [:layers layer-index :terrain-signatures y x] signature))
+    state))
+
 (defun terrain-rule-application [state ruleset]
   (or (:application ruleset)
       (:terrain-rule-application state)
@@ -262,14 +297,45 @@
 (defun terrain-source-layer? [layer]
   (= (:data-kind layer) :terrain))
 
+(defun tile-ref-source-layer? [layer]
+  (= (:data-kind layer) :tile-ref))
+
+(defun ruleset-has-explicit-source? [ruleset]
+  (or (:source-layer ruleset)
+      (not (empty? (or (:source-layers ruleset) [])))))
+
+(defun ruleset-explicitly-applies-to-layer? [ruleset layer]
+  (or (= (:source-layer ruleset) (:id layer))
+      (contains? (or (:source-layers ruleset) []) (:id layer))))
+
+(defun output-layer-targets-layer? [layer output-layer]
+  (or (= (:target-layer output-layer) (:id layer))
+      (and (nil? (:target-layer output-layer))
+           (= (:tileset output-layer) (:tileset layer)))
+      (= (:tileset output-layer) (:tileset layer))))
+
+(defun ruleset-outputs-target-layer? [ruleset layer]
+  (> (count (filter (apply concat
+                           (map (or (:rules ruleset) [])
+                                (fn [rule]
+                                  (or (-> rule :output :layers) []))))
+                    (fn [output-layer]
+                      (output-layer-targets-layer? layer output-layer))))
+     0))
+
+(defun source-less-ruleset-applies-to-layer? [ruleset layer]
+  (and (not (ruleset-has-explicit-source? ruleset))
+       (tile-ref-source-layer? layer)
+       (ruleset-outputs-target-layer? ruleset layer)))
+
 (defun ruleset-applies-to-layer? [ruleset layer]
   (and (= (:kind ruleset) :terrain-stamp)
-       (or (= (:source-layer ruleset) (:id layer))
-           (contains? (or (:source-layers ruleset) []) (:id layer))
+       (or (ruleset-explicitly-applies-to-layer? ruleset layer)
            (and (nil? (:source-layer ruleset))
                 (empty? (or (:source-layers ruleset) []))
                 (= (:data-kind layer) :terrain)
-                (= (:terrain-set ruleset) (:terrain-set layer))))))
+                (= (:terrain-set ruleset) (:terrain-set layer)))
+           (source-less-ruleset-applies-to-layer? ruleset layer))))
 
 (defun terrain-stamp-rulesets-for-layer [state layer]
   (filter (or (:rulesets state) [])
@@ -280,6 +346,82 @@
   (filter (terrain-stamp-rulesets-for-layer state layer)
           (fn [ruleset]
             (terrain-rule-preview? state ruleset))))
+
+(defun assoc-tile-signature [catalog tile-ref signature replace?]
+  (if (and tile-ref
+           signature
+           (or replace?
+               (not (contains? catalog tile-ref))))
+    (assoc catalog tile-ref signature)
+    catalog))
+
+(defun terrain-definition-signature-catalog [state ruleset layer]
+  (let [terrain-set (data/terrain-set-definition (:terrain-sets state)
+                                                 (:terrain-set ruleset))]
+    (reduce (or (:terrains terrain-set) [])
+            {}
+            (fn [catalog terrain]
+              (if (= (data/terrain-preview-tileset terrain-set terrain)
+                     (:tileset layer))
+                (assoc-tile-signature
+                 catalog
+                 (data/terrain-preview-tile terrain)
+                 (derivation/solid-terrain-signature (:id terrain))
+                 false)
+                catalog)))))
+
+(defun output-layer-terrain-signature-at [output-layer x y]
+  (nth (or (nth (derivation/output-layer-terrain-signatures output-layer) y) []) x))
+
+(defun output-layer-tile-entries [output-layer]
+  (apply concat
+         (for-indexed [tile-y row (or (:tiles output-layer) [])]
+           (for-indexed [tile-x tile (or row [])]
+             {:x tile-x
+              :y tile-y
+              :tile tile}))))
+
+(defun add-output-signatures-to-catalog [catalog layer rule output-layer]
+  (if (output-layer-targets-layer? layer output-layer)
+    (reduce (output-layer-tile-entries output-layer)
+            catalog
+            (fn [result entry]
+              (let [signature (output-layer-terrain-signature-at output-layer
+                                                                 (:x entry)
+                                                                 (:y entry))
+                    fallback (derivation/default-terrain-signature-for-rule rule)]
+                (assoc-tile-signature result
+                                      (:tile entry)
+                                      (or signature fallback)
+                                      (not (nil? signature))))))
+    catalog))
+
+(defun add-ruleset-output-signatures-to-catalog [catalog ruleset layer]
+  (reduce (or (:rules ruleset) [])
+          catalog
+          (fn [catalog rule]
+            (reduce (or (-> rule :output :layers) [])
+                    catalog
+                    (fn [result output-layer]
+                      (add-output-signatures-to-catalog result
+                                                       layer
+                                                       rule
+                                                       output-layer))))))
+
+(defun terrain-signature-catalog [state ruleset layer]
+  (add-ruleset-output-signatures-to-catalog
+   (terrain-definition-signature-catalog state ruleset layer)
+   ruleset
+   layer))
+
+(defun terrain-stamp-source-layer-for-ruleset [state layer ruleset]
+  (if (tile-ref-source-layer? layer)
+    (assoc layer
+           :data-kind :terrain-signature
+           :terrain-set (:terrain-set ruleset)
+           :terrain-signatures-by-tile
+           (terrain-signature-catalog state ruleset layer))
+    layer))
 
 (defun affected-terrain-positions [x y]
   (filter (map terrain-refresh-offsets
@@ -295,8 +437,14 @@
                                            layer-id
                                            x
                                            y)))
-    (set-terrain-stamp-layer-tile
-     (set-map-tile state target-layer-index x y nil)
+    (set-terrain-stamp-layer-signature
+     (set-terrain-stamp-layer-tile
+      (set-map-tile state target-layer-index x y nil)
+      :terrain-stamp-replacements
+      layer-id
+      x
+      y
+      nil)
      :terrain-stamp-replacements
      layer-id
      x
@@ -307,24 +455,42 @@
 (defun apply-target-patch-cell [state target-layer-index layer-id cell]
   (let [x (:x cell)
         y (:y cell)
-        tile-ref (:tile cell)]
+        tile-ref (:tile cell)
+        signature (:terrain-signature cell)]
     (if tile-ref
-      (set-terrain-stamp-layer-tile
-       (set-map-tile state target-layer-index x y tile-ref)
+      (set-terrain-stamp-layer-signature
+       (set-terrain-stamp-layer-tile
+        (set-map-terrain-signature
+         (set-map-tile state target-layer-index x y tile-ref)
+         target-layer-index
+         x
+         y
+         signature)
+        :terrain-stamp-replacements
+        layer-id
+        x
+        y
+        true)
        :terrain-stamp-replacements
        layer-id
        x
        y
-       true)
+       signature)
       (clear-target-stamp-entry state target-layer-index layer-id x y))))
 
 (defun apply-auto-patch-cell [state layer-id cell]
-  (set-terrain-stamp-layer-tile state
-                                :terrain-stamp-layers
-                                layer-id
-                                (:x cell)
-                                (:y cell)
-                                (:tile cell)))
+  (set-terrain-stamp-layer-signature
+   (set-terrain-stamp-layer-tile state
+                                 :terrain-stamp-layers
+                                 layer-id
+                                 (:x cell)
+                                 (:y cell)
+                                 (:tile cell))
+   :terrain-stamp-layers
+   layer-id
+   (:x cell)
+   (:y cell)
+   (:terrain-signature cell)))
 
 (defun apply-terrain-stamp-patch-cell [state application target-layer-index layer-id cell]
   (if (and (= application :paint-baked)
@@ -429,13 +595,16 @@
 
 (defun rebuild-terrain-stamp-preview-for-layer [state layer]
   (let [rulesets (terrain-preview-rulesets-for-layer state layer)]
-    (if (or (not (terrain-source-layer? layer))
-            (empty? rulesets))
+    (if (empty? rulesets)
       state
-      (apply-terrain-stamp-rules state
-                                 layer
-                                 (all-map-positions)
-                                 rulesets))))
+      (reduce rulesets
+              state
+              (fn [out ruleset]
+                (apply-terrain-stamp-rules
+                 out
+                 (terrain-stamp-source-layer-for-ruleset out layer ruleset)
+                 (all-map-positions)
+                 [ruleset]))))))
 
 (defun rebuild-terrain-stamp-preview [state]
   (reduce (for-indexed [index layer (or (:layers state) [])]
@@ -453,21 +622,32 @@
       (assoc state :terrain-stamp-layers []))))
 
 (defun refresh-terrain-stamp-rules-around [state layer-index tile-x tile-y]
-  (let [source-layer (nth (:layers state) layer-index)
-        rulesets (terrain-stamp-rulesets-for-layer state source-layer)]
-    (if (or (not (terrain-source-layer? source-layer))
-            (empty? rulesets))
+  (let [layer (nth (:layers state) layer-index)
+        rulesets (terrain-stamp-rulesets-for-layer state layer)]
+    (if (empty? rulesets)
       state
       (let [positions (affected-terrain-positions tile-x tile-y)
-            cleared (clear-terrain-stamp-rules state
-                                               source-layer
-                                               positions
-                                               rulesets)
-            refreshed-source-layer (nth (:layers cleared) layer-index)]
-        (apply-terrain-stamp-rules cleared
-                                   refreshed-source-layer
-                                   positions
-                                   rulesets)))))
+            cleared (reduce rulesets
+                            state
+                            (fn [out ruleset]
+                              (clear-terrain-stamp-rules
+                               out
+                               (terrain-stamp-source-layer-for-ruleset out
+                                                                       layer
+                                                                       ruleset)
+                               positions
+                               [ruleset])))
+            refreshed-layer (nth (:layers cleared) layer-index)]
+        (reduce rulesets
+                cleared
+                (fn [out ruleset]
+                  (apply-terrain-stamp-rules
+                   out
+                   (terrain-stamp-source-layer-for-ruleset out
+                                                           refreshed-layer
+                                                           ruleset)
+                   positions
+                   [ruleset])))))))
 
 (defun stamp-pattern-cell [state layer-index target-x target-y anchor cell]
   (let [tile-ref (:tile-ref cell)

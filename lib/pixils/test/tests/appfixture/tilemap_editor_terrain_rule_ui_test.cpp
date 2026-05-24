@@ -189,16 +189,19 @@ TEST_F(TilemapEditorStartupTest, terrain_rule_add_button_creates_visible_rule)
             std::string::npos);
 
   click_north_cell(SDL_BUTTON_RIGHT);
-  EXPECT_NE(session.active_mode->state->to_string().find(":n :not-same"), std::string::npos);
+  EXPECT_NE(session.active_mode->state->to_string().find(":n :none"), std::string::npos);
 
   click_north_cell(SDL_BUTTON_RIGHT);
-  EXPECT_NE(session.active_mode->state->to_string().find(":n :other-terrain"),
+  EXPECT_NE(session.active_mode->state->to_string().find(":n :any-terrain"),
             std::string::npos);
 
   click_north_cell(SDL_BUTTON_LEFT);
-  EXPECT_NE(session.active_mode->state->to_string().find(":n :not-same"), std::string::npos);
+  EXPECT_NE(session.active_mode->state->to_string().find(":n :none"), std::string::npos);
 
   click_north_cell(SDL_BUTTON_RIGHT);
+  click_north_cell(SDL_BUTTON_RIGHT);
+  EXPECT_NE(session.active_mode->state->to_string().find(":n :not-same"), std::string::npos);
+
   click_north_cell(SDL_BUTTON_RIGHT);
   EXPECT_NE(session.active_mode->state->to_string().find(":n {:terrain :water}"),
             std::string::npos);

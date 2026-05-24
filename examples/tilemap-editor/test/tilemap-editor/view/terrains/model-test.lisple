@@ -553,8 +553,32 @@
     (is (= :same (get-in right-state [:rulesets 0 :rules 0 :match :n])))
     (is (= {:terrain :water}
            (get-in left-state [:rulesets 0 :rules 0 :match :n])))
-    (is (= :other-terrain
+    (is (= {:terrain :water}
            (get-in other-state [:rulesets 0 :rules 0 :match :n])))))
+
+(deftest terrain-rule-match-change-stores_empty_and_any_terrain_conditions
+  (let [base-state {:terrain-sets [{:id :overworld
+                                    :terrains [{:id :grass}
+                                               {:id :water}]}]
+                    :selected-terrain-set-index 0
+                    :rulesets [{:id :overworld-rules
+                                :terrain-set :overworld
+                                :rules [{:id :rule
+                                         :match {}}]}]
+                    :selected-terrain-ruleset-id :overworld-rules
+                    :selected-terrain-rule-id :rule}
+        empty-state (model/set-selected-rule-match-condition
+                     base-state
+                     :n
+                     :none)
+        any-state (model/set-selected-rule-match-condition
+                   base-state
+                   :s
+                   :any-terrain)]
+    (is (= :none
+           (get-in empty-state [:rulesets 0 :rules 0 :match :n])))
+    (is (= :any-terrain
+           (get-in any-state [:rulesets 0 :rules 0 :match :s])))))
 
 (deftest terrain-rule-stamp-tile-edit-updates_selected_rule_stamp_grid
   (let [state (model/set-selected-rule-stamp-tile
@@ -579,7 +603,20 @@
             [nil :grass :shore]
             [nil nil nil]]
            (get-in state
-                   [:rulesets 0 :rules 0 :output :layers 0 :tiles])))))
+                   [:rulesets 0 :rules 0 :output :layers 0 :tiles])))
+    (is (= :grass
+           (get-in state
+                   [:rulesets
+                    0
+                    :rules
+                    0
+                    :output
+                    :layers
+                    0
+                    :terrain-signatures
+                    1
+                    2
+                    :center])))))
 
 (deftest terrain-rule-stamp-tile-edit-can_clear_cells
   (let [state (model/set-selected-rule-stamp-tile
@@ -604,7 +641,76 @@
             [nil nil nil]
             [nil nil nil]]
            (get-in state
-                   [:rulesets 0 :rules 0 :output :layers 0 :tiles])))))
+                   [:rulesets 0 :rules 0 :output :layers 0 :tiles])))
+    (is (nil? (get-in state
+                      [:rulesets
+                       0
+                       :rules
+                       0
+                       :output
+                       :layers
+                       0
+                       :terrain-signatures
+                       1
+                       1])))))
+
+(deftest terrain-rule-output-signature-defaults_from_rule_match
+  (let [state {:terrain-sets [{:id :overworld
+                               :terrains [{:id :grass}
+                                          {:id :desert}]}]
+               :selected-terrain-set-index 0
+               :selected-terrain-index 0
+               :selected-terrain-rule-output-position {:x 1 :y 1}
+               :rulesets [{:id :overworld-rules
+                           :terrain-set :overworld
+                           :rules [{:id :rule
+                                    :terrain :grass
+                                    :match {:n :none
+                                            :e {:terrain :desert}
+                                            :s :not-same}
+                                    :output {:layers [{:tiles [[nil nil nil]
+                                                       [nil :grass-edge nil]
+                                                       [nil nil nil]]}]}}]}]
+               :selected-terrain-ruleset-id :overworld-rules
+               :selected-terrain-rule-id :rule}
+        signature (model/selected-rule-output-terrain-signature state)]
+    (is (= :grass (:center signature)))
+    (is (= :none (:n signature)))
+    (is (= :desert (:e signature)))
+    (is (nil? (:s signature)))))
+
+(deftest terrain-rule-output-signature-edit-updates_selected_stamp_cell
+  (let [state (model/set-selected-rule-output-terrain-signature
+               {:terrain-sets [{:id :overworld
+                                :terrains [{:id :grass}
+                                           {:id :desert}]}]
+                :selected-terrain-set-index 0
+                :selected-terrain-index 0
+                :selected-terrain-rule-output-position {:x 1 :y 1}
+                :rulesets [{:id :overworld-rules
+                            :terrain-set :overworld
+                            :rules [{:id :rule
+                                     :terrain :grass
+                                     :output {:layers [{:tiles [[nil nil nil]
+                                                        [nil :grass nil]
+                                                        [nil nil nil]]}]}}]}]
+                :selected-terrain-ruleset-id :overworld-rules
+                :selected-terrain-rule-id :rule}
+               :e
+               :desert)]
+    (is (= :desert
+           (get-in state
+                   [:rulesets
+                    0
+                    :rules
+                    0
+                    :output
+                    :layers
+                    0
+                    :terrain-signatures
+                    1
+                    1
+                    :e])))))
 
 (deftest terrain-rule-stamp-selection-falls_back_when_tile_is_not_in_output_tileset
   (let [state {:terrain-sets [{:id :overworld

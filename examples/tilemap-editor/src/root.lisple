@@ -66,7 +66,9 @@
            :selected-terrain-ruleset-id nil
            :selected-terrain-rule-id nil
            :selected-terrain-rule-match-direction :n
+           :selected-terrain-rule-output-position {:x 1 :y 1}
            :terrain-rule-selected-tile nil
+           :terrain-rule-list-offset {:x 0 :y 0}
            :layer-profiles []
            :selected-layer-profile-id nil
            :brushes []
@@ -191,8 +193,13 @@
                        :selected-terrain-rule-match-direction
                        (ui/bind-state
                         :selected-terrain-rule-match-direction)
+                       :selected-terrain-rule-output-position
+                       (ui/bind-state
+                        :selected-terrain-rule-output-position)
                        :terrain-rule-selected-tile
                        (ui/bind-state :terrain-rule-selected-tile)
+                       :terrain-rule-list-offset
+                       (ui/bind-state :terrain-rule-list-offset)
                        :layer-profiles (ui/bind-state :layer-profiles)
                        :selected-layer-profile-id
                        (ui/bind-state :selected-layer-profile-id)
@@ -329,9 +336,15 @@
                                        :selected-terrain-rule-match-direction
                                        (ui/bind-state
                                         :selected-terrain-rule-match-direction)
+                                       :selected-terrain-rule-output-position
+                                       (ui/bind-state
+                                        :selected-terrain-rule-output-position)
                                        :terrain-rule-selected-tile
                                        (ui/bind-state
-                                        :terrain-rule-selected-tile)}}}]})]
+                                        :terrain-rule-selected-tile)
+                                       :terrain-rule-list-offset
+                                       (ui/bind-state
+                                        :terrain-rule-list-offset)}}}]})]
   :on {:palette/select (fn [state event ctx]
                          (assoc state :selected-tile (:payload event)))
        :palette/brush-select (fn [state event ctx]

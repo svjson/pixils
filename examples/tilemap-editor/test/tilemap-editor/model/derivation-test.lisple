@@ -143,15 +143,26 @@
     (is (= false
            (derivation/terrain-stamp-rule-matches? source rule 0 1)))))
 
-(deftest terrain-stamp-not_same_matches_empty_cells
+(deftest terrain-stamp-none_matches_empty_cells
   (let [source (terrain-layer (terrain-map [[nil :grass nil]
                                            [nil :grass nil]
                                            [nil nil nil]]))
         rule {:id :grass-edge-south
               :terrain :grass
               :match {:n :same
-                      :s :not-same}}]
+                      :s :none}}]
     (is (= true
+           (derivation/terrain-stamp-rule-matches? source rule 1 1)))))
+
+(deftest terrain-stamp-not_same_rejects_empty_cells
+  (let [source (terrain-layer (terrain-map [[nil :grass nil]
+                                           [nil :grass nil]
+                                           [nil nil nil]]))
+        rule {:id :grass-neighbor-south
+              :terrain :grass
+              :match {:n :same
+                      :s :not-same}}]
+    (is (= false
            (derivation/terrain-stamp-rule-matches? source rule 1 1)))))
 
 (deftest terrain-stamp-not_same_rejects_same_terrain
@@ -162,6 +173,39 @@
               :terrain :grass
               :match {:n :same
                       :s :not-same}}]
+    (is (= false
+           (derivation/terrain-stamp-rule-matches? source rule 1 1)))))
+
+(deftest terrain-stamp-not_same_matches_different_terrain
+  (let [source (terrain-layer (terrain-map [[nil :grass nil]
+                                           [nil :grass nil]
+                                           [nil :water nil]]))
+        rule {:id :grass-neighbor-south
+              :terrain :grass
+              :match {:n :same
+                      :s :not-same}}]
+    (is (= true
+           (derivation/terrain-stamp-rule-matches? source rule 1 1)))))
+
+(deftest terrain-stamp-any_terrain_matches_same_terrain
+  (let [source (terrain-layer (terrain-map [[nil :grass nil]
+                                           [nil :grass nil]
+                                           [nil :grass nil]]))
+        rule {:id :grass-neighbor-south
+              :terrain :grass
+              :match {:n :same
+                      :s :any-terrain}}]
+    (is (= true
+           (derivation/terrain-stamp-rule-matches? source rule 1 1)))))
+
+(deftest terrain-stamp-any_terrain_rejects_empty_cells
+  (let [source (terrain-layer (terrain-map [[nil :grass nil]
+                                           [nil :grass nil]
+                                           [nil nil nil]]))
+        rule {:id :grass-neighbor-south
+              :terrain :grass
+              :match {:n :same
+                      :s :any-terrain}}]
     (is (= false
            (derivation/terrain-stamp-rule-matches? source rule 1 1)))))
 
@@ -184,6 +228,37 @@
               :terrain :grass
               :match {:n :same
                       :s :other-terrain}}]
+    (is (= true
+           (derivation/terrain-stamp-rule-matches? source rule 1 1)))))
+
+(deftest terrain-stamp-signature_source_matches_adjacent_tile_ownership
+  (let [source {:id :scene/visuals
+                :data-kind :terrain-signature
+                :terrain-set :overworld
+                :tiles (terrain-map [[nil :water-fill nil]
+                                     [nil :grass-fill nil]])
+                :terrain-signatures-by-tile
+                {:grass-fill (derivation/solid-terrain-signature :grass)
+                 :water-fill (derivation/solid-terrain-signature :water)}}
+        rule {:id :grass-north-water
+              :terrain :grass
+              :match {:n {:terrain :water}}}]
+    (is (= true
+           (derivation/terrain-stamp-rule-matches? source rule 1 1)))))
+
+(deftest terrain-stamp-signature_source_uses_current_tile_edge_ownership
+  (let [source {:id :scene/visuals
+                :data-kind :terrain-signature
+                :terrain-set :overworld
+                :tiles (terrain-map [[nil nil nil]
+                                     [nil :grass-edge-n nil]])
+                :terrain-signatures-by-tile
+                {:grass-edge-n (assoc (derivation/solid-terrain-signature :grass)
+                                      :n
+                                      :none)}}
+        rule {:id :grass-north-empty
+              :terrain :grass
+              :match {:n :none}}]
     (is (= true
            (derivation/terrain-stamp-rule-matches? source rule 1 1)))))
 
@@ -243,13 +318,20 @@
         patches (derivation/terrain-stamp-apply-patches-at source
                                                            ruleset
                                                            1
-                                                           1)]
+                                                           1)
+        signature (derivation/default-terrain-signature-for-rule rule)]
     (is (= [:scene/terrain-visuals :shore-rules/overworld]
            (map patches (fn [patch]
                           (-> patch :output-layer :id)))))
-    (is (= [{:x 1 :y 1 :tile :grass-fill}]
+    (is (= [{:x 1
+             :y 1
+             :tile :grass-fill
+             :terrain-signature signature}]
            (:cells (head patches))))
-    (is (= [{:x 1 :y 0 :tile :grass-cap}]
+    (is (= [{:x 1
+             :y 0
+             :tile :grass-cap
+             :terrain-signature signature}]
            (:cells (nth patches 1))))))
 
 (deftest terrain-stamp-apply_patches_ignore_non_matching_rules
@@ -362,11 +444,11 @@
     (is (= [:scene/terrain-visuals :scene/decor]
            (map patches (fn [patch]
                           (-> patch :output-layer :id)))))
-    (is (= [{:x 1 :y 0 :tile nil}
-            {:x 1 :y 1 :tile nil}
-            {:x 2 :y 1 :tile nil}]
+    (is (= [{:x 1 :y 0 :tile nil :terrain-signature nil}
+            {:x 1 :y 1 :tile nil :terrain-signature nil}
+            {:x 2 :y 1 :tile nil :terrain-signature nil}]
            (:cells (head patches))))
-    (is (= [{:x 0 :y 1 :tile nil}]
+    (is (= [{:x 0 :y 1 :tile nil :terrain-signature nil}]
            (:cells (nth patches 1))))))
 
 (deftest render-layers-does_not_derive_implicit_terrain_stamp_layer

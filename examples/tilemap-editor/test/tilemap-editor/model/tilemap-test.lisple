@@ -111,6 +111,30 @@
                :source-layer :scene/terrain
                :rules [terrain-stamp-rule]}]})
 
+(defun source-less-visual-paint-state [visual-tiles selected-tile]
+  {:selected-layer-index 0
+   :map-palette-tab :tiles
+   :selected-tile selected-tile
+   :zoom 1
+   :offset {:x 0 :y 0}
+   :terrain-sets [{:id :overworld
+                   :tileset :overworld
+                   :terrains [{:id :grass
+                               :tile :grass-fill}
+                              {:id :water
+                               :tile :water-fill}]}]
+   :layers [{:id :scene/visuals
+             :label "Visuals"
+             :role :source
+             :data-kind :tile-ref
+             :tileset :overworld
+             :tiles visual-tiles}]
+   :rulesets [{:id :shore-rules
+               :kind :terrain-stamp
+               :terrain-set :overworld
+               :source-layer nil
+               :rules [terrain-stamp-rule]}]})
+
 (defun paint-event [button x y]
   {:button button
    :position {:x (* x data/tile-size)
@@ -322,6 +346,27 @@
     (is (= :grass (get-in state [:layers 0 :tiles 1 1])))
     (is (= :shore-n (get-in state [:terrain-stamp-layers 0 :tiles 0 1])))
     (is (= :grass-fill (get-in state [:terrain-stamp-layers 0 :tiles 1 1])))))
+
+(deftest tilemap-source_less_rules_can_match_visual_tile_signatures
+  (let [state (source-less-visual-paint-state
+               (terrain-map [[nil :water-fill nil]])
+               :grass-fill)
+        state (tilemap/paint-map-at state (paint-event :left 1 1))]
+    (is (= :grass-fill (get-in state [:layers 0 :tiles 1 1])))
+    (is (= :shore-n (get-in state [:terrain-stamp-layers 0 :tiles 0 1])))
+    (is (= :grass-fill (get-in state [:terrain-stamp-layers 0 :tiles 1 1])))))
+
+(deftest tilemap-source_less_baked_rules_store_output_signatures
+  (let [state (assoc (source-less-visual-paint-state
+                      (terrain-map [[nil :water-fill nil]])
+                      :grass-fill)
+                     :terrain-rule-application
+                     :paint-baked)
+        state (tilemap/paint-map-at state (paint-event :left 1 1))]
+    (is (= :shore-n (get-in state [:layers 0 :tiles 0 1])))
+    (is (= :grass-fill (get-in state [:layers 0 :tiles 1 1])))
+    (is (= :grass
+           (get-in state [:layers 0 :terrain-signatures 1 1 :center])))))
 
 (deftest tilemap-rebuild-terrain-stamp-preview_builds_whole_map_cache
   (let [state (tilemap/rebuild-terrain-stamp-preview
