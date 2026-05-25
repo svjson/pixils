@@ -8,6 +8,22 @@
 
 using ListBoxTest = RenderFixture;
 
+namespace
+{
+  std::shared_ptr<Pixils::Runtime::View> list_box_content(
+    const std::shared_ptr<Pixils::Runtime::View>& list_box)
+  {
+    if (!list_box || list_box->children.empty()) return nullptr;
+    auto scroll_pane = list_box->children[0];
+    if (!scroll_pane || scroll_pane->children.empty()) return nullptr;
+    auto row = scroll_pane->children[0];
+    if (!row || row->children.empty()) return nullptr;
+    auto viewport = row->children[0];
+    if (!viewport || viewport->children.empty()) return nullptr;
+    return viewport->children[0];
+  }
+} // namespace
+
 TEST_F(ListBoxTest, shrink_height_list_box_rebuilds_with_scrollbar_when_clamped)
 {
   runtime.eval(R"(
@@ -456,6 +472,96 @@ TEST_F(ListBoxTest, reorderable_list_box_emits_reorder_drop_event)
   EXPECT_EQ(Lisple::Dict::get_property(reorder, Lisple::keyword("value"))->to_string(),
             ":a");
   EXPECT_EQ(selected->to_string(), "[]");
+}
+
+TEST_F(ListBoxTest, reorderable_list_box_placeholder_strategy_previews_drop)
+{
+  runtime.eval(R"(
+    (pixils/defmode root-mode
+      {:init (fn [state ctx] {:reorder nil})
+       :on {:list-box/reorder (fn [state event ctx]
+                                (assoc state :reorder (:payload event)))}
+       :children [(pixils.ui.list-box/make
+                   {:options [{:value :a :label "Alpha"}
+                              {:value :b :label "Beta"}
+                              {:value :c :label "Gamma"}]
+                    :style {:width 100}
+                    :row-height 10
+                    :visible-rows 3
+                    :content-width 100
+                    :reorderable? true})]})
+  )");
+
+  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.update_mode();
+  session.render_mode();
+  session.update_mode();
+  session.render_mode();
+
+  auto list_box = session.active_mode->children[0];
+  auto content = list_box_content(list_box);
+  ASSERT_NE(content, nullptr);
+  ASSERT_EQ(content->children.size(), 3u);
+
+  input().mouse_down({5, 5});
+  update_cycle();
+  input().mouse_move({5, 28});
+  update_cycle();
+  update_cycle();
+  session.render_mode();
+
+  auto first = content->children[0];
+  auto second = content->children[1];
+  auto third = content->children[2];
+  ASSERT_NE(first, nullptr);
+  ASSERT_NE(second, nullptr);
+  ASSERT_NE(third, nullptr);
+  EXPECT_EQ(second->bounds.y, content->bounds.y);
+  EXPECT_EQ(third->bounds.y, content->bounds.y + 10);
+  EXPECT_EQ(first->bounds.y, content->bounds.y + 23);
+
+  auto reorder =
+    Lisple::Dict::get_property(session.active_mode->state, Lisple::keyword("reorder"));
+  ASSERT_NE(reorder, nullptr);
+  EXPECT_EQ(reorder->to_string(), "nil");
+}
+
+TEST_F(ListBoxTest, reorderable_list_box_none_strategy_keeps_flow_positions_while_dragging)
+{
+  runtime.eval(R"(
+    (pixils/defmode root-mode
+      {:children [(pixils.ui.list-box/make
+                   {:options [{:value :a :label "Alpha"}
+                              {:value :b :label "Beta"}
+                              {:value :c :label "Gamma"}]
+                    :style {:width 100}
+                    :row-height 10
+                    :visible-rows 3
+                    :content-width 100
+                    :reorderable? true
+                    :reorder-visual-strategy :none})]})
+  )");
+
+  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.update_mode();
+  session.render_mode();
+  session.update_mode();
+  session.render_mode();
+
+  auto list_box = session.active_mode->children[0];
+  auto content = list_box_content(list_box);
+  ASSERT_NE(content, nullptr);
+  ASSERT_EQ(content->children.size(), 3u);
+
+  input().mouse_down({5, 5});
+  update_cycle();
+  input().mouse_move({5, 28});
+  update_cycle();
+  session.render_mode();
+
+  EXPECT_EQ(content->children[0]->bounds.y, content->bounds.y);
+  EXPECT_EQ(content->children[1]->bounds.y, content->bounds.y + 10);
+  EXPECT_EQ(content->children[2]->bounds.y, content->bounds.y + 20);
 }
 
 TEST_F(ListBoxTest, reorderable_list_box_with_custom_mouse_row_emits_reorder_drop_event)

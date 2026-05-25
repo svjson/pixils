@@ -220,6 +220,35 @@ TEST_F(RenderTest, style_background_image_can_fit_source_and_align)
   EXPECT_EQ(ops[0].rendered_rect.h, 10);
 }
 
+TEST_F(RenderTest, absolute_positioned_children_render_after_flow_siblings)
+{
+  runtime.eval(R"(
+    (pixils/defmode box {})
+    (pixils/defmode test-mode
+      {:children [{:mode 'box
+                   :style {:position :absolute
+                           :width 10
+                           :height 10
+                           :background {:r 200 :g 0 :b 0}}}
+                  {:mode 'box
+                   :style {:width 20
+                           :height 20
+                           :background {:r 0 :g 200 :b 0}}}]})
+  )");
+  session.push_mode("test-mode", Lisple::Constant::NIL);
+
+  ASSERT_NO_THROW(session.render_mode());
+
+  auto& ops = render_target()->render_ops;
+  ASSERT_EQ(ops.size(), 2u);
+  EXPECT_EQ(ops[0].type, RenderOpType::FILL_RECT);
+  EXPECT_EQ(ops[0].rendered_rect.w, 20);
+  EXPECT_EQ(ops[0].rendered_rect.h, 20);
+  EXPECT_EQ(ops[1].type, RenderOpType::FILL_RECT);
+  EXPECT_EQ(ops[1].rendered_rect.w, 10);
+  EXPECT_EQ(ops[1].rendered_rect.h, 10);
+}
+
 TEST_F(RenderTest, scaled_view_renders_to_logical_texture_and_copies_to_scaled_footprint)
 {
   runtime.eval(R"(

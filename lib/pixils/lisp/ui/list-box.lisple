@@ -6,6 +6,7 @@
 (def default-row-height 20)
 (def default-visible-rows 5)
 (def default-reorder-drag-threshold 3)
+(def default-reorder-visual-strategy :placeholder)
 
 (defun option-label [option]
   (or (:label option)
@@ -82,6 +83,15 @@
 
 (defun reorderable? [state]
   (= (:reorderable? state) true))
+
+(defun reorder-visual-strategy [state]
+  (or (:reorder-visual-strategy state)
+      default-reorder-visual-strategy))
+
+(defun reorder-placeholder-strategy? [state]
+  (let [strategy (reorder-visual-strategy state)]
+    (or (= strategy :placeholder)
+        (= strategy :move-with-hole))))
 
 (defun preserve-forced-selection [state indices previous]
   (if (and (forced-selection? state)
@@ -186,6 +196,33 @@
              :step row-height
              :children children}))))
 
+(defun child-at [children index]
+  (if (and (>= index 0)
+           (< index (count children)))
+    (nth children index)
+    nil))
+
+(defun left-mouse-held? [ctx]
+  (contains? (or (:mouse-held ctx) []) :left))
+
+(defun list-box-content-view [ctx]
+  (let [scroll-pane (child-at (ui/children ctx) 0)
+        row (if scroll-pane
+              (child-at (ui/children scroll-pane) 0)
+              nil)
+        viewport (if row
+                   (child-at (ui/children row) 0)
+                   nil)]
+    (if viewport
+      (child-at (ui/children viewport) 0)
+      nil)))
+
+(defun list-box-preview-local-y [ctx]
+  (let [pos (:mouse-pos ctx)
+        bounds (-> ctx :view :bounds)]
+    (when (and pos bounds)
+      (- (:y pos) (:y bounds)))))
+
 (defun valid-option-index? [options index]
   (and (not (nil? index))
        (>= index 0)
@@ -226,6 +263,13 @@
         raw (int (/ (+ y (int (/ row-height 2))) row-height))]
     (max 0 (min (count (:options state)) raw))))
 
+(defun list-box-drop-index-from-local-y [state local-y]
+  (let [row-height (or (:row-height state) default-row-height)
+        offset (or (:offset state) {:x 0 :y 0})
+        y (+ (or local-y 0) (or (:y offset) 0))
+        raw (int (/ (+ y (int (/ row-height 2))) row-height))]
+    (max 0 (min (count (:options state)) raw))))
+
 (defun list-box-reorder-target-index [from-index drop-index options]
   (let [target (if (> drop-index from-index)
                  (dec drop-index)
@@ -258,6 +302,130 @@
      :drop-index drop-index
      :value (option-value option)
      :option option}))
+
+(defun list-box-flow-item-style [margin-top margin-bottom]
+  {:position :flow
+   :margin {:t margin-top
+            :r 0
+            :b margin-bottom
+            :l 0}})
+
+(defun list-box-absolute-item-style [row-height top]
+  {:position :absolute
+   :left 0
+   :top top
+   :width :fill
+   :height row-height
+   :margin {:t 0
+            :r 0
+            :b 0
+            :l 0}})
+
+(defun list-box-reset-item-visuals! [items]
+  (if (empty? items)
+    nil
+    (do
+      (ui/style! (head items) (list-box-flow-item-style 0 0))
+      (list-box-reset-item-visuals! (tail items)))))
+
+(defun list-box-preview-target-index [state local-y]
+  (let [drag (:reorder-drag state)
+        from-index (:index drag)
+        drop-index (list-box-drop-index-from-local-y state local-y)]
+    (list-box-reorder-target-index from-index drop-index (:options state))))
+
+(defun list-box-compact-item-index [index from-index]
+  (if (> index from-index)
+    (dec index)
+    index))
+
+(defun list-box-placeholder-before? [index from-index target-index]
+  (and (not= index from-index)
+       (= (list-box-compact-item-index index from-index)
+          target-index)))
+
+(defun list-box-placeholder-after? [index item-count from-index target-index]
+  (and (not= index from-index)
+       (= target-index (dec item-count))
+       (= (list-box-compact-item-index index from-index)
+          (- item-count 2))))
+
+(defun list-box-apply-placeholder-visuals! [state ctx items]
+  (let [drag (:reorder-drag state)
+        from-index (:index drag)
+        row-height (or (:row-height state) default-row-height)
+        item-count (count items)
+        local-y (list-box-preview-local-y ctx)
+        target-index (list-box-preview-target-index state local-y)
+        mouse-pos (:mouse-pos ctx)
+        start-pos (:start-global-position drag)
+        drag-top (+ (* from-index row-height)
+                    (- (or (:y mouse-pos) 0)
+                       (or (:y start-pos) 0)))]
+    (list-box-apply-placeholder-visuals-indexed! items
+                                                 0
+                                                 item-count
+                                                 row-height
+                                                 from-index
+                                                 target-index
+                                                 drag-top)))
+
+(defun list-box-apply-placeholder-visuals-indexed! [items index item-count row-height from-index target-index drag-top]
+  (if (empty? items)
+    nil
+    (let [style (if (= index from-index)
+                  (list-box-absolute-item-style row-height drag-top)
+                  (list-box-flow-item-style (if (list-box-placeholder-before? index
+                                                                               from-index
+                                                                               target-index)
+                                              row-height
+                                              0)
+                                            (if (list-box-placeholder-after? index
+                                                                             item-count
+                                                                             from-index
+                                                                             target-index)
+                                              row-height
+                                              0)))]
+      (do
+        (ui/style! (head items) style)
+        (list-box-apply-placeholder-visuals-indexed! (tail items)
+                                                     (inc index)
+                                                     item-count
+                                                     row-height
+                                                     from-index
+                                                     target-index
+                                                     drag-top)))))
+
+(defun list-box-apply-reorder-visuals! [state ctx]
+  (let [content (list-box-content-view ctx)
+        items (if content
+                (ui/children content)
+                [])]
+    (cond
+      (empty? items)
+      nil
+
+      (not (reorderable? state))
+      nil
+
+      (or (nil? (:reorder-drag state))
+          (= (reorder-visual-strategy state) :none))
+      (list-box-reset-item-visuals! items)
+
+      (reorder-placeholder-strategy? state)
+      (list-box-apply-placeholder-visuals! state ctx items)
+
+      :default
+      (list-box-reset-item-visuals! items))))
+
+(defun list-box-update-reorder-visuals [state ctx]
+  (let [state (if (and (:reorder-drag state)
+                       (not (left-mouse-held? ctx)))
+                (assoc state :reorder-drag nil)
+                state)]
+    (do
+      (list-box-apply-reorder-visuals! state ctx)
+      state)))
 
 (defcomponent ui/list-box-item
   {:class [:ui/list-item :ui/list-box-item]
@@ -319,9 +487,11 @@
                     :scroll-y?
                     :auto)))
    :update (fn [state ctx]
-             (assoc state
-                    :content-state
-                    (list-box-content-state state)))
+             (list-box-update-reorder-visuals
+              (assoc state
+                     :content-state
+                     (list-box-content-state state))
+              ctx))
    :on {:list-box/item-click (fn [state event ctx]
                               (if (:reorder-drag state)
                                 (do
@@ -432,7 +602,7 @@
           (stretch-list-box-item child)
           child)))))
 
-(defun make [{:keys [options style row-height visible-rows max-height content-width selected-indices multi-select? force-selection? toggle-selected? hover-highlight? item-child item-state-keys state disabled? reorderable? reorder-drag-threshold]}]
+(defun make [{:keys [options style row-height visible-rows max-height content-width selected-indices multi-select? force-selection? toggle-selected? hover-highlight? item-child item-state-keys state disabled? reorderable? reorder-drag-threshold reorder-visual-strategy]}]
   (let [row-height (or row-height default-row-height)
         visible-rows (or visible-rows default-visible-rows)
         options (or options [])
@@ -457,6 +627,7 @@
                     :disabled? disabled?
                     :reorderable? reorderable?
                     :reorder-drag-threshold reorder-drag-threshold
+                    :reorder-visual-strategy reorder-visual-strategy
                     :item-children (for-indexed [index option options]
                                      (make-item-child item-child
                                                       index

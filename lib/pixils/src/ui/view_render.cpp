@@ -39,6 +39,12 @@ namespace Pixils::UI
       return std::clamp(style.opacity.value_or(1.0f), 0.0f, 1.0f);
     }
 
+    bool absolute_positioned(const Pixils::Runtime::View& view)
+    {
+      return view.effective_style.position &&
+             *view.effective_style.position == PositionMode::ABSOLUTE;
+    }
+
     Uint8 opacity_to_alpha(float opacity)
     {
       return static_cast<Uint8>(std::lround(std::clamp(opacity, 0.0f, 1.0f) * 255.0f));
@@ -340,6 +346,22 @@ namespace Pixils::UI
         {
           for (const auto& child : ctx.children)
           {
+            if (absolute_positioned(*child)) continue;
+
+            render_view_impl(render_ctx,
+                             runtime,
+                             render_hook_ctx,
+                             child,
+                             content_clip,
+                             target_texture,
+                             origin,
+                             true);
+          }
+
+          for (const auto& child : ctx.children)
+          {
+            if (!absolute_positioned(*child)) continue;
+
             render_view_impl(render_ctx,
                              runtime,
                              render_hook_ctx,

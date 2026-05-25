@@ -199,7 +199,10 @@ to opt into the extended selection behavior.
 
 List boxes can opt into drag reordering with `:reorderable? true`. The list-box
 does not mutate `:options` itself; on drop it emits `:list-box/reorder`, and the
-application updates its own data order.
+application updates its own data order. `:reorder-visual-strategy` controls
+drag feedback: `:placeholder` makes the dragged row follow the cursor while the
+remaining rows move around the prospective drop slot, and `:none` keeps the list
+visually unchanged while dragging.
 
 ```clojure
 (pixils/defmode layer-panel
@@ -213,7 +216,8 @@ application updates its own data order.
                           {:value :objects :label "Objects"}
                           {:value :foreground :label "Foreground"}]
                 :style {:width 160}
-                :reorderable? true})]})
+                :reorderable? true
+                :reorder-visual-strategy :placeholder})]})
 ```
 
 `:drop-index` is the insertion position in the original list, while `:to-index`
@@ -628,7 +632,8 @@ with `:position :absolute`:
 ```
 
 Absolutely positioned children do not consume space in the flow layout and do not affect
-the size allocated to other children.
+the size allocated to other children. They are rendered after flow-positioned siblings,
+preserving child order among other absolutely positioned children.
 
 For a root mode, absolute positioning is relative to the root render area because there is
 no parent content rect.
