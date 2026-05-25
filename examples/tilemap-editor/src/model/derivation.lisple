@@ -474,17 +474,21 @@
       (substr text 1)
       text)))
 
-(defun targetless-terrain-stamp-output-layer-key [ruleset output-layer]
-  (keyword (str (id-label (:id ruleset))
+(defun targetless-terrain-stamp-output-layer-key [source-layer ruleset output-layer]
+  (keyword (str (id-label (or (:id source-layer) source-layer))
+                "/"
+                (id-label (:id ruleset))
                 "/"
                 (id-label (or (:id output-layer)
                               (:tileset output-layer)
                               (:output-tileset ruleset)
                               "output")))))
 
-(defun terrain-stamp-output-layer-key [ruleset output-layer]
+(defun terrain-stamp-output-layer-key [source-layer ruleset output-layer]
   (or (:target-layer output-layer)
-      (targetless-terrain-stamp-output-layer-key ruleset output-layer)))
+      (targetless-terrain-stamp-output-layer-key source-layer
+                                                 ruleset
+                                                 output-layer)))
 
 (defun output-layer-terrain-signatures [output-layer]
   (or (:terrain-signatures output-layer)
@@ -534,7 +538,8 @@
        :ruleset (:id ruleset)
        :rule (:id rule)
        :output-layer (assoc (dissoc output-layer :tiles)
-                            :id (terrain-stamp-output-layer-key ruleset
+                            :id (terrain-stamp-output-layer-key source-layer
+                                                                ruleset
                                                                 output-layer))
        :cells cells})))
 
@@ -689,6 +694,39 @@
           (fn [layer]
             (not (layer-in-profile? profile layer)))))
 
+(defun stamp-layer-applies-to-source? [stamp-layer source-layer]
+  (contains? (or (:source-layers stamp-layer) [])
+             (:id source-layer)))
+
+(defun append-stamp-layers-after-source [state source-layer stamp-layers]
+  (let [rendered-stamp-ids (or (:rendered-stamp-ids state) [])
+        matching-stamp-layers
+        (filter (or stamp-layers [])
+                (fn [stamp-layer]
+                  (and (stamp-layer-applies-to-source? stamp-layer source-layer)
+                       (not (contains? rendered-stamp-ids
+                                       (:id stamp-layer))))))]
+    {:layers (concat (:layers state)
+                     [source-layer]
+                     matching-stamp-layers)
+     :rendered-stamp-ids (concat rendered-stamp-ids
+                                 (map matching-stamp-layers :id))}))
+
+(defun interleave-stamp-layers-after-sources [layers stamp-layers]
+  (let [state (reduce (or layers [])
+                      {:layers []
+                       :rendered-stamp-ids []}
+                      (fn [state layer]
+                        (append-stamp-layers-after-source state
+                                                          layer
+                                                          stamp-layers)))
+        remaining-stamp-layers
+        (filter (or stamp-layers [])
+                (fn [stamp-layer]
+                  (not (contains? (:rendered-stamp-ids state)
+                                  (:id stamp-layer)))))]
+    (concat (:layers state) remaining-stamp-layers)))
+
 (defun replacement-layer-source-ids [layer]
   (or (:terrain-stamp-source-layers layer)
       (if (:replaces-source? layer)
@@ -739,12 +777,12 @@
                              (concat (or (:terrain-stamp-replacements tilemap) [])
                                      stamp-layers)
                              [])
-        layers (if (empty? profile-layers)
-                 (concat (or (:layers tilemap) [])
-                         stamp-layers)
-                 (concat profile-layers
-                         (unprofiled-render-layers tilemap profile)
-                         stamp-layers))]
+        layers (interleave-stamp-layers-after-sources
+                (if (empty? profile-layers)
+                  (or (:layers tilemap) [])
+                  (concat profile-layers
+                          (unprofiled-render-layers tilemap profile)))
+                stamp-layers)]
     (mask-source-layers-with-replacements
      layers
      replacement-layers)))

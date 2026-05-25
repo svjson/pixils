@@ -365,7 +365,8 @@
                                                            1
                                                            1)
         signature (derivation/default-terrain-signature-for-rule rule)]
-    (is (= [:scene/terrain-visuals :shore-rules/overworld]
+    (is (= [:scene/terrain-visuals
+            (keyword "scene/terrain/shore-rules/overworld")]
            (map patches (fn [patch]
                           (-> patch :output-layer :id)))))
     (is (= [{:x 1
@@ -541,6 +542,48 @@
     (is (= :grass (get-in layers [0 :tiles 0 1])))
     (is (nil? (get-in layers [0 :tiles 1 1])))
     (is (= :column-fill (get-in layers [1 :tiles 1 1])))))
+
+(deftest render-layers-interleaves_stamp_layers_after_their_sources
+  (let [terrain-source (assoc (terrain-layer (terrain-map [[nil :grass nil]]))
+                              :id :scene/terrain)
+        roads-source (assoc (terrain-layer (terrain-map [[nil :road nil]]))
+                            :id :scene/roads)
+        forest-source (assoc (terrain-layer (terrain-map [[nil :forest nil]]))
+                             :id :scene/forest)
+        road-stamp {:id (keyword "scene/roads/roads-rules/roads")
+                    :label "Road Stamps"
+                    :kind :tile
+                    :role :derived
+                    :data-kind :tile-ref
+                    :tileset :roads
+                    :source-layers [:scene/roads]
+                    :ruleset :roads-rules
+                    :replaces-source? true
+                    :persistence :ephemeral
+                    :tiles (terrain-map [[nil :road-fill nil]])}
+        forest-stamp {:id (keyword "scene/forest/forest-rules/forest")
+                      :label "Forest Stamps"
+                      :kind :tile
+                      :role :derived
+                      :data-kind :tile-ref
+                      :tileset :terrain
+                      :source-layers [:scene/forest]
+                      :ruleset :forest-rules
+                      :replaces-source? true
+                      :persistence :ephemeral
+                      :tiles (terrain-map [[nil :forest-fill nil]])}
+        layers (derivation/render-layers
+                {:layers [terrain-source roads-source forest-source]
+                 :terrain-stamp-layers [road-stamp forest-stamp]}
+                {:id :default
+                 :layers [terrain-source roads-source forest-source]}
+                [])]
+    (is (= [:scene/terrain
+            :scene/roads
+            (keyword "scene/roads/roads-rules/roads")
+            :scene/forest
+            (keyword "scene/forest/forest-rules/forest")]
+           (map layers :id)))))
 
 (deftest render-layers-can_hide_painted_terrain_stamp_preview
   (let [source (terrain-layer (terrain-map [[nil :grass nil]

@@ -437,12 +437,14 @@
      nil)
     state))
 
-(defun terrain-stamp-clear-output-layer [ruleset output-layer]
+(defun terrain-stamp-clear-output-layer [source-layer ruleset output-layer]
   (assoc (dissoc output-layer :tiles)
          :id
-         (derivation/terrain-stamp-output-layer-key ruleset output-layer)))
+         (derivation/terrain-stamp-output-layer-key source-layer
+                                                     ruleset
+                                                     output-layer)))
 
-(defun terrain-stamp-ruleset-output-layers [ruleset]
+(defun terrain-stamp-ruleset-output-layers [source-layer ruleset]
   (:layers
    (reduce (or (:rules ruleset) [])
            {:seen []
@@ -452,6 +454,7 @@
                      result
                      (fn [out output-layer]
                        (let [layer-id (derivation/terrain-stamp-output-layer-key
+                                       source-layer
                                        ruleset
                                        output-layer)]
                          (if (contains? (:seen out) layer-id)
@@ -459,6 +462,7 @@
                            {:seen (concat (:seen out) [layer-id])
                             :layers (concat (:layers out)
                                             [(terrain-stamp-clear-output-layer
+                                              source-layer
                                               ruleset
                                               output-layer)])}))))))))
 
@@ -575,7 +579,9 @@
   (reduce rulesets
           state
           (fn [ruleset-out ruleset]
-            (let [output-layers (terrain-stamp-ruleset-output-layers ruleset)]
+            (let [output-layers (terrain-stamp-ruleset-output-layers
+                                 source-layer
+                                 ruleset)]
               (reduce positions
                       ruleset-out
                       (fn [pos-out pos]

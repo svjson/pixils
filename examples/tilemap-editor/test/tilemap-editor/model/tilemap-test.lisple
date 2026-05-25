@@ -368,7 +368,8 @@
                         nil)
         state (assoc state :terrain-rule-application :paint-baked)
         state (tilemap/paint-map-at state (paint-event :left 1 1))]
-    (is (= :shore-rules/overworld (get-in state [:layers 2 :id])))
+    (is (= (keyword "scene/terrain/shore-rules/overworld")
+           (get-in state [:layers 2 :id])))
     (is (= :tile-ref (get-in state [:layers 2 :data-kind])))
     (is (= :shore-n (get-in state [:layers 2 :tiles 1 1])))
     (is (= true (get-in state [:terrain-stamp-replacements 0 :tiles 1 1])))))
