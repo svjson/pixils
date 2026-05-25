@@ -36,6 +36,19 @@
     (is (= 'ui/button (:mode edit-button)))
     (is (= "Edit" (-> edit-button :state :label)))))
 
+(deftest terrain-identity-row-does_not_render_base_tile_dropdown
+  (let [children (layout/terrain-identity-row-children)]
+    (is (= 1 (count children)))
+    (is (= 'terrain-readonly-field (-> children head :mode)))))
+
+(deftest terrain-base-tile-popup-uses_tile_picker_panel
+  (let [children (layout/terrain-base-tile-popup-children {:x 10 :y 20})
+        picker (head children)]
+    (is (= 'terrain-base-tile-picker-scroll-pane (:mode picker)))
+    (is (= :absolute (-> picker :style :position)))
+    (is (= 10 (-> picker :style :left)))
+    (is (= 20 (-> picker :style :top)))))
+
 (deftest stamp-tile-picker-columns-tolerates_unlaid_out_bounds
   (is (= 1 (layout/terrain-stamp-tile-picker-columns nil)))
   (is (= {:x 0 :y 0 :w 32 :h 32}

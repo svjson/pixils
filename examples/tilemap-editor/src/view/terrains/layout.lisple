@@ -350,7 +350,20 @@
 (defcomponent terrain-preview
   {:class :ui/content
    :style {:width 48
-           :height 48}
+           :height 48
+           :cursor :pointer}
+   :on-mouse-down (fn [state event ctx]
+                    (do
+                      (ui/stop-propagation! event)
+                      state))
+   :on-mouse-up (fn [state event ctx]
+                  (do
+                    (ui/stop-propagation! event)
+                    (when (not (:disabled? state))
+                      (ui/emit! (:view ctx)
+                                :terrain/base-tile-open
+                                {:position (:global-position event)}))
+                    state))
    :render (fn [state ctx]
              (do
                (r/rect! {:x 0 :y 0 :w 48 :h 48}
@@ -386,51 +399,9 @@
                         (ui/bind-state :selected-preview-tileset-index)
                         :disabled? (ui/bind-state :disabled?)})]})
 
-(defcomponent terrain-preview-tile-selector
-  {:style {:width 220
-           :height 22}
-   :update (fn [state ctx]
-             (let [terrain-set (model/selected-terrain-set
-                                (:terrain-sets state)
-                                (:selected-terrain-set-index state))
-                   terrain (model/selected-terrain terrain-set
-                                                   (:selected-terrain-index state))
-                   tileset (:tileset terrain-set)
-                   options (data/tile-options (:tilesets state) tileset)]
-               (assoc state
-                      :tile-options options
-                      :selected-preview-tile-index
-                      (data/tile-index (:tilesets state) tileset (:tile terrain))
-                      :disabled? (or (nil? terrain)
-                                     (empty? options)))))
-   :on {:combo-box/change (fn [state event ctx]
-                            (do
-                              (ui/emit! (:view ctx)
-                                        :terrain/tile-change
-                                        (-> event :payload :value))
-                              state))}
-   :children [(cb/make {:options (ui/bind-state :tile-options)
-                        :selected-index
-                        (ui/bind-state :selected-preview-tile-index)
-                        :disabled? (ui/bind-state :disabled?)})]})
-
-(defcomponent terrain-base-tile-field
-  {:style {:width 360
-           :height 24
-           :layout {:direction :row
-                    :align-items :center
-                    :gap 8}}
-   :children [{:mode 'ui/text
-               :class :ui/muted
-               :style {:width 124}
-               :state {:value "Terrain Base Tile"}}
-              {:mode 'terrain-preview-tile-selector
-               :state {:terrain-sets (ui/bind-state :terrain-sets)
-                       :selected-terrain-set-index
-                       (ui/bind-state :selected-terrain-set-index)
-                       :selected-terrain-index
-                       (ui/bind-state :selected-terrain-index)
-                       :tilesets (ui/bind-state :tilesets)}}]})
+(defun terrain-identity-row-children []
+  [(terrain-readonly-field-child "Name"
+                                 (ui/bind-state :terrain-label))])
 
 (defcomponent terrain-identity-row
   {:style {:width :fill
@@ -438,15 +409,7 @@
            :layout {:direction :row
                     :align-items :center
                     :gap 12}}
-   :children [(terrain-readonly-field-child "Name"
-                                            (ui/bind-state :terrain-label))
-              {:mode 'terrain-base-tile-field
-               :state {:terrain-sets (ui/bind-state :terrain-sets)
-                       :selected-terrain-set-index
-                       (ui/bind-state :selected-terrain-set-index)
-                       :selected-terrain-index
-                       (ui/bind-state :selected-terrain-index)
-                       :tilesets (ui/bind-state :tilesets)}}]})
+   :children (terrain-identity-row-children)})
 
 (defun terrain-set-detail-editor-children []
   [(terrain-readonly-field-child "Id" (ui/bind-state :set-id))
@@ -1165,6 +1128,173 @@
                                             :height :fill}
                                     :state (ui/bind-state)}]})]})
 
+(def terrain-base-tile-picker-width 260)
+(def terrain-base-tile-picker-height 232)
+
+(defun terrain-base-tile-options [state]
+  (let [terrain-set (model/selected-terrain-set
+                     (:terrain-sets state)
+                     (:selected-terrain-set-index state))]
+    (data/tile-options (:tilesets state) (:tileset terrain-set))))
+
+(defun terrain-base-tile-picker-content-size [state]
+  (let [options (terrain-base-tile-options state)
+        columns (terrain-stamp-tile-picker-columns
+                 {:w terrain-base-tile-picker-width})]
+    {:w terrain-base-tile-picker-width
+     :h (terrain-stamp-tile-picker-content-height (count options)
+                                                  columns)}))
+
+(defun terrain-base-tile-picker-content-state [state]
+  {:terrain-sets (:terrain-sets state)
+   :selected-terrain-set-index (:selected-terrain-set-index state)
+   :selected-terrain-index (:selected-terrain-index state)
+   :tilesets (:tilesets state)})
+
+(defun terrain-base-tile-picker-selected-indices [state]
+  (let [terrain-set (model/selected-terrain-set
+                     (:terrain-sets state)
+                     (:selected-terrain-set-index state))
+        terrain (model/selected-terrain terrain-set
+                                        (:selected-terrain-index state))
+        options (terrain-base-tile-options state)
+        index (find-index options
+                          (fn [option]
+                            (= (:value option) (:tile terrain))))]
+    (if (nil? index) [] [index])))
+
+(defun terrain-base-tile-at-picker-index [state index]
+  (when (not (nil? index))
+    (nth (terrain-base-tile-options state) index)))
+
+(defun select-terrain-base-tile-at-event! [state event ctx]
+  (let [options (terrain-base-tile-options state)
+        index (terrain-stamp-tile-picker-index-at-position
+               (:position event)
+               (-> ctx :view :bounds)
+               (count options))
+        option (terrain-base-tile-at-picker-index state index)]
+    (do
+      (ui/stop-propagation! event)
+      (ui/focus! ctx)
+      (when option
+        (ui/emit! (:view ctx)
+                  :terrain/base-tile-select
+                  (:value option)))
+      state)))
+
+(defun draw-terrain-base-tile-picker-cell! [state option index columns]
+  (let [rect (terrain-stamp-tile-picker-cell-rect index columns)
+        terrain-set (model/selected-terrain-set
+                     (:terrain-sets state)
+                     (:selected-terrain-set-index state))
+        tile (data/tile-in (:tilesets state)
+                           (:tileset terrain-set)
+                           (:value option))]
+    (do
+      (r/rect! rect {:fill true
+                     :color {:r 0x12 :g 0x15 :b 0x18}})
+      (when tile
+        (tr/draw-tile! tile
+                       {:x (+ (:x rect) 4)
+                        :y (+ (:y rect) 4)
+                        :w (- (:w rect) 8)
+                        :h (- (:h rect) 8)}))
+      (r/rect! rect {:color {:r 0x1f :g 0x26 :b 0x2d}})
+      (when (contains? (:selected-indices state) index)
+        (r/rect! (terrain-stamp-tile-picker-selected-rect rect)
+                 {:color {:r 0xff :g 0xcc :b 0x66}})))))
+
+(defcomponent terrain-base-tile-picker
+  {:focusable true
+   :class :ui/content
+   :style {:width :fill
+           :height :fill
+           :clip true
+           :cursor :pointer}
+   :update (fn [state ctx]
+             (assoc state
+                    :selected-indices
+                    (terrain-base-tile-picker-selected-indices state)))
+   :on-mouse-down select-terrain-base-tile-at-event!
+   :render (fn [state ctx]
+             (let [options (terrain-base-tile-options state)
+                   columns (terrain-stamp-tile-picker-columns
+                            (-> ctx :view :bounds))]
+               (for-indexed [index option options]
+                 (draw-terrain-base-tile-picker-cell!
+                  state
+                  option
+                  index
+                  columns))))})
+
+(defcomponent terrain-base-tile-picker-scroll-pane
+  {:style {:width terrain-base-tile-picker-width
+           :height terrain-base-tile-picker-height}
+   :update (fn [state ctx]
+             (assoc state
+                    :content-size
+                    (terrain-base-tile-picker-content-size state)
+                    :picker-state
+                    (terrain-base-tile-picker-content-state state)))
+   :children [(sp/make {:style {:width :fill
+                                :height :fill}
+                        :content-size {:w terrain-base-tile-picker-width
+                                       :h terrain-base-tile-picker-height}
+                        :state {:content-size (ui/bind-state :content-size)
+                                :content-state (ui/bind-state :picker-state)}
+                        :scroll-x? false
+                        :scroll-y? :auto
+                        :step (terrain-stamp-tile-picker-stride)
+                        :children [{:mode 'terrain-base-tile-picker
+                                    :style {:width :fill
+                                            :height :fill}
+                                    :state (ui/bind-state)}]})]})
+
+(defun terrain-base-tile-popup-position [position]
+  {:left (or (:x position) 240)
+   :top (or (:y position) 150)})
+
+(defun terrain-base-tile-popup-children [position]
+  (let [position (terrain-base-tile-popup-position position)]
+    [{:mode 'terrain-base-tile-picker-scroll-pane
+      :class :ui/content
+      :style {:position :absolute
+              :left (:left position)
+              :top (:top position)}
+      :state {:terrain-sets (ui/bind-state :terrain-sets)
+              :selected-terrain-set-index
+              (ui/bind-state :selected-terrain-set-index)
+              :selected-terrain-index
+              (ui/bind-state :selected-terrain-index)
+              :tilesets (ui/bind-state :tilesets)}}]))
+
+(defmode terrain-base-tile-popup
+  {:on-mouse-down (fn [state event ctx]
+                    (do
+                      (pop-mode! {:type :dismiss})
+                      state))
+   :on {:terrain/base-tile-select
+        (fn [state event ctx]
+          (do
+            (ui/stop-propagation! event)
+            (pop-mode! {:type :confirm
+                        :tile (:payload event)})
+            state))}
+   :compose {:render :pass}})
+
+(defun open-terrain-base-tile-popup! [state ctx position]
+  (do
+    (push-mode! 'terrain-base-tile-popup
+                {:terrain-sets (:terrain-sets state)
+                 :selected-terrain-set-index (:selected-terrain-set-index state)
+                 :selected-terrain-index (:selected-terrain-index state)
+                 :tilesets (:tilesets state)}
+                {:origin {:view (:view ctx)
+                          :event :terrain/base-tile-popup-result}
+                 :children (terrain-base-tile-popup-children position)})
+    state))
+
 (defcomponent terrain-rule-arrow
   {:class :ui/canvas
    :style {:width 36
@@ -1646,7 +1776,9 @@
                                 :gap 12}}
                :state (ui/bind-state)
                :children [{:mode 'terrain-preview
-                           :state {:tile (ui/bind-state :preview-tile)}}
+                           :state {:tile (ui/bind-state :preview-tile)
+                                   :disabled?
+                                   (ui/bind-state :terrain-disabled?)}}
                           {:mode 'ui/button
                            :style {:width 78
                                    :height 24}
@@ -2217,6 +2349,18 @@
                                 (model/set-selected-terrain-tile
                                  state
                                  (:payload event))))
+        :terrain/base-tile-open
+        (fn [state event ctx]
+          (open-terrain-base-tile-popup! state
+                                         ctx
+                                         (-> event :payload :position)))
+        :terrain/base-tile-popup-result
+        (fn [state event ctx]
+          (let [payload (:payload event)]
+            (if (= (:type payload) :confirm)
+              (tilemap/rebuild-terrain-stamp-preview
+               (model/set-selected-terrain-tile state (:tile payload)))
+              state)))
         :terrain/ruleset-add (fn [state event ctx]
                                (tilemap/rebuild-terrain-stamp-preview
                                 (model/add-terrain-ruleset state)))
