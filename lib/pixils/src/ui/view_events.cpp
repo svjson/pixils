@@ -49,6 +49,8 @@ namespace Pixils::UI
 
       PIXILS_BENCHMARK_COUNT(event_handler_invocations);
       auto event_ref = Script::CustomEventAdapter::make_ref(event);
+      Lisple::obj<HookContext>(*view_ctx).current_view =
+        std::shared_ptr<Runtime::View>(&receiver, [](Runtime::View*) {});
       Lisple::sptr_val_v event_args{receiver.state, event_ref, view_ctx};
       auto receiver_ref = std::shared_ptr<Runtime::View>(&receiver, [](Runtime::View*) {});
       auto new_state =

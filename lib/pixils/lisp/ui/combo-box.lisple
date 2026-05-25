@@ -65,9 +65,11 @@
                     :combo-box/change
                     {:selected-index index
                      :value value})
-          (assoc (assoc state
-                        :selected-index index)
-                 :selected-value value))))))
+          (assoc (assoc (assoc state
+                               :selected-index index)
+                        :selected-value value)
+                 :selected-label
+                 (selected-label (:options state) index)))))))
 
 (defun step-selection [state direction ctx]
   (if (:disabled? state)
