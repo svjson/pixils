@@ -458,6 +458,86 @@ TEST_F(ListBoxTest, reorderable_list_box_emits_reorder_drop_event)
   EXPECT_EQ(selected->to_string(), "[]");
 }
 
+TEST_F(ListBoxTest, reorderable_list_box_with_custom_mouse_row_emits_reorder_drop_event)
+{
+  runtime.eval(R"(
+    (pixils/defmode custom-row
+      {:extend 'ui/list-box-item
+       :style {:width :fill
+               :height 10}
+       :on-mouse-down (fn [state event ctx]
+                        (do
+                          (pixils.ui/stop-propagation! event)
+                          state))
+       :on-mouse-up (fn [state event ctx]
+                      (do
+                        (pixils.ui/stop-propagation! event)
+                        (pixils.ui/emit! (:view ctx)
+                                         :list-box/item-click
+                                         {:index (:index state)
+                                          :value (:value state)
+                                          :shift? false
+                                          :ctrl? false})
+                        state))
+       :children [{:mode 'ui/text
+                   :state {:value (pixils.ui/bind-state :label)}}]})
+
+    (defun custom-row-child [index option]
+      {:mode 'custom-row
+       :state {:index index
+               :value (:value option)
+               :label (:label option)
+               :selected-indices (pixils.ui/bind-state :selected-indices)}})
+
+    (pixils/defmode root-mode
+      {:init (fn [state ctx] {:reorder nil
+                              :selected []})
+       :on {:list-box/reorder (fn [state event ctx]
+                                (assoc state :reorder (:payload event)))
+            :list-box/change (fn [state event ctx]
+                               (assoc state
+                                      :selected
+                                      (:selected-indices (:payload event))))}
+       :children [(pixils.ui.list-box/make
+                   {:options [{:value :a :label "Alpha"}
+                              {:value :b :label "Beta"}
+                              {:value :c :label "Gamma"}]
+                    :style {:width 100}
+                    :row-height 10
+                    :visible-rows 3
+                    :content-width 100
+                    :selected-indices (pixils.ui/bind-state :selected)
+                    :reorderable? true
+                    :item-child custom-row-child})]})
+  )");
+
+  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.update_mode();
+  session.render_mode();
+  session.update_mode();
+  session.render_mode();
+
+  input().mouse_down({5, 5});
+  update_cycle();
+  input().mouse_move({5, 28});
+  update_cycle();
+  input().mouse_up({5, 28});
+  update_cycle();
+
+  auto reorder =
+    Lisple::Dict::get_property(session.active_mode->state, Lisple::keyword("reorder"));
+  ASSERT_NE(reorder, nullptr);
+  ASSERT_NE(reorder->to_string(), "nil");
+  EXPECT_EQ(Lisple::Dict::get_property(reorder, Lisple::keyword("from-index"))
+              ->num()
+              .get_int(),
+            0);
+  EXPECT_EQ(Lisple::Dict::get_property(reorder, Lisple::keyword("to-index"))
+              ->num()
+              .get_int(),
+            2);
+}
+
 TEST_F(ListBoxTest, clicking_selected_single_select_item_does_not_emit_change)
 {
   runtime.eval(R"(

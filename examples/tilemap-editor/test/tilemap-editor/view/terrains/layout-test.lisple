@@ -66,6 +66,9 @@
     (is (= "Duplicate" (:label duplicate)))
     (is (= :duplicate (-> duplicate :payload :command)))))
 
+(deftest terrain-rule-list-is_reorderable
+  (is (= true (:reorderable? (:state (layout/terrain-rule-list-child {}))))))
+
 (deftest terrain-rule-transform-menu-includes_flip_and_rotate_commands
   (let [items (:items layout/terrain-rule-transform-menu)]
     (is (= :flip-horizontal (-> (nth items 0) :payload :command)))

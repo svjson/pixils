@@ -325,6 +325,54 @@
        (fn [index]
          (swap-index-value index a b))))
 
+(defun remove-item-at-index [items remove-index]
+  (map (filter (for-indexed [index item (or items [])]
+                 {:index index
+                  :item item})
+               (fn [entry]
+                 (not= (:index entry) remove-index)))
+       :item))
+
+(defun insert-item-at-index [items insert-index item]
+  (let [items (or items [])]
+    (if (>= insert-index (count items))
+      (concat items [item])
+      (apply concat
+             (for-indexed [index existing items]
+               (if (= index insert-index)
+                 [item existing]
+                 [existing]))))))
+
+(defun reorder-items [items from-index to-index]
+  (let [items (or items [])]
+    (if (and (not (nil? from-index))
+             (not (nil? to-index))
+             (>= from-index 0)
+             (< from-index (count items))
+             (>= to-index 0)
+             (< to-index (count items)))
+      (insert-item-at-index (remove-item-at-index items from-index)
+                            to-index
+                            (nth items from-index))
+      items)))
+
+(defun reorder-index-value [index from-index to-index]
+  (cond
+    (nil? index) nil
+    (= index from-index) to-index
+    (and (< from-index to-index)
+         (> index from-index)
+         (<= index to-index)) (dec index)
+    (and (> from-index to-index)
+         (>= index to-index)
+         (< index from-index)) (inc index)
+    :default index))
+
+(defun reorder-hidden-layer-indices [hidden-layer-indices from-index to-index]
+  (map (or hidden-layer-indices [])
+       (fn [index]
+         (reorder-index-value index from-index to-index))))
+
 (defun remove-layer-at [layers delete-index]
   (map (filter (for-indexed [index layer (or layers [])]
                  {:index index
@@ -419,6 +467,32 @@
                                       (:hidden-layer-indices state)
                                       index
                                       target-index))))))
+
+(defun apply-layer-reorder [state payload]
+  (let [from-index (:from-index payload)
+        to-index (:to-index payload)
+        layers (or (:layers state) [])]
+    (if (and (not (nil? from-index))
+             (not (nil? to-index))
+             (>= from-index 0)
+             (< from-index (count layers))
+             (>= to-index 0)
+             (< to-index (count layers)))
+      (let [next-layers (reorder-items layers from-index to-index)
+            next-selected-index (reorder-index-value
+                                 (or (:selected-layer-index state) 0)
+                                 from-index
+                                 to-index)]
+        (assoc state
+               :layers next-layers
+               :selected-layer-index next-selected-index
+               :selected-layer-label (selected-layer-name next-layers
+                                                          next-selected-index)
+               :hidden-layer-indices (reorder-hidden-layer-indices
+                                      (:hidden-layer-indices state)
+                                      from-index
+                                      to-index)))
+      state)))
 
 (defun apply-delete-layer-result [state payload]
   (if (and (= (:choice payload) :dialog/ok)
@@ -905,6 +979,7 @@
                       :hidden-layer-indices (ui/bind-state :hidden-layer-indices)}
               :item-state-keys [:layers :tilesets :hidden-layer-indices]
               :selected-indices (ui/bind-state :selected-indices)
+              :reorderable? true
               :force-selection? true
               :item-child layer-row-child})))
 
@@ -933,6 +1008,13 @@
                              (ui/emit! (:view ctx)
                                        :layer/select
                                        (-> event :payload :value))
+                             state))
+        :list-box/reorder (fn [state event ctx]
+                            (do
+                              (ui/stop-propagation! event)
+                              (ui/emit! (:view ctx)
+                                        :layer/reorder
+                                        (:payload event))
                              state))}
    :children [(merge {:id "list-box"}
                      (layer-list-box-child []))]})
@@ -969,6 +1051,8 @@
                                   (assoc state :selected-layer-index (:payload event)))
                  :layer/add (fn [state event ctx]
                               (open-layer-add-dialog! state ctx))
+                 :layer/reorder (fn [state event ctx]
+                                  (apply-layer-reorder state (:payload event)))
                  :layer/toggle-visible (fn [state event ctx]
                                          (assoc state
                                                 :hidden-layer-indices

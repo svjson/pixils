@@ -424,6 +424,46 @@ TEST_F(EventRoutingTest, child_drag_state_propagates_into_parent_state_map)
   EXPECT_EQ(session.active_mode->state->to_string(), "{:titlebar {:last {:x 15 :y 8}}}");
 }
 
+TEST_F(EventRoutingTest, interaction_emitted_event_state_propagates_through_bound_ancestors)
+{
+  runtime.eval(R"(
+    (pixils/defmode drag-source {
+      :drag {:start {:mode :threshold :distance 3}
+             :payload (fn [state event ctx] nil)}
+      :on-drag-start (fn [state event ctx]
+                       (do
+                         (pixils.ui/emit! (:view ctx) :source/dragged nil)
+                         state))
+    })
+    (pixils/defmode mid-mode {
+      :on {:source/dragged (fn [state event ctx]
+                             (assoc state :count (+ (:count state) 1)))}
+      :children [{:mode 'drag-source :id "source"}]
+    })
+    (pixils/defmode outer-mode {
+      :children [{:mode 'mid-mode :id "mid"
+                  :state (pixils.ui/bind-state :mid)}]
+    })
+    (pixils/defmode root-mode {
+      :init (fn [state ctx] {:outer {:mid {:count 0}}})
+      :children [{:mode 'outer-mode :id "outer"
+                  :state (pixils.ui/bind-state :outer)}]
+    })
+  )");
+  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.active_mode->bounds = {0, 0, 100, 40};
+  session.active_mode->children[0]->bounds = {0, 0, 100, 40};
+  session.active_mode->children[0]->children[0]->bounds = {0, 0, 100, 40};
+  session.active_mode->children[0]->children[0]->children[0]->bounds = {0, 0, 100, 40};
+
+  input().mouse_down({10, 10});
+  update_cycle();
+  input().mouse_move({20, 10});
+  update_cycle();
+
+  EXPECT_EQ(session.active_mode->state->to_string(), "{:outer {:mid {:count 1}}}");
+}
+
 TEST_F(EventRoutingTest, stop_propagation_accepts_drag_events)
 {
   runtime.eval(R"(

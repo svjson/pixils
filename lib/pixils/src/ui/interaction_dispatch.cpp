@@ -291,6 +291,7 @@ namespace Pixils::UI
              receiver_index < chain.size() && !bubbled_events.empty();
              receiver_index++)
         {
+          bool receiver_state_updated = false;
           auto parent_state = (receiver_index + 1 < chain.size())
                                 ? &chain[receiver_index + 1]->state
                                 : nullptr;
@@ -302,7 +303,14 @@ namespace Pixils::UI
                                                view_ctx,
                                                bubbled_events,
                                                rt,
-                                               nullptr);
+                                               &receiver_state_updated);
+          if (receiver_state_updated)
+          {
+            std::vector<std::shared_ptr<Runtime::View>> propagation_chain(
+              chain.begin() + static_cast<std::ptrdiff_t>(receiver_index),
+              chain.end());
+            propagate_state_up_chain(propagation_chain);
+          }
         }
 
         if (!bubbled_events.empty())

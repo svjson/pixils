@@ -1709,6 +1709,7 @@
               :disabled? (empty? options)
               :state {:offset (ui/bind-state :terrain-rule-list-offset)}
               :selected-indices (ui/bind-state :selected-indices)
+              :reorderable? true
               :force-selection? true
               :item-child terrain-rule-row-child})))
 
@@ -1754,6 +1755,13 @@
                              (ui/emit! (:view ctx)
                                        :terrain/rule-select
                                        (-> event :payload :value))
+                             state))
+        :list-box/reorder (fn [state event ctx]
+                            (do
+                              (ui/stop-propagation! event)
+                              (ui/emit! (:view ctx)
+                                        :terrain/rule-reorder
+                                        (:payload event))
                              state))}
    :children [(merge {:id "terrain-rule-list-box"}
                      (terrain-rule-list-child {}))]})
@@ -2540,6 +2548,16 @@
         :terrain/rule-select
         (fn [state event ctx]
           (assoc state :selected-terrain-rule-id (:payload event)))
+        :terrain/rule-reorder
+        (fn [state event ctx]
+          (let [payload (:payload event)]
+            (update-selected-ruleset-preview
+             state
+             (fn [state]
+               (model/reorder-selected-terrain-rules state
+                                                     (:from-index payload)
+                                                     (:to-index payload)
+                                                     (:value payload))))))
         :terrain/rule-context-command
         (fn [state event ctx]
           (let [payload (:payload event)

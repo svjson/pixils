@@ -716,6 +716,27 @@
     (is (= [:grass-b :water-a :grass-a]
            (map (get-in moved-down [:rulesets 0 :rules]) :id)))))
 
+(deftest terrain-rule-drag-reorder-reorders_visible_rules_only
+  (let [state (model/reorder-selected-terrain-rules
+               {:terrain-sets [{:id :overworld
+                                :terrains [{:id :grass}
+                                           {:id :water}]}]
+                :selected-terrain-set-index 0
+                :selected-terrain-index 0
+                :rulesets [{:id :overworld-rules
+                            :terrain-set :overworld
+                            :rules [{:id :grass-a :terrain :grass}
+                                    {:id :water-a :terrain :water}
+                                    {:id :grass-b :terrain :grass}
+                                    {:id :grass-c :terrain :grass}]}]
+                :selected-terrain-ruleset-id :overworld-rules}
+               0
+               2
+               :grass-a)]
+    (is (= [:grass-b :water-a :grass-c :grass-a]
+           (map (get-in state [:rulesets 0 :rules]) :id)))
+    (is (= :grass-a (:selected-terrain-rule-id state)))))
+
 (deftest terrain-rule-delete-removes_selected_rule_and_selects_neighbor
   (let [state (model/delete-selected-terrain-rule
                {:terrain-sets [{:id :overworld

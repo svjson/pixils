@@ -25,6 +25,25 @@
   (is (= true (:disabled? (:state (controls/layer-list-box-child nil)))))
   (is (not= true (:disabled? (:state (controls/layer-list-box-child [{:label "Ground"}]))))))
 
+(deftest layer-list-is-reorderable
+  (is (= true (:reorderable?
+               (:state (controls/layer-list-box-child [{:label "Ground"}]))))))
+
+(deftest layer-reorder-moves_layers_and_remaps_selected_and_hidden_indices
+  (let [state (controls/apply-layer-reorder
+               {:layers [{:label "A"}
+                         {:label "B"}
+                         {:label "C"}
+                         {:label "D"}]
+                :selected-layer-index 2
+                :hidden-layer-indices [0 3]}
+               {:from-index 0
+                :to-index 2})]
+    (is (= ["B" "C" "A" "D"] (map (:layers state) :label)))
+    (is (= 1 (:selected-layer-index state)))
+    (is (= "C" (:selected-layer-label state)))
+    (is (= [2 3] (:hidden-layer-indices state)))))
+
 (deftest layer-controls-has_add_button
   (let [panel (controls/make-layer-controls)]
     (is (= "+" (get-in panel [:children 0 :children 1 :state :label])))))
