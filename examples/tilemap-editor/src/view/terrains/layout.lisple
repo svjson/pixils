@@ -25,7 +25,10 @@
   {:settings {:mnemonics {:enabled false}}
    :items [{:label "Rename Terrain Set"
             :action :terrain/set-context-dummy
-            :payload {:command :rename}}]})
+            :payload {:command :rename}}
+           {:label "Delete"
+            :action :terrain/set-context-dummy
+            :payload {:command :delete}}]})
 
 (def terrain-context-menu
   {:settings {:mnemonics {:enabled false}}
@@ -34,7 +37,10 @@
             :payload {:command :rename}}
            {:label "Duplicate"
             :action :terrain/context-dummy
-            :payload {:command :duplicate}}]})
+            :payload {:command :duplicate}}
+           {:label "Delete"
+            :action :terrain/context-dummy
+            :payload {:command :delete}}]})
 
 (defcomponent terrain-row
   {:extend 'ui/list-box-item
@@ -1831,6 +1837,36 @@
         state)
       state)))
 
+(defun open-terrain-set-delete-confirm-dialog! [state ctx terrain-set-index name]
+  (do
+    (dialog/open-confirm!
+     ctx
+     {:title "Delete Terrain Set"
+      :body {:mode 'ui/text
+             :style {:width :fill}
+             :state {:value (str "Delete terrain set \"" name "\"?")}}
+      :buttons [:dialog/cancel
+                {:type :dialog/ok
+                 :label "Delete"}]
+      :result-event :terrain/set-delete-confirm-result
+      :payload {:terrain-set-index terrain-set-index}})
+    state))
+
+(defun open-terrain-delete-confirm-dialog! [state ctx terrain-index name]
+  (do
+    (dialog/open-confirm!
+     ctx
+     {:title "Delete Terrain"
+      :body {:mode 'ui/text
+             :style {:width :fill}
+             :state {:value (str "Delete terrain \"" name "\"?")}}
+      :buttons [:dialog/cancel
+                {:type :dialog/ok
+                 :label "Delete"}]
+      :result-event :terrain/delete-confirm-result
+      :payload {:terrain-index terrain-index}})
+    state))
+
 (defun open-terrain-rule-name-dialog! [state ctx rule-id name]
   (do
     (push-mode! 'terrain-rule-name-dialog-modal
@@ -2397,6 +2433,13 @@
               :rename
               (open-terrain-set-edit-dialog! state ctx)
 
+              :delete
+              (open-terrain-set-delete-confirm-dialog!
+               state
+               ctx
+               terrain-set-index
+               (model/terrain-set-label-by-index state terrain-set-index))
+
               :default
               state)))
         :terrain/edit
@@ -2452,6 +2495,13 @@
                                            duplicate-name
                                            (kebab-case duplicate-name)))
 
+              :delete
+              (open-terrain-delete-confirm-dialog!
+               state
+               ctx
+               terrain-index
+               name)
+
               :default
               state)))
         :terrain/name-dialog-result
@@ -2487,6 +2537,17 @@
                   :default
                   state))
               state)))
+        :terrain/delete-confirm-result
+        (fn [state event ctx]
+          (let [payload (:payload event)]
+            (if (and (= (:choice payload) :dialog/ok)
+                     (not (nil? (-> payload :payload :terrain-index))))
+              (tilemap/rebuild-terrain-stamp-preview
+               (model/delete-selected-terrain
+                (assoc state
+                       :selected-terrain-index
+                       (-> payload :payload :terrain-index))))
+              state)))
         :terrain/set-edit (fn [state event ctx]
                             (open-terrain-set-edit-dialog! state ctx))
         :terrain/set-add-dialog-result
@@ -2506,6 +2567,19 @@
                (model/set-selected-terrain-set-label
                 (model/set-selected-terrain-set-id state (:id payload))
                 (:name payload)))
+              state)))
+        :terrain/set-delete-confirm-result
+        (fn [state event ctx]
+          (let [payload (:payload event)]
+            (if (and (= (:choice payload) :dialog/ok)
+                     (not (nil? (-> payload :payload :terrain-set-index))))
+              (tilemap/rebuild-terrain-stamp-preview
+               (model/delete-selected-terrain-set
+                (assoc state
+                       :selected-terrain-set-index
+                       (-> payload :payload :terrain-set-index)
+                       :selected-terrain-index
+                       nil)))
               state)))
         :terrain/edit-field-change
         (fn [state event ctx]

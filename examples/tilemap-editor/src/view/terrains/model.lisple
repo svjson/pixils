@@ -232,6 +232,12 @@
       (keyword-label (:id terrain))
       "Terrain"))
 
+(defun terrain-set-label [terrain-set]
+  (or (:label terrain-set)
+      (:name terrain-set)
+      (keyword-label (:id terrain-set))
+      "Terrain Set"))
+
 (defun duplicate-terrain-name [terrains terrain]
   (unique-terrain-name-from terrains
                             (str (terrain-label terrain) " Copy")
@@ -307,6 +313,13 @@
                            (< terrain-index (count (or (:terrains terrain-set) []))))
                   (nth (:terrains terrain-set) terrain-index))]
     (terrain-label terrain)))
+
+(defun terrain-set-label-by-index [state terrain-set-index]
+  (let [terrain-set (when (and (not (nil? terrain-set-index))
+                               (< terrain-set-index
+                                  (count (or (:terrain-sets state) []))))
+                      (nth (:terrain-sets state) terrain-set-index))]
+    (terrain-set-label terrain-set)))
 
 (defun selected-terrain-set-path [state]
   (if-let [set-index (selected-terrain-set-index (:terrain-sets state)
@@ -978,6 +991,146 @@
                (fn [entry]
                  (not= (:index entry) remove-index)))
        :item))
+
+(defun selected-index-after-delete [selected-index remove-index remaining-count]
+  (when (> remaining-count 0)
+    (let [selected-index (or selected-index remove-index 0)
+          remove-index (or remove-index 0)]
+      (cond
+        (< selected-index remove-index) selected-index
+        (> selected-index remove-index) (dec selected-index)
+        :default (min remove-index (dec remaining-count))))))
+
+(defun remove-rulesets-for-terrain-set [rulesets terrain-set-id source-layer-ids]
+  (filter (or rulesets [])
+          (fn [ruleset]
+            (and (not= (:terrain-set ruleset) terrain-set-id)
+                 (not (ruleset-source-layer-matches? ruleset
+                                                     source-layer-ids))))))
+
+(defun clear-terrain-set-reference [value terrain-set-id]
+  (case (type-of value)
+    "vector" (map value
+                  (fn [item]
+                    (clear-terrain-set-reference item terrain-set-id)))
+    "map" (reduce-kv (if (= (:terrain-set value) terrain-set-id)
+                       (assoc value :terrain-set nil)
+                       value)
+                     {}
+                     (fn [result key item]
+                       (assoc result
+                              key
+                              (clear-terrain-set-reference item
+                                                           terrain-set-id))))
+    :default value))
+
+(defun delete-selected-terrain-set [state]
+  (if-let [set-index (selected-terrain-set-index (:terrain-sets state)
+                                                 (:selected-terrain-set-index state))]
+    (let [terrain-sets (or (:terrain-sets state) [])
+          terrain-set (nth terrain-sets set-index)
+          terrain-set-id (:id terrain-set)
+          source-layer-ids (terrain-source-layer-ids state terrain-set-id)
+          next-terrain-sets (remove-item-at-index terrain-sets set-index)
+          next-set-index (selected-index-after-delete
+                          (:selected-terrain-set-index state)
+                          set-index
+                          (count next-terrain-sets))
+          next-terrain-set (selected-terrain-set next-terrain-sets
+                                                 next-set-index)
+          next-terrain-index (selected-terrain-index next-terrain-set
+                                                     (:selected-terrain-index
+                                                      state))]
+      (assoc state
+             :terrain-sets next-terrain-sets
+             :layers (clear-terrain-set-reference (:layers state)
+                                                  terrain-set-id)
+             :layer-profiles (clear-terrain-set-reference
+                              (:layer-profiles state)
+                              terrain-set-id)
+             :brushes (clear-terrain-set-reference (:brushes state)
+                                                   terrain-set-id)
+             :rulesets (remove-rulesets-for-terrain-set
+                        (:rulesets state)
+                        terrain-set-id
+                        source-layer-ids)
+             :selected-terrain-set-index next-set-index
+             :selected-terrain-index next-terrain-index
+             :selected-terrain-ruleset-id nil
+             :selected-terrain-rule-id nil))
+    state))
+
+(defun remove-rules-for-terrain [rules terrain-id]
+  (filter (or rules [])
+          (fn [rule]
+            (not= (terrain-rule-center rule) terrain-id))))
+
+(defun remove-terrain-from-ruleset [ruleset terrain-set-id source-layer-ids terrain-id]
+  (if (or (= (:terrain-set ruleset) terrain-set-id)
+          (ruleset-source-layer-matches? ruleset source-layer-ids))
+    (replace-terrain-rule-reference
+     (assoc ruleset :rules (remove-rules-for-terrain (:rules ruleset)
+                                                     terrain-id))
+     terrain-id
+     nil)
+    ruleset))
+
+(defun remove-terrain-from-rulesets [rulesets terrain-set-id source-layer-ids terrain-id]
+  (map (filter (or rulesets [])
+               (fn [ruleset]
+                 (not (and (= (:terrain-set ruleset) terrain-set-id)
+                           (= (:terrain ruleset) terrain-id)))))
+       (fn [ruleset]
+         (remove-terrain-from-ruleset ruleset
+                                      terrain-set-id
+                                      source-layer-ids
+                                      terrain-id))))
+
+(defun delete-selected-terrain [state]
+  (if-let [set-index (selected-terrain-set-index (:terrain-sets state)
+                                                 (:selected-terrain-set-index state))]
+    (let [terrain-set (nth (:terrain-sets state) set-index)
+          terrain-index (selected-terrain-index terrain-set
+                                                (:selected-terrain-index state))
+          terrains (or (:terrains terrain-set) [])
+          terrain (when (not (nil? terrain-index))
+                    (nth terrains terrain-index))]
+      (if terrain
+        (let [terrain-set-id (:id terrain-set)
+              terrain-id (:id terrain)
+              source-layer-ids (terrain-source-layer-ids state terrain-set-id)
+              next-terrains (remove-item-at-index terrains terrain-index)
+              next-terrain-index (selected-index-after-delete
+                                  (:selected-terrain-index state)
+                                  terrain-index
+                                  (count next-terrains))]
+          (assoc state
+                 :terrain-sets (update-terrain-set-at
+                                (:terrain-sets state)
+                                set-index
+                                (fn [terrain-set]
+                                  (assoc terrain-set
+                                         :terrains next-terrains)))
+                 :layers (replace-terrain-refs-in-layers (:layers state)
+                                                         terrain-set-id
+                                                         terrain-id
+                                                         nil)
+                 :brushes (replace-terrain-refs-in-brush-value
+                           (:brushes state)
+                           terrain-set-id
+                           terrain-id
+                           nil)
+                 :rulesets (remove-terrain-from-rulesets
+                            (:rulesets state)
+                            terrain-set-id
+                            source-layer-ids
+                            terrain-id)
+                 :selected-terrain-set-index set-index
+                 :selected-terrain-index next-terrain-index
+                 :selected-terrain-ruleset-id nil
+                 :selected-terrain-rule-id nil))
+        state))
+    state))
 
 (defun insert-item-at-index [items insert-index item]
   (let [items (or items [])]

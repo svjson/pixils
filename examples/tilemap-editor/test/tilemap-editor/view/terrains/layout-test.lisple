@@ -13,10 +13,20 @@
 
 (deftest terrain-set-list-rows-have_context_menu
   (let [row (layout/terrain-row-child 0 {:value 0 :label "Terrain Set"})
-        menu-item (head (:items layout/terrain-set-context-menu))]
+        menu-item (head (:items layout/terrain-set-context-menu))
+        delete-item (nth (:items layout/terrain-set-context-menu) 1)]
     (is (= :terrain-set (-> row :state :context-kind)))
     (is (= "Rename Terrain Set" (:label menu-item)))
-    (is (= :rename (-> menu-item :payload :command)))))
+    (is (= :rename (-> menu-item :payload :command)))
+    (is (= "Delete" (:label delete-item)))
+    (is (= :delete (-> delete-item :payload :command)))))
+
+(deftest terrain-list-rows-have_delete_context_menu_item
+  (let [row (layout/terrain-context-row-child 0 {:value 0 :label "Terrain"})
+        delete-item (nth (:items layout/terrain-context-menu) 2)]
+    (is (= :terrain (-> row :state :context-kind)))
+    (is (= "Delete" (:label delete-item)))
+    (is (= :delete (-> delete-item :payload :command)))))
 
 (deftest terrain-list-panel-has_disabled_bound_add_button
   (let [panel (layout/make-terrain-list-panel)

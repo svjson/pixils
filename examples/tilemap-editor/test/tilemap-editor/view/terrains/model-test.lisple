@@ -753,6 +753,94 @@
            (map (get-in state [:rulesets 0 :rules]) :id)))
     (is (= :rule-b (:selected-terrain-rule-id state)))))
 
+(deftest terrain-set-delete-removes_set_rulesets_and_clears_references
+  (let [state (model/delete-selected-terrain-set
+               {:terrain-sets [{:id :overworld
+                                :terrains [{:id :grass}]}
+                               {:id :roads
+                                :terrains [{:id :road}]}]
+                :selected-terrain-set-index 0
+                :selected-terrain-index 0
+                :layers [{:id :terrain
+                          :data-kind :terrain
+                          :terrain-set :overworld
+                          :tiles [[:grass]]}
+                         {:id :road-source
+                          :data-kind :terrain
+                          :terrain-set :roads}]
+                :layer-profiles [{:id :default
+                                  :layers [{:id :profile-terrain
+                                            :data-kind :terrain
+                                            :terrain-set :overworld}]}]
+                :brushes [{:id :brush
+                           :layers [{:data-kind :terrain
+                                     :terrain-set :overworld
+                                     :tiles [[:grass]]}]}]
+                :rulesets [{:id :overworld-rules
+                            :terrain-set :overworld
+                            :rules []}
+                           {:id :roads-rules
+                            :terrain-set :roads
+                            :rules []}
+                           {:id :source-rules
+                            :source-layer :terrain
+                            :rules []}]})]
+    (is (= [:roads] (map (:terrain-sets state) :id)))
+    (is (= [:roads-rules] (map (:rulesets state) :id)))
+    (is (= nil (-> state :layers head :terrain-set)))
+    (is (= nil (-> state :layer-profiles head :layers head :terrain-set)))
+    (is (= nil (-> state :brushes head :layers head :terrain-set)))
+    (is (= 0 (:selected-terrain-set-index state)))
+    (is (= 0 (:selected-terrain-index state)))))
+
+(deftest terrain-delete_removes_terrain_data_and_rules
+  (let [state (model/delete-selected-terrain
+               {:terrain-sets [{:id :overworld
+                                :terrains [{:id :grass}
+                                           {:id :water}]}
+                               {:id :other
+                                :terrains [{:id :grass}]}]
+                :selected-terrain-set-index 0
+                :selected-terrain-index 0
+                :layers [{:id :terrain
+                          :data-kind :terrain
+                          :terrain-set :overworld
+                          :tiles [[:grass :water]
+                                  [:grass nil]]}]
+                :brushes [{:id :brush
+                           :layers [{:data-kind :terrain
+                                     :terrain-set :overworld
+                                     :tiles [[:grass :water]]}]}]
+                :rulesets [{:id :overworld-rules
+                            :terrain-set :overworld
+                            :rules [{:id :grass-a
+                                     :terrain :grass}
+                                    {:id :water-a
+                                     :terrain :water
+                                     :match {:n {:terrain :grass}}
+                                     :output {:layers
+                                              [{:terrain-signature
+                                                {:n :grass
+                                                 :center :water}}]}}]}
+                           {:id :other-rules
+                            :terrain-set :other
+                            :rules [{:id :other-grass
+                                     :terrain :grass}]}]})]
+    (is (= [:water] (map (get-in state [:terrain-sets 0 :terrains]) :id)))
+    (is (= [[nil :water]
+            [nil nil]]
+           (get-in state [:layers 0 :tiles])))
+    (is (= [[nil :water]]
+           (get-in state [:brushes 0 :layers 0 :tiles])))
+    (is (= [:water-a] (map (get-in state [:rulesets 0 :rules]) :id)))
+    (is (= nil (get-in state [:rulesets 0 :rules 0 :match :n :terrain])))
+    (is (= nil (get-in state
+                       [:rulesets 0 :rules 0 :output :layers 0
+                        :terrain-signature :n])))
+    (is (= :water (get-in state [:rulesets 0 :rules 0 :terrain])))
+    (is (= [:other-grass] (map (get-in state [:rulesets 1 :rules]) :id)))
+    (is (= 0 (:selected-terrain-index state)))))
+
 (deftest terrain-rule-duplicate-inserts_copy_after_selected_rule
   (let [state (model/duplicate-selected-terrain-rule
                {:terrain-sets [{:id :overworld
