@@ -361,6 +361,69 @@
     (is (= :grass (get-in state [:layers 0 :tiles 1 1])))
     (is (= :shore-n (get-in state [:terrain-stamp-layers 0 :tiles 1 1])))))
 
+(deftest tilemap-paint-terrain-unit_paints_and_clears_whole_blocks
+  (let [state (assoc (terrain-paint-state (terrain-map [[nil nil nil]
+                                                       [nil nil nil]
+                                                       [nil nil nil]])
+                                         :mountain)
+                     :terrain-sets [{:id :overworld
+                                     :terrain-unit {:w 2 :h 2}}]
+                     :rulesets [])
+        painted (tilemap/paint-map-at state (paint-event :left 1 1))
+        cleared (tilemap/paint-map-at (assoc painted :selected-tile nil)
+                                      (paint-event :right 0 1))]
+    (is (= :mountain (get-in painted [:layers 0 :tiles 0 0])))
+    (is (= :mountain (get-in painted [:layers 0 :tiles 0 1])))
+    (is (= :mountain (get-in painted [:layers 0 :tiles 1 0])))
+    (is (= :mountain (get-in painted [:layers 0 :tiles 1 1])))
+    (is (nil? (get-in painted [:layers 0 :tiles 2 2])))
+    (is (nil? (get-in cleared [:layers 0 :tiles 0 0])))
+    (is (nil? (get-in cleared [:layers 0 :tiles 0 1])))
+    (is (nil? (get-in cleared [:layers 0 :tiles 1 0])))
+    (is (nil? (get-in cleared [:layers 0 :tiles 1 1])))))
+
+(deftest tilemap-paint-terrain-unit_baked_rules_mask_empty_stamp_cells
+  (let [state {:selected-layer-index 0
+               :map-palette-tab :tiles
+               :selected-tile :mountain
+               :zoom 1
+               :offset {:x 0 :y 0}
+               :terrain-rule-application :paint-baked
+               :terrain-sets [{:id :mountains
+                               :terrain-unit {:w 2 :h 2}}]
+               :layers [{:id :scene/terrain
+                         :label "Terrain"
+                         :role :source
+                         :data-kind :terrain
+                         :terrain-set :mountains
+                         :tiles (terrain-map [[nil nil]
+                                              [nil nil]])}
+                        {:id :scene/visuals
+                         :label "Visuals"
+                         :role :source
+                         :data-kind :tile-ref
+                         :tileset :mountains
+                         :tiles (data/make-empty-map)}]
+               :rulesets [{:id :mountain-rules
+                           :kind :terrain-stamp
+                           :terrain-set :mountains
+                           :source-layer :scene/terrain
+                           :rules [{:id :mountain-fill
+                                    :terrain :mountain
+                                    :match {}
+                                    :output {:anchor {:x 0 :y 0}
+                                             :layers [{:target-layer :scene/visuals
+                                                       :tileset :mountains
+                                                       :tiles [[:mountain-nw nil]
+                                                               [nil nil]]}]}}]}]}
+        state (tilemap/paint-map-at state (paint-event :left 0 0))]
+    (is (= :mountain-nw (get-in state [:layers 1 :tiles 0 0])))
+    (is (nil? (get-in state [:layers 1 :tiles 0 1])))
+    (is (= true (get-in state [:terrain-stamp-replacements 0 :tiles 0 0])))
+    (is (= true (get-in state [:terrain-stamp-replacements 0 :tiles 0 1])))
+    (is (= true (get-in state [:terrain-stamp-replacements 0 :tiles 1 0])))
+    (is (= true (get-in state [:terrain-stamp-replacements 0 :tiles 1 1])))))
+
 (deftest tilemap-paint-terrain-bakes_to_materialized_layer_without_target_layer
   (let [state (assoc-in (terrain-paint-state (terrain-map [[nil :water nil]])
                                              :grass)

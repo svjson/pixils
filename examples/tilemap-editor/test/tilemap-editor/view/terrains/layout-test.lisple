@@ -46,10 +46,32 @@
     (is (= 'ui/button (:mode edit-button)))
     (is (= "Edit" (-> edit-button :state :label)))))
 
+(deftest terrain-set-detail-editor-includes_terrain_unit_selector
+  (let [children (layout/terrain-set-detail-editor-children)
+        label (nth children 5)
+        selector (nth children 6)]
+    (is (= "Terrain unit" (-> label :state :value)))
+    (is (= 'terrain-unit-selector (:mode selector)))))
+
 (deftest terrain-identity-row-does_not_render_base_tile_dropdown
   (let [children (layout/terrain-identity-row-children)]
     (is (= 1 (count children)))
     (is (= 'terrain-readonly-field (-> children head :mode)))))
+
+(deftest terrain-value-detail-header-is_compact
+  (let [header (layout/terrain-value-detail-header-child)
+        children (:children header)
+        preview (head children)
+        summary (nth children 1)
+        id-row (head (:children summary))
+        name-row (nth (:children summary) 1)
+        edit-button (nth (:children id-row) 2)]
+    (is (= 48 (-> header :style :height)))
+    (is (= 'terrain-preview (:mode preview)))
+    (is (= "Id" (-> id-row :children head :state :value)))
+    (is (= "Name" (-> name-row :children head :state :value)))
+    (is (= 'ui/button (:mode edit-button)))
+    (is (= "Edit" (-> edit-button :state :label)))))
 
 (deftest terrain-base-tile-popup-uses_tile_picker_panel
   (let [children (layout/terrain-base-tile-popup-children {:x 10 :y 20})

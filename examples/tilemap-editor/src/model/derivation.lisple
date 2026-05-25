@@ -126,6 +126,155 @@
       (cell-at source-layer (+ x (:dx offset)) (+ y (:dy offset)))
       (cell-at source-layer x y))))
 
+(defun terrain-unit-width [ruleset]
+  (:w (data/terrain-unit ruleset)))
+
+(defun terrain-unit-height [ruleset]
+  (:h (data/terrain-unit ruleset)))
+
+(defun terrain-unit-single-cell? [ruleset]
+  (let [unit (data/terrain-unit ruleset)]
+    (and (= (:w unit) 1)
+         (= (:h unit) 1))))
+
+(defun terrain-unit-anchor-x [unit x]
+  (* (:w unit) (int (/ x (:w unit)))))
+
+(defun terrain-unit-anchor-y [unit y]
+  (* (:h unit) (int (/ y (:h unit)))))
+
+(defun terrain-unit-anchor-position? [unit x y]
+  (and (= x (terrain-unit-anchor-x unit x))
+       (= y (terrain-unit-anchor-y unit y))))
+
+(defun terrain-unit-direction-offset [unit direction]
+  (let [offset (get terrain-stamp-directions direction)]
+    (if offset
+      {:dx (* (:dx offset) (:w unit))
+       :dy (* (:dy offset) (:h unit))}
+      {:dx 0 :dy 0})))
+
+(defun terrain-unit-cell-positions [unit x y]
+  (apply concat
+         (dotimes [dy (:h unit)]
+           (dotimes [dx (:w unit)]
+             {:x (+ x dx)
+              :y (+ y dy)}))))
+
+(defun consistent-terrain-value [values]
+  (let [state (reduce (or values [])
+                      {:initialized? false
+                       :value nil
+                       :mixed? false}
+                      (fn [state value]
+                        (if (:mixed? state)
+                          state
+                          (if (:initialized? state)
+                            (if (= value (:value state))
+                              state
+                              (assoc state :mixed? true))
+                            {:initialized? true
+                             :value value
+                             :mixed? false}))))]
+    (if (:mixed? state)
+      unknown-terrain-value
+      (:value state))))
+
+(defun terrain-unit-cell-value-at [source-layer unit x y]
+  (consistent-terrain-value
+   (map (terrain-unit-cell-positions unit x y)
+        (fn [pos]
+          (cell-at source-layer (:x pos) (:y pos))))))
+
+(defun terrain-unit-target-position [unit direction x y]
+  (let [anchor-x (terrain-unit-anchor-x unit x)
+        anchor-y (terrain-unit-anchor-y unit y)
+        offset (terrain-unit-direction-offset unit direction)]
+    {:x (+ anchor-x (:dx offset))
+     :y (+ anchor-y (:dy offset))}))
+
+(defun terrain-unit-plain-value-at [source-layer ruleset direction x y]
+  (let [unit (data/terrain-unit ruleset)
+        direction (or direction :center)]
+    (if (and (= direction :center)
+             (not (terrain-unit-anchor-position? unit x y)))
+      nil
+      (let [target (terrain-unit-target-position unit direction x y)]
+        (terrain-unit-cell-value-at source-layer
+                                    unit
+                                    (:x target)
+                                    (:y target))))))
+
+(defun terrain-unit-signature-direction-value-at [source-layer direction x y]
+  (let [signature (terrain-signature-at source-layer x y)]
+    (cond
+      (nil? signature) nil
+      (= signature unknown-terrain-value) unknown-terrain-value
+      :default (terrain-signature-direction-value signature direction))))
+
+(defun terrain-unit-consistent-signature-value [source-layer unit direction x y]
+  (consistent-terrain-value
+   (map (terrain-unit-cell-positions unit x y)
+        (fn [pos]
+          (terrain-unit-signature-direction-value-at source-layer
+                                                    direction
+                                                    (:x pos)
+                                                    (:y pos))))))
+
+(defun terrain-unit-neighbor-signature-value-at [source-layer unit direction x y]
+  (let [target (terrain-unit-target-position unit direction x y)
+        opposite-direction (get opposite-terrain-stamp-directions direction)
+        opposite-value (terrain-unit-consistent-signature-value
+                        source-layer
+                        unit
+                        opposite-direction
+                        (:x target)
+                        (:y target))]
+    (if (= opposite-value unknown-terrain-value)
+      (terrain-unit-consistent-signature-value source-layer
+                                              unit
+                                              :center
+                                              (:x target)
+                                              (:y target))
+      opposite-value)))
+
+(defun terrain-unit-signature-value-at [source-layer ruleset direction x y]
+  (let [unit (data/terrain-unit ruleset)
+        direction (or direction :center)
+        anchor-x (terrain-unit-anchor-x unit x)
+        anchor-y (terrain-unit-anchor-y unit y)
+        center-value (terrain-unit-consistent-signature-value source-layer
+                                                             unit
+                                                             :center
+                                                             anchor-x
+                                                             anchor-y)]
+    (if (and (= direction :center)
+             (not (terrain-unit-anchor-position? unit x y)))
+      nil
+      (if (= direction :center)
+        center-value
+        (let [direction-value (terrain-unit-consistent-signature-value
+                               source-layer
+                               unit
+                               direction
+                               anchor-x
+                               anchor-y)]
+          (if (and (known-terrain-value? direction-value)
+                   (not= direction-value center-value))
+            direction-value
+            (terrain-unit-neighbor-signature-value-at source-layer
+                                                     unit
+                                                     direction
+                                                     x
+                                                     y)))))))
+
+(defun terrain-value-at-for-ruleset [source-layer ruleset direction x y]
+  (if (terrain-unit-single-cell? ruleset)
+    (terrain-value-at source-layer direction x y)
+    (if (terrain-signature-source-layer? source-layer)
+      (terrain-unit-signature-value-at source-layer ruleset direction x y)
+      (terrain-unit-plain-value-at source-layer ruleset direction x y))))
+
 (defun terrain-at? [layer terrain x y]
   (= (cell-at layer x y) terrain))
 
@@ -196,15 +345,25 @@
       (= value (:terrain condition))
       true)))
 
-(defun terrain-match-condition? [source-layer center-terrain direction condition x y]
+(defun terrain-match-condition? [source-layer ruleset center-terrain direction condition x y]
   (terrain-match-condition-value? center-terrain
                                   condition
-                                  (terrain-value-at source-layer direction x y)))
+                                  (terrain-value-at-for-ruleset
+                                   source-layer
+                                   ruleset
+                                   direction
+                                   x
+                                   y)))
 
-(defun terrain-stamp-rule-matches? [source-layer rule x y]
+(defun terrain-stamp-rule-matches-for-ruleset? [source-layer ruleset rule x y]
   (let [center-terrain (terrain-match-center rule)
         match (or (:match rule) {})]
-    (and (= (terrain-value-at source-layer :center x y) center-terrain)
+    (and (= (terrain-value-at-for-ruleset source-layer
+                                          ruleset
+                                          :center
+                                          x
+                                          y)
+            center-terrain)
          (reduce-kv terrain-stamp-directions
                     true
                     (fn [matched? direction offset]
@@ -216,11 +375,19 @@
                             true
                             (terrain-match-condition?
                              source-layer
+                             ruleset
                              center-terrain
                              direction
                              condition
                              x
                              y)))))))))
+
+(defun terrain-stamp-rule-matches? [source-layer rule x y]
+  (terrain-stamp-rule-matches-for-ruleset? source-layer
+                                           {}
+                                           rule
+                                           x
+                                           y))
 
 (defun terrain-stamp-rules-by-center [rules]
   (reduce (or rules [])
@@ -240,8 +407,10 @@
          :rules-by-center
          (terrain-stamp-ruleset-rules-by-center ruleset)))
 
-(defun terrain-stamp-candidate-rules [source-layer rules-by-center x y]
-  (or (get rules-by-center (terrain-value-at source-layer :center x y)) []))
+(defun terrain-stamp-candidate-rules [source-layer ruleset x y]
+  (or (get (terrain-stamp-ruleset-rules-by-center ruleset)
+           (terrain-value-at-for-ruleset source-layer ruleset :center x y))
+      []))
 
 (defun empty-derived-tiles []
   (dotimes [y data/map-height]
@@ -268,6 +437,12 @@
     (:tiles (assoc-in {:tiles tiles} [:tiles y x] tile))
     tiles))
 
+(defun stamp-cell [cells x y value]
+  (if (and (in-map-bounds? x y)
+           (not (nil? value)))
+    (:cells (assoc-in {:cells cells} [:cells y x] value))
+    cells))
+
 (defun output-layer-tile-entries [output-layer]
   (apply concat
          (for-indexed [tile-y row (or (:tiles output-layer) [])]
@@ -286,9 +461,44 @@
      :tile (nth (or (nth (or (:tiles output-layer) []) (:y anchor)) [])
                 (:x anchor))}))
 
-(defun apply-stamp-output-layer [tiles source-x source-y output output-layer]
-  (let [entry (output-layer-anchor-entry output output-layer)]
-    (stamp-tile tiles source-x source-y (:tile entry))))
+(defun terrain-stamp-output-entries [ruleset output output-layer]
+  (if (terrain-unit-single-cell? ruleset)
+    [(output-layer-anchor-entry output output-layer)]
+    (output-layer-tile-entries output-layer)))
+
+(defun terrain-stamp-output-entry-occupies-source? [ruleset entry]
+  (if (or (:tile entry)
+          (not (terrain-unit-single-cell? ruleset)))
+    true
+    false))
+
+(defun apply-stamp-output-entry [tiles source-x source-y output entry]
+  (let [pos (stamp-output-position source-x source-y output entry)]
+    (stamp-tile tiles (:x pos) (:y pos) (:tile entry))))
+
+(defun apply-stamp-source-mask-entry [source-mask ruleset source-x source-y output entry]
+  (let [pos (stamp-output-position source-x source-y output entry)]
+    (stamp-cell source-mask
+                (:x pos)
+                (:y pos)
+                (terrain-stamp-output-entry-occupies-source? ruleset entry))))
+
+(defun apply-stamp-output-layer [tiles ruleset source-x source-y output output-layer]
+  (reduce (terrain-stamp-output-entries ruleset output output-layer)
+          tiles
+          (fn [tiles entry]
+            (apply-stamp-output-entry tiles source-x source-y output entry))))
+
+(defun apply-stamp-source-mask-layer [source-mask ruleset source-x source-y output output-layer]
+  (reduce (terrain-stamp-output-entries ruleset output output-layer)
+          source-mask
+          (fn [next-source-mask entry]
+            (apply-stamp-source-mask-entry next-source-mask
+                                           ruleset
+                                           source-x
+                                           source-y
+                                           output
+                                           entry))))
 
 (defun terrain-stamp-rule-exclusive? [rule]
   (= (:exclusive? rule) true))
@@ -345,28 +555,35 @@
     (stamp-output-layer-matches? definition output-layer)
     true))
 
-(defun apply-terrain-stamp-rule-output-signature [signatures definition rule x y]
+(defun apply-terrain-stamp-rule-output-signature [signatures definition ruleset rule x y]
   (reduce (or (-> rule :output :layers) [])
           signatures
           (fn [next-signatures output-layer]
             (if (terrain-stamp-signature-output-layer-matches? definition
                                                                output-layer)
-              (let [entry (output-layer-anchor-entry (:output rule) output-layer)
-                    pos (stamp-output-position x y (:output rule) entry)]
-                (if (and (:tile entry)
-                         (in-map-bounds? (:x pos) (:y pos)))
-                  (:terrain-signatures-by-position
-                   (assoc-in {:terrain-signatures-by-position next-signatures}
-                             [:terrain-signatures-by-position (:y pos) (:x pos)]
-                             (terrain-stamp-rule-output-signature rule
-                                                                  output-layer
-                                                                  entry)))
-                  next-signatures))
+              (reduce (terrain-stamp-output-entries ruleset
+                                                    (:output rule)
+                                                    output-layer)
+                      next-signatures
+                      (fn [next-signatures entry]
+                        (let [pos (stamp-output-position x y (:output rule) entry)]
+                          (if (and (terrain-stamp-output-entry-occupies-source?
+                                    ruleset
+                                    entry)
+                                   (in-map-bounds? (:x pos) (:y pos)))
+                            (:terrain-signatures-by-position
+                             (assoc-in
+                              {:terrain-signatures-by-position next-signatures}
+                              [:terrain-signatures-by-position (:y pos) (:x pos)]
+                              (terrain-stamp-rule-output-signature rule
+                                                                   output-layer
+                                                                   entry)))
+                            next-signatures))))
               next-signatures))))
 
 (defun apply-terrain-stamp-rule-signatures-at-position
-  [signatures definition source-layer rules-by-center x y]
-  (let [rules (terrain-stamp-candidate-rules source-layer rules-by-center x y)]
+  [signatures definition source-layer ruleset x y]
+  (let [rules (terrain-stamp-candidate-rules source-layer ruleset x y)]
     (:terrain-signatures
      (reduce rules
              {:terrain-signatures signatures
@@ -374,11 +591,17 @@
              (fn [result rule]
                (if (:done? result)
                  result
-                 (if (terrain-stamp-rule-matches? source-layer rule x y)
+                 (if (terrain-stamp-rule-matches-for-ruleset?
+                      source-layer
+                      ruleset
+                      rule
+                      x
+                      y)
                    {:terrain-signatures
                     (apply-terrain-stamp-rule-output-signature
                      (:terrain-signatures result)
                      definition
+                     ruleset
                      rule
                      x
                      y)
@@ -387,21 +610,20 @@
 
 (defun terrain-stamp-effective-source-layer-for-positions
   [source-layer definition ruleset positions]
-  (let [rules-by-center (terrain-stamp-ruleset-rules-by-center ruleset)]
-    (assoc source-layer
-           :data-kind :terrain-signature
-           :terrain-signature-default :terrain-id
-           :terrain-signatures-by-position
-           (reduce (or positions [])
-                   {}
-                   (fn [signatures pos]
-                     (apply-terrain-stamp-rule-signatures-at-position
-                      signatures
-                      definition
-                      source-layer
-                      rules-by-center
-                      (:x pos)
-                      (:y pos)))))))
+  (assoc source-layer
+         :data-kind :terrain-signature
+         :terrain-signature-default :terrain-id
+         :terrain-signatures-by-position
+         (reduce (or positions [])
+                 {}
+                 (fn [signatures pos]
+                   (apply-terrain-stamp-rule-signatures-at-position
+                    signatures
+                    definition
+                    source-layer
+                    ruleset
+                    (:x pos)
+                    (:y pos))))))
 
 (defun terrain-stamp-effective-source-layer [source-layer definition ruleset]
   (terrain-stamp-effective-source-layer-for-positions source-layer
@@ -409,21 +631,35 @@
                                                       ruleset
                                                       (all-map-positions)))
 
-(defun apply-terrain-stamp-rule-output [tiles definition rule x y]
+(defun apply-terrain-stamp-rule-output [tiles definition ruleset rule x y]
   (reduce (or (-> rule :output :layers) [])
           tiles
           (fn [next-tiles output-layer]
             (if (stamp-output-layer-matches? definition output-layer)
               (apply-stamp-output-layer next-tiles
+                                        ruleset
                                         x
                                         y
                                         (:output rule)
                                         output-layer)
               next-tiles))))
 
+(defun apply-terrain-stamp-rule-source-mask [source-mask definition ruleset rule x y]
+  (reduce (or (-> rule :output :layers) [])
+          source-mask
+          (fn [next-source-mask output-layer]
+            (if (stamp-output-layer-matches? definition output-layer)
+              (apply-stamp-source-mask-layer next-source-mask
+                                             ruleset
+                                             x
+                                             y
+                                             (:output rule)
+                                             output-layer)
+              next-source-mask))))
+
 (defun apply-terrain-stamp-rules-at-position
-  [tiles definition source-layer rules-by-center x y]
-  (let [rules (terrain-stamp-candidate-rules source-layer rules-by-center x y)]
+  [tiles definition source-layer ruleset x y]
+  (let [rules (terrain-stamp-candidate-rules source-layer ruleset x y)]
     (:tiles
      (reduce rules
              {:tiles tiles
@@ -431,12 +667,44 @@
              (fn [result rule]
                (if (:done? result)
                  result
-                 (if (terrain-stamp-rule-matches? source-layer rule x y)
+                 (if (terrain-stamp-rule-matches-for-ruleset?
+                      source-layer
+                      ruleset
+                      rule
+                      x
+                      y)
                    {:tiles (apply-terrain-stamp-rule-output (:tiles result)
                                                             definition
+                                                            ruleset
                                                             rule
                                                             x
                                                             y)
+                    :done? (terrain-stamp-rule-exclusive? rule)}
+                   result)))))))
+
+(defun apply-terrain-stamp-source-mask-at-position
+  [source-mask definition source-layer ruleset x y]
+  (let [rules (terrain-stamp-candidate-rules source-layer ruleset x y)]
+    (:source-mask
+     (reduce rules
+             {:source-mask source-mask
+              :done? false}
+             (fn [result rule]
+               (if (:done? result)
+                 result
+                 (if (terrain-stamp-rule-matches-for-ruleset?
+                      source-layer
+                      ruleset
+                      rule
+                      x
+                      y)
+                   {:source-mask
+                    (apply-terrain-stamp-rule-source-mask (:source-mask result)
+                                                          definition
+                                                          ruleset
+                                                          rule
+                                                          x
+                                                          y)
                     :done? (terrain-stamp-rule-exclusive? rule)}
                    result)))))))
 
@@ -454,9 +722,27 @@
               (apply-terrain-stamp-rules-at-position tiles
                                                      definition
                                                      effective-source-layer
-                                                     (:rules-by-center ruleset)
+                                                     ruleset
                                                      (:x pos)
                                                      (:y pos))))))
+
+(defun derive-terrain-stamp-source-mask [source-layer definition ruleset]
+  (let [ruleset (terrain-stamp-index-ruleset ruleset)
+        positions (all-map-positions)
+        effective-source-layer (terrain-stamp-effective-source-layer-for-positions
+                                source-layer
+                                definition
+                                ruleset
+                                positions)]
+    (reduce positions
+            (data/make-empty-map)
+            (fn [source-mask pos]
+              (apply-terrain-stamp-source-mask-at-position source-mask
+                                                           definition
+                                                           effective-source-layer
+                                                           ruleset
+                                                           (:x pos)
+                                                           (:y pos))))))
 
 (defun terrain-stamp-output-layer [definition ruleset]
   (head (apply concat
@@ -504,34 +790,41 @@
     {:x (+ source-x (:x entry) (- (:x anchor)))
      :y (+ source-y (:y entry) (- (:y anchor)))}))
 
-(defun stamp-output-patch-cell [source-x source-y output entry tile terrain-signature]
+(defun stamp-output-patch-cell
+  [source-x source-y output entry tile terrain-signature source-mask?]
   (let [pos (stamp-output-position source-x source-y output entry)]
     {:x (:x pos)
      :y (:y pos)
      :tile tile
-     :terrain-signature terrain-signature}))
+     :terrain-signature terrain-signature
+     :source-mask? source-mask?}))
 
-(defun stamp-output-patch-cells [source-x source-y output output-layer tile-fn signature-fn]
-  (filter (map [(output-layer-anchor-entry output output-layer)]
+(defun stamp-output-patch-cells
+  [source-x source-y ruleset output output-layer tile-fn signature-fn source-mask-fn]
+  (filter (map (terrain-stamp-output-entries ruleset output output-layer)
                (fn [entry]
-                 (when (:tile entry)
+                 (when (terrain-stamp-output-entry-occupies-source? ruleset entry)
                    (stamp-output-patch-cell source-x
                                             source-y
                                             output
                                             entry
                                             (tile-fn entry)
-                                            (signature-fn entry)))))
+                                            (signature-fn entry)
+                                            (source-mask-fn entry)))))
           (fn [cell]
             (and cell
                  (in-map-bounds? (:x cell) (:y cell))))))
 
-(defun terrain-stamp-output-patch [source-layer ruleset rule source-x source-y output-layer tile-fn signature-fn]
+(defun terrain-stamp-output-patch
+  [source-layer ruleset rule source-x source-y output-layer tile-fn signature-fn source-mask-fn]
   (let [cells (stamp-output-patch-cells source-x
                                         source-y
+                                        ruleset
                                         (:output rule)
                                         output-layer
                                         tile-fn
-                                        signature-fn)]
+                                        signature-fn
+                                        source-mask-fn)]
     (when (not (empty? cells))
       {:source-layer (:id source-layer)
        :source-position {:x source-x :y source-y}
@@ -553,7 +846,8 @@
                                              source-y
                                              output-layer
                                              tile-fn
-                                             (fn [entry] nil))))
+                                             (fn [entry] nil)
+                                             (fn [entry] false))))
           (fn [patch]
             (not (nil? patch)))))
 
@@ -572,7 +866,8 @@
                     (or (output-layer-terrain-signature-at output-layer
                                                            (:x entry)
                                                            (:y entry))
-                        (default-terrain-signature-for-rule rule))))))
+                        (default-terrain-signature-for-rule rule)))
+                  (fn [entry] true))))
           (fn [patch]
             (not (nil? patch)))))
 
@@ -585,9 +880,8 @@
                                    (fn [entry] nil)))
 
 (defun terrain-stamp-apply-patches-at [source-layer ruleset source-x source-y]
-  (let [rules-by-center (terrain-stamp-ruleset-rules-by-center ruleset)
-        rules (terrain-stamp-candidate-rules source-layer
-                                             rules-by-center
+  (let [rules (terrain-stamp-candidate-rules source-layer
+                                             ruleset
                                              source-x
                                              source-y)]
     (:patches
@@ -597,8 +891,9 @@
              (fn [result rule]
                (if (:done? result)
                  result
-                 (if (terrain-stamp-rule-matches?
+                 (if (terrain-stamp-rule-matches-for-ruleset?
                       source-layer
+                      ruleset
                       rule
                       source-x
                       source-y)
@@ -613,14 +908,17 @@
                    result)))))))
 
 (defun terrain-stamp-clear-patches-at [source-layer ruleset source-x source-y]
-  (apply concat
-         (map (or (:rules ruleset) [])
-              (fn [rule]
-                (terrain-stamp-rule-clear-patches source-layer
-                                                  ruleset
-                                                  rule
-                                                  source-x
-                                                  source-y)))))
+  (let [unit (data/terrain-unit ruleset)]
+    (if (terrain-unit-anchor-position? unit source-x source-y)
+      (apply concat
+             (map (or (:rules ruleset) [])
+                  (fn [rule]
+                    (terrain-stamp-rule-clear-patches source-layer
+                                                      ruleset
+                                                      rule
+                                                      source-x
+                                                      source-y))))
+      [])))
 
 (defun terrain-stamp-apply-patches-for-positions [source-layer ruleset positions]
   (apply concat
@@ -646,6 +944,12 @@
                                           (head (:source-layers definition))))
                          (terrain-source-layer-for-ruleset (:layers tilemap)
                                                            ruleset))
+        ruleset (assoc ruleset
+                       :terrain-unit
+                       (data/terrain-unit-for-set
+                        (:terrain-sets tilemap)
+                        (or (:terrain-set source-layer)
+                            (:terrain-set ruleset))))
         output-layer (terrain-stamp-output-layer definition ruleset)]
     (if source-layer
       (assoc (derived-layer-base definition ruleset)
@@ -655,7 +959,10 @@
              :replaces-source? true
              :tiles (derive-terrain-stamp-tiles source-layer
                                                 definition
-                                                ruleset))
+                                                ruleset)
+             :source-mask (derive-terrain-stamp-source-mask source-layer
+                                                            definition
+                                                            ruleset))
       nil)))
 
 (defun derive-layer [tilemap layer-profile rulesets derived-layer-id]
@@ -742,7 +1049,9 @@
   (> (count (filter replacement-layers
                     (fn [layer]
                       (and (replacement-layer-for-source? source-layer layer)
-                           (not (nil? (cell-at layer x y)))))))
+                           (or (not (nil? (cell-at layer x y)))
+                               (not (nil? (get-in layer
+                                                   [:source-mask y x]))))))))
      0))
 
 (defun mask-source-row-with-replacements [source-layer replacement-layers y row]

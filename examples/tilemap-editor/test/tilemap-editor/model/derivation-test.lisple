@@ -143,6 +143,45 @@
     (is (= false
            (derivation/terrain-stamp-rule-matches? source rule 0 1)))))
 
+(deftest terrain-stamp-unit-rules_match_only_full_anchor_blocks
+  (let [ruleset {:id :mountain-rules
+                 :kind :terrain-stamp
+                 :terrain-set :mountains
+                 :terrain-unit {:w 2 :h 2}
+                 :rules [{:id :mountain-se
+                          :terrain :mountain
+                          :match {:se :same}}]}
+        rule (head (:rules ruleset))
+        full-source (terrain-layer
+                     (terrain-map [[:mountain :mountain nil nil]
+                                   [:mountain :mountain nil nil]
+                                   [nil nil :mountain :mountain]
+                                   [nil nil :mountain :mountain]]))
+        partial-source (terrain-layer
+                        (terrain-map [[:mountain :mountain]
+                                      [:mountain nil]]))]
+    (is (= true
+           (derivation/terrain-stamp-rule-matches-for-ruleset?
+            full-source
+            ruleset
+            rule
+            0
+            0)))
+    (is (= false
+           (derivation/terrain-stamp-rule-matches-for-ruleset?
+            full-source
+            ruleset
+            rule
+            1
+            0)))
+    (is (= false
+           (derivation/terrain-stamp-rule-matches-for-ruleset?
+            partial-source
+            ruleset
+            rule
+            0
+            0)))))
+
 (deftest terrain-stamp-none_matches_empty_cells
   (let [source (terrain-layer (terrain-map [[nil :grass nil]
                                            [nil :grass nil]
@@ -343,6 +382,46 @@
     (is (nil? (get-in terrain-visuals [:tiles 1 2])))
     (is (= :foam (get-in decor [:tiles 1 1])))))
 
+(deftest terrain-stamp-unit-rules_derive_full_output_footprints_once
+  (let [source (assoc (terrain-layer
+                       (terrain-map [[:mountain :mountain nil]
+                                     [:mountain :mountain nil]]))
+                      :terrain-set :mountains)
+        ruleset {:id :mountain-rules
+                 :kind :terrain-stamp
+                 :terrain-set :mountains
+                 :source-layer :scene/terrain
+                 :rules [{:id :mountain-fill
+                          :terrain :mountain
+                          :output {:anchor {:x 0 :y 0}
+                                   :layers [{:target-layer :scene/mountain-visuals
+                                             :tileset :mountains
+                                             :tiles [[:mountain-a :mountain-b]
+                                                     [:mountain-c :mountain-d]]}]}}]}
+        tilemap {:terrain-sets [{:id :mountains
+                                  :terrain-unit {:w 2 :h 2}}]
+                 :layers [source]}
+        layer-profile {:id :default
+                       :layers [source
+                                {:id :scene/mountain-visuals
+                                 :label "Mountain Visuals"
+                                 :role :derived
+                                 :kind :terrain-stamp
+                                 :data-kind :tile-ref
+                                 :tileset :mountains
+                                 :source-layers [:scene/terrain]
+                                 :ruleset :mountain-rules}]}
+        derived (derivation/derive-layer tilemap
+                                         layer-profile
+                                         [ruleset]
+                                         :scene/mountain-visuals)]
+    (is (= :mountain-a (get-in derived [:tiles 0 0])))
+    (is (= :mountain-b (get-in derived [:tiles 0 1])))
+    (is (= :mountain-c (get-in derived [:tiles 1 0])))
+    (is (= :mountain-d (get-in derived [:tiles 1 1])))
+    (is (nil? (get-in derived [:tiles 0 2])))
+    (is (nil? (get-in derived [:tiles 1 2])))))
+
 (deftest terrain-stamp-apply_patches_include_target_and_auto_outputs
   (let [source (terrain-layer (terrain-map [[:water :water :water]
                                            [:grass :grass :grass]
@@ -372,12 +451,14 @@
     (is (= [{:x 1
              :y 1
              :tile :grass-fill
-             :terrain-signature signature}]
+             :terrain-signature signature
+             :source-mask? true}]
            (:cells (head patches))))
     (is (= [{:x 1
              :y 1
              :tile :grass-cap
-             :terrain-signature signature}]
+             :terrain-signature signature
+             :source-mask? true}]
            (:cells (nth patches 1))))))
 
 (deftest terrain-stamp-apply_patches_ignore_non_matching_rules
@@ -490,10 +571,50 @@
     (is (= [:scene/terrain-visuals :scene/decor]
            (map patches (fn [patch]
                           (-> patch :output-layer :id)))))
-    (is (= [{:x 1 :y 1 :tile nil :terrain-signature nil}]
+    (is (= [{:x 1
+             :y 1
+             :tile nil
+             :terrain-signature nil
+             :source-mask? false}]
            (:cells (head patches))))
-    (is (= [{:x 1 :y 1 :tile nil :terrain-signature nil}]
+    (is (= [{:x 1
+             :y 1
+             :tile nil
+             :terrain-signature nil
+             :source-mask? false}]
            (:cells (nth patches 1))))))
+
+(deftest terrain-stamp-unit-rules_mask_empty_output_cells
+  (let [source (assoc (terrain-layer
+                       (terrain-map [[:mountain :mountain]
+                                     [:mountain :mountain]]))
+                      :terrain-set :mountains)
+        definition {:id :scene/mountain-visuals}
+        ruleset {:id :mountain-rules
+                 :kind :terrain-stamp
+                 :terrain-set :mountains
+                 :terrain-unit {:w 2 :h 2}
+                 :rules [{:id :mountain-fill
+                          :terrain :mountain
+                          :match {}
+                          :output {:anchor {:x 0 :y 0}
+                                   :layers [{:target-layer
+                                             :scene/mountain-visuals
+                                             :tileset :mountains
+                                             :tiles [[:mountain-nw nil]
+                                                     [nil nil]]}]}}]}
+        tiles (derivation/derive-terrain-stamp-tiles source
+                                                     definition
+                                                     ruleset)
+        source-mask (derivation/derive-terrain-stamp-source-mask source
+                                                                 definition
+                                                                 ruleset)]
+    (is (= :mountain-nw (get-in tiles [0 0])))
+    (is (nil? (get-in tiles [0 1])))
+    (is (= true (get-in source-mask [0 0])))
+    (is (= true (get-in source-mask [0 1])))
+    (is (= true (get-in source-mask [1 0])))
+    (is (= true (get-in source-mask [1 1])))))
 
 (deftest render-layers-does_not_derive_implicit_terrain_stamp_layer
   (let [source (terrain-layer (terrain-map [[nil :grass nil]
@@ -542,6 +663,37 @@
     (is (= :grass (get-in layers [0 :tiles 0 1])))
     (is (nil? (get-in layers [0 :tiles 1 1])))
     (is (= :column-fill (get-in layers [1 :tiles 1 1])))))
+
+(deftest render-layers-masks_source_for_empty_stamp_cells
+  (let [source (assoc (terrain-layer
+                       (terrain-map [[:mountain :mountain]
+                                     [:mountain :mountain]]))
+                      :terrain-set :mountains)
+        stamp-layer {:id :mountain-rules/mountains
+                     :label "Mountain Stamps"
+                     :kind :tile
+                     :role :derived
+                     :data-kind :tile-ref
+                     :tileset :mountains
+                     :source-layers [:scene/terrain]
+                     :ruleset :mountain-rules
+                     :replaces-source? true
+                     :persistence :ephemeral
+                     :tiles (terrain-map [[:mountain-nw nil]
+                                          [nil nil]])
+                     :source-mask (terrain-map [[true true]
+                                                [true true]])}
+        layers (derivation/render-layers {:layers [source]
+                                          :terrain-stamp-layers [stamp-layer]}
+                                         {:id :default
+                                          :layers [source]}
+                                         [])]
+    (is (nil? (get-in layers [0 :tiles 0 0])))
+    (is (nil? (get-in layers [0 :tiles 0 1])))
+    (is (nil? (get-in layers [0 :tiles 1 0])))
+    (is (nil? (get-in layers [0 :tiles 1 1])))
+    (is (= :mountain-nw (get-in layers [1 :tiles 0 0])))
+    (is (nil? (get-in layers [1 :tiles 0 1])))))
 
 (deftest render-layers-interleaves_stamp_layers_after_their_sources
   (let [terrain-source (assoc (terrain-layer (terrain-map [[nil :grass nil]]))

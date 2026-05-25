@@ -207,6 +207,25 @@
                "world")]
     (is (= :world-2 (get-in state [:terrain-sets 1 :id])))))
 
+(deftest terrain-set-unit-change-updates_selected_set
+  (let [state (model/set-selected-terrain-set-unit
+               {:terrain-sets [{:id :mountains}]
+                :selected-terrain-set-index 0}
+               1)]
+    (is (= {:w 2 :h 2}
+           (get-in state [:terrain-sets 0 :terrain-unit])))))
+
+(deftest terrain-set-unit-change-accepts_option_value
+  (let [state (model/set-selected-terrain-set-unit
+               {:terrain-sets [{:id :mountains}]
+                :selected-terrain-set-index 0}
+               :unit-2x2)]
+    (is (= {:w 2 :h 2}
+           (get-in state [:terrain-sets 0 :terrain-unit])))))
+
+(deftest terrain-unit-option-index-matches_raw_unit
+  (is (= 1 (model/terrain-unit-option-index {:w 2 :h 2}))))
+
 (deftest terrain-id-change-updates_project_references
   (let [state (model/set-selected-terrain-id
                {:terrain-sets [{:id :overworld
@@ -414,6 +433,29 @@
                       [:rulesets 0 :rules 0 :output :layers 0 :target-layer])))
     (is (= :road-fill
            (get-in state [:rulesets 0 :rules 0 :output :layers 0 :tiles 1 1])))))
+
+(deftest terrain-rule-creation-uses_terrain_unit_output_footprint
+  (let [state (model/add-terrain-rule
+               {:terrain-sets [{:id :mountains
+                                :tileset :mountains
+                                :terrain-unit {:w 2 :h 2}
+                                :terrains [{:id :mountain
+                                            :tile :mountain-a}]}]
+                :selected-terrain-set-index 0
+                :selected-terrain-index 0
+                :tilesets [{:id :mountains
+                            :tiles [{:id :mountain-a}
+                                    {:id :mountain-b}]}]
+                :rulesets [{:id :mountain-rules
+                            :kind :terrain-stamp
+                            :terrain-set :mountains
+                            :rules []}]
+                :selected-terrain-ruleset-id :mountain-rules})]
+    (is (= {:x 0 :y 0}
+           (get-in state [:rulesets 0 :rules 0 :output :anchor])))
+    (is (= [[:mountain-a nil]
+            [nil nil]]
+           (get-in state [:rulesets 0 :rules 0 :output :layers 0 :tiles])))))
 
 (deftest terrain-rule-creation-targets_matching_tileset_output_layer
   (let [state (model/add-terrain-rule
@@ -985,6 +1027,31 @@
                                                   1
                                                   :shore)]
     (is (= initial-state state))))
+
+(deftest terrain-rule-stamp-tile-edit-allows_terrain_unit_cells
+  (let [state (model/set-selected-rule-stamp-tile
+               {:terrain-sets [{:id :mountains
+                                :terrain-unit {:w 2 :h 2}
+                                :terrains [{:id :mountain}]}]
+                :selected-terrain-set-index 0
+                :selected-terrain-index 0
+                :rulesets [{:id :mountain-rules
+                            :terrain-set :mountains
+                            :rules [{:id :rule
+                                     :terrain :mountain
+                                     :output {:anchor {:x 0 :y 0}
+                                              :layers [{:tileset :mountains
+                                                        :tiles [[nil nil]
+                                                                [nil nil]]}]}}]}]
+                :selected-terrain-ruleset-id :mountain-rules
+                :selected-terrain-rule-id :rule}
+               1
+               0
+               :mountain-b)]
+    (is (= [[nil :mountain-b]
+            [nil nil]]
+           (get-in state
+                   [:rulesets 0 :rules 0 :output :layers 0 :tiles])))))
 
 (deftest terrain-rule-stamp-tile-edit-can_clear_cells
   (let [state (model/set-selected-rule-stamp-tile

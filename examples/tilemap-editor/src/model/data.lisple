@@ -166,6 +166,19 @@
                 (fn [item]
                   (= (:id item) terrain-set)))))
 
+(def default-terrain-unit {:w 1 :h 1})
+
+(defun terrain-unit [definition]
+  (let [unit (or (:terrain-unit definition)
+                 (when (or (:w definition) (:h definition))
+                   definition)
+                 default-terrain-unit)]
+    {:w (max 1 (or (:w unit) 1))
+     :h (max 1 (or (:h unit) 1))}))
+
+(defun terrain-unit-for-set [terrain-sets terrain-set]
+  (terrain-unit (terrain-set-definition terrain-sets terrain-set)))
+
 (defun terrain-definitions [terrain-sets terrain-set]
   (or (:terrains (terrain-set-definition terrain-sets terrain-set)) []))
 

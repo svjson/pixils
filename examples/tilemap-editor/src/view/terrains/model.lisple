@@ -139,6 +139,44 @@
              {:tile tile}
              {}))))
 
+(def terrain-unit-options
+  [{:value :unit-1x1
+    :label "1 x 1"
+    :unit {:w 1 :h 1}}
+   {:value :unit-2x2
+    :label "2 x 2"
+    :unit {:w 2 :h 2}}])
+
+(defun terrain-unit-equals? [a b]
+  (let [a (data/terrain-unit a)
+        b (data/terrain-unit b)]
+    (and (= (:w a) (:w b))
+         (= (:h a) (:h b)))))
+
+(defun terrain-unit-option-index [unit]
+  (or (find-index terrain-unit-options
+                  (fn [option]
+                    (terrain-unit-equals? (:unit option) unit)))
+      0))
+
+(defun terrain-unit-label [unit]
+  (:label (nth terrain-unit-options (terrain-unit-option-index unit))))
+
+(defun terrain-unit-option-by-value [value]
+  (head (filter terrain-unit-options
+                (fn [option]
+                  (= (:value option) value)))))
+
+(defun terrain-unit-option-for-selection [selection]
+  (or (terrain-unit-option-by-value selection)
+      (nth terrain-unit-options (or selection 0))))
+
+(defun set-selected-terrain-set-unit [state unit-selection]
+  (if-let [path (selected-terrain-set-path state)]
+    (let [option (terrain-unit-option-for-selection unit-selection)]
+      (assoc-in state (concat path [:terrain-unit]) (:unit option)))
+    state))
+
 (defun terrain-set-from-input [terrain-sets tilesets id label]
   (let [terrain-set (make-terrain-set terrain-sets tilesets)
         requested-id (if (blank? id)
@@ -618,6 +656,21 @@
 (defun selected-rule-output-position [state]
   (output-grid-position 1 1))
 
+(defun selected-terrain-unit [state]
+  (data/terrain-unit (selected-terrain-set (:terrain-sets state)
+                                           (:selected-terrain-set-index state))))
+
+(defun selected-rule-stamp-cell-editable? [state x y]
+  (let [unit (selected-terrain-unit state)
+        anchor (or (-> (selected-terrain-rule state) :output :anchor)
+                   (terrain-unit-output-anchor
+                    (selected-terrain-set (:terrain-sets state)
+                                          (:selected-terrain-set-index state))))]
+    (and (>= x (:x anchor))
+         (< x (+ (:x anchor) (:w unit)))
+         (>= y (:y anchor))
+         (< y (+ (:y anchor) (:h unit))))))
+
 (defun empty-terrain-signature-row []
   [nil nil nil])
 
@@ -766,6 +819,24 @@
    [nil tile nil]
    [nil nil nil]])
 
+(defun terrain-unit-stamp-tiles [terrain-set tile]
+  (let [unit (data/terrain-unit terrain-set)]
+    (if (and (= (:w unit) 1)
+             (= (:h unit) 1))
+      (center-stamp-tiles tile)
+      (dotimes [y (:h unit)]
+        (dotimes [x (:w unit)]
+          (if (and (= x 0) (= y 0))
+            tile
+            nil))))))
+
+(defun terrain-unit-output-anchor [terrain-set]
+  (let [unit (data/terrain-unit terrain-set)]
+    (if (and (= (:w unit) 1)
+             (= (:h unit) 1))
+      {:x 1 :y 1}
+      {:x 0 :y 0})))
+
 (defun default-output-stamp-layer [state terrain-set terrain]
   (let [output-layer (default-output-layer-for-terrain-set state terrain-set)
         tileset (or (:tileset terrain-set) (:tileset output-layer))
@@ -775,10 +846,10 @@
      :data-kind :tile-ref
      :target-layer (:id output-layer)
      :tileset tileset
-     :tiles (center-stamp-tiles tile)}))
+     :tiles (terrain-unit-stamp-tiles terrain-set tile)}))
 
 (defun default-rule-output [state terrain-set terrain]
-  {:anchor {:x 1 :y 1}
+  {:anchor (terrain-unit-output-anchor terrain-set)
    :layers [(default-output-stamp-layer state terrain-set terrain)]})
 
 (defun make-terrain-ruleset [state]
@@ -1735,12 +1806,10 @@
 (defun set-selected-rule-stamp-tile [state x y tile-ref]
   (let [ruleset-id (selected-terrain-ruleset-id state)
         rule-id (or (:selected-terrain-rule-id state)
-                    (selected-terrain-rule-id state))
-        pos (selected-rule-output-position state)]
+                    (selected-terrain-rule-id state))]
     (if (and ruleset-id
              rule-id
-             (= x (:x pos))
-             (= y (:y pos)))
+             (selected-rule-stamp-cell-editable? state x y))
       (assoc state
              :rulesets (update-ruleset
                         (:rulesets state)

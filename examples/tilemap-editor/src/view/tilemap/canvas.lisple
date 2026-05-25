@@ -91,11 +91,12 @@
                       :default state)))
    :render (fn [state ctx]
              (let [offset (or (:offset state) {:x 0 :y 0})]
-               (let [layer-profile (data/layer-profile-by-id
+                 (let [layer-profile (data/layer-profile-by-id
                                     (:layer-profiles state)
                                     (:selected-layer-profile-id state))
                      render-layers (derivation/render-layers
                                     {:layers (:layers state)
+                                     :terrain-sets (:terrain-sets state)
                                      :terrain-stamp-layers
                                      (:terrain-stamp-layers state)
                                      :terrain-stamp-replacements

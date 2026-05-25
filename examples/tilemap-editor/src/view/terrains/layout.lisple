@@ -405,6 +405,32 @@
                         (ui/bind-state :selected-preview-tileset-index)
                         :disabled? (ui/bind-state :disabled?)})]})
 
+(defcomponent terrain-unit-selector
+  {:style {:width 110
+           :height 22}
+   :update (fn [state ctx]
+             (let [terrain-set (model/selected-terrain-set
+                                (:terrain-sets state)
+                                (:selected-terrain-set-index state))]
+               (assoc state
+                      :terrain-unit-options model/terrain-unit-options
+                      :selected-terrain-unit-index
+                      (model/terrain-unit-option-index
+                       (data/terrain-unit terrain-set))
+                      :disabled? (nil? terrain-set))))
+   :on {:combo-box/change (fn [state event ctx]
+                            (let [payload (:payload event)]
+                              (ui/emit! (:view ctx)
+                                        :terrain/unit-change
+                                        (:value payload))
+                              (assoc state
+                                     :selected-terrain-unit-index
+                                     (:selected-index payload))))}
+   :children [(cb/make {:options (ui/bind-state :terrain-unit-options)
+                        :selected-index
+                        (ui/bind-state :selected-terrain-unit-index)
+                        :disabled? (ui/bind-state :disabled?)})]})
+
 (defun terrain-identity-row-children []
   [(terrain-readonly-field-child "Name"
                                  (ui/bind-state :terrain-label))])
@@ -416,6 +442,62 @@
                     :align-items :center
                     :gap 12}}
    :children (terrain-identity-row-children)})
+
+(defun terrain-identity-summary-field [label value]
+  {:style {:width :fill
+           :height 24
+           :layout {:direction :row
+                    :align-items :center
+                    :gap 8}}
+   :children [{:mode 'ui/text
+               :class :ui/muted
+               :style {:width 44}
+               :state {:value label}}
+              {:mode 'ui/text
+               :style {:width :fill}
+               :state {:value value}}]})
+
+(defun terrain-value-detail-header-child []
+  {:style {:width :fill
+           :height 48
+           :layout {:direction :row
+                    :align-items :start
+                    :gap 12}}
+   :state (ui/bind-state)
+   :children [{:mode 'terrain-preview
+               :state {:tile (ui/bind-state :preview-tile)
+                       :disabled?
+                       (ui/bind-state :terrain-disabled?)}}
+              {:style {:width :fill
+                       :height 48
+                       :layout {:direction :column
+                                :gap 0}}
+               :children [{:style {:width :fill
+                                    :height 24
+                                    :layout {:direction :row
+                                             :align-items :center
+                                             :gap 8}}
+                           :children [{:mode 'ui/text
+                                       :class :ui/muted
+                                       :style {:width 44}
+                                       :state {:value "Id"}}
+                                      {:mode 'ui/text
+                                       :style {:width :fill}
+                                       :state {:value (ui/bind-state :terrain-id)}}
+                                      {:mode 'ui/button
+                                       :style {:width 78
+                                               :height 24}
+                                       :state {:label "Edit"
+                                               :disabled?
+                                               (ui/bind-state :terrain-disabled?)}
+                                       :on-click (fn [state event ctx]
+                                                   (do
+                                                     (ui/emit! (:view ctx)
+                                                               :terrain/edit)
+                                                     state))}]}
+                          (terrain-identity-summary-field
+                           "Name"
+                           (ui/bind-state :terrain-label))]}]})
 
 (defun terrain-set-detail-editor-children []
   [(terrain-readonly-field-child "Id" (ui/bind-state :set-id))
@@ -436,7 +518,14 @@
     :state {:terrain-sets (ui/bind-state :terrain-sets)
             :selected-terrain-set-index
             (ui/bind-state :selected-terrain-set-index)
-            :tilesets (ui/bind-state :tilesets)}}])
+            :tilesets (ui/bind-state :tilesets)}}
+   {:mode 'ui/text
+    :class :ui/muted
+    :state {:value "Terrain unit"}}
+   {:mode 'terrain-unit-selector
+    :state {:terrain-sets (ui/bind-state :terrain-sets)
+            :selected-terrain-set-index
+            (ui/bind-state :selected-terrain-set-index)}}])
 
 (defcomponent terrain-set-detail-editor
   {:style {:width :fill
@@ -1969,36 +2058,7 @@
                     (= (:terrain-disabled? state) true)
                     :selected-rule? (not (nil? (model/selected-terrain-rule
                                                 state)))))
-   :children [{:style {:width :fill
-                       :height 48
-                       :layout {:direction :row
-                                :align-items :start
-                                :gap 12}}
-               :state (ui/bind-state)
-               :children [{:mode 'terrain-preview
-                           :state {:tile (ui/bind-state :preview-tile)
-                                   :disabled?
-                                   (ui/bind-state :terrain-disabled?)}}
-                          {:mode 'ui/button
-                           :style {:width 78
-                                   :height 24}
-                           :state {:label "Edit"
-                                   :disabled?
-                                   (ui/bind-state :terrain-disabled?)}
-                           :on-click (fn [state event ctx]
-                                       (do
-                                         (ui/emit! (:view ctx)
-                                                   :terrain/edit)
-                                         state))}]}
-              (terrain-readonly-field-child "Id" (ui/bind-state :terrain-id))
-              {:mode 'terrain-identity-row
-               :state {:terrain-sets (ui/bind-state :terrain-sets)
-                       :selected-terrain-set-index
-                       (ui/bind-state :selected-terrain-set-index)
-                       :selected-terrain-index
-                       (ui/bind-state :selected-terrain-index)
-                       :tilesets (ui/bind-state :tilesets)
-                       :terrain-label (ui/bind-state :terrain-label)}}
+   :children [(terrain-value-detail-header-child)
               {:mode 'ui/text
                :class :ui/title
                :state {:value "Rules"}}
@@ -2592,6 +2652,11 @@
                                    (model/set-selected-terrain-set-tileset
                                     state
                                     (:payload event))))
+        :terrain/unit-change (fn [state event ctx]
+                               (tilemap/rebuild-terrain-stamp-preview
+                                (model/set-selected-terrain-set-unit
+                                 state
+                                 (:payload event))))
         :terrain/tile-change (fn [state event ctx]
                                (model/set-selected-terrain-tile
                                 state
