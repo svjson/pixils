@@ -66,6 +66,13 @@
     (is (= "Duplicate" (:label duplicate)))
     (is (= :duplicate (-> duplicate :payload :command)))))
 
+(deftest terrain-rule-transform-menu-includes_flip_and_rotate_commands
+  (let [items (:items layout/terrain-rule-transform-menu)]
+    (is (= :flip-horizontal (-> (nth items 0) :payload :command)))
+    (is (= :flip-vertical (-> (nth items 1) :payload :command)))
+    (is (= :rotate-left (-> (nth items 3) :payload :command)))
+    (is (= :rotate-right (-> (nth items 4) :payload :command)))))
+
 (deftest terrain-rule-tile-picker-is_column_shaped
   (is (= 116 layout/terrain-stamp-tile-picker-width))
   (is (= 232 layout/terrain-stamp-tile-picker-height)))

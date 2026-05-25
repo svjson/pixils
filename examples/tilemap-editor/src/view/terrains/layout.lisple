@@ -460,6 +460,23 @@
            {:label "Delete Rule"
             :action :terrain/rule-context-dummy
             :payload {:command :delete}}]})
+
+(def terrain-rule-transform-menu
+  {:settings {:mnemonics {:enabled false}}
+   :items [{:label "Flip Horizontally"
+            :action :terrain/rule-transform-menu
+            :payload {:command :flip-horizontal}}
+           {:label "Flip Vertically"
+            :action :terrain/rule-transform-menu
+            :payload {:command :flip-vertical}}
+           :separator
+           {:label "Rotate Left"
+            :action :terrain/rule-transform-menu
+            :payload {:command :rotate-left}}
+           {:label "Rotate Right"
+            :action :terrain/rule-transform-menu
+            :payload {:command :rotate-right}}]})
+
 (def terrain-rule-grid-cell-size 32)
 (def terrain-rule-grid-gap 2)
 (def terrain-rule-grid-size (+ (* terrain-rule-grid-cell-size 3)
@@ -625,7 +642,14 @@
    :on-mouse-down (fn [state event ctx]
                     (do
                       (ui/stop-propagation! event)
-                      (when (and (not (:center? state)) (:direction state))
+                      (when (and (:center? state)
+                                 (secondary-mouse-button? event))
+                        (menu/open-context-menu! terrain-rule-transform-menu
+                                                 (:global-position event)
+                                                 state
+                                                 ctx))
+                      (when (and (not (:center? state))
+                                 (:direction state))
                         (ui/emit! (:view ctx)
                                   :terrain/rule-match-cycle
                                   {:direction (:direction state)
@@ -633,6 +657,15 @@
                                            1
                                            -1)}))
                       state))
+   :on {:menu/select (fn [state event ctx]
+                       (let [payload (:payload event)]
+                         (do
+                           (ui/stop-propagation! event)
+                           (when (= (:type payload) :action)
+                             (ui/emit! (:view ctx)
+                                       :terrain/rule-transform
+                                       (-> payload :payload :command)))))
+                       state)}
    :render draw-match-cell!})
 
 (defun terrain-match-tile-cell-child [direction]
@@ -2612,6 +2645,12 @@
            (fn [state]
              (model/set-selected-rule-output-target-layer state
                                                           (:payload event)))))
+        :terrain/rule-transform
+        (fn [state event ctx]
+          (update-selected-ruleset-preview
+           state
+           (fn [state]
+             (model/transform-selected-rule state (:payload event)))))
         :checkbox/change
         (fn [state event ctx]
           (let [payload (:payload event)]

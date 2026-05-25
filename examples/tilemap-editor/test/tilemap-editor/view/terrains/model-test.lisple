@@ -971,6 +971,61 @@
                     1
                     :e])))))
 
+(deftest terrain-rule-transform-rotates_match_tiles_signatures_and_anchor
+  (let [state (model/transform-selected-rule
+               {:terrain-sets [{:id :overworld
+                                :terrains [{:id :grass}]}]
+                :selected-terrain-set-index 0
+                :selected-terrain-index 0
+                :rulesets [{:id :overworld-rules
+                            :terrain-set :overworld
+                            :rules [{:id :rule
+                                     :terrain :grass
+                                     :match {:n :same
+                                             :e {:terrain :water}
+                                             :s :none}
+                                     :output {:anchor {:x 0 :y 1}
+                                              :layers [{:tileset :terrain
+                                                        :tiles [[:a :b :c]
+                                                                [:d :e :f]
+                                                                [:g :h :i]]
+                                                        :terrain-signatures
+                                                        [[{:center :a}
+                                                          {:center :b}
+                                                          {:center :c}]
+                                                         [{:center :d}
+                                                          {:center :e}
+                                                          {:center :f}]
+                                                         [{:center :g}
+                                                          {:center :h}
+                                                          {:center :i}]]}]}}]}]
+                :selected-terrain-ruleset-id :overworld-rules
+                :selected-terrain-rule-id :rule}
+               :rotate-right)]
+    (is (= [[:g :d :a]
+            [:h :e :b]
+            [:i :f :c]]
+           (get-in state
+                   [:rulesets 0 :rules 0 :output :layers 0 :tiles])))
+    (is (= [[{:center :g} {:center :d} {:center :a}]
+            [{:center :h} {:center :e} {:center :b}]
+            [{:center :i} {:center :f} {:center :c}]]
+           (get-in state
+                   [:rulesets
+                    0
+                    :rules
+                    0
+                    :output
+                    :layers
+                    0
+                    :terrain-signatures])))
+    (is (= {:x 1 :y 0}
+           (get-in state [:rulesets 0 :rules 0 :output :anchor])))
+    (is (= :same (get-in state [:rulesets 0 :rules 0 :match :e])))
+    (is (= {:terrain :water}
+           (get-in state [:rulesets 0 :rules 0 :match :s])))
+    (is (= :none (get-in state [:rulesets 0 :rules 0 :match :w])))))
+
 (deftest terrain-rule-stamp-selection-falls_back_when_tile_is_not_in_output_tileset
   (let [state {:terrain-sets [{:id :overworld
                                :terrains [{:id :grass}]}]

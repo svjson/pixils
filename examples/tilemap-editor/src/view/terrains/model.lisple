@@ -1359,6 +1359,148 @@
                 (dissoc output-layer :target-layer))))
            :terrain-rule-selected-tile nil)))
 
+(defun matrix-width [matrix]
+  (count (or (head (or matrix [])) [])))
+
+(defun transform-matrix-cell [matrix transform-fn x y]
+  (let [pos (transform-fn x y)]
+    (nth (or (nth (or matrix []) (:y pos)) []) (:x pos))))
+
+(defun transform-matrix [matrix transform-fn]
+  (let [matrix (or matrix [])
+        height (count matrix)
+        width (matrix-width matrix)]
+    (dotimes [y height]
+      (dotimes [x width]
+        (transform-matrix-cell matrix transform-fn x y)))))
+
+(defun output-layer-transform [output-layer command]
+  (let [tiles (or (:tiles output-layer) [])
+        width (matrix-width tiles)
+        height (count tiles)]
+    (case command
+      :flip-horizontal
+      (fn [x y] {:x (- (dec width) x) :y y})
+
+      :flip-vertical
+      (fn [x y] {:x x :y (- (dec height) y)})
+
+      :rotate-left
+      (fn [x y] {:x (- (dec width) y) :y x})
+
+      :rotate-right
+      (fn [x y] {:x y :y (- (dec height) x)})
+
+      :default
+      (fn [x y] {:x x :y y}))))
+
+(defun transform-output-anchor [anchor command width height]
+  (let [anchor (or anchor {:x 0 :y 0})
+        x (:x anchor)
+        y (:y anchor)]
+    (case command
+      :flip-horizontal {:x (- (dec width) x) :y y}
+      :flip-vertical {:x x :y (- (dec height) y)}
+      :rotate-left {:x y :y (- (dec width) x)}
+      :rotate-right {:x (- (dec height) y) :y x}
+      :default anchor)))
+
+(def direction-positions
+  {:nw {:x 0 :y 0}
+   :n {:x 1 :y 0}
+   :ne {:x 2 :y 0}
+   :w {:x 0 :y 1}
+   :e {:x 2 :y 1}
+   :sw {:x 0 :y 2}
+   :s {:x 1 :y 2}
+   :se {:x 2 :y 2}})
+
+(def position-directions
+  {[0 0] :nw
+   [1 0] :n
+   [2 0] :ne
+   [0 1] :w
+   [2 1] :e
+   [0 2] :sw
+   [1 2] :s
+   [2 2] :se})
+
+(defun transform-rule-match-source-direction [direction transform-fn]
+  (let [pos (get direction-positions direction)
+        source-pos (transform-fn (:x pos) (:y pos))]
+    (get position-directions [(:x source-pos) (:y source-pos)])))
+
+(defun transform-rule-match [match command]
+  (let [transform-fn (output-layer-transform {:tiles [[nil nil nil]
+                                                   [nil nil nil]
+                                                   [nil nil nil]]}
+                                             command)
+        match (or match {})]
+    (reduce neighbor-directions
+            {}
+            (fn [result direction]
+              (assoc result
+                     direction
+                     (or (get match
+                              (transform-rule-match-source-direction
+                               direction
+                               transform-fn))
+                         :ignore))))))
+
+(defun transform-rule-output [rule command]
+  (let [output (or (:output rule) {})
+        layers (or (:layers output) [])
+        first-layer (head layers)]
+    (if first-layer
+      (let [width (matrix-width (:tiles first-layer))
+            height (count (or (:tiles first-layer) []))
+            transform-fn (output-layer-transform first-layer command)
+            transformed-layer
+            (assoc (assoc first-layer
+                          :tiles
+                          (transform-matrix (:tiles first-layer)
+                                            transform-fn))
+                   :terrain-signatures
+                   (transform-matrix (output-layer-terrain-signatures
+                                      first-layer)
+                                     transform-fn))]
+        (assoc rule
+               :output
+               (assoc (assoc output
+                             :layers
+                             (concat [transformed-layer] (tail layers)))
+                      :anchor
+                      (transform-output-anchor (:anchor output)
+                                               command
+                                               width
+                                               height))))
+      rule)))
+
+(defun transform-rule [rule command]
+  (assoc (transform-rule-output rule command)
+         :match
+         (transform-rule-match (:match rule) command)))
+
+(defun transform-selected-rule [state command]
+  (let [ruleset-id (selected-terrain-ruleset-id state)
+        rule-id (or (:selected-terrain-rule-id state)
+                    (selected-terrain-rule-id state))]
+    (if (and ruleset-id rule-id)
+      (assoc state
+             :rulesets (update-ruleset
+                        (:rulesets state)
+                        ruleset-id
+                        (fn [ruleset]
+                          (assoc ruleset
+                                 :rules
+                                 (update-rule (:rules ruleset)
+                                              rule-id
+                                              (fn [rule]
+                                                (transform-rule
+                                                 rule
+                                                 command)))))))
+      state)))
+
 (defun set-selected-rule-stamp-tile [state x y tile-ref]
   (let [ruleset-id (selected-terrain-ruleset-id state)
         rule-id (or (:selected-terrain-rule-id state)
