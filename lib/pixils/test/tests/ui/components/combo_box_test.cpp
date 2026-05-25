@@ -1,11 +1,39 @@
 #include "../../render_fixture.h"
 
+#include <pixils/program.h>
+
 #include <gtest/gtest.h>
 #include <SDL2/SDL_keycode.h>
 #include <lisple/runtime/dict.h>
 #include <lisple/runtime/value.h>
+#include <string>
 
-using ComboBoxTest = RenderFixture;
+class ComboBoxTest : public RenderFixture
+{
+ protected:
+  std::shared_ptr<Pixils::Runtime::View> render_combo_for_theme(
+    const std::string& theme)
+  {
+    runtime.eval(std::string(R"(
+      (pixils/defprogram combo-box-test-program
+        {:theme ')") + theme + R"(
+         :initial-mode 'root-mode})
+
+      (pixils/defmode root-mode
+        {:children [(pixils.ui.combo-box/make
+                     {:options [{:value :a :label ""}
+                                {:value :b :label ""}]
+                      :style {:width 100}})]})
+    )");
+
+    Pixils::load_program(runtime, session);
+    session.update_mode();
+    session.render_mode();
+
+    if (!session.active_mode || session.active_mode->children.empty()) return nullptr;
+    return session.active_mode->children[0];
+  }
+};
 
 namespace
 {
@@ -45,6 +73,46 @@ TEST_F(ComboBoxTest, combo_box_trigger_uses_styleable_scrollbar_button)
   EXPECT_EQ(button->mode->selector_modes[0], "ui/combo-box-button");
   EXPECT_EQ(button->mode->selector_modes[1], "ui/scrollbar-button");
   ASSERT_TRUE(button->effective_style.border.has_value());
+}
+
+TEST_F(ComboBoxTest, windows_3_combo_box_button_is_flush_to_field_edge)
+{
+  auto combo = render_combo_for_theme("pixils/windows-3");
+  ASSERT_NE(combo, nullptr);
+  ASSERT_EQ(combo->children.size(), 1u);
+  auto trigger = combo->children[0];
+  ASSERT_NE(trigger, nullptr);
+  ASSERT_EQ(trigger->children.size(), 2u);
+  auto label = trigger->children[0];
+  auto button = trigger->children[1];
+  ASSERT_NE(label, nullptr);
+  ASSERT_NE(button, nullptr);
+
+  EXPECT_EQ(label->bounds.x, trigger->bounds.x + 3);
+  EXPECT_EQ(button->bounds.w, 15);
+  EXPECT_EQ(button->bounds.x + button->bounds.w, trigger->bounds.x + trigger->bounds.w);
+  EXPECT_EQ(button->bounds.y, trigger->bounds.y);
+  EXPECT_EQ(button->bounds.h, trigger->bounds.h);
+}
+
+TEST_F(ComboBoxTest, windows_95_combo_box_button_is_flush_to_field_edge)
+{
+  auto combo = render_combo_for_theme("pixils/windows-95");
+  ASSERT_NE(combo, nullptr);
+  ASSERT_EQ(combo->children.size(), 1u);
+  auto trigger = combo->children[0];
+  ASSERT_NE(trigger, nullptr);
+  ASSERT_EQ(trigger->children.size(), 2u);
+  auto label = trigger->children[0];
+  auto button = trigger->children[1];
+  ASSERT_NE(label, nullptr);
+  ASSERT_NE(button, nullptr);
+
+  EXPECT_EQ(label->bounds.x, trigger->bounds.x + 3);
+  EXPECT_EQ(button->bounds.w, 16);
+  EXPECT_EQ(button->bounds.x + button->bounds.w, trigger->bounds.x + trigger->bounds.w);
+  EXPECT_EQ(button->bounds.y, trigger->bounds.y);
+  EXPECT_EQ(button->bounds.h, trigger->bounds.h);
 }
 
 TEST_F(ComboBoxTest, disabled_combo_box_disables_trigger_button_and_does_not_press)

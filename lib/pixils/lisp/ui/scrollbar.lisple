@@ -517,9 +517,7 @@
 
 (defcomponent ui/combo-box-button
   {:extend 'ui/scrollbar-button
-   :class :ui/combo-box-button
-   :style {:width 14
-           :height :fill}})
+   :class :ui/combo-box-button})
 
 (defcomponent ui/scrollbar-handle
   {:content-size scrollbar-handle-content-size

@@ -119,11 +119,7 @@
 
 (defcomponent ui/combo-box-trigger
   {:style {:width :fill
-           :height :fill
-           :padding [3 5]
-           :layout {:direction :row
-                    :align-items :center
-                    :gap :space-between}}
+           :height :fill}
    :children [{:mode 'ui/text
                :style {:width :fill}
                :state {:value (ui/bind-state :selected-label)}}

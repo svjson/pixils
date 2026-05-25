@@ -165,6 +165,14 @@
                  :border {:color {:r 0x00 :g 0x00 :b 0x00}
                           :thickness 1}}
 
+  'ui/combo-box-trigger {:padding [3 5]
+                         :layout {:direction :row
+                                  :align-items :center
+                                  :gap :space-between}}
+
+  'ui/combo-box-button {:width 14
+                        :height :fill}
+
   'ui/combo-box-trigger:hover
   {:text {:color {:r 0xff :g 0xff :b 0xff}}
    :background {:r 0x00 :g 0x00 :b 0x00}}

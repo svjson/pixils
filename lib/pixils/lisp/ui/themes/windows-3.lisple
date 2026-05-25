@@ -420,6 +420,14 @@
                            :border {:color (var :border)
                                     :thickness 1}}
 
+            'ui/combo-box-trigger {:padding {:t 0 :r 0 :b 0 :l 3}
+                                   :layout {:direction :row
+                                            :align-items :center
+                                            :gap 0}}
+
+            'ui/combo-box-button {:width 15
+                                  :height :fill}
+
             'ui/combo-box-popup-panel {:background (var :field-bg)
                                        :border {:color (var :border)
                                                 :thickness 1}}
