@@ -980,6 +980,7 @@
               :item-state-keys [:layers :tilesets :hidden-layer-indices]
               :selected-indices (ui/bind-state :selected-indices)
               :reorderable? true
+              :reorder-visual-strategy :placeholder
               :force-selection? true
               :item-child layer-row-child})))
 
