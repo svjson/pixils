@@ -627,6 +627,54 @@
                  (all-map-positions)
                  [ruleset]))))))
 
+(defun terrain-preview-layers-for-ruleset [state ruleset]
+  (if (and ruleset
+           (terrain-rule-preview? state ruleset))
+    (filter (or (:layers state) [])
+            (fn [layer]
+              (ruleset-applies-to-layer? ruleset layer)))
+    []))
+
+(defun clear-terrain-stamp-preview-for-ruleset [state source-state ruleset]
+  (let [positions (all-map-positions)]
+    (reduce (terrain-preview-layers-for-ruleset source-state ruleset)
+            state
+            (fn [out layer]
+              (clear-terrain-stamp-rules out
+                                         (terrain-stamp-source-layer-for-ruleset
+                                          source-state
+                                          layer
+                                          ruleset)
+                                         positions
+                                         [ruleset])))))
+
+(defun apply-terrain-stamp-preview-for-ruleset [state ruleset]
+  (let [positions (all-map-positions)]
+    (reduce (terrain-preview-layers-for-ruleset state ruleset)
+            state
+            (fn [out layer]
+              (apply-terrain-stamp-rules
+               out
+               (terrain-stamp-source-layer-for-ruleset out layer ruleset)
+               positions
+               positions
+               [ruleset])))))
+
+(defun refresh-terrain-stamp-preview-for-ruleset-change
+  [previous-state state ruleset-id]
+  (let [previous-ruleset (derivation/ruleset-by-id (:rulesets previous-state)
+                                                   ruleset-id)
+        ruleset (derivation/ruleset-by-id (:rulesets state) ruleset-id)]
+    (if (nil? ruleset-id)
+      (rebuild-terrain-stamp-preview state)
+      (apply-terrain-stamp-preview-for-ruleset
+       (if previous-ruleset
+         (clear-terrain-stamp-preview-for-ruleset state
+                                                  previous-state
+                                                  previous-ruleset)
+         state)
+       ruleset))))
+
 (defun rebuild-terrain-stamp-preview [state]
   (reduce (for-indexed [index layer (or (:layers state) [])]
             {:index index

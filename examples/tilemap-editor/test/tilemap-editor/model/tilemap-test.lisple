@@ -583,6 +583,22 @@
                                     :grass))]
     (is (= :shore-n (get-in state [:terrain-stamp-layers 0 :tiles 1 1])))))
 
+(deftest tilemap-refresh-terrain-stamp-preview-for-ruleset-change_rebuilds_one_ruleset
+  (let [state (tilemap/rebuild-terrain-stamp-preview
+               (terrain-paint-state (terrain-map [[nil :water nil]
+                                                  [nil :grass nil]])
+                                    :grass))
+        changed (assoc-in state
+                          [:rulesets 0 :rules 0 :output :layers 0 :tiles 1 1]
+                          :shore-updated)
+        refreshed (tilemap/refresh-terrain-stamp-preview-for-ruleset-change
+                   state
+                   changed
+                   :shore-rules)]
+    (is (= :shore-updated
+           (get-in refreshed [:terrain-stamp-layers 0 :tiles 1 1])))
+    (is (nil? (get-in refreshed [:terrain-stamp-layers 0 :tiles 0 1])))))
+
 (deftest tilemap-set-terrain-rule-application_rebuilds_or_clears_preview_cache
   (let [state (tilemap/rebuild-terrain-stamp-preview
                (terrain-paint-state (terrain-map [[nil :water nil]

@@ -2192,6 +2192,16 @@
                           :terrain-list-panel-disabled?)}}
                 (make-terrain-detail-panel)]})])
 
+(defun refresh-selected-ruleset-preview-after [previous-state state]
+  (tilemap/refresh-terrain-stamp-preview-for-ruleset-change
+   previous-state
+   state
+   (or (model/selected-terrain-ruleset-id previous-state)
+       (model/selected-terrain-ruleset-id state))))
+
+(defun update-selected-ruleset-preview [state update-fn]
+  (refresh-selected-ruleset-preview-after state (update-fn state)))
+
 (defcomponent terrain-definition-workspace
   {:style {:width :fill
            :height :fill
@@ -2345,10 +2355,9 @@
                                     state
                                     (:payload event))))
         :terrain/tile-change (fn [state event ctx]
-                               (tilemap/rebuild-terrain-stamp-preview
-                                (model/set-selected-terrain-tile
-                                 state
-                                 (:payload event))))
+                               (model/set-selected-terrain-tile
+                                state
+                                (:payload event)))
         :terrain/base-tile-open
         (fn [state event ctx]
           (open-terrain-base-tile-popup! state
@@ -2358,8 +2367,7 @@
         (fn [state event ctx]
           (let [payload (:payload event)]
             (if (= (:type payload) :confirm)
-              (tilemap/rebuild-terrain-stamp-preview
-               (model/set-selected-terrain-tile state (:tile payload)))
+              (model/set-selected-terrain-tile state (:tile payload))
               state)))
         :terrain/ruleset-add (fn [state event ctx]
                                (tilemap/rebuild-terrain-stamp-preview
@@ -2370,8 +2378,9 @@
                  :selected-terrain-ruleset-id (:payload event)
                  :selected-terrain-rule-id nil))
         :terrain/rule-add (fn [state event ctx]
-                            (tilemap/rebuild-terrain-stamp-preview
-                             (model/add-terrain-rule state)))
+                            (update-selected-ruleset-preview
+                             state
+                             model/add-terrain-rule))
         :terrain/rule-select
         (fn [state event ctx]
           (assoc state :selected-terrain-rule-id (:payload event)))
@@ -2387,16 +2396,21 @@
               (open-terrain-rule-name-dialog! state ctx rule-id name)
 
               :duplicate
-              (tilemap/rebuild-terrain-stamp-preview
-               (model/duplicate-selected-terrain-rule state))
+              (update-selected-ruleset-preview
+               state
+               model/duplicate-selected-terrain-rule)
 
               :move-up
-              (tilemap/rebuild-terrain-stamp-preview
-               (model/move-selected-terrain-rule state :up))
+              (update-selected-ruleset-preview
+               state
+               (fn [state]
+                 (model/move-selected-terrain-rule state :up)))
 
               :move-down
-              (tilemap/rebuild-terrain-stamp-preview
-               (model/move-selected-terrain-rule state :down))
+              (update-selected-ruleset-preview
+               state
+               (fn [state]
+                 (model/move-selected-terrain-rule state :down)))
 
               :delete
               (open-terrain-rule-delete-confirm-dialog! state ctx rule-id name)
@@ -2407,63 +2421,73 @@
         (fn [state event ctx]
           (let [payload (:payload event)]
             (if (= (:type payload) :confirm)
-              (tilemap/rebuild-terrain-stamp-preview
-               (model/set-selected-terrain-rule-label
-                (assoc state :selected-terrain-rule-id (:rule-id payload))
-                (:name payload)))
+              (model/set-selected-terrain-rule-label
+               (assoc state :selected-terrain-rule-id (:rule-id payload))
+               (:name payload))
               state)))
         :terrain/rule-delete-confirm-result
         (fn [state event ctx]
           (let [payload (:payload event)]
             (if (and (= (:choice payload) :dialog/ok)
                      (-> payload :payload :rule-id))
-              (tilemap/rebuild-terrain-stamp-preview
-               (model/delete-selected-terrain-rule
-                (assoc state
-                       :selected-terrain-rule-id
-                       (-> payload :payload :rule-id))))
+              (update-selected-ruleset-preview
+               (assoc state
+                      :selected-terrain-rule-id
+                      (-> payload :payload :rule-id))
+               model/delete-selected-terrain-rule)
               state)))
         :terrain/rule-terrain-change
         (fn [state event ctx]
-          (tilemap/rebuild-terrain-stamp-preview
-           (model/set-selected-rule-terrain state (:payload event))))
+          (update-selected-ruleset-preview
+           state
+           (fn [state]
+             (model/set-selected-rule-terrain state (:payload event)))))
         :terrain/rule-match-change
         (fn [state event ctx]
           (let [payload (:payload event)]
-            (tilemap/rebuild-terrain-stamp-preview
-             (assoc (model/set-selected-rule-match-condition state
-                                                             (:direction payload)
-                                                             (:value payload))
-                    :selected-terrain-rule-match-direction
-                    (:direction payload)))))
+            (update-selected-ruleset-preview
+             state
+             (fn [state]
+               (assoc (model/set-selected-rule-match-condition
+                       state
+                       (:direction payload)
+                       (:value payload))
+                      :selected-terrain-rule-match-direction
+                      (:direction payload))))))
         :terrain/rule-match-cycle
         (fn [state event ctx]
           (let [payload (:payload event)]
-            (tilemap/rebuild-terrain-stamp-preview
-             (assoc (model/cycle-selected-rule-match-condition
-                     state
-                     (:direction payload)
-                    (:step payload))
-                   :selected-terrain-rule-match-direction
-                   (:direction payload)))))
+            (update-selected-ruleset-preview
+             state
+             (fn [state]
+               (assoc (model/cycle-selected-rule-match-condition
+                       state
+                       (:direction payload)
+                       (:step payload))
+                      :selected-terrain-rule-match-direction
+                      (:direction payload))))))
         :terrain/rule-output-signature-cycle
         (fn [state event ctx]
           (let [payload (:payload event)]
-            (tilemap/rebuild-terrain-stamp-preview
-             (model/cycle-selected-rule-output-terrain-signature
-              state
-              (:direction payload)
-              (:step payload)))))
+            (update-selected-ruleset-preview
+             state
+             (fn [state]
+               (model/cycle-selected-rule-output-terrain-signature
+                state
+                (:direction payload)
+                (:step payload))))))
         :checkbox/change
         (fn [state event ctx]
           (let [payload (:payload event)]
             (if (= (:value payload) :terrain-rule-exclusive)
               (do
                 (ui/stop-propagation! event)
-                (tilemap/rebuild-terrain-stamp-preview
-                 (model/set-selected-terrain-rule-exclusive
-                  state
-                  (:checked? payload))))
+                (update-selected-ruleset-preview
+                 state
+                 (fn [state]
+                   (model/set-selected-terrain-rule-exclusive
+                    state
+                    (:checked? payload)))))
               state)))
         :terrain/rule-stamp-tile-select
         (fn [state event ctx]
@@ -2471,13 +2495,15 @@
         :terrain/rule-stamp-paint
         (fn [state event ctx]
           (let [payload (:payload event)]
-            (tilemap/rebuild-terrain-stamp-preview
-             (model/set-selected-rule-stamp-tile
-              (assoc state
-                     :selected-terrain-rule-output-position
-                     {:x (:x payload)
-                      :y (:y payload)})
-              (:x payload)
-              (:y payload)
-              (:tile payload)))))}
+            (update-selected-ruleset-preview
+             state
+             (fn [state]
+               (model/set-selected-rule-stamp-tile
+                (assoc state
+                       :selected-terrain-rule-output-position
+                       {:x (:x payload)
+                        :y (:y payload)})
+                (:x payload)
+                (:y payload)
+                (:tile payload))))))}
    :children (terrain-definition-workspace-children)})
