@@ -14,10 +14,17 @@
             [pixils.ui.window :as w]
             [tilemap-editor.model.data :as data]
             [tilemap-editor.model.tilemap :as tilemap]
+            [tilemap-editor.view.id-name-dialog :as id-name-dialog]
             [tilemap-editor.view.tilemap.renderer :as tr]
             [tilemap-editor.view.terrains.model :as model]))
 
 (def terrain-list-row-height 24)
+
+(def terrain-set-context-menu
+  {:settings {:mnemonics {:enabled false}}
+   :items [{:label "Rename Terrain Set"
+            :action :terrain/set-context-dummy
+            :payload {:command :rename}}]})
 
 (def terrain-context-menu
   {:settings {:mnemonics {:enabled false}}
@@ -52,22 +59,45 @@
                                :value (:value state)
                                :shift? false
                                :ctrl? false})
-                    (when (and (= (:button event) :right)
-                               (= (:context-kind state) :terrain))
-                      (menu/open-context-menu! terrain-context-menu
-                                               (:global-position event)
-                                               state
-                                               ctx))
+                    (when (= (:button event) :right)
+                      (case (:context-kind state)
+                        :terrain-set
+                        (menu/open-context-menu! terrain-set-context-menu
+                                                 (:global-position event)
+                                                 state
+                                                 ctx)
+
+                        :terrain
+                        (menu/open-context-menu! terrain-context-menu
+                                                 (:global-position event)
+                                                 state
+                                                 ctx)
+
+                        :default
+                        nil))
                     state))
    :on {:menu/select (fn [state event ctx]
                        (let [payload (:payload event)]
                          (do
                            (ui/stop-propagation! event)
                            (when (= (:type payload) :action)
-                             (ui/emit! (:view ctx)
-                                       :terrain/context-command
-                                       {:terrain-index (:index state)
-                                        :command (-> payload :payload :command)}))))
+                             (case (:context-kind state)
+                               :terrain-set
+                               (ui/emit! (:view ctx)
+                                         :terrain-set/context-command
+                                         {:terrain-set-index (:index state)
+                                          :command
+                                          (-> payload :payload :command)})
+
+                               :terrain
+                               (ui/emit! (:view ctx)
+                                         :terrain/context-command
+                                         {:terrain-index (:index state)
+                                          :command
+                                          (-> payload :payload :command)})
+
+                               :default
+                               nil))))
                        state)}
    :children [{:mode 'ui/text
                :style {:width :fill}
@@ -82,7 +112,7 @@
            :selected-indices (ui/bind-state :selected-indices)}})
 
 (defun terrain-row-child [index option]
-  (terrain-row-child-with-context nil index option))
+  (terrain-row-child-with-context :terrain-set index option))
 
 (defun terrain-context-row-child [index option]
   (terrain-row-child-with-context :terrain index option))
@@ -292,6 +322,25 @@
            :value value
            :disabled? disabled?}})
 
+(defcomponent terrain-readonly-field
+  {:style {:width :fill
+           :height 24
+           :layout {:direction :row
+                    :align-items :center
+                    :gap 8}}
+   :children [{:mode 'ui/text
+               :class :ui/muted
+               :style {:width 72}
+               :state {:value (ui/bind-state :label)}}
+              {:mode 'ui/text
+               :style {:width 220}
+               :state {:value (ui/bind-state :value)}}]})
+
+(defun terrain-readonly-field-child [label value]
+  {:mode 'terrain-readonly-field
+   :state {:label label
+           :value value}})
+
 (defun terrain-preview-tile [tilesets terrain-set terrain]
   (data/tile-in tilesets
                 (:tileset terrain-set)
@@ -364,27 +413,67 @@
                         (ui/bind-state :selected-preview-tile-index)
                         :disabled? (ui/bind-state :disabled?)})]})
 
+(defcomponent terrain-base-tile-field
+  {:style {:width 360
+           :height 24
+           :layout {:direction :row
+                    :align-items :center
+                    :gap 8}}
+   :children [{:mode 'ui/text
+               :class :ui/muted
+               :style {:width 124}
+               :state {:value "Terrain Base Tile"}}
+              {:mode 'terrain-preview-tile-selector
+               :state {:terrain-sets (ui/bind-state :terrain-sets)
+                       :selected-terrain-set-index
+                       (ui/bind-state :selected-terrain-set-index)
+                       :selected-terrain-index
+                       (ui/bind-state :selected-terrain-index)
+                       :tilesets (ui/bind-state :tilesets)}}]})
+
+(defcomponent terrain-identity-row
+  {:style {:width :fill
+           :height 24
+           :layout {:direction :row
+                    :align-items :center
+                    :gap 12}}
+   :children [(terrain-readonly-field-child "Name"
+                                            (ui/bind-state :terrain-label))
+              {:mode 'terrain-base-tile-field
+               :state {:terrain-sets (ui/bind-state :terrain-sets)
+                       :selected-terrain-set-index
+                       (ui/bind-state :selected-terrain-set-index)
+                       :selected-terrain-index
+                       (ui/bind-state :selected-terrain-index)
+                       :tilesets (ui/bind-state :tilesets)}}]})
+
+(defun terrain-set-detail-editor-children []
+  [(terrain-readonly-field-child "Id" (ui/bind-state :set-id))
+   (terrain-readonly-field-child "Name" (ui/bind-state :set-label))
+   {:mode 'ui/button
+    :style {:width 78
+            :height 24}
+    :state {:label "Edit"
+            :disabled? (ui/bind-state :set-disabled?)}
+    :on-click (fn [state event ctx]
+                (do
+                  (ui/emit! (:view ctx) :terrain/set-edit)
+                  state))}
+   {:mode 'ui/text
+    :class :ui/muted
+    :state {:value "Preview tileset"}}
+   {:mode 'terrain-preview-tileset-selector
+    :state {:terrain-sets (ui/bind-state :terrain-sets)
+            :selected-terrain-set-index
+            (ui/bind-state :selected-terrain-set-index)
+            :tilesets (ui/bind-state :tilesets)}}])
+
 (defcomponent terrain-set-detail-editor
   {:style {:width :fill
            :height :fill
            :layout {:direction :column
                     :gap 8}}
-   :children [(terrain-edit-field-child :set-id
-                                        "Id"
-                                        (ui/bind-state :set-id)
-                                        (ui/bind-state :set-disabled?))
-              (terrain-edit-field-child :set-label
-                                        "Name"
-                                        (ui/bind-state :set-label)
-                                        (ui/bind-state :set-disabled?))
-              {:mode 'ui/text
-               :class :ui/muted
-               :state {:value "Preview tileset"}}
-              {:mode 'terrain-preview-tileset-selector
-               :state {:terrain-sets (ui/bind-state :terrain-sets)
-                       :selected-terrain-set-index
-                       (ui/bind-state :selected-terrain-set-index)
-                       :tilesets (ui/bind-state :tilesets)}}]})
+   :children (terrain-set-detail-editor-children)})
 
 (def terrain-rule-list-row-height 24)
 
@@ -1367,87 +1456,42 @@
    :children [(merge {:id "terrain-rule-list-box"}
                      (terrain-rule-list-child {}))]})
 
-(defun open-terrain-name-dialog! [state ctx operation terrain-index title name]
+(defun terrain-id-by-index [state terrain-index]
+  (let [terrain-set (model/selected-terrain-set
+                     (:terrain-sets state)
+                     (:selected-terrain-set-index state))
+        terrain (when (and terrain-set
+                           (not (nil? terrain-index))
+                           (< terrain-index (count (or (:terrains terrain-set) []))))
+                  (nth (:terrains terrain-set) terrain-index))]
+    (if terrain
+      (model/keyword-label (:id terrain))
+      "")))
+
+(defun open-terrain-name-dialog! [state ctx operation terrain-index title name id]
   (do
-    (push-mode! 'terrain-name-dialog-modal
-                {:operation operation
-                 :terrain-index terrain-index
-                 :name name
-                 :title title}
-                {:origin {:view (:view ctx)
-                          :event :terrain/name-dialog-result}})
+    (id-name-dialog/open! ctx
+                          {:title title
+                           :id id
+                           :name name
+                           :result-event :terrain/name-dialog-result
+                           :context {:operation operation
+                                     :terrain-index terrain-index}})
     state))
 
-(defcomponent terrain-name-dialog-body
-  {:class :ui/content
-   :style {:width 260
-           :height :shrink
-           :padding 10
-           :layout {:direction :column
-                    :gap 8}}
-   :children [{:mode 'ui/text
-               :state {:value "Terrain name:"}}
-              {:mode 'ui/text-input
-               :style {:width :fill
-                       :height 24}
-               :state {:value (ui/bind-state :name)
-                       :auto-focus? true}}
-              {:mode 'terrain-name-dialog-buttons
-               :state {:name (ui/bind-state :name)}}]})
-
-(defcomponent terrain-name-dialog-buttons
-  {:style {:width :fill
-           :height 24
-           :layout {:direction :row
-                    :gap :space-between}}
-   :children [{:mode 'ui/button
-               :style {:width 78
-                       :height 24}
-               :state {:label "Cancel"}
-               :on-click (fn [state event ctx]
-                           (do
-                             (ui/emit! (:view ctx)
-                                       :terrain-name-dialog/cancel)
-                             state))}
-              {:mode 'ui/button
-               :style {:width 78
-                       :height 24}
-               :state {:label "OK"
-                       :name (ui/bind-state :name)}
-               :on-click (fn [state event ctx]
-                           (do
-                             (ui/emit! (:view ctx)
-                                       :terrain-name-dialog/confirm
-                                       {:name (:name state)})
-                             state))}]})
-
-(defmode terrain-name-dialog-modal
-  {:on {:terrain-name-dialog/cancel
-        (fn [state event ctx]
-          (do
-            (ui/stop-propagation! event)
-            (pop-mode! {:type :cancel
-                        :operation (:operation state)
-                        :terrain-index (:terrain-index state)})
-            state))
-        :terrain-name-dialog/confirm
-        (fn [state event ctx]
-          (do
-            (ui/stop-propagation! event)
-            (pop-mode! {:type :confirm
-                        :operation (:operation state)
-                        :terrain-index (:terrain-index state)
-                        :name (-> event :payload :name)})
-            state))}
-   :compose {:render :pass}
-   :children [(w/make {:position {:x 240 :y 150}
-                       :title-bar {:title (ui/bind-state :title)}
-                       :state {:operation (ui/bind-state :operation)
-                               :terrain-index (ui/bind-state :terrain-index)
-                               :name (ui/bind-state :name)
-                               :title (ui/bind-state :title)}
-                       :body [{:mode 'terrain-name-dialog-body
-                               :state {:name (ui/bind-state :name)}}]})]})
+(defun open-terrain-set-edit-dialog! [state ctx]
+  (let [terrain-set (model/selected-terrain-set
+                     (:terrain-sets state)
+                     (:selected-terrain-set-index state))]
+    (if terrain-set
+      (do
+        (id-name-dialog/open! ctx
+                              {:title "Rename Terrain Set"
+                               :id (model/keyword-label (:id terrain-set))
+                               :name (or (:label terrain-set) "")
+                               :result-event :terrain/set-edit-dialog-result})
+        state)
+      state)))
 
 (defun open-terrain-rule-name-dialog! [state ctx rule-id name]
   (do
@@ -1551,26 +1595,34 @@
                     (= (:terrain-disabled? state) true)
                     :selected-rule? (not (nil? (model/selected-terrain-rule
                                                 state)))))
-   :children [{:mode 'terrain-preview
-               :state {:tile (ui/bind-state :preview-tile)}}
-              (terrain-edit-field-child :terrain-id
-                                        "Id"
-                                        (ui/bind-state :terrain-id)
-                                        (ui/bind-state :terrain-disabled?))
-              (terrain-edit-field-child :terrain-label
-                                        "Name"
-                                        (ui/bind-state :terrain-label)
-                                        (ui/bind-state :terrain-disabled?))
-              {:mode 'ui/text
-               :class :ui/muted
-               :state {:value "Preview tile"}}
-              {:mode 'terrain-preview-tile-selector
+   :children [{:style {:width :fill
+                       :height 48
+                       :layout {:direction :row
+                                :align-items :start
+                                :gap 12}}
+               :state (ui/bind-state)
+               :children [{:mode 'terrain-preview
+                           :state {:tile (ui/bind-state :preview-tile)}}
+                          {:mode 'ui/button
+                           :style {:width 78
+                                   :height 24}
+                           :state {:label "Edit"
+                                   :disabled?
+                                   (ui/bind-state :terrain-disabled?)}
+                           :on-click (fn [state event ctx]
+                                       (do
+                                         (ui/emit! (:view ctx)
+                                                   :terrain/edit)
+                                         state))}]}
+              (terrain-readonly-field-child "Id" (ui/bind-state :terrain-id))
+              {:mode 'terrain-identity-row
                :state {:terrain-sets (ui/bind-state :terrain-sets)
                        :selected-terrain-set-index
                        (ui/bind-state :selected-terrain-set-index)
                        :selected-terrain-index
                        (ui/bind-state :selected-terrain-index)
-                       :tilesets (ui/bind-state :tilesets)}}
+                       :tilesets (ui/bind-state :tilesets)
+                       :terrain-label (ui/bind-state :terrain-label)}}
               {:mode 'ui/text
                :class :ui/title
                :state {:value "Rules"}}
@@ -1932,6 +1984,36 @@
                        (model/add-terrain state))
         :terrain/select (fn [state event ctx]
                           (assoc state :selected-terrain-index (:payload event)))
+        :terrain-set/context-command
+        (fn [state event ctx]
+          (let [payload (:payload event)
+                terrain-set-index (:terrain-set-index payload)
+                command (:command payload)
+                state (assoc state
+                             :selected-terrain-set-index terrain-set-index
+                             :selected-terrain-index nil)]
+            (case command
+              :rename
+              (open-terrain-set-edit-dialog! state ctx)
+
+              :default
+              state)))
+        :terrain/edit
+        (fn [state event ctx]
+          (let [terrain-index (:selected-terrain-index state)]
+            (if (nil? terrain-index)
+              state
+              (open-terrain-name-dialog! state
+                                         ctx
+                                         :rename
+                                         terrain-index
+                                         "Rename Terrain"
+                                         (model/terrain-label-by-index
+                                          state
+                                          terrain-index)
+                                         (terrain-id-by-index
+                                          state
+                                          terrain-index)))))
         :terrain/context-command
         (fn [state event ctx]
           (let [payload (:payload event)
@@ -1950,58 +2032,66 @@
                                          :rename
                                          terrain-index
                                          "Rename Terrain"
-                                         name)
+                                         name
+                                         (terrain-id-by-index
+                                          state
+                                          terrain-index))
 
               :duplicate
-              (open-terrain-name-dialog! state
-                                         ctx
-                                         :duplicate
-                                         terrain-index
-                                         "Duplicate Terrain"
-                                         (model/unique-terrain-name-from
-                                          terrains
-                                          (str name " Copy")
-                                          nil
-                                          nil))
+              (let [duplicate-name (model/unique-terrain-name-from
+                                    terrains
+                                    (str name " Copy")
+                                    nil
+                                    nil)]
+                (open-terrain-name-dialog! state
+                                           ctx
+                                           :duplicate
+                                           terrain-index
+                                           "Duplicate Terrain"
+                                           duplicate-name
+                                           (kebab-case duplicate-name)))
 
               :default
               state)))
         :terrain/name-dialog-result
         (fn [state event ctx]
-          (let [payload (:payload event)]
+          (let [payload (:payload event)
+                context (:context payload)]
             (if (= (:type payload) :confirm)
-              (let [terrain-index (:terrain-index payload)
+              (let [terrain-index (:terrain-index context)
                     state (assoc state :selected-terrain-index terrain-index)]
-                (case (:operation payload)
+                (case (:operation context)
                   :rename
                   (tilemap/rebuild-terrain-stamp-preview
-                   (model/set-selected-terrain-label state (:name payload)))
+                   (model/set-selected-terrain-label
+                    (model/set-selected-terrain-id state (:id payload))
+                    (:name payload)))
 
                   :duplicate
                   (tilemap/rebuild-terrain-stamp-preview
-                   (model/duplicate-selected-terrain state (:name payload)))
+                   (model/duplicate-selected-terrain-with-id
+                    state
+                    (:name payload)
+                    (:id payload)))
 
                   :default
                   state))
+              state)))
+        :terrain/set-edit (fn [state event ctx]
+                            (open-terrain-set-edit-dialog! state ctx))
+        :terrain/set-edit-dialog-result
+        (fn [state event ctx]
+          (let [payload (:payload event)]
+            (if (= (:type payload) :confirm)
+              (tilemap/rebuild-terrain-stamp-preview
+               (model/set-selected-terrain-set-label
+                (model/set-selected-terrain-set-id state (:id payload))
+                (:name payload)))
               state)))
         :terrain/edit-field-change
         (fn [state event ctx]
           (let [payload (:payload event)]
             (case (:field payload)
-              :set-id
-              (tilemap/rebuild-terrain-stamp-preview
-               (model/set-selected-terrain-set-id state (:value payload)))
-
-              :set-label
-              (model/set-selected-terrain-set-label state (:value payload))
-
-              :terrain-id
-              (tilemap/rebuild-terrain-stamp-preview
-               (model/set-selected-terrain-id state (:value payload)))
-
-              :terrain-label
-              (model/set-selected-terrain-label state (:value payload))
-
               :default
               state)))
         :terrain/tileset-change (fn [state event ctx]

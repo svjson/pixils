@@ -11,6 +11,13 @@
     (is (= :ui/toolbar-button (:class add-button)))
     (is (= "+" (-> add-button :state :label)))))
 
+(deftest terrain-set-list-rows-have_context_menu
+  (let [row (layout/terrain-row-child 0 {:value 0 :label "Terrain Set"})
+        menu-item (head (:items layout/terrain-set-context-menu))]
+    (is (= :terrain-set (-> row :state :context-kind)))
+    (is (= "Rename Terrain Set" (:label menu-item)))
+    (is (= :rename (-> menu-item :payload :command)))))
+
 (deftest terrain-list-panel-has_disabled_bound_add_button
   (let [panel (layout/make-terrain-list-panel)
         header (head (:children panel))
@@ -18,6 +25,16 @@
     (is (= "Terrains" (-> panel :state :title)))
     (is (= "+" (-> add-button :state :label)))
     (is (not (nil? (-> add-button :state :disabled?))))))
+
+(deftest terrain-set-detail-editor-shows_identity_as_labels
+  (let [children (layout/terrain-set-detail-editor-children)
+        id-field (nth children 0)
+        name-field (nth children 1)
+        edit-button (nth children 2)]
+    (is (= 'terrain-readonly-field (:mode id-field)))
+    (is (= 'terrain-readonly-field (:mode name-field)))
+    (is (= 'ui/button (:mode edit-button)))
+    (is (= "Edit" (-> edit-button :state :label)))))
 
 (deftest stamp-tile-picker-columns-tolerates_unlaid_out_bounds
   (is (= 1 (layout/terrain-stamp-tile-picker-columns nil)))

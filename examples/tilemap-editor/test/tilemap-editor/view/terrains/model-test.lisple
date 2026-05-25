@@ -126,6 +126,19 @@
     (is (= :grass-copy-2 (:id duplicate)))
     (is (= "Grass Copy 2" (:label duplicate)))))
 
+(deftest terrain-duplicate-can_use_requested_id
+  (let [state (model/duplicate-selected-terrain-with-id
+               {:terrain-sets [{:id :overworld
+                                :terrains [{:id :grass
+                                            :label "Grass"}]}]
+                :selected-terrain-set-index 0
+                :selected-terrain-index 0}
+               "Meadow"
+               "custom-meadow")
+        duplicate (nth (get-in state [:terrain-sets 0 :terrains]) 1)]
+    (is (= :custom-meadow (:id duplicate)))
+    (is (= "Meadow" (:label duplicate)))))
+
 (deftest terrain-detail-label_changes_update_selected_records
   (let [state {:terrain-sets [{:id :overworld
                                :label "Overworld"
@@ -201,6 +214,22 @@
                 :rulesets [{:id :grass-marching
                             :source-layer :scene/terrain
                             :terrain :grass}
+                           {:id :source-less-rules
+                            :terrain-set :overworld
+                            :source-layer nil
+                            :rules [{:id :edge
+                                     :terrain :grass
+                                     :match {:n {:terrain :grass}}
+                                     :output {:layers [{:tileset :terrain
+                                                        :tiles [[nil nil nil]
+                                                                [nil :grass nil]
+                                                                [nil nil nil]]
+                                                        :terrain-signatures
+                                                        [[nil nil nil]
+                                                         [nil {:center :grass
+                                                               :n :grass
+                                                               :s :water} nil]
+                                                         [nil nil nil]]}]}}]}
                            {:id :other-marching
                             :source-layer :scene/other
                             :terrain :grass}]}
@@ -215,7 +244,26 @@
     (is (= [[:grass]]
            (get-in state [:brushes 0 :pattern :layers 1 :tiles])))
     (is (= :meadow (get-in state [:rulesets 0 :terrain])))
-    (is (= :grass (get-in state [:rulesets 1 :terrain])))))
+    (is (= :meadow (get-in state [:rulesets 1 :rules 0 :terrain])))
+    (is (= :meadow (get-in state
+                           [:rulesets 1 :rules 0 :match :n :terrain])))
+    (is (= :grass (get-in state
+                          [:rulesets 1 :rules 0 :output :layers 0 :tiles 1 1])))
+    (is (= {:center :meadow
+            :n :meadow
+            :s :water}
+           (get-in state
+                   [:rulesets
+                    1
+                    :rules
+                    0
+                    :output
+                    :layers
+                    0
+                    :terrain-signatures
+                    1
+                    1])))
+    (is (= :grass (get-in state [:rulesets 2 :terrain])))))
 
 (deftest terrain-id-change-deduplicates_ids
   (let [state (model/set-selected-terrain-id

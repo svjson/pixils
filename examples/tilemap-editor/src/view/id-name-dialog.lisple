@@ -1,0 +1,96 @@
+(ns tilemap-editor.view.id-name-dialog
+  (:require pixils
+            [pixils.ui :as ui]
+            pixils.ui.text-input
+            [pixils.ui.window :as w]))
+
+(defun id-name-dialog-body-children []
+  [{:mode 'ui/text
+    :state {:value "Id:"}}
+   {:mode 'ui/text-input
+    :style {:width :fill
+            :height 24}
+    :state {:value (ui/bind-state :id)
+            :auto-focus? true}}
+   {:mode 'ui/text
+    :state {:value "Name:"}}
+   {:mode 'ui/text-input
+    :style {:width :fill
+            :height 24}
+    :state {:value (ui/bind-state :name)}}
+   {:mode 'id-name-dialog-buttons
+    :state {:id (ui/bind-state :id)
+            :name (ui/bind-state :name)}}])
+
+(defcomponent id-name-dialog-body
+  {:class :ui/content
+   :style {:width 300
+           :height :shrink
+           :padding 10
+           :layout {:direction :column
+                    :gap 8}}
+   :children (id-name-dialog-body-children)})
+
+(defcomponent id-name-dialog-buttons
+  {:style {:width :fill
+           :height 24
+           :layout {:direction :row
+                    :gap :space-between}}
+   :children [{:mode 'ui/button
+               :style {:width 78
+                       :height 24}
+               :state {:label "Cancel"}
+               :on-click (fn [state event ctx]
+                           (do
+                             (ui/emit! (:view ctx) :id-name-dialog/cancel)
+                             state))}
+              {:mode 'ui/button
+               :style {:width 78
+                       :height 24}
+               :state {:label "OK"
+                       :id (ui/bind-state :id)
+                       :name (ui/bind-state :name)}
+               :on-click (fn [state event ctx]
+                           (do
+                             (ui/emit! (:view ctx)
+                                       :id-name-dialog/confirm
+                                       {:id (:id state)
+                                        :name (:name state)})
+                             state))}]})
+
+(defmode id-name-dialog-modal
+  {:on {:id-name-dialog/cancel
+        (fn [state event ctx]
+          (do
+            (ui/stop-propagation! event)
+            (pop-mode! {:type :cancel
+                        :context (:context state)})
+            state))
+        :id-name-dialog/confirm
+        (fn [state event ctx]
+          (do
+            (ui/stop-propagation! event)
+            (pop-mode! {:type :confirm
+                        :id (-> event :payload :id)
+                        :name (-> event :payload :name)
+                        :context (:context state)})
+            state))}
+   :compose {:render :pass}
+   :children [(w/make {:position {:x 240 :y 150}
+                       :title-bar {:title (ui/bind-state :title)}
+                       :state {:title (ui/bind-state :title)
+                               :id (ui/bind-state :id)
+                               :name (ui/bind-state :name)
+                               :context (ui/bind-state :context)}
+                       :body [{:mode 'id-name-dialog-body
+                               :state {:id (ui/bind-state :id)
+                                       :name (ui/bind-state :name)}}]})]})
+
+(defun open! [ctx opts]
+  (push-mode! 'id-name-dialog-modal
+              {:title (:title opts)
+               :id (or (:id opts) "")
+               :name (or (:name opts) "")
+               :context (:context opts)}
+              {:origin {:view (:view ctx)
+                        :event (:result-event opts)}}))

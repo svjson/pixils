@@ -184,17 +184,23 @@
                             nil
                             nil))
 
-(defun duplicate-terrain [terrains terrain name]
+(defun duplicate-terrain-with-id [terrains terrain name id]
   (let [requested-name (if (blank? name)
                          (duplicate-terrain-name terrains terrain)
                          name)
         label (unique-terrain-name-from terrains
                                         requested-name
                                         nil
-                                        nil)]
+                                        nil)
+        requested-id (if (blank? id)
+                       (kebab-case label)
+                       id)]
     (assoc (assoc terrain
-                  :id (unique-id-from terrains (kebab-case label) nil))
+                  :id (id-from-input terrains requested-id nil))
            :label label)))
+
+(defun duplicate-terrain [terrains terrain name]
+  (duplicate-terrain-with-id terrains terrain name nil))
 
 (defun insert-terrain-after [terrains terrain-index duplicate]
   (apply concat
@@ -204,6 +210,9 @@
              [terrain]))))
 
 (defun duplicate-selected-terrain [state name]
+  (duplicate-selected-terrain-with-id state name nil))
+
+(defun duplicate-selected-terrain-with-id [state name id]
   (if-let [set-index (selected-terrain-set-index (:terrain-sets state)
                                                  (:selected-terrain-set-index state))]
     (let [terrain-set (nth (:terrain-sets state) set-index)
@@ -213,7 +222,7 @@
           terrain (when (not (nil? terrain-index))
                     (nth terrains terrain-index))
           duplicate (when terrain
-                      (duplicate-terrain terrains terrain name))]
+                      (duplicate-terrain-with-id terrains terrain name id))]
       (if duplicate
         (assoc state
                :terrain-sets (update-terrain-set-at
@@ -388,24 +397,37 @@
                           (contains? source-layer-ids source-layer))))
          0)))
 
-(defun replace-terrain-rule-reference [value old-id new-id]
+(defun replace-terrain-rule-reference* [value old-id new-id signature?]
   (case (type-of value)
     "vector" (map value
                   (fn [item]
-                    (replace-terrain-rule-reference item old-id new-id)))
+                    (replace-terrain-rule-reference*
+                     item
+                     old-id
+                     new-id
+                     signature?)))
     "map" (reduce-kv value
                      {}
                      (fn [result key item]
-                       (assoc result
-                              key
-                              (replace-terrain-rule-reference
-                               (if (and (= key :terrain)
-                                        (= item old-id))
+                       (let [next-signature? (or signature?
+                                                 (= key :terrain-signature)
+                                                 (= key :terrain-signatures))
+                             item (if (or signature? (= key :terrain))
+                                    (replace-terrain-ref item old-id new-id)
+                                    item)]
+                         (assoc result
+                                key
+                                (replace-terrain-rule-reference*
+                                 item
+                                 old-id
                                  new-id
-                                 item)
-                               old-id
-                               new-id))))
-    :default value))
+                                 next-signature?)))))
+    :default (if signature?
+               (replace-terrain-ref value old-id new-id)
+               value)))
+
+(defun replace-terrain-rule-reference [value old-id new-id]
+  (replace-terrain-rule-reference* value old-id new-id false))
 
 (defun duplicate-terrain-rule [rules rule old-id new-id]
   (let [duplicate (replace-terrain-rule-reference rule old-id new-id)]
@@ -440,10 +462,11 @@
                           new-id))
            ruleset))))
 
-(defun replace-terrain-refs-in-rulesets [rulesets source-layer-ids old-id new-id]
+(defun replace-terrain-refs-in-rulesets [rulesets terrain-set source-layer-ids old-id new-id]
   (map (or rulesets [])
        (fn [ruleset]
-         (if (ruleset-source-layer-matches? ruleset source-layer-ids)
+         (if (or (= (:terrain-set ruleset) terrain-set)
+                 (ruleset-source-layer-matches? ruleset source-layer-ids))
            (replace-terrain-rule-reference ruleset old-id new-id)
            ruleset))))
 
@@ -459,6 +482,7 @@
                                                          old-id
                                                          new-id)
            :rulesets (replace-terrain-refs-in-rulesets (:rulesets state)
+                                                       terrain-set
                                                        source-layer-ids
                                                        old-id
                                                        new-id))))

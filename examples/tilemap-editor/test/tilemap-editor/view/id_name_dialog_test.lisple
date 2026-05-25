@@ -1,0 +1,15 @@
+(ns tilemap-editor.view.id-name-dialog-test
+  (:require proof.core
+            [tilemap-editor.view.id-name-dialog :as id-name-dialog]))
+
+(deftest id-name-dialog-shows_id_before_name
+  (let [children (id-name-dialog/id-name-dialog-body-children)
+        id-label (nth children 0)
+        id-input (nth children 1)
+        name-label (nth children 2)
+        name-input (nth children 3)]
+    (is (= "Id:" (-> id-label :state :value)))
+    (is (= 'ui/text-input (:mode id-input)))
+    (is (= true (-> id-input :state :auto-focus?)))
+    (is (= "Name:" (-> name-label :state :value)))
+    (is (= 'ui/text-input (:mode name-input)))))
