@@ -383,6 +383,148 @@
     (is (= :scene/visuals
            (get-in state [:rulesets 0 :rules 0 :output :layers 0 :target-layer])))))
 
+(deftest terrain-rule-creation-uses_terrain_set_tileset_not_unrelated_output_layer
+  (let [state (model/add-terrain-rule
+               {:terrain-sets [{:id :roads
+                                :tileset :roads
+                                :terrains [{:id :road
+                                            :tile :road-fill}]}]
+                :selected-terrain-set-index 0
+                :selected-terrain-index 0
+                :tilesets [{:id :water
+                            :tiles [{:id :water-fill}]}
+                           {:id :roads
+                            :tiles [{:id :road-fill}]}]
+                :rulesets [{:id :roads-rules
+                            :kind :terrain-stamp
+                            :terrain-set :roads
+                            :rules []}]
+                :selected-terrain-ruleset-id :roads-rules
+                :layer-profiles [{:id :default
+                                  :layers [{:id :scene/roads-source
+                                            :data-kind :terrain
+                                            :terrain-set :roads}
+                                           {:id :scene/water
+                                            :data-kind :tile-ref
+                                            :tileset :water}]}]
+                :selected-layer-profile-id :default})]
+    (is (= :roads
+           (get-in state [:rulesets 0 :rules 0 :output :layers 0 :tileset])))
+    (is (nil? (get-in state
+                      [:rulesets 0 :rules 0 :output :layers 0 :target-layer])))
+    (is (= :road-fill
+           (get-in state [:rulesets 0 :rules 0 :output :layers 0 :tiles 1 1])))))
+
+(deftest terrain-rule-creation-targets_matching_tileset_output_layer
+  (let [state (model/add-terrain-rule
+               {:terrain-sets [{:id :roads
+                                :tileset :roads
+                                :terrains [{:id :road
+                                            :tile :road-fill}]}]
+                :selected-terrain-set-index 0
+                :selected-terrain-index 0
+                :tilesets [{:id :water
+                            :tiles [{:id :water-fill}]}
+                           {:id :roads
+                            :tiles [{:id :road-fill}]}]
+                :rulesets [{:id :roads-rules
+                            :kind :terrain-stamp
+                            :terrain-set :roads
+                            :rules []}]
+                :selected-terrain-ruleset-id :roads-rules
+                :layer-profiles [{:id :default
+                                  :layers [{:id :scene/roads-source
+                                            :data-kind :terrain
+                                            :terrain-set :roads}
+                                           {:id :scene/water
+                                            :data-kind :tile-ref
+                                            :tileset :water}
+                                           {:id :scene/roads-visuals
+                                            :data-kind :tile-ref
+                                            :tileset :roads}]}]
+                :selected-layer-profile-id :default})]
+    (is (= :roads
+           (get-in state [:rulesets 0 :rules 0 :output :layers 0 :tileset])))
+    (is (= :scene/roads-visuals
+           (get-in state
+                   [:rulesets 0 :rules 0 :output :layers 0 :target-layer])))))
+
+(deftest terrain-rule-output-tileset-change-retargets_matching_layer
+  (let [state (model/set-selected-rule-output-tileset
+               {:terrain-sets [{:id :roads
+                                :tileset :roads
+                                :terrains [{:id :road
+                                            :tile :road-fill}]}]
+                :selected-terrain-set-index 0
+                :selected-terrain-index 0
+                :rulesets [{:id :roads-rules
+                            :terrain-set :roads
+                            :rules [{:id :rule
+                                     :terrain :road
+                                     :output {:layers [{:tileset :water
+                                                        :target-layer
+                                                        :scene/water
+                                                        :tiles [[nil nil nil]
+                                                                [nil :water-fill nil]
+                                                                [nil nil nil]]}]}}]}]
+                :selected-terrain-ruleset-id :roads-rules
+                :selected-terrain-rule-id :rule
+                :layer-profiles [{:id :default
+                                  :layers [{:id :scene/roads-source
+                                            :data-kind :terrain
+                                            :terrain-set :roads}
+                                           {:id :scene/water
+                                            :data-kind :tile-ref
+                                            :tileset :water}
+                                           {:id :scene/roads-visuals
+                                            :data-kind :tile-ref
+                                            :tileset :roads}]}]
+                :selected-layer-profile-id :default}
+               :roads)]
+    (is (= :roads
+           (get-in state [:rulesets 0 :rules 0 :output :layers 0 :tileset])))
+    (is (= :scene/roads-visuals
+           (get-in state
+                   [:rulesets 0 :rules 0 :output :layers 0 :target-layer])))))
+
+(deftest terrain-rule-output-target-layer-change-updates_tileset
+  (let [state (model/set-selected-rule-output-target-layer
+               {:terrain-sets [{:id :roads
+                                :tileset :roads
+                                :terrains [{:id :road
+                                            :tile :road-fill}]}]
+                :selected-terrain-set-index 0
+                :selected-terrain-index 0
+                :rulesets [{:id :roads-rules
+                            :terrain-set :roads
+                            :rules [{:id :rule
+                                     :terrain :road
+                                     :output {:layers [{:tileset :water
+                                                        :target-layer
+                                                        :scene/water
+                                                        :tiles [[nil nil nil]
+                                                                [nil :water-fill nil]
+                                                                [nil nil nil]]}]}}]}]
+                :selected-terrain-ruleset-id :roads-rules
+                :selected-terrain-rule-id :rule
+                :layer-profiles [{:id :default
+                                  :layers [{:id :scene/roads-source
+                                            :data-kind :terrain
+                                            :terrain-set :roads}
+                                           {:id :scene/water
+                                            :data-kind :tile-ref
+                                            :tileset :water}
+                                           {:id :scene/roads-visuals
+                                            :data-kind :tile-ref
+                                            :tileset :roads}]}]
+                :selected-layer-profile-id :default}
+               :scene/roads-visuals)]
+    (is (= :roads
+           (get-in state [:rulesets 0 :rules 0 :output :layers 0 :tileset])))
+    (is (= :scene/roads-visuals
+           (get-in state
+                   [:rulesets 0 :rules 0 :output :layers 0 :target-layer])))))
+
 (deftest terrain-rule-creation-ignores_tile_layers_below_terrain_source
   (let [state (model/add-terrain-rule
                {:terrain-sets [{:id :overworld

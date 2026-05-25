@@ -689,6 +689,11 @@
       (:layers profile)
       (:layers state))))
 
+(defun profile-layer-by-id [state layer-id]
+  (head (filter (profile-layers state)
+                (fn [layer]
+                  (= (:id layer) layer-id)))))
+
 (defun terrain-source-layer? [layer terrain-set-id]
   (and (= (:data-kind layer) :terrain)
        (= (:terrain-set layer) terrain-set-id)))
@@ -731,14 +736,26 @@
 (defun first-output-layer [state terrain-set-id]
   (head (tile-output-layers state terrain-set-id)))
 
+(defun first-output-layer-for-tileset [state terrain-set-id tileset]
+  (head (filter (tile-output-layers state terrain-set-id)
+                (fn [layer]
+                  (= (:tileset layer) tileset)))))
+
+(defun default-output-layer-for-terrain-set [state terrain-set]
+  (let [tileset (:tileset terrain-set)]
+    (or (when tileset
+          (first-output-layer-for-tileset state (:id terrain-set) tileset))
+        (when (nil? tileset)
+          (first-output-layer state (:id terrain-set))))))
+
 (defun center-stamp-tiles [tile]
   [[nil nil nil]
    [nil tile nil]
    [nil nil nil]])
 
 (defun default-output-stamp-layer [state terrain-set terrain]
-  (let [output-layer (first-output-layer state (:id terrain-set))
-        tileset (or (:tileset output-layer) (:tileset terrain-set))
+  (let [output-layer (default-output-layer-for-terrain-set state terrain-set)
+        tileset (or (:tileset terrain-set) (:tileset output-layer))
         tile (or (:tile terrain)
                  (first-tile-for (:tilesets state) tileset))]
     {:id :layer
@@ -842,6 +859,36 @@
 
 (defun selected-rule-stamp-tileset [state]
   (:tileset (selected-rule-stamp-layer state)))
+
+(defun selected-rule-output-tileset-index [state]
+  (data/tileset-index (:tilesets state)
+                      (selected-rule-stamp-tileset state)))
+
+(def target-layer-none-value :none)
+
+(defun selected-rule-output-target-layer [state]
+  (:target-layer (selected-rule-stamp-layer state)))
+
+(defun terrain-rule-output-target-layer-option [layer]
+  {:value (:id layer)
+   :label (str (or (:label layer) (keyword-label (:id layer)))
+               " ("
+               (keyword-label (:tileset layer))
+               ")")})
+
+(defun terrain-rule-output-target-layer-options [state]
+  (concat [{:value target-layer-none-value
+            :label "No target layer"}]
+          (map (tile-output-layers state (selected-terrain-set-id state))
+               terrain-rule-output-target-layer-option)))
+
+(defun selected-rule-output-target-layer-index [state]
+  (let [value (or (selected-rule-output-target-layer state)
+                  target-layer-none-value)
+        index (find-index (terrain-rule-output-target-layer-options state)
+                          (fn [option]
+                            (= (:value option) value)))]
+    (or index 0)))
 
 (defun first-rule-stamp-tile [state]
   (data/tile-id (:tilesets state)
@@ -1221,6 +1268,96 @@
                                                          [:match direction]
                                                          condition)))))))
       state)))
+
+(defun rule-with-output-layers [rule layers]
+  (assoc rule
+         :output
+         (assoc (or (:output rule) {}) :layers layers)))
+
+(defun replace-first-output-layer [rule output-layer]
+  (let [layers (or (-> rule :output :layers) [])]
+    (rule-with-output-layers
+     rule
+     (if (> (count layers) 0)
+       (concat [output-layer] (tail layers))
+       [output-layer]))))
+
+(defun update-selected-rule-output-layer [state update-fn]
+  (let [ruleset-id (selected-terrain-ruleset-id state)
+        rule-id (or (:selected-terrain-rule-id state)
+                    (selected-terrain-rule-id state))
+        terrain-set (selected-terrain-set (:terrain-sets state)
+                                          (:selected-terrain-set-index state))
+        terrain (selected-terrain terrain-set
+                                  (:selected-terrain-index state))]
+    (if (and ruleset-id rule-id)
+      (assoc state
+             :rulesets (update-ruleset
+                        (:rulesets state)
+                        ruleset-id
+                        (fn [ruleset]
+                          (assoc ruleset
+                                 :rules
+                                 (update-rule
+                                  (:rules ruleset)
+                                  rule-id
+                                  (fn [rule]
+                                    (let [fallback-layer
+                                          (default-output-stamp-layer state
+                                                                      terrain-set
+                                                                      terrain)
+                                          output-layer
+                                          (or (head (or (-> rule
+                                                            :output
+                                                            :layers)
+                                                        []))
+                                              fallback-layer)]
+                                      (replace-first-output-layer
+                                       rule
+                                       (update-fn output-layer)))))))))
+      state)))
+
+(defun output-layer-with-tileset [state terrain-set output-layer tileset]
+  (let [target-layer (profile-layer-by-id state (:target-layer output-layer))
+        matching-target (first-output-layer-for-tileset state
+                                                       (:id terrain-set)
+                                                       tileset)
+        target-layer-id (if (= (:tileset target-layer) tileset)
+                          (:id target-layer)
+                          (:id matching-target))]
+    (if target-layer-id
+      (assoc (assoc output-layer :tileset tileset) :target-layer target-layer-id)
+      (dissoc (assoc output-layer :tileset tileset) :target-layer))))
+
+(defun set-selected-rule-output-tileset [state tileset]
+  (let [terrain-set (selected-terrain-set (:terrain-sets state)
+                                          (:selected-terrain-set-index state))]
+    (if tileset
+      (assoc (update-selected-rule-output-layer
+              state
+              (fn [output-layer]
+                (output-layer-with-tileset state
+                                           terrain-set
+                                           output-layer
+                                           tileset)))
+             :terrain-rule-selected-tile nil)
+      state)))
+
+(defun set-selected-rule-output-target-layer [state target-layer-id]
+  (let [target-layer-id (if (= target-layer-id target-layer-none-value)
+                          nil
+                          target-layer-id)]
+    (assoc (update-selected-rule-output-layer
+            state
+            (fn [output-layer]
+              (if target-layer-id
+                (let [target-layer (profile-layer-by-id state target-layer-id)]
+                  (assoc (assoc output-layer :target-layer target-layer-id)
+                         :tileset
+                         (or (:tileset target-layer)
+                             (:tileset output-layer))))
+                (dissoc output-layer :target-layer))))
+           :terrain-rule-selected-tile nil)))
 
 (defun set-selected-rule-stamp-tile [state x y tile-ref]
   (let [ruleset-id (selected-terrain-ruleset-id state)

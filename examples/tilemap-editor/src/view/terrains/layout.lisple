@@ -1334,6 +1334,109 @@
                :state {:value "No terrain rule selected"}}
               (terrain-rule-add-button-child "Add rule" nil)]})
 
+(defun terrain-rule-output-tileset-options [tilesets]
+  (map (or tilesets [])
+       (fn [tileset]
+         {:value (:id tileset)
+          :label (or (:label tileset) (model/keyword-label (:id tileset)))})))
+
+(defcomponent terrain-rule-output-tileset-selector
+  {:style {:width 176
+           :height 22}
+   :update (fn [state ctx]
+             (assoc state
+                    :tileset-options
+                    (terrain-rule-output-tileset-options (:tilesets state))
+                    :selected-output-tileset-index
+                    (model/selected-rule-output-tileset-index state)
+                    :disabled? (nil? (model/selected-terrain-rule state))))
+   :on {:combo-box/change
+        (fn [state event ctx]
+          (do
+            (ui/stop-propagation! event)
+            (ui/emit! (:view ctx)
+                      :terrain/rule-output-tileset-change
+                      (-> event :payload :value))
+            state))}
+   :children [(cb/make {:options (ui/bind-state :tileset-options)
+                        :selected-index
+                        (ui/bind-state :selected-output-tileset-index)
+                        :disabled? (ui/bind-state :disabled?)})]})
+
+(defcomponent terrain-rule-output-target-layer-selector
+  {:style {:width 176
+           :height 22}
+   :update (fn [state ctx]
+             (assoc state
+                    :target-layer-options
+                    (model/terrain-rule-output-target-layer-options state)
+                    :selected-target-layer-index
+                    (model/selected-rule-output-target-layer-index state)
+                    :disabled? (nil? (model/selected-terrain-rule state))))
+   :on {:combo-box/change
+        (fn [state event ctx]
+          (do
+            (ui/stop-propagation! event)
+            (ui/emit! (:view ctx)
+                      :terrain/rule-output-target-layer-change
+                      (-> event :payload :value))
+            state))}
+   :children [(cb/make {:options (ui/bind-state :target-layer-options)
+                        :selected-index
+                        (ui/bind-state :selected-target-layer-index)
+                        :disabled? (ui/bind-state :disabled?)})]})
+
+(defun terrain-rule-output-field-child [label child]
+  {:style {:width :fill
+           :height 24
+           :layout {:direction :row
+                    :align-items :center
+                    :gap 8}}
+   :state (ui/bind-state)
+   :children [{:mode 'ui/text
+               :class :ui/muted
+               :style {:width 96}
+               :state {:value label}}
+              child]})
+
+(defcomponent terrain-rule-output-settings
+  {:style {:width 284
+           :height :shrink
+           :layout {:direction :column
+                    :gap 4}}
+   :children [(terrain-rule-output-field-child
+               "Stamp Tileset"
+               {:mode 'terrain-rule-output-tileset-selector
+                :state {:rulesets (ui/bind-state :rulesets)
+                        :selected-terrain-ruleset-id
+                        (ui/bind-state :selected-terrain-ruleset-id)
+                        :selected-terrain-rule-id
+                        (ui/bind-state :selected-terrain-rule-id)
+                        :tilesets (ui/bind-state :tilesets)
+                        :terrain-sets (ui/bind-state :terrain-sets)
+                        :selected-terrain-set-index
+                        (ui/bind-state :selected-terrain-set-index)
+                        :selected-terrain-index
+                        (ui/bind-state :selected-terrain-index)}})
+              (terrain-rule-output-field-child
+               "Target Layer"
+               {:mode 'terrain-rule-output-target-layer-selector
+                :state {:rulesets (ui/bind-state :rulesets)
+                        :selected-terrain-ruleset-id
+                        (ui/bind-state :selected-terrain-ruleset-id)
+                        :selected-terrain-rule-id
+                        (ui/bind-state :selected-terrain-rule-id)
+                        :tilesets (ui/bind-state :tilesets)
+                        :terrain-sets (ui/bind-state :terrain-sets)
+                        :selected-terrain-set-index
+                        (ui/bind-state :selected-terrain-set-index)
+                        :selected-terrain-index
+                        (ui/bind-state :selected-terrain-index)
+                        :layer-profiles (ui/bind-state :layer-profiles)
+                        :selected-layer-profile-id
+                        (ui/bind-state :selected-layer-profile-id)
+                        :layers (ui/bind-state :layers)}})]})
+
 (defun terrain-rule-active-editor-child []
   {:style {:width :fill
            :height :shrink
@@ -1436,6 +1539,26 @@
                                                            :tilesets
                                                            (ui/bind-state
                                                             :tilesets)}}]}]}
+                          {:mode 'terrain-rule-output-settings
+                           :state {:rulesets (ui/bind-state :rulesets)
+                                   :selected-terrain-ruleset-id
+                                   (ui/bind-state
+                                    :selected-terrain-ruleset-id)
+                                   :selected-terrain-rule-id
+                                   (ui/bind-state :selected-terrain-rule-id)
+                                   :tilesets (ui/bind-state :tilesets)
+                                   :terrain-sets (ui/bind-state :terrain-sets)
+                                   :selected-terrain-set-index
+                                   (ui/bind-state
+                                    :selected-terrain-set-index)
+                                   :selected-terrain-index
+                                   (ui/bind-state :selected-terrain-index)
+                                   :layer-profiles
+                                   (ui/bind-state :layer-profiles)
+                                   :selected-layer-profile-id
+                                   (ui/bind-state
+                                    :selected-layer-profile-id)
+                                   :layers (ui/bind-state :layers)}}
                           (terrain-rule-application-options-child)]}
               {:mode 'terrain-stamp-tile-picker-scroll-pane
                :state {:rulesets (ui/bind-state :rulesets)
@@ -2476,6 +2599,19 @@
                 state
                 (:direction payload)
                 (:step payload))))))
+        :terrain/rule-output-tileset-change
+        (fn [state event ctx]
+          (update-selected-ruleset-preview
+           state
+           (fn [state]
+             (model/set-selected-rule-output-tileset state (:payload event)))))
+        :terrain/rule-output-target-layer-change
+        (fn [state event ctx]
+          (update-selected-ruleset-preview
+           state
+           (fn [state]
+             (model/set-selected-rule-output-target-layer state
+                                                          (:payload event)))))
         :checkbox/change
         (fn [state event ctx]
           (let [payload (:payload event)]

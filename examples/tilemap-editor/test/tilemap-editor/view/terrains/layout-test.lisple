@@ -70,6 +70,13 @@
   (is (= 116 layout/terrain-stamp-tile-picker-width))
   (is (= 232 layout/terrain-stamp-tile-picker-height)))
 
+(deftest terrain-rule-output-tileset-options-use_tileset_ids
+  (is (= [{:value :water :label "Water"}
+          {:value :roads :label "Roads"}]
+         (layout/terrain-rule-output-tileset-options
+          [{:id :water :label "Water"}
+           {:id :roads :label "Roads"}]))))
+
 (deftest terrain-workspace-uses_split_pane_with_narrow_left_side
   (let [split-pane (head (layout/terrain-definition-workspace-children))]
     (is (= 'ui/split-pane (:mode split-pane)))
