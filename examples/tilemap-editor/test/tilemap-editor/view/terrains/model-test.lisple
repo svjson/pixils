@@ -41,6 +41,16 @@
                             :label "Overworld"}]})]
     (is (= :overworld (get-in state [:terrain-sets 0 :tileset])))))
 
+(deftest terrain-set-creation-can_use_confirmed_identity
+  (let [state (model/add-terrain-set-with-id
+               {:terrain-sets [{:id :overworld
+                                :label "Overworld"}]}
+               "overworld"
+               "World Terrain")]
+    (is (= :overworld-2 (get-in state [:terrain-sets 1 :id])))
+    (is (= "World Terrain" (get-in state [:terrain-sets 1 :label])))
+    (is (= 1 (:selected-terrain-set-index state)))))
+
 (deftest terrain-creation-adds_to_selected_set
   (let [state (model/add-terrain
                {:terrain-sets [{:id :overworld
@@ -68,6 +78,18 @@
                                      :name "Grass"}]}]
                 :selected-terrain-set-index 0})]
     (is (= :grass (get-in state [:terrain-sets 0 :terrains 0 :tile])))))
+
+(deftest terrain-creation-can_use_confirmed_identity
+  (let [state (model/add-terrain-with-id
+               {:terrain-sets [{:id :overworld
+                                :terrains [{:id :terrain
+                                            :label "Terrain"}]}]
+                :selected-terrain-set-index 0}
+               "terrain"
+               "Grassland")]
+    (is (= :terrain-2 (get-in state [:terrain-sets 0 :terrains 1 :id])))
+    (is (= "Grassland" (get-in state [:terrain-sets 0 :terrains 1 :label])))
+    (is (= 1 (:selected-terrain-index state)))))
 
 (deftest terrain-duplicate-inserts_copy_after_selected_terrain
   (let [state (model/duplicate-selected-terrain
@@ -360,6 +382,32 @@
                 :selected-layer-profile-id :default})]
     (is (= :scene/visuals
            (get-in state [:rulesets 0 :rules 0 :output :layers 0 :target-layer])))))
+
+(deftest terrain-rule-creation-ignores_tile_layers_below_terrain_source
+  (let [state (model/add-terrain-rule
+               {:terrain-sets [{:id :overworld
+                                :tileset :terrain
+                                :terrains [{:id :grass
+                                            :tile :grass-fill}]}]
+                :selected-terrain-set-index 0
+                :selected-terrain-index 0
+                :rulesets [{:id :overworld-rules
+                            :kind :terrain-stamp
+                            :terrain-set :overworld
+                            :rules []}]
+                :selected-terrain-ruleset-id :overworld-rules
+                :layer-profiles [{:id :default
+                                  :layers [{:id :scene/water
+                                            :role :source
+                                            :data-kind :tile-ref
+                                            :tileset :terrain}
+                                           {:id :scene/terrain
+                                            :role :source
+                                            :data-kind :terrain
+                                            :terrain-set :overworld}]}]
+                :selected-layer-profile-id :default})]
+    (is (nil? (get-in state
+                      [:rulesets 0 :rules 0 :output :layers 0 :target-layer])))))
 
 (deftest terrain-rule-creation-creates_ruleset_when_needed
   (let [state (model/add-terrain-rule

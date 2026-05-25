@@ -42,9 +42,9 @@
          (layout/terrain-stamp-tile-picker-cell-rect 0 nil))))
 
 (deftest stamp-tile-picker-content-height-grows_for_hidden_rows
-  (is (= 32 (layout/terrain-stamp-tile-picker-content-height 7 7)))
-  (is (= 66 (layout/terrain-stamp-tile-picker-content-height 8 7)))
-  (is (> (layout/terrain-stamp-tile-picker-content-height 22 7)
+  (is (= 100 (layout/terrain-stamp-tile-picker-content-height 7 3)))
+  (is (= 100 (layout/terrain-stamp-tile-picker-content-height 8 3)))
+  (is (> (layout/terrain-stamp-tile-picker-content-height 22 3)
          layout/terrain-stamp-tile-picker-height)))
 
 (deftest terrain-rule-context-menu-includes_duplicate_command
@@ -52,3 +52,13 @@
         duplicate (nth items 1)]
     (is (= "Duplicate" (:label duplicate)))
     (is (= :duplicate (-> duplicate :payload :command)))))
+
+(deftest terrain-rule-tile-picker-is_column_shaped
+  (is (= 116 layout/terrain-stamp-tile-picker-width))
+  (is (= 232 layout/terrain-stamp-tile-picker-height)))
+
+(deftest terrain-workspace-uses_split_pane_with_narrow_left_side
+  (let [split-pane (head (layout/terrain-definition-workspace-children))]
+    (is (= 'ui/split-pane (:mode split-pane)))
+    (is (= :x (-> split-pane :state :axis)))
+    (is (= 0.26 (-> split-pane :state :split)))))

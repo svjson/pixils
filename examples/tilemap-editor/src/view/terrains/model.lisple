@@ -139,9 +139,33 @@
              {:tile tile}
              {}))))
 
+(defun terrain-set-from-input [terrain-sets tilesets id label]
+  (let [terrain-set (make-terrain-set terrain-sets tilesets)
+        requested-id (if (blank? id)
+                       (keyword-label (:id terrain-set))
+                       id)
+        requested-label (if (blank? label)
+                          (:label terrain-set)
+                          label)]
+    (assoc terrain-set
+           :id (id-from-input terrain-sets requested-id nil)
+           :label requested-label)))
+
 (defun add-terrain-set [state]
   (let [terrain-sets (or (:terrain-sets state) [])
         terrain-set (make-terrain-set terrain-sets (:tilesets state))
+        index (count terrain-sets)]
+    (assoc state
+           :terrain-sets (concat terrain-sets [terrain-set])
+           :selected-terrain-set-index index
+           :selected-terrain-index nil)))
+
+(defun add-terrain-set-with-id [state id label]
+  (let [terrain-sets (or (:terrain-sets state) [])
+        terrain-set (terrain-set-from-input terrain-sets
+                                            (:tilesets state)
+                                            id
+                                            label)
         index (count terrain-sets)]
     (assoc state
            :terrain-sets (concat terrain-sets [terrain-set])
@@ -154,12 +178,42 @@
       (update-fn terrain-set)
       terrain-set)))
 
+(defun terrain-from-input [terrain-set tilesets id label]
+  (let [terrain (make-terrain terrain-set tilesets)
+        requested-id (if (blank? id)
+                       (keyword-label (:id terrain))
+                       id)
+        requested-label (if (blank? label)
+                          (:label terrain)
+                          label)]
+    (assoc terrain
+           :id (id-from-input (:terrains terrain-set) requested-id nil)
+           :label requested-label)))
+
 (defun add-terrain [state]
   (if-let [set-index (selected-terrain-set-index (:terrain-sets state)
                                                  (:selected-terrain-set-index state))]
     (let [terrain-set (nth (:terrain-sets state) set-index)
           terrains (or (:terrains terrain-set) [])
           terrain (make-terrain terrain-set (:tilesets state))
+          terrain-index (count terrains)]
+      (assoc state
+             :terrain-sets (update-terrain-set-at
+                            (:terrain-sets state)
+                            set-index
+                            (fn [terrain-set]
+                              (assoc terrain-set
+                                     :terrains (concat terrains [terrain]))))
+             :selected-terrain-set-index set-index
+             :selected-terrain-index terrain-index))
+    state))
+
+(defun add-terrain-with-id [state id label]
+  (if-let [set-index (selected-terrain-set-index (:terrain-sets state)
+                                                 (:selected-terrain-set-index state))]
+    (let [terrain-set (nth (:terrain-sets state) set-index)
+          terrains (or (:terrains terrain-set) [])
+          terrain (terrain-from-input terrain-set (:tilesets state) id label)
           terrain-index (count terrains)]
       (assoc state
              :terrain-sets (update-terrain-set-at
@@ -644,18 +698,38 @@
           (fn [layer]
             (terrain-source-layer? layer terrain-set-id))))
 
+(defun indexed-profile-layers [state]
+  (for-indexed [index layer (profile-layers state)]
+    {:index index
+     :layer layer}))
+
+(defun first-terrain-source-layer-index [state terrain-set-id]
+  (:index (head (filter (indexed-profile-layers state)
+                        (fn [entry]
+                          (terrain-source-layer? (:layer entry)
+                                                 terrain-set-id))))))
+
 (defun tile-output-layer? [layer]
   (and (= (:data-kind layer) :tile-ref)
        (:tileset layer)))
 
-(defun tile-output-layers [state]
-  (filter (profile-layers state) tile-output-layer?))
+(defun terrain-rule-output-layer? [source-index entry]
+  (and (tile-output-layer? (:layer entry))
+       (or (nil? source-index)
+           (> (:index entry) source-index))))
+
+(defun tile-output-layers [state terrain-set-id]
+  (let [source-index (first-terrain-source-layer-index state terrain-set-id)]
+    (map (filter (indexed-profile-layers state)
+                 (fn [entry]
+                   (terrain-rule-output-layer? source-index entry)))
+         :layer)))
 
 (defun first-source-layer-id [state terrain-set-id]
   (:id (head (terrain-source-layers state terrain-set-id))))
 
-(defun first-output-layer [state]
-  (head (tile-output-layers state)))
+(defun first-output-layer [state terrain-set-id]
+  (head (tile-output-layers state terrain-set-id)))
 
 (defun center-stamp-tiles [tile]
   [[nil nil nil]
@@ -663,7 +737,7 @@
    [nil nil nil]])
 
 (defun default-output-stamp-layer [state terrain-set terrain]
-  (let [output-layer (first-output-layer state)
+  (let [output-layer (first-output-layer state (:id terrain-set))
         tileset (or (:tileset output-layer) (:tileset terrain-set))
         tile (or (:tile terrain)
                  (first-tile-for (:tilesets state) tileset))]

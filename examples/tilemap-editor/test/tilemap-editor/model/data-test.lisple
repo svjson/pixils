@@ -242,6 +242,30 @@
            (get-in document
                    [:brushes 0 :pattern :layers 0 :target-layer])))))
 
+(deftest normalize-project-document-does_not_assign_ruleset_output_targets
+  (let [document (data/normalize-project-document
+                  {:rulesets [{:id :terrain-rules
+                               :kind :terrain-stamp
+                               :terrain-set :world
+                               :rules [{:id :edge
+                                        :terrain :grass
+                                        :match {:n :none}
+                                        :output {:layers [{:id :layer
+                                                          :tileset :terrain
+                                                          :tiles [[:shore]]}]}}]}]
+                   :layer-profiles [{:id :default
+                                     :layers [{:id :scene/water
+                                               :role :source
+                                               :data-kind :tile-ref
+                                               :tileset :terrain}
+                                              {:id :scene/terrain
+                                               :role :source
+                                               :data-kind :terrain
+                                               :terrain-set :world}]}]
+                   :tilemap {:layers []}})]
+    (is (nil? (get-in document
+                      [:rulesets 0 :rules 0 :output :layers 0 :target-layer])))))
+
 (deftest normalize-project-document-normalizes_ruleset_serialized_nil_metadata
   (let [document (data/normalize-project-document
                   {:rulesets [{:id :terrain-rules

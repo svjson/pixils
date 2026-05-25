@@ -9,6 +9,7 @@
             [pixils.ui.list-box :as lb]
             [pixils.ui.menu :as menu]
             [pixils.ui.scroll-pane :as sp]
+            [pixils.ui.split-pane :as split]
             [pixils.ui.tab-panel :as tabs]
             pixils.ui.text-input
             [pixils.ui.window :as w]
@@ -500,10 +501,10 @@
 (def terrain-rule-grid-gap 2)
 (def terrain-rule-grid-size (+ (* terrain-rule-grid-cell-size 3)
                                (* terrain-rule-grid-gap 2)))
-(def terrain-stamp-tile-picker-width 260)
+(def terrain-stamp-tile-picker-width 116)
 (def terrain-stamp-tile-picker-cell-size 32)
 (def terrain-stamp-tile-picker-gap 2)
-(def terrain-stamp-tile-picker-height 116)
+(def terrain-stamp-tile-picker-height 232)
 
 (defun terrain-rule-center-terrain-id [rule fallback]
   (or (model/terrain-rule-center rule) fallback))
@@ -1002,7 +1003,8 @@
   (let [options (terrain-stamp-tile-options state)
         columns (terrain-stamp-tile-picker-columns
                  {:w terrain-stamp-tile-picker-width})]
-    {:h (terrain-stamp-tile-picker-content-height (count options)
+    {:w terrain-stamp-tile-picker-width
+     :h (terrain-stamp-tile-picker-content-height (count options)
                                                   columns)}))
 
 (defun terrain-stamp-tile-picker-content-state [state]
@@ -1151,7 +1153,8 @@
                     (terrain-stamp-tile-picker-content-state state)))
    :children [(sp/make {:style {:width :fill
                                 :height :fill}
-                        :content-size {:h terrain-stamp-tile-picker-height}
+                        :content-size {:w terrain-stamp-tile-picker-width
+                                       :h terrain-stamp-tile-picker-height}
                         :state {:content-size (ui/bind-state :content-size)
                                 :content-state (ui/bind-state :picker-state)}
                         :scroll-x? false
@@ -1204,71 +1207,22 @@
 (defun terrain-rule-active-editor-child []
   {:style {:width :fill
            :height :shrink
-           :layout {:direction :column
+           :layout {:direction :row
+                    :align-items :start
                     :gap 8}}
    :state (ui/bind-state)
-   :children [{:style {:width :fill
+   :children [{:style {:width :shrink
                        :height :shrink
-                       :layout {:direction :row
-                                :align-items :center
-                                :gap 10}}
+                       :layout {:direction :column
+                                :gap 8}}
                :state (ui/bind-state)
-               :children [{:mode 'visual-terrain-match-grid
-                           :state {:terrain-sets
-                                   (ui/bind-state :terrain-sets)
-                                   :selected-terrain-set-index
-                                   (ui/bind-state
-                                    :selected-terrain-set-index)
-                                   :selected-terrain-index
-                                   (ui/bind-state
-                                    :selected-terrain-index)
-                                   :rulesets
-                                   (ui/bind-state :rulesets)
-                                   :selected-terrain-ruleset-id
-                                   (ui/bind-state
-                                    :selected-terrain-ruleset-id)
-                                   :selected-terrain-rule-id
-                                   (ui/bind-state
-                                    :selected-terrain-rule-id)
-                                   :selected-terrain-rule-match-direction
-                                   (ui/bind-state
-                                    :selected-terrain-rule-match-direction)
-                                   :tilesets
-                                   (ui/bind-state :tilesets)}}
-                          {:mode 'terrain-rule-arrow}
-                          {:style {:width :shrink
+               :children [{:style {:width :shrink
                                    :height :shrink
-                                   :layout {:direction :column
-                                            :gap 6}}
+                                   :layout {:direction :row
+                                            :align-items :center
+                                            :gap 10}}
                            :state (ui/bind-state)
-                           :children [{:mode 'terrain-stamp-grid-preview
-                                       :state {:rulesets (ui/bind-state :rulesets)
-                                               :selected-terrain-ruleset-id
-                                               (ui/bind-state
-                                                :selected-terrain-ruleset-id)
-                                               :selected-terrain-rule-id
-                                               (ui/bind-state
-                                                :selected-terrain-rule-id)
-                                               :selected-terrain-rule-output-position
-                                               (ui/bind-state
-                                                :selected-terrain-rule-output-position)
-                                               :terrain-rule-selected-tile
-                                               (ui/bind-state
-                                                :terrain-rule-selected-tile)
-                                               :terrain-sets
-                                               (ui/bind-state :terrain-sets)
-                                               :selected-terrain-set-index
-                                               (ui/bind-state
-                                                :selected-terrain-set-index)
-                                               :selected-terrain-index
-                                               (ui/bind-state
-                                                :selected-terrain-index)
-                                               :tilesets
-                                               (ui/bind-state :tilesets)}}
-                                      {:mode 'ui/text
-                                       :class :ui/muted
-                                       :state {:value "Ownership"}}
-                                      {:mode 'terrain-signature-grid-preview
+                           :children [{:mode 'visual-terrain-match-grid
                                        :state {:terrain-sets
                                                (ui/bind-state :terrain-sets)
                                                :selected-terrain-set-index
@@ -1285,12 +1239,74 @@
                                                :selected-terrain-rule-id
                                                (ui/bind-state
                                                 :selected-terrain-rule-id)
-                                               :selected-terrain-rule-output-position
+                                               :selected-terrain-rule-match-direction
                                                (ui/bind-state
-                                                :selected-terrain-rule-output-position)
+                                                :selected-terrain-rule-match-direction)
                                                :tilesets
-                                               (ui/bind-state :tilesets)}}]}]}
-              (terrain-rule-application-options-child)
+                                               (ui/bind-state :tilesets)}}
+                                      {:mode 'terrain-rule-arrow}
+                                      {:style {:width :shrink
+                                               :height :shrink
+                                               :layout {:direction :column
+                                                        :gap 6}}
+                                       :state (ui/bind-state)
+                                       :children [{:mode 'terrain-stamp-grid-preview
+                                                   :state {:rulesets
+                                                           (ui/bind-state
+                                                            :rulesets)
+                                                           :selected-terrain-ruleset-id
+                                                           (ui/bind-state
+                                                            :selected-terrain-ruleset-id)
+                                                           :selected-terrain-rule-id
+                                                           (ui/bind-state
+                                                            :selected-terrain-rule-id)
+                                                           :selected-terrain-rule-output-position
+                                                           (ui/bind-state
+                                                            :selected-terrain-rule-output-position)
+                                                           :terrain-rule-selected-tile
+                                                           (ui/bind-state
+                                                            :terrain-rule-selected-tile)
+                                                           :terrain-sets
+                                                           (ui/bind-state
+                                                            :terrain-sets)
+                                                           :selected-terrain-set-index
+                                                           (ui/bind-state
+                                                            :selected-terrain-set-index)
+                                                           :selected-terrain-index
+                                                           (ui/bind-state
+                                                            :selected-terrain-index)
+                                                           :tilesets
+                                                           (ui/bind-state
+                                                            :tilesets)}}
+                                                  {:mode 'ui/text
+                                                   :class :ui/muted
+                                                   :state {:value "Ownership"}}
+                                                  {:mode 'terrain-signature-grid-preview
+                                                   :state {:terrain-sets
+                                                           (ui/bind-state
+                                                            :terrain-sets)
+                                                           :selected-terrain-set-index
+                                                           (ui/bind-state
+                                                            :selected-terrain-set-index)
+                                                           :selected-terrain-index
+                                                           (ui/bind-state
+                                                            :selected-terrain-index)
+                                                           :rulesets
+                                                           (ui/bind-state
+                                                            :rulesets)
+                                                           :selected-terrain-ruleset-id
+                                                           (ui/bind-state
+                                                            :selected-terrain-ruleset-id)
+                                                           :selected-terrain-rule-id
+                                                           (ui/bind-state
+                                                            :selected-terrain-rule-id)
+                                                           :selected-terrain-rule-output-position
+                                                           (ui/bind-state
+                                                            :selected-terrain-rule-output-position)
+                                                           :tilesets
+                                                           (ui/bind-state
+                                                            :tilesets)}}]}]}
+                          (terrain-rule-application-options-child)]}
               {:mode 'terrain-stamp-tile-picker-scroll-pane
                :state {:rulesets (ui/bind-state :rulesets)
                        :selected-terrain-ruleset-id
@@ -1323,7 +1339,7 @@
 (defcomponent terrain-rule-visual-editor
   {:style {:width :fill
            :height :shrink
-           :layout {:direction :column
+           :layout {:direction :row
                     :gap 8}}
    :update (fn [state ctx]
              (let [has-rule? (not (nil? (model/selected-terrain-rule state)))
@@ -1477,6 +1493,34 @@
                            :result-event :terrain/name-dialog-result
                            :context {:operation operation
                                      :terrain-index terrain-index}})
+    state))
+
+(defun open-terrain-set-add-dialog! [state ctx]
+  (let [terrain-set (model/make-terrain-set (:terrain-sets state)
+                                            (:tilesets state))]
+    (do
+      (id-name-dialog/open! ctx
+                            {:title "Add Terrain Set"
+                             :id (model/keyword-label (:id terrain-set))
+                             :name (or (:label terrain-set) "")
+                             :result-event :terrain/set-add-dialog-result})
+      state)))
+
+(defun open-terrain-add-dialog! [state ctx]
+  (if-let [set-index (model/selected-terrain-set-index
+                      (:terrain-sets state)
+                      (:selected-terrain-set-index state))]
+    (let [terrain-set (nth (:terrain-sets state) set-index)
+          terrain (model/make-terrain terrain-set (:tilesets state))]
+      (do
+        (id-name-dialog/open! ctx
+                              {:title "Add Terrain"
+                               :id (model/keyword-label (:id terrain))
+                               :name (or (:label terrain) "")
+                               :result-event :terrain/name-dialog-result
+                               :context {:operation :add
+                                         :terrain-set-index set-index}})
+        state))
     state))
 
 (defun open-terrain-set-edit-dialog! [state ctx]
@@ -1864,7 +1908,7 @@
                               (assoc state
                                      :terrain-detail-tab
                                      (-> event :payload :tab))))}
-   :children [(terrain-detail-content-child false true)]})
+   :children [(terrain-detail-content-child true true)]})
 
 (defun make-terrain-detail-panel []
   (hp/make {:title "Terrain Definition"
@@ -1958,12 +2002,63 @@
                                  :terrain-rule-list-offset)}}]}))
 
 (defcomponent terrain-definition-selector-column
-  {:style {:width 300
+  {:style {:width :fill
            :height :fill
            :layout {:direction :column
                     :gap 8}}
    :children [(make-terrain-set-list-panel)
               (make-terrain-list-panel)]})
+
+(defun terrain-definition-workspace-children []
+  [(split/make
+    {:style {:width :fill
+             :height :fill}
+     :axis :x
+     :split 0.26
+     :min-first 120
+     :min-second 220
+     :state {:terrain-sets (ui/bind-state :terrain-sets)
+             :tilesets (ui/bind-state :tilesets)
+             :rulesets (ui/bind-state :rulesets)
+             :layers (ui/bind-state :layers)
+             :layer-profiles (ui/bind-state :layer-profiles)
+             :selected-layer-profile-id
+             (ui/bind-state :selected-layer-profile-id)
+             :selected-terrain-set-index
+             (ui/bind-state :selected-terrain-set-index)
+             :selected-terrain-index
+             (ui/bind-state :selected-terrain-index)
+             :selected-terrain-ruleset-id
+             (ui/bind-state :selected-terrain-ruleset-id)
+             :selected-terrain-rule-id
+             (ui/bind-state :selected-terrain-rule-id)
+             :selected-terrain-rule-exclusive?
+             (ui/bind-state :selected-terrain-rule-exclusive?)
+             :selected-terrain-rule-match-direction
+             (ui/bind-state :selected-terrain-rule-match-direction)
+             :selected-terrain-rule-output-position
+             (ui/bind-state :selected-terrain-rule-output-position)
+             :terrain-rule-selected-tile
+             (ui/bind-state :terrain-rule-selected-tile)
+             :terrain-rule-list-offset
+             (ui/bind-state :terrain-rule-list-offset)
+             :terrain-list-panel-disabled?
+             (ui/bind-state :terrain-list-panel-disabled?)
+             :terrain-detail-panel-disabled?
+             (ui/bind-state :terrain-detail-panel-disabled?)}
+     :children [{:mode 'terrain-definition-selector-column
+                 :state {:terrain-sets
+                         (ui/bind-state :terrain-sets)
+                         :selected-terrain-set-index
+                         (ui/bind-state
+                          :selected-terrain-set-index)
+                         :selected-terrain-index
+                         (ui/bind-state
+                          :selected-terrain-index)
+                         :terrain-list-panel-disabled?
+                         (ui/bind-state
+                          :terrain-list-panel-disabled?)}}
+                (make-terrain-detail-panel)]})])
 
 (defcomponent terrain-definition-workspace
   {:style {:width :fill
@@ -1975,13 +2070,13 @@
    :update (fn [state ctx]
              (model/derive-terrain-workspace-state state))
    :on {:terrain/add-set (fn [state event ctx]
-                           (model/add-terrain-set state))
+                           (open-terrain-set-add-dialog! state ctx))
         :terrain/set-select (fn [state event ctx]
                               (assoc state
                                      :selected-terrain-set-index (:payload event)
                                      :selected-terrain-index nil))
         :terrain/add (fn [state event ctx]
-                       (model/add-terrain state))
+                       (open-terrain-add-dialog! state ctx))
         :terrain/select (fn [state event ctx]
                           (assoc state :selected-terrain-index (:payload event)))
         :terrain-set/context-command
@@ -2061,6 +2156,15 @@
               (let [terrain-index (:terrain-index context)
                     state (assoc state :selected-terrain-index terrain-index)]
                 (case (:operation context)
+                  :add
+                  (let [state (assoc state
+                                     :selected-terrain-set-index
+                                     (:terrain-set-index context))]
+                    (tilemap/rebuild-terrain-stamp-preview
+                     (model/add-terrain-with-id state
+                                                (:id payload)
+                                                (:name payload))))
+
                   :rename
                   (tilemap/rebuild-terrain-stamp-preview
                    (model/set-selected-terrain-label
@@ -2079,6 +2183,15 @@
               state)))
         :terrain/set-edit (fn [state event ctx]
                             (open-terrain-set-edit-dialog! state ctx))
+        :terrain/set-add-dialog-result
+        (fn [state event ctx]
+          (let [payload (:payload event)]
+            (if (= (:type payload) :confirm)
+              (tilemap/rebuild-terrain-stamp-preview
+               (model/add-terrain-set-with-id state
+                                              (:id payload)
+                                              (:name payload)))
+              state)))
         :terrain/set-edit-dialog-result
         (fn [state event ctx]
           (let [payload (:payload event)]
@@ -2223,12 +2336,4 @@
               (:x payload)
               (:y payload)
               (:tile payload)))))}
-   :children [{:mode 'terrain-definition-selector-column
-               :state {:terrain-sets (ui/bind-state :terrain-sets)
-                       :selected-terrain-set-index
-                       (ui/bind-state :selected-terrain-set-index)
-                       :selected-terrain-index
-                       (ui/bind-state :selected-terrain-index)
-                       :terrain-list-panel-disabled?
-                       (ui/bind-state :terrain-list-panel-disabled?)}}
-              (make-terrain-detail-panel)]})
+   :children (terrain-definition-workspace-children)})

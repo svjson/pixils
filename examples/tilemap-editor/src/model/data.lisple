@@ -400,8 +400,19 @@
 (defun normalize-brushes [brushes profile]
   (normalize-brush-value (or brushes []) profile))
 
+(defun normalize-ruleset-value [value]
+  (case (type-of value)
+    "vector" (map value normalize-ruleset-value)
+    "map" (reduce-kv value
+                     {}
+                     (fn [result key item]
+                       (assoc result key (normalize-ruleset-value item))))
+    :default (if (serialized-nil? value)
+               nil
+               value)))
+
 (defun normalize-rulesets [rulesets profile]
-  (normalize-brush-value (or rulesets []) profile))
+  (normalize-ruleset-value (or rulesets [])))
 
 (defun normalize-project-document [project]
   (let [layers (normalize-layers (-> project :tilemap :layers))
