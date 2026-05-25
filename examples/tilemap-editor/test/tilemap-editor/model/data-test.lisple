@@ -89,6 +89,132 @@
            (get-in document
                    [:rulesets 0 :rules 0 :output :layers 0 :tiles 0 0])))))
 
+(deftest normalize-project-document-trims_stamp_output_to_terrain_unit
+  (let [document (data/normalize-project-document
+                  {:format data/project-format
+                   :terrain-sets [{:id :overworld
+                                   :terrains [{:id :grass}]}]
+                   :rulesets [{:id :overworld-rules
+                               :kind :terrain-stamp
+                               :terrain-set :overworld
+                               :rules [{:id :rule
+                                        :terrain :grass
+                                        :output {:anchor {:x 1 :y 1}
+                                                 :layers
+                                                 [{:id :stamp
+                                                   :tileset :terrain
+                                                   :tiles [[:a :b :c]
+                                                           [:d :e :f]
+                                                           [:g :h :i]]
+                                                   :terrain-signatures
+                                                   [[{:center :a}
+                                                     {:center :b}
+                                                     {:center :c}]
+                                                    [{:center :d}
+                                                     {:center :e}
+                                                     {:center :f}]
+                                                    [{:center :g}
+                                                     {:center :h}
+                                                     {:center :i}]]}]}}]}]
+                   :tilemap {:layers []}})]
+    (is (= {:x 0 :y 0}
+           (get-in document [:rulesets 0 :rules 0 :output :anchor])))
+    (is (= [[:e]]
+           (get-in document [:rulesets 0 :rules 0 :output :layers 0 :tiles])))
+    (is (= [[{:center :e}]]
+           (get-in document
+                   [:rulesets
+                    0
+                    :rules
+                    0
+                    :output
+                    :layers
+                    0
+                    :terrain-signatures])))))
+
+(deftest normalize-project-document-preserves_populated_single_cell_with_stale_anchor
+  (let [document (data/normalize-project-document
+                  {:format data/project-format
+                   :terrain-sets [{:id :overworld
+                                   :terrains [{:id :grass}]}]
+                   :rulesets [{:id :overworld-rules
+                               :kind :terrain-stamp
+                               :terrain-set :overworld
+                               :rules [{:id :rule
+                                        :terrain :grass
+                                        :output {:anchor {:x 0 :y 0}
+                                                 :layers
+                                                 [{:id :stamp
+                                                   :tileset :terrain
+                                                   :tiles [[nil nil nil]
+                                                           [nil :shore nil]
+                                                           [nil nil nil]]
+                                                   :terrain-signatures
+                                                   [[nil nil nil]
+                                                    [nil {:center :grass} nil]
+                                                    [nil nil nil]]}]}}]}]
+                   :tilemap {:layers []}})]
+    (is (= {:x 0 :y 0}
+           (get-in document [:rulesets 0 :rules 0 :output :anchor])))
+    (is (= [[:shore]]
+           (get-in document [:rulesets 0 :rules 0 :output :layers 0 :tiles])))
+    (is (= [[{:center :grass}]]
+           (get-in document
+                   [:rulesets
+                    0
+                    :rules
+                    0
+                    :output
+                    :layers
+                    0
+                    :terrain-signatures])))))
+
+(deftest normalize-project-document-trims_stamp_output_to_two_by_two_unit
+  (let [document (data/normalize-project-document
+                  {:format data/project-format
+                   :terrain-sets [{:id :mountains
+                                   :terrain-unit {:w 2 :h 2}
+                                   :terrains [{:id :mountain}]}]
+                   :rulesets [{:id :mountain-rules
+                               :kind :terrain-stamp
+                               :terrain-set :mountains
+                               :rules [{:id :rule
+                                        :terrain :mountain
+                                        :output {:anchor {:x 1 :y 1}
+                                                 :layers
+                                                 [{:id :stamp
+                                                   :tileset :mountains
+                                                   :tiles [[:a :b :c]
+                                                           [:d :e :f]
+                                                           [:g :h :i]]
+                                                   :terrain-signatures
+                                                   [[{:center :a}
+                                                     {:center :b}
+                                                     {:center :c}]
+                                                    [{:center :d}
+                                                     {:center :e}
+                                                     {:center :f}]
+                                                    [{:center :g}
+                                                     {:center :h}
+                                                     {:center :i}]]}]}}]}]
+                   :tilemap {:layers []}})]
+    (is (= {:x 0 :y 0}
+           (get-in document [:rulesets 0 :rules 0 :output :anchor])))
+    (is (= [[:e :f]
+            [:h :i]]
+           (get-in document [:rulesets 0 :rules 0 :output :layers 0 :tiles])))
+    (is (= [[{:center :e} {:center :f}]
+            [{:center :h} {:center :i}]]
+           (get-in document
+                   [:rulesets
+                    0
+                    :rules
+                    0
+                    :output
+                    :layers
+                    0
+                    :terrain-signatures])))))
+
 (deftest terrain-options-come-from_project_terrain_sets
   (let [terrain-sets [{:id :overworld
                        :label "Overworld"

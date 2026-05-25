@@ -369,9 +369,7 @@
     (is (= :grass (get-in state [:rulesets 0 :rules 0 :terrain])))
     (is (= :scene/terrain-visuals
            (get-in state [:rulesets 0 :rules 0 :output :layers 0 :target-layer])))
-    (is (= [[nil nil nil]
-            [nil :grass-fill nil]
-            [nil nil nil]]
+    (is (= [[:grass-fill]]
            (get-in state [:rulesets 0 :rules 0 :output :layers 0 :tiles])))
     (is (= :rule (:selected-terrain-rule-id state)))))
 
@@ -432,7 +430,7 @@
     (is (nil? (get-in state
                       [:rulesets 0 :rules 0 :output :layers 0 :target-layer])))
     (is (= :road-fill
-           (get-in state [:rulesets 0 :rules 0 :output :layers 0 :tiles 1 1])))))
+           (get-in state [:rulesets 0 :rules 0 :output :layers 0 :tiles 0 0])))))
 
 (deftest terrain-rule-creation-uses_terrain_unit_output_footprint
   (let [state (model/add-terrain-rule
@@ -979,18 +977,15 @@
                             :terrain-set :overworld
                             :rules [{:id :rule
                                      :terrain :grass
-                                     :output {:layers [{:tileset :terrain
-                                                        :tiles [[nil nil nil]
-                                                                [nil :grass nil]
-                                                                [nil nil nil]]}]}}]}]
+                                     :output {:anchor {:x 0 :y 0}
+                                              :layers [{:tileset :terrain
+                                                        :tiles [[:grass]]}]}}]}]
                 :selected-terrain-ruleset-id :overworld-rules
                 :selected-terrain-rule-id :rule}
-               1
-               1
+               0
+               0
                :shore)]
-    (is (= [[nil nil nil]
-            [nil :shore nil]
-            [nil nil nil]]
+    (is (= [[:shore]]
            (get-in state
                    [:rulesets 0 :rules 0 :output :layers 0 :tiles])))
     (is (= :grass
@@ -1003,8 +998,8 @@
                     :layers
                     0
                     :terrain-signatures
-                    1
-                    1
+                    0
+                    0
                     :center])))))
 
 (deftest terrain-rule-stamp-tile-edit-ignores_non_center_cells
@@ -1016,10 +1011,9 @@
                                    :terrain-set :overworld
                                    :rules [{:id :rule
                                             :terrain :grass
-                                            :output {:layers [{:tileset :terrain
-                                                               :tiles [[nil nil nil]
-                                                                       [nil :grass nil]
-                                                                       [nil nil nil]]}]}}]}]
+                                            :output {:anchor {:x 0 :y 0}
+                                                     :layers [{:tileset :terrain
+                                                               :tiles [[:grass]]}]}}]}]
                        :selected-terrain-ruleset-id :overworld-rules
                        :selected-terrain-rule-id :rule}
         state (model/set-selected-rule-stamp-tile initial-state
@@ -1063,18 +1057,15 @@
                             :terrain-set :overworld
                             :rules [{:id :rule
                                      :terrain :grass
-                                     :output {:layers [{:tileset :terrain
-                                                        :tiles [[nil nil nil]
-                                                                [nil :grass nil]
-                                                                [nil nil nil]]}]}}]}]
+                                     :output {:anchor {:x 0 :y 0}
+                                              :layers [{:tileset :terrain
+                                                        :tiles [[:grass]]}]}}]}]
                 :selected-terrain-ruleset-id :overworld-rules
                 :selected-terrain-rule-id :rule}
-               1
-               1
+               0
+               0
                nil)]
-    (is (= [[nil nil nil]
-            [nil nil nil]
-            [nil nil nil]]
+    (is (= [[nil]]
            (get-in state
                    [:rulesets 0 :rules 0 :output :layers 0 :tiles])))
     (is (nil? (get-in state
@@ -1086,8 +1077,8 @@
                        :layers
                        0
                        :terrain-signatures
-                       1
-                       1])))))
+                       0
+                       0])))))
 
 (deftest terrain-rule-output-signature-defaults_from_rule_match
   (let [state {:terrain-sets [{:id :overworld
@@ -1095,7 +1086,7 @@
                                           {:id :desert}]}]
                :selected-terrain-set-index 0
                :selected-terrain-index 0
-               :selected-terrain-rule-output-position {:x 1 :y 1}
+               :selected-terrain-rule-output-position {:x 0 :y 0}
                :rulesets [{:id :overworld-rules
                            :terrain-set :overworld
                            :rules [{:id :rule
@@ -1103,9 +1094,8 @@
                                     :match {:n :none
                                             :e {:terrain :desert}
                                             :s :not-same}
-                                    :output {:layers [{:tiles [[nil nil nil]
-                                                       [nil :grass-edge nil]
-                                                       [nil nil nil]]}]}}]}]
+                                    :output {:anchor {:x 0 :y 0}
+                                             :layers [{:tiles [[:grass-edge]]}]}}]}]
                :selected-terrain-ruleset-id :overworld-rules
                :selected-terrain-rule-id :rule}
         signature (model/selected-rule-output-terrain-signature state)]
@@ -1121,14 +1111,13 @@
                                            {:id :desert}]}]
                 :selected-terrain-set-index 0
                 :selected-terrain-index 0
-                :selected-terrain-rule-output-position {:x 1 :y 1}
+                :selected-terrain-rule-output-position {:x 0 :y 0}
                 :rulesets [{:id :overworld-rules
                             :terrain-set :overworld
                             :rules [{:id :rule
                                      :terrain :grass
-                                     :output {:layers [{:tiles [[nil nil nil]
-                                                        [nil :grass nil]
-                                                        [nil nil nil]]}]}}]}]
+                                     :output {:anchor {:x 0 :y 0}
+                                              :layers [{:tiles [[:grass]]}]}}]}]
                 :selected-terrain-ruleset-id :overworld-rules
                 :selected-terrain-rule-id :rule}
                :e
@@ -1143,11 +1132,11 @@
                     :layers
                     0
                     :terrain-signatures
-                    1
-                    1
+                    0
+                    0
                     :e])))))
 
-(deftest terrain-rule-transform-rotates_match_tiles_signatures_and_anchor
+(deftest terrain-rule-transform-rotates_match_without_changing_stamp
   (let [state (model/transform-selected-rule
                {:terrain-sets [{:id :overworld
                                 :terrains [{:id :grass}]}]
@@ -1178,14 +1167,14 @@
                 :selected-terrain-ruleset-id :overworld-rules
                 :selected-terrain-rule-id :rule}
                :rotate-right)]
-    (is (= [[:g :d :a]
-            [:h :e :b]
-            [:i :f :c]]
+    (is (= [[:a :b :c]
+            [:d :e :f]
+            [:g :h :i]]
            (get-in state
                    [:rulesets 0 :rules 0 :output :layers 0 :tiles])))
-    (is (= [[{:center :g} {:center :d} {:center :a}]
-            [{:center :h} {:center :e} {:center :b}]
-            [{:center :i} {:center :f} {:center :c}]]
+    (is (= [[{:center :a} {:center :b} {:center :c}]
+            [{:center :d} {:center :e} {:center :f}]
+            [{:center :g} {:center :h} {:center :i}]]
            (get-in state
                    [:rulesets
                     0
@@ -1195,7 +1184,7 @@
                     :layers
                     0
                     :terrain-signatures])))
-    (is (= {:x 1 :y 0}
+    (is (= {:x 0 :y 1}
            (get-in state [:rulesets 0 :rules 0 :output :anchor])))
     (is (= :same (get-in state [:rulesets 0 :rules 0 :match :e])))
     (is (= {:terrain :water}

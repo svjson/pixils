@@ -581,6 +581,14 @@
 (def terrain-stamp-tile-picker-gap 2)
 (def terrain-stamp-tile-picker-height 232)
 
+(defun terrain-unit-grid-size [cell-count]
+  (+ (* terrain-rule-grid-cell-size cell-count)
+     (* terrain-rule-grid-gap (max 0 (dec cell-count)))))
+
+(defun terrain-stamp-grid-size-for-unit [unit]
+  {:w (terrain-unit-grid-size (:w unit))
+   :h (terrain-unit-grid-size (:h unit))})
+
 (defun terrain-rule-center-terrain-id [rule fallback]
   (or (model/terrain-rule-center rule) fallback))
 
@@ -846,18 +854,21 @@
   (let [tile-ref (if (secondary-mouse-button? event)
                    nil
                    (model/selected-rule-stamp-tile state))]
-    (do
-      (ui/stop-propagation! event)
-      (ui/emit! (:view ctx)
-                :terrain/rule-stamp-paint
-                {:x (:stamp-x state)
-                 :y (:stamp-y state)
-                 :tile tile-ref})
+    (if (:visible? state)
+      (do
+        (ui/stop-propagation! event)
+        (ui/emit! (:view ctx)
+                  :terrain/rule-stamp-paint
+                  {:x (:stamp-x state)
+                   :y (:stamp-y state)
+                   :tile tile-ref})
+        state)
       state)))
 
 (defun emit-stamp-grid-cell-drop! [state event ctx]
   (let [payload (:payload event)]
-    (if (terrain-stamp-tile-drag-payload? payload)
+    (if (and (:visible? state)
+             (terrain-stamp-tile-drag-payload? payload))
       (do
         (ui/stop-propagation! event)
         (model/set-selected-rule-stamp-tile state
@@ -866,52 +877,76 @@
                                             (:tile payload)))
       state)))
 
+(defun draw-terrain-stamp-grid-cell! [state ctx]
+  (when (:visible? state)
+    (let [layer (stamp-layer-for-selected-rule state)
+          rows (or (:tiles layer) [])
+          anchor (stamp-grid-anchor state)
+          x (:stamp-x state)
+          y (:stamp-y state)
+          tile-ref (nth (or (nth rows y) []) x)
+          tile (stamp-grid-tile state tile-ref)]
+      (do
+        (r/rect! {:x 0
+                  :y 0
+                  :w terrain-rule-grid-cell-size
+                  :h terrain-rule-grid-cell-size}
+                 {:fill true
+                  :color {:r 0x0b :g 0x0d :b 0x10}})
+        (when tile
+          (tr/draw-tile! tile
+                         {:x 4
+                          :y 4
+                          :w (- terrain-rule-grid-cell-size 8)
+                          :h (- terrain-rule-grid-cell-size 8)}))
+        (r/rect! {:x 0
+                  :y 0
+                  :w terrain-rule-grid-cell-size
+                  :h terrain-rule-grid-cell-size}
+                 {:color (if (and (= x (:x anchor))
+                                  (= y (:y anchor)))
+                           {:r 0xff :g 0xcc :b 0x66}
+                           (if (stamp-grid-cell-selected? state x y)
+                             {:r 0x5a :g 0x9d :b 0xff}
+                             {:r 0x1f :g 0x26 :b 0x2d}))})))))
+
 (defcomponent terrain-stamp-grid-cell
   {:focusable true
    :class :ui/canvas
    :style {:width terrain-rule-grid-cell-size
            :height terrain-rule-grid-cell-size
            :cursor :crosshair}
+   :update (fn [state ctx]
+             (let [unit (model/selected-terrain-unit state)
+                   anchor (stamp-grid-anchor state)
+                   local-x (or (:stamp-local-x state) 0)
+                   local-y (or (:stamp-local-y state) 0)
+                   visible? (and (< local-x (:w unit))
+                                 (< local-y (:h unit)))]
+               (do
+                 (assoc-in! ctx
+                            [:view :style :visibility]
+                            (if visible? :visible :none))
+                 (assoc-in! ctx
+                            [:view :style :width]
+                            (if visible? terrain-rule-grid-cell-size 0))
+                 (assoc-in! ctx
+                            [:view :style :height]
+                            (if visible? terrain-rule-grid-cell-size 0))
+                 (assoc state
+                        :stamp-x (+ (:x anchor) local-x)
+                        :stamp-y (+ (:y anchor) local-y)
+                        :visible? visible?))))
    :on-mouse-down emit-stamp-grid-cell-paint!
    :on-click emit-stamp-grid-cell-paint!
    :on-drag emit-stamp-grid-cell-paint!
    :on-drop emit-stamp-grid-cell-drop!
-   :render (fn [state ctx]
-             (let [layer (stamp-layer-for-selected-rule state)
-                   rows (or (:tiles layer) [])
-                   anchor (stamp-grid-anchor state)
-                   x (:stamp-x state)
-                   y (:stamp-y state)
-                   tile-ref (nth (or (nth rows y) []) x)
-                   tile (stamp-grid-tile state tile-ref)]
-               (do
-                 (r/rect! {:x 0
-                           :y 0
-                           :w terrain-rule-grid-cell-size
-                           :h terrain-rule-grid-cell-size}
-                          {:fill true
-                           :color {:r 0x0b :g 0x0d :b 0x10}})
-                 (when tile
-                   (tr/draw-tile! tile
-                                  {:x 4
-                                   :y 4
-                                   :w (- terrain-rule-grid-cell-size 8)
-                                   :h (- terrain-rule-grid-cell-size 8)}))
-                 (r/rect! {:x 0
-                           :y 0
-                           :w terrain-rule-grid-cell-size
-                           :h terrain-rule-grid-cell-size}
-                          {:color (if (and (= x (:x anchor))
-                                           (= y (:y anchor)))
-                                    {:r 0xff :g 0xcc :b 0x66}
-                                    (if (stamp-grid-cell-selected? state x y)
-                                      {:r 0x5a :g 0x9d :b 0xff}
-                                      {:r 0x1f :g 0x26 :b 0x2d}))}))))})
+   :render draw-terrain-stamp-grid-cell!})
 
-(defun terrain-stamp-grid-cell-child [x y]
+(defun terrain-stamp-grid-cell-child [local-x local-y]
   {:mode 'terrain-stamp-grid-cell
-   :state {:stamp-x x
-           :stamp-y y
+   :state {:stamp-local-x local-x
+           :stamp-local-y local-y
            :rulesets (ui/bind-state :rulesets)
            :selected-terrain-ruleset-id
            (ui/bind-state :selected-terrain-ruleset-id)
@@ -928,24 +963,42 @@
            (ui/bind-state :selected-terrain-index)
            :tilesets (ui/bind-state :tilesets)}})
 
-(defun terrain-stamp-grid-row [y]
-  {:style {:width terrain-rule-grid-size
+(defun terrain-stamp-grid-row [local-y]
+  {:style {:width (terrain-unit-grid-size 2)
            :height terrain-rule-grid-cell-size
            :layout {:direction :row
                     :gap terrain-rule-grid-gap}}
+   :update (fn [state ctx]
+             (let [unit (model/selected-terrain-unit state)
+                   visible? (< local-y (:h unit))
+                   size (terrain-stamp-grid-size-for-unit unit)]
+               (do
+                 (assoc-in! ctx
+                            [:view :style :visibility]
+                            (if visible? :visible :none))
+                 (assoc-in! ctx [:view :style :width] (:w size))
+                 (assoc-in! ctx
+                            [:view :style :height]
+                            (if visible? terrain-rule-grid-cell-size 0))
+                 state)))
    :state (ui/bind-state)
-   :children [(terrain-stamp-grid-cell-child 0 y)
-              (terrain-stamp-grid-cell-child 1 y)
-              (terrain-stamp-grid-cell-child 2 y)]})
+   :children [(terrain-stamp-grid-cell-child 0 local-y)
+              (terrain-stamp-grid-cell-child 1 local-y)]})
 
 (defcomponent terrain-stamp-grid-preview
-  {:style {:width terrain-rule-grid-size
-           :height terrain-rule-grid-size
+  {:style {:width (terrain-unit-grid-size 2)
+           :height (terrain-unit-grid-size 2)
            :layout {:direction :column
                     :gap terrain-rule-grid-gap}}
+   :update (fn [state ctx]
+             (let [size (terrain-stamp-grid-size-for-unit
+                         (model/selected-terrain-unit state))]
+               (do
+                 (assoc-in! ctx [:view :style :width] (:w size))
+                 (assoc-in! ctx [:view :style :height] (:h size))
+                 state)))
    :children [(terrain-stamp-grid-row 0)
-              (terrain-stamp-grid-row 1)
-              (terrain-stamp-grid-row 2)]})
+              (terrain-stamp-grid-row 1)]})
 
 (defun terrain-signature-value [state direction]
   (get (or (model/selected-rule-output-terrain-signature state) {})

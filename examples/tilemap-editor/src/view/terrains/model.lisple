@@ -654,7 +654,11 @@
    :y (max 0 (min 2 (or y 1)))})
 
 (defun selected-rule-output-position [state]
-  (output-grid-position 1 1))
+  (let [terrain-set (selected-terrain-set (:terrain-sets state)
+                                          (:selected-terrain-set-index state))
+        anchor (or (-> (selected-terrain-rule state) :output :anchor)
+                   (terrain-unit-output-anchor terrain-set))]
+    (output-grid-position (:x anchor) (:y anchor))))
 
 (defun selected-terrain-unit [state]
   (data/terrain-unit (selected-terrain-set (:terrain-sets state)
@@ -815,9 +819,7 @@
           (first-output-layer state (:id terrain-set))))))
 
 (defun center-stamp-tiles [tile]
-  [[nil nil nil]
-   [nil tile nil]
-   [nil nil nil]])
+  [[tile]])
 
 (defun terrain-unit-stamp-tiles [terrain-set tile]
   (let [unit (data/terrain-unit terrain-set)]
@@ -831,11 +833,7 @@
             nil))))))
 
 (defun terrain-unit-output-anchor [terrain-set]
-  (let [unit (data/terrain-unit terrain-set)]
-    (if (and (= (:w unit) 1)
-             (= (:h unit) 1))
-      {:x 1 :y 1}
-      {:x 0 :y 0})))
+  {:x 0 :y 0})
 
 (defun default-output-stamp-layer [state terrain-set terrain]
   (let [output-layer (default-output-layer-for-terrain-set state terrain-set)
@@ -1779,7 +1777,7 @@
       rule)))
 
 (defun transform-rule [rule command]
-  (assoc (transform-rule-output rule command)
+  (assoc rule
          :match
          (transform-rule-match (:match rule) command)))
 

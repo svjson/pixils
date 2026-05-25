@@ -424,8 +424,98 @@
                nil
                value)))
 
-(defun normalize-rulesets [rulesets profile]
-  (normalize-ruleset-value (or rulesets [])))
+(defun terrain-unit-output-anchor [unit]
+  {:x 0 :y 0})
+
+(defun matrix-cell [matrix x y]
+  (nth (or (nth (or matrix []) y) []) x))
+
+(defun terrain-unit-single-cell? [unit]
+  (and (= (:w unit) 1)
+       (= (:h unit) 1)))
+
+(defun first-populated-matrix-position [matrix]
+  (head (apply concat
+               (for-indexed [y row (or matrix [])]
+                 (filter (for-indexed [x value (or row [])]
+                           {:x x
+                            :y y
+                            :value value})
+                         (fn [entry]
+                           (not (nil? (:value entry)))))))))
+
+(defun normalize-stamp-layer-anchor [layer old-anchor unit]
+  (let [anchor (terrain-unit-output-anchor unit)]
+    (if (terrain-unit-single-cell? unit)
+      (cond
+        (not (nil? (matrix-cell (:tiles layer) (:x old-anchor) (:y old-anchor))))
+        old-anchor
+
+        (not (nil? (matrix-cell (:tiles layer) (:x anchor) (:y anchor))))
+        anchor
+
+        :default
+        (or (first-populated-matrix-position (:tiles layer))
+            old-anchor))
+      old-anchor)))
+
+(defun normalize-stamp-matrix [matrix old-anchor unit]
+  (dotimes [y (:h unit)]
+    (dotimes [x (:w unit)]
+      (matrix-cell matrix
+                   (+ (:x old-anchor) x)
+                   (+ (:y old-anchor) y)))))
+
+(defun normalize-output-layer-stamp [layer old-anchor unit]
+  (let [old-anchor (normalize-stamp-layer-anchor layer old-anchor unit)
+        layer (if (:tiles layer)
+                (assoc layer
+                       :tiles
+                       (normalize-stamp-matrix (:tiles layer)
+                                               old-anchor
+                                               unit))
+                layer)]
+    (if (:terrain-signatures layer)
+      (assoc layer
+             :terrain-signatures
+             (normalize-stamp-matrix (:terrain-signatures layer)
+                                     old-anchor
+                                     unit))
+      layer)))
+
+(defun normalize-rule-stamp-output [rule unit]
+  (let [output (or (:output rule) {})
+        old-anchor (or (:anchor output)
+                       (terrain-unit-output-anchor unit))
+        anchor (terrain-unit-output-anchor unit)]
+    (assoc rule
+           :output
+           (assoc output
+                  :anchor anchor
+                  :layers
+                  (map (or (:layers output) [])
+                       (fn [layer]
+                         (normalize-output-layer-stamp layer
+                                                       old-anchor
+                                                       unit)))))))
+
+(defun normalize-terrain-stamp-ruleset [terrain-sets ruleset]
+  (let [terrain-set (terrain-set-definition terrain-sets (:terrain-set ruleset))]
+    (if (and (= (:kind ruleset) :terrain-stamp)
+             terrain-set)
+      (let [unit (terrain-unit terrain-set)]
+        (assoc ruleset
+               :rules
+               (map (or (:rules ruleset) [])
+                    (fn [rule]
+                      (normalize-rule-stamp-output rule unit)))))
+      ruleset)))
+
+(defun normalize-rulesets [rulesets profile terrain-sets]
+  (let [rulesets (normalize-ruleset-value (or rulesets []))]
+    (map rulesets
+         (fn [ruleset]
+           (normalize-terrain-stamp-ruleset terrain-sets ruleset)))))
 
 (defun normalize-project-document [project]
   (let [layers (normalize-layers (-> project :tilemap :layers))
@@ -438,7 +528,8 @@
                           layer-profiles
                           (-> project :tilemap :layer-profile))
         layer-profile (layer-profile-by-id layer-profiles layer-profile-id)
-        tilesets (normalize-tilesets (:tilesets project))]
+        tilesets (normalize-tilesets (:tilesets project))
+        terrain-sets (or (:terrain-sets project) project-terrain-sets)]
     (assoc (assoc-in (assoc-in project
                                [:tilemap :layers]
                                layers)
@@ -446,8 +537,10 @@
                      layer-profile-id)
            :tilesets tilesets
            :layer-profiles layer-profiles
-           :terrain-sets (or (:terrain-sets project) project-terrain-sets)
-           :rulesets (normalize-rulesets (:rulesets project) layer-profile)
+           :terrain-sets terrain-sets
+           :rulesets (normalize-rulesets (:rulesets project)
+                                         layer-profile
+                                         terrain-sets)
            :brushes (normalize-brushes (:brushes project) layer-profile))))
 
 (defun tilemap-document [state layers layer-profile-id]
@@ -467,14 +560,17 @@
         layer-profile-id (selected-layer-profile-id
                           layer-profiles
                           (:selected-layer-profile-id state))
-        layer-profile (layer-profile-by-id layer-profiles layer-profile-id)]
+        layer-profile (layer-profile-by-id layer-profiles layer-profile-id)
+        terrain-sets (or (:terrain-sets state) project-terrain-sets)]
     {:format project-format
      :version project-format-version
      :resources (normalize-project-resources (or (:resources state)
                                                  project-resources))
      :tilesets (normalize-tilesets (:tilesets state))
-     :terrain-sets (or (:terrain-sets state) project-terrain-sets)
-     :rulesets (normalize-rulesets (:rulesets state) layer-profile)
+     :terrain-sets terrain-sets
+     :rulesets (normalize-rulesets (:rulesets state)
+                                   layer-profile
+                                   terrain-sets)
      :layer-profiles layer-profiles
      :brushes (normalize-brushes (or (:brushes state) project-brushes)
                                  layer-profile)
