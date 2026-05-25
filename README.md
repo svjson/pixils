@@ -121,6 +121,7 @@ Lisple components, so applications can use them like any other mode.
 | `ui/checkbox` | Focusable boolean toggle with a styleable box and label. |
 | `ui/text-input` | Basic editable single-line text field. |
 | `ui/number-input` | Integer text field with numeric filtering, min/max clamping, and keyboard stepping. |
+| `ui/list-box` | Data-driven selectable list with optional multi-select and item reordering. |
 | `ui/menu-bar`, `ui/popup-menu` | Data-driven menu controls. |
 | `ui/window` | Lightweight draggable window primitive. |
 | `ui/header-panel` | Static content panel with a styled header/title region. |
@@ -189,6 +190,35 @@ Grouped toggle semantics are configured with `:selection-required?`:
 
 `:force-selection? true` is accepted as an alias for `:selection-required? true`
 on both standalone toggle buttons and groups.
+
+`pixils.ui.list-box/make` accepts `:options`, where each option can provide
+`:value`, `:label`, `:name`, and `:disabled?`. Selection changes emit
+`:list-box/change` with `{:selected-indices [...] :selected-values [...] :value value}`.
+Pass `:multi-select? true`, `:force-selection? true`, and `:toggle-selected? true`
+to opt into the extended selection behavior.
+
+List boxes can opt into drag reordering with `:reorderable? true`. The list-box
+does not mutate `:options` itself; on drop it emits `:list-box/reorder`, and the
+application updates its own data order.
+
+```clojure
+(pixils/defmode layer-panel
+  {:on {:list-box/reorder
+        (fn [state event ctx]
+          (let [payload (:payload event)]
+            ;; Payload includes :from-index, :to-index, :drop-index, :value, and :option.
+            (assoc state :last-reorder payload)))}
+   :children [(pixils.ui.list-box/make
+               {:options [{:value :background :label "Background"}
+                          {:value :objects :label "Objects"}
+                          {:value :foreground :label "Foreground"}]
+                :style {:width 160}
+                :reorderable? true})]})
+```
+
+`:drop-index` is the insertion position in the original list, while `:to-index`
+is the final item index after removing the dragged item. Dropping an item back
+onto its original position does not emit `:list-box/reorder`.
 
 `ui/menu-bar` is usually created with `pixils.ui.menu/make-menu` from a menu
 definition and action map. The first argument can be either the menu state map

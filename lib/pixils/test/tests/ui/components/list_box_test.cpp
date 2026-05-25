@@ -359,6 +359,105 @@ TEST_F(ListBoxTest, list_box_item_hover_highlight_is_opt_in)
   EXPECT_FALSE(first_item->effective_style.background.has_value());
 }
 
+TEST_F(ListBoxTest, list_box_reorder_drag_is_off_by_default)
+{
+  runtime.eval(R"(
+    (pixils/defmode root-mode
+      {:init (fn [state ctx] {:reorder nil})
+       :on {:list-box/reorder (fn [state event ctx]
+                                (assoc state :reorder (:payload event)))}
+       :children [(pixils.ui.list-box/make
+                   {:options [{:value :a :label "Alpha"}
+                              {:value :b :label "Beta"}
+                              {:value :c :label "Gamma"}]
+                    :style {:width 100}
+                    :row-height 10
+                    :visible-rows 3
+                    :content-width 100})]})
+  )");
+
+  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.update_mode();
+  session.render_mode();
+  session.update_mode();
+  session.render_mode();
+
+  input().mouse_down({5, 5});
+  update_cycle();
+  input().mouse_move({5, 12});
+  update_cycle();
+  input().mouse_move({5, 28});
+  update_cycle();
+  input().mouse_up({5, 28});
+  update_cycle();
+
+  auto reorder =
+    Lisple::Dict::get_property(session.active_mode->state, Lisple::keyword("reorder"));
+  ASSERT_NE(reorder, nullptr);
+  EXPECT_EQ(reorder->to_string(), "nil");
+}
+
+TEST_F(ListBoxTest, reorderable_list_box_emits_reorder_drop_event)
+{
+  runtime.eval(R"(
+    (pixils/defmode root-mode
+      {:init (fn [state ctx] {:reorder nil
+                              :selected []})
+       :on {:list-box/reorder (fn [state event ctx]
+                                (assoc state :reorder (:payload event)))
+            :list-box/change (fn [state event ctx]
+                               (assoc state
+                                      :selected
+                                      (:selected-indices (:payload event))))}
+       :children [(pixils.ui.list-box/make
+                   {:options [{:value :a :label "Alpha"}
+                              {:value :b :label "Beta"}
+                              {:value :c :label "Gamma"}]
+                    :style {:width 100}
+                    :row-height 10
+                    :visible-rows 3
+                    :content-width 100
+                    :selected-indices (pixils.ui/bind-state :selected)
+                    :reorderable? true})]})
+  )");
+
+  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.update_mode();
+  session.render_mode();
+  session.update_mode();
+  session.render_mode();
+
+  input().mouse_down({5, 5});
+  update_cycle();
+  input().mouse_move({5, 28});
+  update_cycle();
+  input().mouse_up({5, 28});
+  update_cycle();
+
+  auto reorder =
+    Lisple::Dict::get_property(session.active_mode->state, Lisple::keyword("reorder"));
+  auto selected =
+    Lisple::Dict::get_property(session.active_mode->state, Lisple::keyword("selected"));
+  ASSERT_NE(reorder, nullptr);
+  ASSERT_NE(selected, nullptr);
+  ASSERT_NE(reorder->to_string(), "nil");
+  EXPECT_EQ(Lisple::Dict::get_property(reorder, Lisple::keyword("from-index"))
+              ->num()
+              .get_int(),
+            0);
+  EXPECT_EQ(Lisple::Dict::get_property(reorder, Lisple::keyword("to-index"))
+              ->num()
+              .get_int(),
+            2);
+  EXPECT_EQ(Lisple::Dict::get_property(reorder, Lisple::keyword("drop-index"))
+              ->num()
+              .get_int(),
+            3);
+  EXPECT_EQ(Lisple::Dict::get_property(reorder, Lisple::keyword("value"))->to_string(),
+            ":a");
+  EXPECT_EQ(selected->to_string(), "[]");
+}
+
 TEST_F(ListBoxTest, clicking_selected_single_select_item_does_not_emit_change)
 {
   runtime.eval(R"(
