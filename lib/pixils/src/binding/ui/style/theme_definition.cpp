@@ -402,6 +402,38 @@ namespace Pixils::Script
     return resolve_theme_vars_internal(theme, variant, value, depth);
   }
 
+  UI::Theme resolve_theme_declarations(Lisple::Context& ctx,
+                                       const UI::Theme& theme,
+                                       const std::optional<std::string>& variant)
+  {
+    UI::Theme resolved = theme;
+    const auto selected_variant = variant ? variant : resolved.selected_variant;
+
+    if (!resolved.defaults_exprs.empty())
+    {
+      if (!resolved.defaults) resolved.defaults = UI::Style{};
+      for (const auto& defaults_expr : resolved.defaults_exprs)
+      {
+        auto resolved_value = resolve_theme_vars(resolved, selected_variant, defaults_expr);
+        if (!resolved_value) continue;
+        UI::apply_style_variant(*resolved.defaults, coerce_theme_style(ctx, resolved_value));
+      }
+    }
+
+    for (auto& rule : resolved.rules)
+    {
+      if (rule.style_exprs.empty()) continue;
+      for (const auto& style_expr : rule.style_exprs)
+      {
+        auto resolved_value = resolve_theme_vars(resolved, selected_variant, style_expr);
+        if (!resolved_value) continue;
+        UI::apply_style_variant(rule.style, coerce_theme_style(ctx, resolved_value));
+      }
+    }
+
+    return resolved;
+  }
+
   UI::Theme build_theme_from_definition(Lisple::Context& ctx,
                                         const std::string& name,
                                         const Lisple::sptr_val& definition_map,
@@ -469,6 +501,7 @@ namespace Pixils::Script
           if (!theme.defaults) theme.defaults = UI::Style{};
           UI::apply_style_variant(*theme.defaults,
                                   coerce_theme_style(ctx, resolved_value));
+          theme.defaults_exprs.push_back(defaults_val);
         }
       }
       else
@@ -479,10 +512,12 @@ namespace Pixils::Script
           if (!resolved_value) continue;
           auto resolved_style = coerce_theme_style(ctx, resolved_value);
           UI::apply_style_variant(theme.variant_defaults[variant], resolved_style);
+          theme.variant_defaults_exprs[variant].push_back(defaults_val);
           if (theme.default_variant && variant == *theme.default_variant)
           {
             if (!theme.defaults) theme.defaults = UI::Style{};
             UI::apply_style_variant(*theme.defaults, resolved_style);
+            theme.defaults_exprs.push_back(defaults_val);
           }
         }
       }
@@ -502,7 +537,7 @@ namespace Pixils::Script
           auto resolved_value = resolve_theme_vars(theme, std::nullopt, style_val);
           if (resolved_value)
           {
-            theme.set_style(selector, coerce_theme_style(ctx, resolved_value));
+            theme.set_style(selector, coerce_theme_style(ctx, resolved_value), {style_val});
           }
           continue;
         }
@@ -512,10 +547,10 @@ namespace Pixils::Script
           auto resolved_value = resolve_theme_vars(theme, variant, style_val);
           if (!resolved_value) continue;
           auto resolved_style = coerce_theme_style(ctx, resolved_value);
-          theme.set_variant_style(variant, selector, resolved_style);
+          theme.set_variant_style(variant, selector, resolved_style, {style_val});
           if (theme.default_variant && variant == *theme.default_variant)
           {
-            theme.set_style(selector, resolved_style);
+            theme.set_style(selector, resolved_style, {style_val});
           }
         }
       }

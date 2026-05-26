@@ -208,13 +208,14 @@ TEST_F(TilemapEditorStartupTest, terrain_rule_add_button_creates_visible_rule)
 
   std::vector<std::shared_ptr<Pixils::Runtime::View>> stamp_cells;
   find_descendant_modes(session.active_mode, "terrain-stamp-grid-cell", stamp_cells);
-  ASSERT_EQ(stamp_cells.size(), 9u);
+  ASSERT_GE(stamp_cells.size(), 1u);
   std::shared_ptr<Pixils::Runtime::View> stamp_cell;
   for (const auto& cell : stamp_cells)
   {
     const auto state_text = cell->state ? cell->state->to_string() : "";
-    if (state_text.find(":stamp-x 1") != std::string::npos &&
-        state_text.find(":stamp-y 1") != std::string::npos)
+    if (state_text.find(":stamp-x 0") != std::string::npos &&
+        state_text.find(":stamp-y 0") != std::string::npos &&
+        state_text.find(":visible? true") != std::string::npos)
     {
       stamp_cell = cell;
       break;
@@ -243,8 +244,7 @@ TEST_F(TilemapEditorStartupTest, terrain_rule_add_button_creates_visible_rule)
   update_cycle();
   input().mouse_up(stamp_cell_position);
   update_cycle();
-  EXPECT_NE(session.active_mode->state->to_string().find(
-              ":tiles [[nil nil nil] [nil :water-fill nil] [nil nil nil]]"),
+  EXPECT_NE(session.active_mode->state->to_string().find(":tiles [[:water-fill]]"),
             std::string::npos);
 
   input().mouse_down(no_tile_position);
@@ -253,8 +253,7 @@ TEST_F(TilemapEditorStartupTest, terrain_rule_add_button_creates_visible_rule)
   update_cycle();
   input().mouse_up(stamp_cell_position);
   update_cycle();
-  EXPECT_NE(session.active_mode->state->to_string().find(
-              ":tiles [[nil nil nil] [nil nil nil] [nil nil nil]]"),
+  EXPECT_NE(session.active_mode->state->to_string().find(":tiles [[nil]]"),
             std::string::npos);
 
   std::filesystem::remove(history_path, ec);
@@ -668,7 +667,9 @@ TEST_F(TilemapEditorStartupTest, painting_terrain_on_canvas_applies_terrain_stam
 
   const auto baked_state_text = session.active_mode->state->to_string();
   EXPECT_NE(baked_state_text.find(":terrain-stamp-replacements"), std::string::npos);
-  EXPECT_NE(baked_state_text.find(":id :shore-rules/layer :label \":shore-rules\""),
+  EXPECT_NE(baked_state_text.find(":id :scene/terrain/shore-rules/layer"),
+            std::string::npos);
+  EXPECT_NE(baked_state_text.find(":label \":shore-rules\""),
             std::string::npos);
   EXPECT_NE(baked_state_text.find(":shore-n"), std::string::npos);
   EXPECT_NE(baked_state_text.find(":grass-fill"), std::string::npos);

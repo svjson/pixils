@@ -4,7 +4,6 @@
 #include <pixils/ui/theme.h>
 
 #include <lisple/runtime/value.h>
-
 #include <optional>
 #include <string>
 
@@ -23,10 +22,13 @@ namespace Pixils::Script
                                       const std::optional<std::string>& variant,
                                       const Lisple::sptr_val& value,
                                       int depth = 0);
+  UI::Theme resolve_theme_declarations(Lisple::Context& ctx,
+                                       const UI::Theme& theme,
+                                       const std::optional<std::string>& variant);
   UI::Theme build_theme_from_definition(Lisple::Context& ctx,
                                         const std::string& name,
                                         const Lisple::sptr_val& definition_map,
                                         const UI::Theme* base = nullptr);
-}
+} // namespace Pixils::Script
 
 #endif

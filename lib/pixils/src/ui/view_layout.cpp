@@ -520,7 +520,11 @@ namespace Pixils::UI
           : (view && view->inherited_theme
                ? view->inherited_theme->resolved_for_variant(selected_variant)
                : default_base_theme(runtime).resolved_for_variant(selected_variant));
-      if (!view || !view->mode || !view->mode->theme) return theme;
+      if (!view || !view->mode || !view->mode->theme)
+      {
+        Lisple::Context ctx(runtime);
+        return Pixils::Script::resolve_theme_declarations(ctx, theme, selected_variant);
+      }
 
       for (const auto& theme_name : *view->mode->theme)
       {
@@ -532,7 +536,8 @@ namespace Pixils::UI
       }
 
       theme.selected_variant = selected_variant;
-      return theme;
+      Lisple::Context ctx(runtime);
+      return Pixils::Script::resolve_theme_declarations(ctx, theme, selected_variant);
     }
 
     void resolve_style_view_snapshot(const std::shared_ptr<Pixils::Runtime::View>& view,

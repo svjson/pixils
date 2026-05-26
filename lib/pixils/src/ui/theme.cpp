@@ -242,7 +242,9 @@ namespace Pixils::UI
     return 0;
   }
 
-  void Theme::set_style(const ThemeSelector& selector, const Style& style)
+  void Theme::set_style(const ThemeSelector& selector,
+                        const Style& style,
+                        const std::vector<Lisple::sptr_val>& style_exprs)
   {
     auto it = std::find_if(rules.begin(),
                            rules.end(),
@@ -250,17 +252,20 @@ namespace Pixils::UI
 
     if (it == rules.end())
     {
-      rules.push_back(ThemeRule{.selector = selector, .style = style});
+      rules.push_back(
+        ThemeRule{.selector = selector, .style = style, .style_exprs = style_exprs});
     }
     else
     {
       apply_style_variant(it->style, style);
+      it->style_exprs.insert(it->style_exprs.end(), style_exprs.begin(), style_exprs.end());
     }
   }
 
   void Theme::set_variant_style(const std::string& variant,
                                 const ThemeSelector& selector,
-                                const Style& style)
+                                const Style& style,
+                                const std::vector<Lisple::sptr_val>& style_exprs)
   {
     auto& rules_for_variant = variant_rules[variant];
     auto it = std::find_if(rules_for_variant.begin(),
@@ -269,11 +274,13 @@ namespace Pixils::UI
 
     if (it == rules_for_variant.end())
     {
-      rules_for_variant.push_back(ThemeRule{.selector = selector, .style = style});
+      rules_for_variant.push_back(
+        ThemeRule{.selector = selector, .style = style, .style_exprs = style_exprs});
     }
     else
     {
       apply_style_variant(it->style, style);
+      it->style_exprs.insert(it->style_exprs.end(), style_exprs.begin(), style_exprs.end());
     }
   }
 
@@ -370,7 +377,7 @@ namespace Pixils::UI
         const auto& variant_rules = it->second;
         for (const auto& rule : variant_rules)
         {
-          resolved.set_style(rule.selector, rule.style);
+          resolved.set_style(rule.selector, rule.style, rule.style_exprs);
         }
       }
 
@@ -379,6 +386,14 @@ namespace Pixils::UI
       {
         if (!resolved.defaults) resolved.defaults = Style{};
         apply_style_variant(*resolved.defaults, defaults_it->second);
+      }
+      auto defaults_exprs_it =
+        resolved.variant_defaults_exprs.find(*resolved.selected_variant);
+      if (defaults_exprs_it != resolved.variant_defaults_exprs.end())
+      {
+        resolved.defaults_exprs.insert(resolved.defaults_exprs.end(),
+                                       defaults_exprs_it->second.begin(),
+                                       defaults_exprs_it->second.end());
       }
     }
     return resolved;
@@ -391,20 +406,30 @@ namespace Pixils::UI
       if (!out.defaults) out.defaults = Style{};
       apply_style_variant(*out.defaults, *overlay.defaults);
     }
+    out.defaults_exprs.insert(out.defaults_exprs.end(),
+                              overlay.defaults_exprs.begin(),
+                              overlay.defaults_exprs.end());
     for (const auto& rule : overlay.rules)
     {
-      out.set_style(rule.selector, rule.style);
+      out.set_style(rule.selector, rule.style, rule.style_exprs);
     }
     for (const auto& [variant, defaults] : overlay.variant_defaults)
     {
       auto& out_defaults = out.variant_defaults[variant];
       apply_style_variant(out_defaults, defaults);
     }
+    for (const auto& [variant, defaults_exprs] : overlay.variant_defaults_exprs)
+    {
+      auto& out_defaults_exprs = out.variant_defaults_exprs[variant];
+      out_defaults_exprs.insert(out_defaults_exprs.end(),
+                                defaults_exprs.begin(),
+                                defaults_exprs.end());
+    }
     for (const auto& [variant, rules] : overlay.variant_rules)
     {
       for (const auto& rule : rules)
       {
-        out.set_variant_style(variant, rule.selector, rule.style);
+        out.set_variant_style(variant, rule.selector, rule.style, rule.style_exprs);
       }
     }
     for (const auto& [variant, vars] : overlay.vars)

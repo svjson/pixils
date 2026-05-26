@@ -56,6 +56,7 @@ namespace Pixils::UI
   {
     ThemeSelector selector;
     Style style;
+    std::vector<Lisple::sptr_val> style_exprs;
   };
 
   struct Theme
@@ -65,15 +66,20 @@ namespace Pixils::UI
     std::optional<std::string> default_variant = std::nullopt;
     std::optional<std::string> selected_variant = std::nullopt;
     std::optional<Style> defaults = std::nullopt;
+    std::vector<Lisple::sptr_val> defaults_exprs;
     std::map<std::string, std::map<std::string, Lisple::sptr_val>> vars;
     std::vector<ThemeRule> rules;
     std::map<std::string, Style> variant_defaults;
+    std::map<std::string, std::vector<Lisple::sptr_val>> variant_defaults_exprs;
     std::map<std::string, std::vector<ThemeRule>> variant_rules;
 
-    void set_style(const ThemeSelector& selector, const Style& style);
+    void set_style(const ThemeSelector& selector,
+                   const Style& style,
+                   const std::vector<Lisple::sptr_val>& style_exprs = {});
     void set_variant_style(const std::string& variant,
                            const ThemeSelector& selector,
-                           const Style& style);
+                           const Style& style,
+                           const std::vector<Lisple::sptr_val>& style_exprs = {});
     const Style* get_style(const ThemeSelector& selector) const;
     const Style* get_variant_style(const std::string& variant,
                                    const ThemeSelector& selector) const;

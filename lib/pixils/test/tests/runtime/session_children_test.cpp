@@ -488,6 +488,71 @@ TEST_F(SessionChildrenTest, program_theme_variant_selects_theme_vars)
             std::make_optional<std::string>("dark"));
 }
 
+TEST_F(SessionChildrenTest, theme_vars_override_inherited_base_theme_rules)
+{
+  // Given
+  runtime.eval(R"(
+    (pixils/deftheme border-theme
+      {:default-variant :custom
+       :vars {:custom {:border {:r 20 :g 40 :b 60}}}})
+
+    (pixils/defmode root-mode
+      {:class :ui/canvas
+       :render (fn [state ctx] nil)})
+
+    (pixils/defprogram app
+      {:initial-mode 'root-mode
+       :theme 'border-theme})
+  )");
+  Pixils::load_program(runtime, session);
+
+  // When
+  session.render_mode();
+
+  // Then
+  ASSERT_NE(session.active_mode, nullptr);
+  const auto& style = session.active_mode->effective_style;
+  ASSERT_TRUE(style.border.has_value());
+  ASSERT_TRUE(style.border->color.has_value());
+  EXPECT_EQ(*style.border->color, (Pixils::Color{20, 40, 60, 255}));
+}
+
+TEST_F(SessionChildrenTest, theme_vars_override_inherited_base_inset_border_edges)
+{
+  // Given
+  runtime.eval(R"(
+    (pixils/deftheme border-theme
+      {:default-variant :custom
+       :vars {:custom {:border-inset-top-left {:r 20 :g 40 :b 60}
+                       :border-inset-bottom-right {:r 70 :g 80 :b 90}}}})
+
+    (pixils/defmode root-mode
+      {:class :ui/canvas
+       :render (fn [state ctx] nil)})
+
+    (pixils/defprogram app
+      {:initial-mode 'root-mode
+       :theme 'border-theme})
+  )");
+  Pixils::load_program(runtime, session);
+
+  // When
+  session.render_mode();
+
+  // Then
+  ASSERT_NE(session.active_mode, nullptr);
+  const auto& style = session.active_mode->effective_style;
+  ASSERT_TRUE(style.border.has_value());
+  ASSERT_TRUE(style.border->top_color().has_value());
+  ASSERT_TRUE(style.border->left_color().has_value());
+  ASSERT_TRUE(style.border->right_color().has_value());
+  ASSERT_TRUE(style.border->bottom_color().has_value());
+  EXPECT_EQ(*style.border->top_color(), (Pixils::Color{20, 40, 60, 255}));
+  EXPECT_EQ(*style.border->left_color(), (Pixils::Color{20, 40, 60, 255}));
+  EXPECT_EQ(*style.border->right_color(), (Pixils::Color{70, 80, 90, 255}));
+  EXPECT_EQ(*style.border->bottom_color(), (Pixils::Color{70, 80, 90, 255}));
+}
+
 TEST_F(SessionChildrenTest, root_mode_theme_applies_component_selector_to_active_view)
 {
   // Given
