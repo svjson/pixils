@@ -43,6 +43,7 @@ namespace Pixils::Script
   inline const std::string FN__POP_MODE_BANG = "pop-mode!";
   inline const std::string FN__PUSH_MODE_BANG = "push-mode!";
   inline const std::string FN__QUIT_BANG = "quit!";
+  inline const std::string FN__SET_THEME_BANG = "set-theme!";
 
   inline const std::string ID__PIXILS__MODE_STACK = "pixils/mode-stack";
   inline const std::string ID__PIXILS__MODE_STACK_MESSAGES = "pixils/mode-stack-messages";
@@ -114,6 +115,8 @@ namespace Pixils::Script
     FUNC(PopModeBangFunction, pop_mode);
     /*! @brief Request application shutdown */
     FUNC(QuitBangFunction, quit);
+    /*! @brief Switch the application-level theme */
+    FUNC(SetThemeBangFunction, set_theme);
     /*! @brief Create a theme variable reference for deftheme styles */
     FUNC(ThemeVarFunction, theme_var);
     /*! @brief Lisple make-function for Resolution/ResolutionAdapter */

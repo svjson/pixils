@@ -11,23 +11,6 @@ namespace Pixils
 {
   namespace
   {
-    Lisple::sptr_val theme_names_to_value(const std::vector<std::string>& theme_names)
-    {
-      if (theme_names.size() == 1)
-      {
-
-        return Lisple::symbol(theme_names[0]);
-      }
-
-      std::vector<Lisple::sptr_val> values;
-      values.reserve(theme_names.size());
-      for (const auto& theme_name : theme_names)
-      {
-        values.push_back(Lisple::symbol(theme_name));
-      }
-      return Lisple::vector(values);
-    }
-
     Program& resolve_program(Lisple::Runtime& runtime)
     {
       Lisple::sptr_val programs = runtime.lookup(Script::ID__PIXILS__PROGRAMS);
@@ -59,23 +42,6 @@ namespace Pixils
       program.initial_mode = mode_keys.front()->str();
     }
 
-    Lisple::sptr_val program_root_overrides(const Program& program)
-    {
-      if (!program.theme && !program.theme_variant) return Lisple::Constant::NIL;
-
-      std::vector<Lisple::sptr_val> values;
-      if (program.theme)
-      {
-        values.push_back(Lisple::keyword("theme"));
-        values.push_back(theme_names_to_value(*program.theme));
-      }
-      if (program.theme_variant)
-      {
-        values.push_back(Lisple::keyword("theme-variant"));
-        values.push_back(Lisple::keyword(*program.theme_variant));
-      }
-      return Lisple::map(values);
-    }
   } // namespace
 
   Program::Program(const std::string& name,
@@ -101,9 +67,8 @@ namespace Pixils
   {
     auto& program = resolve_program(runtime);
     ensure_initial_mode(runtime, program);
-    session.push_mode(program.initial_mode,
-                      Lisple::Constant::NIL,
-                      program_root_overrides(program));
+    session.set_application_theme(program.theme, program.theme_variant);
+    session.push_mode(program.initial_mode, Lisple::Constant::NIL);
     return program;
   }
 } // namespace Pixils

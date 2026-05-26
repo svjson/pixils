@@ -61,6 +61,8 @@ namespace Pixils::Script
     SHKEY(SCALING, "scaling");
     SHKEY(STATE, "state");
     SHKEY(TARGET_FRAME_RATE, "target-frame-rate");
+    SHKEY(THEME, "theme");
+    SHKEY(THEME_VARIANT, "theme-variant");
     SHKEY(TYPE, "type");
     SHKEY(UPDATE, "update");
     SHKEY(W, "w");
@@ -741,6 +743,30 @@ namespace Pixils::Script
       return Lisple::Constant::NIL;
     }
 
+    /* SetThemeBangFunction - set-theme! */
+    FUNC_IMPL(SetThemeBangFunction,
+              MULTI_SIG((FN_ARGS((&Lisple::Type::ANY)),
+                         EXEC_DISPATCH(&SetThemeBangFunction::exec_set_theme)),
+                        (FN_ARGS((&Lisple::Type::ANY), (&Lisple::Type::ANY)),
+                         EXEC_DISPATCH(&SetThemeBangFunction::exec_set_theme))));
+
+    EXEC_BODY(SetThemeBangFunction, exec_set_theme)
+    {
+      auto message_queue = ctx.lookup(ID__PIXILS__MODE_STACK_MESSAGES);
+
+      Lisple::append(*message_queue,
+                     Lisple::map({
+                       Lisple::keyword(std::get<std::string>(MapKey::TYPE->value)),
+                       Lisple::keyword("theme"),
+                       Lisple::keyword(std::get<std::string>(MapKey::THEME->value)),
+                       args[0],
+                       Lisple::keyword(std::get<std::string>(MapKey::THEME_VARIANT->value)),
+                       args.size() > 1 ? args[1] : Lisple::Constant::NIL,
+                     }));
+
+      return args[0];
+    }
+
     /* ThemeVarFunction - var */
     FUNC_IMPL(ThemeVarFunction,
               SIG((FN_ARGS((&Lisple::Type::ANY)),
@@ -1091,6 +1117,7 @@ namespace Pixils::Script
     values.emplace("pop-mode!", Function::PopModeBangFunction::make());
     values.emplace(FN__PUSH_MODE_BANG, Function::PushModeBangFunction::make());
     values.emplace(FN__QUIT_BANG, Function::QuitBangFunction::make());
+    values.emplace(FN__SET_THEME_BANG, Function::SetThemeBangFunction::make());
     values.emplace("var", Function::ThemeVarFunction::make());
   }
 

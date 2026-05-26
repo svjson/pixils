@@ -46,6 +46,11 @@
 (defun apply-tileset-shortcut-dialog-result [state payload]
   (tileset-model/add-tileset-definition! state payload))
 
+(defun apply-theme-selection! [state payload]
+  (do
+    (pixils/set-theme! (:theme payload))
+    (assoc state :application-theme (:value payload))))
+
 (defmode main-mode
  {:class :ui/app
   :action-map app-menu/tilemap-editor-menu-keymap
@@ -88,6 +93,7 @@
            :map-selection nil
            :map-line nil
            :terrain-rule-application :preview
+           :application-theme :pixils/windows-3
            :show-terrain-rules? true
            :terrain-stamp-layers []
            :terrain-stamp-replacements []
@@ -173,7 +179,9 @@
                       :show-terrain-rules?
                       (ui/bind-state :show-terrain-rules?)
                       :terrain-rule-application
-                      (ui/bind-state :terrain-rule-application)}}
+                      (ui/bind-state :terrain-rule-application)
+                      :application-theme
+                      (ui/bind-state :application-theme)}}
              (tabs/make
               {:selected-tab (ui/bind-state :workspace-tab)
                :style {:width :fill
@@ -452,5 +460,8 @@
               :terrain-rules/set-application
               (fn [state event ctx]
                 (tilemap/set-terrain-rule-application state (:payload event)))
+              :theme/select
+              (fn [state event ctx]
+                (apply-theme-selection! state (:payload event)))
               :app/quit (fn [state event ctx]
                           (quit!))}})

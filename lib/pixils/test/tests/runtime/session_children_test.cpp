@@ -488,6 +488,127 @@ TEST_F(SessionChildrenTest, program_theme_variant_selects_theme_vars)
             std::make_optional<std::string>("dark"));
 }
 
+TEST_F(SessionChildrenTest, set_theme_bang_switches_application_theme_at_runtime)
+{
+  // Given
+  runtime.eval(R"(
+    (pixils/deftheme red-theme
+      {:styles {:ui/panel {:background {:r 1 :g 2 :b 3}}}})
+
+    (pixils/deftheme blue-theme
+      {:styles {:ui/panel {:background {:r 10 :g 20 :b 30}}}})
+
+    (pixils/defmode root-mode
+      {:class :ui/panel
+       :render (fn [state ctx] nil)})
+
+    (pixils/defprogram app
+      {:initial-mode 'root-mode
+       :theme 'red-theme})
+  )");
+  Pixils::load_program(runtime, session);
+  session.render_mode();
+
+  ASSERT_TRUE(session.active_mode->effective_style.background.has_value());
+  ASSERT_TRUE(session.active_mode->effective_style.background->color.has_value());
+  EXPECT_EQ(*session.active_mode->effective_style.background->color,
+            (Pixils::Color{1, 2, 3, 255}));
+
+  // When
+  runtime.eval("(pixils/set-theme! 'blue-theme)");
+  session.process_messages();
+  session.render_mode();
+
+  // Then
+  ASSERT_TRUE(session.active_mode->effective_style.background.has_value());
+  ASSERT_TRUE(session.active_mode->effective_style.background->color.has_value());
+  EXPECT_EQ(*session.active_mode->effective_style.background->color,
+            (Pixils::Color{10, 20, 30, 255}));
+  ASSERT_TRUE(session.application_theme.has_value());
+  ASSERT_EQ(session.application_theme->size(), 1u);
+  EXPECT_EQ((*session.application_theme)[0], "blue-theme");
+}
+
+TEST_F(SessionChildrenTest, set_theme_bang_updates_children_inheriting_application_theme)
+{
+  // Given
+  runtime.eval(R"(
+    (pixils/deftheme red-theme
+      {:styles {:ui/panel {:background {:r 1 :g 2 :b 3}}}})
+
+    (pixils/deftheme blue-theme
+      {:styles {:ui/panel {:background {:r 10 :g 20 :b 30}}}})
+
+    (pixils/defmode child-mode
+      {:class :ui/panel
+       :render (fn [state ctx] nil)})
+
+    (pixils/defmode root-mode
+      {:children [{:mode 'child-mode}]})
+
+    (pixils/defprogram app
+      {:initial-mode 'root-mode
+       :theme 'red-theme})
+  )");
+  Pixils::load_program(runtime, session);
+  session.render_mode();
+
+  ASSERT_EQ(session.active_mode->children.size(), 1u);
+  auto child = session.active_mode->children[0];
+  ASSERT_TRUE(child->effective_style.background.has_value());
+  ASSERT_TRUE(child->effective_style.background->color.has_value());
+  EXPECT_EQ(*child->effective_style.background->color, (Pixils::Color{1, 2, 3, 255}));
+
+  // When
+  runtime.eval("(pixils/set-theme! 'blue-theme)");
+  session.process_messages();
+  session.render_mode();
+
+  // Then
+  ASSERT_TRUE(child->effective_style.background.has_value());
+  ASSERT_TRUE(child->effective_style.background->color.has_value());
+  EXPECT_EQ(*child->effective_style.background->color, (Pixils::Color{10, 20, 30, 255}));
+}
+
+TEST_F(SessionChildrenTest, set_theme_bang_switches_application_theme_variant)
+{
+  // Given
+  runtime.eval(R"(
+    (pixils/deftheme visual-theme
+      {:default-variant :light
+       :vars {:light {:panel-bg {:r 1 :g 2 :b 3}}
+              :dark {:panel-bg {:r 10 :g 11 :b 12}}}
+       :styles {:ui/panel {:background (pixils/var :panel-bg)}}})
+
+    (pixils/defmode root-mode
+      {:class :ui/panel
+       :render (fn [state ctx] nil)})
+
+    (pixils/defprogram app
+      {:initial-mode 'root-mode
+       :theme 'visual-theme})
+  )");
+  Pixils::load_program(runtime, session);
+  session.render_mode();
+
+  ASSERT_TRUE(session.active_mode->effective_style.background.has_value());
+  ASSERT_TRUE(session.active_mode->effective_style.background->color.has_value());
+  EXPECT_EQ(*session.active_mode->effective_style.background->color,
+            (Pixils::Color{1, 2, 3, 255}));
+
+  // When
+  runtime.eval("(pixils/set-theme! 'visual-theme :dark)");
+  session.process_messages();
+  session.render_mode();
+
+  // Then
+  ASSERT_TRUE(session.active_mode->effective_style.background.has_value());
+  ASSERT_TRUE(session.active_mode->effective_style.background->color.has_value());
+  EXPECT_EQ(*session.active_mode->effective_style.background->color,
+            (Pixils::Color{10, 11, 12, 255}));
+  EXPECT_EQ(session.application_theme_variant, std::make_optional<std::string>("dark"));
+}
+
 TEST_F(SessionChildrenTest, theme_vars_override_inherited_base_theme_rules)
 {
   // Given

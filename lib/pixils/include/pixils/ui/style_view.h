@@ -30,6 +30,12 @@ namespace Pixils::UI
       local_generation++;
     }
 
+    void invalidate_theme()
+    {
+      invalidate();
+      theme_cache_valid = false;
+    }
+
     bool valid_for(const void* mode,
                    const void* state,
                    const InteractionState& interaction,

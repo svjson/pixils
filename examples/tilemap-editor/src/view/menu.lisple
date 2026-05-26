@@ -22,16 +22,28 @@
      :show-grid? (not= (:show-grid? state) false)
      :show-terrain-rules? (not= (:show-terrain-rules? state) false)
      :terrain-rule-application (or (:terrain-rule-application state)
-                                   :preview)}
+                                   :preview)
+     :application-theme (or (:application-theme state)
+                            :pixils/windows-3)}
     {:recent-projects (or state [])
      :show-grid? true
      :show-terrain-rules? true
-     :terrain-rule-application :preview}))
+     :terrain-rule-application :preview
+     :application-theme :pixils/windows-3}))
 
 (defun recent-project-label [project]
   (or (:filename project)
       (:path project)
       "Untitled Project"))
+
+(defun theme-menu-item [label value theme]
+  {:label label
+   :type :option
+   :action :theme/select
+   :value value
+   :selected-path [:option-state :application-theme]
+   :payload {:value value
+             :theme theme}})
 
 (defun recent-project-menu-items [projects]
   (map (or projects [])
@@ -96,7 +108,21 @@
                                 :value :paint-baked
                                 :selected-path [:option-state
                                                 :terrain-rule-application]
-                                :payload :paint-baked}]}]}]}))
+                                :payload :paint-baked}]}
+                      :separator
+                      {:label "&Theme"
+                       :items [(theme-menu-item "Pixils &Default"
+                                                :pixils/default
+                                                nil)
+                               (theme-menu-item "Windows &3"
+                                                :pixils/windows-3
+                                                'pixils/windows-3)
+                               (theme-menu-item "Windows &95"
+                                                :pixils/windows-95
+                                                'pixils/windows-95)
+                               (theme-menu-item "&Classic Blue"
+                                                :pixils/classic-blue
+                                                'pixils/classic-blue)]}]}]}))
 
 (defun tilemap-editor-menu-child [state]
   (let [state (normalized-menu-state state)]

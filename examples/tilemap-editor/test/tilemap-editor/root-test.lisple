@@ -24,3 +24,14 @@
     (is (= "Terrain" (get-in state [:tilesets 0 :label])))
     (is (= 24 (get-in state [:tilesets 0 :tile-size])))
     (is (= 0 (:selected-tileset-definition-index state)))))
+
+(deftest theme-selection-updates_state_and_queues_runtime_theme_switch
+  (let [message-index (count pixils/mode-stack-messages)
+        state (tilemap-editor.root/apply-theme-selection!
+               {:application-theme :pixils/windows-3}
+               {:value :pixils/windows-95
+                :theme 'pixils/windows-95})
+        message (nth pixils/mode-stack-messages message-index)]
+    (is (= :pixils/windows-95 (:application-theme state)))
+    (is (= :theme (:type message)))
+    (is (= 'pixils/windows-95 (:theme message)))))

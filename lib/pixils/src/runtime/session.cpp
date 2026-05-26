@@ -6,10 +6,12 @@
 #include <pixils/binding/mode_definition.h>
 #include <pixils/binding/pixils_namespace.h>
 #include <pixils/binding/point_namespace.h>
+#include <pixils/binding/ui/style/theme_definition.h>
 #include <pixils/context.h>
 #include <pixils/runtime/mode.h>
 #include <pixils/runtime/state.h>
 #include <pixils/runtime/view.h>
+#include <pixils/ui/base_theme.h>
 #include <pixils/ui/interaction_dispatch.h>
 #include <pixils/ui/view_events.h>
 #include <pixils/ui/view_layout.h>
@@ -31,6 +33,8 @@ namespace Pixils::Runtime
     const Lisple::sptr_val KEYWORD__ORIGIN = Lisple::keyword("origin");
     const Lisple::sptr_val KEYWORD__POP_RESULT = Lisple::keyword("pop/result");
     const Lisple::sptr_val KEYWORD__TARGET = Lisple::keyword("target");
+    const Lisple::sptr_val KEYWORD__THEME = Lisple::keyword("theme");
+    const Lisple::sptr_val KEYWORD__THEME_VARIANT = Lisple::keyword("theme-variant");
     const Lisple::sptr_val KEYWORD__VIEW = Lisple::keyword("view");
 
     Session::ModeFrameMetadata parse_frame_metadata(const Lisple::sptr_val& overrides)
@@ -202,6 +206,26 @@ namespace Pixils::Runtime
       return mode;
     }
 
+    std::optional<UI::Theme> lookup_theme(Lisple::Runtime& runtime, const std::string& name)
+    {
+      auto themes = runtime.lookup(Script::ID__PIXILS__THEMES);
+      auto theme_val = Lisple::Dict::get_property(themes, Lisple::symbol(name));
+      if (!theme_val || theme_val->type == Lisple::Value::Type::NIL) return std::nullopt;
+      return Lisple::obj<UI::Theme>(*theme_val);
+    }
+
+    void invalidate_style_tree(const std::shared_ptr<View>& view)
+    {
+      if (!view) return;
+
+      view->style_view.invalidate_theme();
+      view->mark_style_changed();
+      for (auto& child : view->children)
+      {
+        invalidate_style_tree(child);
+      }
+    }
+
   } // namespace
 
   Session::Session(Lisple::Runtime& lisple_runtime,
@@ -294,19 +318,17 @@ namespace Pixils::Runtime
   {
     PIXILS_BENCHMARK_COUNT(runtime_push_mode_calls);
 
-    std::optional<UI::Theme> inherited_theme = std::nullopt;
+    std::optional<UI::Theme> inherited_theme = resolved_application_theme;
     /**
      * Flush the current active context's state to the Lisple stack before pushing,
      * then save the context itself so pop_mode can recover it cheaply.
      */
     if (mode_stack.size() > 0)
     {
-      inherited_theme =
-        UI::resolve_effective_theme(active_mode,
-                                    lisple_runtime,
-                                    active_mode->inherited_theme
-                                      ? &*active_mode->inherited_theme
-                                      : nullptr);
+      inherited_theme = UI::resolve_effective_theme(
+        active_mode,
+        lisple_runtime,
+        active_mode->inherited_theme ? &*active_mode->inherited_theme : nullptr);
       mode_stack.update_state(active_mode->state);
       ctx_stack.push_back(std::move(active_mode));
     }
@@ -355,6 +377,56 @@ namespace Pixils::Runtime
   {
     auto mode = resolve_mode_value(modes, mode_name);
     this->push_mode(mode, state, overrides);
+  }
+
+  void Session::set_application_theme(const std::optional<std::vector<std::string>>& theme,
+                                      const std::optional<std::string>& variant)
+  {
+    application_theme = theme;
+    application_theme_variant = variant;
+    resolved_application_theme = std::nullopt;
+
+    if (application_theme || application_theme_variant)
+    {
+      UI::Theme resolved = UI::default_base_theme(lisple_runtime)
+                             .resolved_for_variant(application_theme_variant);
+      if (application_theme)
+      {
+        for (const auto& theme_name : *application_theme)
+        {
+          auto local_theme = lookup_theme(lisple_runtime, theme_name);
+          if (local_theme)
+          {
+            UI::overlay_theme(resolved,
+                              local_theme->resolved_for_variant(application_theme_variant));
+          }
+        }
+      }
+
+      resolved.selected_variant = application_theme_variant;
+      Lisple::Context ctx(lisple_runtime);
+      resolved_application_theme =
+        Pixils::Script::resolve_theme_declarations(ctx, resolved, application_theme_variant);
+    }
+
+    std::optional<UI::Theme> inherited_theme = resolved_application_theme;
+    auto apply_to_root = [&](const std::shared_ptr<View>& root)
+    {
+      if (!root) return;
+
+      root->inherited_theme = inherited_theme;
+      invalidate_style_tree(root);
+      inherited_theme = UI::resolve_effective_theme(
+        root,
+        lisple_runtime,
+        root->inherited_theme ? &*root->inherited_theme : nullptr);
+    };
+
+    for (auto& root : ctx_stack)
+    {
+      apply_to_root(root);
+    }
+    apply_to_root(active_mode);
   }
 
   void Session::process_messages()
@@ -416,6 +488,17 @@ namespace Pixils::Runtime
         else if (type == "quit")
         {
           quit_requested = true;
+        }
+        else if (type == "theme")
+        {
+          auto theme_val = Lisple::Dict::get_property(message, KEYWORD__THEME);
+          auto theme_names = Script::parse_theme_names(theme_val, "set-theme! theme");
+          auto variant = Script::parse_theme_variant(
+            Lisple::Dict::get_property(message, KEYWORD__THEME_VARIANT),
+            "set-theme! theme variant");
+          set_application_theme(
+            theme_names.empty() ? std::nullopt : std::make_optional(std::move(theme_names)),
+            variant);
         }
       }
     }

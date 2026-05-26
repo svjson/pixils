@@ -8,6 +8,11 @@
 #include <pixils/runtime/mode_stack.h>
 #include <pixils/ui/focus_state.h>
 #include <pixils/ui/mouse_state.h>
+#include <pixils/ui/theme.h>
+
+#include <optional>
+#include <string>
+#include <vector>
 
 namespace Pixils
 {
@@ -44,6 +49,9 @@ namespace Pixils::Runtime
     UI::FocusState focus_state;
     UI::MouseState mouse_state;
     bool quit_requested = false;
+    std::optional<std::vector<std::string>> application_theme = std::nullopt;
+    std::optional<std::string> application_theme_variant = std::nullopt;
+    std::optional<UI::Theme> resolved_application_theme = std::nullopt;
 
     Session(Lisple::Runtime& lisple_runtime,
             Asset::Registry& assets,
@@ -57,6 +65,8 @@ namespace Pixils::Runtime
     void push_mode(const std::string& mode_name,
                    const Lisple::sptr_val& state,
                    const Lisple::sptr_val& overrides = Lisple::Constant::NIL);
+    void set_application_theme(const std::optional<std::vector<std::string>>& theme,
+                               const std::optional<std::string>& variant = std::nullopt);
     void process_messages();
     void update_mode();
     void render_mode();
