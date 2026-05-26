@@ -1,0 +1,45 @@
+(ns boulder-rush.level.loader-test
+  (:require proof.core
+            [boulder-rush.level.loader :as level-loader]
+            [pixils.resource :as pixils-resource]
+            [pixils.tilemap.resources :as tilemap-resources]))
+
+(deftest project-file-loads
+  (let [project (level-loader/load-project)]
+    (is (= :pixils.tilemap-editor/project (:format project)))
+    (is (= :map/main (:selected-map project)))))
+
+(deftest level-pack-loads_maps_and_tilesets
+  (let [pack (level-loader/load-level-pack)]
+    (is (= :pixils.tilemap/pack (:format pack)))
+    (is (= 1 (count (:maps pack))))
+    (is (= 1 (count (:tilesets pack))))))
+
+(deftest level-map-selects_first_level_map
+  (let [pack (level-loader/load-level-pack)
+        tilemap (level-loader/level-map pack 1)]
+    (is (= :map/main (:id tilemap)))
+    (is (= 40 (:width tilemap)))
+    (is (= 22 (:height tilemap)))
+    (is (= 1 (count (:layers tilemap))))))
+
+(deftest level-tileset-selects_map_tileset
+  (let [pack (level-loader/load-level-pack)
+        tileset (level-loader/level-tileset pack 1)]
+    (is (= :br (:id tileset)))
+    (is (= "Game Tiles" (:label tileset)))))
+
+(deftest level-pack-resource_dependencies_include_used_sprite_sheet
+  (let [pack (level-loader/load-level-pack)]
+    (is (= {:boulder-rush
+            {:images {:simples-pimples
+                      {:file-name "../assets/simples_pimples.png"
+                       :transparency-color "#5a5268"}}}}
+           (tilemap-resources/runtime-bundle-dependencies (:resources pack)
+                                                          (:tilesets pack))))))
+
+(deftest load-level-pack-populates_tilemap_resource_bundle
+  (do
+    (level-loader/load-level-pack!)
+    (is (= [:boulder-rush/simples-pimples]
+           (map (pixils-resource/list-images :boulder-rush) :id)))))

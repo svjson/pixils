@@ -1,0 +1,61 @@
+(ns boulder-rush.game-mode
+  (:require pixils
+            [pixils.point :as pt]
+            [boulder-rush.level.loader :as level-loader]
+            [pixils.tilemap.renderer :as tilemap-renderer]))
+
+(defun move-player [map player dir]
+  (let [player-pos (:pos player)
+        new-pos (pt/+ player-pos dir)
+        matrix (-> map :layers (nth 0) :tiles)
+        target-cell (-> matrix (nth (:y new-pos)) (nth (:x new-pos)))]
+    (if (contains? [:empty :dirt] target-cell)
+      {:level-map (-> map
+                      (assoc-in [:layers 0 :tiles (:y player-pos) (:x player-pos)] :empty)
+                      (assoc-in [:layers 0 :tiles (:y new-pos) (:x new-pos)] :player-default))
+       :player {:pos new-pos}}
+      {})))
+
+(defmode game-mode
+  {:init (fn [state ctx]
+           (let [level (or (:level state) 1)
+                 map (level-loader/level-map state level)]
+             {:level level
+              :level-map map
+              :tileset (level-loader/level-tileset state level)
+              :player {:pos (reduce (-> map :layers head :tiles)
+                                    {:x nil :y 0}
+                                    (fn [coord row]
+                                      (case (:x coord)
+                         nil
+                         (if-let [x (find-index row (fn [cell] (= :player-default cell)))]
+                           (assoc coord :x x)
+                           (update coord :y inc))
+
+                       :default
+                       coord)))}}))
+
+   :on-key-down (fn [{:keys [player level-map] :as state} e ctx]
+                (case (:key e)
+                  :key/up
+                  (merge state (move-player level-map player {:x 0 :y -1}))
+
+                  :key/right
+                  (merge state (move-player level-map player {:x 1 :y 0}))
+
+                  :key/down
+                  (merge state (move-player level-map player {:x 0 :y 1}))
+
+                  :key/left
+                  (merge state (move-player level-map player {:x -1 :y 0}))
+
+
+                  :default
+                  state))
+
+   :update (fn [state ctx]
+             state)
+
+   :render (fn [state ctx]
+             (tilemap-renderer/render-map! (:level-map state)
+                                           (:tileset state)))})

@@ -102,5 +102,10 @@
       (when (:show-grid? opts)
         (render-grid-overlay! tilemap offset zoom)))))
 
-(defun render-map! [tilemap opts]
-  (render-layers! tilemap opts))
+(defun render-options [tileset-or-opts]
+  (if (:tiles tileset-or-opts)
+    {:tilesets [tileset-or-opts]}
+    (or tileset-or-opts {})))
+
+(defun render-map! [tilemap tileset-or-opts]
+  (render-layers! tilemap (render-options tileset-or-opts)))

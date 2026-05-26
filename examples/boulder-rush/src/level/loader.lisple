@@ -1,0 +1,41 @@
+(ns boulder-rush.level.loader
+  (:require [lisple.io :as io]
+            [pixils.tilemap.project.runtime :as project-runtime]
+            [pixils.tilemap.resources :as tilemap-resources]))
+
+(def project-path-candidates
+  ["assets/tile-maps.edn"
+   "examples/boulder-rush/assets/tile-maps.edn"])
+
+(defun project-path []
+  (or (head (filter project-path-candidates io/exists?))
+      (head project-path-candidates)))
+
+(defun load-project []
+  (io/slurp-edn! (project-path)))
+
+(defun load-level-pack []
+  (project-runtime/tilemap-pack (load-project)))
+
+(defun load-level-pack! []
+  (let [pack (load-level-pack)]
+    (do
+      (tilemap-resources/ensure-resource-bundles! (:resources pack)
+                                                  (:tilesets pack))
+      pack)))
+
+(defun level-map [level-pack level]
+  (nth (:maps level-pack) (dec level)))
+
+(defun map-tileset-id [tilemap]
+  (:tileset (head (:layers tilemap))))
+
+(defun tileset-by-id [level-pack tileset-id]
+  (head (filter (:tilesets level-pack)
+                (fn [tileset]
+                  (= (:id tileset) tileset-id)))))
+
+(defun level-tileset [level-pack level]
+  (let [tilemap (level-map level-pack level)]
+    (or (tileset-by-id level-pack (map-tileset-id tilemap))
+        (head (:tilesets level-pack)))))

@@ -1,0 +1,10 @@
+(ns boulder-rush.init-mode
+  (:require pixils
+            boulder-rush.game-mode
+            [boulder-rush.level.loader :as level-loader]))
+
+(defmode init-mode
+  {:init (fn [state ctx]
+           (do
+             (push-mode! 'game-mode (level-loader/load-level-pack!))
+             state))})

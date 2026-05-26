@@ -1,0 +1,10 @@
+(ns boulder-rush.core-test
+  (:require proof.core
+            boulder-rush.core))
+
+(deftest core-registers_startup_and_game_modes
+  (is (not (nil? (get pixils/modes 'init-mode))))
+  (is (not (nil? (get pixils/modes 'game-mode)))))
+
+(deftest program-starts_in_init_mode
+  (is (= 'init-mode (:initial-mode (get pixils/programs 'boulder-rush)))))

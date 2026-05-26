@@ -1,0 +1,13 @@
+{:name boulder-rush
+ :version "0.1.0"
+ :description "Pixils Boulder Rush Example Game"
+ :dependencies {proof "0.1.0"
+                pixils-tilemap {:path "../../lib/pixils-tilemap"}
+                pixils-tilemap-project {:path "../../lib/pixils-tilemap-project"}
+                pixils-runner {:path "../../lib/pixils-runner"}
+                pixils-test {:path "../../lib/pixils-test"}}
+ :run pixils-runner
+ :load-roots ["src"]
+ :namespace-roots {boulder-rush "src"}
+ :config {proof {:test-roots ["test"]}}
+ :entry-points [boulder-rush.core]}

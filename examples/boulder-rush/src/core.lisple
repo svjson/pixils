@@ -1,0 +1,12 @@
+(ns boulder-rush.core
+  (:require pixils
+            boulder-rush.init-mode
+            [pixils.color :as c]))
+
+(defprogram boulder-rush
+  {:display {:resolution {:w 320 :h 200}
+             :scaling :scaling/fit
+             :align :align/center
+             :background c/BLACK}
+   :target-frame-rate 25
+   :initial-mode 'init-mode})
