@@ -34,7 +34,8 @@ TEST_F(TilemapEditorProjectIoTest, save_dialog_result_writes_project_edn)
   EXPECT_EQ(contents.find("editor-assets"), std::string::npos);
   EXPECT_EQ(contents.find(":dynamic?"), std::string::npos);
   EXPECT_NE(contents.find(":tilesets"), std::string::npos);
-  EXPECT_NE(contents.find(":tilemap"), std::string::npos);
+  EXPECT_NE(contents.find(":selected-map"), std::string::npos);
+  EXPECT_NE(contents.find(":maps"), std::string::npos);
   EXPECT_NE(contents.find(":layers"), std::string::npos);
 
   std::filesystem::remove(save_path, ec);

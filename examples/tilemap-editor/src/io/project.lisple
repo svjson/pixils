@@ -80,8 +80,16 @@
 (defun valid-project-document? [project]
   (= (:format project) data/project-format))
 
+(defun project-maps [project]
+  (if (:maps project)
+    (:maps project)
+    (:maps (data/normalize-project-document project))))
+
+(defun project-selected-map [project]
+  (data/selected-map-document (project-maps project) (:selected-map project)))
+
 (defun project-layers [project]
-  (data/normalize-layers (-> project :tilemap :layers)))
+  (:layers (project-selected-map project)))
 
 (defun project-layer-profiles [project]
   (let [profiles (:layer-profiles project)]
@@ -106,11 +114,13 @@
 
 (defun open-project! [state payload]
   (let [project (data/normalize-project-document (io/slurp-edn! (:path payload)))
-        layers (project-layers project)
+        maps (project-maps project)
+        selected-map (project-selected-map project)
+        layers (:layers selected-map)
         layer-profiles (project-layer-profiles project)
         layer-profile-id (data/selected-layer-profile-id
                           layer-profiles
-                          (-> project :tilemap :layer-profile))
+                          (:layer-profile selected-map))
         tileset (first-layer-tileset layers)
         tilesets (project-tilesets project)
         terrain-sets (project-terrain-sets project)
@@ -124,6 +134,11 @@
                :terrain-sets terrain-sets
                :rulesets rulesets
                :brushes brushes
+               :maps maps
+               :selected-map-id (:id selected-map)
+               :selected-map-label (:label selected-map)
+               :map-width (:width selected-map)
+               :map-height (:height selected-map)
                :selected-brush-index (when (> (count brushes) 0) 0)
                :selected-brush-layer-index
                (when (> (count (or (-> (head brushes) :pattern :layers) [])) 0) 0)

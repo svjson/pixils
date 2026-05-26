@@ -38,6 +38,8 @@
    :children [{:mode 'map-area
                :style {:height :fill}
                :state {:selected-tile (ui/bind-state :selected-tile)
+                       :map-width (ui/bind-state :map-width)
+                       :map-height (ui/bind-state :map-height)
                        :tilesets (ui/bind-state :tilesets)
                        :terrain-sets (ui/bind-state :terrain-sets)
                        :rulesets (ui/bind-state :rulesets)
@@ -50,6 +52,7 @@
                        :map-palette-tab (ui/bind-state :map-palette-tab)
                        :map-tool (ui/bind-state :map-tool)
                        :map-selection (ui/bind-state :map-selection)
+                       :map-line (ui/bind-state :map-line)
                        :selected-layer-index (ui/bind-state :selected-layer-index)
                        :selected-layer-label (ui/bind-state :selected-layer-label)
                        :layers (ui/bind-state :layers)
@@ -81,6 +84,8 @@
                 :min-first 280
                 :min-second 220
                 :state {:selected-tile (ui/bind-state :selected-tile)
+                        :map-width (ui/bind-state :map-width)
+                        :map-height (ui/bind-state :map-height)
                         :selected-label (ui/bind-state :selected-label)
                         :selected-tileset-index (ui/bind-state :selected-tileset-index)
                         :tilesets (ui/bind-state :tilesets)
@@ -96,6 +101,7 @@
                         :map-palette-tab (ui/bind-state :map-palette-tab)
                         :map-tool (ui/bind-state :map-tool)
                         :map-selection (ui/bind-state :map-selection)
+                        :map-line (ui/bind-state :map-line)
                         :selected-layer-index (ui/bind-state :selected-layer-index)
                         :selected-layer-label (ui/bind-state :selected-layer-label)
                         :layers (ui/bind-state :layers)
@@ -115,6 +121,8 @@
                 :children [{:mode 'map-column
                             :style {:padding {:r 8}}
                             :state {:selected-tile (ui/bind-state :selected-tile)
+                                    :map-width (ui/bind-state :map-width)
+                                    :map-height (ui/bind-state :map-height)
                                     :tilesets (ui/bind-state :tilesets)
                                     :terrain-sets (ui/bind-state :terrain-sets)
                                     :rulesets (ui/bind-state :rulesets)
@@ -128,6 +136,7 @@
                                     (ui/bind-state :map-palette-tab)
                                     :map-tool (ui/bind-state :map-tool)
                                     :map-selection (ui/bind-state :map-selection)
+                                    :map-line (ui/bind-state :map-line)
                                     :selected-layer-index (ui/bind-state :selected-layer-index)
                                     :selected-layer-label (ui/bind-state :selected-layer-label)
                                     :layers (ui/bind-state :layers)
@@ -147,6 +156,8 @@
                            {:mode 'side-panel
                             :style {:padding {:l 8}}
                             :state {:selected-tile (ui/bind-state :selected-tile)
+                                    :map-width (ui/bind-state :map-width)
+                                    :map-height (ui/bind-state :map-height)
                                     :selected-label (ui/bind-state :selected-label)
                                     :selected-tileset-index (ui/bind-state :selected-tileset-index)
                                     :tilesets (ui/bind-state :tilesets)

@@ -40,7 +40,10 @@
               {:show-grid? false
                :show-terrain-rules? true
                :terrain-rule-application :paint-baked})
-        options (get-in menu [:items 1 :items])]
+        edit (get-in menu [:items 1 :items])
+        options (get-in menu [:items 2 :items])]
+    (is (= "Map &Dimensions..." (get-in edit [0 :label])))
+    (is (= :map/edit-dimensions (get-in edit [0 :action])))
     (is (= "Show &Grid" (get-in options [0 :label])))
     (is (= :toggle (get-in options [0 :type])))
     (is (= [:option-state :show-grid?] (get-in options [0 :selected-path])))

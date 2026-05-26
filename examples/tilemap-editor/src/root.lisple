@@ -76,6 +76,11 @@
            :selected-brush-layer-index nil
            :brush-selected-tile nil
            :map-palette-tab :tiles
+           :maps [(data/normalize-map-document {} 0)]
+           :selected-map-id data/default-map-id
+           :selected-map-label data/default-map-label
+           :map-width data/map-width
+           :map-height data/map-height
            :selected-layer-index nil
            :selected-layer-label ""
            :layers []
@@ -174,6 +179,8 @@
                :style {:width :fill
                        :height :fill}
                :state {:selected-tile (ui/bind-state :selected-tile)
+                       :map-width (ui/bind-state :map-width)
+                       :map-height (ui/bind-state :map-height)
                        :selected-label (ui/bind-state :selected-label)
                        :selected-tileset-index (ui/bind-state :selected-tileset-index)
                        :selected-tileset-definition-index (ui/bind-state :selected-tileset-definition-index)
@@ -238,6 +245,8 @@
                                                  :r 8
                                                  :b 8}}
                                :state {:selected-tile (ui/bind-state :selected-tile)
+                                       :map-width (ui/bind-state :map-width)
+                                       :map-height (ui/bind-state :map-height)
                                        :selected-label (ui/bind-state :selected-label)
                                        :selected-tileset-index (ui/bind-state :selected-tileset-index)
                                        :tilesets (ui/bind-state :tilesets)
@@ -382,6 +391,16 @@
        :tileset/shortcut-dialog-result
        (fn [state event ctx]
          (apply-tileset-shortcut-dialog-result state (:payload event)))
+       :map/edit-dimensions (fn [state event ctx]
+                              (controls/open-map-dimensions-dialog! state ctx))
+       :map/dimensions-dialog-result
+       (fn [state event ctx]
+         (let [payload (:payload event)]
+           (if (= (:type payload) :confirm)
+             (tilemap/set-map-dimensions state
+                                         (:width payload)
+                                         (:height payload))
+             state)))
        :project/open (fn [state event ctx]
                        (project-io/open-project-file-dialog! state
                                                              ctx

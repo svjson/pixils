@@ -67,6 +67,9 @@
                       :separator
                       {:label "&Quit"
                        :action :app/quit}]}
+             {:label "&Edit"
+              :items [{:label "Map &Dimensions..."
+                       :action :map/edit-dimensions}]}
              {:label "&Options"
               :items [{:label "Show &Grid"
                        :type :toggle

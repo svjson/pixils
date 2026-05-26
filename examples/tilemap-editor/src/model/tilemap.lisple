@@ -12,12 +12,18 @@
 (defun scaled-tile-size [zoom]
   (* data/tile-size (or zoom 1)))
 
+(defun map-width [state]
+  (data/map-dimension (:map-width state) data/map-width))
+
+(defun map-height [state]
+  (data/map-dimension (:map-height state) data/map-height))
+
 (defun max-scroll-x [state ctx]
-  (max 0 (- (* data/map-width (scaled-tile-size (:zoom state)))
+  (max 0 (- (* (map-width state) (scaled-tile-size (:zoom state)))
             (-> ctx :view :bounds :w))))
 
 (defun max-scroll-y [state ctx]
-  (max 0 (- (* data/map-height (scaled-tile-size (:zoom state)))
+  (max 0 (- (* (map-height state) (scaled-tile-size (:zoom state)))
             (-> ctx :view :bounds :h))))
 
 (defun pan-map [state ctx dx dy]
@@ -64,10 +70,10 @@
 (def terrain-effective-source-offsets
   (terrain-square-offsets 3))
 
-(defun all-map-positions []
+(defun all-map-positions [state]
   (apply concat
-         (dotimes [y data/map-height]
-           (dotimes [x data/map-width]
+         (dotimes [y (map-height state)]
+           (dotimes [x (map-width state)]
              {:x x
               :y y}))))
 
@@ -90,6 +96,12 @@
        (>= y 0)
        (< y data/map-height)))
 
+(defun in-map-bounds-for? [state x y]
+  (and (>= x 0)
+       (< x (map-width state))
+       (>= y 0)
+       (< y (map-height state))))
+
 (defun map-tile-position [state event]
   (let [offset (or (:offset state) {:x 0 :y 0})
         pos (:position event)
@@ -99,8 +111,8 @@
 
 (defun bounded-map-tile-position [state event]
   (let [pos (map-tile-position state event)]
-    {:x (clamp (:x pos) 0 (dec data/map-width))
-     :y (clamp (:y pos) 0 (dec data/map-height))}))
+    {:x (clamp (:x pos) 0 (dec (map-width state)))
+     :y (clamp (:y pos) 0 (dec (map-height state)))}))
 
 (defun normalize-selection-rect [anchor current]
   (let [x1 (:x anchor)
@@ -125,7 +137,7 @@
 (defun start-map-selection [state event]
   (let [pos (map-tile-position state event)]
     (if (and (= (:button event) :left)
-             (in-map-bounds? (:x pos) (:y pos)))
+             (in-map-bounds-for? state (:x pos) (:y pos)))
       (assoc state :map-selection (make-map-selection pos pos true))
       state)))
 
@@ -203,7 +215,7 @@
                          [])))
 
 (defun set-map-tile [state layer-index x y tile-ref]
-  (if (in-map-bounds? x y)
+  (if (in-map-bounds-for? state x y)
     (let [state (assoc-in state [:layers layer-index :tiles y x] tile-ref)
           layer (nth (or (:layers state) []) layer-index)]
       (if (:terrain-signatures layer)
@@ -211,15 +223,15 @@
         state))
     state))
 
-(defun make-empty-signature-row []
-  (dotimes [x data/map-width]
+(defun make-empty-signature-row [state]
+  (dotimes [x (map-width state)]
     nil))
 
-(defun make-empty-signature-map []
-  (dotimes [y data/map-height]
-    (make-empty-signature-row)))
+(defun make-empty-signature-map [state]
+  (dotimes [y (map-height state)]
+    (make-empty-signature-row state)))
 
-(defun make-terrain-stamp-layer [source-layer ruleset output-layer]
+(defun make-terrain-stamp-layer [state source-layer ruleset output-layer]
   {:id (:id output-layer)
    :label (or (:label output-layer) (:label ruleset) (str (:id ruleset)))
    :kind :tile
@@ -231,9 +243,9 @@
    :ruleset (:id ruleset)
    :replaces-source? true
    :persistence :ephemeral
-   :tiles (data/make-empty-map)
-   :source-mask (data/make-empty-map)
-   :terrain-signatures (make-empty-signature-map)})
+   :tiles (data/make-empty-map-for (map-width state) (map-height state))
+   :source-mask (data/make-empty-map-for (map-width state) (map-height state))
+   :terrain-signatures (make-empty-signature-map state)})
 
 (defun terrain-stamp-patch-target-layer-id [output-layer]
   (or (:target-layer output-layer)
@@ -256,8 +268,8 @@
      :data-kind :tile-ref
      :tileset (or (:tileset output-layer) (:output-tileset ruleset))
      :order (* (count (or (:layers state) [])) 10)
-     :tiles (data/make-empty-map)
-     :terrain-signatures (make-empty-signature-map)}))
+     :tiles (data/make-empty-map-for (map-width state) (map-height state))
+     :terrain-signatures (make-empty-signature-map state)}))
 
 (defun ensure-terrain-stamp-target-layer [state source-layer ruleset output-layer]
   (let [layer-id (terrain-stamp-patch-target-layer-id output-layer)]
@@ -298,7 +310,10 @@
       (assoc state
              collection-key
              (concat (or (get state collection-key) [])
-                     [(make-terrain-stamp-layer source-layer ruleset output-layer)]))
+                     [(make-terrain-stamp-layer state
+                                                source-layer
+                                                ruleset
+                                                output-layer)]))
       (assoc-in state
                 [collection-key layer-index]
                 (merge-source-layer-id (nth (or (get state collection-key) [])
@@ -308,14 +323,14 @@
 (defun set-terrain-stamp-layer-tile [state collection-key layer-id x y tile-ref]
   (let [layer-index (terrain-stamp-layer-index state collection-key layer-id)]
     (if (and (not (nil? layer-index))
-             (in-map-bounds? x y))
+             (in-map-bounds-for? state x y))
       (assoc-in state [collection-key layer-index :tiles y x] tile-ref)
       state)))
 
 (defun set-terrain-stamp-layer-signature [state collection-key layer-id x y signature]
   (let [layer-index (terrain-stamp-layer-index state collection-key layer-id)]
     (if (and (not (nil? layer-index))
-             (in-map-bounds? x y))
+             (in-map-bounds-for? state x y))
       (assoc-in state
                 [collection-key layer-index :terrain-signatures y x]
                 signature)
@@ -324,7 +339,7 @@
 (defun set-terrain-stamp-layer-source-mask [state collection-key layer-id x y source-mask?]
   (let [layer-index (terrain-stamp-layer-index state collection-key layer-id)]
     (if (and (not (nil? layer-index))
-             (in-map-bounds? x y))
+             (in-map-bounds-for? state x y))
       (assoc-in state
                 [collection-key layer-index :source-mask y x]
                 source-mask?)
@@ -332,13 +347,13 @@
 
 (defun set-map-terrain-signature [state layer-index x y signature]
   (if (and (not (nil? layer-index))
-           (in-map-bounds? x y))
+           (in-map-bounds-for? state x y))
     (let [layer (nth (or (:layers state) []) layer-index)
           state (if (:terrain-signatures layer)
                   state
                   (assoc-in state
                             [:layers layer-index :terrain-signatures]
-                            (make-empty-signature-map)))]
+                            (make-empty-signature-map state)))]
       (assoc-in state [:layers layer-index :terrain-signatures y x] signature))
     state))
 
@@ -400,19 +415,19 @@
                    (= (:terrain-set source-layer) (:terrain-set ruleset)))))
     [(terrain-stamp-source-layer-for-ruleset state layer ruleset)]))
 
-(defun offset-terrain-positions [offsets x y]
+(defun offset-terrain-positions [state offsets x y]
   (filter (map offsets
                (fn [offset]
                  {:x (+ x (:dx offset))
                   :y (+ y (:dy offset))}))
           (fn [pos]
-            (in-map-bounds? (:x pos) (:y pos)))))
+            (in-map-bounds-for? state (:x pos) (:y pos)))))
 
-(defun affected-terrain-positions [x y]
-  (offset-terrain-positions terrain-refresh-offsets x y))
+(defun affected-terrain-positions [state x y]
+  (offset-terrain-positions state terrain-refresh-offsets x y))
 
-(defun effective-source-terrain-positions [x y]
-  (offset-terrain-positions terrain-effective-source-offsets x y))
+(defun effective-source-terrain-positions [state x y]
+  (offset-terrain-positions state terrain-effective-source-offsets x y))
 
 (defun add-unique-position [result pos]
   (if (get-in result [:seen (:y pos) (:x pos)])
@@ -424,7 +439,7 @@
   {:x (* (:w unit) (int (/ (:x pos) (:w unit))))
    :y (* (:h unit) (int (/ (:y pos) (:h unit))))})
 
-(defun terrain-unit-cell-positions [unit pos]
+(defun terrain-unit-cell-positions [state unit pos]
   (let [anchor (terrain-unit-anchor-position unit pos)]
     (filter (apply concat
                    (dotimes [dy (:h unit)]
@@ -432,7 +447,7 @@
                        {:x (+ (:x anchor) dx)
                         :y (+ (:y anchor) dy)})))
             (fn [pos]
-              (in-map-bounds? (:x pos) (:y pos))))))
+              (in-map-bounds-for? state (:x pos) (:y pos))))))
 
 (defun terrain-layer-edit-positions [state layer positions]
   (let [unit (terrain-unit-for-layer state layer)]
@@ -441,25 +456,25 @@
              {:seen {}
               :positions []}
              (fn [result pos]
-               (reduce (terrain-unit-cell-positions unit pos)
+               (reduce (terrain-unit-cell-positions state unit pos)
                        result
                        add-unique-position))))))
 
-(defun unique-offset-terrain-positions [positions offsets]
+(defun unique-offset-terrain-positions [state positions offsets]
   (:positions
    (reduce (or positions [])
            {:seen {}
             :positions []}
            (fn [result pos]
-             (reduce (offset-terrain-positions offsets (:x pos) (:y pos))
+             (reduce (offset-terrain-positions state offsets (:x pos) (:y pos))
                      result
                      add-unique-position)))))
 
-(defun affected-terrain-positions-for [positions]
-  (unique-offset-terrain-positions positions terrain-refresh-offsets))
+(defun affected-terrain-positions-for [state positions]
+  (unique-offset-terrain-positions state positions terrain-refresh-offsets))
 
-(defun effective-source-terrain-positions-for [positions]
-  (unique-offset-terrain-positions positions terrain-effective-source-offsets))
+(defun effective-source-terrain-positions-for [state positions]
+  (unique-offset-terrain-positions state positions terrain-effective-source-offsets))
 
 (defun clear-target-stamp-entry [state target-layer-index layer-id x y]
   (if (not (nil? (terrain-stamp-layer-cell state
@@ -701,8 +716,8 @@
                 (apply-terrain-stamp-rules
                  out
                  (terrain-stamp-source-layer-for-ruleset out layer ruleset)
-                 (all-map-positions)
-                 (all-map-positions)
+                 (all-map-positions out)
+                 (all-map-positions out)
                  [ruleset]))))))
 
 (defun terrain-preview-layers-for-ruleset [state ruleset]
@@ -714,7 +729,7 @@
     []))
 
 (defun clear-terrain-stamp-preview-for-ruleset [state source-state ruleset]
-  (let [positions (all-map-positions)]
+  (let [positions (all-map-positions source-state)]
     (reduce (terrain-preview-layers-for-ruleset source-state ruleset)
             state
             (fn [out layer]
@@ -727,7 +742,7 @@
                                          [ruleset])))))
 
 (defun apply-terrain-stamp-preview-for-ruleset [state ruleset]
-  (let [positions (all-map-positions)]
+  (let [positions (all-map-positions state)]
     (reduce (terrain-preview-layers-for-ruleset state ruleset)
             state
             (fn [out layer]
@@ -768,14 +783,55 @@
       (rebuild-terrain-stamp-preview state)
       (assoc state :terrain-stamp-layers []))))
 
+(defun resize-row [row width]
+  (dotimes [x width]
+    (nth (or row []) x)))
+
+(defun resize-matrix [matrix width height]
+  (dotimes [y height]
+    (resize-row (nth (or matrix []) y) width)))
+
+(defun resize-layer-matrix-key [layer key width height]
+  (if (contains? layer key)
+    (assoc layer key (resize-matrix (get layer key) width height))
+    layer))
+
+(defun resize-layer [layer width height]
+  (-> layer
+      (resize-layer-matrix-key :tiles width height)
+      (resize-layer-matrix-key :terrain-signatures width height)
+      (resize-layer-matrix-key :source-mask width height)))
+
+(defun resize-layer-collection [layers width height]
+  (map (or layers [])
+       (fn [layer]
+         (resize-layer layer width height))))
+
+(defun set-map-dimensions [state width height]
+  (let [width (data/map-dimension width data/map-width)
+        height (data/map-dimension height data/map-height)
+        state (assoc state
+                     :map-width width
+                     :map-height height
+                     :layers (resize-layer-collection (:layers state) width height)
+                     :terrain-stamp-layers []
+                     :terrain-stamp-replacements []
+                     :map-selection nil
+                     :map-line nil
+                     :map-offset {:x 0 :y 0})]
+    (if (:show-terrain-rules? state)
+      (rebuild-terrain-stamp-preview state)
+      state)))
+
 (defun refresh-terrain-stamp-rules-for-positions [state layer-index source-positions]
   (let [layer (nth (:layers state) layer-index)
         rulesets (terrain-stamp-rulesets-for-layer state layer)]
     (if (or (empty? source-positions)
             (empty? rulesets))
       state
-      (let [positions (affected-terrain-positions-for source-positions)
+      (let [positions (affected-terrain-positions-for state source-positions)
             effective-source-positions (effective-source-terrain-positions-for
+                                        state
                                         source-positions)
             cleared (reduce rulesets
                             state
@@ -815,7 +871,7 @@
         map-x (+ (- target-x (:x anchor)) (:x cell))
         map-y (+ (- target-y (:y anchor)) (:y cell))]
     (if (and (not (nil? tile-ref))
-             (in-map-bounds? map-x map-y))
+             (in-map-bounds-for? state map-x map-y))
       (set-map-tile state layer-index map-x map-y tile-ref)
       state)))
 
@@ -945,7 +1001,7 @@
    {:x (:x pos) :y (inc (:y pos))}
    {:x (dec (:x pos)) :y (:y pos)}])
 
-(defun flood-fill-positions-step [layer target pending seen positions]
+(defun flood-fill-positions-step [state layer target pending seen positions]
   (if (empty? pending)
     positions
     (let [pos (head pending)
@@ -953,17 +1009,19 @@
                           (fn [candidate]
                             (not (same-position? candidate pos))))]
       (if (or (get-in seen [(:y pos) (:x pos)])
-              (not (in-map-bounds? (:x pos) (:y pos)))
+              (not (in-map-bounds-for? state (:x pos) (:y pos)))
               (not= (derivation/cell-at layer (:x pos) (:y pos)) target))
-        (flood-fill-positions-step layer target pending seen positions)
-        (flood-fill-positions-step layer
+        (flood-fill-positions-step state layer target pending seen positions)
+        (flood-fill-positions-step state
+                                   layer
                                    target
                                    (concat pending (fill-neighbor-positions pos))
                                    (assoc-in seen [(:y pos) (:x pos)] true)
                                    (concat positions [pos]))))))
 
-(defun flood-fill-positions [layer start]
-  (flood-fill-positions-step layer
+(defun flood-fill-positions [state layer start]
+  (flood-fill-positions-step state
+                             layer
                              (derivation/cell-at layer (:x start) (:y start))
                              [start]
                              {}
@@ -977,7 +1035,9 @@
       state
       (paint-map-positions state
                            layer-index
-                           (flood-fill-positions layer {:x tile-x :y tile-y})
+                           (flood-fill-positions state
+                                                 layer
+                                                 {:x tile-x :y tile-y})
                            tile-ref))))
 
 (defun make-map-line [anchor current button active?]
@@ -990,7 +1050,7 @@
   (let [pos (map-tile-position state event)]
     (if (and (or (= (:button event) :left)
                  (= (:button event) :right))
-             (in-map-bounds? (:x pos) (:y pos)))
+             (in-map-bounds-for? state (:x pos) (:y pos)))
       (assoc state :map-line (make-map-line pos pos (:button event) true))
       state)))
 
@@ -1082,10 +1142,7 @@
         tile-y (:y tile-pos)
         layer-index (or (:selected-layer-index state) 0)
         layers (or (:layers state) [])]
-    (if (and (>= tile-x 0)
-             (< tile-x data/map-width)
-             (>= tile-y 0)
-             (< tile-y data/map-height)
+    (if (and (in-map-bounds-for? state tile-x tile-y)
              (> (count layers) 0)
              (< layer-index (count layers)))
       (if (= (:map-palette-tab state) :brushes)
@@ -1099,10 +1156,7 @@
         tile-y (:y tile-pos)
         layer-index (or (:selected-layer-index state) 0)
         layers (or (:layers state) [])]
-    (if (and (>= tile-x 0)
-             (< tile-x data/map-width)
-             (>= tile-y 0)
-             (< tile-y data/map-height)
+    (if (and (in-map-bounds-for? state tile-x tile-y)
              (> (count layers) 0)
              (< layer-index (count layers)))
       (fill-map-at state layer-index tile-x tile-y event)
@@ -1114,10 +1168,7 @@
         tile-y (:y tile-pos)
         layer-index (or (:selected-layer-index state) 0)
         layers (or (:layers state) [])]
-    (when (and (>= tile-x 0)
-               (< tile-x data/map-width)
-               (>= tile-y 0)
-               (< tile-y data/map-height)
+    (when (and (in-map-bounds-for? state tile-x tile-y)
                (> (count layers) 0)
                (< layer-index (count layers)))
       (let [layer (nth layers layer-index)

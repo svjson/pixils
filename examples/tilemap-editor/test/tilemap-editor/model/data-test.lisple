@@ -9,7 +9,7 @@
     (is (= [] (:tilesets document)))
     (is (= [] (:brushes document)))
     (is (= [] (:layer-profiles document)))
-    (is (= [] (-> document :tilemap :layers)))))
+    (is (= [] (get-in document [:maps 0 :layers])))))
 
 (deftest project-document-saves_only_project_owned_resources
   (let [document (data/project-document
@@ -277,8 +277,9 @@
                              :kind :tile
                              :tileset :terrain
                              :tiles [[:grass nil]]}]})]
+    (is (= data/default-map-id (:selected-map document)))
     (is (= data/default-layer-profile-id
-           (-> document :tilemap :layer-profile)))
+           (get-in document [:maps 0 :layer-profile])))
     (is (= [{:id data/default-layer-profile-id
              :label data/default-layer-profile-label
              :layers [{:id :scene/ground
@@ -288,6 +289,43 @@
                        :role :source
                        :data-kind :tile-ref}]}]
            (:layer-profiles document)))))
+
+(deftest project-document-saves_current_map_dimensions
+  (let [document (data/project-document
+                  {:selected-map-id :map/overworld
+                   :selected-map-label "Overworld"
+                   :map-width 96
+                   :map-height 64
+                   :tilesets []
+                   :brushes []
+                   :layers []})]
+    (is (= :map/overworld (:selected-map document)))
+    (is (= :map/overworld (get-in document [:maps 0 :id])))
+    (is (= "Overworld" (get-in document [:maps 0 :label])))
+    (is (= 96 (get-in document [:maps 0 :width])))
+    (is (= 64 (get-in document [:maps 0 :height])))))
+
+(deftest normalize-project-document-selects_one_map_from_multi_map_document
+  (let [document (data/normalize-project-document
+                  {:format data/project-format
+                   :selected-map :map/cave
+                   :maps [{:id :map/overworld
+                           :label "Overworld"
+                           :width 40
+                           :height 28
+                           :layers []}
+                          {:id :map/cave
+                           :label "Cave"
+                           :width 12
+                           :height 9
+                           :layers [{:id :scene/cave
+                                     :tileset :terrain
+                                     :tiles [[:rock]]}]}]})]
+    (is (= :map/cave (:selected-map document)))
+    (is (= 2 (count (:maps document))))
+    (is (= 12 (get-in document [:maps 1 :width])))
+    (is (= :scene/cave
+           (get-in document [:maps 1 :layers 0 :id])))))
 
 (deftest project-document-saves_terrain_sets
   (let [document (data/project-document
@@ -339,12 +377,14 @@
                                        :label "Ground"
                                        :tileset :terrain
                                        :tiles [[:grass nil]]}]}})]
+    (is (= data/default-map-id
+           (:selected-map document)))
     (is (= data/default-layer-profile-id
-           (-> document :tilemap :layer-profile)))
+           (get-in document [:maps 0 :layer-profile])))
     (is (= :source
-           (get-in document [:tilemap :layers 0 :role])))
+           (get-in document [:maps 0 :layers 0 :role])))
     (is (= :tile-ref
-           (get-in document [:tilemap :layers 0 :data-kind])))
+           (get-in document [:maps 0 :layers 0 :data-kind])))
     (is (= :scene/ground
            (get-in document [:layer-profiles 0 :layers 0 :id])))))
 

@@ -111,7 +111,9 @@
                                     (:hidden-layer-indices state)
                                     offset
                                     (:zoom state)
-                                    (:show-grid? state))
+                                    (:show-grid? state)
+                                    (tm/map-width state)
+                                    (tm/map-height state))
                  (draw-selection-overlay! (:map-selection state)
                                           offset
                                           (:zoom state))
@@ -141,6 +143,8 @@
            :layout {:direction :row}}
    :children [{:mode 'map-canvas
                :state {:selected-tile (ui/bind-state :selected-tile)
+                       :map-width (ui/bind-state :map-width)
+                       :map-height (ui/bind-state :map-height)
                        :tilesets (ui/bind-state :tilesets)
                        :terrain-sets (ui/bind-state :terrain-sets)
                        :rulesets (ui/bind-state :rulesets)
@@ -169,7 +173,7 @@
                        :show-terrain-rules?
                        (ui/bind-state :show-terrain-rules?)
                        :show-grid? (ui/bind-state :show-grid?)}}
-              {:mode 'ui/scrollbar
+             {:mode 'ui/scrollbar
                :class :scrollbar/v
                :style {:height :fill}
                :state {:axis :y
@@ -179,7 +183,7 @@
    :update (fn [state ctx]
              (let [size (tm/scaled-tile-size (:zoom state))]
                (assoc (assoc state :tile-size size)
-                      :content-height (* data/map-height size))))})
+                      :content-height (* (tm/map-height state) size))))})
 
 (defcomponent map-scroll-footer
   {:content-size map-scroll-footer-content-size
@@ -197,7 +201,7 @@
    :update (fn [state ctx]
              (let [size (tm/scaled-tile-size (:zoom state))]
                (assoc (assoc state :tile-size size)
-                      :content-width (* data/map-width size))))})
+                      :content-width (* (tm/map-width state) size))))})
 
 
 
@@ -209,6 +213,8 @@
            :layout {:direction :column}}
    :children [{:mode 'map-scroll-row
                :state {:selected-tile (ui/bind-state :selected-tile)
+                       :map-width (ui/bind-state :map-width)
+                       :map-height (ui/bind-state :map-height)
                        :tilesets (ui/bind-state :tilesets)
                        :terrain-sets (ui/bind-state :terrain-sets)
                        :rulesets (ui/bind-state :rulesets)
@@ -239,4 +245,6 @@
                        :show-grid? (ui/bind-state :show-grid?)}}
               {:mode 'map-scroll-footer
                :state {:map-offset (ui/bind-state :map-offset)
+                       :map-width (ui/bind-state :map-width)
+                       :map-height (ui/bind-state :map-height)
                        :zoom (ui/bind-state :zoom)}}]})

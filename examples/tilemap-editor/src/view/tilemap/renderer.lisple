@@ -88,10 +88,10 @@
                   (:tileset layer)
                   tile-ref)))
 
-(defun render-layer! [tileset-definitions terrain-sets layer offset zoom]
+(defun render-layer! [tileset-definitions terrain-sets layer offset zoom width height]
   (let [tiles (:tiles layer)]
-    (dotimes [y data/map-height]
-      (dotimes [x data/map-width]
+    (dotimes [y height]
+      (dotimes [x width]
         (let [tile-ref (nth (nth tiles y) x)]
           (when (not (nil? tile-ref))
             (let [tile (layer-cell-tile tileset-definitions
@@ -101,16 +101,22 @@
               (when tile
                 (draw-tile! tile (tile-rect x y offset zoom))))))))))
 
-(defun render-grid-overlay! [offset zoom]
-  (dotimes [y data/map-height]
-    (dotimes [x data/map-width]
+(defun render-grid-overlay! [offset zoom width height]
+  (dotimes [y height]
+    (dotimes [x width]
       (r/rect! (tile-rect x y offset zoom)
                {:color {:r 0x12 :g 0x15 :b 0x18}}))))
 
-(defun render-layers! [tileset-definitions terrain-sets layers hidden-layer-indices offset zoom show-grid?]
+(defun render-layers! [tileset-definitions terrain-sets layers hidden-layer-indices offset zoom show-grid? width height]
   (do
     (for-indexed [index layer layers]
       (when (not (contains? (or hidden-layer-indices []) index))
-        (render-layer! tileset-definitions terrain-sets layer offset zoom)))
+        (render-layer! tileset-definitions
+                       terrain-sets
+                       layer
+                       offset
+                       zoom
+                       width
+                       height)))
     (when show-grid?
-      (render-grid-overlay! offset zoom))))
+      (render-grid-overlay! offset zoom width height))))

@@ -101,6 +101,22 @@
     (is (= :tile-ref
            (get-in profiles [0 :layers 0 :data-kind])))))
 
+(deftest project-selected-map-reads_selected_map_from_multi_map_document
+  (let [project (data/normalize-project-document
+                 {:format data/project-format
+                  :selected-map :map/cave
+                  :maps [{:id :map/overworld
+                          :layers []}
+                         {:id :map/cave
+                          :width 18
+                          :height 11
+                          :layers [{:id :scene/cave
+                                    :tiles [[:rock]]}]}]})
+        selected (project-io/project-selected-map project)]
+    (is (= :map/cave (:id selected)))
+    (is (= 18 (:width selected)))
+    (is (= :scene/cave (get-in selected [:layers 0 :id])))))
+
 (deftest recent-project-history-promotes-existing-projects
   (let [projects [{:path "first.edn"
                    :filename "first.edn"}

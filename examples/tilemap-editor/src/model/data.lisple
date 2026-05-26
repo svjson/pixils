@@ -3,6 +3,10 @@
 (def tile-size 16)
 (def map-width 40)
 (def map-height 28)
+(def default-map-id :map/main)
+(def default-map-label "Map 1")
+(def min-map-dimension 1)
+(def max-map-dimension 4096)
 
 (def project-format :pixils.tilemap-editor/project)
 (def project-format-version 1)
@@ -249,13 +253,23 @@
     (terrain-label terrain-sets (:terrain-set layer) value)
     (tile-label tilesets (:tileset layer) value)))
 
-(defun make-empty-row []
-  (dotimes [x map-width]
+(defun map-dimension [value default-value]
+  (max min-map-dimension
+       (min max-map-dimension (or value default-value))))
+
+(defun make-empty-row-for [width]
+  (dotimes [x (map-dimension width map-width)]
     nil))
 
+(defun make-empty-row []
+  (make-empty-row-for map-width))
+
+(defun make-empty-map-for [width height]
+  (dotimes [y (map-dimension height map-height)]
+    (make-empty-row-for width)))
+
 (defun make-empty-map []
-  (dotimes [y map-height]
-    (make-empty-row)))
+  (make-empty-map-for map-width map-height))
 
 (defun make-layered-map []
   [])
@@ -517,8 +531,62 @@
          (fn [ruleset]
            (normalize-terrain-stamp-ruleset terrain-sets ruleset)))))
 
+(defun fallback-map-id [index]
+  (if (= (or index 0) 0)
+    default-map-id
+    (keyword (str "map/" (inc index)))))
+
+(defun normalize-map-document [map-document index]
+  (let [map-document (or map-document {})
+        layers (normalize-layers (:layers map-document))]
+    (assoc map-document
+           :id (or (:id map-document) (fallback-map-id index))
+           :label (or (:label map-document)
+                      (if (= (or index 0) 0)
+                        default-map-label
+                        (str "Map " (inc index))))
+           :width (map-dimension (:width map-document) map-width)
+           :height (map-dimension (:height map-document) map-height)
+           :tile-size (or (:tile-size map-document) tile-size)
+           :layers layers)))
+
+(defun normalize-map-documents [maps]
+  (map (for-indexed [index map-document (or maps [])]
+         {:index index
+          :map-document map-document})
+       (fn [entry]
+         (normalize-map-document (:map-document entry) (:index entry)))))
+
+(defun project-map-input-documents [project]
+  (let [maps (:maps project)]
+    (if (empty? (or maps []))
+      [(or (:tilemap project) {})]
+      maps)))
+
+(defun map-id-exists? [maps map-id]
+  (> (count (filter (or maps [])
+                    (fn [map-document]
+                      (= (:id map-document) map-id))))
+     0))
+
+(defun selected-map-id [maps requested-id]
+  (if (map-id-exists? maps requested-id)
+    requested-id
+    (:id (head (or maps [])))))
+
+(defun selected-map-document [maps requested-id]
+  (let [map-id (selected-map-id maps requested-id)]
+    (or (head (filter (or maps [])
+                      (fn [map-document]
+                        (= (:id map-document) map-id))))
+        (head (or maps [])))))
+
 (defun normalize-project-document [project]
-  (let [layers (normalize-layers (-> project :tilemap :layers))
+  (let [maps (normalize-map-documents (project-map-input-documents project))
+        selected-map-id (selected-map-id maps (or (:selected-map project)
+                                                  (-> project :tilemap :id)))
+        selected-map (selected-map-document maps selected-map-id)
+        layers (:layers selected-map)
         layer-profiles (let [profiles (normalize-layer-profiles
                                        (:layer-profiles project))]
                          (if (empty? profiles)
@@ -526,15 +594,15 @@
                            profiles))
         layer-profile-id (selected-layer-profile-id
                           layer-profiles
-                          (-> project :tilemap :layer-profile))
+                          (:layer-profile selected-map))
+        selected-map (assoc selected-map :layer-profile layer-profile-id)
+        maps (replace-map-document maps selected-map)
         layer-profile (layer-profile-by-id layer-profiles layer-profile-id)
         tilesets (normalize-tilesets (:tilesets project))
         terrain-sets (or (:terrain-sets project) project-terrain-sets)]
-    (assoc (assoc-in (assoc-in project
-                               [:tilemap :layers]
-                               layers)
-                     [:tilemap :layer-profile]
-                     layer-profile-id)
+    (assoc project
+           :maps maps
+           :selected-map selected-map-id
            :tilesets tilesets
            :layer-profiles layer-profiles
            :terrain-sets terrain-sets
@@ -544,13 +612,27 @@
            :brushes (normalize-brushes (:brushes project) layer-profile))))
 
 (defun tilemap-document [state layers layer-profile-id]
-  (let [document {:width map-width
-                  :height map-height
+  (let [document {:id (or (:selected-map-id state) default-map-id)
+                  :label (or (:selected-map-label state) default-map-label)
+                  :width (map-dimension (:map-width state) map-width)
+                  :height (map-dimension (:map-height state) map-height)
                   :tile-size tile-size
                   :layers layers}]
     (if layer-profile-id
       (assoc document :layer-profile layer-profile-id)
       document)))
+
+(defun replace-map-document [maps map-document]
+  (let [maps (or maps [])
+        map-id (:id map-document)
+        replaced (map maps
+                      (fn [existing]
+                        (if (= (:id existing) map-id)
+                          map-document
+                          existing)))]
+    (if (map-id-exists? maps map-id)
+      replaced
+      (concat replaced [map-document]))))
 
 (defun project-document [state]
   (let [layers (normalize-layers (:layers state))
@@ -561,7 +643,9 @@
                           layer-profiles
                           (:selected-layer-profile-id state))
         layer-profile (layer-profile-by-id layer-profiles layer-profile-id)
-        terrain-sets (or (:terrain-sets state) project-terrain-sets)]
+        terrain-sets (or (:terrain-sets state) project-terrain-sets)
+        map-document (tilemap-document state layers layer-profile-id)
+        maps (replace-map-document (:maps state) map-document)]
     {:format project-format
      :version project-format-version
      :resources (normalize-project-resources (or (:resources state)
@@ -574,4 +658,5 @@
      :layer-profiles layer-profiles
      :brushes (normalize-brushes (or (:brushes state) project-brushes)
                                  layer-profile)
-     :tilemap (tilemap-document state layers layer-profile-id)}))
+     :selected-map (:id map-document)
+     :maps (normalize-map-documents maps)}))
