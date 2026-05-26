@@ -13,6 +13,24 @@
                  arg-map
                  (merge arg-map {k v})))))
 
+(defun style-padding-side [style side]
+  (or (get (:padding style) side) 0))
+
+(defun style-border-side-thickness [style side]
+  (let [border (:border style)
+        side-style (get border side)]
+    (or (:thickness side-style)
+        (:thickness border)
+        0)))
+
+(defun style-content-height [bounds style]
+  (max 0
+       (- (or (:h bounds) 0)
+          (style-padding-side style :top)
+          (style-padding-side style :bottom)
+          (style-border-side-thickness style :top)
+          (style-border-side-thickness style :bottom))))
+
 (defun insert-text-at [value cursor-index text]
   (str (substr value 0 cursor-index)
        text
@@ -72,14 +90,17 @@
                    (assoc :cursor-index (or (:cursor-index state) (count value)))))))
    :update (fn [state ctx]
              (let [value (or (:value state) "")
-                   text-opts (text-args (-> ctx :view :effective-style))
+                   style (-> ctx :view :effective-style)
+                   text-opts (text-args style)
                    cursor-index (max 0 (min (count value)
                                             (or (:cursor-index state) (count value))))
                    prefix (substr value 0 cursor-index)
                    cursor-x (or (:w (r/text-size prefix text-opts)) 0)
                    cursor-h (or (:h (r/text-size "M" text-opts)) 0)
                    cursor-y (max 0
-                                 (int (/ (- (or (-> ctx :view :bounds :h) 0)
+                                 (int (/ (- (style-content-height
+                                             (-> ctx :view :bounds)
+                                             style)
                                            cursor-h)
                                         2)))
                    show-caret? (and (not (:disabled? state))
