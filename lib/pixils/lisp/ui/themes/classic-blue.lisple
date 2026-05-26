@@ -114,6 +114,9 @@
                  :panel-highlight PANEL-HIGHLIGHT
                  :panel-shadow PANEL-SHADOW
                  :button-bg BUTTON-BG
+                 :button-hover-bg (var :button-bg)
+                 :button-pressed-bg (var :button-bg)
+                 :button-disabled-bg (var :panel-bg)
                  :button-highlight BUTTON-HIGHLIGHT
                  :button-shadow BUTTON-SHADOW
                  :button-glyph BUTTON-GLYPH
@@ -168,6 +171,10 @@
                                                :thickness 2
                                                :right {:color (var :button-highlight) :thickness 1}
                                                :bottom {:color (var :button-highlight) :thickness 1}}
+                 :button-hover-border-style (var :button-border-style)
+                 :button-disabled-border-style {:line-style :solid
+                                                :color (var :panel-shadow)
+                                                :thickness 1}
                  :disabled-inset-border-style {:line-style :solid
                                                :color (var :disabled-border)
                                                :thickness 1
@@ -310,11 +317,12 @@
 
     'ui/button-inner:hover
     {:text {:color (var :focus-text)}
-     :background (var :button-bg)
-     :border (var :button-border-style)}
+     :background (var :button-hover-bg)
+     :border (var :button-hover-border-style)}
 
     '(ui/button-inner {:pressed true})
-    {:border (var :button-pressed-border-style)}
+    {:background (var :button-pressed-bg)
+     :border (var :button-pressed-border-style)}
 
     [:ui/toolbar-button 'ui/button-inner]
     {:background {:color TITLE-BAR-BG}
@@ -342,11 +350,9 @@
               :bottom {:color TITLE-BAR-HIGHLIGHT}}}
 
     'ui/button-inner:disabled
-    {:background (var :panel-bg)
+    {:background (var :button-disabled-bg)
      :text {:color (var :muted-text)}
-     :border {:line-style :solid
-              :color (var :panel-shadow)
-              :thickness 1}}
+     :border (var :button-disabled-border-style)}
 
     [:ui/toolbar-button 'ui/button-inner:disabled]
     {:background {:color (var :disabled-bg)}

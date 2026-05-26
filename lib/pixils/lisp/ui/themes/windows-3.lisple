@@ -301,6 +301,10 @@
                   :surface (var :content-bg)
                   :field-bg c/WHITE
                   :field-text c/BLACK
+                  :button-bg (var :panel-bg)
+                  :button-hover-bg (var :button-bg)
+                  :button-pressed-bg (var :button-bg)
+                  :button-disabled-bg (var :button-bg)
                   :menu-bg white
                   :border c/BLACK
                   :highlight c/WHITE
@@ -325,11 +329,14 @@
                                          :thickness 2
                                          :right {:color (var :highlight)}
                                          :bottom {:color (var :highlight)}}
-                  :pressed-button-border-style {:line-style :bevel
+                  :button-pressed-border-style {:line-style :bevel
                                                :color (var :panel-shadow)
                                                :thickness 2
                                                :right {:color (var :highlight) :thickness 1}
                                                :bottom {:color (var :highlight) :thickness 1}}
+                  :button-border-style (var :raised-border-style)
+                  :button-hover-border-style (var :button-border-style)
+                  :button-disabled-border-style (var :button-border-style)
                   :scrollbar-button-border-style {:line-style :bevel
                                                   :color (var :highlight)
                                                   :thickness 0
@@ -586,16 +593,17 @@
                       :bottom {:thickness 0}}}
 
             'ui/button-inner
-            {:background (var :panel-bg)
-             :border (var :raised-border-style)}
+            {:background (var :button-bg)
+             :border (var :button-border-style)}
 
             'ui/button-inner:hover
             {:text {:color (var :text)}
-             :background (var :panel-bg)
-             :border (var :raised-border-style)}
+             :background (var :button-hover-bg)
+             :border (var :button-hover-border-style)}
 
             '(ui/button-inner {:pressed true})
-            {:border (var :pressed-button-border-style)}
+            {:background (var :button-pressed-bg)
+             :border (var :button-pressed-border-style)}
 
             'ui/text-input
             TEXT-INPUT-FRAME-STYLE
