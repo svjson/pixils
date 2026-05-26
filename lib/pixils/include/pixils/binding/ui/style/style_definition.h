@@ -20,6 +20,11 @@ namespace Pixils::Script::StyleDefinition
   std::optional<UI::Style::Trim> parse_trim(const Lisple::sptr_val& value);
   Lisple::sptr_val trim_to_value(const std::optional<UI::Style::Trim>& trim);
 
+  std::optional<UI::Style::CornerRadius> parse_corner_radius(Lisple::Context& ctx,
+                                                             const Lisple::sptr_val& value);
+  Lisple::sptr_val corner_radius_to_value(
+    const std::optional<UI::Style::CornerRadius>& radius);
+
   std::optional<UI::PositionMode> parse_position_mode(const Lisple::sptr_val& value);
   Lisple::sptr_val position_mode_to_value(const std::optional<UI::PositionMode>& mode);
 

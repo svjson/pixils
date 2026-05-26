@@ -43,6 +43,16 @@ namespace Pixils::UI
                            Corner corner,
                            const LineSpec& horizontal,
                            const LineSpec& vertical);
+
+  void render_filled_rounded_rect(SDL_Renderer* renderer,
+                                  const Rect& bounds,
+                                  const Style::CornerRadius& radius,
+                                  const Color& color);
+
+  void render_rounded_border(SDL_Renderer* renderer,
+                             const Rect& bounds,
+                             const Style::CornerRadius& radius,
+                             const Style::BorderStyle& border);
 } // namespace Pixils::UI
 
 #endif /* PIXILS__UI__LINE_H */

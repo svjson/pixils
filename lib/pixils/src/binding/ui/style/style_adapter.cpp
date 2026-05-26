@@ -70,6 +70,7 @@ namespace Pixils::Script
                       (margin),
                       (border),
                       (padding),
+                      ("corner-radius", corner_radius),
                       (text),
                       (box_sizing),
                       (rw, "opacity", opacity),
@@ -132,6 +133,11 @@ namespace Pixils::Script
   {
     return get_self_object().padding ? InsetsAdapter::make_ref(*get_self_object().padding)
                                      : Lisple::Constant::NIL;
+  }
+
+  NOBJ_PROP_GET(StyleAdapter, corner_radius)
+  {
+    return StyleDefinition::corner_radius_to_value(get_self_object().corner_radius);
   }
 
   NOBJ_PROP_GET(StyleAdapter, text)

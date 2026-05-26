@@ -6,10 +6,28 @@
 #include <gtest/gtest.h>
 #include <lisple/runtime/dict.h>
 #include <sdl2_mock/mock_resources.h>
+#include <vector>
 
 class RenderTest : public RenderFixture
 {
 };
+
+namespace
+{
+  bool has_fill_rect(const std::vector<RenderOperation>& ops, const SDL_Rect& rect)
+  {
+    for (const auto& op : ops)
+    {
+      if (op.type == RenderOpType::FILL_RECT && op.rendered_rect.x == rect.x &&
+          op.rendered_rect.y == rect.y && op.rendered_rect.w == rect.w &&
+          op.rendered_rect.h == rect.h)
+      {
+        return true;
+      }
+    }
+    return false;
+  }
+} // namespace
 
 TEST_F(RenderTest, rect_accepts_map_style_points)
 {
@@ -218,6 +236,76 @@ TEST_F(RenderTest, style_background_image_can_fit_source_and_align)
   EXPECT_EQ(ops[0].rendered_rect.y, 5);
   EXPECT_EQ(ops[0].rendered_rect.w, 20);
   EXPECT_EQ(ops[0].rendered_rect.h, 10);
+}
+
+TEST_F(RenderTest, style_corner_radius_rounds_background_fill)
+{
+  runtime.eval(R"(
+    (pixils/defmode test-mode
+      {:style {:width 10
+               :height 6
+               :background {:r 200 :g 0 :b 0}
+               :corner-radius 3}})
+  )");
+  session.push_mode("test-mode", Lisple::Constant::NIL);
+
+  ASSERT_NO_THROW(session.render_mode());
+
+  auto& ops = render_target()->render_ops;
+  ASSERT_EQ(ops.size(), 6u);
+  EXPECT_EQ(ops[0].type, RenderOpType::FILL_RECT);
+  EXPECT_EQ(ops[0].rendered_rect.x, 1);
+  EXPECT_EQ(ops[0].rendered_rect.y, 0);
+  EXPECT_EQ(ops[0].rendered_rect.w, 8);
+  EXPECT_TRUE(has_fill_rect(ops, SDL_Rect{0, 2, 10, 1}));
+  EXPECT_FALSE(has_fill_rect(ops, SDL_Rect{0, 0, 10, 1}));
+}
+
+TEST_F(RenderTest, style_directional_corner_radius_only_rounds_selected_corners)
+{
+  runtime.eval(R"(
+    (pixils/defmode test-mode
+      {:style {:width 10
+               :height 6
+               :background {:r 200 :g 0 :b 0}
+               :corner-radius {:tl 3 :tr 0 :br 3 :bl 0}}})
+  )");
+  session.push_mode("test-mode", Lisple::Constant::NIL);
+
+  ASSERT_NO_THROW(session.render_mode());
+
+  auto& ops = render_target()->render_ops;
+  ASSERT_EQ(ops.size(), 6u);
+  EXPECT_EQ(ops[0].rendered_rect.x, 1);
+  EXPECT_EQ(ops[0].rendered_rect.w, 9);
+  EXPECT_EQ(ops.back().rendered_rect.x, 0);
+  EXPECT_EQ(ops.back().rendered_rect.w, 9);
+}
+
+TEST_F(RenderTest, style_corner_radius_rounds_border)
+{
+  runtime.eval(R"(
+    (pixils/defmode test-mode
+      {:style {:width 10
+               :height 6
+               :corner-radius 3
+               :border {:thickness 1
+                        :line-style :solid
+                        :color {:r 0 :g 0 :b 0}}}})
+  )");
+  session.push_mode("test-mode", Lisple::Constant::NIL);
+
+  ASSERT_NO_THROW(session.render_mode());
+
+  auto& ops = render_target()->render_ops;
+  ASSERT_FALSE(ops.empty());
+  EXPECT_EQ(ops[0].type, RenderOpType::FILL_RECT);
+  EXPECT_EQ(ops[0].rendered_rect.x, 1);
+  EXPECT_EQ(ops[0].rendered_rect.y, 0);
+  EXPECT_EQ(ops[0].rendered_rect.w, 8);
+  EXPECT_FALSE(has_fill_rect(ops, SDL_Rect{0, 0, 10, 1}));
+  EXPECT_TRUE(has_fill_rect(ops, SDL_Rect{0, 2, 1, 1}));
+  EXPECT_TRUE(has_fill_rect(ops, SDL_Rect{9, 2, 1, 1}));
 }
 
 TEST_F(RenderTest, absolute_positioned_children_render_after_flow_siblings)

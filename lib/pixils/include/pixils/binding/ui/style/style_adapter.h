@@ -15,6 +15,7 @@ namespace Pixils::Script
      margin,
      border,
      padding,
+     corner_radius,
      text,
      box_sizing,
      opacity,

@@ -396,6 +396,51 @@ namespace Pixils::Script::StyleDefinition
     return Lisple::vector({Lisple::number(trim->start), Lisple::number(trim->end)});
   }
 
+  std::optional<UI::Style::CornerRadius> parse_corner_radius(Lisple::Context& ctx,
+                                                             const Lisple::sptr_val& value)
+  {
+    if (!value || value->type == Lisple::Value::Type::NIL) return std::nullopt;
+
+    if (value->type == Lisple::Value::Type::NUMBER)
+    {
+      return UI::Style::CornerRadius(std::max(0, value->num().get_int()));
+    }
+
+    auto source = map_like_value(value);
+    if (!source) return std::nullopt;
+
+    static Lisple::MapSchema corner_radius_schema({},
+                                                  {{"tl", &Lisple::Type::NUMBER},
+                                                   {"tr", &Lisple::Type::NUMBER},
+                                                   {"br", &Lisple::Type::NUMBER},
+                                                   {"bl", &Lisple::Type::NUMBER}});
+
+    auto opts = corner_radius_schema.bind(ctx, *source);
+    return UI::Style::CornerRadius(std::max(0, opts.i32("tl", 0)),
+                                   std::max(0, opts.i32("tr", 0)),
+                                   std::max(0, opts.i32("br", 0)),
+                                   std::max(0, opts.i32("bl", 0)));
+  }
+
+  Lisple::sptr_val corner_radius_to_value(
+    const std::optional<UI::Style::CornerRadius>& radius)
+  {
+    if (!radius) return Lisple::Constant::NIL;
+    if (radius->tl == radius->tr && radius->tl == radius->br && radius->tl == radius->bl)
+    {
+      return Lisple::number(radius->tl);
+    }
+
+    return Lisple::map({Lisple::keyword("tl"),
+                        Lisple::number(radius->tl),
+                        Lisple::keyword("tr"),
+                        Lisple::number(radius->tr),
+                        Lisple::keyword("br"),
+                        Lisple::number(radius->br),
+                        Lisple::keyword("bl"),
+                        Lisple::number(radius->bl)});
+  }
+
   std::optional<UI::PositionMode> parse_position_mode(const Lisple::sptr_val& value)
   {
     if (!value || value->type != Lisple::Value::Type::KEYWORD) return std::nullopt;
@@ -950,6 +995,7 @@ namespace Pixils::Script::StyleDefinition
                                            {"margin", &Lisple::Type::ANY},
                                            {"border", &Lisple::Type::ANY},
                                            {"padding", &Lisple::Type::ANY},
+                                           {"corner-radius", &Lisple::Type::ANY},
                                            {"layout", &Lisple::Type::ANY},
                                            {"text", &Lisple::Type::ANY},
                                            {"box-sizing", &Lisple::Type::KEYWORD},
@@ -976,6 +1022,10 @@ namespace Pixils::Script::StyleDefinition
       style->background = *background;
     if (auto margin = build_insets(ctx, opts.val("margin"))) style->margin = *margin;
     if (auto padding = build_insets(ctx, opts.val("padding"))) style->padding = *padding;
+    if (opts.contains("corner-radius"))
+    {
+      style->corner_radius = parse_corner_radius(ctx, opts.val("corner-radius"));
+    }
     if (auto border = build_border_style(ctx, opts.val("border"))) style->border = *border;
     if (auto layout = build_layout(ctx, opts.val("layout"))) style->layout = *layout;
     if (auto text = build_text(ctx, opts.val("text"))) style->text = *text;

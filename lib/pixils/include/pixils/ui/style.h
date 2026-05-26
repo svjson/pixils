@@ -121,6 +121,21 @@ namespace Pixils::UI
       bool operator==(const Trim& other) const;
     };
 
+    struct CornerRadius
+    {
+      int tl = 0;
+      int tr = 0;
+      int br = 0;
+      int bl = 0;
+
+      CornerRadius() = default;
+      CornerRadius(int amount);
+      CornerRadius(int tl, int tr, int br, int bl);
+
+      bool operator==(const CornerRadius& other) const;
+      bool has_radius() const;
+    };
+
     enum class LineStyle : uint8_t
     {
       SOLID,
@@ -285,6 +300,7 @@ namespace Pixils::UI
     std::optional<Background> background = std::nullopt;
     std::optional<Insets> margin = std::nullopt;
     std::optional<Insets> padding = std::nullopt;
+    std::optional<CornerRadius> corner_radius = std::nullopt;
     std::optional<BorderStyle> border = std::nullopt;
     std::optional<Text> text = std::nullopt;
     std::optional<BoxSizing> box_sizing = std::nullopt;

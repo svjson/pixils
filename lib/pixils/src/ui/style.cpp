@@ -200,6 +200,7 @@ namespace Pixils::UI
     : background(other.background)
     , margin(other.margin)
     , padding(other.padding)
+    , corner_radius(other.corner_radius)
     , border(other.border)
     , text(other.text)
     , box_sizing(other.box_sizing)
@@ -229,6 +230,7 @@ namespace Pixils::UI
     this->background = other.background;
     this->margin = other.margin;
     this->padding = other.padding;
+    this->corner_radius = other.corner_radius;
     this->border = other.border;
     this->text = other.text;
     this->box_sizing = other.box_sizing;
@@ -302,6 +304,32 @@ namespace Pixils::UI
   bool Style::Trim::operator==(const Trim& other) const
   {
     return start == other.start && end == other.end;
+  }
+
+  Style::CornerRadius::CornerRadius(int amount)
+    : tl(amount)
+    , tr(amount)
+    , br(amount)
+    , bl(amount)
+  {
+  }
+
+  Style::CornerRadius::CornerRadius(int tl, int tr, int br, int bl)
+    : tl(tl)
+    , tr(tr)
+    , br(br)
+    , bl(bl)
+  {
+  }
+
+  bool Style::CornerRadius::operator==(const CornerRadius& other) const
+  {
+    return tl == other.tl && tr == other.tr && br == other.br && bl == other.bl;
+  }
+
+  bool Style::CornerRadius::has_radius() const
+  {
+    return tl > 0 || tr > 0 || br > 0 || bl > 0;
   }
 
   Rect Style::Insets::apply_to(const Rect& rect) const
@@ -459,6 +487,7 @@ namespace Pixils::UI
     }
     if (variant.margin) out.margin = variant.margin;
     if (variant.padding) out.padding = variant.padding;
+    if (variant.corner_radius) out.corner_radius = variant.corner_radius;
     if (variant.border) out.border = variant.border;
     if (variant.text) apply_text_variant(out, *variant.text);
     if (variant.box_sizing) out.box_sizing = variant.box_sizing;

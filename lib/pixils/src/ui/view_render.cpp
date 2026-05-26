@@ -167,9 +167,8 @@ namespace Pixils::UI
       const Rect bounds = ctx.bounds;
 
       const Style& style_res = ctx.effective_style;
-      if (style_res.visibility &&
-          (*style_res.visibility == Style::Visibility::HIDDEN ||
-           *style_res.visibility == Style::Visibility::NONE))
+      if (style_res.visibility && (*style_res.visibility == Style::Visibility::HIDDEN ||
+                                   *style_res.visibility == Style::Visibility::NONE))
         return;
 
       const float opacity = opacity_factor(style_res);
@@ -241,16 +240,26 @@ namespace Pixils::UI
        */
       if (style_res.background && style_res.background->color)
       {
-        auto bg_bounds = intersect_clip(inherited_clip, bounds);
-        if (bg_bounds)
+        if (style_res.corner_radius && style_res.corner_radius->has_radius())
         {
-          const SDL_Color& bg = style_res.background->color->to_SDL_Color();
-          SDL_SetRenderDrawColor(render_ctx.renderer, bg.r, bg.g, bg.b, bg.a);
-          SDL_Rect bg_rect = target_rect(*bg_bounds, origin).to_SDL_rect();
-          SDL_SetRenderDrawBlendMode(render_ctx.renderer, SDL_BLENDMODE_BLEND);
-          PIXILS_BENCHMARK_COUNT(render_fill_rect_calls);
-          SDL_RenderFillRect(render_ctx.renderer, &bg_rect);
-          SDL_SetRenderDrawBlendMode(render_ctx.renderer, SDL_BLENDMODE_NONE);
+          render_filled_rounded_rect(render_ctx.renderer,
+                                     target_rect(bounds, origin),
+                                     *style_res.corner_radius,
+                                     *style_res.background->color);
+        }
+        else
+        {
+          auto bg_bounds = intersect_clip(inherited_clip, bounds);
+          if (bg_bounds)
+          {
+            const SDL_Color& bg = style_res.background->color->to_SDL_Color();
+            SDL_SetRenderDrawColor(render_ctx.renderer, bg.r, bg.g, bg.b, bg.a);
+            SDL_Rect bg_rect = target_rect(*bg_bounds, origin).to_SDL_rect();
+            SDL_SetRenderDrawBlendMode(render_ctx.renderer, SDL_BLENDMODE_BLEND);
+            PIXILS_BENCHMARK_COUNT(render_fill_rect_calls);
+            SDL_RenderFillRect(render_ctx.renderer, &bg_rect);
+            SDL_SetRenderDrawBlendMode(render_ctx.renderer, SDL_BLENDMODE_NONE);
+          }
         }
       }
 
@@ -287,46 +296,56 @@ namespace Pixils::UI
       {
         Rect target_bounds = target_rect(bounds, origin);
         const Style::BorderStyle& bs = *style_res.border;
-        const Style::Trim top_trim = bs.top_trim();
-        const Style::Trim right_trim = bs.right_trim();
-        const Style::Trim bottom_trim = bs.bottom_trim();
-        const Style::Trim left_trim = bs.left_trim();
-        const LineSpec top_spec{.thickness = bs.top_thickness(),
-                                .color = bs.top_color(),
-                                .style = bs.top_line_style(),
-                                .trim_start = top_trim.start,
-                                .trim_end = top_trim.end};
-        const LineSpec right_spec{.thickness = bs.right_thickness(),
-                                  .color = bs.right_color(),
-                                  .style = bs.right_line_style(),
-                                  .trim_start = right_trim.start,
-                                  .trim_end = right_trim.end};
-        const LineSpec bottom_spec{.thickness = bs.bottom_thickness(),
-                                   .color = bs.bottom_color(),
-                                   .style = bs.bottom_line_style(),
-                                   .trim_start = bottom_trim.start,
-                                   .trim_end = bottom_trim.end};
-        const LineSpec left_spec{.thickness = bs.left_thickness(),
-                                 .color = bs.left_color(),
-                                 .style = bs.left_line_style(),
-                                 .trim_start = left_trim.start,
-                                 .trim_end = left_trim.end};
+        if (style_res.corner_radius && style_res.corner_radius->has_radius())
+        {
+          render_rounded_border(render_ctx.renderer,
+                                target_bounds,
+                                *style_res.corner_radius,
+                                bs);
+        }
+        else
+        {
+          const Style::Trim top_trim = bs.top_trim();
+          const Style::Trim right_trim = bs.right_trim();
+          const Style::Trim bottom_trim = bs.bottom_trim();
+          const Style::Trim left_trim = bs.left_trim();
+          const LineSpec top_spec{.thickness = bs.top_thickness(),
+                                  .color = bs.top_color(),
+                                  .style = bs.top_line_style(),
+                                  .trim_start = top_trim.start,
+                                  .trim_end = top_trim.end};
+          const LineSpec right_spec{.thickness = bs.right_thickness(),
+                                    .color = bs.right_color(),
+                                    .style = bs.right_line_style(),
+                                    .trim_start = right_trim.start,
+                                    .trim_end = right_trim.end};
+          const LineSpec bottom_spec{.thickness = bs.bottom_thickness(),
+                                     .color = bs.bottom_color(),
+                                     .style = bs.bottom_line_style(),
+                                     .trim_start = bottom_trim.start,
+                                     .trim_end = bottom_trim.end};
+          const LineSpec left_spec{.thickness = bs.left_thickness(),
+                                   .color = bs.left_color(),
+                                   .style = bs.left_line_style(),
+                                   .trim_start = left_trim.start,
+                                   .trim_end = left_trim.end};
 
-        render_edge(render_ctx.renderer, target_bounds, Edge::TOP, top_spec);
-        render_edge(render_ctx.renderer, target_bounds, Edge::RIGHT, right_spec);
-        render_edge(render_ctx.renderer, target_bounds, Edge::BOTTOM, bottom_spec);
-        render_edge(render_ctx.renderer, target_bounds, Edge::LEFT, left_spec);
+          render_edge(render_ctx.renderer, target_bounds, Edge::TOP, top_spec);
+          render_edge(render_ctx.renderer, target_bounds, Edge::RIGHT, right_spec);
+          render_edge(render_ctx.renderer, target_bounds, Edge::BOTTOM, bottom_spec);
+          render_edge(render_ctx.renderer, target_bounds, Edge::LEFT, left_spec);
 
-        render_bevel_corner(render_ctx.renderer,
-                            target_bounds,
-                            Corner::TOP_LEFT,
-                            top_spec,
-                            left_spec);
-        render_bevel_corner(render_ctx.renderer,
-                            target_bounds,
-                            Corner::BOTTOM_RIGHT,
-                            bottom_spec,
-                            right_spec);
+          render_bevel_corner(render_ctx.renderer,
+                              target_bounds,
+                              Corner::TOP_LEFT,
+                              top_spec,
+                              left_spec);
+          render_bevel_corner(render_ctx.renderer,
+                              target_bounds,
+                              Corner::BOTTOM_RIGHT,
+                              bottom_spec,
+                              right_spec);
+        }
       }
 
       Rect content = style_res.content_rect(bounds);

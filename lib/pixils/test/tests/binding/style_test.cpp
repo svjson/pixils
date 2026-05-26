@@ -88,6 +88,35 @@ TEST_F(StyleTest, make_style_with_opacity)
   EXPECT_FLOAT_EQ(*style.opacity, 0.25f);
 }
 
+TEST_F(StyleTest, make_style_with_uniform_corner_radius)
+{
+  Lisple::sptr_val result = runtime.eval("(pixils.ui.style/make-style {:corner-radius 6})");
+
+  auto style = Lisple::obj<Pixils::UI::Style>(*result);
+  ASSERT_NE(style.corner_radius, std::nullopt);
+  EXPECT_EQ(*style.corner_radius, Pixils::UI::Style::CornerRadius(6));
+}
+
+TEST_F(StyleTest, make_style_with_directional_corner_radius)
+{
+  Lisple::sptr_val result =
+    runtime.eval("(pixils.ui.style/make-style {:corner-radius {:tl 8 :tr 7 :br 2 :bl 1}})");
+
+  auto style = Lisple::obj<Pixils::UI::Style>(*result);
+  ASSERT_NE(style.corner_radius, std::nullopt);
+  EXPECT_EQ(*style.corner_radius, (Pixils::UI::Style::CornerRadius{8, 7, 2, 1}));
+}
+
+TEST_F(StyleTest, style_adapter_exposes_corner_radius)
+{
+  Lisple::sptr_val result = runtime.eval(
+    "(:br (:corner-radius "
+    "(pixils.ui.style/make-style {:corner-radius {:tl 8 :tr 7 :br 2 :bl 1}})))");
+
+  ASSERT_EQ(result->type, Lisple::Value::Type::NUMBER);
+  EXPECT_EQ(result->num().get_int(), 2);
+}
+
 TEST_F(StyleTest, make_style_with_per_side_border_overrides)
 {
   // When
@@ -643,6 +672,19 @@ TEST(StyleVariantTest, apply_style_variant_preserves_focus_styles)
   EXPECT_EQ(*base.focus->text->scale, 2);
 }
 
+TEST(StyleVariantTest, apply_style_variant_overlays_corner_radius)
+{
+  Pixils::UI::Style base;
+  base.corner_radius = Pixils::UI::Style::CornerRadius(2);
+  Pixils::UI::Style variant;
+  variant.corner_radius = Pixils::UI::Style::CornerRadius{8, 7, 2, 1};
+
+  Pixils::UI::apply_style_variant(base, variant);
+
+  ASSERT_NE(base.corner_radius, std::nullopt);
+  EXPECT_EQ(*base.corner_radius, (Pixils::UI::Style::CornerRadius{8, 7, 2, 1}));
+}
+
 TEST_F(StyleTest, make_insets_with_four_value_vector)
 {
   // When
@@ -813,4 +855,20 @@ TEST(StyleContentRectTest, content_rect_with_no_border_or_padding_returns_bounds
   EXPECT_EQ(result.y, 10);
   EXPECT_EQ(result.w, 200);
   EXPECT_EQ(result.h, 100);
+}
+
+TEST(StyleContentRectTest, corner_radius_does_not_affect_content_rect)
+{
+  Pixils::UI::Style style;
+  style.corner_radius = Pixils::UI::Style::CornerRadius(8);
+  style.border = Pixils::UI::Style::BorderStyle{};
+  style.border->thickness = 2;
+  style.padding = Pixils::UI::Style::Insets(4, 4, 4, 4);
+
+  Pixils::Rect result = style.content_rect({0, 0, 100, 60});
+
+  EXPECT_EQ(result.x, 6);
+  EXPECT_EQ(result.y, 6);
+  EXPECT_EQ(result.w, 88);
+  EXPECT_EQ(result.h, 48);
 }
