@@ -499,9 +499,9 @@ namespace Pixils::UI
       return Lisple::obj<Theme>(*theme_val);
     }
 
-    Theme resolve_effective_theme_impl(const std::shared_ptr<Pixils::Runtime::View>& view,
-                                       Lisple::Runtime& runtime,
-                                       const Theme* inherited_theme)
+    std::optional<std::string> selected_theme_variant(
+      const std::shared_ptr<Pixils::Runtime::View>& view,
+      const Theme* inherited_theme)
     {
       std::optional<std::string> selected_variant =
         view && view->mode ? view->mode->theme_variant : std::nullopt;
@@ -513,7 +513,14 @@ namespace Pixils::UI
       {
         selected_variant = view->inherited_theme->selected_variant;
       }
+      return selected_variant;
+    }
 
+    Theme resolve_effective_theme_impl(const std::shared_ptr<Pixils::Runtime::View>& view,
+                                       Lisple::Runtime& runtime,
+                                       const Theme* inherited_theme,
+                                       const std::optional<std::string>& selected_variant)
+    {
       Theme theme =
         inherited_theme
           ? inherited_theme->resolved_for_variant(selected_variant)
@@ -559,7 +566,27 @@ namespace Pixils::UI
       }
 
       PIXILS_BENCHMARK_COUNT(style_view_cache_misses);
-      view->effective_theme = resolve_effective_theme_impl(view, runtime, inherited_theme);
+      const auto inherited_theme_generation =
+        view->style_view.parent() ? view->style_view.parent()->theme_generation() : 0;
+      const auto* view_inherited_theme =
+        view->inherited_theme ? &*view->inherited_theme : nullptr;
+      const auto selected_variant = selected_theme_variant(view, inherited_theme);
+      if (!view->style_view.theme_valid_for(view->mode,
+                                            inherited_theme,
+                                            view_inherited_theme,
+                                            inherited_theme_generation,
+                                            selected_variant))
+      {
+        view->effective_theme = resolve_effective_theme_impl(view,
+                                                             runtime,
+                                                             inherited_theme,
+                                                             selected_variant);
+        view->style_view.mark_theme_resolved(view->mode,
+                                             inherited_theme,
+                                             view_inherited_theme,
+                                             inherited_theme_generation,
+                                             selected_variant);
+      }
       view->effective_style =
         resolve_effective_style(view, runtime, inherited_style, selector_path);
       view->style_view.mark_resolved(view->mode,
@@ -1163,7 +1190,10 @@ namespace Pixils::UI
                                 Lisple::Runtime& runtime,
                                 const Theme* inherited_theme)
   {
-    return resolve_effective_theme_impl(view, runtime, inherited_theme);
+    return resolve_effective_theme_impl(view,
+                                        runtime,
+                                        inherited_theme,
+                                        selected_theme_variant(view, inherited_theme));
   }
 
   std::vector<Rect> layout_children(

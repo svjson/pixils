@@ -418,6 +418,10 @@ namespace Pixils::Script
   {
     UI::Theme resolved = theme;
     const auto selected_variant = variant ? variant : resolved.selected_variant;
+    if (resolved.declarations_resolved && resolved.selected_variant == selected_variant)
+    {
+      return resolved;
+    }
 
     if (!resolved.defaults_exprs.empty())
     {
@@ -441,6 +445,8 @@ namespace Pixils::Script
       }
     }
 
+    resolved.selected_variant = selected_variant;
+    resolved.declarations_resolved = true;
     return resolved;
   }
 

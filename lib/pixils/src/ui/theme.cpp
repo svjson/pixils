@@ -246,6 +246,7 @@ namespace Pixils::UI
                         const Style& style,
                         const std::vector<Lisple::sptr_val>& style_exprs)
   {
+    declarations_resolved = false;
     auto it = std::find_if(rules.begin(),
                            rules.end(),
                            [&](const auto& rule) { return rule.selector == selector; });
@@ -267,6 +268,7 @@ namespace Pixils::UI
                                 const Style& style,
                                 const std::vector<Lisple::sptr_val>& style_exprs)
   {
+    declarations_resolved = false;
     auto& rules_for_variant = variant_rules[variant];
     auto it = std::find_if(rules_for_variant.begin(),
                            rules_for_variant.end(),
@@ -362,7 +364,20 @@ namespace Pixils::UI
   Theme Theme::resolved_for_variant(const std::optional<std::string>& variant) const
   {
     Theme resolved = *this;
-    resolved.selected_variant = variant;
+    auto target_variant = variant;
+    if (target_variant &&
+        resolved.variant_rules.find(*target_variant) == resolved.variant_rules.end() &&
+        resolved.vars.find(*target_variant) == resolved.vars.end())
+    {
+      target_variant = resolved.default_variant;
+    }
+
+    if (resolved.selected_variant == target_variant)
+    {
+      return resolved;
+    }
+
+    resolved.selected_variant = target_variant;
     if (resolved.selected_variant &&
         resolved.variant_rules.find(*resolved.selected_variant) == resolved.variant_rules.end() &&
         resolved.vars.find(*resolved.selected_variant) == resolved.vars.end())
@@ -401,6 +416,7 @@ namespace Pixils::UI
 
   void overlay_theme(Theme& out, const Theme& overlay)
   {
+    out.declarations_resolved = false;
     if (overlay.defaults)
     {
       if (!out.defaults) out.defaults = Style{};

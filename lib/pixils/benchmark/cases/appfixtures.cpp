@@ -192,6 +192,30 @@ TEST_F(AppFixtureBenchmark, minesweeper_simple_windowed_frame_cycle)
   benchmark_frame_cycle("appfixture_minesweeper_simple_windowed_frame_cycle", 100);
 }
 
+TEST_F(AppFixtureBenchmark, minesweeper_simple_window_drag_frame_cycle)
+{
+  ASSERT_NO_THROW(load_minesweeper_simple_windowed());
+  render_cycle();
+
+  auto title_bar = first_mode("window-title-bar");
+  ASSERT_NE(title_bar, nullptr);
+  const auto start = center_of(title_bar);
+  input().mouse_down(start);
+  frame_cycle();
+  clear_render_ops();
+
+  int offset = 0;
+  benchmark_update_flow(
+    "realworld_appfixture_minesweeper_simple_window_drag_frame_cycle",
+    100,
+    [&]()
+    {
+      offset++;
+      input().mouse_move({start.first + offset, start.second + offset});
+      frame_cycle();
+    });
+}
+
 TEST_F(AppFixtureBenchmark, minesweeper_keyboard_menu_windowed_frame_cycle)
 {
   ASSERT_NO_THROW(load_minesweeper_keyboard_menu_windowed());

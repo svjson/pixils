@@ -65,6 +65,7 @@ namespace Pixils::UI
     std::vector<std::string> extend;
     std::optional<std::string> default_variant = std::nullopt;
     std::optional<std::string> selected_variant = std::nullopt;
+    bool declarations_resolved = false;
     std::optional<Style> defaults = std::nullopt;
     std::vector<Lisple::sptr_val> defaults_exprs;
     std::map<std::string, std::map<std::string, Lisple::sptr_val>> vars;
