@@ -1,15 +1,15 @@
 (ns tilemap-editor.view.tilemap.palette-test
   (:require proof.core
-            [tilemap-editor.view.tilemap.palette :as palette]
-            [pixils.tilemap.project.model :as data]))
+            [tilemap-editor.view.tilemap.palette :as palette]))
 
 (deftest tile-palette-is-disabled-when-empty
-  (is (= true (:disabled? (:state (palette/tile-palette-list-box-child [] nil false)))))
   (is (= true
-         (:disabled? (:state (palette/tile-palette-list-box-child
-                              []
-                              :colors
-                              false))))))
+         (:disabled? (palette/tile-select-grid-state
+                      {:tilesets []
+                       :layers [{:id :ground
+                                 :data-kind :tile-ref
+                                 :tileset :colors}]
+                       :selected-layer-index 0})))))
 
 (deftest tile-palette-is-disabled_without_layers
   (let [tilesets [{:id :colors
@@ -17,31 +17,32 @@
                    :tiles [{:id :grass
                             :name "Grass"}]}]]
     (is (= true
-           (:disabled? (:state (palette/tile-palette-list-box-child
-                                tilesets
-                                :colors
-                                true)))))
+           (:disabled? (palette/tile-select-grid-state
+                        {:tilesets tilesets
+                         :layers []
+                         :selected-layer-index nil}))))
     (is (not= true
-              (:disabled? (:state (palette/tile-palette-list-box-child
-                                   tilesets
-                                   :colors
-                                   false)))))))
+              (:disabled? (palette/tile-select-grid-state
+                           {:tilesets tilesets
+                            :layers [{:id :ground
+                                      :data-kind :tile-ref
+                                      :tileset :colors}]
+                            :selected-layer-index 0}))))))
 
-(deftest terrain-palette-lists_terrain_values
-  (let [child (palette/source-palette-list-box-child
-               {:terrain-sets [{:id :overworld
-                                :terrains [{:id :grass
-                                            :label "Grass"}]}]
-                :layers [{:id :scene/terrain
-                          :data-kind :terrain
-                          :terrain-set :overworld}]
-                :selected-layer-index 0
-                :selected-tile :grass}
-               false)]
-    (is (not= true (:disabled? (:state child))))
+(deftest terrain-palette-grid-lists_terrain_values
+  (let [grid-state (palette/tile-select-grid-state
+                    {:terrain-sets [{:id :overworld
+                                     :terrains [{:id :grass
+                                                 :label "Grass"}]}]
+                     :layers [{:id :scene/terrain
+                               :data-kind :terrain
+                               :terrain-set :overworld}]
+                     :selected-layer-index 0
+                     :selected-tile :grass})]
+    (is (not= true (:disabled? grid-state)))
     (is (= [{:value :grass
              :label "Grass"}]
-           (:options (:state child))))
+           (:options grid-state)))
     (is (= [0]
            (palette/selected-tile-indices
             {:terrain-sets [{:id :overworld

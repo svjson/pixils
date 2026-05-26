@@ -16,12 +16,12 @@
   (is (= false (renderer/valid-dim? {:w 0 :h 1})))
   (is (= false (renderer/valid-dim? {:w 1 :h 0}))))
 
-(deftest render-options-wraps_single_tileset
+(deftest render-options-uses_single_tileset
   (is (= {:tilesets [{:id :br :tiles []}]}
-         (renderer/render-options {:id :br :tiles []}))))
+         (renderer/render-options {:id :br :tiles []} nil))))
 
 (deftest render-options_preserves_renderer_directives
-  (is (= {:tilesets [{:id :br :tiles []}]
-          :offset {:x 1 :y 2}}
-         (renderer/render-options {:tilesets [{:id :br :tiles []}]
-                                   :offset {:x 1 :y 2}}))))
+  (let [opts (renderer/render-options {:id :br :tiles []}
+                                      {:offset {:x 1 :y 2}})]
+    (is (= [{:id :br :tiles []}] (:tilesets opts)))
+    (is (= {:x 1 :y 2} (:offset opts)))))

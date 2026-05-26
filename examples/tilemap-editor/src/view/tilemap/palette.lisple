@@ -7,7 +7,8 @@
             [pixils.ui.tab-panel :as tabs]
             [pixils.tilemap.project.model :as data]
             [tilemap-editor.view.brushes.model :as brush-model]
-            [tilemap-editor.view.tilemap.renderer :as tr]))
+            [tilemap-editor.view.tilemap.renderer :as tr]
+            [tilemap-editor.view.tileset.model :as tile-grid]))
 
 
 
@@ -45,62 +46,6 @@
     (data/tile-options (:tilesets state)
                        (selected-layer-tileset state))))
 
-(defun source-option-count [state]
-  (count (source-options state)))
-
-(defcomponent tile-swatch-preview
-  {:style {:width 14
-           :height 14}
-   :render (fn [state ctx]
-             (let [bounds (-> ctx :view :bounds)
-                   rect {:x 0 :y 0 :w (:w bounds) :h (:h bounds)}]
-               (do
-                 (r/rect! rect {:fill true
-                                :color {:r 0x12 :g 0x15 :b 0x18}})
-                 (tr/draw-tile! (:tile state) rect)
-                 (r/rect! rect {:color {:r 0xe6 :g 0xea :b 0xee}}))))})
-
-(defcomponent tile-swatch
-  {:extend 'ui/list-box-item
-   :style {:width :fill
-           :height tile-palette-row-height
-           :padding [4 6]
-           :layout {:direction :row
-                    :align-items :center
-                    :gap 6}}
-   :update (fn [state ctx]
-             (let [tile (if (= (:data-kind state) :terrain)
-                          (data/terrain-tile-in (:tilesets state)
-                                                (:terrain-sets state)
-                                                (:terrain-set state)
-                                                (:tile-id state))
-                          (data/tile-in (:tilesets state)
-                                        (:tileset state)
-                                        (:tile-id state)))]
-               (assoc (assoc (assoc state
-                                    :selected (contains? (:selected-indices state)
-                                                         (:index state)))
-                             :tile tile)
-                      :name (or (:label state) (:name tile)))))
-   :on-mouse-down (fn [state event ctx]
-                    (do
-                      (ui/stop-propagation! event)
-                      state))
-   :on-mouse-up (fn [state event ctx]
-                  (do
-                    (ui/stop-propagation! event)
-                    (ui/emit! (:view ctx)
-                              :list-box/item-click
-                              {:index (:index state)
-                               :value (:value state)
-                               :shift? false
-                               :ctrl? false})
-                    state))
-   :children [{:mode 'tile-swatch-preview
-               :state {:tile (ui/bind-state :tile)}}
-              {:mode 'ui/text
-               :state {:value (ui/bind-state :name)}}]})
-
 (defun selected-tile-indices [state]
   (if (or (:disabled? state)
           (nil? (selected-layer state))
@@ -114,114 +59,139 @@
                         (selected-layer-tileset state)
                         (:selected-tile state))])))
 
-(defun tile-swatch-child [index option]
-  {:mode 'tile-swatch
-   :state {:index index
-           :value (:value option)
-           :label (:label option)
-           :tile-id (:value option)
-           :tileset (ui/bind-state :tileset)
-           :terrain-set (ui/bind-state :terrain-set)
-           :data-kind (ui/bind-state :data-kind)
-           :tilesets (ui/bind-state :tilesets)
-           :terrain-sets (ui/bind-state :terrain-sets)
-           :selected-indices (ui/bind-state :selected-indices)}})
+(defun source-option-tile [state option]
+  (if (= (:palette-data-kind state) :terrain)
+    (data/terrain-tile-in (:tilesets state)
+                          (:terrain-sets state)
+                          (:palette-terrain-set state)
+                          (:value option))
+    (data/tile-in (:tilesets state)
+                  (:palette-tileset state)
+                  (:value option))))
 
-(defun tile-palette-list-box-child [tilesets tileset disabled?]
-  (let [options (data/tile-options tilesets tileset)]
-    (lb/make {:options options
-              :style {:width :fill
-                      :height :fill}
-              :row-height tile-palette-row-height
-              :visible-rows (count options)
-              :content-width tile-palette-content-width
-              :disabled? (if (or disabled? (empty? options))
-                            true
-                            false)
-              :state {:tileset (ui/bind-state :palette-tileset)
-                      :tilesets (ui/bind-state :tilesets)}
-              :item-state-keys [:tileset :tilesets]
-              :selected-indices (ui/bind-state :selected-indices)
-              :force-selection? true
-              :item-child tile-swatch-child})))
+(defun tile-select-grid-rect [index columns]
+  (let [columns (max 1 (or columns 1))
+        stride (tile-grid/tile-grid-stride)]
+    {:x (* (mod index columns) stride)
+     :y (* (int (/ index columns)) stride)
+     :w tile-grid/tile-grid-cell-size
+     :h tile-grid/tile-grid-cell-size}))
 
-(defun source-palette-list-box-child [state disabled?]
-  (let [options (source-options state)]
-    (lb/make {:options options
-              :style {:width :fill
-                      :height :fill}
-              :row-height tile-palette-row-height
-              :visible-rows (count options)
-              :content-width tile-palette-content-width
-              :disabled? (if (or disabled? (empty? options))
-                            true
-                            false)
-              :state {:tileset (ui/bind-state :palette-tileset)
-                      :terrain-set (ui/bind-state :palette-terrain-set)
-                      :data-kind (ui/bind-state :palette-data-kind)
-                      :tilesets (ui/bind-state :tilesets)
-                      :terrain-sets (ui/bind-state :terrain-sets)}
-              :item-state-keys [:tileset
-                                :terrain-set
-                                :data-kind
-                                :tilesets
-                                :terrain-sets]
-              :selected-indices (ui/bind-state :selected-indices)
-              :force-selection? true
-              :item-child tile-swatch-child})))
+(defun tile-select-grid-border-rect [rect]
+  {:x (+ (:x rect) 1)
+   :y (+ (:y rect) 1)
+   :w (- (:w rect) 2)
+   :h (- (:h rect) 2)})
+
+(defun draw-tile-select-cell! [state option index columns]
+  (let [rect (tile-select-grid-rect index columns)
+        tile (source-option-tile state option)]
+    (do
+      (r/rect! rect {:fill true
+                     :color {:r 0x12 :g 0x15 :b 0x18}})
+      (tr/draw-tile! tile rect)
+      (r/rect! rect {:color {:r 0x2c :g 0x34 :b 0x3c}}))))
+
+(defun draw-tile-select-selection! [index columns]
+  (when (not (nil? index))
+    (r/rect! (tile-select-grid-border-rect (tile-select-grid-rect index columns))
+             {:color {:r 0xff :g 0xcc :b 0x66}})))
+
+(defun tile-select-grid-state [state]
+  (let [tileset (selected-layer-tileset state)
+        terrain-set (selected-layer-terrain-set state)
+        data-kind (selected-layer-data-kind state)
+        source-state (assoc (assoc state
+                                   :palette-tileset tileset)
+                            :palette-terrain-set terrain-set
+                            :palette-data-kind data-kind)
+        options (source-options source-state)
+        disabled? (if (or (:disabled? state)
+                           (nil? (selected-layer state))
+                           (empty? options))
+                     true
+                     false)]
+    (assoc source-state
+           :options options
+           :disabled? disabled?
+           :selected-indices (selected-tile-indices source-state))))
+
+(defcomponent tile-select-grid
+  {:focusable true
+   :class :ui/content
+   :style {:width :fill
+           :height :fill
+           :clip true}
+   :init (fn [state ctx]
+           (assoc state :selected-indices (selected-tile-indices state)))
+   :update (fn [state ctx]
+             (tile-select-grid-state state))
+   :on-mouse-down (fn [state event ctx]
+                    (do
+                      (ui/stop-propagation! event)
+                      (ui/focus! ctx)
+                      state))
+   :on-mouse-up (fn [state event ctx]
+                  (let [options (or (:options state) [])
+                        index (tile-grid/tile-grid-index-at-position
+                               (:position event)
+                               (-> ctx :view :bounds)
+                               (count options))]
+                    (do
+                      (ui/stop-propagation! event)
+                      (when (and (not (:disabled? state))
+                                 (= (:button event) :left)
+                                 (not (nil? index)))
+                        (ui/emit! (:view ctx)
+                                  :tile-select/change
+                                  {:index index
+                                   :value (:value (nth options index))}))
+                      state)))
+   :on-key-down (fn [state event ctx]
+                  (let [options (or (:options state) [])
+                        item-count (count options)
+                        columns (tile-grid/tile-grid-columns (-> ctx :view :bounds))
+                        current (or (head (:selected-indices state)) 0)
+                        delta (case (:key event)
+                                :key/left -1
+                                :key/right 1
+                                :key/up (* -1 columns)
+                                :key/down columns
+                                :default nil)]
+                    (if (or (:disabled? state) (nil? delta))
+                      state
+                      (let [index (tile-grid/move-tile-grid-index current
+                                                                  item-count
+                                                                  columns
+                                                                  delta)]
+                        (do
+                          (ui/stop-propagation! event)
+                          (when (not (nil? index))
+                            (ui/emit! (:view ctx)
+                                      :tile-select/change
+                                      {:index index
+                                       :value (:value (nth options index))}))
+                          state)))))
+   :render (fn [state ctx]
+             (let [options (or (:options state) [])
+                   selection (:selected-indices state)
+                   columns (tile-grid/tile-grid-columns (-> ctx :view :bounds))]
+               (do
+                 (for-indexed [index option options]
+                   (draw-tile-select-cell! state option index columns))
+                 (for [index selection]
+                   (draw-tile-select-selection! index columns)))))})
 
 (defcomponent tile-palette-list
   {:style {:width :fill
            :height :fill}
-   :init (fn [state ctx]
-           (let [tileset (selected-layer-tileset state)
-                 terrain-set (selected-layer-terrain-set state)
-                 data-kind (selected-layer-data-kind state)]
-             (assoc state
-                    :palette-tileset tileset
-                    :palette-terrain-set terrain-set
-                    :palette-data-kind data-kind
-                    :palette-tilesets nil
-                    :palette-terrain-sets nil
-                    :option-count nil
-                    :rendered-disabled? nil
-                    :selected-indices (selected-tile-indices state))))
-   :update (fn [state ctx]
-             (let [tileset (selected-layer-tileset state)
-                   terrain-set (selected-layer-terrain-set state)
-                   data-kind (selected-layer-data-kind state)
-                   source-state (assoc (assoc state
-                                              :palette-tileset tileset)
-                                       :palette-terrain-set terrain-set
-                                       :palette-data-kind data-kind)
-                   option-count (source-option-count source-state)
-                   disabled? (:disabled? state)]
-               (do
-                 (when (or (not= tileset (:palette-tileset state))
-                           (not= terrain-set (:palette-terrain-set state))
-                           (not= data-kind (:palette-data-kind state))
-                           (not= (:tilesets state) (:palette-tilesets state))
-                           (not= (:terrain-sets state)
-                                 (:palette-terrain-sets state))
-                           (not= option-count (:option-count state))
-                           (not= disabled? (:rendered-disabled? state)))
-                   (ui/replace-child! (:view ctx)
-                                      "list-box"
-                                      (merge {:id "list-box"}
-                                             (source-palette-list-box-child
-                                              source-state
-                                              disabled?))))
-                 (assoc state
-                        :palette-tileset tileset
-                        :palette-terrain-set terrain-set
-                        :palette-data-kind data-kind
-                        :palette-tilesets (:tilesets state)
-                        :palette-terrain-sets (:terrain-sets state)
-                        :option-count option-count
-                        :rendered-disabled? disabled?
-                        :selected-indices (selected-tile-indices source-state)))))
-   :children [(merge {:id "list-box"}
-                     (source-palette-list-box-child {} true))]})
+   :children [{:mode 'tile-select-grid
+               :state {:selected-tile (ui/bind-state :selected-tile)
+                       :tilesets (ui/bind-state :tilesets)
+                       :terrain-sets (ui/bind-state :terrain-sets)
+                       :selected-layer-index (ui/bind-state :selected-layer-index)
+                       :layers (ui/bind-state :layers)
+                       :disabled? (ui/bind-state :disabled?)}}]})
 
 (defcomponent brush-palette-row
   {:extend 'ui/list-box-item
@@ -395,6 +365,14 @@
                                                     :palette/select
                                                     (-> event :payload :value))))
                                       state))
+                  :tile-select/change (fn [state event ctx]
+                                        (do
+                                          (ui/stop-propagation! event)
+                                          (when (not (:disabled? state))
+                                            (ui/emit! (:view ctx)
+                                                      :palette/select
+                                                      (-> event :payload :value)))
+                                          state))
                   :tab-panel/change (fn [state event ctx]
                                       (let [tab (-> event :payload :tab)]
                                         (do

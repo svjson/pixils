@@ -8,5 +8,5 @@
              :scaling :scaling/fit
              :align :align/center
              :background c/BLACK}
-   :target-frame-rate 25
+   :target-frame-rate 40
    :initial-mode 'init-mode})

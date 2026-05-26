@@ -1,0 +1,57 @@
+(ns boulder-rush.camera
+  (:require pixils
+            [pixils.point :as pt]))
+
+(defun clamp [value low high]
+  (max low (min high value)))
+
+(defun compare [value other]
+  (cond
+    (> value other) -1
+    (< value other) 1
+    true 0))
+
+(defun tile-viewport [level-map viewport-size]
+  (let [tile-size (:tile-size level-map)]
+    {:w (int (/ (:w viewport-size) tile-size))
+     :h (int (/ (:h viewport-size) tile-size))}))
+
+(def scroll-margin 3)
+(def scroll-step 3)
+
+(defun scroll-axis-offset [map-size viewport-size offset player-pos]
+  (let [max-offset (max 0 (- map-size viewport-size))
+        player-screen-pos (- player-pos offset)
+        far-edge (- viewport-size scroll-margin)]
+    (cond
+      (< player-screen-pos scroll-margin)
+      (clamp (- offset scroll-step) 0 max-offset)
+
+      (>= player-screen-pos far-edge)
+      (clamp (+ offset scroll-step) 0 max-offset)
+
+      :default
+      offset)))
+
+(defun scroll-tile-offset [level-map viewport tile-offset player-pos]
+  {:x (scroll-axis-offset (:width level-map)
+                          (:w viewport)
+                          (:x tile-offset)
+                          (:x player-pos))
+   :y (scroll-axis-offset (:height level-map)
+                          (:h viewport)
+                          (:y tile-offset)
+                          (:y player-pos))})
+
+(defun update-offset [state viewport-size]
+  (let [tile-offset (scroll-tile-offset (:level-map state)
+                                        (tile-viewport (:level-map state) viewport-size)
+                                        (:tile-offset state)
+                                        (-> state :player :pos))
+        target-offset (pt/* tile-offset (:tile-size (:level-map state)))]
+    (-> state
+        (assoc :tile-offset tile-offset)
+        (update :offset (fn [offset]
+                          (pt/+ offset (pt/* {:x (compare (:x offset) (:x target-offset))
+                                              :y (compare (:y offset) (:y target-offset))}
+                                             2)))))))
