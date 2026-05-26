@@ -155,9 +155,7 @@
 
 (def TEXT-INPUT-FRAME-STYLE
   {:width 80
-   :border {:line-style :solid
-            :color (var :border)
-            :thickness 1}})
+   :border (var :solid-border-style)})
 
 
 
@@ -300,11 +298,56 @@
                   :focus-text c/WHITE
                   :content-bg c/WHITE
                   :content-text c/BLACK
+                  :surface (var :content-bg)
                   :field-bg c/WHITE
                   :field-text c/BLACK
                   :menu-bg white
                   :border c/BLACK
                   :highlight c/WHITE
+                  :border-light (var :highlight)
+                  :border-dark (var :panel-shadow)
+                  :border-inset-top-left (var :border-dark)
+                  :border-inset-bottom-right (var :border-light)
+                  :border-raised-top-left (var :border-light)
+                  :border-raised-bottom-right (var :border-dark)
+                  :selection-bg (var :focus-bg)
+                  :selection-text (var :focus-text)
+                  :solid-border-style {:line-style :solid
+                                       :color (var :border)
+                                       :thickness 1}
+                  :raised-border-style {:line-style :bevel
+                                        :color (var :highlight)
+                                        :thickness 2
+                                        :right {:color (var :panel-shadow)}
+                                        :bottom {:color (var :panel-shadow)}}
+                  :pressed-border-style {:line-style :bevel
+                                         :color (var :panel-shadow)
+                                         :thickness 2
+                                         :right {:color (var :highlight)}
+                                         :bottom {:color (var :highlight)}}
+                  :pressed-button-border-style {:line-style :bevel
+                                               :color (var :panel-shadow)
+                                               :thickness 2
+                                               :right {:color (var :highlight) :thickness 1}
+                                               :bottom {:color (var :highlight) :thickness 1}}
+                  :scrollbar-button-border-style {:line-style :bevel
+                                                  :color (var :highlight)
+                                                  :thickness 0
+                                                  :top {:thickness 1}
+                                                  :left {:thickness 1}
+                                                  :right {:color (var :panel-shadow)
+                                                          :thickness 2}
+                                                  :bottom {:color (var :panel-shadow)
+                                                           :thickness 2}}
+                  :scrollbar-button-pressed-border-style {:line-style :bevel
+                                                          :color (var :panel-shadow)
+                                                          :thickness 0
+                                                          :top {:thickness 1}
+                                                          :left {:thickness 1}
+                                                          :right {:color (var :highlight)
+                                                                  :thickness 2}
+                                                          :bottom {:color (var :highlight)
+                                                                   :thickness 2}}
                   :split-pane-resizer-size 8
                   :scrollbar-size 17
                   :scrollbar-handle-size 15
@@ -353,12 +396,10 @@
             :ui/accent {:text {:color (var :accent)}}
 
             :ui/canvas {:background (var :field-bg)
-                        :border {:color (var :border)
-                                 :thickness 1}}
+                        :border (var :solid-border-style)}
 
             :ui/content {:background (var :content-bg)
-                         :border {:color (var :border)
-                                  :thickness 1}
+                         :border (var :solid-border-style)
                          :clip true
                          :text {:color (var :content-text)}}
 
@@ -397,9 +438,7 @@
             'ui/tab-panel-body {:width :fill
                                 :height :fill
                                 :background (var :panel-bg)
-                                :border {:line-style :solid
-                                         :color (var :border)
-                                         :thickness 1}
+                                :border (var :solid-border-style)
                                 :text {:color (var :text)}}
 
             :ui/list-item {:text {:color (var :field-text)}}
@@ -413,12 +452,10 @@
              :text {:color (var :focus-text)}}
 
             'ui/list-box {:background (var :field-bg)
-                          :border {:color (var :border)
-                                   :thickness 1}}
+                          :border (var :solid-border-style)}
 
             'ui/combo-box {:background (var :field-bg)
-                           :border {:color (var :border)
-                                    :thickness 1}}
+                           :border (var :solid-border-style)}
 
             'ui/combo-box-trigger {:padding {:t 0 :r 0 :b 0 :l 3}
                                    :layout {:direction :row
@@ -429,39 +466,25 @@
                                   :height :fill}
 
             'ui/combo-box-popup-panel {:background (var :field-bg)
-                                       :border {:color (var :border)
-                                                :thickness 1}}
+                                       :border (var :solid-border-style)}
 
             'ui/checkbox {:text {:color (var :text)}}
 
             'ui/checkbox-box {:background (var :field-bg)
-                              :border {:color (var :border)
-                                       :thickness 1}
+                              :border (var :solid-border-style)
                               :text {:color (var :field-text)}}
 
             '(ui/checkbox-box {:pressed true})
             {:background (var :panel-bg)}
 
             'ui/slider {:background (var :panel-bg)
-                        :border {:line-style :bevel
-                                 :color (var :highlight)
-                                 :thickness 2
-                                 :right {:color (var :panel-shadow)}
-                                 :bottom {:color (var :panel-shadow)}}}
+                        :border (var :raised-border-style)}
 
             :ui/split-pane-resizer {:background (var :panel-bg)
-                                    :border {:line-style :bevel
-                                             :color (var :highlight)
-                                             :thickness 2
-                                             :right {:color (var :panel-shadow)}
-                                             :bottom {:color (var :panel-shadow)}}}
+                                    :border (var :raised-border-style)}
 
             :ui/split-pane-resizer:hover {:background (var :panel-bg)
-                                          :border {:line-style :bevel
-                                                   :color (var :panel-shadow)
-                                                   :thickness 2
-                                                   :right {:color (var :highlight)}
-                                                   :bottom {:color (var :highlight)}}}
+                                          :border (var :pressed-border-style)}
 
             '(:ui/split-pane-resizer {:axis :x})
             {:width (var :split-pane-resizer-size)}
@@ -470,8 +493,7 @@
             {:height (var :split-pane-resizer-size)}
 
             'ui/scrollbar {:background (var :panel-bg)
-                           :border {:color (var :border)
-                                    :thickness 1}
+                           :border (var :solid-border-style)
                            :cursor :default
                            :text {:color (var :text)}}
 
@@ -482,27 +504,11 @@
             {:width 17}
 
             'ui/scrollbar-button {:background (var :panel-bg)
-                                  :border {:line-style :bevel
-                                           :color (var :highlight)
-                                           :thickness 0
-                                           :top {:thickness 1}
-                                           :left {:thickness 1}
-                                           :right {:color (var :panel-shadow)
-                                                   :thickness 2}
-                                           :bottom {:color (var :panel-shadow)
-                                                    :thickness 2}}
+                                  :border (var :scrollbar-button-border-style)
                                   :text {:color (var :text)}}
 
             '(ui/scrollbar-button {:pressed true})
-            {:border {:line-style :bevel
-                      :color (var :panel-shadow)
-                      :thickness 0
-                      :top {:thickness 1}
-                      :left {:thickness 1}
-                      :right {:color (var :highlight)
-                              :thickness 2}
-                      :bottom {:color (var :highlight)
-                               :thickness 2}}}
+            {:border (var :scrollbar-button-pressed-border-style)}
 
             'ui/scrollbar-track {:background (var :panel-bg)}
 
@@ -519,27 +525,15 @@
                       :bottom {:thickness 1}}}
 
             'ui/scrollbar-handle {:background (var :panel-bg)
-                                  :border {:line-style :bevel
-                                           :color (var :highlight)
-                                           :thickness 2
-                                           :right {:color (var :panel-shadow)}
-                                           :bottom {:color (var :panel-shadow)}}}
+                                  :border (var :raised-border-style)}
 
             '(ui/scrollbar-handle {:pressed true})
-            {:border {:line-style :bevel
-                      :color (var :panel-shadow)
-                      :thickness 2
-                      :right {:color (var :highlight)}
-                      :bottom {:color (var :highlight)}}}
+            {:border (var :pressed-border-style)}
 
             'ui/scrollbar-corner {:background (var :panel-bg)
                                   :width 17
                                   :height 17
-                                  :border {:line-style :bevel
-                                           :color (var :highlight)
-                                           :thickness 2
-                                           :right {:color (var :panel-shadow)}
-                                           :bottom {:color (var :panel-shadow)}}}
+                                  :border (var :raised-border-style)}
 
             'ui/scroll-pane {:background (var :panel-bg)}
 
@@ -593,29 +587,15 @@
 
             'ui/button-inner
             {:background (var :panel-bg)
-             :border {:line-style :bevel
-                      :width :fill
-                      :color (var :highlight)
-                      :thickness 2
-                      :right {:color (var :panel-shadow)}
-                      :bottom {:color (var :panel-shadow)}}}
+             :border (var :raised-border-style)}
 
             'ui/button-inner:hover
             {:text {:color (var :text)}
              :background (var :panel-bg)
-             :border {:line-style :bevel
-                      :width :fill
-                      :color (var :highlight)
-                      :thickness 2
-                      :right {:color (var :panel-shadow)}
-                      :bottom {:color (var :panel-shadow)}}}
+             :border (var :raised-border-style)}
 
             '(ui/button-inner {:pressed true})
-            {:border {:line-style :bevel
-                      :color (var :panel-shadow)
-                      :thickness 2
-                      :right {:color (var :highlight) :thickness 1}
-                      :bottom {:color (var :highlight) :thickness 1}}}
+            {:border (var :pressed-button-border-style)}
 
             'ui/text-input
             TEXT-INPUT-FRAME-STYLE

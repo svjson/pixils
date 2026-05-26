@@ -97,10 +97,7 @@
 (def TEXT-INPUT-FRAME-STYLE
   {:width 80
    :background (var :content-bg)
-   :border {:color (var :panel-shadow)
-            :thickness 1
-            :right {:color (var :panel-highlight)}
-            :bottom {:color (var :panel-highlight)}}
+   :border (var :inset-border-style)
    :text {:color (var :text)}})
 
 (deffont classic-blue-font
@@ -119,9 +116,63 @@
                  :button-bg BUTTON-BG
                  :button-highlight BUTTON-HIGHLIGHT
                  :button-shadow BUTTON-SHADOW
+                 :button-glyph BUTTON-GLYPH
+                 :title-bar-bg TITLE-BAR-BG
+                 :title-bar-highlight TITLE-BAR-HIGHLIGHT
+                 :title-bar-shadow TITLE-BAR-SHADOW
+                 :content-border CONTENT-BORDER
+                 :surface (var :content-bg)
+                 :field-bg (var :content-bg)
+                 :field-text (var :text)
+                 :muted-text {:r 0xa7 :g 0xb0 :b 0xb8}
+                 :inactive-text {:r 0xa7 :g 0xb0 :b 0xb8}
+                 :disabled-bg DISABLED-BG
+                 :disabled-border DISABLED-BORDER
+                 :disabled-text DISABLED-TEXT
                  :border c/BLACK
+                 :border-light (var :button-highlight)
+                 :border-dark (var :button-shadow)
+                 :border-inset-top-left (var :border-dark)
+                 :border-inset-bottom-right (var :border-light)
+                 :border-raised-top-left (var :border-light)
+                 :border-raised-bottom-right (var :border-dark)
                  :text c/WHITE
                  :focus-text BUTTON-HIGHLIGHT
+                 :selection-bg {:r 0x4a :g 0x3f :b 0x24}
+                 :selection-text (var :text)
+                 :content-border-style {:line-style :solid
+                                        :color (var :content-border)
+                                        :thickness 1}
+                 :inset-border-style {:line-style :solid
+                                      :color (var :panel-shadow)
+                                      :thickness 1
+                                      :right {:color (var :panel-highlight)}
+                                      :bottom {:color (var :panel-highlight)}}
+                 :raised-border-style {:line-style :solid
+                                       :color (var :button-highlight)
+                                       :thickness 1
+                                       :right {:color (var :button-shadow)}
+                                       :bottom {:color (var :button-shadow)}}
+                 :pressed-border-style {:line-style :solid
+                                        :color (var :button-shadow)
+                                        :thickness 1
+                                        :right {:color (var :button-highlight)}
+                                        :bottom {:color (var :button-highlight)}}
+                 :button-border-style {:line-style :bevel
+                                       :color (var :button-highlight)
+                                       :thickness 2
+                                       :right {:color (var :button-shadow)}
+                                       :bottom {:color (var :button-shadow)}}
+                 :button-pressed-border-style {:line-style :bevel
+                                               :color (var :button-shadow)
+                                               :thickness 2
+                                               :right {:color (var :button-highlight) :thickness 1}
+                                               :bottom {:color (var :button-highlight) :thickness 1}}
+                 :disabled-inset-border-style {:line-style :solid
+                                               :color (var :disabled-border)
+                                               :thickness 1
+                                               :right {:color (var :button-shadow)}
+                                               :bottom {:color (var :button-shadow)}}
                  :split-pane-resizer-size 8
                  :scrollbar-size 14
                  :menu-option-indicator {:selected-text "[x]"
@@ -146,54 +197,45 @@
 
     :ui/accent {:text {:color {:r 0xff :g 0xcc :b 0x66}}}
 
-    :ui/content {:background CONTENT-BG
-                 :border {:color CONTENT-BORDER
-                          :thickness 1}
+    :ui/content {:background (var :content-bg)
+                 :border (var :content-border-style)
                  :clip true
                  :text {:color (var :text)}}
 
-    'ui/tab-panel {:background PANEL-BG
+    'ui/tab-panel {:background (var :panel-bg)
                    :layout {:direction :column}
                    :text {:color (var :text)}}
 
-    'ui/tab-strip {:background PANEL-BG
+    'ui/tab-strip {:background (var :panel-bg)
                    :layout {:direction :row}}
 
-    'ui/tab {:background CONTENT-BG
+    'ui/tab {:background (var :content-bg)
              :margin {:t 2}
              :padding [3 10]
-             :border {:color BUTTON-HIGHLIGHT
-                      :thickness 1
-                      :right {:color BUTTON-SHADOW}
-                      :bottom {:color BUTTON-SHADOW}}
+             :border (var :raised-border-style)
              :text {:color (var :text)}}
 
     '(ui/tab {:selected? true})
-    {:background BUTTON-BG
+    {:background (var :button-bg)
      :margin {:t 0}
      :padding [3 10 5 10]
-     :border {:color BUTTON-HIGHLIGHT
+     :border {:color (var :button-highlight)
               :thickness 1
-              :right {:color BUTTON-SHADOW}
-              :bottom {:color BUTTON-BG}}}
+              :right {:color (var :button-shadow)}
+              :bottom {:color (var :button-bg)}}}
 
     'ui/tab:disabled
-    {:background DISABLED-BG
-     :border {:color DISABLED-BORDER
-              :thickness 1
-              :right {:color BUTTON-SHADOW}
-              :bottom {:color BUTTON-SHADOW}}
-     :text {:color DISABLED-TEXT}}
+    {:background (var :disabled-bg)
+     :border (var :disabled-inset-border-style)
+     :text {:color (var :disabled-text)}}
 
     'ui/tab-panel-body {:width :fill
                         :height :fill
-                        :background CONTENT-BG
-                        :border {:color CONTENT-BORDER
-                                 :thickness 1}}
+                        :background (var :content-bg)
+                        :border (var :content-border-style)}
 
-    :ui/canvas {:background CONTENT-BG
-                :border {:color CONTENT-BORDER
-                         :thickness 1}}
+    :ui/canvas {:background (var :content-bg)
+                :border (var :content-border-style)}
 
     :ui/list-item {:text {:color {:r 0xe6 :g 0xea :b 0xee}}}
 
@@ -201,69 +243,45 @@
     {:background {:r 0x33 :g 0x3b :b 0x48}}
 
     '(:ui/list-item {:selected true})
-    {:background {:r 0x4a :g 0x3f :b 0x24}}
+    {:background (var :selection-bg)}
 
-    'ui/list-box {:background CONTENT-BG
-                  :border {:color CONTENT-BORDER
-                           :thickness 1}}
+    'ui/list-box {:background (var :content-bg)
+                  :border (var :content-border-style)}
 
     'ui/list-box:disabled
-    {:background DISABLED-BG
-     :border {:color DISABLED-BORDER
-              :thickness 1
-              :right {:color BUTTON-SHADOW}
-              :bottom {:color BUTTON-SHADOW}}}
+    {:background (var :disabled-bg)
+     :border (var :disabled-inset-border-style)}
 
     ['ui/list-box:disabled 'ui/scroll-pane]
-    {:background DISABLED-BG}
+    {:background (var :disabled-bg)}
 
     ['ui/list-box:disabled 'ui/scroll-pane-viewport]
-    {:background DISABLED-BG}
+    {:background (var :disabled-bg)}
 
-    'ui/combo-box {:background BUTTON-BG
-                   :border {:color BUTTON-HIGHLIGHT
-                            :thickness 1
-                            :right {:color BUTTON-SHADOW}
-                            :bottom {:color BUTTON-SHADOW}}}
+    'ui/combo-box {:background (var :button-bg)
+                   :border (var :raised-border-style)}
 
     'ui/combo-box:disabled
-    {:background DISABLED-BG
-     :border {:color DISABLED-BORDER
-              :thickness 1
-              :right {:color BUTTON-SHADOW}
-              :bottom {:color BUTTON-SHADOW}}}
+    {:background (var :disabled-bg)
+     :border (var :disabled-inset-border-style)}
 
-    'ui/combo-box-popup-panel {:background CONTENT-BG
-                               :border {:color CONTENT-BORDER
-                                        :thickness 1}}
+    'ui/combo-box-popup-panel {:background (var :content-bg)
+                               :border (var :content-border-style)}
 
     'ui/checkbox {:text {:color {:r 0xe6 :g 0xea :b 0xee}}}
 
-    'ui/checkbox-box {:background CONTENT-BG
-                      :border {:color BUTTON-HIGHLIGHT
-                               :thickness 1
-                               :right {:color BUTTON-SHADOW}
-                               :bottom {:color BUTTON-SHADOW}}
-                      :text {:color BUTTON-GLYPH}}
+    'ui/checkbox-box {:background (var :content-bg)
+                      :border (var :raised-border-style)
+                      :text {:color (var :button-glyph)}}
 
     '(ui/checkbox-box {:pressed true})
-    {:border {:color BUTTON-SHADOW
-              :thickness 1
-              :right {:color BUTTON-HIGHLIGHT}
-              :bottom {:color BUTTON-HIGHLIGHT}}}
+    {:border (var :pressed-border-style)}
 
-    'ui/slider {:background BUTTON-BG
-                :border {:color BUTTON-HIGHLIGHT
-                         :thickness 1
-                         :right {:color BUTTON-SHADOW}
-                         :bottom {:color BUTTON-SHADOW}}}
+    'ui/slider {:background (var :button-bg)
+                :border (var :raised-border-style)}
 
     :ui/split-pane-resizer {:background (var :button-bg)
-                            :border {:line-style :bevel
-                                     :color (var :button-highlight)
-                                     :thickness 1
-                                     :right {:color (var :button-shadow)}
-                                     :bottom {:color (var :button-shadow)}}}
+                            :border (var :raised-border-style)}
 
     :ui/split-pane-resizer:hover {:background (var :panel-highlight)
                                   :border {:line-style :bevel
@@ -286,31 +304,17 @@
               :bottom {:thickness 0}}}
 
     'ui/button-inner
-    {:background BUTTON-BG
+    {:background (var :button-bg)
      :text {:color (var :text)}
-     :border {:line-style :bevel
-              :width :fill
-              :color BUTTON-HIGHLIGHT
-              :thickness 2
-              :right {:color BUTTON-SHADOW}
-              :bottom {:color BUTTON-SHADOW}}}
+     :border (var :button-border-style)}
 
     'ui/button-inner:hover
     {:text {:color (var :focus-text)}
-     :background BUTTON-BG
-     :border {:line-style :bevel
-              :width :fill
-              :color BUTTON-HIGHLIGHT
-              :thickness 2
-              :right {:color BUTTON-SHADOW}
-              :bottom {:color BUTTON-SHADOW}}}
+     :background (var :button-bg)
+     :border (var :button-border-style)}
 
     '(ui/button-inner {:pressed true})
-    {:border {:line-style :bevel
-              :color (var :button-shadow)
-              :thickness 2
-              :right {:color (var :button-highlight) :thickness 1}
-              :bottom {:color (var :button-highlight) :thickness 1}}}
+    {:border (var :button-pressed-border-style)}
 
     [:ui/toolbar-button 'ui/button-inner]
     {:background {:color TITLE-BAR-BG}
@@ -339,65 +343,49 @@
 
     'ui/button-inner:disabled
     {:background (var :panel-bg)
-     :text {:color {:r 0xa7 :g 0xb0 :b 0xb8}}
+     :text {:color (var :muted-text)}
      :border {:line-style :solid
               :color (var :panel-shadow)
               :thickness 1}}
 
     [:ui/toolbar-button 'ui/button-inner:disabled]
-    {:background {:color DISABLED-BG}
-     :text {:color DISABLED-TEXT}
+    {:background {:color (var :disabled-bg)}
+     :text {:color (var :disabled-text)}
      :border {:line-style :solid
               :color PANEL-SHADOW
               :thickness 1}}
 
-    'ui/scrollbar {:background {:r 0x20 :g 0x29 :b 0x36}
-                   :text {:color {:r 0xe6 :g 0xea :b 0xee}}}
+    'ui/scrollbar {:background (var :panel-bg)
+                   :text {:color (var :text)}}
 
-    'ui/scrollbar-button {:background BUTTON-BG
-                          :border {:color BUTTON-HIGHLIGHT
-                                   :thickness 1
-                                   :right {:color BUTTON-SHADOW}
-                                   :bottom {:color BUTTON-SHADOW}}
-                          :text {:color BUTTON-GLYPH}}
+    'ui/scrollbar-button {:background (var :button-bg)
+                          :border (var :raised-border-style)
+                          :text {:color (var :button-glyph)}}
 
     '(ui/scrollbar-button {:pressed true})
-    {:background BUTTON-BG
-     :border {:color BUTTON-SHADOW
-              :thickness 1
-              :right {:color BUTTON-HIGHLIGHT}
-              :bottom {:color BUTTON-HIGHLIGHT}}}
+    {:background (var :button-bg)
+     :border (var :pressed-border-style)}
 
     'ui/scrollbar-button:disabled
-    {:background DISABLED-BG
-     :border {:color DISABLED-BORDER
-              :thickness 1
-              :right {:color BUTTON-SHADOW}
-              :bottom {:color BUTTON-SHADOW}}
-     :text {:color DISABLED-TEXT}}
+    {:background (var :disabled-bg)
+     :border (var :disabled-inset-border-style)
+     :text {:color (var :disabled-text)}}
 
-    'ui/scrollbar-track {:background PANEL-BG}
+    'ui/scrollbar-track {:background (var :panel-bg)}
 
-    'ui/scrollbar-handle {:background BUTTON-BG
-                          :border {:color BUTTON-HIGHLIGHT
-                                   :thickness 1
-                                   :right {:color BUTTON-SHADOW}
-                                   :bottom {:color BUTTON-SHADOW}}}
+    'ui/scrollbar-handle {:background (var :button-bg)
+                          :border (var :raised-border-style)}
 
     '(ui/scrollbar-handle {:pressed true})
-    {:background BUTTON-BG
-     :border {:color BUTTON-SHADOW
-              :thickness 1
-              :right {:color BUTTON-HIGHLIGHT}
-              :bottom {:color BUTTON-HIGHLIGHT}}}
+    {:background (var :button-bg)
+     :border (var :pressed-border-style)}
 
-    'ui/scrollbar-corner {:background {:r 0x20 :g 0x29 :b 0x36}
-                          :border {:color {:r 0x5f :g 0x6f :b 0x7f}
-                                   :thickness 1}}
+    'ui/scrollbar-corner {:background (var :panel-bg)
+                          :border (var :content-border-style)}
 
-    'ui/scroll-pane {:background {:r 0x20 :g 0x29 :b 0x36}}
+    'ui/scroll-pane {:background (var :panel-bg)}
 
-    'ui/scroll-pane-viewport {:background CONTENT-BG}
+    'ui/scroll-pane-viewport {:background (var :content-bg)}
 
     'ui/window-title-bar {:background {:r 0x34 :g 0x42 :b 0x55}
                           :border {:top {:color {:r 0x58 :g 0x84 :b 0xc8}
@@ -432,7 +420,7 @@
 
     'ui/text-input-inner:disabled
     {:background (var :panel-bg)
-     :text {:color {:r 0xa7 :g 0xb0 :b 0xb8}}}
+     :text {:color (var :muted-text)}}
 
 
     'ui/menu-bar
@@ -479,16 +467,16 @@
 
     :menu/item:disabled
     {:background (var :menu-bg)
-     :text {:color DISABLED-TEXT
-            :marked-style {:color DISABLED-TEXT}}}
+     :text {:color (var :disabled-text)
+            :marked-style {:color (var :disabled-text)}}}
 
     :ui/list-item:disabled
-    {:background DISABLED-BG
-     :text {:color DISABLED-TEXT}}
+    {:background (var :disabled-bg)
+     :text {:color (var :disabled-text)}}
 
     'ui/combo-box-trigger:disabled
-    {:background DISABLED-BG
-     :text {:color DISABLED-TEXT}}
+    {:background (var :disabled-bg)
+     :text {:color (var :disabled-text)}}
 
     'ui/header-panel
     {:border {:color c/BLACK
@@ -504,15 +492,15 @@
               :bottom {:color c/BLACK}}}
 
     ['ui/header-panel:disabled 'ui/header-panel-header]
-    {:background {:color DISABLED-BG}
-     :text {:color DISABLED-TEXT}
+    {:background {:color (var :disabled-bg)}
+     :text {:color (var :disabled-text)}
      :border {:color PANEL-HIGHLIGHT
               :thickness 1
               :right {:color PANEL-SHADOW}
               :bottom {:color PANEL-SHADOW}}}
 
     ['ui/header-panel:disabled 'ui/header-panel-header :ui/title]
-    {:text {:color DISABLED-TEXT}}
+    {:text {:color (var :disabled-text)}}
 
     'ui/header-panel-body
     {:border {:color PANEL-SHADOW

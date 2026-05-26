@@ -214,11 +214,38 @@
                   :focus-text c/WHITE
                   :content-bg CONTENT-BG
                   :content-text c/BLACK
+                  :surface (var :content-bg)
                   :field-bg CONTENT-BG
                   :field-text c/BLACK
                   :menu-bg PANEL-COLOR
                   :border c/BLACK
                   :highlight PANEL-LIGHT
+                  :border-light (var :panel-highlight)
+                  :border-dark (var :panel-shadow)
+                  :border-inset-top-left (var :border-dark)
+                  :border-inset-bottom-right (var :border-light)
+                  :border-raised-top-left (var :border-light)
+                  :border-raised-bottom-right (var :border-dark)
+                  :selection-bg (var :focus-bg)
+                  :selection-text (var :focus-text)
+                  :solid-border-style {:line-style :solid
+                                       :color (var :border)
+                                       :thickness 1}
+                  :inset-border-style {:line-style :bevel
+                                       :color (var :panel-shadow)
+                                       :thickness 1
+                                       :right {:color (var :panel-highlight)}
+                                       :bottom {:color (var :panel-highlight)}}
+                  :raised-border-style {:line-style :bevel
+                                        :color (var :highlight)
+                                        :thickness 1
+                                        :right {:color (var :panel-shadow)}
+                                        :bottom {:color (var :panel-shadow)}}
+                  :pressed-border-style {:line-style :bevel
+                                         :color (var :panel-shadow)
+                                         :thickness 1
+                                         :right {:color (var :highlight)}
+                                         :bottom {:color (var :highlight)}}
                   :split-pane-resizer-size 6
                   :scrollbar-size 14
                   :menu-option-indicator {:selected-image :windows-95-theme/menu-option-checkmark}
@@ -268,12 +295,10 @@
             :ui/accent {:text {:color (var :accent)}}
 
             :ui/canvas {:background (var :field-bg)
-                        :border {:color (var :border)
-                                 :thickness 1}}
+                        :border (var :solid-border-style)}
 
             :ui/content {:background (var :content-bg)
-                         :border {:color (var :border)
-                                  :thickness 1}
+                         :border (var :solid-border-style)
                          :clip true
                          :text {:color (var :content-text)}}
 
@@ -288,11 +313,7 @@
             'ui/tab {:background (var :panel-bg)
                      :margin {:t 2 :r 1}
                      :padding [3 10]
-                     :border {:line-style :bevel
-                              :color (var :highlight)
-                              :thickness 1
-                              :right {:color (var :panel-shadow)}
-                              :bottom {:color (var :panel-shadow)}}
+                     :border (var :raised-border-style)
                      :text {:color (var :text)}}
 
             '(ui/tab {:selected? true})
@@ -312,11 +333,7 @@
             'ui/tab-panel-body {:width :fill
                                 :height :fill
                                 :background (var :panel-bg)
-                                :border {:line-style :bevel
-                                         :color (var :highlight)
-                                         :thickness 1
-                                         :right {:color (var :panel-shadow)}
-                                         :bottom {:color (var :panel-shadow)}}
+                                :border (var :raised-border-style)
                                 :text {:color (var :text)}}
 
             :ui/list-item {:text {:color (var :field-text)}}
@@ -330,15 +347,10 @@
              :text {:color (var :focus-text)}}
 
             'ui/list-box {:background (var :field-bg)
-                          :border {:color (var :border)
-                                   :thickness 1}}
+                          :border (var :solid-border-style)}
 
             'ui/combo-box {:background (var :field-bg)
-                           :border {:line-style :bevel
-                                    :color (var :panel-shadow)
-                                    :thickness 1
-                                    :right {:color (var :panel-highlight)}
-                                    :bottom {:color (var :panel-highlight)}}}
+                           :border (var :inset-border-style)}
 
             'ui/combo-box-trigger {:padding {:t 0 :r 0 :b 0 :l 3}
                                    :layout {:direction :row
@@ -349,42 +361,25 @@
                                   :height :fill}
 
             'ui/combo-box-popup-panel {:background (var :field-bg)
-                                       :border {:color (var :border)
-                                                :thickness 1}}
+                                       :border (var :solid-border-style)}
 
             'ui/checkbox {:text {:color (var :text)}}
 
             'ui/checkbox-box {:background (var :field-bg)
-                              :border {:line-style :bevel
-                                       :color (var :panel-shadow)
-                                       :thickness 1
-                                       :right {:color (var :panel-highlight)}
-                                       :bottom {:color (var :panel-highlight)}}
+                              :border (var :inset-border-style)
                               :text {:color (var :field-text)}}
 
             '(ui/checkbox-box {:pressed true})
             {:background (var :panel-bg)}
 
             'ui/slider {:background (var :panel-bg)
-                        :border {:line-style :bevel
-                                 :color (var :highlight)
-                                 :thickness 1
-                                 :right {:color (var :panel-shadow)}
-                                 :bottom {:color (var :panel-shadow)}}}
+                        :border (var :raised-border-style)}
 
             :ui/split-pane-resizer {:background (var :panel-bg)
-                                    :border {:line-style :bevel
-                                             :color (var :highlight)
-                                             :thickness 1
-                                             :right {:color (var :panel-shadow)}
-                                             :bottom {:color (var :panel-shadow)}}}
+                                    :border (var :raised-border-style)}
 
             :ui/split-pane-resizer:hover {:background (var :panel-bg)
-                                          :border {:line-style :bevel
-                                                   :color (var :panel-shadow)
-                                                   :thickness 1
-                                                   :right {:color (var :highlight)}
-                                                   :bottom {:color (var :highlight)}}}
+                                          :border (var :pressed-border-style)}
 
             '(:ui/split-pane-resizer {:axis :x})
             {:width (var :split-pane-resizer-size)}
@@ -396,42 +391,22 @@
                            :text {:color (var :text)}}
 
             'ui/scrollbar-button {:background (var :panel-bg)
-                                  :border {:line-style :bevel
-                                           :color (var :highlight)
-                                           :thickness 1
-                                           :right {:color (var :panel-shadow)}
-                                           :bottom {:color (var :panel-shadow)}}
+                                  :border (var :raised-border-style)
                                   :text {:color (var :text)}}
 
             '(ui/scrollbar-button {:pressed true})
-            {:border {:line-style :bevel
-                      :color (var :panel-shadow)
-                      :thickness 1
-                      :right {:color (var :highlight)}
-                      :bottom {:color (var :highlight)}}}
+            {:border (var :pressed-border-style)}
 
             'ui/scrollbar-track {:background (var :panel-highlight)}
 
             'ui/scrollbar-handle {:background (var :panel-bg)
-                                  :border {:line-style :bevel
-                                           :color (var :highlight)
-                                           :thickness 1
-                                           :right {:color (var :panel-shadow)}
-                                           :bottom {:color (var :panel-shadow)}}}
+                                  :border (var :raised-border-style)}
 
             '(ui/scrollbar-handle {:pressed true})
-            {:border {:line-style :bevel
-                      :color (var :panel-shadow)
-                      :thickness 1
-                      :right {:color (var :highlight)}
-                      :bottom {:color (var :highlight)}}}
+            {:border (var :pressed-border-style)}
 
             'ui/scrollbar-corner {:background (var :panel-bg)
-                                  :border {:line-style :bevel
-                                           :color (var :highlight)
-                                           :thickness 1
-                                           :right {:color (var :panel-shadow)}
-                                           :bottom {:color (var :panel-shadow)}}}
+                                  :border (var :raised-border-style)}
 
             'ui/scroll-pane {:background (var :panel-bg)}
 
@@ -488,26 +463,14 @@
 
             'ui/button-inner
             {:background (var :panel-bg)
-             :border {:line-style :bevel
-                      :color (var :highlight)
-                      :thickness 1
-                      :right {:color (var :panel-shadow)}
-                      :bottom {:color (var :panel-shadow)}}}
+             :border (var :raised-border-style)}
 
             '(ui/button-inner:hover)
             {:background (var :panel-bg)
-             :border {:line-style :bevel
-                      :color (var :highlight)
-                      :thickness 1
-                      :right {:color (var :panel-shadow)}
-                      :bottom {:color (var :panel-shadow)}}}
+             :border (var :raised-border-style)}
 
             '(ui/button-inner {:pressed true})
-            {:border {:line-style :bevel
-                      :color (var :panel-shadow)
-                      :thickness 1
-                      :right {:thickness 1 :color (var :highlight)}
-                      :bottom {:thickness 1 :color (var :highlight)}}}
+            {:border (var :pressed-border-style)}
 
             'ui/menu-bar {:background (var :menu-bg)
                           :text {:color (var :text)}}
