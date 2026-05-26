@@ -101,8 +101,7 @@
 (defun tilemap-editor-menu-child [state]
   (let [state (normalized-menu-state state)]
     (merge {:id "tilemap-editor-menu"}
-           (menu/make-menu {:style {:width :fill
-                                    :height 22}
+           (menu/make-menu {:style {:width :fill}
                             :state {:option-state state}}
                            (tilemap-editor-menu state)
                            tilemap-editor-menu-keymap))))
@@ -112,7 +111,6 @@
 
 (defcomponent toolbar
   {:style {:width :fill
-           :height 22
            :layout {:direction :row}}
    :init (fn [state ctx]
            (assoc state :rendered-menu-state nil))

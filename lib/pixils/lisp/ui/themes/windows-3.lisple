@@ -113,43 +113,42 @@
   (draw-full-arrow-with-color! :right c/BLACK))
 
 (defun ensure-windows-3-theme-assets! []
-  (do
-    (theme-assets/ensure-generated-image! theme-bundle
-                                          chevron-up
-                                          {:size {:w 7 :h 4}}
-                                          draw-chevron-up!)
-    (theme-assets/ensure-generated-image! theme-bundle
-                                          chevron-down
-                                          {:size {:w 7 :h 4}}
-                                          draw-chevron-down!)
-    (theme-assets/ensure-generated-image! theme-bundle
-                                          chevron-left
-                                          {:size {:w 4 :h 7}}
-                                          draw-chevron-left!)
-    (theme-assets/ensure-generated-image! theme-bundle
-                                          chevron-right
-                                          {:size {:w 4 :h 7}}
-                                          draw-chevron-right!)
-    (theme-assets/ensure-generated-image! theme-bundle
-                                          submenu-chevron-highlighted
-                                          {:size {:w 4 :h 7}}
-                                          draw-submenu-chevron-highlighted!)
-    (theme-assets/ensure-generated-image! theme-bundle
-                                          scrollbar-arrow-up
-                                          {:size {:w 7 :h 7}}
-                                          draw-scrollbar-arrow-up!)
-    (theme-assets/ensure-generated-image! theme-bundle
-                                          scrollbar-arrow-down
-                                          {:size {:w 7 :h 7}}
-                                          draw-scrollbar-arrow-down!)
-    (theme-assets/ensure-generated-image! theme-bundle
-                                          scrollbar-arrow-left
-                                          {:size {:w 7 :h 7}}
-                                          draw-scrollbar-arrow-left!)
-    (theme-assets/ensure-generated-image! theme-bundle
-                                          scrollbar-arrow-right
-                                          {:size {:w 7 :h 7}}
-                                          draw-scrollbar-arrow-right!)))
+  (theme-assets/ensure-generated-image! theme-bundle
+                                        chevron-up
+                                        {:size {:w 7 :h 4}}
+                                        draw-chevron-up!)
+  (theme-assets/ensure-generated-image! theme-bundle
+                                        chevron-down
+                                        {:size {:w 7 :h 4}}
+                                        draw-chevron-down!)
+  (theme-assets/ensure-generated-image! theme-bundle
+                                        chevron-left
+                                        {:size {:w 4 :h 7}}
+                                        draw-chevron-left!)
+  (theme-assets/ensure-generated-image! theme-bundle
+                                        chevron-right
+                                        {:size {:w 4 :h 7}}
+                                        draw-chevron-right!)
+  (theme-assets/ensure-generated-image! theme-bundle
+                                        submenu-chevron-highlighted
+                                        {:size {:w 4 :h 7}}
+                                        draw-submenu-chevron-highlighted!)
+  (theme-assets/ensure-generated-image! theme-bundle
+                                        scrollbar-arrow-up
+                                        {:size {:w 7 :h 7}}
+                                        draw-scrollbar-arrow-up!)
+  (theme-assets/ensure-generated-image! theme-bundle
+                                        scrollbar-arrow-down
+                                        {:size {:w 7 :h 7}}
+                                        draw-scrollbar-arrow-down!)
+  (theme-assets/ensure-generated-image! theme-bundle
+                                        scrollbar-arrow-left
+                                        {:size {:w 7 :h 7}}
+                                        draw-scrollbar-arrow-left!)
+  (theme-assets/ensure-generated-image! theme-bundle
+                                        scrollbar-arrow-right
+                                        {:size {:w 7 :h 7}}
+                                        draw-scrollbar-arrow-right!))
 
 (ensure-windows-3-theme-assets!)
 
