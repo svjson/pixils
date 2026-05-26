@@ -1,0 +1,80 @@
+(ns pixils.tilemap.project.runtime-test
+  (:require proof.core
+            [pixils.tilemap.model :as tilemap]
+            [pixils.tilemap.project.model :as model]
+            [pixils.tilemap.project.runtime :as runtime]))
+
+(deftest runtime-document-projects_selected_map_and_runtime_assets
+  (let [document (runtime/runtime-document
+                  {:format model/project-format
+                   :resources {:bundles {:editor-assets {:images {:grid {}}}
+                                         :game-assets {:dynamic? true
+                                                       :images {:tiles
+                                                                {:file-name
+                                                                 "tiles.png"}}}}}
+                   :tilesets [{:id :game
+                               :tiles [{:id :wall
+                                        :type :sprite
+                                        :source {:x 0 :y 0}}]}]
+                   :selected-map :map/cave
+                   :maps [{:id :map/overworld
+                           :layers []}
+                          {:id :map/cave
+                           :width 2
+                           :height 1
+                           :tile-size 16
+                           :layers [{:id :scene/level
+                                     :tileset :game
+                                     :tiles [[:wall nil]]}]}]})]
+    (is (= runtime/runtime-format (:format document)))
+    (is (= runtime/runtime-format-version (:version document)))
+    (is (= :map/cave (:selected-map document)))
+    (is (= [{:id :game
+             :tiles [{:id :wall
+                      :type :sprite
+                      :source {:x 0 :y 0 :w 16 :h 16}}]
+             :tile-size 16}]
+           (:tilesets document)))
+    (is (= {:bundles {:game-assets {:images {:tiles
+                                             {:file-name "tiles.png"}}}}}
+           (:resources document)))
+    (is (= :scene/level
+           (get-in (runtime/selected-runtime-map document)
+                   [:layers 0 :id])))))
+
+(deftest render-input-selects_project_map_without_extra_transform
+  (let [input (runtime/render-input
+               {:format model/project-format
+                :tilesets [{:id :game
+                            :tiles [{:id :wall}]}]
+                :selected-map :map/main
+                :maps [{:id :map/main
+                        :width 3
+                        :height 2
+                        :layers [{:id :scene/level
+                                  :tileset :game
+                                  :tiles [[:wall nil nil]
+                                          [nil nil :wall]]}]}]})]
+    (is (= :map/main (get-in input [:tilemap :id])))
+    (is (= 3 (get-in input [:tilemap :width])))
+    (is (= :scene/level (get-in input [:layers 0 :id])))
+    (is (= :game (get-in input [:tilesets 0 :id])))))
+
+(deftest render-input-is_compatible_with_tilemap_model_lookup
+  (let [input (runtime/render-input
+               {:format model/project-format
+                :tilesets [{:id :game
+                            :tiles [{:id :wall}
+                                    {:id :gem}]}]
+                :maps [{:id :map/main
+                        :width 1
+                        :height 1
+                        :layers [{:id :scene/level
+                                  :tileset :game
+                                  :tiles [[:gem]]}]}]})
+        layer (head (:layers input))]
+    (is (= :gem
+           (:id (tilemap/layer-cell-tile (:tilesets input)
+                                         (:terrain-sets input)
+                                         layer
+                                         :gem))))))

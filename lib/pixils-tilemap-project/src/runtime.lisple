@@ -1,0 +1,36 @@
+(ns pixils.tilemap.project.runtime
+  (:require [pixils.tilemap.project.model :as project]))
+
+(def runtime-format :pixils.tilemap/runtime)
+(def runtime-format-version 1)
+
+(defun normalized-project-document [document]
+  (project/normalize-project-document document))
+
+(defun selected-map [document]
+  (let [document (normalized-project-document document)]
+    (project/selected-map-document (:maps document)
+                                   (:selected-map document))))
+
+(defun runtime-document [document]
+  (let [document (normalized-project-document document)]
+    {:format runtime-format
+     :version runtime-format-version
+     :resources (project/normalize-project-resources
+                 (or (:resources document) project/project-resources))
+     :tilesets (:tilesets document)
+     :terrain-sets (:terrain-sets document)
+     :maps (:maps document)
+     :selected-map (:selected-map document)}))
+
+(defun selected-runtime-map [runtime-document]
+  (project/selected-map-document (:maps runtime-document)
+                                 (:selected-map runtime-document)))
+
+(defun render-input [document]
+  (let [runtime-document (runtime-document document)
+        tilemap (selected-runtime-map runtime-document)]
+    {:tilemap tilemap
+     :tilesets (:tilesets runtime-document)
+     :terrain-sets (:terrain-sets runtime-document)
+     :layers (:layers tilemap)}))
