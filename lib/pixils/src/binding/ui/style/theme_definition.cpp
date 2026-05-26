@@ -112,6 +112,16 @@ namespace Pixils::Script
         }
       }
 
+      if (!theme.default_variant || *theme.default_variant != "base")
+      {
+        auto base_it = theme.vars.find("base");
+        if (base_it != theme.vars.end())
+        {
+          auto var_it = base_it->second.find(key);
+          if (var_it != base_it->second.end()) return var_it->second;
+        }
+      }
+
       return nullptr;
     }
 

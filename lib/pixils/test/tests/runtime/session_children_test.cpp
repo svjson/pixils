@@ -553,6 +553,48 @@ TEST_F(SessionChildrenTest, theme_vars_override_inherited_base_inset_border_edge
   EXPECT_EQ(*style.border->bottom_color(), (Pixils::Color{70, 80, 90, 255}));
 }
 
+TEST_F(SessionChildrenTest, theme_vars_override_inherited_base_inset_border_recipe)
+{
+  // Given
+  runtime.eval(R"(
+    (pixils/deftheme border-theme
+      {:default-variant :custom
+       :vars {:custom {:inset-border-style {:color {:r 1 :g 2 :b 3}
+                                            :thickness 3
+                                            :top {:color {:r 20 :g 40 :b 60}}
+                                            :left {:color {:r 20 :g 40 :b 60}}
+                                            :right {:color {:r 70 :g 80 :b 90}}
+                                            :bottom {:color {:r 70 :g 80 :b 90}}}}}})
+
+    (pixils/defmode root-mode
+      {:class :ui/canvas
+       :render (fn [state ctx] nil)})
+
+    (pixils/defprogram app
+      {:initial-mode 'root-mode
+       :theme 'border-theme})
+  )");
+  Pixils::load_program(runtime, session);
+
+  // When
+  session.render_mode();
+
+  // Then
+  ASSERT_NE(session.active_mode, nullptr);
+  const auto& style = session.active_mode->effective_style;
+  ASSERT_TRUE(style.border.has_value());
+  ASSERT_TRUE(style.border->color.has_value());
+  EXPECT_EQ(*style.border->color, (Pixils::Color{1, 2, 3, 255}));
+  EXPECT_EQ(style.border->top_thickness(), 3);
+  EXPECT_EQ(style.border->right_thickness(), 3);
+  EXPECT_EQ(style.border->bottom_thickness(), 3);
+  EXPECT_EQ(style.border->left_thickness(), 3);
+  EXPECT_EQ(*style.border->top_color(), (Pixils::Color{20, 40, 60, 255}));
+  EXPECT_EQ(*style.border->left_color(), (Pixils::Color{20, 40, 60, 255}));
+  EXPECT_EQ(*style.border->right_color(), (Pixils::Color{70, 80, 90, 255}));
+  EXPECT_EQ(*style.border->bottom_color(), (Pixils::Color{70, 80, 90, 255}));
+}
+
 TEST_F(SessionChildrenTest, root_mode_theme_applies_component_selector_to_active_view)
 {
   // Given

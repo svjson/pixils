@@ -81,27 +81,11 @@
 
 (ensure-base-theme-assets!)
 
-(def INSET-BORDER-STYLE
-  {:color (pixils/var :border)
-   :thickness 1
-   :top {:color (pixils/var :border-inset-top-left)}
-   :left {:color (pixils/var :border-inset-top-left)}
-   :right {:color (pixils/var :border-inset-bottom-right)}
-   :bottom {:color (pixils/var :border-inset-bottom-right)}})
-
-(def DISABLED-INSET-BORDER-STYLE
-  {:color (pixils/var :disabled-border)
-   :thickness 1
-   :top {:color (pixils/var :disabled-border-inset-top-left)}
-   :left {:color (pixils/var :disabled-border-inset-top-left)}
-   :right {:color (pixils/var :disabled-border-inset-bottom-right)}
-   :bottom {:color (pixils/var :disabled-border-inset-bottom-right)}})
-
 (def TEXT-INPUT-FRAME-STYLE
   {:width 80
    :height 22
    :background (pixils/var :field-bg)
-   :border INSET-BORDER-STYLE})
+   :border (pixils/var :inset-border-style)})
 
 (def definition
   {:default-variant :base
@@ -120,6 +104,12 @@
                  :border-inset-bottom-right (pixils/var :border-light)
                  :border-raised-top-left (pixils/var :border-light)
                  :border-raised-bottom-right (pixils/var :border-dark)
+                 :inset-border-style {:color (pixils/var :border)
+                                      :thickness 1
+                                      :top {:color (pixils/var :border-inset-top-left)}
+                                      :left {:color (pixils/var :border-inset-top-left)}
+                                      :right {:color (pixils/var :border-inset-bottom-right)}
+                                      :bottom {:color (pixils/var :border-inset-bottom-right)}}
                  :disabled-bg {:r 0xcc :g 0xcc :b 0xcc}
                  :disabled-text {:r 0x66 :g 0x66 :b 0x66}
                  :disabled-border {:r 0x66 :g 0x66 :b 0x66}
@@ -127,6 +117,12 @@
                  :disabled-border-dark (pixils/var :disabled-border)
                  :disabled-border-inset-top-left (pixils/var :disabled-border-dark)
                  :disabled-border-inset-bottom-right (pixils/var :disabled-border-light)
+                 :disabled-inset-border-style {:color (pixils/var :disabled-border)
+                                               :thickness 1
+                                               :top {:color (pixils/var :disabled-border-inset-top-left)}
+                                               :left {:color (pixils/var :disabled-border-inset-top-left)}
+                                               :right {:color (pixils/var :disabled-border-inset-bottom-right)}
+                                               :bottom {:color (pixils/var :disabled-border-inset-bottom-right)}}
                  :selection-bg {:r 0x00 :g 0x00 :b 0x00}
                  :selection-text {:r 0xff :g 0xff :b 0xff}
                  :menu-option-indicator {:selected-image :base-theme/menu-option-checkmark}
@@ -149,10 +145,10 @@
   :ui/accent {:text {:color (pixils/var :text)}}
 
   :ui/canvas {:background (pixils/var :field-bg)
-              :border INSET-BORDER-STYLE}
+              :border (pixils/var :inset-border-style)}
 
   :ui/content {:background (pixils/var :surface)
-               :border INSET-BORDER-STYLE
+               :border (pixils/var :inset-border-style)
                :clip true}
 
   'ui/tab-panel {:background (pixils/var :surface)
@@ -163,7 +159,7 @@
 
   'ui/tab {:padding [3 8]
            :background (pixils/var :panel-bg)
-           :border INSET-BORDER-STYLE
+           :border (pixils/var :inset-border-style)
            :text {:color (pixils/var :text)}}
 
   '(ui/tab {:selected? true})
@@ -176,7 +172,7 @@
   'ui/tab-panel-body {:width :fill
                       :height :fill
                       :background (pixils/var :surface)
-                      :border INSET-BORDER-STYLE}
+                      :border (pixils/var :inset-border-style)}
 
   :ui/list-item {:text {:color (pixils/var :text)}}
 
@@ -189,10 +185,10 @@
    :text {:color (pixils/var :selection-text)}}
 
   'ui/list-box {:background (pixils/var :field-bg)
-                :border INSET-BORDER-STYLE}
+                :border (pixils/var :inset-border-style)}
 
   'ui/combo-box {:background (pixils/var :field-bg)
-                 :border INSET-BORDER-STYLE}
+                 :border (pixils/var :inset-border-style)}
 
   'ui/combo-box-trigger {:padding [3 5]
                          :layout {:direction :row
@@ -207,7 +203,7 @@
    :background (pixils/var :selection-bg)}
 
   'ui/combo-box-popup-panel {:background (pixils/var :field-bg)
-                             :border INSET-BORDER-STYLE}
+                             :border (pixils/var :inset-border-style)}
 
   'ui/checkbox {:height 16
                 :layout {:direction :row
@@ -218,16 +214,16 @@
   'ui/checkbox-box {:width 12
                     :height 12
                     :background (pixils/var :field-bg)
-                    :border INSET-BORDER-STYLE
+                    :border (pixils/var :inset-border-style)
                     :text {:color (pixils/var :text)}}
 
   '(ui/checkbox-box {:pressed true})
   {:background (pixils/var :disabled-bg)}
 
   'ui/slider {:background (pixils/var :field-bg)
-              :border INSET-BORDER-STYLE}
+              :border (pixils/var :inset-border-style)}
 
-  :ui/split-pane-resizer {:border INSET-BORDER-STYLE}
+  :ui/split-pane-resizer {:border (pixils/var :inset-border-style)}
 
   '(:ui/split-pane-resizer {:axis :x})
   {:width (pixils/var :split-pane-resizer-size)
@@ -243,7 +239,7 @@
                  :text {:color (pixils/var :text)}}
 
   'ui/scrollbar-button {:background (pixils/var :surface)
-                        :border INSET-BORDER-STYLE
+                        :border (pixils/var :inset-border-style)
                         :text {:color (pixils/var :text)}}
 
   '(ui/scrollbar-button {:pressed true})
@@ -251,19 +247,19 @@
 
   'ui/scrollbar-button:disabled
   {:background (pixils/var :disabled-bg)
-   :border DISABLED-INSET-BORDER-STYLE
+   :border (pixils/var :disabled-inset-border-style)
    :text {:color (pixils/var :disabled-text)}}
 
   'ui/scrollbar-track {:background (pixils/var :surface)}
 
   'ui/scrollbar-handle {:background (pixils/var :surface)
-                        :border INSET-BORDER-STYLE}
+                        :border (pixils/var :inset-border-style)}
 
   '(ui/scrollbar-handle {:pressed true})
   {:background (pixils/var :disabled-bg)}
 
   'ui/scrollbar-corner {:background (pixils/var :surface)
-                        :border INSET-BORDER-STYLE}
+                        :border (pixils/var :inset-border-style)}
 
   'ui/scroll-pane {:background (pixils/var :surface)}
 
@@ -284,7 +280,7 @@
                          :height :fill
                          :padding 4}
 
-  'ui/window {:border INSET-BORDER-STYLE
+  'ui/window {:border (pixils/var :inset-border-style)
               :text {:color (pixils/var :text)}}
 
   'ui/window-title-bar {:background (pixils/var :surface)
@@ -315,7 +311,7 @@
    :background (pixils/var :field-bg)
    :layout {:direction :row
             :align-items :center}
-   :border INSET-BORDER-STYLE}
+   :border (pixils/var :inset-border-style)}
 
   ['ui/button-inner 'ui/text]
   {:padding [3 6]}
@@ -332,7 +328,7 @@
    :background (pixils/var :selection-bg)
    :layout {:direction :row
             :align-items :center}
-   :border INSET-BORDER-STYLE}
+   :border (pixils/var :inset-border-style)}
 
   '(ui/button-inner {:pressed true})
   {:background (pixils/var :disabled-bg)}
@@ -340,7 +336,7 @@
   'ui/button-inner:disabled
   {:text {:color (pixils/var :disabled-text)}
    :background (pixils/var :disabled-bg)
-   :border DISABLED-INSET-BORDER-STYLE}
+   :border (pixils/var :disabled-inset-border-style)}
 
   'ui/text-input TEXT-INPUT-FRAME-STYLE
 
@@ -392,7 +388,7 @@
 
   'ui/combo-box:disabled
   {:background (pixils/var :disabled-bg)
-   :border DISABLED-INSET-BORDER-STYLE}
+   :border (pixils/var :disabled-inset-border-style)}
 
   'ui/menu-option-item {:padding {:t 2 :r 12 :b 2 :l 2}}
 
@@ -419,4 +415,4 @@
   'ui/popup-menu-inner
   {:text {:color (pixils/var :text)}
    :background (pixils/var :surface)
-   :border INSET-BORDER-STYLE}}})
+   :border (pixils/var :inset-border-style)}}})
