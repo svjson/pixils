@@ -1,0 +1,106 @@
+(ns pixils.tilemap.renderer
+  (:require [pixils.image :as img]
+            [pixils.render :as r]
+            [pixils.tilemap.model :as tm]))
+
+(defun centered-pos [rect width height]
+  {:x (+ (:x rect) (/ (- (:w rect) width) 2))
+   :y (+ (:y rect) (/ (- (:h rect) height) 2))})
+
+(defun fit-scale [source-width source-height rect]
+  (min (/ (:w rect) source-width)
+       (/ (:h rect) source-height)))
+
+(defun valid-dim? [dim]
+  (and dim
+       (:w dim)
+       (:h dim)
+       (> (:w dim) 0)
+       (> (:h dim) 0)))
+
+(defun draw-missing-tile! [rect]
+  (r/rect! rect {:fill true
+                 :color tm/default-missing-tile-color}))
+
+(defun draw-color-tile! [tile rect]
+  (r/rect! rect {:fill true
+                 :color (:color tile)}))
+
+(defun draw-image-tile! [tile rect]
+  (let [dim (img/size (:image tile))]
+    (if (valid-dim? dim)
+      (let [scale (fit-scale (:w dim) (:h dim) rect)
+            width (* (:w dim) scale)
+            height (* (:h dim) scale)]
+        (do
+          (r/rect! rect {:fill true
+                         :color tm/default-image-tile-background-color})
+          (r/image! (:image tile)
+                    {:pos (centered-pos rect width height)
+                     :scale scale})))
+      (draw-missing-tile! rect))))
+
+(defun draw-sprite-tile! [tile rect]
+  (let [source (:source tile)]
+    (if (valid-dim? source)
+      (let [scale (fit-scale (:w source) (:h source) rect)
+            width (* (:w source) scale)
+            height (* (:h source) scale)]
+        (r/image! (:image tile)
+                  {:pos (centered-pos rect width height)
+                   :source source
+                   :scale scale}))
+      (draw-missing-tile! rect))))
+
+(defun draw-tile! [tile rect]
+  (cond
+    (= (:type tile) :color)
+    (draw-color-tile! tile rect)
+
+    (= (:type tile) :image)
+    (draw-image-tile! tile rect)
+
+    (= (:type tile) :sprite)
+    (draw-sprite-tile! tile rect)
+
+    :default
+    (draw-missing-tile! rect)))
+
+(defun layer-cell [tiles x y]
+  (nth (or (nth (or tiles []) y) []) x))
+
+(defun render-layer! [tilemap tilesets terrain-sets layer offset zoom]
+  (let [tiles (:tiles layer)]
+    (dotimes [y (tm/map-height tilemap)]
+      (dotimes [x (tm/map-width tilemap)]
+        (let [tile-ref (layer-cell tiles x y)]
+          (when (not (nil? tile-ref))
+            (let [tile (tm/layer-cell-tile tilesets
+                                           terrain-sets
+                                           layer
+                                           tile-ref)]
+              (when tile
+                (draw-tile! tile (tm/tile-rect tilemap x y offset zoom))))))))))
+
+(defun render-grid-overlay! [tilemap offset zoom]
+  (dotimes [y (tm/map-height tilemap)]
+    (dotimes [x (tm/map-width tilemap)]
+      (r/rect! (tm/tile-rect tilemap x y offset zoom)
+               {:color tm/default-grid-color}))))
+
+(defun render-layers! [tilemap opts]
+  (let [tilesets (or (:tilesets opts) [])
+        terrain-sets (or (:terrain-sets opts) [])
+        layers (or (:layers opts) (:layers tilemap) [])
+        hidden-layer-indices (or (:hidden-layer-indices opts) [])
+        offset (or (:offset opts) tm/default-offset)
+        zoom (or (:zoom opts) tm/default-zoom)]
+    (do
+      (for-indexed [index layer layers]
+        (when (not (contains? hidden-layer-indices index))
+          (render-layer! tilemap tilesets terrain-sets layer offset zoom)))
+      (when (:show-grid? opts)
+        (render-grid-overlay! tilemap offset zoom)))))
+
+(defun render-map! [tilemap opts]
+  (render-layers! tilemap opts))

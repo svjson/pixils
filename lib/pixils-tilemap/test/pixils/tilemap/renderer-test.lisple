@@ -1,0 +1,17 @@
+(ns pixils.tilemap.renderer-test
+  (:require proof.core
+            [pixils.tilemap.renderer :as renderer]))
+
+(deftest fit-scale-uses_smallest_axis_ratio
+  (is (= 2
+         (renderer/fit-scale 16
+                             8
+                             {:x 0
+                              :y 0
+                              :w 40
+                              :h 16}))))
+
+(deftest valid-dim-requires_positive_dimensions
+  (is (= true (renderer/valid-dim? {:w 1 :h 1})))
+  (is (= false (renderer/valid-dim? {:w 0 :h 1})))
+  (is (= false (renderer/valid-dim? {:w 1 :h 0}))))

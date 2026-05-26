@@ -1,0 +1,10 @@
+{:name pixils-tilemap
+ :version "0.1.0"
+ :description "Pixils tilemap runtime model and renderer."
+ :dependencies {pixils {:path "../pixils"}
+                proof "0.1.0"}
+ :load-roots ["src"]
+ :namespace-roots {pixils.tilemap "src"}
+ :config {proof {:test-roots ["test"]}}
+ :entry-points []
+ :test-entry-points []}

@@ -1,0 +1,64 @@
+(ns pixils.tilemap.model-test
+  (:require proof.core
+            [pixils.tilemap.model :as tm]))
+
+(deftest tile-rect-uses_tile_size_zoom_and_offset
+  (is (= {:x 24 :y 56 :w 32 :h 32}
+         (tm/tile-rect {:tile-size 16}
+                       1
+                       2
+                       {:x 8 :y 8}
+                       2))))
+
+(deftest missing-tileset-has-no_tile
+  (is (nil? (tm/tile-in [] nil 0)))
+  (is (nil? (tm/tile-id [] nil 0))))
+
+(deftest tile-refs-resolve_by_id_or_index
+  (let [tilesets [{:id :game
+                   :tiles [{:id :wall}
+                           {:id :dirt}]}]]
+    (is (= :wall (:id (tm/tile-in tilesets :game 0))))
+    (is (= :dirt (:id (tm/tile-in tilesets :game :dirt))))
+    (is (= :dirt (tm/tile-id tilesets :game 1)))))
+
+(deftest nil_tile_ref_means_no_tile
+  (let [tilesets [{:id :game
+                   :tiles [{:id :wall}]}]]
+    (is (nil? (tm/tile-in tilesets :game nil)))
+    (is (nil? (tm/tile-id tilesets :game nil)))))
+
+(deftest terrain_tile_resolves_to_preview_tile
+  (let [tilesets [{:id :game
+                   :tiles [{:id :dirt
+                            :type :color}]}]
+        terrain-sets [{:id :materials
+                       :tileset :game
+                       :terrains [{:id :earth
+                                   :tile :dirt}]}]]
+    (is (= :dirt
+           (:id (tm/terrain-tile-in tilesets
+                                    terrain-sets
+                                    :materials
+                                    :earth))))))
+
+(deftest layer_cell_tile_uses_layer_data_kind
+  (let [tilesets [{:id :game
+                   :tiles [{:id :dirt}
+                           {:id :gem}]}]
+        terrain-sets [{:id :materials
+                       :tileset :game
+                       :terrains [{:id :earth
+                                   :tile :dirt}]}]]
+    (is (= :gem
+           (:id (tm/layer-cell-tile tilesets
+                                    terrain-sets
+                                    {:data-kind :tile-ref
+                                     :tileset :game}
+                                    :gem))))
+    (is (= :dirt
+           (:id (tm/layer-cell-tile tilesets
+                                    terrain-sets
+                                    {:data-kind :terrain
+                                     :terrain-set :materials}
+                                    :earth))))))

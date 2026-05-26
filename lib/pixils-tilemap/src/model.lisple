@@ -1,0 +1,166 @@
+(ns pixils.tilemap.model)
+
+(def default-tile-size 16)
+
+(def default-offset
+  {:x 0
+   :y 0})
+
+(def default-zoom 1)
+
+(def default-missing-tile-color
+  {:r 0xff
+   :g 0x00
+   :b 0xff})
+
+(def default-image-tile-background-color
+  {:r 0x12
+   :g 0x15
+   :b 0x18})
+
+(def default-grid-color
+  {:r 0x12
+   :g 0x15
+   :b 0x18})
+
+(def default-terrain-unit
+  {:w 1
+   :h 1})
+
+(defun serialized-nil? [value]
+  (and (= (type-of value) "symbol")
+       (= (str value) "nil")))
+
+(defun absent-tile-ref? [tile-ref]
+  (or (nil? tile-ref)
+      (serialized-nil? tile-ref)))
+
+(defun tile-size [tilemap]
+  (or (:tile-size tilemap) default-tile-size))
+
+(defun scaled-tile-size [tilemap zoom]
+  (* (tile-size tilemap) (or zoom default-zoom)))
+
+(defun map-width [tilemap]
+  (or (:width tilemap) 0))
+
+(defun map-height [tilemap]
+  (or (:height tilemap) 0))
+
+(defun tile-rect [tilemap x y offset zoom]
+  (let [offset (or offset default-offset)
+        size (scaled-tile-size tilemap zoom)]
+    {:x (- (* x size) (:x offset))
+     :y (- (* y size) (:y offset))
+     :w size
+     :h size}))
+
+(defun tileset-definition [tilesets tileset]
+  (head (filter (or tilesets [])
+                (fn [item]
+                  (= (:id item) tileset)))))
+
+(defun tileset-tiles [tilesets tileset]
+  (or (:tiles (tileset-definition tilesets tileset)) []))
+
+(defun tile-count [tilesets tileset]
+  (count (tileset-tiles tilesets tileset)))
+
+(defun clamp-tile-index [tilesets tileset index]
+  (let [count (tile-count tilesets tileset)]
+    (if (= count 0)
+      0
+      (max 0 (min (dec count) (or index 0))))))
+
+(defun tile-index [tilesets tileset tile-ref]
+  (if (keyword? tile-ref)
+    (let [match (find-index (tileset-tiles tilesets tileset)
+                            (fn [tile]
+                              (= (:id tile) tile-ref)))]
+      (or match 0))
+    (clamp-tile-index tilesets tileset tile-ref)))
+
+(defun tile-id [tilesets tileset tile-ref]
+  (when (not (absent-tile-ref? tile-ref))
+    (let [tiles (tileset-tiles tilesets tileset)]
+      (when (> (count tiles) 0)
+        (:id (nth tiles (tile-index tilesets tileset tile-ref)))))))
+
+(defun tile-in [tilesets tileset tile-ref]
+  (when (not (absent-tile-ref? tile-ref))
+    (let [tiles (tileset-tiles tilesets tileset)]
+      (when (> (count tiles) 0)
+        (nth tiles (tile-index tilesets tileset tile-ref))))))
+
+(defun terrain-unit [definition]
+  (let [unit (or (:terrain-unit definition)
+                 (when (or (:w definition) (:h definition))
+                   definition)
+                 default-terrain-unit)]
+    {:w (max 1 (or (:w unit) 1))
+     :h (max 1 (or (:h unit) 1))}))
+
+(defun terrain-set-definition [terrain-sets terrain-set]
+  (head (filter (or terrain-sets [])
+                (fn [item]
+                  (= (:id item) terrain-set)))))
+
+(defun terrain-unit-for-set [terrain-sets terrain-set]
+  (terrain-unit (terrain-set-definition terrain-sets terrain-set)))
+
+(defun terrain-definitions [terrain-sets terrain-set]
+  (or (:terrains (terrain-set-definition terrain-sets terrain-set)) []))
+
+(defun terrain-count [terrain-sets terrain-set]
+  (count (terrain-definitions terrain-sets terrain-set)))
+
+(defun clamp-terrain-index [terrain-sets terrain-set index]
+  (let [count (terrain-count terrain-sets terrain-set)]
+    (if (= count 0)
+      0
+      (max 0 (min (dec count) (or index 0))))))
+
+(defun terrain-index [terrain-sets terrain-set terrain-ref]
+  (if (keyword? terrain-ref)
+    (let [match (find-index (terrain-definitions terrain-sets terrain-set)
+                            (fn [terrain]
+                              (= (:id terrain) terrain-ref)))]
+      (or match 0))
+    (clamp-terrain-index terrain-sets terrain-set terrain-ref)))
+
+(defun terrain-id [terrain-sets terrain-set terrain-ref]
+  (let [terrains (terrain-definitions terrain-sets terrain-set)]
+    (when (> (count terrains) 0)
+      (:id (nth terrains (terrain-index terrain-sets terrain-set terrain-ref))))))
+
+(defun terrain-in [terrain-sets terrain-set terrain-ref]
+  (let [terrains (terrain-definitions terrain-sets terrain-set)]
+    (when (> (count terrains) 0)
+      (nth terrains (terrain-index terrain-sets terrain-set terrain-ref)))))
+
+(defun terrain-preview-tileset [terrain-set terrain]
+  (or (:tileset terrain)
+      (:tileset terrain-set)))
+
+(defun terrain-preview-tile [terrain]
+  (or (:tile terrain)
+      (:preview-tile terrain)
+      (:preview terrain)))
+
+(defun terrain-tile-in [tilesets terrain-sets terrain-set terrain-ref]
+  (let [terrain-set-definition (terrain-set-definition terrain-sets terrain-set)
+        terrain (terrain-in terrain-sets terrain-set terrain-ref)]
+    (when terrain
+      (tile-in tilesets
+               (terrain-preview-tileset terrain-set-definition terrain)
+               (terrain-preview-tile terrain)))))
+
+(defun layer-cell-tile [tilesets terrain-sets layer tile-ref]
+  (if (= (:data-kind layer) :terrain)
+    (terrain-tile-in tilesets
+                     terrain-sets
+                     (:terrain-set layer)
+                     tile-ref)
+    (tile-in tilesets
+             (:tileset layer)
+             tile-ref)))
