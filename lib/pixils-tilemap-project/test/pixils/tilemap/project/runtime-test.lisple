@@ -58,6 +58,8 @@
     (is (= :map/main (get-in input [:tilemap :id])))
     (is (= 3 (get-in input [:tilemap :width])))
     (is (= :scene/level (get-in input [:layers 0 :id])))
+    (is (= {:bundles {}}
+           (:resources input)))
     (is (= :game (get-in input [:tilesets 0 :id])))))
 
 (deftest render-input-is_compatible_with_tilemap_model_lookup
