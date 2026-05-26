@@ -4,8 +4,8 @@
             [pixils.tilemap.project.model :as model]
             [pixils.tilemap.project.runtime :as runtime]))
 
-(deftest runtime-document-projects_selected_map_and_runtime_assets
-  (let [document (runtime/runtime-document
+(deftest tilemap-pack-projects_selected_map_and_runtime_assets
+  (let [document (runtime/tilemap-pack
                   {:format model/project-format
                    :resources {:bundles {:editor-assets {:images {:grid {}}}
                                          :game-assets {:dynamic? true
@@ -26,8 +26,8 @@
                            :layers [{:id :scene/level
                                      :tileset :game
                                      :tiles [[:wall nil]]}]}]})]
-    (is (= runtime/runtime-format (:format document)))
-    (is (= runtime/runtime-format-version (:version document)))
+    (is (= runtime/pack-format (:format document)))
+    (is (= runtime/pack-format-version (:version document)))
     (is (= :map/cave (:selected-map document)))
     (is (= [{:id :game
              :tiles [{:id :wall

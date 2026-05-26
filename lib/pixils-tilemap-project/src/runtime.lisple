@@ -1,8 +1,8 @@
 (ns pixils.tilemap.project.runtime
   (:require [pixils.tilemap.project.model :as project]))
 
-(def runtime-format :pixils.tilemap/runtime)
-(def runtime-format-version 1)
+(def pack-format :pixils.tilemap/pack)
+(def pack-format-version 1)
 
 (defun normalized-project-document [document]
   (project/normalize-project-document document))
@@ -12,10 +12,10 @@
     (project/selected-map-document (:maps document)
                                    (:selected-map document))))
 
-(defun runtime-document [document]
+(defun tilemap-pack [document]
   (let [document (normalized-project-document document)]
-    {:format runtime-format
-     :version runtime-format-version
+    {:format pack-format
+     :version pack-format-version
      :resources (project/normalize-project-resources
                  (or (:resources document) project/project-resources))
      :tilesets (:tilesets document)
@@ -23,15 +23,15 @@
      :maps (:maps document)
      :selected-map (:selected-map document)}))
 
-(defun selected-runtime-map [runtime-document]
-  (project/selected-map-document (:maps runtime-document)
-                                 (:selected-map runtime-document)))
+(defun selected-runtime-map [tilemap-pack]
+  (project/selected-map-document (:maps tilemap-pack)
+                                 (:selected-map tilemap-pack)))
 
 (defun render-input [document]
-  (let [runtime-document (runtime-document document)
-        tilemap (selected-runtime-map runtime-document)]
+  (let [tilemap-pack (tilemap-pack document)
+        tilemap (selected-runtime-map tilemap-pack)]
     {:tilemap tilemap
-     :resources (:resources runtime-document)
-     :tilesets (:tilesets runtime-document)
-     :terrain-sets (:terrain-sets runtime-document)
+     :resources (:resources tilemap-pack)
+     :tilesets (:tilesets tilemap-pack)
+     :terrain-sets (:terrain-sets tilemap-pack)
      :layers (:layers tilemap)}))
