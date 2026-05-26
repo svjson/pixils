@@ -27,7 +27,10 @@
 
 (def tile-context-menu
   {:settings {:mnemonics {:enabled false}}
-   :items [{:label "Delete"
+   :items [{:label "Rename"
+            :action :tile/context-dummy
+            :payload {:command :rename}}
+           {:label "Delete"
             :action :tile/context-dummy
             :payload {:command :delete}}]})
 

@@ -248,8 +248,8 @@ TEST_F(TilemapEditorStartupTest, tileset_tile_grid_drag_selects_and_delete_promp
 
   std::vector<std::shared_ptr<Pixils::Runtime::View>> menu_items;
   find_descendant_modes(session.active_mode, "ui/popup-menu-item", menu_items);
-  ASSERT_EQ(menu_items.size(), 1u);
-  auto delete_item = menu_items[0];
+  ASSERT_EQ(menu_items.size(), 2u);
+  auto delete_item = menu_items[1];
   input().mouse_down({delete_item->bounds.x + delete_item->bounds.w / 2,
                       delete_item->bounds.y + delete_item->bounds.h / 2});
   update_cycle();

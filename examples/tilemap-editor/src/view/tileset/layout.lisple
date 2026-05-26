@@ -64,6 +64,9 @@
         :tile/context-command
         (fn [state event ctx]
           (case (-> event :payload :command)
+            :rename (open-tile-rename-dialog! state
+                                              ctx
+                                              (-> event :payload :tile-indices))
             :delete (open-tile-delete-confirm-dialog! state
                                                       ctx
                                                       (-> event :payload :tile-indices))
@@ -71,6 +74,9 @@
         :tile/delete-confirm-result
         (fn [state event ctx]
           (delete-tileset-tiles! state (:payload event)))
+        :tile/rename-dialog-result
+        (fn [state event ctx]
+          (rename-tile-definition! state (:payload event)))
         :tile/dialog-result (fn [state event ctx]
                               (add-tile-definition! state (:payload event)))
         :tile/color-range-result (fn [state event ctx]

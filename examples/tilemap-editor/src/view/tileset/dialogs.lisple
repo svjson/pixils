@@ -123,6 +123,35 @@
                               :event :tile/dialog-result}})
         state))))
 
+(defun tile-index-for-rename [state tile-indices]
+  (let [indices (or tile-indices (selected-tileset-tile-selection state))
+        selected (:selected-tileset-tile-index state)]
+    (cond
+      (and selected (contains? indices selected)) selected
+      (not (empty? indices)) (head indices)
+      :default selected)))
+
+(defun open-tile-rename-dialog! [state ctx tile-indices]
+  (let [tiles (selected-tileset-tiles state)
+        index (tile-index-for-rename state tile-indices)
+        tile (when (and (not (nil? index))
+                        (< index (count tiles)))
+               (nth tiles index))]
+    (if tile
+      (do
+        (push-mode! 'tile-rename-dialog-modal
+                    {:tile-index index
+                     :tile-id (keyword-label (:id tile))
+                     :tile-name (or (:name tile) "")
+                     :tile-char (or (:char tile) "")
+                     :confirm-label "Rename"}
+                    {:origin {:view (:view ctx)
+                              :event :tile/rename-dialog-result}})
+        (assoc state
+               :selected-tileset-tile-index index
+               :selected-tileset-tile-indices [index]))
+      state)))
+
 (defun open-color-range-dialog! [state ctx]
   (let [id (unique-color-tile-id (selected-tileset-tiles state))]
     (if (nil? (:selected-tileset-definition-index state))
@@ -428,8 +457,10 @@
                        :style {:width :fill
                                :height 24}
                        :state {:value (ui/bind-state :tile-char)}}
-                      {:mode 'tile-create-dialog-buttons
-                       :state {:invalid? (ui/bind-state :invalid?)}}]})
+              {:mode 'tile-create-dialog-buttons
+                       :state {:invalid? (ui/bind-state :invalid?)
+                               :confirm-label
+                               (ui/bind-state :confirm-label)}}]})
 
 (defcomponent tile-create-dialog-buttons
   {:style {:width :fill
@@ -448,7 +479,7 @@
               {:mode 'ui/button
                :style {:width 78
                        :height 24}
-               :state {:label "Create"
+               :state {:label (ui/bind-state :confirm-label)
                        :disabled? (ui/bind-state :invalid?)}
                :on-click (fn [state event ctx]
                            (do
@@ -482,11 +513,50 @@
                        :title-bar {:title "New Tile"}
                                :state {:tile-id (ui/bind-state :tile-id)
                                        :tile-name (ui/bind-state :tile-name)
-                                       :tile-char (ui/bind-state :tile-char)}
+                                       :tile-char (ui/bind-state :tile-char)
+                                       :confirm-label "Create"}
                                :body [{:mode 'tile-create-dialog-body
                                        :state {:tile-id (ui/bind-state :tile-id)
                                                :tile-name (ui/bind-state :tile-name)
-                                               :tile-char (ui/bind-state :tile-char)}}]})]})
+                                               :tile-char (ui/bind-state :tile-char)
+                                               :confirm-label "Create"}}]})]})
+
+(defmode tile-rename-dialog-modal
+  {:on {:tile-create-dialog/cancel
+        (fn [state event ctx]
+          (do
+            (ui/stop-propagation! event)
+            (pop-mode! {:type :cancel})
+            state))
+        :tile-create-dialog/confirm
+        (fn [state event ctx]
+          (do
+            (ui/stop-propagation! event)
+            (if (or (blank? (:tile-id state))
+                    (blank? (:tile-name state)))
+              state
+              (do
+                (pop-mode! {:type :confirm
+                            :tile-index (:tile-index state)
+                            :tile-id (:tile-id state)
+                            :tile-name (:tile-name state)
+                            :tile-char (:tile-char state)})
+                state))))}
+   :compose {:render :pass}
+   :children [(w/make {:position {:x 220 :y 140}
+                       :title-bar {:title "Rename Tile"}
+                       :state {:tile-index (ui/bind-state :tile-index)
+                               :tile-id (ui/bind-state :tile-id)
+                               :tile-name (ui/bind-state :tile-name)
+                               :tile-char (ui/bind-state :tile-char)
+                               :confirm-label (ui/bind-state :confirm-label)}
+                       :body [{:mode 'tile-create-dialog-body
+                               :state {:tile-index (ui/bind-state :tile-index)
+                                       :tile-id (ui/bind-state :tile-id)
+                                       :tile-name (ui/bind-state :tile-name)
+                                       :tile-char (ui/bind-state :tile-char)
+                                       :confirm-label
+                                       (ui/bind-state :confirm-label)}}]})]})
 
 (defcomponent color-range-dialog-body
   {:class :ui/content

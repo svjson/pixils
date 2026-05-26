@@ -10,6 +10,14 @@
                                  [{:id :terrain
                                    :label "Terrain"}]))))))
 
+(deftest tile-context-menu-includes-rename-command
+  (let [rename-item (head (:items panels/tile-context-menu))
+        delete-item (nth (:items panels/tile-context-menu) 1)]
+    (is (= "Rename" (:label rename-item)))
+    (is (= :rename (-> rename-item :payload :command)))
+    (is (= "Delete" (:label delete-item)))
+    (is (= :delete (-> delete-item :payload :command)))))
+
 (deftest sprite-map-preview-source-rect-scales-from-full-asset
   (let [image-rect (panels/sprite-map-preview-image-rect {:w 800
                                                           :h 1280})

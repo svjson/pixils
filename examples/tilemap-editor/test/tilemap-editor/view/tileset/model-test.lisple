@@ -221,6 +221,62 @@
     (is (= 1 (:selected-tileset-tile-index state)))
     (is (= [1] (:selected-tileset-tile-indices state)))))
 
+(deftest tile-rename-updates-definition-and-keyword-refs
+  (let [state (model/rename-tile-definition!
+               {:selected-tileset-definition-index 0
+                :selected-tileset-tile-index 1
+                :selected-tileset-tile-indices [1]
+                :tilesets [{:id :terrain
+                            :label "Terrain"
+                            :tile-size 16
+                            :tiles [{:id :grass}
+                                    {:id :water
+                                     :name "Water"
+                                     :char "w"
+                                     :type :color
+                                     :color {:r 0 :g 0 :b 255}}]}
+                           {:id :actors
+                            :label "Actors"
+                            :tile-size 16
+                            :tiles [{:id :hero}]}]
+                :layers [{:id :level
+                          :tileset :terrain
+                          :tiles [[:grass :water]
+                                  [0 1]]}
+                         {:id :actor
+                          :tileset :actors
+                          :tiles [[:water]]}]
+                :brushes [{:id :stamp-brush
+                           :kind :pattern
+                           :pattern {:layers [{:id :stamp
+                                                :tileset :terrain
+                                                :tiles [[:water 1]]}
+                                               {:id :actor-stamp
+                                                :tileset :actors
+                                                :tiles [[:water]]}]}}]}
+               {:type :confirm
+                :tile-index 1
+                :tile-id "deep water"
+                :tile-name "Deep Water"
+                :tile-char "~"})]
+    (is (= {:id :deep-water
+            :name "Deep Water"
+            :char "~"
+            :type :color
+            :color {:r 0 :g 0 :b 255}}
+           (get-in state [:tilesets 0 :tiles 1])))
+    (is (= [[:grass :deep-water]
+            [0 1]]
+           (get-in state [:layers 0 :tiles])))
+    (is (= [[:water]]
+           (get-in state [:layers 1 :tiles])))
+    (is (= [[:deep-water 1]]
+           (get-in state [:brushes 0 :pattern :layers 0 :tiles])))
+    (is (= [[:water]]
+           (get-in state [:brushes 0 :pattern :layers 1 :tiles])))
+    (is (= 1 (:selected-tileset-tile-index state)))
+    (is (= [1] (:selected-tileset-tile-indices state)))))
+
 (deftest sprite_tile_creation_uses_tileset_tile_size
   (let [state (model/add-tile-definition!
                {:selected-tileset-definition-index 0
