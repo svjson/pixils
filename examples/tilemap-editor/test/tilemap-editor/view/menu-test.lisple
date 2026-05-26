@@ -51,37 +51,37 @@
     (is (= :toggle (get-in options [1 :type])))
     (is (= [:option-state :show-terrain-rules?]
            (get-in options [1 :selected-path])))
-    (is (= "&Theme" (get-in options [3 :label])))
-    (is (= "Pixils &Default" (get-in options [3 :items 0 :label])))
+    (is (= "Terrain Rule &Application" (get-in options [3 :label])))
+    (is (= "&Preview Only" (get-in options [3 :items 0 :label])))
     (is (= :option (get-in options [3 :items 0 :type])))
-    (is (= :pixils/default (get-in options [3 :items 0 :value])))
-    (is (= [:option-state :application-theme]
-           (get-in options [3 :items 0 :selected-path])))
-    (is (nil? (get-in options [3 :items 0 :payload :theme])))
-    (is (= "Windows &3" (get-in options [3 :items 1 :label])))
-    (is (= :pixils/windows-3 (get-in options [3 :items 1 :value])))
-    (is (= 'pixils/windows-3
-           (get-in options [3 :items 1 :payload :theme])))
-    (is (= "Windows &95" (get-in options [3 :items 2 :label])))
-    (is (= :pixils/windows-95 (get-in options [3 :items 2 :value])))
-    (is (= 'pixils/windows-95
-           (get-in options [3 :items 2 :payload :theme])))
-    (is (= "&Classic Blue" (get-in options [3 :items 3 :label])))
-    (is (= :pixils/classic-blue (get-in options [3 :items 3 :value])))
-    (is (= 'pixils/classic-blue
-           (get-in options [3 :items 3 :payload :theme])))
-    (is (= "Terrain Rule &Application" (get-in options [5 :label])))
-    (is (= "&Preview Only" (get-in options [5 :items 0 :label])))
-    (is (= :option (get-in options [5 :items 0 :type])))
     (is (= [:key/ctrl :key/alt :key/p]
-           (get-in options [5 :items 0 :shortcut])))
-    (is (= :preview (get-in options [5 :items 0 :value])))
+           (get-in options [3 :items 0 :shortcut])))
+    (is (= :preview (get-in options [3 :items 0 :value])))
     (is (= [:option-state :terrain-rule-application]
-           (get-in options [5 :items 0 :selected-path])))
-    (is (= "&Bake On Paint" (get-in options [5 :items 1 :label])))
-    (is (= :option (get-in options [5 :items 1 :type])))
+           (get-in options [3 :items 0 :selected-path])))
+    (is (= "&Bake On Paint" (get-in options [3 :items 1 :label])))
+    (is (= :option (get-in options [3 :items 1 :type])))
     (is (= [:key/ctrl :key/alt :key/b]
-           (get-in options [5 :items 1 :shortcut])))
-    (is (= :paint-baked (get-in options [5 :items 1 :value])))
+           (get-in options [3 :items 1 :shortcut])))
+    (is (= :paint-baked (get-in options [3 :items 1 :value])))
     (is (= [:option-state :terrain-rule-application]
-           (get-in options [5 :items 1 :selected-path])))))
+           (get-in options [3 :items 1 :selected-path])))
+    (is (= "&Theme" (get-in options [5 :label])))
+    (is (= "Pixils &Default" (get-in options [5 :items 0 :label])))
+    (is (= :option (get-in options [5 :items 0 :type])))
+    (is (= :pixils/default (get-in options [5 :items 0 :value])))
+    (is (= [:option-state :application-theme]
+           (get-in options [5 :items 0 :selected-path])))
+    (is (nil? (get-in options [5 :items 0 :payload :theme])))
+    (is (= "Windows &3" (get-in options [5 :items 1 :label])))
+    (is (= :pixils/windows-3 (get-in options [5 :items 1 :value])))
+    (is (= 'pixils/windows-3
+           (get-in options [5 :items 1 :payload :theme])))
+    (is (= "Windows &95" (get-in options [5 :items 2 :label])))
+    (is (= :pixils/windows-95 (get-in options [5 :items 2 :value])))
+    (is (= 'pixils/windows-95
+           (get-in options [5 :items 2 :payload :theme])))
+    (is (= "&Classic Blue" (get-in options [5 :items 3 :label])))
+    (is (= :pixils/classic-blue (get-in options [5 :items 3 :value])))
+    (is (= 'pixils/classic-blue
+           (get-in options [5 :items 3 :payload :theme])))))

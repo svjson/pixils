@@ -49,6 +49,9 @@ namespace Pixils
     bool stats_overlay_visible = false;
     int last_frame_time_ms = 0;
     double last_frame_rate = 0.0;
+    double last_update_time_ms = 0.0;
+    double last_render_time_ms = 0.0;
+    double last_pacing_wait_ms = 0.0;
     std::map<UI::SystemCursor, SDL_Cursor*> cursor_cache;
     std::map<std::string, SDL_Cursor*> image_cursor_cache;
     std::optional<UI::CursorSpec> active_cursor = std::nullopt;

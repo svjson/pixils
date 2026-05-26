@@ -26,4 +26,8 @@ foreach(example IN LISTS PIXILS_EXAMPLE_APPS)
       -DPIXILS_EXAMPLE_PATH=examples/${example}
       -P ${CMAKE_CURRENT_SOURCE_DIR}/test/launch_example.cmake
   )
+  set_tests_properties(pixils_launch_${example}
+    PROPERTIES
+      LABELS core
+  )
 endforeach()

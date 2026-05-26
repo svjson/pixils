@@ -48,4 +48,6 @@ target_compile_definitions(testpixils
 
 gtest_discover_tests(testpixils
   WORKING_DIRECTORY "${PIXILS_REPO_ROOT}"
+  PROPERTIES
+    LABELS core
 )

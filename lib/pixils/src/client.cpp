@@ -28,14 +28,22 @@
 #include <lisple/runtime/value.h>
 #include <memory>
 #include <sstream>
+#include <vector>
 
 namespace Pixils
 {
   long long now()
   {
-    auto now = std::chrono::system_clock::now();
+    auto now = std::chrono::steady_clock::now();
     return std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch())
       .count();
+  }
+
+  using StatsClock = std::chrono::steady_clock;
+
+  double elapsed_ms(StatsClock::time_point start, StatsClock::time_point end)
+  {
+    return std::chrono::duration<double, std::milli>(end - start).count();
   }
 
   int frame_budget_ms(const Program& program)
@@ -187,10 +195,16 @@ namespace Pixils
         {
           ctx.prepare_application_frame(program->get_display());
 
+          auto update_start = StatsClock::now();
           session.update_mode();
+          auto update_end = StatsClock::now();
           update_cursor();
+          auto render_start = StatsClock::now();
           session.render_mode();
+          auto render_end = StatsClock::now();
           render_app_cursor();
+          last_update_time_ms = elapsed_ms(update_start, update_end);
+          last_render_time_ms = elapsed_ms(render_start, render_end);
         }
         catch (std::exception& e)
         {
@@ -225,9 +239,11 @@ namespace Pixils
 
       // std::cout << "frame #" << frame << " - margin: " << frame_margin << std::endl;
 
+      long long pacing_start = now();
       while (target_frame_ms > 0 && now() - frame_start < target_frame_ms)
       {
       }
+      last_pacing_wait_ms = static_cast<double>(now() - pacing_start);
 
       last_frame_time_ms = now() - frame_start;
       last_frame_rate = last_frame_time_ms > 0 ? 1000.0 / last_frame_time_ms : 0.0;
@@ -241,43 +257,58 @@ namespace Pixils
   {
     if (!stats_text_renderer) return;
 
-    std::ostringstream fps;
-    fps.setf(std::ios::fixed);
-    fps.precision(1);
-    fps << "FPS " << last_frame_rate;
+    auto fixed_line = [](const std::string& label, double value, int precision)
+    {
+      std::ostringstream out;
+      out.setf(std::ios::fixed);
+      out.precision(precision);
+      out << label << " " << value;
+      return out.str();
+    };
 
-    std::ostringstream frame_time;
-    frame_time << "Frame " << last_frame_time_ms << " ms";
+    std::vector<std::string> lines;
+    lines.push_back(fixed_line("FPS", last_frame_rate, 1));
+    lines.push_back(std::string("Limit ") +
+                    (program->target_frame_rate > 0
+                       ? std::to_string(program->target_frame_rate)
+                       : std::string("-")));
+    lines.push_back("Frame " + std::to_string(last_frame_time_ms) + " ms");
+    lines.push_back(fixed_line("Update", last_update_time_ms, 2) + " ms");
+    lines.push_back(fixed_line("Render", last_render_time_ms, 2) + " ms");
+    lines.push_back(fixed_line("Wait", last_pacing_wait_ms, 1) + " ms");
 
-    const std::string fps_text = fps.str();
-    const std::string frame_text = frame_time.str();
+    int content_width = 0;
+    int content_height = 0;
+    std::vector<SDL_Rect> line_sizes;
+    line_sizes.reserve(lines.size());
+    for (const auto& line : lines)
+    {
+      SDL_Rect size = stats_text_renderer->get_rendered_size(ctx, line);
+      line_sizes.push_back(size);
+      content_width = std::max(content_width, size.w);
+      content_height += size.h;
+    }
 
-    SDL_Rect fps_size = stats_text_renderer->get_rendered_size(ctx, fps_text);
-    SDL_Rect frame_size = stats_text_renderer->get_rendered_size(ctx, frame_text);
-
-    int padding = 6;
-    int line_gap = 2;
-    int width = std::max(fps_size.w, frame_size.w) + padding * 2;
+    const int padding = 6;
+    const int line_gap = 2;
+    int width = content_width + padding * 2;
     SDL_Rect bounds = {std::max(8, ctx.window_rect.w - width - 8),
                        8,
                        width,
-                       fps_size.h + frame_size.h + line_gap + padding * 2};
+                       content_height +
+                         static_cast<int>(lines.size() - 1) * line_gap + padding * 2};
 
     SDL_SetRenderDrawBlendMode(ctx.renderer, SDL_BLENDMODE_BLEND);
     SDL_SetRenderDrawColor(ctx.renderer, 0x00, 0x00, 0x00, 0xa8);
     SDL_RenderFillRect(ctx.renderer, &bounds);
 
     const SDL_Color text_color = {0xff, 0xff, 0xff, 0xff};
-    stats_text_renderer->render_text(ctx,
-                                     fps_text,
-                                     bounds.x + padding,
-                                     bounds.y + padding,
-                                     text_color);
-    stats_text_renderer->render_text(ctx,
-                                     frame_text,
-                                     bounds.x + padding,
-                                     bounds.y + padding + fps_size.h + line_gap,
-                                     text_color);
+    int y = bounds.y + padding;
+    for (size_t i = 0; i < lines.size(); i++)
+    {
+      stats_text_renderer->render_text(ctx, lines[i], bounds.x + padding, y, text_color);
+      y += line_sizes[i].h + line_gap;
+    }
   }
 
   void Client::handle_keydown(SDL_KeyboardEvent& key_event)
