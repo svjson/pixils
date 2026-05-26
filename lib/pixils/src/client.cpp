@@ -13,6 +13,7 @@
 #include <pixils/runtime/mode.h>
 #include <pixils/runtime/view.h>
 
+#include <SDL2/SDL_blendmode.h>
 #include <SDL2/SDL_mouse.h>
 #include <SDL2/SDL_pixels.h>
 #include <SDL2/SDL_render.h>
@@ -102,6 +103,8 @@ namespace Pixils
                                      console_font_map);
 
     this->console = std::make_unique<ConsoleOverlay>(ctx, lisple, console_font_texture);
+    this->stats_text_renderer =
+      std::make_unique<Text::Renderer>(console_font_texture, console_font_map, 1, 2, 10);
   }
 
   void Client::run()
@@ -209,6 +212,12 @@ namespace Pixils
         console->render(ctx);
       }
 
+      if (stats_overlay_visible)
+      {
+        ctx.set_render_target(nullptr);
+        render_stats_overlay();
+      }
+
       ctx.finalize_frame();
 
       int target_frame_ms = frame_budget_ms(*program);
@@ -220,9 +229,55 @@ namespace Pixils
       {
       }
 
+      last_frame_time_ms = now() - frame_start;
+      last_frame_rate = last_frame_time_ms > 0 ? 1000.0 / last_frame_time_ms : 0.0;
+
       session.process_messages();
       quit = quit || session.quit_requested;
     }
+  }
+
+  void Client::render_stats_overlay()
+  {
+    if (!stats_text_renderer) return;
+
+    std::ostringstream fps;
+    fps.setf(std::ios::fixed);
+    fps.precision(1);
+    fps << "FPS " << last_frame_rate;
+
+    std::ostringstream frame_time;
+    frame_time << "Frame " << last_frame_time_ms << " ms";
+
+    const std::string fps_text = fps.str();
+    const std::string frame_text = frame_time.str();
+
+    SDL_Rect fps_size = stats_text_renderer->get_rendered_size(ctx, fps_text);
+    SDL_Rect frame_size = stats_text_renderer->get_rendered_size(ctx, frame_text);
+
+    int padding = 6;
+    int line_gap = 2;
+    int width = std::max(fps_size.w, frame_size.w) + padding * 2;
+    SDL_Rect bounds = {std::max(8, ctx.window_rect.w - width - 8),
+                       8,
+                       width,
+                       fps_size.h + frame_size.h + line_gap + padding * 2};
+
+    SDL_SetRenderDrawBlendMode(ctx.renderer, SDL_BLENDMODE_BLEND);
+    SDL_SetRenderDrawColor(ctx.renderer, 0x00, 0x00, 0x00, 0xa8);
+    SDL_RenderFillRect(ctx.renderer, &bounds);
+
+    const SDL_Color text_color = {0xff, 0xff, 0xff, 0xff};
+    stats_text_renderer->render_text(ctx,
+                                     fps_text,
+                                     bounds.x + padding,
+                                     bounds.y + padding,
+                                     text_color);
+    stats_text_renderer->render_text(ctx,
+                                     frame_text,
+                                     bounds.x + padding,
+                                     bounds.y + padding + fps_size.h + line_gap,
+                                     text_color);
   }
 
   void Client::handle_keydown(SDL_KeyboardEvent& key_event)
@@ -239,6 +294,9 @@ namespace Pixils
       {
         this->console->close();
       }
+      break;
+    case SDLK_F11:
+      stats_overlay_visible = !stats_overlay_visible;
       break;
     default:
       if (this->console->get_open_state() == ConsoleOverlay::State::OPEN ||

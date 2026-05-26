@@ -45,6 +45,10 @@ namespace Pixils
     Program* program = nullptr;
 
     std::unique_ptr<ConsoleOverlay> console = nullptr;
+    std::unique_ptr<Text::Renderer> stats_text_renderer = nullptr;
+    bool stats_overlay_visible = false;
+    int last_frame_time_ms = 0;
+    double last_frame_rate = 0.0;
     std::map<UI::SystemCursor, SDL_Cursor*> cursor_cache;
     std::map<std::string, SDL_Cursor*> image_cursor_cache;
     std::optional<UI::CursorSpec> active_cursor = std::nullopt;
@@ -61,6 +65,7 @@ namespace Pixils
 
     void init_console();
     void main_loop();
+    void render_stats_overlay();
 
     void handle_keydown(SDL_KeyboardEvent& event);
     void handle_keyup(SDL_KeyboardEvent& event);
