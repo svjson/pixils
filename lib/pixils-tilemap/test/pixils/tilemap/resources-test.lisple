@@ -1,0 +1,63 @@
+(ns pixils.tilemap.resources-test
+  (:require proof.core
+            [pixils.resource :as pixils-resource]
+            [pixils.tilemap.resources :as resources]))
+
+(deftest image-resource-key-uses_bundle_and_resource_ids
+  (is (= :game-assets/tiles
+         (resources/image-resource-key :game-assets :tiles))))
+
+(deftest tileset-image-resource-keys-collects_unique_tile_images
+  (is (= [:game-assets/tiles :game-assets/items]
+         (resources/tileset-image-resource-keys
+          [{:id :game
+            :tiles [{:id :wall
+                     :type :sprite
+                     :image :game-assets/tiles}
+                    {:id :dirt
+                     :type :sprite
+                     :image :game-assets/tiles}
+                    {:id :gem
+                     :type :sprite
+                     :image :game-assets/items}
+                    {:id :color
+                     :type :color}]}]))))
+
+(deftest runtime-image-dependency-removes_editor_metadata
+  (is (= {:file-name "tiles.png"
+          :transparency-color "#5a5268"}
+         (resources/runtime-image-dependency
+          {:file-name "tiles.png"
+           :name "Tiles"
+           :transparency-color "#5a5268"}))))
+
+(deftest runtime-bundle-dependencies-keeps_only_images_used_by_tilesets
+  (let [resources {:bundles {:game-assets
+                             {:images {:tiles {:file-name "tiles.png"
+                                               :name "Tiles"}
+                                       :unused {:file-name "unused.png"}}}
+                             :other-assets
+                             {:images {:other {:file-name "other.png"}}}}}
+        tilesets [{:id :game
+                   :tiles [{:id :wall
+                            :type :sprite
+                            :image :game-assets/tiles}]}]]
+    (is (= {:game-assets
+            {:images {:tiles {:file-name "tiles.png"}}}}
+           (resources/runtime-bundle-dependencies resources tilesets)))))
+
+(deftest ensure-resource-bundles-creates_and_populates_used_bundles
+  (let [resources {:bundles {:tilemap-test-assets
+                             {:images {:tiles {:file-name "tiles.png"}
+                                       :unused {:file-name "unused.png"}}}}}
+        tilesets [{:id :game
+                   :tiles [{:id :wall
+                            :type :sprite
+                            :image :tilemap-test-assets/tiles}]}]]
+    (do
+      (resources/ensure-resource-bundles! resources tilesets)
+      (is (= [:tilemap-test-assets/tiles]
+             (map (pixils-resource/list-images :tilemap-test-assets) :id)))
+      (is (= "tiles.png"
+             (:file-name (head (pixils-resource/list-images
+                                :tilemap-test-assets))))))))

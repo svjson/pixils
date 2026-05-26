@@ -1,0 +1,91 @@
+(ns pixils.tilemap.resources
+  (:require [pixils.resource :as res]))
+
+(defun keyword-label [value]
+  (let [text (str value)]
+    (if (= ":" (substr text 0 1))
+      (substr text 1)
+      text)))
+
+(defun image-resource-key [bundle-id resource-id]
+  (keyword (str (keyword-label bundle-id)
+                "/"
+                (keyword-label resource-id))))
+
+(defun tile-image-resource-key [tile]
+  (when (keyword? (:image tile))
+    (:image tile)))
+
+(defun append-unique [items item]
+  (if (or (nil? item)
+          (contains? items item))
+    items
+    (concat items [item])))
+
+(defun tileset-image-resource-keys [tilesets]
+  (reduce (or tilesets [])
+          []
+          (fn [result tileset]
+            (reduce (or (:tiles tileset) [])
+                    result
+                    (fn [tile-result tile]
+                      (append-unique tile-result
+                                     (tile-image-resource-key tile)))))))
+
+(defun runtime-image-dependency [dependency]
+  (if (= (type-of dependency) "map")
+    (select-keys dependency [:file-name :transparency-color])
+    dependency))
+
+(defun resource-image-used-by-tilesets? [tileset-image-keys bundle-id resource-id]
+  (contains? tileset-image-keys (image-resource-key bundle-id resource-id)))
+
+(defun used-runtime-image-dependencies [images tileset-image-keys bundle-id]
+  (reduce-kv (or images {})
+             {}
+             (fn [result resource-id dependency]
+               (if (resource-image-used-by-tilesets? tileset-image-keys
+                                                     bundle-id
+                                                     resource-id)
+                 (assoc result resource-id (runtime-image-dependency dependency))
+                 result))))
+
+(defun bundle-runtime-dependencies [bundle tileset-image-keys bundle-id]
+  {:images (used-runtime-image-dependencies (:images bundle)
+                                            tileset-image-keys
+                                            bundle-id)})
+
+(defun empty-dependencies? [dependencies]
+  (empty? (or (:images dependencies) {})))
+
+(defun runtime-bundle-dependencies [resources tilesets]
+  (let [tileset-image-keys (tileset-image-resource-keys tilesets)]
+    (reduce-kv (or (:bundles resources) {})
+               {}
+               (fn [result bundle-id bundle]
+                 (let [dependencies (bundle-runtime-dependencies bundle
+                                                                  tileset-image-keys
+                                                                  bundle-id)]
+                   (if (empty-dependencies? dependencies)
+                     result
+                     (assoc result bundle-id dependencies)))))))
+
+(defun remove-existing-images! [bundle-id]
+  (for [resource (res/list-images bundle-id)]
+    (res/remove-image! (:id resource))))
+
+(defun ensure-resource-bundles! [resources tilesets]
+  (let [dependencies (runtime-bundle-dependencies resources tilesets)]
+    (do
+      (for [bundle-id (keys dependencies)]
+        (do
+          (res/create-bundle! bundle-id)
+          (remove-existing-images! bundle-id)
+          (res/create-bundle! bundle-id (get dependencies bundle-id))))
+      resources)))
+
+(defun ensure-render-input-resources! [render-input]
+  (do
+    (ensure-resource-bundles! (:resources render-input)
+                              (:tilesets render-input))
+    render-input))
