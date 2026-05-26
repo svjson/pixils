@@ -224,6 +224,7 @@
                   :menu-bg PANEL-COLOR
                   :border c/BLACK
                   :highlight PANEL-LIGHT
+                  :highlight-color (var :highlight)
                   :border-light (var :panel-highlight)
                   :border-dark (var :panel-shadow)
                   :border-inset-top-left (var :border-dark)
@@ -279,6 +280,7 @@
                  :menu-bg {:r 0x33 :g 0x36 :b 0x39}
                  :border {:r 0x05 :g 0x06 :b 0x07}
                  :highlight {:r 0x58 :g 0x5d :b 0x63}
+                 :highlight-color (var :highlight)
                  :split-pane-resizer-size 6
                  :scrollbar-size 14
                  :menu-option-indicator {:selected-image :windows-95-theme/menu-option-checkmark}

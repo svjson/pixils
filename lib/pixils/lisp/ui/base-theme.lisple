@@ -94,6 +94,7 @@
                  :surface {:r 0xff :g 0xff :b 0xff}
                  :panel-bg {:r 0xcc :g 0xcc :b 0xcc}
                  :field-bg {:r 0xff :g 0xff :b 0xff}
+                 :highlight-color (var :selection-bg)
                  :button-bg (var :surface)
                  :button-hover-bg (var :selection-bg)
                  :button-pressed-bg (var :disabled-bg)

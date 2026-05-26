@@ -308,6 +308,7 @@
                   :menu-bg white
                   :border c/BLACK
                   :highlight c/WHITE
+                  :highlight-color (var :highlight)
                   :border-light (var :highlight)
                   :border-dark (var :panel-shadow)
                   :border-inset-top-left (var :border-dark)
@@ -379,6 +380,7 @@
                  :menu-bg {:r 0x24 :g 0x27 :b 0x2a}
                  :border {:r 0x05 :g 0x06 :b 0x07}
                  :highlight {:r 0x69 :g 0x70 :b 0x76}
+                 :highlight-color (var :highlight)
                  :split-pane-resizer-size 8
                  :scrollbar-size 17
                  :scrollbar-handle-size 15

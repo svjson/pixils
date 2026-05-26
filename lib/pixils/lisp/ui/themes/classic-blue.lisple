@@ -118,6 +118,7 @@
                  :button-pressed-bg (var :button-bg)
                  :button-disabled-bg (var :panel-bg)
                  :button-highlight BUTTON-HIGHLIGHT
+                 :highlight-color (var :button-highlight)
                  :button-shadow BUTTON-SHADOW
                  :button-glyph BUTTON-GLYPH
                  :title-bar-bg TITLE-BAR-BG
