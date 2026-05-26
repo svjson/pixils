@@ -79,6 +79,7 @@
 (def BUTTON-HIGHLIGHT {:r 0x67 :g 0x78 :b 0x8f})
 (def BUTTON-SHADOW {:r 0x2d :g 0x36 :b 0x46})
 (def BUTTON-GLYPH {:r 0xf5 :g 0xf6 :b 0xf3})
+(def HIGHLIGHT-COLOR {:r 0xff :g 0xcc :b 0x66})
 (def DISABLED-BG {:r 0x25 :g 0x2d :b 0x38})
 (def DISABLED-BORDER {:r 0x43 :g 0x4d :b 0x5a})
 (def DISABLED-TEXT {:r 0x72 :g 0x7c :b 0x88})
@@ -118,7 +119,7 @@
                  :button-pressed-bg (var :button-bg)
                  :button-disabled-bg (var :panel-bg)
                  :button-highlight BUTTON-HIGHLIGHT
-                 :highlight-color (var :button-highlight)
+                 :highlight-color HIGHLIGHT-COLOR
                  :button-shadow BUTTON-SHADOW
                  :button-glyph BUTTON-GLYPH
                  :title-bar-bg TITLE-BAR-BG
