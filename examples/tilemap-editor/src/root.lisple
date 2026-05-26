@@ -167,7 +167,7 @@
                       :zoom-label (str "Zoom " zoom "x")
                       :selected-layer-label (or (:label layer) ""))
                ctx)))
-  :children [{:mode 'toolbar
+  :children [{:mode 'tilemap-editor-menu-bar
               :state {:recent-projects (ui/bind-state :recent-projects)
                       :show-grid? (ui/bind-state :show-grid?)
                       :show-terrain-rules?

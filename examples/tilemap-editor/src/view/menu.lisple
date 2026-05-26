@@ -106,16 +106,16 @@
                            (tilemap-editor-menu state)
                            tilemap-editor-menu-keymap))))
 
-(defun toolbar-menu-state [state]
+(defun tilemap-editor-menu-state [state]
   (normalized-menu-state state))
 
-(defcomponent toolbar
+(defcomponent tilemap-editor-menu-bar
   {:style {:width :fill
            :layout {:direction :row}}
    :init (fn [state ctx]
            (assoc state :rendered-menu-state nil))
    :update (fn [state ctx]
-             (let [menu-state (toolbar-menu-state state)]
+             (let [menu-state (tilemap-editor-menu-state state)]
                (do
                  (when (not= menu-state (:rendered-menu-state state))
                    (ui/replace-child! (:view ctx)
