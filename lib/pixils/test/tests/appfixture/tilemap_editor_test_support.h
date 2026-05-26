@@ -70,7 +70,7 @@ inline std::shared_ptr<Pixils::Runtime::View> find_descendant_mode_containing_st
 inline void read_tilemap_editor_sources(Lisple::Runtime& runtime)
 {
   runtime.read_file("examples/tilemap-editor/src/assets.lisple");
-  runtime.read_file("examples/tilemap-editor/src/model/data.lisple");
+  runtime.read_file("lib/pixils-tilemap-project/src/model.lisple");
   runtime.read_file("examples/tilemap-editor/src/model/tilemap.lisple");
   runtime.read_file("examples/tilemap-editor/src/io/project.lisple");
   runtime.read_file("examples/tilemap-editor/src/view/tilemap/renderer.lisple");

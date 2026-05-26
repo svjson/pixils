@@ -13,7 +13,7 @@
             [pixils.ui.theme-assets :as theme-assets]
             pixils.ui.text-input
             [pixils.ui.window :as w]
-            [tilemap-editor.model.data :as data]))
+            [pixils.tilemap.project.model :as data]))
 
 
 

@@ -1,0 +1,9 @@
+{:name pixils-tilemap-project
+ :version "0.1.0"
+ :description "Pixils tilemap project document model."
+ :dependencies {proof "0.1.0"}
+ :load-roots ["src"]
+ :namespace-roots {pixils.tilemap.project "src"}
+ :config {proof {:test-roots ["test"]}}
+ :entry-points []
+ :test-entry-points []}

@@ -1,6 +1,6 @@
 (ns tilemap-editor.model.tilemap-test
   (:require proof.core
-            [tilemap-editor.model.data :as data]
+            [pixils.tilemap.project.model :as data]
             [tilemap-editor.model.tilemap :as tilemap]))
 
 (deftest tilemap-clamp-bounds-values

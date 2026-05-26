@@ -7,7 +7,7 @@
             [pixils.ui.header-panel :as hp]
             [pixils.ui.list-box :as lb]
             [pixils.ui.number-input :as ni]
-            [tilemap-editor.model.data :as data]
+            [pixils.tilemap.project.model :as data]
             [tilemap-editor.view.brushes.model :as model]
             [tilemap-editor.view.tilemap.renderer :as tr]))
 

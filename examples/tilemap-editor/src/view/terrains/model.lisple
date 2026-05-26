@@ -1,5 +1,5 @@
 (ns tilemap-editor.view.terrains.model
-  (:require [tilemap-editor.model.data :as data]))
+  (:require [pixils.tilemap.project.model :as data]))
 
 (defun terrain-set-options [terrain-sets]
   (for-indexed [index terrain-set (or terrain-sets [])]

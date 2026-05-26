@@ -1,6 +1,6 @@
 (ns tilemap-editor.view.tilemap.controls-test
   (:require proof.core
-            [tilemap-editor.model.data :as data]
+            [pixils.tilemap.project.model :as data]
             [tilemap-editor.view.tilemap.controls :as controls]))
 
 (deftest empty-layer-list-keeps-minimum-height

@@ -1,7 +1,7 @@
 (ns tilemap-editor.view.tilemap.palette-test
   (:require proof.core
             [tilemap-editor.view.tilemap.palette :as palette]
-            [tilemap-editor.model.data :as data]))
+            [pixils.tilemap.project.model :as data]))
 
 (deftest tile-palette-is-disabled-when-empty
   (is (= true (:disabled? (:state (palette/tile-palette-list-box-child [] nil false)))))

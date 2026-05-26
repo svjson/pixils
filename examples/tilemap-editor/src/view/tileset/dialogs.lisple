@@ -12,7 +12,7 @@
             [pixils.ui.menu :as menu]
             [pixils.ui.slider :as sl]
             [pixils.ui.window :as w]
-            [tilemap-editor.model.data :as data]
+            [pixils.tilemap.project.model :as data]
             [tilemap-editor.view.image-panel :as ip]
             tilemap-editor.view.tileset.model))
 

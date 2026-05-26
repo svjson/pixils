@@ -1,6 +1,6 @@
 (ns tilemap-editor.io.project-test
   (:require proof.core
-            [tilemap-editor.model.data :as data]
+            [pixils.tilemap.project.model :as data]
             [tilemap-editor.io.project :as project-io]))
 
 (def EXAMPLE-MAP-PATH "example-maps/map1.edn")

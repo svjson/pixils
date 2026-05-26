@@ -1,6 +1,6 @@
 (ns tilemap-editor.model.derivation-test
   (:require proof.core
-            [tilemap-editor.model.data :as data]
+            [pixils.tilemap.project.model :as data]
             [tilemap-editor.model.derivation :as derivation]))
 
 (defun terrain-row [values]

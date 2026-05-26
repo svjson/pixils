@@ -1,7 +1,7 @@
 (ns tilemap-editor.view.tilemap.renderer
   (:require [pixils.image :as img]
             [pixils.render :as r]
-            [tilemap-editor.model.data :as data]
+            [pixils.tilemap.project.model :as data]
             [tilemap-editor.model.tilemap :as tm]))
 
 

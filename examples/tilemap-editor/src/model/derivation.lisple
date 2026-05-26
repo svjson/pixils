@@ -1,5 +1,5 @@
 (ns tilemap-editor.model.derivation
-  (:require [tilemap-editor.model.data :as data]))
+  (:require [pixils.tilemap.project.model :as data]))
 
 (def north-bit 1)
 (def east-bit 2)

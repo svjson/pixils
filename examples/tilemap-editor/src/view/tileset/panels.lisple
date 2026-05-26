@@ -8,7 +8,7 @@
             [pixils.ui.list-box :as lb]
             [pixils.ui.menu :as menu]
             [pixils.ui.slider :as sl]
-            [tilemap-editor.model.data :as data]
+            [pixils.tilemap.project.model :as data]
             [tilemap-editor.view.image-panel :as ip]
             [tilemap-editor.view.tilemap.renderer :as tr]
             tilemap-editor.view.tileset.model))

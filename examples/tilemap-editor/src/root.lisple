@@ -3,7 +3,7 @@
             [pixils.ui :as ui]
             [pixils.ui.tab-panel :as tabs]
             [tilemap-editor.view.tilemap.controls :as controls]
-            [tilemap-editor.model.data :as data]
+            [pixils.tilemap.project.model :as data]
             [tilemap-editor.model.tilemap :as tilemap]
             [tilemap-editor.io.project :as project-io]
             [tilemap-editor.view.resources.model :as resource-model]

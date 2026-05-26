@@ -1,6 +1,6 @@
 (ns tilemap-editor.view.brushes.model
   (:require pixils
-            [tilemap-editor.model.data :as data]))
+            [pixils.tilemap.project.model :as data]))
 
 (def default-pattern-size {:w 3 :h 3})
 (def default-pattern-anchor {:x 1 :y 1})

@@ -9,14 +9,14 @@ TEST_F(TilemapEditorProjectIoTest, save_dialog_result_writes_project_edn)
   std::error_code ec;
   std::filesystem::remove(save_path, ec);
 
-  runtime.read_file("examples/tilemap-editor/src/model/data.lisple");
+  runtime.read_file("lib/pixils-tilemap-project/src/model.lisple");
   runtime.read_file("examples/tilemap-editor/src/model/derivation.lisple");
   runtime.read_file("examples/tilemap-editor/src/model/tilemap.lisple");
   runtime.read_file("examples/tilemap-editor/src/io/project.lisple");
 
   runtime.eval(R"(
     (tilemap-editor.io.project/apply-project-file-dialog-result
-     {:layers (tilemap-editor.model.data/make-layered-map)}
+     {:layers (pixils.tilemap.project.model/make-layered-map)}
      {:type :confirm
       :mode :file-dialog/save
       :path )" +
@@ -48,7 +48,7 @@ TEST_F(TilemapEditorProjectIoTest, save_and_open_round_trips_terrain_rule_exclus
   std::error_code ec;
   std::filesystem::remove(save_path, ec);
 
-  runtime.read_file("examples/tilemap-editor/src/model/data.lisple");
+  runtime.read_file("lib/pixils-tilemap-project/src/model.lisple");
   runtime.read_file("examples/tilemap-editor/src/model/derivation.lisple");
   runtime.read_file("examples/tilemap-editor/src/model/tilemap.lisple");
   runtime.read_file("examples/tilemap-editor/src/io/project.lisple");
@@ -104,7 +104,7 @@ TEST_F(TilemapEditorProjectIoTest, save_dialog_result_updates_recent_projects)
   std::filesystem::remove(save_path, ec);
   std::filesystem::remove(history_path, ec);
 
-  runtime.read_file("examples/tilemap-editor/src/model/data.lisple");
+  runtime.read_file("lib/pixils-tilemap-project/src/model.lisple");
   runtime.read_file("examples/tilemap-editor/src/model/derivation.lisple");
   runtime.read_file("examples/tilemap-editor/src/model/tilemap.lisple");
   runtime.read_file("examples/tilemap-editor/src/io/project.lisple");
@@ -140,10 +140,10 @@ TEST_F(TilemapEditorProjectIoTest, save_dialog_result_updates_recent_projects)
 
 TEST_F(TilemapEditorProjectIoTest, default_project_starts_with_empty_layers)
 {
-  runtime.read_file("examples/tilemap-editor/src/model/data.lisple");
+  runtime.read_file("lib/pixils-tilemap-project/src/model.lisple");
 
   auto result = runtime.eval(R"(
-    (let [layers (tilemap-editor.model.data/make-layered-map)]
+    (let [layers (pixils.tilemap.project.model/make-layered-map)]
       {:layer-count (count layers)})
   )");
 
@@ -175,14 +175,14 @@ TEST_F(TilemapEditorProjectIoTest, open_dialog_result_loads_project_edn_layers)
                      :tiles [[:night :void] [:void :night]]}]}})";
   }
 
-  runtime.read_file("examples/tilemap-editor/src/model/data.lisple");
+  runtime.read_file("lib/pixils-tilemap-project/src/model.lisple");
   runtime.read_file("examples/tilemap-editor/src/model/derivation.lisple");
   runtime.read_file("examples/tilemap-editor/src/model/tilemap.lisple");
   runtime.read_file("examples/tilemap-editor/src/io/project.lisple");
 
   auto result = runtime.eval(R"(
     (tilemap-editor.io.project/apply-project-file-dialog-result
-     {:layers (tilemap-editor.model.data/make-layered-map)
+     {:layers (pixils.tilemap.project.model/make-layered-map)
       :selected-layer-index 2
       :hidden-layer-indices [1 2]}
      {:type :confirm

@@ -2,7 +2,7 @@
   (:require pixils
             [pixils.render :as r]
             [pixils.ui :as ui]
-            [tilemap-editor.model.data :as data]
+            [pixils.tilemap.project.model :as data]
             [tilemap-editor.model.derivation :as derivation]
             [tilemap-editor.model.tilemap :as tm]
             [tilemap-editor.view.tilemap.renderer :as tr]))

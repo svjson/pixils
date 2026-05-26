@@ -2,6 +2,7 @@
  :version "0.1.0"
  :description "Pixils tilemap editor example."
  :dependencies {proof "0.1.0"
+                pixils-tilemap-project {:path "../../lib/pixils-tilemap-project"}
                 pixils-runner {:path "../../lib/pixils-runner"}
                 pixils-test {:path "../../lib/pixils-test"}}
  :load-roots ["src"]

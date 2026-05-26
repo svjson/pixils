@@ -13,7 +13,7 @@
             [pixils.ui.tab-panel :as tabs]
             pixils.ui.text-input
             [pixils.ui.window :as w]
-            [tilemap-editor.model.data :as data]
+            [pixils.tilemap.project.model :as data]
             [tilemap-editor.model.tilemap :as tilemap]
             [tilemap-editor.view.id-name-dialog :as id-name-dialog]
             [tilemap-editor.view.tilemap.renderer :as tr]

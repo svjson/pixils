@@ -1,7 +1,7 @@
 (ns tilemap-editor.io.project
   (:require [lisple.io :as io]
             [pixils.ui.file-dialog :as file-dialog]
-            [tilemap-editor.model.data :as data]
+            [pixils.tilemap.project.model :as data]
             [tilemap-editor.model.tilemap :as tilemap]))
 
 (def project-file-filters

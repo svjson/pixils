@@ -1,7 +1,7 @@
 (ns tilemap-editor.view.tileset.model
   (:require pixils
             [lisple.io :as io]
-            [tilemap-editor.model.data :as data]))
+            [pixils.tilemap.project.model :as data]))
 
 (def tile-grid-cell-size data/tile-size)
 

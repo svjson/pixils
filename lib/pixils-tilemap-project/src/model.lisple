@@ -1,4 +1,4 @@
-(ns tilemap-editor.model.data)
+(ns pixils.tilemap.project.model)
 
 (def tile-size 16)
 (def map-width 40)
