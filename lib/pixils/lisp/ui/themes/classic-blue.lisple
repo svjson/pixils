@@ -448,15 +448,16 @@
 
     'ui/menu-option-item {:padding {:t 2 :r 12 :b 2 :l 2}}
 
-    'ui/menu-option-indicator {:margin {:l 2 :r 4}
-                               :box-sizing :content-box
+    'ui/menu-option-indicator {:box-sizing :content-box
                                :width 24
-                               :height 10}
+                               :height 14}
 
-    'ui/menu-submenu-indicator {:margin {:l 8 :r 2}
-                                :box-sizing :content-box
+    'ui/menu-submenu-indicator {:box-sizing :content-box
                                 :width 8
                                 :height 10}
+
+    '(ui/menu-submenu-indicator {:has-submenu false})
+    {:visibility :none}
 
     'ui/popup-menu-inner
     {:background (var :menu-bg)
@@ -469,9 +470,15 @@
     {:padding [2 16]
      :text {:color c/WHITE}}
 
-    'ui/popup-menu-option-item
-    {:padding [2 2]
+    '(ui/popup-menu-option-item :menu/item)
+    {:padding {:t 2 :r 12 :b 2 :l 2}
      :text {:color c/WHITE}}
+
+    '(ui/popup-menu-item :menu/item)
+    {:padding {:t 2 :r 12 :b 2 :l 2}}
+
+    :menu/trailing-column
+    {:margin {:l 16}}
 
     :menu/item:disabled
     {:background (var :menu-bg)

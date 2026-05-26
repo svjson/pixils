@@ -410,18 +410,20 @@
       false)))
 
 (defun popup-item-state [node state]
-  {:node node
-   :index (:index state)
-   :highlighted-index (:highlighted-index state)
-   :input-source (:input-source state)
-   :menu-depth (:menu-depth state)
-   :text (:display-text node)
-   :shortcut-text (:shortcut-text node)
-   :disabled? (:disabled? node)
-   :has-submenu (not (empty? (:items node)))
-   :option-state (:option-state state)
-   :game (:game state)
-   :preferences (:preferences state)})
+  (let [has-submenu (not (empty? (:items node)))]
+    {:node node
+     :index (:index state)
+     :highlighted-index (:highlighted-index state)
+     :input-source (:input-source state)
+     :menu-depth (:menu-depth state)
+     :text (:display-text node)
+     :shortcut-text (:shortcut-text node)
+     :trailing-shortcut-text (if has-submenu "" (:shortcut-text node))
+     :disabled? (:disabled? node)
+     :has-submenu has-submenu
+     :option-state (:option-state state)
+     :game (:game state)
+     :preferences (:preferences state)}))
 
 (defun popup-option-item-state [node state]
   (merge (popup-item-state node state)
@@ -592,7 +594,8 @@
 
 (defcomponent ui/popup-menu-item
   {:class :menu/item
-   :style {:layout {:direction :row}}
+   :style {:layout {:direction :row
+                    :align-items :center}}
    :update (fn [state ctx]
              (let [hovered (-> ctx :view :interaction :hovered)
                    highlighted (and (not (:disabled? state))
@@ -626,15 +629,16 @@
                        (when (not (:disabled? state))
                          (ui/emit! (:view ctx) :menu/select (:payload event)))
                        state)}
-   :children [{:mode 'ui/text
+   :children [{:mode 'ui/menu-option-indicator
+               :state {:selected false
+                       :show-marker false}}
+              {:mode 'ui/text
                :style {:width :fill}
                :state {:value (ui/bind-state :text)}}
-              {:mode 'ui/text
-               :class :menu/shortcut-column
-               :state {:value (ui/bind-state :shortcut-text)}}
-              {:mode 'ui/menu-submenu-indicator
+              {:mode 'ui/menu-item-trailing
                :state {:has-submenu (ui/bind-state :has-submenu)
-                       :highlighted (ui/bind-state :highlighted)}}]})
+                       :highlighted (ui/bind-state :highlighted)
+                       :shortcut-text (ui/bind-state :trailing-shortcut-text)}}]})
 
 (defun render-menu-submenu-indicator! [state ctx]
   (let [indicator (ui/theme-var ctx :menu-submenu-indicator {})
@@ -663,13 +667,27 @@
   {:class :menu/submenu-indicator
    :render render-menu-submenu-indicator!})
 
+(defcomponent ui/menu-item-trailing
+  {:class :menu/trailing-column
+   :style {:layout {:direction :row
+                    :align-items :center}}
+   :children [{:mode 'ui/text
+               :class :menu/shortcut-text
+               :state {:value (ui/bind-state :shortcut-text)}}
+              {:mode 'ui/menu-submenu-indicator
+               :state {:has-submenu (ui/bind-state :has-submenu)
+                       :highlighted (ui/bind-state :highlighted)}}]})
+
 (defun menu-option-indicator-text [state indicator]
-  (if (:selected state)
-    (or (:selected-text indicator) "")
-    (or (:unselected-text indicator) "")))
+  (if (or (:show-marker state) (not (contains? state :show-marker)))
+    (if (:selected state)
+      (or (:selected-text indicator) "")
+      (or (:unselected-text indicator) ""))
+    ""))
 
 (defun menu-option-indicator-image [state indicator]
-  (if (:selected state)
+  (if (and (:selected state)
+           (or (:show-marker state) (not (contains? state :show-marker))))
     (:selected-image indicator)
     nil))
 
@@ -692,9 +710,23 @@
         text-args (menu-option-indicator-text-args (-> ctx :view :effective-style))]
     (do
       (when image
-        (r/image! image {:x 0 :y 0}))
+        (let [dim (img/size image)
+              x (if dim
+                  (int (/ (- (-> ctx :view :bounds :w) (:w dim)) 2))
+                  0)
+              y (if dim
+                  (int (/ (- (-> ctx :view :bounds :h) (:h dim)) 2))
+                  0)]
+          (r/image! image {:x x :y y})))
       (when (not (empty? text))
-        (r/text! text {:x 0 :y 0} text-args)))))
+        (let [dim (r/text-size text text-args)
+              x (if dim
+                  (int (/ (- (-> ctx :view :bounds :w) (:w dim)) 2))
+                  0)
+              y (if dim
+                  (int (/ (- (-> ctx :view :bounds :h) (:h dim)) 2))
+                  0)]
+          (r/text! text {:x x :y y} text-args))))))
 
 (defcomponent ui/menu-option-indicator
   {:class :menu/option-indicator
@@ -702,7 +734,8 @@
 
 (defcomponent ui/popup-menu-option-item
   {:class :menu/item
-   :style {:layout {:direction :row}}
+   :style {:layout {:direction :row
+                    :align-items :center}}
    :update (fn [state ctx]
              (let [hovered (-> ctx :view :interaction :hovered)
                    highlighted (and (not (:disabled? state))
@@ -732,12 +765,15 @@
                                  :payload (:payload node)})))
                   state)
    :children [{:mode 'ui/menu-option-indicator
-               :state {:selected (ui/bind-state :selected)}}
+               :state {:selected (ui/bind-state :selected)
+                       :show-marker true}}
               {:mode 'ui/text
                :style {:width :fill}
                :state {:value (ui/bind-state :text)}}
-              {:mode 'ui/text
-               :state {:value (ui/bind-state :shortcut-text)}}]})
+              {:mode 'ui/menu-item-trailing
+               :state {:has-submenu (ui/bind-state :has-submenu)
+                       :highlighted (ui/bind-state :highlighted)
+                       :shortcut-text (ui/bind-state :trailing-shortcut-text)}}]})
 
 (defcomponent ui/menu-separator {})
 

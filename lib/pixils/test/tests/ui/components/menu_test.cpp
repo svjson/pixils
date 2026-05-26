@@ -1,5 +1,7 @@
 #include "../../render_fixture.h"
 
+#include <algorithm>
+
 #include <gtest/gtest.h>
 #include <lisple/runtime/dict.h>
 #include <lisple/runtime/value.h>
@@ -295,6 +297,26 @@ TEST_F(MenuTest, base_theme_generates_stock_menu_option_checkmark_image)
   EXPECT_EQ(render_target()->render_ops.back().rendered_rect.h, 10);
 }
 
+TEST_F(MenuTest, windows_3_menu_option_indicator_renders_one_checkmark)
+{
+  runtime.eval(R"(
+    (pixils/defmode root-mode
+      {:theme 'pixils/windows-3
+       :children [{:mode 'ui/menu-option-indicator
+                   :state {:selected true}}]})
+  )");
+
+  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.update_mode();
+  session.render_mode();
+
+  auto copy_ops = std::count_if(render_target()->render_ops.begin(),
+                                render_target()->render_ops.end(),
+                                [](const auto& op)
+                                { return op.type == RenderOpType::RENDER_COPY; });
+  EXPECT_EQ(copy_ops, 1);
+}
+
 TEST_F(MenuTest, popup_submenu_items_receive_theme_indicator)
 {
   runtime.eval(R"(
@@ -334,8 +356,17 @@ TEST_F(MenuTest, popup_submenu_items_receive_theme_indicator)
   ASSERT_EQ(submenu_item->children.size(), 3u);
   ASSERT_EQ(leaf_item->children.size(), 3u);
 
-  auto submenu_indicator = submenu_item->children[2];
-  auto leaf_indicator = leaf_item->children[2];
+  auto submenu_trailing = submenu_item->children[2];
+  auto leaf_trailing = leaf_item->children[2];
+  ASSERT_NE(submenu_trailing, nullptr);
+  ASSERT_NE(leaf_trailing, nullptr);
+  EXPECT_EQ(submenu_trailing->mode->name, "ui/menu-item-trailing");
+  EXPECT_EQ(leaf_trailing->mode->name, "ui/menu-item-trailing");
+  ASSERT_EQ(submenu_trailing->children.size(), 2u);
+  ASSERT_EQ(leaf_trailing->children.size(), 2u);
+
+  auto submenu_indicator = submenu_trailing->children[1];
+  auto leaf_indicator = leaf_trailing->children[1];
   ASSERT_NE(submenu_indicator, nullptr);
   ASSERT_NE(leaf_indicator, nullptr);
   EXPECT_EQ(submenu_indicator->mode->name, "ui/menu-submenu-indicator");
@@ -357,6 +388,114 @@ TEST_F(MenuTest, popup_submenu_items_receive_theme_indicator)
     submenu_indicator->effective_theme.vars.at("dark").at("menu-submenu-indicator");
   ASSERT_NE(indicator_var, nullptr);
   EXPECT_EQ(indicator_var->to_string(), "{:text \">\"}");
+}
+
+TEST_F(MenuTest, popup_items_share_marker_label_and_trailing_columns)
+{
+  runtime.eval(R"(
+    (def menu-definition
+      {:items [{:label "File"
+                :items [{:label "Open"
+                         :action :file/open
+                         :shortcut [:key/ctrl :key/o]}
+                        {:label "Snap"
+                         :type :toggle
+                         :selected-path [:snap]
+                         :action :view/snap
+                         :shortcut :key/s}
+                        {:label "Recent"
+                         :items [{:label "Map"
+                                  :action :file/open-recent}]}]}]})
+
+    (pixils/defmode root-mode
+      {:theme 'pixils/classic-blue
+       :children [(pixils.ui.menu/make-menu
+                   {}
+                   menu-definition
+                   {})]})
+  )");
+
+  session.push_mode("root-mode", runtime.eval("{:snap true}"));
+  session.update_mode();
+  session.render_mode();
+
+  ASSERT_NE(session.active_mode, nullptr);
+  auto menu_item = session.active_mode->children[0]->children[0];
+  input().mouse_down({menu_item->bounds.x + menu_item->bounds.w / 2,
+                      menu_item->bounds.y + menu_item->bounds.h / 2});
+  update_cycle();
+  session.render_mode();
+
+  ASSERT_NE(session.active_mode, nullptr);
+  ASSERT_EQ(session.active_mode->mode->name, "ui/popup-menu");
+  auto inner = session.active_mode->children[0]->children[0];
+  ASSERT_EQ(inner->children.size(), 3u);
+
+  auto plain_item = inner->children[0];
+  auto option_item = inner->children[1];
+  auto submenu_item = inner->children[2];
+  ASSERT_EQ(plain_item->children.size(), 3u);
+  ASSERT_EQ(option_item->children.size(), 3u);
+  ASSERT_EQ(submenu_item->children.size(), 3u);
+
+  auto plain_marker = plain_item->children[0];
+  auto option_marker = option_item->children[0];
+  auto submenu_marker = submenu_item->children[0];
+  auto plain_label = plain_item->children[1];
+  auto option_label = option_item->children[1];
+  auto submenu_label = submenu_item->children[1];
+  auto plain_trailing = plain_item->children[2];
+  auto option_trailing = option_item->children[2];
+  auto submenu_trailing = submenu_item->children[2];
+
+  EXPECT_EQ(plain_marker->mode->name, "ui/menu-option-indicator");
+  EXPECT_EQ(option_marker->mode->name, "ui/menu-option-indicator");
+  EXPECT_EQ(submenu_marker->mode->name, "ui/menu-option-indicator");
+  EXPECT_EQ(plain_trailing->mode->name, "ui/menu-item-trailing");
+  EXPECT_EQ(option_trailing->mode->name, "ui/menu-item-trailing");
+  EXPECT_EQ(submenu_trailing->mode->name, "ui/menu-item-trailing");
+
+  EXPECT_EQ(plain_marker->bounds.x, option_marker->bounds.x);
+  EXPECT_EQ(plain_marker->bounds.x, submenu_marker->bounds.x);
+  EXPECT_EQ(plain_marker->bounds.w, option_marker->bounds.w);
+  EXPECT_EQ(plain_marker->bounds.w, submenu_marker->bounds.w);
+  EXPECT_EQ(option_marker->bounds.w, 24);
+  EXPECT_EQ(plain_marker->bounds.x - plain_item->bounds.x, 2);
+  EXPECT_EQ(option_marker->bounds.x - option_item->bounds.x, 2);
+  EXPECT_EQ(submenu_marker->bounds.x - submenu_item->bounds.x, 2);
+  EXPECT_EQ(option_marker->bounds.y, option_label->bounds.y);
+  EXPECT_EQ(option_marker->bounds.h, option_label->bounds.h);
+
+  EXPECT_EQ(plain_label->bounds.x, option_label->bounds.x);
+  EXPECT_EQ(plain_label->bounds.x, submenu_label->bounds.x);
+  EXPECT_EQ(plain_label->bounds.x, plain_marker->bounds.x + plain_marker->bounds.w);
+  EXPECT_EQ(option_label->bounds.x, option_marker->bounds.x + option_marker->bounds.w);
+  EXPECT_EQ(submenu_label->bounds.x, submenu_marker->bounds.x + submenu_marker->bounds.w);
+
+  const int plain_trailing_right = plain_trailing->bounds.x + plain_trailing->bounds.w;
+  const int option_trailing_right = option_trailing->bounds.x + option_trailing->bounds.w;
+  const int submenu_trailing_right = submenu_trailing->bounds.x + submenu_trailing->bounds.w;
+  EXPECT_EQ(plain_trailing_right, option_trailing_right);
+  EXPECT_EQ(plain_trailing_right, submenu_trailing_right);
+
+  ASSERT_EQ(plain_trailing->children.size(), 2u);
+  ASSERT_EQ(option_trailing->children.size(), 2u);
+  ASSERT_EQ(submenu_trailing->children.size(), 2u);
+  auto plain_shortcut = plain_trailing->children[0];
+  auto option_shortcut = option_trailing->children[0];
+  auto submenu_indicator = submenu_trailing->children[1];
+  EXPECT_EQ(plain_shortcut->bounds.x + plain_shortcut->bounds.w, plain_trailing_right);
+  EXPECT_EQ(option_shortcut->bounds.x + option_shortcut->bounds.w, option_trailing_right);
+  EXPECT_EQ(submenu_indicator->bounds.x + submenu_indicator->bounds.w,
+            submenu_trailing_right);
+
+  EXPECT_GE(plain_trailing->bounds.x - (plain_label->bounds.x + plain_label->bounds.w),
+            16);
+  EXPECT_GE(option_trailing->bounds.x - (option_label->bounds.x + option_label->bounds.w),
+            16);
+  EXPECT_GE(submenu_trailing->bounds.x -
+              (submenu_label->bounds.x + submenu_label->bounds.w),
+            16);
 }
 
 TEST_F(MenuTest, windows_95_submenu_indicator_generates_chevron_images)

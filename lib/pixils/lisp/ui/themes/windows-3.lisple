@@ -6,6 +6,7 @@
             [pixils.ui.theme-assets :as theme-assets]))
 
 (def theme-bundle :windows-3-theme)
+(def menu-option-checkmark :windows-3-theme/menu-option-checkmark)
 (def chevron-up :windows-3-theme/chevron-up)
 (def chevron-down :windows-3-theme/chevron-down)
 (def chevron-left :windows-3-theme/chevron-left)
@@ -15,6 +16,22 @@
 (def scrollbar-arrow-left :windows-3-theme/scrollbar-arrow-left)
 (def scrollbar-arrow-right :windows-3-theme/scrollbar-arrow-right)
 (def submenu-chevron-highlighted :windows-3-theme/submenu-chevron-highlighted)
+
+(defun draw-menu-option-checkmark! []
+  (let [color c/BLACK]
+    (do
+      (r/line! {:x 7 :y 0} {:x 7 :y 1} color)
+      (r/line! {:x 6 :y 2} {:x 7 :y 2} color)
+      (r/line! {:x 6 :y 3} {:x 6 :y 3} color)
+      (r/line! {:x 5 :y 4} {:x 6 :y 4} color)
+      (r/line! {:x 0 :y 5} {:x 1 :y 5} color)
+      (r/line! {:x 5 :y 5} {:x 5 :y 5} color)
+      (r/line! {:x 1 :y 6} {:x 2 :y 6} color)
+      (r/line! {:x 4 :y 6} {:x 5 :y 6} color)
+      (r/line! {:x 2 :y 7} {:x 2 :y 7} color)
+      (r/line! {:x 4 :y 7} {:x 4 :y 7} color)
+      (r/line! {:x 2 :y 8} {:x 4 :y 8} color)
+      (r/line! {:x 3 :y 9} {:x 3 :y 9} color))))
 
 (defun draw-filled-chevron-with-color! [direction color]
   (case direction
@@ -113,6 +130,10 @@
   (draw-full-arrow-with-color! :right c/BLACK))
 
 (defun ensure-windows-3-theme-assets! []
+  (theme-assets/ensure-generated-image! theme-bundle
+                                        menu-option-checkmark
+                                        {:size {:w 8 :h 10}}
+                                        draw-menu-option-checkmark!)
   (theme-assets/ensure-generated-image! theme-bundle
                                         chevron-up
                                         {:size {:w 7 :h 4}}
@@ -358,6 +379,7 @@
                   :split-pane-resizer-size 8
                   :scrollbar-size 17
                   :scrollbar-handle-size 15
+                  :menu-option-indicator {:selected-image :windows-3-theme/menu-option-checkmark}
                   :menu-submenu-indicator {:image :windows-3-theme/chevron-right
                                            :highlighted-image :windows-3-theme/submenu-chevron-highlighted}
                   :scrollbar-button-symbols {:up-image :windows-3-theme/scrollbar-arrow-up
@@ -383,6 +405,7 @@
                  :split-pane-resizer-size 8
                  :scrollbar-size 17
                  :scrollbar-handle-size 15
+                 :menu-option-indicator {:selected-image :windows-3-theme/menu-option-checkmark}
                  :menu-submenu-indicator {:image :windows-3-theme/chevron-right
                                           :highlighted-image :windows-3-theme/submenu-chevron-highlighted}
                  :scrollbar-button-symbols {:up-image :windows-3-theme/scrollbar-arrow-up
@@ -621,10 +644,10 @@
              :border {:line-style :solid :color (var :border) :bottom {:thickness 1}}}
 
             'ui/popup-menu-item
-            {:padding [2 16]}
+            {:padding {:t 2 :r 12 :b 2 :l 2}}
 
             'ui/popup-menu-option-item
-            {:padding [2 2]}
+            {:padding {:t 2 :r 12 :b 2 :l 2}}
 
             :menu/item
             {:text {:color (var :text)
@@ -660,6 +683,9 @@
             :menu/shortcut-column
             {:margin {:l 16}}
 
+            :menu/trailing-column
+            {:margin {:l 16}}
+
             '(ui/popup-menu-item {:highlighted true})
             {:background (var :focus-bg)
              :text {:color (var :focus-text)
@@ -674,19 +700,17 @@
             {:padding {:t 2 :r 12 :b 2 :l 2}}
 
             'ui/menu-option-indicator
-            {:margin {:l 2 :r 4}
-             :box-sizing :content-box
-             :width 8
+            {:box-sizing :content-box
+             :width 12
              :height 10}
-
-            '(ui/menu-option-indicator {:selected true})
-            {:background {:image :pixils/win311-checkmark}}
 
             'ui/menu-submenu-indicator
-            {:margin {:l 8 :r 2}
-             :box-sizing :content-box
+            {:box-sizing :content-box
              :width 8
              :height 10}
+
+            '(ui/menu-submenu-indicator {:has-submenu false})
+            {:visibility :none}
 
             'ui/menu-separator
             {:height 1

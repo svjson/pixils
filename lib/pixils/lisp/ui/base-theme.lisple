@@ -367,12 +367,15 @@
     'ui/menu-bar {:background (var :surface)}
 
     'ui/popup-menu-item
-    {:padding [2 16]}
+    {:padding {:t 2 :r 12 :b 2 :l 2}}
 
     'ui/popup-menu-option-item
-    {:padding [2 2]}
+    {:padding {:t 2 :r 12 :b 2 :l 2}}
 
     :menu/shortcut-column
+    {:margin {:l 16}}
+
+    :menu/trailing-column
     {:margin {:l 16}}
 
     :menu/item
@@ -404,15 +407,16 @@
 
     'ui/menu-option-item {:padding {:t 2 :r 12 :b 2 :l 2}}
 
-    'ui/menu-option-indicator {:margin {:l 2 :r 4}
-                               :box-sizing :content-box
-                               :width 8
+    'ui/menu-option-indicator {:box-sizing :content-box
+                               :width 12
                                :height 10}
 
-    'ui/menu-submenu-indicator {:margin {:l 8 :r 2}
-                                :box-sizing :content-box
+    'ui/menu-submenu-indicator {:box-sizing :content-box
                                 :width 8
                                 :height 10}
+
+    '(ui/menu-submenu-indicator {:has-submenu false})
+    {:visibility :none}
 
     'ui/menu-separator
     {:height 1
