@@ -1,0 +1,41 @@
+(ns tilemap-editor.view.image-panel-test
+  (:require proof.core
+            [tilemap-editor.view.image-panel :as panel]))
+
+(deftest image-panel-default_rect_matches_fit_to_viewport
+  (let [rect (panel/image-panel-image-rect {:w 800 :h 1280}
+                                           {:w 240 :h 320}
+                                           1
+                                           {:x 0 :y 0})]
+    (is (= {:x 20 :y 0 :w 200 :h 320 :scale 0.25}
+           rect))))
+
+(deftest image-panel-zoom_scales_around_center
+  (let [rect (panel/image-panel-image-rect {:w 800 :h 1280}
+                                           {:w 240 :h 320}
+                                           2
+                                           {:x 0 :y 0})]
+    (is (= {:x -80 :y -160 :w 400 :h 640 :scale 0.5}
+           rect))))
+
+(deftest image-panel-clamps_panning_to_visible_edges
+  (is (= {:x 80 :y 160}
+         (panel/clamp-image-panel-offset {:w 240 :h 320}
+                                         {:w 800 :h 1280}
+                                         2
+                                         {:x 1000 :y 1000})))
+  (is (= {:x -80 :y -160}
+         (panel/clamp-image-panel-offset {:w 240 :h 320}
+                                         {:w 800 :h 1280}
+                                         2
+                                         {:x -1000 :y -1000}))))
+
+(deftest image-panel-source_position_uses_zoom_and_pan
+  (let [rect (panel/image-panel-image-rect {:w 800 :h 1280}
+                                           {:w 240 :h 320}
+                                           2
+                                           {:x 80 :y 160})]
+    (is (= {:x 32 :y 104}
+           (panel/source-position-at {:x 16 :y 52}
+                                     rect
+                                     {:w 800 :h 1280})))))

@@ -1,0 +1,264 @@
+(ns tilemap-editor.view.image-panel
+  (:require pixils
+            [pixils.image :as img]
+            [pixils.render :as r]
+            [pixils.ui :as ui]
+            [pixils.ui.slider :as sl]))
+
+(def default-zoom 1)
+
+(def max-zoom 16)
+
+(def min-source-rect-size 2)
+
+(def panel-bg {:r 0x12 :g 0x15 :b 0x18})
+
+(def panel-border {:r 0x00 :g 0x00 :b 0x00})
+
+(def selection-color {:r 0xff :g 0xcc :b 0x66})
+
+(defun clamp [value low high]
+  (max low (min high value)))
+
+(defun panel-size-map [width height]
+  {:w width :h height})
+
+(defun panel-size [state ctx]
+  {:w (or (:panel-width state) (-> ctx :view :bounds :w))
+   :h (or (:panel-height state) (-> ctx :view :bounds :h))})
+
+(defun clamp-zoom [zoom]
+  (clamp (or zoom default-zoom) default-zoom max-zoom))
+
+(defun offset-or-zero [offset]
+  {:x (or (:x offset) 0)
+   :y (or (:y offset) 0)})
+
+(defun image-panel-fit-scale [dim viewport]
+  (min (/ (:w viewport) (:w dim))
+       (/ (:h viewport) (:h dim))))
+
+(defun image-panel-scale [dim viewport zoom]
+  (* (image-panel-fit-scale dim viewport)
+     (clamp-zoom zoom)))
+
+(defun centered-image-origin [dim viewport scale]
+  {:x (/ (- (:w viewport) (* (:w dim) scale)) 2)
+   :y (/ (- (:h viewport) (* (:h dim) scale)) 2)})
+
+(defun image-axis-offset-bounds [viewport-size image-size centered-origin]
+  (if (<= image-size viewport-size)
+    {:min 0 :max 0}
+    {:min (- (- viewport-size image-size) centered-origin)
+     :max (- centered-origin)}))
+
+(defun clamp-image-panel-offset [viewport dim zoom offset]
+  (let [scale (image-panel-scale dim viewport zoom)
+        image-width (* (:w dim) scale)
+        image-height (* (:h dim) scale)
+        origin (centered-image-origin dim viewport scale)
+        x-bounds (image-axis-offset-bounds (:w viewport) image-width (:x origin))
+        y-bounds (image-axis-offset-bounds (:h viewport) image-height (:y origin))
+        offset (offset-or-zero offset)]
+    {:x (clamp (:x offset) (:min x-bounds) (:max x-bounds))
+     :y (clamp (:y offset) (:min y-bounds) (:max y-bounds))}))
+
+(defun image-panel-image-rect [dim viewport zoom offset]
+  (let [scale (image-panel-scale dim viewport zoom)
+        origin (centered-image-origin dim viewport scale)
+        offset (clamp-image-panel-offset viewport dim zoom offset)]
+    {:x (+ (:x origin) (:x offset))
+     :y (+ (:y origin) (:y offset))
+     :w (* (:w dim) scale)
+     :h (* (:h dim) scale)
+     :scale scale}))
+
+(defun source-position-at [position image-rect dim]
+  (let [scale (:scale image-rect)
+        source-x (/ (- (:x position) (:x image-rect)) scale)
+        source-y (/ (- (:y position) (:y image-rect)) scale)]
+    (when (and (>= source-x 0)
+               (>= source-y 0)
+               (< source-x (:w dim))
+               (< source-y (:h dim)))
+      {:x source-x :y source-y})))
+
+(defun source-rect-to-panel [source image-rect min-size]
+  (let [scale (:scale image-rect)]
+    {:x (+ (:x image-rect) (* (:x source) scale))
+     :y (+ (:y image-rect) (* (:y source) scale))
+     :w (max (or min-size min-source-rect-size) (* (:w source) scale))
+     :h (max (or min-size min-source-rect-size) (* (:h source) scale))}))
+
+(defun draw-source-rects! [source-rects image-rect]
+  (for [source (or source-rects [])]
+    (r/rect! (source-rect-to-panel source image-rect min-source-rect-size)
+             {:color selection-color})))
+
+(defun zoom-label [zoom]
+  (str "Zoom " (clamp-zoom zoom) "x"))
+
+(defun zoom-by [state amount]
+  (assoc state :zoom (clamp-zoom (+ (clamp-zoom (:zoom state)) amount))))
+
+(defun reset-view [state]
+  (assoc state
+         :zoom default-zoom
+         :offset {:x 0 :y 0}))
+
+(defun pan-by [state ctx delta]
+  (let [image (:image state)
+        dim (when image (img/size image))
+        viewport (panel-size state ctx)]
+    (if dim
+      (let [offset (offset-or-zero (:offset state))]
+        (assoc state
+               :offset
+               (clamp-image-panel-offset
+                viewport
+                dim
+                (:zoom state)
+                {:x (+ (:x offset) (or (:x delta) 0))
+                 :y (+ (:y offset) (or (:y delta) 0))})))
+      state)))
+
+(defun image-panel-source-position [state ctx position]
+  (let [image (:image state)
+        dim (when image (img/size image))]
+    (when dim
+      (source-position-at position
+                          (image-panel-image-rect dim
+                                                  (panel-size state ctx)
+                                                  (:zoom state)
+                                                  (:offset state))
+                          dim))))
+
+(defcomponent image-panel
+  {:focusable true
+   :class :ui/content
+   :style {:width :fill
+           :height :fill
+           :clip true}
+   :init (fn [state ctx]
+           (merge {:zoom default-zoom
+                   :offset {:x 0 :y 0}}
+                  state))
+   :update (fn [state ctx]
+             (let [image (:image state)
+                   dim (when image (img/size image))
+                   viewport (panel-size state ctx)
+                   zoom (if (not= image (:image-panel-image state))
+                          default-zoom
+                          (clamp-zoom (:zoom state)))
+                   offset (if (not= image (:image-panel-image state))
+                            {:x 0 :y 0}
+                            (offset-or-zero (:offset state)))]
+               (assoc state
+                      :image-panel-image image
+                      :zoom zoom
+                      :offset (if dim
+                                (clamp-image-panel-offset viewport dim zoom offset)
+                                offset))))
+   :on-mouse-down (fn [state event ctx]
+                    (do
+                      (ui/stop-propagation! event)
+                      (ui/focus! ctx)
+                      (when (= (:button event) :left)
+                        (when-let [source-pos (image-panel-source-position
+                                               state
+                                               ctx
+                                               (:position event))]
+                          (ui/emit! (:view ctx)
+                                    :image-panel/source-click
+                                    {:source-position source-pos})))
+                      state))
+   :on-drag-start (fn [state event ctx]
+                    (do
+                      (ui/stop-propagation! event)
+                      state))
+   :on-drag (fn [state event ctx]
+              (do
+                (ui/stop-propagation! event)
+                (if (= (:button event) :left)
+                  state
+                  (pan-by state ctx (:delta event)))))
+   :on-key-down (fn [state event ctx]
+                  (case (:key event)
+                    :key/plus (do
+                                (ui/stop-propagation! event)
+                                (zoom-by state 1))
+                    :key/minus (do
+                                 (ui/stop-propagation! event)
+                                 (zoom-by state -1))
+                    :key/0 (do
+                             (ui/stop-propagation! event)
+                             (reset-view state))
+                    :default state))
+   :render (fn [state ctx]
+             (let [viewport (panel-size state ctx)
+                   image (:image state)
+                   dim (when image (img/size image))]
+               (do
+                 (r/rect! {:x 0 :y 0
+                           :w (:w viewport)
+                           :h (:h viewport)}
+                          {:fill true
+                           :color panel-bg})
+                 (when dim
+                   (let [image-rect (image-panel-image-rect dim
+                                                            viewport
+                                                            (:zoom state)
+                                                            (:offset state))]
+                     (do
+                       (r/image! image
+                                 {:pos {:x (:x image-rect)
+                                        :y (:y image-rect)}
+                                  :scale (:scale image-rect)})
+                       (draw-source-rects! (:source-rects state) image-rect))))
+                 (r/rect! {:x 0 :y 0
+                           :w (:w viewport)
+                           :h (:h viewport)}
+                          {:color panel-border}))))})
+
+(defcomponent image-panel-zoom-control
+  {:style {:width :fill
+           :height 24
+           :layout {:direction :row
+                    :align-items :center
+                    :gap 8}}
+   :update (fn [state ctx]
+             (assoc state
+                    :zoom (clamp-zoom (:zoom state))
+                    :zoom-label (zoom-label (:zoom state))))
+   :on {:slider/change (fn [state event ctx]
+                         (do
+                           (ui/stop-propagation! event)
+                           (assoc state
+                                  :zoom (:payload event)
+                                  :zoom-label (zoom-label (:payload event)))))}
+   :children [{:mode 'ui/text
+               :class :ui/muted
+               :style {:width 42}
+               :state {:value "Zoom"}}
+              (sl/make {:value (ui/bind-state :zoom)
+                        :min default-zoom
+                        :max max-zoom
+                        :step 1})
+              {:mode 'ui/text
+               :style {:width 64}
+               :state {:value (ui/bind-state :zoom-label)}}]})
+
+(defun make [{:keys [width height image source-rects zoom offset]}]
+  {:mode 'image-panel
+   :style {:width width
+           :height height}
+   :state {:panel-width width
+           :panel-height height
+           :image image
+           :source-rects source-rects
+           :zoom zoom
+           :offset offset}})
+
+(defun zoom-control [{:keys [zoom]}]
+  {:mode 'image-panel-zoom-control
+   :state {:zoom zoom}})
