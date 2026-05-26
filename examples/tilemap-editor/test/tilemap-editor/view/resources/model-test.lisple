@@ -18,6 +18,14 @@
   (is (= "Player Ship"
          (resources/default-resource-name "/tmp/maps/playerShip.png"))))
 
+(deftest transparency-color-hex-round-trips
+  (is (= {:r 90 :g 82 :b 104}
+         (resources/transparency-color-map "#5a5268")))
+  (is (= {:r 170 :g 187 :b 204}
+         (resources/transparency-color-map "#abc")))
+  (is (= "#5a5268"
+         (resources/color-hex {:r 90 :g 82 :b 104}))))
+
 (deftest project-bundle-entries-list_project_bundles
   (is (= [{:id :terrain-assets
            :bundle {:images {}}}]
@@ -62,11 +70,13 @@
            :bundle-id :terrain-assets
            :key :terrain-assets/terrain
            :name "Terrain Sheet"
-           :file-name "/tmp/maps/tiles.png"}]
+           :file-name "/tmp/maps/tiles.png"
+           :transparency-color "#5a5268"}]
          (resources/project-image-resources
           {:bundles {:terrain-assets
                      {:images {:terrain {:name "Terrain Sheet"
-                                         :file-name "/tmp/maps/tiles.png"}}}}}
+                                         :file-name "/tmp/maps/tiles.png"
+                                         :transparency-color "#5a5268"}}}}}
           :terrain-assets))))
 
 (deftest resource-key-bundle-replacement-updates_matching_qualified_keys
@@ -266,10 +276,27 @@
           :terrain-assets/sheet))))
 
 (deftest runtime-image-dependency-strips_editor_metadata
-  (is (= {:file-name "/tmp/maps/tiles.png"}
+  (is (= {:file-name "/tmp/maps/tiles.png"
+          :transparency-color "#5a5268"}
          (resources/runtime-image-dependency
           {:file-name "/tmp/maps/tiles.png"
-           :name "Terrain Sheet"}))))
+           :name "Terrain Sheet"
+           :transparency-color "#5a5268"}))))
+
+(deftest image-resource-dependency-includes-optional-transparency-color
+  (is (= {:file-name "/tmp/maps/tiles.png"
+          :name "Terrain Sheet"
+          :transparency-color "#5a5268"}
+         (resources/resource-dependency
+          {:file-name "/tmp/maps/tiles.png"
+           :resource-name "Terrain Sheet"
+           :transparency-color "#5a5268"})))
+  (is (= {:file-name "/tmp/maps/tiles.png"
+          :name "Terrain Sheet"}
+         (resources/resource-dependency
+          {:file-name "/tmp/maps/tiles.png"
+           :resource-name "Terrain Sheet"
+           :transparency-color ""}))))
 
 (deftest runtime-bundle-dependencies-reduces_image_map_by_key_value
   (is (= {:images {:simples_pimples {:file-name "/tmp/simples_pimples.png"}}}

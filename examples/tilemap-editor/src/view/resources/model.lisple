@@ -36,6 +36,79 @@
       (substr text 1)
       text)))
 
+(def hex-digits ["0" "1" "2" "3" "4" "5" "6" "7"
+                 "8" "9" "a" "b" "c" "d" "e" "f"])
+
+(def hex-digit-values {"0" 0
+                       "1" 1
+                       "2" 2
+                       "3" 3
+                       "4" 4
+                       "5" 5
+                       "6" 6
+                       "7" 7
+                       "8" 8
+                       "9" 9
+                       "a" 10
+                       "b" 11
+                       "c" 12
+                       "d" 13
+                       "e" 14
+                       "f" 15})
+
+(def default-transparency-color {:r 0 :g 0 :b 0})
+
+(defun color-channel [value]
+  (max 0 (min 255 (int (or value 0)))))
+
+(defun hex-pair [value]
+  (let [value (color-channel value)]
+    (str (nth hex-digits (int (/ value 16)))
+         (nth hex-digits (mod value 16)))))
+
+(defun color-hex [color]
+  (str "#"
+       (hex-pair (:r color))
+       (hex-pair (:g color))
+       (hex-pair (:b color))))
+
+(defun hex-digit-value [ch]
+  (or (get hex-digit-values (lower-case (str ch))) 0))
+
+(defun hex-pair-value [value index]
+  (+ (* 16 (hex-digit-value (substr value index 1)))
+     (hex-digit-value (substr value (inc index) 1))))
+
+(defun short-hex-value [value index]
+  (* 17 (hex-digit-value (substr value index 1))))
+
+(defun parse-hex-color [value]
+  (let [value (or value "")]
+    (cond
+      (and (= (count value) 7)
+           (= (substr value 0 1) "#"))
+      {:r (hex-pair-value value 1)
+       :g (hex-pair-value value 3)
+       :b (hex-pair-value value 5)}
+
+      (and (= (count value) 4)
+           (= (substr value 0 1) "#"))
+      {:r (short-hex-value value 1)
+       :g (short-hex-value value 2)
+       :b (short-hex-value value 3)}
+
+      :default nil)))
+
+(defun transparency-color-map [value]
+  (case (type-of value)
+    "map" (select-keys value [:r :g :b])
+    "string" (parse-hex-color value)
+    :default nil))
+
+(defun transparency-color-or-default [value]
+  (or (transparency-color-map value)
+      default-transparency-color))
+
 (defun image-resource-key [bundle-id resource-id]
   (keyword (str (keyword-label bundle-id)
                 "/"
@@ -248,7 +321,8 @@
             :key (image-resource-key bundle-id id)
             :name (or (:name dependency)
                       (keyword-label id))
-            :file-name (:file-name dependency)}))))
+            :file-name (:file-name dependency)
+            :transparency-color (:transparency-color dependency)}))))
 
 (defun all-project-image-resources [resources]
   (reduce (dynamic-project-bundle-entries resources)
@@ -376,8 +450,12 @@
            :image-resource-detail-disabled? (nil? image-id))))
 
 (defun resource-dependency [payload]
-  {:file-name (:file-name payload)
-   :name (:resource-name payload)})
+  (let [dependency {:file-name (:file-name payload)
+                    :name (:resource-name payload)}
+        transparency-color (:transparency-color payload)]
+    (if (blank? transparency-color)
+      dependency
+      (assoc dependency :transparency-color transparency-color))))
 
 (defun add-image-resource! [state payload]
   (let [bundle-id (:bundle-id payload)

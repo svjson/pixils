@@ -9,12 +9,14 @@ namespace Pixils::Script
   inline constexpr std::string_view NS__PIXILS__IMAGE = "pixils.image";
 
   inline constexpr std::string_view FN__HEIGHT = "height";
+  inline constexpr std::string_view FN__COLOR_AT = "color-at";
   inline constexpr std::string_view FN__RECT = "rect";
   inline constexpr std::string_view FN__SIZE = "size";
   inline constexpr std::string_view FN__WIDTH = "width";
 
   namespace Function
   {
+    FUNC(ImageColorAt, color_at);
     FUNC(ImageHeight, height);
     FUNC(ImageRect, rect, rect_with_offset);
     FUNC(ImageSize, size);

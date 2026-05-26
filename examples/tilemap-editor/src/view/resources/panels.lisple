@@ -258,7 +258,9 @@
                       :edit-disabled? (nil? resource)
                       :key-label (if resource (str (:key resource)) "")
                       :name-label (or (:name resource) "")
-                      :file-label (or (:file-name resource) ""))))
+                      :file-label (or (:file-name resource) "")
+                      :transparency-color-label
+                      (or (:transparency-color resource) ""))))
    :children [{:mode 'ui/button
                :class :ui/toolbar-button
                :style {:width :shrink
@@ -288,6 +290,12 @@
               {:mode 'ui/text
                :style {:width :fill}
                :state {:value (ui/bind-state :file-label)}}
+              {:mode 'ui/text
+               :class :ui/muted
+               :state {:value "Transparency color"}}
+              {:mode 'ui/text
+               :style {:width :fill}
+               :state {:value (ui/bind-state :transparency-color-label)}}
               {:mode 'image-resource-preview
                :state {:bundle-id (ui/bind-state :selected-resource-bundle)
                        :image-id (ui/bind-state :selected-image-resource)}}]})

@@ -1,10 +1,15 @@
 (ns tilemap-editor.view.resources.dialogs
   (:require pixils
+            [pixils.image :as img]
+            [pixils.render :as r]
+            [pixils.resource :as res]
             [pixils.ui :as ui]
             [pixils.ui.combo-box :as cb]
             [pixils.ui.dialog :as dialog]
             [pixils.ui.file-dialog :as file-dialog]
+            [pixils.ui.slider :as sl]
             [pixils.ui.window :as w]
+            [tilemap-editor.view.image-panel :as ip]
             tilemap-editor.view.resources.model))
 
 (def image-delete-action-options
@@ -56,7 +61,8 @@
                  :previous-resource-id (:previous-resource-id opts)
                  :resource-id (:resource-id opts)
                  :resource-name (:resource-name opts)
-                 :file-name (:file-name opts)}
+                 :file-name (:file-name opts)
+                 :transparency-color (:transparency-color opts)}
                 {:origin {:view (:view ctx)
                           :event :resource/metadata-dialog-result}})
     state))
@@ -80,7 +86,8 @@
         :previous-resource-id (:id resource)
         :resource-id (keyword-label (:id resource))
         :resource-name (:name resource)
-        :file-name (:file-name resource)})
+        :file-name (:file-name resource)
+        :transparency-color (:transparency-color resource)})
       state)))
 
 (defun open-selected-bundle-dialog! [state ctx bundle-id]
@@ -439,6 +446,274 @@
                                :state {:bundle-id (ui/bind-state :bundle-id)
                                        :button-label (ui/bind-state :button-label)}}]})]})
 
+(def transparency-image-picker-width 360)
+(def transparency-image-picker-height 260)
+(def transparency-picker-bundle-id :tilemap-editor-transparency-picker)
+(def transparency-picker-resource-id :source)
+
+(defun popup-position [position fallback-x fallback-y]
+  {:left (or (:x position) fallback-x)
+   :top (or (:y position) fallback-y)})
+
+(defun open-transparency-color-popup! [state ctx position]
+  (let [position (popup-position position 260 190)
+        color (transparency-color-or-default (:transparency-color state))]
+    (do
+      (push-mode!
+       'image-resource-transparency-color-popup
+       {}
+       {:origin {:view (:view ctx)
+                 :event :resource/transparency-color-popup-result}
+        :children [{:mode 'image-resource-transparency-color-popup-panel
+                    :class :ui/content
+                    :style {:position :absolute
+                            :left (:left position)
+                            :top (:top position)
+                            :width 300
+                            :height :shrink}
+                    :state {:r (:r color)
+                            :g (:g color)
+                            :b (:b color)}}]})
+      state)))
+
+(defun open-transparency-image-popup! [state ctx position]
+  (let [position (popup-position position 300 210)
+        file-name (:file-name state)
+        image (if (:previous-resource-id state)
+                (image-resource-key (:bundle-id state)
+                                    (:previous-resource-id state))
+                (when (not (blank? file-name))
+                  (do
+                    (res/create-bundle! transparency-picker-bundle-id)
+                    (res/add-image!
+                     (image-resource-key transparency-picker-bundle-id
+                                         transparency-picker-resource-id)
+                     {:file-name file-name})
+                    (image-resource-key transparency-picker-bundle-id
+                                        transparency-picker-resource-id))))
+        panel (ip/make {:width transparency-image-picker-width
+                        :height transparency-image-picker-height
+                        :image image})]
+    (do
+      (push-mode!
+       'image-resource-transparency-image-popup
+       {:image image}
+       {:origin {:view (:view ctx)
+                 :event :resource/transparency-color-popup-result}
+        :children [(assoc panel
+                          :class :ui/content
+                          :style (merge (:style panel)
+                                        {:position :absolute
+                                         :left (:left position)
+                                         :top (:top position)}))]})
+      state)))
+
+(defcomponent image-resource-transparency-swatch
+  {:class :ui/content
+   :style {:width 28
+           :height 22}
+   :render (fn [state ctx]
+             (let [color (or (:color state)
+                             (transparency-color-or-default
+                              (:transparency-color state)))
+                   bounds (-> ctx :view :bounds)
+                   rect {:x 0
+                         :y 0
+                         :w (:w bounds)
+                         :h (:h bounds)}]
+               (do
+                 (r/rect! rect {:fill true
+                                :color color})
+                 (r/rect! rect {:color {:r 0 :g 0 :b 0}}))))})
+
+(defcomponent image-resource-transparency-color-control
+  {:style {:width :fill
+           :height 24
+           :layout {:direction :row
+                    :align-items :center
+                    :gap 6}}
+   :update (fn [state ctx]
+             (assoc state
+                    :color-label (if (blank? (:transparency-color state))
+                                   "None"
+                                   (:transparency-color state))
+                    :pick-disabled? (and (nil? (:previous-resource-id state))
+                                         (blank? (:file-name state)))))
+   :children [{:mode 'image-resource-transparency-swatch
+               :state {:transparency-color (ui/bind-state :transparency-color)}}
+              {:mode 'ui/text
+               :style {:width :fill}
+               :state {:value (ui/bind-state :color-label)}}
+              {:mode 'ui/button
+               :style {:width 56
+                       :height 24}
+               :state {:label "Dial"
+                       :transparency-color (ui/bind-state :transparency-color)}
+               :on-click (fn [state event ctx]
+                           (open-transparency-color-popup!
+                            state
+                            ctx
+                            (:global-position event)))}
+              {:mode 'ui/button
+               :style {:width 56
+                       :height 24}
+               :state {:label "Pick"
+                       :disabled? (ui/bind-state :pick-disabled?)
+                       :bundle-id (ui/bind-state :bundle-id)
+                       :previous-resource-id (ui/bind-state
+                                              :previous-resource-id)
+                       :file-name (ui/bind-state :file-name)}
+               :on-click (fn [state event ctx]
+                           (if (:pick-disabled? state)
+                             state
+                             (open-transparency-image-popup!
+                              state
+                              ctx
+                              (:global-position event))))}
+              {:mode 'ui/button
+               :style {:width 56
+                       :height 24}
+               :state {:label "Clear"}
+               :on-click (fn [state event ctx]
+                           (do
+                             (ui/emit! (:view ctx)
+                                       :resource/transparency-color-change
+                                       {:transparency-color ""})
+                             state))}]})
+
+(defcomponent transparency-color-channel-editor
+  {:style {:width :fill
+           :height 24
+           :layout {:direction :row
+                    :align-items :center
+                    :gap 8}}
+   :children [{:mode 'ui/text
+               :class :ui/muted
+               :style {:width 18}
+               :state {:value (ui/bind-state :label)}}
+              (sl/make {:value (ui/bind-state :value)
+                        :min 0
+                        :max 255
+                        :step 1})
+              {:mode 'ui/text
+               :style {:width 28}
+               :state {:value (ui/bind-state :value)}}]})
+
+(defun transparency-color-channel-child [channel label value]
+  {:mode 'transparency-color-channel-editor
+   :state {:channel channel
+           :label label
+           :value value}})
+
+(defcomponent image-resource-transparency-color-popup-panel
+  {:style {:padding 8
+           :layout {:direction :column
+                    :gap 6}}
+   :on-mouse-down (fn [state event ctx]
+                    (do
+                      (ui/stop-propagation! event)
+                      state))
+   :update (fn [state ctx]
+             (let [color {:r (color-channel (:r state))
+                          :g (color-channel (:g state))
+                          :b (color-channel (:b state))}]
+               (assoc state
+                      :color color
+                      :r (:r color)
+                      :g (:g color)
+                      :b (:b color)
+                      :transparency-color (color-hex color)
+                      :color-label (color-hex color))))
+   :children [{:style {:width :fill
+                       :height 46
+                       :layout {:direction :row
+                                :align-items :center
+                                :gap 8}}
+               :state {:color (ui/bind-state :color)
+                       :color-label (ui/bind-state :color-label)}
+               :children [{:mode 'image-resource-transparency-swatch
+                           :style {:width 46
+                                   :height 46}
+                           :state {:color (ui/bind-state :color)}}
+                          {:mode 'ui/text
+                           :style {:width :fill}
+                           :state {:value (ui/bind-state :color-label)}}]}
+              (transparency-color-channel-child :r "R" (ui/bind-state :r))
+              (transparency-color-channel-child :g "G" (ui/bind-state :g))
+              (transparency-color-channel-child :b "B" (ui/bind-state :b))
+              {:style {:width :fill
+                       :height 24
+                       :layout {:direction :row
+                                :gap :space-between}}
+               :state {:transparency-color
+                       (ui/bind-state :transparency-color)}
+               :children [{:mode 'ui/button
+                           :style {:width 78
+                                   :height 24}
+                           :state {:label "Clear"}
+                           :on-click (fn [state event ctx]
+                                       (do
+                                         (ui/emit! (:view ctx)
+                                                   :resource/transparency-clear
+                                                   {:transparency-color ""})
+                                         state))}
+                          {:mode 'ui/button
+                           :style {:width 78
+                                   :height 24}
+                           :state {:label "Done"
+                                   :transparency-color
+                                   (ui/bind-state :transparency-color)}
+                           :on-click (fn [state event ctx]
+                                       (do
+                                         (ui/emit! (:view ctx)
+                                                   :resource/transparency-commit
+                                                   {:transparency-color
+                                                    (:transparency-color state)})
+                                         state))}]}]})
+
+(defmode image-resource-transparency-color-popup
+  {:on-mouse-down (fn [state event ctx]
+                    (do
+                      (pop-mode! {:type :dismiss})
+                      state))
+   :on {:resource/transparency-clear
+        (fn [state event ctx]
+          (do
+            (ui/stop-propagation! event)
+            (pop-mode! {:type :confirm
+                        :transparency-color
+                        (-> event :payload :transparency-color)})
+            state))
+        :resource/transparency-commit
+        (fn [state event ctx]
+          (do
+            (ui/stop-propagation! event)
+            (pop-mode! {:type :confirm
+                        :transparency-color
+                        (-> event :payload :transparency-color)})
+            state))}
+   :compose {:render :pass}})
+
+(defmode image-resource-transparency-image-popup
+  {:on-mouse-down (fn [state event ctx]
+                    (do
+                      (pop-mode! {:type :dismiss})
+                      state))
+   :on {:image-panel/source-click
+        (fn [state event ctx]
+          (let [source-pos (-> event :payload :source-position)
+                color (when (and (:image state) source-pos)
+                        (img/color-at (:image state)
+                                      {:x (int (:x source-pos))
+                                       :y (int (:y source-pos))}))]
+            (do
+              (ui/stop-propagation! event)
+              (if color
+                (pop-mode! {:type :confirm
+                            :transparency-color (color-hex color)})
+                state))))}
+   :compose {:render :pass}})
+
 (defcomponent image-resource-metadata-dialog-body
   {:class :ui/content
    :style {:width 300
@@ -485,6 +760,16 @@
               {:mode 'ui/text
                :style {:width :fill}
                :state {:value (ui/bind-state :file-name)}}
+              {:mode 'ui/text
+               :class :ui/muted
+               :state {:value "Transparency color"}}
+              {:mode 'image-resource-transparency-color-control
+               :state {:bundle-id (ui/bind-state :bundle-id)
+                       :previous-resource-id (ui/bind-state
+                                              :previous-resource-id)
+                       :resource-id (ui/bind-state :resource-id)
+                       :file-name (ui/bind-state :file-name)
+                       :transparency-color (ui/bind-state :transparency-color)}}
               {:mode 'image-resource-metadata-dialog-buttons
                :state {:invalid? (ui/bind-state :invalid?)
                        :button-label (ui/bind-state :button-label)}}]})
@@ -536,8 +821,22 @@
                             :previous-resource-id (:previous-resource-id state)
                             :resource-id (:resource-id state)
                             :resource-name (:resource-name state)
-                            :file-name (:file-name state)})
-                state))))}
+                            :file-name (:file-name state)
+                            :transparency-color (:transparency-color state)})
+                state))))
+        :resource/transparency-color-change
+        (fn [state event ctx]
+          (do
+            (ui/stop-propagation! event)
+            (assoc state
+                   :transparency-color
+                   (-> event :payload :transparency-color))))
+        :resource/transparency-color-popup-result
+        (fn [state event ctx]
+          (let [payload (:payload event)]
+            (if (= (:type payload) :confirm)
+              (assoc state :transparency-color (:transparency-color payload))
+              state)))}
    :compose {:render :pass}
    :children [(w/make {:position {:x 220 :y 140}
                        :title-bar {:title (ui/bind-state :title)}
@@ -548,10 +847,16 @@
                                :resource-id (ui/bind-state :resource-id)
                                :resource-name (ui/bind-state :resource-name)
                                :file-name (ui/bind-state :file-name)
+                               :transparency-color (ui/bind-state
+                                                    :transparency-color)
                                :button-label (ui/bind-state :button-label)}
                        :body [{:mode 'image-resource-metadata-dialog-body
                                :state {:resource-id (ui/bind-state :resource-id)
                                        :bundle-id (ui/bind-state :bundle-id)
+                                       :previous-resource-id
+                                       (ui/bind-state :previous-resource-id)
                                        :resource-name (ui/bind-state :resource-name)
                                        :file-name (ui/bind-state :file-name)
+                                       :transparency-color
+                                       (ui/bind-state :transparency-color)
                                        :button-label (ui/bind-state :button-label)}}]})]})
