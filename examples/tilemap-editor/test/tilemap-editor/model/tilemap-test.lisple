@@ -215,6 +215,59 @@
             :selected-brush-index nil}
            (:last-map-paint-sample state)))))
 
+(deftest tilemap-ctrl-click_selects_tile_from_active_layer
+  (let [state {:selected-layer-index 1
+               :map-palette-tab :brushes
+               :selected-tile :grass
+               :zoom 1
+               :offset {:x 0 :y 0}
+               :tilesets [{:id :terrain
+                           :tiles [{:id :grass
+                                    :name "Grass"}
+                                   {:id :water
+                                    :name "Water"}]}]
+               :layers [{:id :scene/back
+                         :data-kind :tile-ref
+                         :tileset :terrain
+                         :tiles (terrain-map [[:grass]])}
+                        {:id :scene/front
+                         :data-kind :tile-ref
+                         :tileset :terrain
+                         :tiles (terrain-map [[:water]])}]}
+        picked (tilemap/map-canvas-mouse-down
+                state
+                (assoc (paint-event :left 0 0) :ctrl? true))]
+    (is (= :water (:selected-tile picked)))
+    (is (= :tiles (:map-palette-tab picked)))
+    (is (= :water (get-in picked [:layers 1 :tiles 0 0])))
+    (is (nil? (get-in (tilemap/map-canvas-drag picked
+                                                (paint-event :left 1 0))
+                      [:layers 1 :tiles 0 1])))
+    (is (nil? (:map-tile-pick-active?
+               (tilemap/map-canvas-mouse-up picked
+                                             (paint-event :left 0 0)))))))
+
+(deftest tilemap-ctrl-click_selects_terrain_from_active_layer
+  (let [state {:selected-layer-index 0
+               :map-palette-tab :tiles
+               :selected-tile :water
+               :zoom 1
+               :offset {:x 0 :y 0}
+               :terrain-sets [{:id :overworld
+                               :terrains [{:id :grass
+                                           :label "Grass"}
+                                          {:id :water
+                                           :label "Water"}]}]
+               :layers [{:id :scene/terrain
+                         :data-kind :terrain
+                         :terrain-set :overworld
+                         :tiles (terrain-map [[:grass]])}]}
+        picked (tilemap/map-canvas-mouse-down
+                state
+                (paint-event :left 0 0)
+                {:held-keys [:key/left-ctrl]})]
+    (is (= :grass (:selected-tile picked)))))
+
 (deftest tilemap-paint-tool_paints_when_drag_enters_new_tile
   (let [state (terrain-paint-state (terrain-map [[nil nil nil]])
                                    :water)

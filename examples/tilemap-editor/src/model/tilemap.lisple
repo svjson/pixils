@@ -1096,6 +1096,37 @@
     :right nil
     :default :tilemap/unchanged))
 
+(defun held-ctrl? [held-keys]
+  (or (contains? (or held-keys []) :key/ctrl)
+      (contains? (or held-keys []) :key/left-ctrl)
+      (contains? (or held-keys []) :key/right-ctrl)))
+
+(defun map-tile-pick-event? [event ctx]
+  (and (= (:button event) :left)
+       (or (= (:ctrl? event) true)
+           (held-ctrl? (:held-keys event))
+           (held-ctrl? (:held-keys ctx)))))
+
+(defun pick-map-tile-at [state event]
+  (let [tile-pos (map-tile-position state event)
+        tile-x (:x tile-pos)
+        tile-y (:y tile-pos)
+        layer-index (selected-index (:layers state)
+                                    (:selected-layer-index state))
+        layer (when (not (nil? layer-index))
+                (nth (or (:layers state) []) layer-index))]
+    (if (and layer
+             (in-map-bounds-for? state tile-x tile-y))
+      (assoc (dissoc (dissoc state :last-map-paint-sample) :map-line)
+             :selected-tile
+             (data/source-layer-value-id (:tilesets state)
+                                         (:terrain-sets state)
+                                         layer
+                                         (derivation/cell-at layer tile-x tile-y))
+             :map-palette-tab :tiles
+             :map-tile-pick-active? true)
+      state)))
+
 (defun map-cell-paint-changes? [layer pos tile-ref]
   (and (not= tile-ref :tilemap/unchanged)
        (or (not= (derivation/cell-at layer (:x pos) (:y pos)) tile-ref)
@@ -1188,29 +1219,36 @@
       (assoc state :last-map-paint-sample sample)
       state)))
 
-(defun map-canvas-mouse-down [state event]
-  (case (:map-tool state)
-    :select (start-map-selection state event)
-    :line (start-map-line (dissoc state :last-map-paint-sample) event)
-    :fill (fill-map-from-event (dissoc state :last-map-paint-sample) event)
-    :default (let [sample (map-paint-sample state event)]
-               (paint-map-sample (dissoc state :last-map-paint-sample)
-                                 event
-                                 sample))))
+(defun map-canvas-mouse-down [state event & ctx]
+  (let [ctx ctx]
+    (if (map-tile-pick-event? event ctx)
+      (pick-map-tile-at state event)
+      (case (:map-tool state)
+        :select (start-map-selection state event)
+        :line (start-map-line (dissoc state :last-map-paint-sample) event)
+        :fill (fill-map-from-event (dissoc state :last-map-paint-sample) event)
+        :default (let [sample (map-paint-sample state event)]
+                   (paint-map-sample (dissoc state :last-map-paint-sample)
+                                     event
+                                     sample))))))
 
 (defun map-canvas-drag [state event]
-  (case (:map-tool state)
-    :select (update-map-selection state event)
-    :line (update-map-line state event)
-    :fill state
-    :default (let [sample (map-paint-sample state event)]
-               (if (and sample
-                        (= sample (:last-map-paint-sample state)))
-                 state
-                 (paint-map-sample state event sample)))))
+  (if (:map-tile-pick-active? state)
+    state
+    (case (:map-tool state)
+      :select (update-map-selection state event)
+      :line (update-map-line state event)
+      :fill state
+      :default (let [sample (map-paint-sample state event)]
+                 (if (and sample
+                          (= sample (:last-map-paint-sample state)))
+                   state
+                   (paint-map-sample state event sample))))))
 
 (defun map-canvas-mouse-up [state event]
-  (case (:map-tool state)
-    :select (finish-map-selection state event)
-    :line (finish-map-line state event)
-    :default (dissoc state :last-map-paint-sample)))
+  (if (:map-tile-pick-active? state)
+    (dissoc state :map-tile-pick-active?)
+    (case (:map-tool state)
+      :select (finish-map-selection state event)
+      :line (finish-map-line state event)
+      :default (dissoc state :last-map-paint-sample))))

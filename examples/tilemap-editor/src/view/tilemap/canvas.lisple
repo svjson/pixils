@@ -74,7 +74,7 @@
    :update (fn [state ctx]
              (tm/clamp-map-offset state ctx))
    :on-mouse-down (fn [state event ctx]
-                    (tm/map-canvas-mouse-down state event))
+                    (tm/map-canvas-mouse-down state event ctx))
    :on-drag (fn [state event ctx]
               (tm/map-canvas-drag state event))
    :on-mouse-up (fn [state event ctx]
