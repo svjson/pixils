@@ -1,4 +1,6 @@
-(ns pixils.tilemap.model)
+(ns pixils.tilemap.model
+  (:require [pixils.point :as pt]
+            [pixils.rect :as rect]))
 
 (def default-tile-size 16)
 
@@ -46,6 +48,21 @@
 
 (defun map-height [tilemap]
   (or (:height tilemap) 0))
+
+(defun map-rect [tilemap]
+  (rect/make-rect {:x 0
+                   :y 0
+                   :w (map-width tilemap)
+                   :h (map-height tilemap)}))
+
+(defun map-point [pos]
+  (if (= (type-of pos) "map")
+    (pt/make-point pos)
+    pos))
+
+(defun in-bounds? [tilemap pos]
+  (rect/inside? (map-rect tilemap)
+                (map-point pos)))
 
 (defun tile-rect [tilemap x y offset zoom]
   (let [offset (or offset default-offset)

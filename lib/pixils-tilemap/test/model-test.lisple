@@ -10,6 +10,21 @@
                        {:x 8 :y 8}
                        2))))
 
+(deftest map-rect-uses_map_dimensions
+  (let [rect (tm/map-rect {:width 4 :height 3})]
+    (is (= 0 (:x rect)))
+    (is (= 0 (:y rect)))
+    (is (= 4 (:w rect)))
+    (is (= 3 (:h rect)))))
+
+(deftest in-bounds-checks_map_rect
+  (let [tilemap {:width 4 :height 3}]
+    (is (= true (tm/in-bounds? tilemap {:x 0 :y 0})))
+    (is (= true (tm/in-bounds? tilemap {:x 3 :y 2})))
+    (is (= false (tm/in-bounds? tilemap {:x 4 :y 2})))
+    (is (= false (tm/in-bounds? tilemap {:x 3 :y 3})))
+    (is (= false (tm/in-bounds? tilemap {:x -1 :y 0})))))
+
 (deftest missing-tileset-has-no_tile
   (is (nil? (tm/tile-in [] nil 0)))
   (is (nil? (tm/tile-id [] nil 0))))
