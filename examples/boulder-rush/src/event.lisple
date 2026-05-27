@@ -1,0 +1,90 @@
+(ns boulder-rush.event
+  (:require [boulder-rush.physics :as physics]
+            [pixils.state.timer :as timer]))
+
+(defun upsert [events event]
+  (let [existing-index (find-index events (fn [existing]
+                                            (= (:pos existing) (:pos event))))
+        existing (if existing-index
+                   (nth events existing-index)
+                   nil)
+        without-existing (remove events (fn [existing]
+                                          (= (:pos existing) (:pos event))))]
+    (concat without-existing
+            [(if (and existing
+                      (= :falling (:state existing))
+                      (= (:state event) :candidate))
+               existing
+               event)])))
+
+(defun upsert-many [events new-events]
+  (reduce new-events
+          (or events [])
+          (fn [out event]
+            (upsert out event))))
+
+(defun tick [event]
+  (assoc event :timer (timer/tick (:timer event))))
+
+(defun tick-many [events]
+  (map (or events []) tick))
+
+(defun ready? [event]
+  (and (:timer event)
+       (timer/ticked? (:timer event))))
+
+(defun ready [events]
+  (filter (or events []) ready?))
+
+(defun waiting [events]
+  (remove (or events []) ready?))
+
+(defun evaluation-events-for [level-map current-event]
+  (let [coord (:pos current-event)]
+    (cond
+      (= :explosion (:state current-event))
+      [current-event]
+
+      (physics/event-source? level-map coord)
+      [current-event]
+
+      :default
+      (physics/events-around level-map coord))))
+
+(defun evaluation-events [level-map event-candidates]
+  (reduce (or event-candidates [])
+          []
+          (fn [out candidate]
+            (concat out (evaluation-events-for level-map candidate)))))
+
+(defun evaluate-queue [state]
+  (if (empty? (:queue state))
+    state
+    (evaluate-queue
+     (physics/evaluate-event (assoc state :queue (tail (:queue state)))
+                             (head (:queue state))))))
+
+(defun evaluate-events-result [level-map event-candidates]
+  (let [result (evaluate-queue {:level-map level-map
+                                :queue (evaluation-events level-map event-candidates)
+                                :moved-to []
+                                :events []})]
+    {:level-map (:level-map result)
+     :events (:events result)}))
+
+(defun evaluate-events [level-map event-candidates]
+  (:level-map (evaluate-events-result level-map event-candidates)))
+
+(defun evaluate-map [level-map]
+  (evaluate-events level-map (physics/events level-map)))
+
+(defun update-physics [state]
+  (let [ready-events (ready (:events state))]
+    (if (empty? ready-events)
+      state
+      (let [result (evaluate-events-result (:level-map state)
+                                           ready-events)]
+        (assoc state
+               :level-map (:level-map result)
+               :events (upsert-many (waiting (:events state))
+                                     (:events result)))))))

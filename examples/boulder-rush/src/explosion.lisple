@@ -1,0 +1,49 @@
+(ns boulder-rush.explosion
+  (:require [boulder-rush.grid :as grid]
+            [boulder-rush.level.map :as level-map]
+            [pixils.state.timer :as timer]
+            [pixils.tilemap.model :as tilemap]))
+
+(def interval-ms 60)
+
+(defun set-cells [level-map origin tile-id]
+  (reduce (grid/surrounding-points origin)
+          level-map
+          (fn [updated-map pos]
+            (if (tilemap/in-bounds? updated-map pos)
+              (level-map/set-cell updated-map pos tile-id)
+              updated-map))))
+
+(defun start [level-map origin]
+  {:level-map (set-cells level-map origin :debris-1)
+   :event {:pos origin
+           :state :explosion
+           :phase :debris-1
+           :timer (timer/make {:interval-ms interval-ms})}})
+
+(defun next-phase [phase]
+  (case phase
+    :debris-1
+    :debris-2
+
+    :debris-2
+    :debris-3
+
+    :debris-3
+    :empty
+
+    :default
+    :debris-2))
+
+(defun advance [level-map explosion-event]
+  (let [phase (next-phase (:phase explosion-event))
+        level-map (set-cells level-map
+                             (:pos explosion-event)
+                             phase)]
+    {:level-map level-map
+     :event (if (= phase :empty)
+              nil
+              {:pos (:pos explosion-event)
+               :state :explosion
+               :phase phase
+               :timer (timer/make {:interval-ms interval-ms})})}))

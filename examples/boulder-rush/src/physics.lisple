@@ -1,44 +1,32 @@
 (ns boulder-rush.physics
-  (:require [boulder-rush.level.map :as level-map]
+  (:require [boulder-rush.explosion :as explosion]
+            [boulder-rush.grid :as grid]
+            [boulder-rush.level.map :as level-map]
+            [pixils.state.timer :as timer]
+            [pixils.tilemap.model :as tilemap]
             [pixils.point :as pt]))
 
-(def falling-tiles [:boulder :gem :simples-pimples-13])
+(def falling-interval-ms 160)
+(def falling-tiles [:boulder :gem])
 (def down {:x 0 :y 1})
 (def left {:x -1 :y 0})
 (def right {:x 1 :y 0})
 
-(def adjacent-directions
-  [{:x 0 :y -1}
-   {:x 1 :y -1}
-   {:x 1 :y 0}
-   {:x 1 :y 1}
-   {:x 0 :y 1}
-   {:x -1 :y 1}
-   {:x -1 :y 0}
-   {:x -1 :y -1}])
-
 (defun falling-tile? [tile-id]
   (contains? falling-tiles tile-id))
 
-(defun in-bounds? [level-map pos]
-  (and (>= (:x pos) 0)
-       (< (:x pos) (:width level-map))
-       (>= (:y pos) 0)
-       (< (:y pos) (:height level-map))))
-
-(defun adjacent-points [pos]
-  (map adjacent-directions
-       (fn [dir]
-         (pt/+ pos dir))))
-
-(defun point-of-interest? [level-map pos]
-  (and (in-bounds? level-map pos)
+(defun event-source? [level-map pos]
+  (and (tilemap/in-bounds? level-map pos)
        (falling-tile? (level-map/cell-at level-map pos))))
 
-(defun points-of-interest-around [level-map pos]
-  (filter (adjacent-points pos)
-          (fn [candidate]
-            (point-of-interest? level-map candidate))))
+(defun events-around [level-map pos]
+  (map (filter (grid/adjacent-points pos)
+               (fn [candidate]
+                 (event-source? level-map candidate)))
+       (fn [pos]
+         {:pos pos
+          :state :candidate
+          :timer (timer/make {:interval-ms falling-interval-ms})})))
 
 (defun map-points [level-map]
   (reduce (dotimes [y (:height level-map)]
@@ -48,10 +36,14 @@
           (fn [out row]
             (concat out row))))
 
-(defun points-of-interest [level-map]
-  (filter (map-points level-map)
-          (fn [pos]
-            (point-of-interest? level-map pos))))
+(defun events [level-map]
+  (map (filter (map-points level-map)
+               (fn [pos]
+                 (event-source? level-map pos)))
+       (fn [pos]
+         {:pos pos
+          :state :candidate
+          :timer (timer/make {:interval-ms falling-interval-ms})})))
 
 (defun fall-target [pos]
   (pt/+ pos down))
@@ -62,8 +54,12 @@
 (defun roll-support-target [pos dir]
   (pt/+ (roll-target pos dir) down))
 
+(defun player-cell? [level-map pos]
+  (and (tilemap/in-bounds? level-map pos)
+       (= :player-default (level-map/cell-at level-map pos))))
+
 (defun empty-cell? [level-map pos]
-  (and (in-bounds? level-map pos)
+  (and (tilemap/in-bounds? level-map pos)
        (= :empty (level-map/cell-at level-map pos))))
 
 (defun can-fall? [level-map pos]
@@ -90,49 +86,78 @@
     :default
     nil))
 
-(defun evaluation-points-for [level-map pos]
-  (if (point-of-interest? level-map pos)
-    [pos]
-    (points-of-interest-around level-map pos)))
+(defun downward-move? [pos target]
+  (= (fall-target pos) target))
 
-(defun evaluation-points [level-map points]
-  (reduce (or points [])
-          []
-          (fn [out pos]
-            (concat out (evaluation-points-for level-map pos)))))
+(defun next-event-for-move [pos target]
+  (if (downward-move? pos target)
+    {:pos target
+     :state :falling
+     :timer (timer/make {:interval-ms falling-interval-ms})}
+    {:pos target
+     :state :candidate
+     :timer (timer/make {:interval-ms falling-interval-ms})}))
 
-(defun evaluate-move [state pos target]
-  (let [next-map (level-map/move-cell (:level-map state) pos target)]
+(defun exclude-pos [events pos]
+  (filter events
+          (fn [candidate]
+            (not (= (:pos candidate) pos)))))
+
+(defun exposed-events-around [level-map pos target]
+  (exclude-pos (events-around level-map pos)
+               target))
+
+(defun falling-on-player? [level-map current-event]
+  (let [pos (:pos current-event)]
+    (and (= :falling (:state current-event))
+         (falling-tile? (level-map/cell-at level-map pos))
+         (player-cell? level-map (fall-target pos)))))
+
+(defun evaluate-impact [state current-event]
+  (let [result (explosion/start (:level-map state)
+                                (fall-target (:pos current-event)))]
     (assoc state
-           :level-map next-map
-           :moved-to (concat (:moved-to state) [target])
-           :queue (concat (:queue state)
-                          (points-of-interest-around next-map pos)))))
+           :level-map (:level-map result)
+           :events (concat (:events state)
+                           [(:event result)]))))
 
-(defun evaluate-point [state pos]
-  (if (contains? (:moved-to state) pos)
-    state
-    (let [target (movement-target (:level-map state) pos)]
-      (if target
-        (evaluate-move state pos target)
-        state))))
+(defun evaluate-explosion-event [state current-event]
+  (let [result (explosion/advance (:level-map state) current-event)]
+    (assoc state
+           :level-map (:level-map result)
+           :events (if (:event result)
+                     (concat (:events state) [(:event result)])
+                     (:events state)))))
 
-(defun evaluate-queue [state]
-  (if (empty? (:queue state))
-    state
-    (evaluate-queue
-     (evaluate-point (assoc state :queue (tail (:queue state)))
-                     (head (:queue state))))))
+(defun evaluate-move [state current-event target]
+  (let [pos (:pos current-event)]
+    (let [next-map (level-map/move-cell (:level-map state) pos target)
+          next-event (next-event-for-move pos target)]
+      (assoc state
+             :level-map next-map
+             :moved-to (concat (:moved-to state) [target])
+             :events (concat (:events state)
+                             [next-event]
+                             (exposed-events-around next-map pos target))))))
 
-(defun evaluate-points-result [level-map points]
-  (let [result (evaluate-queue {:level-map level-map
-                                :queue (evaluation-points level-map points)
-                                :moved-to []})]
-    {:level-map (:level-map result)
-     :points-of-interest (:moved-to result)}))
+(defun evaluate-movement [state current-event]
+  (let [pos (:pos current-event)
+        target (movement-target (:level-map state) pos)]
+    (if target
+      (evaluate-move state current-event target)
+      state)))
 
-(defun evaluate-points [level-map points]
-  (:level-map (evaluate-points-result level-map points)))
+(defun evaluate-event [state current-event]
+  (let [pos (:pos current-event)]
+    (cond
+      (contains? (:moved-to state) pos)
+      state
 
-(defun evaluate-map [level-map]
-  (evaluate-points level-map (points-of-interest level-map)))
+      (= :explosion (:state current-event))
+      (evaluate-explosion-event state current-event)
+
+      (falling-on-player? (:level-map state) current-event)
+      (evaluate-impact state current-event)
+
+      :default
+      (evaluate-movement state current-event))))

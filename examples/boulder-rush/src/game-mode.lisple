@@ -1,38 +1,22 @@
 (ns boulder-rush.game-mode
   (:require pixils
             [boulder-rush.camera :as camera]
+            [boulder-rush.event :as event]
             [boulder-rush.player :as pl]
             [boulder-rush.physics :as physics]
             [boulder-rush.level.loader :as level-loader]
-            [pixils.state.timer :as timer]
             [pixils.tilemap.renderer :as tilemap-renderer]))
-
-(def physics-interval-ms 180)
-
-(defun add-point-of-interest [state pos]
-  (assoc state
-         :points-of-interest (concat (or (:points-of-interest state) []) [pos])))
 
 (defun move-player [state dir]
   (let [player-pos (-> state :player :pos)
         result (pl/move-player (:level-map state) (:player state) dir)]
     (if (empty? result)
       state
-      (add-point-of-interest (merge state result) player-pos))))
-
-(defun update-physics [state]
-  (let [result (physics/evaluate-points-result (:level-map state)
-                                               (:points-of-interest state))]
-    (assoc state
-           :level-map (:level-map result)
-           :points-of-interest (:points-of-interest result))))
-
-(defun update-game [state ctx]
-  (let [state (timer/tick-at state :physics-timer)
-        state (if (timer/ticked-at? state :physics-timer)
-                (update-physics state)
-                state)]
-    (camera/update-offset state (:buffer-size ctx))))
+      (let [state (merge state result)]
+        (assoc state
+               :events (event/upsert-many (:events state)
+                                          (physics/events-around (:level-map state)
+                                                                 player-pos)))))))
 
 (defmode game-mode
   {:init (fn [state ctx]
@@ -43,19 +27,18 @@
               :tile-offset {:x 0 :y 0}
               :offset {:x 0 :y 0}
               :tileset (level-loader/level-tileset state level)
-              :points-of-interest (physics/points-of-interest map)
-              :physics-timer (timer/make {:interval-ms physics-interval-ms})
+              :events (physics/events map)
               :player {:pos (reduce (-> map :layers head :tiles)
                                     {:x nil :y 0}
                                     (fn [coord row]
                                       (case (:x coord)
-                         nil
-                         (if-let [x (find-index row (fn [cell] (= :player-default cell)))]
-                           (assoc coord :x x)
-                           (update coord :y inc))
+                                        nil
+                                        (if-let [x (find-index row (fn [cell] (= :player-default cell)))]
+                                          (assoc coord :x x)
+                                          (update coord :y inc))
 
-                       :default
-                       coord)))}}))
+                                        :default
+                                        coord)))}}))
 
    :on-key-down (fn [state e ctx]
                 (case (:key e)
@@ -75,7 +58,10 @@
                   state))
 
    :update (fn [state ctx]
-             (update-game state ctx))
+             (-> state
+                 (assoc :events (event/tick-many (:events state)))
+                 (event/update-physics)
+                 (camera/update-offset (:buffer-size ctx))))
 
    :render (fn [state ctx]
              (tilemap-renderer/render-map! (:level-map state)

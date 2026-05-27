@@ -1,0 +1,26 @@
+(ns boulder-rush.grid
+  (:require [pixils.point :as pt]))
+
+(def adjacent-directions
+  [{:x 0 :y -1}
+   {:x 1 :y -1}
+   {:x 1 :y 0}
+   {:x 1 :y 1}
+   {:x 0 :y 1}
+   {:x -1 :y 1}
+   {:x -1 :y 0}
+   {:x -1 :y -1}])
+
+(def surrounding-directions
+  (concat [{:x 0 :y 0}]
+          adjacent-directions))
+
+(defun adjacent-points [pos]
+  (map adjacent-directions
+       (fn [dir]
+         (pt/+ pos dir))))
+
+(defun surrounding-points [pos]
+  (map surrounding-directions
+       (fn [dir]
+         (pt/+ pos dir))))

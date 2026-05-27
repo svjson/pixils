@@ -1,15 +1,49 @@
 (ns boulder-rush.game-mode-test
   (:require proof.core
+            [boulder-rush.event :as event]
+            [boulder-rush.explosion :as explosion]
             [boulder-rush.fixtures :as fixtures]
-            [boulder-rush.game-mode :as game]))
+            [boulder-rush.game-mode :as game]
+            [boulder-rush.physics :as physics]
+            [pixils.state.timer :as timer]))
 
-(deftest move-player-adds-vacated-coordinate-as-point-of-interest
+(defun ready-timer []
+  (timer/make {:interval-ms 0
+               :started? true
+               :last-tick-ms 0
+               :ticked? true}))
+
+(defun event-ready [event]
+  (assoc event :timer (ready-timer)))
+
+(defun event-summary [event]
+  {:pos (:pos event)
+   :state (:state event)})
+
+(defun event-summaries [events]
+  (map events event-summary))
+
+(deftest produced-events-use-domain-timers
+  (given
+    {:level-map (fixtures/rows->map ["O"])
+     :explosion-map (fixtures/rows->map [" "])})
+  (when [{:keys [level-map explosion-map]}]
+    {:falling (head (physics/events level-map))
+     :explosion (:event (explosion/start explosion-map
+                                         {:x 0 :y 0}))})
+  (then [{:keys [falling explosion]}]
+    (is (= physics/falling-interval-ms
+           (:interval-ms (:timer falling))))
+    (is (= explosion/interval-ms
+           (:interval-ms (:timer explosion))))))
+
+(deftest move-player-adds-vacated-coordinate-as-event
   (given
     {:level-map (fixtures/rows->map ["O  "
                                      "P  "
                                      "WWW"])
      :player {:pos {:x 0 :y 1}}
-     :points-of-interest []})
+     :events []})
   (when [state]
     (game/move-player state {:x 1 :y 0}))
   (then [result]
@@ -17,30 +51,34 @@
             " P "
             "WWW"]
            (fixtures/map->rows (:level-map result))))
-    (is (= [{:x 0 :y 1}]
-           (:points-of-interest result)))))
+    (is (= [{:pos {:x 0 :y 0}
+             :state :candidate}]
+           (event-summaries (:events result))))))
 
-(deftest move-player-does-not-add-point-of-interest-when-blocked
+(deftest move-player-does-not-add-event-when-blocked
   (given
     {:level-map (fixtures/rows->map ["PO"])
      :player {:pos {:x 0 :y 0}}
-     :points-of-interest []})
+     :events []})
   (when [state]
     (game/move-player state {:x 1 :y 0}))
   (then [result state]
     (is (= state
            result))))
 
-(deftest update-physics-evaluates-current-points-and-retains-moved-coordinates
+(deftest update-physics-evaluates-current-events-and-retains-moved-coordinates
   (given
     {:level-map (fixtures/rows->map [" O "
                                      "   "
                                      "   "
                                      "WWW"])
-     :points-of-interest [{:x 1 :y 0}]})
+     :events [(event-ready (fixtures/candidate {:x 1 :y 0}))]})
   (when [state]
-    (let [first-pass (game/update-physics state)
-          second-pass (game/update-physics first-pass)]
+    (let [first-pass (event/update-physics state)
+          second-pass (event/update-physics
+                       (assoc first-pass
+                              :events (map (:events first-pass)
+                                                       event-ready)))]
       {:first-pass first-pass
        :second-pass second-pass}))
   (then [{:keys [first-pass second-pass]}]
@@ -49,12 +87,31 @@
             "   "
             "WWW"]
            (fixtures/map->rows (:level-map first-pass))))
-    (is (= [{:x 1 :y 1}]
-           (:points-of-interest first-pass)))
+    (is (= [{:pos {:x 1 :y 1}
+             :state :falling}]
+           (event-summaries (:events first-pass))))
     (is (= ["   "
             "   "
             " O "
             "WWW"]
            (fixtures/map->rows (:level-map second-pass))))
-    (is (= [{:x 1 :y 2}]
-           (:points-of-interest second-pass)))))
+    (is (= [{:pos {:x 1 :y 2}
+             :state :falling}]
+           (event-summaries (:events second-pass))))))
+
+(deftest update-physics-keeps-unready-events-waiting
+  (given
+    {:level-map (fixtures/rows->map [" O "
+                                     "   "
+                                     "WWW"])
+     :events [(fixtures/candidate {:x 1 :y 0})]})
+  (when [state]
+    (event/update-physics state))
+  (then [result]
+    (is (= [" O "
+            "   "
+            "WWW"]
+           (fixtures/map->rows (:level-map result))))
+    (is (= [{:pos {:x 1 :y 0}
+             :state :candidate}]
+           (event-summaries (:events result))))))

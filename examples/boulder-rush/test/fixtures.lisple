@@ -1,5 +1,8 @@
 (ns boulder-rush.fixtures
-  (:require [pixils.tilemap.string-map :as string-map]))
+  (:require [boulder-rush.explosion :as explosion]
+            [boulder-rush.physics :as physics]
+            [pixils.state.timer :as timer]
+            [pixils.tilemap.string-map :as string-map]))
 
 (def test-tilesets
   [{:id :level
@@ -13,6 +16,12 @@
              :char "O"}
             {:id :gem
              :char "V"}
+            {:id :debris-1
+             :char "X"}
+            {:id :debris-2
+             :char "x"}
+            {:id :debris-3
+             :char "-"}
             {:id :player-default
              :char "P"}]}])
 
@@ -28,3 +37,19 @@
   (string-map/map->string-map level-map
                               {:tilesets test-tilesets
                                :layers [:scene/level]}))
+
+(defun candidate [pos]
+  {:pos pos
+   :state :candidate
+   :timer (timer/make {:interval-ms physics/falling-interval-ms})})
+
+(defun falling [pos]
+  {:pos pos
+   :state :falling
+   :timer (timer/make {:interval-ms physics/falling-interval-ms})})
+
+(defun explosion [pos phase]
+  {:pos pos
+   :state :explosion
+   :phase phase
+   :timer (timer/make {:interval-ms explosion/interval-ms})})
