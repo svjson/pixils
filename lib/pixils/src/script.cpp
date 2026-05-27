@@ -12,6 +12,7 @@
 #include <pixils/binding/render_namespace.h>
 #include <pixils/binding/resource_namespace.h>
 #include <pixils/binding/state_counter_namespace.h>
+#include <pixils/binding/state_timer_namespace.h>
 #include <pixils/binding/ui/style/style_namespace.h>
 #include <pixils/binding/ui/ui_namespace.h>
 #include <pixils/embedded_lisp_sources.h>
@@ -37,6 +38,7 @@ namespace Pixils
     namespaces.push_back(std::make_unique<Pixils::Script::RectNamespace>());
     namespaces.push_back(std::make_unique<Pixils::Script::RenderNamespace>());
     namespaces.push_back(std::make_unique<Pixils::Script::StateCounterNamespace>());
+    namespaces.push_back(std::make_unique<Pixils::Script::StateTimerNamespace>());
     namespaces.push_back(std::make_unique<Pixils::Script::StyleNamespace>());
     namespaces.push_back(std::make_unique<Pixils::Script::UINamespace>());
     return namespaces;

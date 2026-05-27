@@ -5,8 +5,8 @@
 #include <pixils/context.h>
 #include <pixils/geom.h>
 #include <pixils/pretty_printer.h>
+#include <pixils/state/timer.h>
 #include <pixils/text.h>
-#include <pixils/timer.h>
 
 #include <SDL2/SDL_rect.h>
 #include <list>
@@ -80,7 +80,7 @@ namespace Pixils
     Text::Renderer text_renderer;
     Text::Cursor tc;
     SDL_Rect window_size = {0, 0, 0, 0};
-    Timer timer;
+    Pixils::State::Timer timer;
     State open_state = CLOSED;
     float open_fraction = 0;
     Point cursor_pos = {0, 0};

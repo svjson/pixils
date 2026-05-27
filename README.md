@@ -438,6 +438,28 @@ local to the component. Use bounds to compute absolute positions for overlays or
              nil)})
 ```
 
+**Time-based state timers**
+
+`pixils.state.timer` provides a small state value for real-time cadence. A timer records
+whether its interval elapsed when ticked:
+
+```clojure
+(ns my-game
+  (:require [pixils.state.timer :as timer]))
+
+(pixils/defmode game-mode
+  {:init (fn [state ctx]
+           (assoc state :physics-timer (timer/make {:interval-ms 120})))
+
+   :update (fn [state ctx]
+             (let [state (timer/tick-at state :physics-timer)]
+               (if (timer/ticked-at? state :physics-timer)
+                 (update-physics state)
+                 state)))})
+```
+
+Missed intervals are not replayed. A timer can tick at most once per frame.
+
 **Derived modes**
 
 A mode can extend another mode with `:extend`, inheriting its hooks, style, and children.

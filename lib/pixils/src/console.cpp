@@ -3,8 +3,8 @@
 #include <pixils/geom.h>
 #include <pixils/keyboard.h>
 #include <pixils/pretty_printer.h>
+#include <pixils/state/timer.h>
 #include <pixils/text.h>
-#include <pixils/timer.h>
 
 #include <SDL2/SDL_blendmode.h>
 #include <SDL2/SDL_keycode.h>
@@ -27,6 +27,7 @@ namespace Pixils
    * will take up.
    */
   float anim_frames = 15;
+  constexpr long CONSOLE_ANIMATION_INTERVAL_MS = 5;
 
   const int BUFFER_MAX_SIZE = 500;
   const int HISTORY_MAX_SIZE = 100;
@@ -61,6 +62,7 @@ namespace Pixils
     , runtime(runtime)
     , text_renderer(font_map_texture, console_font_map, 1, rc.pixel_size)
     , tc(text_renderer, {0xff, 0xff, 0xff, 0xff}, {0x2b, 0x83, 0x14, 0xff}, 10)
+    , timer(Pixils::State::Timer{.interval_ms = CONSOLE_ANIMATION_INTERVAL_MS})
   {
     update_prompt();
     restore_history();
@@ -70,9 +72,10 @@ namespace Pixils
   {
     if (open_state == OPENING || open_state == CLOSING)
     {
-      if (timer.is_elapsed(5))
+      timer = Pixils::State::tick_timer(timer);
+
+      if (timer.ticked)
       {
-        timer.reset();
         if (open_state == OPENING)
         {
           open_fraction += 1.0 / anim_frames;
@@ -420,13 +423,13 @@ namespace Pixils
   void ConsoleOverlay::open()
   {
     this->open_state = State::OPENING;
-    timer.reset();
+    timer = Pixils::State::Timer{.interval_ms = CONSOLE_ANIMATION_INTERVAL_MS};
   }
 
   void ConsoleOverlay::close()
   {
     this->open_state = State::CLOSING;
-    timer.reset();
+    timer = Pixils::State::Timer{.interval_ms = CONSOLE_ANIMATION_INTERVAL_MS};
   }
 
   void ConsoleOverlay::write_history()
