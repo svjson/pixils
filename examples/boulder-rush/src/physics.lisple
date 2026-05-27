@@ -1,0 +1,83 @@
+(ns boulder-rush.physics
+  (:require [boulder-rush.level.map :as level-map]
+            [pixils.point :as pt]))
+
+(def falling-tiles [:boulder :gem])
+(def down {:x 0 :y 1})
+
+(def adjacent-directions
+  [{:x 0 :y -1}
+   {:x 1 :y 0}
+   {:x 0 :y 1}
+   {:x -1 :y 0}])
+
+(defun falling-tile? [tile-id]
+  (contains? falling-tiles tile-id))
+
+(defun adjacent-points [pos]
+  (map adjacent-directions
+       (fn [dir]
+         (pt/+ pos dir))))
+
+(defun point-of-interest? [level-map pos]
+  (falling-tile? (level-map/cell-at level-map pos)))
+
+(defun points-of-interest-around [level-map pos]
+  (filter (adjacent-points pos)
+          (fn [candidate]
+            (point-of-interest? level-map candidate))))
+
+(defun map-points [level-map]
+  (reduce (dotimes [y (:height level-map)]
+            (dotimes [x (:width level-map)]
+              {:x x :y y}))
+          []
+          (fn [out row]
+            (concat out row))))
+
+(defun points-of-interest [level-map]
+  (filter (map-points level-map)
+          (fn [pos]
+            (point-of-interest? level-map pos))))
+
+(defun fall-target [pos]
+  (pt/+ pos down))
+
+(defun can-fall? [level-map pos]
+  (and (falling-tile? (level-map/cell-at level-map pos))
+       (= :empty (level-map/cell-at level-map (fall-target pos)))))
+
+(defun evaluate-fall [state pos]
+  (let [target (fall-target pos)
+        next-map (level-map/move-cell (:level-map state) pos target)]
+    (assoc state
+           :level-map next-map
+           :moved-to (concat (:moved-to state) [target])
+           :queue (concat (:queue state)
+                          (points-of-interest-around next-map pos)))))
+
+(defun evaluate-point [state pos]
+  (cond
+    (contains? (:moved-to state) pos)
+    state
+
+    (can-fall? (:level-map state) pos)
+    (evaluate-fall state pos)
+
+    :default
+    state))
+
+(defun evaluate-queue [state]
+  (if (empty? (:queue state))
+    state
+    (evaluate-queue
+     (evaluate-point (assoc state :queue (tail (:queue state)))
+                     (head (:queue state))))))
+
+(defun evaluate-points [level-map points]
+  (:level-map (evaluate-queue {:level-map level-map
+                               :queue points
+                               :moved-to []})))
+
+(defun evaluate-map [level-map]
+  (evaluate-points level-map (points-of-interest level-map)))

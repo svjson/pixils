@@ -1,0 +1,30 @@
+(ns boulder-rush.fixtures
+  (:require [pixils.tilemap.string-map :as string-map]))
+
+(def test-tilesets
+  [{:id :level
+    :tiles [{:id :empty
+             :char " "}
+            {:id :dirt
+             :char "."}
+            {:id :wall
+             :char "W"}
+            {:id :boulder
+             :char "O"}
+            {:id :gem
+             :char "V"}
+            {:id :player-default
+             :char "P"}]}])
+
+(def string-map-opts
+  {:tilesets test-tilesets
+   :tileset :level
+   :layer {:id :scene/level}})
+
+(defun rows->map [rows]
+  (string-map/string-map->map rows string-map-opts))
+
+(defun map->rows [level-map]
+  (string-map/map->string-map level-map
+                              {:tilesets test-tilesets
+                               :layers [:scene/level]}))

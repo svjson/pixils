@@ -1,40 +1,12 @@
 (ns boulder-rush.player-test
   (:require proof.core
             [boulder-rush.player :as player]
-            [pixils.tilemap.string-map :as string-map]))
-
-(def test-tilesets
-  [{:id :level
-    :tiles [{:id :empty
-             :char " "}
-            {:id :dirt
-             :char "."}
-            {:id :wall
-             :char "W"}
-            {:id :rock
-             :char "O"}
-            {:id :gem
-             :char "V"}
-            {:id :player-default
-             :char "P"}]}])
+            [boulder-rush.fixtures :as fixtures]))
 
 (def right {:x 1 :y 0})
 
-(def string-map-opts
-  {:tilesets test-tilesets
-   :tileset :level
-   :layer {:id :scene/level}})
-
-(defun rows->map [rows]
-  (string-map/string-map->map rows string-map-opts))
-
-(defun map->rows [level-map]
-  (string-map/map->string-map level-map
-                              {:tilesets test-tilesets
-                               :layers [:scene/level]}))
-
 (defun move-right [rows pos]
-  (player/move-player (rows->map rows)
+  (player/move-player (fixtures/rows->map rows)
                       {:pos pos}
                       right))
 
@@ -46,7 +18,7 @@
     (is (= ["..OO"
             ". PV"
             "WWWW"]
-           (map->rows (:level-map result))))
+           (fixtures/map->rows (:level-map result))))
     (is (= {:x 2 :y 1}
            (-> result :player :pos)))))
 
@@ -54,7 +26,7 @@
   (let [result (move-right ["P "]
                            {:x 0 :y 0})]
     (is (= [" P"]
-           (map->rows (:level-map result))))
+           (fixtures/map->rows (:level-map result))))
     (is (= {:x 1 :y 0}
            (-> result :player :pos)))))
 
@@ -62,7 +34,7 @@
   (let [result (move-right ["PV"]
                            {:x 0 :y 0})]
     (is (= [" P"]
-           (map->rows (:level-map result))))
+           (fixtures/map->rows (:level-map result))))
     (is (= {:x 1 :y 0}
            (-> result :player :pos)))))
 
@@ -71,7 +43,7 @@
          (move-right ["PW"]
                      {:x 0 :y 0}))))
 
-(deftest move-player-does-not-move-right-into-rock
+(deftest move-player-does-not-move-right-into-boulder
   (is (= {}
          (move-right ["PO"]
                      {:x 0 :y 0}))))

@@ -1,0 +1,109 @@
+(ns boulder-rush.physics-test
+  (:require proof.core
+            [boulder-rush.physics :as physics]
+            [boulder-rush.fixtures :as fixtures]))
+
+(deftest points-of-interest-around-finds-adjacent-falling-tiles
+  (is (= [{:x 1 :y 0}
+          {:x 0 :y 1}]
+         (physics/points-of-interest-around
+          (fixtures/rows->map [" O "
+                               "V  "
+                               "   "])
+          {:x 1 :y 1}))))
+
+(deftest points-of-interest-scans-map-in-row-order
+  (is (= [{:x 2 :y 0}
+          {:x 0 :y 1}
+          {:x 1 :y 2}]
+         (physics/points-of-interest
+          (fixtures/rows->map ["  O"
+                               "V  "
+                               " V "])))))
+
+(deftest evaluate-points-drops-boulder-with-empty-side-neighbors
+  (is (= ["   "
+          " O "
+          "WWW"]
+         (fixtures/map->rows
+          (physics/evaluate-points
+           (fixtures/rows->map [" O "
+                                "   "
+                                "WWW"])
+           [{:x 1 :y 0}])))))
+
+(deftest evaluate-points-drops-boulder-with-blocked-side-neighbors
+  (is (= ["W W"
+          "WOW"
+          "WWW"]
+         (fixtures/map->rows
+          (physics/evaluate-points
+           (fixtures/rows->map ["WOW"
+                                "W W"
+                                "WWW"])
+           [{:x 1 :y 0}])))))
+
+(deftest evaluate-points-drops-gem-with-empty-side-neighbors
+  (is (= ["   "
+          " V "
+          "WWW"]
+         (fixtures/map->rows
+          (physics/evaluate-points
+           (fixtures/rows->map [" V "
+                                "   "
+                                "WWW"])
+           [{:x 1 :y 0}])))))
+
+(deftest evaluate-points-drops-gem-with-blocked-side-neighbors
+  (is (= ["W W"
+          "WVW"
+          "WWW"]
+         (fixtures/map->rows
+          (physics/evaluate-points
+           (fixtures/rows->map ["WVW"
+                                "W W"
+                                "WWW"])
+           [{:x 1 :y 0}])))))
+
+(deftest evaluate-points-does-not-drop-into-dirt-with-empty-side-neighbors
+  (is (= [" O "
+          " . "]
+         (fixtures/map->rows
+          (physics/evaluate-points
+           (fixtures/rows->map [" O "
+                                " . "])
+           [{:x 1 :y 0}])))))
+
+(deftest evaluate-points-does-not-drop-into-dirt-with-blocked-side-neighbors
+  (is (= ["WOW"
+          "W.W"]
+         (fixtures/map->rows
+          (physics/evaluate-points
+           (fixtures/rows->map ["WOW"
+                                "W.W"])
+           [{:x 1 :y 0}])))))
+
+(deftest evaluate-points-does-not-move-same-object-twice
+  (is (= ["   "
+          " O "
+          "   "
+          "WWW"]
+         (fixtures/map->rows
+          (physics/evaluate-points
+           (fixtures/rows->map [" O "
+                                "   "
+                                "   "
+                                "WWW"])
+           [{:x 1 :y 0}])))))
+
+(deftest evaluate-map-allows-previously-blocked-object-to-move-after-change
+  (is (= ["   "
+          " O "
+          " O "
+          "   "]
+         (fixtures/map->rows
+          (physics/evaluate-map
+           (fixtures/rows->map [" O "
+                                " O "
+                                "   "
+                                "   "]))))))
