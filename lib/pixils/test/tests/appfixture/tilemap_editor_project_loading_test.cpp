@@ -86,9 +86,9 @@ TEST_F(TilemapEditorStartupTest, loaded_project_populates_existing_side_panel_co
   find_descendant_modes(session.active_mode, "layer-row", layer_rows);
   EXPECT_EQ(layer_rows.size(), 4u);
 
-  std::vector<std::shared_ptr<Pixils::Runtime::View>> tile_swatches;
-  find_descendant_modes(session.active_mode, "tile-swatch", tile_swatches);
-  EXPECT_GT(tile_swatches.size(), 1u);
+  auto tile_select_grid =
+    find_descendant_mode_containing_state(session.active_mode, "tile-select-grid", "Night Sky");
+  ASSERT_NE(tile_select_grid, nullptr);
 
   std::vector<std::shared_ptr<Pixils::Runtime::View>> combo_boxes;
   find_descendant_modes(session.active_mode, "ui/combo-box", combo_boxes);
@@ -171,9 +171,9 @@ TEST_F(TilemapEditorStartupTest, loaded_project_populates_existing_side_panel_co
   find_descendant_modes(session.active_mode, "layer-row", layer_rows);
   EXPECT_EQ(layer_rows.size(), 4u);
 
-  tile_swatches.clear();
-  find_descendant_modes(session.active_mode, "tile-swatch", tile_swatches);
-  EXPECT_GT(tile_swatches.size(), 1u);
+  tile_select_grid =
+    find_descendant_mode_containing_state(session.active_mode, "tile-select-grid", "Night Sky");
+  ASSERT_NE(tile_select_grid, nullptr);
 
   std::filesystem::remove(history_path, ec);
 }
