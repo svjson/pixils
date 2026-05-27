@@ -50,3 +50,19 @@
                                              :tiles [first-tile second-tile]})]
     (is (= first-tile (renderer/prepared-tile-ref prepared -1)))
     (is (= second-tile (renderer/prepared-tile-ref prepared 9)))))
+
+(deftest prepared-layer-cell-tile-applies_tile_substitutions
+  (let [player {:id :player-default}
+        walking {:id :player-walk-1}
+        tileset {:id :br
+                 :tiles [player walking]}
+        prepared-tilesets (renderer/prepared-tilesets [tileset])
+        layer (renderer/prepared-layer prepared-tilesets
+                                       {:tileset :br
+                                        :data-kind :tile-ref})
+        result (renderer/prepared-layer-cell-tile [tileset]
+                                                  []
+                                                  layer
+                                                  :player-default
+                                                  {:player-default :player-walk-1})]
+    (is (= walking result))))

@@ -118,12 +118,14 @@
          :prepared-tileset (or (get prepared-tilesets (:tileset layer))
                                (empty-prepared-tileset))))
 
-(defun prepared-layer-cell-tile [tilesets terrain-sets layer tile-ref]
-  (if (= (:data-kind layer) :terrain)
-    (prepared-terrain-ref tilesets terrain-sets (:terrain-set layer) tile-ref)
-    (prepared-tile-ref (:prepared-tileset layer) tile-ref)))
+(defun prepared-layer-cell-tile [tilesets terrain-sets layer tile-ref tile-substitutions]
+  (let [tile-ref (or (get (or tile-substitutions {}) tile-ref)
+                     tile-ref)]
+    (if (= (:data-kind layer) :terrain)
+      (prepared-terrain-ref tilesets terrain-sets (:terrain-set layer) tile-ref)
+      (prepared-tile-ref (:prepared-tileset layer) tile-ref))))
 
-(defun render-layer! [tilemap tilesets prepared-tilesets terrain-sets layer offset zoom]
+(defun render-layer! [tilemap tilesets prepared-tilesets terrain-sets layer offset zoom tile-substitutions]
   (let [layer (prepared-layer prepared-tilesets layer)
         tiles (:tiles layer)]
     (dotimes [y (tm/map-height tilemap)]
@@ -133,7 +135,8 @@
             (let [tile (prepared-layer-cell-tile tilesets
                                                  terrain-sets
                                                  layer
-                                                 tile-ref)]
+                                                 tile-ref
+                                                 tile-substitutions)]
               (when tile
                 (draw-tile! tile (tm/tile-rect tilemap x y offset zoom))))))))))
 
@@ -149,12 +152,13 @@
         terrain-sets (or (:terrain-sets opts) [])
         layers (or (:layers opts) (:layers tilemap) [])
         hidden-layer-indices (or (:hidden-layer-indices opts) [])
+        tile-substitutions (or (:tile-substitutions opts) {})
         offset (or (:offset opts) tm/default-offset)
         zoom (or (:zoom opts) tm/default-zoom)]
     (do
       (for-indexed [index layer layers]
         (when (not (contains? hidden-layer-indices index))
-          (render-layer! tilemap tilesets tileset-lookup terrain-sets layer offset zoom)))
+          (render-layer! tilemap tilesets tileset-lookup terrain-sets layer offset zoom tile-substitutions)))
       (when (:show-grid? opts)
         (render-grid-overlay! tilemap offset zoom)))))
 

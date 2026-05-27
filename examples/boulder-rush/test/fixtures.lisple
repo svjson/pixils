@@ -41,7 +41,7 @@
 (defun candidate [pos]
   {:pos pos
    :state :candidate
-   :timer (timer/make {:interval-ms physics/falling-interval-ms})})
+   :timer (timer/make {:interval-ms physics/falling-wait-interval-ms})})
 
 (defun falling [pos]
   {:pos pos
