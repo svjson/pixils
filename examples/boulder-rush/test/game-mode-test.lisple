@@ -23,6 +23,17 @@
 (defun event-summaries [events]
   (map events event-summary))
 
+(defun ready-player-move-timer []
+  (timer/make {:interval-ms game/player-move-interval-ms
+               :started? true
+               :last-tick-ms 0
+               :ticked? true}))
+
+(defun waiting-player-move-timer []
+  (timer/make {:interval-ms game/player-move-interval-ms
+               :started? true
+               :last-tick-ms 0}))
+
 (deftest produced-events-use-domain-timers
   (given
     {:level-map (fixtures/rows->map ["O"])
@@ -43,6 +54,7 @@
                                      "P  "
                                      "WWW"])
      :player {:pos {:x 0 :y 1}}
+     :player-move-timer (ready-player-move-timer)
      :events []})
   (when [state]
     (game/move-player state {:x 1 :y 0}))
@@ -59,6 +71,48 @@
   (given
     {:level-map (fixtures/rows->map ["PO"])
      :player {:pos {:x 0 :y 0}}
+     :player-move-timer (ready-player-move-timer)
+     :events []})
+  (when [state]
+    (game/move-player state {:x 1 :y 0}))
+  (then [result state]
+    (is (= state
+           result))))
+
+(deftest move-player-moves-when-timer-is-ready
+  (given
+    {:level-map (fixtures/rows->map ["P "])
+     :player {:pos {:x 0 :y 0}}
+     :player-move-timer (ready-player-move-timer)
+     :events []})
+  (when [state]
+    (game/move-player state {:x 1 :y 0}))
+  (then [result]
+    (is (= [" P"]
+           (fixtures/map->rows (:level-map result))))
+    (is (= {:x 1 :y 0}
+           (-> result :player :pos)))
+    (is (= game/player-move-interval-ms
+           (:interval-ms (:player-move-timer result))))
+    (is (not (timer/ticked? (:player-move-timer result))))))
+
+(deftest move-player-ignores-move-while-timer-is-waiting
+  (given
+    {:level-map (fixtures/rows->map ["P "])
+     :player {:pos {:x 0 :y 0}}
+     :player-move-timer (waiting-player-move-timer)
+     :events []})
+  (when [state]
+    (game/move-player state {:x 1 :y 0}))
+  (then [result state]
+    (is (= state
+           result))))
+
+(deftest move-player-keeps-ready-timer-after-blocked-move
+  (given
+    {:level-map (fixtures/rows->map ["PW"])
+     :player {:pos {:x 0 :y 0}}
+     :player-move-timer (ready-player-move-timer)
      :events []})
   (when [state]
     (game/move-player state {:x 1 :y 0}))

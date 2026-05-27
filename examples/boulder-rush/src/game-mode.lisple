@@ -5,18 +5,24 @@
             [boulder-rush.player :as pl]
             [boulder-rush.physics :as physics]
             [boulder-rush.level.loader :as level-loader]
+            [pixils.state.timer :as timer]
             [pixils.tilemap.renderer :as tilemap-renderer]))
 
+(def player-move-interval-ms 150)
+
 (defun move-player [state dir]
-  (let [player-pos (-> state :player :pos)
-        result (pl/move-player (:level-map state) (:player state) dir)]
-    (if (empty? result)
-      state
-      (let [state (merge state result)]
-        (assoc state
-               :events (event/upsert-many (:events state)
-                                          (physics/events-around (:level-map state)
-                                                                 player-pos)))))))
+  (if (timer/ticked? (:player-move-timer state))
+    (let [player-pos (-> state :player :pos)
+          result (pl/move-player (:level-map state) (:player state) dir)]
+      (if (empty? result)
+        state
+        (let [state (merge state result)]
+          (assoc state
+                 :events (event/upsert-many (:events state)
+                                            (physics/events-around (:level-map state)
+                                                                   player-pos))
+                 :player-move-timer (timer/make {:interval-ms player-move-interval-ms})))))
+    state))
 
 (defmode game-mode
   {:init (fn [state ctx]
@@ -28,6 +34,10 @@
               :offset {:x 0 :y 0}
               :tileset (level-loader/level-tileset state level)
               :events (physics/events map)
+              :player-move-timer (timer/make {:interval-ms player-move-interval-ms
+                                              :started? true
+                                              :last-tick-ms 0
+                                              :ticked? true})
               :player {:pos (reduce (-> map :layers head :tiles)
                                     {:x nil :y 0}
                                     (fn [coord row]
@@ -40,25 +50,25 @@
                                         :default
                                         coord)))}}))
 
-   :on-key-down (fn [state e ctx]
-                (case (:key e)
-                  :key/up
-                  (move-player state {:x 0 :y -1})
+   :on-key-held {:key/up
+                 (fn [state e ctx]
+                   (move-player state {:x 0 :y -1}))
 
-                  :key/right
-                  (move-player state {:x 1 :y 0})
+                 :key/right
+                 (fn [state e ctx]
+                   (move-player state {:x 1 :y 0}))
 
-                  :key/down
-                  (move-player state {:x 0 :y 1})
+                 :key/down
+                 (fn [state e ctx]
+                   (move-player state {:x 0 :y 1}))
 
-                  :key/left
-                  (move-player state {:x -1 :y 0})
-
-                  :default
-                  state))
+                 :key/left
+                 (fn [state e ctx]
+                   (move-player state {:x -1 :y 0}))}
 
    :update (fn [state ctx]
              (-> state
+                 (update :player-move-timer timer/tick)
                  (assoc :events (event/tick-many (:events state)))
                  (event/update-physics)
                  (camera/update-offset (:buffer-size ctx))))
