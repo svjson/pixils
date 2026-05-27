@@ -129,6 +129,33 @@ TEST_F(RenderTest, image_accepts_source_rect)
   EXPECT_EQ(ops[0].rendered_rect.h, 16);
 }
 
+TEST_F(RenderTest, image_accepts_flip_options)
+{
+  SDLMock::prepared_surfaces["./ship.png"] = {16, 8};
+  runtime.eval(R"(
+    (pixils/defbundle sprites {:images {:ship "ship.png"}})
+    (pixils/defmode test-mode {
+      :render (fn [state ctx]
+                (pixils.render/image!
+                  :sprites/ship
+                  {:pos {:x 12 :y 18}
+                   :flip-x? true
+                   :flip-y? true}))
+    })
+  )");
+  session.push_mode("test-mode", Lisple::Constant::NIL);
+
+  ASSERT_NO_THROW(session.render_mode());
+
+  auto& ops = render_target()->render_ops;
+  ASSERT_EQ(ops.size(), 1u);
+  EXPECT_EQ(ops[0].type, RenderOpType::RENDER_COPY);
+  EXPECT_EQ(ops[0].rendered_rect.x, 12);
+  EXPECT_EQ(ops[0].rendered_rect.y, 18);
+  EXPECT_EQ(ops[0].rendered_rect.w, 16);
+  EXPECT_EQ(ops[0].rendered_rect.h, 8);
+}
+
 TEST_F(RenderTest, image_accepts_opacity)
 {
   SDLMock::prepared_surfaces["./ship.png"] = {16, 8};

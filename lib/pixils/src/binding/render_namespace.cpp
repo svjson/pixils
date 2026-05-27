@@ -33,6 +33,8 @@ namespace Pixils::Script
     SHKEY(SCALE, "scale");
     SHKEY(SOURCE, "source");
     SHKEY(OPACITY, "opacity");
+    SHKEY(FLIP_X, "flip-x?");
+    SHKEY(FLIP_Y, "flip-y?");
   } // namespace MapKey
 
   namespace Function
@@ -68,7 +70,9 @@ namespace Pixils::Script
                                                       {{"scale", &Lisple::Type::NUMBER},
                                                        {"opacity", &Lisple::Type::NUMBER},
                                                        {"rotation", &Lisple::Type::NUMBER},
-                                                       {"source", &HostType::RECT}});
+                                                       {"source", &HostType::RECT},
+                                                       {"flip-x?", &Lisple::Type::BOOL},
+                                                       {"flip-y?", &Lisple::Type::BOOL}});
 
       if (args[0]->type == Lisple::Value::Type::KEYWORD)
       {
@@ -93,6 +97,8 @@ namespace Pixils::Script
         Point& pos = opts.obj<Point>("pos");
         float scale = opts.f32("scale", 1.0f);
         float rotation = opts.f32(std::get<std::string>(MapKey::ROTATION->value), 0.0f);
+        bool flip_x = opts.boolean(std::get<std::string>(MapKey::FLIP_X->value), false);
+        bool flip_y = opts.boolean(std::get<std::string>(MapKey::FLIP_Y->value), false);
         Uint8 alpha = image_opacity_alpha(opts);
         std::optional<SDL_Rect> source_rect = std::nullopt;
         if (auto source = opts.val(std::get<std::string>(MapKey::SOURCE->value));
@@ -113,9 +119,12 @@ namespace Pixils::Script
         dim.w *= scale;
         dim.h *= scale;
         const SDL_Rect* source_ptr = source_rect ? &*source_rect : nullptr;
+        SDL_RendererFlip flip =
+          static_cast<SDL_RendererFlip>((flip_x ? SDL_FLIP_HORIZONTAL : SDL_FLIP_NONE) |
+                                        (flip_y ? SDL_FLIP_VERTICAL : SDL_FLIP_NONE));
 
         SDL_SetTextureAlphaMod(texture, alpha);
-        if (rotation == 0.0f)
+        if (rotation == 0.0f && flip == SDL_FLIP_NONE)
         {
           SDL_RenderCopy(rc.renderer, texture, source_ptr, &dim);
         }
@@ -127,7 +136,7 @@ namespace Pixils::Script
                            &dim,
                            static_cast<double>(rotation) * RADIANS_TO_DEGREES,
                            nullptr,
-                           SDL_FLIP_NONE);
+                           flip);
         }
         if (alpha != 255) SDL_SetTextureAlphaMod(texture, 255);
       }
