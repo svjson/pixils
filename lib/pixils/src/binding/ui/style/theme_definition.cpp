@@ -92,6 +92,45 @@ namespace Pixils::Script
                                                const std::optional<std::string>& variant,
                                                const std::string& key)
     {
+      auto lookup_in_vars =
+        [&](const std::map<std::string, std::map<std::string, Lisple::sptr_val>>& vars,
+            const std::string& variant_name) -> Lisple::sptr_val
+      {
+        auto variant_it = vars.find(variant_name);
+        if (variant_it == vars.end()) return nullptr;
+        auto var_it = variant_it->second.find(key);
+        if (var_it == variant_it->second.end()) return nullptr;
+        return var_it->second;
+      };
+
+      if (!theme.var_layers.empty())
+      {
+        for (auto layer_it = theme.var_layers.rbegin();
+             layer_it != theme.var_layers.rend();
+             ++layer_it)
+        {
+          if (variant)
+          {
+            auto value = lookup_in_vars(layer_it->vars, *variant);
+            if (value) return value;
+          }
+
+          if (layer_it->default_variant)
+          {
+            auto value = lookup_in_vars(layer_it->vars, *layer_it->default_variant);
+            if (value) return value;
+          }
+
+          if (!layer_it->default_variant || *layer_it->default_variant != "base")
+          {
+            auto value = lookup_in_vars(layer_it->vars, "base");
+            if (value) return value;
+          }
+        }
+
+        return nullptr;
+      }
+
       if (variant)
       {
         auto variant_it = theme.vars.find(*variant);
@@ -502,6 +541,11 @@ namespace Pixils::Script
     if (!theme.vars.empty() && !theme.default_variant)
     {
       throw Lisple::TypeError("Theme :vars requires :default-variant");
+    }
+    if (!local_vars.empty())
+    {
+      theme.var_layers.push_back(
+        UI::ThemeVarLayer{.default_variant = theme.default_variant, .vars = local_vars});
     }
 
     auto defaults_val =

@@ -488,6 +488,56 @@ TEST_F(SessionChildrenTest, program_theme_variant_selects_theme_vars)
             std::make_optional<std::string>("dark"));
 }
 
+TEST_F(SessionChildrenTest, program_theme_vector_uses_each_theme_default_variant_fallback)
+{
+  // Given
+  runtime.eval(R"(
+    (pixils/deftheme visual-theme
+      {:default-variant :light
+       :vars {:light {:panel-bg {:r 1 :g 2 :b 3}
+                      :panel-border {:r 4 :g 5 :b 6}}
+              :dark {:panel-bg {:r 10 :g 11 :b 12}
+                     :panel-border {:r 13 :g 14 :b 15}}}
+       :styles {:ui/panel {:background (pixils/var :panel-bg)
+                           :border {:color (pixils/var :panel-border)}
+                           :width (pixils/var :panel-width)}}})
+
+    (pixils/deftheme compact-layout-theme
+      {:default-variant :compact
+       :vars {:compact {:panel-bg {:r 20 :g 21 :b 22}
+                        :panel-width 42}}})
+
+    (pixils/defmode root-mode
+      {:class :ui/panel
+       :render (fn [state ctx] nil)})
+
+    (pixils/defprogram app
+      {:initial-mode 'root-mode
+       :theme ['visual-theme 'compact-layout-theme]
+       :theme-variant :dark})
+  )");
+  Pixils::load_program(runtime, session);
+
+  // When
+  session.render_mode();
+
+  // Then
+  ASSERT_NE(session.active_mode, nullptr);
+  const auto& style = session.active_mode->effective_style;
+  ASSERT_TRUE(style.background.has_value());
+  ASSERT_TRUE(style.background->color.has_value());
+  EXPECT_EQ(*style.background->color, (Pixils::Color{20, 21, 22, 255}));
+
+  ASSERT_TRUE(style.border.has_value());
+  ASSERT_TRUE(style.border->color.has_value());
+  EXPECT_EQ(*style.border->color, (Pixils::Color{13, 14, 15, 255}));
+
+  ASSERT_TRUE(style.width.has_value());
+  EXPECT_EQ(style.width->fixed_value_or(0), 42);
+  EXPECT_EQ(session.active_mode->effective_theme.selected_variant,
+            std::make_optional<std::string>("dark"));
+}
+
 TEST_F(SessionChildrenTest, set_theme_bang_switches_application_theme_at_runtime)
 {
   // Given

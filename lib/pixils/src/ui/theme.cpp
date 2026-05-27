@@ -456,6 +456,17 @@ namespace Pixils::UI
         out_vars[key] = value;
       }
     }
+    if (!overlay.var_layers.empty())
+    {
+      out.var_layers.insert(out.var_layers.end(),
+                            overlay.var_layers.begin(),
+                            overlay.var_layers.end());
+    }
+    else if (!overlay.vars.empty())
+    {
+      out.var_layers.push_back(
+        ThemeVarLayer{.default_variant = overlay.default_variant, .vars = overlay.vars});
+    }
     if (overlay.default_variant) out.default_variant = overlay.default_variant;
     if (overlay.selected_variant) out.selected_variant = overlay.selected_variant;
   }

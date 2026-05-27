@@ -59,6 +59,12 @@ namespace Pixils::UI
     std::vector<Lisple::sptr_val> style_exprs;
   };
 
+  struct ThemeVarLayer
+  {
+    std::optional<std::string> default_variant = std::nullopt;
+    std::map<std::string, std::map<std::string, Lisple::sptr_val>> vars;
+  };
+
   struct Theme
   {
     std::string name;
@@ -69,6 +75,7 @@ namespace Pixils::UI
     std::optional<Style> defaults = std::nullopt;
     std::vector<Lisple::sptr_val> defaults_exprs;
     std::map<std::string, std::map<std::string, Lisple::sptr_val>> vars;
+    std::vector<ThemeVarLayer> var_layers;
     std::vector<ThemeRule> rules;
     std::map<std::string, Style> variant_defaults;
     std::map<std::string, std::vector<Lisple::sptr_val>> variant_defaults_exprs;
