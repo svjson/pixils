@@ -18,27 +18,15 @@
             {:id :player-default
              :char "P"}]}])
 
-(def tile-id-by-char
-  {" " :empty
-   "." :dirt
-   "W" :wall
-   "O" :rock
-   "V" :gem
-   "P" :player-default})
-
 (def right {:x 1 :y 0})
 
-(defun row->tiles [row]
-  (dotimes [x (count row)]
-    (get tile-id-by-char (substr row x 1))))
+(def string-map-opts
+  {:tilesets test-tilesets
+   :tileset :level
+   :layer {:id :scene/level}})
 
 (defun rows->map [rows]
-  {:width (count (head rows))
-   :height (count rows)
-   :layers [{:id :scene/level
-             :tileset :level
-             :data-kind :tile-ref
-             :tiles (map rows row->tiles)}]})
+  (string-map/string-map->map rows string-map-opts))
 
 (defun map->rows [level-map]
   (string-map/map->string-map level-map
