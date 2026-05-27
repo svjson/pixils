@@ -1,0 +1,48 @@
+(ns boulder-rush.game-mode-test
+  (:require proof.core
+            [boulder-rush.fixtures :as fixtures]
+            [boulder-rush.game-mode :as game]))
+
+(deftest move-player-adds-vacated-coordinate-as-point-of-interest
+  (let [state {:level-map (fixtures/rows->map ["O  "
+                                               "P  "
+                                               "WWW"])
+               :player {:pos {:x 0 :y 1}}
+               :points-of-interest []}
+        result (game/move-player state {:x 1 :y 0})]
+    (is (= ["O  "
+            " P "
+            "WWW"]
+           (fixtures/map->rows (:level-map result))))
+    (is (= [{:x 0 :y 1}]
+           (:points-of-interest result)))))
+
+(deftest move-player-does-not-add-point-of-interest-when-blocked
+  (let [state {:level-map (fixtures/rows->map ["PO"])
+               :player {:pos {:x 0 :y 0}}
+               :points-of-interest []}]
+    (is (= state
+           (game/move-player state {:x 1 :y 0})))))
+
+(deftest update-physics-evaluates-current-points-and-retains-moved-coordinates
+  (let [state {:level-map (fixtures/rows->map [" O "
+                                               "   "
+                                               "   "
+                                               "WWW"])
+               :points-of-interest [{:x 1 :y 0}]}
+        first-pass (game/update-physics state)
+        second-pass (game/update-physics first-pass)]
+    (is (= ["   "
+            " O "
+            "   "
+            "WWW"]
+           (fixtures/map->rows (:level-map first-pass))))
+    (is (= [{:x 1 :y 1}]
+           (:points-of-interest first-pass)))
+    (is (= ["   "
+            "   "
+            " O "
+            "WWW"]
+           (fixtures/map->rows (:level-map second-pass))))
+    (is (= [{:x 1 :y 2}]
+           (:points-of-interest second-pass)))))

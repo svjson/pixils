@@ -2,17 +2,29 @@
   (:require [boulder-rush.level.map :as level-map]
             [pixils.point :as pt]))
 
-(def falling-tiles [:boulder :gem])
+(def falling-tiles [:boulder :gem :simples-pimples-13])
 (def down {:x 0 :y 1})
+(def left {:x -1 :y 0})
+(def right {:x 1 :y 0})
 
 (def adjacent-directions
   [{:x 0 :y -1}
+   {:x 1 :y -1}
    {:x 1 :y 0}
+   {:x 1 :y 1}
    {:x 0 :y 1}
-   {:x -1 :y 0}])
+   {:x -1 :y 1}
+   {:x -1 :y 0}
+   {:x -1 :y -1}])
 
 (defun falling-tile? [tile-id]
   (contains? falling-tiles tile-id))
+
+(defun in-bounds? [level-map pos]
+  (and (>= (:x pos) 0)
+       (< (:x pos) (:width level-map))
+       (>= (:y pos) 0)
+       (< (:y pos) (:height level-map))))
 
 (defun adjacent-points [pos]
   (map adjacent-directions
@@ -20,7 +32,8 @@
          (pt/+ pos dir))))
 
 (defun point-of-interest? [level-map pos]
-  (falling-tile? (level-map/cell-at level-map pos)))
+  (and (in-bounds? level-map pos)
+       (falling-tile? (level-map/cell-at level-map pos))))
 
 (defun points-of-interest-around [level-map pos]
   (filter (adjacent-points pos)
@@ -43,13 +56,53 @@
 (defun fall-target [pos]
   (pt/+ pos down))
 
+(defun roll-target [pos dir]
+  (pt/+ pos dir))
+
+(defun roll-support-target [pos dir]
+  (pt/+ (roll-target pos dir) down))
+
+(defun empty-cell? [level-map pos]
+  (and (in-bounds? level-map pos)
+       (= :empty (level-map/cell-at level-map pos))))
+
 (defun can-fall? [level-map pos]
   (and (falling-tile? (level-map/cell-at level-map pos))
-       (= :empty (level-map/cell-at level-map (fall-target pos)))))
+       (empty-cell? level-map (fall-target pos))))
 
-(defun evaluate-fall [state pos]
-  (let [target (fall-target pos)
-        next-map (level-map/move-cell (:level-map state) pos target)]
+(defun can-roll? [level-map pos dir]
+  (and (falling-tile? (level-map/cell-at level-map pos))
+       (falling-tile? (level-map/cell-at level-map (fall-target pos)))
+       (empty-cell? level-map (roll-target pos dir))
+       (empty-cell? level-map (roll-support-target pos dir))))
+
+(defun movement-target [level-map pos]
+  (cond
+    (can-fall? level-map pos)
+    (fall-target pos)
+
+    (can-roll? level-map pos left)
+    (roll-target pos left)
+
+    (can-roll? level-map pos right)
+    (roll-target pos right)
+
+    :default
+    nil))
+
+(defun evaluation-points-for [level-map pos]
+  (if (point-of-interest? level-map pos)
+    [pos]
+    (points-of-interest-around level-map pos)))
+
+(defun evaluation-points [level-map points]
+  (reduce (or points [])
+          []
+          (fn [out pos]
+            (concat out (evaluation-points-for level-map pos)))))
+
+(defun evaluate-move [state pos target]
+  (let [next-map (level-map/move-cell (:level-map state) pos target)]
     (assoc state
            :level-map next-map
            :moved-to (concat (:moved-to state) [target])
@@ -57,15 +110,12 @@
                           (points-of-interest-around next-map pos)))))
 
 (defun evaluate-point [state pos]
-  (cond
-    (contains? (:moved-to state) pos)
+  (if (contains? (:moved-to state) pos)
     state
-
-    (can-fall? (:level-map state) pos)
-    (evaluate-fall state pos)
-
-    :default
-    state))
+    (let [target (movement-target (:level-map state) pos)]
+      (if target
+        (evaluate-move state pos target)
+        state))))
 
 (defun evaluate-queue [state]
   (if (empty? (:queue state))
@@ -74,10 +124,15 @@
      (evaluate-point (assoc state :queue (tail (:queue state)))
                      (head (:queue state))))))
 
+(defun evaluate-points-result [level-map points]
+  (let [result (evaluate-queue {:level-map level-map
+                                :queue (evaluation-points level-map points)
+                                :moved-to []})]
+    {:level-map (:level-map result)
+     :points-of-interest (:moved-to result)}))
+
 (defun evaluate-points [level-map points]
-  (:level-map (evaluate-queue {:level-map level-map
-                               :queue points
-                               :moved-to []})))
+  (:level-map (evaluate-points-result level-map points)))
 
 (defun evaluate-map [level-map]
   (evaluate-points level-map (points-of-interest level-map)))
