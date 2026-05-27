@@ -4,7 +4,10 @@
             [boulder-rush.player :as pl]
             [boulder-rush.physics :as physics]
             [boulder-rush.level.loader :as level-loader]
+            [pixils.state.timer :as timer]
             [pixils.tilemap.renderer :as tilemap-renderer]))
+
+(def physics-interval-ms 180)
 
 (defun add-point-of-interest [state pos]
   (assoc state
@@ -25,7 +28,11 @@
            :points-of-interest (:points-of-interest result))))
 
 (defun update-game [state ctx]
-  (camera/update-offset (update-physics state) (:buffer-size ctx)))
+  (let [state (timer/tick-at state :physics-timer)
+        state (if (timer/ticked-at? state :physics-timer)
+                (update-physics state)
+                state)]
+    (camera/update-offset state (:buffer-size ctx))))
 
 (defmode game-mode
   {:init (fn [state ctx]
@@ -37,6 +44,7 @@
               :offset {:x 0 :y 0}
               :tileset (level-loader/level-tileset state level)
               :points-of-interest (physics/points-of-interest map)
+              :physics-timer (timer/make {:interval-ms physics-interval-ms})
               :player {:pos (reduce (-> map :layers head :tiles)
                                     {:x nil :y 0}
                                     (fn [coord row]
