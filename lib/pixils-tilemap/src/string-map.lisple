@@ -135,3 +135,42 @@
             (empty-string-map rect)
             (fn [out layer]
               (merge-string-map-layer out layer)))))
+
+(defun tileset-for [opts]
+  (or (tm/tileset-definition (:tilesets opts) (:tileset opts))
+      (head (:tilesets opts))))
+
+(defun char-tile-map [tileset]
+  (reduce (or (:tiles tileset) [])
+          {}
+          (fn [out tile]
+            (if (:char tile)
+              (assoc out (:char tile) (:id tile))
+              out))))
+
+(defun tile-id-by-char [opts]
+  (merge (char-tile-map (tileset-for opts))
+         (or (:char->tile opts) {})))
+
+(defun string-map-row->tiles [row char-map]
+  (dotimes [x (count row)]
+    (get char-map (substr row x 1))))
+
+(defun string-map-tiles [rows char-map]
+  (map rows
+       (fn [row]
+         (string-map-row->tiles row char-map))))
+
+(defun string-map-layer [rows opts]
+  (let [tileset (tileset-for opts)]
+    (merge {:id :string-map/layer
+            :tileset (:id tileset)
+            :data-kind :tile-ref}
+           (or (:layer opts) {})
+           {:tiles (string-map-tiles rows (tile-id-by-char opts))})))
+
+(defun string-map->map [rows opts]
+  {:width (count (head rows))
+   :height (count rows)
+   :tile-size (or (:tile-size opts) (:tile-size (tileset-for opts)) tm/default-tile-size)
+   :layers [(string-map-layer rows opts)]})

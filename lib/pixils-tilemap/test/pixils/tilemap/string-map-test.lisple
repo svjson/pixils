@@ -107,3 +107,29 @@
            (string-map/map->string-map tilemap
                                        (assoc default-opts
                                               :layers [0]))))))
+
+(deftest string-map-to-map-uses-tile-chars
+  (is (= {:width 4
+          :height 2
+          :tile-size 16
+          :layers [{:id :scene/level
+                    :tileset :level
+                    :data-kind :tile-ref
+                    :tiles [[:empty :empty :rock :rock]
+                            [:empty :player nil :vine]]}]}
+         (string-map/string-map->map ["..OO"
+                                      ".P V"]
+                                     {:tilesets test-tilesets
+                                      :tileset :level
+                                      :layer {:id :scene/level}}))))
+
+(deftest string-map-to-map-accepts-char-tile-overrides
+  (is (= [[:empty nil :rock]]
+         (-> (string-map/string-map->map [". O"]
+                                         {:char->tile {"." :empty
+                                                       "O" :rock}
+                                          :layer {:id :scene/level
+                                                  :tileset :level}})
+             :layers
+             head
+             :tiles))))
