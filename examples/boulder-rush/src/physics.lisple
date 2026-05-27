@@ -132,11 +132,13 @@
 
 (defun evaluate-move [state current-event target]
   (let [pos (:pos current-event)]
-    (let [next-map (level-map/move-cell (:level-map state) pos target)
+    (let [tile-id (level-map/cell-at (:level-map state) pos)
+          next-map (level-map/move-cell (:level-map state) pos target)
           next-event (next-event-for-move pos target)]
       (assoc state
              :level-map next-map
              :moved-to (concat (:moved-to state) [target])
+             :moved-tiles (concat (:moved-tiles state) [tile-id])
              :events (concat (:events state)
                              [next-event]
                              (exposed-events-around next-map pos target))))))

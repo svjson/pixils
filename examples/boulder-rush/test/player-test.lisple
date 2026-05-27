@@ -24,7 +24,8 @@
             "WWWW"]
            (fixtures/map->rows (:level-map result))))
     (is (= {:x 2 :y 1}
-           (-> result :player :pos)))))
+           (-> result :player :pos)))
+    (is (= :dirt (:entered-tile result)))))
 
 (deftest move-player-moves-right-into-empty-space
   (given
@@ -36,7 +37,8 @@
     (is (= [" P"]
            (fixtures/map->rows (:level-map result))))
     (is (= {:x 1 :y 0}
-           (-> result :player :pos)))))
+           (-> result :player :pos)))
+    (is (= :empty (:entered-tile result)))))
 
 (deftest move-player-preserves-player-properties
   (given
@@ -52,7 +54,8 @@
     (is (= {:pos {:x 1 :y 0}
             :walking? true
             :walk-tile :player-walk-1}
-           (:player result)))))
+           (:player result)))
+    (is (= :empty (:entered-tile result)))))
 
 (deftest begin-walk-flips-rendering-when-moving-up-or-left
   (is (= {:flip-x? true}
@@ -80,7 +83,8 @@
     (is (= [" P"]
            (fixtures/map->rows (:level-map result))))
     (is (= {:x 1 :y 0}
-           (-> result :player :pos)))))
+           (-> result :player :pos)))
+    (is (= :gem (:entered-tile result)))))
 
 (deftest move-player-does-not-move-right-into-wall
   (given

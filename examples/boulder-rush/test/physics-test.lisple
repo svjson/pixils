@@ -101,7 +101,25 @@
             "WWW"]
            (fixtures/map->rows (:level-map result))))
     (is (= [(fixtures/falling {:x 1 :y 1})]
-           (:events result)))))
+           (:events result)))
+    (is (= [:boulder]
+           (:moved-tiles result)))))
+
+(deftest evaluate-events-result-records-moving-gem
+  (given
+    {:level-map (fixtures/rows->map [" V "
+                                     "   "
+                                     "WWW"])
+     :events [(fixtures/candidate {:x 1 :y 0})]})
+  (when [{:keys [level-map events]}]
+    (event/evaluate-events-result level-map events))
+  (then [result]
+    (is (= ["   "
+            " V "
+            "WWW"]
+           (fixtures/map->rows (:level-map result))))
+    (is (= [:gem]
+           (:moved-tiles result)))))
 
 (deftest evaluate-events-explodes-when-falling-boulder-hits-player
   (given

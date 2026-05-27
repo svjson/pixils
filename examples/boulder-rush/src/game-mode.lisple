@@ -1,5 +1,6 @@
 (ns boulder-rush.game-mode
   (:require pixils
+            [pixils.audio :as audio]
             [boulder-rush.camera :as camera]
             [boulder-rush.event :as event]
             [boulder-rush.player :as pl]
@@ -8,18 +9,29 @@
             [pixils.state.timer :as timer]
             [pixils.tilemap.renderer :as tilemap-renderer]))
 
+(defun play-physics-sounds [state]
+  (for [tile-id (or (:moved-tiles state) [])]
+    (when (= :boulder tile-id)
+      (audio/play! :boulder-rush-sfx/boulder {:volume 0.1})))
+  (dissoc state :moved-tiles))
+
 (defun move-player [state dir]
   (if (timer/ticked? (-> state :player :move-timer))
     (let [player-pos (-> state :player :pos)
           result (pl/move-player (:level-map state) (:player state) dir)]
       (if (empty? result)
         state
-        (let [state (merge state result)]
-          (assoc state
-                 :events (event/upsert-many (:events state)
-                                            (physics/events-around (:level-map state)
-                                                                   player-pos))
-                 :player (pl/begin-walk (:player state) dir)))))
+        (do
+          (case (:entered-tile result)
+            :gem (audio/play! :boulder-rush-sfx/gem {:volume 0.1})
+            :dirt (audio/play! :boulder-rush-sfx/dig {:volume 0.1})
+            :default nil)
+          (let [state (merge state (dissoc result :entered-tile))]
+            (assoc state
+                   :events (event/upsert-many (:events state)
+                                              (physics/events-around (:level-map state)
+                                                                     player-pos))
+                   :player (pl/begin-walk (:player state) dir))))))
     state))
 
 (defmode game-mode
@@ -65,6 +77,7 @@
                  (pl/update-player)
                  (assoc :events (event/tick-many (:events state)))
                  (event/update-physics)
+                 (play-physics-sounds)
                  (camera/update-offset (:buffer-size ctx))))
 
    :render (fn [state ctx]

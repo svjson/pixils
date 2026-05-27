@@ -169,6 +169,14 @@
     (is (= false
            (-> result :player :walking?)))))
 
+(deftest play-physics-sounds-clears-moved-tiles
+  (given
+    {:moved-tiles [:boulder]})
+  (when [state]
+    (game/play-physics-sounds state))
+  (then [result]
+    (is (nil? (:moved-tiles result)))))
+
 (deftest update-physics-evaluates-current-events-and-retains-moved-coordinates
   (given
     {:level-map (fixtures/rows->map [" O "
@@ -193,6 +201,8 @@
     (is (= [{:pos {:x 1 :y 1}
              :state :falling}]
            (event-summaries (:events first-pass))))
+    (is (= [:boulder]
+           (:moved-tiles first-pass)))
     (is (= ["   "
             "   "
             " O "
@@ -200,7 +210,9 @@
            (fixtures/map->rows (:level-map second-pass))))
     (is (= [{:pos {:x 1 :y 2}
              :state :falling}]
-           (event-summaries (:events second-pass))))))
+           (event-summaries (:events second-pass))))
+    (is (= [:boulder]
+           (:moved-tiles second-pass)))))
 
 (deftest update-physics-keeps-unready-events-waiting
   (given

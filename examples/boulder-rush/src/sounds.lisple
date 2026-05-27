@@ -1,0 +1,7 @@
+(ns boulder-rush.sounds
+  (:require pixils))
+
+(defbundle boulder-rush-sfx
+  {:sounds {:gem "../assets/gem.wav"
+            :dig "../assets/dig.wav"
+            :boulder "../assets/boulder.wav"}})

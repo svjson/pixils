@@ -20,12 +20,14 @@
 (defun move-player [map player dir]
   (let [player-pos (:pos player)
         target-pos (pt/+ player-pos dir)
-        matrix (-> map :layers (nth 0) :tiles)]
-    (if (contains? [:empty :dirt :gem] (map/cell-at map target-pos))
+        matrix (-> map :layers (nth 0) :tiles)
+        target-tile (map/cell-at map target-pos)]
+    (if (contains? [:empty :dirt :gem] target-tile)
         {:level-map (map/move-cell map
                                    player-pos
                                    target-pos)
-        :player (assoc player :pos target-pos)}
+        :player (assoc player :pos target-pos)
+        :entered-tile target-tile}
         {})))
 
 (defun begin-walk [player dir]

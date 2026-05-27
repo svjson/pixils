@@ -68,9 +68,11 @@
   (let [result (evaluate-queue {:level-map level-map
                                 :queue (evaluation-events level-map event-candidates)
                                 :moved-to []
+                                :moved-tiles []
                                 :events []})]
     {:level-map (:level-map result)
-     :events (:events result)}))
+     :events (:events result)
+     :moved-tiles (:moved-tiles result)}))
 
 (defun evaluate-events [level-map event-candidates]
   (:level-map (evaluate-events-result level-map event-candidates)))
@@ -86,5 +88,6 @@
                                            ready-events)]
         (assoc state
                :level-map (:level-map result)
+               :moved-tiles (:moved-tiles result)
                :events (upsert-many (waiting (:events state))
                                      (:events result)))))))

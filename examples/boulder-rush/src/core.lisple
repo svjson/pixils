@@ -1,6 +1,7 @@
 (ns boulder-rush.core
   (:require pixils
             boulder-rush.init-mode
+            boulder-rush.sounds
             [pixils.color :as c]))
 
 (defprogram boulder-rush
