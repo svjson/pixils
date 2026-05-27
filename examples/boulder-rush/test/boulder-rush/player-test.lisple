@@ -1,0 +1,89 @@
+(ns boulder-rush.player-test
+  (:require proof.core
+            [boulder-rush.player :as player]
+            [pixils.tilemap.string-map :as string-map]))
+
+(def test-tilesets
+  [{:id :level
+    :tiles [{:id :empty
+             :char " "}
+            {:id :dirt
+             :char "."}
+            {:id :wall
+             :char "W"}
+            {:id :rock
+             :char "O"}
+            {:id :gem
+             :char "V"}
+            {:id :player-default
+             :char "P"}]}])
+
+(def tile-id-by-char
+  {" " :empty
+   "." :dirt
+   "W" :wall
+   "O" :rock
+   "V" :gem
+   "P" :player-default})
+
+(def right {:x 1 :y 0})
+
+(defun row->tiles [row]
+  (dotimes [x (count row)]
+    (get tile-id-by-char (substr row x 1))))
+
+(defun rows->map [rows]
+  {:width (count (head rows))
+   :height (count rows)
+   :layers [{:id :scene/level
+             :tileset :level
+             :data-kind :tile-ref
+             :tiles (map rows row->tiles)}]})
+
+(defun map->rows [level-map]
+  (string-map/map->string-map level-map
+                              {:tilesets test-tilesets
+                               :layers [:scene/level]}))
+
+(defun move-right [rows pos]
+  (player/move-player (rows->map rows)
+                      {:pos pos}
+                      right))
+
+(deftest move-player-moves-right-into-dirt
+  (let [result (move-right ["..OO"
+                            ".P.V"
+                            "WWWW"]
+                           {:x 1 :y 1})]
+    (is (= ["..OO"
+            ". PV"
+            "WWWW"]
+           (map->rows (:level-map result))))
+    (is (= {:x 2 :y 1}
+           (-> result :player :pos)))))
+
+(deftest move-player-moves-right-into-empty-space
+  (let [result (move-right ["P "]
+                           {:x 0 :y 0})]
+    (is (= [" P"]
+           (map->rows (:level-map result))))
+    (is (= {:x 1 :y 0}
+           (-> result :player :pos)))))
+
+(deftest move-player-moves-right-into-gem
+  (let [result (move-right ["PV"]
+                           {:x 0 :y 0})]
+    (is (= [" P"]
+           (map->rows (:level-map result))))
+    (is (= {:x 1 :y 0}
+           (-> result :player :pos)))))
+
+(deftest move-player-does-not-move-right-into-wall
+  (is (= {}
+         (move-right ["PW"]
+                     {:x 0 :y 0}))))
+
+(deftest move-player-does-not-move-right-into-rock
+  (is (= {}
+         (move-right ["PO"]
+                     {:x 0 :y 0}))))
