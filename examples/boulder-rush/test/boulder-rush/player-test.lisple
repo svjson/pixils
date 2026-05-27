@@ -11,10 +11,14 @@
                       right))
 
 (deftest move-player-moves-right-into-dirt
-  (let [result (move-right ["..OO"
-                            ".P.V"
-                            "WWWW"]
-                           {:x 1 :y 1})]
+  (given
+    {:rows ["..OO"
+            ".P.V"
+            "WWWW"]
+     :pos {:x 1 :y 1}})
+  (when [{:keys [rows pos]}]
+    (move-right rows pos))
+  (then [result]
     (is (= ["..OO"
             ". PV"
             "WWWW"]
@@ -23,27 +27,45 @@
            (-> result :player :pos)))))
 
 (deftest move-player-moves-right-into-empty-space
-  (let [result (move-right ["P "]
-                           {:x 0 :y 0})]
+  (given
+    {:rows ["P "]
+     :pos {:x 0 :y 0}})
+  (when [{:keys [rows pos]}]
+    (move-right rows pos))
+  (then [result]
     (is (= [" P"]
            (fixtures/map->rows (:level-map result))))
     (is (= {:x 1 :y 0}
            (-> result :player :pos)))))
 
 (deftest move-player-moves-right-into-gem
-  (let [result (move-right ["PV"]
-                           {:x 0 :y 0})]
+  (given
+    {:rows ["PV"]
+     :pos {:x 0 :y 0}})
+  (when [{:keys [rows pos]}]
+    (move-right rows pos))
+  (then [result]
     (is (= [" P"]
            (fixtures/map->rows (:level-map result))))
     (is (= {:x 1 :y 0}
            (-> result :player :pos)))))
 
 (deftest move-player-does-not-move-right-into-wall
-  (is (= {}
-         (move-right ["PW"]
-                     {:x 0 :y 0}))))
+  (given
+    {:rows ["PW"]
+     :pos {:x 0 :y 0}})
+  (when [{:keys [rows pos]}]
+    (move-right rows pos))
+  (then [result]
+    (is (= {}
+           result))))
 
 (deftest move-player-does-not-move-right-into-boulder
-  (is (= {}
-         (move-right ["PO"]
-                     {:x 0 :y 0}))))
+  (given
+    {:rows ["PO"]
+     :pos {:x 0 :y 0}})
+  (when [{:keys [rows pos]}]
+    (move-right rows pos))
+  (then [result]
+    (is (= {}
+           result))))

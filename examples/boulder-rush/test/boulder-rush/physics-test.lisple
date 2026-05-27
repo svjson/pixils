@@ -4,74 +4,97 @@
             [boulder-rush.fixtures :as fixtures]))
 
 (deftest points-of-interest-around-finds-adjacent-and-diagonal-falling-tiles
-  (is (= [{:x 1 :y 0}
-          {:x 2 :y 0}
-          {:x 2 :y 1}
-          {:x 0 :y 1}
-          {:x 0 :y 0}]
-         (physics/points-of-interest-around
-          (fixtures/rows->map ["OOO"
-                               "V O"
-                               "   "])
-          {:x 1 :y 1}))))
+  (given
+    (fixtures/rows->map ["OOO"
+                         "V O"
+                         "   "]))
+  (when [level-map]
+    (physics/points-of-interest-around level-map {:x 1 :y 1}))
+  (then [points]
+    (is (= [{:x 1 :y 0}
+            {:x 2 :y 0}
+            {:x 2 :y 1}
+            {:x 0 :y 1}
+            {:x 0 :y 0}]
+           points))))
 
 (deftest points-of-interest-scans-map-in-row-order
-  (is (= [{:x 2 :y 0}
-          {:x 0 :y 1}
-          {:x 1 :y 2}]
-         (physics/points-of-interest
-          (fixtures/rows->map ["  O"
-                               "V  "
-                               " V "])))))
+  (given
+    (fixtures/rows->map ["  O"
+                         "V  "
+                         " V "]))
+  (when [level-map]
+    (physics/points-of-interest level-map))
+  (then [points]
+    (is (= [{:x 2 :y 0}
+            {:x 0 :y 1}
+            {:x 1 :y 2}]
+           points))))
 
 (deftest points-of-interest-includes-current-map-boulder-id
-  (let [level-map (assoc-in (fixtures/rows->map ["   "])
-                            [:layers 0 :tiles 0 1]
-                            :simples-pimples-13)]
+  (given
+    (assoc-in (fixtures/rows->map ["   "])
+              [:layers 0 :tiles 0 1]
+              :simples-pimples-13))
+  (when [level-map]
+    (physics/points-of-interest level-map))
+  (then [points]
     (is (= [{:x 1 :y 0}]
-           (physics/points-of-interest level-map)))))
+           points))))
 
 (deftest evaluate-points-drops-boulder-with-empty-side-neighbors
-  (is (= ["   "
-          " O "
-          "WWW"]
-         (fixtures/map->rows
-          (physics/evaluate-points
-           (fixtures/rows->map [" O "
-                                "   "
-                                "WWW"])
-           [{:x 1 :y 0}])))))
-
-(deftest evaluate-points-can-use-trigger-coordinate
-  (is (= ["   "
-          " O "
-          "WWW"]
-         (fixtures/map->rows
-          (physics/evaluate-points
-           (fixtures/rows->map [" O "
-                                "   "
-                                "WWW"])
-           [{:x 1 :y 1}])))))
-
-(deftest evaluate-points-trigger-coordinate-wakes-diagonal-rolling-boulder
-  (is (= ["O  "
-          " O "
-          " W "
-          "WWW"]
-         (fixtures/map->rows
-          (physics/evaluate-points
-           (fixtures/rows->map [" O "
-                                " O "
-                                " W "
-                                "WWW"])
-           [{:x 0 :y 1}])))))
-
-(deftest evaluate-points-result-returns-moved-object-coordinates
-  (let [result (physics/evaluate-points-result
-                (fixtures/rows->map [" O "
+  (given
+    {:level-map (fixtures/rows->map [" O "
                                      "   "
                                      "WWW"])
-                [{:x 1 :y 0}])]
+     :points [{:x 1 :y 0}]})
+  (when [{:keys [level-map points]}]
+    (physics/evaluate-points level-map points))
+  (then [level-map]
+    (is (= ["   "
+            " O "
+            "WWW"]
+           (fixtures/map->rows level-map)))))
+
+(deftest evaluate-points-can-use-trigger-coordinate
+  (given
+    {:level-map (fixtures/rows->map [" O "
+                                     "   "
+                                     "WWW"])
+     :points [{:x 1 :y 1}]})
+  (when [{:keys [level-map points]}]
+    (physics/evaluate-points level-map points))
+  (then [level-map]
+    (is (= ["   "
+            " O "
+            "WWW"]
+           (fixtures/map->rows level-map)))))
+
+(deftest evaluate-points-trigger-coordinate-wakes-diagonal-rolling-boulder
+  (given
+    {:level-map (fixtures/rows->map [" O "
+                                     " O "
+                                     " W "
+                                     "WWW"])
+     :points [{:x 0 :y 1}]})
+  (when [{:keys [level-map points]}]
+    (physics/evaluate-points level-map points))
+  (then [level-map]
+    (is (= ["O  "
+            " O "
+            " W "
+            "WWW"]
+           (fixtures/map->rows level-map)))))
+
+(deftest evaluate-points-result-returns-moved-object-coordinates
+  (given
+    {:level-map (fixtures/rows->map [" O "
+                                     "   "
+                                     "WWW"])
+     :points [{:x 1 :y 0}]})
+  (when [{:keys [level-map points]}]
+    (physics/evaluate-points-result level-map points))
+  (then [result]
     (is (= ["   "
             " O "
             "WWW"]
@@ -80,156 +103,195 @@
            (:points-of-interest result)))))
 
 (deftest evaluate-points-drops-boulder-with-blocked-side-neighbors
-  (is (= ["W W"
-          "WOW"
-          "WWW"]
-         (fixtures/map->rows
-          (physics/evaluate-points
-           (fixtures/rows->map ["WOW"
-                                "W W"
-                                "WWW"])
-           [{:x 1 :y 0}])))))
+  (given
+    {:level-map (fixtures/rows->map ["WOW"
+                                     "W W"
+                                     "WWW"])
+     :points [{:x 1 :y 0}]})
+  (when [{:keys [level-map points]}]
+    (physics/evaluate-points level-map points))
+  (then [level-map]
+    (is (= ["W W"
+            "WOW"
+            "WWW"]
+           (fixtures/map->rows level-map)))))
 
 (deftest evaluate-points-drops-gem-with-empty-side-neighbors
-  (is (= ["   "
-          " V "
-          "WWW"]
-         (fixtures/map->rows
-          (physics/evaluate-points
-           (fixtures/rows->map [" V "
-                                "   "
-                                "WWW"])
-           [{:x 1 :y 0}])))))
+  (given
+    {:level-map (fixtures/rows->map [" V "
+                                     "   "
+                                     "WWW"])
+     :points [{:x 1 :y 0}]})
+  (when [{:keys [level-map points]}]
+    (physics/evaluate-points level-map points))
+  (then [level-map]
+    (is (= ["   "
+            " V "
+            "WWW"]
+           (fixtures/map->rows level-map)))))
 
 (deftest evaluate-points-drops-gem-with-blocked-side-neighbors
-  (is (= ["W W"
-          "WVW"
-          "WWW"]
-         (fixtures/map->rows
-          (physics/evaluate-points
-           (fixtures/rows->map ["WVW"
-                                "W W"
-                                "WWW"])
-           [{:x 1 :y 0}])))))
+  (given
+    {:level-map (fixtures/rows->map ["WVW"
+                                     "W W"
+                                     "WWW"])
+     :points [{:x 1 :y 0}]})
+  (when [{:keys [level-map points]}]
+    (physics/evaluate-points level-map points))
+  (then [level-map]
+    (is (= ["W W"
+            "WVW"
+            "WWW"]
+           (fixtures/map->rows level-map)))))
 
 (deftest evaluate-points-rolls-boulder-left-off-boulder
-  (is (= ["O  "
-          " O "
-          " W "
-          "WWW"]
-         (fixtures/map->rows
-          (physics/evaluate-points
-           (fixtures/rows->map [" O "
-                                " O "
-                                " W "
-                                "WWW"])
-           [{:x 1 :y 0}])))))
+  (given
+    {:level-map (fixtures/rows->map [" O "
+                                     " O "
+                                     " W "
+                                     "WWW"])
+     :points [{:x 1 :y 0}]})
+  (when [{:keys [level-map points]}]
+    (physics/evaluate-points level-map points))
+  (then [level-map]
+    (is (= ["O  "
+            " O "
+            " W "
+            "WWW"]
+           (fixtures/map->rows level-map)))))
 
 (deftest evaluate-points-rolls-boulder-right-when-left-is-blocked
-  (is (= ["W O"
-          " O "
-          " W "
-          "WWW"]
-         (fixtures/map->rows
-          (physics/evaluate-points
-           (fixtures/rows->map ["WO "
-                                " O "
-                                " W "
-                                "WWW"])
-           [{:x 1 :y 0}])))))
+  (given
+    {:level-map (fixtures/rows->map ["WO "
+                                     " O "
+                                     " W "
+                                     "WWW"])
+     :points [{:x 1 :y 0}]})
+  (when [{:keys [level-map points]}]
+    (physics/evaluate-points level-map points))
+  (then [level-map]
+    (is (= ["W O"
+            " O "
+            " W "
+            "WWW"]
+           (fixtures/map->rows level-map)))))
 
 (deftest evaluate-points-rolls-gem-off-boulder
-  (is (= ["V  "
-          " O "
-          " W "
-          "WWW"]
-         (fixtures/map->rows
-          (physics/evaluate-points
-           (fixtures/rows->map [" V "
-                                " O "
-                                " W "
-                                "WWW"])
-           [{:x 1 :y 0}])))))
+  (given
+    {:level-map (fixtures/rows->map [" V "
+                                     " O "
+                                     " W "
+                                     "WWW"])
+     :points [{:x 1 :y 0}]})
+  (when [{:keys [level-map points]}]
+    (physics/evaluate-points level-map points))
+  (then [level-map]
+    (is (= ["V  "
+            " O "
+            " W "
+            "WWW"]
+           (fixtures/map->rows level-map)))))
 
 (deftest evaluate-points-does-not-roll-off-dirt
-  (is (= [" O "
-          " . "
-          "   "
-          "WWW"]
-         (fixtures/map->rows
-          (physics/evaluate-points
-           (fixtures/rows->map [" O "
-                                " . "
-                                "   "
-                                "WWW"])
-           [{:x 1 :y 0}])))))
+  (given
+    {:level-map (fixtures/rows->map [" O "
+                                     " . "
+                                     "   "
+                                     "WWW"])
+     :points [{:x 1 :y 0}]})
+  (when [{:keys [level-map points]}]
+    (physics/evaluate-points level-map points))
+  (then [level-map]
+    (is (= [" O "
+            " . "
+            "   "
+            "WWW"]
+           (fixtures/map->rows level-map)))))
 
 (deftest evaluate-points-does-not-roll-when-side-support-cell-is-blocked
-  (is (= ["WO "
-          " O."
-          "   "
-          "WWW"]
-         (fixtures/map->rows
-          (physics/evaluate-points
-           (fixtures/rows->map ["WO "
-                                " O."
-                                "   "
-                                "WWW"])
-           [{:x 1 :y 0}])))))
+  (given
+    {:level-map (fixtures/rows->map ["WO "
+                                     " O."
+                                     "   "
+                                     "WWW"])
+     :points [{:x 1 :y 0}]})
+  (when [{:keys [level-map points]}]
+    (physics/evaluate-points level-map points))
+  (then [level-map]
+    (is (= ["WO "
+            " O."
+            "   "
+            "WWW"]
+           (fixtures/map->rows level-map)))))
 
 (deftest evaluate-points-does-not-drop-after-rolling-in-same-pass
-  (is (= ["O  "
-          " O "
-          " W "
-          "WWW"]
-         (fixtures/map->rows
-          (physics/evaluate-points
-           (fixtures/rows->map [" O "
-                                " O "
-                                " W "
-                                "WWW"])
-           [{:x 1 :y 0}
-            {:x 0 :y 0}])))))
+  (given
+    {:level-map (fixtures/rows->map [" O "
+                                     " O "
+                                     " W "
+                                     "WWW"])
+     :points [{:x 1 :y 0}
+              {:x 0 :y 0}]})
+  (when [{:keys [level-map points]}]
+    (physics/evaluate-points level-map points))
+  (then [level-map]
+    (is (= ["O  "
+            " O "
+            " W "
+            "WWW"]
+           (fixtures/map->rows level-map)))))
 
 (deftest evaluate-points-does-not-drop-into-dirt-with-empty-side-neighbors
-  (is (= [" O "
-          " . "]
-         (fixtures/map->rows
-          (physics/evaluate-points
-           (fixtures/rows->map [" O "
-                                " . "])
-           [{:x 1 :y 0}])))))
+  (given
+    {:level-map (fixtures/rows->map [" O "
+                                     " . "])
+     :points [{:x 1 :y 0}]})
+  (when [{:keys [level-map points]}]
+    (physics/evaluate-points level-map points))
+  (then [level-map]
+    (is (= [" O "
+            " . "]
+           (fixtures/map->rows level-map)))))
 
 (deftest evaluate-points-does-not-drop-into-dirt-with-blocked-side-neighbors
-  (is (= ["WOW"
-          "W.W"]
-         (fixtures/map->rows
-          (physics/evaluate-points
-           (fixtures/rows->map ["WOW"
-                                "W.W"])
-           [{:x 1 :y 0}])))))
+  (given
+    {:level-map (fixtures/rows->map ["WOW"
+                                     "W.W"])
+     :points [{:x 1 :y 0}]})
+  (when [{:keys [level-map points]}]
+    (physics/evaluate-points level-map points))
+  (then [level-map]
+    (is (= ["WOW"
+            "W.W"]
+           (fixtures/map->rows level-map)))))
 
 (deftest evaluate-points-does-not-move-same-object-twice
-  (is (= ["   "
-          " O "
-          "   "
-          "WWW"]
-         (fixtures/map->rows
-          (physics/evaluate-points
-           (fixtures/rows->map [" O "
-                                "   "
-                                "   "
-                                "WWW"])
-           [{:x 1 :y 0}])))))
+  (given
+    {:level-map (fixtures/rows->map [" O "
+                                     "   "
+                                     "   "
+                                     "WWW"])
+     :points [{:x 1 :y 0}]})
+  (when [{:keys [level-map points]}]
+    (physics/evaluate-points level-map points))
+  (then [level-map]
+    (is (= ["   "
+            " O "
+            "   "
+            "WWW"]
+           (fixtures/map->rows level-map)))))
 
 (deftest evaluate-map-allows-previously-blocked-object-to-move-after-change
-  (is (= ["W W"
-          "WOW"
-          "WOW"
-          "W W"]
-         (fixtures/map->rows
-          (physics/evaluate-map
-           (fixtures/rows->map ["WOW"
-                                "WOW"
-                                "W W"
-                                "W W"]))))))
+  (given
+    (fixtures/rows->map ["WOW"
+                         "WOW"
+                         "W W"
+                         "W W"]))
+  (when [level-map]
+    (physics/evaluate-map level-map))
+  (then [level-map]
+    (is (= ["W W"
+            "WOW"
+            "WOW"
+            "W W"]
+           (fixtures/map->rows level-map)))))

@@ -4,12 +4,15 @@
             [boulder-rush.game-mode :as game]))
 
 (deftest move-player-adds-vacated-coordinate-as-point-of-interest
-  (let [state {:level-map (fixtures/rows->map ["O  "
-                                               "P  "
-                                               "WWW"])
-               :player {:pos {:x 0 :y 1}}
-               :points-of-interest []}
-        result (game/move-player state {:x 1 :y 0})]
+  (given
+    {:level-map (fixtures/rows->map ["O  "
+                                     "P  "
+                                     "WWW"])
+     :player {:pos {:x 0 :y 1}}
+     :points-of-interest []})
+  (when [state]
+    (game/move-player state {:x 1 :y 0}))
+  (then [result]
     (is (= ["O  "
             " P "
             "WWW"]
@@ -18,20 +21,29 @@
            (:points-of-interest result)))))
 
 (deftest move-player-does-not-add-point-of-interest-when-blocked
-  (let [state {:level-map (fixtures/rows->map ["PO"])
-               :player {:pos {:x 0 :y 0}}
-               :points-of-interest []}]
+  (given
+    {:level-map (fixtures/rows->map ["PO"])
+     :player {:pos {:x 0 :y 0}}
+     :points-of-interest []})
+  (when [state]
+    (game/move-player state {:x 1 :y 0}))
+  (then [result state]
     (is (= state
-           (game/move-player state {:x 1 :y 0})))))
+           result))))
 
 (deftest update-physics-evaluates-current-points-and-retains-moved-coordinates
-  (let [state {:level-map (fixtures/rows->map [" O "
-                                               "   "
-                                               "   "
-                                               "WWW"])
-               :points-of-interest [{:x 1 :y 0}]}
-        first-pass (game/update-physics state)
-        second-pass (game/update-physics first-pass)]
+  (given
+    {:level-map (fixtures/rows->map [" O "
+                                     "   "
+                                     "   "
+                                     "WWW"])
+     :points-of-interest [{:x 1 :y 0}]})
+  (when [state]
+    (let [first-pass (game/update-physics state)
+          second-pass (game/update-physics first-pass)]
+      {:first-pass first-pass
+       :second-pass second-pass}))
+  (then [{:keys [first-pass second-pass]}]
     (is (= ["   "
             " O "
             "   "
