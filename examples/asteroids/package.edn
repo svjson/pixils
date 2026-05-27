@@ -5,6 +5,6 @@
                 pixils-runner {:path "../../lib/pixils-runner"}
                 pixils-test {:path "../../lib/pixils-test"}}
  :load-roots ["src"]
- :namespace-roots {asteroids "src"}
+ :namespace-roots {asteroids ["src" "test"]}
  :config {proof {:test-roots ["test"]}}
  :entry-points [asteroids.core]}

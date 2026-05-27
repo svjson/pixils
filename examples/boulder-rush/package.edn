@@ -8,6 +8,6 @@
                 pixils-test {:path "../../lib/pixils-test"}}
  :run pixils-runner
  :load-roots ["src"]
- :namespace-roots {boulder-rush "src"}
+ :namespace-roots {boulder-rush ["src" "test"]}
  :config {proof {:test-roots ["test"]}}
  :entry-points [boulder-rush.core]}

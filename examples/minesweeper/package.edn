@@ -6,6 +6,6 @@
                 pixils-test {:path "../../lib/pixils-test"}}
  :run pixils-runner
  :load-roots ["src"]
- :namespace-roots {pixils.examples.minesweeper "src"}
+ :namespace-roots {pixils.examples.minesweeper ["src" "test"]}
  :config {proof {:test-roots ["test"]}}
  :entry-points [pixils.examples.minesweeper.core]}

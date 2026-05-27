@@ -4,7 +4,7 @@
  :dependencies {pixils {:path "../pixils"}
                 proof "0.1.0"}
  :load-roots ["src"]
- :namespace-roots {pixils.tilemap "src"}
+ :namespace-roots {pixils.tilemap ["src" "test"]}
  :config {proof {:test-roots ["test"]}}
  :entry-points []
  :test-entry-points []}
