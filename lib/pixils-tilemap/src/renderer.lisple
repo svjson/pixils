@@ -69,16 +69,71 @@
 (defun layer-cell [tiles x y]
   (nth (or (nth (or tiles []) y) []) x))
 
-(defun render-layer! [tilemap tilesets terrain-sets layer offset zoom]
-  (let [tiles (:tiles layer)]
+(defun tile-by-id [tiles]
+  (reduce (or tiles [])
+          {}
+          (fn [out tile]
+            (assoc out (:id tile) tile))))
+
+(defun empty-prepared-tileset []
+  {:tiles []
+   :tile-by-id {}})
+
+(defun prepared-tileset [tileset]
+  (let [tiles (or (:tiles tileset) [])]
+    {:tiles tiles
+     :tile-by-id (tile-by-id tiles)}))
+
+(defun prepared-tilesets [tilesets]
+  (reduce (or tilesets [])
+          {}
+          (fn [out tileset]
+            (if (contains? out (:id tileset))
+              out
+              (assoc out (:id tileset) (prepared-tileset tileset))))))
+
+(defun clamp-index [items index]
+  (let [count (count items)]
+    (if (= count 0)
+      0
+      (max 0 (min (dec count) (or index 0))))))
+
+(defun prepared-tile-ref [prepared-tileset tile-ref]
+  (when (not (tm/absent-tile-ref? tile-ref))
+    (let [tiles (:tiles prepared-tileset)]
+      (if (keyword? tile-ref)
+        (get (:tile-by-id prepared-tileset) tile-ref)
+        (when (> (count tiles) 0)
+          (nth tiles (clamp-index tiles tile-ref)))))))
+
+(defun prepared-terrain-ref [tilesets terrain-sets terrain-ref tile-ref]
+  (tm/layer-cell-tile tilesets
+                      terrain-sets
+                      {:data-kind :terrain
+                       :terrain-set terrain-ref}
+                      tile-ref))
+
+(defun prepared-layer [prepared-tilesets layer]
+  (assoc layer
+         :prepared-tileset (or (get prepared-tilesets (:tileset layer))
+                               (empty-prepared-tileset))))
+
+(defun prepared-layer-cell-tile [tilesets terrain-sets layer tile-ref]
+  (if (= (:data-kind layer) :terrain)
+    (prepared-terrain-ref tilesets terrain-sets (:terrain-set layer) tile-ref)
+    (prepared-tile-ref (:prepared-tileset layer) tile-ref)))
+
+(defun render-layer! [tilemap tilesets prepared-tilesets terrain-sets layer offset zoom]
+  (let [layer (prepared-layer prepared-tilesets layer)
+        tiles (:tiles layer)]
     (dotimes [y (tm/map-height tilemap)]
       (dotimes [x (tm/map-width tilemap)]
         (let [tile-ref (layer-cell tiles x y)]
           (when (not (nil? tile-ref))
-            (let [tile (tm/layer-cell-tile tilesets
-                                           terrain-sets
-                                           layer
-                                           tile-ref)]
+            (let [tile (prepared-layer-cell-tile tilesets
+                                                 terrain-sets
+                                                 layer
+                                                 tile-ref)]
               (when tile
                 (draw-tile! tile (tm/tile-rect tilemap x y offset zoom))))))))))
 
@@ -90,6 +145,7 @@
 
 (defun render-layers! [tilemap opts]
   (let [tilesets (or (:tilesets opts) [])
+        tileset-lookup (prepared-tilesets tilesets)
         terrain-sets (or (:terrain-sets opts) [])
         layers (or (:layers opts) (:layers tilemap) [])
         hidden-layer-indices (or (:hidden-layer-indices opts) [])
@@ -98,7 +154,7 @@
     (do
       (for-indexed [index layer layers]
         (when (not (contains? hidden-layer-indices index))
-          (render-layer! tilemap tilesets terrain-sets layer offset zoom)))
+          (render-layer! tilemap tilesets tileset-lookup terrain-sets layer offset zoom)))
       (when (:show-grid? opts)
         (render-grid-overlay! tilemap offset zoom)))))
 

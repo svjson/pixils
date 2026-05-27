@@ -25,3 +25,28 @@
                                       {:offset {:x 1 :y 2}})]
     (is (= [{:id :br :tiles []}] (:tilesets opts)))
     (is (= {:x 1 :y 2} (:offset opts)))))
+
+(deftest prepared-tilesets-resolve-keyword-tile-refs
+  (let [tile {:id :dirt :type :sprite}
+        prepared (renderer/prepared-tilesets [{:id :br
+                                               :tiles [tile]}])
+        resolved (renderer/prepared-tile-ref (get prepared :br) :dirt)]
+    (is (= tile resolved))))
+
+(deftest prepared-tilesets-preserve-first-duplicate-id
+  (let [first-tile {:id :dirt :type :sprite}
+        second-tile {:id :dirt :type :color}
+        prepared (renderer/prepared-tilesets [{:id :br
+                                               :tiles [first-tile]}
+                                              {:id :br
+                                               :tiles [second-tile]}])
+        resolved (renderer/prepared-tile-ref (get prepared :br) :dirt)]
+    (is (= first-tile resolved))))
+
+(deftest prepared-tile-ref-clamps-numeric-tile-refs
+  (let [first-tile {:id :dirt}
+        second-tile {:id :wall}
+        prepared (renderer/prepared-tileset {:id :br
+                                             :tiles [first-tile second-tile]})]
+    (is (= first-tile (renderer/prepared-tile-ref prepared -1)))
+    (is (= second-tile (renderer/prepared-tile-ref prepared 9)))))
