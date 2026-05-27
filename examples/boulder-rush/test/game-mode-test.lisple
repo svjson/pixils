@@ -103,7 +103,20 @@
            (:interval-ms (-> result :player :move-timer))))
     (is (= true (-> result :player :walking?)))
     (is (= :player-walk-1 (-> result :player :walk-tile)))
+    (is (= {} (-> result :player :render-opts)))
     (is (not (timer/ticked? (-> result :player :move-timer))))))
+
+(deftest move-player-flips-walk-rendering-when-moving-left
+  (given
+    {:level-map (fixtures/rows->map [" P"])
+     :player {:pos {:x 1 :y 0}
+              :move-timer (ready-player-move-timer)}
+     :events []})
+  (when [state]
+    (game/move-player state {:x -1 :y 0}))
+  (then [result]
+    (is (= {:flip-x? true}
+           (-> result :player :render-opts)))))
 
 (deftest update-player-animates-walking-player
   (given

@@ -54,6 +54,22 @@
             :walk-tile :player-walk-1}
            (:player result)))))
 
+(deftest begin-walk-flips-rendering-when-moving-up-or-left
+  (is (= {:flip-x? true}
+         (:render-opts (player/begin-walk {:pos {:x 0 :y 0}}
+                                          {:x 0 :y -1}))))
+  (is (= {:flip-x? true}
+         (:render-opts (player/begin-walk {:pos {:x 0 :y 0}}
+                                          {:x -1 :y 0})))))
+
+(deftest begin-walk-does-not-flip-rendering-when-moving-right-or-down
+  (is (= {}
+         (:render-opts (player/begin-walk {:pos {:x 0 :y 0}}
+                                          {:x 1 :y 0}))))
+  (is (= {}
+         (:render-opts (player/begin-walk {:pos {:x 0 :y 0}}
+                                          {:x 0 :y 1})))))
+
 (deftest move-player-moves-right-into-gem
   (given
     {:rows ["PV"]

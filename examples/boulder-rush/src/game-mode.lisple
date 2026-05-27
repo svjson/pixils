@@ -19,7 +19,7 @@
                  :events (event/upsert-many (:events state)
                                             (physics/events-around (:level-map state)
                                                                    player-pos))
-                 :player (pl/begin-walk (:player state))))))
+                 :player (pl/begin-walk (:player state) dir)))))
     state))
 
 (defmode game-mode
@@ -72,5 +72,6 @@
                                            (:tileset state)
                                            {:offset (:offset state)
                                             :tile-substitutions (if (-> state :player :walking?)
-                                                                  {:player-default (-> state :player :walk-tile)}
+                                                                  {:player-default {:tile (-> state :player :walk-tile)
+                                                                                    :render-opts (-> state :player :render-opts)}}
                                                                   {})}))})

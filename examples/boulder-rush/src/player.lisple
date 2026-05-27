@@ -14,7 +14,8 @@
                             :ticked? true})
    :walking? false
    :walk-animation-timer (timer/make {:interval-ms WALK-ANIMATION-INTERVAL-MS})
-   :walk-tile :player-walk-1})
+   :walk-tile :player-walk-1
+   :render-opts {}})
 
 (defun move-player [map player dir]
   (let [player-pos (:pos player)
@@ -27,12 +28,17 @@
         :player (assoc player :pos target-pos)}
         {})))
 
-(defun begin-walk [player]
+(defun begin-walk [player dir]
   (assoc player
          :move-timer (timer/make {:interval-ms MOVE-INTERVAL-MS})
          :walking? true
          :walk-animation-timer (timer/make {:interval-ms WALK-ANIMATION-INTERVAL-MS})
-         :walk-tile :player-walk-1))
+         :walk-tile :player-walk-1
+         :render-opts (if (contains? [{:x 0 :y -1}
+                                      {:x -1 :y 0}]
+                                     dir)
+                        {:flip-x? true}
+                        {})))
 
 (defun next-walk-tile [tile]
   (case tile
