@@ -1,35 +1,35 @@
 (ns boulder-rush.camera-test
   (:require proof.core
-            [boulder-rush.game-mode :as game]))
+            [boulder-rush.camera :as camera]))
 
 (deftest scroll-tile-offset-stays-put-inside-scroll-margin
-  (let [offset (game/scroll-tile-offset {:width 40 :height 22}
-                                        {:w 20 :h 12}
-                                        {:x 6 :y 4}
-                                        {:x 10 :y 8})]
+  (let [offset (camera/scroll-tile-offset {:width 40 :height 22}
+                                          {:w 20 :h 12}
+                                          {:x 6 :y 4}
+                                          {:x 10 :y 8})]
     (is (= 6 (:x offset)))
     (is (= 4 (:y offset)))))
 
 (deftest scroll-tile-offset-moves-three-tiles-near-right-edge
-  (let [offset (game/scroll-tile-offset {:width 40 :height 22}
-                                        {:w 20 :h 12}
-                                        {:x 0 :y 0}
-                                        {:x 17 :y 6})]
+  (let [offset (camera/scroll-tile-offset {:width 40 :height 22}
+                                          {:w 20 :h 12}
+                                          {:x 0 :y 0}
+                                          {:x 17 :y 6})]
     (is (= 3 (:x offset)))
     (is (= 0 (:y offset)))))
 
 (deftest scroll-tile-offset-moves-three-tiles-near-bottom-edge
-  (let [offset (game/scroll-tile-offset {:width 40 :height 22}
-                                        {:w 20 :h 12}
-                                        {:x 0 :y 0}
-                                        {:x 6 :y 9})]
+  (let [offset (camera/scroll-tile-offset {:width 40 :height 22}
+                                          {:w 20 :h 12}
+                                          {:x 0 :y 0}
+                                          {:x 6 :y 9})]
     (is (= 0 (:x offset)))
     (is (= 3 (:y offset)))))
 
 (deftest scroll-tile-offset-clamps-to-map-bounds
-  (let [offset (game/scroll-tile-offset {:width 40 :height 22}
-                                        {:w 20 :h 12}
-                                        {:x 18 :y 9}
-                                        {:x 37 :y 20})]
+  (let [offset (camera/scroll-tile-offset {:width 40 :height 22}
+                                          {:w 20 :h 12}
+                                          {:x 18 :y 9}
+                                          {:x 37 :y 20})]
     (is (= 20 (:x offset)))
     (is (= 10 (:y offset)))))

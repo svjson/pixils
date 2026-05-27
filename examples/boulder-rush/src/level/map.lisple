@@ -1,0 +1,32 @@
+(ns boulder-rush.level.map)
+
+(def LAYER-INDEX 0)
+
+(defun cell-path [pos]
+  [:layers LAYER-INDEX :tiles (:y pos) (:x pos)])
+
+(defun cell-at [level-map pos]
+  (-> level-map
+      (get-in (cell-path pos))))
+
+(defun set-cell [level-map pos tile-id]
+  (assoc-in level-map (cell-path pos) tile-id))
+
+(defun move-cell [level-map from-pos to-pos]
+  (let [moving-tile (cell-at level-map from-pos)]
+    (-> level-map
+      (set-cell from-pos :empty)
+      (set-cell to-pos moving-tile))))
+
+(defun find-cell [level-map tile-id]
+  (reduce (-> level-map :layers (nth LAYER-INDEX) :tiles)
+          {:x nil :y 0}
+          (fn [coord row]
+            (case (:x coord)
+              nil
+              (if-let [x (find-index row (fn [cell] (= tile-id cell)))]
+                (assoc coord :x x)
+                (update coord :y inc))
+
+              :default
+              coord))))

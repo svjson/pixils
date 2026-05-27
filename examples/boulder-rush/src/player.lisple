@@ -1,15 +1,15 @@
 (ns boulder-rush.player
-  (:require [pixils.point :as pt]))
+  (:require [pixils.point :as pt]
+            [boulder-rush.level.map :as map]))
 
 (defun move-player [map player dir]
   (let [player-pos (:pos player)
-        new-pos (pt/+ player-pos dir)
-        matrix (-> map :layers (nth 0) :tiles)
-        target-cell (-> matrix (nth (:y new-pos)) (nth (:x new-pos)))]
-    (if (contains? [:empty :dirt :gem] target-cell)
-      {:level-map (-> map
-                      (assoc-in [:layers 0 :tiles (:y player-pos) (:x player-pos)] :empty)
-                      (assoc-in [:layers 0 :tiles (:y new-pos) (:x new-pos)] :player-default))
-       :player {:pos new-pos}}
-      {})))
+                   target-pos (pt/+ player-pos dir)
+                   matrix (-> map :layers (nth 0) :tiles)]
+    (if (contains? [:empty :dirt :gem] (map/cell-at map target-pos))
+        {:level-map (map/move-cell map
+                                   player-pos
+                                   target-pos)
+        :player {:pos target-pos}}
+        {})))
 
