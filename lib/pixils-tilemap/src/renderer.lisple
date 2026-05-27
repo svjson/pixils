@@ -26,7 +26,7 @@
   (r/rect! rect {:fill true
                  :color (:color tile)}))
 
-(defun draw-image-tile! [tile rect]
+(defun draw-image-tile! [tile rect render-opts]
   (let [dim (img/size (:image tile))]
     (if (valid-dim? dim)
       (let [scale (fit-scale (:w dim) (:h dim) rect)
@@ -36,32 +36,34 @@
           (r/rect! rect {:fill true
                          :color tm/default-image-tile-background-color})
           (r/image! (:image tile)
-                    {:pos (centered-pos rect width height)
-                     :scale scale})))
+                    (merge {:pos (centered-pos rect width height)
+                            :scale scale}
+                           (or render-opts {})))))
       (draw-missing-tile! rect))))
 
-(defun draw-sprite-tile! [tile rect]
+(defun draw-sprite-tile! [tile rect render-opts]
   (let [source (:source tile)]
     (if (valid-dim? source)
       (let [scale (fit-scale (:w source) (:h source) rect)
             width (* (:w source) scale)
             height (* (:h source) scale)]
         (r/image! (:image tile)
-                  {:pos (centered-pos rect width height)
-                   :source source
-                   :scale scale}))
+                  (merge {:pos (centered-pos rect width height)
+                          :source source
+                          :scale scale}
+                         (or render-opts {}))))
       (draw-missing-tile! rect))))
 
-(defun draw-tile! [tile rect]
+(defun draw-tile! [tile rect render-opts]
   (cond
     (= (:type tile) :color)
     (draw-color-tile! tile rect)
 
     (= (:type tile) :image)
-    (draw-image-tile! tile rect)
+    (draw-image-tile! tile rect render-opts)
 
     (= (:type tile) :sprite)
-    (draw-sprite-tile! tile rect)
+    (draw-sprite-tile! tile rect render-opts)
 
     :default
     (draw-missing-tile! rect)))
@@ -118,9 +120,19 @@
          :prepared-tileset (or (get prepared-tilesets (:tileset layer))
                                (empty-prepared-tileset))))
 
+(defun substitution-tile [tile-ref substitution]
+  (if (= (type-of substitution) "map")
+    (or (:tile substitution) tile-ref)
+    (or substitution tile-ref)))
+
+(defun substitution-render-opts [substitution]
+  (if (= (type-of substitution) "map")
+    (or (:render-opts substitution) {})
+    {}))
+
 (defun prepared-layer-cell-tile [tilesets terrain-sets layer tile-ref tile-substitutions]
-  (let [tile-ref (or (get (or tile-substitutions {}) tile-ref)
-                     tile-ref)]
+  (let [tile-ref (substitution-tile tile-ref
+                                    (get (or tile-substitutions {}) tile-ref))]
     (if (= (:data-kind layer) :terrain)
       (prepared-terrain-ref tilesets terrain-sets (:terrain-set layer) tile-ref)
       (prepared-tile-ref (:prepared-tileset layer) tile-ref))))
@@ -132,13 +144,16 @@
       (dotimes [x (tm/map-width tilemap)]
         (let [tile-ref (layer-cell tiles x y)]
           (when (not (nil? tile-ref))
-            (let [tile (prepared-layer-cell-tile tilesets
+            (let [substitution (get (or tile-substitutions {}) tile-ref)
+                  tile (prepared-layer-cell-tile tilesets
                                                  terrain-sets
                                                  layer
                                                  tile-ref
                                                  tile-substitutions)]
               (when tile
-                (draw-tile! tile (tm/tile-rect tilemap x y offset zoom))))))))))
+                (draw-tile! tile
+                            (tm/tile-rect tilemap x y offset zoom)
+                            (substitution-render-opts substitution))))))))))
 
 (defun render-grid-overlay! [tilemap offset zoom]
   (dotimes [y (tm/map-height tilemap)]

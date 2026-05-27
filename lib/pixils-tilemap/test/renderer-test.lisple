@@ -66,3 +66,23 @@
                                                   :player-default
                                                   {:player-default :player-walk-1})]
     (is (= walking result))))
+
+(deftest prepared-layer-cell-tile-accepts_substitution_maps
+  (let [player {:id :player-default}
+        walking {:id :player-walk-1}
+        tileset {:id :br
+                 :tiles [player walking]}
+        prepared-tilesets (renderer/prepared-tilesets [tileset])
+        layer (renderer/prepared-layer prepared-tilesets
+                                       {:tileset :br
+                                        :data-kind :tile-ref})
+        substitution {:tile :player-walk-1
+                      :render-opts {:flip-x? true}}]
+    (is (= walking
+           (renderer/prepared-layer-cell-tile [tileset]
+                                              []
+                                              layer
+                                              :player-default
+                                              {:player-default substitution})))
+    (is (= {:flip-x? true}
+           (renderer/substitution-render-opts substitution)))))
