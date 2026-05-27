@@ -1,0 +1,137 @@
+(ns pixils.tilemap.string-map
+  (:require [pixils.tilemap.model :as tm]))
+
+(def empty-cell-char " ")
+(def missing-cell-char "?")
+
+(defun string-map-rect [tilemap opts]
+  (let [rect (or (:rect opts) {})]
+    {:x (or (:x rect) 0)
+     :y (or (:y rect) 0)
+     :w (or (:w rect) (tm/map-width tilemap))
+     :h (or (:h rect) (tm/map-height tilemap))}))
+
+(defun layer-by-id [layers id]
+  (head (filter (or layers [])
+                (fn [layer]
+                  (= (:id layer) id)))))
+
+(defun layer-for-selector [layers selector]
+  (cond
+    (number? selector)
+    (nth (or layers []) selector)
+
+    (keyword? selector)
+    (layer-by-id layers selector)
+
+    :default
+    nil))
+
+(defun selected-layers [tilemap opts]
+  (let [layers (or (:layers tilemap) [])
+        selectors (:layers opts)]
+    (if selectors
+      (filter (map selectors
+                   (fn [selector]
+                     (layer-for-selector layers selector)))
+              (fn [layer]
+                (not (nil? layer))))
+      layers)))
+
+(defun layer-cell [layer x y]
+  (nth (or (nth (or (:tiles layer) []) y) []) x))
+
+(defun tile-char [tile]
+  (or (:char tile) missing-cell-char))
+
+(defun index-in-bounds? [items index]
+  (and (number? index)
+       (>= index 0)
+       (< index (count (or items [])))))
+
+(defun tile-ref-resolves? [tilesets tileset tile-ref]
+  (let [tiles (tm/tileset-tiles tilesets tileset)]
+    (if (keyword? tile-ref)
+      (not (nil? (find-index tiles
+                             (fn [tile]
+                               (= (:id tile) tile-ref)))))
+      (index-in-bounds? tiles tile-ref))))
+
+(defun terrain-ref-resolves? [terrain-sets terrain-set terrain-ref]
+  (let [terrains (tm/terrain-definitions terrain-sets terrain-set)]
+    (if (keyword? terrain-ref)
+      (not (nil? (find-index terrains
+                             (fn [terrain]
+                               (= (:id terrain) terrain-ref)))))
+      (index-in-bounds? terrains terrain-ref))))
+
+(defun layer-cell-ref-resolves? [tilesets terrain-sets layer tile-ref]
+  (if (= (:data-kind layer) :terrain)
+    (terrain-ref-resolves? terrain-sets (:terrain-set layer) tile-ref)
+    (tile-ref-resolves? tilesets (:tileset layer) tile-ref)))
+
+(defun layer-cell-char [layer tilesets terrain-sets x y]
+  (let [tile-ref (layer-cell layer x y)]
+    (if (tm/absent-tile-ref? tile-ref)
+      empty-cell-char
+      (if (layer-cell-ref-resolves? tilesets terrain-sets layer tile-ref)
+        (tile-char (tm/layer-cell-tile tilesets
+                                       terrain-sets
+                                       layer
+                                       tile-ref))
+        missing-cell-char))))
+
+(defun layer-string-map-row [layer tilesets terrain-sets rect y]
+  (reduce (dotimes [x (:w rect)]
+            (layer-cell-char layer
+                             tilesets
+                             terrain-sets
+                             (+ (:x rect) x)
+                             (+ (:y rect) y)))
+          ""
+          (fn [row cell-char]
+            (str row cell-char))))
+
+(defun layer->string-map [layer tilemap opts]
+  (let [rect (string-map-rect tilemap opts)
+        tilesets (or (:tilesets opts) [])
+        terrain-sets (or (:terrain-sets opts) [])]
+    (dotimes [y (:h rect)]
+      (layer-string-map-row layer tilesets terrain-sets rect y))))
+
+(defun replace-char [text index ch]
+  (str (substr text 0 index)
+       ch
+       (substr text (inc index))))
+
+(defun merge-row [bottom top]
+  (reduce (dotimes [index (count top)]
+            index)
+          bottom
+          (fn [out index]
+            (let [ch (substr top index 1)]
+              (if (= ch empty-cell-char)
+                out
+                (replace-char out index ch))))))
+
+(defun merge-string-map-layer [bottom top]
+  (for-indexed [index row bottom]
+    (merge-row row (nth top index))))
+
+(defun empty-string-map-row [width]
+  (apply str (repeat width empty-cell-char)))
+
+(defun empty-string-map [rect]
+  (repeat (:h rect) (empty-string-map-row (:w rect))))
+
+(defun map->string-map-layers [tilemap opts]
+  (map (selected-layers tilemap opts)
+       (fn [layer]
+         (layer->string-map layer tilemap opts))))
+
+(defun map->string-map [tilemap opts]
+  (let [rect (string-map-rect tilemap opts)]
+    (reduce (map->string-map-layers tilemap opts)
+            (empty-string-map rect)
+            (fn [out layer]
+              (merge-string-map-layer out layer)))))

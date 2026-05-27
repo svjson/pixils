@@ -1,0 +1,109 @@
+(ns pixils.tilemap.string-map-test
+  (:require proof.core
+            [pixils.tilemap.string-map :as string-map]))
+
+(def test-tilesets
+  [{:id :level
+    :tiles [{:id :empty
+             :char "."}
+            {:id :wall
+             :char "W"}
+            {:id :rock
+             :char "O"}
+            {:id :player
+             :char "P"}
+            {:id :vine
+             :char "V"}
+            {:id :bad-tile}]}
+   {:id :actors
+    :tiles [{:id :player
+             :char "P"}
+            {:id :vine
+             :char "V"}]}])
+
+(def test-map
+  {:width 4
+   :height 3
+   :layers [{:id :scene/level
+             :tileset :level
+             :data-kind :tile-ref
+             :tiles [[:empty :empty :rock :rock]
+                     [:empty :player nil :vine]
+                     [:wall :wall :wall :wall]]}
+            {:id :scene/actors
+             :tileset :actors
+             :data-kind :tile-ref
+             :tiles [[nil nil nil nil]
+                     [nil :player :vine nil]
+                     [nil nil nil nil]]}]})
+
+(def default-opts
+  {:tilesets test-tilesets})
+
+(deftest map-to-string-map-renders-single-layer
+  (is (= ["..OO"
+          ".P V"
+          "WWWW"]
+         (string-map/map->string-map test-map
+                                     (assoc default-opts
+                                            :layers [:scene/level])))))
+
+(deftest map-to-string-map-supports-rect-cutout
+  (is (= [".O"
+          "P "]
+         (string-map/map->string-map test-map
+                                     (assoc default-opts
+                                            :layers [0]
+                                            :rect {:x 1 :y 0 :w 2 :h 2})))))
+
+(deftest map-to-string-map-layers-returns-layers-in-selector-order
+  (is (= [[" PV "
+           "    "]
+          [".P V"
+           "WWWW"]]
+         (string-map/map->string-map-layers
+          test-map
+          (assoc default-opts
+                 :layers [:scene/actors 0]
+                 :rect {:x 0 :y 1 :w 4 :h 2})))))
+
+(deftest map-to-string-map-uses-later-selected-layers-as-topmost
+  (is (= ["..OO"
+          ".PVV"
+          "WWWW"]
+         (string-map/map->string-map
+          test-map
+          (assoc default-opts
+                 :layers [:scene/level
+                          {:missing :selector}
+                          :scene/actors])))))
+
+(deftest map-to-string-map-preserves-duplicate-layer-selectors
+  (is (= [["..OO"
+           ".P V"
+           "WWWW"]
+          ["..OO"
+           ".P V"
+           "WWWW"]]
+         (string-map/map->string-map-layers
+          test-map
+          (assoc default-opts
+                 :layers [:scene/level :scene/level])))))
+
+(deftest map-to-string-map-uses-missing-char-for-unresolved-tiles
+  (let [tilemap (assoc-in test-map [:layers 0 :tiles 1 2] :missing)]
+    (is (= ["..OO"
+            ".P?V"
+            "WWWW"]
+           (string-map/map->string-map tilemap
+                                       (assoc default-opts
+                                              :layers [0]))))))
+
+(deftest map-to-string-map-uses-missing-char-for-tiles-without-char
+  (let [tilemap (assoc-in test-map [:layers 0 :tiles 1 2] :bad-tile)]
+    (is (= ["..OO"
+            ".P?V"
+            "WWWW"]
+           (string-map/map->string-map tilemap
+                                       (assoc default-opts
+                                              :layers [0]))))))
