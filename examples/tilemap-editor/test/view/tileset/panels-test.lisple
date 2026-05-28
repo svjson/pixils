@@ -76,6 +76,15 @@
            :source-snap-interval 8
            :source-snap-interval-custom? true}))))
 
+(deftest tile-sprite-editor-binds_zoom_and_offset_to_preview
+  (let [children (panels/tile-sprite-editor-children)
+        preview (nth children 1)
+        zoom-control (nth children 2)]
+    (is (= 'sprite-map-preview (:mode preview)))
+    (is (not (nil? (-> preview :state :sprite-map-preview-zoom))))
+    (is (not (nil? (-> preview :state :sprite-map-preview-offset))))
+    (is (not (nil? (-> zoom-control :state :zoom))))))
+
 (deftest sprite-map-preview-source-navigation-clamps_to_asset_bounds
   (is (= {:x 784 :y 1264 :w 16 :h 16}
          (panels/move-source-position {:x 784 :y 1264 :w 16 :h 16}

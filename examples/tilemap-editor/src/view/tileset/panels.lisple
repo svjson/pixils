@@ -578,6 +578,49 @@
               (color-channel-child :g "G" (ui/bind-state :g))
               (color-channel-child :b "B" (ui/bind-state :b))]})
 
+(defun tile-sprite-editor-children []
+  [(tile-detail-field-child "Asset" (ui/bind-state :asset-label))
+   {:mode 'sprite-map-preview
+    :state {:tile (ui/bind-state :tile)
+            :tile-size (ui/bind-state :tile-size)
+            :source-snap-to-grid? (ui/bind-state
+                                   :source-snap-to-grid?)
+            :source-snap-interval (ui/bind-state
+                                   :source-snap-interval)
+            :sprite-map-preview-zoom
+            (ui/bind-state :sprite-map-preview-zoom)
+            :sprite-map-preview-offset
+            (ui/bind-state :sprite-map-preview-offset)}}
+   (ip/zoom-control {:zoom (ui/bind-state :sprite-map-preview-zoom)})
+   {:mode 'tile-definition-row
+    :style {:width :fill
+            :height 24
+            :layout {:direction :row
+                     :align-items :center
+                     :gap 8}}
+    :state {:source-snap-to-grid? (ui/bind-state
+                                   :source-snap-to-grid?)
+            :source-snap-interval (ui/bind-state
+                                   :source-snap-interval)
+            :source-snap-interval-label (ui/bind-state
+                                         :source-snap-interval-label)
+            :tile-size (ui/bind-state :tile-size)}
+    :children [(chk/make {:label "Snap"
+                          :checked? (ui/bind-state
+                                     :source-snap-to-grid?)
+                          :style {:width 62
+                                  :height 20}})
+               (sl/make {:value (ui/bind-state
+                                 :source-snap-interval)
+                         :min 1
+                         :max 128
+                         :step 1})
+               {:mode 'ui/text
+                :style {:width 28}
+                :state {:value (ui/bind-state
+                                :source-snap-interval-label)}}]}
+   (tile-detail-field-child "Source" (ui/bind-state :source-label))])
+
 (defcomponent tile-sprite-editor
   {:style {:width :fill
            :height :shrink
@@ -590,7 +633,12 @@
                     (source-position-snap-enabled? state)
                     :source-snap-interval
                     (source-position-snap-interval
-                     (assoc state :tile-size tile-size)))))
+                     (assoc state :tile-size tile-size))
+                    :sprite-map-preview-zoom
+                    (ip/clamp-zoom (:sprite-map-preview-zoom state))
+                    :sprite-map-preview-offset
+                    (ip/offset-or-zero
+                     (:sprite-map-preview-offset state)))))
    :update (fn [state ctx]
              (let [tile (:tile state)
                    source (:source tile)
@@ -606,6 +654,11 @@
                         :source-snap-to-grid? snap-to-grid?
                         :source-snap-interval snap-interval
                         :source-snap-interval-label (str snap-interval)
+                        :sprite-map-preview-zoom
+                        (ip/clamp-zoom (:sprite-map-preview-zoom state))
+                        :sprite-map-preview-offset
+                        (ip/offset-or-zero
+                         (:sprite-map-preview-offset state))
                         :asset-label (str (:image tile))
                         :source-label (source-label source)))))
    :on {:checkbox/change (fn [state event ctx]
@@ -617,46 +670,10 @@
         :slider/change (fn [state event ctx]
                          (do
                            (ui/emit! (:view ctx)
-                                     :tile-definition/source-snap-interval-change
+                                      :tile-definition/source-snap-interval-change
                                      (:payload event))
                            state))}
-   :children [(tile-detail-field-child "Asset" (ui/bind-state :asset-label))
-              {:mode 'sprite-map-preview
-               :state {:tile (ui/bind-state :tile)
-                       :tile-size (ui/bind-state :tile-size)
-                       :source-snap-to-grid? (ui/bind-state
-                                              :source-snap-to-grid?)
-                       :source-snap-interval (ui/bind-state
-                                              :source-snap-interval)}}
-              (ip/zoom-control {:zoom (ui/bind-state :sprite-map-preview-zoom)})
-              {:mode 'tile-definition-row
-               :style {:width :fill
-                       :height 24
-                       :layout {:direction :row
-                                :align-items :center
-                                :gap 8}}
-               :state {:source-snap-to-grid? (ui/bind-state
-                                              :source-snap-to-grid?)
-                       :source-snap-interval (ui/bind-state
-                                              :source-snap-interval)
-                       :source-snap-interval-label (ui/bind-state
-                                                    :source-snap-interval-label)
-                       :tile-size (ui/bind-state :tile-size)}
-               :children [(chk/make {:label "Snap"
-                                     :checked? (ui/bind-state
-                                                :source-snap-to-grid?)
-                                     :style {:width 62
-                                             :height 20}})
-                          (sl/make {:value (ui/bind-state
-                                            :source-snap-interval)
-                                    :min 1
-                                    :max 128
-                                    :step 1})
-                          {:mode 'ui/text
-                           :style {:width 28}
-                           :state {:value (ui/bind-state
-                                           :source-snap-interval-label)}}]}
-              (tile-detail-field-child "Source" (ui/bind-state :source-label))]})
+   :children (tile-sprite-editor-children)})
 
 (defcomponent tile-definition-panel
   {:style {:width :shrink
