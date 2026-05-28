@@ -1,12 +1,25 @@
 (ns boulder-rush.game-mode
   (:require pixils
+            [pixils.color :as c]
+            [pixils.render :as r]
+            [pixils.point :as pt]
+            pixils.tilemap.render
+            [pixils.tilemap.renderer :as tilemap-renderer]
             [boulder-rush.camera :as camera]
             [boulder-rush.event :as event]
             [boulder-rush.player :as pl]
             [boulder-rush.physics :as physics]
             [boulder-rush.sounds :as sound]
-            [boulder-rush.level.loader :as level-loader]
-            [pixils.tilemap.renderer :as tilemap-renderer]))
+            [boulder-rush.level.loader :as level-loader]))
+
+(def status-bar-render-ops {:scale [2 1]})
+
+(defun left-pad [s n pad]
+  (let [s (str s)
+        pad-len (- n (count s))]
+    (if (> pad-len 0)
+      (str (apply str (repeat pad-len pad)) s)
+      s)))
 
 (defun held-direction [held-keys]
   (cond
@@ -72,6 +85,11 @@
                  map (level-loader/level-map state level)]
              {:level level
               :level-map map
+              :gems {:collected 0
+                     :required 12
+                     :value 10
+                     :bonus-value 15}
+              :time-remaining 150
               :tile-offset {:x 0 :y 0}
               :offset {:x 0 :y 0}
               :tileset (level-loader/level-tileset state level)
@@ -101,9 +119,31 @@
              (tilemap-renderer/render-map! (:level-map state)
                                            (:tileset state)
                                            {:offset (:offset state)
+                                            :target-rect
+                                            {:x 0
+                                             :y 16
+                                             :w (-> ctx :buffer-size :w)
+                                             :h (- (-> ctx :buffer-size :h) 16)}
                                             :tile-substitutions (merge
                                                                  {:exit :barrier}
                                                                  (if (-> state :player :walking?)
                                                                   {:player-default {:tile (-> state :player :walk-tile)
                                                                                     :render-opts (-> state :player :render-opts)}}
-                                                                  {}))}))})
+                                                                  {}))})
+             (r/text! (left-pad (str (-> state :gems :required)) 2 "0")
+                      {:x 0 :y 4}
+                      status-bar-render-ops)
+             (pixils.tilemap.render/tile! (:tileset state) :gem {:pos {:x 28 :y 1}})
+             (r/text! (left-pad (str (-> state :gems :value)) 2 "0")
+                      {:x 48 :y 4}
+                      status-bar-render-ops)
+             (r/text! (left-pad (str (-> state :gems :collected)) 2 "0")
+                      {:x 112 :y 4}
+                      (assoc status-bar-render-ops
+                             :color c/YELLOW))
+             (r/text! (left-pad (str (-> state :time-remaining)) 3 "0")
+                      {:x 176 :y 4}
+                      status-bar-render-ops)
+             (r/text! (left-pad (str (-> state :player :score)) 6 "0")
+                      {:x 248 :y 4}
+                      status-bar-render-ops))})

@@ -1,0 +1,5 @@
+(ns pixils.tilemap.render
+  (:require [pixils.tilemap.renderer :as renderer]))
+
+(defun tile! [tileset tile-ref render-opts]
+  (renderer/tile! tileset tile-ref render-opts))

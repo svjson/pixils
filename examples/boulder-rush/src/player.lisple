@@ -8,12 +8,14 @@
 (def PUSH-INTERVALS-MS [100 130 160 190 220 250 280 300])
 
 (defun make [pos]
-  {:pos pos
+  {:lives 3
+   :pos pos
    :move-timer (timer/make {:interval-ms MOVE-INTERVAL-MS
                             :started? true
                             :last-tick-ms 0
                             :ticked? true})
    :walking? false
+   :score 0
    :walk-animation-timer (timer/make {:interval-ms WALK-ANIMATION-INTERVAL-MS})
    :walk-tile :player-walk-1
    :render-opts {}})
