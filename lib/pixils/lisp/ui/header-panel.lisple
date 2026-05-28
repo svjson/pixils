@@ -20,11 +20,11 @@
    :style {:width :fill}
    :state {:value (ui/bind-state :title)}})
 
-(defun header-children [children]
-  (concat [(header-title-child)]
+(defun header-children [title-child children]
+  (concat [(or title-child (header-title-child))]
           (or children [])))
 
-(defun make [{:keys [title init update on state style header-style header-children body-style body-state children]}]
+(defun make [{:keys [title init update on state style header-style title-child header-children body-style body-state children]}]
   (let [panel-state (merge (or state {})
                            {:title title})]
     (merge {:mode 'ui/header-panel
@@ -33,7 +33,8 @@
             :children [{:mode 'ui/header-panel-header
                         :style (or header-style {})
                         :state panel-state
-                        :children (header-children header-children)}
+                        :children (header-children title-child
+                                                   header-children)}
                        {:mode 'ui/header-panel-body
                         :style (or body-style {})
                         :state (or body-state state {})

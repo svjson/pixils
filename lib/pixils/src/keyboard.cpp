@@ -184,6 +184,7 @@ namespace Pixils
       {"quote", SDLK_QUOTE},
       {"comma", SDLK_COMMA},
       {"period", SDLK_PERIOD},
+      {"greater", SDLK_GREATER},
       {"less", SDLK_LESS},
       {"left", SDLK_LEFT},
       {"right", SDLK_RIGHT},
@@ -454,7 +455,7 @@ namespace Pixils
         if (key_name == "minus") return std::string("_");
         if (key_name == "plus") return std::string("?");
         if (key_name == "quote") return std::string("*");
-        if (key_name == "less") return std::string(">");
+        if (key_name == "greater") return std::string(">");
       }
 
       if (altgr)
