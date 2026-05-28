@@ -1,8 +1,22 @@
 (ns boulder-rush.sounds
-  (:require pixils))
+  (:require pixils
+            [pixils.audio :as audio]))
 
 (defbundle boulder-rush-sfx
   {:sounds {:gem "../assets/gem.wav"
             :dig "../assets/dig.wav"
             :boulder "../assets/boulder.wav"
             :explosion "../assets/explosion.wav"}})
+
+(defun play-game-event-sounds [state]
+  (when (contains? (or (:moved-tiles state) []) :boulder)
+    (audio/play! :boulder-rush-sfx/boulder {:volume 0.1}))
+  (when (not (empty? (or (:explosions state) [])))
+    (audio/play! :boulder-rush-sfx/explosion {:volume 0.1}))
+  (dissoc (dissoc state :moved-tiles) :explosions))
+
+(defun play-player-movement-sound [entered-tile]
+  (case entered-tile
+    :gem (audio/play! :boulder-rush-sfx/gem {:volume 0.1})
+    :dirt (audio/play! :boulder-rush-sfx/dig {:volume 0.1})
+    :default nil))

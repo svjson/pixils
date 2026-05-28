@@ -1,39 +1,60 @@
 (ns boulder-rush.game-mode
   (:require pixils
-            [pixils.audio :as audio]
             [boulder-rush.camera :as camera]
             [boulder-rush.event :as event]
             [boulder-rush.player :as pl]
             [boulder-rush.physics :as physics]
+            [boulder-rush.sounds :as sound]
             [boulder-rush.level.loader :as level-loader]
-            [pixils.state.timer :as timer]
             [pixils.tilemap.renderer :as tilemap-renderer]))
 
-(defun play-physics-sounds [state]
-  (when (contains? (or (:moved-tiles state) []) :boulder)
-    (audio/play! :boulder-rush-sfx/boulder {:volume 0.1}))
-  (when (not (empty? (or (:explosions state) [])))
-    (audio/play! :boulder-rush-sfx/explosion {:volume 0.1}))
-  (dissoc (dissoc state :moved-tiles) :explosions))
+(defun held-direction [held-keys]
+  (cond
+    (contains? held-keys :key/up)
+    {:x 0 :y -1}
 
-(defun move-player [state dir]
-  (if (timer/ticked? (-> state :player :move-timer))
-    (let [player-pos (-> state :player :pos)
-          result (pl/move-player (:level-map state) (:player state) dir)]
-      (if (empty? result)
-        state
-        (do
-          (case (:entered-tile result)
-            :gem (audio/play! :boulder-rush-sfx/gem {:volume 0.1})
-            :dirt (audio/play! :boulder-rush-sfx/dig {:volume 0.1})
-            :default nil)
-          (let [state (merge state (dissoc result :entered-tile))]
-            (assoc state
-                   :events (event/upsert-many (:events state)
-                                              (physics/events-around (:level-map state)
-                                                                     player-pos))
-                   :player (pl/begin-walk (:player state) dir))))))
-    state))
+    (contains? held-keys :key/right)
+    {:x 1 :y 0}
+
+    (contains? held-keys :key/down)
+    {:x 0 :y 1}
+
+    (contains? held-keys :key/left)
+    {:x -1 :y 0}
+
+    :default
+    nil))
+
+(defun apply-player-result [state result]
+  (sound/play-player-movement-sound (:entered-tile result))
+  (let [moved-tiles (:moved-tiles result)
+        changed-positions (:changed-positions result)
+        result (dissoc result :entered-tile)
+        result (dissoc result :changed-positions)
+        state (merge state (dissoc result :moved-tiles))
+        state (if (empty? (or moved-tiles []))
+                state
+                (assoc state
+                       :moved-tiles (concat (or (:moved-tiles state) [])
+                                            moved-tiles)))]
+    (if (empty? (or changed-positions []))
+      state
+      (assoc state
+             :events (reduce (or changed-positions [])
+                             (:events state)
+                             (fn [events pos]
+                               (event/upsert-many events
+                                                  (physics/events-around (:level-map state)
+                                                                         pos))))))))
+
+(defun handle-player-input [state ctx]
+  (let [dir (held-direction (or (:held-keys ctx) []))]
+    (apply-player-result state
+                         (if dir
+                           (pl/apply-intent (:level-map state)
+                                            (:player state)
+                                            dir)
+                           {:player (pl/release-input (:player state))}))))
 
 (defmode game-mode
   {:init (fn [state ctx]
@@ -57,29 +78,14 @@
                                         :default
                                         coord))))}))
 
-   :on-key-held {:key/up
-                 (fn [state e ctx]
-                   (move-player state {:x 0 :y -1}))
-
-                 :key/right
-                 (fn [state e ctx]
-                   (move-player state {:x 1 :y 0}))
-
-                 :key/down
-                 (fn [state e ctx]
-                   (move-player state {:x 0 :y 1}))
-
-                 :key/left
-                 (fn [state e ctx]
-                   (move-player state {:x -1 :y 0}))}
-
    :update (fn [state ctx]
-             (-> state
-                 (pl/update-player)
-                 (assoc :events (event/tick-many (:events state)))
-                 (event/update-physics)
-                 (play-physics-sounds)
-                 (camera/update-offset (:buffer-size ctx))))
+             (let [state (pl/update-player state)
+                   state (handle-player-input state ctx)
+                   state (assoc state :events (event/tick-many (:events state)))]
+               (-> state
+                   (event/update-physics)
+                   (sound/play-game-event-sounds)
+                   (camera/update-offset (:buffer-size ctx)))))
 
    :render (fn [state ctx]
              (tilemap-renderer/render-map! (:level-map state)

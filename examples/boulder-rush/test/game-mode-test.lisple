@@ -55,7 +55,7 @@
     (is (= explosion/interval-ms
            (:interval-ms (:timer explosion))))))
 
-(deftest move-player-adds-vacated-coordinate-as-event
+(deftest handle-player-input-adds-vacated-coordinate-as-event
   (given
     {:level-map (fixtures/rows->map ["O  "
                                      "P  "
@@ -64,7 +64,7 @@
               :move-timer (ready-player-move-timer)}
      :events []})
   (when [state]
-    (game/move-player state {:x 1 :y 0}))
+    (game/handle-player-input state {:held-keys [:key/right]}))
   (then [result]
     (is (= ["O  "
             " P "
@@ -74,26 +74,32 @@
              :state :candidate}]
            (event-summaries (:events result))))))
 
-(deftest move-player-does-not-add-event-when-blocked
+(deftest handle-player-input-starts-pushing-boulder
   (given
-    {:level-map (fixtures/rows->map ["PO"])
+    {:level-map (fixtures/rows->map ["PO "])
      :player {:pos {:x 0 :y 0}
               :move-timer (ready-player-move-timer)}
      :events []})
   (when [state]
-    (game/move-player state {:x 1 :y 0}))
-  (then [result state]
-    (is (= state
-           result))))
+    (game/handle-player-input state {:held-keys [:key/right]}))
+  (then [result]
+    (is (= ["PO "]
+           (fixtures/map->rows (:level-map result))))
+    (is (= true
+           (-> result :player :walking?)))
+    (is (= {:x 1 :y 0}
+           (-> result :player :push :dir)))
+    (is (contains? player/PUSH-INTERVALS-MS
+                   (-> result :player :push :timer :interval-ms)))))
 
-(deftest move-player-moves-when-timer-is-ready
+(deftest handle-player-input-moves-when-timer-is-ready
   (given
     {:level-map (fixtures/rows->map ["P "])
      :player {:pos {:x 0 :y 0}
               :move-timer (ready-player-move-timer)}
      :events []})
   (when [state]
-    (game/move-player state {:x 1 :y 0}))
+    (game/handle-player-input state {:held-keys [:key/right]}))
   (then [result]
     (is (= [" P"]
            (fixtures/map->rows (:level-map result))))
@@ -106,14 +112,14 @@
     (is (= {} (-> result :player :render-opts)))
     (is (not (timer/ticked? (-> result :player :move-timer))))))
 
-(deftest move-player-flips-walk-rendering-when-moving-left
+(deftest handle-player-input-flips-walk-rendering-when-moving-left
   (given
     {:level-map (fixtures/rows->map [" P"])
      :player {:pos {:x 1 :y 0}
               :move-timer (ready-player-move-timer)}
      :events []})
   (when [state]
-    (game/move-player state {:x -1 :y 0}))
+    (game/handle-player-input state {:held-keys [:key/left]}))
   (then [result]
     (is (= {:flip-x? true}
            (-> result :player :render-opts)))))
@@ -133,41 +139,62 @@
            (-> result :player :walk-tile)))
     (is (not (timer/ticked? (-> result :player :walk-animation-timer))))))
 
-(deftest move-player-ignores-move-while-timer-is-waiting
+(deftest handle-player-input-ignores-move-while-timer-is-waiting
   (given
     {:level-map (fixtures/rows->map ["P "])
      :player {:pos {:x 0 :y 0}
               :move-timer (waiting-player-move-timer)}
      :events []})
   (when [state]
-    (game/move-player state {:x 1 :y 0}))
+    (game/handle-player-input state {:held-keys [:key/right]}))
   (then [result state]
     (is (= state
            result))))
 
-(deftest move-player-keeps-ready-timer-after-blocked-move
+(deftest handle-player-input-keeps-ready-timer-after-blocked-move
   (given
     {:level-map (fixtures/rows->map ["PW"])
      :player {:pos {:x 0 :y 0}
               :move-timer (ready-player-move-timer)}
      :events []})
   (when [state]
-    (game/move-player state {:x 1 :y 0}))
+    (game/handle-player-input state {:held-keys [:key/right]}))
   (then [result state]
     (is (= state
            result))))
 
-(deftest update-player-clears-walking-state-when-timeout-expires
+(deftest handle-player-input-clears-walking-state-when-timeout-expires
   (given
     {:player {:move-timer (ready-player-move-timer)
               :walking? true
               :walk-animation-timer (ready-player-walk-animation-timer)
               :walk-tile :player-walk-1}})
   (when [state]
-    (player/update-player state))
+    (game/handle-player-input state {:held-keys []}))
   (then [result]
     (is (= false
            (-> result :player :walking?)))))
+
+(deftest handle-player-input-pushes-boulder-when-push-timer-is-ready
+  (given
+    {:level-map (fixtures/rows->map ["PO "])
+     :player {:pos {:x 0 :y 0}
+              :move-timer (ready-player-move-timer)
+              :push {:dir {:x 1 :y 0}
+                     :timer (ready-timer)}}
+     :events []})
+  (when [state]
+    (game/handle-player-input state {:held-keys [:key/right]}))
+  (then [result]
+    (is (= [" PO"]
+           (fixtures/map->rows (:level-map result))))
+    (is (= {:x 1 :y 0}
+           (-> result :player :pos)))
+    (is (= [:boulder]
+           (:moved-tiles result)))
+    (is (= [{:pos {:x 2 :y 0}
+             :state :candidate}]
+           (event-summaries (:events result))))))
 
 (deftest play-physics-sounds-clears-moved-tiles
   (given

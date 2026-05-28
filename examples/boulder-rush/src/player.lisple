@@ -5,6 +5,7 @@
 
 (def MOVE-INTERVAL-MS 150)
 (def WALK-ANIMATION-INTERVAL-MS 75)
+(def PUSH-INTERVALS-MS [100 130 160 190 220 250 280 300])
 
 (defun make [pos]
   {:pos pos
@@ -20,7 +21,6 @@
 (defun move-player [map player dir]
   (let [player-pos (:pos player)
         target-pos (pt/+ player-pos dir)
-        matrix (-> map :layers (nth 0) :tiles)
         target-tile (map/cell-at map target-pos)]
     (if (contains? [:empty :dirt :gem] target-tile)
         {:level-map (map/move-cell map
@@ -30,17 +30,74 @@
         :entered-tile target-tile}
         {})))
 
-(defun begin-walk [player dir]
+(defun walk [player dir]
   (assoc player
-         :move-timer (timer/make {:interval-ms MOVE-INTERVAL-MS})
          :walking? true
-         :walk-animation-timer (timer/make {:interval-ms WALK-ANIMATION-INTERVAL-MS})
-         :walk-tile :player-walk-1
+         :walk-animation-timer (if (:walking? player)
+                                 (:walk-animation-timer player)
+                                 (timer/make {:interval-ms WALK-ANIMATION-INTERVAL-MS}))
+         :walk-tile (if (:walking? player)
+                      (:walk-tile player)
+                      :player-walk-1)
          :render-opts (if (contains? [{:x 0 :y -1}
                                       {:x -1 :y 0}]
                                      dir)
                         {:flip-x? true}
                         {})))
+
+(defun begin-walk [player dir]
+  (dissoc (assoc (walk player dir)
+                 :move-timer (timer/make {:interval-ms MOVE-INTERVAL-MS}))
+          :push))
+
+(defun release-input [player]
+  (let [player (dissoc player :push)]
+    (if (and (:walking? player)
+             (timer/ticked? (:move-timer player)))
+      (assoc player :walking? false)
+      player)))
+
+(defun begin-push [player dir]
+  (let [player (walk player dir)
+        push (:push player)]
+    (if (= dir (:dir push))
+      player
+      (assoc player
+             :push {:dir dir
+                    :timer (timer/make {:interval-ms (rand-nth PUSH-INTERVALS-MS)})}))))
+
+(defun push-boulder [level-map player dir boulder-pos]
+  (let [player-pos (:pos player)
+        boulder-target (pt/+ boulder-pos dir)
+        player (begin-push player dir)]
+    (if (and (timer/ticked? (-> player :push :timer))
+             (= :empty (map/cell-at level-map boulder-target)))
+      {:level-map (-> level-map
+                    (map/move-cell boulder-pos boulder-target)
+                    (map/move-cell player-pos boulder-pos))
+       :player (assoc (begin-walk player dir) :pos boulder-pos)
+       :changed-positions [player-pos boulder-pos boulder-target]
+       :moved-tiles [:boulder]}
+      {:player player})))
+
+(defun apply-intent [level-map player dir]
+  (let [player-pos (:pos player)
+        target-pos (pt/+ player-pos dir)
+        target-tile (map/cell-at level-map target-pos)]
+    (cond
+      (and (contains? [:empty :dirt :gem] target-tile)
+           (timer/ticked? (:move-timer player)))
+      (assoc (move-player level-map player dir)
+             :player (begin-walk (assoc player :pos target-pos) dir)
+             :changed-positions [player-pos])
+
+      (and (= :boulder target-tile)
+           (= 0 (:y dir))
+           (not= 0 (:x dir)))
+      (push-boulder level-map player dir target-pos)
+
+      :default
+      {:player (release-input player)})))
 
 (defun next-walk-tile [tile]
   (case tile
@@ -51,11 +108,13 @@
 (defun update-player [state]
   (let [state (-> state
                 (update-in [:player :move-timer] timer/tick)
-                (update-in [:player :walk-animation-timer] timer/tick))] 
+                (update-in [:player :walk-animation-timer] timer/tick))
+        state (if (-> state :player :push)
+                (assoc-in state
+                          [:player :push :timer]
+                          (timer/tick (-> state :player :push :timer)))
+                state)]
     (cond
-      (timer/ticked? (-> state :player :move-timer))
-      (assoc-in state [:player :walking?] false)
-
       (and (-> state :player :walking?)
            (timer/ticked? (-> state :player :walk-animation-timer)))
       (assoc state
