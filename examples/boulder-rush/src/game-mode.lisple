@@ -101,7 +101,9 @@
              (tilemap-renderer/render-map! (:level-map state)
                                            (:tileset state)
                                            {:offset (:offset state)
-                                            :tile-substitutions (if (-> state :player :walking?)
+                                            :tile-substitutions (merge
+                                                                 {:exit :barrier}
+                                                                 (if (-> state :player :walking?)
                                                                   {:player-default {:tile (-> state :player :walk-tile)
                                                                                     :render-opts (-> state :player :render-opts)}}
-                                                                  {})}))})
+                                                                  {}))}))})
