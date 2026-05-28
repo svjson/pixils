@@ -137,19 +137,16 @@ namespace Pixils::UI
     {
       if (!clip)
       {
-        SDL_RenderSetClipRect(render_ctx.renderer, nullptr);
+        render_ctx.set_clip_rect(std::nullopt);
         return;
       }
 
-      int x = viewport ? clip->x - viewport->x : clip->x - origin.round_x();
-      int y = viewport ? clip->y - viewport->y : clip->y - origin.round_y();
-      SDL_Rect clip_rect = {
-        x,
-        y,
+      render_ctx.set_clip_rect({Rect{
+        viewport ? clip->x - viewport->x : clip->x - origin.round_x(),
+        viewport ? clip->y - viewport->y : clip->y - origin.round_y(),
         clip->w,
         clip->h,
-      };
-      SDL_RenderSetClipRect(render_ctx.renderer, &clip_rect);
+      }});
     }
 
     void render_view_impl(Pixils::RenderContext& render_ctx,
@@ -189,7 +186,7 @@ namespace Pixils::UI
 
         render_ctx.set_render_target(texture);
         SDL_RenderSetViewport(render_ctx.renderer, nullptr);
-        SDL_RenderSetClipRect(render_ctx.renderer, nullptr);
+        render_ctx.set_clip_rect(std::nullopt);
         SDL_SetRenderDrawColor(render_ctx.renderer, 0, 0, 0, 0);
         SDL_RenderClear(render_ctx.renderer);
 
@@ -213,7 +210,7 @@ namespace Pixils::UI
         SDL_RenderCopy(render_ctx.renderer, texture, nullptr, &dest);
 
         SDL_DestroyTexture(texture);
-        SDL_RenderSetClipRect(render_ctx.renderer, nullptr);
+        render_ctx.set_clip_rect(std::nullopt);
         return;
       }
 
@@ -394,7 +391,7 @@ namespace Pixils::UI
       }
 
       SDL_RenderSetViewport(render_ctx.renderer, nullptr);
-      SDL_RenderSetClipRect(render_ctx.renderer, nullptr);
+      render_ctx.set_clip_rect(std::nullopt);
     }
   } // namespace
 

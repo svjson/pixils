@@ -16,7 +16,9 @@
 #include <cmath>
 #include <lisple/host/schema.h>
 #include <lisple/namespace.h>
+#include <lisple/runtime/exec_node.h>
 #include <lisple/runtime/dict.h>
+#include <lisple/runtime/lower.h>
 #include <lisple/runtime/seq.h>
 #include <lisple/runtime/value.h>
 
@@ -55,6 +57,19 @@ namespace Pixils::Script
           return opacity_to_alpha(opts.f32(std::get<std::string>(MapKey::OPACITY->value)));
         }
         return 255;
+      }
+
+      std::optional<Rect> intersect_clip_rect(const std::optional<Rect>& current,
+                                              const Rect& requested)
+      {
+        if (!current) return requested;
+
+        int x1 = std::max(current->x, requested.x);
+        int y1 = std::max(current->y, requested.y);
+        int x2 = std::min(current->x + current->w, requested.x + requested.w);
+        int y2 = std::min(current->y + current->h, requested.y + requested.h);
+
+        return Rect{x1, y1, std::max(0, x2 - x1), std::max(0, y2 - y1)};
       }
     } // namespace
 
@@ -683,6 +698,73 @@ namespace Pixils::Script
       return Lisple::Constant::NIL;
     }
 
+    /* WithClipRectForm - with-clip-rect */
+    SPECIAL_FORM_IMPL(WithClipRectForm,
+                      SIG((FN_ARGS((&HostType::RECT),
+                                   (Lisple::VARARG, &Lisple::Type::ANY, NO_EVAL)),
+                           EXEC_DISPATCH(&WithClipRectForm::execnode_with_clip_rect))))
+
+    SFORM_LOWER_IMPL(WithClipRectForm)
+    {
+      auto& elements = ast_node->get_children();
+      if (elements.size() < 2)
+      {
+        throw Lisple::LispleException("Invalid with-clip-rect form: " + ast_node->to_string());
+      }
+
+      Lisple::uptr_exec_node_v exec_nodes;
+      exec_nodes.reserve(elements.size() - 1);
+      for (size_t i = 1; i < elements.size(); i++)
+      {
+        exec_nodes.push_back(Lisple::lower_expr(ctx, elements[i]));
+      }
+
+      return std::make_unique<Lisple::ExecNode>(
+        Lisple::SpecialFormNode(this, Lisple::sptr_val_v{}, std::move(exec_nodes)));
+    }
+
+    EXECNODE_BODY(WithClipRectForm, execnode_with_clip_rect)
+    {
+      RenderContext& rc =
+        Lisple::obj<RenderContext>(*ctx.lookup(ID__PIXILS__RENDER_CONTEXT));
+      if (snode.exec_nodes.empty())
+      {
+        throw Lisple::InvocationException("Invalid with-clip-rect execution node.");
+      }
+
+      Lisple::sptr_val clip_value = Lisple::exec(ctx, *snode.exec_nodes.front());
+      if (!HostType::RECT.is_type_of(*clip_value))
+      {
+        auto coercion = HostType::RECT.coerce(ctx, clip_value);
+        if (!coercion.success)
+        {
+          throw Lisple::TypeError("with-clip-rect: clip rect must be a Rect or rect map.");
+        }
+        clip_value = coercion.result;
+      }
+
+      const Rect requested_clip = Lisple::obj<Rect>(*clip_value);
+      std::optional<Rect> previous_clip = rc.current_clip_rect;
+      rc.set_clip_rect(intersect_clip_rect(previous_clip, requested_clip));
+
+      Lisple::sptr_val result = Lisple::Constant::NIL;
+      try
+      {
+        for (size_t i = 1; i < snode.exec_nodes.size(); i++)
+        {
+          result = Lisple::exec(ctx, *snode.exec_nodes[i]);
+        }
+      }
+      catch (...)
+      {
+        rc.set_clip_rect(previous_clip);
+        throw;
+      }
+
+      rc.set_clip_rect(previous_clip);
+      return result;
+    }
+
   } // namespace Function
 
   RenderNamespace::RenderNamespace()
@@ -695,5 +777,6 @@ namespace Pixils::Script
     values.emplace(FN__RENDER_TEXT_BANG, Function::RenderTextBang::make());
     values.emplace(FN__TEXT_SIZE, Function::TextSize::make());
     values.emplace(FN__USE_COLOR_BANG, Function::UseColorBang::make());
+    values.emplace(FN__WITH_CLIP_RECT, Function::WithClipRectForm::make());
   }
 } // namespace Pixils::Script

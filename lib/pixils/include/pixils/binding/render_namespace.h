@@ -18,6 +18,7 @@ namespace Pixils::Script
   inline constexpr std::string_view FN__RENDER_TEXT_BANG = "text!";
   inline constexpr std::string_view FN__TEXT_SIZE = "text-size";
   inline constexpr std::string_view FN__USE_COLOR_BANG = "use-color!";
+  inline constexpr std::string_view FN__WITH_CLIP_RECT = "with-clip-rect";
 
   namespace MapKey
   {
@@ -42,6 +43,8 @@ namespace Pixils::Script
     FUNC(TextSize, size_no_opts, size);
     /*! @brief use-color! function */
     FUNC(UseColorBang, use_color, use_color_num);
+    /*! @brief with-clip-rect special form */
+    SPECIAL_FORM_DECL(WithClipRectForm, with_clip_rect);
   } // namespace Function
 
   class RenderNamespace : public Lisple::Namespace

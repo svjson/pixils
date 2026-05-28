@@ -155,4 +155,17 @@ namespace Pixils
     SDL_SetRenderTarget(renderer, target);
     current_render_target = target;
   }
+
+  void RenderContext::set_clip_rect(std::optional<Rect> rect)
+  {
+    current_clip_rect = rect;
+    if (!rect)
+    {
+      SDL_RenderSetClipRect(renderer, nullptr);
+      return;
+    }
+
+    SDL_Rect sdl_rect = rect->to_SDL_rect();
+    SDL_RenderSetClipRect(renderer, &sdl_rect);
+  }
 } // namespace Pixils

@@ -72,6 +72,39 @@ TEST_F(RenderTest, rect_accepts_inline_color_map_in_options)
   EXPECT_EQ(render_target()->render_ops.size(), 1u);
 }
 
+TEST_F(RenderTest, with_clip_rect_restores_previous_clip)
+{
+  // Given
+  render_ctx.set_clip_rect(Pixils::Rect{1, 2, 30, 40});
+
+  // When
+  ASSERT_NO_THROW(runtime.eval(R"(
+    (pixils.render/with-clip-rect {:x 4 :y 5 :w 6 :h 7}
+      (pixils.render/rect! {:x 0 :y 0 :w 20 :h 20} {:fill true}))
+  )"));
+
+  // Then
+  ASSERT_TRUE(render_ctx.current_clip_rect.has_value());
+  EXPECT_EQ(*render_ctx.current_clip_rect, (Pixils::Rect{1, 2, 30, 40}));
+}
+
+TEST_F(RenderTest, with_clip_rect_restores_clip_after_body_error)
+{
+  // Given
+  render_ctx.set_clip_rect(Pixils::Rect{1, 2, 30, 40});
+
+  // When
+  EXPECT_THROW(runtime.eval(R"(
+    (pixils.render/with-clip-rect {:x 4 :y 5 :w 6 :h 7}
+      (/ 1 0))
+  )"),
+               Lisple::LispleException);
+
+  // Then
+  ASSERT_TRUE(render_ctx.current_clip_rect.has_value());
+  EXPECT_EQ(*render_ctx.current_clip_rect, (Pixils::Rect{1, 2, 30, 40}));
+}
+
 TEST_F(RenderTest, image_accepts_rotation_in_radians)
 {
   // Given

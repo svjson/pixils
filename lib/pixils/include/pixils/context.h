@@ -6,6 +6,7 @@
 #include <pixils/ui/style.h>
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <unordered_map>
 
@@ -48,6 +49,7 @@ namespace Pixils
      * restoration testable against the SDL mock as well.
      */
     SDL_Texture* current_render_target = nullptr;
+    std::optional<Rect> current_clip_rect = std::nullopt;
     /*!
      * @brief The current size/dimension of the in-memory buffer
      */
@@ -121,6 +123,7 @@ namespace Pixils
     void finalize_frame();
 
     void set_render_target(SDL_Texture* target);
+    void set_clip_rect(std::optional<Rect> rect);
 
    private:
     /*!
