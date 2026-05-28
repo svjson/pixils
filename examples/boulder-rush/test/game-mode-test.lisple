@@ -220,7 +220,9 @@
               :move-timer (waiting-player-move-timer)
               :score 20}
      :gems {:collected 2
-            :value 10}
+            :required 12
+            :value 10
+            :bonus-value 15}
      :events []})
   (when [state]
     (game/handle-player-input state {:held-keys [:key/ctrl :key/right]}))
@@ -241,7 +243,9 @@
               :move-timer (ready-player-move-timer)
               :score 20}
      :gems {:collected 2
-            :value 10}
+            :required 12
+            :value 10
+            :bonus-value 15}
      :events []})
   (when [state]
     (game/handle-player-input state {:held-keys [:key/right]}))
@@ -252,6 +256,59 @@
            (-> result :gems :collected)))
     (is (= 30
            (-> result :player :score)))))
+
+(deftest handle-player-input-triggers-gem-required-flash-when-collected-reaches-required
+  (given
+    {:level-map (fixtures/rows->map ["PV"])
+     :player {:pos {:x 0 :y 0}
+              :move-timer (ready-player-move-timer)
+              :score 20}
+     :gems {:collected 2
+            :required 3
+            :value 10
+            :bonus-value 15}
+     :events []})
+  (when [state]
+    (game/handle-player-input state {:held-keys [:key/right]}))
+  (then [result]
+    (is (= 3
+           (-> result :gems :collected)))
+    (is (= true
+           (:play-explosion-sound? result)))
+    (is (= game/empty-flash-interval-ms
+           (-> result :empty-flash-timer :interval-ms)))))
+
+(deftest handle-player-input-uses-bonus-gem-value-after-required-count
+  (given
+    {:level-map (fixtures/rows->map ["PV"])
+     :player {:pos {:x 0 :y 0}
+              :move-timer (ready-player-move-timer)
+              :score 20}
+     :gems {:collected 3
+            :required 3
+            :value 10
+            :bonus-value 15}
+     :events []})
+  (when [state]
+    (game/handle-player-input state {:held-keys [:key/right]}))
+  (then [result]
+    (is (= 4
+           (-> result :gems :collected)))
+    (is (= 35
+           (-> result :player :score)))
+    (is (nil? (:play-explosion-sound? result)))))
+
+(deftest gem-value-uses-bonus-value-after-required-count
+  (is (= 10
+         (game/gem-value {:gems {:collected 2
+                                 :required 3
+                                 :value 10
+                                 :bonus-value 15}})))
+  (is (= 15
+         (game/gem-value {:gems {:collected 3
+                                 :required 3
+                                 :value 10
+                                 :bonus-value 15}}))))
 
 (deftest handle-player-input-fire-animates-when-target-is-blocked
   (given
@@ -303,6 +360,14 @@
   (then [result]
     (is (nil? (:explosions result)))))
 
+(deftest play-game-event-sounds-clears-explicit-explosion-sound
+  (given
+    {:play-explosion-sound? true})
+  (when [state]
+    (sounds/play-game-event-sounds state))
+  (then [result]
+    (is (nil? (:play-explosion-sound? result)))))
+
 (deftest update-remaining-time-counts-down-once-per-second
   (given
     {:remaining-time 150
@@ -322,6 +387,20 @@
   (then [result]
     (is (= 0
            (:remaining-time result)))))
+
+(deftest update-empty-flash-clears-timer-after-flash-duration
+  (given
+    {:empty-flash-timer (ready-timer)})
+  (when [state]
+    (game/update-empty-flash state))
+  (then [result]
+    (is (nil? (:empty-flash-timer result)))))
+
+(deftest tile-substitutions-remaps-empty-to-white-during-flash
+  (is (= {:exit :barrier
+          :empty :white}
+         (game/tile-substitutions {:empty-flash-timer (timer/make {:interval-ms 150})
+                                   :player {:walking? false}}))))
 
 (deftest update-physics-evaluates-current-events-and-retains-moved-coordinates
   (given

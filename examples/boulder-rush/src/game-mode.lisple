@@ -14,6 +14,7 @@
             [pixils.state.timer :as timer]))
 
 (def status-bar-render-ops {:scale [2 1]})
+(def empty-flash-interval-ms 150)
 
 (defun left-pad [s n pad]
   (let [s (str s)
@@ -44,6 +45,12 @@
       (contains? held-keys :key/left-ctrl)
       (contains? held-keys :key/right-ctrl)))
 
+(defun gem-value [state]
+  (if (>= (-> state :gems :collected)
+          (-> state :gems :required))
+    (-> state :gems :bonus-value)
+    (-> state :gems :value)))
+
 (defun apply-player-result [state result]
   (let [entered-tile (:entered-tile result)
         moved-tiles (:moved-tiles result)
@@ -52,8 +59,15 @@
         result (dissoc result :changed-positions)
         state (merge state (dissoc result :moved-tiles))
         state (if (= :gem entered-tile)
-                (let [score (+ (or (-> state :player :score) 0)
-                               (or (-> state :gems :value) 0))]
+                (let [collected (-> state :gems :collected)
+                      score (+ (or (-> state :player :score) 0)
+                               (gem-value state))
+                      state (if (and (< collected (-> state :gems :required))
+                                     (>= (inc collected) (-> state :gems :required)))
+                              (assoc state
+                                     :play-explosion-sound? true
+                                     :empty-flash-timer (timer/make {:interval-ms empty-flash-interval-ms}))
+                              state)]
                   (-> state
                     (update-in [:gems :collected] inc)
                     (assoc-in [:player :score] score)))
@@ -96,6 +110,25 @@
                              (max 0 (- (:remaining-time state) 1))
                              (:remaining-time state)))))
 
+(defun update-empty-flash [state]
+  (if (:empty-flash-timer state)
+    (let [timer (timer/tick (:empty-flash-timer state))]
+      (if (timer/ticked? timer)
+        (dissoc state :empty-flash-timer)
+        (assoc state :empty-flash-timer timer)))
+    state))
+
+(defun tile-substitutions [state]
+  (merge
+   {:exit :barrier}
+   (if (:empty-flash-timer state)
+     {:empty :white}
+     {})
+   (if (-> state :player :walking?)
+     {:player-default {:tile (-> state :player :walk-tile)
+                       :render-opts (-> state :player :render-opts)}}
+     {})))
+
 (defmode game-mode
   {:init (fn [state ctx]
            (let [level (or (:level state) 1)
@@ -127,6 +160,7 @@
    :update (fn [state ctx]
              (let [state (pl/update-player state)
                    state (handle-player-input state ctx)
+                   state (update-empty-flash state)
                    state (update-remaining-time state)
                    state (assoc state :events (event/tick-many (:events state)))]
                (-> state
@@ -143,17 +177,12 @@
                                              :y 16
                                              :w (-> ctx :buffer-size :w)
                                              :h (- (-> ctx :buffer-size :h) 16)}
-                                            :tile-substitutions (merge
-                                                                 {:exit :barrier}
-                                                                 (if (-> state :player :walking?)
-                                                                  {:player-default {:tile (-> state :player :walk-tile)
-                                                                                    :render-opts (-> state :player :render-opts)}}
-                                                                  {}))})
+                                            :tile-substitutions (tile-substitutions state)})
              (r/text! (left-pad (str (-> state :gems :required)) 2 "0")
                       {:x 0 :y 4}
                       status-bar-render-ops)
              (pixils.tilemap.render/tile! (:tileset state) :gem {:pos {:x 28 :y 1}})
-             (r/text! (left-pad (str (-> state :gems :value)) 2 "0")
+             (r/text! (left-pad (str (gem-value state)) 2 "0")
                       {:x 48 :y 4}
                       status-bar-render-ops)
              (r/text! (left-pad (str (-> state :gems :collected)) 2 "0")
