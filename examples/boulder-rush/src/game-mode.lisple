@@ -15,6 +15,7 @@
 
 (def status-bar-render-ops {:scale [2 1]})
 (def empty-flash-interval-ms 150)
+(def exit-flash-interval-ms 200)
 
 (defun left-pad [s n pad]
   (let [s (str s)
@@ -118,9 +119,26 @@
         (assoc state :empty-flash-timer timer)))
     state))
 
+(defun update-exit-flash [state]
+  (if (>= (-> state :gems :collected)
+          (-> state :gems :required))
+    (let [timer (timer/tick (or (:exit-flash-timer state)
+                                (timer/make {:interval-ms exit-flash-interval-ms})))
+          state (assoc state
+                       :exit-flash-timer timer
+                       :exit-substitution (or (:exit-substitution state) :empty))]
+      (if (timer/ticked? timer)
+        (assoc state
+               :exit-substitution (case (:exit-substitution state)
+                                    :empty :barrier
+                                    :default :empty))
+        state))
+    (dissoc (assoc state :exit-substitution :barrier)
+            :exit-flash-timer)))
+
 (defun tile-substitutions [state]
   (merge
-   {:exit :barrier}
+   {:exit (or (:exit-substitution state) :barrier)}
    (if (:empty-flash-timer state)
      {:empty :white}
      {})
@@ -161,6 +179,7 @@
              (let [state (pl/update-player state)
                    state (handle-player-input state ctx)
                    state (update-empty-flash state)
+                   state (update-exit-flash state)
                    state (update-remaining-time state)
                    state (assoc state :events (event/tick-many (:events state)))]
                (-> state

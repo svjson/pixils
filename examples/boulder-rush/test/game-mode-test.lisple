@@ -396,10 +396,52 @@
   (then [result]
     (is (nil? (:empty-flash-timer result)))))
 
+(deftest update-exit-flash-starts-when-gem-requirement-is-met
+  (given
+    {:gems {:collected 3
+            :required 3}})
+  (when [state]
+    (game/update-exit-flash state))
+  (then [result]
+    (is (= :empty
+           (:exit-substitution result)))
+    (is (= game/exit-flash-interval-ms
+           (-> result :exit-flash-timer :interval-ms)))))
+
+(deftest update-exit-flash-toggles-open-exit-rendering
+  (given
+    {:gems {:collected 3
+            :required 3}
+     :exit-substitution :empty
+     :exit-flash-timer (ready-timer)})
+  (when [state]
+    (game/update-exit-flash state))
+  (then [result]
+    (is (= :barrier
+           (:exit-substitution result)))))
+
+(deftest update-exit-flash-keeps-exit-barrier-before-gem-requirement
+  (given
+    {:gems {:collected 2
+            :required 3}
+     :exit-substitution :empty
+     :exit-flash-timer (ready-timer)})
+  (when [state]
+    (game/update-exit-flash state))
+  (then [result]
+    (is (= :barrier
+           (:exit-substitution result)))
+    (is (nil? (:exit-flash-timer result)))))
+
 (deftest tile-substitutions-remaps-empty-to-white-during-flash
   (is (= {:exit :barrier
           :empty :white}
          (game/tile-substitutions {:empty-flash-timer (timer/make {:interval-ms 150})
+                                   :player {:walking? false}}))))
+
+(deftest tile-substitutions-uses-current-exit-substitution
+  (is (= {:exit :empty}
+         (game/tile-substitutions {:exit-substitution :empty
                                    :player {:walking? false}}))))
 
 (deftest update-physics-evaluates-current-events-and-retains-moved-coordinates
