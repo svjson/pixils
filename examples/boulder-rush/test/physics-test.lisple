@@ -163,7 +163,9 @@
             "XXX"]
            (fixtures/map->rows (:level-map result))))
     (is (= [(fixtures/explosion {:x 1 :y 1} :debris-1)]
-           (:events result)))))
+           (:events result)))
+    (is (= [{:x 1 :y 1}]
+           (:explosions result)))))
 
 (deftest evaluate-events-advances-explosion-to-debris-2
   (given
@@ -179,7 +181,9 @@
             "xxx"]
            (fixtures/map->rows (:level-map result))))
     (is (= [(fixtures/explosion {:x 1 :y 1} :debris-2)]
-           (:events result)))))
+           (:events result)))
+    (is (= []
+           (:explosions result)))))
 
 (deftest evaluate-events-advances-explosion-to-debris-3
   (given

@@ -177,6 +177,14 @@
   (then [result]
     (is (nil? (:moved-tiles result)))))
 
+(deftest play-physics-sounds-clears-explosions
+  (given
+    {:explosions [{:x 1 :y 1}]})
+  (when [state]
+    (game/play-physics-sounds state))
+  (then [result]
+    (is (nil? (:explosions result)))))
+
 (deftest update-physics-evaluates-current-events-and-retains-moved-coordinates
   (given
     {:level-map (fixtures/rows->map [" O "
@@ -203,6 +211,8 @@
            (event-summaries (:events first-pass))))
     (is (= [:boulder]
            (:moved-tiles first-pass)))
+    (is (= []
+           (:explosions first-pass)))
     (is (= ["   "
             "   "
             " O "
@@ -212,7 +222,9 @@
              :state :falling}]
            (event-summaries (:events second-pass))))
     (is (= [:boulder]
-           (:moved-tiles second-pass)))))
+           (:moved-tiles second-pass)))
+    (is (= []
+           (:explosions second-pass)))))
 
 (deftest update-physics-keeps-unready-events-waiting
   (given

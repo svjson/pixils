@@ -10,10 +10,11 @@
             [pixils.tilemap.renderer :as tilemap-renderer]))
 
 (defun play-physics-sounds [state]
-  (for [tile-id (or (:moved-tiles state) [])]
-    (when (= :boulder tile-id)
-      (audio/play! :boulder-rush-sfx/boulder {:volume 0.1})))
-  (dissoc state :moved-tiles))
+  (when (contains? (or (:moved-tiles state) []) :boulder)
+    (audio/play! :boulder-rush-sfx/boulder {:volume 0.1}))
+  (when (not (empty? (or (:explosions state) [])))
+    (audio/play! :boulder-rush-sfx/explosion {:volume 0.1}))
+  (dissoc (dissoc state :moved-tiles) :explosions))
 
 (defun move-player [state dir]
   (if (timer/ticked? (-> state :player :move-timer))
