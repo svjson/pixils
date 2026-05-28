@@ -6,5 +6,7 @@
 (defmode init-mode
   {:init (fn [state ctx]
            (do
-             (push-mode! 'game-mode (level-loader/load-level-pack!))
+             (push-mode! 'game-mode
+                         (assoc (level-loader/load-level-pack!)
+                                :current-level 1))
              state))})

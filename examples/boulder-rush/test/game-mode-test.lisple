@@ -56,6 +56,55 @@
     (is (= explosion/interval-ms
            (:interval-ms (:timer explosion))))))
 
+(deftest level-properties-selects-current-level_configuration
+  (is (= {:map-id :cave-a/level-1
+          :tileset-id :br
+          :gems {:required 12
+                 :value 10
+                 :bonus-value 15}
+          :remaining-time 150}
+         (game/level-properties 1)))
+  (is (= {:map-id :cave-a/level-2
+          :tileset-id :br
+          :gems {:required 12
+                 :value 10
+                 :bonus-value 15}
+          :remaining-time 150}
+         (game/level-properties 2))))
+
+(deftest game-mode-init-loads-current-level_properties
+  (given
+    {:pack {:format :pixils.tilemap/pack
+            :current-level 2
+            :maps [(assoc (fixtures/rows->map ["P"])
+                          :id :cave-a/level-1)
+                   (assoc (fixtures/rows->map [" P"])
+                          :id :cave-a/level-2)]
+            :tilesets [{:id :br}]}})
+  (when [{:keys [pack]}]
+    (game/init-level pack))
+  (then [result]
+    (is (= 2
+           (:current-level result)))
+    (is (= :cave-a/level-2
+           (-> result :level :map-id)))
+    (is (= :cave-a/level-2
+           (-> result :level-map :id)))
+    (is (= 0
+           (-> result :gems :collected)))
+    (is (= 12
+           (-> result :gems :required)))
+    (is (= 10
+           (-> result :gems :value)))
+    (is (= 15
+           (-> result :gems :bonus-value)))
+    (is (= 150
+           (:remaining-time result)))
+    (is (= :br
+           (-> result :tileset :id)))
+    (is (= {:x 1 :y 0}
+           (-> result :player :pos)))))
+
 (deftest handle-player-input-adds-vacated-coordinate-as-event
   (given
     {:level-map (fixtures/rows->map ["O  "

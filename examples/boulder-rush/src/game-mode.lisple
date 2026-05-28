@@ -17,6 +17,20 @@
 (def empty-flash-interval-ms 150)
 (def exit-flash-interval-ms 200)
 
+(def levels
+  [{:map-id :cave-a/level-1
+    :tileset-id :br
+    :gems {:required 12
+           :value 10
+           :bonus-value 15}
+    :remaining-time 150}
+   {:map-id :cave-a/level-2
+    :tileset-id :br
+    :gems {:required 10
+           :value 20
+           :bonus-value 50}
+    :remaining-time 150}])
+
 (defun left-pad [s n pad]
   (let [s (str s)
         pad-len (- n (count s))]
@@ -45,6 +59,9 @@
   (or (contains? held-keys :key/ctrl)
       (contains? held-keys :key/left-ctrl)
       (contains? held-keys :key/right-ctrl)))
+
+(defun level-properties [current-level]
+  (nth levels (dec current-level)))
 
 (defun gem-value [state]
   (if (>= (-> state :gems :collected)
@@ -147,33 +164,35 @@
                        :render-opts (-> state :player :render-opts)}}
      {})))
 
+(defun init-level [state]
+  (let [current-level (or (:current-level state) 1)
+        level (level-properties current-level)
+        map (level-loader/map-by-id state (:map-id level))]
+    {:current-level current-level
+     :level level
+     :level-map map
+     :gems (assoc (:gems level) :collected 0)
+     :remaining-time (:remaining-time level)
+     :remaining-time-timer (timer/make {:interval-ms 1000})
+     :tile-offset {:x 0 :y 0}
+     :offset {:x 0 :y 0}
+     :tileset (level-loader/tileset-by-id state (:tileset-id level))
+     :events (physics/events map)
+     :player (pl/make (reduce (-> map :layers head :tiles)
+                              {:x nil :y 0}
+                              (fn [coord row]
+                                (case (:x coord)
+                                  nil
+                                  (if-let [x (find-index row (fn [cell] (= :player-default cell)))]
+                                    (assoc coord :x x)
+                                    (update coord :y inc))
+
+                                  :default
+                                  coord))))}))
+
 (defmode game-mode
   {:init (fn [state ctx]
-           (let [level (or (:level state) 1)
-                 map (level-loader/level-map state level)]
-             {:level level
-              :level-map map
-              :gems {:collected 0
-                     :required 12
-                     :value 10
-                     :bonus-value 15}
-              :remaining-time 150
-              :remaining-time-timer (timer/make {:interval-ms 1000})
-              :tile-offset {:x 0 :y 0}
-              :offset {:x 0 :y 0}
-              :tileset (level-loader/level-tileset state level)
-              :events (physics/events map)
-              :player (pl/make (reduce (-> map :layers head :tiles)
-                                      {:x nil :y 0}
-                                      (fn [coord row]
-                                        (case (:x coord)
-                                          nil
-                                          (if-let [x (find-index row (fn [cell] (= :player-default cell)))]
-                                          (assoc coord :x x)
-                                          (update coord :y inc))
-
-                                        :default
-                                        coord))))}))
+           (init-level state))
 
    :update (fn [state ctx]
              (let [state (pl/update-player state)

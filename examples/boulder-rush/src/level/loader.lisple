@@ -4,8 +4,8 @@
             [pixils.tilemap.resources :as tilemap-resources]))
 
 (def project-path-candidates
-  ["assets/tile-maps.edn"
-   "examples/boulder-rush/assets/tile-maps.edn"])
+  ["assets/boulder-rush-maps.edn"
+   "examples/boulder-rush/assets/boulder-rush-maps.edn"])
 
 (defun project-path []
   (or (head (filter project-path-candidates io/exists?))
@@ -26,6 +26,11 @@
 
 (defun level-map [level-pack level]
   (nth (:maps level-pack) (dec level)))
+
+(defun map-by-id [level-pack map-id]
+  (head (filter (:maps level-pack)
+                (fn [tilemap]
+                  (= (:id tilemap) map-id)))))
 
 (defun map-tileset-id [tilemap]
   (:tileset (head (:layers tilemap))))
