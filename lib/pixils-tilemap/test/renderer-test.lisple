@@ -1,5 +1,6 @@
 (ns pixils.tilemap.renderer-test
   (:require proof.core
+            [pixils.tilemap.render :as render]
             [pixils.tilemap.renderer :as renderer]))
 
 (deftest fit-scale-uses_smallest_axis_ratio
@@ -50,6 +51,54 @@
                                              :tiles [first-tile second-tile]})]
     (is (= first-tile (renderer/prepared-tile-ref prepared -1)))
     (is (= second-tile (renderer/prepared-tile-ref prepared 9)))))
+
+(deftest image-render-opts-wraps_point_like_opts
+  (is (= {:pos {:x 4
+                :y 5}}
+         (renderer/image-render-opts {:x 4
+                                      :y 5}))))
+
+(deftest image-render-opts-preserves_image_option_maps
+  (is (= {:pos {:x 4
+                :y 5}
+          :scale 2
+          :opacity 0.5}
+         (renderer/image-render-opts {:pos {:x 4
+                                            :y 5}
+                                      :scale 2
+                                      :opacity 0.5}))))
+
+(deftest sprite-tile-render-opts-applies_tile_source
+  (is (= {:pos {:x 4
+                :y 5}
+          :scale 2
+          :source {:x 16
+                   :y 0
+                   :w 8
+                   :h 8}}
+         (renderer/sprite-tile-render-opts {:source {:x 16
+                                                     :y 0
+                                                     :w 8
+                                                     :h 8}}
+                                           {:pos {:x 4
+                                                  :y 5}
+                                            :scale 2
+                                            :source {:x 0
+                                                     :y 0
+                                                     :w 1
+                                                     :h 1}}))))
+
+(deftest tile-bang-noops_for_missing_tile_refs
+  (is (nil? (renderer/tile! {:id :br
+                             :tiles []}
+                            :missing
+                            {:pos {:x 0
+                                   :y 0}})))
+  (is (nil? (render/tile! {:id :br
+                           :tiles []}
+                          :missing
+                          {:pos {:x 0
+                                 :y 0}}))))
 
 (deftest prepared-layer-cell-tile-applies_tile_substitutions
   (let [player {:id :player-default}

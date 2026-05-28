@@ -108,6 +108,33 @@
         (when (> (count tiles) 0)
           (nth tiles (clamp-index tiles tile-ref)))))))
 
+(defun image-render-opts [render-opts]
+  (if (and (= (type-of render-opts) "map")
+           (contains? render-opts :pos))
+    render-opts
+    {:pos render-opts}))
+
+(defun sprite-tile-render-opts [tile render-opts]
+  (assoc (image-render-opts render-opts)
+         :source (:source tile)))
+
+(defun tile! [tileset tile-ref render-opts]
+  (let [tile (prepared-tile-ref (prepared-tileset tileset) tile-ref)]
+    (cond
+      (and tile
+           (= (:type tile) :sprite)
+           (valid-dim? (:source tile)))
+      (r/image! (:image tile)
+                (sprite-tile-render-opts tile render-opts))
+
+      (and tile
+           (= (:type tile) :image))
+      (r/image! (:image tile)
+                (image-render-opts render-opts))
+
+      :default
+      nil)))
+
 (defun prepared-terrain-ref [tilesets terrain-sets terrain-ref tile-ref]
   (tm/layer-cell-tile tilesets
                       terrain-sets
