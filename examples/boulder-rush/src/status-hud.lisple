@@ -1,0 +1,32 @@
+(ns boulder-rush.status-hud
+  (:require [pixils.color :as c]
+            [pixils.render :as r]
+            [pixils.point :as pt]))
+
+(def status-bar-render-ops {:scale [2 1]})
+
+(defun left-pad [s n pad]
+  (let [s (str s)
+        pad-len (- n (count s))]
+    (if (> pad-len 0)
+      (str (apply str (repeat pad-len pad)) s)
+      s)))
+
+(defun render! [{:keys [tileset gems score remaining-time]}]
+  (r/text! (left-pad (:required gems) 2 "0")
+           {:x 0 :y 4}
+           status-bar-render-ops)
+  (pixils.tilemap.render/tile! tileset :gem {:pos {:x 28 :y 1}})
+  (r/text! (left-pad (:value gems) 2 "0")
+           {:x 48 :y 4}
+           status-bar-render-ops)
+  (r/text! (left-pad (:collected gems) 2 "0")
+           {:x 112 :y 4}
+           (assoc status-bar-render-ops
+                  :color c/YELLOW))
+  (r/text! (left-pad remaining-time 3 "0")
+           {:x 176 :y 4}
+           status-bar-render-ops)
+  (r/text! (left-pad score 6 "0")
+           {:x 248 :y 4}
+           status-bar-render-ops))

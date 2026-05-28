@@ -1,44 +1,19 @@
 (ns boulder-rush.game-mode
   (:require pixils
-            [pixils.color :as c]
-            [pixils.render :as r]
-            [pixils.point :as pt]
             pixils.tilemap.render
             [pixils.tilemap.renderer :as tilemap-renderer]
             [boulder-rush.camera :as camera]
+            [boulder-rush.level.index :as caves]
             [boulder-rush.event :as event]
             [boulder-rush.player :as pl]
             [boulder-rush.physics :as physics]
+            [boulder-rush.status-hud :as hud]
             [boulder-rush.sounds :as sound]
             [boulder-rush.level.loader :as level-loader]
             [pixils.state.timer :as timer]))
 
-(def status-bar-render-ops {:scale [2 1]})
 (def empty-flash-interval-ms 150)
 (def exit-flash-interval-ms 200)
-
-(def levels
-  [{:map-id :cave-a/level-1
-    :tileset-id :br
-    :gems {:required 12
-           :value 10
-           :bonus-value 15}
-    :remaining-time 150
-    :initial-offset {:x 344 :y 176}}
-   {:map-id :cave-a/level-2
-    :tileset-id :br
-    :gems {:required 10
-           :value 20
-           :bonus-value 50}
-    :remaining-time 150
-    :initial-offset {:x 0 :y 0}}])
-
-(defun left-pad [s n pad]
-  (let [s (str s)
-        pad-len (- n (count s))]
-    (if (> pad-len 0)
-      (str (apply str (repeat pad-len pad)) s)
-      s)))
 
 (defun held-direction [held-keys]
   (cond
@@ -61,9 +36,6 @@
   (or (contains? held-keys :key/ctrl)
       (contains? held-keys :key/left-ctrl)
       (contains? held-keys :key/right-ctrl)))
-
-(defun level-properties [current-level]
-  (nth levels (dec current-level)))
 
 (defun gem-value [state]
   (if (>= (-> state :gems :collected)
@@ -168,7 +140,7 @@
 
 (defun init-level [state]
   (let [current-level (or (:current-level state) 1)
-        level (level-properties current-level)
+        level (nth caves/levels (dec current-level))
         map (level-loader/map-by-id state (:map-id level))
         initial-offset (:initial-offset level)
         initial-tile-offset {:x (int (/ (:x initial-offset)
@@ -223,20 +195,7 @@
                                              :w (-> ctx :buffer-size :w)
                                              :h (- (-> ctx :buffer-size :h) 16)}
                                             :tile-substitutions (tile-substitutions state)})
-             (r/text! (left-pad (str (-> state :gems :required)) 2 "0")
-                      {:x 0 :y 4}
-                      status-bar-render-ops)
-             (pixils.tilemap.render/tile! (:tileset state) :gem {:pos {:x 28 :y 1}})
-             (r/text! (left-pad (str (gem-value state)) 2 "0")
-                      {:x 48 :y 4}
-                      status-bar-render-ops)
-             (r/text! (left-pad (str (-> state :gems :collected)) 2 "0")
-                      {:x 112 :y 4}
-                      (assoc status-bar-render-ops
-                             :color c/YELLOW))
-             (r/text! (left-pad (str (-> state :remaining-time)) 3 "0")
-                      {:x 176 :y 4}
-                      status-bar-render-ops)
-             (r/text! (left-pad (str (-> state :player :score)) 6 "0")
-                      {:x 248 :y 4}
-                      status-bar-render-ops))})
+             (hud/render! {:gems (assoc (:gems state) :value (gem-value state))
+                           :tileset (:tileset state)
+                           :score (-> state :player :score)
+                           :remaining-time (-> state :remaining-time)}))})
