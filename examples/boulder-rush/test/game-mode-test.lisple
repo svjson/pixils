@@ -62,14 +62,16 @@
           :gems {:required 12
                  :value 10
                  :bonus-value 15}
-          :remaining-time 150}
+          :remaining-time 150
+          :initial-offset {:x 0 :y 0}}
          (game/level-properties 1)))
   (is (= {:map-id :cave-a/level-2
           :tileset-id :br
-          :gems {:required 12
-                 :value 10
-                 :bonus-value 15}
-          :remaining-time 150}
+          :gems {:required 10
+                 :value 20
+                 :bonus-value 50}
+          :remaining-time 150
+          :initial-offset {:x 144 :y 176}}
          (game/level-properties 2))))
 
 (deftest game-mode-init-loads-current-level_properties
@@ -92,14 +94,18 @@
            (-> result :level-map :id)))
     (is (= 0
            (-> result :gems :collected)))
-    (is (= 12
-           (-> result :gems :required)))
     (is (= 10
+           (-> result :gems :required)))
+    (is (= 20
            (-> result :gems :value)))
-    (is (= 15
+    (is (= 50
            (-> result :gems :bonus-value)))
     (is (= 150
            (:remaining-time result)))
+    (is (= {:x 144 :y 176}
+           (:offset result)))
+    (is (= {:x 9 :y 11}
+           (:tile-offset result)))
     (is (= :br
            (-> result :tileset :id)))
     (is (= {:x 1 :y 0}

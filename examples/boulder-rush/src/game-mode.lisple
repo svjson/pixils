@@ -23,13 +23,15 @@
     :gems {:required 12
            :value 10
            :bonus-value 15}
-    :remaining-time 150}
+    :remaining-time 150
+    :initial-offset {:x 344 :y 176}}
    {:map-id :cave-a/level-2
     :tileset-id :br
     :gems {:required 10
            :value 20
            :bonus-value 50}
-    :remaining-time 150}])
+    :remaining-time 150
+    :initial-offset {:x 0 :y 0}}])
 
 (defun left-pad [s n pad]
   (let [s (str s)
@@ -167,15 +169,20 @@
 (defun init-level [state]
   (let [current-level (or (:current-level state) 1)
         level (level-properties current-level)
-        map (level-loader/map-by-id state (:map-id level))]
+        map (level-loader/map-by-id state (:map-id level))
+        initial-offset (:initial-offset level)
+        initial-tile-offset {:x (int (/ (:x initial-offset)
+                                        (:tile-size map)))
+                             :y (int (/ (:y initial-offset)
+                                        (:tile-size map)))}]
     {:current-level current-level
      :level level
      :level-map map
      :gems (assoc (:gems level) :collected 0)
      :remaining-time (:remaining-time level)
      :remaining-time-timer (timer/make {:interval-ms 1000})
-     :tile-offset {:x 0 :y 0}
-     :offset {:x 0 :y 0}
+     :tile-offset initial-tile-offset
+     :offset initial-offset
      :tileset (level-loader/tileset-by-id state (:tileset-id level))
      :events (physics/events map)
      :player (pl/make (reduce (-> map :layers head :tiles)
