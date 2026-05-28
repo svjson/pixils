@@ -32,6 +32,16 @@ namespace Pixils
       UNDERLINE,
     };
 
+    struct Scale
+    {
+      int x = 1;
+      int y = 1;
+
+      Scale() = default;
+      Scale(int uniform);
+      Scale(int x, int y);
+    };
+
     struct UnderlineMetrics
     {
       int offset = 0;
@@ -75,7 +85,7 @@ namespace Pixils
       bool enabled = false;
       char marker = '@';
       std::optional<std::string> font_key = std::nullopt;
-      std::optional<int> scale = std::nullopt;
+      std::optional<Scale> scale = std::nullopt;
       bool use_font_color = false;
       std::optional<Color> color = std::nullopt;
       std::optional<std::vector<FontStyle>> font_styles = std::nullopt;
@@ -201,7 +211,7 @@ namespace Pixils
        * @brief The scale of the text to render. This can be used to render
        * text in multiples of its original size
        */
-      int scale = 1;
+      Scale scale = {};
 
      public:
       Renderer(SDL_Texture* font,
@@ -252,9 +262,25 @@ namespace Pixils
        */
       int get_scale() const;
       /*!
+       * @brief Get the horizontal scale modifier of this Renderer
+       */
+      int get_scale_x() const;
+      /*!
+       * @brief Get the vertical scale modifier of this Renderer
+       */
+      int get_scale_y() const;
+      /*!
        * @brief Set the scale modifier of this Renderer
        */
       void set_scale(int scale);
+      /*!
+       * @brief Set independent horizontal and vertical scale modifiers
+       */
+      void set_scale(int scale_x, int scale_y);
+      /*!
+       * @brief Set the scale modifier of this Renderer
+       */
+      void set_scale(const Scale& scale);
 
       /*!
        * @brief Queries the underlying FontMap and font if it supports a
@@ -520,7 +546,7 @@ namespace Pixils
     std::optional<TextRenderOp> make_text_render_op(
       RenderContext& rc,
       const std::string& font_key = "font/console",
-      int scale = 1,
+      Scale scale = {},
       const std::optional<Color>& color = std::nullopt,
       const std::vector<FontStyle>& font_styles = {},
       const std::vector<Shadow>& shadows = {},

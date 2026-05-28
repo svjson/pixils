@@ -348,10 +348,29 @@ namespace Pixils::Script
     static Lisple::MapSchema text_opts_schema({},
                                               {{"font", &Lisple::Type::KEYWORD},
                                                {"color", &HostType::COLOR},
-                                               {"scale", &Lisple::Type::NUMBER},
+                                               {"scale", &Lisple::Type::ANY},
                                                {"font-styles", &Lisple::Type::ANY},
                                                {"shadow", &Lisple::Type::ANY},
                                                {"marked-style", &Lisple::Type::ANY}});
+
+    static Text::Scale parse_text_scale(const Lisple::sptr_val& value)
+    {
+      if (!value || value->type == Lisple::Value::Type::NIL) return Text::Scale(1);
+      if (value->type == Lisple::Value::Type::NUMBER)
+        return Text::Scale(value->num().get_int());
+      if (value->type != Lisple::Value::Type::VECTOR)
+      {
+        throw Lisple::TypeError("Text scale must be a number or [x y] vector");
+      }
+
+      auto children = Lisple::get_children(*value);
+      if (children.size() != 2 || children[0]->type != Lisple::Value::Type::NUMBER ||
+          children[1]->type != Lisple::Value::Type::NUMBER)
+      {
+        throw Lisple::TypeError("Text scale vector must be [x y] numbers");
+      }
+      return Text::Scale(children[0]->num().get_int(), children[1]->num().get_int());
+    }
 
     static std::vector<Text::FontStyle> parse_font_styles(const Lisple::sptr_val& value)
     {
@@ -436,7 +455,7 @@ namespace Pixils::Script
                                               {"marker", &Lisple::Type::ANY},
                                               {"font", &Lisple::Type::KEYWORD},
                                               {"color", &HostType::COLOR},
-                                              {"scale", &Lisple::Type::NUMBER},
+                                              {"scale", &Lisple::Type::ANY},
                                               {"font-styles", &Lisple::Type::ANY},
                                               {"shadow", &Lisple::Type::ANY}});
 
@@ -473,7 +492,7 @@ namespace Pixils::Script
       {
         spec.color = Lisple::obj<Color>(*color_value);
       }
-      if (opts.contains("scale")) spec.scale = opts.i32("scale");
+      if (opts.contains("scale")) spec.scale = parse_text_scale(opts.val("scale"));
       if (opts.contains("font-styles"))
       {
         spec.font_styles = parse_font_styles(opts.val("font-styles"));
@@ -519,9 +538,9 @@ namespace Pixils::Script
       if (auto fv = opts.val("font"); fv && fv->type == Lisple::Value::Type::KEYWORD)
         font_key = fv->str();
 
-      int scale = 1;
+      Text::Scale scale(1);
       if (auto sv = opts.val("scale"); sv && sv->type != Lisple::Value::Type::NIL)
-        scale = sv->num().get_int();
+        scale = parse_text_scale(sv);
 
       std::optional<Color> color;
       if (auto cv = opts.val("color"); cv && cv->type != Lisple::Value::Type::NIL)
@@ -567,7 +586,7 @@ namespace Pixils::Script
 
     static Lisple::MapSchema text_size_opts_schema({},
                                                    {{"font", &Lisple::Type::KEYWORD},
-                                                    {"scale", &Lisple::Type::NUMBER},
+                                                    {"scale", &Lisple::Type::ANY},
                                                     {"font-styles", &Lisple::Type::ANY},
                                                     {"shadow", &Lisple::Type::ANY},
                                                     {"marked-style", &Lisple::Type::ANY}});
@@ -591,9 +610,9 @@ namespace Pixils::Script
       if (auto fv = opts.val("font"); fv && fv->type == Lisple::Value::Type::KEYWORD)
         font_key = fv->str();
 
-      int scale = 1;
+      Text::Scale scale(1);
       if (auto sv = opts.val("scale"); sv && sv->type != Lisple::Value::Type::NIL)
-        scale = sv->num().get_int();
+        scale = parse_text_scale(sv);
 
       std::vector<Text::FontStyle> font_styles;
       if (auto fsv = opts.val("font-styles"); fsv && fsv->type != Lisple::Value::Type::NIL)

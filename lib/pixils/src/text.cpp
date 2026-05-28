@@ -13,6 +13,18 @@ namespace Pixils
 {
   namespace Text
   {
+    Scale::Scale(int uniform)
+      : x(uniform)
+      , y(uniform)
+    {
+    }
+
+    Scale::Scale(int x, int y)
+      : x(x)
+      , y(y)
+    {
+    }
+
     namespace
     {
       struct StyledSegment
@@ -108,7 +120,7 @@ namespace Pixils
                                           Renderer& renderer,
                                           const std::string& text)
       {
-        SDL_Rect rect{0, 0, 0, renderer.get_line_height() * renderer.get_scale()};
+        SDL_Rect rect{0, 0, 0, renderer.get_line_height() * renderer.get_scale_y()};
         auto segments = split_marker_segments(text);
         for (const auto& segment : segments)
         {
@@ -199,7 +211,7 @@ namespace Pixils
                                const FontDefinition* font_definition,
                                const std::vector<FontStyle>& font_styles)
         {
-          int height = renderer.get_line_height() * renderer.get_scale();
+          int height = renderer.get_line_height() * renderer.get_scale_y();
           for (auto style : font_styles)
           {
             if (style == FontStyle::UNDERLINE && font_definition &&
@@ -209,7 +221,7 @@ namespace Pixils
                 std::max(height,
                          (font_definition->baseline + font_definition->underline->offset +
                           font_definition->underline->thickness) *
-                           renderer.get_scale());
+                           renderer.get_scale_y());
             }
           }
           return height;
@@ -232,18 +244,18 @@ namespace Pixils
                         int y)
       {
         if (!font_definition)
-          return y + renderer.get_line_height() * renderer.get_scale() - 1;
+          return y + renderer.get_line_height() * renderer.get_scale_y() - 1;
 
         for (auto style : font_styles)
         {
           if (style == FontStyle::UNDERLINE && font_definition->underline)
           {
             return y + (font_definition->baseline + font_definition->underline->offset) *
-                         renderer.get_scale();
+                         renderer.get_scale_y();
           }
         }
 
-        return y + renderer.get_line_height() * renderer.get_scale() - 1;
+        return y + renderer.get_line_height() * renderer.get_scale_y() - 1;
       }
 
       int underline_thickness(const Renderer& renderer,
@@ -254,7 +266,9 @@ namespace Pixils
         {
           if (style == FontStyle::UNDERLINE && font_definition && font_definition->underline)
           {
-            return std::max(1, font_definition->underline->thickness * renderer.get_scale());
+            return std::max(1,
+                            font_definition->underline->thickness *
+                              renderer.get_scale_y());
           }
         }
 
@@ -431,13 +445,13 @@ namespace Pixils
         }
 
         const SDL_Rect& char_rect = *font_map.get_char_rect(c);
-        cursor.w = char_rect.w * scale;
-        cursor.h = char_rect.h * scale;
+        cursor.w = char_rect.w * scale.x;
+        cursor.h = char_rect.h * scale.y;
 
         PIXILS_BENCHMARK_COUNT(text_renderer_glyphs_rendered);
         PIXILS_BENCHMARK_COUNT(render_copy_calls);
         SDL_RenderCopy(rc.renderer, font, &char_rect, &cursor);
-        cursor.x += cursor.w + (spacing * scale);
+        cursor.x += cursor.w + (spacing * scale.x);
       }
     }
 
@@ -458,20 +472,40 @@ namespace Pixils
         }
       }
       rect.h = line_height;
-      rect.w *= scale;
-      rect.h *= scale;
+      rect.w *= scale.x;
+      rect.h *= scale.y;
 
       return rect;
     }
 
     void Renderer::set_scale(int scale)
     {
-      this->scale = std::max(1, scale);
+      set_scale(scale, scale);
+    }
+
+    void Renderer::set_scale(int scale_x, int scale_y)
+    {
+      this->scale = Scale(std::max(1, scale_x), std::max(1, scale_y));
+    }
+
+    void Renderer::set_scale(const Scale& scale)
+    {
+      set_scale(scale.x, scale.y);
     }
 
     int Renderer::get_scale() const
     {
-      return this->scale;
+      return this->scale.x;
+    }
+
+    int Renderer::get_scale_x() const
+    {
+      return this->scale.x;
+    }
+
+    int Renderer::get_scale_y() const
+    {
+      return this->scale.y;
     }
 
     int Renderer::get_font_height() const
@@ -489,13 +523,13 @@ namespace Pixils
       char32_t c = font_map.has_char(chr) ? chr : ' ';
       if (!font_map.has_char(c)) return 0;
       const SDL_Rect& char_rect = *font_map.get_char_rect(c);
-      return (char_rect.w + spacing) * scale;
+      return (char_rect.w + spacing) * scale.x;
     }
 
     std::optional<TextRenderOp> make_text_render_op(
       RenderContext& rc,
       const std::string& font_key,
-      int scale,
+      Scale scale,
       const std::optional<Color>& color,
       const std::vector<FontStyle>& font_styles,
       const std::vector<Shadow>& shadows,
@@ -535,7 +569,7 @@ namespace Pixils
           return std::nullopt;
         }
 
-        int inline_scale = inline_style->scale.value_or(scale);
+        Scale inline_scale = inline_style->scale.value_or(scale);
         inline_font->renderer.set_scale(inline_scale);
         inline_font->tint_renderer.set_scale(inline_scale);
 
@@ -975,7 +1009,7 @@ namespace Pixils
     void Cursor::println(RenderContext& rc, const std::string& text, const SDL_Color& color)
     {
       render_text(rc, text, color);
-      position.y += line_height * renderer.get_scale();
+      position.y += line_height * renderer.get_scale_y();
       ;
       position.x = line_start_x;
     }

@@ -71,7 +71,8 @@ namespace Pixils::UI::Components
       inline_style.use_font_color = style.text->marked_style->use_font_color.value_or(false);
       inline_style.color = style.text->marked_style->color;
       inline_style.font_key = style.text->marked_style->font;
-      inline_style.scale = style.text->marked_style->scale;
+      if (style.text->marked_style->scale)
+        inline_style.scale = Text::Scale(*style.text->marked_style->scale);
       inline_style.font_styles = style.text->marked_style->font_styles;
       inline_style.shadows = style.text->marked_style->shadows;
       return inline_style;
