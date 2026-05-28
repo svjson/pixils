@@ -13,7 +13,33 @@
   (is (= true (:disabled? (:state (controls/tileset-combo-child nil false)))))
   (is (= false (:disabled? (:state (controls/tileset-combo-child [{:id :terrain
                                                                     :label "Terrain"}]
-                                                                   false))))))
+                                                                  false))))))
+
+(deftest map-chooser-menu-adds_action_and_checked_map_options
+  (let [menu (controls/map-chooser-menu
+              [{:id :map/main
+                :label "Main"}
+               {:id :map/cave
+                :label "Cave"}])
+        items (:items menu)]
+    (is (= "Add New Map" (get-in items [0 :label])))
+    (is (= :separator (nth items 1)))
+    (is (= :option (get-in items [2 :type])))
+    (is (= :map/main (get-in items [2 :value])))
+    (is (= [:option-state :selected-map-id]
+           (get-in items [2 :selected-path])))))
+
+(deftest map-workspace-panel-wraps_body_with_title_and_chooser
+  (let [panel (controls/make-map-workspace-panel
+               {:state {:maps []
+                        :selected-map-id :map/main
+                        :selected-map-label "Main"}
+                :body-state {}
+                :children []})]
+    (is (= 'map-header-title
+           (get-in panel [:children 0 :children 0 :mode])))
+    (is (= 'map-chooser-button
+           (get-in panel [:children 0 :children 1 :mode])))))
 
 (deftest tileset-selector-is-disabled_without_layers
   (is (= true (:disabled? (:state (controls/tileset-combo-child [{:id :terrain

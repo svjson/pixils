@@ -1,0 +1,106 @@
+(ns tilemap-editor.model.maps-test
+  (:require proof.core
+            [pixils.tilemap.project.model :as data]
+            [tilemap-editor.model.maps :as maps]))
+
+(defun map-layer [id tile]
+  {:id id
+   :label (str id)
+   :role :source
+   :data-kind :tile-ref
+   :tileset :terrain
+   :tiles [[tile]]})
+
+(defun multi-map-state []
+  {:maps [{:id :map/one
+           :label "One"
+           :width 1
+           :height 1
+           :tile-size data/tile-size
+           :layer-profile :default
+           :layers [(map-layer :scene/ground :grass)]}
+          {:id :map/two
+           :label "Two"
+           :width 2
+           :height 1
+           :tile-size data/tile-size
+           :layer-profile :default
+           :layers [(map-layer :scene/ground :water)]}]
+   :selected-map-id :map/one
+   :selected-map-label "One"
+   :map-width 1
+   :map-height 1
+   :layer-profiles [{:id :default
+                     :label "Default"
+                     :layers [{:id :scene/ground
+                               :role :source
+                               :data-kind :tile-ref
+                               :tileset :terrain}]}]
+   :selected-layer-profile-id :default
+   :selected-layer-index 0
+   :selected-layer-label "Ground"
+   :hidden-layer-indices []
+   :map-offset {:x 3 :y 4}
+   :layers [(map-layer :scene/ground :edited)]
+   :show-terrain-rules? false})
+
+(deftest map-options-use_map_ids_and_labels
+  (is (= [{:value :map/one :label "One"}
+          {:value :map/two :label "Two"}]
+         (maps/map-options (:maps (multi-map-state))))))
+
+(deftest activate-map-commits_current_map_and_projects_selected_map
+  (let [state (maps/activate-map (multi-map-state) :map/two)]
+    (is (= :map/two (:selected-map-id state)))
+    (is (= "Two" (:selected-map-label state)))
+    (is (= 2 (:map-width state)))
+    (is (= :water (get-in state [:layers 0 :tiles 0 0])))
+    (is (= :edited (get-in state [:maps 0 :layers 0 :tiles 0 0])))
+    (is (= {:x 3 :y 4}
+           (get-in state [:map-ui-states :map/one :map-offset])))))
+
+(deftest activate-map-restores_per_map_ui_state
+  (let [state (assoc (multi-map-state)
+                     :map-ui-states {:map/two {:selected-layer-index 0
+                                               :hidden-layer-indices [0]
+                                               :map-offset {:x 8 :y 9}}})
+        state (maps/activate-map state :map/two)]
+    (is (= [0] (:hidden-layer-indices state)))
+    (is (= {:x 8 :y 9} (:map-offset state)))))
+
+(deftest add-map-creates_empty_map_from_current_layer_shape_and_selects_it
+  (let [state (maps/add-map (multi-map-state) "Bonus")]
+    (is (= :map/bonus (:selected-map-id state)))
+    (is (= "Bonus" (:selected-map-label state)))
+    (is (= 3 (count (:maps state))))
+    (is (= nil (get-in state [:layers 0 :tiles 0 0])))
+    (is (= :scene/ground (get-in state [:layers 0 :id])))))
+
+(deftest rename-map-updates_id_and_label
+  (let [state (maps/rename-map (multi-map-state)
+                               :map/one
+                               "map/start"
+                               "Start")]
+    (is (= :map/start (:selected-map-id state)))
+    (is (= "Start" (:selected-map-label state)))
+    (is (= :map/start (get-in state [:maps 0 :id])))))
+
+(deftest duplicate-map-copies_source_map_under_unique_id
+  (let [state (maps/duplicate-map (multi-map-state)
+                                  :map/one
+                                  "map/two"
+                                  "Two")]
+    (is (= :map/two-2 (:selected-map-id state)))
+    (is (= "Two 2" (:selected-map-label state)))
+    (is (= :edited (get-in state [:layers 0 :tiles 0 0])))))
+
+(deftest delete-map-keeps_at_least_one_map
+  (let [state (maps/delete-map (multi-map-state) :map/one)]
+    (is (= 1 (count (:maps state))))
+    (is (= :map/two (:selected-map-id state))))
+  (let [single (assoc (multi-map-state)
+                      :maps [(head (:maps (multi-map-state)))]
+                      :selected-map-id :map/one)
+        state (maps/delete-map single :map/one)]
+    (is (= 1 (count (:maps state))))
+    (is (= :map/one (:selected-map-id state)))))

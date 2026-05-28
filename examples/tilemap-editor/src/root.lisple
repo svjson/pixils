@@ -5,6 +5,7 @@
             [tilemap-editor.view.tilemap.controls :as controls]
             [pixils.tilemap.project.model :as data]
             [tilemap-editor.model.tilemap :as tilemap]
+            [tilemap-editor.model.maps :as map-model]
             [tilemap-editor.io.project :as project-io]
             [tilemap-editor.view.resources.model :as resource-model]
             [tilemap-editor.view.tileset.model :as tileset-model]
@@ -82,6 +83,7 @@
            :brush-selected-tile nil
            :map-palette-tab :tiles
            :maps [(data/normalize-map-document {} 0)]
+           :map-ui-states {}
            :selected-map-id data/default-map-id
            :selected-map-label data/default-map-label
            :map-width data/map-width
@@ -189,6 +191,11 @@
                :state {:selected-tile (ui/bind-state :selected-tile)
                        :map-width (ui/bind-state :map-width)
                        :map-height (ui/bind-state :map-height)
+                       :maps (ui/bind-state :maps)
+                       :map-ui-states (ui/bind-state :map-ui-states)
+                       :selected-map-id (ui/bind-state :selected-map-id)
+                       :selected-map-label
+                       (ui/bind-state :selected-map-label)
                        :selected-label (ui/bind-state :selected-label)
                        :selected-tileset-index (ui/bind-state :selected-tileset-index)
                        :selected-tileset-definition-index (ui/bind-state :selected-tileset-definition-index)
@@ -255,6 +262,13 @@
                                :state {:selected-tile (ui/bind-state :selected-tile)
                                        :map-width (ui/bind-state :map-width)
                                        :map-height (ui/bind-state :map-height)
+                                       :maps (ui/bind-state :maps)
+                                       :map-ui-states
+                                       (ui/bind-state :map-ui-states)
+                                       :selected-map-id
+                                       (ui/bind-state :selected-map-id)
+                                       :selected-map-label
+                                       (ui/bind-state :selected-map-label)
                                        :selected-label (ui/bind-state :selected-label)
                                        :selected-tileset-index (ui/bind-state :selected-tileset-index)
                                        :tilesets (ui/bind-state :tilesets)
@@ -399,6 +413,27 @@
        :tileset/shortcut-dialog-result
        (fn [state event ctx]
          (apply-tileset-shortcut-dialog-result state (:payload event)))
+       :map/select (fn [state event ctx]
+                     (map-model/activate-map state (:payload event)))
+       :map/add (fn [state event ctx]
+                  (controls/open-map-add-dialog! state ctx))
+       :map/rename (fn [state event ctx]
+                     (controls/open-map-rename-dialog! state ctx))
+       :map/duplicate (fn [state event ctx]
+                        (controls/open-map-duplicate-dialog! state ctx))
+       :map/delete (fn [state event ctx]
+                     (if (> (count (or (:maps state) [])) 1)
+                       (controls/open-map-delete-confirm-dialog! state ctx)
+                       state))
+       :map/id-name-dialog-result
+       (fn [state event ctx]
+         (map-model/apply-map-dialog-result state (:payload event)))
+       :map/delete-dialog-result
+       (fn [state event ctx]
+         (let [payload (:payload event)]
+           (if (= (:choice payload) :dialog/ok)
+             (map-model/delete-map state (-> payload :payload :map-id))
+             state)))
        :map/edit-dimensions (fn [state event ctx]
                               (controls/open-map-dimensions-dialog! state ctx))
        :map/dimensions-dialog-result

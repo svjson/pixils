@@ -2,6 +2,7 @@
   (:require [lisple.io :as io]
             [pixils.ui.file-dialog :as file-dialog]
             [pixils.tilemap.project.model :as data]
+            [tilemap-editor.model.maps :as maps]
             [tilemap-editor.model.tilemap :as tilemap]))
 
 (def project-file-filters
@@ -25,7 +26,8 @@
 
 (defun save-project! [state payload]
   (do
-    (io/spit-edn! (:path payload) (data/project-document state))
+    (io/spit-edn! (:path payload)
+                  (data/project-document (maps/commit-active-map state)))
     payload))
 
 (defun recent-project-entry [payload]
@@ -135,6 +137,7 @@
                :rulesets rulesets
                :brushes brushes
                :maps maps
+               :map-ui-states {}
                :selected-map-id (:id selected-map)
                :selected-map-label (:label selected-map)
                :map-width (:width selected-map)

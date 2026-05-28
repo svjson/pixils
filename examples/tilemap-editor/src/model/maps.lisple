@@ -1,0 +1,314 @@
+(ns tilemap-editor.model.maps
+  (:require [pixils.tilemap.project.model :as data]
+            [tilemap-editor.model.tilemap :as tilemap]))
+
+(def map-ui-state-keys
+  [:selected-layer-index
+   :hidden-layer-indices
+   :map-offset
+   :map-selection
+   :map-line])
+
+(def default-map-ui-state
+  {:selected-layer-index nil
+   :hidden-layer-indices []
+   :map-offset {:x 0 :y 0}
+   :map-selection nil
+   :map-line nil})
+
+(defun selected-map-index [maps map-id]
+  (let [index (find-index (or maps [])
+                          (fn [map-document]
+                            (= (:id map-document) map-id)))]
+    (or index 0)))
+
+(defun map-options [maps]
+  (for-indexed [index map-document (or maps [])]
+    {:value (:id map-document)
+     :label (or (:label map-document) (str (:id map-document)))}))
+
+(defun selected-layer-label [layers index]
+  (let [layers (or layers [])
+        index (if (and (not (nil? index))
+                       (> (count layers) 0))
+                (min index (dec (count layers)))
+                nil)]
+    (if (nil? index)
+      ""
+      (or (:label (nth layers index)) ""))))
+
+(defun selected-layer-index [layers requested-index]
+  (let [layers (or layers [])]
+    (if (empty? layers)
+      nil
+      (min (or requested-index 0) (dec (count layers))))))
+
+(defun capture-map-ui-state [state]
+  (reduce map-ui-state-keys
+          {}
+          (fn [result key]
+            (assoc result key (get state key)))))
+
+(defun save-active-map-ui-state [state]
+  (let [map-id (:selected-map-id state)]
+    (if map-id
+      (assoc-in state
+                [:map-ui-states map-id]
+                (capture-map-ui-state state))
+      state)))
+
+(defun restore-map-ui-state [state map-id layers]
+  (let [ui-state (merge default-map-ui-state
+                        (get-in state [:map-ui-states map-id]))
+        layer-index (selected-layer-index layers
+                                          (:selected-layer-index ui-state))]
+    (assoc state
+           :selected-layer-index layer-index
+           :selected-layer-label (selected-layer-label layers layer-index)
+           :hidden-layer-indices (or (:hidden-layer-indices ui-state) [])
+           :map-offset (or (:map-offset ui-state) {:x 0 :y 0})
+           :map-selection (:map-selection ui-state)
+           :map-line (:map-line ui-state))))
+
+(defun committed-layer-profile-state [state layers]
+  (let [layer-profiles (data/sync-layer-profiles
+                        (:layer-profiles state)
+                        (:selected-layer-profile-id state)
+                        layers)
+        layer-profile-id (data/selected-layer-profile-id
+                          layer-profiles
+                          (:selected-layer-profile-id state))]
+    (assoc state
+           :layer-profiles layer-profiles
+           :selected-layer-profile-id layer-profile-id)))
+
+(defun active-map-document [state layers layer-profile-id]
+  (data/tilemap-document state
+                         (data/normalize-layers layers)
+                         layer-profile-id))
+
+(defun commit-active-map [state]
+  (let [layers (data/normalize-layers (:layers state))
+        state (committed-layer-profile-state state layers)
+        map-document (active-map-document state
+                                          layers
+                                          (:selected-layer-profile-id state))]
+    (save-active-map-ui-state
+     (assoc state :maps (data/replace-map-document (:maps state)
+                                                   map-document)))))
+
+(defun activate-map-document [state map-document]
+  (let [layers (or (:layers map-document) [])
+        layer-profile-id (data/selected-layer-profile-id
+                          (:layer-profiles state)
+                          (:layer-profile map-document))
+        state (assoc state
+                     :selected-map-id (:id map-document)
+                     :selected-map-label (:label map-document)
+                     :map-width (:width map-document)
+                     :map-height (:height map-document)
+                     :selected-layer-profile-id layer-profile-id
+                     :layers layers
+                     :terrain-stamp-layers []
+                     :terrain-stamp-replacements [])]
+    (restore-map-ui-state state (:id map-document) layers)))
+
+(defun activate-map [state map-id]
+  (let [state (commit-active-map state)
+        map-document (data/selected-map-document (:maps state) map-id)
+        state (activate-map-document state map-document)]
+    (if (:show-terrain-rules? state)
+      (tilemap/rebuild-terrain-stamp-preview state)
+      state)))
+
+(defun strip-leading-colon [text]
+  (let [text (str text)]
+    (if (= ":" (substr text 0 1))
+      (substr text 1)
+      text)))
+
+(defun map-id-from-text [text fallback-label]
+  (let [raw (if (or (nil? text) (blank? (str text)))
+              (str "map/" (kebab-case fallback-label))
+              (strip-leading-colon text))
+        raw (if (string-contains? raw "/" 0)
+              raw
+              (str "map/" raw))]
+    (keyword raw)))
+
+(defun string-contains? [text needle index]
+  (cond
+    (>= index (count text)) false
+    (= (substr text index 1) needle) true
+    :default (string-contains? text needle (inc index))))
+
+(defun map-id-text [map-id]
+  (strip-leading-colon (str map-id)))
+
+(defun map-label-exists? [maps label exclude-id]
+  (> (count (filter (or maps [])
+                    (fn [map-document]
+                      (and (= (:label map-document) label)
+                           (not= (:id map-document) exclude-id)))))
+     0))
+
+(defun unique-map-label-from [maps root-label exclude-id suffix]
+  (let [candidate (if suffix
+                    (str root-label " " suffix)
+                    root-label)]
+    (if (map-label-exists? maps candidate exclude-id)
+      (unique-map-label-from maps
+                             root-label
+                             exclude-id
+                             (if suffix (inc suffix) 2))
+      candidate)))
+
+(defun map-id-exists-except? [maps map-id exclude-id]
+  (> (count (filter (or maps [])
+                    (fn [map-document]
+                      (and (= (:id map-document) map-id)
+                           (not= (:id map-document) exclude-id)))))
+     0))
+
+(defun unique-map-id-from [maps requested-id exclude-id suffix]
+  (let [id-text (map-id-text requested-id)
+        candidate-text (if suffix
+                         (str id-text "-" suffix)
+                         id-text)
+        candidate (keyword candidate-text)]
+    (if (map-id-exists-except? maps candidate exclude-id)
+      (unique-map-id-from maps
+                          requested-id
+                          exclude-id
+                          (if suffix (inc suffix) 2))
+      candidate)))
+
+(defun next-map-label [maps]
+  (unique-map-label-from maps
+                         (str "Map " (inc (count (or maps []))))
+                         nil
+                         nil))
+
+(defun empty-layer-matrix [width height]
+  (data/make-empty-map-for width height))
+
+(defun empty-layer-copy [layer width height]
+  (let [empty (empty-layer-matrix width height)
+        layer (assoc layer :tiles empty)
+        layer (if (contains? layer :terrain-signatures)
+                (assoc layer :terrain-signatures empty)
+                layer)]
+    (if (contains? layer :source-mask)
+      (assoc layer :source-mask empty)
+      layer)))
+
+(defun empty-layers-for-new-map [state width height]
+  (map (or (:layers state) [])
+       (fn [layer]
+         (empty-layer-copy layer width height))))
+
+(defun make-new-map-document [state id label]
+  (let [width (data/map-dimension (:map-width state) data/map-width)
+        height (data/map-dimension (:map-height state) data/map-height)]
+    {:id id
+     :label label
+     :width width
+     :height height
+     :tile-size data/tile-size
+     :layer-profile (:selected-layer-profile-id state)
+     :layers (empty-layers-for-new-map state width height)}))
+
+(defun add-map [state label]
+  (let [state (commit-active-map state)
+        maps (or (:maps state) [])
+        label (unique-map-label-from maps
+                                     (or label (next-map-label maps))
+                                     nil
+                                     nil)
+        id (unique-map-id-from maps
+                               (map-id-from-text nil label)
+                               nil
+                               nil)
+        map-document (make-new-map-document state id label)
+        state (assoc state :maps (concat maps [map-document]))]
+    (activate-map state id)))
+
+(defun rename-map [state map-id requested-id label]
+  (let [state (commit-active-map state)
+        maps (or (:maps state) [])
+        current (data/selected-map-document maps map-id)
+        label (unique-map-label-from maps
+                                     (or label (:label current))
+                                     (:id current)
+                                     nil)
+        requested-id (map-id-from-text requested-id label)
+        id (unique-map-id-from maps requested-id (:id current) nil)
+        map-document (assoc current :id id :label label)
+        maps (map maps
+                  (fn [existing]
+                    (if (= (:id existing) (:id current))
+                      map-document
+                      existing)))
+        ui-state (get-in state [:map-ui-states (:id current)])
+        state (assoc state
+                     :maps maps
+                     :selected-map-id id
+                     :selected-map-label label)]
+    (activate-map
+     (if ui-state
+       (assoc-in state [:map-ui-states id] ui-state)
+       state)
+     id)))
+
+(defun duplicate-map [state map-id requested-id label]
+  (let [state (commit-active-map state)
+        maps (or (:maps state) [])
+        source (data/selected-map-document maps map-id)
+        label (unique-map-label-from maps
+                                     (or label (str (:label source) " Copy"))
+                                     nil
+                                     nil)
+        requested-id (map-id-from-text requested-id label)
+        id (unique-map-id-from maps requested-id nil nil)
+        map-document (assoc source :id id :label label)
+        state (assoc state :maps (concat maps [map-document]))]
+    (activate-map state id)))
+
+(defun delete-map [state map-id]
+  (let [state (commit-active-map state)
+        maps (or (:maps state) [])]
+    (if (<= (count maps) 1)
+      state
+      (let [remaining (filter maps
+                              (fn [map-document]
+                                (not= (:id map-document) map-id)))
+            next-id (:id (head remaining))
+            map-document (data/selected-map-document remaining next-id)
+            state (activate-map-document (assoc state :maps remaining)
+                                         map-document)]
+        (if (:show-terrain-rules? state)
+          (tilemap/rebuild-terrain-stamp-preview state)
+          state)))))
+
+(defun apply-map-dialog-result [state payload]
+  (if (= (:type payload) :confirm)
+    (let [context (:context payload)]
+      (case (:operation context)
+        :add
+        (add-map state (:name payload))
+
+        :rename
+        (rename-map state
+                    (:map-id context)
+                    (:id payload)
+                    (:name payload))
+
+        :duplicate
+        (duplicate-map state
+                       (:map-id context)
+                       (:id payload)
+                       (:name payload))
+
+        :default
+        state))
+    state))

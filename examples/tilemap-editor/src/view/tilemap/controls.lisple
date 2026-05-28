@@ -13,7 +13,9 @@
             [pixils.ui.theme-assets :as theme-assets]
             pixils.ui.text-input
             [pixils.ui.window :as w]
-            [pixils.tilemap.project.model :as data]))
+            [pixils.tilemap.project.model :as data]
+            [tilemap-editor.model.maps :as maps]
+            [tilemap-editor.view.id-name-dialog :as id-name-dialog]))
 
 
 
@@ -23,6 +25,209 @@
 (def map-tool-icon-size 20)
 (def map-tool-icon-bundle :tilemap-editor-tools)
 (def default-map-tool-icon-color {:r 0xff :g 0xcc :b 0x66})
+
+
+
+;; Map controls
+
+(defun map-context-menu [maps]
+  {:settings {:mnemonics {:enabled false}}
+   :items [{:label "Rename Map"
+            :action :map/context-command
+            :payload {:command :rename}}
+           {:label "Duplicate Map"
+            :action :map/context-command
+            :payload {:command :duplicate}}
+           :separator
+           {:label "Delete Map"
+            :action :map/context-command
+            :disabled? (<= (count (or maps [])) 1)
+            :payload {:command :delete}}]})
+
+(defun map-chooser-menu-items [maps]
+  (concat [{:label "Add New Map"
+            :action :map/add}
+           :separator]
+          (map (or maps [])
+               (fn [map-document]
+                 {:label (or (:label map-document)
+                             (str (:id map-document)))
+                  :type :option
+                  :action :map/select
+                  :payload (:id map-document)
+                  :value (:id map-document)
+                  :selected-path [:option-state :selected-map-id]}))))
+
+(defun map-chooser-menu [maps]
+  {:settings {:mnemonics {:enabled false}}
+   :items (map-chooser-menu-items maps)})
+
+(defun map-menu-state [state]
+  (assoc state
+         :option-state {:selected-map-id (:selected-map-id state)}))
+
+(defun map-panel-title [state]
+  (str "Map - " (or (:selected-map-label state)
+                    (:label (data/selected-map-document (:maps state)
+                                                       (:selected-map-id state)))
+                    "")))
+
+(defcomponent map-header-title
+  {:style {:width :fill}
+   :update (fn [state ctx]
+             (assoc state :title (map-panel-title state)))
+   :on-mouse-up (fn [state event ctx]
+                  (do
+                    (when (= (:button event) :right)
+                      (menu/open-context-menu! (map-context-menu (:maps state))
+                                               (:global-position event)
+                                               (map-menu-state state)
+                                               ctx))
+                    state))
+   :on {:menu/select (fn [state event ctx]
+                       (let [payload (:payload event)]
+                         (do
+                           (ui/stop-propagation! event)
+                           (when (= (:type payload) :action)
+                             (ui/emit! (:view ctx)
+                                       :map/context-command
+                                       (-> payload :payload)))))
+                       state)}
+   :children [{:mode 'ui/text
+               :class :ui/title
+               :style {:width :fill}
+               :state {:value (ui/bind-state :title)}}]})
+
+(defcomponent map-chooser-button
+  {:style {:width 18
+           :height 18}
+   :on-mouse-up (fn [state event ctx]
+                  (do
+                    (ui/stop-propagation! event)
+                    (when (= (:button event) :left)
+                      (menu/open-context-menu! (map-chooser-menu (:maps state))
+                                               (:global-position event)
+                                               (map-menu-state state)
+                                               ctx))
+                    state))
+   :on {:menu/select (fn [state event ctx]
+                       (let [payload (:payload event)]
+                         (do
+                           (ui/stop-propagation! event)
+                           (when (= (:type payload) :action)
+                             (ui/emit! (:view ctx)
+                                       (:action payload)
+                                       (:payload payload)))))
+                       state)}
+   :children [{:mode 'ui/combo-box-button
+               :style {:width :fill
+                       :height :fill}
+               :state {:axis :y
+                       :part :end}}]})
+
+(defun open-map-dialog! [state ctx operation title id name]
+  (do
+    (id-name-dialog/open!
+     ctx
+     {:title title
+      :id id
+      :name name
+      :context {:operation operation
+                :map-id (:selected-map-id state)}
+      :result-event :map/id-name-dialog-result})
+    state))
+
+(defun open-map-add-dialog! [state ctx]
+  (let [label (maps/next-map-label (:maps state))
+        id (maps/map-id-text (maps/map-id-from-text nil label))]
+    (open-map-dialog! state ctx :add "New Map" id label)))
+
+(defun selected-map-document [state]
+  (data/selected-map-document (:maps state) (:selected-map-id state)))
+
+(defun open-map-rename-dialog! [state ctx]
+  (let [map-document (selected-map-document state)]
+    (open-map-dialog! state
+                      ctx
+                      :rename
+                      "Rename Map"
+                      (maps/map-id-text (:id map-document))
+                      (:label map-document))))
+
+(defun open-map-duplicate-dialog! [state ctx]
+  (let [map-document (selected-map-document state)
+        label (maps/unique-map-label-from (:maps state)
+                                          (str (:label map-document) " Copy")
+                                          nil
+                                          nil)
+        id (maps/map-id-text (maps/map-id-from-text nil label))]
+    (open-map-dialog! state
+                      ctx
+                      :duplicate
+                      "Duplicate Map"
+                      id
+                      label)))
+
+(defun open-map-delete-confirm-dialog! [state ctx]
+  (let [map-document (selected-map-document state)]
+    (do
+      (dialog/open-confirm!
+       ctx
+       {:title "Delete Map"
+        :body {:mode 'ui/text
+               :style {:width :fill}
+               :state {:value (str "Delete map \""
+                                    (:label map-document)
+                                    "\"?")}}
+        :buttons [:dialog/cancel
+                  {:type :dialog/ok
+                   :label "Delete"}]
+        :result-event :map/delete-dialog-result
+        :payload {:map-id (:id map-document)}})
+      state)))
+
+(defun make-map-workspace-panel [opts]
+  (hp/make {:title "Map"
+            :style {:width :fill
+                    :height :fill}
+            :header-style {:layout {:direction :row
+                                    :align-items :center
+                                    :gap 4}}
+            :title-child {:mode 'map-header-title
+                          :state {:maps (ui/bind-state :maps)
+                                  :selected-map-id
+                                  (ui/bind-state :selected-map-id)
+                                  :selected-map-label
+                                  (ui/bind-state :selected-map-label)}}
+            :header-children [{:mode 'map-chooser-button
+                               :state {:maps (ui/bind-state :maps)
+                                       :selected-map-id
+                                       (ui/bind-state :selected-map-id)}}]
+            :body-style {:height :fill
+                         :padding 8
+                         :layout {:direction :column
+                                  :gap 8}}
+            :state (merge (or (:body-state opts) {})
+                          (or (:state opts) {}))
+            :body-state (:body-state opts)
+            :on {:map/context-command
+                 (fn [state event ctx]
+                   (let [command (:command (:payload event))]
+                     (case command
+                       :rename
+                       (open-map-rename-dialog! state ctx)
+
+                       :duplicate
+                       (open-map-duplicate-dialog! state ctx)
+
+                       :delete
+                       (if (> (count (or (:maps state) [])) 1)
+                         (open-map-delete-confirm-dialog! state ctx)
+                         state)
+
+                       :default
+                       state)))}
+            :children (:children opts)}))
 
 (defun keyword-label [value]
   (let [text (str value)]
