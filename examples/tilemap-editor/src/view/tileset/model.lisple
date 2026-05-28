@@ -1,7 +1,8 @@
 (ns tilemap-editor.view.tileset.model
   (:require pixils
             [lisple.io :as io]
-            [pixils.tilemap.project.model :as data]))
+            [pixils.tilemap.project.model :as data]
+            [tilemap-editor.model.maps :as maps]))
 
 (def tile-grid-cell-size data/tile-size)
 
@@ -419,18 +420,33 @@
 (defun rename-tileset-in-brushes [brushes old-id new-id]
   (rename-tileset-in-brush-value (or brushes []) old-id new-id))
 
+(defun rename-tileset-in-layer [layer old-id new-id]
+  (if (= (:tileset layer) old-id)
+    (assoc layer :tileset new-id)
+    layer))
+
+(defun rename-tileset-in-layers [layers old-id new-id]
+  (map (or layers [])
+       (fn [layer]
+         (rename-tileset-in-layer layer old-id new-id))))
+
 (defun rename-tileset-references [state old-id new-id]
-  (assoc
-   (assoc (assoc state
-                 :layers (map (or (:layers state) [])
-                              (fn [layer]
-                                (if (= (:tileset layer) old-id)
-                                  (assoc layer :tileset new-id)
-                                  layer))))
-          :brushes (rename-tileset-in-brushes (:brushes state) old-id new-id))
-   :tileset (if (= (:tileset state) old-id)
-              new-id
-              (:tileset state))))
+  (maps/update-all-map-layers
+   (assoc state
+          :layer-profiles (map (or (:layer-profiles state) [])
+                               (fn [profile]
+                                 (assoc profile
+                                        :layers
+                                        (rename-tileset-in-layers
+                                         (:layers profile)
+                                         old-id
+                                         new-id))))
+          :brushes (rename-tileset-in-brushes (:brushes state) old-id new-id)
+          :tileset (if (= (:tileset state) old-id)
+                     new-id
+                     (:tileset state)))
+   (fn [layers]
+     (rename-tileset-in-layers layers old-id new-id))))
 
 (defun edit-tileset-definition! [state payload]
   (let [tilesets (or (:tilesets state) [])
@@ -629,21 +645,31 @@
                 next-index (selected-tile-index-after-delete selection
                                                              (count remaining))
                 next-selection (if (nil? next-index) [] [next-index])]
-            (assoc (assoc-in state
-                             [:tilesets tileset-index :tiles]
-                             remaining)
-                   :layers (remove-deleted-tile-refs-in-layers
-                            (:layers state)
-                            (:id tileset)
-                            deleted-ids
-                            selection)
-                   :brushes (remove-deleted-tile-refs-in-brushes
-                             (:brushes state)
-                             (:id tileset)
-                             deleted-ids
-                             selection)
-                   :selected-tileset-tile-index next-index
-                   :selected-tileset-tile-indices next-selection))))
+            (maps/update-all-map-layers
+             (assoc (assoc-in state
+                              [:tilesets tileset-index :tiles]
+                              remaining)
+                    :layer-profiles (map (or (:layer-profiles state) [])
+                                         (fn [profile]
+                                           (assoc profile
+                                                  :layers
+                                                  (remove-deleted-tile-refs-in-layers
+                                                   (:layers profile)
+                                                   (:id tileset)
+                                                   deleted-ids
+                                                   selection))))
+                    :brushes (remove-deleted-tile-refs-in-brushes
+                              (:brushes state)
+                              (:id tileset)
+                              deleted-ids
+                              selection)
+                    :selected-tileset-tile-index next-index
+                    :selected-tileset-tile-indices next-selection)
+             (fn [layers]
+               (remove-deleted-tile-refs-in-layers layers
+                                                   (:id tileset)
+                                                   deleted-ids
+                                                   selection))))))
       state)))
 
 (defun add-tile-definition! [state payload]
@@ -695,17 +721,28 @@
                                         :id new-id
                                         :name (:tile-name payload)
                                         :char (or (:tile-char payload) "")))]
-        (assoc next-state
-               :layers (rename-tile-refs-in-layers (:layers next-state)
-                                                   (:id tileset)
-                                                   old-id
-                                                   new-id)
-               :brushes (rename-tile-refs-in-brushes (:brushes next-state)
-                                                     (:id tileset)
-                                                     old-id
-                                                     new-id)
-               :selected-tileset-tile-index index
-               :selected-tileset-tile-indices [index]))
+        (maps/update-all-map-layers
+         (assoc next-state
+                :layer-profiles (map (or (:layer-profiles next-state) [])
+                                     (fn [profile]
+                                       (assoc profile
+                                              :layers
+                                              (rename-tile-refs-in-layers
+                                               (:layers profile)
+                                               (:id tileset)
+                                               old-id
+                                               new-id))))
+                :brushes (rename-tile-refs-in-brushes (:brushes next-state)
+                                                      (:id tileset)
+                                                      old-id
+                                                      new-id)
+                :selected-tileset-tile-index index
+                :selected-tileset-tile-indices [index])
+         (fn [layers]
+           (rename-tile-refs-in-layers layers
+                                       (:id tileset)
+                                       old-id
+                                       new-id))))
       state)))
 
 (defun add-imported-sprite-tiles! [state payload]

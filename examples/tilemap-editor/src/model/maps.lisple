@@ -121,6 +121,21 @@
       (tilemap/rebuild-terrain-stamp-preview state)
       state)))
 
+(defun update-map-document-layers [map-document update-fn]
+  (assoc map-document
+         :layers (update-fn (or (:layers map-document) []))))
+
+(defun update-all-map-layers [state update-fn]
+  (if (empty? (or (:maps state) []))
+    (assoc state :layers (update-fn (:layers state)))
+    (let [state (commit-active-map state)
+          maps (map (:maps state)
+                    (fn [map-document]
+                      (update-map-document-layers map-document update-fn)))
+          state (assoc state :maps maps)
+          map-document (data/selected-map-document maps (:selected-map-id state))]
+      (activate-map-document state map-document))))
+
 (defun strip-leading-colon [text]
   (let [text (str text)]
     (if (= ":" (substr text 0 1))

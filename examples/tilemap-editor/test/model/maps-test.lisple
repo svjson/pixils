@@ -68,6 +68,17 @@
     (is (= [0] (:hidden-layer-indices state)))
     (is (= {:x 8 :y 9} (:map-offset state)))))
 
+(deftest update-all-map-layers-updates_stored_maps_and_active_projection
+  (let [state (maps/update-all-map-layers
+               (multi-map-state)
+               (fn [layers]
+                 (map layers
+                      (fn [layer]
+                        (assoc-in layer [:tiles 0 0] :updated)))))]
+    (is (= :updated (get-in state [:layers 0 :tiles 0 0])))
+    (is (= :updated (get-in state [:maps 0 :layers 0 :tiles 0 0])))
+    (is (= :updated (get-in state [:maps 1 :layers 0 :tiles 0 0])))))
+
 (deftest add-map-creates_empty_map_from_current_layer_shape_and_selects_it
   (let [state (maps/add-map (multi-map-state) "Bonus")]
     (is (= :map/bonus (:selected-map-id state)))

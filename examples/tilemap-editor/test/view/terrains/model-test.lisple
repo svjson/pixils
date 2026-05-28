@@ -199,6 +199,41 @@
     (is (= :world (get-in state [:brushes 0 :pattern :layers 0 :terrain-set])))
     (is (= :world (get-in state [:rulesets 0 :terrain-set])))))
 
+(deftest terrain-set-id-change-updates_references_in_all_project_maps
+  (let [state (model/set-selected-terrain-set-id
+               {:selected-map-id :map/one
+                :selected-map-label "One"
+                :map-width 1
+                :map-height 1
+                :selected-layer-profile-id :default
+                :layer-profiles [{:id :default :layers []}]
+                :selected-layer-index 0
+                :terrain-sets [{:id :overworld
+                                :label "Overworld"
+                                :terrains [{:id :grass}]}]
+                :selected-terrain-set-index 0
+                :layers [{:id :scene/one
+                          :data-kind :terrain
+                          :terrain-set :overworld}]
+                :maps [{:id :map/one
+                        :label "One"
+                        :width 1
+                        :height 1
+                        :layers [{:id :scene/one
+                                  :data-kind :terrain
+                                  :terrain-set :overworld}]}
+                       {:id :map/two
+                        :label "Two"
+                        :width 1
+                        :height 1
+                        :layers [{:id :scene/two
+                                  :data-kind :terrain
+                                  :terrain-set :overworld}]}]}
+               "world")]
+    (is (= :world (get-in state [:layers 0 :terrain-set])))
+    (is (= :world (get-in state [:maps 0 :layers 0 :terrain-set])))
+    (is (= :world (get-in state [:maps 1 :layers 0 :terrain-set])))))
+
 (deftest terrain-set-id-change-deduplicates_ids
   (let [state (model/set-selected-terrain-set-id
                {:terrain-sets [{:id :world}
@@ -305,6 +340,48 @@
                     1
                     1])))
     (is (= :grass (get-in state [:rulesets 2 :terrain])))))
+
+(deftest terrain-id-change-updates_refs_in_all_project_maps
+  (let [state (model/set-selected-terrain-id
+               {:selected-map-id :map/one
+                :selected-map-label "One"
+                :map-width 1
+                :map-height 1
+                :selected-layer-profile-id :default
+                :layer-profiles [{:id :default :layers []}]
+                :selected-layer-index 0
+                :terrain-sets [{:id :overworld
+                                :terrains [{:id :grass}]}]
+                :selected-terrain-set-index 0
+                :selected-terrain-index 0
+                :layers [{:id :scene/one
+                          :data-kind :terrain
+                          :terrain-set :overworld
+                          :tiles [[:grass]]}]
+                :maps [{:id :map/one
+                        :label "One"
+                        :width 1
+                        :height 1
+                        :layers [{:id :scene/one
+                                  :data-kind :terrain
+                                  :terrain-set :overworld
+                                  :tiles [[:grass]]}]}
+                       {:id :map/two
+                        :label "Two"
+                        :width 1
+                        :height 1
+                        :layers [{:id :scene/two
+                                  :data-kind :terrain
+                                  :terrain-set :overworld
+                                  :tiles [[:grass]]}]}]
+                :rulesets [{:id :inactive-source-rules
+                            :source-layer :scene/two
+                            :terrain :grass}]}
+               "meadow")]
+    (is (= :meadow (get-in state [:layers 0 :tiles 0 0])))
+    (is (= :meadow (get-in state [:maps 0 :layers 0 :tiles 0 0])))
+    (is (= :meadow (get-in state [:maps 1 :layers 0 :tiles 0 0])))
+    (is (= :meadow (get-in state [:rulesets 0 :terrain])))))
 
 (deftest terrain-id-change-deduplicates_ids
   (let [state (model/set-selected-terrain-id

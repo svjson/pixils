@@ -1,7 +1,8 @@
 (ns tilemap-editor.view.resources.model
   (:require pixils
             [lisple.io :as io]
-            [pixils.resource :as res]))
+            [pixils.resource :as res]
+            [tilemap-editor.model.maps :as maps]))
 
 (defun file-stem [path]
   (let [name (io/basename path)
@@ -266,22 +267,25 @@
           (res/create-bundle! new-bundle-id)
           (for [resource (res/list-images old-bundle-id)]
             (res/remove-image! (:id resource)))
-          (assoc (assoc-in state
-                           [:resources :bundles]
-                           (assoc (dissoc (or (-> state :resources :bundles) {})
-                                          old-bundle-id)
-                                  new-bundle-id
-                                  bundle))
-                 :tilesets (rename-bundle-in-tilesets (:tilesets state)
-                                                       old-bundle-id
-                                                       new-bundle-id)
-                 :layers (rename-bundle-in-layers (:layers state)
-                                                   old-bundle-id
-                                                   new-bundle-id)
-                 :brushes (rename-bundle-in-brushes (:brushes state)
-                                                     old-bundle-id
-                                                     new-bundle-id)
-                 :selected-resource-bundle new-bundle-id)))
+          (maps/update-all-map-layers
+           (assoc (assoc-in state
+                            [:resources :bundles]
+                            (assoc (dissoc (or (-> state :resources :bundles) {})
+                                           old-bundle-id)
+                                   new-bundle-id
+                                   bundle))
+                  :tilesets (rename-bundle-in-tilesets (:tilesets state)
+                                                        old-bundle-id
+                                                        new-bundle-id)
+                  :layer-profiles (rename-bundle-in-layers (:layer-profiles state)
+                                                           old-bundle-id
+                                                           new-bundle-id)
+                  :brushes (rename-bundle-in-brushes (:brushes state)
+                                                      old-bundle-id
+                                                      new-bundle-id)
+                  :selected-resource-bundle new-bundle-id)
+           (fn [layers]
+             (rename-bundle-in-layers layers old-bundle-id new-bundle-id)))))
       state)))
 
 (defun apply-resource-bundle-dialog-result [state payload]
@@ -493,19 +497,26 @@
                            :selected-image-resource resource-id)]
           (if (= previous-id resource-id)
             state
-            (assoc state
-                   :tilesets (rename-resource-in-tilesets (:tilesets state)
-                                                          bundle-id
-                                                          previous-id
-                                                          resource-id)
-                   :layers (rename-resource-in-layers (:layers state)
-                                                      bundle-id
-                                                      previous-id
-                                                      resource-id)
-                   :brushes (rename-resource-in-brushes (:brushes state)
-                                                        bundle-id
-                                                        previous-id
-                                                        resource-id)))))
+            (maps/update-all-map-layers
+             (assoc state
+                    :tilesets (rename-resource-in-tilesets (:tilesets state)
+                                                           bundle-id
+                                                           previous-id
+                                                           resource-id)
+                    :layer-profiles (rename-resource-in-layers
+                                     (:layer-profiles state)
+                                     bundle-id
+                                     previous-id
+                                     resource-id)
+                    :brushes (rename-resource-in-brushes (:brushes state)
+                                                         bundle-id
+                                                         previous-id
+                                                         resource-id))
+             (fn [layers]
+               (rename-resource-in-layers layers
+                                          bundle-id
+                                          previous-id
+                                          resource-id))))))
       state)))
 
 (defun apply-image-metadata-dialog-result [state payload]
@@ -532,16 +543,20 @@
           (case action
             :resource-delete/replace-resource
             (if replacement-key
-              (assoc state
-                     :tilesets (replace-resource-key-in (:tilesets state)
+              (maps/update-all-map-layers
+               (assoc state
+                      :tilesets (replace-resource-key-in (:tilesets state)
+                                                         resource-key
+                                                         replacement-key)
+                      :layer-profiles (replace-resource-key-in
+                                       (:layer-profiles state)
+                                       resource-key
+                                       replacement-key)
+                      :brushes (replace-resource-key-in (:brushes state)
                                                         resource-key
-                                                        replacement-key)
-                     :layers (replace-resource-key-in (:layers state)
-                                                      resource-key
-                                                      replacement-key)
-                     :brushes (replace-resource-key-in (:brushes state)
-                                                       resource-key
-                                                       replacement-key))
+                                                        replacement-key))
+               (fn [layers]
+                 (replace-resource-key-in layers resource-key replacement-key)))
               state)
 
             :resource-delete/delete-tiles

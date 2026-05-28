@@ -277,6 +277,53 @@
     (is (= 1 (:selected-tileset-tile-index state)))
     (is (= [1] (:selected-tileset-tile-indices state)))))
 
+(deftest tile-rename-updates_keyword_refs_in_all_project_maps
+  (let [state (model/rename-tile-definition!
+               {:selected-map-id :map/one
+                :selected-map-label "One"
+                :map-width 1
+                :map-height 1
+                :selected-layer-profile-id :default
+                :layer-profiles [{:id :default :layers []}]
+                :selected-layer-index 0
+                :selected-tileset-definition-index 0
+                :selected-tileset-tile-index 1
+                :selected-tileset-tile-indices [1]
+                :tilesets [{:id :terrain
+                            :label "Terrain"
+                            :tile-size 16
+                            :tiles [{:id :grass}
+                                    {:id :water
+                                     :name "Water"
+                                     :char "w"
+                                     :type :color
+                                     :color {:r 0 :g 0 :b 255}}]}]
+                :layers [{:id :scene/one
+                          :tileset :terrain
+                          :tiles [[:water]]}]
+                :maps [{:id :map/one
+                        :label "One"
+                        :width 1
+                        :height 1
+                        :layers [{:id :scene/one
+                                  :tileset :terrain
+                                  :tiles [[:water]]}]}
+                       {:id :map/two
+                        :label "Two"
+                        :width 1
+                        :height 1
+                        :layers [{:id :scene/two
+                                  :tileset :terrain
+                                  :tiles [[:water]]}]}]}
+               {:type :confirm
+                :tile-index 1
+                :tile-id "deep water"
+                :tile-name "Deep Water"
+                :tile-char "~"})]
+    (is (= :deep-water (get-in state [:layers 0 :tiles 0 0])))
+    (is (= :deep-water (get-in state [:maps 0 :layers 0 :tiles 0 0])))
+    (is (= :deep-water (get-in state [:maps 1 :layers 0 :tiles 0 0])))))
+
 (deftest sprite_tile_creation_uses_tileset_tile_size
   (let [state (model/add-tile-definition!
                {:selected-tileset-definition-index 0

@@ -1,5 +1,6 @@
 (ns tilemap-editor.view.terrains.model
-  (:require [pixils.tilemap.project.model :as data]))
+  (:require [pixils.tilemap.project.model :as data]
+            [tilemap-editor.model.maps :as maps]))
 
 (defun terrain-set-options [terrain-sets]
   (for-indexed [index terrain-set (or terrain-sets [])]
@@ -405,15 +406,17 @@
     :default value))
 
 (defun rename-terrain-set-references [state old-id new-id]
-  (assoc state
-         :layers (replace-terrain-set-reference (:layers state) old-id new-id)
-         :layer-profiles (replace-terrain-set-reference (:layer-profiles state)
-                                                        old-id
-                                                        new-id)
-         :brushes (replace-terrain-set-reference (:brushes state) old-id new-id)
-         :rulesets (replace-terrain-set-reference (:rulesets state)
-                                                  old-id
-                                                  new-id)))
+  (maps/update-all-map-layers
+   (assoc state
+          :layer-profiles (replace-terrain-set-reference (:layer-profiles state)
+                                                         old-id
+                                                         new-id)
+          :brushes (replace-terrain-set-reference (:brushes state) old-id new-id)
+          :rulesets (replace-terrain-set-reference (:rulesets state)
+                                                   old-id
+                                                   new-id))
+   (fn [layers]
+     (replace-terrain-set-reference layers old-id new-id))))
 
 (defun set-selected-terrain-set-id [state value]
   (if-let [set-index (selected-terrain-set-index (:terrain-sets state)
@@ -489,6 +492,11 @@
 
 (defun terrain-source-layer-ids [state terrain-set]
   (concat (terrain-source-layer-ids-in (:layers state) terrain-set)
+          (apply concat
+                 (map (or (:maps state) [])
+                      (fn [map-document]
+                        (terrain-source-layer-ids-in (:layers map-document)
+                                                     terrain-set))))
           (apply concat
                  (map (or (:layer-profiles state) [])
                       (fn [profile]
@@ -577,20 +585,31 @@
 
 (defun rename-terrain-references [state terrain-set old-id new-id]
   (let [source-layer-ids (terrain-source-layer-ids state terrain-set)]
-    (assoc state
-           :layers (replace-terrain-refs-in-layers (:layers state)
-                                                   terrain-set
-                                                   old-id
-                                                   new-id)
-           :brushes (replace-terrain-refs-in-brush-value (:brushes state)
-                                                         terrain-set
-                                                         old-id
-                                                         new-id)
-           :rulesets (replace-terrain-refs-in-rulesets (:rulesets state)
-                                                       terrain-set
-                                                       source-layer-ids
-                                                       old-id
-                                                       new-id))))
+    (maps/update-all-map-layers
+     (assoc state
+            :layer-profiles (map (or (:layer-profiles state) [])
+                                 (fn [profile]
+                                   (assoc profile
+                                          :layers
+                                          (replace-terrain-refs-in-layers
+                                           (:layers profile)
+                                           terrain-set
+                                           old-id
+                                           new-id))))
+            :brushes (replace-terrain-refs-in-brush-value (:brushes state)
+                                                          terrain-set
+                                                          old-id
+                                                          new-id)
+            :rulesets (replace-terrain-refs-in-rulesets (:rulesets state)
+                                                        terrain-set
+                                                        source-layer-ids
+                                                        old-id
+                                                        new-id))
+     (fn [layers]
+       (replace-terrain-refs-in-layers layers
+                                       terrain-set
+                                       old-id
+                                       new-id)))))
 
 (defun set-selected-terrain-id [state value]
   (if-let [set-index (selected-terrain-set-index (:terrain-sets state)
@@ -1110,23 +1129,24 @@
           next-terrain-index (selected-terrain-index next-terrain-set
                                                      (:selected-terrain-index
                                                       state))]
-      (assoc state
-             :terrain-sets next-terrain-sets
-             :layers (clear-terrain-set-reference (:layers state)
-                                                  terrain-set-id)
-             :layer-profiles (clear-terrain-set-reference
-                              (:layer-profiles state)
-                              terrain-set-id)
-             :brushes (clear-terrain-set-reference (:brushes state)
-                                                   terrain-set-id)
-             :rulesets (remove-rulesets-for-terrain-set
-                        (:rulesets state)
-                        terrain-set-id
-                        source-layer-ids)
-             :selected-terrain-set-index next-set-index
-             :selected-terrain-index next-terrain-index
-             :selected-terrain-ruleset-id nil
-             :selected-terrain-rule-id nil))
+      (maps/update-all-map-layers
+       (assoc state
+              :terrain-sets next-terrain-sets
+              :layer-profiles (clear-terrain-set-reference
+                               (:layer-profiles state)
+                               terrain-set-id)
+              :brushes (clear-terrain-set-reference (:brushes state)
+                                                    terrain-set-id)
+              :rulesets (remove-rulesets-for-terrain-set
+                         (:rulesets state)
+                         terrain-set-id
+                         source-layer-ids)
+              :selected-terrain-set-index next-set-index
+              :selected-terrain-index next-terrain-index
+              :selected-terrain-ruleset-id nil
+              :selected-terrain-rule-id nil)
+       (fn [layers]
+         (clear-terrain-set-reference layers terrain-set-id))))
     state))
 
 (defun remove-rules-for-terrain [rules terrain-id]
@@ -1173,31 +1193,42 @@
                                   (:selected-terrain-index state)
                                   terrain-index
                                   (count next-terrains))]
-          (assoc state
-                 :terrain-sets (update-terrain-set-at
-                                (:terrain-sets state)
-                                set-index
-                                (fn [terrain-set]
-                                  (assoc terrain-set
-                                         :terrains next-terrains)))
-                 :layers (replace-terrain-refs-in-layers (:layers state)
-                                                         terrain-set-id
-                                                         terrain-id
-                                                         nil)
-                 :brushes (replace-terrain-refs-in-brush-value
-                           (:brushes state)
-                           terrain-set-id
-                           terrain-id
-                           nil)
-                 :rulesets (remove-terrain-from-rulesets
-                            (:rulesets state)
+          (maps/update-all-map-layers
+           (assoc state
+                  :terrain-sets (update-terrain-set-at
+                                 (:terrain-sets state)
+                                 set-index
+                                 (fn [terrain-set]
+                                   (assoc terrain-set
+                                          :terrains next-terrains)))
+                  :layer-profiles (map (or (:layer-profiles state) [])
+                                       (fn [profile]
+                                         (assoc profile
+                                                :layers
+                                                (replace-terrain-refs-in-layers
+                                                 (:layers profile)
+                                                 terrain-set-id
+                                                 terrain-id
+                                                 nil))))
+                  :brushes (replace-terrain-refs-in-brush-value
+                            (:brushes state)
                             terrain-set-id
-                            source-layer-ids
-                            terrain-id)
-                 :selected-terrain-set-index set-index
-                 :selected-terrain-index next-terrain-index
-                 :selected-terrain-ruleset-id nil
-                 :selected-terrain-rule-id nil))
+                            terrain-id
+                            nil)
+                  :rulesets (remove-terrain-from-rulesets
+                             (:rulesets state)
+                             terrain-set-id
+                             source-layer-ids
+                             terrain-id)
+                  :selected-terrain-set-index set-index
+                  :selected-terrain-index next-terrain-index
+                  :selected-terrain-ruleset-id nil
+                  :selected-terrain-rule-id nil)
+           (fn [layers]
+             (replace-terrain-refs-in-layers layers
+                                             terrain-set-id
+                                             terrain-id
+                                             nil))))
         state))
     state))
 
