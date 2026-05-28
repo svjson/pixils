@@ -10,7 +10,8 @@
             [boulder-rush.player :as pl]
             [boulder-rush.physics :as physics]
             [boulder-rush.sounds :as sound]
-            [boulder-rush.level.loader :as level-loader]))
+            [boulder-rush.level.loader :as level-loader]
+            [pixils.state.timer :as timer]))
 
 (def status-bar-render-ops {:scale [2 1]})
 
@@ -44,17 +45,25 @@
       (contains? held-keys :key/right-ctrl)))
 
 (defun apply-player-result [state result]
-  (sound/play-player-movement-sound (:entered-tile result))
-  (let [moved-tiles (:moved-tiles result)
+  (let [entered-tile (:entered-tile result)
+        moved-tiles (:moved-tiles result)
         changed-positions (:changed-positions result)
         result (dissoc result :entered-tile)
         result (dissoc result :changed-positions)
         state (merge state (dissoc result :moved-tiles))
+        state (if (= :gem entered-tile)
+                (let [score (+ (or (-> state :player :score) 0)
+                               (or (-> state :gems :value) 0))]
+                  (-> state
+                    (update-in [:gems :collected] inc)
+                    (assoc-in [:player :score] score)))
+                state)
         state (if (empty? (or moved-tiles []))
                 state
                 (assoc state
                        :moved-tiles (concat (or (:moved-tiles state) [])
                                             moved-tiles)))]
+    (sound/play-player-movement-sound entered-tile)
     (if (empty? (or changed-positions []))
       state
       (assoc state
@@ -79,6 +88,14 @@
                                               dir))
                            {:player (pl/release-input (:player state))}))))
 
+(defun update-remaining-time [state]
+  (let [timer (timer/tick (:remaining-time-timer state))]
+    (assoc state
+           :remaining-time-timer timer
+           :remaining-time (if (timer/ticked? timer)
+                             (max 0 (- (:remaining-time state) 1))
+                             (:remaining-time state)))))
+
 (defmode game-mode
   {:init (fn [state ctx]
            (let [level (or (:level state) 1)
@@ -89,7 +106,8 @@
                      :required 12
                      :value 10
                      :bonus-value 15}
-              :time-remaining 150
+              :remaining-time 150
+              :remaining-time-timer (timer/make {:interval-ms 1000})
               :tile-offset {:x 0 :y 0}
               :offset {:x 0 :y 0}
               :tileset (level-loader/level-tileset state level)
@@ -109,6 +127,7 @@
    :update (fn [state ctx]
              (let [state (pl/update-player state)
                    state (handle-player-input state ctx)
+                   state (update-remaining-time state)
                    state (assoc state :events (event/tick-many (:events state)))]
                (-> state
                    (event/update-physics)
@@ -141,7 +160,7 @@
                       {:x 112 :y 4}
                       (assoc status-bar-render-ops
                              :color c/YELLOW))
-             (r/text! (left-pad (str (-> state :time-remaining)) 3 "0")
+             (r/text! (left-pad (str (-> state :remaining-time)) 3 "0")
                       {:x 176 :y 4}
                       status-bar-render-ops)
              (r/text! (left-pad (str (-> state :player :score)) 6 "0")

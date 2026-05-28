@@ -217,7 +217,10 @@
   (given
     {:level-map (fixtures/rows->map ["PV"])
      :player {:pos {:x 0 :y 0}
-              :move-timer (waiting-player-move-timer)}
+              :move-timer (waiting-player-move-timer)
+              :score 20}
+     :gems {:collected 2
+            :value 10}
      :events []})
   (when [state]
     (game/handle-player-input state {:held-keys [:key/ctrl :key/right]}))
@@ -225,7 +228,30 @@
     (is (= ["P "]
            (fixtures/map->rows (:level-map result))))
     (is (= {:x 0 :y 0}
-           (-> result :player :pos)))))
+           (-> result :player :pos)))
+    (is (= 3
+           (-> result :gems :collected)))
+    (is (= 30
+           (-> result :player :score)))))
+
+(deftest handle-player-input-adds-gem-value-to-score-when-player-walks-into-gem
+  (given
+    {:level-map (fixtures/rows->map ["PV"])
+     :player {:pos {:x 0 :y 0}
+              :move-timer (ready-player-move-timer)
+              :score 20}
+     :gems {:collected 2
+            :value 10}
+     :events []})
+  (when [state]
+    (game/handle-player-input state {:held-keys [:key/right]}))
+  (then [result]
+    (is (= [" P"]
+           (fixtures/map->rows (:level-map result))))
+    (is (= 3
+           (-> result :gems :collected)))
+    (is (= 30
+           (-> result :player :score)))))
 
 (deftest handle-player-input-fire-animates-when-target-is-blocked
   (given
@@ -276,6 +302,26 @@
     (sounds/play-game-event-sounds state))
   (then [result]
     (is (nil? (:explosions result)))))
+
+(deftest update-remaining-time-counts-down-once-per-second
+  (given
+    {:remaining-time 150
+     :remaining-time-timer (ready-timer)})
+  (when [state]
+    (game/update-remaining-time state))
+  (then [result]
+    (is (= 149
+           (:remaining-time result)))))
+
+(deftest update-remaining-time-does-not-count-below-zero
+  (given
+    {:remaining-time 0
+     :remaining-time-timer (ready-timer)})
+  (when [state]
+    (game/update-remaining-time state))
+  (then [result]
+    (is (= 0
+           (:remaining-time result)))))
 
 (deftest update-physics-evaluates-current-events-and-retains-moved-coordinates
   (given
