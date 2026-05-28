@@ -66,19 +66,42 @@
              :push {:dir dir
                     :timer (timer/make {:interval-ms (rand-nth PUSH-INTERVALS-MS)})}))))
 
-(defun push-boulder [level-map player dir boulder-pos]
+(defun push-boulder [level-map player dir boulder-pos push-mode]
   (let [player-pos (:pos player)
         boulder-target (pt/+ boulder-pos dir)
+        player-follows? (= :player-follows push-mode)
         player (begin-push player dir)]
     (if (and (timer/ticked? (-> player :push :timer))
              (= :empty (map/cell-at level-map boulder-target)))
-      {:level-map (-> level-map
-                    (map/move-cell boulder-pos boulder-target)
-                    (map/move-cell player-pos boulder-pos))
-       :player (assoc (begin-walk player dir) :pos boulder-pos)
+      {:level-map (let [level-map (map/move-cell level-map boulder-pos boulder-target)]
+                    (if player-follows?
+                      (map/move-cell level-map player-pos boulder-pos)
+                      level-map))
+       :player (assoc (begin-walk player dir)
+                      :pos (if player-follows?
+                             boulder-pos
+                             player-pos))
        :changed-positions [player-pos boulder-pos boulder-target]
        :moved-tiles [:boulder]}
       {:player player})))
+
+(defun fire [level-map player dir]
+  (let [target-pos (pt/+ (:pos player) dir)
+        target-tile (map/cell-at level-map target-pos)]
+    (cond
+      (contains? [:dirt :gem] target-tile)
+      {:level-map (map/set-cell level-map target-pos :empty)
+       :player (walk (dissoc player :push) dir)
+       :entered-tile target-tile
+       :changed-positions [target-pos]}
+
+      (and (= :boulder target-tile)
+           (= 0 (:y dir))
+           (not= 0 (:x dir)))
+      (push-boulder level-map player dir target-pos :player-stays)
+
+      :default
+      {:player (walk (dissoc player :push) dir)})))
 
 (defun apply-intent [level-map player dir]
   (let [player-pos (:pos player)
@@ -94,7 +117,7 @@
       (and (= :boulder target-tile)
            (= 0 (:y dir))
            (not= 0 (:x dir)))
-      (push-boulder level-map player dir target-pos)
+      (push-boulder level-map player dir target-pos :player-follows)
 
       :default
       {:player (release-input player)})))

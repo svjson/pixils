@@ -6,6 +6,7 @@
             [boulder-rush.game-mode :as game]
             [boulder-rush.player :as player]
             [boulder-rush.physics :as physics]
+            [boulder-rush.sounds :as sounds]
             [pixils.state.timer :as timer]))
 
 (defun ready-timer []
@@ -196,19 +197,83 @@
              :state :candidate}]
            (event-summaries (:events result))))))
 
-(deftest play-physics-sounds-clears-moved-tiles
+(deftest handle-player-input-fire-digs-dirt-without-moving-player
+  (given
+    {:level-map (fixtures/rows->map ["P."])
+     :player {:pos {:x 0 :y 0}
+              :move-timer (waiting-player-move-timer)}
+     :events []})
+  (when [state]
+    (game/handle-player-input state {:held-keys [:key/ctrl :key/right]}))
+  (then [result]
+    (is (= ["P "]
+           (fixtures/map->rows (:level-map result))))
+    (is (= {:x 0 :y 0}
+           (-> result :player :pos)))
+    (is (= true
+           (-> result :player :walking?)))))
+
+(deftest handle-player-input-fire-picks-up-gem-without-moving-player
+  (given
+    {:level-map (fixtures/rows->map ["PV"])
+     :player {:pos {:x 0 :y 0}
+              :move-timer (waiting-player-move-timer)}
+     :events []})
+  (when [state]
+    (game/handle-player-input state {:held-keys [:key/ctrl :key/right]}))
+  (then [result]
+    (is (= ["P "]
+           (fixtures/map->rows (:level-map result))))
+    (is (= {:x 0 :y 0}
+           (-> result :player :pos)))))
+
+(deftest handle-player-input-fire-animates-when-target-is-blocked
+  (given
+    {:level-map (fixtures/rows->map ["PW"])
+     :player {:pos {:x 0 :y 0}
+              :move-timer (waiting-player-move-timer)}
+     :events []})
+  (when [state]
+    (game/handle-player-input state {:held-keys [:key/ctrl :key/right]}))
+  (then [result]
+    (is (= ["PW"]
+           (fixtures/map->rows (:level-map result))))
+    (is (= true
+           (-> result :player :walking?)))
+    (is (= {}
+           (-> result :player :render-opts)))))
+
+(deftest handle-player-input-fire-pushes-boulder-without-moving-player
+  (given
+    {:level-map (fixtures/rows->map ["PO "])
+     :player {:pos {:x 0 :y 0}
+              :move-timer (ready-player-move-timer)
+              :push {:dir {:x 1 :y 0}
+                     :timer (ready-timer)}}
+     :events []})
+  (when [state]
+    (game/handle-player-input state {:held-keys [:key/ctrl :key/right]}))
+  (then [result]
+    (is (= ["P O"]
+           (fixtures/map->rows (:level-map result))))
+    (is (= {:x 0 :y 0}
+           (-> result :player :pos)))
+    (is (= [:boulder]
+           (:moved-tiles result)))))
+
+(deftest play-game-event-sounds-clears-moved-tiles
   (given
     {:moved-tiles [:boulder]})
   (when [state]
-    (game/play-physics-sounds state))
+    (sounds/play-game-event-sounds state))
   (then [result]
     (is (nil? (:moved-tiles result)))))
 
-(deftest play-physics-sounds-clears-explosions
+(deftest play-game-event-sounds-clears-explosions
   (given
     {:explosions [{:x 1 :y 1}]})
   (when [state]
-    (game/play-physics-sounds state))
+    (sounds/play-game-event-sounds state))
   (then [result]
     (is (nil? (:explosions result)))))
 

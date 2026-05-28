@@ -25,6 +25,11 @@
     :default
     nil))
 
+(defun fire-held? [held-keys]
+  (or (contains? held-keys :key/ctrl)
+      (contains? held-keys :key/left-ctrl)
+      (contains? held-keys :key/right-ctrl)))
+
 (defun apply-player-result [state result]
   (sound/play-player-movement-sound (:entered-tile result))
   (let [moved-tiles (:moved-tiles result)
@@ -48,12 +53,17 @@
                                                                          pos))))))))
 
 (defun handle-player-input [state ctx]
-  (let [dir (held-direction (or (:held-keys ctx) []))]
+  (let [held-keys (or (:held-keys ctx) [])
+        dir (held-direction held-keys)]
     (apply-player-result state
                          (if dir
-                           (pl/apply-intent (:level-map state)
-                                            (:player state)
-                                            dir)
+                           (if (fire-held? held-keys)
+                             (pl/fire (:level-map state)
+                                      (:player state)
+                                      dir)
+                             (pl/apply-intent (:level-map state)
+                                              (:player state)
+                                              dir))
                            {:player (pl/release-input (:player state))}))))
 
 (defmode game-mode
