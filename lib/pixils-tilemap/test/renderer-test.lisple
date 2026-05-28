@@ -86,3 +86,125 @@
                                               {:player-default substitution})))
     (is (= {:flip-x? true}
            (renderer/substitution-render-opts substitution)))))
+
+(deftest map-render-rect-uses_scaled_map_size
+  (is (= {:x 0
+          :y 0
+          :w 160
+          :h 96}
+         (renderer/map-render-rect {:width 10
+                                    :height 6
+                                    :tile-size 8}
+                                   2))))
+
+(deftest render-ranges-defaults_to_full_map_target
+  (is (= {:x {:start 0
+              :end 10}
+          :y {:start 0
+              :end 6}}
+         (renderer/render-ranges {:width 10
+                                  :height 6
+                                  :tile-size 8}
+                                 nil
+                                 1
+                                 nil))))
+
+(deftest render-ranges-culls_to_target_rect
+  (is (= {:x {:start 0
+              :end 2}
+          :y {:start 0
+              :end 3}}
+         (renderer/render-ranges {:width 10
+                                  :height 6
+                                  :tile-size 8}
+                                 nil
+                                 1
+                                 {:x 4
+                                  :y 8
+                                  :w 12
+                                  :h 24}))))
+
+(deftest render-ranges-treats_target_rect_position_as_local_origin
+  (is (= (renderer/render-ranges {:width 10
+                                  :height 6
+                                  :tile-size 8}
+                                 nil
+                                 1
+                                 {:x 0
+                                  :y 0
+                                  :w 12
+                                  :h 24})
+         (renderer/render-ranges {:width 10
+                                  :height 6
+                                  :tile-size 8}
+                                 nil
+                                 1
+                                 {:x 90
+                                  :y 60
+                                  :w 12
+                                  :h 24}))))
+
+(deftest render-ranges-applies_offset_before_culling
+  (is (= {:x {:start 2
+              :end 4}
+          :y {:start 0
+              :end 3}}
+         (renderer/render-ranges {:width 10
+                                  :height 6
+                                  :tile-size 8}
+                                 {:x 16
+                                  :y 0}
+                                 1
+                                 {:x 0
+                                  :y 0
+                                  :w 16
+                                  :h 24}))))
+
+(deftest render-ranges-includes_tiles_partially_visible_before_origin
+  (is (= {:x {:start 1
+              :end 3}
+          :y {:start 0
+              :end 2}}
+         (renderer/render-ranges {:width 10
+                                  :height 6
+                                  :tile-size 8}
+                                 {:x 9
+                                  :y 0}
+                                 1
+                                 {:x 0
+                                  :y 0
+                                  :w 8
+                                  :h 16}))))
+
+(deftest target-render-offset-translates_drawing_to_target_rect
+  (is (= {:x -84
+          :y -42}
+         (renderer/target-render-offset {:x 16
+                                         :y 8}
+                                        {:x 100
+                                         :y 50
+                                         :w 32
+                                         :h 24}))))
+
+(deftest target-render-offset-preserves_offset_without_target_rect
+  (is (= {:x 16
+          :y 8}
+         (renderer/target-render-offset {:x 16
+                                         :y 8}
+                                        nil))))
+
+(deftest render-ranges-clamps_off_map_targets_to_empty_ranges
+  (is (= {:x {:start 10
+              :end 10}
+          :y {:start 6
+              :end 6}}
+         (renderer/render-ranges {:width 10
+                                  :height 6
+                                  :tile-size 8}
+                                 {:x 90
+                                  :y 60}
+                                 1
+                                 {:x 0
+                                  :y 0
+                                  :w 10
+                                  :h 10}))))

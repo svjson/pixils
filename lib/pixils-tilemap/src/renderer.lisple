@@ -137,29 +137,100 @@
       (prepared-terrain-ref tilesets terrain-sets (:terrain-set layer) tile-ref)
       (prepared-tile-ref (:prepared-tileset layer) tile-ref))))
 
-(defun render-layer! [tilemap tilesets prepared-tilesets terrain-sets layer offset zoom tile-substitutions]
-  (let [layer (prepared-layer prepared-tilesets layer)
-        tiles (:tiles layer)]
-    (dotimes [y (tm/map-height tilemap)]
-      (dotimes [x (tm/map-width tilemap)]
-        (let [tile-ref (layer-cell tiles x y)]
-          (when (not (nil? tile-ref))
-            (let [substitution (get (or tile-substitutions {}) tile-ref)
-                  tile (prepared-layer-cell-tile tilesets
-                                                 terrain-sets
-                                                 layer
-                                                 tile-ref
-                                                 tile-substitutions)]
-              (when tile
-                (draw-tile! tile
-                            (tm/tile-rect tilemap x y offset zoom)
-                            (substitution-render-opts substitution))))))))))
+(defun map-render-rect [tilemap zoom]
+  (let [size (tm/scaled-tile-size tilemap zoom)]
+    {:x 0
+     :y 0
+     :w (* (tm/map-width tilemap) size)
+     :h (* (tm/map-height tilemap) size)}))
 
-(defun render-grid-overlay! [tilemap offset zoom]
-  (dotimes [y (tm/map-height tilemap)]
-    (dotimes [x (tm/map-width tilemap)]
-      (r/rect! (tm/tile-rect tilemap x y offset zoom)
-               {:color tm/default-grid-color}))))
+(defun ceil-positive-div [value divisor]
+  (let [value (max 0 value)
+        q (int (/ value divisor))]
+    (if (= (* q divisor) value)
+      q
+      (inc q))))
+
+(defun render-axis-range [size offset tile-size max-count]
+  (if (or (not size)
+          (<= size 0)
+          (<= tile-size 0)
+          (<= max-count 0))
+    {:start 0
+     :end 0}
+    (let [offset (or offset 0)
+          start (max 0
+                     (min max-count
+                          (int (/ (max 0 offset) tile-size))))
+          end (max 0
+                   (min max-count
+                        (ceil-positive-div (+ size offset) tile-size)))]
+      {:start start
+       :end (max start end)})))
+
+(defun render-ranges [tilemap offset zoom target-rect]
+  (let [offset (or offset tm/default-offset)
+        rect (or target-rect (map-render-rect tilemap zoom))
+        size (tm/scaled-tile-size tilemap zoom)]
+    {:x (render-axis-range (:w rect)
+                           (:x offset)
+                           size
+                           (tm/map-width tilemap))
+     :y (render-axis-range (:h rect)
+                           (:y offset)
+                           size
+                           (tm/map-height tilemap))}))
+
+(defun target-render-offset [offset target-rect]
+  (let [offset (or offset tm/default-offset)]
+    (if target-rect
+      {:x (- (:x offset) (or (:x target-rect) 0))
+       :y (- (:y offset) (or (:y target-rect) 0))}
+      offset)))
+
+(defun render-layer! [tilemap tilesets prepared-tilesets terrain-sets layer offset zoom tile-substitutions ranges]
+  (let [layer (prepared-layer prepared-tilesets layer)
+        tiles (:tiles layer)
+        x-range (:x ranges)
+        y-range (:y ranges)
+        x-start (:start x-range)
+        y-start (:start y-range)]
+    (dotimes [dy (- (:end y-range) y-start)]
+      (let [y (+ y-start dy)]
+        (dotimes [dx (- (:end x-range) x-start)]
+          (let [x (+ x-start dx)
+                tile-ref (layer-cell tiles x y)]
+            (when (not (nil? tile-ref))
+              (let [substitution (get (or tile-substitutions {}) tile-ref)
+                    tile (prepared-layer-cell-tile tilesets
+                                                   terrain-sets
+                                                   layer
+                                                   tile-ref
+                                                   tile-substitutions)]
+                (when tile
+                  (draw-tile! tile
+                              (tm/tile-rect tilemap x y offset zoom)
+                              (substitution-render-opts substitution)))))))))))
+
+(defun render-grid-overlay! [tilemap offset zoom ranges]
+  (let [x-range (:x ranges)
+        y-range (:y ranges)
+        x-start (:start x-range)
+        y-start (:start y-range)]
+    (dotimes [dy (- (:end y-range) y-start)]
+      (let [y (+ y-start dy)]
+        (dotimes [dx (- (:end x-range) x-start)]
+          (let [x (+ x-start dx)]
+            (r/rect! (tm/tile-rect tilemap x y offset zoom)
+                     {:color tm/default-grid-color})))))))
+
+(defun render-visible-layers! [tilemap tilesets tileset-lookup terrain-sets layers hidden-layer-indices offset zoom tile-substitutions show-grid? ranges]
+  (do
+    (for-indexed [index layer layers]
+      (when (not (contains? hidden-layer-indices index))
+        (render-layer! tilemap tilesets tileset-lookup terrain-sets layer offset zoom tile-substitutions ranges)))
+    (when show-grid?
+      (render-grid-overlay! tilemap offset zoom ranges))))
 
 (defun render-layers! [tilemap opts]
   (let [tilesets (or (:tilesets opts) [])
@@ -169,13 +240,34 @@
         hidden-layer-indices (or (:hidden-layer-indices opts) [])
         tile-substitutions (or (:tile-substitutions opts) {})
         offset (or (:offset opts) tm/default-offset)
-        zoom (or (:zoom opts) tm/default-zoom)]
-    (do
-      (for-indexed [index layer layers]
-        (when (not (contains? hidden-layer-indices index))
-          (render-layer! tilemap tilesets tileset-lookup terrain-sets layer offset zoom tile-substitutions)))
-      (when (:show-grid? opts)
-        (render-grid-overlay! tilemap offset zoom)))))
+        zoom (or (:zoom opts) tm/default-zoom)
+        target-rect (:target-rect opts)
+        render-offset (target-render-offset offset target-rect)
+        ranges (render-ranges tilemap offset zoom target-rect)]
+    (if target-rect
+      (r/with-clip-rect target-rect
+        (render-visible-layers! tilemap
+                                tilesets
+                                tileset-lookup
+                                terrain-sets
+                                layers
+                                hidden-layer-indices
+                                render-offset
+                                zoom
+                                tile-substitutions
+                                (:show-grid? opts)
+                                ranges))
+      (render-visible-layers! tilemap
+                              tilesets
+                              tileset-lookup
+                              terrain-sets
+                              layers
+                              hidden-layer-indices
+                              render-offset
+                              zoom
+                              tile-substitutions
+                              (:show-grid? opts)
+                              ranges))))
 
 (defun render-options [tileset opts]
   (assoc (or opts {}) :tilesets [tileset]))
