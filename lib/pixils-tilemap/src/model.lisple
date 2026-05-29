@@ -211,3 +211,7 @@
     (tile-in tilesets
              (:tileset layer)
              tile-ref)))
+
+(defun rnd-pos [level-map]
+  {:x (rand-nth (range 0 (dec (:width level-map))))
+   :y (rand-nth (range 0 (dec (:height level-map))))})
