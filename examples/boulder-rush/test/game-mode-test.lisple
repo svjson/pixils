@@ -5,6 +5,7 @@
             [boulder-rush.fixtures :as fixtures]
             [boulder-rush.cycle :as cycle]
             [boulder-rush.game-mode :as game]
+            [boulder-rush.level.current :as level]
             [boulder-rush.level.index :as caves]
             [boulder-rush.player :as player]
             [boulder-rush.physics :as physics]
@@ -106,11 +107,11 @@
            (:update result)))
     (is (= {:exit :barrier}
            (:tile-substitutions result)))
-    (is (= 1
+    (is (= 2
            (count (:cycles result))))
     (is (= :br
            (-> result :tileset :id)))
-    (is (= [:scene/level game/start-cover-layer-id]
+    (is (= [:scene/level :boulder-rush/start-cover]
            (map (-> result :level-map :layers) :id)))
     (is (= [[:barrier :barrier]]
            (-> result :level-map :layers (nth 1) :tiles)))
@@ -122,11 +123,11 @@
     {:level-map {:width 3
                  :height 2
                  :layers [{:id :scene/level}
-                          {:id game/start-cover-layer-id
+                          {:id :boulder-rush/start-cover
                            :tiles [[:barrier :barrier :barrier]
                                    [:barrier :barrier :barrier]]}]}})
   (when [state]
-    (game/reveal-start-cover state))
+    (level/reveal-start-cover state))
   (then [result]
     (is (contains? (apply concat (-> result :level-map :layers (nth 1) :tiles))
                    nil))))
@@ -223,6 +224,34 @@
     (cycle/process-all state))
   (then [result]
     (is (nil? (-> result :tile-substitutions :player-default)))))
+
+(deftest barrier-scroll-cycle-adds-clipped-repeating-barrier-substitution
+  (given
+    {:tile-substitutions {}
+     :cycles [(assoc (game/barrier-scroll-cycle)
+                     :timer (ready-timer))]})
+  (when [state]
+    (let [state (cycle/process-all state)
+          render-opts (-> state :tile-substitutions :barrier :render-opts)
+          rect {:x 8 :y 16 :w 16 :h 16}]
+      (apply render-opts [{:rect rect}])))
+  (then [opts]
+    (is (= {:target {:x 8 :y -2 :w 16 :h 16}
+            :clip-rect {:x 8 :y 16 :w 16 :h 16}
+            :repeat-y? true}
+           opts))))
+
+(deftest barrier-scroll-cycle-removes-barrier-substitution-when-done
+  (given
+    {:tile-substitutions {:barrier {:tile :barrier}}
+     :cycles [(assoc (game/barrier-scroll-cycle)
+                     :iteration (* 16 12))]})
+  (when [state]
+    (cycle/process-all state))
+  (then [result]
+    (is (nil? (-> result :tile-substitutions :barrier)))
+    (is (= []
+           (:cycles result)))))
 
 (deftest handle-player-input-ignores-move-while-timer-is-waiting
   (given
@@ -496,11 +525,29 @@
     (is (= []
            (:cycles result)))))
 
-(deftest player-appear-cycle-enables-gameplay-after-appear-animation
+(deftest entry-cycle-removes-start-cover-and-queues-player-appear-cycle
   (given
     {:level-map {:layers [{:id :level}
-                          {:id game/start-cover-layer-id}]}
+                          {:id :boulder-rush/start-cover}]}
      :tile-substitutions {}
+     :cycles [(assoc (game/entry-cycle)
+                     :timer (ready-timer)
+                     :duration-timer (ready-timer))]})
+  (when [state]
+    (cycle/process-all state))
+  (then [result]
+    (is (= true
+           (:play-explosion-sound? result)))
+    (is (= [:level]
+           (map (-> result :level-map :layers) :id)))
+    (is (= [[:debris-1 :debris-2 :debris-3 :player-default]]
+           (map (:cycles result) :values)))))
+
+(deftest player-appear-cycle-enables-gameplay-after-appear-animation
+  (given
+    {:level-map {:layers [{:id :level}]}
+     :tile-substitutions {:barrier {:tile :barrier}
+                          :player-default :player-default}
      :cycles [(assoc (game/player-appear-cycle)
                      :timer (ready-timer)
                      :value :player-default
@@ -511,6 +558,8 @@
     (is (= game/phase-game
            (:update result)))
     (is (nil? (-> result :tile-substitutions :player-default)))
+    (is (= {:tile :barrier}
+           (-> result :tile-substitutions :barrier)))
     (is (= [:level]
            (map (-> result :level-map :layers) :id)))
     (is (= 1

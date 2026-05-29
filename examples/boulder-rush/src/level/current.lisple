@@ -1,0 +1,35 @@
+(ns boulder-rush.level.current
+  (:require [pixils.tilemap.model :as tm]))
+
+(def START-COVER-REVEAL-COUNT 20)
+
+(defun start-cover-layer [level-map tileset-id]
+  (tm/filled-layer level-map
+                   {:id :boulder-rush/start-cover
+                    :label "Start Cover"
+                    :tileset tileset-id
+                    :tile :barrier}))
+
+(defun add-start-cover [level-map level]
+  (tm/add-layer level-map
+                (start-cover-layer level-map (:tileset-id level))))
+
+(defun remove-start-cover [level-map]
+  (tm/remove-layer level-map
+                   :boulder-rush/start-cover))
+
+
+(defun reveal-start-cover-cell [state]
+  (update state :level-map
+          (fn [level-map]
+            (tm/set-layer-cell level-map
+                               :boulder-rush/start-cover
+                               (tm/rnd-pos level-map)
+                               nil))))
+
+(defun reveal-start-cover [state]
+  (reduce (range 1 START-COVER-REVEAL-COUNT)
+          state
+          (fn [state index]
+            (reveal-start-cover-cell state))))
+

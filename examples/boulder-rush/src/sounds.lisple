@@ -14,9 +14,9 @@
   (when (or (:play-explosion-sound? state)
             (not (empty? (or (:explosions state) []))))
     (audio/play! :boulder-rush-sfx/explosion {:volume 0.1}))
-  (dissoc (dissoc (dissoc state :moved-tiles)
-                  :explosions)
-          :play-explosion-sound?))
+  (dissoc state :moved-tiles
+                :explosions
+                :play-explosion-sound?))
 
 (defun play-player-movement-sound [entered-tile]
   (case entered-tile
