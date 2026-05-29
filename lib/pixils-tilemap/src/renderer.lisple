@@ -152,9 +152,12 @@
     (or (:tile substitution) tile-ref)
     (or substitution tile-ref)))
 
-(defun substitution-render-opts [substitution]
+(defun substitution-render-opts [substitution render-ctx]
   (if (= (type-of substitution) "map")
-    (or (:render-opts substitution) {})
+    (let [render-opts (:render-opts substitution)]
+      (if (= (type-of render-opts) "executable")
+        (apply render-opts [render-ctx])
+        (or render-opts {})))
     {}))
 
 (defun prepared-layer-cell-tile [tilesets terrain-sets layer tile-ref tile-substitutions]
@@ -233,11 +236,20 @@
                                                    terrain-sets
                                                    layer
                                                    tile-ref
-                                                   tile-substitutions)]
+                                                   tile-substitutions)
+                    rect (tm/tile-rect tilemap x y offset zoom)]
                 (when tile
                   (draw-tile! tile
-                              (tm/tile-rect tilemap x y offset zoom)
-                              (substitution-render-opts substitution)))))))))))
+                              rect
+                              (substitution-render-opts substitution
+                                                        {:rect rect
+                                                         :x x
+                                                         :y y
+                                                         :tile-ref tile-ref
+                                                         :tile tile
+                                                         :layer layer
+                                                         :offset offset
+                                                         :zoom zoom})))))))))))
 
 (defun render-grid-overlay! [tilemap offset zoom ranges]
   (let [x-range (:x ranges)

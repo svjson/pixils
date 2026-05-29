@@ -134,7 +134,19 @@
                                               :player-default
                                               {:player-default substitution})))
     (is (= {:flip-x? true}
-           (renderer/substitution-render-opts substitution)))))
+           (renderer/substitution-render-opts substitution {})))))
+
+(deftest substitution-render-opts-accepts-executable-render-opts
+  (let [substitution {:render-opts (fn [ctx]
+                                     {:target (:rect ctx)
+                                      :clip-rect (:rect ctx)
+                                      :repeat-y? true})}
+        rect {:x 4 :y 8 :w 16 :h 16}]
+    (is (= {:target rect
+            :clip-rect rect
+            :repeat-y? true}
+           (renderer/substitution-render-opts substitution
+                                             {:rect rect})))))
 
 (deftest map-render-rect-uses_scaled_map_size
   (is (= {:x 0
