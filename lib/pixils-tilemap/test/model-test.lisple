@@ -25,6 +25,37 @@
     (is (= false (tm/in-bounds? tilemap {:x 3 :y 3})))
     (is (= false (tm/in-bounds? tilemap {:x -1 :y 0})))))
 
+(deftest filled-layer-creates-tile-ref-layer-matching-map-size
+  (is (= {:id :cover
+          :tileset :game
+          :kind :tile
+          :data-kind :tile-ref
+          :tiles [[:wall :wall :wall]
+                  [:wall :wall :wall]]}
+         (tm/filled-layer {:width 3
+                           :height 2}
+                          {:id :cover
+                           :tileset :game
+                           :tile :wall}))))
+
+(deftest add-set-and-remove-layer-updates-map-layers
+  (let [tilemap {:width 2
+                 :height 1
+                 :layers [{:id :source
+                           :tiles [[:empty :empty]]}]}
+        cover (tm/filled-layer tilemap
+                               {:id :cover
+                                :tileset :game
+                                :tile :wall})
+        tilemap (tm/add-layer tilemap cover)
+        tilemap (tm/set-layer-cell tilemap :cover {:x 1 :y 0} nil)]
+    (is (= [:source :cover]
+           (map (:layers tilemap) :id)))
+    (is (= [[:wall nil]]
+           (-> tilemap :layers (nth 1) :tiles)))
+    (is (= [:source]
+           (map (:layers (tm/remove-layer tilemap :cover)) :id)))))
+
 (deftest missing-tileset-has-no_tile
   (is (nil? (tm/tile-in [] nil 0)))
   (is (nil? (tm/tile-id [] nil 0))))

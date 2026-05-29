@@ -49,6 +49,36 @@
 (defun map-height [tilemap]
   (or (:height tilemap) 0))
 
+(defun filled-layer [tilemap opts]
+  (let [tile-ref (:tile opts)]
+    (dissoc (assoc opts
+                   :kind (or (:kind opts) :tile)
+                   :data-kind (or (:data-kind opts) :tile-ref)
+                   :tiles (dotimes [y (map-height tilemap)]
+                            (dotimes [x (map-width tilemap)]
+                              tile-ref)))
+            :tile)))
+
+(defun add-layer [tilemap layer]
+  (update tilemap :layers (fn [layers]
+                            (concat (or layers []) [layer]))))
+
+(defun layer-index [tilemap layer-id]
+  (find-index (or (:layers tilemap) [])
+              (fn [layer]
+                (= (:id layer) layer-id))))
+
+(defun set-layer-cell [tilemap layer-id pos tile-ref]
+  (if-let [index (layer-index tilemap layer-id)]
+    (assoc-in tilemap [:layers index :tiles (:y pos) (:x pos)] tile-ref)
+    tilemap))
+
+(defun remove-layer [tilemap layer-id]
+  (update tilemap :layers (fn [layers]
+                            (filter (or layers [])
+                                    (fn [layer]
+                                      (not= (:id layer) layer-id))))))
+
 (defun map-rect [tilemap]
   (rect/make-rect {:x 0
                    :y 0
