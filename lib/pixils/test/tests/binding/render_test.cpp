@@ -162,6 +162,169 @@ TEST_F(RenderTest, image_accepts_source_rect)
   EXPECT_EQ(ops[0].rendered_rect.h, 16);
 }
 
+TEST_F(RenderTest, image_accepts_target_point)
+{
+  SDLMock::prepared_surfaces["./ship.png"] = {16, 8};
+  runtime.eval(R"(
+    (pixils/defbundle sprites {:images {:ship "ship.png"}})
+    (pixils/defmode test-mode {
+      :render (fn [state ctx]
+                (pixils.render/image!
+                  :sprites/ship
+                  {:target {:x 12 :y 18}}))
+    })
+  )");
+  session.push_mode("test-mode", Lisple::Constant::NIL);
+
+  ASSERT_NO_THROW(session.render_mode());
+
+  auto& ops = render_target()->render_ops;
+  ASSERT_EQ(ops.size(), 1u);
+  EXPECT_EQ(ops[0].type, RenderOpType::RENDER_COPY);
+  EXPECT_EQ(ops[0].rendered_rect.x, 12);
+  EXPECT_EQ(ops[0].rendered_rect.y, 18);
+  EXPECT_EQ(ops[0].rendered_rect.w, 16);
+  EXPECT_EQ(ops[0].rendered_rect.h, 8);
+}
+
+TEST_F(RenderTest, image_target_rect_scales_single_copy)
+{
+  SDLMock::prepared_surfaces["./ship.png"] = {16, 8};
+  runtime.eval(R"(
+    (pixils/defbundle sprites {:images {:ship "ship.png"}})
+    (pixils/defmode test-mode {
+      :render (fn [state ctx]
+                (pixils.render/image!
+                  :sprites/ship
+                  {:target {:x 2 :y 3 :w 40 :h 20}}))
+    })
+  )");
+  session.push_mode("test-mode", Lisple::Constant::NIL);
+
+  ASSERT_NO_THROW(session.render_mode());
+
+  auto& ops = render_target()->render_ops;
+  ASSERT_EQ(ops.size(), 1u);
+  EXPECT_EQ(ops[0].type, RenderOpType::RENDER_COPY);
+  EXPECT_EQ(ops[0].rendered_rect.x, 2);
+  EXPECT_EQ(ops[0].rendered_rect.y, 3);
+  EXPECT_EQ(ops[0].rendered_rect.w, 40);
+  EXPECT_EQ(ops[0].rendered_rect.h, 20);
+}
+
+TEST_F(RenderTest, image_accepts_direct_target_rect_map)
+{
+  SDLMock::prepared_surfaces["./ship.png"] = {16, 8};
+  runtime.eval(R"(
+    (pixils/defbundle sprites {:images {:ship "ship.png"}})
+    (pixils/defmode test-mode {
+      :render (fn [state ctx]
+                (pixils.render/image!
+                  :sprites/ship
+                  {:x 2 :y 3 :w 40 :h 20}))
+    })
+  )");
+  session.push_mode("test-mode", Lisple::Constant::NIL);
+
+  ASSERT_NO_THROW(session.render_mode());
+
+  auto& ops = render_target()->render_ops;
+  ASSERT_EQ(ops.size(), 1u);
+  EXPECT_EQ(ops[0].type, RenderOpType::RENDER_COPY);
+  EXPECT_EQ(ops[0].rendered_rect.x, 2);
+  EXPECT_EQ(ops[0].rendered_rect.y, 3);
+  EXPECT_EQ(ops[0].rendered_rect.w, 40);
+  EXPECT_EQ(ops[0].rendered_rect.h, 20);
+}
+
+TEST_F(RenderTest, image_rejects_direct_point_map_with_options)
+{
+  SDLMock::prepared_surfaces["./ship.png"] = {16, 8};
+  EXPECT_THROW(runtime.eval(R"(
+    (pixils/defbundle sprites {:images {:ship "ship.png"}})
+    (pixils.render/image!
+      :sprites/ship
+      {:x 2 :y 3 :scale 2})
+  )"),
+               Lisple::LispleException);
+}
+
+TEST_F(RenderTest, image_clip_rect_restores_previous_clip)
+{
+  SDLMock::prepared_surfaces["./ship.png"] = {16, 8};
+  render_ctx.set_clip_rect(Pixils::Rect{1, 2, 30, 40});
+  ASSERT_NO_THROW(runtime.eval(R"(
+    (pixils/defbundle sprites {:images {:ship "ship.png"}})
+    (pixils.render/image!
+      :sprites/ship
+      {:target {:x 12 :y 18}
+       :clip-rect {:x 4 :y 5 :w 6 :h 7}})
+  )"));
+
+  ASSERT_TRUE(render_ctx.current_clip_rect.has_value());
+  EXPECT_EQ(*render_ctx.current_clip_rect, (Pixils::Rect{1, 2, 30, 40}));
+}
+
+TEST_F(RenderTest, image_repeat_fills_clip_rect_from_target_anchor)
+{
+  SDLMock::prepared_surfaces["./tile.png"] = {8, 8};
+  runtime.eval(R"(
+    (pixils/defbundle sprites {:images {:tile "tile.png"}})
+    (pixils/defmode test-mode {
+      :render (fn [state ctx]
+                (pixils.render/image!
+                  :sprites/tile
+                  {:target {:x 14 :y 10}
+                   :clip-rect {:x 10 :y 10 :w 20 :h 16}
+                   :repeat-x? true
+                   :repeat-y? true}))
+    })
+  )");
+  session.push_mode("test-mode", Lisple::Constant::NIL);
+
+  ASSERT_NO_THROW(session.render_mode());
+
+  auto& ops = render_target()->render_ops;
+  ASSERT_EQ(ops.size(), 6u);
+  EXPECT_EQ(ops[0].type, RenderOpType::RENDER_COPY);
+  EXPECT_EQ(ops[0].rendered_rect.x, 6);
+  EXPECT_EQ(ops[0].rendered_rect.y, 10);
+  EXPECT_EQ(ops[1].rendered_rect.x, 14);
+  EXPECT_EQ(ops[1].rendered_rect.y, 10);
+  EXPECT_EQ(ops[2].rendered_rect.x, 22);
+  EXPECT_EQ(ops[2].rendered_rect.y, 10);
+  EXPECT_EQ(ops[3].rendered_rect.x, 6);
+  EXPECT_EQ(ops[3].rendered_rect.y, 18);
+}
+
+TEST_F(RenderTest, image_repeat_uses_active_clip_as_default_bounds)
+{
+  SDLMock::prepared_surfaces["./tile.png"] = {8, 8};
+  runtime.eval(R"(
+    (pixils/defbundle sprites {:images {:tile "tile.png"}})
+    (pixils/defmode test-mode {
+      :render (fn [state ctx]
+                (pixils.render/with-clip-rect {:x 10 :y 10 :w 20 :h 16}
+                  (pixils.render/image!
+                    :sprites/tile
+                    {:target {:x 14 :y 10}
+                     :repeat-x? true
+                     :repeat-y? true})))
+    })
+  )");
+  session.push_mode("test-mode", Lisple::Constant::NIL);
+
+  ASSERT_NO_THROW(session.render_mode());
+
+  auto& ops = render_target()->render_ops;
+  ASSERT_EQ(ops.size(), 6u);
+  EXPECT_EQ(ops[0].type, RenderOpType::RENDER_COPY);
+  EXPECT_EQ(ops[0].rendered_rect.x, 6);
+  EXPECT_EQ(ops[0].rendered_rect.y, 10);
+  EXPECT_EQ(ops[5].rendered_rect.x, 22);
+  EXPECT_EQ(ops[5].rendered_rect.y, 18);
+}
+
 TEST_F(RenderTest, image_accepts_flip_options)
 {
   SDLMock::prepared_surfaces["./ship.png"] = {16, 8};

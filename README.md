@@ -1186,6 +1186,63 @@ A mode declares the images it needs via `:resources`. They are loaded before the
 
 Images are referenced as qualified keywords: `:mode-name/resource-id`.
 
+**`pixils.render/image!`**
+
+Draws an image resource. The first argument is a qualified image keyword. The
+second argument can be a point, a rect, or an options map.
+
+```clojure
+; Draw at natural image size.
+(pixils.render/image! :sprite-mode/ship {:pos {:x 100 :y 80}})
+
+; Equivalent target spelling for the common point case.
+(pixils.render/image! :sprite-mode/ship {:target {:x 100 :y 80}})
+
+; Scale one image copy into a target rect.
+(pixils.render/image! :sprite-mode/ship
+  {:target {:x 100 :y 80 :w 64 :h 32}})
+
+; Draw a sprite from a sheet.
+(pixils.render/image! :sprites/tiles
+  {:target {:x 10 :y 10}
+   :source {:x 16 :y 0 :w 8 :h 8}
+   :scale 2})
+
+; Repeat from the target anchor to fill the clip rect.
+(pixils.render/image! :terrain/water
+  {:target {:x 14 :y 10}
+   :clip-rect {:x 10 :y 10 :w 320 :h 200}
+   :repeat-x? true
+   :repeat-y? true})
+```
+
+Point targets draw one image copy at natural size, or at the source-crop size
+when `:source` is provided. `:scale` applies to point targets. Rect targets scale
+one image copy into that rect. If a direct map argument includes `:w` or `:h`, it
+is treated as a rect target; otherwise direct `{:x N :y N}` maps are treated as
+point targets. When an options map is used, placement must be under `:pos` or
+`:target`.
+
+`r/image!` repeats from the target's top-left anchor. If `:clip-rect` is
+provided, Pixils clips drawing to that rect and uses it as the repeat fill
+bounds. If `:clip-rect` is omitted but a renderer clip is already active, repeat
+fills the active clip. Without repeat, `:clip-rect` only clips the single
+rendered copy.
+
+| Option       | Description |
+|--------------|-------------|
+| `:pos`       | Point placement alias for the common natural-size target case. |
+| `:target`    | Point or rect target for one image copy. Point targets use image/source size; rect targets scale one copy. |
+| `:clip-rect` | Rect that clips drawing and bounds repeated drawing. |
+| `:source`    | Optional source crop rect in image pixels. |
+| `:scale`     | Scale multiplier for point targets. Default: `1.0`. |
+| `:repeat-x?` | Repeat copies horizontally. Default: `false`. |
+| `:repeat-y?` | Repeat copies vertically. Default: `false`. |
+| `:opacity`   | Alpha multiplier from `0.0` to `1.0`. Default: `1.0`. |
+| `:rotation`  | Rotation in radians. Default: `0`. |
+| `:flip-x?`   | Flip each copy horizontally. Default: `false`. |
+| `:flip-y?`   | Flip each copy vertically. Default: `false`. |
+
 ### Sound resources
 
 A mode can also declare sounds under `:resources`.
@@ -1335,7 +1392,7 @@ Accepts the same `:font` and `:scale` options as `text!`.
 | `line!`     | Draw a line between two points. Optional third arg: color. |
 | `rect!`     | Draw a rectangle. Args: `{:x :y :w :h}` rect (or two corner points), options map `{:color ... :fill true/false}`. |
 | `polygon!`  | Draw a polygon from a vector of points. Options: `:close`, `:rotation`, `:offset`, `:color`, `:scale`. |
-| `image!`    | Draw an image. Args: qualified keyword `:bundle/id`, options map with `:pos` (required), optional `:source` rect for spritesheet crops, `:scale`, `:opacity`, and `:rotation` (radians). |
+| `image!`    | Draw an image. Args: qualified keyword `:bundle/id`, then point, rect, or options map. Options include `:pos`, `:target`, `:clip-rect`, `:source`, `:scale`, `:repeat-x?`, `:repeat-y?`, `:opacity`, `:rotation`, `:flip-x?`, and `:flip-y?`. |
 | `text!`     | Render a string. Args: string, position point, options map. Returns rendered bounds `{:x :y :w :h}`. |
 | `text-size` | Measure text without rendering. Args: string, optional options map. Returns `{:w :h}`. |
 

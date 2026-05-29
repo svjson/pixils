@@ -29,11 +29,15 @@ namespace Pixils::Script
     SHKEY(CLOSE, "close");
     SHKEY(COLOR, "color");
     SHKEY(FILL, "fill");
+    SHKEY(CLIP_RECT, "clip-rect");
     SHKEY(OFFSET, "offset");
     SHKEY(POS, "pos");
+    SHKEY(REPEAT_X, "repeat-x?");
+    SHKEY(REPEAT_Y, "repeat-y?");
     SHKEY(ROTATION, "rotation");
     SHKEY(SCALE, "scale");
     SHKEY(SOURCE, "source");
+    SHKEY(TARGET, "target");
     SHKEY(OPACITY, "opacity");
     SHKEY(FLIP_X, "flip-x?");
     SHKEY(FLIP_Y, "flip-y?");
@@ -48,6 +52,34 @@ namespace Pixils::Script
       Uint8 opacity_to_alpha(float opacity)
       {
         return static_cast<Uint8>(std::lround(std::clamp(opacity, 0.0f, 1.0f) * 255.0f));
+      }
+
+      bool dict_contains(const Lisple::sptr_val& value, const std::string& key)
+      {
+        return value && value->type == Lisple::Value::Type::MAP &&
+               Lisple::Dict::contains_key(*value, key);
+      }
+
+      bool image_options_map(const Lisple::sptr_val& value)
+      {
+        if (!value || value->type != Lisple::Value::Type::MAP) return false;
+
+        return dict_contains(value, std::get<std::string>(MapKey::POS->value)) ||
+               dict_contains(value, std::get<std::string>(MapKey::TARGET->value)) ||
+               dict_contains(value, std::get<std::string>(MapKey::CLIP_RECT->value)) ||
+               dict_contains(value, std::get<std::string>(MapKey::SCALE->value)) ||
+               dict_contains(value, std::get<std::string>(MapKey::SOURCE->value)) ||
+               dict_contains(value, std::get<std::string>(MapKey::OPACITY->value)) ||
+               dict_contains(value, std::get<std::string>(MapKey::ROTATION->value)) ||
+               dict_contains(value, std::get<std::string>(MapKey::FLIP_X->value)) ||
+               dict_contains(value, std::get<std::string>(MapKey::FLIP_Y->value)) ||
+               dict_contains(value, std::get<std::string>(MapKey::REPEAT_X->value)) ||
+               dict_contains(value, std::get<std::string>(MapKey::REPEAT_Y->value));
+      }
+
+      bool rect_like_map(const Lisple::sptr_val& value)
+      {
+        return dict_contains(value, "w") || dict_contains(value, "h");
       }
 
       Uint8 image_opacity_alpha(Lisple::MapSchema::Inspector& opts)
@@ -71,21 +103,150 @@ namespace Pixils::Script
 
         return Rect{x1, y1, std::max(0, x2 - x1), std::max(0, y2 - y1)};
       }
+
+      std::optional<Rect> visible_clip_rect(const std::optional<Rect>& current,
+                                            const Rect& requested)
+      {
+        auto clip = intersect_clip_rect(current, requested);
+        if (!clip || clip->w <= 0 || clip->h <= 0) return std::nullopt;
+        return clip;
+      }
+
+      struct ImageTarget
+      {
+        Rect rect;
+      };
+
+      ImageTarget image_target_from_value(Lisple::Context& ctx,
+                                          Lisple::sptr_val value,
+                                          int default_width,
+                                          int default_height,
+                                          float scale)
+      {
+        if (!value || value->type == Lisple::Value::Type::NIL)
+        {
+          throw Lisple::TypeError("image!: options require :target or :pos.");
+        }
+
+        if (HostType::RECT.is_type_of(*value))
+        {
+          const Rect& rect = Lisple::obj<Rect>(*value);
+          return {rect};
+        }
+
+        if (HostType::POINT.is_type_of(*value))
+        {
+          const Point& point = Lisple::obj<Point>(*value);
+          return {Rect{point.round_x(),
+                       point.round_y(),
+                       static_cast<int>(std::round(default_width * scale)),
+                       static_cast<int>(std::round(default_height * scale))}};
+        }
+
+        if (rect_like_map(value))
+        {
+          auto rect_value = value;
+          auto coercion = HostType::RECT.coerce(ctx, rect_value);
+          if (!coercion.success)
+          {
+            throw Lisple::TypeError("image!: :target rect must be a Rect or rect map.");
+          }
+          const Rect& rect = Lisple::obj<Rect>(*coercion.result);
+          return {rect};
+        }
+
+        auto point_value = value;
+        auto coercion = HostType::POINT.coerce(ctx, point_value);
+        if (!coercion.success)
+        {
+          throw Lisple::TypeError("image!: :target must be a Point, Rect, or map.");
+        }
+        const Point& point = Lisple::obj<Point>(*coercion.result);
+        return {Rect{point.round_x(),
+                     point.round_y(),
+                     static_cast<int>(std::round(default_width * scale)),
+                     static_cast<int>(std::round(default_height * scale))}};
+      }
+
+      int repeat_start(int anchor, int size, int min)
+      {
+        if (size <= 0) return anchor;
+        double steps = std::floor(static_cast<double>(min - anchor) /
+                                  static_cast<double>(size));
+        return anchor + static_cast<int>(steps) * size;
+      }
+
+      void render_image_copy(SDL_Renderer* renderer,
+                             SDL_Texture* texture,
+                             const SDL_Rect* source,
+                             const SDL_Rect& dest,
+                             float rotation,
+                             SDL_RendererFlip flip)
+      {
+        if (rotation == 0.0f && flip == SDL_FLIP_NONE)
+        {
+          SDL_RenderCopy(renderer, texture, source, &dest);
+        }
+        else
+        {
+          SDL_RenderCopyEx(renderer,
+                           texture,
+                           source,
+                           &dest,
+                           static_cast<double>(rotation) * RADIANS_TO_DEGREES,
+                           nullptr,
+                           flip);
+        }
+      }
+
+      void render_image_tiles(SDL_Renderer* renderer,
+                              SDL_Texture* texture,
+                              const SDL_Rect* source,
+                              const SDL_Rect& target,
+                              const Rect& bounds,
+                              bool repeat_x,
+                              bool repeat_y,
+                              float rotation,
+                              SDL_RendererFlip flip)
+      {
+        if (target.w <= 0 || target.h <= 0) return;
+
+        int start_x = repeat_x ? repeat_start(target.x, target.w, bounds.x) : target.x;
+        int start_y = repeat_y ? repeat_start(target.y, target.h, bounds.y) : target.y;
+        int end_x = repeat_x ? bounds.x + bounds.w : target.x + 1;
+        int end_y = repeat_y ? bounds.y + bounds.h : target.y + 1;
+
+        for (int y = start_y; y < end_y; y += target.h)
+        {
+          for (int x = start_x; x < end_x; x += target.w)
+          {
+            SDL_Rect dest{x, y, target.w, target.h};
+            render_image_copy(renderer, texture, source, dest, rotation, flip);
+          }
+        }
+      }
     } // namespace
 
     FUNC_IMPL(DrawImageBang,
               MULTI_SIG((FN_ARGS((&Lisple::Type::KEYWORD), (&HostType::POINT)),
+                         EXEC_DISPATCH(&DrawImageBang::exec_draw_img)),
+                        (FN_ARGS((&Lisple::Type::KEYWORD), (&HostType::RECT)),
                          EXEC_DISPATCH(&DrawImageBang::exec_draw_img)),
                         (FN_ARGS((&Lisple::Type::KEYWORD), (&Lisple::Type::MAP)),
                          EXEC_DISPATCH(&DrawImageBang::exec_draw_img))));
 
     EXEC_BODY(DrawImageBang, exec_draw_img)
     {
-      static Lisple::MapSchema draw_image_opts_schema({{"pos", &HostType::POINT}},
-                                                      {{"scale", &Lisple::Type::NUMBER},
+      static Lisple::MapSchema draw_image_opts_schema({},
+                                                      {{"pos", &HostType::POINT},
+                                                       {"target", &Lisple::Type::ANY},
+                                                       {"clip-rect", &HostType::RECT},
+                                                       {"scale", &Lisple::Type::NUMBER},
                                                        {"opacity", &Lisple::Type::NUMBER},
                                                        {"rotation", &Lisple::Type::NUMBER},
                                                        {"source", &HostType::RECT},
+                                                       {"repeat-x?", &Lisple::Type::BOOL},
+                                                       {"repeat-y?", &Lisple::Type::BOOL},
                                                        {"flip-x?", &Lisple::Type::BOOL},
                                                        {"flip-y?", &Lisple::Type::BOOL}});
 
@@ -97,9 +258,11 @@ namespace Pixils::Script
          * Force detection of Point-arg, as coercion will not have happened during
          * for map-shaped Points during dispatch
          */
-        Lisple::sptr_val map_arg = Lisple::Dict::contains_key(*args[1], "pos")
-                                     ? args[1]
-                                     : Lisple::map({Lisple::keyword("pos"), args[1]});
+        Lisple::sptr_val map_arg =
+          image_options_map(args[1])
+            ? args[1]
+            : Lisple::map({Lisple::keyword(std::get<std::string>(MapKey::TARGET->value)),
+                           args[1]});
 
         auto opts = draw_image_opts_schema.bind(ctx, *map_arg);
 
@@ -109,11 +272,12 @@ namespace Pixils::Script
         SDL_Texture* texture = rc.asset_registry->get_image(asset_bundle, asset_key);
         if (!texture) return Lisple::Constant::NIL;
 
-        Point& pos = opts.obj<Point>("pos");
         float scale = opts.f32("scale", 1.0f);
         float rotation = opts.f32(std::get<std::string>(MapKey::ROTATION->value), 0.0f);
         bool flip_x = opts.boolean(std::get<std::string>(MapKey::FLIP_X->value), false);
         bool flip_y = opts.boolean(std::get<std::string>(MapKey::FLIP_Y->value), false);
+        bool repeat_x = opts.boolean(std::get<std::string>(MapKey::REPEAT_X->value), false);
+        bool repeat_y = opts.boolean(std::get<std::string>(MapKey::REPEAT_Y->value), false);
         Uint8 alpha = image_opacity_alpha(opts);
         std::optional<SDL_Rect> source_rect = std::nullopt;
         if (auto source = opts.val(std::get<std::string>(MapKey::SOURCE->value));
@@ -123,37 +287,71 @@ namespace Pixils::Script
             opts.obj<Rect>(std::get<std::string>(MapKey::SOURCE->value)).to_SDL_rect();
         }
 
-        SDL_Rect dim{pos.round_x(), pos.round_y(), 0, 0};
-        SDL_QueryTexture(texture, nullptr, nullptr, &dim.w, &dim.h);
+        int source_width = 0;
+        int source_height = 0;
+        SDL_QueryTexture(texture, nullptr, nullptr, &source_width, &source_height);
         if (source_rect)
         {
-          dim.w = source_rect->w;
-          dim.h = source_rect->h;
+          source_width = source_rect->w;
+          source_height = source_rect->h;
         }
 
-        dim.w *= scale;
-        dim.h *= scale;
+        Lisple::sptr_val target_value =
+          opts.contains(std::get<std::string>(MapKey::TARGET->value))
+            ? opts.val(std::get<std::string>(MapKey::TARGET->value))
+            : opts.val(std::get<std::string>(MapKey::POS->value));
+        ImageTarget target = image_target_from_value(ctx,
+                                                     target_value,
+                                                     source_width,
+                                                     source_height,
+                                                     scale);
+        SDL_Rect dest = target.rect.to_SDL_rect();
+
         const SDL_Rect* source_ptr = source_rect ? &*source_rect : nullptr;
         SDL_RendererFlip flip =
           static_cast<SDL_RendererFlip>((flip_x ? SDL_FLIP_HORIZONTAL : SDL_FLIP_NONE) |
                                         (flip_y ? SDL_FLIP_VERTICAL : SDL_FLIP_NONE));
 
-        SDL_SetTextureAlphaMod(texture, alpha);
-        if (rotation == 0.0f && flip == SDL_FLIP_NONE)
+        std::optional<Rect> previous_clip = rc.current_clip_rect;
+        std::optional<Rect> requested_clip = opts.optional_obj<Rect>(
+          std::get<std::string>(MapKey::CLIP_RECT->value));
+        std::optional<Rect> effective_bounds;
+        if (requested_clip)
         {
-          SDL_RenderCopy(rc.renderer, texture, source_ptr, &dim);
+          effective_bounds = visible_clip_rect(previous_clip, *requested_clip);
+          if (!effective_bounds) return Lisple::Constant::NIL;
+          rc.set_clip_rect(effective_bounds);
+        }
+        else if ((repeat_x || repeat_y) && previous_clip)
+        {
+          effective_bounds = previous_clip;
         }
         else
         {
-          SDL_RenderCopyEx(rc.renderer,
-                           texture,
-                           source_ptr,
-                           &dim,
-                           static_cast<double>(rotation) * RADIANS_TO_DEGREES,
-                           nullptr,
-                           flip);
+          effective_bounds = target.rect;
+        }
+
+        SDL_SetTextureAlphaMod(texture, alpha);
+        try
+        {
+          render_image_tiles(rc.renderer,
+                             texture,
+                             source_ptr,
+                             dest,
+                             *effective_bounds,
+                             repeat_x,
+                             repeat_y,
+                             rotation,
+                             flip);
+        }
+        catch (...)
+        {
+          if (alpha != 255) SDL_SetTextureAlphaMod(texture, 255);
+          if (requested_clip) rc.set_clip_rect(previous_clip);
+          throw;
         }
         if (alpha != 255) SDL_SetTextureAlphaMod(texture, 255);
+        if (requested_clip) rc.set_clip_rect(previous_clip);
       }
 
       return Lisple::Constant::NIL;
