@@ -1,0 +1,59 @@
+(ns boulder-rush.cycle
+  (:require [pixils.state.timer :as timer]))
+
+(defun make [interval values & opts]
+  (merge {:timer (timer/make {:interval-ms interval})
+          :iteration 0
+          :value (head values)
+          :values values}
+         (cond
+           (:duration opts)
+           (assoc opts :duration-timer (timer/make {:interval-ms (:duration opts)}))
+
+           true
+           opts)))
+
+(defun done? [cycle]
+  (cond
+    (:duration-timer cycle)
+    (timer/ticked? (:duration-timer cycle))
+
+    (:iterations cycle)
+    (>= (:iteration cycle) (:iterations cycle))))
+
+(defun process [{:keys [value values iteration] :as cycle}]
+  (let [cycle (-> cycle
+                  (update :timer timer/tick)
+                  (update :duration-timer (fn [dt] (when dt (timer/tick dt)))))]
+    (if (timer/ticked? (:timer cycle))
+      (let [index (find-index values (fn [val] (= val value)))]
+        (assoc cycle :value (nth values (mod (inc index) (count values)))
+                     :iteration (if (= (inc index) (count values))
+                                  (inc iteration)
+                                  iteration)))
+      cycle)))
+
+(defun apply-all [state]
+  (let [state (reduce (:cycles state)
+                      state
+                      (fn [state cycle]
+                        (let [updated (if-let [apply-fn (:apply cycle)]
+                                        (apply apply-fn [state cycle])
+                                        state)]
+                          (if (and (done? cycle) (:on-complete cycle))
+                            (apply (:on-complete cycle) [updated cycle])
+                            updated))))]
+    (update state :cycles (fn [cycles]
+                            (-> cycles
+                                (map (fn [cycle]
+                                       (if (done? cycle)
+                                         (if-let [next-fn (:next cycle)]
+                                           (apply next-fn [state cycle])
+                                           nil)
+                                         cycle)))
+                                (filter (fn [cycle] cycle)))))))
+
+(defun process-all [state]
+  (-> state
+      (update :cycles (fn [cycles] (map cycles process)))
+      (apply-all)))

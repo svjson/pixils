@@ -3,7 +3,9 @@
             [boulder-rush.event :as event]
             [boulder-rush.explosion :as explosion]
             [boulder-rush.fixtures :as fixtures]
+            [boulder-rush.cycle :as cycle]
             [boulder-rush.game-mode :as game]
+            [boulder-rush.level.index :as caves]
             [boulder-rush.player :as player]
             [boulder-rush.physics :as physics]
             [boulder-rush.sounds :as sounds]
@@ -63,16 +65,16 @@
                  :value 10
                  :bonus-value 15}
           :remaining-time 150
-          :initial-offset {:x 0 :y 0}}
-         (game/level-properties 1)))
+          :initial-offset {:x 344 :y 176}}
+         (head caves/levels)))
   (is (= {:map-id :cave-a/level-2
           :tileset-id :br
           :gems {:required 10
                  :value 20
                  :bonus-value 50}
           :remaining-time 150
-          :initial-offset {:x 144 :y 176}}
-         (game/level-properties 2))))
+          :initial-offset {:x 0 :y 0}}
+         (nth caves/levels 1))))
 
 (deftest game-mode-init-loads-current-level_properties
   (given
@@ -102,10 +104,16 @@
            (-> result :gems :bonus-value)))
     (is (= 150
            (:remaining-time result)))
-    (is (= {:x 144 :y 176}
+    (is (= {:x 0 :y 0}
            (:offset result)))
-    (is (= {:x 9 :y 11}
+    (is (= {:x 0 :y 0}
            (:tile-offset result)))
+    (is (= game/phase-start
+           (:update result)))
+    (is (= {:exit :barrier}
+           (:tile-substitutions result)))
+    (is (= 1
+           (count (:cycles result))))
     (is (= :br
            (-> result :tileset :id)))
     (is (= {:x 1 :y 0}
@@ -322,6 +330,7 @@
             :required 3
             :value 10
             :bonus-value 15}
+     :cycles []
      :events []})
   (when [state]
     (game/handle-player-input state {:held-keys [:key/right]}))
@@ -330,8 +339,8 @@
            (-> result :gems :collected)))
     (is (= true
            (:play-explosion-sound? result)))
-    (is (= game/empty-flash-interval-ms
-           (-> result :empty-flash-timer :interval-ms)))))
+    (is (= 2
+           (count (:cycles result))))))
 
 (deftest handle-player-input-uses-bonus-gem-value-after-required-count
   (given
@@ -443,61 +452,46 @@
     (is (= 0
            (:remaining-time result)))))
 
-(deftest update-empty-flash-clears-timer-after-flash-duration
+(deftest exit-cycle-remaps-exit-through_tile_substitutions
   (given
-    {:empty-flash-timer (ready-timer)})
+    {:tile-substitutions {}
+     :cycles [(assoc (game/exit-cycle)
+                     :timer (ready-timer)
+                     :value :empty)]})
   (when [state]
-    (game/update-empty-flash state))
-  (then [result]
-    (is (nil? (:empty-flash-timer result)))))
-
-(deftest update-exit-flash-starts-when-gem-requirement-is-met
-  (given
-    {:gems {:collected 3
-            :required 3}})
-  (when [state]
-    (game/update-exit-flash state))
-  (then [result]
-    (is (= :empty
-           (:exit-substitution result)))
-    (is (= game/exit-flash-interval-ms
-           (-> result :exit-flash-timer :interval-ms)))))
-
-(deftest update-exit-flash-toggles-open-exit-rendering
-  (given
-    {:gems {:collected 3
-            :required 3}
-     :exit-substitution :empty
-     :exit-flash-timer (ready-timer)})
-  (when [state]
-    (game/update-exit-flash state))
+    (cycle/process-all state))
   (then [result]
     (is (= :barrier
-           (:exit-substitution result)))))
+           (-> result :tile-substitutions :exit)))))
 
-(deftest update-exit-flash-keeps-exit-barrier-before-gem-requirement
+(deftest exit-flash-remaps-empty-to-white_then_removes_substitution
   (given
-    {:gems {:collected 2
-            :required 3}
-     :exit-substitution :empty
-     :exit-flash-timer (ready-timer)})
+    {:tile-substitutions {}
+     :cycles [(assoc (game/exit-flash)
+                     :timer (ready-timer)
+                     :value :white)]})
   (when [state]
-    (game/update-exit-flash state))
+    (cycle/process-all state))
   (then [result]
-    (is (= :barrier
-           (:exit-substitution result)))
-    (is (nil? (:exit-flash-timer result)))))
+    (is (nil? (-> result :tile-substitutions :empty)))
+    (is (= []
+           (:cycles result)))))
 
-(deftest tile-substitutions-remaps-empty-to-white-during-flash
-  (is (= {:exit :barrier
-          :empty :white}
-         (game/tile-substitutions {:empty-flash-timer (timer/make {:interval-ms 150})
-                                   :player {:walking? false}}))))
-
-(deftest tile-substitutions-uses-current-exit-substitution
-  (is (= {:exit :empty}
-         (game/tile-substitutions {:exit-substitution :empty
-                                   :player {:walking? false}}))))
+(deftest player-appear-cycle-enables-gameplay_after_appear_animation
+  (given
+    {:tile-substitutions {}
+     :cycles [(assoc (game/player-appear-cycle)
+                     :timer (ready-timer)
+                     :value :player-default
+                     :iteration 1)]})
+  (when [state]
+    (cycle/process-all state))
+  (then [result]
+    (is (= game/phase-game
+           (:update result)))
+    (is (nil? (-> result :tile-substitutions :player-default)))
+    (is (= []
+           (:cycles result)))))
 
 (deftest update-physics-evaluates-current-events-and-retains-moved-coordinates
   (given
