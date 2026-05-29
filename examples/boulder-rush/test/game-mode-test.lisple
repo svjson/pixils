@@ -116,8 +116,26 @@
            (count (:cycles result))))
     (is (= :br
            (-> result :tileset :id)))
+    (is (= [:scene/level game/start-cover-layer-id]
+           (map (-> result :level-map :layers) :id)))
+    (is (= [[:barrier :barrier]]
+           (-> result :level-map :layers (nth 1) :tiles)))
     (is (= {:x 1 :y 0}
            (-> result :player :pos)))))
+
+(deftest reveal-start-cover-clears-random-cover-cells
+  (given
+    {:level-map {:width 3
+                 :height 2
+                 :layers [{:id :scene/level}
+                          {:id game/start-cover-layer-id
+                           :tiles [[:barrier :barrier :barrier]
+                                   [:barrier :barrier :barrier]]}]}})
+  (when [state]
+    (game/reveal-start-cover state))
+  (then [result]
+    (is (contains? (apply concat (-> result :level-map :layers (nth 1) :tiles))
+                   nil))))
 
 (deftest handle-player-input-adds-vacated-coordinate-as-event
   (given
@@ -452,7 +470,7 @@
     (is (= 0
            (:remaining-time result)))))
 
-(deftest exit-cycle-remaps-exit-through_tile_substitutions
+(deftest exit-cycle-remaps-exit-through-tile-substitutions
   (given
     {:tile-substitutions {}
      :cycles [(assoc (game/exit-cycle)
@@ -464,7 +482,7 @@
     (is (= :barrier
            (-> result :tile-substitutions :exit)))))
 
-(deftest exit-flash-remaps-empty-to-white_then_removes_substitution
+(deftest exit-flash-remaps-empty-to-white-then-removes-substitution
   (given
     {:tile-substitutions {}
      :cycles [(assoc (game/exit-flash)
@@ -477,9 +495,11 @@
     (is (= []
            (:cycles result)))))
 
-(deftest player-appear-cycle-enables-gameplay_after_appear_animation
+(deftest player-appear-cycle-enables-gameplay-after-appear-animation
   (given
-    {:tile-substitutions {}
+    {:level-map {:layers [{:id :level}
+                          {:id game/start-cover-layer-id}]}
+     :tile-substitutions {}
      :cycles [(assoc (game/player-appear-cycle)
                      :timer (ready-timer)
                      :value :player-default
@@ -490,6 +510,8 @@
     (is (= game/phase-game
            (:update result)))
     (is (nil? (-> result :tile-substitutions :player-default)))
+    (is (= [:level]
+           (map (-> result :level-map :layers) :id)))
     (is (= []
            (:cycles result)))))
 

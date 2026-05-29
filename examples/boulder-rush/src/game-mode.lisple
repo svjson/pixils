@@ -1,6 +1,7 @@
 (ns boulder-rush.game-mode
   (:require pixils
             pixils.tilemap.render
+            [pixils.tilemap.model :as tm]
             [pixils.tilemap.renderer :as tilemap-renderer]
             [boulder-rush.camera :as camera]
             [boulder-rush.cycle :as cycle]
@@ -16,6 +17,8 @@
 (def empty-flash-interval-ms 150)
 (def exit-flash-interval-ms 200)
 (def start-phase-duration-ms 4500)
+(def start-cover-layer-id :boulder-rush/start-cover)
+(def start-cover-reveal-count 20)
 
 (defun held-direction [held-keys]
   (cond
@@ -109,6 +112,34 @@
   (fn [state cycle]
     (assoc-in state [:tile-substitutions tile-ref] (:value cycle))))
 
+(defun start-cover-layer [level-map tileset-id]
+  (tm/filled-layer level-map
+                   {:id start-cover-layer-id
+                    :label "Start Cover"
+                    :tileset tileset-id
+                    :tile :barrier}))
+
+(defun add-start-cover [level-map level]
+  (tm/add-layer level-map
+                (start-cover-layer level-map (:tileset-id level))))
+
+(defun random-map-pos [level-map]
+  {:x (rand-nth (range 0 (dec (:width level-map))))
+   :y (rand-nth (range 0 (dec (:height level-map))))})
+
+(defun reveal-start-cover-cell [state]
+  (update state :level-map
+          (fn [level-map]
+            (tm/set-layer-cell level-map
+                               start-cover-layer-id
+                               (random-map-pos level-map)
+                               nil))))
+
+(defun reveal-start-cover [state]
+  (reduce (range 1 start-cover-reveal-count)
+          state
+          (fn [state index]
+            (reveal-start-cover-cell state))))
 
 (defun player-appear-cycle [&rest]
   (cycle/make 80
@@ -118,6 +149,10 @@
                :on-complete (fn [state cycle]
                               (-> state
                                   (assoc :update phase-game)
+                                  (update :level-map
+                                          (fn [level-map]
+                                            (tm/remove-layer level-map
+                                                             start-cover-layer-id)))
                                   (update :tile-substitutions (fn [ts] (dissoc ts :player-default)))))}))
 
 (defun entry-cycle []
@@ -146,12 +181,13 @@
 (defun init-level [state]
   (let [current-level (or (:current-level state) 1)
         level (nth caves/levels (dec current-level))
-        map (level-loader/map-by-id state (:map-id level))
+        base-map (level-loader/map-by-id state (:map-id level))
+        map (add-start-cover base-map level)
         initial-offset (:initial-offset level)
         initial-tile-offset {:x (int (/ (:x initial-offset)
-                                        (:tile-size map)))
+                                        (:tile-size base-map)))
                              :y (int (/ (:y initial-offset)
-                                        (:tile-size map)))}]
+                                        (:tile-size base-map)))}]
     {:current-level current-level
      :level level
      :level-map map
@@ -164,8 +200,8 @@
      :tileset (level-loader/tileset-by-id state (:tileset-id level))
      :tile-substitutions {:exit :barrier}
      :cycles [(entry-cycle)]
-     :events (physics/events map)
-     :player (pl/make (reduce (-> map :layers head :tiles)
+     :events (physics/events base-map)
+     :player (pl/make (reduce (-> base-map :layers head :tiles)
                               {:x nil :y 0}
                               (fn [coord row]
                                 (case (:x coord)
@@ -180,6 +216,7 @@
 (defun phase-start [state ctx]
   (let [state (assoc state :events (event/tick-many (:events state)))]
     (-> state
+        (reveal-start-cover)
         (cycle/process-all)
         (event/update-physics)
         (sound/play-game-event-sounds)
