@@ -112,6 +112,17 @@
   (fn [state cycle]
     (assoc-in state [:tile-substitutions tile-ref] (:value cycle))))
 
+(defun player-walk-cycle []
+  (cycle/make pl/WALK-ANIMATION-INTERVAL-MS
+              [:player-walk-1 :player-walk-2]
+              {:apply (fn [state cycle]
+                        (if (-> state :player :walking?)
+                          (assoc-in state [:tile-substitutions :player-default]
+                                    {:tile (:value cycle)
+                                     :render-opts (-> state :player :render-opts)})
+                          (update state :tile-substitutions (fn [ts]
+                                                              (dissoc ts :player-default)))))}))
+
 (defun start-cover-layer [level-map tileset-id]
   (tm/filled-layer level-map
                    {:id start-cover-layer-id
@@ -149,6 +160,8 @@
                :on-complete (fn [state cycle]
                               (-> state
                                   (assoc :update phase-game)
+                                  (update :cycles (fn [cycles]
+                                                    (concat cycles [(player-walk-cycle)])))
                                   (update :level-map
                                           (fn [level-map]
                                             (tm/remove-layer level-map

@@ -38,12 +38,6 @@
                :started? true
                :last-tick-ms 0}))
 
-(defun ready-player-walk-animation-timer []
-  (timer/make {:interval-ms player/WALK-ANIMATION-INTERVAL-MS
-               :started? true
-               :last-tick-ms 0
-               :ticked? true}))
-
 (deftest produced-events-use-domain-timers
   (given
     {:level-map (fixtures/rows->map ["O"])
@@ -190,7 +184,6 @@
     (is (= player/MOVE-INTERVAL-MS
            (:interval-ms (-> result :player :move-timer))))
     (is (= true (-> result :player :walking?)))
-    (is (= :player-walk-1 (-> result :player :walk-tile)))
     (is (= {} (-> result :player :render-opts)))
     (is (not (timer/ticked? (-> result :player :move-timer))))))
 
@@ -206,20 +199,30 @@
     (is (= {:flip-x? true}
            (-> result :player :render-opts)))))
 
-(deftest update-player-animates-walking-player
+(deftest player-walk-cycle-animates-walking-player-substitution
   (given
-    {:player {:move-timer (timer/make {:interval-ms 999999999
-                                        :started? true
-                                        :last-tick-ms 0})
-              :walking? true
-              :walk-animation-timer (ready-player-walk-animation-timer)
-              :walk-tile :player-walk-1}})
+    {:player {:walking? true
+              :render-opts {:flip-x? true}}
+     :tile-substitutions {}
+     :cycles [(assoc (game/player-walk-cycle)
+                     :timer (ready-timer)
+                     :value :player-walk-1)]})
   (when [state]
-    (player/update-player state))
+    (cycle/process-all state))
   (then [result]
-    (is (= :player-walk-2
-           (-> result :player :walk-tile)))
-    (is (not (timer/ticked? (-> result :player :walk-animation-timer))))))
+    (is (= {:tile :player-walk-2
+            :render-opts {:flip-x? true}}
+           (-> result :tile-substitutions :player-default)))))
+
+(deftest player-walk-cycle-removes-player-substitution-when-not-walking
+  (given
+    {:player {:walking? false}
+     :tile-substitutions {:player-default {:tile :player-walk-1}}
+     :cycles [(game/player-walk-cycle)]})
+  (when [state]
+    (cycle/process-all state))
+  (then [result]
+    (is (nil? (-> result :tile-substitutions :player-default)))))
 
 (deftest handle-player-input-ignores-move-while-timer-is-waiting
   (given
@@ -248,9 +251,7 @@
 (deftest handle-player-input-clears-walking-state-when-timeout-expires
   (given
     {:player {:move-timer (ready-player-move-timer)
-              :walking? true
-              :walk-animation-timer (ready-player-walk-animation-timer)
-              :walk-tile :player-walk-1}})
+              :walking? true}})
   (when [state]
     (game/handle-player-input state {:held-keys []}))
   (then [result]
@@ -512,8 +513,8 @@
     (is (nil? (-> result :tile-substitutions :player-default)))
     (is (= [:level]
            (map (-> result :level-map :layers) :id)))
-    (is (= []
-           (:cycles result)))))
+    (is (= 1
+           (count (:cycles result))))))
 
 (deftest update-physics-evaluates-current-events-and-retains-moved-coordinates
   (given

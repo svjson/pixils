@@ -44,16 +44,14 @@
   (given
     {:rows ["P "]
      :player {:pos {:x 0 :y 0}
-              :walking? true
-              :walk-tile :player-walk-1}})
+              :walking? true}})
   (when [{:keys [rows player]}]
     (player/move-player (fixtures/rows->map rows)
                         player
                         right))
   (then [result]
     (is (= {:pos {:x 1 :y 0}
-            :walking? true
-            :walk-tile :player-walk-1}
+            :walking? true}
            (:player result)))
     (is (= :empty (:entered-tile result)))))
 

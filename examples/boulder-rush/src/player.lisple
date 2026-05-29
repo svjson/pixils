@@ -4,7 +4,7 @@
             [boulder-rush.level.map :as map]))
 
 (def MOVE-INTERVAL-MS 150)
-(def WALK-ANIMATION-INTERVAL-MS 75)
+(def WALK-ANIMATION-INTERVAL-MS 150)
 (def PUSH-INTERVALS-MS [100 130 160 190 220 250 280 300])
 
 (defun make [pos]
@@ -16,8 +16,6 @@
                             :ticked? true})
    :walking? false
    :score 0
-   :walk-animation-timer (timer/make {:interval-ms WALK-ANIMATION-INTERVAL-MS})
-   :walk-tile :player-walk-1
    :render-opts {}})
 
 (defun move-player [map player dir]
@@ -35,12 +33,6 @@
 (defun walk [player dir]
   (assoc player
          :walking? true
-         :walk-animation-timer (if (:walking? player)
-                                 (:walk-animation-timer player)
-                                 (timer/make {:interval-ms WALK-ANIMATION-INTERVAL-MS}))
-         :walk-tile (if (:walking? player)
-                      (:walk-tile player)
-                      :player-walk-1)
          :render-opts (if (contains? [{:x 0 :y -1}
                                       {:x -1 :y 0}]
                                      dir)
@@ -124,29 +116,12 @@
       :default
       {:player (release-input player)})))
 
-(defun next-walk-tile [tile]
-  (case tile
-    :player-walk-1 :player-walk-2
-    :default :player-walk-1))
-
-
 (defun update-player [state]
   (let [state (-> state
-                (update-in [:player :move-timer] timer/tick)
-                (update-in [:player :walk-animation-timer] timer/tick))
+                (update-in [:player :move-timer] timer/tick))
         state (if (-> state :player :push)
                 (assoc-in state
                           [:player :push :timer]
                           (timer/tick (-> state :player :push :timer)))
                 state)]
-    (cond
-      (and (-> state :player :walking?)
-           (timer/ticked? (-> state :player :walk-animation-timer)))
-      (assoc state
-             :player (assoc (:player state)
-                            :walk-animation-timer (timer/make
-                                                   {:interval-ms WALK-ANIMATION-INTERVAL-MS})
-                            :walk-tile (next-walk-tile (-> state :player :walk-tile))))
-
-      :default
-      state)))
+    state))
