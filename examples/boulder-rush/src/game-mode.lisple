@@ -14,6 +14,7 @@
 
 (def empty-flash-interval-ms 150)
 (def exit-flash-interval-ms 200)
+(def start-phase-duration-ms 4500)
 
 (defun held-direction [held-keys]
   (cond
@@ -127,6 +128,47 @@
     (dissoc (assoc state :exit-substitution :barrier)
             :exit-flash-timer)))
 
+
+(defun make-cycle [interval values & opts]
+  (merge {:timer (timer/make {:interval-ms interval})
+          :iteration 0
+          :value (head values)
+          :values values}
+         opts))
+
+(defun process-cycle [{:keys [value values iteration] :as cycle}]
+  (let [cycle (update cycle :timer timer/tick)]
+    (if (timer/ticked? (:timer cycle))
+      (let [index (find-index values (fn [val] (= val value)))]
+        (assoc cycle :value (nth values (mod (inc index) (count values)))
+                     :iteration (inc iteration)))
+      cycle)))
+
+(defun update-entry-tile [state]
+  (let [phase-timer (timer/tick (or (:phase-timer state)
+                                    (timer/make {:interval-ms start-phase-duration-ms})))
+        state (assoc state :phase-timer phase-timer)
+        cycle (process-cycle (or (:cycle state) (make-cycle exit-flash-interval-ms
+                                                            [:empty :barrier])))
+        state (-> state
+                  (assoc :cycle cycle)
+                  (assoc-in [:tile-substitutions :player-default] (:value cycle)))]
+    (case (:phase state)
+      :entry-blink
+      (if (timer/ticked? phase-timer)
+        (-> state
+            (assoc :play-explosion-sound? true
+                   :phase :player-in
+                   :cycle (make-cycle 100 [:debris-1 :debris-2 :debris-3 :player-default])))
+        state)
+
+      :player-in
+      (if (= :player-default (:value cycle))
+        (assoc state :update phase-game)
+        state)
+
+      :default state)))
+
 (defun tile-substitutions [state]
   (merge
    {:exit (or (:exit-substitution state) :barrier)}
@@ -150,12 +192,14 @@
     {:current-level current-level
      :level level
      :level-map map
+     :update phase-start
      :gems (assoc (:gems level) :collected 0)
      :remaining-time (:remaining-time level)
      :remaining-time-timer (timer/make {:interval-ms 1000})
      :tile-offset initial-tile-offset
      :offset initial-offset
      :tileset (level-loader/tileset-by-id state (:tileset-id level))
+     :tile-substitutions {}
      :events (physics/events map)
      :player (pl/make (reduce (-> map :layers head :tiles)
                               {:x nil :y 0}
@@ -169,21 +213,34 @@
                                   :default
                                   coord))))}))
 
+(defun phase-start [state ctx]
+  (let [state (assoc state :phase (or (:phase state) :entry-blink)
+                           :events (event/tick-many (:events state)))]
+    (-> state
+      (update-entry-tile)
+      (event/update-physics)
+      (sound/play-game-event-sounds)
+      (camera/update-offset (:buffer-size ctx)))))
+
+(defun phase-game [state ctx]
+  (let [state (pl/update-player state)
+        state (handle-player-input state ctx)
+        state (update-empty-flash state)
+        state (update-exit-flash state)
+        state (update-remaining-time state)
+        state (assoc state :events (event/tick-many (:events state)))]
+    (-> state
+        (event/update-physics)
+        (sound/play-game-event-sounds)
+        (camera/update-offset (:buffer-size ctx)))))
+
+
 (defmode game-mode
   {:init (fn [state ctx]
            (init-level state))
 
    :update (fn [state ctx]
-             (let [state (pl/update-player state)
-                   state (handle-player-input state ctx)
-                   state (update-empty-flash state)
-                   state (update-exit-flash state)
-                   state (update-remaining-time state)
-                   state (assoc state :events (event/tick-many (:events state)))]
-               (-> state
-                   (event/update-physics)
-                   (sound/play-game-event-sounds)
-                   (camera/update-offset (:buffer-size ctx)))))
+             (apply (:update state) [state ctx]))
 
    :render (fn [state ctx]
              (tilemap-renderer/render-map! (:level-map state)
@@ -194,7 +251,8 @@
                                              :y 16
                                              :w (-> ctx :buffer-size :w)
                                              :h (- (-> ctx :buffer-size :h) 16)}
-                                            :tile-substitutions (tile-substitutions state)})
+                                            :tile-substitutions (merge (:tile-substitutions state)
+                                                                       (tile-substitutions state))})
              (hud/render! {:gems (assoc (:gems state) :value (gem-value state))
                            :tileset (:tileset state)
                            :score (-> state :player :score)
