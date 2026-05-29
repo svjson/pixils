@@ -69,7 +69,8 @@
 
 (defun can-roll? [level-map pos dir]
   (and (falling-tile? (level-map/cell-at level-map pos))
-       (falling-tile? (level-map/cell-at level-map (fall-target pos)))
+       (contains? [:boulder :gem :barrier :wall]
+                  (level-map/cell-at level-map (fall-target pos)))
        (empty-cell? level-map (roll-target pos dir))
        (empty-cell? level-map (roll-support-target pos dir))))
 
@@ -87,17 +88,10 @@
     :default
     nil))
 
-(defun downward-move? [pos target]
-  (= (fall-target pos) target))
-
-(defun next-event-for-move [pos target]
-  (if (downward-move? pos target)
-    {:pos target
-     :state :falling
-     :timer (timer/make {:interval-ms falling-interval-ms})}
-    {:pos target
-     :state :candidate
-     :timer (timer/make {:interval-ms falling-wait-interval-ms})}))
+(defun next-event-for-move [target]
+  {:pos target
+   :state :falling
+   :timer (timer/make {:interval-ms falling-interval-ms})})
 
 (defun exclude-pos [events pos]
   (filter events
@@ -136,7 +130,7 @@
   (let [pos (:pos current-event)]
     (let [tile-id (level-map/cell-at (:level-map state) pos)
           next-map (level-map/move-cell (:level-map state) pos target)
-          next-event (next-event-for-move pos target)]
+          next-event (next-event-for-move target)]
       (assoc state
              :level-map next-map
              :moved-to (concat (:moved-to state) [target])

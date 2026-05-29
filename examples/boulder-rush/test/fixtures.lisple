@@ -12,6 +12,8 @@
              :char "."}
             {:id :wall
              :char "W"}
+            {:id :barrier
+             :char "B"}
             {:id :boulder
              :char "O"}
             {:id :gem

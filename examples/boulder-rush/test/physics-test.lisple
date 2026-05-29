@@ -82,7 +82,7 @@
     (event/evaluate-events level-map events))
   (then [level-map]
     (is (= ["O  "
-            " O "
+            "O  "
             " W "
             "WWW"]
            (fixtures/map->rows level-map)))))
@@ -289,6 +289,38 @@
             "WWW"]
            (fixtures/map->rows level-map)))))
 
+(deftest evaluate-events-rolls-boulder-left-off-wall
+  (given
+    {:level-map (fixtures/rows->map [" O "
+                                     " W "
+                                     "   "
+                                     "WWW"])
+     :events [(fixtures/candidate {:x 1 :y 0})]})
+  (when [{:keys [level-map events]}]
+    (event/evaluate-events level-map events))
+  (then [level-map]
+    (is (= ["O  "
+            " W "
+            "   "
+            "WWW"]
+           (fixtures/map->rows level-map)))))
+
+(deftest evaluate-events-rolls-boulder-left-off-barrier
+  (given
+    {:level-map (fixtures/rows->map [" O "
+                                     " B "
+                                     "   "
+                                     "WWW"])
+     :events [(fixtures/candidate {:x 1 :y 0})]})
+  (when [{:keys [level-map events]}]
+    (event/evaluate-events level-map events))
+  (then [level-map]
+    (is (= ["O  "
+            " B "
+            "   "
+            "WWW"]
+           (fixtures/map->rows level-map)))))
+
 (deftest evaluate-events-rolls-boulder-right-when-left-is-blocked
   (given
     {:level-map (fixtures/rows->map ["WO "
@@ -318,6 +350,41 @@
     (is (= ["V  "
             " O "
             " W "
+            "WWW"]
+           (fixtures/map->rows level-map)))))
+
+(deftest evaluate-events-result-keeps-rolling-object-in-motion
+  (given
+    {:level-map (fixtures/rows->map [" O "
+                                     " O "
+                                     "   "
+                                     "WWW"])
+     :events [(fixtures/candidate {:x 1 :y 0})]})
+  (when [{:keys [level-map events]}]
+    (event/evaluate-events-result level-map events))
+  (then [result]
+    (is (= ["O  "
+            " O "
+            "   "
+            "WWW"]
+           (fixtures/map->rows (:level-map result))))
+    (is (= [(fixtures/falling {:x 0 :y 0})
+            (fixtures/candidate {:x 1 :y 1})]
+           (:events result)))))
+
+(deftest evaluate-events-explodes-when-player-stands-under-rolling-falling-object
+  (given
+    {:level-map (fixtures/rows->map ["O  "
+                                     "PO "
+                                     "   "
+                                     "WWW"])
+     :events [(fixtures/falling {:x 0 :y 0})]})
+  (when [{:keys [level-map events]}]
+    (event/evaluate-events level-map events))
+  (then [level-map]
+    (is (= ["XX "
+            "XX "
+            "XX "
             "WWW"]
            (fixtures/map->rows level-map)))))
 
@@ -365,7 +432,7 @@
     (event/evaluate-events level-map events))
   (then [level-map]
     (is (= ["O  "
-            " O "
+            "O  "
             " W "
             "WWW"]
            (fixtures/map->rows level-map)))))
