@@ -51,3 +51,10 @@
           state
           (fn [state index]
             (reveal-start-cover-cell state))))
+
+
+(defun gem-value [state]
+  (if (>= (-> state :gems :collected)
+          (-> state :gems :required))
+    (-> state :gems :bonus-value)
+    (-> state :gems :value)))

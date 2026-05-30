@@ -1,0 +1,150 @@
+(ns boulder-rush.game.phase.main
+  (:require [pixils.state.timer :as timer]
+            [boulder-rush.cycle :as cycle]
+            [boulder-rush.event :as event]
+            [boulder-rush.physics :as physics]
+            [boulder-rush.player :as pl]
+            [boulder-rush.sounds :as sound]
+            [boulder-rush.level.current :as level]
+            [boulder-rush.game.phase.common :as common]
+            [boulder-rush.game.phase.death :as death-phase]))
+
+
+;; Constants
+
+(def EXIT-FLASH-INTERVAL-MS 200)
+
+
+
+;; Animation Cycles
+
+(defun player-walk-cycle []
+  (cycle/make pl/WALK-ANIMATION-INTERVAL-MS
+              [:player-walk-1 :player-walk-2]
+              {:apply (fn [state cycle]
+                        (if (-> state :player :walking?)
+                          (assoc-in state [:tile-substitutions :player-default]
+                                          {:tile (:value cycle)
+                                           :render-opts (-> state :player :render-opts)})
+                          (update state :tile-substitutions (fn [ts]
+                                                              (dissoc ts :player-default)))))}))
+
+(defun exit-cycle []
+  (cycle/make EXIT-FLASH-INTERVAL-MS
+              [:empty :barrier]
+              {:apply (common/cycle-tile-substitution :exit)}))
+
+(defun exit-flash []
+  (cycle/make EXIT-FLASH-INTERVAL-MS
+              [:white]
+              {:apply (common/cycle-tile-substitution :empty)
+               :iterations 1
+               :on-complete (fn [state cycle]
+                              (update state :tile-substitutions (fn [ts]
+                                                                  (dissoc ts :empty))))}))
+
+
+
+;; Game Mechanics
+
+(defun tick-remaining-time [state]
+  (let [timer (timer/tick (:remaining-time-timer state))]
+    (assoc state
+      :remaining-time-timer timer
+      :remaining-time (if (timer/ticked? timer)
+                        (max 0 (- (:remaining-time state) 1))
+                        (:remaining-time state)))))
+
+(defun held-direction [held-keys]
+  (cond
+    (contains? held-keys :key/up)
+    {:x 0 :y -1}
+
+    (contains? held-keys :key/right)
+    {:x 1 :y 0}
+
+    (contains? held-keys :key/down)
+    {:x 0 :y 1}
+
+    (contains? held-keys :key/left)
+    {:x -1 :y 0}
+
+    :default
+    nil))
+
+(defun fire-held? [held-keys]
+  (or (contains? held-keys :key/ctrl)
+      (contains? held-keys :key/left-ctrl)
+      (contains? held-keys :key/right-ctrl)))
+
+(defun handle-player-input [state ctx]
+  (let [held-keys (or (:held-keys ctx) [])
+        dir (held-direction held-keys)]
+    (apply-player-result state
+                         (if dir
+                           (if (fire-held? held-keys)
+                             (pl/fire (:level-map state)
+                                      (:player state)
+                                      dir)
+                             (pl/apply-intent (:level-map state)
+                                              (:player state)
+                                              dir))
+                           {:player (pl/release-input (:player state))}))))
+
+
+(defun apply-player-result [state result]
+  (let [entered-tile (:entered-tile result)
+        moved-tiles (:moved-tiles result)
+        changed-positions (:changed-positions result)
+        result (dissoc result :entered-tile)
+        result (dissoc result :changed-positions)
+        state (merge state (dissoc result :moved-tiles))
+        state (if (= :gem entered-tile)
+                (let [collected (-> state :gems :collected)
+                      score (+ (or (-> state :player :score) 0)
+                               (level/gem-value state))
+                      state (if (and (< collected (-> state :gems :required))
+                                     (>= (inc collected) (-> state :gems :required)))
+                              (assoc state
+                                :play-explosion-sound? true
+                                :cycles (concat (:cycles state) [(exit-cycle)
+                                                                 (exit-flash)]))
+                              state)]
+                  (-> state
+                    (update-in [:gems :collected] inc)
+                    (assoc-in [:player :score] score)))
+                state)
+        state (if (empty? (or moved-tiles []))
+                state
+                (assoc state
+                       :moved-tiles (concat (or (:moved-tiles state) [])
+                                            moved-tiles)))]
+    (sound/play-player-movement-sound entered-tile)
+    (if (empty? (or changed-positions []))
+      state
+      (assoc state
+             :events (reduce (or changed-positions [])
+                             (:events state)
+                             (fn [events pos]
+                               (event/upsert-many events
+                                                  (physics/events-around (:level-map state)
+                                                                         pos))))))))
+
+
+
+;; Main Game Phase Update Function
+
+
+(defun update [state ctx]
+  (-> state
+      (pl/update-player)
+      (handle-player-input ctx)
+      (tick-remaining-time)
+      (common/tick-events)
+      (common/update ctx)
+      ((fn [state]
+         (if (:player-death state)
+           (assoc state
+             :phase :phase/death
+             :death {:timer (timer/make {:interval-ms death-phase/DEATH-DELAY-MS})})
+           state)))))

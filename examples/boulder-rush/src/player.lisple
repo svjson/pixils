@@ -7,6 +7,19 @@
 (def WALK-ANIMATION-INTERVAL-MS 150)
 (def PUSH-INTERVALS-MS [100 130 160 190 220 250 280 300])
 
+(defun player-start-pos [level-map]
+  (reduce (-> level-map :layers head :tiles)
+          {:x nil :y 0}
+          (fn [coord row]
+            (case (:x coord)
+              nil
+              (if-let [x (find-index row (fn [cell] (= :player-default cell)))]
+                (assoc coord :x x)
+                (update coord :y inc))
+
+              :default
+              coord))))
+
 (defun make [pos]
   {:lives 3
    :pos pos

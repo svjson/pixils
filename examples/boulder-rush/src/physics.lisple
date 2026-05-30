@@ -113,6 +113,7 @@
                                 (fall-target (:pos current-event)))]
     (assoc state
            :level-map (:level-map result)
+           :player-death {:reason :explosion}
            :explosions (concat (:explosions state)
                                [(:pos (:event result))])
            :events (concat (:events state)

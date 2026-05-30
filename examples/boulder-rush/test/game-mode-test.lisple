@@ -4,7 +4,11 @@
             [boulder-rush.explosion :as explosion]
             [boulder-rush.fixtures :as fixtures]
             [boulder-rush.cycle :as cycle]
-            [boulder-rush.game-mode :as game]
+            [boulder-rush.game.init :as game-init]
+            [boulder-rush.game.phase.common :as common]
+            [boulder-rush.game.phase.death :as death-phase]
+            [boulder-rush.game.phase.level-start :as level-start]
+            [boulder-rush.game.phase.main :as main-phase]
             [boulder-rush.level.current :as level]
             [boulder-rush.level.index :as caves]
             [boulder-rush.player :as player]
@@ -81,7 +85,7 @@
                           :id :cave-a/level-2)]
             :tilesets [{:id :br}]}})
   (when [{:keys [pack]}]
-    (game/init-level pack))
+    (game-init/init-level pack))
   (then [result]
     (is (= 2
            (:current-level result)))
@@ -105,8 +109,8 @@
            (:offset result)))
     (is (= {:x 0 :y 0}
            (:tile-offset result)))
-    (is (= game/phase-start
-           (:update result)))
+    (is (= :phase/level-start
+           (:phase result)))
     (is (= {:exit :barrier}
            (:tile-substitutions result)))
     (is (= 2
@@ -143,7 +147,7 @@
               :move-timer (ready-player-move-timer)}
      :events []})
   (when [state]
-    (game/handle-player-input state {:held-keys [:key/right]}))
+    (main-phase/handle-player-input state {:held-keys [:key/right]}))
   (then [result]
     (is (= ["O  "
             " P "
@@ -160,7 +164,7 @@
               :move-timer (ready-player-move-timer)}
      :events []})
   (when [state]
-    (game/handle-player-input state {:held-keys [:key/right]}))
+    (main-phase/handle-player-input state {:held-keys [:key/right]}))
   (then [result]
     (is (= ["PO "]
            (fixtures/map->rows (:level-map result))))
@@ -178,7 +182,7 @@
               :move-timer (ready-player-move-timer)}
      :events []})
   (when [state]
-    (game/handle-player-input state {:held-keys [:key/right]}))
+    (main-phase/handle-player-input state {:held-keys [:key/right]}))
   (then [result]
     (is (= [" P"]
            (fixtures/map->rows (:level-map result))))
@@ -197,7 +201,7 @@
               :move-timer (ready-player-move-timer)}
      :events []})
   (when [state]
-    (game/handle-player-input state {:held-keys [:key/left]}))
+    (main-phase/handle-player-input state {:held-keys [:key/left]}))
   (then [result]
     (is (= {:flip-x? true}
            (-> result :player :render-opts)))))
@@ -207,7 +211,7 @@
     {:player {:walking? true
               :render-opts {:flip-x? true}}
      :tile-substitutions {}
-     :cycles [(assoc (game/player-walk-cycle)
+     :cycles [(assoc (main-phase/player-walk-cycle)
                      :timer (ready-timer)
                      :value :player-walk-1)]})
   (when [state]
@@ -221,7 +225,7 @@
   (given
     {:player {:walking? false}
      :tile-substitutions {:player-default {:tile :player-walk-1}}
-     :cycles [(game/player-walk-cycle)]})
+     :cycles [(main-phase/player-walk-cycle)]})
   (when [state]
     (cycle/process-all state))
   (then [result]
@@ -230,7 +234,7 @@
 (deftest barrier-scroll-cycle-adds-clipped-repeating-barrier-substitution
   (given
     {:tile-substitutions {}
-     :cycles [(assoc (game/barrier-scroll-cycle)
+     :cycles [(assoc (common/barrier-scroll-cycle)
                      :timer (ready-timer))]})
   (when [state]
     (let [state (cycle/process-all state)
@@ -246,7 +250,7 @@
 (deftest barrier-scroll-cycle-removes-barrier-substitution-when-done
   (given
     {:tile-substitutions {:barrier {:tile :barrier}}
-     :cycles [(assoc (game/barrier-scroll-cycle)
+     :cycles [(assoc (common/barrier-scroll-cycle)
                      :iteration (* 16 12))]})
   (when [state]
     (cycle/process-all state))
@@ -262,7 +266,7 @@
               :move-timer (waiting-player-move-timer)}
      :events []})
   (when [state]
-    (game/handle-player-input state {:held-keys [:key/right]}))
+    (main-phase/handle-player-input state {:held-keys [:key/right]}))
   (then [result state]
     (is (= state
            result))))
@@ -274,7 +278,7 @@
               :move-timer (ready-player-move-timer)}
      :events []})
   (when [state]
-    (game/handle-player-input state {:held-keys [:key/right]}))
+    (main-phase/handle-player-input state {:held-keys [:key/right]}))
   (then [result state]
     (is (= state
            result))))
@@ -284,7 +288,7 @@
     {:player {:move-timer (ready-player-move-timer)
               :walking? true}})
   (when [state]
-    (game/handle-player-input state {:held-keys []}))
+    (main-phase/handle-player-input state {:held-keys []}))
   (then [result]
     (is (= false
            (-> result :player :walking?)))))
@@ -298,7 +302,7 @@
                      :timer (ready-timer)}}
      :events []})
   (when [state]
-    (game/handle-player-input state {:held-keys [:key/right]}))
+    (main-phase/handle-player-input state {:held-keys [:key/right]}))
   (then [result]
     (is (= [" PO"]
            (fixtures/map->rows (:level-map result))))
@@ -317,7 +321,7 @@
               :move-timer (waiting-player-move-timer)}
      :events []})
   (when [state]
-    (game/handle-player-input state {:held-keys [:key/ctrl :key/right]}))
+    (main-phase/handle-player-input state {:held-keys [:key/ctrl :key/right]}))
   (then [result]
     (is (= ["P "]
            (fixtures/map->rows (:level-map result))))
@@ -338,7 +342,7 @@
             :bonus-value 15}
      :events []})
   (when [state]
-    (game/handle-player-input state {:held-keys [:key/ctrl :key/right]}))
+    (main-phase/handle-player-input state {:held-keys [:key/ctrl :key/right]}))
   (then [result]
     (is (= ["P "]
            (fixtures/map->rows (:level-map result))))
@@ -361,7 +365,7 @@
             :bonus-value 15}
      :events []})
   (when [state]
-    (game/handle-player-input state {:held-keys [:key/right]}))
+    (main-phase/handle-player-input state {:held-keys [:key/right]}))
   (then [result]
     (is (= [" P"]
            (fixtures/map->rows (:level-map result))))
@@ -383,7 +387,7 @@
      :cycles []
      :events []})
   (when [state]
-    (game/handle-player-input state {:held-keys [:key/right]}))
+    (main-phase/handle-player-input state {:held-keys [:key/right]}))
   (then [result]
     (is (= 3
            (-> result :gems :collected)))
@@ -404,7 +408,7 @@
             :bonus-value 15}
      :events []})
   (when [state]
-    (game/handle-player-input state {:held-keys [:key/right]}))
+    (main-phase/handle-player-input state {:held-keys [:key/right]}))
   (then [result]
     (is (= 4
            (-> result :gems :collected)))
@@ -414,12 +418,12 @@
 
 (deftest gem-value-uses-bonus-value-after-required-count
   (is (= 10
-         (game/gem-value {:gems {:collected 2
+         (level/gem-value {:gems {:collected 2
                                  :required 3
                                  :value 10
                                  :bonus-value 15}})))
   (is (= 15
-         (game/gem-value {:gems {:collected 3
+         (level/gem-value {:gems {:collected 3
                                  :required 3
                                  :value 10
                                  :bonus-value 15}}))))
@@ -431,7 +435,7 @@
               :move-timer (waiting-player-move-timer)}
      :events []})
   (when [state]
-    (game/handle-player-input state {:held-keys [:key/ctrl :key/right]}))
+    (main-phase/handle-player-input state {:held-keys [:key/ctrl :key/right]}))
   (then [result]
     (is (= ["PW"]
            (fixtures/map->rows (:level-map result))))
@@ -449,7 +453,7 @@
                      :timer (ready-timer)}}
      :events []})
   (when [state]
-    (game/handle-player-input state {:held-keys [:key/ctrl :key/right]}))
+    (main-phase/handle-player-input state {:held-keys [:key/ctrl :key/right]}))
   (then [result]
     (is (= ["P O"]
            (fixtures/map->rows (:level-map result))))
@@ -487,7 +491,7 @@
     {:remaining-time 150
      :remaining-time-timer (ready-timer)})
   (when [state]
-    (game/update-remaining-time state))
+    (main-phase/tick-remaining-time state))
   (then [result]
     (is (= 149
            (:remaining-time result)))))
@@ -497,7 +501,7 @@
     {:remaining-time 0
      :remaining-time-timer (ready-timer)})
   (when [state]
-    (game/update-remaining-time state))
+    (main-phase/tick-remaining-time state))
   (then [result]
     (is (= 0
            (:remaining-time result)))))
@@ -505,7 +509,7 @@
 (deftest exit-cycle-remaps-exit-through-tile-substitutions
   (given
     {:tile-substitutions {}
-     :cycles [(assoc (game/exit-cycle)
+     :cycles [(assoc (main-phase/exit-cycle)
                      :timer (ready-timer)
                      :value :empty)]})
   (when [state]
@@ -517,7 +521,7 @@
 (deftest exit-flash-remaps-empty-to-white-then-removes-substitution
   (given
     {:tile-substitutions {}
-     :cycles [(assoc (game/exit-flash)
+     :cycles [(assoc (main-phase/exit-flash)
                      :timer (ready-timer)
                      :value :white)]})
   (when [state]
@@ -532,7 +536,7 @@
     {:level-map {:layers [{:id :level}
                           {:id :boulder-rush/start-cover}]}
      :tile-substitutions {}
-     :cycles [(assoc (game/entry-cycle)
+     :cycles [(assoc (level-start/entry-cycle)
                      :timer (ready-timer)
                      :duration-timer (ready-timer))]})
   (when [state]
@@ -550,15 +554,15 @@
     {:level-map {:layers [{:id :level}]}
      :tile-substitutions {:barrier {:tile :barrier}
                           :player-default :player-default}
-     :cycles [(assoc (game/player-appear-cycle)
+     :cycles [(assoc (level-start/player-appear-cycle)
                      :timer (ready-timer)
                      :value :player-default
                      :iteration 1)]})
   (when [state]
     (cycle/process-all state))
   (then [result]
-    (is (= game/phase-game
-           (:update result)))
+    (is (= :phase/main
+           (:phase result)))
     (is (nil? (-> result :tile-substitutions :player-default)))
     (is (= {:tile :barrier}
            (-> result :tile-substitutions :barrier)))
@@ -592,12 +596,14 @@
      :remaining-time 20
      :remaining-time-timer (timer/make {:interval-ms 1000})})
   (when [state]
-    (game/phase-game state {:held-keys []
-                            :buffer-size {:w 320 :h 240}}))
+    (main-phase/update state {:held-keys []
+                              :buffer-size {:w 320 :h 240}}))
   (then [result]
-    (is (= game/phase-death
-           (:update result)))
-    (is (= game/death-delay-ms
+    (is (= {:reason :explosion}
+           (:player-death result)))
+    (is (= :phase/death
+           (:phase result)))
+    (is (= death-phase/DEATH-DELAY-MS
            (-> result :death :timer :interval-ms)))))
 
 (deftest update-death-cover-adds-empty-start-cover-after-delay
@@ -606,7 +612,7 @@
      :level {:tileset-id :level}
      :death {:timer (ready-timer)}})
   (when [state]
-    (game/update-death-cover state))
+    (death-phase/update-death-cover state))
   (then [result]
     (is (= true
            (-> result :death :filling?)))
@@ -635,10 +641,10 @@
                :cover-index 0
                :cover-timer (ready-timer)}}))
   (when [state]
-    (game/update-death-cover state))
+    (death-phase/update-death-cover state))
   (then [result]
-    (is (= game/phase-start
-           (:update result)))
+    (is (= :phase/level-start
+           (:phase result)))
     (is (= ["P "]
            (fixtures/map->rows (:level-map result))))
     (is (= [[:barrier :barrier]]

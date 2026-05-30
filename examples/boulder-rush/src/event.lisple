@@ -74,7 +74,8 @@
     {:level-map (:level-map result)
      :events (:events result)
      :moved-tiles (:moved-tiles result)
-     :explosions (:explosions result)}))
+     :explosions (:explosions result)
+     :player-death (:player-death result)}))
 
 (defun evaluate-events [level-map event-candidates]
   (:level-map (evaluate-events-result level-map event-candidates)))
@@ -92,5 +93,7 @@
                :level-map (:level-map result)
                :moved-tiles (:moved-tiles result)
                :explosions (:explosions result)
+               :player-death (or (:player-death result)
+                                 (:player-death state))
                :events (upsert-many (waiting (:events state))
                                      (:events result)))))))

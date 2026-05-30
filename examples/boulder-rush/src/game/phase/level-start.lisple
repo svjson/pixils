@@ -1,0 +1,49 @@
+(ns boulder-rush.game.phase.level-start
+  (:require [boulder-rush.cycle :as cycle]
+            [boulder-rush.game.phase.common :as common]
+            [boulder-rush.level.current :as level]
+            [boulder-rush.game.phase.main :as main-phase]))
+
+
+
+;; Constants
+
+(def START-PHASE-DURATION-MS 4500)
+(def ENTRY-FLASH-INTERVAL-MS 200)
+
+
+
+;; Animation Cycles
+
+(defun entry-cycle []
+  (cycle/make ENTRY-FLASH-INTERVAL-MS
+              [:empty :barrier]
+              {:duration START-PHASE-DURATION-MS
+               :apply (common/cycle-tile-substitution :player-default)
+               :on-complete (fn [state cycle]
+                              (-> state
+                                  (assoc :play-explosion-sound? true)
+                                  (update :level-map level/remove-start-cover)))
+               :next player-appear-cycle}))
+
+(defun player-appear-cycle [&rest]
+  (cycle/make 80
+              [:debris-1 :debris-2 :debris-3 :player-default]
+              {:iterations 1
+               :apply (common/cycle-tile-substitution :player-default)
+               :on-complete (fn [state cycle]
+                              (-> state
+                                  (assoc :phase :phase/main)
+                                  (update :cycles (fn [cycles]
+                                                    (concat cycles [(main-phase/player-walk-cycle)])))
+                                  (update :tile-substitutions (fn [ts] (dissoc ts :player-default)))))}))
+
+
+;; Phase Update Function
+
+(defun update [state ctx]
+  (-> state
+      (common/tick-events)
+      (level/reveal-start-cover)
+      (common/update ctx)))
+

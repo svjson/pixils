@@ -164,6 +164,8 @@
            (fixtures/map->rows (:level-map result))))
     (is (= [(fixtures/explosion {:x 1 :y 1} :debris-1)]
            (:events result)))
+    (is (= {:reason :explosion}
+           (:player-death result)))
     (is (= [{:x 1 :y 1}]
            (:explosions result)))))
 

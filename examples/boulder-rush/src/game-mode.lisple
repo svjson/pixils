@@ -1,316 +1,27 @@
 (ns boulder-rush.game-mode
   (:require pixils
             pixils.tilemap.render
-            [pixils.tilemap.model :as tm]
             [pixils.tilemap.renderer :as tilemap-renderer]
-            [boulder-rush.camera :as camera]
             [boulder-rush.cycle :as cycle]
             [boulder-rush.level.current :as level]
-            [boulder-rush.level.index :as caves]
-            [boulder-rush.event :as event]
-            [boulder-rush.player :as pl]
-            [boulder-rush.physics :as physics]
             [boulder-rush.status-hud :as hud]
-            [boulder-rush.sounds :as sound]
-            [boulder-rush.level.loader :as level-loader]
-            [pixils.state.timer :as timer]))
-
-(def empty-flash-interval-ms 150)
-(def exit-flash-interval-ms 200)
-(def start-phase-duration-ms 4500)
-(def barrier-scroll-interval-ms 25)
-(def death-delay-ms 2000)
-
-(defun held-direction [held-keys]
-  (cond
-    (contains? held-keys :key/up)
-    {:x 0 :y -1}
-
-    (contains? held-keys :key/right)
-    {:x 1 :y 0}
-
-    (contains? held-keys :key/down)
-    {:x 0 :y 1}
-
-    (contains? held-keys :key/left)
-    {:x -1 :y 0}
-
-    :default
-    nil))
-
-(defun fire-held? [held-keys]
-  (or (contains? held-keys :key/ctrl)
-      (contains? held-keys :key/left-ctrl)
-      (contains? held-keys :key/right-ctrl)))
-
-(defun gem-value [state]
-  (if (>= (-> state :gems :collected)
-          (-> state :gems :required))
-    (-> state :gems :bonus-value)
-    (-> state :gems :value)))
-
-(defun apply-player-result [state result]
-  (let [entered-tile (:entered-tile result)
-        moved-tiles (:moved-tiles result)
-        changed-positions (:changed-positions result)
-        result (dissoc result :entered-tile)
-        result (dissoc result :changed-positions)
-        state (merge state (dissoc result :moved-tiles))
-        state (if (= :gem entered-tile)
-                (let [collected (-> state :gems :collected)
-                      score (+ (or (-> state :player :score) 0)
-                               (gem-value state))
-                      state (if (and (< collected (-> state :gems :required))
-                                     (>= (inc collected) (-> state :gems :required)))
-                              (assoc state
-                                :play-explosion-sound? true
-                                :cycles (concat (:cycles state) [(exit-cycle)
-                                                                 (exit-flash)]))
-                              state)]
-                  (-> state
-                    (update-in [:gems :collected] inc)
-                    (assoc-in [:player :score] score)))
-                state)
-        state (if (empty? (or moved-tiles []))
-                state
-                (assoc state
-                       :moved-tiles (concat (or (:moved-tiles state) [])
-                                            moved-tiles)))]
-    (sound/play-player-movement-sound entered-tile)
-    (if (empty? (or changed-positions []))
-      state
-      (assoc state
-             :events (reduce (or changed-positions [])
-                             (:events state)
-                             (fn [events pos]
-                               (event/upsert-many events
-                                                  (physics/events-around (:level-map state)
-                                                                         pos))))))))
-
-(defun handle-player-input [state ctx]
-  (let [held-keys (or (:held-keys ctx) [])
-        dir (held-direction held-keys)]
-    (apply-player-result state
-                         (if dir
-                           (if (fire-held? held-keys)
-                             (pl/fire (:level-map state)
-                                      (:player state)
-                                      dir)
-                             (pl/apply-intent (:level-map state)
-                                              (:player state)
-                                              dir))
-                           {:player (pl/release-input (:player state))}))))
-
-(defun update-remaining-time [state]
-  (let [timer (timer/tick (:remaining-time-timer state))]
-    (assoc state
-           :remaining-time-timer timer
-           :remaining-time (if (timer/ticked? timer)
-                             (max 0 (- (:remaining-time state) 1))
-                             (:remaining-time state)))))
-
-(defun cycle-tile-substitution [tile-ref]
-  (fn [state cycle]
-    (assoc-in state [:tile-substitutions tile-ref] (:value cycle))))
-
-(defun player-walk-cycle []
-  (cycle/make pl/WALK-ANIMATION-INTERVAL-MS
-              [:player-walk-1 :player-walk-2]
-              {:apply (fn [state cycle]
-                        (if (-> state :player :walking?)
-                          (assoc-in state [:tile-substitutions :player-default]
-                                    {:tile (:value cycle)
-                                     :render-opts (-> state :player :render-opts)})
-                          (update state :tile-substitutions (fn [ts]
-                                                              (dissoc ts :player-default)))))}))
-
-(defun barrier-scroll-cycle []
-  (cycle/make barrier-scroll-interval-ms
-              [:barrier]
-              {:offset 0
-               :iterations (* 16 12)
-               :apply (fn [state cycle]
-                        (if (cycle/done? cycle)
-                          (dissoc-in state [:tile-substitutions :barrier])
-                          (assoc-in state [:tile-substitutions :barrier]
-                                          {:tile :barrier
-                                           :render-opts (fn [{:keys [rect]}]
-                                                          {:target (assoc rect :y (- (mod (inc (:iteration cycle)) 16 )))
-                                                           :clip-rect rect
-                                                           :repeat-y? true})})))}))
-
-
-(defun player-appear-cycle [&rest]
-  (cycle/make 80
-              [:debris-1 :debris-2 :debris-3 :player-default]
-              {:iterations 1
-               :apply (cycle-tile-substitution :player-default)
-               :on-complete (fn [state cycle]
-                              (-> state
-                                  (assoc :update phase-game)
-                                  (update :cycles (fn [cycles]
-                                                    (concat cycles [(player-walk-cycle)])))
-                                  (update :tile-substitutions (fn [ts] (dissoc ts :player-default)))))}))
-
-(defun entry-cycle []
-  (cycle/make exit-flash-interval-ms
-              [:empty :barrier]
-              {:duration start-phase-duration-ms
-               :apply (cycle-tile-substitution :player-default)
-               :on-complete (fn [state cycle]
-                              (-> state
-                                  (assoc :play-explosion-sound? true)
-                                  (update :level-map level/remove-start-cover)))
-               :next player-appear-cycle}))
-
-(defun exit-cycle []
-  (cycle/make exit-flash-interval-ms
-              [:empty :barrier]
-              {:apply (cycle-tile-substitution :exit)}))
-
-(defun exit-flash []
-  (cycle/make exit-flash-interval-ms
-              [:white]
-              {:apply (cycle-tile-substitution :empty)
-               :iterations 1
-               :on-complete (fn [state cycle]
-                              (update state :tile-substitutions (fn [ts]
-                                                                  (dissoc ts :empty))))}))
-
-(defun player-start-pos [level-map]
-  (reduce (-> level-map :layers head :tiles)
-          {:x nil :y 0}
-          (fn [coord row]
-            (case (:x coord)
-              nil
-              (if-let [x (find-index row (fn [cell] (= :player-default cell)))]
-                (assoc coord :x x)
-                (update coord :y inc))
-
-              :default
-              coord))))
-
-(defun restart-after-death [state]
-  (let [base-map (:base-level-map state)
-        player (pl/make (player-start-pos base-map))]
-    (dissoc (assoc state
-                   :level-map (level/add-start-cover base-map (:level state))
-                   :update phase-start
-                   :gems (assoc (-> state :level :gems) :collected 0)
-                   :remaining-time (-> state :level :remaining-time)
-                   :remaining-time-timer (timer/make {:interval-ms 1000})
-                   :tile-substitutions {:exit :barrier}
-                   :cycles [(barrier-scroll-cycle) (entry-cycle)]
-                   :events (physics/events base-map)
-                   :player (assoc player
-                                  :score (or (-> state :player :score) 0)
-                                  :lives (or (-> state :player :lives) 3)))
-            :death
-            :moved-tiles
-            :explosions
-            :play-explosion-sound?)))
-
-(defun update-death-cover [state]
-  (if (-> state :death :filling?)
-    (let [timer (timer/tick (-> state :death :cover-timer))
-          from (or (-> state :death :cover-index) 0)
-          to (min (+ from 20)
-                  (* (-> state :level-map :width)
-                     (-> state :level-map :height)))
-          state (assoc-in state [:death :cover-timer] timer)]
-      (if (timer/ticked? timer)
-        (let [state (assoc state
-                           :level-map (level/fill-start-cover (:level-map state)
-                                                              from
-                                                              20))
-              state (assoc-in state [:death :cover-index] to)]
-          (if (= to (* (-> state :level-map :width)
-                       (-> state :level-map :height)))
-            (restart-after-death state)
-            state))
-        state))
-    (let [timer (timer/tick (-> state :death :timer))
-          state (assoc-in state [:death :timer] timer)]
-      (if (timer/ticked? timer)
-        (assoc state
-               :level-map (level/add-empty-start-cover (:level-map state)
-                                                       (:level state))
-               :death (assoc (:death state)
-                             :timer timer
-                             :filling? true
-                             :cover-index 0
-                             :cover-timer (timer/make {:interval-ms 25})))
-        state))))
-
-(defun init-level [state]
-  (let [current-level (or (:current-level state) 1)
-        level (nth caves/levels (dec current-level))
-        base-map (level-loader/map-by-id state (:map-id level))
-        map (level/add-start-cover base-map level)
-        initial-offset (:initial-offset level)
-        initial-tile-offset {:x (int (/ (:x initial-offset)
-                                        (:tile-size base-map)))
-                             :y (int (/ (:y initial-offset)
-                                        (:tile-size base-map)))}]
-    {:current-level current-level
-     :level level
-     :base-level-map base-map
-     :level-map map
-     :update phase-start
-     :gems (assoc (:gems level) :collected 0)
-     :remaining-time (:remaining-time level)
-     :remaining-time-timer (timer/make {:interval-ms 1000})
-     :tile-offset initial-tile-offset
-     :offset initial-offset
-     :tileset (level-loader/tileset-by-id state (:tileset-id level))
-     :tile-substitutions {:exit :barrier}
-     :cycles [(barrier-scroll-cycle) (entry-cycle)]
-     :events (physics/events base-map)
-     :player (pl/make (player-start-pos base-map))}))
-
-(defun phase-start [state ctx]
-  (let [state (assoc state :events (event/tick-many (:events state)))]
-    (-> state
-        (level/reveal-start-cover)
-        (cycle/process-all)
-        (event/update-physics)
-        (sound/play-game-event-sounds)
-        (camera/update-offset (:buffer-size ctx)))))
-
-(defun phase-game [state ctx]
-  (let [state (-> state
-                  (pl/update-player)
-                  (handle-player-input ctx)
-                  (cycle/process-all)
-                  (update-remaining-time))
-        state (assoc state :events (event/tick-many (:events state)))]
-    (-> state
-        (event/update-physics)
-        ((fn [state]
-           (if (empty? (or (:explosions state) []))
-             state
-             (assoc state
-                    :update phase-death
-                    :death {:timer (timer/make {:interval-ms death-delay-ms})}))))
-        (sound/play-game-event-sounds)
-        (camera/update-offset (:buffer-size ctx)))))
-
-(defun phase-death [state ctx]
-  (let [state (assoc state :events (event/tick-many (:events state)))]
-    (-> state
-        (cycle/process-all)
-        (event/update-physics)
-        (sound/play-game-event-sounds)
-        (camera/update-offset (:buffer-size ctx))
-        (update-death-cover))))
-
+            [boulder-rush.game.init :as init]
+            [boulder-rush.game.phase.level-start :as start-phase]
+            [boulder-rush.game.phase.main :as main-phase]
+            [boulder-rush.game.phase.death :as death-phase]))
 
 (defmode game-mode
   {:init (fn [state ctx]
-           (init-level state))
+           (init/init-level state))
 
    :update (fn [state ctx]
-             (apply (:update state) [state ctx]))
+             (let [update-fn (case (:phase state)
+                               :phase/level-start start-phase/update
+                               :phase/main main-phase/update
+                               :phase/death death-phase/update)]
+               (if update-fn
+                 (apply update-fn [state ctx])
+                 state)))
 
    :render (fn [state ctx]
              (tilemap-renderer/render-map! (:level-map state)
@@ -322,7 +33,7 @@
                                              :w (-> ctx :buffer-size :w)
                                              :h (- (-> ctx :buffer-size :h) 16)}
                                             :tile-substitutions (:tile-substitutions state)})
-             (hud/render! {:gems (assoc (:gems state) :value (gem-value state))
+             (hud/render! {:gems (assoc (:gems state) :value (level/gem-value state))
                            :tileset (:tileset state)
                            :score (-> state :player :score)
                            :remaining-time (-> state :remaining-time)}))})

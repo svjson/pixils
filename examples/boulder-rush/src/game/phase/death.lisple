@@ -1,0 +1,79 @@
+(ns boulder-rush.game.phase.death
+  (:require [pixils.state.timer :as timer]
+            [boulder-rush.player :as pl]
+            [boulder-rush.physics :as physics]
+            [boulder-rush.game.phase.common :as common]
+            [boulder-rush.level.current :as level]))
+
+
+;; Constants
+
+(def DEATH-DELAY-MS 2000)
+
+
+
+;; Phase Functions
+
+(defun restart-after-death [state]
+  (let [base-map (:base-level-map state)
+        player (pl/make (pl/player-start-pos base-map))]
+    (-> state
+        (assoc :phase :phase/level-start
+               :level-map (level/add-start-cover base-map (:level state))
+               :gems (assoc (-> state :level :gems) :collected 0)
+               :remaining-time (-> state :level :remaining-time)
+               :remaining-time-timer (timer/make {:interval-ms 1000})
+               :tile-substitutions {:exit :barrier}
+               :cycles [(common/barrier-scroll-cycle) (boulder-rush.game.phase.level-start/entry-cycle)]
+               :events (physics/events base-map)
+               :player (assoc player
+                         :score (or (-> state :player :score) 0)
+                         :lives (or (-> state :player :lives) 3)))
+        (dissoc
+          :death
+          :player-death
+          :moved-tiles
+          :explosions
+          :play-explosion-sound?))))
+
+(defun update-death-cover [state]
+  (if (-> state :death :filling?)
+    (let [timer (timer/tick (-> state :death :cover-timer))
+          from (or (-> state :death :cover-index) 0)
+          to (min (+ from 20)
+                  (* (-> state :level-map :width)
+                     (-> state :level-map :height)))
+          state (assoc-in state [:death :cover-timer] timer)]
+      (if (timer/ticked? timer)
+        (let [state (assoc state
+                      :level-map (level/fill-start-cover (:level-map state)
+                                                         from
+                                                         20))
+              state (assoc-in state [:death :cover-index] to)]
+          (if (= to (* (-> state :level-map :width)
+                       (-> state :level-map :height)))
+            (restart-after-death state)
+            state))
+        state))
+    (let [timer (timer/tick (-> state :death :timer))
+          state (assoc-in state [:death :timer] timer)]
+      (if (timer/ticked? timer)
+        (assoc state
+          :level-map (level/add-empty-start-cover (:level-map state)
+                                                  (:level state))
+          :death (assoc (:death state)
+                   :timer timer
+                   :filling? true
+                   :cover-index 0
+                   :cover-timer (timer/make {:interval-ms 25})))
+        state))))
+
+
+
+;; Death Phase Update Function
+
+(defun update [state ctx]
+  (-> state
+      (common/tick-events)
+      (common/update ctx)
+      (update-death-cover)))
