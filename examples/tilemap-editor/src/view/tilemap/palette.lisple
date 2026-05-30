@@ -106,8 +106,7 @@
                             :palette-terrain-set terrain-set
                             :palette-data-kind data-kind)
         options (source-options source-state)
-        disabled? (if (or (:disabled? state)
-                           (nil? (selected-layer state))
+        disabled? (if (or (nil? (selected-layer state))
                            (empty? options))
                      true
                      false)]
@@ -146,7 +145,15 @@
                                   :tile-select/change
                                   {:index index
                                    :value (:value (nth options index))}))
-                      state)))
+                      (if (and (not (:disabled? state))
+                               (= (:button event) :left)
+                               (not (nil? index)))
+                        (assoc (assoc state
+                                      :selected-tile
+                                      (:value (nth options index)))
+                               :selected-indices
+                               [index])
+                        state))))
    :on-key-down (fn [state event ctx]
                   (let [options (or (:options state) [])
                         item-count (count options)
@@ -171,7 +178,13 @@
                                       :tile-select/change
                                       {:index index
                                        :value (:value (nth options index))}))
-                          state)))))
+                          (if (not (nil? index))
+                            (assoc (assoc state
+                                          :selected-tile
+                                          (:value (nth options index)))
+                                   :selected-indices
+                                   [index])
+                            state))))))
    :render (fn [state ctx]
              (let [options (or (:options state) [])
                    selection (:selected-indices state)
@@ -355,23 +368,21 @@
             :on {:list-box/change (fn [state event ctx]
                                     (do
                                       (ui/stop-propagation! event)
-                                      (when (not (:disabled? state))
-                                        (if (= (:map-palette-tab state)
-                                               :brushes)
-                                          (ui/emit! (:view ctx)
-                                                    :palette/brush-select
-                                                    (-> event :payload :value))
-                                          (ui/emit! (:view ctx)
-                                                    :palette/select
-                                                    (-> event :payload :value))))
+                                      (if (= (:map-palette-tab state)
+                                             :brushes)
+                                        (ui/emit! (:view ctx)
+                                                  :palette/brush-select
+                                                  (-> event :payload :value))
+                                        (ui/emit! (:view ctx)
+                                                  :palette/select
+                                                  (-> event :payload :value)))
                                       state))
                   :tile-select/change (fn [state event ctx]
                                         (do
                                           (ui/stop-propagation! event)
-                                          (when (not (:disabled? state))
-                                            (ui/emit! (:view ctx)
-                                                      :palette/select
-                                                      (-> event :payload :value)))
+                                          (ui/emit! (:view ctx)
+                                                    :palette/select
+                                                    (-> event :payload :value))
                                           state))
                   :tab-panel/change (fn [state event ctx]
                                       (let [tab (-> event :payload :tab)]

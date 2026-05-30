@@ -29,6 +29,20 @@
                                       :tileset :colors}]
                             :selected-layer-index 0}))))))
 
+(deftest tile-palette-state-ignores_stale_parent_disabled_flag_when_options_exist
+  (let [tilesets [{:id :colors
+                   :label "Colors"
+                   :tiles [{:id :grass
+                            :name "Grass"}]}]]
+    (is (not= true
+              (:disabled? (palette/tile-select-grid-state
+                           {:tilesets tilesets
+                            :layers [{:id :ground
+                                      :data-kind :tile-ref
+                                      :tileset :colors}]
+                            :selected-layer-index 0
+                            :disabled? true}))))))
+
 (deftest terrain-palette-grid-lists_terrain_values
   (let [grid-state (palette/tile-select-grid-state
                     {:terrain-sets [{:id :overworld

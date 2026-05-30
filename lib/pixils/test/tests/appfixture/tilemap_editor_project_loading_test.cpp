@@ -86,9 +86,23 @@ TEST_F(TilemapEditorStartupTest, loaded_project_populates_existing_side_panel_co
   find_descendant_modes(session.active_mode, "layer-row", layer_rows);
   EXPECT_EQ(layer_rows.size(), 4u);
 
+  session.render_mode();
+
   auto tile_select_grid =
     find_descendant_mode_containing_state(session.active_mode, "tile-select-grid", "Night Sky");
   ASSERT_NE(tile_select_grid, nullptr);
+
+  input().mouse_down({tile_select_grid->bounds.x + 21, tile_select_grid->bounds.y + 5});
+  update_cycle();
+  input().mouse_up({tile_select_grid->bounds.x + 21, tile_select_grid->bounds.y + 5});
+  update_cycle();
+  EXPECT_NE(session.active_mode->state->to_string().find(":selected-tile :cave-depth"),
+            std::string::npos);
+  tile_select_grid =
+    find_descendant_mode_containing_state(session.active_mode, "tile-select-grid", "Cave Depth");
+  ASSERT_NE(tile_select_grid, nullptr);
+  EXPECT_NE(tile_select_grid->state->to_string().find(":selected-indices [1]"),
+            std::string::npos);
 
   std::vector<std::shared_ptr<Pixils::Runtime::View>> combo_boxes;
   find_descendant_modes(session.active_mode, "ui/combo-box", combo_boxes);
@@ -102,7 +116,6 @@ TEST_F(TilemapEditorStartupTest, loaded_project_populates_existing_side_panel_co
   }
   EXPECT_TRUE(has_background_colors_combo);
 
-  session.render_mode();
   auto tab_panel = session.active_mode->children[1];
   ASSERT_NE(tab_panel, nullptr);
   ASSERT_GE(tab_panel->children.size(), 1u);
@@ -174,6 +187,58 @@ TEST_F(TilemapEditorStartupTest, loaded_project_populates_existing_side_panel_co
   tile_select_grid =
     find_descendant_mode_containing_state(session.active_mode, "tile-select-grid", "Night Sky");
   ASSERT_NE(tile_select_grid, nullptr);
+
+  std::filesystem::remove(history_path, ec);
+}
+
+TEST_F(TilemapEditorStartupTest, direct_project_load_keeps_existing_palette_interactive)
+{
+  const auto history_path =
+    std::filesystem::temp_directory_path() / "pixils-tilemap-editor-direct-load-history.edn";
+  std::error_code ec;
+  std::filesystem::remove(history_path, ec);
+  SDLMock::prepared_surfaces["./../assets/simples_pimples.png"] = {800, 1280};
+
+  read_tilemap_editor_sources(runtime);
+
+  session.push_mode("main-mode", Lisple::Constant::NIL);
+  update_cycle();
+  session.render_mode();
+  Lisple::Dict::set_property(session.active_mode->state,
+                             Lisple::keyword("project-history-path"),
+                             Lisple::string(history_path.string()));
+  Lisple::Dict::set_property(session.active_mode->state,
+                             Lisple::keyword("recent-projects"),
+                             Lisple::vector({}));
+
+  auto payload = runtime.eval(R"({:type :confirm
+                                  :mode :file-dialog/open
+                                  :path "examples/tilemap-editor/example-maps/map1.edn"
+                                  :directory "examples/tilemap-editor/example-maps"
+                                  :filename "map1.edn"})");
+  Lisple::sptr_val_v args{session.active_mode->state, payload};
+  session.active_mode->state =
+    runtime.invoke("tilemap-editor.io.project/apply-project-file-dialog-result", args);
+  update_cycle();
+  update_cycle();
+  session.render_mode();
+
+  auto tile_select_grid =
+    find_descendant_mode_containing_state(session.active_mode, "tile-select-grid", "Night Sky");
+  ASSERT_NE(tile_select_grid, nullptr);
+
+  input().mouse_down({tile_select_grid->bounds.x + 21, tile_select_grid->bounds.y + 5});
+  update_cycle();
+  input().mouse_up({tile_select_grid->bounds.x + 21, tile_select_grid->bounds.y + 5});
+  update_cycle();
+
+  EXPECT_NE(session.active_mode->state->to_string().find(":selected-tile :cave-depth"),
+            std::string::npos);
+  tile_select_grid =
+    find_descendant_mode_containing_state(session.active_mode, "tile-select-grid", "Cave Depth");
+  ASSERT_NE(tile_select_grid, nullptr);
+  EXPECT_NE(tile_select_grid->state->to_string().find(":selected-indices [1]"),
+            std::string::npos);
 
   std::filesystem::remove(history_path, ec);
 }
