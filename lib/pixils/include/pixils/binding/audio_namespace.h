@@ -1,8 +1,8 @@
 #ifndef PIXILS__AUDIO_NAMESPACE_H
 #define PIXILS__AUDIO_NAMESPACE_H
 
-#include <lisple/exec.h>
-#include <lisple/namespace.h>
+#include <roo/exec.h>
+#include <roo/namespace.h>
 
 namespace Pixils::Script
 {
@@ -15,7 +15,7 @@ namespace Pixils::Script
     FUNC(PlayBang, play, play_with_opts);
   } // namespace Function
 
-  class AudioNamespace : public Lisple::Namespace
+  class AudioNamespace : public Roo::Namespace
   {
    public:
     AudioNamespace();

@@ -3,9 +3,9 @@
 
 #include "pixils/ui/event.h"
 
-#include <lisple/runtime/value.h>
+#include <roo/runtime/value.h>
 
-namespace Lisple
+namespace Roo
 {
   class Runtime;
 }
@@ -24,11 +24,11 @@ namespace Pixils::UI
    * bubble to the next ancestor.
    */
   std::vector<CustomEvent> process_view_events(Runtime::View& receiver,
-                                               Lisple::sptr_val* parent_state,
+                                               Roo::sptr_val* parent_state,
                                                Runtime::View* parent_view,
-                                               Lisple::sptr_val& view_ctx,
+                                               Roo::sptr_val& view_ctx,
                                                std::vector<CustomEvent>& events,
-                                               Lisple::Runtime& runtime,
+                                               Roo::Runtime& runtime,
                                                bool* receiver_state_updated = nullptr);
 } // namespace Pixils::UI
 

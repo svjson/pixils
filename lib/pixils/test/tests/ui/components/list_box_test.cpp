@@ -3,8 +3,8 @@
 #include <SDL2/SDL_keycode.h>
 #include <SDL2/SDL_mouse.h>
 #include <gtest/gtest.h>
-#include <lisple/runtime/dict.h>
-#include <lisple/runtime/value.h>
+#include <roo/runtime/dict.h>
+#include <roo/runtime/value.h>
 
 using ListBoxTest = RenderFixture;
 
@@ -48,7 +48,7 @@ TEST_F(ListBoxTest, shrink_height_list_box_rebuilds_with_scrollbar_when_clamped)
                     :force-selection? true})]})
   )");
 
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
 
   session.update_mode();
   session.render_mode();
@@ -84,7 +84,7 @@ TEST_F(ListBoxTest, list_box_uses_scroll_pane_and_forces_initial_selection)
                     :force-selection? true})]})
   )");
 
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
 
   session.update_mode();
   session.render_mode();
@@ -98,7 +98,7 @@ TEST_F(ListBoxTest, list_box_uses_scroll_pane_and_forces_initial_selection)
   EXPECT_EQ(list_box->bounds.h, 20);
 
   auto selected =
-    Lisple::Dict::get_property(list_box->state, Lisple::keyword("selected-indices"));
+    Roo::Dict::get_property(list_box->state, Roo::keyword("selected-indices"));
   ASSERT_NE(selected, nullptr);
   EXPECT_EQ(selected->to_string(), "[0]");
 
@@ -111,7 +111,7 @@ TEST_F(ListBoxTest, list_box_uses_scroll_pane_and_forces_initial_selection)
   auto content = viewport->children[0];
   ASSERT_GE(content->children.size(), 1u);
   auto first_item = content->children[0];
-  auto first_value = Lisple::Dict::get_property(first_item->state, Lisple::keyword("value"));
+  auto first_value = Roo::Dict::get_property(first_item->state, Roo::keyword("value"));
   ASSERT_NE(first_value, nullptr);
   EXPECT_EQ(first_value->to_string(), ":a");
 }
@@ -130,13 +130,13 @@ TEST_F(ListBoxTest, forced_selection_skips_disabled_items)
                     :force-selection? true})]})
   )");
 
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
   session.update_mode();
   session.render_mode();
 
   auto list_box = session.active_mode->children[0];
   auto selected =
-    Lisple::Dict::get_property(list_box->state, Lisple::keyword("selected-indices"));
+    Roo::Dict::get_property(list_box->state, Roo::keyword("selected-indices"));
   ASSERT_NE(selected, nullptr);
   EXPECT_EQ(selected->to_string(), "[1]");
 
@@ -146,7 +146,7 @@ TEST_F(ListBoxTest, forced_selection_skips_disabled_items)
   auto content = viewport->children[0];
   auto first_item = content->children[0];
   auto disabled =
-    Lisple::Dict::get_property(first_item->state, Lisple::keyword("disabled?"));
+    Roo::Dict::get_property(first_item->state, Roo::keyword("disabled?"));
   ASSERT_NE(disabled, nullptr);
   EXPECT_EQ(disabled->to_string(), "true");
 }
@@ -166,7 +166,7 @@ TEST_F(ListBoxTest, classic_blue_disabled_list_box_styles_visible_viewport)
                     :content-width 100})]})
   )");
 
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
   session.update_mode();
   session.render_mode();
 
@@ -208,7 +208,7 @@ TEST_F(ListBoxTest, list_box_defaults_to_shrink_width)
                     :content-width 80})]})
   )");
 
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
   session.update_mode();
   session.render_mode();
 
@@ -250,7 +250,7 @@ TEST_F(ListBoxTest, list_box_with_explicit_width_stretches_items)
                                                               :selected-indices)}})})]})
   )");
 
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
   session.update_mode();
   session.render_mode();
   session.update_mode();
@@ -316,7 +316,7 @@ TEST_F(ListBoxTest, list_box_accepts_custom_item_children)
                                            :custom-label (str "Custom " (:label option))}})})]})
   )");
 
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
   session.update_mode();
   session.render_mode();
   session.update_mode();
@@ -336,7 +336,7 @@ TEST_F(ListBoxTest, list_box_accepts_custom_item_children)
   update_cycle();
 
   auto selected =
-    Lisple::Dict::get_property(session.active_mode->state, Lisple::keyword("selected"));
+    Roo::Dict::get_property(session.active_mode->state, Roo::keyword("selected"));
   ASSERT_NE(selected, nullptr);
   EXPECT_EQ(selected->to_string(), "[1]");
 }
@@ -354,7 +354,7 @@ TEST_F(ListBoxTest, list_box_item_hover_highlight_is_opt_in)
                     :content-width 100})]})
   )");
 
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
   session.update_mode();
   session.render_mode();
   session.update_mode();
@@ -392,7 +392,7 @@ TEST_F(ListBoxTest, list_box_reorder_drag_is_off_by_default)
                     :content-width 100})]})
   )");
 
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
   session.update_mode();
   session.render_mode();
   session.update_mode();
@@ -408,7 +408,7 @@ TEST_F(ListBoxTest, list_box_reorder_drag_is_off_by_default)
   update_cycle();
 
   auto reorder =
-    Lisple::Dict::get_property(session.active_mode->state, Lisple::keyword("reorder"));
+    Roo::Dict::get_property(session.active_mode->state, Roo::keyword("reorder"));
   ASSERT_NE(reorder, nullptr);
   EXPECT_EQ(reorder->to_string(), "nil");
 }
@@ -437,7 +437,7 @@ TEST_F(ListBoxTest, reorderable_list_box_emits_reorder_drop_event)
                     :reorderable? true})]})
   )");
 
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
   session.update_mode();
   session.render_mode();
   session.update_mode();
@@ -451,25 +451,25 @@ TEST_F(ListBoxTest, reorderable_list_box_emits_reorder_drop_event)
   update_cycle();
 
   auto reorder =
-    Lisple::Dict::get_property(session.active_mode->state, Lisple::keyword("reorder"));
+    Roo::Dict::get_property(session.active_mode->state, Roo::keyword("reorder"));
   auto selected =
-    Lisple::Dict::get_property(session.active_mode->state, Lisple::keyword("selected"));
+    Roo::Dict::get_property(session.active_mode->state, Roo::keyword("selected"));
   ASSERT_NE(reorder, nullptr);
   ASSERT_NE(selected, nullptr);
   ASSERT_NE(reorder->to_string(), "nil");
-  EXPECT_EQ(Lisple::Dict::get_property(reorder, Lisple::keyword("from-index"))
+  EXPECT_EQ(Roo::Dict::get_property(reorder, Roo::keyword("from-index"))
               ->num()
               .get_int(),
             0);
-  EXPECT_EQ(Lisple::Dict::get_property(reorder, Lisple::keyword("to-index"))
+  EXPECT_EQ(Roo::Dict::get_property(reorder, Roo::keyword("to-index"))
               ->num()
               .get_int(),
             2);
-  EXPECT_EQ(Lisple::Dict::get_property(reorder, Lisple::keyword("drop-index"))
+  EXPECT_EQ(Roo::Dict::get_property(reorder, Roo::keyword("drop-index"))
               ->num()
               .get_int(),
             3);
-  EXPECT_EQ(Lisple::Dict::get_property(reorder, Lisple::keyword("value"))->to_string(),
+  EXPECT_EQ(Roo::Dict::get_property(reorder, Roo::keyword("value"))->to_string(),
             ":a");
   EXPECT_EQ(selected->to_string(), "[]");
 }
@@ -492,7 +492,7 @@ TEST_F(ListBoxTest, reorderable_list_box_placeholder_strategy_previews_drop)
                     :reorderable? true})]})
   )");
 
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
   session.update_mode();
   session.render_mode();
   session.update_mode();
@@ -521,7 +521,7 @@ TEST_F(ListBoxTest, reorderable_list_box_placeholder_strategy_previews_drop)
   EXPECT_EQ(first->bounds.y, content->bounds.y + 23);
 
   auto reorder =
-    Lisple::Dict::get_property(session.active_mode->state, Lisple::keyword("reorder"));
+    Roo::Dict::get_property(session.active_mode->state, Roo::keyword("reorder"));
   ASSERT_NE(reorder, nullptr);
   EXPECT_EQ(reorder->to_string(), "nil");
 }
@@ -542,7 +542,7 @@ TEST_F(ListBoxTest, reorderable_list_box_none_strategy_keeps_flow_positions_whil
                     :reorder-visual-strategy :none})]})
   )");
 
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
   session.update_mode();
   session.render_mode();
   session.update_mode();
@@ -617,7 +617,7 @@ TEST_F(ListBoxTest, reorderable_list_box_with_custom_mouse_row_emits_reorder_dro
                     :item-child custom-row-child})]})
   )");
 
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
   session.update_mode();
   session.render_mode();
   session.update_mode();
@@ -631,14 +631,14 @@ TEST_F(ListBoxTest, reorderable_list_box_with_custom_mouse_row_emits_reorder_dro
   update_cycle();
 
   auto reorder =
-    Lisple::Dict::get_property(session.active_mode->state, Lisple::keyword("reorder"));
+    Roo::Dict::get_property(session.active_mode->state, Roo::keyword("reorder"));
   ASSERT_NE(reorder, nullptr);
   ASSERT_NE(reorder->to_string(), "nil");
-  EXPECT_EQ(Lisple::Dict::get_property(reorder, Lisple::keyword("from-index"))
+  EXPECT_EQ(Roo::Dict::get_property(reorder, Roo::keyword("from-index"))
               ->num()
               .get_int(),
             0);
-  EXPECT_EQ(Lisple::Dict::get_property(reorder, Lisple::keyword("to-index"))
+  EXPECT_EQ(Roo::Dict::get_property(reorder, Roo::keyword("to-index"))
               ->num()
               .get_int(),
             2);
@@ -664,7 +664,7 @@ TEST_F(ListBoxTest, clicking_selected_single_select_item_does_not_emit_change)
                     :selected-indices (pixils.ui/bind-state :selected)})]})
   )");
 
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
   session.update_mode();
   session.render_mode();
   session.update_mode();
@@ -676,9 +676,9 @@ TEST_F(ListBoxTest, clicking_selected_single_select_item_does_not_emit_change)
   update_cycle();
 
   auto selected =
-    Lisple::Dict::get_property(session.active_mode->state, Lisple::keyword("selected"));
+    Roo::Dict::get_property(session.active_mode->state, Roo::keyword("selected"));
   auto changes =
-    Lisple::Dict::get_property(session.active_mode->state, Lisple::keyword("changes"));
+    Roo::Dict::get_property(session.active_mode->state, Roo::keyword("changes"));
   ASSERT_NE(selected, nullptr);
   ASSERT_NE(changes, nullptr);
   EXPECT_EQ(selected->to_string(), "[0]");
@@ -690,9 +690,9 @@ TEST_F(ListBoxTest, clicking_selected_single_select_item_does_not_emit_change)
   update_cycle();
 
   selected =
-    Lisple::Dict::get_property(session.active_mode->state, Lisple::keyword("selected"));
+    Roo::Dict::get_property(session.active_mode->state, Roo::keyword("selected"));
   changes =
-    Lisple::Dict::get_property(session.active_mode->state, Lisple::keyword("changes"));
+    Roo::Dict::get_property(session.active_mode->state, Roo::keyword("changes"));
   ASSERT_NE(selected, nullptr);
   ASSERT_NE(changes, nullptr);
   EXPECT_EQ(selected->to_string(), "[1]");
@@ -721,7 +721,7 @@ TEST_F(ListBoxTest, list_box_ctrl_and_shift_click_update_selection)
                     :toggle-selected? true})]})
   )");
 
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
   session.update_mode();
   session.render_mode();
   session.update_mode();
@@ -736,7 +736,7 @@ TEST_F(ListBoxTest, list_box_ctrl_and_shift_click_update_selection)
   update_cycle();
 
   auto selected =
-    Lisple::Dict::get_property(session.active_mode->state, Lisple::keyword("selected"));
+    Roo::Dict::get_property(session.active_mode->state, Roo::keyword("selected"));
   ASSERT_NE(selected, nullptr);
   EXPECT_EQ(selected->to_string(), "[0 1]");
 
@@ -749,7 +749,7 @@ TEST_F(ListBoxTest, list_box_ctrl_and_shift_click_update_selection)
   update_cycle();
 
   selected =
-    Lisple::Dict::get_property(session.active_mode->state, Lisple::keyword("selected"));
+    Roo::Dict::get_property(session.active_mode->state, Roo::keyword("selected"));
   ASSERT_NE(selected, nullptr);
   EXPECT_EQ(selected->to_string(), "[1 2]");
 
@@ -759,7 +759,7 @@ TEST_F(ListBoxTest, list_box_ctrl_and_shift_click_update_selection)
   update_cycle();
 
   selected =
-    Lisple::Dict::get_property(session.active_mode->state, Lisple::keyword("selected"));
+    Roo::Dict::get_property(session.active_mode->state, Roo::keyword("selected"));
   ASSERT_NE(selected, nullptr);
   EXPECT_EQ(selected->to_string(), "[2]");
 }
@@ -780,7 +780,7 @@ TEST_F(ListBoxTest, list_box_emits_activate_on_double_click)
                     :content-width 100})]})
   )");
 
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
   session.update_mode();
   session.render_mode();
   session.update_mode();
@@ -796,11 +796,11 @@ TEST_F(ListBoxTest, list_box_emits_activate_on_double_click)
   update_cycle();
 
   auto activated =
-    Lisple::Dict::get_property(session.active_mode->state, Lisple::keyword("activated"));
+    Roo::Dict::get_property(session.active_mode->state, Roo::keyword("activated"));
   ASSERT_NE(activated, nullptr);
-  EXPECT_EQ(Lisple::Dict::get_property(activated, Lisple::keyword("value"))->to_string(),
+  EXPECT_EQ(Roo::Dict::get_property(activated, Roo::keyword("value"))->to_string(),
             ":b");
-  EXPECT_EQ(Lisple::Dict::get_property(activated, Lisple::keyword("selected-indices"))
+  EXPECT_EQ(Roo::Dict::get_property(activated, Roo::keyword("selected-indices"))
               ->to_string(),
             "[1]");
 }

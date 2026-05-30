@@ -150,8 +150,8 @@ namespace Pixils::UI
     }
 
     void render_view_impl(Pixils::RenderContext& render_ctx,
-                          Lisple::Runtime& runtime,
-                          const Lisple::sptr_val& render_hook_ctx,
+                          Roo::Runtime& runtime,
+                          const Roo::sptr_val& render_hook_ctx,
                           const std::shared_ptr<Pixils::Runtime::View>& view_ptr,
                           const std::optional<Rect>& inherited_clip,
                           SDL_Texture* target_texture,
@@ -355,7 +355,7 @@ namespace Pixils::UI
 
         PIXILS_BENCHMARK_COUNT(render_hook_calls);
         PIXILS_BENCHMARK_TIME_BLOCK(render_hook_time_ns);
-        Lisple::sptr_val_v rargs = {ctx.state, render_hook_ctx};
+        Roo::sptr_val_v rargs = {ctx.state, render_hook_ctx};
         Runtime::invoke_hook(runtime, view_ptr, ctx.mode->render, rargs);
 
         if (!ctx.children.empty())
@@ -396,8 +396,8 @@ namespace Pixils::UI
   } // namespace
 
   void render_view(Pixils::RenderContext& render_ctx,
-                   Lisple::Runtime& runtime,
-                   const Lisple::sptr_val& render_hook_ctx,
+                   Roo::Runtime& runtime,
+                   const Roo::sptr_val& render_hook_ctx,
                    const std::shared_ptr<Pixils::Runtime::View>& view_ptr)
   {
     PIXILS_BENCHMARK_COUNT(render_view_calls);

@@ -2,8 +2,8 @@
 #include "session_fixture.h"
 
 #include <gtest/gtest.h>
-#include <lisple/runtime/dict.h>
-#include <lisple/runtime/value.h>
+#include <roo/runtime/dict.h>
+#include <roo/runtime/value.h>
 
 using StateBindingTest = SessionFixture;
 
@@ -24,12 +24,12 @@ TEST_F(StateBindingTest, whole_path_binding_projects_parent_value_into_child_sta
   )");
 
   // When
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
 
   // Then - child state should be {:x 42} (the value at :data in parent)
   auto child = session.active_mode->children[0];
   ASSERT_NE(child, nullptr);
-  ASSERT_EQ(child->state->type, Lisple::Value::Type::MAP);
+  ASSERT_EQ(child->state->type, Roo::Value::Type::MAP);
   EXPECT_EQ(child->state->to_string(), "{:x 42}");
 }
 
@@ -48,7 +48,7 @@ TEST_F(StateBindingTest, map_binding_overlays_bound_keys_from_parent_into_child_
   )");
 
   // When
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
 
   // Then - child state should contain {:board {:x 7}}
   auto child = session.active_mode->children[0];
@@ -74,7 +74,7 @@ TEST_F(StateBindingTest, map_binding_propagates_child_state_changes_back_to_pare
                   :state {:board (pixils.ui/bind-state :board)}}]
     })
   )");
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
 
   // When
   session.update_mode();
@@ -95,7 +95,7 @@ TEST_F(StateBindingTest, map_binding_propagates_child_state_vector_back_to_paren
                                            :id "child"
                                            :state {:vector-value (pixils.ui/bind-state :vec)}}]})
                 )");
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
 
   // When
   session.update_mode();
@@ -116,7 +116,7 @@ TEST_F(StateBindingTest, map_binding_propagates_child_state_back_to_parent_vecto
                                            :id "child"
                                            :state {:value (pixils.ui/bind-state :vec 1)}}]})
                 )");
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
 
   // When
   session.update_mode();
@@ -140,7 +140,7 @@ TEST_F(StateBindingTest, map_binding_propagates_child_state_back_to_nested_paren
                                            :id "mid"
                                            :state {:sub-vec (pixils.ui/bind-state :vec 1)}}]})
                 )");
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
 
   // When
   session.update_mode();

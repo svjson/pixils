@@ -4,18 +4,18 @@
 #include <pixils/ui/theme.h>
 
 #include <gtest/gtest.h>
-#include <lisple/host/object.h>
-#include <lisple/runtime/dict.h>
-#include <lisple/runtime/value.h>
+#include <roo/host/object.h>
+#include <roo/runtime/dict.h>
+#include <roo/runtime/value.h>
 
 using DefThemeTest = BaseFixture;
 
 namespace
 {
-  Pixils::UI::Theme& get_theme(Lisple::Runtime& rt, const std::string& name)
+  Pixils::UI::Theme& get_theme(Roo::Runtime& rt, const std::string& name)
   {
     auto val = rt.eval("(get pixils/themes '" + name + ")");
-    return Lisple::obj<Pixils::UI::Theme>(*val);
+    return Roo::obj<Pixils::UI::Theme>(*val);
   }
 
   Pixils::UI::ThemeSelector component_selector_with_pseudos(const std::string& value,
@@ -89,30 +89,30 @@ TEST_F(DefThemeTest, deftheme_with_compound_state_selector_is_created)
   EXPECT_EQ(theme.rules[0].selector.children[1].type,
             Pixils::UI::ThemeSelector::Type::STATE);
   ASSERT_NE(theme.rules[0].selector.children[1].state, nullptr);
-  EXPECT_EQ(theme.rules[0].selector.children[1].state->type, Lisple::Value::Type::MAP);
+  EXPECT_EQ(theme.rules[0].selector.children[1].state->type, Roo::Value::Type::MAP);
   EXPECT_EQ(theme.rules[0].selector.children[1].state->to_string(), "{:pressed true}");
 
   auto pressed_state =
-    Lisple::map({Lisple::keyword("pressed"), Lisple::Constant::BOOL_TRUE});
-  auto parsed_keys = Lisple::Dict::keys(*theme.rules[0].selector.children[1].state);
-  auto manual_keys = Lisple::Dict::keys(*pressed_state);
+    Roo::map({Roo::keyword("pressed"), Roo::Constant::BOOL_TRUE});
+  auto parsed_keys = Roo::Dict::keys(*theme.rules[0].selector.children[1].state);
+  auto manual_keys = Roo::Dict::keys(*pressed_state);
   ASSERT_EQ(parsed_keys.size(), 1u);
   ASSERT_EQ(manual_keys.size(), 1u);
   EXPECT_EQ(parsed_keys[0]->type, manual_keys[0]->type);
   EXPECT_EQ(parsed_keys[0]->to_string(), manual_keys[0]->to_string());
   auto expected_pressed =
-    Lisple::Dict::get_property(theme.rules[0].selector.children[1].state, parsed_keys[0]);
+    Roo::Dict::get_property(theme.rules[0].selector.children[1].state, parsed_keys[0]);
   auto parsed_pressed =
-    Lisple::Dict::get_property(theme.rules[0].selector.children[1].state, *parsed_keys[0]);
-  auto cross_pressed = Lisple::Dict::get_property(pressed_state, *parsed_keys[0]);
-  auto manual_pressed = Lisple::Dict::get_property(pressed_state, *manual_keys[0]);
+    Roo::Dict::get_property(theme.rules[0].selector.children[1].state, *parsed_keys[0]);
+  auto cross_pressed = Roo::Dict::get_property(pressed_state, *parsed_keys[0]);
+  auto manual_pressed = Roo::Dict::get_property(pressed_state, *manual_keys[0]);
   ASSERT_NE(expected_pressed, nullptr);
   ASSERT_NE(parsed_pressed, nullptr);
   ASSERT_NE(cross_pressed, nullptr);
   ASSERT_NE(manual_pressed, nullptr);
-  EXPECT_EQ(expected_pressed->type, Lisple::Value::Type::BOOL);
-  EXPECT_EQ(parsed_pressed->type, Lisple::Value::Type::BOOL);
-  EXPECT_EQ(cross_pressed->type, Lisple::Value::Type::BOOL);
+  EXPECT_EQ(expected_pressed->type, Roo::Value::Type::BOOL);
+  EXPECT_EQ(parsed_pressed->type, Roo::Value::Type::BOOL);
+  EXPECT_EQ(cross_pressed->type, Roo::Value::Type::BOOL);
   EXPECT_EQ(parsed_pressed->to_string(), manual_pressed->to_string());
   EXPECT_EQ(cross_pressed->to_string(), manual_pressed->to_string());
   EXPECT_TRUE(theme.rules[0].selector.children[1].matches(
@@ -143,7 +143,7 @@ TEST_F(DefThemeTest, component_selector_matches_modes_that_extend_the_component)
   auto matches = theme.get_matching_styles(
     Pixils::UI::ThemeMatchContext{.mode_names = {"board-button", "button"},
                                   .class_names = {},
-                                  .state = Lisple::Constant::NIL,
+                                  .state = Roo::Constant::NIL,
                                   .interaction = {}});
 
   ASSERT_EQ(matches.size(), 1u);
@@ -163,7 +163,7 @@ TEST_F(DefThemeTest, class_selector_matches_runtime_view_classes)
   auto matches =
     theme.get_matching_styles(Pixils::UI::ThemeMatchContext{.mode_names = {"game-mode"},
                                                             .class_names = {"ui/panel"},
-                                                            .state = Lisple::Constant::NIL,
+                                                            .state = Roo::Constant::NIL,
                                                             .interaction = {}});
 
   ASSERT_EQ(matches.size(), 1u);
@@ -195,7 +195,7 @@ TEST_F(DefThemeTest, focus_pseudo_state_selectors_match_interaction_state)
   auto window_matches = theme.get_matching_styles(
     Pixils::UI::ThemeMatchContext{.mode_names = {"window"},
                                   .class_names = {},
-                                  .state = Lisple::map({}),
+                                  .state = Roo::map({}),
                                   .interaction = focus_within_interaction});
 
   ASSERT_EQ(window_matches.size(), 1u);
@@ -209,7 +209,7 @@ TEST_F(DefThemeTest, focus_pseudo_state_selectors_match_interaction_state)
   auto input_matches = theme.get_matching_styles(
     Pixils::UI::ThemeMatchContext{.mode_names = {"input"},
                                   .class_names = {},
-                                  .state = Lisple::map({}),
+                                  .state = Roo::map({}),
                                   .interaction = focused_interaction});
 
   ASSERT_EQ(input_matches.size(), 1u);
@@ -220,7 +220,7 @@ TEST_F(DefThemeTest, focus_pseudo_state_selectors_match_interaction_state)
   auto menu_item_matches = theme.get_matching_styles(
     Pixils::UI::ThemeMatchContext{.mode_names = {"menu-item"},
                                   .class_names = {"ui/menu-item"},
-                                  .state = Lisple::map({}),
+                                  .state = Roo::map({}),
                                   .interaction = focused_interaction});
 
   ASSERT_EQ(menu_item_matches.size(), 1u);
@@ -247,7 +247,7 @@ TEST_F(DefThemeTest, disabled_pseudo_state_selectors_match_disabled_state)
     nullptr);
 
   auto disabled_state =
-    Lisple::map({Lisple::keyword("disabled?"), Lisple::Constant::BOOL_TRUE});
+    Roo::map({Roo::keyword("disabled?"), Roo::Constant::BOOL_TRUE});
   auto button_matches = theme.get_matching_styles(
     Pixils::UI::ThemeMatchContext{.mode_names = {"button"},
                                   .class_names = {},
@@ -262,7 +262,7 @@ TEST_F(DefThemeTest, disabled_pseudo_state_selectors_match_disabled_state)
   auto enabled_matches = theme.get_matching_styles(
     Pixils::UI::ThemeMatchContext{.mode_names = {"button"},
                                   .class_names = {},
-                                  .state = Lisple::map({}),
+                                  .state = Roo::map({}),
                                   .interaction = {}});
 
   EXPECT_TRUE(enabled_matches.empty());
@@ -282,11 +282,11 @@ TEST_F(DefThemeTest, descendant_selectors_match_ancestor_focus_chain)
   auto matches = theme.get_matching_styles(std::vector<Pixils::UI::ThemeMatchContext>{
     Pixils::UI::ThemeMatchContext{.mode_names = {"window"},
                                   .class_names = {},
-                                  .state = Lisple::map({}),
+                                  .state = Roo::map({}),
                                   .interaction = focus_within_interaction},
     Pixils::UI::ThemeMatchContext{.mode_names = {"window-title-bar"},
                                   .class_names = {},
-                                  .state = Lisple::map({}),
+                                  .state = Roo::map({}),
                                   .interaction = {}}});
 
   ASSERT_EQ(matches.size(), 1u);
@@ -297,11 +297,11 @@ TEST_F(DefThemeTest, descendant_selectors_match_ancestor_focus_chain)
   auto non_matching = theme.get_matching_styles(std::vector<Pixils::UI::ThemeMatchContext>{
     Pixils::UI::ThemeMatchContext{.mode_names = {"window"},
                                   .class_names = {},
-                                  .state = Lisple::map({}),
+                                  .state = Roo::map({}),
                                   .interaction = {}},
     Pixils::UI::ThemeMatchContext{.mode_names = {"window-title-bar"},
                                   .class_names = {},
-                                  .state = Lisple::map({}),
+                                  .state = Roo::map({}),
                                   .interaction = {}}});
 
   EXPECT_TRUE(non_matching.empty());
@@ -534,7 +534,7 @@ TEST_F(DefThemeTest, resolved_theme_variant_matching_keeps_base_rules)
   auto matches = resolved.get_matching_styles(
     Pixils::UI::ThemeMatchContext{.mode_names = {"widget"},
                                   .class_names = {},
-                                  .state = Lisple::Constant::NIL,
+                                  .state = Roo::Constant::NIL,
                                   .interaction = {}});
 
   Pixils::UI::Style style;
@@ -561,7 +561,7 @@ TEST_F(DefThemeTest, defprogram_with_theme_is_created)
   )");
 
   auto program_val = runtime.eval("(get pixils/programs 'app)");
-  Pixils::Program& program = Lisple::obj<Pixils::Program>(*program_val);
+  Pixils::Program& program = Roo::obj<Pixils::Program>(*program_val);
   ASSERT_TRUE(program.theme.has_value());
   ASSERT_EQ(program.theme->size(), 1u);
   EXPECT_EQ((*program.theme)[0], "app-theme");
@@ -577,7 +577,7 @@ TEST_F(DefThemeTest, defprogram_accepts_theme_variant)
   )");
 
   auto program_val = runtime.eval("(get pixils/programs 'app)");
-  Pixils::Program& program = Lisple::obj<Pixils::Program>(*program_val);
+  Pixils::Program& program = Roo::obj<Pixils::Program>(*program_val);
   ASSERT_TRUE(program.theme_variant.has_value());
   EXPECT_EQ(*program.theme_variant, "dark");
 }
@@ -592,7 +592,7 @@ TEST_F(DefThemeTest, defprogram_accepts_theme_vectors)
   )");
 
   auto program_val = runtime.eval("(get pixils/programs 'app)");
-  Pixils::Program& program = Lisple::obj<Pixils::Program>(*program_val);
+  Pixils::Program& program = Roo::obj<Pixils::Program>(*program_val);
   ASSERT_TRUE(program.theme.has_value());
   ASSERT_EQ(program.theme->size(), 2u);
   EXPECT_EQ((*program.theme)[0], "visual-theme");
@@ -607,7 +607,7 @@ TEST_F(DefThemeTest, defprogram_with_target_frame_rate_is_created)
   )");
 
   auto program_val = runtime.eval("(get pixils/programs 'app)");
-  Pixils::Program& program = Lisple::obj<Pixils::Program>(*program_val);
+  Pixils::Program& program = Roo::obj<Pixils::Program>(*program_val);
   EXPECT_EQ(program.target_frame_rate, 144);
 }
 
@@ -619,6 +619,6 @@ TEST_F(DefThemeTest, defprogram_target_frame_rate_can_disable_pacing_with_zero)
   )");
 
   auto program_val = runtime.eval("(get pixils/programs 'app)");
-  Pixils::Program& program = Lisple::obj<Pixils::Program>(*program_val);
+  Pixils::Program& program = Roo::obj<Pixils::Program>(*program_val);
   EXPECT_EQ(program.target_frame_rate, 0);
 }

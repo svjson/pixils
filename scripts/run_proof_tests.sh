@@ -37,7 +37,7 @@ fi
 for package in "$@"; do
   echo "==> $package"
 
-  output=$(cd "$package" && lisple proof)
+  output=$(cd "$package" && roo proof)
   status=$?
   printf '%s\n' "$output"
 

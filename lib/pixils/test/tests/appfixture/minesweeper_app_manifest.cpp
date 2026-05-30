@@ -30,70 +30,70 @@ namespace Pixils::Test::AppFixture::Minesweeper
     AppManifest manifest;
 
     manifest.upsert_unit(load_unit(std::string(unit_ids::program),
-                                   "apps/minesweeper/implicit-fill-program.lisple"));
+                                   "apps/minesweeper/implicit-fill-program.roo"));
     manifest.upsert_unit(
       load_unit(std::string(unit_ids::implicit_fill_window_mode),
-                "apps/minesweeper/modes/window/implicit-fill-window-mode.lisple"));
+                "apps/minesweeper/modes/window/implicit-fill-window-mode.roo"));
     manifest.upsert_unit(
       load_unit(std::string(unit_ids::implicit_fill_game_layout),
-                "apps/minesweeper/components/game-layout/implicit-fill-game-layout.lisple"));
+                "apps/minesweeper/components/game-layout/implicit-fill-game-layout.roo"));
     manifest.upsert_unit(load_unit(
       std::string(unit_ids::mine_layer_render),
-      "apps/minesweeper/components/board/mine-layer/fixed-grid-mine-layer-render.lisple"));
+      "apps/minesweeper/components/board/mine-layer/fixed-grid-mine-layer-render.roo"));
     manifest.upsert_unit(load_unit(
       std::string(unit_ids::render_only_mine_layer),
-      "apps/minesweeper/components/board/mine-layer/render-only-mine-layer.lisple"));
+      "apps/minesweeper/components/board/mine-layer/render-only-mine-layer.roo"));
     manifest.upsert_unit(load_unit(
       std::string(unit_ids::inhibit_only_board_button_component),
-      "apps/minesweeper/components/board/board-button/inhibit-only-board-button.lisple"));
+      "apps/minesweeper/components/board/board-button/inhibit-only-board-button.roo"));
     manifest.upsert_unit(load_unit(std::string(unit_ids::board_button_row_component),
                                    "apps/minesweeper/components/board/board-button-row/"
-                                   "board-button-row.lisple"));
+                                   "board-button-row.roo"));
     manifest.upsert_unit(load_unit(std::string(unit_ids::board_buttons_component),
                                    "apps/minesweeper/components/board/board-buttons/"
-                                   "settings-sized-board-buttons.lisple"));
+                                   "settings-sized-board-buttons.roo"));
     manifest.upsert_unit(
       load_unit(std::string(unit_ids::overlay_button_board_mode),
-                "apps/minesweeper/components/board/overlay-button-board-mode.lisple"));
+                "apps/minesweeper/components/board/overlay-button-board-mode.roo"));
     manifest.upsert_unit(
       load_unit(std::string(unit_ids::status_panel_left_pad),
-                "apps/minesweeper/components/status-panel/left-pad.lisple"));
+                "apps/minesweeper/components/status-panel/left-pad.roo"));
     manifest.upsert_unit(
       load_unit(std::string(unit_ids::fixed_size_rendered_counter_component),
                 "apps/minesweeper/components/status-panel/counter/"
-                "fixed-size-rendered-counter.lisple"));
+                "fixed-size-rendered-counter.roo"));
     manifest.upsert_unit(load_unit(std::string(unit_ids::fixed_size_counter_status_panel),
                                    "apps/minesweeper/components/status-panel/"
-                                   "fixed-size-counter-status-panel.lisple"));
+                                   "fixed-size-counter-status-panel.roo"));
     manifest.upsert_unit(load_unit(
       std::string(unit_ids::counter_font),
-      "apps/minesweeper/components/status-panel/counter-font/counter-font.lisple"));
+      "apps/minesweeper/components/status-panel/counter-font/counter-font.roo"));
     manifest.upsert_unit(
       load_unit(std::string(unit_ids::menu_definition),
-                "apps/minesweeper/components/menu/simple-menu-definition.lisple"));
+                "apps/minesweeper/components/menu/simple-menu-definition.roo"));
     manifest.upsert_unit(
       load_unit(std::string(unit_ids::custom_rendered_menu_item),
-                "shared/ui/components/menu/menu-item/custom-rendered-menu-item.lisple"));
+                "shared/ui/components/menu/menu-item/custom-rendered-menu-item.roo"));
     manifest.upsert_unit(
       load_unit(std::string(unit_ids::fixed_width_menu_bar_mode),
-                "shared/ui/components/menu/menu-bar/fixed-width-menu-bar-mode.lisple"));
+                "shared/ui/components/menu/menu-bar/fixed-width-menu-bar-mode.roo"));
     manifest.upsert_unit(
       load_unit(std::string(unit_ids::popup_menu_mode),
-                "shared/ui/components/menu/popup-menu/simple-popup-menu.lisple"));
+                "shared/ui/components/menu/popup-menu/simple-popup-menu.roo"));
     manifest.upsert_unit(
       load_unit(std::string(unit_ids::status_panel_face_new_game_state),
-                "apps/minesweeper/game-logic/status-panel-face-new-game-state.lisple"));
+                "apps/minesweeper/game-logic/status-panel-face-new-game-state.roo"));
     manifest.upsert_unit(load_unit(std::string(unit_ids::game_rules),
-                                   "apps/minesweeper/game-logic/game-rules.lisple"));
+                                   "apps/minesweeper/game-logic/game-rules.roo"));
     manifest.upsert_unit(
       load_unit(std::string(unit_ids::button_component),
-                "shared/ui/components/button/rendered-button-component.lisple"));
+                "shared/ui/components/button/rendered-button-component.roo"));
     manifest.upsert_unit(load_unit(std::string(unit_ids::win311_theme),
-                                   "shared/ui/themes/win311/win-theme.lisple"));
+                                   "shared/ui/themes/win311/win-theme.roo"));
 
     manifest.add_file(
       ManifestFile{.id = std::string(file_ids::core),
-                   .disk_path = "pixils/test/app/minesweeper/core.lisple",
+                   .disk_path = "pixils/test/app/minesweeper/core.roo",
                    .namespace_name = main_namespace(),
                    .unit_ids = {
                      std::string(unit_ids::program),
@@ -116,7 +116,7 @@ namespace Pixils::Test::AppFixture::Minesweeper
 
     manifest.add_file(
       ManifestFile{.id = std::string(file_ids::game_logic),
-                   .disk_path = "pixils/test/app/minesweeper/game-logic.lisple",
+                   .disk_path = "pixils/test/app/minesweeper/game-logic.roo",
                    .namespace_name = "pixils.test.app.minesweeper.game-logic"s,
                    .unit_ids = {
                      std::string(unit_ids::status_panel_face_new_game_state),
@@ -125,19 +125,19 @@ namespace Pixils::Test::AppFixture::Minesweeper
 
     manifest.add_file(
       ManifestFile{.id = std::string(file_ids::menu_definition),
-                   .disk_path = "pixils/test/app/minesweeper/menu-definition.lisple",
+                   .disk_path = "pixils/test/app/minesweeper/menu-definition.roo",
                    .namespace_name = "pixils.test.app.minesweeper.menu-definition"s,
                    .unit_ids = {std::string(unit_ids::menu_definition)}});
 
     manifest.add_file(
       ManifestFile{.id = std::string(file_ids::shared_button),
-                   .disk_path = "pixils/test/app/shared/ui/components/button.lisple",
+                   .disk_path = "pixils/test/app/shared/ui/components/button.roo",
                    .namespace_name = "pixils.test.app.shared.ui.components.button"s,
                    .unit_ids = {std::string(unit_ids::button_component)}});
 
     manifest.add_file(
       ManifestFile{.id = std::string(file_ids::shared_win311),
-                   .disk_path = "pixils/test/app/shared/ui/themes/win311.lisple",
+                   .disk_path = "pixils/test/app/shared/ui/themes/win311.roo",
                    .namespace_name = "pixils.test.app.shared.ui.themes.win311"s,
                    .unit_ids = {std::string(unit_ids::win311_theme)}});
 
@@ -149,74 +149,74 @@ namespace Pixils::Test::AppFixture::Minesweeper
     AppManifest manifest;
 
     manifest.upsert_unit(
-      load_unit(std::string(unit_ids::program), "apps/minesweeper/unthemed-program.lisple"));
+      load_unit(std::string(unit_ids::program), "apps/minesweeper/unthemed-program.roo"));
     manifest.upsert_unit(
       load_unit(std::string(unit_ids::main_mode),
-                "apps/minesweeper/modes/main-mode/simple-main-mode.lisple"));
+                "apps/minesweeper/modes/main-mode/simple-main-mode.roo"));
     manifest.upsert_unit(
       load_unit(std::string(unit_ids::window_mode),
-                "apps/minesweeper/modes/window/bordered-window-mode.lisple"));
+                "apps/minesweeper/modes/window/bordered-window-mode.roo"));
     manifest.upsert_unit(load_unit(
       std::string(unit_ids::game_mode),
-      "apps/minesweeper/components/game-layout/self-initializing-game-mode.lisple"));
+      "apps/minesweeper/components/game-layout/self-initializing-game-mode.roo"));
     manifest.upsert_unit(load_unit(std::string(unit_ids::status_bundle),
-                                   "apps/minesweeper/bundles/status/status.lisple"));
+                                   "apps/minesweeper/bundles/status/status.roo"));
     manifest.upsert_unit(load_unit(std::string(unit_ids::counter_bundle),
-                                   "apps/minesweeper/bundles/counter/counter.lisple"));
+                                   "apps/minesweeper/bundles/counter/counter.roo"));
     manifest.upsert_unit(
       load_unit(std::string(unit_ids::status_panel_left_pad),
-                "apps/minesweeper/components/status-panel/left-pad.lisple"));
+                "apps/minesweeper/components/status-panel/left-pad.roo"));
     manifest.upsert_unit(
       load_unit(std::string(unit_ids::counter_component),
-                "apps/minesweeper/components/status-panel/counter/counter.lisple"));
+                "apps/minesweeper/components/status-panel/counter/counter.roo"));
     manifest.upsert_unit(load_unit(
       std::string(unit_ids::status_panel_component),
-      "apps/minesweeper/components/status-panel/fixed-height-status-panel.lisple"));
+      "apps/minesweeper/components/status-panel/fixed-height-status-panel.roo"));
     manifest.upsert_unit(load_unit(
       std::string(unit_ids::mine_layer_render),
-      "apps/minesweeper/components/board/mine-layer/fixed-grid-mine-layer-render.lisple"));
+      "apps/minesweeper/components/board/mine-layer/fixed-grid-mine-layer-render.roo"));
     manifest.upsert_unit(load_unit(
       std::string(unit_ids::mine_layer_mode),
-      "apps/minesweeper/components/board/mine-layer/board-derived-mine-layer.lisple"));
+      "apps/minesweeper/components/board/mine-layer/board-derived-mine-layer.roo"));
     manifest.upsert_unit(load_unit(std::string(unit_ids::board_button_component),
                                    "apps/minesweeper/components/board/board-button/"
-                                   "delegated-pressed-board-button.lisple"));
+                                   "delegated-pressed-board-button.roo"));
     manifest.upsert_unit(load_unit(std::string(unit_ids::board_button_row_component),
                                    "apps/minesweeper/components/board/board-button-row/"
-                                   "static-board-button-row.lisple"));
+                                   "static-board-button-row.roo"));
     manifest.upsert_unit(load_unit(
       std::string(unit_ids::board_buttons_component),
-      "apps/minesweeper/components/board/board-buttons/static-board-buttons.lisple"));
+      "apps/minesweeper/components/board/board-buttons/static-board-buttons.roo"));
     manifest.upsert_unit(
       load_unit(std::string(unit_ids::board_mode),
-                "apps/minesweeper/components/board/no-settings-board-mode.lisple"));
+                "apps/minesweeper/components/board/no-settings-board-mode.roo"));
     manifest.upsert_unit(
       load_unit(std::string(unit_ids::menu_definition),
-                "apps/minesweeper/components/menu/simple-menu-definition.lisple"));
+                "apps/minesweeper/components/menu/simple-menu-definition.roo"));
     manifest.upsert_unit(
       load_unit(std::string(unit_ids::new_game_state),
-                "apps/minesweeper/game-logic/positional-new-game-state.lisple"));
+                "apps/minesweeper/game-logic/positional-new-game-state.roo"));
     manifest.upsert_unit(load_unit(std::string(unit_ids::game_rules),
-                                   "apps/minesweeper/game-logic/game-rules.lisple"));
+                                   "apps/minesweeper/game-logic/game-rules.roo"));
     manifest.upsert_unit(
       load_unit(std::string(unit_ids::button_component),
-                "shared/ui/components/button/rendered-button-component.lisple"));
+                "shared/ui/components/button/rendered-button-component.roo"));
     manifest.upsert_unit(load_unit(std::string(unit_ids::text_node_component),
-                                   "shared/ui/components/text-node/text-node.lisple"));
+                                   "shared/ui/components/text-node/text-node.roo"));
     manifest.upsert_unit(
       load_unit(std::string(unit_ids::menu_item_component),
-                "shared/ui/components/menu/menu-item/simple-menu-item.lisple"));
+                "shared/ui/components/menu/menu-item/simple-menu-item.roo"));
     manifest.upsert_unit(
       load_unit(std::string(unit_ids::menu_bar_mode),
-                "shared/ui/components/menu/menu-bar/static-menu-bar-mode.lisple"));
+                "shared/ui/components/menu/menu-bar/static-menu-bar-mode.roo"));
     manifest.upsert_unit(
       load_unit(std::string(unit_ids::popup_menu_mode),
-                "shared/ui/components/menu/popup-menu/simple-popup-menu.lisple"));
+                "shared/ui/components/menu/popup-menu/simple-popup-menu.roo"));
     manifest.upsert_unit(load_unit(std::string(unit_ids::win311_theme),
-                                   "shared/ui/themes/win311/primitives-win-theme.lisple"));
+                                   "shared/ui/themes/win311/primitives-win-theme.roo"));
 
     manifest.add_file(ManifestFile{.id = std::string(file_ids::core),
-                                   .disk_path = "pixils/test/app/minesweeper/core.lisple",
+                                   .disk_path = "pixils/test/app/minesweeper/core.roo",
                                    .namespace_name = main_namespace(),
                                    .unit_ids = {
                                      std::string(unit_ids::program),
@@ -238,7 +238,7 @@ namespace Pixils::Test::AppFixture::Minesweeper
 
     manifest.add_file(
       ManifestFile{.id = std::string(file_ids::game_logic),
-                   .disk_path = "pixils/test/app/minesweeper/game-logic.lisple",
+                   .disk_path = "pixils/test/app/minesweeper/game-logic.roo",
                    .namespace_name = "pixils.test.app.minesweeper.game-logic"s,
                    .unit_ids = {
                      std::string(unit_ids::new_game_state),
@@ -247,25 +247,25 @@ namespace Pixils::Test::AppFixture::Minesweeper
 
     manifest.add_file(
       ManifestFile{.id = std::string(file_ids::menu_definition),
-                   .disk_path = "pixils/test/app/minesweeper/menu-definition.lisple",
+                   .disk_path = "pixils/test/app/minesweeper/menu-definition.roo",
                    .namespace_name = "pixils.test.app.minesweeper.menu-definition"s,
                    .unit_ids = {std::string(unit_ids::menu_definition)}});
 
     manifest.add_file(
       ManifestFile{.id = std::string(file_ids::shared_button),
-                   .disk_path = "pixils/test/app/shared/ui/components/button.lisple",
+                   .disk_path = "pixils/test/app/shared/ui/components/button.roo",
                    .namespace_name = "pixils.test.app.shared.ui.components.button"s,
                    .unit_ids = {std::string(unit_ids::button_component)}});
 
     manifest.add_file(
       ManifestFile{.id = std::string(file_ids::shared_text_node),
-                   .disk_path = "pixils/test/app/shared/ui/components/text-node.lisple",
+                   .disk_path = "pixils/test/app/shared/ui/components/text-node.roo",
                    .namespace_name = "pixils.test.app.shared.ui.components.text-node"s,
                    .unit_ids = {std::string(unit_ids::text_node_component)}});
 
     manifest.add_file(
       ManifestFile{.id = std::string(file_ids::shared_menu),
-                   .disk_path = "pixils/test/app/shared/ui/components/menu.lisple",
+                   .disk_path = "pixils/test/app/shared/ui/components/menu.roo",
                    .namespace_name = "pixils.test.app.shared.ui.components.menu"s,
                    .unit_ids = {
                      std::string(unit_ids::menu_item_component),
@@ -275,7 +275,7 @@ namespace Pixils::Test::AppFixture::Minesweeper
 
     manifest.add_file(
       ManifestFile{.id = std::string(file_ids::shared_win311),
-                   .disk_path = "pixils/test/app/shared/ui/themes/win311.lisple",
+                   .disk_path = "pixils/test/app/shared/ui/themes/win311.roo",
                    .namespace_name = "pixils.test.app.shared.ui.themes.win311"s,
                    .unit_ids = {std::string(unit_ids::win311_theme)}});
 
@@ -288,115 +288,115 @@ namespace Pixils::Test::AppFixture::Minesweeper
     manifest.remove_unit(std::string(unit_ids::text_node_component));
     manifest.remove_file(std::string(file_ids::shared_text_node));
     manifest.upsert_unit(
-      load_unit(std::string(unit_ids::program), "apps/minesweeper/program.lisple"));
+      load_unit(std::string(unit_ids::program), "apps/minesweeper/program.roo"));
 
     manifest.upsert_unit(
       load_unit(std::string(unit_ids::menu_definition),
-                "apps/minesweeper/components/menu/simple-windowed-menu-definition.lisple"));
+                "apps/minesweeper/components/menu/simple-windowed-menu-definition.roo"));
     manifest.upsert_unit(
       load_unit(std::string(unit_ids::main_mode),
-                "apps/minesweeper/modes/main-mode/simple-windowed-main-mode.lisple"));
+                "apps/minesweeper/modes/main-mode/simple-windowed-main-mode.roo"));
     manifest.upsert_unit(
       load_unit(std::string(unit_ids::window_mode),
-                "apps/minesweeper/modes/window/simple-windowed-window-mode.lisple"));
+                "apps/minesweeper/modes/window/simple-windowed-window-mode.roo"));
     manifest.upsert_unit(load_unit(std::string(unit_ids::counter_component),
                                    "apps/minesweeper/components/status-panel/counter/"
-                                   "ui-text-counter.lisple"));
+                                   "ui-text-counter.roo"));
     manifest.upsert_unit(
       load_unit(std::string(unit_ids::status_panel_component),
-                "apps/minesweeper/components/status-panel/beveled-status-panel.lisple"));
+                "apps/minesweeper/components/status-panel/beveled-status-panel.roo"));
     manifest.upsert_unit(load_unit(std::string(unit_ids::mine_layer_render),
                                    "apps/minesweeper/components/board/mine-layer/"
-                                   "settings-grid-mine-layer-render.lisple"));
+                                   "settings-grid-mine-layer-render.roo"));
     manifest.upsert_unit(load_unit(
       std::string(unit_ids::mine_layer_mode),
-      "apps/minesweeper/components/board/mine-layer/settings-derived-mine-layer.lisple"));
+      "apps/minesweeper/components/board/mine-layer/settings-derived-mine-layer.roo"));
     manifest.upsert_unit(load_unit(
       std::string(unit_ids::board_button_component),
-      "apps/minesweeper/components/board/board-button/flag-aware-board-button.lisple"));
+      "apps/minesweeper/components/board/board-button/flag-aware-board-button.roo"));
     manifest.upsert_unit(load_unit(std::string(unit_ids::board_button_row_component),
                                    "apps/minesweeper/components/board/board-button-row/"
-                                   "board-button-row.lisple"));
+                                   "board-button-row.roo"));
     manifest.upsert_unit(load_unit(std::string(unit_ids::board_buttons_component),
                                    "apps/minesweeper/components/board/board-buttons/"
-                                   "settings-sized-board-buttons.lisple"));
+                                   "settings-sized-board-buttons.roo"));
     manifest.upsert_unit(
       load_unit(std::string(unit_ids::board_mode),
-                "apps/minesweeper/components/board/chord-board-mode.lisple"));
+                "apps/minesweeper/components/board/chord-board-mode.roo"));
     manifest.upsert_unit(
       load_unit(std::string(unit_ids::button_component),
-                "shared/ui/components/button/child-rendered-button-component.lisple"));
+                "shared/ui/components/button/child-rendered-button-component.roo"));
     manifest.upsert_unit(
       load_unit(std::string(unit_ids::button_inner_component),
-                "shared/ui/components/button/button-inner/button-inner.lisple"));
+                "shared/ui/components/button/button-inner/button-inner.roo"));
     manifest.upsert_unit(
       load_unit(std::string(unit_ids::menu_item_component),
-                "shared/ui/components/menu/menu-item/simple-windowed-menu-item.lisple"));
+                "shared/ui/components/menu/menu-item/simple-windowed-menu-item.roo"));
     manifest.upsert_unit(
       load_unit(std::string(unit_ids::menu_option_indicator_component),
                 "shared/ui/components/menu/menu-option-item/menu-option-indicator/"
-                "menu-option-indicator.lisple"));
+                "menu-option-indicator.roo"));
     manifest.upsert_unit(
       load_unit(std::string(unit_ids::menu_option_item_component),
-                "shared/ui/components/menu/menu-option-item/menu-option-item.lisple"));
+                "shared/ui/components/menu/menu-option-item/menu-option-item.roo"));
     manifest.upsert_unit(
       load_unit(std::string(unit_ids::menu_separator_component),
-                "shared/ui/components/menu/menu-separator/menu-separator.lisple"));
+                "shared/ui/components/menu/menu-separator/menu-separator.roo"));
     manifest.upsert_unit(
       load_unit(std::string(unit_ids::menu_bar_mode),
-                "shared/ui/components/menu/menu-bar/simple-windowed-menu-bar-mode.lisple"));
+                "shared/ui/components/menu/menu-bar/simple-windowed-menu-bar-mode.roo"));
     manifest.upsert_unit(
       load_unit(std::string(unit_ids::popup_menu_mode),
-                "shared/ui/components/menu/popup-menu/simple-windowed-popup-menu.lisple"));
+                "shared/ui/components/menu/popup-menu/simple-windowed-popup-menu.roo"));
     manifest.upsert_unit(load_unit(std::string(unit_ids::popup_menu_outer_mode),
                                    "shared/ui/components/menu/popup-menu/popup-menu-outer/"
-                                   "popup-menu-outer.lisple"));
+                                   "popup-menu-outer.roo"));
     manifest.upsert_unit(
       load_unit(std::string(unit_ids::popup_menu_inner_mode),
                 "shared/ui/components/menu/popup-menu/popup-menu-outer/popup-menu-inner/"
-                "popup-menu-inner.lisple"));
+                "popup-menu-inner.roo"));
     manifest.upsert_unit(load_unit(std::string(unit_ids::window_component),
-                                   "shared/ui/components/window/window-component.lisple"));
+                                   "shared/ui/components/window/window-component.roo"));
     manifest.upsert_unit(
       load_unit(std::string(unit_ids::window_title_bar_component),
-                "shared/ui/components/window/window-title-bar/window-title-bar.lisple"));
+                "shared/ui/components/window/window-title-bar/window-title-bar.roo"));
     manifest.upsert_unit(
       load_unit(std::string(unit_ids::window_control_button_component),
                 "shared/ui/components/window/window-title-bar/window-control-button/"
-                "window-control-button.lisple"));
+                "window-control-button.roo"));
     manifest.upsert_unit(
       load_unit(std::string(unit_ids::window_minimize_button_component),
                 "shared/ui/components/window/window-title-bar/window-minimize-button/"
-                "window-minimize-button.lisple"));
+                "window-minimize-button.roo"));
     manifest.upsert_unit(
       load_unit(std::string(unit_ids::window_body_component),
-                "shared/ui/components/window/window-body/window-body.lisple"));
+                "shared/ui/components/window/window-body/window-body.roo"));
     manifest.upsert_unit(load_unit(std::string(unit_ids::win311_theme),
-                                   "shared/ui/themes/win311/win-theme.lisple"));
+                                   "shared/ui/themes/win311/win-theme.roo"));
     manifest.upsert_unit(
       load_unit(std::string(unit_ids::new_game_state),
-                "apps/minesweeper/game-logic/settings-map-new-game-state.lisple"));
+                "apps/minesweeper/game-logic/settings-map-new-game-state.roo"));
     manifest.upsert_unit(load_unit(
       std::string(unit_ids::highscore_row_component),
       "apps/minesweeper/components/highscores-window/highscore-table/highscore-row/"
-      "highscore-row.lisple"));
+      "highscore-row.roo"));
     manifest.upsert_unit(
       load_unit(std::string(unit_ids::highscore_table_component),
                 "apps/minesweeper/components/highscores-window/highscore-table/"
-                "highscore-table.lisple"));
+                "highscore-table.roo"));
     manifest.upsert_unit(
       load_unit(std::string(unit_ids::highscore_buttons_component),
                 "apps/minesweeper/components/highscores-window/highscore-buttons/"
-                "highscore-buttons.lisple"));
+                "highscore-buttons.roo"));
     manifest.upsert_unit(
       load_unit(std::string(unit_ids::highscores_window_component),
-                "apps/minesweeper/components/highscores-window/highscores-window.lisple"));
+                "apps/minesweeper/components/highscores-window/highscores-window.roo"));
     manifest.upsert_unit(
       load_unit(std::string(unit_ids::highscores_modal_mode),
-                "apps/minesweeper/modes/highscores-modal/highscores-modal.lisple"));
+                "apps/minesweeper/modes/highscores-modal/highscores-modal.roo"));
     manifest.upsert_unit(
       load_unit(std::string(unit_ids::game_mode),
-                "apps/minesweeper/components/game-layout/settings-driven-game-mode.lisple"));
+                "apps/minesweeper/components/game-layout/settings-driven-game-mode.roo"));
 
     manifest.remove_unit_from_file(std::string(file_ids::shared_button),
                                    std::string(unit_ids::button_component));
@@ -444,7 +444,7 @@ namespace Pixils::Test::AppFixture::Minesweeper
 
     manifest.add_file(
       ManifestFile{.id = std::string(file_ids::shared_window),
-                   .disk_path = "pixils/test/app/shared/ui/components/window.lisple",
+                   .disk_path = "pixils/test/app/shared/ui/components/window.roo",
                    .namespace_name = "pixils.test.app.shared.ui.components.window"s,
                    .unit_ids = {
                      std::string(unit_ids::window_control_button_component),
@@ -463,33 +463,33 @@ namespace Pixils::Test::AppFixture::Minesweeper
 
     manifest.upsert_unit(load_unit(std::string(unit_ids::menu_definition),
                                    "apps/minesweeper/components/menu/"
-                                   "keyboard-menu-windowed-menu-definition.lisple"));
+                                   "keyboard-menu-windowed-menu-definition.roo"));
     manifest.upsert_unit(load_unit(std::string(unit_ids::window_mode),
                                    "apps/minesweeper/modes/window/"
-                                   "keyboard-menu-windowed-window-mode.lisple"));
+                                   "keyboard-menu-windowed-window-mode.roo"));
     manifest.upsert_unit(load_unit(std::string(unit_ids::menu_item_component),
                                    "shared/ui/components/menu/menu-item/"
-                                   "keyboard-menu-windowed-menu-item.lisple"));
+                                   "keyboard-menu-windowed-menu-item.roo"));
     manifest.upsert_unit(load_unit(std::string(unit_ids::menu_option_item_component),
                                    "shared/ui/components/menu/menu-option-item/"
-                                   "keyboard-menu-windowed-menu-option-item.lisple"));
+                                   "keyboard-menu-windowed-menu-option-item.roo"));
     manifest.upsert_unit(load_unit(std::string(unit_ids::menu_bar_mode),
                                    "shared/ui/components/menu/menu-bar/"
-                                   "keyboard-menu-windowed-menu-bar-mode.lisple"));
+                                   "keyboard-menu-windowed-menu-bar-mode.roo"));
     manifest.upsert_unit(load_unit(std::string(unit_ids::popup_menu_mode),
                                    "shared/ui/components/menu/popup-menu/"
-                                   "keyboard-menu-windowed-popup-menu.lisple"));
+                                   "keyboard-menu-windowed-popup-menu.roo"));
     manifest.upsert_unit(load_unit(std::string(unit_ids::popup_menu_inner_mode),
                                    "shared/ui/components/menu/popup-menu/popup-menu-outer/"
                                    "popup-menu-inner/"
-                                   "keyboard-menu-windowed-popup-menu-inner.lisple"));
+                                   "keyboard-menu-windowed-popup-menu-inner.roo"));
     manifest.upsert_unit(
       load_unit(std::string(unit_ids::highscore_buttons_component),
                 "apps/minesweeper/components/highscores-window/highscore-buttons/"
-                "keyboard-menu-windowed-highscore-buttons.lisple"));
+                "keyboard-menu-windowed-highscore-buttons.roo"));
     manifest.upsert_unit(load_unit(std::string(unit_ids::win311_theme),
                                    "shared/ui/themes/win311/"
-                                   "keyboard-menu-windowed-win-theme.lisple"));
+                                   "keyboard-menu-windowed-win-theme.roo"));
 
     return manifest;
   }
@@ -550,50 +550,50 @@ namespace Pixils::Test::AppFixture::Minesweeper
   std::vector<std::string> implicit_fill_entry_files()
   {
     return {
-      "pixils/test/app/shared/ui/themes/win311.lisple",
-      "pixils/test/app/shared/ui/components/button.lisple",
-      "pixils/test/app/minesweeper/menu-definition.lisple",
-      "pixils/test/app/minesweeper/game-logic.lisple",
-      "pixils/test/app/minesweeper/core.lisple",
+      "pixils/test/app/shared/ui/themes/win311.roo",
+      "pixils/test/app/shared/ui/components/button.roo",
+      "pixils/test/app/minesweeper/menu-definition.roo",
+      "pixils/test/app/minesweeper/game-logic.roo",
+      "pixils/test/app/minesweeper/core.roo",
     };
   }
 
   std::vector<std::string> pre_windowed_entry_files()
   {
     return {
-      "pixils/test/app/shared/ui/themes/win311.lisple",
-      "pixils/test/app/shared/ui/components/button.lisple",
-      "pixils/test/app/shared/ui/components/text-node.lisple",
-      "pixils/test/app/minesweeper/menu-definition.lisple",
-      "pixils/test/app/shared/ui/components/menu.lisple",
-      "pixils/test/app/minesweeper/game-logic.lisple",
-      "pixils/test/app/minesweeper/core.lisple",
+      "pixils/test/app/shared/ui/themes/win311.roo",
+      "pixils/test/app/shared/ui/components/button.roo",
+      "pixils/test/app/shared/ui/components/text-node.roo",
+      "pixils/test/app/minesweeper/menu-definition.roo",
+      "pixils/test/app/shared/ui/components/menu.roo",
+      "pixils/test/app/minesweeper/game-logic.roo",
+      "pixils/test/app/minesweeper/core.roo",
     };
   }
 
   std::vector<std::string> simple_windowed_entry_files()
   {
     return {
-      "pixils/test/app/shared/ui/themes/win311.lisple",
-      "pixils/test/app/shared/ui/components/button.lisple",
-      "pixils/test/app/minesweeper/menu-definition.lisple",
-      "pixils/test/app/shared/ui/components/menu.lisple",
-      "pixils/test/app/minesweeper/game-logic.lisple",
-      "pixils/test/app/shared/ui/components/window.lisple",
-      "pixils/test/app/minesweeper/core.lisple",
+      "pixils/test/app/shared/ui/themes/win311.roo",
+      "pixils/test/app/shared/ui/components/button.roo",
+      "pixils/test/app/minesweeper/menu-definition.roo",
+      "pixils/test/app/shared/ui/components/menu.roo",
+      "pixils/test/app/minesweeper/game-logic.roo",
+      "pixils/test/app/shared/ui/components/window.roo",
+      "pixils/test/app/minesweeper/core.roo",
     };
   }
 
   std::vector<std::string> keyboard_menu_windowed_entry_files()
   {
     return {
-      "pixils/test/app/shared/ui/themes/win311.lisple",
-      "pixils/test/app/shared/ui/components/button.lisple",
-      "pixils/test/app/minesweeper/menu-definition.lisple",
-      "pixils/test/app/shared/ui/components/menu.lisple",
-      "pixils/test/app/minesweeper/game-logic.lisple",
-      "pixils/test/app/shared/ui/components/window.lisple",
-      "pixils/test/app/minesweeper/core.lisple",
+      "pixils/test/app/shared/ui/themes/win311.roo",
+      "pixils/test/app/shared/ui/components/button.roo",
+      "pixils/test/app/minesweeper/menu-definition.roo",
+      "pixils/test/app/shared/ui/components/menu.roo",
+      "pixils/test/app/minesweeper/game-logic.roo",
+      "pixils/test/app/shared/ui/components/window.roo",
+      "pixils/test/app/minesweeper/core.roo",
     };
   }
 } // namespace Pixils::Test::AppFixture::Minesweeper

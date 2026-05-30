@@ -2,7 +2,7 @@
 
 namespace Pixils::Runtime
 {
-  void HookArguments::update_state(const Lisple::sptr_val& state)
+  void HookArguments::update_state(const Roo::sptr_val& state)
   {
     this->init_args[0] = state;
     this->update_args[0] = state;

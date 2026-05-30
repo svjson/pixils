@@ -3,20 +3,20 @@
 
 #include <pixils/frame_events.h>
 
-#include <lisple/form.h>
+#include <roo/form.h>
 
 namespace Pixils::Runtime
 {
   struct HookArguments
   {
-    Lisple::sptr_val ctx;
+    Roo::sptr_val ctx;
     FrameEvents* events = nullptr;
 
-    Lisple::sptr_val_v init_args = {Lisple::Constant::NIL, ctx};
-    Lisple::sptr_val_v update_args = {Lisple::Constant::NIL, ctx};
-    Lisple::sptr_val_v render_args = {Lisple::Constant::NIL, ctx};
+    Roo::sptr_val_v init_args = {Roo::Constant::NIL, ctx};
+    Roo::sptr_val_v update_args = {Roo::Constant::NIL, ctx};
+    Roo::sptr_val_v render_args = {Roo::Constant::NIL, ctx};
 
-    void update_state(const Lisple::sptr_val& state);
+    void update_state(const Roo::sptr_val& state);
   };
 } // namespace Pixils::Runtime
 

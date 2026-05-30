@@ -4,7 +4,7 @@
 #include <pixils/ui/style.h>
 
 #include <cstdint>
-#include <lisple/runtime/value.h>
+#include <roo/runtime/value.h>
 #include <map>
 #include <optional>
 #include <string>
@@ -16,7 +16,7 @@ namespace Pixils::UI
   {
     std::vector<std::string> mode_names;
     std::vector<std::string> class_names;
-    Lisple::sptr_val state = Lisple::Constant::NIL;
+    Roo::sptr_val state = Roo::Constant::NIL;
     InteractionState interaction;
   };
 
@@ -33,7 +33,7 @@ namespace Pixils::UI
 
     Type type = Type::COMPONENT_TYPE;
     std::string value;
-    Lisple::sptr_val state = Lisple::Constant::NIL;
+    Roo::sptr_val state = Roo::Constant::NIL;
     std::vector<ThemeSelector> children;
     bool hovered = false;
     bool focused = false;
@@ -42,7 +42,7 @@ namespace Pixils::UI
 
     static ThemeSelector component_type(const std::string& value);
     static ThemeSelector class_name(const std::string& value);
-    static ThemeSelector state_match(const Lisple::sptr_val& value);
+    static ThemeSelector state_match(const Roo::sptr_val& value);
     static ThemeSelector compound(const std::vector<ThemeSelector>& children);
     static ThemeSelector descendant(const std::vector<ThemeSelector>& children);
 
@@ -56,13 +56,13 @@ namespace Pixils::UI
   {
     ThemeSelector selector;
     Style style;
-    std::vector<Lisple::sptr_val> style_exprs;
+    std::vector<Roo::sptr_val> style_exprs;
   };
 
   struct ThemeVarLayer
   {
     std::optional<std::string> default_variant = std::nullopt;
-    std::map<std::string, std::map<std::string, Lisple::sptr_val>> vars;
+    std::map<std::string, std::map<std::string, Roo::sptr_val>> vars;
   };
 
   struct Theme
@@ -73,21 +73,21 @@ namespace Pixils::UI
     std::optional<std::string> selected_variant = std::nullopt;
     bool declarations_resolved = false;
     std::optional<Style> defaults = std::nullopt;
-    std::vector<Lisple::sptr_val> defaults_exprs;
-    std::map<std::string, std::map<std::string, Lisple::sptr_val>> vars;
+    std::vector<Roo::sptr_val> defaults_exprs;
+    std::map<std::string, std::map<std::string, Roo::sptr_val>> vars;
     std::vector<ThemeVarLayer> var_layers;
     std::vector<ThemeRule> rules;
     std::map<std::string, Style> variant_defaults;
-    std::map<std::string, std::vector<Lisple::sptr_val>> variant_defaults_exprs;
+    std::map<std::string, std::vector<Roo::sptr_val>> variant_defaults_exprs;
     std::map<std::string, std::vector<ThemeRule>> variant_rules;
 
     void set_style(const ThemeSelector& selector,
                    const Style& style,
-                   const std::vector<Lisple::sptr_val>& style_exprs = {});
+                   const std::vector<Roo::sptr_val>& style_exprs = {});
     void set_variant_style(const std::string& variant,
                            const ThemeSelector& selector,
                            const Style& style,
-                           const std::vector<Lisple::sptr_val>& style_exprs = {});
+                           const std::vector<Roo::sptr_val>& style_exprs = {});
     const Style* get_style(const ThemeSelector& selector) const;
     const Style* get_variant_style(const std::string& variant,
                                    const ThemeSelector& selector) const;

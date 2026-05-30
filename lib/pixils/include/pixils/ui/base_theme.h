@@ -3,14 +3,14 @@
 
 #include <pixils/ui/theme.h>
 
-namespace Lisple
+namespace Roo
 {
   class Runtime;
 }
 
 namespace Pixils::UI
 {
-  const Theme& default_base_theme(Lisple::Runtime& runtime);
+  const Theme& default_base_theme(Roo::Runtime& runtime);
 }
 
 #endif

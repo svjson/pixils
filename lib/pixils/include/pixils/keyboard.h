@@ -4,7 +4,7 @@
 
 #include <SDL2/SDL_events.h>
 #include <cstdint>
-#include <lisple/type.h>
+#include <roo/type.h>
 #include <map>
 #include <memory>
 #include <optional>
@@ -166,10 +166,10 @@ namespace Pixils
 
     std::unique_ptr<char> key_to_char(SDL_KeyboardEvent& key_event);
 
-    Lisple::sptr_val key_event_to_lisple_key(const SDL_KeyboardEvent& event);
+    Roo::sptr_val key_event_to_roo_key(const SDL_KeyboardEvent& event);
 
-    std::optional<std::string> key_to_text(const Lisple::sptr_val& key,
-                                           const Lisple::sptr_val& held_keys);
+    std::optional<std::string> key_to_text(const Roo::sptr_val& key,
+                                           const Roo::sptr_val& held_keys);
   } // namespace Keyboard
 
 } // namespace Pixils

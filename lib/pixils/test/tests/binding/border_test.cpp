@@ -6,9 +6,9 @@
 #include <pixils/ui/style.h>
 
 #include <gtest/gtest.h>
-#include <lisple/form.h>
-#include <lisple/host/object.h>
-#include <lisple/runtime/value.h>
+#include <roo/form.h>
+#include <roo/host/object.h>
+#include <roo/runtime/value.h>
 #include <optional>
 
 using BorderTest = BaseFixture;
@@ -177,11 +177,11 @@ TEST(BorderStyleEffectiveTrimTest, per_side_overrides_base)
 TEST_F(BorderTest, make_border)
 {
   // When
-  Lisple::sptr_val result =
+  Roo::sptr_val result =
     runtime.eval("(pixils.ui.style/make-border {:thickness 1 :line-style :solid})");
 
   // Then
-  auto border = Lisple::obj<Pixils::UI::Style::Border>(*result);
+  auto border = Roo::obj<Pixils::UI::Style::Border>(*result);
   EXPECT_EQ(border.line_style, Pixils::UI::Style::LineStyle::SOLID);
   EXPECT_EQ(border.thickness, 1);
   EXPECT_EQ(border.color, std::nullopt);
@@ -190,11 +190,11 @@ TEST_F(BorderTest, make_border)
 TEST_F(BorderTest, make_bevel_border)
 {
   // When
-  Lisple::sptr_val result =
+  Roo::sptr_val result =
     runtime.eval("(pixils.ui.style/make-border {:thickness 2 :line-style :bevel})");
 
   // Then
-  auto border = Lisple::obj<Pixils::UI::Style::Border>(*result);
+  auto border = Roo::obj<Pixils::UI::Style::Border>(*result);
   EXPECT_EQ(border.line_style, Pixils::UI::Style::LineStyle::BEVEL);
   EXPECT_EQ(border.thickness, 2);
 }
@@ -202,10 +202,10 @@ TEST_F(BorderTest, make_bevel_border)
 TEST_F(BorderTest, make_border_with_uniform_trim)
 {
   // When
-  Lisple::sptr_val result = runtime.eval("(pixils.ui.style/make-border {:trim 2})");
+  Roo::sptr_val result = runtime.eval("(pixils.ui.style/make-border {:trim 2})");
 
   // Then
-  auto border = Lisple::obj<Pixils::UI::Style::Border>(*result);
+  auto border = Roo::obj<Pixils::UI::Style::Border>(*result);
   ASSERT_TRUE(border.trim.has_value());
   EXPECT_EQ(*border.trim, (Pixils::UI::Style::Trim{2, 2}));
 }
@@ -213,10 +213,10 @@ TEST_F(BorderTest, make_border_with_uniform_trim)
 TEST_F(BorderTest, make_border_with_pair_trim)
 {
   // When
-  Lisple::sptr_val result = runtime.eval("(pixils.ui.style/make-border {:trim [1 0]})");
+  Roo::sptr_val result = runtime.eval("(pixils.ui.style/make-border {:trim [1 0]})");
 
   // Then
-  auto border = Lisple::obj<Pixils::UI::Style::Border>(*result);
+  auto border = Roo::obj<Pixils::UI::Style::Border>(*result);
   ASSERT_TRUE(border.trim.has_value());
   EXPECT_EQ(*border.trim, (Pixils::UI::Style::Trim{1, 0}));
 }
@@ -224,7 +224,7 @@ TEST_F(BorderTest, make_border_with_pair_trim)
 TEST_F(BorderStyleTest, make_border_style)
 {
   // When
-  Lisple::sptr_val result =
+  Roo::sptr_val result =
     runtime.eval("(pixils.ui.style/make-border-style {:thickness 1 :line-style :solid})");
 
   // Then
@@ -238,7 +238,7 @@ TEST_F(BorderStyleTest, make_border_style)
 TEST_F(BorderStyleTest, make_bevel_border_style)
 {
   // When
-  Lisple::sptr_val result =
+  Roo::sptr_val result =
     runtime.eval("(pixils.ui.style/make-border-style {:thickness 2 :line-style :bevel})");
 
   // Then
@@ -251,7 +251,7 @@ TEST_F(BorderStyleTest, make_bevel_border_style)
 TEST_F(BorderStyleTest, make_border_style_with_trim)
 {
   // When
-  Lisple::sptr_val result =
+  Roo::sptr_val result =
     runtime.eval("(pixils.ui.style/make-border-style {:trim [2 1]})");
 
   // Then

@@ -12,8 +12,8 @@
 #include <pixils/ui/view_lifecycle.h>
 
 #include <gtest/gtest.h>
-#include <lisple/runtime/dict.h>
-#include <lisple/runtime/value.h>
+#include <roo/runtime/dict.h>
+#include <roo/runtime/value.h>
 #include <memory>
 #include <optional>
 #include <string>
@@ -36,13 +36,13 @@ namespace
   {
    protected:
     Pixils::RenderContext render_ctx{};
-    Lisple::Runtime runtime;
+    Roo::Runtime runtime;
     Pixils::FrameEvents events;
     Pixils::HookContext hook_ctx;
-    Lisple::sptr_val hook_ctx_val;
+    Roo::sptr_val hook_ctx_val;
 
     StyleThemeBenchmark()
-      : runtime(Pixils::init_lisple_runtime(render_ctx, "benchmark", {}))
+      : runtime(Pixils::init_roo_runtime(render_ctx, "benchmark", {}))
       , hook_ctx{&events, &render_ctx}
       , hook_ctx_val(Pixils::Script::HookContextAdapter::make_ref(hook_ctx))
     {
@@ -97,7 +97,7 @@ namespace
     view->owned_mode->class_names = std::move(classes);
     view->owned_mode->style = std::move(style);
     view->mode = view->owned_mode.get();
-    view->state = Lisple::map({});
+    view->state = Roo::map({});
     return view;
   }
 
@@ -129,7 +129,7 @@ namespace
         if ((row + column) % 9 == 0)
         {
           cell->state =
-            Lisple::map({Lisple::keyword("selected"), Lisple::Constant::BOOL_TRUE});
+            Roo::map({Roo::keyword("selected"), Roo::Constant::BOOL_TRUE});
         }
         row_view->children.push_back(cell);
       }
@@ -175,8 +175,8 @@ namespace
                         style);
         break;
       case 3:
-        theme.set_style(ThemeSelector::state_match(Lisple::map(
-                          {Lisple::keyword("selected"), Lisple::Constant::BOOL_TRUE})),
+        theme.set_style(ThemeSelector::state_match(Roo::map(
+                          {Roo::keyword("selected"), Roo::Constant::BOOL_TRUE})),
                         style);
         break;
       case 4:
@@ -203,16 +203,16 @@ namespace
     hover_state.hovered = hovered_cell;
     return {ThemeMatchContext{.mode_names = {"clinical-root"},
                               .class_names = {"ui/panel"},
-                              .state = Lisple::map({}),
+                              .state = Roo::map({}),
                               .interaction = root_state},
             ThemeMatchContext{.mode_names = {"clinical-row"},
                               .class_names = {"row", "row-2"},
-                              .state = Lisple::map({}),
+                              .state = Roo::map({}),
                               .interaction = {}},
             ThemeMatchContext{.mode_names = {"clinical-cell"},
                               .class_names = {"cell", "column-6", "even-row"},
-                              .state = Lisple::map(
-                                {Lisple::keyword("selected"), Lisple::Constant::BOOL_TRUE}),
+                              .state = Roo::map(
+                                {Roo::keyword("selected"), Roo::Constant::BOOL_TRUE}),
                               .interaction = hover_state}};
   }
 
@@ -269,7 +269,7 @@ TEST_F(StyleThemeBenchmark, clinical_style_resolve_layered_variants)
       {
         auto resolved = Pixils::UI::resolve_style(base,
                                                   &inherited,
-                                                  Lisple::map({}),
+                                                  Roo::map({}),
                                                   interaction,
                                                   &defaults);
         Pixils::Benchmark::consume(

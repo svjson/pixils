@@ -4,9 +4,9 @@
 #include <pixils/geom.h>
 
 #include <algorithm>
-#include <lisple/exception.h>
-#include <lisple/host/object.h>
-#include <lisple/host/schema.h>
+#include <roo/exception.h>
+#include <roo/host/object.h>
+#include <roo/host/schema.h>
 
 namespace Pixils::Script
 {
@@ -27,24 +27,24 @@ namespace Pixils::Script
 
     EXEC_BODY(IntPointFunction, exec_int)
     {
-      return PointAdapter::make_unique(Lisple::obj<Point>(*args[0]).floor());
+      return PointAdapter::make_unique(Roo::obj<Point>(*args[0]).floor());
     }
 
     /* Point make-function */
     FUNC_IMPL(MakePoint,
-              MULTI_SIG((FN_ARGS((&Lisple::Type::NUMBER), (&Lisple::Type::NUMBER)),
+              MULTI_SIG((FN_ARGS((&Roo::Type::NUMBER), (&Roo::Type::NUMBER)),
                          EXEC_DISPATCH(&MakePoint::exec_point_from_ints)),
-                        (FN_ARGS((&Lisple::Type::MAP)),
+                        (FN_ARGS((&Roo::Type::MAP)),
                          EXEC_DISPATCH(&MakePoint::exec_point_from_map))));
 
-    Lisple::MapSchema point_schema({{"x", &Lisple::Type::NUMBER},
-                                    {"y", &Lisple::Type::NUMBER}});
+    Roo::MapSchema point_schema({{"x", &Roo::Type::NUMBER},
+                                    {"y", &Roo::Type::NUMBER}});
 
     EXEC_BODY(MakePoint, exec_point_from_map)
     {
-      if (*args[0] == *Lisple::Constant::NIL)
+      if (*args[0] == *Roo::Constant::NIL)
       {
-        throw Lisple::TypeError("Cannot create Point from nil");
+        throw Roo::TypeError("Cannot create Point from nil");
       }
 
       auto input = point_schema.bind(ctx, *args[0]);
@@ -63,10 +63,10 @@ namespace Pixils::Script
 
     EXEC_BODY(DistanceBetween, exec_distance)
     {
-      const Point& a = Lisple::obj<Point>(*args[0]);
-      const Point& b = Lisple::obj<Point>(*args[1]);
+      const Point& a = Roo::obj<Point>(*args[0]);
+      const Point& b = Roo::obj<Point>(*args[1]);
 
-      return Lisple::number(a.distance_to(b));
+      return Roo::number(a.distance_to(b));
     }
 
     /* Clamp Point */
@@ -76,8 +76,8 @@ namespace Pixils::Script
 
     EXEC_BODY(ClampPoint, exec_clamp)
     {
-      const Point& point = Lisple::obj<Point>(*args[0]);
-      const Rect& rect = Lisple::obj<Rect>(*args[1]);
+      const Point& point = Roo::obj<Point>(*args[0]);
+      const Rect& rect = Roo::obj<Rect>(*args[1]);
 
       const float x = std::max(static_cast<float>(rect.x),
                                std::min(point.x, static_cast<float>(rect.x + rect.w)));
@@ -90,34 +90,34 @@ namespace Pixils::Script
     /* Translate Point */
     FUNC_IMPL(
       TranslatePoint,
-      SIG((FN_ARGS((&HostType::POINT), (&Lisple::Type::NUMBER), (&Lisple::Type::NUMBER)),
+      SIG((FN_ARGS((&HostType::POINT), (&Roo::Type::NUMBER), (&Roo::Type::NUMBER)),
            EXEC_DISPATCH(&TranslatePoint::exec_translate))));
 
     EXEC_BODY(TranslatePoint, exec_translate)
     {
-      const Point& point = Lisple::obj<Point>(*args[0]);
+      const Point& point = Roo::obj<Point>(*args[0]);
       return PointAdapter::make_unique(point.plus(args[1]->f32(), args[2]->f32()));
     }
 
     /* Translate Point X */
     FUNC_IMPL(TranslatePointX,
-              SIG((FN_ARGS((&HostType::POINT), (&Lisple::Type::NUMBER)),
+              SIG((FN_ARGS((&HostType::POINT), (&Roo::Type::NUMBER)),
                    EXEC_DISPATCH(&TranslatePointX::exec_translate_x))));
 
     EXEC_BODY(TranslatePointX, exec_translate_x)
     {
-      const Point& point = Lisple::obj<Point>(*args[0]);
+      const Point& point = Roo::obj<Point>(*args[0]);
       return PointAdapter::make_unique(point.plus(args[1]->f32(), 0));
     }
 
     /* Translate Point Y */
     FUNC_IMPL(TranslatePointY,
-              SIG((FN_ARGS((&HostType::POINT), (&Lisple::Type::NUMBER)),
+              SIG((FN_ARGS((&HostType::POINT), (&Roo::Type::NUMBER)),
                    EXEC_DISPATCH(&TranslatePointY::exec_translate_y))));
 
     EXEC_BODY(TranslatePointY, exec_translate_y)
     {
-      const Point& point = Lisple::obj<Point>(*args[0]);
+      const Point& point = Roo::obj<Point>(*args[0]);
       return PointAdapter::make_unique(point.plus(0, args[1]->f32()));
     }
 
@@ -128,8 +128,8 @@ namespace Pixils::Script
 
     EXEC_BODY(WrapPoint, exec_wrap)
     {
-      const Point& point = Lisple::obj<Point>(*args[0]);
-      const Rect& rect = Lisple::obj<Rect>(*args[1]);
+      const Point& point = Roo::obj<Point>(*args[0]);
+      const Rect& rect = Roo::obj<Rect>(*args[1]);
 
       const float min_x = rect.x;
       const float max_x = rect.x + rect.w;
@@ -145,20 +145,20 @@ namespace Pixils::Script
     /* Rotate Point - rotate-point */
     FUNC_IMPL(
       RotatePoint,
-      MULTI_SIG((FN_ARGS((&HostType::POINT), (&HostType::POINT), (&Lisple::Type::NUMBER)),
+      MULTI_SIG((FN_ARGS((&HostType::POINT), (&HostType::POINT), (&Roo::Type::NUMBER)),
                  EXEC_DISPATCH(&RotatePoint::exec_orig_amount)),
-                (FN_ARGS((&HostType::POINT), (&Lisple::Type::NUMBER)),
+                (FN_ARGS((&HostType::POINT), (&Roo::Type::NUMBER)),
                  EXEC_DISPATCH(&RotatePoint::exec_amount)),
-                (FN_ARGS((&HostType::POINT), (&Lisple::Type::MAP)),
+                (FN_ARGS((&HostType::POINT), (&Roo::Type::MAP)),
                  EXEC_DISPATCH(&RotatePoint::exec_with_opts))))
 
-    Lisple::MapSchema rotate_opts_schema({},
+    Roo::MapSchema rotate_opts_schema({},
                                          {{"origin", &HostType::POINT},
-                                          {"radians", &Lisple::Type::NUMBER}});
+                                          {"radians", &Roo::Type::NUMBER}});
 
     EXEC_BODY(RotatePoint, exec_with_opts)
     {
-      const Point& point = Lisple::obj<Point>(*args[0]);
+      const Point& point = Roo::obj<Point>(*args[0]);
       auto map = rotate_opts_schema.bind(ctx, *args[1]);
 
       return PointAdapter::make_unique(
@@ -167,30 +167,30 @@ namespace Pixils::Script
 
     EXEC_BODY(RotatePoint, exec_amount)
     {
-      Lisple::sptr_val_v fwd_args = {args[0],
-                                     Lisple::map({Lisple::keyword("radians"), args[1]})};
+      Roo::sptr_val_v fwd_args = {args[0],
+                                     Roo::map({Roo::keyword("radians"), args[1]})};
 
       return this->exec_with_opts(ctx, fwd_args);
     }
 
     EXEC_BODY(RotatePoint, exec_orig_amount)
     {
-      Lisple::sptr_val_v fwd_args = {
+      Roo::sptr_val_v fwd_args = {
         args[0],
-        Lisple::map(
-          {Lisple::keyword("origin"), args[1], Lisple::keyword("amount"), args[2]})};
+        Roo::map(
+          {Roo::keyword("origin"), args[1], Roo::keyword("amount"), args[2]})};
 
       return this->exec_with_opts(ctx, fwd_args);
     }
 
     /* PointMultiplication */
     FUNC_IMPL(PointMultiplication,
-              SIG((FN_ARGS((&HostType::POINT), (&Lisple::Type::NUMBER)),
+              SIG((FN_ARGS((&HostType::POINT), (&Roo::Type::NUMBER)),
                    EXEC_DISPATCH(&PointMultiplication::exec_multiply_num))));
 
     EXEC_BODY(PointMultiplication, exec_multiply_num)
     {
-      const Point& coord = Lisple::obj<Point>(*args.front());
+      const Point& coord = Roo::obj<Point>(*args.front());
       const float n = args.back()->f32();
 
       return PointAdapter::make_unique(coord.x * n, coord.y * n);
@@ -198,12 +198,12 @@ namespace Pixils::Script
 
     /* PointDivision */
     FUNC_IMPL(PointDivision,
-              SIG((FN_ARGS((&HostType::POINT), (&Lisple::Type::NUMBER)),
+              SIG((FN_ARGS((&HostType::POINT), (&Roo::Type::NUMBER)),
                    EXEC_DISPATCH(&PointDivision::exec_divide_num))));
 
     EXEC_BODY(PointDivision, exec_divide_num)
     {
-      const Point& coord = Lisple::obj<Point>(*args.front());
+      const Point& coord = Roo::obj<Point>(*args.front());
       const float n = args.back()->f32();
 
       return PointAdapter::make_unique(coord.x / n, coord.y / n);
@@ -216,8 +216,8 @@ namespace Pixils::Script
 
     EXEC_BODY(PointPlus, exec_plus)
     {
-      return PointAdapter::make_unique(Lisple::obj<Point>(*args.front()) +
-                                       Lisple::obj<Point>(*args.back()));
+      return PointAdapter::make_unique(Roo::obj<Point>(*args.front()) +
+                                       Roo::obj<Point>(*args.back()));
     }
 
     /* PointMinus */
@@ -227,8 +227,8 @@ namespace Pixils::Script
 
     EXEC_BODY(PointMinus, exec_minus)
     {
-      return PointAdapter::make_unique(Lisple::obj<Point>(*args.front()) -
-                                       Lisple::obj<Point>(*args.back()));
+      return PointAdapter::make_unique(Roo::obj<Point>(*args.front()) -
+                                       Roo::obj<Point>(*args.back()));
     }
 
   } // namespace Function
@@ -240,7 +240,7 @@ namespace Pixils::Script
   NOBJ_PROP_GET_SET__FIELD(PointAdapter, y);
 
   PointNamespace::PointNamespace()
-    : Lisple::Namespace(std::string(NS__PIXILS__POINT))
+    : Roo::Namespace(std::string(NS__PIXILS__POINT))
   {
     values.emplace(FN__DISTANCE, Function::DistanceBetween::make());
     values.emplace(FN__CLAMP, Function::ClampPoint::make());

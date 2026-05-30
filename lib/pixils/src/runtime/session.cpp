@@ -20,56 +20,56 @@
 #include <pixils/ui/view_update.h>
 
 #include <SDL2/SDL_render.h>
-#include <lisple/exception.h>
-#include <lisple/runtime.h>
-#include <lisple/runtime/dict.h>
-#include <lisple/runtime/value.h>
+#include <roo/exception.h>
+#include <roo/runtime.h>
+#include <roo/runtime/dict.h>
+#include <roo/runtime/value.h>
 
 namespace Pixils::Runtime
 {
   namespace
   {
-    const Lisple::sptr_val KEYWORD__EVENT = Lisple::keyword("event");
-    const Lisple::sptr_val KEYWORD__ORIGIN = Lisple::keyword("origin");
-    const Lisple::sptr_val KEYWORD__POP_RESULT = Lisple::keyword("pop/result");
-    const Lisple::sptr_val KEYWORD__TARGET = Lisple::keyword("target");
-    const Lisple::sptr_val KEYWORD__THEME = Lisple::keyword("theme");
-    const Lisple::sptr_val KEYWORD__THEME_VARIANT = Lisple::keyword("theme-variant");
-    const Lisple::sptr_val KEYWORD__VIEW = Lisple::keyword("view");
+    const Roo::sptr_val KEYWORD__EVENT = Roo::keyword("event");
+    const Roo::sptr_val KEYWORD__ORIGIN = Roo::keyword("origin");
+    const Roo::sptr_val KEYWORD__POP_RESULT = Roo::keyword("pop/result");
+    const Roo::sptr_val KEYWORD__TARGET = Roo::keyword("target");
+    const Roo::sptr_val KEYWORD__THEME = Roo::keyword("theme");
+    const Roo::sptr_val KEYWORD__THEME_VARIANT = Roo::keyword("theme-variant");
+    const Roo::sptr_val KEYWORD__VIEW = Roo::keyword("view");
 
-    Session::ModeFrameMetadata parse_frame_metadata(const Lisple::sptr_val& overrides)
+    Session::ModeFrameMetadata parse_frame_metadata(const Roo::sptr_val& overrides)
     {
       Session::ModeFrameMetadata metadata;
-      if (!overrides || overrides->type == Lisple::Value::Type::NIL)
+      if (!overrides || overrides->type == Roo::Value::Type::NIL)
       {
         return metadata;
       }
 
-      auto origin = Lisple::Dict::get_property(overrides, KEYWORD__ORIGIN);
-      if (!origin || origin->type == Lisple::Value::Type::NIL)
+      auto origin = Roo::Dict::get_property(overrides, KEYWORD__ORIGIN);
+      if (!origin || origin->type == Roo::Value::Type::NIL)
       {
         return metadata;
       }
 
       if (Script::HostType::VIEW.is_type_of(*origin))
       {
-        metadata.origin_view = &Lisple::obj<View>(*origin);
+        metadata.origin_view = &Roo::obj<View>(*origin);
         return metadata;
       }
 
-      if (origin->type != Lisple::Value::Type::MAP)
+      if (origin->type != Roo::Value::Type::MAP)
       {
         return metadata;
       }
 
-      auto view = Lisple::Dict::get_property(origin, KEYWORD__VIEW);
+      auto view = Roo::Dict::get_property(origin, KEYWORD__VIEW);
       if (view && Script::HostType::VIEW.is_type_of(*view))
       {
-        metadata.origin_view = &Lisple::obj<View>(*view);
+        metadata.origin_view = &Roo::obj<View>(*view);
       }
 
-      auto event = Lisple::Dict::get_property(origin, KEYWORD__EVENT);
-      if (event && event->type != Lisple::Value::Type::NIL)
+      auto event = Roo::Dict::get_property(origin, KEYWORD__EVENT);
+      if (event && event->type != Roo::Value::Type::NIL)
       {
         metadata.origin_event = event;
       }
@@ -117,9 +117,9 @@ namespace Pixils::Runtime
       }
     }
 
-    View* resolve_target_view(const Lisple::sptr_val& value)
+    View* resolve_target_view(const Roo::sptr_val& value)
     {
-      if (!value || value->type == Lisple::Value::Type::NIL)
+      if (!value || value->type == Roo::Value::Type::NIL)
       {
         return nullptr;
       }
@@ -129,7 +129,7 @@ namespace Pixils::Runtime
         return nullptr;
       }
 
-      return &Lisple::obj<View>(*value);
+      return &Roo::obj<View>(*value);
     }
 
     bool focus_target_view(const std::shared_ptr<View>& root,
@@ -159,25 +159,25 @@ namespace Pixils::Runtime
     Point current_mouse_pos(const HookArguments& hook_args)
     {
       if (!hook_args.events || !hook_args.events->mouse_pos ||
-          hook_args.events->mouse_pos->type == Lisple::Value::Type::NIL)
+          hook_args.events->mouse_pos->type == Roo::Value::Type::NIL)
       {
         return {0.0f, 0.0f};
       }
 
-      return Lisple::obj<Point>(*hook_args.events->mouse_pos);
+      return Roo::obj<Point>(*hook_args.events->mouse_pos);
     }
 
     void dispatch_event_along_path(const std::vector<std::shared_ptr<View>>& path,
                                    const CustomEvent& event,
-                                   const Lisple::sptr_val& view_ctx,
-                                   Lisple::Runtime& runtime)
+                                   const Roo::sptr_val& view_ctx,
+                                   Roo::Runtime& runtime)
     {
       std::vector<CustomEvent> events = {event};
       auto hook_ctx = view_ctx;
 
       for (size_t i = 0; i < path.size() && !events.empty(); i++)
       {
-        Lisple::sptr_val* parent_state = i + 1 < path.size() ? &path[i + 1]->state : nullptr;
+        Roo::sptr_val* parent_state = i + 1 < path.size() ? &path[i + 1]->state : nullptr;
         Runtime::View* parent_view = i + 1 < path.size() ? path[i + 1].get() : nullptr;
         events = UI::process_view_events(*path[i],
                                          parent_state,
@@ -188,30 +188,30 @@ namespace Pixils::Runtime
       }
     }
 
-    Lisple::sptr_val resolve_mode_value(const Lisple::sptr_val& modes,
+    Roo::sptr_val resolve_mode_value(const Roo::sptr_val& modes,
                                         const std::string& mode_name)
     {
-      auto mode = Lisple::Dict::get_property(modes, Lisple::symbol(mode_name));
-      if (!mode || mode->type == Lisple::Value::Type::NIL)
+      auto mode = Roo::Dict::get_property(modes, Roo::symbol(mode_name));
+      if (!mode || mode->type == Roo::Value::Type::NIL)
       {
-        throw Lisple::InvocationException("Unknown mode '" + mode_name + "'");
+        throw Roo::InvocationException("Unknown mode '" + mode_name + "'");
       }
 
       if (!Script::HostType::MODE.is_type_of(*mode))
       {
-        throw Lisple::InvocationException("Identifier '" + mode_name +
+        throw Roo::InvocationException("Identifier '" + mode_name +
                                           "' resolved to non-mode value");
       }
 
       return mode;
     }
 
-    std::optional<UI::Theme> lookup_theme(Lisple::Runtime& runtime, const std::string& name)
+    std::optional<UI::Theme> lookup_theme(Roo::Runtime& runtime, const std::string& name)
     {
       auto themes = runtime.lookup(Script::ID__PIXILS__THEMES);
-      auto theme_val = Lisple::Dict::get_property(themes, Lisple::symbol(name));
-      if (!theme_val || theme_val->type == Lisple::Value::Type::NIL) return std::nullopt;
-      return Lisple::obj<UI::Theme>(*theme_val);
+      auto theme_val = Roo::Dict::get_property(themes, Roo::symbol(name));
+      if (!theme_val || theme_val->type == Roo::Value::Type::NIL) return std::nullopt;
+      return Roo::obj<UI::Theme>(*theme_val);
     }
 
     void invalidate_style_tree(const std::shared_ptr<View>& view)
@@ -228,21 +228,21 @@ namespace Pixils::Runtime
 
   } // namespace
 
-  Session::Session(Lisple::Runtime& lisple_runtime,
+  Session::Session(Roo::Runtime& roo_runtime,
                    Asset::Registry& assets,
                    RenderContext& render_ctx,
                    const HookArguments& hook_args)
-    : lisple_runtime(lisple_runtime)
+    : roo_runtime(roo_runtime)
     , assets(assets)
     , render_ctx(render_ctx)
-    , mode_stack(lisple_runtime.lookup(Script::ID__PIXILS__MODE_STACK),
-                 lisple_runtime.lookup(Script::ID__PIXILS__MODE_STACK_MESSAGES))
-    , modes(lisple_runtime.lookup(Script::ID__PIXILS__MODES))
+    , mode_stack(roo_runtime.lookup(Script::ID__PIXILS__MODE_STACK),
+                 roo_runtime.lookup(Script::ID__PIXILS__MODE_STACK_MESSAGES))
+    , modes(roo_runtime.lookup(Script::ID__PIXILS__MODES))
     , hook_args(hook_args)
   {
   }
 
-  void Session::pop_mode(const Lisple::sptr_val& payload)
+  void Session::pop_mode(const Roo::sptr_val& payload)
   {
     PIXILS_BENCHMARK_COUNT(runtime_pop_mode_calls);
 
@@ -260,7 +260,7 @@ namespace Pixils::Runtime
 
       /**
        * Restore active_mode from the context stack. Then re-sync
-       * state from the Lisple stack (which holds the authoritative
+       * state from the Roo stack (which holds the authoritative
        * saved state) and restore each child's state slice from that
        * parent state.
        */
@@ -276,10 +276,10 @@ namespace Pixils::Runtime
       }
       focus_state = frame_meta.restore_focus;
 
-      auto pop_event_key = frame_meta.origin_event->type != Lisple::Value::Type::NIL
+      auto pop_event_key = frame_meta.origin_event->type != Roo::Value::Type::NIL
                              ? frame_meta.origin_event
                              : KEYWORD__POP_RESULT;
-      auto pop_event_source_mode = Lisple::symbol(popped_mode->name);
+      auto pop_event_source_mode = Roo::symbol(popped_mode->name);
       std::vector<std::shared_ptr<View>> path;
 
       if (frame_meta.origin_view &&
@@ -287,19 +287,19 @@ namespace Pixils::Runtime
       {
         dispatch_event_along_path(path,
                                   CustomEvent(pop_event_key,
-                                              payload ? payload : Lisple::Constant::NIL,
+                                              payload ? payload : Roo::Constant::NIL,
                                               pop_event_source_mode),
                                   hook_args.update_args[1],
-                                  lisple_runtime);
+                                  roo_runtime);
       }
       else if (active_mode)
       {
         dispatch_event_along_path({active_mode},
                                   CustomEvent(pop_event_key,
-                                              payload ? payload : Lisple::Constant::NIL,
+                                              payload ? payload : Roo::Constant::NIL,
                                               pop_event_source_mode),
                                   hook_args.update_args[1],
-                                  lisple_runtime);
+                                  roo_runtime);
       }
 
       mode_stack.update_state(active_mode->state);
@@ -312,22 +312,22 @@ namespace Pixils::Runtime
     }
   }
 
-  void Session::push_mode(const Lisple::sptr_val& mode,
-                          const Lisple::sptr_val& state,
-                          const Lisple::sptr_val& overrides)
+  void Session::push_mode(const Roo::sptr_val& mode,
+                          const Roo::sptr_val& state,
+                          const Roo::sptr_val& overrides)
   {
     PIXILS_BENCHMARK_COUNT(runtime_push_mode_calls);
 
     std::optional<UI::Theme> inherited_theme = resolved_application_theme;
     /**
-     * Flush the current active context's state to the Lisple stack before pushing,
+     * Flush the current active context's state to the Roo stack before pushing,
      * then save the context itself so pop_mode can recover it cheaply.
      */
     if (mode_stack.size() > 0)
     {
       inherited_theme = UI::resolve_effective_theme(
         active_mode,
-        lisple_runtime,
+        roo_runtime,
         active_mode->inherited_theme ? &*active_mode->inherited_theme : nullptr);
       mode_stack.update_state(active_mode->state);
       ctx_stack.push_back(std::move(active_mode));
@@ -338,14 +338,14 @@ namespace Pixils::Runtime
     focus_state.clear();
     this->mode_stack.push(mode, state);
 
-    auto& mode_obj = Lisple::obj<Mode>(*mode);
+    auto& mode_obj = Roo::obj<Mode>(*mode);
 
-    active_mode = Pixils::UI::build_root_view(mode_obj, state, overrides, lisple_runtime);
+    active_mode = Pixils::UI::build_root_view(mode_obj, state, overrides, roo_runtime);
     active_mode->inherited_theme = inherited_theme;
 
     this->hook_args.update_state(state);
 
-    Pixils::UI::init_root_view(assets, lisple_runtime, hook_args.init_args[1], active_mode);
+    Pixils::UI::init_root_view(assets, roo_runtime, hook_args.init_args[1], active_mode);
     this->hook_args.update_state(active_mode->state);
 
     /**
@@ -356,12 +356,12 @@ namespace Pixils::Runtime
     for (const auto& slot : active_mode->mode->children)
     {
       this->active_mode->children.push_back(
-        Pixils::UI::build_view_tree(slot, modes, lisple_runtime));
+        Pixils::UI::build_view_tree(slot, modes, roo_runtime));
       this->active_mode->mark_children_changed();
       Pixils::UI::attach_style_view_tree(this->active_mode->children.back(),
                                          this->active_mode.get());
       parent_state = Pixils::UI::init_view_tree(assets,
-                                                lisple_runtime,
+                                                roo_runtime,
                                                 hook_args.init_args[1],
                                                 this->active_mode->children.back(),
                                                 parent_state);
@@ -372,8 +372,8 @@ namespace Pixils::Runtime
   }
 
   void Session::push_mode(const std::string& mode_name,
-                          const Lisple::sptr_val& state,
-                          const Lisple::sptr_val& overrides)
+                          const Roo::sptr_val& state,
+                          const Roo::sptr_val& overrides)
   {
     auto mode = resolve_mode_value(modes, mode_name);
     this->push_mode(mode, state, overrides);
@@ -388,13 +388,13 @@ namespace Pixils::Runtime
 
     if (application_theme || application_theme_variant)
     {
-      UI::Theme resolved = UI::default_base_theme(lisple_runtime)
+      UI::Theme resolved = UI::default_base_theme(roo_runtime)
                              .resolved_for_variant(application_theme_variant);
       if (application_theme)
       {
         for (const auto& theme_name : *application_theme)
         {
-          auto local_theme = lookup_theme(lisple_runtime, theme_name);
+          auto local_theme = lookup_theme(roo_runtime, theme_name);
           if (local_theme)
           {
             UI::overlay_theme(resolved,
@@ -404,7 +404,7 @@ namespace Pixils::Runtime
       }
 
       resolved.selected_variant = application_theme_variant;
-      Lisple::Context ctx(lisple_runtime);
+      Roo::Context ctx(roo_runtime);
       resolved_application_theme =
         Pixils::Script::resolve_theme_declarations(ctx, resolved, application_theme_variant);
     }
@@ -418,7 +418,7 @@ namespace Pixils::Runtime
       invalidate_style_tree(root);
       inherited_theme = UI::resolve_effective_theme(
         root,
-        lisple_runtime,
+        roo_runtime,
         root->inherited_theme ? &*root->inherited_theme : nullptr);
     };
 
@@ -435,7 +435,7 @@ namespace Pixils::Runtime
 
     while (true)
     {
-      Lisple::sptr_val_v messages = mode_stack.drain_messages();
+      Roo::sptr_val_v messages = mode_stack.drain_messages();
       if (messages.empty())
       {
         break;
@@ -444,26 +444,26 @@ namespace Pixils::Runtime
       for (auto& message : messages)
       {
         std::string type =
-          Lisple::Dict::get_property(message, Lisple::keyword("type"))->str();
+          Roo::Dict::get_property(message, Roo::keyword("type"))->str();
 
         if (type == "push")
         {
           mode_stack.update_state(active_mode->state);
           auto overrides_val =
-            Lisple::Dict::get_property(message, Lisple::keyword("overrides"));
-          push_mode(Lisple::Dict::get_property(message, Lisple::keyword("mode"))->str(),
-                    Lisple::Dict::get_property(message, Lisple::keyword("state")),
-                    overrides_val ? overrides_val : Lisple::Constant::NIL);
+            Roo::Dict::get_property(message, Roo::keyword("overrides"));
+          push_mode(Roo::Dict::get_property(message, Roo::keyword("mode"))->str(),
+                    Roo::Dict::get_property(message, Roo::keyword("state")),
+                    overrides_val ? overrides_val : Roo::Constant::NIL);
         }
         else if (type == "pop")
         {
-          auto payload = Lisple::Dict::get_property(message, Lisple::keyword("payload"));
-          pop_mode(payload ? payload : Lisple::Constant::NIL);
+          auto payload = Roo::Dict::get_property(message, Roo::keyword("payload"));
+          pop_mode(payload ? payload : Roo::Constant::NIL);
         }
         else if (type == "focus")
         {
           auto target =
-            resolve_target_view(Lisple::Dict::get_property(message, KEYWORD__TARGET));
+            resolve_target_view(Roo::Dict::get_property(message, KEYWORD__TARGET));
           if (focus_target_view(active_mode, focus_state, target))
           {
             focus_changed = true;
@@ -472,7 +472,7 @@ namespace Pixils::Runtime
         else if (type == "blur")
         {
           auto target =
-            resolve_target_view(Lisple::Dict::get_property(message, KEYWORD__TARGET));
+            resolve_target_view(Roo::Dict::get_property(message, KEYWORD__TARGET));
           if (!target)
           {
             focus_state.clear();
@@ -491,10 +491,10 @@ namespace Pixils::Runtime
         }
         else if (type == "theme")
         {
-          auto theme_val = Lisple::Dict::get_property(message, KEYWORD__THEME);
+          auto theme_val = Roo::Dict::get_property(message, KEYWORD__THEME);
           auto theme_names = Script::parse_theme_names(theme_val, "set-theme! theme");
           auto variant = Script::parse_theme_variant(
-            Lisple::Dict::get_property(message, KEYWORD__THEME_VARIANT),
+            Roo::Dict::get_property(message, KEYWORD__THEME_VARIANT),
             "set-theme! theme variant");
           set_application_theme(
             theme_names.empty() ? std::nullopt : std::make_optional(std::move(theme_names)),
@@ -529,20 +529,20 @@ namespace Pixils::Runtime
       size_t ctx_idx = ctx_stack.size() - i;
       Pixils::UI::layout_view_tree(ctx_stack[ctx_idx],
                                    full,
-                                   lisple_runtime,
+                                   roo_runtime,
                                    hook_args.render_args[1]);
       Pixils::UI::render_view(render_ctx,
-                              lisple_runtime,
+                              roo_runtime,
                               hook_args.render_args[1],
                               ctx_stack[ctx_idx]);
     }
 
     Pixils::UI::layout_view_tree(active_mode,
                                  full,
-                                 lisple_runtime,
+                                 roo_runtime,
                                  hook_args.render_args[1]);
     Pixils::UI::render_view(render_ctx,
-                            lisple_runtime,
+                            roo_runtime,
                             hook_args.render_args[1],
                             active_mode);
   }

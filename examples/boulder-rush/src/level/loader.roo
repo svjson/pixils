@@ -1,5 +1,5 @@
 (ns boulder-rush.level.loader
-  (:require [lisple.io :as io]
+  (:require [roo.io :as io]
             [pixils.tilemap.project.runtime :as project-runtime]
             [pixils.tilemap.resources :as tilemap-resources]))
 

@@ -3,7 +3,7 @@
 
 #include <SDL2/SDL_keycode.h>
 #include <gtest/gtest.h>
-#include <lisple/runtime/value.h>
+#include <roo/runtime/value.h>
 
 using namespace ::testing;
 
@@ -17,14 +17,14 @@ TEST_F(SessionHooksTest, push_mode_with_no_hooks_does_not_crash)
   runtime.eval("(pixils/defmode test-mode {})");
 
   // Then
-  EXPECT_NO_THROW(session.push_mode("test-mode", Lisple::Constant::NIL));
+  EXPECT_NO_THROW(session.push_mode("test-mode", Roo::Constant::NIL));
 }
 
 TEST_F(SessionHooksTest, push_mode_with_no_init_hook_preserves_initial_state)
 {
   // Given
   runtime.eval("(pixils/defmode stateless-mode {})");
-  auto initial_state = Lisple::number(100);
+  auto initial_state = Roo::number(100);
 
   // When
   session.push_mode("stateless-mode", initial_state);
@@ -37,7 +37,7 @@ TEST_F(SessionHooksTest, update_mode_with_no_update_hook_preserves_state)
 {
   // Given
   runtime.eval("(pixils/defmode test-mode {})");
-  auto initial_state = Lisple::number(42);
+  auto initial_state = Roo::number(42);
   session.push_mode("test-mode", initial_state);
 
   // When
@@ -52,7 +52,7 @@ TEST_F(SessionHooksTest, update_mode_with_symbol_reference_to_callable_is_invoke
   // Given
   runtime.eval("(defun count-update! [state ctx] 99)");
   runtime.eval("(pixils/defmode counting-mode {:update count-update!})");
-  session.push_mode("counting-mode", Lisple::number(0));
+  session.push_mode("counting-mode", Roo::number(0));
 
   // When
   session.update_mode();
@@ -65,7 +65,7 @@ TEST_F(SessionHooksTest, update_mode_with_callable_hook_is_invoked)
 {
   // Given
   runtime.eval("(pixils/defmode counting-mode {:update (fn [state ctx] 99)})");
-  session.push_mode("counting-mode", Lisple::number(0));
+  session.push_mode("counting-mode", Roo::number(0));
 
   // When
   session.update_mode();
@@ -80,7 +80,7 @@ TEST_F(SessionHooksTest, push_mode_with_callable_init_hook_is_invoked)
   runtime.eval("(pixils/defmode init-mode {:init (fn [state ctx] 77)})");
 
   // When
-  session.push_mode("init-mode", Lisple::Constant::NIL);
+  session.push_mode("init-mode", Roo::Constant::NIL);
 
   // Then
   EXPECT_TRUE(session.active_mode->state->is_number(77));
@@ -93,7 +93,7 @@ TEST_F(SessionHooksTest, push_mode_with_symbol_init_hook_resolves_and_invokes)
   runtime.eval("(pixils/defmode symbol-mode {:init 'test/my-init})");
 
   // When
-  session.push_mode("symbol-mode", Lisple::Constant::NIL);
+  session.push_mode("symbol-mode", Roo::Constant::NIL);
 
   // Then
   EXPECT_TRUE(session.active_mode->state->is_number(55));
@@ -106,12 +106,12 @@ TEST_F(SessionHooksTest, push_mode_with_symbol_content_size_hook_resolves)
   runtime.eval("(pixils/defmode symbol-mode {:content-size 'test/my-content-size})");
 
   // When
-  session.push_mode("symbol-mode", Lisple::Constant::NIL);
+  session.push_mode("symbol-mode", Roo::Constant::NIL);
 
   // Then
   ASSERT_NE(session.active_mode, nullptr);
   ASSERT_NE(session.active_mode->mode, nullptr);
-  EXPECT_EQ(session.active_mode->mode->content_size->type, Lisple::Value::Type::FUNCTION);
+  EXPECT_EQ(session.active_mode->mode->content_size->type, Roo::Value::Type::FUNCTION);
 }
 
 TEST_F(SessionHooksTest, root_mode_on_key_down_hook_is_invoked)
@@ -124,7 +124,7 @@ TEST_F(SessionHooksTest, root_mode_on_key_down_hook_is_invoked)
                       (assoc (assoc state :last-key (:key event))
                              :count (+ (:count state) 1)))})
   )");
-  session.push_mode("key-mode", Lisple::Constant::NIL);
+  session.push_mode("key-mode", Roo::Constant::NIL);
 
   // When
   input().key_down(SDLK_SPACE);
@@ -144,7 +144,7 @@ TEST_F(SessionHooksTest, root_mode_on_key_up_hook_is_invoked)
                     (assoc (assoc state :last-key (:key event))
                            :count (+ (:count state) 1)))})
   )");
-  session.push_mode("key-mode", Lisple::Constant::NIL);
+  session.push_mode("key-mode", Roo::Constant::NIL);
 
   // When
   input().key_down(SDLK_SPACE);
@@ -168,7 +168,7 @@ TEST_F(SessionHooksTest, root_mode_action_map_emits_matching_action_event)
                                     :last-payload (:payload event)))}})
   )");
 
-  session.push_mode("action-mode", Lisple::Constant::NIL);
+  session.push_mode("action-mode", Roo::Constant::NIL);
 
   input().key_down(SDLK_F2);
   session.update_mode();
@@ -197,7 +197,7 @@ TEST_F(SessionHooksTest, focused_child_stopping_key_down_prevents_action_map_dis
                    :state (pixils.ui/bind-state :child)}]})
   )");
 
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
   session.active_mode->bounds = {0, 0, 200, 200};
   session.active_mode->children[0]->bounds = {20, 20, 100, 100};
 
@@ -221,7 +221,7 @@ TEST_F(SessionHooksTest, root_mode_action_map_matches_modifier_vector_shortcuts)
                           (assoc state :tag :matched))}})
   )");
 
-  session.push_mode("action-mode", Lisple::Constant::NIL);
+  session.push_mode("action-mode", Roo::Constant::NIL);
 
   input().key_down(SDLK_LSHIFT);
   input().clear_transients();
@@ -247,7 +247,7 @@ TEST_F(SessionHooksTest, ui_children_returns_child_views_for_view_and_hook_conte
        :children [{:mode 'child-mode}]})
   )");
 
-  session.push_mode("parent-mode", Lisple::Constant::NIL);
+  session.push_mode("parent-mode", Roo::Constant::NIL);
   session.update_mode();
 
   EXPECT_EQ(session.active_mode->state->to_string(),
@@ -264,7 +264,7 @@ TEST_F(SessionHooksTest, root_mode_on_key_held_function_is_invoked_once_per_fram
                       (assoc (assoc state :held-count (count (:held-keys event)))
                              :count (+ (:count state) 1)))})
   )");
-  session.push_mode("key-mode", Lisple::Constant::NIL);
+  session.push_mode("key-mode", Roo::Constant::NIL);
 
   // When
   input().key_down(SDLK_LCTRL);
@@ -287,7 +287,7 @@ TEST_F(SessionHooksTest, root_mode_on_key_held_map_prefers_more_specific_combo_m
                      [:key/left-ctrl :key/space] (fn [state event ctx]
                                                    (assoc state :tag :combo))}})
   )");
-  session.push_mode("key-mode", Lisple::Constant::NIL);
+  session.push_mode("key-mode", Roo::Constant::NIL);
 
   // When
   input().key_down(SDLK_LCTRL);
@@ -309,7 +309,7 @@ TEST_F(SessionHooksTest, keyboard_event_to_text_appends_printable_text_in_key_do
                         (assoc state :value (str (:value state) text))
                         state))})
   )");
-  session.push_mode("key-mode", Lisple::Constant::NIL);
+  session.push_mode("key-mode", Roo::Constant::NIL);
 
   input().key_down(SDLK_a);
   session.update_mode();
@@ -327,7 +327,7 @@ TEST_F(SessionHooksTest, keyboard_event_to_text_handles_shifted_and_punctuation_
                         (assoc state :value (str (:value state) text))
                         state))})
   )");
-  session.push_mode("key-mode", Lisple::Constant::NIL);
+  session.push_mode("key-mode", Roo::Constant::NIL);
 
   input().key_down(SDLK_LSHIFT);
   input().clear_transients();
@@ -357,7 +357,7 @@ TEST_F(SessionHooksTest, keyboard_event_to_text_handles_mode_key_as_altgr)
                         (assoc state :value (str (:value state) text))
                         state))})
   )");
-  session.push_mode("key-mode", Lisple::Constant::NIL);
+  session.push_mode("key-mode", Roo::Constant::NIL);
 
   input().key_down(SDLK_MODE);
   input().clear_transients();
@@ -385,7 +385,7 @@ TEST_F(SessionHooksTest, focused_child_mode_on_key_down_bubbles_to_root_mode)
                    :id "child"
                    :state (pixils.ui/bind-state :child)}]})
   )");
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
   session.active_mode->bounds = {0, 0, 200, 200};
   session.active_mode->children[0]->bounds = {20, 20, 100, 100};
 
@@ -420,7 +420,7 @@ TEST_F(SessionHooksTest, child_mode_focused_in_init_receives_key_down)
                    :state (pixils.ui/bind-state :child)}]})
   )");
 
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
   update_cycle();
 
   ASSERT_TRUE(session.focus_state.has_focus());
@@ -453,7 +453,7 @@ TEST_F(SessionHooksTest, focused_child_key_stop_propagation_prevents_root_key_ho
                    :id "child"
                    :state (pixils.ui/bind-state :child)}]})
   )");
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
   session.active_mode->bounds = {0, 0, 200, 200};
   session.active_mode->children[0]->bounds = {20, 20, 100, 100};
 
@@ -487,7 +487,7 @@ TEST_F(SessionHooksTest, focused_child_mode_on_key_held_bubbles_to_root_mode)
                    :id "child"
                    :state (pixils.ui/bind-state :child)}]})
   )");
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
   session.active_mode->bounds = {0, 0, 200, 200};
   session.active_mode->children[0]->bounds = {20, 20, 100, 100};
 

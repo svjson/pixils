@@ -7,8 +7,8 @@
 #include <SDL2/SDL_mouse.h>
 #include <filesystem>
 #include <gtest/gtest.h>
-#include <lisple/runtime/dict.h>
-#include <lisple/runtime/seq.h>
+#include <roo/runtime/dict.h>
+#include <roo/runtime/seq.h>
 
 namespace AppFixture = Pixils::Test::AppFixture;
 using Pixils::Runtime::View;
@@ -27,7 +27,7 @@ namespace
     return AppFixture::AppManifest(
       {inline_unit("main-api", {}, {"(def answer 42)"})},
       {AppFixture::ManifestFile{.id = "main",
-                                .disk_path = "pixils/test/app/main.lisple",
+                                .disk_path = "pixils/test/app/main.roo",
                                 .namespace_name = "pixils.test.app.main",
                                 .unit_ids = {"main-api"}}});
   }
@@ -50,10 +50,10 @@ namespace
 
     manifest.upsert_unit(load_appfixture_unit(
       std::string(AppFixture::Minesweeper::unit_ids::overlay_button_board_mode),
-      "apps/minesweeper/components/board/test-board-mode.lisple"));
+      "apps/minesweeper/components/board/test-board-mode.roo"));
     manifest.upsert_unit(load_appfixture_unit(
       std::string(AppFixture::Minesweeper::unit_ids::fixed_size_counter_status_panel),
-      "apps/minesweeper/components/status-panel/empty-status-panel.lisple"));
+      "apps/minesweeper/components/status-panel/empty-status-panel.roo"));
 
     return manifest;
   }
@@ -64,7 +64,7 @@ namespace
 
     manifest.upsert_unit(load_appfixture_unit(
       std::string(AppFixture::Minesweeper::unit_ids::implicit_fill_game_layout),
-      "apps/minesweeper/components/game-layout/board-only-game-layout.lisple"));
+      "apps/minesweeper/components/game-layout/board-only-game-layout.roo"));
 
     return manifest;
   }
@@ -75,7 +75,7 @@ namespace
 
     manifest.upsert_unit(load_appfixture_unit(
       std::string(AppFixture::Minesweeper::unit_ids::overlay_button_board_mode),
-      "apps/minesweeper/components/board/test-board-mode-one-button.lisple"));
+      "apps/minesweeper/components/board/test-board-mode-one-button.roo"));
 
     return manifest;
   }
@@ -146,25 +146,25 @@ namespace
                                 "popup-menu-inner");
   }
 
-  Lisple::sptr_val get_key(const Lisple::sptr_val& target, const std::string& key)
+  Roo::sptr_val get_key(const Roo::sptr_val& target, const std::string& key)
   {
-    return Lisple::Dict::get_property(target, Lisple::keyword(key));
+    return Roo::Dict::get_property(target, Roo::keyword(key));
   }
 
-  Lisple::sptr_val get_index(const Lisple::sptr_val& target, size_t index)
+  Roo::sptr_val get_index(const Roo::sptr_val& target, size_t index)
   {
     if (!target) return nullptr;
-    return Lisple::get_child(*target, index);
+    return Roo::get_child(*target, index);
   }
 
-  void expect_nil_key(const Lisple::sptr_val& target, const std::string& key)
+  void expect_nil_key(const Roo::sptr_val& target, const std::string& key)
   {
     auto value = get_key(target, key);
     ASSERT_NE(value, nullptr);
     EXPECT_EQ(value->to_string(), "nil");
   }
 
-  void expect_key_string(const Lisple::sptr_val& target,
+  void expect_key_string(const Roo::sptr_val& target,
                          const std::string& key,
                          const std::string& expected_value)
   {
@@ -173,7 +173,7 @@ namespace
     EXPECT_EQ(value->to_string(), expected_value);
   }
 
-  void expect_int_key(const Lisple::sptr_val& target,
+  void expect_int_key(const Roo::sptr_val& target,
                       const std::string& key,
                       int expected_value)
   {
@@ -182,7 +182,7 @@ namespace
     EXPECT_EQ(value->num().get_int(), expected_value);
   }
 
-  int count_flagged_cells(const Lisple::sptr_val& board_mask)
+  int count_flagged_cells(const Roo::sptr_val& board_mask)
   {
     if (!board_mask) return 0;
 
@@ -209,7 +209,7 @@ class ComposedAppRuntimeTest : public ComposableAppSessionFixture
  protected:
   void load_bootstrap_app()
   {
-    load_app(bootstrap_manifest(), "pixils.test.app.main", {"pixils/test/app/main.lisple"});
+    load_app(bootstrap_manifest(), "pixils.test.app.main", {"pixils/test/app/main.roo"});
     EXPECT_EQ(eval("pixils.test.app.main/answer")->num().get_int(), 42);
   }
 
@@ -304,7 +304,7 @@ TEST_F(ComposedAppRuntimeTest, session_builds_expected_initial_view_tree_for_com
   )");
 
   // When
-  session().push_mode("root-mode", Lisple::Constant::NIL);
+  session().push_mode("root-mode", Roo::Constant::NIL);
 
   // Then
   ASSERT_NE(session().active_mode, nullptr);
@@ -339,7 +339,7 @@ TEST_F(ComposedAppRuntimeTest, session_assigns_expected_bounds_for_explicit_view
   ASSERT_EQ(frame_size(), (Pixils::Dimension{320, 200}));
 
   // When
-  session().push_mode("root-mode", Lisple::Constant::NIL);
+  session().push_mode("root-mode", Roo::Constant::NIL);
   render_cycle();
 
   // Then
@@ -1505,7 +1505,7 @@ TEST_F(ComposedAppRuntimeTest,
   // Given
   use_default_frame_size();
   load_reduced_minesweeper_app();
-  session().push_mode("game-layout-mode", Lisple::Constant::NIL);
+  session().push_mode("game-layout-mode", Roo::Constant::NIL);
   render_cycle();
 
   ASSERT_NE(session().active_mode, nullptr);
@@ -1544,7 +1544,7 @@ TEST_F(ComposedAppRuntimeTest,
   // Given
   use_default_frame_size();
   load_board_only_reduced_minesweeper_app();
-  session().push_mode("game-layout-mode", Lisple::Constant::NIL);
+  session().push_mode("game-layout-mode", Roo::Constant::NIL);
   render_cycle();
 
   ASSERT_NE(session().active_mode, nullptr);
@@ -1583,7 +1583,7 @@ TEST_F(ComposedAppRuntimeTest,
   // Given
   use_default_frame_size();
   load_one_button_board_reduced_minesweeper_app();
-  session().push_mode("game-layout-mode", Lisple::Constant::NIL);
+  session().push_mode("game-layout-mode", Roo::Constant::NIL);
   render_cycle();
 
   ASSERT_NE(session().active_mode, nullptr);

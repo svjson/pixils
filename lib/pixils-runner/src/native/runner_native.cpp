@@ -5,13 +5,13 @@
 
 #include <SDL2/SDL.h>
 #include <filesystem>
-#include <lisple-package/manifest.h>
-#include <lisple-package/native_abi.h>
-#include <lisple/exec.h>
-#include <lisple/io/dir_root_file_system.h>
-#include <lisple/namespace.h>
-#include <lisple/runtime/dict.h>
-#include <lisple/runtime/value.h>
+#include <roo-package/manifest.h>
+#include <roo-package/native_abi.h>
+#include <roo/exec.h>
+#include <roo/io/dir_root_file_system.h>
+#include <roo/namespace.h>
+#include <roo/runtime/dict.h>
+#include <roo/runtime/value.h>
 #include <memory>
 #include <optional>
 #include <string>
@@ -23,7 +23,7 @@ namespace
   {
     std::filesystem::path asset_base_path;
     std::vector<std::string> load_path;
-    std::vector<Lisple::NamespaceRoot> namespace_roots;
+    std::vector<Roo::NamespaceRoot> namespace_roots;
     std::vector<std::string> source_files;
     std::vector<std::string> entry_points;
   };
@@ -33,12 +33,12 @@ namespace
   const std::vector<std::filesystem::path>& directory_entrypoint_candidates()
   {
     static const std::vector<std::filesystem::path> candidates{
-      "core.lisple",
-      "src/core.lisple",
-      "main.lisple",
-      "src/main.lisple",
-      "game.lisple",
-      "src/game.lisple",
+      "core.roo",
+      "src/core.roo",
+      "main.roo",
+      "src/main.roo",
+      "game.roo",
+      "src/game.roo",
     };
     return candidates;
   }
@@ -69,10 +69,10 @@ namespace
 
   LaunchTarget package_launch_target(const std::filesystem::path& package_root)
   {
-    Lisple::DirRootFileSystem manifest_fs("/");
+    Roo::DirRootFileSystem manifest_fs("/");
     auto manifest =
-      Lisple::Package::read_manifest(manifest_fs, (package_root / "package.edn").string());
-    auto plan = Lisple::Package::resolve_load_plan(manifest_fs, package_root.string());
+      Roo::Package::read_manifest(manifest_fs, (package_root / "package.edn").string());
+    auto plan = Roo::Package::resolve_load_plan(manifest_fs, package_root.string());
     auto asset_base_path = package_root;
     if (!manifest.load_roots.empty())
     {
@@ -82,7 +82,7 @@ namespace
     LaunchTarget target{
       .asset_base_path = asset_base_path,
       .load_path =
-        Lisple::Package::merge_load_paths(plan,
+        Roo::Package::merge_load_paths(plan,
                                           {std::filesystem::current_path().string(), "/"}),
       .namespace_roots = plan.namespace_roots,
       .source_files = {},
@@ -124,17 +124,17 @@ namespace
     return script_launch_target(*script_path);
   }
 
-  std::string required_context_string(const Lisple::sptr_val& context,
+  std::string required_context_string(const Roo::sptr_val& context,
                                       const std::string& key)
   {
-    auto value = Lisple::Dict::get_property(context, Lisple::keyword(key));
-    if (!value || value->type == Lisple::Value::Type::NIL)
+    auto value = Roo::Dict::get_property(context, Roo::keyword(key));
+    if (!value || value->type == Roo::Value::Type::NIL)
     {
-      throw Lisple::InvocationException("pixils.runner/run missing context key :" + key);
+      throw Roo::InvocationException("pixils.runner/run missing context key :" + key);
     }
-    if (value->type != Lisple::Value::Type::STRING)
+    if (value->type != Roo::Value::Type::STRING)
     {
-      throw Lisple::TypeError("pixils.runner/run context key :" + key + " must be a string");
+      throw Roo::TypeError("pixils.runner/run context key :" + key + " must be a string");
     }
     return value->str();
   }
@@ -145,14 +145,14 @@ namespace
     if (!opt_ctx.has_value())
     {
       SDL_Quit();
-      throw Lisple::InvocationException("Failed to initialize SDL.");
+      throw Roo::InvocationException("Failed to initialize SDL.");
     }
 
     try
     {
       Pixils::RenderContext ctx = std::move(*opt_ctx);
 
-      Lisple::Runtime runtime = Pixils::init_lisple_runtime(
+      Roo::Runtime runtime = Pixils::init_roo_runtime(
         ctx,
         "main",
         [&target](Pixils::RuntimeConfiguration* cfg)
@@ -181,7 +181,7 @@ namespace
     SDL_Quit();
   }
 
-  int load_native_package(const LispleNativeHostV1* host);
+  int load_native_package(const RooNativeHostV1* host);
   void unload_native_package();
   const char* last_error();
 
@@ -190,7 +190,7 @@ namespace
     FUNC(RunBangFunction, run);
 
     FUNC_IMPL(RunBangFunction,
-              SIG((FN_ARGS((&Lisple::Type::MAP)),
+              SIG((FN_ARGS((&Roo::Type::MAP)),
                    EXEC_DISPATCH(&RunBangFunction::exec_run))));
 
     EXEC_BODY(RunBangFunction, exec_run)
@@ -199,31 +199,31 @@ namespace
       auto target = resolve_launch_target(package_root);
       if (!target.has_value())
       {
-        throw Lisple::InvocationException("No Pixils launch target found for package '" +
+        throw Roo::InvocationException("No Pixils launch target found for package '" +
                                           package_root + "'.");
       }
 
       run_target(*target);
-      return Lisple::Constant::NIL;
+      return Roo::Constant::NIL;
     }
   } // namespace Function
 
-  class RunnerNativeNamespace : public Lisple::Namespace
+  class RunnerNativeNamespace : public Roo::Namespace
   {
    public:
     RunnerNativeNamespace()
-      : Lisple::Namespace("pixils.runner.native")
+      : Roo::Namespace("pixils.runner.native")
     {
       values.emplace("run!", Function::RunBangFunction::make());
     }
   };
 
-  int load_native_package(const LispleNativeHostV1* host)
+  int load_native_package(const RooNativeHostV1* host)
   {
     try
     {
       auto ns = std::make_unique<RunnerNativeNamespace>();
-      ns->set_origin(Lisple::Namespace::Origin::native());
+      ns->set_origin(Roo::Namespace::Origin::native());
       if (host->register_namespace(host->user, ns.release()) != 0)
       {
         return 1;
@@ -248,14 +248,14 @@ namespace
   }
 } // namespace
 
-extern "C" LISPLE_NATIVE_EXPORT const LispleNativePackageV1* lisple_native_package_v1()
+extern "C" ROO_NATIVE_EXPORT const RooNativePackageV1* roo_native_package_v1()
 {
-  static const LispleNativePackageV1 package{
-    LISPLE_NATIVE_ABI_VERSION,
-    sizeof(LispleNativePackageV1),
+  static const RooNativePackageV1 package{
+    ROO_NATIVE_ABI_VERSION,
+    sizeof(RooNativePackageV1),
     "pixils-runner-native",
     "0.1.0",
-    LISPLE_NATIVE_CXX_ABI,
+    ROO_NATIVE_CXX_ABI,
     load_native_package,
     unload_native_package,
     last_error,

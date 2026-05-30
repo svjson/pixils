@@ -8,10 +8,10 @@
 #include <pixils/ui/view_events.h>
 #include <pixils/ui/view_update.h>
 
-#include <lisple/runtime.h>
-#include <lisple/runtime/dict.h>
-#include <lisple/runtime/seq.h>
-#include <lisple/runtime/value.h>
+#include <roo/runtime.h>
+#include <roo/runtime/dict.h>
+#include <roo/runtime/seq.h>
+#include <roo/runtime/value.h>
 
 namespace Pixils::Runtime
 {
@@ -33,19 +33,19 @@ namespace Pixils::Runtime
       auto view = ctx_stack[ctx_idx];
       View& ctx = *view;
 
-      Lisple::sptr_val_v rargs = this->hook_args.update_args;
+      Roo::sptr_val_v rargs = this->hook_args.update_args;
       auto ctx_parent_state = ctx.state;
       emitted_events = UI::process_view_events(ctx,
                                                &ctx_parent_state,
                                                nullptr,
                                                rargs.back(),
                                                emitted_events,
-                                               lisple_runtime);
+                                               roo_runtime);
       rargs[0] = ctx.state;
-      if (ctx.mode->update && ctx.mode->update->type != Lisple::Value::Type::NIL)
+      if (ctx.mode->update && ctx.mode->update->type != Roo::Value::Type::NIL)
       {
         ctx.set_state_if_changed(
-          invoke_hook(lisple_runtime, view, ctx.mode->update, rargs, ctx.state));
+          invoke_hook(roo_runtime, view, ctx.mode->update, rargs, ctx.state));
       }
       mode_stack.update_state(ctx.state, update_stack.size() - i);
 
@@ -58,7 +58,7 @@ namespace Pixils::Runtime
                                            focus_state,
                                            *hook_args.events,
                                            hook_args,
-                                           lisple_runtime);
+                                           roo_runtime);
     }
 
     /**
@@ -71,7 +71,7 @@ namespace Pixils::Runtime
                                         focus_state,
                                         *hook_args.events,
                                         hook_args,
-                                        lisple_runtime);
+                                        roo_runtime);
       Pixils::UI::sync_focus_state(active_mode, focus_state);
       Pixils::UI::refresh_view_interaction_tree(active_mode,
                                                 mouse_state,

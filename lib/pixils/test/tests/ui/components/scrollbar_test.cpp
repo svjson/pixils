@@ -1,8 +1,8 @@
 #include "../../render_fixture.h"
 
 #include <gtest/gtest.h>
-#include <lisple/runtime/dict.h>
-#include <lisple/runtime/value.h>
+#include <roo/runtime/dict.h>
+#include <roo/runtime/value.h>
 
 #include <algorithm>
 
@@ -10,10 +10,10 @@ using ScrollbarTest = RenderFixture;
 
 namespace
 {
-  Lisple::sptr_val get_state_key(const std::shared_ptr<Pixils::Runtime::View>& view,
+  Roo::sptr_val get_state_key(const std::shared_ptr<Pixils::Runtime::View>& view,
                                  const std::string& key)
   {
-    return Lisple::Dict::get_property(view->state, Lisple::keyword(key));
+    return Roo::Dict::get_property(view->state, Roo::keyword(key));
   }
 } // namespace
 
@@ -26,7 +26,7 @@ TEST_F(ScrollbarTest, scrollbar_lays_out_button_children_from_axis)
                    :state {:axis :x :content-size 100 :value 0}}]})
   )");
 
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
 
   session.update_mode();
   session.render_mode();
@@ -69,7 +69,7 @@ TEST_F(ScrollbarTest, vertical_scrollbar_shrinks_parts_when_axis_is_too_short)
                    :state {:axis :y :content-size 100 :value 0}}]})
   )");
 
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
   session.update_mode();
   session.render_mode();
 
@@ -108,7 +108,7 @@ TEST_F(ScrollbarTest, horizontal_scrollbar_shrinks_parts_when_axis_is_too_short)
                    :state {:axis :x :content-size 100 :value 0}}]})
   )");
 
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
   session.update_mode();
   session.render_mode();
 
@@ -147,7 +147,7 @@ TEST_F(ScrollbarTest, scrollbar_button_children_bubble_click_behavior_to_scrollb
                    :state {:axis :x :content-size 100 :value 0 :step 5}}]})
   )");
 
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
   session.update_mode();
   session.render_mode();
 
@@ -157,7 +157,7 @@ TEST_F(ScrollbarTest, scrollbar_button_children_bubble_click_behavior_to_scrollb
   input().mouse_down({45, 5});
   update_cycle();
 
-  auto value = Lisple::Dict::get_property(scrollbar->state, Lisple::keyword("value"));
+  auto value = Roo::Dict::get_property(scrollbar->state, Roo::keyword("value"));
   ASSERT_NE(value, nullptr);
   EXPECT_EQ(value->num().get_int(), 5);
 }
@@ -171,7 +171,7 @@ TEST_F(ScrollbarTest, proportional_handle_uses_viewport_size_for_page_ratio)
                    :state {:axis :y :content-size 400 :value 0}}]})
   )");
 
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
   session.update_mode();
   session.render_mode();
 
@@ -201,7 +201,7 @@ TEST_F(ScrollbarTest, proportional_handle_at_max_reaches_track_end)
                    :state {:axis :y :content-size 400 :value 200}}]})
   )");
 
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
   session.update_mode();
   session.render_mode();
   session.update_mode();
@@ -231,7 +231,7 @@ TEST_F(ScrollbarTest, dragging_proportional_handle_to_end_sets_max_value)
                    :state {:axis :y :content-size 400 :value 0}}]})
   )");
 
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
   session.update_mode();
   session.render_mode();
 
@@ -260,7 +260,7 @@ TEST_F(ScrollbarTest, scrollbar_handle_pressed_state_clears_after_click)
                    :state {:axis :y :content-size 400 :value 0}}]})
   )");
 
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
   session.update_mode();
   session.render_mode();
 
@@ -309,7 +309,7 @@ TEST_F(ScrollbarTest, base_theme_scrollbar_buttons_use_generated_outline_arrows)
                    :state {:axis :y :content-size 100 :value 0}}]})
   )");
 
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
   session.update_mode();
   session.render_mode();
   runtime.eval(R"(
@@ -412,7 +412,7 @@ TEST_F(ScrollbarTest, windows_95_scrollbar_buttons_use_generated_theme_symbols)
                    :state {:axis :y :content-size 100 :value 0}}]})
   )");
 
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
   session.update_mode();
   session.render_mode();
   runtime.eval(R"(
@@ -514,7 +514,7 @@ TEST_F(ScrollbarTest, windows_3_scrollbar_buttons_use_generated_theme_symbols)
                    :state {:axis :y :content-size 100 :value 0}}]})
   )");
 
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
   session.update_mode();
   session.render_mode();
   runtime.eval(R"(
@@ -642,7 +642,7 @@ TEST_F(ScrollbarTest, classic_blue_scrollbar_buttons_use_generated_theme_symbols
                    :state {:axis :y :content-size 100 :value 0}}]})
   )");
 
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
   session.update_mode();
   session.render_mode();
   runtime.eval(R"(
@@ -748,7 +748,7 @@ TEST_F(ScrollbarTest, windows_3_scrollbar_handle_uses_fixed_theme_size)
                    :state {:axis :x :content-size 400 :value 0}}]})
   )");
 
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
   session.update_mode();
   session.render_mode();
 
@@ -795,7 +795,7 @@ TEST_F(ScrollbarTest, windows_3_scrollbar_handle_stays_fixed_without_scroll_rang
                    :state {:axis :y :content-size 100 :value 0}}]})
   )");
 
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
   session.update_mode();
   session.render_mode();
 
@@ -831,7 +831,7 @@ TEST_F(ScrollbarTest, windows_95_scrollbar_handle_stays_proportional)
                    :state {:axis :y :content-size 800 :value 0}}]})
   )");
 
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
   session.update_mode();
   session.render_mode();
 
@@ -868,7 +868,7 @@ TEST_F(ScrollbarTest, windows_95_scrollbar_handle_fills_track_without_scroll_ran
                    :state {:axis :y :content-size 100 :value 0}}]})
   )");
 
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
   session.update_mode();
   session.render_mode();
 

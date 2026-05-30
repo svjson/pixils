@@ -21,11 +21,11 @@
 #include <algorithm>
 #include <chrono>
 #include <iostream>
-#include <lisple/host/object.h>
-#include <lisple/runtime.h>
-#include <lisple/runtime/dict.h>
-#include <lisple/runtime/seq.h>
-#include <lisple/runtime/value.h>
+#include <roo/host/object.h>
+#include <roo/runtime.h>
+#include <roo/runtime/dict.h>
+#include <roo/runtime/seq.h>
+#include <roo/runtime/value.h>
 #include <memory>
 #include <sstream>
 #include <vector>
@@ -52,11 +52,11 @@ namespace Pixils
     return std::max(1, 1000 / program.target_frame_rate);
   }
 
-  Client::Client(Lisple::Runtime& lisple_runtime, RenderContext& ctx, bool init_mode)
-    : lisple(lisple_runtime)
+  Client::Client(Roo::Runtime& roo_runtime, RenderContext& ctx, bool init_mode)
+    : roo(roo_runtime)
     , ctx(ctx)
     , hook_ctx{&this->events, &this->ctx}
-    , session(lisple_runtime,
+    , session(roo_runtime,
               *ctx.asset_registry,
               ctx,
               {Pixils::Script::HookContextAdapter::make_ref(this->hook_ctx)})
@@ -66,22 +66,22 @@ namespace Pixils
 
     if (init_mode)
     {
-      this->program = &Pixils::load_program(lisple_runtime, session);
+      this->program = &Pixils::load_program(roo_runtime, session);
       SDL_ShowCursor(this->program->pointer_visible ? SDL_ENABLE : SDL_DISABLE);
     }
   }
 
-  Client::Client(Lisple::Runtime& lisple_runtime, RenderContext& ctx)
-    : Client(lisple_runtime, ctx, true)
+  Client::Client(Roo::Runtime& roo_runtime, RenderContext& ctx)
+    : Client(roo_runtime, ctx, true)
   {
   }
 
-  Client::Client(Lisple::Runtime& lisple_runtime,
+  Client::Client(Roo::Runtime& roo_runtime,
                  RenderContext& ctx,
                  Runtime::Mode& root_mode)
-    : Client(lisple_runtime, ctx, false)
+    : Client(roo_runtime, ctx, false)
   {
-    session.push_mode(root_mode.name, Lisple::Constant::NIL);
+    session.push_mode(root_mode.name, Roo::Constant::NIL);
   }
 
   Client::~Client()
@@ -110,7 +110,7 @@ namespace Pixils
                                      console_font_tint,
                                      console_font_map);
 
-    this->console = std::make_unique<ConsoleOverlay>(ctx, lisple, console_font_texture);
+    this->console = std::make_unique<ConsoleOverlay>(ctx, roo, console_font_texture);
     this->stats_text_renderer =
       std::make_unique<Text::Renderer>(console_font_texture, console_font_map, 1, 2, 10);
   }
@@ -136,10 +136,10 @@ namespace Pixils
 
       ctx.begin_frame(program->get_display());
 
-      events.key_down = Lisple::Constant::NIL;
-      events.key_up = Lisple::Constant::NIL;
-      events.mouse_button_down = Lisple::Constant::NIL;
-      events.mouse_button_up = Lisple::Constant::NIL;
+      events.key_down = Roo::Constant::NIL;
+      events.key_up = Roo::Constant::NIL;
+      events.mouse_button_down = Roo::Constant::NIL;
+      events.mouse_button_up = Roo::Constant::NIL;
       events.mouse_moved = false;
 
       while (SDL_PollEvent(&event))

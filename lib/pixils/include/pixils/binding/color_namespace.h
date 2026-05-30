@@ -5,9 +5,9 @@
 #include <pixils/binding/shkey.h>
 #include <pixils/color.h>
 
-#include <lisple/exec.h>
-#include <lisple/host/object.h>
-#include <lisple/namespace.h>
+#include <roo/exec.h>
+#include <roo/host/object.h>
+#include <roo/namespace.h>
 #include <string>
 
 namespace Pixils::Script
@@ -43,13 +43,13 @@ namespace Pixils::Script
     HOST_TYPE(COLOR, "Color", std::string(FN__PIXILS__COLOR__MAKE_COLOR))
   }
 
-  /*! @brief ColorAdapter - A Lisple HostObject Adapter for Color */
+  /*! @brief ColorAdapter - A Roo HostObject Adapter for Color */
   NATIVE_ADAPTER(ColorAdapter, Color, (r, g, b, a), (r, g, b, a));
 
   namespace Function
   {
     /*!
-     * @brief Lisple Function that constructs a new instance of Color/ColorAdapter
+     * @brief Roo Function that constructs a new instance of Color/ColorAdapter
      */
     FUNC(MakeColor, make_color_map, make_color_string);
     /*!
@@ -58,7 +58,7 @@ namespace Pixils::Script
     FUNC(WithAlpha, with_alpha);
   } // namespace Function
 
-  class ColorNamespace : public Lisple::Namespace
+  class ColorNamespace : public Roo::Namespace
   {
    public:
     ColorNamespace();

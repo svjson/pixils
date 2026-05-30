@@ -6,32 +6,32 @@
 #include <SDL2/SDL_events.h>
 #include <SDL2/SDL_mouse.h>
 #include <algorithm>
-#include <lisple/runtime/seq.h>
+#include <roo/runtime/seq.h>
 
 namespace Pixils
 {
   namespace
   {
-    Lisple::sptr_val mouse_button_keyword(Uint8 button)
+    Roo::sptr_val mouse_button_keyword(Uint8 button)
     {
       switch (button)
       {
       case SDL_BUTTON_LEFT:
-        return Lisple::keyword("left");
+        return Roo::keyword("left");
       case SDL_BUTTON_RIGHT:
-        return Lisple::keyword("right");
+        return Roo::keyword("right");
       case SDL_BUTTON_MIDDLE:
-        return Lisple::keyword("middle");
+        return Roo::keyword("middle");
       default:
-        return Lisple::Constant::NIL;
+        return Roo::Constant::NIL;
       }
     }
   } // namespace
 
   FrameEvents::FrameEvents()
     : mouse_pos(Script::PointAdapter::make_unique(0.0f, 0.0f))
-    , mouse_button_down(Lisple::Constant::NIL)
-    , mouse_button_up(Lisple::Constant::NIL)
+    , mouse_button_down(Roo::Constant::NIL)
+    , mouse_button_up(Roo::Constant::NIL)
   {
   }
 
@@ -45,29 +45,29 @@ namespace Pixils
   void FrameEvents::do_mouse_button_down(const SDL_MouseButtonEvent& event)
   {
     auto btn = mouse_button_keyword(event.button);
-    if (*btn == *Lisple::Constant::NIL) return;
+    if (*btn == *Roo::Constant::NIL) return;
     mouse_button_down = btn;
     mouse_button_down_clicks = std::max<uint8_t>(event.clicks, 1);
-    Lisple::append(*mouse_held, btn);
+    Roo::append(*mouse_held, btn);
   }
 
   void FrameEvents::do_mouse_button_up(const SDL_MouseButtonEvent& event)
   {
     auto btn = mouse_button_keyword(event.button);
-    if (*btn == *Lisple::Constant::NIL) return;
+    if (*btn == *Roo::Constant::NIL) return;
     mouse_button_up = btn;
     mouse_button_up_clicks = std::max<uint8_t>(event.clicks, 1);
     auto& children = mouse_held->mut_elements();
     auto it = std::remove_if(children.begin(),
                              children.end(),
-                             [btn](const Lisple::sptr_val& hbtn) { return *btn == *hbtn; });
+                             [btn](const Roo::sptr_val& hbtn) { return *btn == *hbtn; });
     if (it != children.end()) children.erase(it);
   }
 
   void FrameEvents::do_key_down(const SDL_KeyboardEvent& event)
   {
-    auto key = Keyboard::key_event_to_lisple_key(event);
-    if (*key == *Lisple::Constant::NIL)
+    auto key = Keyboard::key_event_to_roo_key(event);
+    if (*key == *Roo::Constant::NIL)
     {
       return;
     }
@@ -77,19 +77,19 @@ namespace Pixils
       return;
     }
 
-    Lisple::append(*this->held_keys, key);
+    Roo::append(*this->held_keys, key);
     this->key_down = key;
   }
 
   void FrameEvents::do_key_up(const SDL_KeyboardEvent& event)
   {
-    auto key = Keyboard::key_event_to_lisple_key(event);
+    auto key = Keyboard::key_event_to_roo_key(event);
     key_up = key;
 
     auto& children = this->held_keys->mut_elements();
     auto it = std::remove_if(children.begin(),
                              children.end(),
-                             [key](const Lisple::sptr_val& hkey) { return *key == *hkey; });
+                             [key](const Roo::sptr_val& hkey) { return *key == *hkey; });
 
     if (it != children.end())
     {
@@ -97,12 +97,12 @@ namespace Pixils
     }
   }
 
-  bool FrameEvents::is_key_held(const Lisple::Value& key) const
+  bool FrameEvents::is_key_held(const Roo::Value& key) const
   {
     auto& children = this->held_keys->mut_elements();
     auto it = std::find_if(children.begin(),
                            children.end(),
-                           [key](const Lisple::sptr_val& hkey) { return key == *hkey; });
+                           [key](const Roo::sptr_val& hkey) { return key == *hkey; });
 
     return it != children.end();
   }

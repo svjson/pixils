@@ -1,11 +1,11 @@
 #include <pixils/binding/state_counter_namespace.h>
 
 #include <algorithm>
-#include <lisple/context.h>
-#include <lisple/exception.h>
-#include <lisple/host/schema.h>
-#include <lisple/runtime/dict.h>
-#include <lisple/runtime/value.h>
+#include <roo/context.h>
+#include <roo/exception.h>
+#include <roo/host/schema.h>
+#include <roo/runtime/dict.h>
+#include <roo/runtime/value.h>
 
 namespace Pixils::Script
 {
@@ -25,9 +25,9 @@ namespace Pixils::Script
   namespace
   {
 
-    Pixils::State::CounterMode parse_mode(const Lisple::sptr_val& mode_val)
+    Pixils::State::CounterMode parse_mode(const Roo::sptr_val& mode_val)
     {
-      if (!mode_val || mode_val->type == Lisple::Value::Type::NIL)
+      if (!mode_val || mode_val->type == Roo::Value::Type::NIL)
       {
         return Pixils::State::CounterMode::LOOP;
       }
@@ -41,27 +41,27 @@ namespace Pixils::Script
       return Pixils::State::CounterMode::LOOP;
     }
 
-    Lisple::sptr_val invoke_callback(Lisple::Context& ctx,
-                                     const Lisple::sptr_val& callback,
-                                     const Lisple::sptr_val& value)
+    Roo::sptr_val invoke_callback(Roo::Context& ctx,
+                                     const Roo::sptr_val& callback,
+                                     const Roo::sptr_val& value)
     {
-      if (!callback || callback->type == Lisple::Value::Type::NIL)
+      if (!callback || callback->type == Roo::Value::Type::NIL)
       {
         return value;
       }
 
-      Lisple::sptr_val resolved = callback;
-      if (callback->type == Lisple::Value::Type::SYMBOL)
+      Roo::sptr_val resolved = callback;
+      if (callback->type == Roo::Value::Type::SYMBOL)
       {
         resolved = ctx.lookup(callback->str());
       }
 
-      if (!resolved || resolved->type != Lisple::Value::Type::FUNCTION)
+      if (!resolved || resolved->type != Roo::Value::Type::FUNCTION)
       {
-        throw Lisple::TypeError("Counter trigger callback must be callable");
+        throw Roo::TypeError("Counter trigger callback must be callable");
       }
 
-      Lisple::sptr_val_v args = {value};
+      Roo::sptr_val_v args = {value};
       return resolved->exec().execute(ctx, args);
     }
 
@@ -96,20 +96,20 @@ namespace Pixils::Script
 
   NOBJ_PROP_GET(CounterAdapter, mode)
   {
-    return Lisple::keyword(Pixils::State::counter_mode_name(get_object().mode));
+    return Roo::keyword(Pixils::State::counter_mode_name(get_object().mode));
   }
 
   namespace Function
   {
     FUNC_IMPL(MakeCounter,
-              SIG((FN_ARGS((&Lisple::Type::MAP)), EXEC_DISPATCH(&MakeCounter::exec_make))));
+              SIG((FN_ARGS((&Roo::Type::MAP)), EXEC_DISPATCH(&MakeCounter::exec_make))));
 
-    Lisple::MapSchema counter_schema({},
-                                     {{MapKey::START, &Lisple::Type::NUMBER},
-                                      {MapKey::VALUE, &Lisple::Type::NUMBER},
-                                      {MapKey::END, &Lisple::Type::NUMBER},
-                                      {MapKey::EVERY, &Lisple::Type::NUMBER},
-                                      {MapKey::MODE, &Lisple::Type::KEYWORD}});
+    Roo::MapSchema counter_schema({},
+                                     {{MapKey::START, &Roo::Type::NUMBER},
+                                      {MapKey::VALUE, &Roo::Type::NUMBER},
+                                      {MapKey::END, &Roo::Type::NUMBER},
+                                      {MapKey::EVERY, &Roo::Type::NUMBER},
+                                      {MapKey::MODE, &Roo::Type::KEYWORD}});
 
     EXEC_BODY(MakeCounter, exec_make)
     {
@@ -132,43 +132,43 @@ namespace Pixils::Script
     EXEC_BODY(AdvanceCounter, exec_advance)
     {
       return CounterAdapter::make_unique(
-        Pixils::State::advance_counter(Lisple::obj<Pixils::State::Counter>(*args[0])));
+        Pixils::State::advance_counter(Roo::obj<Pixils::State::Counter>(*args[0])));
     }
 
     FUNC_IMPL(AdvanceCounterAt,
-              MULTI_SIG((FN_ARGS((&Lisple::Type::MAP), (&Lisple::Type::KEYWORD)),
+              MULTI_SIG((FN_ARGS((&Roo::Type::MAP), (&Roo::Type::KEYWORD)),
                          EXEC_DISPATCH(&AdvanceCounterAt::exec_advance_at)),
-                        (FN_ARGS((&Lisple::Type::MAP),
-                                 (&Lisple::Type::KEYWORD),
-                                 (&Lisple::Type::MAP)),
+                        (FN_ARGS((&Roo::Type::MAP),
+                                 (&Roo::Type::KEYWORD),
+                                 (&Roo::Type::MAP)),
                          EXEC_DISPATCH(&AdvanceCounterAt::exec_advance_at_with_triggers))));
 
     EXEC_BODY(AdvanceCounterAt, exec_advance_at)
     {
-      Lisple::sptr_val_v full_args = {args[0], args[1], Lisple::map({})};
+      Roo::sptr_val_v full_args = {args[0], args[1], Roo::map({})};
       return exec_advance_at_with_triggers(ctx, full_args);
     }
 
     EXEC_BODY(AdvanceCounterAt, exec_advance_at_with_triggers)
     {
-      auto current_counter = Lisple::Dict::get_property(args[0], args[1]);
+      auto current_counter = Roo::Dict::get_property(args[0], args[1]);
       auto advanced_counter = Pixils::State::advance_counter(
-        Lisple::obj<Pixils::State::Counter>(*current_counter));
+        Roo::obj<Pixils::State::Counter>(*current_counter));
       const bool stepped =
-        counter_stepped(Lisple::obj<Pixils::State::Counter>(*current_counter));
+        counter_stepped(Roo::obj<Pixils::State::Counter>(*current_counter));
 
-      Lisple::sptr_val_v path = {args[1]};
+      Roo::sptr_val_v path = {args[1]};
       auto updated =
-        Lisple::Dict::assoc_in(args[0], path, CounterAdapter::make_unique(advanced_counter));
+        Roo::Dict::assoc_in(args[0], path, CounterAdapter::make_unique(advanced_counter));
 
-      auto on_step = Lisple::Dict::get_property(*args[2], MapKey::ON_STEP);
-      if (stepped && on_step && on_step->type != Lisple::Value::Type::NIL)
+      auto on_step = Roo::Dict::get_property(*args[2], MapKey::ON_STEP);
+      if (stepped && on_step && on_step->type != Roo::Value::Type::NIL)
       {
         updated = invoke_callback(ctx, on_step, updated);
       }
 
-      auto on_wrap = Lisple::Dict::get_property(*args[2], MapKey::ON_WRAP);
-      if (advanced_counter.wrapped && on_wrap && on_wrap->type != Lisple::Value::Type::NIL)
+      auto on_wrap = Roo::Dict::get_property(*args[2], MapKey::ON_WRAP);
+      if (advanced_counter.wrapped && on_wrap && on_wrap->type != Roo::Value::Type::NIL)
       {
         updated = invoke_callback(ctx, on_wrap, updated);
       }
@@ -182,22 +182,22 @@ namespace Pixils::Script
 
     EXEC_BODY(CounterValue, exec_value)
     {
-      return Lisple::number(Lisple::obj<Pixils::State::Counter>(*args[0]).value);
+      return Roo::number(Roo::obj<Pixils::State::Counter>(*args[0]).value);
     }
 
     FUNC_IMPL(CounterValueAt,
-              SIG((FN_ARGS((&Lisple::Type::MAP), (&Lisple::Type::KEYWORD)),
+              SIG((FN_ARGS((&Roo::Type::MAP), (&Roo::Type::KEYWORD)),
                    EXEC_DISPATCH(&CounterValueAt::exec_value_at))));
 
     EXEC_BODY(CounterValueAt, exec_value_at)
     {
-      auto counter = Lisple::Dict::get_property(args[0], args[1]);
-      return Lisple::number(Lisple::obj<Pixils::State::Counter>(*counter).value);
+      auto counter = Roo::Dict::get_property(args[0], args[1]);
+      return Roo::number(Roo::obj<Pixils::State::Counter>(*counter).value);
     }
   } // namespace Function
 
   StateCounterNamespace::StateCounterNamespace()
-    : Lisple::Namespace(std::string(NS__PIXILS__STATE__COUNTER))
+    : Roo::Namespace(std::string(NS__PIXILS__STATE__COUNTER))
   {
     values.emplace(FN__MAKE_COUNTER, Function::MakeCounter::make());
     values.emplace(FN__ADVANCE, Function::AdvanceCounter::make());

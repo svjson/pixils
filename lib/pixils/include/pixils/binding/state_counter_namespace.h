@@ -3,9 +3,9 @@
 
 #include <pixils/state/counter.h>
 
-#include <lisple/exec.h>
-#include <lisple/host/object.h>
-#include <lisple/namespace.h>
+#include <roo/exec.h>
+#include <roo/host/object.h>
+#include <roo/namespace.h>
 #include <string>
 
 namespace Pixils::Script
@@ -37,7 +37,7 @@ namespace Pixils::Script
                  State::Counter,
                  (value, wrapped, start, end, every, phase, mode));
 
-  class StateCounterNamespace : public Lisple::Namespace
+  class StateCounterNamespace : public Roo::Namespace
   {
    public:
     StateCounterNamespace();

@@ -5,14 +5,14 @@
 
 #include <SDL2/SDL_keycode.h>
 #include <gtest/gtest.h>
-#include <lisple/runtime/dict.h>
-#include <lisple/runtime/value.h>
+#include <roo/runtime/dict.h>
+#include <roo/runtime/value.h>
 
 using NumberInputTest = RenderFixture;
 
 namespace
 {
-  void layout_active_mode(Lisple::Runtime& runtime,
+  void layout_active_mode(Roo::Runtime& runtime,
                           Pixils::Runtime::Session& session)
   {
     Pixils::UI::layout_view_tree(session.active_mode,
@@ -51,7 +51,7 @@ TEST_F(NumberInputTest, number_input_accepts_digits_and_rejects_other_text)
                                    (assoc state :last-change (:payload event)))}})
   )");
 
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
   update_cycle();
   render_cycle();
 
@@ -67,9 +67,9 @@ TEST_F(NumberInputTest, number_input_accepts_digits_and_rejects_other_text)
   update_cycle();
 
   auto amount =
-    Lisple::Dict::get_property(session.active_mode->state, Lisple::keyword("amount"));
+    Roo::Dict::get_property(session.active_mode->state, Roo::keyword("amount"));
   auto last_change =
-    Lisple::Dict::get_property(session.active_mode->state, Lisple::keyword("last-change"));
+    Roo::Dict::get_property(session.active_mode->state, Roo::keyword("last-change"));
 
   ASSERT_NE(amount, nullptr);
   ASSERT_NE(last_change, nullptr);
@@ -91,7 +91,7 @@ TEST_F(NumberInputTest, number_input_arrow_keys_step_and_clamp_bound_value)
                            :auto-focus? true}}]})
   )");
 
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
   update_cycle();
   render_cycle();
 
@@ -101,7 +101,7 @@ TEST_F(NumberInputTest, number_input_arrow_keys_step_and_clamp_bound_value)
   update_cycle();
 
   auto amount =
-    Lisple::Dict::get_property(session.active_mode->state, Lisple::keyword("amount"));
+    Roo::Dict::get_property(session.active_mode->state, Roo::keyword("amount"));
   ASSERT_NE(amount, nullptr);
   EXPECT_EQ(amount->num().get_int(), 12);
 
@@ -116,7 +116,7 @@ TEST_F(NumberInputTest, number_input_arrow_keys_step_and_clamp_bound_value)
   input().key_down(SDLK_DOWN);
   update_cycle();
 
-  amount = Lisple::Dict::get_property(session.active_mode->state, Lisple::keyword("amount"));
+  amount = Roo::Dict::get_property(session.active_mode->state, Roo::keyword("amount"));
   ASSERT_NE(amount, nullptr);
   EXPECT_EQ(amount->num().get_int(), 0);
 }

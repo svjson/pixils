@@ -8,7 +8,7 @@ namespace Pixils::Runtime
 {
   namespace
   {
-    bool rtval_equal(const Lisple::sptr_val& lhs, const Lisple::sptr_val& rhs)
+    bool rtval_equal(const Roo::sptr_val& lhs, const Roo::sptr_val& rhs)
     {
       PIXILS_BENCHMARK_COUNT(view_state_equality_checks);
       if (lhs == rhs) return true;
@@ -57,7 +57,7 @@ namespace Pixils::Runtime
     touch_subtree_generation();
   }
 
-  bool View::set_state_if_changed(const Lisple::sptr_val& next_state)
+  bool View::set_state_if_changed(const Roo::sptr_val& next_state)
   {
     if (rtval_equal(state, next_state))
     {

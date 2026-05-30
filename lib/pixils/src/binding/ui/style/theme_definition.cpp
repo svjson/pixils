@@ -4,10 +4,10 @@
 #include <pixils/binding/ui/style/style_host_type.h>
 #include <pixils/ui/theme.h>
 
-#include <lisple/context.h>
-#include <lisple/exception.h>
-#include <lisple/runtime/dict.h>
-#include <lisple/runtime/seq.h>
+#include <roo/context.h>
+#include <roo/exception.h>
+#include <roo/runtime/dict.h>
+#include <roo/runtime/seq.h>
 
 #include <set>
 
@@ -17,84 +17,84 @@ namespace Pixils::Script
 
   namespace
   {
-    std::string variant_key_name(const Lisple::sptr_val& value, const std::string& context)
+    std::string variant_key_name(const Roo::sptr_val& value, const std::string& context)
     {
-      if (!value || (value->type != Lisple::Value::Type::KEYWORD &&
-                     value->type != Lisple::Value::Type::SYMBOL))
+      if (!value || (value->type != Roo::Value::Type::KEYWORD &&
+                     value->type != Roo::Value::Type::SYMBOL))
       {
-        throw Lisple::TypeError(context + " keys must be keywords or symbols");
+        throw Roo::TypeError(context + " keys must be keywords or symbols");
       }
       return value->str();
     }
 
-    std::string parse_default_variant(const Lisple::sptr_val& value)
+    std::string parse_default_variant(const Roo::sptr_val& value)
     {
-      if (!value || value->type == Lisple::Value::Type::NIL) return "";
-      if (value->type != Lisple::Value::Type::KEYWORD &&
-          value->type != Lisple::Value::Type::SYMBOL)
+      if (!value || value->type == Roo::Value::Type::NIL) return "";
+      if (value->type != Roo::Value::Type::KEYWORD &&
+          value->type != Roo::Value::Type::SYMBOL)
       {
-        throw Lisple::TypeError("Theme :default-variant must be a keyword or symbol");
+        throw Roo::TypeError("Theme :default-variant must be a keyword or symbol");
       }
       return value->str();
     }
 
-    bool is_theme_var_ref(const Lisple::sptr_val& value)
+    bool is_theme_var_ref(const Roo::sptr_val& value)
     {
-      if (!value || value->type != Lisple::Value::Type::MAP) return false;
+      if (!value || value->type != Roo::Value::Type::MAP) return false;
       auto var_ref =
-        Lisple::Dict::get_property(value, Lisple::keyword(THEME_VAR_MARKER_KEY));
-      return var_ref && var_ref->type != Lisple::Value::Type::NIL;
+        Roo::Dict::get_property(value, Roo::keyword(THEME_VAR_MARKER_KEY));
+      return var_ref && var_ref->type != Roo::Value::Type::NIL;
     }
 
-    std::string theme_var_ref_name(const Lisple::sptr_val& value)
+    std::string theme_var_ref_name(const Roo::sptr_val& value)
     {
       auto var_ref =
-        Lisple::Dict::get_property(value, Lisple::keyword(THEME_VAR_MARKER_KEY));
-      if (!var_ref || (var_ref->type != Lisple::Value::Type::KEYWORD &&
-                       var_ref->type != Lisple::Value::Type::SYMBOL))
+        Roo::Dict::get_property(value, Roo::keyword(THEME_VAR_MARKER_KEY));
+      if (!var_ref || (var_ref->type != Roo::Value::Type::KEYWORD &&
+                       var_ref->type != Roo::Value::Type::SYMBOL))
       {
-        throw Lisple::TypeError("Theme var references must use keyword or symbol names");
+        throw Roo::TypeError("Theme var references must use keyword or symbol names");
       }
       return var_ref->str();
     }
 
-    std::map<std::string, std::map<std::string, Lisple::sptr_val>> parse_theme_vars(
-      const Lisple::sptr_val& value)
+    std::map<std::string, std::map<std::string, Roo::sptr_val>> parse_theme_vars(
+      const Roo::sptr_val& value)
     {
-      std::map<std::string, std::map<std::string, Lisple::sptr_val>> vars;
-      if (!value || value->type == Lisple::Value::Type::NIL) return vars;
-      if (value->type != Lisple::Value::Type::MAP)
+      std::map<std::string, std::map<std::string, Roo::sptr_val>> vars;
+      if (!value || value->type == Roo::Value::Type::NIL) return vars;
+      if (value->type != Roo::Value::Type::MAP)
       {
-        throw Lisple::TypeError("Theme :vars must be a map");
+        throw Roo::TypeError("Theme :vars must be a map");
       }
 
-      for (auto& variant_key : Lisple::Dict::keys(*value))
+      for (auto& variant_key : Roo::Dict::keys(*value))
       {
         auto variant_name = variant_key_name(variant_key, "Theme :vars");
-        auto variant_vars = Lisple::Dict::get_property(value, variant_key);
-        if (!variant_vars || variant_vars->type != Lisple::Value::Type::MAP)
+        auto variant_vars = Roo::Dict::get_property(value, variant_key);
+        if (!variant_vars || variant_vars->type != Roo::Value::Type::MAP)
         {
-          throw Lisple::TypeError("Theme :vars entries must be maps");
+          throw Roo::TypeError("Theme :vars entries must be maps");
         }
 
         auto& out = vars[variant_name];
-        for (auto& var_key : Lisple::Dict::keys(*variant_vars))
+        for (auto& var_key : Roo::Dict::keys(*variant_vars))
         {
           auto var_name = variant_key_name(var_key, "Theme variable");
-          out[var_name] = Lisple::Dict::get_property(variant_vars, var_key);
+          out[var_name] = Roo::Dict::get_property(variant_vars, var_key);
         }
       }
 
       return vars;
     }
 
-    Lisple::sptr_val lookup_theme_var_internal(const UI::Theme& theme,
+    Roo::sptr_val lookup_theme_var_internal(const UI::Theme& theme,
                                                const std::optional<std::string>& variant,
                                                const std::string& key)
     {
       auto lookup_in_vars =
-        [&](const std::map<std::string, std::map<std::string, Lisple::sptr_val>>& vars,
-            const std::string& variant_name) -> Lisple::sptr_val
+        [&](const std::map<std::string, std::map<std::string, Roo::sptr_val>>& vars,
+            const std::string& variant_name) -> Roo::sptr_val
       {
         auto variant_it = vars.find(variant_name);
         if (variant_it == vars.end()) return nullptr;
@@ -164,9 +164,9 @@ namespace Pixils::Script
       return nullptr;
     }
 
-    Lisple::sptr_val resolve_theme_vars_internal(const UI::Theme& theme,
+    Roo::sptr_val resolve_theme_vars_internal(const UI::Theme& theme,
                                                  const std::optional<std::string>& variant,
-                                                 const Lisple::sptr_val& value,
+                                                 const Roo::sptr_val& value,
                                                  int depth = 0)
     {
       if (!value || depth > 32) return value;
@@ -180,31 +180,31 @@ namespace Pixils::Script
 
       switch (value->type)
       {
-      case Lisple::Value::Type::LIST:
+      case Roo::Value::Type::LIST:
       {
-        Lisple::sptr_val_v elements;
+        Roo::sptr_val_v elements;
         elements.reserve(value->elements().size());
         for (const auto& child : value->elements())
         {
           auto resolved_child = resolve_theme_vars_internal(theme, variant, child, depth + 1);
           if (resolved_child) elements.push_back(resolved_child);
         }
-        return Lisple::list(elements);
+        return Roo::list(elements);
       }
-      case Lisple::Value::Type::VECTOR:
+      case Roo::Value::Type::VECTOR:
       {
-        Lisple::sptr_val_v elements;
+        Roo::sptr_val_v elements;
         elements.reserve(value->elements().size());
         for (const auto& child : value->elements())
         {
           auto resolved_child = resolve_theme_vars_internal(theme, variant, child, depth + 1);
           if (resolved_child) elements.push_back(resolved_child);
         }
-        return Lisple::vector(elements);
+        return Roo::vector(elements);
       }
-      case Lisple::Value::Type::MAP:
+      case Roo::Value::Type::MAP:
       {
-        Lisple::sptr_val_v elements;
+        Roo::sptr_val_v elements;
         elements.reserve(value->elements().size());
         const auto& source = value->elements();
         for (size_t i = 0; i + 1 < source.size(); i += 2)
@@ -215,23 +215,23 @@ namespace Pixils::Script
           elements.push_back(source[i]);
           elements.push_back(resolved_child);
         }
-        return Lisple::map(elements);
+        return Roo::map(elements);
       }
       default:
         return value;
       }
     }
 
-    UI::Style coerce_theme_style(Lisple::Context& ctx, const Lisple::sptr_val& style_val)
+    UI::Style coerce_theme_style(Roo::Context& ctx, const Roo::sptr_val& style_val)
     {
       auto mutable_style_val = style_val;
       auto style_coercion = HostType::STYLE.coerce(ctx, mutable_style_val);
       if (!style_coercion.success)
       {
-        throw Lisple::TypeError("Invalid theme style declaration: " +
+        throw Roo::TypeError("Invalid theme style declaration: " +
                                 style_val->to_string());
       }
-      return Lisple::obj<UI::Style>(*style_coercion.result);
+      return Roo::obj<UI::Style>(*style_coercion.result);
     }
 
     std::set<std::string> variant_names_for_theme(const UI::Theme& theme)
@@ -281,65 +281,65 @@ namespace Pixils::Script
       }
     }
 
-    std::vector<std::string> parse_theme_extends(const Lisple::sptr_val& value)
+    std::vector<std::string> parse_theme_extends(const Roo::sptr_val& value)
     {
       std::vector<std::string> names;
-      if (!value || value->type == Lisple::Value::Type::NIL) return names;
+      if (!value || value->type == Roo::Value::Type::NIL) return names;
 
-      if (value->type == Lisple::Value::Type::SYMBOL)
+      if (value->type == Roo::Value::Type::SYMBOL)
       {
         names.push_back(value->str());
         return names;
       }
 
-      if (value->type == Lisple::Value::Type::VECTOR)
+      if (value->type == Roo::Value::Type::VECTOR)
       {
-        for (auto& child : Lisple::get_children(*value))
+        for (auto& child : Roo::get_children(*value))
         {
-          if (child->type != Lisple::Value::Type::SYMBOL)
-            throw Lisple::TypeError("Theme :extend entries must be symbols");
+          if (child->type != Roo::Value::Type::SYMBOL)
+            throw Roo::TypeError("Theme :extend entries must be symbols");
           names.push_back(child->str());
         }
         return names;
       }
 
-      throw Lisple::TypeError("Theme :extend must be a symbol or vector of symbols");
+      throw Roo::TypeError("Theme :extend must be a symbol or vector of symbols");
     }
 
-    Lisple::sptr_val normalize_selector_literal_value(const Lisple::sptr_val& value)
+    Roo::sptr_val normalize_selector_literal_value(const Roo::sptr_val& value)
     {
       if (!value) return value;
 
       switch (value->type)
       {
-      case Lisple::Value::Type::SYMBOL:
-        if (value->str() == "true") return Lisple::Constant::BOOL_TRUE;
-        if (value->str() == "false") return Lisple::Constant::BOOL_FALSE;
-        if (value->str() == "nil") return Lisple::Constant::NIL;
+      case Roo::Value::Type::SYMBOL:
+        if (value->str() == "true") return Roo::Constant::BOOL_TRUE;
+        if (value->str() == "false") return Roo::Constant::BOOL_FALSE;
+        if (value->str() == "nil") return Roo::Constant::NIL;
         return value;
-      case Lisple::Value::Type::LIST:
+      case Roo::Value::Type::LIST:
       {
-        Lisple::sptr_val_v elements;
+        Roo::sptr_val_v elements;
         elements.reserve(value->elements().size());
         for (const auto& child : value->elements())
         {
           elements.push_back(normalize_selector_literal_value(child));
         }
-        return Lisple::list(elements);
+        return Roo::list(elements);
       }
-      case Lisple::Value::Type::VECTOR:
+      case Roo::Value::Type::VECTOR:
       {
-        Lisple::sptr_val_v elements;
+        Roo::sptr_val_v elements;
         elements.reserve(value->elements().size());
         for (const auto& child : value->elements())
         {
           elements.push_back(normalize_selector_literal_value(child));
         }
-        return Lisple::vector(elements);
+        return Roo::vector(elements);
       }
-      case Lisple::Value::Type::MAP:
+      case Roo::Value::Type::MAP:
       {
-        Lisple::sptr_val_v elements;
+        Roo::sptr_val_v elements;
         elements.reserve(value->elements().size());
         const auto& source = value->elements();
         for (size_t i = 0; i + 1 < source.size(); i += 2)
@@ -347,92 +347,92 @@ namespace Pixils::Script
           elements.push_back(source[i]);
           elements.push_back(normalize_selector_literal_value(source[i + 1]));
         }
-        return Lisple::map(elements);
+        return Roo::map(elements);
       }
       default:
         return value;
       }
     }
 
-    UI::ThemeSelector parse_theme_selector(const Lisple::sptr_val& key)
+    UI::ThemeSelector parse_theme_selector(const Roo::sptr_val& key)
     {
       switch (key->type)
       {
-      case Lisple::Value::Type::SYMBOL:
+      case Roo::Value::Type::SYMBOL:
       {
         auto selector = UI::ThemeSelector::component_type(key->str());
         apply_selector_pseudo_suffixes(selector);
         return selector;
       }
-      case Lisple::Value::Type::KEYWORD:
+      case Roo::Value::Type::KEYWORD:
       {
         auto selector = UI::ThemeSelector::class_name(key->str());
         apply_selector_pseudo_suffixes(selector);
         return selector;
       }
-      case Lisple::Value::Type::MAP:
+      case Roo::Value::Type::MAP:
         return UI::ThemeSelector::state_match(normalize_selector_literal_value(key));
-      case Lisple::Value::Type::LIST:
+      case Roo::Value::Type::LIST:
       {
         std::vector<UI::ThemeSelector> children;
-        for (const auto& child : Lisple::get_children(*key))
+        for (const auto& child : Roo::get_children(*key))
         {
           auto selector = parse_theme_selector(child);
           if (selector.type == UI::ThemeSelector::Type::DESCENDANT)
-            throw Lisple::TypeError(
+            throw Roo::TypeError(
               "Theme compound selectors cannot contain descendant selectors");
           children.push_back(std::move(selector));
         }
         if (children.empty())
-          throw Lisple::TypeError("Theme compound selectors cannot be empty");
+          throw Roo::TypeError("Theme compound selectors cannot be empty");
         if (children.size() == 1) return children[0];
         return UI::ThemeSelector::compound(children);
       }
-      case Lisple::Value::Type::VECTOR:
+      case Roo::Value::Type::VECTOR:
       {
         std::vector<UI::ThemeSelector> children;
-        for (const auto& child : Lisple::get_children(*key))
+        for (const auto& child : Roo::get_children(*key))
         {
           auto selector = parse_theme_selector(child);
           if (selector.type == UI::ThemeSelector::Type::DESCENDANT)
-            throw Lisple::TypeError(
+            throw Roo::TypeError(
               "Theme descendant selectors cannot contain descendant selectors");
           children.push_back(std::move(selector));
         }
         if (children.empty())
-          throw Lisple::TypeError("Theme descendant selectors cannot be empty");
+          throw Roo::TypeError("Theme descendant selectors cannot be empty");
         if (children.size() == 1) return children[0];
         return UI::ThemeSelector::descendant(children);
       }
       default:
-        throw Lisple::TypeError(
+        throw Roo::TypeError(
           "Theme style selectors must be symbols, keywords, maps, lists, or vectors");
       }
     }
   } // namespace
 
-  Lisple::sptr_val lookup_theme_var(const UI::Theme& theme,
+  Roo::sptr_val lookup_theme_var(const UI::Theme& theme,
                                     const std::optional<std::string>& variant,
                                     const std::string& key)
   {
     return lookup_theme_var_internal(theme, variant, key);
   }
 
-  bool contains_theme_var_ref(const Lisple::sptr_val& value)
+  bool contains_theme_var_ref(const Roo::sptr_val& value)
   {
     if (!value) return false;
     if (is_theme_var_ref(value)) return true;
 
     switch (value->type)
     {
-    case Lisple::Value::Type::LIST:
-    case Lisple::Value::Type::VECTOR:
+    case Roo::Value::Type::LIST:
+    case Roo::Value::Type::VECTOR:
       for (const auto& child : value->elements())
       {
         if (contains_theme_var_ref(child)) return true;
       }
       return false;
-    case Lisple::Value::Type::MAP:
+    case Roo::Value::Type::MAP:
       for (const auto& child : value->elements())
       {
         if (contains_theme_var_ref(child)) return true;
@@ -443,15 +443,15 @@ namespace Pixils::Script
     }
   }
 
-  Lisple::sptr_val resolve_theme_vars(const UI::Theme& theme,
+  Roo::sptr_val resolve_theme_vars(const UI::Theme& theme,
                                       const std::optional<std::string>& variant,
-                                      const Lisple::sptr_val& value,
+                                      const Roo::sptr_val& value,
                                       int depth)
   {
     return resolve_theme_vars_internal(theme, variant, value, depth);
   }
 
-  UI::Theme resolve_theme_declarations(Lisple::Context& ctx,
+  UI::Theme resolve_theme_declarations(Roo::Context& ctx,
                                        const UI::Theme& theme,
                                        const std::optional<std::string>& variant)
   {
@@ -489,9 +489,9 @@ namespace Pixils::Script
     return resolved;
   }
 
-  UI::Theme build_theme_from_definition(Lisple::Context& ctx,
+  UI::Theme build_theme_from_definition(Roo::Context& ctx,
                                         const std::string& name,
-                                        const Lisple::sptr_val& definition_map,
+                                        const Roo::sptr_val& definition_map,
                                         const UI::Theme* base)
   {
     UI::Theme theme;
@@ -499,7 +499,7 @@ namespace Pixils::Script
     if (base) theme = *base;
     theme.name = name;
 
-    auto extend_val = Lisple::Dict::get_property(definition_map, Lisple::keyword("extend"));
+    auto extend_val = Roo::Dict::get_property(definition_map, Roo::keyword("extend"));
     theme.extend = parse_theme_extends(extend_val);
 
     if (!theme.extend.empty())
@@ -509,11 +509,11 @@ namespace Pixils::Script
 
       for (const auto& extends_name : theme.extend)
       {
-        auto base_val = Lisple::Dict::get_property(themes, Lisple::symbol(extends_name));
-        if (!base_val || base_val->type == Lisple::Value::Type::NIL)
-          throw Lisple::InvocationException("deftheme :extend - unknown base theme '" +
+        auto base_val = Roo::Dict::get_property(themes, Roo::symbol(extends_name));
+        if (!base_val || base_val->type == Roo::Value::Type::NIL)
+          throw Roo::InvocationException("deftheme :extend - unknown base theme '" +
                                             extends_name + "'");
-        UI::overlay_theme(merged, Lisple::obj<UI::Theme>(*base_val));
+        UI::overlay_theme(merged, Roo::obj<UI::Theme>(*base_val));
       }
 
       if (base) UI::overlay_theme(merged, *base);
@@ -523,11 +523,11 @@ namespace Pixils::Script
     }
 
     auto default_variant_val =
-      Lisple::Dict::get_property(definition_map, Lisple::keyword("default-variant"));
+      Roo::Dict::get_property(definition_map, Roo::keyword("default-variant"));
     auto default_variant = parse_default_variant(default_variant_val);
     if (!default_variant.empty()) theme.default_variant = default_variant;
 
-    auto vars_val = Lisple::Dict::get_property(definition_map, Lisple::keyword("vars"));
+    auto vars_val = Roo::Dict::get_property(definition_map, Roo::keyword("vars"));
     auto local_vars = parse_theme_vars(vars_val);
     for (const auto& [variant, vars] : local_vars)
     {
@@ -540,7 +540,7 @@ namespace Pixils::Script
 
     if (!theme.vars.empty() && !theme.default_variant)
     {
-      throw Lisple::TypeError("Theme :vars requires :default-variant");
+      throw Roo::TypeError("Theme :vars requires :default-variant");
     }
     if (!local_vars.empty())
     {
@@ -549,8 +549,8 @@ namespace Pixils::Script
     }
 
     auto defaults_val =
-      Lisple::Dict::get_property(definition_map, Lisple::keyword("defaults"));
-    if (defaults_val && defaults_val->type != Lisple::Value::Type::NIL)
+      Roo::Dict::get_property(definition_map, Roo::keyword("defaults"));
+    if (defaults_val && defaults_val->type != Roo::Value::Type::NIL)
     {
       auto variant_names = variant_names_for_theme(theme);
       if (variant_names.empty())
@@ -583,13 +583,13 @@ namespace Pixils::Script
       }
     }
 
-    auto styles_val = Lisple::Dict::get_property(definition_map, Lisple::keyword("styles"));
-    if (styles_val && styles_val->type == Lisple::Value::Type::MAP)
+    auto styles_val = Roo::Dict::get_property(definition_map, Roo::keyword("styles"));
+    if (styles_val && styles_val->type == Roo::Value::Type::MAP)
     {
       auto variant_names = variant_names_for_theme(theme);
-      for (auto& key : Lisple::Dict::keys(*styles_val))
+      for (auto& key : Roo::Dict::keys(*styles_val))
       {
-        auto style_val = Lisple::Dict::get_property(styles_val, key);
+        auto style_val = Roo::Dict::get_property(styles_val, key);
         auto selector = parse_theme_selector(key);
 
         if (variant_names.empty())

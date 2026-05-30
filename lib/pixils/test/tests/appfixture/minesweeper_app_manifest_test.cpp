@@ -65,11 +65,11 @@ TEST(MinesweeperAppManifestTest, exposes_implicit_fill_entry_files_in_dependency
 {
   EXPECT_EQ(Minesweeper::implicit_fill_entry_files(),
             (std::vector<std::string>{
-              "pixils/test/app/shared/ui/themes/win311.lisple",
-              "pixils/test/app/shared/ui/components/button.lisple",
-              "pixils/test/app/minesweeper/menu-definition.lisple",
-              "pixils/test/app/minesweeper/game-logic.lisple",
-              "pixils/test/app/minesweeper/core.lisple",
+              "pixils/test/app/shared/ui/themes/win311.roo",
+              "pixils/test/app/shared/ui/components/button.roo",
+              "pixils/test/app/minesweeper/menu-definition.roo",
+              "pixils/test/app/minesweeper/game-logic.roo",
+              "pixils/test/app/minesweeper/core.roo",
             }));
 }
 
@@ -237,13 +237,13 @@ TEST(MinesweeperAppManifestTest, exposes_pre_windowed_entry_files_in_dependency_
 {
   EXPECT_EQ(Minesweeper::pre_windowed_entry_files(),
             (std::vector<std::string>{
-              "pixils/test/app/shared/ui/themes/win311.lisple",
-              "pixils/test/app/shared/ui/components/button.lisple",
-              "pixils/test/app/shared/ui/components/text-node.lisple",
-              "pixils/test/app/minesweeper/menu-definition.lisple",
-              "pixils/test/app/shared/ui/components/menu.lisple",
-              "pixils/test/app/minesweeper/game-logic.lisple",
-              "pixils/test/app/minesweeper/core.lisple",
+              "pixils/test/app/shared/ui/themes/win311.roo",
+              "pixils/test/app/shared/ui/components/button.roo",
+              "pixils/test/app/shared/ui/components/text-node.roo",
+              "pixils/test/app/minesweeper/menu-definition.roo",
+              "pixils/test/app/shared/ui/components/menu.roo",
+              "pixils/test/app/minesweeper/game-logic.roo",
+              "pixils/test/app/minesweeper/core.roo",
             }));
 }
 
@@ -252,13 +252,13 @@ TEST(MinesweeperAppManifestTest,
 {
   EXPECT_EQ(Minesweeper::simple_windowed_entry_files(),
             (std::vector<std::string>{
-              "pixils/test/app/shared/ui/themes/win311.lisple",
-              "pixils/test/app/shared/ui/components/button.lisple",
-              "pixils/test/app/minesweeper/menu-definition.lisple",
-              "pixils/test/app/shared/ui/components/menu.lisple",
-              "pixils/test/app/minesweeper/game-logic.lisple",
-              "pixils/test/app/shared/ui/components/window.lisple",
-              "pixils/test/app/minesweeper/core.lisple",
+              "pixils/test/app/shared/ui/themes/win311.roo",
+              "pixils/test/app/shared/ui/components/button.roo",
+              "pixils/test/app/minesweeper/menu-definition.roo",
+              "pixils/test/app/shared/ui/components/menu.roo",
+              "pixils/test/app/minesweeper/game-logic.roo",
+              "pixils/test/app/shared/ui/components/window.roo",
+              "pixils/test/app/minesweeper/core.roo",
             }));
 }
 
@@ -267,12 +267,12 @@ TEST(MinesweeperAppManifestTest,
 {
   EXPECT_EQ(Minesweeper::keyboard_menu_windowed_entry_files(),
             (std::vector<std::string>{
-              "pixils/test/app/shared/ui/themes/win311.lisple",
-              "pixils/test/app/shared/ui/components/button.lisple",
-              "pixils/test/app/minesweeper/menu-definition.lisple",
-              "pixils/test/app/shared/ui/components/menu.lisple",
-              "pixils/test/app/minesweeper/game-logic.lisple",
-              "pixils/test/app/shared/ui/components/window.lisple",
-              "pixils/test/app/minesweeper/core.lisple",
+              "pixils/test/app/shared/ui/themes/win311.roo",
+              "pixils/test/app/shared/ui/components/button.roo",
+              "pixils/test/app/minesweeper/menu-definition.roo",
+              "pixils/test/app/shared/ui/components/menu.roo",
+              "pixils/test/app/minesweeper/game-logic.roo",
+              "pixils/test/app/shared/ui/components/window.roo",
+              "pixils/test/app/minesweeper/core.roo",
             }));
 }

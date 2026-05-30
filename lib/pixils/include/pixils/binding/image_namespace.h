@@ -1,8 +1,8 @@
 #ifndef PIXILS__IMAGE_NAMESPACE_H
 #define PIXILS__IMAGE_NAMESPACE_H
 
-#include <lisple/exec.h>
-#include <lisple/namespace.h>
+#include <roo/exec.h>
+#include <roo/namespace.h>
 
 namespace Pixils::Script
 {
@@ -23,7 +23,7 @@ namespace Pixils::Script
     FUNC(ImageWidth, width);
   } // namespace Function
 
-  class ImageNamespace : public Lisple::Namespace
+  class ImageNamespace : public Roo::Namespace
   {
    public:
     ImageNamespace();

@@ -3,54 +3,54 @@
 
 #include <pixils/runtime/mode.h>
 
-#include <lisple/host/object.h>
-#include <lisple/runtime/seq.h>
+#include <roo/host/object.h>
+#include <roo/runtime/seq.h>
 
 namespace Pixils::Runtime
 {
-  ModeStack::ModeStack(const Lisple::sptr_val& stack, const Lisple::sptr_val& message_queue)
+  ModeStack::ModeStack(const Roo::sptr_val& stack, const Roo::sptr_val& message_queue)
     : stack(stack)
     , message_queue(message_queue)
   {
   }
 
-  void ModeStack::push(const Lisple::sptr_val& mode, const Lisple::sptr_val& state)
+  void ModeStack::push(const Roo::sptr_val& mode, const Roo::sptr_val& state)
   {
-    Lisple::append(*stack, Lisple::vector({mode, state}));
+    Roo::append(*stack, Roo::vector({mode, state}));
   }
 
-  std::pair<Mode*, Lisple::sptr_val> ModeStack::peek()
+  std::pair<Mode*, Roo::sptr_val> ModeStack::peek()
   {
-    auto frame = Lisple::get_child(*stack, size() - 1);
+    auto frame = Roo::get_child(*stack, size() - 1);
 
-    return std::make_pair(&Lisple::obj<Mode>(*Lisple::get_child(*frame, 0)),
-                          Lisple::get_child(*frame, 1));
+    return std::make_pair(&Roo::obj<Mode>(*Roo::get_child(*frame, 0)),
+                          Roo::get_child(*frame, 1));
   }
 
   void ModeStack::pop()
   {
-    Lisple::pop_child(*stack);
+    Roo::pop_child(*stack);
   }
 
-  void ModeStack::update_state(const Lisple::sptr_val& state, size_t offset)
+  void ModeStack::update_state(const Roo::sptr_val& state, size_t offset)
   {
-    auto frame = Lisple::get_child(*stack, size() - 1 - offset);
+    auto frame = Roo::get_child(*stack, size() - 1 - offset);
 
-    if (frame->type != Lisple::Value::Type::NIL)
+    if (frame->type != Roo::Value::Type::NIL)
     {
-      std::get<Lisple::sptr_val_v>(frame->value).at(1) = state;
+      std::get<Roo::sptr_val_v>(frame->value).at(1) = state;
     }
   }
 
-  std::vector<std::pair<Mode*, Lisple::sptr_val>> ModeStack::get_update_stack()
+  std::vector<std::pair<Mode*, Roo::sptr_val>> ModeStack::get_update_stack()
   {
-    std::vector<std::pair<Mode*, Lisple::sptr_val>> update_stack;
+    std::vector<std::pair<Mode*, Roo::sptr_val>> update_stack;
 
     for (int i = this->size() - 1; i >= 0; i--)
     {
-      auto frame = Lisple::get_child(*stack, i);
-      Mode* mode = &Lisple::obj<Mode>(*Lisple::get_child(*frame, 0));
-      update_stack.push_back(std::make_pair(mode, Lisple::get_child(*frame, 1)));
+      auto frame = Roo::get_child(*stack, i);
+      Mode* mode = &Roo::obj<Mode>(*Roo::get_child(*frame, 0));
+      update_stack.push_back(std::make_pair(mode, Roo::get_child(*frame, 1)));
       if (!mode->composition.update)
       {
         break;
@@ -60,15 +60,15 @@ namespace Pixils::Runtime
     return update_stack;
   }
 
-  std::vector<std::pair<Mode*, Lisple::sptr_val>> ModeStack::get_render_stack()
+  std::vector<std::pair<Mode*, Roo::sptr_val>> ModeStack::get_render_stack()
   {
-    std::vector<std::pair<Mode*, Lisple::sptr_val>> render_stack;
+    std::vector<std::pair<Mode*, Roo::sptr_val>> render_stack;
 
     for (int i = this->size() - 1; i >= 0; i--)
     {
-      auto frame = Lisple::get_child(*stack, i);
-      Mode* mode = &Lisple::obj<Mode>(*Lisple::get_child(*frame, 0));
-      render_stack.push_back(std::make_pair(mode, Lisple::get_child(*frame, 1)));
+      auto frame = Roo::get_child(*stack, i);
+      Mode* mode = &Roo::obj<Mode>(*Roo::get_child(*frame, 0));
+      render_stack.push_back(std::make_pair(mode, Roo::get_child(*frame, 1)));
       if (!mode->composition.render)
       {
         break;
@@ -80,15 +80,15 @@ namespace Pixils::Runtime
 
   size_t ModeStack::size() const
   {
-    return Lisple::count(*stack);
+    return Roo::count(*stack);
   }
 
-  Lisple::sptr_val_v ModeStack::drain_messages()
+  Roo::sptr_val_v ModeStack::drain_messages()
   {
-    Lisple::sptr_val_v& persistent_vector =
-      std::get<Lisple::sptr_val_v>(message_queue->value);
+    Roo::sptr_val_v& persistent_vector =
+      std::get<Roo::sptr_val_v>(message_queue->value);
 
-    Lisple::sptr_val_v messages = persistent_vector;
+    Roo::sptr_val_v messages = persistent_vector;
 
     persistent_vector.clear();
 

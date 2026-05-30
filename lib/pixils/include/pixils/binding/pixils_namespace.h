@@ -10,9 +10,9 @@
 #include <pixils/program.h>
 #include <pixils/ui/theme.h>
 
-#include <lisple/exec.h>
-#include <lisple/host/object.h>
-#include <lisple/namespace.h>
+#include <roo/exec.h>
+#include <roo/host/object.h>
+#include <roo/namespace.h>
 
 namespace Pixils::UI
 {
@@ -101,13 +101,13 @@ namespace Pixils::Script
 
   namespace Function
   {
-    /*! @brief Lisple make-function for Mode/ModeAdapter */
+    /*! @brief Roo make-function for Mode/ModeAdapter */
     FUNC(MakeMode, make);
-    /*! @brief Lisple make-function for ModeComposition/ModeCompositionAdapter */
+    /*! @brief Roo make-function for ModeComposition/ModeCompositionAdapter */
     FUNC(MakeModeComposition, make);
-    /*! @brief Lisple make-function for Dimension/DimensionAdapter */
+    /*! @brief Roo make-function for Dimension/DimensionAdapter */
     FUNC(MakeDimension, make);
-    /*! @brief Lisple make-function for Display/DisplayAdapter */
+    /*! @brief Roo make-function for Display/DisplayAdapter */
     FUNC(MakeDisplay, make);
     /*! @brief Push active mode */
     FUNC(PushModeBangFunction, push_mode);
@@ -119,15 +119,15 @@ namespace Pixils::Script
     FUNC(SetThemeBangFunction, set_theme);
     /*! @brief Create a theme variable reference for deftheme styles */
     FUNC(ThemeVarFunction, theme_var);
-    /*! @brief Lisple make-function for Resolution/ResolutionAdapter */
+    /*! @brief Roo make-function for Resolution/ResolutionAdapter */
     FUNC(MakeResolution, make_resolution);
   } // namespace Function
 
-  /*! @brief DimensionAdapter - A Lisple HostObject Adapter for Dimension */
+  /*! @brief DimensionAdapter - A Roo HostObject Adapter for Dimension */
   NATIVE_ADAPTER(DimensionAdapter, Dimension, (w, h), (w, h));
-  /*! @brief Lisple HostObject Adapter for Display */
+  /*! @brief Roo HostObject Adapter for Display */
   NATIVE_ADAPTER(DisplayAdapter, Display, (resolution), (resolution));
-  /*! @brief FrameEventsAdapter - A Lisple HostObject Adapter for FrameEvents */
+  /*! @brief FrameEventsAdapter - A Roo HostObject Adapter for FrameEvents */
   NATIVE_ADAPTER(FrameEventsAdapter, FrameEvents, (key_down, held_keys));
   /*! @brief HookContextAdapter - unified context passed as second arg to all mode hooks */
   NATIVE_ADAPTER(HookContextAdapter,
@@ -147,7 +147,7 @@ namespace Pixils::Script
   NATIVE_ADAPTER(InteractionStateAdapter,
                  UI::InteractionState,
                  (hovered, focused, focus_within, pressed));
-  /*! @brief Lisple HostObject Adapter for View */
+  /*! @brief Roo HostObject Adapter for View */
   NATIVE_ADAPTER(
     ViewAdapter,
     Runtime::View,
@@ -160,20 +160,20 @@ namespace Pixils::Script
      on_mouse_up,
      on_click,
      on_double_click));
-  /*! @brief ModeAdapter - A Lisple HostObject Adapter for Mode */
+  /*! @brief ModeAdapter - A Roo HostObject Adapter for Mode */
   NATIVE_ADAPTER(ModeAdapter, Runtime::Mode, (init, update, render));
-  /*! @brief ModeCompositionAdapter - A Lisple HostObject Adapter for ModeComposition */
+  /*! @brief ModeCompositionAdapter - A Roo HostObject Adapter for ModeComposition */
   NATIVE_ADAPTER(ModeCompositionAdapter, Runtime::ModeComposition, (render));
-  /*! @brief Lisple HostObject Adapter for Program */
+  /*! @brief Roo HostObject Adapter for Program */
   NATIVE_ADAPTER(ProgramAdapter,
                  Program,
                  (name, display, initial_mode, theme, theme_variant, target_frame_rate),
                  (display));
-  /*! @brief Lisple HostObject Adapter for RenderContext */
+  /*! @brief Roo HostObject Adapter for RenderContext */
   NATIVE_ADAPTER(RenderContextAdapter, RenderContext, (pixel_size, buffer_dim));
-  /*! @brief Lisple HostObject Adapter for Resolution */
+  /*! @brief Roo HostObject Adapter for Resolution */
   NATIVE_ADAPTER(ResolutionAdapter, Resolution, (dimension));
-  class PixilsNamespace : public Lisple::Namespace
+  class PixilsNamespace : public Roo::Namespace
   {
    public:
     PixilsNamespace(const RenderContext& render_context);

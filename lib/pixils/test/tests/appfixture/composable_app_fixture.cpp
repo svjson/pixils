@@ -36,7 +36,7 @@ namespace
 
 void ComposableAppFixture::TearDown()
 {
-  lisple_runtime.reset();
+  roo_runtime.reset();
 
   if (!app_root.empty() && !should_keep_composed_app())
     std::filesystem::remove_all(app_root);
@@ -46,7 +46,7 @@ void ComposableAppFixture::load_app(const Pixils::Test::AppFixture::AppManifest&
                                     const std::string& main_namespace,
                                     const std::vector<std::string>& entry_files)
 {
-  lisple_runtime.reset();
+  roo_runtime.reset();
 
   if (!app_root.empty() && !should_keep_composed_app())
   {
@@ -65,7 +65,7 @@ void ComposableAppFixture::load_app(const Pixils::Test::AppFixture::AppManifest&
     std::cout << "[ComposableAppFixture] app root: " << app_root << '\n';
   }
 
-  lisple_runtime = Pixils::make_lisple_runtime(
+  roo_runtime = Pixils::make_roo_runtime(
     render_ctx,
     main_namespace,
     [this](Pixils::RuntimeConfiguration* cfg)
@@ -76,14 +76,14 @@ void ComposableAppFixture::load_app(const Pixils::Test::AppFixture::AppManifest&
     entry_files);
 }
 
-Lisple::Runtime& ComposableAppFixture::pixils()
+Roo::Runtime& ComposableAppFixture::pixils()
 {
-  if (!lisple_runtime)
+  if (!roo_runtime)
     throw std::runtime_error("ComposableAppFixture runtime not initialized");
-  return *lisple_runtime;
+  return *roo_runtime;
 }
 
-Lisple::sptr_val ComposableAppFixture::eval(const std::string& source)
+Roo::sptr_val ComposableAppFixture::eval(const std::string& source)
 {
   return pixils().eval(source);
 }

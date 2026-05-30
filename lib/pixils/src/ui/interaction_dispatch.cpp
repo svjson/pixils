@@ -18,12 +18,12 @@
 
 #include <algorithm>
 #include <functional>
-#include <lisple/context.h>
-#include <lisple/host/object.h>
-#include <lisple/runtime.h>
-#include <lisple/runtime/dict.h>
-#include <lisple/runtime/seq.h>
-#include <lisple/runtime/value.h>
+#include <roo/context.h>
+#include <roo/host/object.h>
+#include <roo/runtime.h>
+#include <roo/runtime/dict.h>
+#include <roo/runtime/seq.h>
+#include <roo/runtime/value.h>
 #include <optional>
 
 namespace Pixils::UI
@@ -107,11 +107,11 @@ namespace Pixils::UI
     bool has_drag_hooks(const std::shared_ptr<Runtime::View>& view)
     {
       return (view->mode->on_drag_start &&
-              view->mode->on_drag_start->type != Lisple::Value::Type::NIL) ||
+              view->mode->on_drag_start->type != Roo::Value::Type::NIL) ||
              (view->mode->on_drag &&
-              view->mode->on_drag->type != Lisple::Value::Type::NIL) ||
+              view->mode->on_drag->type != Roo::Value::Type::NIL) ||
              (view->mode->on_drag_end &&
-              view->mode->on_drag_end->type != Lisple::Value::Type::NIL);
+              view->mode->on_drag_end->type != Roo::Value::Type::NIL);
     }
 
     std::optional<std::pair<size_t, DragPolicy>> drag_policy_for_chain(
@@ -186,36 +186,36 @@ namespace Pixils::UI
       }
     }
 
-    Lisple::sptr_val resolve_callable_handler(Lisple::Runtime& runtime,
-                                              const Lisple::sptr_val& val)
+    Roo::sptr_val resolve_callable_handler(Roo::Runtime& runtime,
+                                              const Roo::sptr_val& val)
     {
-      if (!val || val->type == Lisple::Value::Type::NIL) return Lisple::Constant::NIL;
-      if (val->type == Lisple::Value::Type::SYMBOL)
+      if (!val || val->type == Roo::Value::Type::NIL) return Roo::Constant::NIL;
+      if (val->type == Roo::Value::Type::SYMBOL)
       {
         return runtime.lookup(val->str());
       }
-      if (val->type == Lisple::Value::Type::FUNCTION) return val;
-      return Lisple::Constant::NIL;
+      if (val->type == Roo::Value::Type::FUNCTION) return val;
+      return Roo::Constant::NIL;
     }
 
     bool view_disabled(const std::shared_ptr<Runtime::View>& view)
     {
       if (!view) return false;
-      auto disabled = Lisple::Dict::get_property(view->state, Lisple::keyword("disabled?"));
-      return disabled && Lisple::is_truthy(*disabled);
+      auto disabled = Roo::Dict::get_property(view->state, Roo::keyword("disabled?"));
+      return disabled && Roo::is_truthy(*disabled);
     }
 
     void fire_hook_on_view(const std::shared_ptr<Runtime::View>& view,
-                           const Lisple::sptr_val& hook,
-                           const Lisple::sptr_val& ev_ref,
+                           const Roo::sptr_val& hook,
+                           const Roo::sptr_val& ev_ref,
                            Runtime::HookArguments& hook_args,
-                           Lisple::Runtime& rt)
+                           Roo::Runtime& rt)
     {
-      if (!hook || hook->type == Lisple::Value::Type::NIL) return;
-      Lisple::obj<HookContext>(*hook_args.update_args[1]).current_view = view;
-      Lisple::sptr_val_v args = {view->state, ev_ref, hook_args.update_args[1]};
+      if (!hook || hook->type == Roo::Value::Type::NIL) return;
+      Roo::obj<HookContext>(*hook_args.update_args[1]).current_view = view;
+      Roo::sptr_val_v args = {view->state, ev_ref, hook_args.update_args[1]};
       auto new_state = Runtime::invoke_hook(rt, view, hook, args, view->state);
-      if (new_state->type != Lisple::Value::Type::NIL)
+      if (new_state->type != Roo::Value::Type::NIL)
       {
         if (view->set_state_if_changed(new_state))
         {
@@ -244,12 +244,12 @@ namespace Pixils::UI
     }
 
     void bubble_hook(const std::vector<std::shared_ptr<Runtime::View>>& chain,
-                     Lisple::sptr_val Runtime::Mode::* hook_field,
-                     const Lisple::sptr_val& ev_ref,
+                     Roo::sptr_val Runtime::Mode::* hook_field,
+                     const Roo::sptr_val& ev_ref,
                      bool& propagation_stopped,
                      const std::function<void(size_t)>& set_local_pos,
                      Runtime::HookArguments& hook_args,
-                     Lisple::Runtime& rt)
+                     Roo::Runtime& rt)
     {
       for (size_t i = 0; i < chain.size(); i++)
       {
@@ -269,7 +269,7 @@ namespace Pixils::UI
     void bubble_emitted_events_from_chain(
       const std::vector<std::shared_ptr<Runtime::View>>& chain,
       Runtime::HookArguments& hook_args,
-      Lisple::Runtime& rt)
+      Roo::Runtime& rt)
     {
       auto view_ctx = hook_args.update_args[1];
       for (size_t source_index = 0; source_index < chain.size(); source_index++)
@@ -324,10 +324,10 @@ namespace Pixils::UI
     }
 
     void bubble_drag_hook(const std::vector<std::shared_ptr<Runtime::View>>& chain,
-                          Lisple::sptr_val Runtime::Mode::* hook_field,
+                          Roo::sptr_val Runtime::Mode::* hook_field,
                           DragEvent& ev,
                           Runtime::HookArguments& hook_args,
-                          Lisple::Runtime& rt)
+                          Roo::Runtime& rt)
     {
       auto ev_ref = Script::DragEventAdapter::make_ref(ev);
       bubble_hook(
@@ -345,22 +345,22 @@ namespace Pixils::UI
       bubble_emitted_events_from_chain(chain, hook_args, rt);
     }
 
-    Lisple::sptr_val invoke_drag_payload_hook(const std::shared_ptr<Runtime::View>& source,
-                                              const Lisple::sptr_val& hook,
+    Roo::sptr_val invoke_drag_payload_hook(const std::shared_ptr<Runtime::View>& source,
+                                              const Roo::sptr_val& hook,
                                               DragEvent& ev,
                                               Runtime::HookArguments& hook_args,
-                                              Lisple::Runtime& rt)
+                                              Roo::Runtime& rt)
     {
       auto payload_hook = resolve_callable_handler(rt, hook);
-      if (!payload_hook || payload_hook->type == Lisple::Value::Type::NIL)
-        return Lisple::Constant::NIL;
+      if (!payload_hook || payload_hook->type == Roo::Value::Type::NIL)
+        return Roo::Constant::NIL;
 
-      Lisple::obj<HookContext>(*hook_args.update_args[1]).current_view = source;
+      Roo::obj<HookContext>(*hook_args.update_args[1]).current_view = source;
       auto ev_ref = Script::DragEventAdapter::make_ref(ev);
-      Lisple::sptr_val_v args = {source->state, ev_ref, hook_args.update_args[1]};
-      Lisple::Context exec_ctx(rt);
+      Roo::sptr_val_v args = {source->state, ev_ref, hook_args.update_args[1]};
+      Roo::Context exec_ctx(rt);
       auto result = payload_hook->exec().execute(exec_ctx, args);
-      return result ? result : Lisple::Constant::NIL;
+      return result ? result : Roo::Constant::NIL;
     }
 
     DragEvent make_drag_event(MouseButton button,
@@ -369,11 +369,11 @@ namespace Pixils::UI
     {
       DragEvent ev;
       ev.global_pos = gp;
-      ev.button = Lisple::keyword(mouse_button_name(button));
+      ev.button = Roo::keyword(mouse_button_name(button));
       ev.start_global_pos = drag_state.start_global_pos;
       ev.delta = gp - drag_state.last_global_pos;
       ev.total_delta = gp - drag_state.start_global_pos;
-      ev.payload = Lisple::Constant::NIL;
+      ev.payload = Roo::Constant::NIL;
       return ev;
     }
 
@@ -383,7 +383,7 @@ namespace Pixils::UI
                               const std::vector<std::shared_ptr<Runtime::View>>& chain,
                               const Point& gp,
                               Runtime::HookArguments& hook_args,
-                              Lisple::Runtime& rt)
+                              Roo::Runtime& rt)
     {
       if (drag_state.source_index >= chain.size()) return;
 
@@ -412,66 +412,66 @@ namespace Pixils::UI
       drag_state.last_global_pos = gp;
     }
 
-    bool held_keys_contains(const Lisple::sptr_val& held_keys, const Lisple::sptr_val& key)
+    bool held_keys_contains(const Roo::sptr_val& held_keys, const Roo::sptr_val& key)
     {
-      if (!held_keys || held_keys->type == Lisple::Value::Type::NIL || !key ||
-          key->type == Lisple::Value::Type::NIL)
+      if (!held_keys || held_keys->type == Roo::Value::Type::NIL || !key ||
+          key->type == Roo::Value::Type::NIL)
       {
         return false;
       }
 
-      size_t held_count = Lisple::count(*held_keys);
+      size_t held_count = Roo::count(*held_keys);
       for (size_t i = 0; i < held_count; i++)
       {
-        if (*Lisple::get_child(*held_keys, i) == *key) return true;
+        if (*Roo::get_child(*held_keys, i) == *key) return true;
       }
 
       return false;
     }
 
-    size_t key_spec_specificity(const Lisple::sptr_val& spec)
+    size_t key_spec_specificity(const Roo::sptr_val& spec)
     {
       if (!spec) return 0;
-      if (spec->type == Lisple::Value::Type::KEYWORD) return 1;
-      if (spec->type == Lisple::Value::Type::VECTOR) return Lisple::count(*spec);
+      if (spec->type == Roo::Value::Type::KEYWORD) return 1;
+      if (spec->type == Roo::Value::Type::VECTOR) return Roo::count(*spec);
       return 0;
     }
 
-    bool key_spec_matches_held(const Lisple::sptr_val& spec,
-                               const Lisple::sptr_val& held_keys)
+    bool key_spec_matches_held(const Roo::sptr_val& spec,
+                               const Roo::sptr_val& held_keys)
     {
-      if (!spec || !held_keys || held_keys->type == Lisple::Value::Type::NIL) return false;
+      if (!spec || !held_keys || held_keys->type == Roo::Value::Type::NIL) return false;
 
-      if (spec->type == Lisple::Value::Type::KEYWORD)
+      if (spec->type == Roo::Value::Type::KEYWORD)
       {
         return held_keys_contains(held_keys, spec);
       }
 
-      if (spec->type != Lisple::Value::Type::VECTOR) return false;
+      if (spec->type != Roo::Value::Type::VECTOR) return false;
 
-      size_t key_count = Lisple::count(*spec);
+      size_t key_count = Roo::count(*spec);
       if (key_count == 0) return false;
 
       for (size_t i = 0; i < key_count; i++)
       {
-        auto key = Lisple::get_child(*spec, i);
-        if (!key || key->type != Lisple::Value::Type::KEYWORD) return false;
+        auto key = Roo::get_child(*spec, i);
+        if (!key || key->type != Roo::Value::Type::KEYWORD) return false;
         if (!held_keys_contains(held_keys, key)) return false;
       }
 
       return true;
     }
 
-    bool held_keys_contains_exact(const Lisple::sptr_val& held_keys,
+    bool held_keys_contains_exact(const Roo::sptr_val& held_keys,
                                   const std::string& key_name)
     {
-      if (!held_keys || held_keys->type == Lisple::Value::Type::NIL) return false;
+      if (!held_keys || held_keys->type == Roo::Value::Type::NIL) return false;
 
-      size_t held_count = Lisple::count(*held_keys);
+      size_t held_count = Roo::count(*held_keys);
       for (size_t i = 0; i < held_count; i++)
       {
-        auto held_key = Lisple::get_child(*held_keys, i);
-        if (!held_key || held_key->type != Lisple::Value::Type::KEYWORD) continue;
+        auto held_key = Roo::get_child(*held_keys, i);
+        if (!held_key || held_key->type != Roo::Value::Type::KEYWORD) continue;
         if (held_key->str() == key_name) return true;
       }
 
@@ -487,29 +487,29 @@ namespace Pixils::UI
       return value;
     }
 
-    bool held_keys_has_shift(const Lisple::sptr_val& held_keys)
+    bool held_keys_has_shift(const Roo::sptr_val& held_keys)
     {
       return held_keys_contains_exact(held_keys, "key/left-shift") ||
              held_keys_contains_exact(held_keys, "key/right-shift");
     }
 
-    bool held_keys_has_ctrl(const Lisple::sptr_val& held_keys)
+    bool held_keys_has_ctrl(const Roo::sptr_val& held_keys)
     {
       return held_keys_contains_exact(held_keys, "key/left-ctrl") ||
              held_keys_contains_exact(held_keys, "key/right-ctrl");
     }
 
-    bool held_keys_has_alt(const Lisple::sptr_val& held_keys)
+    bool held_keys_has_alt(const Roo::sptr_val& held_keys)
     {
       return held_keys_contains_exact(held_keys, "key/left-alt") ||
              held_keys_contains_exact(held_keys, "key/right-alt");
     }
 
-    bool shortcut_matches_key_event(const Lisple::sptr_val& shortcut,
+    bool shortcut_matches_key_event(const Roo::sptr_val& shortcut,
                                     const KeyboardEvent& event)
     {
-      if (!shortcut || shortcut->type == Lisple::Value::Type::NIL || !event.key ||
-          event.key->type != Lisple::Value::Type::KEYWORD)
+      if (!shortcut || shortcut->type == Roo::Value::Type::NIL || !event.key ||
+          event.key->type != Roo::Value::Type::KEYWORD)
       {
         return false;
       }
@@ -517,11 +517,11 @@ namespace Pixils::UI
       bool expect_shift = false;
       bool expect_ctrl = false;
       bool expect_alt = false;
-      Lisple::sptr_val primary = Lisple::Constant::NIL;
+      Roo::sptr_val primary = Roo::Constant::NIL;
 
-      auto consume_key = [&](const Lisple::sptr_val& key) -> bool
+      auto consume_key = [&](const Roo::sptr_val& key) -> bool
       {
-        if (!key || key->type != Lisple::Value::Type::KEYWORD) return false;
+        if (!key || key->type != Roo::Value::Type::KEYWORD) return false;
 
         auto name = key->str();
         if (name == "key/shift" || name == "key/left-shift" || name == "key/right-shift")
@@ -539,7 +539,7 @@ namespace Pixils::UI
           expect_alt = true;
           return true;
         }
-        if (primary && primary->type != Lisple::Value::Type::NIL)
+        if (primary && primary->type != Roo::Value::Type::NIL)
         {
           return false;
         }
@@ -548,16 +548,16 @@ namespace Pixils::UI
         return true;
       };
 
-      if (shortcut->type == Lisple::Value::Type::KEYWORD)
+      if (shortcut->type == Roo::Value::Type::KEYWORD)
       {
         primary = shortcut;
       }
-      else if (shortcut->type == Lisple::Value::Type::VECTOR)
+      else if (shortcut->type == Roo::Value::Type::VECTOR)
       {
-        size_t count = Lisple::count(*shortcut);
+        size_t count = Roo::count(*shortcut);
         for (size_t i = 0; i < count; i++)
         {
-          if (!consume_key(Lisple::get_child(*shortcut, i))) return false;
+          if (!consume_key(Roo::get_child(*shortcut, i))) return false;
         }
       }
       else
@@ -565,7 +565,7 @@ namespace Pixils::UI
         return false;
       }
 
-      if (!primary || primary->type == Lisple::Value::Type::NIL) return false;
+      if (!primary || primary->type == Roo::Value::Type::NIL) return false;
       if (lower_ascii(primary->str()) != lower_ascii(event.key->str())) return false;
 
       bool actual_shift = held_keys_has_shift(event.held_keys);
@@ -581,47 +581,47 @@ namespace Pixils::UI
       const KeyboardEvent& key_event)
     {
       if (!view || !view->mode || !view->mode->action_map ||
-          view->mode->action_map->type == Lisple::Value::Type::NIL)
+          view->mode->action_map->type == Roo::Value::Type::NIL)
       {
         return std::nullopt;
       }
 
-      auto try_binding = [&](const Lisple::sptr_val& shortcut,
-                             const Lisple::sptr_val& binding) -> std::optional<CustomEvent>
+      auto try_binding = [&](const Roo::sptr_val& shortcut,
+                             const Roo::sptr_val& binding) -> std::optional<CustomEvent>
       {
-        Lisple::sptr_val action = Lisple::Constant::NIL;
-        Lisple::sptr_val payload = Lisple::Constant::NIL;
+        Roo::sptr_val action = Roo::Constant::NIL;
+        Roo::sptr_val payload = Roo::Constant::NIL;
 
-        if (binding && binding->type == Lisple::Value::Type::KEYWORD)
+        if (binding && binding->type == Roo::Value::Type::KEYWORD)
         {
           action = binding;
         }
-        else if (binding && binding->type == Lisple::Value::Type::MAP)
+        else if (binding && binding->type == Roo::Value::Type::MAP)
         {
-          action = Lisple::Dict::get_property(binding, Lisple::keyword("action"));
-          payload = Lisple::Dict::get_property(binding, Lisple::keyword("payload"));
+          action = Roo::Dict::get_property(binding, Roo::keyword("action"));
+          payload = Roo::Dict::get_property(binding, Roo::keyword("payload"));
         }
 
-        if (!action || action->type != Lisple::Value::Type::KEYWORD) return std::nullopt;
+        if (!action || action->type != Roo::Value::Type::KEYWORD) return std::nullopt;
         if (!shortcut_matches_key_event(shortcut, key_event)) return std::nullopt;
 
         return CustomEvent{
           action,
-          payload && payload->type != Lisple::Value::Type::NIL ? payload
-                                                               : Lisple::Constant::NIL,
-          view->mode ? Lisple::symbol(view->mode->name) : Lisple::Constant::NIL};
+          payload && payload->type != Roo::Value::Type::NIL ? payload
+                                                               : Roo::Constant::NIL,
+          view->mode ? Roo::symbol(view->mode->name) : Roo::Constant::NIL};
       };
 
       auto action_map = view->mode->action_map;
-      if (action_map->type != Lisple::Value::Type::MAP)
+      if (action_map->type != Roo::Value::Type::MAP)
       {
         return std::nullopt;
       }
 
-      for (const auto& shortcut : Lisple::Dict::keys(*action_map))
+      for (const auto& shortcut : Roo::Dict::keys(*action_map))
       {
         auto resolved =
-          try_binding(shortcut, Lisple::Dict::get_property(action_map, shortcut));
+          try_binding(shortcut, Roo::Dict::get_property(action_map, shortcut));
         if (resolved.has_value()) return resolved;
       }
 
@@ -632,7 +632,7 @@ namespace Pixils::UI
                                    size_t start_index,
                                    const KeyboardEvent& key_event,
                                    Runtime::HookArguments& hook_args,
-                                   Lisple::Runtime& rt)
+                                   Roo::Runtime& rt)
     {
       for (size_t i = start_index; i < chain.size(); i++)
       {
@@ -688,10 +688,10 @@ namespace Pixils::UI
     }
 
     void bubble_keyboard_hook(const std::vector<std::shared_ptr<Runtime::View>>& chain,
-                              Lisple::sptr_val Runtime::Mode::* hook_field,
+                              Roo::sptr_val Runtime::Mode::* hook_field,
                               KeyboardEvent& event,
                               Runtime::HookArguments& hook_args,
-                              Lisple::Runtime& rt)
+                              Roo::Runtime& rt)
     {
       auto ev_ref = Script::KeyboardEventAdapter::make_ref(event);
       for (size_t i = 0; i < chain.size(); i++)
@@ -719,11 +719,11 @@ namespace Pixils::UI
     }
 
     void bubble_held_key_hook(const std::vector<std::shared_ptr<Runtime::View>>& chain,
-                              const Lisple::sptr_val& held_keys,
+                              const Roo::sptr_val& held_keys,
                               Runtime::HookArguments& hook_args,
-                              Lisple::Runtime& rt)
+                              Roo::Runtime& rt)
     {
-      if (!held_keys || held_keys->type == Lisple::Value::Type::NIL)
+      if (!held_keys || held_keys->type == Roo::Value::Type::NIL)
       {
         return;
       }
@@ -733,17 +733,17 @@ namespace Pixils::UI
         auto& view = chain[i];
         auto& hook = view->mode->on_key_held;
 
-        if (hook && hook->type != Lisple::Value::Type::NIL)
+        if (hook && hook->type != Roo::Value::Type::NIL)
         {
           KeyboardEvent event;
           event.held_keys = held_keys;
 
-          if (hook->type == Lisple::Value::Type::MAP)
+          if (hook->type == Roo::Value::Type::MAP)
           {
-            std::vector<std::pair<Lisple::sptr_val, size_t>> matches;
+            std::vector<std::pair<Roo::sptr_val, size_t>> matches;
             size_t best_specificity = 0;
 
-            for (auto& spec : Lisple::Dict::keys(*hook))
+            for (auto& spec : Roo::Dict::keys(*hook))
             {
               if (!key_spec_matches_held(spec, held_keys)) continue;
 
@@ -765,9 +765,9 @@ namespace Pixils::UI
             for (auto& [spec, _] : matches)
             {
               auto resolved_handler =
-                resolve_callable_handler(rt, Lisple::Dict::get_property(hook, spec));
+                resolve_callable_handler(rt, Roo::Dict::get_property(hook, spec));
               if (!resolved_handler ||
-                  resolved_handler->type != Lisple::Value::Type::FUNCTION)
+                  resolved_handler->type != Roo::Value::Type::FUNCTION)
               {
                 continue;
               }
@@ -780,7 +780,7 @@ namespace Pixils::UI
           else
           {
             auto resolved_handler = resolve_callable_handler(rt, hook);
-            if (resolved_handler && resolved_handler->type == Lisple::Value::Type::FUNCTION)
+            if (resolved_handler && resolved_handler->type == Roo::Value::Type::FUNCTION)
             {
               auto ev_ref = Script::KeyboardEventAdapter::make_ref(event);
               fire_hook_on_view(view, resolved_handler, ev_ref, hook_args, rt);
@@ -952,16 +952,16 @@ namespace Pixils::UI
     void handle_mouse_up(MouseState& mouse_state,
                          FrameEvents& events,
                          Runtime::HookArguments& hook_args,
-                         Lisple::Runtime& rt)
+                         Roo::Runtime& rt)
     {
       if (mouse_state.hovered_chain.empty()) return;
 
-      const Point& gp = Lisple::obj<Point>(*events.mouse_pos);
+      const Point& gp = Roo::obj<Point>(*events.mouse_pos);
       auto chain = lock_chain(mouse_state.hovered_chain);
       if (chain.empty()) return;
 
       MouseButton up_btn =
-        (events.mouse_button_up && events.mouse_button_up->type != Lisple::Value::Type::NIL)
+        (events.mouse_button_up && events.mouse_button_up->type != Roo::Value::Type::NIL)
           ? mouse_button_from_name(events.mouse_button_up->str())
           : MouseButton::NONE;
 
@@ -1068,9 +1068,9 @@ namespace Pixils::UI
                            FocusState& focus_state,
                            FrameEvents& events,
                            Runtime::HookArguments& hook_args,
-                           Lisple::Runtime& rt)
+                           Roo::Runtime& rt)
     {
-      const Point& gp = Lisple::obj<Point>(*events.mouse_pos);
+      const Point& gp = Roo::obj<Point>(*events.mouse_pos);
 
       std::vector<std::shared_ptr<Runtime::View>> hit_chain;
       if (!build_hit_chain(root, gp, hit_chain))
@@ -1094,7 +1094,7 @@ namespace Pixils::UI
       }
 
       MouseButton btn = (events.mouse_button_down &&
-                         events.mouse_button_down->type != Lisple::Value::Type::NIL)
+                         events.mouse_button_down->type != Roo::Value::Type::NIL)
                           ? mouse_button_from_name(events.mouse_button_down->str())
                           : MouseButton::NONE;
       auto& btn_chain = mouse_state.button_chains[btn];
@@ -1144,12 +1144,12 @@ namespace Pixils::UI
     void handle_mouse_motion(MouseState& mouse_state,
                              FrameEvents& events,
                              Runtime::HookArguments& hook_args,
-                             Lisple::Runtime& rt)
+                             Roo::Runtime& rt)
     {
       auto chain = lock_chain(mouse_state.hovered_chain);
       if (chain.empty()) return;
 
-      const Point& gp = Lisple::obj<Point>(*events.mouse_pos);
+      const Point& gp = Roo::obj<Point>(*events.mouse_pos);
       MouseEvent ev;
       ev.global_pos = gp;
       auto ev_ref = Script::MouseEventAdapter::make_ref(ev);
@@ -1166,11 +1166,11 @@ namespace Pixils::UI
     void handle_drag_motion(MouseState& mouse_state,
                             FrameEvents& events,
                             Runtime::HookArguments& hook_args,
-                            Lisple::Runtime& rt)
+                            Roo::Runtime& rt)
     {
       if (!events.mouse_moved) return;
 
-      const Point& gp = Lisple::obj<Point>(*events.mouse_pos);
+      const Point& gp = Roo::obj<Point>(*events.mouse_pos);
       for (auto& [btn, wchain] : mouse_state.button_chains)
       {
         auto drag_it = mouse_state.drag_states.find(btn);
@@ -1205,9 +1205,9 @@ namespace Pixils::UI
                   const FocusState& focus_state,
                   FrameEvents& events,
                   Runtime::HookArguments& hook_args,
-                  Lisple::Runtime& rt)
+                  Roo::Runtime& rt)
     {
-      const Point& mouse_pos = Lisple::obj<Point>(*events.mouse_pos);
+      const Point& mouse_pos = Roo::obj<Point>(*events.mouse_pos);
 
       std::vector<std::shared_ptr<Runtime::View>> hit_chain;
       build_hit_chain(root, mouse_pos, hit_chain);
@@ -1275,7 +1275,7 @@ namespace Pixils::UI
                                 FocusState& focus_state,
                                 FrameEvents& events,
                                 Runtime::HookArguments& hook_args,
-                                Lisple::Runtime& runtime)
+                                Roo::Runtime& runtime)
   {
     sync_focus_state_impl(root, focus_state);
     auto chain = keyboard_target_chain(root, focus_state);
@@ -1284,7 +1284,7 @@ namespace Pixils::UI
       return;
     }
 
-    if (events.key_down && events.key_down->type != Lisple::Value::Type::NIL)
+    if (events.key_down && events.key_down->type != Roo::Value::Type::NIL)
     {
       KeyboardEvent event;
       event.key = events.key_down;
@@ -1294,7 +1294,7 @@ namespace Pixils::UI
 
     bubble_held_key_hook(chain, events.held_keys, hook_args, runtime);
 
-    if (events.key_up && events.key_up->type != Lisple::Value::Type::NIL)
+    if (events.key_up && events.key_up->type != Roo::Value::Type::NIL)
     {
       KeyboardEvent event;
       event.key = events.key_up;
@@ -1308,17 +1308,17 @@ namespace Pixils::UI
                              FocusState& focus_state,
                              FrameEvents& events,
                              Runtime::HookArguments& hook_args,
-                             Lisple::Runtime& runtime)
+                             Roo::Runtime& runtime)
   {
     sync_focus_state_impl(root, focus_state);
 
-    if (events.mouse_button_up && events.mouse_button_up->type != Lisple::Value::Type::NIL)
+    if (events.mouse_button_up && events.mouse_button_up->type != Roo::Value::Type::NIL)
     {
       handle_mouse_up(mouse_state, events, hook_args, runtime);
     }
 
     if (events.mouse_button_down &&
-        events.mouse_button_down->type != Lisple::Value::Type::NIL)
+        events.mouse_button_down->type != Roo::Value::Type::NIL)
     {
       handle_mouse_down(root, mouse_state, focus_state, events, hook_args, runtime);
     }
@@ -1334,16 +1334,16 @@ namespace Pixils::UI
 
     if (mouse_state.has_pressed() &&
         (!events.mouse_button_down ||
-         events.mouse_button_down->type == Lisple::Value::Type::NIL))
+         events.mouse_button_down->type == Roo::Value::Type::NIL))
     {
       std::set<MouseButton> held;
       if (events.mouse_held)
       {
-        size_t n = Lisple::count(*events.mouse_held);
+        size_t n = Roo::count(*events.mouse_held);
         for (size_t i = 0; i < n; i++)
         {
           held.insert(
-            mouse_button_from_name(Lisple::get_child(*events.mouse_held, i)->str()));
+            mouse_button_from_name(Roo::get_child(*events.mouse_held, i)->str()));
         }
       }
       for (auto it = mouse_state.button_chains.begin();

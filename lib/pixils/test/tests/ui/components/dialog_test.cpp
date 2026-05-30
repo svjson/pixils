@@ -2,16 +2,16 @@
 
 #include <SDL2/SDL_mouse.h>
 #include <gtest/gtest.h>
-#include <lisple/runtime/dict.h>
+#include <roo/runtime/dict.h>
 
 using DialogTest = RenderFixture;
 using Pixils::Runtime::View;
 
 namespace
 {
-  Lisple::sptr_val get_key(const Lisple::sptr_val& value, const std::string& key)
+  Roo::sptr_val get_key(const Roo::sptr_val& value, const std::string& key)
   {
-    return Lisple::Dict::get_property(value, Lisple::keyword(key));
+    return Roo::Dict::get_property(value, Roo::keyword(key));
   }
 
   void collect_button_labels(const std::shared_ptr<View>& view,
@@ -63,7 +63,7 @@ TEST_F(DialogTest, make_confirm_renders_buttons_in_declared_order_with_label_ove
                                :label "Delete"}]})]})
   )");
 
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
   session.render_mode();
 
   std::vector<std::string> labels;
@@ -95,7 +95,7 @@ TEST_F(DialogTest, open_confirm_pops_selected_choice_and_payload_to_origin_event
                                    (assoc state :result (:payload event)))}})
   )");
 
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
   session.process_messages();
   ASSERT_EQ(session.active_mode->mode->name, "ui/dialog-frame");
   session.render_mode();
@@ -145,7 +145,7 @@ TEST_F(DialogTest, dismissable_confirm_returns_dismiss_choice_on_escape)
                                 (assoc state :result (:payload event)))}})
   )");
 
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
   session.process_messages();
   ASSERT_EQ(session.active_mode->mode->name, "ui/dialog-frame");
   session.render_mode();
@@ -199,7 +199,7 @@ TEST_F(DialogTest, open_dialog_wraps_custom_result_event_handlers)
                                        (assoc state :result (:payload event)))}})
   )");
 
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
   session.process_messages();
   ASSERT_EQ(session.active_mode->mode->name, "ui/dialog-frame");
   session.render_mode();

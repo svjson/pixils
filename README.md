@@ -1,8 +1,8 @@
 # Pixils!
 
 Pixils! is a runtime for building 2D graphical applications in
-[Lisple](https://github.com/svjson/lisple-lang) - a Lisp with a modern, practical flavor.
-You write your application entirely in Lisple and run it with a single command. Pixils takes
+[Roo](https://github.com/svjson/roo-lang) - a Lisp with a modern, practical flavor.
+You write your application entirely in Roo and run it with a single command. Pixils takes
 care of the rendering loop, window management, input, and asset loading - powered by SDL2
 underneath, invisible to your scripts.
 
@@ -15,16 +15,16 @@ equally valid Pixils applications.
 
 ## The `pixils` binary
 
-Run an application from a Lisple script with a single command:
+Run an application from a Roo script with a single command:
 
 ```bash
-pixils path/to/main.lisple
-pixils path/to/app/          # loads main.lisple from that directory
+pixils path/to/main.roo
+pixils path/to/app/          # loads main.roo from that directory
 ```
 
-## Running through `lisple`
+## Running through `roo`
 
-Package-based applications can launch through Lisple's package tool mechanism
+Package-based applications can launch through Roo's package tool mechanism
 instead of invoking the `pixils` CLI binary directly. Add `pixils-runner` as a
 dependency and declare it as the package runner:
 
@@ -39,17 +39,17 @@ dependency and declare it as the package runner:
 Then run the application package with:
 
 ```bash
-lisple pixils-runner
+roo pixils-runner
 ```
 
-The runner resolves the application package root from Lisple's tool context,
+The runner resolves the application package root from Roo's tool context,
 loads the app entry points into a Pixils runtime, initializes SDL, and starts
 the Pixils client in-process.
 
 ## Writing an application
 
-A Pixils application is a single `.lisple` file (or a collection of files loaded from
-`main.lisple`). It declares a program, one or more modes, and wires them together.
+A Pixils application is a single `.roo` file (or a collection of files loaded from
+`main.roo`). It declares a program, one or more modes, and wires them together.
 
 ### `defprogram`
 
@@ -110,7 +110,7 @@ keyboard focus.
 **Built-in UI components**
 
 Pixils ships reusable UI primitives under the `ui/` namespace. These are embedded
-Lisple components, so applications can use them like any other mode.
+Roo components, so applications can use them like any other mode.
 
 | Component | Purpose |
 |-----------|---------|
@@ -337,7 +337,7 @@ dialog frame, or `:dismissable true` to allow Escape/outside-click dismissal. Di
 the standard confirm result shape with `:choice :dialog/dismiss`.
 
 `pixils.ui.file-dialog/open-file-dialog!` opens a Pixils-provided file chooser on top of
-`open-dialog!`. It uses the active `lisple.io` filesystem and keeps directories visible
+`open-dialog!`. It uses the active `roo.io` filesystem and keeps directories visible
 while applying the selected filter to files. The result shape is
 `{:type :confirm :mode mode :path path :directory directory
 :filename filename :paths paths :filenames filenames :filter filter}` or
@@ -1434,7 +1434,7 @@ Accepts the same `:font` and `:scale` options as `text!`.
 ## Using Pixils as a library
 
 The `pixils` binary covers the common case, but Pixils is also a linkable library. This
-lets you write arbitrary portions of your application in C++, and extend Lisple with your
+lets you write arbitrary portions of your application in C++, and extend Roo with your
 own native namespaces and host types - exposing domain-specific data structures and
 functions directly to your scripts.
 
@@ -1453,8 +1453,8 @@ int main()
 
   Pixils::RenderContext ctx = *opt_ctx;
 
-  Lisple::Runtime runtime = Pixils::init_lisple_runtime(
-    ctx, "main", {"main.lisple"});
+  Roo::Runtime runtime = Pixils::init_roo_runtime(
+    ctx, "main", {"main.roo"});
 
   Pixils::Client client(runtime, ctx);
   client.run();
@@ -1464,15 +1464,15 @@ int main()
 }
 ```
 
-To register additional namespaces, pass an initializer function to `init_lisple_runtime`:
+To register additional namespaces, pass an initializer function to `init_roo_runtime`:
 
 ```cpp
-Lisple::Runtime runtime = Pixils::init_lisple_runtime(
+Roo::Runtime runtime = Pixils::init_roo_runtime(
   ctx, "main",
   [](Pixils::RuntimeConfiguration* cfg) {
     cfg->native_namespaces.push_back(std::make_unique<MyGameNamespace>());
   },
-  {"main.lisple"});
+  {"main.roo"});
 ```
 
 Link against `pixils::pixils_static` or `pixils::pixils_shared` and find the package
@@ -1484,8 +1484,8 @@ with `find_package(pixils REQUIRED)`.
 
 - CMake 3.20+
 - SDL2, SDL2_image, SDL2_mixer
-- The `lisple` CMake package installed (see the
-  [Lisple repository](https://github.com/svjson/lisple-lang))
+- The `roo` CMake package installed (see the
+  [Roo repository](https://github.com/svjson/roo-lang))
 
 ### Build commands
 

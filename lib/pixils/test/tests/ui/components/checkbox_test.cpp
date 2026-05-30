@@ -1,7 +1,7 @@
 #include "../../render_fixture.h"
 
 #include <gtest/gtest.h>
-#include <lisple/runtime/dict.h>
+#include <roo/runtime/dict.h>
 
 using CheckboxTest = RenderFixture;
 
@@ -18,7 +18,7 @@ TEST_F(CheckboxTest, checkbox_toggles_bound_state_and_emits_change)
                     :checked? (pixils.ui/bind-state :show-grid?)})]})
   )");
 
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
   session.update_mode();
   session.render_mode();
 
@@ -37,9 +37,9 @@ TEST_F(CheckboxTest, checkbox_toggles_bound_state_and_emits_change)
   update_cycle();
 
   auto show_grid =
-    Lisple::Dict::get_property(session.active_mode->state, Lisple::keyword("show-grid?"));
+    Roo::Dict::get_property(session.active_mode->state, Roo::keyword("show-grid?"));
   auto last_change =
-    Lisple::Dict::get_property(session.active_mode->state, Lisple::keyword("last-change"));
+    Roo::Dict::get_property(session.active_mode->state, Roo::keyword("last-change"));
   ASSERT_NE(show_grid, nullptr);
   ASSERT_NE(last_change, nullptr);
   EXPECT_EQ(show_grid->to_string(), "false");

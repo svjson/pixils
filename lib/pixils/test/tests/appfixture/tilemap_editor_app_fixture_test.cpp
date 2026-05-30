@@ -6,7 +6,7 @@
 
 #include <algorithm>
 #include <gtest/gtest.h>
-#include <lisple/runtime/dict.h>
+#include <roo/runtime/dict.h>
 #include <sdl2_mock/mock_resources.h>
 #include <vector>
 
@@ -558,11 +558,11 @@ TEST_F(TilemapEditorAppFixtureTest, current_layer_and_tile_palette_use_list_boxe
   EXPECT_EQ(layer_rows[0]->bounds.w, layer_viewport->bounds.w);
 
   auto first_layer_name =
-    Lisple::Dict::get_property(layer_rows[0]->state, Lisple::keyword("layer-name"));
+    Roo::Dict::get_property(layer_rows[0]->state, Roo::keyword("layer-name"));
   ASSERT_NE(first_layer_name, nullptr);
   EXPECT_EQ(first_layer_name->to_string(), "\"Terrain\"");
-  auto first_visibility_label = Lisple::Dict::get_property(
-    layer_rows[0]->state, Lisple::keyword("visibility-label"));
+  auto first_visibility_label = Roo::Dict::get_property(
+    layer_rows[0]->state, Roo::keyword("visibility-label"));
   ASSERT_NE(first_visibility_label, nullptr);
   EXPECT_EQ(first_visibility_label->to_string(), "\"V\"");
 
@@ -570,7 +570,7 @@ TEST_F(TilemapEditorAppFixtureTest, current_layer_and_tile_palette_use_list_boxe
   find_descendant_modes(session().active_mode, "tile-swatch", tile_swatches);
   ASSERT_GT(tile_swatches.size(), 1u);
   auto first_tile_name =
-    Lisple::Dict::get_property(tile_swatches[0]->state, Lisple::keyword("name"));
+    Roo::Dict::get_property(tile_swatches[0]->state, Roo::keyword("name"));
   ASSERT_NE(first_tile_name, nullptr);
   EXPECT_EQ(first_tile_name->to_string(), "\"Grass\"");
 
@@ -587,8 +587,8 @@ TEST_F(TilemapEditorAppFixtureTest, current_layer_and_tile_palette_use_list_boxe
   ASSERT_NO_THROW(update_cycle());
 
   auto selected_tile =
-    Lisple::Dict::get_property(session().active_mode->state,
-                               Lisple::keyword("selected-tile"));
+    Roo::Dict::get_property(session().active_mode->state,
+                               Roo::keyword("selected-tile"));
   ASSERT_NE(selected_tile, nullptr);
   EXPECT_EQ(selected_tile->to_string(), "1");
 
@@ -605,16 +605,16 @@ TEST_F(TilemapEditorAppFixtureTest, current_layer_and_tile_palette_use_list_boxe
   ASSERT_NO_THROW(update_and_layout());
 
   auto hidden_layer_indices =
-    Lisple::Dict::get_property(session().active_mode->state,
-                               Lisple::keyword("hidden-layer-indices"));
+    Roo::Dict::get_property(session().active_mode->state,
+                               Roo::keyword("hidden-layer-indices"));
   ASSERT_NE(hidden_layer_indices, nullptr);
   EXPECT_EQ(hidden_layer_indices->to_string(), "[0]");
 
   layer_rows.clear();
   find_descendant_modes(layer_list, "layer-row", layer_rows);
   ASSERT_EQ(layer_rows.size(), 4u);
-  first_visibility_label = Lisple::Dict::get_property(
-    layer_rows[0]->state, Lisple::keyword("visibility-label"));
+  first_visibility_label = Roo::Dict::get_property(
+    layer_rows[0]->state, Roo::keyword("visibility-label"));
   ASSERT_NE(first_visibility_label, nullptr);
   EXPECT_EQ(first_visibility_label->to_string(), "\"-\"");
 }

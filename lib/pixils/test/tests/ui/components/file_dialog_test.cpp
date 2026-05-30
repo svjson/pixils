@@ -2,7 +2,7 @@
 
 #include <SDL2/SDL_mouse.h>
 #include <gtest/gtest.h>
-#include <lisple/runtime/dict.h>
+#include <roo/runtime/dict.h>
 
 #include <chrono>
 #include <filesystem>
@@ -64,9 +64,9 @@ namespace
     std::string path() const { return root.string(); }
   };
 
-  Lisple::sptr_val get_key(const Lisple::sptr_val& value, const std::string& key)
+  Roo::sptr_val get_key(const Roo::sptr_val& value, const std::string& key)
   {
-    return Lisple::Dict::get_property(value, Lisple::keyword(key));
+    return Roo::Dict::get_property(value, Roo::keyword(key));
   }
 
   std::shared_ptr<View> find_button_with_label(const std::shared_ptr<View>& view,
@@ -144,7 +144,7 @@ TEST_F(FileDialogTest, open_file_dialog_returns_selected_file)
                                    (assoc state :result (:payload event)))}})
   )");
 
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
   session.process_messages();
   ASSERT_EQ(session.active_mode->mode->name, "ui/dialog-frame");
   session.update_mode();
@@ -222,7 +222,7 @@ TEST_F(FileDialogTest, open_file_dialog_can_return_multiple_selected_files)
                                             :second-name (nth (:filenames payload) 1))))}})
   )");
 
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
   session.process_messages();
   ASSERT_EQ(session.active_mode->mode->name, "ui/dialog-frame");
   session.update_mode();
@@ -305,7 +305,7 @@ TEST_F(FileDialogTest, save_file_dialog_returns_entered_filename_path)
                                    (assoc state :result (:payload event)))}})
   )");
 
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
   session.process_messages();
   ASSERT_EQ(session.active_mode->mode->name, "ui/dialog-frame");
   session.update_mode();
@@ -355,7 +355,7 @@ TEST_F(FileDialogTest, filter_combo_box_updates_confirm_result_filter)
                                    (assoc state :result (:payload event)))}})
   )");
 
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
   session.process_messages();
   session.update_mode();
   session.render_mode();
@@ -435,7 +435,7 @@ TEST_F(FileDialogTest, double_click_directory_navigates_into_it)
                                    (assoc state :result (:payload event)))}})
   )");
 
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
   session.process_messages();
   session.update_mode();
   session.render_mode();
@@ -493,7 +493,7 @@ TEST_F(FileDialogTest, double_click_file_confirms_dialog)
                                    (assoc state :result (:payload event)))}})
   )");
 
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
   session.process_messages();
   session.update_mode();
   session.render_mode();

@@ -7,7 +7,7 @@
 
 #include <memory>
 
-namespace Lisple
+namespace Roo
 {
   class Runtime;
 }
@@ -25,7 +25,7 @@ namespace Pixils::UI
                         const FocusState& focus_state,
                         const Point& mouse_pos,
                         Runtime::HookArguments& hook_args,
-                        Lisple::Runtime& runtime);
+                        Roo::Runtime& runtime);
 
   void refresh_view_interaction_tree(const std::shared_ptr<Runtime::View>& root,
                                      const MouseState& mouse_state,

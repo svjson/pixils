@@ -11,12 +11,12 @@
 #include <pixils/ui/theme.h>
 
 #include <algorithm>
-#include <lisple/context.h>
-#include <lisple/exception.h>
-#include <lisple/host/object.h>
-#include <lisple/host/schema.h>
-#include <lisple/runtime.h>
-#include <lisple/runtime/dict.h>
+#include <roo/context.h>
+#include <roo/exception.h>
+#include <roo/host/object.h>
+#include <roo/host/schema.h>
+#include <roo/runtime.h>
+#include <roo/runtime/dict.h>
 
 namespace
 {
@@ -32,23 +32,23 @@ namespace
     }
   }
 
-  Lisple::sptr_val resolve_hook(Lisple::Runtime& runtime, const Lisple::sptr_val& val)
+  Roo::sptr_val resolve_hook(Roo::Runtime& runtime, const Roo::sptr_val& val)
   {
-    if (!val || val->type == Lisple::Value::Type::NIL) return Lisple::Constant::NIL;
-    if (val->type == Lisple::Value::Type::SYMBOL) return runtime.lookup(val->str());
-    if (val->type == Lisple::Value::Type::FUNCTION) return val;
-    return Lisple::Constant::NIL;
+    if (!val || val->type == Roo::Value::Type::NIL) return Roo::Constant::NIL;
+    if (val->type == Roo::Value::Type::SYMBOL) return runtime.lookup(val->str());
+    if (val->type == Roo::Value::Type::FUNCTION) return val;
+    return Roo::Constant::NIL;
   }
 
-  Lisple::sptr_val resolve_key_held_handler(Lisple::Runtime& runtime,
-                                            const Lisple::sptr_val& val)
+  Roo::sptr_val resolve_key_held_handler(Roo::Runtime& runtime,
+                                            const Roo::sptr_val& val)
   {
-    if (!val || val->type == Lisple::Value::Type::NIL) return Lisple::Constant::NIL;
-    if (val->type == Lisple::Value::Type::MAP) return val;
+    if (!val || val->type == Roo::Value::Type::NIL) return Roo::Constant::NIL;
+    if (val->type == Roo::Value::Type::MAP) return val;
     return resolve_hook(runtime, val);
   }
 
-  void resolve_mode_hooks(Pixils::Runtime::Mode& mode, Lisple::Runtime& runtime)
+  void resolve_mode_hooks(Pixils::Runtime::Mode& mode, Roo::Runtime& runtime)
   {
     mode.init = resolve_hook(runtime, mode.init);
     mode.update = resolve_hook(runtime, mode.update);
@@ -75,46 +75,46 @@ namespace
   }
 
   Pixils::Runtime::Mode& resolve_child_mode(const Pixils::Runtime::ChildSlot& slot,
-                                            const Lisple::sptr_val& modes)
+                                            const Roo::sptr_val& modes)
   {
-    auto mode_val = Lisple::Dict::get_property(modes, Lisple::symbol(slot.mode_name));
-    if (!mode_val || mode_val->type == Lisple::Value::Type::NIL)
+    auto mode_val = Roo::Dict::get_property(modes, Roo::symbol(slot.mode_name));
+    if (!mode_val || mode_val->type == Roo::Value::Type::NIL)
     {
-      throw Lisple::InvocationException("Unknown child mode '" + slot.mode_name +
+      throw Roo::InvocationException("Unknown child mode '" + slot.mode_name +
                                         "' referenced by child slot '" + slot.id + "'");
     }
 
     if (!Pixils::Script::HostType::MODE.is_type_of(*mode_val))
     {
-      throw Lisple::InvocationException("Child slot '" + slot.id + "' resolved mode '" +
+      throw Roo::InvocationException("Child slot '" + slot.id + "' resolved mode '" +
                                         slot.mode_name + "' to non-mode value");
     }
 
-    return Lisple::obj<Pixils::Runtime::Mode>(*mode_val);
+    return Roo::obj<Pixils::Runtime::Mode>(*mode_val);
   }
 
   void apply_mode_overrides(Pixils::Runtime::Mode& mode,
-                            const Lisple::sptr_val& overrides,
-                            Lisple::Runtime& runtime)
+                            const Roo::sptr_val& overrides,
+                            Roo::Runtime& runtime)
   {
-    if (!overrides || overrides->type == Lisple::Value::Type::NIL) return;
+    if (!overrides || overrides->type == Roo::Value::Type::NIL) return;
 
-    auto get = [&](const char* key) -> Lisple::sptr_val
+    auto get = [&](const char* key) -> Roo::sptr_val
     {
-      auto val = Lisple::Dict::get_property(overrides, Lisple::keyword(key));
-      return val ? val : Lisple::Constant::NIL;
+      auto val = Roo::Dict::get_property(overrides, Roo::keyword(key));
+      return val ? val : Roo::Constant::NIL;
     };
 
-    auto apply_hook = [&](Lisple::sptr_val& field, const char* key)
+    auto apply_hook = [&](Roo::sptr_val& field, const char* key)
     {
       auto val = get(key);
-      if (val->type != Lisple::Value::Type::NIL) field = resolve_hook(runtime, val);
+      if (val->type != Roo::Value::Type::NIL) field = resolve_hook(runtime, val);
     };
 
-    auto apply_key_held = [&](Lisple::sptr_val& field, const char* key)
+    auto apply_key_held = [&](Roo::sptr_val& field, const char* key)
     {
       auto val = get(key);
-      if (val->type != Lisple::Value::Type::NIL)
+      if (val->type != Roo::Value::Type::NIL)
         field = resolve_key_held_handler(runtime, val);
     };
 
@@ -138,40 +138,40 @@ namespace
     apply_hook(mode.on_drop, "on-drop");
 
     auto on_val = get("on");
-    if (on_val->type == Lisple::Value::Type::MAP)
+    if (on_val->type == Roo::Value::Type::MAP)
     {
-      for (auto& key : Lisple::Dict::keys(*on_val))
+      for (auto& key : Roo::Dict::keys(*on_val))
       {
-        auto handler = Lisple::Dict::get_property(on_val, key);
+        auto handler = Roo::Dict::get_property(on_val, key);
         mode.event_handlers[key->str()] = resolve_hook(runtime, handler);
       }
     }
 
     auto style_val = get("style");
-    if (style_val->type != Lisple::Value::Type::NIL)
+    if (style_val->type != Roo::Value::Type::NIL)
     {
-      Lisple::Context ctx(runtime);
+      Roo::Context ctx(runtime);
       Pixils::Script::append_mode_style_layer(ctx, mode, style_val);
     }
 
     auto class_val = get("class");
-    if (class_val->type != Lisple::Value::Type::NIL)
+    if (class_val->type != Roo::Value::Type::NIL)
     {
       append_class_names(mode.class_names, Pixils::Script::parse_mode_classes(class_val));
     }
 
     auto focusable_val = get("focusable");
-    if (focusable_val->type != Lisple::Value::Type::NIL)
+    if (focusable_val->type != Roo::Value::Type::NIL)
     {
-      if (focusable_val->type != Lisple::Value::Type::BOOL)
+      if (focusable_val->type != Roo::Value::Type::BOOL)
       {
-        throw Lisple::TypeError("Mode :focusable must be a boolean");
+        throw Roo::TypeError("Mode :focusable must be a boolean");
       }
       mode.focusable = std::get<bool>(focusable_val->value);
     }
 
     auto theme_val = get("theme");
-    if (theme_val->type != Lisple::Value::Type::NIL)
+    if (theme_val->type != Roo::Value::Type::NIL)
     {
       auto theme_names = Pixils::Script::parse_theme_names(theme_val, "Mode :theme");
       mode.theme =
@@ -179,16 +179,16 @@ namespace
     }
 
     auto theme_variant_val = get("theme-variant");
-    if (theme_variant_val->type != Lisple::Value::Type::NIL)
+    if (theme_variant_val->type != Roo::Value::Type::NIL)
     {
       mode.theme_variant = Pixils::Script::parse_theme_variant(theme_variant_val,
                                                                "Mode :theme-variant");
     }
 
     auto children_val = get("children");
-    if (children_val->type != Lisple::Value::Type::NIL)
+    if (children_val->type != Roo::Value::Type::NIL)
     {
-      Lisple::Context ctx(runtime);
+      Roo::Context ctx(runtime);
       mode.children = Pixils::Script::parse_child_slots(ctx, children_val);
     }
   }
@@ -198,9 +198,9 @@ namespace
 namespace Pixils::UI
 {
   std::shared_ptr<Runtime::View> build_root_view(Runtime::Mode& base_mode,
-                                                 const Lisple::sptr_val& state,
-                                                 const Lisple::sptr_val& overrides,
-                                                 Lisple::Runtime& runtime)
+                                                 const Roo::sptr_val& state,
+                                                 const Roo::sptr_val& overrides,
+                                                 Roo::Runtime& runtime)
   {
     Runtime::View view;
     view.state = state;
@@ -215,10 +215,10 @@ namespace Pixils::UI
 
   void attach_view_mode(Runtime::View& view,
                         Runtime::Mode& base_mode,
-                        const Lisple::sptr_val& overrides,
-                        Lisple::Runtime& runtime)
+                        const Roo::sptr_val& overrides,
+                        Roo::Runtime& runtime)
   {
-    bool has_overrides = overrides && overrides->type != Lisple::Value::Type::NIL;
+    bool has_overrides = overrides && overrides->type != Roo::Value::Type::NIL;
 
     if (has_overrides)
     {
@@ -235,8 +235,8 @@ namespace Pixils::UI
   }
 
   std::shared_ptr<Runtime::View> build_view_tree(const Runtime::ChildSlot& slot,
-                                                 const Lisple::sptr_val& modes,
-                                                 Lisple::Runtime& runtime)
+                                                 const Roo::sptr_val& modes,
+                                                 Roo::Runtime& runtime)
   {
     Runtime::View view;
     view.id = slot.id;
@@ -279,11 +279,11 @@ namespace Pixils::UI
     }
   }
 
-  Lisple::sptr_val init_view_tree(Asset::Registry& assets,
-                                  Lisple::Runtime& runtime,
-                                  const Lisple::sptr_val& init_hook_ctx,
+  Roo::sptr_val init_view_tree(Asset::Registry& assets,
+                                  Roo::Runtime& runtime,
+                                  const Roo::sptr_val& init_hook_ctx,
                                   const std::shared_ptr<Runtime::View>& view,
-                                  const Lisple::sptr_val& parent_state)
+                                  const Roo::sptr_val& parent_state)
   {
     auto& ctx = *view;
 
@@ -291,9 +291,9 @@ namespace Pixils::UI
 
     ctx.set_state_if_changed(Runtime::extract_state(parent_state, ctx));
 
-    Lisple::sptr_val_v init_args = {ctx.state, init_hook_ctx};
+    Roo::sptr_val_v init_args = {ctx.state, init_hook_ctx};
     auto new_state = Runtime::invoke_hook(runtime, view, ctx.mode->init, init_args);
-    if (new_state->type != Lisple::Value::Type::NIL) ctx.set_state_if_changed(new_state);
+    if (new_state->type != Roo::Value::Type::NIL) ctx.set_state_if_changed(new_state);
 
     for (auto& grandchild : ctx.children)
     {
@@ -305,22 +305,22 @@ namespace Pixils::UI
   }
 
   void init_root_view(Asset::Registry& assets,
-                      Lisple::Runtime& runtime,
-                      const Lisple::sptr_val& init_hook_ctx,
+                      Roo::Runtime& runtime,
+                      const Roo::sptr_val& init_hook_ctx,
                       const std::shared_ptr<Runtime::View>& view)
   {
     auto& ctx = *view;
 
     if (!assets.is_loaded(ctx.mode->name)) assets.load(ctx.mode->name, ctx.mode->resources);
 
-    Lisple::sptr_val_v init_args = {ctx.state, init_hook_ctx};
+    Roo::sptr_val_v init_args = {ctx.state, init_hook_ctx};
     auto new_state =
       Runtime::invoke_hook(runtime, view, ctx.mode->init, init_args, ctx.state);
     ctx.set_state_if_changed(new_state);
   }
 
   void restore_view_tree(const std::shared_ptr<Runtime::View>& view,
-                         const Lisple::sptr_val& parent_state)
+                         const Roo::sptr_val& parent_state)
   {
     auto& ctx = *view;
     ctx.set_state_if_changed(Runtime::extract_state(parent_state, ctx));

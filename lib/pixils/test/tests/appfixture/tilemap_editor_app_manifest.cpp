@@ -30,93 +30,93 @@ namespace Pixils::Test::AppFixture::TilemapEditor
     AppManifest manifest;
 
     manifest.upsert_unit(
-      load_unit(std::string(unit_ids::program), "apps/tilemap-editor/program.lisple"));
+      load_unit(std::string(unit_ids::program), "apps/tilemap-editor/program.roo"));
     manifest.upsert_unit(load_unit(std::string(unit_ids::main_mode),
-                                   "apps/tilemap-editor/modes/main-mode/main-mode.lisple"));
+                                   "apps/tilemap-editor/modes/main-mode/main-mode.roo"));
     manifest.upsert_unit(load_unit(std::string(unit_ids::workspace_component),
                                    "apps/tilemap-editor/components/workspace/"
-                                   "workspace.lisple"));
+                                   "workspace.roo"));
     manifest.upsert_unit(load_unit(std::string(unit_ids::canvas_component),
-                                   "apps/tilemap-editor/components/canvas/canvas.lisple"));
+                                   "apps/tilemap-editor/components/canvas/canvas.roo"));
     manifest.upsert_unit(load_unit(std::string(unit_ids::controls_component),
                                    "apps/tilemap-editor/components/controls/"
-                                   "controls.lisple"));
+                                   "controls.roo"));
     manifest.upsert_unit(load_unit(std::string(unit_ids::palette_component),
                                    "apps/tilemap-editor/components/palette/"
-                                   "palette.lisple"));
+                                   "palette.roo"));
     manifest.upsert_unit(load_unit(std::string(unit_ids::inspector_component),
                                    "apps/tilemap-editor/components/inspector/"
-                                   "inspector.lisple"));
+                                   "inspector.roo"));
     manifest.upsert_unit(
-      load_unit(std::string(unit_ids::data), "apps/tilemap-editor/data/data.lisple"));
+      load_unit(std::string(unit_ids::data), "apps/tilemap-editor/data/data.roo"));
     manifest.upsert_unit(load_unit(std::string(unit_ids::tilemap),
-                                   "apps/tilemap-editor/tilemap/tilemap.lisple"));
+                                   "apps/tilemap-editor/tilemap/tilemap.roo"));
     manifest.upsert_unit(load_unit(std::string(unit_ids::tile_renderer),
-                                   "apps/tilemap-editor/rendering/tile-renderer.lisple"));
+                                   "apps/tilemap-editor/rendering/tile-renderer.roo"));
     manifest.upsert_unit(
-      load_unit(std::string(unit_ids::theme), "apps/tilemap-editor/themes/theme.lisple"));
+      load_unit(std::string(unit_ids::theme), "apps/tilemap-editor/themes/theme.roo"));
     manifest.upsert_unit(load_unit(std::string(unit_ids::assets_bundle),
-                                   "apps/tilemap-editor/bundles/assets/assets.lisple"));
+                                   "apps/tilemap-editor/bundles/assets/assets.roo"));
 
     manifest.add_file(ManifestFile{.id = std::string(file_ids::core),
-                                   .disk_path = "tilemap-editor/main.lisple",
+                                   .disk_path = "tilemap-editor/main.roo",
                                    .namespace_name = main_namespace(),
                                    .unit_ids = {std::string(unit_ids::program)}});
 
     manifest.add_file(ManifestFile{.id = "tilemap-editor/root"s,
-                                   .disk_path = "tilemap-editor/root.lisple",
+                                   .disk_path = "tilemap-editor/root.roo",
                                    .namespace_name = "tilemap-editor.root"s,
                                    .unit_ids = {std::string(unit_ids::main_mode)}});
 
     manifest.add_file(ManifestFile{.id = std::string(file_ids::data),
-                                   .disk_path = "tilemap-editor/data.lisple",
+                                   .disk_path = "tilemap-editor/data.roo",
                                    .namespace_name = "tilemap-editor.data"s,
                                    .unit_ids = {std::string(unit_ids::data)}});
 
     manifest.add_file(ManifestFile{.id = std::string(file_ids::tilemap),
-                                   .disk_path = "tilemap-editor/tilemap.lisple",
+                                   .disk_path = "tilemap-editor/tilemap.roo",
                                    .namespace_name = "tilemap-editor.tilemap"s,
                                    .unit_ids = {std::string(unit_ids::tilemap)}});
 
     manifest.add_file(ManifestFile{.id = std::string(file_ids::rendering),
-                                   .disk_path = "tilemap-editor/tile-renderer.lisple",
+                                   .disk_path = "tilemap-editor/tile-renderer.roo",
                                    .namespace_name = "tilemap-editor.tile-renderer"s,
                                    .unit_ids = {std::string(unit_ids::tile_renderer)}});
 
     manifest.add_file(ManifestFile{.id = "tilemap-editor/canvas"s,
-                                   .disk_path = "tilemap-editor/canvas.lisple",
+                                   .disk_path = "tilemap-editor/canvas.roo",
                                    .namespace_name = "tilemap-editor.canvas"s,
                                    .unit_ids = {std::string(unit_ids::canvas_component)}});
 
     manifest.add_file(ManifestFile{.id = "tilemap-editor/controls"s,
-                                   .disk_path = "tilemap-editor/controls.lisple",
+                                   .disk_path = "tilemap-editor/controls.roo",
                                    .namespace_name = "tilemap-editor.controls"s,
                                    .unit_ids = {std::string(unit_ids::controls_component)}});
 
     manifest.add_file(
       ManifestFile{.id = "tilemap-editor/inspector"s,
-                   .disk_path = "tilemap-editor/inspector.lisple",
+                   .disk_path = "tilemap-editor/inspector.roo",
                    .namespace_name = "tilemap-editor.inspector"s,
                    .unit_ids = {std::string(unit_ids::inspector_component)}});
 
     manifest.add_file(ManifestFile{.id = "tilemap-editor/palette"s,
-                                   .disk_path = "tilemap-editor/palette.lisple",
+                                   .disk_path = "tilemap-editor/palette.roo",
                                    .namespace_name = "tilemap-editor.palette"s,
                                    .unit_ids = {std::string(unit_ids::palette_component)}});
 
     manifest.add_file(
       ManifestFile{.id = "tilemap-editor/workspace"s,
-                   .disk_path = "tilemap-editor/workspace.lisple",
+                   .disk_path = "tilemap-editor/workspace.roo",
                    .namespace_name = "tilemap-editor.workspace"s,
                    .unit_ids = {std::string(unit_ids::workspace_component)}});
 
     manifest.add_file(ManifestFile{.id = std::string(file_ids::theme),
-                                   .disk_path = "tilemap-editor/theme.lisple",
+                                   .disk_path = "tilemap-editor/theme.roo",
                                    .namespace_name = "tilemap-editor.theme"s,
                                    .unit_ids = {std::string(unit_ids::theme)}});
 
     manifest.add_file(ManifestFile{.id = std::string(file_ids::assets),
-                                   .disk_path = "tilemap-editor/assets.lisple",
+                                   .disk_path = "tilemap-editor/assets.roo",
                                    .namespace_name = "tilemap-editor.assets"s,
                                    .unit_ids = {std::string(unit_ids::assets_bundle)}});
 
@@ -128,89 +128,89 @@ namespace Pixils::Test::AppFixture::TilemapEditor
     AppManifest manifest;
 
     manifest.upsert_unit(load_unit(std::string(unit_ids::program),
-                                   "apps/tilemap-editor/current/main.lisple"));
+                                   "apps/tilemap-editor/current/main.roo"));
     manifest.upsert_unit(load_unit(std::string(unit_ids::main_mode),
-                                   "apps/tilemap-editor/current/root.lisple"));
+                                   "apps/tilemap-editor/current/root.roo"));
     manifest.upsert_unit(load_unit(std::string(unit_ids::workspace_component),
-                                   "apps/tilemap-editor/current/workspace.lisple"));
+                                   "apps/tilemap-editor/current/workspace.roo"));
     manifest.upsert_unit(load_unit(std::string(unit_ids::canvas_component),
-                                   "apps/tilemap-editor/current/canvas.lisple"));
+                                   "apps/tilemap-editor/current/canvas.roo"));
     manifest.upsert_unit(load_unit(std::string(unit_ids::controls_component),
-                                   "apps/tilemap-editor/current/controls.lisple"));
+                                   "apps/tilemap-editor/current/controls.roo"));
     manifest.upsert_unit(load_unit(std::string(unit_ids::palette_component),
-                                   "apps/tilemap-editor/current/palette.lisple"));
+                                   "apps/tilemap-editor/current/palette.roo"));
     manifest.upsert_unit(load_unit(std::string(unit_ids::inspector_component),
-                                   "apps/tilemap-editor/current/inspector.lisple"));
+                                   "apps/tilemap-editor/current/inspector.roo"));
     manifest.upsert_unit(load_unit(std::string(unit_ids::data),
-                                   "apps/tilemap-editor/current/data.lisple"));
+                                   "apps/tilemap-editor/current/data.roo"));
     manifest.upsert_unit(load_unit(std::string(unit_ids::tilemap),
-                                   "apps/tilemap-editor/current/tilemap.lisple"));
+                                   "apps/tilemap-editor/current/tilemap.roo"));
     manifest.upsert_unit(load_unit(std::string(unit_ids::tile_renderer),
-                                   "apps/tilemap-editor/current/tile-renderer.lisple"));
+                                   "apps/tilemap-editor/current/tile-renderer.roo"));
     manifest.upsert_unit(load_unit(std::string(unit_ids::theme),
-                                   "apps/tilemap-editor/current/theme.lisple"));
+                                   "apps/tilemap-editor/current/theme.roo"));
     manifest.upsert_unit(load_unit(std::string(unit_ids::assets_bundle),
-                                   "apps/tilemap-editor/current/assets.lisple"));
+                                   "apps/tilemap-editor/current/assets.roo"));
 
     manifest.add_file(ManifestFile{.id = std::string(file_ids::core),
-                                   .disk_path = "tilemap-editor/main.lisple",
+                                   .disk_path = "tilemap-editor/main.roo",
                                    .namespace_name = main_namespace(),
                                    .unit_ids = {std::string(unit_ids::program)}});
 
     manifest.add_file(ManifestFile{.id = "tilemap-editor/root"s,
-                                   .disk_path = "tilemap-editor/root.lisple",
+                                   .disk_path = "tilemap-editor/root.roo",
                                    .namespace_name = "tilemap-editor.root"s,
                                    .unit_ids = {std::string(unit_ids::main_mode)}});
 
     manifest.add_file(ManifestFile{.id = std::string(file_ids::data),
-                                   .disk_path = "tilemap-editor/data.lisple",
+                                   .disk_path = "tilemap-editor/data.roo",
                                    .namespace_name = "tilemap-editor.data"s,
                                    .unit_ids = {std::string(unit_ids::data)}});
 
     manifest.add_file(ManifestFile{.id = std::string(file_ids::tilemap),
-                                   .disk_path = "tilemap-editor/tilemap.lisple",
+                                   .disk_path = "tilemap-editor/tilemap.roo",
                                    .namespace_name = "tilemap-editor.tilemap"s,
                                    .unit_ids = {std::string(unit_ids::tilemap)}});
 
     manifest.add_file(ManifestFile{.id = std::string(file_ids::rendering),
-                                   .disk_path = "tilemap-editor/tile-renderer.lisple",
+                                   .disk_path = "tilemap-editor/tile-renderer.roo",
                                    .namespace_name = "tilemap-editor.tile-renderer"s,
                                    .unit_ids = {std::string(unit_ids::tile_renderer)}});
 
     manifest.add_file(ManifestFile{.id = "tilemap-editor/canvas"s,
-                                   .disk_path = "tilemap-editor/canvas.lisple",
+                                   .disk_path = "tilemap-editor/canvas.roo",
                                    .namespace_name = "tilemap-editor.canvas"s,
                                    .unit_ids = {std::string(unit_ids::canvas_component)}});
 
     manifest.add_file(ManifestFile{.id = "tilemap-editor/controls"s,
-                                   .disk_path = "tilemap-editor/controls.lisple",
+                                   .disk_path = "tilemap-editor/controls.roo",
                                    .namespace_name = "tilemap-editor.controls"s,
                                    .unit_ids = {std::string(unit_ids::controls_component)}});
 
     manifest.add_file(
       ManifestFile{.id = "tilemap-editor/inspector"s,
-                   .disk_path = "tilemap-editor/inspector.lisple",
+                   .disk_path = "tilemap-editor/inspector.roo",
                    .namespace_name = "tilemap-editor.inspector"s,
                    .unit_ids = {std::string(unit_ids::inspector_component)}});
 
     manifest.add_file(ManifestFile{.id = "tilemap-editor/palette"s,
-                                   .disk_path = "tilemap-editor/palette.lisple",
+                                   .disk_path = "tilemap-editor/palette.roo",
                                    .namespace_name = "tilemap-editor.palette"s,
                                    .unit_ids = {std::string(unit_ids::palette_component)}});
 
     manifest.add_file(
       ManifestFile{.id = "tilemap-editor/workspace"s,
-                   .disk_path = "tilemap-editor/workspace.lisple",
+                   .disk_path = "tilemap-editor/workspace.roo",
                    .namespace_name = "tilemap-editor.workspace"s,
                    .unit_ids = {std::string(unit_ids::workspace_component)}});
 
     manifest.add_file(ManifestFile{.id = std::string(file_ids::theme),
-                                   .disk_path = "tilemap-editor/theme.lisple",
+                                   .disk_path = "tilemap-editor/theme.roo",
                                    .namespace_name = "tilemap-editor.theme"s,
                                    .unit_ids = {std::string(unit_ids::theme)}});
 
     manifest.add_file(ManifestFile{.id = std::string(file_ids::assets),
-                                   .disk_path = "tilemap-editor/assets.lisple",
+                                   .disk_path = "tilemap-editor/assets.roo",
                                    .namespace_name = "tilemap-editor.assets"s,
                                    .unit_ids = {std::string(unit_ids::assets_bundle)}});
 
@@ -223,115 +223,115 @@ namespace Pixils::Test::AppFixture::TilemapEditor
 
     manifest.upsert_unit(load_unit(std::string(unit_ids::layered_program),
                                    "apps/tilemap-editor/programs/"
-                                   "layered-program.lisple"));
+                                   "layered-program.roo"));
     manifest.upsert_unit(load_unit(std::string(unit_ids::layered_main_mode),
                                    "apps/tilemap-editor/modes/main-mode/"
-                                   "layered-main-mode.lisple"));
+                                   "layered-main-mode.roo"));
     manifest.upsert_unit(load_unit(std::string(unit_ids::layered_workspace_component),
                                    "apps/tilemap-editor/components/workspace/"
-                                   "layered-workspace.lisple"));
+                                   "layered-workspace.roo"));
     manifest.upsert_unit(load_unit(std::string(unit_ids::layered_canvas_component),
                                    "apps/tilemap-editor/components/canvas/"
-                                   "layered-canvas.lisple"));
+                                   "layered-canvas.roo"));
     manifest.upsert_unit(load_unit(std::string(unit_ids::layered_controls_shared),
                                    "apps/tilemap-editor/components/controls/layered/"
-                                   "shared-layer-controls.lisple"));
+                                   "shared-layer-controls.roo"));
     manifest.upsert_unit(load_unit(std::string(unit_ids::layered_toolbar_component),
                                    "apps/tilemap-editor/components/controls/layered/"
-                                   "toolbar.lisple"));
+                                   "toolbar.roo"));
     manifest.upsert_unit(
       load_unit(std::string(unit_ids::layered_tileset_controls_component),
-                "apps/tilemap-editor/components/controls/layered/tileset-controls.lisple"));
+                "apps/tilemap-editor/components/controls/layered/tileset-controls.roo"));
     manifest.upsert_unit(load_unit(
       std::string(unit_ids::layered_layer_visibility_toggle_component),
-      "apps/tilemap-editor/components/controls/layered/layer-visibility-toggle.lisple"));
+      "apps/tilemap-editor/components/controls/layered/layer-visibility-toggle.roo"));
     manifest.upsert_unit(load_unit(std::string(unit_ids::layered_layer_row_component),
                                    "apps/tilemap-editor/components/controls/layered/"
-                                   "layer-row.lisple"));
+                                   "layer-row.roo"));
     manifest.upsert_unit(load_unit(std::string(unit_ids::layered_layer_list_plain_component),
                                    "apps/tilemap-editor/components/controls/layered/"
-                                   "layer-list-plain.lisple"));
+                                   "layer-list-plain.roo"));
     manifest.upsert_unit(
       load_unit(std::string(unit_ids::layered_layer_list_content_component),
                 "apps/tilemap-editor/components/controls/layered/"
-                "layer-list-content.lisple"));
+                "layer-list-content.roo"));
     manifest.upsert_unit(
       load_unit(std::string(unit_ids::layered_layer_list_plain_overflow_component),
                 "apps/tilemap-editor/components/controls/layered/"
-                "layer-list-plain-overflow.lisple"));
+                "layer-list-plain-overflow.roo"));
     manifest.upsert_unit(
       load_unit(std::string(unit_ids::layered_layer_list_content_overflow_component),
                 "apps/tilemap-editor/components/controls/layered/"
-                "layer-list-content-overflow.lisple"));
+                "layer-list-content-overflow.roo"));
     manifest.upsert_unit(
       load_unit(std::string(unit_ids::layered_layer_list_unclipped_component),
                 "apps/tilemap-editor/components/controls/layered/"
-                "layer-list-unclipped.lisple"));
+                "layer-list-unclipped.roo"));
     manifest.upsert_unit(
       load_unit(std::string(unit_ids::layered_layer_list_clipped_component),
                 "apps/tilemap-editor/components/controls/layered/"
-                "layer-list-clipped.lisple"));
+                "layer-list-clipped.roo"));
     manifest.upsert_unit(load_unit(std::string(unit_ids::layered_layer_controls_component),
                                    "apps/tilemap-editor/components/controls/layered/"
-                                   "layer-controls.lisple"));
+                                   "layer-controls.roo"));
     manifest.upsert_unit(load_unit(std::string(unit_ids::layered_zoom_control_component),
                                    "apps/tilemap-editor/components/controls/layered/"
-                                   "zoom-control.lisple"));
+                                   "zoom-control.roo"));
     manifest.upsert_unit(load_unit(std::string(unit_ids::layered_inspector_component),
                                    "apps/tilemap-editor/components/inspector/"
-                                   "layered-inspector.lisple"));
+                                   "layered-inspector.roo"));
     manifest.upsert_unit(load_unit(std::string(unit_ids::layered_data),
-                                   "apps/tilemap-editor/data/layered-data.lisple"));
+                                   "apps/tilemap-editor/data/layered-data.roo"));
     manifest.upsert_unit(load_unit(std::string(unit_ids::layered_tilemap),
-                                   "apps/tilemap-editor/tilemap/layered-tilemap.lisple"));
+                                   "apps/tilemap-editor/tilemap/layered-tilemap.roo"));
     manifest.upsert_unit(load_unit(std::string(unit_ids::layered_tile_renderer),
                                    "apps/tilemap-editor/rendering/"
-                                   "layered-tile-renderer.lisple"));
+                                   "layered-tile-renderer.roo"));
     manifest.upsert_unit(load_unit(std::string(unit_ids::layered_theme),
-                                   "apps/tilemap-editor/themes/layered-theme.lisple"));
+                                   "apps/tilemap-editor/themes/layered-theme.roo"));
 
     manifest.remove_file(std::string(file_ids::core));
     manifest.add_file(ManifestFile{.id = std::string(file_ids::core),
-                                   .disk_path = "tilemap-editor/main.lisple",
+                                   .disk_path = "tilemap-editor/main.roo",
                                    .namespace_name = main_namespace(),
                                    .unit_ids = {std::string(unit_ids::layered_program)}});
 
     manifest.remove_file("tilemap-editor/root");
     manifest.add_file(ManifestFile{.id = "tilemap-editor/root"s,
-                                   .disk_path = "tilemap-editor/root.lisple",
+                                   .disk_path = "tilemap-editor/root.roo",
                                    .namespace_name = "tilemap-editor.root"s,
                                    .unit_ids = {std::string(unit_ids::layered_main_mode)}});
 
     manifest.remove_file(std::string(file_ids::data));
     manifest.add_file(ManifestFile{.id = std::string(file_ids::data),
-                                   .disk_path = "tilemap-editor/data.lisple",
+                                   .disk_path = "tilemap-editor/data.roo",
                                    .namespace_name = "tilemap-editor.data"s,
                                    .unit_ids = {std::string(unit_ids::layered_data)}});
 
     manifest.remove_file(std::string(file_ids::tilemap));
     manifest.add_file(ManifestFile{.id = std::string(file_ids::tilemap),
-                                   .disk_path = "tilemap-editor/tilemap.lisple",
+                                   .disk_path = "tilemap-editor/tilemap.roo",
                                    .namespace_name = "tilemap-editor.tilemap"s,
                                    .unit_ids = {std::string(unit_ids::layered_tilemap)}});
 
     manifest.remove_file(std::string(file_ids::rendering));
     manifest.add_file(
       ManifestFile{.id = std::string(file_ids::rendering),
-                   .disk_path = "tilemap-editor/tile-renderer.lisple",
+                   .disk_path = "tilemap-editor/tile-renderer.roo",
                    .namespace_name = "tilemap-editor.tile-renderer"s,
                    .unit_ids = {std::string(unit_ids::layered_tile_renderer)}});
 
     manifest.remove_file("tilemap-editor/canvas");
     manifest.add_file(
       ManifestFile{.id = "tilemap-editor/canvas"s,
-                   .disk_path = "tilemap-editor/canvas.lisple",
+                   .disk_path = "tilemap-editor/canvas.roo",
                    .namespace_name = "tilemap-editor.canvas"s,
                    .unit_ids = {std::string(unit_ids::layered_canvas_component)}});
 
     manifest.remove_file("tilemap-editor/controls");
     manifest.add_file(
       ManifestFile{.id = "tilemap-editor/controls"s,
-                   .disk_path = "tilemap-editor/controls.lisple",
+                   .disk_path = "tilemap-editor/controls.roo",
                    .namespace_name = "tilemap-editor.controls"s,
                    .unit_ids = {
                      std::string(unit_ids::layered_controls_shared),
@@ -347,20 +347,20 @@ namespace Pixils::Test::AppFixture::TilemapEditor
     manifest.remove_file("tilemap-editor/inspector");
     manifest.add_file(
       ManifestFile{.id = "tilemap-editor/inspector"s,
-                   .disk_path = "tilemap-editor/inspector.lisple",
+                   .disk_path = "tilemap-editor/inspector.roo",
                    .namespace_name = "tilemap-editor.inspector"s,
                    .unit_ids = {std::string(unit_ids::layered_inspector_component)}});
 
     manifest.remove_file("tilemap-editor/workspace");
     manifest.add_file(
       ManifestFile{.id = "tilemap-editor/workspace"s,
-                   .disk_path = "tilemap-editor/workspace.lisple",
+                   .disk_path = "tilemap-editor/workspace.roo",
                    .namespace_name = "tilemap-editor.workspace"s,
                    .unit_ids = {std::string(unit_ids::layered_workspace_component)}});
 
     manifest.remove_file(std::string(file_ids::theme));
     manifest.add_file(ManifestFile{.id = std::string(file_ids::theme),
-                                   .disk_path = "tilemap-editor/theme.lisple",
+                                   .disk_path = "tilemap-editor/theme.roo",
                                    .namespace_name = "tilemap-editor.theme"s,
                                    .unit_ids = {std::string(unit_ids::layered_theme)}});
 
@@ -404,7 +404,7 @@ namespace Pixils::Test::AppFixture::TilemapEditor
 
   std::vector<std::string> entry_files()
   {
-    return {"tilemap-editor/main.lisple"};
+    return {"tilemap-editor/main.roo"};
   }
 
   std::vector<std::string> layered_entry_files()

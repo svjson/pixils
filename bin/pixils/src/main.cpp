@@ -5,8 +5,8 @@
 #include <pixils/script.h>
 
 #include <SDL2/SDL.h>
-#include <lisple-package/manifest.h>
-#include <lisple/io/dir_root_file_system.h>
+#include <roo-package/manifest.h>
+#include <roo/io/dir_root_file_system.h>
 
 #include <filesystem>
 #include <iostream>
@@ -20,7 +20,7 @@ namespace
   {
     std::filesystem::path asset_base_path;
     std::vector<std::string> load_path;
-    std::vector<Lisple::NamespaceRoot> namespace_roots;
+    std::vector<Roo::NamespaceRoot> namespace_roots;
     std::vector<std::string> source_files;
     std::vector<std::string> entry_points;
   };
@@ -28,12 +28,12 @@ namespace
   const std::vector<std::filesystem::path>& directory_entrypoint_candidates()
   {
     static const std::vector<std::filesystem::path> candidates{
-      "core.lisple",
-      "src/core.lisple",
-      "main.lisple",
-      "src/main.lisple",
-      "game.lisple",
-      "src/game.lisple",
+      "core.roo",
+      "src/core.roo",
+      "main.roo",
+      "src/main.roo",
+      "game.roo",
+      "src/game.roo",
     };
     return candidates;
   }
@@ -64,11 +64,11 @@ namespace
 
   LaunchTarget package_launch_target(const std::filesystem::path& package_root)
   {
-    Lisple::DirRootFileSystem manifest_fs("/");
-    auto manifest = Lisple::Package::read_manifest(
+    Roo::DirRootFileSystem manifest_fs("/");
+    auto manifest = Roo::Package::read_manifest(
       manifest_fs,
       (package_root / "package.edn").string());
-    auto plan = Lisple::Package::resolve_load_plan(manifest_fs, package_root.string());
+    auto plan = Roo::Package::resolve_load_plan(manifest_fs, package_root.string());
     auto asset_base_path = package_root;
     if (!manifest.load_roots.empty())
     {
@@ -77,7 +77,7 @@ namespace
 
     LaunchTarget target{
       .asset_base_path = asset_base_path,
-      .load_path = Lisple::Package::merge_load_paths(
+      .load_path = Roo::Package::merge_load_paths(
         plan,
         {std::filesystem::current_path().string(), "/"}),
       .namespace_roots = plan.namespace_roots,
@@ -125,7 +125,7 @@ int main(int argc, char** argv)
 {
   if (argc < 2)
   {
-    std::cerr << "Usage: pixils <script.lisple|directory>" << std::endl;
+    std::cerr << "Usage: pixils <script.roo|directory>" << std::endl;
     return 1;
   }
 
@@ -158,8 +158,8 @@ int main(int argc, char** argv)
   {
     Pixils::RenderContext ctx = std::move(*opt_ctx);
 
-    Lisple::Runtime runtime =
-      Pixils::init_lisple_runtime(ctx,
+    Roo::Runtime runtime =
+      Pixils::init_roo_runtime(ctx,
                                   "main",
                                   [&target](Pixils::RuntimeConfiguration* cfg)
                                   {

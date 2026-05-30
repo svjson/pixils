@@ -5,8 +5,8 @@ pkg_search_module(SDL2IMAGE SDL2_image)
 pkg_search_module(SDL2MIXER SDL2_mixer)
 pkg_search_module(FREETYPE REQUIRED freetype2)
 find_package(X11)
-find_package(lisple REQUIRED)
-find_package(lisple-package REQUIRED)
+find_package(roo REQUIRED)
+find_package(roo-package REQUIRED)
 
 file(GLOB pixils_SOURCES CONFIGURE_DEPENDS
   src/*.cpp
@@ -22,7 +22,7 @@ file(GLOB pixils_SOURCES CONFIGURE_DEPENDS
 list(FILTER pixils_SOURCES EXCLUDE REGEX ".*/native_package\\.cpp$")
 
 file(GLOB_RECURSE pixils_EMBEDDED_LISP_SOURCES CONFIGURE_DEPENDS
-  lisp/*.lisple
+  lisp/*.roo
 )
 
 set(pixils_GENERATED_DIR ${CMAKE_CURRENT_BINARY_DIR}/generated)
@@ -65,7 +65,7 @@ foreach(target pixils_objects pixils_benchmark_objects)
       SDL2_image
       SDL2_mixer
       ${FREETYPE_LIBRARIES}
-      Lisple::lisple_shared
+      Roo::roo_shared
   )
 
 endforeach()
@@ -104,7 +104,7 @@ target_link_libraries(pixils_shared
     SDL2_image
     SDL2_mixer
     ${FREETYPE_LIBRARIES}
-    Lisple::lisple_shared
+    Roo::roo_shared
 )
 
 target_link_libraries(pixils_static
@@ -113,19 +113,19 @@ target_link_libraries(pixils_static
     SDL2_image
     SDL2_mixer
     ${FREETYPE_LIBRARIES}
-    Lisple::lisple_static
+    Roo::roo_static
 )
 
-add_library(pixils_lisple_native SHARED
+add_library(pixils_roo_native SHARED
   $<TARGET_OBJECTS:pixils_objects>
   src/native_package.cpp
 )
 
-set_target_properties(pixils_lisple_native PROPERTIES
+set_target_properties(pixils_roo_native PROPERTIES
   OUTPUT_NAME pixils-native
 )
 
-target_include_directories(pixils_lisple_native
+target_include_directories(pixils_roo_native
   PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<BUILD_INTERFACE:${pixils_GENERATED_DIR}>
@@ -133,26 +133,26 @@ target_include_directories(pixils_lisple_native
     ${FREETYPE_INCLUDE_DIRS}
 )
 
-target_link_libraries(pixils_lisple_native
+target_link_libraries(pixils_roo_native
   PUBLIC
     SDL2
     SDL2_image
     SDL2_mixer
     ${FREETYPE_LIBRARIES}
-    Lisple::lisple_shared
-    Lisple::package_shared
+    Roo::roo_shared
+    Roo::package_shared
 )
 
-add_custom_command(TARGET pixils_lisple_native POST_BUILD
+add_custom_command(TARGET pixils_roo_native POST_BUILD
   COMMAND ${CMAKE_COMMAND} -E make_directory
           ${CMAKE_CURRENT_SOURCE_DIR}/native
   COMMAND ${CMAKE_COMMAND} -E copy_if_different
-          $<TARGET_FILE:pixils_lisple_native>
-          ${CMAKE_CURRENT_SOURCE_DIR}/native/$<TARGET_FILE_NAME:pixils_lisple_native>
-  COMMENT "Copying Pixils Lisple native package artifact into lib/pixils/native"
+          $<TARGET_FILE:pixils_roo_native>
+          ${CMAKE_CURRENT_SOURCE_DIR}/native/$<TARGET_FILE_NAME:pixils_roo_native>
+  COMMENT "Copying Pixils Roo native package artifact into lib/pixils/native"
 )
 
-install(TARGETS pixils pixils_shared pixils_static pixils_lisple_native
+install(TARGETS pixils pixils_shared pixils_static pixils_roo_native
   EXPORT pixilsTargets
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
@@ -174,19 +174,19 @@ install(FILES cmake/pixilsConfig.cmake
 )
 
 install(DIRECTORY lisp/
-  DESTINATION share/lisple/pkg/pixils/lisp
+  DESTINATION share/roo/pkg/pixils/lisp
   FILES_MATCHING
-    PATTERN "*.lisple"
+    PATTERN "*.roo"
     PATTERN "*.lspl"
 )
 
 install(FILES package.edn
-  DESTINATION share/lisple/pkg/pixils
+  DESTINATION share/roo/pkg/pixils
 )
 
-install(TARGETS pixils_lisple_native
-  LIBRARY DESTINATION share/lisple/pkg/pixils/native
-  RUNTIME DESTINATION share/lisple/pkg/pixils/native
+install(TARGETS pixils_roo_native
+  LIBRARY DESTINATION share/roo/pkg/pixils/native
+  RUNTIME DESTINATION share/roo/pkg/pixils/native
 )
 
 add_subdirectory(test)

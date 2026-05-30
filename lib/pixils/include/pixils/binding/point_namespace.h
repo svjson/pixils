@@ -5,15 +5,15 @@
 #include <pixils/binding/shkey.h>
 #include <pixils/geom.h>
 
-#include <lisple/exec.h>
-#include <lisple/host/object.h>
-#include <lisple/namespace.h>
+#include <roo/exec.h>
+#include <roo/host/object.h>
+#include <roo/namespace.h>
 #include <string>
 
 namespace Pixils::Script
 {
   /*!
-   * @brief Constant for "pixils.point" lisple namespace name
+   * @brief Constant for "pixils.point" roo namespace name
    */
   inline constexpr std::string_view NS__PIXILS__POINT = "pixils.point";
 
@@ -45,7 +45,7 @@ namespace Pixils::Script
   {
     HOST_TYPE(POINT, "HPoint", std::string(FN__PIXILS__POINT__MAKE_POINT));
 
-    inline const Lisple::SeqRef VECTOR_OF_POINT(&Lisple::Type::VECTOR, &POINT, "[HPoint]");
+    inline const Roo::SeqRef VECTOR_OF_POINT(&Roo::Type::VECTOR, &POINT, "[HPoint]");
 
   } // namespace HostType
 
@@ -53,7 +53,7 @@ namespace Pixils::Script
   {
     /*! @brief IntPointFunction */
     FUNC(IntPointFunction, int);
-    /*! @brief Lisple Function that constructs a new instance of Point/PointAdapter */
+    /*! @brief Roo Function that constructs a new instance of Point/PointAdapter */
     FUNC(MakePoint, point_from_ints, point_from_map);
     /*! @brief Multiply point values  */
     FUNC(PointMultiplication, multiply_num);
@@ -79,10 +79,10 @@ namespace Pixils::Script
     FUNC(RotatePoint, orig_amount, amount, with_opts);
   } // namespace Function
 
-  /*! @brief PointAdapter - A Lisple HostObject Adapter for Point */
+  /*! @brief PointAdapter - A Roo HostObject Adapter for Point */
   NATIVE_ADAPTER(PointAdapter, Point, (x, y), (x, y));
 
-  class PointNamespace : public Lisple::Namespace
+  class PointNamespace : public Roo::Namespace
   {
    public:
     PointNamespace();

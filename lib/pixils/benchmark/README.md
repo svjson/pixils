@@ -75,7 +75,7 @@ time-noise normalization.
 
 The goalpost is deliberately manual. Change the default in
 `benchmark/support/benchmark.h` when starting a new benchmark milestone, similar
-to liblisple's `CHANGE_ME` benchmark folder.
+to libroo's `CHANGE_ME` benchmark folder.
 
 Stable counters live in `include/pixils/benchmark/counters.h` as `MetricId`.
 Append new metrics instead of renaming existing IDs or changing existing CSV

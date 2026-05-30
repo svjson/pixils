@@ -5,11 +5,11 @@
 #include <pixils/ui/style.h>
 #include <pixils/ui/theme.h>
 
-#include <lisple/runtime/value.h>
+#include <roo/runtime/value.h>
 #include <memory>
 #include <vector>
 
-namespace Lisple
+namespace Roo
 {
   class Runtime;
 }
@@ -27,7 +27,7 @@ namespace Pixils::UI
    * mode's theme before the current mode has rendered.
    */
   Theme resolve_effective_theme(const std::shared_ptr<Pixils::Runtime::View>& view,
-                                Lisple::Runtime& runtime,
+                                Roo::Runtime& runtime,
                                 const Theme* inherited_theme = nullptr);
 
   /**
@@ -38,8 +38,8 @@ namespace Pixils::UI
    */
   void layout_view_tree(const std::shared_ptr<Pixils::Runtime::View>& view,
                         const Rect& bounds,
-                        Lisple::Runtime& runtime,
-                        const Lisple::sptr_val& hook_ctx);
+                        Roo::Runtime& runtime,
+                        const Roo::sptr_val& hook_ctx);
 
   /**
    * Compute absolute layout rects for a set of child views within a parent rect.
@@ -52,8 +52,8 @@ namespace Pixils::UI
   std::vector<Rect> layout_children(
     const std::vector<std::shared_ptr<Pixils::Runtime::View>>& children,
     const Rect& parent,
-    Lisple::Runtime& runtime,
-    const Lisple::sptr_val& hook_ctx,
+    Roo::Runtime& runtime,
+    const Roo::sptr_val& hook_ctx,
     const Style::Layout& layout = {},
     const Style* inherited_style = nullptr,
     const Theme* inherited_theme = nullptr);

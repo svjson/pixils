@@ -4,10 +4,10 @@
 #include <SDL2/SDL_events.h>
 #include <SDL2/SDL_keycode.h>
 #include <ctype.h>
-#include <lisple/form.h>
-#include <lisple/runtime/seq.h>
-#include <lisple/runtime/value.h>
-#include <lisple/type.h>
+#include <roo/form.h>
+#include <roo/runtime/seq.h>
+#include <roo/runtime/value.h>
+#include <roo/type.h>
 #include <utility>
 
 namespace Pixils
@@ -16,18 +16,18 @@ namespace Pixils
   {
     namespace
     {
-      bool held_keys_contains(const Lisple::sptr_val& held_keys, const std::string& key_name)
+      bool held_keys_contains(const Roo::sptr_val& held_keys, const std::string& key_name)
       {
-        if (!held_keys || held_keys->type == Lisple::Value::Type::NIL)
+        if (!held_keys || held_keys->type == Roo::Value::Type::NIL)
         {
           return false;
         }
 
-        size_t held_count = Lisple::count(*held_keys);
+        size_t held_count = Roo::count(*held_keys);
         for (size_t i = 0; i < held_count; i++)
         {
-          auto held_key = Lisple::get_child(*held_keys, i);
-          if (!held_key || held_key->type != Lisple::Value::Type::KEYWORD)
+          auto held_key = Roo::get_child(*held_keys, i);
+          if (!held_key || held_key->type != Roo::Value::Type::KEYWORD)
           {
             continue;
           }
@@ -407,23 +407,23 @@ namespace Pixils
       return typed_char;
     }
 
-    Lisple::sptr_val key_event_to_lisple_key(const SDL_KeyboardEvent& event)
+    Roo::sptr_val key_event_to_roo_key(const SDL_KeyboardEvent& event)
     {
       for (auto& [str, keycode] : SYMBOL_TO_KEYCODE)
       {
         if (keycode == event.keysym.sym)
         {
-          return Lisple::keyword("key/" + str);
+          return Roo::keyword("key/" + str);
         }
       }
 
-      return Lisple::Constant::NIL;
+      return Roo::Constant::NIL;
     }
 
-    std::optional<std::string> key_to_text(const Lisple::sptr_val& key,
-                                           const Lisple::sptr_val& held_keys)
+    std::optional<std::string> key_to_text(const Roo::sptr_val& key,
+                                           const Roo::sptr_val& held_keys)
     {
-      if (!key || key->type != Lisple::Value::Type::KEYWORD)
+      if (!key || key->type != Roo::Value::Type::KEYWORD)
       {
         return std::nullopt;
       }

@@ -2,9 +2,9 @@
 
 #include <pixils/binding/ui/style/theme_definition.h>
 
-#include <lisple/context.h>
-#include <lisple/namespace.h>
-#include <lisple/runtime.h>
+#include <roo/context.h>
+#include <roo/namespace.h>
+#include <roo/runtime.h>
 #include <optional>
 #include <string>
 
@@ -14,7 +14,7 @@ namespace Pixils::UI
   {
     constexpr const char* BASE_THEME_DEFINITION = "pixils.ui.base-theme/definition";
 
-    void require_base_theme_namespace(Lisple::Runtime& runtime)
+    void require_base_theme_namespace(Roo::Runtime& runtime)
     {
       const std::string previous_namespace = runtime.get_current_namespace().get_name();
 
@@ -33,13 +33,13 @@ namespace Pixils::UI
 
   } // namespace
 
-  const Theme& default_base_theme(Lisple::Runtime& runtime)
+  const Theme& default_base_theme(Roo::Runtime& runtime)
   {
     static std::optional<Theme> cached_theme = std::nullopt;
 
     if (!cached_theme)
     {
-      Lisple::Context ctx(runtime);
+      Roo::Context ctx(runtime);
       require_base_theme_namespace(runtime);
       auto definition = runtime.lookup(BASE_THEME_DEFINITION);
       cached_theme =

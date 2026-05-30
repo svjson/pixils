@@ -1,6 +1,6 @@
 (ns tilemap-editor.application-startup-test
   (:require proof.core
-            [lisple.io :as io]
+            [roo.io :as io]
             [pixils.tilemap.project.model :as data]
             [pixils.test.runtime :as runtime]
             [tilemap-editor.io.project :as project-io]

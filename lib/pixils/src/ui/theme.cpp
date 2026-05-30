@@ -2,7 +2,7 @@
 #include <pixils/ui/theme.h>
 
 #include <algorithm>
-#include <lisple/runtime/dict.h>
+#include <roo/runtime/dict.h>
 
 namespace Pixils::UI
 {
@@ -16,8 +16,8 @@ namespace Pixils::UI
       if (selector.focus_within && !ctx.interaction.focus_within) return false;
       if (selector.disabled)
       {
-        auto disabled = Lisple::Dict::get_property(ctx.state, Lisple::keyword("disabled?"));
-        if (!disabled || !Lisple::is_truthy(*disabled)) return false;
+        auto disabled = Roo::Dict::get_property(ctx.state, Roo::keyword("disabled?"));
+        if (!disabled || !Roo::is_truthy(*disabled)) return false;
       }
       return true;
     }
@@ -29,7 +29,7 @@ namespace Pixils::UI
              static_cast<int>(selector.disabled);
     }
 
-    bool rtval_equal(const Lisple::sptr_val& lhs, const Lisple::sptr_val& rhs)
+    bool rtval_equal(const Roo::sptr_val& lhs, const Roo::sptr_val& rhs)
     {
       if (lhs == rhs) return true;
       if (!lhs || !rhs) return false;
@@ -45,23 +45,23 @@ namespace Pixils::UI
       }
     }
 
-    bool state_subset_matches(const Lisple::sptr_val& selector_state,
-                              const Lisple::sptr_val& view_state)
+    bool state_subset_matches(const Roo::sptr_val& selector_state,
+                              const Roo::sptr_val& view_state)
     {
-      if (!selector_state || selector_state->type != Lisple::Value::Type::MAP) return false;
-      if (!view_state || view_state->type != Lisple::Value::Type::MAP) return false;
+      if (!selector_state || selector_state->type != Roo::Value::Type::MAP) return false;
+      if (!view_state || view_state->type != Roo::Value::Type::MAP) return false;
 
-      for (const auto& key : Lisple::Dict::keys(*selector_state))
+      for (const auto& key : Roo::Dict::keys(*selector_state))
       {
-        auto expected = Lisple::Dict::get_property(selector_state, key);
-        auto actual = Lisple::Dict::get_property(view_state, *key);
+        auto expected = Roo::Dict::get_property(selector_state, key);
+        auto actual = Roo::Dict::get_property(view_state, *key);
         if (!actual || !rtval_equal(expected, actual)) return false;
       }
 
       return true;
     }
 
-    bool state_maps_equal(const Lisple::sptr_val& lhs, const Lisple::sptr_val& rhs)
+    bool state_maps_equal(const Roo::sptr_val& lhs, const Roo::sptr_val& rhs)
     {
       return state_subset_matches(lhs, rhs) && state_subset_matches(rhs, lhs);
     }
@@ -115,7 +115,7 @@ namespace Pixils::UI
     return selector;
   }
 
-  ThemeSelector ThemeSelector::state_match(const Lisple::sptr_val& value)
+  ThemeSelector ThemeSelector::state_match(const Roo::sptr_val& value)
   {
     ThemeSelector selector;
     selector.type = Type::STATE;
@@ -224,8 +224,8 @@ namespace Pixils::UI
     case Type::CLASS_NAME:
       return 1 + specificity;
     case Type::STATE:
-      return specificity + (state && state->type == Lisple::Value::Type::MAP
-                              ? static_cast<int>(Lisple::Dict::keys(*state).size())
+      return specificity + (state && state->type == Roo::Value::Type::MAP
+                              ? static_cast<int>(Roo::Dict::keys(*state).size())
                               : 1);
     case Type::COMPOUND:
     case Type::DESCENDANT:
@@ -244,7 +244,7 @@ namespace Pixils::UI
 
   void Theme::set_style(const ThemeSelector& selector,
                         const Style& style,
-                        const std::vector<Lisple::sptr_val>& style_exprs)
+                        const std::vector<Roo::sptr_val>& style_exprs)
   {
     declarations_resolved = false;
     auto it = std::find_if(rules.begin(),
@@ -266,7 +266,7 @@ namespace Pixils::UI
   void Theme::set_variant_style(const std::string& variant,
                                 const ThemeSelector& selector,
                                 const Style& style,
-                                const std::vector<Lisple::sptr_val>& style_exprs)
+                                const std::vector<Roo::sptr_val>& style_exprs)
   {
     declarations_resolved = false;
     auto& rules_for_variant = variant_rules[variant];

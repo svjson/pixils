@@ -6,8 +6,8 @@
 
 #include <SDL2/SDL_mixer.h>
 #include <algorithm>
-#include <lisple/host/schema.h>
-#include <lisple/runtime/value.h>
+#include <roo/host/schema.h>
+#include <roo/runtime/value.h>
 
 namespace Pixils::Script
 {
@@ -23,33 +23,33 @@ namespace Pixils::Script
   namespace Function
   {
     FUNC_IMPL(PlayBang,
-              MULTI_SIG((FN_ARGS((&Lisple::Type::KEYWORD)),
+              MULTI_SIG((FN_ARGS((&Roo::Type::KEYWORD)),
                          EXEC_DISPATCH(&PlayBang::exec_play)),
-                        (FN_ARGS((&Lisple::Type::KEYWORD), (&Lisple::Type::MAP)),
+                        (FN_ARGS((&Roo::Type::KEYWORD), (&Roo::Type::MAP)),
                          EXEC_DISPATCH(&PlayBang::exec_play_with_opts))));
 
     EXEC_BODY(PlayBang, exec_play)
     {
-      Lisple::sptr_val_v opt_args = args;
-      opt_args.push_back(Lisple::map({}));
+      Roo::sptr_val_v opt_args = args;
+      opt_args.push_back(Roo::map({}));
       return this->exec_play_with_opts(ctx, opt_args);
     }
 
     EXEC_BODY(PlayBang, exec_play_with_opts)
     {
-      static Lisple::MapSchema opts_schema({},
-                                           {{"channel", &Lisple::Type::NUMBER},
-                                            {"loops", &Lisple::Type::NUMBER},
-                                            {"volume", &Lisple::Type::NUMBER}});
+      static Roo::MapSchema opts_schema({},
+                                           {{"channel", &Roo::Type::NUMBER},
+                                            {"loops", &Roo::Type::NUMBER},
+                                            {"volume", &Roo::Type::NUMBER}});
 
       auto [bundle_id, sound_id] = args[0]->qual();
       auto opts = opts_schema.bind(ctx, *args[1]);
 
       RenderContext& rc =
-        Lisple::obj<RenderContext>(*ctx.lookup(ID__PIXILS__RENDER_CONTEXT));
+        Roo::obj<RenderContext>(*ctx.lookup(ID__PIXILS__RENDER_CONTEXT));
 
       Mix_Chunk* chunk = rc.asset_registry->get_sound(bundle_id, sound_id);
-      if (!chunk) return Lisple::number(-1);
+      if (!chunk) return Roo::number(-1);
 
       int channel = opts.i32("channel", -1);
       int loops = opts.i32("loops", 0);
@@ -61,12 +61,12 @@ namespace Pixils::Script
         Mix_Volume(played_channel, normalized_volume_to_mix_level(volume));
       }
 
-      return Lisple::number(played_channel);
+      return Roo::number(played_channel);
     }
   } // namespace Function
 
   AudioNamespace::AudioNamespace()
-    : Lisple::Namespace(std::string(NS__PIXILS__AUDIO))
+    : Roo::Namespace(std::string(NS__PIXILS__AUDIO))
   {
     values.emplace(FN__PLAY_BANG, Function::PlayBang::make());
   }

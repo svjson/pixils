@@ -9,8 +9,8 @@
 #include <fstream>
 #include <functional>
 #include <gtest/gtest.h>
-#include <lisple/runtime/dict.h>
-#include <lisple/runtime/value.h>
+#include <roo/runtime/dict.h>
+#include <roo/runtime/value.h>
 #include <memory>
 #include <sdl2_mock/mock_resources.h>
 #include <string>
@@ -57,28 +57,28 @@ namespace
     }
   }
 
-  void read_tilemap_editor_sources(Lisple::Runtime& runtime)
+  void read_tilemap_editor_sources(Roo::Runtime& runtime)
   {
-    runtime.read_file("examples/tilemap-editor/src/assets.lisple");
-    runtime.read_file("examples/tilemap-editor/src/model/data.lisple");
-    runtime.read_file("examples/tilemap-editor/src/model/tilemap.lisple");
-    runtime.read_file("examples/tilemap-editor/src/io/project.lisple");
-    runtime.read_file("examples/tilemap-editor/src/view/tilemap/renderer.lisple");
-    runtime.read_file("examples/tilemap-editor/src/view/tilemap/canvas.lisple");
-    runtime.read_file("examples/tilemap-editor/src/view/tilemap/inspector.lisple");
-    runtime.read_file("examples/tilemap-editor/src/view/tilemap/palette.lisple");
-    runtime.read_file("examples/tilemap-editor/src/view/tilemap/controls.lisple");
-    runtime.read_file("examples/tilemap-editor/src/view/tilemap/layout.lisple");
-    runtime.read_file("examples/tilemap-editor/src/view/resources/model.lisple");
-    runtime.read_file("examples/tilemap-editor/src/view/resources/dialogs.lisple");
-    runtime.read_file("examples/tilemap-editor/src/view/resources/panels.lisple");
-    runtime.read_file("examples/tilemap-editor/src/view/resources/layout.lisple");
-    runtime.read_file("examples/tilemap-editor/src/view/tileset/model.lisple");
-    runtime.read_file("examples/tilemap-editor/src/view/tileset/panels.lisple");
-    runtime.read_file("examples/tilemap-editor/src/view/tileset/dialogs.lisple");
-    runtime.read_file("examples/tilemap-editor/src/view/tileset/layout.lisple");
-    runtime.read_file("examples/tilemap-editor/src/view/theme.lisple");
-    runtime.read_file("examples/tilemap-editor/src/root.lisple");
+    runtime.read_file("examples/tilemap-editor/src/assets.roo");
+    runtime.read_file("examples/tilemap-editor/src/model/data.roo");
+    runtime.read_file("examples/tilemap-editor/src/model/tilemap.roo");
+    runtime.read_file("examples/tilemap-editor/src/io/project.roo");
+    runtime.read_file("examples/tilemap-editor/src/view/tilemap/renderer.roo");
+    runtime.read_file("examples/tilemap-editor/src/view/tilemap/canvas.roo");
+    runtime.read_file("examples/tilemap-editor/src/view/tilemap/inspector.roo");
+    runtime.read_file("examples/tilemap-editor/src/view/tilemap/palette.roo");
+    runtime.read_file("examples/tilemap-editor/src/view/tilemap/controls.roo");
+    runtime.read_file("examples/tilemap-editor/src/view/tilemap/layout.roo");
+    runtime.read_file("examples/tilemap-editor/src/view/resources/model.roo");
+    runtime.read_file("examples/tilemap-editor/src/view/resources/dialogs.roo");
+    runtime.read_file("examples/tilemap-editor/src/view/resources/panels.roo");
+    runtime.read_file("examples/tilemap-editor/src/view/resources/layout.roo");
+    runtime.read_file("examples/tilemap-editor/src/view/tileset/model.roo");
+    runtime.read_file("examples/tilemap-editor/src/view/tileset/panels.roo");
+    runtime.read_file("examples/tilemap-editor/src/view/tileset/dialogs.roo");
+    runtime.read_file("examples/tilemap-editor/src/view/tileset/layout.roo");
+    runtime.read_file("examples/tilemap-editor/src/view/theme.roo");
+    runtime.read_file("examples/tilemap-editor/src/root.roo");
   }
 
   class ExampleTilemapEditorBenchmark : public RenderFixture
@@ -256,7 +256,7 @@ namespace
     void load_main_mode()
     {
       read_tilemap_editor_sources(runtime);
-      session.push_mode("main-mode", Lisple::Constant::NIL);
+      session.push_mode("main-mode", Roo::Constant::NIL);
       frame_cycle();
       clear_render_ops();
     }
@@ -264,24 +264,24 @@ namespace
     void set_project_history_path(const std::filesystem::path& history_path)
     {
       ASSERT_NE(session.active_mode, nullptr);
-      Lisple::Dict::set_property(session.active_mode->state,
-                                 Lisple::keyword("project-history-path"),
-                                 Lisple::string(history_path.string()));
-      Lisple::Dict::set_property(session.active_mode->state,
-                                 Lisple::keyword("recent-projects"),
-                                 Lisple::vector({}));
+      Roo::Dict::set_property(session.active_mode->state,
+                                 Roo::keyword("project-history-path"),
+                                 Roo::string(history_path.string()));
+      Roo::Dict::set_property(session.active_mode->state,
+                                 Roo::keyword("recent-projects"),
+                                 Roo::vector({}));
     }
 
     void simulate_open_project_file(const std::string& path,
                                     const std::string& directory,
                                     const std::string& filename)
     {
-      auto origin = Lisple::map({Lisple::keyword("view"),
+      auto origin = Roo::map({Roo::keyword("view"),
                                  Pixils::Script::ViewAdapter::make_ref(*session.active_mode),
-                                 Lisple::keyword("event"),
-                                 Lisple::keyword("project/file-dialog-result")});
-      auto overrides = Lisple::map({Lisple::keyword("origin"), origin});
-      session.push_mode("ui/tab-panel-empty", Lisple::Constant::NIL, overrides);
+                                 Roo::keyword("event"),
+                                 Roo::keyword("project/file-dialog-result")});
+      auto overrides = Roo::map({Roo::keyword("origin"), origin});
+      session.push_mode("ui/tab-panel-empty", Roo::Constant::NIL, overrides);
       session.pop_mode(runtime.eval(R"({:type :confirm
                                       :mode :file-dialog/open
                                       :path )" +

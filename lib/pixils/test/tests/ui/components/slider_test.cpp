@@ -3,9 +3,9 @@
 #include <pixils/ui/style.h>
 
 #include <gtest/gtest.h>
-#include <lisple/runtime/dict.h>
-#include <lisple/runtime/seq.h>
-#include <lisple/runtime/value.h>
+#include <roo/runtime/dict.h>
+#include <roo/runtime/seq.h>
+#include <roo/runtime/value.h>
 #include <string>
 
 class SliderTest : public RenderFixture
@@ -50,7 +50,7 @@ TEST_F(SliderTest, slider_drag_updates_bound_value)
                     :step 1})]})
   )");
 
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
   session.update_mode();
   session.render_mode();
 
@@ -58,7 +58,7 @@ TEST_F(SliderTest, slider_drag_updates_bound_value)
   update_cycle();
 
   auto zoom =
-    Lisple::Dict::get_property(session.active_mode->state, Lisple::keyword("zoom"));
+    Roo::Dict::get_property(session.active_mode->state, Roo::keyword("zoom"));
   ASSERT_NE(zoom, nullptr);
   EXPECT_EQ(zoom->num().get_int(), 4);
 }
@@ -86,13 +86,13 @@ TEST_F(SliderTest, slider_render_helpers_read_effective_style)
   )");
 
   ASSERT_NE(result, nullptr);
-  ASSERT_EQ(Lisple::count(*result), 6u);
-  EXPECT_EQ(Lisple::get_child(*result, 0)->num().get_int(), 61);
-  EXPECT_EQ(Lisple::get_child(*result, 1)->num().get_int(), 74);
-  EXPECT_EQ(Lisple::get_child(*result, 2)->num().get_int(), 94);
-  EXPECT_EQ(Lisple::get_child(*result, 3)->num().get_int(), 103);
-  EXPECT_EQ(Lisple::get_child(*result, 4)->num().get_int(), 45);
-  EXPECT_EQ(Lisple::get_child(*result, 5)->num().get_int(), 1);
+  ASSERT_EQ(Roo::count(*result), 6u);
+  EXPECT_EQ(Roo::get_child(*result, 0)->num().get_int(), 61);
+  EXPECT_EQ(Roo::get_child(*result, 1)->num().get_int(), 74);
+  EXPECT_EQ(Roo::get_child(*result, 2)->num().get_int(), 94);
+  EXPECT_EQ(Roo::get_child(*result, 3)->num().get_int(), 103);
+  EXPECT_EQ(Roo::get_child(*result, 4)->num().get_int(), 45);
+  EXPECT_EQ(Roo::get_child(*result, 5)->num().get_int(), 1);
 }
 
 TEST_F(SliderTest, classic_blue_theme_styles_slider_handle)

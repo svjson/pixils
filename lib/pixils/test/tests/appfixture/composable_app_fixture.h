@@ -7,8 +7,8 @@
 
 #include <filesystem>
 #include <gtest/gtest.h>
-#include <lisple/runtime.h>
-#include <lisple/runtime/value.h>
+#include <roo/runtime.h>
+#include <roo/runtime/value.h>
 #include <memory>
 #include <string>
 #include <vector>
@@ -18,7 +18,7 @@ class ComposableAppFixture : public ::testing::Test
  protected:
   Pixils::RenderContext render_ctx{};
   std::filesystem::path app_root;
-  std::unique_ptr<Lisple::Runtime> lisple_runtime;
+  std::unique_ptr<Roo::Runtime> roo_runtime;
 
   void TearDown() override;
 
@@ -26,8 +26,8 @@ class ComposableAppFixture : public ::testing::Test
                 const std::string& main_namespace,
                 const std::vector<std::string>& entry_files);
 
-  Lisple::Runtime& pixils();
-  Lisple::sptr_val eval(const std::string& source);
+  Roo::Runtime& pixils();
+  Roo::sptr_val eval(const std::string& source);
 
  private:
   static std::filesystem::path make_temp_app_root();

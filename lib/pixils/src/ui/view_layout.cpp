@@ -11,10 +11,10 @@
 #include <pixils/ui/theme.h>
 
 #include <functional>
-#include <lisple/context.h>
-#include <lisple/exception.h>
-#include <lisple/runtime.h>
-#include <lisple/runtime/dict.h>
+#include <roo/context.h>
+#include <roo/exception.h>
+#include <roo/runtime.h>
+#include <roo/runtime/dict.h>
 #include <unordered_map>
 
 namespace Pixils::UI
@@ -68,8 +68,8 @@ namespace Pixils::UI
 
     struct LayoutPass
     {
-      Lisple::Runtime& runtime;
-      const Lisple::sptr_val& hook_ctx;
+      Roo::Runtime& runtime;
+      const Roo::sptr_val& hook_ctx;
       NaturalSizeCache natural_size_cache;
     };
 
@@ -238,19 +238,19 @@ namespace Pixils::UI
       return margin + std::max(0, scaled_outer_size - margin) / scale;
     }
 
-    std::optional<Dimension> parse_dimension_like(const Lisple::sptr_val& value)
+    std::optional<Dimension> parse_dimension_like(const Roo::sptr_val& value)
     {
-      if (!value || value->type == Lisple::Value::Type::NIL) return std::nullopt;
+      if (!value || value->type == Roo::Value::Type::NIL) return std::nullopt;
 
       if (Pixils::Script::HostType::DIMENSION.is_type_of(*value))
       {
-        return Lisple::obj<Dimension>(*value);
+        return Roo::obj<Dimension>(*value);
       }
 
-      if (value->type == Lisple::Value::Type::MAP)
+      if (value->type == Roo::Value::Type::MAP)
       {
-        auto wv = Lisple::Dict::get_property(value, Lisple::keyword("w"));
-        auto hv = Lisple::Dict::get_property(value, Lisple::keyword("h"));
+        auto wv = Roo::Dict::get_property(value, Roo::keyword("w"));
+        auto hv = Roo::Dict::get_property(value, Roo::keyword("h"));
         return Dimension{wv ? wv->num().get_int() : 0, hv ? hv->num().get_int() : 0};
       }
 
@@ -260,29 +260,29 @@ namespace Pixils::UI
     bool has_content_size_hook(const std::shared_ptr<Pixils::Runtime::View>& view)
     {
       return view && view->mode && view->mode->content_size &&
-             view->mode->content_size->type != Lisple::Value::Type::NIL;
+             view->mode->content_size->type != Roo::Value::Type::NIL;
     }
 
     std::optional<Dimension> invoke_content_size_hook(
       const std::shared_ptr<Pixils::Runtime::View>& child,
-      Lisple::Runtime& runtime,
-      const Lisple::sptr_val& hook_ctx,
+      Roo::Runtime& runtime,
+      const Roo::sptr_val& hook_ctx,
       const std::optional<int>& available_width,
       const std::optional<int>& available_height)
     {
-      if (!hook_ctx || hook_ctx->type == Lisple::Value::Type::NIL) return std::nullopt;
+      if (!hook_ctx || hook_ctx->type == Roo::Value::Type::NIL) return std::nullopt;
       if (!has_content_size_hook(child)) return std::nullopt;
 
       PIXILS_BENCHMARK_COUNT(layout_content_size_hook_calls);
       PIXILS_BENCHMARK_TIME_BLOCK(layout_content_size_hook_time_ns);
 
-      HookContext& native_hook_ctx = Lisple::obj<HookContext>(*hook_ctx);
+      HookContext& native_hook_ctx = Roo::obj<HookContext>(*hook_ctx);
       auto previous_width = native_hook_ctx.available_width;
       auto previous_height = native_hook_ctx.available_height;
       native_hook_ctx.available_width = available_width;
       native_hook_ctx.available_height = available_height;
 
-      Lisple::sptr_val_v args = {child->state, hook_ctx};
+      Roo::sptr_val_v args = {child->state, hook_ctx};
       auto result =
         Pixils::Runtime::invoke_hook(runtime, child, child->mode->content_size, args);
       native_hook_ctx.available_width = previous_width;
@@ -389,34 +389,34 @@ namespace Pixils::UI
 
     std::optional<Style> resolve_style_layer(const Runtime::StyleLayer& layer,
                                              const Theme& theme,
-                                             Lisple::Runtime& runtime)
+                                             Roo::Runtime& runtime)
     {
       PIXILS_BENCHMARK_COUNT(style_layer_resolve_calls);
 
       if (layer.style) return layer.style;
-      if (!layer.source || layer.source->type == Lisple::Value::Type::NIL)
+      if (!layer.source || layer.source->type == Roo::Value::Type::NIL)
         return std::nullopt;
 
       auto resolved_value =
         Script::resolve_theme_vars(theme, theme.selected_variant, layer.source);
       if (!resolved_value) return std::nullopt;
 
-      Lisple::Context ctx(runtime);
+      Roo::Context ctx(runtime);
       auto coercion = Script::HostType::STYLE.coerce(ctx, resolved_value);
       if (!coercion.success)
       {
-        throw Lisple::TypeError("Invalid inline style after resolving theme vars: " +
+        throw Roo::TypeError("Invalid inline style after resolving theme vars: " +
                                 resolved_value->to_string());
       }
 
-      return Lisple::obj<Style>(*coercion.result);
+      return Roo::obj<Style>(*coercion.result);
     }
 
-    std::optional<Style> resolve_style_source(const Lisple::sptr_val& source,
+    std::optional<Style> resolve_style_source(const Roo::sptr_val& source,
                                               const Theme& theme,
-                                              Lisple::Runtime& runtime)
+                                              Roo::Runtime& runtime)
     {
-      if (!source || source->type == Lisple::Value::Type::NIL) return std::nullopt;
+      if (!source || source->type == Roo::Value::Type::NIL) return std::nullopt;
 
       PIXILS_BENCHMARK_COUNT(runtime_style_source_resolve_calls);
 
@@ -424,19 +424,19 @@ namespace Pixils::UI
         Script::resolve_theme_vars(theme, theme.selected_variant, source);
       if (!resolved_value) return std::nullopt;
 
-      Lisple::Context ctx(runtime);
+      Roo::Context ctx(runtime);
       auto coercion = Script::HostType::STYLE.coerce(ctx, resolved_value);
       if (!coercion.success)
       {
-        throw Lisple::TypeError("Invalid inline style after resolving theme vars: " +
+        throw Roo::TypeError("Invalid inline style after resolving theme vars: " +
                                 resolved_value->to_string());
       }
 
-      return Lisple::obj<Style>(*coercion.result);
+      return Roo::obj<Style>(*coercion.result);
     }
 
     Style resolve_effective_style(const std::shared_ptr<Pixils::Runtime::View>& view,
-                                  Lisple::Runtime& runtime,
+                                  Roo::Runtime& runtime,
                                   const Style* inherited_style,
                                   const std::vector<ThemeMatchContext>& selector_path)
     {
@@ -491,12 +491,12 @@ namespace Pixils::UI
         view->effective_theme.defaults ? &*view->effective_theme.defaults : nullptr);
     }
 
-    std::optional<Theme> lookup_theme(Lisple::Runtime& runtime, const std::string& name)
+    std::optional<Theme> lookup_theme(Roo::Runtime& runtime, const std::string& name)
     {
       auto themes = runtime.lookup(Pixils::Script::ID__PIXILS__THEMES);
-      auto theme_val = Lisple::Dict::get_property(themes, Lisple::symbol(name));
-      if (!theme_val || theme_val->type == Lisple::Value::Type::NIL) return std::nullopt;
-      return Lisple::obj<Theme>(*theme_val);
+      auto theme_val = Roo::Dict::get_property(themes, Roo::symbol(name));
+      if (!theme_val || theme_val->type == Roo::Value::Type::NIL) return std::nullopt;
+      return Roo::obj<Theme>(*theme_val);
     }
 
     std::optional<std::string> selected_theme_variant(
@@ -517,7 +517,7 @@ namespace Pixils::UI
     }
 
     Theme resolve_effective_theme_impl(const std::shared_ptr<Pixils::Runtime::View>& view,
-                                       Lisple::Runtime& runtime,
+                                       Roo::Runtime& runtime,
                                        const Theme* inherited_theme,
                                        const std::optional<std::string>& selected_variant)
     {
@@ -529,7 +529,7 @@ namespace Pixils::UI
                : default_base_theme(runtime).resolved_for_variant(selected_variant));
       if (!view || !view->mode || !view->mode->theme)
       {
-        Lisple::Context ctx(runtime);
+        Roo::Context ctx(runtime);
         return Pixils::Script::resolve_theme_declarations(ctx, theme, selected_variant);
       }
 
@@ -543,12 +543,12 @@ namespace Pixils::UI
       }
 
       theme.selected_variant = selected_variant;
-      Lisple::Context ctx(runtime);
+      Roo::Context ctx(runtime);
       return Pixils::Script::resolve_theme_declarations(ctx, theme, selected_variant);
     }
 
     void resolve_style_view_snapshot(const std::shared_ptr<Pixils::Runtime::View>& view,
-                                     Lisple::Runtime& runtime,
+                                     Roo::Runtime& runtime,
                                      const Style* inherited_style,
                                      const Theme* inherited_theme,
                                      const std::vector<ThemeMatchContext>& selector_path)
@@ -1187,7 +1187,7 @@ namespace Pixils::UI
   } // namespace
 
   Theme resolve_effective_theme(const std::shared_ptr<Pixils::Runtime::View>& view,
-                                Lisple::Runtime& runtime,
+                                Roo::Runtime& runtime,
                                 const Theme* inherited_theme)
   {
     return resolve_effective_theme_impl(view,
@@ -1199,8 +1199,8 @@ namespace Pixils::UI
   std::vector<Rect> layout_children(
     const std::vector<std::shared_ptr<Pixils::Runtime::View>>& children,
     const Rect& parent,
-    Lisple::Runtime& runtime,
-    const Lisple::sptr_val& hook_ctx,
+    Roo::Runtime& runtime,
+    const Roo::sptr_val& hook_ctx,
     const Style::Layout& layout,
     const Style* inherited_style,
     const Theme* inherited_theme)
@@ -1217,8 +1217,8 @@ namespace Pixils::UI
 
   void layout_view_tree(const std::shared_ptr<Pixils::Runtime::View>& view,
                         const Rect& bounds,
-                        Lisple::Runtime& runtime,
-                        const Lisple::sptr_val& hook_ctx)
+                        Roo::Runtime& runtime,
+                        const Roo::sptr_val& hook_ctx)
   {
     PIXILS_BENCHMARK_COUNT(layout_view_tree_calls);
     PIXILS_BENCHMARK_TIME_BLOCK(layout_time_ns);

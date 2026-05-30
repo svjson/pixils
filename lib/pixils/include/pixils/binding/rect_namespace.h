@@ -2,8 +2,8 @@
 #ifndef PIXILS__RECT_NAMESPACE_H
 #define PIXILS__RECT_NAMESPACE_H
 
-#include <lisple/exec.h>
-#include <lisple/host/object.h>
+#include <roo/exec.h>
+#include <roo/host/object.h>
 #include <string>
 
 namespace Pixils
@@ -14,7 +14,7 @@ namespace Pixils
 namespace Pixils::Script
 {
   /*!
-   * @brief Constant for "pixils.point" lisple namespace name
+   * @brief Constant for "pixils.point" roo namespace name
    */
   inline constexpr std::string_view NS__PIXILS__RECT = "pixils.rect";
 
@@ -27,7 +27,7 @@ namespace Pixils::Script
 
   namespace Function
   {
-    /*! @brief Lisple make-function for Rect/RectAdapter */
+    /*! @brief Roo make-function for Rect/RectAdapter */
     FUNC(MakeRect, make);
     /*! @brief Checks if a Point is inside the bounds of a Rect */
     FUNC(InsidePFunction, inside);
@@ -35,10 +35,10 @@ namespace Pixils::Script
     FUNC(IntersectPFunction, intersect);
   } // namespace Function
 
-  /*! @brief RectAdapter - A Lisple HostObject Adapter for Rect */
+  /*! @brief RectAdapter - A Roo HostObject Adapter for Rect */
   NATIVE_ADAPTER(RectAdapter, Rect, (x, y, w, h), (x, y, w, h));
 
-  class RectNamespace : public Lisple::Namespace
+  class RectNamespace : public Roo::Namespace
   {
    public:
     RectNamespace();

@@ -1,9 +1,9 @@
 #include <pixils/binding/color_namespace.h>
 
-#include <lisple/host/object.h>
-#include <lisple/host/schema.h>
-#include <lisple/host/transform.h>
-#include <lisple/namespace.h>
+#include <roo/host/object.h>
+#include <roo/host/schema.h>
+#include <roo/host/transform.h>
+#include <roo/namespace.h>
 
 namespace Pixils::Script
 {
@@ -19,15 +19,15 @@ namespace Pixils::Script
   {
     /* ColorAdapter make function */
     FUNC_IMPL(MakeColor,
-              MULTI_SIG((FN_ARGS((&Lisple::Type::MAP)),
+              MULTI_SIG((FN_ARGS((&Roo::Type::MAP)),
                          EXEC_DISPATCH(&MakeColor::exec_make_color_map)),
-                        (FN_ARGS((&Lisple::Type::STRING)),
+                        (FN_ARGS((&Roo::Type::STRING)),
                          EXEC_DISPATCH(&MakeColor::exec_make_color_string))));
 
-    Lisple::MapSchema color_schema({{"r", &Lisple::Type::NUMBER},
-                                    {"g", &Lisple::Type::NUMBER},
-                                    {"b", &Lisple::Type::NUMBER}},
-                                   {{"a", &Lisple::Type::NUMBER}});
+    Roo::MapSchema color_schema({{"r", &Roo::Type::NUMBER},
+                                    {"g", &Roo::Type::NUMBER},
+                                    {"b", &Roo::Type::NUMBER}},
+                                   {{"a", &Roo::Type::NUMBER}});
 
     EXEC_BODY(MakeColor, exec_make_color_map)
     {
@@ -48,12 +48,12 @@ namespace Pixils::Script
 
     /* WithAlpha - with-alpha */
     FUNC_IMPL(WithAlpha,
-              SIG((FN_ARGS((&HostType::COLOR), (&Lisple::Type::NUMBER)),
+              SIG((FN_ARGS((&HostType::COLOR), (&Roo::Type::NUMBER)),
                    EXEC_DISPATCH(&WithAlpha::exec_with_alpha))));
 
     EXEC_BODY(WithAlpha, exec_with_alpha)
     {
-      const Color& source = Lisple::obj<Color>(*args[0]);
+      const Color& source = Roo::obj<Color>(*args[0]);
 
       return ColorAdapter::make_unique(source.r, source.g, source.b, args[1]->ui8());
     }
@@ -69,7 +69,7 @@ namespace Pixils::Script
   NOBJ_PROP_GET_SET__FIELD(ColorAdapter, a);
 
   ColorNamespace::ColorNamespace()
-    : Lisple::Namespace(std::string(NS__PIXILS__COLOR))
+    : Roo::Namespace(std::string(NS__PIXILS__COLOR))
   {
     values.emplace(FN__MAKE_COLOR, Function::MakeColor::make());
     values.emplace(FN__WITH_ALPHA, Function::WithAlpha::make());

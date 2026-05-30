@@ -1,8 +1,8 @@
 #ifndef PIXILS__KEYBOARD_NAMESPACE_H
 #define PIXILS__KEYBOARD_NAMESPACE_H
 
-#include <lisple/exec.h>
-#include <lisple/namespace.h>
+#include <roo/exec.h>
+#include <roo/namespace.h>
 
 namespace Pixils::Script
 {
@@ -13,7 +13,7 @@ namespace Pixils::Script
     FUNC(EventToText, event_to_text);
   } // namespace Function
 
-  class KeyboardNamespace : public Lisple::Namespace
+  class KeyboardNamespace : public Roo::Namespace
   {
    public:
     KeyboardNamespace();

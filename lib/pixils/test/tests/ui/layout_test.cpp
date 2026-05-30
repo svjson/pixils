@@ -22,7 +22,7 @@ class LayoutTest : public BaseFixture
  protected:
   Pixils::FrameEvents events;
   Pixils::HookContext hook_ctx;
-  Lisple::sptr_val hook_ctx_val;
+  Roo::sptr_val hook_ctx_val;
 
   LayoutTest()
     : BaseFixture()
@@ -60,7 +60,7 @@ static std::shared_ptr<View> make_ctx(std::optional<Style> style = std::nullopt)
   v->owned_mode = std::make_unique<Mode>();
   v->owned_mode->style = std::move(style);
   v->mode = v->owned_mode.get();
-  v->state = Lisple::Constant::NIL;
+  v->state = Roo::Constant::NIL;
   return v;
 }
 

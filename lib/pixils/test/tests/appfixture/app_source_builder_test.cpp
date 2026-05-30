@@ -19,7 +19,7 @@ TEST(AppSourceBuilderTest, parses_file_backed_unit_into_namespace_requires_and_b
 {
   auto unit = AppFixture::SourceUnit::from_file(
     "board-view",
-    fixture_dir() / "assets" / "sample_unit.lisple");
+    fixture_dir() / "assets" / "sample_unit.roo");
 
   ASSERT_EQ(unit.require_entries.size(), 3u);
   EXPECT_EQ(unit.require_entries[0], "pixils");
@@ -34,7 +34,7 @@ TEST(AppSourceBuilderTest, parses_file_backed_unit_into_namespace_requires_and_b
 TEST(AppSourceBuilderTest, composes_file_content_from_ordered_units_with_deduped_requires)
 {
   AppFixture::ComposedFile file{
-    .disk_path = "pixils/test/app/main.lisple",
+    .disk_path = "pixils/test/app/main.roo",
     .namespace_name = "pixils.test.app.main",
     .units = {
       AppFixture::SourceUnit::inline_unit(
@@ -67,7 +67,7 @@ TEST(AppSourceBuilderTest, ignores_unit_namespace_when_composing_file)
     "(ns pixils.test.app.board (:require pixils)) (def board-width 9)");
 
   AppFixture::ComposedFile file{
-    .disk_path = "pixils/test/app/main.lisple",
+    .disk_path = "pixils/test/app/main.roo",
     .namespace_name = "pixils.test.app.main",
     .units = {unit}};
 
@@ -85,13 +85,13 @@ TEST(AppSourceBuilderTest, writes_composed_file_to_disk)
   std::filesystem::remove_all(temp_root);
 
   AppFixture::ComposedFile file{
-    .disk_path = "pixils/test/app/config.lisple",
+    .disk_path = "pixils/test/app/config.roo",
     .namespace_name = "pixils.test.app.config",
     .units = {AppFixture::SourceUnit::inline_unit("config", {}, {"(def mine-count 10)"})}};
 
   AppFixture::write_composed_file(file, temp_root);
 
-  std::ifstream stream(temp_root / "pixils/test/app/config.lisple");
+  std::ifstream stream(temp_root / "pixils/test/app/config.roo");
   ASSERT_TRUE(stream.is_open());
 
   std::string content((std::istreambuf_iterator<char>(stream)),

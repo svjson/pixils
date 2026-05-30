@@ -2,9 +2,9 @@
 
 #include <fstream>
 #include <iostream>
-#include <lisple/form.h>
-#include <lisple/reader.h>
-#include <lisple/type.h>
+#include <roo/form.h>
+#include <roo/reader.h>
+#include <roo/type.h>
 #include <sstream>
 #include <stdexcept>
 
@@ -25,34 +25,34 @@ namespace Pixils::Test::AppFixture
       return buffer.str();
     }
 
-    const Lisple::AST::List& as_list(const Lisple::sptr_ast_node& form, const char* what)
+    const Roo::AST::List& as_list(const Roo::sptr_ast_node& form, const char* what)
     {
-      if (!form || form->get_type() != Lisple::Form::LIST)
+      if (!form || form->get_type() != Roo::Form::LIST)
         throw std::runtime_error(std::string(what) + " must be a list form");
-      return form->as<Lisple::AST::List>();
+      return form->as<Roo::AST::List>();
     }
 
-    bool is_word(const Lisple::sptr_ast_node& form, const std::string& value)
+    bool is_word(const Roo::sptr_ast_node& form, const std::string& value)
     {
-      return form && form->get_type() == Lisple::Form::SYMBOL &&
-             form->as<Lisple::AST::Symbol>().value == value;
+      return form && form->get_type() == Roo::Form::SYMBOL &&
+             form->as<Roo::AST::Symbol>().value == value;
     }
 
-    bool is_key(const Lisple::sptr_ast_node& form, const std::string& value)
+    bool is_key(const Roo::sptr_ast_node& form, const std::string& value)
     {
-      return form && form->get_type() == Lisple::Form::KEYWORD && form->to_string() == value;
+      return form && form->get_type() == Roo::Form::KEYWORD && form->to_string() == value;
     }
 
-    std::vector<std::string> parse_require_entries(const Lisple::AST::List& ns_form)
+    std::vector<std::string> parse_require_entries(const Roo::AST::List& ns_form)
     {
       std::vector<std::string> require_entries;
 
       for (size_t i = 2; i < ns_form.children.size(); i++)
       {
         const auto& clause = ns_form.children[i];
-        if (!clause || clause->get_type() != Lisple::Form::LIST) continue;
+        if (!clause || clause->get_type() != Roo::Form::LIST) continue;
 
-        const auto& clause_list = clause->as<Lisple::AST::List>();
+        const auto& clause_list = clause->as<Roo::AST::List>();
         if (clause_list.children.empty()) continue;
         if (!is_key(clause_list.children.front(), ":require")) continue;
 
@@ -91,7 +91,7 @@ namespace Pixils::Test::AppFixture
 
   SourceUnit SourceUnit::from_source(const std::string& id, const std::string& source_text)
   {
-    Lisple::Reader reader;
+    Roo::Reader reader;
     auto forms = reader.read_sexps(source_text);
     if (forms.empty()) throw std::runtime_error("Source unit '" + id + "' is empty");
 

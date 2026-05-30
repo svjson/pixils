@@ -4,7 +4,7 @@
 #include <pixils/text.h>
 
 #include <gtest/gtest.h>
-#include <lisple/runtime/dict.h>
+#include <roo/runtime/dict.h>
 #include <sdl2_mock/mock_resources.h>
 #include <vector>
 
@@ -41,7 +41,7 @@ TEST_F(RenderTest, rect_accepts_map_style_points)
                   {:fill true}))
     })
   )");
-  session.push_mode("test-mode", Lisple::Constant::NIL);
+  session.push_mode("test-mode", Roo::Constant::NIL);
 
   // When / Then
   ASSERT_NO_THROW(session.render_mode());
@@ -65,7 +65,7 @@ TEST_F(RenderTest, rect_accepts_inline_color_map_in_options)
                   {:fill true :color {:r 200 :g 0 :b 0}}))
     })
   )");
-  session.push_mode("test-mode", Lisple::Constant::NIL);
+  session.push_mode("test-mode", Roo::Constant::NIL);
 
   // When / Then
   ASSERT_NO_THROW(session.render_mode());
@@ -98,7 +98,7 @@ TEST_F(RenderTest, with_clip_rect_restores_clip_after_body_error)
     (pixils.render/with-clip-rect {:x 4 :y 5 :w 6 :h 7}
       (/ 1 0))
   )"),
-               Lisple::LispleException);
+               Roo::RooException);
 
   // Then
   ASSERT_TRUE(render_ctx.current_clip_rect.has_value());
@@ -119,7 +119,7 @@ TEST_F(RenderTest, image_accepts_rotation_in_radians)
                    :rotation 1.5707963}))
     })
   )");
-  session.push_mode("test-mode", Lisple::Constant::NIL);
+  session.push_mode("test-mode", Roo::Constant::NIL);
 
   // When
   ASSERT_NO_THROW(session.render_mode());
@@ -149,7 +149,7 @@ TEST_F(RenderTest, image_accepts_source_rect)
                    :scale 2}))
     })
   )");
-  session.push_mode("test-mode", Lisple::Constant::NIL);
+  session.push_mode("test-mode", Roo::Constant::NIL);
 
   ASSERT_NO_THROW(session.render_mode());
 
@@ -174,7 +174,7 @@ TEST_F(RenderTest, image_accepts_target_point)
                   {:target {:x 12 :y 18}}))
     })
   )");
-  session.push_mode("test-mode", Lisple::Constant::NIL);
+  session.push_mode("test-mode", Roo::Constant::NIL);
 
   ASSERT_NO_THROW(session.render_mode());
 
@@ -199,7 +199,7 @@ TEST_F(RenderTest, image_target_rect_scales_single_copy)
                   {:target {:x 2 :y 3 :w 40 :h 20}}))
     })
   )");
-  session.push_mode("test-mode", Lisple::Constant::NIL);
+  session.push_mode("test-mode", Roo::Constant::NIL);
 
   ASSERT_NO_THROW(session.render_mode());
 
@@ -224,7 +224,7 @@ TEST_F(RenderTest, image_accepts_direct_target_rect_map)
                   {:x 2 :y 3 :w 40 :h 20}))
     })
   )");
-  session.push_mode("test-mode", Lisple::Constant::NIL);
+  session.push_mode("test-mode", Roo::Constant::NIL);
 
   ASSERT_NO_THROW(session.render_mode());
 
@@ -246,7 +246,7 @@ TEST_F(RenderTest, image_rejects_direct_point_map_with_options)
       :sprites/ship
       {:x 2 :y 3 :scale 2})
   )"),
-               Lisple::LispleException);
+               Roo::RooException);
 }
 
 TEST_F(RenderTest, image_clip_rect_restores_previous_clip)
@@ -280,7 +280,7 @@ TEST_F(RenderTest, image_repeat_fills_clip_rect_from_target_anchor)
                    :repeat-y? true}))
     })
   )");
-  session.push_mode("test-mode", Lisple::Constant::NIL);
+  session.push_mode("test-mode", Roo::Constant::NIL);
 
   ASSERT_NO_THROW(session.render_mode());
 
@@ -312,7 +312,7 @@ TEST_F(RenderTest, image_repeat_uses_active_clip_as_default_bounds)
                      :repeat-y? true})))
     })
   )");
-  session.push_mode("test-mode", Lisple::Constant::NIL);
+  session.push_mode("test-mode", Roo::Constant::NIL);
 
   ASSERT_NO_THROW(session.render_mode());
 
@@ -339,7 +339,7 @@ TEST_F(RenderTest, image_accepts_flip_options)
                    :flip-y? true}))
     })
   )");
-  session.push_mode("test-mode", Lisple::Constant::NIL);
+  session.push_mode("test-mode", Roo::Constant::NIL);
 
   ASSERT_NO_THROW(session.render_mode());
 
@@ -365,7 +365,7 @@ TEST_F(RenderTest, image_accepts_opacity)
                    :opacity 0.5}))
     })
   )");
-  session.push_mode("test-mode", Lisple::Constant::NIL);
+  session.push_mode("test-mode", Roo::Constant::NIL);
 
   ASSERT_NO_THROW(session.render_mode());
 
@@ -387,7 +387,7 @@ TEST_F(RenderTest, image_missing_asset_is_noop)
                   {:pos {:x 12 :y 18}}))
     })
   )");
-  session.push_mode("test-mode", Lisple::Constant::NIL);
+  session.push_mode("test-mode", Roo::Constant::NIL);
 
   ASSERT_NO_THROW(session.render_mode());
 
@@ -402,7 +402,7 @@ TEST_F(RenderTest, style_background_image_renders_once_without_repeat)
     (pixils/defmode test-mode
       {:style {:background {:image :icons/checkmark}}})
   )");
-  session.push_mode("test-mode", Lisple::Constant::NIL);
+  session.push_mode("test-mode", Roo::Constant::NIL);
 
   ASSERT_NO_THROW(session.render_mode());
 
@@ -424,7 +424,7 @@ TEST_F(RenderTest, style_background_image_accepts_opacity)
       {:style {:background {:image :icons/checkmark
                             :opacity 0.5}}})
   )");
-  session.push_mode("test-mode", Lisple::Constant::NIL);
+  session.push_mode("test-mode", Roo::Constant::NIL);
 
   ASSERT_NO_THROW(session.render_mode());
 
@@ -448,7 +448,7 @@ TEST_F(RenderTest, style_background_image_can_fit_source_and_align)
                             :fit :contain
                             :align :center}}})
   )");
-  session.push_mode("test-mode", Lisple::Constant::NIL);
+  session.push_mode("test-mode", Roo::Constant::NIL);
 
   ASSERT_NO_THROW(session.render_mode());
 
@@ -470,7 +470,7 @@ TEST_F(RenderTest, style_corner_radius_rounds_background_fill)
                :background {:r 200 :g 0 :b 0}
                :corner-radius 3}})
   )");
-  session.push_mode("test-mode", Lisple::Constant::NIL);
+  session.push_mode("test-mode", Roo::Constant::NIL);
 
   ASSERT_NO_THROW(session.render_mode());
 
@@ -493,7 +493,7 @@ TEST_F(RenderTest, style_directional_corner_radius_only_rounds_selected_corners)
                :background {:r 200 :g 0 :b 0}
                :corner-radius {:tl 3 :tr 0 :br 3 :bl 0}}})
   )");
-  session.push_mode("test-mode", Lisple::Constant::NIL);
+  session.push_mode("test-mode", Roo::Constant::NIL);
 
   ASSERT_NO_THROW(session.render_mode());
 
@@ -516,7 +516,7 @@ TEST_F(RenderTest, style_corner_radius_rounds_border)
                         :line-style :solid
                         :color {:r 0 :g 0 :b 0}}}})
   )");
-  session.push_mode("test-mode", Lisple::Constant::NIL);
+  session.push_mode("test-mode", Roo::Constant::NIL);
 
   ASSERT_NO_THROW(session.render_mode());
 
@@ -546,7 +546,7 @@ TEST_F(RenderTest, absolute_positioned_children_render_after_flow_siblings)
                            :height 20
                            :background {:r 0 :g 200 :b 0}}}]})
   )");
-  session.push_mode("test-mode", Lisple::Constant::NIL);
+  session.push_mode("test-mode", Roo::Constant::NIL);
 
   ASSERT_NO_THROW(session.render_mode());
 
@@ -571,7 +571,7 @@ TEST_F(RenderTest, scaled_view_renders_to_logical_texture_and_copies_to_scaled_f
                    {:x 20 :y 10}
                    {:fill true}))})
   )");
-  session.push_mode("scaled-panel", Lisple::Constant::NIL);
+  session.push_mode("scaled-panel", Roo::Constant::NIL);
 
   ASSERT_NO_THROW(session.render_mode());
 
@@ -600,7 +600,7 @@ TEST_F(RenderTest, translucent_view_renders_to_texture_and_copies_whole_subtree)
                    {:x 20 :y 10}
                    {:fill true}))})
   )");
-  session.push_mode("translucent-panel", Lisple::Constant::NIL);
+  session.push_mode("translucent-panel", Roo::Constant::NIL);
 
   ASSERT_NO_THROW(session.render_mode());
 
@@ -630,7 +630,7 @@ TEST_F(RenderTest, text_without_explicit_color_uses_original_font_texture)
                 (pixils.render/text! "A" {:x 12 :y 18} {:font :font/test-font}))
     })
   )");
-  session.push_mode("test-mode", Lisple::Constant::NIL);
+  session.push_mode("test-mode", Roo::Constant::NIL);
 
   SDL_Texture* original_texture = render_ctx.asset_registry->get_image("fonts", "atlas");
   SDL_Texture* tint_texture = render_ctx.asset_registry->get_tint_mask("fonts", "atlas");
@@ -665,7 +665,7 @@ TEST_F(RenderTest, text_with_explicit_color_uses_tint_mask_texture)
                    :color {:r 200 :g 40 :b 60}}))
     })
   )");
-  session.push_mode("test-mode", Lisple::Constant::NIL);
+  session.push_mode("test-mode", Roo::Constant::NIL);
 
   SDL_Texture* original_texture = render_ctx.asset_registry->get_image("fonts", "atlas");
   SDL_Texture* tint_texture = render_ctx.asset_registry->get_tint_mask("fonts", "atlas");
@@ -699,7 +699,7 @@ TEST_F(RenderTest, text_accepts_vector_scale_as_x_y)
                    {:font :font/test-font
                     :scale [2 1]}))})
   )");
-  session.push_mode("test-mode", Lisple::Constant::NIL);
+  session.push_mode("test-mode", Roo::Constant::NIL);
 
   ASSERT_NO_THROW(session.render_mode());
 
@@ -736,7 +736,7 @@ TEST_F(RenderTest, text_marked_style_accepts_vector_scale_as_x_y)
                                    :font :font/marked-font
                                    :scale [2 1]}}))})
   )");
-  session.push_mode("test-mode", Lisple::Constant::NIL);
+  session.push_mode("test-mode", Roo::Constant::NIL);
 
   ASSERT_NO_THROW(session.render_mode());
 
@@ -768,7 +768,7 @@ TEST_F(RenderTest, text_bang_respects_explicit_newlines)
 B" {:x 12 :y 18} {:font :font/test-font}))
     })
   )");
-  session.push_mode("test-mode", Lisple::Constant::NIL);
+  session.push_mode("test-mode", Roo::Constant::NIL);
 
   ASSERT_NO_THROW(session.render_mode());
 
@@ -796,8 +796,8 @@ TEST_F(RenderTest, text_size_uses_explicit_font_line_height)
   )");
 
   auto result = runtime.eval(R"((pixils.render/text-size "A" {:font :font/test-font}))");
-  auto w = Lisple::Dict::get_property(result, Lisple::keyword("w"));
-  auto h = Lisple::Dict::get_property(result, Lisple::keyword("h"));
+  auto w = Roo::Dict::get_property(result, Roo::keyword("w"));
+  auto h = Roo::Dict::get_property(result, Roo::keyword("h"));
 
   ASSERT_TRUE(w);
   ASSERT_TRUE(h);
@@ -819,8 +819,8 @@ TEST_F(RenderTest, text_size_respects_explicit_newlines)
 
   auto result = runtime.eval(R"((pixils.render/text-size "AA
 B" {:font :font/test-font}))");
-  auto w = Lisple::Dict::get_property(result, Lisple::keyword("w"));
-  auto h = Lisple::Dict::get_property(result, Lisple::keyword("h"));
+  auto w = Roo::Dict::get_property(result, Roo::keyword("w"));
+  auto h = Roo::Dict::get_property(result, Roo::keyword("h"));
 
   ASSERT_TRUE(w);
   ASSERT_TRUE(h);
@@ -841,8 +841,8 @@ TEST_F(RenderTest, text_size_accepts_vector_scale_as_x_y)
 
   auto result =
     runtime.eval(R"((pixils.render/text-size "AA" {:font :font/test-font :scale [2 1]}))");
-  auto w = Lisple::Dict::get_property(result, Lisple::keyword("w"));
-  auto h = Lisple::Dict::get_property(result, Lisple::keyword("h"));
+  auto w = Roo::Dict::get_property(result, Roo::keyword("w"));
+  auto h = Roo::Dict::get_property(result, Roo::keyword("h"));
 
   ASSERT_TRUE(w);
   ASSERT_TRUE(h);
@@ -866,7 +866,7 @@ TEST_F(RenderTest, deffont_replaces_existing_font_definition)
   )");
 
   auto result = runtime.eval(R"((pixils.render/text-size "A" {:font :font/test-font}))");
-  auto w = Lisple::Dict::get_property(result, Lisple::keyword("w"));
+  auto w = Roo::Dict::get_property(result, Roo::keyword("w"));
 
   ASSERT_TRUE(w);
   EXPECT_EQ(w->num().get_int(), 8);
@@ -886,8 +886,8 @@ TEST_F(RenderTest, text_size_ignores_inline_toggle_markers)
   auto result = runtime.eval("(pixils.render/text-size \"A@A@\" {:font :font/test-font "
                              ":marked-style {:enabled true :marker \"@\"}})");
 
-  auto w = Lisple::Dict::get_property(result, Lisple::keyword("w"));
-  auto h = Lisple::Dict::get_property(result, Lisple::keyword("h"));
+  auto w = Roo::Dict::get_property(result, Roo::keyword("w"));
+  auto h = Roo::Dict::get_property(result, Roo::keyword("h"));
   ASSERT_NE(w, nullptr);
   ASSERT_NE(h, nullptr);
   EXPECT_EQ(w->num().get_int(), 8);
@@ -974,7 +974,7 @@ TEST_F(RenderTest, deffont_ttf_reports_load_failure)
        :resource :fonts/missing
        :size 14})
   )"),
-               Lisple::InvocationException);
+               Roo::InvocationException);
 }
 
 TEST_F(RenderTest, text_with_underline_font_style_renders_fill_rect_for_underline)
@@ -996,7 +996,7 @@ TEST_F(RenderTest, text_with_underline_font_style_renders_fill_rect_for_underlin
                                        :color {:r 255 :g 255 :b 255}
                                        :font-styles :underline}))})
   )");
-  session.push_mode("test-mode", Lisple::Constant::NIL);
+  session.push_mode("test-mode", Roo::Constant::NIL);
 
   ASSERT_NO_THROW(session.render_mode());
 
@@ -1023,8 +1023,8 @@ TEST_F(RenderTest, text_size_infers_font_line_height_from_tallest_glyph)
   )");
 
   auto result = runtime.eval(R"((pixils.render/text-size "A" {:font :font/test-font}))");
-  auto w = Lisple::Dict::get_property(result, Lisple::keyword("w"));
-  auto h = Lisple::Dict::get_property(result, Lisple::keyword("h"));
+  auto w = Roo::Dict::get_property(result, Roo::keyword("w"));
+  auto h = Roo::Dict::get_property(result, Roo::keyword("h"));
 
   ASSERT_TRUE(w);
   ASSERT_TRUE(h);
@@ -1048,7 +1048,7 @@ TEST_F(RenderTest, built_in_text_node_renders_and_measures_without_definition)
                    :style {:text {:font :font/test-font}}}]})
   )");
 
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
   ASSERT_NE(session.active_mode, nullptr);
   ASSERT_EQ(session.active_mode->children.size(), 1u);
 
@@ -1081,7 +1081,7 @@ TEST_F(RenderTest, built_in_text_node_falls_back_to_console_font_when_style_font
                    :style {:text {:font :font/missing}}}]})
   )");
 
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
 
   ASSERT_NO_THROW(session.render_mode());
 
@@ -1108,7 +1108,7 @@ TEST_F(RenderTest, built_in_text_node_renders_in_local_viewport_coordinates)
       {:children [{:mode 'padded-box}]})
   )");
 
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
   ASSERT_NE(session.active_mode, nullptr);
   ASSERT_EQ(session.active_mode->children.size(), 1u);
   ASSERT_EQ(session.active_mode->children.at(0)->children.size(), 1u);
@@ -1139,7 +1139,7 @@ B"}
                    :style {:text {:font :font/test-font}}}]})
   )");
 
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
   ASSERT_NE(session.active_mode, nullptr);
   ASSERT_EQ(session.active_mode->children.size(), 1u);
 
@@ -1184,7 +1184,7 @@ TEST_F(RenderTest, built_in_text_node_inherits_marked_style_and_renders_underlin
       {:children [{:mode 'menu-like-item}]})
   )");
 
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
 
   ASSERT_NO_THROW(session.render_mode());
 
@@ -1220,7 +1220,7 @@ TEST_F(RenderTest,
       {:children [{:mode 'menu-like-item}]})
   )");
 
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
   ASSERT_NO_THROW(session.render_mode());
 
   SDL_Texture* tint_texture = render_ctx.asset_registry->get_tint_mask("fonts", "atlas");
@@ -1258,7 +1258,7 @@ TEST_F(RenderTest, built_in_text_node_marked_style_inherits_parent_tint_for_mnem
       {:children [{:mode 'menu-like-item}]})
   )");
 
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
   ASSERT_NO_THROW(session.render_mode());
 
   SDL_Texture* tint_texture = render_ctx.asset_registry->get_tint_mask("fonts", "atlas");
@@ -1292,7 +1292,7 @@ TEST_F(RenderTest, built_in_text_node_wraps_wordwise_when_fill_width_is_constrai
       {:children [{:mode 'wrap-box}]})
   )");
 
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
   ASSERT_NE(session.active_mode, nullptr);
   ASSERT_EQ(session.active_mode->children.size(), 1u);
   ASSERT_EQ(session.active_mode->children.at(0)->children.size(), 1u);
@@ -1325,7 +1325,7 @@ TEST_F(RenderTest, built_in_text_node_wraps_wordwise_when_parent_width_is_constr
       {:children [{:mode 'wrap-box}]})
   )");
 
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
   ASSERT_NE(session.active_mode, nullptr);
   ASSERT_EQ(session.active_mode->children.size(), 1u);
   ASSERT_EQ(session.active_mode->children.at(0)->children.size(), 1u);
@@ -1360,7 +1360,7 @@ TEST_F(RenderTest, built_in_text_node_wrap_none_stays_single_line_when_width_is_
       {:children [{:mode 'wrap-box}]})
   )");
 
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
   ASSERT_NE(session.active_mode, nullptr);
   ASSERT_EQ(session.active_mode->children.size(), 1u);
   ASSERT_EQ(session.active_mode->children.at(0)->children.size(), 1u);

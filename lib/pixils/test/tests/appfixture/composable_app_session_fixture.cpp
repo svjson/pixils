@@ -71,7 +71,7 @@ void ComposableAppSessionFixture::TearDown()
 {
   pixils_session.reset();
   hook_ctx.reset();
-  lisple_runtime.reset();
+  roo_runtime.reset();
   render_ctx.asset_registry.reset();
   render_ctx.font_registry.reset();
 
@@ -90,7 +90,7 @@ void ComposableAppSessionFixture::load_app(
   const std::vector<RuntimeAssetCopy>& runtime_assets)
 {
   pixils_session.reset();
-  lisple_runtime.reset();
+  roo_runtime.reset();
   render_ctx.asset_registry.reset();
   render_ctx.font_registry.reset();
 
@@ -113,7 +113,7 @@ void ComposableAppSessionFixture::load_app(
 
   stage_runtime_assets(runtime_assets);
 
-  lisple_runtime = Pixils::make_lisple_runtime(
+  roo_runtime = Pixils::make_roo_runtime(
     render_ctx,
     main_namespace,
     [this](Pixils::RuntimeConfiguration* cfg)
@@ -129,7 +129,7 @@ void ComposableAppSessionFixture::load_app(
     Pixils::Script::HookContextAdapter::make_ref(*hook_ctx)};
   hook_args.events = &events;
 
-  pixils_session = std::make_unique<Pixils::Runtime::Session>(*lisple_runtime,
+  pixils_session = std::make_unique<Pixils::Runtime::Session>(*roo_runtime,
                                                               *render_ctx.asset_registry,
                                                               render_ctx,
                                                               hook_args);
@@ -176,13 +176,13 @@ Pixils::Program& ComposableAppSessionFixture::load_program()
   return Pixils::load_program(pixils(), session());
 }
 
-Lisple::Runtime& ComposableAppSessionFixture::pixils()
+Roo::Runtime& ComposableAppSessionFixture::pixils()
 {
-  if (!lisple_runtime)
+  if (!roo_runtime)
   {
     throw std::runtime_error("ComposableAppSessionFixture runtime not initialized");
   }
-  return *lisple_runtime;
+  return *roo_runtime;
 }
 
 Pixils::Runtime::Session& ComposableAppSessionFixture::session()
@@ -194,7 +194,7 @@ Pixils::Runtime::Session& ComposableAppSessionFixture::session()
   return *pixils_session;
 }
 
-Lisple::sptr_val ComposableAppSessionFixture::eval(const std::string& source)
+Roo::sptr_val ComposableAppSessionFixture::eval(const std::string& source)
 {
   return pixils().eval(source);
 }

@@ -4,8 +4,8 @@
 #include <pixils/ui/view_layout.h>
 
 #include <gtest/gtest.h>
-#include <lisple/runtime/dict.h>
-#include <lisple/runtime/value.h>
+#include <roo/runtime/dict.h>
+#include <roo/runtime/value.h>
 #include <string>
 
 class TabPanelTest : public RenderFixture
@@ -96,7 +96,7 @@ TEST_F(TabPanelTest, tab_panel_selects_first_enabled_tab_by_default)
                             :child {:mode 'second-body}}]})]})
   )");
 
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
   session.update_mode();
   session.render_mode();
 
@@ -106,7 +106,7 @@ TEST_F(TabPanelTest, tab_panel_selects_first_enabled_tab_by_default)
   ASSERT_NE(tab_panel, nullptr);
 
   auto selected =
-    Lisple::Dict::get_property(tab_panel->state, Lisple::keyword("selected-tab"));
+    Roo::Dict::get_property(tab_panel->state, Roo::keyword("selected-tab"));
   ASSERT_NE(selected, nullptr);
   EXPECT_EQ(selected->to_string(), ":second");
 
@@ -137,7 +137,7 @@ TEST_F(TabPanelTest, clicking_tab_selects_body_and_emits_change)
                             :child {:mode 'tilesets-body}}]})]})
   )");
 
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
   session.update_mode();
   session.render_mode();
 
@@ -158,7 +158,7 @@ TEST_F(TabPanelTest, clicking_tab_selects_body_and_emits_change)
   session.render_mode();
 
   auto selected =
-    Lisple::Dict::get_property(tab_panel->state, Lisple::keyword("selected-tab"));
+    Roo::Dict::get_property(tab_panel->state, Roo::keyword("selected-tab"));
   ASSERT_NE(selected, nullptr);
   EXPECT_EQ(selected->to_string(), ":tilesets");
 
@@ -167,7 +167,7 @@ TEST_F(TabPanelTest, clicking_tab_selects_body_and_emits_change)
   EXPECT_EQ(active->mode->name, "tilesets-body");
 
   auto changed =
-    Lisple::Dict::get_property(session.active_mode->state, Lisple::keyword("changed-tab"));
+    Roo::Dict::get_property(session.active_mode->state, Roo::keyword("changed-tab"));
   ASSERT_NE(changed, nullptr);
   EXPECT_EQ(changed->to_string(), ":tilesets");
 
@@ -182,7 +182,7 @@ TEST_F(TabPanelTest, clicking_tab_selects_body_and_emits_change)
   update_cycle();
   session.render_mode();
 
-  selected = Lisple::Dict::get_property(tab_panel->state, Lisple::keyword("selected-tab"));
+  selected = Roo::Dict::get_property(tab_panel->state, Roo::keyword("selected-tab"));
   ASSERT_NE(selected, nullptr);
   EXPECT_EQ(selected->to_string(), ":map");
 }
@@ -205,7 +205,7 @@ TEST_F(TabPanelTest, tab_panel_uses_bound_selected_tab)
                             :child {:mode 'tilesets-body}}]})]})
   )");
 
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
   session.update_mode();
   session.render_mode();
 
@@ -213,7 +213,7 @@ TEST_F(TabPanelTest, tab_panel_uses_bound_selected_tab)
   ASSERT_NE(tab_panel, nullptr);
 
   auto selected =
-    Lisple::Dict::get_property(tab_panel->state, Lisple::keyword("selected-tab"));
+    Roo::Dict::get_property(tab_panel->state, Roo::keyword("selected-tab"));
   ASSERT_NE(selected, nullptr);
   EXPECT_EQ(selected->to_string(), ":tilesets");
 
@@ -237,7 +237,7 @@ TEST_F(TabPanelTest, tab_panel_body_passes_state_to_active_child)
                                     :state {:value (pixils.ui/bind-state :shared-value)}}}]})]})
   )");
 
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
   session.update_mode();
   session.render_mode();
 
@@ -245,7 +245,7 @@ TEST_F(TabPanelTest, tab_panel_body_passes_state_to_active_child)
   auto active = active_tab_child(tab_panel);
   ASSERT_NE(active, nullptr);
 
-  auto value = Lisple::Dict::get_property(active->state, Lisple::keyword("value"));
+  auto value = Roo::Dict::get_property(active->state, Roo::keyword("value"));
   ASSERT_NE(value, nullptr);
   EXPECT_EQ(value->to_string(), ":from-root");
 }
@@ -268,7 +268,7 @@ TEST_F(TabPanelTest, disabled_tab_does_not_select)
                             :child {:mode 'disabled-body}}]})]})
   )");
 
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
   session.update_mode();
   session.render_mode();
 
@@ -287,7 +287,7 @@ TEST_F(TabPanelTest, disabled_tab_does_not_select)
   session.render_mode();
 
   auto selected =
-    Lisple::Dict::get_property(tab_panel->state, Lisple::keyword("selected-tab"));
+    Roo::Dict::get_property(tab_panel->state, Roo::keyword("selected-tab"));
   ASSERT_NE(selected, nullptr);
   EXPECT_EQ(selected->to_string(), ":map");
 

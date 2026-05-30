@@ -13,9 +13,9 @@
 #include <filesystem>
 #include <gtest/gtest.h>
 #include <iostream>
-#include <lisple/runtime.h>
-#include <lisple/runtime/dict.h>
-#include <lisple/runtime/value.h>
+#include <roo/runtime.h>
+#include <roo/runtime/dict.h>
+#include <roo/runtime/value.h>
 #include <sdl2_mock/mock_resources.h>
 
 namespace AppFixture = Pixils::Test::AppFixture;
@@ -45,7 +45,7 @@ namespace
     return AppFixture::AppManifest(
       {inline_unit("test-fn-api", {}, {"(def test-fn (fn [state ctx] {:ticks 2}))"})},
       {AppFixture::ManifestFile{.id = "main",
-                                .disk_path = "pixils/test/app/main.lisple",
+                                .disk_path = "pixils/test/app/main.roo",
                                 .namespace_name = "pixils.test.app.main",
                                 .unit_ids = {"test-fn-api"}}});
   }
@@ -57,7 +57,7 @@ namespace
                    {"pixils"},
                    {"(pixils/defmode test-mode {:init (fn [state ctx] {:ticks 2})})"})},
       {AppFixture::ManifestFile{.id = "main",
-                                .disk_path = "pixils/test/app/main.lisple",
+                                .disk_path = "pixils/test/app/main.roo",
                                 .namespace_name = "pixils.test.app.main",
                                 .unit_ids = {"test-mode-api"}}});
   }
@@ -71,34 +71,34 @@ namespace
       AppFixture::write_composed_file(file, app_root);
   }
 
-  Lisple::sptr_val invoke_test_fn(Lisple::Runtime& runtime)
+  Roo::sptr_val invoke_test_fn(Roo::Runtime& runtime)
   {
-    Lisple::sptr_val_v args{Lisple::Constant::NIL, Lisple::Constant::NIL};
+    Roo::sptr_val_v args{Roo::Constant::NIL, Roo::Constant::NIL};
     return runtime.invoke("pixils.test.app.main/test-fn", args);
   }
 
-  Lisple::sptr_val invoke_test_mode_init(Lisple::Runtime& runtime)
+  Roo::sptr_val invoke_test_mode_init(Roo::Runtime& runtime)
   {
     auto modes = runtime.lookup("pixils/modes");
-    auto mode_val = Lisple::Dict::get_property(modes, Lisple::symbol("test-mode"));
-    auto& mode = Lisple::obj<Pixils::Runtime::Mode>(*mode_val);
+    auto mode_val = Roo::Dict::get_property(modes, Roo::symbol("test-mode"));
+    auto& mode = Roo::obj<Pixils::Runtime::Mode>(*mode_val);
 
-    Lisple::Context exec_ctx(runtime);
-    Lisple::sptr_val_v args{Lisple::Constant::NIL, Lisple::Constant::NIL};
+    Roo::Context exec_ctx(runtime);
+    Roo::sptr_val_v args{Roo::Constant::NIL, Roo::Constant::NIL};
     return mode.init->exec().execute(exec_ctx, args);
   }
 
-  Lisple::sptr_val invoke_test_mode_init_with_hook_context(Lisple::Runtime& runtime,
+  Roo::sptr_val invoke_test_mode_init_with_hook_context(Roo::Runtime& runtime,
                                                            Pixils::FrameEvents& events,
                                                            Pixils::RenderContext& render_ctx)
   {
     auto modes = runtime.lookup("pixils/modes");
-    auto mode_val = Lisple::Dict::get_property(modes, Lisple::symbol("test-mode"));
-    auto& mode = Lisple::obj<Pixils::Runtime::Mode>(*mode_val);
+    auto mode_val = Roo::Dict::get_property(modes, Roo::symbol("test-mode"));
+    auto& mode = Roo::obj<Pixils::Runtime::Mode>(*mode_val);
 
     Pixils::HookContext hook_ctx{&events, &render_ctx, nullptr};
-    Lisple::Context exec_ctx(runtime);
-    Lisple::sptr_val_v args{Lisple::Constant::NIL,
+    Roo::Context exec_ctx(runtime);
+    Roo::sptr_val_v args{Roo::Constant::NIL,
                             Pixils::Script::HookContextAdapter::make_ref(hook_ctx)};
     return mode.init->exec().execute(exec_ctx, args);
   }
@@ -111,18 +111,18 @@ TEST(RuntimeMoveCharacterizationTest,
   materialize_manifest(file_defined_function_manifest(), app_root);
 
   Pixils::RenderContext render_ctx{};
-  Lisple::Runtime runtime =
-    Pixils::init_lisple_runtime(render_ctx,
+  Roo::Runtime runtime =
+    Pixils::init_roo_runtime(render_ctx,
                                 "pixils.test.app.main",
                                 [&app_root](Pixils::RuntimeConfiguration* cfg)
                                 {
                                   cfg->load_path = {app_root.string()};
                                   cfg->asset_base_path = app_root.string();
                                 },
-                                {"pixils/test/app/main.lisple"});
+                                {"pixils/test/app/main.roo"});
 
   auto result = invoke_test_fn(runtime);
-  auto ticks = Lisple::Dict::get_property(result, Lisple::keyword("ticks"));
+  auto ticks = Roo::Dict::get_property(result, Roo::keyword("ticks"));
 
   ASSERT_NE(ticks, nullptr);
   EXPECT_EQ(ticks->num().get_int(), 2);
@@ -137,19 +137,19 @@ TEST(RuntimeMoveCharacterizationTest,
   materialize_manifest(file_defined_function_manifest(), app_root);
 
   Pixils::RenderContext render_ctx{};
-  Lisple::Runtime runtime =
-    Pixils::init_lisple_runtime(render_ctx,
+  Roo::Runtime runtime =
+    Pixils::init_roo_runtime(render_ctx,
                                 "pixils.test.app.main",
                                 [&app_root](Pixils::RuntimeConfiguration* cfg)
                                 {
                                   cfg->load_path = {app_root.string()};
                                   cfg->asset_base_path = app_root.string();
                                 },
-                                {"pixils/test/app/main.lisple"});
+                                {"pixils/test/app/main.roo"});
 
-  auto moved_runtime = std::make_unique<Lisple::Runtime>(std::move(runtime));
+  auto moved_runtime = std::make_unique<Roo::Runtime>(std::move(runtime));
   auto result = invoke_test_fn(*moved_runtime);
-  auto ticks = Lisple::Dict::get_property(result, Lisple::keyword("ticks"));
+  auto ticks = Roo::Dict::get_property(result, Roo::keyword("ticks"));
 
   ASSERT_NE(ticks, nullptr);
   EXPECT_EQ(ticks->num().get_int(), 2);
@@ -164,22 +164,22 @@ TEST(RuntimeMoveCharacterizationTest,
   materialize_manifest(file_defined_function_manifest(), app_root);
 
   Pixils::RenderContext render_ctx{};
-  Lisple::Runtime runtime =
-    Pixils::init_lisple_runtime(render_ctx,
+  Roo::Runtime runtime =
+    Pixils::init_roo_runtime(render_ctx,
                                 "pixils.test.app.main",
                                 [&app_root](Pixils::RuntimeConfiguration* cfg)
                                 {
                                   cfg->load_path = {app_root.string()};
                                   cfg->asset_base_path = app_root.string();
                                 },
-                                {"pixils/test/app/main.lisple"});
+                                {"pixils/test/app/main.roo"});
 
-  auto moved_runtime = std::make_unique<Lisple::Runtime>(std::move(runtime));
+  auto moved_runtime = std::make_unique<Roo::Runtime>(std::move(runtime));
   moved_runtime->eval("(def moved-fn (fn [state ctx] {:ticks 3}))");
 
-  Lisple::sptr_val_v args{Lisple::Constant::NIL, Lisple::Constant::NIL};
+  Roo::sptr_val_v args{Roo::Constant::NIL, Roo::Constant::NIL};
   auto result = moved_runtime->invoke("moved-fn", args);
-  auto ticks = Lisple::Dict::get_property(result, Lisple::keyword("ticks"));
+  auto ticks = Roo::Dict::get_property(result, Roo::keyword("ticks"));
 
   ASSERT_NE(ticks, nullptr);
   EXPECT_EQ(ticks->num().get_int(), 3);
@@ -194,18 +194,18 @@ TEST(RuntimeMoveCharacterizationTest,
   materialize_manifest(file_defined_mode_manifest(), app_root);
 
   Pixils::RenderContext render_ctx{};
-  Lisple::Runtime runtime =
-    Pixils::init_lisple_runtime(render_ctx,
+  Roo::Runtime runtime =
+    Pixils::init_roo_runtime(render_ctx,
                                 "pixils.test.app.main",
                                 [&app_root](Pixils::RuntimeConfiguration* cfg)
                                 {
                                   cfg->load_path = {app_root.string()};
                                   cfg->asset_base_path = app_root.string();
                                 },
-                                {"pixils/test/app/main.lisple"});
+                                {"pixils/test/app/main.roo"});
 
   auto result = invoke_test_mode_init(runtime);
-  auto ticks = Lisple::Dict::get_property(result, Lisple::keyword("ticks"));
+  auto ticks = Roo::Dict::get_property(result, Roo::keyword("ticks"));
 
   ASSERT_NE(ticks, nullptr);
   EXPECT_EQ(ticks->num().get_int(), 2);
@@ -219,19 +219,19 @@ TEST(RuntimeMoveCharacterizationTest, moved_runtime_executes_file_defined_mode_i
   materialize_manifest(file_defined_mode_manifest(), app_root);
 
   Pixils::RenderContext render_ctx{};
-  Lisple::Runtime runtime =
-    Pixils::init_lisple_runtime(render_ctx,
+  Roo::Runtime runtime =
+    Pixils::init_roo_runtime(render_ctx,
                                 "pixils.test.app.main",
                                 [&app_root](Pixils::RuntimeConfiguration* cfg)
                                 {
                                   cfg->load_path = {app_root.string()};
                                   cfg->asset_base_path = app_root.string();
                                 },
-                                {"pixils/test/app/main.lisple"});
+                                {"pixils/test/app/main.roo"});
 
-  auto moved_runtime = std::make_unique<Lisple::Runtime>(std::move(runtime));
+  auto moved_runtime = std::make_unique<Roo::Runtime>(std::move(runtime));
   auto result = invoke_test_mode_init(*moved_runtime);
-  auto ticks = Lisple::Dict::get_property(result, Lisple::keyword("ticks"));
+  auto ticks = Roo::Dict::get_property(result, Roo::keyword("ticks"));
 
   ASSERT_NE(ticks, nullptr);
   EXPECT_EQ(ticks->num().get_int(), 2);
@@ -247,18 +247,18 @@ TEST(RuntimeMoveCharacterizationTest,
 
   Pixils::RenderContext render_ctx{};
   Pixils::FrameEvents events;
-  Lisple::Runtime runtime =
-    Pixils::init_lisple_runtime(render_ctx,
+  Roo::Runtime runtime =
+    Pixils::init_roo_runtime(render_ctx,
                                 "pixils.test.app.main",
                                 [&app_root](Pixils::RuntimeConfiguration* cfg)
                                 {
                                   cfg->load_path = {app_root.string()};
                                   cfg->asset_base_path = app_root.string();
                                 },
-                                {"pixils/test/app/main.lisple"});
+                                {"pixils/test/app/main.roo"});
 
   auto result = invoke_test_mode_init_with_hook_context(runtime, events, render_ctx);
-  auto ticks = Lisple::Dict::get_property(result, Lisple::keyword("ticks"));
+  auto ticks = Roo::Dict::get_property(result, Roo::keyword("ticks"));
 
   ASSERT_NE(ticks, nullptr);
   EXPECT_EQ(ticks->num().get_int(), 2);
@@ -275,15 +275,15 @@ TEST(RuntimeMoveCharacterizationTest,
   Pixils::RenderContext render_ctx{};
   Pixils::FrameEvents events;
   Pixils::HookContext hook_ctx{&events, &render_ctx, nullptr};
-  Lisple::Runtime runtime =
-    Pixils::init_lisple_runtime(render_ctx,
+  Roo::Runtime runtime =
+    Pixils::init_roo_runtime(render_ctx,
                                 "pixils.test.app.main",
                                 [&app_root](Pixils::RuntimeConfiguration* cfg)
                                 {
                                   cfg->load_path = {app_root.string()};
                                   cfg->asset_base_path = app_root.string();
                                 },
-                                {"pixils/test/app/main.lisple"});
+                                {"pixils/test/app/main.roo"});
 
   Pixils::Runtime::HookArguments hook_args{
     Pixils::Script::HookContextAdapter::make_ref(hook_ctx)};
@@ -295,19 +295,19 @@ TEST(RuntimeMoveCharacterizationTest,
                                    hook_args);
 
   auto modes = runtime.lookup("pixils/modes");
-  auto mode_val = Lisple::Dict::get_property(modes, Lisple::symbol("test-mode"));
-  auto& mode = Lisple::obj<Pixils::Runtime::Mode>(*mode_val);
+  auto mode_val = Roo::Dict::get_property(modes, Roo::symbol("test-mode"));
+  auto& mode = Roo::obj<Pixils::Runtime::Mode>(*mode_val);
 
   auto view = std::make_shared<Pixils::Runtime::View>();
   view->mode = &mode;
-  view->state = Lisple::Constant::NIL;
+  view->state = Roo::Constant::NIL;
 
   auto result = Pixils::Runtime::invoke_hook(runtime,
                                              view,
                                              mode.init,
                                              session.hook_args.init_args,
-                                             Lisple::Constant::NIL);
-  auto ticks = Lisple::Dict::get_property(result, Lisple::keyword("ticks"));
+                                             Roo::Constant::NIL);
+  auto ticks = Roo::Dict::get_property(result, Roo::keyword("ticks"));
 
   ASSERT_NE(ticks, nullptr);
   EXPECT_EQ(ticks->num().get_int(), 2);
@@ -324,15 +324,15 @@ TEST(RuntimeMoveCharacterizationTest,
   Pixils::RenderContext render_ctx{};
   Pixils::FrameEvents events;
   Pixils::HookContext hook_ctx{&events, &render_ctx, nullptr};
-  Lisple::Runtime runtime =
-    Pixils::init_lisple_runtime(render_ctx,
+  Roo::Runtime runtime =
+    Pixils::init_roo_runtime(render_ctx,
                                 "pixils.test.app.main",
                                 [&app_root](Pixils::RuntimeConfiguration* cfg)
                                 {
                                   cfg->load_path = {app_root.string()};
                                   cfg->asset_base_path = app_root.string();
                                 },
-                                {"pixils/test/app/main.lisple"});
+                                {"pixils/test/app/main.roo"});
 
   Pixils::Runtime::HookArguments hook_args{
     Pixils::Script::HookContextAdapter::make_ref(hook_ctx)};
@@ -344,21 +344,21 @@ TEST(RuntimeMoveCharacterizationTest,
                                    hook_args);
 
   auto modes = runtime.lookup("pixils/modes");
-  auto mode_val = Lisple::Dict::get_property(modes, Lisple::symbol("test-mode"));
-  auto& mode = Lisple::obj<Pixils::Runtime::Mode>(*mode_val);
+  auto mode_val = Roo::Dict::get_property(modes, Roo::symbol("test-mode"));
+  auto& mode = Roo::obj<Pixils::Runtime::Mode>(*mode_val);
 
-  session.mode_stack.push(mode_val, Lisple::Constant::NIL);
+  session.mode_stack.push(mode_val, Roo::Constant::NIL);
   session.active_mode = std::make_shared<Pixils::Runtime::View>();
   session.active_mode->mode = &mode;
-  session.active_mode->state = Lisple::Constant::NIL;
-  session.hook_args.update_state(Lisple::Constant::NIL);
+  session.active_mode->state = Roo::Constant::NIL;
+  session.hook_args.update_state(Roo::Constant::NIL);
 
   auto result = Pixils::Runtime::invoke_hook(runtime,
                                              session.active_mode,
                                              session.active_mode->mode->init,
                                              session.hook_args.init_args,
                                              session.active_mode->state);
-  auto ticks = Lisple::Dict::get_property(result, Lisple::keyword("ticks"));
+  auto ticks = Roo::Dict::get_property(result, Roo::keyword("ticks"));
 
   ASSERT_NE(ticks, nullptr);
   EXPECT_EQ(ticks->num().get_int(), 2);
@@ -380,15 +380,15 @@ TEST(RuntimeMoveCharacterizationTest,
 
   Pixils::FrameEvents events;
   Pixils::HookContext hook_ctx{&events, &render_ctx, nullptr};
-  Lisple::Runtime runtime =
-    Pixils::init_lisple_runtime(render_ctx,
+  Roo::Runtime runtime =
+    Pixils::init_roo_runtime(render_ctx,
                                 "pixils.test.app.main",
                                 [&app_root](Pixils::RuntimeConfiguration* cfg)
                                 {
                                   cfg->load_path = {app_root.string()};
                                   cfg->asset_base_path = app_root.string();
                                 },
-                                {"pixils/test/app/main.lisple"});
+                                {"pixils/test/app/main.roo"});
 
   Pixils::Runtime::HookArguments hook_args{
     Pixils::Script::HookContextAdapter::make_ref(hook_ctx)};
@@ -400,19 +400,19 @@ TEST(RuntimeMoveCharacterizationTest,
                                    hook_args);
 
   auto modes = runtime.lookup("pixils/modes");
-  auto mode_val = Lisple::Dict::get_property(modes, Lisple::symbol("test-mode"));
-  auto& mode = Lisple::obj<Pixils::Runtime::Mode>(*mode_val);
+  auto mode_val = Roo::Dict::get_property(modes, Roo::symbol("test-mode"));
+  auto& mode = Roo::obj<Pixils::Runtime::Mode>(*mode_val);
 
   auto view = std::make_shared<Pixils::Runtime::View>();
   view->mode = &mode;
-  view->state = Lisple::Constant::NIL;
+  view->state = Roo::Constant::NIL;
 
   auto result = Pixils::Runtime::invoke_hook(runtime,
                                              view,
                                              mode.init,
                                              session.hook_args.init_args,
-                                             Lisple::Constant::NIL);
-  auto ticks = Lisple::Dict::get_property(result, Lisple::keyword("ticks"));
+                                             Roo::Constant::NIL);
+  auto ticks = Roo::Dict::get_property(result, Roo::keyword("ticks"));
 
   ASSERT_NE(ticks, nullptr);
   EXPECT_EQ(ticks->num().get_int(), 2);
@@ -434,15 +434,15 @@ TEST(RuntimeMoveCharacterizationTest,
 
   Pixils::FrameEvents events;
   Pixils::HookContext hook_ctx{&events, &render_ctx, nullptr};
-  auto runtime = std::make_unique<Lisple::Runtime>(
-    Pixils::init_lisple_runtime(render_ctx,
+  auto runtime = std::make_unique<Roo::Runtime>(
+    Pixils::init_roo_runtime(render_ctx,
                                 "pixils.test.app.main",
                                 [&app_root](Pixils::RuntimeConfiguration* cfg)
                                 {
                                   cfg->load_path = {app_root.string()};
                                   cfg->asset_base_path = app_root.string();
                                 },
-                                {"pixils/test/app/main.lisple"}));
+                                {"pixils/test/app/main.roo"}));
 
   Pixils::Runtime::HookArguments hook_args{
     Pixils::Script::HookContextAdapter::make_ref(hook_ctx)};
@@ -454,19 +454,19 @@ TEST(RuntimeMoveCharacterizationTest,
                                    hook_args);
 
   auto modes = runtime->lookup("pixils/modes");
-  auto mode_val = Lisple::Dict::get_property(modes, Lisple::symbol("test-mode"));
-  auto& mode = Lisple::obj<Pixils::Runtime::Mode>(*mode_val);
+  auto mode_val = Roo::Dict::get_property(modes, Roo::symbol("test-mode"));
+  auto& mode = Roo::obj<Pixils::Runtime::Mode>(*mode_val);
 
   auto view = std::make_shared<Pixils::Runtime::View>();
   view->mode = &mode;
-  view->state = Lisple::Constant::NIL;
+  view->state = Roo::Constant::NIL;
 
   auto result = Pixils::Runtime::invoke_hook(*runtime,
                                              view,
                                              mode.init,
                                              session.hook_args.init_args,
-                                             Lisple::Constant::NIL);
-  auto ticks = Lisple::Dict::get_property(result, Lisple::keyword("ticks"));
+                                             Roo::Constant::NIL);
+  auto ticks = Roo::Dict::get_property(result, Roo::keyword("ticks"));
 
   ASSERT_NE(ticks, nullptr);
   EXPECT_EQ(ticks->num().get_int(), 2);

@@ -17,10 +17,10 @@ add_executable(benchmarkpixils EXCLUDE_FROM_ALL
   ${PIXILS_BENCHMARK_SOURCES}
   ${PIXILS_BENCHMARK_APPFIXTURE_SOURCES}
 )
-add_dependencies(benchmarkpixils pixils_lisple_native)
+add_dependencies(benchmarkpixils pixils_roo_native)
 
 set_target_properties(benchmarkpixils PROPERTIES
-  BUILD_RPATH "$<TARGET_FILE_DIR:pixils_lisple_native>"
+  BUILD_RPATH "$<TARGET_FILE_DIR:pixils_roo_native>"
   BUILD_RPATH_USE_LINK_PATH ON
 )
 
@@ -43,8 +43,8 @@ target_link_libraries(benchmarkpixils
   gtest
   gmock
   pixils_benchmark_objects
-  Lisple::package_shared
-  Lisple::lisple_shared
+  Roo::package_shared
+  Roo::roo_shared
   sdl2_mock::sdl2_mock
   SDL2
   SDL2_image

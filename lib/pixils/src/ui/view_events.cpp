@@ -7,16 +7,16 @@
 #include <pixils/runtime/state.h>
 #include <pixils/runtime/view.h>
 
-#include <lisple/host/object.h>
-#include <lisple/runtime.h>
-#include <lisple/runtime/value.h>
+#include <roo/host/object.h>
+#include <roo/runtime.h>
+#include <roo/runtime/value.h>
 
 namespace Pixils::UI
 {
   namespace
   {
     void restore_subtree_state(const std::shared_ptr<Runtime::View>& view,
-                               const Lisple::sptr_val& parent_state)
+                               const Roo::sptr_val& parent_state)
     {
       view->set_state_if_changed(Runtime::extract_state(parent_state, *view));
       for (auto& child : view->children)
@@ -28,11 +28,11 @@ namespace Pixils::UI
   } // namespace
 
   std::vector<CustomEvent> process_view_events(Runtime::View& receiver,
-                                               Lisple::sptr_val* parent_state,
+                                               Roo::sptr_val* parent_state,
                                                Runtime::View* parent_view,
-                                               Lisple::sptr_val& view_ctx,
+                                               Roo::sptr_val& view_ctx,
                                                std::vector<CustomEvent>& events,
-                                               Lisple::Runtime& runtime,
+                                               Roo::Runtime& runtime,
                                                bool* receiver_state_updated)
   {
     std::vector<CustomEvent> bubbled_events;
@@ -40,7 +40,7 @@ namespace Pixils::UI
     {
       auto it = receiver.mode->event_handlers.find(event.event_key->str());
       if (it == receiver.mode->event_handlers.end() ||
-          it->second->type != Lisple::Value::Type::FUNCTION)
+          it->second->type != Roo::Value::Type::FUNCTION)
       {
         PIXILS_BENCHMARK_COUNT(events_bubbled);
         bubbled_events.push_back(event);
@@ -49,13 +49,13 @@ namespace Pixils::UI
 
       PIXILS_BENCHMARK_COUNT(event_handler_invocations);
       auto event_ref = Script::CustomEventAdapter::make_ref(event);
-      Lisple::obj<HookContext>(*view_ctx).current_view =
+      Roo::obj<HookContext>(*view_ctx).current_view =
         std::shared_ptr<Runtime::View>(&receiver, [](Runtime::View*) {});
-      Lisple::sptr_val_v event_args{receiver.state, event_ref, view_ctx};
+      Roo::sptr_val_v event_args{receiver.state, event_ref, view_ctx};
       auto receiver_ref = std::shared_ptr<Runtime::View>(&receiver, [](Runtime::View*) {});
       auto new_state =
         Runtime::invoke_hook(runtime, receiver_ref, it->second, event_args, receiver.state);
-      if (new_state->type != Lisple::Value::Type::NIL)
+      if (new_state->type != Roo::Value::Type::NIL)
       {
         if (receiver.set_state_if_changed(new_state))
         {

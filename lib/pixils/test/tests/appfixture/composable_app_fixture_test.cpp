@@ -4,7 +4,7 @@
 #include <pixils/runtime/mode.h>
 
 #include <gtest/gtest.h>
-#include <lisple/runtime/dict.h>
+#include <roo/runtime/dict.h>
 
 namespace AppFixture = Pixils::Test::AppFixture;
 
@@ -27,7 +27,7 @@ namespace
                     ":children [{:mode 'child-mode}]})",
                     "(pixils/defmode child-mode {})"})},
       {AppFixture::ManifestFile{.id = "main",
-                                .disk_path = "pixils/test/app/main.lisple",
+                                .disk_path = "pixils/test/app/main.roo",
                                 .namespace_name = "pixils.test.app.main",
                                 .unit_ids = {"test-mode-api"}}});
   }
@@ -45,15 +45,15 @@ TEST_F(ComposableAppFixtureTest, loads_composed_app_with_cross_file_require_reso
                  {"[pixils.test.app.helpers :as helpers]"},
                  {"(defun answer [] (helpers/helper-answer))"})},
     {AppFixture::ManifestFile{.id = "helpers",
-                              .disk_path = "pixils/test/app/helpers.lisple",
+                              .disk_path = "pixils/test/app/helpers.roo",
                               .namespace_name = "pixils.test.app.helpers",
                               .unit_ids = {"helpers-api"}},
      AppFixture::ManifestFile{.id = "main",
-                              .disk_path = "pixils/test/app/main.lisple",
+                              .disk_path = "pixils/test/app/main.roo",
                               .namespace_name = "pixils.test.app.main",
                               .unit_ids = {"main-api"}}});
 
-  load_app(manifest, "pixils.test.app.main", {"pixils/test/app/main.lisple"});
+  load_app(manifest, "pixils.test.app.main", {"pixils/test/app/main.roo"});
 
   EXPECT_EQ(eval("(pixils.test.app.main/answer)")->num().get_int(), 42);
 }
@@ -67,17 +67,17 @@ TEST_F(ComposableAppFixtureTest,
                  {"[pixils.test.app.helpers :as helpers]"},
                  {"(defun answer [] (helpers/helper-answer))"})},
     {AppFixture::ManifestFile{.id = "helpers",
-                              .disk_path = "pixils/test/app/helpers.lisple",
+                              .disk_path = "pixils/test/app/helpers.roo",
                               .namespace_name = "pixils.test.app.helpers",
                               .unit_ids = {"helpers-api"}},
      AppFixture::ManifestFile{.id = "main",
-                              .disk_path = "pixils/test/app/main.lisple",
+                              .disk_path = "pixils/test/app/main.roo",
                               .namespace_name = "pixils.test.app.main",
                               .unit_ids = {"main-api"}}});
 
   manifest.upsert_unit(inline_unit("helpers-api", {}, {"(defun helper-answer [] 99)"}));
 
-  load_app(manifest, "pixils.test.app.main", {"pixils/test/app/main.lisple"});
+  load_app(manifest, "pixils.test.app.main", {"pixils/test/app/main.roo"});
 
   EXPECT_EQ(eval("(pixils.test.app.main/answer)")->num().get_int(), 99);
 }
@@ -102,24 +102,24 @@ TEST_F(ComposableAppFixtureTest, loads_file_defined_mode_into_pixils_mode_regist
 {
   load_app(file_defined_mode_manifest(),
            "pixils.test.app.main",
-           {"pixils/test/app/main.lisple"});
+           {"pixils/test/app/main.roo"});
 
   auto modes = pixils().lookup("pixils/modes");
   ASSERT_NE(modes, nullptr);
 
-  auto test_mode_val = Lisple::Dict::get_property(modes, Lisple::symbol("test-mode"));
+  auto test_mode_val = Roo::Dict::get_property(modes, Roo::symbol("test-mode"));
   ASSERT_NE(test_mode_val, nullptr);
 
-  const auto& test_mode = Lisple::obj<Pixils::Runtime::Mode>(*test_mode_val);
+  const auto& test_mode = Roo::obj<Pixils::Runtime::Mode>(*test_mode_val);
   EXPECT_EQ(test_mode.name, "test-mode");
-  EXPECT_EQ(test_mode.init->type, Lisple::Value::Type::FUNCTION);
-  EXPECT_EQ(test_mode.update->type, Lisple::Value::Type::FUNCTION);
+  EXPECT_EQ(test_mode.init->type, Roo::Value::Type::FUNCTION);
+  EXPECT_EQ(test_mode.update->type, Roo::Value::Type::FUNCTION);
   ASSERT_EQ(test_mode.children.size(), 1u);
   EXPECT_EQ(test_mode.children[0].mode_name, "child-mode");
   EXPECT_EQ(test_mode.children[0].id, "child-mode-0");
 
-  auto child_mode_val = Lisple::Dict::get_property(modes, Lisple::symbol("child-mode"));
+  auto child_mode_val = Roo::Dict::get_property(modes, Roo::symbol("child-mode"));
   ASSERT_NE(child_mode_val, nullptr);
-  const auto& child_mode = Lisple::obj<Pixils::Runtime::Mode>(*child_mode_val);
+  const auto& child_mode = Roo::obj<Pixils::Runtime::Mode>(*child_mode_val);
   EXPECT_EQ(child_mode.name, "child-mode");
 }

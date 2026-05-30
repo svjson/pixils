@@ -4,8 +4,8 @@
 #include <pixils/program.h>
 
 #include <gtest/gtest.h>
-#include <lisple/runtime/dict.h>
-#include <lisple/runtime/value.h>
+#include <roo/runtime/dict.h>
+#include <roo/runtime/value.h>
 
 using SessionChildrenTest = RenderFixture;
 using SessionStateTreeTest = SessionFixture;
@@ -24,7 +24,7 @@ TEST_F(SessionChildrenTest, child_mode_lambda_render_hook_is_called)
   )");
 
   // When
-  session.push_mode("parent-mode", Lisple::Constant::NIL);
+  session.push_mode("parent-mode", Roo::Constant::NIL);
   ASSERT_NO_THROW(session.render_mode());
 
   // Then
@@ -44,7 +44,7 @@ TEST_F(SessionChildrenTest, child_mode_symbol_render_hook_is_resolved_and_called
   )");
 
   // When
-  session.push_mode("parent-mode", Lisple::Constant::NIL);
+  session.push_mode("parent-mode", Roo::Constant::NIL);
   ASSERT_NO_THROW(session.render_mode());
 
   // Then
@@ -64,7 +64,7 @@ TEST_F(SessionChildrenTest, child_mode_render_hook_receives_render_context)
     })
     (pixils/defmode parent-mode {:children [{:mode 'child-mode}]})
   )");
-  session.push_mode("parent-mode", Lisple::Constant::NIL);
+  session.push_mode("parent-mode", Roo::Constant::NIL);
 
   // When
   session.render_mode();
@@ -85,7 +85,7 @@ TEST_F(SessionChildrenTest, child_without_mode_builds_anonymous_structural_view)
                                :state {:value "nested"}}]}]})
   )");
 
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
   session.render_mode();
 
   ASSERT_NE(session.active_mode, nullptr);
@@ -115,7 +115,7 @@ TEST_F(SessionChildrenTest, anonymous_children_get_stable_generated_ids)
                   {:style {:width 20 :height 20}}]})
   )");
 
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
   session.render_mode();
 
   ASSERT_NE(session.active_mode, nullptr);
@@ -130,7 +130,7 @@ TEST_F(SessionChildrenTest, root_mode_without_explicit_theme_uses_builtin_base_t
 {
   runtime.eval("(pixils/defmode window-control-button {})");
 
-  session.push_mode("window-control-button", Lisple::Constant::NIL);
+  session.push_mode("window-control-button", Roo::Constant::NIL);
   session.render_mode();
 
   EXPECT_EQ(session.active_mode->effective_theme.name, "pixils/base-theme");
@@ -146,7 +146,7 @@ TEST_F(SessionChildrenTest, child_content_size_hook_informs_layout_bounds)
     })
     (pixils/defmode parent-mode {:children [{:mode 'child-mode}]})
   )");
-  session.push_mode("parent-mode", Lisple::Constant::NIL);
+  session.push_mode("parent-mode", Roo::Constant::NIL);
 
   // When
   session.render_mode();
@@ -171,7 +171,7 @@ TEST_F(SessionChildrenTest, child_content_size_hook_with_fill_width_uses_availab
     })
     (pixils/defmode parent-mode {:children [{:mode 'child-mode}]})
   )");
-  session.push_mode("parent-mode", Lisple::Constant::NIL);
+  session.push_mode("parent-mode", Roo::Constant::NIL);
 
   // When
   session.render_mode();
@@ -200,7 +200,7 @@ TEST_F(SessionChildrenTest, child_content_size_hook_can_read_effective_style)
       :children [{:mode 'child-mode}]
     })
   )");
-  session.push_mode("parent-mode", Lisple::Constant::NIL);
+  session.push_mode("parent-mode", Roo::Constant::NIL);
 
   // When
   session.render_mode();
@@ -239,7 +239,7 @@ TEST_F(SessionChildrenTest, hook_can_read_active_theme_vars)
     (pixils/defmode parent-mode {:children [{:mode 'child-mode}]})
   )");
 
-  session.push_mode("parent-mode", Lisple::Constant::NIL);
+  session.push_mode("parent-mode", Roo::Constant::NIL);
   session.render_mode();
 
   ASSERT_NE(session.active_mode, nullptr);
@@ -279,7 +279,7 @@ TEST_F(SessionChildrenTest, inline_style_can_use_active_theme_vars)
       {:render (fn [state ctx] nil)})
   )");
 
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
   session.render_mode();
 
   ASSERT_NE(session.active_mode, nullptr);
@@ -328,7 +328,7 @@ TEST_F(SessionChildrenTest, inline_theme_var_style_keeps_update_time_style_mutat
        :children [{:mode 'child-mode}]})
   )");
 
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
 
   session.update_mode();
   session.render_mode();
@@ -364,7 +364,7 @@ TEST_F(SessionChildrenTest, mode_theme_and_child_theme_override_apply_to_effecti
        :children [{:mode 'child-mode
                    :theme 'local-theme}]})
   )");
-  session.push_mode("parent-mode", Lisple::Constant::NIL);
+  session.push_mode("parent-mode", Roo::Constant::NIL);
 
   // When
   session.render_mode();
@@ -400,7 +400,7 @@ TEST_F(SessionChildrenTest, mode_and_child_theme_vectors_apply_in_order)
        :children [{:mode 'child-mode
                    :theme ['compact-layout-theme 'roomy-layout-theme]}]})
   )");
-  session.push_mode("parent-mode", Lisple::Constant::NIL);
+  session.push_mode("parent-mode", Roo::Constant::NIL);
 
   // When
   session.render_mode();
@@ -778,7 +778,7 @@ TEST_F(SessionChildrenTest, root_mode_theme_applies_component_selector_to_active
       {:theme 'root-theme
        :render (fn [state ctx] nil)})
   )");
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
 
   // When
   session.render_mode();
@@ -805,7 +805,7 @@ TEST_F(SessionChildrenTest, root_mode_theme_applies_compound_state_selector_to_a
        :init (fn [state ctx] {:pressed true})
        :render (fn [state ctx] nil)})
   )");
-  session.push_mode("button", Lisple::Constant::NIL);
+  session.push_mode("button", Roo::Constant::NIL);
 
   // When
   session.render_mode();
@@ -835,7 +835,7 @@ TEST_F(SessionChildrenTest,
        :theme 'root-theme
        :render (fn [state ctx] nil)})
   )");
-  session.push_mode("board-button", Lisple::Constant::NIL);
+  session.push_mode("board-button", Roo::Constant::NIL);
 
   session.render_mode();
 
@@ -859,7 +859,7 @@ TEST_F(SessionChildrenTest, root_mode_theme_applies_class_selector_to_active_vie
        :class :ui/panel
        :render (fn [state ctx] nil)})
   )");
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
 
   session.render_mode();
 
@@ -882,7 +882,7 @@ TEST_F(SessionChildrenTest, theme_defaults_apply_to_views_without_matching_style
       {:theme 'root-theme
        :render (fn [state ctx] nil)})
   )");
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
 
   session.render_mode();
 
@@ -912,7 +912,7 @@ TEST_F(SessionChildrenTest, inherited_text_style_overrides_theme_defaults)
       {:theme 'root-theme
        :children [{:mode 'parent-mode}]})
   )");
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
 
   session.render_mode();
 
@@ -945,7 +945,7 @@ TEST_F(SessionChildrenTest, child_override_class_applies_class_selector_to_child
        :children [{:mode 'child-mode
                    :class :ui/panel}]})
   )");
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
 
   session.render_mode();
 
@@ -972,8 +972,8 @@ TEST_F(SessionChildrenTest,
     (pixils/defmode root-mode
       {:render (fn [state ctx] nil)})
   )");
-  auto overrides = Lisple::map({Lisple::keyword("theme"), Lisple::symbol("root-theme")});
-  session.push_mode("root-mode", Lisple::Constant::NIL, overrides);
+  auto overrides = Roo::map({Roo::keyword("theme"), Roo::symbol("root-theme")});
+  session.push_mode("root-mode", Roo::Constant::NIL, overrides);
 
   // When
   session.render_mode();
@@ -1003,11 +1003,11 @@ TEST_F(SessionChildrenTest,
       {:theme 'app-theme
        :render (fn [state ctx] nil)})
   )");
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
   session.render_mode();
 
   // When
-  session.push_mode("popup-mode", Lisple::Constant::NIL);
+  session.push_mode("popup-mode", Roo::Constant::NIL);
   session.render_mode();
 
   // Then
@@ -1039,7 +1039,7 @@ TEST_F(SessionChildrenTest, pushed_root_mode_from_init_inherits_parent_effective
                  state))
        :render (fn [state ctx] nil)})
   )");
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
 
   // When
   session.process_messages();
@@ -1070,11 +1070,11 @@ TEST_F(SessionChildrenTest, pushed_root_mode_uses_parent_theme_defaults)
       {:theme 'app-theme
        :render (fn [state ctx] nil)})
   )");
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
   session.render_mode();
 
   // When
-  session.push_mode("popup-mode", Lisple::Constant::NIL);
+  session.push_mode("popup-mode", Roo::Constant::NIL);
   session.render_mode();
 
   // Then
@@ -1096,7 +1096,7 @@ TEST_F(SessionStateTreeTest, push_mode_merges_child_init_state_into_parent_state
   )");
 
   // When
-  session.push_mode("parent-mode", Lisple::Constant::NIL);
+  session.push_mode("parent-mode", Roo::Constant::NIL);
 
   // Then - child view owns the initialized state locally
   ASSERT_NE(session.active_mode, nullptr);
@@ -1104,7 +1104,7 @@ TEST_F(SessionStateTreeTest, push_mode_merges_child_init_state_into_parent_state
   auto child = session.active_mode->children[0];
   ASSERT_NE(child, nullptr);
   ASSERT_NE(child->state, nullptr);
-  auto value = Lisple::Dict::get_property(child->state, Lisple::keyword("value"));
+  auto value = Roo::Dict::get_property(child->state, Roo::keyword("value"));
   ASSERT_NE(value, nullptr);
   EXPECT_EQ(value->num().get_int(), 42);
 }
@@ -1119,7 +1119,7 @@ TEST_F(SessionStateTreeTest, child_update_preserves_and_evolves_local_child_stat
     })
     (pixils/defmode parent-mode {:children [{:mode 'child-mode}]})
   )");
-  session.push_mode("parent-mode", Lisple::Constant::NIL);
+  session.push_mode("parent-mode", Roo::Constant::NIL);
 
   // When
   session.update_mode();
@@ -1130,7 +1130,7 @@ TEST_F(SessionStateTreeTest, child_update_preserves_and_evolves_local_child_stat
   auto child = session.active_mode->children[0];
   ASSERT_NE(child, nullptr);
   ASSERT_NE(child->state, nullptr);
-  auto count = Lisple::Dict::get_property(child->state, Lisple::keyword("count"));
+  auto count = Roo::Dict::get_property(child->state, Roo::keyword("count"));
   ASSERT_NE(count, nullptr);
   EXPECT_EQ(count->num().get_int(), 1);
 }
@@ -1143,10 +1143,10 @@ TEST_F(SessionStateTreeTest, pop_mode_restores_parent_with_child_states)
     (pixils/defmode parent-mode {:children [{:mode 'child-mode}]})
     (pixils/defmode popup-mode {})
   )");
-  session.push_mode("parent-mode", Lisple::Constant::NIL);
+  session.push_mode("parent-mode", Roo::Constant::NIL);
 
   // When
-  session.push_mode("popup-mode", Lisple::Constant::NIL);
+  session.push_mode("popup-mode", Roo::Constant::NIL);
   session.pop_mode();
 
   // Then - active mode is parent-mode with child local state intact
@@ -1156,7 +1156,7 @@ TEST_F(SessionStateTreeTest, pop_mode_restores_parent_with_child_states)
   auto child = session.active_mode->children[0];
   ASSERT_NE(child, nullptr);
   ASSERT_NE(child->state, nullptr);
-  auto value = Lisple::Dict::get_property(child->state, Lisple::keyword("value"));
+  auto value = Roo::Dict::get_property(child->state, Roo::keyword("value"));
   ASSERT_NE(value, nullptr);
   EXPECT_EQ(value->num().get_int(), 99);
 }
@@ -1184,7 +1184,7 @@ TEST_F(SessionStateTreeTest, pop_mode_result_returns_to_explicit_origin_view)
       {:children [{:mode 'child-mode :id "child"}]})
   )");
 
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
 
   update_cycle();
   ASSERT_NE(session.active_mode, nullptr);
@@ -1196,12 +1196,12 @@ TEST_F(SessionStateTreeTest, pop_mode_result_returns_to_explicit_origin_view)
   ASSERT_EQ(session.active_mode->children.size(), 1u);
 
   auto child = session.active_mode->children[0];
-  auto result = Lisple::Dict::get_property(child->state, Lisple::keyword("result"));
+  auto result = Roo::Dict::get_property(child->state, Roo::keyword("result"));
   ASSERT_NE(result, nullptr);
 
-  auto source_mode = Lisple::Dict::get_property(result, Lisple::keyword("source-mode"));
-  auto payload = Lisple::Dict::get_property(result, Lisple::keyword("payload"));
-  auto value = Lisple::Dict::get_property(payload, Lisple::keyword("value"));
+  auto source_mode = Roo::Dict::get_property(result, Roo::keyword("source-mode"));
+  auto payload = Roo::Dict::get_property(result, Roo::keyword("payload"));
+  auto value = Roo::Dict::get_property(payload, Roo::keyword("value"));
 
   ASSERT_NE(source_mode, nullptr);
   ASSERT_NE(payload, nullptr);
@@ -1236,7 +1236,7 @@ TEST_F(SessionStateTreeTest, pop_mode_result_uses_custom_origin_event_and_bubble
        :children [{:mode 'child-mode :id "child"}]})
   )");
 
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
 
   update_cycle();
   ASSERT_NE(session.active_mode, nullptr);
@@ -1247,12 +1247,12 @@ TEST_F(SessionStateTreeTest, pop_mode_result_uses_custom_origin_event_and_bubble
   ASSERT_EQ(session.active_mode->mode->name, "root-mode");
 
   auto result =
-    Lisple::Dict::get_property(session.active_mode->state, Lisple::keyword("result"));
+    Roo::Dict::get_property(session.active_mode->state, Roo::keyword("result"));
   ASSERT_NE(result, nullptr);
 
-  auto source_mode = Lisple::Dict::get_property(result, Lisple::keyword("source-mode"));
-  auto payload = Lisple::Dict::get_property(result, Lisple::keyword("payload"));
-  auto value = Lisple::Dict::get_property(payload, Lisple::keyword("value"));
+  auto source_mode = Roo::Dict::get_property(result, Roo::keyword("source-mode"));
+  auto payload = Roo::Dict::get_property(result, Roo::keyword("payload"));
+  auto value = Roo::Dict::get_property(payload, Roo::keyword("value"));
 
   ASSERT_NE(source_mode, nullptr);
   ASSERT_NE(payload, nullptr);
@@ -1281,7 +1281,7 @@ TEST_F(SessionStateTreeTest, pop_mode_result_defaults_to_exposed_root_view_witho
                                                 :payload (:payload ev)}))}})
   )");
 
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
 
   update_cycle();
   ASSERT_NE(session.active_mode, nullptr);
@@ -1292,18 +1292,18 @@ TEST_F(SessionStateTreeTest, pop_mode_result_defaults_to_exposed_root_view_witho
   ASSERT_EQ(session.active_mode->mode->name, "root-mode");
 
   auto result =
-    Lisple::Dict::get_property(session.active_mode->state, Lisple::keyword("result"));
+    Roo::Dict::get_property(session.active_mode->state, Roo::keyword("result"));
   ASSERT_NE(result, nullptr);
 
-  auto source_mode = Lisple::Dict::get_property(result, Lisple::keyword("source-mode"));
-  auto payload = Lisple::Dict::get_property(result, Lisple::keyword("payload"));
-  auto dismissed = Lisple::Dict::get_property(payload, Lisple::keyword("dismissed?"));
+  auto source_mode = Roo::Dict::get_property(result, Roo::keyword("source-mode"));
+  auto payload = Roo::Dict::get_property(result, Roo::keyword("payload"));
+  auto dismissed = Roo::Dict::get_property(payload, Roo::keyword("dismissed?"));
 
   ASSERT_NE(source_mode, nullptr);
   ASSERT_NE(payload, nullptr);
   ASSERT_NE(dismissed, nullptr);
   EXPECT_EQ(source_mode->str(), "popup-mode");
-  EXPECT_TRUE(Lisple::is_truthy(*dismissed));
+  EXPECT_TRUE(Roo::is_truthy(*dismissed));
 }
 
 TEST_F(SessionStateTreeTest, sibling_children_of_same_mode_keep_distinct_local_states)
@@ -1316,7 +1316,7 @@ TEST_F(SessionStateTreeTest, sibling_children_of_same_mode_keep_distinct_local_s
   )");
 
   // When
-  session.push_mode("split-mode", Lisple::Constant::NIL);
+  session.push_mode("split-mode", Roo::Constant::NIL);
 
   // Then - both children retain distinct local state
   ASSERT_NE(session.active_mode, nullptr);
@@ -1353,7 +1353,7 @@ TEST_F(SessionStateTreeTest, style_bang_mutates_only_the_target_view_instance)
                   {:mode 'panel-mode :state {:absolute? false}}]})
   )");
 
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
 
   session.update_mode();
   session.render_mode();
@@ -1391,7 +1391,7 @@ TEST_F(SessionStateTreeTest, explicit_child_id_is_retained_on_view)
   )");
 
   // When
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
 
   // Then - explicit id is retained on the child view itself
   ASSERT_NE(session.active_mode, nullptr);
@@ -1426,7 +1426,7 @@ TEST_F(SessionStateTreeTest,
                    :state (pixils.ui/bind-state :game)}]})
   )");
 
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
   ASSERT_NE(session.active_mode, nullptr);
   ASSERT_EQ(session.active_mode->children.size(), 1u);
   ASSERT_EQ(session.active_mode->children[0]->mode->name, "old-child");
@@ -1464,7 +1464,7 @@ TEST_F(SessionStateTreeTest, replace_child_bang_accepts_anonymous_child_entry)
                    :state (pixils.ui/bind-state :game)}]})
   )");
 
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
   ASSERT_NE(session.active_mode, nullptr);
   ASSERT_EQ(session.active_mode->children.size(), 1u);
   ASSERT_EQ(session.active_mode->children[0]->mode->name, "old-child");

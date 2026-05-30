@@ -4,11 +4,11 @@
 
 #include <pixils/ui/event.h>
 
-#include <lisple/exec.h>
-#include <lisple/host/object.h>
-#include <lisple/namespace.h>
+#include <roo/exec.h>
+#include <roo/host/object.h>
+#include <roo/namespace.h>
 
-namespace Lisple
+namespace Roo
 {
   class Runtime;
 }
@@ -58,7 +58,7 @@ namespace Pixils::Script
                      (key, held_keys, match));
   NATIVE_ADAPTER(BindStateAdapter, Runtime::BindState);
 
-  class UINamespace : public Lisple::Namespace
+  class UINamespace : public Roo::Namespace
   {
    public:
     UINamespace();

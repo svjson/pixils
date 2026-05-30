@@ -8,25 +8,25 @@
 #include <pixils/ui/components/text_node.h>
 #include <pixils/ui/style.h>
 
-#include <lisple/exec.h>
-#include <lisple/host/object.h>
-#include <lisple/runtime.h>
-#include <lisple/runtime/dict.h>
-#include <lisple/runtime/value.h>
+#include <roo/exec.h>
+#include <roo/host/object.h>
+#include <roo/runtime.h>
+#include <roo/runtime/dict.h>
+#include <roo/runtime/value.h>
 
 namespace Pixils::UI::Components
 {
   namespace
   {
-    std::string text_node_value(const Lisple::sptr_val& state)
+    std::string text_node_value(const Roo::sptr_val& state)
     {
-      if (!state || state->type == Lisple::Value::Type::NIL) return "";
-      if (state->type == Lisple::Value::Type::STRING) return state->str();
-      if (state->type != Lisple::Value::Type::MAP) return state->to_string();
+      if (!state || state->type == Roo::Value::Type::NIL) return "";
+      if (state->type == Roo::Value::Type::STRING) return state->str();
+      if (state->type != Roo::Value::Type::MAP) return state->to_string();
 
-      auto value = Lisple::Dict::get_property(state, Lisple::keyword("value"));
-      if (!value || value->type == Lisple::Value::Type::NIL) return "";
-      if (value->type != Lisple::Value::Type::STRING) return value->to_string();
+      auto value = Roo::Dict::get_property(state, Roo::keyword("value"));
+      if (!value || value->type == Roo::Value::Type::NIL) return "";
+      if (value->type != Roo::Value::Type::STRING) return value->to_string();
       return value->str();
     }
 
@@ -123,20 +123,20 @@ namespace Pixils::UI::Components
       FUNC(TextNodeRender, text_node_render);
 
       FUNC_IMPL(TextNodeContentSize,
-                SIG((FN_ARGS((&Lisple::Type::ANY),
+                SIG((FN_ARGS((&Roo::Type::ANY),
                              (&Pixils::Script::HostType::HOOK_CONTEXT)),
                      EXEC_DISPATCH(&TextNodeContentSize::exec_text_node_content_size))));
 
       EXEC_BODY(TextNodeContentSize, exec_text_node_content_size)
       {
-        HookContext& hook_ctx = Lisple::obj<HookContext>(*args[1]);
-        if (!hook_ctx.current_view) return Lisple::Constant::NIL;
+        HookContext& hook_ctx = Roo::obj<HookContext>(*args[1]);
+        if (!hook_ctx.current_view) return Roo::Constant::NIL;
 
         RenderContext& rc =
-          Lisple::obj<RenderContext>(*ctx.lookup(Script::ID__PIXILS__RENDER_CONTEXT));
+          Roo::obj<RenderContext>(*ctx.lookup(Script::ID__PIXILS__RENDER_CONTEXT));
         const Runtime::View& view = *hook_ctx.current_view;
         auto text_op = make_text_node_render_op(rc, view.effective_style);
-        if (!text_op) return Lisple::Constant::NIL;
+        if (!text_op) return Roo::Constant::NIL;
 
         auto layout = Text::layout_text(rc,
                                         *text_op,
@@ -147,23 +147,23 @@ namespace Pixils::UI::Components
       }
 
       FUNC_IMPL(TextNodeRender,
-                SIG((FN_ARGS((&Lisple::Type::ANY),
+                SIG((FN_ARGS((&Roo::Type::ANY),
                              (&Pixils::Script::HostType::HOOK_CONTEXT)),
                      EXEC_DISPATCH(&TextNodeRender::exec_text_node_render))));
 
       EXEC_BODY(TextNodeRender, exec_text_node_render)
       {
-        HookContext& hook_ctx = Lisple::obj<HookContext>(*args[1]);
-        if (!hook_ctx.current_view) return Lisple::Constant::NIL;
+        HookContext& hook_ctx = Roo::obj<HookContext>(*args[1]);
+        if (!hook_ctx.current_view) return Roo::Constant::NIL;
 
         RenderContext& rc =
-          Lisple::obj<RenderContext>(*ctx.lookup(Script::ID__PIXILS__RENDER_CONTEXT));
+          Roo::obj<RenderContext>(*ctx.lookup(Script::ID__PIXILS__RENDER_CONTEXT));
         const Runtime::View& view = *hook_ctx.current_view;
 
         auto text_op = make_text_node_render_op(rc,
                                                 view.effective_style,
                                                 text_style_color(view.effective_style));
-        if (!text_op) return Lisple::Constant::NIL;
+        if (!text_op) return Roo::Constant::NIL;
 
         const Rect content_rect = view.effective_style.content_rect(view.bounds);
         auto layout = Text::layout_text(rc,
@@ -191,7 +191,7 @@ namespace Pixils::UI::Components
             static_cast<int>(i) * (layout.size.h / static_cast<int>(layout.lines.size()));
           Text::render_text(rc, *text_op, layout.lines[i].text, x, y);
         }
-        return Lisple::Constant::NIL;
+        return Roo::Constant::NIL;
       }
     } // namespace Function
 
@@ -206,12 +206,12 @@ namespace Pixils::UI::Components
     }
   } // namespace
 
-  void register_text_node_component(Lisple::Runtime& runtime)
+  void register_text_node_component(Roo::Runtime& runtime)
   {
     auto modes = runtime.lookup(Script::ID__PIXILS__MODES);
-    Lisple::Dict::set_property(
+    Roo::Dict::set_property(
       modes,
-      Lisple::symbol("ui/text"),
+      Roo::symbol("ui/text"),
       Script::ModeAdapter::make_unique(make_text_node_component_mode()));
   }
 } // namespace Pixils::UI::Components

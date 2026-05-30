@@ -4,8 +4,8 @@
 #include <pixils/keyboard.h>
 #include <pixils/ui/event.h>
 
-#include <lisple/host/object.h>
-#include <lisple/runtime/value.h>
+#include <roo/host/object.h>
+#include <roo/runtime/value.h>
 
 namespace Pixils::Script
 {
@@ -17,19 +17,19 @@ namespace Pixils::Script
 
     EXEC_BODY(EventToText, exec_event_to_text)
     {
-      auto& event = Lisple::obj<KeyboardEvent>(*args[0]);
+      auto& event = Roo::obj<KeyboardEvent>(*args[0]);
       auto text = Keyboard::key_to_text(event.key, event.held_keys);
       if (!text)
       {
-        return Lisple::Constant::NIL;
+        return Roo::Constant::NIL;
       }
 
-      return Lisple::string(*text);
+      return Roo::string(*text);
     }
   } // namespace Function
 
   KeyboardNamespace::KeyboardNamespace()
-    : Lisple::Namespace(std::string(NS__PIXILS__KEYBOARD))
+    : Roo::Namespace(std::string(NS__PIXILS__KEYBOARD))
   {
     values.emplace("event->text", Function::EventToText::make());
   }

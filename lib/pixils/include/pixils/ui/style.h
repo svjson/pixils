@@ -13,11 +13,11 @@
 #include <optional>
 #include <vector>
 
-namespace Lisple
+namespace Roo
 {
   struct Value;
   using sptr_val = std::shared_ptr<Value>;
-} // namespace Lisple
+} // namespace Roo
 
 namespace Pixils::UI
 {
@@ -380,12 +380,12 @@ namespace Pixils::UI
    */
   Style resolve_style(const std::optional<Style>& style,
                       const Style* inherited_style,
-                      const Lisple::sptr_val& state,
+                      const Roo::sptr_val& state,
                       const InteractionState& interaction = {},
                       const Style* default_style = nullptr);
 
   inline Style resolve_style(const std::optional<Style>& style,
-                             const Lisple::sptr_val& state,
+                             const Roo::sptr_val& state,
                              const InteractionState& interaction = {})
   {
     return resolve_style(style, nullptr, state, interaction);

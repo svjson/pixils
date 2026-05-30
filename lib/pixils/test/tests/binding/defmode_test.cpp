@@ -2,16 +2,16 @@
 #include "pixils/runtime/mode.h"
 
 #include <gtest/gtest.h>
-#include <lisple/runtime/value.h>
+#include <roo/runtime/value.h>
 
 using DefModeTest = BaseFixture;
 
 namespace
 {
-  Pixils::Runtime::Mode& get_mode(Lisple::Runtime& rt, const std::string& name)
+  Pixils::Runtime::Mode& get_mode(Roo::Runtime& rt, const std::string& name)
   {
     auto val = rt.eval("(get pixils/modes '" + name + ")");
-    return Lisple::obj<Pixils::Runtime::Mode>(*val);
+    return Roo::obj<Pixils::Runtime::Mode>(*val);
   }
 } // namespace
 
@@ -22,13 +22,13 @@ TEST_F(DefModeTest, defmode_with_no_args_is_created_with_nil_hooks)
 
   // Then
   auto mode_val = runtime.eval("(get pixils/modes 'test-mode)");
-  Pixils::Runtime::Mode& mode = Lisple::obj<Pixils::Runtime::Mode>(*mode_val);
+  Pixils::Runtime::Mode& mode = Roo::obj<Pixils::Runtime::Mode>(*mode_val);
   ASSERT_EQ(mode.selector_modes.size(), 1u);
   EXPECT_EQ(mode.selector_modes[0], "test-mode");
-  EXPECT_EQ(*mode.init, *Lisple::Constant::NIL);
-  EXPECT_EQ(*mode.update, *Lisple::Constant::NIL);
-  EXPECT_EQ(*mode.content_size, *Lisple::Constant::NIL);
-  EXPECT_EQ(*mode.render, *Lisple::Constant::NIL);
+  EXPECT_EQ(*mode.init, *Roo::Constant::NIL);
+  EXPECT_EQ(*mode.update, *Roo::Constant::NIL);
+  EXPECT_EQ(*mode.content_size, *Roo::Constant::NIL);
+  EXPECT_EQ(*mode.render, *Roo::Constant::NIL);
 }
 
 TEST_F(DefModeTest, defmode_injects_name_when_top_level_value_matches_name_key)
@@ -39,7 +39,7 @@ TEST_F(DefModeTest, defmode_injects_name_when_top_level_value_matches_name_key)
   // Then
   Pixils::Runtime::Mode& mode = get_mode(runtime, "test-mode");
   EXPECT_EQ(mode.name, "test-mode");
-  ASSERT_EQ(mode.render->type, Lisple::Value::Type::SYMBOL);
+  ASSERT_EQ(mode.render->type, Roo::Value::Type::SYMBOL);
   EXPECT_EQ(mode.render->str(), "name");
 }
 
@@ -142,11 +142,11 @@ TEST_F(DefModeTest, defmode_with_lambda_hook_is_created)
 
   // Then
   auto mode_val = runtime.eval("(get pixils/modes 'test-mode)");
-  Pixils::Runtime::Mode& mode = Lisple::obj<Pixils::Runtime::Mode>(*mode_val);
-  EXPECT_EQ(mode.init->type, Lisple::Value::Type::FUNCTION);
-  EXPECT_EQ(*mode.update, *Lisple::Constant::NIL);
-  EXPECT_EQ(*mode.content_size, *Lisple::Constant::NIL);
-  EXPECT_EQ(*mode.render, *Lisple::Constant::NIL);
+  Pixils::Runtime::Mode& mode = Roo::obj<Pixils::Runtime::Mode>(*mode_val);
+  EXPECT_EQ(mode.init->type, Roo::Value::Type::FUNCTION);
+  EXPECT_EQ(*mode.update, *Roo::Constant::NIL);
+  EXPECT_EQ(*mode.content_size, *Roo::Constant::NIL);
+  EXPECT_EQ(*mode.render, *Roo::Constant::NIL);
 }
 
 TEST_F(DefModeTest, defmode_with_content_size_hook_is_created)
@@ -156,9 +156,9 @@ TEST_F(DefModeTest, defmode_with_content_size_hook_is_created)
 
   // Then
   auto mode_val = runtime.eval("(get pixils/modes 'test-mode)");
-  Pixils::Runtime::Mode& mode = Lisple::obj<Pixils::Runtime::Mode>(*mode_val);
-  EXPECT_EQ(mode.content_size->type, Lisple::Value::Type::FUNCTION);
-  EXPECT_EQ(*mode.render, *Lisple::Constant::NIL);
+  Pixils::Runtime::Mode& mode = Roo::obj<Pixils::Runtime::Mode>(*mode_val);
+  EXPECT_EQ(mode.content_size->type, Roo::Value::Type::FUNCTION);
+  EXPECT_EQ(*mode.render, *Roo::Constant::NIL);
 }
 
 TEST_F(DefModeTest, defmode_children_get_auto_generated_ids)

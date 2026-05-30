@@ -2,8 +2,8 @@
 #include "../render_fixture.h"
 
 #include <gtest/gtest.h>
-#include <lisple/runtime/dict.h>
-#include <lisple/runtime/value.h>
+#include <roo/runtime/dict.h>
+#include <roo/runtime/value.h>
 
 using FrameCycleTest = RenderFixture;
 
@@ -13,11 +13,11 @@ TEST_F(FrameCycleTest, init_hook_sets_initial_state)
   runtime.eval("(pixils/defmode test-mode {:init (fn [state ctx] {:x 42})})");
 
   // When
-  session.push_mode("test-mode", Lisple::Constant::NIL);
+  session.push_mode("test-mode", Roo::Constant::NIL);
 
   // Then
   auto state = session.active_mode->state;
-  auto x = Lisple::Dict::get_property(state, Lisple::keyword("x"));
+  auto x = Roo::Dict::get_property(state, Roo::keyword("x"));
   EXPECT_EQ(x->num().get_int(), 42);
 }
 
@@ -30,14 +30,14 @@ TEST_F(FrameCycleTest, update_hook_receives_and_returns_new_state)
       :update (fn [state ctx] (prn "update!") (assoc state :count (+ (:count state) 1)))
     })
   )");
-  session.push_mode("test-mode", Lisple::Constant::NIL);
+  session.push_mode("test-mode", Roo::Constant::NIL);
 
   // When
   session.update_mode();
 
   // Then
   auto state = session.active_mode->state;
-  auto count = Lisple::Dict::get_property(state, Lisple::keyword("count"));
+  auto count = Roo::Dict::get_property(state, Roo::keyword("count"));
   EXPECT_EQ(count->num().get_int(), 1);
 }
 
@@ -53,7 +53,7 @@ TEST_F(FrameCycleTest, render_hook_produces_fill_rect_draw_op)
                   {:fill true}))
     })
   )");
-  session.push_mode("test-mode", Lisple::Constant::NIL);
+  session.push_mode("test-mode", Roo::Constant::NIL);
 
   // When
   session.render_mode();
@@ -80,7 +80,7 @@ TEST_F(FrameCycleTest, render_hook_receives_render_context_with_buffer_dimension
                     {:fill true})))
     })
   )");
-  session.push_mode("test-mode", Lisple::Constant::NIL);
+  session.push_mode("test-mode", Roo::Constant::NIL);
 
   // When
   session.render_mode();
@@ -108,13 +108,13 @@ TEST_F(FrameCycleTest, full_frame_cycle_init_update_render)
   )");
 
   // When
-  session.push_mode("test-mode", Lisple::Constant::NIL);
+  session.push_mode("test-mode", Roo::Constant::NIL);
   session.update_mode();
   session.render_mode();
 
   // Then
   auto count =
-    Lisple::Dict::get_property(session.active_mode->state, Lisple::keyword("ticks"));
+    Roo::Dict::get_property(session.active_mode->state, Roo::keyword("ticks"));
   EXPECT_EQ(count->num().get_int(), 1);
 
   auto& ops = render_target()->render_ops;

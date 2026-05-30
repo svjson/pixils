@@ -1,6 +1,6 @@
 (ns pixils.ui.file-dialog
   (:require pixils
-            [lisple.io :as io]
+            [roo.io :as io]
             [pixils.ui :as ui]
             pixils.ui.combo-box
             [pixils.ui.dialog :as dialog]))

@@ -3,8 +3,8 @@
 
 #include <pixils/benchmark/counters.h>
 
-#include <lisple/runtime/dict.h>
-#include <lisple/runtime/value.h>
+#include <roo/runtime/dict.h>
+#include <roo/runtime/value.h>
 
 #include <new>
 
@@ -534,7 +534,7 @@ namespace Pixils::UI
 
   UI::Style resolve_style(const std::optional<Style>& style,
                           const Style* inherited_style,
-                          const Lisple::sptr_val& /* state */,
+                          const Roo::sptr_val& /* state */,
                           const InteractionState& interaction,
                           const Style* default_style)
   {

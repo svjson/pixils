@@ -1,7 +1,7 @@
 #include "../../render_fixture.h"
 
 #include <gtest/gtest.h>
-#include <lisple/runtime/dict.h>
+#include <roo/runtime/dict.h>
 #include <sdl2_mock/mock_resources.h>
 
 #include <algorithm>
@@ -10,9 +10,9 @@ using ButtonTest = RenderFixture;
 
 namespace
 {
-  Lisple::sptr_val get_key(const Lisple::sptr_val& value, const std::string& key)
+  Roo::sptr_val get_key(const Roo::sptr_val& value, const std::string& key)
   {
-    return Lisple::Dict::get_property(value, Lisple::keyword(key));
+    return Roo::Dict::get_property(value, Roo::keyword(key));
   }
 } // namespace
 
@@ -30,7 +30,7 @@ TEST_F(ButtonTest, button_can_use_fitted_background_image_from_style)
                                         :align :center}}}]})
   )");
 
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
 
   ASSERT_NO_THROW(session.render_mode());
 
@@ -51,7 +51,7 @@ TEST_F(ButtonTest, button_label_uses_base_theme_padding)
                    :state {:label "OK"}}]})
   )");
 
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
   session.render_mode();
 
   ASSERT_EQ(session.active_mode->children.size(), 1u);
@@ -91,7 +91,7 @@ TEST_F(ButtonTest, button_state_image_is_centered_inside_button_inner)
                    :state {:image :icons/brush}}]})
   )");
 
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
   session.render_mode();
 
   auto& ops = render_target()->render_ops;
@@ -117,7 +117,7 @@ TEST_F(ButtonTest, pressed_button_state_image_stays_centered)
                            :toggled? true}}]})
   )");
 
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
   session.update_mode();
   session.render_mode();
 
@@ -145,7 +145,7 @@ TEST_F(ButtonTest, disabled_button_does_not_fire_click_handler)
                                (assoc state :clicks (+ (:clicks state) 1)))}]})
   )");
 
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
   session.update_mode();
   session.render_mode();
 
@@ -171,7 +171,7 @@ TEST_F(ButtonTest, toggle_button_toggles_pressed_state_and_emits_change)
                            :value :grid}}]})
   )");
 
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
   session.update_mode();
   session.render_mode();
 
@@ -225,7 +225,7 @@ TEST_F(ButtonTest, toggle_button_group_selects_one_button_and_can_force_selectio
                     :button-row-style {:layout {:direction :row}}})]})
   )");
 
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
   session.update_mode();
   session.render_mode();
 
@@ -294,7 +294,7 @@ TEST_F(ButtonTest, button_label_has_natural_size_inside_window_body)
                     :body [{:mode 'form-body}]})]})
   )");
 
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
   session.render_mode();
 
   auto window = session.active_mode->children[0];
@@ -325,7 +325,7 @@ TEST_F(ButtonTest, button_label_has_natural_size_inside_pushed_dialog_frame)
                  state))})
   )");
 
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
   session.process_messages();
   session.render_mode();
 

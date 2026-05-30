@@ -4,8 +4,8 @@
 
 #include <SDL2/SDL_mouse.h>
 #include <gtest/gtest.h>
-#include <lisple/runtime/dict.h>
-#include <lisple/runtime/value.h>
+#include <roo/runtime/dict.h>
+#include <roo/runtime/value.h>
 
 using EventRoutingTest = SessionFixture;
 
@@ -18,7 +18,7 @@ TEST_F(EventRoutingTest, on_click_fires_when_mouse_down_and_up_on_same_view)
       :on-click (fn [state ev ctx] (assoc state :clicks (+ (:clicks state) 1)))
     })
   )");
-  session.push_mode("clickable", Lisple::Constant::NIL);
+  session.push_mode("clickable", Roo::Constant::NIL);
   session.active_mode->bounds = {0, 0, 100, 100};
 
   // When - mouse-down at (50,50)
@@ -46,7 +46,7 @@ TEST_F(EventRoutingTest, on_double_click_fires_for_second_click)
                                 :click-count (:click-count ev)))
     })
   )");
-  session.push_mode("clickable", Lisple::Constant::NIL);
+  session.push_mode("clickable", Roo::Constant::NIL);
   session.active_mode->bounds = {0, 0, 100, 100};
 
   input().mouse_down({50, 50});
@@ -80,7 +80,7 @@ TEST_F(EventRoutingTest, clipped_view_does_not_hit_children_outside_content_rect
                            :width 100
                            :height 100}}]})
   )");
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
   session.render_mode();
 
   input().mouse_down({10, 10});
@@ -108,7 +108,7 @@ TEST_F(EventRoutingTest, on_click_does_not_fire_when_mouse_up_on_different_view)
     (pixils/defmode split-view {:children [{:mode 'btn-left :id "left"}
                                            {:mode 'btn-right :id "right"}]})
   )");
-  session.push_mode("split-view", Lisple::Constant::NIL);
+  session.push_mode("split-view", Roo::Constant::NIL);
   session.active_mode->bounds = {0, 0, 200, 100};
   session.active_mode->children[0]->bounds = {0, 0, 100, 100};
   session.active_mode->children[1]->bounds = {100, 0, 100, 100};
@@ -149,7 +149,7 @@ TEST_F(EventRoutingTest, on_mouse_up_fires_on_hovered_view_regardless_of_press_o
     (pixils/defmode split-view {:children [{:mode 'btn-left :id "left"}
                                            {:mode 'btn-right :id "right"}]})
   )");
-  session.push_mode("split-view", Lisple::Constant::NIL);
+  session.push_mode("split-view", Roo::Constant::NIL);
   session.active_mode->bounds = {0, 0, 200, 100};
   session.active_mode->children[0]->bounds = {0, 0, 100, 100};
   session.active_mode->children[1]->bounds = {100, 0, 100, 100};
@@ -182,7 +182,7 @@ TEST_F(EventRoutingTest, child_click_state_propagates_into_parent_state_map)
     })
     (pixils/defmode container-mode {:children [{:mode 'btn-mode :id "btn"}]})
   )");
-  session.push_mode("container-mode", Lisple::Constant::NIL);
+  session.push_mode("container-mode", Roo::Constant::NIL);
   session.active_mode->bounds = {0, 0, 200, 200};
   session.active_mode->children[0]->bounds = {20, 20, 100, 100};
 
@@ -209,7 +209,7 @@ TEST_F(EventRoutingTest, child_mouse_down_state_propagates_into_parent_state_map
     })
     (pixils/defmode container-mode {:children [{:mode 'btn-mode :id "btn"}]})
   )");
-  session.push_mode("container-mode", Lisple::Constant::NIL);
+  session.push_mode("container-mode", Roo::Constant::NIL);
   session.active_mode->bounds = {0, 0, 200, 200};
   session.active_mode->children[0]->bounds = {20, 20, 100, 100};
 
@@ -232,7 +232,7 @@ TEST_F(EventRoutingTest, on_mouse_enter_state_change_propagates_to_parent)
     })
     (pixils/defmode container-mode {:children [{:mode 'hoverable :id "panel"}]})
   )");
-  session.push_mode("container-mode", Lisple::Constant::NIL);
+  session.push_mode("container-mode", Roo::Constant::NIL);
   session.active_mode->bounds = {0, 0, 200, 200};
   session.active_mode->children[0]->bounds = {20, 20, 100, 100};
 
@@ -258,7 +258,7 @@ TEST_F(EventRoutingTest, on_mouse_leave_state_change_propagates_to_parent)
     })
     (pixils/defmode container-mode {:children [{:mode 'hoverable :id "panel"}]})
   )");
-  session.push_mode("container-mode", Lisple::Constant::NIL);
+  session.push_mode("container-mode", Roo::Constant::NIL);
   session.active_mode->bounds = {0, 0, 200, 200};
   session.active_mode->children[0]->bounds = {20, 20, 100, 100};
 
@@ -285,7 +285,7 @@ TEST_F(EventRoutingTest, drag_hooks_fire_on_pressed_view_chain_after_motion)
                        (assoc state :last-drag (:total-delta event)))
     })
   )");
-  session.push_mode("titlebar", Lisple::Constant::NIL);
+  session.push_mode("titlebar", Roo::Constant::NIL);
   session.active_mode->bounds = {0, 0, 100, 20};
 
   input().mouse_down({10, 10});
@@ -310,7 +310,7 @@ TEST_F(EventRoutingTest, drag_continues_after_cursor_leaves_pressed_view)
                  (assoc state :last (:total-delta event)))
     })
   )");
-  session.push_mode("draggable", Lisple::Constant::NIL);
+  session.push_mode("draggable", Roo::Constant::NIL);
   session.active_mode->bounds = {0, 0, 40, 20};
 
   input().mouse_down({10, 10});
@@ -346,7 +346,7 @@ TEST_F(EventRoutingTest, drag_policy_payload_is_delivered_to_drop_target)
     (pixils/defmode split-view {:children [{:mode 'drag-source :id "source"}
                                            {:mode 'drop-target :id "target"}]})
   )");
-  session.push_mode("split-view", Lisple::Constant::NIL);
+  session.push_mode("split-view", Roo::Constant::NIL);
   session.active_mode->bounds = {0, 0, 120, 40};
   session.active_mode->children[0]->bounds = {0, 0, 50, 40};
   session.active_mode->children[1]->bounds = {60, 0, 50, 40};
@@ -382,7 +382,7 @@ TEST_F(EventRoutingTest, drag_end_suppresses_click_and_updates_state)
                        (assoc state :drag-ended (:total-delta event)))
     })
   )");
-  session.push_mode("draggable", Lisple::Constant::NIL);
+  session.push_mode("draggable", Roo::Constant::NIL);
   session.active_mode->bounds = {0, 0, 100, 20};
 
   input().mouse_down({10, 10});
@@ -411,7 +411,7 @@ TEST_F(EventRoutingTest, child_drag_state_propagates_into_parent_state_map)
                   :state (pixils.ui/bind-state :titlebar)}]
     })
   )");
-  session.push_mode("window-mode", Lisple::Constant::NIL);
+  session.push_mode("window-mode", Roo::Constant::NIL);
   session.active_mode->bounds = {0, 0, 120, 80};
   session.active_mode->children[0]->bounds = {0, 0, 120, 20};
 
@@ -450,7 +450,7 @@ TEST_F(EventRoutingTest, interaction_emitted_event_state_propagates_through_boun
                   :state (pixils.ui/bind-state :outer)}]
     })
   )");
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
   session.active_mode->bounds = {0, 0, 100, 40};
   session.active_mode->children[0]->bounds = {0, 0, 100, 40};
   session.active_mode->children[0]->children[0]->bounds = {0, 0, 100, 40};
@@ -481,7 +481,7 @@ TEST_F(EventRoutingTest, stop_propagation_accepts_drag_events)
                   :state (pixils.ui/bind-state :child)}]
     })
   )");
-  session.push_mode("parent-mode", Lisple::Constant::NIL);
+  session.push_mode("parent-mode", Roo::Constant::NIL);
   session.active_mode->bounds = {0, 0, 100, 40};
   session.active_mode->children[0]->bounds = {0, 0, 100, 40};
 
@@ -515,7 +515,7 @@ TEST_F(EventRoutingTest, nested_child_events_update_bound_ancestor_state_during_
                   :state (pixils.ui/bind-state :mid)}]
     })
   )");
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
 
   // When
   update_cycle();
@@ -553,7 +553,7 @@ TEST_F(EventRoutingTest, child_override_on_map_merges_with_existing_event_handle
                                (assoc state :pong-count (+ (:pong-count state) 1)))}}]
     })
   )");
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
 
   // When
   update_cycle();
@@ -591,7 +591,7 @@ TEST_F(EventRoutingTest, custom_event_stop_propagation_prevents_ancestor_on_hand
                   :state (pixils.ui/bind-state :mid)}]
     })
   )");
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
 
   update_cycle();
 
@@ -613,7 +613,7 @@ TEST_F(EventRoutingTest, non_rendered_child_does_not_win_hit_test_when_bounds_ov
     (pixils/defmode overlap-view {:children [{:mode 'layer :id "bg"}
                                              {:mode 'layer :id "fg" :style {:hidden true}}]})
   )");
-  session.push_mode("overlap-view", Lisple::Constant::NIL);
+  session.push_mode("overlap-view", Roo::Constant::NIL);
   session.active_mode->bounds = {0, 0, 200, 200};
   // Both children cover the same area
   session.active_mode->children[0]->bounds = {0, 0, 200, 200};
@@ -645,7 +645,7 @@ TEST_F(EventRoutingTest, later_rendered_child_wins_hit_test_when_bounds_overlap)
     (pixils/defmode overlap-view {:children [{:mode 'layer :id "bg"}
                                              {:mode 'layer :id "fg"}]})
   )");
-  session.push_mode("overlap-view", Lisple::Constant::NIL);
+  session.push_mode("overlap-view", Roo::Constant::NIL);
   session.active_mode->bounds = {0, 0, 200, 200};
   // Both children cover the same area
   session.active_mode->children[0]->bounds = {0, 0, 200, 200};
@@ -674,7 +674,7 @@ TEST_F(EventRoutingTest, interaction_hovered_true_when_cursor_is_inside)
       :update (fn [state ctx] state)
     })
   )");
-  session.push_mode("panel", Lisple::Constant::NIL);
+  session.push_mode("panel", Roo::Constant::NIL);
   session.active_mode->bounds = {0, 0, 100, 100};
 
   // When - move cursor inside the view
@@ -693,7 +693,7 @@ TEST_F(EventRoutingTest, interaction_hovered_false_when_cursor_is_outside)
       :update (fn [state ctx] state)
     })
   )");
-  session.push_mode("panel", Lisple::Constant::NIL);
+  session.push_mode("panel", Roo::Constant::NIL);
   session.active_mode->bounds = {0, 0, 100, 100};
 
   // When - move cursor outside the view
@@ -710,7 +710,7 @@ TEST_F(EventRoutingTest, mouse_down_sets_focus_to_deepest_hit_view_and_marks_anc
     (pixils/defmode child-mode {:focusable true})
     (pixils/defmode root-mode {:children [{:mode 'child-mode :id "child"}]})
   )");
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
   session.active_mode->bounds = {0, 0, 200, 200};
   session.active_mode->children[0]->bounds = {20, 20, 100, 100};
 
@@ -741,7 +741,7 @@ TEST_F(EventRoutingTest, mouse_down_uses_nearest_focusable_ancestor_in_hit_chain
        :children [{:mode 'leaf-mode :id "leaf"}]})
     (pixils/defmode root-mode {:children [{:mode 'child-mode :id "child"}]})
   )");
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
   session.active_mode->bounds = {0, 0, 200, 200};
   session.active_mode->children[0]->bounds = {20, 20, 100, 100};
   session.active_mode->children[0]->children[0]->bounds = {30, 30, 40, 40};
@@ -763,7 +763,7 @@ TEST_F(EventRoutingTest, mouse_down_on_non_focusable_hit_chain_without_ancestor_
       {:children [{:mode 'focusable-child :id "focusable"}
                   {:mode 'static-child :id "static"}]})
   )");
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
   session.active_mode->bounds = {0, 0, 200, 200};
   session.active_mode->children[0]->bounds = {20, 20, 60, 60};
   session.active_mode->children[1]->bounds = {100, 20, 60, 60};
@@ -787,7 +787,7 @@ TEST_F(EventRoutingTest, mouse_down_outside_root_clears_focus)
     (pixils/defmode child-mode {:focusable true})
     (pixils/defmode root-mode {:children [{:mode 'child-mode :id "child"}]})
   )");
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
   session.active_mode->bounds = {0, 0, 200, 200};
   session.active_mode->children[0]->bounds = {20, 20, 100, 100};
 
@@ -821,7 +821,7 @@ TEST_F(EventRoutingTest, focused_view_replacement_clears_focus_state)
                        (assoc state :swapped? true))))
        :children [{:mode 'old-child :id "child"}]})
   )");
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
   session.active_mode->bounds = {0, 0, 200, 200};
   session.active_mode->children[0]->bounds = {20, 20, 100, 100};
 
@@ -856,7 +856,7 @@ TEST_F(EventRoutingTest, focused_view_replacement_falls_back_to_focusable_ancest
                        (assoc state :swapped? true))))
        :children [{:mode 'old-child :id "child"}]})
   )");
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
   session.active_mode->bounds = {0, 0, 200, 200};
   session.active_mode->children[0]->bounds = {20, 20, 100, 100};
 
@@ -883,7 +883,7 @@ TEST_F(EventRoutingTest, hidden_focused_view_falls_back_to_focusable_ancestor)
       {:focusable true
        :children [{:mode 'child-mode :id "child"}]})
   )");
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
   session.active_mode->bounds = {0, 0, 200, 200};
   session.active_mode->children[0]->bounds = {20, 20, 100, 100};
 
@@ -911,7 +911,7 @@ TEST_F(EventRoutingTest, pop_mode_restores_focus_from_underlying_frame)
        :children [{:mode 'child-mode :id "child"}]})
     (pixils/defmode popup-mode {:focusable true})
   )");
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
   session.active_mode->bounds = {0, 0, 200, 200};
   session.active_mode->children[0]->bounds = {20, 20, 100, 100};
 
@@ -921,7 +921,7 @@ TEST_F(EventRoutingTest, pop_mode_restores_focus_from_underlying_frame)
   ASSERT_TRUE(session.focus_state.has_focus());
   ASSERT_EQ(session.focus_state.focused.lock().get(), focused_child.get());
 
-  session.push_mode("popup-mode", Lisple::Constant::NIL);
+  session.push_mode("popup-mode", Roo::Constant::NIL);
   EXPECT_FALSE(session.focus_state.has_focus());
 
   session.pop_mode();
@@ -946,7 +946,7 @@ TEST_F(EventRoutingTest, focus_style_variants_apply_to_focused_leaf_and_ancestor
                  :focus-within {:height 30}})
        :children [{:mode 'child-mode :id "child"}]})
   )");
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
   session.active_mode->bounds = {0, 0, 200, 200};
   session.active_mode->children[0]->bounds = {20, 20, 100, 100};
 
@@ -981,7 +981,7 @@ TEST_F(EventRoutingTest, hover_style_variant_applied_when_cursor_is_inside)
                 :hover (pixils.ui.style/make-style {:width 200})})
     })
   )");
-  session.push_mode("panel", Lisple::Constant::NIL);
+  session.push_mode("panel", Roo::Constant::NIL);
   session.active_mode->bounds = {0, 0, 100, 100};
 
   // When - move cursor inside the view
@@ -1010,7 +1010,7 @@ TEST_F(EventRoutingTest,
     (pixils/defmode root-mode
       {:children [{:mode 'scaled-child :id "child"}]})
   )");
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
   session.active_mode->bounds = {0, 0, 300, 200};
   session.active_mode->children[0]->bounds = {0, 0, 100, 50};
 
@@ -1041,7 +1041,7 @@ TEST_F(EventRoutingTest, focus_and_blur_bang_update_focus_state_from_hook_contex
                  :focus {:width 90}})})
   )");
 
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
   session.active_mode->bounds = {0, 0, 100, 100};
 
   update_cycle();
@@ -1073,7 +1073,7 @@ TEST_F(EventRoutingTest, focus_bang_on_non_focusable_view_does_not_change_focus_
                    state))})
   )");
 
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
   update_cycle();
 
   EXPECT_FALSE(session.focus_state.has_focus());
@@ -1098,7 +1098,7 @@ TEST_F(EventRoutingTest, pushed_mode_init_focuses_itself_in_same_process_message
                        (assoc state :opened? true))))})
   )");
 
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
 
   update_cycle();
 
@@ -1128,7 +1128,7 @@ TEST_F(EventRoutingTest, init_focused_view_survives_following_update_before_firs
                        (assoc state :opened? true))))})
   )");
 
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
 
   update_cycle();
   ASSERT_TRUE(session.focus_state.has_focus());

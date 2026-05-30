@@ -30,13 +30,13 @@ namespace
   {
    protected:
     Pixils::RenderContext render_ctx{};
-    Lisple::Runtime runtime;
+    Roo::Runtime runtime;
     Pixils::FrameEvents events;
     Pixils::HookContext hook_ctx;
-    Lisple::sptr_val hook_ctx_val;
+    Roo::sptr_val hook_ctx_val;
 
     LayoutBenchmark()
-      : runtime(Pixils::init_lisple_runtime(render_ctx, "benchmark", {}))
+      : runtime(Pixils::init_roo_runtime(render_ctx, "benchmark", {}))
       , hook_ctx{&events, &render_ctx}
       , hook_ctx_val(Pixils::Script::HookContextAdapter::make_ref(hook_ctx))
     {
@@ -50,7 +50,7 @@ namespace
     view->owned_mode = std::make_unique<Mode>();
     view->owned_mode->style = std::move(style);
     view->mode = view->owned_mode.get();
-    view->state = Lisple::Constant::NIL;
+    view->state = Roo::Constant::NIL;
     return view;
   }
 

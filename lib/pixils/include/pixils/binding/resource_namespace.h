@@ -3,8 +3,8 @@
 
 #include <pixils/runtime/mode.h>
 
-#include <lisple/exec.h>
-#include <lisple/namespace.h>
+#include <roo/exec.h>
+#include <roo/namespace.h>
 
 namespace Pixils::Script
 {
@@ -42,7 +42,7 @@ namespace Pixils::Script
                  Pixils::Runtime::ResourceDependencies,
                  (images, sounds, fonts));
 
-  class ResourceNamespace : public Lisple::Namespace
+  class ResourceNamespace : public Roo::Namespace
   {
    public:
     ResourceNamespace();

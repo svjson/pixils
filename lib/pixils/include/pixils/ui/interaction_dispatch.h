@@ -6,7 +6,7 @@
 
 #include <memory>
 
-namespace Lisple
+namespace Roo
 {
   class Runtime;
 }
@@ -31,14 +31,14 @@ namespace Pixils::UI
                                 FocusState& focus_state,
                                 FrameEvents& events,
                                 Pixils::Runtime::HookArguments& hook_args,
-                                Lisple::Runtime& runtime);
+                                Roo::Runtime& runtime);
 
   void dispatch_interactions(const std::shared_ptr<Pixils::Runtime::View>& root,
                              MouseState& mouse_state,
                              FocusState& focus_state,
                              FrameEvents& events,
                              Pixils::Runtime::HookArguments& hook_args,
-                             Lisple::Runtime& runtime);
+                             Roo::Runtime& runtime);
 
 } // namespace Pixils::UI
 

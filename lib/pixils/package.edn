@@ -1,6 +1,6 @@
 {:name pixils
  :version "0.1.0"
- :description "Pixils Lisple runtime and UI package."
+ :description "Pixils Roo runtime and UI package."
  :dependencies []
  :load-roots ["lisp"]
  :namespace-roots {pixils.ui "lisp/ui"

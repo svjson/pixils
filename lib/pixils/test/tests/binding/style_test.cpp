@@ -4,9 +4,9 @@
 #include <pixils/ui/style.h>
 
 #include <gtest/gtest.h>
-#include <lisple/form.h>
-#include <lisple/host/object.h>
-#include <lisple/runtime/value.h>
+#include <roo/form.h>
+#include <roo/host/object.h>
+#include <roo/runtime/value.h>
 #include <optional>
 
 using StyleTest = BaseFixture;
@@ -14,10 +14,10 @@ using StyleTest = BaseFixture;
 TEST_F(StyleTest, make_minimal_style)
 {
   // When
-  Lisple::sptr_val result = runtime.eval("(pixils.ui.style/make-style {:width 40})");
+  Roo::sptr_val result = runtime.eval("(pixils.ui.style/make-style {:width 40})");
 
   // Then
-  auto style = Lisple::obj<Pixils::UI::Style>(*result);
+  auto style = Roo::obj<Pixils::UI::Style>(*result);
   ASSERT_NE(style.width, std::nullopt);
   EXPECT_TRUE(style.width->is_fixed());
   EXPECT_EQ(style.width->fixed_value_or(0), 40);
@@ -26,11 +26,11 @@ TEST_F(StyleTest, make_minimal_style)
 TEST_F(StyleTest, make_uniform_border)
 {
   // When
-  Lisple::sptr_val result =
+  Roo::sptr_val result =
     runtime.eval("(pixils.ui.style/make-style {:border {:thickness 1 :line-style :solid}})");
 
   // Then
-  auto style = Lisple::obj<Pixils::UI::Style>(*result);
+  auto style = Roo::obj<Pixils::UI::Style>(*result);
   ASSERT_NE(style.border, std::nullopt);
   EXPECT_EQ(style.border->thickness, 1);
   EXPECT_EQ(style.border->line_style, Pixils::UI::Style::LineStyle::SOLID);
@@ -38,17 +38,17 @@ TEST_F(StyleTest, make_uniform_border)
 
 TEST_F(StyleTest, make_style_with_box_sizing)
 {
-  Lisple::sptr_val result =
+  Roo::sptr_val result =
     runtime.eval("(pixils.ui.style/make-style {:box-sizing :content-box})");
 
-  auto style = Lisple::obj<Pixils::UI::Style>(*result);
+  auto style = Roo::obj<Pixils::UI::Style>(*result);
   ASSERT_NE(style.box_sizing, std::nullopt);
   EXPECT_EQ(*style.box_sizing, Pixils::UI::Style::BoxSizing::CONTENT_BOX);
 }
 
 TEST_F(StyleTest, make_style_with_background_image_layout)
 {
-  Lisple::sptr_val result = runtime.eval("(pixils.ui.style/make-style "
+  Roo::sptr_val result = runtime.eval("(pixils.ui.style/make-style "
                                          "{:background {:image :icons/brush "
                                          ":source {:x 1 :y 2 :w 3 :h 4} "
                                          ":fit :contain "
@@ -56,7 +56,7 @@ TEST_F(StyleTest, make_style_with_background_image_layout)
                                          ":offset {:x 5 :y 6} "
                                          ":opacity 0.5}})");
 
-  auto style = Lisple::obj<Pixils::UI::Style>(*result);
+  auto style = Roo::obj<Pixils::UI::Style>(*result);
   ASSERT_NE(style.background, std::nullopt);
   ASSERT_NE(style.background->image, std::nullopt);
   EXPECT_EQ(style.background->image->first, "icons");
@@ -81,51 +81,51 @@ TEST_F(StyleTest, make_style_with_background_image_layout)
 
 TEST_F(StyleTest, make_style_with_opacity)
 {
-  Lisple::sptr_val result = runtime.eval("(pixils.ui.style/make-style {:opacity 0.25})");
+  Roo::sptr_val result = runtime.eval("(pixils.ui.style/make-style {:opacity 0.25})");
 
-  auto style = Lisple::obj<Pixils::UI::Style>(*result);
+  auto style = Roo::obj<Pixils::UI::Style>(*result);
   ASSERT_NE(style.opacity, std::nullopt);
   EXPECT_FLOAT_EQ(*style.opacity, 0.25f);
 }
 
 TEST_F(StyleTest, make_style_with_uniform_corner_radius)
 {
-  Lisple::sptr_val result = runtime.eval("(pixils.ui.style/make-style {:corner-radius 6})");
+  Roo::sptr_val result = runtime.eval("(pixils.ui.style/make-style {:corner-radius 6})");
 
-  auto style = Lisple::obj<Pixils::UI::Style>(*result);
+  auto style = Roo::obj<Pixils::UI::Style>(*result);
   ASSERT_NE(style.corner_radius, std::nullopt);
   EXPECT_EQ(*style.corner_radius, Pixils::UI::Style::CornerRadius(6));
 }
 
 TEST_F(StyleTest, make_style_with_directional_corner_radius)
 {
-  Lisple::sptr_val result =
+  Roo::sptr_val result =
     runtime.eval("(pixils.ui.style/make-style {:corner-radius {:tl 8 :tr 7 :br 2 :bl 1}})");
 
-  auto style = Lisple::obj<Pixils::UI::Style>(*result);
+  auto style = Roo::obj<Pixils::UI::Style>(*result);
   ASSERT_NE(style.corner_radius, std::nullopt);
   EXPECT_EQ(*style.corner_radius, (Pixils::UI::Style::CornerRadius{8, 7, 2, 1}));
 }
 
 TEST_F(StyleTest, style_adapter_exposes_corner_radius)
 {
-  Lisple::sptr_val result = runtime.eval(
+  Roo::sptr_val result = runtime.eval(
     "(:br (:corner-radius "
     "(pixils.ui.style/make-style {:corner-radius {:tl 8 :tr 7 :br 2 :bl 1}})))");
 
-  ASSERT_EQ(result->type, Lisple::Value::Type::NUMBER);
+  ASSERT_EQ(result->type, Roo::Value::Type::NUMBER);
   EXPECT_EQ(result->num().get_int(), 2);
 }
 
 TEST_F(StyleTest, make_style_with_per_side_border_overrides)
 {
   // When
-  Lisple::sptr_val result =
+  Roo::sptr_val result =
     runtime.eval("(pixils.ui.style/make-style {:border {:thickness 2 :line-style :solid "
                  ":right {:thickness 1} :bottom {:thickness 0}}})");
 
   // Then
-  auto style = Lisple::obj<Pixils::UI::Style>(*result);
+  auto style = Roo::obj<Pixils::UI::Style>(*result);
   ASSERT_NE(style.border, std::nullopt);
   EXPECT_EQ(style.border->top_thickness(), 2);
   EXPECT_EQ(style.border->right_thickness(), 1);
@@ -136,10 +136,10 @@ TEST_F(StyleTest, make_style_with_per_side_border_overrides)
 TEST_F(StyleTest, make_style_with_margin)
 {
   // When
-  Lisple::sptr_val result = runtime.eval("(pixils.ui.style/make-style {:margin [2 4]})");
+  Roo::sptr_val result = runtime.eval("(pixils.ui.style/make-style {:margin [2 4]})");
 
   // Then
-  auto style = Lisple::obj<Pixils::UI::Style>(*result);
+  auto style = Roo::obj<Pixils::UI::Style>(*result);
   ASSERT_NE(style.margin, std::nullopt);
   EXPECT_EQ(style.margin->t, 2);
   EXPECT_EQ(style.margin->r, 4);
@@ -150,10 +150,10 @@ TEST_F(StyleTest, make_style_with_margin)
 TEST_F(StyleTest, make_style_with_four_value_margin)
 {
   // When
-  Lisple::sptr_val result = runtime.eval("(pixils.ui.style/make-style {:margin [1 2 3 4]})");
+  Roo::sptr_val result = runtime.eval("(pixils.ui.style/make-style {:margin [1 2 3 4]})");
 
   // Then
-  auto style = Lisple::obj<Pixils::UI::Style>(*result);
+  auto style = Roo::obj<Pixils::UI::Style>(*result);
   ASSERT_NE(style.margin, std::nullopt);
   EXPECT_EQ(style.margin->t, 1);
   EXPECT_EQ(style.margin->r, 2);
@@ -164,12 +164,12 @@ TEST_F(StyleTest, make_style_with_four_value_margin)
 TEST_F(StyleTest, make_style_with_layout_direction)
 {
   // When
-  Lisple::sptr_val result =
+  Roo::sptr_val result =
     runtime.eval("(pixils.ui.style/make-style {:layout {:direction :row "
                  ":align-items :center}})");
 
   // Then
-  auto style = Lisple::obj<Pixils::UI::Style>(*result);
+  auto style = Roo::obj<Pixils::UI::Style>(*result);
   ASSERT_NE(style.layout, std::nullopt);
   ASSERT_NE(style.layout->direction, std::nullopt);
   ASSERT_NE(style.layout->align_items, std::nullopt);
@@ -180,11 +180,11 @@ TEST_F(StyleTest, make_style_with_layout_direction)
 TEST_F(StyleTest, make_style_with_layout_gap_mode)
 {
   // When
-  Lisple::sptr_val result =
+  Roo::sptr_val result =
     runtime.eval("(pixils.ui.style/make-style {:layout {:gap {:mode :space-between}}})");
 
   // Then
-  auto style = Lisple::obj<Pixils::UI::Style>(*result);
+  auto style = Roo::obj<Pixils::UI::Style>(*result);
   ASSERT_NE(style.layout, std::nullopt);
   ASSERT_NE(style.layout->gap, std::nullopt);
   ASSERT_NE(style.layout->gap->mode, std::nullopt);
@@ -194,11 +194,11 @@ TEST_F(StyleTest, make_style_with_layout_gap_mode)
 TEST_F(StyleTest, make_style_with_layout_gap_keyword)
 {
   // When
-  Lisple::sptr_val result =
+  Roo::sptr_val result =
     runtime.eval("(pixils.ui.style/make-style {:layout {:gap :space-between}})");
 
   // Then
-  auto style = Lisple::obj<Pixils::UI::Style>(*result);
+  auto style = Roo::obj<Pixils::UI::Style>(*result);
   ASSERT_NE(style.layout, std::nullopt);
   ASSERT_NE(style.layout->gap, std::nullopt);
   ASSERT_NE(style.layout->gap->mode, std::nullopt);
@@ -208,11 +208,11 @@ TEST_F(StyleTest, make_style_with_layout_gap_keyword)
 TEST_F(StyleTest, make_style_with_layout_gap_none_keyword)
 {
   // When
-  Lisple::sptr_val result =
+  Roo::sptr_val result =
     runtime.eval("(pixils.ui.style/make-style {:layout {:gap :none}})");
 
   // Then
-  auto style = Lisple::obj<Pixils::UI::Style>(*result);
+  auto style = Roo::obj<Pixils::UI::Style>(*result);
   ASSERT_NE(style.layout, std::nullopt);
   ASSERT_NE(style.layout->gap, std::nullopt);
   ASSERT_NE(style.layout->gap->mode, std::nullopt);
@@ -222,10 +222,10 @@ TEST_F(StyleTest, make_style_with_layout_gap_none_keyword)
 TEST_F(StyleTest, make_style_with_layout_gap_number)
 {
   // When
-  Lisple::sptr_val result = runtime.eval("(pixils.ui.style/make-style {:layout {:gap 8}})");
+  Roo::sptr_val result = runtime.eval("(pixils.ui.style/make-style {:layout {:gap 8}})");
 
   // Then
-  auto style = Lisple::obj<Pixils::UI::Style>(*result);
+  auto style = Roo::obj<Pixils::UI::Style>(*result);
   ASSERT_NE(style.layout, std::nullopt);
   ASSERT_NE(style.layout->gap, std::nullopt);
   ASSERT_NE(style.layout->gap->mode, std::nullopt);
@@ -236,10 +236,10 @@ TEST_F(StyleTest, make_style_with_layout_gap_number)
 
 TEST_F(StyleTest, make_style_with_fill_and_shrink_sizes)
 {
-  Lisple::sptr_val result =
+  Roo::sptr_val result =
     runtime.eval("(pixils.ui.style/make-style {:width :fill :height :shrink})");
 
-  auto style = Lisple::obj<Pixils::UI::Style>(*result);
+  auto style = Roo::obj<Pixils::UI::Style>(*result);
   ASSERT_NE(style.width, std::nullopt);
   ASSERT_NE(style.height, std::nullopt);
   EXPECT_TRUE(style.width->is_fill());
@@ -249,12 +249,12 @@ TEST_F(StyleTest, make_style_with_fill_and_shrink_sizes)
 TEST_F(StyleTest, make_style_with_text)
 {
   // When
-  Lisple::sptr_val result =
+  Roo::sptr_val result =
     runtime.eval("(pixils.ui.style/make-style {:text {:color {:r 255 :g 255 :b 255} "
                  ":font :font/console :scale 2 :align :center :wrap :word}})");
 
   // Then
-  auto style = Lisple::obj<Pixils::UI::Style>(*result);
+  auto style = Roo::obj<Pixils::UI::Style>(*result);
   ASSERT_NE(style.text, std::nullopt);
   ASSERT_NE(style.text->color, std::nullopt);
   ASSERT_NE(style.text->font, std::nullopt);
@@ -270,7 +270,7 @@ TEST_F(StyleTest, make_style_with_text)
 
 TEST_F(StyleTest, make_style_with_text_font_styles_shadows_and_marked_style)
 {
-  Lisple::sptr_val result = runtime.eval(R"(
+  Roo::sptr_val result = runtime.eval(R"(
     (pixils.ui.style/make-style
       {:text {:font :font/console
               :font-styles :underline
@@ -282,7 +282,7 @@ TEST_F(StyleTest, make_style_with_text_font_styles_shadows_and_marked_style)
                              :font-styles [:underline]}}})
   )");
 
-  auto style = Lisple::obj<Pixils::UI::Style>(*result);
+  auto style = Roo::obj<Pixils::UI::Style>(*result);
   ASSERT_NE(style.text, std::nullopt);
   ASSERT_NE(style.text->font_styles, std::nullopt);
   ASSERT_NE(style.text->shadows, std::nullopt);
@@ -322,7 +322,7 @@ TEST(StyleResolveTest, hover_marked_style_overrides_only_its_own_fields)
   interaction.hovered = true;
 
   auto resolved = Pixils::UI::resolve_style(std::optional<Pixils::UI::Style>{child},
-                                            Lisple::Constant::NIL,
+                                            Roo::Constant::NIL,
                                             interaction);
 
   ASSERT_NE(resolved.text, std::nullopt);
@@ -341,10 +341,10 @@ TEST(StyleResolveTest, hover_marked_style_overrides_only_its_own_fields)
 
 TEST_F(StyleTest, make_style_with_text_color_none)
 {
-  Lisple::sptr_val result =
+  Roo::sptr_val result =
     runtime.eval("(pixils.ui.style/make-style {:text {:color :none}})");
 
-  auto style = Lisple::obj<Pixils::UI::Style>(*result);
+  auto style = Roo::obj<Pixils::UI::Style>(*result);
   ASSERT_NE(style.text, std::nullopt);
   EXPECT_TRUE(style.text->use_font_color);
   EXPECT_EQ(style.text->color, std::nullopt);
@@ -352,9 +352,9 @@ TEST_F(StyleTest, make_style_with_text_color_none)
 
 TEST_F(StyleTest, make_style_with_cursor)
 {
-  Lisple::sptr_val result = runtime.eval("(pixils.ui.style/make-style {:cursor :pointer})");
+  Roo::sptr_val result = runtime.eval("(pixils.ui.style/make-style {:cursor :pointer})");
 
-  auto style = Lisple::obj<Pixils::UI::Style>(*result);
+  auto style = Roo::obj<Pixils::UI::Style>(*result);
   ASSERT_NE(style.cursor, std::nullopt);
   EXPECT_EQ(style.cursor->kind, Pixils::UI::CursorSpec::Kind::SYSTEM);
   EXPECT_EQ(style.cursor->system, Pixils::UI::SystemCursor::POINTER);
@@ -362,19 +362,19 @@ TEST_F(StyleTest, make_style_with_cursor)
 
 TEST_F(StyleTest, make_style_with_hit_test_disabled)
 {
-  Lisple::sptr_val result = runtime.eval("(pixils.ui.style/make-style {:hit-test false})");
+  Roo::sptr_val result = runtime.eval("(pixils.ui.style/make-style {:hit-test false})");
 
-  auto style = Lisple::obj<Pixils::UI::Style>(*result);
+  auto style = Roo::obj<Pixils::UI::Style>(*result);
   ASSERT_NE(style.hit_test, std::nullopt);
   EXPECT_FALSE(*style.hit_test);
 }
 
 TEST_F(StyleTest, make_style_with_visibility)
 {
-  Lisple::sptr_val result =
+  Roo::sptr_val result =
     runtime.eval("(pixils.ui.style/make-style {:visibility :hidden})");
 
-  auto style = Lisple::obj<Pixils::UI::Style>(*result);
+  auto style = Roo::obj<Pixils::UI::Style>(*result);
   ASSERT_NE(style.visibility, std::nullopt);
   EXPECT_EQ(*style.visibility, Pixils::UI::Style::Visibility::HIDDEN);
 }
@@ -384,8 +384,8 @@ TEST_F(StyleTest, make_style_maps_hidden_sugar_to_visibility)
   auto hidden_result = runtime.eval("(pixils.ui.style/make-style {:hidden true})");
   auto visible_result = runtime.eval("(pixils.ui.style/make-style {:hidden false})");
 
-  auto hidden_style = Lisple::obj<Pixils::UI::Style>(*hidden_result);
-  auto visible_style = Lisple::obj<Pixils::UI::Style>(*visible_result);
+  auto hidden_style = Roo::obj<Pixils::UI::Style>(*hidden_result);
+  auto visible_style = Roo::obj<Pixils::UI::Style>(*visible_result);
   ASSERT_NE(hidden_style.visibility, std::nullopt);
   ASSERT_NE(visible_style.visibility, std::nullopt);
   EXPECT_EQ(*hidden_style.visibility, Pixils::UI::Style::Visibility::NONE);
@@ -394,10 +394,10 @@ TEST_F(StyleTest, make_style_maps_hidden_sugar_to_visibility)
 
 TEST_F(StyleTest, make_style_with_named_pointer_cursor)
 {
-  Lisple::sptr_val result =
+  Roo::sptr_val result =
     runtime.eval("(pixils.ui.style/make-style {:cursor :workbench/pointer})");
 
-  auto style = Lisple::obj<Pixils::UI::Style>(*result);
+  auto style = Roo::obj<Pixils::UI::Style>(*result);
   ASSERT_NE(style.cursor, std::nullopt);
   EXPECT_EQ(style.cursor->kind, Pixils::UI::CursorSpec::Kind::NAMED);
   EXPECT_EQ(style.cursor->name, "workbench/pointer");
@@ -405,13 +405,13 @@ TEST_F(StyleTest, make_style_with_named_pointer_cursor)
 
 TEST_F(StyleTest, make_style_with_inline_image_cursor)
 {
-  Lisple::sptr_val result = runtime.eval("(pixils.ui.style/make-style "
+  Roo::sptr_val result = runtime.eval("(pixils.ui.style/make-style "
                                          "{:cursor {:image :workbench-assets/cursor "
                                          ":source {:x 1 :y 2 :w 3 :h 4} "
                                          ":hotspot {:x 5 :y 6} "
                                          ":scale 2}})");
 
-  auto style = Lisple::obj<Pixils::UI::Style>(*result);
+  auto style = Roo::obj<Pixils::UI::Style>(*result);
   ASSERT_NE(style.cursor, std::nullopt);
   EXPECT_EQ(style.cursor->kind, Pixils::UI::CursorSpec::Kind::IMAGE);
   ASSERT_NE(style.cursor->image.image, std::nullopt);
@@ -430,11 +430,11 @@ TEST_F(StyleTest, make_style_with_inline_image_cursor)
 
 TEST_F(StyleTest, make_style_with_native_image_cursor)
 {
-  Lisple::sptr_val result = runtime.eval("(pixils.ui.style/make-style "
+  Roo::sptr_val result = runtime.eval("(pixils.ui.style/make-style "
                                          "{:cursor {:image :workbench-assets/cursor "
                                          ":render :native}})");
 
-  auto style = Lisple::obj<Pixils::UI::Style>(*result);
+  auto style = Roo::obj<Pixils::UI::Style>(*result);
   ASSERT_NE(style.cursor, std::nullopt);
   EXPECT_EQ(style.cursor->kind, Pixils::UI::CursorSpec::Kind::IMAGE);
   EXPECT_EQ(style.cursor->image.render_mode, Pixils::UI::ImageCursor::RenderMode::NATIVE);
@@ -461,16 +461,16 @@ TEST_F(StyleTest, defpointer_registers_named_pointer_without_implicit_renaming)
 
 TEST_F(StyleTest, make_style_with_view_scale)
 {
-  Lisple::sptr_val result = runtime.eval("(pixils.ui.style/make-style {:scale 2})");
+  Roo::sptr_val result = runtime.eval("(pixils.ui.style/make-style {:scale 2})");
 
-  auto style = Lisple::obj<Pixils::UI::Style>(*result);
+  auto style = Roo::obj<Pixils::UI::Style>(*result);
   ASSERT_NE(style.scale, std::nullopt);
   EXPECT_EQ(*style.scale, 2);
 }
 
 TEST_F(StyleTest, style_adapter_exposes_view_scale)
 {
-  Lisple::sptr_val result = runtime.eval("(:scale (pixils.ui.style/make-style {:scale 2}))");
+  Roo::sptr_val result = runtime.eval("(:scale (pixils.ui.style/make-style {:scale 2}))");
 
   ASSERT_NE(result, nullptr);
   EXPECT_EQ(result->to_string(), "2");
@@ -478,10 +478,10 @@ TEST_F(StyleTest, style_adapter_exposes_view_scale)
 
 TEST_F(StyleTest, make_style_with_hover_cursor)
 {
-  Lisple::sptr_val result = runtime.eval("(pixils.ui.style/make-style {:cursor :default "
+  Roo::sptr_val result = runtime.eval("(pixils.ui.style/make-style {:cursor :default "
                                          ":hover {:cursor :text}})");
 
-  auto style = Lisple::obj<Pixils::UI::Style>(*result);
+  auto style = Roo::obj<Pixils::UI::Style>(*result);
   ASSERT_NE(style.cursor, std::nullopt);
   EXPECT_EQ(style.cursor->kind, Pixils::UI::CursorSpec::Kind::SYSTEM);
   EXPECT_EQ(style.cursor->system, Pixils::UI::SystemCursor::DEFAULT);
@@ -493,11 +493,11 @@ TEST_F(StyleTest, make_style_with_hover_cursor)
 
 TEST_F(StyleTest, make_style_with_text_color_from_host_color_value)
 {
-  Lisple::sptr_val result =
+  Roo::sptr_val result =
     runtime.eval("(pixils.ui.style/make-style "
                  "{:text {:color (pixils.color/make-color {:r 255 :g 255 :b 255})}})");
 
-  auto style = Lisple::obj<Pixils::UI::Style>(*result);
+  auto style = Roo::obj<Pixils::UI::Style>(*result);
   ASSERT_NE(style.text, std::nullopt);
   ASSERT_NE(style.text->color, std::nullopt);
   EXPECT_EQ(*style.text->color, (Pixils::Color{255, 255, 255, 255}));
@@ -505,10 +505,10 @@ TEST_F(StyleTest, make_style_with_text_color_from_host_color_value)
 
 TEST_F(StyleTest, make_style_with_focus_variants)
 {
-  Lisple::sptr_val result = runtime.eval("(pixils.ui.style/make-style {:focus {:width 80} "
+  Roo::sptr_val result = runtime.eval("(pixils.ui.style/make-style {:focus {:width 80} "
                                          ":focus-within {:height 24}})");
 
-  auto style = Lisple::obj<Pixils::UI::Style>(*result);
+  auto style = Roo::obj<Pixils::UI::Style>(*result);
   ASSERT_NE(style.focus, nullptr);
   ASSERT_NE(style.focus->width, std::nullopt);
   EXPECT_TRUE(style.focus->width->is_fixed());
@@ -536,7 +536,7 @@ TEST(StyleResolveTest, inherited_text_fields_are_applied_fieldwise)
 
   auto resolved = Pixils::UI::resolve_style(std::optional<Pixils::UI::Style>{child},
                                             &parent,
-                                            Lisple::Constant::NIL,
+                                            Roo::Constant::NIL,
                                             {});
 
   ASSERT_NE(resolved.text, std::nullopt);
@@ -571,7 +571,7 @@ TEST(StyleResolveTest, hover_text_variant_overrides_only_its_own_fields)
 
   auto resolved = Pixils::UI::resolve_style(std::optional<Pixils::UI::Style>{child},
                                             &parent,
-                                            Lisple::Constant::NIL,
+                                            Roo::Constant::NIL,
                                             interaction);
 
   ASSERT_NE(resolved.text, std::nullopt);
@@ -599,7 +599,7 @@ TEST(StyleResolveTest, text_color_none_stops_inherited_text_tint)
 
   auto resolved = Pixils::UI::resolve_style(std::optional<Pixils::UI::Style>{child},
                                             &parent,
-                                            Lisple::Constant::NIL,
+                                            Roo::Constant::NIL,
                                             {});
 
   ASSERT_NE(resolved.text, std::nullopt);
@@ -620,7 +620,7 @@ TEST(StyleResolveTest, focus_variant_overrides_focus_within_on_focused_leaf)
   interaction.focused = true;
 
   auto resolved = Pixils::UI::resolve_style(std::optional<Pixils::UI::Style>{child},
-                                            Lisple::Constant::NIL,
+                                            Roo::Constant::NIL,
                                             interaction);
 
   ASSERT_NE(resolved.width, std::nullopt);
@@ -688,10 +688,10 @@ TEST(StyleVariantTest, apply_style_variant_overlays_corner_radius)
 TEST_F(StyleTest, make_insets_with_four_value_vector)
 {
   // When
-  Lisple::sptr_val result = runtime.eval("(pixils.ui.style/make-insets [1 2 3 4])");
+  Roo::sptr_val result = runtime.eval("(pixils.ui.style/make-insets [1 2 3 4])");
 
   // Then
-  auto insets = Lisple::obj<Pixils::UI::Style::Insets>(*result);
+  auto insets = Roo::obj<Pixils::UI::Style::Insets>(*result);
   EXPECT_EQ(insets.t, 1);
   EXPECT_EQ(insets.r, 2);
   EXPECT_EQ(insets.b, 3);
@@ -701,11 +701,11 @@ TEST_F(StyleTest, make_insets_with_four_value_vector)
 TEST_F(StyleTest, make_bevel_border)
 {
   // When
-  Lisple::sptr_val result =
+  Roo::sptr_val result =
     runtime.eval("(pixils.ui.style/make-style {:border {:thickness 2 :line-style :bevel}})");
 
   // Then
-  auto style = Lisple::obj<Pixils::UI::Style>(*result);
+  auto style = Roo::obj<Pixils::UI::Style>(*result);
   ASSERT_NE(style.border, std::nullopt);
   EXPECT_EQ(style.border->thickness, 2);
   EXPECT_EQ(style.border->line_style, Pixils::UI::Style::LineStyle::BEVEL);

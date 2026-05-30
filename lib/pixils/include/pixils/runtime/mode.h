@@ -6,7 +6,7 @@
 #include <pixils/ui/drag.h>
 #include <pixils/ui/style.h>
 
-#include <lisple/runtime/value.h>
+#include <roo/runtime/value.h>
 #include <memory>
 #include <optional>
 #include <string>
@@ -49,7 +49,7 @@ namespace Pixils::Runtime
   struct StyleLayer
   {
     std::optional<UI::Style> style = std::nullopt;
-    Lisple::sptr_val source = Lisple::Constant::NIL;
+    Roo::sptr_val source = Roo::Constant::NIL;
   };
 
   struct Mode;
@@ -70,9 +70,9 @@ namespace Pixils::Runtime
     std::string mode_name;
     std::string id;
     std::shared_ptr<Mode> anonymous_mode = nullptr;
-    Lisple::sptr_val initial_state;
-    Lisple::sptr_val overrides = Lisple::Constant::NIL;
-    Lisple::sptr_val state_binding = Lisple::Constant::NIL;
+    Roo::sptr_val initial_state;
+    Roo::sptr_val overrides = Roo::Constant::NIL;
+    Roo::sptr_val state_binding = Roo::Constant::NIL;
   };
 
   struct Mode
@@ -82,33 +82,33 @@ namespace Pixils::Runtime
     std::vector<std::string> class_names;
     bool focusable = false;
     ResourceDependencies resources;
-    Lisple::sptr_val init = Lisple::Constant::NIL;
-    Lisple::sptr_val update = Lisple::Constant::NIL;
-    Lisple::sptr_val content_size = Lisple::Constant::NIL;
-    Lisple::sptr_val render = Lisple::Constant::NIL;
-    Lisple::sptr_val action_map = Lisple::Constant::NIL;
-    Lisple::sptr_val on_key_down = Lisple::Constant::NIL;
-    Lisple::sptr_val on_key_held = Lisple::Constant::NIL;
-    Lisple::sptr_val on_key_up = Lisple::Constant::NIL;
-    Lisple::sptr_val on_mouse_down = Lisple::Constant::NIL;
-    Lisple::sptr_val on_mouse_up = Lisple::Constant::NIL;
-    Lisple::sptr_val on_click = Lisple::Constant::NIL;
-    Lisple::sptr_val on_double_click = Lisple::Constant::NIL;
-    Lisple::sptr_val on_mouse_enter = Lisple::Constant::NIL;
-    Lisple::sptr_val on_mouse_leave = Lisple::Constant::NIL;
-    Lisple::sptr_val on_mouse_motion = Lisple::Constant::NIL;
-    Lisple::sptr_val on_drag_start = Lisple::Constant::NIL;
-    Lisple::sptr_val on_drag = Lisple::Constant::NIL;
-    Lisple::sptr_val on_drag_end = Lisple::Constant::NIL;
-    Lisple::sptr_val on_drop = Lisple::Constant::NIL;
-    std::map<std::string, Lisple::sptr_val> event_handlers;
+    Roo::sptr_val init = Roo::Constant::NIL;
+    Roo::sptr_val update = Roo::Constant::NIL;
+    Roo::sptr_val content_size = Roo::Constant::NIL;
+    Roo::sptr_val render = Roo::Constant::NIL;
+    Roo::sptr_val action_map = Roo::Constant::NIL;
+    Roo::sptr_val on_key_down = Roo::Constant::NIL;
+    Roo::sptr_val on_key_held = Roo::Constant::NIL;
+    Roo::sptr_val on_key_up = Roo::Constant::NIL;
+    Roo::sptr_val on_mouse_down = Roo::Constant::NIL;
+    Roo::sptr_val on_mouse_up = Roo::Constant::NIL;
+    Roo::sptr_val on_click = Roo::Constant::NIL;
+    Roo::sptr_val on_double_click = Roo::Constant::NIL;
+    Roo::sptr_val on_mouse_enter = Roo::Constant::NIL;
+    Roo::sptr_val on_mouse_leave = Roo::Constant::NIL;
+    Roo::sptr_val on_mouse_motion = Roo::Constant::NIL;
+    Roo::sptr_val on_drag_start = Roo::Constant::NIL;
+    Roo::sptr_val on_drag = Roo::Constant::NIL;
+    Roo::sptr_val on_drag_end = Roo::Constant::NIL;
+    Roo::sptr_val on_drop = Roo::Constant::NIL;
+    std::map<std::string, Roo::sptr_val> event_handlers;
     ModeComposition composition;
     std::vector<ChildSlot> children;
     std::optional<UI::DragPolicy> drag = std::nullopt;
     std::optional<UI::Style> style = std::nullopt;
     std::vector<StyleLayer> style_layers;
     std::optional<UI::Style> runtime_style = std::nullopt;
-    Lisple::sptr_val runtime_style_source = Lisple::Constant::NIL;
+    Roo::sptr_val runtime_style_source = Roo::Constant::NIL;
     std::optional<std::vector<std::string>> theme = std::nullopt;
     std::optional<std::string> theme_variant = std::nullopt;
   };

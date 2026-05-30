@@ -136,7 +136,7 @@ TEST_F(ImageTest, dynamic_bundle_images_can_be_added_after_bundle_is_loaded)
   SDLMock::prepared_surfaces["./ship.png"] = {24, 10};
   runtime.eval("(pixils/defbundle-dynamic project-assets)");
   auto missing = runtime.eval("(pixils.image/width :project-assets/ship)");
-  EXPECT_EQ(missing->type, Lisple::Value::Type::NIL);
+  EXPECT_EQ(missing->type, Roo::Value::Type::NIL);
 
   // When
   runtime.eval("(pixils.resource/add-image! :project-assets/ship \"ship.png\")");
@@ -220,8 +220,8 @@ TEST_F(ImageTest, dynamic_bundle_images_can_be_removed)
   // Then
   ASSERT_NE(resource, nullptr);
   EXPECT_EQ(resource->to_string(), ":project-assets/ship");
-  EXPECT_EQ(missing_width->type, Lisple::Value::Type::NIL);
-  EXPECT_EQ(first->type, Lisple::Value::Type::NIL);
+  EXPECT_EQ(missing_width->type, Roo::Value::Type::NIL);
+  EXPECT_EQ(first->type, Roo::Value::Type::NIL);
 }
 
 TEST_F(ImageTest, add_image_requires_dynamic_bundle)
@@ -329,8 +329,8 @@ TEST_F(GeneratedImageTest, generated_dynamic_bundle_images_can_be_removed)
   // Then
   ASSERT_NE(resource, nullptr);
   EXPECT_EQ(resource->to_string(), ":project-assets/brush");
-  EXPECT_EQ(missing_width->type, Lisple::Value::Type::NIL);
-  EXPECT_EQ(first->type, Lisple::Value::Type::NIL);
+  EXPECT_EQ(missing_width->type, Roo::Value::Type::NIL);
+  EXPECT_EQ(first->type, Roo::Value::Type::NIL);
 }
 
 TEST_F(GeneratedImageTest, create_image_restores_existing_render_target)

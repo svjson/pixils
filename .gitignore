@@ -15,3 +15,5 @@ lib/pixils-test/native/
 scratches
 examples/tilemap-editor/.recent-projects.edn
 cmake_test_discovery*.json
+.rooc
+.console_history

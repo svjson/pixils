@@ -2,8 +2,8 @@
 #include <pixils/geom.h>
 #include <pixils/pretty_printer.h>
 
-#include <lisple/form.h>
-#include <lisple/type.h>
+#include <roo/form.h>
+#include <roo/type.h>
 
 namespace Pixils
 {
@@ -88,7 +88,7 @@ namespace Pixils
     this->segments.push_back(TextSegment{text, color});
   }
 
-  std::vector<TextLine> ObjectPrinter::pretty_print(Lisple::sptr_ast_node& form)
+  std::vector<TextLine> ObjectPrinter::pretty_print(Roo::sptr_ast_node& form)
   {
     PrinterContext ctx = {COLUMN_THRESHOLD};
     pretty_print(*form, ctx);
@@ -96,7 +96,7 @@ namespace Pixils
     return ctx.lines;
   }
 
-  std::vector<TextLine> ObjectPrinter::pretty_print(Lisple::sptr_val& value)
+  std::vector<TextLine> ObjectPrinter::pretty_print(Roo::sptr_val& value)
   {
     PrinterContext ctx = {COLUMN_THRESHOLD};
     pretty_print(*value, ctx);
@@ -104,9 +104,9 @@ namespace Pixils
     return ctx.lines;
   }
 
-  void ObjectPrinter::pretty_print(Lisple::Value& value, PrinterContext& ctx)
+  void ObjectPrinter::pretty_print(Roo::Value& value, PrinterContext& ctx)
   {
-    if (value.type == Lisple::Value::Type::MAP)
+    if (value.type == Roo::Value::Type::MAP)
     {
       bool split = value.to_string().size() > ctx.threshold;
 
@@ -132,12 +132,12 @@ namespace Pixils
       if (split) ctx.unindent();
       ctx.out("}", rtvalue_colors.at(value.type));
     }
-    else if (value.type == Lisple::Value::Type::LIST ||
-             value.type == Lisple::Value::Type::VECTOR)
+    else if (value.type == Roo::Value::Type::LIST ||
+             value.type == Roo::Value::Type::VECTOR)
     {
       bool split = value.to_string().size() > ctx.threshold;
-      const std::string lpar = value.type == Lisple::Value::Type::LIST ? "(" : "[";
-      const std::string rpar = value.type == Lisple::Value::Type::LIST ? ")" : "]";
+      const std::string lpar = value.type == Roo::Value::Type::LIST ? "(" : "[";
+      const std::string rpar = value.type == Roo::Value::Type::LIST ? ")" : "]";
 
       ctx.out(lpar, rtvalue_colors.at(value.type));
       if (split) ctx.newline().indent();
@@ -154,8 +154,8 @@ namespace Pixils
       if (split) ctx.newline().unindent();
       ctx.out(rpar, rtvalue_colors.at(value.type));
     }
-    else if (value.type == Lisple::Value::Type::OBJECT ||
-             value.type == Lisple::Value::Type::FUNCTION)
+    else if (value.type == Roo::Value::Type::OBJECT ||
+             value.type == Roo::Value::Type::FUNCTION)
     {
       pretty_print(*value.obj(), ctx);
     }
@@ -165,9 +165,9 @@ namespace Pixils
     }
   }
 
-  void ObjectPrinter::pretty_print(Lisple::AST::ASTNode& form, PrinterContext& ctx)
+  void ObjectPrinter::pretty_print(Roo::AST::ASTNode& form, PrinterContext& ctx)
   {
-    if (form.get_type() == Lisple::Form::MAP || form.get_type() == Lisple::Form::HOST_OBJECT)
+    if (form.get_type() == Roo::Form::MAP || form.get_type() == Roo::Form::HOST_OBJECT)
     {
       std::string strlen = form.to_string();
       bool split = strlen.size() > ctx.threshold;
@@ -175,9 +175,9 @@ namespace Pixils
       ctx.out("{", form_colors.at(form.get_type()));
       if (split) ctx.newline().indent();
 
-      std::vector<Lisple::AST::ASTNode*> keys;
+      std::vector<Roo::AST::ASTNode*> keys;
 
-      Lisple::sptr_ast_node_v children = form.get_children();
+      Roo::sptr_ast_node_v children = form.get_children();
       for (unsigned int i = 0; i < children.size(); i += 2)
       {
         pretty_print(*children.at(i), ctx);
@@ -193,18 +193,18 @@ namespace Pixils
       if (split) ctx.unindent();
       ctx.out("}", form_colors.at(form.get_type()));
     }
-    else if (form.get_type() == Lisple::Form::LIST ||
-             form.get_type() == Lisple::Form::VECTOR)
+    else if (form.get_type() == Roo::Form::LIST ||
+             form.get_type() == Roo::Form::VECTOR)
     {
       std::string strlen = form.to_string();
       bool split = strlen.size() > ctx.threshold;
 
-      Lisple::AST::Seq& sexp = form.as<Lisple::AST::Seq>();
+      Roo::AST::Seq& sexp = form.as<Roo::AST::Seq>();
 
       ctx.out(sexp.lpar(), form_colors.at(form.get_type()));
       if (split) ctx.newline().indent();
 
-      Lisple::sptr_ast_node_v children = form.get_children();
+      Roo::sptr_ast_node_v children = form.get_children();
       for (unsigned int i = 0; i < children.size(); i++)
       {
         pretty_print(*form.get_children().at(i), ctx);

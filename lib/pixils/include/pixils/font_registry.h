@@ -44,7 +44,7 @@ namespace Pixils
 
   /**
    * Registry of named bitmap fonts. Fonts are keyed by their fully-qualified
-   * Lisple keyword name without the leading colon (e.g. "font/console").
+   * Roo keyword name without the leading colon (e.g. "font/console").
    *
    * The built-in console font is registered under "font/console" at startup
    * and is used as the default when no font is specified in a render call.

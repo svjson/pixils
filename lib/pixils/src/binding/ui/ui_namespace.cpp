@@ -13,12 +13,12 @@
 #include <pixils/ui/style.h>
 
 #include <algorithm>
-#include <lisple/exception.h>
-#include <lisple/exec.h>
-#include <lisple/host/accessor.h>
-#include <lisple/host/object.h>
-#include <lisple/runtime/seq.h>
-#include <lisple/runtime/value.h>
+#include <roo/exception.h>
+#include <roo/exec.h>
+#include <roo/host/accessor.h>
+#include <roo/host/object.h>
+#include <roo/runtime/seq.h>
+#include <roo/runtime/value.h>
 
 namespace Pixils::Script
 {
@@ -26,19 +26,19 @@ namespace Pixils::Script
   {
     namespace
     {
-      bool native_host_type_named(const Lisple::sptr_val& value,
-                                  const Lisple::HostTypeRef& type_ref)
+      bool native_host_type_named(const Roo::sptr_val& value,
+                                  const Roo::HostTypeRef& type_ref)
       {
-        return value && value->type == Lisple::Value::Type::NATIVE_OBJECT &&
+        return value && value->type == Roo::Value::Type::NATIVE_OBJECT &&
                value->nobj()->get_host_type()->to_string() == type_ref.to_string();
       }
 
-      Lisple::sptr_val resolve_view_target(const Lisple::sptr_val& target,
+      Roo::sptr_val resolve_view_target(const Roo::sptr_val& target,
                                            const std::string& fn_name)
       {
-        if (!target || target->type == Lisple::Value::Type::NIL)
+        if (!target || target->type == Roo::Value::Type::NIL)
         {
-          return Lisple::Constant::NIL;
+          return Roo::Constant::NIL;
         }
 
         if (HostType::VIEW.is_type_of(*target) ||
@@ -50,13 +50,13 @@ namespace Pixils::Script
         if (!Script::HostType::HOOK_CONTEXT.is_type_of(*target) &&
             !native_host_type_named(target, Script::HostType::HOOK_CONTEXT))
         {
-          throw Lisple::TypeError(fn_name + " target must be a view or hook context");
+          throw Roo::TypeError(fn_name + " target must be a view or hook context");
         }
 
-        auto view = Lisple::obj<HookContext>(*target).current_view;
+        auto view = Roo::obj<HookContext>(*target).current_view;
         if (!view)
         {
-          return Lisple::Constant::NIL;
+          return Roo::Constant::NIL;
         }
 
         return ViewAdapter::make_ref(*view);
@@ -66,7 +66,7 @@ namespace Pixils::Script
       {
         if (!view.mode)
         {
-          throw Lisple::InvocationException("view has no mode");
+          throw Roo::InvocationException("view has no mode");
         }
 
         if (!view.owned_mode)
@@ -78,22 +78,22 @@ namespace Pixils::Script
         return *view.mode;
       }
 
-      std::string theme_var_key(const Lisple::sptr_val& key, const std::string& fn_name)
+      std::string theme_var_key(const Roo::sptr_val& key, const std::string& fn_name)
       {
-        if (!key || (key->type != Lisple::Value::Type::KEYWORD &&
-                     key->type != Lisple::Value::Type::SYMBOL))
+        if (!key || (key->type != Roo::Value::Type::KEYWORD &&
+                     key->type != Roo::Value::Type::SYMBOL))
         {
-          throw Lisple::TypeError(fn_name + " key must be a keyword or symbol");
+          throw Roo::TypeError(fn_name + " key must be a keyword or symbol");
         }
 
         return key->str();
       }
 
       void apply_runtime_style(Runtime::Mode& mode,
-                               Lisple::Context& ctx,
-                               const Lisple::sptr_val& style_val)
+                               Roo::Context& ctx,
+                               const Roo::sptr_val& style_val)
       {
-        if (!style_val || style_val->type == Lisple::Value::Type::NIL) return;
+        if (!style_val || style_val->type == Roo::Value::Type::NIL) return;
 
         if (contains_theme_var_ref(style_val))
         {
@@ -104,7 +104,7 @@ namespace Pixils::Script
         UI::Style style;
         if (HostType::STYLE.is_type_of(*style_val))
         {
-          style = Lisple::obj<UI::Style>(*style_val);
+          style = Roo::obj<UI::Style>(*style_val);
         }
         else
         {
@@ -112,9 +112,9 @@ namespace Pixils::Script
           auto coercion = HostType::STYLE.coerce(ctx, mutable_style_val);
           if (!coercion.success)
           {
-            throw Lisple::TypeError("ui/style! style argument must be a style map or style");
+            throw Roo::TypeError("ui/style! style argument must be a style map or style");
           }
-          style = Lisple::obj<UI::Style>(*coercion.result);
+          style = Roo::obj<UI::Style>(*coercion.result);
         }
 
         if (!mode.runtime_style)
@@ -139,7 +139,7 @@ namespace Pixils::Script
 
     /** BindStateFn - bind-state */
     FUNC_IMPL(BindStateFn,
-              SIG((FN_ARGS((Lisple::VARARG, &Lisple::Type::ANY)),
+              SIG((FN_ARGS((Roo::VARARG, &Roo::Type::ANY)),
                    EXEC_DISPATCH(&BindStateFn::exec_bind_state))));
 
     EXEC_BODY(BindStateFn, exec_bind_state)
@@ -159,17 +159,17 @@ namespace Pixils::Script
     {
       auto message_queue = ctx.lookup(ID__PIXILS__MODE_STACK_MESSAGES);
       auto target =
-        args.empty() ? Lisple::Constant::NIL : resolve_view_target(args[0], "ui/blur!");
+        args.empty() ? Roo::Constant::NIL : resolve_view_target(args[0], "ui/blur!");
 
-      Lisple::append(*message_queue,
-                     Lisple::map(Lisple::sptr_val_v{
-                       Lisple::keyword("type"),
-                       Lisple::keyword("blur"),
-                       Lisple::keyword("target"),
+      Roo::append(*message_queue,
+                     Roo::map(Roo::sptr_val_v{
+                       Roo::keyword("type"),
+                       Roo::keyword("blur"),
+                       Roo::keyword("target"),
                        target,
                      }));
 
-      return Lisple::Constant::NIL;
+      return Roo::Constant::NIL;
     }
 
     /** ChildrenFunction - children */
@@ -182,45 +182,45 @@ namespace Pixils::Script
     EXEC_BODY(ChildrenFunction, exec_children)
     {
       auto target = resolve_view_target(args[0], "ui/children");
-      if (!target || target->type == Lisple::Value::Type::NIL)
+      if (!target || target->type == Roo::Value::Type::NIL)
       {
-        return Lisple::vector({});
+        return Roo::vector({});
       }
 
-      Runtime::View& view = Lisple::obj<Runtime::View>(*target);
-      Lisple::sptr_val_v children;
+      Runtime::View& view = Roo::obj<Runtime::View>(*target);
+      Roo::sptr_val_v children;
       children.reserve(view.children.size());
       for (const auto& child : view.children)
       {
         if (child) children.push_back(ViewAdapter::make_ref(*child));
       }
 
-      return Lisple::vector(children);
+      return Roo::vector(children);
     }
 
     /** EmitFunction - emit */
     FUNC_IMPL(
       EmitBangFunction,
-      MULTI_SIG((FN_ARGS((&Lisple::Type::ANY), (&Lisple::Type::KEYWORD), (&Lisple::Type::ANY)),
+      MULTI_SIG((FN_ARGS((&Roo::Type::ANY), (&Roo::Type::KEYWORD), (&Roo::Type::ANY)),
                  EXEC_DISPATCH(&EmitBangFunction::exec_emit)),
-                (FN_ARGS((&Lisple::Type::ANY), (&Lisple::Type::KEYWORD)),
+                (FN_ARGS((&Roo::Type::ANY), (&Roo::Type::KEYWORD)),
                  EXEC_DISPATCH(&EmitBangFunction::exec_emit))))
 
     EXEC_BODY(EmitBangFunction, exec_emit)
     {
       auto target = resolve_view_target(args[0], "ui/emit!");
-      if (!target || target->type == Lisple::Value::Type::NIL)
+      if (!target || target->type == Roo::Value::Type::NIL)
       {
-        return Lisple::Constant::NIL;
+        return Roo::Constant::NIL;
       }
 
-      Runtime::View& view = Lisple::obj<Runtime::View>(*target);
-      auto source_mode = view.mode ? Lisple::symbol(view.mode->name) : Lisple::Constant::NIL;
+      Runtime::View& view = Roo::obj<Runtime::View>(*target);
+      auto source_mode = view.mode ? Roo::symbol(view.mode->name) : Roo::Constant::NIL;
       view.emit_event(CustomEvent{args[1],
-                                  args.size() > 2 ? args[2] : Lisple::Constant::NIL,
+                                  args.size() > 2 ? args[2] : Roo::Constant::NIL,
                                   source_mode});
 
-      return Lisple::Constant::NIL;
+      return Roo::Constant::NIL;
     }
 
     /** FocusBangFunction - focus! */
@@ -235,11 +235,11 @@ namespace Pixils::Script
       auto target = resolve_view_target(args[0], "ui/focus!");
       auto message_queue = ctx.lookup(ID__PIXILS__MODE_STACK_MESSAGES);
 
-      Lisple::append(*message_queue,
-                     Lisple::map(Lisple::sptr_val_v{
-                       Lisple::keyword("type"),
-                       Lisple::keyword("focus"),
-                       Lisple::keyword("target"),
+      Roo::append(*message_queue,
+                     Roo::map(Roo::sptr_val_v{
+                       Roo::keyword("type"),
+                       Roo::keyword("focus"),
+                       Roo::keyword("target"),
                        target,
                      }));
 
@@ -248,23 +248,23 @@ namespace Pixils::Script
 
     /** ReplaceChildBangFunction - replace-child! */
     FUNC_IMPL(ReplaceChildBangFunction,
-              SIG((FN_ARGS((&Lisple::Type::ANY), (&Lisple::Type::ANY), (&Lisple::Type::MAP)),
+              SIG((FN_ARGS((&Roo::Type::ANY), (&Roo::Type::ANY), (&Roo::Type::MAP)),
                    EXEC_DISPATCH(&ReplaceChildBangFunction::exec_replace_child))));
 
     EXEC_BODY(ReplaceChildBangFunction, exec_replace_child)
     {
       auto target = resolve_view_target(args[0], "ui/replace-child!");
-      if (!target || target->type == Lisple::Value::Type::NIL)
+      if (!target || target->type == Roo::Value::Type::NIL)
       {
-        return Lisple::Constant::NIL;
+        return Roo::Constant::NIL;
       }
 
-      Runtime::View& view = Lisple::obj<Runtime::View>(*target);
-      if (args[1]->type != Lisple::Value::Type::STRING &&
-          args[1]->type != Lisple::Value::Type::SYMBOL &&
-          args[1]->type != Lisple::Value::Type::KEYWORD)
+      Runtime::View& view = Roo::obj<Runtime::View>(*target);
+      if (args[1]->type != Roo::Value::Type::STRING &&
+          args[1]->type != Roo::Value::Type::SYMBOL &&
+          args[1]->type != Roo::Value::Type::KEYWORD)
       {
-        throw Lisple::TypeError("ui/replace-child! child id must be string-like");
+        throw Roo::TypeError("ui/replace-child! child id must be string-like");
       }
 
       std::string child_id = args[1]->str();
@@ -274,11 +274,11 @@ namespace Pixils::Script
                                          { return child && child->id == child_id; });
       if (existing_child == view.children.end())
       {
-        throw Lisple::InvocationException("ui/replace-child! could not find child '" +
+        throw Roo::InvocationException("ui/replace-child! could not find child '" +
                                           child_id + "'");
       }
 
-      auto child_entries = Lisple::vector({args[2]});
+      auto child_entries = Roo::vector({args[2]});
       auto slots = parse_child_slots(ctx, child_entries);
       auto slot = std::move(slots.front());
       slot.id = child_id;
@@ -288,23 +288,23 @@ namespace Pixils::Script
       }
       view.queue_replace_child(child_id, std::move(slot));
 
-      return Lisple::Constant::NIL;
+      return Roo::Constant::NIL;
     }
 
     /** StyleBangFunction - style! */
     FUNC_IMPL(StyleBangFunction,
-              SIG((FN_ARGS((&Lisple::Type::ANY), (&Lisple::Type::ANY)),
+              SIG((FN_ARGS((&Roo::Type::ANY), (&Roo::Type::ANY)),
                    EXEC_DISPATCH(&StyleBangFunction::exec_style))));
 
     EXEC_BODY(StyleBangFunction, exec_style)
     {
       auto target = resolve_view_target(args[0], "ui/style!");
-      if (!target || target->type == Lisple::Value::Type::NIL)
+      if (!target || target->type == Roo::Value::Type::NIL)
       {
-        return Lisple::Constant::NIL;
+        return Roo::Constant::NIL;
       }
 
-      Runtime::View& view = Lisple::obj<Runtime::View>(*target);
+      Runtime::View& view = Roo::obj<Runtime::View>(*target);
       Runtime::Mode& mode = ensure_instance_mode(view);
       apply_runtime_style(mode, ctx, args[1]);
       view.style_view.invalidate();
@@ -320,31 +320,31 @@ namespace Pixils::Script
 
     EXEC_BODY(StopPropagation, exec_stop)
     {
-      Lisple::obj<Event>(*args[0]).propagation_stopped = true;
-      return Lisple::Constant::NIL;
+      Roo::obj<Event>(*args[0]).propagation_stopped = true;
+      return Roo::Constant::NIL;
     }
 
     /** ActiveThemeVarFunction - theme-var */
     FUNC_IMPL(ActiveThemeVarFunction,
-              SIG((FN_ARGS((Lisple::VARARG, &Lisple::Type::ANY)),
+              SIG((FN_ARGS((Roo::VARARG, &Roo::Type::ANY)),
                    EXEC_DISPATCH(&ActiveThemeVarFunction::exec_theme_var))));
 
     EXEC_BODY(ActiveThemeVarFunction, exec_theme_var)
     {
       if (args.size() < 2 || args.size() > 3)
       {
-        throw Lisple::InvocationException(
+        throw Roo::InvocationException(
           "ui/theme-var expects a view or hook context, a key, and optional fallback");
       }
 
-      const auto fallback = args.size() > 2 ? args[2] : Lisple::Constant::NIL;
+      const auto fallback = args.size() > 2 ? args[2] : Roo::Constant::NIL;
       auto target = resolve_view_target(args[0], "ui/theme-var");
-      if (!target || target->type == Lisple::Value::Type::NIL)
+      if (!target || target->type == Roo::Value::Type::NIL)
       {
         return fallback;
       }
 
-      Runtime::View& view = Lisple::obj<Runtime::View>(*target);
+      Runtime::View& view = Roo::obj<Runtime::View>(*target);
       auto raw_value = lookup_theme_var(view.effective_theme,
                                         view.effective_theme.selected_variant,
                                         theme_var_key(args[1], "ui/theme-var"));
@@ -421,7 +421,7 @@ namespace Pixils::Script
 
   NOBJ_PROP_GET(MouseButtonEventAdapter, click_count)
   {
-    return Lisple::number(get_self_object().click_count);
+    return Roo::number(get_self_object().click_count);
   }
 
   NATIVE_SUB_ADAPTER_IMPL(MouseButtonEventAdapter,
@@ -487,7 +487,7 @@ namespace Pixils::Script
   }
 
   UINamespace::UINamespace()
-    : Lisple::Namespace(std::string(NS__PIXILS__UI))
+    : Roo::Namespace(std::string(NS__PIXILS__UI))
   {
     values.emplace("bind-state", Function::BindStateFn::make());
     values.emplace(FN__PIXILS__UI__BLUR_BANG, Function::BlurBangFunction::make());

@@ -8,7 +8,7 @@
 #include <string>
 #include <vector>
 
-namespace Lisple
+namespace Roo
 {
   class Runtime;
 }
@@ -41,7 +41,7 @@ namespace Pixils
     void set_display(Display& display);
   };
 
-  Program& load_program(Lisple::Runtime& runtime, Runtime::Session& session);
+  Program& load_program(Roo::Runtime& runtime, Runtime::Session& session);
 } // namespace Pixils
 
 #endif /* PROGRAM_H */

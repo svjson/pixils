@@ -14,8 +14,8 @@
 #include <pixils/script.h>
 
 #include <gtest/gtest.h>
-#include <lisple/runtime.h>
-#include <lisple/runtime/value.h>
+#include <roo/runtime.h>
+#include <roo/runtime/value.h>
 #include <utility>
 
 /**

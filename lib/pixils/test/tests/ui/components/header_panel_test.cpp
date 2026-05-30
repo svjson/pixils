@@ -1,7 +1,7 @@
 #include "../../render_fixture.h"
 
 #include <gtest/gtest.h>
-#include <lisple/runtime/dict.h>
+#include <roo/runtime/dict.h>
 
 using HeaderPanelTest = RenderFixture;
 
@@ -19,7 +19,7 @@ TEST_F(HeaderPanelTest, make_composes_header_and_body)
                     :children [{:mode 'content-mode}]})]})
   )");
 
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
 
   session.update_mode();
   session.render_mode();
@@ -49,7 +49,7 @@ TEST_F(HeaderPanelTest, make_composes_header_and_body)
   auto title = header->children[0];
   ASSERT_NE(title, nullptr);
   EXPECT_EQ(title->mode->name, "ui/text");
-  auto title_value = Lisple::Dict::get_property(title->state, Lisple::keyword("value"));
+  auto title_value = Roo::Dict::get_property(title->state, Roo::keyword("value"));
   ASSERT_NE(title_value, nullptr);
   EXPECT_EQ(title_value->to_string(), "\"Inspector\"");
 
@@ -71,7 +71,7 @@ TEST_F(HeaderPanelTest, body_state_can_bind_to_panel_state)
                                 :state {:value (pixils.ui/bind-state :label)}}]})]})
   )");
 
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
 
   session.update_mode();
   session.render_mode();
@@ -79,7 +79,7 @@ TEST_F(HeaderPanelTest, body_state_can_bind_to_panel_state)
   auto panel = session.active_mode->children[0];
   auto body = panel->children[1];
   auto text = body->children[0];
-  auto text_value = Lisple::Dict::get_property(text->state, Lisple::keyword("value"));
+  auto text_value = Roo::Dict::get_property(text->state, Roo::keyword("value"));
   ASSERT_NE(text_value, nullptr);
   EXPECT_EQ(text_value->to_string(), "\"Selected: Grass\"");
 }

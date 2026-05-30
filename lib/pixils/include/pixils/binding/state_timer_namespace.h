@@ -3,9 +3,9 @@
 
 #include <pixils/state/timer.h>
 
-#include <lisple/exec.h>
-#include <lisple/host/object.h>
-#include <lisple/namespace.h>
+#include <roo/exec.h>
+#include <roo/host/object.h>
+#include <roo/namespace.h>
 #include <string>
 
 namespace Pixils::Script
@@ -35,7 +35,7 @@ namespace Pixils::Script
 
   NATIVE_ADAPTER(TimerAdapter, State::Timer, (interval_ms, last_tick_ms, started, ticked));
 
-  class StateTimerNamespace : public Lisple::Namespace
+  class StateTimerNamespace : public Roo::Namespace
   {
    public:
     StateTimerNamespace();

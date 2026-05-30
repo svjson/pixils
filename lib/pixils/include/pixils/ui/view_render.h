@@ -4,11 +4,11 @@
 #include <pixils/geom.h>
 #include <pixils/ui/style.h>
 
-#include <lisple/form.h>
+#include <roo/form.h>
 #include <memory>
 #include <vector>
 
-namespace Lisple
+namespace Roo
 {
   class Runtime;
 }
@@ -32,8 +32,8 @@ namespace Pixils::UI
    * layout pass.
    */
   void render_view(Pixils::RenderContext& render_ctx,
-                   Lisple::Runtime& runtime,
-                   const Lisple::sptr_val& render_hook_ctx,
+                   Roo::Runtime& runtime,
+                   const Roo::sptr_val& render_hook_ctx,
                    const std::shared_ptr<Pixils::Runtime::View>& view);
 
 } // namespace Pixils::UI

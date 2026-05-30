@@ -3,8 +3,8 @@
 #include <algorithm>
 
 #include <gtest/gtest.h>
-#include <lisple/runtime/dict.h>
-#include <lisple/runtime/value.h>
+#include <roo/runtime/dict.h>
+#include <roo/runtime/value.h>
 #include <SDL2/SDL_mouse.h>
 
 using MenuTest = RenderFixture;
@@ -78,7 +78,7 @@ TEST_F(MenuTest, opened_popup_inherits_menu_scale)
                    {})]})
   )");
 
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
   session.update_mode();
   session.render_mode();
 
@@ -86,7 +86,7 @@ TEST_F(MenuTest, opened_popup_inherits_menu_scale)
   ASSERT_EQ(session.active_mode->children.size(), 1u);
   auto menu = session.active_mode->children[0];
   ASSERT_NE(menu, nullptr);
-  auto menu_scale = Lisple::Dict::get_property(menu->state, Lisple::keyword("menu-scale"));
+  auto menu_scale = Roo::Dict::get_property(menu->state, Roo::keyword("menu-scale"));
   ASSERT_NE(menu_scale, nullptr);
   EXPECT_EQ(menu_scale->to_string(), "2");
   ASSERT_EQ(menu->children.size(), 1u);
@@ -119,7 +119,7 @@ TEST_F(MenuTest, opened_popup_without_menu_scale_omits_scale_style)
                    {})]})
   )");
 
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
   session.update_mode();
   session.render_mode();
 
@@ -127,8 +127,8 @@ TEST_F(MenuTest, opened_popup_without_menu_scale_omits_scale_style)
   ASSERT_EQ(session.active_mode->children.size(), 1u);
   auto menu = session.active_mode->children[0];
   ASSERT_NE(menu, nullptr);
-  auto menu_scale = Lisple::Dict::get_property(menu->state, Lisple::keyword("menu-scale"));
-  EXPECT_TRUE(!menu_scale || menu_scale->type == Lisple::Value::Type::NIL);
+  auto menu_scale = Roo::Dict::get_property(menu->state, Roo::keyword("menu-scale"));
+  EXPECT_TRUE(!menu_scale || menu_scale->type == Roo::Value::Type::NIL);
   ASSERT_EQ(menu->children.size(), 1u);
   auto menu_item = menu->children[0];
   ASSERT_NE(menu_item, nullptr);
@@ -159,7 +159,7 @@ TEST_F(MenuTest, classic_blue_menus_use_classic_blue_font)
                    {})]})
   )");
 
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
   session.update_mode();
   session.render_mode();
 
@@ -213,7 +213,7 @@ TEST_F(MenuTest, classic_blue_menu_option_indicator_uses_theme_text)
                    :state {:selected false}}]})
   )");
 
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
   session.update_mode();
   session.render_mode();
 
@@ -247,7 +247,7 @@ TEST_F(MenuTest, base_theme_generates_stock_menu_option_checkmark_image)
                    :state {:selected true}}]})
   )");
 
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
   session.update_mode();
   session.render_mode();
 
@@ -306,7 +306,7 @@ TEST_F(MenuTest, windows_3_menu_option_indicator_renders_one_checkmark)
                    :state {:selected true}}]})
   )");
 
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
   session.update_mode();
   session.render_mode();
 
@@ -336,7 +336,7 @@ TEST_F(MenuTest, popup_submenu_items_receive_theme_indicator)
                    {})]})
   )");
 
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
   session.update_mode();
   session.render_mode();
 
@@ -373,9 +373,9 @@ TEST_F(MenuTest, popup_submenu_items_receive_theme_indicator)
   EXPECT_EQ(leaf_indicator->mode->name, "ui/menu-submenu-indicator");
 
   auto submenu_state =
-    Lisple::Dict::get_property(submenu_indicator->state, Lisple::keyword("has-submenu"));
+    Roo::Dict::get_property(submenu_indicator->state, Roo::keyword("has-submenu"));
   auto leaf_state =
-    Lisple::Dict::get_property(leaf_indicator->state, Lisple::keyword("has-submenu"));
+    Roo::Dict::get_property(leaf_indicator->state, Roo::keyword("has-submenu"));
   ASSERT_NE(submenu_state, nullptr);
   ASSERT_NE(leaf_state, nullptr);
   EXPECT_EQ(submenu_state->to_string(), "true");
@@ -512,7 +512,7 @@ TEST_F(MenuTest, windows_95_submenu_indicator_generates_chevron_images)
                            :highlighted true}}]})
   )");
 
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
   session.update_mode();
   session.render_mode();
   runtime.eval(R"(
@@ -579,7 +579,7 @@ TEST_F(MenuTest, windows_3_submenu_indicator_generates_chevron_images)
                            :highlighted true}}]})
   )");
 
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
   session.update_mode();
   session.render_mode();
   runtime.eval(R"(
@@ -656,7 +656,7 @@ TEST_F(MenuTest, context_menu_opens_popup_at_mouse_position)
                         state))})
   )");
 
-  session.push_mode("context-target", Lisple::Constant::NIL);
+  session.push_mode("context-target", Roo::Constant::NIL);
   session.active_mode->bounds = {0, 0, 100, 30};
   session.update_mode();
   session.render_mode();
@@ -729,7 +729,7 @@ TEST_F(MenuTest, menu_bar_item_without_children_or_action_does_not_open_popup)
                    {})]})
   )");
 
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
   session.update_mode();
   session.render_mode();
 

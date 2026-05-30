@@ -4,23 +4,23 @@
 #include "pixils/binding/point_namespace.h"
 #include <pixils/geom.h>
 
-#include <lisple/exec.h>
-#include <lisple/host/schema.h>
-#include <lisple/runtime/value.h>
+#include <roo/exec.h>
+#include <roo/host/schema.h>
+#include <roo/runtime/value.h>
 
 namespace Pixils::Script
 {
   namespace Function
   {
     FUNC_IMPL(MakeRect,
-              SIG((FN_ARGS((&Lisple::Type::MAP)), EXEC_DISPATCH(&MakeRect::exec_make))))
+              SIG((FN_ARGS((&Roo::Type::MAP)), EXEC_DISPATCH(&MakeRect::exec_make))))
 
     EXEC_BODY(MakeRect, exec_make)
     {
-      static Lisple::MapSchema rect_schema({{"x", &Lisple::Type::NUMBER},
-                                            {"y", &Lisple::Type::NUMBER},
-                                            {"w", &Lisple::Type::NUMBER},
-                                            {"h", &Lisple::Type::NUMBER}});
+      static Roo::MapSchema rect_schema({{"x", &Roo::Type::NUMBER},
+                                            {"y", &Roo::Type::NUMBER},
+                                            {"w", &Roo::Type::NUMBER},
+                                            {"h", &Roo::Type::NUMBER}});
 
       auto opts = rect_schema.bind(ctx, *args[0]);
 
@@ -37,9 +37,9 @@ namespace Pixils::Script
 
     EXEC_BODY(InsidePFunction, exec_inside)
     {
-      return Lisple::obj<Rect>(*args[0]).contains(Lisple::obj<Point>(*args[1]))
-               ? Lisple::Constant::BOOL_TRUE
-               : Lisple::Constant::BOOL_FALSE;
+      return Roo::obj<Rect>(*args[0]).contains(Roo::obj<Point>(*args[1]))
+               ? Roo::Constant::BOOL_TRUE
+               : Roo::Constant::BOOL_FALSE;
     }
 
     /** IntersectPFunction - intersect? */
@@ -49,15 +49,15 @@ namespace Pixils::Script
 
     EXEC_BODY(IntersectPFunction, exec_intersect)
     {
-      return Lisple::obj<Rect>(*args[0]).intersects(Lisple::obj<Rect>(*args[1]))
-               ? Lisple::Constant::BOOL_TRUE
-               : Lisple::Constant::BOOL_FALSE;
+      return Roo::obj<Rect>(*args[0]).intersects(Roo::obj<Rect>(*args[1]))
+               ? Roo::Constant::BOOL_TRUE
+               : Roo::Constant::BOOL_FALSE;
     }
 
   } // namespace Function
 
   RectNamespace::RectNamespace()
-    : Lisple::Namespace(std::string(NS__PIXILS__RECT))
+    : Roo::Namespace(std::string(NS__PIXILS__RECT))
   {
     values.emplace("inside?", Function::InsidePFunction::make());
     values.emplace("intersect?", Function::IntersectPFunction::make());

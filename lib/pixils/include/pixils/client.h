@@ -9,16 +9,16 @@
 #include <pixils/ui/style.h>
 
 #include <SDL2/SDL_mouse.h>
-#include <lisple/runtime/value.h>
+#include <roo/runtime/value.h>
 #include <map>
 #include <stddef.h>
 #include <string>
 
-namespace Lisple
+namespace Roo
 {
   class Array;
   class Runtime;
-} // namespace Lisple
+} // namespace Roo
 
 namespace Pixils
 {
@@ -37,7 +37,7 @@ namespace Pixils
 
   class Client
   {
-    Lisple::Runtime& lisple;
+    Roo::Runtime& roo;
     RenderContext& ctx;
     FrameEvents events;
     HookContext hook_ctx;
@@ -57,14 +57,14 @@ namespace Pixils
     std::optional<UI::CursorSpec> active_cursor = std::nullopt;
 
    public:
-    Client(Lisple::Runtime& lisple_runtime, RenderContext& ctx);
-    Client(Lisple::Runtime& lisple_runtime, RenderContext& ctx, Runtime::Mode& root_mode);
+    Client(Roo::Runtime& roo_runtime, RenderContext& ctx);
+    Client(Roo::Runtime& roo_runtime, RenderContext& ctx, Runtime::Mode& root_mode);
     ~Client();
 
     void run();
 
    private:
-    Client(Lisple::Runtime& lisple_runtime, RenderContext& ctx, bool init_mode);
+    Client(Roo::Runtime& roo_runtime, RenderContext& ctx, bool init_mode);
 
     void init_console();
     void main_loop();

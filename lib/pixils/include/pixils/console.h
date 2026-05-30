@@ -16,7 +16,7 @@
 typedef union SDL_Event SDL_Event;
 struct SDL_KeyboardEvent;
 
-namespace Lisple
+namespace Roo
 {
   class Runtime;
 }
@@ -46,7 +46,7 @@ namespace Pixils
   extern const std::string HISTORY_FILE_NAME;
 
   /*!
-   * @brief A graphical console overlay containing a Lisple REPL
+   * @brief A graphical console overlay containing a Roo REPL
    *
    * Previous commands are stored in a history dotfile and are accessible
    * between application executions.
@@ -76,7 +76,7 @@ namespace Pixils
      * where this component will be rendered
      */
     SDL_Rect bounds = {0, 0, 0, 0};
-    Lisple::Runtime& runtime;
+    Roo::Runtime& runtime;
     Text::Renderer text_renderer;
     Text::Cursor tc;
     SDL_Rect window_size = {0, 0, 0, 0};
@@ -107,7 +107,7 @@ namespace Pixils
     std::string input;
 
    public:
-    ConsoleOverlay(RenderContext& rc, Lisple::Runtime& runtime, SDL_Texture* textures);
+    ConsoleOverlay(RenderContext& rc, Roo::Runtime& runtime, SDL_Texture* textures);
 
     /*!
      * @brief Must be called once every frame to forward the swipe in or out

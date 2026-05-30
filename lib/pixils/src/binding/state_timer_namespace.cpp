@@ -1,11 +1,11 @@
 #include <pixils/binding/state_timer_namespace.h>
 
 #include <algorithm>
-#include <lisple/context.h>
-#include <lisple/exception.h>
-#include <lisple/host/schema.h>
-#include <lisple/runtime/dict.h>
-#include <lisple/runtime/value.h>
+#include <roo/context.h>
+#include <roo/exception.h>
+#include <roo/host/schema.h>
+#include <roo/runtime/dict.h>
+#include <roo/runtime/value.h>
 
 namespace Pixils::Script
 {
@@ -33,13 +33,13 @@ namespace Pixils::Script
   namespace Function
   {
     FUNC_IMPL(MakeTimer,
-              SIG((FN_ARGS((&Lisple::Type::MAP)), EXEC_DISPATCH(&MakeTimer::exec_make))));
+              SIG((FN_ARGS((&Roo::Type::MAP)), EXEC_DISPATCH(&MakeTimer::exec_make))));
 
-    Lisple::MapSchema timer_schema({},
-                                   {{TimerMapKey::INTERVAL_MS, &Lisple::Type::NUMBER},
-                                    {TimerMapKey::LAST_TICK_MS, &Lisple::Type::NUMBER},
-                                    {TimerMapKey::STARTED, &Lisple::Type::BOOL},
-                                    {TimerMapKey::TICKED, &Lisple::Type::BOOL}});
+    Roo::MapSchema timer_schema({},
+                                   {{TimerMapKey::INTERVAL_MS, &Roo::Type::NUMBER},
+                                    {TimerMapKey::LAST_TICK_MS, &Roo::Type::NUMBER},
+                                    {TimerMapKey::STARTED, &Roo::Type::BOOL},
+                                    {TimerMapKey::TICKED, &Roo::Type::BOOL}});
 
     EXEC_BODY(MakeTimer, exec_make)
     {
@@ -61,21 +61,21 @@ namespace Pixils::Script
     EXEC_BODY(TickTimer, exec_tick)
     {
       return TimerAdapter::make_unique(
-        Pixils::State::tick_timer(Lisple::obj<Pixils::State::Timer>(*args[0])));
+        Pixils::State::tick_timer(Roo::obj<Pixils::State::Timer>(*args[0])));
     }
 
     FUNC_IMPL(TickTimerAt,
-              SIG((FN_ARGS((&Lisple::Type::MAP), (&Lisple::Type::KEYWORD)),
+              SIG((FN_ARGS((&Roo::Type::MAP), (&Roo::Type::KEYWORD)),
                    EXEC_DISPATCH(&TickTimerAt::exec_tick_at))));
 
     EXEC_BODY(TickTimerAt, exec_tick_at)
     {
-      auto current_timer = Lisple::Dict::get_property(args[0], args[1]);
+      auto current_timer = Roo::Dict::get_property(args[0], args[1]);
       auto ticked_timer =
-        Pixils::State::tick_timer(Lisple::obj<Pixils::State::Timer>(*current_timer));
+        Pixils::State::tick_timer(Roo::obj<Pixils::State::Timer>(*current_timer));
 
-      Lisple::sptr_val_v path = {args[1]};
-      return Lisple::Dict::assoc_in(args[0], path, TimerAdapter::make_unique(ticked_timer));
+      Roo::sptr_val_v path = {args[1]};
+      return Roo::Dict::assoc_in(args[0], path, TimerAdapter::make_unique(ticked_timer));
     }
 
     FUNC_IMPL(TimerTicked,
@@ -83,22 +83,22 @@ namespace Pixils::Script
 
     EXEC_BODY(TimerTicked, exec_ticked)
     {
-      return Lisple::Value::boolean(Lisple::obj<Pixils::State::Timer>(*args[0]).ticked);
+      return Roo::Value::boolean(Roo::obj<Pixils::State::Timer>(*args[0]).ticked);
     }
 
     FUNC_IMPL(TimerTickedAt,
-              SIG((FN_ARGS((&Lisple::Type::MAP), (&Lisple::Type::KEYWORD)),
+              SIG((FN_ARGS((&Roo::Type::MAP), (&Roo::Type::KEYWORD)),
                    EXEC_DISPATCH(&TimerTickedAt::exec_ticked_at))));
 
     EXEC_BODY(TimerTickedAt, exec_ticked_at)
     {
-      auto timer = Lisple::Dict::get_property(args[0], args[1]);
-      return Lisple::Value::boolean(Lisple::obj<Pixils::State::Timer>(*timer).ticked);
+      auto timer = Roo::Dict::get_property(args[0], args[1]);
+      return Roo::Value::boolean(Roo::obj<Pixils::State::Timer>(*timer).ticked);
     }
   } // namespace Function
 
   StateTimerNamespace::StateTimerNamespace()
-    : Lisple::Namespace(std::string(NS__PIXILS__STATE__TIMER))
+    : Roo::Namespace(std::string(NS__PIXILS__STATE__TIMER))
   {
     values.emplace(FN__TIMER_MAKE, Function::MakeTimer::make());
     values.emplace(FN__TIMER_TICK, Function::TickTimer::make());

@@ -12,10 +12,10 @@
 #include <algorithm>
 #include <fstream>
 #include <iterator>
-#include <lisple/exception.h>
-#include <lisple/namespace.h>
-#include <lisple/runtime.h>
-#include <lisple/type.h>
+#include <roo/exception.h>
+#include <roo/namespace.h>
+#include <roo/runtime.h>
+#include <roo/type.h>
 #include <memory>
 #include <sstream>
 #include <vector>
@@ -56,7 +56,7 @@ namespace Pixils
   }
 
   ConsoleOverlay::ConsoleOverlay(RenderContext& rc,
-                                 Lisple::Runtime& runtime,
+                                 Roo::Runtime& runtime,
                                  SDL_Texture* font_map_texture)
     : rc(rc)
     , runtime(runtime)
@@ -282,10 +282,10 @@ namespace Pixils
 
     try
     {
-      Lisple::sptr_val result = runtime.eval(input);
+      Roo::sptr_val result = runtime.eval(input);
       output = pretty_printer.pretty_print(result);
     }
-    catch (Lisple::LispleException& e)
+    catch (Roo::RooException& e)
     {
       std::stringstream ss(e.what());
       std::string line;

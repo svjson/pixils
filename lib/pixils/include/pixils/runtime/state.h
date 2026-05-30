@@ -2,7 +2,7 @@
 #ifndef PIXILS__RUNTIME__STATE_H
 #define PIXILS__RUNTIME__STATE_H
 
-#include <lisple/runtime/value.h>
+#include <roo/runtime/value.h>
 
 namespace Pixils::Runtime
 {
@@ -13,15 +13,15 @@ namespace Pixils::Runtime
    */
   struct BindState
   {
-    Lisple::sptr_val_v path;
+    Roo::sptr_val_v path;
     BindState() = default;
-    explicit BindState(Lisple::sptr_val_v p);
+    explicit BindState(Roo::sptr_val_v p);
   };
 
   struct StateBinding
   {
-    Lisple::sptr_val binding = Lisple::Constant::NIL;
-    Lisple::sptr_val initial_state = Lisple::Constant::NIL;
+    Roo::sptr_val binding = Roo::Constant::NIL;
+    Roo::sptr_val initial_state = Roo::Constant::NIL;
   };
 
   /**
@@ -32,7 +32,7 @@ namespace Pixils::Runtime
    * fully own their own view.state; initial_state is only the fallback before
    * the first local state has been established.
    */
-  Lisple::sptr_val extract_state(const Lisple::sptr_val& parent,
+  Roo::sptr_val extract_state(const Roo::sptr_val& parent,
                                  const Pixils::Runtime::View& view);
 
   /**
@@ -40,11 +40,11 @@ namespace Pixils::Runtime
    * not merge into the parent at all. Bound views only touch the paths
    * declared in state_binding; non-bound keys remain in view.state.
    */
-  Lisple::sptr_val merge_state(const Lisple::sptr_val& parent,
+  Roo::sptr_val merge_state(const Roo::sptr_val& parent,
                                const Pixils::Runtime::View& view,
-                               const Lisple::sptr_val& child_state);
+                               const Roo::sptr_val& child_state);
 
-  const Lisple::sptr_val_v& bind_state_path(const Lisple::sptr_val& val);
+  const Roo::sptr_val_v& bind_state_path(const Roo::sptr_val& val);
 
   /**
    * Parse a raw :state value from a child slot entry into its binding and
@@ -53,7 +53,7 @@ namespace Pixils::Runtime
    *   - map with BindState values -> binding = val, initial_state = literal keys only
    *   - plain map or NIL -> binding = NIL, initial_state = val
    */
-  StateBinding parse_state_binding(const Lisple::sptr_val& state_val);
+  StateBinding parse_state_binding(const Roo::sptr_val& state_val);
 
 } // namespace Pixils::Runtime
 

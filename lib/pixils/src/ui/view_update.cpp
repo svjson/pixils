@@ -7,43 +7,43 @@
 #include "pixils/ui/view_events.h"
 #include <pixils/hook_context.h>
 
-#include <lisple/host/object.h>
-#include <lisple/runtime.h>
-#include <lisple/runtime/value.h>
+#include <roo/host/object.h>
+#include <roo/runtime.h>
+#include <roo/runtime/value.h>
 #include <utility>
 
 namespace Pixils::UI
 {
   namespace
   {
-    bool has_hook(const Lisple::sptr_val& hook)
+    bool has_hook(const Roo::sptr_val& hook)
     {
-      return hook && hook->type != Lisple::Value::Type::NIL;
+      return hook && hook->type != Roo::Value::Type::NIL;
     }
 
     bool has_state_binding(const Runtime::View& view)
     {
-      return view.state_binding && view.state_binding->type != Lisple::Value::Type::NIL;
+      return view.state_binding && view.state_binding->type != Roo::Value::Type::NIL;
     }
 
     void run_update_hook(const std::shared_ptr<Runtime::View>& view,
                          Runtime::HookArguments& hook_args,
-                         Lisple::Runtime& rt)
+                         Roo::Runtime& rt)
     {
       if (!has_hook(view->mode->update)) return;
 
-      Lisple::obj<HookContext>(*hook_args.update_args[1]).current_view = view;
-      Lisple::sptr_val_v args = {view->state, hook_args.update_args[1]};
+      Roo::obj<HookContext>(*hook_args.update_args[1]).current_view = view;
+      Roo::sptr_val_v args = {view->state, hook_args.update_args[1]};
       view->set_state_if_changed(
         Runtime::invoke_hook(rt, view, view->mode->update, args, view->state));
     }
 
     void bubble_child_events_to_subject(Runtime::View& subject,
-                                        Lisple::sptr_val* subject_parent_state,
+                                        Roo::sptr_val* subject_parent_state,
                                         Runtime::View* subject_parent_view,
                                         const std::shared_ptr<Runtime::View>& child,
-                                        Lisple::sptr_val& view_ctx,
-                                        Lisple::Runtime& rt)
+                                        Roo::sptr_val& view_ctx,
+                                        Roo::Runtime& rt)
     {
       std::vector<CustomEvent> emitted_events;
       child->drain_events(emitted_events);
@@ -119,11 +119,11 @@ namespace Pixils::UI
     void update_view_subtree(const std::shared_ptr<Runtime::View>& view_ptr,
                              const MouseState& mouse_state,
                              const FocusState& focus_state,
-                             Lisple::sptr_val* parent_state,
+                             Roo::sptr_val* parent_state,
                              Runtime::View* parent_view,
                              const Point& mouse_pos,
                              Runtime::HookArguments& hook_args,
-                             Lisple::Runtime& rt)
+                             Roo::Runtime& rt)
     {
       auto& view = *view_ptr;
 
@@ -193,7 +193,7 @@ namespace Pixils::UI
                         const FocusState& focus_state,
                         const Point& mouse_pos,
                         Runtime::HookArguments& hook_args,
-                        Lisple::Runtime& runtime)
+                        Roo::Runtime& runtime)
   {
     update_view_subtree(root,
                         mouse_state,

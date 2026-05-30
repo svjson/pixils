@@ -4,8 +4,8 @@
 
 #include <gtest/gtest.h>
 #include <SDL2/SDL_keycode.h>
-#include <lisple/runtime/dict.h>
-#include <lisple/runtime/value.h>
+#include <roo/runtime/dict.h>
+#include <roo/runtime/value.h>
 #include <string>
 
 class ComboBoxTest : public RenderFixture
@@ -37,10 +37,10 @@ class ComboBoxTest : public RenderFixture
 
 namespace
 {
-  Lisple::sptr_val get_state_key(const std::shared_ptr<Pixils::Runtime::View>& view,
+  Roo::sptr_val get_state_key(const std::shared_ptr<Pixils::Runtime::View>& view,
                                  const std::string& key)
   {
-    return Lisple::Dict::get_property(view->state, Lisple::keyword(key));
+    return Roo::Dict::get_property(view->state, Roo::keyword(key));
   }
 } // namespace
 
@@ -54,7 +54,7 @@ TEST_F(ComboBoxTest, combo_box_trigger_uses_styleable_scrollbar_button)
                     :style {:width 100}})]})
   )");
 
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
   session.update_mode();
   session.render_mode();
 
@@ -125,7 +125,7 @@ TEST_F(ComboBoxTest, disabled_combo_box_disables_trigger_button_and_does_not_pre
                     :style {:width 100}})]})
   )");
 
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
   session.update_mode();
   session.render_mode();
 
@@ -140,14 +140,14 @@ TEST_F(ComboBoxTest, disabled_combo_box_disables_trigger_button_and_does_not_pre
   auto button = trigger->children[1];
   ASSERT_NE(button, nullptr);
 
-  auto disabled = Lisple::Dict::get_property(button->state, Lisple::keyword("disabled?"));
+  auto disabled = Roo::Dict::get_property(button->state, Roo::keyword("disabled?"));
   ASSERT_NE(disabled, nullptr);
   EXPECT_EQ(disabled->to_string(), "true");
 
   input().mouse_down({95, 5});
   update_cycle();
 
-  auto pressed = Lisple::Dict::get_property(button->state, Lisple::keyword("pressed"));
+  auto pressed = Roo::Dict::get_property(button->state, Roo::keyword("pressed"));
   ASSERT_NE(pressed, nullptr);
   EXPECT_EQ(pressed->to_string(), "false");
   ASSERT_NE(session.active_mode, nullptr);
@@ -178,7 +178,7 @@ TEST_F(ComboBoxTest, focused_combo_box_arrow_keys_change_selection_without_openi
                     :selected-index (pixils.ui/bind-state :selected-index)})]})
   )");
 
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
   update_cycle();
   render_cycle();
 
@@ -241,7 +241,7 @@ TEST_F(ComboBoxTest, combo_box_opens_scrollable_popup_and_reports_selection)
                     :max-height 20})]})
   )");
 
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
   session.update_mode();
   session.render_mode();
 
@@ -278,7 +278,7 @@ TEST_F(ComboBoxTest, combo_box_opens_scrollable_popup_and_reports_selection)
   auto first_popup_item = popup_content->children[0];
   auto second_popup_item = popup_content->children[1];
   auto first_selected =
-    Lisple::Dict::get_property(first_popup_item->state, Lisple::keyword("selected"));
+    Roo::Dict::get_property(first_popup_item->state, Roo::keyword("selected"));
   ASSERT_NE(first_selected, nullptr);
   EXPECT_EQ(first_selected->to_string(), "false");
   EXPECT_EQ(popup_viewport->bounds.w, 84);
@@ -313,12 +313,12 @@ TEST_F(ComboBoxTest, combo_box_opens_scrollable_popup_and_reports_selection)
 
   update_cycle();
 
-  auto selected_index = Lisple::Dict::get_property(session.active_mode->state,
-                                                   Lisple::keyword("selected-index"));
+  auto selected_index = Roo::Dict::get_property(session.active_mode->state,
+                                                   Roo::keyword("selected-index"));
   auto value =
-    Lisple::Dict::get_property(session.active_mode->state, Lisple::keyword("value"));
+    Roo::Dict::get_property(session.active_mode->state, Roo::keyword("value"));
   auto payload =
-    Lisple::Dict::get_property(session.active_mode->state, Lisple::keyword("payload"));
+    Roo::Dict::get_property(session.active_mode->state, Roo::keyword("payload"));
   ASSERT_NE(selected_index, nullptr);
   ASSERT_NE(value, nullptr);
   ASSERT_NE(payload, nullptr);
@@ -343,7 +343,7 @@ TEST_F(ComboBoxTest, combo_box_popup_omits_scrollbar_when_options_fit)
                     :max-height 40})]})
   )");
 
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
   session.update_mode();
   session.render_mode();
 

@@ -17,15 +17,15 @@
 #include <algorithm>
 #include <cctype>
 #include <filesystem>
-#include <lisple-package/manifest.h>
-#include <lisple-package/native_abi.h>
-#include <lisple/exception.h>
-#include <lisple/exec.h>
-#include <lisple/host/object.h>
-#include <lisple/io/dir_root_file_system.h>
-#include <lisple/namespace.h>
-#include <lisple/runtime/dict.h>
-#include <lisple/runtime/value.h>
+#include <roo-package/manifest.h>
+#include <roo-package/native_abi.h>
+#include <roo/exception.h>
+#include <roo/exec.h>
+#include <roo/host/object.h>
+#include <roo/io/dir_root_file_system.h>
+#include <roo/namespace.h>
+#include <roo/runtime/dict.h>
+#include <roo/runtime/value.h>
 #include <memory>
 #include <optional>
 #include <string>
@@ -39,7 +39,7 @@ namespace
     std::filesystem::path root;
     std::filesystem::path asset_base_path;
     std::vector<std::string> load_path;
-    std::vector<Lisple::NamespaceRoot> namespace_roots;
+    std::vector<Roo::NamespaceRoot> namespace_roots;
     std::vector<std::string> entry_points;
     int buffer_width = 800;
     int buffer_height = 600;
@@ -110,13 +110,13 @@ namespace
     Pixils::RenderContext render_ctx{};
     Pixils::FrameEvents events;
     Pixils::HookContext hook_ctx;
-    std::unique_ptr<Lisple::Runtime> runtime;
+    std::unique_ptr<Roo::Runtime> runtime;
     Pixils::Runtime::HookArguments hook_args;
     std::unique_ptr<Pixils::Runtime::Session> session;
 
     explicit TestApp(const AppTarget& target)
       : hook_ctx{&events, &render_ctx}
-      , runtime(Pixils::make_lisple_runtime(render_ctx,
+      , runtime(Pixils::make_roo_runtime(render_ctx,
                                             "pixils.test.runtime.fixture",
                                             [&target](Pixils::RuntimeConfiguration* cfg)
                                             {
@@ -188,13 +188,13 @@ namespace
 
     void clear_transients()
     {
-      events.mouse_button_down = Lisple::Constant::NIL;
-      events.mouse_button_up = Lisple::Constant::NIL;
+      events.mouse_button_down = Roo::Constant::NIL;
+      events.mouse_button_up = Roo::Constant::NIL;
       events.mouse_button_down_clicks = 1;
       events.mouse_button_up_clicks = 1;
       events.mouse_moved = false;
-      events.key_down = Lisple::Constant::NIL;
-      events.key_up = Lisple::Constant::NIL;
+      events.key_down = Roo::Constant::NIL;
+      events.key_up = Roo::Constant::NIL;
     }
 
     void update()
@@ -229,67 +229,67 @@ namespace
   NATIVE_ADAPTER(TestAppAdapter, TestApp);
   NATIVE_ADAPTER_IMPL(TestAppAdapter, TestApp, &HostType::TEST_APP);
 
-  std::string required_string(const Lisple::sptr_val& value, const std::string& label)
+  std::string required_string(const Roo::sptr_val& value, const std::string& label)
   {
-    if (!value || value->type == Lisple::Value::Type::NIL)
+    if (!value || value->type == Roo::Value::Type::NIL)
     {
-      throw Lisple::InvocationException(label + " is required");
+      throw Roo::InvocationException(label + " is required");
     }
-    if (value->type != Lisple::Value::Type::STRING)
+    if (value->type != Roo::Value::Type::STRING)
     {
-      throw Lisple::TypeError(label + " must be a string");
+      throw Roo::TypeError(label + " must be a string");
     }
     return value->str();
   }
 
-  std::string value_name(const Lisple::sptr_val& value, const std::string& label)
+  std::string value_name(const Roo::sptr_val& value, const std::string& label)
   {
-    if (!value || value->type == Lisple::Value::Type::NIL)
+    if (!value || value->type == Roo::Value::Type::NIL)
     {
-      throw Lisple::InvocationException(label + " is required");
+      throw Roo::InvocationException(label + " is required");
     }
-    if (value->type == Lisple::Value::Type::STRING ||
-        value->type == Lisple::Value::Type::SYMBOL)
-    {
-      return value->str();
-    }
-    if (value->type == Lisple::Value::Type::KEYWORD)
+    if (value->type == Roo::Value::Type::STRING ||
+        value->type == Roo::Value::Type::SYMBOL)
     {
       return value->str();
     }
-    throw Lisple::TypeError(label + " must be a string, symbol, or keyword");
+    if (value->type == Roo::Value::Type::KEYWORD)
+    {
+      return value->str();
+    }
+    throw Roo::TypeError(label + " must be a string, symbol, or keyword");
   }
 
-  std::string mode_name(const Lisple::sptr_val& value)
+  std::string mode_name(const Roo::sptr_val& value)
   {
     std::string name = value_name(value, "mode");
     if (!name.empty() && name[0] == ':') return name.substr(1);
     return name;
   }
 
-  std::optional<std::string> optional_string_property(const Lisple::sptr_val& map,
+  std::optional<std::string> optional_string_property(const Roo::sptr_val& map,
                                                       const std::string& key)
   {
-    auto value = Lisple::Dict::get_property(map, Lisple::keyword(key));
-    if (!value || value->type == Lisple::Value::Type::NIL)
+    auto value = Roo::Dict::get_property(map, Roo::keyword(key));
+    if (!value || value->type == Roo::Value::Type::NIL)
     {
       return std::nullopt;
     }
     return required_string(value, ":" + key);
   }
 
-  std::vector<std::string> string_vector_property(const Lisple::sptr_val& map,
+  std::vector<std::string> string_vector_property(const Roo::sptr_val& map,
                                                   const std::string& key)
   {
-    auto value = Lisple::Dict::get_property(map, Lisple::keyword(key));
+    auto value = Roo::Dict::get_property(map, Roo::keyword(key));
     std::vector<std::string> result;
-    if (!value || value->type == Lisple::Value::Type::NIL)
+    if (!value || value->type == Roo::Value::Type::NIL)
     {
       return result;
     }
-    if (value->type != Lisple::Value::Type::VECTOR)
+    if (value->type != Roo::Value::Type::VECTOR)
     {
-      throw Lisple::TypeError(":" + key + " must be a vector");
+      throw Roo::TypeError(":" + key + " must be a vector");
     }
     for (const auto& entry : value->elements())
     {
@@ -298,36 +298,36 @@ namespace
     return result;
   }
 
-  int optional_int_property(const Lisple::sptr_val& map,
+  int optional_int_property(const Roo::sptr_val& map,
                             const std::string& key,
                             int fallback)
   {
-    auto value = Lisple::Dict::get_property(map, Lisple::keyword(key));
-    if (!value || value->type == Lisple::Value::Type::NIL)
+    auto value = Roo::Dict::get_property(map, Roo::keyword(key));
+    if (!value || value->type == Roo::Value::Type::NIL)
     {
       return fallback;
     }
-    if (value->type != Lisple::Value::Type::NUMBER)
+    if (value->type != Roo::Value::Type::NUMBER)
     {
-      throw Lisple::TypeError(":" + key + " must be a number");
+      throw Roo::TypeError(":" + key + " must be a number");
     }
     return value->num().get_int();
   }
 
-  int required_int(const Lisple::sptr_val& value, const std::string& label)
+  int required_int(const Roo::sptr_val& value, const std::string& label)
   {
-    if (!value || value->type == Lisple::Value::Type::NIL)
+    if (!value || value->type == Roo::Value::Type::NIL)
     {
-      throw Lisple::InvocationException(label + " is required");
+      throw Roo::InvocationException(label + " is required");
     }
-    if (value->type != Lisple::Value::Type::NUMBER)
+    if (value->type != Roo::Value::Type::NUMBER)
     {
-      throw Lisple::TypeError(label + " must be a number");
+      throw Roo::TypeError(label + " must be a number");
     }
     return value->num().get_int();
   }
 
-  std::string normalize_input_name(const Lisple::sptr_val& value, const std::string& label)
+  std::string normalize_input_name(const Roo::sptr_val& value, const std::string& label)
   {
     auto name = value_name(value, label);
     if (!name.empty() && name[0] == ':') name = name.substr(1);
@@ -336,16 +336,16 @@ namespace
     return name;
   }
 
-  Uint8 mouse_button_value(const Lisple::sptr_val& value)
+  Uint8 mouse_button_value(const Roo::sptr_val& value)
   {
     auto name = normalize_input_name(value, "button");
     if (name == "left") return SDL_BUTTON_LEFT;
     if (name == "right") return SDL_BUTTON_RIGHT;
     if (name == "middle") return SDL_BUTTON_MIDDLE;
-    throw Lisple::InvocationException("unsupported mouse button: " + name);
+    throw Roo::InvocationException("unsupported mouse button: " + name);
   }
 
-  SDL_Keycode keycode_value(const Lisple::sptr_val& value)
+  SDL_Keycode keycode_value(const Roo::sptr_val& value)
   {
     auto name = normalize_input_name(value, "key");
     auto it = Pixils::Keyboard::SYMBOL_TO_KEYCODE.find(name);
@@ -359,20 +359,20 @@ namespace
       if (it != Pixils::Keyboard::SYMBOL_TO_KEYCODE.end()) return it->second;
     }
 
-    throw Lisple::InvocationException("unsupported key: " + name);
+    throw Roo::InvocationException("unsupported key: " + name);
   }
 
-  AppTarget package_target(const Lisple::sptr_val& opts)
+  AppTarget package_target(const Roo::sptr_val& opts)
   {
     auto package_root_value =
-      Lisple::Dict::get_property(opts, Lisple::keyword("package-root"));
+      Roo::Dict::get_property(opts, Roo::keyword("package-root"));
     auto root =
       std::filesystem::canonical(required_string(package_root_value, ":package-root"));
 
-    Lisple::DirRootFileSystem manifest_fs("/");
+    Roo::DirRootFileSystem manifest_fs("/");
     auto manifest =
-      Lisple::Package::read_manifest(manifest_fs, (root / "package.edn").string());
-    auto plan = Lisple::Package::resolve_load_plan(manifest_fs, root.string());
+      Roo::Package::read_manifest(manifest_fs, (root / "package.edn").string());
+    auto plan = Roo::Package::resolve_load_plan(manifest_fs, root.string());
 
     auto asset_base_path = root;
     if (auto explicit_asset_base = optional_string_property(opts, "asset-base-path"))
@@ -394,7 +394,7 @@ namespace
       .root = root,
       .asset_base_path = asset_base_path,
       .load_path =
-        Lisple::Package::merge_load_paths(plan,
+        Roo::Package::merge_load_paths(plan,
                                           {std::filesystem::current_path().string(), "/"}),
       .namespace_roots = plan.namespace_roots,
       .entry_points = entry_points,
@@ -403,14 +403,14 @@ namespace
     };
   }
 
-  TestApp& app_from(const Lisple::sptr_val& value)
+  TestApp& app_from(const Roo::sptr_val& value)
   {
-    return Lisple::obj<TestApp>(*value);
+    return Roo::obj<TestApp>(*value);
   }
 
-  Pixils::Runtime::View& view_from(const Lisple::sptr_val& value)
+  Pixils::Runtime::View& view_from(const Roo::sptr_val& value)
   {
-    return Lisple::obj<Pixils::Runtime::View>(*value);
+    return Roo::obj<Pixils::Runtime::View>(*value);
   }
 
   std::shared_ptr<Pixils::Runtime::View> find_descendant(
@@ -536,7 +536,7 @@ namespace
     FUNC(KeyUpBangFunction, key_up);
 
     FUNC_IMPL(MakeAppFunction,
-              SIG((FN_ARGS((&Lisple::Type::MAP)),
+              SIG((FN_ARGS((&Roo::Type::MAP)),
                    EXEC_DISPATCH(&MakeAppFunction::exec_make_app))));
     EXEC_BODY(MakeAppFunction, exec_make_app)
     {
@@ -544,7 +544,7 @@ namespace
     }
 
     FUNC_IMPL(EvalBangFunction,
-              SIG((FN_ARGS((&HostType::TEST_APP), (&Lisple::Type::STRING)),
+              SIG((FN_ARGS((&HostType::TEST_APP), (&Roo::Type::STRING)),
                    EXEC_DISPATCH(&EvalBangFunction::exec_eval_bang))));
     EXEC_BODY(EvalBangFunction, exec_eval_bang)
     {
@@ -553,26 +553,26 @@ namespace
 
     FUNC_IMPL(
       PushModeBangFunction,
-      MULTI_SIG((FN_ARGS((&HostType::TEST_APP), (&Lisple::Type::ANY)),
+      MULTI_SIG((FN_ARGS((&HostType::TEST_APP), (&Roo::Type::ANY)),
                  EXEC_DISPATCH(&PushModeBangFunction::exec_push_mode)),
-                (FN_ARGS((&HostType::TEST_APP), (&Lisple::Type::ANY), (&Lisple::Type::ANY)),
+                (FN_ARGS((&HostType::TEST_APP), (&Roo::Type::ANY), (&Roo::Type::ANY)),
                  EXEC_DISPATCH(&PushModeBangFunction::exec_push_mode)),
                 (FN_ARGS((&HostType::TEST_APP),
-                         (&Lisple::Type::ANY),
-                         (&Lisple::Type::ANY),
-                         (&Lisple::Type::ANY)),
+                         (&Roo::Type::ANY),
+                         (&Roo::Type::ANY),
+                         (&Roo::Type::ANY)),
                  EXEC_DISPATCH(&PushModeBangFunction::exec_push_mode))));
     EXEC_BODY(PushModeBangFunction, exec_push_mode)
     {
       auto& app = app_from(args[0]);
-      auto state = args.size() > 2 ? args[2] : Lisple::Constant::NIL;
-      auto overrides = args.size() > 3 ? args[3] : Lisple::Constant::NIL;
+      auto state = args.size() > 2 ? args[2] : Roo::Constant::NIL;
+      auto overrides = args.size() > 3 ? args[3] : Roo::Constant::NIL;
       app.session->push_mode(mode_name(args[1]), state, overrides);
       return args[0];
     }
 
     FUNC_IMPL(PopModeBangFunction,
-              SIG((FN_ARGS((&HostType::TEST_APP), (&Lisple::Type::ANY)),
+              SIG((FN_ARGS((&HostType::TEST_APP), (&Roo::Type::ANY)),
                    EXEC_DISPATCH(&PopModeBangFunction::exec_pop_mode))));
     EXEC_BODY(PopModeBangFunction, exec_pop_mode)
     {
@@ -613,7 +613,7 @@ namespace
     EXEC_BODY(ActiveModeFunction, exec_active_mode)
     {
       auto& app = app_from(args[0]);
-      if (!app.session->active_mode) return Lisple::Constant::NIL;
+      if (!app.session->active_mode) return Roo::Constant::NIL;
       return Pixils::Script::ViewAdapter::make_ref(*app.session->active_mode);
     }
 
@@ -625,9 +625,9 @@ namespace
       auto& app = app_from(args[0]);
       if (!app.session->active_mode || !app.session->active_mode->mode)
       {
-        return Lisple::Constant::NIL;
+        return Roo::Constant::NIL;
       }
-      return Lisple::string(app.session->active_mode->mode->name);
+      return Roo::string(app.session->active_mode->mode->name);
     }
 
     FUNC_IMPL(ActiveStateFunction,
@@ -636,19 +636,19 @@ namespace
     EXEC_BODY(ActiveStateFunction, exec_active_state)
     {
       auto& app = app_from(args[0]);
-      if (!app.session->active_mode) return Lisple::Constant::NIL;
+      if (!app.session->active_mode) return Roo::Constant::NIL;
       return app.session->active_mode->state;
     }
 
     FUNC_IMPL(SetActiveStateBangFunction,
-              SIG((FN_ARGS((&HostType::TEST_APP), (&Lisple::Type::ANY)),
+              SIG((FN_ARGS((&HostType::TEST_APP), (&Roo::Type::ANY)),
                    EXEC_DISPATCH(&SetActiveStateBangFunction::exec_set_active_state))));
     EXEC_BODY(SetActiveStateBangFunction, exec_set_active_state)
     {
       auto& app = app_from(args[0]);
       if (!app.session->active_mode)
       {
-        throw Lisple::InvocationException(
+        throw Roo::InvocationException(
           "pixils.test.runtime/set-active-state! has no active mode");
       }
       app.session->active_mode->state = args[1];
@@ -661,8 +661,8 @@ namespace
     EXEC_BODY(ViewModeNameFunction, exec_view_mode_name)
     {
       auto& view = view_from(args[0]);
-      if (!view.mode) return Lisple::Constant::NIL;
-      return Lisple::string(view.mode->name);
+      if (!view.mode) return Roo::Constant::NIL;
+      return Roo::string(view.mode->name);
     }
 
     FUNC_IMPL(ViewStateFunction,
@@ -674,11 +674,11 @@ namespace
     }
 
     FUNC_IMPL(FindViewFunction,
-              MULTI_SIG((FN_ARGS((&HostType::TEST_APP), (&Lisple::Type::STRING)),
+              MULTI_SIG((FN_ARGS((&HostType::TEST_APP), (&Roo::Type::STRING)),
                          EXEC_DISPATCH(&FindViewFunction::exec_find_view)),
                         (FN_ARGS((&HostType::TEST_APP),
-                                 (&Lisple::Type::STRING),
-                                 (&Lisple::Type::STRING)),
+                                 (&Roo::Type::STRING),
+                                 (&Roo::Type::STRING)),
                          EXEC_DISPATCH(&FindViewFunction::exec_find_view))));
     EXEC_BODY(FindViewFunction, exec_find_view)
     {
@@ -686,16 +686,16 @@ namespace
       const auto state_text =
         args.size() > 2 ? std::optional<std::string>(args[2]->str()) : std::nullopt;
       auto found = find_descendant(app.session->active_mode, args[1]->str(), state_text);
-      if (!found) return Lisple::Constant::NIL;
+      if (!found) return Roo::Constant::NIL;
       return Pixils::Script::ViewAdapter::make_ref(*found);
     }
 
     FUNC_IMPL(FindViewsFunction,
-              MULTI_SIG((FN_ARGS((&HostType::TEST_APP), (&Lisple::Type::STRING)),
+              MULTI_SIG((FN_ARGS((&HostType::TEST_APP), (&Roo::Type::STRING)),
                          EXEC_DISPATCH(&FindViewsFunction::exec_find_views)),
                         (FN_ARGS((&HostType::TEST_APP),
-                                 (&Lisple::Type::STRING),
-                                 (&Lisple::Type::STRING)),
+                                 (&Roo::Type::STRING),
+                                 (&Roo::Type::STRING)),
                          EXEC_DISPATCH(&FindViewsFunction::exec_find_views))));
     EXEC_BODY(FindViewsFunction, exec_find_views)
     {
@@ -705,12 +705,12 @@ namespace
       std::vector<std::shared_ptr<Pixils::Runtime::View>> views;
       collect_descendants(app.session->active_mode, args[1]->str(), state_text, views);
 
-      Lisple::sptr_val_v result;
+      Roo::sptr_val_v result;
       for (const auto& view : views)
       {
         result.push_back(Pixils::Script::ViewAdapter::make_ref(*view));
       }
-      return Lisple::vector(result);
+      return Roo::vector(result);
     }
 
     FUNC_IMPL(ClickBangFunction,
@@ -731,8 +731,8 @@ namespace
 
     FUNC_IMPL(MouseMoveAtBangFunction,
               SIG((FN_ARGS((&HostType::TEST_APP),
-                           (&Lisple::Type::NUMBER),
-                           (&Lisple::Type::NUMBER)),
+                           (&Roo::Type::NUMBER),
+                           (&Roo::Type::NUMBER)),
                    EXEC_DISPATCH(&MouseMoveAtBangFunction::exec_mouse_move_at))));
     EXEC_BODY(MouseMoveAtBangFunction, exec_mouse_move_at)
     {
@@ -743,13 +743,13 @@ namespace
 
     FUNC_IMPL(MouseDownAtBangFunction,
               MULTI_SIG((FN_ARGS((&HostType::TEST_APP),
-                                 (&Lisple::Type::NUMBER),
-                                 (&Lisple::Type::NUMBER)),
+                                 (&Roo::Type::NUMBER),
+                                 (&Roo::Type::NUMBER)),
                          EXEC_DISPATCH(&MouseDownAtBangFunction::exec_mouse_down_at)),
                         (FN_ARGS((&HostType::TEST_APP),
-                                 (&Lisple::Type::NUMBER),
-                                 (&Lisple::Type::NUMBER),
-                                 (&Lisple::Type::ANY)),
+                                 (&Roo::Type::NUMBER),
+                                 (&Roo::Type::NUMBER),
+                                 (&Roo::Type::ANY)),
                          EXEC_DISPATCH(&MouseDownAtBangFunction::exec_mouse_down_at))));
     EXEC_BODY(MouseDownAtBangFunction, exec_mouse_down_at)
     {
@@ -761,13 +761,13 @@ namespace
 
     FUNC_IMPL(MouseUpAtBangFunction,
               MULTI_SIG((FN_ARGS((&HostType::TEST_APP),
-                                 (&Lisple::Type::NUMBER),
-                                 (&Lisple::Type::NUMBER)),
+                                 (&Roo::Type::NUMBER),
+                                 (&Roo::Type::NUMBER)),
                          EXEC_DISPATCH(&MouseUpAtBangFunction::exec_mouse_up_at)),
                         (FN_ARGS((&HostType::TEST_APP),
-                                 (&Lisple::Type::NUMBER),
-                                 (&Lisple::Type::NUMBER),
-                                 (&Lisple::Type::ANY)),
+                                 (&Roo::Type::NUMBER),
+                                 (&Roo::Type::NUMBER),
+                                 (&Roo::Type::ANY)),
                          EXEC_DISPATCH(&MouseUpAtBangFunction::exec_mouse_up_at))));
     EXEC_BODY(MouseUpAtBangFunction, exec_mouse_up_at)
     {
@@ -779,13 +779,13 @@ namespace
 
     FUNC_IMPL(MouseClickAtBangFunction,
               MULTI_SIG((FN_ARGS((&HostType::TEST_APP),
-                                 (&Lisple::Type::NUMBER),
-                                 (&Lisple::Type::NUMBER)),
+                                 (&Roo::Type::NUMBER),
+                                 (&Roo::Type::NUMBER)),
                          EXEC_DISPATCH(&MouseClickAtBangFunction::exec_mouse_click_at)),
                         (FN_ARGS((&HostType::TEST_APP),
-                                 (&Lisple::Type::NUMBER),
-                                 (&Lisple::Type::NUMBER),
-                                 (&Lisple::Type::ANY)),
+                                 (&Roo::Type::NUMBER),
+                                 (&Roo::Type::NUMBER),
+                                 (&Roo::Type::ANY)),
                          EXEC_DISPATCH(&MouseClickAtBangFunction::exec_mouse_click_at))));
     EXEC_BODY(MouseClickAtBangFunction, exec_mouse_click_at)
     {
@@ -803,8 +803,8 @@ namespace
     FUNC_IMPL(MouseMoveInBangFunction,
               SIG((FN_ARGS((&HostType::TEST_APP),
                            (&Pixils::Script::HostType::VIEW),
-                           (&Lisple::Type::NUMBER),
-                           (&Lisple::Type::NUMBER)),
+                           (&Roo::Type::NUMBER),
+                           (&Roo::Type::NUMBER)),
                    EXEC_DISPATCH(&MouseMoveInBangFunction::exec_mouse_move_in))));
     EXEC_BODY(MouseMoveInBangFunction, exec_mouse_move_in)
     {
@@ -819,14 +819,14 @@ namespace
     FUNC_IMPL(MouseDownInBangFunction,
               MULTI_SIG((FN_ARGS((&HostType::TEST_APP),
                                  (&Pixils::Script::HostType::VIEW),
-                                 (&Lisple::Type::NUMBER),
-                                 (&Lisple::Type::NUMBER)),
+                                 (&Roo::Type::NUMBER),
+                                 (&Roo::Type::NUMBER)),
                          EXEC_DISPATCH(&MouseDownInBangFunction::exec_mouse_down_in)),
                         (FN_ARGS((&HostType::TEST_APP),
                                  (&Pixils::Script::HostType::VIEW),
-                                 (&Lisple::Type::NUMBER),
-                                 (&Lisple::Type::NUMBER),
-                                 (&Lisple::Type::ANY)),
+                                 (&Roo::Type::NUMBER),
+                                 (&Roo::Type::NUMBER),
+                                 (&Roo::Type::ANY)),
                          EXEC_DISPATCH(&MouseDownInBangFunction::exec_mouse_down_in))));
     EXEC_BODY(MouseDownInBangFunction, exec_mouse_down_in)
     {
@@ -843,14 +843,14 @@ namespace
     FUNC_IMPL(MouseUpInBangFunction,
               MULTI_SIG((FN_ARGS((&HostType::TEST_APP),
                                  (&Pixils::Script::HostType::VIEW),
-                                 (&Lisple::Type::NUMBER),
-                                 (&Lisple::Type::NUMBER)),
+                                 (&Roo::Type::NUMBER),
+                                 (&Roo::Type::NUMBER)),
                          EXEC_DISPATCH(&MouseUpInBangFunction::exec_mouse_up_in)),
                         (FN_ARGS((&HostType::TEST_APP),
                                  (&Pixils::Script::HostType::VIEW),
-                                 (&Lisple::Type::NUMBER),
-                                 (&Lisple::Type::NUMBER),
-                                 (&Lisple::Type::ANY)),
+                                 (&Roo::Type::NUMBER),
+                                 (&Roo::Type::NUMBER),
+                                 (&Roo::Type::ANY)),
                          EXEC_DISPATCH(&MouseUpInBangFunction::exec_mouse_up_in))));
     EXEC_BODY(MouseUpInBangFunction, exec_mouse_up_in)
     {
@@ -867,14 +867,14 @@ namespace
     FUNC_IMPL(MouseClickInBangFunction,
               MULTI_SIG((FN_ARGS((&HostType::TEST_APP),
                                  (&Pixils::Script::HostType::VIEW),
-                                 (&Lisple::Type::NUMBER),
-                                 (&Lisple::Type::NUMBER)),
+                                 (&Roo::Type::NUMBER),
+                                 (&Roo::Type::NUMBER)),
                          EXEC_DISPATCH(&MouseClickInBangFunction::exec_mouse_click_in)),
                         (FN_ARGS((&HostType::TEST_APP),
                                  (&Pixils::Script::HostType::VIEW),
-                                 (&Lisple::Type::NUMBER),
-                                 (&Lisple::Type::NUMBER),
-                                 (&Lisple::Type::ANY)),
+                                 (&Roo::Type::NUMBER),
+                                 (&Roo::Type::NUMBER),
+                                 (&Roo::Type::ANY)),
                          EXEC_DISPATCH(&MouseClickInBangFunction::exec_mouse_click_in))));
     EXEC_BODY(MouseClickInBangFunction, exec_mouse_click_in)
     {
@@ -891,7 +891,7 @@ namespace
     }
 
     FUNC_IMPL(KeyDownBangFunction,
-              SIG((FN_ARGS((&HostType::TEST_APP), (&Lisple::Type::ANY)),
+              SIG((FN_ARGS((&HostType::TEST_APP), (&Roo::Type::ANY)),
                    EXEC_DISPATCH(&KeyDownBangFunction::exec_key_down))));
     EXEC_BODY(KeyDownBangFunction, exec_key_down)
     {
@@ -900,7 +900,7 @@ namespace
     }
 
     FUNC_IMPL(KeyUpBangFunction,
-              SIG((FN_ARGS((&HostType::TEST_APP), (&Lisple::Type::ANY)),
+              SIG((FN_ARGS((&HostType::TEST_APP), (&Roo::Type::ANY)),
                    EXEC_DISPATCH(&KeyUpBangFunction::exec_key_up))));
     EXEC_BODY(KeyUpBangFunction, exec_key_up)
     {
@@ -909,11 +909,11 @@ namespace
     }
   } // namespace Function
 
-  class RuntimeNativeNamespace : public Lisple::Namespace
+  class RuntimeNativeNamespace : public Roo::Namespace
   {
    public:
     RuntimeNativeNamespace()
-      : Lisple::Namespace("pixils.test.runtime.native")
+      : Roo::Namespace("pixils.test.runtime.native")
     {
       values.emplace("make-app", Function::MakeAppFunction::make());
       values.emplace("eval!", Function::EvalBangFunction::make());
@@ -944,12 +944,12 @@ namespace
     }
   };
 
-  int load_native_package(const LispleNativeHostV1* host)
+  int load_native_package(const RooNativeHostV1* host)
   {
     try
     {
       auto ns = std::make_unique<RuntimeNativeNamespace>();
-      ns->set_origin(Lisple::Namespace::Origin::native());
+      ns->set_origin(Roo::Namespace::Origin::native());
       if (host->register_namespace(host->user, ns.release()) != 0)
       {
         return 1;
@@ -974,14 +974,14 @@ namespace
   }
 } // namespace
 
-extern "C" LISPLE_NATIVE_EXPORT const LispleNativePackageV1* lisple_native_package_v1()
+extern "C" ROO_NATIVE_EXPORT const RooNativePackageV1* roo_native_package_v1()
 {
-  static const LispleNativePackageV1 package{
-    LISPLE_NATIVE_ABI_VERSION,
-    sizeof(LispleNativePackageV1),
+  static const RooNativePackageV1 package{
+    ROO_NATIVE_ABI_VERSION,
+    sizeof(RooNativePackageV1),
     "pixils-test-native",
     "0.1.0",
-    LISPLE_NATIVE_CXX_ABI,
+    ROO_NATIVE_CXX_ABI,
     load_native_package,
     unload_native_package,
     last_error,

@@ -4,8 +4,8 @@
 
 #include <pixils/binding/shkey.h>
 
-#include <lisple/exec.h>
-#include <lisple/namespace.h>
+#include <roo/exec.h>
+#include <roo/namespace.h>
 
 namespace Pixils::Script
 {
@@ -92,7 +92,7 @@ namespace Pixils::Script
     SPECIAL_FORM_DECL(WithClipRectForm, with_clip_rect);
   } // namespace Function
 
-  class RenderNamespace : public Lisple::Namespace
+  class RenderNamespace : public Roo::Namespace
   {
    public:
     RenderNamespace();

@@ -8,22 +8,22 @@ if(NOT DEFINED PIXILS_LISP_H)
   message(FATAL_ERROR "PIXILS_LISP_H is required")
 endif()
 
-file(GLOB_RECURSE PIXILS_LISP_FILES RELATIVE "${PIXILS_LISP_ROOT}" "${PIXILS_LISP_ROOT}/*.lisple")
+file(GLOB_RECURSE PIXILS_LISP_FILES RELATIVE "${PIXILS_LISP_ROOT}" "${PIXILS_LISP_ROOT}/*.roo")
 list(SORT PIXILS_LISP_FILES)
 
 set(PIXILS_BOOTSTRAP_LISP_FILES
-  ui/theme-assets.lisple
-  ui/base-theme.lisple
-  ui/button.lisple
-  ui/window.lisple
-  ui/dialog.lisple
-  ui/scrollbar.lisple
-  ui/scroll-pane.lisple
-  ui/list-box.lisple
-  ui/combo-box.lisple
-  ui/text-input.lisple
-  ui/number-input.lisple
-  ui/file-dialog.lisple
+  ui/theme-assets.roo
+  ui/base-theme.roo
+  ui/button.roo
+  ui/window.roo
+  ui/dialog.roo
+  ui/scrollbar.roo
+  ui/scroll-pane.roo
+  ui/list-box.roo
+  ui/combo-box.roo
+  ui/text-input.roo
+  ui/number-input.roo
+  ui/file-dialog.roo
 )
 
 foreach(bootstrap_file IN LISTS PIXILS_BOOTSTRAP_LISP_FILES)

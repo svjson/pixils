@@ -4,13 +4,13 @@
 
 #include <pixils/geom.h>
 
-#include <lisple/runtime/value.h>
+#include <roo/runtime/value.h>
 
 namespace Pixils
 {
   /**
    * Base event type. Owns the propagation lifecycle - the C++ orchestration
-   * code creates the event, passes it to hooks via a Lisple reference, and
+   * code creates the event, passes it to hooks via a Roo reference, and
    * reads propagation_stopped after each hook returns to decide whether to
    * continue bubbling up the component tree.
    */
@@ -22,13 +22,13 @@ namespace Pixils
 
   struct CustomEvent : public Event
   {
-    Lisple::sptr_val event_key;
-    Lisple::sptr_val source_mode = Lisple::Constant::NIL;
-    Lisple::sptr_val payload;
+    Roo::sptr_val event_key;
+    Roo::sptr_val source_mode = Roo::Constant::NIL;
+    Roo::sptr_val payload;
 
-    CustomEvent(const Lisple::sptr_val& event_key,
-                const Lisple::sptr_val& payload,
-                const Lisple::sptr_val& source_mode = Lisple::Constant::NIL);
+    CustomEvent(const Roo::sptr_val& event_key,
+                const Roo::sptr_val& payload,
+                const Roo::sptr_val& source_mode = Roo::Constant::NIL);
   };
 
   /**
@@ -44,11 +44,11 @@ namespace Pixils
 
   /**
    * Mouse button event. Extends MouseEvent with the button that was
-   * pressed or released, as a Lisple keyword (:left, :right, :middle).
+   * pressed or released, as a Roo keyword (:left, :right, :middle).
    */
   struct MouseButtonEvent : MouseEvent
   {
-    Lisple::sptr_val button = Lisple::Constant::NIL;
+    Roo::sptr_val button = Roo::Constant::NIL;
     uint8_t click_count = 1;
   };
 
@@ -64,13 +64,13 @@ namespace Pixils
     Point start_local_pos;
     Point delta;
     Point total_delta;
-    Lisple::sptr_val payload = Lisple::Constant::NIL;
+    Roo::sptr_val payload = Roo::Constant::NIL;
   };
 
   /**
    * Keyboard event delivered to the focused view chain, or to the root view
    * when nothing is focused. For key down/up hooks, `key` carries the
-   * translated Lisple key keyword, such as :key/space or :key/left.
+   * translated Roo key keyword, such as :key/space or :key/left.
    *
    * For key-held hooks, `held_keys` carries the full set of currently held
    * keys for the frame, and `match` carries the declarative held-key spec
@@ -78,9 +78,9 @@ namespace Pixils
    */
   struct KeyboardEvent : Event
   {
-    Lisple::sptr_val key = Lisple::Constant::NIL;
-    Lisple::sptr_val held_keys = Lisple::Constant::NIL;
-    Lisple::sptr_val match = Lisple::Constant::NIL;
+    Roo::sptr_val key = Roo::Constant::NIL;
+    Roo::sptr_val held_keys = Roo::Constant::NIL;
+    Roo::sptr_val match = Roo::Constant::NIL;
   };
 
 } // namespace Pixils

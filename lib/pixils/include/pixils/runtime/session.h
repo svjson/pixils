@@ -33,15 +33,15 @@ namespace Pixils::Runtime
     struct ModeFrameMetadata
     {
       View* origin_view = nullptr;
-      Lisple::sptr_val origin_event = Lisple::Constant::NIL;
+      Roo::sptr_val origin_event = Roo::Constant::NIL;
       UI::FocusState restore_focus;
     };
 
-    Lisple::Runtime& lisple_runtime;
+    Roo::Runtime& roo_runtime;
     Asset::Registry& assets;
     RenderContext& render_ctx;
     ModeStack mode_stack;
-    Lisple::sptr_val modes;
+    Roo::sptr_val modes;
     std::shared_ptr<View> active_mode;
     std::vector<std::shared_ptr<View>> ctx_stack;
     std::vector<ModeFrameMetadata> frame_metadata;
@@ -53,18 +53,18 @@ namespace Pixils::Runtime
     std::optional<std::string> application_theme_variant = std::nullopt;
     std::optional<UI::Theme> resolved_application_theme = std::nullopt;
 
-    Session(Lisple::Runtime& lisple_runtime,
+    Session(Roo::Runtime& roo_runtime,
             Asset::Registry& assets,
             RenderContext& render_ctx,
             const HookArguments& hook_args);
 
-    void pop_mode(const Lisple::sptr_val& payload = Lisple::Constant::NIL);
-    void push_mode(const Lisple::sptr_val& mode,
-                   const Lisple::sptr_val& state,
-                   const Lisple::sptr_val& overrides = Lisple::Constant::NIL);
+    void pop_mode(const Roo::sptr_val& payload = Roo::Constant::NIL);
+    void push_mode(const Roo::sptr_val& mode,
+                   const Roo::sptr_val& state,
+                   const Roo::sptr_val& overrides = Roo::Constant::NIL);
     void push_mode(const std::string& mode_name,
-                   const Lisple::sptr_val& state,
-                   const Lisple::sptr_val& overrides = Lisple::Constant::NIL);
+                   const Roo::sptr_val& state,
+                   const Roo::sptr_val& overrides = Roo::Constant::NIL);
     void set_application_theme(const std::optional<std::vector<std::string>>& theme,
                                const std::optional<std::string>& variant = std::nullopt);
     void process_messages();

@@ -8,36 +8,36 @@
 #include <pixils/binding/ui/style/style_host_type.h>
 
 #include <algorithm>
-#include <lisple/host/accessor.h>
-#include <lisple/runtime/value.h>
+#include <roo/host/accessor.h>
+#include <roo/runtime/value.h>
 
 namespace Pixils::Script
 {
   namespace
   {
-    Lisple::sptr_val background_fit_to_value(
+    Roo::sptr_val background_fit_to_value(
       const std::optional<UI::Style::Background::Fit>& fit)
     {
-      if (!fit) return Lisple::Constant::NIL;
+      if (!fit) return Roo::Constant::NIL;
       switch (*fit)
       {
       case UI::Style::Background::Fit::NONE:
-        return Lisple::keyword("none");
+        return Roo::keyword("none");
       case UI::Style::Background::Fit::CONTAIN:
-        return Lisple::keyword("contain");
+        return Roo::keyword("contain");
       case UI::Style::Background::Fit::COVER:
-        return Lisple::keyword("cover");
+        return Roo::keyword("cover");
       case UI::Style::Background::Fit::FILL:
-        return Lisple::keyword("fill");
+        return Roo::keyword("fill");
       }
-      return Lisple::Constant::NIL;
+      return Roo::Constant::NIL;
     }
 
-    Lisple::sptr_val background_align_to_value(
+    Roo::sptr_val background_align_to_value(
       const std::optional<UI::Style::Background::Align>& align_x,
       const std::optional<UI::Style::Background::Align>& align_y)
     {
-      if (!align_x && !align_y) return Lisple::Constant::NIL;
+      if (!align_x && !align_y) return Roo::Constant::NIL;
 
       auto align_name = [](UI::Style::Background::Align align)
       {
@@ -53,11 +53,11 @@ namespace Pixils::Script
         return "start";
       };
 
-      return Lisple::map(
-        {Lisple::keyword("x"),
-         Lisple::keyword(align_name(align_x.value_or(UI::Style::Background::Align::START))),
-         Lisple::keyword("y"),
-         Lisple::keyword(
+      return Roo::map(
+        {Roo::keyword("x"),
+         Roo::keyword(align_name(align_x.value_or(UI::Style::Background::Align::START))),
+         Roo::keyword("y"),
+         Roo::keyword(
            align_name(align_y.value_or(UI::Style::Background::Align::START)))});
     }
 
@@ -93,7 +93,7 @@ namespace Pixils::Script
   {
     if (!get_self_object().background)
     {
-      return Lisple::Constant::NIL;
+      return Roo::Constant::NIL;
     }
 
     const auto& background = *get_self_object().background;
@@ -111,28 +111,28 @@ namespace Pixils::Script
     }
     if (background.image)
     {
-      return Lisple::keyword(background.image->first + "/" + background.image->second);
+      return Roo::keyword(background.image->first + "/" + background.image->second);
     }
-    return Lisple::Constant::NIL;
+    return Roo::Constant::NIL;
   }
 
   NOBJ_PROP_GET(StyleAdapter, margin)
   {
     return get_self_object().margin ? InsetsAdapter::make_ref(*get_self_object().margin)
-                                    : Lisple::Constant::NIL;
+                                    : Roo::Constant::NIL;
   }
 
   NOBJ_PROP_GET(StyleAdapter, border)
   {
     auto& style = get_self_object();
-    if (!style.border) return Lisple::Constant::NIL;
+    if (!style.border) return Roo::Constant::NIL;
     return BorderStyleAdapter::make_ref(*style.border);
   }
 
   NOBJ_PROP_GET(StyleAdapter, padding)
   {
     return get_self_object().padding ? InsetsAdapter::make_ref(*get_self_object().padding)
-                                     : Lisple::Constant::NIL;
+                                     : Roo::Constant::NIL;
   }
 
   NOBJ_PROP_GET(StyleAdapter, corner_radius)
@@ -143,7 +143,7 @@ namespace Pixils::Script
   NOBJ_PROP_GET(StyleAdapter, text)
   {
     return get_self_object().text ? StyleTextAdapter::make_ref(*get_self_object().text)
-                                  : Lisple::Constant::NIL;
+                                  : Roo::Constant::NIL;
   }
 
   NOBJ_PROP_GET(StyleAdapter, box_sizing)
@@ -158,19 +158,19 @@ namespace Pixils::Script
 
   NOBJ_PROP_GET(StyleAdapter, opacity)
   {
-    return get_self_object().opacity ? Lisple::number(*get_self_object().opacity)
-                                     : Lisple::Constant::NIL;
+    return get_self_object().opacity ? Roo::number(*get_self_object().opacity)
+                                     : Roo::Constant::NIL;
   }
 
   NOBJ_PROP_SET(StyleAdapter, opacity)
   {
-    if (!value || value->type == Lisple::Value::Type::NIL)
+    if (!value || value->type == Roo::Value::Type::NIL)
     {
       get_self_object().opacity = std::nullopt;
       return;
     }
-    if (value->type != Lisple::Value::Type::NUMBER)
-      throw Lisple::TypeError("Style :opacity must be a number");
+    if (value->type != Roo::Value::Type::NUMBER)
+      throw Roo::TypeError("Style :opacity must be a number");
     get_self_object().opacity = std::clamp(value->f32(), 0.0f, 1.0f);
   }
 
@@ -232,7 +232,7 @@ namespace Pixils::Script
   NOBJ_PROP_GET(StyleAdapter, layout)
   {
     return get_self_object().layout ? LayoutAdapter::make_ref(*get_self_object().layout)
-                                    : Lisple::Constant::NIL;
+                                    : Roo::Constant::NIL;
   }
 
   NOBJ_PROP_GET(StyleAdapter, visibility)
@@ -278,20 +278,20 @@ namespace Pixils::Script
   NOBJ_PROP_GET(StyleAdapter, hover)
   {
     return get_self_object().hover ? StyleAdapter::make_ref(*get_self_object().hover)
-                                   : Lisple::Constant::NIL;
+                                   : Roo::Constant::NIL;
   }
 
   NOBJ_PROP_GET(StyleAdapter, focus_within)
   {
     return get_self_object().focus_within
              ? StyleAdapter::make_ref(*get_self_object().focus_within)
-             : Lisple::Constant::NIL;
+             : Roo::Constant::NIL;
   }
 
   NOBJ_PROP_GET(StyleAdapter, focus)
   {
     return get_self_object().focus ? StyleAdapter::make_ref(*get_self_object().focus)
-                                   : Lisple::Constant::NIL;
+                                   : Roo::Constant::NIL;
   }
 
   NATIVE_ADAPTER_IMPL(LayoutAdapter,
@@ -314,7 +314,7 @@ namespace Pixils::Script
   NOBJ_PROP_GET(LayoutAdapter, gap)
   {
     return get_self_object().gap ? LayoutGapAdapter::make_ref(*get_self_object().gap)
-                                 : Lisple::Constant::NIL;
+                                 : Roo::Constant::NIL;
   }
 
   NATIVE_ADAPTER_IMPL(LayoutGapAdapter,
@@ -349,14 +349,14 @@ namespace Pixils::Script
 
   NOBJ_PROP_GET(StyleTextAdapter, font)
   {
-    return get_self_object().font ? Lisple::keyword(*get_self_object().font)
-                                  : Lisple::Constant::NIL;
+    return get_self_object().font ? Roo::keyword(*get_self_object().font)
+                                  : Roo::Constant::NIL;
   }
 
   NOBJ_PROP_GET(StyleTextAdapter, scale)
   {
-    return get_self_object().scale ? Lisple::number(*get_self_object().scale)
-                                   : Lisple::Constant::NIL;
+    return get_self_object().scale ? Roo::number(*get_self_object().scale)
+                                   : Roo::Constant::NIL;
   }
 
   NOBJ_PROP_GET(StyleTextAdapter, align)
@@ -385,21 +385,21 @@ namespace Pixils::Script
 
   NOBJ_PROP_GET(BackgroundAdapter, image)
   {
-    return get_self_object().image ? Lisple::keyword(get_self_object().image->first + "/" +
+    return get_self_object().image ? Roo::keyword(get_self_object().image->first + "/" +
                                                      get_self_object().image->second)
-                                   : Lisple::Constant::NIL;
+                                   : Roo::Constant::NIL;
   }
 
   NOBJ_PROP_GET(BackgroundAdapter, color)
   {
     return get_self_object().color ? ColorAdapter::make_ref(*get_self_object().color)
-                                   : Lisple::Constant::NIL;
+                                   : Roo::Constant::NIL;
   }
 
   NOBJ_PROP_GET(BackgroundAdapter, source)
   {
     return get_self_object().source ? RectAdapter::make_ref(*get_self_object().source)
-                                    : Lisple::Constant::NIL;
+                                    : Roo::Constant::NIL;
   }
 
   NOBJ_PROP_GET(BackgroundAdapter, fit)
@@ -415,13 +415,13 @@ namespace Pixils::Script
   NOBJ_PROP_GET(BackgroundAdapter, offset)
   {
     return get_self_object().offset ? PointAdapter::make_ref(*get_self_object().offset)
-                                    : Lisple::Constant::NIL;
+                                    : Roo::Constant::NIL;
   }
 
   NOBJ_PROP_GET(BackgroundAdapter, opacity)
   {
-    return get_self_object().opacity ? Lisple::number(*get_self_object().opacity)
-                                     : Lisple::Constant::NIL;
+    return get_self_object().opacity ? Roo::number(*get_self_object().opacity)
+                                     : Roo::Constant::NIL;
   }
 
   NATIVE_ADAPTER_IMPL(BorderAdapter,
@@ -434,8 +434,8 @@ namespace Pixils::Script
 
   NOBJ_PROP_GET(BorderAdapter, thickness)
   {
-    return get_self_object().thickness ? Lisple::number(*get_self_object().thickness)
-                                       : Lisple::Constant::NIL;
+    return get_self_object().thickness ? Roo::number(*get_self_object().thickness)
+                                       : Roo::Constant::NIL;
   }
 
   NOBJ_PROP_GET(BorderAdapter, line_style)

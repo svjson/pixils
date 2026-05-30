@@ -22,7 +22,7 @@ TEST(AppManifestTest, materializes_named_files_from_catalog_and_ordered_unit_ids
                  {"[pixils.ui :as ui]"},
                  {"(defn click! [ctx] (ui/emit! (:view ctx) :clicked nil))"})},
     {AppFixture::ManifestFile{.id = "main",
-                              .disk_path = "pixils/test/app/main.lisple",
+                              .disk_path = "pixils/test/app/main.roo",
                               .namespace_name = "pixils.test.app.main",
                               .unit_ids = {"constants", "board-view"}}});
 
@@ -40,7 +40,7 @@ TEST(AppManifestTest, upsert_unit_replaces_existing_implementation_under_same_id
   AppFixture::AppManifest manifest(
     {inline_unit("status-panel", {}, {"(def panel-version :old)"})},
     {AppFixture::ManifestFile{.id = "ui",
-                              .disk_path = "pixils/test/app/ui.lisple",
+                              .disk_path = "pixils/test/app/ui.roo",
                               .namespace_name = "pixils.test.app.ui",
                               .unit_ids = {"status-panel"}}});
 
@@ -60,7 +60,7 @@ TEST(AppManifestTest, supports_append_insert_and_remove_operations_on_file_units
      inline_unit("b", {}, {"(def b 2)"}),
      inline_unit("c", {}, {"(def c 3)"})},
     {AppFixture::ManifestFile{.id = "main",
-                              .disk_path = "pixils/test/app/main.lisple",
+                              .disk_path = "pixils/test/app/main.roo",
                               .namespace_name = "pixils.test.app.main",
                               .unit_ids = {"a"}}});
 
@@ -79,7 +79,7 @@ TEST(AppManifestTest, materialize_cache_is_invalidated_after_manifest_mutation)
   AppFixture::AppManifest manifest(
     {inline_unit("status-panel", {}, {"(def panel-version :old)"})},
     {AppFixture::ManifestFile{.id = "ui",
-                              .disk_path = "pixils/test/app/ui.lisple",
+                              .disk_path = "pixils/test/app/ui.roo",
                               .namespace_name = "pixils.test.app.ui",
                               .unit_ids = {"status-panel"}}});
 
@@ -99,11 +99,11 @@ TEST(AppManifestTest, removing_unit_also_removes_it_from_all_file_memberships)
     {inline_unit("shared", {}, {"(def shared true)"}),
      inline_unit("tail", {}, {"(def tail true)"})},
     {AppFixture::ManifestFile{.id = "one",
-                              .disk_path = "pixils/test/app/one.lisple",
+                              .disk_path = "pixils/test/app/one.roo",
                               .namespace_name = "pixils.test.app.one",
                               .unit_ids = {"shared", "tail"}},
      AppFixture::ManifestFile{.id = "two",
-                              .disk_path = "pixils/test/app/two.lisple",
+                              .disk_path = "pixils/test/app/two.roo",
                               .namespace_name = "pixils.test.app.two",
                               .unit_ids = {"shared"}}});
 
@@ -121,7 +121,7 @@ TEST(AppManifestTest, materialize_throws_when_file_references_unknown_unit)
   AppFixture::AppManifest manifest(
     {},
     {AppFixture::ManifestFile{.id = "main",
-                              .disk_path = "pixils/test/app/main.lisple",
+                              .disk_path = "pixils/test/app/main.roo",
                               .namespace_name = "pixils.test.app.main",
                               .unit_ids = {"missing"}}});
 

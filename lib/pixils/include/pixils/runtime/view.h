@@ -10,7 +10,7 @@
 
 #include <cstddef>
 #include <cstdint>
-#include <lisple/runtime/value.h>
+#include <roo/runtime/value.h>
 #include <optional>
 
 namespace Pixils::Runtime
@@ -25,7 +25,7 @@ namespace Pixils::Runtime
    * Live instance of a mode. Serves as the runtime companion for any mode -
    * whether active at the top of the mode stack, participating in composition
    * below it, or placed as a layout child of another mode. Holds the resolved
-   * mode pointer, Lisple state, last-computed layout bounds, and any nested
+   * mode pointer, Roo state, last-computed layout bounds, and any nested
    * child views. For layout children, `id` is the key under which this
    * view's state is stored in the parent state map.
    */
@@ -33,7 +33,7 @@ namespace Pixils::Runtime
   {
     std::string id;
     View* parent = nullptr;
-    Lisple::sptr_val state_binding = Lisple::Constant::NIL;
+    Roo::sptr_val state_binding = Roo::Constant::NIL;
     Mode* mode = nullptr;
     UI::InteractionState interaction;
     /**
@@ -43,8 +43,8 @@ namespace Pixils::Runtime
      * remains valid when View is moved.
      */
     std::unique_ptr<Mode> owned_mode;
-    Lisple::sptr_val state = Lisple::Constant::NIL;
-    Lisple::sptr_val initial_state = Lisple::Constant::NIL;
+    Roo::sptr_val state = Roo::Constant::NIL;
+    Roo::sptr_val initial_state = Roo::Constant::NIL;
     Rect bounds = {0, 0, 0, 0};
     Rect external_bounds = {0, 0, 0, 0};
     std::optional<UI::Theme> inherited_theme = std::nullopt;
@@ -84,7 +84,7 @@ namespace Pixils::Runtime
     void mark_interaction_changed();
     void mark_children_changed();
     void mark_style_changed();
-    bool set_state_if_changed(const Lisple::sptr_val& next_state);
+    bool set_state_if_changed(const Roo::sptr_val& next_state);
     void emit_event(const CustomEvent& event);
     void drain_events(std::vector<CustomEvent>& collected);
     void queue_replace_child(const std::string& child_id, ChildSlot child_slot);

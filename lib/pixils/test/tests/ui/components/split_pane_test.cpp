@@ -16,7 +16,7 @@ using SplitPaneTest = RenderFixture;
 
 namespace
 {
-  void eval_split_pane_fixture(Lisple::Runtime& runtime, const char* options)
+  void eval_split_pane_fixture(Roo::Runtime& runtime, const char* options)
   {
     runtime.eval(std::string(R"(
       (pixils/defmode first-pane {})
@@ -41,7 +41,7 @@ TEST_F(SplitPaneTest, split_pane_lays_out_horizontal_panes_from_ratio)
      :min-second 20
      :children [{:mode 'first-pane} {:mode 'second-pane}]})");
 
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
   SETTLE_LAYOUT();
 
   ASSERT_NE(session.active_mode, nullptr);
@@ -80,7 +80,7 @@ TEST_F(SplitPaneTest, dragging_horizontal_split_pane_resizer_updates_proportions
      :min-second 20
      :children [{:mode 'first-pane} {:mode 'second-pane}]})");
 
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
   SETTLE_LAYOUT();
 
   auto pane = session.active_mode->children[0];
@@ -119,7 +119,7 @@ TEST_F(SplitPaneTest, split_pane_supports_vertical_axis)
      :min-second 20
      :children [{:mode 'first-pane} {:mode 'second-pane}]})");
 
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
   SETTLE_LAYOUT();
 
   auto pane = session.active_mode->children[0];
@@ -170,7 +170,7 @@ TEST_F(SplitPaneTest, split_pane_drag_is_clamped_by_minimum_pane_sizes)
      :min-second 50
      :children [{:mode 'first-pane} {:mode 'second-pane}]})");
 
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
   SETTLE_LAYOUT();
 
   auto pane = session.active_mode->children[0];
@@ -222,7 +222,7 @@ TEST_F(SplitPaneTest, split_pane_uses_theme_resizer_size_when_not_overridden)
                     :children [{:mode 'first-pane} {:mode 'second-pane}]})]})
   )");
 
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
   SETTLE_LAYOUT();
 
   ASSERT_NE(session.active_mode, nullptr);
@@ -270,7 +270,7 @@ TEST_F(SplitPaneTest, vertical_split_pane_uses_theme_resizer_size_when_not_overr
                     :children [{:mode 'first-pane} {:mode 'second-pane}]})]})
   )");
 
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
   SETTLE_LAYOUT();
 
   ASSERT_NE(session.active_mode, nullptr);
@@ -313,7 +313,7 @@ TEST_F(SplitPaneTest, split_pane_slots_pass_parent_state_to_children)
                                {:mode 'second-pane}]})]})
   )");
 
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
   SETTLE_LAYOUT();
 
   auto pane = session.active_mode->children[0];

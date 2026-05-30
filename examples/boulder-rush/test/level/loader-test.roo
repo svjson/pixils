@@ -7,13 +7,13 @@
 (deftest project-file-loads
   (let [project (level-loader/load-project)]
     (is (= :pixils.tilemap-editor/project (:format project)))
-    (is (= :cave-a/level-2 (:selected-map project)))))
+    (is (= :cave-a/level-3 (:selected-map project)))))
 
 (deftest level-pack-loads_maps_and_tilesets
   (let [pack (level-loader/load-level-pack)]
     (is (= :pixils.tilemap/pack (:format pack)))
-    (is (= 2 (count (:maps pack))))
-    (is (= 2 (count (:tilesets pack))))))
+    (is (= 3 (count (:maps pack))))
+    (is (= 3 (count (:tilesets pack))))))
 
 (deftest level-map-selects_first_level_map
   (let [pack (level-loader/load-level-pack)

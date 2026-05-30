@@ -12,8 +12,8 @@
 #include <SDL2/SDL_render.h>
 #include <filesystem>
 #include <gtest/gtest.h>
-#include <lisple/runtime.h>
-#include <lisple/runtime/value.h>
+#include <roo/runtime.h>
+#include <roo/runtime/value.h>
 #include <memory>
 #include <string>
 #include <vector>
@@ -37,7 +37,7 @@ class ComposableAppSessionFixture : public ::testing::Test
   InputSimulator input_simulator;
   std::unique_ptr<Pixils::HookContext> hook_ctx;
   std::filesystem::path app_root;
-  std::unique_ptr<Lisple::Runtime> lisple_runtime;
+  std::unique_ptr<Roo::Runtime> roo_runtime;
   std::unique_ptr<Pixils::Runtime::Session> pixils_session;
 
   ComposableAppSessionFixture();
@@ -56,9 +56,9 @@ class ComposableAppSessionFixture : public ::testing::Test
   void render_cycle();
   void frame_cycle();
   Pixils::Program& load_program();
-  Lisple::Runtime& pixils();
+  Roo::Runtime& pixils();
   Pixils::Runtime::Session& session();
-  Lisple::sptr_val eval(const std::string& source);
+  Roo::sptr_val eval(const std::string& source);
   SDL_Texture* render_target();
   const std::filesystem::path& app_root_dir() const;
 

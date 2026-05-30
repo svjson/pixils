@@ -1,8 +1,8 @@
 #include "../../render_fixture.h"
 
 #include <gtest/gtest.h>
-#include <lisple/runtime/dict.h>
-#include <lisple/runtime/value.h>
+#include <roo/runtime/dict.h>
+#include <roo/runtime/value.h>
 
 using IconTest = RenderFixture;
 
@@ -11,9 +11,9 @@ TEST_F(IconTest, plain_icon_is_not_draggable_or_absolute_positioned)
   auto modes = runtime.lookup("pixils/modes");
   ASSERT_NE(modes, nullptr);
 
-  auto icon_mode_value = Lisple::Dict::get_property(modes, Lisple::symbol("ui/icon"));
+  auto icon_mode_value = Roo::Dict::get_property(modes, Roo::symbol("ui/icon"));
   ASSERT_NE(icon_mode_value, nullptr);
-  const auto& icon_mode = Lisple::obj<Pixils::Runtime::Mode>(*icon_mode_value);
+  const auto& icon_mode = Roo::obj<Pixils::Runtime::Mode>(*icon_mode_value);
   EXPECT_FALSE(icon_mode.drag.has_value());
 
   runtime.eval(R"(
@@ -29,7 +29,7 @@ TEST_F(IconTest, plain_icon_is_not_draggable_or_absolute_positioned)
                            :height 20}}]})
   )");
 
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
   session.update_mode();
   session.render_mode();
 
@@ -65,7 +65,7 @@ TEST_F(IconTest, make_draggable_adds_drag_policy_to_arbitrary_child)
                     :end-event :test/drag-end})]})
   )");
 
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
   session.update_mode();
   session.render_mode();
 
@@ -77,9 +77,9 @@ TEST_F(IconTest, make_draggable_adds_drag_policy_to_arbitrary_child)
   ASSERT_NE(child->mode->on_drag_start, nullptr);
   ASSERT_NE(child->mode->on_drag, nullptr);
   ASSERT_NE(child->mode->on_drag_end, nullptr);
-  ASSERT_NE(child->mode->on_drag_start->type, Lisple::Value::Type::NIL);
-  ASSERT_NE(child->mode->on_drag->type, Lisple::Value::Type::NIL);
-  ASSERT_NE(child->mode->on_drag_end->type, Lisple::Value::Type::NIL);
+  ASSERT_NE(child->mode->on_drag_start->type, Roo::Value::Type::NIL);
+  ASSERT_NE(child->mode->on_drag->type, Roo::Value::Type::NIL);
+  ASSERT_NE(child->mode->on_drag_end->type, Roo::Value::Type::NIL);
   ASSERT_EQ(child->bounds.x, 0);
   ASSERT_EQ(child->bounds.y, 0);
   ASSERT_EQ(child->bounds.w, 30);
@@ -91,9 +91,9 @@ TEST_F(IconTest, make_draggable_adds_drag_policy_to_arbitrary_child)
   input().mouse_move({8, 5});
   update_cycle();
   auto start =
-    Lisple::Dict::get_property(session.active_mode->state, Lisple::keyword("start"));
+    Roo::Dict::get_property(session.active_mode->state, Roo::keyword("start"));
   ASSERT_NE(start, nullptr);
-  EXPECT_EQ(start->type, Lisple::Value::Type::NIL);
+  EXPECT_EQ(start->type, Roo::Value::Type::NIL);
 
   input().mouse_move({12, 5});
   update_cycle();
@@ -103,10 +103,10 @@ TEST_F(IconTest, make_draggable_adds_drag_policy_to_arbitrary_child)
   update_cycle();
   update_cycle();
 
-  start = Lisple::Dict::get_property(session.active_mode->state, Lisple::keyword("start"));
+  start = Roo::Dict::get_property(session.active_mode->state, Roo::keyword("start"));
   auto move =
-    Lisple::Dict::get_property(session.active_mode->state, Lisple::keyword("move"));
-  auto end = Lisple::Dict::get_property(session.active_mode->state, Lisple::keyword("end"));
+    Roo::Dict::get_property(session.active_mode->state, Roo::keyword("move"));
+  auto end = Roo::Dict::get_property(session.active_mode->state, Roo::keyword("end"));
   ASSERT_NE(start, nullptr);
   ASSERT_NE(move, nullptr);
   ASSERT_NE(end, nullptr);

@@ -1,6 +1,6 @@
 (ns tilemap-editor.view.resources.model
   (:require pixils
-            [lisple.io :as io]
+            [roo.io :as io]
             [pixils.resource :as res]
             [tilemap-editor.model.maps :as maps]))
 

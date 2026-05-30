@@ -1,8 +1,8 @@
 #include "../../render_fixture.h"
 
 #include <gtest/gtest.h>
-#include <lisple/runtime/dict.h>
-#include <lisple/runtime/value.h>
+#include <roo/runtime/dict.h>
+#include <roo/runtime/value.h>
 
 using ScrollPaneTest = RenderFixture;
 
@@ -19,7 +19,7 @@ TEST_F(ScrollPaneTest, scroll_pane_offsets_content_inside_clipped_viewport)
                                 :style {:width 100 :height 80}}]})]})
   )");
 
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
 
   session.update_mode();
   session.render_mode();
@@ -73,7 +73,7 @@ TEST_F(ScrollPaneTest, scroll_pane_without_horizontal_scroll_uses_content_width)
                                 :style {:width 100 :height 80}}]})]})
   )");
 
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
 
   session.update_mode();
   session.render_mode();
@@ -116,7 +116,7 @@ TEST_F(ScrollPaneTest, scroll_pane_fill_width_contributes_content_width_to_auto_
       {:children [{:mode 'auto-panel}]})
   )");
 
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
 
   session.update_mode();
   session.render_mode();
@@ -165,7 +165,7 @@ TEST_F(ScrollPaneTest, scroll_pane_without_content_size_keeps_fill_width_viewpor
       {:children [{:mode 'status-area}]})
   )");
 
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
 
   session.update_mode();
   session.render_mode();
@@ -222,7 +222,7 @@ TEST_F(ScrollPaneTest, scroll_pane_measures_runtime_content_growth)
                                 :state {:height (pixils.ui/bind-state :height)}}]})]})
   )");
 
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
   session.render_mode();
 
   session.update_mode();
@@ -237,9 +237,9 @@ TEST_F(ScrollPaneTest, scroll_pane_measures_runtime_content_growth)
   ASSERT_NE(pane, nullptr);
 
   auto content_size =
-    Lisple::Dict::get_property(pane->state, Lisple::keyword("content-size"));
+    Roo::Dict::get_property(pane->state, Roo::keyword("content-size"));
   ASSERT_NE(content_size, nullptr);
-  auto content_height = Lisple::Dict::get_property(content_size, Lisple::keyword("h"));
+  auto content_height = Roo::Dict::get_property(content_size, Roo::keyword("h"));
   ASSERT_NE(content_height, nullptr);
   EXPECT_EQ(content_height->num().get_int(), 200);
 
@@ -279,7 +279,7 @@ TEST_F(ScrollPaneTest, scroll_pane_keeps_explicit_content_size_when_child_grows)
                                 :state {:height (pixils.ui/bind-state :height)}}]})]})
   )");
 
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
   session.render_mode();
 
   session.update_mode();
@@ -291,9 +291,9 @@ TEST_F(ScrollPaneTest, scroll_pane_keeps_explicit_content_size_when_child_grows)
   auto pane = session.active_mode->children[0];
   ASSERT_NE(pane, nullptr);
   auto content_size =
-    Lisple::Dict::get_property(pane->state, Lisple::keyword("content-size"));
+    Roo::Dict::get_property(pane->state, Roo::keyword("content-size"));
   ASSERT_NE(content_size, nullptr);
-  auto content_height = Lisple::Dict::get_property(content_size, Lisple::keyword("h"));
+  auto content_height = Roo::Dict::get_property(content_size, Roo::keyword("h"));
   ASSERT_NE(content_height, nullptr);
   EXPECT_EQ(content_height->num().get_int(), 80);
 }
@@ -311,7 +311,7 @@ TEST_F(ScrollPaneTest, windows_3_scroll_pane_uses_theme_scrollbar_size)
                                 :style {:width 100 :height 80}}]})]})
   )");
 
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
   session.update_mode();
   session.render_mode();
 
@@ -363,7 +363,7 @@ TEST_F(ScrollPaneTest, windows_3_scroll_pane_uses_fixed_vertical_scrollbar_handl
                                 :style {:width 80 :height 300}}]})]})
   )");
 
-  session.push_mode("root-mode", Lisple::Constant::NIL);
+  session.push_mode("root-mode", Roo::Constant::NIL);
   session.update_mode();
   session.render_mode();
 
