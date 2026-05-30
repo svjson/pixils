@@ -21,3 +21,29 @@
 (defun find-view-containing [app mode-name state-text]
   (native/find-view app mode-name state-text))
 (defun click! [app view] (native/click! app view))
+(defun mouse-down-at! [app x y & button]
+  (if button
+    (native/mouse-down-at! app x y (head button))
+    (native/mouse-down-at! app x y)))
+(defun mouse-up-at! [app x y & button]
+  (if button
+    (native/mouse-up-at! app x y (head button))
+    (native/mouse-up-at! app x y)))
+(defun mouse-click-at! [app x y & button]
+  (if button
+    (native/mouse-click-at! app x y (head button))
+    (native/mouse-click-at! app x y)))
+(defun mouse-down-in! [app view x y & button]
+  (if button
+    (native/mouse-down-in! app view x y (head button))
+    (native/mouse-down-in! app view x y)))
+(defun mouse-up-in! [app view x y & button]
+  (if button
+    (native/mouse-up-in! app view x y (head button))
+    (native/mouse-up-in! app view x y)))
+(defun mouse-click-in! [app view x y & button]
+  (if button
+    (native/mouse-click-in! app view x y (head button))
+    (native/mouse-click-in! app view x y)))
+(defun key-down! [app key] (native/key-down! app key))
+(defun key-up! [app key] (native/key-up! app key))

@@ -4,12 +4,15 @@
 #include <pixils/font_registry.h>
 #include <pixils/frame_events.h>
 #include <pixils/hook_context.h>
+#include <pixils/keyboard.h>
 #include <pixils/runtime/hook_arguments.h>
 #include <pixils/runtime/session.h>
 #include <pixils/runtime/view.h>
 #include <pixils/script.h>
 
+#include <SDL2/SDL_keycode.h>
 #include <SDL2/SDL_mouse.h>
+#include <cctype>
 #include <filesystem>
 #include <lisple-package/manifest.h>
 #include <lisple-package/native_abi.h>
@@ -218,6 +221,54 @@ namespace
     return value->num().get_int();
   }
 
+  int required_int(const Lisple::sptr_val& value, const std::string& label)
+  {
+    if (!value || value->type == Lisple::Value::Type::NIL)
+    {
+      throw Lisple::InvocationException(label + " is required");
+    }
+    if (value->type != Lisple::Value::Type::NUMBER)
+    {
+      throw Lisple::TypeError(label + " must be a number");
+    }
+    return value->num().get_int();
+  }
+
+  std::string normalize_input_name(const Lisple::sptr_val& value, const std::string& label)
+  {
+    auto name = value_name(value, label);
+    if (!name.empty() && name[0] == ':') name = name.substr(1);
+    auto slash = name.find('/');
+    if (slash != std::string::npos) name = name.substr(slash + 1);
+    return name;
+  }
+
+  Uint8 mouse_button_value(const Lisple::sptr_val& value)
+  {
+    auto name = normalize_input_name(value, "button");
+    if (name == "left") return SDL_BUTTON_LEFT;
+    if (name == "right") return SDL_BUTTON_RIGHT;
+    if (name == "middle") return SDL_BUTTON_MIDDLE;
+    throw Lisple::InvocationException("unsupported mouse button: " + name);
+  }
+
+  SDL_Keycode keycode_value(const Lisple::sptr_val& value)
+  {
+    auto name = normalize_input_name(value, "key");
+    auto it = Pixils::Keyboard::SYMBOL_TO_KEYCODE.find(name);
+    if (it != Pixils::Keyboard::SYMBOL_TO_KEYCODE.end()) return it->second;
+
+    if (name.size() == 1)
+    {
+      std::string upper;
+      upper.push_back(static_cast<char>(std::toupper(static_cast<unsigned char>(name[0]))));
+      it = Pixils::Keyboard::SYMBOL_TO_KEYCODE.find(upper);
+      if (it != Pixils::Keyboard::SYMBOL_TO_KEYCODE.end()) return it->second;
+    }
+
+    throw Lisple::InvocationException("unsupported key: " + name);
+  }
+
   AppTarget package_target(const Lisple::sptr_val& opts)
   {
     auto package_root_value =
@@ -326,6 +377,20 @@ namespace
     app.events.do_mouse_button_up(event);
   }
 
+  void key_down(TestApp& app, SDL_Keycode key)
+  {
+    SDL_KeyboardEvent event{};
+    event.keysym.sym = key;
+    app.events.do_key_down(event);
+  }
+
+  void key_up(TestApp& app, SDL_Keycode key)
+  {
+    SDL_KeyboardEvent event{};
+    event.keysym.sym = key;
+    app.events.do_key_up(event);
+  }
+
   namespace Function
   {
     FUNC(MakeAppFunction, make_app);
@@ -343,6 +408,14 @@ namespace
     FUNC(ViewStateFunction, view_state);
     FUNC(FindViewFunction, find_view);
     FUNC(ClickBangFunction, click_bang);
+    FUNC(MouseDownAtBangFunction, mouse_down_at);
+    FUNC(MouseUpAtBangFunction, mouse_up_at);
+    FUNC(MouseClickAtBangFunction, mouse_click_at);
+    FUNC(MouseDownInBangFunction, mouse_down_in);
+    FUNC(MouseUpInBangFunction, mouse_up_in);
+    FUNC(MouseClickInBangFunction, mouse_click_in);
+    FUNC(KeyDownBangFunction, key_down);
+    FUNC(KeyUpBangFunction, key_up);
 
     FUNC_IMPL(MakeAppFunction,
               SIG((FN_ARGS((&Lisple::Type::MAP)),
@@ -514,6 +587,157 @@ namespace
       app.update();
       return args[0];
     }
+
+    FUNC_IMPL(MouseDownAtBangFunction,
+              MULTI_SIG((FN_ARGS((&HostType::TEST_APP),
+                                 (&Lisple::Type::NUMBER),
+                                 (&Lisple::Type::NUMBER)),
+                         EXEC_DISPATCH(&MouseDownAtBangFunction::exec_mouse_down_at)),
+                        (FN_ARGS((&HostType::TEST_APP),
+                                 (&Lisple::Type::NUMBER),
+                                 (&Lisple::Type::NUMBER),
+                                 (&Lisple::Type::ANY)),
+                         EXEC_DISPATCH(&MouseDownAtBangFunction::exec_mouse_down_at))));
+    EXEC_BODY(MouseDownAtBangFunction, exec_mouse_down_at)
+    {
+      auto& app = app_from(args[0]);
+      auto button = args.size() > 3 ? mouse_button_value(args[3]) : SDL_BUTTON_LEFT;
+      mouse_down(app, required_int(args[1], "x"), required_int(args[2], "y"), button);
+      return args[0];
+    }
+
+    FUNC_IMPL(MouseUpAtBangFunction,
+              MULTI_SIG((FN_ARGS((&HostType::TEST_APP),
+                                 (&Lisple::Type::NUMBER),
+                                 (&Lisple::Type::NUMBER)),
+                         EXEC_DISPATCH(&MouseUpAtBangFunction::exec_mouse_up_at)),
+                        (FN_ARGS((&HostType::TEST_APP),
+                                 (&Lisple::Type::NUMBER),
+                                 (&Lisple::Type::NUMBER),
+                                 (&Lisple::Type::ANY)),
+                         EXEC_DISPATCH(&MouseUpAtBangFunction::exec_mouse_up_at))));
+    EXEC_BODY(MouseUpAtBangFunction, exec_mouse_up_at)
+    {
+      auto& app = app_from(args[0]);
+      auto button = args.size() > 3 ? mouse_button_value(args[3]) : SDL_BUTTON_LEFT;
+      mouse_up(app, required_int(args[1], "x"), required_int(args[2], "y"), button);
+      return args[0];
+    }
+
+    FUNC_IMPL(MouseClickAtBangFunction,
+              MULTI_SIG((FN_ARGS((&HostType::TEST_APP),
+                                 (&Lisple::Type::NUMBER),
+                                 (&Lisple::Type::NUMBER)),
+                         EXEC_DISPATCH(&MouseClickAtBangFunction::exec_mouse_click_at)),
+                        (FN_ARGS((&HostType::TEST_APP),
+                                 (&Lisple::Type::NUMBER),
+                                 (&Lisple::Type::NUMBER),
+                                 (&Lisple::Type::ANY)),
+                         EXEC_DISPATCH(&MouseClickAtBangFunction::exec_mouse_click_at))));
+    EXEC_BODY(MouseClickAtBangFunction, exec_mouse_click_at)
+    {
+      auto& app = app_from(args[0]);
+      const int x = required_int(args[1], "x");
+      const int y = required_int(args[2], "y");
+      auto button = args.size() > 3 ? mouse_button_value(args[3]) : SDL_BUTTON_LEFT;
+      mouse_down(app, x, y, button);
+      app.update();
+      mouse_up(app, x, y, button);
+      app.update();
+      return args[0];
+    }
+
+    FUNC_IMPL(MouseDownInBangFunction,
+              MULTI_SIG((FN_ARGS((&HostType::TEST_APP),
+                                 (&Pixils::Script::HostType::VIEW),
+                                 (&Lisple::Type::NUMBER),
+                                 (&Lisple::Type::NUMBER)),
+                         EXEC_DISPATCH(&MouseDownInBangFunction::exec_mouse_down_in)),
+                        (FN_ARGS((&HostType::TEST_APP),
+                                 (&Pixils::Script::HostType::VIEW),
+                                 (&Lisple::Type::NUMBER),
+                                 (&Lisple::Type::NUMBER),
+                                 (&Lisple::Type::ANY)),
+                         EXEC_DISPATCH(&MouseDownInBangFunction::exec_mouse_down_in))));
+    EXEC_BODY(MouseDownInBangFunction, exec_mouse_down_in)
+    {
+      auto& app = app_from(args[0]);
+      auto& view = view_from(args[1]);
+      auto button = args.size() > 4 ? mouse_button_value(args[4]) : SDL_BUTTON_LEFT;
+      mouse_down(app,
+                 static_cast<int>(view.bounds.x) + required_int(args[2], "x"),
+                 static_cast<int>(view.bounds.y) + required_int(args[3], "y"),
+                 button);
+      return args[0];
+    }
+
+    FUNC_IMPL(MouseUpInBangFunction,
+              MULTI_SIG((FN_ARGS((&HostType::TEST_APP),
+                                 (&Pixils::Script::HostType::VIEW),
+                                 (&Lisple::Type::NUMBER),
+                                 (&Lisple::Type::NUMBER)),
+                         EXEC_DISPATCH(&MouseUpInBangFunction::exec_mouse_up_in)),
+                        (FN_ARGS((&HostType::TEST_APP),
+                                 (&Pixils::Script::HostType::VIEW),
+                                 (&Lisple::Type::NUMBER),
+                                 (&Lisple::Type::NUMBER),
+                                 (&Lisple::Type::ANY)),
+                         EXEC_DISPATCH(&MouseUpInBangFunction::exec_mouse_up_in))));
+    EXEC_BODY(MouseUpInBangFunction, exec_mouse_up_in)
+    {
+      auto& app = app_from(args[0]);
+      auto& view = view_from(args[1]);
+      auto button = args.size() > 4 ? mouse_button_value(args[4]) : SDL_BUTTON_LEFT;
+      mouse_up(app,
+               static_cast<int>(view.bounds.x) + required_int(args[2], "x"),
+               static_cast<int>(view.bounds.y) + required_int(args[3], "y"),
+               button);
+      return args[0];
+    }
+
+    FUNC_IMPL(MouseClickInBangFunction,
+              MULTI_SIG((FN_ARGS((&HostType::TEST_APP),
+                                 (&Pixils::Script::HostType::VIEW),
+                                 (&Lisple::Type::NUMBER),
+                                 (&Lisple::Type::NUMBER)),
+                         EXEC_DISPATCH(&MouseClickInBangFunction::exec_mouse_click_in)),
+                        (FN_ARGS((&HostType::TEST_APP),
+                                 (&Pixils::Script::HostType::VIEW),
+                                 (&Lisple::Type::NUMBER),
+                                 (&Lisple::Type::NUMBER),
+                                 (&Lisple::Type::ANY)),
+                         EXEC_DISPATCH(&MouseClickInBangFunction::exec_mouse_click_in))));
+    EXEC_BODY(MouseClickInBangFunction, exec_mouse_click_in)
+    {
+      auto& app = app_from(args[0]);
+      auto& view = view_from(args[1]);
+      const int x = static_cast<int>(view.bounds.x) + required_int(args[2], "x");
+      const int y = static_cast<int>(view.bounds.y) + required_int(args[3], "y");
+      auto button = args.size() > 4 ? mouse_button_value(args[4]) : SDL_BUTTON_LEFT;
+      mouse_down(app, x, y, button);
+      app.update();
+      mouse_up(app, x, y, button);
+      app.update();
+      return args[0];
+    }
+
+    FUNC_IMPL(KeyDownBangFunction,
+              SIG((FN_ARGS((&HostType::TEST_APP), (&Lisple::Type::ANY)),
+                   EXEC_DISPATCH(&KeyDownBangFunction::exec_key_down))));
+    EXEC_BODY(KeyDownBangFunction, exec_key_down)
+    {
+      key_down(app_from(args[0]), keycode_value(args[1]));
+      return args[0];
+    }
+
+    FUNC_IMPL(KeyUpBangFunction,
+              SIG((FN_ARGS((&HostType::TEST_APP), (&Lisple::Type::ANY)),
+                   EXEC_DISPATCH(&KeyUpBangFunction::exec_key_up))));
+    EXEC_BODY(KeyUpBangFunction, exec_key_up)
+    {
+      key_up(app_from(args[0]), keycode_value(args[1]));
+      return args[0];
+    }
   } // namespace Function
 
   class RuntimeNativeNamespace : public Lisple::Namespace
@@ -537,6 +761,14 @@ namespace
       values.emplace("view-state", Function::ViewStateFunction::make());
       values.emplace("find-view", Function::FindViewFunction::make());
       values.emplace("click!", Function::ClickBangFunction::make());
+      values.emplace("mouse-down-at!", Function::MouseDownAtBangFunction::make());
+      values.emplace("mouse-up-at!", Function::MouseUpAtBangFunction::make());
+      values.emplace("mouse-click-at!", Function::MouseClickAtBangFunction::make());
+      values.emplace("mouse-down-in!", Function::MouseDownInBangFunction::make());
+      values.emplace("mouse-up-in!", Function::MouseUpInBangFunction::make());
+      values.emplace("mouse-click-in!", Function::MouseClickInBangFunction::make());
+      values.emplace("key-down!", Function::KeyDownBangFunction::make());
+      values.emplace("key-up!", Function::KeyUpBangFunction::make());
     }
   };
 
