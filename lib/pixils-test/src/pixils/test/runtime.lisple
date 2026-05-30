@@ -26,6 +26,9 @@
 (defun find-view [app mode-name] (native/find-view app mode-name))
 (defun find-view-containing [app mode-name state-text]
   (native/find-view app mode-name state-text))
+(defun find-views [app mode-name] (native/find-views app mode-name))
+(defun find-views-containing [app mode-name state-text]
+  (native/find-views app mode-name state-text))
 (defun click! [app view] (native/click! app view))
 (defun mouse-move-at! [app x y] (native/mouse-move-at! app x y))
 (defun mouse-down-at! [app x y & button]

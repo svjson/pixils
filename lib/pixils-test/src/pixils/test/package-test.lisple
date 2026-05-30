@@ -2,6 +2,9 @@
   (:require proof.core
             pixils.test
             [pixils.test.runtime :as runtime]
+            pixils.test.ui.combo-box
+            pixils.test.ui.list-box
+            pixils.test.ui.tab-panel
             [pixils.color :as color]
             [pixils.point :as point]))
 
@@ -19,3 +22,8 @@
 
 (deftest pixils-test-can-host-runtime-fixtures
   (is (not (nil? (resolve 'pixils.test.runtime/make-app)))))
+
+(deftest pixils-test-provides-ui-component-fixtures
+  (is (not (nil? (resolve 'pixils.test.ui.tab-panel/switch-to!))))
+  (is (not (nil? (resolve 'pixils.test.ui.list-box/has-visible-text?))))
+  (is (not (nil? (resolve 'pixils.test.ui.combo-box/has-visible-text?)))))

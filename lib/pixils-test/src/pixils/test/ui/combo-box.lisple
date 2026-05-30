@@ -1,0 +1,20 @@
+(ns pixils.test.ui.combo-box
+  (:require proof.core
+            [pixils.test.runtime :as runtime]))
+
+(defun views [app]
+  (runtime/find-views app "ui/combo-box"))
+
+(defun views-containing [app text]
+  (runtime/find-views-containing app "ui/combo-box" text))
+
+(defun has-visible-text? [app text]
+  (let [matched (views-containing app text)
+        present? (> (count matched) 0)]
+    (is (= true present?))
+    present?))
+
+(defun count-is? [app expected]
+  (let [actual (count (views app))]
+    (is (= expected actual))
+    actual))

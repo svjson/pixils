@@ -1,0 +1,15 @@
+(ns pixils.test.ui.tab-panel
+  (:require proof.core
+            [pixils.test.runtime :as runtime]))
+
+(defun tab [app id]
+  (runtime/find-view-containing app "ui/tab" (str ":tab-id " id)))
+
+(defun switch-to! [app id opts]
+  (let [view (tab app id)]
+    (is (not (nil? view)))
+    (case (:by opts)
+      :mouse/click (runtime/click! app view)
+      :default (runtime/click! app view))
+    (runtime/render! app)
+    app))

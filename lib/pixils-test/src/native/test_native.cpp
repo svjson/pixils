@@ -344,6 +344,28 @@ namespace
     return nullptr;
   }
 
+  void collect_descendants(const std::shared_ptr<Pixils::Runtime::View>& view,
+                           const std::string& wanted_mode,
+                           const std::optional<std::string>& state_text,
+                           std::vector<std::shared_ptr<Pixils::Runtime::View>>& result)
+  {
+    if (!view) return;
+
+    const bool mode_matches = view->mode && view->mode->name == wanted_mode;
+    const bool state_matches =
+      !state_text.has_value() ||
+      (view->state && view->state->to_string().find(*state_text) != std::string::npos);
+    if (mode_matches && state_matches)
+    {
+      result.push_back(view);
+    }
+
+    for (const auto& child : view->children)
+    {
+      collect_descendants(child, wanted_mode, state_text, result);
+    }
+  }
+
   int view_center_x(const Pixils::Runtime::View& view)
   {
     return static_cast<int>(view.bounds.x + view.bounds.w / 2);
@@ -407,6 +429,7 @@ namespace
     FUNC(ViewModeNameFunction, view_mode_name);
     FUNC(ViewStateFunction, view_state);
     FUNC(FindViewFunction, find_view);
+    FUNC(FindViewsFunction, find_views);
     FUNC(ClickBangFunction, click_bang);
     FUNC(MouseMoveAtBangFunction, mouse_move_at);
     FUNC(MouseDownAtBangFunction, mouse_down_at);
@@ -572,6 +595,29 @@ namespace
       auto found = find_descendant(app.session->active_mode, args[1]->str(), state_text);
       if (!found) return Lisple::Constant::NIL;
       return Pixils::Script::ViewAdapter::make_ref(*found);
+    }
+
+    FUNC_IMPL(FindViewsFunction,
+              MULTI_SIG((FN_ARGS((&HostType::TEST_APP), (&Lisple::Type::STRING)),
+                         EXEC_DISPATCH(&FindViewsFunction::exec_find_views)),
+                        (FN_ARGS((&HostType::TEST_APP),
+                                 (&Lisple::Type::STRING),
+                                 (&Lisple::Type::STRING)),
+                         EXEC_DISPATCH(&FindViewsFunction::exec_find_views))));
+    EXEC_BODY(FindViewsFunction, exec_find_views)
+    {
+      auto& app = app_from(args[0]);
+      const auto state_text =
+        args.size() > 2 ? std::optional<std::string>(args[2]->str()) : std::nullopt;
+      std::vector<std::shared_ptr<Pixils::Runtime::View>> views;
+      collect_descendants(app.session->active_mode, args[1]->str(), state_text, views);
+
+      Lisple::sptr_val_v result;
+      for (const auto& view : views)
+      {
+        result.push_back(Pixils::Script::ViewAdapter::make_ref(*view));
+      }
+      return Lisple::vector(result);
     }
 
     FUNC_IMPL(ClickBangFunction,
@@ -790,6 +836,7 @@ namespace
       values.emplace("view-mode-name", Function::ViewModeNameFunction::make());
       values.emplace("view-state", Function::ViewStateFunction::make());
       values.emplace("find-view", Function::FindViewFunction::make());
+      values.emplace("find-views", Function::FindViewsFunction::make());
       values.emplace("click!", Function::ClickBangFunction::make());
       values.emplace("mouse-move-at!", Function::MouseMoveAtBangFunction::make());
       values.emplace("mouse-down-at!", Function::MouseDownAtBangFunction::make());
