@@ -1,16 +1,18 @@
 (ns boulder-rush.game.phase.common
-  (:require [boulder-rush.camera :as camera]
+  (:require [pixils.state.timer :as timer]
+            [boulder-rush.camera :as camera]
             [boulder-rush.cycle :as cycle]
             [boulder-rush.event :as event]
             [boulder-rush.sounds :as sound]
-            [boulder-rush.level.current :as level]
-            [boulder-rush.level.index :as caves]))
+            [boulder-rush.level.current :as level]))
 
 
 
 ;; Constants
 
 (def BARRIER-SCROLL-INTERVAL-MS 25)
+(def COVER-FILL-INTERVAL-MS 25)
+(def COVER-FILL-COUNT 20)
 
 
 
@@ -44,6 +46,40 @@
 
 (defun tick-events [state]
   (assoc state :events (event/tick-many (:events state))))
+
+(defun begin-cover-fill [state phase-key]
+  (assoc state
+         :level-map (level/add-empty-start-cover (:level-map state)
+                                                 (:level state))
+         phase-key (assoc (or (get state phase-key) {})
+                          :filling? true
+                          :cover-index 0
+                          :cover-timer (timer/make {:interval-ms COVER-FILL-INTERVAL-MS}))))
+
+(defun update-cover-fill [state phase-key complete-fn]
+  (let [timer (timer/tick (get-in state [phase-key :cover-timer]))
+        from (or (get-in state [phase-key :cover-index]) 0)
+        to (min (+ from COVER-FILL-COUNT)
+                (* (-> state :level-map :width)
+                   (-> state :level-map :height)))
+        state (assoc-in state [phase-key :cover-timer] timer)]
+    (if (timer/ticked? timer)
+      (let [state (assoc state
+                    :level-map (level/fill-start-cover (:level-map state)
+                                                       from
+                                                       COVER-FILL-COUNT))
+            state (assoc-in state [phase-key :cover-index] to)]
+        (if (= to (* (-> state :level-map :width)
+                     (-> state :level-map :height)))
+          (apply complete-fn [state])
+          state))
+      state)))
+
+(defun update-without-physics [state ctx]
+  (-> state
+      (cycle/process-all)
+      (sound/play-game-event-sounds)
+      (camera/update-offset (:buffer-size ctx))))
 
 (defun update [state ctx]
   (-> state

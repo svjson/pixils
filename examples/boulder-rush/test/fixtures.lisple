@@ -18,6 +18,8 @@
              :char "O"}
             {:id :gem
              :char "V"}
+            {:id :exit
+             :char "E"}
             {:id :debris-1
              :char "X"}
             {:id :debris-2

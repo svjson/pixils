@@ -31,11 +31,13 @@
    :score 0
    :render-opts {}})
 
-(defun move-player [map player dir]
+(defun move-player [map player dir & opts]
   (let [player-pos (:pos player)
         target-pos (pt/+ player-pos dir)
-        target-tile (map/cell-at map target-pos)]
-    (if (contains? [:empty :dirt :gem] target-tile)
+        target-tile (map/cell-at map target-pos)
+        walkable-tiles (or (:walkable-tiles opts)
+                           [:empty :dirt :gem])]
+    (if (contains? walkable-tiles target-tile)
         {:level-map (map/move-cell map
                                    player-pos
                                    target-pos)
@@ -110,14 +112,16 @@
       :default
       {:player (walk (dissoc player :push) dir)})))
 
-(defun apply-intent [level-map player dir]
+(defun apply-intent [level-map player dir & opts]
   (let [player-pos (:pos player)
         target-pos (pt/+ player-pos dir)
         target-tile (map/cell-at level-map target-pos)]
     (cond
-      (and (contains? [:empty :dirt :gem] target-tile)
+      (and (contains? (or (:walkable-tiles opts)
+                          [:empty :dirt :gem])
+                      target-tile)
            (timer/ticked? (:move-timer player)))
-      (assoc (move-player level-map player dir)
+      (assoc (move-player level-map player dir opts)
              :player (begin-walk (assoc player :pos target-pos) dir)
              :changed-positions [player-pos])
 

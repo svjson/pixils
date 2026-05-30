@@ -8,6 +8,7 @@
             [boulder-rush.game.phase.common :as common]
             [boulder-rush.game.phase.death :as death-phase]
             [boulder-rush.game.phase.level-start :as level-start]
+            [boulder-rush.game.phase.level-complete :as complete-phase]
             [boulder-rush.game.phase.main :as main-phase]
             [boulder-rush.level.current :as level]
             [boulder-rush.level.index :as caves]
@@ -145,6 +146,8 @@
                                      "WWW"])
      :player {:pos {:x 0 :y 1}
               :move-timer (ready-player-move-timer)}
+     :gems {:collected 0
+            :required 3}
      :events []})
   (when [state]
     (main-phase/handle-player-input state {:held-keys [:key/right]}))
@@ -162,6 +165,8 @@
     {:level-map (fixtures/rows->map ["PO "])
      :player {:pos {:x 0 :y 0}
               :move-timer (ready-player-move-timer)}
+     :gems {:collected 0
+            :required 3}
      :events []})
   (when [state]
     (main-phase/handle-player-input state {:held-keys [:key/right]}))
@@ -180,6 +185,8 @@
     {:level-map (fixtures/rows->map ["P "])
      :player {:pos {:x 0 :y 0}
               :move-timer (ready-player-move-timer)}
+     :gems {:collected 0
+            :required 3}
      :events []})
   (when [state]
     (main-phase/handle-player-input state {:held-keys [:key/right]}))
@@ -199,6 +206,8 @@
     {:level-map (fixtures/rows->map [" P"])
      :player {:pos {:x 1 :y 0}
               :move-timer (ready-player-move-timer)}
+     :gems {:collected 0
+            :required 3}
      :events []})
   (when [state]
     (main-phase/handle-player-input state {:held-keys [:key/left]}))
@@ -264,6 +273,8 @@
     {:level-map (fixtures/rows->map ["P "])
      :player {:pos {:x 0 :y 0}
               :move-timer (waiting-player-move-timer)}
+     :gems {:collected 0
+            :required 3}
      :events []})
   (when [state]
     (main-phase/handle-player-input state {:held-keys [:key/right]}))
@@ -276,6 +287,8 @@
     {:level-map (fixtures/rows->map ["PW"])
      :player {:pos {:x 0 :y 0}
               :move-timer (ready-player-move-timer)}
+     :gems {:collected 0
+            :required 3}
      :events []})
   (when [state]
     (main-phase/handle-player-input state {:held-keys [:key/right]}))
@@ -300,6 +313,8 @@
               :move-timer (ready-player-move-timer)
               :push {:dir {:x 1 :y 0}
                      :timer (ready-timer)}}
+     :gems {:collected 0
+            :required 3}
      :events []})
   (when [state]
     (main-phase/handle-player-input state {:held-keys [:key/right]}))
@@ -415,6 +430,44 @@
     (is (= 35
            (-> result :player :score)))
     (is (nil? (:play-explosion-sound? result)))))
+
+(deftest handle-player-input-does-not-enter-exit-before-required-gems
+  (given
+    {:level-map (fixtures/rows->map ["PE"])
+     :player {:pos {:x 0 :y 0}
+              :move-timer (ready-player-move-timer)}
+     :gems {:collected 2
+            :required 3
+            :value 10
+            :bonus-value 15}
+     :events []})
+  (when [state]
+    (main-phase/handle-player-input state {:held-keys [:key/right]}))
+  (then [result state]
+    (is (= state
+           result))))
+
+(deftest handle-player-input-enters-exit-after-required-gems
+  (given
+    {:level-map (fixtures/rows->map ["PE"])
+     :player {:pos {:x 0 :y 0}
+              :move-timer (ready-player-move-timer)}
+     :gems {:collected 3
+            :required 3
+            :value 10
+            :bonus-value 15}
+     :events []})
+  (when [state]
+    (main-phase/handle-player-input state {:held-keys [:key/right]}))
+  (then [result]
+    (is (= [" P"]
+           (fixtures/map->rows (:level-map result))))
+    (is (= {:x 1 :y 0}
+           (-> result :player :pos)))
+    (is (= :phase/level-complete
+           (:phase result)))
+    (is (= complete-phase/TIME-BONUS-INTERVAL-MS
+           (-> result :level-complete :timer :interval-ms)))))
 
 (deftest gem-value-uses-bonus-value-after-required-count
   (is (= 10
@@ -605,6 +658,102 @@
            (:phase result)))
     (is (= death-phase/DEATH-DELAY-MS
            (-> result :death :timer :interval-ms)))))
+
+(deftest level-complete-counts-remaining-time-into-score-without-physics
+  (given
+    {:level-map (fixtures/rows->map [" O "
+                                     "   "
+                                     "WWW"])
+     :player {:pos {:x 0 :y 1}
+              :score 40}
+     :events [(event-ready (fixtures/candidate {:x 1 :y 0}))]
+     :cycles []
+     :tile-substitutions {}
+     :offset {:x 0 :y 0}
+     :tile-offset {:x 0 :y 0}
+     :remaining-time 2
+     :level-complete {:timer (ready-timer)}})
+  (when [state]
+    (complete-phase/update state {:buffer-size {:w 320 :h 240}}))
+  (then [result]
+    (is (= 1
+           (:remaining-time result)))
+    (is (= 41
+           (-> result :player :score)))
+    (is (= [" O "
+            "   "
+            "WWW"]
+           (fixtures/map->rows (:level-map result))))
+    (is (= [{:pos {:x 1 :y 0}
+             :state :candidate}]
+           (event-summaries (:events result))))))
+
+(deftest level-complete-starts-cover-fill-when-time-bonus-is-counted
+  (given
+    {:level-map (fixtures/rows->map ["P "])
+     :level {:tileset-id :level}
+     :player {:pos {:x 0 :y 0}
+              :score 40}
+     :events []
+     :cycles []
+     :tile-substitutions {}
+     :offset {:x 0 :y 0}
+     :tile-offset {:x 0 :y 0}
+     :remaining-time 1
+     :level-complete {:timer (ready-timer)}})
+  (when [state]
+    (complete-phase/update state {:buffer-size {:w 320 :h 240}}))
+  (then [result]
+    (is (= 0
+           (:remaining-time result)))
+    (is (= 41
+           (-> result :player :score)))
+    (is (= true
+           (-> result :level-complete :filling?)))
+    (is (= [:scene/level :boulder-rush/start-cover]
+           (map (-> result :level-map :layers) :id)))
+    (is (= [[nil nil]]
+           (-> result :level-map :layers (nth 1) :tiles)))))
+
+(deftest level-complete-cover-loads-next-level-when-full
+  (given
+    (let [level-1 (assoc (fixtures/rows->map ["P "])
+                         :id :cave-a/level-1)
+          level-2 (assoc (fixtures/rows->map [" P"])
+                         :id :cave-a/level-2)]
+      {:current-level 1
+       :level-pack {:maps [level-1 level-2]
+                    :tilesets [{:id :br}]}
+       :level-map (level/add-empty-start-cover level-1
+                                               {:tileset-id :br})
+       :level {:tileset-id :br}
+       :player {:pos {:x 0 :y 0}
+                :score 123
+                :lives 2}
+       :events []
+       :cycles []
+       :tile-substitutions {}
+       :offset {:x 0 :y 0}
+       :tile-offset {:x 0 :y 0}
+       :remaining-time 0
+       :level-complete {:filling? true
+                        :cover-index 0
+                        :cover-timer (ready-timer)}}))
+  (when [state]
+    (complete-phase/update state {:buffer-size {:w 320 :h 240}}))
+  (then [result]
+    (is (= 2
+           (:current-level result)))
+    (is (= :phase/level-start
+           (:phase result)))
+    (is (= :cave-a/level-2
+           (-> result :level-map :id)))
+    (is (= 123
+           (-> result :player :score)))
+    (is (= 2
+           (-> result :player :lives)))
+    (is (= 2
+           (count (:cycles result))))))
 
 (deftest update-death-cover-adds-empty-start-cover-after-delay
   (given

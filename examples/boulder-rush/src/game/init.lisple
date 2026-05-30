@@ -1,0 +1,34 @@
+(ns boulder-rush.game.init
+  (:require [pixils.state.timer :as timer]
+            [boulder-rush.player :as pl]
+            [boulder-rush.physics :as physics]
+            [boulder-rush.level.index :as caves]
+            [boulder-rush.level.current :as level]
+            [boulder-rush.game.phase.common :as common]
+            [boulder-rush.level.loader :as level-loader]))
+
+(defun init-level [state]
+  (let [current-level (or (:current-level state) 1)
+        level (nth caves/levels (dec current-level))
+        base-map (level-loader/map-by-id state (:map-id level))
+        map (level/add-start-cover base-map level)
+        initial-offset (:initial-offset level)
+        initial-tile-offset {:x (int (/ (:x initial-offset)
+                                        (:tile-size base-map)))
+                             :y (int (/ (:y initial-offset)
+                                        (:tile-size base-map)))}]
+    {:current-level current-level
+     :level level
+     :base-level-map base-map
+     :level-map map
+     :phase :phase/level-start
+     :gems (assoc (:gems level) :collected 0)
+     :remaining-time (:remaining-time level)
+     :remaining-time-timer (timer/make {:interval-ms 1000})
+     :tile-offset initial-tile-offset
+     :offset initial-offset
+     :tileset (level-loader/tileset-by-id state (:tileset-id level))
+     :tile-substitutions {:exit :barrier}
+     :cycles [(common/barrier-scroll-cycle) (boulder-rush.game.phase.level-start/entry-cycle)]
+     :events (physics/events base-map)
+     :player (pl/make (pl/player-start-pos base-map))}))

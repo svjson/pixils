@@ -7,7 +7,8 @@
             [boulder-rush.sounds :as sound]
             [boulder-rush.level.current :as level]
             [boulder-rush.game.phase.common :as common]
-            [boulder-rush.game.phase.death :as death-phase]))
+            [boulder-rush.game.phase.death :as death-phase]
+            [boulder-rush.game.phase.level-complete :as complete-phase]))
 
 
 ;; Constants
@@ -88,7 +89,10 @@
                                       dir)
                              (pl/apply-intent (:level-map state)
                                               (:player state)
-                                              dir))
+                                              dir
+                                              (when (>= (-> state :gems :collected)
+                                                        (-> state :gems :required))
+                                                {:walkable-tiles [:empty :dirt :gem :exit]})))
                            {:player (pl/release-input (:player state))}))))
 
 
@@ -114,6 +118,9 @@
                     (update-in [:gems :collected] inc)
                     (assoc-in [:player :score] score)))
                 state)
+        state (if (= :exit entered-tile)
+                (complete-phase/start state)
+                state)
         state (if (empty? (or moved-tiles []))
                 state
                 (assoc state
@@ -136,15 +143,18 @@
 
 
 (defun update [state ctx]
-  (-> state
-      (pl/update-player)
-      (handle-player-input ctx)
-      (tick-remaining-time)
-      (common/tick-events)
-      (common/update ctx)
-      ((fn [state]
-         (if (:player-death state)
-           (assoc state
-             :phase :phase/death
-             :death {:timer (timer/make {:interval-ms death-phase/DEATH-DELAY-MS})})
-           state)))))
+  (let [state (-> state
+                  (pl/update-player)
+                  (handle-player-input ctx))]
+    (if (= :phase/level-complete (:phase state))
+      state
+      (-> state
+          (tick-remaining-time)
+          (common/tick-events)
+          (common/update ctx)
+          ((fn [state]
+             (if (:player-death state)
+               (assoc state
+                 :phase :phase/death
+                 :death {:timer (timer/make {:interval-ms death-phase/DEATH-DELAY-MS})})
+               state)))))))

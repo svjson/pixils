@@ -1,0 +1,63 @@
+(ns boulder-rush.game.phase.level-complete
+  (:require [pixils.state.timer :as timer]
+            [boulder-rush.game.init :as init]
+            [boulder-rush.game.phase.common :as common]
+            [boulder-rush.level.index :as caves]
+            [boulder-rush.level.loader :as level-loader]))
+
+
+;; Constants
+
+(def TIME-BONUS-INTERVAL-MS 25)
+
+
+
+;; Phase Functions
+
+(defun start [state]
+  (assoc state
+         :phase :phase/level-complete
+         :level-complete {:timer (timer/make {:interval-ms TIME-BONUS-INTERVAL-MS})}))
+
+(defun tick-time-bonus [state]
+  (let [timer (timer/tick (-> state :level-complete :timer))
+        state (assoc-in state [:level-complete :timer] timer)]
+    (if (and (timer/ticked? timer)
+             (> (:remaining-time state) 0))
+      (-> state
+          (update :remaining-time dec)
+          (update-in [:player :score] (fn [score] (inc (or score 0)))))
+      state)))
+
+(defun next-level-number [current-level]
+  (let [next-level (inc current-level)]
+    (if (> next-level (count caves/levels))
+      1
+      next-level)))
+
+(defun load-next-level [state]
+  (let [score (or (-> state :player :score) 0)
+        lives (or (-> state :player :lives) 3)
+        level-pack (or (:level-pack state)
+                       (level-loader/load-level-pack!))
+        state (init/init-level (assoc level-pack
+                                      :current-level (next-level-number (:current-level state))))]
+    (assoc state
+           :player (assoc (:player state)
+                          :score score
+                          :lives lives))))
+
+
+
+;; Phase Update Function
+
+(defun update [state ctx]
+  (let [state (common/update-without-physics state ctx)]
+    (if (-> state :level-complete :filling?)
+      (common/update-cover-fill state
+                                :level-complete
+                                load-next-level)
+      (let [state (tick-time-bonus state)]
+        (if (= 0 (:remaining-time state))
+          (common/begin-cover-fill state :level-complete)
+          state)))))

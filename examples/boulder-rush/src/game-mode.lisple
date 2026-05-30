@@ -8,7 +8,8 @@
             [boulder-rush.game.init :as init]
             [boulder-rush.game.phase.level-start :as start-phase]
             [boulder-rush.game.phase.main :as main-phase]
-            [boulder-rush.game.phase.death :as death-phase]))
+            [boulder-rush.game.phase.death :as death-phase]
+            [boulder-rush.game.phase.level-complete :as complete-phase]))
 
 (defmode game-mode
   {:init (fn [state ctx]
@@ -18,7 +19,8 @@
              (let [update-fn (case (:phase state)
                                :phase/level-start start-phase/update
                                :phase/main main-phase/update
-                               :phase/death death-phase/update)]
+                               :phase/death death-phase/update
+                               :phase/level-complete complete-phase/update)]
                (if update-fn
                  (apply update-fn [state ctx])
                  state)))
