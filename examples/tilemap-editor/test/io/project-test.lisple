@@ -1,9 +1,35 @@
 (ns tilemap-editor.io.project-test
   (:require proof.core
+            [lisple.io :as io]
             [pixils.tilemap.project.model :as data]
             [tilemap-editor.io.project :as project-io]))
 
 (def EXAMPLE-MAP-PATH "example-maps/map1.edn")
+(def SAVE-PATH "/tmp/pixils-tilemap-editor-save-test.edn")
+(def EXCLUSIVE-SAVE-PATH "/tmp/pixils-tilemap-editor-exclusive-rule-save-test.edn")
+(def SAVE-HISTORY-PATH "/tmp/pixils-tilemap-editor-save-history-test.edn")
+(def HISTORY-PATH "/tmp/pixils-tilemap-editor-history-test.edn")
+(def OPEN-PATH "/tmp/pixils-tilemap-editor-open-test.edn")
+
+(defun remove-file-if-exists! [path]
+  (if (io/exists? path)
+    (io/remove-tree! path)
+    nil))
+
+(defun cleanup-project-io-test-files! []
+  (do
+    (remove-file-if-exists! SAVE-PATH)
+    (remove-file-if-exists! EXCLUSIVE-SAVE-PATH)
+    (remove-file-if-exists! SAVE-HISTORY-PATH)
+    (remove-file-if-exists! HISTORY-PATH)
+    (remove-file-if-exists! OPEN-PATH)))
+
+(defun file-dialog-payload [mode path filename]
+  {:type :confirm
+   :mode mode
+   :path path
+   :directory "/tmp"
+   :filename filename})
 
 (defun layer-tile-refs [layer]
   (reduce (:tiles layer)
@@ -140,6 +166,101 @@
                    :filename "new.edn"})]
     (is (= ["new.edn" "first.edn"]
            (map promoted :path)))))
+
+(deftest save-dialog-result-writes-project-edn
+  (do
+    (cleanup-project-io-test-files!)
+    (project-io/apply-project-file-dialog-result
+     {:layers (data/make-layered-map)}
+     (file-dialog-payload :file-dialog/save SAVE-PATH "saved-project.edn"))
+    (let [document (io/slurp-edn! SAVE-PATH)]
+      (is (= data/project-format (:format document)))
+      (is (= data/project-format-version (:version document)))
+      (is (= {:bundles {}} (:resources document)))
+      (is (= [] (:tilesets document)))
+      (is (= data/default-map-id (:selected-map document)))
+      (is (= [] (get-in document [:maps 0 :layers]))))
+    (cleanup-project-io-test-files!)))
+
+(deftest save-and-open-round-trips-terrain-rule-exclusive-flag
+  (do
+    (cleanup-project-io-test-files!)
+    (project-io/apply-project-file-dialog-result
+     {:layers []
+      :rulesets [{:id :overworld-rules
+                  :kind :terrain-stamp
+                  :terrain-set :overworld
+                  :rules [{:id :edge
+                           :terrain :grass
+                           :exclusive? true
+                           :output {:layers []}}]}]}
+     (file-dialog-payload :file-dialog/save
+                          EXCLUSIVE-SAVE-PATH
+                          "exclusive-rule-project.edn"))
+    (let [document (io/slurp-edn! EXCLUSIVE-SAVE-PATH)
+          state (project-io/apply-project-file-dialog-result
+                 {:layers []
+                  :selected-layer-index nil}
+                 (file-dialog-payload :file-dialog/open
+                                      EXCLUSIVE-SAVE-PATH
+                                      "exclusive-rule-project.edn"))]
+      (is (= true (get-in document [:rulesets 0 :rules 0 :exclusive?])))
+      (is (= true (get-in state [:rulesets 0 :rules 0 :exclusive?]))))
+    (cleanup-project-io-test-files!)))
+
+(deftest save-dialog-result-updates-recent-projects
+  (do
+    (cleanup-project-io-test-files!)
+    (let [payload (file-dialog-payload :file-dialog/save
+                                       SAVE-HISTORY-PATH
+                                       "saved-history-project.edn")
+          entry {:path SAVE-HISTORY-PATH
+                 :directory "/tmp"
+                 :filename "saved-history-project.edn"}
+          state (project-io/apply-project-file-dialog-result
+                 {:layers []
+                  :recent-projects []
+                  :project-history-path HISTORY-PATH}
+                 payload)
+          history (io/slurp-edn! HISTORY-PATH)]
+      (is (= [entry] (:recent-projects state)))
+      (is (= [entry] (:projects history))))
+    (cleanup-project-io-test-files!)))
+
+(deftest open-dialog-result-loads-project-edn-layers
+  (do
+    (cleanup-project-io-test-files!)
+    (io/spit-edn! OPEN-PATH
+                  {:format data/project-format
+                   :version data/project-format-version
+                   :resources {:images {:editor-assets/spritesheet
+                                        {:file-name "assets/simples_pimples.png"}}}
+                   :tilesets []
+                   :tilemap {:width 2
+                             :height 2
+                             :tile-size 16
+                             :layers [{:id :scene/background
+                                       :label "Loaded Background"
+                                       :kind :tile
+                                       :tileset :colors
+                                       :order 0
+                                       :tiles [[:night :void]
+                                               [:void :night]]}]}})
+    (let [payload (file-dialog-payload :file-dialog/open
+                                       OPEN-PATH
+                                       "loaded-project.edn")
+          state (project-io/apply-project-file-dialog-result
+                 {:layers (data/make-layered-map)
+                  :selected-layer-index 2
+                  :hidden-layer-indices [1 2]}
+                 payload)]
+      (is (= OPEN-PATH (:project-path state)))
+      (is (= "Loaded Background" (get-in state [:layers 0 :label])))
+      (is (= [] (:tilesets state)))
+      (is (= 0 (:selected-layer-index state)))
+      (is (= [] (:hidden-layer-indices state)))
+      (is (= payload (:last-project-open-result state))))
+    (cleanup-project-io-test-files!)))
 
 (deftest example-map-loads-through-open-project-path
   (let [state (project-open-state)]

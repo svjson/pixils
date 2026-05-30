@@ -7,7 +7,6 @@
 #include <fstream>
 #include <lisple/runtime/dict.h>
 #include <lisple/runtime/value.h>
-#include <sstream>
 #include <string>
 #include <vector>
 
@@ -24,14 +23,6 @@ inline std::string lisp_string(const std::string& value)
   }
   out.push_back('\"');
   return out;
-}
-
-inline std::string read_text_file(const std::filesystem::path& path)
-{
-  std::ifstream in(path);
-  std::stringstream buffer;
-  buffer << in.rdbuf();
-  return buffer.str();
 }
 
 inline void find_descendant_modes(const std::shared_ptr<Pixils::Runtime::View>& view,
@@ -86,10 +77,6 @@ inline void read_tilemap_editor_sources(Lisple::Runtime& runtime)
   runtime.read_file("examples/tilemap-editor/src/view/theme.lisple");
   runtime.read_file("examples/tilemap-editor/src/root.lisple");
 }
-
-class TilemapEditorProjectIoTest : public BaseFixture
-{
-};
 
 class TilemapEditorStartupTest : public RenderFixture
 {
