@@ -1,0 +1,79 @@
+(ns tilemap-editor.fixture.main-window
+  (:require proof.core
+            [pixils.test.runtime :as runtime]
+            [tilemap-editor.fixture.io.project :as project]))
+
+(defun make-app []
+  (runtime/make-app {:package-root "."
+                     :buffer-width 800
+                     :buffer-height 600}))
+
+(defun open-project! [project-id]
+  (let [app (make-app)]
+    (runtime/push-mode! app 'main-mode)
+    (runtime/update! app)
+    (runtime/set-active-state! app
+                               (assoc (runtime/active-state app)
+                                      :project-history-path (project/history-path project-id)
+                                      :recent-projects []))
+    (runtime/push-mode-with-overrides!
+     app
+     'ui/tab-panel-empty
+     nil
+     {:origin {:view (runtime/active-mode app)
+               :event :project/file-dialog-result}})
+    (runtime/pop-mode! app (project/file-dialog-payload project-id :file-dialog/open))
+    (runtime/update! app)
+    (runtime/update! app)
+    (runtime/render! app)
+    app))
+
+(defun is-open? [app]
+  (let [open? (= "main-mode" (runtime/active-mode-name app))]
+    (is (= true open?))
+    open?))
+
+(defun tab-id [target]
+  (case target
+    :tab/map :map
+    :tab/tilemap :map
+    :tab/tiles :tilesets
+    :tab/tilesets :tilesets
+    :tab/terrains :terrains
+    :tab/brushes :brushes
+    :tab/resources :resources
+    :default target))
+
+(defun switch-to! [app target opts]
+  (let [id (tab-id target)
+        tab (runtime/find-view-containing app "ui/tab" (str ":tab-id " id))]
+    (is (not (nil? tab)))
+    (case (:by opts)
+      :mouse/click (runtime/click! app tab)
+      :default (runtime/click! app tab))
+    (runtime/render! app)
+    (if (not= false (:verify-result opts))
+      (is (= id (:workspace-tab (runtime/active-state app))))
+      nil)
+    app))
+
+(defun menu-command [item]
+  (case item
+    :menu-item/edit :edit
+    :menu-item/duplicate :duplicate
+    :menu-item/delete :delete
+    :menu-item/rename :rename
+    :default item))
+
+(defun choose-menu-item! [app item opts]
+  (let [command (menu-command item)
+        menu-item (runtime/find-view-containing app
+                                                "ui/popup-menu-item"
+                                                (str ":command " command))]
+    (is (not (nil? menu-item)))
+    (case (:by opts)
+      :mouse/click (runtime/click! app menu-item)
+      :default (runtime/click! app menu-item))
+    (runtime/update! app)
+    (runtime/render! app)
+    app))

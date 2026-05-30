@@ -1,0 +1,67 @@
+(ns tilemap-editor.fixture.io.project
+  (:require proof.core
+            [lisple.io :as io]
+            [pixils.tilemap.project.model :as data]
+            [pixils.test.runtime :as runtime]))
+
+(def PROJECT-PATH-PREFIX "/tmp/pixils-tilemap-editor-")
+
+(defun id-name [id]
+  (let [text (str id)]
+    (if (= ":" (substr text 0 1))
+      (substr text 1)
+      text)))
+
+(defun path [project-id]
+  (str PROJECT-PATH-PREFIX (id-name project-id) "-project.edn"))
+
+(defun history-path [project-id]
+  (str PROJECT-PATH-PREFIX (id-name project-id) "-history.edn"))
+
+(defun filename [project-id]
+  (str (id-name project-id) "-project.edn"))
+
+(defun remove-file-if-exists! [path]
+  (if (io/exists? path)
+    (io/remove-tree! path)
+    nil))
+
+(defun cleanup! [project-id]
+  (remove-file-if-exists! (path project-id))
+  (remove-file-if-exists! (history-path project-id)))
+
+(defun project-document [project-data]
+  (merge {:format data/project-format
+          :version data/project-format-version
+          :resources {:bundles {}}
+          :tilemap {:width 1
+                    :height 1
+                    :tile-size data/tile-size
+                    :layers []}}
+         project-data))
+
+(defun write! [project-id project-data]
+  (cleanup! project-id)
+  (io/spit-edn! (path project-id)
+                (project-document project-data))
+  project-id)
+
+(defun file-dialog-payload [project-id mode]
+  {:type :confirm
+   :mode mode
+   :path (path project-id)
+   :directory "/tmp"
+   :filename (filename project-id)})
+
+(defun tileset-id [target]
+  (let [text (str target)]
+    (if (= ":tileset/" (substr text 0 (count ":tileset/")))
+      (keyword (substr text (count ":tileset/")))
+      target)))
+
+(defun contains-tileset? [app target]
+  (let [id (tileset-id target)
+        ids (map (or (:tilesets (runtime/active-state app)) []) :id)
+        present? (contains? ids id)]
+    (is (= true present?))
+    present?))

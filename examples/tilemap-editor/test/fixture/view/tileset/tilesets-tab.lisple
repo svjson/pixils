@@ -1,0 +1,35 @@
+(ns tilemap-editor.fixture.view.tileset.tilesets-tab
+  (:require proof.core
+            [pixils.test.runtime :as runtime]
+            [tilemap-editor.fixture.io.project :as project]))
+
+(defun tileset-definition [app target]
+  (let [id (project/tileset-id target)]
+    (head (filter (or (:tilesets (runtime/active-state app)) [])
+                  (fn [tileset]
+                    (= id (:id tileset)))))))
+
+(defun open-context-menu! [app target opts]
+  (let [tileset (tileset-definition app target)
+        row (runtime/find-view-containing app
+                                          "tileset-definition-row"
+                                          (:label tileset))]
+    (is (not (nil? tileset)))
+    (is (not (nil? row)))
+    (case (:by opts)
+      :mouse/right-click (runtime/mouse-click-in! app row 5 5 :right)
+      :default (runtime/mouse-click-in! app row 5 5 :right))
+    (runtime/render! app)
+    app))
+
+(defun edit-dialog-is-open? [app]
+  (let [open? (= "tileset-edit-dialog-modal" (runtime/active-mode-name app))]
+    (is (= true open?))
+    open?))
+
+(defun edit-dialog-matches? [app expected]
+  (let [dialog-state (runtime/active-state app)]
+    (is (= (get expected :tileset/id) (:tileset-id dialog-state)))
+    (is (= (get expected :tileset/label) (:tileset-label dialog-state)))
+    (is (= (get expected :tileset/tile-size) (:tile-size dialog-state)))
+    true))
