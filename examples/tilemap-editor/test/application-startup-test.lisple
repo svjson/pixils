@@ -1,0 +1,119 @@
+(ns tilemap-editor.application-startup-test
+  (:require proof.core
+            [lisple.io :as io]
+            [pixils.tilemap.project.model :as data]
+            [tilemap-editor.io.project :as project-io]
+            [tilemap-editor.model.tilemap :as tilemap]))
+
+(def TERRAIN-PAINT-PATH "/tmp/pixils-tilemap-editor-terrain-rule-paint-project.edn")
+
+(defun remove-file-if-exists! [path]
+  (if (io/exists? path)
+    (io/remove-tree! path)
+    nil))
+
+(defun cleanup-application-startup-test-files! []
+  (remove-file-if-exists! TERRAIN-PAINT-PATH))
+
+(defun file-dialog-payload [mode path filename]
+  {:type :confirm
+   :mode mode
+   :path path
+   :directory "/tmp"
+   :filename filename})
+
+(defun paint-event [button x y]
+  {:button button
+   :position {:x (* x data/tile-size)
+              :y (* y data/tile-size)}})
+
+(deftest loaded-project-terrain-paint-can-bake-stamp-rule
+  (do
+    (cleanup-application-startup-test-files!)
+    (io/spit-edn! TERRAIN-PAINT-PATH
+                  {:format data/project-format
+                   :version data/project-format-version
+                   :resources {:bundles {}}
+                   :tilesets [{:id :terrain
+                               :label "Terrain"
+                               :tile-size 16
+                               :tiles [{:id :grass-fill
+                                        :name "Grass Fill"
+                                        :type :color
+                                        :color {:r 0 :g 255 :b 0}}
+                                       {:id :water-fill
+                                        :name "Water Fill"
+                                        :type :color
+                                        :color {:r 0 :g 0 :b 255}}
+                                       {:id :shore-n
+                                        :name "Shore North"
+                                        :type :color
+                                        :color {:r 255 :g 255 :b 0}}]}]
+                   :terrain-sets [{:id :overworld
+                                   :label "Overworld"
+                                   :tileset :terrain
+                                   :terrains [{:id :grass
+                                               :label "Grass"
+                                               :tile :grass-fill}
+                                              {:id :water
+                                               :label "Water"
+                                               :tile :water-fill}]}]
+                   :rulesets [{:id :shore-rules
+                               :kind :terrain-stamp
+                               :terrain-set :overworld
+                               :source-layer nil
+                               :rules [{:id :grass-north-water
+                                        :terrain :grass
+                                        :match {:nw :ignore
+                                                :n {:terrain :water}
+                                                :ne :ignore
+                                                :w :ignore
+                                                :e :ignore
+                                                :sw :ignore
+                                                :s :ignore
+                                                :se :ignore}
+                                        :output {:anchor {:x 1 :y 1}
+                                                 :layers [{:id :layer
+                                                           :target-layer nil
+                                                           :tileset :terrain
+                                                           :tiles [[nil :shore-n nil]
+                                                                   [nil :grass-fill nil]
+                                                                   [nil nil nil]]}]}}]}]
+                   :layer-profiles [{:id :default
+                                     :label "Default"
+                                     :layers [{:id :scene/terrain
+                                               :label "Terrain Source"
+                                               :kind :tile
+                                               :role :source
+                                               :data-kind :terrain
+                                               :terrain-set :overworld}]}]
+                   :tilemap {:width 32
+                             :height 32
+                             :tile-size 16
+                             :layer-profile :default
+                             :layers [{:id :scene/terrain
+                                       :label "Terrain Source"
+                                       :kind :tile
+                                       :role :source
+                                       :data-kind :terrain
+                                       :terrain-set :overworld
+                                       :tiles [[nil :water nil]]}]}})
+    (let [loaded (project-io/apply-project-file-dialog-result
+                  {:layers []
+                   :recent-projects []}
+                  (file-dialog-payload :file-dialog/open
+                                       TERRAIN-PAINT-PATH
+                                       "terrain-rule-paint-project.edn"))
+          painted (tilemap/paint-map-at
+                   (assoc loaded :terrain-rule-application :paint-baked)
+                   (paint-event :left 1 1))
+          baked-tiles (apply concat (get-in painted [:layers 1 :tiles]))]
+      (is (= :grass (get-in painted [:layers 0 :tiles 1 1])))
+      (is (= (keyword "scene/terrain/shore-rules/layer")
+             (get-in painted [:layers 1 :id])))
+      (is (= ":shore-rules"
+             (get-in painted [:terrain-stamp-replacements 0 :label])))
+      (is (contains? baked-tiles :grass-fill))
+      (is (= true
+             (get-in painted [:terrain-stamp-replacements 0 :tiles 1 1]))))
+    (cleanup-application-startup-test-files!)))

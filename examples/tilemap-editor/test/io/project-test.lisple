@@ -10,6 +10,7 @@
 (def SAVE-HISTORY-PATH "/tmp/pixils-tilemap-editor-save-history-test.edn")
 (def HISTORY-PATH "/tmp/pixils-tilemap-editor-history-test.edn")
 (def OPEN-PATH "/tmp/pixils-tilemap-editor-open-test.edn")
+(def LEGACY-SOURCE-PATH "/tmp/pixils-tilemap-editor-terrain-rule-legacy-source-project.edn")
 
 (defun remove-file-if-exists! [path]
   (if (io/exists? path)
@@ -22,7 +23,8 @@
     (remove-file-if-exists! EXCLUSIVE-SAVE-PATH)
     (remove-file-if-exists! SAVE-HISTORY-PATH)
     (remove-file-if-exists! HISTORY-PATH)
-    (remove-file-if-exists! OPEN-PATH)))
+    (remove-file-if-exists! OPEN-PATH)
+    (remove-file-if-exists! LEGACY-SOURCE-PATH)))
 
 (defun file-dialog-payload [mode path filename]
   {:type :confirm
@@ -260,6 +262,83 @@
       (is (= 0 (:selected-layer-index state)))
       (is (= [] (:hidden-layer-indices state)))
       (is (= payload (:last-project-open-result state))))
+    (cleanup-project-io-test-files!)))
+
+(deftest loaded-terrain-rule-normalizes-legacy-sprite-sources
+  (do
+    (cleanup-project-io-test-files!)
+    (io/spit-edn! LEGACY-SOURCE-PATH
+                  {:format data/project-format
+                   :version data/project-format-version
+                   :resources {:bundles {:project-assets
+                                         {:images {:spritesheet
+                                                   {:file-name "examples/tilemap-editor/assets/simples_pimples.png"
+                                                    :name "Spritesheet"}}}}}
+                   :tilesets [{:id :terrain
+                               :label "Terrain"
+                               :tile-size 16
+                               :tiles [{:id :grass-fill
+                                        :name "Grass Fill"
+                                        :char "g"
+                                        :type :sprite
+                                        :image :project-assets/spritesheet
+                                        :source {:x 0 :y 0}}]}]
+                   :terrain-sets [{:id :overworld
+                                   :label "Overworld"
+                                   :tileset :terrain
+                                   :terrains [{:id :grass
+                                               :label "Grass"
+                                               :tile :grass-fill}]}]
+                   :rulesets [{:id :overworld-rules
+                               :label "Overworld Rules"
+                               :kind :terrain-stamp
+                               :terrain-set :overworld
+                               :source-layer :scene/terrain
+                               :rules [{:id :rule
+                                        :label "Rule"
+                                        :terrain :grass
+                                        :match {:nw :ignore
+                                                :n :same
+                                                :ne :ignore
+                                                :w :ignore
+                                                :e :ignore
+                                                :sw :ignore
+                                                :s :ignore
+                                                :se :ignore}
+                                        :output {:anchor {:x 1 :y 1}
+                                                 :layers [{:id :layer
+                                                           :data-kind :tile-ref
+                                                           :target-layer :scene/terrain-visuals
+                                                           :tileset :terrain
+                                                           :tiles [[nil nil nil]
+                                                                   [nil :grass-fill nil]
+                                                                   [nil nil nil]]}]}}]}]
+                   :layer-profiles [{:id :default
+                                     :label "Default"
+                                     :layers [{:id :scene/terrain
+                                               :label "Terrain Source"
+                                               :kind :terrain
+                                               :data-kind :terrain
+                                               :terrain-set :overworld}
+                                              {:id :scene/terrain-visuals
+                                               :label "Terrain Visuals"
+                                               :kind :tile
+                                               :data-kind :tile-ref
+                                               :tileset :terrain}]}]
+                   :tilemap {:width 2
+                             :height 2
+                             :tile-size 16
+                             :layer-profile :default
+                             :layers []}})
+    (let [state (project-io/apply-project-file-dialog-result
+                 {:layers []
+                  :recent-projects []}
+                 (file-dialog-payload :file-dialog/open
+                                      LEGACY-SOURCE-PATH
+                                      "terrain-rule-legacy-source-project.edn"))]
+      (is (= {:x 0 :y 0 :w 16 :h 16}
+             (get-in state [:tilesets 0 :tiles 0 :source])))
+      (is (= :rule (get-in state [:rulesets 0 :rules 0 :id]))))
     (cleanup-project-io-test-files!)))
 
 (deftest example-map-loads-through-open-project-path
