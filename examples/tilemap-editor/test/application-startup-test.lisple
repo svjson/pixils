@@ -16,6 +16,7 @@
 (def EXCLUSIVE-RULE-PATH "/tmp/pixils-tilemap-editor-exclusive-checkbox-project.edn")
 (def MISSING-IMAGE-PATH "/tmp/pixils-tilemap-editor-missing-image-project.edn")
 (def MISSING-IMAGE-HISTORY-PATH "/tmp/pixils-tilemap-editor-missing-image-history.edn")
+(def DIRECT-LOAD-HISTORY-PATH "/tmp/pixils-tilemap-editor-direct-load-history.edn")
 
 (defun remove-file-if-exists! [path]
   (if (io/exists? path)
@@ -28,7 +29,8 @@
   (remove-file-if-exists! RESOURCE-PATH)
   (remove-file-if-exists! EXCLUSIVE-RULE-PATH)
   (remove-file-if-exists! MISSING-IMAGE-PATH)
-  (remove-file-if-exists! MISSING-IMAGE-HISTORY-PATH))
+  (remove-file-if-exists! MISSING-IMAGE-HISTORY-PATH)
+  (remove-file-if-exists! DIRECT-LOAD-HISTORY-PATH))
 
 (defun file-dialog-payload [mode path filename]
   {:type :confirm
@@ -47,6 +49,18 @@
    {:layers []
     :recent-projects []}
    (file-dialog-payload :file-dialog/open path filename)))
+
+(defun make-startup-app []
+  (runtime/make-app {:package-root "."
+                     :buffer-width 800
+                     :buffer-height 600}))
+
+(defun example-map-open-payload []
+  {:type :confirm
+   :mode :file-dialog/open
+   :path "example-maps/map1.edn"
+   :directory "example-maps"
+   :filename "map1.edn"})
 
 (deftest loaded-project-terrain-paint-can-bake-stamp-rule
   (cleanup-application-startup-test-files!)
@@ -273,9 +287,7 @@
   (cleanup-application-startup-test-files!))
 
 (deftest current-example-main-mode-renders-and-switches-to-tilesets-tab
-  (let [app (runtime/make-app {:package-root "."
-                                :buffer-width 800
-                                :buffer-height 600})]
+  (let [app (make-startup-app)]
     (runtime/push-mode! app 'main-mode)
     (runtime/update! app)
     (runtime/render! app)
@@ -286,6 +298,105 @@
     (runtime/render! app)
     (is (= :tilesets (:workspace-tab (runtime/active-state app))))
     (is (not (nil? (runtime/find-view app "tileset-definition-workspace"))))))
+
+(deftest menu-shortcuts-dispatch-from-main-mode-action-map
+  (let [app (make-startup-app)]
+    (runtime/push-mode! app 'main-mode)
+    (runtime/update! app)
+    (is (= true (:show-grid? (runtime/active-state app))))
+    (is (= true (:show-terrain-rules? (runtime/active-state app))))
+    (is (= :preview (:terrain-rule-application (runtime/active-state app))))
+
+    (runtime/key-down! app :left-ctrl)
+    (runtime/key-down! app :g)
+    (runtime/update! app)
+    (runtime/key-up! app :g)
+    (is (= false (:show-grid? (runtime/active-state app))))
+
+    (runtime/key-down! app :t)
+    (runtime/update! app)
+    (runtime/key-up! app :t)
+    (is (= false (:show-terrain-rules? (runtime/active-state app))))
+
+    (runtime/key-down! app :left-alt)
+    (runtime/key-down! app :b)
+    (runtime/update! app)
+    (runtime/key-up! app :b)
+    (is (= :paint-baked (:terrain-rule-application (runtime/active-state app))))
+
+    (runtime/key-down! app :p)
+    (runtime/update! app)
+    (runtime/key-up! app :p)
+    (runtime/key-up! app :left-alt)
+    (runtime/key-up! app :left-ctrl)
+    (runtime/update! app)
+    (is (= :preview (:terrain-rule-application (runtime/active-state app))))))
+
+(deftest direct-project-load-keeps-existing-palette-interactive
+  (cleanup-application-startup-test-files!)
+  (let [app (make-startup-app)]
+    (runtime/push-mode! app 'main-mode)
+    (runtime/update! app)
+    (runtime/render! app)
+    (runtime/set-active-state!
+     app
+     (project-io/apply-project-file-dialog-result
+      (assoc (runtime/active-state app)
+             :project-history-path DIRECT-LOAD-HISTORY-PATH
+             :recent-projects [])
+      (example-map-open-payload)))
+    (runtime/update! app)
+    (runtime/update! app)
+    (runtime/render! app)
+    (let [tile-select-grid (runtime/find-view-containing app
+                                                         "tile-select-grid"
+                                                         "Night Sky")]
+      (is (not (nil? tile-select-grid)))
+      (runtime/mouse-click-in! app tile-select-grid 21 5))
+    (is (= :cave-depth (:selected-tile (runtime/active-state app))))
+    (is (not (nil? (runtime/find-view-containing app
+                                                 "tile-select-grid"
+                                                 "Cave Depth")))))
+  (cleanup-application-startup-test-files!))
+
+(deftest terrain-unit-combo-updates-selected-terrain-set
+  (let [app (make-startup-app)]
+    (runtime/push-mode! app 'main-mode)
+    (runtime/update! app)
+    (runtime/set-active-state!
+     app
+     (assoc (runtime/active-state app)
+            :workspace-tab :terrains
+            :selected-terrain-set-index 0
+            :terrain-sets [{:id :mountains
+                            :label "Mountains"
+                            :terrains []}]))
+    (runtime/update! app)
+    (runtime/render! app)
+    (let [terrain-unit-combo (runtime/find-view-containing app
+                                                           "ui/combo-box"
+                                                           ":unit-2x2")]
+      (is (not (nil? terrain-unit-combo)))
+      (runtime/mouse-down-in! app terrain-unit-combo 5 5))
+    (runtime/update! app)
+    (is (= "ui/combo-box-popup" (runtime/active-mode-name app)))
+    (runtime/render! app)
+    (let [popup-panel (runtime/find-view app "ui/combo-box-popup-panel")]
+      (is (not (nil? popup-panel)))
+      (runtime/mouse-click-in! app popup-panel 5 25))
+    (runtime/update! app)
+    (runtime/update! app)
+    (runtime/render! app)
+    (is (= "main-mode" (runtime/active-mode-name app)))
+    (is (= {:w 2 :h 2}
+           (get-in (runtime/active-state app)
+                   [:terrain-sets 0 :terrain-unit])))
+    (let [terrain-unit-combo (runtime/find-view-containing app
+                                                           "ui/combo-box"
+                                                           ":unit-2x2")]
+      (is (not (nil? terrain-unit-combo)))
+      (is (= 1 (:selected-index (runtime/view-state terrain-unit-combo))))
+      (is (= "2 x 2" (:selected-label (runtime/view-state terrain-unit-combo)))))))
 
 (deftest loaded-sprite-project-after-empty-tileset-tab-with-missing-image-renders-preview
   (cleanup-application-startup-test-files!)
@@ -309,9 +420,7 @@
                            :height 2
                            :tile-size 16
                            :layers []}})
-  (let [app (runtime/make-app {:package-root "."
-                                :buffer-width 800
-                                :buffer-height 600})
+  (let [app (make-startup-app)
         open-payload (file-dialog-payload :file-dialog/open
                                           MISSING-IMAGE-PATH
                                           "sprite-project.edn")]
