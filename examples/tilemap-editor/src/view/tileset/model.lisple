@@ -353,6 +353,46 @@
    :tile-size tile-size
    :tiles []})
 
+(defun tileset-label [tileset]
+  (or (:label tileset)
+      (:name tileset)
+      (when (:id tileset)
+        (label-from-id (:id tileset)))
+      "Tile Set"))
+
+(defun tileset-label-exists? [tilesets label exclude-index]
+  (> (count (filter (for-indexed [index tileset (or tilesets [])]
+                      {:index index
+                       :label (tileset-label tileset)})
+                    (fn [entry]
+                      (and (= (:label entry) label)
+                           (not= (:index entry) exclude-index)))))
+     0))
+
+(defun unique-tileset-label-from [tilesets root-label exclude-index suffix]
+  (let [candidate (if suffix
+                    (str root-label " " suffix)
+                    root-label)]
+    (if (tileset-label-exists? tilesets candidate exclude-index)
+      (unique-tileset-label-from tilesets
+                                 root-label
+                                 exclude-index
+                                 (if suffix (inc suffix) 2))
+      candidate)))
+
+(defun duplicate-tileset-label [tilesets tileset]
+  (unique-tileset-label-from tilesets
+                             (str (tileset-label tileset) " Copy")
+                             nil
+                             nil))
+
+(defun insert-tileset-after [tilesets tileset-index duplicate]
+  (apply concat
+         (for-indexed [index tileset (or tilesets [])]
+           (if (= index tileset-index)
+             [tileset duplicate]
+             [tileset]))))
+
 (defun make-tile-definition [id name ch type tile-size]
   (tile-with-type {:id (keyword id)
                    :name name
@@ -397,6 +437,34 @@
              :selected-tileset-tile-index nil
              :selected-tileset-tile-indices []))
     state))
+
+(defun duplicate-tileset-definition! [state payload]
+  (let [tilesets (or (:tilesets state) [])
+        index (:source-tileset-index payload)]
+    (if (and (= (:type payload) :confirm)
+             (not (nil? index))
+             (>= index 0)
+             (< index (count tilesets))
+             (not (blank? (:tileset-id payload)))
+             (not (blank? (:tileset-label payload))))
+      (let [source (nth tilesets index)
+            tile-size (or (:tile-size payload)
+                          (:tile-size source)
+                          data/tile-size)
+            id (keyword (unique-id-from tilesets
+                                        (kebab-case (:tileset-id payload))
+                                        nil))
+            duplicate (assoc (tileset-with-tile-size source tile-size)
+                             :id id
+                             :label (:tileset-label payload))
+            duplicate-index (inc index)
+            tiles (or (:tiles duplicate) [])]
+        (assoc state
+               :tilesets (insert-tileset-after tilesets index duplicate)
+               :selected-tileset-definition-index duplicate-index
+               :selected-tileset-tile-index (if (empty? tiles) nil 0)
+               :selected-tileset-tile-indices (if (empty? tiles) [] [0])))
+      state)))
 
 (defun rename-tileset-in-brush-value [value old-id new-id]
   (case (type-of value)

@@ -10,6 +10,14 @@
                                  [{:id :terrain
                                    :label "Terrain"}]))))))
 
+(deftest tileset-context-menu-includes_edit_and_duplicate_commands
+  (let [edit-item (head (:items panels/tileset-context-menu))
+        duplicate-item (nth (:items panels/tileset-context-menu) 1)]
+    (is (= "Edit" (:label edit-item)))
+    (is (= :edit (-> edit-item :payload :command)))
+    (is (= "Duplicate" (:label duplicate-item)))
+    (is (= :duplicate (-> duplicate-item :payload :command)))))
+
 (deftest tile-context-menu-includes-rename-command
   (let [rename-item (head (:items panels/tile-context-menu))
         delete-item (nth (:items panels/tile-context-menu) 1)]

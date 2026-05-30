@@ -63,6 +63,53 @@
                 :tile-size 16})]
     (is (= :terrain-2 (get-in state [:tilesets 1 :id])))))
 
+(deftest tileset-duplicate-inserts_copy_after_source
+  (let [state (model/duplicate-tileset-definition!
+               {:tilesets [{:id :terrain
+                            :label "Terrain"
+                            :tile-size 16
+                            :tiles [{:id :grass
+                                     :type :sprite
+                                     :source {:x 8 :y 16 :w 16 :h 16}}]}
+                           {:id :decor
+                            :label "Decor"
+                            :tile-size 16
+                            :tiles []}]
+                :selected-tileset-definition-index 0}
+               {:type :confirm
+                :source-tileset-index 0
+                :tileset-id "terrain copy"
+                :tileset-label "Terrain Copy"
+                :tile-size 32})]
+    (is (= [:terrain :terrain-copy :decor]
+           (map (:tilesets state) :id)))
+    (is (= "Terrain Copy" (get-in state [:tilesets 1 :label])))
+    (is (= 32 (get-in state [:tilesets 1 :tile-size])))
+    (is (= {:x 8 :y 16 :w 32 :h 32}
+           (get-in state [:tilesets 1 :tiles 0 :source])))
+    (is (= 1 (:selected-tileset-definition-index state)))
+    (is (= 0 (:selected-tileset-tile-index state)))))
+
+(deftest tileset-duplicate-deduplicates_id_and_default_label
+  (let [tilesets [{:id :terrain
+                   :label "Terrain"
+                   :tile-size 16
+                   :tiles []}
+                  {:id :terrain-copy
+                   :label "Terrain Copy"
+                   :tile-size 16
+                   :tiles []}]
+        label (model/duplicate-tileset-label tilesets (head tilesets))
+        state (model/duplicate-tileset-definition!
+               {:tilesets tilesets}
+               {:type :confirm
+                :source-tileset-index 0
+                :tileset-id "terrain copy"
+                :tileset-label label
+                :tile-size 16})]
+    (is (= "Terrain Copy 2" label))
+    (is (= :terrain-copy-2 (get-in state [:tilesets 1 :id])))))
+
 (deftest tileset-edit-updates-definition-and-references
   (let [state (model/edit-tileset-definition!
                {:tileset :terrain

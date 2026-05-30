@@ -66,6 +66,7 @@
   (let [tilesets (or (:tilesets state) [])
         index (or tileset-index (:selected-tileset-definition-index state))
         tileset (when (and (not (nil? index))
+                           (>= index 0)
                            (< index (count tilesets)))
                   (nth tilesets index))]
     (if tileset
@@ -84,6 +85,33 @@
                (if (empty? (or (:tiles tileset) [])) nil 0)
                :selected-tileset-tile-indices
                (if (empty? (or (:tiles tileset) [])) [] [0])))
+      state)))
+
+(defun open-tileset-duplicate-dialog! [state ctx tileset-index]
+  (let [tilesets (or (:tilesets state) [])
+        index (or tileset-index (:selected-tileset-definition-index state))
+        tileset (when (and (not (nil? index))
+                           (>= index 0)
+                           (< index (count tilesets)))
+                  (nth tilesets index))]
+    (if tileset
+      (let [label (duplicate-tileset-label tilesets tileset)
+            id (unique-id-from tilesets (kebab-case label) nil)]
+        (do
+          (push-mode! 'tileset-duplicate-dialog-modal
+                      {:source-tileset-index index
+                       :tileset-id id
+                       :tileset-label label
+                       :tile-size (or (:tile-size tileset) data/tile-size)
+                       :confirm-label "Duplicate"}
+                      {:origin {:view (:view ctx)
+                                :event :tileset/duplicate-dialog-result}})
+          (assoc state
+                 :selected-tileset-definition-index index
+                 :selected-tileset-tile-index
+                 (if (empty? (or (:tiles tileset) [])) nil 0)
+                 :selected-tileset-tile-indices
+                 (if (empty? (or (:tiles tileset) [])) [] [0]))))
       state)))
 
 (defun open-tile-delete-confirm-dialog! [state ctx tile-indices]
@@ -405,6 +433,44 @@
                                :confirm-label (ui/bind-state :confirm-label)}
                        :body [{:mode 'tileset-create-dialog-body
                                :state {:tileset-index (ui/bind-state :tileset-index)
+                                       :tileset-id (ui/bind-state :tileset-id)
+                                       :tileset-label (ui/bind-state :tileset-label)
+                                       :tile-size (ui/bind-state :tile-size)
+                                       :confirm-label (ui/bind-state :confirm-label)}}]})]})
+
+(defmode tileset-duplicate-dialog-modal
+  {:on {:tileset-create-dialog/cancel
+        (fn [state event ctx]
+          (do
+            (ui/stop-propagation! event)
+            (pop-mode! {:type :cancel})
+            state))
+        :tileset-create-dialog/confirm
+        (fn [state event ctx]
+          (do
+            (ui/stop-propagation! event)
+            (if (or (blank? (:tileset-id state))
+                    (blank? (:tileset-label state)))
+              state
+              (do
+                (pop-mode! {:type :confirm
+                            :source-tileset-index (:source-tileset-index state)
+                            :tileset-id (:tileset-id state)
+                            :tileset-label (:tileset-label state)
+                            :tile-size (:tile-size state)})
+                state))))}
+   :compose {:render :pass}
+   :children [(w/make {:position {:x 220 :y 140}
+                       :title-bar {:title "Duplicate Tile Set"}
+                       :state {:source-tileset-index
+                               (ui/bind-state :source-tileset-index)
+                               :tileset-id (ui/bind-state :tileset-id)
+                               :tileset-label (ui/bind-state :tileset-label)
+                               :tile-size (ui/bind-state :tile-size)
+                               :confirm-label (ui/bind-state :confirm-label)}
+                       :body [{:mode 'tileset-create-dialog-body
+                               :state {:source-tileset-index
+                                       (ui/bind-state :source-tileset-index)
                                        :tileset-id (ui/bind-state :tileset-id)
                                        :tileset-label (ui/bind-state :tileset-label)
                                        :tile-size (ui/bind-state :tile-size)

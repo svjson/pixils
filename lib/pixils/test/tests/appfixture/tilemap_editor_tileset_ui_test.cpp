@@ -93,7 +93,7 @@ TEST_F(TilemapEditorStartupTest, tileset_row_context_menu_opens_edit_dialog)
 
   std::vector<std::shared_ptr<Pixils::Runtime::View>> menu_items;
   find_descendant_modes(session.active_mode, "ui/popup-menu-item", menu_items);
-  ASSERT_EQ(menu_items.size(), 1u);
+  ASSERT_EQ(menu_items.size(), 2u);
   auto edit_item = menu_items[0];
   input().mouse_down({edit_item->bounds.x + edit_item->bounds.w / 2,
                       edit_item->bounds.y + edit_item->bounds.h / 2});

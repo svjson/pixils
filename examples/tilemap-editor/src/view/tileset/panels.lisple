@@ -23,7 +23,10 @@
   {:settings {:mnemonics {:enabled false}}
    :items [{:label "Edit"
             :action :tileset/context-dummy
-            :payload {:command :edit}}]})
+            :payload {:command :edit}}
+           {:label "Duplicate"
+            :action :tileset/context-dummy
+            :payload {:command :duplicate}}]})
 
 (def tile-context-menu
   {:settings {:mnemonics {:enabled false}}

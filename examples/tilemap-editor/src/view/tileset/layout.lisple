@@ -52,6 +52,10 @@
             :edit (open-tileset-edit-dialog! state
                                              ctx
                                              (-> event :payload :tileset-index))
+            :duplicate (open-tileset-duplicate-dialog!
+                        state
+                        ctx
+                        (-> event :payload :tileset-index))
             :default state))
         :tileset/add-tile (fn [state event ctx]
                             (open-tile-create-dialog! state ctx))
@@ -61,6 +65,9 @@
         :tileset/edit-dialog-result
         (fn [state event ctx]
           (edit-tileset-definition! state (:payload event)))
+        :tileset/duplicate-dialog-result
+        (fn [state event ctx]
+          (duplicate-tileset-definition! state (:payload event)))
         :tile/context-command
         (fn [state event ctx]
           (case (-> event :payload :command)
