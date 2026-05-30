@@ -15,6 +15,12 @@
 (defun active-mode-name [app] (native/active-mode-name app))
 (defun active-state [app] (native/active-state app))
 (defun set-active-state! [app state] (native/set-active-state! app state))
+(defun dialog-payload [app] (:dialog/payload (active-state app)))
+(defun dialog-open? [app & operation]
+  (and (= "ui/dialog-frame" (active-mode-name app))
+       (if operation
+         (= operation (:operation (dialog-payload app)))
+         true)))
 (defun view-mode-name [view] (native/view-mode-name view))
 (defun view-state [view] (native/view-state view))
 (defun find-view [app mode-name] (native/find-view app mode-name))
