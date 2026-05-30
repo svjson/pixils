@@ -1,6 +1,7 @@
 (ns pixils.test.package-test
   (:require proof.core
             pixils.test
+            [pixils.test.runtime :as runtime]
             [pixils.color :as color]
             [pixils.point :as point]))
 
@@ -15,3 +16,6 @@
 (deftest pixils-test-can-host-pure-function-tests
   (let [move-right (fn [point] (point/translate point 1 0))]
     (is (= {:x 4 :y 5} (move-right {:x 3 :y 5})))))
+
+(deftest pixils-test-can-host-runtime-fixtures
+  (is (not (nil? (resolve 'pixils.test.runtime/make-app)))))

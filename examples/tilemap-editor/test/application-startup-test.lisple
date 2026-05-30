@@ -2,6 +2,7 @@
   (:require proof.core
             [lisple.io :as io]
             [pixils.tilemap.project.model :as data]
+            [pixils.test.runtime :as runtime]
             [tilemap-editor.io.project :as project-io]
             [tilemap-editor.model.tilemap :as tilemap]
             [tilemap-editor.view.brushes.layout :as brush-layout]
@@ -13,6 +14,8 @@
 (def BRUSH-PATH "/tmp/pixils-tilemap-editor-brush-project.edn")
 (def RESOURCE-PATH "/tmp/pixils-tilemap-editor-resource-project.edn")
 (def EXCLUSIVE-RULE-PATH "/tmp/pixils-tilemap-editor-exclusive-checkbox-project.edn")
+(def MISSING-IMAGE-PATH "/tmp/pixils-tilemap-editor-missing-image-project.edn")
+(def MISSING-IMAGE-HISTORY-PATH "/tmp/pixils-tilemap-editor-missing-image-history.edn")
 
 (defun remove-file-if-exists! [path]
   (if (io/exists? path)
@@ -24,7 +27,9 @@
     (remove-file-if-exists! TERRAIN-PAINT-PATH)
     (remove-file-if-exists! BRUSH-PATH)
     (remove-file-if-exists! RESOURCE-PATH)
-    (remove-file-if-exists! EXCLUSIVE-RULE-PATH)))
+    (remove-file-if-exists! EXCLUSIVE-RULE-PATH)
+    (remove-file-if-exists! MISSING-IMAGE-PATH)
+    (remove-file-if-exists! MISSING-IMAGE-HISTORY-PATH)))
 
 (defun file-dialog-payload [mode path filename]
   {:type :confirm
@@ -270,4 +275,59 @@
       (is (= :spritesheet (:selected-image-resource workspace)))
       (is (= :project-assets/spritesheet
              (get-in workspace [:tilesets 0 :tiles 0 :image]))))
+    (cleanup-application-startup-test-files!)))
+
+(deftest loaded-sprite-project-after-empty-tileset-tab-with-missing-image-renders-preview
+  (do
+    (cleanup-application-startup-test-files!)
+    (io/spit-edn! MISSING-IMAGE-PATH
+                  {:format data/project-format
+                   :version data/project-format-version
+                   :resources {:bundles {:project-assets
+                                         {:images {:missing
+                                                   {:file-name "does-not-exist.png"
+                                                    :name "Missing Spritesheet"}}}}}
+                   :tilesets [{:id :sprites
+                               :label "Sprites"
+                               :tile-size 16
+                               :tiles [{:id :sprite
+                                        :name "Sprite"
+                                        :char "s"
+                                        :type :sprite
+                                        :image :project-assets/missing
+                                        :source {:x 0 :y 0 :w 16 :h 16}}]}]
+                   :tilemap {:width 2
+                             :height 2
+                             :tile-size 16
+                             :layers []}})
+    (let [app (runtime/make-app {:package-root "."
+                                  :buffer-width 800
+                                  :buffer-height 600})
+          open-payload (file-dialog-payload :file-dialog/open
+                                            MISSING-IMAGE-PATH
+                                            "sprite-project.edn")]
+      (runtime/push-mode! app 'main-mode)
+      (runtime/update! app)
+      (runtime/set-active-state! app
+                                 (assoc (runtime/active-state app)
+                                        :project-history-path MISSING-IMAGE-HISTORY-PATH
+                                        :recent-projects []))
+      (runtime/render! app)
+      (let [tilesets-tab (runtime/find-view-containing app "ui/tab" ":tab-id :tilesets")]
+        (is (not (nil? tilesets-tab)))
+        (runtime/click! app tilesets-tab))
+      (runtime/render! app)
+      (runtime/push-mode-with-overrides!
+       app
+       'ui/tab-panel-empty
+       nil
+       {:origin {:view (runtime/active-mode app)
+                 :event :project/file-dialog-result}})
+      (runtime/pop-mode! app open-payload)
+      (runtime/update! app)
+      (runtime/update! app)
+      (runtime/render! app)
+      (is (= "main-mode" (runtime/active-mode-name app)))
+      (is (= :tilesets (:workspace-tab (runtime/active-state app))))
+      (is (not (nil? (runtime/find-view app "sprite-map-preview")))))
     (cleanup-application-startup-test-files!)))

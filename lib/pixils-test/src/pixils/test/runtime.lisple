@@ -1,0 +1,23 @@
+(ns pixils.test.runtime
+  (:require [pixils.test.runtime.native :as native]))
+
+(defun make-app [opts] (native/make-app opts))
+(defun eval! [app source] (native/eval! app source))
+(defun push-mode! [app mode] (native/push-mode! app mode))
+(defun push-mode-with-state! [app mode state] (native/push-mode! app mode state))
+(defun push-mode-with-overrides! [app mode state overrides]
+  (native/push-mode! app mode state overrides))
+(defun pop-mode! [app payload] (native/pop-mode! app payload))
+(defun update! [app] (native/update! app))
+(defun render! [app] (native/render! app))
+(defun frame! [app] (native/frame! app))
+(defun active-mode [app] (native/active-mode app))
+(defun active-mode-name [app] (native/active-mode-name app))
+(defun active-state [app] (native/active-state app))
+(defun set-active-state! [app state] (native/set-active-state! app state))
+(defun view-mode-name [view] (native/view-mode-name view))
+(defun view-state [view] (native/view-state view))
+(defun find-view [app mode-name] (native/find-view app mode-name))
+(defun find-view-containing [app mode-name state-text]
+  (native/find-view app mode-name state-text))
+(defun click! [app view] (native/click! app view))
