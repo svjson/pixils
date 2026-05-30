@@ -30,6 +30,12 @@
    {:label "All files (*)"
     :extensions []}])
 
+(defun image-file-dialog-path [state]
+  (or (selected-tile-image-resource-directory state)
+      (:project-directory state)
+      (:last-image-file-directory state)
+      file-dialog/default-path))
+
 (defun tile-add-menu [has-resources?]
   {:settings {:mnemonics {:enabled false}}
    :items [{:label "Add from resource"
@@ -240,7 +246,7 @@
                "Add Tiles from Images"
                "Add Tiles from Image")
       :mode :file-dialog/open
-      :path (or (:project-directory state) file-dialog/default-path)
+      :path (image-file-dialog-path state)
       :filters image-file-filters
       :multi-file? multi-file?
       :result-event :tile/file-dialog-result})

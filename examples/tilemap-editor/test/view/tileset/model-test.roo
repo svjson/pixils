@@ -400,6 +400,33 @@
                                          :file-name "sprites.png"}}}}}
           :assets))))
 
+(deftest selected-tile-image-resource-directory-uses_sprite_resource
+  (is (= "/tmp/maps"
+         (model/selected-tile-image-resource-directory
+          {:resources {:bundles {:assets
+                                 {:images {:sprites
+                                           {:file-name "/tmp/maps/sprites.png"}}}}}
+           :tilesets [{:id :terrain
+                       :tiles [{:id :grass
+                                :type :sprite
+                                :image :assets/sprites}]}]
+           :selected-tileset-definition-index 0
+           :selected-tileset-tile-index 0}))))
+
+(deftest selected-tile-image-resource-directory-resolves_relative_paths_from_project
+  (is (= "/tmp/project/assets"
+         (model/selected-tile-image-resource-directory
+          {:resources {:bundles {:assets
+                                 {:images {:sprites
+                                           {:file-name "assets/sprites.png"}}}}}
+           :project-directory "/tmp/project"
+           :tilesets [{:id :terrain
+                       :tiles [{:id :grass
+                                :type :sprite
+                                :image :assets/sprites}]}]
+           :selected-tileset-definition-index 0
+           :selected-tileset-tile-index 0}))))
+
 (deftest image-resource-options-ignore_static_editor_assets
   (is (= []
          (model/image-resource-entries

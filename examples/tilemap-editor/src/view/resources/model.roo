@@ -11,6 +11,26 @@
       name
       (substr name 0 (- (count name) (count extension))))))
 
+(defun file-directory [path]
+  (when (not (blank? path))
+    (let [directory (io/parent-path path)]
+      (when (not (blank? directory))
+        directory))))
+
+(defun absolute-path? [path]
+  (and (not (blank? path))
+       (or (= (substr path 0 1) "/")
+           (and (> (count path) 1)
+                (= (substr path 1 1) ":")))))
+
+(defun project-file-directory [path project-directory]
+  (let [directory (file-directory path)]
+    (when directory
+      (if (and (not (blank? project-directory))
+               (not (absolute-path? directory)))
+        (io/join-path project-directory directory)
+        directory))))
+
 (defun clean-resource-name-separators [value index out]
   (if (>= index (count value))
     (trim out)
@@ -422,6 +442,14 @@
   (if-let [index (selected-resource-index resources selected-id)]
     (nth resources index)
     nil))
+
+(defun selected-image-resource-directory [state]
+  (let [resource (selected-resource (project-image-resources
+                                    (:resources state)
+                                     (:selected-resource-bundle state))
+                                    (:selected-image-resource state))]
+    (project-file-directory (:file-name resource)
+                            (:project-directory state))))
 
 (defun selected-resource-indices [resources selected-id]
   (if-let [index (selected-resource-index resources selected-id)]

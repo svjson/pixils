@@ -60,7 +60,8 @@
           (let [payload (:payload event)]
             (if (image-file-dialog-result? payload)
               (open-image-metadata-dialog!
-               state
+               (assoc state
+                      :last-image-file-directory (:directory payload))
                ctx
                :add
                {:bundle-id (:selected-resource-bundle state)

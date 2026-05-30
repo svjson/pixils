@@ -1,0 +1,27 @@
+(ns tilemap-editor.view.resources.dialogs-test
+  (:require proof.core
+            [tilemap-editor.view.resources.dialogs :as dialogs]))
+
+(deftest image-file-dialog-path-prefers_selected_resource_directory
+  (is (= "/tmp/assets"
+         (dialogs/image-file-dialog-path
+          {:resources {:bundles {:project-assets
+                                 {:images {:sprites
+                                           {:file-name "/tmp/assets/sprites.png"}}}}}
+           :selected-resource-bundle :project-assets
+           :selected-image-resource :sprites
+           :project-directory "/tmp/project"
+           :last-image-file-directory "/tmp/last"}))))
+
+(deftest image-file-dialog-path-falls_back_to_project_then_session_directory
+  (is (= "/tmp/project"
+         (dialogs/image-file-dialog-path
+          {:resources {:bundles {:project-assets {:images {}}}}
+           :selected-resource-bundle :project-assets
+           :project-directory "/tmp/project"
+           :last-image-file-directory "/tmp/last"})))
+  (is (= "/tmp/last"
+         (dialogs/image-file-dialog-path
+          {:resources {:bundles {:project-assets {:images {}}}}
+           :selected-resource-bundle :project-assets
+           :last-image-file-directory "/tmp/last"}))))

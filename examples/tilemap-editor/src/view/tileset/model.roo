@@ -98,6 +98,26 @@
       name
       (substr name 0 (- (count name) (count extension))))))
 
+(defun file-directory [path]
+  (when (not (blank? path))
+    (let [directory (io/parent-path path)]
+      (when (not (blank? directory))
+        directory))))
+
+(defun absolute-path? [path]
+  (and (not (blank? path))
+       (or (= (substr path 0 1) "/")
+           (and (> (count path) 1)
+                (= (substr path 1 1) ":")))))
+
+(defun project-file-directory [path project-directory]
+  (let [directory (file-directory path)]
+    (when directory
+      (if (and (not (blank? project-directory))
+               (not (absolute-path? directory)))
+        (io/join-path project-directory directory)
+        directory))))
+
 (defun default-resource-id [path]
   (kebab-case (file-stem path)))
 
@@ -164,6 +184,11 @@
           (fn [out entry]
             (concat out
                     (image-resource-entries-for-bundle resources (:id entry))))))
+
+(defun image-resource-entry-by-key [resources key]
+  (head (filter (image-resource-entries resources)
+                (fn [resource]
+                  (= (:key resource) key)))))
 
 (defun has-project-image-resources? [resources]
   (not (empty? (image-resource-entries resources))))
@@ -289,6 +314,15 @@
     (when (and (not (nil? index))
                (> (count tiles) 0))
       (nth tiles (min index (dec (count tiles)))))))
+
+(defun selected-tile-image-resource [state]
+  (let [tile (selected-tileset-tile state)]
+    (when (= (:type tile) :sprite)
+      (image-resource-entry-by-key (:resources state) (:image tile)))))
+
+(defun selected-tile-image-resource-directory [state]
+  (project-file-directory (:file-name (selected-tile-image-resource state))
+                          (:project-directory state)))
 
 (defun selected-tile-path [state]
   (let [tilesets (or (:tilesets state) [])

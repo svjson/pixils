@@ -24,6 +24,12 @@
    {:label "All files (*)"
     :extensions []}])
 
+(defun image-file-dialog-path [state]
+  (or (selected-image-resource-directory state)
+      (:project-directory state)
+      (:last-image-file-directory state)
+      file-dialog/default-path))
+
 (defun open-resource-bundle-dialog! [state ctx operation opts]
   (do
     (push-mode! 'resource-bundle-dialog-modal
@@ -44,7 +50,7 @@
      ctx
      {:title "Add Image Resource"
       :mode :file-dialog/open
-      :path (or (:project-directory state) file-dialog/default-path)
+      :path (image-file-dialog-path state)
       :filters image-file-filters
       :result-event :resource/file-dialog-result})
     state))

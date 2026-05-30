@@ -17,6 +17,40 @@
     (is (= "Add multiple tiles from multiple files" (:label item)))
     (is (= nil (:disabled? item)))))
 
+(deftest image-file-dialog-path-prefers_selected_tile_resource_directory
+  (is (= "/tmp/assets"
+         (dialogs/image-file-dialog-path
+          {:resources {:bundles {:project-assets
+                                 {:images {:sprites
+                                           {:file-name "/tmp/assets/sprites.png"}}}}}
+           :tilesets [{:id :terrain
+                       :tiles [{:id :grass
+                                :type :sprite
+                                :image :project-assets/sprites}]}]
+           :selected-tileset-definition-index 0
+           :selected-tileset-tile-index 0
+           :project-directory "/tmp/project"
+           :last-image-file-directory "/tmp/last"}))))
+
+(deftest image-file-dialog-path-falls_back_to_project_then_session_directory
+  (is (= "/tmp/project"
+         (dialogs/image-file-dialog-path
+          {:tilesets [{:id :terrain
+                       :tiles [{:id :grass
+                                :type :color}]}]
+           :selected-tileset-definition-index 0
+           :selected-tileset-tile-index 0
+           :project-directory "/tmp/project"
+           :last-image-file-directory "/tmp/last"})))
+  (is (= "/tmp/last"
+         (dialogs/image-file-dialog-path
+          {:tilesets [{:id :terrain
+                       :tiles [{:id :grass
+                                :type :color}]}]
+           :selected-tileset-definition-index 0
+           :selected-tileset-tile-index 0
+           :last-image-file-directory "/tmp/last"}))))
+
 (deftest import-file-resource-adds_project_bundle_metadata
   (let [state (dialogs/import-file-resource!
                {:resources {:bundles {}}

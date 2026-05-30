@@ -11,6 +11,19 @@
   (is (= "tiles"
          (resources/file-stem "/tmp/maps/tiles.png"))))
 
+(deftest file-directory-returns_parent_directory
+  (is (= "/tmp/maps"
+         (resources/file-directory "/tmp/maps/tiles.png")))
+  (is (= nil
+         (resources/file-directory "tiles.png"))))
+
+(deftest project-file-directory-resolves_relative_directory_under_project
+  (is (= "/tmp/project/assets"
+         (resources/project-file-directory "assets/tiles.png" "/tmp/project")))
+  (is (= "/tmp/assets"
+         (resources/project-file-directory "/tmp/assets/tiles.png"
+                                           "/tmp/project"))))
+
 (deftest default-resource-fields-clean_file_stem
   (is (= "simples-pimples"
          (resources/default-resource-id "/tmp/maps/Simples_Pimples.png")))
@@ -369,6 +382,25 @@
     (is (= [1] (resources/selected-resource-indices
                 items
                 :b)))))
+
+(deftest selected-image-resource-directory-uses_selected_resource
+  (is (= "/tmp/maps"
+         (resources/selected-image-resource-directory
+          {:resources {:bundles {:terrain-assets
+                                 {:images {:tiles
+                                           {:file-name "/tmp/maps/tiles.png"}}}}}
+           :selected-resource-bundle :terrain-assets
+           :selected-image-resource :tiles}))))
+
+(deftest selected-image-resource-directory-resolves_relative_paths_from_project
+  (is (= "/tmp/project/assets"
+         (resources/selected-image-resource-directory
+          {:resources {:bundles {:terrain-assets
+                                 {:images {:tiles
+                                           {:file-name "assets/tiles.png"}}}}}
+           :project-directory "/tmp/project"
+           :selected-resource-bundle :terrain-assets
+           :selected-image-resource :tiles}))))
 
 (deftest resource-workspace-state-ignores_static_editor_bundle_selection
   (let [state (resources/derive-resource-workspace-state

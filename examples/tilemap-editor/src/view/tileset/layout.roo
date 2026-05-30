@@ -98,6 +98,8 @@
             (if (image-file-dialog-result? payload)
               (let [paths (or (:paths payload) [(:path payload)])
                     multiple? (> (count paths) 1)
+                    state (assoc state
+                                 :last-image-file-directory (:directory payload))
                     state (if multiple?
                             (import-file-resources! state paths)
                             (import-file-resource! state payload))]
