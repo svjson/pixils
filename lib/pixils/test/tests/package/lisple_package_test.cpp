@@ -93,5 +93,5 @@ TEST(PixilsLisplePackageTest, pixils_test_package_runs_proof_tests)
 
   auto summary = runtime.eval("(result-summary (run))");
 
-  EXPECT_EQ(summary->to_string(), "{:total 4 :passed 4 :failed 0}");
+  EXPECT_EQ(summary->to_string(), "{:total 5 :passed 5 :failed 0}");
 }

@@ -12,6 +12,9 @@
 
 #include <SDL2/SDL_keycode.h>
 #include <SDL2/SDL_mouse.h>
+#include <SDL2/SDL.h>
+#include <SDL2/SDL_image.h>
+#include <algorithm>
 #include <cctype>
 #include <filesystem>
 #include <lisple-package/manifest.h>
@@ -42,6 +45,65 @@ namespace
     int buffer_height = 600;
   };
 
+  class SharedRenderBackend
+  {
+   public:
+    SDL_Window* window = nullptr;
+    SDL_Renderer* renderer = nullptr;
+
+    ~SharedRenderBackend()
+    {
+      if (renderer) SDL_DestroyRenderer(renderer);
+      if (window) SDL_DestroyWindow(window);
+    }
+
+    bool ensure(int width, int height)
+    {
+      if (renderer) return true;
+      if (attempted) return false;
+      attempted = true;
+
+      if ((SDL_WasInit(SDL_INIT_VIDEO) & SDL_INIT_VIDEO) == 0 &&
+          SDL_InitSubSystem(SDL_INIT_VIDEO) != 0)
+      {
+        return false;
+      }
+
+      if ((IMG_Init(IMG_INIT_PNG) & IMG_INIT_PNG) == 0)
+      {
+        return false;
+      }
+
+      window = SDL_CreateWindow("pixils-test",
+                                SDL_WINDOWPOS_UNDEFINED,
+                                SDL_WINDOWPOS_UNDEFINED,
+                                std::max(1, width),
+                                std::max(1, height),
+                                SDL_WINDOW_HIDDEN);
+      if (!window) return false;
+
+      renderer = SDL_CreateRenderer(window,
+                                    -1,
+                                    SDL_RENDERER_SOFTWARE |
+                                      SDL_RENDERER_TARGETTEXTURE);
+      if (!renderer)
+      {
+        renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_SOFTWARE);
+      }
+
+      return renderer != nullptr;
+    }
+
+   private:
+    bool attempted = false;
+  };
+
+  SharedRenderBackend& shared_render_backend()
+  {
+    static SharedRenderBackend backend;
+    return backend;
+  }
+
   class TestApp
   {
    public:
@@ -67,6 +129,24 @@ namespace
       , hook_args{Pixils::Script::HookContextAdapter::make_ref(hook_ctx)}
     {
       render_ctx.buffer_dim = {target.buffer_width, target.buffer_height};
+      render_ctx.window_rect = {0, 0, target.buffer_width, target.buffer_height};
+
+      auto& backend = shared_render_backend();
+      if (backend.ensure(target.buffer_width, target.buffer_height))
+      {
+        render_ctx.window = backend.window;
+        render_ctx.renderer = backend.renderer;
+        render_ctx.buffer_texture = SDL_CreateTexture(render_ctx.renderer,
+                                                      SDL_PIXELFORMAT_RGBA8888,
+                                                      SDL_TEXTUREACCESS_TARGET,
+                                                      render_ctx.buffer_dim.w,
+                                                      render_ctx.buffer_dim.h);
+        if (render_ctx.buffer_texture)
+        {
+          SDL_SetTextureBlendMode(render_ctx.buffer_texture, SDL_BLENDMODE_BLEND);
+          render_ctx.set_render_target(render_ctx.buffer_texture);
+        }
+      }
 
       if (!render_ctx.asset_registry)
       {
@@ -90,6 +170,19 @@ namespace
         runtime->eval(
           "(ns pixils.test.runtime.fixture-entry (:require " + entry_point + "))",
           "<pixils-test-runtime-entry>");
+      }
+    }
+
+    ~TestApp()
+    {
+      if (render_ctx.renderer)
+      {
+        SDL_SetRenderTarget(render_ctx.renderer, nullptr);
+      }
+      if (render_ctx.buffer_texture)
+      {
+        SDL_DestroyTexture(render_ctx.buffer_texture);
+        render_ctx.buffer_texture = nullptr;
       }
     }
 
