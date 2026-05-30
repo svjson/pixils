@@ -9,7 +9,7 @@
     :remaining-time 150
     :initial-offset {:x 344 :y 176}}
    {:map-id :cave-a/level-2
-    :tileset-id :br
+    :tileset-id :game-tiles-2
     :gems {:required 10
            :value 20
            :bonus-value 50}

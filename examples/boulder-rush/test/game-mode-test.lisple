@@ -68,7 +68,7 @@
           :initial-offset {:x 344 :y 176}}
          (head caves/levels)))
   (is (= {:map-id :cave-a/level-2
-          :tileset-id :br
+          :tileset-id :game-tiles-2
           :gems {:required 10
                  :value 20
                  :bonus-value 50}
@@ -82,9 +82,11 @@
             :current-level 2
             :maps [(assoc (fixtures/rows->map ["P"])
                           :id :cave-a/level-1)
-                   (assoc (fixtures/rows->map [" P"])
-                          :id :cave-a/level-2)]
-            :tilesets [{:id :br}]}})
+                   (-> (fixtures/rows->map [" P"])
+                       (assoc :id :cave-a/level-2)
+                       (assoc-in [:layers 0 :tileset] :game-tiles-2))]
+            :tilesets [{:id :br}
+                       {:id :game-tiles-2}]}})
   (when [{:keys [pack]}]
     (game-init/init-level pack))
   (then [result]
@@ -116,12 +118,16 @@
            (:tile-substitutions result)))
     (is (= 2
            (count (:cycles result))))
-    (is (= :br
+    (is (= :game-tiles-2
+           (-> result :level :tileset-id)))
+    (is (= :game-tiles-2
            (-> result :tileset :id)))
     (is (= [:scene/level :boulder-rush/start-cover]
            (map (-> result :level-map :layers) :id)))
     (is (= [[:barrier :barrier]]
            (-> result :level-map :layers (nth 1) :tiles)))
+    (is (= :game-tiles-2
+           (-> result :level-map :layers (nth 1) :tileset)))
     (is (= {:x 1 :y 0}
            (-> result :player :pos)))))
 

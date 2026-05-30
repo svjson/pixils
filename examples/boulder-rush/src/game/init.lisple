@@ -11,6 +11,8 @@
   (let [current-level (or (:current-level state) 1)
         level (nth caves/levels (dec current-level))
         base-map (level-loader/map-by-id state (:map-id level))
+        tileset-id (level-loader/map-tileset-id base-map)
+        level (assoc level :tileset-id tileset-id)
         map (level/add-start-cover base-map level)
         initial-offset (:initial-offset level)
         initial-tile-offset {:x (int (/ (:x initial-offset)
@@ -27,7 +29,7 @@
      :remaining-time-timer (timer/make {:interval-ms 1000})
      :tile-offset initial-tile-offset
      :offset initial-offset
-     :tileset (level-loader/tileset-by-id state (:tileset-id level))
+     :tileset (level-loader/tileset-by-id state tileset-id)
      :tile-substitutions {:exit :barrier}
      :cycles [(common/barrier-scroll-cycle) (boulder-rush.game.phase.level-start/entry-cycle)]
      :events (physics/events base-map)
