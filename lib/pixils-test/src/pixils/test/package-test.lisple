@@ -1,6 +1,7 @@
 (ns pixils.test.package-test
   (:require proof.core
             pixils.test
+            pixils.test.resource
             [pixils.test.runtime :as runtime]
             pixils.test.ui.combo-box
             pixils.test.ui.list-box
@@ -27,3 +28,7 @@
   (is (not (nil? (resolve 'pixils.test.ui.tab-panel/switch-to!))))
   (is (not (nil? (resolve 'pixils.test.ui.list-box/has-visible-text?))))
   (is (not (nil? (resolve 'pixils.test.ui.combo-box/has-visible-text?)))))
+
+(deftest pixils-test-provides-resource-fixtures
+  (is (not (nil? (resolve 'pixils.test.resource/image-size-is?))))
+  (is (not (nil? (resolve 'pixils.test.resource/image-resource-file-is?)))))

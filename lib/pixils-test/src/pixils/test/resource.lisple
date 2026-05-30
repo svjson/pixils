@@ -1,0 +1,17 @@
+(ns pixils.test.resource
+  (:require proof.core
+            [pixils.test.runtime :as runtime]))
+
+(defun image-resource-file-is? [app bundle image file-name]
+  (let [actual (get-in (runtime/active-state app)
+                       [:resources :bundles bundle :images image :file-name])]
+    (is (= file-name actual))
+    actual))
+
+(defun image-size-is? [app image width height]
+  (let [actual-width (runtime/eval! app (str "(pixils.image/width " image ")"))
+        actual-height (runtime/eval! app (str "(pixils.image/height " image ")"))]
+    (is (= width actual-width))
+    (is (= height actual-height))
+    {:width actual-width
+     :height actual-height}))
