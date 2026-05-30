@@ -1,0 +1,97 @@
+(ns tilemap-editor.view.tileset.interaction-test
+  (:require proof.core
+            [lisple.io :as io]
+            [pixils.tilemap.project.model :as data]
+            [pixils.test.runtime :as runtime]))
+
+(def TILESET-CONTEXT-PATH "/tmp/pixils-tilemap-editor-tileset-context-project.edn")
+(def TILESET-CONTEXT-HISTORY-PATH "/tmp/pixils-tilemap-editor-tileset-context-history.edn")
+
+(defun remove-file-if-exists! [path]
+  (if (io/exists? path)
+    (io/remove-tree! path)
+    nil))
+
+(defun cleanup-tileset-interaction-test-files! []
+  (remove-file-if-exists! TILESET-CONTEXT-PATH)
+  (remove-file-if-exists! TILESET-CONTEXT-HISTORY-PATH))
+
+(defun make-tileset-interaction-app []
+  (runtime/make-app {:package-root "."
+                     :buffer-width 800
+                     :buffer-height 600}))
+
+(defun file-dialog-payload [mode path filename]
+  {:type :confirm
+   :mode mode
+   :path path
+   :directory "/tmp"
+   :filename filename})
+
+(deftest tileset-row-context-menu-opens-edit-dialog
+  (given
+    (cleanup-tileset-interaction-test-files!)
+    (io/spit-edn! TILESET-CONTEXT-PATH
+                  {:format data/project-format
+                   :version data/project-format-version
+                   :resources {:bundles {}}
+                   :tilesets [{:id :loaded
+                               :label "Loaded"
+                               :tile-size 16
+                               :tiles [{:id :grass
+                                        :name "Grass"
+                                        :char "g"
+                                        :type :color
+                                        :color {:r 0 :g 128 :b 0}}]}]
+                   :tilemap {:width 2
+                             :height 2
+                             :tile-size 16
+                             :layers []}})
+    (let [app (make-tileset-interaction-app)
+          open-payload (file-dialog-payload :file-dialog/open
+                                            TILESET-CONTEXT-PATH
+                                            "tileset-context-project.edn")]
+      (runtime/push-mode! app 'main-mode)
+      (runtime/update! app)
+      (runtime/set-active-state! app
+                                 (assoc (runtime/active-state app)
+                                        :project-history-path TILESET-CONTEXT-HISTORY-PATH
+                                        :recent-projects []))
+      (runtime/push-mode-with-overrides!
+       app
+       'ui/tab-panel-empty
+       nil
+       {:origin {:view (runtime/active-mode app)
+                 :event :project/file-dialog-result}})
+      (runtime/pop-mode! app open-payload)
+      (runtime/update! app)
+      (runtime/update! app)
+      (runtime/render! app)
+      (is (= "main-mode" (runtime/active-mode-name app)))
+      (is (= :loaded (get-in (runtime/active-state app) [:tilesets 0 :id])))
+      app))
+
+  (when [app]
+    (let [tilesets-tab (runtime/find-view-containing app "ui/tab" ":tab-id :tilesets")]
+      (is (not (nil? tilesets-tab)))
+      (runtime/click! app tilesets-tab))
+    (runtime/render! app)
+    (let [row (runtime/find-view-containing app "tileset-definition-row" "Loaded")]
+      (is (not (nil? row)))
+      (runtime/mouse-click-in! app row 5 5 :right))
+    (runtime/render! app)
+    (is (= "ui/context-menu" (runtime/active-mode-name app)))
+    (let [edit-item (runtime/find-view app "ui/popup-menu-item")]
+      (is (not (nil? edit-item)))
+      (runtime/click! app edit-item))
+    (runtime/update! app)
+    (runtime/render! app)
+    app)
+
+  (then [app]
+    (is (= "tileset-edit-dialog-modal" (runtime/active-mode-name app)))
+    (let [dialog-state (runtime/active-state app)]
+      (is (= "loaded" (:tileset-id dialog-state)))
+      (is (= "Loaded" (:tileset-label dialog-state)))
+      (is (= 16 (:tile-size dialog-state))))
+    (cleanup-tileset-interaction-test-files!)))
