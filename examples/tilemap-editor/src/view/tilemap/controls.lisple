@@ -283,6 +283,14 @@
     (r/rect! {:x 1 :y 14 :w 5 :h 5} {:color color})
     (r/rect! {:x 14 :y 1 :w 5 :h 5} {:color color})))
 
+(defun draw-fill-rect-tool-icon! [color]
+  (do
+    (r/line! {:x 4 :y 4} {:x 16 :y 4} color)
+    (r/line! {:x 4 :y 16} {:x 16 :y 16} color)
+    (r/line! {:x 4 :y 4} {:x 4 :y 16} color)
+    (r/line! {:x 16 :y 4} {:x 16 :y 16} color)
+    (r/rect! {:x 7 :y 7 :w 7 :h 7} {:color color})))
+
 (defun draw-fill-tool-icon! [color]
   (do
     (r/line! {:x 6 :y 3} {:x 15 :y 12} color)
@@ -296,6 +304,7 @@
   (let [paint-tool-icon (map-tool-icon-id :paint color)
         select-tool-icon (map-tool-icon-id :select color)
         line-tool-icon (map-tool-icon-id :line color)
+        fill-rect-tool-icon (map-tool-icon-id :fill-rect color)
         fill-tool-icon (map-tool-icon-id :fill color)]
     (do
       (theme-assets/ensure-generated-image! map-tool-icon-bundle
@@ -317,6 +326,12 @@
                                             (fn []
                                               (draw-line-tool-icon! color)))
       (theme-assets/ensure-generated-image! map-tool-icon-bundle
+                                            fill-rect-tool-icon
+                                            {:size {:w map-tool-icon-size
+                                                    :h map-tool-icon-size}}
+                                            (fn []
+                                              (draw-fill-rect-tool-icon! color)))
+      (theme-assets/ensure-generated-image! map-tool-icon-bundle
                                             fill-tool-icon
                                             {:size {:w map-tool-icon-size
                                                     :h map-tool-icon-size}}
@@ -337,6 +352,11 @@
    {:value :line
     :label ""
     :image (map-tool-icon-id :line color)
+    :style {:width map-tool-button-size
+            :height map-tool-button-size}}
+   {:value :fill-rect
+    :label ""
+    :image (map-tool-icon-id :fill-rect color)
     :style {:width map-tool-button-size
             :height map-tool-button-size}}
    {:value :fill

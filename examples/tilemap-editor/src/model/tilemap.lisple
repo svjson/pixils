@@ -214,6 +214,9 @@
                          (- dx dy)
                          [])))
 
+(defun rect-positions [start end]
+  (map-selection-positions {:rect (normalize-selection-rect start end)}))
+
 (defun set-map-tile [state layer-index x y tile-ref]
   (if (in-map-bounds-for? state x y)
     (let [state (assoc-in state [:layers layer-index :tiles y x] tile-ref)
@@ -1040,18 +1043,19 @@
                                                  {:x tile-x :y tile-y})
                            tile-ref))))
 
-(defun make-map-line [anchor current button active?]
+(defun make-map-line [anchor current button shape active?]
   {:anchor anchor
    :current current
    :button button
+   :shape shape
    :active? active?})
 
-(defun start-map-line [state event]
+(defun start-map-line [state event shape]
   (let [pos (map-tile-position state event)]
     (if (and (or (= (:button event) :left)
                  (= (:button event) :right))
              (in-map-bounds-for? state (:x pos) (:y pos)))
-      (assoc state :map-line (make-map-line pos pos (:button event) true))
+      (assoc state :map-line (make-map-line pos pos (:button event) shape true))
       state)))
 
 (defun update-map-line [state event]
@@ -1061,8 +1065,14 @@
         (assoc state :map-line (make-map-line (:anchor line)
                                               pos
                                               (:button line)
+                                              (:shape line)
                                               true)))
       state)))
+
+(defun map-line-positions [line end]
+  (case (:shape line)
+    :fill-rect (rect-positions (:anchor line) end)
+    :default (line-positions (:anchor line) end)))
 
 (defun finish-map-line [state event]
   (let [line (:map-line state)
@@ -1075,7 +1085,7 @@
             tile-ref (map-edit-value-for-button state (:button line))]
         (dissoc (paint-map-positions state
                                      layer-index
-                                     (line-positions (:anchor line) pos)
+                                     (map-line-positions line pos)
                                      tile-ref)
                 :map-line))
       (dissoc state :map-line))))
@@ -1225,7 +1235,10 @@
       (pick-map-tile-at state event)
       (case (:map-tool state)
         :select (start-map-selection state event)
-        :line (start-map-line (dissoc state :last-map-paint-sample) event)
+        :line (start-map-line (dissoc state :last-map-paint-sample) event :line)
+        :fill-rect (start-map-line (dissoc state :last-map-paint-sample)
+                                   event
+                                   :fill-rect)
         :fill (fill-map-from-event (dissoc state :last-map-paint-sample) event)
         :default (let [sample (map-paint-sample state event)]
                    (paint-map-sample (dissoc state :last-map-paint-sample)
@@ -1238,6 +1251,7 @@
     (case (:map-tool state)
       :select (update-map-selection state event)
       :line (update-map-line state event)
+      :fill-rect (update-map-line state event)
       :fill state
       :default (let [sample (map-paint-sample state event)]
                  (if (and sample
@@ -1251,4 +1265,5 @@
     (case (:map-tool state)
       :select (finish-map-selection state event)
       :line (finish-map-line state event)
+      :fill-rect (finish-map-line state event)
       :default (dissoc state :last-map-paint-sample))))

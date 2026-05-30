@@ -48,7 +48,7 @@
   (when (:active? line)
     (let [color {:r 0xff :g 0xcc :b 0x66}]
       (do
-        (map (tm/line-positions (:anchor line) (:current line))
+        (map (tm/map-line-positions line (:current line))
              (fn [pos]
                (r/rect! (tile-screen-rect pos offset zoom) {:color color})))
         nil))))

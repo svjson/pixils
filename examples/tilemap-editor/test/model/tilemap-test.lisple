@@ -292,6 +292,26 @@
     (is (= :water (get-in painted [:layers 0 :tiles 0 3])))
     (is (nil? (:map-line painted)))))
 
+(deftest tilemap-fill-rect-tool_paints_rectangle_on_mouse_up
+  (let [state (assoc (terrain-paint-state
+                      (terrain-map [[nil nil nil]
+                                    [nil nil nil]
+                                    [nil nil nil]])
+                      :water)
+                     :map-tool :fill-rect)
+        state (tilemap/map-canvas-mouse-down state (paint-event :left 0 0))
+        dragging (tilemap/map-canvas-drag state (paint-event :left 2 1))
+        painted (tilemap/map-canvas-mouse-up dragging (paint-event :left 2 1))]
+    (is (nil? (get-in dragging [:layers 0 :tiles 0 0])))
+    (is (= :water (get-in painted [:layers 0 :tiles 0 0])))
+    (is (= :water (get-in painted [:layers 0 :tiles 0 1])))
+    (is (= :water (get-in painted [:layers 0 :tiles 0 2])))
+    (is (= :water (get-in painted [:layers 0 :tiles 1 0])))
+    (is (= :water (get-in painted [:layers 0 :tiles 1 1])))
+    (is (= :water (get-in painted [:layers 0 :tiles 1 2])))
+    (is (nil? (get-in painted [:layers 0 :tiles 2 0])))
+    (is (nil? (:map-line painted)))))
+
 (deftest tilemap-fill-tool_paints_contiguous_region
   (let [state (assoc (terrain-paint-state
                       (terrain-map [[:grass :grass :water]
