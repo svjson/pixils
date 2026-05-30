@@ -32,12 +32,17 @@ namespace Pixils::Script
           Lisple::obj<RenderContext>(*ctx.lookup(ID__PIXILS__RENDER_CONTEXT));
 
         SDL_Texture* texture = rc.asset_registry->get_image(bundle_id, asset_id);
-        if (!texture) return std::nullopt;
+        if (texture)
+        {
+          int width = 0;
+          int height = 0;
+          SDL_QueryTexture(texture, nullptr, nullptr, &width, &height);
+          return Dimension{width, height};
+        }
 
-        int width = 0;
-        int height = 0;
-        SDL_QueryTexture(texture, nullptr, nullptr, &width, &height);
-        return Dimension{width, height};
+        SDL_Surface* surface = rc.asset_registry->get_image_surface(bundle_id, asset_id);
+        if (!surface) return std::nullopt;
+        return Dimension{surface->w, surface->h};
       }
 
       Uint32 read_surface_pixel(SDL_Surface* surface, int x, int y)
