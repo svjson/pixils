@@ -1,0 +1,39 @@
+(ns tilemap-editor.view.project-load-interaction-test
+  (:require proof.core
+            [tilemap-editor.fixture.io.project :as project]
+            [tilemap-editor.fixture.main-window :as main-window]
+            [tilemap-editor.fixture.view.tilemap.tilemap-tab :as tilemap-tab]
+            [tilemap-editor.fixture.view.tileset.tilesets-tab :as tilesets-tab]))
+
+(deftest loaded-project-populates-existing-side-panel-controls
+  (given
+    (project/cleanup! :example-map1)
+    (let [app (main-window/open-project! :example-map1)]
+      (main-window/is-open? app)
+      (project/image-resource-file-is? app
+                                       :project-assets
+                                       :simples-pimples
+                                       "../assets/simples_pimples.png")
+      app))
+
+  (when [app]
+    (tilemap-tab/layer-count-is? app 4)
+    (tilemap-tab/select-palette-tile! app :tile/cave-depth {:by :mouse/click})
+    (tilemap-tab/selected-palette-tile-is? app :tile/cave-depth)
+    (tilemap-tab/tileset-selector-has? app "Background Colors")
+
+    (main-window/switch-to! app :tab/tiles {:by :mouse/click})
+    (tilesets-tab/definition-list-contains? app "Background Colors")
+    (tilesets-tab/tile-type-selector-is? app "Color")
+    (tilesets-tab/tile-definition-panel-count-is? app 1)
+    (tilesets-tab/select-tile! app 0 {:by :mouse/click})
+    (tilesets-tab/move-selected-tile! app :right {:by :keyboard})
+    (tilesets-tab/selected-tile-index-is? app 1)
+
+    (main-window/switch-to! app :tab/map {:by :mouse/click})
+    app)
+
+  (then [app]
+    (tilemap-tab/layer-count-is? app 4)
+    (tilemap-tab/palette-contains-tile? app :tile/night)
+    (project/cleanup! :example-map1)))

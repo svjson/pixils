@@ -1,6 +1,7 @@
 (ns tilemap-editor.fixture.main-window
   (:require proof.core
             [pixils.test.runtime :as runtime]
+            [pixils.test.ui.tab-panel :as tab-panel]
             [tilemap-editor.fixture.io.project :as project]))
 
 (defun make-app []
@@ -45,13 +46,8 @@
     :default target))
 
 (defun switch-to! [app target opts]
-  (let [id (tab-id target)
-        tab (runtime/find-view-containing app "ui/tab" (str ":tab-id " id))]
-    (is (not (nil? tab)))
-    (case (:by opts)
-      :mouse/click (runtime/click! app tab)
-      :default (runtime/click! app tab))
-    (runtime/render! app)
+  (let [id (tab-id target)]
+    (tab-panel/switch-to! app id opts)
     (if (not= false (:verify-result opts))
       (is (= id (:workspace-tab (runtime/active-state app))))
       nil)

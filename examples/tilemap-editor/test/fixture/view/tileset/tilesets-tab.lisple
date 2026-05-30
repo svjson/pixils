@@ -1,6 +1,9 @@
 (ns tilemap-editor.fixture.view.tileset.tilesets-tab
   (:require proof.core
             [pixils.test.runtime :as runtime]
+            [pixils.test.ui.combo-box :as combo-box]
+            [pixils.test.ui.list-box :as list-box]
+            [tilemap-editor.fixture.components.tile-grid :as tile-grid]
             [tilemap-editor.fixture.io.project :as project]))
 
 (defun tileset-definition [app target]
@@ -37,32 +40,43 @@
 (defun tile-grid []
   "tileset-tile-grid")
 
-(defun tile-index-x [index]
-  (+ 5 (* index 16)))
+(defun grid [app]
+  (runtime/find-view app (tile-grid)))
 
 (defun select-tile-range! [app from-index to-index opts]
-  (let [grid (runtime/find-view app (tile-grid))]
-    (is (not (nil? grid)))
-    (case (:by opts)
-      :mouse/drag (runtime/mouse-drag-in! app
-                                          grid
-                                          (tile-index-x from-index)
-                                          5
-                                          (tile-index-x to-index)
-                                          5)
-      :default (runtime/mouse-drag-in! app
-                                       grid
-                                       (tile-index-x from-index)
-                                       5
-                                       (tile-index-x to-index)
-                                       5))
-    (runtime/render! app)
-    app))
+  (let [view (grid app)]
+    (is (not (nil? view)))
+    (tile-grid/drag-range! app view from-index to-index opts)))
+
+(defun select-tile! [app index opts]
+  (let [view (grid app)]
+    (is (not (nil? view)))
+    (tile-grid/click-index! app view index opts)))
+
+(defun move-selected-tile! [app direction opts]
+  (tile-grid/move-selection! app direction opts))
+
+(defun selected-tile-index-is? [app index]
+  (let [selected (:selected-tileset-tile-index (runtime/active-state app))]
+    (is (= index selected))
+    selected))
 
 (defun selected-tile-indices-are? [app indices]
   (let [selected (:selected-tileset-tile-indices (runtime/active-state app))]
     (is (= indices selected))
     selected))
+
+(defun definition-list-contains? [app text]
+  (list-box/has-visible-text? app text))
+
+(defun tile-type-selector-is? [app text]
+  (combo-box/count-is? app 1)
+  (combo-box/has-visible-text? app text))
+
+(defun tile-definition-panel-count-is? [app expected]
+  (let [actual (count (runtime/find-views app "tile-definition-panel"))]
+    (is (= expected actual))
+    actual))
 
 (defun request-delete-selection! [app opts]
   (case (:by opts)
@@ -81,11 +95,8 @@
 
 (defun open-tile-context-menu! [app target opts]
   (let [index (:tile-index target)
-        grid (runtime/find-view app (tile-grid))]
-    (is (not (nil? grid)))
-    (case (:by opts)
-      :mouse/right-click (runtime/mouse-click-in! app grid (tile-index-x index) 5 :right)
-      :default (runtime/mouse-click-in! app grid (tile-index-x index) 5 :right))
-    (runtime/render! app)
+        view (grid app)]
+    (is (not (nil? view)))
+    (tile-grid/right-click-index! app view index opts)
     (is (= "ui/context-menu" (runtime/active-mode-name app)))
     app))

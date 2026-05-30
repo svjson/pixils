@@ -5,6 +5,7 @@
             [pixils.test.runtime :as runtime]))
 
 (def PROJECT-PATH-PREFIX "/tmp/pixils-tilemap-editor-")
+(def EXAMPLE-MAP1 :example-map1)
 
 (defun id-name [id]
   (let [text (str id)]
@@ -13,13 +14,25 @@
       text)))
 
 (defun path [project-id]
-  (str PROJECT-PATH-PREFIX (id-name project-id) "-project.edn"))
+  (case project-id
+    :example-map1 "example-maps/map1.edn"
+    :default (str PROJECT-PATH-PREFIX (id-name project-id) "-project.edn")))
 
 (defun history-path [project-id]
   (str PROJECT-PATH-PREFIX (id-name project-id) "-history.edn"))
 
+(defun directory [project-id]
+  (case project-id
+    :example-map1 "example-maps"
+    :default "/tmp"))
+
 (defun filename [project-id]
-  (str (id-name project-id) "-project.edn"))
+  (case project-id
+    :example-map1 "map1.edn"
+    :default (str (id-name project-id) "-project.edn")))
+
+(defun fixture-owned-project? [project-id]
+  (not= EXAMPLE-MAP1 project-id))
 
 (defun remove-file-if-exists! [path]
   (if (io/exists? path)
@@ -27,7 +40,9 @@
     nil))
 
 (defun cleanup! [project-id]
-  (remove-file-if-exists! (path project-id))
+  (if (fixture-owned-project? project-id)
+    (remove-file-if-exists! (path project-id))
+    nil)
   (remove-file-if-exists! (history-path project-id)))
 
 (defun project-document [project-data]
@@ -50,8 +65,14 @@
   {:type :confirm
    :mode mode
    :path (path project-id)
-   :directory "/tmp"
+   :directory (directory project-id)
    :filename (filename project-id)})
+
+(defun image-resource-file-is? [app bundle image file-name]
+  (let [actual (get-in (runtime/active-state app)
+                       [:resources :bundles bundle :images image :file-name])]
+    (is (= file-name actual))
+    actual))
 
 (defun tileset-id [target]
   (let [text (str target)]

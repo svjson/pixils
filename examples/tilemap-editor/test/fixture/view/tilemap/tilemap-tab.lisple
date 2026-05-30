@@ -1,0 +1,53 @@
+(ns tilemap-editor.fixture.view.tilemap.tilemap-tab
+  (:require proof.core
+            [pixils.test.runtime :as runtime]
+            [pixils.test.ui.combo-box :as combo-box]
+            [tilemap-editor.fixture.components.tile-grid :as tile-grid]))
+
+(defun tile-id [target]
+  (let [text (str target)
+        prefix ":tile/"]
+    (if (= prefix (substr text 0 (count prefix)))
+      (keyword (substr text (count prefix)))
+      target)))
+
+(defun layer-count-is? [app expected]
+  (let [actual (count (runtime/find-views app "layer-row"))]
+    (is (= expected actual))
+    actual))
+
+(defun palette-grid [app]
+  (runtime/find-view app "tile-select-grid"))
+
+(defun palette-option-index [app target]
+  (let [grid (palette-grid app)
+        id (tile-id target)]
+    (is (not (nil? grid)))
+    (find-index (or (:options (runtime/view-state grid)) [])
+                (fn [option]
+                  (= id (:value option))))))
+
+(defun palette-contains-tile? [app target]
+  (let [index (palette-option-index app target)
+        present? (not (nil? index))]
+    (is (= true present?))
+    present?))
+
+(defun select-palette-tile! [app target opts]
+  (let [grid (palette-grid app)
+        index (palette-option-index app target)]
+    (is (not (nil? grid)))
+    (is (not (nil? index)))
+    (tile-grid/click-index! app grid index opts)))
+
+(defun selected-palette-tile-is? [app target]
+  (let [id (tile-id target)
+        index (palette-option-index app target)
+        grid (palette-grid app)
+        grid-state (runtime/view-state grid)]
+    (is (= id (:selected-tile (runtime/active-state app))))
+    (is (= [index] (:selected-indices grid-state)))
+    id))
+
+(defun tileset-selector-has? [app text]
+  (combo-box/has-visible-text? app text))

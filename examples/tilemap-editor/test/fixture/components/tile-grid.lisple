@@ -1,0 +1,55 @@
+(ns tilemap-editor.fixture.components.tile-grid
+  (:require [pixils.test.runtime :as runtime]))
+
+(def cell-size 16)
+(def cell-point-offset 5)
+
+(defun index-x [index]
+  (+ cell-point-offset (* index cell-size)))
+
+(defun click-index! [app grid index opts]
+  (case (:by opts)
+    :mouse/click (runtime/mouse-click-in! app grid (index-x index) cell-point-offset)
+    :default (runtime/mouse-click-in! app grid (index-x index) cell-point-offset))
+  (runtime/render! app)
+  app)
+
+(defun right-click-index! [app grid index opts]
+  (case (:by opts)
+    :mouse/right-click (runtime/mouse-click-in! app grid (index-x index) cell-point-offset :right)
+    :default (runtime/mouse-click-in! app grid (index-x index) cell-point-offset :right))
+  (runtime/render! app)
+  app)
+
+(defun drag-range! [app grid from-index to-index opts]
+  (case (:by opts)
+    :mouse/drag (runtime/mouse-drag-in! app
+                                        grid
+                                        (index-x from-index)
+                                        cell-point-offset
+                                        (index-x to-index)
+                                        cell-point-offset)
+    :default (runtime/mouse-drag-in! app
+                                     grid
+                                     (index-x from-index)
+                                     cell-point-offset
+                                     (index-x to-index)
+                                     cell-point-offset))
+  (runtime/render! app)
+  app)
+
+(defun key [direction]
+  (case direction
+    :left :left
+    :right :right
+    :up :up
+    :down :down
+    :default direction))
+
+(defun move-selection! [app direction opts]
+  (case (:by opts)
+    :keyboard (runtime/key-down! app (key direction))
+    :default (runtime/key-down! app (key direction)))
+  (runtime/update! app)
+  (runtime/render! app)
+  app)
