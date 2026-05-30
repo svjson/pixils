@@ -408,9 +408,11 @@ namespace
     FUNC(ViewStateFunction, view_state);
     FUNC(FindViewFunction, find_view);
     FUNC(ClickBangFunction, click_bang);
+    FUNC(MouseMoveAtBangFunction, mouse_move_at);
     FUNC(MouseDownAtBangFunction, mouse_down_at);
     FUNC(MouseUpAtBangFunction, mouse_up_at);
     FUNC(MouseClickAtBangFunction, mouse_click_at);
+    FUNC(MouseMoveInBangFunction, mouse_move_in);
     FUNC(MouseDownInBangFunction, mouse_down_in);
     FUNC(MouseUpInBangFunction, mouse_up_in);
     FUNC(MouseClickInBangFunction, mouse_click_in);
@@ -588,6 +590,18 @@ namespace
       return args[0];
     }
 
+    FUNC_IMPL(MouseMoveAtBangFunction,
+              SIG((FN_ARGS((&HostType::TEST_APP),
+                           (&Lisple::Type::NUMBER),
+                           (&Lisple::Type::NUMBER)),
+                   EXEC_DISPATCH(&MouseMoveAtBangFunction::exec_mouse_move_at))));
+    EXEC_BODY(MouseMoveAtBangFunction, exec_mouse_move_at)
+    {
+      auto& app = app_from(args[0]);
+      mouse_move(app, required_int(args[1], "x"), required_int(args[2], "y"));
+      return args[0];
+    }
+
     FUNC_IMPL(MouseDownAtBangFunction,
               MULTI_SIG((FN_ARGS((&HostType::TEST_APP),
                                  (&Lisple::Type::NUMBER),
@@ -644,6 +658,22 @@ namespace
       app.update();
       mouse_up(app, x, y, button);
       app.update();
+      return args[0];
+    }
+
+    FUNC_IMPL(MouseMoveInBangFunction,
+              SIG((FN_ARGS((&HostType::TEST_APP),
+                           (&Pixils::Script::HostType::VIEW),
+                           (&Lisple::Type::NUMBER),
+                           (&Lisple::Type::NUMBER)),
+                   EXEC_DISPATCH(&MouseMoveInBangFunction::exec_mouse_move_in))));
+    EXEC_BODY(MouseMoveInBangFunction, exec_mouse_move_in)
+    {
+      auto& app = app_from(args[0]);
+      auto& view = view_from(args[1]);
+      mouse_move(app,
+                 static_cast<int>(view.bounds.x) + required_int(args[2], "x"),
+                 static_cast<int>(view.bounds.y) + required_int(args[3], "y"));
       return args[0];
     }
 
@@ -761,9 +791,11 @@ namespace
       values.emplace("view-state", Function::ViewStateFunction::make());
       values.emplace("find-view", Function::FindViewFunction::make());
       values.emplace("click!", Function::ClickBangFunction::make());
+      values.emplace("mouse-move-at!", Function::MouseMoveAtBangFunction::make());
       values.emplace("mouse-down-at!", Function::MouseDownAtBangFunction::make());
       values.emplace("mouse-up-at!", Function::MouseUpAtBangFunction::make());
       values.emplace("mouse-click-at!", Function::MouseClickAtBangFunction::make());
+      values.emplace("mouse-move-in!", Function::MouseMoveInBangFunction::make());
       values.emplace("mouse-down-in!", Function::MouseDownInBangFunction::make());
       values.emplace("mouse-up-in!", Function::MouseUpInBangFunction::make());
       values.emplace("mouse-click-in!", Function::MouseClickInBangFunction::make());

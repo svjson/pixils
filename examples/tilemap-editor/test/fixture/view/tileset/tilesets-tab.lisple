@@ -33,3 +33,59 @@
     (is (= (get expected :tileset/label) (:tileset-label dialog-state)))
     (is (= (get expected :tileset/tile-size) (:tile-size dialog-state)))
     true))
+
+(defun tile-grid []
+  "tileset-tile-grid")
+
+(defun tile-index-x [index]
+  (+ 5 (* index 16)))
+
+(defun select-tile-range! [app from-index to-index opts]
+  (let [grid (runtime/find-view app (tile-grid))]
+    (is (not (nil? grid)))
+    (case (:by opts)
+      :mouse/drag (runtime/mouse-drag-in! app
+                                          grid
+                                          (tile-index-x from-index)
+                                          5
+                                          (tile-index-x to-index)
+                                          5)
+      :default (runtime/mouse-drag-in! app
+                                       grid
+                                       (tile-index-x from-index)
+                                       5
+                                       (tile-index-x to-index)
+                                       5))
+    (runtime/render! app)
+    app))
+
+(defun selected-tile-indices-are? [app indices]
+  (let [selected (:selected-tileset-tile-indices (runtime/active-state app))]
+    (is (= indices selected))
+    selected))
+
+(defun request-delete-selection! [app opts]
+  (case (:by opts)
+    :keyboard/delete (runtime/key-down! app :delete)
+    :default (runtime/key-down! app :delete))
+  (runtime/update! app)
+  (runtime/update! app)
+  (runtime/render! app)
+  app)
+
+(defun delete-dialog-is-open? [app expected-indices]
+  (let [payload (runtime/dialog-payload app)]
+    (is (= true (runtime/dialog-open? app :delete-tiles)))
+    (is (= expected-indices (:tile-indices payload)))
+    true))
+
+(defun open-tile-context-menu! [app target opts]
+  (let [index (:tile-index target)
+        grid (runtime/find-view app (tile-grid))]
+    (is (not (nil? grid)))
+    (case (:by opts)
+      :mouse/right-click (runtime/mouse-click-in! app grid (tile-index-x index) 5 :right)
+      :default (runtime/mouse-click-in! app grid (tile-index-x index) 5 :right))
+    (runtime/render! app)
+    (is (= "ui/context-menu" (runtime/active-mode-name app)))
+    app))

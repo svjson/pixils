@@ -77,3 +77,9 @@
     (runtime/update! app)
     (runtime/render! app)
     app))
+
+(defun cancel-dialog! [app]
+  (runtime/pop-mode! app {:choice :dialog/cancel})
+  (runtime/update! app)
+  (runtime/render! app)
+  app)

@@ -1,0 +1,145 @@
+(ns tilemap-editor.fixture.view.terrains.terrains-tab
+  (:require proof.core
+            [pixils.test.runtime :as runtime]))
+
+(defun switch-detail-to! [app target opts]
+  (let [label (case target
+                :detail/terrain "Terrain"
+                :default target)
+        tab (runtime/find-view-containing app "ui/tab" (str ":label \"" label "\""))]
+    (is (not (nil? tab)))
+    (case (:by opts)
+      :mouse/click (runtime/click! app tab)
+      :default (runtime/click! app tab))
+    (runtime/update! app)
+    (runtime/render! app)
+    app))
+
+(defun add-rule! [app opts]
+  (let [button (runtime/find-view-containing app "ui/button" "Add rule")]
+    (is (not (nil? button)))
+    (case (:by opts)
+      :mouse/click (runtime/click! app button)
+      :default (runtime/click! app button))
+    (runtime/update! app)
+    (runtime/render! app)
+    app))
+
+(defun selected-rule-is? [app rule-id]
+  (let [state (runtime/active-state app)]
+    (is (= rule-id (:selected-terrain-rule-id state)))
+    (is (not (nil? (runtime/find-view-containing app
+                                                 "terrain-rule-list"
+                                                 (str rule-id)))))
+    (is (not (nil? (runtime/find-view-containing app
+                                                 "terrain-rule-visual-editor"
+                                                 (str rule-id)))))
+    (is (not (nil? (runtime/find-view-containing app
+                                                 "terrain-rule-row"
+                                                 (str rule-id)))))
+    true))
+
+(defun selected-rule [app]
+  (let [state (runtime/active-state app)
+        ruleset (head (:rulesets state))]
+    (head (:rules ruleset))))
+
+(defun selected-rule-match [app direction]
+  (get-in (selected-rule app) [:match direction]))
+
+(defun selected-rule-output-tiles [app]
+  (get-in (selected-rule app) [:output :layers 0 :tiles]))
+
+(defun set-selected-rule-exclusive! [app exclusive? opts]
+  (let [checkbox (runtime/find-view-containing app
+                                               "ui/checkbox"
+                                               ":terrain-rule-exclusive")]
+    (is (not (nil? checkbox)))
+    (case (:by opts)
+      :mouse/click (runtime/click! app checkbox)
+      :default (runtime/click! app checkbox))
+    (runtime/update! app)
+    (is (= exclusive? (:exclusive? (selected-rule app))))
+    app))
+
+(defun match-cell [app direction]
+  (runtime/find-view-containing app
+                                "terrain-match-tile-cell"
+                                (str ":direction " direction " ")))
+
+(defun match-cell-has-tile? [app target expected-tile]
+  (let [cell (case target
+               :match/center (runtime/find-view-containing app
+                                                           "terrain-match-tile-cell"
+                                                           ":center? true")
+               :default (match-cell app target))]
+    (is (not (nil? cell)))
+    (let [tile (:tile (runtime/view-state cell))
+          tile-id (if (= "map" (type-of tile))
+                    (:id tile)
+                    tile)]
+      (is (= expected-tile tile-id)))
+    true))
+
+(defun cycle-match-cell! [app direction opts]
+  (let [cell (match-cell app direction)]
+    (is (not (nil? cell)))
+    (case (:by opts)
+      :mouse/right-click (runtime/mouse-click-in! app cell 8 8 :right)
+      :mouse/left-click (runtime/mouse-click-in! app cell 8 8)
+      :default (runtime/mouse-click-in! app cell 8 8 :right))
+    (runtime/update! app)
+    app))
+
+(defun rule-match-is? [app direction expected]
+  (let [actual (selected-rule-match app direction)]
+    (is (= expected actual))
+    actual))
+
+(defun stamp-cell [app target]
+  (case target
+    :stamp/origin (runtime/find-view-containing app
+                                                "terrain-stamp-grid-cell"
+                                                ":visible? true")
+    :default (runtime/find-view-containing app
+                                           "terrain-stamp-grid-cell"
+                                           ":visible? true")))
+
+(defun tile-picker-position [tile]
+  (case tile
+    :tile/water-fill {:x 84 :y 16}
+    :tile/none {:x 16 :y 16}
+    :default {:x 16 :y 16}))
+
+(defun selected-stamp-tile-is? [app tile]
+  (let [selected (:terrain-rule-selected-tile (runtime/active-state app))]
+    (is (= tile selected))
+    selected))
+
+(defun drag-stamp-tile! [app tile target opts]
+  (let [picker (runtime/find-view app "terrain-stamp-tile-picker")
+        cell (stamp-cell app target)
+        pos (tile-picker-position tile)]
+    (is (not (nil? picker)))
+    (is (not (nil? cell)))
+    (case (:by opts)
+      :mouse/drag (runtime/mouse-drag-between! app
+                                               picker
+                                               (:x pos)
+                                               (:y pos)
+                                               cell
+                                               8
+                                               8)
+      :default (runtime/mouse-drag-between! app
+                                            picker
+                                            (:x pos)
+                                            (:y pos)
+                                            cell
+                                            8
+                                            8))
+    app))
+
+(defun output-tiles-are? [app tiles]
+  (let [actual (selected-rule-output-tiles app)]
+    (is (= tiles actual))
+    actual))

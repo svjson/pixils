@@ -1,0 +1,84 @@
+(ns tilemap-editor.view.terrains.interaction-test
+  (:require proof.core
+            [tilemap-editor.fixture.io.project :as project]
+            [tilemap-editor.fixture.main-window :as main-window]
+            [tilemap-editor.fixture.view.terrains.terrains-tab :as terrains-tab]))
+
+(deftest terrain-rule-add-button-creates-visible-rule
+  (given
+    (project/write! :terrain-rule
+                    {:tilesets [{:id :terrain
+                                 :label "Terrain"
+                                 :tile-size 16
+                                 :tiles [{:id :grass-fill
+                                          :name "Grass Fill"
+                                          :char "g"
+                                          :type :color
+                                          :color {:r 0 :g 255 :b 0}}
+                                         {:id :water-fill
+                                          :name "Water Fill"
+                                          :char "w"
+                                          :type :color
+                                          :color {:r 0 :g 0 :b 255}}]}]
+                     :terrain-sets [{:id :overworld
+                                     :label "Overworld"
+                                     :tileset :terrain
+                                     :terrains [{:id :grass
+                                                 :label "Grass"
+                                                 :tile :grass-fill}
+                                                {:id :water
+                                                 :label "Water"
+                                                 :tile :water-fill}]}]
+                     :rulesets []
+                     :layer-profiles [{:id :default
+                                       :label "Default"
+                                       :layers [{:id :scene/terrain
+                                                 :label "Terrain Source"
+                                                 :kind :terrain
+                                                 :data-kind :terrain
+                                                 :terrain-set :overworld}
+                                                {:id :scene/terrain-visuals
+                                                 :label "Terrain Visuals"
+                                                 :kind :tile
+                                                 :data-kind :tile-ref
+                                                 :tileset :terrain}]}]
+                     :tilemap {:width 2
+                               :height 2
+                               :tile-size 16
+                               :layer-profile :default
+                               :layers []}})
+    (let [app (main-window/open-project! :terrain-rule)]
+      (main-window/is-open? app)
+      app))
+
+  (when [app]
+    (main-window/switch-to! app :tab/terrains {:by :mouse/click})
+    (terrains-tab/switch-detail-to! app :detail/terrain {:by :mouse/click})
+    (terrains-tab/add-rule! app {:by :mouse/click})
+    (terrains-tab/selected-rule-is? app :rule)
+    (terrains-tab/set-selected-rule-exclusive! app true {:by :mouse/click})
+    (terrains-tab/match-cell-has-tile? app :match/center :grass-fill)
+
+    (terrains-tab/cycle-match-cell! app :n {:by :mouse/right-click})
+    (terrains-tab/rule-match-is? app :n :same)
+    (terrains-tab/cycle-match-cell! app :n {:by :mouse/right-click})
+    (terrains-tab/rule-match-is? app :n :none)
+    (terrains-tab/cycle-match-cell! app :n {:by :mouse/right-click})
+    (terrains-tab/rule-match-is? app :n :any-terrain)
+    (terrains-tab/cycle-match-cell! app :n {:by :mouse/left-click})
+    (terrains-tab/rule-match-is? app :n :none)
+    (terrains-tab/cycle-match-cell! app :n {:by :mouse/right-click})
+    (terrains-tab/cycle-match-cell! app :n {:by :mouse/right-click})
+    (terrains-tab/rule-match-is? app :n :not-same)
+    (terrains-tab/cycle-match-cell! app :n {:by :mouse/right-click})
+    (terrains-tab/rule-match-is? app :n {:terrain :water})
+
+    (terrains-tab/drag-stamp-tile! app :tile/water-fill :stamp/origin {:by :mouse/drag})
+    (terrains-tab/selected-stamp-tile-is? app :water-fill)
+    (terrains-tab/output-tiles-are? app [[:water-fill]])
+    (terrains-tab/drag-stamp-tile! app :tile/none :stamp/origin {:by :mouse/drag})
+    app)
+
+  (then [app]
+    (terrains-tab/output-tiles-are? app [[nil]])
+    (project/cleanup! :terrain-rule)))
