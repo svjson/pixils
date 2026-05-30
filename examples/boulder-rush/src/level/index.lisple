@@ -8,10 +8,19 @@
            :bonus-value 15}
     :remaining-time 150
     :initial-offset {:x 344 :y 176}}
+
    {:map-id :cave-a/level-2
     :tileset-id :game-tiles-2
     :gems {:required 10
            :value 20
            :bonus-value 50}
     :remaining-time 150
-    :initial-offset {:x 0 :y 0}}])
+    :initial-offset {:x 0 :y 0}}
+
+   {:map-id :cave-a/level-3
+    :tileset-id :game-tiles-3
+    :gems {:required 24
+           :value 15
+           :bonus-value 0}
+    :remaining-time 150
+    :initial-offset {:x 344 :y 176}}])
