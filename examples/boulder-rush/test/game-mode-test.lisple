@@ -89,6 +89,8 @@
            (-> result :level :map-id)))
     (is (= :cave-a/level-2
            (-> result :level-map :id)))
+    (is (= :cave-a/level-2
+           (-> result :base-level-map :id)))
     (is (= 0
            (-> result :gems :collected)))
     (is (= 10
@@ -564,6 +566,98 @@
            (map (-> result :level-map :layers) :id)))
     (is (= 1
            (count (:cycles result))))))
+
+(deftest phase-game-enters-death-phase-when-player-is-smashed
+  (given
+    {:level-map (fixtures/rows->map [" O "
+                                     " P "
+                                     "   "])
+     :base-level-map (fixtures/rows->map [" P "])
+     :level {:tileset-id :level
+             :gems {:required 3
+                    :value 10
+                    :bonus-value 15}
+             :remaining-time 20
+             :initial-offset {:x 0 :y 0}}
+     :player (player/make {:x 1 :y 1})
+     :gems {:collected 0
+            :required 3
+            :value 10
+            :bonus-value 15}
+     :events [(event-ready (fixtures/falling {:x 1 :y 0}))]
+     :cycles []
+     :tile-substitutions {}
+     :offset {:x 0 :y 0}
+     :tile-offset {:x 0 :y 0}
+     :remaining-time 20
+     :remaining-time-timer (timer/make {:interval-ms 1000})})
+  (when [state]
+    (game/phase-game state {:held-keys []
+                            :buffer-size {:w 320 :h 240}}))
+  (then [result]
+    (is (= game/phase-death
+           (:update result)))
+    (is (= game/death-delay-ms
+           (-> result :death :timer :interval-ms)))))
+
+(deftest update-death-cover-adds-empty-start-cover-after-delay
+  (given
+    {:level-map (fixtures/rows->map ["P "])
+     :level {:tileset-id :level}
+     :death {:timer (ready-timer)}})
+  (when [state]
+    (game/update-death-cover state))
+  (then [result]
+    (is (= true
+           (-> result :death :filling?)))
+    (is (= [:scene/level :boulder-rush/start-cover]
+           (map (-> result :level-map :layers) :id)))
+    (is (= [[nil nil]]
+           (-> result :level-map :layers (nth 1) :tiles)))))
+
+(deftest update-death-cover-restores-level-under-full-start-cover
+  (given
+    (let [base-map (fixtures/rows->map ["P "])]
+      {:level-map (level/add-empty-start-cover (fixtures/rows->map ["XX"])
+                                               {:tileset-id :level})
+       :base-level-map base-map
+       :level {:tileset-id :level
+               :gems {:required 3
+                      :value 10
+                      :bonus-value 15}
+               :remaining-time 20
+               :initial-offset {:x 0 :y 0}}
+       :player {:score 40
+                :lives 2}
+       :offset {:x 48 :y 32}
+       :tile-offset {:x 3 :y 2}
+       :death {:filling? true
+               :cover-index 0
+               :cover-timer (ready-timer)}}))
+  (when [state]
+    (game/update-death-cover state))
+  (then [result]
+    (is (= game/phase-start
+           (:update result)))
+    (is (= ["P "]
+           (fixtures/map->rows (:level-map result))))
+    (is (= [[:barrier :barrier]]
+           (-> result :level-map :layers (nth 1) :tiles)))
+    (is (= 2
+           (count (:cycles result))))
+    (is (= 0
+           (-> result :gems :collected)))
+    (is (= 20
+           (:remaining-time result)))
+    (is (= 40
+           (-> result :player :score)))
+    (is (= 2
+           (-> result :player :lives)))
+    (is (= {:x 48 :y 32}
+           (:offset result)))
+    (is (= {:x 3 :y 2}
+           (:tile-offset result)))
+    (is (nil? (:death result)))))
 
 (deftest update-physics-evaluates-current-events-and-retains-moved-coordinates
   (given

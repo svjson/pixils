@@ -19,6 +19,7 @@
 (def exit-flash-interval-ms 200)
 (def start-phase-duration-ms 4500)
 (def barrier-scroll-interval-ms 25)
+(def death-delay-ms 2000)
 
 (defun held-direction [held-keys]
   (cond
@@ -176,6 +177,71 @@
                               (update state :tile-substitutions (fn [ts]
                                                                   (dissoc ts :empty))))}))
 
+(defun player-start-pos [level-map]
+  (reduce (-> level-map :layers head :tiles)
+          {:x nil :y 0}
+          (fn [coord row]
+            (case (:x coord)
+              nil
+              (if-let [x (find-index row (fn [cell] (= :player-default cell)))]
+                (assoc coord :x x)
+                (update coord :y inc))
+
+              :default
+              coord))))
+
+(defun restart-after-death [state]
+  (let [base-map (:base-level-map state)
+        player (pl/make (player-start-pos base-map))]
+    (dissoc (assoc state
+                   :level-map (level/add-start-cover base-map (:level state))
+                   :update phase-start
+                   :gems (assoc (-> state :level :gems) :collected 0)
+                   :remaining-time (-> state :level :remaining-time)
+                   :remaining-time-timer (timer/make {:interval-ms 1000})
+                   :tile-substitutions {:exit :barrier}
+                   :cycles [(barrier-scroll-cycle) (entry-cycle)]
+                   :events (physics/events base-map)
+                   :player (assoc player
+                                  :score (or (-> state :player :score) 0)
+                                  :lives (or (-> state :player :lives) 3)))
+            :death
+            :moved-tiles
+            :explosions
+            :play-explosion-sound?)))
+
+(defun update-death-cover [state]
+  (if (-> state :death :filling?)
+    (let [timer (timer/tick (-> state :death :cover-timer))
+          from (or (-> state :death :cover-index) 0)
+          to (min (+ from 20)
+                  (* (-> state :level-map :width)
+                     (-> state :level-map :height)))
+          state (assoc-in state [:death :cover-timer] timer)]
+      (if (timer/ticked? timer)
+        (let [state (assoc state
+                           :level-map (level/fill-start-cover (:level-map state)
+                                                              from
+                                                              20))
+              state (assoc-in state [:death :cover-index] to)]
+          (if (= to (* (-> state :level-map :width)
+                       (-> state :level-map :height)))
+            (restart-after-death state)
+            state))
+        state))
+    (let [timer (timer/tick (-> state :death :timer))
+          state (assoc-in state [:death :timer] timer)]
+      (if (timer/ticked? timer)
+        (assoc state
+               :level-map (level/add-empty-start-cover (:level-map state)
+                                                       (:level state))
+               :death (assoc (:death state)
+                             :timer timer
+                             :filling? true
+                             :cover-index 0
+                             :cover-timer (timer/make {:interval-ms 25})))
+        state))))
+
 (defun init-level [state]
   (let [current-level (or (:current-level state) 1)
         level (nth caves/levels (dec current-level))
@@ -188,6 +254,7 @@
                                         (:tile-size base-map)))}]
     {:current-level current-level
      :level level
+     :base-level-map base-map
      :level-map map
      :update phase-start
      :gems (assoc (:gems level) :collected 0)
@@ -199,17 +266,7 @@
      :tile-substitutions {:exit :barrier}
      :cycles [(barrier-scroll-cycle) (entry-cycle)]
      :events (physics/events base-map)
-     :player (pl/make (reduce (-> base-map :layers head :tiles)
-                              {:x nil :y 0}
-                              (fn [coord row]
-                                (case (:x coord)
-                                  nil
-                                  (if-let [x (find-index row (fn [cell] (= :player-default cell)))]
-                                    (assoc coord :x x)
-                                    (update coord :y inc))
-
-                                  :default
-                                  coord))))}))
+     :player (pl/make (player-start-pos base-map))}))
 
 (defun phase-start [state ctx]
   (let [state (assoc state :events (event/tick-many (:events state)))]
@@ -229,8 +286,23 @@
         state (assoc state :events (event/tick-many (:events state)))]
     (-> state
         (event/update-physics)
+        ((fn [state]
+           (if (empty? (or (:explosions state) []))
+             state
+             (assoc state
+                    :update phase-death
+                    :death {:timer (timer/make {:interval-ms death-delay-ms})}))))
         (sound/play-game-event-sounds)
         (camera/update-offset (:buffer-size ctx)))))
+
+(defun phase-death [state ctx]
+  (let [state (assoc state :events (event/tick-many (:events state)))]
+    (-> state
+        (cycle/process-all)
+        (event/update-physics)
+        (sound/play-game-event-sounds)
+        (camera/update-offset (:buffer-size ctx))
+        (update-death-cover))))
 
 
 (defmode game-mode

@@ -14,10 +14,29 @@
   (tm/add-layer level-map
                 (start-cover-layer level-map (:tileset-id level))))
 
+(defun add-empty-start-cover [level-map level]
+  (tm/add-layer level-map
+                (tm/filled-layer level-map
+                                 {:id :boulder-rush/start-cover
+                                  :label "Start Cover"
+                                  :tileset (:tileset-id level)
+                                  :tile nil})))
+
 (defun remove-start-cover [level-map]
   (tm/remove-layer level-map
                    :boulder-rush/start-cover))
 
+(defun fill-start-cover [level-map from count]
+  (reduce (range from
+                 (min (+ from count)
+                      (* (:width level-map) (:height level-map))))
+          level-map
+          (fn [level-map index]
+            (tm/set-layer-cell level-map
+                               :boulder-rush/start-cover
+                               {:x (mod index (:width level-map))
+                                :y (int (/ index (:width level-map)))}
+                               :barrier))))
 
 (defun reveal-start-cover-cell [state]
   (update state :level-map
@@ -32,4 +51,3 @@
           state
           (fn [state index]
             (reveal-start-cover-cell state))))
-
