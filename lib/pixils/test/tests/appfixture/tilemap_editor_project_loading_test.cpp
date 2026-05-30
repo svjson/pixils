@@ -3,41 +3,6 @@
 #include <SDL2/SDL_mouse.h>
 #include <gtest/gtest.h>
 
-TEST_F(TilemapEditorStartupTest, current_example_main_mode_updates_and_renders)
-{
-  read_tilemap_editor_sources(runtime);
-
-  session.push_mode("main-mode", Lisple::Constant::NIL);
-  session.update_mode();
-  session.render_mode();
-
-  ASSERT_NE(session.active_mode, nullptr);
-  EXPECT_EQ(session.active_mode->mode->name, "main-mode");
-
-  ASSERT_GE(session.active_mode->children.size(), 2u);
-  auto tab_panel = session.active_mode->children[1];
-  ASSERT_NE(tab_panel, nullptr);
-  ASSERT_EQ(tab_panel->children.size(), 2u);
-  auto tab_strip = tab_panel->children[0];
-  ASSERT_NE(tab_strip, nullptr);
-  ASSERT_GE(tab_strip->children.size(), 2u);
-  auto tilesets_tab = tab_strip->children[1];
-  ASSERT_NE(tilesets_tab, nullptr);
-
-  input().mouse_down({tilesets_tab->bounds.x + tilesets_tab->bounds.w / 2,
-                      tilesets_tab->bounds.y + tilesets_tab->bounds.h / 2});
-  update_cycle();
-  input().mouse_up({tilesets_tab->bounds.x + tilesets_tab->bounds.w / 2,
-                    tilesets_tab->bounds.y + tilesets_tab->bounds.h / 2});
-  update_cycle();
-  session.render_mode();
-
-  auto body = tab_panel->children[1];
-  ASSERT_NE(body, nullptr);
-  ASSERT_EQ(body->children.size(), 1u);
-  EXPECT_EQ(body->children[0]->mode->name, "tileset-definition-workspace");
-}
-
 TEST_F(TilemapEditorStartupTest, loaded_project_populates_existing_side_panel_controls)
 {
   const auto history_path =

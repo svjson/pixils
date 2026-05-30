@@ -1,0 +1,113 @@
+(ns tilemap-editor.io.project-transform-test
+  (:require proof.core
+            [lisple.io :as io]
+            [pixils.tilemap.project.model :as data]
+            [tilemap-editor.io.project :as project-io]
+            [tilemap-editor.io.project-support :as support]))
+
+(deftest project-layer-profiles-default_from_legacy_layers
+  (let [profiles (project-io/project-layer-profiles
+                  {:tilemap {:layers [{:id :scene/ground
+                                       :label "Ground"
+                                       :tileset :terrain
+                                       :tiles [[:grass]]}]}})]
+    (is (= data/default-layer-profile-id
+           (:id (head profiles))))
+    (is (= :scene/ground
+           (get-in profiles [0 :layers 0 :id])))
+    (is (= :source
+           (get-in profiles [0 :layers 0 :role])))
+    (is (= :tile-ref
+           (get-in profiles [0 :layers 0 :data-kind])))))
+
+(deftest project-selected-map-reads_selected_map_from_multi_map_document
+  (let [project (data/normalize-project-document
+                 {:format data/project-format
+                  :selected-map :map/cave
+                  :maps [{:id :map/overworld
+                          :layers []}
+                         {:id :map/cave
+                          :width 18
+                          :height 11
+                          :layers [{:id :scene/cave
+                                    :tiles [[:rock]]}]}]})
+        selected (project-io/project-selected-map project)]
+    (is (= :map/cave (:id selected)))
+    (is (= 18 (:width selected)))
+    (is (= :scene/cave (get-in selected [:layers 0 :id])))))
+
+(deftest loaded-terrain-rule-normalizes-legacy-sprite-sources
+  (support/cleanup-project-io-test-files!)
+  (io/spit-edn! support/LEGACY-SOURCE-PATH
+                {:format data/project-format
+                 :version data/project-format-version
+                 :resources {:bundles {:project-assets
+                                       {:images {:spritesheet
+                                                 {:file-name "examples/tilemap-editor/assets/simples_pimples.png"
+                                                  :name "Spritesheet"}}}}}
+                 :tilesets [{:id :terrain
+                             :label "Terrain"
+                             :tile-size 16
+                             :tiles [{:id :grass-fill
+                                      :name "Grass Fill"
+                                      :char "g"
+                                      :type :sprite
+                                      :image :project-assets/spritesheet
+                                      :source {:x 0 :y 0}}]}]
+                 :terrain-sets [{:id :overworld
+                                 :label "Overworld"
+                                 :tileset :terrain
+                                 :terrains [{:id :grass
+                                             :label "Grass"
+                                             :tile :grass-fill}]}]
+                 :rulesets [{:id :overworld-rules
+                             :label "Overworld Rules"
+                             :kind :terrain-stamp
+                             :terrain-set :overworld
+                             :source-layer :scene/terrain
+                             :rules [{:id :rule
+                                      :label "Rule"
+                                      :terrain :grass
+                                      :match {:nw :ignore
+                                              :n :same
+                                              :ne :ignore
+                                              :w :ignore
+                                              :e :ignore
+                                              :sw :ignore
+                                              :s :ignore
+                                              :se :ignore}
+                                      :output {:anchor {:x 1 :y 1}
+                                               :layers [{:id :layer
+                                                         :data-kind :tile-ref
+                                                         :target-layer :scene/terrain-visuals
+                                                         :tileset :terrain
+                                                         :tiles [[nil nil nil]
+                                                                 [nil :grass-fill nil]
+                                                                 [nil nil nil]]}]}}]}]
+                 :layer-profiles [{:id :default
+                                   :label "Default"
+                                   :layers [{:id :scene/terrain
+                                             :label "Terrain Source"
+                                             :kind :terrain
+                                             :data-kind :terrain
+                                             :terrain-set :overworld}
+                                            {:id :scene/terrain-visuals
+                                             :label "Terrain Visuals"
+                                             :kind :tile
+                                             :data-kind :tile-ref
+                                             :tileset :terrain}]}]
+                 :tilemap {:width 2
+                           :height 2
+                           :tile-size 16
+                           :layer-profile :default
+                           :layers []}})
+  (let [state (project-io/apply-project-file-dialog-result
+               {:layers []
+                :recent-projects []}
+               (support/file-dialog-payload :file-dialog/open
+                                            support/LEGACY-SOURCE-PATH
+                                            "terrain-rule-legacy-source-project.edn"))]
+    (is (= {:x 0 :y 0 :w 16 :h 16}
+           (get-in state [:tilesets 0 :tiles 0 :source])))
+    (is (= :rule (get-in state [:rulesets 0 :rules 0 :id]))))
+  (support/cleanup-project-io-test-files!))

@@ -23,13 +23,12 @@
     nil))
 
 (defun cleanup-application-startup-test-files! []
-  (do
-    (remove-file-if-exists! TERRAIN-PAINT-PATH)
-    (remove-file-if-exists! BRUSH-PATH)
-    (remove-file-if-exists! RESOURCE-PATH)
-    (remove-file-if-exists! EXCLUSIVE-RULE-PATH)
-    (remove-file-if-exists! MISSING-IMAGE-PATH)
-    (remove-file-if-exists! MISSING-IMAGE-HISTORY-PATH)))
+  (remove-file-if-exists! TERRAIN-PAINT-PATH)
+  (remove-file-if-exists! BRUSH-PATH)
+  (remove-file-if-exists! RESOURCE-PATH)
+  (remove-file-if-exists! EXCLUSIVE-RULE-PATH)
+  (remove-file-if-exists! MISSING-IMAGE-PATH)
+  (remove-file-if-exists! MISSING-IMAGE-HISTORY-PATH))
 
 (defun file-dialog-payload [mode path filename]
   {:type :confirm
@@ -50,284 +49,294 @@
    (file-dialog-payload :file-dialog/open path filename)))
 
 (deftest loaded-project-terrain-paint-can-bake-stamp-rule
-  (do
-    (cleanup-application-startup-test-files!)
-    (io/spit-edn! TERRAIN-PAINT-PATH
-                  {:format data/project-format
-                   :version data/project-format-version
-                   :resources {:bundles {}}
-                   :tilesets [{:id :terrain
-                               :label "Terrain"
-                               :tile-size 16
-                               :tiles [{:id :grass-fill
-                                        :name "Grass Fill"
-                                        :type :color
-                                        :color {:r 0 :g 255 :b 0}}
-                                       {:id :water-fill
-                                        :name "Water Fill"
-                                        :type :color
-                                        :color {:r 0 :g 0 :b 255}}
-                                       {:id :shore-n
-                                        :name "Shore North"
-                                        :type :color
-                                        :color {:r 255 :g 255 :b 0}}]}]
-                   :terrain-sets [{:id :overworld
-                                   :label "Overworld"
-                                   :tileset :terrain
-                                   :terrains [{:id :grass
-                                               :label "Grass"
-                                               :tile :grass-fill}
-                                              {:id :water
-                                               :label "Water"
-                                               :tile :water-fill}]}]
-                   :rulesets [{:id :shore-rules
-                               :kind :terrain-stamp
-                               :terrain-set :overworld
-                               :source-layer nil
-                               :rules [{:id :grass-north-water
-                                        :terrain :grass
-                                        :match {:nw :ignore
-                                                :n {:terrain :water}
-                                                :ne :ignore
-                                                :w :ignore
-                                                :e :ignore
-                                                :sw :ignore
-                                                :s :ignore
-                                                :se :ignore}
-                                        :output {:anchor {:x 1 :y 1}
-                                                 :layers [{:id :layer
-                                                           :target-layer nil
-                                                           :tileset :terrain
-                                                           :tiles [[nil :shore-n nil]
-                                                                   [nil :grass-fill nil]
-                                                                   [nil nil nil]]}]}}]}]
-                   :layer-profiles [{:id :default
-                                     :label "Default"
-                                     :layers [{:id :scene/terrain
-                                               :label "Terrain Source"
-                                               :kind :tile
-                                               :role :source
-                                               :data-kind :terrain
-                                               :terrain-set :overworld}]}]
-                   :tilemap {:width 32
-                             :height 32
+  (cleanup-application-startup-test-files!)
+  (io/spit-edn! TERRAIN-PAINT-PATH
+                {:format data/project-format
+                 :version data/project-format-version
+                 :resources {:bundles {}}
+                 :tilesets [{:id :terrain
+                             :label "Terrain"
                              :tile-size 16
-                             :layer-profile :default
-                             :layers [{:id :scene/terrain
-                                       :label "Terrain Source"
-                                       :kind :tile
-                                       :role :source
-                                       :data-kind :terrain
-                                       :terrain-set :overworld
-                                       :tiles [[nil :water nil]]}]}})
-    (let [loaded (open-project-state TERRAIN-PAINT-PATH
-                                     "terrain-rule-paint-project.edn")
-          painted (tilemap/paint-map-at
-                   (assoc loaded :terrain-rule-application :paint-baked)
-                   (paint-event :left 1 1))
-          baked-tiles (apply concat (get-in painted [:layers 1 :tiles]))]
-      (is (= :grass (get-in painted [:layers 0 :tiles 1 1])))
-      (is (= (keyword "scene/terrain/shore-rules/layer")
-             (get-in painted [:layers 1 :id])))
-      (is (= ":shore-rules"
-             (get-in painted [:terrain-stamp-replacements 0 :label])))
-      (is (contains? baked-tiles :grass-fill))
-      (is (= true
-             (get-in painted [:terrain-stamp-replacements 0 :tiles 1 1]))))
-    (cleanup-application-startup-test-files!)))
+                             :tiles [{:id :grass-fill
+                                      :name "Grass Fill"
+                                      :type :color
+                                      :color {:r 0 :g 255 :b 0}}
+                                     {:id :water-fill
+                                      :name "Water Fill"
+                                      :type :color
+                                      :color {:r 0 :g 0 :b 255}}
+                                     {:id :shore-n
+                                      :name "Shore North"
+                                      :type :color
+                                      :color {:r 255 :g 255 :b 0}}]}]
+                 :terrain-sets [{:id :overworld
+                                 :label "Overworld"
+                                 :tileset :terrain
+                                 :terrains [{:id :grass
+                                             :label "Grass"
+                                             :tile :grass-fill}
+                                            {:id :water
+                                             :label "Water"
+                                             :tile :water-fill}]}]
+                 :rulesets [{:id :shore-rules
+                             :kind :terrain-stamp
+                             :terrain-set :overworld
+                             :source-layer nil
+                             :rules [{:id :grass-north-water
+                                      :terrain :grass
+                                      :match {:nw :ignore
+                                              :n {:terrain :water}
+                                              :ne :ignore
+                                              :w :ignore
+                                              :e :ignore
+                                              :sw :ignore
+                                              :s :ignore
+                                              :se :ignore}
+                                      :output {:anchor {:x 1 :y 1}
+                                               :layers [{:id :layer
+                                                         :target-layer nil
+                                                         :tileset :terrain
+                                                         :tiles [[nil :shore-n nil]
+                                                                 [nil :grass-fill nil]
+                                                                 [nil nil nil]]}]}}]}]
+                 :layer-profiles [{:id :default
+                                   :label "Default"
+                                   :layers [{:id :scene/terrain
+                                             :label "Terrain Source"
+                                             :kind :tile
+                                             :role :source
+                                             :data-kind :terrain
+                                             :terrain-set :overworld}]}]
+                 :tilemap {:width 32
+                           :height 32
+                           :tile-size 16
+                           :layer-profile :default
+                           :layers [{:id :scene/terrain
+                                     :label "Terrain Source"
+                                     :kind :tile
+                                     :role :source
+                                     :data-kind :terrain
+                                     :terrain-set :overworld
+                                     :tiles [[nil :water nil]]}]}})
+  (let [loaded (open-project-state TERRAIN-PAINT-PATH
+                                   "terrain-rule-paint-project.edn")
+        painted (tilemap/paint-map-at
+                 (assoc loaded :terrain-rule-application :paint-baked)
+                 (paint-event :left 1 1))
+        baked-tiles (apply concat (get-in painted [:layers 1 :tiles]))]
+    (is (= :grass (get-in painted [:layers 0 :tiles 1 1])))
+    (is (= (keyword "scene/terrain/shore-rules/layer")
+           (get-in painted [:layers 1 :id])))
+    (is (= ":shore-rules"
+           (get-in painted [:terrain-stamp-replacements 0 :label])))
+    (is (contains? baked-tiles :grass-fill))
+    (is (= true
+           (get-in painted [:terrain-stamp-replacements 0 :tiles 1 1]))))
+  (cleanup-application-startup-test-files!))
 
 (deftest loaded-project-terrain-workspace-derives-rule-exclusive-flag
-  (do
-    (cleanup-application-startup-test-files!)
-    (io/spit-edn! EXCLUSIVE-RULE-PATH
-                  {:format data/project-format
-                   :version data/project-format-version
-                   :resources {:bundles {}}
-                   :tilesets [{:id :terrain
-                               :label "Terrain"
-                               :tile-size 16
-                               :tiles [{:id :grass-fill
-                                        :name "Grass Fill"
-                                        :type :color
-                                        :color {:r 0 :g 255 :b 0}}]}]
-                   :terrain-sets [{:id :overworld
-                                   :label "Overworld"
-                                   :tileset :terrain
-                                   :terrains [{:id :grass
-                                               :label "Grass"
-                                               :tile :grass-fill}]}]
-                   :rulesets [{:id :overworld-rules
-                               :kind :terrain-stamp
-                               :terrain-set :overworld
-                               :rules [{:id :edge
-                                        :label "Edge"
-                                        :terrain :grass
-                                        :exclusive? true
-                                        :output {:anchor {:x 1 :y 1}
-                                                 :layers [{:target-layer :scene/visuals
-                                                           :tileset :terrain
-                                                           :tiles [[nil nil nil]
-                                                                   [nil :grass-fill nil]
-                                                                   [nil nil nil]]}]}}]}]
-                   :layer-profiles [{:id :default
-                                     :label "Default"
-                                     :layers [{:id :scene/terrain
-                                               :label "Terrain Source"
-                                               :kind :terrain
-                                               :data-kind :terrain
-                                               :terrain-set :overworld}
-                                              {:id :scene/visuals
-                                               :label "Terrain Visuals"
-                                               :kind :tile
-                                               :data-kind :tile-ref
-                                               :tileset :terrain}]}]
-                   :tilemap {:width 2
-                             :height 2
+  (cleanup-application-startup-test-files!)
+  (io/spit-edn! EXCLUSIVE-RULE-PATH
+                {:format data/project-format
+                 :version data/project-format-version
+                 :resources {:bundles {}}
+                 :tilesets [{:id :terrain
+                             :label "Terrain"
                              :tile-size 16
-                             :layer-profile :default
-                             :layers []}})
-    (let [loaded (open-project-state EXCLUSIVE-RULE-PATH
-                                     "exclusive-checkbox-project.edn")
-          workspace (terrain-model/derive-terrain-workspace-state loaded)]
-      (is (= :overworld-rules (:selected-terrain-ruleset-id workspace)))
-      (is (= :edge (:selected-terrain-rule-id workspace)))
-      (is (= true (:selected-terrain-rule-exclusive? workspace))))
-    (cleanup-application-startup-test-files!)))
+                             :tiles [{:id :grass-fill
+                                      :name "Grass Fill"
+                                      :type :color
+                                      :color {:r 0 :g 255 :b 0}}]}]
+                 :terrain-sets [{:id :overworld
+                                 :label "Overworld"
+                                 :tileset :terrain
+                                 :terrains [{:id :grass
+                                             :label "Grass"
+                                             :tile :grass-fill}]}]
+                 :rulesets [{:id :overworld-rules
+                             :kind :terrain-stamp
+                             :terrain-set :overworld
+                             :rules [{:id :edge
+                                      :label "Edge"
+                                      :terrain :grass
+                                      :exclusive? true
+                                      :output {:anchor {:x 1 :y 1}
+                                               :layers [{:target-layer :scene/visuals
+                                                         :tileset :terrain
+                                                         :tiles [[nil nil nil]
+                                                                 [nil :grass-fill nil]
+                                                                 [nil nil nil]]}]}}]}]
+                 :layer-profiles [{:id :default
+                                   :label "Default"
+                                   :layers [{:id :scene/terrain
+                                             :label "Terrain Source"
+                                             :kind :terrain
+                                             :data-kind :terrain
+                                             :terrain-set :overworld}
+                                            {:id :scene/visuals
+                                             :label "Terrain Visuals"
+                                             :kind :tile
+                                             :data-kind :tile-ref
+                                             :tileset :terrain}]}]
+                 :tilemap {:width 2
+                           :height 2
+                           :tile-size 16
+                           :layer-profile :default
+                           :layers []}})
+  (let [loaded (open-project-state EXCLUSIVE-RULE-PATH
+                                   "exclusive-checkbox-project.edn")
+        workspace (terrain-model/derive-terrain-workspace-state loaded)]
+    (is (= :overworld-rules (:selected-terrain-ruleset-id workspace)))
+    (is (= :edge (:selected-terrain-rule-id workspace)))
+    (is (= true (:selected-terrain-rule-exclusive? workspace))))
+  (cleanup-application-startup-test-files!))
 
 (deftest loaded-project-brush-workspace-uses-loaded-tilesets
-  (do
-    (cleanup-application-startup-test-files!)
-    (io/spit-edn! BRUSH-PATH
-                  {:format data/project-format
-                   :version data/project-format-version
-                   :resources {:bundles {}}
-                   :tilesets [{:id :loaded
-                               :label "Loaded"
-                               :tile-size 16
-                               :tiles [{:id :grass
-                                        :name "Grass"
-                                        :char "g"
-                                        :type :color
-                                        :color {:r 0 :g 255 :b 0}}]}]
-                   :brushes [{:id :brush
-                              :label "Brush"
-                              :kind :pattern
-                              :pattern {:size {:w 3 :h 3}
-                                        :anchor {:x 1 :y 1}
-                                        :layers []}}]
-                   :tilemap {:width 2
-                             :height 2
+  (cleanup-application-startup-test-files!)
+  (io/spit-edn! BRUSH-PATH
+                {:format data/project-format
+                 :version data/project-format-version
+                 :resources {:bundles {}}
+                 :tilesets [{:id :loaded
+                             :label "Loaded"
                              :tile-size 16
-                             :layers []}})
-    (let [loaded (open-project-state BRUSH-PATH "brush-project.edn")
-          workspace (brush-model/derive-brush-workspace-state loaded)
-          brush (brush-model/selected-brush (:brushes workspace)
-                                            (:selected-brush-index workspace))
-          layer (brush-model/selected-pattern-layer
-                 brush
-                 (:selected-brush-layer-index workspace))
-          selected-index (brush-model/tileset-index (:tilesets workspace)
-                                                    (:tileset layer))
-          combo (brush-layout/pattern-layer-tileset-combo-child
-                 (:tilesets workspace)
-                 selected-index
-                 (:brush-layer-panel-disabled? workspace))]
-      (is (= :loaded (:tileset layer)))
-      (is (= [{:value 0 :label "Loaded"}]
-             (-> combo :state :options)))
-      (is (= 0 (-> combo :state :selected-index)))
-      (is (= false (-> combo :state :disabled?))))
-    (cleanup-application-startup-test-files!)))
+                             :tiles [{:id :grass
+                                      :name "Grass"
+                                      :char "g"
+                                      :type :color
+                                      :color {:r 0 :g 255 :b 0}}]}]
+                 :brushes [{:id :brush
+                            :label "Brush"
+                            :kind :pattern
+                            :pattern {:size {:w 3 :h 3}
+                                      :anchor {:x 1 :y 1}
+                                      :layers []}}]
+                 :tilemap {:width 2
+                           :height 2
+                           :tile-size 16
+                           :layers []}})
+  (let [loaded (open-project-state BRUSH-PATH "brush-project.edn")
+        workspace (brush-model/derive-brush-workspace-state loaded)
+        brush (brush-model/selected-brush (:brushes workspace)
+                                          (:selected-brush-index workspace))
+        layer (brush-model/selected-pattern-layer
+               brush
+               (:selected-brush-layer-index workspace))
+        selected-index (brush-model/tileset-index (:tilesets workspace)
+                                                  (:tileset layer))
+        combo (brush-layout/pattern-layer-tileset-combo-child
+               (:tilesets workspace)
+               selected-index
+               (:brush-layer-panel-disabled? workspace))]
+    (is (= :loaded (:tileset layer)))
+    (is (= [{:value 0 :label "Loaded"}]
+           (-> combo :state :options)))
+    (is (= 0 (-> combo :state :selected-index)))
+    (is (= false (-> combo :state :disabled?))))
+  (cleanup-application-startup-test-files!))
 
 (deftest loaded-project-resources-feed-resource-and-tileset-state
-  (do
-    (cleanup-application-startup-test-files!)
-    (io/spit-edn! RESOURCE-PATH
-                  {:format data/project-format
-                   :version data/project-format-version
-                   :resources {:bundles {:editor-assets
-                                         {:images {:spritesheet
-                                                   {:file-name "assets/simples_pimples.png"}}}
-                                         :project-assets
-                                         {:images {:spritesheet
-                                                   {:file-name "examples/tilemap-editor/assets/simples_pimples.png"
-                                                    :name "Spritesheet"}}}}}
-                   :tilesets [{:id :loaded
-                               :label "Loaded"
-                               :tile-size 16
-                               :tiles [{:id :sprite
-                                        :name "Sprite"
-                                        :char "s"
-                                        :type :sprite
-                                        :image :project-assets/spritesheet
-                                        :source {:x 0 :y 0 :w 16 :h 16}}]}]
-                   :tilemap {:width 2
-                             :height 2
+  (cleanup-application-startup-test-files!)
+  (io/spit-edn! RESOURCE-PATH
+                {:format data/project-format
+                 :version data/project-format-version
+                 :resources {:bundles {:editor-assets
+                                       {:images {:spritesheet
+                                                 {:file-name "assets/simples_pimples.png"}}}
+                                       :project-assets
+                                       {:images {:spritesheet
+                                                 {:file-name "examples/tilemap-editor/assets/simples_pimples.png"
+                                                  :name "Spritesheet"}}}}}
+                 :tilesets [{:id :loaded
+                             :label "Loaded"
                              :tile-size 16
-                             :layers []}})
-    (let [loaded (open-project-state RESOURCE-PATH "resource-project.edn")
-          workspace (resource-model/derive-resource-workspace-state loaded)]
-      (is (= [:project-assets]
-             (map (resource-model/dynamic-project-bundle-entries
-                   (:resources workspace))
-                  :id)))
-      (is (= :project-assets (:selected-resource-bundle workspace)))
-      (is (= :spritesheet (:selected-image-resource workspace)))
-      (is (= :project-assets/spritesheet
-             (get-in workspace [:tilesets 0 :tiles 0 :image]))))
-    (cleanup-application-startup-test-files!)))
+                             :tiles [{:id :sprite
+                                      :name "Sprite"
+                                      :char "s"
+                                      :type :sprite
+                                      :image :project-assets/spritesheet
+                                      :source {:x 0 :y 0 :w 16 :h 16}}]}]
+                 :tilemap {:width 2
+                           :height 2
+                           :tile-size 16
+                           :layers []}})
+  (let [loaded (open-project-state RESOURCE-PATH "resource-project.edn")
+        workspace (resource-model/derive-resource-workspace-state loaded)]
+    (is (= [:project-assets]
+           (map (resource-model/dynamic-project-bundle-entries
+                 (:resources workspace))
+                :id)))
+    (is (= :project-assets (:selected-resource-bundle workspace)))
+    (is (= :spritesheet (:selected-image-resource workspace)))
+    (is (= :project-assets/spritesheet
+           (get-in workspace [:tilesets 0 :tiles 0 :image]))))
+  (cleanup-application-startup-test-files!))
+
+(deftest current-example-main-mode-renders-and-switches-to-tilesets-tab
+  (let [app (runtime/make-app {:package-root "."
+                                :buffer-width 800
+                                :buffer-height 600})]
+    (runtime/push-mode! app 'main-mode)
+    (runtime/update! app)
+    (runtime/render! app)
+    (is (= "main-mode" (runtime/active-mode-name app)))
+    (let [tilesets-tab (runtime/find-view-containing app "ui/tab" ":tab-id :tilesets")]
+      (is (not (nil? tilesets-tab)))
+      (runtime/click! app tilesets-tab))
+    (runtime/render! app)
+    (is (= :tilesets (:workspace-tab (runtime/active-state app))))
+    (is (not (nil? (runtime/find-view app "tileset-definition-workspace"))))))
 
 (deftest loaded-sprite-project-after-empty-tileset-tab-with-missing-image-renders-preview
-  (do
-    (cleanup-application-startup-test-files!)
-    (io/spit-edn! MISSING-IMAGE-PATH
-                  {:format data/project-format
-                   :version data/project-format-version
-                   :resources {:bundles {:project-assets
-                                         {:images {:missing
-                                                   {:file-name "does-not-exist.png"
-                                                    :name "Missing Spritesheet"}}}}}
-                   :tilesets [{:id :sprites
-                               :label "Sprites"
-                               :tile-size 16
-                               :tiles [{:id :sprite
-                                        :name "Sprite"
-                                        :char "s"
-                                        :type :sprite
-                                        :image :project-assets/missing
-                                        :source {:x 0 :y 0 :w 16 :h 16}}]}]
-                   :tilemap {:width 2
-                             :height 2
+  (cleanup-application-startup-test-files!)
+  (io/spit-edn! MISSING-IMAGE-PATH
+                {:format data/project-format
+                 :version data/project-format-version
+                 :resources {:bundles {:project-assets
+                                       {:images {:missing
+                                                 {:file-name "does-not-exist.png"
+                                                  :name "Missing Spritesheet"}}}}}
+                 :tilesets [{:id :sprites
+                             :label "Sprites"
                              :tile-size 16
-                             :layers []}})
-    (let [app (runtime/make-app {:package-root "."
-                                  :buffer-width 800
-                                  :buffer-height 600})
-          open-payload (file-dialog-payload :file-dialog/open
-                                            MISSING-IMAGE-PATH
-                                            "sprite-project.edn")]
-      (runtime/push-mode! app 'main-mode)
-      (runtime/update! app)
-      (runtime/set-active-state! app
-                                 (assoc (runtime/active-state app)
-                                        :project-history-path MISSING-IMAGE-HISTORY-PATH
-                                        :recent-projects []))
-      (runtime/render! app)
-      (let [tilesets-tab (runtime/find-view-containing app "ui/tab" ":tab-id :tilesets")]
-        (is (not (nil? tilesets-tab)))
-        (runtime/click! app tilesets-tab))
-      (runtime/render! app)
-      (runtime/push-mode-with-overrides!
-       app
-       'ui/tab-panel-empty
-       nil
-       {:origin {:view (runtime/active-mode app)
-                 :event :project/file-dialog-result}})
-      (runtime/pop-mode! app open-payload)
-      (runtime/update! app)
-      (runtime/update! app)
-      (runtime/render! app)
-      (is (= "main-mode" (runtime/active-mode-name app)))
-      (is (= :tilesets (:workspace-tab (runtime/active-state app))))
-      (is (not (nil? (runtime/find-view app "sprite-map-preview")))))
-    (cleanup-application-startup-test-files!)))
+                             :tiles [{:id :sprite
+                                      :name "Sprite"
+                                      :char "s"
+                                      :type :sprite
+                                      :image :project-assets/missing
+                                      :source {:x 0 :y 0 :w 16 :h 16}}]}]
+                 :tilemap {:width 2
+                           :height 2
+                           :tile-size 16
+                           :layers []}})
+  (let [app (runtime/make-app {:package-root "."
+                                :buffer-width 800
+                                :buffer-height 600})
+        open-payload (file-dialog-payload :file-dialog/open
+                                          MISSING-IMAGE-PATH
+                                          "sprite-project.edn")]
+    (runtime/push-mode! app 'main-mode)
+    (runtime/update! app)
+    (runtime/set-active-state! app
+                               (assoc (runtime/active-state app)
+                                      :project-history-path MISSING-IMAGE-HISTORY-PATH
+                                      :recent-projects []))
+    (runtime/render! app)
+    (let [tilesets-tab (runtime/find-view-containing app "ui/tab" ":tab-id :tilesets")]
+      (is (not (nil? tilesets-tab)))
+      (runtime/click! app tilesets-tab))
+    (runtime/render! app)
+    (runtime/push-mode-with-overrides!
+     app
+     'ui/tab-panel-empty
+     nil
+     {:origin {:view (runtime/active-mode app)
+               :event :project/file-dialog-result}})
+    (runtime/pop-mode! app open-payload)
+    (runtime/update! app)
+    (runtime/update! app)
+    (runtime/render! app)
+    (is (= "main-mode" (runtime/active-mode-name app)))
+    (is (= :tilesets (:workspace-tab (runtime/active-state app))))
+    (is (not (nil? (runtime/find-view app "sprite-map-preview")))))
+  (cleanup-application-startup-test-files!))

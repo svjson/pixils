@@ -1,0 +1,53 @@
+(ns tilemap-editor.io.project-validation-test
+  (:require proof.core
+            [pixils.tilemap.project.model :as data]
+            [tilemap-editor.io.project-support :as support]))
+
+(defun invalid-tile-ref-entries [layer]
+  (reduce (:tiles layer)
+          []
+          (fn [result row]
+            (concat result
+                    (filter (for-indexed [x tile-ref row]
+                              {:layer (:id layer)
+                               :x x
+                               :ref tile-ref
+                               :type (type-of tile-ref)})
+                            (fn [entry]
+                              (and (not (nil? (:ref entry)))
+                                   (not (keyword? (:ref entry)))
+                                   (not (number? (:ref entry))))))))))
+
+(defun unresolved-tile-refs [tilesets layer]
+  (let [tileset (:tileset layer)]
+    (filter (support/layer-tile-refs layer)
+            (fn [tile-ref]
+              (nil? (data/tile-in tilesets tileset tile-ref))))))
+
+(defun sprite-tiles-without-source [tilesets layer]
+  (let [tileset (:tileset layer)]
+    (filter (map (support/layer-tile-refs layer)
+                 (fn [tile-ref]
+                   (data/tile-in tilesets tileset tile-ref)))
+            (fn [tile]
+              (and (= (:type tile) :sprite)
+                   (nil? (:source tile)))))))
+
+(deftest example-map-layer-tile-references-resolve-to-renderable-tiles
+  (let [state (support/project-open-state)]
+    (is (= []
+           (reduce (:layers state)
+                   []
+                   (fn [result layer]
+                     (concat result (invalid-tile-ref-entries layer))))))
+    (is (= []
+           (reduce (:layers state)
+                   []
+                   (fn [result layer]
+                     (concat result (unresolved-tile-refs (:tilesets state) layer))))))
+    (is (= []
+           (reduce (:layers state)
+                   []
+                   (fn [result layer]
+                     (concat result
+                             (sprite-tiles-without-source (:tilesets state) layer))))))))

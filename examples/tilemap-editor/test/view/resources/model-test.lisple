@@ -200,46 +200,45 @@
           :decor-v2))))
 
 (deftest resource-rename-updates_layer_resource_references_in_all_project_maps
-  (do
-    (res/create-bundle! :terrain-assets)
-    (res/add-image! :terrain-assets/decor {:file-name "decor.png"})
-    (let [state (resources/edit-image-resource!
-                 {:selected-map-id :map/one
-                  :selected-map-label "One"
-                  :map-width 1
-                  :map-height 1
-                  :selected-layer-profile-id :default
-                  :layer-profiles [{:id :default :layers []}]
-                  :selected-layer-index 0
-                  :resources {:bundles {:terrain-assets
-                                        {:images {:decor
-                                                  {:file-name "decor.png"
-                                                   :name "Decor"}}}}}
-                  :layers [{:id :active
-                            :stamp {:image :terrain-assets/decor}}]
-                  :maps [{:id :map/one
-                          :label "One"
-                          :width 1
-                          :height 1
-                          :layers [{:id :active
-                                    :stamp {:image :terrain-assets/decor}}]}
-                         {:id :map/two
-                          :label "Two"
-                          :width 1
-                          :height 1
-                          :layers [{:id :inactive
-                                    :stamp {:image :terrain-assets/decor}}]}]}
-                 {:bundle-id :terrain-assets
-                  :previous-resource-id :decor
-                  :resource-id "decor-v2"
-                  :resource-name "Decor V2"
-                  :file-name "decor-v2.png"})]
-      (is (= :terrain-assets/decor-v2
-             (get-in state [:layers 0 :stamp :image])))
-      (is (= :terrain-assets/decor-v2
-             (get-in state [:maps 0 :layers 0 :stamp :image])))
-      (is (= :terrain-assets/decor-v2
-             (get-in state [:maps 1 :layers 0 :stamp :image]))))))
+  (res/create-bundle! :terrain-assets)
+  (res/add-image! :terrain-assets/decor {:file-name "decor.png"})
+  (let [state (resources/edit-image-resource!
+               {:selected-map-id :map/one
+                :selected-map-label "One"
+                :map-width 1
+                :map-height 1
+                :selected-layer-profile-id :default
+                :layer-profiles [{:id :default :layers []}]
+                :selected-layer-index 0
+                :resources {:bundles {:terrain-assets
+                                      {:images {:decor
+                                                {:file-name "decor.png"
+                                                 :name "Decor"}}}}}
+                :layers [{:id :active
+                          :stamp {:image :terrain-assets/decor}}]
+                :maps [{:id :map/one
+                        :label "One"
+                        :width 1
+                        :height 1
+                        :layers [{:id :active
+                                  :stamp {:image :terrain-assets/decor}}]}
+                       {:id :map/two
+                        :label "Two"
+                        :width 1
+                        :height 1
+                        :layers [{:id :inactive
+                                  :stamp {:image :terrain-assets/decor}}]}]}
+               {:bundle-id :terrain-assets
+                :previous-resource-id :decor
+                :resource-id "decor-v2"
+                :resource-name "Decor V2"
+                :file-name "decor-v2.png"})]
+    (is (= :terrain-assets/decor-v2
+           (get-in state [:layers 0 :stamp :image])))
+    (is (= :terrain-assets/decor-v2
+           (get-in state [:maps 0 :layers 0 :stamp :image])))
+    (is (= :terrain-assets/decor-v2
+           (get-in state [:maps 1 :layers 0 :stamp :image])))))
 
 (deftest resource-rename-updates_brush_resource_references
   (is (= [{:id :stamp-brush

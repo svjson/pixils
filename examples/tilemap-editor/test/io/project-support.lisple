@@ -1,0 +1,61 @@
+(ns tilemap-editor.io.project-support
+  (:require [lisple.io :as io]
+            [pixils.tilemap.project.model :as data]
+            [tilemap-editor.io.project :as project-io]))
+
+(def EXAMPLE-MAP-PATH "example-maps/map1.edn")
+(def SAVE-PATH "/tmp/pixils-tilemap-editor-save-test.edn")
+(def EXCLUSIVE-SAVE-PATH "/tmp/pixils-tilemap-editor-exclusive-rule-save-test.edn")
+(def SAVE-HISTORY-PATH "/tmp/pixils-tilemap-editor-save-history-test.edn")
+(def HISTORY-PATH "/tmp/pixils-tilemap-editor-history-test.edn")
+(def OPEN-PATH "/tmp/pixils-tilemap-editor-open-test.edn")
+(def LEGACY-SOURCE-PATH "/tmp/pixils-tilemap-editor-terrain-rule-legacy-source-project.edn")
+
+(defun remove-file-if-exists! [path]
+  (if (io/exists? path)
+    (io/remove-tree! path)
+    nil))
+
+(defun cleanup-project-io-test-files! []
+  (remove-file-if-exists! SAVE-PATH)
+  (remove-file-if-exists! EXCLUSIVE-SAVE-PATH)
+  (remove-file-if-exists! SAVE-HISTORY-PATH)
+  (remove-file-if-exists! HISTORY-PATH)
+  (remove-file-if-exists! OPEN-PATH)
+  (remove-file-if-exists! LEGACY-SOURCE-PATH))
+
+(defun file-dialog-payload [mode path filename]
+  {:type :confirm
+   :mode mode
+   :path path
+   :directory "/tmp"
+   :filename filename})
+
+(defun project-open-state []
+  (project-io/apply-project-file-dialog-result
+   {:layers (data/make-layered-map)
+    :selected-layer-index 0
+    :hidden-layer-indices []}
+   {:type :confirm
+    :mode :file-dialog/open
+    :path EXAMPLE-MAP-PATH
+    :directory "example-maps"
+    :filename "map1.edn"}))
+
+(defun layer-tile-refs [layer]
+  (reduce (:tiles layer)
+          []
+          (fn [result row]
+            (concat result
+                    (filter row (fn [tile-ref]
+                                  (not (nil? tile-ref))))))))
+
+(defun tileset-image-refs [tilesets]
+  (reduce (or tilesets [])
+          []
+          (fn [result tileset]
+            (concat result
+                    (map (filter (or (:tiles tileset) [])
+                                 (fn [tile]
+                                   (= (:type tile) :sprite)))
+                         :image)))))

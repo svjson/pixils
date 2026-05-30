@@ -1,0 +1,63 @@
+(ns tilemap-editor.io.project-save-test
+  (:require proof.core
+            [lisple.io :as io]
+            [pixils.tilemap.project.model :as data]
+            [tilemap-editor.io.project :as project-io]
+            [tilemap-editor.io.project-support :as support]))
+
+(deftest save-dialog-result-writes-project-edn
+  (support/cleanup-project-io-test-files!)
+  (project-io/apply-project-file-dialog-result
+   {:layers (data/make-layered-map)}
+   (support/file-dialog-payload :file-dialog/save support/SAVE-PATH "saved-project.edn"))
+  (let [document (io/slurp-edn! support/SAVE-PATH)]
+    (is (= data/project-format (:format document)))
+    (is (= data/project-format-version (:version document)))
+    (is (= {:bundles {}} (:resources document)))
+    (is (= [] (:tilesets document)))
+    (is (= data/default-map-id (:selected-map document)))
+    (is (= [] (get-in document [:maps 0 :layers]))))
+  (support/cleanup-project-io-test-files!))
+
+(deftest save-and-open-round-trips-terrain-rule-exclusive-flag
+  (support/cleanup-project-io-test-files!)
+  (project-io/apply-project-file-dialog-result
+   {:layers []
+    :rulesets [{:id :overworld-rules
+                :kind :terrain-stamp
+                :terrain-set :overworld
+                :rules [{:id :edge
+                         :terrain :grass
+                         :exclusive? true
+                         :output {:layers []}}]}]}
+   (support/file-dialog-payload :file-dialog/save
+                                support/EXCLUSIVE-SAVE-PATH
+                                "exclusive-rule-project.edn"))
+  (let [document (io/slurp-edn! support/EXCLUSIVE-SAVE-PATH)
+        state (project-io/apply-project-file-dialog-result
+               {:layers []
+                :selected-layer-index nil}
+               (support/file-dialog-payload :file-dialog/open
+                                            support/EXCLUSIVE-SAVE-PATH
+                                            "exclusive-rule-project.edn"))]
+    (is (= true (get-in document [:rulesets 0 :rules 0 :exclusive?])))
+    (is (= true (get-in state [:rulesets 0 :rules 0 :exclusive?]))))
+  (support/cleanup-project-io-test-files!))
+
+(deftest save-dialog-result-updates-recent-projects
+  (support/cleanup-project-io-test-files!)
+  (let [payload (support/file-dialog-payload :file-dialog/save
+                                             support/SAVE-HISTORY-PATH
+                                             "saved-history-project.edn")
+        entry {:path support/SAVE-HISTORY-PATH
+               :directory "/tmp"
+               :filename "saved-history-project.edn"}
+        state (project-io/apply-project-file-dialog-result
+               {:layers []
+                :recent-projects []
+                :project-history-path support/HISTORY-PATH}
+               payload)
+        history (io/slurp-edn! support/HISTORY-PATH)]
+    (is (= [entry] (:recent-projects state)))
+    (is (= [entry] (:projects history))))
+  (support/cleanup-project-io-test-files!))

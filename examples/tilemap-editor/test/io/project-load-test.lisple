@@ -1,0 +1,69 @@
+(ns tilemap-editor.io.project-load-test
+  (:require proof.core
+            [lisple.io :as io]
+            [pixils.tilemap.project.model :as data]
+            [tilemap-editor.io.project :as project-io]
+            [tilemap-editor.io.project-support :as support]))
+
+(deftest open-dialog-result-loads-project-edn-layers
+  (support/cleanup-project-io-test-files!)
+  (io/spit-edn! support/OPEN-PATH
+                {:format data/project-format
+                 :version data/project-format-version
+                 :resources {:images {:editor-assets/spritesheet
+                                      {:file-name "assets/simples_pimples.png"}}}
+                 :tilesets []
+                 :tilemap {:width 2
+                           :height 2
+                           :tile-size 16
+                           :layers [{:id :scene/background
+                                     :label "Loaded Background"
+                                     :kind :tile
+                                     :tileset :colors
+                                     :order 0
+                                     :tiles [[:night :void]
+                                             [:void :night]]}]}})
+  (let [payload (support/file-dialog-payload :file-dialog/open
+                                             support/OPEN-PATH
+                                             "loaded-project.edn")
+        state (project-io/apply-project-file-dialog-result
+               {:layers (data/make-layered-map)
+                :selected-layer-index 2
+                :hidden-layer-indices [1 2]}
+               payload)]
+    (is (= support/OPEN-PATH (:project-path state)))
+    (is (= "Loaded Background" (get-in state [:layers 0 :label])))
+    (is (= [] (:tilesets state)))
+    (is (= 0 (:selected-layer-index state)))
+    (is (= [] (:hidden-layer-indices state)))
+    (is (= payload (:last-project-open-result state))))
+  (support/cleanup-project-io-test-files!))
+
+(deftest example-map-loads-through-open-project-path
+  (let [state (support/project-open-state)]
+    (is (= 4 (count (:layers state))))
+    (is (= 4 (count (:tilesets state))))
+    (is (= data/default-layer-profile-id (:selected-layer-profile-id state)))
+    (is (= 4 (count (get-in state [:layer-profiles 0 :layers]))))
+    (is (= "Background" (:selected-layer-label state)))
+    (is (= :colors (:tileset state)))
+    (is (= :night (:selected-tile state)))))
+
+(deftest example-map-owns-its-image-resource
+  (let [state (support/project-open-state)
+        image-refs (support/tileset-image-refs (:tilesets state))]
+    (is (= "../assets/simples_pimples.png"
+           (get-in state
+                   [:resources
+                    :bundles
+                    :project-assets
+                    :images
+                    :simples-pimples
+                    :file-name])))
+    (is (= [] (filter image-refs
+                      (fn [image]
+                        (= image :editor-assets/spritesheet)))))
+    (is (> (count image-refs) 0))
+    (is (= [] (filter image-refs
+                      (fn [image]
+                        (not= image :project-assets/simples-pimples)))))))
