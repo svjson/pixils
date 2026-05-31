@@ -17,6 +17,489 @@
    :height (tm/map-height tilemap)
    :tile-size (tm/tile-size tilemap)})
 
+(defun materialization-rect [tilemap rect]
+  (let [map-width (tm/map-width tilemap)
+        map-height (tm/map-height tilemap)
+        x (max 0 (min map-width (or (:x rect) 0)))
+        y (max 0 (min map-height (or (:y rect) 0)))
+        w (max 0 (min (- map-width x) (or (:w rect) map-width)))
+        h (max 0 (min (- map-height y) (or (:h rect) map-height)))]
+    {:x x :y y :w w :h h}))
+
+(defun materialized-tilemap-rect-base [tilemap rect]
+  {:width (:w rect)
+   :height (:h rect)
+   :tile-size (tm/tile-size tilemap)
+   :origin {:x (:x rect)
+            :y (:y rect)}
+   :source-rect rect})
+
+(defun layer-cell [layer x y]
+  (nth (or (nth (or (:tiles layer) []) y) []) x))
+
+(def terrain-stamp-directions
+  {:nw {:dx -1 :dy -1}
+   :n {:dx 0 :dy -1}
+   :ne {:dx 1 :dy -1}
+   :w {:dx -1 :dy 0}
+   :e {:dx 1 :dy 0}
+   :sw {:dx -1 :dy 1}
+   :s {:dx 0 :dy 1}
+   :se {:dx 1 :dy 1}})
+
+(defun terrain-stamp-source-layer? [ruleset layer]
+  (and (= (:kind ruleset) :terrain-stamp)
+       (or (= (:source-layer ruleset) (:id layer))
+           (contains? (or (:source-layers ruleset) []) (:id layer))
+           (and (nil? (:source-layer ruleset))
+                (empty? (or (:source-layers ruleset) []))
+                (= (:data-kind layer) :terrain)
+                (= (:terrain-set ruleset) (:terrain-set layer))))))
+
+(defun terrain-stamp-rulesets-for-layer [terrain-sets rulesets layer]
+  (map (filter (or rulesets [])
+               (fn [ruleset]
+                 (terrain-stamp-source-layer? ruleset layer)))
+       (fn [ruleset]
+         (assoc ruleset
+                :terrain-unit
+                (tm/terrain-unit-for-set terrain-sets
+                                         (or (:terrain-set layer)
+                                             (:terrain-set ruleset)))))))
+
+(defun terrain-unit-anchor-x [unit x]
+  (* (:w unit) (int (/ x (:w unit)))))
+
+(defun terrain-unit-anchor-y [unit y]
+  (* (:h unit) (int (/ y (:h unit)))))
+
+(defun terrain-unit-anchor-position? [unit x y]
+  (and (= x (terrain-unit-anchor-x unit x))
+       (= y (terrain-unit-anchor-y unit y))))
+
+(defun terrain-unit-cell-positions [unit x y]
+  (apply concat
+         (dotimes [dy (:h unit)]
+           (dotimes [dx (:w unit)]
+             {:x (+ x dx)
+              :y (+ y dy)}))))
+
+(defun consistent-terrain-value [values]
+  (let [state (reduce (or values [])
+                      {:initialized? false
+                       :value nil
+                       :mixed? false}
+                      (fn [state value]
+                        (if (:mixed? state)
+                          state
+                          (if (:initialized? state)
+                            (if (= value (:value state))
+                              state
+                              (assoc state :mixed? true))
+                            {:initialized? true
+                             :value value
+                             :mixed? false}))))]
+    (if (:mixed? state)
+      :terrain/unknown
+      (:value state))))
+
+(defun terrain-unit-direction-offset [unit direction]
+  (let [offset (get terrain-stamp-directions direction)]
+    (if offset
+      {:dx (* (:dx offset) (:w unit))
+       :dy (* (:dy offset) (:h unit))}
+      {:dx 0 :dy 0})))
+
+(defun terrain-unit-target-position [unit direction x y]
+  (let [anchor-x (terrain-unit-anchor-x unit x)
+        anchor-y (terrain-unit-anchor-y unit y)
+        offset (terrain-unit-direction-offset unit direction)]
+    {:x (+ anchor-x (:dx offset))
+     :y (+ anchor-y (:dy offset))}))
+
+(defun terrain-unit-value-at [source-layer unit x y]
+  (consistent-terrain-value
+   (map (terrain-unit-cell-positions unit x y)
+        (fn [pos]
+          (layer-cell source-layer (:x pos) (:y pos))))))
+
+(defun terrain-value-at-for-ruleset [source-layer ruleset direction x y]
+  (let [unit (or (:terrain-unit ruleset) tm/default-terrain-unit)
+        direction (or direction :center)]
+    (if (and (= (:w unit) 1)
+             (= (:h unit) 1))
+      (if-let [offset (get terrain-stamp-directions direction)]
+        (layer-cell source-layer (+ x (:dx offset)) (+ y (:dy offset)))
+        (layer-cell source-layer x y))
+      (if (and (= direction :center)
+               (not (terrain-unit-anchor-position? unit x y)))
+        nil
+        (let [target (terrain-unit-target-position unit direction x y)]
+          (terrain-unit-value-at source-layer unit (:x target) (:y target)))))))
+
+(defun terrain-match-center [rule]
+  (or (:terrain rule)
+      (-> rule :match :center :terrain)))
+
+(defun known-terrain-value? [value]
+  (and (not (nil? value))
+       (not= value :terrain/unknown)))
+
+(defun terrain-match-condition-value? [center-terrain condition value]
+  (case condition
+    :ignore true
+    :same (= value center-terrain)
+    :none (nil? value)
+    :any-terrain (known-terrain-value? value)
+    :not-same (and (known-terrain-value? value)
+                   (not= value center-terrain))
+    :other-terrain (and (known-terrain-value? value)
+                        (not= value center-terrain))
+    :default
+    (if (= (type-of condition) "map")
+      (= value (:terrain condition))
+      true)))
+
+(defun terrain-stamp-rule-matches? [source-layer ruleset rule x y]
+  (let [center-terrain (terrain-match-center rule)
+        match (or (:match rule) {})]
+    (and (= (terrain-value-at-for-ruleset source-layer
+                                          ruleset
+                                          :center
+                                          x
+                                          y)
+            center-terrain)
+         (reduce-kv terrain-stamp-directions
+                    true
+                    (fn [matched? direction offset]
+                      (if (not matched?)
+                        false
+                        (let [condition (get match direction)]
+                          (if (or (nil? condition)
+                                  (= condition :ignore))
+                            true
+                            (terrain-match-condition-value?
+                             center-terrain
+                             condition
+                             (terrain-value-at-for-ruleset source-layer
+                                                           ruleset
+                                                           direction
+                                                           x
+                                                           y))))))))))
+
+(defun terrain-stamp-rules-by-center [rules]
+  (reduce (or rules [])
+          {}
+          (fn [result rule]
+            (let [center (terrain-match-center rule)]
+              (assoc result
+                     center
+                     (concat (or (get result center) []) [rule]))))))
+
+(defun terrain-stamp-index-ruleset [ruleset]
+  (assoc ruleset
+         :rules-by-center
+         (or (:rules-by-center ruleset)
+             (terrain-stamp-rules-by-center (:rules ruleset)))))
+
+(defun terrain-stamp-candidate-rules [source-layer ruleset x y]
+  (or (get (:rules-by-center ruleset)
+           (terrain-value-at-for-ruleset source-layer ruleset :center x y))
+      []))
+
+(defun empty-tile-row [tilemap]
+  (dotimes [x (tm/map-width tilemap)]
+    nil))
+
+(defun empty-tile-map [tilemap]
+  (dotimes [y (tm/map-height tilemap)]
+    (empty-tile-row tilemap)))
+
+(defun output-anchor [output]
+  (or (:anchor output) {:x 0 :y 0}))
+
+(defun output-layer-tile-entries [output-layer]
+  (apply concat
+         (for-indexed [tile-y row (or (:tiles output-layer) [])]
+           (for-indexed [tile-x tile (or row [])]
+             {:x tile-x
+              :y tile-y
+              :tile tile}))))
+
+(defun output-layer-anchor-entry [output output-layer]
+  (let [anchor (output-anchor output)]
+    {:x (:x anchor)
+     :y (:y anchor)
+     :tile (nth (or (nth (or (:tiles output-layer) []) (:y anchor)) [])
+                (:x anchor))}))
+
+(defun terrain-stamp-output-entries [ruleset output output-layer]
+  (let [unit (or (:terrain-unit ruleset) tm/default-terrain-unit)]
+    (if (and (= (:w unit) 1)
+             (= (:h unit) 1))
+      [(output-layer-anchor-entry output output-layer)]
+      (output-layer-tile-entries output-layer))))
+
+(defun terrain-stamp-output-entry-occupies-source? [ruleset entry]
+  (let [unit (or (:terrain-unit ruleset) tm/default-terrain-unit)]
+    (if (or (:tile entry)
+            (not (and (= (:w unit) 1)
+                      (= (:h unit) 1))))
+      true
+      false)))
+
+(defun stamp-output-position [source-x source-y output entry]
+  (let [anchor (output-anchor output)]
+    {:x (+ source-x (:x entry) (- (:x anchor)))
+     :y (+ source-y (:y entry) (- (:y anchor)))}))
+
+(defun terrain-stamp-output-layer-key [source-layer ruleset output-layer]
+  (or (:target-layer output-layer)
+      (keyword (str (id-label (:id source-layer))
+                    "/"
+                    (id-label (:id ruleset))
+                    "/"
+                    (id-label (or (:id output-layer)
+                                  (:tileset output-layer)
+                                  (:output-tileset ruleset)
+                                  "output"))))))
+
+(defun generated-layer-index [layers layer-id]
+  (find-index (or layers [])
+              (fn [layer]
+                (= (:id layer) layer-id))))
+
+(defun generated-layer-base [tilemap source-layer ruleset output-layer]
+  (let [layer-id (terrain-stamp-output-layer-key source-layer
+                                                 ruleset
+                                                 output-layer)]
+    {:id layer-id
+     :label (or (:label output-layer) (:label ruleset) (str layer-id))
+     :kind :tile
+     :role :derived
+     :data-kind :tile-ref
+     :tileset (or (:tileset output-layer) (:output-tileset ruleset))
+     :render-source-layer-id (:id source-layer)
+     :ruleset (:id ruleset)
+     :replaces-source? true
+     :tiles (empty-tile-map tilemap)
+     :source-mask (empty-tile-map tilemap)}))
+
+(defun ensure-generated-layer [state tilemap source-layer ruleset output-layer]
+  (let [layer-id (terrain-stamp-output-layer-key source-layer
+                                                 ruleset
+                                                 output-layer)]
+    (if (nil? (generated-layer-index (:layers state) layer-id))
+      (update state
+              :layers
+              (fn [layers]
+                (concat (or layers [])
+                        [(generated-layer-base tilemap
+                                               source-layer
+                                               ruleset
+                                               output-layer)])))
+      state)))
+
+(defun set-generated-layer-cell [state layer-id x y tile source-mask?]
+  (let [rect (:rect state)
+        local-x (if rect (- x (:x rect)) x)
+        local-y (if rect (- y (:y rect)) y)
+        index (generated-layer-index (:layers state) layer-id)]
+    (if (and (not (nil? index))
+             (>= local-x 0)
+             (< local-x (tm/map-width (:tilemap state)))
+             (>= local-y 0)
+             (< local-y (tm/map-height (:tilemap state))))
+      (-> state
+          (assoc-in [:layers index :tiles local-y local-x] tile)
+          (assoc-in [:layers index :source-mask local-y local-x] source-mask?))
+      state)))
+
+(defun apply-terrain-stamp-output-entry
+  [state source-layer ruleset rule output-layer entry source-x source-y]
+  (let [pos (stamp-output-position source-x source-y (:output rule) entry)
+        layer-id (terrain-stamp-output-layer-key source-layer
+                                                 ruleset
+                                                 output-layer)]
+    (set-generated-layer-cell state
+                              layer-id
+                              (:x pos)
+                              (:y pos)
+                              (:tile entry)
+                              (terrain-stamp-output-entry-occupies-source?
+                               ruleset
+                               entry))))
+
+(defun apply-terrain-stamp-output-layer
+  [state source-layer ruleset rule output-layer source-x source-y]
+  (let [state (ensure-generated-layer state
+                                      (:tilemap state)
+                                      source-layer
+                                      ruleset
+                                      output-layer)]
+    (reduce (terrain-stamp-output-entries ruleset (:output rule) output-layer)
+            state
+            (fn [out entry]
+              (apply-terrain-stamp-output-entry out
+                                                source-layer
+                                                ruleset
+                                                rule
+                                                output-layer
+                                                entry
+                                                source-x
+                                                source-y)))))
+
+(defun apply-terrain-stamp-rule [state source-layer ruleset rule source-x source-y]
+  (reduce (or (-> rule :output :layers) [])
+          state
+          (fn [out output-layer]
+            (apply-terrain-stamp-output-layer out
+                                              source-layer
+                                              ruleset
+                                              rule
+                                              output-layer
+                                              source-x
+                                              source-y))))
+
+(defun apply-terrain-stamp-rules-at [state source-layer ruleset x y]
+  (:state
+   (reduce (terrain-stamp-candidate-rules source-layer ruleset x y)
+           {:state state
+            :done? false}
+           (fn [result rule]
+             (if (:done? result)
+               result
+               (if (terrain-stamp-rule-matches? source-layer ruleset rule x y)
+                 {:state (apply-terrain-stamp-rule (:state result)
+                                                   source-layer
+                                                   ruleset
+                                                   rule
+                                                   x
+                                                   y)
+                  :done? (= (:exclusive? rule) true)}
+                 result))))))
+
+(defun materialize-terrain-stamp-layers-for-ruleset [tilemap source-layer ruleset]
+  (:layers
+   (reduce (apply concat
+                  (dotimes [y (tm/map-height tilemap)]
+                    (dotimes [x (tm/map-width tilemap)]
+                      {:x x :y y})))
+           {:tilemap tilemap
+            :layers []}
+           (fn [state pos]
+             (apply-terrain-stamp-rules-at state
+                                           source-layer
+                                           (terrain-stamp-index-ruleset ruleset)
+                                           (:x pos)
+                                           (:y pos))))))
+
+(defun terrain-stamp-output-layer-seen? [layers layer-id]
+  (not
+   (nil?
+    (head (filter (or layers [])
+                  (fn [layer]
+                    (= (:id layer) layer-id)))))))
+
+(defun terrain-stamp-ruleset-output-layers [source-layer ruleset]
+  (:layers
+   (reduce (or (:rules ruleset) [])
+           {:layers []}
+           (fn [state rule]
+             (reduce (or (-> rule :output :layers) [])
+                     state
+                     (fn [out output-layer]
+                       (let [layer-id (terrain-stamp-output-layer-key source-layer
+                                                                      ruleset
+                                                                      output-layer)]
+                         (if (terrain-stamp-output-layer-seen? (:layers out)
+                                                               layer-id)
+                           out
+                           (update out
+                                   :layers
+                                   (fn [layers]
+                                     (concat (or layers [])
+                                             [output-layer])))))))))))
+
+(defun ensure-generated-output-layers [state source-layer ruleset]
+  (reduce (terrain-stamp-ruleset-output-layers source-layer ruleset)
+          state
+          (fn [out output-layer]
+            (ensure-generated-layer out
+                                    (:tilemap out)
+                                    source-layer
+                                    ruleset
+                                    output-layer))))
+
+(defun materialize-terrain-stamp-layers-for-ruleset-rect
+  [tilemap source-layer ruleset rect]
+  (:layers
+   (reduce (apply concat
+                  (dotimes [dy (:h rect)]
+                    (dotimes [dx (:w rect)]
+                      {:x (+ (:x rect) dx)
+                       :y (+ (:y rect) dy)})))
+           (ensure-generated-output-layers
+            {:tilemap {:width (:w rect)
+                       :height (:h rect)
+                       :tile-size (tm/tile-size tilemap)}
+             :rect rect
+             :layers []}
+            source-layer
+            ruleset)
+           (fn [state pos]
+             (apply-terrain-stamp-rules-at state
+                                           source-layer
+                                           (terrain-stamp-index-ruleset ruleset)
+                                           (:x pos)
+                                           (:y pos))))))
+
+(defun materialize-terrain-stamp-layers [tilemap terrain-sets rulesets layer]
+  (apply concat
+         (map (terrain-stamp-rulesets-for-layer terrain-sets rulesets layer)
+              (fn [ruleset]
+                (materialize-terrain-stamp-layers-for-ruleset tilemap
+                                                              layer
+                                                              ruleset)))))
+
+(defun materialize-terrain-stamp-layers-rect [tilemap terrain-sets rulesets layer rect]
+  (apply concat
+         (map (terrain-stamp-rulesets-for-layer terrain-sets rulesets layer)
+              (fn [ruleset]
+                (materialize-terrain-stamp-layers-for-ruleset-rect tilemap
+                                                                   layer
+                                                                   ruleset
+                                                                   rect)))))
+
+(defun generated-source-mask-cell? [generated-layers x y]
+  (not
+   (nil?
+    (head (filter (or generated-layers [])
+                  (fn [layer]
+                    (= (get-in layer [:source-mask y x]) true)))))))
+
+(defun mask-terrain-layer-row [generated-layers y row]
+  (for-indexed [x terrain-ref (or row [])]
+    (if (generated-source-mask-cell? generated-layers x y)
+      nil
+      terrain-ref)))
+
+(defun mask-terrain-layer-with-generated [layer generated-layers]
+  (if (= (:data-kind layer) :terrain)
+    (assoc layer
+           :tiles (for-indexed [y row (or (:tiles layer) [])]
+                    (mask-terrain-layer-row generated-layers y row)))
+    layer))
+
+(defun layer-rect-row [layer rect dy]
+  (let [source-y (+ (:y rect) dy)]
+    (dotimes [dx (:w rect)]
+      (layer-cell layer (+ (:x rect) dx) source-y))))
+
+(defun layer-rect-tiles [layer rect]
+  (dotimes [dy (:h rect)]
+    (layer-rect-row layer rect dy)))
+
 (defun terrain-preview-ref [terrain-sets terrain-set terrain-ref]
   (when (not (tm/absent-tile-ref? terrain-ref))
     (let [terrain-set-definition (tm/terrain-set-definition terrain-sets
@@ -26,21 +509,39 @@
         {:tileset (tm/terrain-preview-tileset terrain-set-definition terrain)
          :tile (tm/terrain-preview-tile terrain)}))))
 
+(defun add-unique-tileset [tilesets tileset]
+  (if (and tileset
+           (not (contains? tilesets tileset)))
+    (concat tilesets [tileset])
+    tilesets))
+
+(defun terrain-definition-preview-tilesets [terrain-sets terrain-set]
+  (let [terrain-set-definition (tm/terrain-set-definition terrain-sets
+                                                          terrain-set)]
+    (reduce (tm/terrain-definitions terrain-sets terrain-set)
+            []
+            (fn [tilesets terrain]
+              (add-unique-tileset
+               tilesets
+               (tm/terrain-preview-tileset terrain-set-definition terrain))))))
+
 (defun terrain-layer-preview-tilesets [terrain-sets layer]
-  (reduce (or (:tiles layer) [])
-          []
-          (fn [tilesets row]
-            (reduce (or row [])
-                    tilesets
-                    (fn [tilesets terrain-ref]
-                      (let [preview (terrain-preview-ref terrain-sets
-                                                         (:terrain-set layer)
-                                                         terrain-ref)
-                            tileset (:tileset preview)]
-                        (if (and tileset
-                                 (not (contains? tilesets tileset)))
-                          (concat tilesets [tileset])
-                          tilesets)))))))
+  (let [definition-tilesets (terrain-definition-preview-tilesets
+                             terrain-sets
+                             (:terrain-set layer))]
+    (if (not (empty? definition-tilesets))
+      definition-tilesets
+      (reduce (or (:tiles layer) [])
+              []
+              (fn [tilesets row]
+                (reduce (or row [])
+                        tilesets
+                        (fn [tilesets terrain-ref]
+                          (let [preview (terrain-preview-ref terrain-sets
+                                                             (:terrain-set layer)
+                                                             terrain-ref)]
+                            (add-unique-tileset tilesets
+                                                (:tileset preview))))))))))
 
 (defun terrain-layer-row-for-tileset [terrain-sets layer tileset row]
   (map (or row [])
@@ -51,6 +552,47 @@
            (if (= (:tileset preview) tileset)
              (:tile preview)
              nil)))))
+
+(defun terrain-layer-rect-preview-tilesets [terrain-sets layer rect]
+  (let [definition-tilesets (terrain-definition-preview-tilesets
+                             terrain-sets
+                             (:terrain-set layer))]
+    (if (not (empty? definition-tilesets))
+      definition-tilesets
+      (reduce (range 0 (dec (:h rect)))
+              []
+              (fn [tilesets dy]
+                (reduce (range 0 (dec (:w rect)))
+                        tilesets
+                        (fn [tilesets dx]
+                          (let [preview (terrain-preview-ref
+                                         terrain-sets
+                                         (:terrain-set layer)
+                                         (layer-cell layer
+                                                     (+ (:x rect) dx)
+                                                     (+ (:y rect) dy)))]
+                            (add-unique-tileset tilesets
+                                                (:tileset preview))))))))))
+
+(defun terrain-layer-rect-row-for-tileset [terrain-sets layer tileset rect dy]
+  (let [source-y (+ (:y rect) dy)]
+    (dotimes [dx (:w rect)]
+      (let [preview (terrain-preview-ref terrain-sets
+                                         (:terrain-set layer)
+                                         (layer-cell layer
+                                                     (+ (:x rect) dx)
+                                                     source-y))]
+        (if (= (:tileset preview) tileset)
+          (:tile preview)
+          nil)))))
+
+(defun terrain-layer-rect-tiles-for-tileset [terrain-sets layer tileset rect]
+  (dotimes [dy (:h rect)]
+    (terrain-layer-rect-row-for-tileset terrain-sets
+                                        layer
+                                        tileset
+                                        rect
+                                        dy)))
 
 (defun materialize-terrain-layer-for-tileset [terrain-sets layer tileset split?]
   (assoc layer
@@ -87,16 +629,148 @@
     [(assoc layer
             :data-kind (or (:data-kind layer) :tile-ref))]))
 
-(defun materialize-layers [layers terrain-sets]
+(defun materialize-terrain-layer-rect-for-tileset [terrain-sets layer tileset rect split?]
+  (assoc layer
+         :id (if split?
+               (render-layer-id layer tileset)
+               (:id layer))
+         :render-source-layer-id (:id layer)
+         :render-source-rect rect
+         :data-kind :tile-ref
+         :tileset tileset
+         :tiles (terrain-layer-rect-tiles-for-tileset terrain-sets
+                                                      layer
+                                                      tileset
+                                                      rect)))
+
+(defun materialize-terrain-layer-rect [terrain-sets layer rect]
+  (let [tilesets (terrain-layer-rect-preview-tilesets terrain-sets layer rect)
+        split? (> (count tilesets) 1)]
+    (if (empty? tilesets)
+      [(assoc layer
+              :render-source-layer-id (:id layer)
+              :render-source-rect rect
+              :data-kind :tile-ref
+              :tileset nil
+              :tiles (layer-rect-tiles layer rect))]
+      (map tilesets
+           (fn [tileset]
+             (materialize-terrain-layer-rect-for-tileset terrain-sets
+                                                         layer
+                                                         tileset
+                                                         rect
+                                                         split?))))))
+
+(defun materialize-layer-rect [terrain-sets layer rect]
+  (if (= (:data-kind layer) :terrain)
+    (materialize-terrain-layer-rect terrain-sets layer rect)
+    [(assoc layer
+            :render-source-rect rect
+            :data-kind (or (:data-kind layer) :tile-ref)
+            :tiles (layer-rect-tiles layer rect))]))
+
+(defun generated-source-mask-local-cell? [generated-layers x y]
+  (not
+   (nil?
+    (head (filter (or generated-layers [])
+                  (fn [layer]
+                    (= (get-in layer [:source-mask y x]) true)))))))
+
+(defun mask-terrain-layer-rect-row [layer generated-layers rect dy]
+  (let [source-y (+ (:y rect) dy)]
+    (dotimes [dx (:w rect)]
+      (let [terrain-ref (layer-cell layer (+ (:x rect) dx) source-y)]
+        (if (generated-source-mask-local-cell? generated-layers dx dy)
+          nil
+          terrain-ref)))))
+
+(defun mask-terrain-layer-rect [layer generated-layers rect]
+  (assoc layer
+         :render-source-rect rect
+         :tiles (dotimes [dy (:h rect)]
+                  (mask-terrain-layer-rect-row layer
+                                               generated-layers
+                                               rect
+                                               dy))))
+
+(defun materialize-layer-with-rules-rect
+  [tilemap terrain-sets rulesets show-rules? layer rect]
+  (let [generated-layers (if (and show-rules?
+                                  (= (:data-kind layer) :terrain))
+                           (materialize-terrain-stamp-layers-rect tilemap
+                                                                  terrain-sets
+                                                                  rulesets
+                                                                  layer
+                                                                  rect)
+                           [])
+        source-layer (if (= (:data-kind layer) :terrain)
+                       (mask-terrain-layer-rect layer generated-layers rect)
+                       layer)]
+    (concat (if (= (:data-kind layer) :terrain)
+              (map (materialize-layer terrain-sets source-layer)
+                   (fn [layer]
+                     (assoc layer :render-source-rect rect)))
+              (materialize-layer-rect terrain-sets source-layer rect))
+            generated-layers)))
+
+(defun materialize-layer-with-rules [tilemap terrain-sets rulesets show-rules? layer]
+  (let [generated-layers (if (and show-rules?
+                                  (= (:data-kind layer) :terrain))
+                           (materialize-terrain-stamp-layers tilemap
+                                                             terrain-sets
+                                                             rulesets
+                                                             layer)
+                           [])
+        source-layer (mask-terrain-layer-with-generated layer generated-layers)]
+    (concat (materialize-layer terrain-sets source-layer)
+            generated-layers)))
+
+(defun materialize-layers [tilemap layers terrain-sets rulesets show-rules?]
   (apply concat
          (map (or layers [])
               (fn [layer]
-                (materialize-layer terrain-sets layer)))))
+                (materialize-layer-with-rules tilemap
+                                              terrain-sets
+                                              rulesets
+                                              show-rules?
+                                              layer)))))
+
+(defun materialize-show-terrain-rules? [tilemap opts]
+  (not= (if (contains? opts :show-terrain-rules?)
+          (:show-terrain-rules? opts)
+          (:show-terrain-rules? tilemap))
+        false))
 
 (defun materialize-render-map [tilemap & opts]
   (let [opts (or (head opts) {})]
     (assoc (materialized-tilemap-base tilemap)
-           :layers (materialize-layers (or (:layers opts)
+           :layers (materialize-layers tilemap
+                                       (or (:layers opts)
                                            (:layers tilemap))
                                        (or (:terrain-sets opts)
-                                           (:terrain-sets tilemap))))))
+                                           (:terrain-sets tilemap))
+                                       (or (:rulesets opts)
+                                           (:rulesets tilemap))
+                                       (materialize-show-terrain-rules?
+                                        tilemap
+                                        opts)))))
+
+(defun materialize-render-rect [tilemap rect & opts]
+  (let [opts (or (head opts) {})
+        rect (materialization-rect tilemap rect)]
+    (assoc (materialized-tilemap-rect-base tilemap rect)
+           :layers (apply concat
+                          (map (or (:layers opts)
+                                   (:layers tilemap))
+                               (fn [layer]
+                                 (materialize-layer-with-rules-rect
+                                  tilemap
+                                  (or (:terrain-sets opts)
+                                      (:terrain-sets tilemap))
+                                  (or (:rulesets opts)
+                                      (:rulesets tilemap))
+                                  (materialize-show-terrain-rules?
+                                   tilemap
+                                   opts)
+                                  layer
+                                  rect)))))))

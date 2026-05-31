@@ -74,3 +74,302 @@
            (-> render-map :layers (nth 0) :tiles)))
     (is (= [[nil :water-tile]]
            (-> render-map :layers (nth 1) :tiles)))))
+
+(deftest materialize-render-rect-crops_tile_ref_layers
+  (let [render-map (materialize/materialize-render-rect
+                    {:width 4
+                     :height 3
+                     :tile-size 16
+                     :layers [{:id :base
+                               :tileset :game
+                               :tiles [[:a :b :c :d]
+                                       [:e :f :g :h]
+                                       [:i :j :k :l]]}]}
+                    {:x 1 :y 1 :w 2 :h 2})]
+    (is (= 2 (:width render-map)))
+    (is (= 2 (:height render-map)))
+    (is (= {:x 1 :y 1} (:origin render-map)))
+    (is (= {:x 1 :y 1 :w 2 :h 2} (:source-rect render-map)))
+    (is (= [[:f :g]
+            [:j :k]]
+           (-> render-map :layers (nth 0) :tiles)))))
+
+(deftest materialize-render-rect-converts_only_cropped_terrain_cells
+  (let [render-map (materialize/materialize-render-rect
+                    {:width 4
+                     :height 3
+                     :terrain-sets [{:id :terrain
+                                     :tileset :world
+                                     :terrains [{:id :grass
+                                                 :tile :grass-tile}
+                                                {:id :water
+                                                 :tile :water-tile}]}]
+                     :layers [{:id :base
+                               :data-kind :terrain
+                               :terrain-set :terrain
+                               :tiles [[:grass :grass :grass :grass]
+                                       [:grass :water nil :grass]
+                                       [:grass nil :water :grass]]}]}
+                    {:x 1 :y 1 :w 2 :h 2})]
+    (is (= 1 (count (:layers render-map))))
+    (is (= :world (-> render-map :layers (nth 0) :tileset)))
+    (is (= :base (-> render-map :layers (nth 0) :render-source-layer-id)))
+    (is (= {:x 1 :y 1 :w 2 :h 2}
+           (-> render-map :layers (nth 0) :render-source-rect)))
+    (is (= [[:water-tile nil]
+            [nil :water-tile]]
+           (-> render-map :layers (nth 0) :tiles)))))
+
+(deftest materialize-render-rect-splits_by_preview_tileset_inside_rect
+  (let [render-map (materialize/materialize-render-rect
+                    {:width 4
+                     :height 2
+                     :terrain-sets [{:id :terrain
+                                     :tileset :world
+                                     :terrains [{:id :grass
+                                                 :tile :grass-tile}
+                                                {:id :water
+                                                 :tileset :effects
+                                                 :tile :water-tile}]}]
+                     :layers [{:id :base
+                               :data-kind :terrain
+                               :terrain-set :terrain
+                               :tiles [[:grass :water :grass :grass]
+                                       [:water :grass :water :grass]]}]}
+                    {:x 0 :y 0 :w 2 :h 2})]
+    (is (= [:base/world :base/effects]
+           (map (:layers render-map) :id)))
+    (is (= [[:grass-tile nil]
+            [nil :grass-tile]]
+           (-> render-map :layers (nth 0) :tiles)))
+    (is (= [[nil :water-tile]
+            [:water-tile nil]]
+           (-> render-map :layers (nth 1) :tiles)))))
+
+(deftest materialize-render-rect-emits_empty_split_layers_to_clear_stale_tiles
+  (let [render-map (materialize/materialize-render-rect
+                    {:width 2
+                     :height 1
+                     :terrain-sets [{:id :terrain
+                                     :tileset :world
+                                     :terrains [{:id :grass
+                                                 :tile :grass-tile}
+                                                {:id :water
+                                                 :tileset :effects
+                                                 :tile :water-tile}]}]
+                     :layers [{:id :base
+                               :data-kind :terrain
+                               :terrain-set :terrain
+                               :tiles [[nil nil]]}]}
+                    {:x 0 :y 0 :w 2 :h 1})]
+    (is (= [:base/world :base/effects]
+           (map (:layers render-map) :id)))
+    (is (= [[nil nil]]
+           (-> render-map :layers (nth 0) :tiles)))
+    (is (= [[nil nil]]
+           (-> render-map :layers (nth 1) :tiles)))))
+
+(deftest materialize-render-map-applies_terrain_stamp_rules
+  (let [render-map (materialize/materialize-render-map
+                    {:width 3
+                     :height 2
+                     :terrain-sets [{:id :terrain
+                                     :tileset :world
+                                     :terrains [{:id :grass
+                                                 :tile :grass-fill}
+                                                {:id :water
+                                                 :tile :water-fill}]}]
+                     :rulesets [{:id :shore-rules
+                                 :kind :terrain-stamp
+                                 :terrain-set :terrain
+                                 :source-layer :base
+                                 :rules [{:id :grass-north-water
+                                          :terrain :grass
+                                          :match {:n {:terrain :water}}
+                                          :output {:anchor {:x 1 :y 1}
+                                                   :layers [{:target-layer :visuals
+                                                             :tileset :world
+                                                             :tiles [[nil nil nil]
+                                                                     [nil :shore-n nil]
+                                                                     [nil nil nil]]}]}}]}]
+                     :layers [{:id :base
+                               :data-kind :terrain
+                               :terrain-set :terrain
+                               :tiles [[nil :water nil]
+                                       [nil :grass nil]]}
+                              {:id :visuals
+                               :data-kind :tile-ref
+                               :tileset :world
+                               :tiles [[nil nil nil]
+                                       [nil nil nil]]}]})]
+    (is (= [:base :visuals :visuals]
+           (map (:layers render-map) :id)))
+    (is (nil? (get-in render-map [:layers 0 :tiles 1 1])))
+    (is (= :shore-n (get-in render-map [:layers 1 :tiles 1 1])))))
+
+(deftest materialize-render-map-respects_tilemap_show_terrain_rules_flag
+  (let [render-map (materialize/materialize-render-map
+                    {:width 3
+                     :height 2
+                     :show-terrain-rules? false
+                     :terrain-sets [{:id :terrain
+                                     :tileset :world
+                                     :terrains [{:id :grass
+                                                 :tile :grass-fill}
+                                                {:id :water
+                                                 :tile :water-fill}]}]
+                     :rulesets [{:id :shore-rules
+                                 :kind :terrain-stamp
+                                 :terrain-set :terrain
+                                 :source-layer :base
+                                 :rules [{:id :grass-north-water
+                                          :terrain :grass
+                                          :match {:n {:terrain :water}}
+                                          :output {:anchor {:x 1 :y 1}
+                                                   :layers [{:target-layer :visuals
+                                                             :tileset :world
+                                                             :tiles [[nil nil nil]
+                                                                     [nil :shore-n nil]
+                                                                     [nil nil nil]]}]}}]}]
+                     :layers [{:id :base
+                               :data-kind :terrain
+                               :terrain-set :terrain
+                               :tiles [[nil :water nil]
+                                       [nil :grass nil]]}
+                              {:id :visuals
+                               :data-kind :tile-ref
+                               :tileset :world
+                               :tiles [[nil nil nil]
+                                       [nil nil nil]]}]})]
+    (is (= [:base :visuals]
+           (map (:layers render-map) :id)))
+    (is (= :grass-fill (get-in render-map [:layers 0 :tiles 1 1])))
+    (is (nil? (get-in render-map [:layers 1 :tiles 1 1])))))
+
+(deftest materialize-render-rect-applies_terrain_stamp_rules_inside_rect
+  (let [render-map (materialize/materialize-render-rect
+                    {:width 3
+                     :height 2
+                     :terrain-sets [{:id :terrain
+                                     :tileset :world
+                                     :terrains [{:id :grass
+                                                 :tile :grass-fill}
+                                                {:id :water
+                                                 :tile :water-fill}]}]
+                     :rulesets [{:id :shore-rules
+                                 :kind :terrain-stamp
+                                 :terrain-set :terrain
+                                 :source-layer :base
+                                 :rules [{:id :grass-north-water
+                                          :terrain :grass
+                                          :match {:n {:terrain :water}}
+                                          :output {:anchor {:x 1 :y 1}
+                                                   :layers [{:target-layer :visuals
+                                                             :tileset :world
+                                                             :tiles [[nil nil nil]
+                                                                     [nil :shore-n nil]
+                                                                     [nil nil nil]]}]}}]}]
+                     :layers [{:id :base
+                               :data-kind :terrain
+                               :terrain-set :terrain
+                               :tiles [[nil :water nil]
+                                       [nil :grass nil]]}
+                              {:id :visuals
+                               :data-kind :tile-ref
+                               :tileset :world
+                               :tiles [[nil nil nil]
+                                       [nil nil nil]]}]}
+                    {:x 0 :y 0 :w 3 :h 2})]
+    (is (= {:x 0 :y 0 :w 3 :h 2} (:source-rect render-map)))
+    (is (= [:base :visuals :visuals]
+           (map (:layers render-map) :id)))
+    (is (nil? (get-in render-map [:layers 0 :tiles 1 1])))
+    (is (= :shore-n (get-in render-map [:layers 1 :tiles 1 1])))))
+
+(deftest materialize-render-rect-respects_tilemap_show_terrain_rules_flag
+  (let [render-map (materialize/materialize-render-rect
+                    {:width 3
+                     :height 2
+                     :show-terrain-rules? false
+                     :terrain-sets [{:id :terrain
+                                     :tileset :world
+                                     :terrains [{:id :grass
+                                                 :tile :grass-fill}
+                                                {:id :water
+                                                 :tile :water-fill}]}]
+                     :rulesets [{:id :shore-rules
+                                 :kind :terrain-stamp
+                                 :terrain-set :terrain
+                                 :source-layer :base
+                                 :rules [{:id :grass-north-water
+                                          :terrain :grass
+                                          :match {:n {:terrain :water}}
+                                          :output {:anchor {:x 1 :y 1}
+                                                   :layers [{:target-layer :visuals
+                                                             :tileset :world
+                                                             :tiles [[nil nil nil]
+                                                                     [nil :shore-n nil]
+                                                                     [nil nil nil]]}]}}]}]
+                     :layers [{:id :base
+                               :data-kind :terrain
+                               :terrain-set :terrain
+                               :tiles [[nil :water nil]
+                                       [nil :grass nil]]}
+                              {:id :visuals
+                               :data-kind :tile-ref
+                               :tileset :world
+                               :tiles [[nil nil nil]
+                                       [nil nil nil]]}]}
+                    {:x 0 :y 0 :w 3 :h 2})]
+    (is (= [:base :visuals]
+           (map (:layers render-map) :id)))
+    (is (= :grass-fill (get-in render-map [:layers 0 :tiles 1 1])))
+    (is (nil? (get-in render-map [:layers 1 :tiles 1 1])))))
+
+(deftest materialize-render-rect-keeps_targetless_stamp_layer_id_stable
+  (let [render-map (materialize/materialize-render-rect
+                    {:width 3
+                     :height 2
+                     :terrain-sets [{:id :terrain
+                                     :tileset :world
+                                     :terrains [{:id :grass
+                                                 :tile :grass-fill}
+                                                {:id :water
+                                                 :tile :water-fill}]}]
+                     :rulesets [{:id :shore-rules
+                                 :kind :terrain-stamp
+                                 :terrain-set :terrain
+                                 :source-layer :base
+                                 :rules [{:id :grass-north-water
+                                          :terrain :grass
+                                          :match {:n {:terrain :water}}
+                                          :output {:anchor {:x 1 :y 1}
+                                                   :layers [{:id :layer
+                                                             :tileset :world
+                                                             :tiles [[nil nil nil]
+                                                                     [nil :shore-n nil]
+                                                                     [nil nil nil]]}]}}]}]
+                     :layers [{:id :base
+                               :data-kind :terrain
+                               :terrain-set :terrain
+                               :tiles [[nil :water nil]
+                                       [nil :grass nil]]}]}
+                    {:x 0 :y 0 :w 3 :h 2})]
+    (is (= [:base (keyword "base/shore-rules/layer")]
+           (map (:layers render-map) :id)))
+    (is (= :shore-n (get-in render-map [:layers 1 :tiles 1 1])))))
+
+(deftest materialize-render-rect-clamps_to_map_bounds
+  (let [render-map (materialize/materialize-render-rect
+                    {:width 3
+                     :height 2
+                     :layers [{:id :base
+                               :tileset :game
+                               :tiles [[:a :b :c]
+                                       [:d :e :f]]}]}
+                    {:x 2 :y 1 :w 4 :h 4})]
+    (is (= 1 (:width render-map)))
+    (is (= 1 (:height render-map)))
+    (is (= {:x 2 :y 1} (:origin render-map)))
+    (is (= [[:f]]
+           (-> render-map :layers (nth 0) :tiles)))))
