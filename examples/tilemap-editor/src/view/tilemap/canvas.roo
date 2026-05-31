@@ -1,6 +1,8 @@
 (ns tilemap-editor.view.tilemap.canvas
   (:require pixils
+            [pixils.image :as img]
             [pixils.render :as r]
+            [pixils.resource :as res]
             [pixils.ui :as ui]
             [pixils.tilemap.materialize :as materialize]
             [pixils.tilemap.project.model :as data]
@@ -11,6 +13,22 @@
 
 
 ;; Map canvas
+
+(def map-render-cache-bundle :tilemap-render-cache)
+(def map-render-cache-image :tilemap-render-cache/map-canvas)
+
+(defun ensure-map-render-cache-bundle! []
+  (when (res/can-create-images?)
+    (res/create-bundle! map-render-cache-bundle)))
+
+(defun render-cache-image-exists? []
+  (when (res/can-create-images?)
+    (do
+      (ensure-map-render-cache-bundle!)
+      (not (nil? (head (filter (res/list-images map-render-cache-bundle)
+                               (fn [resource]
+                                 (= (:id resource)
+                                    map-render-cache-image)))))))))
 
 (defun selection-screen-rect [selection offset zoom]
   (let [rect (:rect selection)
@@ -63,6 +81,10 @@
    :terrain-stamp-layers (:terrain-stamp-layers state)
    :terrain-stamp-replacements (:terrain-stamp-replacements state)
    :show-terrain-rules? (:show-terrain-rules? state)
+   :show-grid? (:show-grid? state)
+   :hidden-layer-indices (:hidden-layer-indices state)
+   :tilesets (:tilesets state)
+   :synced-resources (:synced-resources state)
    :layer-profile (data/layer-profile-by-id (:layer-profiles state)
                                             (:selected-layer-profile-id state))
    :rulesets (:rulesets state)})
@@ -86,13 +108,92 @@
       :terrain-sets (:terrain-sets input)
       :layers render-layers})))
 
+(defun map-canvas-cache-size [input]
+  {:w (* (:width input) (:tile-size input))
+   :h (* (:height input) (:tile-size input))})
+
+(defun render-map-cache-target-rect [input]
+  (merge {:x 0 :y 0}
+         (map-canvas-cache-size input)))
+
+(defun image-resource-ready? [image]
+  (let [dim (img/size image)]
+    (and dim
+         (:w dim)
+         (:h dim)
+         (> (:w dim) 0)
+         (> (:h dim) 0))))
+
+(defun tile-image-ready? [tile]
+  (if (or (= (:type tile) :sprite)
+          (= (:type tile) :image))
+    (image-resource-ready? (:image tile))
+    true))
+
+(defun tileset-images-ready? [tileset]
+  (= 0
+     (count (filter (or (:tiles tileset) [])
+                    (fn [tile]
+                      (not (tile-image-ready? tile)))))))
+
+(defun render-input-images-ready? [input]
+  (= 0
+     (count (filter (or (:tilesets input) [])
+                    (fn [tileset]
+                      (not (tileset-images-ready? tileset)))))))
+
+(defun clear-map-canvas-render-cache! [previous-image]
+  (when (res/can-create-images?)
+    (do
+      (ensure-map-render-cache-bundle!)
+      (res/remove-image! (or previous-image map-render-cache-image)))))
+
+(defun rebuild-map-canvas-render-cache! [input render-map]
+  (when (res/can-create-images?)
+    (do
+      (ensure-map-render-cache-bundle!)
+      (res/remove-image! map-render-cache-image)
+      (res/create-image!
+       map-render-cache-image
+       {:size (map-canvas-cache-size input)}
+       (fn []
+         (tilemap-renderer/render-layers!
+          render-map
+          {:tilesets (:tilesets input)
+           :hidden-layer-indices (:hidden-layer-indices input)
+           :offset {:x 0 :y 0}
+           :zoom 1
+           :show-grid? (:show-grid? input)
+           :target-rect (render-map-cache-target-rect input)})))
+      map-render-cache-image)))
+
+(defun ensure-map-canvas-render-cache! [input render-map]
+  (when (and (not (render-cache-image-exists?))
+             (render-input-images-ready? input))
+    (rebuild-map-canvas-render-cache! input render-map)))
+
+(defun refresh-map-canvas-render-cache [state]
+  (if (and (nil? (:render-cache-image state))
+           (:render-map state))
+    (let [input (or (:render-map-input state)
+                    (map-canvas-render-input state))
+          image (ensure-map-canvas-render-cache! input (:render-map state))]
+      (if image
+        (assoc state :render-cache-image image)
+        state))
+    state))
+
 (defun refresh-map-canvas-render-map [state]
   (let [input (map-canvas-render-input state)]
     (if (= input (:render-map-input state))
       state
-      (assoc state
-             :render-map-input input
-             :render-map (materialize-map-canvas-render-map input)))))
+      (let [render-map (materialize-map-canvas-render-map input)]
+        (do
+          (clear-map-canvas-render-cache! (:render-cache-image state))
+          (assoc state
+                 :render-map-input input
+                 :render-map render-map
+                 :render-cache-image nil))))))
 
 (defun canvas-target-rect [ctx]
   (let [bounds (-> ctx :view :bounds)]
@@ -100,6 +201,32 @@
      :y 0
      :w (:w bounds)
      :h (:h bounds)}))
+
+(defun draw-render-cache! [image offset zoom ctx]
+  (r/with-clip-rect (canvas-target-rect ctx)
+    (r/image! image
+              {:pos {:x (- (:x offset))
+                     :y (- (:y offset))}
+               :scale (or zoom 1)})))
+
+(defun draw-render-map-direct! [state render-map offset ctx]
+  (tilemap-renderer/render-layers!
+   render-map
+   {:tilesets (:tilesets state)
+    :hidden-layer-indices (:hidden-layer-indices state)
+    :offset offset
+    :zoom (:zoom state)
+    :show-grid? (:show-grid? state)
+    :target-rect (canvas-target-rect ctx)}))
+
+(defun draw-render-map! [state render-map offset ctx]
+  (if (and (:render-cache-image state)
+           (render-cache-image-exists?))
+    (draw-render-cache! (:render-cache-image state)
+                        offset
+                        (:zoom state)
+                        ctx)
+    (draw-render-map-direct! state render-map offset ctx)))
 
 (defcomponent map-canvas
   {:focusable true
@@ -120,8 +247,9 @@
                    :map-line nil}
                   state))
    :update (fn [state ctx]
-             (refresh-map-canvas-render-map
-              (tm/clamp-map-offset state ctx)))
+             (refresh-map-canvas-render-cache
+              (refresh-map-canvas-render-map
+               (tm/clamp-map-offset state ctx))))
    :on-mouse-down (fn [state event ctx]
                     (tm/map-canvas-mouse-down state event ctx))
    :on-drag (fn [state event ctx]
@@ -143,14 +271,7 @@
                (let [render-map (or (:render-map state)
                                     (materialize-map-canvas-render-map
                                      (map-canvas-render-input state)))]
-                 (tilemap-renderer/render-layers!
-                  render-map
-                  {:tilesets (:tilesets state)
-                   :hidden-layer-indices (:hidden-layer-indices state)
-                   :offset offset
-                   :zoom (:zoom state)
-                   :show-grid? (:show-grid? state)
-                   :target-rect (canvas-target-rect ctx)})
+                 (draw-render-map! state render-map offset ctx)
                  (draw-selection-overlay! (:map-selection state)
                                           offset
                                           (:zoom state))
@@ -183,6 +304,7 @@
                        :map-width (ui/bind-state :map-width)
                        :map-height (ui/bind-state :map-height)
                        :tilesets (ui/bind-state :tilesets)
+                       :synced-resources (ui/bind-state :synced-resources)
                        :terrain-sets (ui/bind-state :terrain-sets)
                        :rulesets (ui/bind-state :rulesets)
                        :layer-profiles (ui/bind-state :layer-profiles)
