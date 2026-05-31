@@ -1,0 +1,102 @@
+(ns pixils.tilemap.materialize
+  (:require [pixils.tilemap.model :as tm]))
+
+(defun id-label [value]
+  (let [text (str value)]
+    (if (= ":" (substr text 0 1))
+      (substr text 1)
+      text)))
+
+(defun render-layer-id [source-layer tileset]
+  (keyword (str (id-label (:id source-layer))
+                "/"
+                (id-label tileset))))
+
+(defun materialized-tilemap-base [tilemap]
+  {:width (tm/map-width tilemap)
+   :height (tm/map-height tilemap)
+   :tile-size (tm/tile-size tilemap)})
+
+(defun terrain-preview-ref [terrain-sets terrain-set terrain-ref]
+  (when (not (tm/absent-tile-ref? terrain-ref))
+    (let [terrain-set-definition (tm/terrain-set-definition terrain-sets
+                                                            terrain-set)
+          terrain (tm/terrain-in terrain-sets terrain-set terrain-ref)]
+      (when terrain
+        {:tileset (tm/terrain-preview-tileset terrain-set-definition terrain)
+         :tile (tm/terrain-preview-tile terrain)}))))
+
+(defun terrain-layer-preview-tilesets [terrain-sets layer]
+  (reduce (or (:tiles layer) [])
+          []
+          (fn [tilesets row]
+            (reduce (or row [])
+                    tilesets
+                    (fn [tilesets terrain-ref]
+                      (let [preview (terrain-preview-ref terrain-sets
+                                                         (:terrain-set layer)
+                                                         terrain-ref)
+                            tileset (:tileset preview)]
+                        (if (and tileset
+                                 (not (contains? tilesets tileset)))
+                          (concat tilesets [tileset])
+                          tilesets)))))))
+
+(defun terrain-layer-row-for-tileset [terrain-sets layer tileset row]
+  (map (or row [])
+       (fn [terrain-ref]
+         (let [preview (terrain-preview-ref terrain-sets
+                                            (:terrain-set layer)
+                                            terrain-ref)]
+           (if (= (:tileset preview) tileset)
+             (:tile preview)
+             nil)))))
+
+(defun materialize-terrain-layer-for-tileset [terrain-sets layer tileset split?]
+  (assoc layer
+         :id (if split?
+               (render-layer-id layer tileset)
+               (:id layer))
+         :render-source-layer-id (:id layer)
+         :data-kind :tile-ref
+         :tileset tileset
+         :tiles (map (or (:tiles layer) [])
+                     (fn [row]
+                       (terrain-layer-row-for-tileset terrain-sets
+                                                      layer
+                                                      tileset
+                                                      row)))))
+
+(defun materialize-terrain-layer [terrain-sets layer]
+  (let [tilesets (terrain-layer-preview-tilesets terrain-sets layer)
+        split? (> (count tilesets) 1)]
+    (if (empty? tilesets)
+      [(assoc layer
+              :data-kind :tile-ref
+              :tileset nil)]
+      (map tilesets
+           (fn [tileset]
+             (materialize-terrain-layer-for-tileset terrain-sets
+                                                    layer
+                                                    tileset
+                                                    split?))))))
+
+(defun materialize-layer [terrain-sets layer]
+  (if (= (:data-kind layer) :terrain)
+    (materialize-terrain-layer terrain-sets layer)
+    [(assoc layer
+            :data-kind (or (:data-kind layer) :tile-ref))]))
+
+(defun materialize-layers [layers terrain-sets]
+  (apply concat
+         (map (or layers [])
+              (fn [layer]
+                (materialize-layer terrain-sets layer)))))
+
+(defun materialize-render-map [tilemap & opts]
+  (let [opts (or (head opts) {})]
+    (assoc (materialized-tilemap-base tilemap)
+           :layers (materialize-layers (or (:layers opts)
+                                           (:layers tilemap))
+                                       (or (:terrain-sets opts)
+                                           (:terrain-sets tilemap))))))

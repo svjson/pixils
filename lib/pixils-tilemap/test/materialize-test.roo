@@ -1,0 +1,76 @@
+(ns pixils.tilemap.materialize-test
+  (:require proof.core
+            [pixils.tilemap.materialize :as materialize]))
+
+(deftest materialize-render-map-keeps_tile_ref_layers_render_ready
+  (let [render-map (materialize/materialize-render-map
+                    {:width 2
+                     :height 1
+                     :tile-size 16
+                     :layers [{:id :base
+                               :tileset :game
+                               :tiles [[:dirt :grass]]}]})]
+    (is (= 2 (:width render-map)))
+    (is (= [{:id :base
+             :tileset :game
+             :tiles [[:dirt :grass]]
+             :data-kind :tile-ref}]
+           (:layers render-map)))))
+
+(deftest materialize-render-map-converts_terrain_layers_to_preview_tiles
+  (let [render-map (materialize/materialize-render-map
+                    {:width 2
+                     :height 1
+                     :terrain-sets [{:id :terrain
+                                     :tileset :world
+                                     :terrains [{:id :grass
+                                                 :tile :grass-tile}
+                                                {:id :water
+                                                 :tile :water-tile}]}]
+                     :layers [{:id :base
+                               :data-kind :terrain
+                               :terrain-set :terrain
+                               :tiles [[:grass :water]]}]})]
+    (is (= 1 (count (:layers render-map))))
+    (is (= :tile-ref (-> render-map :layers (nth 0) :data-kind)))
+    (is (= :world (-> render-map :layers (nth 0) :tileset)))
+    (is (= :base (-> render-map :layers (nth 0) :render-source-layer-id)))
+    (is (= [[:grass-tile :water-tile]]
+           (-> render-map :layers (nth 0) :tiles)))))
+
+(deftest materialize-render-map-preserves_empty_terrain_cells
+  (let [render-map (materialize/materialize-render-map
+                    {:width 2
+                     :height 1
+                     :terrain-sets [{:id :terrain
+                                     :tileset :world
+                                     :terrains [{:id :grass
+                                                 :tile :grass-tile}]}]
+                     :layers [{:id :base
+                               :data-kind :terrain
+                               :terrain-set :terrain
+                               :tiles [[nil :grass]]}]})]
+    (is (= [[nil :grass-tile]]
+           (-> render-map :layers (nth 0) :tiles)))))
+
+(deftest materialize-render-map-splits_terrain_layer_by_preview_tileset
+  (let [render-map (materialize/materialize-render-map
+                    {:width 2
+                     :height 1
+                     :terrain-sets [{:id :terrain
+                                     :tileset :world
+                                     :terrains [{:id :grass
+                                                 :tile :grass-tile}
+                                                {:id :water
+                                                 :tileset :effects
+                                                 :tile :water-tile}]}]
+                     :layers [{:id :base
+                               :data-kind :terrain
+                               :terrain-set :terrain
+                               :tiles [[:grass :water]]}]})]
+    (is (= [:base/world :base/effects]
+           (map (:layers render-map) :id)))
+    (is (= [[:grass-tile nil]]
+           (-> render-map :layers (nth 0) :tiles)))
+    (is (= [[nil :water-tile]]
+           (-> render-map :layers (nth 1) :tiles)))))
