@@ -487,11 +487,9 @@
                                          (not (:show-grid? state))))
               :view/toggle-terrain-rules
               (fn [state event ctx]
-                (let [show? (not (:show-terrain-rules? state))
-                      state (assoc state :show-terrain-rules? show?)]
-                  (if show?
-                    (tilemap/rebuild-terrain-stamp-preview state)
-                    state)))
+                (assoc state
+                       :show-terrain-rules?
+                       (not (:show-terrain-rules? state))))
               :terrain-rules/set-application
               (fn [state event ctx]
                 (tilemap/set-terrain-rule-application state (:payload event)))

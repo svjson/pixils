@@ -1,0 +1,113 @@
+(ns tilemap-editor.view.tilemap.canvas-test
+  (:require proof.core
+            [tilemap-editor.view.tilemap.canvas :as canvas]))
+
+(deftest hidden-render-layer-indices-hide_materialized_source_layers
+  (let [input {:hidden-layer-indices [0]
+               :layers [{:id :terrain}
+                        {:id :visuals}]}
+        render-map {:layers [{:id :terrain/world
+                              :render-source-layer-id :terrain}
+                             {:id :terrain/effects
+                              :render-source-layer-id :terrain}
+                             {:id :visuals
+                              :render-source-layer-id :terrain
+                              :ruleset :shore}
+                             {:id :visuals}]}]
+    (is (= [0 1 2]
+           (canvas/hidden-render-layer-indices input render-map)))))
+
+(deftest hidden-render-layer-indices-hide_materialized_target_layers
+  (let [input {:hidden-layer-indices [1]
+               :layers [{:id :terrain}
+                        {:id :visuals}]}
+        render-map {:layers [{:id :terrain/world
+                              :render-source-layer-id :terrain}
+                             {:id :visuals
+                              :render-source-layer-id :terrain
+                              :ruleset :shore}
+                             {:id :visuals}]}]
+    (is (= [1 2]
+           (canvas/hidden-render-layer-indices input render-map)))))
+
+(deftest render-cache-signature-changes_with_hidden_layers
+  (let [render-map {:layers [{:id :terrain/world
+                              :render-source-layer-id :terrain}
+                             {:id :visuals}]}
+        visible (canvas/map-canvas-render-cache-signature
+                 {:hidden-layer-indices []
+                  :layers [{:id :terrain}
+                           {:id :visuals}]}
+                 render-map)
+        hidden (canvas/map-canvas-render-cache-signature
+                {:hidden-layer-indices [0]
+                 :layers [{:id :terrain}
+                          {:id :visuals}]}
+                 render-map)]
+    (is (not= visible hidden))))
+
+(deftest refresh-render-map-updates_input_when_only_visibility_changes
+  (let [state (canvas/refresh-map-canvas-render-map
+               {:map-width 1
+                :map-height 1
+                :tile-size 16
+                :layers [{:id :base
+                          :tileset :world
+                          :tiles [[:grass]]}]
+                :hidden-layer-indices []
+                :tilesets []
+                :terrain-sets []
+                :rulesets []
+                :render-map {:width 1
+                             :height 1
+                             :tile-size 16
+                             :layers [{:id :base
+                                       :tileset :world
+                                       :tiles [[:grass]]
+                                       :data-kind :tile-ref}]}
+                :render-map-input-signature
+                (canvas/map-canvas-render-input-signature
+                 {:width 1
+                  :height 1
+                  :tile-size 16
+                  :layers [{:id :base
+                            :tileset :world
+                            :tiles [[:grass]]}]
+                  :terrain-sets []
+                  :show-terrain-rules? nil
+                  :layer-profile nil
+                  :rulesets []})})]
+    (is (= []
+           (get-in state [:render-map-input :hidden-layer-indices]))))
+  (let [state (canvas/refresh-map-canvas-render-map
+               {:map-width 1
+                :map-height 1
+                :tile-size 16
+                :layers [{:id :base
+                          :tileset :world
+                          :tiles [[:grass]]}]
+                :hidden-layer-indices [0]
+                :tilesets []
+                :terrain-sets []
+                :rulesets []
+                :render-map {:width 1
+                             :height 1
+                             :tile-size 16
+                             :layers [{:id :base
+                                       :tileset :world
+                                       :tiles [[:grass]]
+                                       :data-kind :tile-ref}]}
+                :render-map-input-signature
+                (canvas/map-canvas-render-input-signature
+                 {:width 1
+                  :height 1
+                  :tile-size 16
+                  :layers [{:id :base
+                            :tileset :world
+                            :tiles [[:grass]]}]
+                  :terrain-sets []
+                  :show-terrain-rules? nil
+                  :layer-profile nil
+                  :rulesets []})})]
+    (is (= [0]
+           (get-in state [:render-map-input :hidden-layer-indices])))))

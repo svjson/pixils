@@ -136,16 +136,11 @@
                                    "terrain-rule-paint-project.edn")
         painted (tilemap/paint-map-at
                  (assoc loaded :terrain-rule-application :paint-baked)
-                 (paint-event :left 1 1))
-        baked-tiles (apply concat (get-in painted [:layers 1 :tiles]))]
+                 (paint-event :left 1 1))]
     (is (= :grass (get-in painted [:layers 0 :tiles 1 1])))
-    (is (= (keyword "scene/terrain/shore-rules/layer")
-           (get-in painted [:layers 1 :id])))
-    (is (= ":shore-rules"
-           (get-in painted [:terrain-stamp-replacements 0 :label])))
-    (is (contains? baked-tiles :grass-fill))
-    (is (= true
-           (get-in painted [:terrain-stamp-replacements 0 :tiles 1 1]))))
+    (is (= 1 (count (:layers painted))))
+    (is (= [] (or (:terrain-stamp-replacements painted) [])))
+    (is (= true (:render-map-dirty? painted))))
   (cleanup-application-startup-test-files!))
 
 (deftest loaded-project-terrain-workspace-derives-rule-exclusive-flag

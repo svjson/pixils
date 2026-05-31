@@ -67,8 +67,34 @@
 (def terrain-refresh-offsets
   (terrain-square-offsets 2))
 
+(def terrain-render-offsets
+  (terrain-square-offsets 1))
+
 (def terrain-effective-source-offsets
   (terrain-square-offsets 3))
+
+(defun mark-render-dirty-position [state layer-index pos]
+  (if (in-map-bounds-for? state (:x pos) (:y pos))
+    (let [layer (nth (or (:layers state) []) layer-index)
+          layer-key (or (:id layer) layer-index)]
+      (if (get-in state [:render-dirty-position-index layer-key (:y pos) (:x pos)])
+        state
+        (-> state
+            (assoc :render-map-dirty? true)
+            (assoc-in [:render-dirty-position-index layer-key (:y pos) (:x pos)] true)
+            (update :render-dirty-positions
+                    (fn [positions]
+                      (concat (or positions [])
+                              [(assoc pos
+                                      :layer-index layer-index
+                                      :layer-id (:id layer))]))))))
+    state))
+
+(defun mark-render-dirty-positions [state layer-index positions]
+  (reduce (or positions [])
+          state
+          (fn [out pos]
+            (mark-render-dirty-position out layer-index pos))))
 
 (defun all-map-positions [state]
   (apply concat
@@ -220,10 +246,13 @@
 (defun set-map-tile [state layer-index x y tile-ref]
   (if (in-map-bounds-for? state x y)
     (let [state (assoc-in state [:layers layer-index :tiles y x] tile-ref)
-          layer (nth (or (:layers state) []) layer-index)]
-      (if (:terrain-signatures layer)
-        (assoc-in state [:layers layer-index :terrain-signatures y x] nil)
-        state))
+          layer (nth (or (:layers state) []) layer-index)
+          state (if (:terrain-signatures layer)
+                  (assoc-in state [:layers layer-index :terrain-signatures y x] nil)
+                  state)]
+      (mark-render-dirty-position state
+                                  layer-index
+                                  {:x x :y y}))
     state))
 
 (defun make-empty-signature-row [state]
@@ -1149,14 +1178,23 @@
                                   (fn [pos]
                                     (map-cell-paint-changes? layer
                                                              pos
-                                                             tile-ref)))]
-    (refresh-terrain-stamp-rules-for-positions
-     (reduce changed-positions
-             state
-             (fn [out pos]
-               (set-map-tile out layer-index (:x pos) (:y pos) tile-ref)))
-     layer-index
-     changed-positions)))
+                                                             tile-ref)))
+        painted (reduce changed-positions
+                        state
+                        (fn [out pos]
+                          (set-map-tile out
+                                        layer-index
+                                        (:x pos)
+                                        (:y pos)
+                                        tile-ref)))]
+    (if (= (:data-kind layer) :terrain)
+      (mark-render-dirty-positions painted
+                                   layer-index
+                                   (unique-offset-terrain-positions
+                                    painted
+                                    changed-positions
+                                    terrain-render-offsets))
+      painted)))
 
 (defun clear-map-selection [state]
   (let [selection (:map-selection state)
@@ -1171,10 +1209,17 @@
             changed-positions (filter positions
                                       (fn [pos]
                                         (map-cell-clear-changes? layer pos)))]
-        (refresh-terrain-stamp-rules-for-positions
-         (clear-map-selection-cells state layer-index changed-positions)
-         layer-index
-         changed-positions))
+        (let [cleared (clear-map-selection-cells state
+                                                 layer-index
+                                                 changed-positions)]
+          (if (= (:data-kind layer) :terrain)
+            (mark-render-dirty-positions
+             cleared
+             layer-index
+             (unique-offset-terrain-positions cleared
+                                              changed-positions
+                                              terrain-render-offsets))
+            cleared)))
       state)))
 
 (defun paint-map-at [state event]

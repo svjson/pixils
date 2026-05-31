@@ -78,8 +78,6 @@
    :tile-size data/tile-size
    :layers (:layers state)
    :terrain-sets (:terrain-sets state)
-   :terrain-stamp-layers (:terrain-stamp-layers state)
-   :terrain-stamp-replacements (:terrain-stamp-replacements state)
    :show-terrain-rules? (:show-terrain-rules? state)
    :show-grid? (:show-grid? state)
    :hidden-layer-indices (:hidden-layer-indices state)
@@ -89,24 +87,216 @@
                                             (:selected-layer-profile-id state))
    :rulesets (:rulesets state)})
 
+(defun logical-profile-source-layer [layers definition]
+  (if (= (:role definition) :derived)
+    (when (= (:persistence definition) :materialized)
+      (derivation/layer-by-id layers (:id definition)))
+    (derivation/layer-by-id layers (:id definition))))
+
+(defun logical-render-layers-from-profile [layers profile]
+  (filter (map (or (:layers profile) [])
+               (fn [definition]
+                 (logical-profile-source-layer layers definition)))
+          (fn [layer]
+            (not (nil? layer)))))
+
+(defun logical-unprofiled-render-layers [layers profile]
+  (filter (or layers [])
+          (fn [layer]
+            (not (derivation/layer-in-profile? profile layer)))))
+
+(defun map-canvas-render-layers [input]
+  (let [profile (or (:layer-profile input) {:layers []})
+        profile-layers (logical-render-layers-from-profile (:layers input)
+                                                           profile)]
+    (if (empty? profile-layers)
+      (or (:layers input) [])
+      (concat profile-layers
+              (logical-unprofiled-render-layers (:layers input) profile)))))
+
+(defun materialize-map-canvas-render-layers [input render-layers]
+  (materialize/materialize-render-map
+   {:width (:width input)
+    :height (:height input)
+    :tile-size (:tile-size input)
+    :terrain-sets (:terrain-sets input)
+    :rulesets (:rulesets input)
+    :show-terrain-rules? (:show-terrain-rules? input)
+    :layers render-layers}))
+
+(defun materialize-map-canvas-render-layer-rect [input render-layers rect]
+  (materialize/materialize-render-rect
+   {:width (:width input)
+    :height (:height input)
+    :tile-size (:tile-size input)
+    :terrain-sets (:terrain-sets input)
+    :rulesets (:rulesets input)
+    :show-terrain-rules? (:show-terrain-rules? input)
+    :layers render-layers}
+   rect))
+
 (defun materialize-map-canvas-render-map [input]
-  (let [render-layers (derivation/render-layers
-                       {:layers (:layers input)
-                        :terrain-sets (:terrain-sets input)
-                        :terrain-stamp-layers
-                        (:terrain-stamp-layers input)
-                        :terrain-stamp-replacements
-                        (:terrain-stamp-replacements input)
-                        :show-terrain-rules?
-                        (:show-terrain-rules? input)}
-                       (:layer-profile input)
-                       (:rulesets input))]
-    (materialize/materialize-render-map
-     {:width (:width input)
-      :height (:height input)
-      :tile-size (:tile-size input)
-      :terrain-sets (:terrain-sets input)
-      :layers render-layers})))
+  (materialize-map-canvas-render-layers input
+                                        (map-canvas-render-layers input)))
+
+(defun render-layer-signature [layer]
+  (dissoc (dissoc (dissoc layer :tiles) :terrain-signatures) :source-mask))
+
+(defun map-canvas-render-input-signature [input]
+  {:width (:width input)
+   :height (:height input)
+   :tile-size (:tile-size input)
+   :layers (map (or (:layers input) []) render-layer-signature)
+   :terrain-sets (:terrain-sets input)
+   :show-terrain-rules? (:show-terrain-rules? input)
+   :layer-profile (:layer-profile input)
+   :rulesets (:rulesets input)})
+
+(defun hidden-source-layer-ids [input]
+  (reduce (or (:hidden-layer-indices input) [])
+          []
+          (fn [ids index]
+            (let [layer (nth (or (:layers input) []) index)
+                  layer-id (:id layer)]
+              (if (and layer-id
+                       (not (contains? ids layer-id)))
+                (concat ids [layer-id])
+                ids)))))
+
+(defun render-layer-hidden? [hidden-layer-ids layer]
+  (or (contains? hidden-layer-ids (:id layer))
+      (contains? hidden-layer-ids (:render-source-layer-id layer))))
+
+(defun hidden-render-layer-indices [input render-map]
+  (let [hidden-layer-ids (hidden-source-layer-ids input)]
+    (map (filter (for-indexed [index layer (or (:layers render-map) [])]
+                   {:index index :layer layer})
+                 (fn [entry]
+                   (render-layer-hidden? hidden-layer-ids
+                                         (:layer entry))))
+         :index)))
+
+(defun map-canvas-render-cache-signature [input render-map]
+  {:hidden-layer-ids (hidden-source-layer-ids input)
+   :render-layer-ids (map (or (:layers render-map) [])
+                          (fn [layer]
+                            {:id (:id layer)
+                             :render-source-layer-id
+                             (:render-source-layer-id layer)
+                             :ruleset (:ruleset layer)
+                             :tileset (:tileset layer)}))})
+
+(defun dirty-render-layer-ids [positions]
+  (reduce (or positions [])
+          []
+          (fn [ids pos]
+            (if (contains? ids (:layer-id pos))
+              ids
+              (concat ids [(:layer-id pos)])))))
+
+(defun dirty-render-rect [positions]
+  (when (not (empty? (or positions [])))
+    (let [first-pos (head positions)
+          bounds (reduce positions
+                         {:min-x (:x first-pos)
+                          :min-y (:y first-pos)
+                          :max-x (:x first-pos)
+                          :max-y (:y first-pos)}
+                         (fn [bounds pos]
+                           {:min-x (min (:min-x bounds) (:x pos))
+                            :min-y (min (:min-y bounds) (:y pos))
+                            :max-x (max (:max-x bounds) (:x pos))
+                            :max-y (max (:max-y bounds) (:y pos))}))]
+      {:x (:min-x bounds)
+       :y (:min-y bounds)
+       :w (inc (- (:max-x bounds) (:min-x bounds)))
+       :h (inc (- (:max-y bounds) (:min-y bounds)))})))
+
+(defun render-layer-selected-for-dirty? [layer layer-ids]
+  (or (contains? layer-ids (:id layer))
+      (contains? layer-ids (:render-source-layer-id layer))))
+
+(defun map-canvas-dirty-render-layers [input positions]
+  (let [layer-ids (dirty-render-layer-ids positions)]
+    (filter (map-canvas-render-layers input)
+            (fn [layer]
+              (render-layer-selected-for-dirty? layer layer-ids)))))
+
+(defun empty-render-row [width]
+  (dotimes [x width]
+    nil))
+
+(defun empty-render-tiles [input]
+  (dotimes [y (:height input)]
+    (empty-render-row (:width input))))
+
+(defun full-render-layer-for-patch [input patch-layer]
+  (assoc (dissoc patch-layer :render-source-rect)
+         :tiles (empty-render-tiles input)))
+
+(defun render-map-layer-matches-patch? [layer patch-layer]
+  (and (= (:id layer) (:id patch-layer))
+       (= (:render-source-layer-id layer)
+          (:render-source-layer-id patch-layer))
+       (= (:ruleset layer) (:ruleset patch-layer))
+       (= (:tileset layer) (:tileset patch-layer))))
+
+(defun render-map-layer-index [render-map patch-layer]
+  (find-index (or (:layers render-map) [])
+              (fn [layer]
+                (render-map-layer-matches-patch? layer patch-layer))))
+
+(defun patch-render-layer-cell [layer rect dx dy tile-ref]
+  (assoc-in layer
+            [:tiles (+ (:y rect) dy) (+ (:x rect) dx)]
+            tile-ref))
+
+(defun patch-render-layer-row [layer rect dy row]
+  (reduce (for-indexed [dx tile-ref (or row [])]
+            {:dx dx :tile-ref tile-ref})
+          layer
+          (fn [out cell]
+            (patch-render-layer-cell out
+                                     rect
+                                     (:dx cell)
+                                     dy
+                                     (:tile-ref cell)))))
+
+(defun patch-render-layer [layer patch-layer rect]
+  (reduce (for-indexed [dy row (or (:tiles patch-layer) [])]
+            {:dy dy :row row})
+          layer
+          (fn [out entry]
+            (patch-render-layer-row out
+                                    rect
+                                    (:dy entry)
+                                    (:row entry)))))
+
+(defun patch-render-map-layer [input render-map patch-layer rect]
+  (let [index (render-map-layer-index render-map patch-layer)]
+    (if (nil? index)
+      (update render-map
+              :layers
+              (fn [layers]
+                (concat (or layers [])
+                        [(patch-render-layer
+                          (full-render-layer-for-patch input patch-layer)
+                          patch-layer
+                          rect)])))
+      (assoc-in render-map
+                [:layers index]
+                (patch-render-layer (nth (or (:layers render-map) []) index)
+                                    patch-layer
+                                    rect)))))
+
+(defun patch-render-map [input render-map patch-map]
+  (reduce (or (:layers patch-map) [])
+          render-map
+          (fn [out patch-layer]
+            (patch-render-map-layer input
+                                    out
+                                    patch-layer
+                                    (:source-rect patch-map)))))
 
 (defun map-canvas-cache-size [input]
   {:w (* (:width input) (:tile-size input))
@@ -160,10 +350,11 @@
          (tilemap-renderer/render-layers!
           render-map
           {:tilesets (:tilesets input)
-           :hidden-layer-indices (:hidden-layer-indices input)
+           :hidden-layer-indices (hidden-render-layer-indices input
+                                                              render-map)
            :offset {:x 0 :y 0}
            :zoom 1
-           :show-grid? (:show-grid? input)
+           :show-grid? false
            :target-rect (render-map-cache-target-rect input)})))
       map-render-cache-image)))
 
@@ -173,27 +364,73 @@
     (rebuild-map-canvas-render-cache! input render-map)))
 
 (defun refresh-map-canvas-render-cache [state]
-  (if (and (nil? (:render-cache-image state))
-           (:render-map state))
-    (let [input (or (:render-map-input state)
-                    (map-canvas-render-input state))
-          image (ensure-map-canvas-render-cache! input (:render-map state))]
-      (if image
-        (assoc state :render-cache-image image)
+  (if (:render-map state)
+    (let [input (map-canvas-render-input state)
+          signature (map-canvas-render-cache-signature input
+                                                       (:render-map state))
+          stale? (and (:render-cache-image state)
+                      (not= signature (:render-cache-signature state)))
+          state (if stale?
+                  (do
+                    (clear-map-canvas-render-cache! (:render-cache-image state))
+                    (assoc state :render-cache-image nil))
+                  state)]
+      (if (nil? (:render-cache-image state))
+        (let [image (ensure-map-canvas-render-cache! input (:render-map state))]
+          (if image
+            (assoc state
+                   :render-cache-image image
+                   :render-cache-signature signature)
+            state))
         state))
     state))
 
 (defun refresh-map-canvas-render-map [state]
-  (let [input (map-canvas-render-input state)]
-    (if (= input (:render-map-input state))
-      state
-      (let [render-map (materialize-map-canvas-render-map input)]
+  (let [input (map-canvas-render-input state)
+        signature (map-canvas-render-input-signature input)]
+    (if (and (:render-map state)
+             (not (:render-map-dirty? state))
+             (= signature (:render-map-input-signature state)))
+      (assoc state
+             :render-map-input input
+             :render-map-input-signature signature)
+      (let [dirty-positions (or (:render-dirty-positions state) [])
+            dirty-rect (dirty-render-rect dirty-positions)
+            partial? (and (:render-map state)
+                          (:render-map-dirty? state)
+                          dirty-rect
+                          (= signature (:render-map-input-signature state)))
+            render-layers (if partial?
+                            (map-canvas-dirty-render-layers input
+                                                            dirty-positions)
+                            (map-canvas-render-layers input))
+            patch-map (when partial?
+                        (materialize-map-canvas-render-layer-rect
+                         input
+                         render-layers
+                         dirty-rect))
+            render-map (if partial?
+                         (patch-render-map input
+                                           (:render-map state)
+                                           patch-map)
+                         (materialize-map-canvas-render-layers input
+                                                               render-layers))]
         (do
           (clear-map-canvas-render-cache! (:render-cache-image state))
           (assoc state
                  :render-map-input input
+                 :render-map-input-signature signature
                  :render-map render-map
-                 :render-cache-image nil))))))
+                 :render-cache-image nil
+                 :render-cache-signature nil
+                 :render-map-dirty? false
+                 :render-dirty-positions []
+                 :render-dirty-position-index {}))))))
+
+(defun update-map-canvas-state [state ctx]
+  (refresh-map-canvas-render-cache
+   (refresh-map-canvas-render-map
+    (tm/clamp-map-offset state ctx))))
 
 (defun canvas-target-rect [ctx]
   (let [bounds (-> ctx :view :bounds)]
@@ -213,20 +450,40 @@
   (tilemap-renderer/render-layers!
    render-map
    {:tilesets (:tilesets state)
-    :hidden-layer-indices (:hidden-layer-indices state)
+    :hidden-layer-indices (hidden-render-layer-indices
+                           (map-canvas-render-input state)
+                           render-map)
     :offset offset
     :zoom (:zoom state)
-    :show-grid? (:show-grid? state)
+    :show-grid? false
     :target-rect (canvas-target-rect ctx)}))
 
+(defun draw-grid-overlay! [state render-map offset ctx]
+  (when (:show-grid? state)
+    (let [target-rect (canvas-target-rect ctx)
+          zoom (:zoom state)
+          render-offset (tilemap-renderer/target-render-offset offset
+                                                               target-rect)
+          ranges (tilemap-renderer/render-ranges render-map
+                                                 offset
+                                                 zoom
+                                                 target-rect)]
+      (r/with-clip-rect target-rect
+        (tilemap-renderer/render-grid-overlay! render-map
+                                               render-offset
+                                               zoom
+                                               ranges)))))
+
 (defun draw-render-map! [state render-map offset ctx]
-  (if (and (:render-cache-image state)
-           (render-cache-image-exists?))
-    (draw-render-cache! (:render-cache-image state)
-                        offset
-                        (:zoom state)
-                        ctx)
-    (draw-render-map-direct! state render-map offset ctx)))
+  (do
+    (if (and (:render-cache-image state)
+             (render-cache-image-exists?))
+      (draw-render-cache! (:render-cache-image state)
+                          offset
+                          (:zoom state)
+                          ctx)
+      (draw-render-map-direct! state render-map offset ctx))
+    (draw-grid-overlay! state render-map offset ctx)))
 
 (defcomponent map-canvas
   {:focusable true
@@ -247,9 +504,7 @@
                    :map-line nil}
                   state))
    :update (fn [state ctx]
-             (refresh-map-canvas-render-cache
-              (refresh-map-canvas-render-map
-               (tm/clamp-map-offset state ctx))))
+             (update-map-canvas-state state ctx))
    :on-mouse-down (fn [state event ctx]
                     (tm/map-canvas-mouse-down state event ctx))
    :on-drag (fn [state event ctx]
