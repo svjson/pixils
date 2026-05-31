@@ -15,6 +15,7 @@
             [pixils.ui.window :as w]
             [pixils.tilemap.project.model :as data]
             [tilemap-editor.model.maps :as maps]
+            [tilemap-editor.model.tilemap :as tilemap]
             [tilemap-editor.view.id-name-dialog :as id-name-dialog]))
 
 
@@ -1495,17 +1496,37 @@
 
 ;; Zoom
 
+(defun zoom-slider-state [state]
+  (let [zoom (tilemap/clamp-zoom state (:zoom state))]
+    (assoc state
+           :zoom zoom
+           :zoom-pixels (tilemap/zoom-pixels state zoom)
+           :zoom-label (tilemap/zoom-label state zoom)
+           :min-zoom-pixels 1
+           :max-zoom-pixels (tilemap/max-zoom-pixels state))))
+
+(defun apply-zoom-slider-change [state value]
+  (let [zoom (tilemap/zoom-from-pixels state value)]
+    (assoc state
+           :zoom zoom
+           :zoom-pixels (tilemap/zoom-pixels state zoom)
+           :zoom-label (tilemap/zoom-label state zoom))))
+
 (defcomponent zoom-control
   {:class :ui/panel
    :style {:padding 8
            :layout {:direction :column
                     :gap 4}}
+   :update (fn [state ctx]
+             (zoom-slider-state state))
+   :on {:slider/change (fn [state event ctx]
+                         (apply-zoom-slider-change state (:payload event)))}
    :children [{:mode 'ui/text
                :class :ui/title
                :state {:value (ui/bind-state :zoom-label)}}
-              (sl/make {:value (ui/bind-state :zoom)
-                        :min 1
-                        :max 4
+              (sl/make {:value (ui/bind-state :zoom-pixels)
+                        :min (ui/bind-state :min-zoom-pixels)
+                        :max (ui/bind-state :max-zoom-pixels)
                         :step 1})]})
 
 (defcomponent map-view-controls
@@ -1516,10 +1537,14 @@
            :layout {:direction :row
                     :align-items :center
                     :gap 12}}
+   :update (fn [state ctx]
+             (zoom-slider-state state))
+   :on {:slider/change (fn [state event ctx]
+                         (apply-zoom-slider-change state (:payload event)))}
    :children [{:mode 'ui/text
                :class :ui/title
                :state {:value (ui/bind-state :zoom-label)}}
-              (sl/make {:value (ui/bind-state :zoom)
-                        :min 1
-                        :max 4
+              (sl/make {:value (ui/bind-state :zoom-pixels)
+                        :min (ui/bind-state :min-zoom-pixels)
+                        :max (ui/bind-state :max-zoom-pixels)
                         :step 1})]})

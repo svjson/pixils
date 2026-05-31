@@ -12,8 +12,33 @@
 (defun tile-size [state]
   (data/map-tile-size (:tile-size state)))
 
+(defun max-zoom-pixels [state]
+  (* (tile-size state) 4))
+
+(defun zoom-pixels [state zoom]
+  (clamp (int (+ (* (tile-size state) (or zoom 1)) 0.5))
+         1
+         (max-zoom-pixels state)))
+
 (defun scaled-tile-size [state zoom]
-  (* (tile-size state) (or zoom 1)))
+  (zoom-pixels state zoom))
+
+(defun zoom-from-pixels [state pixels]
+  (/ (clamp (int (or pixels (tile-size state)))
+            1
+            (max-zoom-pixels state))
+     (tile-size state)))
+
+(defun clamp-zoom [state zoom]
+  (zoom-from-pixels state (zoom-pixels state zoom)))
+
+(defun zoom-percent [state zoom]
+  (int (+ (/ (* (zoom-pixels state zoom) 100)
+             (tile-size state))
+          0.5)))
+
+(defun zoom-label [state zoom]
+  (str "Zoom " (zoom-percent state zoom) "%"))
 
 (defun map-width [state]
   (data/map-dimension (:map-width state) data/map-width))

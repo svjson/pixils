@@ -113,7 +113,7 @@
            :recent-projects (project-io/load-recent-projects
                              project-io/default-recent-projects-path)
            :zoom 1
-           :zoom-label "Zoom 1x"
+           :zoom-label "Zoom 100%"
            :show-grid? true
            :map-offset {:x 0 :y 0}
            :workspace-tab :map
@@ -157,7 +157,7 @@
                                  terrain-sets
                                  layer
                                  (:selected-tile state))
-                  zoom (or (:zoom state) 1)]
+                  zoom (tilemap/clamp-zoom state (:zoom state))]
               (open-pending-tileset-shortcut-dialog!
                (assoc state
                       :tileset tileset
@@ -173,7 +173,8 @@
                                        terrain-sets
                                        layer
                                        selected-tile)
-                      :zoom-label (str "Zoom " zoom "x")
+                      :zoom zoom
+                      :zoom-label (tilemap/zoom-label state zoom)
                       :selected-layer-label (or (:label layer) ""))
                ctx)))
   :children [{:mode 'tilemap-editor-menu-bar

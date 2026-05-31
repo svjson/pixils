@@ -118,9 +118,10 @@
                                     :show-terrain-rules?
                                     (ui/bind-state :show-terrain-rules?)
                                     :show-grid? (ui/bind-state :show-grid?)}}
-                           {:mode 'map-view-controls
-                            :state {:zoom (ui/bind-state :zoom)
-                                    :zoom-label (ui/bind-state :zoom-label)}}]})]})
+                             {:mode 'map-view-controls
+                              :state {:zoom (ui/bind-state :zoom)
+                                      :tile-size (ui/bind-state :tile-size)
+                                      :zoom-label (ui/bind-state :zoom-label)}}]})]})
 
 (defcomponent workspace
   {:style {:width :fill

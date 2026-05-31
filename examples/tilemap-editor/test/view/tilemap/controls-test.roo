@@ -41,6 +41,20 @@
     (is (= 'map-chooser-button
            (get-in panel [:children 0 :children 1 :mode])))))
 
+(deftest zoom-slider-state-exposes_pixel_steps_and_percent_label
+  (let [state (controls/zoom-slider-state {:tile-size 16
+                                           :zoom 1})]
+    (is (= 16 (:zoom-pixels state)))
+    (is (= 1 (:min-zoom-pixels state)))
+    (is (= 64 (:max-zoom-pixels state)))
+    (is (= "Zoom 100%" (:zoom-label state))))
+  (let [state (controls/apply-zoom-slider-change {:tile-size 16
+                                                  :zoom 1}
+                                                 4)]
+    (is (= 0.25 (:zoom state)))
+    (is (= 4 (:zoom-pixels state)))
+    (is (= "Zoom 25%" (:zoom-label state)))))
+
 (deftest tileset-selector-is-disabled_without_layers
   (is (= true (:disabled? (:state (controls/tileset-combo-child [{:id :terrain
                                                                    :label "Terrain"}]
