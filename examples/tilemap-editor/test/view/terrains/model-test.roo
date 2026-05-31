@@ -1288,3 +1288,129 @@
                :selected-terrain-ruleset-id :overworld-rules
                :selected-terrain-rule-id :rule}]
     (is (= :grass-fill (model/selected-rule-stamp-tile state)))))
+
+(deftest terrain-standard-role-tile-creates_raw_stamp_rule
+  (let [state (model/set-terrain-standard-role-tile
+               {:terrain-sets [{:id :overworld
+                                :tileset :terrain
+                                :terrains [{:id :grass
+                                            :tile :grass-fill}
+                                           {:id :water
+                                            :tile :water-fill}]}]
+                :tilesets [{:id :terrain
+                            :tiles [{:id :grass-fill}
+                                    {:id :water-edge}]}]
+                :layer-profiles [{:id :default
+                                  :layers [{:id :scene/source
+                                            :data-kind :terrain
+                                            :terrain-set :overworld}
+                                           {:id :scene/visuals
+                                            :data-kind :tile-ref
+                                            :tileset :terrain}]}]
+                :selected-layer-profile-id :default
+                :selected-terrain-set-index 0
+               :selected-terrain-index 0}
+               :island-3x3
+               :n
+               :none
+               :water-edge)
+        rule (get-in state [:rulesets 0 :rules 0])]
+    (is (= :overworld-rules (get-in state [:rulesets 0 :id])))
+    (is (= :terrain-stamp (get-in state [:rulesets 0 :kind])))
+    (is (= :scene/source (get-in state [:rulesets 0 :source-layer])))
+    (is (= :rule (:id rule)))
+    (is (= "N - None" (:label rule)))
+    (is (= :grass (:terrain rule)))
+    (is (= (model/terrain-standard-role-match :n :none) (:match rule)))
+    (is (= :scene/visuals (get-in rule [:output :layers 0 :target-layer])))
+    (is (= :terrain (get-in rule [:output :layers 0 :tileset])))
+    (is (= [[:water-edge]]
+           (get-in rule [:output :layers 0 :tiles])))
+    (is (= :rule (:selected-terrain-rule-id state)))))
+
+(deftest terrain-standard-inner-corner-role-uses_terrain_unit_output_cell
+  (let [state (model/set-terrain-standard-role-tile
+               {:terrain-sets [{:id :overworld
+                                :tileset :terrain
+                                :terrain-unit {:w 2 :h 2}
+                                :terrains [{:id :grass
+                                            :tile :grass-fill}]}]
+                :tilesets [{:id :terrain
+                            :tiles [{:id :grass-fill}
+                                    {:id :inner-corner}]}]
+                :layer-profiles [{:id :default
+                                  :layers [{:id :scene/source
+                                            :data-kind :terrain
+                                            :terrain-set :overworld}
+                                           {:id :scene/visuals
+                                            :data-kind :tile-ref
+                                            :tileset :terrain}]}]
+                :selected-layer-profile-id :default
+                :selected-terrain-set-index 0
+               :selected-terrain-index 0}
+               :inner-corners
+               :inner-se
+               :any-other
+               :inner-corner)
+        rule (get-in state [:rulesets 0 :rules 0])]
+    (is (= (model/terrain-standard-role-match :inner-se :any-other) (:match rule)))
+    (is (= [[nil nil]
+            [nil :inner-corner]]
+           (get-in rule [:output :layers 0 :tiles])))
+    (is (= :inner-corner
+           (model/terrain-standard-role-tile-ref
+            state
+            :inner-corners
+            :inner-se
+            :any-other)))))
+
+(deftest terrain-standard-role-recognizes_existing_rpg_edge_shapes
+  (let [state {:terrain-sets [{:id :overworld
+                               :tileset :terrain
+                               :terrains [{:id :grass
+                                           :tile :grass-fill}
+                                          {:id :water
+                                           :tile :water-fill}]}]
+               :tilesets [{:id :terrain
+                           :tiles [{:id :edge-n}
+                                   {:id :water-edge-n}]}]
+               :selected-terrain-set-index 0
+               :selected-terrain-index 0
+               :rulesets [{:id :rules
+                           :terrain-set :overworld
+                           :rules [{:id :edge-n
+                                    :terrain :grass
+                                    :match {:nw :ignore
+                                            :n :none
+                                            :ne :ignore
+                                            :w :ignore
+                                            :e :ignore
+                                            :sw :ignore
+                                            :s :same
+                                            :se :ignore}
+                                    :output {:layers [{:tileset :terrain
+                                                       :tiles [[:edge-n]]}]}}
+                                   {:id :water-edge-n
+                                    :terrain :grass
+                                    :match {:nw :ignore
+                                            :n {:terrain :water}
+                                            :ne :ignore
+                                            :w :ignore
+                                            :e :ignore
+                                            :sw :ignore
+                                            :s :same
+                                            :se :ignore}
+                                    :output {:layers [{:tileset :terrain
+                                                       :tiles [[:water-edge-n]]}]}}]}]
+               :selected-terrain-ruleset-id :rules}]
+    (is (= :edge-n
+           (model/terrain-standard-role-rule-id state :island-3x3 :n :none)))
+    (is (= :edge-n
+           (model/terrain-standard-role-tile-ref state :island-3x3 :n :none)))
+    (is (= :water-edge-n
+           (model/terrain-standard-role-rule-id state :island-3x3 :n :water)))
+    (is (= :water-edge-n
+           (model/terrain-standard-role-tile-ref state
+                                                 :island-3x3
+                                                 :n
+                                                 :water)))))

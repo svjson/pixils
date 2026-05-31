@@ -112,6 +112,22 @@
   (is (= 116 layout/terrain-stamp-tile-picker-width))
   (is (= 232 layout/terrain-stamp-tile-picker-height)))
 
+(deftest terrain-rule-editor-tabs-keep_manual_editor_first
+  (let [panel (layout/terrain-rule-editor-tabs-panel)
+        tabs (-> panel :state :tabs)]
+    (is (= :rules (-> tabs head :id)))
+    (is (= "Rule Editor" (-> tabs head :label)))
+    (is (= 'terrain-rule-manual-editor (-> tabs head :child :mode)))
+    (is (= :setups (-> tabs (nth 1) :id)))
+    (is (= "Semantic Roles" (-> tabs (nth 1) :label)))
+    (is (= 'terrain-standard-setup-editor (-> tabs (nth 1) :child :mode)))))
+
+(deftest terrain-standard-setup-editor-exposes_role_slots
+  (let [slot (layout/terrain-standard-role-slot-child :island-3x3 :n "N")]
+    (is (= 'terrain-standard-role-slot (:mode slot)))
+    (is (= :island-3x3 (-> slot :state :setup-id)))
+    (is (= :n (-> slot :state :role-id)))))
+
 (deftest terrain-stamp-grid-size-follows_terrain_unit
   (is (= {:w 32 :h 32}
          (layout/terrain-stamp-grid-size-for-unit {:w 1 :h 1})))
@@ -134,3 +150,8 @@
     (is (= 'ui/split-pane (:mode split-pane)))
     (is (= :x (-> split-pane :state :axis)))
     (is (= 0.26 (-> split-pane :state :split)))))
+
+(deftest terrain-workspace-includes_stamp_tile_drag_preview
+  (let [children (layout/terrain-definition-workspace-children)
+        preview (nth children 1)]
+    (is (= 'terrain-stamp-tile-drag-preview (:mode preview)))))

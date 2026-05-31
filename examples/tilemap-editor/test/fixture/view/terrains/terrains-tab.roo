@@ -15,6 +15,16 @@
     (runtime/render! app)
     app))
 
+(defun switch-rule-editor-to! [app tab-id opts]
+  (let [tab (runtime/find-view-containing app "ui/tab" (str ":tab-id " tab-id))]
+    (is (not (nil? tab)))
+    (case (:by opts)
+      :mouse/click (runtime/click! app tab)
+      :default (runtime/click! app tab))
+    (runtime/update! app)
+    (runtime/render! app)
+    app))
+
 (defun add-rule! [app opts]
   (let [button (runtime/find-view-containing app "ui/button" "Add rule")]
     (is (not (nil? button)))
@@ -119,6 +129,34 @@
 (defun drag-stamp-tile! [app tile target opts]
   (let [picker (runtime/find-view app "terrain-stamp-tile-picker")
         cell (stamp-cell app target)
+        pos (tile-picker-position tile)]
+    (is (not (nil? picker)))
+    (is (not (nil? cell)))
+    (case (:by opts)
+      :mouse/drag (runtime/mouse-drag-between! app
+                                               picker
+                                               (:x pos)
+                                               (:y pos)
+                                               cell
+                                               8
+                                               8)
+      :default (runtime/mouse-drag-between! app
+                                            picker
+                                            (:x pos)
+                                            (:y pos)
+                                            cell
+                                            8
+                                            8))
+    app))
+
+(defun standard-role-slot [app role-id]
+  (runtime/find-view-containing app
+                                "terrain-standard-role-slot"
+                                (str ":role-id " role-id)))
+
+(defun drag-standard-role-tile! [app tile role-id opts]
+  (let [picker (runtime/find-view app "terrain-stamp-tile-picker")
+        cell (standard-role-slot app role-id)
         pos (tile-picker-position tile)]
     (is (not (nil? picker)))
     (is (not (nil? cell)))

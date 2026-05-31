@@ -82,3 +82,68 @@
   (then [app]
     (terrains-tab/output-tiles-are? app [[nil]])
     (project/cleanup! :terrain-rule)))
+
+(deftest terrain-standard-setup-slot-creates-visible-rule
+  (given
+    (project/write! :terrain-standard-rule
+                    {:tilesets [{:id :terrain
+                                 :label "Terrain"
+                                 :tile-size 16
+                                 :tiles [{:id :grass-fill
+                                          :name "Grass Fill"
+                                          :char "g"
+                                          :type :color
+                                          :color {:r 0 :g 255 :b 0}}
+                                         {:id :water-fill
+                                          :name "Water Fill"
+                                          :char "w"
+                                          :type :color
+                                          :color {:r 0 :g 0 :b 255}}]}]
+                     :terrain-sets [{:id :overworld
+                                     :label "Overworld"
+                                     :tileset :terrain
+                                     :terrains [{:id :grass
+                                                 :label "Grass"
+                                                 :tile :grass-fill}
+                                                {:id :water
+                                                 :label "Water"
+                                                 :tile :water-fill}]}]
+                     :rulesets []
+                     :layer-profiles [{:id :default
+                                       :label "Default"
+                                       :layers [{:id :scene/terrain
+                                                 :label "Terrain Source"
+                                                 :kind :terrain
+                                                 :data-kind :terrain
+                                                 :terrain-set :overworld}
+                                                {:id :scene/terrain-visuals
+                                                 :label "Terrain Visuals"
+                                                 :kind :tile
+                                                 :data-kind :tile-ref
+                                                 :tileset :terrain}]}]
+                     :tilemap {:width 2
+                               :height 2
+                               :tile-size 16
+                               :layer-profile :default
+                               :layers []}})
+    (let [app (main-window/open-project! :terrain-standard-rule)]
+      (main-window/is-open? app)
+      app))
+
+  (when [app]
+    (main-window/switch-to! app :tab/terrains {:by :mouse/click})
+    (terrains-tab/switch-detail-to! app :detail/terrain {:by :mouse/click})
+    (terrains-tab/switch-rule-editor-to! app :setups {:by :mouse/click})
+    (terrains-tab/drag-standard-role-tile! app
+                                           :tile/water-fill
+                                           :n
+                                           {:by :mouse/drag})
+    app)
+
+  (then [app]
+    (terrains-tab/switch-rule-editor-to! app :rules {:by :mouse/click})
+    (terrains-tab/selected-rule-is? app :rule)
+    (terrains-tab/rule-match-is? app :n :none)
+    (terrains-tab/rule-match-is? app :s :same)
+    (terrains-tab/output-tiles-are? app [[:water-fill]])
+    (project/cleanup! :terrain-standard-rule)))
