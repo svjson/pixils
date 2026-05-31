@@ -257,6 +257,9 @@
   (max min-map-dimension
        (min max-map-dimension (or value default-value))))
 
+(defun map-tile-size [value]
+  (map-dimension value tile-size))
+
 (defun make-empty-row-for [width]
   (dotimes [x (map-dimension width map-width)]
     nil))
@@ -547,7 +550,7 @@
                         (str "Map " (inc index))))
            :width (map-dimension (:width map-document) map-width)
            :height (map-dimension (:height map-document) map-height)
-           :tile-size (or (:tile-size map-document) tile-size)
+           :tile-size (map-tile-size (:tile-size map-document))
            :layers layers)))
 
 (defun normalize-map-documents [maps]
@@ -616,7 +619,7 @@
                   :label (or (:selected-map-label state) default-map-label)
                   :width (map-dimension (:map-width state) map-width)
                   :height (map-dimension (:map-height state) map-height)
-                  :tile-size tile-size
+                  :tile-size (map-tile-size (:tile-size state))
                   :layers layers}]
     (if layer-profile-id
       (assoc document :layer-profile layer-profile-id)

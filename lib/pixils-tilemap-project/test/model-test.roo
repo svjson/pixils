@@ -70,6 +70,14 @@
     (is (= {:x 8 :y 16 :w 32 :h 32}
            (get-in document [:tilesets 0 :tiles 0 :source])))))
 
+(deftest project-document-saves_map_tile_size
+  (let [document (data/project-document
+                  {:map-width 2
+                   :map-height 1
+                   :tile-size 32
+                   :layers []})]
+    (is (= 32 (get-in document [:maps 0 :tile-size])))))
+
 (deftest normalize-project-document-normalizes_ruleset_stamp_nil_cells
   (let [document (data/normalize-project-document
                   {:format data/project-format
