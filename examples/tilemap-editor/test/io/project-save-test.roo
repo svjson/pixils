@@ -8,7 +8,8 @@
 (deftest save-dialog-result-writes-project-edn
   (support/cleanup-project-io-test-files!)
   (project-io/apply-project-file-dialog-result
-   {:layers (data/make-layered-map)}
+   {:layers (data/make-layered-map)
+    :tile-size 24}
    (support/file-dialog-payload :file-dialog/save support/SAVE-PATH "saved-project.edn"))
   (let [document (io/slurp-edn! support/SAVE-PATH)]
     (is (= data/project-format (:format document)))
@@ -16,6 +17,7 @@
     (is (= {:bundles {}} (:resources document)))
     (is (= [] (:tilesets document)))
     (is (= data/default-map-id (:selected-map document)))
+    (is (= 24 (get-in document [:maps 0 :tile-size])))
     (is (= [] (get-in document [:maps 0 :layers]))))
   (support/cleanup-project-io-test-files!))
 

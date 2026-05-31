@@ -148,19 +148,31 @@
 (deftest tilemap-set-map-dimensions-resizes_layer_matrices
   (let [state {:map-width 2
                :map-height 2
+               :tile-size 24
                :show-terrain-rules? false
                :layers [{:id :ground
                          :tiles [[:a :b]
                                  [:c :d]]
                          :terrain-signatures [[{:center :a} nil]
                                               [nil {:center :d}]]}]}
-        resized (tilemap/set-map-dimensions state 3 1)]
+        resized (tilemap/set-map-dimensions state 3 1 32)]
     (is (= 3 (:map-width resized)))
     (is (= 1 (:map-height resized)))
+    (is (= 32 (:tile-size resized)))
     (is (= [[:a :b nil]]
            (get-in resized [:layers 0 :tiles])))
     (is (= [[{:center :a} nil nil]]
            (get-in resized [:layers 0 :terrain-signatures])))))
+
+(deftest tilemap-position-uses_current_map_tile_size
+  (let [state {:map-width 2
+               :map-height 2
+               :tile-size 32
+               :zoom 1
+               :offset {:x 0 :y 0}}]
+    (is (= {:x 1 :y 0}
+           (tilemap/map-tile-position state
+                                      {:position {:x 40 :y 8}})))))
 
 (deftest tilemap-paint-uses_current_map_dimensions
   (let [state {:map-width 2

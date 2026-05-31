@@ -9,8 +9,11 @@
 (defun clamp [value low high]
   (max low (min high value)))
 
-(defun scaled-tile-size [zoom]
-  (* data/tile-size (or zoom 1)))
+(defun tile-size [state]
+  (data/map-tile-size (:tile-size state)))
+
+(defun scaled-tile-size [state zoom]
+  (* (tile-size state) (or zoom 1)))
 
 (defun map-width [state]
   (data/map-dimension (:map-width state) data/map-width))
@@ -19,11 +22,11 @@
   (data/map-dimension (:map-height state) data/map-height))
 
 (defun max-scroll-x [state ctx]
-  (max 0 (- (* (map-width state) (scaled-tile-size (:zoom state)))
+  (max 0 (- (* (map-width state) (scaled-tile-size state (:zoom state)))
             (-> ctx :view :bounds :w))))
 
 (defun max-scroll-y [state ctx]
-  (max 0 (- (* (map-height state) (scaled-tile-size (:zoom state)))
+  (max 0 (- (* (map-height state) (scaled-tile-size state (:zoom state)))
             (-> ctx :view :bounds :h))))
 
 (defun pan-map [state ctx dx dy]
@@ -131,7 +134,7 @@
 (defun map-tile-position [state event]
   (let [offset (or (:offset state) {:x 0 :y 0})
         pos (:position event)
-        size (scaled-tile-size (:zoom state))]
+        size (scaled-tile-size state (:zoom state))]
     {:x (int (/ (+ (:x pos) (:x offset)) size))
      :y (int (/ (+ (:y pos) (:y offset)) size))}))
 
@@ -839,12 +842,15 @@
        (fn [layer]
          (resize-layer layer width height))))
 
-(defun set-map-dimensions [state width height]
+(defun set-map-dimensions [state width height & tile-size]
   (let [width (data/map-dimension width data/map-width)
         height (data/map-dimension height data/map-height)
+        tile-size (data/map-tile-size (or tile-size
+                                          (:tile-size state)))
         state (assoc state
                      :map-width width
                      :map-height height
+                     :tile-size tile-size
                      :layers (resize-layer-collection (:layers state) width height)
                      :terrain-stamp-layers []
                      :terrain-stamp-replacements []

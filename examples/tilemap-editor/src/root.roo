@@ -32,7 +32,7 @@
       (push-mode! 'tileset-create-dialog-modal
                   {:tileset-id id
                    :tileset-label (tileset-model/label-from-id id)
-                   :tile-size data/tile-size
+                   :tile-size (data/map-tile-size (:tile-size state))
                    :confirm-label "Create"}
                   {:origin {:view (:view ctx)
                             :event :tileset/shortcut-dialog-result}})
@@ -88,6 +88,7 @@
            :selected-map-label data/default-map-label
            :map-width data/map-width
            :map-height data/map-height
+           :tile-size data/tile-size
            :selected-layer-index nil
            :selected-layer-label ""
            :layers []
@@ -191,6 +192,7 @@
                :state {:selected-tile (ui/bind-state :selected-tile)
                        :map-width (ui/bind-state :map-width)
                        :map-height (ui/bind-state :map-height)
+                       :tile-size (ui/bind-state :tile-size)
                        :maps (ui/bind-state :maps)
                        :map-ui-states (ui/bind-state :map-ui-states)
                        :selected-map-id (ui/bind-state :selected-map-id)
@@ -262,6 +264,7 @@
                                :state {:selected-tile (ui/bind-state :selected-tile)
                                        :map-width (ui/bind-state :map-width)
                                        :map-height (ui/bind-state :map-height)
+                                       :tile-size (ui/bind-state :tile-size)
                                        :maps (ui/bind-state :maps)
                                        :map-ui-states
                                        (ui/bind-state :map-ui-states)
@@ -442,7 +445,8 @@
            (if (= (:type payload) :confirm)
              (tilemap/set-map-dimensions state
                                          (:width payload)
-                                         (:height payload))
+                                         (:height payload)
+                                         (:tile-size payload))
              state)))
        :project/open (fn [state event ctx]
                        (project-io/open-project-file-dialog! state

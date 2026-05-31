@@ -111,3 +111,14 @@
                   :rulesets []})})]
     (is (= [0]
            (get-in state [:render-map-input :hidden-layer-indices])))))
+
+(deftest map-canvas-render-input-uses_active_map_tile_size
+  (let [input (canvas/map-canvas-render-input
+               {:map-width 2
+                :map-height 1
+                :tile-size 32
+                :layers []
+                :terrain-sets []
+                :rulesets []
+                :layer-profiles []})]
+    (is (= 32 (:tile-size input)))))

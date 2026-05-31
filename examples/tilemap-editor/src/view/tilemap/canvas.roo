@@ -30,9 +30,9 @@
                                  (= (:id resource)
                                     map-render-cache-image)))))))))
 
-(defun selection-screen-rect [selection offset zoom]
+(defun selection-screen-rect [state selection offset zoom]
   (let [rect (:rect selection)
-        size (tm/scaled-tile-size zoom)]
+        size (tm/scaled-tile-size state zoom)]
     {:x (- (* (:x rect) size) (:x offset))
      :y (- (* (:y rect) size) (:y offset))
      :w (* (:w rect) size)
@@ -43,9 +43,9 @@
     (r/line! {:x x :y y} {:x (+ x (* dx 8)) :y y} color)
     (r/line! {:x x :y y} {:x x :y (+ y (* dy 8))} color)))
 
-(defun draw-selection-overlay! [selection offset zoom]
+(defun draw-selection-overlay! [state selection offset zoom]
   (when selection
-    (let [rect (selection-screen-rect selection offset zoom)
+    (let [rect (selection-screen-rect state selection offset zoom)
           right (dec (+ (:x rect) (:w rect)))
           bottom (dec (+ (:y rect) (:h rect)))
           color {:r 0xff :g 0xcc :b 0x66}]
@@ -56,26 +56,26 @@
         (draw-selection-corner! (:x rect) bottom 1 -1 color)
         (draw-selection-corner! right bottom -1 -1 color)))))
 
-(defun tile-screen-rect [pos offset zoom]
-  (let [size (tm/scaled-tile-size zoom)]
+(defun tile-screen-rect [state pos offset zoom]
+  (let [size (tm/scaled-tile-size state zoom)]
     {:x (- (* (:x pos) size) (:x offset))
      :y (- (* (:y pos) size) (:y offset))
      :w size
      :h size}))
 
-(defun draw-line-overlay! [line offset zoom]
+(defun draw-line-overlay! [state line offset zoom]
   (when (:active? line)
     (let [color {:r 0xff :g 0xcc :b 0x66}]
       (do
         (map (tm/map-line-positions line (:current line))
              (fn [pos]
-               (r/rect! (tile-screen-rect pos offset zoom) {:color color})))
+               (r/rect! (tile-screen-rect state pos offset zoom) {:color color})))
         nil))))
 
 (defun map-canvas-render-input [state]
   {:width (tm/map-width state)
    :height (tm/map-height state)
-   :tile-size data/tile-size
+   :tile-size (tm/tile-size state)
    :layers (:layers state)
    :terrain-sets (:terrain-sets state)
    :show-terrain-rules? (:show-terrain-rules? state)
@@ -512,7 +512,7 @@
    :on-mouse-up (fn [state event ctx]
                   (tm/map-canvas-mouse-up state event))
    :on-key-down (fn [state event ctx]
-                  (let [step (tm/scaled-tile-size (:zoom state))]
+                  (let [step (tm/scaled-tile-size state (:zoom state))]
                     (case (:key event)
                       :key/delete (tm/clear-map-selection state)
                       :key/backspace (tm/clear-map-selection state)
@@ -527,10 +527,12 @@
                                     (materialize-map-canvas-render-map
                                      (map-canvas-render-input state)))]
                  (draw-render-map! state render-map offset ctx)
-                 (draw-selection-overlay! (:map-selection state)
+                 (draw-selection-overlay! state
+                                          (:map-selection state)
                                           offset
                                           (:zoom state))
-                 (draw-line-overlay! (:map-line state)
+                 (draw-line-overlay! state
+                                     (:map-line state)
                                      offset
                                      (:zoom state)))
                (r/text! (str "offset " (:x offset) "," (:y offset)
@@ -556,9 +558,10 @@
            :layout {:direction :row}}
    :children [{:mode 'map-canvas
                :state {:selected-tile (ui/bind-state :selected-tile)
-                       :map-width (ui/bind-state :map-width)
-                       :map-height (ui/bind-state :map-height)
-                       :tilesets (ui/bind-state :tilesets)
+                         :map-width (ui/bind-state :map-width)
+                         :map-height (ui/bind-state :map-height)
+                         :tile-size (ui/bind-state :tile-size)
+                         :tilesets (ui/bind-state :tilesets)
                        :synced-resources (ui/bind-state :synced-resources)
                        :terrain-sets (ui/bind-state :terrain-sets)
                        :rulesets (ui/bind-state :rulesets)
@@ -590,14 +593,14 @@
              {:mode 'ui/scrollbar
                :class :scrollbar/v
                :style {:height :fill}
-               :state {:axis :y
-                       :value (ui/bind-state :map-offset :y)
-                       :step (ui/bind-state :tile-size)
-                       :content-size (ui/bind-state :content-height)}}]
-   :update (fn [state ctx]
-             (let [size (tm/scaled-tile-size (:zoom state))]
-               (assoc (assoc state :tile-size size)
-                      :content-height (* (tm/map-height state) size))))})
+                 :state {:axis :y
+                         :value (ui/bind-state :map-offset :y)
+                         :step (ui/bind-state :scroll-tile-size)
+                         :content-size (ui/bind-state :content-height)}}]
+     :update (fn [state ctx]
+               (let [size (tm/scaled-tile-size state (:zoom state))]
+                 (assoc (assoc state :scroll-tile-size size)
+                        :content-height (* (tm/map-height state) size))))})
 
 (defcomponent map-scroll-footer
   {:content-size map-scroll-footer-content-size
@@ -607,15 +610,15 @@
                :class :scrollbar/h
                :style {:width :fill
                        :height :fill}
-               :state {:axis :x
-                       :value (ui/bind-state :map-offset :x)
-                       :step (ui/bind-state :tile-size)
-                       :content-size (ui/bind-state :content-width)}}
+                 :state {:axis :x
+                         :value (ui/bind-state :map-offset :x)
+                         :step (ui/bind-state :scroll-tile-size)
+                         :content-size (ui/bind-state :content-width)}}
               {:mode 'ui/scrollbar-corner}]
-   :update (fn [state ctx]
-             (let [size (tm/scaled-tile-size (:zoom state))]
-               (assoc (assoc state :tile-size size)
-                      :content-width (* (tm/map-width state) size))))})
+     :update (fn [state ctx]
+               (let [size (tm/scaled-tile-size state (:zoom state))]
+                 (assoc (assoc state :scroll-tile-size size)
+                        :content-width (* (tm/map-width state) size))))})
 
 
 
@@ -627,9 +630,10 @@
            :layout {:direction :column}}
    :children [{:mode 'map-scroll-row
                :state {:selected-tile (ui/bind-state :selected-tile)
-                       :map-width (ui/bind-state :map-width)
-                       :map-height (ui/bind-state :map-height)
-                       :tilesets (ui/bind-state :tilesets)
+                         :map-width (ui/bind-state :map-width)
+                         :map-height (ui/bind-state :map-height)
+                         :tile-size (ui/bind-state :tile-size)
+                         :tilesets (ui/bind-state :tilesets)
                        :terrain-sets (ui/bind-state :terrain-sets)
                        :rulesets (ui/bind-state :rulesets)
                        :layer-profiles (ui/bind-state :layer-profiles)
@@ -659,6 +663,7 @@
                        :show-grid? (ui/bind-state :show-grid?)}}
               {:mode 'map-scroll-footer
                :state {:map-offset (ui/bind-state :map-offset)
-                       :map-width (ui/bind-state :map-width)
-                       :map-height (ui/bind-state :map-height)
-                       :zoom (ui/bind-state :zoom)}}]})
+                         :map-width (ui/bind-state :map-width)
+                         :map-height (ui/bind-state :map-height)
+                         :tile-size (ui/bind-state :tile-size)
+                         :zoom (ui/bind-state :zoom)}}]})

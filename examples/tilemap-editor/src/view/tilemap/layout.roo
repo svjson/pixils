@@ -41,9 +41,10 @@
                         :selected-map-label
                         (ui/bind-state :selected-map-label)}
                 :body-state {:selected-tile (ui/bind-state :selected-tile)
-                             :map-width (ui/bind-state :map-width)
-                             :map-height (ui/bind-state :map-height)
-                             :maps (ui/bind-state :maps)
+                               :map-width (ui/bind-state :map-width)
+                               :map-height (ui/bind-state :map-height)
+                               :tile-size (ui/bind-state :tile-size)
+                               :maps (ui/bind-state :maps)
                              :selected-map-id (ui/bind-state :selected-map-id)
                              :selected-map-label
                              (ui/bind-state :selected-map-label)
@@ -82,9 +83,10 @@
                 :children [{:mode 'map-area
                             :style {:height :fill}
                             :state {:selected-tile (ui/bind-state :selected-tile)
-                                    :map-width (ui/bind-state :map-width)
-                                    :map-height (ui/bind-state :map-height)
-                                    :tilesets (ui/bind-state :tilesets)
+                                      :map-width (ui/bind-state :map-width)
+                                      :map-height (ui/bind-state :map-height)
+                                      :tile-size (ui/bind-state :tile-size)
+                                      :tilesets (ui/bind-state :tilesets)
                                     :terrain-sets (ui/bind-state :terrain-sets)
                                     :rulesets (ui/bind-state :rulesets)
                                     :layer-profiles (ui/bind-state :layer-profiles)
@@ -132,9 +134,10 @@
                 :min-first 280
                 :min-second 220
                 :state {:selected-tile (ui/bind-state :selected-tile)
-                        :map-width (ui/bind-state :map-width)
-                        :map-height (ui/bind-state :map-height)
-                        :maps (ui/bind-state :maps)
+                          :map-width (ui/bind-state :map-width)
+                          :map-height (ui/bind-state :map-height)
+                          :tile-size (ui/bind-state :tile-size)
+                          :maps (ui/bind-state :maps)
                         :selected-map-id (ui/bind-state :selected-map-id)
                         :selected-map-label
                         (ui/bind-state :selected-map-label)
@@ -173,9 +176,10 @@
                 :children [{:mode 'map-column
                             :style {:padding {:r 8}}
                             :state {:selected-tile (ui/bind-state :selected-tile)
-                                    :map-width (ui/bind-state :map-width)
-                                    :map-height (ui/bind-state :map-height)
-                                    :maps (ui/bind-state :maps)
+                                      :map-width (ui/bind-state :map-width)
+                                      :map-height (ui/bind-state :map-height)
+                                      :tile-size (ui/bind-state :tile-size)
+                                      :maps (ui/bind-state :maps)
                                     :selected-map-id
                                     (ui/bind-state :selected-map-id)
                                     :selected-map-label
@@ -213,9 +217,10 @@
                            {:mode 'side-panel
                             :style {:padding {:l 8}}
                             :state {:selected-tile (ui/bind-state :selected-tile)
-                                    :map-width (ui/bind-state :map-width)
-                                    :map-height (ui/bind-state :map-height)
-                                    :selected-label (ui/bind-state :selected-label)
+                                      :map-width (ui/bind-state :map-width)
+                                      :map-height (ui/bind-state :map-height)
+                                      :tile-size (ui/bind-state :tile-size)
+                                      :selected-label (ui/bind-state :selected-label)
                                     :selected-tileset-index (ui/bind-state :selected-tileset-index)
                                     :tilesets (ui/bind-state :tilesets)
                                     :tileset (ui/bind-state :tileset)

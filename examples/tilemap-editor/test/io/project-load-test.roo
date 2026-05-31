@@ -15,7 +15,7 @@
                  :tilesets []
                  :tilemap {:width 2
                            :height 2
-                           :tile-size 16
+                           :tile-size 24
                            :layers [{:id :scene/background
                                      :label "Loaded Background"
                                      :kind :tile
@@ -33,6 +33,7 @@
                payload)]
     (is (= support/OPEN-PATH (:project-path state)))
     (is (= "Loaded Background" (get-in state [:layers 0 :label])))
+    (is (= 24 (:tile-size state)))
     (is (= [] (:tilesets state)))
     (is (= 0 (:selected-layer-index state)))
     (is (= [] (:hidden-layer-indices state)))

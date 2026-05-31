@@ -72,7 +72,7 @@
     (draw-missing-tile! rect)))
 
 (defun tile-rect [x y offset zoom]
-  (let [size (tm/scaled-tile-size zoom)]
+  (let [size (tm/scaled-tile-size {:tile-size data/tile-size} zoom)]
     {:x (- (* x size) (:x offset))
      :y (- (* y size) (:y offset))
      :w size

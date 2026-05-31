@@ -107,6 +107,7 @@
                      :selected-map-label (:label map-document)
                      :map-width (:width map-document)
                      :map-height (:height map-document)
+                     :tile-size (:tile-size map-document)
                      :selected-layer-profile-id layer-profile-id
                      :layers layers
                      :terrain-stamp-layers []
@@ -224,12 +225,13 @@
 
 (defun make-new-map-document [state id label]
   (let [width (data/map-dimension (:map-width state) data/map-width)
-        height (data/map-dimension (:map-height state) data/map-height)]
+        height (data/map-dimension (:map-height state) data/map-height)
+        tile-size (data/map-tile-size (:tile-size state))]
     {:id id
      :label label
      :width width
      :height height
-     :tile-size data/tile-size
+     :tile-size tile-size
      :layer-profile (:selected-layer-profile-id state)
      :layers (empty-layers-for-new-map state width height)}))
 
