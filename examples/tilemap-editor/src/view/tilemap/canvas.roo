@@ -2,10 +2,11 @@
   (:require pixils
             [pixils.render :as r]
             [pixils.ui :as ui]
+            [pixils.tilemap.materialize :as materialize]
             [pixils.tilemap.project.model :as data]
+            [pixils.tilemap.renderer :as tilemap-renderer]
             [tilemap-editor.model.derivation :as derivation]
-            [tilemap-editor.model.tilemap :as tm]
-            [tilemap-editor.view.tilemap.renderer :as tr]))
+            [tilemap-editor.model.tilemap :as tm]))
 
 
 
@@ -53,6 +54,53 @@
                (r/rect! (tile-screen-rect pos offset zoom) {:color color})))
         nil))))
 
+(defun map-canvas-render-input [state]
+  {:width (tm/map-width state)
+   :height (tm/map-height state)
+   :tile-size data/tile-size
+   :layers (:layers state)
+   :terrain-sets (:terrain-sets state)
+   :terrain-stamp-layers (:terrain-stamp-layers state)
+   :terrain-stamp-replacements (:terrain-stamp-replacements state)
+   :show-terrain-rules? (:show-terrain-rules? state)
+   :layer-profile (data/layer-profile-by-id (:layer-profiles state)
+                                            (:selected-layer-profile-id state))
+   :rulesets (:rulesets state)})
+
+(defun materialize-map-canvas-render-map [input]
+  (let [render-layers (derivation/render-layers
+                       {:layers (:layers input)
+                        :terrain-sets (:terrain-sets input)
+                        :terrain-stamp-layers
+                        (:terrain-stamp-layers input)
+                        :terrain-stamp-replacements
+                        (:terrain-stamp-replacements input)
+                        :show-terrain-rules?
+                        (:show-terrain-rules? input)}
+                       (:layer-profile input)
+                       (:rulesets input))]
+    (materialize/materialize-render-map
+     {:width (:width input)
+      :height (:height input)
+      :tile-size (:tile-size input)
+      :terrain-sets (:terrain-sets input)
+      :layers render-layers})))
+
+(defun refresh-map-canvas-render-map [state]
+  (let [input (map-canvas-render-input state)]
+    (if (= input (:render-map-input state))
+      state
+      (assoc state
+             :render-map-input input
+             :render-map (materialize-map-canvas-render-map input)))))
+
+(defun canvas-target-rect [ctx]
+  (let [bounds (-> ctx :view :bounds)]
+    {:x 0
+     :y 0
+     :w (:w bounds)
+     :h (:h bounds)}))
+
 (defcomponent map-canvas
   {:focusable true
    :class :ui/canvas
@@ -72,7 +120,8 @@
                    :map-line nil}
                   state))
    :update (fn [state ctx]
-             (tm/clamp-map-offset state ctx))
+             (refresh-map-canvas-render-map
+              (tm/clamp-map-offset state ctx)))
    :on-mouse-down (fn [state event ctx]
                     (tm/map-canvas-mouse-down state event ctx))
    :on-drag (fn [state event ctx]
@@ -91,29 +140,17 @@
                       :default state)))
    :render (fn [state ctx]
              (let [offset (or (:offset state) {:x 0 :y 0})]
-                 (let [layer-profile (data/layer-profile-by-id
-                                    (:layer-profiles state)
-                                    (:selected-layer-profile-id state))
-                     render-layers (derivation/render-layers
-                                    {:layers (:layers state)
-                                     :terrain-sets (:terrain-sets state)
-                                     :terrain-stamp-layers
-                                     (:terrain-stamp-layers state)
-                                     :terrain-stamp-replacements
-                                     (:terrain-stamp-replacements state)
-                                     :show-terrain-rules?
-                                     (:show-terrain-rules? state)}
-                                    layer-profile
-                                    (:rulesets state))]
-                 (tr/render-layers! (:tilesets state)
-                                    (:terrain-sets state)
-                                    render-layers
-                                    (:hidden-layer-indices state)
-                                    offset
-                                    (:zoom state)
-                                    (:show-grid? state)
-                                    (tm/map-width state)
-                                    (tm/map-height state))
+               (let [render-map (or (:render-map state)
+                                    (materialize-map-canvas-render-map
+                                     (map-canvas-render-input state)))]
+                 (tilemap-renderer/render-layers!
+                  render-map
+                  {:tilesets (:tilesets state)
+                   :hidden-layer-indices (:hidden-layer-indices state)
+                   :offset offset
+                   :zoom (:zoom state)
+                   :show-grid? (:show-grid? state)
+                   :target-rect (canvas-target-rect ctx)})
                  (draw-selection-overlay! (:map-selection state)
                                           offset
                                           (:zoom state))
