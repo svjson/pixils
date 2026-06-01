@@ -1322,11 +1322,120 @@
     (is (= "N - None" (:label rule)))
     (is (= :grass (:terrain rule)))
     (is (= (model/terrain-standard-role-match :n :none) (:match rule)))
+    (is (= true (:exclusive? rule)))
     (is (= :scene/visuals (get-in rule [:output :layers 0 :target-layer])))
     (is (= :terrain (get-in rule [:output :layers 0 :tileset])))
     (is (= [[:water-edge]]
            (get-in rule [:output :layers 0 :tiles])))
     (is (= :rule (:selected-terrain-rule-id state)))))
+
+(deftest terrain-standard-role-tile-inserts_created_rule_before_less_specific_rule
+  (let [state (model/set-terrain-standard-role-tile
+               {:terrain-sets [{:id :overworld
+                                :tileset :terrain
+                                :terrains [{:id :grass
+                                            :tile :grass-fill}
+                                           {:id :water
+                                            :tile :water-fill}
+                                           {:id :sand
+                                            :tile :sand-fill}]}]
+                :tilesets [{:id :terrain
+                            :tiles [{:id :grass-fill}
+                                    {:id :water-edge}]}]
+                :selected-terrain-set-index 0
+                :selected-terrain-index 0
+                :rulesets [{:id :overworld-rules
+                            :kind :terrain-stamp
+                            :terrain-set :overworld
+                            :rules [{:id :broad-edge
+                                     :terrain :grass
+                                     :exclusive? false
+                                     :match (model/terrain-standard-role-match
+                                             :n
+                                             :any-other)}
+                                    {:id :later-rule
+                                     :terrain :grass
+                                     :match {:s :same}}]}]
+                :selected-terrain-ruleset-id :overworld-rules}
+               :island-3x3
+               :n
+               :water
+               :water-edge)
+        rules (get-in state [:rulesets 0 :rules])]
+    (is (= [:rule :broad-edge :later-rule] (map rules :id)))
+    (is (= true (:exclusive? (nth rules 0))))
+    (is (= false (:exclusive? (nth rules 1))))
+    (is (= {:terrain :water}
+           (get-in rules [0 :match :n])))))
+
+(deftest terrain-standard-role-tile-inserts_created_rule_after_more_specific_rule
+  (let [state (model/set-terrain-standard-role-tile
+               {:terrain-sets [{:id :overworld
+                                :tileset :terrain
+                                :terrains [{:id :grass
+                                            :tile :grass-fill}
+                                           {:id :water
+                                            :tile :water-fill}]}]
+                :tilesets [{:id :terrain
+                            :tiles [{:id :grass-fill}
+                                    {:id :edge}]}]
+                :selected-terrain-set-index 0
+                :selected-terrain-index 0
+                :rulesets [{:id :overworld-rules
+                            :kind :terrain-stamp
+                            :terrain-set :overworld
+                            :rules [{:id :specific-corner
+                                     :terrain :grass
+                                     :match {:n :none
+                                             :s :same
+                                             :w :same}}
+                                    {:id :broad-edge
+                                     :terrain :grass
+                                     :match {:n :none}}]}]
+                :selected-terrain-ruleset-id :overworld-rules}
+               :island-3x3
+               :n
+               :none
+               :edge)
+        rules (get-in state [:rulesets 0 :rules])]
+    (is (= [:specific-corner :rule :broad-edge] (map rules :id)))
+    (is (= true (:exclusive? (nth rules 1))))))
+
+(deftest terrain-standard-role-tile-updates_existing_rule_without_changing_exclusive_flag
+  (let [state (model/set-terrain-standard-role-tile
+               {:terrain-sets [{:id :overworld
+                                :tileset :terrain
+                                :terrains [{:id :grass
+                                            :tile :grass-fill}
+                                           {:id :water
+                                            :tile :water-fill}]}]
+                :tilesets [{:id :terrain
+                            :tiles [{:id :grass-fill}
+                                    {:id :old-edge}
+                                    {:id :new-edge}]}]
+                :selected-terrain-set-index 0
+                :selected-terrain-index 0
+                :rulesets [{:id :overworld-rules
+                            :kind :terrain-stamp
+                            :terrain-set :overworld
+                            :rules [{:id :edge-n
+                                     :terrain :grass
+                                     :exclusive? false
+                                     :match (model/terrain-standard-role-match
+                                             :n
+                                             :none)
+                                     :output {:layers [{:tileset :terrain
+                                                        :tiles [[:old-edge]]}]}}]}]
+                :selected-terrain-ruleset-id :overworld-rules}
+               :island-3x3
+               :n
+               :none
+               :new-edge)
+        rule (get-in state [:rulesets 0 :rules 0])]
+    (is (= :edge-n (:selected-terrain-rule-id state)))
+    (is (= false (:exclusive? rule)))
+    (is (= [[:new-edge]]
+           (get-in rule [:output :layers 0 :tiles])))))
 
 (deftest terrain-standard-inner-corner-role-uses_terrain_unit_output_cell
   (let [state (model/set-terrain-standard-role-tile

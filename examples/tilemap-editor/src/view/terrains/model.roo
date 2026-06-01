@@ -2068,6 +2068,128 @@
     (= (normalized-match-condition actual)
        (normalized-match-condition expected))))
 
+(defun terrain-rule-condition-known-terrain? [center-terrain condition]
+  (let [condition (normalized-match-condition condition)]
+    (or (= condition :same)
+        (= condition :any-terrain)
+        (= condition :other-terrain)
+        (= condition :not-same)
+        (and (= (type-of condition) "map")
+             (not (nil? (:terrain condition)))))))
+
+(defun terrain-rule-condition-terrain [center-terrain condition]
+  (let [condition (normalized-match-condition condition)]
+    (cond
+      (= condition :same) center-terrain
+      (= (type-of condition) "map") (:terrain condition)
+      :default nil)))
+
+(defun terrain-rule-condition-terrain? [center-terrain condition terrain]
+  (let [condition-terrain (terrain-rule-condition-terrain center-terrain
+                                                          condition)]
+    (and (not (nil? condition-terrain))
+         (= condition-terrain terrain))))
+
+(defun terrain-rule-condition-other-terrain? [center-terrain condition]
+  (let [condition (normalized-match-condition condition)
+        condition-terrain (terrain-rule-condition-terrain center-terrain
+                                                          condition)]
+    (or (= condition :other-terrain)
+        (= condition :not-same)
+        (and (not (nil? condition-terrain))
+             (not= condition-terrain center-terrain)))))
+
+(defun terrain-rule-match-condition-implies? [center-terrain specific general]
+  (let [specific (normalized-match-condition specific)
+        general (normalized-match-condition general)]
+    (cond
+      (= general :ignore) true
+      (= specific general) true
+      (and (= specific :other-terrain)
+           (= general :not-same)) true
+      (and (= specific :not-same)
+           (= general :other-terrain)) true
+      (= general :any-terrain)
+      (terrain-rule-condition-known-terrain? center-terrain specific)
+      (or (= general :other-terrain)
+          (= general :not-same))
+      (terrain-rule-condition-other-terrain? center-terrain specific)
+      (= general :same)
+      (terrain-rule-condition-terrain? center-terrain specific center-terrain)
+      (= (type-of general) "map")
+      (terrain-rule-condition-terrain? center-terrain specific (:terrain general))
+      :default false)))
+
+(defun terrain-rule-match-implies? [specific general]
+  (let [center-terrain (terrain-rule-center specific)]
+    (and (= center-terrain (terrain-rule-center general))
+         (= 0
+            (count
+             (filter neighbor-directions
+                     (fn [direction]
+                       (not (terrain-rule-match-condition-implies?
+                             center-terrain
+                             (get (or (:match specific) {}) direction)
+                             (get (or (:match general) {}) direction))))))))))
+
+(defun terrain-rule-more-specific-than? [specific general]
+  (and (terrain-rule-match-implies? specific general)
+       (not (terrain-rule-match-implies? general specific))))
+
+(defun max-index [values]
+  (reduce (or values [])
+          nil
+          (fn [result value]
+            (if (or (nil? result)
+                    (> value result))
+              value
+              result))))
+
+(defun min-index [values]
+  (reduce (or values [])
+          nil
+          (fn [result value]
+            (if (or (nil? result)
+                    (< value result))
+              value
+              result))))
+
+(defun terrain-rule-specific-insertion-index [rules rule]
+  (let [rules (or rules [])
+        more-specific-before (max-index
+                              (map (filter (for-indexed [index existing rules]
+                                             {:index index
+                                              :rule existing})
+                                           (fn [entry]
+                                             (terrain-rule-more-specific-than?
+                                              (:rule entry)
+                                              rule)))
+                                   :index))
+        less-specific-after (min-index
+                             (map (filter (for-indexed [index existing rules]
+                                            {:index index
+                                             :rule existing})
+                                          (fn [entry]
+                                            (terrain-rule-more-specific-than?
+                                             rule
+                                             (:rule entry))))
+                                  :index))
+        after-more-specific (if (nil? more-specific-before)
+                              0
+                              (inc more-specific-before))]
+    (if (and (not (nil? less-specific-after))
+             (> after-more-specific less-specific-after))
+      less-specific-after
+      (if (nil? less-specific-after)
+        after-more-specific
+        (min after-more-specific less-specific-after)))))
+
+(defun insert-terrain-rule-by-specificity [rules rule]
+  (let [index (terrain-rule-specific-insertion-index rules rule)]
+    (if (nil? index)
+      (concat (or rules []) [rule])
+      (insert-item-at-index rules index rule))))
+
 (defun terrain-standard-rule-match? [rule role-id opposing]
   (let [shape (terrain-standard-role-match role-id opposing)
         match (or (:match rule) {})]
@@ -2186,6 +2308,7 @@
                         :label (str (terrain-standard-role-label setup-id role-id)
                                     " - "
                                     (terrain-standard-opposing-label state opposing))
+                        :exclusive? true
                         :match (terrain-standard-role-match role-id opposing))
             rule (terrain-standard-rule-with-tile state
                                                   terrain-set
@@ -2201,8 +2324,9 @@
                           (fn [ruleset]
                             (assoc ruleset
                                    :rules
-                                   (concat (or (:rules ruleset) [])
-                                           [rule]))))
+                                   (insert-terrain-rule-by-specificity
+                                    (:rules ruleset)
+                                    rule))))
                :selected-terrain-ruleset-id ruleset-id
                :selected-terrain-rule-id (:id rule)))
       state)))
