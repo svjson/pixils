@@ -2038,12 +2038,108 @@
                   (fn [role-id]
                     (terrain-standard-role-cell-child setup role-id)))})
 
-(defun terrain-standard-setup-panel-child [setup]
+(defun terrain-standard-setup-menu-items []
+  (map model/terrain-standard-setup-definitions
+       (fn [setup]
+         {:label (:label setup)
+          :type :toggle
+          :action :terrain/standard-setup-visibility-toggle
+          :payload (:id setup)
+          :selected-path [:option-state (:id setup)]})))
+
+(def terrain-standard-setup-menu
+  {:settings {:mnemonics {:enabled false}}
+   :items (terrain-standard-setup-menu-items)})
+
+(defun terrain-standard-setup-menu-option-state [state]
+  (reduce model/terrain-standard-setup-definitions
+          {}
+          (fn [options setup]
+            (assoc options
+                   (:id setup)
+                   (model/terrain-standard-setup-visible?
+                    state
+                    (:id setup))))))
+
+(defcomponent terrain-standard-setup-menu-button
+  {:extend 'ui/button
+   :style {:width 86
+           :height 22}
+   :on-mouse-up
+   (fn [state event ctx]
+     (do
+       (ui/stop-propagation! event)
+       (when (and (= (:button event) :left)
+                  (not (:disabled? state)))
+         (menu/open-context-menu!
+          terrain-standard-setup-menu
+          (:global-position event)
+          (assoc state
+                 :option-state
+                 (terrain-standard-setup-menu-option-state state))
+          ctx))
+       state))
+   :on {:menu/select
+        (fn [state event ctx]
+          (let [payload (:payload event)
+                setup-id (-> payload :payload)]
+            (do
+              (ui/stop-propagation! event)
+              (when (= (:type payload) :action)
+                (ui/emit! (:view ctx)
+                          :terrain/standard-setup-visibility-change
+                          {:setup-id setup-id
+                           :visible? (not (model/terrain-standard-setup-visible?
+                                           state
+                                           setup-id))}))
+              state)))}})
+
+(defcomponent terrain-standard-setup-panel
   {:style {:width :shrink
            :height :shrink
            :layout {:direction :column
                     :gap 6}}
-   :state (ui/bind-state)
+   :update (fn [state ctx]
+             (let [visible? (model/terrain-standard-setup-visible?
+                             state
+                             (:setup-id state))]
+               (do
+                 (assoc-in! ctx
+                            [:view :style :visibility]
+                            (if visible? :visible :none))
+                 (assoc-in! ctx
+                            [:view :style :width]
+                            (if visible? :shrink 0))
+                 (assoc-in! ctx
+                            [:view :style :height]
+                            (if visible? :shrink 0))
+                 state)))})
+
+(defun terrain-standard-setup-panel-state [setup]
+  {:setup-id (:id setup)
+   :terrain-sets (ui/bind-state :terrain-sets)
+   :selected-terrain-set-index
+   (ui/bind-state :selected-terrain-set-index)
+   :selected-terrain-index
+   (ui/bind-state :selected-terrain-index)
+   :rulesets (ui/bind-state :rulesets)
+   :selected-terrain-ruleset-id
+   (ui/bind-state :selected-terrain-ruleset-id)
+   :selected-terrain-rule-id
+   (ui/bind-state :selected-terrain-rule-id)
+   :terrain-rule-selected-tile
+   (ui/bind-state :terrain-rule-selected-tile)
+   :terrain-standard-opposing
+   (ui/bind-state :terrain-standard-opposing)
+   :tilesets (ui/bind-state :tilesets)
+   :layers (ui/bind-state :layers)
+   :layer-profiles (ui/bind-state :layer-profiles)
+   :selected-layer-profile-id
+   (ui/bind-state :selected-layer-profile-id)})
+
+(defun terrain-standard-setup-panel-child [setup]
+  {:mode 'terrain-standard-setup-panel
+   :state (terrain-standard-setup-panel-state setup)
    :children (concat [{:mode 'ui/text
                        :class :ui/title
                        :state {:value (:label setup)}}]
@@ -2094,7 +2190,17 @@
                            :children [{:mode 'ui/text
                                        :state {:value "Opposing"}}
                                       {:mode 'terrain-standard-opposing-selector
-                                       :state (ui/bind-state)}]}
+                                       :state (ui/bind-state)}
+                                      {:mode 'terrain-standard-setup-menu-button
+                                       :state {:label "Groups"
+                                               :terrain-sets
+                                               (ui/bind-state :terrain-sets)
+                                               :selected-terrain-set-index
+                                               (ui/bind-state
+                                                :selected-terrain-set-index)
+                                               :selected-terrain-index
+                                               (ui/bind-state
+                                                :selected-terrain-index)}}]}
                           {:style {:width :fill
                                    :height :shrink
                                    :layout {:direction :row
@@ -3328,6 +3434,13 @@
         :terrain/standard-opposing-change
         (fn [state event ctx]
           (assoc state :terrain-standard-opposing (:payload event)))
+        :terrain/standard-setup-visibility-change
+        (fn [state event ctx]
+          (let [payload (:payload event)]
+            (model/set-selected-terrain-standard-setup-visible
+             state
+             (:setup-id payload)
+             (:visible? payload))))
         :terrain/rule-stamp-paint
         (fn [state event ctx]
           (let [payload (:payload event)]

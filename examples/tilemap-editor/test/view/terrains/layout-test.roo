@@ -128,6 +128,21 @@
     (is (= :island-3x3 (-> slot :state :setup-id)))
     (is (= :n (-> slot :state :role-id)))))
 
+(deftest terrain-standard-setup-editor-includes_group_visibility_menu_button
+  (let [items (:items layout/terrain-standard-setup-menu)
+        panel (layout/terrain-standard-setup-panel-child
+               {:id :island-3x3
+                :label "Island"
+                :matrix [[:nw]]})]
+    (is (= :terrain/standard-setup-visibility-toggle
+           (-> items head :action)))
+    (is (= :toggle (-> items head :type)))
+    (is (= [:option-state :island-3x3]
+           (-> items head :selected-path)))
+    (is (= 'terrain-standard-setup-panel (:mode panel)))
+    (is (= :island-3x3 (-> panel :state :setup-id)))
+    (is (= true (contains? (:state panel) :rulesets)))))
+
 (deftest terrain-stamp-grid-size-follows_terrain_unit
   (is (= {:w 32 :h 32}
          (layout/terrain-stamp-grid-size-for-unit {:w 1 :h 1})))

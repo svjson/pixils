@@ -1937,6 +1937,9 @@
                 (fn [role]
                   (= (:id role) role-id)))))
 
+(defun terrain-standard-setup-ids []
+  (map terrain-standard-setup-definitions :id))
+
 (defun terrain-standard-role-label [setup-id role-id]
   (or (:label (terrain-standard-setup-role
                (terrain-standard-setup setup-id)
@@ -1956,6 +1959,45 @@
        (terrain-standard-role-label setup-id role-id)
        " - "
        (terrain-standard-opposing-label state opposing)))
+
+(defun selected-terrain-standard-setup-ids [state]
+  (let [terrain-set (selected-terrain-set (:terrain-sets state)
+                                          (:selected-terrain-set-index state))
+        terrain (selected-terrain terrain-set (:selected-terrain-index state))
+        setup-ids (terrain-standard-setup-ids)
+        visible-ids (:visible-terrain-standard-setups terrain)]
+    (if (nil? visible-ids)
+      setup-ids
+      (filter setup-ids
+              (fn [setup-id]
+                (contains? visible-ids setup-id))))))
+
+(defun terrain-standard-setup-visible? [state setup-id]
+  (contains? (selected-terrain-standard-setup-ids state) setup-id))
+
+(defun selected-terrain-standard-setup-options [state]
+  (map terrain-standard-setup-definitions
+       (fn [setup]
+         {:value (:id setup)
+          :label (:label setup)
+          :checked? (terrain-standard-setup-visible? state (:id setup))})))
+
+(defun set-selected-terrain-standard-setup-visible [state setup-id visible?]
+  (if-let [path (selected-terrain-path state)]
+    (let [setup-ids (terrain-standard-setup-ids)
+          current (selected-terrain-standard-setup-ids state)
+          requested (if visible?
+                      (concat current [setup-id])
+                      (filter current
+                              (fn [id]
+                                (not= id setup-id))))
+          next-visible (filter setup-ids
+                               (fn [id]
+                                 (contains? requested id)))]
+      (assoc-in state
+                (concat path [:visible-terrain-standard-setups])
+                next-visible))
+    state))
 
 (def terrain-standard-opposing-none :none)
 (def terrain-standard-opposing-any-other :any-other)

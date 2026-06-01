@@ -1402,6 +1402,35 @@
     (is (= "Inner corner NW - None"
            (get-in inner-state [:rulesets 0 :rules 0 :label])))))
 
+(deftest terrain-standard-setup-visibility-defaults_to_all_groups
+  (let [state {:terrain-sets [{:id :overworld
+                               :terrains [{:id :grass}]}]
+               :selected-terrain-set-index 0
+               :selected-terrain-index 0}]
+    (is (= [:island-3x3 :inner-corners]
+           (model/selected-terrain-standard-setup-ids state)))
+    (is (= true (model/terrain-standard-setup-visible? state :island-3x3)))
+    (is (= true (model/terrain-standard-setup-visible? state :inner-corners)))))
+
+(deftest terrain-standard-setup-visibility-is_stored_per_terrain
+  (let [state (model/set-selected-terrain-standard-setup-visible
+               {:terrain-sets [{:id :overworld
+                                :terrains [{:id :grass}
+                                           {:id :water}]}]
+                :selected-terrain-set-index 0
+                :selected-terrain-index 0}
+               :inner-corners
+               false)
+        water-state (assoc state :selected-terrain-index 1)]
+    (is (= [:island-3x3]
+           (get-in state
+                   [:terrain-sets 0 :terrains 0
+                    :visible-terrain-standard-setups])))
+    (is (= [:island-3x3]
+           (model/selected-terrain-standard-setup-ids state)))
+    (is (= [:island-3x3 :inner-corners]
+           (model/selected-terrain-standard-setup-ids water-state)))))
+
 (deftest terrain-standard-role-tile-inserts_created_rule_after_more_specific_rule
   (let [state (model/set-terrain-standard-role-tile
                {:terrain-sets [{:id :overworld

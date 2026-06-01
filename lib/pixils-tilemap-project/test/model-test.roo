@@ -346,6 +346,18 @@
                          :tile :grass}]}]
            (:terrain-sets document)))))
 
+(deftest project-document-saves_terrain_semantic_setup_visibility
+  (let [document (data/project-document
+                  {:terrain-sets [{:id :overworld
+                                   :terrains [{:id :grass
+                                               :visible-terrain-standard-setups
+                                               [:island-3x3]}]}]
+                   :layers []})]
+    (is (= [:island-3x3]
+           (get-in document
+                   [:terrain-sets 0 :terrains 0
+                    :visible-terrain-standard-setups])))))
+
 (deftest project-document-saves_rulesets
   (let [document (data/project-document
                   {:rulesets [{:id :grass-marching
