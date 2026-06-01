@@ -297,11 +297,12 @@ TEST_F(MenuTest, base_theme_generates_stock_menu_option_checkmark_image)
   EXPECT_EQ(render_target()->render_ops.back().rendered_rect.h, 10);
 }
 
-TEST_F(MenuTest, windows_3_menu_option_indicator_renders_one_checkmark)
+TEST_F(MenuTest, windows_3_menu_option_indicator_uses_styled_checkmark_symbol)
 {
   runtime.eval(R"(
     (pixils/defmode root-mode
       {:theme 'pixils/windows-3
+       :theme-variant :dark
        :children [{:mode 'ui/menu-option-indicator
                    :state {:selected true}}]})
   )");
@@ -310,11 +311,23 @@ TEST_F(MenuTest, windows_3_menu_option_indicator_renders_one_checkmark)
   session.update_mode();
   session.render_mode();
 
+  ASSERT_NE(session.active_mode, nullptr);
+  ASSERT_EQ(session.active_mode->children.size(), 1u);
+  auto indicator = session.active_mode->children[0];
+  ASSERT_NE(indicator, nullptr);
+  ASSERT_TRUE(indicator->effective_theme.vars.count("dark") > 0);
+  ASSERT_TRUE(
+    indicator->effective_theme.vars.at("dark").count("menu-option-indicator") > 0);
+  auto indicator_var =
+    indicator->effective_theme.vars.at("dark").at("menu-option-indicator");
+  ASSERT_NE(indicator_var, nullptr);
+  EXPECT_EQ(indicator_var->to_string(), "{:selected-symbol :checkmark}");
+
   auto copy_ops = std::count_if(render_target()->render_ops.begin(),
                                 render_target()->render_ops.end(),
                                 [](const auto& op)
                                 { return op.type == RenderOpType::RENDER_COPY; });
-  EXPECT_EQ(copy_ops, 1);
+  EXPECT_EQ(copy_ops, 0);
 }
 
 TEST_F(MenuTest, popup_submenu_items_receive_theme_indicator)

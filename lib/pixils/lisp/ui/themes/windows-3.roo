@@ -379,7 +379,7 @@
                   :split-pane-resizer-size 8
                   :scrollbar-size 17
                   :scrollbar-handle-size 15
-                  :menu-option-indicator {:selected-image :windows-3-theme/menu-option-checkmark}
+                  :menu-option-indicator {:selected-symbol :checkmark}
                   :menu-submenu-indicator {:image :windows-3-theme/chevron-right
                                            :highlighted-image :windows-3-theme/submenu-chevron-highlighted}
                   :scrollbar-button-symbols {:up-image :windows-3-theme/scrollbar-arrow-up
@@ -405,7 +405,7 @@
                  :split-pane-resizer-size 8
                  :scrollbar-size 17
                  :scrollbar-handle-size 15
-                 :menu-option-indicator {:selected-image :windows-3-theme/menu-option-checkmark}
+                 :menu-option-indicator {:selected-symbol :checkmark}
                  :menu-submenu-indicator {:image :windows-3-theme/chevron-right
                                           :highlighted-image :windows-3-theme/submenu-chevron-highlighted}
                  :scrollbar-button-symbols {:up-image :windows-3-theme/scrollbar-arrow-up

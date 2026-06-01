@@ -1,5 +1,6 @@
 (ns pixils.ui.menu
   (:require pixils
+            [pixils.color :as c]
             [pixils.image :as img]
             [pixils.keyboard :as kbd]
             [pixils.render :as r]
@@ -691,6 +692,12 @@
     (:selected-image indicator)
     nil))
 
+(defun menu-option-indicator-symbol [state indicator]
+  (if (and (:selected state)
+           (or (:show-marker state) (not (contains? state :show-marker))))
+    (:selected-symbol indicator)
+    nil))
+
 (defun menu-option-indicator-text-args [style]
   (reduce-kv (or (:text style) {})
              {}
@@ -703,9 +710,38 @@
                                       (keyword v))
                                     v)})))))
 
+(defun menu-option-indicator-text-color [text-args]
+  (or (:color text-args) c/BLACK))
+
+(defun draw-menu-option-checkmark-symbol! [x y color]
+  (do
+    (r/line! {:x (+ x 7) :y y} {:x (+ x 7) :y (+ y 1)} color)
+    (r/line! {:x (+ x 6) :y (+ y 2)} {:x (+ x 7) :y (+ y 2)} color)
+    (r/line! {:x (+ x 6) :y (+ y 3)} {:x (+ x 6) :y (+ y 3)} color)
+    (r/line! {:x (+ x 5) :y (+ y 4)} {:x (+ x 6) :y (+ y 4)} color)
+    (r/line! {:x x :y (+ y 5)} {:x (+ x 1) :y (+ y 5)} color)
+    (r/line! {:x (+ x 5) :y (+ y 5)} {:x (+ x 5) :y (+ y 5)} color)
+    (r/line! {:x (+ x 1) :y (+ y 6)} {:x (+ x 2) :y (+ y 6)} color)
+    (r/line! {:x (+ x 4) :y (+ y 6)} {:x (+ x 5) :y (+ y 6)} color)
+    (r/line! {:x (+ x 2) :y (+ y 7)} {:x (+ x 2) :y (+ y 7)} color)
+    (r/line! {:x (+ x 4) :y (+ y 7)} {:x (+ x 4) :y (+ y 7)} color)
+    (r/line! {:x (+ x 2) :y (+ y 8)} {:x (+ x 4) :y (+ y 8)} color)
+    (r/line! {:x (+ x 3) :y (+ y 9)} {:x (+ x 3) :y (+ y 9)} color)))
+
+(defun render-menu-option-indicator-symbol! [symbol text-args ctx]
+  (case symbol
+    :checkmark
+    (let [x (int (/ (- (-> ctx :view :bounds :w) 8) 2))
+          y (int (/ (- (-> ctx :view :bounds :h) 10) 2))]
+      (draw-menu-option-checkmark-symbol! x
+                                          y
+                                          (menu-option-indicator-text-color text-args)))
+    :default nil))
+
 (defun render-menu-option-indicator! [state ctx]
   (let [indicator (ui/theme-var ctx :menu-option-indicator {})
         image (menu-option-indicator-image state indicator)
+        symbol (menu-option-indicator-symbol state indicator)
         text (menu-option-indicator-text state indicator)
         text-args (menu-option-indicator-text-args (-> ctx :view :effective-style))]
     (do
@@ -718,6 +754,8 @@
                   (int (/ (- (-> ctx :view :bounds :h) (:h dim)) 2))
                   0)]
           (r/image! image {:x x :y y})))
+      (when symbol
+        (render-menu-option-indicator-symbol! symbol text-args ctx))
       (when (not (empty? text))
         (let [dim (r/text-size text text-args)
               x (if dim
