@@ -17,7 +17,8 @@
             [tilemap-editor.model.tilemap :as tilemap]
             [tilemap-editor.view.id-name-dialog :as id-name-dialog]
             [tilemap-editor.view.tilemap.renderer :as tr]
-            [tilemap-editor.view.terrains.model :as model]))
+            [tilemap-editor.view.terrains.model :as model]
+            [tilemap-editor.view.theme :as theme]))
 
 (def terrain-list-row-height 24)
 
@@ -1889,8 +1890,40 @@
                         :rule-add-disabled? rule-add-disabled?))))
    :children [(terrain-rule-visual-editor-child {})]})
 
-(def terrain-standard-slot-size 40)
+(def terrain-standard-slot-tile-size 40)
+(def terrain-standard-slot-marker-size (int (/ terrain-standard-slot-tile-size
+                                               3)))
+(def terrain-standard-slot-size terrain-standard-slot-tile-size)
+(def terrain-standard-slot-surround-size (+ terrain-standard-slot-tile-size
+                                            (* terrain-standard-slot-marker-size
+                                               2)))
 (def terrain-standard-slot-gap 4)
+(def terrain-standard-slot-border-color theme/panel-border)
+(def terrain-standard-slot-marker-color terrain-standard-slot-border-color)
+(def terrain-standard-slot-surround-tile-origin terrain-standard-slot-marker-size)
+
+(defun terrain-standard-setup-uses-surround-markers? [setup-id]
+  (= setup-id :isolated))
+
+(defun terrain-standard-role-uses-surround-markers? [state]
+  (terrain-standard-setup-uses-surround-markers? (:setup-id state)))
+
+(defun terrain-standard-role-slot-size [setup-id]
+  (if (terrain-standard-setup-uses-surround-markers? setup-id)
+    terrain-standard-slot-surround-size
+    terrain-standard-slot-size))
+
+(defun terrain-standard-role-tile-origin [setup-id]
+  (if (terrain-standard-setup-uses-surround-markers? setup-id)
+    terrain-standard-slot-surround-tile-origin
+    0))
+
+(defun terrain-standard-role-tile-rect [state]
+  (let [origin (terrain-standard-role-tile-origin (:setup-id state))]
+    {:x origin
+     :y origin
+     :w terrain-standard-slot-tile-size
+     :h terrain-standard-slot-tile-size}))
 
 (defun terrain-standard-role-slot-tile [state]
   (model/terrain-standard-role-tile state
@@ -1906,48 +1939,88 @@
                                        (model/selected-terrain-standard-opposing
                                         state)))
 
+(defun terrain-standard-marker-condition? [condition]
+  (and (not (= condition :ignore))
+       (not (= condition :same))))
+
+(defun terrain-standard-role-marker-directions [role-id]
+  (let [match (model/terrain-standard-role-match role-id :none)]
+    (filter model/neighbor-directions
+            (fn [direction]
+              (terrain-standard-marker-condition? (get match direction))))))
+
+(defun terrain-standard-role-marker-rect [direction]
+  (let [third terrain-standard-slot-marker-size
+        tile terrain-standard-slot-tile-size
+        tile-origin terrain-standard-slot-surround-tile-origin
+        end (+ tile-origin tile)]
+    (case direction
+      :nw {:x 0 :y 0 :w third :h third}
+      :n {:x tile-origin :y 0 :w tile :h third}
+      :ne {:x end :y 0 :w third :h third}
+      :w {:x 0 :y tile-origin :w third :h tile}
+      :e {:x end :y tile-origin :w third :h tile}
+      :sw {:x 0 :y end :w third :h third}
+      :s {:x tile-origin :y end :w tile :h third}
+      :se {:x end :y end :w third :h third}
+      :default nil)))
+
+(defun draw-terrain-standard-role-markers! [state]
+  (reduce (if (terrain-standard-role-uses-surround-markers? state)
+            (terrain-standard-role-marker-directions (:role-id state))
+            [])
+          nil
+          (fn [result direction]
+            (do
+              (if-let [rect (terrain-standard-role-marker-rect direction)]
+                (r/rect! rect {:color terrain-standard-slot-marker-color})
+                nil)
+              result))))
+
 (defun draw-terrain-standard-role-slot! [state ctx]
   (let [tile (:tile state)
-        label (:label state)]
+        label (:label state)
+        tile-rect (terrain-standard-role-tile-rect state)]
     (do
-      (r/rect! {:x 0
-                :y 0
-                :w terrain-standard-slot-size
-                :h terrain-standard-slot-size}
+      (r/rect! tile-rect
                {:fill true
                 :color {:r 0x0b :g 0x0d :b 0x10}})
       (when tile
         (tr/draw-tile! tile
-                       {:x 4
-                        :y 4
-                        :w (- terrain-standard-slot-size 8)
-                        :h (- terrain-standard-slot-size 8)}))
-      (when (not tile)
+                       {:x (+ (:x tile-rect) 4)
+                        :y (+ (:y tile-rect) 4)
+                        :w (- (:w tile-rect) 8)
+                        :h (- (:h tile-rect) 8)}))
+      (when (and (not tile)
+                 (not (terrain-standard-role-uses-surround-markers? state)))
         (r/text! label
-                 {:x 8 :y 13}
+                 {:x (+ (:x tile-rect) 8)
+                  :y (+ (:y tile-rect) 13)}
                  {:color {:r 0x86 :g 0x91 :b 0x9b}}))
-      (r/rect! {:x 0
-                :y 0
-                :w terrain-standard-slot-size
-                :h terrain-standard-slot-size}
+      (draw-terrain-standard-role-markers! state)
+      (r/rect! tile-rect
                {:color (if (:selected? state)
                          {:r 0x5a :g 0x9d :b 0xff}
-                         {:r 0x1f :g 0x26 :b 0x2d})}))))
+                         terrain-standard-slot-border-color)}))))
 
 (defcomponent terrain-standard-role-slot
   {:focusable true
-   :class :ui/canvas
    :style {:width terrain-standard-slot-size
            :height terrain-standard-slot-size
            :cursor :pointer}
    :update (fn [state ctx]
-             (let [rule-id (terrain-standard-role-slot-rule-id state)]
-               (assoc state
-                      :rule-id rule-id
-                      :tile (terrain-standard-role-slot-tile state)
-                      :selected? (and rule-id
-                                      (= rule-id
-                                         (:selected-terrain-rule-id state))))))
+             (let [rule-id (terrain-standard-role-slot-rule-id state)
+                   slot-size (terrain-standard-role-slot-size (:setup-id state))]
+               (do
+                 (assoc-in! ctx [:view :style :width] slot-size)
+                 (assoc-in! ctx [:view :style :height] slot-size)
+                 (assoc state
+                        :rule-id rule-id
+                        :tile (terrain-standard-role-slot-tile state)
+                        :selected? (and rule-id
+                                        (= rule-id
+                                           (:selected-terrain-rule-id
+                                            state)))))))
    :on-mouse-down
    (fn [state event ctx]
      (do
@@ -2015,9 +2088,10 @@
            :selected-layer-profile-id
            (ui/bind-state :selected-layer-profile-id)}})
 
-(defun terrain-standard-role-placeholder-child []
-  {:style {:width terrain-standard-slot-size
-           :height terrain-standard-slot-size}})
+(defun terrain-standard-role-placeholder-child [setup-id]
+  (let [slot-size (terrain-standard-role-slot-size setup-id)]
+    {:style {:width slot-size
+             :height slot-size}}))
 
 (defun terrain-standard-role-cell-child [setup role-id]
   (if role-id
@@ -2026,17 +2100,18 @@
                                       (model/terrain-standard-role-label
                                        (:id setup)
                                        role-id))
-    (terrain-standard-role-placeholder-child)))
+    (terrain-standard-role-placeholder-child (:id setup))))
 
 (defun terrain-standard-setup-row-child [setup row]
-  {:style {:width :shrink
-           :height terrain-standard-slot-size
-           :layout {:direction :row
-                    :gap terrain-standard-slot-gap}}
-   :state (ui/bind-state)
-   :children (map row
-                  (fn [role-id]
-                    (terrain-standard-role-cell-child setup role-id)))})
+  (let [slot-size (terrain-standard-role-slot-size (:id setup))]
+    {:style {:width :shrink
+             :height slot-size
+             :layout {:direction :row
+                      :gap terrain-standard-slot-gap}}
+     :state (ui/bind-state)
+     :children (map row
+                    (fn [role-id]
+                      (terrain-standard-role-cell-child setup role-id)))}))
 
 (defun terrain-standard-setup-menu-items []
   (map model/terrain-standard-setup-definitions

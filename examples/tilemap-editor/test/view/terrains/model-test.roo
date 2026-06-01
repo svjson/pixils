@@ -1407,10 +1407,11 @@
                                :terrains [{:id :grass}]}]
                :selected-terrain-set-index 0
                :selected-terrain-index 0}]
-    (is (= [:island-3x3 :inner-corners]
+    (is (= [:island-3x3 :inner-corners :isolated]
            (model/selected-terrain-standard-setup-ids state)))
     (is (= true (model/terrain-standard-setup-visible? state :island-3x3)))
-    (is (= true (model/terrain-standard-setup-visible? state :inner-corners)))))
+    (is (= true (model/terrain-standard-setup-visible? state :inner-corners)))
+    (is (= true (model/terrain-standard-setup-visible? state :isolated)))))
 
 (deftest terrain-standard-setup-visibility-is_stored_per_terrain
   (let [state (model/set-selected-terrain-standard-setup-visible
@@ -1422,14 +1423,43 @@
                :inner-corners
                false)
         water-state (assoc state :selected-terrain-index 1)]
-    (is (= [:island-3x3]
+    (is (= [:island-3x3 :isolated]
            (get-in state
                    [:terrain-sets 0 :terrains 0
                     :visible-terrain-standard-setups])))
-    (is (= [:island-3x3]
+    (is (= [:island-3x3 :isolated]
            (model/selected-terrain-standard-setup-ids state)))
-    (is (= [:island-3x3 :inner-corners]
+    (is (= [:island-3x3 :inner-corners :isolated]
            (model/selected-terrain-standard-setup-ids water-state)))))
+
+(deftest terrain-standard-isolated_roles_match_direction_sets
+  (is (= {:nw :none
+          :n :none
+          :ne :none
+          :w :none
+          :e :none
+          :sw :none
+          :s :none
+          :se :none}
+         (model/terrain-standard-role-match :isolated-all :none)))
+  (is (= {:nw :ignore
+          :n :other-terrain
+          :ne :ignore
+          :w :other-terrain
+          :e :other-terrain
+          :sw :ignore
+          :s :other-terrain
+          :se :ignore}
+         (model/terrain-standard-role-match :isolated-cardinal :any-other)))
+  (is (= {:nw {:terrain :water}
+          :n :ignore
+          :ne {:terrain :water}
+          :w :ignore
+          :e :ignore
+          :sw {:terrain :water}
+          :s :ignore
+          :se {:terrain :water}}
+         (model/terrain-standard-role-match :isolated-diagonal :water))))
 
 (deftest terrain-standard-role-tile-inserts_created_rule_after_more_specific_rule
   (let [state (model/set-terrain-standard-role-tile

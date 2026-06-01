@@ -143,6 +143,50 @@
     (is (= :island-3x3 (-> panel :state :setup-id)))
     (is (= true (contains? (:state panel) :rulesets)))))
 
+(deftest terrain-standard-role-markers-use_not_same_match_directions
+  (is (= [:n]
+         (layout/terrain-standard-role-marker-directions :n)))
+  (is (= [:nw]
+         (layout/terrain-standard-role-marker-directions :inner-nw)))
+  (is (= [:n :w :e :s]
+         (layout/terrain-standard-role-marker-directions :isolated-cardinal)))
+  (is (= [:nw :ne :sw :se]
+         (layout/terrain-standard-role-marker-directions :isolated-diagonal))))
+
+(deftest terrain-standard-role-surround_markers_are_only_for_isolated_setup
+  (is (= false
+         (layout/terrain-standard-role-uses-surround-markers?
+          {:setup-id :island-3x3
+           :role-id :n})))
+  (is (= false
+         (layout/terrain-standard-role-uses-surround-markers?
+          {:setup-id :inner-corners
+           :role-id :inner-nw})))
+  (is (= true
+         (layout/terrain-standard-role-uses-surround-markers?
+          {:setup-id :isolated
+           :role-id :isolated-cardinal}))))
+
+(deftest terrain-standard-role-surround_marker_layout_is_only_for_isolated_setup
+  (is (= 40
+         (layout/terrain-standard-role-slot-size :island-3x3)))
+  (is (= 40
+         (layout/terrain-standard-role-slot-size :inner-corners)))
+  (is (= 66
+         (layout/terrain-standard-role-slot-size :isolated)))
+  (is (= {:x 0 :y 0 :w 40 :h 40}
+         (layout/terrain-standard-role-tile-rect {:setup-id :island-3x3})))
+  (is (= {:x 13 :y 13 :w 40 :h 40}
+         (layout/terrain-standard-role-tile-rect {:setup-id :isolated}))))
+
+(deftest terrain-standard-role-marker-rects_are_third_sized_and_edge_aligned
+  (is (= {:x 13 :y 0 :w 40 :h 13}
+         (layout/terrain-standard-role-marker-rect :n)))
+  (is (= {:x 0 :y 13 :w 13 :h 40}
+         (layout/terrain-standard-role-marker-rect :w)))
+  (is (= {:x 53 :y 53 :w 13 :h 13}
+         (layout/terrain-standard-role-marker-rect :se))))
+
 (deftest terrain-stamp-grid-size-follows_terrain_unit
   (is (= {:w 32 :h 32}
          (layout/terrain-stamp-grid-size-for-unit {:w 1 :h 1})))
