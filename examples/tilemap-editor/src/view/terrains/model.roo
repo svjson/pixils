@@ -1931,7 +1931,51 @@
     :roles [{:id :isolated-all :label "All 8"}
             {:id :isolated-cardinal :label "N/E/S/W"}
             {:id :isolated-diagonal :label "Diagonals"}]
-    :matrix [[:isolated-all :isolated-cardinal :isolated-diagonal]]}])
+    :matrix [[:isolated-all :isolated-cardinal :isolated-diagonal]]}
+   {:id :ring
+    :label "Ring"
+    :roles [{:id :ring-bend-se :label "SE"}
+            {:id :ring-straight-h :label "H"}
+            {:id :ring-bend-sw :label "SW"}
+            {:id :ring-straight-v :label "V"}
+            {:id :ring-bend-ne :label "NE"}
+            {:id :ring-bend-nw :label "NW"}]
+    :matrix [[:ring-bend-se :ring-straight-h :ring-bend-sw]
+             [:ring-straight-v nil nil]
+             [:ring-bend-ne nil :ring-bend-nw]]}
+   {:id :forks-cardinal
+    :label "Forks"
+    :roles [{:id :fork-new :label "N/E/W"}
+            {:id :fork-nsw :label "N/S/W"}
+            {:id :fork-nesw :label "N/E/S/W"}
+            {:id :fork-nes :label "N/E/S"}
+            {:id :fork-esw :label "E/S/W"}]
+    :matrix [[nil :fork-new nil]
+             [:fork-nsw :fork-nesw :fork-nes]
+             [nil :fork-esw nil]]}
+   {:id :forks-diagonal
+    :label "Forks + diagonals"
+    :roles [{:id :fork-diagonal-new :label "N/E/W"}
+            {:id :fork-diagonal-nsw :label "N/S/W"}
+            {:id :fork-diagonal-nesw :label "N/E/S/W"}
+            {:id :fork-diagonal-nes :label "N/E/S"}
+            {:id :fork-diagonal-esw :label "E/S/W"}]
+    :matrix [[nil :fork-diagonal-new nil]
+             [:fork-diagonal-nsw :fork-diagonal-nesw :fork-diagonal-nes]
+             [nil :fork-diagonal-esw nil]]}
+   {:id :stumps
+    :label "Stumps"
+    :roles [{:id :stump-nw :label "NW"}
+            {:id :stump-n :label "N"}
+            {:id :stump-ne :label "NE"}
+            {:id :stump-w :label "W"}
+            {:id :stump-e :label "E"}
+            {:id :stump-sw :label "SW"}
+            {:id :stump-s :label "S"}
+            {:id :stump-se :label "SE"}]
+    :matrix [[:stump-nw :stump-n :stump-ne]
+             [:stump-w nil :stump-e]
+             [:stump-sw :stump-s :stump-se]]}])
 
 (defun terrain-standard-setup [setup-id]
   (head (filter terrain-standard-setup-definitions
@@ -1946,6 +1990,12 @@
 (defun terrain-standard-setup-ids []
   (map terrain-standard-setup-definitions :id))
 
+(defun terrain-standard-role-ids []
+  (reduce terrain-standard-setup-definitions
+          []
+          (fn [role-ids setup]
+            (concat role-ids (map (or (:roles setup) []) :id)))))
+
 (defun terrain-standard-role-label [setup-id role-id]
   (or (:label (terrain-standard-setup-role
                (terrain-standard-setup setup-id)
@@ -1955,6 +2005,9 @@
 (defun terrain-standard-rule-setup-label [setup-id]
   (case setup-id
     :inner-corners "Inner corner"
+    :forks-cardinal "Fork"
+    :forks-diagonal "Fork diagonals"
+    :stumps "Stump"
     :default
     (or (:label (terrain-standard-setup setup-id))
         (keyword-label setup-id))))
@@ -2085,7 +2138,29 @@
    :inner-se [:se]
    :isolated-all [:nw :n :ne :w :e :sw :s :se]
    :isolated-cardinal [:n :w :e :s]
-   :isolated-diagonal [:nw :ne :sw :se]})
+   :isolated-diagonal [:nw :ne :sw :se]
+   :ring-bend-nw [:nw :ne :e :sw :s :se]
+   :ring-bend-ne [:nw :ne :w :sw :s :se]
+   :ring-bend-sw [:nw :n :ne :e :sw :se]
+   :ring-bend-se [:nw :n :ne :w :sw :se]
+   :ring-straight-h [:n :s]
+   :ring-straight-v [:w :e]
+   :fork-new [:s]
+   :fork-nsw [:e]
+   :fork-nes [:w]
+   :fork-esw [:n]
+   :fork-diagonal-new [:s]
+   :fork-diagonal-nsw [:e]
+   :fork-diagonal-nes [:w]
+   :fork-diagonal-esw [:n]
+   :stump-nw [:nw :n :ne :w :e :sw :s]
+   :stump-n [:nw :n :ne :w :e :sw :se]
+   :stump-ne [:nw :n :ne :w :e :s :se]
+   :stump-w [:nw :n :ne :w :sw :s :se]
+   :stump-e [:nw :n :ne :e :sw :s :se]
+   :stump-sw [:nw :n :w :e :sw :s :se]
+   :stump-s [:nw :ne :w :e :sw :s :se]
+   :stump-se [:n :ne :w :e :sw :s :se]})
 
 (def terrain-standard-role-same-directions
   {:center [:n :w :e :s]
@@ -2093,14 +2168,38 @@
    :s [:n]
    :w [:e]
    :e [:w]
-   :nw [:s :e]
-   :ne [:s :w]
-   :sw [:n :e]
-   :se [:n :w]
+   :nw [:s :e :se]
+   :ne [:s :w :sw]
+   :sw [:n :e :ne]
+   :se [:n :w :nw]
    :inner-nw [:n :w :e :s]
    :inner-ne [:n :w :e :s]
    :inner-sw [:n :w :e :s]
-   :inner-se [:n :w :e :s]})
+   :inner-se [:n :w :e :s]
+   :ring-bend-nw [:n :w]
+   :ring-bend-ne [:n :e]
+   :ring-bend-sw [:s :w]
+   :ring-bend-se [:s :e]
+   :ring-straight-h [:w :e]
+   :ring-straight-v [:n :s]
+   :fork-new [:n :e :w]
+   :fork-nsw [:n :s :w]
+   :fork-nesw [:n :w :e :s]
+   :fork-nes [:n :e :s]
+   :fork-esw [:e :s :w]
+   :fork-diagonal-new [:nw :n :ne :w :e]
+   :fork-diagonal-nsw [:nw :n :w :sw :s]
+   :fork-diagonal-nesw [:n :w :e :s]
+   :fork-diagonal-nes [:n :ne :e :se :s]
+   :fork-diagonal-esw [:e :se :s :sw :w]
+   :stump-nw [:se]
+   :stump-n [:s]
+   :stump-ne [:sw]
+   :stump-w [:e]
+   :stump-e [:w]
+   :stump-sw [:ne]
+   :stump-s [:n]
+   :stump-se [:nw]})
 
 (defun terrain-standard-role-match-value [role-id opposing direction]
   (cond
@@ -2280,10 +2379,16 @@
     {:x (max 0 (min max-x (:x requested)))
      :y (max 0 (min max-y (:y requested)))}))
 
-(defun terrain-standard-role-rule [state setup-id role-id opposing]
-  (head (filter (terrain-rules-for-selected-terrain state)
+(defun terrain-standard-role-rule-in-rules [rules role-id opposing]
+  (head (filter (or rules [])
                 (fn [rule]
                   (terrain-standard-rule-match? rule role-id opposing)))))
+
+(defun terrain-standard-role-rule [state setup-id role-id opposing]
+  (terrain-standard-role-rule-in-rules
+   (terrain-rules-for-selected-terrain state)
+   role-id
+   opposing))
 
 (defun terrain-standard-role-rule-id [state setup-id role-id opposing]
   (:id (terrain-standard-role-rule state setup-id role-id opposing)))
@@ -2318,6 +2423,64 @@
                                                 setup-id
                                                 role-id
                                                 opposing)))
+
+(defun terrain-standard-role-cache-entry [state rules role-id opposing default-tileset]
+  (let [rule (terrain-standard-role-rule-in-rules rules role-id opposing)
+        layer (head (or (-> rule :output :layers) []))
+        pos (terrain-standard-role-output-position state role-id)
+        tile-ref (nth (or (nth (or (:tiles layer) []) (:y pos)) [])
+                      (:x pos))
+        tileset (or (:tileset layer)
+                    default-tileset)]
+    {:rule-id (:id rule)
+     :tile-ref tile-ref
+     :tileset tileset
+     :tile (data/tile-in (:tilesets state) tileset tile-ref)}))
+
+(defun terrain-standard-role-slot-cache [state opposing]
+  (let [rules (terrain-rules-for-selected-terrain state)
+        terrain-set (selected-terrain-set (:terrain-sets state)
+                                          (:selected-terrain-set-index state))
+        default-tileset (or (:tileset terrain-set)
+                            (:tileset
+                             (default-output-layer-for-terrain-set state
+                                                                   terrain-set)))]
+    (reduce (terrain-standard-role-ids)
+            {}
+            (fn [cache role-id]
+              (assoc cache
+                     role-id
+                     (terrain-standard-role-cache-entry state
+                                                        rules
+                                                        role-id
+                                                        opposing
+                                                        default-tileset))))))
+
+(defun terrain-standard-role-slot-cache-key [state opposing]
+  (let [terrain-set (selected-terrain-set (:terrain-sets state)
+                                          (:selected-terrain-set-index state))
+        unit (selected-terrain-unit state)]
+    {:selected-terrain-set-index (:selected-terrain-set-index state)
+     :selected-terrain-set-id (:id terrain-set)
+     :selected-terrain-set-tileset (:tileset terrain-set)
+     :selected-terrain-unit-w (:w unit)
+     :selected-terrain-unit-h (:h unit)
+     :selected-terrain-index (:selected-terrain-index state)
+     :selected-terrain-id (selected-terrain-id state)
+     :selected-terrain-ruleset-id (:selected-terrain-ruleset-id state)
+     :opposing opposing
+     :selected-layer-profile-id (:selected-layer-profile-id state)}))
+
+(defun terrain-standard-role-slot-cache-for-state [state opposing]
+  (let [cache-key (terrain-standard-role-slot-cache-key state opposing)]
+    {:key cache-key
+     :slots (if (= cache-key (:terrain-standard-role-cache-key state))
+              (:terrain-standard-role-slots state)
+              (terrain-standard-role-slot-cache state opposing))}))
+
+(defun clear-terrain-standard-role-slot-cache [state]
+  (dissoc (dissoc state :terrain-standard-role-cache-key)
+          :terrain-standard-role-slots))
 
 (defun terrain-unit-single-tile-stamp [unit pos tile-ref]
   (dotimes [y (:h unit)]
@@ -2540,19 +2703,22 @@
         ruleset-id (selected-terrain-ruleset-id state)
         rule-id (selected-terrain-rule-id
                  (assoc state :selected-terrain-ruleset-id ruleset-id))
-        selected-rule (selected-terrain-rule
-                       (assoc state
+        selected-state (assoc state
                               :selected-terrain-ruleset-id ruleset-id
-                              :selected-terrain-rule-id rule-id))]
-    (assoc state
-           :selected-terrain-ruleset-id ruleset-id
-           :selected-terrain-rule-id rule-id
+                              :selected-terrain-rule-id rule-id)
+        selected-rule (selected-terrain-rule selected-state)
+        opposing (selected-terrain-standard-opposing selected-state)
+        standard-cache (terrain-standard-role-slot-cache-for-state
+                        selected-state
+                        opposing)]
+    (assoc selected-state
            :selected-terrain-rule-exclusive? (= (:exclusive? selected-rule)
                                                 true)
            :selected-terrain-rule-output-position
-           (selected-rule-output-position
-            (assoc state
-                   :selected-terrain-ruleset-id ruleset-id
-                   :selected-terrain-rule-id rule-id))
+           (selected-rule-output-position selected-state)
+           :terrain-standard-role-cache-opposing opposing
+           :terrain-standard-role-cache-key (:key standard-cache)
+           :terrain-standard-role-slots
+           (:slots standard-cache)
            :terrain-list-panel-disabled? (nil? set-index)
            :terrain-detail-panel-disabled? (nil? set-index))))

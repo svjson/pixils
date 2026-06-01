@@ -1901,6 +1901,9 @@
 (def terrain-standard-slot-border-color theme/panel-border)
 (def terrain-standard-slot-marker-color terrain-standard-slot-border-color)
 (def terrain-standard-slot-surround-tile-origin terrain-standard-slot-marker-size)
+(def terrain-standard-setup-panel-column-gap 20)
+(def terrain-standard-setup-panel-row-gap 16)
+(def terrain-standard-setup-panel-content-height 560)
 
 (defun terrain-standard-setup-uses-surround-markers? [setup-id]
   (= setup-id :isolated))
@@ -1925,19 +1928,19 @@
      :w terrain-standard-slot-tile-size
      :h terrain-standard-slot-tile-size}))
 
+(defun terrain-standard-role-slot-cache-entry [state]
+  (let [slots (or (:terrain-standard-role-slots state) {})]
+    (get slots (:role-id state))))
+
 (defun terrain-standard-role-slot-tile [state]
-  (model/terrain-standard-role-tile state
-                                    (:setup-id state)
-                                    (:role-id state)
-                                    (model/selected-terrain-standard-opposing
-                                     state)))
+  (if-let [entry (terrain-standard-role-slot-cache-entry state)]
+    (:tile entry)
+    nil))
 
 (defun terrain-standard-role-slot-rule-id [state]
-  (model/terrain-standard-role-rule-id state
-                                       (:setup-id state)
-                                       (:role-id state)
-                                       (model/selected-terrain-standard-opposing
-                                        state)))
+  (if-let [entry (terrain-standard-role-slot-cache-entry state)]
+    (:rule-id entry)
+    nil))
 
 (defun terrain-standard-marker-condition? [condition]
   (and (not (= condition :ignore))
@@ -2030,16 +2033,14 @@
                    :terrain/standard-role-tile-change
                    {:setup-id (:setup-id state)
                     :role-id (:role-id state)
-                    :opposing
-                    (model/selected-terrain-standard-opposing state)
+                    :opposing (:terrain-standard-role-cache-opposing state)
                     :tile nil})
-         (if-let [tile-ref (model/selected-rule-stamp-tile state)]
+         (if-let [tile-ref (:terrain-rule-selected-tile state)]
            (ui/emit! (:view ctx)
                      :terrain/standard-role-tile-change
                      {:setup-id (:setup-id state)
                       :role-id (:role-id state)
-                      :opposing
-                      (model/selected-terrain-standard-opposing state)
+                      :opposing (:terrain-standard-role-cache-opposing state)
                       :tile tile-ref})
            (when (:rule-id state)
              (ui/emit! (:view ctx)
@@ -2056,8 +2057,7 @@
                      :terrain/standard-role-tile-change
                      {:setup-id (:setup-id state)
                       :role-id (:role-id state)
-                      :opposing
-                      (model/selected-terrain-standard-opposing state)
+                      :opposing (:terrain-standard-role-cache-opposing state)
                       :tile (:tile payload)})
            state)
          state)))
@@ -2068,25 +2068,14 @@
    :state {:setup-id setup-id
            :role-id role-id
            :label label
-           :terrain-sets (ui/bind-state :terrain-sets)
-           :selected-terrain-set-index
-           (ui/bind-state :selected-terrain-set-index)
-           :selected-terrain-index
-           (ui/bind-state :selected-terrain-index)
-           :rulesets (ui/bind-state :rulesets)
-           :selected-terrain-ruleset-id
-           (ui/bind-state :selected-terrain-ruleset-id)
            :selected-terrain-rule-id
            (ui/bind-state :selected-terrain-rule-id)
            :terrain-rule-selected-tile
            (ui/bind-state :terrain-rule-selected-tile)
-           :terrain-standard-opposing
-           (ui/bind-state :terrain-standard-opposing)
-           :tilesets (ui/bind-state :tilesets)
-           :layers (ui/bind-state :layers)
-           :layer-profiles (ui/bind-state :layer-profiles)
-           :selected-layer-profile-id
-           (ui/bind-state :selected-layer-profile-id)}})
+           :terrain-standard-role-cache-opposing
+           (ui/bind-state :terrain-standard-role-cache-opposing)
+           :terrain-standard-role-slots
+           (ui/bind-state :terrain-standard-role-slots)}})
 
 (defun terrain-standard-role-placeholder-child [setup-id]
   (let [slot-size (terrain-standard-role-slot-size setup-id)]
@@ -2197,20 +2186,14 @@
    (ui/bind-state :selected-terrain-set-index)
    :selected-terrain-index
    (ui/bind-state :selected-terrain-index)
-   :rulesets (ui/bind-state :rulesets)
-   :selected-terrain-ruleset-id
-   (ui/bind-state :selected-terrain-ruleset-id)
    :selected-terrain-rule-id
    (ui/bind-state :selected-terrain-rule-id)
    :terrain-rule-selected-tile
    (ui/bind-state :terrain-rule-selected-tile)
-   :terrain-standard-opposing
-   (ui/bind-state :terrain-standard-opposing)
-   :tilesets (ui/bind-state :tilesets)
-   :layers (ui/bind-state :layers)
-   :layer-profiles (ui/bind-state :layer-profiles)
-   :selected-layer-profile-id
-   (ui/bind-state :selected-layer-profile-id)})
+   :terrain-standard-role-cache-opposing
+   (ui/bind-state :terrain-standard-role-cache-opposing)
+   :terrain-standard-role-slots
+   (ui/bind-state :terrain-standard-role-slots)})
 
 (defun terrain-standard-setup-panel-child [setup]
   {:mode 'terrain-standard-setup-panel
@@ -2221,6 +2204,100 @@
                      (map (:matrix setup)
                           (fn [row]
                             (terrain-standard-setup-row-child setup row))))})
+
+(def terrain-standard-setup-panel-row-ids
+  [[:island-3x3 :inner-corners :isolated]
+   [:ring :forks-cardinal :forks-diagonal]
+   [:stumps]])
+
+(defun terrain-standard-setup-panel-group-row-child [setup-ids]
+  {:style {:width :fill
+           :height :shrink
+           :layout {:direction :row
+                    :align-items :start
+                    :gap terrain-standard-setup-panel-column-gap}}
+   :state (ui/bind-state)
+   :children (map setup-ids
+                  (fn [setup-id]
+                    (terrain-standard-setup-panel-child
+                     (model/terrain-standard-setup setup-id))))})
+
+(defun terrain-standard-setup-panel-groups-content-child []
+  {:style {:width :fill
+           :height :shrink
+           :layout {:direction :column
+                    :gap terrain-standard-setup-panel-row-gap}}
+   :state (ui/bind-state)
+   :children (map terrain-standard-setup-panel-row-ids
+                  terrain-standard-setup-panel-group-row-child)})
+
+(defun terrain-standard-setup-panel-scroll-content-style [state]
+  {:position :absolute
+   :left 0
+   :top (* -1 (or (:offset state) 0))
+   :width :fill
+   :height terrain-standard-setup-panel-content-height})
+
+(defcomponent terrain-standard-setup-panel-scroll-viewport
+  {:style {:width :fill
+           :height :fill
+           :clip true}
+   :update (fn [state ctx]
+             (let [children (ui/children ctx)]
+               (do
+                 (when (> (count children) 0)
+                   (ui/style! (nth children 0)
+                              (terrain-standard-setup-panel-scroll-content-style
+                               state)))
+                 state)))
+   :children [(terrain-standard-setup-panel-groups-content-child)]})
+
+(defcomponent terrain-standard-setup-panel-scroll-row
+  {:style {:width :fill
+           :height :fill
+           :layout {:direction :row}}
+   :init (fn [state ctx]
+           (assoc state
+                  :offset 0
+                  :content-height terrain-standard-setup-panel-content-height))
+   :children [{:mode 'terrain-standard-setup-panel-scroll-viewport
+               :state {:offset (ui/bind-state :offset)
+                       :terrain-sets (ui/bind-state :terrain-sets)
+                       :selected-terrain-set-index
+                       (ui/bind-state :selected-terrain-set-index)
+                       :selected-terrain-index
+                       (ui/bind-state :selected-terrain-index)
+                       :selected-terrain-rule-id
+                       (ui/bind-state :selected-terrain-rule-id)
+                       :terrain-rule-selected-tile
+                       (ui/bind-state :terrain-rule-selected-tile)
+                       :terrain-standard-role-cache-opposing
+                       (ui/bind-state :terrain-standard-role-cache-opposing)
+                       :terrain-standard-role-slots
+                       (ui/bind-state :terrain-standard-role-slots)}}
+              {:mode 'ui/scrollbar
+               :class :scrollbar/v
+               :style {:height :fill}
+               :state {:axis :y
+                       :value (ui/bind-state :offset)
+                       :step 48
+                       :content-size (ui/bind-state :content-height)}}]})
+
+(defun terrain-standard-setup-panel-groups-child []
+  {:mode 'terrain-standard-setup-panel-scroll-row
+   :state {:terrain-sets (ui/bind-state :terrain-sets)
+           :selected-terrain-set-index
+           (ui/bind-state :selected-terrain-set-index)
+           :selected-terrain-index
+           (ui/bind-state :selected-terrain-index)
+           :selected-terrain-rule-id
+           (ui/bind-state :selected-terrain-rule-id)
+           :terrain-rule-selected-tile
+           (ui/bind-state :terrain-rule-selected-tile)
+           :terrain-standard-role-cache-opposing
+           (ui/bind-state :terrain-standard-role-cache-opposing)
+           :terrain-standard-role-slots
+           (ui/bind-state :terrain-standard-role-slots)}})
 
 (defcomponent terrain-standard-opposing-selector
   {:style {:width 180
@@ -2277,13 +2354,9 @@
                                                (ui/bind-state
                                                 :selected-terrain-index)}}]}
                           {:style {:width :fill
-                                   :height :shrink
-                                   :layout {:direction :row
-                                            :align-items :start
-                                            :gap 20}}
+                                   :height :fill}
                            :state (ui/bind-state)
-                           :children (map model/terrain-standard-setup-definitions
-                                          terrain-standard-setup-panel-child)}]}
+                           :children [(terrain-standard-setup-panel-groups-child)]}]}
               {:mode 'terrain-stamp-tile-picker-scroll-pane
                :state {:rulesets (ui/bind-state :rulesets)
                        :selected-terrain-ruleset-id
@@ -2729,6 +2802,10 @@
             (ui/bind-state :terrain-rule-editor-tab)
             :terrain-standard-opposing
             (ui/bind-state :terrain-standard-opposing)
+            :terrain-standard-role-cache-opposing
+            (ui/bind-state :terrain-standard-role-cache-opposing)
+            :terrain-standard-role-slots
+            (ui/bind-state :terrain-standard-role-slots)
             :rule-add-disabled?
             (ui/bind-state :rule-add-disabled?)}
     :tabs [{:id :rules
@@ -2805,6 +2882,10 @@
             (ui/bind-state :terrain-rule-editor-tab)
             :terrain-standard-opposing
             (ui/bind-state :terrain-standard-opposing)
+            :terrain-standard-role-cache-opposing
+            (ui/bind-state :terrain-standard-role-cache-opposing)
+            :terrain-standard-role-slots
+            (ui/bind-state :terrain-standard-role-slots)
             :set-id (ui/bind-state :set-id)
             :set-label (ui/bind-state :set-label)
             :set-disabled? (ui/bind-state :set-disabled?)
@@ -2880,7 +2961,13 @@
                              :terrain-rule-editor-tab)
                             :terrain-standard-opposing
                             (ui/bind-state
-                             :terrain-standard-opposing)}}}]}))
+                             :terrain-standard-opposing)
+                            :terrain-standard-role-cache-opposing
+                            (ui/bind-state
+                             :terrain-standard-role-cache-opposing)
+                            :terrain-standard-role-slots
+                            (ui/bind-state
+                             :terrain-standard-role-slots)}}}]}))
 
 (defun terrain-detail-content-child [visible? terrain-tab-disabled?]
   (merge {:id "terrain-detail-content"}
@@ -2970,6 +3057,10 @@
                     (ui/bind-state :terrain-rule-editor-tab)
                     :terrain-standard-opposing
                     (ui/bind-state :terrain-standard-opposing)
+                    :terrain-standard-role-cache-opposing
+                    (ui/bind-state :terrain-standard-role-cache-opposing)
+                    :terrain-standard-role-slots
+                    (ui/bind-state :terrain-standard-role-slots)
                     :disabled? (ui/bind-state :terrain-detail-panel-disabled?)}
             :body-state {:terrain-sets (ui/bind-state :terrain-sets)
                          :tilesets (ui/bind-state :tilesets)
@@ -3001,7 +3092,11 @@
                          :terrain-rule-editor-tab
                          (ui/bind-state :terrain-rule-editor-tab)
                          :terrain-standard-opposing
-                         (ui/bind-state :terrain-standard-opposing)}
+                         (ui/bind-state :terrain-standard-opposing)
+                         :terrain-standard-role-cache-opposing
+                         (ui/bind-state :terrain-standard-role-cache-opposing)
+                         :terrain-standard-role-slots
+                         (ui/bind-state :terrain-standard-role-slots)}
             :children [{:mode 'terrain-detail-editor
                         :state {:terrain-sets (ui/bind-state :terrain-sets)
                                 :tilesets (ui/bind-state :tilesets)
@@ -3038,7 +3133,13 @@
                                  :terrain-rule-editor-tab)
                                 :terrain-standard-opposing
                                 (ui/bind-state
-                                 :terrain-standard-opposing)}}]}))
+                                 :terrain-standard-opposing)
+                                :terrain-standard-role-cache-opposing
+                                (ui/bind-state
+                                 :terrain-standard-role-cache-opposing)
+                                :terrain-standard-role-slots
+                                (ui/bind-state
+                                 :terrain-standard-role-slots)}}]}))
 
 (defcomponent terrain-definition-selector-column
   {:style {:width :fill
@@ -3085,6 +3186,10 @@
              (ui/bind-state :terrain-rule-editor-tab)
              :terrain-standard-opposing
              (ui/bind-state :terrain-standard-opposing)
+             :terrain-standard-role-cache-opposing
+             (ui/bind-state :terrain-standard-role-cache-opposing)
+             :terrain-standard-role-slots
+             (ui/bind-state :terrain-standard-role-slots)
              :terrain-list-panel-disabled?
              (ui/bind-state :terrain-list-panel-disabled?)
              :terrain-detail-panel-disabled?
@@ -3115,7 +3220,8 @@
        (model/selected-terrain-ruleset-id state))))
 
 (defun update-selected-ruleset-preview [state update-fn]
-  (refresh-selected-ruleset-preview-after state (update-fn state)))
+  (model/clear-terrain-standard-role-slot-cache
+   (refresh-selected-ruleset-preview-after state (update-fn state))))
 
 (defun terrain-stamp-tile-drag-preview-payload [payload ctx]
   (let [position (:position payload)

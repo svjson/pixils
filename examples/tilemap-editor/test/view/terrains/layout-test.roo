@@ -141,7 +141,7 @@
            (-> items head :selected-path)))
     (is (= 'terrain-standard-setup-panel (:mode panel)))
     (is (= :island-3x3 (-> panel :state :setup-id)))
-    (is (= true (contains? (:state panel) :rulesets)))))
+    (is (= false (contains? (:state panel) :rulesets)))))
 
 (deftest terrain-standard-role-markers-use_not_same_match_directions
   (is (= [:n]

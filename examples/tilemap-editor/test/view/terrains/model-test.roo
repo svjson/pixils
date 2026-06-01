@@ -1407,11 +1407,21 @@
                                :terrains [{:id :grass}]}]
                :selected-terrain-set-index 0
                :selected-terrain-index 0}]
-    (is (= [:island-3x3 :inner-corners :isolated]
+    (is (= [:island-3x3
+            :inner-corners
+            :isolated
+            :ring
+            :forks-cardinal
+            :forks-diagonal
+            :stumps]
            (model/selected-terrain-standard-setup-ids state)))
     (is (= true (model/terrain-standard-setup-visible? state :island-3x3)))
     (is (= true (model/terrain-standard-setup-visible? state :inner-corners)))
-    (is (= true (model/terrain-standard-setup-visible? state :isolated)))))
+    (is (= true (model/terrain-standard-setup-visible? state :isolated)))
+    (is (= true (model/terrain-standard-setup-visible? state :ring)))
+    (is (= true (model/terrain-standard-setup-visible? state :forks-cardinal)))
+    (is (= true (model/terrain-standard-setup-visible? state :forks-diagonal)))
+    (is (= true (model/terrain-standard-setup-visible? state :stumps)))))
 
 (deftest terrain-standard-setup-visibility-is_stored_per_terrain
   (let [state (model/set-selected-terrain-standard-setup-visible
@@ -1423,13 +1433,29 @@
                :inner-corners
                false)
         water-state (assoc state :selected-terrain-index 1)]
-    (is (= [:island-3x3 :isolated]
+    (is (= [:island-3x3
+            :isolated
+            :ring
+            :forks-cardinal
+            :forks-diagonal
+            :stumps]
            (get-in state
                    [:terrain-sets 0 :terrains 0
                     :visible-terrain-standard-setups])))
-    (is (= [:island-3x3 :isolated]
+    (is (= [:island-3x3
+            :isolated
+            :ring
+            :forks-cardinal
+            :forks-diagonal
+            :stumps]
            (model/selected-terrain-standard-setup-ids state)))
-    (is (= [:island-3x3 :inner-corners :isolated]
+    (is (= [:island-3x3
+            :inner-corners
+            :isolated
+            :ring
+            :forks-cardinal
+            :forks-diagonal
+            :stumps]
            (model/selected-terrain-standard-setup-ids water-state)))))
 
 (deftest terrain-standard-isolated_roles_match_direction_sets
@@ -1460,6 +1486,136 @@
           :s :ignore
           :se {:terrain :water}}
          (model/terrain-standard-role-match :isolated-diagonal :water))))
+
+(deftest terrain-standard-island_corner_roles_include_inward_diagonal
+  (is (= {:nw :ignore
+          :n :none
+          :ne :ignore
+          :w :none
+          :e :same
+          :sw :ignore
+          :s :same
+          :se :same}
+         (model/terrain-standard-role-match :nw :none)))
+  (is (= {:nw :same
+          :n :same
+          :ne :ignore
+          :w :same
+          :e {:terrain :water}
+          :sw :ignore
+          :s {:terrain :water}
+          :se :ignore}
+         (model/terrain-standard-role-match :se :water))))
+
+(deftest terrain-standard-ring_roles_match_bends_and_straights
+  (let [setup (model/terrain-standard-setup :ring)]
+    (is (= [:ring-bend-se
+            :ring-straight-h
+            :ring-bend-sw
+            :ring-straight-v
+            :ring-bend-ne
+            :ring-bend-nw]
+           (map (:roles setup) :id)))
+    (is (= [[:ring-bend-se :ring-straight-h :ring-bend-sw]
+            [:ring-straight-v nil nil]
+            [:ring-bend-ne nil :ring-bend-nw]]
+           (:matrix setup))))
+  (is (= {:nw :ignore
+          :n :none
+          :ne :ignore
+          :w :same
+          :e :same
+          :sw :ignore
+          :s :none
+          :se :ignore}
+         (model/terrain-standard-role-match :ring-straight-h :none)))
+  (is (= {:nw {:terrain :water}
+          :n {:terrain :water}
+          :ne {:terrain :water}
+          :w {:terrain :water}
+          :e :same
+          :sw {:terrain :water}
+          :s :same
+          :se {:terrain :water}}
+         (model/terrain-standard-role-match :ring-bend-se :water)))
+  (is (= {:nw {:terrain :water}
+          :n :same
+          :ne {:terrain :water}
+          :w :same
+          :e {:terrain :water}
+          :sw {:terrain :water}
+          :s {:terrain :water}
+          :se {:terrain :water}}
+         (model/terrain-standard-role-match :ring-bend-nw :water))))
+
+(deftest terrain-standard_cardinal_fork_roles_ignore_diagonals
+  (is (= {:nw :ignore
+          :n :same
+          :ne :ignore
+          :w :none
+          :e :same
+          :sw :ignore
+          :s :same
+          :se :ignore}
+         (model/terrain-standard-role-match :fork-nes :none)))
+  (is (= {:nw :ignore
+          :n :same
+          :ne :ignore
+          :w :same
+          :e :same
+          :sw :ignore
+          :s :same
+          :se :ignore}
+         (model/terrain-standard-role-match :fork-nesw :any-other))))
+
+(deftest terrain-standard_diagonal_fork_roles_include_between_arm_diagonals
+  (is (= {:nw :ignore
+          :n :same
+          :ne :same
+          :w :other-terrain
+          :e :same
+          :sw :ignore
+          :s :same
+          :se :same}
+         (model/terrain-standard-role-match :fork-diagonal-nes :any-other)))
+  (is (= {:nw :ignore
+          :n :same
+          :ne :ignore
+          :w :same
+          :e :same
+          :sw :ignore
+          :s :same
+          :se :ignore}
+         (model/terrain-standard-role-match :fork-diagonal-nesw :water))))
+
+(deftest terrain-standard-stump_roles_match_exactly_one_neighbor
+  (is (= {:nw :none
+          :n :none
+          :ne :none
+          :w :none
+          :e :none
+          :sw :none
+          :s :same
+          :se :none}
+         (model/terrain-standard-role-match :stump-n :none)))
+  (is (= {:nw {:terrain :water}
+          :n {:terrain :water}
+          :ne {:terrain :water}
+          :w :same
+          :e {:terrain :water}
+          :sw {:terrain :water}
+          :s {:terrain :water}
+          :se {:terrain :water}}
+         (model/terrain-standard-role-match :stump-e :water)))
+  (is (= {:nw :same
+          :n {:terrain :water}
+          :ne {:terrain :water}
+          :w {:terrain :water}
+          :e {:terrain :water}
+          :sw {:terrain :water}
+          :s {:terrain :water}
+          :se {:terrain :water}}
+         (model/terrain-standard-role-match :stump-se :water))))
 
 (deftest terrain-standard-role-tile-inserts_created_rule_after_more_specific_rule
   (let [state (model/set-terrain-standard-role-tile
