@@ -78,6 +78,12 @@
      :w size
      :h size}))
 
+(defun grid-line-position [index max-count tile-size offset]
+  (let [position (- (* index tile-size) (or offset 0))]
+    (if (= index max-count)
+      (dec position)
+      position)))
+
 (defun layer-cell-tile [tileset-definitions terrain-sets layer tile-ref]
   (if (= (:data-kind layer) :terrain)
     (data/terrain-tile-in tileset-definitions
@@ -102,10 +108,26 @@
                 (draw-tile! tile (tile-rect x y offset zoom))))))))))
 
 (defun render-grid-overlay! [offset zoom width height]
-  (dotimes [y height]
-    (dotimes [x width]
-      (r/rect! (tile-rect x y offset zoom)
-               {:color {:r 0x12 :g 0x15 :b 0x18}}))))
+  (let [tile-size (tm/scaled-tile-size {:tile-size data/tile-size} zoom)
+        offset (or offset {:x 0 :y 0})
+        left (grid-line-position 0 width tile-size (:x offset))
+        right (grid-line-position width width tile-size (:x offset))
+        top (grid-line-position 0 height tile-size (:y offset))
+        bottom (grid-line-position height height tile-size (:y offset))
+        color {:r 0x12 :g 0x15 :b 0x18}]
+    (when (and (> width 0)
+               (> height 0))
+      (do
+        (dotimes [x-index (inc width)]
+          (let [x (grid-line-position x-index width tile-size (:x offset))]
+            (r/line! {:x x :y top}
+                     {:x x :y bottom}
+                     color)))
+        (dotimes [y-index (inc height)]
+          (let [y (grid-line-position y-index height tile-size (:y offset))]
+            (r/line! {:x left :y y}
+                     {:x right :y y}
+                     color)))))))
 
 (defun render-layers! [tileset-definitions terrain-sets layers hidden-layer-indices offset zoom show-grid? width height]
   (do

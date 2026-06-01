@@ -218,6 +218,16 @@
        :y (- (:y offset) (or (:y target-rect) 0))}
       offset)))
 
+(defun grid-line-position [index max-count tile-size offset]
+  (let [position (- (* index tile-size) (or offset 0))]
+    (if (= index max-count)
+      (dec position)
+      position)))
+
+(defun grid-line-span [range max-count tile-size offset]
+  {:start (grid-line-position (:start range) max-count tile-size offset)
+   :end (grid-line-position (:end range) max-count tile-size offset)})
+
 (defun render-layer! [tilemap tilesets prepared-tilesets terrain-sets layer offset zoom tile-substitutions ranges]
   (let [layer (prepared-layer prepared-tilesets layer)
         tiles (:tiles layer)
@@ -255,13 +265,40 @@
   (let [x-range (:x ranges)
         y-range (:y ranges)
         x-start (:start x-range)
-        y-start (:start y-range)]
-    (dotimes [dy (- (:end y-range) y-start)]
-      (let [y (+ y-start dy)]
-        (dotimes [dx (- (:end x-range) x-start)]
-          (let [x (+ x-start dx)]
-            (r/rect! (tm/tile-rect tilemap x y offset zoom)
-                     {:color tm/default-grid-color})))))))
+        y-start (:start y-range)
+        x-count (- (:end x-range) x-start)
+        y-count (- (:end y-range) y-start)
+        tile-size (tm/scaled-tile-size tilemap zoom)
+        offset (or offset tm/default-offset)
+        x-span (grid-line-span x-range
+                               (tm/map-width tilemap)
+                               tile-size
+                               (:x offset))
+        y-span (grid-line-span y-range
+                               (tm/map-height tilemap)
+                               tile-size
+                               (:y offset))]
+    (when (and (> x-count 0)
+               (> y-count 0))
+      (do
+        (dotimes [dx (inc x-count)]
+          (let [x-index (+ x-start dx)
+                x (grid-line-position x-index
+                                      (tm/map-width tilemap)
+                                      tile-size
+                                      (:x offset))]
+            (r/line! {:x x :y (:start y-span)}
+                     {:x x :y (:end y-span)}
+                     tm/default-grid-color)))
+        (dotimes [dy (inc y-count)]
+          (let [y-index (+ y-start dy)
+                y (grid-line-position y-index
+                                      (tm/map-height tilemap)
+                                      tile-size
+                                      (:y offset))]
+            (r/line! {:x (:start x-span) :y y}
+                     {:x (:end x-span) :y y}
+                     tm/default-grid-color)))))))
 
 (defun render-visible-layers! [tilemap tilesets tileset-lookup terrain-sets layers hidden-layer-indices offset zoom tile-substitutions show-grid? ranges]
   (do

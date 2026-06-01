@@ -254,6 +254,34 @@
                                          :y 8}
                                         nil))))
 
+(deftest grid-line-position-keeps_internal_boundaries_on_tile_edges
+  (is (= 8
+         (renderer/grid-line-position 2 10 8 8)))
+  (is (= -1
+         (renderer/grid-line-position 1 10 8 9))))
+
+(deftest grid-line-position-keeps_final_map_edge_inside_bounds
+  (is (= 79
+         (renderer/grid-line-position 10 10 8 0)))
+  (is (= 70
+         (renderer/grid-line-position 10 10 8 9))))
+
+(deftest grid-line-span-uses_inclusive_draw_endpoints
+  (is (= {:start 0
+          :end 23}
+         (renderer/grid-line-span {:start 0
+                                   :end 3}
+                                  3
+                                  8
+                                  0)))
+  (is (= {:start -1
+          :end 15}
+         (renderer/grid-line-span {:start 1
+                                   :end 3}
+                                  10
+                                  8
+                                  9))))
+
 (deftest render-ranges-clamps_off_map_targets_to_empty_ranges
   (is (= {:x {:start 10
               :end 10}
