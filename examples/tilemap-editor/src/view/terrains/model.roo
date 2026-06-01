@@ -1943,6 +1943,20 @@
                role-id))
       (keyword-label role-id)))
 
+(defun terrain-standard-rule-setup-label [setup-id]
+  (case setup-id
+    :inner-corners "Inner corner"
+    :default
+    (or (:label (terrain-standard-setup setup-id))
+        (keyword-label setup-id))))
+
+(defun terrain-standard-rule-label [state setup-id role-id opposing]
+  (str (terrain-standard-rule-setup-label setup-id)
+       " "
+       (terrain-standard-role-label setup-id role-id)
+       " - "
+       (terrain-standard-opposing-label state opposing)))
+
 (def terrain-standard-opposing-none :none)
 (def terrain-standard-opposing-any-other :any-other)
 
@@ -2305,9 +2319,10 @@
         terrain (selected-terrain terrain-set (:selected-terrain-index state))]
     (if (and ruleset-id terrain-set terrain)
       (let [rule (assoc (make-terrain-rule state)
-                        :label (str (terrain-standard-role-label setup-id role-id)
-                                    " - "
-                                    (terrain-standard-opposing-label state opposing))
+                        :label (terrain-standard-rule-label state
+                                                            setup-id
+                                                            role-id
+                                                            opposing)
                         :exclusive? true
                         :match (terrain-standard-role-match role-id opposing))
             rule (terrain-standard-rule-with-tile state

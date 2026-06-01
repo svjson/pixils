@@ -1319,7 +1319,7 @@
     (is (= :terrain-stamp (get-in state [:rulesets 0 :kind])))
     (is (= :scene/source (get-in state [:rulesets 0 :source-layer])))
     (is (= :rule (:id rule)))
-    (is (= "N - None" (:label rule)))
+    (is (= "Island N - None" (:label rule)))
     (is (= :grass (:terrain rule)))
     (is (= (model/terrain-standard-role-match :n :none) (:match rule)))
     (is (= true (:exclusive? rule)))
@@ -1367,6 +1367,40 @@
     (is (= false (:exclusive? (nth rules 1))))
     (is (= {:terrain :water}
            (get-in rules [0 :match :n])))))
+
+(deftest terrain-standard-rule-labels_include_semantic_setup_name
+  (let [outer-state (model/set-terrain-standard-role-tile
+                     {:terrain-sets [{:id :overworld
+                                      :tileset :terrain
+                                      :terrains [{:id :grass
+                                                  :tile :grass-fill}]}]
+                      :tilesets [{:id :terrain
+                                  :tiles [{:id :grass-fill}
+                                          {:id :edge}]}]
+                      :selected-terrain-set-index 0
+                      :selected-terrain-index 0}
+                     :island-3x3
+                     :nw
+                     :none
+                     :edge)
+        inner-state (model/set-terrain-standard-role-tile
+                     {:terrain-sets [{:id :overworld
+                                      :tileset :terrain
+                                      :terrains [{:id :grass
+                                                  :tile :grass-fill}]}]
+                      :tilesets [{:id :terrain
+                                  :tiles [{:id :grass-fill}
+                                          {:id :inner}]}]
+                      :selected-terrain-set-index 0
+                      :selected-terrain-index 0}
+                     :inner-corners
+                     :inner-nw
+                     :none
+                     :inner)]
+    (is (= "Island NW - None"
+           (get-in outer-state [:rulesets 0 :rules 0 :label])))
+    (is (= "Inner corner NW - None"
+           (get-in inner-state [:rulesets 0 :rules 0 :label])))))
 
 (deftest terrain-standard-role-tile-inserts_created_rule_after_more_specific_rule
   (let [state (model/set-terrain-standard-role-tile
