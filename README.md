@@ -132,6 +132,8 @@ Roo components, so applications can use them like any other mode.
 | `ui/file-dialog-body` | File chooser body used by `pixils.ui.file-dialog/open-file-dialog!`. |
 | `ui/icon` | Focusable visual item primitive with selection, activation, and drag events. |
 | `ui/icon-preview` | Non-hit-tested overlay primitive for rendering a dragged icon representation. |
+| `ui/desktop-icon` | Desktop-style icon composed from an image and centered label. |
+| `ui/desktop-icon-preview` | Non-hit-tested desktop-icon variant for drag previews. |
 | `ui/icon-container` | Fill-sized drop surface that turns icon drag releases into generic drop events. |
 
 `ui/toggle-button` is a subtype of `ui/button`. It accepts the same public
@@ -368,6 +370,54 @@ coordinator/drop surface: when an icon drag is released over it, it emits
 comes from container state `:target` or `:path`. Applications decide what the
 item and drop mean; filesystem moves, ownership, and persistence are not part of
 the core icon components.
+
+`ui/desktop-icon` extends `ui/icon` with stock image and label children. Its
+update step derives `:image` from `(:image item)` or state `:image`, derives
+`:label` from `(:label item)`, `(:title item)`, `(:name item)`, or state
+`:label`, and marks the icon selected when state `:selected?` is true or when
+`:selected-id` matches the item `:id`.
+
+The `pixils.ui.desktop-icon/make-desktop-icon` make function creates a complete
+desktop icon definition from the data needed to wire those children:
+
+```clojure
+(ns app.desktop
+  (:require [pixils.ui :as ui]
+            [pixils.ui.desktop-icon :as desktop-icon]
+            [pixils.ui.drag :as drag]))
+
+(drag/make-draggable
+ (desktop-icon/make-desktop-icon
+  {:item {:id :readme
+          :label "README"
+          :image :app/readme-icon
+          :position {:x 32 :y 32}}
+   :selected-id (ui/bind-state :selected-id)
+   :style {:cursor :pointer}
+   :icon {:style {:width 32
+                  :height 32}}
+   :label {:style {:width 72}}})
+ {:start-event :ui/icon-drag-start
+  :move-event :ui/icon-drag-move
+  :end-event :ui/icon-drag-end})
+```
+
+Top-level `:item`, `:image`, `:position`, `:selected-id`, `:selected?`, and
+non-map `:label` entries are copied into component state. Use `:state` when
+state should be bound or supplied as a map. If label-child options are also
+needed, put the display label in `:item` or `:state`, because a map-valued
+top-level `:label` configures the label child.
+
+The optional `:icon` and `:label` maps customize the generated image and label
+children. Each accepts `:mode`, `:style`, `:state`, and `:state-keys`.
+`:state-keys` defaults to `[:image :dragging?]` for `:icon` and
+`[:label :selected]` for `:label`; listed keys are bound from the desktop icon
+state into the child state. `make-desktop-icon` also passes through `:init`,
+`:update`, `:on`, `:on-click`, `:on-double-click`, and `:on-drop`.
+
+Use `pixils.ui.desktop-icon/make-desktop-icon-preview` for drag overlays. It
+accepts the same options but extends `ui/desktop-icon-preview`, which inherits
+the same desktop icon rendering while disabling hit testing.
 
 **Hook signatures**
 

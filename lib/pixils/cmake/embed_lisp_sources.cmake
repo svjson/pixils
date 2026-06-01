@@ -23,6 +23,8 @@ set(PIXILS_BOOTSTRAP_LISP_FILES
   ui/combo-box.roo
   ui/text-input.roo
   ui/number-input.roo
+  ui/icon.roo
+  ui/desktop-icon.roo
   ui/file-dialog.roo
 )
 

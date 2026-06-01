@@ -164,6 +164,123 @@ TEST_F(IconTest, desktop_icon_item_values_replace_previous_derived_values)
   EXPECT_EQ(image_value->to_string(), ":items/fresh");
 }
 
+TEST_F(IconTest, make_desktop_icon_functions_construct_icon_and_preview)
+{
+  runtime.eval(R"(
+    (pixils/defcomponent test/desktop-icon-image
+      {:style {:width 20
+               :height 10}})
+
+    (pixils/defmode root-mode
+      {:children [(pixils.ui.desktop-icon/make-desktop-icon
+                   {:item {:id :disk
+                           :label "Disk"
+                           :image :items/disk}
+                    :selected-id :disk
+                    :icon {:mode 'test/desktop-icon-image
+                           :state-keys [:item]}})
+                  (pixils.ui.desktop-icon/make-desktop-icon-preview
+                   {:item {:id :dragged
+                           :label "Dragged"
+                           :image :items/dragged}
+                    :selected? true
+                    :position {:x 12 :y 14}})]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  session.update_mode();
+  session.render_mode();
+
+  ASSERT_EQ(session.active_mode->children.size(), 2u);
+  auto icon = session.active_mode->children[0];
+  auto preview = session.active_mode->children[1];
+  ASSERT_NE(icon, nullptr);
+  ASSERT_NE(preview, nullptr);
+  ASSERT_NE(icon->mode, nullptr);
+  ASSERT_NE(preview->mode, nullptr);
+  EXPECT_EQ(icon->mode->name, "ui/desktop-icon");
+  EXPECT_EQ(preview->mode->name, "ui/desktop-icon-preview");
+  EXPECT_EQ(preview->bounds.x, 12);
+  EXPECT_EQ(preview->bounds.y, 14);
+
+  ASSERT_EQ(icon->children.size(), 2u);
+  auto image = icon->children[0];
+  ASSERT_NE(image, nullptr);
+  ASSERT_NE(image->mode, nullptr);
+  EXPECT_EQ(image->mode->name, "test/desktop-icon-image");
+
+  auto icon_item = Roo::Dict::get_property(icon->state, Roo::keyword("item"));
+  auto image_item = Roo::Dict::get_property(image->state, Roo::keyword("item"));
+  auto selected_id = Roo::Dict::get_property(icon->state, Roo::keyword("selected-id"));
+  auto preview_selected =
+    Roo::Dict::get_property(preview->state, Roo::keyword("selected"));
+  ASSERT_NE(icon_item, nullptr);
+  ASSERT_NE(image_item, nullptr);
+  ASSERT_NE(selected_id, nullptr);
+  ASSERT_NE(preview_selected, nullptr);
+  EXPECT_EQ(selected_id->to_string(), ":disk");
+  EXPECT_EQ(image_item->to_string(), icon_item->to_string());
+  EXPECT_EQ(preview_selected->to_string(), "true");
+}
+
+TEST_F(IconTest, make_desktop_icon_can_be_wrapped_with_drag_behavior)
+{
+  runtime.eval(R"(
+    (pixils/defmode root-mode
+      {:children [(pixils.ui.drag/make-draggable
+                   (pixils.ui.desktop-icon/make-desktop-icon
+                    {:item {:id :disk
+                            :label "Disk"}})
+                   {:start-event :test/drag-start
+                    :move-event :test/drag-move
+                    :end-event :test/drag-end})]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  session.update_mode();
+  session.render_mode();
+
+  ASSERT_EQ(session.active_mode->children.size(), 1u);
+  auto icon = session.active_mode->children[0];
+  ASSERT_NE(icon, nullptr);
+  ASSERT_NE(icon->mode, nullptr);
+  EXPECT_EQ(icon->mode->name, "ui/desktop-icon");
+  ASSERT_TRUE(icon->mode->drag.has_value());
+  ASSERT_NE(icon->mode->on_drag_start, nullptr);
+  ASSERT_NE(icon->mode->on_drag, nullptr);
+  ASSERT_NE(icon->mode->on_drag_end, nullptr);
+  ASSERT_EQ(icon->children.size(), 2u);
+}
+
+TEST_F(IconTest, make_desktop_icon_preview_preserves_bound_state_with_label_options)
+{
+  runtime.eval(R"(
+    (pixils/defmode root-mode
+      {:init (fn [state ctx]
+               {:drag-preview {:item {:id :disk
+                                      :label "Disk"}
+                               :position {:x 8 :y 9}}})
+       :children [(pixils.ui.desktop-icon/make-desktop-icon-preview
+                   {:state (pixils.ui/bind-state :drag-preview)
+                    :label {:style {:height 12}}})]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  session.update_mode();
+  session.render_mode();
+
+  ASSERT_EQ(session.active_mode->children.size(), 1u);
+  auto preview = session.active_mode->children[0];
+  ASSERT_NE(preview, nullptr);
+  auto item = Roo::Dict::get_property(preview->state, Roo::keyword("item"));
+  auto label = Roo::Dict::get_property(preview->state, Roo::keyword("label"));
+  ASSERT_NE(item, nullptr);
+  ASSERT_NE(label, nullptr);
+  EXPECT_EQ(label->to_string(), "\"Disk\"");
+  EXPECT_EQ(preview->bounds.x, 8);
+  EXPECT_EQ(preview->bounds.y, 9);
+}
+
 TEST_F(IconTest, make_draggable_adds_drag_policy_to_arbitrary_child)
 {
   runtime.eval(R"(

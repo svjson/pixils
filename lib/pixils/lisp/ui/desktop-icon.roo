@@ -1,0 +1,176 @@
+(ns pixils.ui.desktop-icon
+  (:require pixils
+            [pixils.ui :as ui]
+            [pixils.ui.icon :as icon]))
+
+
+
+;; Desktop icon: a focusable/selectable icon with a label underneath.
+
+(def desktop-icon-default-image-size 64)
+
+(defun desktop-icon-label [state]
+  (or (:label (icon/icon-item state))
+      (:title (icon/icon-item state))
+      (:name (icon/icon-item state))
+      (:label state)
+      ""))
+
+(defun desktop-icon-image [state]
+  (or (:image (icon/icon-item state))
+      (:image state)))
+
+(defun desktop-icon-selected? [state]
+  (or (= (:selected? state) true)
+      (and (not (nil? (:selected-id state)))
+           (not (nil? (:id (icon/icon-item state))))
+           (= (:id (icon/icon-item state))
+              (:selected-id state)))))
+
+(defun update-desktop-icon! [state ctx]
+  (let [pos (icon/icon-position state)
+        next-state (assoc state
+                          :label (desktop-icon-label state)
+                          :image (desktop-icon-image state)
+                          :selected (desktop-icon-selected? state))]
+    (do
+      (when pos
+        (ui/style! (:view ctx)
+                   {:position :absolute
+                    :left (:x pos)
+                    :top (:y pos)}))
+      (ui/style! (:view ctx)
+                 {:hidden (icon/icon-hidden? state)})
+      next-state)))
+
+(defcomponent ui/desktop-icon-image
+  {:class :ui/desktop-icon-image
+   :style {:width desktop-icon-default-image-size
+           :height desktop-icon-default-image-size
+           :background {:fit :contain
+                        :align :center}}
+   :update (fn [state ctx]
+             (do
+               (if (keyword? (:image state))
+                 (ui/style! (:view ctx)
+                            {:background {:image (:image state)
+                                          :fit :contain
+                                          :align :center}
+                             :hidden false})
+                 (ui/style! (:view ctx)
+                            {:background nil
+                             :hidden true}))
+               (ui/style! (:view ctx)
+                          {:opacity (if (:dragging? state) 0.4 1.0)})
+               state))})
+
+(defcomponent ui/desktop-icon-label
+  {:class :ui/desktop-icon-label
+   :style {:width :fill
+           :margin {:t 6}
+           :padding {:l 3 :r 3}
+           :layout {:align-items :center}
+           :text {:align :center}}
+   :update (fn [state ctx]
+             (assoc state :selected (= (:selected state) true)))
+   :children [{:class :ui/desktop-icon-label-box
+               :style {:width :shrink
+                       :layout {:align-items :center}
+                       :text {:align :center}}
+               :state {:value (ui/bind-state :label)
+                       :selected (ui/bind-state :selected)}
+               :update (fn [state ctx]
+                         (assoc state :selected (= (:selected state) true)))
+               :children [{:mode 'ui/text
+                           :class :ui/desktop-icon-label-text
+                           :style {:text {:align :center}}
+                           :state {:value (ui/bind-state :value)}}]}]})
+
+(defun bound-state-keys [keys]
+  (reduce (or keys [])
+          {}
+          (fn [out key]
+            (assoc out key (ui/bind-state key)))))
+
+(defun desktop-icon-image-child [opts]
+  (let [icon (or (:icon opts) {})]
+    {:mode (or (:mode icon) 'ui/desktop-icon-image)
+     :style (or (:style icon) {})
+     :state (merge (bound-state-keys (or (:state-keys icon)
+                                         [:image :dragging?]))
+                   (or (:state icon) {}))}))
+
+(defun desktop-icon-label-child [opts]
+  (let [label (or (:label opts) {})]
+    {:mode (or (:mode label) 'ui/desktop-icon-label)
+     :style (or (:style label) {})
+     :state (merge (bound-state-keys (or (:state-keys label)
+                                         [:label :selected]))
+                   (or (:state label) {}))}))
+
+(defun desktop-icon-children [opts]
+  [(desktop-icon-image-child opts)
+   (desktop-icon-label-child opts)])
+
+(defun desktop-icon-state [opts]
+  (let [s0 (or (:state opts) {})
+        s1 (if (contains? opts :item) (assoc s0 :item (:item opts)) s0)
+        s2 (if (and (contains? opts :label)
+                    (not (= (type-of (:label opts)) "map")))
+             (assoc s1 :label (:label opts))
+             s1)
+        s3 (if (contains? opts :image) (assoc s2 :image (:image opts)) s2)
+        s4 (if (contains? opts :position) (assoc s3 :position (:position opts)) s3)
+        s5 (if (contains? opts :selected-id) (assoc s4 :selected-id (:selected-id opts)) s4)
+        s6 (if (contains? opts :selected?) (assoc s5 :selected? (:selected? opts)) s5)
+        s7 (if (contains? opts :dragging?) (assoc s6 :dragging? (:dragging? opts)) s6)]
+    s7))
+
+(defcomponent ui/desktop-icon
+  {:extend 'ui/icon
+   :class :ui/desktop-icon
+   :style {:width :shrink
+           :height :shrink
+           :padding 6
+           :layout {:align-items :center}}
+   :update update-desktop-icon!
+   :children (desktop-icon-children {})})
+
+(defcomponent ui/desktop-icon-preview
+  {:extend 'ui/icon-preview
+   :class :ui/desktop-icon-preview
+   :style {:width :shrink
+           :height :shrink
+           :padding 6
+           :layout {:align-items :center}
+           :hit-test false}
+   :update update-desktop-icon!
+   :children (desktop-icon-children {})})
+
+
+
+;; Make functions
+
+(defun make-desktop-icon [{:keys [style init update on on-click on-double-click on-drop] :as opts}]
+  (merge {:extend 'ui/desktop-icon
+          :style (or style {})
+          :state (desktop-icon-state opts)
+          :children (desktop-icon-children opts)}
+         (if init {:init init} {})
+         (if update {:update update} {})
+         (if on {:on on} {})
+         (if on-click {:on-click on-click} {})
+         (if on-double-click {:on-double-click on-double-click} {})
+         (if on-drop {:on-drop on-drop} {})))
+
+(defun make-desktop-icon-preview [{:keys [style init update on on-click on-double-click on-drop] :as opts}]
+  (merge {:extend 'ui/desktop-icon-preview
+          :style (or style {})
+          :state (desktop-icon-state opts)
+          :children (desktop-icon-children opts)}
+         (if init {:init init} {})
+         (if update {:update update} {})
+         (if on {:on on} {})
+         (if on-click {:on-click on-click} {})
+         (if on-double-click {:on-double-click on-double-click} {})
+         (if on-drop {:on-drop on-drop} {})))
