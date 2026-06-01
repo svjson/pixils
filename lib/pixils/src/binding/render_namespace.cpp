@@ -510,26 +510,20 @@ namespace Pixils::Script
       }
       else
       {
-        SDL_RenderDrawLine(rc.renderer,
-                           top_left.round_x(),
-                           top_left.round_y(),
-                           bottom_right.round_x(),
-                           top_left.round_y());
-        SDL_RenderDrawLine(rc.renderer,
-                           top_left.round_x(),
-                           bottom_right.round_y(),
-                           bottom_right.round_x(),
-                           bottom_right.round_y());
-        SDL_RenderDrawLine(rc.renderer,
-                           top_left.round_x(),
-                           top_left.round_y(),
-                           top_left.round_x(),
-                           bottom_right.round_y());
-        SDL_RenderDrawLine(rc.renderer,
-                           bottom_right.round_x(),
-                           top_left.round_y(),
-                           bottom_right.round_x(),
-                           bottom_right.round_y());
+        if (rect.w > 0 && rect.h > 0)
+        {
+          SDL_Rect top = {rect.x, rect.y, rect.w, 1};
+          SDL_Rect bottom = {rect.x, rect.y + rect.h - 1, rect.w, 1};
+          SDL_Rect left = {rect.x, rect.y, 1, rect.h};
+          SDL_Rect right = {rect.x + rect.w - 1, rect.y, 1, rect.h};
+
+          SDL_SetRenderDrawBlendMode(rc.renderer, SDL_BLENDMODE_BLEND);
+          SDL_RenderFillRect(rc.renderer, &top);
+          SDL_RenderFillRect(rc.renderer, &bottom);
+          SDL_RenderFillRect(rc.renderer, &left);
+          SDL_RenderFillRect(rc.renderer, &right);
+          SDL_SetRenderDrawBlendMode(rc.renderer, SDL_BLENDMODE_NONE);
+        }
       }
 
       return Roo::Constant::NIL;

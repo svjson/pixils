@@ -72,6 +72,29 @@ TEST_F(RenderTest, rect_accepts_inline_color_map_in_options)
   EXPECT_EQ(render_target()->render_ops.size(), 1u);
 }
 
+TEST_F(RenderTest, rect_outline_draws_edges_inside_rect_bounds)
+{
+  // Given
+  runtime.eval(R"(
+    (pixils/defmode test-mode {
+      :render (fn [state ctx]
+                (pixils.render/rect!
+                  {:x 2 :y 3 :w 4 :h 5}
+                  {:color {:r 200 :g 0 :b 0}}))
+    })
+  )");
+  session.push_mode("test-mode", Roo::Constant::NIL);
+
+  // When / Then
+  ASSERT_NO_THROW(session.render_mode());
+  auto& ops = render_target()->render_ops;
+  ASSERT_EQ(ops.size(), 4u);
+  EXPECT_TRUE(has_fill_rect(ops, SDL_Rect{2, 3, 4, 1}));
+  EXPECT_TRUE(has_fill_rect(ops, SDL_Rect{2, 7, 4, 1}));
+  EXPECT_TRUE(has_fill_rect(ops, SDL_Rect{2, 3, 1, 5}));
+  EXPECT_TRUE(has_fill_rect(ops, SDL_Rect{5, 3, 1, 5}));
+}
+
 TEST_F(RenderTest, with_clip_rect_restores_previous_clip)
 {
   // Given
