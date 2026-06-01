@@ -57,6 +57,7 @@
 
             :ui/desktop-icon-label-box {:width :fill
                                         :height :fill
+                                        :padding 1
                                         :text {:color black}}
 
             '(:ui/desktop-icon-label-box {:selected true})

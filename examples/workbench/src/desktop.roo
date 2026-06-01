@@ -99,8 +99,8 @@
                        :desktop-selected-id (ui/bind-state :desktop-selected-id)
                        :window (ui/bind-state :window)
                        :message (ui/bind-state :message)}}
-              {:mode 'workbench-icon-preview
-               :state (ui/bind-state :drag-preview)}]
+              (workbench.icon/workbench-icon-preview
+               {:state (ui/bind-state :drag-preview)})]
    :on {:workbench/open-path (fn [state event ctx]
                                (let [entry (:payload event)
                                      path (:path entry)

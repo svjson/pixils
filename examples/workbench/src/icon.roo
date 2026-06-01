@@ -2,7 +2,7 @@
   (:require pixils
             [pixils.render :as r]
             [pixils.ui :as ui]
-            [pixils.ui.icon :as icon]
+            [pixils.ui.desktop-icon :as desktop-icon]
             [pixils.ui.drag :as drag]))
 
 
@@ -27,72 +27,67 @@
   (nil? (or (:item state) (:entry state))))
 
 (defun draw-disk! []
-  (do
-    (r/rect! {:x icon-image-x :y icon-image-y :w 29 :h 25}
-             {:fill true :color gray})
-    (r/rect! {:x icon-image-x :y icon-image-y :w 29 :h 25}
-             {:color black})
-    (r/rect! {:x (+ icon-image-x 5) :y (+ icon-image-y 4) :w 19 :h 7}
-             {:fill true :color white})
-    (r/rect! {:x (+ icon-image-x 7) :y (+ icon-image-y 16) :w 15 :h 5}
-             {:fill true :color black})))
+  (r/rect! {:x icon-image-x :y icon-image-y :w 29 :h 25}
+           {:fill true :color gray})
+  (r/rect! {:x icon-image-x :y icon-image-y :w 29 :h 25}
+           {:color black})
+  (r/rect! {:x (+ icon-image-x 5) :y (+ icon-image-y 4) :w 19 :h 7}
+           {:fill true :color white})
+  (r/rect! {:x (+ icon-image-x 7) :y (+ icon-image-y 16) :w 15 :h 5}
+           {:fill true :color black}))
 
 (defun draw-drawer! []
-  (do
-    (r/rect! {:x icon-image-x :y (+ icon-image-y 8) :w 31 :h 19}
-             {:fill true :color orange})
-    (r/rect! {:x icon-image-x :y (+ icon-image-y 8) :w 31 :h 19}
-             {:color black})
-    (r/rect! {:x (+ icon-image-x 3) :y icon-image-y :w 14 :h 8}
-             {:fill true :color orange})
-    (r/line! {:x (+ icon-image-x 3) :y (+ icon-image-y 8)}
-             {:x (+ icon-image-x 17) :y (+ icon-image-y 8)}
-             black)))
+  (r/rect! {:x icon-image-x :y (+ icon-image-y 8) :w 31 :h 19}
+           {:fill true :color orange})
+  (r/rect! {:x icon-image-x :y (+ icon-image-y 8) :w 31 :h 19}
+           {:color black})
+  (r/rect! {:x (+ icon-image-x 3) :y icon-image-y :w 14 :h 8}
+           {:fill true :color orange})
+  (r/line! {:x (+ icon-image-x 3) :y (+ icon-image-y 8)}
+           {:x (+ icon-image-x 17) :y (+ icon-image-y 8)}
+           black))
 
 (defun draw-tool! []
-  (do
-    (r/rect! {:x (+ icon-image-x 6) :y icon-image-y :w 18 :h 25}
-             {:fill true :color white})
-    (r/rect! {:x (+ icon-image-x 6) :y icon-image-y :w 18 :h 25}
-             {:color black})
-    (r/line! {:x (+ icon-image-x 10) :y (+ icon-image-y 7)}
-             {:x (+ icon-image-x 20) :y (+ icon-image-y 7)}
-             black)
-    (r/line! {:x (+ icon-image-x 10) :y (+ icon-image-y 13)}
-             {:x (+ icon-image-x 20) :y (+ icon-image-y 13)}
-             black)))
+  (r/rect! {:x (+ icon-image-x 6) :y icon-image-y :w 18 :h 25}
+           {:fill true :color white})
+  (r/rect! {:x (+ icon-image-x 6) :y icon-image-y :w 18 :h 25}
+           {:color black})
+  (r/line! {:x (+ icon-image-x 10) :y (+ icon-image-y 7)}
+           {:x (+ icon-image-x 20) :y (+ icon-image-y 7)}
+           black)
+  (r/line! {:x (+ icon-image-x 10) :y (+ icon-image-y 13)}
+           {:x (+ icon-image-x 20) :y (+ icon-image-y 13)}
+           black))
 
 (defun draw-trash! []
-  (do
-    (r/rect! {:x (+ icon-image-x 5) :y (+ icon-image-y 7) :w 22 :h 22}
-             {:fill true :color gray})
-    (r/rect! {:x (+ icon-image-x 5) :y (+ icon-image-y 7) :w 22 :h 22}
-             {:color black})
-    (r/line! {:x (+ icon-image-x 3) :y (+ icon-image-y 5)}
-             {:x (+ icon-image-x 29) :y (+ icon-image-y 5)}
-             black)
-    (r/line! {:x (+ icon-image-x 10) :y (+ icon-image-y 12)}
-             {:x (+ icon-image-x 10) :y (+ icon-image-y 24)}
-             black)
-    (r/line! {:x (+ icon-image-x 17) :y (+ icon-image-y 12)}
-             {:x (+ icon-image-x 17) :y (+ icon-image-y 24)}
-             black)))
+  (r/rect! {:x (+ icon-image-x 5) :y (+ icon-image-y 7) :w 22 :h 22}
+           {:fill true :color gray})
+  (r/rect! {:x (+ icon-image-x 5) :y (+ icon-image-y 7) :w 22 :h 22}
+           {:color black})
+  (r/line! {:x (+ icon-image-x 3) :y (+ icon-image-y 5)}
+           {:x (+ icon-image-x 29) :y (+ icon-image-y 5)}
+           black)
+  (r/line! {:x (+ icon-image-x 10) :y (+ icon-image-y 12)}
+           {:x (+ icon-image-x 10) :y (+ icon-image-y 24)}
+           black)
+  (r/line! {:x (+ icon-image-x 17) :y (+ icon-image-y 12)}
+           {:x (+ icon-image-x 17) :y (+ icon-image-y 24)}
+           black))
 
 (defun draw-project! []
-  (do
-    (r/rect! {:x (+ icon-image-x 6) :y icon-image-y :w 20 :h 27}
-             {:fill true :color white})
-    (r/rect! {:x (+ icon-image-x 6) :y icon-image-y :w 20 :h 27}
-             {:color black})
-    (r/line! {:x (+ icon-image-x 10) :y (+ icon-image-y 8)}
-             {:x (+ icon-image-x 22) :y (+ icon-image-y 8)}
-             black)
-    (r/line! {:x (+ icon-image-x 10) :y (+ icon-image-y 14)}
-             {:x (+ icon-image-x 22) :y (+ icon-image-y 14)}
-             black)
-    (r/line! {:x (+ icon-image-x 10) :y (+ icon-image-y 20)}
-             {:x (+ icon-image-x 18) :y (+ icon-image-y 20)}
-             black)))
+  (r/rect! {:x (+ icon-image-x 6) :y icon-image-y :w 20 :h 27}
+           {:fill true :color white})
+  (r/rect! {:x (+ icon-image-x 6) :y icon-image-y :w 20 :h 27}
+           {:color black})
+  (r/line! {:x (+ icon-image-x 10) :y (+ icon-image-y 8)}
+           {:x (+ icon-image-x 22) :y (+ icon-image-y 8)}
+           black)
+  (r/line! {:x (+ icon-image-x 10) :y (+ icon-image-y 14)}
+           {:x (+ icon-image-x 22) :y (+ icon-image-y 14)}
+           black)
+  (r/line! {:x (+ icon-image-x 10) :y (+ icon-image-y 20)}
+           {:x (+ icon-image-x 18) :y (+ icon-image-y 20)}
+           black))
 
 (defun draw-icon-image! [entry]
   (case (:type entry)
@@ -109,37 +104,40 @@
              (when (not (icon-hidden? state))
                (draw-icon-image! (icon-entry state))))})
 
-(defun workbench-icon-children []
-  (icon/desktop-icon-children
-   {:image-child {:mode 'workbench-icon-image
-                  :state {:item (ui/bind-state :item)}}
-    :label-style {:width (- icon-width 6)
-                  :height 13
-                  :margin {:t 2}
-                  :padding {:t 2 :l 0 :r 0}}}))
+(def workbench-icon-options
+  {:icon {:mode 'workbench-icon-image
+          :state-keys [:item]}
+   :label {:style {:width (- icon-width 6)
+                   :height 13
+                   :margin {:t 2}
+                   :padding {:t 2 :l 0 :r 0}}}})
 
-(defcomponent workbench-icon
+(defun workbench-icon [opts]
   (drag/make-draggable
-   {:extend 'ui/desktop-icon
-    :style {:width icon-width
-            :height icon-height
-            :padding 0
-            :cursor :workbench/pointer}
-    :children (workbench-icon-children)}
+   (desktop-icon/make-desktop-icon
+    (merge (or opts {})
+           {:style (merge {:width icon-width
+                           :height icon-height
+                           :padding 0
+                           :cursor :workbench/pointer}
+                          (or (:style opts) {}))}
+           workbench-icon-options))
    {:start-event :ui/icon-drag-start
     :move-event :ui/icon-drag-move
     :end-event :ui/icon-drag-end}))
 
-(defcomponent workbench-icon-preview
-  {:extend 'ui/desktop-icon-preview
-   :style {:position :absolute
-           :width icon-width
-           :height icon-height
-           :padding 0
-           :hit-test false
-           :cursor :workbench/pointer}
-   :update (fn [state ctx]
-             (icon/update-desktop-icon!
-              (assoc state :selected? true)
-              ctx))
-   :children (workbench-icon-children)})
+(defun workbench-icon-preview [opts]
+  (desktop-icon/make-desktop-icon-preview
+   (merge (or opts {})
+          {:style (merge {:position :absolute
+                          :width icon-width
+                          :height icon-height
+                          :padding 0
+                          :hit-test false
+                          :cursor :workbench/pointer}
+                         (or (:style opts) {}))
+           :update (fn [state ctx]
+                     (desktop-icon/update-desktop-icon!
+                      (assoc state :selected? true)
+                      ctx))}
+          workbench-icon-options)))

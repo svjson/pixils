@@ -40,6 +40,6 @@
                                        :last-click-id (:id entry)
                                        :last-click-time now))))}
    :children (dotimes [index max-icons]
-               {:mode 'workbench-icon
-                :state {:item (ui/bind-state :entries index)
-                        :selected-id (ui/bind-state :selected-id)}})})
+               (workbench.icon/workbench-icon
+                {:state {:item (ui/bind-state :entries index)
+                         :selected-id (ui/bind-state :selected-id)}}))})
