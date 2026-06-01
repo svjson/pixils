@@ -185,6 +185,16 @@
                         :background (var :surface)
                         :border (var :inset-border-style)}
 
+    :ui/desktop-icon-label-box {:text {:color (var :text)}}
+
+    '(:ui/desktop-icon-label-box {:selected true})
+    {:background (var :selection-bg)
+     :text {:color (var :selection-text)}}
+
+    ['ui/desktop-icon:focus :ui/desktop-icon-label-box]
+    {:background (var :selection-bg)
+     :text {:color (var :selection-text)}}
+
     :ui/list-item {:text {:color (var :text)}}
 
     :ui/list-item-hover:hover

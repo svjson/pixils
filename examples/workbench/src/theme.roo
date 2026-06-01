@@ -55,6 +55,18 @@
                                       :thickness 1}
                              :text {:color black}}
 
+            :ui/desktop-icon-label-box {:width :fill
+                                        :height :fill
+                                        :text {:color black}}
+
+            '(:ui/desktop-icon-label-box {:selected true})
+            {:background blue
+             :text {:color white}}
+
+            ['ui/desktop-icon:focus :ui/desktop-icon-label-box]
+            {:background blue
+             :text {:color white}}
+
             'ui/menu-bar {:background white
                           :cursor :workbench/pointer
                           :text {:color black}

@@ -2,7 +2,7 @@
   (:require pixils
             [pixils.render :as r]
             [pixils.ui :as ui]
-            pixils.ui.icon
+            [pixils.ui.icon :as icon]
             [pixils.ui.drag :as drag]))
 
 
@@ -13,39 +13,18 @@
 (def icon-height 58)
 (def icon-image-x 23)
 (def icon-image-y 4)
-(def icon-title-y 41)
+(def icon-image-height 39)
 
 (def white {:r 0xff :g 0xff :b 0xff})
 (def black {:r 0x00 :g 0x00 :b 0x00})
-(def blue {:r 0x00 :g 0x55 :b 0xaa})
 (def orange {:r 0xff :g 0x99 :b 0x33})
 (def gray {:r 0x99 :g 0x99 :b 0x99})
 
 (defun icon-entry [state]
   (or (:item state) (:entry state)))
 
-(defun icon-selected? [state]
-  (= (:id (icon-entry state))
-     (:selected-id state)))
-
 (defun icon-hidden? [state]
   (nil? (or (:item state) (:entry state))))
-
-(defun icon-position [state]
-  (or (:position state)
-      (:position (icon-entry state))))
-
-(defun position-icon! [state ctx]
-  (let [pos (icon-position state)]
-    (do
-      (when pos
-        (ui/style! (:view ctx)
-                   {:position :absolute
-                    :left (:x pos)
-                    :top (:y pos)}))
-      (ui/style! (:view ctx)
-                 {:hidden (icon-hidden? state)})
-      state)))
 
 (defun draw-disk! []
   (do
@@ -123,46 +102,44 @@
     :project (draw-project!)
     :default (draw-tool!)))
 
-(defun draw-title! [entry selected?]
-  (let [title (or (:title entry) "")
-        text-size (r/text-size title)
-        text-x (max 0 (int (/ (- icon-width (:w text-size)) 2)))]
-    (do
-      (when selected?
-        (r/rect! {:x 3 :y icon-title-y :w (- icon-width 6) :h 13}
-                 {:fill true :color blue}))
-      (r/text! title
-               {:x text-x :y (+ icon-title-y 2)}
-               {:color (if selected? white black)}))))
+(defcomponent workbench-icon-image
+  {:style {:width icon-width
+           :height icon-image-height}
+   :render (fn [state ctx]
+             (when (not (icon-hidden? state))
+               (draw-icon-image! (icon-entry state))))})
+
+(defun workbench-icon-children []
+  (icon/desktop-icon-children
+   {:image-child {:mode 'workbench-icon-image
+                  :state {:item (ui/bind-state :item)}}
+    :label-style {:width (- icon-width 6)
+                  :height 13
+                  :margin {:t 2}
+                  :padding {:t 2 :l 0 :r 0}}}))
 
 (defcomponent workbench-icon
   (drag/make-draggable
-   {:extend 'ui/icon
+   {:extend 'ui/desktop-icon
     :style {:width icon-width
             :height icon-height
+            :padding 0
             :cursor :workbench/pointer}
-    :update position-icon!
-    :render (fn [state ctx]
-              (when (not (icon-hidden? state))
-                (let [entry (icon-entry state)
-                      selected? (icon-selected? state)]
-                  (do
-                    (draw-icon-image! entry)
-                    (draw-title! entry selected?)))))}
+    :children (workbench-icon-children)}
    {:start-event :ui/icon-drag-start
     :move-event :ui/icon-drag-move
     :end-event :ui/icon-drag-end}))
 
 (defcomponent workbench-icon-preview
-  {:extend 'ui/icon-preview
+  {:extend 'ui/desktop-icon-preview
    :style {:position :absolute
            :width icon-width
            :height icon-height
+           :padding 0
            :hit-test false
            :cursor :workbench/pointer}
-   :render (fn [state ctx]
-             (when (not (icon-hidden? state))
-               (let [entry (icon-entry state)]
-                 (do
-                   (draw-icon-image! entry)
-                   (draw-title! entry true)))))})
+   :update (fn [state ctx]
+             (icon/update-desktop-icon!
+              (assoc state :selected? true)
+              ctx))
+   :children (workbench-icon-children)})

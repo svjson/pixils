@@ -47,6 +47,10 @@ TEST_F(BootstrapTest, loads_embedded_core_ui_modes_into_pixils_mode_registry)
   auto split_pane_resizer_mode =
     Roo::Dict::get_property(modes, Roo::symbol("ui/split-pane-resizer"));
   auto icon_mode = Roo::Dict::get_property(modes, Roo::symbol("ui/icon"));
+  auto desktop_icon_mode =
+    Roo::Dict::get_property(modes, Roo::symbol("ui/desktop-icon"));
+  auto desktop_icon_preview_mode =
+    Roo::Dict::get_property(modes, Roo::symbol("ui/desktop-icon-preview"));
   auto icon_container_mode =
     Roo::Dict::get_property(modes, Roo::symbol("ui/icon-container"));
   auto icon_preview_mode =
@@ -74,6 +78,8 @@ TEST_F(BootstrapTest, loads_embedded_core_ui_modes_into_pixils_mode_registry)
   ASSERT_NE(split_pane_mode, nullptr);
   ASSERT_NE(split_pane_resizer_mode, nullptr);
   ASSERT_NE(icon_mode, nullptr);
+  ASSERT_NE(desktop_icon_mode, nullptr);
+  ASSERT_NE(desktop_icon_preview_mode, nullptr);
   ASSERT_NE(icon_container_mode, nullptr);
   ASSERT_NE(icon_preview_mode, nullptr);
 
@@ -104,6 +110,10 @@ TEST_F(BootstrapTest, loads_embedded_core_ui_modes_into_pixils_mode_registry)
   EXPECT_EQ(Roo::obj<Pixils::Runtime::Mode>(*split_pane_resizer_mode).name,
             "ui/split-pane-resizer");
   EXPECT_EQ(Roo::obj<Pixils::Runtime::Mode>(*icon_mode).name, "ui/icon");
+  EXPECT_EQ(Roo::obj<Pixils::Runtime::Mode>(*desktop_icon_mode).name,
+            "ui/desktop-icon");
+  EXPECT_EQ(Roo::obj<Pixils::Runtime::Mode>(*desktop_icon_preview_mode).name,
+            "ui/desktop-icon-preview");
   EXPECT_EQ(Roo::obj<Pixils::Runtime::Mode>(*icon_container_mode).name,
             "ui/icon-container");
   EXPECT_EQ(Roo::obj<Pixils::Runtime::Mode>(*icon_preview_mode).name, "ui/icon-preview");

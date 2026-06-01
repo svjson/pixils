@@ -246,6 +246,16 @@
     :ui/canvas {:background (var :content-bg)
                 :border (var :content-border-style)}
 
+    :ui/desktop-icon-label-box {:text {:color (var :text)}}
+
+    '(:ui/desktop-icon-label-box {:selected true})
+    {:background (var :selection-bg)
+     :text {:color (var :selection-text)}}
+
+    ['ui/desktop-icon:focus :ui/desktop-icon-label-box]
+    {:background (var :selection-bg)
+     :text {:color (var :selection-text)}}
+
     :ui/list-item {:text {:color {:r 0xe6 :g 0xea :b 0xee}}}
 
     :ui/list-item-hover:hover

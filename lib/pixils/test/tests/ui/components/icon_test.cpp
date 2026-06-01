@@ -42,6 +42,128 @@ TEST_F(IconTest, plain_icon_is_not_draggable_or_absolute_positioned)
   EXPECT_EQ(sibling->bounds.x, 20);
 }
 
+TEST_F(IconTest, desktop_icon_provides_focusable_image_and_label_shell)
+{
+  auto modes = runtime.lookup("pixils/modes");
+  ASSERT_NE(modes, nullptr);
+
+  auto desktop_icon_mode_value =
+    Roo::Dict::get_property(modes, Roo::symbol("ui/desktop-icon"));
+  ASSERT_NE(desktop_icon_mode_value, nullptr);
+  const auto& desktop_icon_mode =
+    Roo::obj<Pixils::Runtime::Mode>(*desktop_icon_mode_value);
+  EXPECT_TRUE(desktop_icon_mode.focusable);
+
+  runtime.eval(R"(
+    (pixils/defmode root-mode
+      {:style {:width 160
+               :height 140}
+       :children [{:mode 'ui/desktop-icon
+                   :state {:item {:id :disk
+                                  :label "Disk"
+                                  :position {:x 7 :y 9}}
+                           :selected-id :disk}}]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  session.update_mode();
+  session.render_mode();
+
+  ASSERT_EQ(session.active_mode->children.size(), 1u);
+  auto icon = session.active_mode->children[0];
+  ASSERT_NE(icon, nullptr);
+  ASSERT_NE(icon->mode, nullptr);
+  EXPECT_EQ(icon->mode->name, "ui/desktop-icon");
+  EXPECT_EQ(icon->bounds.x, 7);
+  EXPECT_EQ(icon->bounds.y, 9);
+
+  ASSERT_EQ(icon->children.size(), 2u);
+  auto image = icon->children[0];
+  auto label = icon->children[1];
+  ASSERT_NE(image, nullptr);
+  ASSERT_NE(label, nullptr);
+  ASSERT_NE(image->mode, nullptr);
+  ASSERT_NE(label->mode, nullptr);
+  EXPECT_EQ(image->mode->name, "ui/desktop-icon-image");
+  EXPECT_EQ(label->mode->name, "ui/desktop-icon-label");
+
+  ASSERT_EQ(label->children.size(), 1u);
+  auto label_box = label->children[0];
+  ASSERT_NE(label_box, nullptr);
+  ASSERT_NE(label_box->mode, nullptr);
+  ASSERT_FALSE(label_box->mode->class_names.empty());
+  EXPECT_EQ(label_box->mode->class_names[0], "ui/desktop-icon-label-box");
+
+  ASSERT_EQ(label_box->children.size(), 1u);
+  auto label_text = label_box->children[0];
+  ASSERT_NE(label_text, nullptr);
+  ASSERT_NE(label_text->mode, nullptr);
+  EXPECT_EQ(label_text->mode->name, "ui/text");
+  ASSERT_FALSE(label_text->mode->class_names.empty());
+  EXPECT_EQ(label_text->mode->class_names[0], "ui/desktop-icon-label-text");
+
+  auto label_value = Roo::Dict::get_property(label->state, Roo::keyword("label"));
+  auto selected = Roo::Dict::get_property(label->state, Roo::keyword("selected"));
+  auto box_selected =
+    Roo::Dict::get_property(label_box->state, Roo::keyword("selected"));
+  ASSERT_NE(label_value, nullptr);
+  ASSERT_NE(selected, nullptr);
+  ASSERT_NE(box_selected, nullptr);
+  EXPECT_EQ(label_value->to_string(), "\"Disk\"");
+  EXPECT_EQ(selected->to_string(), "true");
+  EXPECT_EQ(box_selected->to_string(), "true");
+}
+
+TEST_F(IconTest, desktop_icon_without_ids_is_not_selected_by_default)
+{
+  runtime.eval(R"(
+    (pixils/defmode root-mode
+      {:children [{:mode 'ui/desktop-icon
+                   :state {:item {:label "Loose"}}}]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  session.update_mode();
+  session.render_mode();
+
+  ASSERT_EQ(session.active_mode->children.size(), 1u);
+  auto icon = session.active_mode->children[0];
+  ASSERT_NE(icon, nullptr);
+  ASSERT_EQ(icon->children.size(), 2u);
+  auto label = icon->children[1];
+  ASSERT_NE(label, nullptr);
+  auto selected = Roo::Dict::get_property(label->state, Roo::keyword("selected"));
+  ASSERT_NE(selected, nullptr);
+  EXPECT_EQ(selected->to_string(), "false");
+}
+
+TEST_F(IconTest, desktop_icon_item_values_replace_previous_derived_values)
+{
+  runtime.eval(R"(
+    (pixils/defmode root-mode
+      {:children [{:mode 'ui/desktop-icon
+                   :state {:item {:label "Fresh"
+                                  :image :items/fresh}
+                           :label "Stale"
+                           :image :items/stale}}]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  session.update_mode();
+  session.render_mode();
+
+  ASSERT_EQ(session.active_mode->children.size(), 1u);
+  auto icon = session.active_mode->children[0];
+  ASSERT_NE(icon, nullptr);
+
+  auto label_value = Roo::Dict::get_property(icon->state, Roo::keyword("label"));
+  auto image_value = Roo::Dict::get_property(icon->state, Roo::keyword("image"));
+  ASSERT_NE(label_value, nullptr);
+  ASSERT_NE(image_value, nullptr);
+  EXPECT_EQ(label_value->to_string(), "\"Fresh\"");
+  EXPECT_EQ(image_value->to_string(), ":items/fresh");
+}
+
 TEST_F(IconTest, make_draggable_adds_drag_policy_to_arbitrary_child)
 {
   runtime.eval(R"(
