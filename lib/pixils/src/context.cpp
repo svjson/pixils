@@ -6,6 +6,7 @@
 #include <pixils/geom.h>
 
 #include <SDL2/SDL_blendmode.h>
+#include <SDL2/SDL_mouse.h>
 #include <SDL2/SDL_pixels.h>
 #include <SDL2/SDL_rect.h>
 #include <SDL2/SDL_render.h>
@@ -79,11 +80,39 @@ namespace Pixils
               (static_cast<float>(buffer_dim.h) / static_cast<float>(target.h))};
   }
 
+  Point RenderContext::buffer_to_window_point(const Point& point) const
+  {
+    if (application_rect.w <= 0 || application_rect.h <= 0 || buffer_dim.w <= 0 ||
+        buffer_dim.h <= 0)
+    {
+      return point;
+    }
+
+    return {static_cast<float>(application_rect.x) +
+              point.x * (static_cast<float>(application_rect.w) /
+                         static_cast<float>(buffer_dim.w)),
+            static_cast<float>(application_rect.y) +
+              point.y * (static_cast<float>(application_rect.h) /
+                         static_cast<float>(buffer_dim.h))};
+  }
+
+  void RenderContext::warp_mouse_to_buffer_point(const Point& point)
+  {
+    if (!window)
+    {
+      return;
+    }
+
+    Point window_point = buffer_to_window_point(point).round();
+    SDL_WarpMouseInWindow(window, window_point.round_x(), window_point.round_y());
+  }
+
   void RenderContext::begin_frame(Display& display)
   {
     Color& bg = display.background;
 
     SDL_GetWindowSize(window, &window_rect.w, &window_rect.h);
+    application_rect = application_target_rect(display);
     set_render_target(nullptr);
     SDL_SetRenderDrawColor(renderer, bg.r, bg.g, bg.b, 0xff);
     SDL_RenderClear(renderer);
@@ -111,6 +140,7 @@ namespace Pixils
       create_and_target_buffer();
     }
 
+    application_rect = application_target_rect(display);
     clear_buffer();
   }
 
@@ -140,7 +170,8 @@ namespace Pixils
   {
     set_render_target(nullptr);
 
-    SDL_Rect target = application_target_rect(display).to_SDL_rect();
+    application_rect = application_target_rect(display);
+    SDL_Rect target = application_rect.to_SDL_rect();
 
     SDL_RenderCopy(this->renderer, this->buffer_texture, nullptr, &target);
   }

@@ -44,6 +44,7 @@ namespace Pixils::Script
   inline const std::string FN__PUSH_MODE_BANG = "push-mode!";
   inline const std::string FN__QUIT_BANG = "quit!";
   inline const std::string FN__SET_THEME_BANG = "set-theme!";
+  inline const std::string FN__WARP_MOUSE_BANG = "warp-mouse!";
 
   inline const std::string ID__PIXILS__MODE_STACK = "pixils/mode-stack";
   inline const std::string ID__PIXILS__MODE_STACK_MESSAGES = "pixils/mode-stack-messages";
@@ -121,6 +122,8 @@ namespace Pixils::Script
     FUNC(ThemeVarFunction, theme_var);
     /*! @brief Roo make-function for Resolution/ResolutionAdapter */
     FUNC(MakeResolution, make_resolution);
+    /*! @brief Move the OS mouse pointer to a logical Pixils buffer point */
+    FUNC(WarpMouseBangFunction, warp_mouse);
   } // namespace Function
 
   /*! @brief DimensionAdapter - A Roo HostObject Adapter for Dimension */

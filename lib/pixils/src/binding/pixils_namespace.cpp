@@ -5,6 +5,7 @@
 #include <pixils/asset/registry.h>
 #include <pixils/binding/color_namespace.h>
 #include <pixils/binding/mode_definition.h>
+#include <pixils/binding/point_namespace.h>
 #include <pixils/binding/rect_namespace.h>
 #include <pixils/binding/resource_namespace.h>
 #include <pixils/binding/ui/style/style_adapter.h>
@@ -783,6 +784,40 @@ namespace Pixils::Script
       return Roo::map({Roo::keyword("__pixils-theme-var"), key});
     }
 
+    /* WarpMouseBangFunction - warp-mouse! */
+    FUNC_IMPL(
+      WarpMouseBangFunction,
+      MULTI_SIG((FN_ARGS((&HostType::HOOK_CONTEXT), (&HostType::POINT)),
+                 EXEC_DISPATCH(&WarpMouseBangFunction::exec_warp_mouse)),
+                (FN_ARGS((&HostType::POINT)),
+                 EXEC_DISPATCH(&WarpMouseBangFunction::exec_warp_mouse))));
+
+    EXEC_BODY(WarpMouseBangFunction, exec_warp_mouse)
+    {
+      Point point;
+      if (args.size() == 2)
+      {
+        HookContext& hook_ctx = Roo::obj<HookContext>(*args[0]);
+        point = Roo::obj<Point>(*args[1]);
+        if (hook_ctx.render)
+        {
+          const_cast<RenderContext*>(hook_ctx.render)->warp_mouse_to_buffer_point(point);
+        }
+        if (hook_ctx.events)
+        {
+          hook_ctx.events->do_mouse_motion(point.round_x(), point.round_y());
+        }
+      }
+      else
+      {
+        point = Roo::obj<Point>(*args[0]);
+        RenderContext& rc = Roo::obj<RenderContext>(*ctx.lookup(ID__PIXILS__RENDER_CONTEXT));
+        rc.warp_mouse_to_buffer_point(point);
+      }
+
+      return PointAdapter::make_unique(point.x, point.y);
+    }
+
   } // namespace Function
 
   /* ModeAdapter */
@@ -1118,6 +1153,7 @@ namespace Pixils::Script
     values.emplace(FN__PUSH_MODE_BANG, Function::PushModeBangFunction::make());
     values.emplace(FN__QUIT_BANG, Function::QuitBangFunction::make());
     values.emplace(FN__SET_THEME_BANG, Function::SetThemeBangFunction::make());
+    values.emplace(FN__WARP_MOUSE_BANG, Function::WarpMouseBangFunction::make());
     values.emplace("var", Function::ThemeVarFunction::make());
   }
 

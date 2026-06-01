@@ -59,6 +59,7 @@ namespace Pixils
      * @brief The dimensions of the application window
      */
     Rect window_rect{0, 0, 0, 0};
+    Rect application_rect{0, 0, 0, 0};
 
     /*!
      * @brief The on-screen size of game pixels, effetively the scaling
@@ -94,6 +95,8 @@ namespace Pixils
      * coordinates, accounting for fit/stretch scaling and alignment.
      */
     Point window_to_buffer_point(Display& display, int x, int y) const;
+    Point buffer_to_window_point(const Point& point) const;
+    void warp_mouse_to_buffer_point(const Point& point);
 
     /*!
      * @brief Prepare a new frame for rendering. To be called at the beginning of every
