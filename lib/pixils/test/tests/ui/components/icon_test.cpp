@@ -102,16 +102,24 @@ TEST_F(IconTest, desktop_icon_provides_focusable_image_and_label_shell)
   ASSERT_FALSE(label_text->mode->class_names.empty());
   EXPECT_EQ(label_text->mode->class_names[0], "ui/desktop-icon-label-text");
 
+  auto wrapper_selected =
+    Roo::Dict::get_property(icon->state, Roo::keyword("selected"));
   auto label_value = Roo::Dict::get_property(label->state, Roo::keyword("label"));
-  auto selected = Roo::Dict::get_property(label->state, Roo::keyword("selected"));
+  auto label_selected = Roo::Dict::get_property(label->state, Roo::keyword("selected"));
   auto box_selected =
     Roo::Dict::get_property(label_box->state, Roo::keyword("selected"));
+  ASSERT_NE(wrapper_selected, nullptr);
   ASSERT_NE(label_value, nullptr);
-  ASSERT_NE(selected, nullptr);
-  ASSERT_NE(box_selected, nullptr);
   EXPECT_EQ(label_value->to_string(), "\"Disk\"");
-  EXPECT_EQ(selected->to_string(), "true");
-  EXPECT_EQ(box_selected->to_string(), "true");
+  EXPECT_EQ(wrapper_selected->to_string(), "true");
+  if (label_selected)
+  {
+    EXPECT_NE(label_selected->to_string(), "true");
+  }
+  if (box_selected)
+  {
+    EXPECT_NE(box_selected->to_string(), "true");
+  }
 }
 
 TEST_F(IconTest, desktop_icon_without_ids_is_not_selected_by_default)
@@ -130,9 +138,7 @@ TEST_F(IconTest, desktop_icon_without_ids_is_not_selected_by_default)
   auto icon = session.active_mode->children[0];
   ASSERT_NE(icon, nullptr);
   ASSERT_EQ(icon->children.size(), 2u);
-  auto label = icon->children[1];
-  ASSERT_NE(label, nullptr);
-  auto selected = Roo::Dict::get_property(label->state, Roo::keyword("selected"));
+  auto selected = Roo::Dict::get_property(icon->state, Roo::keyword("selected"));
   ASSERT_NE(selected, nullptr);
   EXPECT_EQ(selected->to_string(), "false");
 }

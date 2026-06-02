@@ -71,16 +71,11 @@
            :padding {:l 3 :r 3}
            :layout {:align-items :center}
            :text {:align :center}}
-   :update (fn [state ctx]
-             (assoc state :selected (= (:selected state) true)))
    :children [{:class :ui/desktop-icon-label-box
                :style {:width :shrink
                        :layout {:align-items :center}
                        :text {:align :center}}
-               :state {:value (ui/bind-state :label)
-                       :selected (ui/bind-state :selected)}
-               :update (fn [state ctx]
-                         (assoc state :selected (= (:selected state) true)))
+               :state {:value (ui/bind-state :label)}
                :children [{:mode 'ui/text
                            :class :ui/desktop-icon-label-text
                            :style {:text {:align :center}}
@@ -105,7 +100,7 @@
     {:mode (or (:mode label) 'ui/desktop-icon-label)
      :style (or (:style label) {})
      :state (merge (bound-state-keys (or (:state-keys label)
-                                         [:label :selected]))
+                                         [:label]))
                    (or (:state label) {}))}))
 
 (defun desktop-icon-children [opts]
@@ -138,7 +133,7 @@
 
 (defcomponent ui/desktop-icon-preview
   {:extend 'ui/icon-preview
-   :class :ui/desktop-icon-preview
+   :class [:ui/desktop-icon :ui/desktop-icon-preview]
    :style {:width :shrink
            :height :shrink
            :padding 6

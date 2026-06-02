@@ -233,6 +233,7 @@
                   :border-raised-bottom-right (var :border-dark)
                   :selection-bg (var :focus-bg)
                   :selection-text (var :focus-text)
+                  :desktop-icon-label-padding 2
                   :solid-border-style {:line-style :solid
                                        :color (var :border)
                                        :thickness 1}
@@ -346,17 +347,15 @@
                                 :border (var :raised-border-style)
                                 :text {:color (var :text)}}
 
-            :ui/desktop-icon-label-box {:padding 2
+            :ui/desktop-icon-label-box {:padding (var :desktop-icon-label-padding)
                                         :text {:color (var :text)}}
 
-            '(:ui/desktop-icon-label-box {:selected true})
-            {:padding 2
-             :background (var :selection-bg)
+            ['(:ui/desktop-icon {:selected true}) :ui/desktop-icon-label-box]
+            {:background (var :selection-bg)
              :text {:color (var :selection-text)}}
 
-            ['ui/desktop-icon:focus :ui/desktop-icon-label-box]
-            {:padding 2
-             :background (var :selection-bg)
+            [:ui/desktop-icon:focus :ui/desktop-icon-label-box]
+            {:background (var :selection-bg)
              :text {:color (var :selection-text)}}
 
             :ui/list-item {:text {:color (var :field-text)}}

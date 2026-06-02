@@ -411,7 +411,7 @@ top-level `:label` configures the label child.
 The optional `:icon` and `:label` maps customize the generated image and label
 children. Each accepts `:mode`, `:style`, `:state`, and `:state-keys`.
 `:state-keys` defaults to `[:image :dragging?]` for `:icon` and
-`[:label :selected]` for `:label`; listed keys are bound from the desktop icon
+`[:label]` for `:label`; listed keys are bound from the desktop icon
 state into the child state. `make-desktop-icon` also passes through `:init`,
 `:update`, `:on`, `:on-click`, `:on-double-click`, and `:on-drop`.
 
