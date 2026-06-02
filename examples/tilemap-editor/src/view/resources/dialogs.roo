@@ -24,6 +24,9 @@
    {:label "All files (*)"
     :extensions []}])
 
+(defun image-resources-delete-message [resource-count]
+  (str "Delete " resource-count " image resources?"))
+
 (defun image-file-dialog-path [state]
   (or (selected-image-resource-directory state)
       (:project-directory state)
@@ -216,6 +219,23 @@
                     :delete-action :resource-delete/delete-tiles}})))
     state))
 
+(defun open-image-resources-delete-confirm-dialog! [state ctx bundle-id resource-ids]
+  (let [resource-ids (or resource-ids [])]
+    (if (and bundle-id (not (empty? resource-ids)))
+      (if (= (count resource-ids) 1)
+        (open-image-delete-confirm-dialog! state ctx bundle-id (head resource-ids))
+        (open-resource-confirm-dialog!
+         state
+         ctx
+         {:title "Delete Image Resources"
+          :message (image-resources-delete-message (count resource-ids))
+          :confirm-label "Delete"
+          :payload {:operation :delete-images
+                    :bundle-id bundle-id
+                    :resource-ids resource-ids
+                    :delete-action :resource-delete/delete-tiles}}))
+      state)))
+
 (defun open-bundle-delete-confirm-dialog! [state ctx bundle-id]
   (if bundle-id
     (open-resource-confirm-dialog!
@@ -237,6 +257,9 @@
                                               (:resource-id details)
                                               (:delete-action details)
                                               (:replacement-key details))
+        :delete-images (remove-image-resources! state
+                                                (:bundle-id details)
+                                                (:resource-ids details))
         :delete-bundle (remove-resource-bundle! state (:bundle-id details))
         :default state))
     state))

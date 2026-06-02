@@ -27,16 +27,26 @@
             :payload {:kind :bundle
                       :command :delete}}]})
 
-(def image-resource-context-menu
+(defun image-resource-context-menu [resource-ids]
+  (let [edit-disabled? (not= (count (or resource-ids [])) 1)]
   {:settings {:mnemonics {:enabled false}}
    :items [{:label "Edit"
+            :disabled? edit-disabled?
             :action :resource/context-dummy
             :payload {:kind :image
+                      :resource-ids resource-ids
                       :command :edit}}
            {:label "Delete"
             :action :resource/context-dummy
             :payload {:kind :image
-                      :command :delete}}]})
+                      :resource-ids resource-ids
+                      :command :delete}}]}))
+
+(defun image-resource-context-resource-ids [state]
+  (if (and (contains? (:selected-indices state) (:index state))
+           (> (count (or (:selected-image-resources state) [])) 1))
+    (:selected-image-resources state)
+    [(:value state)]))
 
 (defun image-resource-drag-size [ctx]
   (let [bounds (-> ctx :view :bounds)]
@@ -117,20 +127,32 @@
                       (ui/stop-propagation! event)
                       state))
    :on-mouse-up (fn [state event ctx]
-                  (do
-                    (ui/stop-propagation! event)
-                    (ui/emit! (:view ctx)
-                              :list-box/item-click
-                              {:index (:index state)
-                               :value (:value state)
-                               :shift? false
-                               :ctrl? false})
-                    (when (= (:button event) :right)
-                      (menu/open-context-menu! image-resource-context-menu
-                                               (:global-position event)
-                                               state
-                                               ctx))
+                  (if (= (:button event) :right)
+                    (let [resource-ids
+                          (image-resource-context-resource-ids state)]
+                      (do
+                        (ui/stop-propagation! event)
+                        (menu/open-context-menu!
+                         (image-resource-context-menu resource-ids)
+                         (:global-position event)
+                         state
+                         ctx)
+                        state))
                     state))
+   :on-click (fn [state event ctx]
+               (if (= (:button event) :right)
+                 (do
+                   (ui/stop-propagation! event)
+                   state)
+                 (do
+                   (when (not (:disabled? state))
+                     (ui/emit! (:view ctx)
+                               :list-box/item-click
+                               {:index (:index state)
+                                :value (:value state)
+                                :shift? (lb/held-shift? ctx)
+                                :ctrl? (lb/held-ctrl? ctx)}))
+                   state)))
    :on {:menu/select (fn [state event ctx]
                        (let [payload (:payload event)]
                          (do
@@ -141,6 +163,8 @@
                                        {:kind :image
                                         :bundle-id (:bundle-id state)
                                         :resource-id (:value state)
+                                        :resource-ids
+                                        (-> payload :payload :resource-ids)
                                         :command (-> payload :payload :command)}))))
                        state)}
    :children [{:mode 'ui/text
@@ -157,7 +181,9 @@
            :bundle-id (:bundle-id option)
            :key-label (:key-label option)
            :name (:name option)
-           :selected-indices (ui/bind-state :selected-indices)}})
+           :selected-indices (ui/bind-state :selected-indices)
+           :selected-image-resources
+           (ui/bind-state :selected-image-resources)}})
 
 (defcomponent resource-bundle-row
   {:extend 'ui/list-box-item
@@ -263,7 +289,14 @@
                                     :selected-resource-bundle bundle-id
                                     :selected-image-resource
                                     (first-image-resource-id (:resources state)
-                                                             bundle-id))))}
+                                                             bundle-id)
+                                    :selected-image-resources
+                                    (if-let [image-id
+                                             (first-image-resource-id
+                                              (:resources state)
+                                              bundle-id)]
+                                      [image-id]
+                                      []))))}
    :children [(merge {:id "list-box"}
                      (bundle-list-child {}))]})
 
@@ -286,7 +319,11 @@
               :content-width 360
               :disabled? (empty? resources)
               :selected-indices (ui/bind-state :selected-indices)
+              :multi-select? true
               :force-selection? true
+              :state {:selected-image-resources (ui/bind-state
+                                                 :selected-image-resources)}
+              :item-state-keys [:selected-image-resources]
               :item-child image-resource-row-child})))
 
 (defcomponent image-resource-list
@@ -299,9 +336,9 @@
    :update (fn [state ctx]
              (let [resources (project-image-resources (:resources state)
                                                       (:selected-resource-bundle state))
-                   selected-indices (selected-resource-indices
+                   selected-indices (selected-resource-indices-by-ids
                                      resources
-                                     (:selected-image-resource state))]
+                                     (:selected-image-resources state))]
                (do
                  (when (not= resources (:image-resources state))
                    (ui/replace-child! (:view ctx)
@@ -312,9 +349,14 @@
                         :image-resources resources
                         :selected-indices selected-indices))))
    :on {:list-box/change (fn [state event ctx]
-                           (assoc state
-                                  :selected-image-resource
-                                  (-> event :payload :value)))}
+                           (let [selected (-> event
+                                              :payload
+                                              :selected-values)]
+                             (assoc state
+                                    :selected-image-resources selected
+                                    :selected-image-resource
+                                    (single-selected-image-resource-id
+                                     selected))))}
    :children [(merge {:id "list-box"}
                      (image-resource-list-child []))]})
 
@@ -488,6 +530,8 @@
             :state {:resources (ui/bind-state :resources)
                     :selected-resource-bundle (ui/bind-state :selected-resource-bundle)
                     :selected-image-resource (ui/bind-state :selected-image-resource)
+                    :selected-image-resources
+                    (ui/bind-state :selected-image-resources)
                     :disabled? (ui/bind-state :image-resource-panel-disabled?)
                     :image-resource-add-disabled? (ui/bind-state
                                                    :image-resource-add-disabled?)}
@@ -495,13 +539,17 @@
                          :height :fill}
             :body-state {:resources (ui/bind-state :resources)
                          :selected-resource-bundle (ui/bind-state :selected-resource-bundle)
-                         :selected-image-resource (ui/bind-state :selected-image-resource)}
+                         :selected-image-resource (ui/bind-state :selected-image-resource)
+                         :selected-image-resources
+                         (ui/bind-state :selected-image-resources)}
             :children [{:mode 'image-resource-list
                         :state {:resources (ui/bind-state :resources)
                                 :selected-resource-bundle
                                 (ui/bind-state :selected-resource-bundle)
                                 :selected-image-resource
-                                (ui/bind-state :selected-image-resource)}}]}))
+                                (ui/bind-state :selected-image-resource)
+                                :selected-image-resources
+                                (ui/bind-state :selected-image-resources)}}]}))
 
 (defun make-image-resource-detail-panel []
   (hp/make {:title "Resource"
@@ -510,15 +558,21 @@
             :state {:resources (ui/bind-state :resources)
                     :selected-resource-bundle (ui/bind-state :selected-resource-bundle)
                     :selected-image-resource (ui/bind-state :selected-image-resource)
+                    :selected-image-resources
+                    (ui/bind-state :selected-image-resources)
                     :disabled? (ui/bind-state :image-resource-detail-disabled?)}
             :body-style {:padding 8
                          :height :fill}
             :body-state {:resources (ui/bind-state :resources)
                          :selected-resource-bundle (ui/bind-state :selected-resource-bundle)
-                         :selected-image-resource (ui/bind-state :selected-image-resource)}
+                         :selected-image-resource (ui/bind-state :selected-image-resource)
+                         :selected-image-resources
+                         (ui/bind-state :selected-image-resources)}
             :children [{:mode 'image-resource-detail
                         :state {:resources (ui/bind-state :resources)
                                 :selected-resource-bundle
                                 (ui/bind-state :selected-resource-bundle)
                                 :selected-image-resource
-                                (ui/bind-state :selected-image-resource)}}]}))
+                                (ui/bind-state :selected-image-resource)
+                                :selected-image-resources
+                                (ui/bind-state :selected-image-resources)}}]}))

@@ -25,3 +25,7 @@
           {:resources {:bundles {:project-assets {:images {}}}}
            :selected-resource-bundle :project-assets
            :last-image-file-directory "/tmp/last"}))))
+
+(deftest multi-image-delete-message-mentions_resource_count
+  (is (= "Delete 3 image resources?"
+         (dialogs/image-resources-delete-message 3))))

@@ -522,7 +522,22 @@
                 :selected-image-resource nil})]
     (is (= :terrain-assets (:selected-resource-bundle state)))
     (is (= :tiles (:selected-image-resource state)))
+    (is (= [:tiles] (:selected-image-resources state)))
     (is (= false (:image-resource-detail-disabled? state)))))
+
+(deftest resource-workspace-state-keeps_multi_image_selection_and_disables_detail
+  (let [state (resources/derive-resource-workspace-state
+               {:resources {:bundles {:terrain-assets
+                                      {:images {:tiles
+                                                {:file-name "/tmp/tiles.png"}
+                                                :decor
+                                                {:file-name "/tmp/decor.png"}}}}}
+                :selected-resource-bundle :terrain-assets
+                :selected-image-resources [:tiles :decor]})]
+    (is (= :terrain-assets (:selected-resource-bundle state)))
+    (is (= nil (:selected-image-resource state)))
+    (is (= [:tiles :decor] (:selected-image-resources state)))
+    (is (= true (:image-resource-detail-disabled? state)))))
 
 (deftest resource-workspace-state-clears_stale_image_selection
   (let [state (resources/derive-resource-workspace-state
@@ -534,6 +549,38 @@
     (is (= false (:image-resource-panel-disabled? state)))
     (is (= false (:image-resource-add-disabled? state)))
     (is (= true (:image-resource-detail-disabled? state)))))
+
+(deftest image-resource-delete-removes_multiple_resources_and_selects_remaining
+  (let [state (resources/remove-image-resources!
+               {:resources {:bundles {:terrain-assets
+                                      {:images {:tiles
+                                                {:file-name "tiles.png"}
+                                                :decor
+                                                {:file-name "decor.png"}
+                                                :icons
+                                                {:file-name "icons.png"}}}}}
+                :tilesets [{:id :terrain
+                            :tiles [{:type :sprite
+                                     :image :terrain-assets/tiles}
+                                    {:type :sprite
+                                     :image :terrain-assets/decor}
+                                    {:type :sprite
+                                     :image :terrain-assets/icons}]}]
+                :selected-resource-bundle :terrain-assets
+                :selected-image-resources [:tiles :decor]}
+               :terrain-assets
+               [:tiles :decor])]
+    (is (= nil
+           (get-in state [:resources :bundles :terrain-assets :images :tiles])))
+    (is (= nil
+           (get-in state [:resources :bundles :terrain-assets :images :decor])))
+    (is (= {:file-name "icons.png"}
+           (get-in state [:resources :bundles :terrain-assets :images :icons])))
+    (is (= :icons (:selected-image-resource state)))
+    (is (= [:icons] (:selected-image-resources state)))
+    (is (= [{:type :sprite
+             :image :terrain-assets/icons}]
+           (get-in state [:tilesets 0 :tiles])))))
 
 (deftest resource-workspace-state-disables_image_panel_without_bundle
   (let [state (resources/derive-resource-workspace-state

@@ -67,10 +67,12 @@
                               :selected-resource-bundle (:bundle-id payload)
                               :selected-image-resource (:resource-id payload))
                        ctx)
-                :delete (open-image-delete-confirm-dialog! state
-                                                           ctx
-                                                           (:bundle-id payload)
-                                                           (:resource-id payload))
+                :delete (open-image-resources-delete-confirm-dialog!
+                         state
+                         ctx
+                         (:bundle-id payload)
+                         (or (:resource-ids payload)
+                             [(:resource-id payload)]))
                 :default state)
 
               :bundle

@@ -1,0 +1,65 @@
+(ns tilemap-editor.view.resources.panels-test
+  (:require proof.core
+            [tilemap-editor.view.resources.panels :as panels]))
+
+(deftest image-resource-row-drag-payload-identifies_source_resource
+  (is (= {:kind :resource/image
+          :bundle-id :terrain-assets
+          :resource-id :tiles
+          :key-label ":terrain-assets/tiles"
+          :name "Tiles"
+          :width 284
+          :height 24
+          :offset {:x 4 :y 6}}
+         (panels/image-resource-drag-payload
+          {:bundle-id :terrain-assets
+           :value :tiles
+           :key-label ":terrain-assets/tiles"
+           :name "Tiles"}
+          {:start-position {:x 4 :y 6}}
+          {:view {:bounds {:w 284
+                           :h 24}}}))))
+
+(deftest resource-bundle-row-accepts_drop_payloads
+  (is (= {:source-bundle-id :terrain-assets
+          :resource-id :tiles
+          :target-bundle-id :ui-assets}
+         (panels/image-resource-drop-payload
+          :ui-assets
+          {:kind :resource/image
+           :bundle-id :terrain-assets
+           :resource-id :tiles})))
+  (is (= nil
+         (panels/image-resource-drop-payload
+          :ui-assets
+          {:kind :other/item}))))
+
+(deftest image-resource-list-is_multi_selectable
+  (let [child (panels/image-resource-list-child
+               [{:id :tiles
+                 :bundle-id :terrain-assets
+                 :key :terrain-assets/tiles
+                 :name "Tiles"}])]
+    (is (= true (-> child :state :multi-select?)))))
+
+(deftest image-resource-context-menu-disables_edit_for_multi_selection
+  (let [menu (panels/image-resource-context-menu [:tiles :decor])
+        edit-item (head (:items menu))
+        delete-item (nth (:items menu) 1)]
+    (is (= true (:disabled? edit-item)))
+    (is (not= true (:disabled? delete-item)))
+    (is (= [:tiles :decor] (-> delete-item :payload :resource-ids)))))
+
+(deftest image-resource-context-menu-targets_selected_resources_when_row_is_selected
+  (is (= [:tiles :decor]
+         (panels/image-resource-context-resource-ids
+          {:index 0
+           :value :tiles
+           :selected-indices [0 1]
+           :selected-image-resources [:tiles :decor]})))
+  (is (= [:icons]
+         (panels/image-resource-context-resource-ids
+          {:index 2
+           :value :icons
+           :selected-indices [0 1]
+           :selected-image-resources [:tiles :decor]}))))

@@ -487,6 +487,34 @@
     [index]
     []))
 
+(defun selected-resource-indices-by-ids [resources selected-ids]
+  (map (filter (for-indexed [index resource (or resources [])]
+                 {:index index
+                  :resource resource})
+               (fn [entry]
+                 (contains? (or selected-ids []) (-> entry :resource :id))))
+       :index))
+
+(defun selected-image-resource-ids [resources bundle-id selected-ids selected-id]
+  (let [items (project-image-resources resources bundle-id)
+        requested (if (empty? (or selected-ids []))
+                    (if selected-id [selected-id] [])
+                    selected-ids)
+        valid (map (filter (or requested [])
+                           (fn [id]
+                             (not (nil? (selected-resource-index items id)))))
+                   (fn [id] id))]
+    (if (empty? valid)
+      (if-let [first-id (first-image-resource-id resources bundle-id)]
+        [first-id]
+        [])
+      valid)))
+
+(defun single-selected-image-resource-id [selected-ids]
+  (if (= (count (or selected-ids [])) 1)
+    (head selected-ids)
+    nil))
+
 (defun selected-bundle-id [resources selected-id]
   (if (nil? (selected-bundle-index resources selected-id))
     (first-bundle-id resources)
@@ -502,15 +530,18 @@
   (let [resources (:resources state)
         bundle-id (selected-bundle-id resources
                                       (:selected-resource-bundle state))
-        image-id (selected-image-resource-id resources
-                                             bundle-id
-                                             (:selected-image-resource state))]
+        image-ids (selected-image-resource-ids resources
+                                               bundle-id
+                                               (:selected-image-resources state)
+                                               (:selected-image-resource state))
+        image-id (single-selected-image-resource-id image-ids)]
     (assoc state
            :selected-resource-bundle bundle-id
            :selected-image-resource image-id
+           :selected-image-resources image-ids
            :image-resource-panel-disabled? (nil? bundle-id)
            :image-resource-add-disabled? (nil? bundle-id)
-           :image-resource-detail-disabled? (nil? image-id))))
+           :image-resource-detail-disabled? (not (= (count image-ids) 1)))))
 
 (defun resource-dependency [payload]
   (let [dependency {:file-name (:file-name payload)
@@ -532,7 +563,8 @@
         (assoc (assoc-in state
                          [:resources :bundles bundle-id :images resource-id]
                          (resource-dependency payload))
-               :selected-image-resource resource-id))
+               :selected-image-resource resource-id
+               :selected-image-resources [resource-id]))
       state)))
 
 (defun edit-image-resource! [state payload]
@@ -553,7 +585,8 @@
         (let [state (assoc (assoc-in state
                                      [:resources :bundles bundle-id :images]
                                      (assoc images resource-id dependency))
-                           :selected-image-resource resource-id)]
+                           :selected-image-resource resource-id
+                           :selected-image-resources [resource-id])]
           (if (= previous-id resource-id)
             state
             (maps/update-all-map-layers
@@ -615,7 +648,8 @@
             next-state (assoc state
                               :resources next-resources
                               :selected-resource-bundle target-bundle-id
-                              :selected-image-resource target-resource-id)]
+                              :selected-image-resource target-resource-id
+                              :selected-image-resources [target-resource-id])]
         (do
           (res/remove-image! old-key)
           (res/create-bundle! target-bundle-id)
@@ -635,7 +669,12 @@
                            :resources next-resources
                            :selected-image-resource
                            (first-image-resource-id next-resources
-                                                    bundle-id))]
+                                                    bundle-id)
+                           :selected-image-resources
+                           (if-let [next-id (first-image-resource-id next-resources
+                                                                      bundle-id)]
+                             [next-id]
+                             []))]
           (case action
             :resource-delete/replace-resource
             (if replacement-key
@@ -663,6 +702,23 @@
 
             :default state)))
       state)))
+
+(defun remove-image-resources! [state bundle-id resource-ids]
+  (let [resource-ids (or resource-ids [])]
+    (if (empty? resource-ids)
+      state
+      (let [state (reduce resource-ids
+                          state
+                          (fn [next-state resource-id]
+                            (remove-image-resource! next-state
+                                                    bundle-id
+                                                    resource-id
+                                                    :resource-delete/delete-tiles
+                                                    nil)))
+            next-id (first-image-resource-id (:resources state) bundle-id)]
+        (assoc state
+               :selected-image-resource next-id
+               :selected-image-resources (if next-id [next-id] []))))))
 
 (defun remove-resource-bundle! [state bundle-id]
   (if bundle-id
