@@ -234,6 +234,20 @@ TEST_F(StyleTest, make_style_with_layout_gap_number)
   EXPECT_EQ(*style.layout->gap->size, 8);
 }
 
+TEST_F(StyleTest, make_style_with_layout_wrap_and_line_gap)
+{
+  Roo::sptr_val result =
+    runtime.eval("(pixils.ui.style/make-style {:layout {:direction :row "
+                 ":wrap :line :line-gap 6}})");
+
+  auto style = Roo::obj<Pixils::UI::Style>(*result);
+  ASSERT_NE(style.layout, std::nullopt);
+  ASSERT_NE(style.layout->wrap, std::nullopt);
+  ASSERT_NE(style.layout->line_gap, std::nullopt);
+  EXPECT_EQ(*style.layout->wrap, Pixils::UI::Style::Layout::Wrap::LINE);
+  EXPECT_EQ(*style.layout->line_gap, 6);
+}
+
 TEST_F(StyleTest, make_style_with_fill_and_shrink_sizes)
 {
   Roo::sptr_val result =
@@ -244,6 +258,18 @@ TEST_F(StyleTest, make_style_with_fill_and_shrink_sizes)
   ASSERT_NE(style.height, std::nullopt);
   EXPECT_TRUE(style.width->is_fill());
   EXPECT_TRUE(style.height->is_shrink());
+}
+
+TEST_F(StyleTest, make_style_with_min_sizes)
+{
+  Roo::sptr_val result =
+    runtime.eval("(pixils.ui.style/make-style {:min-width 80 :min-height 12})");
+
+  auto style = Roo::obj<Pixils::UI::Style>(*result);
+  ASSERT_NE(style.min_width, std::nullopt);
+  ASSERT_NE(style.min_height, std::nullopt);
+  EXPECT_EQ(*style.min_width, 80);
+  EXPECT_EQ(*style.min_height, 12);
 }
 
 TEST_F(StyleTest, make_style_with_text)

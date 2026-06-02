@@ -658,6 +658,34 @@ The layout map can also distribute leftover space between flow children:
 - the explicit wrapped fixed form `{:mode :fixed :size 8}`
 - `:none` for explicit default/no extra gap
 
+Row layouts can wrap flow children onto additional lines when horizontal space runs out:
+
+```clojure
+(pixils/defmode toolbar
+  {:style {:height :shrink
+           :layout {:direction :row
+                    :wrap :line
+                    :gap 6
+                    :line-gap 4}}
+   :children [{:mode 'main/open-button :style {:width :shrink}}
+              {:mode 'main/save-button :style {:width :shrink}}
+              {:mode 'main/export-button :style {:width :shrink}}]})
+```
+
+Use natural or `:shrink` widths for text-wrap-like inline flow. Use `:width :fill`
+with a numeric `:min-width` when children should wrap at a basis size and then
+grow to share the remaining width on their own line:
+
+```clojure
+{:style {:layout {:direction :row
+                  :wrap :line
+                  :gap 8
+                  :line-gap 8}}
+ :children [{:mode 'main/tile :style {:width :fill :min-width 80}}
+            {:mode 'main/tile :style {:width :fill :min-width 80}}
+            {:mode 'main/tile :style {:width :fill :min-width 80}}]}
+```
+
 Size can come from the mode's own `:style` definition or be overridden per child slot:
 
 ```clojure
@@ -729,13 +757,15 @@ hook fires.
 | `:margin`     | Number, `[vertical horizontal]`, `[top right bottom left]`, or `{:t N :r N :b N :l N}` | Outer space around a child in layout flow. |
 | `:padding`    | Number, `[vertical horizontal]`, `[top right bottom left]`, or `{:t N :r N :b N :l N}` | Inset applied before the render hook's viewport is set. |
 | `:border`     | Border map (see below)                                               | Draws a border inside the component bounds. |
-| `:layout`     | `{:direction :row}`, `{:direction :column}`, optional `:align-items :start|:center|:end`, optional `:gap :none`, `:gap N`, `:gap :space-between`, or wrapped gap maps | Child layout policy. Supports flow direction, cross-axis alignment of flow children, fixed gap, explicit no-gap, and `space-between` distribution. |
+| `:layout`     | `{:direction :row}`, `{:direction :column}`, optional `:align-items :start|:center|:end`, optional `:gap :none`, `:gap N`, `:gap :space-between`, wrapped gap maps, optional `:wrap :none|:line`, optional `:line-gap N` | Child layout policy. Supports flow direction, cross-axis alignment of flow children, fixed gap, explicit no-gap, `space-between` distribution, and wrapped row lines. |
 | `:text`       | `{:color {:r N :g N :b N}}`, `{:color :none}`, optional `:font :font/name`, optional `:scale N`, optional `:align :left|:center|:right`, optional `:wrap :word|:none` | Text presentation properties for components that render text. |
 | `:box-sizing` | `:border-box`, `:content-box`                                        | How fixed `:width`/`:height` are interpreted. Default: `:border-box`. |
 | `:scale`      | Integer `N`                                                          | Render this view subtree at logical size, then copy it to an external footprint scaled by `N`. Minimum effective value: `1`. |
 | `:opacity`    | Number from `0.0` to `1.0`                                           | Render this whole view subtree translucent. `1.0` is fully opaque, `0.0` is invisible. |
 | `:width`      | Number                                                               | Fixed width in pixels using the selected `:box-sizing`. Absent means fill remaining space. |
 | `:height`     | Number                                                               | Fixed height in pixels using the selected `:box-sizing`. Absent means fill remaining space. |
+| `:min-width`  | Number                                                               | Minimum width in pixels. Used as the wrapping basis for `:width :fill` children in wrapped row layouts. |
+| `:min-height` | Number                                                               | Minimum height in pixels. |
 | `:position`   | `:absolute`, `:flow`                                                 | Positioning mode. Default: `:flow`. |
 | `:top`        | Number                                                               | Top offset when `:position :absolute`. |
 | `:left`       | Number                                                               | Left offset when `:position :absolute`. |

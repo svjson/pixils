@@ -238,6 +238,45 @@ namespace Pixils::UI
       return margin + std::max(0, scaled_outer_size - margin) / scale;
     }
 
+    int size_constraint_outer_size(const Style& style, Axis axis, int size)
+    {
+      int outer = std::max(0, size) + margin_size(style, axis);
+      if (style.box_sizing && *style.box_sizing == Style::BoxSizing::CONTENT_BOX)
+      {
+        outer += padding_size(style, axis) + border_size(style, axis);
+      }
+      return outer;
+    }
+
+    int minimum_outer_size(const Style& style, Axis axis)
+    {
+      const auto& size = axis == Axis::HORIZONTAL ? style.min_width : style.min_height;
+      if (!size) return 0;
+      return size_constraint_outer_size(style, axis, *size);
+    }
+
+    int apply_minimum_outer_size(const Style& style, Axis axis, int logical_outer_size)
+    {
+      return std::max(logical_outer_size, minimum_outer_size(style, axis));
+    }
+
+    bool wraps_lines(const Style::Layout& layout)
+    {
+      return layout.wrap && *layout.wrap == Style::Layout::Wrap::LINE;
+    }
+
+    int fixed_layout_gap_size(const Style::Layout& layout)
+    {
+      if (!layout.gap || !layout.gap->mode) return 0;
+      if (*layout.gap->mode != Style::Layout::GapMode::FIXED) return 0;
+      return layout.gap->size.value_or(0);
+    }
+
+    int line_gap_size(const Style::Layout& layout)
+    {
+      return std::max(0, layout.line_gap.value_or(0));
+    }
+
     std::optional<Dimension> parse_dimension_like(const Roo::sptr_val& value)
     {
       if (!value || value->type == Roo::Value::Type::NIL) return std::nullopt;
@@ -325,13 +364,21 @@ namespace Pixils::UI
                            int available_size)
     {
       const auto& size = axis_size(style, axis);
-      if (size && size->is_fixed()) return fixed_outer_size(style, axis);
-      if (fills_axis(style, axis, root_context)) return available_size;
+      int resolved_size = 0;
+      if (size && size->is_fixed())
+      {
+        resolved_size = fixed_outer_size(style, axis);
+      }
+      else if (fills_axis(style, axis, root_context))
+      {
+        resolved_size = available_size;
+      }
+      else
+      {
+        resolved_size = natural_outer_size(style, natural_content_size, axis);
+      }
 
-      int natural = natural_outer_size(style, natural_content_size, axis);
-      if (natural > 0) return natural;
-
-      return 0;
+      return apply_minimum_outer_size(style, axis, resolved_size);
     }
 
     std::optional<int> resolve_available_content_size(const Style& style,
@@ -742,10 +789,28 @@ namespace Pixils::UI
                                     ? *style.layout->direction
                                     : LayoutDirection::COLUMN;
       bool row = direction == LayoutDirection::ROW;
+      bool wrap = row && style.layout && wraps_lines(*style.layout) && available_width;
 
       int total_main = 0;
       int max_cross = 0;
       int flow_count = 0;
+      int line_main = 0;
+      int line_cross = 0;
+      int line_count = 0;
+      int line_flow_count = 0;
+      const int fixed_gap = style.layout ? fixed_layout_gap_size(*style.layout) : 0;
+      const int line_gap = style.layout ? line_gap_size(*style.layout) : 0;
+
+      auto finish_line = [&]()
+      {
+        if (line_flow_count == 0) return;
+        max_cross = std::max(max_cross, line_main);
+        total_main += line_cross;
+        line_count++;
+        line_main = 0;
+        line_cross = 0;
+        line_flow_count = 0;
+      };
 
       for (const auto& child : view->children)
       {
@@ -776,13 +841,53 @@ namespace Pixils::UI
           child_outer_size.w = child_style.total_width();
         if (child_style.height && child_style.height->is_fixed())
           child_outer_size.h = child_style.total_height();
+        child_outer_size.w =
+          apply_minimum_outer_size(child_style, Axis::HORIZONTAL, child_outer_size.w);
+        child_outer_size.h =
+          apply_minimum_outer_size(child_style, Axis::VERTICAL, child_outer_size.h);
 
         if (row)
         {
-          total_main += scaled_outer_size(child_style, Axis::HORIZONTAL, child_outer_size.w);
-          max_cross =
-            std::max(max_cross,
-                     scaled_outer_size(child_style, Axis::VERTICAL, child_outer_size.h));
+          int child_main =
+            scaled_outer_size(child_style, Axis::HORIZONTAL, child_outer_size.w);
+          int child_cross =
+            scaled_outer_size(child_style, Axis::VERTICAL, child_outer_size.h);
+          if (fills_axis(child_style, Axis::HORIZONTAL, false))
+          {
+            child_main = std::max(child_main,
+                                  scaled_outer_size(child_style,
+                                                    Axis::HORIZONTAL,
+                                                    minimum_outer_size(child_style,
+                                                                       Axis::HORIZONTAL)));
+          }
+          child_main = std::max(child_main,
+                                scaled_outer_size(child_style,
+                                                  Axis::HORIZONTAL,
+                                                  minimum_outer_size(child_style,
+                                                                     Axis::HORIZONTAL)));
+          child_cross = std::max(child_cross,
+                                 scaled_outer_size(child_style,
+                                                   Axis::VERTICAL,
+                                                   minimum_outer_size(child_style,
+                                                                      Axis::VERTICAL)));
+
+          if (wrap)
+          {
+            int next_main = line_main + (line_flow_count > 0 ? fixed_gap : 0) + child_main;
+            if (line_flow_count > 0 && next_main > *available_width)
+            {
+              finish_line();
+              next_main = child_main;
+            }
+            line_main = next_main;
+            line_cross = std::max(line_cross, child_cross);
+            line_flow_count++;
+          }
+          else
+          {
+            total_main += child_main;
+            max_cross = std::max(max_cross, child_cross);
+          }
         }
         else
         {
@@ -791,6 +896,13 @@ namespace Pixils::UI
             std::max(max_cross,
                      scaled_outer_size(child_style, Axis::HORIZONTAL, child_outer_size.w));
         }
+      }
+
+      if (wrap)
+      {
+        finish_line();
+        if (line_count > 1) total_main += line_gap * (line_count - 1);
+        return Dimension{max_cross, total_main};
       }
 
       if (style.layout && style.layout->gap && style.layout->gap->mode &&
@@ -963,6 +1075,174 @@ namespace Pixils::UI
                                                                        child_selector_path));
       }
 
+      if (row && wraps_lines(layout))
+      {
+        struct WrappedItem
+        {
+          size_t index = 0;
+          int basis_outer = 0;
+          int cross_outer = 0;
+          bool fill = false;
+        };
+
+        struct WrappedLine
+        {
+          std::vector<WrappedItem> items;
+          int basis_total = 0;
+          int cross_outer = 0;
+        };
+
+        const int available = parent.w;
+        const int fixed_gap_size = fixed_layout_gap_size(layout);
+        std::vector<WrappedLine> lines;
+        WrappedLine current_line;
+
+        auto finish_line = [&]()
+        {
+          if (current_line.items.empty()) return;
+          lines.push_back(std::move(current_line));
+          current_line = WrappedLine{};
+        };
+
+        for (size_t i = 0; i < children.size(); i++)
+        {
+          const Style& cs = children[i]->effective_style;
+          const auto& natural = natural_content_sizes[i];
+          if (removes_layout(cs)) continue;
+          if (cs.position && *cs.position == PositionMode::ABSOLUTE) continue;
+
+          Dimension natural_outer{0, 0};
+          if (natural) natural_outer = calculate_outer_size(cs, *natural);
+
+          int logical_main = natural_outer.w;
+          if (cs.width && cs.width->is_fixed()) logical_main = cs.total_width();
+          logical_main = std::max(logical_main, minimum_outer_size(cs, Axis::HORIZONTAL));
+
+          int basis_outer = scaled_outer_size(cs, Axis::HORIZONTAL, logical_main);
+          int cross_outer_size = resolve_outer_size(
+            cs,
+            natural,
+            Axis::VERTICAL,
+            false,
+            logical_outer_size_from_scaled(cs, Axis::VERTICAL, parent.h));
+          cross_outer_size =
+            std::max(cross_outer_size, minimum_outer_size(cs, Axis::VERTICAL));
+          int cross_outer = scaled_outer_size(cs, Axis::VERTICAL, cross_outer_size);
+
+          int next_total = current_line.basis_total +
+                           (current_line.items.empty() ? 0 : fixed_gap_size) +
+                           basis_outer;
+          if (!current_line.items.empty() && next_total > available)
+          {
+            finish_line();
+            next_total = basis_outer;
+          }
+
+          current_line.items.push_back(WrappedItem{.index = i,
+                                                   .basis_outer = basis_outer,
+                                                   .cross_outer = cross_outer,
+                                                   .fill = fills_axis(cs,
+                                                                      Axis::HORIZONTAL,
+                                                                      false)});
+          current_line.basis_total = next_total;
+          current_line.cross_outer = std::max(current_line.cross_outer, cross_outer);
+        }
+        finish_line();
+
+        std::vector<Rect> rects(children.size(), {0, 0, 0, 0});
+        const Style::Layout::AlignItems align_items =
+          layout.align_items.value_or(Style::Layout::AlignItems::START);
+        const int line_gap = line_gap_size(layout);
+        int line_y = parent.y;
+
+        for (const auto& line : lines)
+        {
+          int flow_count = static_cast<int>(line.items.size());
+          int fixed_gap_total = flow_count > 1 ? fixed_gap_size * (flow_count - 1) : 0;
+          int fill_count = 0;
+          int non_fill_total = 0;
+          for (const auto& item : line.items)
+          {
+            if (item.fill)
+              fill_count++;
+            else
+              non_fill_total += item.basis_outer;
+          }
+
+          int fill_outer =
+            fill_count > 0
+              ? std::max(0, (available - non_fill_total - fixed_gap_total) / fill_count)
+              : 0;
+
+          std::vector<int> allocated_outer;
+          allocated_outer.reserve(line.items.size());
+          int total_flow_size = 0;
+          for (const auto& item : line.items)
+          {
+            int size = item.fill ? std::max(item.basis_outer, fill_outer)
+                                 : item.basis_outer;
+            allocated_outer.push_back(size);
+            total_flow_size += size;
+          }
+
+          int gap_size = 0;
+          if (layout.gap && layout.gap->mode && flow_count > 1)
+          {
+            switch (*layout.gap->mode)
+            {
+            case Style::Layout::GapMode::NONE:
+              gap_size = 0;
+              break;
+            case Style::Layout::GapMode::FIXED:
+              gap_size = layout.gap->size.value_or(0);
+              break;
+            case Style::Layout::GapMode::SPACE_BETWEEN:
+              gap_size = std::max(0, available - total_flow_size) / (flow_count - 1);
+              break;
+            }
+          }
+
+          int pos = parent.x;
+          for (size_t item_index = 0; item_index < line.items.size(); item_index++)
+          {
+            const auto& item = line.items[item_index];
+            const Style& cs = children[item.index]->effective_style;
+            const Style::Insets margin = cs.margin.value_or(Style::Insets{});
+            int outer_size = allocated_outer[item_index];
+            int logical_outer_size =
+              logical_outer_size_from_scaled(cs, Axis::HORIZONTAL, outer_size);
+            int logical_cross_outer_size =
+              logical_outer_size_from_scaled(cs, Axis::VERTICAL, item.cross_outer);
+
+            int cross_offset = 0;
+            switch (align_items)
+            {
+            case Style::Layout::AlignItems::CENTER:
+              cross_offset = std::max(0, (line.cross_outer - item.cross_outer) / 2);
+              break;
+            case Style::Layout::AlignItems::END:
+              cross_offset = std::max(0, line.cross_outer - item.cross_outer);
+              break;
+            default:
+              break;
+            }
+
+            rects[item.index] = {pos + margin.l,
+                                 line_y + cross_offset + margin.t,
+                                 std::max(0, logical_outer_size - margin.l - margin.r),
+                                 std::max(0,
+                                          logical_cross_outer_size - margin.t - margin.b)};
+
+            pos += outer_size;
+            if (item_index + 1 < line.items.size()) pos += gap_size;
+          }
+
+          line_y += line.cross_outer + line_gap;
+        }
+
+        return rects;
+      }
+
       int total_fixed = 0;
       int fill_count = 0;
       int flow_count = 0;
@@ -982,7 +1262,10 @@ namespace Pixils::UI
         }
         else if (axis_size(cs, main_axis) && axis_size(cs, main_axis)->is_fixed())
         {
-          logical_outer_sizes[i] = row ? cs.total_width() : cs.total_height();
+          logical_outer_sizes[i] =
+            apply_minimum_outer_size(cs,
+                                     main_axis,
+                                     row ? cs.total_width() : cs.total_height());
           outer_sizes[i] = scaled_outer_size(cs, main_axis, logical_outer_sizes[i]);
           total_fixed += outer_sizes[i];
         }
@@ -991,7 +1274,15 @@ namespace Pixils::UI
           if (natural)
           {
             Dimension outer_size = calculate_outer_size(cs, *natural);
-            logical_outer_sizes[i] = row ? outer_size.w : outer_size.h;
+            logical_outer_sizes[i] =
+              apply_minimum_outer_size(cs,
+                                       main_axis,
+                                       row ? outer_size.w : outer_size.h);
+            outer_sizes[i] = scaled_outer_size(cs, main_axis, logical_outer_sizes[i]);
+          }
+          else
+          {
+            logical_outer_sizes[i] = minimum_outer_size(cs, main_axis);
             outer_sizes[i] = scaled_outer_size(cs, main_axis, logical_outer_sizes[i]);
           }
           shrink_indices.push_back(i);
@@ -1000,7 +1291,16 @@ namespace Pixils::UI
         else if (natural)
         {
           Dimension outer_size = calculate_outer_size(cs, *natural);
-          logical_outer_sizes[i] = row ? outer_size.w : outer_size.h;
+          logical_outer_sizes[i] =
+            apply_minimum_outer_size(cs,
+                                     main_axis,
+                                     row ? outer_size.w : outer_size.h);
+          outer_sizes[i] = scaled_outer_size(cs, main_axis, logical_outer_sizes[i]);
+          total_fixed += outer_sizes[i];
+        }
+        else
+        {
+          logical_outer_sizes[i] = minimum_outer_size(cs, main_axis);
           outer_sizes[i] = scaled_outer_size(cs, main_axis, logical_outer_sizes[i]);
           total_fixed += outer_sizes[i];
         }
@@ -1034,10 +1334,16 @@ namespace Pixils::UI
         std::vector<size_t> still_shrinkable;
         for (size_t index : shrink_indices)
         {
-          int reduction = std::min(outer_sizes[index], per_child);
+          const Style& cs = children[index]->effective_style;
+          Axis main_axis = row ? Axis::HORIZONTAL : Axis::VERTICAL;
+          int min_outer = scaled_outer_size(cs,
+                                            main_axis,
+                                            minimum_outer_size(cs, main_axis));
+          int shrinkable_size = std::max(0, outer_sizes[index] - min_outer);
+          int reduction = std::min(shrinkable_size, per_child);
           outer_sizes[index] -= reduction;
           overflow -= reduction;
-          if (outer_sizes[index] > 0) still_shrinkable.push_back(index);
+          if (outer_sizes[index] > min_outer) still_shrinkable.push_back(index);
           if (overflow <= 0) break;
         }
         shrink_indices = std::move(still_shrinkable);
@@ -1063,11 +1369,17 @@ namespace Pixils::UI
         if (outer_sizes[i] == 0 &&
             fills_axis(cs, row ? Axis::HORIZONTAL : Axis::VERTICAL, false))
         {
-          outer_sizes[i] = fill_size;
+          outer_sizes[i] =
+            std::max(fill_size,
+                     scaled_outer_size(cs,
+                                       row ? Axis::HORIZONTAL : Axis::VERTICAL,
+                                       minimum_outer_size(cs,
+                                                          row ? Axis::HORIZONTAL
+                                                              : Axis::VERTICAL)));
           logical_outer_sizes[i] =
             logical_outer_size_from_scaled(cs,
                                            row ? Axis::HORIZONTAL : Axis::VERTICAL,
-                                           fill_size);
+                                           outer_sizes[i]);
         }
       }
 

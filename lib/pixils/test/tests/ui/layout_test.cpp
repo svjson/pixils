@@ -38,11 +38,15 @@ class LayoutTest : public BaseFixture
     LayoutDirection direction = LayoutDirection::COLUMN,
     std::optional<Style::Layout::GapMode> gap_mode = std::nullopt,
     std::optional<int> gap_size = std::nullopt,
-    std::optional<Style::Layout::AlignItems> align_items = std::nullopt)
+    std::optional<Style::Layout::AlignItems> align_items = std::nullopt,
+    std::optional<Style::Layout::Wrap> wrap = std::nullopt,
+    std::optional<int> line_gap = std::nullopt)
   {
     Style::Layout layout;
     layout.direction = direction;
     layout.align_items = align_items;
+    layout.wrap = wrap;
+    layout.line_gap = line_gap;
     if (gap_mode)
     {
       layout.gap = Style::Layout::Gap{};
@@ -733,6 +737,115 @@ TEST_F(LayoutTest, layout_gap_none_matches_default_behavior)
   ASSERT_EQ(rects.size(), 2u);
   EXPECT_EQ(rects[0].x, 0);
   EXPECT_EQ(rects[1].x, 40);
+}
+
+TEST_F(LayoutTest, layout_row_fill_child_respects_min_width)
+{
+  std::vector<std::shared_ptr<View>> children;
+  Style s;
+  s.width = Style::Size(Style::Size::Mode::FILL);
+  s.min_width = 120;
+  s.height = 20;
+  children.push_back(make_ctx(std::move(s)));
+  Rect parent = {0, 0, 100, 40};
+
+  auto rects = layout(children, parent, LayoutDirection::ROW);
+
+  ASSERT_EQ(rects.size(), 1u);
+  EXPECT_EQ(rects[0].w, 120);
+}
+
+TEST_F(LayoutTest, layout_row_wraps_fixed_children_to_next_line)
+{
+  std::vector<std::shared_ptr<View>> children;
+  for (int i = 0; i < 3; i++)
+  {
+    Style s;
+    s.width = 40;
+    s.height = 12;
+    children.push_back(make_ctx(std::move(s)));
+  }
+  Rect parent = {0, 0, 100, 80};
+
+  auto rects = layout(children,
+                      parent,
+                      LayoutDirection::ROW,
+                      Style::Layout::GapMode::FIXED,
+                      10,
+                      std::nullopt,
+                      Style::Layout::Wrap::LINE,
+                      5);
+
+  ASSERT_EQ(rects.size(), 3u);
+  EXPECT_EQ(rects[0].x, 0);
+  EXPECT_EQ(rects[0].y, 0);
+  EXPECT_EQ(rects[1].x, 50);
+  EXPECT_EQ(rects[1].y, 0);
+  EXPECT_EQ(rects[2].x, 0);
+  EXPECT_EQ(rects[2].y, 17);
+}
+
+TEST_F(LayoutTest, layout_row_wrap_distributes_fill_children_per_line)
+{
+  std::vector<std::shared_ptr<View>> children;
+  for (int i = 0; i < 3; i++)
+  {
+    Style s;
+    s.width = Style::Size(Style::Size::Mode::FILL);
+    s.min_width = 80;
+    s.height = 10;
+    children.push_back(make_ctx(std::move(s)));
+  }
+  Rect parent = {0, 0, 200, 80};
+
+  auto rects = layout(children,
+                      parent,
+                      LayoutDirection::ROW,
+                      Style::Layout::GapMode::FIXED,
+                      8,
+                      std::nullopt,
+                      Style::Layout::Wrap::LINE,
+                      8);
+
+  ASSERT_EQ(rects.size(), 3u);
+  EXPECT_EQ(rects[0].x, 0);
+  EXPECT_EQ(rects[0].w, 96);
+  EXPECT_EQ(rects[1].x, 104);
+  EXPECT_EQ(rects[1].w, 96);
+  EXPECT_EQ(rects[2].x, 0);
+  EXPECT_EQ(rects[2].y, 18);
+  EXPECT_EQ(rects[2].w, 200);
+}
+
+TEST_F(LayoutTest, shrink_height_wrapped_row_includes_line_gaps)
+{
+  Style container_style;
+  container_style.width = 100;
+  container_style.height = Style::Size(Style::Size::Mode::SHRINK);
+  container_style.layout = Style::Layout{};
+  container_style.layout->direction = LayoutDirection::ROW;
+  container_style.layout->wrap = Style::Layout::Wrap::LINE;
+  container_style.layout->line_gap = 5;
+  container_style.layout->gap = Style::Layout::Gap{};
+  container_style.layout->gap->mode = Style::Layout::GapMode::FIXED;
+  container_style.layout->gap->size = 10;
+
+  auto container = make_ctx(std::move(container_style));
+  for (int i = 0; i < 3; i++)
+  {
+    Style child_style;
+    child_style.width = 40;
+    child_style.height = 12;
+    container->children.push_back(make_ctx(std::move(child_style)));
+  }
+
+  Pixils::UI::layout_view_tree(container, {0, 0, 320, 200}, runtime, hook_ctx_val);
+
+  ASSERT_EQ(container->children.size(), 3u);
+  EXPECT_EQ(container->bounds.w, 100);
+  EXPECT_EQ(container->bounds.h, 29);
+  EXPECT_EQ(container->children[2]->bounds.x, 0);
+  EXPECT_EQ(container->children[2]->bounds.y, 17);
 }
 
 TEST_F(LayoutTest, shrink_height_column_includes_fixed_gaps)

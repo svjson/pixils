@@ -801,6 +801,29 @@ namespace Pixils::Script::StyleDefinition
     return Roo::Constant::NIL;
   }
 
+  std::optional<UI::Style::Layout::Wrap> parse_layout_wrap(
+    const Roo::sptr_val& value)
+  {
+    if (!value || value->type != Roo::Value::Type::KEYWORD) return std::nullopt;
+    if (value->str() == "none") return UI::Style::Layout::Wrap::NONE;
+    if (value->str() == "line") return UI::Style::Layout::Wrap::LINE;
+    return std::nullopt;
+  }
+
+  Roo::sptr_val layout_wrap_to_value(
+    const std::optional<UI::Style::Layout::Wrap>& value)
+  {
+    if (!value) return Roo::Constant::NIL;
+    switch (*value)
+    {
+    case UI::Style::Layout::Wrap::NONE:
+      return Roo::keyword("none");
+    case UI::Style::Layout::Wrap::LINE:
+      return Roo::keyword("line");
+    }
+    return Roo::Constant::NIL;
+  }
+
   std::optional<int> parse_optional_int(const Roo::sptr_val& value)
   {
     if (!value || value->type != Roo::Value::Type::NUMBER) return std::nullopt;
@@ -962,7 +985,9 @@ namespace Pixils::Script::StyleDefinition
     static Roo::MapSchema layout_schema({},
                                            {{"direction", &Roo::Type::KEYWORD},
                                             {"align-items", &Roo::Type::KEYWORD},
-                                            {"gap", &Roo::Type::ANY}});
+                                            {"gap", &Roo::Type::ANY},
+                                            {"wrap", &Roo::Type::KEYWORD},
+                                            {"line-gap", &Roo::Type::NUMBER}});
 
     auto layout = std::make_unique<UI::Style::Layout>();
     auto opts = layout_schema.bind(ctx, *source);
@@ -975,6 +1000,14 @@ namespace Pixils::Script::StyleDefinition
       layout->align_items = parse_layout_align_items(opts.val("align-items"));
     }
     if (auto gap = build_layout_gap(ctx, opts.val("gap"))) layout->gap = *gap;
+    if (opts.contains("wrap"))
+    {
+      layout->wrap = parse_layout_wrap(opts.val("wrap"));
+    }
+    if (opts.contains("line-gap"))
+    {
+      layout->line_gap = opts.i32("line-gap");
+    }
     return layout;
   }
 
@@ -1003,6 +1036,8 @@ namespace Pixils::Script::StyleDefinition
                                            {"opacity", &Roo::Type::NUMBER},
                                            {"width", &Roo::Type::ANY},
                                            {"height", &Roo::Type::ANY},
+                                           {"min-width", &Roo::Type::NUMBER},
+                                           {"min-height", &Roo::Type::NUMBER},
                                            {"position", &Roo::Type::KEYWORD},
                                            {"top", &Roo::Type::NUMBER},
                                            {"left", &Roo::Type::NUMBER},
@@ -1038,6 +1073,8 @@ namespace Pixils::Script::StyleDefinition
     if (opts.contains("scale")) style->scale = parse_scale(opts.val("scale"));
     if (opts.contains("width")) style->width = parse_size(opts.val("width"));
     if (opts.contains("height")) style->height = parse_size(opts.val("height"));
+    if (opts.contains("min-width")) style->min_width = opts.i32("min-width");
+    if (opts.contains("min-height")) style->min_height = opts.i32("min-height");
     if (opts.contains("position"))
     {
       style->position = parse_position_mode(opts.val("position"));

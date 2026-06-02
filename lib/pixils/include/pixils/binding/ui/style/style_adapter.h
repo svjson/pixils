@@ -22,6 +22,8 @@ namespace Pixils::Script
      scale,
      width,
      height,
+     min_width,
+     min_height,
      position,
      top,
      left,
@@ -38,13 +40,17 @@ namespace Pixils::Script
      height,
      hit_test,
      left,
+     min_height,
+     min_width,
      opacity,
      position,
      scale,
      top,
      visibility,
      width));
-  NATIVE_ADAPTER(LayoutAdapter, UI::Style::Layout, (direction, align_items, gap));
+  NATIVE_ADAPTER(LayoutAdapter,
+                 UI::Style::Layout,
+                 (direction, align_items, gap, wrap, line_gap));
   NATIVE_ADAPTER(LayoutGapAdapter, UI::Style::Layout::Gap, (mode, size));
   NATIVE_ADAPTER(StyleTextAdapter, UI::Style::Text, (color, font, scale, align, wrap));
   NATIVE_ADAPTER(ThemeAdapter, UI::Theme, (name));

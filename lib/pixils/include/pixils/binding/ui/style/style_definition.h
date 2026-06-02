@@ -63,6 +63,10 @@ namespace Pixils::Script::StyleDefinition
     const Roo::sptr_val& value);
   Roo::sptr_val layout_gap_mode_to_value(
     const std::optional<UI::Style::Layout::GapMode>& value);
+  std::optional<UI::Style::Layout::Wrap> parse_layout_wrap(
+    const Roo::sptr_val& value);
+  Roo::sptr_val layout_wrap_to_value(
+    const std::optional<UI::Style::Layout::Wrap>& value);
 
   std::optional<int> parse_optional_int(const Roo::sptr_val& value);
   Roo::sptr_val optional_int_to_value(const std::optional<int>& value);

@@ -216,6 +216,12 @@ namespace Pixils::UI
         SPACE_BETWEEN,
       };
 
+      enum class Wrap : uint8_t
+      {
+        NONE,
+        LINE,
+      };
+
       struct Gap
       {
         std::optional<GapMode> mode = std::nullopt;
@@ -225,6 +231,8 @@ namespace Pixils::UI
       std::optional<LayoutDirection> direction = std::nullopt;
       std::optional<AlignItems> align_items = std::nullopt;
       std::optional<Gap> gap = std::nullopt;
+      std::optional<Wrap> wrap = std::nullopt;
+      std::optional<int> line_gap = std::nullopt;
     };
 
     struct Text
@@ -314,6 +322,8 @@ namespace Pixils::UI
      */
     std::optional<Size> width;
     std::optional<Size> height;
+    std::optional<int> min_width;
+    std::optional<int> min_height;
 
     /** Outer flow dimensions: view box plus margins. */
     int total_width() const;

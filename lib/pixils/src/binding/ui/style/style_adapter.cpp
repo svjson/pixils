@@ -77,6 +77,8 @@ namespace Pixils::Script
                       (rw, "scale", scale),
                       (rw, "width", width),
                       (rw, "height", height),
+                      (rw, "min-width", min_width),
+                      (rw, "min-height", min_height),
                       (rw, "position", position),
                       (rw, "top", top),
                       (rw, "left", left),
@@ -199,6 +201,26 @@ namespace Pixils::Script
     get_self_object().height = StyleDefinition::parse_size(value);
   }
 
+  NOBJ_PROP_GET(StyleAdapter, min_width)
+  {
+    return StyleDefinition::optional_int_to_value(get_self_object().min_width);
+  }
+
+  NOBJ_PROP_SET(StyleAdapter, min_width)
+  {
+    get_self_object().min_width = StyleDefinition::parse_optional_int(value);
+  }
+
+  NOBJ_PROP_GET(StyleAdapter, min_height)
+  {
+    return StyleDefinition::optional_int_to_value(get_self_object().min_height);
+  }
+
+  NOBJ_PROP_SET(StyleAdapter, min_height)
+  {
+    get_self_object().min_height = StyleDefinition::parse_optional_int(value);
+  }
+
   NOBJ_PROP_GET(StyleAdapter, position)
   {
     return StyleDefinition::position_mode_to_value(get_self_object().position);
@@ -299,7 +321,9 @@ namespace Pixils::Script
                       &HostType::STYLE_LAYOUT,
                       (direction),
                       ("align-items", align_items),
-                      (gap));
+                      (gap),
+                      (wrap),
+                      ("line-gap", line_gap));
 
   NOBJ_PROP_GET(LayoutAdapter, direction)
   {
@@ -315,6 +339,16 @@ namespace Pixils::Script
   {
     return get_self_object().gap ? LayoutGapAdapter::make_ref(*get_self_object().gap)
                                  : Roo::Constant::NIL;
+  }
+
+  NOBJ_PROP_GET(LayoutAdapter, wrap)
+  {
+    return StyleDefinition::layout_wrap_to_value(get_self_object().wrap);
+  }
+
+  NOBJ_PROP_GET(LayoutAdapter, line_gap)
+  {
+    return StyleDefinition::optional_int_to_value(get_self_object().line_gap);
   }
 
   NATIVE_ADAPTER_IMPL(LayoutGapAdapter,
