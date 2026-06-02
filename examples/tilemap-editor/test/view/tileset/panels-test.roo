@@ -93,12 +93,26 @@
 
 (deftest sprite-source-editor-binds_zoom_and_offset_to_preview
   (let [children (sse/sprite-source-editor-children)
-        preview (nth children 4)
-        zoom-control (nth children 5)]
+        snap-row (nth children 4)
+        zoom-control (nth children 5)
+        preview (nth children 6)]
+    (is (= :source-snap-to-grid?
+           (-> snap-row :children head :state :value)))
+    (is (= 'image-panel-zoom-control (:mode zoom-control)))
     (is (= 'sprite-source-preview (:mode preview)))
     (is (not (nil? (-> preview :state :sprite-source-preview-zoom))))
     (is (not (nil? (-> preview :state :sprite-source-preview-offset))))
     (is (not (nil? (-> zoom-control :state :zoom))))))
+
+(deftest tile-definition-panel-scroll-content-wraps_detail_panel
+  (let [content (panels/tile-definition-panel-content-child)
+        style (panels/tile-definition-panel-scroll-content-style
+               {:offset 48})]
+    (is (= 'tile-definition-panel (:mode content)))
+    (is (not (nil? (-> content :state :resources))))
+    (is (= :fill (:width style)))
+    (is (= -48 (:top style)))
+    (is (= panels/tile-definition-panel-content-height (:height style)))))
 
 (deftest sprite-map-preview-source-navigation-clamps_to_asset_bounds
   (is (= {:x 784 :y 1264 :w 16 :h 16}

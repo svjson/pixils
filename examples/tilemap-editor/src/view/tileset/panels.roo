@@ -491,7 +491,7 @@
    :children [(tile-sprite-editor-placeholder-child)]})
 
 (defcomponent tile-definition-panel
-  {:style {:width :shrink
+  {:style {:width :fill
            :height :shrink
            :layout {:direction :column
                     :gap 8}}
@@ -542,7 +542,7 @@
                  :source-snap-interval-custom? true))}
    :children [{:mode 'tile-definition-row
                :style {:width :fill
-                       :height :shrink
+                       :height 76
                        :layout {:direction :row
                                 :gap 10}}
                :state {:tile (ui/bind-state :tile)
@@ -590,3 +590,65 @@
                        (ui/bind-state :source-snap-interval-custom?)}}
               {:mode 'tile-color-editor
                :state {:tile (ui/bind-state :tile)}}]})
+
+(def tile-definition-panel-content-height 680)
+
+(def tile-definition-panel-scroll-width 320)
+
+(defun tile-definition-panel-content-child []
+  {:mode 'tile-definition-panel
+   :state {:selected-tileset-definition-index
+           (ui/bind-state :selected-tileset-definition-index)
+           :selected-tileset-tile-index
+           (ui/bind-state :selected-tileset-tile-index)
+           :selected-tileset-tile-indices
+           (ui/bind-state :selected-tileset-tile-indices)
+           :resources (ui/bind-state :resources)
+           :tilesets (ui/bind-state :tilesets)}})
+
+(defun tile-definition-panel-scroll-content-style [state]
+  {:position :absolute
+   :left 0
+   :top (* -1 (or (:offset state) 0))
+   :width :fill
+   :height tile-definition-panel-content-height})
+
+(defcomponent tile-definition-panel-scroll-viewport
+  {:style {:width :fill
+           :height :fill
+           :clip true}
+   :update (fn [state ctx]
+             (let [children (ui/children ctx)]
+               (do
+                 (when (> (count children) 0)
+                   (ui/style! (nth children 0)
+                              (tile-definition-panel-scroll-content-style
+                               state)))
+                 state)))
+   :children [(tile-definition-panel-content-child)]})
+
+(defcomponent tile-definition-panel-scroll-row
+  {:style {:width tile-definition-panel-scroll-width
+           :height :fill
+           :layout {:direction :row}}
+   :init (fn [state ctx]
+           (assoc state
+                  :offset 0
+                  :content-height tile-definition-panel-content-height))
+   :children [{:mode 'tile-definition-panel-scroll-viewport
+               :state {:offset (ui/bind-state :offset)
+                       :selected-tileset-definition-index
+                       (ui/bind-state :selected-tileset-definition-index)
+                       :selected-tileset-tile-index
+                       (ui/bind-state :selected-tileset-tile-index)
+                       :selected-tileset-tile-indices
+                       (ui/bind-state :selected-tileset-tile-indices)
+                       :resources (ui/bind-state :resources)
+                       :tilesets (ui/bind-state :tilesets)}}
+              {:mode 'ui/scrollbar
+               :class :scrollbar/v
+               :style {:height :fill}
+               :state {:axis :y
+                       :value (ui/bind-state :offset)
+                       :step 48
+                       :content-size (ui/bind-state :content-height)}}]})

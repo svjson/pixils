@@ -184,9 +184,9 @@
                                                         :tilesets (ui/bind-state :tilesets)}}]}]})
               (hp/make {:title "Tile Definition"
                         :style {:width :shrink
-                                :height :shrink}
+                                :height :fill}
                         :body-style {:padding 8
-                                     :height :shrink}
+                                     :height :fill}
                         :state {:selected-tileset-definition-index (ui/bind-state :selected-tileset-definition-index)
                                 :selected-tileset-tile-index (ui/bind-state :selected-tileset-tile-index)
                                 :selected-tileset-tile-indices (ui/bind-state :selected-tileset-tile-indices)
@@ -198,7 +198,7 @@
                                      :selected-tileset-tile-indices (ui/bind-state :selected-tileset-tile-indices)
                                      :resources (ui/bind-state :resources)
                                      :tilesets (ui/bind-state :tilesets)}
-                        :children [{:mode 'tile-definition-panel
+                        :children [{:mode 'tile-definition-panel-scroll-row
                                     :state {:selected-tileset-definition-index (ui/bind-state :selected-tileset-definition-index)
                                             :selected-tileset-tile-index (ui/bind-state :selected-tileset-tile-index)
                                             :selected-tileset-tile-indices (ui/bind-state :selected-tileset-tile-indices)
