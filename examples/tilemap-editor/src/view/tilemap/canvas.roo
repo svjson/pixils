@@ -73,7 +73,8 @@
         nil))))
 
 (defun map-canvas-render-input [state]
-  {:width (tm/map-width state)
+  {:map-id (:selected-map-id state)
+   :width (tm/map-width state)
    :height (tm/map-height state)
    :tile-size (tm/tile-size state)
    :layers (:layers state)
@@ -143,7 +144,8 @@
   (dissoc (dissoc (dissoc layer :tiles) :terrain-signatures) :source-mask))
 
 (defun map-canvas-render-input-signature [input]
-  {:width (:width input)
+  {:map-id (:map-id input)
+   :width (:width input)
    :height (:height input)
    :tile-size (:tile-size input)
    :layers (map (or (:layers input) []) render-layer-signature)
@@ -558,6 +560,7 @@
            :layout {:direction :row}}
    :children [{:mode 'map-canvas
                :state {:selected-tile (ui/bind-state :selected-tile)
+                         :selected-map-id (ui/bind-state :selected-map-id)
                          :map-width (ui/bind-state :map-width)
                          :map-height (ui/bind-state :map-height)
                          :tile-size (ui/bind-state :tile-size)
@@ -630,6 +633,7 @@
            :layout {:direction :column}}
    :children [{:mode 'map-scroll-row
                :state {:selected-tile (ui/bind-state :selected-tile)
+                         :selected-map-id (ui/bind-state :selected-map-id)
                          :map-width (ui/bind-state :map-width)
                          :map-height (ui/bind-state :map-height)
                          :tile-size (ui/bind-state :tile-size)

@@ -112,6 +112,42 @@
     (is (= [0]
            (get-in state [:render-map-input :hidden-layer-indices])))))
 
+(deftest refresh-render-map-rebuilds_when_active_map_id_changes
+  (let [previous-input {:map-id :map/one
+                        :width 1
+                        :height 1
+                        :tile-size 16
+                        :layers [{:id :base
+                                  :tileset :world
+                                  :tiles [[:grass]]}]
+                        :terrain-sets []
+                        :show-terrain-rules? nil
+                        :layer-profile nil
+                        :rulesets []}
+        state (canvas/refresh-map-canvas-render-map
+               {:selected-map-id :map/two
+                :map-width 1
+                :map-height 1
+                :tile-size 16
+                :layers [{:id :base
+                          :tileset :world
+                          :tiles [[:water]]}]
+                :hidden-layer-indices []
+                :tilesets []
+                :terrain-sets []
+                :rulesets []
+                :render-map {:width 1
+                             :height 1
+                             :tile-size 16
+                             :layers [{:id :base
+                                       :tileset :world
+                                       :tiles [[:grass]]
+                                       :data-kind :tile-ref}]}
+                :render-map-input-signature
+                (canvas/map-canvas-render-input-signature previous-input)})]
+    (is (= :map/two (get-in state [:render-map-input :map-id])))
+    (is (= :water (get-in state [:render-map :layers 0 :tiles 0 0])))))
+
 (deftest map-canvas-render-input-uses_active_map_tile_size
   (let [input (canvas/map-canvas-render-input
                {:map-width 2
