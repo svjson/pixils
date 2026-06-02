@@ -14,6 +14,8 @@
 
 (def image-preview-height 260)
 
+(def resource-drag-preview-width 360)
+
 (def bundle-context-menu
   {:settings {:mnemonics {:enabled false}}
    :items [{:label "Edit"
@@ -36,6 +38,61 @@
             :payload {:kind :image
                       :command :delete}}]})
 
+(defun image-resource-drag-size [ctx]
+  (let [bounds (-> ctx :view :bounds)]
+    {:width (or (:w bounds) resource-drag-preview-width)
+     :height (or (:h bounds) resource-list-row-height)}))
+
+(defun image-resource-drag-payload [state event ctx]
+  {:kind :resource/image
+   :bundle-id (:bundle-id state)
+   :resource-id (:value state)
+   :key-label (:key-label state)
+   :name (:name state)
+   :width (:width (image-resource-drag-size ctx))
+   :height (:height (image-resource-drag-size ctx))
+   :offset (:start-position event)})
+
+(defun point-minus [position offset]
+  (let [pos (or position {:x 0 :y 0})
+        off (or offset {:x 0 :y 0})]
+    {:x (- (:x pos) (:x off))
+     :y (- (:y pos) (:y off))}))
+
+(defun image-resource-drag-position [event payload]
+  (point-minus (:global-position event) (:offset payload)))
+
+(defun emit-image-resource-drag-start! [state event ctx]
+  (let [payload (:payload event)]
+    (do
+      (ui/emit! (:view ctx)
+                :resource/image-drag-start
+                (assoc payload
+                       :position (image-resource-drag-position event
+                                                               payload)))
+      state)))
+
+(defun emit-image-resource-drag-move! [state event ctx]
+  (let [payload (:payload event)]
+    (do
+      (ui/emit! (:view ctx)
+                :resource/image-drag-move
+                (assoc payload
+                       :position (image-resource-drag-position event
+                                                               payload)))
+      state)))
+
+(defun emit-image-resource-drag-end! [state event ctx]
+  (do
+    (ui/emit! (:view ctx) :resource/image-drag-end nil)
+    state))
+
+(defun image-resource-drop-payload [target-bundle-id payload]
+  (when (= (:kind payload) :resource/image)
+    {:source-bundle-id (:bundle-id payload)
+     :resource-id (:resource-id payload)
+     :target-bundle-id target-bundle-id}))
+
 (defcomponent image-resource-row
   {:extend 'ui/list-box-item
    :class :ui/list-item-hover
@@ -45,6 +102,13 @@
            :layout {:direction :row
                     :align-items :center
                     :gap 6}}
+   :drag {:start {:mode :threshold
+                  :distance 3}
+          :payload (fn [state event ctx]
+                     (image-resource-drag-payload state event ctx))}
+   :on-drag-start emit-image-resource-drag-start!
+   :on-drag emit-image-resource-drag-move!
+   :on-drag-end emit-image-resource-drag-end!
    :update (fn [state ctx]
              (assoc state :selected (contains? (:selected-indices state)
                                                (:index state))))
@@ -106,6 +170,17 @@
    :update (fn [state ctx]
              (assoc state :selected (contains? (:selected-indices state)
                                                (:index state))))
+   :on-drop (fn [state event ctx]
+              (let [payload (image-resource-drop-payload (:value state)
+                                                         (:payload event))]
+                (if payload
+                  (do
+                    (ui/stop-propagation! event)
+                    (ui/emit! (:view ctx)
+                              :resource/move-image-to-bundle
+                              payload)
+                    state)
+                  state)))
    :on-mouse-down (fn [state event ctx]
                     (do
                       (ui/stop-propagation! event)
@@ -242,6 +317,43 @@
                                   (-> event :payload :value)))}
    :children [(merge {:id "list-box"}
                      (image-resource-list-child []))]})
+
+(defcomponent image-resource-drag-preview
+  {:class [:ui/list-item :ui/list-box-item :ui/list-item-hover]
+   :style {:position :absolute
+           :width resource-drag-preview-width
+           :height resource-list-row-height
+           :padding [3 6]
+           :layout {:direction :row
+                    :align-items :center
+                    :gap 6}
+           :hit-test false
+           :hidden true}
+   :update (fn [state ctx]
+             (let [preview (:drag-preview state)
+                   position (:position preview)
+                   visible? (not (nil? preview))]
+               (do
+                 (ui/style! (:view ctx)
+                            (if visible?
+                              {:hidden false
+                               :left (:x position)
+                               :top (:y position)
+                               :width (or (:width preview)
+                                          resource-drag-preview-width)
+                               :height (or (:height preview)
+                                           resource-list-row-height)}
+                              {:hidden true}))
+                 (assoc state
+                        :selected true
+                        :key-label (or (:key-label preview) "")
+                        :name (or (:name preview) "")))))
+   :children [{:mode 'ui/text
+               :style {:width :fill}
+               :state {:value (ui/bind-state :key-label)}}
+              {:mode 'ui/text
+               :class :ui/muted
+               :state {:value (ui/bind-state :name)}}]})
 
 (defcomponent image-resource-detail
   {:style {:width :fill

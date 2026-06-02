@@ -174,6 +174,19 @@
     (:id entry)
     nil))
 
+(defun resource-id-exists? [images resource-id]
+  (contains? (or images {}) (keyword (keyword-label resource-id))))
+
+(defun unique-resource-id-from [images root suffix]
+  (let [candidate (keyword (if suffix
+                             (str root "-" suffix)
+                             root))]
+    (if (resource-id-exists? images candidate)
+      (unique-resource-id-from images
+                               root
+                               (if suffix (inc suffix) 2))
+      candidate)))
+
 (defun add-resource-bundle! [state payload]
   (let [bundle-id (keyword (:bundle-id payload))]
     (do
@@ -272,6 +285,24 @@
   (replace-resource-key-in (or brushes [])
                            (image-resource-key bundle-id old-resource-id)
                            (image-resource-key bundle-id new-resource-id)))
+
+(defun replace-resource-key-in-project [state old-key new-key]
+  (maps/update-all-map-layers
+   (assoc state
+          :tilesets (replace-resource-key-in (:tilesets state)
+                                             old-key
+                                             new-key)
+          :layers (replace-resource-key-in (or (:layers state) [])
+                                           old-key
+                                           new-key)
+          :layer-profiles (replace-resource-key-in (:layer-profiles state)
+                                                   old-key
+                                                   new-key)
+          :brushes (replace-resource-key-in (:brushes state)
+                                            old-key
+                                            new-key))
+   (fn [layers]
+     (replace-resource-key-in (or layers []) old-key new-key))))
 
 (defun rename-resource-bundle! [state payload]
   (let [old-bundle-id (:previous-bundle-id payload)
@@ -554,6 +585,43 @@
       :edit (edit-image-resource! state payload)
       :default state)
     state))
+
+(defun move-image-resource! [state payload]
+  (let [source-bundle-id (:source-bundle-id payload)
+        target-bundle-id (:target-bundle-id payload)
+        resource-id (:resource-id payload)
+        source-images (bundle-images (:resources state) source-bundle-id)
+        target-images (bundle-images (:resources state) target-bundle-id)
+        dependency (get source-images resource-id)]
+    (if (and source-bundle-id
+             target-bundle-id
+             resource-id
+             dependency
+             (not= source-bundle-id target-bundle-id)
+             (not (static-project-bundle-id? target-bundle-id))
+             (get-in state [:resources :bundles target-bundle-id]))
+      (let [target-resource-id (unique-resource-id-from target-images
+                                                        (keyword-label resource-id)
+                                                        nil)
+            old-key (image-resource-key source-bundle-id resource-id)
+            new-key (image-resource-key target-bundle-id target-resource-id)
+            next-resources (assoc-in
+                            (update-in (:resources state)
+                                       [:bundles source-bundle-id :images]
+                                       (fn [images]
+                                         (dissoc (or images {}) resource-id)))
+                            [:bundles target-bundle-id :images target-resource-id]
+                            dependency)
+            next-state (assoc state
+                              :resources next-resources
+                              :selected-resource-bundle target-bundle-id
+                              :selected-image-resource target-resource-id)]
+        (do
+          (res/remove-image! old-key)
+          (res/create-bundle! target-bundle-id)
+          (res/add-image! new-key (runtime-image-dependency dependency))
+          (replace-resource-key-in-project next-state old-key new-key)))
+      state)))
 
 (defun remove-image-resource! [state bundle-id resource-id action replacement-key]
   (let [resource-key (image-resource-key bundle-id resource-id)]

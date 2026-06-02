@@ -271,6 +271,92 @@
           :decor
           :decor-v2))))
 
+(deftest image-resource-move-transfers_dependency_and_updates_project_references
+  (let [state (resources/move-image-resource!
+               {:selected-map-id :map/one
+                :selected-map-label "One"
+                :map-width 1
+                :map-height 1
+                :selected-layer-profile-id :default
+                :layer-profiles [{:id :default
+                                  :layers [{:id :profile
+                                            :stamp {:image :terrain-assets/tiles}}]}]
+                :resources {:bundles {:terrain-assets
+                                      {:images {:tiles
+                                                {:file-name "tiles.png"
+                                                 :name "Tiles"}}}
+                                      :ui-assets
+                                      {:images {}}}}
+                :tilesets [{:id :terrain
+                            :tiles [{:id :grass
+                                     :type :sprite
+                                     :image :terrain-assets/tiles}]}]
+                :brushes [{:id :stamp-brush
+                           :kind :pattern
+                           :pattern {:layers [{:tiles [[{:image :terrain-assets/tiles}]]}]}}]
+                :layers [{:id :active
+                          :stamp {:image :terrain-assets/tiles}}]
+                :maps [{:id :map/one
+                        :label "One"
+                        :width 1
+                        :height 1
+                        :layers [{:id :active
+                                  :stamp {:image :terrain-assets/tiles}}]}
+                       {:id :map/two
+                        :label "Two"
+                        :width 1
+                        :height 1
+                        :layers [{:id :inactive
+                                  :stamp {:image :terrain-assets/tiles}}]}]}
+               {:source-bundle-id :terrain-assets
+                :resource-id :tiles
+                :target-bundle-id :ui-assets})]
+    (is (= nil
+           (get-in state [:resources :bundles :terrain-assets :images :tiles])))
+    (is (= {:file-name "tiles.png"
+            :name "Tiles"}
+           (get-in state [:resources :bundles :ui-assets :images :tiles])))
+    (is (= :ui-assets (:selected-resource-bundle state)))
+    (is (= :tiles (:selected-image-resource state)))
+    (is (= :ui-assets/tiles
+           (get-in state [:tilesets 0 :tiles 0 :image])))
+    (is (= :ui-assets/tiles
+           (get-in state [:layers 0 :stamp :image])))
+    (is (= :ui-assets/tiles
+           (get-in state [:maps 0 :layers 0 :stamp :image])))
+    (is (= :ui-assets/tiles
+           (get-in state [:maps 1 :layers 0 :stamp :image])))
+    (is (= :ui-assets/tiles
+           (get-in state [:layer-profiles 0 :layers 0 :stamp :image])))
+    (is (= :ui-assets/tiles
+           (get-in state [:brushes 0 :pattern :layers 0 :tiles 0 0 :image])))))
+
+(deftest image-resource-move-uses_unique_id_when_target_bundle_has_same_resource_id
+  (let [state (resources/move-image-resource!
+               {:resources {:bundles {:terrain-assets
+                                      {:images {:tiles
+                                                {:file-name "terrain.png"
+                                                 :name "Terrain"}}}
+                                      :ui-assets
+                                      {:images {:tiles
+                                                {:file-name "ui.png"
+                                                 :name "UI"}}}}}
+                :tilesets [{:id :terrain
+                            :tiles [{:type :sprite
+                                     :image :terrain-assets/tiles}]}]}
+               {:source-bundle-id :terrain-assets
+                :resource-id :tiles
+                :target-bundle-id :ui-assets})]
+    (is (= {:file-name "terrain.png"
+            :name "Terrain"}
+           (get-in state [:resources :bundles :ui-assets :images :tiles-2])))
+    (is (= {:file-name "ui.png"
+            :name "UI"}
+           (get-in state [:resources :bundles :ui-assets :images :tiles])))
+    (is (= :tiles-2 (:selected-image-resource state)))
+    (is (= :ui-assets/tiles-2
+           (get-in state [:tilesets 0 :tiles 0 :image])))))
+
 (deftest resource-usage-counts_tiles_per_tileset
   (is (= [{:tileset-id :terrain
 	           :label "Terrain"

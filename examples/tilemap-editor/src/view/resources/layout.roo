@@ -1,8 +1,19 @@
 (ns tilemap-editor.view.resources.layout
   (:require pixils
+            [pixils.ui :as ui]
             tilemap-editor.view.resources.model
             tilemap-editor.view.resources.dialogs
             tilemap-editor.view.resources.panels))
+
+(defun resource-image-drag-preview-payload [payload ctx]
+  (let [position (:position payload)
+        bounds (-> ctx :view :bounds)]
+    (if position
+      (assoc payload
+             :position
+             {:x (- (:x position) (or (:x bounds) 0))
+              :y (- (:y position) (or (:y bounds) 0))})
+      payload)))
 
 (defcomponent resource-explorer-workspace
   {:style {:width :fill
@@ -27,6 +38,24 @@
                                 state))
         :resource/edit-image (fn [state event ctx]
                                (open-selected-image-metadata-dialog! state ctx))
+        :resource/move-image-to-bundle
+        (fn [state event ctx]
+          (move-image-resource! state (:payload event)))
+        :resource/image-drag-start
+        (fn [state event ctx]
+          (assoc state
+                 :resource-image-drag-preview
+                 (resource-image-drag-preview-payload (:payload event)
+                                                      ctx)))
+        :resource/image-drag-move
+        (fn [state event ctx]
+          (assoc state
+                 :resource-image-drag-preview
+                 (resource-image-drag-preview-payload (:payload event)
+                                                      ctx)))
+        :resource/image-drag-end
+        (fn [state event ctx]
+          (assoc state :resource-image-drag-preview nil))
         :resource/context-command
         (fn [state event ctx]
           (let [payload (:payload event)]
@@ -91,4 +120,7 @@
                       state)))}
    :children [(make-resource-bundle-list-panel)
               (make-image-resource-list-panel)
-              (make-image-resource-detail-panel)]})
+              (make-image-resource-detail-panel)
+              {:mode 'image-resource-drag-preview
+               :state {:drag-preview
+                       (ui/bind-state :resource-image-drag-preview)}}]})
