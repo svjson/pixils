@@ -143,6 +143,21 @@
     (is (= :island-3x3 (-> panel :state :setup-id)))
     (is (= false (contains? (:state panel) :rulesets)))))
 
+(deftest terrain-standard-setup-groups-use_wrapped_row_layout
+  (let [content (layout/terrain-standard-setup-panel-groups-content-child)
+        layout-style (-> content :style :layout)
+        children (:children content)]
+    (is (= :row (:direction layout-style)))
+    (is (= :line (:wrap layout-style)))
+    (is (= layout/terrain-standard-setup-panel-column-gap
+           (:gap layout-style)))
+    (is (= layout/terrain-standard-setup-panel-row-gap
+           (:line-gap layout-style)))
+    (is (= 7 (count children)))
+    (is (= 'terrain-standard-setup-panel (-> children head :mode)))
+    (is (= :island-3x3 (-> children head :state :setup-id)))
+    (is (= :stumps (-> children (nth 6) :state :setup-id)))))
+
 (deftest terrain-standard-role-markers-use_not_same_match_directions
   (is (= [:n]
          (layout/terrain-standard-role-marker-directions :n)))

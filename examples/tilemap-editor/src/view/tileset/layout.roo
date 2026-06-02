@@ -190,14 +190,17 @@
                         :state {:selected-tileset-definition-index (ui/bind-state :selected-tileset-definition-index)
                                 :selected-tileset-tile-index (ui/bind-state :selected-tileset-tile-index)
                                 :selected-tileset-tile-indices (ui/bind-state :selected-tileset-tile-indices)
+                                :resources (ui/bind-state :resources)
                                 :tilesets (ui/bind-state :tilesets)
                                 :disabled? (ui/bind-state :tile-definition-panel-disabled?)}
                         :body-state {:selected-tileset-definition-index (ui/bind-state :selected-tileset-definition-index)
                                      :selected-tileset-tile-index (ui/bind-state :selected-tileset-tile-index)
                                      :selected-tileset-tile-indices (ui/bind-state :selected-tileset-tile-indices)
+                                     :resources (ui/bind-state :resources)
                                      :tilesets (ui/bind-state :tilesets)}
                         :children [{:mode 'tile-definition-panel
                                     :state {:selected-tileset-definition-index (ui/bind-state :selected-tileset-definition-index)
                                             :selected-tileset-tile-index (ui/bind-state :selected-tileset-tile-index)
                                             :selected-tileset-tile-indices (ui/bind-state :selected-tileset-tile-indices)
+                                            :resources (ui/bind-state :resources)
                                             :tilesets (ui/bind-state :tilesets)}}]})]})

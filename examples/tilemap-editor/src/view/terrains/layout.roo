@@ -2205,31 +2205,17 @@
                           (fn [row]
                             (terrain-standard-setup-row-child setup row))))})
 
-(def terrain-standard-setup-panel-row-ids
-  [[:island-3x3 :inner-corners :isolated]
-   [:ring :forks-cardinal :forks-diagonal]
-   [:stumps]])
-
-(defun terrain-standard-setup-panel-group-row-child [setup-ids]
-  {:style {:width :fill
-           :height :shrink
-           :layout {:direction :row
-                    :align-items :start
-                    :gap terrain-standard-setup-panel-column-gap}}
-   :state (ui/bind-state)
-   :children (map setup-ids
-                  (fn [setup-id]
-                    (terrain-standard-setup-panel-child
-                     (model/terrain-standard-setup setup-id))))})
-
 (defun terrain-standard-setup-panel-groups-content-child []
   {:style {:width :fill
            :height :shrink
-           :layout {:direction :column
-                    :gap terrain-standard-setup-panel-row-gap}}
+           :layout {:direction :row
+                    :wrap :line
+                    :align-items :start
+                    :gap terrain-standard-setup-panel-column-gap
+                    :line-gap terrain-standard-setup-panel-row-gap}}
    :state (ui/bind-state)
-   :children (map terrain-standard-setup-panel-row-ids
-                  terrain-standard-setup-panel-group-row-child)})
+   :children (map model/terrain-standard-setup-definitions
+                  terrain-standard-setup-panel-child)})
 
 (defun terrain-standard-setup-panel-scroll-content-style [state]
   {:position :absolute

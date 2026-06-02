@@ -649,6 +649,23 @@
     (is (= {:x 64 :y 96 :w 32 :h 32}
            (get-in next [:tilesets 0 :tiles 0 :source])))))
 
+(deftest selected-sprite-update-can_change_image_and_source
+  (let [state {:selected-tileset-definition-index 0
+               :selected-tileset-tile-index 0
+               :tilesets [{:tile-size 32
+                           :tiles [{:id :hero
+                                    :type :sprite
+                                    :image :project-assets/old
+                                    :source {:x 0 :y 0 :w 32 :h 32}}]}]}
+        next (model/set-selected-tile-sprite
+              state
+              {:image :project-assets/new
+               :source {:x 64 :y 96 :w 16 :h 16}})]
+    (is (= :project-assets/new
+           (get-in next [:tilesets 0 :tiles 0 :image])))
+    (is (= {:x 64 :y 96 :w 32 :h 32}
+           (get-in next [:tilesets 0 :tiles 0 :source])))))
+
 (deftest tileset-tile-grid-position-and-key-movement
   (is (= 3 (model/tile-grid-columns {:w 48 :h 80})))
   (is (= 1 (model/tile-grid-columns nil)))

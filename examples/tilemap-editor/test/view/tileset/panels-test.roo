@@ -1,6 +1,7 @@
 (ns tilemap-editor.view.tileset.panels-test
   (:require proof.core
-            [tilemap-editor.view.tileset.panels :as panels]))
+            [tilemap-editor.view.tileset.panels :as panels]
+            [tilemap-editor.view.tileset.sprite-source-editor :as sse]))
 
 (deftest tileset-definition-list-is-disabled-when-empty
   (is (= true (:disabled? (:state (panels/tileset-list-box-child [])))))
@@ -27,9 +28,9 @@
     (is (= :delete (-> delete-item :payload :command)))))
 
 (deftest sprite-map-preview-source-rect-scales-from-full-asset
-  (let [image-rect (panels/sprite-map-preview-image-rect {:w 800
+  (let [image-rect (sse/sprite-source-preview-image-rect {:w 800
                                                           :h 1280})
-        source-rect (panels/sprite-map-preview-source-rect
+        source-rect (sse/sprite-source-preview-source-rect
                      {:x 0 :y 96 :w 16 :h 16}
                      image-rect)]
     (is (= 20 (:x image-rect)))
@@ -39,10 +40,10 @@
            source-rect))))
 
 (deftest sprite-map-preview-position-selects_tile_coordinates
-  (let [image-rect (panels/sprite-map-preview-image-rect {:w 800
+  (let [image-rect (sse/sprite-source-preview-image-rect {:w 800
                                                           :h 1280})]
     (is (= {:x 32 :y 96 :w 16 :h 16}
-           (panels/source-position-from-preview-position
+           (sse/source-position-from-preview-position
             {:x 28 :y 27}
             image-rect
             {:w 800 :h 1280}
@@ -51,10 +52,10 @@
             16)))))
 
 (deftest sprite-map-preview-position-can_select_unsnapped_coordinates
-  (let [image-rect (panels/sprite-map-preview-image-rect {:w 800
+  (let [image-rect (sse/sprite-source-preview-image-rect {:w 800
                                                           :h 1280})]
     (is (= {:x 34 :y 108 :w 16 :h 16}
-           (panels/source-position-from-preview-position
+           (sse/source-position-from-preview-position
             {:x 28.5 :y 27}
             image-rect
             {:w 800 :h 1280}
@@ -63,10 +64,10 @@
             16)))))
 
 (deftest sprite-map-preview-position_uses_custom_snap_interval
-  (let [image-rect (panels/sprite-map-preview-image-rect {:w 800
+  (let [image-rect (sse/sprite-source-preview-image-rect {:w 800
                                                           :h 1280})]
     (is (= {:x 32 :y 104 :w 16 :h 16}
-           (panels/source-position-from-preview-position
+           (sse/source-position-from-preview-position
             {:x 28.5 :y 27}
             image-rect
             {:w 800 :h 1280}
@@ -75,38 +76,44 @@
             8)))))
 
 (deftest sprite-source-snap-settings_default_to_tile_size_and_enabled
-  (is (= true (panels/source-position-snap-enabled? {})))
+  (is (= true (sse/source-position-snap-enabled? {})))
   (is (= 32
-         (panels/source-position-snap-interval {:tile-size 32})))
+         (sse/source-position-snap-interval {:tile-size 32})))
   (is (= 8
-         (panels/source-position-snap-interval
+         (sse/source-position-snap-interval
           {:tile-size 32
            :source-snap-interval 8
            :source-snap-interval-custom? true}))))
 
 (deftest tile-sprite-editor-binds_zoom_and_offset_to_preview
-  (let [children (panels/tile-sprite-editor-children)
-        preview (nth children 1)
-        zoom-control (nth children 2)]
-    (is (= 'sprite-map-preview (:mode preview)))
-    (is (not (nil? (-> preview :state :sprite-map-preview-zoom))))
-    (is (not (nil? (-> preview :state :sprite-map-preview-offset))))
+  (let [child (head (panels/tile-sprite-editor-children))]
+    (is (= 'sprite-source-editor (:mode child)))
+    (is (not (nil? (-> child :state :resources))))
+    (is (not (nil? (-> child :state :tile))))))
+
+(deftest sprite-source-editor-binds_zoom_and_offset_to_preview
+  (let [children (sse/sprite-source-editor-children)
+        preview (nth children 4)
+        zoom-control (nth children 5)]
+    (is (= 'sprite-source-preview (:mode preview)))
+    (is (not (nil? (-> preview :state :sprite-source-preview-zoom))))
+    (is (not (nil? (-> preview :state :sprite-source-preview-offset))))
     (is (not (nil? (-> zoom-control :state :zoom))))))
 
 (deftest sprite-map-preview-source-navigation-clamps_to_asset_bounds
   (is (= {:x 784 :y 1264 :w 16 :h 16}
-         (panels/move-source-position {:x 784 :y 1264 :w 16 :h 16}
-                                      16
-                                      16
-                                      16
-                                      {:w 800 :h 1280}
-                                      true
-                                      16)))
+         (sse/move-source-position {:x 784 :y 1264 :w 16 :h 16}
+                                   16
+                                   16
+                                   16
+                                   {:w 800 :h 1280}
+                                   true
+                                   16)))
   (is (= {:x 0 :y 0 :w 16 :h 16}
-         (panels/move-source-position {:x 0 :y 0 :w 16 :h 16}
-                                      -16
-                                      -16
-                                      16
-                                      {:w 800 :h 1280}
-                                      true
-                                      16))))
+         (sse/move-source-position {:x 0 :y 0 :w 16 :h 16}
+                                   -16
+                                   -16
+                                   16
+                                   {:w 800 :h 1280}
+                                   true
+                                   16))))

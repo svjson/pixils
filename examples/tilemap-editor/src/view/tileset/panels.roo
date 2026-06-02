@@ -1,23 +1,17 @@
 (ns tilemap-editor.view.tileset.panels
   (:require pixils
-            [pixils.image :as img]
             [pixils.render :as r]
             [pixils.ui :as ui]
-            [pixils.ui.checkbox :as chk]
             [pixils.ui.combo-box :as cb]
             [pixils.ui.list-box :as lb]
             [pixils.ui.menu :as menu]
             [pixils.ui.slider :as sl]
             [pixils.tilemap.project.model :as data]
-            [tilemap-editor.view.image-panel :as ip]
+            [tilemap-editor.view.tileset.sprite-source-editor :as sse]
             [tilemap-editor.view.tilemap.renderer :as tr]
             tilemap-editor.view.tileset.model))
 
 (def tileset-list-row-height 24)
-
-(def sprite-map-preview-width 240)
-
-(def sprite-map-preview-height 320)
 
 (def tileset-context-menu
   {:settings {:mnemonics {:enabled false}}
@@ -344,171 +338,6 @@
    :state {:label label
            :value value}})
 
-(defun source-label [source]
-  (if source
-    (str "x " (:x source)
-         ", y " (:y source)
-         ", w " (:w source)
-         ", h " (:h source))
-    ""))
-
-(defun sprite-map-preview-scale [dim]
-  (ip/image-panel-scale dim
-                        (ip/panel-size-map sprite-map-preview-width
-                                           sprite-map-preview-height)
-                        1))
-
-(defun sprite-map-preview-image-rect [dim]
-  (ip/image-panel-image-rect dim
-                             (ip/panel-size-map sprite-map-preview-width
-                                                sprite-map-preview-height)
-                             1
-                             {:x 0 :y 0}))
-
-(defun sprite-map-preview-source-rect [source image-rect]
-  (ip/source-rect-to-panel source image-rect 2))
-
-(defun source-position-from-preview-position [position
-                                             image-rect
-                                             dim
-                                             tile-size
-                                             snap-to-grid?
-                                             snap-interval]
-  (let [source-pos (ip/source-position-at position image-rect dim)]
-    (when source-pos
-      (source-with-position nil
-                            (:x source-pos)
-                            (:y source-pos)
-                            tile-size
-                            dim
-                            snap-to-grid?
-                            snap-interval))))
-
-(defun move-source-position [source dx dy tile-size dim snap-to-grid? snap-interval]
-  (source-with-position source
-                        (+ (:x source) dx)
-                        (+ (:y source) dy)
-                        tile-size
-                        dim
-                        snap-to-grid?
-                        snap-interval))
-
-(defun source-position-snap-enabled? [state]
-  (not= (:source-snap-to-grid? state) false))
-
-(defun source-position-snap-interval [state]
-  (let [tile-size (or (:tile-size state) data/tile-size)]
-    (if (:source-snap-interval-custom? state)
-      (source-snap-interval tile-size (:source-snap-interval state))
-      tile-size)))
-
-(defun source-position-key-step [state]
-  (if (source-position-snap-enabled? state)
-    (source-position-snap-interval state)
-    1))
-
-(defun sprite-map-preview-source-at-event [state event]
-  (let [tile (:tile state)
-        image (:image tile)
-        tile-size (or (:tile-size state) data/tile-size)]
-    (when image
-      (let [dim (img/size image)
-            image-rect (when dim
-                         (ip/image-panel-image-rect
-                          dim
-                          (ip/panel-size-map sprite-map-preview-width
-                                             sprite-map-preview-height)
-                          (:sprite-map-preview-zoom state)
-                          (:sprite-map-preview-offset state)))]
-        (when dim
-          (source-position-from-preview-position (:position event)
-                                                 image-rect
-                                                 dim
-                                                 tile-size
-                                                 (source-position-snap-enabled?
-                                                  state)
-                                                 (source-position-snap-interval
-                                                  state)))))))
-
-(defun sprite-map-preview-key-source [state event]
-  (let [tile (:tile state)
-        image (:image tile)
-        source (:source tile)
-        tile-size (or (:tile-size state) data/tile-size)
-        step (source-position-key-step state)
-        delta (case (:key event)
-                :key/left {:x (* -1 step) :y 0}
-                :key/right {:x step :y 0}
-                :key/up {:x 0 :y (* -1 step)}
-                :key/down {:x 0 :y step}
-                :default nil)]
-    (when (and image source delta)
-      (let [dim (img/size image)]
-        (when dim
-          (move-source-position source
-                                (:x delta)
-                                (:y delta)
-                                tile-size
-                                dim
-                                (source-position-snap-enabled? state)
-                                (source-position-snap-interval state)))))))
-
-(defcomponent sprite-map-preview
-  {:class :ui/content
-   :style {:width sprite-map-preview-width
-           :height sprite-map-preview-height
-           :clip true}
-   :update (fn [state ctx]
-             (let [tile (:tile state)
-                   image (:image tile)
-                   source (:source tile)]
-               (assoc state
-                      :image image
-                      :source-rects (if source [source] [])
-                      :sprite-map-preview-zoom
-                      (ip/clamp-zoom (:sprite-map-preview-zoom state))
-                      :sprite-map-preview-offset
-                      (ip/offset-or-zero (:sprite-map-preview-offset state)))))
-   :on-key-down (fn [state event ctx]
-                  (let [source (sprite-map-preview-key-source state event)]
-                    (if source
-                      (do
-                        (ui/stop-propagation! event)
-                        (ui/emit! (:view ctx)
-                                  :tile-definition/source-position-change
-                                  source)
-                        state)
-                      state)))
-   :on {:image-panel/source-click
-        (fn [state event ctx]
-          (let [payload (:payload event)
-                tile (:tile state)
-                image (:image tile)
-                dim (when image (img/size image))
-                source-pos (:source-position payload)
-                tile-size (or (:tile-size state) data/tile-size)]
-            (do
-              (ui/stop-propagation! event)
-              (when (and dim source-pos)
-                (ui/emit! (:view ctx)
-                          :tile-definition/source-position-change
-                          (source-with-position nil
-                                                (:x source-pos)
-                                                (:y source-pos)
-                                                tile-size
-                                                dim
-                                                (source-position-snap-enabled?
-                                                 state)
-                                                (source-position-snap-interval
-                                                 state))))
-              state)))}
-   :children [(ip/make {:width sprite-map-preview-width
-                        :height sprite-map-preview-height
-                        :image (ui/bind-state :image)
-                        :source-rects (ui/bind-state :source-rects)
-                        :zoom (ui/bind-state :sprite-map-preview-zoom)
-                        :offset (ui/bind-state :sprite-map-preview-offset)})]})
-
 (defcomponent tile-type-selector
   {:style {:width :fill
            :height 22}
@@ -581,48 +410,28 @@
               (color-channel-child :g "G" (ui/bind-state :g))
               (color-channel-child :b "B" (ui/bind-state :b))]})
 
+(defun tile-sprite-editor-placeholder-child []
+  {:id "sprite-source-editor-child"
+   :style {:width 0
+           :height 0}
+   :state (ui/bind-state)
+   :children []})
+
+(defun tile-sprite-editor-child []
+  {:id "sprite-source-editor-child"
+   :mode 'sprite-source-editor
+   :state {:resources (ui/bind-state :resources)
+           :tile (ui/bind-state :tile)
+           :tile-size (ui/bind-state :tile-size)
+           :source-snap-to-grid? (ui/bind-state
+                                  :source-snap-to-grid?)
+           :source-snap-interval (ui/bind-state
+                                  :source-snap-interval)
+           :source-snap-interval-custom?
+           (ui/bind-state :source-snap-interval-custom?)}})
+
 (defun tile-sprite-editor-children []
-  [(tile-detail-field-child "Asset" (ui/bind-state :asset-label))
-   {:mode 'sprite-map-preview
-    :state {:tile (ui/bind-state :tile)
-            :tile-size (ui/bind-state :tile-size)
-            :source-snap-to-grid? (ui/bind-state
-                                   :source-snap-to-grid?)
-            :source-snap-interval (ui/bind-state
-                                   :source-snap-interval)
-            :sprite-map-preview-zoom
-            (ui/bind-state :sprite-map-preview-zoom)
-            :sprite-map-preview-offset
-            (ui/bind-state :sprite-map-preview-offset)}}
-   (ip/zoom-control {:zoom (ui/bind-state :sprite-map-preview-zoom)})
-   {:mode 'tile-definition-row
-    :style {:width :fill
-            :height 24
-            :layout {:direction :row
-                     :align-items :center
-                     :gap 8}}
-    :state {:source-snap-to-grid? (ui/bind-state
-                                   :source-snap-to-grid?)
-            :source-snap-interval (ui/bind-state
-                                   :source-snap-interval)
-            :source-snap-interval-label (ui/bind-state
-                                         :source-snap-interval-label)
-            :tile-size (ui/bind-state :tile-size)}
-    :children [(chk/make {:label "Snap"
-                          :checked? (ui/bind-state
-                                     :source-snap-to-grid?)
-                          :style {:width 62
-                                  :height 20}})
-               (sl/make {:value (ui/bind-state
-                                 :source-snap-interval)
-                         :min 1
-                         :max 128
-                         :step 1})
-               {:mode 'ui/text
-                :style {:width 28}
-                :state {:value (ui/bind-state
-                                :source-snap-interval-label)}}]}
-   (tile-detail-field-child "Source" (ui/bind-state :source-label))])
+  [(tile-sprite-editor-child)])
 
 (defcomponent tile-sprite-editor
   {:style {:width :fill
@@ -633,37 +442,33 @@
            (let [tile-size (or (:tile-size state) data/tile-size)]
              (assoc state
                     :source-snap-to-grid?
-                    (source-position-snap-enabled? state)
+                    (sse/source-position-snap-enabled? state)
                     :source-snap-interval
-                    (source-position-snap-interval
-                     (assoc state :tile-size tile-size))
-                    :sprite-map-preview-zoom
-                    (ip/clamp-zoom (:sprite-map-preview-zoom state))
-                    :sprite-map-preview-offset
-                    (ip/offset-or-zero
-                     (:sprite-map-preview-offset state)))))
+                    (sse/source-position-snap-interval
+                     (assoc state :tile-size tile-size)))))
    :update (fn [state ctx]
              (let [tile (:tile state)
                    source (:source tile)
                    tile-size (or (:tile-size state) data/tile-size)
-                   snap-to-grid? (source-position-snap-enabled? state)
-                   snap-interval (source-position-snap-interval state)]
+                   sprite? (= (:type tile) :sprite)
+                   snap-to-grid? (sse/source-position-snap-enabled? state)
+                   snap-interval (sse/source-position-snap-interval state)]
                (do
+                 (when (not= sprite? (:sprite-editor-visible? state))
+                   (ui/replace-child! (:view ctx)
+                                      "sprite-source-editor-child"
+                                      (if sprite?
+                                        (tile-sprite-editor-child)
+                                        (tile-sprite-editor-placeholder-child))))
                  (assoc-in! ctx
                             [:view :style :visibility]
-                            (if (= (:type tile) :sprite) :visible :none))
+                            (if sprite? :visible :none))
                  (assoc state
+                        :sprite-editor-visible? sprite?
                         :tile-size tile-size
                         :source-snap-to-grid? snap-to-grid?
                         :source-snap-interval snap-interval
-                        :source-snap-interval-label (str snap-interval)
-                        :sprite-map-preview-zoom
-                        (ip/clamp-zoom (:sprite-map-preview-zoom state))
-                        :sprite-map-preview-offset
-                        (ip/offset-or-zero
-                         (:sprite-map-preview-offset state))
-                        :asset-label (str (:image tile))
-                        :source-label (source-label source)))))
+                        :source-snap-interval-label (str snap-interval)))))
    :on {:checkbox/change (fn [state event ctx]
                            (do
                              (ui/emit! (:view ctx)
@@ -675,8 +480,15 @@
                            (ui/emit! (:view ctx)
                                       :tile-definition/source-snap-interval-change
                                      (:payload event))
-                           state))}
-   :children (tile-sprite-editor-children)})
+                           state))
+        :sprite-source-editor/change
+        (fn [state event ctx]
+          (do
+            (ui/emit! (:view ctx)
+                      :tile-definition/sprite-source-change
+                      (:payload event))
+            state))}
+   :children [(tile-sprite-editor-placeholder-child)]})
 
 (defcomponent tile-definition-panel
   {:style {:width :shrink
@@ -688,9 +500,9 @@
                  source-state (assoc state :tile-size tile-size)]
              (assoc state
                     :source-snap-to-grid?
-                    (source-position-snap-enabled? source-state)
+                    (sse/source-position-snap-enabled? source-state)
                     :source-snap-interval
-                    (source-position-snap-interval source-state))))
+                    (sse/source-position-snap-interval source-state))))
    :update (fn [state ctx]
              (let [tile (selected-tileset-tile state)
                    tile-size (selected-tileset-tile-size state)
@@ -699,9 +511,9 @@
                       :tile tile
                       :tile-size tile-size
                       :source-snap-to-grid?
-                      (source-position-snap-enabled? source-state)
+                      (sse/source-position-snap-enabled? source-state)
                       :source-snap-interval
-                      (source-position-snap-interval source-state)
+                      (sse/source-position-snap-interval source-state)
                       :tile-id (if tile (str (:id tile)) "")
                       :tile-name (or (:name tile) "")
                       :tile-char (or (:char tile) ""))))
@@ -717,6 +529,9 @@
         :tile-definition/source-position-change
         (fn [state event ctx]
           (set-selected-tile-source state (:payload event)))
+        :tile-definition/sprite-source-change
+        (fn [state event ctx]
+          (set-selected-tile-sprite state (:payload event)))
         :tile-definition/source-snap-change
         (fn [state event ctx]
           (assoc state :source-snap-to-grid? (:payload event)))
@@ -765,6 +580,7 @@
                            :state {:tile (ui/bind-state :tile)}}]}
               {:mode 'tile-sprite-editor
                :state {:tile (ui/bind-state :tile)
+                       :resources (ui/bind-state :resources)
                        :tile-size (ui/bind-state :tile-size)
                        :source-snap-to-grid? (ui/bind-state
                                               :source-snap-to-grid?)

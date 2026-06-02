@@ -1132,6 +1132,18 @@
                                                   :w tile-size
                                                   :h tile-size))))))
 
+(defun set-selected-tile-sprite [state payload]
+  (update-selected-tile state
+                        (fn [tile]
+                          (let [tile-size (selected-tileset-tile-size state)
+                                tile (tile-with-type tile :sprite tile-size)
+                                source (:source payload)]
+                            (assoc tile
+                                   :image (:image payload)
+                                   :source (assoc source
+                                                  :w tile-size
+                                                  :h tile-size))))))
+
 (defun selected-tileset-definition-indices [state]
   (if (nil? (:selected-tileset-definition-index state))
     []

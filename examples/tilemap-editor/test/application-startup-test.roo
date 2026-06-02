@@ -442,5 +442,5 @@
     (runtime/render! app)
     (is (= "main-mode" (runtime/active-mode-name app)))
     (is (= :tilesets (:workspace-tab (runtime/active-state app))))
-    (is (not (nil? (runtime/find-view app "sprite-map-preview")))))
+    (is (not (nil? (runtime/find-view app "sprite-source-preview")))))
   (cleanup-application-startup-test-files!))
