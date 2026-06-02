@@ -3,9 +3,11 @@ add_executable(pixils_bin src/main.cpp)
 
 find_package(roo-package REQUIRED)
 
-set_target_properties(pixils_bin PROPERTIES OUTPUT_NAME pixils)
+set_target_properties(pixils_bin PROPERTIES
+  OUTPUT_NAME pixils
+  INSTALL_RPATH "\$ORIGIN/../lib")
 
-target_link_libraries(pixils_bin PRIVATE pixils_static Roo::package_static)
+target_link_libraries(pixils_bin PRIVATE pixils_shared Roo::package_shared)
 
 install(TARGETS pixils_bin RUNTIME DESTINATION bin)
 

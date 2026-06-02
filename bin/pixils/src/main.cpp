@@ -6,8 +6,12 @@
 
 #include <SDL2/SDL.h>
 #include <roo-package/manifest.h>
+#include <roo-package/native_loader.h>
+#include <roo/form.h>
 #include <roo/io/dir_root_file_system.h>
+#include <roo/reader.h>
 
+#include <algorithm>
 #include <filesystem>
 #include <iostream>
 #include <optional>
@@ -23,7 +27,56 @@ namespace
     std::vector<Roo::NamespaceRoot> namespace_roots;
     std::vector<std::string> source_files;
     std::vector<std::string> entry_points;
+    std::optional<Roo::Package::LoadPlan> package_plan;
   };
+
+  Roo::Package::LoadPlan pixils_host_load_plan(Roo::Package::LoadPlan plan)
+  {
+    std::erase_if(plan.native_libraries,
+                  [](const Roo::Package::NativeLibrary& library)
+                  {
+                    return library.name == "pixils-native" ||
+                           library.name == "pixils-runner-native";
+                  });
+    return plan;
+  }
+
+  std::optional<std::string> configured_asset_base(
+    const Roo::Package::Manifest& manifest)
+  {
+    auto config_it = manifest.config.find("pixils");
+    if (config_it == manifest.config.end()) return std::nullopt;
+
+    Roo::Reader reader;
+    auto forms = reader.read_sexps(config_it->second);
+    if (forms.size() != 1 || forms[0]->get_type() != Roo::Form::MAP)
+    {
+      throw Roo::RooException("Invalid pixils package config: expected map, got " +
+                              config_it->second);
+    }
+
+    auto& children = forms[0]->get_children();
+    if (children.size() % 2 != 0)
+    {
+      throw Roo::RooException("Invalid pixils package config: uneven map form.");
+    }
+
+    for (size_t i = 0; i < children.size(); i += 2)
+    {
+      if (children[i]->get_type() == Roo::Form::KEYWORD &&
+          children[i]->as<Roo::AST::Keyword>().get_identifier() == "asset-base")
+      {
+        if (children[i + 1]->get_type() != Roo::Form::STRING)
+        {
+          throw Roo::RooException(
+            "Invalid pixils package config: :asset-base must be a string.");
+        }
+        return children[i + 1]->as<Roo::AST::String>().value;
+      }
+    }
+
+    return std::nullopt;
+  }
 
   const std::vector<std::filesystem::path>& directory_entrypoint_candidates()
   {
@@ -59,6 +112,7 @@ namespace
       .namespace_roots = {},
       .source_files = {canonical_path.filename().string()},
       .entry_points = {},
+      .package_plan = std::nullopt,
     };
   }
 
@@ -70,7 +124,11 @@ namespace
       (package_root / "package.edn").string());
     auto plan = Roo::Package::resolve_load_plan(manifest_fs, package_root.string());
     auto asset_base_path = package_root;
-    if (!manifest.load_roots.empty())
+    if (auto asset_base = configured_asset_base(manifest))
+    {
+      asset_base_path = std::filesystem::canonical(package_root / *asset_base);
+    }
+    else if (!manifest.load_roots.empty())
     {
       asset_base_path = package_root / manifest.load_roots.front();
     }
@@ -83,6 +141,7 @@ namespace
       .namespace_roots = plan.namespace_roots,
       .source_files = {},
       .entry_points = manifest.entry_points,
+      .package_plan = pixils_host_load_plan(plan),
     };
 
     if (target.entry_points.empty())
@@ -158,6 +217,7 @@ int main(int argc, char** argv)
   {
     Pixils::RenderContext ctx = std::move(*opt_ctx);
 
+    Roo::Package::LoadedNativePackages native_packages;
     Roo::Runtime runtime =
       Pixils::init_roo_runtime(ctx,
                                   "main",
@@ -168,7 +228,19 @@ int main(int argc, char** argv)
                                     cfg->asset_base_path =
                                       target->asset_base_path.string();
                                   },
-                                  target->source_files);
+                                  {});
+
+    if (target->package_plan.has_value())
+    {
+      native_packages =
+        Roo::Package::load_native_libraries(runtime, *target->package_plan);
+      Roo::Package::load_autoloads(runtime, *target->package_plan);
+    }
+
+    for (const auto& source_file : target->source_files)
+    {
+      runtime.read_file(source_file);
+    }
 
     for (const auto& entry_point : target->entry_points)
     {
