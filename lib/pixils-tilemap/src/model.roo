@@ -68,10 +68,49 @@
               (fn [layer]
                 (= (:id layer) layer-id))))
 
+(defun layer [tilemap layer-id]
+  (if-let [index (layer-index tilemap layer-id)]
+    (nth (:layers tilemap) index)
+    nil))
+
+(defun layer-cell [tilemap layer-id pos]
+  (when (in-bounds? tilemap pos)
+    (if-let [layer (layer tilemap layer-id)]
+      (get-in layer [:tiles (:y pos) (:x pos)])
+      nil)))
+
 (defun set-layer-cell [tilemap layer-id pos tile-ref]
   (if-let [index (layer-index tilemap layer-id)]
     (assoc-in tilemap [:layers index :tiles (:y pos) (:x pos)] tile-ref)
     tilemap))
+
+(defun apply-layer-cell-patch [tilemap layer-id patch]
+  (let [pos (:pos patch)]
+    (if (in-bounds? tilemap pos)
+      (set-layer-cell tilemap
+                      layer-id
+                      pos
+                      (if (contains? patch :value)
+                        (:value patch)
+                        (:tile patch)))
+      tilemap)))
+
+(defun apply-layer-cell-patches [tilemap layer-id patches]
+  (reduce (or patches [])
+          tilemap
+          (fn [tilemap patch]
+            (apply-layer-cell-patch tilemap layer-id patch))))
+
+(defun apply-layer-patch [tilemap patch]
+  (apply-layer-cell-patches tilemap
+                            (:layer-id patch)
+                            (:cells patch)))
+
+(defun apply-layer-patches [tilemap patches]
+  (reduce (or patches [])
+          tilemap
+          (fn [tilemap patch]
+            (apply-layer-patch tilemap patch))))
 
 (defun remove-layer [tilemap layer-id]
   (update tilemap :layers (fn [layers]

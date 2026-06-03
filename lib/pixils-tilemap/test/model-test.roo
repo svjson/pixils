@@ -56,6 +56,50 @@
     (is (= [:source]
            (map (:layers (tm/remove-layer tilemap :cover)) :id)))))
 
+(deftest layer-cell-reads-existing-layer-cells
+  (let [tilemap {:width 2
+                 :height 2
+                 :layers [{:id :ground
+                           :tiles [[:floor :wall]
+                                   [:water :floor]]}]}]
+    (is (= :wall
+           (tm/layer-cell tilemap :ground {:x 1 :y 0})))
+    (is (nil? (tm/layer-cell tilemap :missing {:x 1 :y 0})))
+    (is (nil? (tm/layer-cell tilemap :ground {:x 2 :y 0})))))
+
+(deftest apply-layer-patch-updates-cells
+  (let [tilemap {:width 3
+                 :height 2
+                 :layers [{:id :ground
+                           :tiles [[:floor :floor :floor]
+                                   [:floor :floor :floor]]}
+                          {:id :cover
+                           :tiles [[nil nil nil]
+                                   [nil nil nil]]}]}
+        tilemap (tm/apply-layer-patch
+                  tilemap
+                  {:layer-id :ground
+                   :cells [{:pos {:x 1 :y 0}
+                            :tile :wall}
+                           {:pos {:x 0 :y 1}
+                            :value :water}
+                           {:pos {:x 3 :y 0}
+                            :tile :ignored}]})
+        tilemap (tm/apply-layer-patches
+                  tilemap
+                  [{:layer-id :cover
+                    :cells [{:pos {:x 2 :y 1}
+                             :tile :shade}]}
+                   {:layer-id :missing
+                    :cells [{:pos {:x 0 :y 0}
+                             :tile :ignored}]}])]
+    (is (= [[:floor :wall :floor]
+            [:water :floor :floor]]
+           (-> tilemap :layers head :tiles)))
+    (is (= [[nil nil nil]
+            [nil nil :shade]]
+           (-> tilemap :layers (nth 1) :tiles)))))
+
 (deftest missing-tileset-has-no_tile
   (is (nil? (tm/tile-in [] nil 0)))
   (is (nil? (tm/tile-id [] nil 0))))
