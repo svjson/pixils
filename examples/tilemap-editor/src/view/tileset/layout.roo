@@ -84,6 +84,9 @@
         :tile/rename-dialog-result
         (fn [state event ctx]
           (rename-tile-definition! state (:payload event)))
+        :tile/batch-rename-dialog-result
+        (fn [state event ctx]
+          (rename-tile-definitions! state (:payload event)))
         :tile/dialog-result (fn [state event ctx]
                               (add-tile-definition! state (:payload event)))
         :tile/color-range-result (fn [state event ctx]

@@ -10,6 +10,7 @@
             [pixils.ui.dialog :as dialog]
             [pixils.ui.file-dialog :as file-dialog]
             [pixils.ui.menu :as menu]
+            [pixils.ui.number-input :as ni]
             [pixils.ui.slider :as sl]
             [pixils.ui.window :as w]
             [pixils.tilemap.project.model :as data]
@@ -165,13 +166,43 @@
       (not (empty? indices)) (head indices)
       :default selected)))
 
+(defun open-tile-batch-rename-dialog! [state ctx indices]
+  (let [tiles (selected-tileset-tiles state)
+        first-index (head indices)
+        tile (when (and (not (nil? first-index))
+                        (< first-index (count tiles)))
+               (nth tiles first-index))
+        id-root (if tile (keyword-label (:id tile)) "tile")
+        name-root (if tile (or (:name tile) (label-from-id id-root)) "Tile")]
+    (do
+      (push-mode! 'tile-batch-rename-dialog-modal
+                  {:tile-indices indices
+                   :tile-id-root id-root
+                   :tile-name-root name-root
+                   :tile-char (or (:char tile) "")
+                   :numbered? true
+                   :start-number 1
+                   :confirm-label "Rename"}
+                  {:origin {:view (:view ctx)
+                            :event :tile/batch-rename-dialog-result}})
+      (assoc state
+             :selected-tileset-tile-index first-index
+             :selected-tileset-tile-indices indices))))
+
 (defun open-tile-rename-dialog! [state ctx tile-indices]
   (let [tiles (selected-tileset-tiles state)
-        index (tile-index-for-rename state tile-indices)
+        indices (valid-tile-indices
+                 (or tile-indices (selected-tileset-tile-selection state))
+                 (count tiles))
+        index (tile-index-for-rename state indices)
         tile (when (and (not (nil? index))
                         (< index (count tiles)))
                (nth tiles index))]
-    (if tile
+    (cond
+      (> (count indices) 1)
+      (open-tile-batch-rename-dialog! state ctx indices)
+
+      tile
       (do
         (push-mode! 'tile-rename-dialog-modal
                     {:tile-index index
@@ -184,6 +215,8 @@
         (assoc state
                :selected-tileset-tile-index index
                :selected-tileset-tile-indices [index]))
+
+      :default
       state)))
 
 (defun open-color-range-dialog! [state ctx]
@@ -559,6 +592,73 @@
                                        :tile-create-dialog/confirm)
                              state))}]})
 
+(defcomponent tile-batch-rename-dialog-body
+  {:class :ui/content
+   :style {:width 300
+           :height :shrink
+           :padding 10
+           :layout {:direction :column
+                    :gap 8}}
+   :update (fn [state ctx]
+             (assoc state
+                    :invalid? (or (blank? (:tile-id-root state))
+                                  (blank? (:tile-name-root state))
+                                  (and (:numbered? state)
+                                       (nil? (:start-number state))))))
+   :on {:checkbox/change (fn [state event ctx]
+                           (assoc state
+                                  (:value (:payload event))
+                                  (:checked? (:payload event))))
+        :number-input/change (fn [state event ctx]
+                               (assoc state
+                                      :start-number
+                                      (-> event :payload :value)))}
+   :children [{:mode 'ui/text
+               :class :ui/muted
+               :state {:value "Id root"}}
+              {:mode 'ui/text-input
+               :style {:width :fill
+                       :height 24}
+               :state {:value (ui/bind-state :tile-id-root)
+                       :auto-focus? true}}
+              {:mode 'ui/text
+               :class :ui/muted
+               :state {:value "Name root"}}
+              {:mode 'ui/text-input
+               :style {:width :fill
+                       :height 24}
+               :state {:value (ui/bind-state :tile-name-root)}}
+              {:mode 'ui/text
+               :class :ui/muted
+               :state {:value "Char"}}
+              {:mode 'ui/text-input
+               :style {:width :fill
+                       :height 24}
+               :state {:value (ui/bind-state :tile-char)}}
+              (chk/make {:label "Append number series"
+                         :checked? (ui/bind-state :numbered?)
+                         :value :numbered?})
+              {:style {:width :fill
+                       :height 24
+                       :layout {:direction :row
+                                :align-items :center
+                                :gap 8}}
+               :state {:numbered? (ui/bind-state :numbered?)
+                       :start-number (ui/bind-state :start-number)}
+               :children [{:mode 'ui/text
+                           :class :ui/muted
+                           :style {:width 86}
+                           :state {:value "Start at"}}
+                          (ni/make {:value (ui/bind-state :start-number)
+                                    :min 0
+                                    :step 1
+                                    :style {:width 86
+                                            :height 22}})]}
+              {:mode 'tile-create-dialog-buttons
+               :state {:invalid? (ui/bind-state :invalid?)
+                       :confirm-label
+                       (ui/bind-state :confirm-label)}}]})
+
 (defmode tile-create-dialog-modal
   {:on {:tile-create-dialog/cancel
         (fn [state event ctx]
@@ -627,6 +727,54 @@
                                        :tile-id (ui/bind-state :tile-id)
                                        :tile-name (ui/bind-state :tile-name)
                                        :tile-char (ui/bind-state :tile-char)
+                                       :confirm-label
+                                       (ui/bind-state :confirm-label)}}]})]})
+
+(defmode tile-batch-rename-dialog-modal
+  {:on {:tile-create-dialog/cancel
+        (fn [state event ctx]
+          (do
+            (ui/stop-propagation! event)
+            (pop-mode! {:type :cancel})
+            state))
+        :tile-create-dialog/confirm
+        (fn [state event ctx]
+          (do
+            (ui/stop-propagation! event)
+            (if (or (blank? (:tile-id-root state))
+                    (blank? (:tile-name-root state))
+                    (and (:numbered? state)
+                         (nil? (:start-number state))))
+              state
+              (do
+                (pop-mode! {:type :confirm
+                            :tile-indices (:tile-indices state)
+                            :tile-id-root (:tile-id-root state)
+                            :tile-name-root (:tile-name-root state)
+                            :tile-char (:tile-char state)
+                            :numbered? (:numbered? state)
+                            :start-number (:start-number state)})
+                state))))}
+   :compose {:render :pass}
+   :children [(w/make {:position {:x 220 :y 140}
+                       :title-bar {:title "Batch Rename Tiles"}
+                       :state {:tile-indices (ui/bind-state :tile-indices)
+                               :tile-id-root (ui/bind-state :tile-id-root)
+                               :tile-name-root (ui/bind-state :tile-name-root)
+                               :tile-char (ui/bind-state :tile-char)
+                               :numbered? (ui/bind-state :numbered?)
+                               :start-number (ui/bind-state :start-number)
+                               :confirm-label (ui/bind-state :confirm-label)}
+                       :body [{:mode 'tile-batch-rename-dialog-body
+                               :state {:tile-indices (ui/bind-state :tile-indices)
+                                       :tile-id-root
+                                       (ui/bind-state :tile-id-root)
+                                       :tile-name-root
+                                       (ui/bind-state :tile-name-root)
+                                       :tile-char (ui/bind-state :tile-char)
+                                       :numbered? (ui/bind-state :numbered?)
+                                       :start-number
+                                       (ui/bind-state :start-number)
                                        :confirm-label
                                        (ui/bind-state :confirm-label)}}]})]})
 

@@ -371,6 +371,85 @@
     (is (= :deep-water (get-in state [:maps 0 :layers 0 :tiles 0 0])))
     (is (= :deep-water (get-in state [:maps 1 :layers 0 :tiles 0 0])))))
 
+(deftest tile-batch-rename-updates_definitions_and_keyword_refs
+  (let [state (model/rename-tile-definitions!
+               {:selected-map-id :map/one
+                :selected-map-label "One"
+                :map-width 2
+                :map-height 1
+                :selected-layer-profile-id :default
+                :layer-profiles [{:id :default :layers []}]
+                :selected-layer-index 0
+                :selected-tileset-definition-index 0
+                :selected-tileset-tile-index 1
+                :selected-tileset-tile-indices [1 2 3]
+                :tilesets [{:id :terrain
+                            :label "Terrain"
+                            :tile-size 16
+                            :tiles [{:id :grass}
+                                    {:id :castle-9
+                                     :name "Castle 9"
+                                     :char "c"}
+                                    {:id :castle-10
+                                     :name "Castle 10"
+                                     :char "c"}
+                                    {:id :castle-11
+                                     :name "Castle 11"
+                                     :char "c"}
+                                    {:id :stone-floor-2}]}]
+                :layers [{:id :scene/one
+                          :tileset :terrain
+                          :tiles [[:castle-9 :castle-10]]}]
+                :maps [{:id :map/one
+                        :label "One"
+                        :width 2
+                        :height 1
+                        :layers [{:id :scene/one
+                                  :tileset :terrain
+                                  :tiles [[:castle-9 :castle-10]]}]}
+                       {:id :map/two
+                        :label "Two"
+                        :width 2
+                        :height 1
+                        :layers [{:id :scene/two
+                                  :tileset :terrain
+                                  :tiles [[:castle-11 :grass]]}]}]
+                :brushes [{:id :stamp-brush
+                           :kind :pattern
+                           :pattern {:layers [{:id :stamp
+                                                :tileset :terrain
+                                                :tiles [[:castle-9
+                                                         :castle-11]]}]}}]}
+               {:type :confirm
+                :tile-indices [1 2 3]
+                :tile-id-root "stone floor"
+                :tile-name-root "Stone Floor"
+                :tile-char "."
+                :numbered? true
+                :start-number 1})]
+    (is (= [{:id :grass}
+            {:id :stone-floor-1
+             :name "Stone Floor 1"
+             :char "."}
+            {:id :stone-floor-3
+             :name "Stone Floor 2"
+             :char "."}
+            {:id :stone-floor-4
+             :name "Stone Floor 3"
+             :char "."}
+            {:id :stone-floor-2}]
+           (get-in state [:tilesets 0 :tiles])))
+    (is (= [[:stone-floor-1 :stone-floor-3]]
+           (get-in state [:layers 0 :tiles])))
+    (is (= [[:stone-floor-1 :stone-floor-3]]
+           (get-in state [:maps 0 :layers 0 :tiles])))
+    (is (= [[:stone-floor-4 :grass]]
+           (get-in state [:maps 1 :layers 0 :tiles])))
+    (is (= [[:stone-floor-1 :stone-floor-4]]
+           (get-in state [:brushes 0 :pattern :layers 0 :tiles])))
+    (is (= 1 (:selected-tileset-tile-index state)))
+    (is (= [1 2 3] (:selected-tileset-tile-indices state)))))
+
 (deftest sprite_tile_creation_uses_tileset_tile_size
   (let [state (model/add-tile-definition!
                {:selected-tileset-definition-index 0

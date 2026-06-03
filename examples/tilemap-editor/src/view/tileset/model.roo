@@ -86,6 +86,15 @@
 (defun unique-color-tile-id [tiles]
   (unique-id-from (or tiles []) "color" nil))
 
+(defun tile-id-root [value]
+  (kebab-case (or value "")))
+
+(defun numbered-tile-id [root number]
+  (str root "-" number))
+
+(defun numbered-tile-name [root number]
+  (str root " " number))
+
 (defun default-tile-char [id]
   (if (> (count id) 0)
     (substr id 0 1)
@@ -714,6 +723,24 @@
 (defun rename-tile-refs-in-brushes [brushes tileset-id old-id new-id]
   (rename-tile-refs-in-brush-value (or brushes []) tileset-id old-id new-id))
 
+(defun rename-tile-refs-in-layers-for-pairs [layers tileset-id pairs]
+  (reduce (or pairs [])
+          layers
+          (fn [out pair]
+            (rename-tile-refs-in-layers out
+                                        tileset-id
+                                        (:old-id pair)
+                                        (:new-id pair)))))
+
+(defun rename-tile-refs-in-brushes-for-pairs [brushes tileset-id pairs]
+  (reduce (or pairs [])
+          brushes
+          (fn [out pair]
+            (rename-tile-refs-in-brushes out
+                                         tileset-id
+                                         (:old-id pair)
+                                         (:new-id pair)))))
+
 (defun remove-tiles-at-indices [tiles indices]
   (map (filter (for-indexed [index tile (or tiles [])]
                  {:index index
@@ -845,6 +872,121 @@
                                        (:id tileset)
                                        old-id
                                        new-id))))
+      state)))
+
+(defun batch-tile-rename-tile-name [payload ordinal]
+  (let [root (or (:tile-name-root payload) "")]
+    (if (= (:numbered? payload) false)
+      root
+      (numbered-tile-name root (+ (or (:start-number payload) 1) ordinal)))))
+
+(defun unique-numbered-tile-id-from [tiles root exclude-index number]
+  (let [candidate (numbered-tile-id root number)]
+    (if (item-id-exists-except? tiles candidate exclude-index)
+      (unique-numbered-tile-id-from tiles root exclude-index (inc number))
+      candidate)))
+
+(defun batch-tile-rename-new-id [tiles payload index ordinal]
+  (let [root (tile-id-root (:tile-id-root payload))]
+    (keyword
+     (if (= (:numbered? payload) false)
+       (unique-id-from-except tiles root index nil)
+       (unique-numbered-tile-id-from tiles
+                                    root
+                                    index
+                                    (+ (or (:start-number payload) 1)
+                                       ordinal))))))
+
+(defun batch-tile-rename-pairs-step [tiles entries payload planned ordinal]
+  (if (empty? entries)
+    planned
+    (let [entry (head entries)
+          index (:index entry)
+          tile (:tile entry)
+          new-id (batch-tile-rename-new-id tiles payload index ordinal)
+          name (batch-tile-rename-tile-name payload ordinal)]
+      (batch-tile-rename-pairs-step
+       (map (for-indexed [tile-index next-tile tiles]
+              {:index tile-index
+               :tile next-tile})
+            (fn [next-entry]
+              (if (= (:index next-entry) index)
+                (assoc (:tile next-entry) :id new-id)
+                (:tile next-entry))))
+       (tail entries)
+       payload
+       (concat planned [{:index index
+                         :old-id (:id tile)
+                         :new-id new-id
+                         :name name}])
+       (inc ordinal)))))
+
+(defun batch-tile-rename-pairs [tiles indices payload]
+  (batch-tile-rename-pairs-step
+   (or tiles [])
+   (filter (for-indexed [index tile (or tiles [])]
+             {:index index
+              :tile tile})
+           (fn [entry]
+             (contains? indices (:index entry))))
+   payload
+   []
+   0))
+
+(defun apply-batch-tile-rename-to-tiles [tiles pairs char]
+  (map (for-indexed [index tile (or tiles [])]
+         {:index index
+          :tile tile})
+       (fn [entry]
+         (if-let [pair (head (filter (or pairs [])
+                                     (fn [pair]
+                                       (= (:index pair) (:index entry)))))]
+           (assoc (:tile entry)
+                  :id (:new-id pair)
+                  :name (:name pair)
+                  :char (or char ""))
+           (:tile entry)))))
+
+(defun rename-tile-definitions! [state payload]
+  (let [tileset-index (:selected-tileset-definition-index state)
+        tileset (selected-tileset-definition state)]
+    (if (and (= (:type payload) :confirm)
+             (not (nil? tileset-index))
+             tileset
+             (not (blank? (:tile-id-root payload)))
+             (not (blank? (:tile-name-root payload))))
+      (let [tiles (or (:tiles tileset) [])
+            selection (valid-tile-indices (:tile-indices payload)
+                                          (count tiles))]
+        (if (empty? selection)
+          state
+          (let [pairs (batch-tile-rename-pairs tiles selection payload)
+                next-state (assoc-in state
+                                     [:tilesets tileset-index :tiles]
+                                     (apply-batch-tile-rename-to-tiles
+                                      tiles
+                                      pairs
+                                      (:tile-char payload)))]
+            (maps/update-all-map-layers
+             (assoc next-state
+                    :layer-profiles (map (or (:layer-profiles next-state) [])
+                                         (fn [profile]
+                                           (assoc profile
+                                                  :layers
+                                                  (rename-tile-refs-in-layers-for-pairs
+                                                   (:layers profile)
+                                                   (:id tileset)
+                                                   pairs))))
+                    :brushes (rename-tile-refs-in-brushes-for-pairs
+                              (:brushes next-state)
+                              (:id tileset)
+                              pairs)
+                    :selected-tileset-tile-index (head selection)
+                    :selected-tileset-tile-indices selection)
+             (fn [layers]
+               (rename-tile-refs-in-layers-for-pairs layers
+                                                     (:id tileset)
+                                                     pairs))))))
       state)))
 
 (defun add-imported-sprite-tiles! [state payload]
