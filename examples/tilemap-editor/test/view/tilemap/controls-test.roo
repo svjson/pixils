@@ -55,6 +55,13 @@
     (is (= 4 (:zoom-pixels state)))
     (is (= "Zoom 25%" (:zoom-label state)))))
 
+(deftest map-dimensions-confirm-button-binds_tile_size
+  (let [button (controls/map-dimensions-confirm-button-child)]
+    (is (= "OK" (get-in button [:state :label])))
+    (is (contains? (:state button) :width))
+    (is (contains? (:state button) :height))
+    (is (contains? (:state button) :tile-size))))
+
 (deftest tileset-selector-is-disabled_without_layers
   (is (= true (:disabled? (:state (controls/tileset-combo-child [{:id :terrain
                                                                    :label "Terrain"}]

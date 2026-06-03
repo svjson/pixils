@@ -844,6 +844,25 @@
                         :style {:width 86
                                 :height 22}})]})
 
+(defun map-dimensions-confirm-button-child []
+  {:mode 'ui/button
+   :style {:width 78
+           :height 24}
+   :state {:label "OK"
+           :width (ui/bind-state :width)
+           :height (ui/bind-state :height)
+           :tile-size (ui/bind-state :tile-size)
+           :disabled? (ui/bind-state :invalid?)}
+   :on-click (fn [state event ctx]
+               (do
+                 (when (not (:invalid? state))
+                   (ui/emit! (:view ctx)
+                             :map-dimensions/confirm
+                             {:width (:width state)
+                              :height (:height state)
+                              :tile-size (:tile-size state)}))
+                 state))})
+
 (defcomponent map-dimensions-dialog-buttons
   {:style {:width :fill
            :height 24
@@ -857,22 +876,7 @@
                            (do
                              (ui/emit! (:view ctx) :map-dimensions/cancel)
                              state))}
-              {:mode 'ui/button
-               :style {:width 78
-                       :height 24}
-               :state {:label "OK"
-                       :width (ui/bind-state :width)
-                       :height (ui/bind-state :height)
-                       :disabled? (ui/bind-state :invalid?)}
-               :on-click (fn [state event ctx]
-                           (do
-                             (when (not (:invalid? state))
-                               (ui/emit! (:view ctx)
-                                         :map-dimensions/confirm
-                                         {:width (:width state)
-                                          :height (:height state)
-                                          :tile-size (:tile-size state)}))
-                             state))}]})
+              (map-dimensions-confirm-button-child)]})
 
 (defcomponent map-dimensions-dialog-body
   {:class :ui/content
