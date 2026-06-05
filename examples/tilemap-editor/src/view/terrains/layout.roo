@@ -16,6 +16,8 @@
             [pixils.tilemap.project.model :as data]
             [tilemap-editor.model.tilemap :as tilemap]
             [tilemap-editor.view.id-name-dialog :as id-name-dialog]
+            [tilemap-editor.view.property-sets.model :as property-model]
+            tilemap-editor.view.property-sets.layout
             [tilemap-editor.view.tilemap.renderer :as tr]
             [tilemap-editor.view.terrains.model :as model]
             [tilemap-editor.view.theme :as theme]))
@@ -526,13 +528,36 @@
    {:mode 'terrain-unit-selector
     :state {:terrain-sets (ui/bind-state :terrain-sets)
             :selected-terrain-set-index
-            (ui/bind-state :selected-terrain-set-index)}}])
+            (ui/bind-state :selected-terrain-set-index)}}
+   {:mode 'property-set-assignment-list
+    :state {:kind :terrain-set
+            :property-sets (ui/bind-state :property-sets)
+            :assigned-property-set-ids
+            (ui/bind-state :property-set-ids)
+            :disabled? (ui/bind-state :set-disabled?)}}
+   {:mode 'property-value-list
+    :state {:title "Terrain Set Properties"
+            :kind :terrain-set-default
+            :property-sets (ui/bind-state :property-sets)
+            :property-set-ids
+            (ui/bind-state :property-set-ids)
+            :default-values {}
+            :override-values
+            (ui/bind-state :property-default-values)
+            :disabled? (ui/bind-state :set-disabled?)}}])
 
 (defcomponent terrain-set-detail-editor
   {:style {:width :fill
            :height :fill
            :layout {:direction :column
                     :gap 8}}
+   :update (fn [state ctx]
+             (let [terrain-set (model/selected-terrain-set
+                                (:terrain-sets state)
+                                (:selected-terrain-set-index state))]
+               (assoc state
+                      :property-set-ids (:property-sets terrain-set)
+                      :property-default-values (:properties terrain-set))))
    :children (terrain-set-detail-editor-children)})
 
 (def terrain-rule-list-row-height 24)
@@ -2761,6 +2786,7 @@
             :height :fill}
     :state {:terrain-sets (ui/bind-state :terrain-sets)
             :tilesets (ui/bind-state :tilesets)
+            :property-sets (ui/bind-state :property-sets)
             :rulesets (ui/bind-state :rulesets)
             :layers (ui/bind-state :layers)
             :layer-profiles (ui/bind-state :layer-profiles)
@@ -2820,12 +2846,41 @@
            :layout {:direction :column
                     :gap 8}}
    :update (fn [state ctx]
-             (assoc state
-                    :rule-add-disabled?
-                    (= (:terrain-disabled? state) true)
-                    :selected-rule? (not (nil? (model/selected-terrain-rule
-                                                state)))))
+             (let [terrain-set (model/selected-terrain-set
+                                (:terrain-sets state)
+                                (:selected-terrain-set-index state))
+                   terrain (model/selected-terrain terrain-set
+                                                   (:selected-terrain-index
+                                                    state))]
+               (assoc state
+                      :property-set-ids (:property-sets terrain-set)
+                      :property-default-values (:properties terrain-set)
+                      :property-override-values (:properties terrain)
+                      :rule-add-disabled?
+                      (= (:terrain-disabled? state) true)
+                      :selected-rule? (not (nil? (model/selected-terrain-rule
+                                                  state))))))
+   :on {:property-value/change
+        (fn [state event ctx]
+          (let [payload (:payload event)]
+            (do
+              (ui/stop-propagation! event)
+              (property-model/set-selected-terrain-property-value
+               state
+               (:property-id payload)
+               (:value payload)))))}
    :children [(terrain-value-detail-header-child)
+	              {:mode 'property-value-list
+	               :state {:title "Terrain Properties"
+	                       :kind :terrain
+                       :property-sets (ui/bind-state :property-sets)
+                       :property-set-ids
+                       (ui/bind-state :property-set-ids)
+                       :default-values
+                       (ui/bind-state :property-default-values)
+                       :override-values
+                       (ui/bind-state :property-override-values)
+                       :disabled? (ui/bind-state :terrain-disabled?)}}
               {:mode 'terrain-rule-editor-tabs
                :state (ui/bind-state)}]})
 
@@ -2886,6 +2941,8 @@
                     :state {:terrain-sets
                             (ui/bind-state :terrain-sets)
                             :tilesets (ui/bind-state :tilesets)
+                            :property-sets
+                            (ui/bind-state :property-sets)
                             :selected-terrain-set-index
                             (ui/bind-state
                              :selected-terrain-set-index)
@@ -2901,6 +2958,8 @@
                     :state {:terrain-sets
                             (ui/bind-state :terrain-sets)
                             :tilesets (ui/bind-state :tilesets)
+                            :property-sets
+                            (ui/bind-state :property-sets)
                             :selected-terrain-set-index
                             (ui/bind-state
                              :selected-terrain-set-index)
@@ -3016,6 +3075,7 @@
                          :height :fill}
             :state {:terrain-sets (ui/bind-state :terrain-sets)
                     :tilesets (ui/bind-state :tilesets)
+                    :property-sets (ui/bind-state :property-sets)
                     :rulesets (ui/bind-state :rulesets)
                     :layers (ui/bind-state :layers)
                     :layer-profiles (ui/bind-state :layer-profiles)
@@ -3050,6 +3110,7 @@
                     :disabled? (ui/bind-state :terrain-detail-panel-disabled?)}
             :body-state {:terrain-sets (ui/bind-state :terrain-sets)
                          :tilesets (ui/bind-state :tilesets)
+                         :property-sets (ui/bind-state :property-sets)
                          :rulesets (ui/bind-state :rulesets)
                          :layers (ui/bind-state :layers)
                          :layer-profiles (ui/bind-state :layer-profiles)
@@ -3086,6 +3147,8 @@
             :children [{:mode 'terrain-detail-editor
                         :state {:terrain-sets (ui/bind-state :terrain-sets)
                                 :tilesets (ui/bind-state :tilesets)
+                                :property-sets
+                                (ui/bind-state :property-sets)
                                 :rulesets (ui/bind-state :rulesets)
                                 :layers (ui/bind-state :layers)
                                 :layer-profiles (ui/bind-state :layer-profiles)
@@ -3145,6 +3208,7 @@
      :min-second 220
      :state {:terrain-sets (ui/bind-state :terrain-sets)
              :tilesets (ui/bind-state :tilesets)
+             :property-sets (ui/bind-state :property-sets)
              :rulesets (ui/bind-state :rulesets)
              :layers (ui/bind-state :layers)
              :layer-profiles (ui/bind-state :layer-profiles)
@@ -3404,6 +3468,34 @@
             (case (:field payload)
               :default
               state)))
+        :property-set/assignment-change
+        (fn [state event ctx]
+          (let [payload (:payload event)]
+            (case (:kind payload)
+              :terrain-set
+              (property-model/set-selected-terrain-set-property-set-attachment
+               state
+               (:property-set-id payload)
+               (:attached? payload))
+
+              :default state)))
+        :property-value/change
+        (fn [state event ctx]
+          (let [payload (:payload event)]
+            (case (:kind payload)
+              :terrain-set-default
+              (property-model/set-selected-terrain-set-property-default-value
+               state
+               (:property-id payload)
+               (:value payload))
+
+              :terrain
+              (property-model/set-selected-terrain-property-value
+               state
+               (:property-id payload)
+               (:value payload))
+
+              :default state)))
         :terrain/tileset-change (fn [state event ctx]
                                   (tilemap/rebuild-terrain-stamp-preview
                                    (model/set-selected-terrain-set-tileset

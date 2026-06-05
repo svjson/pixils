@@ -1,9 +1,25 @@
 (ns tilemap-editor.root-test
   (:require proof.core
+            [pixils.test.runtime :as runtime]
             tilemap-editor.root))
 
 (deftest root-registers-main-mode
   (is (not (nil? (get pixils/modes 'main-mode)))))
+
+(deftest property-sets-tab-is_last_workspace_tab
+  (let [app (runtime/make-app {:package-root "."
+                               :buffer-width 800
+                               :buffer-height 600})]
+    (runtime/push-mode! app 'main-mode)
+    (runtime/update! app)
+    (runtime/render! app)
+    (let [tabs (runtime/find-views app "ui/tab")]
+      (is (= :map (:tab-id (runtime/view-state (nth tabs 0)))))
+      (is (= :tilesets (:tab-id (runtime/view-state (nth tabs 1)))))
+      (is (= :brushes (:tab-id (runtime/view-state (nth tabs 2)))))
+      (is (= :resources (:tab-id (runtime/view-state (nth tabs 3)))))
+      (is (= :terrains (:tab-id (runtime/view-state (nth tabs 4)))))
+      (is (= :property-sets (:tab-id (runtime/view-state (nth tabs 5))))))))
 
 (deftest tileset-shortcut-request-switches_tab_before_dialog
   (let [state (tilemap-editor.root/request-tileset-shortcut-dialog

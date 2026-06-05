@@ -192,6 +192,46 @@
                 :tile-size 16})]
     (is (= :decor-2 (get-in state [:tilesets 0 :id])))))
 
+(deftest tileset-properties-apply_assignments_and_default_values
+  (let [state (model/apply-tileset-properties!
+               {:selected-tileset-definition-index 0
+                :tilesets [{:id :terrain
+                            :label "Terrain"
+                            :tile-size 16
+                            :property-sets [:old]
+                            :properties {:stale true}
+                            :tiles []}
+                           {:id :decor
+                            :label "Decor"
+                            :tile-size 16
+                            :tiles []}]}
+               {:type :confirm
+                :tileset-index 0
+                :property-sets [:movement]
+                :properties {:walkable :yes
+                                  :cost 3}})]
+    (is (= [:movement]
+           (get-in state [:tilesets 0 :property-sets])))
+    (is (= {:walkable :yes
+            :cost 3}
+           (get-in state [:tilesets 0 :properties])))
+    (is (= 0 (:selected-tileset-definition-index state)))))
+
+(deftest tileset-properties-apply_removes_empty_default_values
+  (let [state (model/apply-tileset-properties!
+               {:tilesets [{:id :terrain
+                            :label "Terrain"
+                            :tile-size 16
+                            :property-sets [:movement]
+                            :properties {:walkable :yes}
+                            :tiles []}]}
+               {:type :confirm
+                :tileset-index 0
+                :property-sets []
+                :properties {}})]
+    (is (= [] (get-in state [:tilesets 0 :property-sets])))
+    (is (= nil (get-in state [:tilesets 0 :properties])))))
+
 (deftest tile-creation-adds_and_selects_new_tile
   (let [state (model/add-tile-definition!
                {:selected-tileset-definition-index 0

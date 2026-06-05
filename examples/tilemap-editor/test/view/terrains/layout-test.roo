@@ -53,6 +53,13 @@
     (is (= "Terrain unit" (-> label :state :value)))
     (is (= 'terrain-unit-selector (:mode selector)))))
 
+(deftest terrain-set-detail-editor-includes_property_assignment_and_values
+  (let [children (layout/terrain-set-detail-editor-children)
+        assignment (nth children 7)
+        values (nth children 8)]
+    (is (= 'property-set-assignment-list (:mode assignment)))
+    (is (= "Terrain Set Properties" (-> values :state :title)))))
+
 (deftest terrain-identity-row-does_not_render_base_tile_dropdown
   (let [children (layout/terrain-identity-row-children)]
     (is (= 1 (count children)))

@@ -105,6 +105,9 @@
 (defun project-terrain-sets [project]
   (or (:terrain-sets project) data/project-terrain-sets))
 
+(defun project-property-sets [project]
+  (or (:property-sets project) data/project-property-sets))
+
 (defun project-rulesets [project]
   (or (:rulesets project) data/project-rulesets))
 
@@ -125,6 +128,7 @@
                           (:layer-profile selected-map))
         tileset (first-layer-tileset layers)
         tilesets (project-tilesets project)
+        property-sets (project-property-sets project)
         terrain-sets (project-terrain-sets project)
         rulesets (project-rulesets project)
         brushes (project-brushes project)]
@@ -133,6 +137,11 @@
        (tilemap/rebuild-terrain-stamp-preview
         (assoc state
                :tilesets tilesets
+               :property-sets property-sets
+               :selected-property-set-index
+               (when (> (count property-sets) 0) 0)
+               :selected-property-definition-index
+               (when (> (count (or (:properties (head property-sets)) [])) 0) 0)
                :terrain-sets terrain-sets
                :rulesets rulesets
                :brushes brushes

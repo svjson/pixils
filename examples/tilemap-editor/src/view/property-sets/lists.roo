@@ -1,0 +1,181 @@
+(ns tilemap-editor.view.property-sets.lists
+  (:require pixils
+            [pixils.ui :as ui]
+            [pixils.ui.list-box :as lb]
+            [pixils.ui.menu :as menu]
+            [tilemap-editor.view.property-sets.model :as model]))
+
+(def property-set-list-row-height 24)
+
+(def property-set-context-menu
+  {:settings {:mnemonics {:enabled false}}
+   :items [{:label "Edit"
+            :action :property-set/context-dummy
+            :payload {:command :edit}}
+           {:label "Delete"
+            :action :property-set/context-dummy
+            :payload {:command :delete}}]})
+
+(defcomponent property-set-row
+  {:extend 'ui/list-box-item
+   :class :ui/list-item-hover
+   :style {:width :fill
+           :height property-set-list-row-height
+           :padding [3 6]
+           :layout {:direction :row
+                    :align-items :center}}
+   :update (fn [state ctx]
+             (assoc state :selected (contains? (:selected-indices state)
+                                               (:index state))))
+   :on-mouse-down (fn [state event ctx]
+                    (do
+                      (ui/stop-propagation! event)
+                      state))
+   :on-mouse-up (fn [state event ctx]
+                  (do
+                    (ui/stop-propagation! event)
+                    (ui/emit! (:view ctx)
+                              :list-box/item-click
+                              {:index (:index state)
+                               :value (:value state)
+                               :shift? false
+                               :ctrl? false})
+                    (when (= (:button event) :right)
+                      (menu/open-context-menu! property-set-context-menu
+                                               (:global-position event)
+                                               state
+                                               ctx))
+                    state))
+   :on {:menu/select (fn [state event ctx]
+                       (let [payload (:payload event)]
+                         (do
+                           (ui/stop-propagation! event)
+                           (when (= (:type payload) :action)
+                             (ui/emit! (:view ctx)
+                                       :property-set/context-command
+                                       {:property-set-index (:index state)
+                                        :command
+                                        (-> payload :payload :command)}))
+                           state)))}
+   :children [{:mode 'ui/text
+               :style {:width :fill}
+               :state {:value (ui/bind-state :label)}}]})
+
+(defun property-set-row-child [index option]
+  {:mode 'property-set-row
+   :state {:index index
+           :value (:value option)
+           :label (:label option)
+           :selected-indices (ui/bind-state :selected-indices)}})
+
+(defun property-set-list-child [property-sets]
+  (lb/make {:options (model/property-set-options property-sets)
+            :style {:width :fill
+                    :height :fill}
+            :row-height property-set-list-row-height
+            :visible-rows (max 1 (count (or property-sets [])))
+            :content-width 220
+            :disabled? (empty? (or property-sets []))
+            :selected-indices (ui/bind-state :selected-indices)
+            :force-selection? true
+            :item-child property-set-row-child}))
+
+(defcomponent property-set-list
+  {:style {:width :fill
+           :height :fill}
+   :init (fn [state ctx]
+           (assoc state :selected-indices []))
+   :update (fn [state ctx]
+             (let [property-sets (or (:property-sets state) [])]
+               (do
+                 (when (not= property-sets (:rendered-property-sets state))
+                   (ui/replace-child! (:view ctx)
+                                      "list-box"
+                                      (merge {:id "list-box"}
+                                             (property-set-list-child
+                                              property-sets))))
+                 (assoc state
+                        :rendered-property-sets property-sets
+                        :selected-indices
+                        (model/selected-property-set-indices state)))))
+   :on {:list-box/change (fn [state event ctx]
+                           (do
+                             (ui/emit! (:view ctx)
+                                       :property-set/select
+                                       (-> event :payload :value))
+                             state))}
+   :children [(merge {:id "list-box"}
+                     (property-set-list-child []))]})
+
+(defcomponent property-definition-row
+  {:extend 'ui/list-box-item
+   :class :ui/list-item-hover
+   :style {:width :fill
+           :height property-set-list-row-height
+           :padding [3 6]
+           :layout {:direction :row
+                    :align-items :center
+                    :gap 6}}
+   :update (fn [state ctx]
+             (assoc state :selected (contains? (:selected-indices state)
+                                               (:index state))))
+   :children [{:mode 'ui/text
+               :style {:width :fill}
+               :state {:value (ui/bind-state :label)}}
+              {:mode 'ui/text
+               :class :ui/muted
+               :state {:value (ui/bind-state :type-label)}}]})
+
+(defun property-definition-row-child [index option]
+  {:mode 'property-definition-row
+   :state {:index index
+           :value (:value option)
+           :label (:label option)
+           :type-label (:type-label option)
+           :selected-indices (ui/bind-state :selected-indices)}})
+
+(defun property-definition-options [property-set]
+  (for-indexed [index property (or (:properties property-set) [])]
+    {:value index
+     :label (or (:label property) (model/keyword-label (:id property)))
+     :type-label (model/keyword-label (:type property))}))
+
+(defun property-definition-list-child [property-set]
+  (let [properties (or (:properties property-set) [])]
+    (lb/make {:options (property-definition-options property-set)
+              :style {:width :fill
+                      :height :fill}
+              :row-height property-set-list-row-height
+              :visible-rows (max 1 (count properties))
+              :content-width 240
+              :disabled? (empty? properties)
+              :selected-indices (ui/bind-state :selected-indices)
+              :force-selection? true
+              :item-child property-definition-row-child})))
+
+(defcomponent property-definition-list
+  {:style {:width :fill
+           :height :fill}
+   :init (fn [state ctx]
+           (assoc state :selected-indices []))
+   :update (fn [state ctx]
+             (let [property-set (model/selected-property-set state)]
+               (do
+                 (when (not= property-set (:rendered-property-set state))
+                   (ui/replace-child! (:view ctx)
+                                      "list-box"
+                                      (merge {:id "list-box"}
+                                             (property-definition-list-child
+                                              property-set))))
+                 (assoc state
+                        :rendered-property-set property-set
+                        :selected-indices
+                        (model/selected-property-indices state)))))
+   :on {:list-box/change (fn [state event ctx]
+                           (do
+                             (ui/emit! (:view ctx)
+                                       :property-definition/select
+                                       (-> event :payload :value))
+                             state))}
+   :children [(merge {:id "list-box"}
+                     (property-definition-list-child nil))]})

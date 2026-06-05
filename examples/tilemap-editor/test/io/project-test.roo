@@ -13,6 +13,12 @@
           {:terrain-sets [{:id :overworld}]})))
   (is (= [] (project-io/project-terrain-sets {}))))
 
+(deftest project-property-sets-come-from-project-document
+  (is (= [{:id :movement}]
+         (project-io/project-property-sets
+          {:property-sets [{:id :movement}]})))
+  (is (= [] (project-io/project-property-sets {}))))
+
 (deftest project-rulesets-come-from-project-document
   (is (= [{:id :grass-marching}]
          (project-io/project-rulesets

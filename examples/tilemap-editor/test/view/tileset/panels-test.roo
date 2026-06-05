@@ -11,11 +11,14 @@
                                  [{:id :terrain
                                    :label "Terrain"}]))))))
 
-(deftest tileset-context-menu-includes_edit_and_duplicate_commands
+(deftest tileset-context-menu-includes_edit_properties_and_duplicate_commands
   (let [edit-item (head (:items panels/tileset-context-menu))
-        duplicate-item (nth (:items panels/tileset-context-menu) 1)]
+        properties-item (nth (:items panels/tileset-context-menu) 1)
+        duplicate-item (nth (:items panels/tileset-context-menu) 2)]
     (is (= "Edit" (:label edit-item)))
     (is (= :edit (-> edit-item :payload :command)))
+    (is (= "Properties" (:label properties-item)))
+    (is (= :properties (-> properties-item :payload :command)))
     (is (= "Duplicate" (:label duplicate-item)))
     (is (= :duplicate (-> duplicate-item :payload :command)))))
 
@@ -146,6 +149,34 @@
     (is (not (nil? (-> preview :state :sprite-source-preview-zoom))))
     (is (not (nil? (-> preview :state :sprite-source-preview-offset))))
     (is (not (nil? (-> zoom-control :state :zoom))))))
+
+(deftest tile-definition-detail-tabs-separate_tile_and_property_editors
+  (let [tabs (panels/tile-definition-detail-tabs-child)
+        tab-defs (-> tabs :state :tabs)
+        tile-tab (-> tab-defs head :child)
+        properties-tab (-> tab-defs (nth 1) :child)]
+    (is (= 'ui/tab-panel (:mode tabs)))
+    (is (= :tile (-> tab-defs head :id)))
+    (is (= "Tile" (-> tab-defs head :label)))
+    (is (= 'tile-definition-tile-tab (:mode tile-tab)))
+    (is (= :properties (-> tab-defs (nth 1) :id)))
+    (is (= "Properties" (-> tab-defs (nth 1) :label)))
+    (is (= 'tile-definition-properties-tab (:mode properties-tab)))))
+
+(deftest tile-definition-tile-tab-contains_type_sprite_and_color_editors
+  (let [children (panels/tile-definition-tile-tab-children)]
+    (is (= 'tile-definition-row (-> children head :mode)))
+    (is (= 'tile-sprite-editor (-> children (nth 1) :mode)))
+    (is (= 'tile-color-editor (-> children (nth 2) :mode)))))
+
+(deftest tile-definition-properties-tab-contains_only_per_tile_property_editor
+  (let [children (panels/tile-definition-properties-tab-children)]
+    (is (= 1 (count children)))
+    (is (= 'property-value-list (-> children head :mode)))
+    (is (= "Tile Properties"
+           (-> children head :state :title)))
+    (is (= :tile
+           (-> children head :state :kind)))))
 
 (deftest tile-definition-panel-scroll-content-wraps_detail_panel
   (let [content (panels/tile-definition-panel-content-child)

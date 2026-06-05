@@ -1,0 +1,331 @@
+(ns tilemap-editor.view.property-sets.fields
+  (:require pixils
+            [pixils.ui :as ui]
+            pixils.ui.text-input
+            [pixils.ui.combo-box :as cb]
+            [pixils.ui.number-input :as ni]
+            [pixils.tilemap.project.model :as data]
+            [tilemap-editor.view.property-sets.model :as model]))
+
+(defcomponent property-text-field
+  {:style {:width :fill
+           :height 24
+           :layout {:direction :row
+                    :align-items :center
+                    :gap 8}}
+   :update (fn [state ctx]
+             (let [source-value (or (:source-value state) "")
+                   focused? (-> ctx :view :interaction :focus-within)
+                   lost-focus? (and (:focused? state)
+                                    (not focused?))
+                   dirty? (:dirty? state)]
+               (do
+                 (when (and lost-focus?
+                            dirty?
+                            (not (:disabled? state)))
+                   (ui/emit! (:view ctx)
+                             (:event state)
+                             {:field (:field state)
+                              :index (:index state)
+                              :value (:value state)}))
+                 (let [state (assoc state :focused? focused?)]
+                   (if (or (nil? (:synced-source-value state))
+                           (and (not focused?)
+                                (not dirty?)
+                                (not= source-value
+                                      (:synced-source-value state)))
+                           (and lost-focus? dirty?))
+                     (assoc state
+                            :value source-value
+                            :synced-source-value source-value
+                            :dirty? false)
+                     state)))))
+   :on {:text-input/change (fn [state event ctx]
+                             (let [value (-> event :payload :value)]
+                               (assoc state
+                                      :value value
+                                      :dirty? true)))}
+   :children [{:mode 'ui/text
+               :class :ui/muted
+               :style {:width 72}
+               :state {:value (ui/bind-state :label)}}
+              {:mode 'ui/text-input
+               :style {:width 220
+                       :height 22}
+               :state {:value (ui/bind-state :value)
+                       :disabled? (ui/bind-state :disabled?)}}]})
+
+(defun property-field-child [event field label value disabled?]
+  {:mode 'property-text-field
+   :state {:event event
+           :field field
+           :label label
+           :source-value value
+           :disabled? disabled?}})
+
+(defun indexed-property-field-child [event field index label value disabled?]
+  {:mode 'property-text-field
+   :state {:event event
+           :field field
+           :index index
+           :label label
+           :source-value value
+           :disabled? disabled?}})
+
+(defcomponent property-type-selector
+  {:style {:width 160
+           :height 22}
+   :update (fn [state ctx]
+             (let [property (model/selected-property state)]
+               (assoc state
+                      :selected-type-index (model/type-index (:type property))
+                      :disabled? (nil? property))))
+   :on {:combo-box/change (fn [state event ctx]
+                            (do
+                              (ui/emit! (:view ctx)
+                                        :property-definition/type-change
+                                        (-> event :payload :value))
+                              state))}
+   :children [(cb/make {:options model/property-type-options
+                        :selected-index (ui/bind-state :selected-type-index)
+                        :disabled? (ui/bind-state :disabled?)})]})
+
+(defcomponent property-type-field
+  {:style {:width :fill
+           :height 24
+           :layout {:direction :row
+                    :align-items :center
+                    :gap 8}}
+   :children [{:mode 'ui/text
+               :class :ui/muted
+               :style {:width 72}
+               :state {:value "Type"}}
+              {:mode 'property-type-selector
+               :state {:property-sets (ui/bind-state :property-sets)
+                       :selected-property-set-index
+                       (ui/bind-state :selected-property-set-index)
+                       :selected-property-definition-index
+                       (ui/bind-state :selected-property-definition-index)}}]})
+
+(defcomponent property-number-field
+  {:style {:width :fill
+           :height 24
+           :layout {:direction :row
+                    :align-items :center
+                    :gap 8}}
+   :on {:number-input/change (fn [state event ctx]
+                               (do
+                                 (ui/emit! (:view ctx)
+                                           (:event state)
+                                           {:field (:field state)
+                                            :value (-> event :payload :value)})
+                                 state))}
+   :children [{:mode 'ui/text
+               :class :ui/muted
+               :style {:width 72}
+               :state {:value (ui/bind-state :label)}}
+              (ni/make {:value (ui/bind-state :value)
+                        :step 1
+                        :allow-negative? true
+                        :disabled? (ui/bind-state :disabled?)
+                        :style {:width 92
+                                :height 22}})]})
+
+(defun property-number-field-child [event field label value disabled?]
+  {:mode 'property-number-field
+   :state {:event event
+           :field field
+           :label label
+           :value value
+           :disabled? disabled?}})
+
+(defun property-enum-value-option [value]
+  {:value value
+   :label (model/property-value-label value)})
+
+(defcomponent property-enum-default-field
+  {:style {:width :fill
+           :height 24
+           :layout {:direction :row
+                    :align-items :center
+                    :gap 8}}
+   :update (fn [state ctx]
+             (let [options (map (or (:values state) [])
+                                property-enum-value-option)
+                   index (or (find-index options
+                                         (fn [option]
+                                           (= (:value option) (:value state))))
+                             0)]
+               (assoc state
+                      :options options
+                      :selected-index index
+                      :disabled? (or (:disabled? state)
+                                     (empty? options)))))
+   :on {:combo-box/change (fn [state event ctx]
+                            (do
+                              (ui/emit! (:view ctx)
+                                        :property-definition/enum-default-change
+                                        (-> event :payload :value))
+                              state))}
+   :children [{:mode 'ui/text
+               :class :ui/muted
+               :style {:width 72}
+               :state {:value "Default"}}
+              (cb/make {:options (ui/bind-state :options)
+                        :selected-index (ui/bind-state :selected-index)
+                        :disabled? (ui/bind-state :disabled?)
+                        :style {:width 160
+                                :height 22}})]})
+
+(defun property-enum-default-field-child [property disabled?]
+  {:mode 'property-enum-default-field
+   :state {:value (:default property)
+           :values (:values property)
+           :disabled? disabled?}})
+
+(defcomponent property-enum-value-row
+  {:style {:width :fill
+           :height 24
+           :layout {:direction :row
+                    :align-items :center
+                    :gap 6}}
+   :children [(indexed-property-field-child
+               :property-definition/enum-value-change
+               :value
+               (ui/bind-state :index)
+               "Value"
+               (ui/bind-state :value)
+               (ui/bind-state :disabled?))
+              {:mode 'ui/button
+               :class :ui/toolbar-button
+               :style {:width 24
+                       :height 22}
+               :state {:label "-"
+                       :disabled? (ui/bind-state :disabled?)}
+               :on-click (fn [state event ctx]
+                           (do
+                             (ui/emit! (:view ctx)
+                                       :property-definition/enum-value-remove
+                                       (:index state))
+                             state))}]})
+
+(defun property-enum-value-row-child [index value disabled?]
+  {:mode 'property-enum-value-row
+   :state {:index index
+           :value (model/property-value-label value)
+           :disabled? disabled?}})
+
+(defun property-enum-values-children [values disabled?]
+  (concat
+   [{:style {:width :fill
+             :height 24
+             :layout {:direction :row
+                      :align-items :center
+                      :gap 8}}
+     :children [{:mode 'ui/text
+                 :class :ui/muted
+                 :style {:width 72}
+                 :state {:value "Values"}}
+                {:mode 'ui/button
+                 :class :ui/toolbar-button
+                 :style {:width 24
+                         :height 22}
+                 :state {:label "+"
+                         :disabled? disabled?}
+                 :on-click (fn [state event ctx]
+                             (do
+                               (ui/emit! (:view ctx)
+                                         :property-definition/enum-value-add
+                                         nil)
+                               state))}]}]
+   (for-indexed [index value (or values [])]
+     (property-enum-value-row-child index value disabled?))))
+
+(defun property-any-fields-child [property disabled?]
+  {:style {:width :fill
+           :height :shrink
+           :layout {:direction :column
+                    :gap 8}}
+   :children [(property-field-child :property-definition/field-change
+                                    :default
+                                    "Default"
+                                    (model/property-value-label
+                                     (:default property))
+                                    disabled?)]})
+
+(defun property-enum-fields-child [property disabled?]
+  {:style {:width :fill
+           :height :shrink
+           :layout {:direction :column
+                    :gap 6}}
+   :children (concat [(property-enum-default-field-child property disabled?)]
+                     (property-enum-values-children (:values property)
+                                                    disabled?))})
+
+(defun property-number-fields-child [property disabled?]
+  {:style {:width :fill
+           :height :shrink
+           :layout {:direction :column
+                    :gap 8}}
+   :children [(property-number-field-child
+               :property-definition/field-change
+               :default
+               "Default"
+               (:default property)
+               disabled?)]})
+
+(defun property-type-specific-fields-child [property disabled? enum-disabled?]
+  (let [type (data/property-type property)]
+    (merge {:id "property-type-specific-fields"}
+           (case type
+             :enum (property-enum-fields-child property disabled?)
+             :number (property-number-fields-child property disabled?)
+             :any (property-any-fields-child property disabled?)
+             :default (property-any-fields-child property disabled?)))))
+
+(defun property-definition-detail-children []
+  [(property-field-child :property-definition/field-change
+                         :id
+                         "Id"
+                         (ui/bind-state :id-label)
+                         (ui/bind-state :disabled?))
+   (property-field-child :property-definition/field-change
+                         :label
+                         "Name"
+                         (ui/bind-state :label)
+                         (ui/bind-state :disabled?))
+   {:mode 'property-type-field
+    :state {:property-sets (ui/bind-state :property-sets)
+            :selected-property-set-index
+            (ui/bind-state :selected-property-set-index)
+            :selected-property-definition-index
+            (ui/bind-state :selected-property-definition-index)}}
+   (property-type-specific-fields-child nil true true)])
+
+(defcomponent property-definition-detail
+  {:style {:width :fill
+           :height :shrink
+           :layout {:direction :column
+                    :gap 8}}
+   :update (fn [state ctx]
+             (let [property (model/selected-property state)]
+               (do
+                 (when (or (not= property (:rendered-property state))
+                           (not= (:disabled? state)
+                                 (:rendered-disabled? state)))
+                   (ui/replace-child!
+                    (:view ctx)
+                    "property-type-specific-fields"
+                    (property-type-specific-fields-child
+                     property
+                     (nil? property)
+                     (not= (:type property) :enum))))
+                 (assoc state
+                        :disabled? (nil? property)
+                        :id-label (if property
+                                    (model/keyword-label (:id property))
+                                    "")
+                        :label (or (:label property) "")
+                        :rendered-property property
+                        :rendered-disabled? (nil? property)))))
+   :children (property-definition-detail-children)})

@@ -1,0 +1,97 @@
+(ns tilemap-editor.view.property-sets.layout-test
+  (:require proof.core
+            [tilemap-editor.view.property-sets.layout :as layout]))
+
+(deftest property-set-list-panel-has_header_and_add_button
+  (let [panel (layout/make-property-set-list-panel)
+        header (head (:children panel))
+        add-button (nth (:children header) 1)]
+    (is (= "Property Sets" (-> panel :state :title)))
+    (is (= 'ui/button (:mode add-button)))
+    (is (= :ui/toolbar-button (:class add-button)))
+    (is (= "+" (-> add-button :state :label)))
+    (is (not (nil? (-> panel :state :property-sets))))
+    (is (not (nil? (-> panel :state :selected-property-set-index))))))
+
+(deftest property-set-rows-have_context_menu
+  (let [row (layout/property-set-row-child 0 {:value 0 :label "Movement"})
+        edit-item (head (:items layout/property-set-context-menu))
+        delete-item (nth (:items layout/property-set-context-menu) 1)]
+    (is (= "Edit" (:label edit-item)))
+    (is (= :edit (-> edit-item :payload :command)))
+    (is (= "Delete" (:label delete-item)))
+    (is (= :delete (-> delete-item :payload :command)))
+    (is (= "Movement" (-> row :state :label)))))
+
+(deftest property-definition-panel-has_disabled_bound_add_button
+  (let [panel (layout/make-property-definition-panel)
+        header (head (:children panel))
+        add-button (nth (:children header) 1)]
+    (is (= "Fields" (-> panel :state :title)))
+    (is (= 'ui/button (:mode add-button)))
+    (is (= :ui/toolbar-button (:class add-button)))
+    (is (= "+" (-> add-button :state :label)))
+    (is (not (nil? (-> add-button :state :disabled?))))
+    (is (not (nil? (-> panel :state :property-sets))))
+    (is (not (nil? (-> panel :state :selected-property-set-index))))
+    (is (not (nil? (-> panel :state :selected-property-definition-index))))))
+
+(deftest property-definition-panel-shows_only_property_detail
+  (let [panel (layout/make-property-definition-panel)
+        body (nth (:children panel) 1)
+        children (:children body)
+        detail (nth children 1)]
+    (is (= 2 (count children)))
+    (is (= 'property-definition-detail (:mode detail)))))
+
+(deftest property-set-workspace-has_no_assignment_panel
+  (let [children (layout/property-set-workspace-children)]
+    (is (= 2 (count children)))
+    (is (= "Property Sets" (-> children head :state :title)))
+    (is (= "Fields" (-> children (nth 1) :state :title)))))
+
+(deftest property-type-field-has_label
+  (let [children (layout/property-definition-detail-children)
+        type-field (nth children 2)]
+    (is (= 'property-type-field (:mode type-field)))))
+
+(deftest property-type-specific-fields-show_relevant_controls
+  (let [any-fields (layout/property-type-specific-fields-child
+                    {:type :any
+                     :default "grass"}
+                    false
+                    true)
+        enum-fields (layout/property-type-specific-fields-child
+                     {:type :enum
+                      :values [:yes :no]
+                      :default :yes}
+                     false
+                     false)
+        number-fields (layout/property-type-specific-fields-child
+                       {:type :number
+                        :default 1}
+                       false
+                       true)]
+    (is (= :default
+           (-> any-fields :children head :state :field)))
+    (is (= 1 (count (:children any-fields))))
+    (is (= 'property-enum-default-field
+           (-> enum-fields :children head :mode)))
+    (is (= 'property-enum-value-row
+           (-> enum-fields :children (nth 2) :mode)))
+    (is (= 'property-number-field
+           (-> number-fields :children head :mode)))
+    (is (= 1 (count (:children number-fields))))))
+
+(deftest property-set-assignment-list-shows_property_sets
+  (let [content (layout/property-set-assignment-list-content-child
+                 {:kind :tileset
+                  :property-sets [{:id :movement
+                                   :label "Movement"}]
+                  :assigned-property-set-ids [:movement]})
+        title (-> content :children head)
+        row (-> content :children (nth 1))]
+    (is (= "Property Sets" (-> title :state :value)))
+    (is (= 'property-set-assignment-row (:mode row)))
+    (is (= :tileset (-> row :state :kind)))
+    (is (= true (-> row :state :attached?)))))

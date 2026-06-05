@@ -2,7 +2,6 @@
   (:require pixils
             [pixils.render :as r]
             [pixils.ui :as ui]
-            [pixils.ui.button :as button]
             [pixils.ui.combo-box :as cb]
             [pixils.ui.header-panel :as hp]
             [pixils.ui.list-box :as lb]
@@ -12,6 +11,7 @@
             [pixils.ui.slider :as sl]
             [pixils.ui.theme-assets :as theme-assets]
             pixils.ui.text-input
+            [pixils.ui.toggle-button :as toggle-button]
             [pixils.ui.window :as w]
             [pixils.tilemap.project.model :as data]
             [tilemap-editor.model.maps :as maps]
@@ -387,7 +387,7 @@
               (ui/stop-propagation! event)
               (ui/emit! (:view ctx) :map/tool-select tool)
               (assoc state :map-tool tool))))}
-   :children [(button/make-toggle-button-group
+   :children [(toggle-button/make-group
                {:buttons (ui/bind-state :map-tool-buttons)
                 :selected (ui/bind-state :map-tool)
                 :selection-required? true

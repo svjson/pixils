@@ -1,0 +1,282 @@
+(ns tilemap-editor.view.property-sets.model-test
+  (:require proof.core
+            [tilemap-editor.view.property-sets.model :as model]))
+
+(def movement-property-set
+  {:id :movement
+   :label "Movement"
+   :properties [{:id :walkable
+                 :label "Walkable"
+                 :type :enum
+                 :values [:yes :no]
+                 :default :yes}
+                {:id :cost
+                 :label "Cost"
+                 :type :number
+                 :default 1}]})
+
+(deftest property-set-creation-adds_and_selects_new_set
+  (let [state (model/add-property-set {:property-sets []})]
+    (is (= :property-set (get-in state [:property-sets 0 :id])))
+    (is (= "Property Set" (get-in state [:property-sets 0 :label])))
+    (is (= 0 (:selected-property-set-index state)))))
+
+(deftest property-set-creation-can_use_confirmed_identity
+  (let [state (model/add-property-set-with-id {:property-sets []}
+                                              "movement"
+                                              "Movement")]
+    (is (= :movement (get-in state [:property-sets 0 :id])))
+    (is (= "Movement" (get-in state [:property-sets 0 :label])))
+    (is (= 0 (:selected-property-set-index state)))))
+
+(deftest property-set-edit-updates_attachment_references
+  (let [state (model/set-selected-property-set-identity
+               {:property-sets [{:id :movement
+                                 :label "Movement"
+                                 :properties []}]
+                :selected-property-set-index 0
+                :tilesets [{:id :terrain
+                            :property-sets [:movement]}]
+                :terrain-sets [{:id :overworld
+                                :property-sets [:movement]}]}
+               "collision"
+               "Collision")]
+    (is (= :collision (get-in state [:property-sets 0 :id])))
+    (is (= "Collision" (get-in state [:property-sets 0 :label])))
+    (is (= [:collision] (get-in state [:tilesets 0 :property-sets])))
+    (is (= [:collision] (get-in state [:terrain-sets 0 :property-sets])))))
+
+(deftest property-set-delete-removes_attachment_and_property_values
+  (let [state (model/delete-selected-property-set
+               {:property-sets [movement-property-set]
+                :selected-property-set-index 0
+                :selected-property-definition-index 1
+                :tilesets [{:id :terrain
+                            :property-sets [:movement]
+                            :properties {:walkable :no}
+                            :tiles [{:id :grass
+                                     :properties {:cost 2}}]}]
+                :terrain-sets [{:id :overworld
+                                :property-sets [:movement]
+                                :properties {:cost 4}
+                                :terrains [{:id :grass
+                                            :properties {:walkable :no}}]}]})]
+    (is (= [] (:property-sets state)))
+    (is (= [] (get-in state [:tilesets 0 :property-sets])))
+    (is (= [] (get-in state [:terrain-sets 0 :property-sets])))
+    (is (= nil (get-in state [:tilesets 0 :properties])))
+    (is (= nil (get-in state [:tilesets 0 :tiles 0 :properties])))
+    (is (= nil (get-in state [:terrain-sets 0 :properties])))
+    (is (= nil (get-in state [:terrain-sets 0 :terrains 0 :properties])))
+    (is (= nil (:selected-property-set-index state)))
+    (is (= nil (:selected-property-definition-index state)))))
+
+(deftest property-definition-creation-adds_field_to_selected_set
+  (let [state (model/add-property-definition
+               {:property-sets [{:id :movement
+                                 :label "Movement"
+                                 :properties []}]
+                :selected-property-set-index 0})]
+    (is (= :property
+           (get-in state [:property-sets 0 :properties 0 :id])))
+    (is (= :any
+           (get-in state [:property-sets 0 :properties 0 :type])))
+    (is (= 0 (:selected-property-definition-index state)))))
+
+(deftest property-definition-creation-can_use_confirmed_identity
+  (let [state (model/add-property-definition-with-id
+               {:property-sets [{:id :movement
+                                 :label "Movement"
+                                 :properties []}]
+                :selected-property-set-index 0}
+               "walkable"
+               "Walkable")]
+    (is (= :walkable
+           (get-in state [:property-sets 0 :properties 0 :id])))
+    (is (= "Walkable"
+           (get-in state [:property-sets 0 :properties 0 :label])))
+    (is (= 0 (:selected-property-definition-index state)))))
+
+(deftest property-definition-fields-update_default_and_enum_values
+  (let [state {:property-sets [{:id :movement
+                                :label "Movement"
+                                :properties [{:id :walkable
+                                              :label "Walkable"
+                                              :type :enum
+                                              :values [:yes]
+                                              :default :yes}
+                                             {:id :cost
+                                              :label "Cost"
+                                              :type :number
+                                              :default 1}]}]
+               :selected-property-set-index 0
+               :selected-property-definition-index 0}
+        state (model/set-selected-property-enum-values state "yes, no")
+        state (model/set-selected-property-default state "no")
+        state (assoc state :selected-property-definition-index 1)
+        state (model/set-selected-property-default state "")]
+    (is (= [:yes :no]
+           (get-in state [:property-sets 0 :properties 0 :values])))
+    (is (= :no
+           (get-in state [:property-sets 0 :properties 0 :default])))
+    (is (= 0
+           (get-in state [:property-sets 0 :properties 1 :default])))))
+
+(deftest property-definition-enum_values_are_row_based
+  (let [state {:property-sets [{:id :movement
+                                :label "Movement"
+                                :properties [{:id :walkable
+                                              :label "Walkable"
+                                              :type :enum
+                                              :values [:yes]
+                                              :default :yes}]}]
+               :selected-property-set-index 0
+               :selected-property-definition-index 0}
+        state (model/add-selected-property-enum-value state)
+        state (model/set-selected-property-enum-value state 1 "no")
+        state (model/set-selected-property-enum-default state :no)
+        state (model/remove-selected-property-enum-value state 0)]
+    (is (= [:no]
+           (get-in state [:property-sets 0 :properties 0 :values])))
+    (is (= :no
+           (get-in state [:property-sets 0 :properties 0 :default])))))
+
+(deftest property-definition-enum_values_preserve_slash_ids
+  (let [state {:property-sets [{:id :visibility
+                                :label "Visibility"
+                                :properties [{:id :visibility
+                                              :label "Visibility"
+                                              :type :enum
+                                              :values [:sight/open]
+                                              :default :sight/open}]}]
+               :selected-property-set-index 0
+               :selected-property-definition-index 0}
+        state (model/set-selected-property-enum-value state
+                                                      0
+                                                      "sight/blocked")]
+    (is (= [:sight/blocked]
+           (get-in state [:property-sets 0 :properties 0 :values])))
+    (is (= :sight/blocked
+           (get-in state [:property-sets 0 :properties 0 :default])))))
+
+(deftest property-definition-type-change-removes_irrelevant_values
+  (let [state {:property-sets [{:id :movement
+                                :label "Movement"
+                                :properties [{:id :surface
+                                              :label "Surface"
+                                              :type :enum
+                                              :values [:grass :water]
+                                              :default :grass}]}]
+               :selected-property-set-index 0
+               :selected-property-definition-index 0}
+        number-state (model/set-selected-property-type state :number)
+        any-state (model/set-selected-property-type state :any)]
+    (is (= nil
+           (get-in number-state [:property-sets 0 :properties 0 :values])))
+    (is (= nil
+           (get-in any-state [:property-sets 0 :properties 0 :values])))
+    (is (= :grass
+           (get-in any-state [:property-sets 0 :properties 0 :default])))))
+
+(deftest property-set-attachment-toggles_tileset_reference
+  (let [state (model/set-tileset-property-set-attachment
+               {:tilesets [{:id :terrain
+                            :label "Terrain"}]}
+               :terrain
+               :movement
+               true)
+        state (model/set-tileset-property-set-attachment state
+                                                         :terrain
+                                                         :movement
+                                                         false)]
+    (is (= [] (get-in state [:tilesets 0 :property-sets])))))
+
+(deftest selected_targets_assign_property_sets
+  (let [state (model/set-selected-tileset-property-set-attachment
+               {:tilesets [{:id :terrain
+                            :label "Terrain"}]
+                :selected-tileset-definition-index 0}
+               :movement
+               true)
+        state (model/set-selected-terrain-set-property-set-attachment
+               (assoc state
+                      :terrain-sets [{:id :overworld
+                                      :label "Overworld"}]
+                      :selected-terrain-set-index 0)
+               :movement
+               true)]
+    (is (= [:movement] (get-in state [:tilesets 0 :property-sets])))
+    (is (= [:movement] (get-in state [:terrain-sets 0 :property-sets])))))
+
+(deftest selected_tileset_property_default_only_stores_when_different_from_set_default
+  (let [state {:property-sets [movement-property-set]
+               :tilesets [{:id :terrain
+                           :property-sets [:movement]
+                           :tiles []}]
+               :selected-tileset-definition-index 0}
+        state (model/set-selected-tileset-property-default-value state
+                                                                 :walkable
+                                                                 :no)
+        state (model/set-selected-tileset-property-default-value state
+                                                                 :cost
+                                                                 1)]
+    (is (= {:walkable :no}
+           (get-in state [:tilesets 0 :properties])))))
+
+(deftest selected_terrain_set_property_default_only_stores_when_different_from_set_default
+  (let [state {:property-sets [movement-property-set]
+               :terrain-sets [{:id :overworld
+                               :property-sets [:movement]
+                               :terrains []}]
+               :selected-terrain-set-index 0}
+        state (model/set-selected-terrain-set-property-default-value state
+                                                                    :cost
+                                                                    4)
+        state (model/set-selected-terrain-set-property-default-value state
+                                                                    :walkable
+                                                                    :yes)]
+    (is (= {:cost 4}
+           (get-in state [:terrain-sets 0 :properties])))))
+
+(deftest selected_tile_property_value_only_stores_override_when_different
+  (let [state {:property-sets [movement-property-set]
+               :tilesets [{:id :terrain
+                           :property-sets [:movement]
+                           :properties {:walkable :yes
+                                             :cost 2}
+                           :tiles [{:id :grass
+                                    :type :color}]}]
+               :selected-tileset-definition-index 0
+               :selected-tileset-tile-index 0}
+        state (model/set-selected-tile-property-value state :walkable :no)
+        state (model/set-selected-tile-property-value state :cost 4)
+        state (model/set-selected-tile-property-value state :walkable :yes)]
+    (is (= {:cost 4}
+           (get-in state [:tilesets 0 :tiles 0 :properties])))))
+
+(deftest selected_tile_enum_property_value_stores_changed_value
+  (let [state {:property-sets [movement-property-set]
+               :tilesets [{:id :terrain
+                           :property-sets [:movement]
+                           :properties {:walkable :yes}
+                           :tiles [{:id :grass
+                                    :type :color}]}]
+               :selected-tileset-definition-index 0
+               :selected-tileset-tile-index 0}
+        state (model/set-selected-tile-property-value state :walkable :no)]
+    (is (= {:walkable :no}
+           (get-in state [:tilesets 0 :tiles 0 :properties])))))
+
+(deftest selected_terrain_property_value_only_stores_override_when_different
+  (let [state {:property-sets [movement-property-set]
+               :terrain-sets [{:id :overworld
+                               :property-sets [:movement]
+                               :properties {:walkable :yes
+                                                 :cost 2}
+                               :terrains [{:id :grass}]}]
+               :selected-terrain-set-index 0
+               :selected-terrain-index 0}
+        state (model/set-selected-terrain-property-value state :walkable :no)
+        state (model/set-selected-terrain-property-value state :cost 2)]
+    (is (= {:walkable :no}
+           (get-in state [:terrain-sets 0 :terrains 0 :properties])))))

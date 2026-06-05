@@ -1,0 +1,171 @@
+(ns tilemap-editor.view.property-sets.workspace
+  (:require pixils
+            [pixils.ui :as ui]
+            [pixils.ui.dialog :as dialog]
+            [tilemap-editor.view.id-name-dialog :as id-name-dialog]
+            [tilemap-editor.view.property-sets.model :as model]
+            [tilemap-editor.view.property-sets.panels :as panels]))
+
+(defun open-property-set-edit-dialog! [state ctx]
+  (let [property-set (model/selected-property-set state)]
+    (if property-set
+      (do
+        (id-name-dialog/open!
+         ctx
+         {:title "Edit Property Set"
+          :id (model/keyword-label (:id property-set))
+          :name (or (:label property-set) "")
+          :result-event :property-set/edit-dialog-result})
+        state)
+      state)))
+
+(defun open-property-set-delete-confirm-dialog! [state ctx property-set-index name]
+  (do
+    (dialog/open-confirm!
+     ctx
+     {:title "Delete Property Set"
+      :body {:mode 'ui/text
+             :style {:width :fill}
+             :state {:value (str "Delete property set \"" name "\"?")}}
+      :buttons [:dialog/cancel
+                {:type :dialog/ok
+                 :label "Delete"}]
+      :result-event :property-set/delete-confirm-result
+      :payload {:property-set-index property-set-index}})
+    state))
+
+(defun property-set-workspace-children []
+  [(panels/make-property-set-list-panel)
+   (panels/make-property-definition-panel)])
+
+(defcomponent property-set-workspace
+  {:style {:width :fill
+           :height :fill
+           :layout {:direction :row
+                    :gap 8}}
+   :init (fn [state ctx]
+           (model/derive-property-set-workspace-state state))
+   :update (fn [state ctx]
+             (model/derive-property-set-workspace-state state))
+   :on {:property-set/add (fn [state event ctx]
+                            (let [property-set (model/make-property-set
+                                                (:property-sets state))]
+                              (do
+                                (id-name-dialog/open!
+                                 ctx
+                                 {:title "Add Property Set"
+                                  :id (model/keyword-label (:id property-set))
+                                  :name (:label property-set)
+                                  :result-event
+                                  :property-set/add-dialog-result})
+                                state)))
+        :property-set/add-dialog-result
+        (fn [state event ctx]
+          (let [payload (:payload event)]
+            (if (= (:type payload) :confirm)
+              (model/add-property-set-with-id state
+                                              (:id payload)
+                                              (:name payload))
+              state)))
+        :property-set/select
+        (fn [state event ctx]
+          (assoc state
+                 :selected-property-set-index (:payload event)
+                 :selected-property-definition-index nil))
+        :property-set/context-command
+        (fn [state event ctx]
+          (let [payload (:payload event)
+                property-set-index (:property-set-index payload)
+                command (:command payload)
+                state (assoc state
+                             :selected-property-set-index property-set-index
+                             :selected-property-definition-index nil)]
+            (case command
+              :edit
+              (open-property-set-edit-dialog! state ctx)
+
+              :delete
+              (open-property-set-delete-confirm-dialog!
+               state
+               ctx
+               property-set-index
+               (model/property-set-label-by-index state property-set-index))
+
+              :default
+              state)))
+        :property-set/edit-dialog-result
+        (fn [state event ctx]
+          (let [payload (:payload event)]
+            (if (= (:type payload) :confirm)
+              (model/set-selected-property-set-identity state
+                                                        (:id payload)
+                                                        (:name payload))
+              state)))
+        :property-set/delete-confirm-result
+        (fn [state event ctx]
+          (let [payload (:payload event)]
+            (if (and (= (:choice payload) :dialog/ok)
+                     (not (nil? (-> payload
+                                     :payload
+                                     :property-set-index))))
+              (model/delete-selected-property-set
+               (assoc state
+                      :selected-property-set-index
+                      (-> payload :payload :property-set-index)
+                      :selected-property-definition-index nil))
+              state)))
+        :property-definition/add
+        (fn [state event ctx]
+          (if-let [property-set (model/selected-property-set state)]
+            (let [property (model/make-property (:properties property-set))]
+              (do
+                (id-name-dialog/open!
+                 ctx
+                 {:title "Add Property"
+                  :id (model/keyword-label (:id property))
+                  :name (:label property)
+                  :result-event :property-definition/add-dialog-result})
+                state))
+            state))
+        :property-definition/add-dialog-result
+        (fn [state event ctx]
+          (let [payload (:payload event)]
+            (if (= (:type payload) :confirm)
+              (model/add-property-definition-with-id state
+                                                     (:id payload)
+                                                     (:name payload))
+              state)))
+        :property-definition/select
+        (fn [state event ctx]
+          (assoc state :selected-property-definition-index (:payload event)))
+        :property-definition/field-change
+        (fn [state event ctx]
+          (let [payload (:payload event)]
+            (case (:field payload)
+              :id (model/set-selected-property-id state (:value payload))
+              :label (model/set-selected-property-label state (:value payload))
+              :default (model/set-selected-property-default state
+                                                            (:value payload))
+              :values (model/set-selected-property-enum-values
+                       state
+                       (:value payload))
+              :default state)))
+        :property-definition/enum-default-change
+        (fn [state event ctx]
+          (model/set-selected-property-enum-default state (:payload event)))
+        :property-definition/enum-value-add
+        (fn [state event ctx]
+          (model/add-selected-property-enum-value state))
+        :property-definition/enum-value-change
+        (fn [state event ctx]
+          (let [payload (:payload event)]
+            (model/set-selected-property-enum-value state
+                                                    (:index payload)
+                                                    (:value payload))))
+        :property-definition/enum-value-remove
+        (fn [state event ctx]
+          (model/remove-selected-property-enum-value state (:payload event)))
+        :property-definition/type-change
+        (fn [state event ctx]
+          (model/set-selected-property-type state (:payload event)))}
+   :children (property-set-workspace-children)})

@@ -15,6 +15,8 @@
             [pixils.ui.window :as w]
             [pixils.tilemap.project.model :as data]
             [tilemap-editor.view.image-panel :as ip]
+            [tilemap-editor.view.property-sets.model :as property-model]
+            tilemap-editor.view.property-sets.layout
             tilemap-editor.view.tileset.model))
 
 (def tile-import-preview-width 360)
@@ -119,6 +121,29 @@
                  (if (empty? (or (:tiles tileset) [])) nil 0)
                  :selected-tileset-tile-indices
                  (if (empty? (or (:tiles tileset) [])) [] [0]))))
+	      state)))
+
+(defun open-tileset-properties-dialog! [state ctx tileset-index]
+  (let [tilesets (or (:tilesets state) [])
+        index (or tileset-index (:selected-tileset-definition-index state))
+        tileset (when (and (not (nil? index))
+                           (>= index 0)
+                           (< index (count tilesets)))
+                  (nth tilesets index))]
+    (if tileset
+      (do
+        (push-mode! 'tileset-properties-dialog-modal
+                    {:tileset-index index
+                     :tileset-label (or (:label tileset)
+                                        (keyword-label (:id tileset)))
+                     :property-sets (:property-sets state)
+                     :dialog-tileset
+                     {:id (:id tileset)
+                      :property-sets (or (:property-sets tileset) [])
+                      :properties (:properties tileset)}}
+                    {:origin {:view (:view ctx)
+                              :event :tileset/properties-dialog-result}})
+        (assoc state :selected-tileset-definition-index index))
       state)))
 
 (defun open-tile-delete-confirm-dialog! [state ctx tile-indices]
@@ -507,13 +532,140 @@
                                :tileset-label (ui/bind-state :tileset-label)
                                :tile-size (ui/bind-state :tile-size)
                                :confirm-label (ui/bind-state :confirm-label)}
-                       :body [{:mode 'tileset-create-dialog-body
-                               :state {:source-tileset-index
-                                       (ui/bind-state :source-tileset-index)
-                                       :tileset-id (ui/bind-state :tileset-id)
-                                       :tileset-label (ui/bind-state :tileset-label)
-                                       :tile-size (ui/bind-state :tile-size)
-                                       :confirm-label (ui/bind-state :confirm-label)}}]})]})
+	                       :body [{:mode 'tileset-create-dialog-body
+	                               :state {:source-tileset-index
+	                                       (ui/bind-state :source-tileset-index)
+	                                       :tileset-id (ui/bind-state :tileset-id)
+	                                       :tileset-label (ui/bind-state :tileset-label)
+	                                       :tile-size (ui/bind-state :tile-size)
+	                                       :confirm-label (ui/bind-state :confirm-label)}}]})]})
+
+(defcomponent tileset-properties-dialog-buttons
+  {:style {:width :fill
+           :height 24
+           :layout {:direction :row
+                    :gap :space-between}}
+   :children [{:mode 'ui/button
+               :style {:width 78
+                       :height 24}
+               :state {:label "Cancel"}
+               :on-click (fn [state event ctx]
+                           (do
+                             (ui/emit! (:view ctx)
+                                       :tileset-properties-dialog/cancel)
+                             state))}
+              {:mode 'ui/button
+               :style {:width 78
+                       :height 24}
+               :state {:label "Save"}
+               :on-click (fn [state event ctx]
+                           (do
+                             (ui/emit! (:view ctx)
+                                       :tileset-properties-dialog/confirm)
+                             state))}]})
+
+(defcomponent tileset-properties-dialog-body
+  {:class :ui/content
+   :style {:width 320
+           :height :shrink
+           :padding 10
+           :layout {:direction :column
+                    :gap 10}}
+   :update (fn [state ctx]
+             (let [tileset (:dialog-tileset state)]
+               (assoc state
+                      :assigned-property-set-ids (:property-sets tileset)
+                      :property-default-values (:properties tileset))))
+   :children [{:mode 'ui/text
+               :class :ui/muted
+               :state {:value (ui/bind-state :tileset-label)}}
+              {:mode 'property-set-assignment-list
+               :state {:kind :tileset
+                       :property-sets (ui/bind-state :property-sets)
+                       :assigned-property-set-ids
+                       (ui/bind-state :assigned-property-set-ids)
+                       :disabled? false}}
+              {:mode 'property-value-list
+               :state {:title "Default Values"
+                       :kind :tileset-default
+                       :property-sets (ui/bind-state :property-sets)
+                       :property-set-ids
+                       (ui/bind-state :assigned-property-set-ids)
+                       :default-values {}
+                       :override-values
+                       (ui/bind-state :property-default-values)
+                       :disabled? false}}
+              {:mode 'tileset-properties-dialog-buttons}]})
+
+(defmode tileset-properties-dialog-modal
+  {:on {:tileset-properties-dialog/cancel
+        (fn [state event ctx]
+          (do
+            (ui/stop-propagation! event)
+            (pop-mode! {:type :cancel})
+            state))
+        :tileset-properties-dialog/confirm
+        (fn [state event ctx]
+          (do
+            (ui/stop-propagation! event)
+            (pop-mode! {:type :confirm
+                        :tileset-index (:tileset-index state)
+                        :property-sets
+                        (:property-sets (:dialog-tileset state))
+                        :properties
+                        (:properties (:dialog-tileset state))})
+            state))
+        :property-set/assignment-change
+        (fn [state event ctx]
+          (let [payload (:payload event)]
+            (do
+              (ui/stop-propagation! event)
+              (case (:kind payload)
+                :tileset
+                (update state
+                        :dialog-tileset
+                        (fn [tileset]
+                          (property-model/attach-property-set-with-values
+                           tileset
+                           (:property-sets state)
+                           (:property-set-id payload)
+                           (:attached? payload))))
+
+                :default state))))
+        :property-value/change
+        (fn [state event ctx]
+          (let [payload (:payload event)]
+            (do
+              (ui/stop-propagation! event)
+              (case (:kind payload)
+                :tileset-default
+                (update state
+                        :dialog-tileset
+                        (fn [tileset]
+                          (property-model/set-target-property-default-value
+                           tileset
+                           (:property-sets state)
+                           (:property-id payload)
+                           (:value payload))))
+
+                :default state))))}
+   :compose {:render :pass}
+   :children [(w/make {:position {:x 240 :y 120}
+                       :title-bar {:title "Tile Set Properties"}
+                       :state {:tileset-index (ui/bind-state :tileset-index)
+                               :tileset-label (ui/bind-state :tileset-label)
+                               :property-sets (ui/bind-state :property-sets)
+                               :dialog-tileset
+                               (ui/bind-state :dialog-tileset)}
+                       :body [{:mode 'tileset-properties-dialog-body
+                               :state {:tileset-index
+                                       (ui/bind-state :tileset-index)
+                                       :tileset-label
+                                       (ui/bind-state :tileset-label)
+                                       :property-sets
+                                       (ui/bind-state :property-sets)
+                                       :dialog-tileset
+                                       (ui/bind-state :dialog-tileset)}}]})]})
 
 (defcomponent tile-create-type-selector
   {:style {:width :fill

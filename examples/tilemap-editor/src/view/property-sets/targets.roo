@@ -1,0 +1,270 @@
+(ns tilemap-editor.view.property-sets.targets
+  (:require pixils
+            [pixils.ui :as ui]
+            pixils.ui.text-input
+            [pixils.ui.checkbox :as chk]
+            [pixils.ui.combo-box :as cb]
+            [pixils.tilemap.project.model :as data]
+            [tilemap-editor.view.property-sets.model :as model]))
+
+(defcomponent property-set-assignment-row
+  {:style {:width :fill
+           :height 24
+           :layout {:direction :row
+                    :align-items :center}}
+   :on {:checkbox/change (fn [state event ctx]
+                           (do
+                             (when (not (:disabled? state))
+                               (ui/emit! (:view ctx)
+                                         :property-set/assignment-change
+                                         {:kind (:kind state)
+                                          :property-set-id (:property-set-id state)
+                                          :attached?
+                                          (-> event :payload :checked?)}))
+                             state))}
+   :children [(chk/make {:label (ui/bind-state :label)
+                         :checked? (ui/bind-state :attached?)
+                         :value (ui/bind-state :property-set-id)
+                         :disabled? (ui/bind-state :disabled?)
+                         :style {:width :fill
+                                 :height 18}})]})
+
+(defun property-set-assignment-row-child [kind assigned-property-set-ids property-set disabled?]
+  {:mode 'property-set-assignment-row
+   :state {:kind kind
+           :property-set-id (:id property-set)
+           :label (or (:label property-set)
+                      (:name property-set)
+                      (model/keyword-label (:id property-set)))
+           :attached? (contains? (or assigned-property-set-ids [])
+                                 (:id property-set))
+           :disabled? disabled?}})
+
+(defun property-set-assignment-list-children [kind property-sets assigned-property-set-ids disabled?]
+  (concat
+   [{:mode 'ui/text
+     :class :ui/muted
+     :state {:value "Property Sets"}}]
+   (if (empty? (or property-sets []))
+     [{:mode 'ui/text
+       :class :ui/muted
+       :state {:value "No property sets defined"}}]
+     (map (or property-sets [])
+          (fn [property-set]
+            (property-set-assignment-row-child kind
+                                               assigned-property-set-ids
+                                               property-set
+                                               disabled?))))))
+
+(defun property-set-assignment-list-content-child [state]
+  {:id "property-set-assignment-list-content"
+   :style {:width :fill
+           :height :shrink
+           :layout {:direction :column
+                    :gap 4}}
+   :children (property-set-assignment-list-children
+              (:kind state)
+              (:property-sets state)
+              (:assigned-property-set-ids state)
+              (:disabled? state))})
+
+(defcomponent property-set-assignment-list
+  {:style {:width :fill
+           :height :shrink}
+   :update (fn [state ctx]
+             (do
+               (when (or (not= (:property-sets state)
+                               (:rendered-property-sets state))
+                         (not= (:kind state)
+                               (:rendered-kind state))
+                         (not= (:assigned-property-set-ids state)
+                               (:rendered-assigned-property-set-ids state))
+                         (not= (:disabled? state)
+                               (:rendered-disabled? state)))
+                 (ui/replace-child! (:view ctx)
+                                    "property-set-assignment-list-content"
+                                    (property-set-assignment-list-content-child
+                                     state)))
+               (assoc state
+                      :rendered-property-sets (:property-sets state)
+                      :rendered-kind (:kind state)
+                      :rendered-assigned-property-set-ids
+                      (:assigned-property-set-ids state)
+                      :rendered-disabled? (:disabled? state))))
+   :children [(property-set-assignment-list-content-child {})]})
+
+(defcomponent property-value-text-control
+  {:style {:width 140
+           :height 22}
+   :on {:text-input/change (fn [state event ctx]
+                             (let [value (-> event :payload :value)]
+                               (do
+                                 (ui/emit! (:view ctx)
+                                           :property-value/change
+                                           {:kind (:kind state)
+                                            :property-id (:property-id state)
+                                            :value value})
+                                 (assoc state :value value))))}
+   :children [{:mode 'ui/text-input
+               :style {:width :fill
+                       :height 22}
+               :state {:value (ui/bind-state :value)
+                       :disabled? (ui/bind-state :disabled?)}}]})
+
+(defun enum-option [value]
+  {:value value
+   :label (model/keyword-label value)})
+
+(defcomponent property-value-enum-control
+  {:style {:width 140
+           :height 22}
+   :update (fn [state ctx]
+             (let [options (map (or (:values state) []) enum-option)
+                   value (:value state)
+                   index (or (find-index options
+                                         (fn [option]
+                                           (= (:value option) value)))
+                             0)]
+               (assoc state
+                      :options options
+                      :selected-index index
+                      :disabled? (or (:disabled? state)
+                                     (empty? options)))))
+   :on {:combo-box/change (fn [state event ctx]
+                            (let [value (-> event :payload :value)]
+                              (do
+                                (ui/emit! (:view ctx)
+                                          :property-value/change
+                                          {:kind (:kind state)
+                                           :property-id (:property-id state)
+                                           :value value})
+                                (assoc state :value value))))}
+   :children [(cb/make {:options (ui/bind-state :options)
+                        :selected-index (ui/bind-state :selected-index)
+                        :disabled? (ui/bind-state :disabled?)})]})
+
+(defun property-value-control-child [kind property value disabled?]
+  (if (= (data/property-type property) :enum)
+    {:mode 'property-value-enum-control
+     :state {:kind kind
+             :property-id (:id property)
+             :value value
+             :values (:values property)
+             :disabled? disabled?}}
+    {:mode 'property-value-text-control
+     :state {:kind kind
+             :property-id (:id property)
+             :value (model/property-value-label value)
+             :disabled? disabled?}}))
+
+(defcomponent property-value-row
+  {:style {:width :fill
+           :height 26
+           :layout {:direction :row
+                    :align-items :center
+                    :gap 8}}
+   :children [{:mode 'ui/text
+               :class :ui/muted
+               :style {:width 92}
+               :state {:value (ui/bind-state :label)}}
+              {:id "property-value-control"
+               :style {:width 140
+                       :height 22}}]
+   :update (fn [state ctx]
+             (let [property (:property state)
+                   value (:value state)
+                   disabled? (:disabled? state)]
+               (do
+                 (when (or (not= (:kind state) (:rendered-kind state))
+                           (not= property (:rendered-property state))
+                           (not= value (:rendered-value state))
+                           (not= disabled? (:rendered-disabled? state)))
+                   (ui/replace-child! (:view ctx)
+                                      "property-value-control"
+                                      (merge {:id "property-value-control"}
+                                             (property-value-control-child
+                                              (:kind state)
+                                              property
+                                              value
+                                              disabled?))))
+                 (assoc state
+                        :label (or (:label property)
+                                   (model/keyword-label (:id property)))
+                        :rendered-kind (:kind state)
+                        :rendered-property property
+                        :rendered-value value
+                        :rendered-disabled? disabled?))))})
+
+(defun property-value-row-child [kind property value disabled?]
+  {:mode 'property-value-row
+   :state {:kind kind
+           :property property
+           :value value
+           :disabled? disabled?}})
+
+(defun property-value-list-children [title kind property-sets property-set-ids default-values override-values disabled?]
+  (let [properties (data/property-definitions property-sets property-set-ids)
+        values (data/effective-property-values property-sets
+                                               property-set-ids
+                                               default-values
+                                               override-values)]
+    (concat
+     [{:mode 'ui/text
+       :class :ui/muted
+       :state {:value (or title "Properties")}}]
+     (if (empty? properties)
+       [{:mode 'ui/text
+         :class :ui/muted
+         :state {:value "No assigned property sets"}}]
+       (map properties
+            (fn [property]
+              (property-value-row-child kind
+                                        property
+                                        (get values (:id property))
+                                        disabled?)))))))
+
+(defun property-value-list-content-child [state]
+  {:id "property-value-list-content"
+   :style {:width :fill
+           :height :shrink
+           :layout {:direction :column
+                    :gap 4}}
+   :children (property-value-list-children (:title state)
+                                           (:kind state)
+                                           (:property-sets state)
+                                           (:property-set-ids state)
+                                           (:default-values state)
+                                           (:override-values state)
+                                           (:disabled? state))})
+
+(defcomponent property-value-list
+  {:style {:width :fill
+           :height :shrink}
+   :update (fn [state ctx]
+             (do
+               (when (or (not= (:property-sets state)
+                               (:rendered-property-sets state))
+                         (not= (:title state)
+                               (:rendered-title state))
+                         (not= (:kind state)
+                               (:rendered-kind state))
+                         (not= (:property-set-ids state)
+                               (:rendered-property-set-ids state))
+                         (not= (:default-values state)
+                               (:rendered-default-values state))
+                         (not= (:override-values state)
+                               (:rendered-override-values state))
+                         (not= (:disabled? state)
+                               (:rendered-disabled? state)))
+                 (ui/replace-child! (:view ctx)
+                                    "property-value-list-content"
+                                    (property-value-list-content-child state)))
+               (assoc state
+                      :rendered-property-sets (:property-sets state)
+                      :rendered-title (:title state)
+                      :rendered-kind (:kind state)
+                      :rendered-property-set-ids (:property-set-ids state)
+                      :rendered-default-values (:default-values state)
+                      :rendered-override-values (:override-values state)
+                      :rendered-disabled? (:disabled? state))))
+   :children [(property-value-list-content-child {})]})

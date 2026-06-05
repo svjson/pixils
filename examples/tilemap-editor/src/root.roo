@@ -11,6 +11,7 @@
             [tilemap-editor.view.tileset.model :as tileset-model]
             tilemap-editor.view.brushes.layout
             [tilemap-editor.view.menu :as app-menu]
+            tilemap-editor.view.property-sets.layout
             tilemap-editor.view.resources.layout
             tilemap-editor.view.terrains.layout
             tilemap-editor.view.tilemap.layout
@@ -65,6 +66,9 @@
            :selected-tileset-tile-indices []
            :tilesets []
            :tileset nil
+           :property-sets []
+           :selected-property-set-index nil
+           :selected-property-definition-index nil
            :terrain-sets []
            :selected-terrain-set-index nil
            :selected-terrain-index nil
@@ -206,6 +210,11 @@
                        :selected-tileset-tile-indices (ui/bind-state :selected-tileset-tile-indices)
                        :tilesets (ui/bind-state :tilesets)
                        :tileset (ui/bind-state :tileset)
+                       :property-sets (ui/bind-state :property-sets)
+                       :selected-property-set-index
+                       (ui/bind-state :selected-property-set-index)
+                       :selected-property-definition-index
+                       (ui/bind-state :selected-property-definition-index)
                        :terrain-sets (ui/bind-state :terrain-sets)
                        :selected-terrain-set-index
                        (ui/bind-state :selected-terrain-set-index)
@@ -277,6 +286,8 @@
                                        :selected-tileset-index (ui/bind-state :selected-tileset-index)
                                        :tilesets (ui/bind-state :tilesets)
                                        :tileset (ui/bind-state :tileset)
+                                       :property-sets
+                                       (ui/bind-state :property-sets)
                                        :terrain-sets (ui/bind-state :terrain-sets)
                                        :rulesets (ui/bind-state :rulesets)
                                        :layer-profiles (ui/bind-state :layer-profiles)
@@ -316,6 +327,8 @@
                                        :selected-tileset-tile-indices (ui/bind-state :selected-tileset-tile-indices)
                                        :tilesets (ui/bind-state :tilesets)
                                        :tileset (ui/bind-state :tileset)
+                                       :property-sets
+                                       (ui/bind-state :property-sets)
                                        :selected-layer-index (ui/bind-state :selected-layer-index)
                                        :layers (ui/bind-state :layers)
                                        :project-directory (ui/bind-state :project-directory)
@@ -354,6 +367,8 @@
                                :style {:padding 8}
                                :state {:terrain-sets (ui/bind-state :terrain-sets)
                                        :tilesets (ui/bind-state :tilesets)
+                                       :property-sets
+                                       (ui/bind-state :property-sets)
                                        :rulesets (ui/bind-state :rulesets)
                                        :layers (ui/bind-state :layers)
                                        :layer-profiles
@@ -382,7 +397,22 @@
                                         :terrain-rule-selected-tile)
                                        :terrain-rule-list-offset
                                        (ui/bind-state
-                                        :terrain-rule-list-offset)}}}]})]
+                                        :terrain-rule-list-offset)}}}
+                      {:id :property-sets
+                       :label "Property Sets"
+                       :child {:mode 'property-set-workspace
+                               :style {:padding 8}
+                               :state {:property-sets
+                                       (ui/bind-state :property-sets)
+                                       :selected-property-set-index
+                                       (ui/bind-state
+                                        :selected-property-set-index)
+                                       :selected-property-definition-index
+                                       (ui/bind-state
+                                        :selected-property-definition-index)
+                                       :tilesets (ui/bind-state :tilesets)
+                                       :terrain-sets
+                                       (ui/bind-state :terrain-sets)}}}]})]
   :on {:palette/select (fn [state event ctx]
                          (assoc state :selected-tile (:payload event)))
        :palette/brush-select (fn [state event ctx]

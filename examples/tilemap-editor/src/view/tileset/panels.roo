@@ -6,7 +6,10 @@
             [pixils.ui.list-box :as lb]
             [pixils.ui.menu :as menu]
             [pixils.ui.slider :as sl]
+            [pixils.ui.tab-panel :as tabs]
             [pixils.tilemap.project.model :as data]
+            [tilemap-editor.view.property-sets.model :as property-model]
+            tilemap-editor.view.property-sets.layout
             [tilemap-editor.view.tileset.sprite-source-editor :as sse]
             [tilemap-editor.view.tilemap.renderer :as tr]
             tilemap-editor.view.tileset.model))
@@ -15,12 +18,15 @@
 
 (def tileset-context-menu
   {:settings {:mnemonics {:enabled false}}
-   :items [{:label "Edit"
-            :action :tileset/context-dummy
-            :payload {:command :edit}}
-           {:label "Duplicate"
-            :action :tileset/context-dummy
-            :payload {:command :duplicate}}]})
+	   :items [{:label "Edit"
+	            :action :tileset/context-dummy
+	            :payload {:command :edit}}
+	           {:label "Properties"
+	            :action :tileset/context-dummy
+	            :payload {:command :properties}}
+	           {:label "Duplicate"
+	            :action :tileset/context-dummy
+	            :payload {:command :duplicate}}]})
 
 (def tile-context-menu
   {:settings {:mnemonics {:enabled false}}
@@ -708,6 +714,101 @@
             state))}
    :children [(tile-sprite-editor-placeholder-child)]})
 
+(defun tile-definition-tile-tab-children []
+  [{:mode 'tile-definition-row
+    :style {:width :fill
+            :height 22
+            :layout {:direction :row
+                     :align-items :center
+                     :gap 8}}
+    :state {:tile (ui/bind-state :tile)}
+    :children [{:mode 'ui/text
+                :class :ui/muted
+                :style {:width 58}
+                :state {:value "Type"}}
+               {:mode 'tile-type-selector
+                :style {:width 160
+                        :height 22}
+                :state {:tile (ui/bind-state :tile)}}]}
+   {:mode 'tile-sprite-editor
+    :state {:tile (ui/bind-state :tile)
+            :resources (ui/bind-state :resources)
+            :tile-size (ui/bind-state :tile-size)
+            :source-snap-to-grid? (ui/bind-state
+                                   :source-snap-to-grid?)
+            :source-snap-interval (ui/bind-state
+                                   :source-snap-interval)
+            :source-snap-interval-custom?
+            (ui/bind-state :source-snap-interval-custom?)}}
+   {:mode 'tile-color-editor
+    :state {:tile (ui/bind-state :tile)}}])
+
+(defcomponent tile-definition-tile-tab
+  {:style {:width :fill
+           :height :fill
+           :padding 8
+           :layout {:direction :column
+                    :gap 8}}
+   :children (tile-definition-tile-tab-children)})
+
+(defun tile-definition-properties-tab-children []
+  [{:mode 'property-value-list
+    :state {:title "Tile Properties"
+            :kind :tile
+            :property-sets (ui/bind-state :property-sets)
+            :property-set-ids
+            (ui/bind-state :property-set-ids)
+            :default-values
+            (ui/bind-state :property-default-values)
+            :override-values
+            (ui/bind-state :property-override-values)
+            :disabled? (ui/bind-state :tile-definition-panel-disabled?)}}])
+
+(defcomponent tile-definition-properties-tab
+  {:style {:width :fill
+           :height :fill
+           :padding 8
+           :layout {:direction :column
+                    :gap 8}}
+   :children (tile-definition-properties-tab-children)})
+
+(defun tile-definition-detail-tabs-child []
+  (tabs/make
+   {:selected-tab (ui/bind-state :tile-definition-detail-tab)
+    :style {:width :fill
+            :height 580}
+    :state {:tile (ui/bind-state :tile)
+            :resources (ui/bind-state :resources)
+            :property-sets (ui/bind-state :property-sets)
+            :property-set-ids (ui/bind-state :property-set-ids)
+            :assigned-property-set-ids
+            (ui/bind-state :assigned-property-set-ids)
+            :property-default-values
+            (ui/bind-state :property-default-values)
+            :property-override-values
+            (ui/bind-state :property-override-values)
+            :tile-size (ui/bind-state :tile-size)
+            :source-snap-to-grid?
+            (ui/bind-state :source-snap-to-grid?)
+            :source-snap-interval
+            (ui/bind-state :source-snap-interval)
+            :source-snap-interval-custom?
+            (ui/bind-state :source-snap-interval-custom?)
+            :tile-set-panel-disabled?
+            (ui/bind-state :tile-set-panel-disabled?)
+            :tile-definition-panel-disabled?
+            (ui/bind-state :tile-definition-panel-disabled?)
+            :tile-definition-detail-tab
+            (ui/bind-state :tile-definition-detail-tab)}
+    :tabs [{:id :tile
+            :label "Tile"
+            :child {:mode 'tile-definition-tile-tab
+                    :state (ui/bind-state)}}
+           {:id :properties
+            :label "Properties"
+            :child {:mode 'tile-definition-properties-tab
+                    :state (ui/bind-state)}}]}))
+
 (defcomponent tile-definition-panel
   {:style {:width :fill
            :height :shrink
@@ -720,13 +821,20 @@
                     :source-snap-to-grid?
                     (sse/source-position-snap-enabled? source-state)
                     :source-snap-interval
-                    (sse/source-position-snap-interval source-state))))
+                    (sse/source-position-snap-interval source-state)
+                    :tile-definition-detail-tab :tile)))
    :update (fn [state ctx]
              (let [tile (selected-tileset-tile state)
+                   tileset (selected-tileset-definition state)
                    tile-size (selected-tileset-tile-size state)
                    source-state (assoc state :tile-size tile-size)]
                (assoc state
                       :tile tile
+                      :property-set-ids (:property-sets tileset)
+                      :assigned-property-set-ids (:property-sets tileset)
+                      :property-default-values (:properties tileset)
+                      :property-override-values (:properties tile)
+                      :tile-set-panel-disabled? (nil? tileset)
                       :tile-size tile-size
                       :source-snap-to-grid?
                       (sse/source-position-snap-enabled? source-state)
@@ -757,7 +865,27 @@
         (fn [state event ctx]
           (assoc state
                  :source-snap-interval (:payload event)
-                 :source-snap-interval-custom? true))}
+                 :source-snap-interval-custom? true))
+        :tab-panel/change
+        (fn [state event ctx]
+          (do
+            (ui/stop-propagation! event)
+            (assoc state
+                   :tile-definition-detail-tab
+                   (-> event :payload :tab))))
+        :property-value/change
+        (fn [state event ctx]
+          (let [payload (:payload event)]
+            (do
+              (ui/stop-propagation! event)
+              (case (:kind payload)
+                :tile
+                (property-model/set-selected-tile-property-value
+                 state
+                 (:property-id payload)
+                 (:value payload))
+
+                :default state))))}
    :children [{:mode 'tile-definition-row
                :style {:width :fill
                        :height 76
@@ -781,33 +909,7 @@
                            :children [(tile-detail-field-child "Id/Key" (ui/bind-state :tile-id))
                                       (tile-detail-field-child "Name" (ui/bind-state :tile-name))
                                       (tile-detail-field-child "Char" (ui/bind-state :tile-char))]}]}
-              {:mode 'tile-definition-row
-               :style {:width :fill
-                       :height 22
-                       :layout {:direction :row
-                                :align-items :center
-                                :gap 8}}
-               :state {:tile (ui/bind-state :tile)}
-               :children [{:mode 'ui/text
-                           :class :ui/muted
-                           :style {:width 58}
-                           :state {:value "Type"}}
-                          {:mode 'tile-type-selector
-                           :style {:width 160
-                                   :height 22}
-                           :state {:tile (ui/bind-state :tile)}}]}
-              {:mode 'tile-sprite-editor
-               :state {:tile (ui/bind-state :tile)
-                       :resources (ui/bind-state :resources)
-                       :tile-size (ui/bind-state :tile-size)
-                       :source-snap-to-grid? (ui/bind-state
-                                              :source-snap-to-grid?)
-                       :source-snap-interval (ui/bind-state
-                                              :source-snap-interval)
-                       :source-snap-interval-custom?
-                       (ui/bind-state :source-snap-interval-custom?)}}
-              {:mode 'tile-color-editor
-               :state {:tile (ui/bind-state :tile)}}]})
+              (tile-definition-detail-tabs-child)]})
 
 (def tile-definition-panel-content-height 680)
 
@@ -822,6 +924,7 @@
            :selected-tileset-tile-indices
            (ui/bind-state :selected-tileset-tile-indices)
            :resources (ui/bind-state :resources)
+           :property-sets (ui/bind-state :property-sets)
            :tilesets (ui/bind-state :tilesets)}})
 
 (defun tile-definition-panel-scroll-content-style [state]
@@ -862,6 +965,7 @@
                        :selected-tileset-tile-indices
                        (ui/bind-state :selected-tileset-tile-indices)
                        :resources (ui/bind-state :resources)
+                       :property-sets (ui/bind-state :property-sets)
                        :tilesets (ui/bind-state :tilesets)}}
               {:mode 'ui/scrollbar
                :class :scrollbar/v

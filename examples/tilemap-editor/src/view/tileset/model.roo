@@ -596,6 +596,25 @@
                                :id new-id
                                :label (:tileset-label payload)))]
         (assoc (rename-tileset-references next-state old-id new-id)
+	               :selected-tileset-definition-index index))
+	      state)))
+
+(defun apply-tileset-properties! [state payload]
+  (let [tilesets (or (:tilesets state) [])
+        index (:tileset-index payload)]
+    (if (and (= (:type payload) :confirm)
+             (not (nil? index))
+             (< index (count tilesets)))
+      (let [property-values (:properties payload)
+            next-tileset (assoc (nth tilesets index)
+                                :property-sets
+                                (or (:property-sets payload) []))
+            next-tileset (if (empty? (or property-values {}))
+                           (dissoc next-tileset :properties)
+                           (assoc next-tileset
+                                  :properties
+                                  property-values))]
+        (assoc (assoc-in state [:tilesets index] next-tileset)
                :selected-tileset-definition-index index))
       state)))
 

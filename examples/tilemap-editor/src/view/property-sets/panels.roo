@@ -1,0 +1,89 @@
+(ns tilemap-editor.view.property-sets.panels
+  (:require pixils
+            [pixils.ui :as ui]
+            [pixils.ui.header-panel :as hp]
+            tilemap-editor.view.property-sets.fields
+            tilemap-editor.view.property-sets.lists))
+
+(defun make-property-set-list-panel []
+  (hp/make {:title "Property Sets"
+            :style {:width 240
+                    :height :fill}
+            :header-style {:layout {:direction :row
+                                    :align-items :center
+                                    :gap 4}}
+            :header-children [{:mode 'ui/button
+                               :class :ui/toolbar-button
+                               :state {:label "+"}
+                               :on-click (fn [state event ctx]
+                                           (do
+                                             (ui/emit! (:view ctx)
+                                                       :property-set/add)
+                                             state))}]
+            :body-style {:padding 8
+                         :height :fill}
+            :state {:property-sets (ui/bind-state :property-sets)
+                    :selected-property-set-index
+                    (ui/bind-state :selected-property-set-index)}
+            :body-state {:property-sets (ui/bind-state :property-sets)
+                         :selected-property-set-index
+                         (ui/bind-state :selected-property-set-index)}
+            :children [{:mode 'property-set-list
+                        :state {:property-sets (ui/bind-state :property-sets)
+                                :selected-property-set-index
+                                (ui/bind-state
+                                 :selected-property-set-index)}}]}))
+
+(defun make-property-definition-panel []
+  (hp/make {:title "Fields"
+            :style {:width 280
+                    :height :fill}
+            :header-style {:layout {:direction :row
+                                    :align-items :center
+                                    :gap 4}}
+            :header-children [{:mode 'ui/button
+                               :class :ui/toolbar-button
+                               :state {:label "+"
+                                       :disabled? (ui/bind-state
+                                                   :property-set-panel-disabled?)}
+                               :on-click (fn [state event ctx]
+                                           (do
+                                             (when (not (:disabled? state))
+                                               (ui/emit! (:view ctx)
+                                                         :property-definition/add))
+                                             state))}]
+            :body-style {:padding 8
+                         :height :fill
+                         :layout {:direction :column
+                                  :gap 8}}
+            :state {:property-set-panel-disabled?
+                    (ui/bind-state :property-set-panel-disabled?)
+                    :disabled? (ui/bind-state :property-set-panel-disabled?)
+                    :property-sets (ui/bind-state :property-sets)
+                    :selected-property-set-index
+                    (ui/bind-state :selected-property-set-index)
+                    :selected-property-definition-index
+                    (ui/bind-state :selected-property-definition-index)}
+            :body-state {:property-sets (ui/bind-state :property-sets)
+                         :selected-property-set-index
+                         (ui/bind-state :selected-property-set-index)
+                         :selected-property-definition-index
+                         (ui/bind-state :selected-property-definition-index)}
+            :children [{:mode 'property-definition-list
+                        :style {:width :fill
+                                :height 160}
+                        :state {:property-sets (ui/bind-state :property-sets)
+                                :selected-property-set-index
+                                (ui/bind-state
+                                 :selected-property-set-index)
+                                :selected-property-definition-index
+                                (ui/bind-state
+                                 :selected-property-definition-index)}}
+                       {:mode 'property-definition-detail
+                        :state {:property-sets (ui/bind-state :property-sets)
+                                :selected-property-set-index
+                                (ui/bind-state
+                                 :selected-property-set-index)
+                                :selected-property-definition-index
+                                (ui/bind-state
+                                 :selected-property-definition-index)}}]}))

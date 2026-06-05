@@ -1,0 +1,757 @@
+(ns tilemap-editor.view.property-sets.model
+  (:require [pixils.tilemap.project.model :as data]
+            [tilemap-editor.view.terrains.model :as terrains]
+            [tilemap-editor.view.tileset.model :as tilesets]))
+
+(def property-type-options
+  (map data/property-type-options
+       (fn [type]
+         {:value type
+          :label (case type
+                   :any "Any"
+                   :enum "Enum"
+                   :number "Number"
+                   :default (str type))})))
+
+(defun keyword-label [value]
+  (let [text (str value)]
+    (if (= ":" (substr text 0 1))
+      (substr text 1)
+      text)))
+
+(defun label-from-id [id]
+  (capitalize (tilesets/clean-name-separators (keyword-label id) 0 "")))
+
+(defun id-exists? [items id]
+  (> (count (filter (or items [])
+                    (fn [item]
+                      (= (:id item) id))))
+     0))
+
+(defun unique-id-from [items root suffix]
+  (let [candidate (keyword (if suffix
+                             (str root "-" suffix)
+                             root))]
+    (if (id-exists? items candidate)
+      (unique-id-from items root (if suffix (inc suffix) 2))
+      candidate)))
+
+(defun item-id-exists-except? [items id exclude-index]
+  (> (count (filter (for-indexed [index item (or items [])]
+                      {:index index
+                       :id (:id item)})
+                    (fn [entry]
+                      (and (= (:id entry) id)
+                           (not= (:index entry) exclude-index)))))
+     0))
+
+(defun unique-id-from-except [items root exclude-index suffix]
+  (let [candidate (keyword (if suffix
+                             (str root "-" suffix)
+                             root))]
+    (if (item-id-exists-except? items candidate exclude-index)
+      (unique-id-from-except items
+                             root
+                             exclude-index
+                             (if suffix (inc suffix) 2))
+      candidate)))
+
+(defun id-from-input [items value exclude-index]
+  (when (not (blank? value))
+    (unique-id-from-except items (kebab-case value) exclude-index nil)))
+
+(defun unique-property-set-id [property-sets]
+  (unique-id-from property-sets "property-set" nil))
+
+(defun unique-property-id [properties]
+  (unique-id-from properties "property" nil))
+
+(defun make-property-set [property-sets]
+  (let [id (unique-property-set-id property-sets)]
+    {:id id
+     :label (label-from-id id)
+     :properties []}))
+
+(defun make-property [properties]
+  (let [id (unique-property-id properties)]
+    {:id id
+     :label (label-from-id id)
+     :type :any
+     :default nil}))
+
+(defun selected-property-set-index [property-sets index]
+  (let [property-sets (or property-sets [])]
+    (when (> (count property-sets) 0)
+      (min (max (or index 0) 0)
+           (dec (count property-sets))))))
+
+(defun selected-property-set [state]
+  (if-let [index (selected-property-set-index (:property-sets state)
+                                              (:selected-property-set-index
+                                               state))]
+    (nth (:property-sets state) index)
+    nil))
+
+(defun selected-property-index [property-set index]
+  (let [properties (or (:properties property-set) [])]
+    (when (> (count properties) 0)
+      (min (max (or index 0) 0)
+           (dec (count properties))))))
+
+(defun selected-property [state]
+  (let [property-set (selected-property-set state)]
+    (if-let [index (selected-property-index
+                    property-set
+                    (:selected-property-definition-index state))]
+      (nth (:properties property-set) index)
+      nil)))
+
+(defun selected-property-set-indices [state]
+  (if-let [index (selected-property-set-index (:property-sets state)
+                                              (:selected-property-set-index
+                                               state))]
+    [index]
+    []))
+
+(defun selected-property-indices [state]
+  (let [property-set (selected-property-set state)]
+    (if-let [index (selected-property-index
+                    property-set
+                    (:selected-property-definition-index state))]
+      [index]
+      [])))
+
+(defun property-set-options [property-sets]
+  (for-indexed [index property-set (or property-sets [])]
+    {:value index
+     :label (or (:label property-set) (keyword-label (:id property-set)))}))
+
+(defun property-options [property-set]
+  (for-indexed [index property (or (:properties property-set) [])]
+    {:value index
+     :label (or (:label property) (keyword-label (:id property)))}))
+
+(defun update-at [items index update-fn]
+  (for-indexed [item-index item (or items [])]
+    (if (= item-index index)
+      (update-fn item)
+      item)))
+
+(defun selected-property-set-path [state]
+  (if-let [index (selected-property-set-index (:property-sets state)
+                                              (:selected-property-set-index
+                                               state))]
+    [:property-sets index]
+    nil))
+
+(defun selected-property-path [state]
+  (if-let [set-index (selected-property-set-index
+                      (:property-sets state)
+                      (:selected-property-set-index state))]
+    (let [property-set (nth (:property-sets state) set-index)]
+      (if-let [property-index (selected-property-index
+                               property-set
+                               (:selected-property-definition-index state))]
+        [:property-sets set-index :properties property-index]
+        nil))
+    nil))
+
+(defun add-property-set [state]
+  (let [property-sets (or (:property-sets state) [])
+        property-set (make-property-set property-sets)
+        index (count property-sets)]
+    (assoc state
+           :property-sets (concat property-sets [property-set])
+           :selected-property-set-index index
+           :selected-property-definition-index nil)))
+
+(defun property-set-from-input [property-sets id label]
+  (let [property-set (make-property-set property-sets)
+        requested-id (if (blank? id)
+                       (keyword-label (:id property-set))
+                       id)
+        requested-label (if (blank? label)
+                          (:label property-set)
+                          label)]
+    (assoc property-set
+           :id (id-from-input property-sets requested-id nil)
+           :label requested-label)))
+
+(defun add-property-set-with-id [state id label]
+  (let [property-sets (or (:property-sets state) [])
+        property-set (property-set-from-input property-sets id label)
+        index (count property-sets)]
+    (assoc state
+           :property-sets (concat property-sets [property-set])
+           :selected-property-set-index index
+           :selected-property-definition-index nil)))
+
+(defun property-set-label-by-index [state index]
+  (let [property-set (nth (or (:property-sets state) []) index)]
+    (or (:label property-set)
+        (keyword-label (:id property-set)))))
+
+(defun property-set-id-by-index [state index]
+  (:id (nth (or (:property-sets state) []) index)))
+
+(defun replace-property-set-ref [refs old-id new-id]
+  (map (or refs [])
+       (fn [id]
+         (if (= id old-id) new-id id))))
+
+(defun rename-property-set-reference [target old-id new-id]
+  (assoc target
+         :property-sets
+         (replace-property-set-ref (:property-sets target) old-id new-id)))
+
+(defun rename-property-set-references [state old-id new-id]
+  (assoc state
+         :tilesets (map (or (:tilesets state) [])
+                        (fn [tileset]
+                          (rename-property-set-reference tileset
+                                                         old-id
+                                                         new-id)))
+         :terrain-sets (map (or (:terrain-sets state) [])
+                            (fn [terrain-set]
+                              (rename-property-set-reference terrain-set
+                                                             old-id
+                                                             new-id)))))
+
+(defun set-selected-property-set-id [state value]
+  (if-let [index (selected-property-set-index (:property-sets state)
+                                              (:selected-property-set-index
+                                               state))]
+    (let [old-id (get-in state [:property-sets index :id])]
+      (if-let [id (id-from-input (:property-sets state) value index)]
+        (rename-property-set-references
+         (assoc-in state [:property-sets index :id] id)
+         old-id
+         id)
+        state))
+    state))
+
+(defun set-selected-property-set-label [state value]
+  (if-let [path (selected-property-set-path state)]
+    (assoc-in state (concat path [:label]) value)
+    state))
+
+(defun set-selected-property-set-identity [state id label]
+  (set-selected-property-set-label
+   (set-selected-property-set-id state id)
+   label))
+
+(defun remove-keys [data keys]
+  (reduce (or keys [])
+          (or data {})
+          (fn [result key]
+            (dissoc result key))))
+
+(defun remove-property-values [target property-ids]
+  (let [values (remove-keys (:properties target) property-ids)]
+    (if (empty? values)
+      (dissoc target :properties)
+      (assoc target :properties values))))
+
+(defun remove-property-set-from-target [target property-set-id property-ids child-key]
+  (let [target (assoc target
+                      :property-sets
+                      (filter (or (:property-sets target) [])
+                              (fn [id]
+                                (not= id property-set-id))))
+        target (remove-property-values target property-ids)]
+    (if child-key
+      (assoc target
+             child-key
+             (map (or (get target child-key) [])
+                  (fn [child]
+                    (remove-property-values child property-ids))))
+      target)))
+
+(defun remove-property-set-targets [state property-set-id property-ids]
+  (assoc state
+         :tilesets
+         (map (or (:tilesets state) [])
+              (fn [tileset]
+                (remove-property-set-from-target tileset
+                                                 property-set-id
+                                                 property-ids
+                                                 :tiles)))
+         :terrain-sets
+         (map (or (:terrain-sets state) [])
+              (fn [terrain-set]
+                (remove-property-set-from-target terrain-set
+                                                 property-set-id
+                                                 property-ids
+                                                 :terrains)))))
+
+(defun delete-selected-property-set [state]
+  (if-let [index (selected-property-set-index (:property-sets state)
+                                              (:selected-property-set-index
+                                               state))]
+    (let [property-sets (or (:property-sets state) [])
+          property-set (nth property-sets index)
+          property-ids (map (or (:properties property-set) []) :id)
+          remaining (filter (for-indexed [item-index item property-sets]
+                              {:index item-index
+                               :item item})
+                            (fn [entry]
+                              (not= (:index entry) index)))
+          remaining (map remaining :item)
+          selected-index (selected-property-set-index remaining index)]
+      (assoc (remove-property-set-targets
+              (assoc state :property-sets remaining)
+              (:id property-set)
+              property-ids)
+             :selected-property-set-index selected-index
+             :selected-property-definition-index nil))
+    state))
+
+(defun add-property-definition [state]
+  (if-let [path (selected-property-set-path state)]
+    (let [properties (or (get-in state (concat path [:properties])) [])
+          property (make-property properties)
+          index (count properties)]
+      (assoc (assoc-in state
+                       (concat path [:properties])
+                       (concat properties [property]))
+             :selected-property-definition-index index))
+    state))
+
+(defun property-from-input [properties id label]
+  (let [property (make-property properties)
+        requested-id (if (blank? id)
+                       (keyword-label (:id property))
+                       id)
+        requested-label (if (blank? label)
+                          (:label property)
+                          label)]
+    (assoc property
+           :id (id-from-input properties requested-id nil)
+           :label requested-label)))
+
+(defun add-property-definition-with-id [state id label]
+  (if-let [path (selected-property-set-path state)]
+    (let [properties (or (get-in state (concat path [:properties])) [])
+          property (property-from-input properties id label)
+          index (count properties)]
+      (assoc (assoc-in state
+                       (concat path [:properties])
+                       (concat properties [property]))
+             :selected-property-definition-index index))
+    state))
+
+(defun set-selected-property-id [state value]
+  (if-let [set-index (selected-property-set-index
+                      (:property-sets state)
+                      (:selected-property-set-index state))]
+    (let [property-set (nth (:property-sets state) set-index)
+          property-index (selected-property-index
+                          property-set
+                          (:selected-property-definition-index state))]
+      (if (nil? property-index)
+        state
+        (if-let [id (id-from-input (:properties property-set)
+                                   value
+                                   property-index)]
+          (assoc-in state
+                    [:property-sets set-index :properties property-index :id]
+                    id)
+          state)))
+    state))
+
+(defun set-selected-property-label [state value]
+  (if-let [path (selected-property-path state)]
+    (assoc-in state (concat path [:label]) value)
+    state))
+
+(defun type-index [type]
+  (or (find-index property-type-options
+                  (fn [option]
+                    (= (:value option) type)))
+      0))
+
+(defun set-selected-property-type [state type]
+  (if-let [path (selected-property-path state)]
+    (let [property (assoc (get-in state path) :type type)
+          property (case type
+                     :number (dissoc property :values)
+                     :any (dissoc property :values)
+                     :enum (assoc property :values (or (:values property) []))
+                     :default property)]
+      (assoc-in state
+                path
+                (data/normalize-property-definition property)))
+    state))
+
+(defun trim-token [token]
+  (trim (or token "")))
+
+(defun append-enum-token [tokens token]
+  (let [token (trim-token token)]
+    (if (blank? token)
+      tokens
+      (concat tokens [(keyword (kebab-case token))]))))
+
+(defun parse-enum-values* [value index token tokens]
+  (if (>= index (count value))
+    (append-enum-token tokens token)
+    (let [ch (substr value index 1)]
+      (if (= ch ",")
+        (parse-enum-values* value
+                            (inc index)
+                            ""
+                            (append-enum-token tokens token))
+        (parse-enum-values* value
+                            (inc index)
+                            (str token ch)
+                            tokens)))))
+
+(defun parse-enum-values [value]
+  (parse-enum-values* (or value "") 0 "" []))
+
+(defun enum-values-label [values]
+  (reduce (or values [])
+          ""
+          (fn [out value]
+            (let [label (keyword-label value)]
+              (if (blank? out)
+                label
+                (str out ", " label))))))
+
+(defun set-selected-property-enum-values [state value]
+  (if-let [path (selected-property-path state)]
+    (let [values (parse-enum-values value)
+          property (assoc (get-in state path) :values values)]
+      (assoc-in state
+                path
+                (data/normalize-property-definition property)))
+    state))
+
+(defun parse-number-value [value]
+  (cond
+    (number? value) value
+    (blank? value) 0
+    :default (int value)))
+
+(defun parse-default-value [property value]
+  (case (data/property-type property)
+    :number (parse-number-value value)
+    :enum (keyword (kebab-case (property-value-label value)))
+    :any value
+    :default value))
+
+(defun property-value-label [value]
+  (if (nil? value)
+    ""
+    (keyword-label value)))
+
+(defun set-selected-property-default [state value]
+  (if-let [path (selected-property-path state)]
+    (let [property (get-in state path)
+          value (parse-default-value property value)
+          property (assoc property :default value)]
+      (assoc-in state
+                path
+                (data/normalize-property-definition property)))
+    state))
+
+(defun string-contains? [text needle index]
+  (cond
+    (>= index (count text)) false
+    (= (substr text index 1) needle) true
+    :default (string-contains? text needle (inc index))))
+
+(defun enum-value-token [value]
+  (let [label (trim (property-value-label value))]
+    (when (not (blank? label))
+      (if (string-contains? label "/" 0)
+        label
+        (kebab-case label)))))
+
+(defun enum-value-from-input [value]
+  (if-let [token (enum-value-token value)]
+    (keyword token)
+    nil))
+
+(defun default-enum-property-value [values default]
+  (if (contains? values default)
+    default
+    (head values)))
+
+(defun normalize-enum-property-values [property values default]
+  (let [values (filter (map (or values []) enum-value-from-input)
+                       (fn [value]
+                         (not (nil? value))))
+        default (enum-value-from-input default)]
+    (data/normalize-property-definition
+     (assoc property
+            :values values
+            :default (default-enum-property-value values default)))))
+
+(defun set-selected-property-enum-default [state value]
+  (if-let [path (selected-property-path state)]
+    (let [property (get-in state path)]
+      (assoc-in state
+                path
+                (normalize-enum-property-values property
+                                                (:values property)
+                                                value)))
+    state))
+
+(defun remove-index [items index]
+  (map (filter (for-indexed [item-index item (or items [])]
+                 {:index item-index
+                  :item item})
+               (fn [entry]
+                 (not= (:index entry) index)))
+       (fn [entry]
+         (:item entry))))
+
+(defun value-exists? [values value]
+  (> (count (filter (or values [])
+                    (fn [existing]
+                      (= existing value))))
+     0))
+
+(defun unique-value-from [values root suffix]
+  (let [candidate (if suffix
+                    (str root "-" suffix)
+                    root)]
+    (if (value-exists? values candidate)
+      (unique-value-from values root (if suffix (inc suffix) 2))
+      candidate)))
+
+(defun add-selected-property-enum-value [state]
+  (if-let [path (selected-property-path state)]
+    (let [property (get-in state path)
+          values (or (:values property) [])
+          value (keyword (unique-value-from
+                          (map values property-value-label)
+                          "value"
+                          nil))
+          values (concat values [value])]
+      (assoc-in state
+                path
+                (normalize-enum-property-values property
+                                                values
+                                                (or (:default property) value))))
+    state))
+
+(defun set-selected-property-enum-value [state index value]
+  (if-let [path (selected-property-path state)]
+    (let [property (get-in state path)
+          values (or (:values property) [])
+          old-value (nth values index)
+          value (enum-value-from-input value)
+          values (update-at values index (fn [item] value))
+          default (if (= (:default property) old-value)
+                    value
+                    (:default property))]
+      (assoc-in state
+                path
+                (normalize-enum-property-values property values default)))
+    state))
+
+(defun remove-selected-property-enum-value [state index]
+  (if-let [path (selected-property-path state)]
+    (let [property (get-in state path)
+          values (remove-index (:values property) index)]
+      (assoc-in state
+                path
+                (normalize-enum-property-values property
+                                                values
+                                                (:default property))))
+    state))
+
+(defun attached? [target property-set-id]
+  (contains? (or (:property-sets target) []) property-set-id))
+
+(defun property-set-property-ids [property-sets property-set-id]
+  (map (data/property-definitions property-sets [property-set-id]) :id))
+
+(defun attach-property-set [target property-set-id attached?]
+  (let [property-sets (or (:property-sets target) [])]
+    (assoc target
+           :property-sets
+           (if attached?
+             (if (contains? property-sets property-set-id)
+               property-sets
+               (concat property-sets [property-set-id]))
+             (filter property-sets
+                     (fn [id]
+                       (not= id property-set-id)))))))
+
+(defun attach-property-set-with-values [target property-sets property-set-id attached?]
+  (let [target (attach-property-set target property-set-id attached?)]
+    (if attached?
+      target
+      (remove-property-values target
+                              (property-set-property-ids property-sets
+                                                         property-set-id)))))
+
+(defun set-target-property-set-attachment [items target-id property-sets property-set-id attached?]
+  (map (or items [])
+       (fn [item]
+         (if (= (:id item) target-id)
+           (attach-property-set-with-values item
+                                            property-sets
+                                            property-set-id
+                                            attached?)
+           item))))
+
+(defun set-tileset-property-set-attachment [state tileset-id property-set-id attached?]
+  (assoc state
+         :tilesets
+         (set-target-property-set-attachment (:tilesets state)
+                                             tileset-id
+                                             (:property-sets state)
+                                             property-set-id
+                                             attached?)))
+
+(defun set-terrain-set-property-set-attachment [state terrain-set-id property-set-id attached?]
+  (assoc state
+         :terrain-sets
+         (set-target-property-set-attachment (:terrain-sets state)
+                                             terrain-set-id
+                                             (:property-sets state)
+                                             property-set-id
+                                             attached?)))
+
+(defun set-selected-tileset-property-set-attachment [state property-set-id attached?]
+  (let [tileset (tilesets/selected-tileset-definition state)]
+    (if tileset
+      (set-tileset-property-set-attachment state
+                                           (:id tileset)
+                                           property-set-id
+                                           attached?)
+      state)))
+
+(defun set-selected-terrain-set-property-set-attachment [state property-set-id attached?]
+  (let [terrain-set (terrains/selected-terrain-set
+                     (:terrain-sets state)
+                     (:selected-terrain-set-index state))]
+    (if terrain-set
+      (set-terrain-set-property-set-attachment state
+                                               (:id terrain-set)
+                                               property-set-id
+                                               attached?)
+      state)))
+
+(defun set-target-property-default-value [target property-sets property-id value]
+  (let [property-set-ids (:property-sets target)
+        property (data/property-definition-by-id property-sets
+                                                 property-set-ids
+                                                 property-id)
+        value (data/normalize-property-value value property)
+        values (assoc (or (:properties target) {}) property-id value)
+        sparse (data/sparse-property-values property-sets
+                                            property-set-ids
+                                            {}
+                                            values)]
+    (if (empty? sparse)
+      (dissoc target :properties)
+      (assoc target :properties sparse))))
+
+(defun set-target-property-default-in [items target-id property-sets property-id value]
+  (map (or items [])
+       (fn [item]
+         (if (= (:id item) target-id)
+           (set-target-property-default-value item property-sets property-id value)
+           item))))
+
+(defun set-selected-tileset-property-default-value [state property-id value]
+  (let [tileset (tilesets/selected-tileset-definition state)]
+    (if tileset
+      (assoc state
+             :tilesets
+             (set-target-property-default-in (:tilesets state)
+                                             (:id tileset)
+                                             (:property-sets state)
+                                             property-id
+                                             value))
+      state)))
+
+(defun set-selected-terrain-set-property-default-value [state property-id value]
+  (let [terrain-set (terrains/selected-terrain-set
+                     (:terrain-sets state)
+                     (:selected-terrain-set-index state))]
+    (if terrain-set
+      (assoc state
+             :terrain-sets
+             (set-target-property-default-in (:terrain-sets state)
+                                             (:id terrain-set)
+                                             (:property-sets state)
+                                             property-id
+                                             value))
+      state)))
+
+(defun selected-tile-default-values [state]
+  (let [tileset (tilesets/selected-tileset-definition state)]
+    (:properties tileset)))
+
+(defun set-selected-tile-property-value [state property-id value]
+  (if-let [path (tilesets/selected-tile-path state)]
+    (let [tileset (tilesets/selected-tileset-definition state)
+          property-set-ids (:property-sets tileset)
+          property (data/property-definition-by-id (:property-sets state)
+                                                   property-set-ids
+                                                   property-id)
+          value (data/normalize-property-value value property)
+          baseline (data/effective-property-values (:property-sets state)
+                                                   property-set-ids
+                                                   (:properties tileset)
+                                                   {})
+          values (assoc (or (get-in state (concat path [:properties])) {})
+                        property-id
+                        value)
+          sparse (data/sparse-property-values (:property-sets state)
+                                              property-set-ids
+                                              baseline
+                                              values)]
+      (if (empty? sparse)
+        (update-in state path (fn [tile]
+                                (dissoc tile :properties)))
+        (assoc-in state (concat path [:properties]) sparse)))
+    state))
+
+(defun set-selected-terrain-property-value [state property-id value]
+  (if-let [path (terrains/selected-terrain-path state)]
+    (let [terrain-set (terrains/selected-terrain-set
+                       (:terrain-sets state)
+                       (:selected-terrain-set-index state))
+          property-set-ids (:property-sets terrain-set)
+          property (data/property-definition-by-id (:property-sets state)
+                                                   property-set-ids
+                                                   property-id)
+          value (data/normalize-property-value value property)
+          baseline (data/effective-property-values (:property-sets state)
+                                                   property-set-ids
+                                                   (:properties terrain-set)
+                                                   {})
+          values (assoc (or (get-in state (concat path [:properties])) {})
+                        property-id
+                        value)
+          sparse (data/sparse-property-values (:property-sets state)
+                                              property-set-ids
+                                              baseline
+                                              values)]
+      (if (empty? sparse)
+        (update-in state path (fn [terrain]
+                                (dissoc terrain :properties)))
+        (assoc-in state (concat path [:properties]) sparse)))
+    state))
+
+(defun derive-property-set-workspace-state [state]
+  (let [set-index (selected-property-set-index (:property-sets state)
+                                               (:selected-property-set-index
+                                                state))
+        property-set (when (not (nil? set-index))
+                       (nth (:property-sets state) set-index))
+        property-index (selected-property-index
+                        property-set
+                        (:selected-property-definition-index state))]
+    (assoc state
+           :selected-property-set-index set-index
+           :selected-property-definition-index property-index
+           :property-set-panel-disabled? (nil? set-index)
+           :property-definition-panel-disabled? (nil? property-index))))

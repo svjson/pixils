@@ -62,6 +62,10 @@
             :edit (open-tileset-edit-dialog! state
                                              ctx
                                              (-> event :payload :tileset-index))
+            :properties (open-tileset-properties-dialog!
+                         state
+                         ctx
+                         (-> event :payload :tileset-index))
             :duplicate (open-tileset-duplicate-dialog!
                         state
                         ctx
@@ -78,6 +82,9 @@
         :tileset/duplicate-dialog-result
         (fn [state event ctx]
           (duplicate-tileset-definition! state (:payload event)))
+        :tileset/properties-dialog-result
+        (fn [state event ctx]
+          (apply-tileset-properties! state (:payload event)))
         :tile/context-command
         (fn [state event ctx]
           (case (-> event :payload :command)
@@ -220,18 +227,21 @@
                                 :selected-tileset-tile-index (ui/bind-state :selected-tileset-tile-index)
                                 :selected-tileset-tile-indices (ui/bind-state :selected-tileset-tile-indices)
                                 :resources (ui/bind-state :resources)
+                                :property-sets (ui/bind-state :property-sets)
                                 :tilesets (ui/bind-state :tilesets)
                                 :disabled? (ui/bind-state :tile-definition-panel-disabled?)}
                         :body-state {:selected-tileset-definition-index (ui/bind-state :selected-tileset-definition-index)
                                      :selected-tileset-tile-index (ui/bind-state :selected-tileset-tile-index)
                                      :selected-tileset-tile-indices (ui/bind-state :selected-tileset-tile-indices)
                                      :resources (ui/bind-state :resources)
+                                     :property-sets (ui/bind-state :property-sets)
                                      :tilesets (ui/bind-state :tilesets)}
                         :children [{:mode 'tile-definition-panel-scroll-row
                                     :state {:selected-tileset-definition-index (ui/bind-state :selected-tileset-definition-index)
                                             :selected-tileset-tile-index (ui/bind-state :selected-tileset-tile-index)
                                             :selected-tileset-tile-indices (ui/bind-state :selected-tileset-tile-indices)
                                             :resources (ui/bind-state :resources)
+                                            :property-sets (ui/bind-state :property-sets)
                                             :tilesets (ui/bind-state :tilesets)}}]})
               {:mode 'tileset-tile-drag-preview
                :state {:drag-preview
