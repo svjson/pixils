@@ -475,7 +475,7 @@ TEST_F(TextInputTest, text_input_shift_home_end_extend_selection_and_delete_remo
   EXPECT_EQ(selection_start->type, Roo::Value::Type::NIL);
 }
 
-TEST_F(TextInputTest, text_input_renders_selection_background_and_selected_text)
+TEST_F(TextInputTest, text_input_renders_selection_background_under_single_text_layer)
 {
   SDLMock::prepared_surfaces["./font.png"] = {16, 12};
   runtime.eval(R"(
@@ -523,18 +523,30 @@ TEST_F(TextInputTest, text_input_renders_selection_background_and_selected_text)
   ASSERT_NE(selection_w, nullptr);
   ASSERT_NE(selection_h, nullptr);
   EXPECT_GT(selection_w->num().get_int(), 0);
-  EXPECT_TRUE(has_fill_rect(render_target()->render_ops,
-                            SDL_Rect{selection_x->num().get_int(),
-                                     selection_y->num().get_int(),
-                                     selection_w->num().get_int(),
-                                     selection_h->num().get_int()}));
+  auto selection_rect = SDL_Rect{selection_x->num().get_int(),
+                                 selection_y->num().get_int(),
+                                 selection_w->num().get_int(),
+                                 selection_h->num().get_int()};
+  EXPECT_TRUE(has_fill_rect(render_target()->render_ops, selection_rect));
 
-  auto copy_ops = std::count_if(render_target()->render_ops.begin(),
-                                render_target()->render_ops.end(),
-                                [](const auto& op) {
-                                  return op.type == RenderOpType::RENDER_COPY;
-                                });
-  EXPECT_GE(copy_ops, 6);
+  auto selection_op = std::find_if(render_target()->render_ops.begin(),
+                                   render_target()->render_ops.end(),
+                                   [&](const auto& op) {
+                                     return op.type == RenderOpType::FILL_RECT &&
+                                            op.rendered_rect.x == selection_rect.x &&
+                                            op.rendered_rect.y == selection_rect.y &&
+                                            op.rendered_rect.w == selection_rect.w &&
+                                            op.rendered_rect.h == selection_rect.h;
+                                   });
+  ASSERT_NE(selection_op, render_target()->render_ops.end());
+
+  auto copy_ops_after_selection =
+    std::count_if(selection_op,
+                  render_target()->render_ops.end(),
+                  [](const auto& op) {
+                    return op.type == RenderOpType::RENDER_COPY;
+                  });
+  EXPECT_EQ(copy_ops_after_selection, 4);
 }
 
 TEST_F(TextInputTest, text_input_text_never_wraps)
@@ -571,4 +583,162 @@ TEST_F(TextInputTest, text_input_text_never_wraps)
   }
 
   EXPECT_EQ(text_y_positions.size(), 1u);
+}
+
+TEST_F(TextInputTest, text_input_mouse_down_focuses_and_places_caret)
+{
+  SDLMock::prepared_surfaces["./font.png"] = {16, 12};
+  runtime.eval(R"(
+    (pixils/defbundle fonts {:images {:atlas "font.png"}})
+    (pixils/deffont test-font
+      {:type :bitmap
+       :resource :fonts/atlas
+       :glyphs {"A" {:x 0 :y 0 :w 4 :h 7}}})
+
+    (pixils/defmode root-mode
+      {:init (fn [state ctx] {:text "AAAA"})
+       :children [{:mode 'ui/text-input
+                   :style {:width 80
+                           :height 22
+                           :text {:font :font/test-font}}
+                   :state {:value (pixils.ui/bind-state :text)}}]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  update_cycle();
+  render_cycle();
+
+  auto text_input_inner = find_first_mode(session.active_mode, "ui/text-input-inner");
+  ASSERT_NE(text_input_inner, nullptr);
+  ASSERT_FALSE(session.focus_state.has_focus());
+
+  auto click_y = text_input_inner->bounds.y + (text_input_inner->bounds.h / 2);
+  input().mouse_down({text_input_inner->bounds.x + 1, click_y});
+  update_cycle();
+  input().mouse_up({text_input_inner->bounds.x + 1, click_y});
+  update_cycle();
+
+  auto cursor_index = get_keyword(text_input_inner->state, "cursor-index");
+  auto selection_start = get_keyword(text_input_inner->state, "selection-start");
+  ASSERT_NE(cursor_index, nullptr);
+  ASSERT_NE(selection_start, nullptr);
+  ASSERT_TRUE(session.focus_state.has_focus());
+  EXPECT_EQ(session.focus_state.focused.lock().get(), text_input_inner.get());
+  EXPECT_EQ(cursor_index->num().get_int(), 0);
+  EXPECT_EQ(selection_start->type, Roo::Value::Type::NIL);
+
+  input().mouse_down({text_input_inner->bounds.x + text_input_inner->bounds.w - 1,
+                      click_y});
+  update_cycle();
+  input().mouse_up({text_input_inner->bounds.x + text_input_inner->bounds.w - 1,
+                    click_y});
+  update_cycle();
+
+  cursor_index = get_keyword(text_input_inner->state, "cursor-index");
+  selection_start = get_keyword(text_input_inner->state, "selection-start");
+  ASSERT_NE(cursor_index, nullptr);
+  ASSERT_NE(selection_start, nullptr);
+  EXPECT_EQ(cursor_index->num().get_int(), 4);
+  EXPECT_EQ(selection_start->type, Roo::Value::Type::NIL);
+}
+
+TEST_F(TextInputTest, text_input_shift_click_extends_selection)
+{
+  SDLMock::prepared_surfaces["./font.png"] = {16, 12};
+  runtime.eval(R"(
+    (pixils/defbundle fonts {:images {:atlas "font.png"}})
+    (pixils/deffont test-font
+      {:type :bitmap
+       :resource :fonts/atlas
+       :glyphs {"A" {:x 0 :y 0 :w 4 :h 7}}})
+
+    (pixils/defmode root-mode
+      {:init (fn [state ctx] {:text "AAAA"})
+       :children [{:mode 'ui/text-input
+                   :style {:width 80
+                           :height 22
+                           :text {:font :font/test-font}}
+                   :state {:value (pixils.ui/bind-state :text)}}]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  update_cycle();
+  render_cycle();
+
+  auto text_input_inner = find_first_mode(session.active_mode, "ui/text-input-inner");
+  ASSERT_NE(text_input_inner, nullptr);
+
+  auto start_x = text_input_inner->bounds.x + 1;
+  auto end_x = text_input_inner->bounds.x + text_input_inner->bounds.w - 1;
+  auto click_y = text_input_inner->bounds.y + (text_input_inner->bounds.h / 2);
+  input().mouse_down({start_x, click_y});
+  update_cycle();
+  input().mouse_up({start_x, click_y});
+  update_cycle();
+
+  input().key_down(SDLK_LSHIFT);
+  update_cycle();
+  input().mouse_down({end_x, click_y});
+  update_cycle();
+  input().mouse_up({end_x, click_y});
+  update_cycle();
+  input().key_up(SDLK_LSHIFT);
+  update_cycle();
+
+  auto cursor_index = get_keyword(text_input_inner->state, "cursor-index");
+  auto selection_start = get_keyword(text_input_inner->state, "selection-start");
+  auto selection_end = get_keyword(text_input_inner->state, "selection-end");
+  ASSERT_NE(cursor_index, nullptr);
+  ASSERT_NE(selection_start, nullptr);
+  ASSERT_NE(selection_end, nullptr);
+  EXPECT_EQ(cursor_index->num().get_int(), 4);
+  EXPECT_EQ(selection_start->num().get_int(), 0);
+  EXPECT_EQ(selection_end->num().get_int(), 4);
+}
+
+TEST_F(TextInputTest, text_input_mouse_drag_updates_selection_cursor)
+{
+  SDLMock::prepared_surfaces["./font.png"] = {16, 12};
+  runtime.eval(R"(
+    (pixils/defbundle fonts {:images {:atlas "font.png"}})
+    (pixils/deffont test-font
+      {:type :bitmap
+       :resource :fonts/atlas
+       :glyphs {"A" {:x 0 :y 0 :w 4 :h 7}}})
+
+    (pixils/defmode root-mode
+      {:init (fn [state ctx] {:text "AAAA"})
+       :children [{:mode 'ui/text-input
+                   :style {:width 80
+                           :height 22
+                           :text {:font :font/test-font}}
+                   :state {:value (pixils.ui/bind-state :text)}}]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  update_cycle();
+  render_cycle();
+
+  auto text_input_inner = find_first_mode(session.active_mode, "ui/text-input-inner");
+  ASSERT_NE(text_input_inner, nullptr);
+
+  auto start_x = text_input_inner->bounds.x + 1;
+  auto end_x = text_input_inner->bounds.x + text_input_inner->bounds.w - 1;
+  auto drag_y = text_input_inner->bounds.y + (text_input_inner->bounds.h / 2);
+  input().mouse_down({start_x, drag_y});
+  update_cycle();
+  input().mouse_move({end_x, drag_y});
+  update_cycle();
+  input().mouse_up({end_x, drag_y});
+  update_cycle();
+
+  auto cursor_index = get_keyword(text_input_inner->state, "cursor-index");
+  auto selection_start = get_keyword(text_input_inner->state, "selection-start");
+  auto selection_end = get_keyword(text_input_inner->state, "selection-end");
+  ASSERT_NE(cursor_index, nullptr);
+  ASSERT_NE(selection_start, nullptr);
+  ASSERT_NE(selection_end, nullptr);
+  EXPECT_EQ(cursor_index->num().get_int(), 4);
+  EXPECT_EQ(selection_start->num().get_int(), 0);
+  EXPECT_EQ(selection_end->num().get_int(), 4);
 }
