@@ -15,6 +15,7 @@ set(PIXILS_BOOTSTRAP_LISP_FILES
   ui/theme-assets.roo
   ui/base-theme.roo
   ui/button.roo
+  ui/toggle-button.roo
   ui/window.roo
   ui/dialog.roo
   ui/scrollbar.roo

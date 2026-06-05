@@ -154,6 +154,27 @@ TEST_F(BootstrapTest, includes_embedded_dialog_source)
             std::string_view::npos);
 }
 
+TEST_F(BootstrapTest, includes_embedded_toggle_button_source)
+{
+  const auto& sources = Pixils::EmbeddedLisp::core_sources();
+  auto toggle_button =
+    std::find_if(sources.begin(),
+                 sources.end(),
+                 [](const Pixils::EmbeddedLisp::Source& source)
+                 { return std::string_view(source.path) == "ui/toggle-button.roo"; });
+
+  ASSERT_NE(toggle_button, sources.end());
+  EXPECT_NE(std::string_view(toggle_button->source)
+              .find("(ns pixils.ui.toggle-button"),
+            std::string_view::npos);
+  EXPECT_NE(std::string_view(toggle_button->source)
+              .find("(defcomponent ui/toggle-button"),
+            std::string_view::npos);
+  EXPECT_NE(std::string_view(toggle_button->source)
+              .find("(defun make-toggle-button-group"),
+            std::string_view::npos);
+}
+
 TEST_F(BootstrapTest, includes_embedded_file_dialog_source)
 {
   const auto& sources = Pixils::EmbeddedLisp::core_sources();
