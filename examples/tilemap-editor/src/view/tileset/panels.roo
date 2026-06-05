@@ -31,6 +31,72 @@
             :action :tile/context-dummy
             :payload {:command :delete}}]})
 
+(defun point-minus [position offset]
+  (let [pos (or position {:x 0 :y 0})
+        off (or offset {:x 0 :y 0})]
+    {:x (- (:x pos) (:x off))
+     :y (- (:y pos) (:y off))}))
+
+(defun tile-drag-position [event payload]
+  (point-minus (:global-position event) (:offset payload)))
+
+(defun tile-grid-drag-payload [state event ctx]
+  (let [tiles (selected-tileset-tiles state)
+        tile-size (selected-tileset-tile-size state)
+        index (tile-grid-index-at-position (:start-position event)
+                                           (-> ctx :view :bounds)
+                                           (count tiles)
+                                           tile-size)
+        tile (when (not (nil? index)) (nth tiles index))]
+    (if (or (nil? index)
+            (lb/held-shift? ctx))
+      {:kind :tileset/tile-selection}
+      {:kind :tileset/tile
+       :source-tileset-index (:selected-tileset-definition-index state)
+       :tile-index index
+       :tile tile
+       :tile-size tile-size
+       :width tile-size
+       :height tile-size
+       :offset (:start-position event)})))
+
+(defun emit-tile-drag-start! [state event ctx]
+  (let [payload (:payload event)]
+    (if (= (:kind payload) :tileset/tile)
+      (do
+        (ui/emit! (:view ctx)
+                  :tile/drag-start
+                  (assoc payload
+                         :position (tile-drag-position event payload)))
+        state)
+      (select-tile-grid-drag-range state event ctx))))
+
+(defun emit-tile-drag-move! [state event ctx]
+  (let [payload (:payload event)]
+    (if (= (:kind payload) :tileset/tile)
+      (do
+        (ui/emit! (:view ctx)
+                  :tile/drag-move
+                  (assoc payload
+                         :position (tile-drag-position event payload)))
+        state)
+      (select-tile-grid-drag-range state event ctx))))
+
+(defun emit-tile-drag-end! [state event ctx]
+  (do
+    (when (= (-> event :payload :kind) :tileset/tile)
+      (ui/emit! (:view ctx) :tile/drag-end nil))
+    (assoc state
+           :tile-grid-selecting? false
+           :tile-grid-dragging? false)))
+
+(defun tile-drop-payload [target-tileset-index payload]
+  (when (and (= (:kind payload) :tileset/tile)
+             (not= (:source-tileset-index payload) target-tileset-index))
+    {:source-tileset-index (:source-tileset-index payload)
+     :target-tileset-index target-tileset-index
+     :tile-index (:tile-index payload)}))
+
 (defcomponent tileset-definition-row
   {:extend 'ui/list-box-item
    :class :ui/list-item-hover
@@ -43,6 +109,16 @@
    :update (fn [state ctx]
              (assoc state :selected (contains? (:selected-indices state)
                                                (:index state))))
+   :on-drop (fn [state event ctx]
+              (let [payload (tile-drop-payload (:value state) (:payload event))]
+                (if payload
+                  (do
+                    (ui/stop-propagation! event)
+                    (ui/emit! (:view ctx)
+                              :tile/move-to-tileset
+                              payload)
+                    state)
+                  state)))
    :on-mouse-down (fn [state event ctx]
                     (do
                       (ui/stop-propagation! event)
@@ -152,13 +228,14 @@
               {:mode 'ui/text
                :state {:value (ui/bind-state :selected-tile-label)}}]})
 
-(defun tile-cell-rect [index columns]
+(defun tile-cell-rect [index columns tile-size]
   (let [columns (max 1 (or columns 1))
-        stride (tile-grid-stride)]
+        tile-size (tile-grid-cell-size-for tile-size)
+        stride (tile-grid-stride tile-size)]
     {:x (* (mod index columns) stride)
      :y (* (int (/ index columns)) stride)
-     :w tile-grid-cell-size
-     :h tile-grid-cell-size}))
+     :w tile-size
+     :h tile-size}))
 
 (defun selected-tile-border-rect [rect]
   {:x (+ (:x rect) 1)
@@ -166,25 +243,29 @@
    :w (- (:w rect) 2)
    :h (- (:h rect) 2)})
 
-(defun draw-tile-cell! [tile index columns]
+(defun draw-tile-cell! [tile index columns tile-size]
   (when tile
-    (tr/draw-tile! tile (tile-cell-rect index columns))))
+    (tr/draw-tile! tile (tile-cell-rect index columns tile-size))))
 
-(defun draw-selected-tile-cell! [index columns]
+(defun draw-selected-tile-cell! [index columns tile-size]
   (when (not (nil? index))
-    (r/rect! (selected-tile-border-rect (tile-cell-rect index columns))
+    (r/rect! (selected-tile-border-rect (tile-cell-rect index
+                                                        columns
+                                                        tile-size))
              {:color {:r 0xff :g 0xcc :b 0x66}})))
 
-(defun draw-selected-tile-cells! [indices columns]
+(defun draw-selected-tile-cells! [indices columns tile-size]
   (for [index (or indices [])]
-    (draw-selected-tile-cell! index columns)))
+    (draw-selected-tile-cell! index columns tile-size)))
 
 (defun select-tile-grid-drag-range [state event ctx]
   (let [tiles (selected-tileset-tiles state)
+        tile-size (selected-tileset-tile-size state)
         item-count (count tiles)
         index (tile-grid-index-at-position (:position event)
                                            (-> ctx :view :bounds)
-                                           item-count)]
+                                           item-count
+                                           tile-size)]
     (if (and (:tile-grid-selecting? state)
              (not (nil? index)))
       (do
@@ -192,7 +273,8 @@
         (select-tileset-tile-range state
                                    (:tile-grid-selection-anchor state)
                                    index
-                                   (tile-grid-columns (-> ctx :view :bounds))
+                                   (tile-grid-columns (-> ctx :view :bounds)
+                                                      tile-size)
                                    item-count))
       state)))
 
@@ -202,6 +284,10 @@
    :style {:width :fill
            :height :fill
            :clip true}
+   :drag {:start {:mode :threshold
+                  :distance 3}
+          :payload (fn [state event ctx]
+                     (tile-grid-drag-payload state event ctx))}
    :update (fn [state ctx]
              (let [item-count (count (selected-tileset-tiles state))
                    selected-index (clamp-index (:selected-tileset-tile-index state)
@@ -215,9 +301,11 @@
                       :selected-tileset-tile-indices selection)))
    :on-mouse-down (fn [state event ctx]
                     (let [tiles (selected-tileset-tiles state)
+                          tile-size (selected-tileset-tile-size state)
                           index (tile-grid-index-at-position (:position event)
                                                              (-> ctx :view :bounds)
-                                                             (count tiles))]
+                                                             (count tiles)
+                                                             tile-size)]
                       (do
                         (ui/stop-propagation! event)
                         (ui/focus! ctx)
@@ -232,14 +320,14 @@
                             (select-tileset-tile-index state index))
 
                           :default
-                          (assoc (select-tileset-tile-index state index)
-                                 :tile-grid-selecting? true)))))
-   :on-drag-start (fn [state event ctx]
-                    (select-tile-grid-drag-range state event ctx))
-   :on-drag (fn [state event ctx]
-              (select-tile-grid-drag-range state event ctx))
-   :on-drag-end (fn [state event ctx]
-                  (assoc state :tile-grid-selecting? false))
+                          (if (lb/held-shift? ctx)
+                            (assoc (select-tileset-tile-index state index)
+                                   :tile-grid-selecting? true)
+                            (assoc (select-tileset-tile-index state index)
+                                   :tile-grid-dragging? true))))))
+   :on-drag-start emit-tile-drag-start!
+   :on-drag emit-tile-drag-move!
+   :on-drag-end emit-tile-drag-end!
    :on-mouse-up (fn [state event ctx]
                   (do
                     (ui/stop-propagation! event)
@@ -252,8 +340,10 @@
                     (assoc state :tile-grid-selecting? false)))
    :on-key-down (fn [state event ctx]
                   (let [tiles (selected-tileset-tiles state)
+                        tile-size (selected-tileset-tile-size state)
                         item-count (count tiles)
-                        columns (tile-grid-columns (-> ctx :view :bounds))
+                        columns (tile-grid-columns (-> ctx :view :bounds)
+                                                   tile-size)
                         current (or (:selected-tileset-tile-index state) 0)
                         delta (case (:key event)
                                 :key/left -1
@@ -293,12 +383,47 @@
                        state)}
    :render (fn [state ctx]
              (let [tiles (selected-tileset-tiles state)
+                   tile-size (selected-tileset-tile-size state)
                    selection (selected-tileset-tile-selection state)
-                   columns (tile-grid-columns (-> ctx :view :bounds))]
+                   columns (tile-grid-columns (-> ctx :view :bounds)
+                                              tile-size)]
                (do
                  (for-indexed [index tile tiles]
-                   (draw-tile-cell! tile index columns))
-                 (draw-selected-tile-cells! selection columns))))})
+                   (draw-tile-cell! tile index columns tile-size))
+                 (draw-selected-tile-cells! selection columns tile-size))))})
+
+(defcomponent tileset-tile-drag-preview
+  {:class :ui/content
+   :style {:position :absolute
+           :width tile-grid-cell-size
+           :height tile-grid-cell-size
+           :hit-test false
+           :hidden true}
+   :update (fn [state ctx]
+             (let [preview (:drag-preview state)
+                   position (:position preview)
+                   tile-size (or (:tile-size preview) tile-grid-cell-size)
+                   visible? (not (nil? preview))]
+               (do
+                 (ui/style! (:view ctx)
+                            (if visible?
+                              {:hidden false
+                               :left (:x position)
+                               :top (:y position)
+                               :width tile-size
+                               :height tile-size}
+                              {:hidden true}))
+                 (assoc state
+                        :tile (:tile preview)
+                        :tile-size tile-size))))
+   :render (fn [state ctx]
+             (let [tile (:tile state)
+                   tile-size (or (:tile-size state) tile-grid-cell-size)]
+               (when tile
+                 (tr/draw-tile! tile {:x 0
+                                      :y 0
+                                      :w tile-size
+                                      :h tile-size}))))})
 
 (defcomponent tile-preview
   {:class :ui/content

@@ -70,7 +70,7 @@
 
   (when [app]
     (main-window/switch-to! app :tab/tiles {:by :mouse/click})
-    (tilesets-tab/select-tile-range! app 0 1 {:by :mouse/drag})
+    (tilesets-tab/select-tile-range! app 0 1 {:by :mouse/shift-drag})
     (tilesets-tab/selected-tile-indices-are? app [0 1])
     (tilesets-tab/request-delete-selection! app {:by :keyboard/delete})
     (tilesets-tab/delete-dialog-is-open? app [0 1])

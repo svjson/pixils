@@ -268,6 +268,68 @@
     (is (= 1 (:selected-tileset-tile-index state)))
     (is (= [1] (:selected-tileset-tile-indices state)))))
 
+(deftest tileset-tile-move-transfers_tile_and_cleans_source_refs
+  (let [state (model/move-tileset-tile!
+               {:selected-map-id :map/one
+                :selected-map-label "One"
+                :map-width 2
+                :map-height 1
+                :selected-layer-profile-id :default
+                :layer-profiles [{:id :default
+                                  :layers [{:id :scene/terrain
+                                            :tileset :terrain
+                                            :tiles [[:water 1]]}]}]
+                :selected-layer-index 0
+                :selected-tileset-definition-index 0
+                :selected-tileset-tile-index 1
+                :selected-tileset-tile-indices [1]
+                :tilesets [{:id :terrain
+                            :label "Terrain"
+                            :tile-size 16
+                            :tiles [{:id :grass}
+                                    {:id :water
+                                     :name "Water"}
+                                    {:id :stone}]}
+                           {:id :dungeon
+                            :label "Dungeon"
+                            :tile-size 16
+                            :tiles [{:id :water}]}]
+                :layers [{:id :scene/terrain
+                          :tileset :terrain
+                          :tiles [[:water 1 :stone]]}]
+                :maps [{:id :map/one
+                        :label "One"
+                        :width 3
+                        :height 1
+                        :layers [{:id :scene/terrain
+                                  :tileset :terrain
+                                  :tiles [[:water 1 :stone]]}]}]
+                :brushes [{:id :stamp-brush
+                           :kind :pattern
+                           :pattern {:layers [{:id :stamp
+                                                :tileset :terrain
+                                                :tiles [[:water 1
+                                                         :stone]]}]}}]}
+               {:source-tileset-index 0
+                :target-tileset-index 1
+                :tile-index 1})]
+    (is (= [{:id :grass}
+            {:id :stone}]
+           (get-in state [:tilesets 0 :tiles])))
+    (is (= [{:id :water}
+            {:id :water-2
+             :name "Water"}]
+           (get-in state [:tilesets 1 :tiles])))
+    (is (= [[nil nil :stone]]
+           (get-in state [:layers 0 :tiles])))
+    (is (= [[nil nil :stone]]
+           (get-in state [:maps 0 :layers 0 :tiles])))
+    (is (= [[nil nil :stone]]
+           (get-in state [:brushes 0 :pattern :layers 0 :tiles])))
+    (is (= 1 (:selected-tileset-definition-index state)))
+    (is (= 1 (:selected-tileset-tile-index state)))
+    (is (= [1] (:selected-tileset-tile-indices state)))))
+
 (deftest tile-rename-updates-definition-and-keyword-refs
   (let [state (model/rename-tile-definition!
                {:selected-tileset-definition-index 0

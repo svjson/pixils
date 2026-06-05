@@ -224,27 +224,40 @@
 (defun default-tile-source [tile-size]
   {:x 0 :y 0 :w tile-size :h tile-size})
 
-(defun tile-grid-stride []
-  (+ tile-grid-cell-size tile-grid-gap))
+(defun tile-grid-cell-size-for [tile-size]
+  (or tile-size tile-grid-cell-size))
+
+(defun optional-tile-grid-size [value]
+  (if (= (type-of value) "vector")
+    (head value)
+    value))
+
+(defun tile-grid-stride [& tile-size-values]
+  (+ (tile-grid-cell-size-for (optional-tile-grid-size tile-size-values))
+     tile-grid-gap))
 
 (defun clamp-index [index item-count]
   (if (<= item-count 0)
     nil
     (max 0 (min (or index 0) (dec item-count)))))
 
-(defun tile-grid-columns [bounds]
+(defun tile-grid-columns [bounds & tile-size-values]
+  (let [size (tile-grid-cell-size-for
+              (optional-tile-grid-size tile-size-values))]
   (max 1 (int (/ (+ (max 1 (or (:w bounds) 1)) tile-grid-gap)
-                 (tile-grid-stride)))))
+                   (tile-grid-stride size))))))
 
-(defun tile-grid-index-at-position [position bounds item-count]
-  (let [stride (tile-grid-stride)
+(defun tile-grid-index-at-position [position bounds item-count & tile-size-values]
+  (let [size (tile-grid-cell-size-for
+              (optional-tile-grid-size tile-size-values))
+        stride (tile-grid-stride size)
         col (int (/ (:x position) stride))
         row (int (/ (:y position) stride))
-        index (+ col (* row (tile-grid-columns bounds)))]
+        index (+ col (* row (tile-grid-columns bounds size)))]
     (if (and (>= (:x position) 0)
              (>= (:y position) 0)
-             (< (mod (:x position) stride) tile-grid-cell-size)
-             (< (mod (:y position) stride) tile-grid-cell-size)
+             (< (mod (:x position) stride) size)
+             (< (mod (:y position) stride) size)
              (< index item-count))
       index
       nil)))
@@ -800,6 +813,76 @@
                                                    deleted-ids
                                                    selection))))))
       state)))
+
+(defun update-tileset-tiles-at [tilesets index tiles]
+  (map (for-indexed [tileset-index tileset (or tilesets [])]
+         {:index tileset-index
+          :tileset tileset})
+       (fn [entry]
+         (if (= (:index entry) index)
+           (assoc (:tileset entry) :tiles tiles)
+           (:tileset entry)))))
+
+(defun move-tileset-tile! [state payload]
+  (let [tilesets (or (:tilesets state) [])
+        source-index (:source-tileset-index payload)
+        target-index (:target-tileset-index payload)
+        tile-index (:tile-index payload)]
+    (if (or (nil? source-index)
+            (nil? target-index)
+            (nil? tile-index)
+            (= source-index target-index)
+            (>= source-index (count tilesets))
+            (>= target-index (count tilesets)))
+      state
+      (let [source-tileset (nth tilesets source-index)
+            target-tileset (nth tilesets target-index)
+            source-tiles (or (:tiles source-tileset) [])
+            target-tiles (or (:tiles target-tileset) [])]
+        (if (or (< tile-index 0)
+                (>= tile-index (count source-tiles)))
+          state
+          (let [tile (nth source-tiles tile-index)
+                deleted-ids [(:id tile)]
+                deleted-indices [tile-index]
+                remaining-source (remove-tiles-at-indices source-tiles
+                                                          deleted-indices)
+                moved-id (keyword (unique-id-from target-tiles
+                                                  (keyword-label (:id tile))
+                                                  nil))
+                moved-tile (assoc tile :id moved-id)
+                target-tile-index (count target-tiles)
+                next-tilesets (update-tileset-tiles-at
+                               (update-tileset-tiles-at tilesets
+                                                        source-index
+                                                        remaining-source)
+                               target-index
+                               (concat target-tiles [moved-tile]))]
+            (maps/update-all-map-layers
+             (assoc state
+                    :tilesets next-tilesets
+                    :layer-profiles (map (or (:layer-profiles state) [])
+                                         (fn [profile]
+                                           (assoc profile
+                                                  :layers
+                                                  (remove-deleted-tile-refs-in-layers
+                                                   (:layers profile)
+                                                   (:id source-tileset)
+                                                   deleted-ids
+                                                   deleted-indices))))
+                    :brushes (remove-deleted-tile-refs-in-brushes
+                              (:brushes state)
+                              (:id source-tileset)
+                              deleted-ids
+                              deleted-indices)
+                    :selected-tileset-definition-index target-index
+                    :selected-tileset-tile-index target-tile-index
+                    :selected-tileset-tile-indices [target-tile-index])
+             (fn [layers]
+               (remove-deleted-tile-refs-in-layers layers
+                                                   (:id source-tileset)
+                                                   deleted-ids
+                                                   deleted-indices)))))))))
 
 (defun add-tile-definition! [state payload]
   (let [tileset-index (:selected-tileset-definition-index state)

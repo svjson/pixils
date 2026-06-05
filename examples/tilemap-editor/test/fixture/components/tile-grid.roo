@@ -23,6 +23,15 @@
 
 (defun drag-range! [app grid from-index to-index opts]
   (case (:by opts)
+    :mouse/shift-drag (do
+                        (runtime/key-down! app :left-shift)
+                        (runtime/mouse-drag-in! app
+                                                grid
+                                                (index-x from-index)
+                                                cell-point-offset
+                                                (index-x to-index)
+                                                cell-point-offset)
+                        (runtime/key-up! app :left-shift))
     :mouse/drag (runtime/mouse-drag-in! app
                                         grid
                                         (index-x from-index)

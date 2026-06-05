@@ -6,6 +6,16 @@
             tilemap-editor.view.tileset.panels
             tilemap-editor.view.tileset.dialogs))
 
+(defun tile-drag-preview-payload [payload ctx]
+  (let [position (:position payload)
+        bounds (-> ctx :view :bounds)]
+    (if position
+      (assoc payload
+             :position
+             {:x (- (:x position) (or (:x bounds) 0))
+              :y (- (:y position) (or (:y bounds) 0))})
+      payload)))
+
 (defun make-tileset-list-panel []
   (hp/make {:title "Project Tile Sets"
             :style {:width :shrink
@@ -87,6 +97,22 @@
         :tile/batch-rename-dialog-result
         (fn [state event ctx]
           (rename-tile-definitions! state (:payload event)))
+        :tile/move-to-tileset
+        (fn [state event ctx]
+          (move-tileset-tile! state (:payload event)))
+        :tile/drag-start
+        (fn [state event ctx]
+          (assoc state
+                 :tileset-tile-drag-preview
+                 (tile-drag-preview-payload (:payload event) ctx)))
+        :tile/drag-move
+        (fn [state event ctx]
+          (assoc state
+                 :tileset-tile-drag-preview
+                 (tile-drag-preview-payload (:payload event) ctx)))
+        :tile/drag-end
+        (fn [state event ctx]
+          (assoc state :tileset-tile-drag-preview nil))
         :tile/dialog-result (fn [state event ctx]
                               (add-tile-definition! state (:payload event)))
         :tile/color-range-result (fn [state event ctx]
@@ -206,4 +232,7 @@
                                             :selected-tileset-tile-index (ui/bind-state :selected-tileset-tile-index)
                                             :selected-tileset-tile-indices (ui/bind-state :selected-tileset-tile-indices)
                                             :resources (ui/bind-state :resources)
-                                            :tilesets (ui/bind-state :tilesets)}}]})]})
+                                            :tilesets (ui/bind-state :tilesets)}}]})
+              {:mode 'tileset-tile-drag-preview
+               :state {:drag-preview
+                       (ui/bind-state :tileset-tile-drag-preview)}}]})

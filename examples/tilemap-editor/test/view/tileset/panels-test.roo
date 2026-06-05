@@ -27,6 +27,44 @@
     (is (= "Delete" (:label delete-item)))
     (is (= :delete (-> delete-item :payload :command)))))
 
+(deftest tile-cell-rect-uses_tileset_tile_size
+  (is (= {:x 32 :y 32 :w 32 :h 32}
+         (panels/tile-cell-rect 3 2 32))))
+
+(deftest tile-grid-drag-payload-identifies_source_tile
+  (is (= {:kind :tileset/tile
+          :source-tileset-index 0
+          :tile-index 1
+          :tile {:id :water}
+          :tile-size 32
+          :width 32
+          :height 32
+          :offset {:x 33 :y 2}}
+         (panels/tile-grid-drag-payload
+          {:selected-tileset-definition-index 0
+           :tilesets [{:tile-size 32
+                       :tiles [{:id :grass}
+                               {:id :water}]}]}
+          {:start-position {:x 33 :y 2}}
+          {:view {:bounds {:w 96
+                           :h 64}}}))))
+
+(deftest tileset-row-accepts_tile_drop_payloads
+  (is (= {:source-tileset-index 0
+          :target-tileset-index 1
+          :tile-index 2}
+         (panels/tile-drop-payload
+          1
+          {:kind :tileset/tile
+           :source-tileset-index 0
+           :tile-index 2})))
+  (is (= nil
+         (panels/tile-drop-payload
+          0
+          {:kind :tileset/tile
+           :source-tileset-index 0
+           :tile-index 2}))))
+
 (deftest sprite-map-preview-source-rect-scales-from-full-asset
   (let [image-rect (sse/sprite-source-preview-image-rect {:w 800
                                                           :h 1280})
