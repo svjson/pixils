@@ -1,5 +1,6 @@
 (ns pixils.ui.text-input
   (:require pixils
+            [pixils.clipboard :as clipboard]
             [pixils.color :as c]
             [pixils.keyboard :as kbd]
             [pixils.render :as r]
@@ -167,14 +168,74 @@
                          (+ cursor-index (count text))
                          ctx))))
 
+(defun text-input-selected-text [state]
+  (if (text-input-has-selection? state)
+    (substr (:value state)
+            (:selection-start state)
+            (:selection-end state))
+    ""))
+
+(defun text-input-select-all [state]
+  (let [value (or (:value state) "")
+        end (count value)]
+    (if (> end 0)
+      (-> state
+          (assoc :cursor-index end)
+          (assoc :selection-anchor 0)
+          (assoc :selection-start 0)
+          (assoc :selection-end end))
+      (text-input-move-cursor state 0 false))))
+
 (defun held-shift? [held-keys]
   (or (contains? (or held-keys []) :key/shift)
       (contains? (or held-keys []) :key/left-shift)
       (contains? (or held-keys []) :key/right-shift)))
 
+(defun held-ctrl? [held-keys]
+  (or (contains? (or held-keys []) :key/ctrl)
+      (contains? (or held-keys []) :key/left-ctrl)
+      (contains? (or held-keys []) :key/right-ctrl)))
+
 (defun text-input-shift? [event ctx]
   (or (held-shift? (:held-keys event))
       (held-shift? (:held-keys ctx))))
+
+(defun text-input-ctrl? [event ctx]
+  (or (held-ctrl? (:held-keys event))
+      (held-ctrl? (:held-keys ctx))))
+
+(defun key-matches? [event upper-key lower-key]
+  (or (= upper-key (:key event))
+      (= lower-key (:key event))))
+
+(defun text-input-handle-shortcut [state event ctx]
+  (cond
+    (key-matches? event :key/A :key/a)
+    (text-input-select-all state)
+
+    (key-matches? event :key/C :key/c)
+    (do
+      (when (text-input-has-selection? state)
+        (clipboard/set-text! (text-input-selected-text state)))
+      state)
+
+    (key-matches? event :key/X :key/x)
+    (if (or (text-input-read-only? state)
+            (not (text-input-has-selection? state)))
+      state
+      (do
+        (clipboard/set-text! (text-input-selected-text state))
+        (text-input-delete-selection state ctx)))
+
+    (key-matches? event :key/V :key/v)
+    (if (text-input-read-only? state)
+      state
+      (let [text (clipboard/get-text)]
+        (if (> (count text) 0)
+          (text-input-insert-text state text ctx)
+          state)))
+
+    :default nil))
 
 (defun measure-text-width [value text-opts]
   (or (:w (r/text-size value text-opts)) 0))
@@ -367,7 +428,12 @@
                     (let [value (:value state)
                           cursor-index (:cursor-index state)
                           extend? (text-input-shift? event ctx)]
-                      (cond
+                      (if-let [shortcut-state (when (text-input-ctrl? event ctx)
+                                                (text-input-handle-shortcut state
+                                                                            event
+                                                                            ctx))]
+                        shortcut-state
+                        (cond
                         (= :key/backspace (:key event))
                         (if (text-input-has-selection? state)
                           (text-input-delete-selection state ctx)
@@ -411,7 +477,7 @@
                         :default
                         (if-let [text (kbd/event->text event)]
                           (text-input-insert-text state text ctx)
-                          state)))))
+                          state))))))
    :on-mouse-down (fn [state event ctx]
                     (if (:disabled? state)
                       state

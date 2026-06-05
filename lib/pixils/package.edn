@@ -11,6 +11,7 @@
                      :namespaces [pixils
                                   pixils.resource
                                   pixils.audio
+                                  pixils.clipboard
                                   pixils.color
                                   pixils.image
                                   pixils.keyboard

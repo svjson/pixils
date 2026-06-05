@@ -3,6 +3,7 @@
 
 #include <pixils/asset/registry.h>
 #include <pixils/binding/audio_namespace.h>
+#include <pixils/binding/clipboard_namespace.h>
 #include <pixils/binding/color_namespace.h>
 #include <pixils/binding/image_namespace.h>
 #include <pixils/binding/keyboard_namespace.h>
@@ -31,6 +32,7 @@ namespace Pixils
     namespaces.push_back(std::make_unique<Pixils::Script::PixilsNamespace>(ctx));
     namespaces.push_back(std::make_unique<Pixils::Script::ResourceNamespace>());
     namespaces.push_back(std::make_unique<Pixils::Script::AudioNamespace>());
+    namespaces.push_back(std::make_unique<Pixils::Script::ClipboardNamespace>());
     namespaces.push_back(std::make_unique<Pixils::Script::ColorNamespace>());
     namespaces.push_back(std::make_unique<Pixils::Script::ImageNamespace>());
     namespaces.push_back(std::make_unique<Pixils::Script::KeyboardNamespace>());
