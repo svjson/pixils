@@ -354,6 +354,71 @@
                                                  "Cave Depth")))))
   (cleanup-application-startup-test-files!))
 
+(deftest map-canvas-right-click-clears_active_tile_layer_cell
+  (let [app (make-startup-app)]
+    (runtime/push-mode! app 'main-mode)
+    (runtime/update! app)
+    (runtime/set-active-state!
+     app
+     (assoc (runtime/active-state app)
+            :workspace-tab :map
+            :selected-map-id :map/test
+            :selected-map-label "Test"
+            :map-width 1
+            :map-height 1
+            :tile-size 16
+            :zoom 1
+            :map-offset {:x 0 :y 0}
+            :map-tool :paint
+            :map-palette-tab :tiles
+            :selected-layer-index 1
+            :selected-layer-label "Props"
+            :selected-tile :crate
+            :tilesets []
+            :terrain-sets []
+            :rulesets []
+            :layer-profiles []
+            :hidden-layer-indices []
+            :maps [{:id :map/test
+                    :label "Test"
+                    :width 1
+                    :height 1
+                    :tile-size 16
+                    :layers [{:id :terrain
+                              :label "Terrain"
+                              :role :source
+                              :data-kind :terrain
+                              :terrain-set :overworld
+                              :tiles [[:grass]]}
+                             {:id :props
+                              :label "Props"
+                              :role :source
+                              :data-kind :tile-ref
+                              :tileset :props
+                              :tiles [[:crate]]}]}]
+            :layers [{:id :terrain
+                      :label "Terrain"
+                      :role :source
+                      :data-kind :terrain
+                      :terrain-set :overworld
+                      :tiles [[:grass]]}
+                     {:id :props
+                      :label "Props"
+                      :role :source
+                      :data-kind :tile-ref
+                      :tileset :props
+                      :tiles [[:crate]]}]))
+    (runtime/update! app)
+    (runtime/render! app)
+    (let [canvas (runtime/find-view app "map-canvas")]
+      (is (not (nil? canvas)))
+      (runtime/mouse-click-in! app canvas 8 8 :right))
+    (runtime/update! app)
+    (is (nil? (get-in (runtime/active-state app)
+                      [:layers 1 :tiles 0 0])))
+    (is (nil? (get-in (runtime/active-state app)
+                      [:maps 0 :layers 1 :tiles 0 0])))))
+
 (deftest terrain-unit-combo-updates-selected-terrain-set
   (let [app (make-startup-app)]
     (runtime/push-mode! app 'main-mode)

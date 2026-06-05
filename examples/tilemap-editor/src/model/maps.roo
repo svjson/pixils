@@ -97,6 +97,23 @@
      (assoc state :maps (data/replace-map-document (:maps state)
                                                    map-document)))))
 
+(defun active-map-document-in-sync? [state map-document layers]
+  (and (= layers (data/normalize-layers (:layers map-document)))
+       (= (:map-width state) (:width map-document))
+       (= (:map-height state) (:height map-document))
+       (= (:tile-size state) (:tile-size map-document))
+       (= (:selected-layer-profile-id state) (:layer-profile map-document))))
+
+(defun commit-active-map-if-needed [state]
+  (if (empty? (or (:maps state) []))
+    state
+    (let [layers (data/normalize-layers (:layers state))
+          map-document (data/selected-map-document (:maps state)
+                                                   (:selected-map-id state))]
+      (if (active-map-document-in-sync? state map-document layers)
+        state
+        (commit-active-map state)))))
+
 (defun activate-map-document [state map-document]
   (let [layers (or (:layers map-document) [])
         layer-profile-id (data/selected-layer-profile-id

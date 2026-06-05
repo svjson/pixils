@@ -55,13 +55,16 @@
                            (= (:terrain-set layer) (:terrain-set ruleset))))))))
 
 (defun cell-at [layer x y]
-  (if (and layer
-           (>= x 0)
-           (< x data/map-width)
-           (>= y 0)
-           (< y data/map-height))
-    (nth (nth (or (:tiles layer) []) y) x)
-    nil))
+  (let [tiles (or (:tiles layer) [])
+        row (when (and layer
+                       (>= y 0)
+                       (< y (count tiles)))
+              (nth tiles y))]
+    (if (and row
+             (>= x 0)
+             (< x (count row)))
+      (nth row x)
+      nil)))
 
 (defun terrain-signature-source-layer? [layer]
   (= (:data-kind layer) :terrain-signature))

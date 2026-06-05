@@ -82,6 +82,12 @@
     (is (= :updated (get-in state [:maps 0 :layers 0 :tiles 0 0])))
     (is (= :updated (get-in state [:maps 1 :layers 0 :tiles 0 0])))))
 
+(deftest commit-active-map-if-needed-updates_selected_map_document
+  (let [state (maps/commit-active-map-if-needed (multi-map-state))]
+    (is (= :edited (get-in state [:layers 0 :tiles 0 0])))
+    (is (= :edited (get-in state [:maps 0 :layers 0 :tiles 0 0])))
+    (is (= :water (get-in state [:maps 1 :layers 0 :tiles 0 0])))))
+
 (deftest add-map-creates_empty_map_from_current_layer_shape_and_selects_it
   (let [state (maps/add-map (multi-map-state) "Bonus")]
     (is (= :map/bonus (:selected-map-id state)))

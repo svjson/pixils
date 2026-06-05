@@ -1049,7 +1049,15 @@
       (stamp-pattern-brush state layer-index tile-x tile-y brush)
 
       (= (:button event) :right)
-      (clear-pattern-footprint state layer-index tile-x tile-y brush)
+      (paint-tile-at (clear-pattern-footprint state
+                                               layer-index
+                                               tile-x
+                                               tile-y
+                                               brush)
+                     layer-index
+                     tile-x
+                     tile-y
+                     event)
 
       :default
       state)))

@@ -73,6 +73,14 @@
           (dotimes [y (- data/map-height (count rows))]
             (data/make-empty-row))))
 
+(defun wide-row [width tile-x tile-ref]
+  (dotimes [x width]
+    (if (= x tile-x) tile-ref nil)))
+
+(defun wide-map [width height tile-x tile-y tile-ref]
+  (dotimes [y height]
+    (wide-row width tile-x (if (= y tile-y) tile-ref nil))))
+
 (def terrain-stamp-rule
   {:id :grass-north-water
    :terrain :grass
@@ -372,11 +380,26 @@
     (is (= :keep (get-in cleared [:layers 0 :tiles 0 0])))
     (is (= :crate (get-in cleared [:layers 1 :tiles 1 1])))))
 
+(deftest tilemap-clear-selection-clears_cells_beyond_default_map_bounds
+  (let [x data/map-width
+        y data/map-height
+        width (inc data/map-width)
+        height (inc data/map-height)
+        state {:selected-layer-index 0
+               :map-width width
+               :map-height height
+               :map-selection {:rect {:x x :y y :w 1 :h 1}
+                               :active? false}
+               :layers [{:id :props
+                         :tiles (wide-map width height x y :crate)}]}
+        cleared (tilemap/clear-map-selection state)]
+    (is (nil? (get-in cleared [:layers 0 :tiles y x])))))
+
 (deftest tilemap-clear-selection-marks_terrain_render_dirty
   (let [state (tilemap/rebuild-terrain-stamp-preview
                (terrain-paint-state (terrain-map [[nil :water nil]
                                                   [nil :grass nil]])
-                                    nil))
+                                     nil))
         state (assoc state :map-selection {:rect {:x 1 :y 1 :w 1 :h 1}
                                            :active? false})
         cleared (tilemap/clear-map-selection state)]
@@ -428,6 +451,110 @@
     (is (nil? (get-in state [:layers 0 :tiles 5 5])))
     (is (nil? (get-in state [:layers 0 :tiles 6 4])))
     (is (nil? (get-in state [:layers 0 :tiles 7 6])))))
+
+(deftest tilemap-right_paint-clears_cells_beyond_default_map_bounds
+  (let [x data/map-width
+        y data/map-height
+        width (inc data/map-width)
+        height (inc data/map-height)
+        state {:selected-layer-index 0
+               :map-palette-tab :tiles
+               :selected-tile :crate
+               :map-width width
+               :map-height height
+               :zoom 1
+               :offset {:x 0 :y 0}
+               :layers [{:id :props
+                         :label "Props"
+                         :role :source
+                         :data-kind :tile-ref
+                         :tileset :props
+                         :tiles (wide-map width height x y :crate)}]}
+        state (tilemap/paint-map-at state (paint-event :right x y))]
+    (is (nil? (get-in state [:layers 0 :tiles y x])))))
+
+(deftest tilemap-right_paint-clears_selected_tile_layer_above_terrain_layer
+  (let [state {:selected-layer-index 1
+               :map-palette-tab :tiles
+               :selected-tile :crate
+               :zoom 1
+               :offset {:x 0 :y 0}
+               :layers [{:id :scene/terrain
+                         :label "Terrain"
+                         :role :source
+                         :data-kind :terrain
+                         :terrain-set :overworld
+                         :tiles (terrain-map [[:grass]])}
+                        {:id :scene/props
+                         :label "Props"
+                         :role :source
+                         :data-kind :tile-ref
+                         :tileset :props
+                         :tiles (terrain-map [[:crate]])}]}
+        state (tilemap/paint-map-at state (paint-event :right 0 0))]
+    (is (= :grass (get-in state [:layers 0 :tiles 0 0])))
+    (is (nil? (get-in state [:layers 1 :tiles 0 0])))))
+
+(deftest tilemap-right_paint-in_brush_mode_clears_selected_tile_when_brush_has_no_target
+  (let [state {:selected-layer-index 1
+               :map-palette-tab :brushes
+               :selected-brush-index 0
+               :zoom 1
+               :offset {:x 0 :y 0}
+               :layers [{:id :scene/terrain
+                         :label "Terrain"
+                         :role :source
+                         :data-kind :terrain
+                         :terrain-set :overworld
+                         :tiles (terrain-map [[:grass]])}
+                        {:id :scene/props
+                         :label "Props"
+                         :role :source
+                         :data-kind :tile-ref
+                         :tileset :props
+                         :tiles (terrain-map [[:crate]])}]
+               :brushes [{:id :terrain-stamp
+                          :label "Terrain Stamp"
+                          :kind :pattern
+                          :pattern {:size {:w 1 :h 1}
+                                    :anchor {:x 0 :y 0}
+                                    :layers [{:id :terrain
+                                              :tileset :terrain
+                                              :tiles [[:grass]]}]}}]}
+        state (tilemap/paint-map-at state (paint-event :right 0 0))]
+    (is (= :grass (get-in state [:layers 0 :tiles 0 0])))
+    (is (nil? (get-in state [:layers 1 :tiles 0 0])))))
+
+(deftest tilemap-right_paint-in_brush_mode_clears_selected_layer_even_when_brush_clears_other_layer
+  (let [state {:selected-layer-index 1
+               :map-palette-tab :brushes
+               :selected-brush-index 0
+               :zoom 1
+               :offset {:x 0 :y 0}
+               :layers [{:id :scene/terrain
+                         :label "Terrain"
+                         :role :source
+                         :data-kind :terrain
+                         :terrain-set :overworld
+                         :tiles (terrain-map [[:grass]])}
+                        {:id :scene/props
+                         :label "Props"
+                         :role :source
+                         :data-kind :tile-ref
+                         :tileset :props
+                         :tiles (terrain-map [[:crate]])}]
+               :brushes [{:id :terrain-stamp
+                          :label "Terrain Stamp"
+                          :kind :pattern
+                          :pattern {:size {:w 1 :h 1}
+                                    :anchor {:x 0 :y 0}
+                                    :layers [{:id :terrain
+                                              :target-layer :scene/terrain
+                                              :tileset :terrain
+                                              :tiles [[:grass]]}]}}]}
+        state (tilemap/paint-map-at state (paint-event :right 0 0))]
+    (is (nil? (get-in state [:layers 0 :tiles 0 0])))
+    (is (nil? (get-in state [:layers 1 :tiles 0 0])))))
 
 (deftest tilemap-paint-terrain-marks_render_dirty_instead_of_previewing_rules
   (let [state (tilemap/paint-map-at

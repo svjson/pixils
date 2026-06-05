@@ -129,6 +129,7 @@
                             (resource-model/sync-project-resources! resources)
                             (assoc state :synced-resources resources))
                           state)
+                  state (map-model/commit-active-map-if-needed state)
                   layers (or (:layers state) [])
                   layer-index (or (:selected-layer-index state) 0)
                   layer (when (> (count layers) 0)
