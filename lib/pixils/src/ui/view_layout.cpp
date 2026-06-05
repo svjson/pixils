@@ -943,10 +943,20 @@ namespace Pixils::UI
       }
       PIXILS_BENCHMARK_COUNT(layout_dirty_cache_misses);
 
+      int available_w = inherited_style
+                          ? bounds.w
+                          : logical_outer_size_from_scaled(view->effective_style,
+                                                           Axis::HORIZONTAL,
+                                                           bounds.w);
+      int available_h = inherited_style
+                          ? bounds.h
+                          : logical_outer_size_from_scaled(view->effective_style,
+                                                           Axis::VERTICAL,
+                                                           bounds.h);
       auto natural_content_size = calculate_natural_content_size(view,
                                                                  pass,
-                                                                 bounds.w,
-                                                                 bounds.h,
+                                                                 available_w,
+                                                                 available_h,
                                                                  inherited_style,
                                                                  inherited_theme,
                                                                  selector_path);
@@ -955,13 +965,13 @@ namespace Pixils::UI
                                                             natural_content_size,
                                                             Axis::HORIZONTAL,
                                                             true,
-                                                            bounds.w);
+                                                            available_w);
       int resolved_h = inherited_style ? bounds.h
                                        : resolve_outer_size(view->effective_style,
                                                             natural_content_size,
                                                             Axis::VERTICAL,
                                                             true,
-                                                            bounds.h);
+                                                            available_h);
       int resolved_x = bounds.x;
       int resolved_y = bounds.y;
       if (!inherited_style && view->effective_style.position &&

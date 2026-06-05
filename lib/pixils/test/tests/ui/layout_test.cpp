@@ -206,6 +206,29 @@ TEST_F(LayoutTest, layout_scaled_fill_child_gets_inverse_logical_size)
   EXPECT_EQ(rects[0].w, 100);
 }
 
+TEST_F(LayoutTest, layout_scaled_root_fill_gets_inverse_logical_size)
+{
+  Style root_style;
+  root_style.scale = 2;
+
+  Style child_style;
+  child_style.width = Style::Size(Style::Size::Mode::FILL);
+  child_style.height = Style::Size(Style::Size::Mode::FILL);
+
+  auto root = make_ctx(std::move(root_style));
+  root->children.push_back(make_ctx(std::move(child_style)));
+
+  Pixils::UI::layout_view_tree(root, {0, 0, 320, 200}, runtime, hook_ctx_val);
+
+  EXPECT_EQ(root->bounds.w, 160);
+  EXPECT_EQ(root->bounds.h, 100);
+  EXPECT_EQ(root->external_bounds.w, 320);
+  EXPECT_EQ(root->external_bounds.h, 200);
+  ASSERT_EQ(root->children.size(), 1u);
+  EXPECT_EQ(root->children[0]->bounds.w, 160);
+  EXPECT_EQ(root->children[0]->bounds.h, 100);
+}
+
 TEST_F(LayoutTest, layout_shrink_height_child_gives_up_space_when_column_overflows)
 {
   std::vector<std::shared_ptr<View>> children;

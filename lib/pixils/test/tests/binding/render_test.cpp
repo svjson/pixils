@@ -484,6 +484,38 @@ TEST_F(RenderTest, style_background_image_can_fit_source_and_align)
   EXPECT_EQ(ops[0].rendered_rect.h, 10);
 }
 
+TEST_F(RenderTest, scaled_root_centers_fill_child_background_in_logical_area)
+{
+  SDLMock::prepared_surfaces["./logo.png"] = {20, 10};
+  runtime.eval(R"(
+    (pixils/defbundle title {:images {:logo "logo.png"}})
+    (pixils/defmode test-mode
+      {:style {:scale 2}
+       :children [{:style {:background {:image :title/logo
+                                        :align :center}
+                           :width :fill
+                           :height :fill}}]})
+  )");
+  session.push_mode("test-mode", Roo::Constant::NIL);
+
+  ASSERT_NO_THROW(session.render_mode());
+
+  auto& ops = render_target()->render_ops;
+  ASSERT_EQ(ops.size(), 1u);
+  EXPECT_EQ(ops[0].type, RenderOpType::RENDER_COPY);
+  EXPECT_EQ(ops[0].rendered_rect.x, 0);
+  EXPECT_EQ(ops[0].rendered_rect.y, 0);
+  EXPECT_EQ(ops[0].rendered_rect.w, 320);
+  EXPECT_EQ(ops[0].rendered_rect.h, 200);
+
+  ASSERT_EQ(ops[0].sub_ops.size(), 1u);
+  EXPECT_EQ(ops[0].sub_ops[0].type, RenderOpType::RENDER_COPY);
+  EXPECT_EQ(ops[0].sub_ops[0].rendered_rect.x, 70);
+  EXPECT_EQ(ops[0].sub_ops[0].rendered_rect.y, 45);
+  EXPECT_EQ(ops[0].sub_ops[0].rendered_rect.w, 20);
+  EXPECT_EQ(ops[0].sub_ops[0].rendered_rect.h, 10);
+}
+
 TEST_F(RenderTest, style_corner_radius_rounds_background_fill)
 {
   runtime.eval(R"(
