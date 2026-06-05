@@ -137,7 +137,7 @@ TEST_F(TextInputTest, text_input_scrolls_horizontally_to_keep_caret_visible)
     (pixils/defmode root-mode
       {:init (fn [state ctx] {:text "AAAAAAAAAAAA"})
        :children [{:mode 'ui/text-input
-                   :style {:width 48
+                   :style {:width 50
                            :height 22
                            :text {:font :font/test-font}}
                    :state {:value (pixils.ui/bind-state :text)
@@ -175,6 +175,42 @@ TEST_F(TextInputTest, text_input_scrolls_horizontally_to_keep_caret_visible)
   scroll_x = get_keyword(text_input_inner->state, "scroll-x");
   ASSERT_NE(scroll_x, nullptr);
   EXPECT_GT(scroll_x->num().get_int(), 0);
+}
+
+TEST_F(TextInputTest, text_input_scrolls_one_pixel_when_text_exactly_fills_width)
+{
+  SDLMock::prepared_surfaces["./font.png"] = {16, 12};
+  runtime.eval(R"(
+    (pixils/defbundle fonts {:images {:atlas "font.png"}})
+    (pixils/deffont test-font
+      {:type :bitmap
+       :resource :fonts/atlas
+       :glyphs {"A" {:x 0 :y 0 :w 4 :h 7}}})
+
+    (pixils/defmode root-mode
+      {:init (fn [state ctx] {:text "AAAAAAAA"})
+       :children [{:mode 'ui/text-input
+                   :style {:width 50
+                           :height 22
+                           :text {:font :font/test-font}}
+                   :state {:value (pixils.ui/bind-state :text)
+                           :auto-focus? true}}]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  update_cycle();
+  render_cycle();
+  update_cycle();
+
+  auto text_input_inner = find_first_mode(session.active_mode, "ui/text-input-inner");
+  ASSERT_NE(text_input_inner, nullptr);
+
+  auto scroll_x = get_keyword(text_input_inner->state, "scroll-x");
+  auto caret_x = get_keyword(text_input_inner->state, "caret-x");
+  ASSERT_NE(scroll_x, nullptr);
+  ASSERT_NE(caret_x, nullptr);
+  EXPECT_EQ(scroll_x->num().get_int(), 1);
+  EXPECT_EQ(caret_x->num().get_int(), 39);
 }
 
 TEST_F(TextInputTest, text_input_text_never_wraps)

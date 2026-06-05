@@ -77,12 +77,15 @@
 
 (defun scroll-x-for-cursor [scroll-x cursor-x text-width content-width]
   (let [content-width (or content-width 0)
-        scroll-x (clamp-scroll-x scroll-x text-width content-width)]
+        caret-width 1
+        scrollable-width (+ (or text-width 0) caret-width)
+        scroll-x (clamp-scroll-x scroll-x scrollable-width content-width)
+        cursor-right (+ cursor-x caret-width)]
     (cond
       (<= content-width 0) 0
-      (< cursor-x scroll-x) (clamp-scroll-x cursor-x text-width content-width)
-      (> cursor-x (+ scroll-x content-width))
-      (clamp-scroll-x (- cursor-x content-width) text-width content-width)
+      (< cursor-x scroll-x) (clamp-scroll-x cursor-x scrollable-width content-width)
+      (> cursor-right (+ scroll-x content-width))
+      (clamp-scroll-x (- cursor-right content-width) scrollable-width content-width)
       :default scroll-x)))
 
 (defun position-text-input-children! [ctx scroll-x cursor-y]
