@@ -29,7 +29,7 @@
               :fill)
      :height (if (:content-height-explicit? state)
                (or (:h size) 0)
-               :fill)}))
+               :auto)}))
 
 (defun scroll-pane-footer-content-size [state ctx]
   {:w 0 :h default-scrollbar-size})
@@ -327,10 +327,25 @@
                          (max 0 (- (or (:h content-size) 0)
                                    (or (:h viewport-size) 0))))})
 
+(defun scroll-pane-bottom-offset-y [content-size viewport-size]
+  (max 0 (- (or (:h content-size) 0)
+            (or (:h viewport-size) 0))))
+
+(defun scroll-pane-content-height-grew? [old-size new-size]
+  (> (or (:h new-size) 0)
+     (or (:h old-size) 0)))
+
+(defun scroll-pane-auto-scroll-offset [state old-content-size content-size viewport-size offset]
+  (if (and (= (:auto-scroll-y state) :bottom)
+           (scroll-pane-content-height-grew? old-content-size content-size))
+    (assoc offset :y (scroll-pane-bottom-offset-y content-size viewport-size))
+    offset))
+
 (defun scroll-pane-apply-measured-content-size [state ctx]
   (let [measured-size (scroll-pane-measured-content-size ctx)]
     (if measured-size
-      (let [content-size {:w (scroll-pane-measured-axis state
+      (let [old-content-size (scroll-pane-content-size state)
+            content-size {:w (scroll-pane-measured-axis state
                                                         measured-size
                                                         :w
                                                         :content-width-explicit?)
@@ -339,9 +354,14 @@
                                                         :h
                                                         :content-height-explicit?)}
             viewport-size (scroll-pane-viewport-size-from-view ctx)
-            offset (scroll-pane-clamped-offset (scroll-pane-offset state)
-                                               content-size
-                                               viewport-size)]
+            offset (scroll-pane-auto-scroll-offset
+                    state
+                    old-content-size
+                    content-size
+                    viewport-size
+                    (scroll-pane-clamped-offset (scroll-pane-offset state)
+                                                content-size
+                                                viewport-size))]
         (assoc state
                :content-size content-size
                :offset offset))
@@ -383,6 +403,7 @@
                    :scroll-y? true
                    :effective-scroll-y? true
                    :auto-managed? false
+                   :auto-scroll-y nil
                    :content-children []
                    :step 16}
                   state))
@@ -406,7 +427,7 @@
                        :content-size (ui/bind-state :content-size)
                        :step (ui/bind-state :step)}}]})
 
-(defun make [{:keys [children content-size content-state content-state-key offset scroll-x? scroll-y? state step style] :as opts}]
+(defun make [{:keys [auto-scroll-y children content-size content-state content-state-key offset scroll-x? scroll-y? state step style] :as opts}]
   (let [scroll-x? (scroll-pane-scroll-setting scroll-x?)
         scroll-y? (scroll-pane-scroll-setting scroll-y?)
         effective-scroll-y? (scroll-pane-initial-scrollbar? scroll-y?)
@@ -429,6 +450,7 @@
                     :scroll-y? scroll-y?
                     :effective-scroll-y? effective-scroll-y?
                     :auto-managed? true
+                    :auto-scroll-y auto-scroll-y
                     :step (or step 16)}
                    (or state {}))
      :children (concat [(scroll-pane-row-child content-size

@@ -258,6 +258,119 @@ TEST_F(ScrollPaneTest, scroll_pane_measures_runtime_content_growth)
   EXPECT_LT(handle->bounds.h, track->bounds.h);
 }
 
+TEST_F(ScrollPaneTest, scroll_pane_auto_scrolls_to_bottom_when_content_height_grows)
+{
+  runtime.eval(R"(
+    (pixils/defcomponent growing-content
+      {:content-size (fn [state ctx] {:w 100 :h (:height state)})})
+
+    (pixils/defmode root-mode
+      {:init (fn [state ctx] {:content-state {:height 20} :grown? false})
+       :update (fn [state ctx]
+                 (if (:grown? state)
+                   state
+                   (assoc state :content-state {:height 200} :grown? true)))
+       :children [(pixils.ui.scroll-pane/make
+                   {:style {:width 50 :height 80}
+                    :scroll-x? false
+                    :scroll-y? :auto
+                    :auto-scroll-y :bottom
+                    :state {:content-state (pixils.ui/bind-state :content-state)}
+                    :children [{:mode 'growing-content
+                                :state {:height (pixils.ui/bind-state :height)}}]})]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  session.render_mode();
+
+  session.update_mode();
+  session.render_mode();
+
+  session.update_mode();
+  session.render_mode();
+
+  ASSERT_NE(session.active_mode, nullptr);
+  ASSERT_EQ(session.active_mode->children.size(), 1u);
+  auto pane = session.active_mode->children[0];
+  ASSERT_NE(pane, nullptr);
+
+  auto offset = Roo::Dict::get_property(pane->state, Roo::keyword("offset"));
+  ASSERT_NE(offset, nullptr);
+  auto y = Roo::Dict::get_property(offset, Roo::keyword("y"));
+  ASSERT_NE(y, nullptr);
+  EXPECT_EQ(y->num().get_int(), 120);
+}
+
+TEST_F(ScrollPaneTest, scroll_pane_auto_measures_padded_wrapping_content_height)
+{
+  SDLMock::prepared_surfaces["./font.png"] = {16, 12};
+  runtime.eval(R"(
+    (pixils/defbundle fonts {:images {:atlas "font.png"}})
+    (pixils/deffont test-font
+      {:type :bitmap
+       :resource :fonts/atlas
+       :glyphs {"A" {:x 0 :y 0 :w 4 :h 7}
+                " " {:x 4 :y 0 :w 1 :h 7}}})
+    (pixils/defcomponent message-area
+      {:class :ui/panel
+       :style {:width :fill
+               :height :shrink
+               :padding 8}
+       :children [{:mode 'ui/text
+                   :style {:width :fill
+                           :text {:font :font/test-font}}
+                   :state {:value "AA AA AA AA AA AA AA AA AA AA AA AA AA AA AA AA"}}]})
+
+    (pixils/defmode root-mode
+      {:children [(pixils.ui.scroll-pane/make
+                   {:style {:width 50 :height 50}
+                    :scroll-x? false
+                    :scroll-y? :auto
+                    :children [{:mode 'message-area}]})]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  session.render_mode();
+
+  session.update_mode();
+  session.render_mode();
+
+  session.update_mode();
+  session.render_mode();
+
+  ASSERT_NE(session.active_mode, nullptr);
+  ASSERT_EQ(session.active_mode->children.size(), 1u);
+  auto pane = session.active_mode->children[0];
+  ASSERT_NE(pane, nullptr);
+
+  auto content_size =
+    Roo::Dict::get_property(pane->state, Roo::keyword("content-size"));
+  ASSERT_NE(content_size, nullptr);
+  auto content_height = Roo::Dict::get_property(content_size, Roo::keyword("h"));
+  ASSERT_NE(content_height, nullptr);
+  EXPECT_GT(content_height->num().get_int(), 50);
+
+  ASSERT_EQ(pane->children.size(), 1u);
+  auto row = pane->children[0];
+  ASSERT_NE(row, nullptr);
+  ASSERT_EQ(row->children.size(), 2u);
+  auto viewport = row->children[0];
+  ASSERT_NE(viewport, nullptr);
+  ASSERT_EQ(viewport->children.size(), 1u);
+  auto content = viewport->children[0];
+  ASSERT_NE(content, nullptr);
+  ASSERT_EQ(content->children.size(), 1u);
+  auto message = content->children[0];
+  ASSERT_NE(message, nullptr);
+  ASSERT_EQ(message->children.size(), 1u);
+  auto text = message->children[0];
+  ASSERT_NE(text, nullptr);
+
+  EXPECT_GT(content->bounds.h, viewport->bounds.h);
+  EXPECT_GT(message->bounds.h, viewport->bounds.h);
+  EXPECT_GE(message->bounds.h, text->bounds.h + 16);
+}
+
 TEST_F(ScrollPaneTest, scroll_pane_keeps_explicit_content_size_when_child_grows)
 {
   runtime.eval(R"(
