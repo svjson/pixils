@@ -1,4 +1,5 @@
-(ns pixils.tilemap.project.model)
+(ns pixils.tilemap.project.model
+  (:require [pixils.tilemap.model :as tilemap]))
 
 (def tile-size 16)
 (def map-width 40)
@@ -16,11 +17,16 @@
 
 (def project-brushes [])
 (def project-terrain-sets [])
+(def project-property-sets [])
 (def project-rulesets [])
 (def default-layer-profile-id :default)
 (def default-layer-profile-label "Default")
 
 (def app-static-bundle-ids [:editor-assets])
+
+(def property-type-options tilemap/property-type-options)
+
+(def default-property-type tilemap/default-property-type)
 
 (defun app-static-bundle-id? [bundle-id]
   (contains? app-static-bundle-ids bundle-id))
@@ -100,6 +106,110 @@
 
 (defun normalize-tilesets [tilesets]
   (map (or tilesets []) normalize-tileset))
+
+(defun normalize-terrain [terrain]
+  terrain)
+
+(defun normalize-terrain-set [terrain-set]
+  (assoc terrain-set
+         :terrains (map (or (:terrains terrain-set) [])
+                        normalize-terrain)))
+
+(defun normalize-terrain-sets [terrain-sets]
+  (map (or terrain-sets []) normalize-terrain-set))
+
+(defun keyword-label [value]
+  (let [text (str value)]
+    (if (= ":" (substr text 0 1))
+      (substr text 1)
+      text)))
+
+(defun property-type [property]
+  (tilemap/property-type property))
+
+(defun first-enum-value [property]
+  (tilemap/first-enum-value property))
+
+(defun normalize-number-property-value [value property]
+  (tilemap/normalize-number-property-value value property))
+
+(defun normalize-enum-property-value [value property]
+  (tilemap/normalize-enum-property-value value property))
+
+(defun normalize-property-value [value property]
+  (tilemap/normalize-property-value value property))
+
+(defun property-default-value [property]
+  (tilemap/property-default-value property))
+
+(defun normalize-property-definition [property]
+  (let [id (or (:id property)
+               (keyword (kebab-case (or (:label property) "property"))))
+        type (property-type property)
+        property (assoc property
+                        :id id
+                        :label (or (:label property)
+                                   (:name property)
+                                   (keyword-label id))
+                        :type type)
+        property (if (= type :enum)
+                   (assoc property :values (or (:values property) []))
+                   property)]
+    (if (contains? property :default)
+      (assoc property :default (property-default-value property))
+      property)))
+
+(defun normalize-property-set [property-set]
+  (let [id (or (:id property-set)
+               (keyword (kebab-case (or (:label property-set)
+                                         "property-set"))))]
+    (assoc property-set
+           :id id
+           :label (or (:label property-set)
+                      (:name property-set)
+                      (keyword-label id))
+           :properties (map (or (:properties property-set) [])
+                            normalize-property-definition))))
+
+(defun normalize-property-sets [property-sets]
+  (map (or property-sets []) normalize-property-set))
+
+(defun property-set-definition [property-sets property-set-id]
+  (tilemap/property-set-definition property-sets property-set-id))
+
+(defun property-set-definitions [property-sets property-set-ids]
+  (tilemap/property-set-definitions property-sets property-set-ids))
+
+(defun property-definitions [property-sets property-set-ids]
+  (tilemap/property-definitions property-sets property-set-ids))
+
+(defun property-definition-by-id [property-sets property-set-ids property-id]
+  (tilemap/property-definition-by-id property-sets property-set-ids property-id))
+
+(defun property-set-default-values [property-sets property-set-ids]
+  (tilemap/property-set-default-values property-sets property-set-ids))
+
+(defun normalize-property-values [property-sets property-set-ids values]
+  (tilemap/normalize-property-values property-sets property-set-ids values))
+
+(defun effective-property-values [property-sets property-set-ids default-values overrides]
+  (tilemap/effective-property-values property-sets
+                                     property-set-ids
+                                     default-values
+                                     overrides))
+
+(defun sparse-property-values [property-sets property-set-ids baseline values]
+  (let [values (normalize-property-values property-sets property-set-ids values)
+        baseline (effective-property-values property-sets
+                                            property-set-ids
+                                            baseline
+                                            {})]
+    (reduce-kv values
+               {}
+               (fn [result property-id value]
+                 (if (= value (get baseline property-id))
+                   result
+                   (assoc result property-id value))))))
 
 (defun tile-count [tilesets tileset]
   (count (tileset-tiles tilesets tileset)))
@@ -602,11 +712,14 @@
         maps (replace-map-document maps selected-map)
         layer-profile (layer-profile-by-id layer-profiles layer-profile-id)
         tilesets (normalize-tilesets (:tilesets project))
-        terrain-sets (or (:terrain-sets project) project-terrain-sets)]
+        property-sets (normalize-property-sets (:property-sets project))
+        terrain-sets (normalize-terrain-sets (or (:terrain-sets project)
+                                                 project-terrain-sets))]
     (assoc project
            :maps maps
            :selected-map selected-map-id
            :tilesets tilesets
+           :property-sets property-sets
            :layer-profiles layer-profiles
            :terrain-sets terrain-sets
            :rulesets (normalize-rulesets (:rulesets project)
@@ -646,7 +759,8 @@
                           layer-profiles
                           (:selected-layer-profile-id state))
         layer-profile (layer-profile-by-id layer-profiles layer-profile-id)
-        terrain-sets (or (:terrain-sets state) project-terrain-sets)
+        terrain-sets (normalize-terrain-sets (or (:terrain-sets state)
+                                                 project-terrain-sets))
         map-document (tilemap-document state layers layer-profile-id)
         maps (replace-map-document (:maps state) map-document)]
     {:format project-format
@@ -654,6 +768,8 @@
      :resources (normalize-project-resources (or (:resources state)
                                                  project-resources))
      :tilesets (normalize-tilesets (:tilesets state))
+     :property-sets (normalize-property-sets (or (:property-sets state)
+                                                 project-property-sets))
      :terrain-sets terrain-sets
      :rulesets (normalize-rulesets (:rulesets state)
                                    layer-profile

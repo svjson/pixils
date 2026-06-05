@@ -1,5 +1,6 @@
 (ns pixils.tilemap.project.runtime
-  (:require [pixils.tilemap.project.model :as project]))
+  (:require [pixils.tilemap.model :as tilemap]
+            [pixils.tilemap.project.model :as project]))
 
 (def pack-format :pixils.tilemap/pack)
 (def pack-format-version 1)
@@ -18,8 +19,12 @@
      :version pack-format-version
      :resources (project/normalize-project-resources
                  (or (:resources document) project/project-resources))
-     :tilesets (:tilesets document)
-     :terrain-sets (:terrain-sets document)
+     :tilesets (tilemap/apply-tilesets-property-defaults
+                (:property-sets document)
+                (:tilesets document))
+     :terrain-sets (tilemap/apply-terrain-sets-property-defaults
+                    (:property-sets document)
+                    (:terrain-sets document))
      :maps (:maps document)
      :selected-map (:selected-map document)}))
 

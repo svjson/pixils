@@ -80,3 +80,42 @@
                                          (:terrain-sets input)
                                          layer
                                          :gem))))))
+
+(deftest tilemap-pack-bakes_property_defaults_into_runtime_tiles
+  (let [document (runtime/tilemap-pack
+                  {:format model/project-format
+                   :property-sets [{:id :movement
+                                    :properties [{:id :blocked
+                                                  :type :enum
+                                                  :values [:yes :no]
+                                                  :default :no}
+                                                 {:id :cost
+                                                  :type :number
+                                                  :default 1}]}]
+                   :tilesets [{:id :game
+                               :property-sets [:movement]
+                               :properties {:cost 2}
+                               :tiles [{:id :floor}
+                                       {:id :wall
+                                        :properties {:blocked :yes}}]}]
+                   :terrain-sets [{:id :materials
+                                   :property-sets [:movement]
+                                   :properties {:cost 3}
+                                   :terrains [{:id :grass}
+                                              {:id :water
+                                               :properties {:blocked :yes}}]}]
+                   :maps [{:id :map/main
+                           :layers []}]})]
+    (is (nil? (:property-sets document)))
+    (is (= {:blocked :no
+            :cost 2}
+           (get-in document [:tilesets 0 :tiles 0 :properties])))
+    (is (= {:blocked :yes
+            :cost 2}
+           (get-in document [:tilesets 0 :tiles 1 :properties])))
+    (is (= {:blocked :no
+            :cost 3}
+           (get-in document [:terrain-sets 0 :terrains 0 :properties])))
+    (is (= {:blocked :yes
+            :cost 3}
+           (get-in document [:terrain-sets 0 :terrains 1 :properties])))))

@@ -70,6 +70,85 @@
     (is (= {:x 8 :y 16 :w 32 :h 32}
            (get-in document [:tilesets 0 :tiles 0 :source])))))
 
+(deftest project-document-saves_property_sets
+  (let [document (data/project-document
+                  {:property-sets [{:id :movement
+                                    :label "Movement"
+                                    :properties [{:id :walkable
+                                                  :label "Walkable"
+                                                  :type :enum
+                                                  :values [:yes :no]
+                                                  :default :yes}
+                                                 {:id :cost
+                                                  :label "Cost"
+                                                  :type :number
+                                                  :default 1}]}]
+                   :tilesets []
+                   :terrain-sets []
+                   :rulesets []
+                   :layers []
+                   :maps []})]
+    (is (= [{:id :movement
+             :label "Movement"
+             :properties [{:id :walkable
+                           :label "Walkable"
+                           :type :enum
+                           :values [:yes :no]
+                           :default :yes}
+                          {:id :cost
+                           :label "Cost"
+                           :type :number
+                           :default 1}]}]
+           (:property-sets document)))))
+
+(deftest project-document-saves_target_property_values_as_properties
+  (let [document (data/project-document
+                  {:property-sets []
+                   :tilesets [{:id :terrain
+                               :property-sets [:movement]
+                               :properties {:cost 2}
+                               :tiles [{:id :grass
+                                        :properties {:walkable :yes}}]}]
+                   :terrain-sets [{:id :overworld
+                                   :property-sets [:movement]
+                                   :properties {:cost 3}
+                                   :terrains [{:id :grass
+                                               :properties {:walkable :no}}]}]
+                   :rulesets []
+                   :layers []
+                   :maps []})]
+    (is (= {:cost 2}
+           (get-in document [:tilesets 0 :properties])))
+    (is (= {:walkable :yes}
+           (get-in document [:tilesets 0 :tiles 0 :properties])))
+    (is (= {:cost 3}
+           (get-in document [:terrain-sets 0 :properties])))
+    (is (= {:walkable :no}
+           (get-in document [:terrain-sets 0 :terrains 0 :properties])))))
+
+(deftest effective-property-values-use_set_defaults_target_defaults_and_overrides
+  (let [property-sets [{:id :movement
+                        :properties [{:id :walkable
+                                      :type :enum
+                                      :values [:yes :no]
+                                      :default :yes}
+                                     {:id :cost
+                                      :type :number
+                                      :default 1}]}]]
+    (is (= {:walkable :no
+            :cost 3}
+           (data/effective-property-values property-sets
+                                           [:movement]
+                                           {:cost 3}
+                                           {:walkable :no})))
+    (is (= {}
+           (data/sparse-property-values property-sets
+                                        [:movement]
+                                        {:walkable :yes
+                                         :cost 3}
+                                        {:walkable :yes
+                                         :cost 3})))))
+
 (deftest project-document-saves_map_tile_size
   (let [document (data/project-document
                   {:map-width 2
