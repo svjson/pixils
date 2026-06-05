@@ -250,6 +250,58 @@ TEST_F(TabPanelTest, tab_panel_body_passes_state_to_active_child)
   EXPECT_EQ(value->to_string(), ":from-root");
 }
 
+TEST_F(TabPanelTest, tab_panel_body_refreshes_when_bound_body_state_changes)
+{
+  runtime.eval(R"(
+    (pixils/defcomponent value-body
+      {:style {:width 80
+               :height 24}
+       :on-mouse-down (fn [state event ctx]
+                        (do
+                          (pixils.ui/emit! (:view ctx) :value/change)
+                          state))})
+
+    (pixils/defmode root-mode
+      {:init (fn [state ctx] {:shared-value :initial})
+       :on {:value/change (fn [state event ctx]
+                            (assoc state :shared-value :changed))}
+       :children [(pixils.ui.tab-panel/make
+                   {:state {:shared-value (pixils.ui/bind-state :shared-value)}
+                    :tabs [{:id :value
+                            :label "Value"
+                            :child {:mode 'value-body
+                                    :state {:value (pixils.ui/bind-state :shared-value)}}}]})]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  session.update_mode();
+  session.render_mode();
+
+  auto tab_panel = session.active_mode->children[0];
+  auto active = active_tab_child(tab_panel);
+  ASSERT_NE(active, nullptr);
+
+  auto value = Roo::Dict::get_property(active->state, Roo::keyword("value"));
+  ASSERT_NE(value, nullptr);
+  EXPECT_EQ(value->to_string(), ":initial");
+
+  input().mouse_down({active->bounds.x + active->bounds.w / 2,
+                      active->bounds.y + active->bounds.h / 2});
+  update_cycle();
+  input().mouse_up({active->bounds.x + active->bounds.w / 2,
+                    active->bounds.y + active->bounds.h / 2});
+  update_cycle();
+  session.render_mode();
+
+  tab_panel = session.active_mode->children[0];
+  active = active_tab_child(tab_panel);
+  ASSERT_NE(active, nullptr);
+
+  value = Roo::Dict::get_property(active->state, Roo::keyword("value"));
+  ASSERT_NE(value, nullptr);
+  EXPECT_EQ(value->to_string(), ":changed");
+}
+
 TEST_F(TabPanelTest, disabled_tab_does_not_select)
 {
   runtime.eval(R"(

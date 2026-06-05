@@ -102,7 +102,8 @@
                     :rendered-tab selected)))
    :update (fn [state ctx]
              (let [tabs (or (:tabs state) [])
-                   selected (selected-tab-id tabs (:selected-tab state))]
+                   selected (selected-tab-id tabs (:selected-tab state))
+                   body-state (:body-state state)]
                (do
                  (when (not= tabs (:rendered-tabs state))
                    (ui/replace-child! (:view ctx)
@@ -114,14 +115,16 @@
                                       "tab-strip"
                                       (tab-strip-child tabs selected)))
                  (when (or (not= selected (:rendered-tab state))
-                           (not= tabs (:rendered-tabs state)))
+                           (not= tabs (:rendered-tabs state))
+                           (not= body-state (:rendered-body-state state)))
                    (ui/replace-child! (:view ctx)
                                       "body"
-                                      (body-child tabs selected (:body-state state))))
+                                      (body-child tabs selected body-state)))
                  (assoc (assoc (assoc state
                                        :selected-tab selected)
                                 :rendered-tab selected)
-                        :rendered-tabs tabs))))
+                        :rendered-tabs tabs
+                        :rendered-body-state body-state))))
    :on {:tab-panel/select (fn [state event ctx]
                             (let [payload (:payload event)
                                   tabs (or (:tabs state) [])
