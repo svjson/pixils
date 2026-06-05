@@ -102,7 +102,7 @@ TEST_F(ToggleButtonTest, toggle_button_group_selects_one_button_and_can_force_se
     (pixils/defmode root-mode
       {:on {:toggle-button-group/change (fn [state event ctx]
                                           (assoc state :last-change (:payload event)))}
-       :children [(pixils.ui.toggle-button/make-toggle-button-group
+       :children [(pixils.ui.toggle-button/make-group
                    {:buttons [{:label "Draw" :value :draw}
                               {:label "Erase" :value :erase}]
                     :selection-required? true

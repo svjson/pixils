@@ -132,6 +132,45 @@ TEST_F(ButtonTest, disabled_button_does_not_fire_click_handler)
   EXPECT_EQ(clicks->to_string(), "0");
 }
 
+TEST_F(ButtonTest, make_button_builds_button_child_with_state_and_handlers)
+{
+  runtime.eval(R"(
+    (pixils/defmode root-mode
+      {:children [(pixils.ui.button/make
+                   {:label "Run"
+                    :value :run
+                    :class :ui/toolbar-button
+                    :style {:width 44 :height 24}
+                    :state {:clicks 0}
+                    :on-click (fn [state event ctx]
+                                (assoc state :clicks (+ (:clicks state) 1)))})]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  session.update_mode();
+  session.render_mode();
+
+  ASSERT_EQ(session.active_mode->children.size(), 1u);
+  auto button = session.active_mode->children[0];
+  ASSERT_NE(button, nullptr);
+  EXPECT_EQ(button->mode->name, "ui/button");
+  ASSERT_FALSE(button->mode->class_names.empty());
+  EXPECT_EQ(button->mode->class_names[0], "ui/toolbar-button");
+  EXPECT_EQ(button->bounds.w, 44);
+  EXPECT_EQ(button->bounds.h, 24);
+  EXPECT_EQ(get_key(button->state, "label")->str(), "Run");
+  EXPECT_EQ(get_key(button->state, "value")->to_string(), ":run");
+
+  input().mouse_down({10, 10});
+  update_cycle();
+  input().mouse_up({10, 10});
+  update_cycle();
+
+  auto clicks = get_key(button->state, "clicks");
+  ASSERT_NE(clicks, nullptr);
+  EXPECT_EQ(clicks->to_string(), "1");
+}
+
 TEST_F(ButtonTest, button_label_has_natural_size_inside_window_body)
 {
   runtime.eval(R"(

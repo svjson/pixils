@@ -171,7 +171,7 @@ TEST_F(BootstrapTest, includes_embedded_toggle_button_source)
               .find("(defcomponent ui/toggle-button"),
             std::string_view::npos);
   EXPECT_NE(std::string_view(toggle_button->source)
-              .find("(defun make-toggle-button-group"),
+              .find("(defun make-group"),
             std::string_view::npos);
 }
 

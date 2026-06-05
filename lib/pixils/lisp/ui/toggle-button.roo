@@ -171,7 +171,7 @@
                                                  :index index}))
                                     (assoc state :selected selected))))}})
 
-(defun make-toggle-button [{:keys [label value toggled? selection-required? force-selection? style state]}]
+(defun make [{:keys [label value toggled? selection-required? force-selection? style state]}]
   {:mode 'ui/toggle-button
    :style (or style {})
    :state (merge (or state {})
@@ -181,7 +181,7 @@
                   :selection-required? selection-required?
                   :force-selection? force-selection?})})
 
-(defun make-toggle-button-group [{:keys [buttons selected selection-required? force-selection? style button-row-style state]}]
+(defun make-group [{:keys [buttons selected selection-required? force-selection? style button-row-style state]}]
   (let [buttons (or buttons [])
         selected (or selected (:selected state))
         selection-required? (or selection-required?

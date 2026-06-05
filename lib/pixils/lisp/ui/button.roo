@@ -81,3 +81,17 @@
                                              :disabled? (ui/bind-state :disabled?)
                                              :image (ui/bind-state :image)
                                              :label (ui/bind-state :label)}}]})
+
+(defun make [{:keys [label image disabled? value class style state init update on on-click]}]
+  (merge {:mode 'ui/button
+          :style (or style {})
+          :state (merge (or state {})
+                        {:label label
+                         :image image
+                         :disabled? disabled?
+                         :value value})}
+         (if class {:class class} {})
+         (if init {:init init} {})
+         (if update {:update update} {})
+         (if on {:on on} {})
+         (if on-click {:on-click on-click} {})))
