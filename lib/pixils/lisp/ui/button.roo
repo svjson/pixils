@@ -23,14 +23,26 @@
   (+ (button-border-side-thickness ctx side)
      (button-padding-side ctx side)))
 
+(defun button-pressed? [state ctx]
+  (or (:pressed state)
+      (-> ctx :view :state :pressed)))
+
+(defun button-pressed-image-offset [state ctx]
+  (if (button-pressed? state ctx)
+    (ui/theme-var ctx :button-pressed-image-offset {:x 0 :y 0})
+    {:x 0 :y 0}))
+
 (defun button-image-position [state ctx image]
   (let [bounds (-> ctx :view :bounds)
         dim (img/size image)
         left (button-content-origin-inset ctx :left)
-        top (button-content-origin-inset ctx :top)]
+        top (button-content-origin-inset ctx :top)
+        offset (button-pressed-image-offset state ctx)]
     (if (and dim (:w dim) (:h dim))
-      {:x (- (int (/ (- (:w bounds) (:w dim)) 2)) left)
-       :y (- (int (/ (- (:h bounds) (:h dim)) 2)) top)}
+      {:x (+ (- (int (/ (- (:w bounds) (:w dim)) 2)) left)
+             (or (:x offset) 0))
+       :y (+ (- (int (/ (- (:h bounds) (:h dim)) 2)) top)
+             (or (:y offset) 0))}
       {:x 0
        :y 0})))
 

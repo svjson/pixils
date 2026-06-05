@@ -336,6 +336,7 @@
                   :selection-bg (var :focus-bg)
                   :selection-text (var :focus-text)
                   :desktop-icon-label-padding 2
+                  :button-pressed-image-offset {:x 1 :y 1}
                   :solid-border-style {:line-style :solid
                                        :color (var :border)
                                        :thickness 1}
@@ -351,9 +352,9 @@
                                          :bottom {:color (var :highlight)}}
                   :button-pressed-border-style {:line-style :bevel
                                                :color (var :panel-shadow)
-                                               :thickness 2
-                                               :right {:color (var :highlight) :thickness 1}
-                                               :bottom {:color (var :highlight) :thickness 1}}
+                                               :thickness 0
+                                               :top {:thickness 1}
+                                               :left {:thickness 1}}
                   :button-border-style (var :raised-border-style)
                   :button-hover-border-style (var :button-border-style)
                   :button-disabled-border-style (var :button-border-style)
@@ -612,19 +613,20 @@
                                        :width 18
                                        :height 18}
 
-            'ui/window-minimize-button {:width 18
-                                        :hidden false
-                                        :height 18}
+            '(ui/window-minimize-button ui/button)
+            {:border {:left {:color (var :border)
+                             :thickness 1}
+                      :thickness 0}
+             :width 18
+             :hidden false
+             :height 18}
 
-            '(ui/window-minimize-button ui/button-inner)
-            {:background {:image :pixils/win311-minimize-button}}
+            ['ui/window-minimize-button 'ui/button-inner]
+            {:background {:image :pixils/win311-minimize-button
+                          :align :center}}
 
-            '(ui/button {:pressed true})
-            {:border {:line-style :solid
-                      :color c/TRANSPARENT
-                      :thickness 1
-                      :right {:thickness 0}
-                      :bottom {:thickness 0}}}
+            'ui/button
+            {:border (var :solid-border-style)}
 
             'ui/button-inner
             {:background (var :button-bg)
@@ -638,6 +640,14 @@
             '(ui/button-inner {:pressed true})
             {:background (var :button-pressed-bg)
              :border (var :button-pressed-border-style)}
+
+            ['ui/window-minimize-button '(ui/button-inner {:pressed true})]
+            {:background {:image :pixils/win311-minimize-button
+                          :align :center
+                          :offset {:x 1 :y 1}}}
+
+            ['(ui/button-inner {:pressed true}) 'ui/text]
+            {:padding [4 4 2 8]}
 
             'ui/text-input
             TEXT-INPUT-FRAME-STYLE

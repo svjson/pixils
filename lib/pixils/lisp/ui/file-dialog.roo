@@ -252,9 +252,8 @@
               {:mode 'ui/button
                :state {:label "Up"}
                :on-click (fn [state event ctx]
-                           (do
-                             (ui/emit! (:view ctx) :file-dialog/up)
-                             state))}]})
+                           (ui/emit! (:view ctx) :file-dialog/up)
+                           state)}]})
 
 (defcomponent ui/file-dialog-name-row
   {:style {:width :fill

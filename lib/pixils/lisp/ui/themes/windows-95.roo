@@ -469,8 +469,9 @@
                                         :width 16
                                         :height 14}
 
-            '(ui/window-minimize-button ui/button-inner)
-            {:background {:image :pixils/win95-minimize-button}}
+            ['ui/window-minimize-button 'ui/button-inner]
+            {:background {:image :pixils/win95-minimize-button
+                          :align :center}}
 
             'ui/button
             {:border {:line-style :solid
@@ -494,6 +495,11 @@
             '(ui/button-inner {:pressed true})
             {:background (var :button-pressed-bg)
              :border (var :button-pressed-border-style)}
+
+            ['ui/window-minimize-button '(ui/button-inner {:pressed true})]
+            {:background {:image :pixils/win95-minimize-button
+                          :align :center
+                          :offset {:x 1 :y 1}}}
 
             'ui/menu-bar {:background (var :menu-bg)
                           :text {:color (var :text)}}
