@@ -31,6 +31,14 @@
           (style-border-side-thickness style :top)
           (style-border-side-thickness style :bottom))))
 
+(defun style-content-width [bounds style]
+  (max 0
+       (- (or (:w bounds) 0)
+          (style-padding-side style :left)
+          (style-padding-side style :right)
+          (style-border-side-thickness style :left)
+          (style-border-side-thickness style :right))))
+
 (defun insert-text-at [value cursor-index text]
   (str (substr value 0 cursor-index)
        text
@@ -49,8 +57,12 @@
     (apply accept-value? [value state])
     true))
 
+(defun text-input-read-only? [state]
+  (= (:read-only? state) true))
+
 (defun text-input-change [state value cursor-index ctx]
-  (if (text-input-accepts-value? state value)
+  (if (and (not (text-input-read-only? state))
+           (text-input-accepts-value? state value))
     (do
       (when (not= (:emit-change? state) false)
         (ui/emit! (:view ctx) :text-input/change {:value value}))
@@ -58,6 +70,29 @@
           (assoc :value value)
           (assoc :cursor-index cursor-index)))
     state))
+
+(defun clamp-scroll-x [scroll-x text-width content-width]
+  (max 0 (min (or scroll-x 0)
+              (max 0 (- (or text-width 0) (or content-width 0))))))
+
+(defun scroll-x-for-cursor [scroll-x cursor-x text-width content-width]
+  (let [content-width (or content-width 0)
+        scroll-x (clamp-scroll-x scroll-x text-width content-width)]
+    (cond
+      (<= content-width 0) 0
+      (< cursor-x scroll-x) (clamp-scroll-x cursor-x text-width content-width)
+      (> cursor-x (+ scroll-x content-width))
+      (clamp-scroll-x (- cursor-x content-width) text-width content-width)
+      :default scroll-x)))
+
+(defun position-text-input-children! [ctx scroll-x cursor-y]
+  (let [children (ui/children ctx)]
+    (do
+      (when (> (count children) 0)
+        (ui/style! (nth children 0)
+                   {:position :absolute
+                    :left (* -1 (or scroll-x 0))
+                    :top (or cursor-y 0)})))))
 
 (defcomponent ui/text-input-caret
   {:style {:width 1}
@@ -79,6 +114,7 @@
 
 (defcomponent ui/text-input-inner
   {:focusable true
+   :style {:clip true}
    :init (fn [state ctx]
            (let [value (or (:value state) "")]
              (do
@@ -95,8 +131,15 @@
                    cursor-index (max 0 (min (count value)
                                             (or (:cursor-index state) (count value))))
                    prefix (substr value 0 cursor-index)
+                   text-width (or (:w (r/text-size value text-opts)) 0)
                    cursor-x (or (:w (r/text-size prefix text-opts)) 0)
                    cursor-h (or (:h (r/text-size "M" text-opts)) 0)
+                   content-width (style-content-width (-> ctx :view :bounds)
+                                                      style)
+                   scroll-x (scroll-x-for-cursor (:scroll-x state)
+                                                 cursor-x
+                                                 text-width
+                                                 content-width)
                    cursor-y (max 0
                                  (int (/ (- (style-content-height
                                              (-> ctx :view :bounds)
@@ -106,17 +149,24 @@
                    show-caret? (and (not (:disabled? state))
                                     (or (-> ctx :view :interaction :focused)
                                         (-> ctx :view :interaction :focus-within)))]
-               (-> state
-                   (assoc :value value)
-                   (assoc :cursor-index cursor-index)
-                   (assoc :cursor-x cursor-x)
-                   (assoc :cursor-y cursor-y)
-                   (assoc :cursor-h cursor-h)
-                   (assoc :show-caret? show-caret?))))
+               (do
+                 (position-text-input-children! ctx
+                                                scroll-x
+                                                cursor-y)
+                 (-> state
+                     (assoc :value value)
+                     (assoc :cursor-index cursor-index)
+                     (assoc :scroll-x scroll-x)
+                     (assoc :cursor-x cursor-x)
+                     (assoc :caret-x (- cursor-x scroll-x))
+                     (assoc :cursor-y cursor-y)
+                     (assoc :cursor-h cursor-h)
+                     (assoc :show-caret? show-caret?)))))
    :children [{:mode 'ui/text
+               :style {:text {:wrap :none}}
                :state {:value (ui/bind-state :value)}}
               {:mode 'ui/text-input-caret
-               :state {:x (ui/bind-state :cursor-x)
+               :state {:x (ui/bind-state :caret-x)
                        :y (ui/bind-state :cursor-y)
                        :h (ui/bind-state :cursor-h)
                        :visible? (ui/bind-state :show-caret?)}}]
@@ -166,6 +216,7 @@
   {:children [{:mode 'ui/text-input-inner
                :state {:value (ui/bind-state :value)
                        :disabled? (ui/bind-state :disabled?)
+                       :read-only? (ui/bind-state :read-only?)
                        :auto-focus? (ui/bind-state :auto-focus?)
                        :accept-value? (ui/bind-state :accept-value?)
                        :emit-change? (ui/bind-state :emit-change?)}}]})
