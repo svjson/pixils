@@ -44,6 +44,23 @@ index into the layer tileset, or `nil` for no tile. Terrain layers use
 `:data-kind :terrain` and `:terrain-set`; tile layers use `:data-kind :tile-ref`
 and `:tileset`.
 
+When tilesets use property sets, applications can bake the effective property
+values onto each tile before runtime lookup:
+
+```clojure
+(def runtime-tilesets
+  (tilemap/apply-tilesets-property-defaults property-sets tilesets))
+
+(def wall
+  (tilemap/tile-in runtime-tilesets :game :wall))
+
+(get (:properties wall) :blocked)
+```
+
+`apply-tilesets-property-defaults` applies property-set defaults, then tileset
+defaults, then per-tile values. `apply-terrain-sets-property-defaults` does the
+same for terrain sets and terrains.
+
 Sparse layer patches update existing map layers without assigning game-specific
 meaning to the cells:
 

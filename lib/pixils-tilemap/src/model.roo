@@ -29,6 +29,10 @@
   {:w 1
    :h 1})
 
+(def property-type-options [:any :enum :number])
+
+(def default-property-type :any)
+
 (defun serialized-nil? [value]
   (and (= (type-of value) "symbol")
        (= (str value) "nil")))
@@ -250,6 +254,131 @@
     (tile-in tilesets
              (:tileset layer)
              tile-ref)))
+
+(defun property-type [property]
+  (let [type (:type property)]
+    (if (contains? property-type-options type)
+      type
+      default-property-type)))
+
+(defun first-enum-value [property]
+  (head (or (:values property) [])))
+
+(defun normalize-number-property-value [value property]
+  (cond
+    (number? value) value
+    (number? (:default property)) (:default property)
+    :default 0))
+
+(defun normalize-enum-property-value [value property]
+  (let [values (or (:values property) [])]
+    (cond
+      (contains? values value) value
+      (contains? values (:default property)) (:default property)
+      :default (first-enum-value property))))
+
+(defun normalize-property-value [value property]
+  (case (property-type property)
+    :number (normalize-number-property-value value property)
+    :enum (normalize-enum-property-value value property)
+    :any value
+    :default value))
+
+(defun property-default-value [property]
+  (normalize-property-value (:default property) property))
+
+(defun property-set-definition [property-sets property-set-id]
+  (head (filter (or property-sets [])
+                (fn [property-set]
+                  (= (:id property-set) property-set-id)))))
+
+(defun property-set-definitions [property-sets property-set-ids]
+  (filter (map (or property-set-ids [])
+               (fn [property-set-id]
+                 (property-set-definition property-sets property-set-id)))
+          (fn [property-set]
+            (not (nil? property-set)))))
+
+(defun property-definitions [property-sets property-set-ids]
+  (apply concat
+         (map (property-set-definitions property-sets property-set-ids)
+              (fn [property-set]
+                (or (:properties property-set) [])))))
+
+(defun property-definition-by-id [property-sets property-set-ids property-id]
+  (head (filter (property-definitions property-sets property-set-ids)
+                (fn [property]
+                  (= (:id property) property-id)))))
+
+(defun property-set-default-values [property-sets property-set-ids]
+  (reduce (property-definitions property-sets property-set-ids)
+          {}
+          (fn [result property]
+            (assoc result (:id property) (property-default-value property)))))
+
+(defun normalize-property-values [property-sets property-set-ids values]
+  (reduce-kv (or values {})
+             {}
+             (fn [result property-id value]
+               (if-let [property (property-definition-by-id property-sets
+                                                            property-set-ids
+                                                            property-id)]
+                 (assoc result
+                        property-id
+                        (normalize-property-value value property))
+                 result))))
+
+(defun effective-property-values [property-sets property-set-ids default-values overrides]
+  (merge (property-set-default-values property-sets property-set-ids)
+         (normalize-property-values property-sets property-set-ids default-values)
+         (normalize-property-values property-sets property-set-ids overrides)))
+
+(defun tileset-property-values [property-sets tileset tile]
+  (effective-property-values property-sets
+                             (:property-sets tileset)
+                             (:properties tileset)
+                             (:properties tile)))
+
+(defun assoc-properties-when-present [target values]
+  (if (> (count values) 0)
+    (assoc target :properties values)
+    target))
+
+(defun apply-tileset-property-defaults [property-sets tileset]
+  (assoc tileset
+         :tiles (map (or (:tiles tileset) [])
+                     (fn [tile]
+                       (assoc-properties-when-present
+                        tile
+                        (tileset-property-values property-sets
+                                                 tileset
+                                                 tile))))))
+
+(defun apply-tilesets-property-defaults [property-sets tilesets]
+  (map (or tilesets [])
+       (fn [tileset]
+         (apply-tileset-property-defaults property-sets tileset))))
+
+(defun terrain-property-values [property-sets terrain-set terrain]
+  (effective-property-values property-sets
+                             (:property-sets terrain-set)
+                             (:properties terrain-set)
+                             (:properties terrain)))
+
+(defun apply-terrain-set-property-defaults [property-sets terrain-set]
+  (assoc terrain-set
+         :terrains (map (or (:terrains terrain-set) [])
+                        (fn [terrain]
+                          (assoc-properties-when-present
+                           terrain
+                           (terrain-property-values property-sets
+                                                    terrain-set
+                                                    terrain))))))
+
+(defun apply-terrain-sets-property-defaults [property-sets terrain-sets]
+  (map (or terrain-sets [])
+       (fn [terrain-set]
+         (apply-terrain-set-property-defaults property-sets terrain-set))))
 
 (defun rnd-pos [level-map]
   {:x (rand-nth (range 0 (dec (:width level-map))))

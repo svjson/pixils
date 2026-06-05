@@ -152,3 +152,58 @@
                                     {:data-kind :terrain
                                      :terrain-set :materials}
                                     :earth))))))
+
+(deftest apply_tileset_property_defaults_writes_effective_values_to_tiles
+  (let [property-sets [{:id :movement
+                        :properties [{:id :walkable
+                                      :type :enum
+                                      :values [:yes :no]
+                                      :default :yes}
+                                     {:id :cost
+                                      :type :number
+                                      :default 1}
+                                     {:id :note
+                                      :type :any
+                                      :default "open"}]}]
+        tileset {:id :game
+                 :property-sets [:movement]
+                 :properties {:cost 2
+                              :walkable :no}
+                 :tiles [{:id :floor}
+                         {:id :wall
+                          :properties {:walkable :yes
+                                       :cost "bad"
+                                       :unknown true}}]}
+        tileset (tm/apply-tileset-property-defaults property-sets tileset)]
+    (is (= {:walkable :no
+            :cost 2
+            :note "open"}
+           (get-in tileset [:tiles 0 :properties])))
+    (is (= {:walkable :yes
+            :cost 1
+            :note "open"}
+           (get-in tileset [:tiles 1 :properties])))))
+
+(deftest apply_terrain_set_property_defaults_writes_effective_values_to_terrains
+  (let [property-sets [{:id :movement
+                        :properties [{:id :blocked
+                                      :type :enum
+                                      :values [:yes :no]
+                                      :default :no}
+                                     {:id :cost
+                                      :type :number
+                                      :default 1}]}]
+        terrain-set {:id :materials
+                     :property-sets [:movement]
+                     :properties {:cost 3}
+                     :terrains [{:id :grass}
+                                {:id :water
+                                 :properties {:blocked :yes}}]}
+        terrain-set (tm/apply-terrain-set-property-defaults property-sets
+                                                            terrain-set)]
+    (is (= {:blocked :no
+            :cost 3}
+           (get-in terrain-set [:terrains 0 :properties])))
+    (is (= {:blocked :yes
+            :cost 3}
+           (get-in terrain-set [:terrains 1 :properties])))))
