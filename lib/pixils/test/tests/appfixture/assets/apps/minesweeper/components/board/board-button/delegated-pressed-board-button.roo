@@ -10,7 +10,7 @@
              (let [flagged (-> state :mask :flagged?)]
                (assoc-in! ctx
                           [:view :style :visibility]
-                          (if (:revealed? (:mask state)) :none :visible))
+                          (if (:revealed? (:mask state)) :hidden :visible))
                (-> state
                    (assoc :image (when flagged
                                    :mine-layer-mode/flag))

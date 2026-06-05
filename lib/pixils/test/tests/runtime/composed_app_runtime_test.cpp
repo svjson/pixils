@@ -202,6 +202,43 @@ namespace
 
     return flagged;
   }
+
+  struct BoardCellTarget
+  {
+    size_t x = 0;
+    size_t y = 0;
+  };
+
+  BoardCellTarget positive_board_cell_with_right_neighbor(const Roo::sptr_val& board)
+  {
+    if (!board)
+    {
+      ADD_FAILURE() << "Expected board state";
+      return {};
+    }
+
+    for (size_t row_idx = 0; row_idx < board->elements().size(); row_idx++)
+    {
+      auto row = get_index(board, row_idx);
+      if (!row) continue;
+
+      for (size_t col_idx = 0; col_idx + 1 < row->elements().size(); col_idx++)
+      {
+        auto cell = get_index(row, col_idx);
+        if (!cell) continue;
+
+        auto value = cell->to_string();
+        if (value == "1" || value == "2" || value == "3" || value == "4" ||
+            value == "5" || value == "6" || value == "7" || value == "8")
+        {
+          return {.x = col_idx, .y = row_idx};
+        }
+      }
+    }
+
+    ADD_FAILURE() << "Expected a numbered board cell with a right neighbor";
+    return {};
+  }
 } // namespace
 
 class ComposedAppRuntimeTest : public ComposableAppSessionFixture
@@ -1194,6 +1231,58 @@ TEST_F(
   expect_int_key(counters, "mines-left", 9);
   EXPECT_EQ(count_flagged_cells(board_mask), 1);
   expect_key_string(first_mask_cell, "flagged?", "true");
+}
+
+TEST_F(ComposedAppRuntimeTest,
+       revealed_board_buttons_preserve_overlay_layout_for_simple_windowed_fixture)
+{
+  // Given
+  use_default_frame_size();
+  load_simple_windowed_minesweeper_program();
+  render_cycle();
+
+  ASSERT_NE(session().active_mode, nullptr);
+  View& main_mode = *session().active_mode;
+  View& game_mode = simple_windowed_window_game_mode(main_mode);
+  View& board_mode = child_with_mode_name(game_mode, "board-mode");
+  View& board_buttons = child_with_mode_name(board_mode, "board-buttons");
+  auto target = positive_board_cell_with_right_neighbor(get_key(game_mode.state, "board"));
+  View& target_row = only_child(board_buttons, target.y);
+  View& target_button = only_child(target_row, target.x);
+  View& neighbor_button = only_child(target_row, target.x + 1);
+  int neighbor_relative_x_before = neighbor_button.bounds.x - board_buttons.bounds.x;
+  int neighbor_relative_y_before = neighbor_button.bounds.y - board_buttons.bounds.y;
+
+  int click_x = target_button.bounds.x + target_button.bounds.w / 2;
+  int click_y = target_button.bounds.y + target_button.bounds.h / 2;
+
+  // When
+  input().mouse_down({click_x, click_y});
+  update_cycle();
+  input().mouse_up({click_x, click_y});
+  update_cycle();
+  render_cycle();
+
+  // Then
+  View& updated_game_mode =
+    simple_windowed_window_game_mode(*session().active_mode);
+  View& updated_board_mode = child_with_mode_name(updated_game_mode, "board-mode");
+  View& updated_board_buttons = child_with_mode_name(updated_board_mode, "board-buttons");
+  View& updated_target_row = only_child(updated_board_buttons, target.y);
+  View& updated_neighbor_button = only_child(updated_target_row, target.x + 1);
+  int neighbor_relative_x_after =
+    updated_neighbor_button.bounds.x - updated_board_buttons.bounds.x;
+  int neighbor_relative_y_after =
+    updated_neighbor_button.bounds.y - updated_board_buttons.bounds.y;
+
+  auto board_mask = get_key(updated_game_mode.state, "board-mask");
+  auto target_mask_row = get_index(board_mask, target.y);
+  auto target_mask_cell = get_index(target_mask_row, target.x);
+
+  ASSERT_NE(target_mask_cell, nullptr);
+  expect_key_string(target_mask_cell, "revealed?", "true");
+  EXPECT_EQ(neighbor_relative_x_after, neighbor_relative_x_before);
+  EXPECT_EQ(neighbor_relative_y_after, neighbor_relative_y_before);
 }
 
 TEST_F(ComposedAppRuntimeTest,

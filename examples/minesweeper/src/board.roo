@@ -67,7 +67,7 @@
                              (assoc :inhibit-pressed? flagged))]
                (assoc-in! ctx
                           [:view :style :visibility]
-                          (if (:revealed? (:mask state)) :none :visible))
+                          (if (:revealed? (:mask state)) :hidden :visible))
                (assoc state :pressed
                       (and (not (:inhibit-pressed? state))
                            (or (:force-pressed? state)
