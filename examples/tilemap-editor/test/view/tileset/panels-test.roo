@@ -31,6 +31,11 @@
   (is (= {:x 32 :y 32 :w 32 :h 32}
          (panels/tile-cell-rect 3 2 32))))
 
+(deftest tile-grid-content-height-fits_all_tile_rows
+  (is (= 0 (panels/tile-grid-content-height 0 4 32)))
+  (is (= 32 (panels/tile-grid-content-height 4 4 32)))
+  (is (= 64 (panels/tile-grid-content-height 5 4 32))))
+
 (deftest tile-grid-drag-payload-identifies_source_tile
   (is (= {:kind :tileset/tile
           :source-tileset-index 0

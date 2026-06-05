@@ -204,29 +204,29 @@
 (defcomponent tileset-definition-summary
   {:style {:width :fill
            :height :shrink
-           :layout {:direction :column
-                    :gap 4}}
+           :layout {:direction :row
+                    :align-items :center
+                    :gap 8}}
    :update (fn [state ctx]
              (let [tileset (selected-tileset-definition state)
                    tiles (or (:tiles tileset) [])
-                   tile-count (count tiles)
-                   selected-tile (when (> tile-count 0)
-                                   (nth tiles
-                                        (or (:selected-tileset-tile-index state) 0)))]
+                   tile-count (count tiles)]
                (assoc state
                       :label (or (:label tileset) "")
                       :tile-count-label (if tileset
-                                          (str tile-count " tiles")
-                                          "No tile definition set selected")
-                      :selected-tile-label (or (:name selected-tile) ""))))
+                                          (str tile-count
+                                               (if (= tile-count 1)
+                                                 " Tile"
+                                                 " Tiles"))
+                                          "No tile definition set selected"))))
    :children [{:mode 'ui/text
                :class :ui/title
+               :style {:width :fill}
                :state {:value (ui/bind-state :label)}}
               {:mode 'ui/text
                :class :ui/muted
-               :state {:value (ui/bind-state :tile-count-label)}}
-              {:mode 'ui/text
-               :state {:value (ui/bind-state :selected-tile-label)}}]})
+               :style {:width :shrink}
+               :state {:value (ui/bind-state :tile-count-label)}}]})
 
 (defun tile-cell-rect [index columns tile-size]
   (let [columns (max 1 (or columns 1))
@@ -391,6 +391,99 @@
                  (for-indexed [index tile tiles]
                    (draw-tile-cell! tile index columns tile-size))
                  (draw-selected-tile-cells! selection columns tile-size))))})
+
+(def default-tile-grid-scrollbar-size 14)
+
+(defun tile-grid-row-count [item-count columns]
+  (let [columns (max 1 (or columns 1))
+        item-count (max 0 (or item-count 0))]
+    (if (= item-count 0)
+      0
+      (int (/ (+ item-count (dec columns)) columns)))))
+
+(defun tile-grid-content-height [item-count columns tile-size]
+  (let [rows (tile-grid-row-count item-count columns)]
+    (if (= rows 0)
+      0
+      (+ (* (dec rows) (tile-grid-stride tile-size))
+         (tile-grid-cell-size-for tile-size)))))
+
+(defun tile-grid-scroll-content-size [state ctx]
+  (let [tiles (selected-tileset-tiles state)
+        tile-size (selected-tileset-tile-size state)
+        bounds (-> ctx :view :bounds)
+        scrollbar-size (ui/theme-var ctx
+                                     :scrollbar-size
+                                     default-tile-grid-scrollbar-size)
+        content-width (max 1 (- (or (:w bounds) 1) scrollbar-size))
+        columns (tile-grid-columns {:w content-width}
+                                   tile-size)]
+    {:h (tile-grid-content-height (count tiles) columns tile-size)}))
+
+(defun tileset-tile-grid-content-child []
+  {:mode 'tileset-tile-grid
+   :style {:width :fill
+           :height :fill}
+   :state {:selected-tileset-definition-index
+           (ui/bind-state :selected-tileset-definition-index)
+           :selected-tileset-tile-index
+           (ui/bind-state :selected-tileset-tile-index)
+           :selected-tileset-tile-indices
+           (ui/bind-state :selected-tileset-tile-indices)
+           :tilesets (ui/bind-state :tilesets)}})
+
+(defun tileset-tile-grid-scroll-content-style [state]
+  {:position :absolute
+   :left 0
+   :top (* -1 (or (:offset state) 0))
+   :width :fill
+   :height (or (:content-height state) 0)})
+
+(defcomponent tileset-tile-grid-scroll-viewport
+  {:style {:width :fill
+           :height :fill
+           :clip true}
+   :update (fn [state ctx]
+             (let [children (ui/children ctx)]
+               (do
+                 (when (> (count children) 0)
+                   (ui/style! (nth children 0)
+                              (tileset-tile-grid-scroll-content-style
+                               state)))
+                 state)))
+   :children [(tileset-tile-grid-content-child)]})
+
+(defcomponent tileset-tile-grid-scroll-pane
+  {:style {:width :fill
+           :height :fill
+           :layout {:direction :row}}
+   :init (fn [state ctx]
+           (assoc state
+                  :offset 0
+                  :content-height 0))
+   :update (fn [state ctx]
+             (let [content-size (tile-grid-scroll-content-size state ctx)]
+               (assoc state
+                      :content-height (:h content-size)
+                      :step
+                      (tile-grid-stride (selected-tileset-tile-size state)))))
+   :children [{:mode 'tileset-tile-grid-scroll-viewport
+               :state {:offset (ui/bind-state :offset)
+                       :content-height (ui/bind-state :content-height)
+                       :selected-tileset-definition-index
+                       (ui/bind-state :selected-tileset-definition-index)
+                       :selected-tileset-tile-index
+                       (ui/bind-state :selected-tileset-tile-index)
+                       :selected-tileset-tile-indices
+                       (ui/bind-state :selected-tileset-tile-indices)
+                       :tilesets (ui/bind-state :tilesets)}}
+              {:mode 'ui/scrollbar
+               :class :scrollbar/v
+               :style {:height :fill}
+               :state {:axis :y
+                       :value (ui/bind-state :offset)
+                       :step (ui/bind-state :step)
+                       :content-size (ui/bind-state :content-height)}}]})
 
 (defcomponent tileset-tile-drag-preview
   {:class :ui/content

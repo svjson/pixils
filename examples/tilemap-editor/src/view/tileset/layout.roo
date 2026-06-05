@@ -206,7 +206,7 @@
                                             :selected-tileset-tile-index (ui/bind-state :selected-tileset-tile-index)
                                             :selected-tileset-tile-indices (ui/bind-state :selected-tileset-tile-indices)
                                             :tilesets (ui/bind-state :tilesets)}
-                                    :children [{:mode 'tileset-tile-grid
+                                    :children [{:mode 'tileset-tile-grid-scroll-pane
                                                 :state {:selected-tileset-definition-index (ui/bind-state :selected-tileset-definition-index)
                                                         :selected-tileset-tile-index (ui/bind-state :selected-tileset-tile-index)
                                                         :selected-tileset-tile-indices (ui/bind-state :selected-tileset-tile-indices)
