@@ -298,6 +298,11 @@
     '(ui/checkbox-box {:pressed true})
     {:border (var :pressed-border-style)}
 
+    'ui/option-box {:text {:color {:r 0xe6 :g 0xea :b 0xee}}}
+
+    'ui/option-box:disabled
+    {:text {:color (var :disabled-text)}}
+
     'ui/slider {:background (var :button-bg)
                 :border (var :raised-border-style)}
 

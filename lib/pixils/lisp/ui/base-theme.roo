@@ -243,6 +243,11 @@
     '(ui/checkbox-box {:pressed true})
     {:background (var :disabled-bg)}
 
+    'ui/option-box {:text {:color (var :text)}}
+
+    'ui/option-box:disabled
+    {:text {:color (var :disabled-text)}}
+
     'ui/slider {:background (var :field-bg)
                 :border (var :inset-border-style)}
 

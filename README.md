@@ -119,6 +119,8 @@ Roo components, so applications can use them like any other mode.
 | `ui/toggle-button` | Button subtype that keeps a persistent toggled state and renders toggled-on as pressed. |
 | `ui/toggle-button-group` | Data-driven group of toggle buttons with optional forced selection. |
 | `ui/checkbox` | Focusable boolean toggle with a styleable box and label. |
+| `ui/option-box` | Focusable option row with a styleable selection marker and label. |
+| `ui/option-box-group` | Data-driven exclusive radio-style option group. |
 | `ui/text-input` | Basic editable single-line text field. |
 | `ui/number-input` | Integer text field with numeric filtering, min/max clamping, and keyboard stepping. |
 | `ui/list-box` | Data-driven selectable list with optional multi-select and item reordering. |
@@ -192,6 +194,36 @@ Grouped toggle semantics are configured with `:selection-required?`:
 
 `:force-selection? true` is accepted as an alias for `:selection-required? true`
 on both standalone toggle buttons and groups.
+
+`pixils.ui.option-box/make` creates a radio-button-style option row using the
+same theme marker as menu option items. It accepts `:label`, `:value`,
+`:selected?`, `:disabled?`, and the same `:selection-required?` /
+`:force-selection?` flags as toggle buttons. Clicks emit `:option-box/change` with
+`{:selected? bool :value value :index index}`. Option boxes keep themselves
+selected by default; set `:selection-required? false` only when a standalone
+option should be allowed to toggle off.
+
+For mutually exclusive choices, use `pixils.ui.option-box/make-group`. Each
+option can provide `:label`, `:value`, `:id`, `:disabled?`, `:style`, `:class`,
+and extra child `:state`. The group stores the selected value in `:selected`,
+keeps child `:selected?` states in sync, and emits `:option-box-group/change`
+with `{:selected value :value value :index index :option option}`. One selectable
+option is kept selected by default; set `:selection-required? false` only when
+the group should allow no selected option.
+
+```clojure
+(pixils/defmode terrain-rule-mode-panel
+  {:on {:option-box-group/change
+        (fn [state event ctx]
+          (assoc state :terrain-rule-application (-> event :payload :selected)))}
+   :children [(pixils.ui.option-box/make-group
+               {:options [{:label "Preview only" :value :preview}
+                          {:label "Bake on paint" :value :paint-baked}]
+                :selected (pixils.ui/bind-state :terrain-rule-application)})]})
+```
+
+Use `ui/checkbox` for independent on/off choices where more than one item can
+be selected at the same time.
 
 `pixils.ui.list-box/make` accepts `:options`, where each option can provide
 `:value`, `:label`, `:name`, and `:disabled?`. Selection changes emit
