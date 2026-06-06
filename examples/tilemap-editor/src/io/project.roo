@@ -13,6 +13,7 @@
 
 (def default-recent-projects-path "examples/tilemap-editor/.recent-projects.edn")
 (def max-recent-projects 10)
+(def project-save-edn-options {:pretty? true})
 
 (defun save-project-result? [payload]
   (and (= (:type payload) :confirm)
@@ -27,7 +28,8 @@
 (defun save-project! [state payload]
   (do
     (io/spit-edn! (:path payload)
-                  (data/project-document (maps/commit-active-map state)))
+                  (data/project-document (maps/commit-active-map state))
+                  project-save-edn-options)
     payload))
 
 (defun recent-project-entry [payload]
