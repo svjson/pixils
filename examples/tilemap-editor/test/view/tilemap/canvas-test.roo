@@ -2,7 +2,7 @@
   (:require proof.core
             [tilemap-editor.view.tilemap.canvas :as canvas]))
 
-(deftest map-hover-cell-at-event-uses_scroll_offset
+(deftest map-hover-cell-at-event-uses-scroll-offset
   (let [state {:map-width 4
                :map-height 4
                :tile-size 16
@@ -12,7 +12,7 @@
     (is (= {:x 1 :y 2}
            (canvas/map-hover-cell-at-event state event)))))
 
-(deftest map-hover-cell-at-event-clears_out_of_bounds_positions
+(deftest map-hover-cell-at-event-clears-out-of-bounds-positions
   (let [state {:map-width 2
                :map-height 2
                :tile-size 16
@@ -21,7 +21,7 @@
         event {:position {:x 48 :y 0}}]
     (is (nil? (canvas/map-hover-cell-at-event state event)))))
 
-(deftest hidden-render-layer-indices-hide_materialized_source_layers
+(deftest hidden-render-layer-indices-hide-materialized-source-layers
   (let [input {:hidden-layer-indices [0]
                :layers [{:id :terrain}
                         {:id :visuals}]}
@@ -36,7 +36,7 @@
     (is (= [0 1 2]
            (canvas/hidden-render-layer-indices input render-map)))))
 
-(deftest hidden-render-layer-indices-hide_materialized_target_layers
+(deftest hidden-render-layer-indices-hide-materialized-target-layers
   (let [input {:hidden-layer-indices [1]
                :layers [{:id :terrain}
                         {:id :visuals}]}
@@ -49,7 +49,7 @@
     (is (= [1 2]
            (canvas/hidden-render-layer-indices input render-map)))))
 
-(deftest render-cache-signature-changes_with_hidden_layers
+(deftest render-cache-signature-changes-with-hidden-layers
   (let [render-map {:layers [{:id :terrain/world
                               :render-source-layer-id :terrain}
                              {:id :visuals}]}
@@ -65,7 +65,7 @@
                  render-map)]
     (is (not= visible hidden))))
 
-(deftest refresh-render-map-updates_input_when_only_visibility_changes
+(deftest refresh-render-map-updates-input-when-only-visibility-changes
   (let [state (canvas/refresh-map-canvas-render-map
                {:map-width 1
                 :map-height 1
@@ -92,6 +92,7 @@
                   :layers [{:id :base
                             :tileset :world
                             :tiles [[:grass]]}]
+                  :tilesets []
                   :terrain-sets []
                   :show-terrain-rules? nil
                   :layer-profile nil
@@ -124,6 +125,7 @@
                   :layers [{:id :base
                             :tileset :world
                             :tiles [[:grass]]}]
+                  :tilesets []
                   :terrain-sets []
                   :show-terrain-rules? nil
                   :layer-profile nil
@@ -131,7 +133,7 @@
     (is (= [0]
            (get-in state [:render-map-input :hidden-layer-indices])))))
 
-(deftest refresh-render-map-rebuilds_when_active_map_id_changes
+(deftest refresh-render-map-rebuilds-when-active-map-id-changes
   (let [previous-input {:map-id :map/one
                         :width 1
                         :height 1
@@ -139,6 +141,7 @@
                         :layers [{:id :base
                                   :tileset :world
                                   :tiles [[:grass]]}]
+                        :tilesets []
                         :terrain-sets []
                         :show-terrain-rules? nil
                         :layer-profile nil
@@ -167,7 +170,25 @@
     (is (= :map/two (get-in state [:render-map-input :map-id])))
     (is (= :water (get-in state [:render-map :layers 0 :tiles 0 0])))))
 
-(deftest map-canvas-render-input-uses_active_map_tile_size
+(deftest render-input-signature-changes-with-tilesets
+  (let [base-input {:width 1
+                    :height 1
+                    :tile-size 16
+                    :tilesets [{:id :world
+                                :tiles [{:id :grass}]}]
+                    :layers []
+                    :terrain-sets []
+                    :show-terrain-rules? nil
+                    :layer-profile nil
+                    :rulesets []}
+        changed-input (assoc base-input
+                             :tilesets [{:id :world
+                                         :tiles [{:id :grass}
+                                                 {:id :water}]}])]
+    (is (not= (canvas/map-canvas-render-input-signature base-input)
+              (canvas/map-canvas-render-input-signature changed-input)))))
+
+(deftest map-canvas-render-input-uses-active-map-tile-size
   (let [input (canvas/map-canvas-render-input
                {:map-width 2
                 :map-height 1
