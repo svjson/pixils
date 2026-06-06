@@ -284,7 +284,7 @@
                      :selected-source-indices []
                      :selected-sources []
                      :select-all? false
-                     :exclude-same-tileset? true
+                     :exclude-same-tileset? false
                      :exclude-project? false
                      :source-snap-to-grid? true
                      :source-snap-interval (selected-tileset-tile-size state)
@@ -1245,8 +1245,8 @@
                (assoc state
                       :resource resource
                       :image image
-                      :source-rects (if dim
-                                      (selected-source-rects state dim)
+                      :source-rects (if (and image dim)
+                                      (import-source-rects state image dim)
                                       [])
                       :tile-import-preview-zoom
                       (ip/clamp-zoom (:tile-import-preview-zoom state))
@@ -1273,7 +1273,8 @@
                                                   state))]
                 (do
                   (ui/stop-propagation! event)
-                  (if source
+                  (if (and source
+                           (import-source-included? state image source))
                     (assoc state
                            :selected-sources
                            (toggle-source (:selected-sources state) source)
