@@ -1,7 +1,8 @@
 (ns pixils.tilemap.renderer
   (:require [pixils.image :as img]
             [pixils.render :as r]
-            [pixils.tilemap.model :as tm]))
+            [pixils.tilemap.model :as tm]
+            [pixils.tilemap.render-impl :as render-impl]))
 
 (defun centered-pos [rect width height]
   {:x (+ (:x rect) (/ (- (:w rect) width) 2))
@@ -32,13 +33,12 @@
       (let [scale (fit-scale (:w dim) (:h dim) rect)
             width (* (:w dim) scale)
             height (* (:h dim) scale)]
-        (do
-          (r/rect! rect {:fill true
-                         :color tm/default-image-tile-background-color})
-          (r/image! (:image tile)
-                    (merge {:pos (centered-pos rect width height)
-                            :scale scale}
-                           (or render-opts {})))))
+        (r/rect! rect {:fill true
+                       :color tm/default-image-tile-background-color})
+        (r/image! (:image tile)
+                  (merge {:pos (centered-pos rect width height)
+                          :scale scale}
+                         (or render-opts {}))))
       (draw-missing-tile! rect))))
 
 (defun draw-sprite-tile! [tile rect render-opts]
@@ -379,35 +379,33 @@
                                (:y offset))]
     (when (and (> x-count 0)
                (> y-count 0))
-      (do
-        (dotimes [dx (inc x-count)]
-          (let [x-index (+ x-start dx)
-                x (grid-line-position x-index
-                                      (tm/map-width tilemap)
-                                      tile-size
-                                      (:x offset))]
-            (r/line! {:x x :y (:start y-span)}
-                     {:x x :y (:end y-span)}
-                     tm/default-grid-color)))
-        (dotimes [dy (inc y-count)]
-          (let [y-index (+ y-start dy)
-                y (grid-line-position y-index
-                                      (tm/map-height tilemap)
-                                      tile-size
-                                      (:y offset))]
-            (r/line! {:x (:start x-span) :y y}
-                     {:x (:end x-span) :y y}
-                     tm/default-grid-color)))))))
+      (dotimes [dx (inc x-count)]
+        (let [x-index (+ x-start dx)
+              x (grid-line-position x-index
+                                    (tm/map-width tilemap)
+                                    tile-size
+                                    (:x offset))]
+          (r/line! {:x x :y (:start y-span)}
+                   {:x x :y (:end y-span)}
+                   tm/default-grid-color)))
+      (dotimes [dy (inc y-count)]
+        (let [y-index (+ y-start dy)
+              y (grid-line-position y-index
+                                    (tm/map-height tilemap)
+                                    tile-size
+                                    (:y offset))]
+          (r/line! {:x (:start x-span) :y y}
+                   {:x (:end x-span) :y y}
+                   tm/default-grid-color))))))
 
 (defun render-visible-layers! [tilemap tilesets tileset-lookup terrain-sets layers hidden-layer-indices offset zoom tile-substitutions show-grid? ranges]
-  (do
-    (for-indexed [index layer layers]
-      (when (not (contains? hidden-layer-indices index))
-        (render-layer! tilemap tilesets tileset-lookup terrain-sets layer offset zoom tile-substitutions ranges)))
-    (when show-grid?
-      (render-grid-overlay! tilemap offset zoom ranges))))
+  (for-indexed [index layer layers]
+    (when (not (contains? hidden-layer-indices index))
+      (render-layer! tilemap tilesets tileset-lookup terrain-sets layer offset zoom tile-substitutions ranges)))
+  (when show-grid?
+    (render-grid-overlay! tilemap offset zoom ranges)))
 
-(defun render-layers! [tilemap opts]
+(defun roo-render-layers! [tilemap opts]
   (let [tilesets (or (:tilesets opts) [])
         tileset-lookup (render-prepared-tilesets opts)
         terrain-sets (or (:terrain-sets opts) [])
@@ -443,6 +441,11 @@
                               tile-substitutions
                               (:show-grid? opts)
                               ranges))))
+
+(defun render-layers! [tilemap opts]
+  (let [native-rendered? (render-impl/render-layers! tilemap opts)]
+    (when (not native-rendered?)
+      (roo-render-layers! tilemap opts))))
 
 (defun render-options [tileset opts]
   (assoc (or opts {}) :tilesets [tileset]))

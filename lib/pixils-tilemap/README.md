@@ -107,6 +107,45 @@ Useful renderer options:
   `{:tile replacement :render-opts opts}`.
 - `:show-grid?` draws the grid overlay.
 
+`render-layers!` automatically uses the package's native renderer when the map
+is already render-ready. Callers do not opt in; unsupported render inputs fall
+back to the Roo renderer.
+
+The native path handles maps whose non-hidden layers are prepared tile-stack
+layers:
+
+```clojure
+{:width 40
+ :height 25
+ :tile-size 32
+ :layers [{:id :scene
+           :kind :prepared-tile-stack
+           :tiles [[[{:type :sprite
+                      :image :game/tiles
+                      :source {:x 0 :y 0 :w 32 :h 32}}]
+                    []
+                    nil]]}]}
+```
+
+Prepared tile-stack cells contain actual tile definitions, not tile ids or
+terrain refs. `nil` and `[]` both mean "draw nothing" for a cell. This shape is
+useful when an application keeps a render map that is patched as state changes,
+so rendering can draw the prepared cells directly.
+
+Supported tile definitions in the native path are:
+
+```clojure
+{:type :sprite :image :game/tiles :source {:x 0 :y 0 :w 32 :h 32}}
+{:type :image  :image :game/portrait}
+{:type :color  :color {:r 0 :g 0 :b 0 :a 128}}
+```
+
+The Roo renderer is used instead when any non-hidden layer is not
+`:prepared-tile-stack`, when `:show-grid?` is enabled, or when
+`:tile-substitutions` is non-empty. This includes ordinary tile-ref layers,
+terrain layers, unresolved tile-stack layers, and editor/debug rendering that
+needs grid or substitution behavior.
+
 Use `pixils.tilemap.render/tile!` when only a single tile needs to be drawn:
 
 ```clojure

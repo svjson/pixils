@@ -4,6 +4,10 @@
  :dependencies {pixils "0.1.0"
                 proof "0.1.0"}
  :load-roots ["src"]
+ :native-libraries [{:name "pixils-tilemap-native"
+                     :version "0.1.0"
+                     :path "native"
+                     :namespaces [pixils.tilemap.render-impl]}]
  :namespace-roots {pixils.tilemap ["src" "test"]}
  :config {proof {:test-roots ["test"]}}
  :entry-points []
