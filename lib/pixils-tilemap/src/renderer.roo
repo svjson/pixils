@@ -167,6 +167,39 @@
       (prepared-terrain-ref tilesets terrain-sets (:terrain-set layer) tile-ref)
       (prepared-tile-ref (:prepared-tileset layer) tile-ref))))
 
+(defun tile-stack-layer? [layer]
+  (= :tile-stack (:kind layer)))
+
+(defun tile-stack-refs [cell]
+  (cond
+    (tm/absent-tile-ref? cell)
+    []
+
+    (= "vector" (type-of cell))
+    cell
+
+    (= "list" (type-of cell))
+    cell
+
+    :default
+    [cell]))
+
+(defun stack-ref-layer [prepared-tilesets layer tile-ref]
+  (if (= "map" (type-of tile-ref))
+    (let [layer (merge layer
+                       (select-keys tile-ref [:tileset :data-kind :terrain-set]))]
+      (assoc layer
+             :prepared-tileset
+             (or (get prepared-tilesets (:tileset layer))
+                 (empty-prepared-tileset))))
+    layer))
+
+(defun stack-ref-tile [tile-ref]
+  (if (= "map" (type-of tile-ref))
+    (or (:tile tile-ref)
+        (:tile-ref tile-ref))
+    tile-ref))
+
 (defun map-render-rect [tilemap zoom]
   (let [size (tm/scaled-tile-size tilemap zoom)]
     {:x 0
@@ -228,6 +261,57 @@
   {:start (grid-line-position (:start range) max-count tile-size offset)
    :end (grid-line-position (:end range) max-count tile-size offset)})
 
+(defun render-tile-ref! [tilemap tilesets prepared-tilesets terrain-sets layer offset zoom tile-substitutions x y tile-ref]
+  (let [stack-layer (stack-ref-layer prepared-tilesets layer tile-ref)
+        stack-tile-ref (stack-ref-tile tile-ref)
+        substitution (get (or tile-substitutions {}) stack-tile-ref)
+        tile (prepared-layer-cell-tile tilesets
+                                       terrain-sets
+                                       stack-layer
+                                       stack-tile-ref
+                                       tile-substitutions)
+        rect (tm/tile-rect tilemap x y offset zoom)]
+    (when tile
+      (draw-tile! tile
+                  rect
+                  (substitution-render-opts substitution
+                                            {:rect rect
+                                             :x x
+                                             :y y
+                                             :tile-ref stack-tile-ref
+                                             :stack-ref tile-ref
+                                             :tile tile
+                                             :layer stack-layer
+                                             :offset offset
+                                             :zoom zoom})))))
+
+(defun render-layer-cell! [tilemap tilesets prepared-tilesets terrain-sets layer offset zoom tile-substitutions x y cell]
+  (if (tile-stack-layer? layer)
+    (for [tile-ref (tile-stack-refs cell)]
+      (render-tile-ref! tilemap
+                        tilesets
+                        prepared-tilesets
+                        terrain-sets
+                        layer
+                        offset
+                        zoom
+                        tile-substitutions
+                        x
+                        y
+                        tile-ref))
+    (when (not (tm/absent-tile-ref? cell))
+      (render-tile-ref! tilemap
+                        tilesets
+                        prepared-tilesets
+                        terrain-sets
+                        layer
+                        offset
+                        zoom
+                        tile-substitutions
+                        x
+                        y
+                        cell))))
+
 (defun render-layer! [tilemap tilesets prepared-tilesets terrain-sets layer offset zoom tile-substitutions ranges]
   (let [layer (prepared-layer prepared-tilesets layer)
         tiles (:tiles layer)
@@ -239,27 +323,18 @@
       (let [y (+ y-start dy)]
         (dotimes [dx (- (:end x-range) x-start)]
           (let [x (+ x-start dx)
-                tile-ref (layer-cell tiles x y)]
-            (when (not (nil? tile-ref))
-              (let [substitution (get (or tile-substitutions {}) tile-ref)
-                    tile (prepared-layer-cell-tile tilesets
-                                                   terrain-sets
-                                                   layer
-                                                   tile-ref
-                                                   tile-substitutions)
-                    rect (tm/tile-rect tilemap x y offset zoom)]
-                (when tile
-                  (draw-tile! tile
-                              rect
-                              (substitution-render-opts substitution
-                                                        {:rect rect
-                                                         :x x
-                                                         :y y
-                                                         :tile-ref tile-ref
-                                                         :tile tile
-                                                         :layer layer
-                                                         :offset offset
-                                                         :zoom zoom})))))))))))
+                cell (layer-cell tiles x y)]
+            (render-layer-cell! tilemap
+                                tilesets
+                                prepared-tilesets
+                                terrain-sets
+                                layer
+                                offset
+                                zoom
+                                tile-substitutions
+                                x
+                                y
+                                cell)))))))
 
 (defun render-grid-overlay! [tilemap offset zoom ranges]
   (let [x-range (:x ranges)

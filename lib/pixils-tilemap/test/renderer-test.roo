@@ -136,6 +136,41 @@
     (is (= {:flip-x? true}
            (renderer/substitution-render-opts substitution {})))))
 
+(deftest tile-stack-layer-checks_layer_kind
+  (is (= true
+         (renderer/tile-stack-layer? {:kind :tile-stack})))
+  (is (= false
+         (renderer/tile-stack-layer? {:kind :tile}))))
+
+(deftest tile-stack-refs-treats_nil_and_empty_vector_as_empty
+  (is (= []
+         (renderer/tile-stack-refs nil)))
+  (is (= []
+         (renderer/tile-stack-refs []))))
+
+(deftest tile-stack-refs_accepts_multiple_tile_refs
+  (is (= [:floor :item :actor]
+         (renderer/tile-stack-refs [:floor :item :actor]))))
+
+(deftest tile-stack-refs_wraps_single_tile_ref
+  (is (= [:floor]
+         (renderer/tile-stack-refs :floor))))
+
+(deftest stack-ref-layer-uses_per_ref_tileset
+  (is (= {:tileset :objects
+          :data-kind :tile-ref}
+         (renderer/stack-ref-layer {:tileset :base
+                                    :data-kind :tile-ref}
+                                   {:tileset :objects
+                                    :tile :barrel}))))
+
+(deftest stack-ref-tile-uses_per_ref_tile
+  (is (= :barrel
+         (renderer/stack-ref-tile {:tileset :objects
+                                   :tile :barrel})))
+  (is (= :floor
+         (renderer/stack-ref-tile :floor))))
+
 (deftest substitution-render-opts-accepts-executable-render-opts
   (let [substitution {:render-opts (fn [ctx]
                                      {:target (:rect ctx)
