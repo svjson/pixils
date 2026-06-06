@@ -94,6 +94,10 @@
               out
               (assoc out (:id tileset) (prepared-tileset tileset))))))
 
+(defun render-prepared-tilesets [opts]
+  (or (:prepared-tilesets opts)
+      (prepared-tilesets (or (:tilesets opts) []))))
+
 (defun clamp-index [items index]
   (let [count (count items)]
     (if (= count 0)
@@ -170,6 +174,9 @@
 (defun tile-stack-layer? [layer]
   (= :tile-stack (:kind layer)))
 
+(defun prepared-tile-stack-layer? [layer]
+  (= :prepared-tile-stack (:kind layer)))
+
 (defun tile-stack-refs [cell]
   (cond
     (tm/absent-tile-ref? cell)
@@ -183,6 +190,11 @@
 
     :default
     [cell]))
+
+(defun prepared-tile-stack-tiles [cell]
+  (if (tm/absent-tile-ref? cell)
+    []
+    cell))
 
 (defun stack-ref-layer [prepared-tilesets layer tile-ref]
   (if (= "map" (type-of tile-ref))
@@ -285,8 +297,18 @@
                                              :offset offset
                                              :zoom zoom})))))
 
+(defun render-prepared-tile-stack-cell! [tilemap offset zoom x y cell]
+  (when (not (tm/absent-tile-ref? cell))
+    (let [rect (tm/tile-rect tilemap x y offset zoom)]
+      (for [tile (prepared-tile-stack-tiles cell)]
+        (draw-tile! tile rect nil)))))
+
 (defun render-layer-cell! [tilemap tilesets prepared-tilesets terrain-sets layer offset zoom tile-substitutions x y cell]
-  (if (tile-stack-layer? layer)
+  (cond
+    (prepared-tile-stack-layer? layer)
+    (render-prepared-tile-stack-cell! tilemap offset zoom x y cell)
+
+    (tile-stack-layer? layer)
     (for [tile-ref (tile-stack-refs cell)]
       (render-tile-ref! tilemap
                         tilesets
@@ -299,6 +321,8 @@
                         x
                         y
                         tile-ref))
+
+    :default
     (when (not (tm/absent-tile-ref? cell))
       (render-tile-ref! tilemap
                         tilesets
@@ -385,7 +409,7 @@
 
 (defun render-layers! [tilemap opts]
   (let [tilesets (or (:tilesets opts) [])
-        tileset-lookup (prepared-tilesets tilesets)
+        tileset-lookup (render-prepared-tilesets opts)
         terrain-sets (or (:terrain-sets opts) [])
         layers (or (:layers opts) (:layers tilemap) [])
         hidden-layer-indices (or (:hidden-layer-indices opts) [])

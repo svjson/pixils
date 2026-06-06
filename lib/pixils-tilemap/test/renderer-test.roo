@@ -44,6 +44,24 @@
         resolved (renderer/prepared-tile-ref (get prepared :br) :dirt)]
     (is (= first-tile resolved))))
 
+(deftest render-prepared-tilesets-uses_supplied_lookup
+  (let [prepared {:br {:tiles []
+                       :tile-by-id {:dirt {:id :prepared-dirt}}}}]
+    (is (= prepared
+           (renderer/render-prepared-tilesets
+            {:tilesets [{:id :br
+                         :tiles [{:id :source-dirt}]}]
+             :prepared-tilesets prepared})))))
+
+(deftest render-prepared-tilesets-falls_back_to_tilesets
+  (let [tile {:id :dirt}
+        prepared (renderer/render-prepared-tilesets
+                  {:tilesets [{:id :br
+                               :tiles [tile]}]})]
+    (is (= tile
+           (renderer/prepared-tile-ref (get prepared :br)
+                                       :dirt)))))
+
 (deftest prepared-tile-ref-clamps-numeric-tile-refs
   (let [first-tile {:id :dirt}
         second-tile {:id :wall}
@@ -142,6 +160,12 @@
   (is (= false
          (renderer/tile-stack-layer? {:kind :tile}))))
 
+(deftest prepared-tile-stack-layer-checks_layer_kind
+  (is (= true
+         (renderer/prepared-tile-stack-layer? {:kind :prepared-tile-stack})))
+  (is (= false
+         (renderer/prepared-tile-stack-layer? {:kind :tile-stack}))))
+
 (deftest tile-stack-refs-treats_nil_and_empty_vector_as_empty
   (is (= []
          (renderer/tile-stack-refs nil)))
@@ -156,13 +180,29 @@
   (is (= [:floor]
          (renderer/tile-stack-refs :floor))))
 
+(deftest prepared-tile-stack-tiles-treats_nil_as_empty
+  (is (= []
+         (renderer/prepared-tile-stack-tiles nil))))
+
+(deftest prepared-tile-stack-tiles-uses_stack_as_is
+  (let [tile {:id :floor
+              :type :sprite}]
+    (is (= [tile]
+           (renderer/prepared-tile-stack-tiles [tile])))))
+
 (deftest stack-ref-layer-uses_per_ref_tileset
-  (is (= {:tileset :objects
-          :data-kind :tile-ref}
-         (renderer/stack-ref-layer {:tileset :base
-                                    :data-kind :tile-ref}
-                                   {:tileset :objects
-                                    :tile :barrel}))))
+  (let [barrel {:id :barrel}
+        prepared (renderer/prepared-tilesets [{:id :objects
+                                               :tiles [barrel]}])
+        layer (renderer/stack-ref-layer prepared
+                                        {:tileset :base
+                                         :data-kind :tile-ref}
+                                        {:tileset :objects
+                                         :tile :barrel})]
+    (is (= :objects (:tileset layer)))
+    (is (= barrel
+           (renderer/prepared-tile-ref (:prepared-tileset layer)
+                                       :barrel)))))
 
 (deftest stack-ref-tile-uses_per_ref_tile
   (is (= :barrel
