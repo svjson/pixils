@@ -1,5 +1,7 @@
 #include <pixils/asset/registry.h>
+#include <pixils/binding/color_namespace.h>
 #include <pixils/binding/pixils_namespace.h>
+#include <pixils/color.h>
 #include <pixils/context.h>
 #include <pixils/geom.h>
 
@@ -337,6 +339,19 @@ namespace
       draw_missing_tile(rc, rect);
       return;
     }
+
+    if (Pixils::Script::HostType::COLOR.is_type_of(*color))
+    {
+      const Pixils::Color& native_color = Roo::obj<Pixils::Color>(*color);
+      fill_rect(rc.renderer,
+                rect,
+                native_color.r,
+                native_color.g,
+                native_color.b,
+                native_color.a);
+      return;
+    }
+
     fill_rect(rc.renderer,
               rect,
               static_cast<Uint8>(int_prop(color, "r", 0)),

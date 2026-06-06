@@ -3,7 +3,7 @@
             [pixils.tilemap.render :as render]
             [pixils.tilemap.renderer :as renderer]))
 
-(deftest fit-scale-uses_smallest_axis_ratio
+(deftest fit-scale-uses-smallest-axis-ratio
   (is (= 2
          (renderer/fit-scale 16
                              8
@@ -12,16 +12,16 @@
                               :w 40
                               :h 16}))))
 
-(deftest valid-dim-requires_positive_dimensions
+(deftest valid-dim-requires-positive-dimensions
   (is (= true (renderer/valid-dim? {:w 1 :h 1})))
   (is (= false (renderer/valid-dim? {:w 0 :h 1})))
   (is (= false (renderer/valid-dim? {:w 1 :h 0}))))
 
-(deftest render-options-uses_single_tileset
+(deftest render-options-uses-single-tileset
   (is (= {:tilesets [{:id :br :tiles []}]}
          (renderer/render-options {:id :br :tiles []} nil))))
 
-(deftest render-options_preserves_renderer_directives
+(deftest render-options-preserves-renderer-directives
   (let [opts (renderer/render-options {:id :br :tiles []}
                                       {:offset {:x 1 :y 2}})]
     (is (= [{:id :br :tiles []}] (:tilesets opts)))
@@ -44,7 +44,7 @@
         resolved (renderer/prepared-tile-ref (get prepared :br) :dirt)]
     (is (= first-tile resolved))))
 
-(deftest render-prepared-tilesets-uses_supplied_lookup
+(deftest render-prepared-tilesets-uses-supplied-lookup
   (let [prepared {:br {:tiles []
                        :tile-by-id {:dirt {:id :prepared-dirt}}}}]
     (is (= prepared
@@ -53,7 +53,7 @@
                          :tiles [{:id :source-dirt}]}]
              :prepared-tilesets prepared})))))
 
-(deftest render-prepared-tilesets-falls_back_to_tilesets
+(deftest render-prepared-tilesets-falls-back-to-tilesets
   (let [tile {:id :dirt}
         prepared (renderer/render-prepared-tilesets
                   {:tilesets [{:id :br
@@ -70,13 +70,17 @@
     (is (= first-tile (renderer/prepared-tile-ref prepared -1)))
     (is (= second-tile (renderer/prepared-tile-ref prepared 9)))))
 
-(deftest image-render-opts-wraps_point_like_opts
+(deftest image-render-opts-wraps-point-like-opts
   (is (= {:pos {:x 4
                 :y 5}}
          (renderer/image-render-opts {:x 4
                                       :y 5}))))
 
-(deftest image-render-opts-preserves_image_option_maps
+(deftest image-render-opts-preserves-empty-option-maps
+  (is (= {}
+         (renderer/image-render-opts {}))))
+
+(deftest image-render-opts-preserves-image-option-maps
   (is (= {:pos {:x 4
                 :y 5}
           :scale 2
@@ -86,7 +90,7 @@
                                       :scale 2
                                       :opacity 0.5}))))
 
-(deftest sprite-tile-render-opts-applies_tile_source
+(deftest sprite-tile-render-opts-applies-tile-source
   (is (= {:pos {:x 4
                 :y 5}
           :scale 2
@@ -106,7 +110,31 @@
                                                      :w 1
                                                      :h 1}}))))
 
-(deftest tile-bang-noops_for_missing_tile_refs
+(deftest sprite-tile-render-opts-preserves-empty-option-maps
+  (is (= {:source {:x 16
+                   :y 0
+                   :w 8
+                   :h 8}}
+         (renderer/sprite-tile-render-opts {:source {:x 16
+                                                     :y 0
+                                                     :w 8
+                                                     :h 8}}
+                                           {}))))
+
+(deftest sprite-tile-render-opts-omits-source-when-tile-uses-whole-image
+  (is (= {:pos {:x 4
+                :y 5}
+          :scale 2}
+         (renderer/sprite-tile-render-opts {:image :items/red-potion}
+                                           {:pos {:x 4
+                                                  :y 5}
+                                            :scale 2
+                                            :source {:x 0
+                                                     :y 0
+                                                     :w 1
+                                                     :h 1}}))))
+
+(deftest tile-bang-noops-for-missing-tile-refs
   (is (nil? (renderer/tile! {:id :br
                              :tiles []}
                             :missing
@@ -118,7 +146,7 @@
                           {:pos {:x 0
                                  :y 0}}))))
 
-(deftest prepared-layer-cell-tile-applies_tile_substitutions
+(deftest prepared-layer-cell-tile-applies-tile_substitutions
   (let [player {:id :player-default}
         walking {:id :player-walk-1}
         tileset {:id :br

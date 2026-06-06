@@ -19,6 +19,12 @@
        (> (:w dim) 0)
        (> (:h dim) 0)))
 
+(defun sprite-tile-dim [tile]
+  (let [source (:source tile)]
+    (if (valid-dim? source)
+      source
+      (img/size (:image tile)))))
+
 (defun draw-missing-tile! [rect]
   (r/rect! rect {:fill true
                  :color tm/default-missing-tile-color}))
@@ -42,16 +48,15 @@
       (draw-missing-tile! rect))))
 
 (defun draw-sprite-tile! [tile rect render-opts]
-  (let [source (:source tile)]
-    (if (valid-dim? source)
-      (let [scale (fit-scale (:w source) (:h source) rect)
-            width (* (:w source) scale)
-            height (* (:h source) scale)]
+  (let [dim (sprite-tile-dim tile)]
+    (if (valid-dim? dim)
+      (let [scale (fit-scale (:w dim) (:h dim) rect)
+            width (* (:w dim) scale)
+            height (* (:h dim) scale)]
         (r/image! (:image tile)
                   (merge {:pos (centered-pos rect width height)
-                          :source source
                           :scale scale}
-                         (or render-opts {}))))
+                         (sprite-tile-render-opts tile render-opts))))
       (draw-missing-tile! rect))))
 
 (defun draw-tile! [tile rect render-opts]
@@ -112,22 +117,42 @@
         (when (> (count tiles) 0)
           (nth tiles (clamp-index tiles tile-ref)))))))
 
+(defun point-render-opts? [render-opts]
+  (and (= (type-of render-opts) "map")
+       (contains? render-opts :x)
+       (contains? render-opts :y)))
+
 (defun image-render-opts [render-opts]
-  (if (and (= (type-of render-opts) "map")
-           (contains? render-opts :pos))
+  (cond
+    (nil? render-opts)
+    {}
+
+    (and (= (type-of render-opts) "map")
+         (contains? render-opts :pos))
     render-opts
+
+    (point-render-opts? render-opts)
+    {:pos render-opts}
+
+    (= (type-of render-opts) "map")
+    render-opts
+
+    :default
     {:pos render-opts}))
 
 (defun sprite-tile-render-opts [tile render-opts]
-  (assoc (image-render-opts render-opts)
-         :source (:source tile)))
+  (let [opts (image-render-opts render-opts)
+        source (:source tile)]
+    (if (valid-dim? source)
+      (assoc opts :source source)
+      (dissoc opts :source))))
 
 (defun tile! [tileset tile-ref render-opts]
   (let [tile (prepared-tile-ref (prepared-tileset tileset) tile-ref)]
     (cond
       (and tile
            (= (:type tile) :sprite)
-           (valid-dim? (:source tile)))
+           (valid-dim? (sprite-tile-dim tile)))
       (r/image! (:image tile)
                 (sprite-tile-render-opts tile render-opts))
 
