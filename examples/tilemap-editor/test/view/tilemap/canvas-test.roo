@@ -2,6 +2,25 @@
   (:require proof.core
             [tilemap-editor.view.tilemap.canvas :as canvas]))
 
+(deftest map-hover-cell-at-event-uses_scroll_offset
+  (let [state {:map-width 4
+               :map-height 4
+               :tile-size 16
+               :zoom 1
+               :offset {:x 16 :y 32}}
+        event {:position {:x 1 :y 1}}]
+    (is (= {:x 1 :y 2}
+           (canvas/map-hover-cell-at-event state event)))))
+
+(deftest map-hover-cell-at-event-clears_out_of_bounds_positions
+  (let [state {:map-width 2
+               :map-height 2
+               :tile-size 16
+               :zoom 1
+               :offset {:x 0 :y 0}}
+        event {:position {:x 48 :y 0}}]
+    (is (nil? (canvas/map-hover-cell-at-event state event)))))
+
 (deftest hidden-render-layer-indices-hide_materialized_source_layers
   (let [input {:hidden-layer-indices [0]
                :layers [{:id :terrain}

@@ -487,6 +487,14 @@
       (draw-render-map-direct! state render-map offset ctx))
     (draw-grid-overlay! state render-map offset ctx)))
 
+(defun map-hover-cell-at-event [state event]
+  (let [pos (tm/map-tile-position state event)]
+    (when (tm/in-map-bounds-for? state (:x pos) (:y pos))
+      pos)))
+
+(defun update-map-hover-cell [state event]
+  (assoc state :map-hover-cell (map-hover-cell-at-event state event)))
+
 (defcomponent map-canvas
   {:focusable true
    :class :ui/canvas
@@ -503,16 +511,27 @@
                    :layers []
                    :map-tool :paint
                    :map-selection nil
-                   :map-line nil}
+                   :map-line nil
+                   :map-hover-cell nil}
                   state))
    :update (fn [state ctx]
              (update-map-canvas-state state ctx))
    :on-mouse-down (fn [state event ctx]
-                    (tm/map-canvas-mouse-down state event ctx))
+                    (update-map-hover-cell
+                     (tm/map-canvas-mouse-down state event ctx)
+                     event))
+   :on-mouse-motion (fn [state event ctx]
+                      (update-map-hover-cell state event))
    :on-drag (fn [state event ctx]
-              (tm/map-canvas-drag state event))
+              (update-map-hover-cell
+               (tm/map-canvas-drag state event)
+               event))
    :on-mouse-up (fn [state event ctx]
-                  (tm/map-canvas-mouse-up state event))
+                  (update-map-hover-cell
+                   (tm/map-canvas-mouse-up state event)
+                   event))
+   :on-mouse-leave (fn [state event ctx]
+                     (assoc state :map-hover-cell nil))
    :on-key-down (fn [state event ctx]
                   (let [step (tm/scaled-tile-size state (:zoom state))]
                     (case (:key event)
@@ -573,6 +592,7 @@
                        :map-tool (ui/bind-state :map-tool)
                        :map-selection (ui/bind-state :map-selection)
                        :map-line (ui/bind-state :map-line)
+                       :map-hover-cell (ui/bind-state :map-hover-cell)
                        :selected-layer-index (ui/bind-state :selected-layer-index)
                        :selected-layer-label (ui/bind-state :selected-layer-label)
                        :layers (ui/bind-state :layers)
@@ -645,6 +665,7 @@
                        :map-tool (ui/bind-state :map-tool)
                        :map-selection (ui/bind-state :map-selection)
                        :map-line (ui/bind-state :map-line)
+                       :map-hover-cell (ui/bind-state :map-hover-cell)
                        :selected-layer-index (ui/bind-state :selected-layer-index)
                        :selected-layer-label (ui/bind-state :selected-layer-label)
                        :layers (ui/bind-state :layers)

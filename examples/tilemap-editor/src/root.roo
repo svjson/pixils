@@ -53,6 +53,27 @@
     (pixils/set-theme! (:theme payload))
     (assoc state :application-theme (:value payload))))
 
+(defun map-coordinate-status [cell]
+  (if cell
+    (str "Cell " (:x cell) "," (:y cell))
+    "Cell -"))
+
+(defcomponent status-bar
+  {:id "status-bar"
+   :class :ui/content
+   :style {:width :fill
+           :height 24
+           :padding [4 8]
+           :layout {:direction :row
+                    :align-items :center}}
+   :children [{:mode 'ui/text
+               :class :ui/muted
+               :state {:value (ui/bind-state :map-coordinate-status)}}]
+   :update (fn [state ctx]
+             (assoc state
+                    :map-coordinate-status
+                    (map-coordinate-status (:map-hover-cell state))))})
+
 (defmode main-mode
  {:class :ui/app
   :action-map app-menu/tilemap-editor-menu-keymap
@@ -99,6 +120,7 @@
            :map-tool :paint
            :map-selection nil
            :map-line nil
+           :map-hover-cell nil
            :terrain-rule-application :preview
            :application-theme :pixils/windows-3
            :show-terrain-rules? true
@@ -247,6 +269,7 @@
                        :map-tool (ui/bind-state :map-tool)
                        :map-selection (ui/bind-state :map-selection)
                        :map-line (ui/bind-state :map-line)
+                       :map-hover-cell (ui/bind-state :map-hover-cell)
                        :selected-layer-index (ui/bind-state :selected-layer-index)
                        :selected-layer-label (ui/bind-state :selected-layer-label)
                        :layers (ui/bind-state :layers)
@@ -302,6 +325,7 @@
                                        :map-tool (ui/bind-state :map-tool)
                                        :map-selection (ui/bind-state :map-selection)
                                        :map-line (ui/bind-state :map-line)
+                                       :map-hover-cell (ui/bind-state :map-hover-cell)
                                        :selected-layer-index (ui/bind-state :selected-layer-index)
                                        :selected-layer-label (ui/bind-state :selected-layer-label)
                                        :layers (ui/bind-state :layers)
@@ -413,7 +437,9 @@
                                         :selected-property-definition-index)
                                        :tilesets (ui/bind-state :tilesets)
                                        :terrain-sets
-                                       (ui/bind-state :terrain-sets)}}}]})]
+                                       (ui/bind-state :terrain-sets)}}}]})
+             {:mode 'status-bar
+              :state {:map-hover-cell (ui/bind-state :map-hover-cell)}}]
   :on {:palette/select (fn [state event ctx]
                          (assoc state :selected-tile (:payload event)))
        :palette/brush-select (fn [state event ctx]

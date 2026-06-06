@@ -21,6 +21,20 @@
       (is (= :terrains (:tab-id (runtime/view-state (nth tabs 4)))))
       (is (= :property-sets (:tab-id (runtime/view-state (nth tabs 5))))))))
 
+(deftest status-bar-renders_at_root
+  (let [app (runtime/make-app {:package-root "."
+                               :buffer-width 800
+                               :buffer-height 600})]
+    (runtime/push-mode! app 'main-mode)
+    (runtime/update! app)
+    (runtime/render! app)
+    (is (not (nil? (runtime/find-view app "status-bar"))))))
+
+(deftest map-coordinate-status-formats_hover_cell
+  (is (= "Cell -" (tilemap-editor.root/map-coordinate-status nil)))
+  (is (= "Cell 3,4"
+         (tilemap-editor.root/map-coordinate-status {:x 3 :y 4}))))
+
 (deftest tileset-shortcut-request-switches_tab_before_dialog
   (let [state (tilemap-editor.root/request-tileset-shortcut-dialog
                {:workspace-tab :map
