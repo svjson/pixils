@@ -1072,31 +1072,21 @@
    {:x (:x pos) :y (inc (:y pos))}
    {:x (dec (:x pos)) :y (:y pos)}])
 
-(defun flood-fill-positions-step [state layer target pending seen positions]
-  (if (empty? pending)
-    positions
-    (let [pos (head pending)
-          pending (filter pending
-                          (fn [candidate]
-                            (not (same-position? candidate pos))))]
-      (if (or (get-in seen [(:y pos) (:x pos)])
-              (not (in-map-bounds-for? state (:x pos) (:y pos)))
-              (not= (derivation/cell-at layer (:x pos) (:y pos)) target))
-        (flood-fill-positions-step state layer target pending seen positions)
-        (flood-fill-positions-step state
-                                   layer
-                                   target
-                                   (concat pending (fill-neighbor-positions pos))
-                                   (assoc-in seen [(:y pos) (:x pos)] true)
-                                   (concat positions [pos]))))))
-
 (defun flood-fill-positions [state layer start]
-  (flood-fill-positions-step state
-                             layer
-                             (derivation/cell-at layer (:x start) (:y start))
-                             [start]
-                             {}
-                             []))
+  (let [target (derivation/cell-at layer (:x start) (:y start))
+        pending [start]
+        seen {}
+        positions []]
+    (while (not (empty? pending))
+      (let [pos (head pending)]
+        (set! [pending] (tail pending))
+        (when (and (in-map-bounds-for? state (:x pos) (:y pos))
+                   (not (get-in seen [(:y pos) (:x pos)]))
+                   (= (derivation/cell-at layer (:x pos) (:y pos)) target))
+          (set! [seen] (assoc-in seen [(:y pos) (:x pos)] true))
+          (set! [positions] (concat positions [pos]))
+          (set! [pending] (concat (fill-neighbor-positions pos) pending)))))
+    positions))
 
 (defun fill-map-at [state layer-index tile-x tile-y event]
   (let [tile-ref (map-edit-value-for-button state (:button event))

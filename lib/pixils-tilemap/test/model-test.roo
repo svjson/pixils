@@ -112,6 +112,13 @@
     (is (= :dirt (:id (tm/tile-in tilesets :game :dirt))))
     (is (= :dirt (tm/tile-id tilesets :game 1)))))
 
+(deftest missing-keyword-tile-refs-do-not-fall-back-to-first-tile
+  (let [tilesets [{:id :game
+                   :tiles [{:id :wall}
+                           {:id :dirt}]}]]
+    (is (nil? (tm/tile-in tilesets :game :missing)))
+    (is (nil? (tm/tile-id tilesets :game :missing)))))
+
 (deftest nil_tile_ref_means_no_tile
   (let [tilesets [{:id :game
                    :tiles [{:id :wall}]}]]
@@ -131,6 +138,19 @@
                                     terrain-sets
                                     :materials
                                     :earth))))))
+
+(deftest terrain_tile_returns_nil_for_missing_preview_tile
+  (let [tilesets [{:id :game
+                   :tiles [{:id :dirt
+                            :type :color}]}]
+        terrain-sets [{:id :materials
+                       :tileset :game
+                       :terrains [{:id :earth
+                                   :tile :missing}]}]]
+    (is (nil? (tm/terrain-tile-in tilesets
+                                  terrain-sets
+                                  :materials
+                                  :earth)))))
 
 (deftest layer_cell_tile_uses_layer_data_kind
   (let [tilesets [{:id :game

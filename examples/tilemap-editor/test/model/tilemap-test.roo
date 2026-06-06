@@ -360,6 +360,24 @@
     (is (= :water (get-in painted [:layers 0 :tiles 1 1])))
     (is (= :grass (get-in painted [:layers 0 :tiles 2 1])))))
 
+(deftest tilemap-fill-tool_paints_full_empty_default_map
+  (let [state {:selected-layer-index 0
+               :map-palette-tab :tiles
+               :selected-tile :cave-wall
+               :map-tool :fill
+               :zoom 1
+               :offset {:x 0 :y 0}
+               :layers [{:id :scene/cave-base
+                         :data-kind :terrain
+                         :terrain-set :cave
+                         :tiles (data/make-empty-map)}]}
+        painted (tilemap/map-canvas-mouse-down state (paint-event :left 0 0))]
+    (is (= :cave-wall (get-in painted [:layers 0 :tiles 0 0])))
+    (is (= :cave-wall
+           (get-in painted
+                   [:layers 0 :tiles (dec data/map-height) (dec data/map-width)])))
+    (is (= true (:render-map-dirty? painted)))))
+
 (deftest tilemap-clear-selection-clears_selected_region_on_selected_layer
   (let [state {:selected-layer-index 0
                :map-selection {:rect {:x 1 :y 1 :w 2 :h 2}

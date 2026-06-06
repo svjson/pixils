@@ -164,23 +164,28 @@
 
 (defun tile-index [tilesets tileset tile-ref]
   (if (keyword? tile-ref)
-    (let [match (find-index (tileset-tiles tilesets tileset)
-                            (fn [tile]
-                              (= (:id tile) tile-ref)))]
-      (or match 0))
+    (find-index (tileset-tiles tilesets tileset)
+                (fn [tile]
+                  (= (:id tile) tile-ref)))
     (clamp-tile-index tilesets tileset tile-ref)))
 
 (defun tile-id [tilesets tileset tile-ref]
   (when (not (absent-tile-ref? tile-ref))
     (let [tiles (tileset-tiles tilesets tileset)]
-      (when (> (count tiles) 0)
-        (:id (nth tiles (tile-index tilesets tileset tile-ref)))))))
+      (if (keyword? tile-ref)
+        (when (not (nil? (tile-index tilesets tileset tile-ref)))
+          tile-ref)
+        (when (> (count tiles) 0)
+          (:id (nth tiles (tile-index tilesets tileset tile-ref))))))))
 
 (defun tile-in [tilesets tileset tile-ref]
   (when (not (absent-tile-ref? tile-ref))
     (let [tiles (tileset-tiles tilesets tileset)]
-      (when (> (count tiles) 0)
-        (nth tiles (tile-index tilesets tileset tile-ref))))))
+      (if (keyword? tile-ref)
+        (when-let [index (tile-index tilesets tileset tile-ref)]
+          (nth tiles index))
+        (when (> (count tiles) 0)
+          (nth tiles (tile-index tilesets tileset tile-ref)))))))
 
 (defun terrain-unit [definition]
   (let [unit (or (:terrain-unit definition)

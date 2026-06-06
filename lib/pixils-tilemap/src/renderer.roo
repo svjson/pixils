@@ -217,9 +217,16 @@
     [cell]))
 
 (defun prepared-tile-stack-tiles [cell]
-  (if (tm/absent-tile-ref? cell)
+  (cond
+    (tm/absent-tile-ref? cell)
     []
-    cell))
+
+    (or (= "vector" (type-of cell))
+        (= "list" (type-of cell)))
+    cell
+
+    :default
+    []))
 
 (defun stack-ref-layer [prepared-tilesets layer tile-ref]
   (if (= "map" (type-of tile-ref))

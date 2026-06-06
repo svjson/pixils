@@ -212,6 +212,10 @@
   (is (= []
          (renderer/prepared-tile-stack-tiles nil))))
 
+(deftest prepared-tile-stack-tiles-treats_non_sequences_as_empty
+  (is (= []
+         (renderer/prepared-tile-stack-tiles :missing-tile))))
+
 (deftest prepared-tile-stack-tiles-uses_stack_as_is
   (let [tile {:id :floor
               :type :sprite}]

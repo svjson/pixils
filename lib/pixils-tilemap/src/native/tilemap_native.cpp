@@ -51,6 +51,13 @@ namespace
            value_name(value) == expected;
   }
 
+  bool seq_value(const Roo::sptr_val& value)
+  {
+    return value &&
+           (value->type == Roo::Value::Type::VECTOR ||
+            value->type == Roo::Value::Type::LIST);
+  }
+
   int int_prop(const Roo::sptr_val& map, const std::string& key, int fallback)
   {
     auto value = prop(map, key);
@@ -203,7 +210,7 @@ namespace
 
   bool int_vector_contains(const Roo::sptr_val& values, int target)
   {
-    if (nil_value(values)) return false;
+    if (!seq_value(values)) return false;
     for (const auto& value : Roo::get_children(*values))
     {
       if (value && value->type == Roo::Value::Type::NUMBER &&
@@ -241,6 +248,7 @@ namespace
 
     auto layers = layers_value(tilemap, opts);
     if (nil_value(layers)) return true;
+    if (!seq_value(layers)) return false;
 
     auto hidden = prop(opts, "hidden-layer-indices");
     int index = 0;
@@ -254,11 +262,11 @@ namespace
 
   Roo::sptr_val layer_cell(const Roo::sptr_val& tiles, int x, int y)
   {
-    if (nil_value(tiles)) return Roo::Constant::NIL;
+    if (!seq_value(tiles)) return Roo::Constant::NIL;
     auto rows = Roo::get_children(*tiles);
     if (y < 0 || y >= static_cast<int>(rows.size())) return Roo::Constant::NIL;
     auto row = rows[y];
-    if (nil_value(row)) return Roo::Constant::NIL;
+    if (!seq_value(row)) return Roo::Constant::NIL;
     auto cells = Roo::get_children(*row);
     if (x < 0 || x >= static_cast<int>(cells.size())) return Roo::Constant::NIL;
     return cells[x];
@@ -266,7 +274,7 @@ namespace
 
   std::vector<Roo::sptr_val> tile_stack(const Roo::sptr_val& cell)
   {
-    if (nil_value(cell)) return {};
+    if (!seq_value(cell)) return {};
     return Roo::get_children(*cell);
   }
 
@@ -305,6 +313,7 @@ namespace
   {
     auto source = prop(tile, "source");
     if (nil_value(source)) return std::nullopt;
+    if (source->type != Roo::Value::Type::MAP) return std::nullopt;
     Pixils::Rect rect = rect_from_map(source);
     if (rect.w <= 0 || rect.h <= 0) return std::nullopt;
     return rect.to_SDL_rect();
@@ -317,6 +326,7 @@ namespace
                  Uint8 b,
                  Uint8 a)
   {
+    if (!renderer) return;
     SDL_Rect sdl_rect = rect.to_SDL_rect();
     SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
     SDL_SetRenderDrawColor(renderer, r, g, b, a);
@@ -373,6 +383,7 @@ namespace
       return;
     }
 
+    if (!rc.asset_registry) return;
     SDL_Texture* texture = rc.asset_registry->get_image(bundle, asset);
     if (!texture) return;
 
@@ -463,6 +474,8 @@ namespace
     RenderInput input = render_input(tilemap, opts);
     auto layers = layers_value(tilemap, opts);
     auto hidden = prop(opts, "hidden-layer-indices");
+    if (nil_value(layers)) return true;
+    if (!seq_value(layers)) return false;
 
     std::optional<Pixils::Rect> previous_clip = rc.current_clip_rect;
     bool clipped = false;
