@@ -705,6 +705,51 @@
                                            deleted-ids
                                            deleted-indices))
 
+(defun remove-deleted-tile-ref-key [terrain key deleted-ids deleted-indices]
+  (if (contains? terrain key)
+    (assoc terrain
+           key
+           (remove-deleted-tile-ref (get terrain key)
+                                    deleted-ids
+                                    deleted-indices))
+    terrain))
+
+(defun remove-deleted-tile-refs-in-terrain [terrain terrain-set-tileset tileset-id deleted-ids deleted-indices]
+  (if (= (or (:tileset terrain) terrain-set-tileset) tileset-id)
+    (reduce [:tile :preview-tile :preview]
+            terrain
+            (fn [out key]
+              (remove-deleted-tile-ref-key out
+                                           key
+                                           deleted-ids
+                                           deleted-indices)))
+    terrain))
+
+(defun remove-deleted-tile-refs-in-terrain-set [terrain-set tileset-id deleted-ids deleted-indices]
+  (assoc terrain-set
+         :terrains
+         (map (or (:terrains terrain-set) [])
+              (fn [terrain]
+                (remove-deleted-tile-refs-in-terrain terrain
+                                                     (:tileset terrain-set)
+                                                     tileset-id
+                                                     deleted-ids
+                                                     deleted-indices)))))
+
+(defun remove-deleted-tile-refs-in-terrain-sets [terrain-sets tileset-id deleted-ids deleted-indices]
+  (map (or terrain-sets [])
+       (fn [terrain-set]
+         (remove-deleted-tile-refs-in-terrain-set terrain-set
+                                                  tileset-id
+                                                  deleted-ids
+                                                  deleted-indices))))
+
+(defun remove-deleted-tile-refs-in-rulesets [rulesets tileset-id deleted-ids deleted-indices]
+  (remove-deleted-tile-refs-in-brush-value (or rulesets [])
+                                           tileset-id
+                                           deleted-ids
+                                           deleted-indices))
+
 (defun rename-tile-ref [tile-ref old-id new-id]
   (if (= tile-ref old-id)
     new-id
@@ -755,6 +800,41 @@
 (defun rename-tile-refs-in-brushes [brushes tileset-id old-id new-id]
   (rename-tile-refs-in-brush-value (or brushes []) tileset-id old-id new-id))
 
+(defun rename-tile-ref-key [terrain key old-id new-id]
+  (if (contains? terrain key)
+    (assoc terrain key (rename-tile-ref (get terrain key) old-id new-id))
+    terrain))
+
+(defun rename-tile-refs-in-terrain [terrain terrain-set-tileset tileset-id old-id new-id]
+  (if (= (or (:tileset terrain) terrain-set-tileset) tileset-id)
+    (reduce [:tile :preview-tile :preview]
+            terrain
+            (fn [out key]
+              (rename-tile-ref-key out key old-id new-id)))
+    terrain))
+
+(defun rename-tile-refs-in-terrain-set [terrain-set tileset-id old-id new-id]
+  (assoc terrain-set
+         :terrains
+         (map (or (:terrains terrain-set) [])
+              (fn [terrain]
+                (rename-tile-refs-in-terrain terrain
+                                             (:tileset terrain-set)
+                                             tileset-id
+                                             old-id
+                                             new-id)))))
+
+(defun rename-tile-refs-in-terrain-sets [terrain-sets tileset-id old-id new-id]
+  (map (or terrain-sets [])
+       (fn [terrain-set]
+         (rename-tile-refs-in-terrain-set terrain-set
+                                          tileset-id
+                                          old-id
+                                          new-id))))
+
+(defun rename-tile-refs-in-rulesets [rulesets tileset-id old-id new-id]
+  (rename-tile-refs-in-brush-value (or rulesets []) tileset-id old-id new-id))
+
 (defun rename-tile-refs-in-layers-for-pairs [layers tileset-id pairs]
   (reduce (or pairs [])
           layers
@@ -772,6 +852,24 @@
                                          tileset-id
                                          (:old-id pair)
                                          (:new-id pair)))))
+
+(defun rename-tile-refs-in-terrain-sets-for-pairs [terrain-sets tileset-id pairs]
+  (reduce (or pairs [])
+          terrain-sets
+          (fn [out pair]
+            (rename-tile-refs-in-terrain-sets out
+                                              tileset-id
+                                              (:old-id pair)
+                                              (:new-id pair)))))
+
+(defun rename-tile-refs-in-rulesets-for-pairs [rulesets tileset-id pairs]
+  (reduce (or pairs [])
+          rulesets
+          (fn [out pair]
+            (rename-tile-refs-in-rulesets out
+                                          tileset-id
+                                          (:old-id pair)
+                                          (:new-id pair)))))
 
 (defun remove-tiles-at-indices [tiles indices]
   (map (filter (for-indexed [index tile (or tiles [])]
@@ -824,6 +922,16 @@
                               (:id tileset)
                               deleted-ids
                               selection)
+                    :terrain-sets (remove-deleted-tile-refs-in-terrain-sets
+                                   (:terrain-sets state)
+                                   (:id tileset)
+                                   deleted-ids
+                                   selection)
+                    :rulesets (remove-deleted-tile-refs-in-rulesets
+                               (:rulesets state)
+                               (:id tileset)
+                               deleted-ids
+                               selection)
                     :selected-tileset-tile-index next-index
                     :selected-tileset-tile-indices next-selection)
              (fn [layers]
@@ -894,6 +1002,16 @@
                               (:id source-tileset)
                               deleted-ids
                               deleted-indices)
+                    :terrain-sets (remove-deleted-tile-refs-in-terrain-sets
+                                   (:terrain-sets state)
+                                   (:id source-tileset)
+                                   deleted-ids
+                                   deleted-indices)
+                    :rulesets (remove-deleted-tile-refs-in-rulesets
+                               (:rulesets state)
+                               (:id source-tileset)
+                               deleted-ids
+                               deleted-indices)
                     :selected-tileset-definition-index target-index
                     :selected-tileset-tile-index target-tile-index
                     :selected-tileset-tile-indices [target-tile-index])
@@ -967,6 +1085,15 @@
                                                       (:id tileset)
                                                       old-id
                                                       new-id)
+                :terrain-sets (rename-tile-refs-in-terrain-sets
+                               (:terrain-sets next-state)
+                               (:id tileset)
+                               old-id
+                               new-id)
+                :rulesets (rename-tile-refs-in-rulesets (:rulesets next-state)
+                                                        (:id tileset)
+                                                        old-id
+                                                        new-id)
                 :selected-tileset-tile-index index
                 :selected-tileset-tile-indices [index])
          (fn [layers]
@@ -1083,6 +1210,14 @@
                               (:brushes next-state)
                               (:id tileset)
                               pairs)
+                    :terrain-sets (rename-tile-refs-in-terrain-sets-for-pairs
+                                   (:terrain-sets next-state)
+                                   (:id tileset)
+                                   pairs)
+                    :rulesets (rename-tile-refs-in-rulesets-for-pairs
+                               (:rulesets next-state)
+                               (:id tileset)
+                               pairs)
                     :selected-tileset-tile-index (head selection)
                     :selected-tileset-tile-indices selection)
              (fn [layers]

@@ -288,7 +288,23 @@
                                                         [0 1 2 3]]}
                                                {:id :actor-stamp
                                                 :tileset :actors
-                                                :tiles [[:hero :water]]}]}}]}
+                                                :tiles [[:hero :water]]}]}}]
+                :terrain-sets [{:id :overworld
+                                :tileset :terrain
+                                :terrains [{:id :grass
+                                            :tile :grass}
+                                           {:id :water
+                                            :tile :water}
+                                           {:id :lava
+                                            :tile :lava}]}]
+                :rulesets [{:id :shore
+                            :kind :terrain-stamp
+                            :terrain-set :overworld
+                            :rules [{:id :rule
+                                     :output {:layers [{:tileset :terrain
+                                                        :tiles [[:water
+                                                                 :lava
+                                                                 :stone]]}]}}]}]}
                {:choice :dialog/ok
                 :payload {:operation :delete-tiles
                           :tile-indices [1 2]}})]
@@ -305,6 +321,10 @@
            (get-in state [:brushes 0 :pattern :layers 0 :tiles])))
     (is (= [[:hero :water]]
            (get-in state [:brushes 0 :pattern :layers 1 :tiles])))
+    (is (nil? (get-in state [:terrain-sets 0 :terrains 1 :tile])))
+    (is (nil? (get-in state [:terrain-sets 0 :terrains 2 :tile])))
+    (is (= [[nil nil :stone]]
+           (get-in state [:rulesets 0 :rules 0 :output :layers 0 :tiles])))
     (is (= 1 (:selected-tileset-tile-index state)))
     (is (= [1] (:selected-tileset-tile-indices state)))))
 
@@ -349,7 +369,18 @@
                            :pattern {:layers [{:id :stamp
                                                 :tileset :terrain
                                                 :tiles [[:water 1
-                                                         :stone]]}]}}]}
+                                                         :stone]]}]}}]
+                :terrain-sets [{:id :overworld
+                                :tileset :terrain
+                                :terrains [{:id :water
+                                            :tile :water}]}]
+                :rulesets [{:id :shore
+                            :kind :terrain-stamp
+                            :terrain-set :overworld
+                            :rules [{:id :rule
+                                     :output {:layers [{:tileset :terrain
+                                                        :tiles [[:water
+                                                                 :stone]]}]}}]}]}
                {:source-tileset-index 0
                 :target-tileset-index 1
                 :tile-index 1})]
@@ -366,6 +397,9 @@
            (get-in state [:maps 0 :layers 0 :tiles])))
     (is (= [[nil nil :stone]]
            (get-in state [:brushes 0 :pattern :layers 0 :tiles])))
+    (is (nil? (get-in state [:terrain-sets 0 :terrains 0 :tile])))
+    (is (= [[nil :stone]]
+           (get-in state [:rulesets 0 :rules 0 :output :layers 0 :tiles])))
     (is (= 1 (:selected-tileset-definition-index state)))
     (is (= 1 (:selected-tileset-tile-index state)))
     (is (= [1] (:selected-tileset-tile-indices state)))))
@@ -402,7 +436,28 @@
                                                 :tiles [[:water 1]]}
                                                {:id :actor-stamp
                                                 :tileset :actors
-                                                :tiles [[:water]]}]}}]}
+                                                :tiles [[:water]]}]}}]
+                :terrain-sets [{:id :overworld
+                                :tileset :terrain
+                                :terrains [{:id :water
+                                            :tile :water}
+                                           {:id :water-preview
+                                            :preview-tile :water}
+                                           {:id :water-legacy
+                                            :preview :water}]
+                                :property-sets []}
+                               {:id :actors
+                                :tileset :actors
+                                :terrains [{:id :water
+                                            :tile :water}]}]
+                :rulesets [{:id :shore
+                            :kind :terrain-stamp
+                            :terrain-set :overworld
+                            :rules [{:id :rule
+                                     :output {:layers [{:tileset :terrain
+                                                        :tiles [[:water]]}
+                                                       {:tileset :actors
+                                                        :tiles [[:water]]}]}}]}]}
                {:type :confirm
                 :tile-index 1
                 :tile-id "deep water"
@@ -423,6 +478,14 @@
            (get-in state [:brushes 0 :pattern :layers 0 :tiles])))
     (is (= [[:water]]
            (get-in state [:brushes 0 :pattern :layers 1 :tiles])))
+    (is (= :deep-water (get-in state [:terrain-sets 0 :terrains 0 :tile])))
+    (is (= :deep-water (get-in state [:terrain-sets 0 :terrains 1 :preview-tile])))
+    (is (= :deep-water (get-in state [:terrain-sets 0 :terrains 2 :preview])))
+    (is (= :water (get-in state [:terrain-sets 1 :terrains 0 :tile])))
+    (is (= [[:deep-water]]
+           (get-in state [:rulesets 0 :rules 0 :output :layers 0 :tiles])))
+    (is (= [[:water]]
+           (get-in state [:rulesets 0 :rules 0 :output :layers 1 :tiles])))
     (is (= 1 (:selected-tileset-tile-index state)))
     (is (= [1] (:selected-tileset-tile-indices state)))))
 
@@ -521,7 +584,20 @@
                            :pattern {:layers [{:id :stamp
                                                 :tileset :terrain
                                                 :tiles [[:castle-9
-                                                         :castle-11]]}]}}]}
+                                                         :castle-11]]}]}}]
+                :terrain-sets [{:id :overworld
+                                :tileset :terrain
+                                :terrains [{:id :castle
+                                            :tile :castle-9}
+                                           {:id :castle-preview
+                                            :preview-tile :castle-11}]}]
+                :rulesets [{:id :castle-rules
+                            :kind :terrain-stamp
+                            :terrain-set :overworld
+                            :rules [{:id :rule
+                                     :output {:layers [{:tileset :terrain
+                                                        :tiles [[:castle-10
+                                                                 :castle-11]]}]}}]}]}
                {:type :confirm
                 :tile-indices [1 2 3]
                 :tile-id-root "stone floor"
@@ -549,6 +625,11 @@
            (get-in state [:maps 1 :layers 0 :tiles])))
     (is (= [[:stone-floor-1 :stone-floor-4]]
            (get-in state [:brushes 0 :pattern :layers 0 :tiles])))
+    (is (= :stone-floor-1 (get-in state [:terrain-sets 0 :terrains 0 :tile])))
+    (is (= :stone-floor-4
+           (get-in state [:terrain-sets 0 :terrains 1 :preview-tile])))
+    (is (= [[:stone-floor-3 :stone-floor-4]]
+           (get-in state [:rulesets 0 :rules 0 :output :layers 0 :tiles])))
     (is (= 1 (:selected-tileset-tile-index state)))
     (is (= [1 2 3] (:selected-tileset-tile-indices state)))))
 
