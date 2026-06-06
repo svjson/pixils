@@ -240,13 +240,36 @@
       [(output-layer-anchor-entry output output-layer)]
       (output-layer-tile-entries output-layer))))
 
-(defun terrain-stamp-output-entry-occupies-source? [ruleset entry]
+(defun terrain-stamp-output-tileset [ruleset output-layer]
+  (or (:tileset output-layer)
+      (:output-tileset ruleset)))
+
+(defun known-tilesets? [tilemap]
+  (not (nil? (:tilesets tilemap))))
+
+(defun tile-ref-resolves? [tilemap tileset tile-ref]
+  (not (nil? (tm/tile-in (:tilesets tilemap) tileset tile-ref))))
+
+(defun terrain-stamp-output-entry-resolves? [tilemap ruleset output-layer entry]
+  (if (and (:tile entry)
+           (known-tilesets? tilemap))
+    (tile-ref-resolves? tilemap
+                        (terrain-stamp-output-tileset ruleset output-layer)
+                        (:tile entry))
+    true))
+
+(defun terrain-stamp-output-entry-occupies-source?
+  [tilemap ruleset output-layer entry]
   (let [unit (or (:terrain-unit ruleset) tm/default-terrain-unit)]
-    (if (or (:tile entry)
-            (not (and (= (:w unit) 1)
-                      (= (:h unit) 1))))
-      true
-      false)))
+    (and (terrain-stamp-output-entry-resolves? tilemap
+                                               ruleset
+                                               output-layer
+                                               entry)
+         (if (or (:tile entry)
+                 (not (and (= (:w unit) 1)
+                           (= (:h unit) 1))))
+           true
+           false))))
 
 (defun stamp-output-position [source-x source-y output entry]
   (let [anchor (output-anchor output)]
@@ -327,7 +350,9 @@
                               (:y pos)
                               (:tile entry)
                               (terrain-stamp-output-entry-occupies-source?
+                               (:tilemap state)
                                ruleset
+                               output-layer
                                entry))))
 
 (defun apply-terrain-stamp-output-layer
@@ -440,9 +465,10 @@
                       {:x (+ (:x rect) dx)
                        :y (+ (:y rect) dy)})))
            (ensure-generated-output-layers
-            {:tilemap {:width (:w rect)
-                       :height (:h rect)
-                       :tile-size (tm/tile-size tilemap)}
+            {:tilemap (assoc tilemap
+                             :width (:w rect)
+                             :height (:h rect)
+                             :tile-size (tm/tile-size tilemap))
              :rect rect
              :layers []}
             source-layer

@@ -2,7 +2,7 @@
   (:require proof.core
             [pixils.tilemap.materialize :as materialize]))
 
-(deftest materialize-render-map-keeps_tile_ref_layers_render_ready
+(deftest materialize-render-map-keeps-tile-ref-layers-render-ready
   (let [render-map (materialize/materialize-render-map
                     {:width 2
                      :height 1
@@ -17,7 +17,7 @@
              :data-kind :tile-ref}]
            (:layers render-map)))))
 
-(deftest materialize-render-map-converts_terrain_layers_to_preview_tiles
+(deftest materialize-render-map-converts-terrain-layers-to-preview-tiles
   (let [render-map (materialize/materialize-render-map
                     {:width 2
                      :height 1
@@ -38,7 +38,7 @@
     (is (= [[:grass-tile :water-tile]]
            (-> render-map :layers (nth 0) :tiles)))))
 
-(deftest materialize-render-map-preserves_empty_terrain_cells
+(deftest materialize-render-map-preserves-empty-terrain-cells
   (let [render-map (materialize/materialize-render-map
                     {:width 2
                      :height 1
@@ -53,7 +53,7 @@
     (is (= [[nil :grass-tile]]
            (-> render-map :layers (nth 0) :tiles)))))
 
-(deftest materialize-render-map-splits_terrain_layer_by_preview_tileset
+(deftest materialize-render-map-splits-terrain-layer-by-preview-tileset
   (let [render-map (materialize/materialize-render-map
                     {:width 2
                      :height 1
@@ -75,7 +75,7 @@
     (is (= [[nil :water-tile]]
            (-> render-map :layers (nth 1) :tiles)))))
 
-(deftest materialize-render-rect-crops_tile_ref_layers
+(deftest materialize-render-rect-crops-tile-ref-layers
   (let [render-map (materialize/materialize-render-rect
                     {:width 4
                      :height 3
@@ -94,7 +94,7 @@
             [:j :k]]
            (-> render-map :layers (nth 0) :tiles)))))
 
-(deftest materialize-render-rect-converts_only_cropped_terrain_cells
+(deftest materialize-render-rect-converts-only-cropped-terrain-cells
   (let [render-map (materialize/materialize-render-rect
                     {:width 4
                      :height 3
@@ -120,7 +120,7 @@
             [nil :water-tile]]
            (-> render-map :layers (nth 0) :tiles)))))
 
-(deftest materialize-render-rect-splits_by_preview_tileset_inside_rect
+(deftest materialize-render-rect-splits-by-preview-tileset-inside-rect
   (let [render-map (materialize/materialize-render-rect
                     {:width 4
                      :height 2
@@ -146,7 +146,7 @@
             [:water-tile nil]]
            (-> render-map :layers (nth 1) :tiles)))))
 
-(deftest materialize-render-rect-emits_empty_split_layers_to_clear_stale_tiles
+(deftest materialize-render-rect-emits-empty-split-layers-to-clear-stale-tiles
   (let [render-map (materialize/materialize-render-rect
                     {:width 2
                      :height 1
@@ -169,7 +169,7 @@
     (is (= [[nil nil]]
            (-> render-map :layers (nth 1) :tiles)))))
 
-(deftest materialize-render-map-applies_terrain_stamp_rules
+(deftest materialize-render-map-applies-terrain-stamp-rules
   (let [render-map (materialize/materialize-render-map
                     {:width 3
                      :height 2
@@ -207,7 +207,41 @@
     (is (nil? (get-in render-map [:layers 0 :tiles 1 1])))
     (is (= :shore-n (get-in render-map [:layers 1 :tiles 1 1])))))
 
-(deftest materialize-render-map-respects_tilemap_show_terrain_rules_flag
+(deftest materialize-render-map-keeps-source-for-unresolved-stamp-output-tile
+  (let [render-map (materialize/materialize-render-map
+                    {:width 3
+                     :height 3
+                     :tilesets [{:id :world
+                                 :tiles [{:id :cave-fill}]}]
+                     :terrain-sets [{:id :terrain
+                                     :tileset :world
+                                     :terrains [{:id :cave-wall
+                                                 :tile :cave-fill}]}]
+                     :rulesets [{:id :cave-rules
+                                 :kind :terrain-stamp
+                                 :terrain-set :terrain
+                                 :source-layer :base
+                                 :rules [{:id :solid-cave
+                                          :terrain :cave-wall
+                                          :match {:n :same
+                                                  :e :same
+                                                  :s :same
+                                                  :w :same}
+                                          :output {:anchor {:x 0 :y 0}
+                                                   :layers [{:tileset :world
+                                                             :tiles [[:missing-cave-tile]]}]}}]}]
+                     :layers [{:id :base
+                               :data-kind :terrain
+                               :terrain-set :terrain
+                               :tiles [[:cave-wall :cave-wall :cave-wall]
+                                       [:cave-wall :cave-wall :cave-wall]
+                                       [:cave-wall :cave-wall :cave-wall]]}]})]
+    (is (= [:base (keyword "base/cave-rules/world")]
+           (map (:layers render-map) :id)))
+    (is (= :cave-fill (get-in render-map [:layers 0 :tiles 1 1])))
+    (is (= :missing-cave-tile (get-in render-map [:layers 1 :tiles 1 1])))))
+
+(deftest materialize-render-map-respects-tilemap-show-terrain-rules-flag
   (let [render-map (materialize/materialize-render-map
                     {:width 3
                      :height 2
@@ -246,7 +280,7 @@
     (is (= :grass-fill (get-in render-map [:layers 0 :tiles 1 1])))
     (is (nil? (get-in render-map [:layers 1 :tiles 1 1])))))
 
-(deftest materialize-render-rect-applies_terrain_stamp_rules_inside_rect
+(deftest materialize-render-rect-applies-terrain-stamp-rules-inside-rect
   (let [render-map (materialize/materialize-render-rect
                     {:width 3
                      :height 2
@@ -286,7 +320,42 @@
     (is (nil? (get-in render-map [:layers 0 :tiles 1 1])))
     (is (= :shore-n (get-in render-map [:layers 1 :tiles 1 1])))))
 
-(deftest materialize-render-rect-respects_tilemap_show_terrain_rules_flag
+(deftest materialize-render-rect-keeps-source-for-unresolved-stamp-output-tile
+  (let [render-map (materialize/materialize-render-rect
+                    {:width 3
+                     :height 3
+                     :tilesets [{:id :world
+                                 :tiles [{:id :cave-fill}]}]
+                     :terrain-sets [{:id :terrain
+                                     :tileset :world
+                                     :terrains [{:id :cave-wall
+                                                 :tile :cave-fill}]}]
+                     :rulesets [{:id :cave-rules
+                                 :kind :terrain-stamp
+                                 :terrain-set :terrain
+                                 :source-layer :base
+                                 :rules [{:id :solid-cave
+                                          :terrain :cave-wall
+                                          :match {:n :same
+                                                  :e :same
+                                                  :s :same
+                                                  :w :same}
+                                          :output {:anchor {:x 0 :y 0}
+                                                   :layers [{:tileset :world
+                                                             :tiles [[:missing-cave-tile]]}]}}]}]
+                     :layers [{:id :base
+                               :data-kind :terrain
+                               :terrain-set :terrain
+                               :tiles [[:cave-wall :cave-wall :cave-wall]
+                                       [:cave-wall :cave-wall :cave-wall]
+                                       [:cave-wall :cave-wall :cave-wall]]}]}
+                    {:x 0 :y 0 :w 3 :h 3})]
+    (is (= [:base (keyword "base/cave-rules/world")]
+           (map (:layers render-map) :id)))
+    (is (= :cave-fill (get-in render-map [:layers 0 :tiles 1 1])))
+    (is (= :missing-cave-tile (get-in render-map [:layers 1 :tiles 1 1])))))
+
+(deftest materialize-render-rect-respects-tilemap-show-terrain-rules-flag
   (let [render-map (materialize/materialize-render-rect
                     {:width 3
                      :height 2
@@ -326,7 +395,7 @@
     (is (= :grass-fill (get-in render-map [:layers 0 :tiles 1 1])))
     (is (nil? (get-in render-map [:layers 1 :tiles 1 1])))))
 
-(deftest materialize-render-rect-keeps_targetless_stamp_layer_id_stable
+(deftest materialize-render-rect-keeps-targetless-stamp-layer-id-stable
   (let [render-map (materialize/materialize-render-rect
                     {:width 3
                      :height 2
@@ -359,7 +428,7 @@
            (map (:layers render-map) :id)))
     (is (= :shore-n (get-in render-map [:layers 1 :tiles 1 1])))))
 
-(deftest materialize-render-rect-clamps_to_map_bounds
+(deftest materialize-render-rect-clamps-to-map-bounds
   (let [render-map (materialize/materialize-render-rect
                     {:width 3
                      :height 2
