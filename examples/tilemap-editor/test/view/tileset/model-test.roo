@@ -536,6 +536,55 @@
     (is (= :deep-water (get-in state [:maps 0 :layers 0 :tiles 0 0])))
     (is (= :deep-water (get-in state [:maps 1 :layers 0 :tiles 0 0])))))
 
+(deftest tile-rename-updates_refs_in_profile_backed_project_maps
+  (let [state (model/rename-tile-definition!
+               {:selected-map-id :map/one
+                :selected-map-label "One"
+                :map-width 1
+                :map-height 1
+                :selected-layer-profile-id :default
+                :layer-profiles [{:id :default
+                                  :layers [{:id :scene/terrain
+                                            :tileset :terrain}]}]
+                :selected-layer-index 0
+                :selected-tileset-definition-index 0
+                :selected-tileset-tile-index 1
+                :selected-tileset-tile-indices [1]
+                :tilesets [{:id :terrain
+                            :label "Terrain"
+                            :tile-size 16
+                            :tiles [{:id :grass}
+                                    {:id :water
+                                     :name "Water"
+                                     :char "w"
+                                     :type :color
+                                     :color {:r 0 :g 0 :b 255}}]}]
+                :layers [{:id :scene/terrain
+                          :tileset :terrain
+                          :tiles [[:water]]}]
+                :maps [{:id :map/one
+                        :label "One"
+                        :width 1
+                        :height 1
+                        :layer-profile :default
+                        :layers [{:id :scene/terrain
+                                  :tiles [[:water]]}]}
+                       {:id :map/two
+                        :label "Two"
+                        :width 1
+                        :height 1
+                        :layer-profile :default
+                        :layers [{:id :scene/terrain
+                                  :tiles [[:water]]}]}]}
+               {:type :confirm
+                :tile-index 1
+                :tile-id "deep water"
+                :tile-name "Deep Water"
+                :tile-char "~"})]
+    (is (= :deep-water (get-in state [:layers 0 :tiles 0 0])))
+    (is (= :deep-water (get-in state [:maps 0 :layers 0 :tiles 0 0])))
+    (is (= :deep-water (get-in state [:maps 1 :layers 0 :tiles 0 0])))))
+
 (deftest tile-batch-rename-updates_definitions_and_keyword_refs
   (let [state (model/rename-tile-definitions!
                {:selected-map-id :map/one

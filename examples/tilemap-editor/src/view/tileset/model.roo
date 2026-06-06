@@ -651,8 +651,19 @@
     :default
     tile-ref))
 
-(defun remove-deleted-tile-refs-in-layer [layer tileset-id deleted-ids deleted-indices]
-  (if (= (:tileset layer) tileset-id)
+(defun profile-layer-tileset [profile layer]
+  (:tileset (data/layer-profile-layer-by-id profile (:id layer))))
+
+(defun layer-effective-tileset [layer profile]
+  (or (:tileset layer)
+      (profile-layer-tileset profile layer)))
+
+(defun layer-uses-tileset? [layer profile tileset-id]
+  (= (layer-effective-tileset layer profile) tileset-id))
+
+(defun remove-deleted-tile-refs-in-layer-with-profile
+  [layer profile tileset-id deleted-ids deleted-indices]
+  (if (layer-uses-tileset? layer profile tileset-id)
     (update layer :tiles
             (fn [rows]
               (map (or rows [])
@@ -663,6 +674,23 @@
                                                      deleted-ids
                                                      deleted-indices)))))))
     layer))
+
+(defun remove-deleted-tile-refs-in-layer [layer tileset-id deleted-ids deleted-indices]
+  (remove-deleted-tile-refs-in-layer-with-profile layer
+                                                  nil
+                                                  tileset-id
+                                                  deleted-ids
+                                                  deleted-indices))
+
+(defun remove-deleted-tile-refs-in-layers-with-profile
+  [layers profile tileset-id deleted-ids deleted-indices]
+  (map (or layers [])
+       (fn [layer]
+         (remove-deleted-tile-refs-in-layer-with-profile layer
+                                                         profile
+                                                         tileset-id
+                                                         deleted-ids
+                                                         deleted-indices))))
 
 (defun remove-deleted-tile-refs-in-layers [layers tileset-id deleted-ids deleted-indices]
   (map (or layers [])
@@ -755,8 +783,8 @@
     new-id
     tile-ref))
 
-(defun rename-tile-refs-in-layer [layer tileset-id old-id new-id]
-  (if (= (:tileset layer) tileset-id)
+(defun rename-tile-refs-in-layer-with-profile [layer profile tileset-id old-id new-id]
+  (if (layer-uses-tileset? layer profile tileset-id)
     (update layer :tiles
             (fn [rows]
               (map (or rows [])
@@ -765,6 +793,22 @@
                           (fn [tile-ref]
                             (rename-tile-ref tile-ref old-id new-id)))))))
     layer))
+
+(defun rename-tile-refs-in-layer [layer tileset-id old-id new-id]
+  (rename-tile-refs-in-layer-with-profile layer
+                                          nil
+                                          tileset-id
+                                          old-id
+                                          new-id))
+
+(defun rename-tile-refs-in-layers-with-profile [layers profile tileset-id old-id new-id]
+  (map (or layers [])
+       (fn [layer]
+         (rename-tile-refs-in-layer-with-profile layer
+                                                 profile
+                                                 tileset-id
+                                                 old-id
+                                                 new-id))))
 
 (defun rename-tile-refs-in-layers [layers tileset-id old-id new-id]
   (map (or layers [])
@@ -844,6 +888,17 @@
                                         (:old-id pair)
                                         (:new-id pair)))))
 
+(defun rename-tile-refs-in-layers-for-pairs-with-profile
+  [layers profile tileset-id pairs]
+  (reduce (or pairs [])
+          layers
+          (fn [out pair]
+            (rename-tile-refs-in-layers-with-profile out
+                                                     profile
+                                                     tileset-id
+                                                     (:old-id pair)
+                                                     (:new-id pair)))))
+
 (defun rename-tile-refs-in-brushes-for-pairs [brushes tileset-id pairs]
   (reduce (or pairs [])
           brushes
@@ -904,7 +959,7 @@
                 next-index (selected-tile-index-after-delete selection
                                                              (count remaining))
                 next-selection (if (nil? next-index) [] [next-index])]
-            (maps/update-all-map-layers
+            (maps/update-all-map-layers-with-profile
              (assoc (assoc-in state
                               [:tilesets tileset-index :tiles]
                               remaining)
@@ -934,11 +989,13 @@
                                selection)
                     :selected-tileset-tile-index next-index
                     :selected-tileset-tile-indices next-selection)
-             (fn [layers]
-               (remove-deleted-tile-refs-in-layers layers
-                                                   (:id tileset)
-                                                   deleted-ids
-                                                   selection))))))
+             (fn [layers profile]
+               (remove-deleted-tile-refs-in-layers-with-profile
+                layers
+                profile
+                (:id tileset)
+                deleted-ids
+                selection))))))
       state)))
 
 (defun update-tileset-tiles-at [tilesets index tiles]
@@ -985,7 +1042,7 @@
                                                         remaining-source)
                                target-index
                                (concat target-tiles [moved-tile]))]
-            (maps/update-all-map-layers
+            (maps/update-all-map-layers-with-profile
              (assoc state
                     :tilesets next-tilesets
                     :layer-profiles (map (or (:layer-profiles state) [])
@@ -1015,11 +1072,13 @@
                     :selected-tileset-definition-index target-index
                     :selected-tileset-tile-index target-tile-index
                     :selected-tileset-tile-indices [target-tile-index])
-             (fn [layers]
-               (remove-deleted-tile-refs-in-layers layers
-                                                   (:id source-tileset)
-                                                   deleted-ids
-                                                   deleted-indices)))))))))
+             (fn [layers profile]
+               (remove-deleted-tile-refs-in-layers-with-profile
+                layers
+                profile
+                (:id source-tileset)
+                deleted-ids
+                deleted-indices)))))))))
 
 (defun add-tile-definition! [state payload]
   (let [tileset-index (:selected-tileset-definition-index state)
@@ -1070,7 +1129,7 @@
                                         :id new-id
                                         :name (:tile-name payload)
                                         :char (or (:tile-char payload) "")))]
-        (maps/update-all-map-layers
+        (maps/update-all-map-layers-with-profile
          (assoc next-state
                 :layer-profiles (map (or (:layer-profiles next-state) [])
                                      (fn [profile]
@@ -1096,11 +1155,12 @@
                                                         new-id)
                 :selected-tileset-tile-index index
                 :selected-tileset-tile-indices [index])
-         (fn [layers]
-           (rename-tile-refs-in-layers layers
-                                       (:id tileset)
-                                       old-id
-                                       new-id))))
+         (fn [layers profile]
+           (rename-tile-refs-in-layers-with-profile layers
+                                                    profile
+                                                    (:id tileset)
+                                                    old-id
+                                                    new-id))))
       state)))
 
 (defun batch-tile-rename-tile-name [payload ordinal]
@@ -1196,7 +1256,7 @@
                                       tiles
                                       pairs
                                       (:tile-char payload)))]
-            (maps/update-all-map-layers
+            (maps/update-all-map-layers-with-profile
              (assoc next-state
                     :layer-profiles (map (or (:layer-profiles next-state) [])
                                          (fn [profile]
@@ -1220,10 +1280,12 @@
                                pairs)
                     :selected-tileset-tile-index (head selection)
                     :selected-tileset-tile-indices selection)
-             (fn [layers]
-               (rename-tile-refs-in-layers-for-pairs layers
-                                                     (:id tileset)
-                                                     pairs))))))
+             (fn [layers profile]
+               (rename-tile-refs-in-layers-for-pairs-with-profile
+                layers
+                profile
+                (:id tileset)
+                pairs))))))
       state)))
 
 (defun add-imported-sprite-tiles! [state payload]

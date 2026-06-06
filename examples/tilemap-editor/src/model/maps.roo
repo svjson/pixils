@@ -143,6 +143,19 @@
   (assoc map-document
          :layers (update-fn (or (:layers map-document) []))))
 
+(defun map-document-layer-profile [state map-document]
+  (data/layer-profile-by-id (:layer-profiles state)
+                            (:layer-profile map-document)))
+
+(defun selected-layer-profile [state]
+  (data/layer-profile-by-id (:layer-profiles state)
+                            (:selected-layer-profile-id state)))
+
+(defun update-map-document-layers-with-profile [state map-document update-fn]
+  (assoc map-document
+         :layers (update-fn (or (:layers map-document) [])
+                            (map-document-layer-profile state map-document))))
+
 (defun update-all-map-layers [state update-fn]
   (if (empty? (or (:maps state) []))
     (assoc state :layers (update-fn (:layers state)))
@@ -150,6 +163,20 @@
           maps (map (:maps state)
                     (fn [map-document]
                       (update-map-document-layers map-document update-fn)))
+          state (assoc state :maps maps)
+          map-document (data/selected-map-document maps (:selected-map-id state))]
+      (activate-map-document state map-document))))
+
+(defun update-all-map-layers-with-profile [state update-fn]
+  (if (empty? (or (:maps state) []))
+    (assoc state
+           :layers (update-fn (:layers state) (selected-layer-profile state)))
+    (let [state (commit-active-map state)
+          maps (map (:maps state)
+                    (fn [map-document]
+                      (update-map-document-layers-with-profile state
+                                                               map-document
+                                                               update-fn)))
           state (assoc state :maps maps)
           map-document (data/selected-map-document maps (:selected-map-id state))]
       (activate-map-document state map-document))))
