@@ -12,6 +12,7 @@ namespace Pixils::Script
   inline constexpr std::string_view NS__PIXILS__RENDER = "pixils.render";
 
   inline constexpr std::string_view FN__DRAW_IMAGE_BANG = "image!";
+  inline constexpr std::string_view FN__DRAW_CIRCLE_BANG = "circle!";
   inline constexpr std::string_view FN__DRAW_LINE_BANG = "line!";
   inline constexpr std::string_view FN__DRAW_POLYGON_BANG = "polygon!";
   inline constexpr std::string_view FN__DRAW_RECT_BANG = "rect!";
@@ -76,6 +77,8 @@ namespace Pixils::Script
      * @return nil
      */
     FUNC(DrawImageBang, draw_img);
+    /*! @brief draw-circle! function */
+    FUNC(DrawCircleBang, draw_circle);
     /*! @brief draw-line! function */
     FUNC(DrawLineBang, draw_line);
     /*! @brief draw-polygon! function */

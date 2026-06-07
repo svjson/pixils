@@ -82,6 +82,60 @@ namespace Pixils::Script
         return dict_contains(value, "w") || dict_contains(value, "h");
       }
 
+      void fill_horizontal_span(SDL_Renderer* renderer, int x1, int x2, int y)
+      {
+        if (x2 < x1) std::swap(x1, x2);
+        SDL_Rect rect{x1, y, x2 - x1 + 1, 1};
+        SDL_RenderFillRect(renderer, &rect);
+      }
+
+      void fill_pixel(SDL_Renderer* renderer, int x, int y)
+      {
+        SDL_Rect rect{x, y, 1, 1};
+        SDL_RenderFillRect(renderer, &rect);
+      }
+
+      void draw_circle_outline(SDL_Renderer* renderer, int cx, int cy, int radius)
+      {
+        int x = 0;
+        int y = radius;
+        int d = 3 - (2 * radius);
+
+        while (y >= x)
+        {
+          fill_pixel(renderer, cx + x, cy + y);
+          fill_pixel(renderer, cx - x, cy + y);
+          fill_pixel(renderer, cx + x, cy - y);
+          fill_pixel(renderer, cx - x, cy - y);
+          fill_pixel(renderer, cx + y, cy + x);
+          fill_pixel(renderer, cx - y, cy + x);
+          fill_pixel(renderer, cx + y, cy - x);
+          fill_pixel(renderer, cx - y, cy - x);
+
+          x++;
+          if (d > 0)
+          {
+            y--;
+            d = d + (4 * (x - y)) + 10;
+          }
+          else
+          {
+            d = d + (4 * x) + 6;
+          }
+        }
+      }
+
+      void draw_filled_circle(SDL_Renderer* renderer, int cx, int cy, int radius)
+      {
+        const int radius_squared = radius * radius;
+        for (int y = -radius; y <= radius; y++)
+        {
+          const int x = static_cast<int>(
+            std::floor(std::sqrt(static_cast<double>(radius_squared - (y * y)))));
+          fill_horizontal_span(renderer, cx - x, cx + x, cy + y);
+        }
+      }
+
       Uint8 image_opacity_alpha(Roo::MapSchema::Inspector& opts)
       {
         if (opts.contains(std::get<std::string>(MapKey::OPACITY->value)))
@@ -382,6 +436,54 @@ namespace Pixils::Script
                          from.round_y(),
                          to.round_x(),
                          to.round_y());
+
+      return Roo::Constant::NIL;
+    }
+
+    /* DrawCircleBang - circle! */
+    FUNC_IMPL(DrawCircleBang,
+              SIG((FN_ARGS((&Roo::Type::MAP), (&Roo::Type::MAP)),
+                   EXEC_DISPATCH(&DrawCircleBang::exec_draw_circle))));
+
+    EXEC_BODY(DrawCircleBang, exec_draw_circle)
+    {
+      RenderContext& rc =
+        Roo::obj<RenderContext>(*ctx.lookup(ID__PIXILS__RENDER_CONTEXT));
+
+      static Roo::MapSchema circle_schema({{"x", &Roo::Type::NUMBER},
+                                           {"y", &Roo::Type::NUMBER},
+                                           {"r", &Roo::Type::NUMBER}});
+      static Roo::MapSchema opts_schema(
+        {},
+        {{"color", &HostType::COLOR}, {"fill", &Roo::Type::BOOL}});
+
+      auto circle = circle_schema.bind(ctx, *args[0]);
+      auto opts = opts_schema.bind(ctx, *args[1]);
+
+      const int cx = circle.i32("x");
+      const int cy = circle.i32("y");
+      const int radius = circle.i32("r");
+      if (radius < 0) return Roo::Constant::NIL;
+
+      auto color_opt = opts.val("color");
+      auto fill_opt = opts.val("fill");
+
+      if (Roo::is_truthy(*color_opt))
+      {
+        const Color& color = Roo::obj<Color>(*color_opt);
+        SDL_SetRenderDrawColor(rc.renderer, color.r, color.g, color.b, color.a);
+      }
+
+      SDL_SetRenderDrawBlendMode(rc.renderer, SDL_BLENDMODE_BLEND);
+      if (Roo::is_truthy(*fill_opt))
+      {
+        draw_filled_circle(rc.renderer, cx, cy, radius);
+      }
+      else
+      {
+        draw_circle_outline(rc.renderer, cx, cy, radius);
+      }
+      SDL_SetRenderDrawBlendMode(rc.renderer, SDL_BLENDMODE_NONE);
 
       return Roo::Constant::NIL;
     }
@@ -963,6 +1065,7 @@ namespace Pixils::Script
     : Roo::Namespace(std::string(NS__PIXILS__RENDER))
   {
     values.emplace(FN__DRAW_IMAGE_BANG, Function::DrawImageBang::make());
+    values.emplace(FN__DRAW_CIRCLE_BANG, Function::DrawCircleBang::make());
     values.emplace(FN__DRAW_LINE_BANG, Function::DrawLineBang::make());
     values.emplace(FN__DRAW_POLYGON_BANG, Function::DrawPolygonBang::make());
     values.emplace(FN__DRAW_RECT_BANG, Function::DrawRectBang::make());

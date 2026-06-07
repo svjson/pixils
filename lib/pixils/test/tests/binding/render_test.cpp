@@ -95,6 +95,53 @@ TEST_F(RenderTest, rect_outline_draws_edges_inside_rect_bounds)
   EXPECT_TRUE(has_fill_rect(ops, SDL_Rect{5, 3, 1, 5}));
 }
 
+TEST_F(RenderTest, circle_fill_draws_horizontal_scanlines)
+{
+  // Given
+  runtime.eval(R"(
+    (pixils/defmode test-mode {
+      :render (fn [state ctx]
+                (pixils.render/circle!
+                  {:x 10 :y 10 :r 2}
+                  {:fill true :color {:r 200 :g 0 :b 0}}))
+    })
+  )");
+  session.push_mode("test-mode", Roo::Constant::NIL);
+
+  // When / Then
+  ASSERT_NO_THROW(session.render_mode());
+  auto& ops = render_target()->render_ops;
+  ASSERT_EQ(ops.size(), 5u);
+  EXPECT_TRUE(has_fill_rect(ops, SDL_Rect{10, 8, 1, 1}));
+  EXPECT_TRUE(has_fill_rect(ops, SDL_Rect{9, 9, 3, 1}));
+  EXPECT_TRUE(has_fill_rect(ops, SDL_Rect{8, 10, 5, 1}));
+  EXPECT_TRUE(has_fill_rect(ops, SDL_Rect{9, 11, 3, 1}));
+  EXPECT_TRUE(has_fill_rect(ops, SDL_Rect{10, 12, 1, 1}));
+}
+
+TEST_F(RenderTest, circle_outline_draws_perimeter_pixels)
+{
+  // Given
+  runtime.eval(R"(
+    (pixils/defmode test-mode {
+      :render (fn [state ctx]
+                (pixils.render/circle!
+                  {:x 10 :y 10 :r 2}
+                  {:color {:r 200 :g 0 :b 0}}))
+    })
+  )");
+  session.push_mode("test-mode", Roo::Constant::NIL);
+
+  // When / Then
+  ASSERT_NO_THROW(session.render_mode());
+  auto& ops = render_target()->render_ops;
+  EXPECT_TRUE(has_fill_rect(ops, SDL_Rect{10, 8, 1, 1}));
+  EXPECT_TRUE(has_fill_rect(ops, SDL_Rect{10, 12, 1, 1}));
+  EXPECT_TRUE(has_fill_rect(ops, SDL_Rect{8, 10, 1, 1}));
+  EXPECT_TRUE(has_fill_rect(ops, SDL_Rect{12, 10, 1, 1}));
+  EXPECT_FALSE(has_fill_rect(ops, SDL_Rect{10, 10, 1, 1}));
+}
+
 TEST_F(RenderTest, with_clip_rect_restores_previous_clip)
 {
   // Given
