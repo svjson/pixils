@@ -136,7 +136,7 @@ Roo components, so applications can use them like any other mode.
 | `ui/icon-preview` | Non-hit-tested overlay primitive for rendering a dragged icon representation. |
 | `ui/desktop-icon` | Desktop-style icon composed from an image and centered label. |
 | `ui/desktop-icon-preview` | Non-hit-tested desktop-icon variant for drag previews. |
-| `ui/icon-container` | Fill-sized drop surface that turns icon drag releases into generic drop events. |
+| `ui/icon-container` | Focusable icon coordinator/drop surface with optional grid layout, snapping, reordering, and keyboard navigation. |
 
 `ui/toggle-button` is a subtype of `ui/button`. It accepts the same public
 button state, plus `:toggled?`. When `:toggled?` is true, the button is treated
@@ -408,10 +408,38 @@ children itself. With `:snap-to-grid? true`, drops are snapped to `:grid`
 settings and the drop payload also includes `:raw-position`. With
 `:layout-mode :grid`, existing child views are positioned by child order. Grid
 settings accept `:cell-width`, `:cell-height`, optional `:cell-size`, optional
-`:origin`, and optional `:columns`; when `:columns` is omitted, it is derived
-from the container width. Add `:reorderable? true` in grid mode to emit
+`:origin`, optional `:columns`, and optional `:min-rows`; when `:columns` is omitted, it is derived
+from the container width. In grid mode, the container reports a natural content
+size from its active icon count, so `ui/scroll-pane` can measure it without an
+application-provided `:content-size`. Add `:reorderable? true` in grid mode to emit
 `:ui/icon-reorder` with `{:item item :target target :from-index n :to-index n}`
 when a dragged icon payload matches one of the container's child items by id.
+Set `:icon-count` or `:item-count` when only the first N children should be
+treated as icons. Alternatively, set `:icon-count-key` to a state collection key;
+the default helper uses `:items` when present.
+
+For the common "grid in a scroll pane" case, use
+`pixils.ui.icon-container/make-grid`. It creates an auto-managed `ui/scroll-pane`
+containing a grid-mode `ui/icon-container`, defaults to vertical auto scrolling,
+keeps at least one empty row as a drop surface, and copies the supplied `:state`
+into both the scroll content and the icon container so child bindings keep
+working through the scroll-pane wrapper. When the grid lives inside an owner
+component and `:state` contains `ui/bind-state` values, pass
+`:bind-content-state? true` so the scroll-pane content receives the owner's
+runtime state instead of treating those bindings as literal content data.
+
+```clojure
+(pixils.ui.icon-container/make-grid
+  {:style {:width :fill :height :fill}
+   :bind-content-state? true
+   :state {:items (pixils.ui/bind-state :items)
+           :selected-id (pixils.ui/bind-state :selected-id)}
+   :grid {:cell-width 104
+          :cell-height 120
+          :columns 6}
+   :children [(app/inventory-icon-child 0)
+              (app/inventory-icon-child 1)]})
+```
 
 When focused, `ui/icon-container` supports keyboard navigation over its current
 children. Arrow keys move by one cell or row, Home/End jump to the first/last

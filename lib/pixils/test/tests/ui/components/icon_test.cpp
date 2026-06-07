@@ -548,3 +548,206 @@ TEST_F(IconTest, icon_container_keyboard_navigation_emits_select_and_activate)
   EXPECT_EQ(activate->to_string(),
             "{:item {:id :two} :index 1 :id :two :input-source :keyboard}");
 }
+
+TEST_F(IconTest, icon_container_grid_content_size_uses_active_icon_count)
+{
+  runtime.eval(R"(
+    (pixils/defmode root-mode
+      {:children [{:mode 'ui/icon-container
+                   :style {:width 100
+                           :height :auto}
+                   :state {:layout-mode :grid
+                           :icon-count 3
+                           :grid {:cell-width 20
+                                  :cell-height 24
+                                  :columns 2}}
+                   :children [{:mode 'ui/icon
+                               :style {:width 10 :height 10}
+                               :state {:item {:id :one}}}
+                              {:mode 'ui/icon
+                               :style {:width 10 :height 10}
+                               :state {:item {:id :two}}}
+                              {:mode 'ui/icon
+                               :style {:width 10 :height 10}
+                               :state {:item {:id :three}}}
+                              {:mode 'ui/icon
+                               :style {:width 10 :height 10}
+                               :state {:item {:id :empty-slot}}}]}]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  session.update_mode();
+  session.render_mode();
+
+  auto container = session.active_mode->children[0];
+  ASSERT_NE(container, nullptr);
+  EXPECT_EQ(container->bounds.w, 100);
+  EXPECT_EQ(container->bounds.h, 48);
+  ASSERT_EQ(container->children.size(), 4u);
+  EXPECT_EQ(container->children[0]->bounds.x, 0);
+  EXPECT_EQ(container->children[0]->bounds.y, 0);
+  EXPECT_EQ(container->children[1]->bounds.x, 20);
+  EXPECT_EQ(container->children[1]->bounds.y, 0);
+  EXPECT_EQ(container->children[2]->bounds.x, 0);
+  EXPECT_EQ(container->children[2]->bounds.y, 24);
+}
+
+TEST_F(IconTest, make_grid_wraps_icon_container_in_auto_scroll_pane)
+{
+  runtime.eval(R"(
+    (pixils/defmode root-mode
+      {:children [(pixils.ui.icon-container/make-grid
+                   {:style {:width 50 :height 40}
+                    :state {:icon-count 3}
+                    :grid {:cell-width 20
+                           :cell-height 24
+                           :columns 2}
+                    :children [{:mode 'ui/icon
+                                :style {:width 10 :height 10}
+                                :state {:item {:id :one}}}
+                               {:mode 'ui/icon
+                                :style {:width 10 :height 10}
+                                :state {:item {:id :two}}}
+                               {:mode 'ui/icon
+                                :style {:width 10 :height 10}
+                                :state {:item {:id :three}}}
+                               {:mode 'ui/icon
+                                :style {:width 10 :height 10}
+                                :state {:item {:id :empty-slot}}}]})]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  session.render_mode();
+  session.update_mode();
+  session.render_mode();
+  session.update_mode();
+  session.render_mode();
+
+  ASSERT_NE(session.active_mode, nullptr);
+  ASSERT_EQ(session.active_mode->children.size(), 1u);
+  auto pane = session.active_mode->children[0];
+  ASSERT_NE(pane, nullptr);
+  ASSERT_NE(pane->mode, nullptr);
+  EXPECT_EQ(pane->mode->name, "ui/scroll-pane");
+
+  auto content_size =
+    Roo::Dict::get_property(pane->state, Roo::keyword("content-size"));
+  ASSERT_NE(content_size, nullptr);
+  auto content_height = Roo::Dict::get_property(content_size, Roo::keyword("h"));
+  ASSERT_NE(content_height, nullptr);
+  EXPECT_EQ(content_height->num().get_int(), 48);
+
+  ASSERT_EQ(pane->children.size(), 1u);
+  auto row = pane->children[0];
+  ASSERT_NE(row, nullptr);
+  ASSERT_FALSE(row->children.empty());
+  auto viewport = row->children[0];
+  ASSERT_NE(viewport, nullptr);
+  ASSERT_EQ(viewport->children.size(), 1u);
+  auto content = viewport->children[0];
+  ASSERT_NE(content, nullptr);
+  ASSERT_EQ(content->children.size(), 1u);
+  auto container = content->children[0];
+  ASSERT_NE(container, nullptr);
+  ASSERT_NE(container->mode, nullptr);
+  EXPECT_EQ(container->mode->name, "ui/icon-container");
+  EXPECT_EQ(container->bounds.h, 48);
+}
+
+TEST_F(IconTest, make_grid_keeps_empty_grid_as_drop_surface)
+{
+  runtime.eval(R"(
+    (pixils/defmode root-mode
+      {:children [(pixils.ui.icon-container/make-grid
+                   {:style {:width 50 :height 40}
+                    :state {:icon-count 0}
+                    :grid {:cell-width 20
+                           :cell-height 24
+                           :columns 2}
+                    :children [{:mode 'ui/icon
+                                :style {:width 10 :height 10}
+                                :state {:item {:id :empty-slot}}}]})]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  session.render_mode();
+  session.update_mode();
+  session.render_mode();
+  session.update_mode();
+  session.render_mode();
+
+  auto pane = session.active_mode->children[0];
+  ASSERT_NE(pane, nullptr);
+  auto content_size =
+    Roo::Dict::get_property(pane->state, Roo::keyword("content-size"));
+  ASSERT_NE(content_size, nullptr);
+  auto content_height = Roo::Dict::get_property(content_size, Roo::keyword("h"));
+  ASSERT_NE(content_height, nullptr);
+  EXPECT_EQ(content_height->num().get_int(), 24);
+}
+
+TEST_F(IconTest, make_grid_can_bind_scroll_content_state_from_owner)
+{
+  runtime.eval(R"(
+    (pixils/defcomponent bound-grid-owner
+      {:init (fn [state ctx]
+               {:items [{:id :one} {:id :two} {:id :three}]})
+       :children [(pixils.ui.icon-container/make-grid
+                   {:style {:width 50 :height 40}
+                    :bind-content-state? true
+                    :state {:items (pixils.ui/bind-state :items)}
+                    :grid {:cell-width 20
+                           :cell-height 24
+                           :columns 2}
+                    :children [{:mode 'ui/icon
+                                :style {:width 10 :height 10}
+                                :state {:item (pixils.ui/bind-state :items 0)}}
+                               {:mode 'ui/icon
+                                :style {:width 10 :height 10}
+                                :state {:item (pixils.ui/bind-state :items 1)}}
+                               {:mode 'ui/icon
+                                :style {:width 10 :height 10}
+                                :state {:item (pixils.ui/bind-state :items 2)}}]})]})
+
+    (pixils/defmode root-mode
+      {:children [{:mode 'bound-grid-owner}]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  session.render_mode();
+  session.update_mode();
+  session.render_mode();
+  session.update_mode();
+  session.render_mode();
+
+  auto owner = session.active_mode->children[0];
+  ASSERT_NE(owner, nullptr);
+  ASSERT_EQ(owner->children.size(), 1u);
+  auto pane = owner->children[0];
+  ASSERT_NE(pane, nullptr);
+  auto content_size =
+    Roo::Dict::get_property(pane->state, Roo::keyword("content-size"));
+  ASSERT_NE(content_size, nullptr);
+  auto content_height = Roo::Dict::get_property(content_size, Roo::keyword("h"));
+  ASSERT_NE(content_height, nullptr);
+  EXPECT_EQ(content_height->num().get_int(), 48);
+
+  ASSERT_EQ(pane->children.size(), 1u);
+  auto row = pane->children[0];
+  ASSERT_NE(row, nullptr);
+  ASSERT_FALSE(row->children.empty());
+  auto viewport = row->children[0];
+  ASSERT_NE(viewport, nullptr);
+  ASSERT_EQ(viewport->children.size(), 1u);
+  auto content = viewport->children[0];
+  ASSERT_NE(content, nullptr);
+  ASSERT_EQ(content->children.size(), 1u);
+  auto container = content->children[0];
+  ASSERT_NE(container, nullptr);
+  ASSERT_EQ(container->children.size(), 3u);
+
+  auto first_item =
+    Roo::Dict::get_property(container->children[0]->state, Roo::keyword("item"));
+  ASSERT_NE(first_item, nullptr);
+  EXPECT_EQ(first_item->to_string(), "{:id :one}");
+}

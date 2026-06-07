@@ -84,6 +84,58 @@ TEST_F(StateBindingTest, map_binding_propagates_child_state_changes_back_to_pare
   EXPECT_EQ(session.active_mode->state->to_string(), "{:board {:x 99}}");
 }
 
+TEST_F(StateBindingTest, map_binding_can_propagate_whole_parent_state_back)
+{
+  // Given
+  runtime.eval(R"(
+    (pixils/defmode child-mode {
+      :update (fn [state ctx]
+                (assoc state :content-state
+                       (assoc (:content-state state) :x 99)))
+    })
+    (pixils/defmode root-mode {
+      :init (fn [state ctx] {:x 1 :y 2})
+      :children [{:mode 'child-mode :id "child"
+                  :state {:content-state (pixils.ui/bind-state)}}]
+    })
+  )");
+  session.push_mode("root-mode", Roo::Constant::NIL);
+
+  // When
+  session.update_mode();
+
+  // Then - the empty bind-state path replaces the parent with the bound value.
+  ASSERT_NE(session.active_mode->state, nullptr);
+  EXPECT_EQ(session.active_mode->state->to_string(), "{:x 99 :y 2}");
+}
+
+TEST_F(StateBindingTest, map_binding_whole_parent_state_can_combine_with_nested_bindings)
+{
+  // Given
+  runtime.eval(R"(
+    (pixils/defmode child-mode {
+      :update (fn [state ctx]
+                (assoc state
+                       :content-state (assoc (:content-state state) :x 99)
+                       :selected-id :two))
+    })
+    (pixils/defmode root-mode {
+      :init (fn [state ctx] {:x 1 :selected-id :one})
+      :children [{:mode 'child-mode :id "child"
+                  :state {:content-state (pixils.ui/bind-state)
+                          :selected-id (pixils.ui/bind-state :selected-id)}}]
+    })
+  )");
+  session.push_mode("root-mode", Roo::Constant::NIL);
+
+  // When
+  session.update_mode();
+
+  // Then - nested bindings are applied on top of the whole-parent replacement.
+  ASSERT_NE(session.active_mode->state, nullptr);
+  EXPECT_EQ(session.active_mode->state->to_string(), "{:x 99 :selected-id :two}");
+}
+
 TEST_F(StateBindingTest, map_binding_propagates_child_state_vector_back_to_parent)
 {
   // Given

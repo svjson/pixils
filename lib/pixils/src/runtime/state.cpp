@@ -73,11 +73,24 @@ namespace Pixils::Runtime
     for (const auto& key : Roo::Dict::map_sptr_keys(binding))
     {
       auto val = Roo::Dict::get_property(binding, key);
-      if (Pixils::Script::HostType::BIND_STATE.is_type_of(*val))
+      if (Pixils::Script::HostType::BIND_STATE.is_type_of(*val) &&
+          Pixils::Runtime::bind_state_path(val).empty())
       {
         auto child_val = Roo::Dict::get_property(child_state, key);
-        result =
-          Roo::Dict::assoc_in(result, Pixils::Runtime::bind_state_path(val), child_val);
+        if (child_val) result = child_val;
+      }
+    }
+
+    for (const auto& key : Roo::Dict::map_sptr_keys(binding))
+    {
+      auto val = Roo::Dict::get_property(binding, key);
+      if (Pixils::Script::HostType::BIND_STATE.is_type_of(*val))
+      {
+        const auto& path = Pixils::Runtime::bind_state_path(val);
+        if (path.empty()) continue;
+
+        auto child_val = Roo::Dict::get_property(child_state, key);
+        result = Roo::Dict::assoc_in(result, path, child_val);
       }
     }
     return result;

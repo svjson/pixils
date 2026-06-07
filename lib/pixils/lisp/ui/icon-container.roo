@@ -1,6 +1,7 @@
 (ns pixils.ui.icon-container
   (:require pixils
-            [pixils.ui :as ui]))
+            [pixils.ui :as ui]
+            [pixils.ui.scroll-pane :as scroll-pane]))
 
 
 
@@ -27,7 +28,8 @@
                       (:cell-size grid)
                       84)
      :origin (or (:origin grid) {:x 0 :y 0})
-     :columns (:columns grid)}))
+     :columns (:columns grid)
+     :min-rows (:min-rows grid)}))
 
 (defun grid-mode? [state]
   (= (:layout-mode state) :grid))
@@ -39,10 +41,58 @@
 (defun grid-columns [state ctx]
   (let [grid (grid-options state)
         configured (:columns grid)
-        width (or (-> ctx :view :bounds :w) 0)
+        width (or (:available-width ctx)
+                  (-> ctx :view :bounds :w)
+                  0)
         cell-width (max 1 (:cell-width grid))]
     (max 1 (or configured
                (int (/ width cell-width))))))
+
+(defun icon-count-from-state [state children]
+  (let [key (or (:icon-count-key state) :items)]
+    (or (:icon-count state)
+        (:item-count state)
+        (if (and key (contains? state key))
+          (count (or (get state key) []))
+          nil)
+        (count children))))
+
+(defun icon-entry? [count entry]
+  (< (:index entry) count))
+
+(defun icon-children [state children]
+  (let [count (icon-count-from-state state children)]
+    (map (filter (for-indexed [index child children]
+                   {:index index
+                    :child child})
+                 (fn [entry]
+                   (icon-entry? count entry)))
+         (fn [entry]
+           (:child entry)))))
+
+(defun grid-row-count [count columns]
+  (if (> count 0)
+    (inc (int (/ (dec count) columns)))
+    0))
+
+(defun grid-content-size [state count ctx]
+  (let [grid (grid-options state)
+        columns (grid-columns state ctx)
+        visible-columns (if (> count 0)
+                          (min columns count)
+                          0)
+        rows (max (or (:min-rows grid) 0)
+                  (grid-row-count count columns))
+        origin (:origin grid)]
+    {:w (+ (:x origin) (* visible-columns (:cell-width grid)))
+     :h (+ (:y origin) (* rows (:cell-height grid)))}))
+
+(defun icon-container-content-size [state ctx]
+  (if (grid-mode? state)
+    (grid-content-size state
+                       (icon-count-from-state state (ui/children ctx))
+                       ctx)
+    nil))
 
 (defun grid-cell-position [state index ctx]
   (let [grid (grid-options state)
@@ -165,25 +215,84 @@
 
 (defun apply-grid-layout! [state ctx]
   (when (grid-mode? state)
-    (let [children (ui/children ctx)]
+    (let [children (ui/children ctx)
+          count (icon-count-from-state state children)]
       (for-indexed [index child children]
-        (let [pos (grid-cell-position state index ctx)]
-          (ui/style! child
-                     {:position :absolute
-                      :left (:x pos)
-                      :top (:y pos)}))))))
+        (if (< index count)
+          (let [pos (grid-cell-position state index ctx)]
+            (ui/style! child
+                       {:position :absolute
+                        :left (:x pos)
+                        :top (:y pos)
+                        :hidden false}))
+          (ui/style! child {:hidden true}))))))
+
+(defun icon-grid-state [state grid snap-to-grid? reorderable? items-key]
+  (merge (or state {})
+         {:layout-mode :grid
+          :snap-to-grid? (if (nil? snap-to-grid?)
+                           true
+                           snap-to-grid?)}
+         (if (nil? grid) {} {:grid grid})
+         (if (nil? reorderable?) {} {:reorderable? reorderable?})
+         (if (nil? items-key) {} {:icon-count-key items-key})))
+
+(defun icon-grid-container-style [style]
+  (merge {:width :fill
+          :height :auto}
+         (or style {})))
+
+(defun icon-grid-options [grid]
+  (merge {:min-rows 1}
+         (or grid {})))
+
+(defun icon-grid-scroll-state [scroll-state bind-content-state?]
+  (if (= bind-content-state? true)
+    (merge {:content-state (ui/bind-state)}
+           (or scroll-state {}))
+    scroll-state))
+
+(defun icon-grid-scroll-content-state [state content-state bind-content-state?]
+  (if (= bind-content-state? true)
+    {}
+    (or content-state state {})))
+
+(defun make-grid [{:keys [auto-scroll-y bind-content-state? children container-style content-state grid items-key offset reorderable? scroll-state scroll-x? scroll-y? snap-to-grid? state step style]}]
+  (let [container-state (icon-grid-state state
+                                         (icon-grid-options grid)
+                                         snap-to-grid?
+                                         reorderable?
+                                         (if (contains? (or state {}) :items)
+                                           (or items-key :items)
+                                           items-key))]
+    (scroll-pane/make
+     {:style style
+      :scroll-x? (if (nil? scroll-x?) false scroll-x?)
+      :scroll-y? (if (nil? scroll-y?) :auto scroll-y?)
+      :auto-scroll-y auto-scroll-y
+      :offset offset
+      :step step
+      :content-state (icon-grid-scroll-content-state state
+                                                     content-state
+                                                     bind-content-state?)
+      :state (icon-grid-scroll-state scroll-state bind-content-state?)
+      :children [{:mode 'ui/icon-container
+                  :style (icon-grid-container-style container-style)
+                  :state container-state
+                  :children children}]})))
 
 (defcomponent ui/icon-container
   {:focusable true
    :style {:width :fill
            :height :fill
            :clip true}
+   :content-size icon-container-content-size
    :update (fn [state ctx]
              (do
                (apply-grid-layout! state ctx)
                state))
    :on-key-down (fn [state event ctx]
-                  (let [children (ui/children ctx)
+                  (let [children (icon-children state (ui/children ctx))
                         key (:key event)
                         target-index (keyboard-target-index state children key ctx)
                         selected-index (selected-child-index state children)]
@@ -214,7 +323,7 @@
    :on-drop (fn [state event ctx]
               (let [payload (:payload event)
                     item (:item payload)
-                    children (ui/children ctx)
+                    children (icon-children state (ui/children ctx))
                     raw-position (drop-position event (:offset payload))
                     position (icon-container-position state raw-position)
                     from-index (drag-child-index children payload)
