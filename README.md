@@ -195,10 +195,10 @@ Grouped toggle semantics are configured with `:selection-required?`:
 `:force-selection? true` is accepted as an alias for `:selection-required? true`
 on both standalone toggle buttons and groups.
 
-`pixils.ui.option-box/make` creates a radio-button-style option row using the
-same theme marker as menu option items. It accepts `:label`, `:value`,
-`:selected?`, `:disabled?`, and the same `:selection-required?` /
-`:force-selection?` flags as toggle buttons. Clicks emit `:option-box/change` with
+`pixils.ui.option-box/make` creates a radio-button-style option row with a
+themeable circular selection glyph. It accepts `:label`, `:value`, `:selected?`,
+`:disabled?`, and the same `:selection-required?` / `:force-selection?` flags as
+toggle buttons. Clicks emit `:option-box/change` with
 `{:selected? bool :value value :index index}`. Option boxes keep themselves
 selected by default; set `:selection-required? false` only when a standalone
 option should be allowed to toggle off.

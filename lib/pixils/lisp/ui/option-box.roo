@@ -1,6 +1,6 @@
 (ns pixils.ui.option-box
   (:require pixils
-            pixils.ui.menu
+            [pixils.render :as r]
             [pixils.ui :as ui]))
 
 (def default-option-box-height 18)
@@ -26,6 +26,41 @@
 (defun option-box-selection-required? [state]
   (not (or (= (:selection-required? state) false)
            (= (:force-selection? state) false))))
+
+(def default-option-box-indicator
+  {:color {:r 0 :g 0 :b 0}
+   :radius 5
+   :inner-radius 2
+   :pressed-thickness 2})
+
+(defun option-box-indicator-theme [ctx]
+  (merge default-option-box-indicator
+         (ui/theme-var ctx :option-box-indicator {})))
+
+(defun render-option-box-indicator! [state ctx]
+  (let [indicator (option-box-indicator-theme ctx)
+        bounds (-> ctx :view :bounds)
+        color (:color indicator)
+        radius (or (:radius indicator) 5)
+        inner-radius (or (:inner-radius indicator) 2)
+        pressed-thickness (or (:pressed-thickness indicator) 2)
+        active (or (:selected state) (:pressed state))
+        cx (int (/ (or (:w bounds) 0) 2))
+        cy (int (/ (or (:h bounds) 0) 2))]
+    (do
+      (r/circle! {:x cx :y cy :r radius}
+                 {:color color})
+      (when (and (:pressed state)
+                 (> pressed-thickness 1))
+        (r/circle! {:x cx :y cy :r (max 0 (dec radius))}
+                   {:color color}))
+      (when active
+        (r/circle! {:x cx :y cy :r inner-radius}
+                   {:fill true
+                    :color color})))))
+
+(defcomponent ui/option-box-indicator
+  {:render render-option-box-indicator!})
 
 (defcomponent ui/option-box-label
   {:children [{:mode 'ui/text
@@ -66,11 +101,11 @@
                    (if (:disabled? state)
                      state
                      (assoc state :selected? next-selected?)))))
-   :children [{:mode 'ui/menu-option-indicator
+   :children [{:mode 'ui/option-box-indicator
                :style {:width 12
-                       :height 10}
+                       :height 12}
                :state {:selected (ui/bind-state :selected?)
-                       :show-marker true}}
+                       :pressed (ui/bind-state :pressed)}}
               {:mode 'ui/option-box-label
                :state {:label (ui/bind-state :label)}}]})
 

@@ -135,6 +135,10 @@
                  :selection-bg {:r 0x00 :g 0x00 :b 0x00}
                  :selection-text {:r 0xff :g 0xff :b 0xff}
                  :desktop-icon-label-padding 1
+                 :option-box-indicator {:color {:r 0x00 :g 0x00 :b 0x00}
+                                        :radius 5
+                                        :inner-radius 2
+                                        :pressed-thickness 2}
                  :menu-option-indicator {:selected-image :base-theme/menu-option-checkmark}
                  :menu-submenu-indicator {:text ">"}
                  :scrollbar-button-symbols {:up-image :base-theme/scrollbar-arrow-up

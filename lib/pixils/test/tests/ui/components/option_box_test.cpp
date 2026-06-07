@@ -11,6 +11,21 @@ namespace
   {
     return Roo::Dict::get_property(value, Roo::keyword(key));
   }
+
+  bool has_fill_rect(const std::vector<RenderOperation>& ops, const SDL_Rect& rect)
+  {
+    for (const auto& op : ops)
+    {
+      if (op.type == RenderOpType::FILL_RECT && op.rendered_rect.x == rect.x &&
+          op.rendered_rect.y == rect.y && op.rendered_rect.w == rect.w &&
+          op.rendered_rect.h == rect.h)
+      {
+        return true;
+      }
+      if (has_fill_rect(op.sub_ops, rect)) return true;
+    }
+    return false;
+  }
 } // namespace
 
 TEST_F(OptionBoxTest, option_box_selects_and_keeps_selected_by_default)
@@ -34,7 +49,7 @@ TEST_F(OptionBoxTest, option_box_selects_and_keeps_selected_by_default)
   ASSERT_NE(option, nullptr);
   EXPECT_EQ(option->mode->name, "ui/option-box");
   ASSERT_EQ(option->children.size(), 2u);
-  EXPECT_EQ(option->children[0]->mode->name, "ui/menu-option-indicator");
+  EXPECT_EQ(option->children[0]->mode->name, "ui/option-box-indicator");
   EXPECT_EQ(option->children[1]->mode->name, "ui/option-box-label");
 
   input().mouse_down({5, 5});
@@ -130,4 +145,68 @@ TEST_F(OptionBoxTest, option_box_group_selects_one_option_and_keeps_selection_by
   ASSERT_NE(selected, nullptr);
   EXPECT_EQ(selected->to_string(), ":terrain");
   EXPECT_EQ(get_key(terrain->state, "selected?")->to_string(), "true");
+}
+
+TEST_F(OptionBoxTest, windows_option_box_indicator_draws_unselected_outer_circle)
+{
+  runtime.eval(R"(
+    (pixils/defmode root-mode
+      {:theme 'pixils/windows-95
+       :children [{:mode 'ui/option-box-indicator
+                   :style {:width 12 :height 12}
+                   :state {:selected false}}]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  session.update_mode();
+  session.render_mode();
+
+  auto& ops = render_target()->render_ops;
+  EXPECT_TRUE(has_fill_rect(ops, SDL_Rect{6, 1, 1, 1}));
+  EXPECT_TRUE(has_fill_rect(ops, SDL_Rect{6, 11, 1, 1}));
+  EXPECT_TRUE(has_fill_rect(ops, SDL_Rect{1, 6, 1, 1}));
+  EXPECT_TRUE(has_fill_rect(ops, SDL_Rect{11, 6, 1, 1}));
+  EXPECT_FALSE(has_fill_rect(ops, SDL_Rect{4, 6, 5, 1}));
+}
+
+TEST_F(OptionBoxTest, windows_option_box_indicator_draws_selected_inner_circle)
+{
+  runtime.eval(R"(
+    (pixils/defmode root-mode
+      {:theme 'pixils/windows-95
+       :children [{:mode 'ui/option-box-indicator
+                   :style {:width 12 :height 12}
+                   :state {:selected true}}]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  session.update_mode();
+  session.render_mode();
+
+  auto& ops = render_target()->render_ops;
+  EXPECT_TRUE(has_fill_rect(ops, SDL_Rect{6, 1, 1, 1}));
+  EXPECT_TRUE(has_fill_rect(ops, SDL_Rect{4, 6, 5, 1}));
+}
+
+TEST_F(OptionBoxTest, windows_option_box_indicator_draws_pressed_thicker_outer_circle)
+{
+  runtime.eval(R"(
+    (pixils/defmode root-mode
+      {:theme 'pixils/windows-95
+       :children [{:mode 'ui/option-box-indicator
+                   :style {:width 12 :height 12}
+                   :state {:selected false
+                           :pressed true}}]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  session.update_mode();
+  session.render_mode();
+
+  auto& ops = render_target()->render_ops;
+  EXPECT_TRUE(has_fill_rect(ops, SDL_Rect{6, 1, 1, 1}));
+  EXPECT_TRUE(has_fill_rect(ops, SDL_Rect{6, 2, 1, 1}));
+  EXPECT_TRUE(has_fill_rect(ops, SDL_Rect{2, 6, 1, 1}));
+  EXPECT_TRUE(has_fill_rect(ops, SDL_Rect{10, 6, 1, 1}));
+  EXPECT_TRUE(has_fill_rect(ops, SDL_Rect{4, 6, 5, 1}));
 }

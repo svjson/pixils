@@ -258,6 +258,10 @@
                   :button-disabled-border-style (var :button-border-style)
                   :split-pane-resizer-size 6
                   :scrollbar-size 14
+                  :option-box-indicator {:color {:r 0x00 :g 0x00 :b 0x00}
+                                         :radius 5
+                                         :inner-radius 2
+                                         :pressed-thickness 2}
                   :menu-option-indicator {:selected-image :windows-95-theme/menu-option-checkmark}
                   :menu-submenu-indicator {:image :windows-95-theme/scrollbar-arrow-right
                                            :highlighted-image :windows-95-theme/submenu-chevron-highlighted}
@@ -284,6 +288,10 @@
                  :highlight-color (var :highlight)
                  :split-pane-resizer-size 6
                  :scrollbar-size 14
+                 :option-box-indicator {:color {:r 0x00 :g 0x00 :b 0x00}
+                                        :radius 5
+                                        :inner-radius 2
+                                        :pressed-thickness 2}
                  :menu-option-indicator {:selected-image :windows-95-theme/menu-option-checkmark}
                  :menu-submenu-indicator {:image :windows-95-theme/scrollbar-arrow-right
                                           :highlighted-image :windows-95-theme/submenu-chevron-highlighted}
