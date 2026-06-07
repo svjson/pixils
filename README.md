@@ -844,6 +844,8 @@ hook fires.
 | `:height`     | Number                                                               | Fixed height in pixels using the selected `:box-sizing`. Absent means fill remaining space. |
 | `:min-width`  | Number                                                               | Minimum width in pixels. Used as the wrapping basis for `:width :fill` children in wrapped row layouts. |
 | `:min-height` | Number                                                               | Minimum height in pixels. |
+| `:max-width`  | Number                                                               | Maximum width in pixels. Capped `:width :fill` children release remaining row space to uncapped fill siblings. |
+| `:max-height` | Number                                                               | Maximum height in pixels. Capped `:height :fill` children release remaining column space to uncapped fill siblings. |
 | `:position`   | `:absolute`, `:flow`                                                 | Positioning mode. Default: `:flow`. |
 | `:top`        | Number                                                               | Top offset when `:position :absolute`. |
 | `:left`       | Number                                                               | Left offset when `:position :absolute`. |

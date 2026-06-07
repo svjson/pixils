@@ -1038,6 +1038,8 @@ namespace Pixils::Script::StyleDefinition
                                            {"height", &Roo::Type::ANY},
                                            {"min-width", &Roo::Type::NUMBER},
                                            {"min-height", &Roo::Type::NUMBER},
+                                           {"max-width", &Roo::Type::NUMBER},
+                                           {"max-height", &Roo::Type::NUMBER},
                                            {"position", &Roo::Type::KEYWORD},
                                            {"top", &Roo::Type::NUMBER},
                                            {"left", &Roo::Type::NUMBER},
@@ -1075,6 +1077,8 @@ namespace Pixils::Script::StyleDefinition
     if (opts.contains("height")) style->height = parse_size(opts.val("height"));
     if (opts.contains("min-width")) style->min_width = opts.i32("min-width");
     if (opts.contains("min-height")) style->min_height = opts.i32("min-height");
+    if (opts.contains("max-width")) style->max_width = opts.i32("max-width");
+    if (opts.contains("max-height")) style->max_height = opts.i32("max-height");
     if (opts.contains("position"))
     {
       style->position = parse_position_mode(opts.val("position"));

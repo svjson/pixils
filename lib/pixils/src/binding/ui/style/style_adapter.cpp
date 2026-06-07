@@ -79,6 +79,8 @@ namespace Pixils::Script
                       (rw, "height", height),
                       (rw, "min-width", min_width),
                       (rw, "min-height", min_height),
+                      (rw, "max-width", max_width),
+                      (rw, "max-height", max_height),
                       (rw, "position", position),
                       (rw, "top", top),
                       (rw, "left", left),
@@ -219,6 +221,26 @@ namespace Pixils::Script
   NOBJ_PROP_SET(StyleAdapter, min_height)
   {
     get_self_object().min_height = StyleDefinition::parse_optional_int(value);
+  }
+
+  NOBJ_PROP_GET(StyleAdapter, max_width)
+  {
+    return StyleDefinition::optional_int_to_value(get_self_object().max_width);
+  }
+
+  NOBJ_PROP_SET(StyleAdapter, max_width)
+  {
+    get_self_object().max_width = StyleDefinition::parse_optional_int(value);
+  }
+
+  NOBJ_PROP_GET(StyleAdapter, max_height)
+  {
+    return StyleDefinition::optional_int_to_value(get_self_object().max_height);
+  }
+
+  NOBJ_PROP_SET(StyleAdapter, max_height)
+  {
+    get_self_object().max_height = StyleDefinition::parse_optional_int(value);
   }
 
   NOBJ_PROP_GET(StyleAdapter, position)

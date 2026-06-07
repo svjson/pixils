@@ -135,6 +135,24 @@ TEST_F(DefModeTest, defmode_extend_preserves_and_overlays_base_style)
   EXPECT_TRUE(*narrow_panel_child.style->clip);
 }
 
+TEST_F(DefModeTest, defmode_style_accepts_max_size_constraints)
+{
+  runtime.eval(R"(
+    (pixils/defcomponent panel
+      {:style {:width :fill
+               :height :fill
+               :max-width 240
+               :max-height 120}})
+  )");
+
+  auto& panel = get_mode(runtime, "panel");
+  ASSERT_NE(panel.style, std::nullopt);
+  ASSERT_NE(panel.style->max_width, std::nullopt);
+  ASSERT_NE(panel.style->max_height, std::nullopt);
+  EXPECT_EQ(*panel.style->max_width, 240);
+  EXPECT_EQ(*panel.style->max_height, 120);
+}
+
 TEST_F(DefModeTest, defmode_with_lambda_hook_is_created)
 {
   // When

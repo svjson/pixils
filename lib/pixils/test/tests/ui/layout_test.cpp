@@ -264,6 +264,26 @@ TEST_F(LayoutTest, layout_two_fill_children_split_height_evenly)
   EXPECT_EQ(rects[1].h, 100);
 }
 
+TEST_F(LayoutTest, layout_column_fill_child_respects_max_height_and_releases_space)
+{
+  std::vector<std::shared_ptr<View>> children;
+
+  Style capped;
+  capped.height = Style::Size(Style::Size::Mode::FILL);
+  capped.max_height = 60;
+  children.push_back(make_ctx(std::move(capped)));
+  children.push_back(make_fill_height_ctx());
+  Rect parent = {0, 0, 320, 200};
+
+  auto rects = layout(children, parent);
+
+  ASSERT_EQ(rects.size(), 2u);
+  EXPECT_EQ(rects[0].y, 0);
+  EXPECT_EQ(rects[0].h, 60);
+  EXPECT_EQ(rects[1].y, 60);
+  EXPECT_EQ(rects[1].h, 140);
+}
+
 TEST_F(LayoutTest, layout_children_without_width_do_not_inherit_full_parent_width_by_default)
 {
   std::vector<std::shared_ptr<View>> children;
@@ -776,6 +796,27 @@ TEST_F(LayoutTest, layout_row_fill_child_respects_min_width)
 
   ASSERT_EQ(rects.size(), 1u);
   EXPECT_EQ(rects[0].w, 120);
+}
+
+TEST_F(LayoutTest, layout_row_fill_child_respects_max_width_and_releases_space)
+{
+  std::vector<std::shared_ptr<View>> children;
+
+  Style capped;
+  capped.width = Style::Size(Style::Size::Mode::FILL);
+  capped.height = 20;
+  capped.max_width = 40;
+  children.push_back(make_ctx(std::move(capped)));
+  children.push_back(make_fill_width_ctx());
+  Rect parent = {0, 0, 100, 40};
+
+  auto rects = layout(children, parent, LayoutDirection::ROW);
+
+  ASSERT_EQ(rects.size(), 2u);
+  EXPECT_EQ(rects[0].x, 0);
+  EXPECT_EQ(rects[0].w, 40);
+  EXPECT_EQ(rects[1].x, 40);
+  EXPECT_EQ(rects[1].w, 60);
 }
 
 TEST_F(LayoutTest, layout_row_wraps_fixed_children_to_next_line)

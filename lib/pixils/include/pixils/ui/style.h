@@ -324,6 +324,8 @@ namespace Pixils::UI
     std::optional<Size> height;
     std::optional<int> min_width;
     std::optional<int> min_height;
+    std::optional<int> max_width;
+    std::optional<int> max_height;
 
     /** Outer flow dimensions: view box plus margins. */
     int total_width() const;
