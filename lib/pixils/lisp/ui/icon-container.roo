@@ -12,23 +12,233 @@
     {:x (- (:x pos) (:x off))
      :y (- (:y pos) (:y off))}))
 
+(defun clamp [value low high]
+  (max low (min high value)))
+
 (defun drop-position [event offset]
   (subtract-point (:position event) offset))
+
+(defun grid-options [state]
+  (let [grid (or (:grid state) {})]
+    {:cell-width (or (:cell-width grid)
+                     (:cell-size grid)
+                     80)
+     :cell-height (or (:cell-height grid)
+                      (:cell-size grid)
+                      84)
+     :origin (or (:origin grid) {:x 0 :y 0})
+     :columns (:columns grid)}))
+
+(defun grid-mode? [state]
+  (= (:layout-mode state) :grid))
+
+(defun snap-enabled? [state]
+  (or (= (:snap-to-grid? state) true)
+      (grid-mode? state)))
+
+(defun grid-columns [state ctx]
+  (let [grid (grid-options state)
+        configured (:columns grid)
+        width (or (-> ctx :view :bounds :w) 0)
+        cell-width (max 1 (:cell-width grid))]
+    (max 1 (or configured
+               (int (/ width cell-width))))))
+
+(defun grid-cell-position [state index ctx]
+  (let [grid (grid-options state)
+        columns (grid-columns state ctx)
+        col (mod index columns)
+        row (int (/ index columns))
+        origin (:origin grid)]
+    {:x (+ (:x origin) (* col (:cell-width grid)))
+     :y (+ (:y origin) (* row (:cell-height grid)))}))
+
+(defun snap-position [state position]
+  (let [grid (grid-options state)
+        origin (:origin grid)
+        cell-width (max 1 (:cell-width grid))
+        cell-height (max 1 (:cell-height grid))
+        x (- (or (:x position) 0) (:x origin))
+        y (- (or (:y position) 0) (:y origin))
+        col (max 0 (int (/ (+ x (int (/ cell-width 2))) cell-width)))
+        row (max 0 (int (/ (+ y (int (/ cell-height 2))) cell-height)))]
+    {:x (+ (:x origin) (* col cell-width))
+     :y (+ (:y origin) (* row cell-height))}))
+
+(defun icon-container-position [state raw-position]
+  (if (snap-enabled? state)
+    (snap-position state raw-position)
+    raw-position))
+
+(defun child-state [child]
+  (or (:state child) {}))
+
+(defun child-item [child]
+  (:item (child-state child)))
+
+(defun child-id [child]
+  (or (:id (child-item child))
+      (:id (child-state child))))
+
+(defun child-index-by-id [children id]
+  (:index (head (filter (for-indexed [index child children]
+                          {:index index
+                           :child child})
+                        (fn [entry]
+                          (= (child-id (:child entry)) id))))))
+
+(defun valid-child-index? [children index]
+  (and (not (nil? index))
+       (>= index 0)
+       (< index (count children))))
+
+(defun selected-child-index [state children]
+  (cond
+    (valid-child-index? children (:selected-index state))
+    (:selected-index state)
+
+    (not (nil? (:selected-id state)))
+    (child-index-by-id children (:selected-id state))
+
+    :default
+    (or (:index (head (filter (for-indexed [index child children]
+                                {:index index
+                                 :child child})
+                              (fn [entry]
+                                (let [s (child-state (:child entry))]
+                                  (or (= (:selected? s) true)
+                                      (= (:selected s) true)))))))
+        (if (empty? children) nil 0))))
+
+(defun child-event-payload [child index]
+  (let [item (child-item child)
+        id (child-id child)]
+    {:item item
+     :index index
+     :id id
+     :input-source :keyboard}))
+
+(defun keyboard-target-index [state children key ctx]
+  (let [current (selected-child-index state children)
+        count (count children)
+        columns (grid-columns state ctx)]
+    (when (and (not (nil? current))
+               (> count 0))
+      (case key
+        :key/left (clamp (dec current) 0 (dec count))
+        :key/right (clamp (inc current) 0 (dec count))
+        :key/up (clamp (- current columns) 0 (dec count))
+        :key/down (clamp (+ current columns) 0 (dec count))
+        :key/home 0
+        :key/end (dec count)
+        :default nil))))
+
+(defun reorderable-grid? [state]
+  (and (grid-mode? state)
+       (= (:reorderable? state) true)))
+
+(defun drop-grid-index [state position child-count ctx]
+  (let [grid (grid-options state)
+        origin (:origin grid)
+        cell-width (max 1 (:cell-width grid))
+        cell-height (max 1 (:cell-height grid))
+        columns (grid-columns state ctx)
+        x (- (or (:x position) 0) (:x origin))
+        y (- (or (:y position) 0) (:y origin))
+        col (clamp (int (/ (+ x (int (/ cell-width 2))) cell-width))
+                   0
+                   (dec columns))
+        row (max 0 (int (/ (+ y (int (/ cell-height 2))) cell-height)))
+        raw (+ (* row columns) col)]
+    (clamp raw 0 (max 0 (dec child-count)))))
+
+(defun drag-child-index [children payload]
+  (cond
+    (valid-child-index? children (:index payload))
+    (:index payload)
+
+    (not (nil? (:id (:item payload))))
+    (child-index-by-id children (:id (:item payload)))
+
+    :default
+    nil))
+
+(defun apply-grid-layout! [state ctx]
+  (when (grid-mode? state)
+    (let [children (ui/children ctx)]
+      (for-indexed [index child children]
+        (let [pos (grid-cell-position state index ctx)]
+          (ui/style! child
+                     {:position :absolute
+                      :left (:x pos)
+                      :top (:y pos)}))))))
 
 (defcomponent ui/icon-container
   {:focusable true
    :style {:width :fill
            :height :fill
            :clip true}
+   :update (fn [state ctx]
+             (do
+               (apply-grid-layout! state ctx)
+               state))
+   :on-key-down (fn [state event ctx]
+                  (let [children (ui/children ctx)
+                        key (:key event)
+                        target-index (keyboard-target-index state children key ctx)
+                        selected-index (selected-child-index state children)]
+                    (cond
+                      (not (nil? target-index))
+                      (do
+                        (ui/stop-propagation! event)
+                        (ui/emit! (:view ctx)
+                                  :ui/icon-select
+                                  (child-event-payload (nth children target-index)
+                                                       target-index))
+                        (assoc (assoc state
+                                      :selected-index target-index)
+                               :selected-id (child-id (nth children target-index))))
+
+                      (and (= key :key/enter)
+                           (valid-child-index? children selected-index))
+                      (do
+                        (ui/stop-propagation! event)
+                        (ui/emit! (:view ctx)
+                                  :ui/icon-activate
+                                  (child-event-payload (nth children selected-index)
+                                                       selected-index))
+                        state)
+
+                      :default
+                      state)))
    :on-drop (fn [state event ctx]
               (let [payload (:payload event)
-                    item (:item payload)]
+                    item (:item payload)
+                    children (ui/children ctx)
+                    raw-position (drop-position event (:offset payload))
+                    position (icon-container-position state raw-position)
+                    from-index (drag-child-index children payload)
+                    to-index (drop-grid-index state
+                                              position
+                                              (count children)
+                                              ctx)]
                 (do
                   (when item
-                    (ui/emit! (:view ctx)
-                              :ui/icon-drop
-                              {:item item
-                               :target (or (:target state)
-                                           (:path state))
-                               :position (drop-position event (:offset payload))}))
+                    (if (and (reorderable-grid? state)
+                             (valid-child-index? children from-index))
+                      (when (not= from-index to-index)
+                        (ui/emit! (:view ctx)
+                                  :ui/icon-reorder
+                                  {:item item
+                                   :target (or (:target state)
+                                               (:path state))
+                                   :from-index from-index
+                                   :to-index to-index}))
+                      (ui/emit! (:view ctx)
+                                :ui/icon-drop
+                                {:item item
+                                 :target (or (:target state)
+                                             (:path state))
+                                 :position position
+                                 :raw-position raw-position})))
                   state)))})

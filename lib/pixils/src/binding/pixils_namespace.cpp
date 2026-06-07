@@ -993,6 +993,7 @@ namespace Pixils::Script
                       Runtime::View,
                       &HostType::VIEW,
                       (id),
+                      (state),
                       (bounds),
                       (interaction),
                       (style),
@@ -1003,6 +1004,10 @@ namespace Pixils::Script
                       ("on-mouse-up", on_mouse_up));
 
   NOBJ_PROP_GET__FIELD(ViewAdapter, id);
+  NOBJ_PROP_GET(ViewAdapter, state)
+  {
+    return object->get_object().state;
+  }
   NOBJ_PROP_GET(ViewAdapter, bounds)
   {
     const Rect& b = object->get_object().bounds;

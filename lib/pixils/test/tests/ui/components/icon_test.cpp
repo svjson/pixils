@@ -360,3 +360,191 @@ TEST_F(IconTest, make_draggable_adds_drag_policy_to_arbitrary_child)
   EXPECT_EQ(move->to_string(), "{:position {:x 15 :y 8}}");
   EXPECT_EQ(end->to_string(), "true");
 }
+
+TEST_F(IconTest, icon_container_grid_mode_positions_existing_children)
+{
+  runtime.eval(R"(
+    (pixils/defmode root-mode
+      {:children [{:mode 'ui/icon-container
+                   :style {:width 100
+                           :height 100}
+                   :state {:layout-mode :grid
+                           :grid {:cell-width 20
+                                  :cell-height 24
+                                  :columns 2}}
+                   :children [{:mode 'ui/icon
+                               :style {:width 10 :height 10}
+                               :state {:item {:id :one}}}
+                              {:mode 'ui/icon
+                               :style {:width 10 :height 10}
+                               :state {:item {:id :two}}}
+                              {:mode 'ui/icon
+                               :style {:width 10 :height 10}
+                               :state {:item {:id :three}}}]}]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  session.update_mode();
+  session.render_mode();
+
+  auto container = session.active_mode->children[0];
+  ASSERT_NE(container, nullptr);
+  ASSERT_EQ(container->children.size(), 3u);
+  EXPECT_EQ(container->children[0]->bounds.x, 0);
+  EXPECT_EQ(container->children[0]->bounds.y, 0);
+  EXPECT_EQ(container->children[1]->bounds.x, 20);
+  EXPECT_EQ(container->children[1]->bounds.y, 0);
+  EXPECT_EQ(container->children[2]->bounds.x, 0);
+  EXPECT_EQ(container->children[2]->bounds.y, 24);
+}
+
+TEST_F(IconTest, icon_container_snaps_drop_position_to_grid)
+{
+  runtime.eval(R"(
+    (pixils/defmode root-mode
+      {:init (fn [state ctx] {:drop nil})
+       :style {:width 160
+               :height 80
+               :layout {:direction :row
+                        :gap 10}}
+       :on {:ui/icon-drop (fn [state event ctx]
+                            (assoc state :drop (:payload event)))}
+       :children [(pixils.ui.drag/make-draggable
+                   {:style {:width 20 :height 20}
+                    :state {:item {:id :disk}}}
+                   {:threshold 1})
+                  {:mode 'ui/icon-container
+                   :style {:width 100
+                           :height 80}
+                   :state {:target :desktop
+                           :snap-to-grid? true
+                           :grid {:cell-width 20
+                                  :cell-height 20}}}]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  session.update_mode();
+  session.render_mode();
+
+  input().mouse_down({5, 5});
+  update_cycle();
+  input().mouse_move({60, 31});
+  update_cycle();
+  input().mouse_up({60, 31});
+  update_cycle();
+  update_cycle();
+
+  auto drop = Roo::Dict::get_property(session.active_mode->state, Roo::keyword("drop"));
+  ASSERT_NE(drop, nullptr);
+  EXPECT_EQ(drop->to_string(),
+            "{:item {:id :disk} :target :desktop :position {:x 20 :y 20} "
+            ":raw-position {:x 25 :y 26}}");
+}
+
+TEST_F(IconTest, icon_container_grid_reorder_emits_from_and_to_indexes)
+{
+  runtime.eval(R"(
+    (pixils/defmode root-mode
+      {:init (fn [state ctx] {:reorder nil})
+       :style {:width 100
+               :height 100
+               :layout {:direction :row
+                        :gap 10}}
+       :on {:ui/icon-reorder (fn [state event ctx]
+                               (assoc state :reorder (:payload event)))}
+       :children [(pixils.ui.drag/make-draggable
+                   {:style {:width 10 :height 10}
+                    :state {:item {:id :one}}}
+                   {:threshold 1})
+                  {:mode 'ui/icon-container
+                   :style {:width 100
+                           :height 100}
+                   :state {:target :desktop
+                           :layout-mode :grid
+                           :reorderable? true
+                           :grid {:cell-width 20
+                                  :cell-height 20
+                                  :columns 2}}
+                   :children [{:mode 'ui/icon
+                               :style {:width 10 :height 10}
+                               :state {:item {:id :one}}}
+                              {:mode 'ui/icon
+                               :style {:width 10 :height 10}
+                               :state {:item {:id :two}}}
+                              {:mode 'ui/icon
+                               :style {:width 10 :height 10}
+                               :state {:item {:id :three}}}]}]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  session.update_mode();
+  session.render_mode();
+
+  input().mouse_down({5, 5});
+  update_cycle();
+  input().mouse_move({45, 25});
+  update_cycle();
+  input().mouse_up({45, 25});
+  update_cycle();
+  update_cycle();
+
+  auto reorder =
+    Roo::Dict::get_property(session.active_mode->state, Roo::keyword("reorder"));
+  ASSERT_NE(reorder, nullptr);
+  EXPECT_EQ(reorder->to_string(),
+            "{:item {:id :one} :target :desktop :from-index 0 :to-index 2}");
+}
+
+TEST_F(IconTest, icon_container_keyboard_navigation_emits_select_and_activate)
+{
+  runtime.eval(R"(
+    (pixils/defmode root-mode
+      {:init (fn [state ctx] {:select nil :activate nil})
+       :style {:width 100
+               :height 100}
+       :on {:ui/icon-select (fn [state event ctx]
+                              (assoc state :select (:payload event)))
+            :ui/icon-activate (fn [state event ctx]
+                                (assoc state :activate (:payload event)))}
+       :children [{:mode 'ui/icon-container
+                   :style {:width 100
+                           :height 100}
+                   :state {:selected-id :one
+                           :layout-mode :grid
+                           :grid {:cell-width 20
+                                  :cell-height 20
+                                  :columns 2}}
+                   :children [{:mode 'ui/icon
+                               :style {:width 10 :height 10}
+                               :state {:item {:id :one}}}
+                              {:mode 'ui/icon
+                               :style {:width 10 :height 10}
+                               :state {:item {:id :two}}}]}]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  session.update_mode();
+  session.render_mode();
+
+  input().mouse_down({1, 1});
+  update_cycle();
+  input().mouse_up({1, 1});
+  update_cycle();
+  input().key_down(SDLK_RIGHT);
+  update_cycle();
+  input().key_up(SDLK_RIGHT);
+  update_cycle();
+  input().key_down(SDLK_RETURN);
+  update_cycle();
+
+  auto select =
+    Roo::Dict::get_property(session.active_mode->state, Roo::keyword("select"));
+  auto activate =
+    Roo::Dict::get_property(session.active_mode->state, Roo::keyword("activate"));
+  ASSERT_NE(select, nullptr);
+  ASSERT_NE(activate, nullptr);
+  EXPECT_EQ(select->to_string(),
+            "{:item {:id :two} :index 1 :id :two :input-source :keyboard}");
+  EXPECT_EQ(activate->to_string(),
+            "{:item {:id :two} :index 1 :id :two :input-source :keyboard}");
+}

@@ -403,6 +403,24 @@ comes from container state `:target` or `:path`. Applications decide what the
 item and drop mean; filesystem moves, ownership, and persistence are not part of
 the core icon components.
 
+`ui/icon-container` can also coordinate grid behavior without creating the icon
+children itself. With `:snap-to-grid? true`, drops are snapped to `:grid`
+settings and the drop payload also includes `:raw-position`. With
+`:layout-mode :grid`, existing child views are positioned by child order. Grid
+settings accept `:cell-width`, `:cell-height`, optional `:cell-size`, optional
+`:origin`, and optional `:columns`; when `:columns` is omitted, it is derived
+from the container width. Add `:reorderable? true` in grid mode to emit
+`:ui/icon-reorder` with `{:item item :target target :from-index n :to-index n}`
+when a dragged icon payload matches one of the container's child items by id.
+
+When focused, `ui/icon-container` supports keyboard navigation over its current
+children. Arrow keys move by one cell or row, Home/End jump to the first/last
+child, and Enter emits `:ui/icon-activate` for the selected child. Keyboard
+selection emits `:ui/icon-select` with
+`{:item item :index index :id id :input-source :keyboard}`. The container uses
+`:selected-index`, `:selected-id`, or child `:selected?` / `:selected` state to
+find the current selection.
+
 `ui/desktop-icon` extends `ui/icon` with stock image and label children. Its
 update step derives `:image` from `(:image item)` or state `:image`, derives
 `:label` from `(:label item)`, `(:title item)`, `(:name item)`, or state

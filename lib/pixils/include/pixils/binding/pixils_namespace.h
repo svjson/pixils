@@ -155,6 +155,7 @@ namespace Pixils::Script
     ViewAdapter,
     Runtime::View,
     (id,
+     state,
      bounds,
      interaction,
      style,
