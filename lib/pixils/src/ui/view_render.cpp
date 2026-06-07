@@ -130,6 +130,45 @@ namespace Pixils::UI
       };
     }
 
+    std::optional<SDL_Rect> intersect_sdl_rect(const SDL_Rect& a, const SDL_Rect& b)
+    {
+      int x1 = std::max(a.x, b.x);
+      int y1 = std::max(a.y, b.y);
+      int x2 = std::min(a.x + a.w, b.x + b.w);
+      int y2 = std::min(a.y + a.h, b.y + b.h);
+      if (x2 <= x1 || y2 <= y1) return std::nullopt;
+      return SDL_Rect{x1, y1, x2 - x1, y2 - y1};
+    }
+
+    int proportional_crop(int dest_crop, int source_size, int dest_size)
+    {
+      if (dest_size <= 0) return 0;
+      return static_cast<int>(std::round(static_cast<double>(dest_crop) *
+                                         static_cast<double>(source_size) /
+                                         static_cast<double>(dest_size)));
+    }
+
+    std::optional<SDL_Rect> cropped_source_rect(const SDL_Rect& source,
+                                                const SDL_Rect& dest,
+                                                const SDL_Rect& clipped_dest)
+    {
+      if (dest.w <= 0 || dest.h <= 0) return std::nullopt;
+
+      int left = proportional_crop(clipped_dest.x - dest.x, source.w, dest.w);
+      int top = proportional_crop(clipped_dest.y - dest.y, source.h, dest.h);
+      int right = proportional_crop((dest.x + dest.w) - (clipped_dest.x + clipped_dest.w),
+                                    source.w,
+                                    dest.w);
+      int bottom = proportional_crop((dest.y + dest.h) - (clipped_dest.y + clipped_dest.h),
+                                     source.h,
+                                     dest.h);
+      int width = source.w - left - right;
+      int height = source.h - top - bottom;
+      if (width <= 0 || height <= 0) return std::nullopt;
+
+      return SDL_Rect{source.x + left, source.y + top, width, height};
+    }
+
     void set_clip(Pixils::RenderContext& render_ctx,
                   const std::optional<Rect>& clip,
                   const Point& origin,
@@ -174,6 +213,8 @@ namespace Pixils::UI
       if (allow_scale_boundary && (scale_factor(style_res) > 1 || opacity < 1.0f))
       {
         if (bounds.w <= 0 || bounds.h <= 0) return;
+        auto offscreen_clip = intersect_clip(inherited_clip, bounds);
+        if (!offscreen_clip) return;
 
         PIXILS_BENCHMARK_COUNT(render_offscreen_passes);
         PIXILS_BENCHMARK_COUNT(render_temporary_texture_creations);
@@ -194,7 +235,7 @@ namespace Pixils::UI
                          runtime,
                          render_hook_ctx,
                          view_ptr,
-                         std::nullopt,
+                         offscreen_clip,
                          texture,
                          {static_cast<float>(bounds.x), static_cast<float>(bounds.y)},
                          false);
@@ -276,13 +317,24 @@ namespace Pixils::UI
           SDL_Rect dest =
             background_image_dest(background, bounds, source.w, source.h, origin);
 
-          set_clip(render_ctx, intersect_clip(inherited_clip, bounds), origin);
-          const Uint8 alpha = opacity_to_alpha(background.opacity.value_or(1.0f));
-          SDL_SetTextureAlphaMod(texture, alpha);
-          PIXILS_BENCHMARK_COUNT(render_copy_calls);
-          SDL_RenderCopy(render_ctx.renderer, texture, &source, &dest);
-          if (alpha != 255) SDL_SetTextureAlphaMod(texture, 255);
-          set_clip(render_ctx, inherited_clip, origin);
+          auto image_clip = intersect_clip(inherited_clip, bounds);
+          if (image_clip)
+          {
+            SDL_Rect clip_rect = target_rect(*image_clip, origin).to_SDL_rect();
+            auto clipped_dest = intersect_sdl_rect(dest, clip_rect);
+            auto clipped_source =
+              clipped_dest ? cropped_source_rect(source, dest, *clipped_dest) : std::nullopt;
+            if (clipped_dest && clipped_source)
+            {
+              set_clip(render_ctx, image_clip, origin);
+              const Uint8 alpha = opacity_to_alpha(background.opacity.value_or(1.0f));
+              SDL_SetTextureAlphaMod(texture, alpha);
+              PIXILS_BENCHMARK_COUNT(render_copy_calls);
+              SDL_RenderCopy(render_ctx.renderer, texture, &*clipped_source, &*clipped_dest);
+              if (alpha != 255) SDL_SetTextureAlphaMod(texture, 255);
+              set_clip(render_ctx, inherited_clip, origin);
+            }
+          }
         }
       }
 

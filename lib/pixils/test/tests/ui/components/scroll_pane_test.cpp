@@ -3,8 +3,62 @@
 #include <gtest/gtest.h>
 #include <roo/runtime/dict.h>
 #include <roo/runtime/value.h>
+#include <sdl2_mock/mock_resources.h>
 
 using ScrollPaneTest = RenderFixture;
+
+namespace
+{
+  bool rect_eq(const SDL_Rect& a, const SDL_Rect& b)
+  {
+    return a.x == b.x && a.y == b.y && a.w == b.w && a.h == b.h;
+  }
+
+  bool has_fill_rect(const std::vector<RenderOperation>& ops, const SDL_Rect& rect)
+  {
+    for (const auto& op : ops)
+    {
+      if (op.type == RenderOpType::FILL_RECT && rect_eq(op.rendered_rect, rect))
+      {
+        return true;
+      }
+      if (has_fill_rect(op.sub_ops, rect)) return true;
+    }
+    return false;
+  }
+
+  bool has_render_copy_with_sub_fill_rect(const std::vector<RenderOperation>& ops,
+                                          const SDL_Rect& copy_rect,
+                                          const SDL_Rect& fill_rect)
+  {
+    for (const auto& op : ops)
+    {
+      if (op.type == RenderOpType::RENDER_COPY && rect_eq(op.rendered_rect, copy_rect) &&
+          has_fill_rect(op.sub_ops, fill_rect))
+      {
+        return true;
+      }
+      if (has_render_copy_with_sub_fill_rect(op.sub_ops, copy_rect, fill_rect))
+      {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  bool has_render_copy_rect(const std::vector<RenderOperation>& ops, const SDL_Rect& rect)
+  {
+    for (const auto& op : ops)
+    {
+      if (op.type == RenderOpType::RENDER_COPY && rect_eq(op.rendered_rect, rect))
+      {
+        return true;
+      }
+      if (has_render_copy_rect(op.sub_ops, rect)) return true;
+    }
+    return false;
+  }
+} // namespace
 
 TEST_F(ScrollPaneTest, scroll_pane_offsets_content_inside_clipped_viewport)
 {
@@ -58,6 +112,126 @@ TEST_F(ScrollPaneTest, scroll_pane_offsets_content_inside_clipped_viewport)
   EXPECT_EQ(content->bounds.y, -20);
   EXPECT_EQ(content->bounds.w, 100);
   EXPECT_EQ(content->bounds.h, 80);
+}
+
+TEST_F(ScrollPaneTest, scroll_pane_clips_translucent_absolute_child_to_viewport)
+{
+  runtime.eval(R"(
+    (pixils/defmode clipped-panel
+      {:style {:position :absolute
+               :left 0
+               :top 80
+               :width 20
+               :height 30
+               :opacity 0.5
+               :background {:r 200 :g 0 :b 0}}})
+
+    (pixils/defmode root-mode
+      {:children [(pixils.ui.scroll-pane/make
+                   {:style {:width 50 :height 40}
+                    :content-size {:w 100 :h 100}
+                    :offset {:x 0 :y 50}
+                    :scroll-x? false
+                    :children [{:mode 'clipped-panel}]})]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  session.update_mode();
+  session.render_mode();
+
+  ASSERT_NE(session.active_mode, nullptr);
+  ASSERT_EQ(session.active_mode->children.size(), 1u);
+  auto pane = session.active_mode->children[0];
+  ASSERT_NE(pane, nullptr);
+  ASSERT_EQ(pane->children.size(), 1u);
+  auto row = pane->children[0];
+  ASSERT_NE(row, nullptr);
+  ASSERT_EQ(row->children.size(), 2u);
+  auto viewport = row->children[0];
+  ASSERT_NE(viewport, nullptr);
+  ASSERT_EQ(viewport->bounds.h, 40);
+  ASSERT_EQ(viewport->children.size(), 1u);
+  auto content = viewport->children[0];
+  ASSERT_NE(content, nullptr);
+  ASSERT_EQ(content->children.size(), 1u);
+  auto child = content->children[0];
+  ASSERT_NE(child, nullptr);
+  EXPECT_EQ(child->bounds.y, 30);
+  EXPECT_EQ(child->bounds.h, 30);
+
+  auto& ops = render_target()->render_ops;
+  EXPECT_FALSE(has_render_copy_with_sub_fill_rect(ops,
+                                                 SDL_Rect{0, 30, 20, 30},
+                                                 SDL_Rect{0, 0, 20, 30}));
+  EXPECT_TRUE(has_render_copy_with_sub_fill_rect(ops,
+                                                SDL_Rect{0, 30, 20, 30},
+                                                SDL_Rect{0, 0, 20, 10}));
+}
+
+TEST_F(ScrollPaneTest, scroll_pane_clips_absolute_child_background_image_to_viewport)
+{
+  SDLMock::prepared_surfaces["./icon.png"] = {20, 30};
+  runtime.eval(R"(
+    (pixils/defbundle sprites {:images {:icon "icon.png"}})
+    (pixils/defmode image-panel
+      {:style {:position :absolute
+               :left 0
+               :top 80
+               :width 20
+               :height 30
+               :background {:image :sprites/icon
+                            :fit :fill}}})
+
+    (pixils/defmode root-mode
+      {:children [(pixils.ui.scroll-pane/make
+                   {:style {:width 50 :height 40}
+                    :content-size {:w 100 :h 100}
+                    :offset {:x 0 :y 50}
+                    :scroll-x? false
+                    :scroll-y? false
+                    :children [{:mode 'image-panel}]})]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  session.update_mode();
+  session.render_mode();
+
+  auto& ops = render_target()->render_ops;
+  EXPECT_FALSE(has_render_copy_rect(ops, SDL_Rect{0, 30, 20, 30}));
+  EXPECT_TRUE(has_render_copy_rect(ops, SDL_Rect{0, 30, 20, 10}));
+}
+
+TEST_F(ScrollPaneTest, scroll_pane_skips_fully_scrolled_out_background_image)
+{
+  SDLMock::prepared_surfaces["./icon.png"] = {20, 30};
+  runtime.eval(R"(
+    (pixils/defbundle sprites {:images {:icon "icon.png"}})
+    (pixils/defmode image-panel
+      {:style {:position :absolute
+               :left 0
+               :top 100
+               :width 20
+               :height 30
+               :background {:image :sprites/icon
+                            :fit :fill}}})
+
+    (pixils/defmode root-mode
+      {:children [(pixils.ui.scroll-pane/make
+                   {:style {:width 50 :height 40}
+                    :content-size {:w 100 :h 140}
+                    :offset {:x 0 :y 50}
+                    :scroll-x? false
+                    :scroll-y? false
+                    :children [{:mode 'image-panel}]})]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  session.update_mode();
+  session.render_mode();
+
+  auto& ops = render_target()->render_ops;
+  EXPECT_FALSE(has_render_copy_rect(ops, SDL_Rect{0, 50, 20, 30}));
+  EXPECT_FALSE(has_render_copy_rect(ops, SDL_Rect{0, 0, 20, 30}));
 }
 
 TEST_F(ScrollPaneTest, scroll_pane_without_horizontal_scroll_uses_content_width)
