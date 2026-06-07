@@ -216,7 +216,8 @@
 (defun apply-grid-layout! [state ctx]
   (when (grid-mode? state)
     (let [children (ui/children ctx)
-          count (icon-count-from-state state children)]
+          count (icon-count-from-state state children)
+          grid (grid-options state)]
       (for-indexed [index child children]
         (if (< index count)
           (let [pos (grid-cell-position state index ctx)]
@@ -224,6 +225,10 @@
                        {:position :absolute
                         :left (:x pos)
                         :top (:y pos)
+                        :width (:cell-width grid)
+                        :height (:cell-height grid)
+                        :clip true
+                        :layout {:align-items :center}
                         :hidden false}))
           (ui/style! child {:hidden true}))))))
 

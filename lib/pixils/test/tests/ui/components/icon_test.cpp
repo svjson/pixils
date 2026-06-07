@@ -392,10 +392,51 @@ TEST_F(IconTest, icon_container_grid_mode_positions_existing_children)
   ASSERT_EQ(container->children.size(), 3u);
   EXPECT_EQ(container->children[0]->bounds.x, 0);
   EXPECT_EQ(container->children[0]->bounds.y, 0);
+  EXPECT_EQ(container->children[0]->bounds.w, 20);
+  EXPECT_EQ(container->children[0]->bounds.h, 24);
   EXPECT_EQ(container->children[1]->bounds.x, 20);
   EXPECT_EQ(container->children[1]->bounds.y, 0);
+  EXPECT_EQ(container->children[1]->bounds.w, 20);
+  EXPECT_EQ(container->children[1]->bounds.h, 24);
   EXPECT_EQ(container->children[2]->bounds.x, 0);
   EXPECT_EQ(container->children[2]->bounds.y, 24);
+  EXPECT_EQ(container->children[2]->bounds.w, 20);
+  EXPECT_EQ(container->children[2]->bounds.h, 24);
+}
+
+TEST_F(IconTest, icon_container_grid_mode_constrains_desktop_icon_label_to_cell)
+{
+  runtime.eval(R"(
+    (pixils/defmode root-mode
+      {:children [{:mode 'ui/icon-container
+                   :style {:width 120
+                           :height 120}
+                   :state {:layout-mode :grid
+                           :grid {:cell-width 80
+                                  :cell-height 96
+                                  :columns 1}}
+                   :children [{:mode 'ui/desktop-icon
+                               :state {:item {:id :one
+                                              :label "A very long inventory item label"}}}]}]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  session.update_mode();
+  session.render_mode();
+
+  auto container = session.active_mode->children[0];
+  ASSERT_NE(container, nullptr);
+  ASSERT_EQ(container->children.size(), 1u);
+  auto icon = container->children[0];
+  ASSERT_NE(icon, nullptr);
+  EXPECT_EQ(icon->bounds.x, 0);
+  EXPECT_EQ(icon->bounds.y, 0);
+  EXPECT_EQ(icon->bounds.w, 80);
+  EXPECT_EQ(icon->bounds.h, 96);
+  ASSERT_EQ(icon->children.size(), 2u);
+  auto label = icon->children[1];
+  ASSERT_NE(label, nullptr);
+  EXPECT_LE(label->bounds.w, icon->effective_style.content_rect(icon->bounds).w);
 }
 
 TEST_F(IconTest, icon_container_snaps_drop_position_to_grid)
