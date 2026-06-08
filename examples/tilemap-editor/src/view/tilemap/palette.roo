@@ -71,11 +71,12 @@
 
 (defun tile-select-grid-rect [index columns]
   (let [columns (max 1 (or columns 1))
-        stride (tile-grid/tile-grid-stride)]
-    {:x (* (mod index columns) stride)
-     :y (* (int (/ index columns)) stride)
-     :w tile-grid/tile-grid-cell-size
-     :h tile-grid/tile-grid-cell-size}))
+        stride (tile-grid/tile-grid-stride)
+        size tile-grid/tile-grid-cell-size]
+    {:x (* (mod index columns) (:w stride))
+     :y (* (int (/ index columns)) (:h stride))
+     :w (:w size)
+     :h (:h size)}))
 
 (defun tile-select-grid-border-rect [rect]
   {:x (+ (:x rect) 1)

@@ -107,3 +107,10 @@
             16
             false
             16)))))
+
+(deftest tile-import-snap-control-keeps_slider_value_scalar
+  (let [state {:tile-size {:w 24 :h 22}
+               :source-snap-interval {:w 24 :h 22}
+               :source-snap-interval-custom? false}]
+    (is (= 24 (dialogs/tile-import-snap-control-interval state)))
+    (is (= "24x22" (dialogs/tile-import-snap-interval-label state)))))

@@ -166,7 +166,7 @@
         resized (tilemap/set-map-dimensions state 3 1 32)]
     (is (= 3 (:map-width resized)))
     (is (= 1 (:map-height resized)))
-    (is (= 32 (:tile-size resized)))
+    (is (= {:w 32 :h 32} (:tile-size resized)))
     (is (= [[:a :b nil]]
            (get-in resized [:layers 0 :tiles])))
     (is (= [[{:center :a} nil nil]]
@@ -190,9 +190,10 @@
     (is (= 64 (tilemap/zoom-pixels state 8)))
     (is (= 64 (tilemap/max-zoom-pixels state)))
     (is (= 0.25 (tilemap/zoom-from-pixels state 4)))
-    (is (= 4 (tilemap/scaled-tile-size
-              state
-              (tilemap/zoom-from-pixels state 4))))
+    (is (= {:w 4 :h 4}
+           (tilemap/scaled-tile-size
+            state
+            (tilemap/zoom-from-pixels state 4))))
     (is (= "Zoom 25%" (tilemap/zoom-label state 0.25)))
     (is (= "Zoom 400%" (tilemap/zoom-label state 4)))))
 

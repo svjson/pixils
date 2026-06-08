@@ -52,21 +52,77 @@
             :action :tile/add-menu-dummy
             :payload {:command :from-multiple-files}}
            :separator
-           {:label "Add color tile"
-            :action :tile/add-menu-dummy
-            :payload {:command :color}}
-           {:label "Add range of color tiles"
-            :action :tile/add-menu-dummy
-            :payload {:command :color-range}}]})
+	           {:label "Add color tile"
+	            :action :tile/add-menu-dummy
+	            :payload {:command :color}}
+	           {:label "Add range of color tiles"
+	            :action :tile/add-menu-dummy
+	            :payload {:command :color-range}}]})
+
+(defun rounded-proportion-dimension [value from-size to-size]
+  (data/map-dimension (int (+ (/ (* value to-size) from-size) 0.5))
+                      data/tile-size))
+
+(defun resize-tile-dim-with-lock [tile-size dimension value lock? proportion]
+  (let [tile-size (data/map-tile-dim tile-size)
+        value (data/map-dimension value data/tile-size)
+        proportion (data/map-tile-dim (or proportion tile-size))]
+    (if lock?
+      (if (= dimension :w)
+        {:w value
+         :h (rounded-proportion-dimension value
+                                          (:w proportion)
+                                          (:h proportion))}
+        {:w (rounded-proportion-dimension value
+                                          (:h proportion)
+                                          (:w proportion))
+         :h value})
+      (assoc tile-size dimension value))))
+
+(defun apply-tile-size-dialog-change [state dimension value]
+  (assoc state
+         :tile-size
+         (resize-tile-dim-with-lock (:tile-size state)
+                                    dimension
+                                    value
+                                    (:lock-tile-proportion? state)
+                                    (:tile-proportion state))))
+
+(defcomponent tile-size-slider-row
+  {:style {:width :fill
+           :height 24
+           :layout {:direction :row
+                    :align-items :center
+                    :gap 8}}
+   :on {:slider/change (fn [state event ctx]
+                         (do
+                           (ui/emit! (:view ctx)
+                                     :tileset-create-dialog/tile-size-change
+                                     {:dimension (:dimension state)
+                                      :value (:payload event)})
+                           state))}
+   :children [{:mode 'ui/text
+               :class :ui/muted
+               :style {:width 58}
+               :state {:value (ui/bind-state :label)}}
+              (sl/make {:value (ui/bind-state :value)
+                        :min 8
+                        :max 128
+                        :step 1})
+              {:mode 'ui/text
+               :style {:width 28}
+               :state {:value (ui/bind-state :value)}}]})
 
 (defun open-tileset-create-dialog! [state ctx]
   (let [id (unique-tileset-id (:tilesets state))]
     (do
-      (push-mode! 'tileset-create-dialog-modal
-                  {:tileset-id id
-                   :tileset-label (label-from-id id)
-                   :tile-size data/tile-size
-                   :confirm-label "Create"}
+	      (push-mode! 'tileset-create-dialog-modal
+	                  {:tileset-id id
+	                   :tileset-label (label-from-id id)
+	                   :tile-size data/tile-dim
+	                   :tile-proportion data/tile-dim
+	                   :lock-tile-proportion? true
+	                   :confirm-label "Create"}
                   {:origin {:view (:view ctx)
                             :event :tileset/dialog-result}})
       state)))
@@ -84,8 +140,13 @@
                     {:tileset-index index
                      :tileset-id (keyword-label (:id tileset))
                      :tileset-label (:label tileset)
-                     :tile-size (or (:tile-size tileset) data/tile-size)
-                     :confirm-label "Save"}
+	                     :tile-size (data/map-tile-dim
+	                                 (or (:tile-size tileset) data/tile-dim))
+	                     :tile-proportion (data/map-tile-dim
+	                                       (or (:tile-size tileset)
+	                                           data/tile-dim))
+	                     :lock-tile-proportion? true
+	                     :confirm-label "Save"}
                     {:origin {:view (:view ctx)
                               :event :tileset/edit-dialog-result}})
         (assoc state
@@ -111,8 +172,14 @@
                       {:source-tileset-index index
                        :tileset-id id
                        :tileset-label label
-                       :tile-size (or (:tile-size tileset) data/tile-size)
-                       :confirm-label "Duplicate"}
+	                       :tile-size (data/map-tile-dim
+	                                   (or (:tile-size tileset)
+	                                       data/tile-dim))
+	                       :tile-proportion (data/map-tile-dim
+	                                         (or (:tile-size tileset)
+	                                             data/tile-dim))
+	                       :lock-tile-proportion? true
+	                       :confirm-label "Duplicate"}
                       {:origin {:view (:view ctx)
                                 :event :tileset/duplicate-dialog-result}})
           (assoc state
@@ -260,9 +327,10 @@
         state))))
 
 (defun open-tile-import-dialog! [state ctx selected-bundle-id selected-resource-key]
-  (let [bundle-options (bundle-options (:resources state))
+  (let [tile-size (selected-tileset-tile-size state)
+        bundle-options (bundle-options (:resources state))
         selected-bundle-index (or (bundle-index-by-id bundle-options
-                                                     selected-bundle-id)
+                                                      selected-bundle-id)
                                   (if (empty? bundle-options) nil 0))
         selected-bundle-id (bundle-id-at-index bundle-options
                                                selected-bundle-index)
@@ -287,11 +355,11 @@
                      :exclude-same-tileset? false
                      :exclude-project? false
                      :source-snap-to-grid? true
-                     :source-snap-interval (selected-tileset-tile-size state)
+                     :source-snap-interval (:w tile-size)
                      :source-snap-interval-custom? false
                      :tile-import-preview-zoom 1
                      :tile-import-preview-offset {:x 0 :y 0}
-                     :tile-size (selected-tileset-tile-size state)}
+                     :tile-size tile-size}
                     {:origin {:view (:view ctx)
                               :event :tile/import-result}})
         state))))
@@ -364,12 +432,30 @@
            :padding 10
            :layout {:direction :column
                     :gap 8}}
-   :update (fn [state ctx]
-             (assoc state
-                    :invalid? (or (blank? (:tileset-id state))
-                                  (blank? (:tileset-label state)))))
-   :on {:slider/change (fn [state event ctx]
-                         (assoc state :tile-size (:payload event)))}
+	   :update (fn [state ctx]
+	             (assoc state
+	                    :tile-size (data/map-tile-dim (:tile-size state))
+	                    :tile-proportion (data/map-tile-dim
+	                                      (or (:tile-proportion state)
+	                                          (:tile-size state)))
+	                    :lock-tile-proportion?
+	                    (not= (:lock-tile-proportion? state) false)
+	                    :invalid? (or (blank? (:tileset-id state))
+	                                  (blank? (:tileset-label state)))))
+	   :on {:tileset-create-dialog/tile-size-change
+	        (fn [state event ctx]
+	          (let [payload (:payload event)]
+	            (apply-tile-size-dialog-change state
+	                                           (:dimension payload)
+	                                           (:value payload))))
+	        :checkbox/change
+	        (fn [state event ctx]
+	          (let [payload (:payload event)]
+	            (if (= (:value payload) :lock-tile-proportion?)
+	              (assoc state
+	                     :lock-tile-proportion? (:checked? payload)
+	                     :tile-proportion (data/map-tile-dim (:tile-size state)))
+	              state)))}
    :children [{:mode 'ui/text
                :class :ui/muted
                :state {:value "Id"}}
@@ -385,24 +471,17 @@
                :style {:width :fill
                        :height 24}
                :state {:value (ui/bind-state :tileset-label)}}
-              {:mode 'tile-definition-row
-               :style {:width :fill
-                       :height 24
-                       :layout {:direction :row
-                                :align-items :center
-                                :gap 8}}
-               :state {:tile-size (ui/bind-state :tile-size)}
-               :children [{:mode 'ui/text
-                           :class :ui/muted
-                           :style {:width 58}
-                           :state {:value "Tile size"}}
-                          (sl/make {:value (ui/bind-state :tile-size)
-                                    :min 8
-                                    :max 64
-                                    :step 1})
-                          {:mode 'ui/text
-                           :style {:width 28}
-                           :state {:value (ui/bind-state :tile-size)}}]}
+	              {:mode 'tile-size-slider-row
+	               :state {:dimension :w
+	                       :label "Tile W"
+	                       :value (ui/bind-state :tile-size :w)}}
+	              {:mode 'tile-size-slider-row
+	               :state {:dimension :h
+	                       :label "Tile H"
+	                       :value (ui/bind-state :tile-size :h)}}
+	              (chk/make {:label "Lock proportion"
+	                         :checked? (ui/bind-state :lock-tile-proportion?)
+	                         :value :lock-tile-proportion?})
               {:mode 'tileset-create-dialog-buttons
                :state {:invalid? (ui/bind-state :invalid?)
                        :confirm-label (ui/bind-state :confirm-label)}}]})
@@ -450,21 +529,28 @@
                 (pop-mode! {:type :confirm
                             :tileset-id (:tileset-id state)
                             :tileset-label (:tileset-label state)
-                            :tile-size (:tile-size state)
+	                            :tile-size (data/map-tile-dim (:tile-size state))
                             :tileset-index (:tileset-index state)})
                 state))))}
    :compose {:render :pass}
    :children [(w/make {:position {:x 220 :y 140}
                        :title-bar {:title "New Tile Set"}
-                       :state {:tileset-id (ui/bind-state :tileset-id)
-                               :tileset-label (ui/bind-state :tileset-label)
-                               :tile-size (ui/bind-state :tile-size)
-                               :confirm-label (ui/bind-state :confirm-label)}
+	                       :state {:tileset-id (ui/bind-state :tileset-id)
+	                               :tileset-label (ui/bind-state :tileset-label)
+	                               :tile-size (ui/bind-state :tile-size)
+	                               :tile-proportion (ui/bind-state :tile-proportion)
+	                               :lock-tile-proportion?
+	                               (ui/bind-state :lock-tile-proportion?)
+	                               :confirm-label (ui/bind-state :confirm-label)}
                        :body [{:mode 'tileset-create-dialog-body
-                               :state {:tileset-id (ui/bind-state :tileset-id)
-                                       :tileset-label (ui/bind-state :tileset-label)
-                                       :tile-size (ui/bind-state :tile-size)
-                                       :confirm-label (ui/bind-state :confirm-label)}}]})]})
+	                               :state {:tileset-id (ui/bind-state :tileset-id)
+	                                       :tileset-label (ui/bind-state :tileset-label)
+	                                       :tile-size (ui/bind-state :tile-size)
+	                                       :tile-proportion (ui/bind-state
+	                                                         :tile-proportion)
+	                                       :lock-tile-proportion?
+	                                       (ui/bind-state :lock-tile-proportion?)
+	                                       :confirm-label (ui/bind-state :confirm-label)}}]})]})
 
 (defmode tileset-edit-dialog-modal
   {:on {:tileset-create-dialog/cancel
@@ -485,7 +571,7 @@
                             :tileset-index (:tileset-index state)
                             :tileset-id (:tileset-id state)
                             :tileset-label (:tileset-label state)
-                            :tile-size (:tile-size state)})
+	                            :tile-size (data/map-tile-dim (:tile-size state))})
                 state))))}
    :compose {:render :pass}
    :children [(w/make {:position {:x 220 :y 140}
@@ -494,12 +580,19 @@
                                :tileset-id (ui/bind-state :tileset-id)
                                :tileset-label (ui/bind-state :tileset-label)
                                :tile-size (ui/bind-state :tile-size)
+                               :tile-proportion (ui/bind-state :tile-proportion)
+                               :lock-tile-proportion?
+                               (ui/bind-state :lock-tile-proportion?)
                                :confirm-label (ui/bind-state :confirm-label)}
                        :body [{:mode 'tileset-create-dialog-body
                                :state {:tileset-index (ui/bind-state :tileset-index)
                                        :tileset-id (ui/bind-state :tileset-id)
                                        :tileset-label (ui/bind-state :tileset-label)
                                        :tile-size (ui/bind-state :tile-size)
+                                       :tile-proportion (ui/bind-state
+                                                         :tile-proportion)
+                                       :lock-tile-proportion?
+                                       (ui/bind-state :lock-tile-proportion?)
                                        :confirm-label (ui/bind-state :confirm-label)}}]})]})
 
 (defmode tileset-duplicate-dialog-modal
@@ -521,7 +614,7 @@
                             :source-tileset-index (:source-tileset-index state)
                             :tileset-id (:tileset-id state)
                             :tileset-label (:tileset-label state)
-                            :tile-size (:tile-size state)})
+	                            :tile-size (data/map-tile-dim (:tile-size state))})
                 state))))}
    :compose {:render :pass}
    :children [(w/make {:position {:x 220 :y 140}
@@ -529,15 +622,22 @@
                        :state {:source-tileset-index
                                (ui/bind-state :source-tileset-index)
                                :tileset-id (ui/bind-state :tileset-id)
-                               :tileset-label (ui/bind-state :tileset-label)
-                               :tile-size (ui/bind-state :tile-size)
-                               :confirm-label (ui/bind-state :confirm-label)}
+	                               :tileset-label (ui/bind-state :tileset-label)
+	                               :tile-size (ui/bind-state :tile-size)
+	                               :tile-proportion (ui/bind-state :tile-proportion)
+	                               :lock-tile-proportion?
+	                               (ui/bind-state :lock-tile-proportion?)
+	                               :confirm-label (ui/bind-state :confirm-label)}
 	                       :body [{:mode 'tileset-create-dialog-body
 	                               :state {:source-tileset-index
 	                                       (ui/bind-state :source-tileset-index)
 	                                       :tileset-id (ui/bind-state :tileset-id)
 	                                       :tileset-label (ui/bind-state :tileset-label)
 	                                       :tile-size (ui/bind-state :tile-size)
+	                                       :tile-proportion (ui/bind-state
+	                                                         :tile-proportion)
+	                                       :lock-tile-proportion?
+	                                       (ui/bind-state :lock-tile-proportion?)
 	                                       :confirm-label (ui/bind-state :confirm-label)}}]})]})
 
 (defcomponent tileset-properties-dialog-buttons
@@ -1187,10 +1287,11 @@
 
 (defun tile-import-index-at-position [position image-rect dim tile-size]
   (let [scale (:scale image-rect)
+        tile-size (data/map-tile-dim tile-size)
         x (/ (- (:x position) (:x image-rect)) scale)
         y (/ (- (:y position) (:y image-rect)) scale)
-        col (int (/ x tile-size))
-        row (int (/ y tile-size))
+        col (int (/ x (:w tile-size)))
+        row (int (/ y (:h tile-size)))
         columns (source-grid-columns dim tile-size)
         rows (source-grid-rows dim tile-size)
         index (+ col (* row columns))]
@@ -1206,6 +1307,15 @@
 
 (defun tile-import-snap-interval [state]
   (import-source-snap-interval state))
+
+(defun tile-import-snap-control-interval [state]
+  (source-snap-interval (:tile-size state) (:source-snap-interval state)))
+
+(defun tile-import-snap-interval-label [state]
+  (let [interval (tile-import-snap-interval state)]
+    (if (= (type-of interval) "map")
+      (str (:w interval) "x" (:h interval))
+      (str interval))))
 
 (defun tile-import-source-at-position [position image-rect dim tile-size snap-to-grid? snap-interval]
   (let [scale (:scale image-rect)
@@ -1295,11 +1405,12 @@
            :layout {:direction :column
                     :gap 8}}
    :init (fn [state ctx]
-           (let [snap-interval (tile-import-snap-interval state)]
+           (let [snap-interval (tile-import-snap-control-interval state)]
              (assoc state
                     :source-snap-to-grid? (tile-import-snap-enabled? state)
                     :source-snap-interval snap-interval
-                    :source-snap-interval-label (str snap-interval)
+                    :source-snap-interval-label
+                    (tile-import-snap-interval-label state)
                     :tile-import-preview-zoom 1
                     :tile-import-preview-offset {:x 0 :y 0})))
    :update (fn [state ctx]
@@ -1307,13 +1418,14 @@
                    dim (when resource (img/size (:key resource)))
                    sources (when (and resource dim)
                              (import-source-rects state (:key resource) dim))
-                   snap-interval (tile-import-snap-interval state)]
+                   snap-interval (tile-import-snap-control-interval state)]
                       (assoc state
                              :resource resource
                              :source-snap-to-grid?
                              (tile-import-snap-enabled? state)
                              :source-snap-interval snap-interval
-                             :source-snap-interval-label (str snap-interval)
+                             :source-snap-interval-label
+                             (tile-import-snap-interval-label state)
                              :tile-import-preview-zoom
                              (ip/clamp-zoom (:tile-import-preview-zoom state))
                              :tile-import-preview-offset
@@ -1452,7 +1564,7 @@
                                                             :max 128
                                                             :step 1})
                                                   {:mode 'ui/text
-                                                   :style {:width 28}
+                                                   :style {:width 48}
                                                    :state {:value (ui/bind-state
                                                                    :source-snap-interval-label)}}]}]}]}
               {:mode 'ui/text

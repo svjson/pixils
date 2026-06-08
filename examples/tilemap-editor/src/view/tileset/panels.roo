@@ -57,14 +57,14 @@
     (if (or (nil? index)
             (lb/held-shift? ctx))
       {:kind :tileset/tile-selection}
-      {:kind :tileset/tile
-       :source-tileset-index (:selected-tileset-definition-index state)
-       :tile-index index
-       :tile tile
-       :tile-size tile-size
-       :width tile-size
-       :height tile-size
-       :offset (:start-position event)})))
+	      {:kind :tileset/tile
+	       :source-tileset-index (:selected-tileset-definition-index state)
+	       :tile-index index
+	       :tile tile
+	       :tile-size tile-size
+	       :width (:w tile-size)
+	       :height (:h tile-size)
+	       :offset (:start-position event)})))
 
 (defun emit-tile-drag-start! [state event ctx]
   (let [payload (:payload event)]
@@ -235,13 +235,13 @@
                :state {:value (ui/bind-state :tile-count-label)}}]})
 
 (defun tile-cell-rect [index columns tile-size]
-  (let [columns (max 1 (or columns 1))
-        tile-size (tile-grid-cell-size-for tile-size)
-        stride (tile-grid-stride tile-size)]
-    {:x (* (mod index columns) stride)
-     :y (* (int (/ index columns)) stride)
-     :w tile-size
-     :h tile-size}))
+	  (let [columns (max 1 (or columns 1))
+	        tile-size (tile-grid-cell-size-for tile-size)
+	        stride (tile-grid-stride tile-size)]
+	    {:x (* (mod index columns) (:w stride))
+	     :y (* (int (/ index columns)) (:h stride))
+	     :w (:w tile-size)
+	     :h (:h tile-size)}))
 
 (defun selected-tile-border-rect [rect]
   {:x (+ (:x rect) 1)
@@ -408,11 +408,13 @@
       (int (/ (+ item-count (dec columns)) columns)))))
 
 (defun tile-grid-content-height [item-count columns tile-size]
-  (let [rows (tile-grid-row-count item-count columns)]
-    (if (= rows 0)
-      0
-      (+ (* (dec rows) (tile-grid-stride tile-size))
-         (tile-grid-cell-size-for tile-size)))))
+	  (let [rows (tile-grid-row-count item-count columns)]
+	    (if (= rows 0)
+	      0
+	      (let [stride (tile-grid-stride tile-size)
+	            size (tile-grid-cell-size-for tile-size)]
+	        (+ (* (dec rows) (:h stride))
+	           (:h size))))))
 
 (defun tile-grid-scroll-content-size [state ctx]
   (let [tiles (selected-tileset-tiles state)
@@ -469,10 +471,11 @@
                   :content-height 0))
    :update (fn [state ctx]
              (let [content-size (tile-grid-scroll-content-size state ctx)]
-               (assoc state
-                      :content-height (:h content-size)
-                      :step
-                      (tile-grid-stride (selected-tileset-tile-size state)))))
+	               (assoc state
+	                      :content-height (:h content-size)
+	                      :step
+	                      (:h (tile-grid-stride
+	                           (selected-tileset-tile-size state))))))
    :children [{:mode 'tileset-tile-grid-scroll-viewport
                :state {:offset (ui/bind-state :offset)
                        :content-height (ui/bind-state :content-height)
@@ -494,14 +497,15 @@
 (defcomponent tileset-tile-drag-preview
   {:class :ui/content
    :style {:position :absolute
-           :width tile-grid-cell-size
-           :height tile-grid-cell-size
+	           :width (:w tile-grid-cell-size)
+	           :height (:h tile-grid-cell-size)
            :hit-test false
            :hidden true}
    :update (fn [state ctx]
              (let [preview (:drag-preview state)
                    position (:position preview)
-                   tile-size (or (:tile-size preview) tile-grid-cell-size)
+	                   tile-size (data/map-tile-dim
+	                              (or (:tile-size preview) tile-grid-cell-size))
                    visible? (not (nil? preview))]
                (do
                  (ui/style! (:view ctx)
@@ -509,20 +513,21 @@
                               {:hidden false
                                :left (:x position)
                                :top (:y position)
-                               :width tile-size
-                               :height tile-size}
+	                               :width (:w tile-size)
+	                               :height (:h tile-size)}
                               {:hidden true}))
                  (assoc state
                         :tile (:tile preview)
                         :tile-size tile-size))))
    :render (fn [state ctx]
              (let [tile (:tile state)
-                   tile-size (or (:tile-size state) tile-grid-cell-size)]
-               (when tile
-                 (tr/draw-tile! tile {:x 0
-                                      :y 0
-                                      :w tile-size
-                                      :h tile-size}))))})
+	                   tile-size (data/map-tile-dim
+	                              (or (:tile-size state) tile-grid-cell-size))]
+	               (when tile
+	                 (tr/draw-tile! tile {:x 0
+	                                      :y 0
+	                                      :w (:w tile-size)
+	                                      :h (:h tile-size)}))))})
 
 (defcomponent tile-preview
   {:class :ui/content
@@ -663,7 +668,8 @@
            :layout {:direction :column
                     :gap 4}}
    :init (fn [state ctx]
-           (let [tile-size (or (:tile-size state) data/tile-size)]
+	           (let [tile-size (data/map-tile-dim
+	                            (or (:tile-size state) data/tile-dim))]
              (assoc state
                     :source-snap-to-grid?
                     (sse/source-position-snap-enabled? state)
@@ -673,7 +679,8 @@
    :update (fn [state ctx]
              (let [tile (:tile state)
                    source (:source tile)
-                   tile-size (or (:tile-size state) data/tile-size)
+	                   tile-size (data/map-tile-dim
+	                              (or (:tile-size state) data/tile-dim))
                    sprite? (= (:type tile) :sprite)
                    snap-to-grid? (sse/source-position-snap-enabled? state)
                    snap-interval (sse/source-position-snap-interval state)]

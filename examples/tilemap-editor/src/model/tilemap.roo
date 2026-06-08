@@ -10,31 +10,40 @@
   (max low (min high value)))
 
 (defun tile-size [state]
-  (data/map-tile-size (:tile-size state)))
+  (data/map-tile-dim (:tile-size state)))
+
+(defun tile-width [state]
+  (:w (tile-size state)))
+
+(defun tile-height [state]
+  (:h (tile-size state)))
 
 (defun max-zoom-pixels [state]
-  (* (tile-size state) 4))
+  (* (tile-width state) 4))
 
 (defun zoom-pixels [state zoom]
-  (clamp (int (+ (* (tile-size state) (or zoom 1)) 0.5))
+  (clamp (int (+ (* (tile-width state) (or zoom 1)) 0.5))
          1
          (max-zoom-pixels state)))
 
 (defun scaled-tile-size [state zoom]
-  (zoom-pixels state zoom))
+  (let [dim (tile-size state)
+        zoom (clamp-zoom state zoom)]
+    {:w (zoom-pixels state zoom)
+     :h (max 1 (int (+ (* (:h dim) zoom) 0.5)))}))
 
 (defun zoom-from-pixels [state pixels]
-  (/ (clamp (int (or pixels (tile-size state)))
+  (/ (clamp (int (or pixels (tile-width state)))
             1
             (max-zoom-pixels state))
-     (tile-size state)))
+     (tile-width state)))
 
 (defun clamp-zoom [state zoom]
   (zoom-from-pixels state (zoom-pixels state zoom)))
 
 (defun zoom-percent [state zoom]
   (int (+ (/ (* (zoom-pixels state zoom) 100)
-             (tile-size state))
+             (tile-width state))
           0.5)))
 
 (defun zoom-label [state zoom]
@@ -47,11 +56,11 @@
   (data/map-dimension (:map-height state) data/map-height))
 
 (defun max-scroll-x [state ctx]
-  (max 0 (- (* (map-width state) (scaled-tile-size state (:zoom state)))
+  (max 0 (- (* (map-width state) (:w (scaled-tile-size state (:zoom state))))
             (-> ctx :view :bounds :w))))
 
 (defun max-scroll-y [state ctx]
-  (max 0 (- (* (map-height state) (scaled-tile-size state (:zoom state)))
+  (max 0 (- (* (map-height state) (:h (scaled-tile-size state (:zoom state))))
             (-> ctx :view :bounds :h))))
 
 (defun pan-map [state ctx dx dy]
@@ -160,8 +169,8 @@
   (let [offset (or (:offset state) {:x 0 :y 0})
         pos (:position event)
         size (scaled-tile-size state (:zoom state))]
-    {:x (int (/ (+ (:x pos) (:x offset)) size))
-     :y (int (/ (+ (:y pos) (:y offset)) size))}))
+    {:x (int (/ (+ (:x pos) (:x offset)) (:w size)))
+     :y (int (/ (+ (:y pos) (:y offset)) (:h size)))}))
 
 (defun bounded-map-tile-position [state event]
   (let [pos (map-tile-position state event)]
@@ -870,7 +879,7 @@
 (defun set-map-dimensions [state width height & tile-size]
   (let [width (data/map-dimension width data/map-width)
         height (data/map-dimension height data/map-height)
-        tile-size (data/map-tile-size (or tile-size
+        tile-size (data/map-tile-dim (or tile-size
                                           (:tile-size state)))
         state (assoc state
                      :map-width width

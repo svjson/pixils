@@ -41,11 +41,11 @@
 
 (deftest tile-grid-drag-payload-identifies_source_tile
   (is (= {:kind :tileset/tile
-          :source-tileset-index 0
-          :tile-index 1
-          :tile {:id :water}
-          :tile-size 32
-          :width 32
+	          :source-tileset-index 0
+	          :tile-index 1
+	          :tile {:id :water}
+	          :tile-size {:w 32 :h 32}
+	          :width 32
           :height 32
           :offset {:x 33 :y 2}}
          (panels/tile-grid-drag-payload

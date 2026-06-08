@@ -52,7 +52,7 @@
                 :tile-size 24})]
     (is (= :terrain (get-in state [:tilesets 0 :id])))
     (is (= "Terrain" (get-in state [:tilesets 0 :label])))
-    (is (= 24 (get-in state [:tilesets 0 :tile-size])))
+    (is (= {:w 24 :h 24} (get-in state [:tilesets 0 :tile-size])))
     (is (= 0 (:selected-tileset-definition-index state)))))
 
 (deftest theme-selection-updates_state_and_queues_runtime_theme_switch

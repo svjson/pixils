@@ -33,7 +33,7 @@
                payload)]
     (is (= support/OPEN-PATH (:project-path state)))
     (is (= "Loaded Background" (get-in state [:layers 0 :label])))
-    (is (= 24 (:tile-size state)))
+    (is (= {:w 24 :h 24} (:tile-size state)))
     (is (= [] (:tilesets state)))
     (is (= 0 (:selected-layer-index state)))
     (is (= [] (:hidden-layer-indices state)))

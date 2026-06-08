@@ -2,6 +2,7 @@
   (:require pixils
             [pixils.render :as r]
             [pixils.ui :as ui]
+            [pixils.ui.checkbox :as chk]
             [pixils.ui.combo-box :as cb]
             [pixils.ui.header-panel :as hp]
             [pixils.ui.list-box :as lb]
@@ -803,22 +804,71 @@
 ;; Map Dimensions Dialog
 
 (defun open-map-dimensions-dialog! [state ctx]
-  (do
-    (push-mode! 'map-dimensions-dialog-modal
-                {:width (data/map-dimension (:map-width state) data/map-width)
-                 :height (data/map-dimension (:map-height state) data/map-height)
-                 :tile-size (data/map-tile-size (:tile-size state))}
-                {:origin {:view (:view ctx)
-                          :event :map/dimensions-dialog-result}})
-    state))
+  (let [tile-size (data/map-tile-dim (:tile-size state))]
+    (do
+      (push-mode! 'map-dimensions-dialog-modal
+                  {:width (data/map-dimension (:map-width state) data/map-width)
+                   :height (data/map-dimension (:map-height state) data/map-height)
+                   :tile-size tile-size
+                   :tile-proportion tile-size
+                   :lock-tile-proportion? true}
+                  {:origin {:view (:view ctx)
+                            :event :map/dimensions-dialog-result}})
+      state)))
+
+(defun rounded-proportion-dimension [value from-size to-size]
+  (data/map-dimension (int (+ (/ (* value to-size) from-size) 0.5))
+                      data/tile-size))
+
+(defun resize-tile-dim-with-lock [tile-size dimension value lock? proportion]
+  (let [tile-size (data/map-tile-dim tile-size)
+        value (data/map-dimension value data/tile-size)
+        proportion (data/map-tile-dim (or proportion tile-size))]
+    (if lock?
+      (if (= dimension :tile-width)
+        {:w value
+         :h (rounded-proportion-dimension value
+                                          (:w proportion)
+                                          (:h proportion))}
+        {:w (rounded-proportion-dimension value
+                                          (:h proportion)
+                                          (:w proportion))
+         :h value})
+      (if (= dimension :tile-width)
+        (assoc tile-size :w value)
+        (assoc tile-size :h value)))))
+
+(defun apply-map-dimension-change [state dimension value]
+  (case dimension
+    :width (assoc state :width value)
+    :height (assoc state :height value)
+    :tile-width (assoc state
+                       :tile-size
+                       (resize-tile-dim-with-lock
+                        (:tile-size state)
+                        dimension
+                        value
+                        (:lock-tile-proportion? state)
+                        (:tile-proportion state)))
+    :tile-height (assoc state
+                        :tile-size
+                        (resize-tile-dim-with-lock
+                         (:tile-size state)
+                         dimension
+                         value
+                         (:lock-tile-proportion? state)
+                         (:tile-proportion state)))
+    :default state))
 
 (defun valid-map-dimensions? [state]
-  (and (not (nil? (:width state)))
-       (not (nil? (:height state)))
-       (not (nil? (:tile-size state)))
-       (>= (:width state) data/min-map-dimension)
-       (>= (:height state) data/min-map-dimension)
-       (>= (:tile-size state) data/min-map-dimension)))
+  (let [tile-size (data/map-tile-dim (:tile-size state))]
+    (and (not (nil? (:width state)))
+         (not (nil? (:height state)))
+         (not (nil? tile-size))
+         (>= (:width state) data/min-map-dimension)
+         (>= (:height state) data/min-map-dimension)
+         (>= (:w tile-size) data/min-map-dimension)
+         (>= (:h tile-size) data/min-map-dimension))))
 
 (defcomponent map-dimension-input
   {:style {:width :fill
@@ -857,10 +907,11 @@
                (do
                  (when (not (:invalid? state))
                    (ui/emit! (:view ctx)
-                             :map-dimensions/confirm
-                             {:width (:width state)
-                              :height (:height state)
-                              :tile-size (:tile-size state)}))
+	                             :map-dimensions/confirm
+	                             {:width (:width state)
+	                              :height (:height state)
+	                              :tile-size (data/map-tile-dim
+	                                          (:tile-size state))}))
                  state))})
 
 (defcomponent map-dimensions-dialog-buttons
@@ -891,24 +942,43 @@
                :state {:dimension :width
                        :label "Width"
                        :value (ui/bind-state :width)}}
-              {:mode 'map-dimension-input
-               :state {:dimension :height
-                       :label "Height"
-                       :value (ui/bind-state :height)}}
-              {:mode 'map-dimension-input
-               :state {:dimension :tile-size
-                       :label "Tile"
-                       :value (ui/bind-state :tile-size)}}
-              {:mode 'map-dimensions-dialog-buttons
-               :state {:width (ui/bind-state :width)
-                       :height (ui/bind-state :height)
-                       :tile-size (ui/bind-state :tile-size)
+	              {:mode 'map-dimension-input
+	               :state {:dimension :height
+	                       :label "Height"
+	                       :value (ui/bind-state :height)}}
+	              {:mode 'map-dimension-input
+	               :state {:dimension :tile-width
+	                       :label "Tile W"
+	                       :value (ui/bind-state :tile-size :w)}}
+	              {:mode 'map-dimension-input
+	               :state {:dimension :tile-height
+	                       :label "Tile H"
+	                       :value (ui/bind-state :tile-size :h)}}
+	              (chk/make {:label "Lock proportion"
+	                         :checked? (ui/bind-state :lock-tile-proportion?)
+	                         :value :lock-tile-proportion?})
+	              {:mode 'map-dimensions-dialog-buttons
+	               :state {:width (ui/bind-state :width)
+	                       :height (ui/bind-state :height)
+	                       :tile-size (ui/bind-state :tile-size)
                        :invalid? (ui/bind-state :invalid?)}}]})
 
 (defmode map-dimensions-dialog-modal
   {:on {:map-dimensions/change (fn [state event ctx]
                                  (let [payload (:payload event)]
-                                   (assoc state (:dimension payload) (:value payload))))
+                                   (apply-map-dimension-change
+                                    state
+                                    (:dimension payload)
+                                    (:value payload))))
+        :checkbox/change (fn [state event ctx]
+                           (let [payload (:payload event)]
+                             (if (= (:value payload) :lock-tile-proportion?)
+                               (assoc state
+                                      :lock-tile-proportion?
+                                      (:checked? payload)
+                                      :tile-proportion
+                                      (data/map-tile-dim (:tile-size state)))
+                               state)))
         :map-dimensions/cancel (fn [state event ctx]
                                  (do
                                    (ui/stop-propagation! event)
@@ -927,14 +997,22 @@
    :compose {:render :pass}
    :children [(w/make {:position {:x 220 :y 140}
                        :title-bar {:title "Map Dimensions"}
-                       :state {:width (ui/bind-state :width)
-                               :height (ui/bind-state :height)
-                               :tile-size (ui/bind-state :tile-size)}
-                       :body [{:mode 'map-dimensions-dialog-body
-                               :state {:width (ui/bind-state :width)
-                                       :height (ui/bind-state :height)
-                                       :tile-size
-                                       (ui/bind-state :tile-size)}}]})]})
+	                       :state {:width (ui/bind-state :width)
+	                               :height (ui/bind-state :height)
+	                               :tile-size (ui/bind-state :tile-size)
+	                               :lock-tile-proportion?
+	                               (ui/bind-state :lock-tile-proportion?)
+	                               :tile-proportion
+	                               (ui/bind-state :tile-proportion)}
+	                       :body [{:mode 'map-dimensions-dialog-body
+	                               :state {:width (ui/bind-state :width)
+	                                       :height (ui/bind-state :height)
+	                                       :tile-size
+	                                       (ui/bind-state :tile-size)
+	                                       :lock-tile-proportion?
+	                                       (ui/bind-state :lock-tile-proportion?)
+	                                       :tile-proportion
+	                                       (ui/bind-state :tile-proportion)}}]})]})
 
 
 

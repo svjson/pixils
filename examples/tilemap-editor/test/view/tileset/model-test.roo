@@ -43,11 +43,11 @@
                 :tileset-id "terrain"
                 :tileset-label "Terrain"
                 :tile-size 32})]
-    (is (= [{:id :terrain
-             :label "Terrain"
-             :tile-size 32
-             :tiles []}]
-           (:tilesets state)))
+	    (is (= [{:id :terrain
+	             :label "Terrain"
+	             :tile-size {:w 32 :h 32}
+	             :tiles []}]
+	           (:tilesets state)))
     (is (= 0 (:selected-tileset-definition-index state)))
     (is (= nil (:selected-tileset-tile-index state)))))
 
@@ -81,10 +81,10 @@
                 :tileset-id "terrain copy"
                 :tileset-label "Terrain Copy"
                 :tile-size 32})]
-    (is (= [:terrain :terrain-copy :decor]
-           (map (:tilesets state) :id)))
-    (is (= "Terrain Copy" (get-in state [:tilesets 1 :label])))
-    (is (= 32 (get-in state [:tilesets 1 :tile-size])))
+	    (is (= [:terrain :terrain-copy :decor]
+	           (map (:tilesets state) :id)))
+	    (is (= "Terrain Copy" (get-in state [:tilesets 1 :label])))
+	    (is (= {:w 32 :h 32} (get-in state [:tilesets 1 :tile-size])))
     (is (= {:x 8 :y 16 :w 32 :h 32}
            (get-in state [:tilesets 1 :tiles 0 :source])))
     (is (= 1 (:selected-tileset-definition-index state)))
@@ -142,10 +142,10 @@
                 :tileset-id "world terrain"
                 :tileset-label "World Terrain"
                 :tile-size 32})]
-    (is (= {:id :world-terrain
-            :label "World Terrain"
-            :tile-size 32
-            :tiles [{:id :grass
+	    (is (= {:id :world-terrain
+	            :label "World Terrain"
+	            :tile-size {:w 32 :h 32}
+	            :tiles [{:id :grass
                      :type :sprite
                      :source {:x 8 :y 16 :w 32 :h 32}}
                     {:id :water
@@ -765,6 +765,21 @@
            (model/import-source-rects state
                                       :assets/sprites
                                       {:w 32 :h 32})))))
+
+(deftest import-source-rects-use_rectangular_tile_stride
+  (let [state {:selected-tileset-definition-index 0
+               :tilesets [{:tiles []}]
+               :tile-size {:w 22 :h 18}
+               :select-all? true
+               :exclude-same-tileset? false
+               :exclude-project? false}]
+    (is (= [{:x 0 :y 0 :w 22 :h 18}
+            {:x 22 :y 0 :w 22 :h 18}
+            {:x 0 :y 18 :w 22 :h 18}
+            {:x 22 :y 18 :w 22 :h 18}]
+           (model/import-source-rects state
+                                      :assets/sprites
+                                      {:w 44 :h 36})))))
 
 (deftest import-source-rects-start_empty_without_select_all
   (let [state {:selected-tileset-definition-index 0

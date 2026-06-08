@@ -62,6 +62,24 @@
     (is (contains? (:state button) :height))
     (is (contains? (:state button) :tile-size))))
 
+(deftest map-dimension-change-scales_locked_tile_proportion
+  (let [state (controls/apply-map-dimension-change
+               {:tile-size {:w 18 :h 22}
+                :tile-proportion {:w 18 :h 22}
+                :lock-tile-proportion? true}
+               :tile-width
+               36)]
+    (is (= {:w 36 :h 44} (:tile-size state)))))
+
+(deftest map-dimension-change-can_adjust_tile_sides_independently
+  (let [state (controls/apply-map-dimension-change
+               {:tile-size {:w 18 :h 22}
+                :tile-proportion {:w 18 :h 22}
+                :lock-tile-proportion? false}
+               :tile-width
+               36)]
+    (is (= {:w 36 :h 22} (:tile-size state)))))
+
 (deftest tileset-selector-is-disabled_without_layers
   (is (= true (:disabled? (:state (controls/tileset-combo-child [{:id :terrain
                                                                    :label "Terrain"}]

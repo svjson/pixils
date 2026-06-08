@@ -30,11 +30,13 @@
 (defun open-tileset-shortcut-dialog! [state ctx]
   (let [id (tileset-model/unique-tileset-id (:tilesets state))]
     (do
-      (push-mode! 'tileset-create-dialog-modal
-                  {:tileset-id id
-                   :tileset-label (tileset-model/label-from-id id)
-                   :tile-size (data/map-tile-size (:tile-size state))
-                   :confirm-label "Create"}
+	      (push-mode! 'tileset-create-dialog-modal
+	                  {:tileset-id id
+	                   :tileset-label (tileset-model/label-from-id id)
+	                   :tile-size (data/map-tile-dim (:tile-size state))
+	                   :tile-proportion (data/map-tile-dim (:tile-size state))
+	                   :lock-tile-proportion? true
+	                   :confirm-label "Create"}
                   {:origin {:view (:view ctx)
                             :event :tileset/shortcut-dialog-result}})
       (assoc state :pending-tileset-shortcut-dialog? false))))
@@ -113,7 +115,7 @@
            :selected-map-label data/default-map-label
            :map-width data/map-width
            :map-height data/map-height
-           :tile-size data/tile-size
+           :tile-size data/tile-dim
            :selected-layer-index nil
            :selected-layer-label ""
            :layers []

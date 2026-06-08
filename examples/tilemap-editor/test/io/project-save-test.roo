@@ -19,7 +19,7 @@
     (is (= {:bundles {}} (:resources document)))
     (is (= [] (:tilesets document)))
     (is (= data/default-map-id (:selected-map document)))
-    (is (= 24 (get-in document [:maps 0 :tile-size])))
+    (is (= {:w 24 :h 24} (get-in document [:maps 0 :tile-size])))
     (is (= [] (get-in document [:maps 0 :layers]))))
   (support/cleanup-project-io-test-files!))
 

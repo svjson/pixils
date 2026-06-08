@@ -55,10 +55,10 @@
     (is (= :map/two (:selected-map-id state)))
     (is (= "Two" (:selected-map-label state)))
     (is (= 2 (:map-width state)))
-    (is (= 32 (:tile-size state)))
+    (is (= {:w 32 :h 32} (:tile-size state)))
     (is (= :water (get-in state [:layers 0 :tiles 0 0])))
     (is (= :edited (get-in state [:maps 0 :layers 0 :tiles 0 0])))
-    (is (= 24 (get-in state [:maps 0 :tile-size])))
+    (is (= {:w 24 :h 24} (get-in state [:maps 0 :tile-size])))
     (is (= {:x 3 :y 4}
            (get-in state [:map-ui-states :map/one :map-offset])))))
 
@@ -93,8 +93,8 @@
     (is (= :map/bonus (:selected-map-id state)))
     (is (= "Bonus" (:selected-map-label state)))
     (is (= 3 (count (:maps state))))
-    (is (= 24 (:tile-size state)))
-    (is (= 24 (get-in state [:maps 2 :tile-size])))
+    (is (= {:w 24 :h 24} (:tile-size state)))
+    (is (= {:w 24 :h 24} (get-in state [:maps 2 :tile-size])))
     (is (= nil (get-in state [:layers 0 :tiles 0 0])))
     (is (= :scene/ground (get-in state [:layers 0 :id])))))
 

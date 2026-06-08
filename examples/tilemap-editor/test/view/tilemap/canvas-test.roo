@@ -197,4 +197,4 @@
                 :terrain-sets []
                 :rulesets []
                 :layer-profiles []})]
-    (is (= 32 (:tile-size input)))))
+    (is (= {:w 32 :h 32} (:tile-size input)))))

@@ -150,10 +150,10 @@
                :maps maps
                :map-ui-states {}
                :selected-map-id (:id selected-map)
-               :selected-map-label (:label selected-map)
-               :map-width (:width selected-map)
-               :map-height (:height selected-map)
-               :tile-size (:tile-size selected-map)
+	               :selected-map-label (:label selected-map)
+	               :map-width (:width selected-map)
+	               :map-height (:height selected-map)
+	               :tile-size (data/map-tile-dim (:tile-size selected-map))
                :selected-brush-index (when (> (count brushes) 0) 0)
                :selected-brush-layer-index
                (when (> (count (or (-> (head brushes) :pattern :layers) [])) 0) 0)

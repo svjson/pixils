@@ -35,7 +35,7 @@
     (tilesets-tab/edit-dialog-matches? app
                                        {:tileset/id "loaded"
                                         :tileset/label "Loaded"
-                                        :tileset/tile-size 16})
+                                        :tileset/tile-size {:w 16 :h 16}})
     (project/cleanup! :tileset-context)))
 
 (deftest tileset-tile-grid-drag-selects-and-delete-prompts

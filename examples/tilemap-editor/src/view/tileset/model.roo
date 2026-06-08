@@ -4,7 +4,7 @@
             [pixils.tilemap.project.model :as data]
             [tilemap-editor.model.maps :as maps]))
 
-(def tile-grid-cell-size data/tile-size)
+(def tile-grid-cell-size data/tile-dim)
 
 (def tile-grid-gap 0)
 
@@ -222,10 +222,11 @@
       (nth options index))))
 
 (defun default-tile-source [tile-size]
-  {:x 0 :y 0 :w tile-size :h tile-size})
+  (let [tile-size (data/map-tile-dim tile-size)]
+    {:x 0 :y 0 :w (:w tile-size) :h (:h tile-size)}))
 
 (defun tile-grid-cell-size-for [tile-size]
-  (or tile-size tile-grid-cell-size))
+  (data/map-tile-dim (or tile-size tile-grid-cell-size)))
 
 (defun optional-tile-grid-size [value]
   (if (= (type-of value) "vector")
@@ -233,8 +234,9 @@
     value))
 
 (defun tile-grid-stride [& tile-size-values]
-  (+ (tile-grid-cell-size-for (optional-tile-grid-size tile-size-values))
-     tile-grid-gap))
+  (let [size (tile-grid-cell-size-for (optional-tile-grid-size tile-size-values))]
+    {:w (+ (:w size) tile-grid-gap)
+     :h (+ (:h size) tile-grid-gap)}))
 
 (defun clamp-index [index item-count]
   (if (<= item-count 0)
@@ -243,21 +245,22 @@
 
 (defun tile-grid-columns [bounds & tile-size-values]
   (let [size (tile-grid-cell-size-for
-              (optional-tile-grid-size tile-size-values))]
+              (optional-tile-grid-size tile-size-values))
+        stride (tile-grid-stride size)]
   (max 1 (int (/ (+ (max 1 (or (:w bounds) 1)) tile-grid-gap)
-                   (tile-grid-stride size))))))
+	                   (:w stride))))))
 
 (defun tile-grid-index-at-position [position bounds item-count & tile-size-values]
   (let [size (tile-grid-cell-size-for
               (optional-tile-grid-size tile-size-values))
         stride (tile-grid-stride size)
-        col (int (/ (:x position) stride))
-        row (int (/ (:y position) stride))
+        col (int (/ (:x position) (:w stride)))
+        row (int (/ (:y position) (:h stride)))
         index (+ col (* row (tile-grid-columns bounds size)))]
     (if (and (>= (:x position) 0)
              (>= (:y position) 0)
-             (< (mod (:x position) stride) size)
-             (< (mod (:y position) stride) size)
+	             (< (mod (:x position) (:w stride)) (:w size))
+	             (< (mod (:y position) (:h stride)) (:h size))
              (< index item-count))
       index
       nil)))
@@ -327,8 +330,8 @@
   (or (:tiles (selected-tileset-definition state)) []))
 
 (defun selected-tileset-tile-size [state]
-  (or (:tile-size (selected-tileset-definition state))
-      data/tile-size))
+  (data/map-tile-dim (or (:tile-size (selected-tileset-definition state))
+                         data/tile-dim)))
 
 (defun selected-tileset-tile [state]
   (let [tiles (selected-tileset-tiles state)
@@ -368,45 +371,48 @@
     (or match 0)))
 
 (defun tile-with-type [tile type tile-size]
-  (case type
-    :color
-    (assoc tile
-           :type :color
-           :color (or (:color tile) default-tile-color))
+  (let [tile-dim (data/map-tile-dim tile-size)]
+    (case type
+	    :color
+	    (assoc tile
+	           :type :color
+	           :color (or (:color tile) default-tile-color))
 
-    :sprite
-    (assoc tile
-           :type :sprite
-           :image (or (:image tile) default-tile-image)
-           :source (assoc (merge (default-tile-source tile-size)
-                                 (or (:source tile) {}))
-                          :w tile-size
-                          :h tile-size))
+	    :sprite
+	    (assoc tile
+	           :type :sprite
+	           :image (or (:image tile) default-tile-image)
+	           :source (assoc (merge (default-tile-source tile-dim)
+	                                 (or (:source tile) {}))
+	                          :w (:w tile-dim)
+	                          :h (:h tile-dim)))
 
-    :default
-    (assoc tile :type type)))
+	    :default
+	    (assoc tile :type type))))
 
 (defun tile-with-size [tile tile-size]
-  (if (or (= (:type tile) :sprite)
-          (:source tile))
-    (assoc tile
-           :source (assoc (merge (default-tile-source tile-size)
-                                 (or (:source tile) {}))
-                          :w tile-size
-                          :h tile-size))
-    tile))
+  (let [tile-dim (data/map-tile-dim tile-size)]
+    (if (or (= (:type tile) :sprite)
+            (:source tile))
+      (assoc tile
+             :source (assoc (merge (default-tile-source tile-dim)
+                                   (or (:source tile) {}))
+                            :w (:w tile-dim)
+                            :h (:h tile-dim)))
+      tile)))
 
 (defun tileset-with-tile-size [tileset tile-size]
-  (assoc (assoc tileset
-                :tile-size tile-size)
-         :tiles (map (or (:tiles tileset) [])
-                     (fn [tile]
-                       (tile-with-size tile tile-size)))))
+  (let [tile-size (data/map-tile-dim tile-size)]
+    (assoc (assoc tileset
+                  :tile-size tile-size)
+	         :tiles (map (or (:tiles tileset) [])
+	                     (fn [tile]
+	                       (tile-with-size tile tile-size))))))
 
 (defun make-tileset-definition [id label tile-size]
   {:id (keyword id)
    :label label
-   :tile-size tile-size
+   :tile-size (data/map-tile-dim tile-size)
    :tiles []})
 
 (defun tileset-label [tileset]
@@ -483,10 +489,10 @@
     (let [tilesets (or (:tilesets state) [])
           id (unique-id-from tilesets (kebab-case (:tileset-id payload)) nil)
           index (count tilesets)
-          tileset (make-tileset-definition id
-                                           (:tileset-label payload)
-                                           (or (:tile-size payload)
-                                               data/tile-size))]
+	          tileset (make-tileset-definition id
+	                                           (:tileset-label payload)
+	                                           (or (:tile-size payload)
+	                                               data/tile-dim))]
       (assoc state
              :tilesets (concat tilesets [tileset])
              :selected-tileset-definition-index index
@@ -504,9 +510,9 @@
              (not (blank? (:tileset-id payload)))
              (not (blank? (:tileset-label payload))))
       (let [source (nth tilesets index)
-            tile-size (or (:tile-size payload)
-                          (:tile-size source)
-                          data/tile-size)
+	            tile-size (or (:tile-size payload)
+	                          (:tile-size source)
+	                          data/tile-dim)
             id (keyword (unique-id-from tilesets
                                         (kebab-case (:tileset-id payload))
                                         nil))
@@ -582,8 +588,8 @@
              (not (blank? (:tileset-label payload))))
       (let [old-tileset (nth tilesets index)
             old-id (:id old-tileset)
-            tile-size (or (:tile-size payload)
-                          data/tile-size)
+	            tile-size (or (:tile-size payload)
+	                          data/tile-dim)
             new-id (keyword (unique-id-from-except
                              tilesets
                              (kebab-case (:tileset-id payload))
@@ -1094,9 +1100,9 @@
             tile (make-tile-definition id
                                        (:tile-name payload)
                                        (or (:tile-char payload) "")
-                                       (or (:tile-type payload) :color)
-                                       (or (:tile-size tileset)
-                                           data/tile-size))]
+	                                       (or (:tile-type payload) :color)
+	                                       (or (:tile-size tileset)
+	                                           data/tile-dim))]
         (assoc-in (assoc state
                          :selected-tileset-tile-index index
                          :selected-tileset-tile-indices [index])
@@ -1330,7 +1336,7 @@
              tileset
              (not (empty? (or resources []))))
       (let [existing (or (:tiles tileset) [])
-            tile-size (or (:tile-size tileset) data/tile-size)
+	            tile-size (or (:tile-size tileset) data/tile-dim)
             added (reduce (or resources [])
                           []
                           (fn [out resource]
@@ -1412,7 +1418,23 @@
                                                  value))))))
 
 (defun source-snap-interval [tile-size value]
-  (max 1 (or value tile-size)))
+  (let [tile-size (data/map-tile-dim tile-size)]
+    (if (= (type-of value) "map")
+      (:w (data/map-tile-dim value))
+      (max 1 (or value (:w tile-size))))))
+
+(defun source-snap-dim [tile-size value]
+  (let [tile-size (data/map-tile-dim tile-size)]
+    (cond
+      (= (type-of value) "map")
+      (data/map-tile-dim value)
+
+      (nil? value)
+      tile-size
+
+      :default
+      (let [interval (source-snap-interval tile-size value)]
+        {:w interval :h interval}))))
 
 (defun clamp-source-coordinate [value max-value tile-size snap-to-grid? snap-interval]
   (let [max-coordinate (max 0 (- max-value tile-size))
@@ -1422,55 +1444,63 @@
       (int clamped))))
 
 (defun source-with-position [source x y tile-size dim snap-to-grid? snap-interval]
-  (let [snap-interval (source-snap-interval tile-size snap-interval)]
+  (let [tile-size (data/map-tile-dim tile-size)
+        snap-dim (source-snap-dim tile-size snap-interval)]
     {:x (clamp-source-coordinate x
                                  (:w dim)
-                                 tile-size
+                                 (:w tile-size)
                                  snap-to-grid?
-                                 snap-interval)
+                                 (:w snap-dim))
      :y (clamp-source-coordinate y
                                  (:h dim)
-                                 tile-size
+                                 (:h tile-size)
                                  snap-to-grid?
-                                 snap-interval)
-     :w tile-size
-     :h tile-size}))
+                                 (:h snap-dim))
+     :w (:w tile-size)
+     :h (:h tile-size)}))
 
 (defun source-grid-columns [dim tile-size]
-  (max 1 (int (/ (:w dim) tile-size))))
+  (max 1 (int (/ (:w dim) (:w (data/map-tile-dim tile-size))))))
 
 (defun source-grid-rows [dim tile-size]
-  (max 1 (int (/ (:h dim) tile-size))))
+  (max 1 (int (/ (:h dim) (:h (data/map-tile-dim tile-size))))))
 
 (defun source-grid-count [dim tile-size]
   (* (source-grid-columns dim tile-size)
      (source-grid-rows dim tile-size)))
 
 (defun source-index-rect [index dim tile-size]
-  (let [columns (source-grid-columns dim tile-size)]
-    {:x (* (mod index columns) tile-size)
-     :y (* (int (/ index columns)) tile-size)
-     :w tile-size
-     :h tile-size}))
+  (let [tile-size (data/map-tile-dim tile-size)
+        columns (source-grid-columns dim tile-size)]
+    {:x (* (mod index columns) (:w tile-size))
+     :y (* (int (/ index columns)) (:h tile-size))
+     :w (:w tile-size)
+     :h (:h tile-size)}))
 
 (defun source-grid-columns-for-interval [dim tile-size interval]
-  (max 1 (inc (int (/ (max 0 (- (:w dim) tile-size))
-                      interval)))))
+  (let [tile-size (data/map-tile-dim tile-size)
+        interval (source-snap-dim tile-size interval)]
+    (max 1 (inc (int (/ (max 0 (- (:w dim) (:w tile-size)))
+                        (:w interval)))))))
 
 (defun source-grid-rows-for-interval [dim tile-size interval]
-  (max 1 (inc (int (/ (max 0 (- (:h dim) tile-size))
-                      interval)))))
+  (let [tile-size (data/map-tile-dim tile-size)
+        interval (source-snap-dim tile-size interval)]
+    (max 1 (inc (int (/ (max 0 (- (:h dim) (:h tile-size)))
+                        (:h interval)))))))
 
 (defun source-grid-count-for-interval [dim tile-size interval]
   (* (source-grid-columns-for-interval dim tile-size interval)
      (source-grid-rows-for-interval dim tile-size interval)))
 
 (defun source-index-rect-for-interval [index dim tile-size interval]
-  (let [columns (source-grid-columns-for-interval dim tile-size interval)]
-    {:x (* (mod index columns) interval)
-     :y (* (int (/ index columns)) interval)
-     :w tile-size
-     :h tile-size}))
+  (let [tile-size (data/map-tile-dim tile-size)
+        interval (source-snap-dim tile-size interval)
+        columns (source-grid-columns-for-interval dim tile-size interval)]
+    {:x (* (mod index columns) (:w interval))
+     :y (* (int (/ index columns)) (:h interval))
+     :w (:w tile-size)
+     :h (:h tile-size)}))
 
 (defun same-source? [a b]
   (and (= (:x a) (:x b))
@@ -1496,20 +1526,20 @@
      0))
 
 (defun import-source-snap-interval [state]
-  (let [tile-size (:tile-size state)]
+  (let [tile-size (data/map-tile-dim (:tile-size state))]
     (if (:source-snap-interval-custom? state)
       (source-snap-interval tile-size (:source-snap-interval state))
       tile-size)))
 
 (defun selected-source-indices [state dim]
-  (let [tile-size (:tile-size state)
+  (let [tile-size (data/map-tile-dim (:tile-size state))
         interval (import-source-snap-interval state)]
     (if (:select-all? state)
       (range 0 (dec (source-grid-count-for-interval dim tile-size interval)))
       (or (:selected-source-indices state) []))))
 
 (defun selected-source-rects [state dim]
-  (let [tile-size (:tile-size state)
+  (let [tile-size (data/map-tile-dim (:tile-size state))
         interval (import-source-snap-interval state)]
     (if (:select-all? state)
       (map (selected-source-indices state dim)
@@ -1569,9 +1599,11 @@
                           (let [tile-size (selected-tileset-tile-size state)
                                 tile (tile-with-type tile :sprite tile-size)]
                             (assoc tile
-                                   :source (assoc source
-                                                  :w tile-size
-                                                  :h tile-size))))))
+                                   :source (assoc (merge (default-tile-source
+                                                          tile-size)
+                                                         source)
+                                                  :w (:w tile-size)
+                                                  :h (:h tile-size)))))))
 
 (defun set-selected-tile-sprite [state payload]
   (update-selected-tile state
@@ -1581,9 +1613,11 @@
                                 source (:source payload)]
                             (assoc tile
                                    :image (:image payload)
-                                   :source (assoc source
-                                                  :w tile-size
-                                                  :h tile-size))))))
+                                   :source (assoc (merge (default-tile-source
+                                                          tile-size)
+                                                         source)
+                                                  :w (:w tile-size)
+                                                  :h (:h tile-size)))))))
 
 (defun selected-tileset-definition-indices [state]
   (if (nil? (:selected-tileset-definition-index state))

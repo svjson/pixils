@@ -33,10 +33,10 @@
 (defun selection-screen-rect [state selection offset zoom]
   (let [rect (:rect selection)
         size (tm/scaled-tile-size state zoom)]
-    {:x (- (* (:x rect) size) (:x offset))
-     :y (- (* (:y rect) size) (:y offset))
-     :w (* (:w rect) size)
-     :h (* (:h rect) size)}))
+    {:x (- (* (:x rect) (:w size)) (:x offset))
+     :y (- (* (:y rect) (:h size)) (:y offset))
+     :w (* (:w rect) (:w size))
+     :h (* (:h rect) (:h size))}))
 
 (defun draw-selection-corner! [x y dx dy color]
   (do
@@ -58,10 +58,10 @@
 
 (defun tile-screen-rect [state pos offset zoom]
   (let [size (tm/scaled-tile-size state zoom)]
-    {:x (- (* (:x pos) size) (:x offset))
-     :y (- (* (:y pos) size) (:y offset))
-     :w size
-     :h size}))
+    {:x (- (* (:x pos) (:w size)) (:x offset))
+     :y (- (* (:y pos) (:h size)) (:y offset))
+     :w (:w size)
+     :h (:h size)}))
 
 (defun draw-line-overlay! [state line offset zoom]
   (when (:active? line)
@@ -304,8 +304,8 @@
                                     (:source-rect patch-map)))))
 
 (defun map-canvas-cache-size [input]
-  {:w (* (:width input) (:tile-size input))
-   :h (* (:height input) (:tile-size input))})
+  {:w (* (:width input) (-> input :tile-size :w))
+   :h (* (:height input) (-> input :tile-size :h))})
 
 (defun render-map-cache-target-rect [input]
   (merge {:x 0 :y 0}
@@ -536,15 +536,15 @@
    :on-mouse-leave (fn [state event ctx]
                      (assoc state :map-hover-cell nil))
    :on-key-down (fn [state event ctx]
-                  (let [step (tm/scaled-tile-size state (:zoom state))]
-                    (case (:key event)
-                      :key/delete (tm/clear-map-selection state)
-                      :key/backspace (tm/clear-map-selection state)
-                      :key/left (tm/pan-map state ctx (* -1 step) 0)
-                      :key/right (tm/pan-map state ctx step 0)
-                      :key/up (tm/pan-map state ctx 0 (* -1 step))
-                      :key/down (tm/pan-map state ctx 0 step)
-                      :default state)))
+	                  (let [step (tm/scaled-tile-size state (:zoom state))]
+	                    (case (:key event)
+	                      :key/delete (tm/clear-map-selection state)
+	                      :key/backspace (tm/clear-map-selection state)
+	                      :key/left (tm/pan-map state ctx (* -1 (:w step)) 0)
+	                      :key/right (tm/pan-map state ctx (:w step) 0)
+	                      :key/up (tm/pan-map state ctx 0 (* -1 (:h step)))
+	                      :key/down (tm/pan-map state ctx 0 (:h step))
+	                      :default state)))
    :render (fn [state ctx]
              (let [offset (or (:offset state) {:x 0 :y 0})]
                (let [render-map (or (:render-map state)
@@ -618,10 +618,10 @@
                          :value (ui/bind-state :map-offset :y)
                          :step (ui/bind-state :scroll-tile-size)
                          :content-size (ui/bind-state :content-height)}}]
-     :update (fn [state ctx]
-               (let [size (tm/scaled-tile-size state (:zoom state))]
-                 (assoc (assoc state :scroll-tile-size size)
-                        :content-height (* (tm/map-height state) size))))})
+		     :update (fn [state ctx]
+		               (let [size (tm/scaled-tile-size state (:zoom state))]
+		                 (assoc (assoc state :scroll-tile-size (:h size))
+		                        :content-height (* (tm/map-height state) (:h size)))))})
 
 (defcomponent map-scroll-footer
   {:content-size map-scroll-footer-content-size
@@ -636,10 +636,10 @@
                          :step (ui/bind-state :scroll-tile-size)
                          :content-size (ui/bind-state :content-width)}}
               {:mode 'ui/scrollbar-corner}]
-     :update (fn [state ctx]
-               (let [size (tm/scaled-tile-size state (:zoom state))]
-                 (assoc (assoc state :scroll-tile-size size)
-                        :content-width (* (tm/map-width state) size))))})
+		     :update (fn [state ctx]
+		               (let [size (tm/scaled-tile-size state (:zoom state))]
+		                 (assoc (assoc state :scroll-tile-size (:w size))
+		                        :content-width (* (tm/map-width state) (:w size)))))})
 
 
 
