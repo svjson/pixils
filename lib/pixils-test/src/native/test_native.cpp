@@ -9,6 +9,7 @@
 #include <pixils/runtime/session.h>
 #include <pixils/runtime/view.h>
 #include <pixils/script.h>
+#include <pixils/ui/view_layout.h>
 
 #include <SDL2/SDL_keycode.h>
 #include <SDL2/SDL_mouse.h>
@@ -43,6 +44,7 @@ namespace
     std::vector<std::string> entry_points;
     int buffer_width = 800;
     int buffer_height = 600;
+    bool render_backend = true;
   };
 
   class SharedRenderBackend
@@ -132,7 +134,7 @@ namespace
       render_ctx.window_rect = {0, 0, target.buffer_width, target.buffer_height};
 
       auto& backend = shared_render_backend();
-      if (backend.ensure(target.buffer_width, target.buffer_height))
+      if (target.render_backend && backend.ensure(target.buffer_width, target.buffer_height))
       {
         render_ctx.window = backend.window;
         render_ctx.renderer = backend.renderer;
@@ -175,6 +177,11 @@ namespace
 
     ~TestApp()
     {
+      session.reset();
+      runtime.reset();
+      render_ctx.asset_registry.reset();
+      render_ctx.font_registry.reset();
+
       if (render_ctx.renderer)
       {
         SDL_SetRenderTarget(render_ctx.renderer, nullptr);
@@ -184,6 +191,7 @@ namespace
         SDL_DestroyTexture(render_ctx.buffer_texture);
         render_ctx.buffer_texture = nullptr;
       }
+      IMG_Quit();
     }
 
     void clear_transients()
@@ -207,6 +215,27 @@ namespace
     void render()
     {
       session->render_mode();
+      clear_transients();
+    }
+
+    void layout()
+    {
+      auto render_stack = session->mode_stack.get_render_stack();
+      Pixils::Rect full = {0, 0, render_ctx.buffer_dim.w, render_ctx.buffer_dim.h};
+
+      for (size_t i = render_stack.size() - 1; i > 0; i--)
+      {
+        size_t ctx_idx = session->ctx_stack.size() - i;
+        Pixils::UI::layout_view_tree(session->ctx_stack[ctx_idx],
+                                     full,
+                                     *runtime,
+                                     hook_args.render_args[1]);
+      }
+
+      Pixils::UI::layout_view_tree(session->active_mode,
+                                   full,
+                                   *runtime,
+                                   hook_args.render_args[1]);
       clear_transients();
     }
 
@@ -314,6 +343,22 @@ namespace
     return value->num().get_int();
   }
 
+  bool optional_bool_property(const Roo::sptr_val& map,
+                              const std::string& key,
+                              bool fallback)
+  {
+    auto value = Roo::Dict::get_property(map, Roo::keyword(key));
+    if (!value || value->type == Roo::Value::Type::NIL)
+    {
+      return fallback;
+    }
+    if (value->type != Roo::Value::Type::BOOL)
+    {
+      throw Roo::TypeError(":" + key + " must be a boolean");
+    }
+    return Roo::is_truthy(*value);
+  }
+
   int required_int(const Roo::sptr_val& value, const std::string& label)
   {
     if (!value || value->type == Roo::Value::Type::NIL)
@@ -400,6 +445,7 @@ namespace
       .entry_points = entry_points,
       .buffer_width = optional_int_property(opts, "buffer-width", 800),
       .buffer_height = optional_int_property(opts, "buffer-height", 600),
+      .render_backend = optional_bool_property(opts, "render-backend", true),
     };
   }
 
@@ -514,6 +560,7 @@ namespace
     FUNC(PopModeBangFunction, pop_mode);
     FUNC(UpdateBangFunction, update_bang);
     FUNC(RenderBangFunction, render_bang);
+    FUNC(LayoutBangFunction, layout_bang);
     FUNC(FrameBangFunction, frame_bang);
     FUNC(ActiveModeFunction, active_mode);
     FUNC(ActiveModeNameFunction, active_mode_name);
@@ -595,6 +642,15 @@ namespace
     EXEC_BODY(RenderBangFunction, exec_render_bang)
     {
       app_from(args[0]).render();
+      return args[0];
+    }
+
+    FUNC_IMPL(LayoutBangFunction,
+              SIG((FN_ARGS((&HostType::TEST_APP)),
+                   EXEC_DISPATCH(&LayoutBangFunction::exec_layout_bang))));
+    EXEC_BODY(LayoutBangFunction, exec_layout_bang)
+    {
+      app_from(args[0]).layout();
       return args[0];
     }
 
@@ -921,6 +977,7 @@ namespace
       values.emplace("pop-mode!", Function::PopModeBangFunction::make());
       values.emplace("update!", Function::UpdateBangFunction::make());
       values.emplace("render!", Function::RenderBangFunction::make());
+      values.emplace("layout!", Function::LayoutBangFunction::make());
       values.emplace("frame!", Function::FrameBangFunction::make());
       values.emplace("active-mode", Function::ActiveModeFunction::make());
       values.emplace("active-mode-name", Function::ActiveModeNameFunction::make());
