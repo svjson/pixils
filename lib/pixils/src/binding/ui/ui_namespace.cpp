@@ -324,6 +324,17 @@ namespace Pixils::Script
       return Roo::Constant::NIL;
     }
 
+    /** PreserveFocusBangFunction - preserve-focus! */
+    FUNC_IMPL(PreserveFocusBangFunction,
+              SIG((FN_ARGS((&HostType::EVENT)),
+                   EXEC_DISPATCH(&PreserveFocusBangFunction::exec_preserve_focus))));
+
+    EXEC_BODY(PreserveFocusBangFunction, exec_preserve_focus)
+    {
+      Roo::obj<Event>(*args[0]).preserve_focus = true;
+      return Roo::Constant::NIL;
+    }
+
     /** ActiveThemeVarFunction - theme-var */
     FUNC_IMPL(ActiveThemeVarFunction,
               SIG((FN_ARGS((Roo::VARARG, &Roo::Type::ANY)),
@@ -496,6 +507,7 @@ namespace Pixils::Script
     values.emplace(FN__PIXILS__UI__FOCUS_BANG, Function::FocusBangFunction::make());
     values.emplace("replace-child!", Function::ReplaceChildBangFunction::make());
     values.emplace(FN__PIXILS__UI__STYLE_BANG, Function::StyleBangFunction::make());
+    values.emplace("preserve-focus!", Function::PreserveFocusBangFunction::make());
     values.emplace("stop-propagation!", Function::StopPropagation::make());
     values.emplace(FN__PIXILS__UI__THEME_VAR, Function::ActiveThemeVarFunction::make());
   }

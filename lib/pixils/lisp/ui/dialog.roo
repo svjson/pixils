@@ -172,6 +172,8 @@
                     state))
    :on-mouse-down (fn [state event ctx]
                     (do
+                      (ui/preserve-focus! event)
+                      (ui/stop-propagation! event)
                       (dismiss-dialog! state)
                       state))
    :on {:dialog/button (fn [state event ctx]

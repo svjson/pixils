@@ -1071,6 +1071,7 @@ namespace Pixils::UI
                            Roo::Runtime& rt)
     {
       const Point& gp = Roo::obj<Point>(*events.mouse_pos);
+      const FocusState previous_focus_state = focus_state;
 
       std::vector<std::shared_ptr<Runtime::View>> hit_chain;
       if (!build_hit_chain(root, gp, hit_chain))
@@ -1126,6 +1127,10 @@ namespace Pixils::UI
         [&](size_t index) { ev.local_pos = local_pos_in_view(gp, hit_chain, index); },
         hook_args,
         rt);
+      if (ev.preserve_focus)
+      {
+        focus_state = previous_focus_state;
+      }
 
       auto drag_it = mouse_state.drag_states.find(btn);
       if (drag_it != mouse_state.drag_states.end() && drag_it->second.eligible &&

@@ -94,6 +94,35 @@
                    :title-bar {:title \"Explicit\"}
                    :body [{:mode 'probe-body}]})]})")
 
+(defun modal-overlay-focus-probe-source []
+  "(ns pixils.test.modal-overlay-focus-probe
+     (:require pixils
+               [pixils.ui :as ui]
+               pixils.ui.dialog
+               pixils.ui.text-input))
+
+   (pixils/defcomponent probe-dialog-body
+     {:class :ui/content
+      :style {:width 80
+              :height 40
+              :padding 4}
+      :children [{:mode 'ui/text-input
+                  :style {:width 70
+                          :height 24}
+                  :state {:value \"hello\"
+                          :auto-focus? true}}]})
+
+   (pixils/defmode root-mode
+     {:init (fn [state ctx]
+              (do
+                (pixils.ui.dialog/open-dialog!
+                 ctx
+                 {:title \"Focus Probe\"
+                  :style {:width 100
+                          :height 64}
+                  :body [{:mode 'probe-dialog-body}]})
+                state))})")
+
 (deftest window-without-explicit-position-centers-in-buffer
   (let [app (runtime/make-app {:package-root "lib/pixils"
                                :buffer-width 160
@@ -146,6 +175,28 @@
       (is (= -20 (:y (:position state))))
       (is (= -30 (:x (:bounds window))))
       (is (= -20 (:y (:bounds window)))))))
+
+(deftest modal-overlay-mouse-down-preserves-dialog-focus
+  (let [app (runtime/make-app {:package-root "lib/pixils"
+                               :buffer-width 160
+                               :buffer-height 120
+                               :render-backend false})]
+    (runtime/eval! app (modal-overlay-focus-probe-source))
+    (runtime/push-mode! app 'root-mode)
+    (settle-layout! app)
+    (let [window (runtime/find-view app "ui/window")
+          input (runtime/find-view app "ui/text-input-inner")]
+      (is (= true (-> input :interaction :focused)))
+      (is (= true (-> window :interaction :focus-within)))
+      (runtime/mouse-down-at! app 2 2)
+      (runtime/update! app)
+      (runtime/layout! app)
+      (let [window-after-overlay-click (runtime/find-view app "ui/window")
+            input-after-overlay-click (runtime/find-view app "ui/text-input-inner")]
+        (is (= true (-> input-after-overlay-click :interaction :focused)))
+        (is (= true (-> window-after-overlay-click
+                        :interaction
+                        :focus-within)))))))
 
 (deftest dialog-window-without-explicit-position-centers-in-buffer
   (let [app (runtime/make-app {:package-root "lib/pixils"

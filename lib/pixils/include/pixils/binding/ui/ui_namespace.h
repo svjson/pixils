@@ -34,6 +34,7 @@ namespace Pixils::Script
     FUNC(ChildrenFunction, children);
     FUNC(EmitBangFunction, emit);
     FUNC(FocusBangFunction, focus);
+    FUNC(PreserveFocusBangFunction, preserve_focus);
     FUNC(ReplaceChildBangFunction, replace_child);
     FUNC(StyleBangFunction, style);
     FUNC(StopPropagation, stop);

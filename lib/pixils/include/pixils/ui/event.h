@@ -17,6 +17,7 @@ namespace Pixils
   struct Event
   {
     bool propagation_stopped = false;
+    bool preserve_focus = false;
     virtual ~Event() = default;
   };
 
