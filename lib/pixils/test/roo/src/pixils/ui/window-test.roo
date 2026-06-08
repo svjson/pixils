@@ -61,6 +61,39 @@
                    :title \"Centered Dialog\"
                    :body [{:mode 'probe-body}]})]})")
 
+(defun oversized-window-probe-source []
+  "(ns pixils.test.oversized-window-probe
+     (:require pixils
+               pixils.ui.window))
+
+   (pixils/defcomponent probe-body
+     {:style {:width 120
+              :height 184}})
+
+   (pixils/defmode root-mode
+     {:children [(pixils.ui.window/make
+                  {:style {:width 120
+                           :height 200}
+                   :title-bar {:title \"Oversized\"}
+                   :body [{:mode 'probe-body}]})]})")
+
+(defun explicit-offscreen-window-probe-source []
+  "(ns pixils.test.explicit-offscreen-window-probe
+     (:require pixils
+               pixils.ui.window))
+
+   (pixils/defcomponent probe-body
+     {:style {:width 80
+              :height 40}})
+
+   (pixils/defmode root-mode
+     {:children [(pixils.ui.window/make
+                  {:position {:x -30 :y -20}
+                   :style {:width 80
+                           :height 56}
+                   :title-bar {:title \"Explicit\"}
+                   :body [{:mode 'probe-body}]})]})")
+
 (deftest window-without-explicit-position-centers-in-buffer
   (let [app (runtime/make-app {:package-root "lib/pixils"
                                :buffer-width 160
@@ -76,6 +109,43 @@
       (is (= 32 (:y (:position state))))
       (is (= 40 (:x (:bounds window))))
       (is (= 32 (:y (:bounds window)))))))
+
+(deftest oversized-window-without-explicit-position-keeps-chrome-on-screen
+  (let [app (runtime/make-app {:package-root "lib/pixils"
+                               :buffer-width 100
+                               :buffer-height 80
+                               :render-backend false})]
+    (runtime/eval! app (oversized-window-probe-source))
+    (runtime/push-mode! app 'root-mode)
+    (settle-layout! app)
+    (let [window (runtime/find-view app "ui/window")
+          title-bar (runtime/find-view app "ui/window-title-bar")
+          state (runtime/view-state window)]
+      (is (= false (:window/explicit-position? state)))
+      (is (= 0 (:x (:position state))))
+      (is (= 0 (:y (:position state))))
+      (is (= 0 (:x (:bounds window))))
+      (is (= 0 (:y (:bounds window))))
+      (is (= true (>= (:x (:bounds title-bar)) 0)))
+      (is (= true (>= (:y (:bounds title-bar)) 0)))
+      (is (= true (< (:x (:bounds title-bar)) 100)))
+      (is (= true (< (:y (:bounds title-bar)) 80))))))
+
+(deftest explicit-offscreen-window-position-is-preserved
+  (let [app (runtime/make-app {:package-root "lib/pixils"
+                               :buffer-width 160
+                               :buffer-height 120
+                               :render-backend false})]
+    (runtime/eval! app (explicit-offscreen-window-probe-source))
+    (runtime/push-mode! app 'root-mode)
+    (settle-layout! app)
+    (let [window (runtime/find-view app "ui/window")
+          state (runtime/view-state window)]
+      (is (= true (:window/explicit-position? state)))
+      (is (= -30 (:x (:position state))))
+      (is (= -20 (:y (:position state))))
+      (is (= -30 (:x (:bounds window))))
+      (is (= -20 (:y (:bounds window)))))))
 
 (deftest dialog-window-without-explicit-position-centers-in-buffer
   (let [app (runtime/make-app {:package-root "lib/pixils"

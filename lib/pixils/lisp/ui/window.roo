@@ -15,12 +15,20 @@
       (and (number? bounds-value) (> bounds-value 0)) bounds-value
       :default nil)))
 
+(defun clamp [value low high]
+  (max low (min high value)))
+
+(defun known-window-size [ctx]
+  (let [style (-> ctx :view :style)
+        bounds (-> ctx :view :bounds)]
+    {:w (known-window-size-axis style bounds :width :w)
+     :h (known-window-size-axis style bounds :height :h)}))
+
 (defun centered-window-position [ctx]
   (let [buffer (:buffer-size ctx)
-        style (-> ctx :view :style)
-        bounds (-> ctx :view :bounds)
-        width (known-window-size-axis style bounds :width :w)
-        height (known-window-size-axis style bounds :height :h)]
+        size (known-window-size ctx)
+        width (:w size)
+        height (:h size)]
     (when (and (not (nil? buffer))
                (number? (:w buffer))
                (number? (:h buffer))
@@ -29,13 +37,30 @@
       {:x (int (/ (- (:w buffer) width) 2))
        :y (int (/ (- (:h buffer) height) 2))})))
 
+(defun constrained-window-position [pos ctx]
+  (let [buffer (:buffer-size ctx)
+        size (known-window-size ctx)
+        width (:w size)
+        height (:h size)]
+    (if (and (not (nil? pos))
+             (not (nil? buffer))
+             (number? (:w buffer))
+             (number? (:h buffer))
+             (number? width)
+             (number? height))
+      {:x (clamp (:x pos) 0 (max 0 (- (:w buffer) width)))
+       :y (clamp (:y pos) 0 (max 0 (- (:h buffer) height)))}
+      pos)))
+
 (defun window-position [state ctx]
   (if (or (:window/explicit-position? state)
           (:window/moved? state))
     (or (:position state) {:x 0 :y 0})
-    (or (centered-window-position ctx)
-        (:position state)
-        {:x 0 :y 0})))
+    (constrained-window-position
+     (or (centered-window-position ctx)
+         (:position state)
+         {:x 0 :y 0})
+     ctx)))
 
 (defcomponent ui/window-control-button
   {})
