@@ -147,11 +147,33 @@ namespace
     AxisRange y;
   };
 
+  struct TileDim
+  {
+    int w = 16;
+    int h = 16;
+  };
+
+  TileDim tile_dim_value(const Roo::sptr_val& value, int fallback)
+  {
+    if (nil_value(value)) return TileDim{fallback, fallback};
+    if (value->type == Roo::Value::Type::NUMBER)
+    {
+      int size = std::max(1, value->num().get_int());
+      return TileDim{size, size};
+    }
+    if (value->type == Roo::Value::Type::MAP)
+    {
+      return TileDim{std::max(1, int_prop(value, "w", fallback)),
+                     std::max(1, int_prop(value, "h", fallback))};
+    }
+    throw Roo::TypeError(":tile-size must be a number or dimension map");
+  }
+
   struct RenderInput
   {
     int map_width = 0;
     int map_height = 0;
-    int tile_size = 16;
+    TileDim tile_size;
     double zoom = 1.0;
     Pixils::Rect target_rect{0, 0, 0, 0};
     bool has_target_rect = false;
@@ -160,20 +182,22 @@ namespace
     RenderRanges ranges;
   };
 
-  int scaled_tile_size(const RenderInput& input)
+  TileDim scaled_tile_size(const RenderInput& input)
   {
-    return static_cast<int>(std::round(input.tile_size * input.zoom));
+    return TileDim{
+      std::max(1, static_cast<int>(std::round(input.tile_size.w * input.zoom))),
+      std::max(1, static_cast<int>(std::round(input.tile_size.h * input.zoom)))};
   }
 
   RenderRanges render_ranges(const RenderInput& input)
   {
-    int size = scaled_tile_size(input);
+    TileDim size = scaled_tile_size(input);
     Pixils::Rect rect =
       input.has_target_rect
         ? input.target_rect
-        : Pixils::Rect{0, 0, input.map_width * size, input.map_height * size};
-    return RenderRanges{render_axis_range(rect.w, input.offset.x, size, input.map_width),
-                        render_axis_range(rect.h, input.offset.y, size, input.map_height)};
+        : Pixils::Rect{0, 0, input.map_width * size.w, input.map_height * size.h};
+    return RenderRanges{render_axis_range(rect.w, input.offset.x, size.w, input.map_width),
+                        render_axis_range(rect.h, input.offset.y, size.h, input.map_height)};
   }
 
   RenderInput render_input(const Roo::sptr_val& tilemap, const Roo::sptr_val& opts)
@@ -181,7 +205,7 @@ namespace
     RenderInput input;
     input.map_width = int_prop(tilemap, "width", 0);
     input.map_height = int_prop(tilemap, "height", 0);
-    input.tile_size = int_prop(tilemap, "tile-size", 16);
+    input.tile_size = tile_dim_value(prop(tilemap, "tile-size"), 16);
     input.zoom = number_prop(opts, "zoom", 1.0);
 
     auto offset = prop(opts, "offset");
@@ -280,11 +304,11 @@ namespace
 
   Pixils::Rect tile_rect(const RenderInput& input, int x, int y)
   {
-    int size = scaled_tile_size(input);
-    return Pixils::Rect{(x * size) - input.render_offset.x,
-                        (y * size) - input.render_offset.y,
-                        size,
-                        size};
+    TileDim size = scaled_tile_size(input);
+    return Pixils::Rect{(x * size.w) - input.render_offset.x,
+                        (y * size.h) - input.render_offset.y,
+                        size.w,
+                        size.h};
   }
 
   SDL_Rect centered_dest(const Pixils::Rect& rect, int source_w, int source_h)

@@ -10,6 +10,14 @@
                        {:x 8 :y 8}
                        2))))
 
+(deftest tile-rect-uses_rectangular_tile_size
+  (is (= {:x 84 :y 103 :w 44 :h 36}
+         (tm/tile-rect {:tile-size {:w 22 :h 18}}
+                       2
+                       3
+                       {:x 4 :y 5}
+                       2))))
+
 (deftest map-rect-uses_map_dimensions
   (let [rect (tm/map-rect {:width 4 :height 3})]
     (is (= 0 (:x rect)))

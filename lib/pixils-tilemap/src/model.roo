@@ -3,6 +3,7 @@
             [pixils.rect :as rect]))
 
 (def default-tile-size 16)
+(def default-tile-dim {:w default-tile-size :h default-tile-size})
 
 (def default-offset
   {:x 0
@@ -41,11 +42,22 @@
   (or (nil? tile-ref)
       (serialized-nil? tile-ref)))
 
+(defun positive-dim [value default-value]
+  (max 1 (or value default-value)))
+
 (defun tile-size [tilemap]
-  (or (:tile-size tilemap) default-tile-size))
+  (let [value (:tile-size tilemap)]
+    (if (= (type-of value) "map")
+      {:w (positive-dim (:w value) default-tile-size)
+       :h (positive-dim (:h value) default-tile-size)}
+      (let [size (positive-dim value default-tile-size)]
+        {:w size :h size}))))
 
 (defun scaled-tile-size [tilemap zoom]
-  (* (tile-size tilemap) (or zoom default-zoom)))
+  (let [dim (tile-size tilemap)
+        zoom (or zoom default-zoom)]
+    {:w (* (:w dim) zoom)
+     :h (* (:h dim) zoom)}))
 
 (defun map-width [tilemap]
   (or (:width tilemap) 0))
@@ -140,10 +152,10 @@
 (defun tile-rect [tilemap x y offset zoom]
   (let [offset (or offset default-offset)
         size (scaled-tile-size tilemap zoom)]
-    {:x (- (* x size) (:x offset))
-     :y (- (* y size) (:y offset))
-     :w size
-     :h size}))
+    {:x (- (* x (:w size)) (:x offset))
+     :y (- (* y (:h size)) (:y offset))
+     :w (:w size)
+     :h (:h size)}))
 
 (defun tileset-definition [tilesets tileset]
   (head (filter (or tilesets [])

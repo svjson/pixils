@@ -248,8 +248,8 @@
   (let [size (tm/scaled-tile-size tilemap zoom)]
     {:x 0
      :y 0
-     :w (* (tm/map-width tilemap) size)
-     :h (* (tm/map-height tilemap) size)}))
+     :w (* (tm/map-width tilemap) (:w size))
+     :h (* (tm/map-height tilemap) (:h size))}))
 
 (defun ceil-positive-div [value divisor]
   (let [value (max 0 value)
@@ -281,11 +281,11 @@
         size (tm/scaled-tile-size tilemap zoom)]
     {:x (render-axis-range (:w rect)
                            (:x offset)
-                           size
+                           (:w size)
                            (tm/map-width tilemap))
      :y (render-axis-range (:h rect)
                            (:y offset)
-                           size
+                           (:h size)
                            (tm/map-height tilemap))}))
 
 (defun target-render-offset [offset target-rect]
@@ -403,11 +403,11 @@
         offset (or offset tm/default-offset)
         x-span (grid-line-span x-range
                                (tm/map-width tilemap)
-                               tile-size
+                               (:w tile-size)
                                (:x offset))
         y-span (grid-line-span y-range
                                (tm/map-height tilemap)
-                               tile-size
+                               (:h tile-size)
                                (:y offset))]
     (when (and (> x-count 0)
                (> y-count 0))
@@ -415,7 +415,7 @@
         (let [x-index (+ x-start dx)
               x (grid-line-position x-index
                                     (tm/map-width tilemap)
-                                    tile-size
+                                    (:w tile-size)
                                     (:x offset))]
           (r/line! {:x x :y (:start y-span)}
                    {:x x :y (:end y-span)}
@@ -424,7 +424,7 @@
         (let [y-index (+ y-start dy)
               y (grid-line-position y-index
                                     (tm/map-height tilemap)
-                                    tile-size
+                                    (:h tile-size)
                                     (:y offset))]
           (r/line! {:x (:start x-span) :y y}
                    {:x (:end x-span) :y y}

@@ -111,7 +111,7 @@
 (deftest string-map-to-map-uses-tile-chars
   (is (= {:width 4
           :height 2
-          :tile-size 16
+          :tile-size {:w 16 :h 16}
           :layers [{:id :scene/level
                     :tileset :level
                     :data-kind :tile-ref

@@ -172,5 +172,7 @@
 (defun string-map->map [rows opts]
   {:width (count (head rows))
    :height (count rows)
-   :tile-size (or (:tile-size opts) (:tile-size (tileset-for opts)) tm/default-tile-size)
+   :tile-size (tm/tile-size {:tile-size (or (:tile-size opts)
+                                            (:tile-size (tileset-for opts))
+                                            tm/default-tile-dim)})
    :layers [(string-map-layer rows opts)]})
