@@ -33,10 +33,17 @@
 (defcomponent ui/window
   {:focusable true
    :update (fn [state ctx]
-             (let [pos (or (:position state) {:x 24 :y 20})]
-               (assoc-in! ctx [:view :style :position] :absolute)
-               (assoc-in! ctx [:view :style :left] (:x pos))
-               (assoc-in! ctx [:view :style :top] (:y pos))
+             (let [pos (or (:position state) {:x 24 :y 20})
+                   view (:view ctx)
+                   style (:style view)]
+               (when (or (nil? style)
+                         (not (= (:position style) :absolute))
+                         (not (= (:left style) (:x pos)))
+                         (not (= (:top style) (:y pos))))
+                 (ui/style! view
+                            {:position :absolute
+                             :left (:x pos)
+                             :top (:y pos)}))
                state))
    :on {:window/move-by (fn [state event ctx]
                           (ui/stop-propagation! event)
@@ -54,7 +61,8 @@
                     state))
    :style (or style {})
    :state (merge (or state {})
-                 {:position (or position {:x 24 :y 20})})
+                 {:position (or position {:x 24 :y 20})
+                  :window/explicit-position? (contains? opts :position)})
    :children [{:mode 'ui/window-title-bar
                :state title-bar}
               {:mode 'ui/window-body
