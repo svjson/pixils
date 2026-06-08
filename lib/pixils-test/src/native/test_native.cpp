@@ -20,6 +20,7 @@
 #include <filesystem>
 #include <roo-package/manifest.h>
 #include <roo-package/native_abi.h>
+#include <roo-package/native_loader.h>
 #include <roo/exception.h>
 #include <roo/exec.h>
 #include <roo/host/object.h>
@@ -35,17 +36,29 @@
 
 namespace
 {
-  struct AppTarget
-  {
+	  struct AppTarget
+	  {
     std::filesystem::path root;
     std::filesystem::path asset_base_path;
     std::vector<std::string> load_path;
     std::vector<Roo::NamespaceRoot> namespace_roots;
     std::vector<std::string> entry_points;
+    std::optional<Roo::Package::LoadPlan> package_plan;
     int buffer_width = 800;
     int buffer_height = 600;
-    bool render_backend = true;
-  };
+	    bool render_backend = true;
+	  };
+
+	  Roo::Package::LoadPlan pixils_test_host_load_plan(Roo::Package::LoadPlan plan)
+	  {
+	    std::erase_if(plan.native_libraries,
+	                  [](const Roo::Package::NativeLibrary& library)
+	                  {
+	                    return library.name == "pixils-native" ||
+	                           library.name == "pixils-test-native";
+	                  });
+	    return plan;
+	  }
 
   class SharedRenderBackend
   {
@@ -113,6 +126,7 @@ namespace
     Pixils::FrameEvents events;
     Pixils::HookContext hook_ctx;
     std::unique_ptr<Roo::Runtime> runtime;
+    Roo::Package::LoadedNativePackages native_packages;
     Pixils::Runtime::HookArguments hook_args;
     std::unique_ptr<Pixils::Runtime::Session> session;
 
@@ -148,11 +162,17 @@ namespace
           SDL_SetTextureBlendMode(render_ctx.buffer_texture, SDL_BLENDMODE_BLEND);
           render_ctx.set_render_target(render_ctx.buffer_texture);
         }
-      }
+	          }
 
-      if (!render_ctx.asset_registry)
-      {
-        render_ctx.asset_registry =
+	      if (target.package_plan.has_value())
+	      {
+	        native_packages =
+	          Roo::Package::load_native_libraries(*runtime, *target.package_plan);
+	      }
+
+	      if (!render_ctx.asset_registry)
+	      {
+	        render_ctx.asset_registry =
           std::make_unique<Pixils::Asset::Registry>(render_ctx,
                                                     target.asset_base_path.string());
       }
@@ -438,13 +458,14 @@ namespace
     return AppTarget{
       .root = root,
       .asset_base_path = asset_base_path,
-      .load_path =
-        Roo::Package::merge_load_paths(plan,
-                                          {std::filesystem::current_path().string(), "/"}),
-      .namespace_roots = plan.namespace_roots,
-      .entry_points = entry_points,
-      .buffer_width = optional_int_property(opts, "buffer-width", 800),
-      .buffer_height = optional_int_property(opts, "buffer-height", 600),
+	      .load_path =
+	        Roo::Package::merge_load_paths(plan,
+	                                          {std::filesystem::current_path().string(), "/"}),
+	      .namespace_roots = plan.namespace_roots,
+	      .entry_points = entry_points,
+	      .package_plan = pixils_test_host_load_plan(plan),
+	      .buffer_width = optional_int_property(opts, "buffer-width", 800),
+	      .buffer_height = optional_int_property(opts, "buffer-height", 600),
       .render_backend = optional_bool_property(opts, "render-backend", true),
     };
   }

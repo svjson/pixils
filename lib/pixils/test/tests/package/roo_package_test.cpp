@@ -33,11 +33,12 @@ TEST(PixilsRooPackageTest, loads_native_package_and_runs_roo_proof_tests)
   Roo::Runtime runtime(fs.get());
   native_packages = Roo::Package::load_native_libraries(runtime, plan);
 
-  runtime.eval("(ns pixils.package-test-runner (:require proof.core pixils.package-test))");
+  runtime.eval("(ns pixils.package-test-runner "
+               "(:require proof.core pixils.package-test pixils.ui.window-test))");
 
   auto summary = runtime.eval("(result-summary (run))");
 
-  EXPECT_EQ(summary->to_string(), "{:total 2 :passed 2 :failed 0}");
+  EXPECT_EQ(summary->to_string(), "{:total 3 :passed 3 :failed 0}");
 }
 
 TEST(PixilsRooPackageTest, pixils_runner_package_loads)
