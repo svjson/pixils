@@ -7,6 +7,36 @@
 (defun emit-window-move! [event ctx]
   (ui/emit! (:view ctx) :window/move-by (:delta event)))
 
+(defun known-window-size-axis [style bounds style-key bounds-key]
+  (let [style-value (get (or style {}) style-key)
+        bounds-value (get (or bounds {}) bounds-key)]
+    (cond
+      (number? style-value) style-value
+      (and (number? bounds-value) (> bounds-value 0)) bounds-value
+      :default nil)))
+
+(defun centered-window-position [ctx]
+  (let [buffer (:buffer-size ctx)
+        style (-> ctx :view :style)
+        bounds (-> ctx :view :bounds)
+        width (known-window-size-axis style bounds :width :w)
+        height (known-window-size-axis style bounds :height :h)]
+    (when (and (not (nil? buffer))
+               (number? (:w buffer))
+               (number? (:h buffer))
+               (number? width)
+               (number? height))
+      {:x (int (/ (- (:w buffer) width) 2))
+       :y (int (/ (- (:h buffer) height) 2))})))
+
+(defun window-position [state ctx]
+  (if (or (:window/explicit-position? state)
+          (:window/moved? state))
+    (or (:position state) {:x 0 :y 0})
+    (or (centered-window-position ctx)
+        (:position state)
+        {:x 0 :y 0})))
+
 (defcomponent ui/window-control-button
   {})
 
@@ -33,7 +63,10 @@
 (defcomponent ui/window
   {:focusable true
    :update (fn [state ctx]
-             (let [pos (or (:position state) {:x 24 :y 20})
+             (let [pos (window-position state ctx)
+                   next-state (if (= pos (:position state))
+                                state
+                                (assoc state :position pos))
                    view (:view ctx)
                    style (:style view)]
                (when (or (nil? style)
@@ -44,27 +77,31 @@
                             {:position :absolute
                              :left (:x pos)
                              :top (:y pos)}))
-               state))
+               next-state))
    :on {:window/move-by (fn [state event ctx]
                           (ui/stop-propagation! event)
-                          (update state :position
-                                  (fn [pos]
-                                    (pt/+ (or pos {:x 24 :y 20})
-                                          (:payload event)))))}
+                          (assoc state
+                                 :position (pt/+ (window-position state ctx)
+                                                 (:payload event))
+                                 :window/moved? true))}
    :children [{:mode 'ui/window-title-bar}
               {:mode 'ui/window-body}]})
 
 
 (defun make [{:keys [title-bar body init state style position] :as opts}]
-  {:mode 'ui/window
-   :init (or init (fn [state ctx]
-                    state))
-   :style (or style {})
-   :state (merge (or state {})
-                 {:position (or position {:x 24 :y 20})
-                  :window/explicit-position? (contains? opts :position)})
-   :children [{:mode 'ui/window-title-bar
-               :state title-bar}
-              {:mode 'ui/window-body
-               :children body
-               :state (or state {})}]})
+  (let [explicit-position? (contains? opts :position)
+        window-state (merge (or state {})
+                            {:window/explicit-position? explicit-position?})
+        window-state (if explicit-position?
+                       (assoc window-state :position position)
+                       window-state)]
+    {:mode 'ui/window
+     :init (or init (fn [state ctx]
+                      state))
+     :style (or style {})
+     :state window-state
+     :children [{:mode 'ui/window-title-bar
+                 :state title-bar}
+                {:mode 'ui/window-body
+                 :children body
+                 :state (or state {})}]}))

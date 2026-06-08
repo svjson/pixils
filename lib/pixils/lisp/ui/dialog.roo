@@ -16,8 +16,6 @@
    :dialog/no "No"
    :dialog/dismiss "Dismiss"})
 
-(def default-window-position {:x 220 :y 140})
-
 (def default-dialog-body-style
   {:width 260
    :height :shrink
@@ -119,14 +117,16 @@
                      [(make-dialog-button-row buttons button-row-style)])})
 
 (defun make-dialog-window [{:keys [title title-bar position state style body] :as opts}]
-  (merge
-   (pixils.ui.window/make
-    {:position (or position default-window-position)
-     :title-bar (or title-bar {:title (or title "Dialog")})
-     :style (or style {})
-     :state (or state {})
-     :body (body-children body)})
-   {:on-mouse-down stop-dialog-window-mouse-down}))
+  (let [window-opts (merge {:title-bar (or title-bar {:title (or title "Dialog")})
+                            :style (or style {})
+                            :state (or state {})
+                            :body (body-children body)}
+                           (if (contains? opts :position)
+                             {:position position}
+                             {}))]
+    (merge
+     (pixils.ui.window/make window-opts)
+     {:on-mouse-down stop-dialog-window-mouse-down})))
 
 (defun make-confirm [{:keys [title] :as opts}]
   (make-dialog-window (merge opts

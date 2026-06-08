@@ -13,8 +13,6 @@
    {:label "All files (*)"
     :extensions []}])
 
-(def default-window-position {:x 190 :y 90})
-
 (def default-dialog-style {:width 420})
 
 (def default-body-style
@@ -442,7 +440,6 @@
      (merge opts
             {:title (or (:title opts)
                         (default-title mode))
-             :position (or (:position opts) default-window-position)
              :style (merge default-dialog-style
                            (or (:style opts) {}))
              :state state

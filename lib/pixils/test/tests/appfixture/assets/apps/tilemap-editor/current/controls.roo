@@ -300,8 +300,7 @@
                                                    :name (-> event :payload :name)})
                                        state))}
    :compose {:render :pass}
-   :children [(w/make {:position {:x 220 :y 140}
-                       :title-bar {:title (ui/bind-state :title)}
+   :children [(w/make {:title-bar {:title (ui/bind-state :title)}
                        :state {:title (ui/bind-state :title)
                                :operation (ui/bind-state :operation)
                                :index (ui/bind-state :index)
@@ -368,8 +367,7 @@
                                                       :index (:index state)})
                                           state))}
    :compose {:render :pass}
-   :children [(w/make {:position {:x 220 :y 140}
-                       :title-bar {:title (ui/bind-state :title)}
+   :children [(w/make {:title-bar {:title (ui/bind-state :title)}
                        :state {:title (ui/bind-state :title)
                                :operation (ui/bind-state :operation)
                                :index (ui/bind-state :index)

@@ -38,7 +38,7 @@ TEST(PixilsRooPackageTest, loads_native_package_and_runs_roo_proof_tests)
 
   auto summary = runtime.eval("(result-summary (run))");
 
-  EXPECT_EQ(summary->to_string(), "{:total 3 :passed 3 :failed 0}");
+  EXPECT_EQ(summary->to_string(), "{:total 5 :passed 5 :failed 0}");
 }
 
 TEST(PixilsRooPackageTest, pixils_runner_package_loads)

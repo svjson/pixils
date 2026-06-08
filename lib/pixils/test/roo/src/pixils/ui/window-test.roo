@@ -29,6 +29,70 @@
                    :body [{:mode 'probe-body
                            :state {:presses 0}}]})]})")
 
+(defun centered-window-probe-source []
+  "(ns pixils.test.centered-window-probe
+     (:require pixils
+               pixils.ui.window))
+
+   (pixils/defcomponent probe-body
+     {:style {:width 80
+              :height 40}})
+
+   (pixils/defmode root-mode
+     {:children [(pixils.ui.window/make
+                  {:style {:width 80
+                           :height 56}
+                   :title-bar {:title \"Centered\"}
+                   :body [{:mode 'probe-body}]})]})")
+
+(defun centered-dialog-window-probe-source []
+  "(ns pixils.test.centered-dialog-window-probe
+     (:require pixils
+               pixils.ui.dialog))
+
+   (pixils/defcomponent probe-body
+     {:style {:width 80
+              :height 40}})
+
+   (pixils/defmode root-mode
+     {:children [(pixils.ui.dialog/make-dialog-window
+                  {:style {:width 80
+                           :height 56}
+                   :title \"Centered Dialog\"
+                   :body [{:mode 'probe-body}]})]})")
+
+(deftest window-without-explicit-position-centers-in-buffer
+  (let [app (runtime/make-app {:package-root "lib/pixils"
+                               :buffer-width 160
+                               :buffer-height 120
+                               :render-backend false})]
+    (runtime/eval! app (centered-window-probe-source))
+    (runtime/push-mode! app 'root-mode)
+    (settle-layout! app)
+    (let [window (runtime/find-view app "ui/window")
+          state (runtime/view-state window)]
+      (is (= false (:window/explicit-position? state)))
+      (is (= 40 (:x (:position state))))
+      (is (= 32 (:y (:position state))))
+      (is (= 40 (:x (:bounds window))))
+      (is (= 32 (:y (:bounds window)))))))
+
+(deftest dialog-window-without-explicit-position-centers-in-buffer
+  (let [app (runtime/make-app {:package-root "lib/pixils"
+                               :buffer-width 160
+                               :buffer-height 120
+                               :render-backend false})]
+    (runtime/eval! app (centered-dialog-window-probe-source))
+    (runtime/push-mode! app 'root-mode)
+    (settle-layout! app)
+    (let [window (runtime/find-view app "ui/window")
+          state (runtime/view-state window)]
+      (is (= false (:window/explicit-position? state)))
+      (is (= 40 (:x (:position state))))
+      (is (= 32 (:y (:position state))))
+      (is (= 40 (:x (:bounds window))))
+      (is (= 32 (:y (:bounds window)))))))
+
 (deftest dragged-window-keeps-latest-position-after-follow-up-interaction
   (let [app (runtime/make-app {:package-root "lib/pixils"
                                :buffer-width 160
