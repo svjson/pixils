@@ -593,4 +593,6 @@
                                   :background (var :menu-bg)
                                   :text {:color (var :text)}}
 
+            'ui/group-box-frame {:margin {:t 6 :r 4 :b 4 :l 4}}
+
             :ui/panel {:background (var :panel-bg)}}})

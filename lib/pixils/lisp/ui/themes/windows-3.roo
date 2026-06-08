@@ -597,6 +597,15 @@
 
             'ui/scroll-pane-viewport {:background (var :field-bg)}
 
+            'ui/group-box {:background (var :content-bg)}
+
+            'ui/group-box-frame {:margin {:t 6 :r 4 :b 4 :l 4}
+                                 :border {:line-style :solid
+                                          :color (var :border)
+                                          :thickness 1}}
+
+            'ui/group-box-title {:background (var :content-bg)}
+
             'ui/header-panel-header {:background (var :focus-bg)
                                      :border {:color (var :border)
                                               :thickness 1}}

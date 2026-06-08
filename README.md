@@ -127,6 +127,7 @@ Roo components, so applications can use them like any other mode.
 | `ui/menu-bar`, `ui/popup-menu` | Data-driven menu controls. |
 | `ui/window` | Lightweight draggable window primitive. |
 | `ui/header-panel` | Static content panel with a styled header/title region. |
+| `ui/group-box` | Titled inset-border container with the title drawn over the top border. |
 | `ui/scrollbar` | Standalone horizontal or vertical scrollbar primitive. |
 | `ui/scrollbar-corner` | Filler component for the square where two scrollbars meet. |
 | `ui/scroll-pane` | Scrollable viewport composed from a clipped content area and stock scrollbars. |
@@ -282,6 +283,16 @@ header/body structure stays consistent while applications provide body children:
   {:title "Inspector"
    :children [{:mode 'ui/text
                :state {:value "Selected: Grass"}}]})
+```
+
+`ui/group-box` is usually created with `pixils.ui.group-box/make`. It draws a
+theme-styled inset frame with the title over the top border:
+
+```clojure
+(pixils.ui.group-box/make
+  {:title "Options"
+   :children [{:mode 'ui/checkbox
+               :state {:label "Snap to grid"}}]})
 ```
 
 `ui/number-input` reuses the same text editing core as `ui/text-input`, but only

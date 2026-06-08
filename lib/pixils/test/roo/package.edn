@@ -5,4 +5,5 @@
                 proof "0.1.0"}
  :load-roots ["src"]
  :test-entry-points [pixils.package-test
-                     pixils.ui.window-test]}
+                     pixils.ui.window-test
+                     pixils.ui.group-box-test]}

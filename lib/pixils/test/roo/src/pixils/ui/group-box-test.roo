@@ -1,0 +1,155 @@
+(ns pixils.ui.group-box-test
+  (:require proof.core
+            [pixils.test.runtime :as runtime]))
+
+(defun settle-layout! [app]
+  (runtime/update! app)
+  (runtime/layout! app)
+  (runtime/update! app)
+  (runtime/layout! app)
+  app)
+
+(defun make-app []
+  (runtime/make-app {:package-root "lib/pixils"
+                     :buffer-width 160
+                     :buffer-height 120
+                     :render-backend false}))
+
+(defun group-box-map-probe-source []
+  "(ns pixils.test.group-box-map-probe
+     (:require pixils
+               pixils.ui.group-box))
+
+   (pixils.ui.group-box/make
+    {:title \"Options\"
+     :style {:width 120 :height 80}
+     :children [{:mode 'content-mode}]})")
+
+(defun group-box-body-state-map-probe-source []
+  "(ns pixils.test.group-box-body-state-map-probe
+     (:require pixils
+               pixils.ui
+               pixils.ui.group-box))
+
+   (pixils.ui.group-box/make
+    {:title \"Options\"
+     :state {:label (pixils.ui/bind-state :label)}
+     :body-state {:label (pixils.ui/bind-state :label)}
+     :children [{:mode 'ui/text
+                 :state {:value (pixils.ui/bind-state :label)}}]})")
+
+(defun group-box-layout-probe-source []
+  "(ns pixils.test.group-box-layout-probe
+     (:require pixils
+               pixils.ui.group-box))
+
+   (pixils/defcomponent content-mode
+     {:style {:width :fill
+              :height :fill}})
+
+   (pixils/defmode root-mode
+     {:children [(pixils.ui.group-box/make
+                  {:title \"Options\"
+                   :style {:width 120 :height 80}
+                   :children [{:mode 'content-mode}]})]})")
+
+(defun windows-group-box-layout-probe-source []
+  "(ns pixils.test.windows-group-box-layout-probe
+     (:require pixils
+               pixils.ui.group-box))
+
+   (pixils/defcomponent content-mode
+     {:style {:width :fill
+              :height :fill}})
+
+   (pixils/defmode root-mode
+     {:theme 'pixils/windows-3
+      :children [(pixils.ui.group-box/make
+                  {:title \"Options\"
+                   :style {:width 120 :height 80}
+                   :children [{:mode 'content-mode}]})]})")
+
+(defun group-box-body-state-probe-source []
+  "(ns pixils.test.group-box-body-state-probe
+     (:require pixils
+               pixils.ui
+               pixils.ui.group-box))
+
+   (pixils/defmode root-mode
+     {:init (fn [state ctx]
+              {:label \"Selected: Audio\"})
+      :children [(pixils.ui.group-box/make
+                  {:title \"Options\"
+                   :state {:label (pixils.ui/bind-state :label)}
+                   :body-state {:label (pixils.ui/bind-state :label)}
+                   :children [{:mode 'ui/text
+                               :state {:value (pixils.ui/bind-state :label)}}]})]})")
+
+(deftest make-composes-frame-title-and-body-map
+  (let [app (make-app)
+        group (runtime/eval! app (group-box-map-probe-source))
+        children (:children group)
+        frame (nth children 0)
+        title (nth children 1)
+        body (nth (:children frame) 0)]
+    (is (= 'ui/group-box (:mode group)))
+    (is (= {:width 120 :height 80} (:style group)))
+    (is (= 2 (count children)))
+    (is (= 'ui/group-box-frame (:mode frame)))
+    (is (= 'ui/group-box-title (:mode title)))
+    (is (= 'ui/group-box-body (:mode body)))
+    (is (= [{:mode 'content-mode}] (:children body)))
+    (is (= "Options" (-> group :state :title)))
+    (is (= "Options" (-> title :state :title)))))
+
+(deftest body-state-can-bind-to-group-state-map
+  (let [app (make-app)
+        group (runtime/eval! app (group-box-body-state-map-probe-source))
+        body (-> group :children (nth 0) :children (nth 0))]
+    (is (not (nil? (:label (:state body)))))))
+
+(deftest group-box-layout-places-title-over-inset-frame
+  (let [app (make-app)]
+    (runtime/eval! app (group-box-layout-probe-source))
+    (runtime/push-mode! app 'root-mode)
+    (settle-layout! app)
+    (let [group (runtime/find-view app "ui/group-box")
+          frame (runtime/find-view app "ui/group-box-frame")
+          title (runtime/find-view app "ui/group-box-title")
+          title-text (runtime/find-view-containing app "ui/text" "Options")]
+      (is (= 120 (:w (:bounds group))))
+      (is (= 80 (:h (:bounds group))))
+      (is (= 120 (:w (:bounds frame))))
+      (is (= true (> (:y (:bounds frame))
+                     (:y (:bounds group)))))
+      (is (= (:y (:bounds group))
+             (:y (:bounds title))))
+      (is (= "Options"
+             (:value (runtime/view-state title-text)))))))
+
+(deftest windows-group-box-frame-insets-from-all-edges
+  (let [app (make-app)]
+    (runtime/eval! app (windows-group-box-layout-probe-source))
+    (runtime/push-mode! app 'root-mode)
+    (settle-layout! app)
+    (let [group (runtime/find-view app "ui/group-box")
+          frame (runtime/find-view app "ui/group-box-frame")
+          group-bounds (:bounds group)
+          frame-bounds (:bounds frame)
+          group-right (+ (:x group-bounds) (:w group-bounds))
+          frame-right (+ (:x frame-bounds) (:w frame-bounds))
+          group-bottom (+ (:y group-bounds) (:h group-bounds))
+          frame-bottom (+ (:y frame-bounds) (:h frame-bounds))]
+      (is (= true (> (:x frame-bounds) (:x group-bounds))))
+      (is (= true (> (:y frame-bounds) (:y group-bounds))))
+      (is (= true (< frame-right group-right)))
+      (is (= true (< frame-bottom group-bottom))))))
+
+(deftest body-state-can-bind-to-group-state-at-runtime
+  (let [app (make-app)]
+    (runtime/eval! app (group-box-body-state-probe-source))
+    (runtime/push-mode! app 'root-mode)
+    (settle-layout! app)
+    (let [text (runtime/find-view-containing app "ui/text" "Selected: Audio")]
+      (is (= "Selected: Audio"
+             (:value (runtime/view-state text)))))))

@@ -312,6 +312,26 @@
                            :height :fill
                            :padding 4}
 
+    'ui/group-box {:padding 0
+                   :layout {:direction :column}
+                   :text {:color (var :text)}}
+
+    'ui/group-box-frame {:width :fill
+                         :height :fill
+                         :margin {:t 6}
+                         :padding {:t 9 :r 8 :b 8 :l 8}
+                         :border (var :inset-border-style)}
+
+    'ui/group-box-title {:position :absolute
+                         :top 0
+                         :left 8
+                         :background (var :panel-bg)
+                         :padding [0 3]
+                         :text {:color (var :text)}}
+
+    'ui/group-box-body {:width :fill
+                        :height :fill}
+
     'ui/window {:border (var :inset-border-style)
                 :text {:color (var :text)}}
 

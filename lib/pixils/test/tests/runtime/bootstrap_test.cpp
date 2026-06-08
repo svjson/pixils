@@ -33,6 +33,7 @@ TEST_F(BootstrapTest, loads_embedded_core_ui_modes_into_pixils_mode_registry)
     Roo::Dict::get_property(modes, Roo::symbol("ui/scroll-pane"));
   auto header_panel_mode =
     Roo::Dict::get_property(modes, Roo::symbol("ui/header-panel"));
+  auto group_box_mode = Roo::Dict::get_property(modes, Roo::symbol("ui/group-box"));
   auto dialog_frame_mode =
     Roo::Dict::get_property(modes, Roo::symbol("ui/dialog-frame"));
   auto file_dialog_body_mode =
@@ -67,6 +68,7 @@ TEST_F(BootstrapTest, loads_embedded_core_ui_modes_into_pixils_mode_registry)
   ASSERT_NE(scrollbar_button_mode, nullptr);
   ASSERT_NE(scroll_pane_mode, nullptr);
   ASSERT_NE(header_panel_mode, nullptr);
+  ASSERT_NE(group_box_mode, nullptr);
   ASSERT_NE(dialog_frame_mode, nullptr);
   ASSERT_NE(file_dialog_body_mode, nullptr);
   ASSERT_NE(window_mode, nullptr);
@@ -97,6 +99,7 @@ TEST_F(BootstrapTest, loads_embedded_core_ui_modes_into_pixils_mode_registry)
             "ui/scrollbar-button");
   EXPECT_EQ(Roo::obj<Pixils::Runtime::Mode>(*scroll_pane_mode).name, "ui/scroll-pane");
   EXPECT_EQ(Roo::obj<Pixils::Runtime::Mode>(*header_panel_mode).name, "ui/header-panel");
+  EXPECT_EQ(Roo::obj<Pixils::Runtime::Mode>(*group_box_mode).name, "ui/group-box");
   EXPECT_EQ(Roo::obj<Pixils::Runtime::Mode>(*dialog_frame_mode).name, "ui/dialog-frame");
   EXPECT_EQ(Roo::obj<Pixils::Runtime::Mode>(*file_dialog_body_mode).name,
             "ui/file-dialog-body");
