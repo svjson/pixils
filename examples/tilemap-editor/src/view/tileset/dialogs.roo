@@ -399,7 +399,7 @@
                           (sl/make {:value (ui/bind-state :tile-size)
                                     :min 8
                                     :max 64
-                                    :step 8})
+                                    :step 1})
                           {:mode 'ui/text
                            :style {:width 28}
                            :state {:value (ui/bind-state :tile-size)}}]}
