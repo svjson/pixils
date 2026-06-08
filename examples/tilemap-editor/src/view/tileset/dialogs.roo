@@ -533,8 +533,7 @@
                             :tileset-index (:tileset-index state)})
                 state))))}
    :compose {:render :pass}
-   :children [(w/make {:position {:x 220 :y 140}
-                       :title-bar {:title "New Tile Set"}
+   :children [(w/make {:title-bar {:title "New Tile Set"}
 	                       :state {:tileset-id (ui/bind-state :tileset-id)
 	                               :tileset-label (ui/bind-state :tileset-label)
 	                               :tile-size (ui/bind-state :tile-size)
@@ -574,8 +573,7 @@
 	                            :tile-size (data/map-tile-dim (:tile-size state))})
                 state))))}
    :compose {:render :pass}
-   :children [(w/make {:position {:x 220 :y 140}
-                       :title-bar {:title "Edit Tile Set"}
+   :children [(w/make {:title-bar {:title "Edit Tile Set"}
                        :state {:tileset-index (ui/bind-state :tileset-index)
                                :tileset-id (ui/bind-state :tileset-id)
                                :tileset-label (ui/bind-state :tileset-label)
@@ -617,8 +615,7 @@
 	                            :tile-size (data/map-tile-dim (:tile-size state))})
                 state))))}
    :compose {:render :pass}
-   :children [(w/make {:position {:x 220 :y 140}
-                       :title-bar {:title "Duplicate Tile Set"}
+   :children [(w/make {:title-bar {:title "Duplicate Tile Set"}
                        :state {:source-tileset-index
                                (ui/bind-state :source-tileset-index)
                                :tileset-id (ui/bind-state :tileset-id)
@@ -750,8 +747,7 @@
 
                 :default state))))}
    :compose {:render :pass}
-   :children [(w/make {:position {:x 240 :y 120}
-                       :title-bar {:title "Tile Set Properties"}
+   :children [(w/make {:title-bar {:title "Tile Set Properties"}
                        :state {:tileset-index (ui/bind-state :tileset-index)
                                :tileset-label (ui/bind-state :tileset-label)
                                :property-sets (ui/bind-state :property-sets)
@@ -933,8 +929,7 @@
                                     :tile-type :color})
                         state))))}
    :compose {:render :pass}
-   :children [(w/make {:position {:x 220 :y 140}
-                       :title-bar {:title "New Tile"}
+   :children [(w/make {:title-bar {:title "New Tile"}
                                :state {:tile-id (ui/bind-state :tile-id)
                                        :tile-name (ui/bind-state :tile-name)
                                        :tile-char (ui/bind-state :tile-char)
@@ -967,8 +962,7 @@
                             :tile-char (:tile-char state)})
                 state))))}
    :compose {:render :pass}
-   :children [(w/make {:position {:x 220 :y 140}
-                       :title-bar {:title "Rename Tile"}
+   :children [(w/make {:title-bar {:title "Rename Tile"}
                        :state {:tile-index (ui/bind-state :tile-index)
                                :tile-id (ui/bind-state :tile-id)
                                :tile-name (ui/bind-state :tile-name)
@@ -1008,8 +1002,7 @@
                             :start-number (:start-number state)})
                 state))))}
    :compose {:render :pass}
-   :children [(w/make {:position {:x 220 :y 140}
-                       :title-bar {:title "Batch Rename Tiles"}
+   :children [(w/make {:title-bar {:title "Batch Rename Tiles"}
                        :state {:tile-indices (ui/bind-state :tile-indices)
                                :tile-id-root (ui/bind-state :tile-id-root)
                                :tile-name-root (ui/bind-state :tile-name-root)
@@ -1259,8 +1252,7 @@
                             :to-color (:to-color state)})
                 state))))}
    :compose {:render :pass}
-   :children [(w/make {:position {:x 220 :y 140}
-                       :title-bar {:title "New Color Tile Range"}
+   :children [(w/make {:title-bar {:title "New Color Tile Range"}
                        :state {:tile-id (ui/bind-state :tile-id)
                                :tile-name (ui/bind-state :tile-name)
                                :count (ui/bind-state :count)
@@ -1622,8 +1614,7 @@
                               :sources sources})
                   state)))))}
    :compose {:render :pass}
-   :children [(w/make {:position {:x 160 :y 80}
-                               :title-bar {:title "Add Tiles from Resource"}
+   :children [(w/make {:title-bar {:title "Add Tiles from Resource"}
                                :state {:resources (ui/bind-state :resources)
                                        :tilesets (ui/bind-state :tilesets)
                                        :selected-tileset-definition-index

@@ -995,8 +995,7 @@
                                                                :tile-size)})
                                     state))}
    :compose {:render :pass}
-   :children [(w/make {:position {:x 220 :y 140}
-                       :title-bar {:title "Map Dimensions"}
+   :children [(w/make {:title-bar {:title "Map Dimensions"}
 	                       :state {:width (ui/bind-state :width)
 	                               :height (ui/bind-state :height)
 	                               :tile-size (ui/bind-state :tile-size)
@@ -1223,8 +1222,7 @@
                                                    (-> event :payload :terrain-set-index)})
                                        state))}
    :compose {:render :pass}
-   :children [(w/make {:position {:x 220 :y 140}
-                       :title-bar {:title (ui/bind-state :title)}
+   :children [(w/make {:title-bar {:title (ui/bind-state :title)}
                        :state {:title (ui/bind-state :title)
                                :operation (ui/bind-state :operation)
                                :index (ui/bind-state :index)

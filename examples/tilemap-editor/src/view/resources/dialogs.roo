@@ -383,8 +383,7 @@
                             :replacement-key (:replacement-key state)})
                 state))))}
    :compose {:render :pass}
-   :children [(w/make {:position {:x 200 :y 120}
-                       :title-bar {:title (ui/bind-state :title)}
+   :children [(w/make {:title-bar {:title (ui/bind-state :title)}
                        :state {:title (ui/bind-state :title)
                                :bundle-id (ui/bind-state :bundle-id)
                                :resource-id (ui/bind-state :resource-id)
@@ -464,8 +463,7 @@
                             :bundle-id (:bundle-id state)})
                 state))))}
    :compose {:render :pass}
-   :children [(w/make {:position {:x 220 :y 140}
-                       :title-bar {:title (ui/bind-state :title)}
+   :children [(w/make {:title-bar {:title (ui/bind-state :title)}
                        :state {:title (ui/bind-state :title)
                                :operation (ui/bind-state :operation)
                                :previous-bundle-id (ui/bind-state :previous-bundle-id)
@@ -867,8 +865,7 @@
               (assoc state :transparency-color (:transparency-color payload))
               state)))}
    :compose {:render :pass}
-   :children [(w/make {:position {:x 220 :y 140}
-                       :title-bar {:title (ui/bind-state :title)}
+   :children [(w/make {:title-bar {:title (ui/bind-state :title)}
                        :state {:title (ui/bind-state :title)
                                :operation (ui/bind-state :operation)
                                :bundle-id (ui/bind-state :bundle-id)

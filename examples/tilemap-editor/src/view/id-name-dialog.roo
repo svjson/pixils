@@ -76,8 +76,7 @@
                         :context (:context state)})
             state))}
    :compose {:render :pass}
-   :children [(w/make {:position {:x 240 :y 150}
-                       :title-bar {:title (ui/bind-state :title)}
+   :children [(w/make {:title-bar {:title (ui/bind-state :title)}
                        :state {:title (ui/bind-state :title)
                                :id (ui/bind-state :id)
                                :name (ui/bind-state :name)
