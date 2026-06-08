@@ -30,11 +30,11 @@
     (is (= runtime/pack-format-version (:version document)))
     (is (= :map/cave (:selected-map document)))
     (is (= [{:id :game
-             :tiles [{:id :wall
-                      :type :sprite
-                      :source {:x 0 :y 0 :w 16 :h 16}}]
-             :tile-size 16}]
-           (:tilesets document)))
+	             :tiles [{:id :wall
+	                      :type :sprite
+	                      :source {:x 0 :y 0 :w 16 :h 16}}]
+	             :tile-size {:w 16 :h 16}}]
+	           (:tilesets document)))
     (is (= {:bundles {:game-assets {:images {:tiles
                                              {:file-name "tiles.png"}}}}}
            (:resources document)))

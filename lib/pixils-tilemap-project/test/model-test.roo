@@ -70,6 +70,18 @@
     (is (= {:x 8 :y 16 :w 32 :h 32}
            (get-in document [:tilesets 0 :tiles 0 :source])))))
 
+(deftest normalize-project-document-adds_rectangular_sprite_source_dimensions
+  (let [document (data/normalize-project-document
+                  {:format data/project-format
+                   :tilesets [{:id :terrain
+                               :tile-size {:w 22 :h 18}
+                               :tiles [{:id :grass
+                                        :type :sprite
+                                        :source {:x 8 :y 16}}]}]
+                   :tilemap {:layers []}})]
+    (is (= {:x 8 :y 16 :w 22 :h 18}
+           (get-in document [:tilesets 0 :tiles 0 :source])))))
+
 (deftest project-document-saves_property_sets
   (let [document (data/project-document
                   {:property-sets [{:id :movement
@@ -155,7 +167,7 @@
                    :map-height 1
                    :tile-size 32
                    :layers []})]
-    (is (= 32 (get-in document [:maps 0 :tile-size])))))
+    (is (= {:w 32 :h 32} (get-in document [:maps 0 :tile-size])))))
 
 (deftest normalize-project-document-normalizes_ruleset_stamp_nil_cells
   (let [document (data/normalize-project-document

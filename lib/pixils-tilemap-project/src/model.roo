@@ -2,6 +2,7 @@
   (:require [pixils.tilemap.model :as tilemap]))
 
 (def tile-size 16)
+(def tile-dim {:w tile-size :h tile-size})
 (def map-width 40)
 (def map-height 28)
 (def default-map-id :map/main)
@@ -77,19 +78,34 @@
 (defun tileset-tiles [tilesets tileset]
   (or (:tiles (tileset-definition tilesets tileset)) []))
 
+(defun bounded-dimension [value default-value]
+  (max min-map-dimension
+       (min max-map-dimension (or value default-value))))
+
+(defun map-tile-dim [value]
+  (if (= (type-of value) "map")
+    {:w (bounded-dimension (:w value) tile-size)
+     :h (bounded-dimension (:h value) tile-size)}
+    (let [size (bounded-dimension value tile-size)]
+      {:w size :h size})))
+
+(defun map-tile-size [value]
+  (map-tile-dim value))
+
 (defun default-tile-source [tile-size]
-  {:x 0
-   :y 0
-   :w tile-size
-   :h tile-size})
+  (let [tile-dim (map-tile-dim tile-size)]
+    {:x 0
+     :y 0
+     :w (:w tile-dim)
+     :h (:h tile-dim)}))
 
 (defun normalize-sprite-source [source source-size]
-  (let [source-size (or source-size tile-size)
+  (let [source-size (map-tile-dim source-size)
         source (merge (default-tile-source source-size)
                       (or source {}))]
     (assoc source
-           :w (or (:w source) source-size)
-           :h (or (:h source) source-size))))
+           :w (or (:w source) (:w source-size))
+           :h (or (:h source) (:h source-size)))))
 
 (defun normalize-tileset-tile [tile tile-size]
   (if (= (:type tile) :sprite)
@@ -97,7 +113,7 @@
     tile))
 
 (defun normalize-tileset [tileset]
-  (let [tile-size (or (:tile-size tileset) tile-size)]
+  (let [tile-size (map-tile-dim (:tile-size tileset))]
     (assoc tileset
            :tile-size tile-size
            :tiles (map (or (:tiles tileset) [])
@@ -366,9 +382,6 @@
 (defun map-dimension [value default-value]
   (max min-map-dimension
        (min max-map-dimension (or value default-value))))
-
-(defun map-tile-size [value]
-  (map-dimension value tile-size))
 
 (defun make-empty-row-for [width]
   (dotimes [x (map-dimension width map-width)]
@@ -660,7 +673,7 @@
                         (str "Map " (inc index))))
            :width (map-dimension (:width map-document) map-width)
            :height (map-dimension (:height map-document) map-height)
-           :tile-size (map-tile-size (:tile-size map-document))
+           :tile-size (map-tile-dim (:tile-size map-document))
            :layers layers)))
 
 (defun normalize-map-documents [maps]
@@ -732,7 +745,7 @@
                   :label (or (:selected-map-label state) default-map-label)
                   :width (map-dimension (:map-width state) map-width)
                   :height (map-dimension (:map-height state) map-height)
-                  :tile-size (map-tile-size (:tile-size state))
+                  :tile-size (map-tile-dim (:tile-size state))
                   :layers layers}]
     (if layer-profile-id
       (assoc document :layer-profile layer-profile-id)
