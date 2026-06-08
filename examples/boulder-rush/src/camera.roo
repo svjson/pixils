@@ -1,6 +1,7 @@
 (ns boulder-rush.camera
   (:require pixils
-            [pixils.point :as pt]))
+            [pixils.point :as pt]
+            [pixils.tilemap.model :as tm]))
 
 (defun clamp [value low high]
   (max low (min high value)))
@@ -12,9 +13,9 @@
     true 0))
 
 (defun tile-viewport [level-map viewport-size]
-  (let [tile-size (:tile-size level-map)]
-    {:w (int (/ (:w viewport-size) tile-size))
-     :h (int (/ (:h viewport-size) tile-size))}))
+  (let [tile-size (tm/tile-size level-map)]
+    {:w (int (/ (:w viewport-size) (:w tile-size)))
+     :h (int (/ (:h viewport-size) (:h tile-size)))}))
 
 (def scroll-margin 3)
 (def scroll-step 3)
@@ -48,7 +49,9 @@
                                         (tile-viewport (:level-map state) viewport-size)
                                         (:tile-offset state)
                                         (-> state :player :pos))
-        target-offset (pt/* tile-offset (:tile-size (:level-map state)))]
+        tile-size (tm/tile-size (:level-map state))
+        target-offset {:x (* (:x tile-offset) (:w tile-size))
+                       :y (* (:y tile-offset) (:h tile-size))}]
     (-> state
         (assoc :tile-offset tile-offset)
         (update :offset (fn [offset]

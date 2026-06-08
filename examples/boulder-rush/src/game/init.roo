@@ -1,5 +1,6 @@
 (ns boulder-rush.game.init
   (:require [pixils.state.timer :as timer]
+            [pixils.tilemap.model :as tm]
             [boulder-rush.player :as pl]
             [boulder-rush.physics :as physics]
             [boulder-rush.level.index :as caves]
@@ -15,10 +16,11 @@
         level (assoc level :tileset-id tileset-id)
         map (level/add-start-cover base-map level)
         initial-offset (:initial-offset level)
+        tile-size (tm/tile-size base-map)
         initial-tile-offset {:x (int (/ (:x initial-offset)
-                                        (:tile-size base-map)))
+                                        (:w tile-size)))
                              :y (int (/ (:y initial-offset)
-                                        (:tile-size base-map)))}]
+                                        (:h tile-size)))}]
     {:current-level current-level
      :level level
      :base-level-map base-map
