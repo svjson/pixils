@@ -45,6 +45,23 @@
                    :title-bar {:title \"Centered\"}
                    :body [{:mode 'probe-body}]})]})")
 
+(defun centered-scaled-window-probe-source []
+  "(ns pixils.test.centered-scaled-window-probe
+     (:require pixils
+               pixils.ui.window))
+
+   (pixils/defcomponent probe-body
+     {:style {:width 40
+              :height 20}})
+
+   (pixils/defmode root-mode
+     {:children [(pixils.ui.window/make
+                  {:style {:width 40
+                           :height 30
+                           :scale 2}
+                   :title-bar {:title \"Scaled\"}
+                   :body [{:mode 'probe-body}]})]})")
+
 (defun autofocus-window-probe-source []
   "(ns pixils.test.autofocus-window-probe
      (:require pixils
@@ -188,6 +205,24 @@
       (is (= 32 (:y (:position state))))
       (is (= 40 (:x (:bounds window))))
       (is (= 32 (:y (:bounds window)))))))
+
+(deftest scaled-window-without-explicit-position-centers-visual-bounds
+  (let [app (runtime/make-app {:package-root "lib/pixils"
+                               :buffer-width 120
+                               :buffer-height 90
+                               :render-backend false})]
+    (runtime/eval! app (centered-scaled-window-probe-source))
+    (runtime/push-mode! app 'root-mode)
+    (settle-layout! app)
+    (let [window (runtime/find-view app "ui/window")
+          state (runtime/view-state window)]
+      (is (= false (:window/explicit-position? state)))
+      (is (= 20 (:x (:position state))))
+      (is (= 15 (:y (:position state))))
+      (is (= 20 (:x (:bounds window))))
+      (is (= 15 (:y (:bounds window))))
+      (is (= 80 (:w (:external-bounds window))))
+      (is (= 60 (:h (:external-bounds window)))))))
 
 (deftest window-autofocuses-by-default
   (let [app (runtime/make-app {:package-root "lib/pixils"

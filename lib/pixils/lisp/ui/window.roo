@@ -7,10 +7,12 @@
 (defun emit-window-move! [event ctx]
   (ui/emit! (:view ctx) :window/move-by (:delta event)))
 
-(defun known-window-size-axis [style bounds style-key bounds-key]
-  (let [style-value (get (or style {}) style-key)
+(defun known-window-size-axis [external-bounds style bounds style-key bounds-key]
+  (let [external-value (get (or external-bounds {}) bounds-key)
+        style-value (get (or style {}) style-key)
         bounds-value (get (or bounds {}) bounds-key)]
     (cond
+      (and (number? external-value) (> external-value 0)) external-value
       (number? style-value) style-value
       (and (number? bounds-value) (> bounds-value 0)) bounds-value
       :default nil)))
@@ -19,10 +21,11 @@
   (max low (min high value)))
 
 (defun known-window-size [ctx]
-  (let [style (-> ctx :view :style)
+  (let [external-bounds (-> ctx :view :external-bounds)
+        style (-> ctx :view :style)
         bounds (-> ctx :view :bounds)]
-    {:w (known-window-size-axis style bounds :width :w)
-     :h (known-window-size-axis style bounds :height :h)}))
+    {:w (known-window-size-axis external-bounds style bounds :width :w)
+     :h (known-window-size-axis external-bounds style bounds :height :h)}))
 
 (defun centered-window-position [ctx]
   (let [buffer (:buffer-size ctx)

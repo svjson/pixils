@@ -18,6 +18,7 @@
 #include <pixils/runtime/mode.h>
 #include <pixils/runtime/state.h>
 #include <pixils/runtime/view.h>
+#include <pixils/ui/view_geometry.h>
 
 #include <SDL2/SDL_render.h>
 #include <algorithm>
@@ -105,6 +106,39 @@ namespace Pixils::Script
       elements.push_back(property);
       elements.push_back(value);
     }
+
+    void fill_missing_external_geometry_style(UI::Style& style, const UI::Style& source)
+    {
+      if (!style.width && source.width) style.width = source.width;
+      if (!style.height && source.height) style.height = source.height;
+      if (!style.scale && source.scale) style.scale = source.scale;
+    }
+
+    UI::Style best_known_external_geometry_style(const Runtime::View& view)
+    {
+      UI::Style style = view.effective_style;
+      if (view.mode)
+      {
+        if (view.mode->style) fill_missing_external_geometry_style(style, *view.mode->style);
+        if (view.mode->runtime_style)
+          fill_missing_external_geometry_style(style, *view.mode->runtime_style);
+      }
+      return style;
+    }
+
+    Rect best_known_external_bounds(const Runtime::View& view)
+    {
+      if (view.external_bounds.w > 0 && view.external_bounds.h > 0)
+        return view.external_bounds;
+
+      UI::Style style = best_known_external_geometry_style(view);
+      Rect logical_bounds = view.bounds;
+      if (logical_bounds.w <= 0 && style.width)
+        logical_bounds.w = style.width->fixed_value_or(0);
+      if (logical_bounds.h <= 0 && style.height)
+        logical_bounds.h = style.height->fixed_value_or(0);
+      return UI::scaled_external_bounds(logical_bounds, style);
+    }
   } // namespace
 
   namespace Macro
@@ -174,8 +208,7 @@ namespace Pixils::Script
       DefBundleDynamicForm,
       MULTI_SIG((FN_ARGS((&Roo::Type::SYMBOL, &Roo::Eval::LITERAL)),
                  EXEC_DISPATCH(&DefBundleDynamicForm::execnode_def_bundle_dynamic)),
-                (FN_ARGS((&Roo::Type::SYMBOL, &Roo::Eval::LITERAL),
-                         (&Roo::Type::MAP)),
+                (FN_ARGS((&Roo::Type::SYMBOL, &Roo::Eval::LITERAL), (&Roo::Type::MAP)),
                  EXEC_DISPATCH(&DefBundleDynamicForm::execnode_def_bundle_dynamic))));
 
     SFORM_LOWER_IMPL(DefBundleDynamicForm)
@@ -191,7 +224,7 @@ namespace Pixils::Script
         if (!deps_coercion.success)
         {
           throw Roo::TypeError("Invalid dynamic bundle declaration: " +
-                                  map_expr->to_string());
+                               map_expr->to_string());
         }
         deps = Roo::obj<Runtime::ResourceDependencies>(*deps_coercion.result);
       }
@@ -216,14 +249,14 @@ namespace Pixils::Script
     SFORM_LOWER_IMPL(DefFontForm)
     {
       static Roo::MapSchema font_map_schema({},
-                                               {{"type", &Roo::Type::KEYWORD},
-                                                {"resource", &Roo::Type::KEYWORD},
-                                                {"size", &Roo::Type::NUMBER},
-                                                {"spacing", &Roo::Type::NUMBER},
-                                                {"line-height", &Roo::Type::NUMBER},
-                                                {"baseline", &Roo::Type::NUMBER},
-                                                {"styles", &Roo::Type::MAP},
-                                                {"glyphs", &Roo::Type::MAP}});
+                                            {{"type", &Roo::Type::KEYWORD},
+                                             {"resource", &Roo::Type::KEYWORD},
+                                             {"size", &Roo::Type::NUMBER},
+                                             {"spacing", &Roo::Type::NUMBER},
+                                             {"line-height", &Roo::Type::NUMBER},
+                                             {"baseline", &Roo::Type::NUMBER},
+                                             {"styles", &Roo::Type::MAP},
+                                             {"glyphs", &Roo::Type::MAP}});
 
       std::string font_name =
         Roo::exec(*ctx.ctx, *Roo::lower_literal(ast_node->get_children()[1]))->str();
@@ -232,8 +265,7 @@ namespace Pixils::Script
         font_name = "font/" + font_name;
       }
       std::map<char32_t, SDL_Rect> glyph_map;
-      auto font_def_map =
-        Roo::exec(*ctx.ctx, *lower_expr(ctx, ast_node->get_children()[2]));
+      auto font_def_map = Roo::exec(*ctx.ctx, *lower_expr(ctx, ast_node->get_children()[2]));
 
       auto opts = font_map_schema.bind(*ctx.ctx, *font_def_map);
       auto type = opts.str("type", "bitmap");
@@ -294,7 +326,7 @@ namespace Pixils::Script
         if (!font_path && !embedded_font)
         {
           throw Roo::InvocationException("Unknown font resource: " +
-                                            resource_key->to_string());
+                                         resource_key->to_string());
         }
         if (!rc.renderer)
         {
@@ -322,7 +354,7 @@ namespace Pixils::Script
         if (!registered)
         {
           throw Roo::InvocationException("Could not load TTF font: " +
-                                            resource_key->to_string());
+                                         resource_key->to_string());
         }
 
         return std::make_unique<Roo::ExecNode>(Roo::Constant::NIL);
@@ -362,7 +394,7 @@ namespace Pixils::Script
           if (!glyphc.success)
           {
             throw new Roo::TypeError("Invalid source rect for glyph " + ch->to_string() +
-                                        ": " + rect_val->to_string());
+                                     ": " + rect_val->to_string());
           }
 
           glyph_map.emplace(
@@ -407,12 +439,12 @@ namespace Pixils::Script
                            EXEC_DISPATCH(&DefProgramForm::execnode_def_program))));
 
     Roo::MapSchema program_schema({},
-                                     {{"display", &HostType::DISPLAY},
-                                      {"initial-mode", &Roo::Type::SYMBOL_VALUE},
-                                      {"theme", &Roo::Type::ANY},
-                                      {"theme-variant", &Roo::Type::ANY},
-                                      {"target-frame-rate", &Roo::Type::NUMBER},
-                                      {"pointer", &Roo::Type::KEYWORD}});
+                                  {{"display", &HostType::DISPLAY},
+                                   {"initial-mode", &Roo::Type::SYMBOL_VALUE},
+                                   {"theme", &Roo::Type::ANY},
+                                   {"theme-variant", &Roo::Type::ANY},
+                                   {"target-frame-rate", &Roo::Type::NUMBER},
+                                   {"pointer", &Roo::Type::KEYWORD}});
 
     SFORM_LOWER_IMPL(DefProgramForm)
     {
@@ -476,8 +508,7 @@ namespace Pixils::Script
     SFORM_LOWER_IMPL(DefThemeForm)
     {
       auto themes = ctx.ctx->lookup(ID__PIXILS__THEMES);
-      auto name_expr =
-        Roo::exec(*ctx.ctx, *Roo::lower_literal(ast_node->get_children()[1]));
+      auto name_expr = Roo::exec(*ctx.ctx, *Roo::lower_literal(ast_node->get_children()[1]));
       auto name = name_expr->str();
       auto theme_expr =
         Roo::exec(*ctx.ctx, *Roo::lower_expr(ctx, ast_node->get_children()[2]));
@@ -502,8 +533,7 @@ namespace Pixils::Script
     SFORM_LOWER_IMPL(DefModeForm)
     {
       auto modes = ctx.ctx->lookup(ID__PIXILS__MODES);
-      auto name_expr =
-        Roo::exec(*ctx.ctx, *Roo::lower_literal(ast_node->get_children()[1]));
+      auto name_expr = Roo::exec(*ctx.ctx, *Roo::lower_literal(ast_node->get_children()[1]));
       auto name_str = Roo::string(name_expr->str());
 
       Roo::LowerContext lctx{ctx};
@@ -674,35 +704,32 @@ namespace Pixils::Script
         }
       }
 
-      throw Roo::TypeError("Could not construct Resolution from: " +
-                              args[0]->to_string());
+      throw Roo::TypeError("Could not construct Resolution from: " + args[0]->to_string());
     }
 
     /* PushModeBangFunction - push-mode! */
-    FUNC_IMPL(PushModeBangFunction,
-              MULTI_SIG((FN_ARGS((&Roo::Type::SYMBOL_VALUE)),
-                         EXEC_DISPATCH(&PushModeBangFunction::exec_push_mode)),
-                        (FN_ARGS((&Roo::Type::SYMBOL_VALUE), (&Roo::Type::ANY)),
-                         EXEC_DISPATCH(&PushModeBangFunction::exec_push_mode)),
-                        (FN_ARGS((&Roo::Type::SYMBOL_VALUE),
-                                 (&Roo::Type::ANY),
-                                 (&Roo::Type::MAP)),
-                         EXEC_DISPATCH(&PushModeBangFunction::exec_push_mode))));
+    FUNC_IMPL(
+      PushModeBangFunction,
+      MULTI_SIG((FN_ARGS((&Roo::Type::SYMBOL_VALUE)),
+                 EXEC_DISPATCH(&PushModeBangFunction::exec_push_mode)),
+                (FN_ARGS((&Roo::Type::SYMBOL_VALUE), (&Roo::Type::ANY)),
+                 EXEC_DISPATCH(&PushModeBangFunction::exec_push_mode)),
+                (FN_ARGS((&Roo::Type::SYMBOL_VALUE), (&Roo::Type::ANY), (&Roo::Type::MAP)),
+                 EXEC_DISPATCH(&PushModeBangFunction::exec_push_mode))));
 
     EXEC_BODY(PushModeBangFunction, exec_push_mode)
     {
       auto message_queue = ctx.lookup(ID__PIXILS__MODE_STACK_MESSAGES);
 
-      Roo::append(
-        *message_queue,
-        Roo::map({Roo::keyword(std::get<std::string>(MapKey::TYPE->value)),
-                     Roo::keyword(std::get<std::string>(MapKey::PUSH->value)),
-                     Roo::keyword(std::get<std::string>(MapKey::MODE->value)),
-                     args.front(),
-                     Roo::keyword(std::get<std::string>(MapKey::STATE->value)),
-                     args.size() > 1 ? args[1] : Roo::Constant::NIL,
-                     Roo::keyword("overrides"),
-                     args.size() > 2 ? args[2] : Roo::Constant::NIL}));
+      Roo::append(*message_queue,
+                  Roo::map({Roo::keyword(std::get<std::string>(MapKey::TYPE->value)),
+                            Roo::keyword(std::get<std::string>(MapKey::PUSH->value)),
+                            Roo::keyword(std::get<std::string>(MapKey::MODE->value)),
+                            args.front(),
+                            Roo::keyword(std::get<std::string>(MapKey::STATE->value)),
+                            args.size() > 1 ? args[1] : Roo::Constant::NIL,
+                            Roo::keyword("overrides"),
+                            args.size() > 2 ? args[2] : Roo::Constant::NIL}));
 
       return args[0];
     }
@@ -718,12 +745,12 @@ namespace Pixils::Script
       auto message_queue = ctx.lookup(ID__PIXILS__MODE_STACK_MESSAGES);
 
       Roo::append(*message_queue,
-                     Roo::map({
-                       Roo::keyword(std::get<std::string>(MapKey::TYPE->value)),
-                       Roo::keyword(std::get<std::string>(MapKey::POP->value)),
-                       Roo::keyword("payload"),
-                       args.empty() ? Roo::Constant::NIL : args[0],
-                     }));
+                  Roo::map({
+                    Roo::keyword(std::get<std::string>(MapKey::TYPE->value)),
+                    Roo::keyword(std::get<std::string>(MapKey::POP->value)),
+                    Roo::keyword("payload"),
+                    args.empty() ? Roo::Constant::NIL : args[0],
+                  }));
 
       return Roo::Constant::NIL;
     }
@@ -736,10 +763,10 @@ namespace Pixils::Script
       auto message_queue = ctx.lookup(ID__PIXILS__MODE_STACK_MESSAGES);
 
       Roo::append(*message_queue,
-                     Roo::map({
-                       Roo::keyword(std::get<std::string>(MapKey::TYPE->value)),
-                       Roo::keyword(std::get<std::string>(MapKey::QUIT->value)),
-                     }));
+                  Roo::map({
+                    Roo::keyword(std::get<std::string>(MapKey::TYPE->value)),
+                    Roo::keyword(std::get<std::string>(MapKey::QUIT->value)),
+                  }));
 
       return Roo::Constant::NIL;
     }
@@ -756,14 +783,14 @@ namespace Pixils::Script
       auto message_queue = ctx.lookup(ID__PIXILS__MODE_STACK_MESSAGES);
 
       Roo::append(*message_queue,
-                     Roo::map({
-                       Roo::keyword(std::get<std::string>(MapKey::TYPE->value)),
-                       Roo::keyword("theme"),
-                       Roo::keyword(std::get<std::string>(MapKey::THEME->value)),
-                       args[0],
-                       Roo::keyword(std::get<std::string>(MapKey::THEME_VARIANT->value)),
-                       args.size() > 1 ? args[1] : Roo::Constant::NIL,
-                     }));
+                  Roo::map({
+                    Roo::keyword(std::get<std::string>(MapKey::TYPE->value)),
+                    Roo::keyword("theme"),
+                    Roo::keyword(std::get<std::string>(MapKey::THEME->value)),
+                    args[0],
+                    Roo::keyword(std::get<std::string>(MapKey::THEME_VARIANT->value)),
+                    args.size() > 1 ? args[1] : Roo::Constant::NIL,
+                  }));
 
       return args[0];
     }
@@ -776,8 +803,7 @@ namespace Pixils::Script
     EXEC_BODY(ThemeVarFunction, exec_theme_var)
     {
       auto key = args[0];
-      if (key->type != Roo::Value::Type::KEYWORD &&
-          key->type != Roo::Value::Type::SYMBOL)
+      if (key->type != Roo::Value::Type::KEYWORD && key->type != Roo::Value::Type::SYMBOL)
       {
         throw Roo::TypeError("var expects a keyword or symbol");
       }
@@ -785,12 +811,11 @@ namespace Pixils::Script
     }
 
     /* WarpMouseBangFunction - warp-mouse! */
-    FUNC_IMPL(
-      WarpMouseBangFunction,
-      MULTI_SIG((FN_ARGS((&HostType::HOOK_CONTEXT), (&HostType::POINT)),
-                 EXEC_DISPATCH(&WarpMouseBangFunction::exec_warp_mouse)),
-                (FN_ARGS((&HostType::POINT)),
-                 EXEC_DISPATCH(&WarpMouseBangFunction::exec_warp_mouse))));
+    FUNC_IMPL(WarpMouseBangFunction,
+              MULTI_SIG((FN_ARGS((&HostType::HOOK_CONTEXT), (&HostType::POINT)),
+                         EXEC_DISPATCH(&WarpMouseBangFunction::exec_warp_mouse)),
+                        (FN_ARGS((&HostType::POINT)),
+                         EXEC_DISPATCH(&WarpMouseBangFunction::exec_warp_mouse))));
 
     EXEC_BODY(WarpMouseBangFunction, exec_warp_mouse)
     {
@@ -995,6 +1020,7 @@ namespace Pixils::Script
                       (id),
                       (state),
                       (bounds),
+                      ("external-bounds", external_bounds),
                       (interaction),
                       (style),
                       ("effective-style", effective_style),
@@ -1011,6 +1037,12 @@ namespace Pixils::Script
   NOBJ_PROP_GET(ViewAdapter, bounds)
   {
     const Rect& b = object->get_object().bounds;
+    return RectAdapter::make_unique(b.x, b.y, b.w, b.h);
+  }
+
+  NOBJ_PROP_GET(ViewAdapter, external_bounds)
+  {
+    Rect b = best_known_external_bounds(object->get_object());
     return RectAdapter::make_unique(b.x, b.y, b.w, b.h);
   }
 

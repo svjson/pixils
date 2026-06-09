@@ -7,6 +7,7 @@
 #include <pixils/runtime/view.h>
 #include <pixils/ui/line.h>
 #include <pixils/ui/style.h>
+#include <pixils/ui/view_geometry.h>
 #include <pixils/ui/view_layout.h>
 
 #include <algorithm>
@@ -29,11 +30,6 @@ namespace Pixils::UI
       return Rect{x1, y1, x2 - x1, y2 - y1};
     }
 
-    int scale_factor(const Style& style)
-    {
-      return std::max(1, style.scale.value_or(1));
-    }
-
     float opacity_factor(const Style& style)
     {
       return std::clamp(style.opacity.value_or(1.0f), 0.0f, 1.0f);
@@ -48,15 +44,6 @@ namespace Pixils::UI
     Uint8 opacity_to_alpha(float opacity)
     {
       return static_cast<Uint8>(std::lround(std::clamp(opacity, 0.0f, 1.0f) * 255.0f));
-    }
-
-    Rect scaled_external_bounds(const Rect& logical_bounds, const Style& style)
-    {
-      int scale = scale_factor(style);
-      return {logical_bounds.x,
-              logical_bounds.y,
-              logical_bounds.w * scale,
-              logical_bounds.h * scale};
     }
 
     Rect target_rect(const Rect& rect, const Point& origin)
@@ -143,9 +130,9 @@ namespace Pixils::UI
     int proportional_crop(int dest_crop, int source_size, int dest_size)
     {
       if (dest_size <= 0) return 0;
-      return static_cast<int>(std::round(static_cast<double>(dest_crop) *
-                                         static_cast<double>(source_size) /
-                                         static_cast<double>(dest_size)));
+      return static_cast<int>(
+        std::round(static_cast<double>(dest_crop) * static_cast<double>(source_size) /
+                   static_cast<double>(dest_size)));
     }
 
     std::optional<SDL_Rect> cropped_source_rect(const SDL_Rect& source,
@@ -210,7 +197,7 @@ namespace Pixils::UI
       const float opacity = opacity_factor(style_res);
       if (opacity <= 0.0f) return;
 
-      if (allow_scale_boundary && (scale_factor(style_res) > 1 || opacity < 1.0f))
+      if (allow_scale_boundary && (style_scale_factor(style_res) > 1 || opacity < 1.0f))
       {
         if (bounds.w <= 0 || bounds.h <= 0) return;
         auto offscreen_clip = intersect_clip(inherited_clip, bounds);

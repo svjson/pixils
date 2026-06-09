@@ -15,16 +15,17 @@
 #include <pixils/runtime/state.h>
 #include <pixils/runtime/view.h>
 #include <pixils/ui/style.h>
+#include <pixils/ui/view_geometry.h>
 
 #include <algorithm>
 #include <functional>
+#include <optional>
 #include <roo/context.h>
 #include <roo/host/object.h>
 #include <roo/runtime.h>
 #include <roo/runtime/dict.h>
 #include <roo/runtime/seq.h>
 #include <roo/runtime/value.h>
-#include <optional>
 
 namespace Pixils::UI
 {
@@ -34,11 +35,6 @@ namespace Pixils::UI
     {
       return {global.x - static_cast<float>(bounds.x),
               global.y - static_cast<float>(bounds.y)};
-    }
-
-    int scale_factor(const Style& style)
-    {
-      return std::max(1, style.scale.value_or(1));
     }
 
     Style interaction_style(const std::shared_ptr<Runtime::View>& view)
@@ -54,25 +50,15 @@ namespace Pixils::UI
 
     bool suppresses_interaction(const Style& style)
     {
-      return style.visibility &&
-             (*style.visibility == Style::Visibility::HIDDEN ||
-              *style.visibility == Style::Visibility::NONE);
-    }
-
-    Rect external_bounds(const std::shared_ptr<Runtime::View>& view, const Style& style)
-    {
-      int scale = scale_factor(style);
-      return {view->bounds.x,
-              view->bounds.y,
-              view->bounds.w * scale,
-              view->bounds.h * scale};
+      return style.visibility && (*style.visibility == Style::Visibility::HIDDEN ||
+                                  *style.visibility == Style::Visibility::NONE);
     }
 
     Point to_logical_point(const std::shared_ptr<Runtime::View>& view,
                            const Style& style,
                            const Point& parent_point)
     {
-      int scale = scale_factor(style);
+      int scale = style_scale_factor(style);
       if (scale == 1) return parent_point;
 
       return {
@@ -108,8 +94,7 @@ namespace Pixils::UI
     {
       return (view->mode->on_drag_start &&
               view->mode->on_drag_start->type != Roo::Value::Type::NIL) ||
-             (view->mode->on_drag &&
-              view->mode->on_drag->type != Roo::Value::Type::NIL) ||
+             (view->mode->on_drag && view->mode->on_drag->type != Roo::Value::Type::NIL) ||
              (view->mode->on_drag_end &&
               view->mode->on_drag_end->type != Roo::Value::Type::NIL);
     }
@@ -186,8 +171,7 @@ namespace Pixils::UI
       }
     }
 
-    Roo::sptr_val resolve_callable_handler(Roo::Runtime& runtime,
-                                              const Roo::sptr_val& val)
+    Roo::sptr_val resolve_callable_handler(Roo::Runtime& runtime, const Roo::sptr_val& val)
     {
       if (!val || val->type == Roo::Value::Type::NIL) return Roo::Constant::NIL;
       if (val->type == Roo::Value::Type::SYMBOL)
@@ -346,10 +330,10 @@ namespace Pixils::UI
     }
 
     Roo::sptr_val invoke_drag_payload_hook(const std::shared_ptr<Runtime::View>& source,
-                                              const Roo::sptr_val& hook,
-                                              DragEvent& ev,
-                                              Runtime::HookArguments& hook_args,
-                                              Roo::Runtime& rt)
+                                           const Roo::sptr_val& hook,
+                                           DragEvent& ev,
+                                           Runtime::HookArguments& hook_args,
+                                           Roo::Runtime& rt)
     {
       auto payload_hook = resolve_callable_handler(rt, hook);
       if (!payload_hook || payload_hook->type == Roo::Value::Type::NIL)
@@ -437,8 +421,7 @@ namespace Pixils::UI
       return 0;
     }
 
-    bool key_spec_matches_held(const Roo::sptr_val& spec,
-                               const Roo::sptr_val& held_keys)
+    bool key_spec_matches_held(const Roo::sptr_val& spec, const Roo::sptr_val& held_keys)
     {
       if (!spec || !held_keys || held_keys->type == Roo::Value::Type::NIL) return false;
 
@@ -607,8 +590,7 @@ namespace Pixils::UI
 
         return CustomEvent{
           action,
-          payload && payload->type != Roo::Value::Type::NIL ? payload
-                                                               : Roo::Constant::NIL,
+          payload && payload->type != Roo::Value::Type::NIL ? payload : Roo::Constant::NIL,
           view->mode ? Roo::symbol(view->mode->name) : Roo::Constant::NIL};
       };
 
@@ -620,8 +602,7 @@ namespace Pixils::UI
 
       for (const auto& shortcut : Roo::Dict::keys(*action_map))
       {
-        auto resolved =
-          try_binding(shortcut, Roo::Dict::get_property(action_map, shortcut));
+        auto resolved = try_binding(shortcut, Roo::Dict::get_property(action_map, shortcut));
         if (resolved.has_value()) return resolved;
       }
 
@@ -766,8 +747,7 @@ namespace Pixils::UI
             {
               auto resolved_handler =
                 resolve_callable_handler(rt, Roo::Dict::get_property(hook, spec));
-              if (!resolved_handler ||
-                  resolved_handler->type != Roo::Value::Type::FUNCTION)
+              if (!resolved_handler || resolved_handler->type != Roo::Value::Type::FUNCTION)
               {
                 continue;
               }
@@ -818,7 +798,7 @@ namespace Pixils::UI
            point.y < inherited_clip->y || point.y >= inherited_clip->y + inherited_clip->h))
         return false;
 
-      Rect hit_bounds = external_bounds(view, style);
+      Rect hit_bounds = scaled_external_bounds(view->bounds, style);
       bool hit = point.x >= hit_bounds.x && point.x < hit_bounds.x + hit_bounds.w &&
                  point.y >= hit_bounds.y && point.y < hit_bounds.y + hit_bounds.h;
       if (!hit) return false;
@@ -1053,9 +1033,7 @@ namespace Pixils::UI
               double_click_ev_ref,
               double_click_ev.propagation_stopped,
               [&](size_t index)
-              {
-                double_click_ev.local_pos = local_pos_in_view(gp, click_chain, index);
-              },
+              { double_click_ev.local_pos = local_pos_in_view(gp, click_chain, index); },
               hook_args,
               rt);
           }
@@ -1094,10 +1072,10 @@ namespace Pixils::UI
         store_focus_chain(focus_state, focus_chain);
       }
 
-      MouseButton btn = (events.mouse_button_down &&
-                         events.mouse_button_down->type != Roo::Value::Type::NIL)
-                          ? mouse_button_from_name(events.mouse_button_down->str())
-                          : MouseButton::NONE;
+      MouseButton btn =
+        (events.mouse_button_down && events.mouse_button_down->type != Roo::Value::Type::NIL)
+          ? mouse_button_from_name(events.mouse_button_down->str())
+          : MouseButton::NONE;
       auto& btn_chain = mouse_state.button_chains[btn];
       btn_chain.clear();
       for (auto& view_ptr : hit_chain)
@@ -1270,8 +1248,7 @@ namespace Pixils::UI
 
   } // namespace
 
-  void sync_focus_state(const std::shared_ptr<Runtime::View>& root,
-                        FocusState& focus_state)
+  void sync_focus_state(const std::shared_ptr<Runtime::View>& root, FocusState& focus_state)
   {
     sync_focus_state_impl(root, focus_state);
   }
@@ -1322,8 +1299,7 @@ namespace Pixils::UI
       handle_mouse_up(mouse_state, events, hook_args, runtime);
     }
 
-    if (events.mouse_button_down &&
-        events.mouse_button_down->type != Roo::Value::Type::NIL)
+    if (events.mouse_button_down && events.mouse_button_down->type != Roo::Value::Type::NIL)
     {
       handle_mouse_down(root, mouse_state, focus_state, events, hook_args, runtime);
     }
@@ -1347,8 +1323,7 @@ namespace Pixils::UI
         size_t n = Roo::count(*events.mouse_held);
         for (size_t i = 0; i < n; i++)
         {
-          held.insert(
-            mouse_button_from_name(Roo::get_child(*events.mouse_held, i)->str()));
+          held.insert(mouse_button_from_name(Roo::get_child(*events.mouse_held, i)->str()));
         }
       }
       for (auto it = mouse_state.button_chains.begin();

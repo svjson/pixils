@@ -151,19 +151,19 @@ namespace Pixils::Script
                  UI::InteractionState,
                  (hovered, focused, focus_within, pressed));
   /*! @brief Roo HostObject Adapter for View */
-  NATIVE_ADAPTER(
-    ViewAdapter,
-    Runtime::View,
-    (id,
-     state,
-     bounds,
-     interaction,
-     style,
-     effective_style,
-     on_mouse_down,
-     on_mouse_up,
-     on_click,
-     on_double_click));
+  NATIVE_ADAPTER(ViewAdapter,
+                 Runtime::View,
+                 (id,
+                  state,
+                  bounds,
+                  external_bounds,
+                  interaction,
+                  style,
+                  effective_style,
+                  on_mouse_down,
+                  on_mouse_up,
+                  on_click,
+                  on_double_click));
   /*! @brief ModeAdapter - A Roo HostObject Adapter for Mode */
   NATIVE_ADAPTER(ModeAdapter, Runtime::Mode, (init, update, render));
   /*! @brief ModeCompositionAdapter - A Roo HostObject Adapter for ModeComposition */

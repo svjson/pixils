@@ -9,6 +9,7 @@
 #include <pixils/runtime/view.h>
 #include <pixils/ui/base_theme.h>
 #include <pixils/ui/theme.h>
+#include <pixils/ui/view_geometry.h>
 
 #include <functional>
 #include <roo/context.h>
@@ -206,35 +207,21 @@ namespace Pixils::UI
                : style.border->top_thickness() + style.border->bottom_thickness();
     }
 
-    int scale_factor(const Style& style)
-    {
-      return std::max(1, style.scale.value_or(1));
-    }
-
     bool removes_layout(const Style& style)
     {
       return style.visibility && *style.visibility == Style::Visibility::NONE;
     }
 
-    Rect scaled_external_bounds(const Rect& logical_bounds, const Style& style)
-    {
-      int scale = scale_factor(style);
-      return {logical_bounds.x,
-              logical_bounds.y,
-              logical_bounds.w * scale,
-              logical_bounds.h * scale};
-    }
-
     int scaled_outer_size(const Style& style, Axis axis, int logical_outer_size)
     {
       int margin = margin_size(style, axis);
-      return margin + std::max(0, logical_outer_size - margin) * scale_factor(style);
+      return margin + std::max(0, logical_outer_size - margin) * style_scale_factor(style);
     }
 
     int logical_outer_size_from_scaled(const Style& style, Axis axis, int scaled_outer_size)
     {
       int margin = margin_size(style, axis);
-      int scale = scale_factor(style);
+      int scale = style_scale_factor(style);
       return margin + std::max(0, scaled_outer_size - margin) / scale;
     }
 
@@ -269,9 +256,7 @@ namespace Pixils::UI
       return std::max(logical_outer_size, minimum_outer_size(style, axis));
     }
 
-    int apply_scaled_outer_size_constraints(const Style& style,
-                                            Axis axis,
-                                            int scaled_size)
+    int apply_scaled_outer_size_constraints(const Style& style, Axis axis, int scaled_size)
     {
       auto logical_size = logical_outer_size_from_scaled(style, axis, scaled_size);
       return scaled_outer_size(style,
@@ -461,7 +446,8 @@ namespace Pixils::UI
       const int border = border_size(style, axis);
 
       std::optional<int> outer_size;
-      if (size && size->is_fixed()) outer_size = fixed_outer_size(style, axis);
+      if (size && size->is_fixed())
+        outer_size = fixed_outer_size(style, axis);
       else if (parent_size)
         outer_size = *parent_size;
 
@@ -512,8 +498,7 @@ namespace Pixils::UI
       PIXILS_BENCHMARK_COUNT(style_layer_resolve_calls);
 
       if (layer.style) return layer.style;
-      if (!layer.source || layer.source->type == Roo::Value::Type::NIL)
-        return std::nullopt;
+      if (!layer.source || layer.source->type == Roo::Value::Type::NIL) return std::nullopt;
 
       auto resolved_value =
         Script::resolve_theme_vars(theme, theme.selected_variant, layer.source);
@@ -524,7 +509,7 @@ namespace Pixils::UI
       if (!coercion.success)
       {
         throw Roo::TypeError("Invalid inline style after resolving theme vars: " +
-                                resolved_value->to_string());
+                             resolved_value->to_string());
       }
 
       return Roo::obj<Style>(*coercion.result);
@@ -547,7 +532,7 @@ namespace Pixils::UI
       if (!coercion.success)
       {
         throw Roo::TypeError("Invalid inline style after resolving theme vars: " +
-                                resolved_value->to_string());
+                             resolved_value->to_string());
       }
 
       return Roo::obj<Style>(*coercion.result);
@@ -695,10 +680,8 @@ namespace Pixils::UI
                                             inherited_theme_generation,
                                             selected_variant))
       {
-        view->effective_theme = resolve_effective_theme_impl(view,
-                                                             runtime,
-                                                             inherited_theme,
-                                                             selected_variant);
+        view->effective_theme =
+          resolve_effective_theme_impl(view, runtime, inherited_theme, selected_variant);
         view->style_view.mark_theme_resolved(view->mode,
                                              inherited_theme,
                                              view_inherited_theme,
@@ -925,28 +908,26 @@ namespace Pixils::UI
             scaled_outer_size(child_style, Axis::VERTICAL, child_outer_size.h);
           if (fills_axis(child_style, Axis::HORIZONTAL, false))
           {
-            child_main = std::max(child_main,
-                                  scaled_outer_size(child_style,
-                                                    Axis::HORIZONTAL,
-                                                    minimum_outer_size(child_style,
-                                                                       Axis::HORIZONTAL)));
+            child_main =
+              std::max(child_main,
+                       scaled_outer_size(child_style,
+                                         Axis::HORIZONTAL,
+                                         minimum_outer_size(child_style, Axis::HORIZONTAL)));
           }
-          child_main = std::max(child_main,
-                                scaled_outer_size(child_style,
-                                                  Axis::HORIZONTAL,
-                                                  minimum_outer_size(child_style,
-                                                                     Axis::HORIZONTAL)));
-          child_cross = std::max(child_cross,
-                                 scaled_outer_size(child_style,
-                                                   Axis::VERTICAL,
-                                                   minimum_outer_size(child_style,
-                                                                      Axis::VERTICAL)));
-          child_main = apply_scaled_outer_size_constraints(child_style,
-                                                           Axis::HORIZONTAL,
-                                                           child_main);
-          child_cross = apply_scaled_outer_size_constraints(child_style,
-                                                            Axis::VERTICAL,
-                                                            child_cross);
+          child_main =
+            std::max(child_main,
+                     scaled_outer_size(child_style,
+                                       Axis::HORIZONTAL,
+                                       minimum_outer_size(child_style, Axis::HORIZONTAL)));
+          child_cross =
+            std::max(child_cross,
+                     scaled_outer_size(child_style,
+                                       Axis::VERTICAL,
+                                       minimum_outer_size(child_style, Axis::VERTICAL)));
+          child_main =
+            apply_scaled_outer_size_constraints(child_style, Axis::HORIZONTAL, child_main);
+          child_cross =
+            apply_scaled_outer_size_constraints(child_style, Axis::VERTICAL, child_cross);
 
           if (wrap)
           {
@@ -1025,11 +1006,10 @@ namespace Pixils::UI
                           : logical_outer_size_from_scaled(view->effective_style,
                                                            Axis::HORIZONTAL,
                                                            bounds.w);
-      int available_h = inherited_style
-                          ? bounds.h
-                          : logical_outer_size_from_scaled(view->effective_style,
-                                                           Axis::VERTICAL,
-                                                           bounds.h);
+      int available_h =
+        inherited_style
+          ? bounds.h
+          : logical_outer_size_from_scaled(view->effective_style, Axis::VERTICAL, bounds.h);
       auto natural_content_size = calculate_natural_content_size(view,
                                                                  pass,
                                                                  available_w,
@@ -1206,32 +1186,29 @@ namespace Pixils::UI
           logical_main = apply_outer_size_constraints(cs, Axis::HORIZONTAL, logical_main);
 
           int basis_outer = scaled_outer_size(cs, Axis::HORIZONTAL, logical_main);
-          int cross_outer_size = resolve_outer_size(
-            cs,
-            natural,
-            Axis::VERTICAL,
-            false,
-            logical_outer_size_from_scaled(cs, Axis::VERTICAL, parent.h));
-          cross_outer_size = apply_outer_size_constraints(cs,
-                                                          Axis::VERTICAL,
-                                                          cross_outer_size);
+          int cross_outer_size =
+            resolve_outer_size(cs,
+                               natural,
+                               Axis::VERTICAL,
+                               false,
+                               logical_outer_size_from_scaled(cs, Axis::VERTICAL, parent.h));
+          cross_outer_size =
+            apply_outer_size_constraints(cs, Axis::VERTICAL, cross_outer_size);
           int cross_outer = scaled_outer_size(cs, Axis::VERTICAL, cross_outer_size);
 
           int next_total = current_line.basis_total +
-                           (current_line.items.empty() ? 0 : fixed_gap_size) +
-                           basis_outer;
+                           (current_line.items.empty() ? 0 : fixed_gap_size) + basis_outer;
           if (!current_line.items.empty() && next_total > available)
           {
             finish_line();
             next_total = basis_outer;
           }
 
-          current_line.items.push_back(WrappedItem{.index = i,
-                                                   .basis_outer = basis_outer,
-                                                   .cross_outer = cross_outer,
-                                                   .fill = fills_axis(cs,
-                                                                      Axis::HORIZONTAL,
-                                                                      false)});
+          current_line.items.push_back(
+            WrappedItem{.index = i,
+                        .basis_outer = basis_outer,
+                        .cross_outer = cross_outer,
+                        .fill = fills_axis(cs, Axis::HORIZONTAL, false)});
           current_line.basis_total = next_total;
           current_line.cross_outer = std::max(current_line.cross_outer, cross_outer);
         }
@@ -1321,11 +1298,11 @@ namespace Pixils::UI
               break;
             }
 
-            rects[item.index] = {pos + margin.l,
-                                 line_y + cross_offset + margin.t,
-                                 std::max(0, logical_outer_size - margin.l - margin.r),
-                                 std::max(0,
-                                          logical_cross_outer_size - margin.t - margin.b)};
+            rects[item.index] = {
+              pos + margin.l,
+              line_y + cross_offset + margin.t,
+              std::max(0, logical_outer_size - margin.l - margin.r),
+              std::max(0, logical_cross_outer_size - margin.t - margin.b)};
 
             pos += outer_size;
             if (item_index + 1 < line.items.size()) pos += gap_size;
@@ -1371,9 +1348,7 @@ namespace Pixils::UI
           {
             Dimension outer_size = calculate_outer_size(cs, *natural);
             logical_outer_sizes[i] =
-              apply_outer_size_constraints(cs,
-                                           main_axis,
-                                           row ? outer_size.w : outer_size.h);
+              apply_outer_size_constraints(cs, main_axis, row ? outer_size.w : outer_size.h);
             outer_sizes[i] = scaled_outer_size(cs, main_axis, logical_outer_sizes[i]);
           }
           else
@@ -1388,9 +1363,7 @@ namespace Pixils::UI
         {
           Dimension outer_size = calculate_outer_size(cs, *natural);
           logical_outer_sizes[i] =
-            apply_outer_size_constraints(cs,
-                                         main_axis,
-                                         row ? outer_size.w : outer_size.h);
+            apply_outer_size_constraints(cs, main_axis, row ? outer_size.w : outer_size.h);
           outer_sizes[i] = scaled_outer_size(cs, main_axis, logical_outer_sizes[i]);
           total_fixed += outer_sizes[i];
         }
@@ -1432,9 +1405,8 @@ namespace Pixils::UI
         {
           const Style& cs = children[index]->effective_style;
           Axis main_axis = row ? Axis::HORIZONTAL : Axis::VERTICAL;
-          int min_outer = scaled_outer_size(cs,
-                                            main_axis,
-                                            minimum_outer_size(cs, main_axis));
+          int min_outer =
+            scaled_outer_size(cs, main_axis, minimum_outer_size(cs, main_axis));
           int shrinkable_size = std::max(0, outer_sizes[index] - min_outer);
           int reduction = std::min(shrinkable_size, per_child);
           outer_sizes[index] -= reduction;
