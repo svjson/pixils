@@ -1,0 +1,11 @@
+(ns widget-showcase.core
+  (:require pixils
+            widget-showcase.root))
+
+(defprogram widget-showcase
+  {:display {:resolution {:scale 2}
+             :align :align/center
+             :background {:r 0x18 :g 0x1d :b 0x24}}
+   :target-frame-rate 0
+   :theme 'pixils/windows-3
+   :initial-mode 'main-mode})

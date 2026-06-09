@@ -1,0 +1,160 @@
+(ns widget-showcase.startup-test
+  (:require proof.core
+            [pixils.test.runtime :as runtime]))
+
+(defun settle-layout! [app]
+  (runtime/update! app)
+  (runtime/layout! app)
+  (runtime/update! app)
+  (runtime/layout! app)
+  app)
+
+(defun view-center-x [view]
+  (int (/ (:w (:bounds view)) 2)))
+
+(defun view-center-y [view]
+  (int (/ (:h (:bounds view)) 2)))
+
+(defun view-lower-y [view]
+  (max 0 (- (:h (:bounds view)) 3)))
+
+(defun view-upper-y [view]
+  2)
+
+(deftest widget-showcase-loads-and-renders-main-window
+  (let [app (runtime/make-app {:package-root "."
+                               :buffer-width 800
+                               :buffer-height 600
+                               :render-backend false})]
+    (runtime/push-mode! app 'main-mode)
+    (settle-layout! app)
+    (is (not (nil? (runtime/find-view app "ui/window"))))
+    (is (not (nil? (runtime/find-view app "ui/tab-panel"))))
+    (is (not (nil? (runtime/find-view app "ui/scroll-pane"))))
+    (is (not (nil? (runtime/find-view app "ui/button"))))
+    (is (not (nil? (runtime/find-view app "ui/text-input"))))))
+
+(deftest widget-showcase-window-body-scrolls-inside-fixed-window
+  (let [app (runtime/make-app {:package-root "."
+                               :buffer-width 800
+                               :buffer-height 600
+                               :render-backend false})]
+    (runtime/push-mode! app 'main-mode)
+    (settle-layout! app)
+    (let [window (runtime/find-view app "ui/window")
+          body (runtime/find-view app "ui/window-body")
+          scroll-pane (runtime/find-view app "ui/scroll-pane")
+          viewport (runtime/find-view app "ui/scroll-pane-viewport")
+          tab-panel (runtime/find-view app "ui/tab-panel")]
+      (is (= 740 (:w (:bounds window))))
+      (is (= 488 (:h (:bounds window))))
+      (is (= true (< (:h (:bounds body))
+                     (:h (:bounds window)))))
+      (is (= (:h (:bounds body))
+             (:h (:bounds scroll-pane))))
+      (is (= true (< (:h (:bounds viewport))
+                     (:h (:bounds tab-panel))))))))
+
+(deftest inputs-tab-button-hover-uses-full-visual-height
+  (let [app (runtime/make-app {:package-root "."
+                               :buffer-width 800
+                               :buffer-height 600
+                               :render-backend false})]
+    (runtime/push-mode! app 'main-mode)
+    (settle-layout! app)
+    (let [button (runtime/find-view-containing app
+                                               "ui/button"
+                                               ":label \"Normal\"")
+          bounds (:bounds button)]
+      (runtime/mouse-move-in! app
+                              button
+                              (int (/ (:w bounds) 2))
+                              (int (/ (:h bounds) 2)))
+      (runtime/update! app)
+      (let [button-after (runtime/find-view-containing app
+                                                       "ui/button"
+                                                       ":label \"Normal\"")]
+        (is (= true
+               (-> button-after :interaction :hovered)))))))
+
+(deftest inputs-tab-combo-box-lower-edge-click-works-near-group-box-bottom
+  (let [app (runtime/make-app {:package-root "."
+                               :buffer-width 800
+                               :buffer-height 600
+                               :render-backend false})]
+    (runtime/push-mode! app 'main-mode)
+    (settle-layout! app)
+    (let [combo (runtime/find-view app "ui/combo-box")]
+      (runtime/mouse-click-in! app
+                               combo
+                               (view-center-x combo)
+                               (view-lower-y combo))
+      (is (= "ui/combo-box-popup"
+             (runtime/active-mode-name app))))))
+
+(deftest inputs-tab-combo-box-upper-edge-click-currently-works-near-group-box-bottom
+  (let [app (runtime/make-app {:package-root "."
+                               :buffer-width 800
+                               :buffer-height 600
+                               :render-backend false})]
+    (runtime/push-mode! app 'main-mode)
+    (settle-layout! app)
+    (let [combo (runtime/find-view app "ui/combo-box")]
+      (runtime/mouse-click-in! app
+                               combo
+                               (view-center-x combo)
+                               (view-upper-y combo))
+      (is (= "ui/combo-box-popup"
+             (runtime/active-mode-name app))))))
+
+(deftest lists-tab-list-box-lower-edge-click-works-near-group-box-bottom
+  (let [app (runtime/make-app {:package-root "."
+                               :buffer-width 800
+                               :buffer-height 600
+                               :render-backend false})]
+    (runtime/push-mode! app 'main-mode)
+    (settle-layout! app)
+    (let [lists-tab (runtime/find-view-containing app
+                                                  "ui/tab"
+                                                  ":tab-id :lists")]
+      (runtime/click! app lists-tab)
+      (settle-layout! app)
+      (let [row (runtime/find-view-containing app
+                                              "ui/list-box-item"
+                                              ":value :four")]
+        (runtime/mouse-click-in! app
+                                 row
+                                 (view-center-x row)
+                                 (view-lower-y row))
+        (settle-layout! app)
+        (let [selected-row (runtime/find-view-containing app
+                                                         "ui/list-box-item"
+                                                         ":value :four")]
+          (is (= true
+                 (:selected (runtime/view-state selected-row)))))))))
+
+(deftest lists-tab-list-box-upper-edge-click-currently-works-near-group-box-bottom
+  (let [app (runtime/make-app {:package-root "."
+                               :buffer-width 800
+                               :buffer-height 600
+                               :render-backend false})]
+    (runtime/push-mode! app 'main-mode)
+    (settle-layout! app)
+    (let [lists-tab (runtime/find-view-containing app
+                                                  "ui/tab"
+                                                  ":tab-id :lists")]
+      (runtime/click! app lists-tab)
+      (settle-layout! app)
+      (let [row (runtime/find-view-containing app
+                                              "ui/list-box-item"
+                                              ":value :four")]
+        (runtime/mouse-click-in! app
+                                 row
+                                 (view-center-x row)
+                                 (view-upper-y row))
+        (settle-layout! app)
+        (let [selected-row (runtime/find-view-containing app
+                                                         "ui/list-box-item"
+                                                         ":value :four")]
+          (is (= true
+                 (:selected (runtime/view-state selected-row)))))))))

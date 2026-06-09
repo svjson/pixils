@@ -1,0 +1,71 @@
+(ns widget-showcase.style
+  (:require [pixils.ui :as ui]
+            [pixils.ui.group-box :as group-box]))
+
+(def content-bg {:r 0xeb :g 0xeb :b 0xe4})
+(def panel-bg {:r 0xd6 :g 0xd6 :b 0xce})
+(def quiet-bg {:r 0xc4 :g 0xc9 :b 0xcf})
+
+(def page-style
+  {:width :fill
+   :height :fill
+   :padding 10
+   :layout {:direction :column
+            :gap 8}})
+
+(def row-style
+  {:width :fill
+   :height :shrink
+   :layout {:direction :row
+            :align-items :center
+            :gap 8}})
+
+(def section-body-style
+  {:width :fill
+   :padding 8
+   :layout {:direction :column
+            :gap 6}})
+
+(def section-style
+  {:width :fill
+   :height :shrink})
+
+(def field-label-style
+  {:width 116
+   :text {:align :right}})
+
+(def button-row-style
+  {:height :shrink
+   :layout {:direction :row
+            :align-items :center
+            :gap 6}})
+
+(defun label [text]
+  {:mode 'ui/text
+   :state {:value text}})
+
+(defun field-row [label-text child]
+  {:style row-style
+   :children [{:mode 'ui/text
+               :style field-label-style
+               :state {:value label-text}}
+              child]})
+
+(defun status-row []
+  {:style {:width :fill
+           :height 24
+           :padding [4 8]
+           :background quiet-bg
+           :layout {:direction :row
+                    :align-items :center
+                    :gap 6}}
+   :children [(label "Status:")
+              {:mode 'ui/text
+               :style {:width :fill}
+               :state {:value (ui/bind-state :message)}}]})
+
+(defun section [title children]
+  (group-box/make {:title title
+                   :style section-style
+                   :body-style section-body-style
+                   :children children}))

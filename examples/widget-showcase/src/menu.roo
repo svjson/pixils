@@ -1,0 +1,48 @@
+(ns widget-showcase.menu
+  (:require [pixils.ui.menu :as menu]))
+
+(def showcase-keymap
+  {:key/f1 :showcase/about
+   :key/f2 :showcase/open-confirm
+   :key/f3 :showcase/open-file-dialog
+   :key/f4 :showcase/quit
+   :key/f5 :showcase/reset})
+
+(def showcase-menu
+  {:settings {:mnemonics {:marker "&"}
+              :shortcuts {:render true}}
+   :items [{:label "&Showcase"
+            :items [{:label "&About"
+                     :action :showcase/about
+                     :shortcut :key/f1}
+                    {:label "&Reset State"
+                     :action :showcase/reset
+                     :shortcut :key/f5}
+                    {:label "&Quit"
+                     :action :showcase/quit
+                     :shortcut :key/f4}]}
+           {:label "&Dialogs"
+            :items [{:label "&Confirm Dialog"
+                     :action :showcase/open-confirm
+                     :shortcut :key/f2}
+                    {:label "&File Dialog"
+                     :action :showcase/open-file-dialog
+                     :shortcut :key/f3}]}
+           {:label "&Theme"
+            :items [{:label "Windows &3"
+                     :action :showcase/theme
+                     :payload {:theme 'pixils/windows-3
+                               :label "Windows 3"}}
+                    {:label "Windows &95"
+                     :action :showcase/theme
+                     :payload {:theme 'pixils/windows-95
+                               :label "Windows 95"}}
+                    {:label "&Classic Blue"
+                     :action :showcase/theme
+                     :payload {:theme 'pixils/classic-blue
+                               :label "Classic Blue"}}]}]})
+
+(defun make-menu []
+  (menu/make-menu {:style {:height 20}}
+                  showcase-menu
+                  showcase-keymap))

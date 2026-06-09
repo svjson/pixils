@@ -1,0 +1,96 @@
+(ns widget-showcase.pages.inputs
+  (:require [pixils.ui :as ui]
+            [pixils.ui.button :as button]
+            [pixils.ui.checkbox :as checkbox]
+            [pixils.ui.combo-box :as combo-box]
+            [pixils.ui.number-input :as number-input]
+            [pixils.ui.option-box :as option-box]
+            [pixils.ui.slider :as slider]
+            [pixils.ui.toggle-button :as toggle-button]
+            [widget-showcase.state :as showcase-state]
+            [widget-showcase.style :as style]))
+
+(defun make []
+  {:style style/page-style
+   :children [(style/section
+               "Buttons"
+               [{:style style/button-row-style
+                 :children [(button/make {:label "Normal"
+                                           :value :normal})
+                            (button/make {:label "Disabled"
+                                          :disabled? true})
+                            (toggle-button/make-group
+                             {:selected (ui/bind-state :toggle-value)
+                              :selection-required? true
+                              :button-row-style style/button-row-style
+                              :buttons [{:label "Left"
+                                         :value :left}
+                                        {:label "Center"
+                                         :value :center}
+                                        {:label "Right"
+                                         :value :right}]})]}])
+              (style/section
+               "Choices"
+               [(checkbox/make {:label "Checkbox"
+                                :checked? (ui/bind-state :checked?)
+                                :value :checked})
+                (option-box/make-group
+                 {:selected (ui/bind-state :option-value)
+                  :options [{:label "First option"
+                             :value :one}
+                            {:label "Second option"
+                             :value :two}
+                            {:label "Disabled option"
+                             :value :three
+                             :disabled? true}]})
+                (style/field-row
+                 "Combo box"
+                 (combo-box/make {:style {:width 180}
+                                  :selected-index (ui/bind-state :combo-index)
+                                  :options showcase-state/sample-options}))])
+              (style/section
+               "Text And Numeric Input"
+               [(style/field-row
+                 "Text"
+                 {:mode 'ui/text-input
+                  :style {:width 260
+                          :height 24}
+                  :state {:value (ui/bind-state :text-value)}})
+                (style/field-row
+                 "Read only"
+                 {:mode 'ui/text-input
+                  :style {:width 260
+                          :height 24}
+                  :state {:value (ui/bind-state :read-only-value)
+                          :read-only? true}})
+                (style/field-row
+                 "Number"
+                 (number-input/make {:style {:width 90
+                                             :height 24}
+                                     :value (ui/bind-state :number-value)
+                                     :min -20
+                                     :max 120
+                                     :step 5}))])
+              (style/section
+               "Sliders"
+               [(style/field-row
+                 "Horizontal"
+                 (slider/make {:style {:width 240
+                                       :height 18}
+                               :value (ui/bind-state :slider-value)
+                               :min 0
+                               :max 100
+                               :step 5}))
+                {:style style/row-style
+                 :children [{:mode 'ui/text
+                             :style style/field-label-style
+                             :state {:value "Vertical"}}
+                            (slider/make {:style {:width 22
+                                                  :height 90}
+                                          :axis :y
+                                          :value (ui/bind-state :vertical-slider-value)
+                                          :min 0
+                                          :max 100
+                                          :step 10})
+                            {:mode 'ui/text
+                             :state {:value (ui/bind-state :vertical-slider-value)}}]}])]})

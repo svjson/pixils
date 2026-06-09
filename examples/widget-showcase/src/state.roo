@@ -1,0 +1,69 @@
+(ns widget-showcase.state)
+
+(def sample-options
+  [{:label "Alpha"
+    :value :alpha}
+   {:label "Beta"
+    :value :beta}
+   {:label "Gamma"
+    :value :gamma}
+   {:label "Disabled"
+    :value :disabled
+    :disabled? true}
+   {:label "Delta"
+    :value :delta}])
+
+(def list-options
+  [{:label "List item one"
+    :value :one}
+   {:label "List item two"
+    :value :two}
+   {:label "List item three"
+    :value :three}
+   {:label "Disabled row"
+    :value :disabled
+    :disabled? true}
+   {:label "List item four"
+    :value :four}
+   {:label "List item five"
+    :value :five}
+   {:label "List item six"
+    :value :six}
+   {:label "List item seven"
+    :value :seven}])
+
+(def icon-items
+  [{:id :controls
+    :label "Controls"
+    :position {:x 8 :y 8}}
+   {:id :layout
+    :label "Layout"
+    :position {:x 96 :y 8}}
+   {:id :dialogs
+    :label "Dialogs"
+    :position {:x 184 :y 8}}
+   {:id :windows
+    :label "Windows"
+    :position {:x 272 :y 8}}
+   {:id :themes
+    :label "Themes"
+    :position {:x 360 :y 8}}])
+
+(defun initial-state []
+  {:selected-tab :inputs
+   :checked? true
+   :toggle-value :left
+   :option-value :one
+   :combo-index 1
+   :list-selected [1]
+   :list-reorder-options list-options
+   :slider-value 42
+   :vertical-slider-value 62
+   :number-value 12
+   :text-value "Editable text"
+   :read-only-value "Read-only text can be focused and selected."
+   :scrollbar-x 24
+   :scrollbar-y 40
+   :desktop-selected-id :controls
+   :message "Widget showcase ready."
+   :theme-label "Windows 3"})

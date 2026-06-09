@@ -1,0 +1,50 @@
+(ns widget-showcase.pages.layout
+  (:require [pixils.ui.header-panel :as header-panel]
+            [pixils.ui.split-pane :as split-pane]
+            [widget-showcase.style :as style]))
+
+(defun make []
+  {:style style/page-style
+   :children [(header-panel/make
+               {:title "Header Panel"
+                :style {:width :fill
+                        :height :shrink}
+                :body-style {:padding 8
+                             :layout {:direction :column
+                                      :gap 4}}
+                :children [(style/label "Header panels provide a title band and body area.")
+                           (style/label "They are useful for app settings and inspectors.")]})
+              (style/section
+               "Split Pane"
+               [(split-pane/make
+                 {:style {:width :fill
+                          :height 210}
+                  :split 0.44
+                  :children [{:style {:width :fill
+                                      :height :fill
+                                      :padding 8
+                                      :background style/content-bg}
+                              :children [(style/label "Primary pane")
+                                         (style/label "Drag the resizer.")]}
+                             {:style {:width :fill
+                                      :height :fill
+                                      :padding 8
+                                      :background style/panel-bg}
+                              :children [(style/label "Secondary pane")
+                                         (style/label "This side fills remaining space.")]}]})])
+              (style/section
+               "Nested Layout"
+               [{:style {:width :fill
+                         :height 72
+                         :layout {:direction :row
+                                  :gap 8}}
+                 :children [{:style {:width :fill
+                                     :height :fill
+                                     :background style/content-bg
+                                     :padding 6}
+                             :children [(style/label "Fill")]}
+                            {:style {:width 140
+                                     :height :fill
+                                     :background style/quiet-bg
+                                     :padding 6}
+                             :children [(style/label "Fixed width")]}]}])]})

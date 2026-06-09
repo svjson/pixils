@@ -1,0 +1,53 @@
+(ns widget-showcase.pages.icons
+  (:require pixils
+            [pixils.ui :as ui]
+            [pixils.ui.button :as button]
+            [pixils.ui.desktop-icon :as desktop-icon]
+            [pixils.ui.icon-container :as icon-container]
+            [widget-showcase.state :as showcase-state]
+            [widget-showcase.style :as style]))
+
+(defun desktop-icon-child [item]
+  (desktop-icon/make-desktop-icon
+   {:item item
+    :selected-id (ui/bind-state :desktop-selected-id)
+    :icon {:style {:width 36
+                   :height 32}}
+    :label {:style {:width 76}}}))
+
+(defun theme-button [label theme theme-label]
+  (button/make {:label label
+                :on-click (fn [state event ctx]
+                            (do
+                              (ui/emit! (:view ctx)
+                                        :showcase/theme
+                                        {:theme theme
+                                         :label theme-label})
+                              state))}))
+
+(defun make []
+  {:style style/page-style
+   :children [(style/section
+               "Icon Container"
+               [(icon-container/make-grid
+                 {:style {:width :fill
+                          :height 170}
+                  :grid {:cell-width 88
+                         :cell-height 76
+                         :columns 5}
+                  :snap-to-grid? true
+                  :reorderable? true
+                  :children (map showcase-state/icon-items desktop-icon-child)})])
+              (style/section
+               "Window Samples"
+               [{:style style/button-row-style
+                 :children [(theme-button "Reset Theme"
+                                          'pixils/windows-3
+                                          "Windows 3")
+                            (theme-button "Classic Blue"
+                                          'pixils/classic-blue
+                                          "Classic Blue")]}
+                {:style style/row-style
+                 :children [(style/label "Active theme:")
+                            {:mode 'ui/text
+                             :state {:value (ui/bind-state :theme-label)}}]}])]})

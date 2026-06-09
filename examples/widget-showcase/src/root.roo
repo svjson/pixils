@@ -1,0 +1,173 @@
+(ns widget-showcase.root
+  (:require pixils
+            [pixils.ui :as ui]
+            [pixils.ui.dialog :as dialog]
+            [pixils.ui.file-dialog :as file-dialog]
+            [widget-showcase.menu :as app-menu]
+            [widget-showcase.showcase-window :as showcase-window]
+            [widget-showcase.state :as showcase-state]
+            [widget-showcase.style :as style]))
+
+(defmode main-mode
+  {:class :ui/app
+   :style {:width :fill
+           :height :fill
+           :layout {:direction :column}}
+   :action-map app-menu/showcase-keymap
+   :init (fn [state ctx]
+           (showcase-state/initial-state))
+   :children [(app-menu/make-menu)
+              {:style {:width :fill
+                       :height :fill
+                       :background {:r 0x24 :g 0x2c :b 0x34}
+                       :clip true}
+               :children [(showcase-window/make)]}
+              {:style {:width :fill
+                       :height 24}
+               :state {:message (ui/bind-state :message)}
+               :children [(style/status-row)]}]
+   :on {:tab-panel/change (fn [state event ctx]
+                            (let [tab (-> event :payload :tab)]
+                              (do
+                                (ui/stop-propagation! event)
+                                (assoc state
+                                       :selected-tab tab
+                                       :message (str "Selected tab " tab)))))
+        :checkbox/change (fn [state event ctx]
+                           (do
+                             (ui/stop-propagation! event)
+                             (assoc state
+                                    :checked? (-> event :payload :checked?)
+                                    :message "Checkbox changed.")))
+        :toggle-button-group/change (fn [state event ctx]
+                                      (do
+                                        (ui/stop-propagation! event)
+                                        (assoc state
+                                               :toggle-value (-> event :payload :selected)
+                                               :message "Toggle group changed.")))
+        :option-box-group/change (fn [state event ctx]
+                                   (do
+                                     (ui/stop-propagation! event)
+                                     (assoc state
+                                            :option-value (-> event :payload :selected)
+                                            :message "Option group changed.")))
+        :combo-box/change (fn [state event ctx]
+                            (do
+                              (ui/stop-propagation! event)
+                              (assoc state
+                                     :combo-index (-> event :payload :selected-index)
+                                     :message "Combo box changed.")))
+        :list-box/change (fn [state event ctx]
+                           (do
+                             (ui/stop-propagation! event)
+                             (assoc state
+                                    :list-selected (-> event :payload :selected-indices)
+                                    :message "List selection changed.")))
+        :list-box/reorder (fn [state event ctx]
+                            (let [payload (:payload event)
+                                  options (:list-reorder-options state)
+                                  from (:from-index payload)
+                                  to (:to-index payload)
+                                  item (nth options from)
+                                  remaining (concat (take from options)
+                                                    (drop (inc from) options))
+                                  reordered (concat (take to remaining)
+                                                    [item]
+                                                    (drop to remaining))]
+                              (do
+                                (ui/stop-propagation! event)
+                                (assoc state
+                                       :list-reorder-options reordered
+                                       :message "List row reordered."))))
+        :slider/change (fn [state event ctx]
+                         (do
+                           (ui/stop-propagation! event)
+                           (assoc state :message (str "Slider value "
+                                                       (:payload event)))))
+        :number-input/change (fn [state event ctx]
+                               (do
+                                 (ui/stop-propagation! event)
+                                 (assoc state
+                                        :number-value (-> event :payload :value)
+                                        :message "Number input changed.")))
+        :text-input/change (fn [state event ctx]
+                             (do
+                               (ui/stop-propagation! event)
+                               (assoc state
+                                      :text-value (-> event :payload :value)
+                                      :message "Text input changed.")))
+        :ui/icon-select (fn [state event ctx]
+                          (let [item (:payload event)]
+                            (do
+                              (ui/stop-propagation! event)
+                              (assoc state
+                                     :desktop-selected-id (:id item)
+                                     :message (str "Selected icon " (:label item))))))
+        :ui/icon-activate (fn [state event ctx]
+                            (let [item (:payload event)]
+                              (do
+                                (ui/stop-propagation! event)
+                                (assoc state
+                                       :message (str "Activated icon " (:label item))))))
+        :ui/icon-reorder (fn [state event ctx]
+                           (do
+                             (ui/stop-propagation! event)
+                             (assoc state :message "Icon reordered.")))
+        :showcase/about (fn [state event ctx]
+                          (do
+                            (dialog/open-confirm!
+                             ctx
+                             {:title "About Widget Showcase"
+                              :body [(style/label "A controlled app shell for exercising Pixils UI components.")]
+                              :buttons [{:label "OK"
+                                         :choice :ok}]})
+                            state))
+        :showcase/open-confirm (fn [state event ctx]
+                                 (do
+                                   (dialog/open-confirm!
+                                    ctx
+                                    {:title "Confirm"
+                                     :body [(style/label "This is a modal confirm dialog.")
+                                            (style/label "Overlay clicks preserve dialog focus.")]
+                                     :buttons [{:label "Cancel"
+                                                :choice :cancel}
+                                               {:label "Accept"
+                                                :choice :accept}]
+                                     :payload {:source :widget-showcase}})
+                                   state))
+        :showcase/open-file-dialog (fn [state event ctx]
+                                     (do
+                                       (file-dialog/open-file-dialog!
+                                        ctx
+                                        {:path "."
+                                         :filename ""
+                                         :filters [{:label "Roo files"
+                                                    :extensions ["roo"]}
+                                                   {:label "All files"
+                                                    :extensions ["*"]}]})
+                                       state))
+        :showcase/theme (fn [state event ctx]
+                          (let [payload (:payload event)]
+                            (do
+                              (pixils/set-theme! (:theme payload))
+                              (assoc state
+                                     :theme-label (:label payload)
+                                     :message (str "Theme changed to "
+                                                   (:label payload))))))
+        :showcase/reset (fn [state event ctx]
+                          (assoc (showcase-state/initial-state)
+                                 :message "Showcase state reset."))
+        :showcase/quit (fn [state event ctx]
+                         (quit!))
+        :dialog/result (fn [state event ctx]
+                         (do
+                           (ui/stop-propagation! event)
+                           (assoc state
+                                  :message (str "Dialog result "
+                                                (-> event :payload :choice)))))
+        :file-dialog/result (fn [state event ctx]
+                              (do
+                                (ui/stop-propagation! event)
+                                (assoc state
+                                       :message (str "File dialog result "
+                                                     (-> event :payload :type)))) )}})

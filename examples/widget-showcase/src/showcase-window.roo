@@ -1,0 +1,78 @@
+(ns widget-showcase.showcase-window
+  (:require [pixils.ui :as ui]
+            [pixils.ui.scroll-pane :as scroll-pane]
+            [pixils.ui.tab-panel :as tabs]
+            [pixils.ui.window :as window]
+            [widget-showcase.pages.dialogs :as dialogs-page]
+            [widget-showcase.pages.icons :as icons-page]
+            [widget-showcase.pages.inputs :as inputs-page]
+            [widget-showcase.pages.layout :as layout-page]
+            [widget-showcase.pages.lists :as lists-page]))
+
+(def showcase-window-style
+  {:width 740
+   :height 488})
+
+(def showcase-content-size
+  {:w 740
+   :h 520})
+
+(defun showcase-tabs []
+  (tabs/make
+   {:selected-tab (ui/bind-state :selected-tab)
+    :style {:width :fill
+            :height :fill}
+    :tabs [{:id :inputs
+            :label "Inputs"
+            :body (inputs-page/make)}
+           {:id :lists
+            :label "Lists"
+            :body (lists-page/make)}
+           {:id :layout
+            :label "Layout"
+            :body (layout-page/make)}
+           {:id :dialogs
+            :label "Menus & Dialogs"
+            :body (dialogs-page/make)}
+           {:id :icons
+            :label "Icons & Windows"
+            :body (icons-page/make)}]}))
+
+(defun showcase-window-state []
+  {:selected-tab (ui/bind-state :selected-tab)
+   :checked? (ui/bind-state :checked?)
+   :toggle-value (ui/bind-state :toggle-value)
+   :option-value (ui/bind-state :option-value)
+   :combo-index (ui/bind-state :combo-index)
+   :list-selected (ui/bind-state :list-selected)
+   :list-reorder-options (ui/bind-state :list-reorder-options)
+   :slider-value (ui/bind-state :slider-value)
+   :vertical-slider-value (ui/bind-state :vertical-slider-value)
+   :number-value (ui/bind-state :number-value)
+   :text-value (ui/bind-state :text-value)
+   :read-only-value (ui/bind-state :read-only-value)
+   :scrollbar-x (ui/bind-state :scrollbar-x)
+   :scrollbar-y (ui/bind-state :scrollbar-y)
+   :desktop-selected-id (ui/bind-state :desktop-selected-id)
+   :message (ui/bind-state :message)
+   :theme-label (ui/bind-state :theme-label)})
+
+(defun showcase-scroll-body []
+  (scroll-pane/make
+   {:style {:width :fill
+            :height :fill}
+    :content-size showcase-content-size
+    :step 24
+    :children [{:id "showcase-scroll-surface"
+                :style {:width (:w showcase-content-size)
+                        :height (:h showcase-content-size)}
+                :children [(showcase-tabs)]}]}))
+
+(defun make []
+  (window/make
+   {:title-bar {:title "Pixils Widget Showcase"}
+    :style showcase-window-style
+    :body-style {:width :fill
+                 :height :fill}
+    :state (showcase-window-state)
+    :body [(showcase-scroll-body)]}))

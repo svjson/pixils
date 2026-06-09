@@ -1,0 +1,10 @@
+{:name widget-showcase
+ :version "0.1.0"
+ :description "Pixils UI widget showcase example."
+ :dependencies {proof "0.1.0"
+                pixils-runner {:path "../../lib/pixils-runner"}
+                pixils-test {:path "../../lib/pixils-test"}}
+ :load-roots ["src"]
+ :namespace-roots {widget-showcase ["src" "test"]}
+ :config {proof {:test-roots ["test"]}}
+ :entry-points [widget-showcase.core]}

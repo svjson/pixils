@@ -1,0 +1,28 @@
+(ns widget-showcase.pages.dialogs
+  (:require [pixils.ui :as ui]
+            [pixils.ui.button :as button]
+            [widget-showcase.style :as style]))
+
+(defun emit-action-button [label action]
+  (button/make {:label label
+                :on-click (fn [state event ctx]
+                            (do
+                              (ui/emit! (:view ctx) action)
+                              state))}))
+
+(defun make []
+  {:style style/page-style
+   :children [(style/section
+               "Menu And Dialog Actions"
+               [{:style style/button-row-style
+                 :children [(emit-action-button "Open Confirm"
+                                                :showcase/open-confirm)
+                            (emit-action-button "Open File Dialog"
+                                                :showcase/open-file-dialog)
+                            (emit-action-button "About"
+                                                :showcase/about)]}
+                (style/label "The menu bar exercises top-level menus, popup menus, shortcuts, and mnemonics.")])
+              (style/section
+               "Dialog Result"
+               [(style/label "Dialog and file-dialog results are written to the status bar.")
+                (style/status-row)])]})

@@ -1,0 +1,80 @@
+(ns widget-showcase.pages.lists
+  (:require [pixils.ui :as ui]
+            [pixils.ui.list-box :as list-box]
+            [pixils.ui.scroll-pane :as scroll-pane]
+            [widget-showcase.state :as showcase-state]
+            [widget-showcase.style :as style]))
+
+(defun list-item-child [index option]
+  {:mode 'ui/list-box-item
+   :style {:height 22}
+   :state {:index index
+           :value (:value option)
+           :label (:label option)
+           :selected-indices (ui/bind-state :selected-indices)}})
+
+(defun make []
+  {:style style/page-style
+   :children [(style/section
+               "List Boxes"
+               [{:style {:width :fill
+                         :height :shrink
+                         :layout {:direction :row
+                                  :gap 10}}
+                 :children [(list-box/make {:options showcase-state/list-options
+                                             :selected-indices (ui/bind-state :list-selected)
+                                             :multi-select? true
+                                             :visible-rows 5
+                                             :content-width 180})
+                            (list-box/make {:options (ui/bind-state :list-reorder-options)
+                                            :selected-indices [0]
+                                            :reorderable? true
+                                            :visible-rows 5
+                                            :content-width 180
+                                            :item-child list-item-child})]}])
+              (style/section
+               "Scroll Pane"
+               [(scroll-pane/make
+                 {:style {:width :fill
+                          :height 150}
+                  :content-size {:w 680
+                                 :h 260}
+                  :step 18
+                  :children [{:style {:width 660
+                                      :height :shrink
+                                      :padding 10
+                                      :layout {:direction :column
+                                               :gap 6}}
+                              :children [(style/label "This scroll pane has explicit content size and both axes enabled.")
+                                         (style/label "It is intentionally wider and taller than its viewport.")
+                                         (style/label "Use the scrollbars to inspect clipped content.")
+                                         (style/label "Rows")
+                                         (style/label "01 - scroll pane content")
+                                         (style/label "02 - scroll pane content")
+                                         (style/label "03 - scroll pane content")
+                                         (style/label "04 - scroll pane content")
+                                         (style/label "05 - scroll pane content")
+                                         (style/label "06 - scroll pane content")
+                                         (style/label "07 - scroll pane content")
+                                         (style/label "08 - scroll pane content")]}]})])
+              (style/section
+               "Standalone Scrollbars"
+               [{:style {:width :fill
+                         :layout {:direction :row
+                                  :gap 12}}
+                 :children [{:mode 'ui/scrollbar
+                             :style {:width 260
+                                     :height 18}
+                             :state {:axis :x
+                                     :value (ui/bind-state :scrollbar-x)
+                                     :content-size 300
+                                     :viewport-size 80
+                                     :step 10}}
+                            {:mode 'ui/scrollbar
+                             :style {:width 18
+                                     :height 110}
+                             :state {:axis :y
+                                     :value (ui/bind-state :scrollbar-y)
+                                     :content-size 260
+                                     :viewport-size 90
+                                     :step 10}}]}])]})
