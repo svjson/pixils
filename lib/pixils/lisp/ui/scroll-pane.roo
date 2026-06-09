@@ -246,8 +246,12 @@
 
 (defun scroll-pane-preferred-size [state ctx]
   (let [size (scroll-pane-content-size state)
-        width (or (:w size) 0)
-        height (or (:h size) 0)
+        width (if (:viewport-fill-width? state)
+                0
+                (or (:w size) 0))
+        height (if (:viewport-fill-height? state)
+                 0
+                 (or (:h size) 0))
         scrollbar-size (scroll-pane-scrollbar-size ctx)]
     {:w (+ width (if (scroll-pane-preferred-scroll-y? state ctx)
                    scrollbar-size

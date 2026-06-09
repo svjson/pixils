@@ -801,11 +801,12 @@ namespace Pixils::UI
       Rect hit_bounds = scaled_external_bounds(view->bounds, style);
       bool hit = point.x >= hit_bounds.x && point.x < hit_bounds.x + hit_bounds.w &&
                  point.y >= hit_bounds.y && point.y < hit_bounds.y + hit_bounds.h;
-      if (!hit) return false;
+      const bool clips_children = style.clip && *style.clip;
+      if (!hit && clips_children) return false;
 
       Point logical_point = to_logical_point(view, style, point);
       auto child_clip = inherited_clip;
-      if (style.clip && *style.clip)
+      if (clips_children)
       {
         Rect content = style.content_rect(view->bounds);
         int x1 = child_clip ? std::max(child_clip->x, content.x) : content.x;
@@ -821,7 +822,7 @@ namespace Pixils::UI
       }
 
       bool visit_children = true;
-      if (style.clip && *style.clip)
+      if (clips_children)
       {
         visit_children = child_clip && logical_point.x >= child_clip->x &&
                          logical_point.x < child_clip->x + child_clip->w &&
@@ -838,6 +839,8 @@ namespace Pixils::UI
           return true;
         }
       }
+
+      if (!hit) return false;
 
       chain.push_back(view);
       return true;

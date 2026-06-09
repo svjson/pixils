@@ -1,0 +1,40 @@
+(ns pixils.ui.scroll-pane-test
+  (:require proof.core
+            [pixils.test.runtime :as runtime]))
+
+(defun settle-layout! [app]
+  (runtime/update! app)
+  (runtime/layout! app)
+  (runtime/update! app)
+  (runtime/layout! app)
+  app)
+
+(defun fill-scroll-pane-probe-source []
+  "(ns pixils.test.fill-scroll-pane-probe
+     (:require pixils
+               [pixils.ui.scroll-pane :as scroll-pane]))
+
+   (pixils/defmode root-mode
+     {:style {:width 100
+              :height 80}
+      :children [(scroll-pane/make
+                  {:style {:width :fill
+                           :height :fill}
+                   :content-size {:w 100
+                                  :h 200}
+                   :children [{:style {:width 100
+                                       :height 200}}]})]})")
+
+(deftest fill_sized_scroll_pane_does_not_prefer_full_content_height
+  (let [app (runtime/make-app {:package-root "lib/pixils"
+                               :buffer-width 160
+                               :buffer-height 120
+                               :render-backend false})]
+    (runtime/eval! app (fill-scroll-pane-probe-source))
+    (runtime/push-mode! app 'root-mode)
+    (settle-layout! app)
+    (let [scroll-pane (runtime/find-view app "ui/scroll-pane")
+          viewport (runtime/find-view app "ui/scroll-pane-viewport")]
+      (is (= 80 (:h (:bounds scroll-pane))))
+      (is (= true (< (:h (:bounds viewport))
+                     200))))))

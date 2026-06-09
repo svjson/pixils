@@ -99,7 +99,16 @@ namespace Pixils::UI
 
       PIXILS_BENCHMARK_COUNT(layout_dependency_signature_nodes);
       hash_combine(seed, std::hash<const Pixils::Runtime::Mode*>{}(view->mode));
+      hash_combine(seed, std::hash<std::uint64_t>{}(view->state_generation));
+      hash_combine(seed, std::hash<std::uint64_t>{}(view->interaction_generation));
+      hash_combine(seed, std::hash<std::uint64_t>{}(view->children_generation));
+      hash_combine(seed, std::hash<std::uint64_t>{}(view->style_generation));
       hash_combine(seed, std::hash<std::uint64_t>{}(view->subtree_generation));
+      hash_combine(seed, std::hash<std::uint64_t>{}(view->style_view.generation()));
+      for (const auto& child : view->children)
+      {
+        append_view_dependency_signature(seed, child);
+      }
     }
 
     size_t natural_size_dependency_signature(

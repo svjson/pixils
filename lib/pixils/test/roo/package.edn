@@ -6,4 +6,5 @@
  :load-roots ["src"]
  :test-entry-points [pixils.package-test
                      pixils.ui.window-test
+                     pixils.ui.scroll-pane-test
                      pixils.ui.group-box-test]}
