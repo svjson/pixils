@@ -113,16 +113,27 @@
               {:mode 'ui/window-body}]})
 
 
-(defun make [{:keys [title-bar body init state style position] :as opts}]
+(defun window-init [auto-focus? init]
+  (fn [state ctx]
+    (do
+      (when auto-focus?
+        (ui/focus! ctx))
+      (if init
+        (apply init [state ctx])
+        state))))
+
+(defun make [{:keys [title-bar body init state style position auto-focus?] :as opts}]
   (let [explicit-position? (contains? opts :position)
+        auto-focus? (if (contains? opts :auto-focus?)
+                      auto-focus?
+                      true)
         window-state (merge (or state {})
                             {:window/explicit-position? explicit-position?})
         window-state (if explicit-position?
                        (assoc window-state :position position)
                        window-state)]
     {:mode 'ui/window
-     :init (or init (fn [state ctx]
-                      state))
+     :init (window-init auto-focus? init)
      :style (or style {})
      :state window-state
      :children [{:mode 'ui/window-title-bar

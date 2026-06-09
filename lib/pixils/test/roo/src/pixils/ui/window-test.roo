@@ -45,6 +45,56 @@
                    :title-bar {:title \"Centered\"}
                    :body [{:mode 'probe-body}]})]})")
 
+(defun autofocus-window-probe-source []
+  "(ns pixils.test.autofocus-window-probe
+     (:require pixils
+               pixils.ui.window))
+
+   (pixils/defcomponent probe-body
+     {:style {:width 80
+              :height 40}})
+
+   (pixils/defmode root-mode
+     {:children [(pixils.ui.window/make
+                  {:style {:width 80
+                           :height 56}
+                   :title-bar {:title \"Autofocus\"}
+                   :body [{:mode 'probe-body}]})]})")
+
+(defun child-autofocus-window-probe-source []
+  "(ns pixils.test.child-autofocus-window-probe
+     (:require pixils
+               pixils.ui.window
+               pixils.ui.text-input))
+
+   (pixils/defmode root-mode
+     {:children [(pixils.ui.window/make
+                  {:style {:width 120
+                           :height 64}
+                   :title-bar {:title \"Child Autofocus\"}
+                   :body [{:mode 'ui/text-input
+                           :style {:width 90
+                                   :height 24}
+                           :state {:value \"child\"
+                                   :auto-focus? true}}]})]})")
+
+(defun autofocus-disabled-window-probe-source []
+  "(ns pixils.test.autofocus-disabled-window-probe
+     (:require pixils
+               pixils.ui.window))
+
+   (pixils/defcomponent probe-body
+     {:style {:width 80
+              :height 40}})
+
+   (pixils/defmode root-mode
+     {:children [(pixils.ui.window/make
+                  {:auto-focus? false
+                   :style {:width 80
+                           :height 56}
+                   :title-bar {:title \"No Autofocus\"}
+                   :body [{:mode 'probe-body}]})]})")
+
 (defun centered-dialog-window-probe-source []
   "(ns pixils.test.centered-dialog-window-probe
      (:require pixils
@@ -138,6 +188,44 @@
       (is (= 32 (:y (:position state))))
       (is (= 40 (:x (:bounds window))))
       (is (= 32 (:y (:bounds window)))))))
+
+(deftest window-autofocuses-by-default
+  (let [app (runtime/make-app {:package-root "lib/pixils"
+                               :buffer-width 160
+                               :buffer-height 120
+                               :render-backend false})]
+    (runtime/eval! app (autofocus-window-probe-source))
+    (runtime/push-mode! app 'root-mode)
+    (settle-layout! app)
+    (let [window (runtime/find-view app "ui/window")]
+      (is (= true (-> window :interaction :focused)))
+      (is (= true (-> window :interaction :focus-within))))))
+
+(deftest child-autofocus-wins-over-window-autofocus
+  (let [app (runtime/make-app {:package-root "lib/pixils"
+                               :buffer-width 160
+                               :buffer-height 120
+                               :render-backend false})]
+    (runtime/eval! app (child-autofocus-window-probe-source))
+    (runtime/push-mode! app 'root-mode)
+    (settle-layout! app)
+    (let [window (runtime/find-view app "ui/window")
+          input (runtime/find-view app "ui/text-input-inner")]
+      (is (= false (-> window :interaction :focused)))
+      (is (= true (-> window :interaction :focus-within)))
+      (is (= true (-> input :interaction :focused))))))
+
+(deftest window-autofocus-can-be-disabled
+  (let [app (runtime/make-app {:package-root "lib/pixils"
+                               :buffer-width 160
+                               :buffer-height 120
+                               :render-backend false})]
+    (runtime/eval! app (autofocus-disabled-window-probe-source))
+    (runtime/push-mode! app 'root-mode)
+    (settle-layout! app)
+    (let [window (runtime/find-view app "ui/window")]
+      (is (= false (-> window :interaction :focused)))
+      (is (= false (-> window :interaction :focus-within))))))
 
 (deftest oversized-window-without-explicit-position-keeps-chrome-on-screen
   (let [app (runtime/make-app {:package-root "lib/pixils"
