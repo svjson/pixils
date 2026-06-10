@@ -453,6 +453,8 @@
                                  :top {:color (var :panel-bg)}
                                  :left {:color (var :panel-bg)}}}
 
+            :window/chrome-none {:border {:thickness 0}}
+
             'ui/window-title-bar {:background (var :panel-shadow)
                                   :border {:line-style :solid
                                            :thickness 1
@@ -471,6 +473,15 @@
                                       :bottom {:color (var :panel-bg)}
                                       :top {:thickness 0}}
                              :text {:color (var :text)}}
+
+            [:window/chrome-none 'ui/window-body]
+            {:border {:thickness 0}}
+
+            [:window/chrome-frame 'ui/window-body]
+            {:border {:thickness 0}}
+
+            [:window/chrome-dialog-frame 'ui/window-body]
+            {:border {:thickness 0}}
 
             ['ui/window:focus-within 'ui/window-title-bar]
             {:background (var :focus-bg)

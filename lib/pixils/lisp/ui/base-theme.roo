@@ -335,6 +335,8 @@
     'ui/window {:border (var :inset-border-style)
                 :text {:color (var :text)}}
 
+    :window/chrome-none {:border {:thickness 0}}
+
     'ui/window-title-bar {:background (var :surface)
                           :text {:color (var :inactive-text)}
                           :border {:bottom {:color (var :border)

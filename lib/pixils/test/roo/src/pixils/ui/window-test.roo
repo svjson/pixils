@@ -29,6 +29,60 @@
                    :body [{:mode 'probe-body
                            :state {:presses 0}}]})]})")
 
+(defun standard-window-map-probe-source []
+  "(ns pixils.test.standard-window-map-probe
+     (:require pixils.ui.window))
+
+   (pixils.ui.window/make
+    {:style {:width 80
+             :height 56}
+     :title-bar {:title \"Standard\"}
+     :body [{:mode 'probe-body}]})")
+
+(defun frame-window-map-probe-source []
+  "(ns pixils.test.frame-window-map-probe
+     (:require pixils.ui.window))
+
+   (pixils.ui.window/make
+    {:chrome :frame
+     :style {:width 80
+             :height 40}
+     :body [{:mode 'probe-body}]})")
+
+(defun dialog-frame-window-map-probe-source []
+  "(ns pixils.test.dialog-frame-window-map-probe
+     (:require pixils.ui.window))
+
+   (pixils.ui.window/make
+    {:kind :dialog-frame
+     :style {:width 80
+             :height 40}
+     :body [{:mode 'probe-body}]})")
+
+(defun fixed-frame-move-probe-source []
+  "(ns pixils.test.fixed-frame-move-probe
+     (:require pixils
+               [pixils.ui :as ui]
+               pixils.ui.window))
+
+   (pixils/defcomponent move-emitter-body
+     {:style {:width 80
+              :height 40}
+      :on-mouse-down (fn [state event ctx]
+                       (do
+                         (ui/emit! (:view ctx)
+                                   :window/move-by
+                                   {:x 20 :y 12})
+                         state))})
+
+   (pixils/defmode root-mode
+     {:children [(pixils.ui.window/make
+                  {:chrome :frame
+                   :position {:x 24 :y 20}
+                   :style {:width 80
+                           :height 40}
+                   :body [{:mode 'move-emitter-body}]})]})")
+
 (defun centered-window-probe-source []
   "(ns pixils.test.centered-window-probe
      (:require pixils
@@ -207,6 +261,60 @@
                           :height 64}
                   :body [{:mode 'probe-dialog-body}]})
                 state))})")
+
+(deftest window-make-composes-standard-chrome-by-default
+  (let [app (runtime/make-app {:package-root "lib/pixils"
+                               :render-backend false})
+        window (runtime/eval! app (standard-window-map-probe-source))
+        children (:children window)
+        title-bar (nth children 0)
+        body (nth children 1)
+        state (:state window)]
+    (is (= 'ui/window (:mode window)))
+    (is (= :window (:window/kind state)))
+    (is (= :standard (:window/chrome state)))
+    (is (= true (contains? (:class window) :window/kind-window)))
+    (is (= true (contains? (:class window) :window/chrome-standard)))
+    (is (= true (-> state :window/capabilities :movable?)))
+    (is (= true (-> state :window/capabilities :minimizable?)))
+    (is (= 2 (count children)))
+    (is (= 'ui/window-title-bar (:mode title-bar)))
+    (is (= 'ui/window-body (:mode body)))))
+
+(deftest window-make-composes-regular-frame-without-title-bar
+  (let [app (runtime/make-app {:package-root "lib/pixils"
+                               :render-backend false})
+        window (runtime/eval! app (frame-window-map-probe-source))
+        children (:children window)
+        body (nth children 0)
+        state (:state window)]
+    (is (= 'ui/window (:mode window)))
+    (is (= :window (:window/kind state)))
+    (is (= :frame (:window/chrome state)))
+    (is (= true (contains? (:class window) :window/chrome-frame)))
+    (is (= false (-> state :window/capabilities :movable?)))
+    (is (= false (-> state :window/capabilities :minimizable?)))
+    (is (= false (-> state :window/capabilities :system-menu?)))
+    (is (= 1 (count children)))
+    (is (= 'ui/window-body (:mode body)))
+    (is (= [{:mode 'probe-body}] (:children body)))))
+
+(deftest window-make-composes-dialog-frame-without-title-bar
+  (let [app (runtime/make-app {:package-root "lib/pixils"
+                               :render-backend false})
+        window (runtime/eval! app (dialog-frame-window-map-probe-source))
+        children (:children window)
+        body (nth children 0)
+        state (:state window)]
+    (is (= 'ui/window (:mode window)))
+    (is (= :dialog-frame (:window/kind state)))
+    (is (= :dialog-frame (:window/chrome state)))
+    (is (= true (contains? (:class window) :window/kind-dialog-frame)))
+    (is (= true (contains? (:class window) :window/chrome-dialog-frame)))
+    (is (= false (-> state :window/capabilities :movable?)))
+    (is (= false (-> state :window/capabilities :minimizable?)))
+    (is (= 1 (count children)))
+    (is (= 'ui/window-body (:mode body)))))
 
 (deftest window-without-explicit-position-centers-in-buffer
   (let [app (runtime/make-app {:package-root "lib/pixils"
@@ -401,3 +509,26 @@
           (is (= 55 (:x (:bounds window-after-body-press))))
           (is (= 37 (:y (:bounds window-after-body-press))))
           (is (= 1 (:presses (runtime/view-state probe-body-after-press)))))))))
+
+(deftest fixed-frame-chrome-ignores-window-move-events
+  (let [app (runtime/make-app {:package-root "lib/pixils"
+                               :buffer-width 160
+                               :buffer-height 120
+                               :render-backend false})]
+    (runtime/eval! app (fixed-frame-move-probe-source))
+    (runtime/push-mode! app 'root-mode)
+    (settle-layout! app)
+    (let [window (runtime/find-view app "ui/window")
+          body (runtime/find-view app "move-emitter-body")]
+      (is (= 24 (:x (:bounds window))))
+      (is (= 20 (:y (:bounds window))))
+      (runtime/mouse-down-in! app body 4 4)
+      (runtime/update! app)
+      (runtime/layout! app)
+      (let [window-after-move-event (runtime/find-view app "ui/window")
+            state (runtime/view-state window-after-move-event)]
+        (is (= 24 (:x (:bounds window-after-move-event))))
+        (is (= 20 (:y (:bounds window-after-move-event))))
+        (is (= 24 (:x (:position state))))
+        (is (= 20 (:y (:position state))))
+        (is (not (= true (:window/moved? state))))))))

@@ -349,6 +349,9 @@
                                                 :color (var :control-border)
                                                 :thickness 1
                                                 :trim 1}
+                  :dialog-frame-border-style {:line-style :solid
+                                              :color (var :focus-bg)
+                                              :thickness 2}
                   :raised-border-style {:line-style :bevel
                                         :color (var :highlight)
                                         :thickness 2
@@ -625,6 +628,10 @@
             'ui/window {:border {:line-style :solid
                                  :thickness 1
                                  :color (var :border)}}
+
+            :window/chrome-none {:border {:thickness 0}}
+
+            :window/chrome-dialog-frame {:border (var :dialog-frame-border-style)}
 
             'ui/window-title-bar {:background (var :menu-bg)
                                   :text {:color (var :text)}

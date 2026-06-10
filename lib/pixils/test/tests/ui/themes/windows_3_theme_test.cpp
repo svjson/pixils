@@ -53,6 +53,17 @@ namespace
     EXPECT_EQ(view->effective_style.border->bottom_trim(), expected);
     EXPECT_EQ(view->effective_style.border->left_trim(), expected);
   }
+
+  void expect_border_thickness(const std::shared_ptr<Pixils::Runtime::View>& view,
+                               int expected)
+  {
+    ASSERT_NE(view, nullptr);
+    ASSERT_TRUE(view->effective_style.border.has_value());
+    EXPECT_EQ(view->effective_style.border->top_thickness(), expected);
+    EXPECT_EQ(view->effective_style.border->right_thickness(), expected);
+    EXPECT_EQ(view->effective_style.border->bottom_thickness(), expected);
+    EXPECT_EQ(view->effective_style.border->left_thickness(), expected);
+  }
 } // namespace
 
 TEST_F(Windows3ThemeTest, dark_variant_uses_bright_default_border_for_fields)
@@ -136,6 +147,28 @@ TEST_F(Windows3ThemeTest, button_outer_border_trims_corner_pixels)
 
   expect_border_trim(find_first_mode(session.active_mode, "ui/button"), {1, 1});
   expect_border_trim(find_first_mode(session.active_mode, "ui/scrollbar"), {0, 0});
+}
+
+TEST_F(Windows3ThemeTest, dialog_frame_chrome_uses_blue_two_pixel_frame)
+{
+  runtime.eval(R"(
+    (pixils/defmode root-mode
+      {:theme 'pixils/windows-3
+       :children [(pixils.ui.window/make
+                   {:kind :dialog-frame
+                    :style {:width 80 :height 40}
+                    :body [{:mode 'ui/text
+                            :state {:value "Dialog frame"}}]})]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  session.update_mode();
+  layout_active_mode(runtime, session);
+
+  auto window = find_first_mode(session.active_mode, "ui/window");
+  const Pixils::Color expected{0x00, 0x0b, 0xc8, 255};
+  expect_border_color(window, expected);
+  expect_border_thickness(window, 2);
 }
 
 TEST_F(Windows3ThemeTest, dark_variant_uses_bright_option_box_indicator)
