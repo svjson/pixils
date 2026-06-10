@@ -1,0 +1,40 @@
+(ns pixils.examples.minesweeper.highscore-test
+  (:require proof.core
+            [pixils.test.runtime :as runtime]
+            pixils.examples.minesweeper.core))
+
+(def test-highscores
+  {:beginner {:difficulty-name "Beginner"
+              :time 6
+              :player-name "Nisse"}
+   :intermediate {:difficulty-name "Intermediate"
+                  :time 32
+                  :player-name "Korven"}
+   :expert {:difficulty-name "Expert"
+            :time 114
+            :player-name "Herr Anka"}})
+
+(defun settle-layout! [app]
+  (runtime/update! app)
+  (runtime/layout! app)
+  (runtime/update! app)
+  (runtime/layout! app)
+  app)
+
+(deftest highscores-modal-uses-windows-3-dialog-frame-window
+  (let [app (runtime/make-app {:package-root "."
+                               :buffer-width 320
+                               :buffer-height 240
+                               :render-backend false})]
+    (runtime/push-mode-with-state! app
+                                   'highscores-modal
+                                   {:highscores test-highscores})
+    (settle-layout! app)
+    (let [window (runtime/find-view app "ui/window")
+          title-bar (runtime/find-view app "ui/window-title-bar")
+          state (runtime/view-state window)]
+      (is (= :dialog-frame (:window/kind state)))
+      (is (= :dialog-frame (:window/chrome state)))
+      (is (= false (-> state :window/capabilities :movable?)))
+      (is (= false (-> state :window/capabilities :minimizable?)))
+      (is (nil? title-bar)))))

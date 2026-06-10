@@ -62,6 +62,7 @@
                             state)}
    :compose {:render :pass}
    :children [(w/make {:position {:x 100 :y 100}
+                       :kind :dialog-frame
                        :title-bar {:title "Fastest Mine Sweepers"}
                        :state {:highscores (ui/bind-state :highscores)}
                        :body [{:mode 'highscores-window
