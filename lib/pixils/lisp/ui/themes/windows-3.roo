@@ -345,6 +345,10 @@
                   :control-border-style {:line-style :solid
                                          :color (var :control-border)
                                          :thickness 1}
+                  :button-outline-border-style {:line-style :solid
+                                                :color (var :control-border)
+                                                :thickness 1
+                                                :trim 1}
                   :raised-border-style {:line-style :bevel
                                         :color (var :highlight)
                                         :thickness 2
@@ -654,7 +658,7 @@
                           :align :center}}
 
             'ui/button
-            {:border (var :control-border-style)}
+            {:border (var :button-outline-border-style)}
 
             'ui/button-inner
             {:background (var :button-bg)

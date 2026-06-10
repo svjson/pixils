@@ -42,6 +42,17 @@ namespace
     EXPECT_EQ(view->effective_style.border->bottom_color(), expected);
     EXPECT_EQ(view->effective_style.border->left_color(), expected);
   }
+
+  void expect_border_trim(const std::shared_ptr<Pixils::Runtime::View>& view,
+                          const Pixils::UI::Style::Trim& expected)
+  {
+    ASSERT_NE(view, nullptr);
+    ASSERT_TRUE(view->effective_style.border.has_value());
+    EXPECT_EQ(view->effective_style.border->top_trim(), expected);
+    EXPECT_EQ(view->effective_style.border->right_trim(), expected);
+    EXPECT_EQ(view->effective_style.border->bottom_trim(), expected);
+    EXPECT_EQ(view->effective_style.border->left_trim(), expected);
+  }
 } // namespace
 
 TEST_F(Windows3ThemeTest, dark_variant_uses_bright_default_border_for_fields)
@@ -104,6 +115,27 @@ TEST_F(Windows3ThemeTest, dark_variant_keeps_control_outer_borders_black)
   const Pixils::Color expected{0x00, 0x00, 0x00, 255};
   expect_border_color(find_first_mode(session.active_mode, "ui/button"), expected);
   expect_border_color(find_first_mode(session.active_mode, "ui/scrollbar"), expected);
+}
+
+TEST_F(Windows3ThemeTest, button_outer_border_trims_corner_pixels)
+{
+  runtime.eval(R"(
+    (pixils/defmode root-mode
+      {:theme 'pixils/windows-3
+       :children [{:mode 'ui/button
+                   :style {:width 80 :height 24}
+                   :state {:label "OK"}}
+                  {:mode 'ui/scrollbar
+                   :style {:width 17 :height 80}
+                   :state {:axis :y :content-size 100 :value 0}}]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  session.update_mode();
+  layout_active_mode(runtime, session);
+
+  expect_border_trim(find_first_mode(session.active_mode, "ui/button"), {1, 1});
+  expect_border_trim(find_first_mode(session.active_mode, "ui/scrollbar"), {0, 0});
 }
 
 TEST_F(Windows3ThemeTest, dark_variant_uses_bright_option_box_indicator)
