@@ -5,6 +5,7 @@
             [pixils.ui.combo-box :as cb]
             [pixils.ui.list-box :as lb]
             [pixils.ui.menu :as menu]
+            [pixils.ui.number-input :as ni]
             [pixils.ui.slider :as sl]
             [pixils.ui.tab-panel :as tabs]
             [pixils.tilemap.project.model :as data]
@@ -534,14 +535,23 @@
    :style {:width 48
            :height 48}
    :render (fn [state ctx]
-             (let [tile (:tile state)]
+             (let [tile (:tile state)
+                   bounds (-> ctx :view :bounds)
+                   width (or (:w bounds) 48)
+                   height (or (:h bounds) 48)
+                   inset (if (and (>= width 32) (>= height 32)) 8 2)
+                   tile-width (max 1 (- width (* inset 2)))
+                   tile-height (max 1 (- height (* inset 2)))]
                (do
-                 (r/rect! {:x 0 :y 0 :w 48 :h 48}
+                 (r/rect! {:x 0 :y 0 :w width :h height}
                           {:fill true
                            :color {:r 0x12 :g 0x15 :b 0x18}})
                  (when tile
-                   (tr/draw-tile! tile {:x 8 :y 8 :w 32 :h 32}))
-                 (r/rect! {:x 0 :y 0 :w 48 :h 48}
+                   (tr/draw-tile! tile {:x inset
+                                        :y inset
+                                        :w tile-width
+                                        :h tile-height}))
+                 (r/rect! {:x 0 :y 0 :w width :h height}
                           {:color {:r 0x00 :g 0x00 :b 0x00}}))))})
 
 (defcomponent tile-definition-row {})
@@ -779,6 +789,375 @@
                     :gap 8}}
    :children (tile-definition-properties-tab-children)})
 
+(defun tile-substitution-choices [tile]
+  (or (-> tile :substitution :choices) []))
+
+(defun tile-substitution-seed [tile]
+  (or (-> tile :substitution :seed) 0))
+
+(defun tile-index-by-id [tiles tile-id]
+  (find-index (or tiles [])
+              (fn [tile]
+                (= (:id tile) tile-id))))
+
+(defun tile-substitution-choice-indices [state]
+  (let [tiles (selected-tileset-tiles state)]
+    (filter (map (tile-substitution-choices (:tile state))
+                 (fn [choice]
+                   (tile-index-by-id tiles (:tile choice))))
+            (fn [index]
+              (not (nil? index))))))
+
+(defun tile-ids-for-selection-indices [state indices]
+  (let [tiles (selected-tileset-tiles state)
+        item-count (count tiles)]
+    (map (filter (or indices [])
+                 (fn [index]
+                   (and (not (nil? index))
+                        (>= index 0)
+                        (< index item-count))))
+         (fn [index]
+           (:id (nth tiles index))))))
+
+(defun ordered-selection-indices [indices item-count]
+  (filter (range 0 (dec item-count))
+          (fn [index]
+            (contains? (or indices []) index))))
+
+(defun toggle-selection-index [indices index item-count]
+  (let [selection (or indices [])
+        next (if (contains? selection index)
+               (filter selection
+                       (fn [selected]
+                         (not= selected index)))
+               (concat selection [index]))]
+    (ordered-selection-indices next item-count)))
+
+(defun add-selection-range [indices anchor index columns item-count]
+  (ordered-selection-indices
+   (concat (or indices [])
+           (tile-grid-selection-range anchor index columns item-count))
+   item-count))
+
+(defun tile-substitution-choice-label-value [state choice]
+  (str (:tile choice)))
+
+(defun tile-substitution-choice-tile-value [state choice]
+  (head (filter (selected-tileset-tiles state)
+                (fn [tile]
+                  (= (:id tile) (:tile choice))))))
+
+(defcomponent tile-substitution-seed-field
+  {:style {:width :fill
+           :height 24
+           :layout {:direction :row
+                    :align-items :center
+                    :gap 8}}
+   :update (fn [state ctx]
+             (assoc state
+                    :seed (tile-substitution-seed (:tile state))
+                    :disabled? (nil? (:tile state))))
+   :on {:number-input/change (fn [state event ctx]
+                               (do
+                                 (ui/emit! (:view ctx)
+                                           :tile-substitution/seed-change
+                                           (-> event :payload :value))
+                                 state))}
+   :children [{:mode 'ui/text
+               :class :ui/muted
+               :style {:width 58}
+               :state {:value "Seed"}}
+              (ni/make {:value (ui/bind-state :seed)
+                        :step 1
+                        :allow-negative? true
+                        :disabled? (ui/bind-state :disabled?)
+                        :style {:width 92
+                                :height 22}})]})
+
+(defcomponent tile-substitution-choice-grid
+  {:focusable true
+   :class :ui/content
+   :style {:width :fill
+           :height :fill
+           :clip true}
+   :update (fn [state ctx]
+             (let [tiles (selected-tileset-tiles state)]
+               (assoc state
+                      :disabled? (or (nil? (:tile state))
+                                     (empty? tiles))
+                      :selected-indices
+                      (tile-substitution-choice-indices state))))
+   :on-mouse-down (fn [state event ctx]
+                    (do
+                      (ui/stop-propagation! event)
+                      (ui/focus! ctx)
+                      state))
+   :on-mouse-up (fn [state event ctx]
+                  (let [tiles (selected-tileset-tiles state)
+                        tile-size (selected-tileset-tile-size state)
+                        item-count (count tiles)
+                        index (tile-grid-index-at-position (:position event)
+                                                           (-> ctx :view :bounds)
+                                                           item-count
+                                                           tile-size)
+                        columns (tile-grid-columns (-> ctx :view :bounds)
+                                                   tile-size)]
+                    (do
+                      (ui/stop-propagation! event)
+                      (if (or (:disabled? state)
+                              (not= (:button event) :left)
+                              (nil? index))
+                        state
+                        (let [selection (if (and (lb/held-shift? ctx)
+                                                 (not (nil? (:selection-anchor state))))
+                                          (add-selection-range
+                                           (:selected-indices state)
+                                           (:selection-anchor state)
+                                           index
+                                           columns
+                                           item-count)
+                                          (toggle-selection-index
+                                           (:selected-indices state)
+                                           index
+                                           item-count))]
+                          (do
+                            (ui/emit! (:view ctx)
+                                      :tile-substitution/choices-change
+                                      (tile-ids-for-selection-indices
+                                       state
+                                       selection))
+                            (assoc state
+                                   :selected-indices selection
+                                   :selection-anchor index)))))))
+   :render (fn [state ctx]
+             (let [tiles (selected-tileset-tiles state)
+                   tile-size (selected-tileset-tile-size state)
+                   selection (tile-substitution-choice-indices state)
+                   columns (tile-grid-columns (-> ctx :view :bounds)
+                                              tile-size)]
+               (do
+                 (for-indexed [index tile tiles]
+                   (draw-tile-cell! tile index columns tile-size))
+                 (draw-selected-tile-cells! selection columns tile-size))))})
+
+(defun tile-substitution-grid-scroll-content-size [state ctx]
+  (let [tiles (selected-tileset-tiles state)
+        tile-size (selected-tileset-tile-size state)
+        bounds (-> ctx :view :bounds)
+        scrollbar-size (ui/theme-var ctx
+                                     :scrollbar-size
+                                     default-tile-grid-scrollbar-size)
+        content-width (max 1 (- (or (:w bounds) 1) scrollbar-size))
+        columns (tile-grid-columns {:w content-width}
+                                   tile-size)]
+    {:h (tile-grid-content-height (count tiles) columns tile-size)}))
+
+(defun tile-substitution-choice-grid-child []
+  {:mode 'tile-substitution-choice-grid
+   :style {:width :fill
+           :height :fill}
+   :state {:tile (ui/bind-state :tile)
+           :tilesets (ui/bind-state :tilesets)
+           :selected-tileset-definition-index
+           (ui/bind-state :selected-tileset-definition-index)}})
+
+(defcomponent tile-substitution-choice-grid-viewport
+  {:style {:width :fill
+           :height :fill
+           :clip true}
+   :update (fn [state ctx]
+             (let [children (ui/children ctx)]
+               (do
+                 (when (> (count children) 0)
+                   (ui/style! (nth children 0)
+                              (tileset-tile-grid-scroll-content-style
+                               state)))
+                 state)))
+   :children [(tile-substitution-choice-grid-child)]})
+
+(defcomponent tile-substitution-choice-grid-scroll-pane
+  {:style {:width :fill
+           :height 96
+           :layout {:direction :row}}
+   :init (fn [state ctx]
+           (assoc state
+                  :offset 0
+                  :content-height 0))
+   :update (fn [state ctx]
+             (let [content-size (tile-substitution-grid-scroll-content-size
+                                 state
+                                 ctx)]
+               (assoc state
+                      :content-height (:h content-size)
+                      :step (:h (tile-grid-stride
+                                 (selected-tileset-tile-size state))))))
+   :children [{:mode 'tile-substitution-choice-grid-viewport
+               :state {:offset (ui/bind-state :offset)
+                       :content-height (ui/bind-state :content-height)
+                       :tile (ui/bind-state :tile)
+                       :tilesets (ui/bind-state :tilesets)
+                       :selected-tileset-definition-index
+                       (ui/bind-state :selected-tileset-definition-index)}}
+              {:mode 'ui/scrollbar
+               :class :scrollbar/v
+               :style {:height :fill}
+               :state {:axis :y
+                       :value (ui/bind-state :offset)
+                       :step (ui/bind-state :step)
+                       :content-size (ui/bind-state :content-height)}}]})
+
+(defcomponent tile-substitution-choice-tile-label
+  {:style {:width 180
+           :height 22
+           :layout {:direction :row
+                    :align-items :center
+                    :gap 6}}
+   :update (fn [state ctx]
+             (let [choice (nth (tile-substitution-choices (:tile state))
+                               (:choice-index state))]
+               (assoc state
+                      :label (tile-substitution-choice-label-value
+                              state
+                              choice)
+                      :choice-tile (tile-substitution-choice-tile-value
+                                    state
+                                    choice))))
+   :children [{:mode 'tile-preview
+               :style {:width 22
+                       :height 22}
+               :state {:tile (ui/bind-state :choice-tile)}}
+              {:mode 'ui/text
+               :style {:width :fill}
+               :state {:value (ui/bind-state :label)}}]})
+
+(defcomponent tile-substitution-choice-weight-field
+  {:style {:width 70
+           :height 22}
+   :update (fn [state ctx]
+             (let [choice (nth (tile-substitution-choices (:tile state))
+                               (:choice-index state))]
+               (assoc state
+                      :weight (or (:weight choice) 1)
+                      :disabled? (nil? (:tile state)))))
+   :on {:number-input/change (fn [state event ctx]
+                               (do
+                                 (ui/emit! (:view ctx)
+                                           :tile-substitution/choice-weight-change
+                                           {:index (:choice-index state)
+                                            :weight (-> event :payload :value)})
+                                 state))}
+   :children [(ni/make {:value (ui/bind-state :weight)
+                        :min 0
+                        :step 1
+                        :disabled? (ui/bind-state :disabled?)
+                        :style {:width 70
+                                :height 22}})]})
+
+(defcomponent tile-substitution-choice-row
+  {:style {:width :fill
+           :height 26
+           :layout {:direction :row
+                    :align-items :center
+                    :gap 6}}
+   :children [{:mode 'tile-substitution-choice-tile-label
+               :state {:choice-index (ui/bind-state :choice-index)
+                       :tile (ui/bind-state :tile)
+                       :tilesets (ui/bind-state :tilesets)
+                       :selected-tileset-definition-index
+                       (ui/bind-state :selected-tileset-definition-index)}}
+              {:mode 'tile-substitution-choice-weight-field
+               :state {:choice-index (ui/bind-state :choice-index)
+                       :tile (ui/bind-state :tile)}}]})
+
+(defun tile-substitution-choice-row-child [index]
+  {:mode 'tile-substitution-choice-row
+   :state {:choice-index index
+           :tile (ui/bind-state :tile)
+           :tilesets (ui/bind-state :tilesets)
+           :selected-tileset-definition-index
+           (ui/bind-state :selected-tileset-definition-index)}})
+
+(defun tile-substitution-choice-header-child []
+  {:style {:width :fill
+           :height 22
+           :layout {:direction :row
+                    :align-items :center
+                    :gap 6}}
+   :children [{:mode 'ui/text
+               :class :ui/muted
+               :style {:width 180}
+               :state {:value "Tile"}}
+              {:mode 'ui/text
+               :class :ui/muted
+               :style {:width 70}
+               :state {:value "Weight"}}]})
+
+(defun tile-substitution-choices-content-child [choices]
+  {:id "tile-substitution-choices-content"
+   :state {:tile (ui/bind-state :tile)
+           :tilesets (ui/bind-state :tilesets)
+           :selected-tileset-definition-index
+           (ui/bind-state :selected-tileset-definition-index)}
+   :style {:width :fill
+           :height :shrink
+           :layout {:direction :column
+                    :gap 6}}
+   :children (concat [(tile-substitution-choice-header-child)]
+                     (for-indexed [index choice (or choices [])]
+                       (tile-substitution-choice-row-child index)))})
+
+(defcomponent tile-substitution-choices-editor
+  {:style {:width :fill
+           :height :shrink
+           :layout {:direction :column
+                    :gap 6}}
+   :update (fn [state ctx]
+             (let [choices (tile-substitution-choices (:tile state))]
+               (do
+                 (when (not= choices (:rendered-choices state))
+                   (ui/replace-child!
+                    (:view ctx)
+                    "tile-substitution-choices-content"
+                    (tile-substitution-choices-content-child choices)))
+                 (assoc state :rendered-choices choices))))
+   :children [(tile-substitution-choices-content-child [])]})
+
+(defun tile-definition-variants-tab-children []
+  [{:mode 'tile-substitution-seed-field
+    :state {:tile (ui/bind-state :tile)}}
+   {:style {:width :fill
+            :height 24
+            :layout {:direction :row
+                     :align-items :center
+                     :gap 6}}
+    :children [{:mode 'ui/text
+                :class :ui/muted
+                :style {:width :fill}
+                :state {:value "Variant Tiles"}}]}
+   {:mode 'tile-substitution-choice-grid-scroll-pane
+    :state {:tile (ui/bind-state :tile)
+            :tilesets (ui/bind-state :tilesets)
+            :selected-tileset-definition-index
+            (ui/bind-state :selected-tileset-definition-index)}}
+   {:mode 'ui/text
+    :class :ui/muted
+    :style {:width :fill
+            :height 18}
+    :state {:value "Weights"}}
+   {:mode 'tile-substitution-choices-editor
+    :state {:tile (ui/bind-state :tile)
+            :tilesets (ui/bind-state :tilesets)
+            :selected-tileset-definition-index
+            (ui/bind-state :selected-tileset-definition-index)}}])
+
+(defcomponent tile-definition-variants-tab
+  {:style {:width :fill
+           :height :fill
+           :padding 8
+           :layout {:direction :column
+                    :gap 8}}
+   :children (tile-definition-variants-tab-children)})
+
 (defun tile-definition-detail-tabs-child []
   (tabs/make
    {:selected-tab (ui/bind-state :tile-definition-detail-tab)
@@ -805,6 +1184,9 @@
             (ui/bind-state :tile-set-panel-disabled?)
             :tile-definition-panel-disabled?
             (ui/bind-state :tile-definition-panel-disabled?)
+            :tilesets (ui/bind-state :tilesets)
+            :selected-tileset-definition-index
+            (ui/bind-state :selected-tileset-definition-index)
             :tile-definition-detail-tab
             (ui/bind-state :tile-definition-detail-tab)}
     :tabs [{:id :tile
@@ -814,6 +1196,10 @@
            {:id :properties
             :label "Properties"
             :child {:mode 'tile-definition-properties-tab
+                    :state (ui/bind-state)}}
+           {:id :variants
+            :label "Variants"
+            :child {:mode 'tile-definition-variants-tab
                     :state (ui/bind-state)}}]}))
 
 (defcomponent tile-definition-panel
@@ -873,6 +1259,18 @@
           (assoc state
                  :source-snap-interval (:payload event)
                  :source-snap-interval-custom? true))
+        :tile-substitution/seed-change
+        (fn [state event ctx]
+          (set-selected-tile-substitution-seed state (:payload event)))
+        :tile-substitution/choices-change
+        (fn [state event ctx]
+          (set-selected-tile-substitution-choice-tiles state (:payload event)))
+        :tile-substitution/choice-weight-change
+        (fn [state event ctx]
+          (let [payload (:payload event)]
+            (set-selected-tile-substitution-choice-weight state
+                                                          (:index payload)
+                                                          (:weight payload))))
         :tab-panel/change
         (fn [state event ctx]
           (do

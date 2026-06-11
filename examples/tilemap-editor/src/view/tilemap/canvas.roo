@@ -83,6 +83,7 @@
    :show-grid? (:show-grid? state)
    :hidden-layer-indices (:hidden-layer-indices state)
    :tilesets (:tilesets state)
+   :tile-substitution-rules (:tile-substitution-rules state)
    :synced-resources (:synced-resources state)
    :layer-profile (data/layer-profile-by-id (:layer-profiles state)
                                             (:selected-layer-profile-id state))
@@ -123,6 +124,7 @@
     :tilesets (:tilesets input)
     :terrain-sets (:terrain-sets input)
     :rulesets (:rulesets input)
+    :tile-substitution-rules (:tile-substitution-rules input)
     :show-terrain-rules? (:show-terrain-rules? input)
     :layers render-layers}))
 
@@ -134,6 +136,7 @@
     :tilesets (:tilesets input)
     :terrain-sets (:terrain-sets input)
     :rulesets (:rulesets input)
+    :tile-substitution-rules (:tile-substitution-rules input)
     :show-terrain-rules? (:show-terrain-rules? input)
     :layers render-layers}
    rect))
@@ -155,7 +158,8 @@
    :terrain-sets (:terrain-sets input)
    :show-terrain-rules? (:show-terrain-rules? input)
    :layer-profile (:layer-profile input)
-   :rulesets (:rulesets input)})
+   :rulesets (:rulesets input)
+   :tile-substitution-rules (:tile-substitution-rules input)})
 
 (defun hidden-source-layer-ids [input]
   (reduce (or (:hidden-layer-indices input) [])

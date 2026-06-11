@@ -96,6 +96,7 @@
            :selected-terrain-set-index nil
            :selected-terrain-index nil
            :rulesets []
+           :tile-substitution-rules []
            :selected-terrain-ruleset-id nil
            :selected-terrain-rule-id nil
            :selected-terrain-rule-match-direction :n

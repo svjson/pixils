@@ -983,6 +983,108 @@
     (is (= {:r 1 :g 128 :b 3}
            (get-in next [:tilesets 0 :tiles 0 :color])))))
 
+(deftest selected-tile-default-substitution-uses_source_and_variant_tiles
+  (let [state (model/set-selected-tile-default-substitution
+               {:selected-tileset-definition-index 0
+                :selected-tileset-tile-index 0
+                :tilesets [{:id :world
+                            :tiles [{:id :floor}
+                                    {:id :floor-crack}]}]})]
+    (is (= {:seed 0
+            :algorithm :weighted-random
+            :choices [{:tile :floor
+                       :weight 4}
+                      {:tile :floor-crack
+                       :weight 1}]}
+           (get-in state [:tilesets 0 :tiles 0 :substitution])))))
+
+(deftest selected-tile-substitution-choice-editors-update_selected_tile
+  (let [state {:selected-tileset-definition-index 0
+               :selected-tileset-tile-index 0
+               :tilesets [{:id :world
+                           :tiles [{:id :floor
+                                    :substitution {:seed 0
+                                                   :algorithm :weighted-random
+                                                   :choices [{:tile :floor
+                                                              :weight 4}]}}
+                                   {:id :floor-crack}]}]}
+        state (model/set-selected-tile-substitution-seed state 9)
+        state (model/set-selected-tile-substitution-choice-tile
+               state
+               0
+               :floor-crack)
+        state (model/set-selected-tile-substitution-choice-weight state 0 2)
+        state (model/add-selected-tile-substitution-choice state)]
+    (is (= 9 (get-in state [:tilesets 0 :tiles 0 :substitution :seed])))
+    (is (= {:tile :floor-crack
+            :weight 2}
+           (get-in state [:tilesets 0 :tiles 0 :substitution :choices 0])))
+    (is (= {:tile :floor
+            :weight 1}
+           (get-in state [:tilesets 0 :tiles 0 :substitution :choices 1])))))
+
+(deftest selected-tile-substitution-choice-tiles-replace-rows-and-preserve-weights
+  (let [state (model/set-selected-tile-substitution-choice-tiles
+               {:selected-tileset-definition-index 0
+                :selected-tileset-tile-index 0
+                :tilesets [{:id :world
+                            :tiles [{:id :floor
+                                    :substitution {:seed 5
+                                                   :algorithm :weighted-random
+                                                    :choices [{:tile :floor
+                                                               :weight 4}
+                                                              {:tile :floor-crack
+                                                               :weight 2}]}}
+                                    {:id :floor-crack}
+                                    {:id :moss}]}]}
+               [:floor-crack :moss])]
+    (is (= {:seed 5
+            :algorithm :weighted-random
+            :choices [{:tile :floor-crack
+                       :weight 2}
+                      {:tile :moss
+                       :weight 1}]}
+           (get-in state [:tilesets 0 :tiles 0 :substitution])))))
+
+(deftest tile-rename-updates_tile_substitution_choices
+  (let [state (model/rename-tile-definition!
+               {:selected-tileset-definition-index 0
+                :selected-tileset-tile-index 1
+                :tilesets [{:id :world
+                            :tiles [{:id :floor
+                                     :substitution
+                                     {:choices [{:tile :floor
+                                                 :weight 4}
+                                                {:tile :floor-crack
+                                                 :weight 1}]}}
+                                    {:id :floor-crack
+                                     :name "Floor Crack"}]}]}
+               {:type :confirm
+                :tile-index 1
+                :tile-id "floor chip"
+                :tile-name "Floor Chip"})]
+    (is (= :floor-chip
+           (get-in state [:tilesets 0 :tiles 0 :substitution :choices 1 :tile])))))
+
+(deftest tile-delete-removes_tile_substitution_choices
+  (let [state (model/delete-tileset-tiles!
+               {:selected-tileset-definition-index 0
+                :selected-tileset-tile-index 1
+                :tilesets [{:id :world
+                            :tiles [{:id :floor
+                                     :substitution
+                                     {:choices [{:tile :floor
+                                                 :weight 4}
+                                                {:tile :floor-crack
+                                                 :weight 1}]}}
+                                    {:id :floor-crack}]}]}
+               {:choice :dialog/ok
+                :payload {:operation :delete-tiles
+                          :tile-indices [1]}})]
+    (is (= [{:tile :floor
+             :weight 4}]
+           (get-in state [:tilesets 0 :tiles 0 :substitution :choices])))))
+
 (deftest selected-sprite-source-update-uses_tileset_tile_size
   (let [state {:selected-tileset-definition-index 0
                :selected-tileset-tile-index 0

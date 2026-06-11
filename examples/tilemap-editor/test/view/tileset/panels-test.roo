@@ -1,7 +1,78 @@
 (ns tilemap-editor.view.tileset.panels-test
   (:require proof.core
+            [pixils.test.runtime :as runtime]
             [tilemap-editor.view.tileset.panels :as panels]
             [tilemap-editor.view.tileset.sprite-source-editor :as sse]))
+
+(defun settle-layout! [app]
+  (runtime/update! app)
+  (runtime/layout! app)
+  (runtime/update! app)
+  (runtime/layout! app)
+  (runtime/update! app)
+  (runtime/layout! app)
+  app)
+
+(defun variants-tab-probe-source []
+  "(ns tilemap-editor.test.variants-tab-probe
+     (:require pixils
+               [pixils.ui :as ui]
+               [tilemap-editor.view.tileset.model :as model]
+               tilemap-editor.view.tileset.panels))
+
+   (pixils/defmode root-mode
+     {:style {:width 400
+              :height 300}
+      :init (fn [state ctx]
+              (assoc state
+                     :tile {:id :grass
+                            :name \"Grass\"
+                            :type :color
+                            :color {:r 0
+                                    :g 128
+                                    :b 0}
+                            :substitution {:seed 4
+                                           :algorithm :weighted-random
+                                           :choices [{:tile :grass
+                                                      :weight 1}]}}
+                     :tilesets [{:id :terrain
+                                 :label \"Terrain\"
+                                 :tile-size 16
+                                 :tiles [{:id :grass
+                                          :name \"Grass\"
+                                          :type :color
+                                          :color {:r 0
+                                                  :g 128
+                                                  :b 0}
+                                          :substitution {:seed 4
+                                                         :algorithm :weighted-random
+                                                         :choices [{:tile :grass
+                                                                    :weight 1}]}}
+                                         {:id :water
+                                          :name \"Water\"
+                                          :type :color
+                                          :color {:r 0
+                                                  :g 0
+                                                  :b 255}}]}]
+                     :selected-tileset-definition-index 0
+                     :selected-tileset-tile-index 0
+                     :tile-definition-panel-disabled? false))
+      :on {:tile-substitution/choices-change
+           (fn [state event ctx]
+             (let [next (model/set-selected-tile-substitution-choice-tiles
+                         state
+                         (:payload event))]
+               (assoc next
+                      :tile
+                      (get-in next [:tilesets 0 :tiles 0]))))}
+      :children [{:mode 'tile-definition-variants-tab
+                  :state {:tile (ui/bind-state :tile)
+                          :tilesets (ui/bind-state :tilesets)
+                          :selected-tileset-definition-index
+                          (ui/bind-state :selected-tileset-definition-index)
+                          :tile-definition-panel-disabled?
+                          (ui/bind-state
+                           :tile-definition-panel-disabled?)}}]})")
 
 (deftest tileset-definition-list-is-disabled-when-empty
   (is (= true (:disabled? (:state (panels/tileset-list-box-child [])))))
@@ -154,14 +225,18 @@
   (let [tabs (panels/tile-definition-detail-tabs-child)
         tab-defs (-> tabs :state :tabs)
         tile-tab (-> tab-defs head :child)
-        properties-tab (-> tab-defs (nth 1) :child)]
+        properties-tab (-> tab-defs (nth 1) :child)
+        variants-tab (-> tab-defs (nth 2) :child)]
     (is (= 'ui/tab-panel (:mode tabs)))
     (is (= :tile (-> tab-defs head :id)))
     (is (= "Tile" (-> tab-defs head :label)))
     (is (= 'tile-definition-tile-tab (:mode tile-tab)))
     (is (= :properties (-> tab-defs (nth 1) :id)))
     (is (= "Properties" (-> tab-defs (nth 1) :label)))
-    (is (= 'tile-definition-properties-tab (:mode properties-tab)))))
+    (is (= 'tile-definition-properties-tab (:mode properties-tab)))
+    (is (= :variants (-> tab-defs (nth 2) :id)))
+    (is (= "Variants" (-> tab-defs (nth 2) :label)))
+    (is (= 'tile-definition-variants-tab (:mode variants-tab)))))
 
 (deftest tile-definition-tile-tab-contains_type_sprite_and_color_editors
   (let [children (panels/tile-definition-tile-tab-children)]
@@ -177,6 +252,98 @@
            (-> children head :state :title)))
     (is (= :tile
            (-> children head :state :kind)))))
+
+(deftest tile-definition-variants-tab-contains-seed-grid-and-choice-editor
+  (let [children (panels/tile-definition-variants-tab-children)]
+    (is (= 'tile-substitution-seed-field (-> children head :mode)))
+    (is (= 'tile-substitution-choice-grid-scroll-pane
+           (-> children (nth 2) :mode)))
+    (is (= 'tile-substitution-choices-editor
+           (-> children (nth 4) :mode)))))
+
+(deftest tile-substitution-choice-selection-uses-choice-tiles
+  (let [state {:tile {:substitution {:choices [{:tile :water
+                                                :weight 2}
+                                               {:tile :lava
+                                                :weight 1}]}}
+               :selected-tileset-definition-index 0
+               :tilesets [{:id :terrain
+                           :tiles [{:id :grass}
+                                   {:id :water}
+                                   {:id :lava}]}]}]
+    (is (= [1 2] (panels/tile-substitution-choice-indices state)))
+    (is (= [:grass :lava]
+           (panels/tile-ids-for-selection-indices state [0 2])))))
+
+(deftest tile-substitution-choice-selection-toggles-in-tileset-order
+  (is (= [0 2] (panels/toggle-selection-index [0 1 2] 1 4)))
+  (is (= [0 1 2] (panels/toggle-selection-index [2 0] 1 4))))
+
+(deftest tile-substitution-choice-row-label-uses-tile-id-and-tile
+  (let [state {:tile {:substitution {:choices [{:tile :water
+                                                :weight 2}]}}
+               :selected-tileset-definition-index 0
+               :tilesets [{:id :terrain
+                           :tiles [{:id :grass}
+                                   {:id :water
+                                    :type :color
+                                    :color {:r 0 :g 0 :b 255}}]}]}
+        choice {:tile :water
+                :weight 2}]
+    (is (= ":water"
+           (panels/tile-substitution-choice-label-value state choice)))
+    (is (= {:id :water
+            :type :color
+            :color {:r 0 :g 0 :b 255}}
+           (panels/tile-substitution-choice-tile-value state choice)))))
+
+(deftest tile-substitution-choices-content-renders-header-and-choice-rows
+  (let [content (panels/tile-substitution-choices-content-child
+                 [{:tile :grass :weight 1}
+                  {:tile :water :weight 2}])
+        children (:children content)]
+    (is (= "tile-substitution-choices-content" (:id content)))
+    (is (= 3 (count children)))
+    (is (= "Tile" (-> children head :children head :state :value)))
+    (is (= 'tile-substitution-choice-row (-> children (nth 1) :mode)))
+    (is (= 0 (-> children (nth 1) :state :choice-index)))
+    (is (= 'tile-substitution-choice-row (-> children (nth 2) :mode)))
+    (is (= 1 (-> children (nth 2) :state :choice-index)))))
+
+(deftest tile-definition-variants-tab-renders-choice-editor
+  (let [app (runtime/make-app {:package-root "."
+                               :buffer-width 400
+                               :buffer-height 300
+                               :render-backend false})]
+    (runtime/eval! app (variants-tab-probe-source))
+    (runtime/push-mode! app 'root-mode)
+    (settle-layout! app)
+    (is (not (nil? (runtime/find-view app
+                                       "tile-substitution-choice-grid"))))
+    (is (not (nil? (runtime/find-view app
+                                       "tile-substitution-choices-editor"))))
+    (is (not (nil? (runtime/find-view app
+                                       "tile-substitution-choice-row"))))))
+
+(deftest tile-substitution-choice-grid-click-adds-weight-row
+  (let [app (runtime/make-app {:package-root "."
+                               :buffer-width 400
+                               :buffer-height 300
+                               :render-backend false})]
+    (runtime/eval! app (variants-tab-probe-source))
+    (runtime/push-mode! app 'root-mode)
+    (settle-layout! app)
+    (let [grid (runtime/find-view app "tile-substitution-choice-grid")]
+      (runtime/mouse-click-in! app grid 20 8)
+      (settle-layout! app)
+      (is (= [{:tile :grass
+               :weight 1}
+              {:tile :water
+               :weight 1}]
+             (-> (runtime/active-state app) :tile :substitution :choices)))
+      (is (= 2
+             (count (runtime/find-views app
+                                        "tile-substitution-choice-row")))))))
 
 (deftest tile-definition-panel-scroll-content-wraps_detail_panel
   (let [content (panels/tile-definition-panel-content-child)

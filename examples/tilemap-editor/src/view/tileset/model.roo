@@ -364,6 +364,142 @@
     (assoc-in state path (update-fn (get-in state path)))
     state))
 
+(defun selected-tileset-id [state]
+  (:id (selected-tileset-definition state)))
+
+(defun tile-substitution [tile]
+  (let [substitution (or (:substitution tile)
+                         {:seed 0
+                          :choices []})]
+    (assoc substitution
+           :algorithm
+           (or (:algorithm substitution)
+               data/default-tile-substitution-algorithm))))
+
+(defun first-selected-tileset-tile-id [state]
+  (:id (head (selected-tileset-tiles state))))
+
+(defun selected-tile-variant-tile-id [state source-tile-id]
+  (or (head (filter (map (selected-tileset-tiles state) :id)
+                    (fn [tile-id]
+                      (not= tile-id source-tile-id))))
+      source-tile-id))
+
+(defun default-tile-substitution [state tile]
+  (let [source-tile-id (:id tile)
+        variant-tile-id (selected-tile-variant-tile-id state source-tile-id)]
+    {:seed 0
+     :algorithm data/default-tile-substitution-algorithm
+     :choices [{:tile source-tile-id
+                :weight 4}
+               {:tile variant-tile-id
+                :weight 1}]}))
+
+(defun set-selected-tile-default-substitution [state]
+  (update-selected-tile
+   state
+   (fn [tile]
+     (assoc tile :substitution (default-tile-substitution state tile)))))
+
+(defun set-selected-tile-substitution-seed [state seed]
+  (update-selected-tile
+   state
+   (fn [tile]
+     (assoc tile
+            :substitution
+            (assoc (tile-substitution tile) :seed (or seed 0))))))
+
+(defun add-selected-tile-substitution-choice [state]
+  (update-selected-tile
+   state
+   (fn [tile]
+     (assoc tile
+            :substitution
+            (update (tile-substitution tile)
+                    :choices
+                    (fn [choices]
+                      (concat (or choices [])
+                              [{:tile (or (:id tile)
+                                          (first-selected-tileset-tile-id state))
+                                :weight 1}])))))))
+
+(defun substitution-choice-by-tile [choices tile-id]
+  (head (filter (or choices [])
+                (fn [choice]
+                  (= (:tile choice) tile-id)))))
+
+(defun substitution-choices-for-tile-ids [choices tile-ids]
+  (map (or tile-ids [])
+       (fn [tile-id]
+         (let [choice (substitution-choice-by-tile choices tile-id)]
+           {:tile tile-id
+            :weight (or (:weight choice) 1)}))))
+
+(defun set-selected-tile-substitution-choice-tiles [state tile-ids]
+  (update-selected-tile
+   state
+   (fn [tile]
+     (let [substitution (tile-substitution tile)]
+       (assoc tile
+              :substitution
+              (assoc substitution
+                     :choices
+                     (substitution-choices-for-tile-ids
+                      (:choices substitution)
+                      tile-ids)))))))
+
+(defun update-substitution-choice-at [substitution choice-index update-fn]
+  (assoc substitution
+         :choices
+         (map (for-indexed [index choice (or (:choices substitution) [])]
+                {:index index :choice choice})
+              (fn [entry]
+                (if (= (:index entry) choice-index)
+                  (apply update-fn [(:choice entry)])
+                  (:choice entry))))))
+
+(defun set-selected-tile-substitution-choice-tile [state choice-index tile-ref]
+  (update-selected-tile
+   state
+   (fn [tile]
+     (assoc tile
+            :substitution
+            (update-substitution-choice-at
+             (tile-substitution tile)
+             choice-index
+             (fn [choice]
+               (assoc choice :tile tile-ref)))))))
+
+(defun set-selected-tile-substitution-choice-weight [state choice-index weight]
+  (update-selected-tile
+   state
+   (fn [tile]
+     (assoc tile
+            :substitution
+            (update-substitution-choice-at
+             (tile-substitution tile)
+             choice-index
+             (fn [choice]
+               (assoc choice :weight (max 0 (or weight 0)))))))))
+
+(defun remove-selected-tile-substitution-choice [state choice-index]
+  (update-selected-tile
+   state
+   (fn [tile]
+     (assoc tile
+            :substitution
+            (assoc (tile-substitution tile)
+                   :choices
+                   (map (filter (for-indexed [index choice
+                                               (or (-> tile
+                                                       tile-substitution
+                                                       :choices)
+                                                   [])]
+                                  {:index index :choice choice})
+                                (fn [entry]
+                                  (not= (:index entry) choice-index)))
+                        :choice))))))
+
 (defun tile-type-index [tile]
   (let [match (find-index tile-type-options
                           (fn [option]
@@ -784,6 +920,42 @@
                                            deleted-ids
                                            deleted-indices))
 
+(defun remove-deleted-tile-refs-in-substitution-choice
+  [choice deleted-ids deleted-indices]
+  (let [tile-ref (remove-deleted-tile-ref (:tile choice)
+                                          deleted-ids
+                                          deleted-indices)]
+    (when (not (data/absent-tile-ref? tile-ref))
+      (assoc choice :tile tile-ref))))
+
+(defun remove-deleted-tile-refs-in-tile-substitution
+  [substitution deleted-ids deleted-indices]
+  (if substitution
+    (assoc substitution
+           :choices
+           (filter (map (or (:choices substitution) [])
+                        (fn [choice]
+                          (remove-deleted-tile-refs-in-substitution-choice
+                           choice
+                           deleted-ids
+                           deleted-indices)))
+                   (fn [choice]
+                     (not (nil? choice)))))
+    substitution))
+
+(defun remove-deleted-tile-refs-in-tile-substitutions
+  [tiles deleted-ids deleted-indices]
+  (map (or tiles [])
+       (fn [tile]
+         (if (:substitution tile)
+           (assoc tile
+                  :substitution
+                  (remove-deleted-tile-refs-in-tile-substitution
+                   (:substitution tile)
+                   deleted-ids
+                   deleted-indices))
+           tile))))
+
 (defun rename-tile-ref [tile-ref old-id new-id]
   (if (= tile-ref old-id)
     new-id
@@ -885,6 +1057,31 @@
 (defun rename-tile-refs-in-rulesets [rulesets tileset-id old-id new-id]
   (rename-tile-refs-in-brush-value (or rulesets []) tileset-id old-id new-id))
 
+(defun rename-tile-refs-in-substitution-choice [choice old-id new-id]
+  (assoc choice :tile (rename-tile-ref (:tile choice) old-id new-id)))
+
+(defun rename-tile-refs-in-tile-substitution [substitution old-id new-id]
+  (if substitution
+    (assoc substitution
+           :choices
+           (map (or (:choices substitution) [])
+                (fn [choice]
+                  (rename-tile-refs-in-substitution-choice choice
+                                                           old-id
+                                                           new-id))))
+    substitution))
+
+(defun rename-tile-refs-in-tile-substitutions [tiles old-id new-id]
+  (map (or tiles [])
+       (fn [tile]
+         (if (:substitution tile)
+           (assoc tile
+                  :substitution
+                  (rename-tile-refs-in-tile-substitution (:substitution tile)
+                                                         old-id
+                                                         new-id))
+           tile))))
+
 (defun rename-tile-refs-in-layers-for-pairs [layers tileset-id pairs]
   (reduce (or pairs [])
           layers
@@ -932,6 +1129,23 @@
                                           (:old-id pair)
                                           (:new-id pair)))))
 
+(defun rename-tile-refs-in-tile-substitutions-for-pairs [tiles pairs]
+  (reduce (or pairs [])
+          tiles
+          (fn [out pair]
+            (rename-tile-refs-in-tile-substitutions out
+                                                    (:old-id pair)
+                                                    (:new-id pair)))))
+
+(defun replace-tile-at-index [tiles index replacement]
+  (map (for-indexed [tile-index tile (or tiles [])]
+         {:index tile-index
+          :tile tile})
+       (fn [entry]
+         (if (= (:index entry) index)
+           replacement
+           (:tile entry)))))
+
 (defun remove-tiles-at-indices [tiles indices]
   (map (filter (for-indexed [index tile (or tiles [])]
                  {:index index
@@ -961,7 +1175,10 @@
         (if (empty? selection)
           state
           (let [deleted-ids (tile-ids-at-indices tiles selection)
-                remaining (remove-tiles-at-indices tiles selection)
+                remaining (remove-deleted-tile-refs-in-tile-substitutions
+                           (remove-tiles-at-indices tiles selection)
+                           deleted-ids
+                           selection)
                 next-index (selected-tile-index-after-delete selection
                                                              (count remaining))
                 next-selection (if (nil? next-index) [] [next-index])]
@@ -1035,12 +1252,15 @@
           (let [tile (nth source-tiles tile-index)
                 deleted-ids [(:id tile)]
                 deleted-indices [tile-index]
-                remaining-source (remove-tiles-at-indices source-tiles
-                                                          deleted-indices)
+                remaining-source
+                (remove-deleted-tile-refs-in-tile-substitutions
+                 (remove-tiles-at-indices source-tiles deleted-indices)
+                 deleted-ids
+                 deleted-indices)
                 moved-id (keyword (unique-id-from target-tiles
                                                   (keyword-label (:id tile))
                                                   nil))
-                moved-tile (assoc tile :id moved-id)
+                moved-tile (dissoc (assoc tile :id moved-id) :substitution)
                 target-tile-index (count target-tiles)
                 next-tilesets (update-tileset-tiles-at
                                (update-tileset-tiles-at tilesets
@@ -1129,12 +1349,20 @@
                              (kebab-case (:tile-id payload))
                              index
                              nil))
+            next-tiles
+            (rename-tile-refs-in-tile-substitutions
+             (replace-tile-at-index
+              tiles
+              index
+              (assoc old-tile
+                     :id new-id
+                     :name (:tile-name payload)
+                     :char (or (:tile-char payload) "")))
+             old-id
+             new-id)
             next-state (assoc-in state
-                                 [:tilesets tileset-index :tiles index]
-                                 (assoc old-tile
-                                        :id new-id
-                                        :name (:tile-name payload)
-                                        :char (or (:tile-char payload) "")))]
+                                 [:tilesets tileset-index :tiles]
+                                 next-tiles)]
         (maps/update-all-map-layers-with-profile
          (assoc next-state
                 :layer-profiles (map (or (:layer-profiles next-state) [])
@@ -1256,12 +1484,15 @@
         (if (empty? selection)
           state
           (let [pairs (batch-tile-rename-pairs tiles selection payload)
-                next-state (assoc-in state
-                                     [:tilesets tileset-index :tiles]
-                                     (apply-batch-tile-rename-to-tiles
-                                      tiles
-                                      pairs
-                                      (:tile-char payload)))]
+                next-state (assoc-in
+                            state
+                            [:tilesets tileset-index :tiles]
+                            (rename-tile-refs-in-tile-substitutions-for-pairs
+                             (apply-batch-tile-rename-to-tiles
+                              tiles
+                              pairs
+                              (:tile-char payload))
+                             pairs))]
             (maps/update-all-map-layers-with-profile
              (assoc next-state
                     :layer-profiles (map (or (:layer-profiles next-state) [])

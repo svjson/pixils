@@ -188,6 +188,45 @@
     (is (not= (canvas/map-canvas-render-input-signature base-input)
               (canvas/map-canvas-render-input-signature changed-input)))))
 
+(deftest render-input-signature-changes-with-tile-substitution-rules
+  (let [base-input {:width 1
+                    :height 1
+                    :tile-size 16
+                    :tilesets []
+                    :layers []
+                    :terrain-sets []
+                    :show-terrain-rules? nil
+                    :layer-profile nil
+                    :rulesets []
+                    :tile-substitution-rules []}
+        changed-input (assoc base-input
+                             :tile-substitution-rules
+                             [{:tileset :world
+                               :tile :floor
+                               :seed 7
+                               :choices [{:tile :floor-crack
+                                          :weight 1}]}])]
+    (is (not= (canvas/map-canvas-render-input-signature base-input)
+              (canvas/map-canvas-render-input-signature changed-input)))))
+
+(deftest materialize-map-canvas-render-map-applies-tile-substitution-rules
+  (let [render-map (canvas/materialize-map-canvas-render-map
+                    {:width 1
+                     :height 1
+                     :tile-size {:w 16 :h 16}
+                     :layers [{:id :base
+                               :tileset :world
+                               :tiles [[:floor]]}]
+                     :terrain-sets []
+                     :rulesets []
+                     :tile-substitution-rules [{:tileset :world
+                                                :tile :floor
+                                                :seed 0
+                                                :choices [{:tile :floor-crack
+                                                           :weight 1}]}]})]
+    (is (= :floor-crack
+           (get-in render-map [:layers 0 :tiles 0 0])))))
+
 (deftest map-canvas-render-input-uses-active-map-tile-size
   (let [input (canvas/map-canvas-render-input
                {:map-width 2
@@ -196,5 +235,10 @@
                 :layers []
                 :terrain-sets []
                 :rulesets []
+                :tile-substitution-rules [{:tileset :world
+                                           :tile :floor
+                                           :choices [{:tile :floor}]}]
                 :layer-profiles []})]
-    (is (= {:w 32 :h 32} (:tile-size input)))))
+    (is (= {:w 32 :h 32} (:tile-size input)))
+    (is (= :floor
+           (get-in input [:tile-substitution-rules 0 :tile])))))
