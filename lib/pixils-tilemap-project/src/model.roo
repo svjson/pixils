@@ -20,6 +20,9 @@
 (def project-terrain-sets [])
 (def project-property-sets [])
 (def project-rulesets [])
+(def project-tile-substitution-rules [])
+
+(def default-tile-substitution-algorithm :weighted-random)
 (def default-layer-profile-id :default)
 (def default-layer-profile-label "Default")
 
@@ -657,6 +660,15 @@
          (fn [ruleset]
            (normalize-terrain-stamp-ruleset terrain-sets ruleset)))))
 
+(defun normalize-tile-substitution-rule [rule]
+  (assoc rule
+         :algorithm
+         (or (:algorithm rule) default-tile-substitution-algorithm)))
+
+(defun normalize-tile-substitution-rules [rules]
+  (map (normalize-ruleset-value (or rules []))
+       normalize-tile-substitution-rule))
+
 (defun fallback-map-id [index]
   (if (= (or index 0) 0)
     default-map-id
@@ -738,6 +750,10 @@
            :rulesets (normalize-rulesets (:rulesets project)
                                          layer-profile
                                          terrain-sets)
+           :tile-substitution-rules
+           (normalize-tile-substitution-rules
+            (or (:tile-substitution-rules project)
+                project-tile-substitution-rules))
            :brushes (normalize-brushes (:brushes project) layer-profile))))
 
 (defun tilemap-document [state layers layer-profile-id]
@@ -787,6 +803,9 @@
      :rulesets (normalize-rulesets (:rulesets state)
                                    layer-profile
                                    terrain-sets)
+     :tile-substitution-rules
+     (normalize-tile-substitution-rules
+      (or (:tile-substitution-rules state) project-tile-substitution-rules))
      :layer-profiles layer-profiles
      :brushes (normalize-brushes (or (:brushes state) project-brushes)
                                  layer-profile)

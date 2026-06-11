@@ -25,6 +25,7 @@
      :terrain-sets (tilemap/apply-terrain-sets-property-defaults
                     (:property-sets document)
                     (:terrain-sets document))
+     :tile-substitution-rules (:tile-substitution-rules document)
      :maps (:maps document)
      :selected-map (:selected-map document)}))
 
@@ -39,4 +40,5 @@
      :resources (:resources tilemap-pack)
      :tilesets (:tilesets tilemap-pack)
      :terrain-sets (:terrain-sets tilemap-pack)
+     :tile-substitution-rules (:tile-substitution-rules tilemap-pack)
      :layers (:layers tilemap)}))

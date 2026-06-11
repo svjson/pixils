@@ -464,6 +464,44 @@
                       :exclusive? true}]}]
            (:rulesets document)))))
 
+(deftest project-document-saves_tile_substitution_rules
+  (let [document (data/project-document
+                  {:tile-substitution-rules [{:tileset :world
+                                               :tile :floor
+                                               :seed 7
+                                               :choices [{:tile :floor
+                                                          :weight 4}
+                                                         {:tile :floor-crack
+                                                          :weight 1}]}]
+                   :layers []})]
+    (is (= [{:tileset :world
+             :tile :floor
+             :seed 7
+             :choices [{:tile :floor
+                        :weight 4}
+                       {:tile :floor-crack
+                        :weight 1}]
+             :algorithm :weighted-random}]
+           (:tile-substitution-rules document)))))
+
+(deftest normalize-project-document-preserves_tile_substitution_rules
+  (let [document (data/normalize-project-document
+                  {:format data/project-format
+                   :tile-substitution-rules [{:tileset :world
+                                               :tile :floor
+                                               :seed 7
+                                               :choices [{:tile :floor
+                                                          :weight 4}
+                                                         {:tile :floor-crack
+                                                          :weight 1}]}]
+                   :tilemap {:layers []}})]
+    (is (= :weighted-random
+           (get-in document
+                   [:tile-substitution-rules 0 :algorithm])))
+    (is (= :floor-crack
+           (get-in document
+                   [:tile-substitution-rules 0 :choices 1 :tile])))))
+
 (deftest normalize-project-document-preserves_ruleset_exclusive_flag
   (let [document (data/normalize-project-document
                   {:format data/project-format
