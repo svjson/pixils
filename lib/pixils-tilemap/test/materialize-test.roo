@@ -442,3 +442,146 @@
     (is (= {:x 2 :y 1} (:origin render-map)))
     (is (= [[:f]]
            (-> render-map :layers (nth 0) :tiles)))))
+
+(deftest materialize-render-map-applies-stable-weighted-tile-substitution-rules
+  (let [render-map (materialize/materialize-render-map
+                    {:width 5
+                     :height 1
+                     :tile-substitution-rules [{:tileset :world
+                                                :tile :floor
+                                                :algorithm :weighted-random
+                                                :seed 7
+                                                :choices [{:tile :floor
+                                                           :weight 4}
+                                                          {:tile :floor-crack
+                                                           :weight 1}]}]
+                     :layers [{:id :base
+                               :tileset :world
+                               :tiles [[:floor :floor :floor :floor :floor]]}]})]
+    (is (= [[:floor :floor :floor-crack :floor :floor-crack]]
+           (-> render-map :layers (nth 0) :tiles)))))
+
+(deftest materialize-render-map-ignores-unknown-tile-substitution-algorithms
+  (let [render-map (materialize/materialize-render-map
+                    {:width 1
+                     :height 1
+                     :tile-substitution-rules [{:tileset :world
+                                                :tile :floor
+                                                :algorithm :unknown
+                                                :choices [{:tile :floor-crack
+                                                           :weight 1}]}]
+                     :layers [{:id :base
+                               :tileset :world
+                               :tiles [[:floor]]}]})]
+    (is (= [[:floor]]
+           (-> render-map :layers (nth 0) :tiles)))))
+
+(deftest materialize-render-map-mixes-equal-weight-substitutions-by-position
+  (let [render-map (materialize/materialize-render-map
+                    {:width 9
+                     :height 1
+                     :tile-substitution-rules [{:tileset :world
+                                                :tile :floor
+                                                :seed 0
+                                                :choices [{:tile :floor-a
+                                                           :weight 1}
+                                                          {:tile :floor-b
+                                                           :weight 1}
+                                                          {:tile :floor-c
+                                                           :weight 1}]}]
+                     :layers [{:id :base
+                               :tileset :world
+                               :tiles [[:floor :floor :floor
+                                        :floor :floor :floor
+                                        :floor :floor :floor]]}]})]
+    (is (= [[:floor-b :floor-c :floor-c
+             :floor-a :floor-c :floor-c
+             :floor-a :floor-c :floor-c]]
+           (-> render-map :layers (nth 0) :tiles)))
+    (is (not= [[:floor-a :floor-b :floor-c
+                :floor-a :floor-b :floor-c
+                :floor-a :floor-b :floor-c]]
+              (-> render-map :layers (nth 0) :tiles)))))
+
+(deftest materialize-render-map-applies-tile-substitution-rules-after-terrain
+  (let [render-map (materialize/materialize-render-map
+                    {:width 1
+                     :height 1
+                     :terrain-sets [{:id :terrain
+                                     :tileset :world
+                                     :terrains [{:id :grass
+                                                 :tile :floor}]}]
+                     :tile-substitution-rules [{:tileset :world
+                                                :tile :floor
+                                                :seed 0
+                                                :choices [{:tile :floor-crack
+                                                           :weight 1}]}]
+                     :layers [{:id :base
+                               :data-kind :terrain
+                               :terrain-set :terrain
+                               :tiles [[:grass]]}]})]
+    (is (= :floor-crack
+           (get-in render-map [:layers 0 :tiles 0 0])))))
+
+(deftest materialize-render-map-applies-tile-defined-substitutions-after-terrain
+  (let [render-map (materialize/materialize-render-map
+                    {:width 1
+                     :height 1
+                     :tilesets [{:id :world
+                                 :tiles [{:id :floor
+                                          :substitution
+                                          {:seed 0
+                                           :choices [{:tile :floor-crack
+                                                      :weight 1}]}}
+                                         {:id :floor-crack}]}]
+                     :terrain-sets [{:id :terrain
+                                     :tileset :world
+                                     :terrains [{:id :grass
+                                                 :tile :floor}]}]
+                     :layers [{:id :base
+                               :data-kind :terrain
+                               :terrain-set :terrain
+                               :tiles [[:grass]]}]})]
+    (is (= :floor-crack
+           (get-in render-map [:layers 0 :tiles 0 0])))))
+
+(deftest materialize-render-map-scopes-tile-substitution-rules-by-tileset
+  (let [render-map (materialize/materialize-render-map
+                    {:width 1
+                     :height 1
+                     :tile-substitution-rules [{:tileset :world
+                                                :tile :floor
+                                                :seed 0
+                                                :choices [{:tile :floor-crack
+                                                           :weight 1}]}]
+                     :layers [{:id :world-base
+                               :tileset :world
+                               :tiles [[:floor]]}
+                              {:id :ui-base
+                               :tileset :ui
+                               :tiles [[:floor]]}]})]
+    (is (= :floor-crack
+           (get-in render-map [:layers 0 :tiles 0 0])))
+    (is (= :floor
+           (get-in render-map [:layers 1 :tiles 0 0])))))
+
+(deftest materialize-render-rect-uses-source-coordinates-for-tile-substitutions
+  (let [tilemap {:width 4
+                 :height 2
+                 :tile-substitution-rules [{:tileset :world
+                                            :tile :floor
+                                            :seed 7
+                                            :choices [{:tile :floor
+                                                       :weight 4}
+                                                      {:tile :floor-crack
+                                                       :weight 1}]}]
+                 :layers [{:id :base
+                           :tileset :world
+                           :tiles [[:floor :floor :floor :floor]
+                                   [:floor :floor :floor :floor]]}]}
+        full (materialize/materialize-render-map tilemap)
+        rect (materialize/materialize-render-rect tilemap
+                                                  {:x 1 :y 1 :w 2 :h 1})]
+    (is (= [[(get-in full [:layers 0 :tiles 1 1])
+             (get-in full [:layers 0 :tiles 1 2])]]
+           (-> rect :layers (nth 0) :tiles)))))

@@ -180,6 +180,28 @@ into plain renderable tile-ref layers:
                                      :rulesets rulesets})
 ```
 
+Materialization can also apply stable weighted tile substitutions after terrain
+preview tiles and terrain-stamp output have been resolved. Rules target a tile
+inside a tileset; choices are selected by a deterministic hash of `:seed`, `x`,
+and `y`, so full-map and rect materialization agree:
+
+```clojure
+(materialize/materialize-render-map
+ {:width 5
+  :height 1
+  :tile-substitution-rules [{:tileset :world
+                             :tile :floor
+                             :seed 7
+                             :choices [{:tile :floor :weight 4}
+                                       {:tile :floor-crack :weight 1}]}]
+  :layers [{:id :ground
+            :tileset :world
+            :tiles [[:floor :floor :floor :floor :floor]]}]})
+```
+
+Include the original tile as one of the choices when it should remain part of
+the output distribution.
+
 `materialize-render-rect` does the same for a sub-rectangle, useful for palette
 previews, dirty-region updates, and tests.
 

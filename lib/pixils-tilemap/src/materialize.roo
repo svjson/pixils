@@ -761,6 +761,171 @@
                                               show-rules?
                                               layer)))))
 
+(defun tile-substitution-rule-source-tile [rule]
+  (or (:tile rule)
+      (:source rule)
+      (:from rule)))
+
+(defun tile-substitution-rule-choices [rule]
+  (or (:choices rule)
+      (:variants rule)
+      (:tiles rule)
+      []))
+
+(defun tile-substitution-rule-algorithm [rule]
+  (or (:algorithm rule) :weighted-random))
+
+(defun tile-substitution-choice-tile [choice]
+  (if (= (type-of choice) "map")
+    (or (:tile choice)
+        (:tile-ref choice))
+    choice))
+
+(defun tile-substitution-choice-weight [choice]
+  (let [weight (if (= (type-of choice) "map")
+                 (:weight choice)
+                 1)]
+    (max 0 (or weight 1))))
+
+(defun tile-substitution-rule-matches? [layer tile-ref rule]
+  (and (= (:tileset layer) (:tileset rule))
+       (= tile-ref (tile-substitution-rule-source-tile rule))))
+
+(defun tile-substitution-rules-for-cell [rules layer tile-ref]
+  (filter (or rules [])
+          (fn [rule]
+            (tile-substitution-rule-matches? layer tile-ref rule))))
+
+(defun weighted-tile-substitution-choices [rule]
+  (filter (tile-substitution-rule-choices rule)
+          (fn [choice]
+            (and (not (tm/absent-tile-ref? (tile-substitution-choice-tile choice)))
+                 (> (tile-substitution-choice-weight choice) 0)))))
+
+(defun weighted-tile-substitution-total [choices]
+  (reduce (or choices [])
+          0
+          (fn [total choice]
+            (+ total (tile-substitution-choice-weight choice)))))
+
+(defun positive-mod [value divisor]
+  (mod (+ (mod value divisor) divisor) divisor))
+
+(defun stable-tile-substitution-bucket [seed x y total]
+  (let [hash-mod 1000003
+        source (positive-mod (+ (* (+ (or seed 0) 1) 374761)
+                                (* (+ x 1) 668263)
+                                (* (+ y 1) 982451)
+                                (* (+ x 3) (+ y 5) 154858))
+                             hash-mod)
+        mixed (positive-mod (+ (* source (+ source 127417))
+                               (* (+ x 1) (+ x 7) 524287)
+                               (* (+ y 1) (+ y 11) 8191))
+                            hash-mod)]
+    (positive-mod mixed total)))
+
+(defun weighted-tile-substitution-choice [choices bucket]
+  (:choice
+   (reduce choices
+           {:bucket bucket
+            :choice nil}
+           (fn [state choice]
+             (if (:choice state)
+               state
+               (let [weight (tile-substitution-choice-weight choice)]
+                 (if (< (:bucket state) weight)
+                   (assoc state :choice choice)
+                   (update state :bucket (fn [value] (- value weight))))))))))
+
+(defun apply-weighted-random-tile-substitution-rule [rule tile-ref x y]
+  (let [choices (weighted-tile-substitution-choices rule)
+        total (weighted-tile-substitution-total choices)]
+    (if (> total 0)
+      (or (tile-substitution-choice-tile
+           (weighted-tile-substitution-choice
+            choices
+            (stable-tile-substitution-bucket (:seed rule) x y total)))
+          tile-ref)
+      tile-ref)))
+
+(defun apply-tile-substitution-rule [rule tile-ref x y]
+  (case (tile-substitution-rule-algorithm rule)
+    :weighted-random (apply-weighted-random-tile-substitution-rule
+                      rule
+                      tile-ref
+                      x
+                      y)
+    :default tile-ref))
+
+(defun apply-tile-substitution-rules-to-cell [rules layer tile-ref x y]
+  (let [rule (head (tile-substitution-rules-for-cell rules layer tile-ref))]
+    (if rule
+      (apply-tile-substitution-rule rule tile-ref x y)
+      tile-ref)))
+
+(defun apply-tile-substitution-rules-to-row [rules layer origin y row]
+  (for-indexed [x tile-ref (or row [])]
+    (if (tm/absent-tile-ref? tile-ref)
+      tile-ref
+      (apply-tile-substitution-rules-to-cell rules
+                                             layer
+                                             tile-ref
+                                             (+ (:x origin) x)
+                                             (+ (:y origin) y)))))
+
+(defun apply-tile-substitution-rules-to-layer [rules layer origin]
+  (if (= (:data-kind layer) :tile-ref)
+    (assoc layer
+           :tiles (for-indexed [y row (or (:tiles layer) [])]
+                    (apply-tile-substitution-rules-to-row rules
+                                                          layer
+                                                          origin
+                                                          y
+                                                          row)))
+    layer))
+
+(defun apply-tile-substitution-rules-to-layers [rules layers origin]
+  (if (empty? (or rules []))
+    layers
+    (map (or layers [])
+         (fn [layer]
+           (apply-tile-substitution-rules-to-layer rules
+                                                   layer
+                                                   (or origin {:x 0 :y 0}))))))
+
+(defun tile-substitution-config [tile]
+  (or (:substitution tile)
+      (:tile-substitution tile)
+      (:substitutions tile)))
+
+(defun tile-substitution-rule-from-tile [tileset tile]
+  (let [config (tile-substitution-config tile)]
+    (when (and (= (type-of config) "map")
+               (not (empty? (tile-substitution-rule-choices config))))
+      (assoc config
+             :tileset (:id tileset)
+             :tile (:id tile)))))
+
+(defun tile-substitution-rules-from-tileset [tileset]
+  (filter (map (or (:tiles tileset) [])
+               (fn [tile]
+                 (tile-substitution-rule-from-tile tileset tile)))
+          (fn [rule]
+            (not (nil? rule)))))
+
+(defun tile-substitution-rules-from-tilesets [tilesets]
+  (apply concat
+         (map (or tilesets [])
+              tile-substitution-rules-from-tileset)))
+
+(defun materialize-tile-substitution-rules [tilemap opts]
+  (concat (or (:tile-substitution-rules opts)
+              (:tile-substitution-rules tilemap)
+              [])
+          (tile-substitution-rules-from-tilesets
+           (or (:tilesets opts)
+               (:tilesets tilemap)))))
+
 (defun materialize-show-terrain-rules? [tilemap opts]
   (not= (if (contains? opts :show-terrain-rules?)
           (:show-terrain-rules? opts)
@@ -770,33 +935,39 @@
 (defun materialize-render-map [tilemap & opts]
   (let [opts (or (head opts) {})]
     (assoc (materialized-tilemap-base tilemap)
-           :layers (materialize-layers tilemap
-                                       (or (:layers opts)
-                                           (:layers tilemap))
-                                       (or (:terrain-sets opts)
-                                           (:terrain-sets tilemap))
-                                       (or (:rulesets opts)
-                                           (:rulesets tilemap))
-                                       (materialize-show-terrain-rules?
-                                        tilemap
-                                        opts)))))
+           :layers (apply-tile-substitution-rules-to-layers
+                    (materialize-tile-substitution-rules tilemap opts)
+                    (materialize-layers tilemap
+                                        (or (:layers opts)
+                                            (:layers tilemap))
+                                        (or (:terrain-sets opts)
+                                            (:terrain-sets tilemap))
+                                        (or (:rulesets opts)
+                                            (:rulesets tilemap))
+                                        (materialize-show-terrain-rules?
+                                         tilemap
+                                         opts))
+                    {:x 0 :y 0}))))
 
 (defun materialize-render-rect [tilemap rect & opts]
   (let [opts (or (head opts) {})
         rect (materialization-rect tilemap rect)]
     (assoc (materialized-tilemap-rect-base tilemap rect)
-           :layers (apply concat
-                          (map (or (:layers opts)
-                                   (:layers tilemap))
-                               (fn [layer]
-                                 (materialize-layer-with-rules-rect
-                                  tilemap
-                                  (or (:terrain-sets opts)
-                                      (:terrain-sets tilemap))
-                                  (or (:rulesets opts)
-                                      (:rulesets tilemap))
-                                  (materialize-show-terrain-rules?
+           :layers (apply-tile-substitution-rules-to-layers
+                    (materialize-tile-substitution-rules tilemap opts)
+                    (apply concat
+                           (map (or (:layers opts)
+                                    (:layers tilemap))
+                                (fn [layer]
+                                  (materialize-layer-with-rules-rect
                                    tilemap
-                                   opts)
-                                  layer
-                                  rect)))))))
+                                   (or (:terrain-sets opts)
+                                       (:terrain-sets tilemap))
+                                   (or (:rulesets opts)
+                                       (:rulesets tilemap))
+                                   (materialize-show-terrain-rules?
+                                    tilemap
+                                    opts)
+                                   layer
+                                   rect))))
+                    {:x (:x rect) :y (:y rect)}))))
