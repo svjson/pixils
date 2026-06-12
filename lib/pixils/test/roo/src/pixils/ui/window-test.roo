@@ -263,7 +263,7 @@
                 state))})")
 
 (deftest window-make-composes-standard-chrome-by-default
-  (let [app (runtime/make-app {:package-root "lib/pixils"
+  (let [app (runtime/make-app {:package-root "../.."
                                :render-backend false})
         window (runtime/eval! app (standard-window-map-probe-source))
         children (:children window)
@@ -282,7 +282,7 @@
     (is (= 'ui/window-body (:mode body)))))
 
 (deftest window-make-composes-regular-frame-without-title-bar
-  (let [app (runtime/make-app {:package-root "lib/pixils"
+  (let [app (runtime/make-app {:package-root "../.."
                                :render-backend false})
         window (runtime/eval! app (frame-window-map-probe-source))
         children (:children window)
@@ -300,7 +300,7 @@
     (is (= [{:mode 'probe-body}] (:children body)))))
 
 (deftest window-make-composes-dialog-frame-without-title-bar
-  (let [app (runtime/make-app {:package-root "lib/pixils"
+  (let [app (runtime/make-app {:package-root "../.."
                                :render-backend false})
         window (runtime/eval! app (dialog-frame-window-map-probe-source))
         children (:children window)
@@ -317,7 +317,7 @@
     (is (= 'ui/window-body (:mode body)))))
 
 (deftest window-without-explicit-position-centers-in-buffer
-  (let [app (runtime/make-app {:package-root "lib/pixils"
+  (let [app (runtime/make-app {:package-root "../.."
                                :buffer-width 160
                                :buffer-height 120
                                :render-backend false})]
@@ -333,7 +333,7 @@
       (is (= 32 (:y (:bounds window)))))))
 
 (deftest scaled-window-without-explicit-position-centers-visual-bounds
-  (let [app (runtime/make-app {:package-root "lib/pixils"
+  (let [app (runtime/make-app {:package-root "../.."
                                :buffer-width 120
                                :buffer-height 90
                                :render-backend false})]
@@ -351,7 +351,7 @@
       (is (= 60 (:h (:external-bounds window)))))))
 
 (deftest window-make-applies-body-style
-  (let [app (runtime/make-app {:package-root "lib/pixils"
+  (let [app (runtime/make-app {:package-root "../.."
                                :buffer-width 160
                                :buffer-height 120
                                :render-backend false})]
@@ -362,7 +362,7 @@
       (is (= 40 (:h (:bounds body)))))))
 
 (deftest window-autofocuses-by-default
-  (let [app (runtime/make-app {:package-root "lib/pixils"
+  (let [app (runtime/make-app {:package-root "../.."
                                :buffer-width 160
                                :buffer-height 120
                                :render-backend false})]
@@ -374,7 +374,7 @@
       (is (= true (-> window :interaction :focus-within))))))
 
 (deftest child-autofocus-wins-over-window-autofocus
-  (let [app (runtime/make-app {:package-root "lib/pixils"
+  (let [app (runtime/make-app {:package-root "../.."
                                :buffer-width 160
                                :buffer-height 120
                                :render-backend false})]
@@ -388,7 +388,7 @@
       (is (= true (-> input :interaction :focused))))))
 
 (deftest window-autofocus-can-be-disabled
-  (let [app (runtime/make-app {:package-root "lib/pixils"
+  (let [app (runtime/make-app {:package-root "../.."
                                :buffer-width 160
                                :buffer-height 120
                                :render-backend false})]
@@ -400,7 +400,7 @@
       (is (= false (-> window :interaction :focus-within))))))
 
 (deftest oversized-window-without-explicit-position-keeps-chrome-on-screen
-  (let [app (runtime/make-app {:package-root "lib/pixils"
+  (let [app (runtime/make-app {:package-root "../.."
                                :buffer-width 100
                                :buffer-height 80
                                :render-backend false})]
@@ -421,7 +421,7 @@
       (is (= true (< (:y (:bounds title-bar)) 80))))))
 
 (deftest explicit-offscreen-window-position-is-preserved
-  (let [app (runtime/make-app {:package-root "lib/pixils"
+  (let [app (runtime/make-app {:package-root "../.."
                                :buffer-width 160
                                :buffer-height 120
                                :render-backend false})]
@@ -437,7 +437,7 @@
       (is (= -20 (:y (:bounds window)))))))
 
 (deftest modal-overlay-mouse-down-preserves-dialog-focus
-  (let [app (runtime/make-app {:package-root "lib/pixils"
+  (let [app (runtime/make-app {:package-root "../.."
                                :buffer-width 160
                                :buffer-height 120
                                :render-backend false})]
@@ -459,7 +459,7 @@
                         :focus-within)))))))
 
 (deftest dialog-window-without-explicit-position-centers-in-buffer
-  (let [app (runtime/make-app {:package-root "lib/pixils"
+  (let [app (runtime/make-app {:package-root "../.."
                                :buffer-width 160
                                :buffer-height 120
                                :render-backend false})]
@@ -475,7 +475,7 @@
       (is (= 32 (:y (:bounds window)))))))
 
 (deftest dragged-window-keeps-latest-position-after-follow-up-interaction
-  (let [app (runtime/make-app {:package-root "lib/pixils"
+  (let [app (runtime/make-app {:package-root "../.."
                                :buffer-width 160
                                :buffer-height 120
                                :render-backend false})]
@@ -511,7 +511,7 @@
           (is (= 1 (:presses (runtime/view-state probe-body-after-press)))))))))
 
 (deftest fixed-frame-chrome-ignores-window-move-events
-  (let [app (runtime/make-app {:package-root "lib/pixils"
+  (let [app (runtime/make-app {:package-root "../.."
                                :buffer-width 160
                                :buffer-height 120
                                :render-backend false})]

@@ -139,6 +139,71 @@ Roo components, so applications can use them like any other mode.
 | `ui/desktop-icon-preview` | Non-hit-tested desktop-icon variant for drag previews. |
 | `ui/icon-container` | Focusable icon coordinator/drop surface with optional grid layout, snapping, reordering, and keyboard navigation. |
 
+`pixils.ui.window/make` creates the standard window view map. The window root
+owns focus, movement, positioning, and future window-level behavior; the chrome
+option controls which visible frame is composed around the caller-provided body.
+
+```clojure
+(pixils.ui.window/make
+  {:title-bar {:title "Tools"}
+   :style {:width 180 :height 140}
+   :body [{:mode 'tools-panel}]})
+```
+
+Windows auto-focus by default and center themselves in the render buffer when
+`:position` is not supplied. Auto-positioned windows are clamped into the buffer
+so the visible frame remains reachable. Supplying `:position` makes the
+coordinate explicit, so Pixils preserves it even when it is off-screen. Pass
+`:auto-focus? false` to opt out of automatic focus.
+
+The current chrome variants are:
+
+| `:chrome` | Behavior |
+|-----------|----------|
+| `:standard` | Default window chrome: title bar plus `ui/window-body`. |
+| `:frame` | Fixed body-only frame with normal window border styling. |
+| `:dialog-frame` | Fixed body-only dialog frame. In the Windows 3 theme this uses the thicker blue dialog border. |
+| `:none` | Body-only chromeless window. |
+
+`:kind` names the semantic role of the window and chooses a default chrome when
+`:chrome` is omitted:
+
+| `:kind` | Default `:chrome` |
+|---------|-------------------|
+| omitted or `:window` | `:standard` |
+| `:panel` | `:none` |
+| `:frame` | `:frame` |
+| `:dialog-frame` | `:dialog-frame` |
+
+Use `:kind` when the role is meaningful and the theme's default representation is
+what you want. Use `:chrome` when the frame variant must be explicit.
+
+```clojure
+;; A plain fixed frame.
+(pixils.ui.window/make
+  {:kind :frame
+   :style {:width 160 :height 80}
+   :body [{:mode 'score-summary}]})
+
+;; A Windows-3-style dialog frame when the windows-3 theme is active.
+(pixils.ui.window/make
+  {:kind :dialog-frame
+   :style {:width 180 :height 100}
+   :body [{:mode 'highscore-table}]})
+
+;; A chromeless window that still participates in focus and positioning.
+(pixils.ui.window/make
+  {:kind :panel
+   :body [{:mode 'floating-palette}]})
+```
+
+The public capability map is currently stored under `:window/capabilities` on
+the window state. `:standard` windows default to movable, minimizable, and
+system-menu capable. Fixed frames default those capabilities off. Callers may
+override capability flags with `:capabilities`, for example
+`{:movable? false}`. At the moment movement is the implemented behavior;
+close/minimize/resize capabilities are reserved for follow-up passes.
+
 `ui/toggle-button` is a subtype of `ui/button`. It accepts the same public
 button state, plus `:toggled?`. When `:toggled?` is true, the button is treated
 as pressed even when the mouse is not down. On click it toggles `:toggled?` and

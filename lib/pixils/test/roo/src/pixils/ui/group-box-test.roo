@@ -10,7 +10,7 @@
   app)
 
 (defun make-app []
-  (runtime/make-app {:package-root "lib/pixils"
+  (runtime/make-app {:package-root "../.."
                      :buffer-width 160
                      :buffer-height 120
                      :render-backend false}))

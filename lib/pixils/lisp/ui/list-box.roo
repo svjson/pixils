@@ -41,6 +41,31 @@
     (when match
       (:index match))))
 
+(defun valid-option-index? [options index]
+  (and (not (nil? index))
+       (>= index 0)
+       (< index (count options))))
+
+(defun enabled-option-index? [options index]
+  (and (valid-option-index? options index)
+       (not (option-disabled? (option-at options index)))))
+
+(defun next-enabled-index-from [options index direction]
+  (let [next-index (+ index direction)]
+    (cond
+      (or (< next-index 0)
+          (>= next-index (count options)))
+      nil
+
+      (enabled-option-index? options next-index)
+      next-index
+
+      :default
+      (next-enabled-index-from options next-index direction))))
+
+(defun last-enabled-index [options]
+  (next-enabled-index-from options (count options) -1))
+
 (defun add-index [indices index]
   (if (contains? indices index)
     indices
@@ -141,6 +166,9 @@
 (defun selection-changed? [previous selected]
   (not= (or previous []) (or selected [])))
 
+(defun clamp [value low high]
+  (max low (min high value)))
+
 (defun list-box-content-height [options row-height]
   (* (count options) row-height))
 
@@ -223,10 +251,97 @@
     (when (and pos bounds)
       (- (:y pos) (:y bounds)))))
 
-(defun valid-option-index? [options index]
-  (and (not (nil? index))
-       (>= index 0)
-       (< index (count options))))
+(defun list-box-navigation-base-index [state direction]
+  (or (:anchor-index state)
+      (head (or (:selected-indices state) []))
+      (if (> direction 0)
+        -1
+        (count (:options state)))))
+
+(defun list-box-keyboard-target-index [state key]
+  (let [options (:options state)]
+    (case key
+      :key/down
+      (next-enabled-index-from
+       options
+       (list-box-navigation-base-index state 1)
+       1)
+
+      :key/up
+      (next-enabled-index-from
+       options
+       (list-box-navigation-base-index state -1)
+       -1)
+
+      :key/home
+      (first-enabled-index options)
+
+      :key/end
+      (last-enabled-index options)
+
+      :default nil)))
+
+(defun list-box-visible-content-height [state ctx]
+  (or (-> ctx :view :bounds :h)
+      (list-box-preferred-height state)
+      0))
+
+(defun list-box-scroll-offset-for-index [state ctx index]
+  (let [row-height (or (:row-height state) default-row-height)
+        visible-height (list-box-visible-content-height state ctx)
+        content-height (list-box-content-height (:options state) row-height)
+        offset (or (:offset state) {:x 0 :y 0})
+        offset-y (or (:y offset) 0)
+        row-top (* index row-height)
+        row-bottom (+ row-top row-height)
+        visible-bottom (+ offset-y visible-height)
+        max-offset (max 0 (- content-height visible-height))
+        next-y (cond
+                 (< row-top offset-y)
+                 row-top
+
+                 (> row-bottom visible-bottom)
+                 (- row-bottom visible-height)
+
+                 :default
+                 offset-y)]
+    (assoc offset :y (clamp next-y 0 max-offset))))
+
+(defun list-box-change-payload [state selected index]
+  {:selected-indices selected
+   :selected-values (selected-values-for (:options state) selected)
+   :value (option-value-at (:options state) index)})
+
+(defun list-box-apply-keyboard-selection [state index ctx]
+  (if (enabled-option-index? (:options state) index)
+    (let [selected [index]
+          changed? (selection-changed? (:selected-indices state) selected)
+          payload (list-box-change-payload state selected index)
+          next-state (assoc (assoc (assoc state
+                                          :selected-indices selected)
+                                   :selected-values (:selected-values payload))
+                            :anchor-index index)
+          next-state (assoc next-state
+                            :offset
+                            (list-box-scroll-offset-for-index
+                             next-state
+                             ctx
+                             index))]
+      (do
+        (when changed?
+          (ui/emit! (:view ctx) :list-box/change payload))
+        next-state))
+    state))
+
+(defun list-box-on-key-down [state event ctx]
+  (if (:disabled? state)
+    state
+    (let [index (list-box-keyboard-target-index state (:key event))]
+      (if (nil? index)
+        state
+        (do
+          (ui/stop-propagation! event)
+          (list-box-apply-keyboard-selection state index ctx))))))
 
 (defun list-box-reorder-drag-policy [threshold]
   {:start {:mode :threshold
@@ -492,6 +607,7 @@
                      :content-state
                      (list-box-content-state state))
               ctx))
+   :on-key-down list-box-on-key-down
    :on {:list-box/item-click (fn [state event ctx]
                               (if (:reorder-drag state)
                                 (do

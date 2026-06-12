@@ -26,7 +26,7 @@
                                        :height 200}}]})]})")
 
 (deftest fill_sized_scroll_pane_does_not_prefer_full_content_height
-  (let [app (runtime/make-app {:package-root "lib/pixils"
+  (let [app (runtime/make-app {:package-root "../.."
                                :buffer-width 160
                                :buffer-height 120
                                :render-backend false})]

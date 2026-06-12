@@ -1,0 +1,109 @@
+(ns pixils.ui.list-box-test
+  (:require proof.core
+            [pixils.ui.list-box :as list-box]
+            [pixils.test.runtime :as runtime]))
+
+(defun settle-layout! [app]
+  (runtime/update! app)
+  (runtime/layout! app)
+  (runtime/update! app)
+  (runtime/layout! app)
+  app)
+
+(defun press-key! [app key]
+  (runtime/key-down! app key)
+  (runtime/update! app)
+  (runtime/key-up! app key)
+  (runtime/update! app)
+  app)
+
+(defun list-box-keyboard-probe-source []
+  "(ns pixils.test.list-box-keyboard-probe
+     (:require pixils
+               [pixils.ui :as ui]
+               [pixils.ui.list-box :as list-box]))
+
+   (pixils/defmode root-mode
+     {:init (fn [state ctx]
+              {:selected [0]
+               :last-change nil
+               :focused? false})
+      :update (fn [state ctx]
+                (do
+                  (when (not (:focused? state))
+                    (ui/focus! (head (ui/children ctx))))
+                  (assoc state :focused? true)))
+      :on {:list-box/change
+           (fn [state event ctx]
+             (assoc (assoc state
+                           :selected (:selected-indices (:payload event)))
+                    :last-change (:payload event)))}
+      :on-key-down (fn [state event ctx]
+                     (if (= :key/down (:key event))
+                       (assoc state :root-key-down true)
+                       state))
+      :children [(list-box/make
+                  {:options [{:value :a :label \"Alpha\"}
+                             {:value :b :label \"Beta\" :disabled? true}
+                             {:value :c :label \"Gamma\"}
+                             {:value :d :label \"Delta\"}
+                             {:value :e :label \"Epsilon\"}]
+                   :style {:width 100}
+                   :row-height 10
+                   :visible-rows 2
+                   :content-width 100
+                   :selected-indices (ui/bind-state :selected)})]})")
+
+(deftest list-box-keyboard-target-skips-disabled-options
+  (is (= 2
+         (list-box/list-box-keyboard-target-index
+          {:options [{:value :a}
+                     {:value :b :disabled? true}
+                     {:value :c}]
+           :selected-indices [0]
+           :anchor-index 0}
+          :key/down))))
+
+(deftest list-box-arrow-key-navigation-selects-next-enabled-item
+  (let [app (runtime/make-app {:package-root "../.."
+                               :buffer-width 160
+                               :buffer-height 120
+                               :render-backend false})]
+    (runtime/eval! app (list-box-keyboard-probe-source))
+    (runtime/push-mode! app 'root-mode)
+    (settle-layout! app)
+    (do
+      (is (= true (-> (runtime/find-view app "ui/list-box")
+                      :interaction
+                      :focused)))
+      (is (= 5 (count (:options
+                       (runtime/view-state
+                        (runtime/find-view app "ui/list-box"))))))
+      (is (= 0 (:anchor-index
+                (runtime/view-state
+                 (runtime/find-view app "ui/list-box")))))
+      (press-key! app :down)
+      (let [state (runtime/view-state (runtime/find-view app "ui/list-box"))
+            root-state (runtime/active-state app)]
+        (is (= nil (:root-key-down root-state)))
+        (is (= [2] (:selected-indices state)))
+        (is (= 2 (:anchor-index state)))
+        (is (= [2] (:selected root-state)))
+        (is (= :c (-> root-state :last-change :value)))
+        (is (= [:c] (-> root-state :last-change :selected-values)))))))
+
+(deftest list-box-arrow-key-navigation-scrolls_selected_row_into_view
+  (let [app (runtime/make-app {:package-root "../.."
+                               :buffer-width 160
+                               :buffer-height 120
+                               :render-backend false})]
+    (runtime/eval! app (list-box-keyboard-probe-source))
+    (runtime/push-mode! app 'root-mode)
+    (settle-layout! app)
+    (do
+      (press-key! app :down)
+      (press-key! app :down)
+      (press-key! app :down)
+      (let [state (runtime/view-state (runtime/find-view app "ui/list-box"))]
+        (is (= [4] (:selected-indices state)))
+        (is (= 30 (-> state :offset :y)))))))
