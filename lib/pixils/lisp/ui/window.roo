@@ -100,6 +100,8 @@
     {:w (known-window-size-axis external-bounds style bounds :width :w)
      :h (known-window-size-axis external-bounds style bounds :height :h)}))
 
+(def pending-window-position {:x -100000 :y -100000})
+
 (defun centered-window-position [ctx]
   (let [buffer (:buffer-size ctx)
         size (known-window-size ctx)
@@ -132,11 +134,10 @@
   (if (or (:window/explicit-position? state)
           (:window/moved? state))
     (or (:position state) {:x 0 :y 0})
-    (constrained-window-position
-     (or (centered-window-position ctx)
-         (:position state)
-         {:x 0 :y 0})
-     ctx)))
+    (let [centered (centered-window-position ctx)]
+      (if centered
+        (constrained-window-position centered ctx)
+        (:position state)))))
 
 (defcomponent ui/window-control-button
   {})
@@ -167,19 +168,21 @@
   {:focusable true
    :update (fn [state ctx]
              (let [pos (window-position state ctx)
-                   next-state (if (= pos (:position state))
+                   draw-pos (or pos pending-window-position)
+                   next-state (if (or (nil? pos)
+                                      (= pos (:position state)))
                                 state
                                 (assoc state :position pos))
                    view (:view ctx)
                    style (:style view)]
                (when (or (nil? style)
                          (not (= (:position style) :absolute))
-                         (not (= (:left style) (:x pos)))
-                         (not (= (:top style) (:y pos))))
+                         (not (= (:left style) (:x draw-pos)))
+                         (not (= (:top style) (:y draw-pos))))
                  (ui/style! view
                             {:position :absolute
-                             :left (:x pos)
-                             :top (:y pos)}))
+                             :left (:x draw-pos)
+                             :top (:y draw-pos)}))
                next-state))
    :on {:window/move-by (fn [state event ctx]
                           (ui/stop-propagation! event)

@@ -99,6 +99,20 @@
                    :title-bar {:title \"Centered\"}
                    :body [{:mode 'probe-body}]})]})")
 
+(defun natural-size-centered-window-probe-source []
+  "(ns pixils.test.natural-size-centered-window-probe
+     (:require pixils
+               pixils.ui.window))
+
+   (pixils/defcomponent probe-body
+     {:style {:width 80
+              :height 40}})
+
+   (pixils/defmode root-mode
+     {:children [(pixils.ui.window/make
+                  {:title-bar {:title \"Natural\"}
+                   :body [{:mode 'probe-body}]})]})")
+
 (defun body-style-window-probe-source []
   "(ns pixils.test.body-style-window-probe
      (:require pixils
@@ -331,6 +345,30 @@
       (is (= 32 (:y (:position state))))
       (is (= 40 (:x (:bounds window))))
       (is (= 32 (:y (:bounds window)))))))
+
+(deftest implicit-natural-size-window-stays-offscreen-until-it-can-center
+  (let [app (runtime/make-app {:package-root "../.."
+                               :buffer-width 160
+                               :buffer-height 120
+                               :render-backend false})]
+    (runtime/eval! app (natural-size-centered-window-probe-source))
+    (runtime/push-mode! app 'root-mode)
+    (runtime/update! app)
+    (runtime/layout! app)
+    (let [first-window (runtime/find-view app "ui/window")
+          first-state (runtime/view-state first-window)]
+      (is (= false (:window/explicit-position? first-state)))
+      (is (= nil (:position first-state)))
+      (is (< (:x (:bounds first-window)) 0))
+      (is (< (:y (:bounds first-window)) 0)))
+    (runtime/update! app)
+    (runtime/layout! app)
+    (let [centered-window (runtime/find-view app "ui/window")
+          centered-state (runtime/view-state centered-window)]
+      (is (> (:x (:position centered-state)) 0))
+      (is (> (:y (:position centered-state)) 0))
+      (is (= (:x (:position centered-state)) (:x (:bounds centered-window))))
+      (is (= (:y (:position centered-state)) (:y (:bounds centered-window)))))))
 
 (deftest scaled-window-without-explicit-position-centers-visual-bounds
   (let [app (runtime/make-app {:package-root "../.."
