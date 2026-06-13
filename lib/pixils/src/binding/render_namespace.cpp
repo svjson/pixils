@@ -39,6 +39,7 @@ namespace Pixils::Script
     SHKEY(SOURCE, "source");
     SHKEY(TARGET, "target");
     SHKEY(OPACITY, "opacity");
+    SHKEY(BLEND_MODE, "blend-mode");
     SHKEY(FLIP_X, "flip-x?");
     SHKEY(FLIP_Y, "flip-y?");
   } // namespace MapKey
@@ -70,6 +71,7 @@ namespace Pixils::Script
                dict_contains(value, std::get<std::string>(MapKey::SCALE->value)) ||
                dict_contains(value, std::get<std::string>(MapKey::SOURCE->value)) ||
                dict_contains(value, std::get<std::string>(MapKey::OPACITY->value)) ||
+               dict_contains(value, std::get<std::string>(MapKey::BLEND_MODE->value)) ||
                dict_contains(value, std::get<std::string>(MapKey::ROTATION->value)) ||
                dict_contains(value, std::get<std::string>(MapKey::FLIP_X->value)) ||
                dict_contains(value, std::get<std::string>(MapKey::FLIP_Y->value)) ||
@@ -143,6 +145,35 @@ namespace Pixils::Script
           return opacity_to_alpha(opts.f32(std::get<std::string>(MapKey::OPACITY->value)));
         }
         return 255;
+      }
+
+      SDL_BlendMode erase_alpha_blend_mode()
+      {
+        static SDL_BlendMode mode =
+          SDL_ComposeCustomBlendMode(SDL_BLENDFACTOR_ZERO,
+                                     SDL_BLENDFACTOR_ONE,
+                                     SDL_BLENDOPERATION_ADD,
+                                     SDL_BLENDFACTOR_ZERO,
+                                     SDL_BLENDFACTOR_ONE_MINUS_SRC_ALPHA,
+                                     SDL_BLENDOPERATION_ADD);
+        return mode;
+      }
+
+      SDL_BlendMode image_blend_mode(Roo::MapSchema::Inspector& opts)
+      {
+        auto value = opts.val(std::get<std::string>(MapKey::BLEND_MODE->value));
+        if (!value || value->type == Roo::Value::Type::NIL) return SDL_BLENDMODE_BLEND;
+        if (value->type != Roo::Value::Type::KEYWORD)
+        {
+          throw Roo::TypeError("image!: :blend-mode must be a keyword.");
+        }
+
+        std::string mode = value->str();
+        if (mode == "blend") return SDL_BLENDMODE_BLEND;
+        if (mode == "none") return SDL_BLENDMODE_NONE;
+        if (mode == "erase-alpha") return erase_alpha_blend_mode();
+
+        throw Roo::TypeError("image!: unsupported :blend-mode: " + mode);
       }
 
       std::optional<Rect> intersect_clip_rect(const std::optional<Rect>& current,
@@ -297,6 +328,7 @@ namespace Pixils::Script
                                                        {"clip-rect", &HostType::RECT},
                                                        {"scale", &Roo::Type::NUMBER},
                                                        {"opacity", &Roo::Type::NUMBER},
+                                                       {"blend-mode", &Roo::Type::KEYWORD},
                                                        {"rotation", &Roo::Type::NUMBER},
                                                        {"source", &HostType::RECT},
                                                        {"repeat-x?", &Roo::Type::BOOL},
@@ -333,6 +365,7 @@ namespace Pixils::Script
         bool repeat_x = opts.boolean(std::get<std::string>(MapKey::REPEAT_X->value), false);
         bool repeat_y = opts.boolean(std::get<std::string>(MapKey::REPEAT_Y->value), false);
         Uint8 alpha = image_opacity_alpha(opts);
+        SDL_BlendMode blend_mode = image_blend_mode(opts);
         std::optional<SDL_Rect> source_rect = std::nullopt;
         if (auto source = opts.val(std::get<std::string>(MapKey::SOURCE->value));
             source && source->type != Roo::Value::Type::NIL)
@@ -385,6 +418,10 @@ namespace Pixils::Script
           effective_bounds = target.rect;
         }
 
+        if (blend_mode != SDL_BLENDMODE_BLEND)
+        {
+          SDL_SetTextureBlendMode(texture, blend_mode);
+        }
         SDL_SetTextureAlphaMod(texture, alpha);
         try
         {
@@ -401,10 +438,18 @@ namespace Pixils::Script
         catch (...)
         {
           if (alpha != 255) SDL_SetTextureAlphaMod(texture, 255);
+          if (blend_mode != SDL_BLENDMODE_BLEND)
+          {
+            SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_BLEND);
+          }
           if (requested_clip) rc.set_clip_rect(previous_clip);
           throw;
         }
         if (alpha != 255) SDL_SetTextureAlphaMod(texture, 255);
+        if (blend_mode != SDL_BLENDMODE_BLEND)
+        {
+          SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_BLEND);
+        }
         if (requested_clip) rc.set_clip_rect(previous_clip);
       }
 

@@ -70,6 +70,7 @@ namespace Pixils::Script
      * | :repeat-x?   | Repeat copies horizontally                                    |
      * | :repeat-y?   | Repeat copies vertically                                      |
      * | :opacity     | Alpha multiplier from 0.0 to 1.0                              |
+     * | :blend-mode  | :blend, :none, or :erase-alpha                                |
      * | :rotation    | Rotation in radians                                           |
      * | :flip-x?     | Flip each copy horizontally                                   |
      * | :flip-y?     | Flip each copy vertically                                     |

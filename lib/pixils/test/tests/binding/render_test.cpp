@@ -446,6 +446,95 @@ TEST_F(RenderTest, image_accepts_opacity)
   EXPECT_EQ(ops[0].rendered_rect.y, 18);
 }
 
+TEST_F(RenderTest, image_accepts_erase_alpha_blend_mode)
+{
+  SDLMock::prepared_surfaces["./ship.png"] = {16, 8};
+  runtime.eval(R"(
+    (pixils/defbundle sprites {:images {:ship "ship.png"}})
+    (pixils/defmode test-mode {
+      :render (fn [state ctx]
+                (pixils.render/image!
+                  :sprites/ship
+                  {:pos {:x 12 :y 18}
+                   :blend-mode :erase-alpha}))
+    })
+  )");
+  session.push_mode("test-mode", Roo::Constant::NIL);
+
+  ASSERT_NO_THROW(session.render_mode());
+
+  auto& ops = render_target()->render_ops;
+  ASSERT_EQ(ops.size(), 1u);
+  EXPECT_EQ(ops[0].type, RenderOpType::RENDER_COPY);
+  EXPECT_EQ(ops[0].rendered_rect.x, 12);
+  EXPECT_EQ(ops[0].rendered_rect.y, 18);
+  EXPECT_EQ(ops[0].rendered_rect.w, 16);
+  EXPECT_EQ(ops[0].rendered_rect.h, 8);
+}
+
+TEST_F(RenderTest, image_rejects_unknown_blend_mode)
+{
+  SDLMock::prepared_surfaces["./ship.png"] = {16, 8};
+  EXPECT_THROW(runtime.eval(R"(
+    (pixils/defbundle sprites {:images {:ship "ship.png"}})
+    (pixils.render/image!
+      :sprites/ship
+      {:pos {:x 12 :y 18}
+       :blend-mode :screen})
+  )"),
+               Roo::RooException);
+}
+
+TEST_F(RenderTest, generated_image_can_draw_base_and_apply_alpha_masks)
+{
+  SDLMock::prepared_surfaces["./base.png"] = {16, 8};
+  SDLMock::prepared_surfaces["./mask-a.png"] = {16, 8};
+  SDLMock::prepared_surfaces["./mask-b.png"] = {16, 8};
+  runtime.eval(R"(
+    (pixils/defbundle sprites
+      {:images {:base "base.png"
+                :mask-a "mask-a.png"
+                :mask-b "mask-b.png"}})
+    (pixils.resource/create-bundle! :generated)
+    (pixils.resource/create-image!
+      :generated/composite
+      {:size {:w 16 :h 8}}
+      (fn []
+        (pixils.render/image!
+          :sprites/base
+          {:target {:x 0 :y 0 :w 16 :h 8}})
+        (pixils.render/image!
+          :sprites/mask-a
+          {:target {:x 0 :y 0 :w 16 :h 8}
+           :blend-mode :erase-alpha})
+        (pixils.render/image!
+          :sprites/mask-b
+          {:target {:x 0 :y 0 :w 16 :h 8}
+           :blend-mode :erase-alpha})))
+    (pixils/defmode test-mode {
+      :render (fn [state ctx]
+                (pixils.render/image!
+                  :generated/composite
+                  {:pos {:x 4 :y 5}}))
+    })
+  )");
+  session.push_mode("test-mode", Roo::Constant::NIL);
+
+  ASSERT_NO_THROW(session.render_mode());
+
+  auto& ops = render_target()->render_ops;
+  ASSERT_EQ(ops.size(), 1u);
+  EXPECT_EQ(ops[0].type, RenderOpType::RENDER_COPY);
+  EXPECT_EQ(ops[0].rendered_rect.x, 4);
+  EXPECT_EQ(ops[0].rendered_rect.y, 5);
+  EXPECT_EQ(ops[0].rendered_rect.w, 16);
+  EXPECT_EQ(ops[0].rendered_rect.h, 8);
+  ASSERT_EQ(ops[0].sub_ops.size(), 3u);
+  EXPECT_EQ(ops[0].sub_ops[0].rendered_rect.w, 16);
+  EXPECT_EQ(ops[0].sub_ops[1].rendered_rect.w, 16);
+  EXPECT_EQ(ops[0].sub_ops[2].rendered_rect.w, 16);
+}
+
 TEST_F(RenderTest, image_missing_asset_is_noop)
 {
   runtime.eval(R"(
