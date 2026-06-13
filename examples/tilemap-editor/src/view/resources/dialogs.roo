@@ -58,6 +58,17 @@
       :result-event :resource/file-dialog-result})
     state))
 
+(defun open-image-replace-file-dialog! [state ctx]
+  (do
+    (file-dialog/open-file-dialog!
+     ctx
+     {:title "Replace Image Resource File"
+      :mode :file-dialog/open
+      :path (image-file-dialog-path state)
+      :filters image-file-filters
+      :result-event :resource/replace-file-dialog-result})
+    state))
+
 (defun open-image-metadata-dialog! [state ctx operation opts]
   (do
     (push-mode! 'image-resource-metadata-dialog-modal
@@ -97,6 +108,15 @@
         :resource-name (:name resource)
         :file-name (:file-name resource)
         :transparency-color (:transparency-color resource)})
+      state)))
+
+(defun open-selected-image-replace-file-dialog! [state ctx]
+  (let [resource (selected-resource (project-image-resources
+                                     (:resources state)
+                                     (:selected-resource-bundle state))
+                                    (:selected-image-resource state))]
+    (if resource
+      (open-image-replace-file-dialog! state ctx)
       state)))
 
 (defun open-selected-bundle-dialog! [state ctx bundle-id]

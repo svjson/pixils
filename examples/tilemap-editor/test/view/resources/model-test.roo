@@ -271,6 +271,33 @@
           :decor
           :decor-v2))))
 
+(deftest image-resource-replace-file-keeps_resource_key_and_metadata
+  (res/create-bundle! :terrain-assets)
+  (res/add-image! :terrain-assets/tiles {:file-name "old.png"})
+  (let [state (resources/replace-image-resource-file!
+               {:resources {:bundles {:terrain-assets
+                                      {:images {:tiles
+                                                {:file-name "old.png"
+                                                 :name "Tiles"
+                                                 :transparency-color "#5a5268"}}}}}
+                :tilesets [{:id :terrain
+                            :tiles [{:type :sprite
+                                     :image :terrain-assets/tiles}]}]
+                :selected-resource-bundle :terrain-assets
+                :selected-image-resource :tiles
+                :selected-image-resources [:tiles]}
+               {:bundle-id :terrain-assets
+                :resource-id :tiles
+                :file-name "new.png"})]
+    (is (= {:file-name "new.png"
+            :name "Tiles"
+            :transparency-color "#5a5268"}
+           (get-in state [:resources :bundles :terrain-assets :images :tiles])))
+    (is (= :tiles (:selected-image-resource state)))
+    (is (= [:tiles] (:selected-image-resources state)))
+    (is (= :terrain-assets/tiles
+           (get-in state [:tilesets 0 :tiles 0 :image])))))
+
 (deftest image-resource-move-transfers_dependency_and_updates_project_references
   (let [state (resources/move-image-resource!
                {:selected-map-id :map/one

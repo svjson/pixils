@@ -38,6 +38,9 @@
                                 state))
         :resource/edit-image (fn [state event ctx]
                                (open-selected-image-metadata-dialog! state ctx))
+        :resource/replace-image
+        (fn [state event ctx]
+          (open-selected-image-replace-file-dialog! state ctx))
         :resource/move-image-to-bundle
         (fn [state event ctx]
           (move-image-resource! state (:payload event)))
@@ -65,8 +68,15 @@
                 :edit (open-selected-image-metadata-dialog!
                        (assoc state
                               :selected-resource-bundle (:bundle-id payload)
-                              :selected-image-resource (:resource-id payload))
+                              :selected-image-resource (:resource-id payload)
+                              :selected-image-resources [(:resource-id payload)])
                        ctx)
+                :replace (open-selected-image-replace-file-dialog!
+                          (assoc state
+                                 :selected-resource-bundle (:bundle-id payload)
+                                 :selected-image-resource (:resource-id payload)
+                                 :selected-image-resources [(:resource-id payload)])
+                          ctx)
                 :delete (open-image-resources-delete-confirm-dialog!
                          state
                          ctx
@@ -98,6 +108,16 @@
                {:bundle-id (:selected-resource-bundle state)
                 :resource-id (default-resource-id (:path payload))
                 :resource-name (default-resource-name (:path payload))
+                :file-name (:path payload)})
+              state)))
+        :resource/replace-file-dialog-result
+        (fn [state event ctx]
+          (let [payload (:payload event)]
+            (if (image-file-dialog-result? payload)
+              (replace-image-resource-file!
+               (assoc state :last-image-file-directory (:directory payload))
+               {:bundle-id (:selected-resource-bundle state)
+                :resource-id (:selected-image-resource state)
                 :file-name (:path payload)})
               state)))
         :resource/bundle-dialog-result

@@ -45,9 +45,12 @@
 (deftest image-resource-context-menu-disables_edit_for_multi_selection
   (let [menu (panels/image-resource-context-menu [:tiles :decor])
         edit-item (head (:items menu))
-        delete-item (nth (:items menu) 1)]
+        replace-item (nth (:items menu) 1)
+        delete-item (nth (:items menu) 2)]
     (is (= true (:disabled? edit-item)))
+    (is (= true (:disabled? replace-item)))
     (is (not= true (:disabled? delete-item)))
+    (is (= [:tiles :decor] (-> replace-item :payload :resource-ids)))
     (is (= [:tiles :decor] (-> delete-item :payload :resource-ids)))))
 
 (deftest image-resource-context-menu-targets_selected_resources_when_row_is_selected

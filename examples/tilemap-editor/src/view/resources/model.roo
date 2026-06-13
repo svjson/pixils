@@ -611,6 +611,28 @@
                                           resource-id))))))
       state)))
 
+(defun replace-image-resource-file! [state payload]
+  (let [bundle-id (:bundle-id payload)
+        resource-id (:resource-id payload)
+        file-name (:file-name payload)
+        dependency (get-in state [:resources :bundles bundle-id :images resource-id])]
+    (if (and bundle-id
+             resource-id
+             dependency
+             (not (blank? file-name)))
+      (let [key (image-resource-key bundle-id resource-id)
+            dependency (assoc dependency :file-name file-name)]
+        (do
+          (res/remove-image! key)
+          (res/add-image! key (runtime-image-dependency dependency))
+          (assoc (assoc-in state
+                           [:resources :bundles bundle-id :images resource-id]
+                           dependency)
+                 :selected-resource-bundle bundle-id
+                 :selected-image-resource resource-id
+                 :selected-image-resources [resource-id])))
+      state)))
+
 (defun apply-image-metadata-dialog-result [state payload]
   (if (= (:type payload) :confirm)
     (case (:operation payload)

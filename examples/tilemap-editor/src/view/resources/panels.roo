@@ -36,6 +36,12 @@
             :payload {:kind :image
                       :resource-ids resource-ids
                       :command :edit}}
+           {:label "Replace"
+            :disabled? edit-disabled?
+            :action :resource/context-dummy
+            :payload {:kind :image
+                      :resource-ids resource-ids
+                      :command :replace}}
            {:label "Delete"
             :action :resource/context-dummy
             :payload {:kind :image
@@ -425,6 +431,17 @@
                            (do
                              (ui/emit! (:view ctx)
                                        :resource/edit-image)
+                             state))}
+              {:mode 'ui/button
+               :class :ui/toolbar-button
+               :style {:width :shrink
+                       :height 20}
+               :state {:label "Replace"
+                       :disabled? (ui/bind-state :edit-disabled?)}
+               :on-click (fn [state event ctx]
+                           (do
+                             (ui/emit! (:view ctx)
+                                       :resource/replace-image)
                              state))}
               {:mode 'ui/text
                :class :ui/muted
