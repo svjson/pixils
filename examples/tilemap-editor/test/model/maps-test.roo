@@ -113,8 +113,32 @@
                                   "map/two"
                                   "Two")]
     (is (= :map/two-2 (:selected-map-id state)))
-    (is (= "Two 2" (:selected-map-label state)))
+    (is (= "Two" (:selected-map-label state)))
     (is (= :edited (get-in state [:layers 0 :tiles 0 0])))))
+
+(deftest duplicate-map-uses_requested_id_and_name_and_preserves_layers
+  (let [source-layer (assoc (map-layer :scene/detail :rock)
+                            :label "Detail"
+                            :terrain-signatures [[:sig]]
+                            :source-mask [[true]])
+        state (assoc (multi-map-state)
+                     :layers [source-layer]
+                     :selected-layer-profile-id :default)
+        state (maps/duplicate-map state
+                                  :map/one
+                                  "map/copy"
+                                  "Copy")
+        source-map (nth (:maps state) 0)
+        duplicate-map (nth (:maps state) 2)]
+    (is (= :map/copy (:selected-map-id state)))
+    (is (= "Copy" (:selected-map-label state)))
+    (is (= :map/copy (:id duplicate-map)))
+    (is (= "Copy" (:label duplicate-map)))
+    (is (= (:layers source-map)
+           (:layers duplicate-map)))
+    (is (= :scene/detail (get-in duplicate-map [:layers 0 :id])))
+    (is (= "Detail" (get-in duplicate-map [:layers 0 :label])))
+    (is (= :rock (get-in duplicate-map [:layers 0 :tiles 0 0])))))
 
 (deftest delete-map-keeps_at_least_one_map
   (let [state (maps/delete-map (multi-map-state) :map/one)]

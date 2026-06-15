@@ -325,10 +325,7 @@
   (let [state (commit-active-map state)
         maps (or (:maps state) [])
         source (data/selected-map-document maps map-id)
-        label (unique-map-label-from maps
-                                     (or label (str (:label source) " Copy"))
-                                     nil
-                                     nil)
+        label (or label (str (:label source) " Copy"))
         requested-id (map-id-from-text requested-id label)
         id (unique-map-id-from maps requested-id nil nil)
         map-document (assoc source :id id :label label)
