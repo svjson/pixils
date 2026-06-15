@@ -161,6 +161,9 @@
    :rulesets (:rulesets input)
    :tile-substitution-rules (:tile-substitution-rules input)})
 
+(defun map-canvas-render-content-input [input]
+  (dissoc input :hidden-layer-indices))
+
 (defun hidden-source-layer-ids [input]
   (reduce (or (:hidden-layer-indices input) [])
           []
@@ -399,6 +402,8 @@
         signature (map-canvas-render-input-signature input)]
     (if (and (:render-map state)
              (not (:render-map-dirty? state))
+             (= (map-canvas-render-content-input input)
+                (map-canvas-render-content-input (:render-map-input state)))
              (= signature (:render-map-input-signature state)))
       (assoc state
              :render-map-input input

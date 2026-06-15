@@ -41,6 +41,13 @@
             :action :map/context-command
             :payload {:command :duplicate}}
            :separator
+           {:label "Flip Horizontal"
+            :action :map/context-command
+            :payload {:command :flip-horizontal}}
+           {:label "Flip Vertical"
+            :action :map/context-command
+            :payload {:command :flip-vertical}}
+           :separator
            {:label "Delete Map"
             :action :map/context-command
             :disabled? (<= (count (or maps [])) 1)
@@ -221,6 +228,12 @@
 
                        :duplicate
                        (open-map-duplicate-dialog! state ctx)
+
+                       :flip-horizontal
+                       (tilemap/flip-map state :horizontal)
+
+                       :flip-vertical
+                       (tilemap/flip-map state :vertical)
 
                        :delete
                        (if (> (count (or (:maps state) [])) 1)

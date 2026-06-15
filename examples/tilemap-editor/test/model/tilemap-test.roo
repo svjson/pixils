@@ -172,6 +172,79 @@
     (is (= [[{:center :a} nil nil]]
            (get-in resized [:layers 0 :terrain-signatures])))))
 
+(deftest tilemap-flip-map-horizontal-mirrors_all_layer_matrices
+  (let [state {:map-width 3
+               :map-height 2
+               :show-terrain-rules? false
+               :map-selection {:active? true}
+               :map-line {:active? true}
+               :layers [{:id :ground
+                         :label "Ground"
+                         :tiles [[:a :b :c]
+                                 [:d :e :f]]
+                         :terrain-signatures [[:a-s :b-s :c-s]
+                                              [:d-s :e-s :f-s]]
+                         :source-mask [[true false false]
+                                       [false true true]]}
+                        {:id :props
+                         :label "Props"
+                         :tiles [[:crate nil :rock]
+                                 [nil :coin nil]]}]}
+        flipped (tilemap/flip-map state :horizontal)]
+    (is (= :ground (get-in flipped [:layers 0 :id])))
+    (is (= "Ground" (get-in flipped [:layers 0 :label])))
+    (is (= [[:c :b :a]
+            [:f :e :d]]
+           (get-in flipped [:layers 0 :tiles])))
+    (is (= [[:c-s :b-s :a-s]
+            [:f-s :e-s :d-s]]
+           (get-in flipped [:layers 0 :terrain-signatures])))
+    (is (= [[false false true]
+            [true true false]]
+           (get-in flipped [:layers 0 :source-mask])))
+    (is (= [[:rock nil :crate]
+            [nil :coin nil]]
+           (get-in flipped [:layers 1 :tiles])))
+    (is (= nil (:map-selection flipped)))
+    (is (= nil (:map-line flipped)))
+    (is (= true (:render-map-dirty? flipped)))))
+
+(deftest tilemap-flip-map-vertical-mirrors_all_layer_matrices
+  (let [state {:map-width 2
+               :map-height 3
+               :show-terrain-rules? false
+               :layers [{:id :ground
+                         :tiles [[:a :b]
+                                 [:c :d]
+                                 [:e :f]]
+                         :terrain-signatures [[:a-s :b-s]
+                                              [:c-s :d-s]
+                                              [:e-s :f-s]]
+                         :source-mask [[true false]
+                                       [false false]
+                                       [false true]]}
+                        {:id :props
+                         :tiles [[:crate nil]
+                                 [nil :coin]
+                                 [:rock nil]]}]}
+        flipped (tilemap/flip-map state :vertical)]
+    (is (= [[:e :f]
+            [:c :d]
+            [:a :b]]
+           (get-in flipped [:layers 0 :tiles])))
+    (is (= [[:e-s :f-s]
+            [:c-s :d-s]
+            [:a-s :b-s]]
+           (get-in flipped [:layers 0 :terrain-signatures])))
+    (is (= [[false true]
+            [false false]
+            [true false]]
+           (get-in flipped [:layers 0 :source-mask])))
+    (is (= [[:rock nil]
+            [nil :coin]
+            [:crate nil]]
+           (get-in flipped [:layers 1 :tiles])))))
+
 (deftest tilemap-position-uses_current_map_tile_size
   (let [state {:map-width 2
                :map-height 2

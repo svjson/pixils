@@ -29,6 +29,14 @@
     (is (= [:option-state :selected-map-id]
            (get-in items [2 :selected-path])))))
 
+(deftest map-context-menu-includes_flip_commands
+  (let [items (:items (controls/map-context-menu [{:id :map/main}
+                                                  {:id :map/cave}]))]
+    (is (= "Flip Horizontal" (get-in items [3 :label])))
+    (is (= :flip-horizontal (get-in items [3 :payload :command])))
+    (is (= "Flip Vertical" (get-in items [4 :label])))
+    (is (= :flip-vertical (get-in items [4 :payload :command])))))
+
 (deftest map-workspace-panel-wraps_body_with_title_and_chooser
   (let [panel (controls/make-map-workspace-panel
                {:state {:maps []

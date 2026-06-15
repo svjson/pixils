@@ -170,6 +170,44 @@
     (is (= :map/two (get-in state [:render-map-input :map-id])))
     (is (= :water (get-in state [:render-map :layers 0 :tiles 0 0])))))
 
+(deftest refresh-render-map-rebuilds-when_layer_content_changes_without_dirty_flag
+  (let [previous-input {:map-id :map/one
+                        :width 1
+                        :height 1
+                        :tile-size {:w 16 :h 16}
+                        :layers [{:id :base
+                                  :tileset :world
+                                  :tiles [[:grass]]}]
+                        :tilesets []
+                        :terrain-sets []
+                        :show-terrain-rules? nil
+                        :layer-profile nil
+                        :rulesets []}
+        state (canvas/refresh-map-canvas-render-map
+               {:selected-map-id :map/one
+                :map-width 1
+                :map-height 1
+                :tile-size 16
+                :layers [{:id :base
+                          :tileset :world
+                          :tiles [[:water]]}]
+                :hidden-layer-indices []
+                :tilesets []
+                :terrain-sets []
+                :rulesets []
+                :render-map {:width 1
+                             :height 1
+                             :tile-size {:w 16 :h 16}
+                             :layers [{:id :base
+                                       :tileset :world
+                                       :tiles [[:grass]]
+                                       :data-kind :tile-ref}]}
+                :render-map-input previous-input
+                :render-map-input-signature
+                (canvas/map-canvas-render-input-signature previous-input)})]
+    (is (= :water (get-in state [:render-map :layers 0 :tiles 0 0])))
+    (is (= :water (get-in state [:render-map-input :layers 0 :tiles 0 0])))))
+
 (deftest render-input-signature-changes-with-tilesets
   (let [base-input {:width 1
                     :height 1

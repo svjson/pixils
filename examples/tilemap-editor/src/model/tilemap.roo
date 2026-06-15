@@ -876,6 +876,55 @@
        (fn [layer]
          (resize-layer layer width height))))
 
+(defun reverse-items [items]
+  (reduce (or items [])
+          []
+          (fn [out item]
+            (concat [item] out))))
+
+(defun flip-row [row axis]
+  (if (= axis :horizontal)
+    (reverse-items row)
+    (or row [])))
+
+(defun flip-matrix [matrix axis]
+  (let [rows (if (= axis :vertical)
+               (reverse-items matrix)
+               (or matrix []))]
+    (map rows
+         (fn [row]
+           (flip-row row axis)))))
+
+(defun flip-layer-matrix-key [layer key axis]
+  (if (contains? layer key)
+    (assoc layer key (flip-matrix (get layer key) axis))
+    layer))
+
+(defun flip-layer [layer axis]
+  (-> layer
+      (flip-layer-matrix-key :tiles axis)
+      (flip-layer-matrix-key :terrain-signatures axis)
+      (flip-layer-matrix-key :source-mask axis)))
+
+(defun flip-layer-collection [layers axis]
+  (map (or layers [])
+       (fn [layer]
+         (flip-layer layer axis))))
+
+(defun flip-map [state axis]
+  (let [state (assoc state
+                     :layers (flip-layer-collection (:layers state) axis)
+                     :terrain-stamp-layers []
+                     :terrain-stamp-replacements []
+                     :map-selection nil
+                     :map-line nil
+                     :render-map-dirty? true
+                     :render-dirty-positions []
+                     :render-dirty-position-index {})]
+    (if (:show-terrain-rules? state)
+      (rebuild-terrain-stamp-preview state)
+      state)))
+
 (defun set-map-dimensions [state width height & tile-size]
   (let [width (data/map-dimension width data/map-width)
         height (data/map-dimension height data/map-height)
