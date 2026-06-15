@@ -16,6 +16,7 @@
 
 (def tile-palette-row-height 22)
 (def tile-palette-content-width 160)
+(def tile-palette-scrollbar-size 14)
 
 (defun selected-layer [state]
   (let [layers (or (:layers state) [])]
@@ -116,6 +117,41 @@
            :disabled? disabled?
            :selected-indices (selected-tile-indices source-state))))
 
+(defun tile-select-grid-row-count [item-count columns]
+  (let [columns (max 1 (or columns 1))
+        item-count (max 0 (or item-count 0))]
+    (if (= item-count 0)
+      0
+      (int (/ (+ item-count (dec columns)) columns)))))
+
+(defun tile-select-grid-content-height [item-count columns]
+  (let [rows (tile-select-grid-row-count item-count columns)]
+    (if (= rows 0)
+      0
+      (let [stride (tile-grid/tile-grid-stride)
+            size tile-grid/tile-grid-cell-size]
+        (+ (* (dec rows) (:h stride))
+           (:h size))))))
+
+(defun tile-select-grid-content-size [state ctx]
+  (let [grid-state (tile-select-grid-state state)
+        options (or (:options grid-state) [])
+        bounds (-> ctx :view :bounds)
+        scrollbar-size (ui/theme-var ctx
+                                     :scrollbar-size
+                                     tile-palette-scrollbar-size)
+        content-width (max 1 (- (or (:w bounds) 1) scrollbar-size))
+        columns (tile-grid/tile-grid-columns {:w content-width})]
+    {:w content-width
+     :h (tile-select-grid-content-height (count options) columns)}))
+
+(defun tile-select-grid-scroll-content-style [state]
+  {:position :absolute
+   :left 0
+   :top (* -1 (or (:offset state) 0))
+   :width :fill
+   :height (or (:content-height state) 0)})
+
 (defcomponent tile-select-grid
   {:focusable true
    :class :ui/content
@@ -196,16 +232,74 @@
                  (for [index selection]
                    (draw-tile-select-selection! index columns)))))})
 
-(defcomponent tile-palette-list
-  {:style {:width :fill
+(defun tile-select-grid-child []
+  {:mode 'tile-select-grid
+   :style {:width :fill
            :height :fill}
-   :children [{:mode 'tile-select-grid
-               :state {:selected-tile (ui/bind-state :selected-tile)
+   :state {:selected-tile (ui/bind-state :selected-tile)
+           :tilesets (ui/bind-state :tilesets)
+           :terrain-sets (ui/bind-state :terrain-sets)
+           :selected-layer-index (ui/bind-state :selected-layer-index)
+           :layers (ui/bind-state :layers)
+           :disabled? (ui/bind-state :disabled?)}})
+
+(defcomponent tile-select-grid-scroll-viewport
+  {:style {:width :fill
+           :height :fill
+           :clip true}
+   :update (fn [state ctx]
+             (let [children (ui/children ctx)]
+               (do
+                 (when (> (count children) 0)
+                   (ui/style! (nth children 0)
+                              (tile-select-grid-scroll-content-style
+                               state)))
+                 state)))
+   :children [(tile-select-grid-child)]})
+
+(defcomponent tile-select-grid-scroll-pane
+  {:style {:width :fill
+           :height :fill
+           :layout {:direction :row}}
+   :init (fn [state ctx]
+           (assoc state
+                  :offset 0
+                  :content-height 0))
+   :update (fn [state ctx]
+             (let [content-size (tile-select-grid-content-size state ctx)]
+               (assoc state
+                      :content-height (:h content-size)
+                      :step (:h (tile-grid/tile-grid-stride)))))
+   :children [{:mode 'tile-select-grid-scroll-viewport
+               :state {:offset (ui/bind-state :offset)
+                       :content-height (ui/bind-state :content-height)
+                       :selected-tile (ui/bind-state :selected-tile)
                        :tilesets (ui/bind-state :tilesets)
                        :terrain-sets (ui/bind-state :terrain-sets)
                        :selected-layer-index (ui/bind-state :selected-layer-index)
                        :layers (ui/bind-state :layers)
-                       :disabled? (ui/bind-state :disabled?)}}]})
+                       :disabled? (ui/bind-state :disabled?)}}
+              {:mode 'ui/scrollbar
+               :class :scrollbar/v
+               :style {:height :fill}
+               :state {:axis :y
+                       :value (ui/bind-state :offset)
+                       :step (ui/bind-state :step)
+                       :content-size (ui/bind-state :content-height)}}]})
+
+(defun tile-palette-list-child []
+  {:mode 'tile-select-grid-scroll-pane
+   :state {:selected-tile (ui/bind-state :selected-tile)
+           :tilesets (ui/bind-state :tilesets)
+           :terrain-sets (ui/bind-state :terrain-sets)
+           :selected-layer-index (ui/bind-state :selected-layer-index)
+           :layers (ui/bind-state :layers)
+           :disabled? (ui/bind-state :disabled?)}})
+
+(defcomponent tile-palette-list
+  {:style {:width :fill
+           :height :fill}
+   :children [(tile-palette-list-child)]})
 
 (defcomponent brush-palette-row
   {:extend 'ui/list-box-item

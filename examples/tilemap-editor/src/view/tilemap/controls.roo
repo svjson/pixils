@@ -415,25 +415,44 @@
                                      (not= item index)))
       (concat hidden-layer-indices [index]))))
 
-(def layer-context-menu
-  {:settings {:mnemonics {:enabled false}}
-   :items [{:label "Rename Layer"
-            :action :layer/context-dummy
-            :payload {:command :rename}}
-           {:label "Duplicate Layer"
-            :action :layer/context-dummy
-            :payload {:command :duplicate}}
-           :separator
-           {:label "Move Up"
-            :action :layer/context-dummy
-            :payload {:command :move-up}}
-           {:label "Move Down"
-            :action :layer/context-dummy
-            :payload {:command :move-down}}
-           :separator
-           {:label "Delete Layer"
-            :action :layer/context-dummy
-            :payload {:command :delete}}]})
+(defun layer-context-menu [state]
+  (let [terrain-layer? (= :terrain (-> state :layer :data-kind))
+        has-terrain-sets? (not (empty? (or (:terrain-sets state) [])))]
+    {:settings {:mnemonics {:enabled false}}
+     :items [{:label "Rename Layer"
+              :action :layer/context-dummy
+              :payload {:command :rename}}
+             {:label "Duplicate Layer"
+              :action :layer/context-dummy
+              :payload {:command :duplicate}}
+             {:label "Change Terrain Set"
+              :action :layer/context-dummy
+              :disabled? (not (and terrain-layer? has-terrain-sets?))
+              :payload {:command :terrain-set}}
+             :separator
+             {:label "Move Up"
+              :action :layer/context-dummy
+              :payload {:command :move-up}}
+             {:label "Move Down"
+              :action :layer/context-dummy
+              :payload {:command :move-down}}
+             :separator
+             {:label "Delete Layer"
+              :action :layer/context-dummy
+              :payload {:command :delete}}]}))
+
+(defun terrain-set-label [terrain-sets terrain-set]
+  (let [item (head (filter (or terrain-sets [])
+                           (fn [item]
+                             (= (:id item) terrain-set))))]
+    (if item
+      (or (:label item) (:name item) (str (:id item)))
+      "")))
+
+(defun layer-source-label [state layer]
+  (if (= (:data-kind layer) :terrain)
+    (terrain-set-label (:terrain-sets state) (:terrain-set layer))
+    (data/tileset-label (:tilesets state) (:tileset layer))))
 
 (defun layer-name-exists? [layers name exclude-index]
   (> (count (filter (for-indexed [index layer (or layers [])]
@@ -642,6 +661,15 @@
       (> selected-index delete-index) (dec selected-index)
       :default (min delete-index (dec remaining-count)))))
 
+(defun set-layer-terrain-set [state index terrain-set-index]
+  (let [terrain-set (data/terrain-set-key (:terrain-sets state)
+                                          terrain-set-index)
+        layer (get-in state [:layers index])]
+    (if (and terrain-set
+             (= (:data-kind layer) :terrain))
+      (assoc-in state [:layers index :terrain-set] terrain-set)
+      state)))
+
 (defun layer-move-target-index [command index layer-count]
   (case command
     :move-up
@@ -660,19 +688,34 @@
 (defun selected-layer-name [layers index]
   (:label (nth layers index)))
 
+(defun selected-layer-terrain-set-index [state index]
+  (data/terrain-set-index (:terrain-sets state)
+                          (get-in state [:layers index :terrain-set])))
+
 (defun open-layer-name-dialog! [state ctx operation index title name]
-  (do
-    (push-mode! 'layer-name-dialog-modal
-                {:operation operation
-                 :index index
-                 :title title
-                 :name name
-                 :terrain-sets (:terrain-sets state)
-                 :data-kind :tile-ref
-                 :terrain-set-index 0}
-                {:origin {:view (:view ctx)
-                          :event :layer/name-dialog-result}})
-    state))
+  (let [terrain-set-operation? (= operation :terrain-set)]
+    (do
+      (push-mode! 'layer-name-dialog-modal
+                  {:operation operation
+                   :index index
+                   :title title
+                   :name name
+                   :terrain-sets (:terrain-sets state)
+                   :data-kind (if terrain-set-operation? :terrain :tile-ref)
+                   :terrain-set-index (if terrain-set-operation?
+                                        (selected-layer-terrain-set-index state index)
+                                        0)}
+                  {:origin {:view (:view ctx)
+                            :event :layer/name-dialog-result}})
+      state)))
+
+(defun open-layer-terrain-set-dialog! [state ctx index]
+  (open-layer-name-dialog! state
+                           ctx
+                           :terrain-set
+                           index
+                           "Change Terrain Set"
+                           (selected-layer-name (:layers state) index)))
 
 (defun open-layer-add-dialog! [state ctx]
   (open-layer-name-dialog! state
@@ -794,6 +837,9 @@
                  :hidden-layer-indices (shift-hidden-layer-indices-for-insert
                                         (:hidden-layer-indices state)
                                         new-index)))
+
+        :terrain-set
+        (set-layer-terrain-set state index (:terrain-set-index payload))
 
         :default
         state))
@@ -1106,13 +1152,37 @@
                        :terrain-set-disabled?
                        (ui/bind-state :terrain-set-disabled?)}}]})
 
+(defcomponent layer-data-kind-options-panel
+  {:style {:width :fill
+           :height :shrink
+           :layout {:direction :column
+                    :gap 8}}
+   :update (fn [state ctx]
+             (do
+               (assoc-in! ctx
+                          [:view :style :visibility]
+                          (if (= (:operation state) :add) :visible :none))
+               state))
+   :children [{:mode 'ui/text
+               :class :ui/muted
+               :state {:value "Layer type"}}
+              {:mode 'layer-create-kind-selector
+               :state {:data-kind (ui/bind-state :data-kind)
+                       :terrain-sets (ui/bind-state :terrain-sets)
+                       :layer-data-kind-options
+                       (ui/bind-state :layer-data-kind-options)
+                       :selected-data-kind-index
+                       (ui/bind-state :selected-data-kind-index)}}]})
+
 (defcomponent layer-create-options
   {:style {:width :fill
            :height :shrink
            :layout {:direction :column
                     :gap 8}}
    :update (fn [state ctx]
-             (let [create? (= (:operation state) :add)
+             (let [operation (:operation state)
+                   visible? (or (= operation :add)
+                                (= operation :terrain-set))
                    terrain-sets (or (:terrain-sets state) [])
                    data-kind (if (and (= (:data-kind state) :terrain)
                                       (not (empty? terrain-sets)))
@@ -1121,7 +1191,7 @@
                (do
                  (assoc-in! ctx
                             [:view :style :visibility]
-                            (if create? :visible :none))
+                            (if visible? :visible :none))
                  (assoc state
                         :data-kind data-kind
                         :terrain-set-index (or (:terrain-set-index state) 0)
@@ -1129,11 +1199,9 @@
                         (layer-data-kind-options-for terrain-sets)
                         :terrain-set-options
                         (data/terrain-set-options terrain-sets)))))
-   :children [{:mode 'ui/text
-               :class :ui/muted
-               :state {:value "Layer type"}}
-              {:mode 'layer-create-kind-selector
-               :state {:data-kind (ui/bind-state :data-kind)
+   :children [{:mode 'layer-data-kind-options-panel
+               :state {:operation (ui/bind-state :operation)
+                       :data-kind (ui/bind-state :data-kind)
                        :terrain-sets (ui/bind-state :terrain-sets)
                        :layer-data-kind-options
                        (ui/bind-state :layer-data-kind-options)
@@ -1148,6 +1216,27 @@
                        :terrain-set-disabled?
                        (ui/bind-state :terrain-set-disabled?)}}]})
 
+(defcomponent layer-name-field
+  {:style {:width :fill
+           :height :shrink
+           :layout {:direction :column
+                    :gap 8}}
+   :update (fn [state ctx]
+             (do
+               (assoc-in! ctx
+                          [:view :style :visibility]
+                          (if (= (:operation state) :terrain-set)
+                            :none
+                            :visible))
+               state))
+   :children [{:mode 'ui/text
+               :state {:value "Layer name:"}}
+              {:mode 'ui/text-input
+               :style {:width :fill
+                       :height 24}
+               :state {:value (ui/bind-state :name)
+                       :auto-focus? true}}]})
+
 (defcomponent layer-name-dialog-body
   {:class :ui/content
    :style {:width 260
@@ -1155,13 +1244,9 @@
            :padding 10
            :layout {:direction :column
                     :gap 8}}
-   :children [{:mode 'ui/text
-               :state {:value "Layer name:"}}
-              {:mode 'ui/text-input
-               :style {:width :fill
-                       :height 24}
-               :state {:value (ui/bind-state :name)
-                       :auto-focus? true}}
+   :children [{:mode 'layer-name-field
+               :state {:operation (ui/bind-state :operation)
+                       :name (ui/bind-state :name)}}
               {:mode 'layer-create-options
                :state {:operation (ui/bind-state :operation)
                        :data-kind (ui/bind-state :data-kind)
@@ -1366,8 +1451,7 @@
                       :visible? visible?
                       :visibility-label (if visible? "V" "-")
                       :layer-name (:label layer)
-                      :tileset-label (data/tileset-label (:tilesets state)
-                                                            (:tileset layer)))))
+                      :tileset-label (layer-source-label state layer))))
    :on-mouse-down (fn [state event ctx]
                     (do
                       (ui/stop-propagation! event)
@@ -1382,7 +1466,7 @@
                                :shift? false
                                :ctrl? false})
                     (when (= (:button event) :right)
-                      (menu/open-context-menu! layer-context-menu
+                      (menu/open-context-menu! (layer-context-menu state)
                                                (:global-position event)
                                                state
                                                ctx))
@@ -1413,6 +1497,7 @@
            :value index
            :layer (ui/bind-state :layers index)
            :tilesets (ui/bind-state :tilesets)
+           :terrain-sets (ui/bind-state :terrain-sets)
            :hidden-layer-indices (ui/bind-state :hidden-layer-indices)
            :selected-indices (ui/bind-state :selected-indices)}})
 
@@ -1442,8 +1527,9 @@
               :disabled? (empty? layers)
               :state {:layers (ui/bind-state :layers)
                       :tilesets (ui/bind-state :tilesets)
+                      :terrain-sets (ui/bind-state :terrain-sets)
                       :hidden-layer-indices (ui/bind-state :hidden-layer-indices)}
-              :item-state-keys [:layers :tilesets :hidden-layer-indices]
+              :item-state-keys [:layers :tilesets :terrain-sets :hidden-layer-indices]
               :selected-indices (ui/bind-state :selected-indices)
               :reorderable? true
               :reorder-visual-strategy :placeholder
@@ -1555,6 +1641,11 @@
                                                                         nil
                                                                         2))
 
+                                              :terrain-set
+                                              (open-layer-terrain-set-dialog! state
+                                                                              ctx
+                                                                              index)
+
                                               :delete
                                               (open-layer-confirm-dialog! state
                                                                           ctx
@@ -1569,6 +1660,7 @@
             :children [{:mode 'layer-list
                         :state {:layers (ui/bind-state :layers)
                                 :tilesets (ui/bind-state :tilesets)
+                                :terrain-sets (ui/bind-state :terrain-sets)
                                 :hidden-layer-indices (ui/bind-state :hidden-layer-indices)
                                 :selected-layer-index (ui/bind-state :selected-layer-index)}}]}))
 

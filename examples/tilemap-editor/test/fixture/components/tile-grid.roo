@@ -4,20 +4,29 @@
 (def cell-size 16)
 (def cell-point-offset 5)
 
-(defun index-x [index]
-  (+ cell-point-offset (* index cell-size)))
+(defun columns [grid]
+  (max 1 (int (/ (max 1 (or (-> grid :bounds :w) 1))
+                 cell-size))))
+
+(defun index-x [grid index]
+  (+ cell-point-offset (* (mod index (columns grid)) cell-size)))
+
+(defun index-y [grid index]
+  (+ cell-point-offset (* (int (/ index (columns grid))) cell-size)))
 
 (defun click-index! [app grid index opts]
   (case (:by opts)
-    :mouse/click (runtime/mouse-click-in! app grid (index-x index) cell-point-offset)
-    :default (runtime/mouse-click-in! app grid (index-x index) cell-point-offset))
+    :mouse/click (runtime/mouse-click-in! app grid (index-x grid index) (index-y grid index))
+    :default (runtime/mouse-click-in! app grid (index-x grid index) (index-y grid index)))
+  (runtime/update! app)
   (runtime/render! app)
   app)
 
 (defun right-click-index! [app grid index opts]
   (case (:by opts)
-    :mouse/right-click (runtime/mouse-click-in! app grid (index-x index) cell-point-offset :right)
-    :default (runtime/mouse-click-in! app grid (index-x index) cell-point-offset :right))
+    :mouse/right-click (runtime/mouse-click-in! app grid (index-x grid index) (index-y grid index) :right)
+    :default (runtime/mouse-click-in! app grid (index-x grid index) (index-y grid index) :right))
+  (runtime/update! app)
   (runtime/render! app)
   app)
 
@@ -27,23 +36,24 @@
                         (runtime/key-down! app :left-shift)
                         (runtime/mouse-drag-in! app
                                                 grid
-                                                (index-x from-index)
-                                                cell-point-offset
-                                                (index-x to-index)
-                                                cell-point-offset)
+                                                (index-x grid from-index)
+                                                (index-y grid from-index)
+                                                (index-x grid to-index)
+                                                (index-y grid to-index))
                         (runtime/key-up! app :left-shift))
     :mouse/drag (runtime/mouse-drag-in! app
                                         grid
-                                        (index-x from-index)
-                                        cell-point-offset
-                                        (index-x to-index)
-                                        cell-point-offset)
+                                        (index-x grid from-index)
+                                        (index-y grid from-index)
+                                        (index-x grid to-index)
+                                        (index-y grid to-index))
     :default (runtime/mouse-drag-in! app
                                      grid
-                                     (index-x from-index)
-                                     cell-point-offset
-                                     (index-x to-index)
-                                     cell-point-offset))
+                                     (index-x grid from-index)
+                                     (index-y grid from-index)
+                                     (index-x grid to-index)
+                                     (index-y grid to-index)))
+  (runtime/update! app)
   (runtime/render! app)
   app)
 

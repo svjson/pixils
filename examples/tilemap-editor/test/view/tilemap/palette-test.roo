@@ -68,6 +68,24 @@
              :selected-layer-index 0
              :selected-tile :grass})))))
 
+(deftest tile-palette-content-height-grows_by_grid_rows
+  (is (= 0 (palette/tile-select-grid-content-height 0 4)))
+  (is (= 16 (palette/tile-select-grid-content-height 4 4)))
+  (is (= 32 (palette/tile-select-grid-content-height 5 4))))
+
+(deftest tile-palette-list-wraps_grid_in_scroll-pane
+  (let [child (palette/tile-palette-list-child)]
+    (is (= 'tile-select-grid-scroll-pane (:mode child)))
+    (is (not (nil? (-> child :state :selected-tile))))))
+
+(deftest tile-palette-scroll-content-style-offsets_content
+  (let [style (palette/tile-select-grid-scroll-content-style
+               {:offset 32
+                :content-height 96})]
+    (is (= :absolute (:position style)))
+    (is (= -32 (:top style)))
+    (is (= 96 (:height style)))))
+
 (deftest brush-palette-is-disabled-when-empty
   (is (= true
          (:disabled? (:state (palette/brush-palette-list-box-child
