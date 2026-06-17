@@ -9,6 +9,9 @@
    [:key/ctrl :key/o] :project/open
    [:key/ctrl :key/s] :project/save
    [:key/ctrl :key/shift :key/s] :project/save-as
+   [:key/ctrl :key/x] :edit/cut
+   [:key/ctrl :key/c] :edit/copy
+   [:key/ctrl :key/v] :edit/paste
    [:key/ctrl :key/g] :view/toggle-grid
    [:key/ctrl :key/t] :view/toggle-terrain-rules
    [:key/ctrl :key/alt :key/p] {:action :terrain-rules/set-application
@@ -17,19 +20,13 @@
                                 :payload :paint-baked}})
 
 (defun normalized-menu-state [state]
-  (if (= (type-of state) "map")
-    {:recent-projects (or (:recent-projects state) [])
-     :show-grid? (not= (:show-grid? state) false)
-     :show-terrain-rules? (not= (:show-terrain-rules? state) false)
-     :terrain-rule-application (or (:terrain-rule-application state)
-                                   :preview)
-     :application-theme (or (:application-theme state)
-                            :pixils/windows-3)}
-    {:recent-projects (or state [])
-     :show-grid? true
-     :show-terrain-rules? true
-     :terrain-rule-application :preview
-     :application-theme :pixils/windows-3}))
+  {:recent-projects (or (:recent-projects state) [])
+   :show-grid? (not= (:show-grid? state) false)
+   :show-terrain-rules? (not= (:show-terrain-rules? state) false)
+   :terrain-rule-application (or (:terrain-rule-application state)
+                                 :preview)
+   :application-theme (or (:application-theme state)
+                          :pixils/windows-3)})
 
 (defun recent-project-label [project]
   (or (:filename project)
@@ -80,7 +77,17 @@
                       {:label "&Quit"
                        :action :app/quit}]}
              {:label "&Edit"
-              :items [{:label "Map &Dimensions..."
+              :items [{:label "Cu&t"
+                       :action :edit/cut
+                       :shortcut [:key/ctrl :key/x]}
+                      {:label "&Copy"
+                       :action :edit/copy
+                       :shortcut [:key/ctrl :key/c]}
+                      {:label "&Paste"
+                       :action :edit/paste
+                       :shortcut [:key/ctrl :key/v]}
+                      :separator
+                      {:label "Map &Dimensions..."
                        :action :map/edit-dimensions}]}
              {:label "&Options"
               :items [{:label "Show &Grid"
@@ -148,4 +155,4 @@
                                       "tilemap-editor-menu"
                                       (tilemap-editor-menu-child menu-state)))
                  (assoc state :rendered-menu-state menu-state))))
-   :children [(tilemap-editor-menu-child [])]})
+   :children [(tilemap-editor-menu-child {})]})

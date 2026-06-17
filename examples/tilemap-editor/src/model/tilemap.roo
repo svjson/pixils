@@ -230,6 +230,48 @@
                {:x (+ (:x rect) dx)
                 :y (+ (:y rect) dy)})))))
 
+(defun finished-map-selection? [selection]
+  (and selection
+       (:rect selection)
+       (not (:active? selection))))
+
+(defun matrix-cell [matrix x y]
+  (nth (or (nth (or matrix []) y) []) x))
+
+(defun crop-matrix [matrix rect]
+  (dotimes [dy (:h rect)]
+    (dotimes [dx (:w rect)]
+      (matrix-cell matrix (+ (:x rect) dx) (+ (:y rect) dy)))))
+
+(defun copy-layer-region [layer index rect]
+  (let [copy {:index index
+              :id (:id layer)
+              :label (:label layer)
+              :tiles (crop-matrix (:tiles layer) rect)}
+        copy (if (contains? layer :terrain-signatures)
+               (assoc copy :terrain-signatures
+                      (crop-matrix (:terrain-signatures layer) rect))
+               copy)]
+    (if (contains? layer :source-mask)
+      (assoc copy :source-mask (crop-matrix (:source-mask layer) rect))
+      copy)))
+
+(defun copy-map-region [state selection]
+  (let [rect (:rect selection)]
+    {:type :tilemap/map-region
+     :source-map-id (:selected-map-id state)
+     :rect rect
+     :width (:w rect)
+     :height (:h rect)
+     :layers (for-indexed [index layer (or (:layers state) [])]
+               (copy-layer-region layer index rect))}))
+
+(defun copy-map-selection [state]
+  (let [selection (:map-selection state)]
+    (if (finished-map-selection? selection)
+      (assoc state :map-clipboard (copy-map-region state selection))
+      state)))
+
 (defun abs-int [value]
   (if (< value 0)
     (* value -1)
@@ -1215,6 +1257,133 @@
           state
           (fn [out pos]
             (set-map-tile out layer-index (:x pos) (:y pos) nil))))
+
+(defun clear-layer-region-key [state layer-index key positions]
+  (reduce positions
+          state
+          (fn [out pos]
+            (assoc-in out
+                      [:layers layer-index key (:y pos) (:x pos)]
+                      nil))))
+
+(defun clear-layer-region [state layer-index positions]
+  (let [layer (nth (or (:layers state) []) layer-index)
+        state (clear-layer-region-key state layer-index :tiles positions)
+        state (if (contains? layer :terrain-signatures)
+                (clear-layer-region-key state
+                                        layer-index
+                                        :terrain-signatures
+                                        positions)
+                state)]
+    (if (contains? layer :source-mask)
+      (clear-layer-region-key state layer-index :source-mask positions)
+      state)))
+
+(defun mark-map-region-content-changed [state]
+  (let [state (assoc state
+                     :terrain-stamp-layers []
+                     :terrain-stamp-replacements []
+                     :map-line nil
+                     :render-map-dirty? true
+                     :render-dirty-positions []
+                     :render-dirty-position-index {})]
+    (if (:show-terrain-rules? state)
+      (rebuild-terrain-stamp-preview state)
+      state)))
+
+(defun clear-map-region [state selection]
+  (if (finished-map-selection? selection)
+    (let [positions (map-selection-positions selection)
+          state (reduce (for-indexed [index layer (or (:layers state) [])]
+                          {:index index})
+                        state
+                        (fn [out entry]
+                          (clear-layer-region out (:index entry) positions)))]
+      (mark-map-region-content-changed state))
+    state))
+
+(defun cut-map-selection [state]
+  (let [selection (:map-selection state)
+        state (copy-map-selection state)]
+    (clear-map-region state selection)))
+
+(defun clipboard-cell-positions [clipboard]
+  (apply concat
+         (dotimes [dy (:height clipboard)]
+           (dotimes [dx (:width clipboard)]
+             {:x dx :y dy}))))
+
+(defun clipboard-layer-for-target [clipboard layer index]
+  (if (:id layer)
+    (head (filter (or (:layers clipboard) [])
+                  (fn [clipboard-layer]
+                    (= (:id clipboard-layer) (:id layer)))))
+    (nth (or (:layers clipboard) []) index)))
+
+(defun paste-map-layer-key [state layer-index clipboard-layer key target]
+  (if (contains? clipboard-layer key)
+    (reduce (clipboard-cell-positions (:map-clipboard state))
+            state
+            (fn [out pos]
+              (let [x (+ (:x target) (:x pos))
+                    y (+ (:y target) (:y pos))]
+                (if (in-map-bounds-for? out x y)
+                  (assoc-in out
+                            [:layers layer-index key y x]
+                            (get-in clipboard-layer [key (:y pos) (:x pos)]))
+                  out))))
+    state))
+
+(defun paste-map-layer [state layer-index clipboard-layer target]
+  (-> state
+      (paste-map-layer-key layer-index clipboard-layer :tiles target)
+      (paste-map-layer-key layer-index clipboard-layer :terrain-signatures target)
+      (paste-map-layer-key layer-index clipboard-layer :source-mask target)))
+
+(defun paste-target-position [state clipboard]
+  (let [selection (:map-selection state)]
+    (if (finished-map-selection? selection)
+      {:x (-> selection :rect :x)
+       :y (-> selection :rect :y)}
+      {:x (-> clipboard :rect :x)
+       :y (-> clipboard :rect :y)})))
+
+(defun clipped-paste-selection [state clipboard target]
+  (let [width (max 0 (min (:width clipboard)
+                          (- (map-width state) (:x target))))
+        height (max 0 (min (:height clipboard)
+                           (- (map-height state) (:y target))))]
+    (when (and (> width 0)
+               (> height 0))
+      {:rect {:x (:x target)
+              :y (:y target)
+              :w width
+              :h height}
+       :active? false})))
+
+(defun paste-map-clipboard [state]
+  (let [clipboard (:map-clipboard state)]
+    (if (= (:type clipboard) :tilemap/map-region)
+      (let [target (paste-target-position state clipboard)
+            state (reduce (for-indexed [index layer (or (:layers state) [])]
+                            {:index index
+                             :layer layer
+                             :clipboard-layer
+                             (clipboard-layer-for-target clipboard layer index)})
+                          state
+                          (fn [out entry]
+                            (if (:clipboard-layer entry)
+                              (paste-map-layer out
+                                               (:index entry)
+                                               (:clipboard-layer entry)
+                                               target)
+                              out)))
+            selection (clipped-paste-selection state clipboard target)
+            state (if selection
+                    (assoc state :map-selection selection)
+                    state)]
+        (mark-map-region-content-changed state))
+      state)))
 
 (defun map-edit-value-for-button [state button]
   (case button

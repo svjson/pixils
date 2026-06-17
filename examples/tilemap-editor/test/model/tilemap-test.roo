@@ -172,6 +172,111 @@
     (is (= [[{:center :a} nil nil]]
            (get-in resized [:layers 0 :terrain-signatures])))))
 
+(deftest tilemap-copy-map-selection-captures_all_layer_matrices
+  (let [state {:selected-map-id :map/one
+               :map-width 3
+               :map-height 2
+               :map-selection {:rect {:x 1 :y 0 :w 2 :h 2}
+                               :active? false}
+               :layers [{:id :ground
+                         :label "Ground"
+                         :tiles [[:a :b :c]
+                                 [:d :e :f]]
+                         :terrain-signatures [[:a-s :b-s :c-s]
+                                              [:d-s :e-s :f-s]]
+                         :source-mask [[false true false]
+                                       [true false true]]}
+                        {:id :props
+                         :label "Props"
+                         :tiles [[:crate nil :rock]
+                                 [nil :coin nil]]}]}
+        copied (:map-clipboard (tilemap/copy-map-selection state))]
+    (is (= :tilemap/map-region (:type copied)))
+    (is (= :map/one (:source-map-id copied)))
+    (is (= {:x 1 :y 0 :w 2 :h 2} (:rect copied)))
+    (is (= [[:b :c]
+            [:e :f]]
+           (get-in copied [:layers 0 :tiles])))
+    (is (= [[:b-s :c-s]
+            [:e-s :f-s]]
+           (get-in copied [:layers 0 :terrain-signatures])))
+    (is (= [[true false]
+            [false true]]
+           (get-in copied [:layers 0 :source-mask])))
+    (is (= [[nil :rock]
+            [:coin nil]]
+           (get-in copied [:layers 1 :tiles])))))
+
+(deftest tilemap-cut-map-selection_copies_and_clears_all_layers
+  (let [state {:map-width 3
+               :map-height 2
+               :show-terrain-rules? false
+               :map-selection {:rect {:x 1 :y 0 :w 2 :h 1}
+                               :active? false}
+               :layers [{:id :ground
+                         :tiles [[:a :b :c]
+                                 [:d :e :f]]
+                         :terrain-signatures [[:a-s :b-s :c-s]
+                                              [:d-s :e-s :f-s]]}
+                        {:id :props
+                         :tiles [[:crate :coin :rock]
+                                 [:torch :key :door]]}]}
+        cut (tilemap/cut-map-selection state)]
+    (is (= [[:b :c]]
+           (get-in cut [:map-clipboard :layers 0 :tiles])))
+    (is (= [[:a nil nil]
+            [:d :e :f]]
+           (get-in cut [:layers 0 :tiles])))
+    (is (= [[:a-s nil nil]
+            [:d-s :e-s :f-s]]
+           (get-in cut [:layers 0 :terrain-signatures])))
+    (is (= [[:crate nil nil]
+            [:torch :key :door]]
+           (get-in cut [:layers 1 :tiles])))
+    (is (= true (:render-map-dirty? cut)))))
+
+(deftest tilemap-paste-map-clipboard_targets_current_selection_and_matches_layers_by_id
+  (let [clipboard {:type :tilemap/map-region
+                   :source-map-id :map/source
+                   :rect {:x 0 :y 0 :w 2 :h 2}
+                   :width 2
+                   :height 2
+                   :layers [{:id :ground
+                             :tiles [[:a :b]
+                                     [:c :d]]
+                             :terrain-signatures [[:a-s :b-s]
+                                                  [:c-s :d-s]]}
+                            {:id :props
+                             :tiles [[:crate nil]
+                                     [nil :coin]]}]}
+        state {:map-width 4
+               :map-height 3
+               :show-terrain-rules? false
+               :map-clipboard clipboard
+               :map-selection {:rect {:x 1 :y 1 :w 1 :h 1}
+                               :active? false}
+               :layers [{:id :props
+                         :tiles [[nil nil nil nil]
+                                 [nil nil nil nil]
+                                 [nil nil nil nil]]}
+                        {:id :ground
+                         :tiles [[nil nil nil nil]
+                                 [nil nil nil nil]
+                                 [nil nil nil nil]]
+                         :terrain-signatures [[nil nil nil nil]
+                                              [nil nil nil nil]
+                                              [nil nil nil nil]]}]}
+        pasted (tilemap/paste-map-clipboard state)]
+    (is (= :crate (get-in pasted [:layers 0 :tiles 1 1])))
+    (is (= :coin (get-in pasted [:layers 0 :tiles 2 2])))
+    (is (= :a (get-in pasted [:layers 1 :tiles 1 1])))
+    (is (= :d (get-in pasted [:layers 1 :tiles 2 2])))
+    (is (= :a-s (get-in pasted [:layers 1 :terrain-signatures 1 1])))
+    (is (= {:rect {:x 1 :y 1 :w 2 :h 2}
+            :active? false}
+           (:map-selection pasted)))
+    (is (= true (:render-map-dirty? pasted)))))
+
 (deftest tilemap-flip-map-horizontal-mirrors_all_layer_matrices
   (let [state {:map-width 3
                :map-height 2

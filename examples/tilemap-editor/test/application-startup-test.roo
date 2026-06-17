@@ -327,6 +327,59 @@
     (runtime/update! app)
     (is (= :preview (:terrain-rule-application (runtime/active-state app))))))
 
+(deftest edit-menu-enables_selection_commands_when_map_selection_exists
+  (let [app (make-startup-app)]
+    (runtime/push-mode! app 'main-mode)
+    (runtime/update! app)
+    (runtime/render! app)
+    (runtime/set-active-state!
+     app
+     (assoc (runtime/active-state app)
+            :workspace-tab :map
+            :map-tool :select
+            :map-width 4
+            :map-height 4
+            :tile-size 16
+            :zoom 1
+            :map-offset {:x 0 :y 0}
+            :map-clipboard nil))
+    (runtime/update! app)
+    (runtime/render! app)
+    (let [canvas (runtime/find-view app "map-canvas")]
+      (is (not (nil? canvas)))
+      (runtime/mouse-drag-in! app canvas 2 2 24 24))
+    (runtime/update! app)
+    (runtime/render! app)
+    (is (= {:x 0 :y 0 :w 2 :h 2}
+           (-> (runtime/active-state app) :map-selection :rect)))
+    (is (= false
+           (-> (runtime/active-state app) :map-selection :active?)))
+    (runtime/update! app)
+    (runtime/render! app)
+    (let [edit-item (runtime/find-view-containing app
+                                                  "ui/menu-bar-item"
+                                                  ":menu-index 1")
+          state (runtime/view-state edit-item)]
+      (is (not (nil? edit-item)))
+      (is (= [nil nil nil]
+             [(get-in state [:node :items 0 :disabled?])
+              (get-in state [:node :items 1 :disabled?])
+              (get-in state [:node :items 2 :disabled?])])))
+    (runtime/set-active-state!
+     app
+     (assoc (runtime/active-state app)
+            :map-clipboard {:type :tilemap/map-region}))
+    (runtime/update! app)
+    (runtime/render! app)
+    (let [edit-item (runtime/find-view-containing app
+                                                  "ui/menu-bar-item"
+                                                  ":menu-index 1")
+          state (runtime/view-state edit-item)]
+      (is (= [nil nil nil]
+             [(get-in state [:node :items 0 :disabled?])
+              (get-in state [:node :items 1 :disabled?])
+              (get-in state [:node :items 2 :disabled?])])))))
+
 (deftest direct-project-load-keeps-existing-palette-interactive
   (cleanup-application-startup-test-files!)
   (let [app (make-startup-app)]

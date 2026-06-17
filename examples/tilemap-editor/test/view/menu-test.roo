@@ -24,6 +24,12 @@
          (get menu/tilemap-editor-menu-keymap [:key/ctrl :key/s])))
   (is (= :project/save-as
          (get menu/tilemap-editor-menu-keymap [:key/ctrl :key/shift :key/s])))
+  (is (= :edit/cut
+         (get menu/tilemap-editor-menu-keymap [:key/ctrl :key/x])))
+  (is (= :edit/copy
+         (get menu/tilemap-editor-menu-keymap [:key/ctrl :key/c])))
+  (is (= :edit/paste
+         (get menu/tilemap-editor-menu-keymap [:key/ctrl :key/v])))
   (is (= :view/toggle-grid
          (get menu/tilemap-editor-menu-keymap [:key/ctrl :key/g])))
   (is (= :view/toggle-terrain-rules
@@ -39,11 +45,27 @@
   (let [menu (menu/tilemap-editor-menu
               {:show-grid? false
                :show-terrain-rules? true
+               :map-selection {:rect {:x 1 :y 2 :w 3 :h 4}
+                               :active? false}
+               :map-clipboard {:type :tilemap/map-region}
                :terrain-rule-application :paint-baked})
         edit (get-in menu [:items 1 :items])
         options (get-in menu [:items 2 :items])]
-    (is (= "Map &Dimensions..." (get-in edit [0 :label])))
-    (is (= :map/edit-dimensions (get-in edit [0 :action])))
+    (is (= "Cu&t" (get-in edit [0 :label])))
+    (is (= :edit/cut (get-in edit [0 :action])))
+    (is (= [:key/ctrl :key/x] (get-in edit [0 :shortcut])))
+    (is (nil? (get-in edit [0 :disabled?])))
+    (is (= "&Copy" (get-in edit [1 :label])))
+    (is (= :edit/copy (get-in edit [1 :action])))
+    (is (= [:key/ctrl :key/c] (get-in edit [1 :shortcut])))
+    (is (nil? (get-in edit [1 :disabled?])))
+    (is (= "&Paste" (get-in edit [2 :label])))
+    (is (= :edit/paste (get-in edit [2 :action])))
+    (is (= [:key/ctrl :key/v] (get-in edit [2 :shortcut])))
+    (is (nil? (get-in edit [2 :disabled?])))
+    (is (= :separator (get-in edit [3])))
+    (is (= "Map &Dimensions..." (get-in edit [4 :label])))
+    (is (= :map/edit-dimensions (get-in edit [4 :action])))
     (is (= "Show &Grid" (get-in options [0 :label])))
     (is (= :toggle (get-in options [0 :type])))
     (is (= [:option-state :show-grid?] (get-in options [0 :selected-path])))
