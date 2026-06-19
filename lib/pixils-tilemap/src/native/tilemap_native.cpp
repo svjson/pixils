@@ -147,6 +147,14 @@ namespace
     AxisRange y;
   };
 
+  struct DrawRangePadding
+  {
+    int left = 0;
+    int right = 0;
+    int top = 0;
+    int bottom = 0;
+  };
+
   struct TileDim
   {
     int w = 16;
@@ -323,6 +331,45 @@ namespace
                     height};
   }
 
+  bool explicit_draw_geometry(const Roo::sptr_val& tile)
+  {
+    return !nil_value(prop(tile, "draw-offset")) || !nil_value(prop(tile, "draw-size"));
+  }
+
+  TileDim tile_draw_size(const Roo::sptr_val& tile, int source_w, int source_h)
+  {
+    auto size = prop(tile, "draw-size");
+    if (!nil_value(size) && size->type == Roo::Value::Type::MAP)
+    {
+      return TileDim{std::max(1, int_prop(size, "w", source_w)),
+                     std::max(1, int_prop(size, "h", source_h))};
+    }
+    return TileDim{std::max(1, source_w), std::max(1, source_h)};
+  }
+
+  SDL_Rect explicit_draw_dest(const Roo::sptr_val& tile,
+                              const Pixils::Rect& rect,
+                              int source_w,
+                              int source_h,
+                              double zoom)
+  {
+    auto offset = prop(tile, "draw-offset");
+    int offset_x = 0;
+    int offset_y = 0;
+    if (!nil_value(offset) && offset->type == Roo::Value::Type::MAP)
+    {
+      offset_x = int_prop(offset, "x", 0);
+      offset_y = int_prop(offset, "y", 0);
+    }
+
+    TileDim size = tile_draw_size(tile, source_w, source_h);
+    return SDL_Rect{
+      rect.x + static_cast<int>(std::round(offset_x * zoom)),
+      rect.y + static_cast<int>(std::round(offset_y * zoom)),
+      static_cast<int>(std::round(size.w * zoom)),
+      static_cast<int>(std::round(size.h * zoom))};
+  }
+
   bool image_key(const Roo::sptr_val& tile, std::string* bundle, std::string* asset)
   {
     auto image = prop(tile, "image");
@@ -341,6 +388,131 @@ namespace
     Pixils::Rect rect = rect_from_map(source);
     if (rect.w <= 0 || rect.h <= 0) return std::nullopt;
     return rect.to_SDL_rect();
+  }
+
+  DrawRangePadding max_padding(const DrawRangePadding& a,
+                               const DrawRangePadding& b)
+  {
+    return DrawRangePadding{std::max(a.left, b.left),
+                            std::max(a.right, b.right),
+                            std::max(a.top, b.top),
+                            std::max(a.bottom, b.bottom)};
+  }
+
+  bool tile_source_size(Pixils::RenderContext& rc,
+                        const Roo::sptr_val& tile,
+                        int* source_w,
+                        int* source_h)
+  {
+    if (auto source = source_rect(tile))
+    {
+      *source_w = source->w;
+      *source_h = source->h;
+      return true;
+    }
+
+    auto draw_size = prop(tile, "draw-size");
+    if (!nil_value(draw_size) && draw_size->type == Roo::Value::Type::MAP)
+    {
+      *source_w = int_prop(draw_size, "w", 0);
+      *source_h = int_prop(draw_size, "h", 0);
+      return *source_w > 0 && *source_h > 0;
+    }
+
+    std::string bundle;
+    std::string asset;
+    if (!image_key(tile, &bundle, &asset) || !rc.asset_registry) return false;
+    SDL_Texture* texture = rc.asset_registry->get_image(bundle, asset);
+    if (!texture) return false;
+    SDL_QueryTexture(texture, nullptr, nullptr, source_w, source_h);
+    return *source_w > 0 && *source_h > 0;
+  }
+
+  DrawRangePadding draw_range_padding_for_tile(Pixils::RenderContext& rc,
+                                               const Roo::sptr_val& tile,
+                                               const RenderInput& input)
+  {
+    if (!tile || tile->type != Roo::Value::Type::MAP ||
+        !explicit_draw_geometry(tile))
+    {
+      return {};
+    }
+
+    std::string type = value_name(prop(tile, "type"));
+    if (type != "sprite" && type != "image") return {};
+
+    int source_w = 0;
+    int source_h = 0;
+    if (!tile_source_size(rc, tile, &source_w, &source_h)) return {};
+
+    TileDim size = tile_draw_size(tile, source_w, source_h);
+    auto offset = prop(tile, "draw-offset");
+    int offset_x = 0;
+    int offset_y = 0;
+    if (!nil_value(offset) && offset->type == Roo::Value::Type::MAP)
+    {
+      offset_x = int_prop(offset, "x", 0);
+      offset_y = int_prop(offset, "y", 0);
+    }
+
+    return DrawRangePadding{
+      ceil_positive_div(std::max(0, -offset_x), input.tile_size.w),
+      ceil_positive_div(std::max(0, (offset_x + size.w) - input.tile_size.w),
+                        input.tile_size.w),
+      ceil_positive_div(std::max(0, -offset_y), input.tile_size.h),
+      ceil_positive_div(std::max(0, (offset_y + size.h) - input.tile_size.h),
+                        input.tile_size.h)};
+  }
+
+  DrawRangePadding draw_range_padding_for_layers(Pixils::RenderContext& rc,
+                                                 const Roo::sptr_val& layers,
+                                                 const Roo::sptr_val& hidden,
+                                                 const RenderInput& input)
+  {
+    if (!seq_value(layers)) return {};
+
+    DrawRangePadding padding;
+    int index = 0;
+    for (const auto& layer : Roo::get_children(*layers))
+    {
+      if (int_vector_contains(hidden, index))
+      {
+        index++;
+        continue;
+      }
+
+      auto tiles = prop(layer, "tiles");
+      if (seq_value(tiles))
+      {
+        for (const auto& row : Roo::get_children(*tiles))
+        {
+          if (!seq_value(row)) continue;
+          for (const auto& cell : Roo::get_children(*row))
+          {
+            for (const auto& tile : tile_stack(cell))
+            {
+              padding = max_padding(
+                padding,
+                draw_range_padding_for_tile(rc, tile, input));
+            }
+          }
+        }
+      }
+      index++;
+    }
+    return padding;
+  }
+
+  void pad_axis_range(AxisRange* range, int before, int after, int max_count)
+  {
+    range->start = std::max(0, range->start - before);
+    range->end = std::min(max_count, range->end + after);
+  }
+
+  void pad_render_ranges(RenderInput* input, const DrawRangePadding& padding)
+  {
+    pad_axis_range(&input->ranges.x, padding.left, padding.right, input->map_width);
+    pad_axis_range(&input->ranges.y, padding.top, padding.bottom, input->map_height);
   }
 
   void fill_rect(SDL_Renderer* renderer,
@@ -397,7 +569,8 @@ namespace
   void draw_texture_tile(Pixils::RenderContext& rc,
                          const Roo::sptr_val& tile,
                          const Pixils::Rect& rect,
-                         bool image_background)
+                         bool image_background,
+                         double zoom)
   {
     std::string bundle;
     std::string asset;
@@ -431,14 +604,17 @@ namespace
       fill_rect(rc.renderer, rect, 0x12, 0x15, 0x18, 0xff);
     }
 
-    SDL_Rect dest = centered_dest(rect, source_w, source_h);
+    SDL_Rect dest = explicit_draw_geometry(tile)
+                      ? explicit_draw_dest(tile, rect, source_w, source_h, zoom)
+                      : centered_dest(rect, source_w, source_h);
     const SDL_Rect* source_ptr = source ? &*source : nullptr;
     SDL_RenderCopy(rc.renderer, texture, source_ptr, &dest);
   }
 
   void draw_tile(Pixils::RenderContext& rc,
                  const Roo::sptr_val& tile,
-                 const Pixils::Rect& rect)
+                 const Pixils::Rect& rect,
+                 double zoom)
   {
     if (nil_value(tile) || tile->type != Roo::Value::Type::MAP)
     {
@@ -453,11 +629,11 @@ namespace
     }
     else if (type == "image")
     {
-      draw_texture_tile(rc, tile, rect, true);
+      draw_texture_tile(rc, tile, rect, true, zoom);
     }
     else if (type == "sprite")
     {
-      draw_texture_tile(rc, tile, rect, false);
+      draw_texture_tile(rc, tile, rect, false, zoom);
     }
     else
     {
@@ -483,7 +659,7 @@ namespace
         Pixils::Rect rect = tile_rect(input, x, y);
         for (const auto& tile : stack)
         {
-          draw_tile(rc, tile, rect);
+          draw_tile(rc, tile, rect, input.zoom);
         }
       }
     }
@@ -500,6 +676,8 @@ namespace
     auto hidden = prop(opts, "hidden-layer-indices");
     if (nil_value(layers)) return true;
     if (!seq_value(layers)) return false;
+    pad_render_ranges(&input,
+                      draw_range_padding_for_layers(rc, layers, hidden, input));
 
     std::optional<Pixils::Rect> previous_clip = rc.current_clip_rect;
     bool clipped = false;

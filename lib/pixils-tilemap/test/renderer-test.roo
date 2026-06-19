@@ -12,6 +12,29 @@
                               :w 40
                               :h 16}))))
 
+(deftest tile-draw-target-applies_scaled_draw_offset_and_size
+  (is (= {:x 10
+          :y -12
+          :w 32
+          :h 64}
+         (renderer/tile-draw-target {:draw-offset {:x 0 :y -16}
+                                     :draw-size {:w 16 :h 32}}
+                                    {:x 10 :y 20 :w 32 :h 32}
+                                    {:w 16 :h 32}
+                                    2))))
+
+(deftest draw-range-padding-includes_explicit_sprite_bounds
+  (is (= {:left 0
+          :right 0
+          :top 1
+          :bottom 0}
+         (renderer/draw-range-padding-for-tile
+          {:type :sprite
+           :image :tiles/wall
+           :source {:x 0 :y 0 :w 16 :h 32}
+           :draw-offset {:x 0 :y -16}}
+          {:w 16 :h 16}))))
+
 (deftest valid-dim-requires-positive-dimensions
   (is (= true (renderer/valid-dim? {:w 1 :h 1})))
   (is (= false (renderer/valid-dim? {:w 0 :h 1})))

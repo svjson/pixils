@@ -33,42 +33,91 @@
   (r/rect! rect {:fill true
                  :color (:color tile)}))
 
-(defun draw-image-tile! [tile rect render-opts]
-  (let [dim (img/size (:image tile))]
-    (if (valid-dim? dim)
-      (let [scale (fit-scale (:w dim) (:h dim) rect)
-            width (* (:w dim) scale)
-            height (* (:h dim) scale)]
-        (r/rect! rect {:fill true
-                       :color tm/default-image-tile-background-color})
-        (r/image! (:image tile)
-                  (merge {:pos (centered-pos rect width height)
-                          :scale scale}
-                         (or render-opts {}))))
-      (draw-missing-tile! rect))))
+(defun explicit-draw-geometry? [tile]
+  (or (:draw-offset tile)
+      (:draw-size tile)))
 
-(defun draw-sprite-tile! [tile rect render-opts]
+(defun tile-draw-offset [tile]
+  (or (:draw-offset tile) {:x 0 :y 0}))
+
+(defun tile-draw-size [tile dim]
+  (let [size (or (:draw-size tile) dim)]
+    {:w (or (:w size) (:w dim))
+     :h (or (:h size) (:h dim))}))
+
+(defun tile-draw-target [tile rect dim zoom]
+  (let [offset (tile-draw-offset tile)
+        size (tile-draw-size tile dim)
+        scale (or zoom 1)]
+    {:x (+ (:x rect) (* (or (:x offset) 0) scale))
+     :y (+ (:y rect) (* (or (:y offset) 0) scale))
+     :w (* (:w size) scale)
+     :h (* (:h size) scale)}))
+
+(defun draw-explicit-image-tile! [tile rect render-opts dim zoom opts]
+  (r/image! (:image tile)
+            (merge {:target (tile-draw-target tile rect dim zoom)}
+                   opts
+                   (or render-opts {}))))
+
+(defun draw-explicit-sprite-tile! [tile rect render-opts zoom]
   (let [dim (sprite-tile-dim tile)]
     (if (valid-dim? dim)
-      (let [scale (fit-scale (:w dim) (:h dim) rect)
-            width (* (:w dim) scale)
-            height (* (:h dim) scale)]
-        (r/image! (:image tile)
-                  (merge {:pos (centered-pos rect width height)
-                          :scale scale}
-                         (sprite-tile-render-opts tile render-opts))))
+      (draw-explicit-image-tile! tile
+                                 rect
+                                 nil
+                                 dim
+                                 zoom
+                                 (sprite-tile-render-opts tile render-opts))
       (draw-missing-tile! rect))))
 
-(defun draw-tile! [tile rect render-opts]
+(defun draw-sprite-tile! [tile rect render-opts zoom]
+  (if (explicit-draw-geometry? tile)
+    (draw-explicit-sprite-tile! tile rect render-opts zoom)
+    (let [dim (sprite-tile-dim tile)]
+      (if (valid-dim? dim)
+        (let [scale (fit-scale (:w dim) (:h dim) rect)
+              width (* (:w dim) scale)
+              height (* (:h dim) scale)]
+          (r/image! (:image tile)
+                    (merge {:pos (centered-pos rect width height)
+                            :scale scale}
+                           (sprite-tile-render-opts tile render-opts))))
+        (draw-missing-tile! rect)))))
+
+(defun draw-image-tile! [tile rect render-opts zoom]
+  (let [dim (img/size (:image tile))]
+    (if (valid-dim? dim)
+      (if (explicit-draw-geometry? tile)
+        (do (r/rect! rect {:fill true
+                           :color tm/default-image-tile-background-color})
+            (draw-explicit-image-tile! tile
+                                       rect
+                                       render-opts
+                                       dim
+                                       zoom
+                                       {}))
+        (let [scale (fit-scale (:w dim) (:h dim) rect)
+              width (* (:w dim) scale)
+              height (* (:h dim) scale)]
+          (r/rect! rect {:fill true
+                         :color tm/default-image-tile-background-color})
+          (r/image! (:image tile)
+                    (merge {:pos (centered-pos rect width height)
+                            :scale scale}
+                           (or render-opts {})))))
+      (draw-missing-tile! rect))))
+
+(defun draw-tile! [tile rect render-opts zoom]
   (cond
     (= (:type tile) :color)
     (draw-color-tile! tile rect)
 
     (= (:type tile) :image)
-    (draw-image-tile! tile rect render-opts)
+    (draw-image-tile! tile rect render-opts zoom)
 
     (= (:type tile) :sprite)
-    (draw-sprite-tile! tile rect render-opts)
+    (draw-sprite-tile! tile rect render-opts zoom)
 
     :default
     (draw-missing-tile! rect)))
@@ -275,6 +324,95 @@
       {:start start
        :end (max start end)})))
 
+(def empty-draw-range-padding
+  {:left 0
+   :right 0
+   :top 0
+   :bottom 0})
+
+(defun max-draw-range-padding [a b]
+  {:left (max (:left a) (:left b))
+   :right (max (:right a) (:right b))
+   :top (max (:top a) (:top b))
+   :bottom (max (:bottom a) (:bottom b))})
+
+(defun draw-range-padding-for-tile [tile tile-size]
+  (if (and (explicit-draw-geometry? tile)
+           (or (= (:type tile) :sprite)
+               (= (:type tile) :image)))
+    (let [dim (if (:draw-size tile)
+                (:draw-size tile)
+                (if (= (:type tile) :sprite)
+                  (sprite-tile-dim tile)
+                  (img/size (:image tile))))]
+      (if (valid-dim? dim)
+        (let [offset (tile-draw-offset tile)
+              size (tile-draw-size tile dim)
+              x (or (:x offset) 0)
+              y (or (:y offset) 0)
+              spill-left (max 0 (- 0 x))
+              spill-top (max 0 (- 0 y))
+              spill-right (max 0 (- (+ x (:w size)) (:w tile-size)))
+              spill-bottom (max 0 (- (+ y (:h size)) (:h tile-size)))]
+          {:left (ceil-positive-div spill-left (:w tile-size))
+           :right (ceil-positive-div spill-right (:w tile-size))
+           :top (ceil-positive-div spill-top (:h tile-size))
+           :bottom (ceil-positive-div spill-bottom (:h tile-size))})
+        empty-draw-range-padding))
+    empty-draw-range-padding))
+
+(defun draw-range-padding-for-tilesets [tilesets tile-size]
+  (reduce (or tilesets [])
+          empty-draw-range-padding
+          (fn [padding tileset]
+            (reduce (or (:tiles tileset) [])
+                    padding
+                    (fn [padding tile]
+                      (max-draw-range-padding
+                       padding
+                       (draw-range-padding-for-tile tile tile-size)))))))
+
+(defun draw-range-padding-for-prepared-layer [layer tile-size]
+  (if (prepared-tile-stack-layer? layer)
+    (reduce (or (:tiles layer) [])
+            empty-draw-range-padding
+            (fn [padding row]
+              (reduce (or row [])
+                      padding
+                      (fn [padding cell]
+                        (reduce (prepared-tile-stack-tiles cell)
+                                padding
+                                (fn [padding tile]
+                                  (max-draw-range-padding
+                                   padding
+                                   (draw-range-padding-for-tile tile tile-size))))))))
+    empty-draw-range-padding))
+
+(defun draw-range-padding [tilesets layers tilemap]
+  (let [tile-size (tm/tile-size tilemap)]
+    (max-draw-range-padding
+     (draw-range-padding-for-tilesets tilesets tile-size)
+     (reduce (or layers [])
+             empty-draw-range-padding
+             (fn [padding layer]
+               (max-draw-range-padding
+                padding
+                (draw-range-padding-for-prepared-layer layer tile-size)))))))
+
+(defun pad-axis-range [range before after max-count]
+  {:start (max 0 (- (:start range) before))
+   :end (min max-count (+ (:end range) after))})
+
+(defun pad-render-ranges [ranges padding tilemap]
+  {:x (pad-axis-range (:x ranges)
+                      (:left padding)
+                      (:right padding)
+                      (tm/map-width tilemap))
+   :y (pad-axis-range (:y ranges)
+                      (:top padding)
+                      (:bottom padding)
+                      (tm/map-height tilemap))})
+
 (defun render-ranges [tilemap offset zoom target-rect]
   (let [offset (or offset tm/default-offset)
         rect (or target-rect (map-render-rect tilemap zoom))
@@ -327,13 +465,14 @@
                                              :tile tile
                                              :layer stack-layer
                                              :offset offset
-                                             :zoom zoom})))))
+                                             :zoom zoom})
+                  zoom))))
 
 (defun render-prepared-tile-stack-cell! [tilemap offset zoom x y cell]
   (when (not (tm/absent-tile-ref? cell))
     (let [rect (tm/tile-rect tilemap x y offset zoom)]
       (for [tile (prepared-tile-stack-tiles cell)]
-        (draw-tile! tile rect nil)))))
+        (draw-tile! tile rect nil zoom)))))
 
 (defun render-layer-cell! [tilemap tilesets prepared-tilesets terrain-sets layer offset zoom tile-substitutions x y cell]
   (cond
@@ -448,7 +587,10 @@
         zoom (or (:zoom opts) tm/default-zoom)
         target-rect (:target-rect opts)
         render-offset (target-render-offset offset target-rect)
-        ranges (render-ranges tilemap offset zoom target-rect)]
+        ranges (pad-render-ranges
+                (render-ranges tilemap offset zoom target-rect)
+                (draw-range-padding tilesets layers tilemap)
+                tilemap)]
     (if target-rect
       (r/with-clip-rect target-rect
         (render-visible-layers! tilemap

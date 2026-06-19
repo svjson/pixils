@@ -140,6 +140,23 @@ Supported tile definitions in the native path are:
 {:type :color  :color {:r 0 :g 0 :b 0 :a 128}}
 ```
 
+Sprite and image tiles can opt into explicit draw geometry when their visual
+asset is larger than the logical map cell:
+
+```clojure
+{:id :tall-wall
+ :type :sprite
+ :image :game/tiles
+ :source {:x 0 :y 0 :w 16 :h 32}
+ :draw-offset {:x 0 :y -16}}
+```
+
+`:draw-offset` is relative to the logical cell origin in unscaled tile pixels.
+`:draw-size` can be supplied to override the source dimensions; otherwise the
+source rect or image size is used. The renderer pads visible ranges for these
+tiles so an oversized sprite can still draw when its anchor cell is just outside
+the viewport.
+
 The Roo renderer is used instead when any non-hidden layer is not
 `:prepared-tile-stack`, when `:show-grid?` is enabled, or when
 `:tile-substitutions` is non-empty. This includes ordinary tile-ref layers,
