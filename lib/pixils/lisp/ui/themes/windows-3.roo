@@ -474,6 +474,9 @@
                  :split-pane-resizer-size 8
                  :scrollbar-size 17
                  :scrollbar-handle-size 15
+                 :button-outline-border-style {:color (var :button-bg)
+                                               :thickness 1
+                                               :trim 1}
                  :option-box-indicator {:color (var :text)
                                         :radius 5
                                         :inner-radius 2
