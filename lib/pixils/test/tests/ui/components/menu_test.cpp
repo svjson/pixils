@@ -578,6 +578,33 @@ TEST_F(MenuTest, windows_95_submenu_indicator_generates_chevron_images)
             7);
 }
 
+TEST_F(MenuTest, windows_95_dark_submenu_indicator_uses_bright_image_by_default)
+{
+  runtime.eval(R"(
+    (pixils/defmode root-mode
+      {:theme 'pixils/windows-95
+       :theme-variant :dark
+       :children [{:mode 'ui/menu-submenu-indicator
+                   :state {:has-submenu true}}]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  session.update_mode();
+  session.render_mode();
+
+  auto indicator = session.active_mode->children[0];
+  ASSERT_NE(indicator, nullptr);
+  ASSERT_TRUE(indicator->effective_theme.vars.count("dark") > 0);
+  ASSERT_TRUE(indicator->effective_theme.vars.at("dark").count(
+                "menu-submenu-indicator") > 0);
+  auto indicator_var =
+    indicator->effective_theme.vars.at("dark").at("menu-submenu-indicator");
+  ASSERT_NE(indicator_var, nullptr);
+  EXPECT_EQ(indicator_var->to_string(),
+            "{:image :windows-95-theme/submenu-chevron-highlighted "
+            ":highlighted-image :windows-95-theme/submenu-chevron-highlighted}");
+}
+
 TEST_F(MenuTest, windows_3_submenu_indicator_generates_chevron_images)
 {
   runtime.eval(R"(
@@ -643,6 +670,33 @@ TEST_F(MenuTest, windows_3_submenu_indicator_generates_chevron_images)
               ->num()
               .get_int(),
             7);
+}
+
+TEST_F(MenuTest, windows_3_dark_submenu_indicator_uses_bright_image_by_default)
+{
+  runtime.eval(R"(
+    (pixils/defmode root-mode
+      {:theme 'pixils/windows-3
+       :theme-variant :dark
+       :children [{:mode 'ui/menu-submenu-indicator
+                   :state {:has-submenu true}}]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  session.update_mode();
+  session.render_mode();
+
+  auto indicator = session.active_mode->children[0];
+  ASSERT_NE(indicator, nullptr);
+  ASSERT_TRUE(indicator->effective_theme.vars.count("dark") > 0);
+  ASSERT_TRUE(indicator->effective_theme.vars.at("dark").count(
+                "menu-submenu-indicator") > 0);
+  auto indicator_var =
+    indicator->effective_theme.vars.at("dark").at("menu-submenu-indicator");
+  ASSERT_NE(indicator_var, nullptr);
+  EXPECT_EQ(indicator_var->to_string(),
+            "{:image :windows-3-theme/submenu-chevron-highlighted "
+            ":highlighted-image :windows-3-theme/submenu-chevron-highlighted}");
 }
 
 TEST_F(MenuTest, context_menu_opens_popup_at_mouse_position)

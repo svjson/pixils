@@ -479,7 +479,7 @@
                                         :inner-radius 2
                                         :pressed-thickness 2}
                  :menu-option-indicator {:selected-symbol :checkmark}
-                 :menu-submenu-indicator {:image :windows-3-theme/chevron-right
+                 :menu-submenu-indicator {:image :windows-3-theme/submenu-chevron-highlighted
                                           :highlighted-image :windows-3-theme/submenu-chevron-highlighted}
                  :scrollbar-button-symbols {:up-image :windows-3-theme/scrollbar-arrow-up-dark
                                             :down-image :windows-3-theme/scrollbar-arrow-down-dark

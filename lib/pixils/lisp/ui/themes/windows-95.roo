@@ -293,7 +293,7 @@
                                         :inner-radius 2
                                         :pressed-thickness 2}
                  :menu-option-indicator {:selected-image :windows-95-theme/menu-option-checkmark}
-                 :menu-submenu-indicator {:image :windows-95-theme/scrollbar-arrow-right
+                 :menu-submenu-indicator {:image :windows-95-theme/submenu-chevron-highlighted
                                           :highlighted-image :windows-95-theme/submenu-chevron-highlighted}
                  :scrollbar-button-symbols {:up-image :windows-95-theme/scrollbar-arrow-up
                                             :down-image :windows-95-theme/scrollbar-arrow-down
