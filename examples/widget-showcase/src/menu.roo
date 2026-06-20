@@ -8,6 +8,22 @@
    :key/f4 :showcase/quit
    :key/f5 :showcase/reset})
 
+(defun theme-item [label theme theme-label variant]
+  (merge {:label label
+          :action :showcase/theme
+          :payload {:theme theme
+                    :label theme-label}}
+         (if variant
+           {:payload {:theme theme
+                      :variant variant
+                      :label theme-label}}
+           {})))
+
+(defun theme-variant-menu [label theme light-label dark-label]
+  {:label label
+   :items [(theme-item "&Light" theme light-label :light)
+           (theme-item "&Dark" theme dark-label :dark)]})
+
 (def showcase-menu
   {:settings {:mnemonics {:marker "&"}
               :shortcuts {:render true}}
@@ -29,18 +45,18 @@
                      :action :showcase/open-file-dialog
                      :shortcut :key/f3}]}
            {:label "&Theme"
-            :items [{:label "Windows &3"
-                     :action :showcase/theme
-                     :payload {:theme 'pixils/windows-3
-                               :label "Windows 3"}}
-                    {:label "Windows &95"
-                     :action :showcase/theme
-                     :payload {:theme 'pixils/windows-95
-                               :label "Windows 95"}}
-                    {:label "&Classic Blue"
-                     :action :showcase/theme
-                     :payload {:theme 'pixils/classic-blue
-                               :label "Classic Blue"}}]}]})
+            :items [(theme-variant-menu "Windows &3"
+                                        'pixils/windows-3
+                                        "Windows 3 Light"
+                                        "Windows 3 Dark")
+                    (theme-variant-menu "Windows &95"
+                                        'pixils/windows-95
+                                        "Windows 95 Light"
+                                        "Windows 95 Dark")
+                    (theme-item "&Classic Blue"
+                                'pixils/classic-blue
+                                "Classic Blue"
+                                nil)]}]})
 
 (defun make-menu []
   (menu/make-menu {:style {:height 20}}

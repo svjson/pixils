@@ -150,7 +150,9 @@
         :showcase/theme (fn [state event ctx]
                           (let [payload (:payload event)]
                             (do
-                              (pixils/set-theme! (:theme payload))
+                              (if (contains? payload :variant)
+                                (pixils/set-theme! (:theme payload) (:variant payload))
+                                (pixils/set-theme! (:theme payload)))
                               (assoc state
                                      :theme-label (:label payload)
                                      :message (str "Theme changed to "
