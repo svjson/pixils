@@ -65,3 +65,16 @@
     (is (= :pixils/windows-95 (:application-theme state)))
     (is (= :theme (:type message)))
     (is (= 'pixils/windows-95 (:theme message)))))
+
+(deftest theme-selection-passes_variant_to_runtime_theme_switch
+  (let [message-index (count pixils/mode-stack-messages)
+        state (tilemap-editor.root/apply-theme-selection!
+               {:application-theme :pixils/windows-3}
+               {:value :pixils/windows-3-dark
+                :theme 'pixils/windows-3
+                :variant :dark})
+        message (nth pixils/mode-stack-messages message-index)]
+    (is (= :pixils/windows-3-dark (:application-theme state)))
+    (is (= :theme (:type message)))
+    (is (= 'pixils/windows-3 (:theme message)))
+    (is (= :dark (:theme-variant message)))))

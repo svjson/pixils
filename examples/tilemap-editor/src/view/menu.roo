@@ -33,14 +33,25 @@
       (:path project)
       "Untitled Project"))
 
-(defun theme-menu-item [label value theme]
+(defun theme-payload [value theme variant]
+  (merge {:value value
+          :theme theme}
+         (if variant
+           {:variant variant}
+           {})))
+
+(defun theme-menu-item [label value theme variant]
   {:label label
    :type :option
    :action :theme/select
    :value value
    :selected-path [:option-state :application-theme]
-   :payload {:value value
-             :theme theme}})
+   :payload (theme-payload value theme variant)})
+
+(defun theme-variant-menu-item [label theme light-value dark-value]
+  {:label label
+   :items [(theme-menu-item "&Light" light-value theme :light)
+           (theme-menu-item "&Dark" dark-value theme :dark)]})
 
 (defun recent-project-menu-items [projects]
   (map (or projects [])
@@ -120,16 +131,20 @@
                       {:label "&Theme"
                        :items [(theme-menu-item "Pixils &Default"
                                                 :pixils/default
+                                                nil
                                                 nil)
-                               (theme-menu-item "Windows &3"
-                                                :pixils/windows-3
-                                                'pixils/windows-3)
-                               (theme-menu-item "Windows &95"
-                                                :pixils/windows-95
-                                                'pixils/windows-95)
+                               (theme-variant-menu-item "Windows &3"
+                                                        'pixils/windows-3
+                                                        :pixils/windows-3
+                                                        :pixils/windows-3-dark)
+                               (theme-variant-menu-item "Windows &95"
+                                                        'pixils/windows-95
+                                                        :pixils/windows-95
+                                                        :pixils/windows-95-dark)
                                (theme-menu-item "&Classic Blue"
                                                 :pixils/classic-blue
-                                                'pixils/classic-blue)]}]}]}))
+                                                'pixils/classic-blue
+                                                nil)]}]}]}))
 
 (defun tilemap-editor-menu-child [state]
   (let [state (normalized-menu-state state)]

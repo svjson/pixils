@@ -96,13 +96,38 @@
            (get-in options [5 :items 0 :selected-path])))
     (is (nil? (get-in options [5 :items 0 :payload :theme])))
     (is (= "Windows &3" (get-in options [5 :items 1 :label])))
-    (is (= :pixils/windows-3 (get-in options [5 :items 1 :value])))
+    (is (nil? (get-in options [5 :items 1 :action])))
+    (is (= "&Light" (get-in options [5 :items 1 :items 0 :label])))
+    (is (= :option (get-in options [5 :items 1 :items 0 :type])))
+    (is (= :pixils/windows-3 (get-in options [5 :items 1 :items 0 :value])))
+    (is (= [:option-state :application-theme]
+           (get-in options [5 :items 1 :items 0 :selected-path])))
     (is (= 'pixils/windows-3
-           (get-in options [5 :items 1 :payload :theme])))
+           (get-in options [5 :items 1 :items 0 :payload :theme])))
+    (is (= :light (get-in options [5 :items 1 :items 0 :payload :variant])))
+    (is (= "&Dark" (get-in options [5 :items 1 :items 1 :label])))
+    (is (= :option (get-in options [5 :items 1 :items 1 :type])))
+    (is (= :pixils/windows-3-dark
+           (get-in options [5 :items 1 :items 1 :value])))
+    (is (= [:option-state :application-theme]
+           (get-in options [5 :items 1 :items 1 :selected-path])))
+    (is (= 'pixils/windows-3
+           (get-in options [5 :items 1 :items 1 :payload :theme])))
+    (is (= :dark (get-in options [5 :items 1 :items 1 :payload :variant])))
     (is (= "Windows &95" (get-in options [5 :items 2 :label])))
-    (is (= :pixils/windows-95 (get-in options [5 :items 2 :value])))
+    (is (nil? (get-in options [5 :items 2 :action])))
+    (is (= "&Light" (get-in options [5 :items 2 :items 0 :label])))
+    (is (= :pixils/windows-95
+           (get-in options [5 :items 2 :items 0 :value])))
     (is (= 'pixils/windows-95
-           (get-in options [5 :items 2 :payload :theme])))
+           (get-in options [5 :items 2 :items 0 :payload :theme])))
+    (is (= :light (get-in options [5 :items 2 :items 0 :payload :variant])))
+    (is (= "&Dark" (get-in options [5 :items 2 :items 1 :label])))
+    (is (= :pixils/windows-95-dark
+           (get-in options [5 :items 2 :items 1 :value])))
+    (is (= 'pixils/windows-95
+           (get-in options [5 :items 2 :items 1 :payload :theme])))
+    (is (= :dark (get-in options [5 :items 2 :items 1 :payload :variant])))
     (is (= "&Classic Blue" (get-in options [5 :items 3 :label])))
     (is (= :pixils/classic-blue (get-in options [5 :items 3 :value])))
     (is (= 'pixils/classic-blue

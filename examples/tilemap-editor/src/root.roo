@@ -52,7 +52,9 @@
 
 (defun apply-theme-selection! [state payload]
   (do
-    (pixils/set-theme! (:theme payload))
+    (if (contains? payload :variant)
+      (pixils/set-theme! (:theme payload) (:variant payload))
+      (pixils/set-theme! (:theme payload)))
     (assoc state :application-theme (:value payload))))
 
 (defun map-coordinate-status [cell]
