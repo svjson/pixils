@@ -1,4 +1,5 @@
-(ns widget-showcase.state)
+(ns widget-showcase.state
+  (:require [pixils.ui :as ui]))
 
 (def sample-options
   [{:label "Alpha"
@@ -48,6 +49,25 @@
    {:id :themes
     :label "Themes"
     :position {:x 360 :y 8}}])
+
+(defun bindings []
+  {:selected-tab (ui/bind-state :selected-tab)
+   :checked? (ui/bind-state :checked?)
+   :toggle-value (ui/bind-state :toggle-value)
+   :option-value (ui/bind-state :option-value)
+   :combo-index (ui/bind-state :combo-index)
+   :list-selected (ui/bind-state :list-selected)
+   :list-reorder-options (ui/bind-state :list-reorder-options)
+   :slider-value (ui/bind-state :slider-value)
+   :vertical-slider-value (ui/bind-state :vertical-slider-value)
+   :number-value (ui/bind-state :number-value)
+   :text-value (ui/bind-state :text-value)
+   :read-only-value (ui/bind-state :read-only-value)
+   :scrollbar-x (ui/bind-state :scrollbar-x)
+   :scrollbar-y (ui/bind-state :scrollbar-y)
+   :desktop-selected-id (ui/bind-state :desktop-selected-id)
+   :message (ui/bind-state :message)
+   :theme-label (ui/bind-state :theme-label)})
 
 (defun initial-state []
   {:selected-tab :inputs

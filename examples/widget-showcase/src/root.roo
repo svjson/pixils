@@ -21,6 +21,7 @@
                        :height :fill
                        :background {:r 0x24 :g 0x2c :b 0x34}
                        :clip true}
+               :state (showcase-state/bindings)
                :children [(showcase-window/make)]}
               {:style {:width :fill
                        :height 24}

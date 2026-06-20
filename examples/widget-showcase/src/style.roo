@@ -1,6 +1,7 @@
 (ns widget-showcase.style
   (:require [pixils.ui :as ui]
-            [pixils.ui.group-box :as group-box]))
+            [pixils.ui.group-box :as group-box]
+            [widget-showcase.state :as showcase-state]))
 
 (def content-bg {:r 0xeb :g 0xeb :b 0xe4})
 (def panel-bg {:r 0xd6 :g 0xd6 :b 0xce})
@@ -46,6 +47,7 @@
 
 (defun field-row [label-text child]
   {:style row-style
+   :state (showcase-state/bindings)
    :children [{:mode 'ui/text
                :style field-label-style
                :state {:value label-text}}
@@ -68,4 +70,12 @@
   (group-box/make {:title title
                    :style section-style
                    :body-style section-body-style
+                   :children children}))
+
+(defun state-section [title children]
+  (group-box/make {:title title
+                   :style section-style
+                   :body-style section-body-style
+                   :state (showcase-state/bindings)
+                   :body-state (showcase-state/bindings)
                    :children children}))

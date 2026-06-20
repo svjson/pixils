@@ -32,7 +32,10 @@
     (is (not (nil? (runtime/find-view app "ui/tab-panel"))))
     (is (not (nil? (runtime/find-view app "ui/scroll-pane"))))
     (is (not (nil? (runtime/find-view app "ui/button"))))
-    (is (not (nil? (runtime/find-view app "ui/text-input"))))))
+    (is (not (nil? (runtime/find-view app "ui/text-input"))))
+    (let [progress (runtime/find-view app "ui/progress-bar")]
+      (is (not (nil? progress)))
+      (is (= 42 (:value (runtime/view-state progress)))))))
 
 (deftest widget-showcase-window-body-scrolls-inside-fixed-window
   (let [app (runtime/make-app {:package-root "."

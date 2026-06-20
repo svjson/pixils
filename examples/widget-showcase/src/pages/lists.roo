@@ -15,12 +15,14 @@
 
 (defun make []
   {:style style/page-style
-   :children [(style/section
+   :state (showcase-state/bindings)
+   :children [(style/state-section
                "List Boxes"
                [{:style {:width :fill
                          :height :shrink
                          :layout {:direction :row
                                   :gap 10}}
+                 :state (showcase-state/bindings)
                  :children [(list-box/make {:options showcase-state/list-options
                                              :selected-indices (ui/bind-state :list-selected)
                                              :multi-select? true
@@ -32,7 +34,7 @@
                                             :visible-rows 5
                                             :content-width 180
                                             :item-child list-item-child})]}])
-              (style/section
+              (style/state-section
                "Scroll Pane"
                [(scroll-pane/make
                  {:style {:width :fill
@@ -57,11 +59,12 @@
                                          (style/label "06 - scroll pane content")
                                          (style/label "07 - scroll pane content")
                                          (style/label "08 - scroll pane content")]}]})])
-              (style/section
+              (style/state-section
                "Standalone Scrollbars"
                [{:style {:width :fill
                          :layout {:direction :row
                                   :gap 12}}
+                 :state (showcase-state/bindings)
                  :children [{:mode 'ui/scrollbar
                              :style {:width 260
                                      :height 18}

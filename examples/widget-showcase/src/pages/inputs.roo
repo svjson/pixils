@@ -5,6 +5,7 @@
             [pixils.ui.combo-box :as combo-box]
             [pixils.ui.number-input :as number-input]
             [pixils.ui.option-box :as option-box]
+            [pixils.ui.progress-bar :as progress-bar]
             [pixils.ui.slider :as slider]
             [pixils.ui.toggle-button :as toggle-button]
             [widget-showcase.state :as showcase-state]
@@ -12,9 +13,11 @@
 
 (defun make []
   {:style style/page-style
-   :children [(style/section
+   :state (showcase-state/bindings)
+   :children [(style/state-section
                "Buttons"
                [{:style style/button-row-style
+                 :state (showcase-state/bindings)
                  :children [(button/make {:label "Normal"
                                            :value :normal})
                             (button/make {:label "Disabled"
@@ -29,7 +32,7 @@
                                          :value :center}
                                         {:label "Right"
                                          :value :right}]})]}])
-              (style/section
+              (style/state-section
                "Choices"
                [(checkbox/make {:label "Checkbox"
                                 :checked? (ui/bind-state :checked?)
@@ -48,7 +51,7 @@
                  (combo-box/make {:style {:width 180}
                                   :selected-index (ui/bind-state :combo-index)
                                   :options showcase-state/sample-options}))])
-              (style/section
+              (style/state-section
                "Text And Numeric Input"
                [(style/field-row
                  "Text"
@@ -71,7 +74,7 @@
                                      :min -20
                                      :max 120
                                      :step 5}))])
-              (style/section
+              (style/state-section
                "Sliders"
                [(style/field-row
                  "Horizontal"
@@ -82,6 +85,7 @@
                                :max 100
                                :step 5}))
                 {:style style/row-style
+                 :state (showcase-state/bindings)
                  :children [{:mode 'ui/text
                              :style style/field-label-style
                              :state {:value "Vertical"}}
@@ -92,5 +96,27 @@
                                           :min 0
                                           :max 100
                                           :step 10})
+                            {:mode 'ui/text
+                             :state {:value (ui/bind-state :vertical-slider-value)}}]}])
+              (style/state-section
+               "Progress"
+               [(style/field-row
+                 "Bound value"
+                 (progress-bar/make {:style {:width 240
+                                             :height 14}
+                                     :value (ui/bind-state :slider-value)
+                                     :min 0
+                                     :max 100}))
+                {:style style/row-style
+                 :state (showcase-state/bindings)
+                 :children [{:mode 'ui/text
+                             :style style/field-label-style
+                             :state {:value "Vertical"}}
+                            (progress-bar/make {:style {:width 22
+                                                        :height 90}
+                                                :axis :y
+                                                :value (ui/bind-state :vertical-slider-value)
+                                                :min 0
+                                                :max 100})
                             {:mode 'ui/text
                              :state {:value (ui/bind-state :vertical-slider-value)}}]}])]})
