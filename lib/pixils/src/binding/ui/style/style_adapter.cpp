@@ -411,8 +411,7 @@ namespace Pixils::Script
 
   NOBJ_PROP_GET(StyleTextAdapter, scale)
   {
-    return get_self_object().scale ? Roo::number(*get_self_object().scale)
-                                   : Roo::Constant::NIL;
+    return StyleDefinition::text_scale_to_value(get_self_object().scale);
   }
 
   NOBJ_PROP_GET(StyleTextAdapter, align)

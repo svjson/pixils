@@ -7,19 +7,20 @@
 
 #include <SDL2/SDL_rect.h>
 #include <SDL2/SDL_render.h>
+#include <cmath>
 #include <stddef.h>
 
 namespace Pixils
 {
   namespace Text
   {
-    Scale::Scale(int uniform)
+    Scale::Scale(float uniform)
       : x(uniform)
       , y(uniform)
     {
     }
 
-    Scale::Scale(int x, int y)
+    Scale::Scale(float x, float y)
       : x(x)
       , y(y)
     {
@@ -32,6 +33,23 @@ namespace Pixils
         std::string text;
         bool use_inline_style = false;
       };
+
+      constexpr float MIN_TEXT_SCALE = 0.01f;
+
+      float sanitized_text_scale(float scale)
+      {
+        return std::max(MIN_TEXT_SCALE, scale);
+      }
+
+      int rounded_scaled_pixel(float value)
+      {
+        return static_cast<int>(std::lround(value));
+      }
+
+      int rounded_non_empty_scaled_pixel(float value)
+      {
+        return std::max(1, rounded_scaled_pixel(value));
+      }
 
       bool is_wrap_whitespace(char c)
       {
@@ -120,7 +138,12 @@ namespace Pixils
                                           Renderer& renderer,
                                           const std::string& text)
       {
-        SDL_Rect rect{0, 0, 0, renderer.get_line_height() * renderer.get_scale_y()};
+        SDL_Rect rect{
+          0,
+          0,
+          0,
+          rounded_non_empty_scaled_pixel(renderer.get_line_height() *
+                                         renderer.get_scale_y())};
         auto segments = split_marker_segments(text);
         for (const auto& segment : segments)
         {
@@ -211,7 +234,8 @@ namespace Pixils
                                const FontDefinition* font_definition,
                                const std::vector<FontStyle>& font_styles)
         {
-          int height = renderer.get_line_height() * renderer.get_scale_y();
+          int height = rounded_non_empty_scaled_pixel(renderer.get_line_height() *
+                                                      renderer.get_scale_y());
           for (auto style : font_styles)
           {
             if (style == FontStyle::UNDERLINE && font_definition &&
@@ -219,9 +243,11 @@ namespace Pixils
             {
               height =
                 std::max(height,
-                         (font_definition->baseline + font_definition->underline->offset +
-                          font_definition->underline->thickness) *
-                           renderer.get_scale_y());
+                         rounded_scaled_pixel(
+                           (font_definition->baseline +
+                            font_definition->underline->offset +
+                            font_definition->underline->thickness) *
+                           renderer.get_scale_y()));
             }
           }
           return height;
@@ -244,18 +270,24 @@ namespace Pixils
                         int y)
       {
         if (!font_definition)
-          return y + renderer.get_line_height() * renderer.get_scale_y() - 1;
+          return y +
+                 rounded_scaled_pixel(renderer.get_line_height() *
+                                      renderer.get_scale_y()) -
+                 1;
 
         for (auto style : font_styles)
         {
           if (style == FontStyle::UNDERLINE && font_definition->underline)
           {
-            return y + (font_definition->baseline + font_definition->underline->offset) *
-                         renderer.get_scale_y();
+            return y + rounded_scaled_pixel(
+                       (font_definition->baseline + font_definition->underline->offset) *
+                       renderer.get_scale_y());
           }
         }
 
-        return y + renderer.get_line_height() * renderer.get_scale_y() - 1;
+        return y +
+               rounded_scaled_pixel(renderer.get_line_height() * renderer.get_scale_y()) -
+               1;
       }
 
       int underline_thickness(const Renderer& renderer,
@@ -267,8 +299,8 @@ namespace Pixils
           if (style == FontStyle::UNDERLINE && font_definition && font_definition->underline)
           {
             return std::max(1,
-                            font_definition->underline->thickness *
-                              renderer.get_scale_y());
+                            rounded_scaled_pixel(font_definition->underline->thickness *
+                                                 renderer.get_scale_y()));
           }
         }
 
@@ -400,7 +432,7 @@ namespace Pixils
     Renderer::Renderer(SDL_Texture* font,
                        FontMap& font_map,
                        int spacing,
-                       int scale,
+                       float scale,
                        int line_height)
       : font(font)
       , font_map(font_map)
@@ -426,8 +458,8 @@ namespace Pixils
                                int y,
                                const SDL_Color& color)
     {
+      float cursor_x = static_cast<float>(x);
       SDL_Rect cursor;
-      cursor.x = x;
       cursor.y = y;
 
       SDL_SetTextureColorMod(font, color.r, color.g, color.b);
@@ -445,13 +477,14 @@ namespace Pixils
         }
 
         const SDL_Rect& char_rect = *font_map.get_char_rect(c);
-        cursor.w = char_rect.w * scale.x;
-        cursor.h = char_rect.h * scale.y;
+        cursor.x = rounded_scaled_pixel(cursor_x);
+        cursor.w = rounded_non_empty_scaled_pixel(char_rect.w * scale.x);
+        cursor.h = rounded_non_empty_scaled_pixel(char_rect.h * scale.y);
 
         PIXILS_BENCHMARK_COUNT(text_renderer_glyphs_rendered);
         PIXILS_BENCHMARK_COUNT(render_copy_calls);
         SDL_RenderCopy(rc.renderer, font, &char_rect, &cursor);
-        cursor.x += cursor.w + (spacing * scale.x);
+        cursor_x += static_cast<float>(char_rect.w + spacing) * scale.x;
       }
     }
 
@@ -459,6 +492,7 @@ namespace Pixils
     {
       PIXILS_BENCHMARK_COUNT(text_renderer_size_calls);
       SDL_Rect rect{0, 0, 0, 0};
+      float width = 0.0f;
 
       for (size_t i = 0; i < string.size(); i++)
       {
@@ -467,25 +501,24 @@ namespace Pixils
         if (font_map.has_char(c))
         {
           const SDL_Rect& char_rect = *font_map.get_char_rect(c);
-          rect.w += char_rect.w + spacing;
+          width += static_cast<float>(char_rect.w + spacing) * scale.x;
           PIXILS_BENCHMARK_COUNT(text_renderer_glyphs_measured);
         }
       }
-      rect.h = line_height;
-      rect.w *= scale.x;
-      rect.h *= scale.y;
+      rect.w = rounded_scaled_pixel(width);
+      rect.h = rounded_non_empty_scaled_pixel(static_cast<float>(line_height) * scale.y);
 
       return rect;
     }
 
-    void Renderer::set_scale(int scale)
+    void Renderer::set_scale(float scale)
     {
       set_scale(scale, scale);
     }
 
-    void Renderer::set_scale(int scale_x, int scale_y)
+    void Renderer::set_scale(float scale_x, float scale_y)
     {
-      this->scale = Scale(std::max(1, scale_x), std::max(1, scale_y));
+      this->scale = Scale(sanitized_text_scale(scale_x), sanitized_text_scale(scale_y));
     }
 
     void Renderer::set_scale(const Scale& scale)
@@ -493,17 +526,17 @@ namespace Pixils
       set_scale(scale.x, scale.y);
     }
 
-    int Renderer::get_scale() const
+    float Renderer::get_scale() const
     {
       return this->scale.x;
     }
 
-    int Renderer::get_scale_x() const
+    float Renderer::get_scale_x() const
     {
       return this->scale.x;
     }
 
-    int Renderer::get_scale_y() const
+    float Renderer::get_scale_y() const
     {
       return this->scale.y;
     }
@@ -523,7 +556,7 @@ namespace Pixils
       char32_t c = font_map.has_char(chr) ? chr : ' ';
       if (!font_map.has_char(c)) return 0;
       const SDL_Rect& char_rect = *font_map.get_char_rect(c);
-      return (char_rect.w + spacing) * scale.x;
+      return rounded_scaled_pixel(static_cast<float>(char_rect.w + spacing) * scale.x);
     }
 
     std::optional<TextRenderOp> make_text_render_op(

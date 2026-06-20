@@ -329,7 +329,7 @@ namespace Pixils
 
   void ConsoleOverlay::render(RenderContext&)
   {
-    int char_width = text_renderer.get_scale() * 6;
+    int char_width = static_cast<int>(text_renderer.get_scale() * 6);
     this->line_width = (bounds.w - 10 * rc.pixel_size) / char_width;
 
     SDL_SetRenderDrawBlendMode(rc.renderer, SDL_BLENDMODE_BLEND);
@@ -339,14 +339,15 @@ namespace Pixils
     int margin_left = 5 * rc.pixel_size;
     // Prompt contains color code control chars, so need to subtract 2 when checking for
     // size
-    int prompt_w = 6 * (prompt.size() - 2) * text_renderer.get_scale();
+    int prompt_w =
+      static_cast<int>(6 * (prompt.size() - 2) * text_renderer.get_scale());
 
     int lines = get_visible_lines();
 
     int buffer_start = static_cast<int>(buffer.size()) - lines + scroll_offset;
 
-    tc.move_to(bounds.x + 5 * text_renderer.get_scale(),
-               bounds.y + 2 * text_renderer.get_scale());
+    tc.move_to(static_cast<int>(bounds.x + 5 * text_renderer.get_scale()),
+               static_cast<int>(bounds.y + 2 * text_renderer.get_scale()));
     for (int i = 0; i < lines; i++)
     {
       if (buffer_start + i >= 0)

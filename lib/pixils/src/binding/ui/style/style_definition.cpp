@@ -325,7 +325,7 @@ namespace Pixils::Script::StyleDefinition
       }
 
       if (opts.contains("font")) marked_style.font = opts.str("font");
-      if (opts.contains("scale")) marked_style.scale = opts.i32("scale");
+      if (opts.contains("scale")) marked_style.scale = parse_text_scale(opts.val("scale"));
       if (opts.contains("font-styles"))
       {
         marked_style.font_styles = parse_text_font_styles(opts.val("font-styles"));
@@ -704,6 +704,17 @@ namespace Pixils::Script::StyleDefinition
     return Roo::Constant::NIL;
   }
 
+  std::optional<float> parse_text_scale(const Roo::sptr_val& value)
+  {
+    if (!value || value->type != Roo::Value::Type::NUMBER) return std::nullopt;
+    return std::max(0.01f, value->f32());
+  }
+
+  Roo::sptr_val text_scale_to_value(const std::optional<float>& value)
+  {
+    return value ? Roo::number(*value) : Roo::Constant::NIL;
+  }
+
   bool parse_text_use_font_color(const Roo::sptr_val& value)
   {
     return value && value->type == Roo::Value::Type::KEYWORD && value->str() == "none";
@@ -938,7 +949,7 @@ namespace Pixils::Script::StyleDefinition
 
     if (opts.contains("scale"))
     {
-      text->scale = opts.i32("scale");
+      text->scale = parse_text_scale(opts.val("scale"));
     }
 
     if (opts.contains("font-styles"))

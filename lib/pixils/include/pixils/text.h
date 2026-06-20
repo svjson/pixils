@@ -34,12 +34,12 @@ namespace Pixils
 
     struct Scale
     {
-      int x = 1;
-      int y = 1;
+      float x = 1.0f;
+      float y = 1.0f;
 
       Scale() = default;
-      Scale(int uniform);
-      Scale(int x, int y);
+      Scale(float uniform);
+      Scale(float x, float y);
     };
 
     struct UnderlineMetrics
@@ -209,7 +209,7 @@ namespace Pixils
       int line_height;
       /*!
        * @brief The scale of the text to render. This can be used to render
-       * text in multiples of its original size
+       * text at arbitrary multiples of its original size
        */
       Scale scale = {};
 
@@ -217,7 +217,7 @@ namespace Pixils
       Renderer(SDL_Texture* font,
                FontMap& font_map,
                int spacing = 1,
-               int scale = 1,
+               float scale = 1.0f,
                int line_height = 0);
 
       /*!
@@ -260,23 +260,23 @@ namespace Pixils
       /*!
        * @brief Get the scale modifier of this Renderer
        */
-      int get_scale() const;
+      float get_scale() const;
       /*!
        * @brief Get the horizontal scale modifier of this Renderer
        */
-      int get_scale_x() const;
+      float get_scale_x() const;
       /*!
        * @brief Get the vertical scale modifier of this Renderer
        */
-      int get_scale_y() const;
+      float get_scale_y() const;
       /*!
        * @brief Set the scale modifier of this Renderer
        */
-      void set_scale(int scale);
+      void set_scale(float scale);
       /*!
        * @brief Set independent horizontal and vertical scale modifiers
        */
-      void set_scale(int scale_x, int scale_y);
+      void set_scale(float scale_x, float scale_y);
       /*!
        * @brief Set the scale modifier of this Renderer
        */

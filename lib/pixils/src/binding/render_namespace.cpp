@@ -711,7 +711,7 @@ namespace Pixils::Script
     {
       if (!value || value->type == Roo::Value::Type::NIL) return Text::Scale(1);
       if (value->type == Roo::Value::Type::NUMBER)
-        return Text::Scale(value->num().get_int());
+        return Text::Scale(value->f32());
       if (value->type != Roo::Value::Type::VECTOR)
       {
         throw Roo::TypeError("Text scale must be a number or [x y] vector");
@@ -723,7 +723,7 @@ namespace Pixils::Script
       {
         throw Roo::TypeError("Text scale vector must be [x y] numbers");
       }
-      return Text::Scale(children[0]->num().get_int(), children[1]->num().get_int());
+      return Text::Scale(children[0]->f32(), children[1]->f32());
     }
 
     static std::vector<Text::FontStyle> parse_font_styles(const Roo::sptr_val& value)

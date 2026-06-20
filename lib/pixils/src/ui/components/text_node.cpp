@@ -30,10 +30,10 @@ namespace Pixils::UI::Components
       return value->str();
     }
 
-    int text_style_scale(const Style& style)
+    float text_style_scale(const Style& style)
     {
       if (style.text && style.text->scale) return *style.text->scale;
-      return 1;
+      return 1.0f;
     }
 
     std::optional<Color> text_style_color(const Style& style)

@@ -46,6 +46,8 @@ namespace Pixils::Script::StyleDefinition
 
   std::optional<Pixils::Text::Alignment> parse_text_align(const Roo::sptr_val& value);
   Roo::sptr_val text_align_to_value(const std::optional<Pixils::Text::Alignment>& value);
+  std::optional<float> parse_text_scale(const Roo::sptr_val& value);
+  Roo::sptr_val text_scale_to_value(const std::optional<float>& value);
   bool parse_text_use_font_color(const Roo::sptr_val& value);
   Roo::sptr_val text_color_to_value(const UI::Style::Text& text);
   std::optional<UI::Style::Text::Wrap> parse_text_wrap(const Roo::sptr_val& value);

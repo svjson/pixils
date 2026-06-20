@@ -903,6 +903,36 @@ TEST_F(RenderTest, text_accepts_vector_scale_as_x_y)
   EXPECT_EQ(ops[0].rendered_rect.h, 7);
 }
 
+TEST_F(RenderTest, text_accepts_fractional_scale)
+{
+  SDLMock::prepared_surfaces["./font.png"] = {8, 8};
+  runtime.eval(R"(
+    (pixils/defbundle fonts {:images {:atlas "font.png"}})
+    (pixils/deffont test-font
+      {:type :bitmap
+       :resource :fonts/atlas
+       :glyphs {"A" {:x 0 :y 0 :w 4 :h 7}}})
+    (pixils/defmode test-mode
+      {:render (fn [state ctx]
+                 (pixils.render/text!
+                   "A"
+                   {:x 12 :y 18}
+                   {:font :font/test-font
+                    :scale 1.5}))})
+  )");
+  session.push_mode("test-mode", Roo::Constant::NIL);
+
+  ASSERT_NO_THROW(session.render_mode());
+
+  auto& ops = render_target()->render_ops;
+  ASSERT_EQ(ops.size(), 1u);
+  EXPECT_EQ(ops[0].type, RenderOpType::RENDER_COPY);
+  EXPECT_EQ(ops[0].rendered_rect.x, 12);
+  EXPECT_EQ(ops[0].rendered_rect.y, 18);
+  EXPECT_EQ(ops[0].rendered_rect.w, 6);
+  EXPECT_EQ(ops[0].rendered_rect.h, 11);
+}
+
 TEST_F(RenderTest, text_marked_style_accepts_vector_scale_as_x_y)
 {
   SDLMock::prepared_surfaces["./font.png"] = {16, 8};
@@ -1039,6 +1069,28 @@ TEST_F(RenderTest, text_size_accepts_vector_scale_as_x_y)
   ASSERT_TRUE(h);
   EXPECT_EQ(w->num().get_int(), 20);
   EXPECT_EQ(h->num().get_int(), 7);
+}
+
+TEST_F(RenderTest, text_size_accepts_fractional_scale)
+{
+  SDLMock::prepared_surfaces["./font.png"] = {16, 12};
+  runtime.eval(R"(
+    (pixils/defbundle fonts {:images {:atlas "font.png"}})
+    (pixils/deffont test-font
+      {:type :bitmap
+       :resource :fonts/atlas
+       :glyphs {"A" {:x 0 :y 0 :w 4 :h 7}}})
+  )");
+
+  auto result =
+    runtime.eval(R"((pixils.render/text-size "AA" {:font :font/test-font :scale 1.5}))");
+  auto w = Roo::Dict::get_property(result, Roo::keyword("w"));
+  auto h = Roo::Dict::get_property(result, Roo::keyword("h"));
+
+  ASSERT_TRUE(w);
+  ASSERT_TRUE(h);
+  EXPECT_EQ(w->num().get_int(), 15);
+  EXPECT_EQ(h->num().get_int(), 11);
 }
 
 TEST_F(RenderTest, deffont_replaces_existing_font_definition)
@@ -1255,6 +1307,38 @@ TEST_F(RenderTest, built_in_text_node_renders_and_measures_without_definition)
   auto& ops = render_target()->render_ops;
   ASSERT_EQ(ops.size(), 1u);
   EXPECT_EQ(ops[0].type, RenderOpType::RENDER_COPY);
+}
+
+TEST_F(RenderTest, built_in_text_node_accepts_fractional_text_scale)
+{
+  SDLMock::prepared_surfaces["./font.png"] = {16, 12};
+  runtime.eval(R"(
+    (pixils/defbundle fonts {:images {:atlas "font.png"}})
+    (pixils/deffont test-font
+      {:type :bitmap
+       :resource :fonts/atlas
+       :glyphs {"A" {:x 0 :y 0 :w 4 :h 4}
+                "p" {:x 4 :y 0 :w 4 :h 7}}})
+    (pixils/defmode root-mode
+      {:children [{:mode 'ui/text
+                   :state {:value "A"}
+                   :style {:text {:font :font/test-font
+                                  :scale 1.5}}}]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  auto& child = session.active_mode->children.at(0);
+
+  ASSERT_NO_THROW(session.render_mode());
+
+  EXPECT_EQ(child->bounds.w, 8);
+  EXPECT_EQ(child->bounds.h, 11);
+
+  auto& ops = render_target()->render_ops;
+  ASSERT_EQ(ops.size(), 1u);
+  EXPECT_EQ(ops[0].type, RenderOpType::RENDER_COPY);
+  EXPECT_EQ(ops[0].rendered_rect.w, 6);
+  EXPECT_EQ(ops[0].rendered_rect.h, 6);
 }
 
 TEST_F(RenderTest, built_in_text_node_falls_back_to_console_font_when_style_font_is_missing)

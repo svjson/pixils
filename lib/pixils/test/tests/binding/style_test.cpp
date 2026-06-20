@@ -294,6 +294,17 @@ TEST_F(StyleTest, make_style_with_text)
   EXPECT_EQ(*style.text->wrap, Pixils::UI::Style::Text::Wrap::WORD);
 }
 
+TEST_F(StyleTest, make_style_with_fractional_text_scale)
+{
+  Roo::sptr_val result =
+    runtime.eval("(pixils.ui.style/make-style {:text {:scale 1.5}})");
+
+  auto style = Roo::obj<Pixils::UI::Style>(*result);
+  ASSERT_NE(style.text, std::nullopt);
+  ASSERT_NE(style.text->scale, std::nullopt);
+  EXPECT_FLOAT_EQ(*style.text->scale, 1.5f);
+}
+
 TEST_F(StyleTest, make_style_with_text_font_styles_shadows_and_marked_style)
 {
   Roo::sptr_val result = runtime.eval(R"(
@@ -328,6 +339,20 @@ TEST_F(StyleTest, make_style_with_text_font_styles_shadows_and_marked_style)
   ASSERT_EQ(style.text->marked_style->font_styles->size(), 1u);
   EXPECT_EQ(style.text->marked_style->font_styles->at(0),
             Pixils::Text::FontStyle::UNDERLINE);
+}
+
+TEST_F(StyleTest, marked_style_accepts_fractional_text_scale)
+{
+  Roo::sptr_val result = runtime.eval(R"(
+    (pixils.ui.style/make-style
+      {:text {:marked-style {:scale 0.5}}})
+  )");
+
+  auto style = Roo::obj<Pixils::UI::Style>(*result);
+  ASSERT_NE(style.text, std::nullopt);
+  ASSERT_NE(style.text->marked_style, std::nullopt);
+  ASSERT_NE(style.text->marked_style->scale, std::nullopt);
+  EXPECT_FLOAT_EQ(*style.text->marked_style->scale, 0.5f);
 }
 
 TEST(StyleResolveTest, hover_marked_style_overrides_only_its_own_fields)

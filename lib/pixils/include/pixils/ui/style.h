@@ -250,7 +250,7 @@ namespace Pixils::UI
         std::optional<bool> use_font_color = std::nullopt;
         std::optional<Color> color = std::nullopt;
         std::optional<std::string> font = std::nullopt;
-        std::optional<int> scale = std::nullopt;
+        std::optional<float> scale = std::nullopt;
         std::optional<std::vector<Pixils::Text::FontStyle>> font_styles = std::nullopt;
         std::optional<std::vector<Pixils::Text::Shadow>> shadows = std::nullopt;
       };
@@ -259,7 +259,7 @@ namespace Pixils::UI
       bool use_font_color = false;
       std::optional<Color> color = std::nullopt;
       std::optional<std::string> font = std::nullopt;
-      std::optional<int> scale = std::nullopt;
+      std::optional<float> scale = std::nullopt;
       std::optional<std::vector<Pixils::Text::FontStyle>> font_styles = std::nullopt;
       std::optional<std::vector<Pixils::Text::Shadow>> shadows = std::nullopt;
       std::optional<Pixils::Text::Alignment> align = std::nullopt;

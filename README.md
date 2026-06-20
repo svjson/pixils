@@ -912,7 +912,7 @@ hook fires.
 | `:padding`    | Number, `[vertical horizontal]`, `[top right bottom left]`, or `{:t N :r N :b N :l N}` | Inset applied before the render hook's viewport is set. |
 | `:border`     | Border map (see below)                                               | Draws a border inside the component bounds. |
 | `:layout`     | `{:direction :row}`, `{:direction :column}`, optional `:align-items :start|:center|:end`, optional `:gap :none`, `:gap N`, `:gap :space-between`, wrapped gap maps, optional `:wrap :none|:line`, optional `:line-gap N` | Child layout policy. Supports flow direction, cross-axis alignment of flow children, fixed gap, explicit no-gap, `space-between` distribution, and wrapped row lines. |
-| `:text`       | `{:color {:r N :g N :b N}}`, `{:color :none}`, optional `:font :font/name`, optional `:scale N`, optional `:align :left|:center|:right`, optional `:wrap :word|:none` | Text presentation properties for components that render text. |
+| `:text`       | `{:color {:r N :g N :b N}}`, `{:color :none}`, optional `:font :font/name`, optional `:scale N`, optional `:align :left|:center|:right`, optional `:wrap :word|:none` | Text presentation properties for components that render text. Text scale accepts fractional values. |
 | `:box-sizing` | `:border-box`, `:content-box`                                        | How fixed `:width`/`:height` are interpreted. Default: `:border-box`. |
 | `:scale`      | Integer `N`                                                          | Render this view subtree at logical size, then copy it to an external footprint scaled by `N`. Minimum effective value: `1`. |
 | `:opacity`    | Number from `0.0` to `1.0`                                           | Render this whole view subtree translucent. `1.0` is fully opaque, `0.0` is invisible. |
@@ -1568,7 +1568,7 @@ Renders a string at a given position and returns the rendered bounds as `{:x N :
 |-----------|-------------|
 | `:font`   | Font keyword. Defaults to the built-in console font. |
 | `:color`  | Text color. Defaults to white. |
-| `:scale`  | Integer pixel scale multiplier. Default: 1. |
+| `:scale`  | Pixel scale multiplier. Accepts fractional values, for example `0.75` or `1.5`. Default: 1. |
 | `:shadow` | Shadow spec `{:offset {:x N :y N} :color {...}}` or a vector of specs for multiple shadows. |
 
 **`pixils.render/text-size`**
