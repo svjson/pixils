@@ -171,6 +171,30 @@ TEST_F(Windows3ThemeTest, dialog_frame_chrome_uses_blue_two_pixel_frame)
   expect_border_thickness(window, 2);
 }
 
+TEST_F(Windows3ThemeTest, progress_bar_uses_black_border_and_windows_blue_fill)
+{
+  runtime.eval(R"(
+    (pixils/defmode root-mode
+      {:theme 'pixils/windows-3
+       :children [(pixils.ui.progress-bar/make
+                   {:style {:width 100 :height 14}
+                    :value 42})]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  session.update_mode();
+  layout_active_mode(runtime, session);
+
+  auto progress = find_first_mode(session.active_mode, "ui/progress-bar");
+  ASSERT_NE(progress, nullptr);
+  expect_border_color(progress, {0x00, 0x00, 0x00, 255});
+  expect_border_thickness(progress, 1);
+  ASSERT_TRUE(progress->effective_style.text.has_value());
+  ASSERT_TRUE(progress->effective_style.text->color.has_value());
+  EXPECT_EQ(*progress->effective_style.text->color,
+            (Pixils::Color{0x00, 0x0b, 0xc8, 255}));
+}
+
 TEST_F(Windows3ThemeTest, dark_variant_uses_bright_option_box_indicator)
 {
   runtime.eval(R"(

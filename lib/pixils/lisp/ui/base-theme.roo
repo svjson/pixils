@@ -255,6 +255,10 @@
     'ui/slider {:background (var :field-bg)
                 :border (var :inset-border-style)}
 
+    'ui/progress-bar {:background (var :field-bg)
+                      :border (var :inset-border-style)
+                      :text {:color (var :highlight-color)}}
+
     :ui/split-pane-resizer {:border (var :inset-border-style)}
 
     '(:ui/split-pane-resizer {:axis :x})

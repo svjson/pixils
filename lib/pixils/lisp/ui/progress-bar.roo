@@ -1,0 +1,95 @@
+(ns pixils.ui.progress-bar
+  (:require pixils
+            [pixils.render :as r]
+            [pixils.ui :as ui]))
+
+(def default-track-color {:r 0xff :g 0xff :b 0xff})
+(def default-fill-color {:r 0x00 :g 0x00 :b 0x00})
+
+(defun clamp [value low high]
+  (max low (min high value)))
+
+(defun progress-bar-min [state]
+  (or (:min state) 0))
+
+(defun progress-bar-max [state]
+  (max (progress-bar-min state)
+       (or (:max state) 100)))
+
+(defun progress-bar-value [state]
+  (clamp (or (:value state) (progress-bar-min state))
+         (progress-bar-min state)
+         (progress-bar-max state)))
+
+(defun progress-bar-ratio [state]
+  (let [span (- (progress-bar-max state) (progress-bar-min state))]
+    (if (<= span 0)
+      0
+      (/ (- (progress-bar-value state) (progress-bar-min state)) span))))
+
+(defun progress-bar-style [ctx]
+  (or (-> ctx :view :effective-style)
+      (-> ctx :view :style)))
+
+(defun progress-bar-track-color [state ctx]
+  (or (:track-color state)
+      (-> (progress-bar-style ctx) :background)
+      default-track-color))
+
+(defun progress-bar-fill-color [state ctx]
+  (or (:fill-color state)
+      (ui/theme-var ctx :progress-bar-fill nil)
+      (-> (progress-bar-style ctx) :text :color)
+      default-fill-color))
+
+(defun progress-bar-content-rect [ctx]
+  (let [bounds (-> ctx :view :bounds)]
+    {:x 0
+     :y 0
+     :w (max 0 (:w bounds))
+     :h (max 0 (:h bounds))}))
+
+(defun progress-bar-fill-rect [state ctx]
+  (let [rect (progress-bar-content-rect ctx)
+        ratio (progress-bar-ratio state)]
+    (if (= (:axis state) :y)
+      (let [fill (int (* (:h rect) ratio))]
+        {:x (:x rect)
+         :y (+ (:y rect) (- (:h rect) fill))
+         :w (:w rect)
+         :h fill})
+      {:x (:x rect)
+       :y (:y rect)
+       :w (int (* (:w rect) ratio))
+       :h (:h rect)})))
+
+(defcomponent ui/progress-bar
+  {:class :ui/progress-bar
+   :style {:width 100
+           :height 12}
+   :init (fn [state ctx]
+           (assoc state :value (progress-bar-value state)))
+   :update (fn [state ctx]
+             (assoc state :value (progress-bar-value state)))
+   :render (fn [state ctx]
+             (let [track (progress-bar-content-rect ctx)
+                   fill (progress-bar-fill-rect state ctx)]
+               (do
+                 (when (and (> (:w track) 0) (> (:h track) 0))
+                   (r/rect! track {:fill true
+                                   :color (progress-bar-track-color state ctx)}))
+                 (when (and (> (:w fill) 0) (> (:h fill) 0))
+                   (r/rect! fill {:fill true
+                                  :color (progress-bar-fill-color state ctx)})))))})
+
+(defun make [{:keys [style value min max axis track-color fill-color class state]}]
+  (merge {:mode 'ui/progress-bar
+          :style (or style {})
+          :state (merge (or state {})
+                        {:value value
+                         :min min
+                         :max max
+                         :axis (or axis :x)
+                         :track-color track-color
+                         :fill-color fill-color})}
+         (if class {:class class} {})))

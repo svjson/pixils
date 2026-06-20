@@ -552,6 +552,10 @@
             'ui/slider {:background (var :panel-bg)
                         :border (var :raised-border-style)}
 
+            'ui/progress-bar {:background (var :field-bg)
+                              :border (var :control-border-style)
+                              :text {:color (var :focus-bg)}}
+
             :ui/split-pane-resizer {:background (var :panel-bg)
                                     :border (var :raised-border-style)}
 

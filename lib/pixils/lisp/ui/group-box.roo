@@ -28,7 +28,9 @@
               :state panel-state
               :children [{:mode 'ui/group-box-body
                           :style (or body-style {})
-                          :state (or body-state panel-state)
+                          :state (if (nil? body-state)
+                                   panel-state
+                                   body-state)
                           :children (or children [])}]}]
             (if title-child [title-child] []))))
 

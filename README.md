@@ -131,6 +131,7 @@ Roo components, so applications can use them like any other mode.
 | `ui/scrollbar` | Standalone horizontal or vertical scrollbar primitive. |
 | `ui/scrollbar-corner` | Filler component for the square where two scrollbars meet. |
 | `ui/scroll-pane` | Scrollable viewport composed from a clipped content area and stock scrollbars. |
+| `ui/progress-bar` | Passive horizontal or vertical progress indicator for literal or bound numeric values. |
 | `ui/dialog-frame` | Full-screen overlay used by dialog helpers such as `open-confirm!` and `open-dialog!`. |
 | `ui/file-dialog-body` | File chooser body used by `pixils.ui.file-dialog/open-file-dialog!`. |
 | `ui/icon` | Focusable visual item primitive with selection, activation, and drag events. |
@@ -339,6 +340,17 @@ or an options map with `:state` plus node options such as `:style`:
 `ui/scrollbar` is intended for direct composition. Use `:axis :x` or `:axis :y`,
 bind `:value` to the scroll offset you want to control, and provide `:content-size`
 for the total scrollable span. Optional `:step` controls the arrow-button increment.
+
+`ui/progress-bar` is usually created with `pixils.ui.progress-bar/make`. Bind
+`:value` to the numeric state you want to display and optionally set `:min`,
+`:max`, and `:axis`:
+
+```clojure
+(pixils.ui.progress-bar/make
+  {:style {:width 120 :height 12}
+   :value (pixils.ui/bind-state :load-progress)
+   :max 100})
+```
 
 `ui/header-panel` is usually created with `pixils.ui.header-panel/make` so the
 header/body structure stays consistent while applications provide body children:
