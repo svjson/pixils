@@ -22,6 +22,10 @@
 (defun view-upper-y [view]
   2)
 
+(defun view-bottom [view]
+  (+ (-> view :bounds :y)
+     (-> view :bounds :h)))
+
 (deftest widget-showcase-theme-menu-nests_multi_variant_themes
   (let [theme-menu (nth (:items showcase-menu/showcase-menu) 2)]
     (is (= "&Theme" (:label theme-menu)))
@@ -77,6 +81,20 @@
              (:h (:bounds scroll-pane))))
       (is (= true (< (:h (:bounds viewport))
                      (:h (:bounds tab-panel))))))))
+
+(deftest inputs-tab-choices-group-expands_to_contain_combo_box
+  (let [app (runtime/make-app {:package-root "."
+                               :buffer-width 800
+                               :buffer-height 600
+                               :render-backend false})]
+    (runtime/push-mode! app 'main-mode)
+    (settle-layout! app)
+    (let [bodies (runtime/find-views app "ui/group-box-body")
+          choices-body (nth bodies 1)
+          combo (runtime/find-view app "ui/combo-box")]
+      (is (= true
+             (<= (view-bottom combo)
+                 (view-bottom choices-body)))))))
 
 (deftest inputs-tab-button-hover-uses-full-visual-height
   (let [app (runtime/make-app {:package-root "."

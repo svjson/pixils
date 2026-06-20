@@ -14,16 +14,12 @@
   {:width 740
    :height 488})
 
-(def showcase-content-size
-  {:w 740
-   :h 650})
-
 (defun showcase-tabs []
   (let [tabs-view (tabs/make
                    {:selected-tab (ui/bind-state :selected-tab)
                     :state (showcase-window-state)
                     :style {:width :fill
-                            :height :fill}
+                            :height :shrink}
                     :tabs [{:id :inputs
                             :label "Inputs"
                             :body (inputs-page/make)}
@@ -50,12 +46,12 @@
   (scroll-pane/make
    {:style {:width :fill
             :height :fill}
-    :content-size showcase-content-size
+    :scroll-x? false
     :state {:content-state (ui/bind-state)}
     :step 24
     :children [{:id "showcase-scroll-surface"
-                :style {:width (:w showcase-content-size)
-                        :height (:h showcase-content-size)}
+                :style {:width :fill
+                        :height :shrink}
                 :state (showcase-state/bindings)
                 :children [(showcase-tabs)]}]}))
 
