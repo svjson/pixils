@@ -221,3 +221,56 @@ TEST_F(Windows3ThemeTest, dark_variant_uses_bright_option_box_indicator)
             "{:color {:__pixils-theme-var :text} :radius 5 :inner-radius 2 "
             ":pressed-thickness 2}");
 }
+
+TEST_F(Windows3ThemeTest, dark_variant_uses_bright_checkbox_mark_color)
+{
+  runtime.eval(R"(
+    (pixils/defmode root-mode
+      {:theme 'pixils/windows-3
+       :theme-variant :dark
+       :children [(pixils.ui.checkbox/make
+                   {:label "Enabled"
+                    :checked? true})]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  session.update_mode();
+  layout_active_mode(runtime, session);
+
+  auto box = find_first_mode(session.active_mode, "ui/checkbox-box");
+  ASSERT_NE(box, nullptr);
+  ASSERT_TRUE(box->effective_style.text.has_value());
+  ASSERT_TRUE(box->effective_style.text->color.has_value());
+  EXPECT_EQ(*box->effective_style.text->color,
+            (Pixils::Color{0xdc, 0xe0, 0xe4, 255}));
+}
+
+TEST_F(Windows3ThemeTest, dark_variant_uses_bright_scrollbar_arrow_images)
+{
+  runtime.eval(R"(
+    (pixils/defmode root-mode
+      {:theme 'pixils/windows-3
+       :theme-variant :dark
+       :children [{:mode 'ui/scrollbar
+                   :style {:height 60}
+                   :state {:axis :y :content-size 100 :value 0}}]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  session.update_mode();
+  layout_active_mode(runtime, session);
+
+  auto scrollbar = find_first_mode(session.active_mode, "ui/scrollbar");
+  ASSERT_NE(scrollbar, nullptr);
+  ASSERT_TRUE(scrollbar->effective_theme.vars.count("dark") > 0);
+  ASSERT_TRUE(scrollbar->effective_theme.vars.at("dark").count("scrollbar-button-symbols") >
+              0);
+
+  auto symbols = scrollbar->effective_theme.vars.at("dark").at("scrollbar-button-symbols");
+  ASSERT_NE(symbols, nullptr);
+  EXPECT_EQ(symbols->to_string(),
+            "{:up-image :windows-3-theme/scrollbar-arrow-up-dark "
+            ":down-image :windows-3-theme/scrollbar-arrow-down-dark "
+            ":left-image :windows-3-theme/scrollbar-arrow-left-dark "
+            ":right-image :windows-3-theme/scrollbar-arrow-right-dark}");
+}

@@ -15,7 +15,12 @@
 (def scrollbar-arrow-down :windows-3-theme/scrollbar-arrow-down)
 (def scrollbar-arrow-left :windows-3-theme/scrollbar-arrow-left)
 (def scrollbar-arrow-right :windows-3-theme/scrollbar-arrow-right)
+(def scrollbar-arrow-up-dark :windows-3-theme/scrollbar-arrow-up-dark)
+(def scrollbar-arrow-down-dark :windows-3-theme/scrollbar-arrow-down-dark)
+(def scrollbar-arrow-left-dark :windows-3-theme/scrollbar-arrow-left-dark)
+(def scrollbar-arrow-right-dark :windows-3-theme/scrollbar-arrow-right-dark)
 (def submenu-chevron-highlighted :windows-3-theme/submenu-chevron-highlighted)
+(def dark-symbol-color {:r 0xdc :g 0xe0 :b 0xe4})
 
 (defun draw-menu-option-checkmark! []
   (r/line! {:x 7 :y 0} {:x 7 :y 1} c/BLACK)
@@ -79,53 +84,80 @@
 (defun draw-chevron-right! []
   (draw-filled-chevron-with-color! :right c/BLACK))
 
-(defun draw-full-arrow-with-color! [direction color]
+(defun offset-x [point dx]
+  {:x (+ (:x point) dx)
+   :y (:y point)})
+
+(defun draw-offset-line! [from to color dx]
+  (r/line! (offset-x from dx) (offset-x to dx) color))
+
+(defun draw-full-arrow-pass-with-color! [direction color dx]
   (case direction
     :up (do
-          (r/line! {:x 3 :y 0} {:x 3 :y 0} color)
-          (r/line! {:x 2 :y 1} {:x 4 :y 1} color)
-          (r/line! {:x 1 :y 2} {:x 5 :y 2} color)
-          (r/line! {:x 0 :y 3} {:x 6 :y 3} color)
-          (r/line! {:x 2 :y 4} {:x 4 :y 4} color)
-          (r/line! {:x 2 :y 5} {:x 4 :y 5} color)
-          (r/line! {:x 2 :y 6} {:x 4 :y 6} color))
+          (draw-offset-line! {:x 3 :y 0} {:x 3 :y 0} color dx)
+          (draw-offset-line! {:x 2 :y 1} {:x 4 :y 1} color dx)
+          (draw-offset-line! {:x 1 :y 2} {:x 5 :y 2} color dx)
+          (draw-offset-line! {:x 0 :y 3} {:x 6 :y 3} color dx)
+          (draw-offset-line! {:x 2 :y 4} {:x 4 :y 4} color dx)
+          (draw-offset-line! {:x 2 :y 5} {:x 4 :y 5} color dx)
+          (draw-offset-line! {:x 2 :y 6} {:x 4 :y 6} color dx))
     :down (do
-            (r/line! {:x 2 :y 0} {:x 4 :y 0} color)
-            (r/line! {:x 2 :y 1} {:x 4 :y 1} color)
-            (r/line! {:x 2 :y 2} {:x 4 :y 2} color)
-            (r/line! {:x 0 :y 3} {:x 6 :y 3} color)
-            (r/line! {:x 1 :y 4} {:x 5 :y 4} color)
-            (r/line! {:x 2 :y 5} {:x 4 :y 5} color)
-            (r/line! {:x 3 :y 6} {:x 3 :y 6} color))
+            (draw-offset-line! {:x 2 :y 0} {:x 4 :y 0} color dx)
+            (draw-offset-line! {:x 2 :y 1} {:x 4 :y 1} color dx)
+            (draw-offset-line! {:x 2 :y 2} {:x 4 :y 2} color dx)
+            (draw-offset-line! {:x 0 :y 3} {:x 6 :y 3} color dx)
+            (draw-offset-line! {:x 1 :y 4} {:x 5 :y 4} color dx)
+            (draw-offset-line! {:x 2 :y 5} {:x 4 :y 5} color dx)
+            (draw-offset-line! {:x 3 :y 6} {:x 3 :y 6} color dx))
     :left (do
-            (r/line! {:x 3 :y 0} {:x 3 :y 0} color)
-            (r/line! {:x 2 :y 1} {:x 3 :y 1} color)
-            (r/line! {:x 1 :y 2} {:x 6 :y 2} color)
-            (r/line! {:x 0 :y 3} {:x 6 :y 3} color)
-            (r/line! {:x 1 :y 4} {:x 6 :y 4} color)
-            (r/line! {:x 2 :y 5} {:x 3 :y 5} color)
-            (r/line! {:x 3 :y 6} {:x 3 :y 6} color))
+            (draw-offset-line! {:x 3 :y 0} {:x 3 :y 0} color dx)
+            (draw-offset-line! {:x 2 :y 1} {:x 3 :y 1} color dx)
+            (draw-offset-line! {:x 1 :y 2} {:x 6 :y 2} color dx)
+            (draw-offset-line! {:x 0 :y 3} {:x 6 :y 3} color dx)
+            (draw-offset-line! {:x 1 :y 4} {:x 6 :y 4} color dx)
+            (draw-offset-line! {:x 2 :y 5} {:x 3 :y 5} color dx)
+            (draw-offset-line! {:x 3 :y 6} {:x 3 :y 6} color dx))
     :right (do
-             (r/line! {:x 3 :y 0} {:x 3 :y 0} color)
-             (r/line! {:x 3 :y 1} {:x 4 :y 1} color)
-             (r/line! {:x 0 :y 2} {:x 5 :y 2} color)
-             (r/line! {:x 0 :y 3} {:x 6 :y 3} color)
-             (r/line! {:x 0 :y 4} {:x 5 :y 4} color)
-             (r/line! {:x 3 :y 5} {:x 4 :y 5} color)
-             (r/line! {:x 3 :y 6} {:x 3 :y 6} color))
+             (draw-offset-line! {:x 3 :y 0} {:x 3 :y 0} color dx)
+             (draw-offset-line! {:x 3 :y 1} {:x 4 :y 1} color dx)
+             (draw-offset-line! {:x 0 :y 2} {:x 5 :y 2} color dx)
+             (draw-offset-line! {:x 0 :y 3} {:x 6 :y 3} color dx)
+             (draw-offset-line! {:x 0 :y 4} {:x 5 :y 4} color dx)
+             (draw-offset-line! {:x 3 :y 5} {:x 4 :y 5} color dx)
+             (draw-offset-line! {:x 3 :y 6} {:x 3 :y 6} color dx))
     :default nil))
 
+(defun draw-full-arrow-with-color! [direction color]
+  (draw-full-arrow-pass-with-color! direction color 0))
+
+(defun draw-thick-full-arrow-with-color! [direction color]
+  (do
+    (draw-full-arrow-pass-with-color! direction color 0)
+    (draw-full-arrow-pass-with-color! direction color 1)))
+
 (defun draw-scrollbar-arrow-up! []
-  (draw-full-arrow-with-color! :up c/BLACK))
+  (draw-thick-full-arrow-with-color! :up c/BLACK))
 
 (defun draw-scrollbar-arrow-down! []
-  (draw-full-arrow-with-color! :down c/BLACK))
+  (draw-thick-full-arrow-with-color! :down c/BLACK))
 
 (defun draw-scrollbar-arrow-left! []
-  (draw-full-arrow-with-color! :left c/BLACK))
+  (draw-thick-full-arrow-with-color! :left c/BLACK))
 
 (defun draw-scrollbar-arrow-right! []
-  (draw-full-arrow-with-color! :right c/BLACK))
+  (draw-thick-full-arrow-with-color! :right c/BLACK))
+
+(defun draw-scrollbar-arrow-up-dark! []
+  (draw-thick-full-arrow-with-color! :up dark-symbol-color))
+
+(defun draw-scrollbar-arrow-down-dark! []
+  (draw-thick-full-arrow-with-color! :down dark-symbol-color))
+
+(defun draw-scrollbar-arrow-left-dark! []
+  (draw-thick-full-arrow-with-color! :left dark-symbol-color))
+
+(defun draw-scrollbar-arrow-right-dark! []
+  (draw-thick-full-arrow-with-color! :right dark-symbol-color))
 
 (defun ensure-windows-3-theme-assets! []
   (theme-assets/ensure-generated-image! theme-bundle
@@ -167,7 +199,23 @@
   (theme-assets/ensure-generated-image! theme-bundle
                                         scrollbar-arrow-right
                                         {:size {:w 7 :h 7}}
-                                        draw-scrollbar-arrow-right!))
+                                        draw-scrollbar-arrow-right!)
+  (theme-assets/ensure-generated-image! theme-bundle
+                                        scrollbar-arrow-up-dark
+                                        {:size {:w 7 :h 7}}
+                                        draw-scrollbar-arrow-up-dark!)
+  (theme-assets/ensure-generated-image! theme-bundle
+                                        scrollbar-arrow-down-dark
+                                        {:size {:w 7 :h 7}}
+                                        draw-scrollbar-arrow-down-dark!)
+  (theme-assets/ensure-generated-image! theme-bundle
+                                        scrollbar-arrow-left-dark
+                                        {:size {:w 7 :h 7}}
+                                        draw-scrollbar-arrow-left-dark!)
+  (theme-assets/ensure-generated-image! theme-bundle
+                                        scrollbar-arrow-right-dark
+                                        {:size {:w 7 :h 7}}
+                                        draw-scrollbar-arrow-right-dark!))
 
 (ensure-windows-3-theme-assets!)
 
@@ -433,10 +481,10 @@
                  :menu-option-indicator {:selected-symbol :checkmark}
                  :menu-submenu-indicator {:image :windows-3-theme/chevron-right
                                           :highlighted-image :windows-3-theme/submenu-chevron-highlighted}
-                 :scrollbar-button-symbols {:up-image :windows-3-theme/scrollbar-arrow-up
-                                            :down-image :windows-3-theme/scrollbar-arrow-down
-                                            :left-image :windows-3-theme/scrollbar-arrow-left
-                                            :right-image :windows-3-theme/scrollbar-arrow-right}}}
+                 :scrollbar-button-symbols {:up-image :windows-3-theme/scrollbar-arrow-up-dark
+                                            :down-image :windows-3-theme/scrollbar-arrow-down-dark
+                                            :left-image :windows-3-theme/scrollbar-arrow-left-dark
+                                            :right-image :windows-3-theme/scrollbar-arrow-right-dark}}}
    :defaults {:text {:font :font/win3-system-font}}
    :styles {:ui/app {:background (var :desktop-bg)
                      :text {:color (var :text)}}
