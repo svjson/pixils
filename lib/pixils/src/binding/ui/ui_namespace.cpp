@@ -17,6 +17,7 @@
 #include <roo/exec.h>
 #include <roo/host/accessor.h>
 #include <roo/host/object.h>
+#include <roo/runtime/dict.h>
 #include <roo/runtime/seq.h>
 #include <roo/runtime/value.h>
 
@@ -34,7 +35,7 @@ namespace Pixils::Script
       }
 
       Roo::sptr_val resolve_view_target(const Roo::sptr_val& target,
-                                           const std::string& fn_name)
+                                        const std::string& fn_name)
       {
         if (!target || target->type == Roo::Value::Type::NIL)
         {
@@ -135,6 +136,48 @@ namespace Pixils::Script
           UI::apply_style_variant(*mode.style, style);
         }
       }
+
+      bool disabled_view(const Runtime::View& view)
+      {
+        auto disabled = Roo::Dict::get_property(view.state, Roo::keyword("disabled?"));
+        return disabled && disabled->type == Roo::Value::Type::BOOL &&
+               std::get<bool>(disabled->value);
+      }
+
+      bool hidden_view(const Runtime::View& view)
+      {
+        return view.effective_style.visibility &&
+               (*view.effective_style.visibility == UI::Style::Visibility::HIDDEN ||
+                *view.effective_style.visibility == UI::Style::Visibility::NONE);
+      }
+
+      bool focus_candidate(const Runtime::View& view)
+      {
+        return view.mode && view.mode->focusable && !disabled_view(view) &&
+               !hidden_view(view);
+      }
+
+      Runtime::View* find_descendant_mode(Runtime::View& view, const std::string& mode_name)
+      {
+        for (auto& child : view.children)
+        {
+          if (!child || !child->mode || hidden_view(*child)) continue;
+          if (child->mode->name == mode_name) return child.get();
+          if (auto found = find_descendant_mode(*child, mode_name)) return found;
+        }
+        return nullptr;
+      }
+
+      Runtime::View* find_first_focusable_descendant(Runtime::View& view)
+      {
+        for (auto& child : view.children)
+        {
+          if (!child || hidden_view(*child)) continue;
+          if (focus_candidate(*child)) return child.get();
+          if (auto found = find_first_focusable_descendant(*child)) return found;
+        }
+        return nullptr;
+      }
     } // namespace
 
     /** BindStateFn - bind-state */
@@ -162,12 +205,12 @@ namespace Pixils::Script
         args.empty() ? Roo::Constant::NIL : resolve_view_target(args[0], "ui/blur!");
 
       Roo::append(*message_queue,
-                     Roo::map(Roo::sptr_val_v{
-                       Roo::keyword("type"),
-                       Roo::keyword("blur"),
-                       Roo::keyword("target"),
-                       target,
-                     }));
+                  Roo::map(Roo::sptr_val_v{
+                    Roo::keyword("type"),
+                    Roo::keyword("blur"),
+                    Roo::keyword("target"),
+                    target,
+                  }));
 
       return Roo::Constant::NIL;
     }
@@ -216,9 +259,8 @@ namespace Pixils::Script
 
       Runtime::View& view = Roo::obj<Runtime::View>(*target);
       auto source_mode = view.mode ? Roo::symbol(view.mode->name) : Roo::Constant::NIL;
-      view.emit_event(CustomEvent{args[1],
-                                  args.size() > 2 ? args[2] : Roo::Constant::NIL,
-                                  source_mode});
+      view.emit_event(
+        CustomEvent{args[1], args.size() > 2 ? args[2] : Roo::Constant::NIL, source_mode});
 
       return Roo::Constant::NIL;
     }
@@ -236,14 +278,63 @@ namespace Pixils::Script
       auto message_queue = ctx.lookup(ID__PIXILS__MODE_STACK_MESSAGES);
 
       Roo::append(*message_queue,
-                     Roo::map(Roo::sptr_val_v{
-                       Roo::keyword("type"),
-                       Roo::keyword("focus"),
-                       Roo::keyword("target"),
-                       target,
-                     }));
+                  Roo::map(Roo::sptr_val_v{
+                    Roo::keyword("type"),
+                    Roo::keyword("focus"),
+                    Roo::keyword("target"),
+                    target,
+                  }));
 
       return target;
+    }
+
+    /** FocusFirstBangFunction - focus-first! */
+    FUNC_IMPL(FocusFirstBangFunction,
+              SIG((FN_ARGS((Roo::VARARG, &Roo::Type::ANY)),
+                   EXEC_DISPATCH(&FocusFirstBangFunction::exec_focus_first))));
+
+    EXEC_BODY(FocusFirstBangFunction, exec_focus_first)
+    {
+      if (args.empty() || args.size() > 2)
+      {
+        throw Roo::InvocationException(
+          "ui/focus-first! expects a view or hook context and optional container mode");
+      }
+
+      auto root = resolve_view_target(args[0], "ui/focus-first!");
+      if (!root || root->type == Roo::Value::Type::NIL)
+      {
+        return Roo::Constant::NIL;
+      }
+
+      Runtime::View* search_root = &Roo::obj<Runtime::View>(*root);
+      if (args.size() > 1 && args[1] && args[1]->type != Roo::Value::Type::NIL)
+      {
+        if (args[1]->type != Roo::Value::Type::SYMBOL &&
+            args[1]->type != Roo::Value::Type::KEYWORD &&
+            args[1]->type != Roo::Value::Type::STRING)
+        {
+          throw Roo::TypeError(
+            "ui/focus-first! container mode must be a symbol, keyword, or string");
+        }
+        search_root = find_descendant_mode(*search_root, args[1]->str());
+        if (!search_root) return Roo::Constant::NIL;
+      }
+
+      auto target = find_first_focusable_descendant(*search_root);
+      if (!target) return Roo::Constant::NIL;
+
+      auto target_ref = ViewAdapter::make_ref(*target);
+      auto message_queue = ctx.lookup(ID__PIXILS__MODE_STACK_MESSAGES);
+      Roo::append(*message_queue,
+                  Roo::map(Roo::sptr_val_v{
+                    Roo::keyword("type"),
+                    Roo::keyword("focus"),
+                    Roo::keyword("target"),
+                    target_ref,
+                  }));
+
+      return target_ref;
     }
 
     /** ReplaceChildBangFunction - replace-child! */
@@ -275,7 +366,7 @@ namespace Pixils::Script
       if (existing_child == view.children.end())
       {
         throw Roo::InvocationException("ui/replace-child! could not find child '" +
-                                          child_id + "'");
+                                       child_id + "'");
       }
 
       auto child_entries = Roo::vector({args[2]});
@@ -505,6 +596,8 @@ namespace Pixils::Script
     values.emplace(FN__PIXILS__UI__CHILDREN, Function::ChildrenFunction::make());
     values.emplace("emit!", Function::EmitBangFunction::make());
     values.emplace(FN__PIXILS__UI__FOCUS_BANG, Function::FocusBangFunction::make());
+    values.emplace(FN__PIXILS__UI__FOCUS_FIRST_BANG,
+                   Function::FocusFirstBangFunction::make());
     values.emplace("replace-child!", Function::ReplaceChildBangFunction::make());
     values.emplace(FN__PIXILS__UI__STYLE_BANG, Function::StyleBangFunction::make());
     values.emplace("preserve-focus!", Function::PreserveFocusBangFunction::make());

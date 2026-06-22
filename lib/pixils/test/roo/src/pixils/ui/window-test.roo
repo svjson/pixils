@@ -181,6 +181,50 @@
                            :state {:value \"child\"
                                    :auto-focus? true}}]})]})")
 
+(defun first-body-autofocus-window-probe-source []
+  "(ns pixils.test.first-body-autofocus-window-probe
+     (:require pixils
+               pixils.ui.button
+               pixils.ui.window))
+
+   (pixils/defcomponent static-body
+     {:style {:width 80
+              :height 12}})
+
+   (pixils/defmode root-mode
+     {:children [(pixils.ui.window/make
+                  {:auto-focus :first-body
+                   :style {:width 120
+                           :height 80}
+                   :title-bar {:title \"First Body\"}
+                   :body [{:mode 'static-body}
+                          {:mode 'ui/button
+                           :style {:width 64
+                                   :height 24}
+                           :state {:label \"OK\"}}]})]})")
+
+(defun first-body-autofocus-skips-disabled-window-probe-source []
+  "(ns pixils.test.first-body-autofocus-skips-disabled-window-probe
+     (:require pixils
+               pixils.ui.button
+               pixils.ui.window))
+
+   (pixils/defmode root-mode
+     {:children [(pixils.ui.window/make
+                  {:auto-focus :first-body
+                   :style {:width 140
+                           :height 88}
+                   :title-bar {:title \"Skip Disabled\"}
+                   :body [{:mode 'ui/button
+                           :style {:width 64
+                                   :height 24}
+                           :state {:label \"Disabled\"
+                                   :disabled? true}}
+                          {:mode 'ui/button
+                           :style {:width 64
+                                   :height 24}
+                           :state {:label \"Enabled\"}}]})]})")
+
 (defun autofocus-disabled-window-probe-source []
   "(ns pixils.test.autofocus-disabled-window-probe
      (:require pixils
@@ -424,6 +468,34 @@
       (is (= false (-> window :interaction :focused)))
       (is (= true (-> window :interaction :focus-within)))
       (is (= true (-> input :interaction :focused))))))
+
+(deftest window-can-autofocus-first-focusable-body-descendant
+  (let [app (runtime/make-app {:package-root "../.."
+                               :buffer-width 160
+                               :buffer-height 120
+                               :render-backend false})]
+    (runtime/eval! app (first-body-autofocus-window-probe-source))
+    (runtime/push-mode! app 'root-mode)
+    (settle-layout! app)
+    (let [window (runtime/find-view app "ui/window")
+          button (runtime/find-view app "ui/button")]
+      (is (= false (-> window :interaction :focused)))
+      (is (= true (-> window :interaction :focus-within)))
+      (is (= true (-> button :interaction :focused))))))
+
+(deftest window-first-body-autofocus-skips-disabled-descendants
+  (let [app (runtime/make-app {:package-root "../.."
+                               :buffer-width 160
+                               :buffer-height 120
+                               :render-backend false})]
+    (runtime/eval! app (first-body-autofocus-skips-disabled-window-probe-source))
+    (runtime/push-mode! app 'root-mode)
+    (settle-layout! app)
+    (let [buttons (runtime/find-views app "ui/button")
+          disabled (head buttons)
+          enabled (nth buttons 1)]
+      (is (= false (-> disabled :interaction :focused)))
+      (is (= true (-> enabled :interaction :focused))))))
 
 (deftest window-autofocus-can-be-disabled
   (let [app (runtime/make-app {:package-root "../.."

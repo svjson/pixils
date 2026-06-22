@@ -116,10 +116,18 @@
    :children (concat (body-children body)
                      [(make-dialog-button-row buttons button-row-style)])})
 
-(defun make-dialog-window [{:keys [title title-bar position state style body] :as opts}]
+(defun make-dialog-window [{:keys [title title-bar position state style body auto-focus auto-focus?]
+                            :as opts}]
   (let [window-opts (merge {:title-bar (or title-bar {:title (or title "Dialog")})
                             :style (or style {})
                             :state (or state {})
+                            :auto-focus (if (contains? opts :auto-focus)
+                                          auto-focus
+                                          (if (contains? opts :auto-focus?)
+                                            (if auto-focus?
+                                              :first-body
+                                              false)
+                                            :first-body))
                             :body (body-children body)}
                            (if (contains? opts :position)
                              {:position position}

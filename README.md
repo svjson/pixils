@@ -155,7 +155,9 @@ Windows auto-focus by default and center themselves in the render buffer when
 `:position` is not supplied. Auto-positioned windows are clamped into the buffer
 so the visible frame remains reachable. Supplying `:position` makes the
 coordinate explicit, so Pixils preserves it even when it is off-screen. Pass
-`:auto-focus? false` to opt out of automatic focus.
+`:auto-focus? false` to opt out of automatic focus. Pass `:auto-focus :first-body`
+to focus the first enabled focusable descendant inside `ui/window-body`; when no
+body descendant can take focus, the window itself is focused.
 
 The current chrome variants are:
 
@@ -429,6 +431,8 @@ The result payload has the shape `{:choice choice :payload payload}`. Button cho
 the button `:type`, such as `:dialog/ok`, `:dialog/cancel`, `:dialog/yes`, or `:dialog/no`.
 The built-in button presets are `:dialog/ok`, `:dialog/ok-cancel`, `:dialog/yes-no`, and
 `:dialog/yes-no-cancel`; vectors are rendered left-to-right, so callers control ordering.
+Dialog windows use `:auto-focus :first-body` by default, so the first enabled
+input or button in the body receives initial focus.
 
 `pixils.ui.dialog/open-dialog!` is the lower-level helper for custom dialog windows. It
 pushes `ui/dialog-frame`, creates the window, and wraps result handlers so user code returns
@@ -1055,11 +1059,14 @@ Programmatic focus control is also available from hooks:
 ```clojure
 (pixils.ui/focus! ctx)         ; focus the current view
 (pixils.ui/focus! (:view ctx)) ; equivalent explicit form
+(pixils.ui/focus-first! ctx)   ; focus first enabled focusable descendant
 (pixils.ui/blur!)              ; clear the current focused leaf
 ```
 
 `focus!` only succeeds for views whose mode is `:focusable true`. Mouse focus acquisition
 uses the same rule and will walk up the hit chain to the nearest focusable ancestor.
+`focus-first!` accepts an optional container mode, such as
+`(pixils.ui/focus-first! ctx 'ui/window-body)`, to limit the descendant search.
 
 With the default `:box-sizing :border-box`, a fixed size includes padding and border but
 not margin. Use `:box-sizing :content-box` to opt into the previous behavior where padding

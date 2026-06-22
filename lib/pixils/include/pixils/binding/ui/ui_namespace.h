@@ -24,6 +24,7 @@ namespace Pixils::Script
   inline constexpr std::string_view FN__PIXILS__UI__BLUR_BANG = "blur!";
   inline constexpr std::string_view FN__PIXILS__UI__CHILDREN = "children";
   inline constexpr std::string_view FN__PIXILS__UI__FOCUS_BANG = "focus!";
+  inline constexpr std::string_view FN__PIXILS__UI__FOCUS_FIRST_BANG = "focus-first!";
   inline constexpr std::string_view FN__PIXILS__UI__STYLE_BANG = "style!";
   inline constexpr std::string_view FN__PIXILS__UI__THEME_VAR = "theme-var";
 
@@ -34,6 +35,7 @@ namespace Pixils::Script
     FUNC(ChildrenFunction, children);
     FUNC(EmitBangFunction, emit);
     FUNC(FocusBangFunction, focus);
+    FUNC(FocusFirstBangFunction, focus_first);
     FUNC(PreserveFocusBangFunction, preserve_focus);
     FUNC(ReplaceChildBangFunction, replace_child);
     FUNC(StyleBangFunction, style);
