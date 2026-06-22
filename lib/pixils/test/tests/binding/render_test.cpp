@@ -1505,8 +1505,14 @@ TEST_F(RenderTest,
   ASSERT_EQ(ops.size(), 3u);
   EXPECT_EQ(ops[0].type, RenderOpType::RENDER_COPY);
   EXPECT_EQ(ops[0].rendered_texture, tint_texture);
+  EXPECT_EQ(ops[0].texture_color_mod.r, 255);
+  EXPECT_EQ(ops[0].texture_color_mod.g, 255);
+  EXPECT_EQ(ops[0].texture_color_mod.b, 255);
   EXPECT_EQ(ops[1].type, RenderOpType::FILL_RECT);
   EXPECT_EQ(ops[2].type, RenderOpType::RENDER_COPY);
+  EXPECT_EQ(ops[2].texture_color_mod.r, 0);
+  EXPECT_EQ(ops[2].texture_color_mod.g, 0);
+  EXPECT_EQ(ops[2].texture_color_mod.b, 0);
 }
 
 TEST_F(RenderTest, built_in_text_node_marked_style_inherits_parent_tint_for_mnemonic)
@@ -1543,8 +1549,14 @@ TEST_F(RenderTest, built_in_text_node_marked_style_inherits_parent_tint_for_mnem
   ASSERT_EQ(ops.size(), 3u);
   EXPECT_EQ(ops[0].type, RenderOpType::RENDER_COPY);
   EXPECT_EQ(ops[0].rendered_texture, tint_texture);
+  EXPECT_EQ(ops[0].texture_color_mod.r, 255);
+  EXPECT_EQ(ops[0].texture_color_mod.g, 255);
+  EXPECT_EQ(ops[0].texture_color_mod.b, 255);
   EXPECT_EQ(ops[1].type, RenderOpType::FILL_RECT);
   EXPECT_EQ(ops[2].type, RenderOpType::RENDER_COPY);
+  EXPECT_EQ(ops[2].texture_color_mod.r, 255);
+  EXPECT_EQ(ops[2].texture_color_mod.g, 255);
+  EXPECT_EQ(ops[2].texture_color_mod.b, 255);
 }
 
 TEST_F(RenderTest, built_in_text_node_wraps_wordwise_when_fill_width_is_constrained)

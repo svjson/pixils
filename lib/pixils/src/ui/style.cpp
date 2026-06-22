@@ -67,15 +67,19 @@ namespace Pixils::UI
       if (variant.enabled) out.enabled = variant.enabled;
       if (variant.marker) out.marker = variant.marker;
 
-      if (variant.use_font_color)
+      if (variant.use_font_color && *variant.use_font_color)
       {
-        out.use_font_color = variant.use_font_color;
-        if (*variant.use_font_color) out.color = std::nullopt;
+        out.use_font_color = true;
+        out.color = std::nullopt;
       }
-      else if (variant.color)
+      if (variant.color)
       {
         out.use_font_color = false;
         out.color = variant.color;
+      }
+      else if (variant.use_font_color && !*variant.use_font_color)
+      {
+        out.use_font_color = false;
       }
 
       if (variant.font) out.font = variant.font;
