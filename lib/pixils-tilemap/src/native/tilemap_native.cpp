@@ -801,6 +801,136 @@ namespace
     return row[x];
   }
 
+  std::unordered_set<std::string> value_filter(const Roo::sptr_val& values)
+  {
+    std::unordered_set<std::string> out;
+    if (nil_value(values)) return out;
+    if (values->type == Roo::Value::Type::MAP)
+    {
+      for (const auto& key : Roo::Dict::keys(*values))
+      {
+        out.insert(value_key(key));
+      }
+      return out;
+    }
+    if (seq_value(values))
+    {
+      for (const auto& value : Roo::get_children(*values))
+      {
+        out.insert(value_key(value));
+      }
+      return out;
+    }
+    out.insert(value_key(values));
+    return out;
+  }
+
+  bool filter_matches(const std::unordered_set<std::string>& filter,
+                      const Roo::sptr_val& value)
+  {
+    return filter.empty() || filter.contains(value_key(value));
+  }
+
+  bool layer_selector_matches(const Roo::sptr_val& selector,
+                              const Roo::sptr_val& layer,
+                              int layer_index)
+  {
+    if (selector && selector->type == Roo::Value::Type::NUMBER)
+    {
+      return selector->num().get_int() == layer_index;
+    }
+    return same_value(selector, prop(layer, "id"));
+  }
+
+  bool layer_selected(const Roo::sptr_val& selectors,
+                      const Roo::sptr_val& layer,
+                      int layer_index)
+  {
+    if (nil_value(selectors)) return true;
+    if (seq_value(selectors))
+    {
+      for (const auto& selector : Roo::get_children(*selectors))
+      {
+        if (layer_selector_matches(selector, layer, layer_index)) return true;
+      }
+      return false;
+    }
+    return layer_selector_matches(selectors, layer, layer_index);
+  }
+
+  Roo::sptr_val position_value(int x, int y)
+  {
+    return map_value({keyword_value("x"),
+                      Roo::Value::number(x),
+                      keyword_value("y"),
+                      Roo::Value::number(y)});
+  }
+
+  Roo::sptr_val layer_cell_match_value(const Roo::sptr_val& layer,
+                                       int layer_index,
+                                       int x,
+                                       int y,
+                                       const Roo::sptr_val& tile_ref)
+  {
+    return map_value({keyword_value("position"),
+                      position_value(x, y),
+                      keyword_value("x"),
+                      Roo::Value::number(x),
+                      keyword_value("y"),
+                      Roo::Value::number(y),
+                      keyword_value("layer-id"),
+                      prop(layer, "id"),
+                      keyword_value("layer-index"),
+                      Roo::Value::number(layer_index),
+                      keyword_value("tile-ref"),
+                      tile_ref});
+  }
+
+  Roo::sptr_val find_layer_cells(const Roo::sptr_val& tilemap,
+                                 const Roo::sptr_val& opts)
+  {
+    if (!tilemap || tilemap->type != Roo::Value::Type::MAP) return Roo::Constant::NIL;
+
+    auto layer_selectors = prop(opts, "layers");
+    auto role = value_filter(prop(opts, "role"));
+    auto data_kind = value_filter(prop(opts, "data-kind"));
+    auto tile_refs = value_filter(prop(opts, "tile-refs"));
+    bool include_empty = truthy_prop(opts, "include-empty?");
+
+    Roo::sptr_val_v matches;
+    int layer_index = 0;
+    for (const auto& layer : seq_children(prop(tilemap, "layers")))
+    {
+      if (!layer || layer->type != Roo::Value::Type::MAP)
+      {
+        layer_index++;
+        continue;
+      }
+      if (!layer_selected(layer_selectors, layer, layer_index) ||
+          !filter_matches(role, prop(layer, "role")) ||
+          !filter_matches(data_kind, prop(layer, "data-kind")))
+      {
+        layer_index++;
+        continue;
+      }
+
+      auto rows = tile_rows(prop(layer, "tiles"));
+      for (int y = 0; y < static_cast<int>(rows.size()); y++)
+      {
+        for (int x = 0; x < static_cast<int>(rows[y].size()); x++)
+        {
+          auto tile_ref = rows[y][x];
+          if (!include_empty && nil_value(tile_ref)) continue;
+          if (!filter_matches(tile_refs, tile_ref)) continue;
+          matches.push_back(layer_cell_match_value(layer, layer_index, x, y, tile_ref));
+        }
+      }
+      layer_index++;
+    }
+
+    return Roo::Value::vector(matches);
+  }
+
   struct TerrainPreview
   {
     Roo::sptr_val tileset = Roo::Constant::NIL;
@@ -1720,6 +1850,7 @@ namespace
   {
     FUNC(RenderLayersBang, render_layers);
     FUNC(MaterializeRenderMap, native_materialize_render_map);
+    FUNC(FindLayerCells, find_layer_cells);
 
     FUNC_IMPL(RenderLayersBang,
               SIG((FN_ARGS((&Roo::Type::MAP), (&Roo::Type::MAP)),
@@ -1728,6 +1859,10 @@ namespace
     FUNC_IMPL(MaterializeRenderMap,
               SIG((FN_ARGS((&Roo::Type::MAP), (&Roo::Type::MAP)),
                    EXEC_DISPATCH(&MaterializeRenderMap::exec_native_materialize_render_map))));
+
+    FUNC_IMPL(FindLayerCells,
+              SIG((FN_ARGS((&Roo::Type::MAP), (&Roo::Type::MAP)),
+                   EXEC_DISPATCH(&FindLayerCells::exec_find_layer_cells))));
 
     EXEC_BODY(RenderLayersBang, exec_render_layers)
     {
@@ -1739,6 +1874,11 @@ namespace
     EXEC_BODY(MaterializeRenderMap, exec_native_materialize_render_map)
     {
       return native_materialize_render_map(args[0], args[1]);
+    }
+
+    EXEC_BODY(FindLayerCells, exec_find_layer_cells)
+    {
+      return find_layer_cells(args[0], args[1]);
     }
   } // namespace Function
 
@@ -1762,6 +1902,16 @@ namespace
     }
   };
 
+  class OpsImplNamespace : public Roo::Namespace
+  {
+   public:
+    OpsImplNamespace()
+      : Roo::Namespace("pixils.tilemap.ops-impl")
+    {
+      values.emplace("find-layer-cells", Function::FindLayerCells::make());
+    }
+  };
+
   int load_native_package(const RooNativeHostV1* host)
   {
     try
@@ -1775,6 +1925,12 @@ namespace
       auto materialize_ns = std::make_unique<MaterializeImplNamespace>();
       materialize_ns->set_origin(Roo::Namespace::Origin::native());
       if (host->register_namespace(host->user, materialize_ns.release()) != 0)
+      {
+        return 1;
+      }
+      auto ops_ns = std::make_unique<OpsImplNamespace>();
+      ops_ns->set_origin(Roo::Namespace::Origin::native());
+      if (host->register_namespace(host->user, ops_ns.release()) != 0)
       {
         return 1;
       }

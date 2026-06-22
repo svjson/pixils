@@ -1,0 +1,5 @@
+(ns pixils.tilemap.ops
+  (:require [pixils.tilemap.ops-impl :as ops-impl]))
+
+(defun find-layer-cells [tilemap opts]
+  (ops-impl/find-layer-cells tilemap (or opts {})))

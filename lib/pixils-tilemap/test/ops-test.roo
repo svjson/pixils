@@ -1,0 +1,53 @@
+(ns pixils.tilemap.ops-test
+  (:require proof.core
+            [pixils.tilemap.ops :as ops]))
+
+(def test-tilemap
+  {:width 3
+   :height 2
+   :layers [{:id :base
+             :role :source
+             :data-kind :tile-ref
+             :tiles [[:floor :door nil]
+                     [:wall :floor :door]]}
+            {:id :objects
+             :role :source
+             :data-kind :tile-ref
+             :tiles [[nil :chest nil]
+                     [:door nil nil]]}
+            {:id :render
+             :role :render
+             :data-kind :tile-ref
+             :tiles [[:door nil nil]
+                     [nil nil nil]]}]})
+
+(deftest find-layer-cells-filters-by-role-data-kind-and-tile_refs
+  (is (= [{:position {:x 1 :y 0}
+           :x 1
+           :y 0
+           :layer-id :base
+           :layer-index 0
+           :tile-ref :door}
+          {:position {:x 2 :y 1}
+           :x 2
+           :y 1
+           :layer-id :base
+           :layer-index 0
+           :tile-ref :door}
+          {:position {:x 0 :y 1}
+           :x 0
+           :y 1
+           :layer-id :objects
+           :layer-index 1
+           :tile-ref :door}]
+         (ops/find-layer-cells test-tilemap
+                               {:role :source
+                                :data-kind :tile-ref
+                                :tile-refs {:door true}}))))
+
+(deftest find-layer-cells-selects-layers-by-id-or-index
+  (is (= [:base :base :render]
+         (map (ops/find-layer-cells test-tilemap
+                                    {:layers [:base 2]
+                                     :tile-refs [:door]})
+              :layer-id))))
