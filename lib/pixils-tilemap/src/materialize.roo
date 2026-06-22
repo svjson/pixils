@@ -1,5 +1,6 @@
 (ns pixils.tilemap.materialize
-  (:require [pixils.tilemap.model :as tm]))
+  (:require [pixils.tilemap.materialize-impl :as materialize-impl]
+            [pixils.tilemap.model :as tm]))
 
 (defun id-label [value]
   (let [text (str value)]
@@ -932,7 +933,7 @@
           (:show-terrain-rules? tilemap))
         false))
 
-(defun materialize-render-map [tilemap & opts]
+(defun roo-materialize-render-map [tilemap & opts]
   (let [opts (or (head opts) {})]
     (assoc (materialized-tilemap-base tilemap)
            :layers (apply-tile-substitution-rules-to-layers
@@ -948,6 +949,11 @@
                                          tilemap
                                          opts))
                     {:x 0 :y 0}))))
+
+(defun materialize-render-map [tilemap & opts]
+  (let [opts (or (head opts) {})]
+    (or (materialize-impl/materialize-render-map tilemap opts)
+        (roo-materialize-render-map tilemap opts))))
 
 (defun materialize-render-rect [tilemap rect & opts]
   (let [opts (or (head opts) {})

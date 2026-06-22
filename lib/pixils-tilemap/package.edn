@@ -7,7 +7,8 @@
  :native-libraries [{:name "pixils-tilemap-native"
                      :version "0.1.0"
                      :path "native"
-                     :namespaces [pixils.tilemap.render-impl]}]
+                     :namespaces [pixils.tilemap.render-impl
+                                  pixils.tilemap.materialize-impl]}]
  :namespace-roots {pixils.tilemap ["src" "test"]}
  :config {proof {:test-roots ["test"]}}
  :entry-points []
