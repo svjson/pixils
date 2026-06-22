@@ -37,7 +37,7 @@
                             :body (icons-page/make)}]})]
     (assoc tabs-view
            :state (assoc (:state tabs-view)
-                         :body-state (ui/bind-state)))))
+                         :body-state (showcase-window-state)))))
 
 (defun showcase-window-state []
   (showcase-state/bindings))

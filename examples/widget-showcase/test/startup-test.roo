@@ -96,6 +96,39 @@
              (<= (view-bottom combo)
                  (view-bottom choices-body)))))))
 
+(deftest inputs-tab-slider-drag-does_not_rebuild_tab_body
+  (let [app (runtime/make-app {:package-root "."
+                               :buffer-width 800
+                               :buffer-height 600
+                               :render-backend false})]
+    (runtime/push-mode! app 'main-mode)
+    (settle-layout! app)
+    (let [tab-panel (runtime/find-view app "ui/tab-panel")
+          before-body-state (:rendered-body-state
+                             (runtime/view-state tab-panel))
+          slider (runtime/find-view app "ui/slider")]
+      (runtime/mouse-down-in! app slider 102 (view-center-y slider))
+      (runtime/update! app)
+      (runtime/mouse-move-in! app slider 140 (view-center-y slider))
+      (runtime/update! app)
+      (runtime/mouse-move-in! app
+                              slider
+                              (- (:w (:bounds slider)) 2)
+                              (view-center-y slider))
+      (runtime/update! app)
+      (runtime/mouse-up-in! app
+                            slider
+                            (- (:w (:bounds slider)) 2)
+                            (view-center-y slider))
+      (runtime/update! app)
+      (settle-layout! app)
+      (let [after-tab-panel (runtime/find-view app "ui/tab-panel")
+            after-body-state (:rendered-body-state
+                              (runtime/view-state after-tab-panel))]
+        (is (= before-body-state after-body-state))
+        (is (= 100
+               (:slider-value (runtime/active-state app))))))))
+
 (deftest inputs-tab-button-hover-uses-full-visual-height
   (let [app (runtime/make-app {:package-root "."
                                :buffer-width 800
