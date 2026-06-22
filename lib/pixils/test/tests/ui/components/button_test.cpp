@@ -146,6 +146,115 @@ TEST_F(ButtonTest, disabled_button_does_not_fire_click_handler)
   EXPECT_EQ(clicks->to_string(), "0");
 }
 
+TEST_F(ButtonTest, focused_button_enter_fires_click_handler_as_left_click)
+{
+  runtime.eval(R"(
+    (pixils/defmode root-mode
+      {:init (fn [state ctx] {:focused? false})
+       :update (fn [state ctx]
+                 (do
+                   (when (not (:focused? state))
+                     (pixils.ui/focus! (head (pixils.ui/children ctx))))
+                   (assoc state :focused? true)))
+       :children [{:mode 'ui/button
+                   :style {:width 40 :height 24}
+                   :state {:label "OK"
+                           :clicks 0
+                           :last-button nil}
+                   :on-click (fn [state event ctx]
+                               (assoc (assoc state :clicks (+ (:clicks state) 1))
+                                      :last-button
+                                      (:button event)))}]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  update_cycle();
+  render_cycle();
+
+  auto button = session.active_mode->children[0];
+  ASSERT_NE(button, nullptr);
+  EXPECT_TRUE(button->interaction.focused);
+
+  input().key_down(SDLK_RETURN);
+  update_cycle();
+  input().key_up(SDLK_RETURN);
+  update_cycle();
+
+  auto clicks = get_key(button->state, "clicks");
+  auto last_button = get_key(button->state, "last-button");
+  ASSERT_NE(clicks, nullptr);
+  ASSERT_NE(last_button, nullptr);
+  EXPECT_EQ(clicks->to_string(), "1");
+  EXPECT_EQ(last_button->to_string(), ":left");
+}
+
+TEST_F(ButtonTest, focused_button_keypad_enter_fires_click_handler)
+{
+  runtime.eval(R"(
+    (pixils/defmode root-mode
+      {:init (fn [state ctx] {:focused? false})
+       :update (fn [state ctx]
+                 (do
+                   (when (not (:focused? state))
+                     (pixils.ui/focus! (head (pixils.ui/children ctx))))
+                   (assoc state :focused? true)))
+       :children [{:mode 'ui/button
+                   :style {:width 40 :height 24}
+                   :state {:label "OK"
+                           :clicks 0}
+                   :on-click (fn [state event ctx]
+                               (assoc state :clicks (+ (:clicks state) 1)))}]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  update_cycle();
+  render_cycle();
+
+  input().key_down(SDLK_KP_ENTER);
+  update_cycle();
+  input().key_up(SDLK_KP_ENTER);
+  update_cycle();
+
+  auto button = session.active_mode->children[0];
+  auto clicks = get_key(button->state, "clicks");
+  ASSERT_NE(clicks, nullptr);
+  EXPECT_EQ(clicks->to_string(), "1");
+}
+
+TEST_F(ButtonTest, focused_disabled_button_enter_does_not_fire_click_handler)
+{
+  runtime.eval(R"(
+    (pixils/defmode root-mode
+      {:init (fn [state ctx] {:focused? false})
+       :update (fn [state ctx]
+                 (do
+                   (when (not (:focused? state))
+                     (pixils.ui/focus! (head (pixils.ui/children ctx))))
+                   (assoc state :focused? true)))
+       :children [{:mode 'ui/button
+                   :style {:width 40 :height 24}
+                   :state {:label "OK"
+                           :clicks 0
+                           :disabled? true}
+                   :on-click (fn [state event ctx]
+                               (assoc state :clicks (+ (:clicks state) 1)))}]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  update_cycle();
+  render_cycle();
+
+  input().key_down(SDLK_RETURN);
+  update_cycle();
+  input().key_up(SDLK_RETURN);
+  update_cycle();
+
+  auto button = session.active_mode->children[0];
+  auto clicks = get_key(button->state, "clicks");
+  ASSERT_NE(clicks, nullptr);
+  EXPECT_EQ(clicks->to_string(), "0");
+}
+
 TEST_F(ButtonTest, make_button_builds_button_child_with_state_and_handlers)
 {
   runtime.eval(R"(

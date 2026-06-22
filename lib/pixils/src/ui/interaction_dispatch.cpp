@@ -668,6 +668,69 @@ namespace Pixils::UI
       return {root};
     }
 
+    bool enter_key_event(const KeyboardEvent& event)
+    {
+      return event.key && event.key->type == Roo::Value::Type::KEYWORD &&
+             event.key->str() == "key/enter";
+    }
+
+    bool button_mode(const std::shared_ptr<Runtime::View>& view)
+    {
+      if (!view || !view->mode) return false;
+      return std::find(view->mode->selector_modes.begin(),
+                       view->mode->selector_modes.end(),
+                       "ui/button") != view->mode->selector_modes.end();
+    }
+
+    Point keyboard_click_global_pos(const std::vector<std::shared_ptr<Runtime::View>>& chain)
+    {
+      float x = 0.0f;
+      float y = 0.0f;
+      for (auto it = chain.rbegin(); it != chain.rend(); ++it)
+      {
+        if (!*it) continue;
+        x += static_cast<float>((*it)->bounds.x);
+        y += static_cast<float>((*it)->bounds.y);
+      }
+
+      if (!chain.empty() && chain.front())
+      {
+        x += static_cast<float>(chain.front()->bounds.w) / 2.0f;
+        y += static_cast<float>(chain.front()->bounds.h) / 2.0f;
+      }
+
+      return {x, y};
+    }
+
+    bool dispatch_keyboard_button_click(
+      const std::vector<std::shared_ptr<Runtime::View>>& chain,
+      const KeyboardEvent& key_event,
+      Runtime::HookArguments& hook_args,
+      Roo::Runtime& rt)
+    {
+      if (chain.empty() || !enter_key_event(key_event) || !button_mode(chain.front()) ||
+          view_disabled(chain.front()))
+      {
+        return false;
+      }
+
+      MouseButtonEvent click_ev;
+      click_ev.global_pos = keyboard_click_global_pos(chain);
+      click_ev.button = Roo::keyword(mouse_button_name(MouseButton::LEFT));
+      click_ev.click_count = 1;
+      auto click_ev_ref = Script::MouseButtonEventAdapter::make_ref(click_ev);
+      bubble_hook(
+        chain,
+        &Runtime::Mode::on_click,
+        click_ev_ref,
+        click_ev.propagation_stopped,
+        [&](size_t index)
+        { click_ev.local_pos = local_pos_in_view(click_ev.global_pos, chain, index); },
+        hook_args,
+        rt);
+      return true;
+    }
+
     void bubble_keyboard_hook(const std::vector<std::shared_ptr<Runtime::View>>& chain,
                               Roo::sptr_val Runtime::Mode::* hook_field,
                               KeyboardEvent& event,
@@ -681,6 +744,15 @@ namespace Pixils::UI
         if (!event.propagation_stopped && !view_disabled(view))
         {
           fire_hook_on_view(view, view->mode->*hook_field, ev_ref, hook_args, rt);
+        }
+
+        if (!event.propagation_stopped && !view_disabled(view) &&
+            hook_field == &Runtime::Mode::on_key_down)
+        {
+          if (i == 0 && dispatch_keyboard_button_click(chain, event, hook_args, rt))
+          {
+            event.propagation_stopped = true;
+          }
         }
 
         if (!event.propagation_stopped && !view_disabled(view) &&

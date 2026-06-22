@@ -409,6 +409,11 @@ namespace Pixils
 
     Roo::sptr_val key_event_to_roo_key(const SDL_KeyboardEvent& event)
     {
+      if (event.keysym.sym == SDLK_KP_ENTER)
+      {
+        return Roo::keyword("key/enter");
+      }
+
       for (auto& [str, keycode] : SYMBOL_TO_KEYCODE)
       {
         if (keycode == event.keysym.sym)

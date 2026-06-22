@@ -140,6 +140,9 @@ Roo components, so applications can use them like any other mode.
 | `ui/desktop-icon-preview` | Non-hit-tested desktop-icon variant for drag previews. |
 | `ui/icon-container` | Focusable icon coordinator/drop surface with optional grid layout, snapping, reordering, and keyboard navigation. |
 
+Focused `ui/button` views activate their `:on-click` handler when Enter/Return
+is pressed; the keyboard activation is delivered as a left-button click event.
+
 `pixils.ui.window/make` creates the standard window view map. The window root
 owns focus, movement, positioning, and future window-level behavior; the chrome
 option controls which visible frame is composed around the caller-provided body.
