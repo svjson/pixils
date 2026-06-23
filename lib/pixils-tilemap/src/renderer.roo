@@ -29,9 +29,113 @@
   (r/rect! rect {:fill true
                  :color tm/default-missing-tile-color}))
 
+(defun light-mask-grid [rect]
+  (let [left-w (/ (:w rect) 3)
+        right-w (/ (:w rect) 3)
+        middle-w (- (- (:w rect) left-w) right-w)
+        top-h (/ (:h rect) 3)
+        bottom-h (/ (:h rect) 3)
+        middle-h (- (- (:h rect) top-h) bottom-h)]
+    {:left-w left-w
+     :middle-w middle-w
+     :right-w right-w
+     :top-h top-h
+     :middle-h middle-h
+     :bottom-h bottom-h
+     :middle-x (+ (:x rect) left-w)
+     :right-x (+ (+ (:x rect) left-w) middle-w)
+     :middle-y (+ (:y rect) top-h)
+     :bottom-y (+ (+ (:y rect) top-h) middle-h)}))
+
+(defun light-mask-edge-rect [part rect]
+  (let [grid (light-mask-grid rect)]
+    (cond
+      (= part :w)
+      {:x (:x rect) :y (:middle-y grid) :w (:left-w grid) :h (:middle-h grid)}
+
+      (= part :e)
+      {:x (:right-x grid) :y (:middle-y grid) :w (:right-w grid) :h (:middle-h grid)}
+
+      (= part :n)
+      {:x (:middle-x grid) :y (:y rect) :w (:middle-w grid) :h (:top-h grid)}
+
+      (= part :s)
+      {:x (:middle-x grid) :y (:bottom-y grid) :w (:middle-w grid) :h (:bottom-h grid)}
+
+      :default
+      rect)))
+
+(defun light-mask-corner-rect [part rect]
+  (let [grid (light-mask-grid rect)]
+    (cond
+      (= part :nw)
+      {:x (:x rect) :y (:y rect) :w (:left-w grid) :h (:top-h grid)}
+
+      (= part :ne)
+      {:x (:right-x grid) :y (:y rect) :w (:right-w grid) :h (:top-h grid)}
+
+      (= part :sw)
+      {:x (:x rect) :y (:bottom-y grid) :w (:left-w grid) :h (:bottom-h grid)}
+
+      (= part :se)
+      {:x (:right-x grid) :y (:bottom-y grid) :w (:right-w grid) :h (:bottom-h grid)}
+
+      :default
+      rect)))
+
+(defun light-mask-center-rect [part rect]
+  (let [grid (light-mask-grid rect)]
+    (if (= part :center)
+      {:x (:middle-x grid) :y (:middle-y grid) :w (:middle-w grid) :h (:middle-h grid)}
+      rect)))
+
+(defun light-mask-quadrant-rect [part rect]
+  (let [left-w (/ (:w rect) 2)
+        right-w (- (:w rect) left-w)
+        top-h (/ (:h rect) 2)
+        bottom-h (- (:h rect) top-h)
+        right-x (+ (:x rect) left-w)
+        bottom-y (+ (:y rect) top-h)]
+    (cond
+      (= part :nw)
+      {:x (:x rect) :y (:y rect) :w left-w :h top-h}
+
+      (= part :ne)
+      {:x right-x :y (:y rect) :w right-w :h top-h}
+
+      (= part :sw)
+      {:x (:x rect) :y bottom-y :w left-w :h bottom-h}
+
+      (= part :se)
+      {:x right-x :y bottom-y :w right-w :h bottom-h}
+
+      :default
+      rect)))
+
+(defun tile-mask-rect [tile rect]
+  (let [mask (:mask tile)
+        kind (:kind mask)
+        part (:part mask)]
+    (cond
+      (= kind :edges)
+      (light-mask-edge-rect part rect)
+
+      (= kind :corners)
+      (light-mask-corner-rect part rect)
+
+      (= kind :center)
+      (light-mask-center-rect part rect)
+
+      (= kind :quadrants)
+      (light-mask-quadrant-rect part rect)
+
+      :default
+      rect)))
+
 (defun draw-color-tile! [tile rect]
-  (r/rect! rect {:fill true
-                 :color (:color tile)}))
+  (r/rect! (tile-mask-rect tile rect)
+           {:fill true
+            :color (:color tile)}))
 
 (defun explicit-draw-geometry? [tile]
   (or (:draw-offset tile)

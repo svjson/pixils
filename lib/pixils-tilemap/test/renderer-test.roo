@@ -40,6 +40,66 @@
   (is (= false (renderer/valid-dim? {:w 0 :h 1})))
   (is (= false (renderer/valid-dim? {:w 1 :h 0}))))
 
+(deftest tile-mask-rect-supports_edge_masks
+  (let [rect {:x 10 :y 20 :w 60 :h 30}]
+    (is (= {:x 10 :y 30 :w 20 :h 10}
+           (renderer/tile-mask-rect {:mask {:kind :edges :part :w}}
+                                    rect)))
+    (is (= {:x 50 :y 30 :w 20 :h 10}
+           (renderer/tile-mask-rect {:mask {:kind :edges :part :e}}
+                                    rect)))
+    (is (= {:x 30 :y 20 :w 20 :h 10}
+           (renderer/tile-mask-rect {:mask {:kind :edges :part :n}}
+                                    rect)))
+    (is (= {:x 30 :y 40 :w 20 :h 10}
+           (renderer/tile-mask-rect {:mask {:kind :edges :part :s}}
+                                    rect)))))
+
+(deftest tile-mask-rect-supports_corner_masks
+  (let [rect {:x 10 :y 20 :w 60 :h 30}]
+    (is (= {:x 10 :y 20 :w 20 :h 10}
+           (renderer/tile-mask-rect {:mask {:kind :corners :part :nw}}
+                                    rect)))
+    (is (= {:x 50 :y 20 :w 20 :h 10}
+           (renderer/tile-mask-rect {:mask {:kind :corners :part :ne}}
+                                    rect)))
+    (is (= {:x 10 :y 40 :w 20 :h 10}
+           (renderer/tile-mask-rect {:mask {:kind :corners :part :sw}}
+                                    rect)))
+    (is (= {:x 50 :y 40 :w 20 :h 10}
+           (renderer/tile-mask-rect {:mask {:kind :corners :part :se}}
+                                    rect)))))
+
+(deftest tile-mask-rect-supports_center_masks
+  (let [rect {:x 10 :y 20 :w 60 :h 30}]
+    (is (= {:x 30 :y 30 :w 20 :h 10}
+           (renderer/tile-mask-rect {:mask {:kind :center :part :center}}
+                                    rect)))))
+
+(deftest tile-mask-rect-supports_quadrant_masks
+  (let [rect {:x 10 :y 20 :w 60 :h 30}]
+    (is (= {:x 10 :y 20 :w 30 :h 15}
+           (renderer/tile-mask-rect {:mask {:kind :quadrants :part :nw}}
+                                    rect)))
+    (is (= {:x 40 :y 20 :w 30 :h 15}
+           (renderer/tile-mask-rect {:mask {:kind :quadrants :part :ne}}
+                                    rect)))
+    (is (= {:x 10 :y 35 :w 30 :h 15}
+           (renderer/tile-mask-rect {:mask {:kind :quadrants :part :sw}}
+                                    rect)))
+    (is (= {:x 40 :y 35 :w 30 :h 15}
+           (renderer/tile-mask-rect {:mask {:kind :quadrants :part :se}}
+                                    rect)))))
+
+(deftest tile-mask-rect-keeps_edges_and_corners_disjoint
+  (let [rect {:x 10 :y 20 :w 60 :h 30}
+        bottom-left (renderer/tile-mask-rect {:mask {:kind :corners :part :sw}} rect)
+        bottom-edge (renderer/tile-mask-rect {:mask {:kind :edges :part :s}} rect)]
+    (is (= 30 (+ (:x bottom-left) (:w bottom-left))))
+    (is (= 30 (:x bottom-edge)))
+    (is (= (:y bottom-left) (:y bottom-edge)))
+    (is (= (:h bottom-left) (:h bottom-edge)))))
+
 (deftest render-options-uses-single-tileset
   (is (= {:tilesets [{:id :br :tiles []}]}
          (renderer/render-options {:id :br :tiles []} nil))))

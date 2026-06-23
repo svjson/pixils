@@ -51,3 +51,37 @@
                                     {:layers [:base 2]
                                      :tile-refs [:door]})
               :layer-id))))
+
+(deftest live-base-tilemap-tags-base-and-masks-overlay-cells
+  (let [tilemap (ops/live-base-tilemap
+                 test-tilemap
+                 {:base-layer-id :base
+                  :masked-positions [{:x 1 :y 0}]
+                  :masked-tile-refs {:door true}
+                  :tilemap-props {:atlas/legacy-source? true}
+                  :base-layer-props {:atlas/legacy-base? true}
+                  :overlay-layer-defaults {:atlas/render-position :under-actors}})
+        layers (:layers tilemap)]
+    (is (= true
+           (:atlas/legacy-source? tilemap)))
+    (is (= true
+           (-> layers head :atlas/legacy-base?)))
+    (is (= [[:floor :door nil]
+            [:wall :floor :door]]
+           (-> layers head :tiles)))
+    (is (= [[nil nil nil]
+            [nil nil nil]]
+           (-> layers (nth 1) :tiles)))
+    (is (= :under-actors
+           (-> layers (nth 1) :atlas/render-position)))))
+
+(deftest live-base-tilemap-keeps-existing-overlay-default_keys
+  (let [tilemap (ops/live-base-tilemap
+                 (assoc-in test-tilemap
+                           [:layers 1 :atlas/render-position]
+                           :over-actors)
+                 {:base-layer-id :base
+                  :overlay-layer-defaults {:atlas/render-position :under-actors}})
+        layer (-> tilemap :layers (nth 1))]
+    (is (= :over-actors
+           (:atlas/render-position layer)))))

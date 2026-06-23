@@ -537,6 +537,114 @@ namespace
     fill_rect(rc.renderer, rect, 0xff, 0x00, 0xff, 0xff);
   }
 
+  struct MaskGrid
+  {
+    int left_w = 0;
+    int middle_w = 0;
+    int right_w = 0;
+    int top_h = 0;
+    int middle_h = 0;
+    int bottom_h = 0;
+    int middle_x = 0;
+    int right_x = 0;
+    int middle_y = 0;
+    int bottom_y = 0;
+  };
+
+  MaskGrid mask_grid(const Pixils::Rect& rect)
+  {
+    MaskGrid grid;
+    grid.left_w = rect.w / 3;
+    grid.right_w = rect.w / 3;
+    grid.middle_w = rect.w - grid.left_w - grid.right_w;
+    grid.top_h = rect.h / 3;
+    grid.bottom_h = rect.h / 3;
+    grid.middle_h = rect.h - grid.top_h - grid.bottom_h;
+    grid.middle_x = rect.x + grid.left_w;
+    grid.right_x = grid.middle_x + grid.middle_w;
+    grid.middle_y = rect.y + grid.top_h;
+    grid.bottom_y = grid.middle_y + grid.middle_h;
+    return grid;
+  }
+
+  Pixils::Rect edge_mask_rect(const std::string& part, const Pixils::Rect& rect)
+  {
+    MaskGrid grid = mask_grid(rect);
+
+    if (part == "w") return Pixils::Rect{rect.x, grid.middle_y, grid.left_w, grid.middle_h};
+    if (part == "e")
+    {
+      return Pixils::Rect{grid.right_x, grid.middle_y, grid.right_w, grid.middle_h};
+    }
+    if (part == "n") return Pixils::Rect{grid.middle_x, rect.y, grid.middle_w, grid.top_h};
+    if (part == "s")
+    {
+      return Pixils::Rect{grid.middle_x, grid.bottom_y, grid.middle_w, grid.bottom_h};
+    }
+
+    return rect;
+  }
+
+  Pixils::Rect corner_mask_rect(const std::string& part, const Pixils::Rect& rect)
+  {
+    MaskGrid grid = mask_grid(rect);
+
+    if (part == "nw") return Pixils::Rect{rect.x, rect.y, grid.left_w, grid.top_h};
+    if (part == "ne") return Pixils::Rect{grid.right_x, rect.y, grid.right_w, grid.top_h};
+    if (part == "sw") return Pixils::Rect{rect.x, grid.bottom_y, grid.left_w, grid.bottom_h};
+    if (part == "se")
+    {
+      return Pixils::Rect{grid.right_x, grid.bottom_y, grid.right_w, grid.bottom_h};
+    }
+
+    return rect;
+  }
+
+  Pixils::Rect center_mask_rect(const std::string& part, const Pixils::Rect& rect)
+  {
+    MaskGrid grid = mask_grid(rect);
+
+    if (part == "center")
+    {
+      return Pixils::Rect{grid.middle_x, grid.middle_y, grid.middle_w, grid.middle_h};
+    }
+
+    return rect;
+  }
+
+  Pixils::Rect quadrant_mask_rect(const std::string& part, const Pixils::Rect& rect)
+  {
+    int left_w = rect.w / 2;
+    int right_w = rect.w - left_w;
+    int top_h = rect.h / 2;
+    int bottom_h = rect.h - top_h;
+    int right_x = rect.x + left_w;
+    int bottom_y = rect.y + top_h;
+
+    if (part == "nw") return Pixils::Rect{rect.x, rect.y, left_w, top_h};
+    if (part == "ne") return Pixils::Rect{right_x, rect.y, right_w, top_h};
+    if (part == "sw") return Pixils::Rect{rect.x, bottom_y, left_w, bottom_h};
+    if (part == "se") return Pixils::Rect{right_x, bottom_y, right_w, bottom_h};
+
+    return rect;
+  }
+
+  Pixils::Rect tile_mask_rect(const Roo::sptr_val& tile, const Pixils::Rect& rect)
+  {
+    auto mask = prop(tile, "mask");
+    if (nil_value(mask)) return rect;
+
+    std::string kind = value_name(prop(mask, "kind"));
+    std::string part = value_name(prop(mask, "part"));
+
+    if (kind == "edges") return edge_mask_rect(part, rect);
+    if (kind == "corners") return corner_mask_rect(part, rect);
+    if (kind == "center") return center_mask_rect(part, rect);
+    if (kind == "quadrants") return quadrant_mask_rect(part, rect);
+
+    return rect;
+  }
+
   void draw_color_tile(Pixils::RenderContext& rc,
                        const Roo::sptr_val& tile,
                        const Pixils::Rect& rect)
@@ -552,7 +660,7 @@ namespace
     {
       const Pixils::Color& native_color = Roo::obj<Pixils::Color>(*color);
       fill_rect(rc.renderer,
-                rect,
+                tile_mask_rect(tile, rect),
                 native_color.r,
                 native_color.g,
                 native_color.b,
@@ -561,7 +669,7 @@ namespace
     }
 
     fill_rect(rc.renderer,
-              rect,
+              tile_mask_rect(tile, rect),
               static_cast<Uint8>(int_prop(color, "r", 0)),
               static_cast<Uint8>(int_prop(color, "g", 0)),
               static_cast<Uint8>(int_prop(color, "b", 0)),
@@ -866,6 +974,47 @@ namespace
                       Roo::Value::number(y)});
   }
 
+  int64_t packed_position_key(int x, int y)
+  {
+    return (static_cast<int64_t>(static_cast<uint32_t>(x)) << 32) |
+           static_cast<uint32_t>(y);
+  }
+
+  std::unordered_set<int64_t> position_filter(const Roo::sptr_val& positions)
+  {
+    std::unordered_set<int64_t> out;
+    for (const auto& position : seq_children(positions))
+    {
+      if (position && position->type == Roo::Value::Type::MAP)
+      {
+        out.insert(packed_position_key(int_prop(position, "x", 0),
+                                       int_prop(position, "y", 0)));
+      }
+    }
+    return out;
+  }
+
+  bool position_filter_matches(const std::unordered_set<int64_t>& filter, int x, int y)
+  {
+    return !filter.empty() && filter.contains(packed_position_key(x, y));
+  }
+
+  void apply_properties(Roo::sptr_val& target,
+                        const Roo::sptr_val& properties,
+                        bool overwrite)
+  {
+    if (!target || target->type != Roo::Value::Type::MAP || !properties ||
+        properties->type != Roo::Value::Type::MAP)
+    {
+      return;
+    }
+    for (const auto& key : Roo::Dict::map_sptr_keys(properties))
+    {
+      if (!overwrite && !nil_value(Roo::Dict::get_property(target, key))) continue;
+      Roo::Dict::set_property(target, key, Roo::Dict::get_property(properties, key));
+    }
+  }
+
   Roo::sptr_val layer_cell_match_value(const Roo::sptr_val& layer,
                                        int layer_index,
                                        int x,
@@ -929,6 +1078,104 @@ namespace
     }
 
     return Roo::Value::vector(matches);
+  }
+
+  std::vector<std::vector<Roo::sptr_val>> masked_layer_rows(
+    const Roo::sptr_val& layer,
+    const std::unordered_set<std::string>& masked_tile_refs,
+    const std::unordered_set<int64_t>& masked_positions)
+  {
+    auto rows = tile_rows(prop(layer, "tiles"));
+    for (int y = 0; y < static_cast<int>(rows.size()); y++)
+    {
+      for (int x = 0; x < static_cast<int>(rows[y].size()); x++)
+      {
+        auto tile_ref = rows[y][x];
+        if (position_filter_matches(masked_positions, x, y) ||
+            (!nil_value(tile_ref) && filter_matches(masked_tile_refs, tile_ref)))
+        {
+          rows[y][x] = Roo::Constant::NIL;
+        }
+      }
+    }
+    return rows;
+  }
+
+  Roo::sptr_val layer_with_masked_rows(
+    const Roo::sptr_val& source,
+    const std::vector<std::vector<Roo::sptr_val>>& rows)
+  {
+    auto layer = Roo::Dict::shallow_copy(source);
+    map_set(layer, "tiles", rows_value(rows));
+    return layer;
+  }
+
+  Roo::sptr_val live_base_layer_value(
+    const Roo::sptr_val& layer,
+    const std::unordered_set<std::string>& masked_tile_refs,
+    const std::unordered_set<int64_t>& masked_positions,
+    const Roo::sptr_val& overlay_layer_defaults)
+  {
+    auto out = layer_with_masked_rows(layer,
+                                      masked_layer_rows(layer,
+                                                        masked_tile_refs,
+                                                        masked_positions));
+    apply_properties(out, overlay_layer_defaults, false);
+    return out;
+  }
+
+  Roo::sptr_val live_base_tiled_layer_value(const Roo::sptr_val& layer,
+                                            const Roo::sptr_val& base_layer_props)
+  {
+    auto out = Roo::Dict::shallow_copy(layer);
+    apply_properties(out, base_layer_props, true);
+    return out;
+  }
+
+  Roo::sptr_val live_base_tiled_layers(
+    const Roo::sptr_val& layers,
+    const Roo::sptr_val& base_layer_id,
+    const std::unordered_set<std::string>& masked_tile_refs,
+    const std::unordered_set<int64_t>& masked_positions,
+    const Roo::sptr_val& base_layer_props,
+    const Roo::sptr_val& overlay_layer_defaults)
+  {
+    Roo::sptr_val_v out;
+    for (const auto& layer : seq_children(layers))
+    {
+      if (same_value(prop(layer, "id"), base_layer_id))
+      {
+        out.push_back(live_base_tiled_layer_value(layer, base_layer_props));
+      }
+      else
+      {
+        out.push_back(live_base_layer_value(layer,
+                                            masked_tile_refs,
+                                            masked_positions,
+                                            overlay_layer_defaults));
+      }
+    }
+    return Roo::Value::vector(out);
+  }
+
+  Roo::sptr_val live_base_tilemap(const Roo::sptr_val& tilemap,
+                                  const Roo::sptr_val& opts)
+  {
+    if (!tilemap || tilemap->type != Roo::Value::Type::MAP) return Roo::Constant::NIL;
+    auto layers = prop(tilemap, "layers");
+    auto base_layer_id = prop(opts, "base-layer-id");
+
+    auto out = Roo::Dict::shallow_copy(tilemap);
+    apply_properties(out, prop(opts, "tilemap-props"), true);
+    map_set(out,
+            "layers",
+            live_base_tiled_layers(layers,
+                                   base_layer_id,
+                                   value_filter(prop(opts, "masked-tile-refs")),
+                                   position_filter(prop(opts, "masked-positions")),
+                                   prop(opts, "base-layer-props"),
+                                   prop(opts, "overlay-layer-defaults")));
+    return out;
   }
 
   struct TerrainPreview
@@ -1851,6 +2098,7 @@ namespace
     FUNC(RenderLayersBang, render_layers);
     FUNC(MaterializeRenderMap, native_materialize_render_map);
     FUNC(FindLayerCells, find_layer_cells);
+    FUNC(LiveBaseTilemap, live_base_tilemap);
 
     FUNC_IMPL(RenderLayersBang,
               SIG((FN_ARGS((&Roo::Type::MAP), (&Roo::Type::MAP)),
@@ -1863,6 +2111,10 @@ namespace
     FUNC_IMPL(FindLayerCells,
               SIG((FN_ARGS((&Roo::Type::MAP), (&Roo::Type::MAP)),
                    EXEC_DISPATCH(&FindLayerCells::exec_find_layer_cells))));
+
+    FUNC_IMPL(LiveBaseTilemap,
+              SIG((FN_ARGS((&Roo::Type::MAP), (&Roo::Type::MAP)),
+                   EXEC_DISPATCH(&LiveBaseTilemap::exec_live_base_tilemap))));
 
     EXEC_BODY(RenderLayersBang, exec_render_layers)
     {
@@ -1879,6 +2131,11 @@ namespace
     EXEC_BODY(FindLayerCells, exec_find_layer_cells)
     {
       return find_layer_cells(args[0], args[1]);
+    }
+
+    EXEC_BODY(LiveBaseTilemap, exec_live_base_tilemap)
+    {
+      return live_base_tilemap(args[0], args[1]);
     }
   } // namespace Function
 
@@ -1909,6 +2166,7 @@ namespace
       : Roo::Namespace("pixils.tilemap.ops-impl")
     {
       values.emplace("find-layer-cells", Function::FindLayerCells::make());
+      values.emplace("live-base-tilemap", Function::LiveBaseTilemap::make());
     }
   };
 

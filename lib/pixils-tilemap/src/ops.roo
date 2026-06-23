@@ -3,3 +3,6 @@
 
 (defun find-layer-cells [tilemap opts]
   (ops-impl/find-layer-cells tilemap (or opts {})))
+
+(defun live-base-tilemap [tilemap opts]
+  (ops-impl/live-base-tilemap tilemap (or opts {})))
