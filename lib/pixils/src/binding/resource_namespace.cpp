@@ -10,6 +10,7 @@
 #include <SDL2/SDL_blendmode.h>
 #include <SDL2/SDL_pixels.h>
 #include <SDL2/SDL_render.h>
+#include <SDL2/SDL_surface.h>
 #include <roo/exception.h>
 #include <roo/host/accessor.h>
 #include <roo/host/schema.h>
@@ -299,6 +300,19 @@ namespace Pixils::Script
 
       SDL_SetTextureBlendMode(texture.get(), SDL_BLENDMODE_BLEND);
 
+      std::unique_ptr<SDL_Surface, decltype(&SDL_FreeSurface)> surface(
+        SDL_CreateRGBSurfaceWithFormat(0,
+                                       size.w,
+                                       size.h,
+                                       32,
+                                       SDL_PIXELFORMAT_RGBA8888),
+        SDL_FreeSurface);
+      if (!surface)
+      {
+        throw std::runtime_error("Failed to create generated image surface: " + bundle_id +
+                                 "/" + resource_id);
+      }
+
       {
         RenderTargetGuard target_guard(rc, texture.get());
 
@@ -309,14 +323,27 @@ namespace Pixils::Script
 
         Roo::sptr_val_v callback_args;
         args[2]->exec().execute(ctx, callback_args);
+
+        SDL_Rect read_rect{0, 0, size.w, size.h};
+        if (SDL_RenderReadPixels(rc.renderer,
+                                 &read_rect,
+                                 SDL_PIXELFORMAT_RGBA8888,
+                                 surface->pixels,
+                                 surface->pitch) != 0)
+        {
+          surface.reset();
+        }
       }
 
       SDL_Texture* committed_texture = texture.get();
+      SDL_Surface* committed_surface = surface.get();
       rc.asset_registry->add_generated_image(bundle_id,
                                              resource_id,
                                              committed_texture,
+                                             committed_surface,
                                              size);
       texture.release();
+      if (committed_surface) surface.release();
       return args[0];
     }
 

@@ -354,6 +354,7 @@ namespace Pixils::Asset
   void Registry::add_generated_image(const std::string& bundle_id,
                                      const std::string& resource_id,
                                      SDL_Texture* texture,
+                                     SDL_Surface* surface,
                                      Dimension size)
   {
     auto record = this->bundles.find(bundle_id);
@@ -370,7 +371,6 @@ namespace Pixils::Asset
       throw std::runtime_error("Generated image texture is null: " + bundle_id + "/" +
                                resource_id);
     }
-
     if (!record->second.loaded)
     {
       record->second.bundle = this->loader.load_bundle_assets(record->second.declaration);
@@ -380,6 +380,7 @@ namespace Pixils::Asset
     erase_image_dependency(record->second.declaration, resource_id);
     destroy_image_asset(record->second.bundle, resource_id);
     record->second.bundle.images.emplace(resource_id, texture);
+    if (surface) record->second.bundle.image_sources.emplace(resource_id, surface);
     record->second.generated_images[resource_id] = size;
   }
 

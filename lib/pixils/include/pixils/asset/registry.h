@@ -55,6 +55,7 @@ namespace Pixils::Asset
     void add_generated_image(const std::string& bundle_id,
                              const std::string& resource_id,
                              SDL_Texture* texture,
+                             SDL_Surface* surface,
                              Dimension size);
     void remove_image(const std::string& bundle_id, const std::string& resource_id);
     std::vector<Runtime::ImageDependency> image_dependencies(

@@ -12,6 +12,7 @@ namespace Pixils::Script
   inline constexpr std::string_view FN__COLOR_AT = "color-at";
   inline constexpr std::string_view FN__RECT = "rect";
   inline constexpr std::string_view FN__SIZE = "size";
+  inline constexpr std::string_view FN__TRACE_POLYGONS = "trace-polygons";
   inline constexpr std::string_view FN__WIDTH = "width";
 
   namespace Function
@@ -20,6 +21,7 @@ namespace Pixils::Script
     FUNC(ImageHeight, height);
     FUNC(ImageRect, rect, rect_with_offset);
     FUNC(ImageSize, size);
+    FUNC(ImageTracePolygons, trace_polygons, trace_polygons_with_opts);
     FUNC(ImageWidth, width);
   } // namespace Function
 

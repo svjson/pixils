@@ -1444,6 +1444,40 @@ A mode declares the images it needs via `:resources`. They are loaded before the
 
 Images are referenced as qualified keywords: `:mode-name/resource-id`.
 
+**`pixils.image/trace-polygons`**
+
+Traces closed contour polygons from an image's alpha channel. The result is a
+vector of polygons, where each polygon is a vector of points in image-local
+coordinates, or source-rect-local coordinates when `:source` is provided. The
+polygons are implicitly closed; draw them with `pixils.render/polygon!` and
+`:close true`.
+
+```clojure
+(def ship-outline
+  (pixils.image/trace-polygons :sprites/ships
+    {:source {:x 0 :y 0 :w 32 :h 32}
+     :alpha-threshold 8
+     :edge :outer
+     :omit-straight-edges [:east]}))
+
+(for [polygon ship-outline]
+  (pixils.render/polygon! polygon
+    {:offset {:x 100 :y 80}
+     :scale 2
+     :close true
+     :color {:r 255 :g 240 :b 80}}))
+```
+
+`:edge` controls where returned coordinates sit relative to the alpha edge:
+`:outer` offsets half a pixel to the transparent side, `:inner` offsets half a
+pixel to the opaque side, and `:boundary` returns the exact pixel boundary.
+`:outer` is the default.
+
+`:omit-straight-edges` accepts a direction keyword or vector of direction
+keywords, using `:north`, `:east`, `:south`, and `:west` or `:n`, `:e`, `:s`,
+and `:w`. Omitted source-boundary edges may produce open outline paths; draw
+those with `:close false`.
+
 **`pixils.render/image!`**
 
 Draws an image resource. The first argument is a qualified image keyword. The
@@ -1641,6 +1675,7 @@ Accepts the same `:font` and `:scale` options as `text!`.
 | `width`  | Return the width of an image resource. Args: qualified keyword `:bundle/id`. |
 | `height` | Return the height of an image resource. Args: qualified keyword `:bundle/id`. |
 | `rect`   | Return a rect for an image resource. Args: qualified keyword `:bundle/id`, optional point offset used as the rect's `:x` and `:y`. |
+| `trace-polygons` | Trace contour polygons from image alpha. Args: qualified keyword `:bundle/id`, optional opts `{:source rect :alpha-threshold N :edge :outer/:inner/:boundary :omit-straight-edges [:north/:east/:south/:west]}`. Returns a vector of point vectors in image/source-local coordinates. Omitted source-boundary edges can produce open paths. |
 
 ### `pixils.render`
 

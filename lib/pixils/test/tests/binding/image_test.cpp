@@ -109,6 +109,32 @@ TEST_F(ImageTest, image_rect_uses_optional_point_offset_for_position)
   EXPECT_EQ(h->num().get_int(), 8);
 }
 
+TEST_F(ImageTest, trace_polygons_is_exposed_in_image_namespace)
+{
+  // Given
+  SDLMock::prepared_surfaces["./ship.png"] = {16, 8};
+  runtime.eval("(pixils/defbundle sprites {:images {:ship \"ship.png\"}})");
+
+  // When
+  auto count = runtime.eval("(count (pixils.image/trace-polygons :sprites/ship))");
+
+  // Then
+  ASSERT_NE(count, nullptr);
+  EXPECT_EQ(count->num().get_int(), 0);
+}
+
+TEST_F(ImageTest, trace_polygons_accepts_omit_straight_edges_option)
+{
+  SDLMock::prepared_surfaces["./ship.png"] = {16, 8};
+  runtime.eval("(pixils/defbundle sprites {:images {:ship \"ship.png\"}})");
+
+  auto count = runtime.eval("(count (pixils.image/trace-polygons :sprites/ship "
+                            "{:omit-straight-edges [:north :east]}))");
+
+  ASSERT_NE(count, nullptr);
+  EXPECT_EQ(count->num().get_int(), 0);
+}
+
 TEST_F(ImageTest, dynamic_bundle_images_can_be_added_before_first_lookup)
 {
   // Given
