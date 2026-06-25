@@ -29,21 +29,26 @@
 (deftest widget-showcase-theme-menu-nests_multi_variant_themes
   (let [theme-menu (nth (:items showcase-menu/showcase-menu) 2)]
     (is (= "&Theme" (:label theme-menu)))
-    (is (= "Windows &3" (get-in theme-menu [:items 0 :label])))
-    (is (nil? (get-in theme-menu [:items 0 :action])))
-    (is (= "&Light" (get-in theme-menu [:items 0 :items 0 :label])))
-    (is (= :light (get-in theme-menu [:items 0 :items 0 :payload :variant])))
-    (is (= 'pixils/windows-3
-           (get-in theme-menu [:items 0 :items 0 :payload :theme])))
-    (is (= "&Dark" (get-in theme-menu [:items 0 :items 1 :label])))
-    (is (= :dark (get-in theme-menu [:items 0 :items 1 :payload :variant])))
-    (is (= 'pixils/windows-3
-           (get-in theme-menu [:items 0 :items 1 :payload :theme])))
-    (is (= "Windows &95" (get-in theme-menu [:items 1 :label])))
+    (is (= "Pixils &Default" (get-in theme-menu [:items 0 :label])))
+    (is (= :showcase/theme (get-in theme-menu [:items 0 :action])))
+    (is (nil? (get-in theme-menu [:items 0 :payload :theme])))
+    (is (nil? (get-in theme-menu [:items 0 :payload :variant])))
+    (is (= "Pixils Default" (get-in theme-menu [:items 0 :payload :label])))
+    (is (= "Windows &3" (get-in theme-menu [:items 1 :label])))
     (is (nil? (get-in theme-menu [:items 1 :action])))
-    (is (= "&Classic Blue" (get-in theme-menu [:items 2 :label])))
-    (is (= :showcase/theme (get-in theme-menu [:items 2 :action])))
-    (is (nil? (get-in theme-menu [:items 2 :payload :variant])))))
+    (is (= "&Light" (get-in theme-menu [:items 1 :items 0 :label])))
+    (is (= :light (get-in theme-menu [:items 1 :items 0 :payload :variant])))
+    (is (= 'pixils/windows-3
+           (get-in theme-menu [:items 1 :items 0 :payload :theme])))
+    (is (= "&Dark" (get-in theme-menu [:items 1 :items 1 :label])))
+    (is (= :dark (get-in theme-menu [:items 1 :items 1 :payload :variant])))
+    (is (= 'pixils/windows-3
+           (get-in theme-menu [:items 1 :items 1 :payload :theme])))
+    (is (= "Windows &95" (get-in theme-menu [:items 2 :label])))
+    (is (nil? (get-in theme-menu [:items 2 :action])))
+    (is (= "&Classic Blue" (get-in theme-menu [:items 3 :label])))
+    (is (= :showcase/theme (get-in theme-menu [:items 3 :action])))
+    (is (nil? (get-in theme-menu [:items 3 :payload :variant])))))
 
 (deftest widget-showcase-loads-and-renders-main-window
   (let [app (runtime/make-app {:package-root "."

@@ -45,7 +45,11 @@
                      :action :showcase/open-file-dialog
                      :shortcut :key/f3}]}
            {:label "&Theme"
-            :items [(theme-variant-menu "Windows &3"
+            :items [(theme-item "Pixils &Default"
+                                nil
+                                "Pixils Default"
+                                nil)
+                    (theme-variant-menu "Windows &3"
                                         'pixils/windows-3
                                         "Windows 3 Light"
                                         "Windows 3 Dark")
