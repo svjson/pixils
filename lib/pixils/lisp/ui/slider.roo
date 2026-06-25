@@ -24,22 +24,61 @@
          (slider-min state)
          (slider-max state)))
 
+(defun slider-style [ctx]
+  (or (-> ctx :view :effective-style)
+      (-> ctx :view :style)))
+
+(defun slider-border-side-thickness [ctx side]
+  (let [border (-> (slider-style ctx) :border)
+        side-style (get border side)]
+    (or (:thickness side-style)
+        (:thickness border)
+        0)))
+
+(defun slider-padding-side [ctx side]
+  (or (get (-> (slider-style ctx) :padding) side)
+      0))
+
+(defun slider-content-origin-inset [ctx side]
+  (+ (slider-border-side-thickness ctx side)
+     (slider-padding-side ctx side)))
+
+(defun slider-content-width [ctx]
+  (let [bounds (-> ctx :view :bounds)]
+    (max 1 (- (:w bounds)
+              (slider-content-origin-inset ctx :left)
+              (slider-content-origin-inset ctx :right)))))
+
+(defun slider-content-height [ctx]
+  (let [bounds (-> ctx :view :bounds)]
+    (max 1 (- (:h bounds)
+              (slider-content-origin-inset ctx :top)
+              (slider-content-origin-inset ctx :bottom)))))
+
 (defun slider-axis-size [state ctx]
   (if (= (:axis state) :y)
-    (-> ctx :view :bounds :h)
-    (-> ctx :view :bounds :w)))
+    (slider-content-height ctx)
+    (slider-content-width ctx)))
 
 (defun slider-cross-size [state ctx]
   (if (= (:axis state) :y)
-    (-> ctx :view :bounds :w)
-    (-> ctx :view :bounds :h)))
+    (slider-content-width ctx)
+    (slider-content-height ctx)))
 
-(defun slider-event-coord [state event]
+(defun slider-event-coord [state event ctx]
   (let [pos (:position event)]
-    (if (= (:axis state) :y) (:y pos) (:x pos))))
+    (if (= (:axis state) :y)
+      (- (:y pos) (if ctx (slider-content-origin-inset ctx :top) 0))
+      (- (:x pos) (if ctx (slider-content-origin-inset ctx :left) 0)))))
 
 (defun slider-handle-size [state ctx]
   (max 8 (slider-cross-size state ctx)))
+
+(defun slider-track-thickness [state ctx]
+  (min 4 (max 1 (slider-cross-size state ctx))))
+
+(defun slider-standard-track-thickness [state ctx]
+  (min 3 (max 1 (slider-cross-size state ctx))))
 
 (defun slider-track-span [state ctx]
   (max 1 (- (slider-axis-size state ctx)
@@ -64,7 +103,7 @@
 
 (defun slider-value-at [state event ctx]
   (let [handle (slider-handle-size state ctx)
-        coord (clamp (- (slider-event-coord state event) (/ handle 2))
+        coord (clamp (- (slider-event-coord state event ctx) (/ handle 2))
                      0
                      (slider-track-span state ctx))
         ratio (/ coord (slider-track-span state ctx))
@@ -74,13 +113,20 @@
            (slider-min state)
            (slider-max state))))
 
-(defun slider-style [ctx]
-  (or (-> ctx :view :effective-style)
-      (-> ctx :view :style)))
+(defun slider-thumb-shape [state ctx]
+  (or (:thumb-shape state)
+      (if (= (-> (slider-style ctx) :border :line-style) :bevel)
+        :windows
+        :rect)))
+
+(defun slider-windows-style? [state ctx]
+  (= (slider-thumb-shape state ctx) :windows))
 
 (defun slider-track-color [state ctx]
   (or (:track-color state)
-      (-> (slider-style ctx) :border :color)
+      (if (slider-windows-style? state ctx)
+        (-> (slider-style ctx) :background)
+        (-> (slider-style ctx) :border :color))
       default-track-color))
 
 (defun slider-handle-color [state ctx]
@@ -103,6 +149,14 @@
       (-> (slider-style ctx) :border :bottom :color)
       (-> (slider-style ctx) :border :right :color)
       (slider-border-color state ctx)))
+
+(defun slider-track-top-color [state ctx]
+  (or (:track-border-color state)
+      (slider-border-bottom-color state ctx)))
+
+(defun slider-track-bottom-color [state ctx]
+  (or (:track-border-color state)
+      (slider-border-top-color state ctx)))
 
 (defun slider-border-thickness [ctx]
   (or (-> (slider-style ctx) :border :thickness)
@@ -147,18 +201,47 @@
                         (slider-border-thickness ctx))
     (r/rect! rect {:color (slider-border-color state ctx)})))
 
-(defun slider-track-rect [state ctx]
+(defun draw-slider-track-border! [state ctx rect]
+  (if (slider-bevel? ctx)
+    (draw-slider-bevel! rect
+                        (slider-track-top-color state ctx)
+                        (slider-track-bottom-color state ctx)
+                        1)
+    (r/rect! rect {:color (slider-border-color state ctx)})))
+
+(defun slider-standard-track-rect [state ctx]
   (let [axis (slider-axis-size state ctx)
-        cross (slider-cross-size state ctx)]
+        cross (slider-cross-size state ctx)
+        thickness (slider-standard-track-thickness state ctx)]
     (if (= (:axis state) :y)
-      {:x (int (/ (- cross 3) 2))
+      {:x (int (/ (- cross thickness) 2))
        :y 0
-       :w 3
+       :w thickness
        :h axis}
       {:x 0
-       :y (int (/ (- cross 3) 2))
+       :y (int (/ (- cross thickness) 2))
        :w axis
-       :h 3})))
+       :h thickness})))
+
+(defun slider-windows-track-rect [state ctx]
+  (let [cross (slider-cross-size state ctx)
+        handle (slider-handle-size state ctx)
+        span (slider-track-span state ctx)
+        thickness (slider-track-thickness state ctx)]
+    (if (= (:axis state) :y)
+      {:x (int (/ (- cross thickness) 2))
+       :y (int (/ handle 2))
+       :w thickness
+       :h span}
+      {:x (int (/ handle 2))
+       :y (int (/ (- cross thickness) 2))
+       :w span
+       :h thickness})))
+
+(defun slider-track-rect [state ctx]
+  (if (slider-windows-style? state ctx)
+    (slider-windows-track-rect state ctx)
+    (slider-standard-track-rect state ctx)))
 
 (defun slider-handle-rect [state ctx]
   (let [pos (slider-handle-pos state ctx)
@@ -173,6 +256,88 @@
        :y 0
        :w handle
        :h cross})))
+
+(defun draw-slider-horizontal-windows-handle! [state ctx rect]
+  (let [point-height (min 6 (max 4 (int (/ (:h rect) 3))))
+        body-height (max 1 (- (:h rect) point-height))
+        color (slider-handle-color state ctx)
+        tl-color (slider-border-top-color state ctx)
+        br-color (slider-border-bottom-color state ctx)
+        x (:x rect)
+        y (:y rect)
+        right (- (+ x (:w rect)) 1)
+        body-bottom (- (+ y body-height) 1)
+        bottom (- (+ y (:h rect)) 1)
+        center-x (int (/ (+ x right) 2))]
+    (do
+      (r/rect! {:x x :y y :w (:w rect) :h body-height}
+               {:fill true :color color})
+      (dotimes [n point-height]
+        (let [inset (* n 2)
+              row-width (max 1 (- (:w rect) (* 2 inset)))]
+          (r/rect! {:x (+ x (int (/ (- (:w rect) row-width) 2)))
+                    :y (+ y body-height n)
+                    :w row-width
+                    :h 1}
+                   {:fill true :color color})))
+      (r/line! {:x x :y y} {:x right :y y} tl-color)
+      (r/line! {:x x :y y} {:x x :y body-bottom} tl-color)
+      (r/line! {:x x :y body-bottom} {:x center-x :y bottom} tl-color)
+      (r/line! {:x right :y y} {:x right :y body-bottom} br-color)
+      (r/line! {:x right :y body-bottom} {:x center-x :y bottom} br-color))))
+
+(defun draw-slider-vertical-windows-handle! [state ctx rect]
+  (let [point-width (min 6 (max 4 (int (/ (:w rect) 3))))
+        body-width (max 1 (- (:w rect) point-width))
+        color (slider-handle-color state ctx)
+        tl-color (slider-border-top-color state ctx)
+        br-color (slider-border-bottom-color state ctx)
+        x (:x rect)
+        y (:y rect)
+        right (- (+ x (:w rect)) 1)
+        body-right (- (+ x body-width) 1)
+        bottom (- (+ y (:h rect)) 1)
+        center-y (int (/ (+ y bottom) 2))]
+    (do
+      (r/rect! {:x x :y y :w body-width :h (:h rect)}
+               {:fill true :color color})
+      (dotimes [n point-width]
+        (let [inset (* n 2)
+              column-height (max 1 (- (:h rect) (* 2 inset)))]
+          (r/rect! {:x (+ x body-width n)
+                    :y (+ y (int (/ (- (:h rect) column-height) 2)))
+                    :w 1
+                    :h column-height}
+                   {:fill true :color color})))
+      (r/line! {:x x :y y} {:x body-right :y y} tl-color)
+      (r/line! {:x x :y y} {:x x :y bottom} tl-color)
+      (r/line! {:x body-right :y y} {:x right :y center-y} tl-color)
+      (r/line! {:x x :y bottom} {:x body-right :y bottom} br-color)
+      (r/line! {:x body-right :y bottom} {:x right :y center-y} br-color))))
+
+(defun draw-slider-windows-handle! [state ctx rect]
+  (if (= (:axis state) :y)
+    (draw-slider-vertical-windows-handle! state ctx rect)
+    (draw-slider-horizontal-windows-handle! state ctx rect)))
+
+(defun draw-slider-handle! [state ctx]
+  (let [rect (slider-handle-rect state ctx)]
+    (if (slider-windows-style? state ctx)
+      (draw-slider-windows-handle! state ctx rect)
+      (do
+        (r/rect! rect
+                 {:fill true
+                  :color (slider-handle-color state ctx)})
+        (draw-slider-handle-border! state ctx rect)))))
+
+(defun draw-slider-track! [state ctx]
+  (let [rect (slider-track-rect state ctx)]
+    (do
+      (r/rect! rect
+               {:fill true
+                :color (slider-track-color state ctx)})
+      (if (slider-windows-style? state ctx)
+        (draw-slider-track-border! state ctx rect)))))
 
 (defun slider-set-value [state event ctx]
   (let [value (slider-value-at state event ctx)]
@@ -197,19 +362,15 @@
               (slider-set-value state event ctx))
    :render (fn [state ctx]
              (do
-               (r/rect! (slider-track-rect state ctx)
-                        {:fill true
-                         :color (slider-track-color state ctx)})
-               (r/rect! (slider-handle-rect state ctx)
-                        {:fill true
-                         :color (slider-handle-color state ctx)})
-               (draw-slider-handle-border! state ctx (slider-handle-rect state ctx))))})
+               (draw-slider-track! state ctx)
+               (draw-slider-handle! state ctx)))})
 
-(defun make [{:keys [style value min max step axis]}]
+(defun make [{:keys [style value min max step axis thumb-shape]}]
   {:mode 'ui/slider
    :style (or style {})
    :state {:value value
            :min min
            :max max
            :step step
-           :axis (or axis :x)}})
+           :axis (or axis :x)
+           :thumb-shape thumb-shape}})

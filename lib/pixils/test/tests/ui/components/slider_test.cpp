@@ -63,6 +63,109 @@ TEST_F(SliderTest, slider_drag_updates_bound_value)
   EXPECT_EQ(zoom->num().get_int(), 4);
 }
 
+TEST_F(SliderTest, slider_track_rect_is_centered_on_handle_travel)
+{
+  auto result = runtime.eval(R"(
+    (let [horizontal-ctx {:view {:bounds {:x 0 :y 0 :w 100 :h 21}}}
+          vertical-ctx {:view {:bounds {:x 0 :y 0 :w 21 :h 100}}}
+          horizontal (pixils.ui.slider/slider-track-rect
+                       {:axis :x :value 5 :min 0 :max 10 :thumb-shape :windows}
+                       horizontal-ctx)
+          vertical (pixils.ui.slider/slider-track-rect
+                     {:axis :y :value 5 :min 0 :max 10 :thumb-shape :windows}
+                     vertical-ctx)]
+      [(:x horizontal) (:y horizontal) (:w horizontal) (:h horizontal)
+       (:x vertical) (:y vertical) (:w vertical) (:h vertical)])
+  )");
+
+  ASSERT_NE(result, nullptr);
+  ASSERT_EQ(Roo::count(*result), 8u);
+  EXPECT_EQ(Roo::get_child(*result, 0)->num().get_int(), 10);
+  EXPECT_EQ(Roo::get_child(*result, 1)->num().get_int(), 8);
+  EXPECT_EQ(Roo::get_child(*result, 2)->num().get_int(), 79);
+  EXPECT_EQ(Roo::get_child(*result, 3)->num().get_int(), 4);
+  EXPECT_EQ(Roo::get_child(*result, 4)->num().get_int(), 8);
+  EXPECT_EQ(Roo::get_child(*result, 5)->num().get_int(), 10);
+  EXPECT_EQ(Roo::get_child(*result, 6)->num().get_int(), 4);
+  EXPECT_EQ(Roo::get_child(*result, 7)->num().get_int(), 79);
+}
+
+TEST_F(SliderTest, slider_track_rect_uses_content_box_inside_outer_border)
+{
+  auto result = runtime.eval(R"(
+    (let [horizontal-ctx {:view {:bounds {:x 0 :y 0 :w 100 :h 21}
+                                 :effective-style {:border {:thickness 2}}}}
+          vertical-ctx {:view {:bounds {:x 0 :y 0 :w 21 :h 100}
+                               :effective-style {:border {:thickness 2}}}}
+          horizontal (pixils.ui.slider/slider-track-rect
+                       {:axis :x :value 5 :min 0 :max 10 :thumb-shape :windows}
+                       horizontal-ctx)
+          vertical (pixils.ui.slider/slider-track-rect
+                     {:axis :y :value 5 :min 0 :max 10 :thumb-shape :windows}
+                     vertical-ctx)]
+      [(:x horizontal) (:y horizontal) (:w horizontal) (:h horizontal)
+       (:x vertical) (:y vertical) (:w vertical) (:h vertical)])
+  )");
+
+  ASSERT_NE(result, nullptr);
+  ASSERT_EQ(Roo::count(*result), 8u);
+  EXPECT_EQ(Roo::get_child(*result, 0)->num().get_int(), 8);
+  EXPECT_EQ(Roo::get_child(*result, 1)->num().get_int(), 6);
+  EXPECT_EQ(Roo::get_child(*result, 2)->num().get_int(), 79);
+  EXPECT_EQ(Roo::get_child(*result, 3)->num().get_int(), 4);
+  EXPECT_EQ(Roo::get_child(*result, 4)->num().get_int(), 6);
+  EXPECT_EQ(Roo::get_child(*result, 5)->num().get_int(), 8);
+  EXPECT_EQ(Roo::get_child(*result, 6)->num().get_int(), 4);
+  EXPECT_EQ(Roo::get_child(*result, 7)->num().get_int(), 79);
+}
+
+TEST_F(SliderTest, slider_standard_track_rect_uses_full_axis)
+{
+  auto result = runtime.eval(R"(
+    (let [horizontal-ctx {:view {:bounds {:x 0 :y 0 :w 100 :h 21}}}
+          vertical-ctx {:view {:bounds {:x 0 :y 0 :w 21 :h 100}}}
+          horizontal (pixils.ui.slider/slider-track-rect
+                       {:axis :x :value 5 :min 0 :max 10}
+                       horizontal-ctx)
+          vertical (pixils.ui.slider/slider-track-rect
+                     {:axis :y :value 5 :min 0 :max 10}
+                     vertical-ctx)]
+      [(:x horizontal) (:y horizontal) (:w horizontal) (:h horizontal)
+       (:x vertical) (:y vertical) (:w vertical) (:h vertical)])
+  )");
+
+  ASSERT_NE(result, nullptr);
+  ASSERT_EQ(Roo::count(*result), 8u);
+  EXPECT_EQ(Roo::get_child(*result, 0)->num().get_int(), 0);
+  EXPECT_EQ(Roo::get_child(*result, 1)->num().get_int(), 9);
+  EXPECT_EQ(Roo::get_child(*result, 2)->num().get_int(), 100);
+  EXPECT_EQ(Roo::get_child(*result, 3)->num().get_int(), 3);
+  EXPECT_EQ(Roo::get_child(*result, 4)->num().get_int(), 9);
+  EXPECT_EQ(Roo::get_child(*result, 5)->num().get_int(), 0);
+  EXPECT_EQ(Roo::get_child(*result, 6)->num().get_int(), 3);
+  EXPECT_EQ(Roo::get_child(*result, 7)->num().get_int(), 100);
+}
+
+TEST_F(SliderTest, slider_windows_style_uses_bevel_or_state_override)
+{
+  auto result = runtime.eval(R"(
+    (let [bevel-ctx {:view {:effective-style {:border {:line-style :bevel}}}}
+          solid-ctx {:view {:effective-style {:border {:line-style :solid
+                                                       :top {:color {:r 1 :g 1 :b 1}}}}}}]
+      [(if (pixils.ui.slider/slider-windows-style? {} bevel-ctx) 1 0)
+       (if (pixils.ui.slider/slider-windows-style? {} solid-ctx) 1 0)
+       (if (pixils.ui.slider/slider-windows-style? {:thumb-shape :windows} solid-ctx) 1 0)
+       (if (pixils.ui.slider/slider-windows-style? {:thumb-shape :rect} bevel-ctx) 1 0)])
+  )");
+
+  ASSERT_NE(result, nullptr);
+  ASSERT_EQ(Roo::count(*result), 4u);
+  EXPECT_EQ(Roo::get_child(*result, 0)->num().get_int(), 1);
+  EXPECT_EQ(Roo::get_child(*result, 1)->num().get_int(), 0);
+  EXPECT_EQ(Roo::get_child(*result, 2)->num().get_int(), 1);
+  EXPECT_EQ(Roo::get_child(*result, 3)->num().get_int(), 0);
+}
+
 TEST_F(SliderTest, slider_render_helpers_read_effective_style)
 {
   auto result = runtime.eval(R"(

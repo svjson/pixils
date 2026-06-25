@@ -600,7 +600,8 @@
             'ui/option-box:disabled
             {:text {:color (var :disabled-text)}}
 
-            'ui/slider {:background (var :panel-bg)
+            'ui/slider {:height 21
+                        :background (var :panel-bg)
                         :border (var :raised-border-style)}
 
             'ui/progress-bar {:background (var :field-bg)
