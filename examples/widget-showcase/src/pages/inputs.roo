@@ -83,7 +83,41 @@
                                :value (ui/bind-state :slider-value)
                                :min 0
                                :max 100
+                               :limit-min (ui/bind-state :slider-limit-min)
+                               :limit-max (ui/bind-state :slider-limit-max)
+                               :limits-enabled? (ui/bind-state :slider-limits-enabled?)
                                :step 5}))
+                (checkbox/make {:label "Show visual limits"
+                                :checked? (ui/bind-state :slider-limits-enabled?)
+                                :value :slider-limits-enabled?})
+                {:style style/row-style
+                 :state (showcase-state/bindings)
+                 :children [{:mode 'ui/text
+                             :style style/field-label-style
+                             :state {:value "Limit min"}}
+                            (slider/make {:style {:width 180
+                                                  :height 18}
+                                          :value (ui/bind-state :slider-limit-min)
+                                          :min 0
+                                          :max 100
+                                          :limit-max (ui/bind-state :slider-limit-max)
+                                          :step 5})
+                            {:mode 'ui/text
+                             :state {:value (ui/bind-state :slider-limit-min)}}]}
+                {:style style/row-style
+                 :state (showcase-state/bindings)
+                 :children [{:mode 'ui/text
+                             :style style/field-label-style
+                             :state {:value "Limit max"}}
+                            (slider/make {:style {:width 180
+                                                  :height 18}
+                                          :value (ui/bind-state :slider-limit-max)
+                                          :min 0
+                                          :max 100
+                                          :limit-min (ui/bind-state :slider-limit-min)
+                                          :step 5})
+                            {:mode 'ui/text
+                             :state {:value (ui/bind-state :slider-limit-max)}}]}
                 {:style style/row-style
                  :state (showcase-state/bindings)
                  :children [{:mode 'ui/text
@@ -95,6 +129,9 @@
                                           :value (ui/bind-state :vertical-slider-value)
                                           :min 0
                                           :max 100
+                                          :limit-min (ui/bind-state :slider-limit-min)
+                                          :limit-max (ui/bind-state :slider-limit-max)
+                                          :limits-enabled? (ui/bind-state :slider-limits-enabled?)
                                           :step 10})
                             {:mode 'ui/text
                              :state {:value (ui/bind-state :vertical-slider-value)}}]}])

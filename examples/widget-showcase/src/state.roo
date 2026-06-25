@@ -60,6 +60,9 @@
    :list-reorder-options (ui/bind-state :list-reorder-options)
    :slider-value (ui/bind-state :slider-value)
    :vertical-slider-value (ui/bind-state :vertical-slider-value)
+   :slider-limits-enabled? (ui/bind-state :slider-limits-enabled?)
+   :slider-limit-min (ui/bind-state :slider-limit-min)
+   :slider-limit-max (ui/bind-state :slider-limit-max)
    :number-value (ui/bind-state :number-value)
    :text-value (ui/bind-state :text-value)
    :read-only-value (ui/bind-state :read-only-value)
@@ -79,6 +82,9 @@
    :list-reorder-options list-options
    :slider-value 42
    :vertical-slider-value 62
+   :slider-limits-enabled? true
+   :slider-limit-min 20
+   :slider-limit-max 85
    :number-value 12
    :text-value "Editable text"
    :read-only-value "Read-only text can be focused and selected."

@@ -26,6 +26,11 @@
   (+ (-> view :bounds :y)
      (-> view :bounds :h)))
 
+(defun slider-with-state [app predicate]
+  (head (filter (runtime/find-views app "ui/slider")
+                (fn [slider]
+                  (predicate (runtime/view-state slider))))))
+
 (deftest widget-showcase-theme-menu-nests_multi_variant_themes
   (let [theme-menu (nth (:items showcase-menu/showcase-menu) 2)]
     (is (= "&Theme" (:label theme-menu)))
@@ -131,8 +136,37 @@
             after-body-state (:rendered-body-state
                               (runtime/view-state after-tab-panel))]
         (is (= before-body-state after-body-state))
-        (is (= 100
+        (is (= 85
                (:slider-value (runtime/active-state app))))))))
+
+(deftest inputs-tab-slider-limit_controls_do_not_cross
+  (let [app (runtime/make-app {:package-root "."
+                               :buffer-width 800
+                               :buffer-height 600
+                               :render-backend false})]
+    (runtime/push-mode! app 'main-mode)
+    (settle-layout! app)
+    (let [min-limit-slider (slider-with-state app
+                                              (fn [state]
+                                                (= 20 (:value state))))]
+      (runtime/mouse-click-in! app
+                              min-limit-slider
+                              (- (:w (:bounds min-limit-slider)) 2)
+                              (view-center-y min-limit-slider))
+      (is (= 85
+             (:slider-limit-min (runtime/active-state app))))
+      (settle-layout! app)
+      (let [max-limit-slider (slider-with-state
+                              app
+                              (fn [state]
+                                (and (= 85 (:value state))
+                                     (not (nil? (:limit-min state))))))]
+        (runtime/mouse-click-in! app
+                                max-limit-slider
+                                2
+                                (view-center-y max-limit-slider))
+        (is (= 85
+               (:slider-limit-max (runtime/active-state app))))))))
 
 (deftest inputs-tab-button-hover-uses-full-visual-height
   (let [app (runtime/make-app {:package-root "."

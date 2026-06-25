@@ -35,11 +35,19 @@
                                        :selected-tab tab
                                        :message (str "Selected tab " tab)))))
         :checkbox/change (fn [state event ctx]
-                           (do
-                             (ui/stop-propagation! event)
-                             (assoc state
-                                    :checked? (-> event :payload :checked?)
-                                    :message "Checkbox changed.")))
+                           (let [payload (:payload event)
+                                 checked? (:checked? payload)]
+                             (do
+                               (ui/stop-propagation! event)
+                               (if (= (:value payload) :slider-limits-enabled?)
+                                 (assoc state
+                                        :slider-limits-enabled? checked?
+                                        :message (if checked?
+                                                   "Slider visual limits enabled."
+                                                   "Slider visual limits disabled."))
+                                 (assoc state
+                                        :checked? checked?
+                                        :message "Checkbox changed.")))))
         :toggle-button-group/change (fn [state event ctx]
                                       (do
                                         (ui/stop-propagation! event)
