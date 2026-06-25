@@ -63,6 +63,38 @@ TEST_F(SliderTest, slider_drag_updates_bound_value)
   EXPECT_EQ(zoom->num().get_int(), 4);
 }
 
+TEST_F(SliderTest, slider_limits_clamp_value_and_pointer_input)
+{
+  auto result = runtime.eval(R"(
+    (let [state {:value 900 :min 0 :max 1000 :limit-max 850 :step 1}
+          lower-state {:value 50 :min 0 :max 1000 :limit-min 200 :step 1}
+          inverted-state {:min 0 :max 1000 :limit-min 900 :limit-max 100}
+          disabled-state {:value 900 :min 0 :max 1000
+                          :limit-max 850
+                          :limits-enabled? false
+                          :step 1}
+          ctx {:view {:bounds {:x 0 :y 0 :w 100 :h 21}}}
+          event {:position {:x 99 :y 10}}]
+      [(pixils.ui.slider/slider-value state)
+       (pixils.ui.slider/slider-value-at state event ctx)
+       (pixils.ui.slider/slider-value lower-state)
+       (pixils.ui.slider/slider-limit-min inverted-state)
+       (pixils.ui.slider/slider-limit-max inverted-state)
+       (pixils.ui.slider/slider-value disabled-state)
+       (pixils.ui.slider/slider-value-at disabled-state event ctx)])
+  )");
+
+  ASSERT_NE(result, nullptr);
+  ASSERT_EQ(Roo::count(*result), 7u);
+  EXPECT_EQ(Roo::get_child(*result, 0)->num().get_int(), 850);
+  EXPECT_EQ(Roo::get_child(*result, 1)->num().get_int(), 850);
+  EXPECT_EQ(Roo::get_child(*result, 2)->num().get_int(), 200);
+  EXPECT_EQ(Roo::get_child(*result, 3)->num().get_int(), 100);
+  EXPECT_EQ(Roo::get_child(*result, 4)->num().get_int(), 900);
+  EXPECT_EQ(Roo::get_child(*result, 5)->num().get_int(), 900);
+  EXPECT_EQ(Roo::get_child(*result, 6)->num().get_int(), 1000);
+}
+
 TEST_F(SliderTest, slider_track_rect_is_centered_on_handle_travel)
 {
   auto result = runtime.eval(R"(
@@ -136,6 +168,57 @@ TEST_F(SliderTest, slider_thumb_length_controls_axis_dimension)
   EXPECT_EQ(Roo::get_child(*result, 8)->num().get_int(), 6);
 }
 
+TEST_F(SliderTest, slider_limit_track_rects_mark_unavailable_background_ranges)
+{
+  auto result = runtime.eval(R"(
+    (let [horizontal-ctx {:view {:bounds {:x 0 :y 0 :w 100 :h 21}}}
+          vertical-ctx {:view {:bounds {:x 0 :y 0 :w 21 :h 100}}}
+          state {:value 500 :min 0 :max 1000
+                 :limit-min 200
+                 :limit-max 850
+                 :track-layout :handle-travel
+                 :track-thickness 4
+                 :thumb-length 13}
+          horizontal (pixils.ui.slider/slider-limit-track-rects
+                       (assoc state :axis :x)
+                       horizontal-ctx)
+          vertical (pixils.ui.slider/slider-limit-track-rects
+                     (assoc state :axis :y)
+                     vertical-ctx)
+          horizontal-lower (:lower horizontal)
+          horizontal-upper (:upper horizontal)
+          vertical-lower (:lower vertical)
+          vertical-upper (:upper vertical)]
+      [(:x horizontal-lower) (:y horizontal-lower)
+       (:w horizontal-lower) (:h horizontal-lower)
+       (:x horizontal-upper) (:y horizontal-upper)
+       (:w horizontal-upper) (:h horizontal-upper)
+       (:x vertical-lower) (:y vertical-lower)
+       (:w vertical-lower) (:h vertical-lower)
+       (:x vertical-upper) (:y vertical-upper)
+       (:w vertical-upper) (:h vertical-upper)])
+  )");
+
+  ASSERT_NE(result, nullptr);
+  ASSERT_EQ(Roo::count(*result), 16u);
+  EXPECT_EQ(Roo::get_child(*result, 0)->num().get_int(), 6);
+  EXPECT_EQ(Roo::get_child(*result, 1)->num().get_int(), 0);
+  EXPECT_EQ(Roo::get_child(*result, 2)->num().get_int(), 17);
+  EXPECT_EQ(Roo::get_child(*result, 3)->num().get_int(), 21);
+  EXPECT_EQ(Roo::get_child(*result, 4)->num().get_int(), 79);
+  EXPECT_EQ(Roo::get_child(*result, 5)->num().get_int(), 0);
+  EXPECT_EQ(Roo::get_child(*result, 6)->num().get_int(), 14);
+  EXPECT_EQ(Roo::get_child(*result, 7)->num().get_int(), 21);
+  EXPECT_EQ(Roo::get_child(*result, 8)->num().get_int(), 0);
+  EXPECT_EQ(Roo::get_child(*result, 9)->num().get_int(), 6);
+  EXPECT_EQ(Roo::get_child(*result, 10)->num().get_int(), 21);
+  EXPECT_EQ(Roo::get_child(*result, 11)->num().get_int(), 17);
+  EXPECT_EQ(Roo::get_child(*result, 12)->num().get_int(), 0);
+  EXPECT_EQ(Roo::get_child(*result, 13)->num().get_int(), 79);
+  EXPECT_EQ(Roo::get_child(*result, 14)->num().get_int(), 21);
+  EXPECT_EQ(Roo::get_child(*result, 15)->num().get_int(), 14);
+}
+
 TEST_F(SliderTest, slider_track_rect_uses_content_box_inside_outer_border)
 {
   auto result = runtime.eval(R"(
@@ -207,6 +290,7 @@ TEST_F(SliderTest, slider_primitives_use_theme_or_state_override)
                                     :track-layout :handle-travel
                                     :track-shape :windows-track
                                     :track-border? true
+                                    :limit-track-color {:r 80 :g 0 :b 0}
                                     :track-border-top-color {:r 10 :g 0 :b 0}
                                     :track-border-bottom-color {:r 20 :g 0 :b 0}
                                     :track-bevel {:outer-top-color {:r 11 :g 0 :b 0}
@@ -237,11 +321,12 @@ TEST_F(SliderTest, slider_primitives_use_theme_or_state_override)
        (:r (:inner-bottom-color (pixils.ui.slider/slider-thumb-bevel {} theme-ctx)))
        (:r (pixils.ui.slider/slider-handle-color {} theme-ctx))
        (pixils.ui.slider/slider-handle-size {} theme-ctx)
-       (pixils.ui.slider/slider-thumb-point-size {} theme-ctx)])
+       (pixils.ui.slider/slider-thumb-point-size {} theme-ctx)
+       (:r (pixils.ui.slider/slider-limit-track-color {} theme-ctx))])
   )");
 
   ASSERT_NE(result, nullptr);
-  ASSERT_EQ(Roo::count(*result), 20u);
+  ASSERT_EQ(Roo::count(*result), 21u);
   EXPECT_EQ(Roo::get_child(*result, 0)->num().get_int(), 0);
   EXPECT_EQ(Roo::get_child(*result, 1)->num().get_int(), 1);
   EXPECT_EQ(Roo::get_child(*result, 2)->num().get_int(), 0);
@@ -262,6 +347,7 @@ TEST_F(SliderTest, slider_primitives_use_theme_or_state_override)
   EXPECT_EQ(Roo::get_child(*result, 17)->num().get_int(), 70);
   EXPECT_EQ(Roo::get_child(*result, 18)->num().get_int(), 13);
   EXPECT_EQ(Roo::get_child(*result, 19)->num().get_int(), 6);
+  EXPECT_EQ(Roo::get_child(*result, 20)->num().get_int(), 80);
 }
 
 TEST_F(SliderTest, slider_render_helpers_read_effective_style)
@@ -399,6 +485,7 @@ TEST_F(SliderTest, windows_95_dark_variant_uses_dark_slider_bevels)
             "{:thumb-shape :windows :thumb-color {:__pixils-theme-var :panel-bg} "
             ":thumb-length 13 :thumb-point-size 6 :track-layout :handle-travel "
             ":track-shape :windows-track :track-thickness 4 :track-border? false "
+            ":limit-track-color {:__pixils-theme-var :panel-shadow} "
             ":track-bevel {:outer-top-color {:__pixils-theme-var :panel-shadow} "
             ":outer-bottom-color {:__pixils-theme-var :panel-highlight} "
             ":inner-top-color {:__pixils-theme-var :border} "
@@ -458,6 +545,7 @@ TEST_F(SliderTest, windows_3_dark_variant_uses_dark_slider_bevels)
             "{:thumb-shape :windows :thumb-color {:__pixils-theme-var :panel-bg} "
             ":thumb-length 13 :thumb-point-size 6 :track-layout :handle-travel "
             ":track-shape :windows-track :track-thickness 4 :track-border? false "
+            ":limit-track-color {:__pixils-theme-var :panel-shadow} "
             ":track-bevel {:outer-top-color {:__pixils-theme-var :panel-shadow} "
             ":outer-bottom-color {:__pixils-theme-var :highlight} "
             ":inner-top-color {:__pixils-theme-var :control-border} "

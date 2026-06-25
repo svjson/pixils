@@ -143,7 +143,8 @@
                           :track-layout :full
                           :track-shape :rect
                           :track-thickness 3
-                          :track-border? false}
+                          :track-border? false
+                          :limit-track-color (var :disabled-border)}
                  :menu-option-indicator {:selected-image :base-theme/menu-option-checkmark}
                  :menu-submenu-indicator {:text ">"}
                  :scrollbar-button-symbols {:up-image :base-theme/scrollbar-arrow-up

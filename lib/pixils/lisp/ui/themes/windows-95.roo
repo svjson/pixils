@@ -266,6 +266,7 @@
                            :track-shape :windows-track
                            :track-thickness 4
                            :track-border? false
+                           :limit-track-color (var :panel-shadow)
                            :track-bevel {:outer-top-color (var :panel-shadow)
                                          :outer-bottom-color c/WHITE
                                          :inner-top-color (var :border)
@@ -312,6 +313,7 @@
                           :track-shape :windows-track
                           :track-thickness 4
                           :track-border? false
+                          :limit-track-color (var :panel-shadow)
                           :track-bevel {:outer-top-color (var :panel-shadow)
                                         :outer-bottom-color (var :panel-highlight)
                                         :inner-top-color (var :border)

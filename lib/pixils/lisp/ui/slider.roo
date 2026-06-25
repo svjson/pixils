@@ -6,6 +6,7 @@
 (def default-track-color {:r 0x99 :g 0x99 :b 0x99})
 (def default-handle-color {:r 0xff :g 0xff :b 0xff})
 (def default-border-color {:r 0x00 :g 0x00 :b 0x00})
+(def default-limit-track-color {:r 0x66 :g 0x66 :b 0x66})
 (def default-slider-theme
   {:thumb-shape :rect
    :track-layout :full
@@ -25,10 +26,43 @@
 (defun slider-step [state]
   (or (:step state) 1))
 
+(defun slider-limits-enabled? [state]
+  (not= (:limits-enabled? state) false))
+
+(defun slider-limit-min [state]
+  (let [min-value (slider-min state)
+        max-value (slider-max state)
+        raw-low (clamp (if (slider-limits-enabled? state)
+                         (or (:limit-min state) min-value)
+                         min-value)
+                       min-value
+                       max-value)
+        raw-high (clamp (if (slider-limits-enabled? state)
+                          (or (:limit-max state) max-value)
+                          max-value)
+                        min-value
+                        max-value)]
+    (min raw-low raw-high)))
+
+(defun slider-limit-max [state]
+  (let [min-value (slider-min state)
+        max-value (slider-max state)
+        raw-low (clamp (if (slider-limits-enabled? state)
+                         (or (:limit-min state) min-value)
+                         min-value)
+                       min-value
+                       max-value)
+        raw-high (clamp (if (slider-limits-enabled? state)
+                          (or (:limit-max state) max-value)
+                          max-value)
+                        min-value
+                        max-value)]
+    (max raw-low raw-high)))
+
 (defun slider-value [state]
   (clamp (or (:value state) (slider-min state))
-         (slider-min state)
-         (slider-max state)))
+         (slider-limit-min state)
+         (slider-limit-max state)))
 
 (defun slider-style [ctx]
   (or (-> ctx :view :effective-style)
@@ -111,6 +145,12 @@
   (let [span (max 1 (- (slider-max state) (slider-min state)))]
     (/ (- (slider-value state) (slider-min state)) span)))
 
+(defun slider-visual-ratio [state value]
+  (let [span (max 1 (- (slider-max state) (slider-min state)))]
+    (/ (- (clamp value (slider-min state) (slider-max state))
+          (slider-min state))
+       span)))
+
 (defun slider-handle-pos [state ctx]
   (int (* (slider-value-ratio state)
           (slider-track-span state ctx))))
@@ -133,8 +173,8 @@
         raw (+ (slider-min state)
                (* ratio (- (slider-max state) (slider-min state))))]
     (clamp (nearest-stepped-value state raw)
-           (slider-min state)
-           (slider-max state))))
+           (slider-limit-min state)
+           (slider-limit-max state))))
 
 (defun slider-thumb-shape [state ctx]
   (or (:thumb-shape state)
@@ -164,6 +204,11 @@
       (-> (slider-theme ctx) :track-color)
       (-> (slider-style ctx) :border :color)
       default-track-color))
+
+(defun slider-limit-track-color [state ctx]
+  (or (:limit-track-color state)
+      (-> (slider-theme ctx) :limit-track-color)
+      default-limit-track-color))
 
 (defun slider-track-bevel [state ctx]
   (let [bevel (-> (slider-theme ctx) :track-bevel)]
@@ -327,6 +372,42 @@
     (slider-windows-track-rect state ctx)
     (slider-standard-track-rect state ctx)))
 
+(defun slider-track-axis-length [state rect]
+  (if (= (:axis state) :y)
+    (:h rect)
+    (:w rect)))
+
+(defun slider-track-pos-for-value [state rect value]
+  (int (* (slider-visual-ratio state value)
+          (slider-track-axis-length state rect))))
+
+(defun slider-limit-background-segment-rect [state ctx rect start length]
+  (if (= (:axis state) :y)
+    {:x 0
+     :y (+ (:y rect) start)
+     :w (slider-content-width ctx)
+     :h length}
+    {:x (+ (:x rect) start)
+     :y 0
+     :w length
+     :h (slider-content-height ctx)}))
+
+(defun slider-limit-track-rects [state ctx]
+  (let [track (slider-track-rect state ctx)
+        axis-length (slider-track-axis-length state track)
+        low (slider-limit-min state)
+        high (slider-limit-max state)
+        low-pos (clamp (slider-track-pos-for-value state track low) 0 axis-length)
+        high-pos (clamp (slider-track-pos-for-value state track high) 0 axis-length)]
+    {:lower (if (> low (slider-min state))
+              (slider-limit-background-segment-rect state ctx track 0 low-pos))
+     :upper (if (< high (slider-max state))
+              (slider-limit-background-segment-rect state
+                                                    ctx
+                                                    track
+                                                    high-pos
+                                                    (max 1 (- axis-length high-pos))))}))
+
 (defun slider-handle-rect [state ctx]
   (let [pos (slider-handle-pos state ctx)
         handle (slider-handle-size state ctx)
@@ -477,6 +558,15 @@
         (if (slider-track-border? state ctx)
           (draw-slider-track-border! state ctx rect))))))
 
+(defun draw-slider-limit-track! [state ctx]
+  (let [rects (slider-limit-track-rects state ctx)
+        color (slider-limit-track-color state ctx)]
+    (do
+      (if (:lower rects)
+        (r/rect! (:lower rects) {:fill true :color color}))
+      (if (:upper rects)
+        (r/rect! (:upper rects) {:fill true :color color})))))
+
 (defun slider-set-value [state event ctx]
   (let [value (slider-value-at state event ctx)]
     (do
@@ -499,15 +589,19 @@
               (slider-set-value state event ctx))
    :render (fn [state ctx]
              (do
+               (draw-slider-limit-track! state ctx)
                (draw-slider-track! state ctx)
                (draw-slider-handle! state ctx)))})
 
-(defun make [{:keys [style value min max step axis thumb-shape thumb-length thumb-point-size track-layout track-shape track-thickness track-border?]}]
+(defun make [{:keys [style value min max limit-min limit-max limits-enabled? step axis thumb-shape thumb-length thumb-point-size track-layout track-shape track-thickness track-border? limit-track-color]}]
   {:mode 'ui/slider
    :style (or style {})
    :state {:value value
            :min min
            :max max
+           :limit-min limit-min
+           :limit-max limit-max
+           :limits-enabled? limits-enabled?
            :step step
            :axis (or axis :x)
            :thumb-shape thumb-shape
@@ -516,4 +610,5 @@
            :track-layout track-layout
            :track-shape track-shape
            :track-thickness track-thickness
-           :track-border? track-border?}})
+           :track-border? track-border?
+           :limit-track-color limit-track-color}})
