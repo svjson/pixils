@@ -258,6 +258,22 @@
                   :button-disabled-border-style (var :button-border-style)
                   :split-pane-resizer-size 6
                   :scrollbar-size 14
+                  :slider {:thumb-shape :windows
+                           :thumb-color (var :panel-bg)
+                           :thumb-length 13
+                           :thumb-point-size 6
+                           :track-layout :handle-travel
+                           :track-shape :windows-track
+                           :track-thickness 4
+                           :track-border? false
+                           :track-bevel {:outer-top-color (var :panel-shadow)
+                                         :outer-bottom-color c/WHITE
+                                         :inner-top-color (var :border)
+                                         :inner-bottom-color {:r 0xdd :g 0xdd :b 0xdd}}
+                           :thumb-bevel {:outer-top-color c/WHITE
+                                          :outer-bottom-color (var :border)
+                                          :inner-top-color {:r 0xdd :g 0xdd :b 0xdd}
+                                          :inner-bottom-color (var :panel-shadow)}}
                   :option-box-indicator {:color {:r 0x00 :g 0x00 :b 0x00}
                                          :radius 5
                                          :inner-radius 2
@@ -407,9 +423,12 @@
             'ui/option-box:disabled
             {:text {:color (var :disabled-text)}}
 
-            'ui/slider {:height 21
-                        :background (var :panel-bg)
-                        :border (var :raised-border-style)}
+            'ui/slider {:width :fill
+                        :height 21
+                        :background {:r 0 :g 0 :b 0 :a 0}
+                        :border {:thickness 0}}
+            '(ui/slider {:axis :y})
+            {:width 21}
 
             :ui/split-pane-resizer {:background (var :panel-bg)
                                     :border (var :raised-border-style)}

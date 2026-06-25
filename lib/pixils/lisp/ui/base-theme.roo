@@ -139,6 +139,11 @@
                                         :radius 5
                                         :inner-radius 2
                                         :pressed-thickness 2}
+                 :slider {:thumb-shape :rect
+                          :track-layout :full
+                          :track-shape :rect
+                          :track-thickness 3
+                          :track-border? false}
                  :menu-option-indicator {:selected-image :base-theme/menu-option-checkmark}
                  :menu-submenu-indicator {:text ">"}
                  :scrollbar-button-symbols {:up-image :base-theme/scrollbar-arrow-up
@@ -252,7 +257,9 @@
     'ui/option-box:disabled
     {:text {:color (var :disabled-text)}}
 
-    'ui/slider {:background (var :field-bg)
+    'ui/slider {:width :fill
+                :height 18
+                :background (var :field-bg)
                 :border (var :inset-border-style)}
 
     'ui/progress-bar {:background (var :field-bg)

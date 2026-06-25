@@ -69,10 +69,14 @@ TEST_F(SliderTest, slider_track_rect_is_centered_on_handle_travel)
     (let [horizontal-ctx {:view {:bounds {:x 0 :y 0 :w 100 :h 21}}}
           vertical-ctx {:view {:bounds {:x 0 :y 0 :w 21 :h 100}}}
           horizontal (pixils.ui.slider/slider-track-rect
-                       {:axis :x :value 5 :min 0 :max 10 :thumb-shape :windows}
+                       {:axis :x :value 5 :min 0 :max 10
+                        :track-layout :handle-travel
+                        :track-thickness 4}
                        horizontal-ctx)
           vertical (pixils.ui.slider/slider-track-rect
-                     {:axis :y :value 5 :min 0 :max 10 :thumb-shape :windows}
+                     {:axis :y :value 5 :min 0 :max 10
+                      :track-layout :handle-travel
+                      :track-thickness 4}
                      vertical-ctx)]
       [(:x horizontal) (:y horizontal) (:w horizontal) (:h horizontal)
        (:x vertical) (:y vertical) (:w vertical) (:h vertical)])
@@ -90,6 +94,48 @@ TEST_F(SliderTest, slider_track_rect_is_centered_on_handle_travel)
   EXPECT_EQ(Roo::get_child(*result, 7)->num().get_int(), 79);
 }
 
+TEST_F(SliderTest, slider_thumb_length_controls_axis_dimension)
+{
+  auto result = runtime.eval(R"(
+    (let [horizontal-ctx {:view {:bounds {:x 0 :y 0 :w 100 :h 21}}}
+          vertical-ctx {:view {:bounds {:x 0 :y 0 :w 21 :h 100}}}
+          state {:value 5 :min 0 :max 10
+                 :track-layout :handle-travel
+                 :track-thickness 4
+                 :thumb-length 13
+                 :thumb-point-size 6}
+          horizontal-track (pixils.ui.slider/slider-track-rect
+                             (assoc state :axis :x)
+                             horizontal-ctx)
+          horizontal-thumb (pixils.ui.slider/slider-handle-rect
+                             (assoc state :axis :x)
+                             horizontal-ctx)
+          vertical-track (pixils.ui.slider/slider-track-rect
+                           (assoc state :axis :y)
+                           vertical-ctx)
+          vertical-thumb (pixils.ui.slider/slider-handle-rect
+                           (assoc state :axis :y)
+                           vertical-ctx)]
+      [(:x horizontal-track) (:w horizontal-track)
+       (:w horizontal-thumb) (:h horizontal-thumb)
+       (:y vertical-track) (:h vertical-track)
+       (:w vertical-thumb) (:h vertical-thumb)
+       (pixils.ui.slider/slider-thumb-point-size state horizontal-ctx)])
+  )");
+
+  ASSERT_NE(result, nullptr);
+  ASSERT_EQ(Roo::count(*result), 9u);
+  EXPECT_EQ(Roo::get_child(*result, 0)->num().get_int(), 6);
+  EXPECT_EQ(Roo::get_child(*result, 1)->num().get_int(), 87);
+  EXPECT_EQ(Roo::get_child(*result, 2)->num().get_int(), 13);
+  EXPECT_EQ(Roo::get_child(*result, 3)->num().get_int(), 21);
+  EXPECT_EQ(Roo::get_child(*result, 4)->num().get_int(), 6);
+  EXPECT_EQ(Roo::get_child(*result, 5)->num().get_int(), 87);
+  EXPECT_EQ(Roo::get_child(*result, 6)->num().get_int(), 21);
+  EXPECT_EQ(Roo::get_child(*result, 7)->num().get_int(), 13);
+  EXPECT_EQ(Roo::get_child(*result, 8)->num().get_int(), 6);
+}
+
 TEST_F(SliderTest, slider_track_rect_uses_content_box_inside_outer_border)
 {
   auto result = runtime.eval(R"(
@@ -98,10 +144,14 @@ TEST_F(SliderTest, slider_track_rect_uses_content_box_inside_outer_border)
           vertical-ctx {:view {:bounds {:x 0 :y 0 :w 21 :h 100}
                                :effective-style {:border {:thickness 2}}}}
           horizontal (pixils.ui.slider/slider-track-rect
-                       {:axis :x :value 5 :min 0 :max 10 :thumb-shape :windows}
+                       {:axis :x :value 5 :min 0 :max 10
+                        :track-layout :handle-travel
+                        :track-thickness 4}
                        horizontal-ctx)
           vertical (pixils.ui.slider/slider-track-rect
-                     {:axis :y :value 5 :min 0 :max 10 :thumb-shape :windows}
+                     {:axis :y :value 5 :min 0 :max 10
+                      :track-layout :handle-travel
+                      :track-thickness 4}
                      vertical-ctx)]
       [(:x horizontal) (:y horizontal) (:w horizontal) (:h horizontal)
        (:x vertical) (:y vertical) (:w vertical) (:h vertical)])
@@ -146,24 +196,72 @@ TEST_F(SliderTest, slider_standard_track_rect_uses_full_axis)
   EXPECT_EQ(Roo::get_child(*result, 7)->num().get_int(), 100);
 }
 
-TEST_F(SliderTest, slider_windows_style_uses_bevel_or_state_override)
+TEST_F(SliderTest, slider_primitives_use_theme_or_state_override)
 {
   auto result = runtime.eval(R"(
-    (let [bevel-ctx {:view {:effective-style {:border {:line-style :bevel}}}}
-          solid-ctx {:view {:effective-style {:border {:line-style :solid
-                                                       :top {:color {:r 1 :g 1 :b 1}}}}}}]
-      [(if (pixils.ui.slider/slider-windows-style? {} bevel-ctx) 1 0)
-       (if (pixils.ui.slider/slider-windows-style? {} solid-ctx) 1 0)
-       (if (pixils.ui.slider/slider-windows-style? {:thumb-shape :windows} solid-ctx) 1 0)
-       (if (pixils.ui.slider/slider-windows-style? {:thumb-shape :rect} bevel-ctx) 1 0)])
+    (let [default-ctx {:view {:effective-style {:border {:line-style :bevel}}}}
+          theme-ctx {:slider-theme {:thumb-shape :windows
+                                    :thumb-color {:r 70 :g 0 :b 0}
+                                    :thumb-length 13
+                                    :thumb-point-size 6
+                                    :track-layout :handle-travel
+                                    :track-shape :windows-track
+                                    :track-border? true
+                                    :track-border-top-color {:r 10 :g 0 :b 0}
+                                    :track-border-bottom-color {:r 20 :g 0 :b 0}
+                                    :track-bevel {:outer-top-color {:r 11 :g 0 :b 0}
+                                                  :outer-bottom-color {:r 22 :g 0 :b 0}
+                                                  :inner-top-color {:r 33 :g 0 :b 0}
+                                                  :inner-bottom-color {:r 44 :g 0 :b 0}}
+                                    :thumb-bevel {:outer-top-color {:r 30 :g 0 :b 0}
+                                                  :outer-bottom-color {:r 40 :g 0 :b 0}
+                                                  :inner-top-color {:r 50 :g 0 :b 0}
+                                                  :inner-bottom-color {:r 60 :g 0 :b 0}}}
+                     :view {:bounds {:x 0 :y 0 :w 100 :h 21}}}]
+      [(if (pixils.ui.slider/slider-windows-style? {} default-ctx) 1 0)
+       (if (pixils.ui.slider/slider-windows-style? {} theme-ctx) 1 0)
+       (if (pixils.ui.slider/slider-windows-style? {:thumb-shape :rect} theme-ctx) 1 0)
+       (if (= (pixils.ui.slider/slider-track-layout {} theme-ctx) :handle-travel) 1 0)
+       (if (pixils.ui.slider/slider-track-border? {} theme-ctx) 1 0)
+       (pixils.ui.slider/slider-track-thickness {:track-thickness 5} theme-ctx)
+       (if (= (pixils.ui.slider/slider-track-shape {} theme-ctx) :windows-track) 1 0)
+       (:r (pixils.ui.slider/slider-track-top-color {} theme-ctx))
+       (:r (pixils.ui.slider/slider-track-bottom-color {} theme-ctx))
+       (:r (:outer-top-color (pixils.ui.slider/slider-track-bevel {} theme-ctx)))
+       (:r (:outer-bottom-color (pixils.ui.slider/slider-track-bevel {} theme-ctx)))
+       (:r (:inner-top-color (pixils.ui.slider/slider-track-bevel {} theme-ctx)))
+       (:r (:inner-bottom-color (pixils.ui.slider/slider-track-bevel {} theme-ctx)))
+       (:r (:outer-top-color (pixils.ui.slider/slider-thumb-bevel {} theme-ctx)))
+       (:r (:outer-bottom-color (pixils.ui.slider/slider-thumb-bevel {} theme-ctx)))
+       (:r (:inner-top-color (pixils.ui.slider/slider-thumb-bevel {} theme-ctx)))
+       (:r (:inner-bottom-color (pixils.ui.slider/slider-thumb-bevel {} theme-ctx)))
+       (:r (pixils.ui.slider/slider-handle-color {} theme-ctx))
+       (pixils.ui.slider/slider-handle-size {} theme-ctx)
+       (pixils.ui.slider/slider-thumb-point-size {} theme-ctx)])
   )");
 
   ASSERT_NE(result, nullptr);
-  ASSERT_EQ(Roo::count(*result), 4u);
-  EXPECT_EQ(Roo::get_child(*result, 0)->num().get_int(), 1);
-  EXPECT_EQ(Roo::get_child(*result, 1)->num().get_int(), 0);
-  EXPECT_EQ(Roo::get_child(*result, 2)->num().get_int(), 1);
-  EXPECT_EQ(Roo::get_child(*result, 3)->num().get_int(), 0);
+  ASSERT_EQ(Roo::count(*result), 20u);
+  EXPECT_EQ(Roo::get_child(*result, 0)->num().get_int(), 0);
+  EXPECT_EQ(Roo::get_child(*result, 1)->num().get_int(), 1);
+  EXPECT_EQ(Roo::get_child(*result, 2)->num().get_int(), 0);
+  EXPECT_EQ(Roo::get_child(*result, 3)->num().get_int(), 1);
+  EXPECT_EQ(Roo::get_child(*result, 4)->num().get_int(), 1);
+  EXPECT_EQ(Roo::get_child(*result, 5)->num().get_int(), 5);
+  EXPECT_EQ(Roo::get_child(*result, 6)->num().get_int(), 1);
+  EXPECT_EQ(Roo::get_child(*result, 7)->num().get_int(), 10);
+  EXPECT_EQ(Roo::get_child(*result, 8)->num().get_int(), 20);
+  EXPECT_EQ(Roo::get_child(*result, 9)->num().get_int(), 11);
+  EXPECT_EQ(Roo::get_child(*result, 10)->num().get_int(), 22);
+  EXPECT_EQ(Roo::get_child(*result, 11)->num().get_int(), 33);
+  EXPECT_EQ(Roo::get_child(*result, 12)->num().get_int(), 44);
+  EXPECT_EQ(Roo::get_child(*result, 13)->num().get_int(), 30);
+  EXPECT_EQ(Roo::get_child(*result, 14)->num().get_int(), 40);
+  EXPECT_EQ(Roo::get_child(*result, 15)->num().get_int(), 50);
+  EXPECT_EQ(Roo::get_child(*result, 16)->num().get_int(), 60);
+  EXPECT_EQ(Roo::get_child(*result, 17)->num().get_int(), 70);
+  EXPECT_EQ(Roo::get_child(*result, 18)->num().get_int(), 13);
+  EXPECT_EQ(Roo::get_child(*result, 19)->num().get_int(), 6);
 }
 
 TEST_F(SliderTest, slider_render_helpers_read_effective_style)
@@ -223,13 +321,49 @@ TEST_F(SliderTest, windows_95_theme_styles_slider_handle)
   ASSERT_TRUE(slider->effective_style.border.has_value());
 
   EXPECT_EQ(*slider->effective_style.background->color,
-            (Pixils::Color{0xb8, 0xb8, 0xb8, 255}));
-  EXPECT_EQ(slider->effective_style.border->line_style,
-            Pixils::UI::Style::LineStyle::BEVEL);
-  EXPECT_EQ(slider->effective_style.border->top_color(),
-            (Pixils::Color{0xdf, 0xdf, 0xdf, 255}));
-  EXPECT_EQ(slider->effective_style.border->bottom_color(),
-            (Pixils::Color{0x7f, 0x7f, 0x7f, 255}));
+            (Pixils::Color{0, 0, 0, 0}));
+  EXPECT_EQ(slider->effective_style.border->top_thickness(), 0);
+  EXPECT_EQ(slider->effective_style.border->right_thickness(), 0);
+  EXPECT_EQ(slider->effective_style.border->bottom_thickness(), 0);
+  EXPECT_EQ(slider->effective_style.border->left_thickness(), 0);
+}
+
+TEST_F(SliderTest, windows_95_theme_sets_orientation_cross_size)
+{
+  runtime.eval(R"(
+    (pixils/defprogram slider-test-program
+      {:theme 'pixils/windows-95
+       :initial-mode 'root-mode})
+
+    (pixils/defmode root-mode
+      {:children [(pixils.ui.slider/make
+                   {:style {:width 100}
+                    :value 5
+                    :min 0
+                    :max 10
+                    :step 1})
+                  (pixils.ui.slider/make
+                   {:style {:height 100}
+                    :axis :y
+                    :value 5
+                    :min 0
+                    :max 10
+                    :step 1})]})
+  )");
+
+  Pixils::load_program(runtime, session);
+  session.update_mode();
+  session.render_mode();
+
+  ASSERT_NE(session.active_mode, nullptr);
+  ASSERT_EQ(session.active_mode->children.size(), 2u);
+
+  auto horizontal = session.active_mode->children[0];
+  auto vertical = session.active_mode->children[1];
+  ASSERT_TRUE(horizontal->effective_style.height.has_value());
+  ASSERT_TRUE(vertical->effective_style.width.has_value());
+  EXPECT_EQ(horizontal->effective_style.height->fixed_value_or(0), 21);
+  EXPECT_EQ(vertical->effective_style.width->fixed_value_or(0), 21);
 }
 
 TEST_F(SliderTest, windows_3_theme_styles_slider_handle)
@@ -241,11 +375,9 @@ TEST_F(SliderTest, windows_3_theme_styles_slider_handle)
   ASSERT_TRUE(slider->effective_style.border.has_value());
 
   EXPECT_EQ(*slider->effective_style.background->color,
-            (Pixils::Color{0xc0, 0xc7, 0xc8, 255}));
-  EXPECT_EQ(slider->effective_style.border->line_style,
-            Pixils::UI::Style::LineStyle::BEVEL);
-  EXPECT_EQ(slider->effective_style.border->top_color(),
-            (Pixils::Color{255, 255, 255, 255}));
-  EXPECT_EQ(slider->effective_style.border->bottom_color(),
-            (Pixils::Color{0x87, 0x88, 0x8f, 255}));
+            (Pixils::Color{0, 0, 0, 0}));
+  EXPECT_EQ(slider->effective_style.border->top_thickness(), 0);
+  EXPECT_EQ(slider->effective_style.border->right_thickness(), 0);
+  EXPECT_EQ(slider->effective_style.border->bottom_thickness(), 0);
+  EXPECT_EQ(slider->effective_style.border->left_thickness(), 0);
 }
