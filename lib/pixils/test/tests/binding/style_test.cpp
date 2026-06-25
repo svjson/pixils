@@ -88,6 +88,26 @@ TEST_F(StyleTest, make_style_with_opacity)
   EXPECT_FLOAT_EQ(*style.opacity, 0.25f);
 }
 
+TEST_F(StyleTest, make_style_with_image_opacity)
+{
+  Roo::sptr_val result =
+    runtime.eval("(pixils.ui.style/make-style {:image {:opacity 0.35}})");
+
+  auto style = Roo::obj<Pixils::UI::Style>(*result);
+  ASSERT_NE(style.image, std::nullopt);
+  ASSERT_NE(style.image->opacity, std::nullopt);
+  EXPECT_FLOAT_EQ(*style.image->opacity, 0.35f);
+}
+
+TEST_F(StyleTest, style_adapter_exposes_image_opacity)
+{
+  Roo::sptr_val result = runtime.eval(
+    "(:opacity (:image (pixils.ui.style/make-style {:image {:opacity 0.35}})))");
+
+  ASSERT_EQ(result->type, Roo::Value::Type::NUMBER);
+  EXPECT_FLOAT_EQ(result->f32(), 0.35f);
+}
+
 TEST_F(StyleTest, make_style_with_uniform_corner_radius)
 {
   Roo::sptr_val result = runtime.eval("(pixils.ui.style/make-style {:corner-radius 6})");

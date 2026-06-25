@@ -202,6 +202,7 @@ namespace Pixils::UI
 
   Style::Style(const Style& other)
     : background(other.background)
+    , image(other.image)
     , margin(other.margin)
     , padding(other.padding)
     , corner_radius(other.corner_radius)
@@ -236,6 +237,7 @@ namespace Pixils::UI
     PIXILS_BENCHMARK_COUNT(ui_style_assigned);
 
     this->background = other.background;
+    this->image = other.image;
     this->margin = other.margin;
     this->padding = other.padding;
     this->corner_radius = other.corner_radius;
@@ -496,6 +498,11 @@ namespace Pixils::UI
       if (variant.background->offset) out.background->offset = *variant.background->offset;
       if (variant.background->opacity)
         out.background->opacity = *variant.background->opacity;
+    }
+    if (variant.image)
+    {
+      if (!out.image) out.image = Style::Image();
+      if (variant.image->opacity) out.image->opacity = *variant.image->opacity;
     }
     if (variant.margin) out.margin = variant.margin;
     if (variant.padding) out.padding = variant.padding;

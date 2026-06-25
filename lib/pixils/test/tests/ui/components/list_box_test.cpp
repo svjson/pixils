@@ -116,6 +116,85 @@ TEST_F(ListBoxTest, list_box_uses_scroll_pane_and_forces_initial_selection)
   EXPECT_EQ(first_value->to_string(), ":a");
 }
 
+TEST_F(ListBoxTest, list_box_renders_rows_from_bound_options)
+{
+  runtime.eval(R"(
+    (pixils/defmode root-mode
+      {:init (fn [state ctx]
+               {:items [{:value :a :label "Alpha"}
+                        {:value :b :label "Beta"}
+                        {:value :c :label "Gamma"}]})
+       :children [(pixils.ui.list-box/make
+                   {:options (pixils.ui/bind-state :items)
+                    :style {:width 100}
+                    :row-height 10
+                    :visible-rows 2
+                    :content-width 100})]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  session.update_mode();
+  session.render_mode();
+  session.update_mode();
+  session.render_mode();
+
+  auto list_box = session.active_mode->children[0];
+  ASSERT_NE(list_box, nullptr);
+  EXPECT_EQ(list_box->bounds.h, 20);
+
+  auto content = list_box_content(list_box);
+  ASSERT_NE(content, nullptr);
+  ASSERT_EQ(content->children.size(), 3u);
+  auto first_value =
+    Roo::Dict::get_property(content->children[0]->state, Roo::keyword("value"));
+  ASSERT_NE(first_value, nullptr);
+  EXPECT_EQ(first_value->to_string(), ":a");
+}
+
+TEST_F(ListBoxTest, list_box_rebuilds_rows_when_bound_options_change)
+{
+  runtime.eval(R"(
+    (pixils/defmode root-mode
+      {:init (fn [state ctx]
+               {:expanded? false
+                :items [{:value :a :label "Alpha"}
+                        {:value :b :label "Beta"}]})
+       :update (fn [state ctx]
+                 (if (:expanded? state)
+                   state
+                   (assoc state
+                          :expanded? true
+                          :items [{:value :a :label "Alpha"}
+                                  {:value :b :label "Beta"}
+                                  {:value :c :label "Gamma"}
+                                  {:value :d :label "Delta"}])))
+       :children [(pixils.ui.list-box/make
+                   {:options (pixils.ui/bind-state :items)
+                    :style {:width 100}
+                    :row-height 10
+                    :visible-rows 3
+                    :content-width 100})]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  session.update_mode();
+  session.render_mode();
+  session.update_mode();
+  session.render_mode();
+
+  auto list_box = session.active_mode->children[0];
+  ASSERT_NE(list_box, nullptr);
+  EXPECT_EQ(list_box->bounds.h, 30);
+
+  auto content = list_box_content(list_box);
+  ASSERT_NE(content, nullptr);
+  ASSERT_EQ(content->children.size(), 4u);
+  auto last_value =
+    Roo::Dict::get_property(content->children[3]->state, Roo::keyword("value"));
+  ASSERT_NE(last_value, nullptr);
+  EXPECT_EQ(last_value->to_string(), ":d");
+}
+
 TEST_F(ListBoxTest, forced_selection_skips_disabled_items)
 {
   runtime.eval(R"(

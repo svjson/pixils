@@ -1022,6 +1022,24 @@ namespace Pixils::Script::StyleDefinition
     return layout;
   }
 
+  std::unique_ptr<UI::Style::Image> build_image(Roo::Context& ctx,
+                                                const Roo::sptr_val& value)
+  {
+    if (!value || value->type == Roo::Value::Type::NIL) return nullptr;
+
+    auto source = map_like_value(value);
+    if (!source) return nullptr;
+
+    static Roo::MapSchema image_schema({},
+                                       {{"opacity", &Roo::Type::NUMBER}});
+
+    auto image = std::make_unique<UI::Style::Image>();
+    auto opts = image_schema.bind(ctx, *source);
+    image->opacity = parse_opacity(opts, "opacity");
+
+    return image;
+  }
+
   std::unique_ptr<UI::Style> build_style(Roo::Context& ctx, const Roo::sptr_val& value)
   {
     if (!value || value->type == Roo::Value::Type::NIL) return nullptr;
@@ -1036,6 +1054,7 @@ namespace Pixils::Script::StyleDefinition
 
     static Roo::MapSchema style_schema({},
                                           {{"background", &Roo::Type::ANY},
+                                           {"image", &Roo::Type::ANY},
                                            {"margin", &Roo::Type::ANY},
                                            {"border", &Roo::Type::ANY},
                                            {"padding", &Roo::Type::ANY},
@@ -1068,6 +1087,7 @@ namespace Pixils::Script::StyleDefinition
 
     if (auto background = build_background(ctx, opts.val("background")))
       style->background = *background;
+    if (auto image = build_image(ctx, opts.val("image"))) style->image = *image;
     if (auto margin = build_insets(ctx, opts.val("margin"))) style->margin = *margin;
     if (auto padding = build_insets(ctx, opts.val("padding"))) style->padding = *padding;
     if (opts.contains("corner-radius"))

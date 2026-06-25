@@ -224,6 +224,11 @@
              :step row-height
              :children children}))))
 
+(defun list-box-managed-style [state]
+  (if (:managed-height? state)
+    {:height (list-box-preferred-height state)}
+    {}))
+
 (defun child-at [children index]
   (if (and (>= index 0)
            (< index (count children)))
@@ -603,9 +608,11 @@
                     :auto)))
    :update (fn [state ctx]
              (list-box-update-reorder-visuals
-              (assoc state
-                     :content-state
-                     (list-box-content-state state))
+              (list-box-sync-rendered-options
+               (assoc state
+                      :content-state
+                      (list-box-content-state state))
+               ctx)
               ctx))
    :on-key-down list-box-on-key-down
    :on {:list-box/item-click (fn [state event ctx]
@@ -718,12 +725,53 @@
           (stretch-list-box-item child)
           child)))))
 
+(defun list-box-item-children [state]
+  (let [row-height (or (:row-height state) default-row-height)
+        options (or (:options state) [])]
+    (for-indexed [index option options]
+      (make-item-child (:item-child state)
+                       index
+                       option
+                       row-height
+                       (:hover-highlight? state)
+                       (:stretch-items? state)
+                       (:disabled? state)
+                       (:reorderable? state)
+                       (:reorder-drag-threshold state)))))
+
+(defun list-box-render-key [state]
+  {:options (:options state)
+   :row-height (:row-height state)
+   :content-width (:content-width state)
+   :stretch-items? (:stretch-items? state)
+   :disabled? (:disabled? state)
+   :reorderable? (:reorderable? state)
+   :reorder-drag-threshold (:reorder-drag-threshold state)
+   :hover-highlight? (:hover-highlight? state)})
+
+(defun list-box-scroll-pane-for-state [state]
+  (list-box-scroll-pane-child state
+                              (list-box-item-children state)))
+
+(defun list-box-sync-rendered-options [state ctx]
+  (let [render-key (list-box-render-key state)]
+    (do
+      (when (not= render-key (:rendered-render-key state))
+        (ui/replace-child! (:view ctx)
+                           "scroll-pane"
+                           (list-box-scroll-pane-for-state state)))
+      (when (:managed-height? state)
+        (ui/style! (:view ctx)
+                   (list-box-managed-style state)))
+      (assoc state :rendered-render-key render-key))))
+
 (defun make [{:keys [options style row-height visible-rows max-height content-width selected-indices multi-select? force-selection? toggle-selected? hover-highlight? item-child item-state-keys state disabled? reorderable? reorder-drag-threshold reorder-visual-strategy]}]
   (let [row-height (or row-height default-row-height)
         visible-rows (or visible-rows default-visible-rows)
         options (or options [])
         disabled? (or disabled? (:disabled? state))
         content-width (or content-width 160)
+        managed-height? (not (contains? (or style {}) :height))
         content-height (list-box-content-height options row-height)
         height (list-box-visible-height options row-height visible-rows max-height)
         final-style (merge {:height height
@@ -739,36 +787,25 @@
                     :visible-rows visible-rows
                     :max-height max-height
                     :content-width content-width
+                    :managed-height? managed-height?
                     :stretch-items? stretch-items?
                     :disabled? disabled?
                     :reorderable? reorderable?
                     :reorder-drag-threshold reorder-drag-threshold
                     :reorder-visual-strategy reorder-visual-strategy
-                    :item-children (for-indexed [index option options]
-                                     (make-item-child item-child
-                                                      index
-                                                      option
-                                                      row-height
-                                                      hover-highlight?
-                                                      stretch-items?
-                                                      disabled?
-                                                      reorderable?
-                                                      reorder-drag-threshold))
+                    :item-child item-child
+                    :hover-highlight? hover-highlight?
                     :selected-indices selected-indices
                     :multi-select? multi-select?
                     :force-selection? force-selection?
                     :toggle-selected? toggle-selected?})
-     :children [(list-box-scroll-pane-child {:row-height row-height
-                                             :content-width content-width
-                                             :options options
-                                             :stretch-items? stretch-items?}
-                                            (for-indexed [index option options]
-                                              (make-item-child item-child
-                                                               index
-                                                               option
-                                                               row-height
-                                                               hover-highlight?
-                                                               stretch-items?
-                                                               disabled?
-                                                               reorderable?
-                                                               reorder-drag-threshold)))]}))
+     :children [(list-box-scroll-pane-for-state
+                 {:row-height row-height
+                  :content-width content-width
+                  :options options
+                  :stretch-items? stretch-items?
+                  :disabled? disabled?
+                  :reorderable? reorderable?
+                  :reorder-drag-threshold reorder-drag-threshold
+                  :item-child item-child
+                  :hover-highlight? hover-highlight?})]}))

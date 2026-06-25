@@ -32,12 +32,57 @@
     (ui/theme-var ctx :button-pressed-image-offset {:x 0 :y 0})
     {:x 0 :y 0}))
 
+(defun button-image-key [image]
+  (if (keyword? image)
+    image
+    (:image image)))
+
+(defun button-image-source [image]
+  (if (keyword? image)
+    nil
+    (or (:source image)
+        (:src-rect image)
+        (:src image))))
+
+(defun button-image-offset [image]
+  (if (keyword? image)
+    {:x 0 :y 0}
+    (or (:offset image) {:x 0 :y 0})))
+
+(defun button-image-opacity [image]
+  (if (keyword? image)
+    nil
+    (:opacity image)))
+
+(defun button-style-image-opacity [ctx]
+  (-> ctx :view :effective-style :image :opacity))
+
+(defun button-image-pressed-offset [state ctx image]
+  (if (and (not (keyword? image))
+           (contains? (or image {}) :pressed-offset))
+    (if (button-pressed? state ctx)
+      (or (:pressed-offset image) {:x 0 :y 0})
+      {:x 0 :y 0})
+    (button-pressed-image-offset state ctx)))
+
+(defun button-image-dim [image]
+  (let [source (button-image-source image)]
+    (if (and source (:w source) (:h source))
+      {:w (:w source)
+       :h (:h source)}
+      (img/size (button-image-key image)))))
+
+(defun add-points [a b]
+  {:x (+ (or (:x a) 0) (or (:x b) 0))
+   :y (+ (or (:y a) 0) (or (:y b) 0))})
+
 (defun button-image-position [state ctx image]
   (let [bounds (-> ctx :view :bounds)
-        dim (img/size image)
+        dim (button-image-dim image)
         left (button-content-origin-inset ctx :left)
         top (button-content-origin-inset ctx :top)
-        offset (button-pressed-image-offset state ctx)]
+        offset (add-points (button-image-offset image)
+                           (button-image-pressed-offset state ctx image))]
     (if (and dim (:w dim) (:h dim))
       {:x (+ (- (int (/ (- (:w bounds) (:w dim)) 2)) left)
              (or (:x offset) 0))
@@ -46,6 +91,18 @@
       {:x 0
        :y 0})))
 
+(defun button-image-render-opts [state ctx image]
+  (let [source (button-image-source image)
+        opacity (or (button-style-image-opacity ctx)
+                    (button-image-opacity image))
+        opts {:pos (button-image-position state ctx image)}
+        opts (if source
+               (assoc opts :source source)
+               opts)]
+    (if opacity
+      (assoc opts :opacity opacity)
+      opts)))
+
 (defcomponent ui/button-inner {:style {:width :fill
                                        :height :fill}
                                :children [{:mode 'ui/text
@@ -53,12 +110,12 @@
                                                    :text {:align :center}}
                                            :state {:value (ui/bind-state :label)}}]
                                :render (fn [state {:keys [view] :as ctx}]
-                                         (when (keyword? (:image state))
-                                           (r/image! (:image state)
-                                                     {:pos (button-image-position
-                                                            state
-                                                            ctx
-                                                            (:image state))})))})
+                                         (when (button-image-key (:image state))
+                                           (r/image! (button-image-key (:image state))
+                                                     (button-image-render-opts
+                                                      state
+                                                      ctx
+                                                      (:image state)))))})
 
 
 ;; Outer button component

@@ -67,6 +67,7 @@ namespace Pixils::Script
                       UI::Style,
                       &HostType::STYLE,
                       (background),
+                      (image),
                       (margin),
                       (border),
                       (padding),
@@ -118,6 +119,18 @@ namespace Pixils::Script
       return Roo::keyword(background.image->first + "/" + background.image->second);
     }
     return Roo::Constant::NIL;
+  }
+
+  NOBJ_PROP_GET(StyleAdapter, image)
+  {
+    if (!get_self_object().image)
+    {
+      return Roo::Constant::NIL;
+    }
+
+    const auto& image = *get_self_object().image;
+    return Roo::map({Roo::keyword("opacity"),
+                     image.opacity ? Roo::number(*image.opacity) : Roo::Constant::NIL});
   }
 
   NOBJ_PROP_GET(StyleAdapter, margin)

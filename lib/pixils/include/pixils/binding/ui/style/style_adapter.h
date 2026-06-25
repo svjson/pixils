@@ -12,6 +12,7 @@ namespace Pixils::Script
     StyleAdapter,
     UI::Style,
     (background,
+     image,
      margin,
      border,
      padding,

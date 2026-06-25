@@ -85,6 +85,11 @@ namespace Pixils::UI
       std::optional<float> opacity = std::nullopt;
     };
 
+    struct Image
+    {
+      std::optional<float> opacity = std::nullopt;
+    };
+
     struct Insets
     {
       int t = 0;
@@ -306,6 +311,7 @@ namespace Pixils::UI
 
     /** Visual */
     std::optional<Background> background = std::nullopt;
+    std::optional<Image> image = std::nullopt;
     std::optional<Insets> margin = std::nullopt;
     std::optional<Insets> padding = std::nullopt;
     std::optional<CornerRadius> corner_radius = std::nullopt;

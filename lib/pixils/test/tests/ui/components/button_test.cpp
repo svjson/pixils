@@ -119,6 +119,92 @@ TEST_F(ButtonTest, button_state_image_is_centered_inside_button_inner)
   EXPECT_EQ(copy->rendered_rect.h, 8);
 }
 
+TEST_F(ButtonTest, button_state_image_map_accepts_source_rect_and_offset)
+{
+  SDLMock::prepared_surfaces["./icons.png"] = {32, 16};
+  runtime.eval(R"(
+    (pixils/defbundle icons {:images {:sheet "icons.png"}})
+    (pixils/defmode root-mode
+      {:children [{:mode 'ui/button
+                   :style {:width 28 :height 28}
+                   :state {:image {:image :icons/sheet
+                                    :source {:x 16 :y 0 :w 8 :h 8}
+                                    :offset {:x 2 :y -1}}}}]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  session.render_mode();
+
+  auto& ops = render_target()->render_ops;
+  auto copy = std::find_if(ops.begin(), ops.end(), [](const auto& op) {
+    return op.type == RenderOpType::RENDER_COPY;
+  });
+  ASSERT_NE(copy, ops.end());
+  EXPECT_EQ(copy->rendered_rect.x, 11);
+  EXPECT_EQ(copy->rendered_rect.y, 8);
+  EXPECT_EQ(copy->rendered_rect.w, 8);
+  EXPECT_EQ(copy->rendered_rect.h, 8);
+}
+
+TEST_F(ButtonTest, disabled_button_can_style_only_state_image_opacity)
+{
+  SDLMock::prepared_surfaces["./brush.png"] = {10, 8};
+  runtime.eval(R"(
+    (pixils/defbundle icons {:images {:brush "brush.png"}})
+    (pixils/deftheme dim-disabled-button-theme
+      {:styles {'ui/button-inner:disabled {:image {:opacity 0.35}}}})
+    (pixils/defmode root-mode
+      {:theme 'dim-disabled-button-theme
+       :children [{:mode 'ui/button
+                   :style {:width 28 :height 28}
+                   :state {:image :icons/brush
+                           :disabled? true}}]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  session.render_mode();
+
+  ASSERT_EQ(session.active_mode->children.size(), 1u);
+  auto button = session.active_mode->children[0];
+  ASSERT_NE(button, nullptr);
+  ASSERT_EQ(button->children.size(), 1u);
+  auto button_inner = button->children[0];
+  ASSERT_NE(button_inner, nullptr);
+  ASSERT_NE(button_inner->effective_style.image, std::nullopt);
+  ASSERT_NE(button_inner->effective_style.image->opacity, std::nullopt);
+  EXPECT_FLOAT_EQ(*button_inner->effective_style.image->opacity, 0.35f);
+  EXPECT_EQ(button_inner->effective_style.opacity, std::nullopt);
+}
+
+TEST_F(ButtonTest, button_state_image_map_can_override_pressed_offset)
+{
+  SDLMock::prepared_surfaces["./icons.png"] = {32, 16};
+  runtime.eval(R"(
+    (pixils/defbundle icons {:images {:sheet "icons.png"}})
+    (pixils/defmode root-mode
+      {:theme 'pixils/windows-3
+       :children [{:mode 'ui/button
+                   :style {:width 28 :height 28}
+                   :state {:pressed true
+                           :image {:image :icons/sheet
+                                    :source {:x 0 :y 0 :w 8 :h 8}
+                                    :pressed-offset {:x 3 :y 4}}}}]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  session.render_mode();
+
+  auto& ops = render_target()->render_ops;
+  auto copy = std::find_if(ops.begin(), ops.end(), [](const auto& op) {
+    return op.type == RenderOpType::RENDER_COPY;
+  });
+  ASSERT_NE(copy, ops.end());
+  EXPECT_EQ(copy->rendered_rect.x, 11);
+  EXPECT_EQ(copy->rendered_rect.y, 12);
+  EXPECT_EQ(copy->rendered_rect.w, 8);
+  EXPECT_EQ(copy->rendered_rect.h, 8);
+}
+
 TEST_F(ButtonTest, disabled_button_does_not_fire_click_handler)
 {
   runtime.eval(R"(
