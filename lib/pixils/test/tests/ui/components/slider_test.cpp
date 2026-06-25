@@ -366,6 +366,49 @@ TEST_F(SliderTest, windows_95_theme_sets_orientation_cross_size)
   EXPECT_EQ(vertical->effective_style.width->fixed_value_or(0), 21);
 }
 
+TEST_F(SliderTest, windows_95_dark_variant_uses_dark_slider_bevels)
+{
+  runtime.eval(R"(
+    (pixils/defprogram slider-test-program
+      {:theme 'pixils/windows-95
+       :theme-variant :dark
+       :initial-mode 'root-mode})
+
+    (pixils/defmode root-mode
+      {:children [(pixils.ui.slider/make
+                   {:style {:width 100}
+                    :value 5
+                    :min 0
+                    :max 10
+                    :step 1})]})
+  )");
+
+  Pixils::load_program(runtime, session);
+  session.update_mode();
+  session.render_mode();
+
+  ASSERT_NE(session.active_mode, nullptr);
+  ASSERT_EQ(session.active_mode->children.size(), 1u);
+  auto slider = session.active_mode->children[0];
+  ASSERT_TRUE(slider->effective_theme.vars.count("dark") > 0);
+  ASSERT_TRUE(slider->effective_theme.vars.at("dark").count("slider") > 0);
+
+  auto slider_var = slider->effective_theme.vars.at("dark").at("slider");
+  ASSERT_NE(slider_var, nullptr);
+  EXPECT_EQ(slider_var->to_string(),
+            "{:thumb-shape :windows :thumb-color {:__pixils-theme-var :panel-bg} "
+            ":thumb-length 13 :thumb-point-size 6 :track-layout :handle-travel "
+            ":track-shape :windows-track :track-thickness 4 :track-border? false "
+            ":track-bevel {:outer-top-color {:__pixils-theme-var :panel-shadow} "
+            ":outer-bottom-color {:__pixils-theme-var :panel-highlight} "
+            ":inner-top-color {:__pixils-theme-var :border} "
+            ":inner-bottom-color {:__pixils-theme-var :highlight}} "
+            ":thumb-bevel {:outer-top-color {:__pixils-theme-var :highlight} "
+            ":outer-bottom-color {:__pixils-theme-var :border} "
+            ":inner-top-color {:__pixils-theme-var :panel-highlight} "
+            ":inner-bottom-color {:__pixils-theme-var :panel-shadow}}}");
+}
+
 TEST_F(SliderTest, windows_3_theme_styles_slider_handle)
 {
   auto slider = render_slider_for_theme("pixils/windows-3");
@@ -380,4 +423,47 @@ TEST_F(SliderTest, windows_3_theme_styles_slider_handle)
   EXPECT_EQ(slider->effective_style.border->right_thickness(), 0);
   EXPECT_EQ(slider->effective_style.border->bottom_thickness(), 0);
   EXPECT_EQ(slider->effective_style.border->left_thickness(), 0);
+}
+
+TEST_F(SliderTest, windows_3_dark_variant_uses_dark_slider_bevels)
+{
+  runtime.eval(R"(
+    (pixils/defprogram slider-test-program
+      {:theme 'pixils/windows-3
+       :theme-variant :dark
+       :initial-mode 'root-mode})
+
+    (pixils/defmode root-mode
+      {:children [(pixils.ui.slider/make
+                   {:style {:width 100}
+                    :value 5
+                    :min 0
+                    :max 10
+                    :step 1})]})
+  )");
+
+  Pixils::load_program(runtime, session);
+  session.update_mode();
+  session.render_mode();
+
+  ASSERT_NE(session.active_mode, nullptr);
+  ASSERT_EQ(session.active_mode->children.size(), 1u);
+  auto slider = session.active_mode->children[0];
+  ASSERT_TRUE(slider->effective_theme.vars.count("dark") > 0);
+  ASSERT_TRUE(slider->effective_theme.vars.at("dark").count("slider") > 0);
+
+  auto slider_var = slider->effective_theme.vars.at("dark").at("slider");
+  ASSERT_NE(slider_var, nullptr);
+  EXPECT_EQ(slider_var->to_string(),
+            "{:thumb-shape :windows :thumb-color {:__pixils-theme-var :panel-bg} "
+            ":thumb-length 13 :thumb-point-size 6 :track-layout :handle-travel "
+            ":track-shape :windows-track :track-thickness 4 :track-border? false "
+            ":track-bevel {:outer-top-color {:__pixils-theme-var :panel-shadow} "
+            ":outer-bottom-color {:__pixils-theme-var :highlight} "
+            ":inner-top-color {:__pixils-theme-var :control-border} "
+            ":inner-bottom-color {:__pixils-theme-var :border}} "
+            ":thumb-bevel {:outer-top-color {:__pixils-theme-var :highlight} "
+            ":outer-bottom-color {:__pixils-theme-var :control-border} "
+            ":inner-top-color {:__pixils-theme-var :border} "
+            ":inner-bottom-color {:__pixils-theme-var :panel-shadow}}}");
 }

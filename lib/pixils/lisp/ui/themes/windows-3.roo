@@ -490,6 +490,22 @@
                  :split-pane-resizer-size 8
                  :scrollbar-size 17
                  :scrollbar-handle-size 15
+                 :slider {:thumb-shape :windows
+                          :thumb-color (var :panel-bg)
+                          :thumb-length 13
+                          :thumb-point-size 6
+                          :track-layout :handle-travel
+                          :track-shape :windows-track
+                          :track-thickness 4
+                          :track-border? false
+                          :track-bevel {:outer-top-color (var :panel-shadow)
+                                        :outer-bottom-color (var :highlight)
+                                        :inner-top-color (var :control-border)
+                                        :inner-bottom-color (var :border)}
+                          :thumb-bevel {:outer-top-color (var :highlight)
+                                         :outer-bottom-color (var :control-border)
+                                         :inner-top-color (var :border)
+                                         :inner-bottom-color (var :panel-shadow)}}
                  :button-outline-border-style {:color (var :button-bg)
                                                :thickness 1
                                                :trim 1}
