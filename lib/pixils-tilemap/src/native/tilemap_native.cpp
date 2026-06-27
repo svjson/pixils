@@ -7,6 +7,7 @@
 
 #include <SDL2/SDL_blendmode.h>
 #include <SDL2/SDL_render.h>
+#include <SDL2/SDL_version.h>
 #include <algorithm>
 #include <cmath>
 #include <exception>
@@ -169,6 +170,22 @@ namespace
     int h = 16;
   };
 
+  struct FloatRect
+  {
+    double x = 0.0;
+    double y = 0.0;
+    double w = 0.0;
+    double h = 0.0;
+
+    SDL_FRect to_SDL_frect() const
+    {
+      return SDL_FRect{static_cast<float>(x),
+                       static_cast<float>(y),
+                       static_cast<float>(w),
+                       static_cast<float>(h)};
+    }
+  };
+
   TileDim tile_dim_value(const Roo::sptr_val& value, int fallback)
   {
     if (nil_value(value)) return TileDim{fallback, fallback};
@@ -203,6 +220,36 @@ namespace
     return TileDim{
       std::max(1, static_cast<int>(std::round(input.tile_size.w * input.zoom))),
       std::max(1, static_cast<int>(std::round(input.tile_size.h * input.zoom)))};
+  }
+
+  double scaled_tile_width(const RenderInput& input)
+  {
+    return static_cast<double>(input.tile_size.w) * input.zoom;
+  }
+
+  double scaled_tile_height(const RenderInput& input)
+  {
+    return static_cast<double>(input.tile_size.h) * input.zoom;
+  }
+
+  bool effectively_integer(double value)
+  {
+    return std::abs(value - std::round(value)) < 0.000001;
+  }
+
+  bool has_fractional_scaled_tile_size(const RenderInput& input)
+  {
+    return !effectively_integer(scaled_tile_width(input)) ||
+           !effectively_integer(scaled_tile_height(input));
+  }
+
+  double integer_scaled_tile_zoom(const RenderInput& input)
+  {
+    double width_zoom =
+      std::ceil(scaled_tile_width(input)) / static_cast<double>(input.tile_size.w);
+    double height_zoom =
+      std::ceil(scaled_tile_height(input)) / static_cast<double>(input.tile_size.h);
+    return std::max(width_zoom, height_zoom);
   }
 
   RenderRanges render_ranges(const RenderInput& input)
@@ -988,6 +1035,251 @@ namespace
     }
   }
 
+  constexpr const char* FRACTIONAL_RENDER_CACHE_BUNDLE =
+    "pixils-tilemap-fractional-render-cache";
+  constexpr const char* FRACTIONAL_RENDER_CACHE_ASSET = "viewport";
+  constexpr int FRACTIONAL_RENDER_CACHE_BUCKET_SIZE = 64;
+
+  struct FractionalRenderCacheTexture
+  {
+    SDL_Texture* texture = nullptr;
+    int w = 0;
+    int h = 0;
+
+    explicit operator bool() const { return texture != nullptr; }
+  };
+
+  struct FractionalRenderPlan
+  {
+    RenderInput source_input;
+    TileDim source_tile_size;
+    double scale_x = 1.0;
+    double scale_y = 1.0;
+    int source_start_x = 0;
+    int source_start_y = 0;
+    int source_w = 0;
+    int source_h = 0;
+  };
+
+  int fractional_render_cache_capacity(int value)
+  {
+    if (value <= 0) return 0;
+    int bucket = FRACTIONAL_RENDER_CACHE_BUCKET_SIZE;
+    return ((value + bucket - 1) / bucket) * bucket;
+  }
+
+  int fractional_render_cache_grown_capacity(int required, int existing)
+  {
+    if (required <= existing) return existing;
+    int rounded = fractional_render_cache_capacity(required);
+    return existing > 0 ? std::max(rounded, existing * 2) : rounded;
+  }
+
+  std::optional<FractionalRenderPlan> fractional_render_plan(
+    const RenderInput& input,
+    double source_zoom)
+  {
+    FractionalRenderPlan plan;
+    plan.source_input = input;
+    plan.source_input.zoom = source_zoom;
+    plan.source_tile_size = scaled_tile_size(plan.source_input);
+    plan.scale_x = scaled_tile_width(input) /
+                   static_cast<double>(plan.source_tile_size.w);
+    plan.scale_y = scaled_tile_height(input) /
+                   static_cast<double>(plan.source_tile_size.h);
+    if (plan.scale_x <= 0.0 || plan.scale_y <= 0.0) return std::nullopt;
+
+    double source_x = static_cast<double>(input.offset.x) / plan.scale_x;
+    double source_y = static_cast<double>(input.offset.y) / plan.scale_y;
+    plan.source_start_x = static_cast<int>(std::floor(source_x));
+    plan.source_start_y = static_cast<int>(std::floor(source_y));
+    double frac_x = source_x - static_cast<double>(plan.source_start_x);
+    double frac_y = source_y - static_cast<double>(plan.source_start_y);
+    plan.source_w = std::max(
+      1,
+      static_cast<int>(std::ceil(static_cast<double>(input.target_rect.w) /
+                                   plan.scale_x +
+                                 frac_x)));
+    plan.source_h = std::max(
+      1,
+      static_cast<int>(std::ceil(static_cast<double>(input.target_rect.h) /
+                                   plan.scale_y +
+                                 frac_y)));
+    plan.source_input.offset.x = plan.source_start_x;
+    plan.source_input.offset.y = plan.source_start_y;
+    plan.source_input.render_offset = plan.source_input.offset;
+    plan.source_input.has_target_rect = true;
+    plan.source_input.target_rect = Pixils::Rect{0, 0, plan.source_w, plan.source_h};
+    plan.source_input.ranges = render_ranges(plan.source_input);
+    return plan;
+  }
+
+  bool fractional_render_plan_fits(const FractionalRenderPlan& plan,
+                                   const FractionalRenderCacheTexture& cache)
+  {
+    return plan.source_w <= cache.w && plan.source_h <= cache.h;
+  }
+
+  FractionalRenderPlan best_fractional_render_plan_for_cache(
+    const RenderInput& input,
+    const FractionalRenderPlan& minimum_plan,
+    const FractionalRenderCacheTexture& cache)
+  {
+    double minimum_zoom = minimum_plan.source_input.zoom;
+    if (minimum_zoom >= 1.0) return minimum_plan;
+
+    TileDim maximum_tile_size = input.tile_size;
+    for (int candidate_w = maximum_tile_size.w;
+         candidate_w > minimum_plan.source_tile_size.w;
+         candidate_w--)
+    {
+      double candidate_zoom =
+        static_cast<double>(candidate_w) / static_cast<double>(input.tile_size.w);
+      if (auto candidate = fractional_render_plan(input, candidate_zoom);
+          candidate && fractional_render_plan_fits(*candidate, cache))
+      {
+        return *candidate;
+      }
+    }
+    return minimum_plan;
+  }
+
+  FractionalRenderCacheTexture fractional_render_cache_texture(Pixils::RenderContext& rc,
+                                                               int required_w,
+                                                               int required_h)
+  {
+    if (!rc.renderer || !rc.asset_registry || required_w <= 0 || required_h <= 0)
+    {
+      return {};
+    }
+
+    try
+    {
+      rc.asset_registry->create_dynamic_bundle(FRACTIONAL_RENDER_CACHE_BUNDLE);
+      auto generated_sizes =
+        rc.asset_registry->generated_image_sizes(FRACTIONAL_RENDER_CACHE_BUNDLE);
+      auto generated_size = generated_sizes.find(FRACTIONAL_RENDER_CACHE_ASSET);
+      SDL_Texture* existing = rc.asset_registry->get_image(FRACTIONAL_RENDER_CACHE_BUNDLE,
+                                                           FRACTIONAL_RENDER_CACHE_ASSET);
+      if (existing && generated_size != generated_sizes.end() &&
+          generated_size->second.w >= required_w && generated_size->second.h >= required_h)
+      {
+        return FractionalRenderCacheTexture{
+          existing, generated_size->second.w, generated_size->second.h};
+      }
+
+      if (existing || generated_size != generated_sizes.end())
+      {
+        rc.asset_registry->remove_image(FRACTIONAL_RENDER_CACHE_BUNDLE,
+                                        FRACTIONAL_RENDER_CACHE_ASSET);
+      }
+
+      int existing_w =
+        generated_size != generated_sizes.end() ? generated_size->second.w : 0;
+      int existing_h =
+        generated_size != generated_sizes.end() ? generated_size->second.h : 0;
+      int capacity_w = fractional_render_cache_grown_capacity(required_w, existing_w);
+      int capacity_h = fractional_render_cache_grown_capacity(required_h, existing_h);
+      std::unique_ptr<SDL_Texture, decltype(&SDL_DestroyTexture)> texture(
+        SDL_CreateTexture(rc.renderer,
+                          SDL_PIXELFORMAT_RGBA8888,
+                          SDL_TEXTUREACCESS_TARGET,
+                          capacity_w,
+                          capacity_h),
+        SDL_DestroyTexture);
+      if (!texture) return {};
+
+      SDL_SetTextureBlendMode(texture.get(), SDL_BLENDMODE_BLEND);
+#if SDL_VERSION_ATLEAST(2, 0, 12)
+      SDL_SetTextureScaleMode(texture.get(), SDL_ScaleModeLinear);
+#endif
+      SDL_Texture* committed = texture.get();
+      rc.asset_registry->add_generated_image(FRACTIONAL_RENDER_CACHE_BUNDLE,
+                                             FRACTIONAL_RENDER_CACHE_ASSET,
+                                             committed,
+                                             nullptr,
+                                             Pixils::Dimension{capacity_w, capacity_h});
+      texture.release();
+      return FractionalRenderCacheTexture{committed, capacity_w, capacity_h};
+    }
+    catch (...)
+    {
+      return {};
+    }
+  }
+
+  bool render_fractional_scaled_layers(Pixils::RenderContext& rc,
+                                       const Roo::sptr_val& layers,
+                                       const Roo::sptr_val& hidden,
+                                       const RenderInput& input)
+  {
+    if (!input.has_target_rect || input.zoom <= 0.0) return false;
+
+    auto minimum_plan = fractional_render_plan(input, integer_scaled_tile_zoom(input));
+    if (!minimum_plan) return false;
+
+    FractionalRenderCacheTexture cache =
+      fractional_render_cache_texture(rc, minimum_plan->source_w, minimum_plan->source_h);
+    if (!cache) return false;
+    FractionalRenderPlan plan =
+      best_fractional_render_plan_for_cache(input, *minimum_plan, cache);
+
+    SDL_Texture* previous_target = rc.current_render_target;
+    auto previous_clip = rc.current_clip_rect;
+    SDL_Rect previous_viewport{0, 0, 0, 0};
+    SDL_RenderGetViewport(rc.renderer, &previous_viewport);
+
+    pad_render_ranges(&plan.source_input,
+                      draw_range_padding_for_layers(rc, layers, hidden, plan.source_input));
+
+    try
+    {
+      rc.set_render_target(cache.texture);
+      SDL_RenderSetViewport(rc.renderer, nullptr);
+      rc.set_clip_rect(std::nullopt);
+      SDL_SetRenderDrawBlendMode(rc.renderer, SDL_BLENDMODE_BLEND);
+      SDL_SetRenderDrawColor(rc.renderer, 0, 0, 0, 0);
+      SDL_RenderClear(rc.renderer);
+
+      int index = 0;
+      for (const auto& layer : Roo::get_children(*layers))
+      {
+        if (!int_vector_contains(hidden, index))
+        {
+          render_layer(rc, plan.source_input, layer);
+        }
+        index++;
+      }
+    }
+    catch (...)
+    {
+      rc.set_render_target(previous_target);
+      SDL_RenderSetViewport(rc.renderer, &previous_viewport);
+      rc.set_clip_rect(previous_clip);
+      throw;
+    }
+
+    rc.set_render_target(previous_target);
+    SDL_RenderSetViewport(rc.renderer, &previous_viewport);
+    rc.set_clip_rect(previous_clip);
+
+    Pixils::Rect effective_clip = intersect_clip_rect(previous_clip, input.target_rect);
+    if (effective_clip.w <= 0 || effective_clip.h <= 0) return true;
+
+    rc.set_clip_rect(effective_clip);
+    FloatRect dest{(static_cast<double>(plan.source_start_x) * plan.scale_x) -
+                     static_cast<double>(input.render_offset.x),
+                   (static_cast<double>(plan.source_start_y) * plan.scale_y) -
+                     static_cast<double>(input.render_offset.y),
+                   static_cast<double>(plan.source_w) * plan.scale_x,
+                   static_cast<double>(plan.source_h) * plan.scale_y};
+    SDL_Rect source_rect{0, 0, plan.source_w, plan.source_h};
+    SDL_FRect dest_rect = dest.to_SDL_frect();
+    SDL_RenderCopyF(rc.renderer, cache.texture, &source_rect, &dest_rect);
+    rc.set_clip_rect(previous_clip);
+    return true;
+  }
+
   bool render_layers(Pixils::RenderContext& rc,
                      const Roo::sptr_val& tilemap,
                      const Roo::sptr_val& opts)
@@ -1001,6 +1293,12 @@ namespace
     if (!seq_value(layers)) return false;
     pad_render_ranges(&input,
                       draw_range_padding_for_layers(rc, layers, hidden, input));
+
+    if (input.has_target_rect && has_fractional_scaled_tile_size(input) &&
+        render_fractional_scaled_layers(rc, layers, hidden, input))
+    {
+      return true;
+    }
 
     std::optional<Pixils::Rect> previous_clip = rc.current_clip_rect;
     bool clipped = false;
