@@ -171,6 +171,7 @@ namespace Pixils
       {"left-super", SDLK_LGUI},
       {"right-super", SDLK_RGUI},
       {"backspace", SDLK_BACKSPACE},
+      {"tab", SDLK_TAB},
       {"space", SDLK_SPACE},
       {"enter", SDLK_RETURN},
       {"escape", SDLK_ESCAPE},
