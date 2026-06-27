@@ -7,6 +7,7 @@
 #include <roo/runtime/dict.h>
 #include <roo/runtime/value.h>
 #include <string>
+#include <vector>
 
 class TabPanelTest : public RenderFixture
 {
@@ -20,26 +21,29 @@ class TabPanelTest : public RenderFixture
     std::shared_ptr<Pixils::Runtime::View> body;
   };
 
-  RenderedTabs render_tabs_for_theme(const std::string& theme)
+  RenderedTabs render_tabs_for_theme(const std::string& theme, bool empty_labels = false)
   {
-    runtime.eval(std::string(R"(
+    const std::string map_label = empty_labels ? "" : "Map";
+    const std::string tilesets_label = empty_labels ? "" : "Tilesets";
+    const std::string source = std::string(R"roo(
       (pixils/defcomponent map-body {})
       (pixils/defcomponent tilesets-body {})
 
       (pixils/defprogram tab-test-program
-        {:theme ')") + theme + R"(
+        {:theme ')roo" + theme + R"roo(
          :initial-mode 'root-mode})
 
       (pixils/defmode root-mode
         {:children [(pixils.ui.tab-panel/make
                      {:selected-tab :map
                       :tabs [{:id :map
-                              :label "Map"
+                              :label ")roo" + map_label + R"roo("
                               :child {:mode 'map-body}}
                              {:id :tilesets
-                              :label "Tilesets"
+                              :label ")roo" + tilesets_label + R"roo("
                               :child {:mode 'tilesets-body}}]})]})
-    )");
+    )roo");
+    runtime.eval(source);
 
     Pixils::load_program(runtime, session);
     session.update_mode();
@@ -63,6 +67,24 @@ class TabPanelTest : public RenderFixture
 
 namespace
 {
+  bool rect_eq(const SDL_Rect& a, const SDL_Rect& b)
+  {
+    return a.x == b.x && a.y == b.y && a.w == b.w && a.h == b.h;
+  }
+
+  bool has_fill_rect(const std::vector<RenderOperation>& ops, const SDL_Rect& rect)
+  {
+    for (const auto& op : ops)
+    {
+      if (op.type == RenderOpType::FILL_RECT && rect_eq(op.rendered_rect, rect))
+      {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
   std::shared_ptr<Pixils::Runtime::View> tab_panel_body(
     const std::shared_ptr<Pixils::Runtime::View>& tab_panel)
   {
@@ -439,8 +461,16 @@ TEST_F(TabPanelTest, windows_95_theme_uses_property_sheet_tabs)
             tabs.tab_strip->bounds.y + tabs.tab_strip->bounds.h);
 
   ASSERT_TRUE(tabs.selected_tab->effective_style.border.has_value());
-  EXPECT_EQ(tabs.selected_tab->effective_style.border->line_style,
-            Pixils::UI::Style::LineStyle::BEVEL);
+  ASSERT_TRUE(tabs.inactive_tab->effective_style.border.has_value());
+  EXPECT_EQ(tabs.selected_tab->effective_style.border->top_thickness(), 2);
+  EXPECT_EQ(tabs.selected_tab->effective_style.border->right_thickness(), 2);
+  EXPECT_EQ(tabs.selected_tab->effective_style.border->bottom_thickness(), 0);
+  EXPECT_EQ(tabs.selected_tab->effective_style.border->left_thickness(), 2);
+  EXPECT_EQ(tabs.inactive_tab->effective_style.border->top_thickness(), 2);
+  EXPECT_EQ(tabs.inactive_tab->effective_style.border->right_thickness(), 2);
+  EXPECT_EQ(tabs.inactive_tab->effective_style.border->bottom_thickness(), 0);
+  EXPECT_EQ(tabs.inactive_tab->effective_style.border->left_thickness(), 2);
+
   auto selected_top = tabs.selected_tab->effective_style.border->top_color();
   auto selected_right = tabs.selected_tab->effective_style.border->right_color();
   auto selected_bottom = tabs.selected_tab->effective_style.border->bottom_color();
@@ -451,9 +481,42 @@ TEST_F(TabPanelTest, windows_95_theme_uses_property_sheet_tabs)
   EXPECT_EQ(*selected_right, shadow);
   EXPECT_EQ(*selected_bottom, panel);
 
+  ASSERT_TRUE(tabs.selected_tab->effective_style.padding.has_value());
+  ASSERT_TRUE(tabs.inactive_tab->effective_style.padding.has_value());
+  EXPECT_EQ(tabs.selected_tab->effective_style.padding->t, 4);
+  EXPECT_EQ(tabs.selected_tab->effective_style.padding->b, 6);
+  EXPECT_EQ(tabs.inactive_tab->effective_style.padding->t, 3);
+  EXPECT_EQ(tabs.inactive_tab->effective_style.padding->b, 3);
+
   ASSERT_TRUE(tabs.body->effective_style.border.has_value());
   EXPECT_EQ(tabs.body->effective_style.border->line_style,
             Pixils::UI::Style::LineStyle::BEVEL);
+  EXPECT_EQ(tabs.body->effective_style.border->top_thickness(), 0);
+  EXPECT_EQ(tabs.body->effective_style.border->right_thickness(), 2);
+  EXPECT_EQ(tabs.body->effective_style.border->bottom_thickness(), 2);
+  EXPECT_EQ(tabs.body->effective_style.border->left_thickness(), 2);
+  auto body_right = tabs.body->effective_style.border->right_color();
+  ASSERT_TRUE(body_right.has_value());
+  EXPECT_EQ(*body_right, shadow);
+}
+
+TEST_F(TabPanelTest, windows_95_theme_renders_panel_border_from_tab_strip)
+{
+  auto tabs = render_tabs_for_theme("pixils/windows-95", true);
+  ASSERT_NE(tabs.tab_strip, nullptr);
+  ASSERT_TRUE(tabs.tab_strip->effective_style.border.has_value());
+
+  render_target()->render_ops.clear();
+  session.render_mode();
+
+  const int thickness = tabs.tab_strip->effective_style.border->bottom_thickness();
+
+  EXPECT_TRUE(has_fill_rect(render_target()->render_ops,
+                            SDL_Rect{tabs.tab_strip->bounds.x,
+                                     tabs.tab_strip->bounds.y + tabs.tab_strip->bounds.h -
+                                       thickness,
+                                     tabs.tab_strip->bounds.w,
+                                     thickness}));
 }
 
 TEST_F(TabPanelTest, windows_3_theme_uses_classic_property_sheet_tabs)
@@ -465,9 +528,6 @@ TEST_F(TabPanelTest, windows_3_theme_uses_classic_property_sheet_tabs)
   ASSERT_NE(tabs.body, nullptr);
 
   const Pixils::Color panel{0xc0, 0xc7, 0xc8, 255};
-  const Pixils::Color highlight{255, 255, 255, 255};
-  const Pixils::Color black{0, 0, 0, 255};
-
   ASSERT_TRUE(tabs.tab_strip->effective_style.background.has_value());
   ASSERT_TRUE(tabs.tab_strip->effective_style.background->color.has_value());
   ASSERT_TRUE(tabs.selected_tab->effective_style.background.has_value());
@@ -490,22 +550,38 @@ TEST_F(TabPanelTest, windows_3_theme_uses_classic_property_sheet_tabs)
             tabs.tab_strip->bounds.y + tabs.tab_strip->bounds.h);
 
   ASSERT_TRUE(tabs.selected_tab->effective_style.border.has_value());
-  EXPECT_EQ(tabs.selected_tab->effective_style.border->line_style,
-            Pixils::UI::Style::LineStyle::SOLID);
+  ASSERT_TRUE(tabs.inactive_tab->effective_style.border.has_value());
+  EXPECT_EQ(tabs.selected_tab->effective_style.border->top_thickness(), 2);
+  EXPECT_EQ(tabs.selected_tab->effective_style.border->right_thickness(), 2);
+  EXPECT_EQ(tabs.selected_tab->effective_style.border->bottom_thickness(), 0);
+  EXPECT_EQ(tabs.selected_tab->effective_style.border->left_thickness(), 2);
+  EXPECT_EQ(tabs.inactive_tab->effective_style.border->top_thickness(), 2);
+  EXPECT_EQ(tabs.inactive_tab->effective_style.border->right_thickness(), 2);
+  EXPECT_EQ(tabs.inactive_tab->effective_style.border->bottom_thickness(), 0);
+  EXPECT_EQ(tabs.inactive_tab->effective_style.border->left_thickness(), 2);
+
   auto selected_top = tabs.selected_tab->effective_style.border->top_color();
   auto selected_right = tabs.selected_tab->effective_style.border->right_color();
   auto selected_bottom = tabs.selected_tab->effective_style.border->bottom_color();
   ASSERT_TRUE(selected_top.has_value());
   ASSERT_TRUE(selected_right.has_value());
   ASSERT_TRUE(selected_bottom.has_value());
-  EXPECT_EQ(*selected_top, highlight);
-  EXPECT_EQ(*selected_right, black);
+  EXPECT_EQ(*selected_top, (Pixils::Color{255, 255, 255, 255}));
+  EXPECT_EQ(*selected_right, (Pixils::Color{0x87, 0x88, 0x8f, 255}));
   EXPECT_EQ(*selected_bottom, panel);
+
+  ASSERT_TRUE(tabs.selected_tab->effective_style.padding.has_value());
+  ASSERT_TRUE(tabs.inactive_tab->effective_style.padding.has_value());
+  EXPECT_EQ(tabs.selected_tab->effective_style.padding->t, 4);
+  EXPECT_EQ(tabs.selected_tab->effective_style.padding->b, 6);
+  EXPECT_EQ(tabs.inactive_tab->effective_style.padding->t, 3);
+  EXPECT_EQ(tabs.inactive_tab->effective_style.padding->b, 3);
 
   ASSERT_TRUE(tabs.body->effective_style.border.has_value());
   EXPECT_EQ(tabs.body->effective_style.border->line_style,
-            Pixils::UI::Style::LineStyle::SOLID);
-  auto body_top = tabs.body->effective_style.border->top_color();
-  ASSERT_TRUE(body_top.has_value());
-  EXPECT_EQ(*body_top, black);
+            Pixils::UI::Style::LineStyle::BEVEL);
+  EXPECT_EQ(tabs.body->effective_style.border->top_thickness(), 0);
+  EXPECT_EQ(tabs.body->effective_style.border->right_thickness(), 2);
+  EXPECT_EQ(tabs.body->effective_style.border->bottom_thickness(), 2);
+  EXPECT_EQ(tabs.body->effective_style.border->left_thickness(), 2);
 }

@@ -548,29 +548,37 @@
                            :layout {:direction :column}
                            :text {:color (var :text)}}
 
-            'ui/tab-strip {:background (var :panel-bg)
+            'ui/tab-strip {:width :fill
+                           :background (var :panel-bg)
                            :layout {:direction :row}
-                           :padding {:t 2 :l 2}}
+                           :padding {:t 3 :l 4}
+                           :border {:line-style :solid
+                                    :thickness 0
+                                    :bottom {:color (var :highlight)
+                                             :thickness 2}}}
 
             'ui/tab {:background (var :panel-bg)
-                     :margin {:t 2 :r 1}
-                     :padding [2 9]
-                     :border {:line-style :solid
+                     :margin {:t 2}
+                     :padding [3 10]
+                     :corner-radius {:tl 2 :tr 2}
+                     :border {:line-style :bevel
                               :color (var :highlight)
-                              :thickness 1
-                              :right {:color (var :border)}
-                              :bottom {:color (var :border)}}
+                              :thickness 2
+                              :right {:color (var :panel-shadow)}
+                              :bottom {:thickness 0}}
                      :text {:color (var :text)}}
 
             '(ui/tab {:selected? true})
             {:background (var :panel-bg)
-             :margin {:t 0 :r 1}
-             :padding [2 9 4 9]
-             :border {:line-style :solid
+             :margin {:t 0 :b -2}
+             :padding [4 10 6 10]
+             :corner-radius {:tl 2 :tr 2}
+             :border {:line-style :bevel
                       :color (var :highlight)
-                      :thickness 1
-                      :right {:color (var :border)}
-                      :bottom {:color (var :panel-bg)}}}
+                      :thickness 2
+                      :right {:color (var :panel-shadow)}
+                      :bottom {:color (var :panel-bg)
+                               :thickness 0}}}
 
             'ui/tab:disabled
             {:background (var :panel-bg)
@@ -579,7 +587,12 @@
             'ui/tab-panel-body {:width :fill
                                 :height :fill
                                 :background (var :panel-bg)
-                                :border (var :solid-border-style)
+                                :border {:line-style :bevel
+                                         :color (var :highlight)
+                                         :thickness 2
+                                         :top {:thickness 0}
+                                         :right {:color (var :panel-shadow)}
+                                         :bottom {:color (var :panel-shadow)}}
                                 :text {:color (var :text)}}
 
             :ui/desktop-icon-label-box {:padding (var :desktop-icon-label-padding)
