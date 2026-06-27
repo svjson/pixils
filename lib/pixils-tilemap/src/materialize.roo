@@ -13,6 +13,10 @@
                 "/"
                 (id-label tileset))))
 
+(def transition-tileset-id :pixils-transition-tiles)
+
+(def transition-tile-cache-bundle :pixils-transition-cache)
+
 (defun materialized-tilemap-base [tilemap]
   {:width (tm/map-width tilemap)
    :height (tm/map-height tilemap)
@@ -146,6 +150,9 @@
   (and (not (nil? value))
        (not= value :terrain/unknown)))
 
+(defun terrain-in-condition-value? [condition value]
+  (contains? (or (:terrain-in condition) []) value))
+
 (defun terrain-match-condition-value? [center-terrain condition value]
   (case condition
     :ignore true
@@ -158,7 +165,9 @@
                         (not= value center-terrain))
     :default
     (if (= (type-of condition) "map")
-      (= value (:terrain condition))
+      (if (contains? condition :terrain-in)
+        (terrain-in-condition-value? condition value)
+        (= value (:terrain condition)))
       true)))
 
 (defun terrain-stamp-rule-matches? [source-layer ruleset rule x y]
@@ -225,14 +234,20 @@
            (for-indexed [tile-x tile (or row [])]
              {:x tile-x
               :y tile-y
-              :tile tile}))))
+              :tile tile
+              :mask-ref (nth (or (nth (or (:transition-masks output-layer) [])
+                                      tile-y) [])
+                             tile-x)}))))
 
 (defun output-layer-anchor-entry [output output-layer]
   (let [anchor (output-anchor output)]
     {:x (:x anchor)
      :y (:y anchor)
      :tile (nth (or (nth (or (:tiles output-layer) []) (:y anchor)) [])
-                (:x anchor))}))
+                (:x anchor))
+     :mask-ref (nth (or (nth (or (:transition-masks output-layer) [])
+                             (:y anchor)) [])
+                    (:x anchor))}))
 
 (defun terrain-stamp-output-entries [ruleset output output-layer]
   (let [unit (or (:terrain-unit ruleset) tm/default-terrain-unit)]
@@ -240,6 +255,13 @@
              (= (:h unit) 1))
       [(output-layer-anchor-entry output output-layer)]
       (output-layer-tile-entries output-layer))))
+
+(defun terrain-stamp-output-layer-generates-layer? [ruleset output output-layer]
+  (not
+   (empty?
+    (filter (terrain-stamp-output-entries ruleset output output-layer)
+            (fn [entry]
+              (not (:mask-ref entry)))))))
 
 (defun terrain-stamp-output-tileset [ruleset output-layer]
   (or (:tileset output-layer)
@@ -252,7 +274,8 @@
   (not (nil? (tm/tile-in (:tilesets tilemap) tileset tile-ref))))
 
 (defun terrain-stamp-output-entry-resolves? [tilemap ruleset output-layer entry]
-  (if (and (:tile entry)
+  (if (and (not (:mask-ref entry))
+           (:tile entry)
            (known-tilesets? tilemap))
     (tile-ref-resolves? tilemap
                         (terrain-stamp-output-tileset ruleset output-layer)
@@ -267,10 +290,288 @@
                                                output-layer
                                                entry)
          (if (or (:tile entry)
+                 (:mask-ref entry)
                  (not (and (= (:w unit) 1)
                            (= (:h unit) 1))))
            true
            false))))
+
+(defun mask-set-by-id [mask-sets mask-set-id]
+  (head (filter (or mask-sets [])
+                (fn [mask-set]
+                  (= (:id mask-set) mask-set-id)))))
+
+(defun mask-by-id [mask-set mask-id]
+  (head (filter (or (:masks mask-set) [])
+                (fn [mask]
+                  (= (:id mask) mask-id)))))
+
+(defun transition-mask-definition [mask-sets mask-ref]
+  (let [mask-set (mask-set-by-id mask-sets (:mask-set mask-ref))
+        mask (mask-by-id mask-set (:mask mask-ref))]
+    (when (and mask-set mask)
+      {:mask-set mask-set
+       :mask mask})))
+
+(defun transition-mask-source [mask-sets mask-ref]
+  (when-let [definition (transition-mask-definition mask-sets mask-ref)]
+    {:size (:mask-size (:mask-set definition))
+     :source (:source (:mask definition))}))
+
+(defun terrain-preview-tile-ref [terrain-sets terrain-set-id terrain-ref]
+  (let [terrain-set (tm/terrain-set-definition terrain-sets terrain-set-id)
+        terrain (tm/terrain-in terrain-sets terrain-set-id terrain-ref)]
+    (when terrain
+      {:tileset (tm/terrain-preview-tileset terrain-set terrain)
+       :tile (tm/terrain-preview-tile terrain)})))
+
+(defun transition-condition-terrains [condition]
+  (cond
+    (and (= (type-of condition) "map")
+         (contains? condition :terrain-in))
+    (:terrain-in condition)
+
+    (and (= (type-of condition) "map")
+         (contains? condition :terrain))
+    [(:terrain condition)]
+
+    :default
+    []))
+
+(defun first-opposing-terrain [rule]
+  (let [center (terrain-match-center rule)
+        match (or (:match rule) {})]
+    (head
+     (filter
+      (apply concat
+             (map [:nw :n :ne :w :e :sw :s :se]
+                  (fn [direction]
+                    (transition-condition-terrains (get match direction)))))
+      (fn [terrain]
+        (and terrain
+             (not= terrain center)))))))
+
+(defun first-opposing-terrain-at [source-layer ruleset rule x y]
+  (let [center (terrain-match-center rule)
+        match (or (:match rule) {})]
+    (or
+     (head
+      (filter
+       (map [:nw :n :ne :w :e :sw :s :se]
+            (fn [direction]
+              (let [condition (get match direction)
+                    terrain (terrain-value-at-for-ruleset source-layer
+                                                          ruleset
+                                                          direction
+                                                          x
+                                                          y)]
+                (when (and condition
+                           (not= condition :ignore)
+                           (terrain-match-condition-value? center
+                                                           condition
+                                                           terrain)
+                           (known-terrain-value? terrain)
+                           (not= terrain center))
+                  terrain))))
+       (fn [terrain]
+         (not (nil? terrain)))))
+     (first-opposing-terrain rule))))
+
+(defun resolved-mask-source-tiles [tilemap source]
+  (map (or (:tiles source) [])
+       (fn [item]
+         (assoc item
+                :tile-definition
+                (tm/tile-in (:tilesets tilemap)
+                            (:tileset source)
+                            (:tile item))))))
+
+(defun resolved-transition-mask-source [tilemap mask-sets mask-ref]
+  (when-let [mask-source (transition-mask-source mask-sets mask-ref)]
+    (let [source (:source mask-source)]
+      (assoc source
+             :size (:size mask-source)
+             :tiles (resolved-mask-source-tiles tilemap source)))))
+
+(defun transition-tile-id [base-ref overlay-ref mask-ref]
+  (keyword (str "transition-"
+                (id-label (:tileset base-ref))
+                "-"
+                (id-label (:tile base-ref))
+                "-"
+                (id-label (:tileset overlay-ref))
+                "-"
+                (id-label (:tile overlay-ref))
+                "-"
+                (id-label (:mask-set mask-ref))
+                "-"
+                (id-label (:mask mask-ref)))))
+
+(defun transition-cache-image [tile-id]
+  (keyword (str (id-label transition-tile-cache-bundle)
+                "/"
+                (id-label tile-id))))
+
+(defun transition-tile-definition [tilemap source-layer ruleset rule mask-ref source-x source-y]
+  (let [terrain-set-id (:terrain-set ruleset)
+        base-ref (terrain-preview-tile-ref (:terrain-sets tilemap)
+                                           terrain-set-id
+                                           (terrain-match-center rule))
+        overlay-ref (terrain-preview-tile-ref (:terrain-sets tilemap)
+                                              terrain-set-id
+                                              (first-opposing-terrain-at source-layer
+                                                                        ruleset
+                                                                        rule
+                                                                        source-x
+                                                                        source-y))
+        mask-source (resolved-transition-mask-source tilemap
+                                                     (:mask-sets tilemap)
+                                                     mask-ref)]
+    (when (and base-ref overlay-ref mask-source)
+      (let [tile-id (transition-tile-id base-ref overlay-ref mask-ref)]
+        {:id tile-id
+         :type :transition-mask
+         :size (tm/tile-size tilemap)
+         :base (assoc base-ref
+                      :tile-definition
+                      (tm/tile-in (:tilesets tilemap)
+                                  (:tileset base-ref)
+                                  (:tile base-ref)))
+         :overlay (assoc overlay-ref
+                         :tile-definition
+                         (tm/tile-in (:tilesets tilemap)
+                                     (:tileset overlay-ref)
+                                     (:tile overlay-ref)))
+         :mask mask-ref
+         :mask-source mask-source
+         :image (transition-cache-image tile-id)}))))
+
+(defun transition-diagnostic-reason-list
+  [tilemap source-layer ruleset rule mask-ref source-x source-y]
+  (let [terrain-set-id (:terrain-set ruleset)
+        base-terrain (terrain-match-center rule)
+        opposing-terrain (first-opposing-terrain-at source-layer
+                                                   ruleset
+                                                   rule
+                                                   source-x
+                                                   source-y)
+        base-ref (terrain-preview-tile-ref (:terrain-sets tilemap)
+                                           terrain-set-id
+                                           base-terrain)
+        overlay-ref (terrain-preview-tile-ref (:terrain-sets tilemap)
+                                              terrain-set-id
+                                              opposing-terrain)
+        mask-definition (transition-mask-definition (:mask-sets tilemap) mask-ref)
+        mask-source (resolved-transition-mask-source tilemap
+                                                     (:mask-sets tilemap)
+                                                     mask-ref)
+        base-tile (when base-ref
+                    (tm/tile-in (:tilesets tilemap)
+                                (:tileset base-ref)
+                                (:tile base-ref)))
+        overlay-tile (when overlay-ref
+                       (tm/tile-in (:tilesets tilemap)
+                                   (:tileset overlay-ref)
+                                   (:tile overlay-ref)))
+        missing-mask-tiles (filter (or (:tiles mask-source) [])
+                                   (fn [item]
+                                     (nil? (:tile-definition item))))]
+    (concat
+     (if (nil? base-ref) [:missing-base-terrain-preview] [])
+     (if (nil? opposing-terrain) [:missing-opposing-terrain] [])
+     (if (nil? overlay-ref) [:missing-overlay-terrain-preview] [])
+     (if (nil? mask-definition) [:missing-mask-definition] [])
+     (if (nil? mask-source) [:missing-mask-source] [])
+     (if (and mask-source (empty? (or (:tiles mask-source) [])))
+       [:empty-mask-source]
+       [])
+     (if (and base-ref (nil? base-tile)) [:missing-base-tile-definition] [])
+     (if (and overlay-ref (nil? overlay-tile))
+       [:missing-overlay-tile-definition]
+       [])
+     (if (not (empty? missing-mask-tiles))
+       [:missing-mask-source-tile-definition]
+       []))))
+
+(defun transition-mask-diagnostic-entry
+  [tilemap source-layer ruleset rule entry source-x source-y]
+  (let [mask-ref (:mask-ref entry)
+        tile (transition-tile-definition tilemap
+                                         source-layer
+                                         ruleset
+                                         rule
+                                         mask-ref
+                                         source-x
+                                         source-y)
+        reasons (transition-diagnostic-reason-list tilemap
+                                                   source-layer
+                                                   ruleset
+                                                   rule
+                                                   mask-ref
+                                                   source-x
+                                                   source-y)]
+    {:source-layer (:id source-layer)
+     :ruleset (:id ruleset)
+     :rule (:id rule)
+     :x source-x
+     :y source-y
+     :mask mask-ref
+     :generated? (not (nil? tile))
+     :generated-tile (when tile (transition-tile-ref tile))
+     :reasons reasons}))
+
+(defun transition-tile-ref [tile]
+  {:tileset transition-tileset-id
+   :tile (:id tile)})
+
+(defun transition-tile-seen? [tiles tile-id]
+  (not (nil? (head (filter (or tiles [])
+                           (fn [tile]
+                             (= (:id tile) tile-id)))))))
+
+(defun ensure-transition-tile [state tile]
+  (if (or (nil? tile)
+          (transition-tile-seen? (:transition-tiles state) (:id tile)))
+    state
+    (update state :transition-tiles (fn [tiles]
+                                      (concat (or tiles []) [tile])))))
+
+(defun transition-entry-tile [state source-layer ruleset rule entry source-x source-y]
+  (if (:mask-ref entry)
+    (let [tile (transition-tile-definition (:tilemap state)
+                                           source-layer
+                                           ruleset
+                                           rule
+                                           (:mask-ref entry)
+                                           source-x
+                                           source-y)]
+      {:state (ensure-transition-tile state tile)
+       :tile (if tile (transition-tile-ref tile) (:tile entry))})
+    {:state state
+     :tile (:tile entry)}))
+
+(defun same-position? [entry x y]
+  (and (= (:x entry) x)
+       (= (:y entry) y)))
+
+(defun set-transition-replacement [state x y tile-ref]
+  (if tile-ref
+    (update state
+            :transition-replacements
+            (fn [replacements]
+              (concat (filter (or replacements [])
+                              (fn [entry]
+                                (not (same-position? entry x y))))
+                      [{:x x
+                        :y y
+                        :tile tile-ref}])))
+    state))
+
+(defun transition-replacement-at [layer x y]
+  (:tile
+   (head (filter (or (:transition-replacements layer) [])
+                 (fn [entry]
+                   (same-position? entry x y))))))
 
 (defun stamp-output-position [source-x source-y output entry]
   (let [anchor (output-anchor output)]
@@ -342,27 +643,45 @@
 (defun apply-terrain-stamp-output-entry
   [state source-layer ruleset rule output-layer entry source-x source-y]
   (let [pos (stamp-output-position source-x source-y (:output rule) entry)
+        resolved (transition-entry-tile state
+                                        source-layer
+                                        ruleset
+                                        rule
+                                        entry
+                                        source-x
+                                        source-y)
+        state (:state resolved)
         layer-id (terrain-stamp-output-layer-key source-layer
                                                  ruleset
                                                  output-layer)]
-    (set-generated-layer-cell state
-                              layer-id
-                              (:x pos)
-                              (:y pos)
-                              (:tile entry)
-                              (terrain-stamp-output-entry-occupies-source?
-                               (:tilemap state)
-                               ruleset
-                               output-layer
-                               entry))))
+    (if (:mask-ref entry)
+      (set-transition-replacement state
+                                  (:x pos)
+                                  (:y pos)
+                                  (:tile resolved))
+      (set-generated-layer-cell state
+                                layer-id
+                                (:x pos)
+                                (:y pos)
+                                (:tile resolved)
+                                (terrain-stamp-output-entry-occupies-source?
+                                 (:tilemap state)
+                                 ruleset
+                                 output-layer
+                                 entry)))))
 
 (defun apply-terrain-stamp-output-layer
   [state source-layer ruleset rule output-layer source-x source-y]
-  (let [state (ensure-generated-layer state
-                                      (:tilemap state)
-                                      source-layer
-                                      ruleset
-                                      output-layer)]
+  (let [state (if (terrain-stamp-output-layer-generates-layer?
+                   ruleset
+                   (:output rule)
+                   output-layer)
+                (ensure-generated-layer state
+                                        (:tilemap state)
+                                        source-layer
+                                        ruleset
+                                        output-layer)
+                state)]
     (reduce (terrain-stamp-output-entries ruleset (:output rule) output-layer)
             state
             (fn [out entry]
@@ -406,19 +725,20 @@
                  result))))))
 
 (defun materialize-terrain-stamp-layers-for-ruleset [tilemap source-layer ruleset]
-  (:layers
-   (reduce (apply concat
-                  (dotimes [y (tm/map-height tilemap)]
-                    (dotimes [x (tm/map-width tilemap)]
-                      {:x x :y y})))
-           {:tilemap tilemap
-            :layers []}
-           (fn [state pos]
-             (apply-terrain-stamp-rules-at state
-                                           source-layer
-                                           (terrain-stamp-index-ruleset ruleset)
-                                           (:x pos)
-                                           (:y pos))))))
+  (reduce (apply concat
+                 (dotimes [y (tm/map-height tilemap)]
+                   (dotimes [x (tm/map-width tilemap)]
+                     {:x x :y y})))
+          {:tilemap tilemap
+           :layers []
+           :transition-tiles []
+           :transition-replacements []}
+          (fn [state pos]
+            (apply-terrain-stamp-rules-at state
+                                          source-layer
+                                          (terrain-stamp-index-ruleset ruleset)
+                                          (:x pos)
+                                          (:y pos)))))
 
 (defun terrain-stamp-output-layer-seen? [layers layer-id]
   (not
@@ -438,8 +758,12 @@
                        (let [layer-id (terrain-stamp-output-layer-key source-layer
                                                                       ruleset
                                                                       output-layer)]
-                         (if (terrain-stamp-output-layer-seen? (:layers out)
-                                                               layer-id)
+                         (if (or (not (terrain-stamp-output-layer-generates-layer?
+                                       ruleset
+                                       (:output rule)
+                                       output-layer))
+                                 (terrain-stamp-output-layer-seen? (:layers out)
+                                                                   layer-id))
                            out
                            (update out
                                    :layers
@@ -459,44 +783,62 @@
 
 (defun materialize-terrain-stamp-layers-for-ruleset-rect
   [tilemap source-layer ruleset rect]
-  (:layers
-   (reduce (apply concat
-                  (dotimes [dy (:h rect)]
-                    (dotimes [dx (:w rect)]
-                      {:x (+ (:x rect) dx)
-                       :y (+ (:y rect) dy)})))
-           (ensure-generated-output-layers
-            {:tilemap (assoc tilemap
-                             :width (:w rect)
-                             :height (:h rect)
-                             :tile-size (tm/tile-size tilemap))
-             :rect rect
-             :layers []}
-            source-layer
-            ruleset)
-           (fn [state pos]
-             (apply-terrain-stamp-rules-at state
-                                           source-layer
-                                           (terrain-stamp-index-ruleset ruleset)
-                                           (:x pos)
-                                           (:y pos))))))
+  (reduce (apply concat
+                 (dotimes [dy (:h rect)]
+                   (dotimes [dx (:w rect)]
+                     {:x (+ (:x rect) dx)
+                      :y (+ (:y rect) dy)})))
+          (ensure-generated-output-layers
+           {:tilemap (assoc tilemap
+                            :width (:w rect)
+                            :height (:h rect)
+                            :tile-size (tm/tile-size tilemap))
+            :rect rect
+            :layers []
+            :transition-tiles []
+            :transition-replacements []}
+           source-layer
+           ruleset)
+          (fn [state pos]
+            (apply-terrain-stamp-rules-at state
+                                          source-layer
+                                          (terrain-stamp-index-ruleset ruleset)
+                                          (:x pos)
+                                          (:y pos)))))
 
 (defun materialize-terrain-stamp-layers [tilemap terrain-sets rulesets layer]
-  (apply concat
-         (map (terrain-stamp-rulesets-for-layer terrain-sets rulesets layer)
-              (fn [ruleset]
-                (materialize-terrain-stamp-layers-for-ruleset tilemap
-                                                              layer
-                                                              ruleset)))))
+  (reduce (terrain-stamp-rulesets-for-layer terrain-sets rulesets layer)
+          {:layers []
+           :transition-tiles []
+           :transition-replacements []}
+          (fn [state ruleset]
+            (let [result (materialize-terrain-stamp-layers-for-ruleset tilemap
+                                                                       layer
+                                                                       ruleset)]
+              {:layers (concat (:layers state) (:layers result))
+               :transition-tiles (concat (:transition-tiles state)
+                                         (:transition-tiles result))
+               :transition-replacements
+               (concat (:transition-replacements state)
+                       (:transition-replacements result))}))))
 
 (defun materialize-terrain-stamp-layers-rect [tilemap terrain-sets rulesets layer rect]
-  (apply concat
-         (map (terrain-stamp-rulesets-for-layer terrain-sets rulesets layer)
-              (fn [ruleset]
-                (materialize-terrain-stamp-layers-for-ruleset-rect tilemap
-                                                                   layer
-                                                                   ruleset
-                                                                   rect)))))
+  (reduce (terrain-stamp-rulesets-for-layer terrain-sets rulesets layer)
+          {:layers []
+           :transition-tiles []
+           :transition-replacements []}
+          (fn [state ruleset]
+            (let [result (materialize-terrain-stamp-layers-for-ruleset-rect
+                          tilemap
+                          layer
+                          ruleset
+                          rect)]
+              {:layers (concat (:layers state) (:layers result))
+               :transition-tiles (concat (:transition-tiles state)
+                                         (:transition-tiles result))
+               :transition-replacements
+               (concat (:transition-replacements state)
+                       (:transition-replacements result))}))))
 
 (defun generated-source-mask-cell? [generated-layers x y]
   (not
@@ -511,9 +853,10 @@
       nil
       terrain-ref)))
 
-(defun mask-terrain-layer-with-generated [layer generated-layers]
+(defun mask-terrain-layer-with-generated [layer generated-layers transition-replacements]
   (if (= (:data-kind layer) :terrain)
     (assoc layer
+           :transition-replacements transition-replacements
            :tiles (for-indexed [y row (or (:tiles layer) [])]
                     (mask-terrain-layer-row generated-layers y row)))
     layer))
@@ -555,62 +898,91 @@
 (defun terrain-layer-preview-tilesets [terrain-sets layer]
   (let [definition-tilesets (terrain-definition-preview-tilesets
                              terrain-sets
-                             (:terrain-set layer))]
-    (if (not (empty? definition-tilesets))
-      definition-tilesets
-      (reduce (or (:tiles layer) [])
-              []
-              (fn [tilesets row]
-                (reduce (or row [])
-                        tilesets
-                        (fn [tilesets terrain-ref]
-                          (let [preview (terrain-preview-ref terrain-sets
-                                                             (:terrain-set layer)
-                                                             terrain-ref)]
-                            (add-unique-tileset tilesets
-                                                (:tileset preview))))))))))
+                             (:terrain-set layer))
+        replacement-tilesets (if (empty? (or (:transition-replacements layer) []))
+                               []
+                               [transition-tileset-id])]
+    (concat (if (not (empty? definition-tilesets))
+              definition-tilesets
+              (reduce (or (:tiles layer) [])
+                      []
+                      (fn [tilesets row]
+                        (reduce (or row [])
+                                tilesets
+                                (fn [tilesets terrain-ref]
+                                  (let [preview (terrain-preview-ref
+                                                 terrain-sets
+                                                 (:terrain-set layer)
+                                                 terrain-ref)]
+                                    (add-unique-tileset tilesets
+                                                        (:tileset preview))))))))
+            replacement-tilesets)))
 
-(defun terrain-layer-row-for-tileset [terrain-sets layer tileset row]
-  (map (or row [])
-       (fn [terrain-ref]
-         (let [preview (terrain-preview-ref terrain-sets
-                                            (:terrain-set layer)
-                                            terrain-ref)]
-           (if (= (:tileset preview) tileset)
-             (:tile preview)
-             nil)))))
+(defun terrain-layer-row-for-tileset [terrain-sets layer tileset y row]
+  (for-indexed [x terrain-ref (or row [])]
+    (let [replacement (transition-replacement-at layer x y)
+          preview (terrain-preview-ref terrain-sets
+                                       (:terrain-set layer)
+                                       terrain-ref)]
+      (cond
+        (= (:tileset replacement) tileset)
+        replacement
+
+        replacement
+        nil
+
+        (= (:tileset preview) tileset)
+        (:tile preview)
+
+        :default
+        nil))))
 
 (defun terrain-layer-rect-preview-tilesets [terrain-sets layer rect]
   (let [definition-tilesets (terrain-definition-preview-tilesets
                              terrain-sets
-                             (:terrain-set layer))]
-    (if (not (empty? definition-tilesets))
-      definition-tilesets
-      (reduce (range 0 (dec (:h rect)))
-              []
-              (fn [tilesets dy]
-                (reduce (range 0 (dec (:w rect)))
-                        tilesets
-                        (fn [tilesets dx]
-                          (let [preview (terrain-preview-ref
-                                         terrain-sets
-                                         (:terrain-set layer)
-                                         (layer-cell layer
-                                                     (+ (:x rect) dx)
-                                                     (+ (:y rect) dy)))]
-                            (add-unique-tileset tilesets
-                                                (:tileset preview))))))))))
+                             (:terrain-set layer))
+        replacement-tilesets (if (empty? (or (:transition-replacements layer) []))
+                               []
+                               [transition-tileset-id])]
+    (concat (if (not (empty? definition-tilesets))
+              definition-tilesets
+              (reduce (range 0 (dec (:h rect)))
+                      []
+                      (fn [tilesets dy]
+                        (reduce (range 0 (dec (:w rect)))
+                                tilesets
+                                (fn [tilesets dx]
+                                  (let [preview (terrain-preview-ref
+                                                 terrain-sets
+                                                 (:terrain-set layer)
+                                                 (layer-cell layer
+                                                             (+ (:x rect) dx)
+                                                             (+ (:y rect) dy)))]
+                                    (add-unique-tileset tilesets
+                                                        (:tileset preview))))))))
+            replacement-tilesets)))
 
 (defun terrain-layer-rect-row-for-tileset [terrain-sets layer tileset rect dy]
   (let [source-y (+ (:y rect) dy)]
     (dotimes [dx (:w rect)]
-      (let [preview (terrain-preview-ref terrain-sets
+      (let [source-x (+ (:x rect) dx)
+            replacement (transition-replacement-at layer source-x source-y)
+            preview (terrain-preview-ref terrain-sets
                                          (:terrain-set layer)
                                          (layer-cell layer
-                                                     (+ (:x rect) dx)
+                                                     source-x
                                                      source-y))]
-        (if (= (:tileset preview) tileset)
+        (cond
+          (= (:tileset replacement) tileset)
+          replacement
+
+          replacement
+          nil
+
+          (= (:tileset preview) tileset)
           (:tile preview)
+
+          :default
           nil)))))
 
 (defun terrain-layer-rect-tiles-for-tileset [terrain-sets layer tileset rect]
@@ -629,12 +1001,12 @@
          :render-source-layer-id (:id layer)
          :data-kind :tile-ref
          :tileset tileset
-         :tiles (map (or (:tiles layer) [])
-                     (fn [row]
+         :tiles (for-indexed [y row (or (:tiles layer) [])]
                        (terrain-layer-row-for-tileset terrain-sets
                                                       layer
                                                       tileset
-                                                      row)))))
+                                                      y
+                                                      row))))
 
 (defun materialize-terrain-layer [terrain-sets layer]
   (let [tilesets (terrain-layer-preview-tilesets terrain-sets layer)
@@ -711,9 +1083,30 @@
           nil
           terrain-ref)))))
 
-(defun mask-terrain-layer-rect [layer generated-layers rect]
+(defun transition-replacement-in-rect? [replacement rect]
+  (and (>= (:x replacement) (:x rect))
+       (< (:x replacement) (+ (:x rect) (:w rect)))
+       (>= (:y replacement) (:y rect))
+       (< (:y replacement) (+ (:y rect) (:h rect)))))
+
+(defun local-transition-replacement [replacement rect]
+  (assoc replacement
+         :x (- (:x replacement) (:x rect))
+         :y (- (:y replacement) (:y rect))))
+
+(defun local-transition-replacements [transition-replacements rect]
+  (map (filter (or transition-replacements [])
+               (fn [replacement]
+                 (transition-replacement-in-rect? replacement rect)))
+       (fn [replacement]
+         (local-transition-replacement replacement rect))))
+
+(defun mask-terrain-layer-rect [layer generated-layers transition-replacements rect]
   (assoc layer
          :render-source-rect rect
+         :transition-replacements (local-transition-replacements
+                                   transition-replacements
+                                   rect)
          :tiles (dotimes [dy (:h rect)]
                   (mask-terrain-layer-rect-row layer
                                                generated-layers
@@ -722,45 +1115,156 @@
 
 (defun materialize-layer-with-rules-rect
   [tilemap terrain-sets rulesets show-rules? layer rect]
-  (let [generated-layers (if (and show-rules?
-                                  (= (:data-kind layer) :terrain))
-                           (materialize-terrain-stamp-layers-rect tilemap
-                                                                  terrain-sets
-                                                                  rulesets
-                                                                  layer
-                                                                  rect)
-                           [])
+  (let [generated (if (and show-rules?
+                           (= (:data-kind layer) :terrain))
+                    (materialize-terrain-stamp-layers-rect tilemap
+                                                           terrain-sets
+                                                           rulesets
+                                                           layer
+                                                           rect)
+                    {:layers []
+                     :transition-tiles []})
+        generated-layers (:layers generated)
         source-layer (if (= (:data-kind layer) :terrain)
-                       (mask-terrain-layer-rect layer generated-layers rect)
+                       (mask-terrain-layer-rect layer
+                                                generated-layers
+                                                (:transition-replacements generated)
+                                                rect)
                        layer)]
-    (concat (if (= (:data-kind layer) :terrain)
-              (map (materialize-layer terrain-sets source-layer)
-                   (fn [layer]
-                     (assoc layer :render-source-rect rect)))
-              (materialize-layer-rect terrain-sets source-layer rect))
-            generated-layers)))
+    {:layers (concat (if (= (:data-kind layer) :terrain)
+                       (map (materialize-layer terrain-sets source-layer)
+                            (fn [layer]
+                              (assoc layer :render-source-rect rect)))
+                       (materialize-layer-rect terrain-sets source-layer rect))
+                     generated-layers)
+     :transition-tiles (:transition-tiles generated)}))
 
 (defun materialize-layer-with-rules [tilemap terrain-sets rulesets show-rules? layer]
-  (let [generated-layers (if (and show-rules?
-                                  (= (:data-kind layer) :terrain))
-                           (materialize-terrain-stamp-layers tilemap
-                                                             terrain-sets
-                                                             rulesets
-                                                             layer)
-                           [])
-        source-layer (mask-terrain-layer-with-generated layer generated-layers)]
-    (concat (materialize-layer terrain-sets source-layer)
-            generated-layers)))
+  (let [generated (if (and show-rules?
+                           (= (:data-kind layer) :terrain))
+                    (materialize-terrain-stamp-layers tilemap
+                                                      terrain-sets
+                                                      rulesets
+                                                      layer)
+                    {:layers []
+                     :transition-tiles []})
+        generated-layers (:layers generated)
+        source-layer (mask-terrain-layer-with-generated
+                      layer
+                      generated-layers
+                      (:transition-replacements generated))]
+    {:layers (concat (materialize-layer terrain-sets source-layer)
+                     generated-layers)
+     :transition-tiles (:transition-tiles generated)}))
+
+(defun transition-mask-diagnostics-for-rule
+  [tilemap source-layer ruleset rule source-x source-y]
+  (apply concat
+         (map (or (-> rule :output :layers) [])
+              (fn [output-layer]
+                (map (filter (terrain-stamp-output-entries ruleset
+                                                           (:output rule)
+                                                           output-layer)
+                             (fn [entry]
+                               (not (nil? (:mask-ref entry)))))
+                     (fn [entry]
+                       (transition-mask-diagnostic-entry tilemap
+                                                         source-layer
+                                                         ruleset
+                                                         rule
+                                                         entry
+                                                         source-x
+                                                         source-y)))))))
+
+(defun transition-mask-diagnostics-at [tilemap source-layer ruleset x y]
+  (:entries
+   (reduce (terrain-stamp-candidate-rules source-layer ruleset x y)
+           {:entries []
+            :done? false}
+           (fn [state rule]
+             (if (:done? state)
+               state
+               (if (terrain-stamp-rule-matches? source-layer ruleset rule x y)
+                 {:entries (concat (:entries state)
+                                   (transition-mask-diagnostics-for-rule
+                                    tilemap
+                                    source-layer
+                                    ruleset
+                                    rule
+                                    x
+                                    y))
+                  :done? (= (:exclusive? rule) true)}
+                 state))))))
+
+(defun transition-mask-diagnostics-for-ruleset [tilemap source-layer ruleset]
+  (apply concat
+         (apply concat
+                (dotimes [y (tm/map-height tilemap)]
+                  (dotimes [x (tm/map-width tilemap)]
+                    (transition-mask-diagnostics-at
+                     tilemap
+                     source-layer
+                     (terrain-stamp-index-ruleset ruleset)
+                     x
+                     y))))))
+
+(defun transition-mask-diagnostics-for-layer [tilemap terrain-sets rulesets layer]
+  (apply concat
+         (map (terrain-stamp-rulesets-for-layer terrain-sets rulesets layer)
+              (fn [ruleset]
+                (transition-mask-diagnostics-for-ruleset tilemap
+                                                         layer
+                                                         ruleset)))))
+
+(defun transition-mask-diagnostic-summary [entries]
+  {:matched-transition-entries (count entries)
+   :generated-transition-entries
+   (count (filter entries
+                  (fn [entry]
+                    (:generated? entry))))
+   :failed-transition-entries
+   (count (filter entries
+                  (fn [entry]
+                    (not (:generated? entry)))))
+   :warning-transition-entries
+   (count (filter entries
+                  (fn [entry]
+                    (not (empty? (:reasons entry))))))})
+
+(defun transition-mask-diagnostics [tilemap & opts]
+  (let [opts (or (head opts) {})
+        source-tilemap (materialization-source-tilemap tilemap opts)
+        layers (or (:layers opts) (:layers tilemap))
+        terrain-sets (:terrain-sets source-tilemap)
+        rulesets (:rulesets source-tilemap)
+        entries (apply concat
+                       (map (or layers [])
+                            (fn [layer]
+                              (if (= (:data-kind layer) :terrain)
+                                (transition-mask-diagnostics-for-layer
+                                 source-tilemap
+                                 terrain-sets
+                                 rulesets
+                                 layer)
+                                []))))]
+    (assoc (transition-mask-diagnostic-summary entries)
+           :has-transition-mask-rules?
+           (materialization-has-transition-masks? tilemap opts)
+           :entries entries)))
 
 (defun materialize-layers [tilemap layers terrain-sets rulesets show-rules?]
-  (apply concat
-         (map (or layers [])
-              (fn [layer]
-                (materialize-layer-with-rules tilemap
-                                              terrain-sets
-                                              rulesets
-                                              show-rules?
-                                              layer)))))
+  (reduce (or layers [])
+          {:layers []
+           :transition-tiles []}
+          (fn [state layer]
+            (let [result (materialize-layer-with-rules tilemap
+                                                       terrain-sets
+                                                       rulesets
+                                                       show-rules?
+                                                       layer)]
+              {:layers (concat (:layers state) (:layers result))
+               :transition-tiles (concat (:transition-tiles state)
+                                         (:transition-tiles result))}))))
 
 (defun tile-substitution-rule-source-tile [rule]
   (or (:tile rule)
@@ -933,47 +1437,124 @@
           (:show-terrain-rules? tilemap))
         false))
 
+(defun transition-mask-rows-empty? [rows]
+  (= 0
+     (count (filter (apply concat (or rows []))
+                    (fn [cell]
+                      (not (nil? cell)))))))
+
+(defun output-layer-has-transition-masks? [output-layer]
+  (not (transition-mask-rows-empty? (:transition-masks output-layer))))
+
+(defun rule-has-transition-masks? [rule]
+  (not
+   (nil?
+    (head (filter (or (-> rule :output :layers) [])
+                  output-layer-has-transition-masks?)))))
+
+(defun ruleset-has-transition-masks? [ruleset]
+  (not
+   (nil?
+    (head (filter (or (:rules ruleset) [])
+                  rule-has-transition-masks?)))))
+
+(defun materialization-has-transition-masks? [tilemap opts]
+  (not
+   (nil?
+    (head (filter (or (:rulesets opts)
+                      (:rulesets tilemap)
+                      [])
+                  ruleset-has-transition-masks?)))))
+
+(defun unique-transition-tiles [tiles]
+  (:tiles
+   (reduce (or tiles [])
+           {:ids []
+            :tiles []}
+           (fn [state tile]
+             (if (contains? (:ids state) (:id tile))
+               state
+               {:ids (concat (:ids state) [(:id tile)])
+                :tiles (concat (:tiles state) [tile])})))))
+
+(defun generated-transition-tilesets [tiles]
+  (let [tiles (unique-transition-tiles tiles)]
+    (if (empty? tiles)
+      []
+      [{:id transition-tileset-id
+        :label "Generated transition tiles"
+        :tiles tiles}])))
+
+(defun materialization-source-tilemap [tilemap opts]
+  (assoc tilemap
+         :tilesets (or (:tilesets opts) (:tilesets tilemap))
+         :terrain-sets (or (:terrain-sets opts) (:terrain-sets tilemap))
+         :rulesets (or (:rulesets opts) (:rulesets tilemap))
+         :mask-sets (or (:mask-sets opts) (:mask-sets tilemap))
+         :tile-substitution-rules (or (:tile-substitution-rules opts)
+                                      (:tile-substitution-rules tilemap))))
+
+(defun materialized-map-with-layers [base source-tilemap layers-result layers origin opts]
+  (let [layers (apply-tile-substitution-rules-to-layers
+                (materialize-tile-substitution-rules source-tilemap opts)
+                layers
+                origin)
+        tilesets (generated-transition-tilesets
+                  (:transition-tiles layers-result))]
+    (assoc (if (empty? tilesets)
+             base
+             (assoc base :tilesets tilesets))
+           :layers layers)))
+
 (defun roo-materialize-render-map [tilemap & opts]
-  (let [opts (or (head opts) {})]
-    (assoc (materialized-tilemap-base tilemap)
-           :layers (apply-tile-substitution-rules-to-layers
-                    (materialize-tile-substitution-rules tilemap opts)
-                    (materialize-layers tilemap
-                                        (or (:layers opts)
-                                            (:layers tilemap))
-                                        (or (:terrain-sets opts)
-                                            (:terrain-sets tilemap))
-                                        (or (:rulesets opts)
-                                            (:rulesets tilemap))
-                                        (materialize-show-terrain-rules?
-                                         tilemap
-                                         opts))
-                    {:x 0 :y 0}))))
+  (let [opts (or (head opts) {})
+        source-tilemap (materialization-source-tilemap tilemap opts)
+        layers-result (materialize-layers
+                       source-tilemap
+                       (or (:layers opts) (:layers tilemap))
+                       (:terrain-sets source-tilemap)
+                       (:rulesets source-tilemap)
+                       (materialize-show-terrain-rules? tilemap opts))]
+    (materialized-map-with-layers (materialized-tilemap-base tilemap)
+                                  source-tilemap
+                                  layers-result
+                                  (:layers layers-result)
+                                  {:x 0 :y 0}
+                                  opts)))
 
 (defun materialize-render-map [tilemap & opts]
   (let [opts (or (head opts) {})]
-    (or (materialize-impl/materialize-render-map tilemap opts)
-        (roo-materialize-render-map tilemap opts))))
+    (if (materialization-has-transition-masks? tilemap opts)
+      (roo-materialize-render-map tilemap opts)
+      (or (materialize-impl/materialize-render-map tilemap opts)
+          (roo-materialize-render-map tilemap opts)))))
 
 (defun materialize-render-rect [tilemap rect & opts]
   (let [opts (or (head opts) {})
-        rect (materialization-rect tilemap rect)]
-    (assoc (materialized-tilemap-rect-base tilemap rect)
-           :layers (apply-tile-substitution-rules-to-layers
-                    (materialize-tile-substitution-rules tilemap opts)
-                    (apply concat
-                           (map (or (:layers opts)
-                                    (:layers tilemap))
-                                (fn [layer]
-                                  (materialize-layer-with-rules-rect
-                                   tilemap
-                                   (or (:terrain-sets opts)
-                                       (:terrain-sets tilemap))
-                                   (or (:rulesets opts)
-                                       (:rulesets tilemap))
-                                   (materialize-show-terrain-rules?
-                                    tilemap
-                                    opts)
-                                   layer
-                                   rect))))
-                    {:x (:x rect) :y (:y rect)}))))
+        rect (materialization-rect tilemap rect)
+        source-tilemap (materialization-source-tilemap tilemap opts)
+        layers-result (reduce (or (:layers opts)
+                                  (:layers tilemap))
+                              {:layers []
+                               :transition-tiles []}
+                              (fn [state layer]
+                                (let [result (materialize-layer-with-rules-rect
+                                              source-tilemap
+                                              (:terrain-sets source-tilemap)
+                                              (:rulesets source-tilemap)
+                                              (materialize-show-terrain-rules?
+                                               tilemap
+                                               opts)
+                                              layer
+                                              rect)]
+                                  {:layers (concat (:layers state)
+                                                   (:layers result))
+                                   :transition-tiles
+                                   (concat (:transition-tiles state)
+                                           (:transition-tiles result))})))]
+    (materialized-map-with-layers (materialized-tilemap-rect-base tilemap rect)
+                                  source-tilemap
+                                  layers-result
+                                  (:layers layers-result)
+                                  {:x (:x rect) :y (:y rect)}
+                                  opts)))

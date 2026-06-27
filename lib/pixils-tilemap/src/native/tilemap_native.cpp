@@ -5,6 +5,7 @@
 #include <pixils/context.h>
 #include <pixils/geom.h>
 
+#include <SDL2/SDL_blendmode.h>
 #include <SDL2/SDL_render.h>
 #include <algorithm>
 #include <cmath>
@@ -87,6 +88,11 @@ namespace
     auto value = prop(map, key);
     return value && Roo::is_truthy(*value);
   }
+
+  void draw_tile(Pixils::RenderContext& rc,
+                 const Roo::sptr_val& tile,
+                 const Pixils::Rect& rect,
+                 double zoom);
 
   Pixils::Rect rect_from_map(const Roo::sptr_val& map)
   {
@@ -380,6 +386,13 @@ namespace
     *bundle = qualified_bundle;
     *asset = qualified_asset;
     return !bundle->empty() && !asset->empty();
+  }
+
+  std::pair<std::string, std::string> resource_key(const Roo::sptr_val& value)
+  {
+    if (!value || value->type != Roo::Value::Type::KEYWORD) return {"", ""};
+    auto [bundle, asset] = value->qual();
+    return {bundle, asset};
   }
 
   std::optional<SDL_Rect> source_rect(const Roo::sptr_val& tile)
@@ -721,6 +734,202 @@ namespace
     SDL_RenderCopy(rc.renderer, texture, source_ptr, &dest);
   }
 
+  SDL_BlendMode erase_alpha_blend_mode()
+  {
+    static SDL_BlendMode mode =
+      SDL_ComposeCustomBlendMode(SDL_BLENDFACTOR_ZERO,
+                                 SDL_BLENDFACTOR_ONE,
+                                 SDL_BLENDOPERATION_ADD,
+                                 SDL_BLENDFACTOR_ZERO,
+                                 SDL_BLENDFACTOR_ONE_MINUS_SRC_ALPHA,
+                                 SDL_BLENDOPERATION_ADD);
+    return mode;
+  }
+
+  void draw_color_tile_with_blend(Pixils::RenderContext& rc,
+                                  const Roo::sptr_val& tile,
+                                  const Pixils::Rect& rect,
+                                  SDL_BlendMode blend_mode)
+  {
+    SDL_BlendMode previous = SDL_BLENDMODE_NONE;
+    SDL_GetRenderDrawBlendMode(rc.renderer, &previous);
+    SDL_SetRenderDrawBlendMode(rc.renderer, blend_mode);
+    draw_color_tile(rc, tile, rect);
+    SDL_SetRenderDrawBlendMode(rc.renderer, previous);
+  }
+
+  void draw_texture_source_to(Pixils::RenderContext& rc,
+                              const Roo::sptr_val& tile,
+                              const Pixils::Rect& rect,
+                              SDL_BlendMode blend_mode)
+  {
+    std::string bundle;
+    std::string asset;
+    if (!image_key(tile, &bundle, &asset) || !rc.asset_registry) return;
+    SDL_Texture* texture = rc.asset_registry->get_image(bundle, asset);
+    if (!texture) return;
+
+    std::optional<SDL_Rect> source = source_rect(tile);
+    const SDL_Rect dest = rect.to_SDL_rect();
+    const SDL_Rect* source_ptr = source ? &*source : nullptr;
+
+    SDL_BlendMode previous = SDL_BLENDMODE_NONE;
+    SDL_GetTextureBlendMode(texture, &previous);
+    SDL_SetTextureBlendMode(texture, blend_mode);
+    SDL_RenderCopy(rc.renderer, texture, source_ptr, &dest);
+    SDL_SetTextureBlendMode(texture, previous);
+  }
+
+  TileDim transition_source_tile_dim(Pixils::RenderContext& rc,
+                                     const Roo::sptr_val& tile,
+                                     const TileDim& fallback)
+  {
+    std::string type = value_name(prop(tile, "type"));
+    if (type == "sprite" || type == "image")
+    {
+      int w = 0;
+      int h = 0;
+      if (tile_source_size(rc, tile, &w, &h)) return TileDim{w, h};
+    }
+    return fallback;
+  }
+
+  void draw_transition_mask_source_item(Pixils::RenderContext& rc,
+                                        const Roo::sptr_val& item,
+                                        const TileDim& size)
+  {
+    auto tile = prop(item, "tile-definition");
+    if (nil_value(tile) || tile->type != Roo::Value::Type::MAP) return;
+
+    auto offset = prop(item, "offset");
+    int offset_x = 0;
+    int offset_y = 0;
+    if (!nil_value(offset) && offset->type == Roo::Value::Type::MAP)
+    {
+      offset_x = int_prop(offset, "x", 0);
+      offset_y = int_prop(offset, "y", 0);
+    }
+
+    TileDim dim = transition_source_tile_dim(rc, tile, size);
+    Pixils::Rect target{offset_x, offset_y, dim.w, dim.h};
+    std::string type = value_name(prop(tile, "type"));
+    if (type == "color")
+    {
+      draw_color_tile_with_blend(rc, tile, target, erase_alpha_blend_mode());
+    }
+    else if (type == "sprite" || type == "image")
+    {
+      draw_texture_source_to(rc, tile, target, erase_alpha_blend_mode());
+    }
+  }
+
+  void draw_transition_overlay_image(Pixils::RenderContext& rc,
+                                     const Roo::sptr_val& tile,
+                                     const TileDim& size)
+  {
+    auto overlay = prop(prop(tile, "overlay"), "tile-definition");
+    if (!nil_value(overlay))
+    {
+      draw_tile(rc, overlay, Pixils::Rect{0, 0, size.w, size.h}, 1.0);
+    }
+
+    auto mask_items = prop(prop(tile, "mask-source"), "tiles");
+    if (seq_value(mask_items))
+    {
+      for (const auto& item : mask_items->elements())
+      {
+        draw_transition_mask_source_item(rc, item, size);
+      }
+    }
+  }
+
+  SDL_Texture* ensure_transition_overlay_texture(Pixils::RenderContext& rc,
+                                                 const Roo::sptr_val& tile,
+                                                 const TileDim& size)
+  {
+    if (!rc.renderer || !rc.asset_registry || size.w <= 0 || size.h <= 0) return nullptr;
+
+    auto [bundle, asset] = resource_key(prop(tile, "image"));
+    if (bundle.empty() || asset.empty()) return nullptr;
+
+    if (SDL_Texture* existing = rc.asset_registry->get_image(bundle, asset))
+    {
+      return existing;
+    }
+
+    std::unique_ptr<SDL_Texture, decltype(&SDL_DestroyTexture)> texture(
+      SDL_CreateTexture(rc.renderer,
+                        SDL_PIXELFORMAT_RGBA8888,
+                        SDL_TEXTUREACCESS_TARGET,
+                        size.w,
+                        size.h),
+      SDL_DestroyTexture);
+    if (!texture) return nullptr;
+
+    SDL_SetTextureBlendMode(texture.get(), SDL_BLENDMODE_BLEND);
+
+    SDL_Texture* previous_target = rc.current_render_target;
+    auto previous_clip = rc.current_clip_rect;
+    rc.set_render_target(texture.get());
+    rc.set_clip_rect(std::nullopt);
+    SDL_SetRenderDrawColor(rc.renderer, 0, 0, 0, 0);
+    SDL_RenderClear(rc.renderer);
+    SDL_SetRenderDrawColor(rc.renderer, 0xff, 0xff, 0xff, 0xff);
+
+    draw_transition_overlay_image(rc, tile, size);
+
+    rc.set_render_target(previous_target);
+    rc.set_clip_rect(previous_clip);
+
+    try
+    {
+      rc.asset_registry->create_dynamic_bundle(bundle);
+      SDL_Texture* committed = texture.get();
+      rc.asset_registry->add_generated_image(bundle,
+                                             asset,
+                                             committed,
+                                             nullptr,
+                                             Pixils::Dimension{size.w, size.h});
+      texture.release();
+      return committed;
+    }
+    catch (...)
+    {
+      return nullptr;
+    }
+  }
+
+  TileDim transition_tile_size(const Pixils::Rect& rect, double zoom)
+  {
+    return TileDim{std::max(1, static_cast<int>(std::round(rect.w / zoom))),
+                   std::max(1, static_cast<int>(std::round(rect.h / zoom)))};
+  }
+
+  void draw_transition_mask_tile(Pixils::RenderContext& rc,
+                                 const Roo::sptr_val& tile,
+                                 const Pixils::Rect& rect,
+                                 double zoom)
+  {
+    auto base = prop(prop(tile, "base"), "tile-definition");
+    auto overlay = prop(prop(tile, "overlay"), "tile-definition");
+    if (!nil_value(base))
+    {
+      draw_tile(rc, base, rect, zoom);
+    }
+
+    SDL_Texture* image = ensure_transition_overlay_texture(
+      rc, tile, transition_tile_size(rect, zoom <= 0.0 ? 1.0 : zoom));
+    if (image)
+    {
+      SDL_Rect dest = rect.to_SDL_rect();
+      SDL_RenderCopy(rc.renderer, image, nullptr, &dest);
+    }
+    else if (!nil_value(overlay))
+    {
+      draw_tile(rc, overlay, rect, zoom);
+    }
+  }
+
   void draw_tile(Pixils::RenderContext& rc,
                  const Roo::sptr_val& tile,
                  const Pixils::Rect& rect,
@@ -744,6 +953,10 @@ namespace
     else if (type == "sprite")
     {
       draw_texture_tile(rc, tile, rect, false, zoom);
+    }
+    else if (type == "transition-mask")
+    {
+      draw_transition_mask_tile(rc, tile, rect, zoom);
     }
     else
     {
@@ -1374,6 +1587,16 @@ namespace
     return !nil_value(value) && value_key(value) != ":terrain/unknown";
   }
 
+  bool terrain_in_condition_value(const Roo::sptr_val& condition,
+                                  const Roo::sptr_val& value)
+  {
+    for (const auto& terrain : seq_children(prop(condition, "terrain-in")))
+    {
+      if (same_value(value, terrain)) return true;
+    }
+    return false;
+  }
+
   bool condition_matches(const Roo::sptr_val& center,
                          const Roo::sptr_val& condition,
                          const Roo::sptr_val& value)
@@ -1389,6 +1612,10 @@ namespace
     }
     if (condition && condition->type == Roo::Value::Type::MAP)
     {
+      if (!nil_value(prop(condition, "terrain-in")))
+      {
+        return terrain_in_condition_value(condition, value);
+      }
       return same_value(value, prop(condition, "terrain"));
     }
     return true;
@@ -2039,6 +2266,44 @@ namespace
     return Roo::is_truthy(*value);
   }
 
+  bool transition_mask_rows_empty(const Roo::sptr_val& rows)
+  {
+    for (const auto& row : seq_children(rows))
+    {
+      for (const auto& cell : seq_children(row))
+      {
+        if (!nil_value(cell)) return false;
+      }
+    }
+    return true;
+  }
+
+  bool output_layer_has_transition_masks(const Roo::sptr_val& output_layer)
+  {
+    return !transition_mask_rows_empty(prop(output_layer, "transition-masks"));
+  }
+
+  bool rule_has_transition_masks(const Roo::sptr_val& rule)
+  {
+    for (const auto& output_layer : seq_children(prop(prop(rule, "output"), "layers")))
+    {
+      if (output_layer_has_transition_masks(output_layer)) return true;
+    }
+    return false;
+  }
+
+  bool rulesets_have_transition_masks(const Roo::sptr_val& rulesets)
+  {
+    for (const auto& ruleset : seq_children(rulesets))
+    {
+      for (const auto& rule : seq_children(prop(ruleset, "rules")))
+      {
+        if (rule_has_transition_masks(rule)) return true;
+      }
+    }
+    return false;
+  }
+
   Roo::sptr_val native_materialize_render_map(const Roo::sptr_val& tilemap,
                                               const Roo::sptr_val& opts)
   {
@@ -2053,6 +2318,8 @@ namespace
     if (nil_value(terrain_sets_value)) terrain_sets_value = prop(tilemap, "terrain-sets");
     auto rulesets_value = prop(opts, "rulesets");
     if (nil_value(rulesets_value)) rulesets_value = prop(tilemap, "rulesets");
+
+    if (rulesets_have_transition_masks(rulesets_value)) return Roo::Constant::NIL;
 
     auto terrain_sets = terrain_sets_by_id(terrain_sets_value);
     auto tile_ids = tile_ids_by_tileset(prop(tilemap, "tilesets"));

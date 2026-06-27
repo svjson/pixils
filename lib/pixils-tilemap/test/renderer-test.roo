@@ -145,6 +145,24 @@
            (renderer/prepared-tile-ref (get prepared :br)
                                        :dirt)))))
 
+(deftest render-prepared-tilesets-for-tilemap-includes_generated_transition_tilesets
+  (let [transition-tile {:id :transition-grass-water
+                         :type :transition-mask}
+        prepared (renderer/render-prepared-tilesets-for-tilemap
+                  {:tilesets [{:id :pixils-transition-tiles
+                               :tiles [transition-tile]}]}
+                  {:tilesets [{:id :world
+                               :tiles [{:id :grass-fill}]}]})
+        layer (renderer/stack-ref-layer
+               prepared
+               {:tileset :world
+                :data-kind :tile-ref}
+               {:tileset :pixils-transition-tiles
+                :tile :transition-grass-water})]
+    (is (= transition-tile
+           (renderer/prepared-tile-ref (:prepared-tileset layer)
+                                       :transition-grass-water)))))
+
 (deftest prepared-tile-ref-clamps-numeric-tile-refs
   (let [first-tile {:id :dirt}
         second-tile {:id :wall}

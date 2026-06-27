@@ -1,6 +1,7 @@
 (ns pixils.tilemap.materialize-test
   (:require proof.core
-            [pixils.tilemap.materialize :as materialize]))
+            [pixils.tilemap.materialize :as materialize]
+            [pixils.tilemap.materialize-impl :as materialize-impl]))
 
 (deftest materialize-render-map-keeps-tile-ref-layers-render-ready
   (let [render-map (materialize/materialize-render-map
@@ -206,6 +207,397 @@
            (map (:layers render-map) :id)))
     (is (nil? (get-in render-map [:layers 0 :tiles 1 1])))
     (is (= :shore-n (get-in render-map [:layers 1 :tiles 1 1])))))
+
+(deftest materialize-render-map-terrain-stamp-rules-match_terrain_in_conditions
+  (let [render-map (materialize/materialize-render-map
+                    {:width 5
+                     :height 2
+                     :terrain-sets [{:id :terrain
+                                     :tileset :world
+                                     :terrains [{:id :grass
+                                                 :tile :grass-fill}
+                                                {:id :water
+                                                 :tile :water-fill}
+                                                {:id :sand
+                                                 :tile :sand-fill}
+                                                {:id :stone
+                                                 :tile :stone-fill}]}]
+                     :rulesets [{:id :edge-rules
+                                 :kind :terrain-stamp
+                                 :terrain-set :terrain
+                                 :source-layer :base
+                                 :rules [{:id :grass-north-soft-edge
+                                          :terrain :grass
+                                          :match {:n {:terrain-in [:water :sand]}}
+                                          :output {:anchor {:x 1 :y 1}
+                                                   :layers [{:target-layer :visuals
+                                                             :tileset :world
+                                                             :tiles [[nil nil nil]
+                                                                     [nil :soft-edge nil]
+                                                                     [nil nil nil]]}]}}]}]
+                     :layers [{:id :base
+                               :data-kind :terrain
+                               :terrain-set :terrain
+                               :tiles [[:water :sand :stone nil nil]
+                                       [:grass :grass :grass nil nil]]}
+                              {:id :visuals
+                               :data-kind :tile-ref
+                               :tileset :world
+                               :tiles [[nil nil nil nil nil]
+                                       [nil nil nil nil nil]]}]})]
+    (is (= :soft-edge (get-in render-map [:layers 1 :tiles 1 0])))
+    (is (= :soft-edge (get-in render-map [:layers 1 :tiles 1 1])))
+    (is (nil? (get-in render-map [:layers 1 :tiles 1 2])))))
+
+(def transition-mask-test-ref {:mask-set :soft-edge
+                               :mask :north})
+
+(defun transition-mask-test-tilemap []
+  {:width 3
+   :height 2
+   :tile-size {:w 16 :h 16}
+   :tilesets [{:id :world
+               :tiles [{:id :grass-fill
+                        :type :color
+                        :color {:r 0 :g 200 :b 0}}
+                       {:id :grass-variant
+                        :type :color
+                        :color {:r 0 :g 160 :b 0}}
+                       {:id :water-fill
+                        :type :color
+                        :color {:r 0 :g 0 :b 200}}
+                       {:id :water-variant
+                        :type :color
+                        :color {:r 0 :g 0 :b 160}}
+                       {:id :sand-fill
+                        :type :color
+                        :color {:r 220 :g 200 :b 120}}
+                       {:id :mask-north
+                        :type :sprite
+                        :image :terrain/masks
+                        :source {:x 0 :y 0 :w 16 :h 16}}]}]
+   :mask-sets [{:id :soft-edge
+                :mask-size {:w 16 :h 16}
+                :masks [{:id :north
+                         :source {:type :tile-composition
+                                  :tileset :world
+                                  :tiles [{:tile :mask-north
+                                           :offset {:x 0
+                                                    :y 0}}]}}]}]
+   :terrain-sets [{:id :terrain
+                   :tileset :world
+                   :terrains [{:id :grass
+                               :tile :grass-fill}
+                              {:id :water
+                               :tile :water-fill}
+                              {:id :sand
+                               :tile :sand-fill}]}]
+   :rulesets [{:id :shore-rules
+               :kind :terrain-stamp
+               :terrain-set :terrain
+               :source-layer :base
+               :rules [{:id :grass-north-water
+                        :terrain :grass
+                        :match {:n :other-terrain}
+                        :output {:anchor {:x 0 :y 0}
+                                 :layers [{:target-layer :visuals
+                                           :tileset :world
+                                           :tiles [[nil]]
+                                           :transition-masks
+                                           [[transition-mask-test-ref]]}]}}]}]
+   :layers [{:id :base
+             :data-kind :terrain
+             :terrain-set :terrain
+             :tiles [[nil :water :sand]
+                     [nil :grass :grass]]}
+            {:id :visuals
+             :data-kind :tile-ref
+             :tileset :world
+             :tiles [[nil nil nil]
+                     [nil nil nil]]}]})
+
+(defun transition-mask-generated-tileset [render-map]
+  (head (filter (:tilesets render-map)
+                (fn [tileset]
+                  (= (:id tileset) :pixils-transition-tiles)))))
+
+(defun transition-mask-layer [render-map]
+  (head (filter (:layers render-map)
+                (fn [layer]
+                  (= (:tileset layer) :pixils-transition-tiles)))))
+
+(defun transition-mask-world-layer [render-map]
+  (head (filter (:layers render-map)
+                (fn [layer]
+                  (= (:tileset layer) :world)))))
+
+(deftest transition-mask-materialization-inserts_dynamic_tile_refs_into_terrain_product_layer
+  (let [render-map (materialize/materialize-render-map
+                    (transition-mask-test-tilemap))
+        generated-tileset (transition-mask-generated-tileset render-map)
+        transition-layer (transition-mask-layer render-map)]
+    (is (= :pixils-transition-tiles (:id generated-tileset)))
+    (is (= {:tileset :pixils-transition-tiles
+            :tile (:id (head (:tiles generated-tileset)))}
+           (get-in transition-layer [:tiles 1 1])))
+    (is (= {:tileset :pixils-transition-tiles
+            :tile (:id (nth (:tiles generated-tileset) 1))}
+           (get-in transition-layer [:tiles 1 2])))))
+
+(deftest transition-mask-materialization-clears_original_terrain_cells_under_dynamic_refs
+  (let [render-map (materialize/materialize-render-map
+                    (transition-mask-test-tilemap))
+        terrain-layer (transition-mask-world-layer render-map)]
+    (is (nil? (get-in terrain-layer [:tiles 1 1])))
+    (is (nil? (get-in terrain-layer [:tiles 1 2])))))
+
+(deftest transition-mask-materialization-builds_distinct_masked_tile_definition
+  (let [render-map (materialize/materialize-render-map
+                    (transition-mask-test-tilemap))
+        generated-tile (head (:tiles (transition-mask-generated-tileset
+                                      render-map)))]
+    (is (= :transition-mask (:type generated-tile)))
+    (is (= :grass-fill (get-in generated-tile [:base :tile])))
+    (is (= :water-fill (get-in generated-tile [:overlay :tile])))
+    (is (not= (get-in generated-tile [:base :tile])
+              (get-in generated-tile [:overlay :tile])))
+    (is (= transition-mask-test-ref (:mask generated-tile)))
+    (is (= :mask-north
+           (get-in generated-tile [:mask-source :tiles 0 :tile])))
+    (is (= :mask-north
+           (get-in generated-tile
+                   [:mask-source :tiles 0 :tile-definition :id])))))
+
+(deftest transition-mask-materialization-keeps_dynamic_refs_when_tile_variants_exist
+  (let [render-map (materialize/materialize-render-map
+                    (assoc (transition-mask-test-tilemap)
+                           :tile-substitution-rules
+                           [{:tileset :world
+                             :tile :grass-fill
+                             :choices [{:tile :grass-variant
+                                        :weight 1}]}
+                            {:tileset :world
+                             :tile :water-fill
+                             :choices [{:tile :water-variant
+                                        :weight 1}]}]))
+        generated-tileset (transition-mask-generated-tileset render-map)
+        transition-layer (transition-mask-layer render-map)
+        transition-cell (get-in transition-layer [:tiles 1 1])]
+    (is (= {:tileset :pixils-transition-tiles
+            :tile (:id (head (:tiles generated-tileset)))}
+           transition-cell))
+    (is (not= :grass-variant transition-cell))
+    (is (not= :water-variant transition-cell))))
+
+(deftest native-materializer-delegates_transition_mask_rules_to_roo_materializer
+  (is (nil? (materialize-impl/materialize-render-map
+             (transition-mask-test-tilemap)
+             {}))))
+
+(deftest transition-mask-diagnostics-report_matching_generated_entries
+  (let [diagnostics (materialize/transition-mask-diagnostics
+                     (transition-mask-test-tilemap))]
+    (is (= true (:has-transition-mask-rules? diagnostics)))
+    (is (= 2 (:matched-transition-entries diagnostics)))
+    (is (= 2 (:generated-transition-entries diagnostics)))
+    (is (= 0 (:failed-transition-entries diagnostics)))
+    (is (= 0 (:warning-transition-entries diagnostics)))))
+
+(deftest transition-mask-diagnostics-report_when_rules_do_not_match
+  (let [diagnostics (materialize/transition-mask-diagnostics
+                     (assoc-in (transition-mask-test-tilemap)
+                               [:layers 0 :tiles]
+                               [[:water :water :sand]
+                                [:water :water :sand]]))]
+    (is (= true (:has-transition-mask-rules? diagnostics)))
+    (is (= 0 (:matched-transition-entries diagnostics)))
+    (is (= 0 (:generated-transition-entries diagnostics)))))
+
+(deftest transition-mask-diagnostics-report_missing_mask_references
+  (let [diagnostics (materialize/transition-mask-diagnostics
+                     (assoc-in (transition-mask-test-tilemap)
+                               [:rulesets 0 :rules 0
+                                :output :layers 0
+                                :transition-masks 0 0]
+                               {:mask-set :missing
+                                :mask :north}))
+        entry (head (:entries diagnostics))]
+    (is (= 2 (:matched-transition-entries diagnostics)))
+    (is (= 0 (:generated-transition-entries diagnostics)))
+    (is (= 2 (:failed-transition-entries diagnostics)))
+    (is (= false (:generated? entry)))
+    (is (= [:missing-mask-definition :missing-mask-source]
+           (:reasons entry)))))
+
+(deftest materialize-render-map-applies-terrain-stamp-transition-mask-rules
+  (let [mask-ref {:mask-set :soft-edge
+                  :mask :north}
+        render-map (materialize/materialize-render-map
+                    {:width 3
+                     :height 2
+                     :tile-size {:w 16 :h 16}
+                     :tilesets [{:id :world
+                                 :tiles [{:id :grass-fill
+                                          :type :color
+                                          :color {:r 0 :g 200 :b 0}}
+                                         {:id :water-fill
+                                          :type :color
+                                          :color {:r 0 :g 0 :b 200}}
+                                         {:id :sand-fill
+                                          :type :color
+                                          :color {:r 220 :g 200 :b 120}}
+                                         {:id :mask-north
+                                          :type :sprite
+                                          :image :terrain/masks
+                                          :source {:x 0 :y 0 :w 16 :h 16}}]}]
+                     :mask-sets [{:id :soft-edge
+                                  :mask-size {:w 16 :h 16}
+                                  :masks [{:id :north
+                                           :source {:type :tile-composition
+                                                    :tileset :world
+                                                    :tiles [{:tile :mask-north
+                                                             :offset {:x 0
+                                                                      :y 0}}]}}]}]
+                     :terrain-sets [{:id :terrain
+                                     :tileset :world
+                                     :terrains [{:id :grass
+                                                 :tile :grass-fill}
+                                                {:id :water
+                                                 :tile :water-fill}
+                                                {:id :sand
+                                                 :tile :sand-fill}]}]
+                     :rulesets [{:id :shore-rules
+                                 :kind :terrain-stamp
+                                 :terrain-set :terrain
+                                 :source-layer :base
+                                 :rules [{:id :grass-north-water
+                                          :terrain :grass
+                                          :match {:n :other-terrain}
+                                          :output {:anchor {:x 0 :y 0}
+                                                   :layers [{:target-layer :visuals
+                                                             :tileset :world
+                                                             :tiles [[nil]]
+                                                             :transition-masks [[mask-ref]]}]}}]}]
+                     :layers [{:id :base
+                               :data-kind :terrain
+                               :terrain-set :terrain
+                               :tiles [[nil :water :sand]
+                                       [nil :grass :grass]]}
+                             {:id :visuals
+                               :data-kind :tile-ref
+                               :tileset :world
+                               :tiles [[nil nil nil]
+                                       [nil nil nil]]}]})
+        generated-tileset (head (:tilesets render-map))
+        generated-tiles (:tiles generated-tileset)
+        generated-tile (head generated-tiles)
+        transition-layer (head (filter (:layers render-map)
+                                       (fn [layer]
+                                         (= (:tileset layer)
+                                            :pixils-transition-tiles))))
+        terrain-layer (head (filter (:layers render-map)
+                                    (fn [layer]
+                                      (= (:tileset layer) :world))))
+        water-cell (get-in transition-layer [:tiles 1 1])
+        sand-cell (get-in transition-layer [:tiles 1 2])]
+    (is (= :pixils-transition-tiles (:id generated-tileset)))
+    (is (= [:base/world :base/pixils-transition-tiles :visuals]
+           (map (:layers render-map) :id)))
+    (is (= :base/pixils-transition-tiles (:id transition-layer)))
+    (is (nil? (get-in terrain-layer [:tiles 1 1])))
+    (is (nil? (get-in terrain-layer [:tiles 1 2])))
+    (is (= {:tileset :pixils-transition-tiles
+            :tile (:id generated-tile)}
+           water-cell))
+    (is (= {:tileset :pixils-transition-tiles
+            :tile (:id (nth generated-tiles 1))}
+           sand-cell))
+    (is (= [:water-fill :sand-fill]
+           (map generated-tiles
+                (fn [tile]
+                  (get-in tile [:overlay :tile])))))
+    (is (= :transition-mask (:type generated-tile)))
+    (is (= :grass-fill (get-in generated-tile [:base :tile])))
+    (is (= :water-fill (get-in generated-tile [:overlay :tile])))
+    (is (= mask-ref (:mask generated-tile)))
+    (is (= :mask-north
+           (get-in generated-tile [:mask-source :tiles 0 :tile])))
+    (is (= :mask-north
+           (get-in generated-tile
+                   [:mask-source :tiles 0 :tile-definition :id])))))
+
+(deftest materialize-render-rect-applies-terrain-stamp-transition-mask-rules
+  (let [mask-ref {:mask-set :soft-edge
+                  :mask :north}
+        render-map (materialize/materialize-render-rect
+                    {:width 3
+                     :height 2
+                     :tile-size {:w 16 :h 16}
+                     :tilesets [{:id :world
+                                 :tiles [{:id :grass-fill}
+                                         {:id :water-fill}
+                                         {:id :sand-fill}
+                                         {:id :mask-north
+                                          :type :sprite
+                                          :image :terrain/masks
+                                          :source {:x 0 :y 0 :w 16 :h 16}}]}]
+                     :mask-sets [{:id :soft-edge
+                                  :mask-size {:w 16 :h 16}
+                                  :masks [{:id :north
+                                           :source {:type :tile-composition
+                                                    :tileset :world
+                                                    :tiles [{:tile :mask-north
+                                                             :offset {:x 0
+                                                                      :y 0}}]}}]}]
+                     :terrain-sets [{:id :terrain
+                                     :tileset :world
+                                     :terrains [{:id :grass
+                                                 :tile :grass-fill}
+                                                {:id :water
+                                                 :tile :water-fill}
+                                                {:id :sand
+                                                 :tile :sand-fill}]}]
+                     :rulesets [{:id :shore-rules
+                                 :kind :terrain-stamp
+                                 :terrain-set :terrain
+                                 :source-layer :base
+                                 :rules [{:id :grass-north-water
+                                          :terrain :grass
+                                          :match {:n :other-terrain}
+                                          :output {:anchor {:x 0 :y 0}
+                                                   :layers [{:target-layer :visuals
+                                                             :tileset :world
+                                                             :tiles [[nil]]
+                                                             :transition-masks [[mask-ref]]}]}}]}]
+                     :layers [{:id :base
+                               :data-kind :terrain
+                               :terrain-set :terrain
+                               :tiles [[nil :water :sand]
+                                       [nil :grass :grass]]}
+                              {:id :visuals
+                               :data-kind :tile-ref
+                               :tileset :world
+                               :tiles [[nil nil nil]
+                                       [nil nil nil]]}]}
+                    {:x 1 :y 1 :w 2 :h 1})
+        generated-tileset (head (:tilesets render-map))
+        generated-tiles (:tiles generated-tileset)
+        transition-layer (head (filter (:layers render-map)
+                                       (fn [layer]
+                                         (= (:tileset layer)
+                                            :pixils-transition-tiles))))]
+    (is (= :pixils-transition-tiles (:id generated-tileset)))
+    (is (= {:x 1 :y 1 :w 2 :h 1} (:source-rect render-map)))
+    (is (= {:tileset :pixils-transition-tiles
+            :tile (:id (head generated-tiles))}
+           (get-in transition-layer [:tiles 0 0])))
+    (is (= {:tileset :pixils-transition-tiles
+            :tile (:id (nth generated-tiles 1))}
+           (get-in transition-layer [:tiles 0 1])))
+    (is (= [:water-fill :sand-fill]
+           (map generated-tiles
+                (fn [tile]
+                  (get-in tile [:overlay :tile])))))))
 
 (deftest materialize-render-map-keeps-source-for-unresolved-stamp-output-tile
   (let [render-map (materialize/materialize-render-map
