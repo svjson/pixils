@@ -2246,9 +2246,45 @@
               :y (+ (:y rect) 13)}
              {:color {:r 0x5d :g 0xc9 :b 0x9a}})))
 
+(defun terrain-standard-transition-preview-size [tile]
+  (or (-> tile :mask-source :size)
+      (:size tile)))
+
+(defun terrain-standard-transition-preview-image-id [tile size]
+  (keyword (str "pixils-transition-cache/preview-"
+                (model/keyword-label (or (:id tile)
+                                         :transition))
+                "-"
+                (:w size)
+                "x"
+                (:h size))))
+
+(defun terrain-standard-transition-preview-draw-tile [tile]
+  (let [size (terrain-standard-transition-preview-size tile)]
+    (if (and (= (:type tile) :transition-mask) size)
+      (assoc (assoc tile :size size)
+             :image (terrain-standard-transition-preview-image-id tile size))
+      tile)))
+
+(defun draw-terrain-standard-transition-preview-tile! [tile rect]
+  (let [preview-tile (terrain-standard-transition-preview-draw-tile tile)
+        size (:size preview-tile)
+        base (-> preview-tile :base :tile-definition)
+        image (when (and (= (:type preview-tile) :transition-mask) size)
+                (tilemap-renderer/ensure-transition-overlay-image!
+                 preview-tile
+                 size))]
+    (do
+      (when base
+        (tilemap-renderer/draw-tile! base rect nil 1))
+      (if (and image
+               (tilemap-renderer/transition-image-exists? image))
+        (r/image! image {:target rect})
+        (tilemap-renderer/draw-tile! preview-tile rect nil 1)))))
+
 (defun draw-terrain-standard-transition-preview! [state mask-ref rect]
   (if-let [tile (terrain-standard-transition-preview-tile state mask-ref)]
-    (tilemap-renderer/draw-tile! tile rect nil 1)
+    (draw-terrain-standard-transition-preview-tile! tile rect)
     (draw-terrain-standard-mask-fallback! rect)))
 
 (defun draw-terrain-standard-role-slot! [state ctx]

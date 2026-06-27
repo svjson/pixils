@@ -257,6 +257,18 @@
              :label "North"}]
            options))))
 
+(deftest terrain-standard-transition-preview-draw-tile-uses_mask_source_size
+  (let [tile {:type :transition-mask
+              :id :grass-water
+              :image :pixils-transition-cache/grass-water
+              :size {:w 16 :h 16}
+              :mask-source {:size {:w 64 :h 48}}}
+        preview (layout/terrain-standard-transition-preview-draw-tile tile)]
+    (is (= {:w 64 :h 48}
+           (:size preview)))
+    (is (= :pixils-transition-cache/preview-grass-water-64x48
+           (:image preview)))))
+
 (deftest mask-definition-editor-exposes_source_controls
   (let [children (layout/mask-definition-editor-children)
         source-row (nth children 3)
