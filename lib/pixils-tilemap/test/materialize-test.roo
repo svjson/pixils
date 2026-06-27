@@ -368,6 +368,23 @@
            (get-in generated-tile
                    [:mask-source :tiles 0 :tile-definition :id])))))
 
+(deftest transition-mask-materialization_can_treat_solid_mask_as_opposing
+  (let [mask-ref (assoc transition-mask-test-ref
+                        :polarity
+                        :solid-is-opposing)
+        render-map (materialize/materialize-render-map
+                    (assoc-in (transition-mask-test-tilemap)
+                              [:rulesets 0 :rules 0 :output :layers 0
+                               :transition-masks 0 0]
+                              mask-ref))
+        generated-tile (head (:tiles (transition-mask-generated-tileset
+                                      render-map)))]
+    (is (= :transition-mask (:type generated-tile)))
+    (is (= :water-fill (get-in generated-tile [:base :tile])))
+    (is (= :grass-fill (get-in generated-tile [:overlay :tile])))
+    (is (= mask-ref (:mask generated-tile)))
+    (is (= :solid-is-opposing (:mask-polarity generated-tile)))))
+
 (deftest transition-mask-materialization-keeps_dynamic_refs_when_tile_variants_exist
   (let [render-map (materialize/materialize-render-map
                     (assoc (transition-mask-test-tilemap)

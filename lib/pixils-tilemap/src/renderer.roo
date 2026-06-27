@@ -298,7 +298,13 @@
     (if (and image
              (res/can-create-images?)
              (transition-image-exists? image))
-      (r/image! image (merge {:target rect} (or render-opts {})))
+      (let [scale (fit-scale (:w size) (:h size) rect)
+            width (* (:w size) scale)
+            height (* (:h size) scale)]
+        (r/image! image
+                  (merge {:pos (centered-pos rect width height)
+                          :scale scale}
+                         (or render-opts {}))))
       (when overlay
         (draw-tile! overlay rect (merge {:opacity 0.5} (or render-opts {})) zoom)))))
 

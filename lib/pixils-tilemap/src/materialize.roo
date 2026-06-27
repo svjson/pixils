@@ -407,6 +407,20 @@
                 "-"
                 (id-label (:mask mask-ref)))))
 
+(def default-transition-mask-polarity :solid-is-current)
+
+(defun transition-mask-polarity [mask-ref]
+  (if (= (:polarity mask-ref) :solid-is-opposing)
+    :solid-is-opposing
+    default-transition-mask-polarity))
+
+(defun orient-transition-mask-tiles [base-ref overlay-ref mask-ref]
+  (if (= (transition-mask-polarity mask-ref) :solid-is-opposing)
+    {:base overlay-ref
+     :overlay base-ref}
+    {:base base-ref
+     :overlay overlay-ref}))
+
 (defun transition-cache-image [tile-id]
   (keyword (str (id-label transition-tile-cache-bundle)
                 "/"
@@ -428,7 +442,12 @@
                                                      (:mask-sets tilemap)
                                                      mask-ref)]
     (when (and base-ref overlay-ref mask-source)
-      (let [tile-id (transition-tile-id base-ref overlay-ref mask-ref)]
+      (let [oriented (orient-transition-mask-tiles base-ref
+                                                   overlay-ref
+                                                   mask-ref)
+            base-ref (:base oriented)
+            overlay-ref (:overlay oriented)
+            tile-id (transition-tile-id base-ref overlay-ref mask-ref)]
         {:id tile-id
          :type :transition-mask
          :size (tm/tile-size tilemap)
@@ -443,6 +462,7 @@
                                      (:tileset overlay-ref)
                                      (:tile overlay-ref)))
          :mask mask-ref
+         :mask-polarity (transition-mask-polarity mask-ref)
          :mask-source mask-source
          :image (transition-cache-image tile-id)}))))
 
