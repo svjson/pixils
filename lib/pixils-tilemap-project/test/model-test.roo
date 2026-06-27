@@ -8,6 +8,8 @@
                                          :layers []})]
     (is (= [] (:tilesets document)))
     (is (= [] (:brushes document)))
+    (is (= [] (:mask-sets document)))
+    (is (= [] (:terrain-transitions document)))
     (is (= [] (:layer-profiles document)))
     (is (= [] (get-in document [:maps 0 :layers])))))
 
@@ -112,6 +114,49 @@
                            :type :number
                            :default 1}]}]
            (:property-sets document)))))
+
+(deftest project-document-saves_mask_sets_and_terrain_transitions
+  (let [document (data/project-document
+                  {:mask-sets [{:id :soft-edge
+                                :label "Soft Edge"
+                                :masks [{:id :n
+                                         :match {:n :other-terrain}}]}]
+                   :terrain-transitions [{:id :road-grass
+                                          :label "Road Grass"
+                                          :terrain-set :overworld
+                                          :base-terrain :road
+                                          :overlay-terrain :grass
+                                          :mask-set :soft-edge}]
+                   :layers []})]
+    (is (= [{:id :soft-edge
+             :label "Soft Edge"
+             :masks [{:id :n
+                      :match {:n :other-terrain}}]}]
+           (:mask-sets document)))
+    (is (= [{:id :road-grass
+             :label "Road Grass"
+             :terrain-set :overworld
+             :base-terrain :road
+             :overlay-terrain :grass
+             :mask-set :soft-edge}]
+           (:terrain-transitions document)))))
+
+(deftest normalize-project-document-preserves_mask_sets_and_terrain_transitions
+  (let [document (data/normalize-project-document
+                  {:format data/project-format
+                   :mask-sets [{:id :soft-edge
+                                :masks [{:id :n}]}]
+                   :terrain-transitions [{:id :road-grass
+                                          :terrain-set :overworld
+                                          :mask-set :soft-edge}]
+                   :tilemap {:layers []}})]
+    (is (= [{:id :soft-edge
+             :masks [{:id :n}]}]
+           (:mask-sets document)))
+    (is (= [{:id :road-grass
+             :terrain-set :overworld
+             :mask-set :soft-edge}]
+           (:terrain-transitions document)))))
 
 (deftest project-document-saves_target_property_values_as_properties
   (let [document (data/project-document

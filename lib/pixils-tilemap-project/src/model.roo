@@ -21,6 +21,8 @@
 (def project-property-sets [])
 (def project-rulesets [])
 (def project-tile-substitution-rules [])
+(def project-mask-sets [])
+(def project-terrain-transitions [])
 
 (def default-tile-substitution-algorithm :weighted-random)
 (def default-layer-profile-id :default)
@@ -136,6 +138,22 @@
 
 (defun normalize-terrain-sets [terrain-sets]
   (map (or terrain-sets []) normalize-terrain-set))
+
+(defun normalize-mask [mask]
+  mask)
+
+(defun normalize-mask-set [mask-set]
+  (assoc mask-set
+         :masks (map (or (:masks mask-set) []) normalize-mask)))
+
+(defun normalize-mask-sets [mask-sets]
+  (map (or mask-sets []) normalize-mask-set))
+
+(defun normalize-terrain-transition [transition]
+  transition)
+
+(defun normalize-terrain-transitions [transitions]
+  (map (or transitions []) normalize-terrain-transition))
 
 (defun keyword-label [value]
   (let [text (str value)]
@@ -754,6 +772,12 @@
            (normalize-tile-substitution-rules
             (or (:tile-substitution-rules project)
                 project-tile-substitution-rules))
+           :mask-sets (normalize-mask-sets (or (:mask-sets project)
+                                               project-mask-sets))
+           :terrain-transitions
+           (normalize-terrain-transitions
+            (or (:terrain-transitions project)
+                project-terrain-transitions))
            :brushes (normalize-brushes (:brushes project) layer-profile))))
 
 (defun tilemap-document [state layers layer-profile-id]
@@ -806,6 +830,11 @@
      :tile-substitution-rules
      (normalize-tile-substitution-rules
       (or (:tile-substitution-rules state) project-tile-substitution-rules))
+     :mask-sets (normalize-mask-sets (or (:mask-sets state)
+                                         project-mask-sets))
+     :terrain-transitions
+     (normalize-terrain-transitions
+      (or (:terrain-transitions state) project-terrain-transitions))
      :layer-profiles layer-profiles
      :brushes (normalize-brushes (or (:brushes state) project-brushes)
                                  layer-profile)
