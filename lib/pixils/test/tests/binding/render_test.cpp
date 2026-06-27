@@ -142,6 +142,71 @@ TEST_F(RenderTest, circle_outline_draws_perimeter_pixels)
   EXPECT_FALSE(has_fill_rect(ops, SDL_Rect{10, 10, 1, 1}));
 }
 
+TEST_F(RenderTest, ellipse_fill_draws_horizontal_scanlines)
+{
+  // Given
+  runtime.eval(R"(
+    (pixils/defmode test-mode {
+      :render (fn [state ctx]
+                (pixils.render/ellipse!
+                  {:x 10 :y 10 :rx 3 :ry 2}
+                  {:fill true :color {:r 200 :g 0 :b 0}}))
+    })
+  )");
+  session.push_mode("test-mode", Roo::Constant::NIL);
+
+  // When / Then
+  ASSERT_NO_THROW(session.render_mode());
+  auto& ops = render_target()->render_ops;
+  ASSERT_EQ(ops.size(), 5u);
+  EXPECT_TRUE(has_fill_rect(ops, SDL_Rect{10, 8, 1, 1}));
+  EXPECT_TRUE(has_fill_rect(ops, SDL_Rect{8, 9, 5, 1}));
+  EXPECT_TRUE(has_fill_rect(ops, SDL_Rect{7, 10, 7, 1}));
+  EXPECT_TRUE(has_fill_rect(ops, SDL_Rect{8, 11, 5, 1}));
+  EXPECT_TRUE(has_fill_rect(ops, SDL_Rect{10, 12, 1, 1}));
+}
+
+TEST_F(RenderTest, ellipse_outline_draws_perimeter_pixels)
+{
+  // Given
+  runtime.eval(R"(
+    (pixils/defmode test-mode {
+      :render (fn [state ctx]
+                (pixils.render/ellipse!
+                  {:x 10 :y 10 :rx 3 :ry 2}
+                  {:color {:r 200 :g 0 :b 0}}))
+    })
+  )");
+  session.push_mode("test-mode", Roo::Constant::NIL);
+
+  // When / Then
+  ASSERT_NO_THROW(session.render_mode());
+  auto& ops = render_target()->render_ops;
+  EXPECT_TRUE(has_fill_rect(ops, SDL_Rect{10, 8, 1, 1}));
+  EXPECT_TRUE(has_fill_rect(ops, SDL_Rect{10, 12, 1, 1}));
+  EXPECT_TRUE(has_fill_rect(ops, SDL_Rect{7, 10, 1, 1}));
+  EXPECT_TRUE(has_fill_rect(ops, SDL_Rect{13, 10, 1, 1}));
+  EXPECT_FALSE(has_fill_rect(ops, SDL_Rect{10, 10, 1, 1}));
+}
+
+TEST_F(RenderTest, ellipse_with_negative_radius_draws_nothing)
+{
+  // Given
+  runtime.eval(R"(
+    (pixils/defmode test-mode {
+      :render (fn [state ctx]
+                (pixils.render/ellipse!
+                  {:x 10 :y 10 :rx -1 :ry 2}
+                  {:fill true :color {:r 200 :g 0 :b 0}}))
+    })
+  )");
+  session.push_mode("test-mode", Roo::Constant::NIL);
+
+  // When / Then
+  ASSERT_NO_THROW(session.render_mode());
+  EXPECT_TRUE(render_target()->render_ops.empty());
+}
+
 TEST_F(RenderTest, with_clip_rect_restores_previous_clip)
 {
   // Given

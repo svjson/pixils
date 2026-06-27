@@ -138,6 +138,73 @@ namespace Pixils::Script
         }
       }
 
+      int ellipse_x_for_y(int rx, int ry, int y)
+      {
+        if (ry == 0) return rx;
+        const double normalized_y = static_cast<double>(y) / static_cast<double>(ry);
+        const double remaining = std::max(0.0, 1.0 - (normalized_y * normalized_y));
+        return static_cast<int>(std::floor(static_cast<double>(rx) * std::sqrt(remaining)));
+      }
+
+      int ellipse_y_for_x(int rx, int ry, int x)
+      {
+        if (rx == 0) return ry;
+        const double normalized_x = static_cast<double>(x) / static_cast<double>(rx);
+        const double remaining = std::max(0.0, 1.0 - (normalized_x * normalized_x));
+        return static_cast<int>(std::floor(static_cast<double>(ry) * std::sqrt(remaining)));
+      }
+
+      void draw_filled_ellipse(SDL_Renderer* renderer, int cx, int cy, int rx, int ry)
+      {
+        if (ry == 0)
+        {
+          fill_horizontal_span(renderer, cx - rx, cx + rx, cy);
+          return;
+        }
+
+        for (int y = -ry; y <= ry; y++)
+        {
+          const int x = ellipse_x_for_y(rx, ry, y);
+          fill_horizontal_span(renderer, cx - x, cx + x, cy + y);
+        }
+      }
+
+      void draw_ellipse_outline(SDL_Renderer* renderer, int cx, int cy, int rx, int ry)
+      {
+        if (rx == 0 && ry == 0)
+        {
+          fill_pixel(renderer, cx, cy);
+          return;
+        }
+        if (ry == 0)
+        {
+          fill_horizontal_span(renderer, cx - rx, cx + rx, cy);
+          return;
+        }
+        if (rx == 0)
+        {
+          for (int y = -ry; y <= ry; y++)
+          {
+            fill_pixel(renderer, cx, cy + y);
+          }
+          return;
+        }
+
+        for (int y = -ry; y <= ry; y++)
+        {
+          const int x = ellipse_x_for_y(rx, ry, y);
+          fill_pixel(renderer, cx + x, cy + y);
+          fill_pixel(renderer, cx - x, cy + y);
+        }
+
+        for (int x = -rx; x <= rx; x++)
+        {
+          const int y = ellipse_y_for_x(rx, ry, x);
+          fill_pixel(renderer, cx + x, cy + y);
+          fill_pixel(renderer, cx + x, cy - y);
+        }
+      }
+
       Uint8 image_opacity_alpha(Roo::MapSchema::Inspector& opts)
       {
         if (opts.contains(std::get<std::string>(MapKey::OPACITY->value)))
@@ -527,6 +594,55 @@ namespace Pixils::Script
       else
       {
         draw_circle_outline(rc.renderer, cx, cy, radius);
+      }
+      SDL_SetRenderDrawBlendMode(rc.renderer, SDL_BLENDMODE_NONE);
+
+      return Roo::Constant::NIL;
+    }
+
+    /* DrawEllipseBang - ellipse! */
+    FUNC_IMPL(DrawEllipseBang,
+              SIG((FN_ARGS((&Roo::Type::MAP), (&Roo::Type::MAP)),
+                   EXEC_DISPATCH(&DrawEllipseBang::exec_draw_ellipse))));
+
+    EXEC_BODY(DrawEllipseBang, exec_draw_ellipse)
+    {
+      RenderContext& rc = Roo::obj<RenderContext>(*ctx.lookup(ID__PIXILS__RENDER_CONTEXT));
+
+      static Roo::MapSchema ellipse_schema({{"x", &Roo::Type::NUMBER},
+                                            {"y", &Roo::Type::NUMBER},
+                                            {"rx", &Roo::Type::NUMBER},
+                                            {"ry", &Roo::Type::NUMBER}});
+      static Roo::MapSchema opts_schema(
+        {},
+        {{"color", &HostType::COLOR}, {"fill", &Roo::Type::BOOL}});
+
+      auto ellipse = ellipse_schema.bind(ctx, *args[0]);
+      auto opts = opts_schema.bind(ctx, *args[1]);
+
+      const int cx = ellipse.i32("x");
+      const int cy = ellipse.i32("y");
+      const int rx = ellipse.i32("rx");
+      const int ry = ellipse.i32("ry");
+      if (rx < 0 || ry < 0) return Roo::Constant::NIL;
+
+      auto color_opt = opts.val("color");
+      auto fill_opt = opts.val("fill");
+
+      if (Roo::is_truthy(*color_opt))
+      {
+        const Color& color = Roo::obj<Color>(*color_opt);
+        SDL_SetRenderDrawColor(rc.renderer, color.r, color.g, color.b, color.a);
+      }
+
+      SDL_SetRenderDrawBlendMode(rc.renderer, SDL_BLENDMODE_BLEND);
+      if (Roo::is_truthy(*fill_opt))
+      {
+        draw_filled_ellipse(rc.renderer, cx, cy, rx, ry);
+      }
+      else
+      {
+        draw_ellipse_outline(rc.renderer, cx, cy, rx, ry);
       }
       SDL_SetRenderDrawBlendMode(rc.renderer, SDL_BLENDMODE_NONE);
 
@@ -1111,6 +1227,7 @@ namespace Pixils::Script
   {
     values.emplace(FN__DRAW_IMAGE_BANG, Function::DrawImageBang::make());
     values.emplace(FN__DRAW_CIRCLE_BANG, Function::DrawCircleBang::make());
+    values.emplace(FN__DRAW_ELLIPSE_BANG, Function::DrawEllipseBang::make());
     values.emplace(FN__DRAW_LINE_BANG, Function::DrawLineBang::make());
     values.emplace(FN__DRAW_POLYGON_BANG, Function::DrawPolygonBang::make());
     values.emplace(FN__DRAW_RECT_BANG, Function::DrawRectBang::make());
