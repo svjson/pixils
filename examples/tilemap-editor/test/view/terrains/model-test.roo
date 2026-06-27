@@ -2,7 +2,7 @@
   (:require proof.core
             [tilemap-editor.view.terrains.model :as model]))
 
-(deftest terrain-workspace-selects_first_available_set_and_terrain
+(deftest terrain-workspace-selects-first-available-set-and-terrain
   (let [state (model/derive-terrain-workspace-state
                {:terrain-sets [{:id :overworld
                                 :terrains [{:id :grass}]}]})]
@@ -11,7 +11,7 @@
     (is (= false (:terrain-list-panel-disabled? state)))
     (is (= false (:terrain-detail-panel-disabled? state)))))
 
-(deftest terrain-workspace-keeps_detail_enabled_without_terrains
+(deftest terrain-workspace-keeps-detail-enabled-without-terrains
   (let [state (model/derive-terrain-workspace-state
                {:terrain-sets [{:id :overworld
                                 :terrains []}]})]
@@ -20,7 +20,7 @@
     (is (= false (:terrain-list-panel-disabled? state)))
     (is (= false (:terrain-detail-panel-disabled? state)))))
 
-(deftest terrain-workspace-selects_first_transition_for_selected_set
+(deftest terrain-workspace-selects-first-transition-for-selected-set
   (let [state (model/derive-terrain-workspace-state
                {:terrain-sets [{:id :overworld
                                 :terrains []}]
@@ -30,7 +30,7 @@
                                        :terrain-set :caves}]})]
     (is (= :roads (:selected-terrain-transition-id state)))))
 
-(deftest terrain-workspace_keeps_selected_transition_when_valid
+(deftest terrain-workspace-keeps-selected-transition-when-valid
   (let [state (model/derive-terrain-workspace-state
                {:terrain-sets [{:id :overworld
                                 :terrains []}]
@@ -41,7 +41,7 @@
                                        :terrain-set :overworld}]})]
     (is (= :paths (:selected-terrain-transition-id state)))))
 
-(deftest terrain-transition-options_are_scoped_to_selected_terrain_set
+(deftest terrain-transition-options-are-scoped-to-selected-terrain-set
   (is (= [{:value :roads
            :label "Roads"}]
          (model/transition-options
@@ -55,7 +55,7 @@
                                   :label "Cave Path"
                                   :terrain-set :caves}]}))))
 
-(deftest mask-set-options_use_labels_and_ids
+(deftest mask-set-options-use-labels-and-ids
   (is (= [{:value :soft-edge
            :label "Soft Edge"}
           {:value :hard-edge
@@ -64,7 +64,7 @@
                                    :label "Soft Edge"}
                                   {:id :hard-edge}]))))
 
-(deftest terrain-transition-mask-set-options_include_none
+(deftest terrain-transition-mask-set-options-include-none
   (is (= [{:value :none
            :label "None"}
           {:value :soft-edge
@@ -73,7 +73,7 @@
           [{:id :soft-edge
             :label "Soft Edge"}]))))
 
-(deftest selected-terrain-transition-mask-set-can_be_set
+(deftest selected-terrain-transition-mask-set-can-be-set
   (let [state (model/set-selected-terrain-transition-mask-set
                {:terrain-sets [{:id :overworld
                                 :terrains [{:id :grass}]}]
@@ -88,7 +88,7 @@
            (model/selected-terrain-transition-mask-set-option-index
             state)))))
 
-(deftest terrain-mask-options_scope_to_selected_terrain_mask_set
+(deftest terrain-mask-options-scope-to-selected-terrain-mask-set
   (is (= [{:value {:mask-set :soft-edge
                    :mask :north}
            :label "North"}]
@@ -105,13 +105,13 @@
            :selected-terrain-set-index 0
            :selected-terrain-index 0}))))
 
-(deftest terrain-workspace-selects_first_available_mask_set
+(deftest terrain-workspace-selects-first-available-mask-set
   (let [state (model/derive-terrain-workspace-state
                {:mask-sets [{:id :soft-edge}
                             {:id :hard-edge}]})]
     (is (= 0 (:selected-mask-set-index state)))))
 
-(deftest terrain-workspace-selects_first_available_mask
+(deftest terrain-workspace-selects-first-available-mask
   (let [state (model/derive-terrain-workspace-state
                {:mask-sets [{:id :soft-edge
                              :masks [{:id :n}
@@ -119,14 +119,14 @@
                 :selected-mask-set-index 0})]
     (is (= 0 (:selected-mask-index state)))))
 
-(deftest mask-set-creation-adds_and_selects_new_set
+(deftest mask-set-creation-adds-and-selects-new-set
   (let [state (model/add-mask-set {:mask-sets []})]
     (is (= :mask-set (get-in state [:mask-sets 0 :id])))
     (is (= "Mask set" (get-in state [:mask-sets 0 :label])))
     (is (= [] (get-in state [:mask-sets 0 :masks])))
     (is (= 0 (:selected-mask-set-index state)))))
 
-(deftest mask-set-creation-can_use_confirmed_identity
+(deftest mask-set-creation-can-use-confirmed-identity
   (let [state (model/add-mask-set-with-id
                {:mask-sets [{:id :soft-edge}]}
                "soft-edge"
@@ -135,7 +135,7 @@
     (is (= "Soft Edge Copy" (get-in state [:mask-sets 1 :label])))
     (is (= 1 (:selected-mask-set-index state)))))
 
-(deftest mask-set-rename-updates_transition_references
+(deftest mask-set-rename-updates-transition-references
   (let [state (model/set-selected-mask-set-label
                (model/set-selected-mask-set-id
                 {:mask-sets [{:id :soft-edge
@@ -166,7 +166,7 @@
                    [:rulesets 0 :rules 0 :output :layers 0
                     :transition-masks 0 0 :mask-set])))))
 
-(deftest mask-set-delete-clears_transition_references
+(deftest mask-set-delete-clears-transition-references
   (let [state (model/delete-selected-mask-set
                {:mask-sets [{:id :soft-edge}
                             {:id :hard-edge}]
@@ -194,7 +194,7 @@
                        :transition-masks 0 0 :mask-set])))
     (is (= 0 (:selected-mask-set-index state)))))
 
-(deftest mask-options_use_labels_and_ids
+(deftest mask-options-use-labels-and-ids
   (is (= [{:value 0
            :label "North"}
           {:value 1
@@ -203,7 +203,7 @@
                                        :label "North"}
                                       {:id :s}]}))))
 
-(deftest mask-creation-adds_to_selected_mask_set
+(deftest mask-creation-adds-to-selected-mask-set
   (let [state (model/add-mask {:mask-sets [{:id :soft-edge
                                             :masks []}]
                                :selected-mask-set-index 0})]
@@ -214,7 +214,7 @@
     (is (= [] (get-in state [:mask-sets 0 :masks 0 :source :tiles])))
     (is (= 0 (:selected-mask-index state)))))
 
-(deftest mask-set-creation-defaults_to_one_tile_mask_size
+(deftest mask-set-creation-defaults-to-one-tile-mask-size
   (let [state (model/add-mask-set {:mask-sets []})]
     (is (= {:w 16
             :h 16}
@@ -223,7 +223,7 @@
             :h 16}
            (model/selected-mask-set-size state)))))
 
-(deftest mask-set-size-update-changes_selected_mask_dimensions
+(deftest mask-set-size-update-changes-selected-mask-dimensions
   (let [state (-> {:mask-sets [{:id :soft-edge
                                 :masks []}]
                    :selected-mask-set-index 0}
@@ -236,7 +236,7 @@
             :h 24}
            (model/selected-mask-set-size state)))))
 
-(deftest mask-creation-can_use_confirmed_identity
+(deftest mask-creation-can-use-confirmed-identity
   (let [state (model/add-mask-with-id
                {:mask-sets [{:id :soft-edge
                              :masks [{:id :mask}]}]
@@ -247,7 +247,7 @@
     (is (= "Mask Copy" (get-in state [:mask-sets 0 :masks 1 :label])))
     (is (= 1 (:selected-mask-index state)))))
 
-(deftest mask-duplicate-inserts_copy_after_selected_mask
+(deftest mask-duplicate-inserts-copy-after-selected-mask
   (let [state (model/duplicate-selected-mask-with-id
                {:mask-sets [{:id :soft-edge
                              :masks [{:id :north
@@ -276,7 +276,7 @@
            (:source duplicate)))
     (is (= 1 (:selected-mask-index state)))))
 
-(deftest mask-duplicate-deduplicates_default_id_and_name
+(deftest mask-duplicate-deduplicates-default-id-and-name
   (let [state (model/duplicate-selected-mask-with-id
                {:mask-sets [{:id :soft-edge
                              :masks [{:id :north
@@ -291,7 +291,7 @@
     (is (= :north-copy-2 (:id duplicate)))
     (is (= "North Copy 2" (:label duplicate)))))
 
-(deftest mask-rename-updates_selected_mask
+(deftest mask-rename-updates-selected-mask
   (let [state (model/set-selected-mask-label
                (model/set-selected-mask-id
                 {:mask-sets [{:id :soft-edge
@@ -304,7 +304,7 @@
     (is (= :north-edge (get-in state [:mask-sets 0 :masks 0 :id])))
     (is (= "North Edge" (get-in state [:mask-sets 0 :masks 0 :label])))))
 
-(deftest mask-source-edits-update_selected_tile_composition
+(deftest mask-source-edits-update-selected-tile-composition
   (let [base-state {:mask-sets [{:id :soft-edge
                                  :masks [(model/make-mask [])]}]
                     :selected-mask-set-index 0
@@ -324,7 +324,7 @@
                       :y 3}}]
            (get-in state [:mask-sets 0 :masks 0 :source :tiles])))))
 
-(deftest mask-source-can_replace_selected_composed_tile
+(deftest mask-source-can-replace-selected-composed-tile
   (let [state (model/set-selected-mask-tile-item-tile
                {:mask-sets [{:id :soft-edge
                              :masks [{:id :north
@@ -348,7 +348,7 @@
                       :y 4}}]
            (get-in state [:mask-sets 0 :masks 0 :source :tiles])))))
 
-(deftest mask-source-can_delete_composed_tile
+(deftest mask-source-can-delete-composed-tile
   (let [state (model/delete-selected-mask-tile-item
                (model/add-selected-mask-tile
                 {:mask-sets [{:id :soft-edge
@@ -359,7 +359,7 @@
                0)]
     (is (= [] (get-in state [:mask-sets 0 :masks 0 :source :tiles])))))
 
-(deftest mask-delete-selects_neighbor
+(deftest mask-delete-selects-neighbor
   (let [state (model/delete-selected-mask
                {:mask-sets [{:id :soft-edge
                              :masks [{:id :n}
@@ -369,7 +369,7 @@
     (is (= [:s] (map (get-in state [:mask-sets 0 :masks]) :id)))
     (is (= 0 (:selected-mask-index state)))))
 
-(deftest terrain-set-creation-adds_and_selects_new_set
+(deftest terrain-set-creation-adds-and-selects-new-set
   (let [state (model/add-terrain-set {:terrain-sets []})]
     (is (= :terrain-set (get-in state [:terrain-sets 0 :id])))
     (is (= "Terrain set" (get-in state [:terrain-sets 0 :label])))
@@ -377,20 +377,20 @@
     (is (= 0 (:selected-terrain-set-index state)))
     (is (nil? (:selected-terrain-index state)))))
 
-(deftest terrain-set-creation-deduplicates_ids
+(deftest terrain-set-creation-deduplicates-ids
   (let [state (model/add-terrain-set
                {:terrain-sets [{:id :terrain-set
                                 :label "Terrain set"}]})]
     (is (= :terrain-set-2 (get-in state [:terrain-sets 1 :id])))))
 
-(deftest terrain-set-creation-defaults_preview_tileset
+(deftest terrain-set-creation-defaults-preview-tileset
   (let [state (model/add-terrain-set
                {:terrain-sets []
                 :tilesets [{:id :overworld
                             :label "Overworld"}]})]
     (is (= :overworld (get-in state [:terrain-sets 0 :tileset])))))
 
-(deftest terrain-set-creation-can_use_confirmed_identity
+(deftest terrain-set-creation-can-use-confirmed-identity
   (let [state (model/add-terrain-set-with-id
                {:terrain-sets [{:id :overworld
                                 :label "Overworld"}]}
@@ -400,7 +400,7 @@
     (is (= "World Terrain" (get-in state [:terrain-sets 1 :label])))
     (is (= 1 (:selected-terrain-set-index state)))))
 
-(deftest terrain-creation-adds_to_selected_set
+(deftest terrain-creation-adds-to-selected-set
   (let [state (model/add-terrain
                {:terrain-sets [{:id :overworld
                                 :terrains []}]
@@ -409,7 +409,7 @@
     (is (= "Terrain" (get-in state [:terrain-sets 0 :terrains 0 :label])))
     (is (= 0 (:selected-terrain-index state)))))
 
-(deftest terrain-creation-deduplicates_ids
+(deftest terrain-creation-deduplicates-ids
   (let [state (model/add-terrain
                {:terrain-sets [{:id :overworld
                                 :terrains [{:id :terrain
@@ -417,7 +417,7 @@
                 :selected-terrain-set-index 0})]
     (is (= :terrain-2 (get-in state [:terrain-sets 0 :terrains 1 :id])))))
 
-(deftest terrain-creation-defaults_preview_tile
+(deftest terrain-creation-defaults-preview-tile
   (let [state (model/add-terrain
                {:terrain-sets [{:id :overworld
                                 :tileset :overworld-tiles
@@ -428,7 +428,7 @@
                 :selected-terrain-set-index 0})]
     (is (= :grass (get-in state [:terrain-sets 0 :terrains 0 :tile])))))
 
-(deftest terrain-creation-can_use_confirmed_identity
+(deftest terrain-creation-can-use-confirmed-identity
   (let [state (model/add-terrain-with-id
                {:terrain-sets [{:id :overworld
                                 :terrains [{:id :terrain
@@ -440,7 +440,7 @@
     (is (= "Grassland" (get-in state [:terrain-sets 0 :terrains 1 :label])))
     (is (= 1 (:selected-terrain-index state)))))
 
-(deftest terrain-duplicate-inserts_copy_after_selected_terrain
+(deftest terrain-duplicate-inserts-copy-after-selected-terrain
   (let [state (model/duplicate-selected-terrain
                {:terrain-sets [{:id :overworld
                                 :terrains [{:id :grass
@@ -483,7 +483,7 @@
            (:match duplicated-rule)))
     (is (= {:anchor {:x 1 :y 1}} (:output duplicated-rule)))))
 
-(deftest terrain-duplicate-deduplicates_name_and_id
+(deftest terrain-duplicate-deduplicates-name-and-id
   (let [state (model/duplicate-selected-terrain
                {:terrain-sets [{:id :overworld
                                 :terrains [{:id :grass
@@ -497,7 +497,7 @@
     (is (= :grass-copy-2 (:id duplicate)))
     (is (= "Grass Copy 2" (:label duplicate)))))
 
-(deftest terrain-duplicate-can_use_requested_id
+(deftest terrain-duplicate-can-use-requested-id
   (let [state (model/duplicate-selected-terrain-with-id
                {:terrain-sets [{:id :overworld
                                 :terrains [{:id :grass
@@ -510,7 +510,7 @@
     (is (= :custom-meadow (:id duplicate)))
     (is (= "Meadow" (:label duplicate)))))
 
-(deftest terrain-detail-label_changes_update_selected_records
+(deftest terrain-detail-label-changes-update-selected-records
   (let [state {:terrain-sets [{:id :overworld
                                :label "Overworld"
                                :terrains [{:id :grass
@@ -522,7 +522,7 @@
     (is (= "World" (get-in state [:terrain-sets 0 :label])))
     (is (= "Meadow" (get-in state [:terrain-sets 0 :terrains 0 :label])))))
 
-(deftest terrain-set-id-change-updates_project_references
+(deftest terrain-set-id-change-updates-project-references
   (let [state (model/set-selected-terrain-set-id
                {:terrain-sets [{:id :overworld
                                 :label "Overworld"
@@ -548,7 +548,7 @@
     (is (= :world (get-in state [:brushes 0 :pattern :layers 0 :terrain-set])))
     (is (= :world (get-in state [:rulesets 0 :terrain-set])))))
 
-(deftest terrain-set-id-change-updates_references_in_all_project_maps
+(deftest terrain-set-id-change-updates-references-in-all-project-maps
   (let [state (model/set-selected-terrain-set-id
                {:selected-map-id :map/one
                 :selected-map-label "One"
@@ -583,7 +583,7 @@
     (is (= :world (get-in state [:maps 0 :layers 0 :terrain-set])))
     (is (= :world (get-in state [:maps 1 :layers 0 :terrain-set])))))
 
-(deftest terrain-set-id-change-deduplicates_ids
+(deftest terrain-set-id-change-deduplicates-ids
   (let [state (model/set-selected-terrain-set-id
                {:terrain-sets [{:id :world}
                                {:id :overworld}]
@@ -591,7 +591,7 @@
                "world")]
     (is (= :world-2 (get-in state [:terrain-sets 1 :id])))))
 
-(deftest terrain-set-unit-change-updates_selected_set
+(deftest terrain-set-unit-change-updates-selected-set
   (let [state (model/set-selected-terrain-set-unit
                {:terrain-sets [{:id :mountains}]
                 :selected-terrain-set-index 0}
@@ -599,7 +599,7 @@
     (is (= {:w 2 :h 2}
            (get-in state [:terrain-sets 0 :terrain-unit])))))
 
-(deftest terrain-set-unit-change-accepts_option_value
+(deftest terrain-set-unit-change-accepts-option-value
   (let [state (model/set-selected-terrain-set-unit
                {:terrain-sets [{:id :mountains}]
                 :selected-terrain-set-index 0}
@@ -607,10 +607,10 @@
     (is (= {:w 2 :h 2}
            (get-in state [:terrain-sets 0 :terrain-unit])))))
 
-(deftest terrain-unit-option-index-matches_raw_unit
+(deftest terrain-unit-option-index-matches-raw-unit
   (is (= 1 (model/terrain-unit-option-index {:w 2 :h 2}))))
 
-(deftest terrain-id-change-updates_project_references
+(deftest terrain-id-change-updates-project-references
   (let [state (model/set-selected-terrain-id
                {:terrain-sets [{:id :overworld
                                 :terrains [{:id :grass}]}]
@@ -690,7 +690,7 @@
                     1])))
     (is (= :grass (get-in state [:rulesets 2 :terrain])))))
 
-(deftest terrain-id-change-updates_refs_in_all_project_maps
+(deftest terrain-id-change-updates-refs-in-all-project-maps
   (let [state (model/set-selected-terrain-id
                {:selected-map-id :map/one
                 :selected-map-label "One"
@@ -732,7 +732,7 @@
     (is (= :meadow (get-in state [:maps 1 :layers 0 :tiles 0 0])))
     (is (= :meadow (get-in state [:rulesets 0 :terrain])))))
 
-(deftest terrain-id-change-deduplicates_ids
+(deftest terrain-id-change-deduplicates-ids
   (let [state (model/set-selected-terrain-id
                {:terrain-sets [{:id :overworld
                                 :terrains [{:id :meadow}
@@ -742,7 +742,7 @@
                "meadow")]
     (is (= :meadow-2 (get-in state [:terrain-sets 0 :terrains 1 :id])))))
 
-(deftest terrain-detail-preview_changes_update_selected_records
+(deftest terrain-detail-preview-changes-update-selected-records
   (let [state {:terrain-sets [{:id :overworld
                                :tileset :old
                                :terrains [{:id :grass
@@ -759,7 +759,7 @@
     (is (= :new (get-in state [:terrain-sets 0 :tileset])))
     (is (= :other-tile (get-in state [:terrain-sets 0 :terrains 0 :tile])))))
 
-(deftest terrain-ruleset-creation-adds_selected_terrain_stamp_ruleset
+(deftest terrain-ruleset-creation-adds-selected-terrain-stamp-ruleset
   (let [state (model/add-terrain-ruleset
                {:terrain-sets [{:id :overworld
                                 :terrains [{:id :grass}]}]
@@ -773,7 +773,7 @@
     (is (= :scene/terrain (get-in state [:rulesets 0 :source-layer])))
     (is (= :overworld-rules (:selected-terrain-ruleset-id state)))))
 
-(deftest terrain-rule-creation-adds_brush_shaped_output_stamp
+(deftest terrain-rule-creation-adds-brush-shaped-output-stamp
   (let [state (model/add-terrain-rule
                {:terrain-sets [{:id :overworld
                                 :tileset :terrain
@@ -799,7 +799,7 @@
            (get-in state [:rulesets 0 :rules 0 :output :layers 0 :tiles])))
     (is (= :rule (:selected-terrain-rule-id state)))))
 
-(deftest terrain-rule-creation-uses_live_tile_layers_when_profile_is_stale
+(deftest terrain-rule-creation-uses-live-tile-layers-when-profile-is-stale
   (let [state (model/add-terrain-rule
                {:terrain-sets [{:id :overworld
                                 :tileset :terrain
@@ -826,7 +826,7 @@
     (is (= :scene/visuals
            (get-in state [:rulesets 0 :rules 0 :output :layers 0 :target-layer])))))
 
-(deftest terrain-rule-creation-uses_terrain_set_tileset_not_unrelated_output_layer
+(deftest terrain-rule-creation-uses-terrain-set-tileset-not-unrelated-output-layer
   (let [state (model/add-terrain-rule
                {:terrain-sets [{:id :roads
                                 :tileset :roads
@@ -858,7 +858,7 @@
     (is (= :road-fill
            (get-in state [:rulesets 0 :rules 0 :output :layers 0 :tiles 0 0])))))
 
-(deftest terrain-rule-creation-uses_terrain_unit_output_footprint
+(deftest terrain-rule-creation-uses-terrain-unit-output-footprint
   (let [state (model/add-terrain-rule
                {:terrain-sets [{:id :mountains
                                 :tileset :mountains
@@ -881,7 +881,7 @@
             [nil nil]]
            (get-in state [:rulesets 0 :rules 0 :output :layers 0 :tiles])))))
 
-(deftest terrain-rule-creation-targets_matching_tileset_output_layer
+(deftest terrain-rule-creation-targets-matching-tileset-output-layer
   (let [state (model/add-terrain-rule
                {:terrain-sets [{:id :roads
                                 :tileset :roads
@@ -915,7 +915,7 @@
            (get-in state
                    [:rulesets 0 :rules 0 :output :layers 0 :target-layer])))))
 
-(deftest terrain-rule-output-tileset-change-retargets_matching_layer
+(deftest terrain-rule-output-tileset-change-retargets-matching-layer
   (let [state (model/set-selected-rule-output-tileset
                {:terrain-sets [{:id :roads
                                 :tileset :roads
@@ -953,7 +953,7 @@
            (get-in state
                    [:rulesets 0 :rules 0 :output :layers 0 :target-layer])))))
 
-(deftest terrain-rule-output-target-layer-change-updates_tileset
+(deftest terrain-rule-output-target-layer-change-updates-tileset
   (let [state (model/set-selected-rule-output-target-layer
                {:terrain-sets [{:id :roads
                                 :tileset :roads
@@ -991,7 +991,7 @@
            (get-in state
                    [:rulesets 0 :rules 0 :output :layers 0 :target-layer])))))
 
-(deftest terrain-rule-creation-ignores_tile_layers_below_terrain_source
+(deftest terrain-rule-creation-ignores-tile-layers-below-terrain-source
   (let [state (model/add-terrain-rule
                {:terrain-sets [{:id :overworld
                                 :tileset :terrain
@@ -1017,7 +1017,7 @@
     (is (nil? (get-in state
                       [:rulesets 0 :rules 0 :output :layers 0 :target-layer])))))
 
-(deftest terrain-rule-creation-creates_ruleset_when_needed
+(deftest terrain-rule-creation-creates-ruleset-when-needed
   (let [state (model/add-terrain-rule
                {:terrain-sets [{:id :overworld
                                 :tileset :terrain
@@ -1039,7 +1039,7 @@
     (is (= :overworld-rules (:selected-terrain-ruleset-id state)))
     (is (= :rule (:selected-terrain-rule-id state)))))
 
-(deftest terrain-rule-creation-derives_selection_when_needed
+(deftest terrain-rule-creation-derives-selection-when-needed
   (let [state (model/add-terrain-rule
                {:terrain-sets [{:id :overworld
                                 :tileset :terrain
@@ -1060,7 +1060,7 @@
     (is (= :rule (:selected-terrain-rule-id state)))
     (is (= :rule (get-in state [:rulesets 0 :rules 0 :id])))))
 
-(deftest terrain-rule-match-change-stores_specific_terrain_condition
+(deftest terrain-rule-match-change-stores-specific-terrain-condition
   (let [state (model/set-selected-rule-match-condition
                {:terrain-sets [{:id :overworld
                                 :terrains [{:id :grass}
@@ -1077,7 +1077,7 @@
     (is (= {:terrain :water}
            (get-in state [:rulesets 0 :rules 0 :match :n])))))
 
-(deftest terrain-rule-match-change-stores_other_terrain_condition
+(deftest terrain-rule-match-change-stores-other-terrain-condition
   (let [state (model/set-selected-rule-match-condition
                {:terrain-sets [{:id :overworld
                                 :terrains [{:id :grass}
@@ -1094,7 +1094,7 @@
     (is (= :other-terrain
            (get-in state [:rulesets 0 :rules 0 :match :n])))))
 
-(deftest terrain-rule-options-show_only_selected_terrain_rules
+(deftest terrain-rule-options-show-only-selected-terrain-rules
   (let [state {:terrain-sets [{:id :overworld
                                :terrains [{:id :grass}
                                           {:id :water}]}]
@@ -1113,7 +1113,7 @@
              :label "Grass N"}]
            (model/terrain-rule-options state)))))
 
-(deftest terrain-rule-label-change-renames_selected_rule
+(deftest terrain-rule-label-change-renames-selected-rule
   (let [state (model/set-selected-terrain-rule-label
                {:terrain-sets [{:id :overworld
                                 :terrains [{:id :grass}]}]
@@ -1129,7 +1129,7 @@
                "North edge")]
     (is (= "North edge" (get-in state [:rulesets 0 :rules 0 :label])))))
 
-(deftest terrain-rule-exclusive-change-updates_selected_rule
+(deftest terrain-rule-exclusive-change-updates-selected-rule
   (let [state (model/set-selected-terrain-rule-exclusive
                {:terrain-sets [{:id :overworld
                                 :terrains [{:id :grass}]}]
@@ -1145,7 +1145,7 @@
                true)]
     (is (= true (get-in state [:rulesets 0 :rules 0 :exclusive?])))))
 
-(deftest terrain-workspace-state-derives_selected_rule_exclusive_flag
+(deftest terrain-workspace-state-derives-selected-rule-exclusive-flag
   (let [state (model/derive-terrain-workspace-state
                {:terrain-sets [{:id :overworld
                                 :terrains [{:id :grass}]}]
@@ -1160,7 +1160,7 @@
                 :selected-terrain-rule-id :edge})]
     (is (= true (:selected-terrain-rule-exclusive? state)))))
 
-(deftest terrain-rule-move-reorders_visible_rules_only
+(deftest terrain-rule-move-reorders-visible-rules-only
   (let [base-state {:terrain-sets [{:id :overworld
                                     :terrains [{:id :grass}
                                                {:id :water}]}]
@@ -1182,7 +1182,7 @@
     (is (= [:grass-b :water-a :grass-a]
            (map (get-in moved-down [:rulesets 0 :rules]) :id)))))
 
-(deftest terrain-rule-drag-reorder-reorders_visible_rules_only
+(deftest terrain-rule-drag-reorder-reorders-visible-rules-only
   (let [state (model/reorder-selected-terrain-rules
                {:terrain-sets [{:id :overworld
                                 :terrains [{:id :grass}
@@ -1203,7 +1203,7 @@
            (map (get-in state [:rulesets 0 :rules]) :id)))
     (is (= :grass-a (:selected-terrain-rule-id state)))))
 
-(deftest terrain-rule-delete-removes_selected_rule_and_selects_neighbor
+(deftest terrain-rule-delete-removes-selected-rule-and-selects-neighbor
   (let [state (model/delete-selected-terrain-rule
                {:terrain-sets [{:id :overworld
                                 :terrains [{:id :grass}]}]
@@ -1219,7 +1219,7 @@
            (map (get-in state [:rulesets 0 :rules]) :id)))
     (is (= :rule-b (:selected-terrain-rule-id state)))))
 
-(deftest terrain-set-delete-removes_set_rulesets_and_clears_references
+(deftest terrain-set-delete-removes-set-rulesets-and-clears-references
   (let [state (model/delete-selected-terrain-set
                {:terrain-sets [{:id :overworld
                                 :terrains [{:id :grass}]}
@@ -1259,7 +1259,7 @@
     (is (= 0 (:selected-terrain-set-index state)))
     (is (= 0 (:selected-terrain-index state)))))
 
-(deftest terrain-delete_removes_terrain_data_and_rules
+(deftest terrain-delete-removes-terrain-data-and-rules
   (let [state (model/delete-selected-terrain
                {:terrain-sets [{:id :overworld
                                 :terrains [{:id :grass}
@@ -1307,7 +1307,7 @@
     (is (= [:other-grass] (map (get-in state [:rulesets 1 :rules]) :id)))
     (is (= 0 (:selected-terrain-index state)))))
 
-(deftest terrain-rule-duplicate-inserts_copy_after_selected_rule
+(deftest terrain-rule-duplicate-inserts-copy-after-selected-rule
   (let [state (model/duplicate-selected-terrain-rule
                {:terrain-sets [{:id :overworld
                                 :terrains [{:id :grass}]}]
@@ -1336,7 +1336,7 @@
     (is (= {:n :same} (:match duplicate)))
     (is (= {:anchor {:x 1 :y 1}} (:output duplicate)))))
 
-(deftest terrain-rule-match-cycle-steps_visual_condition_options
+(deftest terrain-rule-match-cycle-steps-visual-condition-options
   (let [base-state {:terrain-sets [{:id :overworld
                                     :terrains [{:id :grass}
                                                {:id :water}]}]
@@ -1369,7 +1369,7 @@
     (is (= {:terrain :water}
            (get-in other-state [:rulesets 0 :rules 0 :match :n])))))
 
-(deftest terrain-rule-match-change-stores_empty_and_any_terrain_conditions
+(deftest terrain-rule-match-change-stores-empty-and-any-terrain-conditions
   (let [base-state {:terrain-sets [{:id :overworld
                                     :terrains [{:id :grass}
                                                {:id :water}]}]
@@ -1393,7 +1393,7 @@
     (is (= :any-terrain
            (get-in any-state [:rulesets 0 :rules 0 :match :s])))))
 
-(deftest terrain-rule-stamp-tile-edit-updates_center_stamp_cell
+(deftest terrain-rule-stamp-tile-edit-updates-center-stamp-cell
   (let [state (model/set-selected-rule-stamp-tile
                {:terrain-sets [{:id :overworld
                                 :terrains [{:id :grass}]}]
@@ -1428,7 +1428,7 @@
                     0
                     :center])))))
 
-(deftest terrain-rule-stamp-tile-edit-ignores_non_center_cells
+(deftest terrain-rule-stamp-tile-edit-ignores-non-center-cells
   (let [initial-state {:terrain-sets [{:id :overworld
                                        :terrains [{:id :grass}]}]
                        :selected-terrain-set-index 0
@@ -1448,7 +1448,7 @@
                                                   :shore)]
     (is (= initial-state state))))
 
-(deftest terrain-rule-stamp-tile-edit-allows_terrain_unit_cells
+(deftest terrain-rule-stamp-tile-edit-allows-terrain-unit-cells
   (let [state (model/set-selected-rule-stamp-tile
                {:terrain-sets [{:id :mountains
                                 :terrain-unit {:w 2 :h 2}
@@ -1473,7 +1473,7 @@
            (get-in state
                    [:rulesets 0 :rules 0 :output :layers 0 :tiles])))))
 
-(deftest terrain-rule-stamp-tile-edit-can_clear_cells
+(deftest terrain-rule-stamp-tile-edit-can-clear-cells
   (let [state (model/set-selected-rule-stamp-tile
                {:terrain-sets [{:id :overworld
                                 :terrains [{:id :grass}]}]
@@ -1506,7 +1506,7 @@
                        0
                        0])))))
 
-(deftest terrain-rule-output-signature-defaults_from_rule_match
+(deftest terrain-rule-output-signature-defaults-from-rule-match
   (let [state {:terrain-sets [{:id :overworld
                                :terrains [{:id :grass}
                                           {:id :desert}]}]
@@ -1533,7 +1533,7 @@
     (is (nil? (:s signature)))
     (is (nil? (:w signature)))))
 
-(deftest terrain-rule-output-signature-edit-updates_selected_stamp_cell
+(deftest terrain-rule-output-signature-edit-updates-selected-stamp-cell
   (let [state (model/set-selected-rule-output-terrain-signature
                {:terrain-sets [{:id :overworld
                                 :terrains [{:id :grass}
@@ -1565,7 +1565,7 @@
                     0
                     :e])))))
 
-(deftest terrain-rule-transform-rotates_match_without_changing_stamp
+(deftest terrain-rule-transform-rotates-match-without-changing-stamp
   (let [state (model/transform-selected-rule
                {:terrain-sets [{:id :overworld
                                 :terrains [{:id :grass}]}]
@@ -1620,7 +1620,7 @@
            (get-in state [:rulesets 0 :rules 0 :match :s])))
     (is (= :none (get-in state [:rulesets 0 :rules 0 :match :w])))))
 
-(deftest terrain-rule-stamp-selection-falls_back_when_tile_is_not_in_output_tileset
+(deftest terrain-rule-stamp-selection-falls-back-when-tile-is-not-in-output-tileset
   (let [state {:terrain-sets [{:id :overworld
                                :terrains [{:id :grass}]}]
                :selected-terrain-set-index 0
@@ -1641,7 +1641,7 @@
                :selected-terrain-rule-id :rule}]
     (is (= :grass-fill (model/selected-rule-stamp-tile state)))))
 
-(deftest terrain-standard-role-tile-creates_raw_stamp_rule
+(deftest terrain-standard-role-tile-creates-raw-stamp-rule
   (let [state (model/set-terrain-standard-role-tile
                {:terrain-sets [{:id :overworld
                                 :tileset :terrain
@@ -1681,7 +1681,7 @@
            (get-in rule [:output :layers 0 :tiles])))
     (is (= :rule (:selected-terrain-rule-id state)))))
 
-(deftest terrain-standard-role-tile-inserts_created_rule_before_less_specific_rule
+(deftest terrain-standard-role-tile-inserts-created-rule-before-less-specific-rule
   (let [state (model/set-terrain-standard-role-tile
                {:terrain-sets [{:id :overworld
                                 :tileset :terrain
@@ -1720,7 +1720,7 @@
     (is (= {:terrain :water}
            (get-in rules [0 :match :n])))))
 
-(deftest terrain-standard-opposing-toggle-builds_grouped_terrain_selection
+(deftest terrain-standard-opposing-toggle-builds-grouped-terrain-selection
   (let [base-state {:terrain-sets [{:id :overworld
                                     :terrains [{:id :grass}
                                                {:id :water
@@ -1753,7 +1753,7 @@
             sand-state
             (:terrain-standard-opposing sand-state))))))
 
-(deftest terrain-standard-role-tile-can_create_grouped_opposing_rule
+(deftest terrain-standard-role-tile-can-create-grouped-opposing-rule
   (let [state (model/set-terrain-standard-role-tile
                {:terrain-sets [{:id :overworld
                                 :tileset :terrain
@@ -1779,7 +1779,7 @@
     (is (= {:terrain-in [:water :sand]} (get-in rule [:match :n])))
     (is (= :soft-edge (get-in rule [:output :layers 0 :tiles 0 0])))))
 
-(deftest terrain-standard-role-mask-can_create_transition_mask_rule
+(deftest terrain-standard-role-mask-can-create-transition-mask-rule
   (let [mask-ref {:mask-set :soft-edge
                   :mask :north
                   :polarity :solid-is-opposing}
@@ -1804,7 +1804,40 @@
     (is (= [[mask-ref]]
            (get-in rule [:output :layers 0 :transition-masks])))))
 
-(deftest terrain-rule-match-condition-implies_supports_terrain_in_sets
+(deftest terrain-standard-cardinal-fork-mask-keeps-broad-output-signature
+  (let [mask-ref {:mask-set :soft-edge
+                  :mask :fork-n-e-s
+                  :polarity :solid-is-opposing}
+        state (model/set-terrain-standard-role-mask
+               {:terrain-sets [{:id :overworld
+                                :tileset :terrain
+                                :terrains [{:id :grass}
+                                           {:id :water}]}]
+                :tilesets [{:id :terrain
+                            :tiles [{:id :grass-fill}]}]
+                :mask-sets [{:id :soft-edge
+                             :masks [{:id :fork-n-e-s}]}]
+                :selected-terrain-set-index 0
+                :selected-terrain-index 0}
+               :forks-cardinal
+               :fork-nes
+               :water
+               mask-ref)
+        rule (get-in state [:rulesets 0 :rules 0])]
+    (is (= {:terrain :water} (get-in rule [:match :w])))
+    (is (= {:terrain :water} (get-in rule [:match :ne])))
+    (is (= {:terrain :water} (get-in rule [:match :se])))
+    (is (= {:center :grass
+            :nw :grass
+            :n :grass
+            :ne :grass
+            :e :grass
+            :sw :grass
+            :s :grass
+            :se :grass}
+           (get-in rule [:output :layers 0 :terrain-signatures 0 0])))))
+
+(deftest terrain-rule-match-condition-implies-supports-terrain-in-sets
   (is (= true
          (model/terrain-rule-match-condition-implies? :grass
                                                       {:terrain :water}
@@ -1830,7 +1863,7 @@
                                                                     :water]}
                                                       :other-terrain))))
 
-(deftest terrain-standard-rule-labels_include_semantic_setup_name
+(deftest terrain-standard-rule-labels-include-semantic-setup-name
   (let [outer-state (model/set-terrain-standard-role-tile
                      {:terrain-sets [{:id :overworld
                                       :tileset :terrain
@@ -1864,7 +1897,7 @@
     (is (= "Inner corner NW - None"
            (get-in inner-state [:rulesets 0 :rules 0 :label])))))
 
-(deftest terrain-standard-setup-visibility-defaults_to_all_groups
+(deftest terrain-standard-setup-visibility-defaults-to-all-groups
   (let [state {:terrain-sets [{:id :overworld
                                :terrains [{:id :grass}]}]
                :selected-terrain-set-index 0
@@ -1885,7 +1918,7 @@
     (is (= true (model/terrain-standard-setup-visible? state :forks-diagonal)))
     (is (= true (model/terrain-standard-setup-visible? state :stumps)))))
 
-(deftest terrain-standard-setup-visibility-is_stored_per_terrain
+(deftest terrain-standard-setup-visibility-is-stored-per-terrain
   (let [state (model/set-selected-terrain-standard-setup-visible
                {:terrain-sets [{:id :overworld
                                 :terrains [{:id :grass}
@@ -1920,7 +1953,7 @@
             :stumps]
            (model/selected-terrain-standard-setup-ids water-state)))))
 
-(deftest terrain-standard-isolated_roles_match_direction_sets
+(deftest terrain-standard-isolated-roles-match-direction-sets
   (is (= {:nw :none
           :n :none
           :ne :none
@@ -1949,7 +1982,7 @@
           :se {:terrain :water}}
          (model/terrain-standard-role-match :isolated-diagonal :water))))
 
-(deftest terrain-standard-island_corner_roles_include_inward_diagonal
+(deftest terrain-standard-island-corner-roles-include-inward-diagonal
   (is (= {:nw :ignore
           :n :none
           :ne :ignore
@@ -1969,7 +2002,36 @@
           :se :ignore}
          (model/terrain-standard-role-match :se :water))))
 
-(deftest terrain-standard-ring_roles_match_bends_and_straights
+(deftest terrain-standard-island-edge-roles-require-broad-edge
+  (is (= {:nw :none
+          :n :none
+          :ne :none
+          :w :same
+          :e :same
+          :sw :same
+          :s :same
+          :se :same}
+         (model/terrain-standard-role-match :n :none)))
+  (is (= {:nw :same
+          :n :same
+          :ne {:terrain :water}
+          :w :same
+          :e {:terrain :water}
+          :sw :same
+          :s :same
+          :se {:terrain :water}}
+         (model/terrain-standard-role-match :e :water)))
+  (is (= {:nw :same
+          :n :same
+          :ne :same
+          :w :same
+          :e :same
+          :sw :other-terrain
+          :s :other-terrain
+          :se :other-terrain}
+         (model/terrain-standard-role-match :s :any-other))))
+
+(deftest terrain-standard-ring-roles-match-bends-and-straights
   (let [setup (model/terrain-standard-setup :ring)]
     (is (= [:ring-bend-se
             :ring-straight-h
@@ -2010,27 +2072,47 @@
           :se {:terrain :water}}
          (model/terrain-standard-role-match :ring-bend-nw :water))))
 
-(deftest terrain-standard_cardinal_fork_roles_ignore_diagonals
+(deftest terrain-standard-island-center-requires-all-neighbors-same
+  (is (= {:nw :same
+          :n :same
+          :ne :same
+          :w :same
+          :e :same
+          :sw :same
+          :s :same
+          :se :same}
+         (model/terrain-standard-role-match :center :none))))
+
+(deftest terrain-standard-cardinal-fork-roles-exclude-diagonals
   (is (= {:nw :ignore
           :n :same
-          :ne :ignore
+          :ne :none
           :w :none
           :e :same
           :sw :ignore
           :s :same
-          :se :ignore}
+          :se :none}
          (model/terrain-standard-role-match :fork-nes :none)))
-  (is (= {:nw :ignore
+  (is (= {:nw :other-terrain
           :n :same
           :ne :ignore
           :w :same
-          :e :same
-          :sw :ignore
+          :e :other-terrain
+          :sw :other-terrain
           :s :same
           :se :ignore}
+         (model/terrain-standard-role-match :fork-nsw :any-other)))
+  (is (= {:nw :other-terrain
+          :n :same
+          :ne :other-terrain
+          :w :same
+          :e :same
+          :sw :other-terrain
+          :s :same
+          :se :other-terrain}
          (model/terrain-standard-role-match :fork-nesw :any-other))))
 
-(deftest terrain-standard_diagonal_fork_roles_include_between_arm_diagonals
+(deftest terrain-standard-diagonal-fork-roles-include-between-arm-diagonals
   (is (= {:nw :ignore
           :n :same
           :ne :same
@@ -2040,17 +2122,17 @@
           :s :same
           :se :same}
          (model/terrain-standard-role-match :fork-diagonal-nes :any-other)))
-  (is (= {:nw :ignore
+  (is (= {:nw :same
           :n :same
-          :ne :ignore
+          :ne :same
           :w :same
           :e :same
-          :sw :ignore
+          :sw :same
           :s :same
-          :se :ignore}
+          :se :same}
          (model/terrain-standard-role-match :fork-diagonal-nesw :water))))
 
-(deftest terrain-standard-stump_roles_match_exactly_one_neighbor
+(deftest terrain-standard-stump-roles-match-exactly-one-neighbor
   (is (= {:nw :none
           :n :none
           :ne :none
@@ -2079,7 +2161,7 @@
           :se {:terrain :water}}
          (model/terrain-standard-role-match :stump-se :water))))
 
-(deftest terrain-standard-role-tile-inserts_created_rule_after_more_specific_rule
+(deftest terrain-standard-role-tile-inserts-created-rule-after-more-specific-rule
   (let [state (model/set-terrain-standard-role-tile
                {:terrain-sets [{:id :overworld
                                 :tileset :terrain
@@ -2097,22 +2179,27 @@
                             :terrain-set :overworld
                             :rules [{:id :specific-corner
                                      :terrain :grass
-                                     :match {:n :none
+                                     :match {:nw {:terrain :water}
+                                             :n {:terrain :water}
+                                             :ne {:terrain :water}
+                                             :w :same
+                                             :e :same
+                                             :sw :same
                                              :s :same
-                                             :w :same}}
+                                             :se :same}}
                                     {:id :broad-edge
                                      :terrain :grass
-                                     :match {:n :none}}]}]
+                                     :match {:n :other-terrain}}]}]
                 :selected-terrain-ruleset-id :overworld-rules}
                :island-3x3
                :n
-               :none
+               :any-other
                :edge)
         rules (get-in state [:rulesets 0 :rules])]
     (is (= [:specific-corner :rule :broad-edge] (map rules :id)))
     (is (= true (:exclusive? (nth rules 1))))))
 
-(deftest terrain-standard-role-tile-updates_existing_rule_without_changing_exclusive_flag
+(deftest terrain-standard-role-tile-updates-existing-rule-without-changing-exclusive-flag
   (let [state (model/set-terrain-standard-role-tile
                {:terrain-sets [{:id :overworld
                                 :tileset :terrain
@@ -2148,7 +2235,7 @@
     (is (= [[:new-edge]]
            (get-in rule [:output :layers 0 :tiles])))))
 
-(deftest terrain-standard-inner-corner-role-uses_terrain_unit_output_cell
+(deftest terrain-standard-inner-corner-role-uses-terrain-unit-output-cell
   (let [state (model/set-terrain-standard-role-tile
                {:terrain-sets [{:id :overworld
                                 :tileset :terrain
@@ -2184,7 +2271,7 @@
             :inner-se
             :any-other)))))
 
-(deftest terrain-standard-role-recognizes_existing_rpg_edge_shapes
+(deftest terrain-standard-role-recognizes-existing-rpg-edge-shapes
   (let [state {:terrain-sets [{:id :overworld
                                :tileset :terrain
                                :terrains [{:id :grass
@@ -2235,7 +2322,7 @@
                                                  :n
                                                  :water)))))
 
-(deftest terrain-standard-role-recognizes_existing_grouped_opposing_rule
+(deftest terrain-standard-role-recognizes-existing-grouped-opposing-rule
   (let [state {:terrain-sets [{:id :overworld
                                :tileset :terrain
                                :terrains [{:id :grass}

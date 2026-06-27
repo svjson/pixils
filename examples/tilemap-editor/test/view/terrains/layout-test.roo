@@ -2,7 +2,7 @@
   (:require proof.core
             [tilemap-editor.view.terrains.layout :as layout]))
 
-(deftest terrain-set-list-panel-has_header_and_add_button
+(deftest terrain-set-list-panel-has-header-and-add-button
   (let [panel (layout/make-terrain-set-list-panel)
         header (head (:children panel))
         add-button (nth (:children header) 1)]
@@ -11,7 +11,7 @@
     (is (= :ui/toolbar-button (:class add-button)))
     (is (= "+" (-> add-button :state :label)))))
 
-(deftest terrain-set-list-rows-have_context_menu
+(deftest terrain-set-list-rows-have-context-menu
   (let [row (layout/terrain-row-child 0 {:value 0 :label "Terrain Set"})
         menu-item (head (:items layout/terrain-set-context-menu))
         delete-item (nth (:items layout/terrain-set-context-menu) 1)]
@@ -21,14 +21,14 @@
     (is (= "Delete" (:label delete-item)))
     (is (= :delete (-> delete-item :payload :command)))))
 
-(deftest terrain-list-rows-have_delete_context_menu_item
+(deftest terrain-list-rows-have-delete-context-menu-item
   (let [row (layout/terrain-context-row-child 0 {:value 0 :label "Terrain"})
         delete-item (nth (:items layout/terrain-context-menu) 2)]
     (is (= :terrain (-> row :state :context-kind)))
     (is (= "Delete" (:label delete-item)))
     (is (= :delete (-> delete-item :payload :command)))))
 
-(deftest terrain-list-panel-has_disabled_bound_add_button
+(deftest terrain-list-panel-has-disabled-bound-add-button
   (let [panel (layout/make-terrain-list-panel)
         header (head (:children panel))
         add-button (nth (:children header) 1)]
@@ -36,7 +36,7 @@
     (is (= "+" (-> add-button :state :label)))
     (is (not (nil? (-> add-button :state :disabled?))))))
 
-(deftest terrain-set-detail-editor-shows_identity_as_labels
+(deftest terrain-set-detail-editor-shows-identity-as-labels
   (let [children (layout/terrain-set-detail-editor-children)
         id-field (nth children 0)
         name-field (nth children 1)
@@ -46,26 +46,26 @@
     (is (= 'ui/button (:mode edit-button)))
     (is (= "Edit" (-> edit-button :state :label)))))
 
-(deftest terrain-set-detail-editor-includes_terrain_unit_selector
+(deftest terrain-set-detail-editor-includes-terrain-unit-selector
   (let [children (layout/terrain-set-detail-editor-children)
         label (nth children 5)
         selector (nth children 6)]
     (is (= "Terrain unit" (-> label :state :value)))
     (is (= 'terrain-unit-selector (:mode selector)))))
 
-(deftest terrain-set-detail-editor-includes_property_assignment_and_values
+(deftest terrain-set-detail-editor-includes-property-assignment-and-values
   (let [children (layout/terrain-set-detail-editor-children)
         assignment (nth children 7)
         values (nth children 8)]
     (is (= 'property-set-assignment-list (:mode assignment)))
     (is (= "Terrain Set Properties" (-> values :state :title)))))
 
-(deftest terrain-identity-row-does_not_render_base_tile_dropdown
+(deftest terrain-identity-row-does-not-render-base-tile-dropdown
   (let [children (layout/terrain-identity-row-children)]
     (is (= 1 (count children)))
     (is (= 'terrain-readonly-field (-> children head :mode)))))
 
-(deftest terrain-value-detail-header-is_compact
+(deftest terrain-value-detail-header-is-compact
   (let [header (layout/terrain-value-detail-header-child)
         children (:children header)
         preview (head children)
@@ -80,7 +80,7 @@
     (is (= 'ui/button (:mode edit-button)))
     (is (= "Edit" (-> edit-button :state :label)))))
 
-(deftest terrain-base-tile-popup-uses_tile_picker_panel
+(deftest terrain-base-tile-popup-uses-tile-picker-panel
   (let [children (layout/terrain-base-tile-popup-children {:x 10 :y 20})
         picker (head children)]
     (is (= 'terrain-base-tile-picker-scroll-pane (:mode picker)))
@@ -88,40 +88,40 @@
     (is (= 10 (-> picker :style :left)))
     (is (= 20 (-> picker :style :top)))))
 
-(deftest stamp-tile-picker-columns-tolerates_unlaid_out_bounds
+(deftest stamp-tile-picker-columns-tolerates-unlaid-out-bounds
   (is (= 1 (layout/terrain-stamp-tile-picker-columns nil)))
   (is (= {:x 0 :y 0 :w 32 :h 32}
          (layout/terrain-stamp-tile-picker-cell-rect 0 nil))))
 
-(deftest stamp-tile-picker-content-height-grows_for_hidden_rows
+(deftest stamp-tile-picker-content-height-grows-for-hidden-rows
   (is (= 100 (layout/terrain-stamp-tile-picker-content-height 7 3)))
   (is (= 100 (layout/terrain-stamp-tile-picker-content-height 8 3)))
   (is (> (layout/terrain-stamp-tile-picker-content-height 22 3)
          layout/terrain-stamp-tile-picker-height)))
 
-(deftest terrain-rule-context-menu-includes_duplicate_command
+(deftest terrain-rule-context-menu-includes-duplicate-command
   (let [items (:items layout/terrain-rule-context-menu)
         duplicate (nth items 1)]
     (is (= "Duplicate" (:label duplicate)))
     (is (= :duplicate (-> duplicate :payload :command)))))
 
-(deftest terrain-rule-list-is_reorderable
+(deftest terrain-rule-list-is-reorderable
   (is (= true (:reorderable? (:state (layout/terrain-rule-list-child {}))))))
 
-(deftest terrain-rule-transform-menu-includes_flip_and_rotate_commands
+(deftest terrain-rule-transform-menu-includes-flip-and-rotate-commands
   (let [items (:items layout/terrain-rule-transform-menu)]
     (is (= :flip-horizontal (-> (nth items 0) :payload :command)))
     (is (= :flip-vertical (-> (nth items 1) :payload :command)))
     (is (= :rotate-left (-> (nth items 3) :payload :command)))
     (is (= :rotate-right (-> (nth items 4) :payload :command)))))
 
-(deftest terrain-rule-tile-picker-is_column_shaped
+(deftest terrain-rule-tile-picker-is-column-shaped
   (is (< layout/terrain-stamp-tile-picker-width
          layout/terrain-stamp-tile-picker-height))
   (is (>= layout/terrain-stamp-tile-picker-width
           layout/terrain-stamp-tile-picker-cell-size)))
 
-(deftest terrain-rule-editor-tabs-keep_manual_editor_first
+(deftest terrain-rule-editor-tabs-keep-manual-editor-first
   (let [panel (layout/terrain-rule-editor-tabs-panel)
         tabs (-> panel :state :tabs)]
     (is (= :rules (-> tabs head :id)))
@@ -131,7 +131,7 @@
     (is (= "Semantic Roles" (-> tabs (nth 1) :label)))
     (is (= 'terrain-standard-setup-editor (-> tabs (nth 1) :child :mode)))))
 
-(deftest terrain-standard-output-picker-tabs_include_tiles_and_masks
+(deftest terrain-standard-output-picker-tabs-include-tiles-and-masks
   (let [panel (layout/terrain-standard-output-picker-tabs-panel)
         tabs (-> panel :state :tabs)]
     (is (= :tiles (-> tabs head :id)))
@@ -143,7 +143,7 @@
     (is (= 'terrain-standard-mask-picker
            (-> tabs (nth 1) :child :mode)))))
 
-(deftest terrain-detail-tabs_keep_existing_tabs_before_transitions
+(deftest terrain-detail-tabs-keep-existing-tabs-before-transitions
   (let [panel (layout/terrain-detail-tabs-child false)
         tabs (-> panel :state :tabs)]
     (is (= :terrain-set (-> tabs head :id)))
@@ -158,7 +158,7 @@
     (is (= 'terrain-transition-editor
            (-> tabs (nth 2) :child :mode)))))
 
-(deftest terrain-transition-editor_has_transition_summary_contract
+(deftest terrain-transition-editor-has-transition-summary-contract
   (let [panel (layout/terrain-detail-tabs-child false)
         transition-tab (nth (-> panel :state :tabs) 2)
         child (:child transition-tab)
@@ -171,7 +171,7 @@
     (is (= "Recipes" (-> field :children head :state :value)))
     (is (= 2 (-> field :children (nth 1) :state :value)))))
 
-(deftest mask-set-list-rows-have_context_menu
+(deftest mask-set-list-rows-have-context-menu
   (let [row (layout/mask-set-row-child 0 {:value :soft-edge
                                           :label "Soft Edge"})
         rename-item (head (:items layout/mask-set-context-menu))
@@ -182,7 +182,7 @@
     (is (= "Delete" (:label delete-item)))
     (is (= :delete (-> delete-item :payload :command)))))
 
-(deftest mask-set-list-child-renders_current_mask_sets
+(deftest mask-set-list-child-renders-current-mask-sets
   (let [list-box (layout/mask-set-list-child [{:id :soft-edge
                                                :label "Soft Edge"}]
                                              0)]
@@ -191,7 +191,7 @@
            (-> list-box :state :options)))
     (is (= [0] (-> list-box :state :selected-indices)))))
 
-(deftest mask-list-rows-have_context_menu
+(deftest mask-list-rows-have-context-menu
   (let [row (layout/mask-row-child 0 {:value 0
                                       :label "North"})
         rename-item (head (:items layout/mask-context-menu))
@@ -202,7 +202,7 @@
     (is (= "Delete" (:label delete-item)))
     (is (= :delete (-> delete-item :payload :command)))))
 
-(deftest mask-list-child-renders_current_masks
+(deftest mask-list-child-renders-current-masks
   (let [list-box (layout/mask-list-child {:masks [{:id :n
                                                    :label "North"}]}
                                          0)]
@@ -211,7 +211,7 @@
            (-> list-box :state :options)))
     (is (= [0] (-> list-box :state :selected-indices)))))
 
-(deftest terrain-standard-mask-row-drag-payload-identifies_mask
+(deftest terrain-standard-mask-row-drag-payload-identifies-mask
   (let [payload (layout/terrain-standard-mask-drag-payload
                  {:value {:mask-set :soft-edge
                           :mask :north}
@@ -224,7 +224,7 @@
             :polarity :solid-is-current}
            (:mask payload)))))
 
-(deftest terrain-standard-mask-row-drag-payload-keeps_selected_polarity
+(deftest terrain-standard-mask-row-drag-payload-keeps-selected-polarity
   (let [payload (layout/terrain-standard-mask-drag-payload
                  {:value {:mask-set :soft-edge
                           :mask :north}
@@ -238,7 +238,7 @@
             :polarity :solid-is-opposing}
            (:mask payload)))))
 
-(deftest terrain-standard-mask-picker-scopes_options_to_selected_terrain
+(deftest terrain-standard-mask-picker-scopes-options-to-selected-terrain
   (let [options (layout/terrain-standard-mask-options
                  {:terrain-sets [{:id :overworld
                                   :terrains [{:id :grass
@@ -257,7 +257,7 @@
              :label "North"}]
            options))))
 
-(deftest terrain-standard-transition-preview-draw-tile-uses_mask_source_size
+(deftest terrain-standard-transition-preview-draw-tile-uses-mask-source-size
   (let [tile {:type :transition-mask
               :id :grass-water
               :image :pixils-transition-cache/grass-water
@@ -269,7 +269,7 @@
     (is (= :pixils-transition-cache/preview-grass-water-64x48
            (:image preview)))))
 
-(deftest mask-definition-editor-exposes_source_controls
+(deftest mask-definition-editor-exposes-source-controls
   (let [children (layout/mask-definition-editor-children)
         source-row (nth children 3)
         tileset-row (nth children 4)
@@ -289,13 +289,13 @@
     (is (= "Tiles" (-> tiles-label :state :value)))
     (is (= 'mask-tile-item-list (:mode item-list)))))
 
-(deftest terrain-standard-setup-editor-exposes_role_slots
+(deftest terrain-standard-setup-editor-exposes-role-slots
   (let [slot (layout/terrain-standard-role-slot-child :island-3x3 :n "N")]
     (is (= 'terrain-standard-role-slot (:mode slot)))
     (is (= :island-3x3 (-> slot :state :setup-id)))
     (is (= :n (-> slot :state :role-id)))))
 
-(deftest terrain-standard-setup-editor-includes_group_visibility_menu_button
+(deftest terrain-standard-setup-editor-includes-group-visibility-menu-button
   (let [items (:items layout/terrain-standard-setup-menu)
         panel (layout/terrain-standard-setup-panel-child
                {:id :island-3x3
@@ -310,7 +310,7 @@
     (is (= :island-3x3 (-> panel :state :setup-id)))
     (is (= false (contains? (:state panel) :rulesets)))))
 
-(deftest terrain-standard-opposing-menu-includes_terrain_toggles
+(deftest terrain-standard-opposing-menu-includes-terrain-toggles
   (let [state {:terrain-sets [{:id :overworld
                                :terrains [{:id :grass}
                                           {:id :water
@@ -333,7 +333,7 @@
     (is (= true (:water option-state)))
     (is (= false (:sand option-state)))))
 
-(deftest terrain-standard-setup-groups-use_wrapped_row_layout
+(deftest terrain-standard-setup-groups-use-wrapped-row-layout
   (let [content (layout/terrain-standard-setup-panel-groups-content-child)
         layout-style (-> content :style :layout)
         children (:children content)]
@@ -348,8 +348,8 @@
     (is (= :island-3x3 (-> children head :state :setup-id)))
     (is (= :stumps (-> children (nth 6) :state :setup-id)))))
 
-(deftest terrain-standard-role-markers-use_not_same_match_directions
-  (is (= [:n]
+(deftest terrain-standard-role-markers-use-not-same-match-directions
+  (is (= [:nw :n :ne]
          (layout/terrain-standard-role-marker-directions :n)))
   (is (= [:nw]
          (layout/terrain-standard-role-marker-directions :inner-nw)))
@@ -358,7 +358,7 @@
   (is (= [:nw :ne :sw :se]
          (layout/terrain-standard-role-marker-directions :isolated-diagonal))))
 
-(deftest terrain-standard-role-surround_markers_are_only_for_isolated_setup
+(deftest terrain-standard-role-surround-markers-are-only-for-isolated-setup
   (is (= false
          (layout/terrain-standard-role-uses-surround-markers?
           {:setup-id :island-3x3
@@ -372,7 +372,7 @@
           {:setup-id :isolated
            :role-id :isolated-cardinal}))))
 
-(deftest terrain-standard-role-surround_marker_layout_is_only_for_isolated_setup
+(deftest terrain-standard-role-surround-marker-layout-is-only-for-isolated-setup
   (is (= 40
          (layout/terrain-standard-role-slot-size :island-3x3)))
   (is (= 40
@@ -384,7 +384,7 @@
   (is (= {:x 13 :y 13 :w 40 :h 40}
          (layout/terrain-standard-role-tile-rect {:setup-id :isolated}))))
 
-(deftest terrain-standard-role-marker-rects_are_third_sized_and_edge_aligned
+(deftest terrain-standard-role-marker-rects-are-third-sized-and-edge-aligned
   (is (= {:x 13 :y 0 :w 40 :h 13}
          (layout/terrain-standard-role-marker-rect :n)))
   (is (= {:x 0 :y 13 :w 13 :h 40}
@@ -392,30 +392,30 @@
   (is (= {:x 53 :y 53 :w 13 :h 13}
          (layout/terrain-standard-role-marker-rect :se))))
 
-(deftest terrain-stamp-grid-size-follows_terrain_unit
+(deftest terrain-stamp-grid-size-follows-terrain-unit
   (is (= {:w 32 :h 32}
          (layout/terrain-stamp-grid-size-for-unit {:w 1 :h 1})))
   (is (= {:w 66 :h 66}
          (layout/terrain-stamp-grid-size-for-unit {:w 2 :h 2}))))
 
-(deftest terrain-stamp-grid-renders_two_by_two_max
+(deftest terrain-stamp-grid-renders-two-by-two-max
   (let [row (layout/terrain-stamp-grid-row 0)]
     (is (= 2 (count (:children row))))))
 
-(deftest terrain-rule-output-tileset-options-use_tileset_ids
+(deftest terrain-rule-output-tileset-options-use-tileset-ids
   (is (= [{:value :water :label "Water"}
           {:value :roads :label "Roads"}]
          (layout/terrain-rule-output-tileset-options
           [{:id :water :label "Water"}
            {:id :roads :label "Roads"}]))))
 
-(deftest terrain-workspace-uses_split_pane_with_narrow_left_side
+(deftest terrain-workspace-uses-split-pane-with-narrow-left-side
   (let [split-pane (head (layout/terrain-definition-workspace-children))]
     (is (= 'ui/split-pane (:mode split-pane)))
     (is (= :x (-> split-pane :state :axis)))
     (is (= 0.26 (-> split-pane :state :split)))))
 
-(deftest terrain-workspace-includes_stamp_tile_drag_preview
+(deftest terrain-workspace-includes-stamp-tile-drag-preview
   (let [children (layout/terrain-definition-workspace-children)
         preview (nth children 1)]
     (is (= 'terrain-stamp-tile-drag-preview (:mode preview)))))

@@ -2919,10 +2919,10 @@
         (keyword-label opposing))))
 
 (def terrain-standard-role-opposing-directions
-  {:n [:n]
-   :s [:s]
-   :w [:w]
-   :e [:e]
+  {:n [:nw :n :ne]
+   :s [:sw :s :se]
+   :w [:nw :w :sw]
+   :e [:ne :e :se]
    :nw [:n :w]
    :ne [:n :e]
    :sw [:s :w]
@@ -2940,10 +2940,11 @@
    :ring-bend-se [:nw :n :ne :w :sw :se]
    :ring-straight-h [:n :s]
    :ring-straight-v [:w :e]
-   :fork-new [:s]
-   :fork-nsw [:e]
-   :fork-nes [:w]
-   :fork-esw [:n]
+   :fork-new [:nw :ne :s]
+   :fork-nsw [:nw :e :sw]
+   :fork-nesw [:nw :ne :sw :se]
+   :fork-nes [:w :ne :se]
+   :fork-esw [:n :sw :se]
    :fork-diagonal-new [:s]
    :fork-diagonal-nsw [:e]
    :fork-diagonal-nes [:w]
@@ -2958,11 +2959,11 @@
    :stump-se [:n :ne :w :e :sw :s :se]})
 
 (def terrain-standard-role-same-directions
-  {:center [:n :w :e :s]
-   :n [:s]
-   :s [:n]
-   :w [:e]
-   :e [:w]
+  {:center [:nw :n :ne :w :e :sw :s :se]
+   :n [:w :e :sw :s :se]
+   :s [:nw :n :ne :w :e]
+   :w [:n :ne :e :s :se]
+   :e [:nw :n :w :sw :s]
    :nw [:s :e :se]
    :ne [:s :w :sw]
    :sw [:n :e :ne]
@@ -2984,7 +2985,7 @@
    :fork-esw [:e :s :w]
    :fork-diagonal-new [:nw :n :ne :w :e]
    :fork-diagonal-nsw [:nw :n :w :sw :s]
-   :fork-diagonal-nesw [:n :w :e :s]
+   :fork-diagonal-nesw [:nw :n :ne :w :e :sw :s :se]
    :fork-diagonal-nes [:n :ne :e :se :s]
    :fork-diagonal-esw [:e :se :s :sw :w]
    :stump-nw [:se]
@@ -2995,6 +2996,23 @@
    :stump-sw [:ne]
    :stump-s [:n]
    :stump-se [:nw]})
+
+(def terrain-standard-role-output-same-directions
+  {:fork-new [:nw :n :ne :w :e :sw :se]
+   :fork-nsw [:nw :n :ne :w :sw :s :se]
+   :fork-nes [:nw :n :ne :e :sw :s :se]
+   :fork-esw [:nw :ne :w :e :sw :s :se]})
+
+(defun terrain-standard-role-output-signature [rule role-id]
+  (let [directions (get terrain-standard-role-output-same-directions role-id)
+        center-terrain-id (terrain-rule-center rule)]
+    (if (and (not (nil? center-terrain-id))
+             (not (nil? directions)))
+      (reduce directions
+              {:center center-terrain-id}
+              (fn [signature direction]
+                (assoc signature direction center-terrain-id)))
+      (default-terrain-signature-for-rule rule))))
 
 (defun terrain-standard-role-match-value [role-id opposing direction]
   (cond
@@ -3017,6 +3035,39 @@
                    (terrain-standard-role-match-value role-id
                                                       opposing
                                                       direction)))))
+
+(def terrain-standard-legacy-edge-role-opposing-directions
+  {:n [:n]
+   :s [:s]
+   :w [:w]
+   :e [:e]})
+
+(def terrain-standard-legacy-edge-role-same-directions
+  {:n [:s]
+   :s [:n]
+   :w [:e]
+   :e [:w]})
+
+(defun terrain-standard-legacy-edge-role-match [role-id opposing]
+  (when (contains? terrain-standard-legacy-edge-role-same-directions role-id)
+    (reduce neighbor-directions
+            {}
+            (fn [match direction]
+              (assoc
+               match
+               direction
+               (cond
+                 (contains? (get terrain-standard-legacy-edge-role-opposing-directions
+                                  role-id)
+                            direction)
+                 (terrain-standard-opposing-condition opposing)
+
+                 (contains? (get terrain-standard-legacy-edge-role-same-directions
+                                  role-id)
+                            direction)
+                 :same
+
+                 :default :ignore))))))
 
 (defun normalized-match-condition [condition]
   (or condition :ignore))
@@ -3181,9 +3232,8 @@
       (concat (or rules []) [rule])
       (insert-item-at-index rules index rule))))
 
-(defun terrain-standard-rule-match? [rule role-id opposing]
-  (let [shape (terrain-standard-role-match role-id opposing)
-        match (or (:match rule) {})]
+(defun terrain-standard-rule-match-shape? [rule shape opposing]
+  (let [match (or (:match rule) {})]
     (= 0
        (count
         (filter neighbor-directions
@@ -3192,6 +3242,13 @@
                         (get match direction)
                         (get shape direction)
                         opposing))))))))
+
+(defun terrain-standard-rule-match? [rule role-id opposing]
+  (let [shape (terrain-standard-role-match role-id opposing)
+        legacy-shape (terrain-standard-legacy-edge-role-match role-id opposing)]
+    (or (terrain-standard-rule-match-shape? rule shape opposing)
+        (and legacy-shape
+             (terrain-standard-rule-match-shape? rule legacy-shape opposing)))))
 
 (defun terrain-standard-role-output-position [state role-id]
   (let [unit (selected-terrain-unit state)
@@ -3355,7 +3412,7 @@
         output-layer (or (head (or (-> rule :output :layers) []))
                          fallback-layer)
         signature (when (or tile-ref mask-ref)
-                    (default-terrain-signature-for-rule rule))]
+                    (terrain-standard-role-output-signature rule role-id))]
     (assoc (assoc output-layer
                   :tiles
                   (terrain-unit-single-tile-stamp unit pos tile-ref))
