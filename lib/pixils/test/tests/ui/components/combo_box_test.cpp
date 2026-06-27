@@ -398,6 +398,119 @@ TEST_F(ComboBoxTest, open_combo_box_closes_without_reopening_when_trigger_clicke
   EXPECT_EQ(session.active_mode->mode->name, "root-mode");
 }
 
+TEST_F(ComboBoxTest, combo_box_popup_flips_above_when_below_would_leave_screen)
+{
+  runtime.eval(R"(
+    (pixils/defmode root-mode
+      {:children [(pixils.ui.combo-box/make
+                   {:options [{:value :a :label "Alpha"}
+                              {:value :b :label "Beta"}
+                              {:value :c :label "Gamma"}
+                              {:value :d :label "Delta"}]
+                    :style {:position :absolute
+                            :left 20
+                            :top 170
+                            :width 100}
+                    :row-height 10
+                    :max-height 40})]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  session.update_mode();
+  session.render_mode();
+
+  ASSERT_NE(session.active_mode, nullptr);
+  ASSERT_EQ(session.active_mode->children.size(), 1u);
+  auto combo = session.active_mode->children[0];
+  ASSERT_NE(combo, nullptr);
+
+  input().mouse_down({25, 175});
+  update_cycle();
+  session.render_mode();
+
+  ASSERT_NE(session.active_mode, nullptr);
+  EXPECT_EQ(session.active_mode->mode->name, "ui/combo-box-popup");
+  ASSERT_EQ(session.active_mode->children.size(), 1u);
+  auto popup_panel = session.active_mode->children[0];
+  ASSERT_NE(popup_panel, nullptr);
+
+  EXPECT_LT(popup_panel->visual_bounds.y, combo->visual_bounds.y);
+  EXPECT_LE(popup_panel->visual_bounds.y + popup_panel->visual_bounds.h, 200);
+  EXPECT_EQ(popup_panel->bounds.x, 20);
+}
+
+TEST_F(ComboBoxTest, combo_box_popup_clamps_right_edge_to_screen)
+{
+  runtime.eval(R"(
+    (pixils/defmode root-mode
+      {:children [(pixils.ui.combo-box/make
+                   {:options [{:value :a :label "Alpha"}
+                              {:value :b :label "Beta"}]
+                    :style {:position :absolute
+                            :left 260
+                            :top 20
+                            :width 100}
+                    :row-height 10
+                    :max-height 20})]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  session.update_mode();
+  session.render_mode();
+
+  ASSERT_NE(session.active_mode, nullptr);
+  ASSERT_EQ(session.active_mode->children.size(), 1u);
+  auto combo = session.active_mode->children[0];
+  ASSERT_NE(combo, nullptr);
+
+  input().mouse_down({265, 25});
+  update_cycle();
+  session.render_mode();
+
+  ASSERT_NE(session.active_mode, nullptr);
+  EXPECT_EQ(session.active_mode->mode->name, "ui/combo-box-popup");
+  ASSERT_EQ(session.active_mode->children.size(), 1u);
+  auto popup_panel = session.active_mode->children[0];
+  ASSERT_NE(popup_panel, nullptr);
+
+  EXPECT_LT(popup_panel->visual_bounds.x, combo->visual_bounds.x);
+  EXPECT_LE(popup_panel->visual_bounds.x + popup_panel->visual_bounds.w, 320);
+  EXPECT_EQ(popup_panel->bounds.x, 220);
+}
+
+TEST_F(ComboBoxTest, combo_box_popup_clamps_left_edge_to_screen)
+{
+  runtime.eval(R"(
+    (pixils/defmode root-mode
+      {:children [(pixils.ui.combo-box/make
+                   {:options [{:value :a :label "Alpha"}
+                              {:value :b :label "Beta"}]
+                    :style {:position :absolute
+                            :left -20
+                            :top 20
+                            :width 100}
+                    :row-height 10
+                    :max-height 20})]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  session.update_mode();
+  session.render_mode();
+
+  input().mouse_down({5, 25});
+  update_cycle();
+  session.render_mode();
+
+  ASSERT_NE(session.active_mode, nullptr);
+  EXPECT_EQ(session.active_mode->mode->name, "ui/combo-box-popup");
+  ASSERT_EQ(session.active_mode->children.size(), 1u);
+  auto popup_panel = session.active_mode->children[0];
+  ASSERT_NE(popup_panel, nullptr);
+
+  EXPECT_EQ(popup_panel->visual_bounds.x, 0);
+  EXPECT_EQ(popup_panel->bounds.x, 0);
+}
+
 TEST_F(ComboBoxTest, scaled_combo_box_popup_uses_anchor_visual_geometry)
 {
   runtime.eval(R"(

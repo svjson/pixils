@@ -5,6 +5,7 @@
 
 (def default-row-height 20)
 (def default-max-height 120)
+(def popup-panel-inset 2)
 
 (defun option-label [option]
   (or (:label option)
@@ -92,12 +93,47 @@
                                     direction)]
       (select-index state index ctx))))
 
-(defun popup-position [anchor-view]
-  (let [bounds (:visual-bounds anchor-view)
-        scale (or (:visual-scale anchor-view) 1)]
-    {:left (int (/ (:x bounds) scale))
-     :top (int (/ (+ (:y bounds) (:h bounds)) scale))
-     :width (max 1 (int (/ (:w bounds) scale)))
+(defun clamp [value low high]
+  (max low (min high value)))
+
+(defun popup-list-height [options row-height max-height]
+  (min (or max-height (* (count options) row-height))
+       (* (count options) row-height)))
+
+(defun popup-outer-height [options row-height max-height]
+  (max 1 (+ (popup-list-height options row-height max-height)
+            popup-panel-inset)))
+
+(defun popup-position [ctx options row-height max-height]
+  (let [anchor-view (:view ctx)
+        bounds (:visual-bounds anchor-view)
+        buffer (:buffer-size ctx)
+        scale (or (:visual-scale anchor-view) 1)
+        width (max 1 (int (/ (:w bounds) scale)))
+        height (popup-outer-height options row-height max-height)
+        visual-width (* width scale)
+        visual-height (* height scale)
+        below-top (+ (:y bounds) (:h bounds))
+        desired-top (if (and (not (nil? buffer))
+                             (number? (:h buffer))
+                             (> (+ below-top visual-height) (:h buffer)))
+                      (- (:y bounds) visual-height)
+                      below-top)
+        visual-left (if (and (not (nil? buffer))
+                             (number? (:w buffer)))
+                      (clamp (:x bounds)
+                             0
+                             (max 0 (- (:w buffer) visual-width)))
+                      (:x bounds))
+        visual-top (if (and (not (nil? buffer))
+                            (number? (:h buffer)))
+                     (clamp desired-top
+                            0
+                            (max 0 (- (:h buffer) visual-height)))
+                     desired-top)]
+    {:top (int (/ visual-top scale))
+     :left (int (/ visual-left scale))
+     :width width
      :scale scale}))
 
 (defun point-in-rect? [point rect]
@@ -115,7 +151,7 @@
   (let [options (or (:options state) [])
         row-height (or (:row-height state) default-row-height)
         max-height (or (:max-height state) default-max-height)
-        pos (popup-position (:view ctx))]
+        pos (popup-position ctx options row-height max-height)]
     (when (and (not (:disabled? state))
                (not (empty? options)))
       (push-mode!
