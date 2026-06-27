@@ -452,6 +452,14 @@
       :default {:left (:x bounds)
                 :top (+ (:y bounds) (:h bounds))})))
 
+(defun point-in-rect? [point rect]
+  (and (not (nil? point))
+       (not (nil? rect))
+       (>= (:x point) (:x rect))
+       (>= (:y point) (:y rect))
+       (< (:x point) (+ (:x rect) (:w rect)))
+       (< (:y point) (+ (:y rect) (:h rect)))))
+
 (defun view-scale [view]
   (or (-> view :effective-style :scale)
       (-> view :style :scale)))
@@ -501,6 +509,7 @@
       :input-source :mouse
       :menu-depth (or (:menu-depth state) 0)
       :menu-scale (:menu-scale state)
+      :anchor-bounds (:anchor-bounds state)
       :option-state (:option-state state)
       :game (:game state)
       :preferences (:preferences state)}
@@ -512,7 +521,12 @@
   (when-let [items (:items node)]
     (when (not (empty? items))
       (let [position (popup-position anchor-view placement)]
-        (open-popup-at-position! items state anchor-view position)))))
+        (open-popup-at-position! items
+                                 (assoc state
+                                        :anchor-bounds
+                                        (:visual-bounds anchor-view))
+                                 anchor-view
+                                 position)))))
 
 (defun open-context-menu! [menu-definition position state ctx]
   (let [menu (normalize-menu menu-definition (:keymap state))]
@@ -548,6 +562,9 @@
                     (let [node (:node state)]
                       (ui/stop-propagation! event)
                       (cond
+                        (:suppress-next-open? state)
+                        (assoc state :suppress-next-open? false)
+
                         (and node
                              (not (:disabled? node))
                              (not (empty? (:items node))))
@@ -587,6 +604,10 @@
                                        (:action payload)
                                        (:payload payload))
                              state)
+
+                           (and (= :dismiss (:type payload))
+                                (:anchor-click? payload))
+                           (assoc state :suppress-next-open? true)
 
                            :default
                            state)))}
@@ -855,7 +876,11 @@
 
 (defmode ui/popup-menu
   {:on-mouse-down (fn [state event ctx]
-                    (pop-mode! {:type :dismiss})
+                    (pop-mode! (if (point-in-rect? (:global-position event)
+                                                   (:anchor-bounds state))
+                                 {:type :dismiss
+                                  :anchor-click? true}
+                                 {:type :dismiss}))
                     state)
    :on {:menu/select (fn [state event ctx]
                        (ui/stop-propagation! event)

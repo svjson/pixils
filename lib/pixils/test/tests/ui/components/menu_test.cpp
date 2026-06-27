@@ -143,6 +143,49 @@ TEST_F(MenuTest, opened_popup_without_menu_scale_omits_scale_style)
   EXPECT_FALSE(session.active_mode->effective_style.scale.has_value());
 }
 
+TEST_F(MenuTest, clicking_open_menu_bar_item_closes_without_reopening)
+{
+  runtime.eval(R"(
+    (def menu-definition
+      {:items [{:label "File"
+                :items [{:label "Open"
+                         :action :file/open}]}]})
+
+    (pixils/defmode root-mode
+      {:children [(pixils.ui.menu/make-menu
+                   {}
+                   menu-definition
+                   {})]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  session.update_mode();
+  session.render_mode();
+
+  ASSERT_NE(session.active_mode, nullptr);
+  ASSERT_EQ(session.active_mode->children.size(), 1u);
+  auto menu = session.active_mode->children[0];
+  ASSERT_NE(menu, nullptr);
+  ASSERT_EQ(menu->children.size(), 1u);
+  auto menu_item = menu->children[0];
+  ASSERT_NE(menu_item, nullptr);
+  auto item_center = std::make_pair(menu_item->bounds.x + menu_item->bounds.w / 2,
+                                    menu_item->bounds.y + menu_item->bounds.h / 2);
+
+  input().mouse_down(item_center);
+  update_cycle();
+  session.render_mode();
+
+  ASSERT_NE(session.active_mode, nullptr);
+  EXPECT_EQ(session.active_mode->mode->name, "ui/popup-menu");
+
+  input().mouse_down(item_center);
+  update_cycle();
+
+  ASSERT_NE(session.active_mode, nullptr);
+  EXPECT_EQ(session.active_mode->mode->name, "root-mode");
+}
+
 TEST_F(MenuTest, classic_blue_menus_use_classic_blue_font)
 {
   runtime.eval(R"(
