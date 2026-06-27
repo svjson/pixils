@@ -1,0 +1,1288 @@
+(ns tilemap-editor.view.masks.layout
+  (:require pixils
+            [pixils.render :as r]
+            [pixils.ui :as ui]
+            [pixils.ui.combo-box :as cb]
+            [pixils.ui.dialog :as dialog]
+            [pixils.ui.header-panel :as hp]
+            [pixils.ui.list-box :as lb]
+            [pixils.ui.menu :as menu]
+            [pixils.ui.number-input :as ni]
+            [pixils.ui.tab-panel :as tabs]
+            [pixils.tilemap.project.model :as data]
+            [tilemap-editor.view.id-name-dialog :as id-name-dialog]
+            [tilemap-editor.view.tilemap.renderer :as tr]
+            [tilemap-editor.view.terrains.model :as model]))
+
+(def mask-list-row-height 24)
+(def mask-canvas-padding 8)
+(def mask-palette-cell-size 32)
+(def mask-palette-gap 2)
+(def mask-palette-width 150)
+(def mask-palette-height 192)
+
+(defun mask-canvas-view-size [state]
+  (let [size (model/selected-mask-set-size state)]
+    {:w (+ (:w size) (* 2 mask-canvas-padding))
+     :h (+ (:h size) (* 2 mask-canvas-padding))}))
+
+(def mask-set-context-menu
+  {:settings {:mnemonics {:enabled false}}
+   :items [{:label "Rename Mask Set"
+            :action :mask/set-context-dummy
+            :payload {:command :rename}}
+           {:label "Delete"
+            :action :mask/set-context-dummy
+            :payload {:command :delete}}]})
+
+(def mask-context-menu
+  {:settings {:mnemonics {:enabled false}}
+   :items [{:label "Rename Mask"
+            :action :mask/context-dummy
+            :payload {:command :rename}}
+           {:label "Delete"
+            :action :mask/context-dummy
+            :payload {:command :delete}}]})
+
+(defun mask-canvas-item-context-menu [index]
+  {:settings {:mnemonics {:enabled false}}
+   :items [{:label "Remove"
+            :action :mask/tile-item-context-dummy
+            :payload {:command :remove
+                      :index index}}]})
+
+(defcomponent mask-workspace-set-row
+  {:extend 'ui/list-box-item
+   :class :ui/list-item-hover
+   :style {:width :fill
+           :height mask-list-row-height
+           :padding [3 6]
+           :layout {:direction :row
+                    :align-items :center}}
+   :update (fn [state ctx]
+             (assoc state :selected (contains? (:selected-indices state)
+                                               (:index state))))
+   :on-mouse-down (fn [state event ctx]
+                    (do
+                      (ui/stop-propagation! event)
+                      state))
+   :on-mouse-up (fn [state event ctx]
+                  (do
+                    (ui/stop-propagation! event)
+                    (ui/emit! (:view ctx)
+                              :list-box/item-click
+                              {:index (:index state)
+                               :value (:value state)
+                               :shift? false
+                               :ctrl? false})
+                    (when (= (:button event) :right)
+                      (menu/open-context-menu! mask-set-context-menu
+                                               (:global-position event)
+                                               state
+                                               ctx))
+                    state))
+   :on {:menu/select (fn [state event ctx]
+                       (let [payload (:payload event)]
+                         (do
+                           (ui/stop-propagation! event)
+                           (when (= (:type payload) :action)
+                             (ui/emit! (:view ctx)
+                                       :mask/set-context-command
+                                       {:mask-set-index (:index state)
+                                        :command
+                                        (-> payload :payload :command)}))))
+                       state)}
+   :children [{:mode 'ui/text
+               :style {:width :fill}
+               :state {:value (ui/bind-state :label)}}]})
+
+(defun mask-set-row-child [index option]
+  {:mode 'mask-workspace-set-row
+   :state {:index index
+           :value (:value option)
+           :label (:label option)
+           :selected-indices (ui/bind-state :selected-indices)}})
+
+(defcomponent mask-workspace-mask-row
+  {:extend 'ui/list-box-item
+   :class :ui/list-item-hover
+   :style {:width :fill
+           :height mask-list-row-height
+           :padding [3 6]
+           :layout {:direction :row
+                    :align-items :center}}
+   :update (fn [state ctx]
+             (assoc state :selected (contains? (:selected-indices state)
+                                               (:index state))))
+   :on-mouse-down (fn [state event ctx]
+                    (do
+                      (ui/stop-propagation! event)
+                      state))
+   :on-mouse-up (fn [state event ctx]
+                  (do
+                    (ui/stop-propagation! event)
+                    (ui/emit! (:view ctx)
+                              :list-box/item-click
+                              {:index (:index state)
+                               :value (:value state)
+                               :shift? false
+                               :ctrl? false})
+                    (when (= (:button event) :right)
+                      (menu/open-context-menu! mask-context-menu
+                                               (:global-position event)
+                                               state
+                                               ctx))
+                    state))
+   :on {:menu/select (fn [state event ctx]
+                       (let [payload (:payload event)]
+                         (do
+                           (ui/stop-propagation! event)
+                           (when (= (:type payload) :action)
+                             (ui/emit! (:view ctx)
+                                       :mask/context-command
+                                       {:mask-index (:index state)
+                                        :command
+                                        (-> payload :payload :command)}))))
+                       state)}
+   :children [{:mode 'ui/text
+               :style {:width :fill}
+               :state {:value (ui/bind-state :label)}}]})
+
+(defun mask-row-child [index option]
+  {:mode 'mask-workspace-mask-row
+   :state {:index index
+           :value (:value option)
+           :label (:label option)
+           :selected-indices (ui/bind-state :selected-indices)}})
+
+(defun summary-field [label value]
+  {:style {:width :fill
+           :height 24
+           :layout {:direction :row
+                    :align-items :center
+                    :gap 8}}
+   :children [{:mode 'ui/text
+               :class :ui/muted
+               :style {:width 92}
+               :state {:value label}}
+              {:mode 'ui/text
+               :style {:width :fill}
+               :state {:value value}}]})
+
+(defun control-field [label child]
+  {:style {:width :fill
+           :height 24
+           :layout {:direction :row
+                    :align-items :center
+                    :gap 8}}
+   :state (ui/bind-state)
+   :children [{:mode 'ui/text
+               :class :ui/muted
+               :style {:width 92}
+               :state {:value label}}
+              child]})
+
+(defun selected-mask-state-bindings []
+  {:mask-sets (ui/bind-state :mask-sets)
+   :selected-mask-set-index (ui/bind-state :selected-mask-set-index)
+   :selected-mask-index (ui/bind-state :selected-mask-index)})
+
+(defun tileset-id-from-combo-payload [tilesets payload]
+  (let [value (:value payload)]
+    (if (number? value)
+      (data/tileset-key tilesets value)
+      (or value
+          (data/tileset-key tilesets (:selected-index payload))))))
+
+(defcomponent mask-workspace-source-type-selector
+  {:id "mask-source-type-selector"
+   :style {:width 180
+           :height 22}
+   :update (fn [state ctx]
+             (let [mask-set (model/selected-mask-set
+                             (:mask-sets state)
+                             (:selected-mask-set-index state))
+                   mask (model/selected-mask mask-set
+                                             (:selected-mask-index state))]
+               (assoc state
+                      :source-type-options model/mask-source-type-options
+                      :selected-source-type-index
+                      (model/mask-source-type-index mask)
+                      :disabled? (nil? mask))))
+   :on {:combo-box/change
+        (fn [state event ctx]
+          (do
+            (ui/stop-propagation! event)
+            (ui/emit! (:view ctx)
+                      :mask/source-type-change
+                      (-> event :payload :value))
+            state))}
+   :children [(cb/make {:options (ui/bind-state :source-type-options)
+                        :selected-index
+                        (ui/bind-state :selected-source-type-index)
+                        :disabled? (ui/bind-state :disabled?)})]})
+
+(defcomponent mask-workspace-source-tileset-selector
+  {:id "mask-source-tileset-selector"
+   :style {:width 180
+           :height 22}
+   :update (fn [state ctx]
+             (let [tileset-id (model/selected-mask-source-tileset state)]
+               (assoc state
+                      :tileset-options (data/tileset-options (:tilesets state))
+                      :selected-tileset-index
+                      (data/tileset-index (:tilesets state) tileset-id)
+                      :disabled? (or (:mask-editor-disabled? state)
+                                     (empty? (:tilesets state))))))
+   :on {:combo-box/change
+        (fn [state event ctx]
+          (do
+            (ui/stop-propagation! event)
+            (ui/emit! (:view ctx)
+                      :mask/source-tileset-change
+                      (tileset-id-from-combo-payload
+                       (:tilesets state)
+                       (:payload event)))
+            state))}
+   :children [(cb/make {:options (ui/bind-state :tileset-options)
+                        :selected-index
+                        (ui/bind-state :selected-tileset-index)
+                        :disabled? (ui/bind-state :disabled?)})]})
+
+(defcomponent mask-set-size-input
+  {:style {:width 86
+           :height 22}
+   :on {:number-input/change
+        (fn [state event ctx]
+          (do
+            (ui/stop-propagation! event)
+            (ui/emit! (:view ctx)
+                      :mask/set-size-change
+                      {:axis (:axis state)
+                       :value (-> event :payload :value)})
+            state))}
+   :children [(ni/make {:value (ui/bind-state :value)
+                        :min data/min-map-dimension
+                        :max data/max-map-dimension
+                        :step 1
+                        :disabled? (ui/bind-state :disabled?)
+                        :style {:width :fill
+                                :height :fill}})]})
+
+(defun mask-source-tileset [state]
+  (model/selected-mask-source-tileset state))
+
+(defun mask-source-tile-size [state]
+  (let [tileset (data/tileset-definition (:tilesets state)
+                                         (mask-source-tileset state))]
+    (data/map-tile-dim (or (:tile-size tileset) data/tile-dim))))
+
+(defun mask-source-tile-options [state]
+  (data/tile-options (:tilesets state) (mask-source-tileset state)))
+
+(defun mask-source-tile [state tile-ref]
+  (data/tile-in (:tilesets state) (mask-source-tileset state) tile-ref))
+
+(defun mask-palette-stride []
+  (+ mask-palette-cell-size mask-palette-gap))
+
+(defun mask-palette-columns [bounds]
+  (max 1 (int (/ (+ (max 1 (or (:w bounds) 1)) mask-palette-gap)
+                 (mask-palette-stride)))))
+
+(defun mask-palette-index-at-position [position bounds item-count]
+  (let [stride (mask-palette-stride)
+        col (int (/ (:x position) stride))
+        row (int (/ (:y position) stride))
+        index (+ col (* row (mask-palette-columns bounds)))]
+    (if (and (>= (:x position) 0)
+             (>= (:y position) 0)
+             (< (mod (:x position) stride) mask-palette-cell-size)
+             (< (mod (:y position) stride) mask-palette-cell-size)
+             (< index item-count))
+      index
+      nil)))
+
+(defun mask-palette-cell-rect [index columns]
+  (let [columns (max 1 (or columns 1))
+        stride (mask-palette-stride)]
+    {:x (* (mod index columns) stride)
+     :y (* (int (/ index columns)) stride)
+     :w mask-palette-cell-size
+     :h mask-palette-cell-size}))
+
+(defun mask-palette-drag-offset [event rect]
+  (let [pos (:start-position event)]
+    {:x (- (:x pos) (:x rect))
+     :y (- (:y pos) (:y rect))}))
+
+(defun mask-palette-drag-payload [state event ctx]
+  (let [options (mask-source-tile-options state)
+        columns (mask-palette-columns (-> ctx :view :bounds))
+        index (mask-palette-index-at-position (:start-position event)
+                                              (-> ctx :view :bounds)
+                                              (count options))
+        option (when (not (nil? index)) (nth options index))
+        rect (mask-palette-cell-rect (or index 0) columns)]
+    (when option
+      {:kind :mask/source-tile
+       :tileset (mask-source-tileset state)
+       :tile (:value option)
+       :tile-size (mask-source-tile-size state)
+       :offset (mask-palette-drag-offset event rect)})))
+
+(defun draw-mask-palette-cell! [state option index columns]
+  (let [rect (mask-palette-cell-rect index columns)
+        tile (mask-source-tile state (:value option))]
+    (do
+      (r/rect! rect {:fill true
+                     :color {:r 0x12 :g 0x15 :b 0x18}})
+      (when tile
+        (tr/draw-tile! tile
+                       {:x (+ (:x rect) 4)
+                        :y (+ (:y rect) 4)
+                        :w (- (:w rect) 8)
+                        :h (- (:h rect) 8)}))
+      (r/rect! rect {:color {:r 0x1f :g 0x26 :b 0x2d}}))))
+
+(defcomponent mask-source-tile-palette
+  {:focusable true
+   :class :ui/content
+   :style {:width mask-palette-width
+           :height mask-palette-height
+           :clip true
+           :cursor :pointer}
+   :drag {:start {:mode :threshold
+                  :distance 3}
+          :payload mask-palette-drag-payload}
+   :update (fn [state ctx]
+             (assoc state
+                    :tile-options (mask-source-tile-options state)
+                    :disabled? (or (:mask-editor-disabled? state)
+                                   (empty? (mask-source-tile-options state)))))
+   :render (fn [state ctx]
+             (let [options (or (:tile-options state) [])
+                   columns (mask-palette-columns (-> ctx :view :bounds))]
+               (do
+                 (r/rect! {:x 0
+                           :y 0
+                           :w (-> ctx :view :bounds :w)
+                           :h (-> ctx :view :bounds :h)}
+                          {:fill true
+                           :color {:r 0x0f :g 0x12 :b 0x15}})
+                 (for-indexed [index option options]
+                   (draw-mask-palette-cell! state option index columns))
+                 (r/rect! {:x 0
+                           :y 0
+                           :w (-> ctx :view :bounds :w)
+                           :h (-> ctx :view :bounds :h)}
+                          {:color {:r 0x1f :g 0x26 :b 0x2d}}))))})
+
+(defun mask-canvas-item-rect [state item]
+  (let [tile-size (mask-source-tile-size state)
+        offset (or (:offset item) {:x 0 :y 0})]
+    {:x (+ mask-canvas-padding (or (:x offset) 0))
+     :y (+ mask-canvas-padding (or (:y offset) 0))
+     :w (:w tile-size)
+     :h (:h tile-size)}))
+
+(defun point-in-rect? [point rect]
+  (and (>= (:x point) (:x rect))
+       (>= (:y point) (:y rect))
+       (< (:x point) (+ (:x rect) (:w rect)))
+       (< (:y point) (+ (:y rect) (:h rect)))))
+
+(defun mask-canvas-item-index-at-position [state position]
+  (let [items (or (:selected-mask-tile-items state) [])]
+    (reduce (range 0 (dec (count items)))
+            nil
+            (fn [match index]
+              (let [item (nth items index)]
+                (if (point-in-rect? position
+                                    (mask-canvas-item-rect state item))
+                  index
+                  match))))))
+
+(defun mask-canvas-drag-payload [state event ctx]
+  (let [index (mask-canvas-item-index-at-position state (:start-position event))]
+    (when (not (nil? index))
+      (let [item (nth (:selected-mask-tile-items state) index)
+            offset (or (:offset item) {:x 0 :y 0})]
+        {:kind :mask/composed-tile
+         :index index
+         :start-offset offset}))))
+
+(defun mask-canvas-selected-index [state]
+  (let [index (:selected-mask-tile-item-index state)
+        items (or (:selected-mask-tile-items state) [])]
+    (if (and (not (nil? index))
+             (>= index 0)
+             (< index (count items)))
+      index
+      nil)))
+
+(defun emit-mask-canvas-selection! [state event ctx]
+  (let [index (mask-canvas-item-index-at-position state (:position event))]
+    (do
+      (ui/emit! (:view ctx) :mask/tile-item-select index)
+      (assoc state :selected-mask-tile-item-index index))))
+
+(defun open-mask-canvas-item-context-menu! [state event ctx index]
+  (do
+    (menu/open-context-menu! (mask-canvas-item-context-menu index)
+                             (:global-position event)
+                             state
+                             ctx)
+    (assoc state :context-mask-tile-item-index index)))
+
+(defun mask-canvas-dropped-offset [event payload]
+  (let [position (or (:position event) {:x mask-canvas-padding
+                                        :y mask-canvas-padding})
+        drag-offset (or (:offset payload) {:x 0 :y 0})]
+    {:x (int (- (:x position) (:x drag-offset) mask-canvas-padding))
+     :y (int (- (:y position) (:y drag-offset) mask-canvas-padding))}))
+
+(defun mask-canvas-drop-payload [state event]
+  (let [payload (:payload event)]
+    (case (:kind payload)
+      :mask/source-tile
+      {:tile (:tile payload)
+       :tileset (:tileset payload)
+       :offset (mask-canvas-dropped-offset event payload)}
+
+      :tileset/tile
+      {:tile (-> payload :tile :id)
+       :tileset (data/tileset-key (:tilesets state)
+                                  (:source-tileset-index payload))
+       :offset (mask-canvas-dropped-offset event payload)}
+
+      :default
+      nil)))
+
+(defun emit-mask-canvas-drag! [state event ctx]
+  (let [payload (:payload event)]
+    (if (= (:kind payload) :mask/composed-tile)
+      (let [delta (or (:total-delta event) {:x 0 :y 0})
+            start (or (:start-offset payload) {:x 0 :y 0})]
+        (do
+          (ui/emit! (:view ctx)
+                    :mask/tile-item-offset-change
+                    {:index (:index payload)
+                     :axis :both
+                     :value {:x (int (+ (:x start) (:x delta)))
+                             :y (int (+ (:y start) (:y delta)))}})
+          state))
+      state)))
+
+(defun draw-mask-canvas-item! [state item index]
+  (let [tile (mask-source-tile state (:tile item))
+        rect (mask-canvas-item-rect state item)
+        selected? (= index (mask-canvas-selected-index state))
+        border-color (if selected?
+                       {:r 0xff :g 0xd1 :b 0x66}
+                       {:r 0x5d :g 0xc9 :b 0x9a})]
+    (do
+      (when tile
+        (tr/draw-tile! tile rect))
+      (r/rect! rect {:color border-color}))))
+
+(defcomponent mask-composition-canvas
+  {:focusable true
+   :class :ui/content
+   :style {:width (+ data/tile-size (* 2 mask-canvas-padding))
+           :height (+ data/tile-size (* 2 mask-canvas-padding))
+           :clip true
+           :cursor :pointer}
+   :update (fn [state ctx]
+             (let [size (mask-canvas-view-size state)]
+               (do
+                 (assoc-in! ctx [:view :style :width] (:w size))
+                 (assoc-in! ctx [:view :style :height] (:h size))
+                 state)))
+   :drag {:start {:mode :threshold
+                  :distance 3}
+          :payload mask-canvas-drag-payload}
+   :on-mouse-down (fn [state event ctx]
+                    (do
+                      (ui/stop-propagation! event)
+                      (emit-mask-canvas-selection! state event ctx)))
+   :on-mouse-up (fn [state event ctx]
+                  (do
+                    (ui/stop-propagation! event)
+                    (let [index (mask-canvas-item-index-at-position
+                                 state
+                                 (:position event))]
+                      (if (and (= (:button event) :right)
+                               (not (nil? index)))
+                        (open-mask-canvas-item-context-menu!
+                         state
+                         event
+                         ctx
+                         index)
+                        state))))
+   :on-drag emit-mask-canvas-drag!
+   :on-drop (fn [state event ctx]
+              (let [drop (mask-canvas-drop-payload state event)]
+                (if drop
+                  (do
+                    (ui/stop-propagation! event)
+                    (ui/emit! (:view ctx)
+                              :mask/tile-item-add-at
+                              drop)
+                    state)
+                  state)))
+   :on {:menu/select (fn [state event ctx]
+                       (let [payload (:payload event)
+                             command (-> payload :payload :command)
+                             index (-> payload :payload :index)]
+                         (if (and (= (:type payload) :action)
+                                  (= :remove command)
+                                  (not (nil? index)))
+                           (do
+                             (ui/stop-propagation! event)
+                             (ui/emit! (:view ctx)
+                                       :mask/tile-item-delete
+                                       index)
+                             (assoc state
+                                    :selected-mask-tile-item-index nil))
+                           state)))}
+   :render (fn [state ctx]
+             (let [bounds (-> ctx :view :bounds)
+                   items (or (:selected-mask-tile-items state) [])
+                   inner {:x mask-canvas-padding
+                          :y mask-canvas-padding
+                          :w (- (:w bounds) (* 2 mask-canvas-padding))
+                          :h (- (:h bounds) (* 2 mask-canvas-padding))}]
+               (do
+                 (r/rect! {:x 0 :y 0 :w (:w bounds) :h (:h bounds)}
+                          {:fill true
+                           :color {:r 0x0f :g 0x12 :b 0x15}})
+                 (r/rect! inner {:fill true
+                                 :color {:r 0x18 :g 0x1d :b 0x22}})
+                 (r/rect! inner {:color {:r 0x32 :g 0x3b :b 0x45}})
+                 (for-indexed [index item items]
+                   (draw-mask-canvas-item! state item index))
+                 (when (empty? items)
+                   (r/text! "Drop tiles here"
+                             {:x (+ (:x inner) 12)
+                              :y (+ (:y inner) 16)}
+                            {:color {:r 0x86 :g 0x91 :b 0x9b}})))))})
+
+(defun mask-definition-editor-children []
+  [{:mode 'ui/text
+    :class :ui/title
+    :state {:value "Mask"}}
+   (summary-field "Name" (ui/bind-state :selected-mask-label))
+   (summary-field "Id" (ui/bind-state :selected-mask-id))
+   (control-field
+    "Source"
+    {:mode 'mask-workspace-source-type-selector
+     :state (selected-mask-state-bindings)})
+   (control-field
+    "Tileset"
+    {:mode 'mask-workspace-source-tileset-selector
+     :state {:mask-sets (ui/bind-state :mask-sets)
+             :selected-mask-set-index
+             (ui/bind-state :selected-mask-set-index)
+             :selected-mask-index (ui/bind-state :selected-mask-index)
+             :tilesets (ui/bind-state :tilesets)
+             :mask-editor-disabled?
+             (ui/bind-state :mask-editor-disabled?)}})
+   {:style {:width :fill
+            :height :fill
+            :layout {:direction :row
+                     :gap 12}}
+    :state (ui/bind-state)
+    :children [{:style {:width mask-palette-width
+                        :height :fill
+                        :layout {:direction :column
+                                 :gap 6}}
+                :state (ui/bind-state)
+                :children [{:mode 'ui/text
+                            :class :ui/muted
+                            :state {:value "Tiles"}}
+                           {:mode 'mask-source-tile-palette
+                            :state {:mask-sets (ui/bind-state :mask-sets)
+                                    :selected-mask-set-index
+                                    (ui/bind-state :selected-mask-set-index)
+                                    :selected-mask-index
+                                    (ui/bind-state :selected-mask-index)
+                                    :tilesets (ui/bind-state :tilesets)
+                                    :mask-editor-disabled?
+                                    (ui/bind-state
+                                     :mask-editor-disabled?)}}]}
+               {:style {:width :shrink
+                        :height :shrink
+                        :layout {:direction :column
+                                 :gap 6}}
+                :state (ui/bind-state)
+                :children [{:mode 'ui/text
+                            :class :ui/muted
+                            :state {:value "Composition"}}
+                           {:mode 'mask-composition-canvas
+                            :state {:mask-sets (ui/bind-state :mask-sets)
+                                    :selected-mask-set-index
+                                    (ui/bind-state :selected-mask-set-index)
+                                    :selected-mask-index
+                                    (ui/bind-state :selected-mask-index)
+                                    :tilesets (ui/bind-state :tilesets)
+                                    :selected-mask-tile-items
+                                    (ui/bind-state
+                                     :selected-mask-tile-items)
+                                    :selected-mask-tile-item-index
+                                    (ui/bind-state
+                                     :selected-mask-tile-item-index)}}]}]}])
+
+(defun mask-set-list-child [mask-sets selected-index]
+  (let [mask-sets (or mask-sets [])
+        options (model/mask-set-options mask-sets)]
+    (lb/make {:options options
+              :selected-indices (model/selected-mask-set-indices
+                                 mask-sets
+                                 selected-index)
+              :force-selection? true
+              :item-child mask-set-row-child
+              :style {:width :fill
+                      :height :fill}
+              :row-height mask-list-row-height
+              :visible-rows (max 1 (count options))
+              :content-width 180
+              :disabled? (empty? options)})))
+
+(defcomponent mask-workspace-set-list
+  {:id "global-mask-set-list"
+   :style {:width :fill
+           :height :fill}
+   :init (fn [state ctx]
+           (assoc state
+                  :rendered-mask-sets nil
+                  :rendered-selected-mask-set-index nil))
+   :update (fn [state ctx]
+             (let [mask-sets (or (:mask-sets state) [])
+                   selected-index (:selected-mask-set-index state)]
+               (do
+                 (when (or (not= mask-sets (:rendered-mask-sets state))
+                           (not= selected-index
+                                  (:rendered-selected-mask-set-index state)))
+                   (ui/replace-child!
+                    (:view ctx)
+                    "global-mask-set-list-box"
+                    (merge {:id "global-mask-set-list-box"}
+                           (mask-set-list-child mask-sets selected-index))))
+                 (assoc state
+                        :rendered-mask-sets mask-sets
+                        :rendered-selected-mask-set-index selected-index))))
+   :on {:list-box/change
+        (fn [state event ctx]
+          (do
+            (ui/stop-propagation! event)
+            (ui/emit! (:view ctx)
+                      :mask/set-select
+                      (head (-> event :payload :selected-indices)))
+            state))}
+   :children [(merge {:id "global-mask-set-list-box"}
+                     (mask-set-list-child [] nil))]})
+
+(defun mask-list-child [mask-set selected-index]
+  (let [options (model/mask-options mask-set)]
+    (lb/make {:options options
+              :selected-indices (model/selected-mask-indices
+                                 mask-set
+                                 selected-index)
+              :force-selection? true
+              :item-child mask-row-child
+              :style {:width :fill
+                      :height :fill}
+              :row-height mask-list-row-height
+              :visible-rows (max 1 (count options))
+              :content-width 180
+              :disabled? (empty? options)})))
+
+(defcomponent mask-workspace-mask-list
+  {:id "global-mask-list"
+   :style {:width :fill
+           :height :fill}
+   :init (fn [state ctx]
+           (assoc state
+                  :rendered-mask-set nil
+                  :rendered-selected-mask-index nil))
+   :update (fn [state ctx]
+             (let [mask-set (model/selected-mask-set
+                             (:mask-sets state)
+                             (:selected-mask-set-index state))
+                   selected-index (:selected-mask-index state)]
+               (do
+                 (when (or (not= mask-set (:rendered-mask-set state))
+                           (not= selected-index
+                                  (:rendered-selected-mask-index state)))
+                   (ui/replace-child!
+                    (:view ctx)
+                    "global-mask-list-box"
+                    (merge {:id "global-mask-list-box"}
+                           (mask-list-child mask-set selected-index))))
+                 (assoc state
+                        :rendered-mask-set mask-set
+                        :rendered-selected-mask-index selected-index))))
+   :on {:list-box/change
+        (fn [state event ctx]
+          (do
+            (ui/stop-propagation! event)
+            (ui/emit! (:view ctx)
+                      :mask/select
+                      (head (-> event :payload :selected-indices)))
+            state))}
+   :children [(merge {:id "global-mask-list-box"}
+                     (mask-list-child nil nil))]})
+
+(defun toolbar-button [label event disabled?]
+  {:mode 'ui/button
+   :class :ui/toolbar-button
+   :state {:label label
+           :disabled? disabled?}
+   :on-click (fn [state event-ctx ctx]
+               (do
+                 (when (not (:disabled? state))
+                   (ui/emit! (:view ctx) event))
+                 state))})
+
+(defun mask-set-list-panel-child []
+  {:class :ui/panel
+   :style {:width 230
+           :height :fill
+           :layout {:direction :column
+                    :gap 6}}
+   :state {:mask-sets (ui/bind-state :mask-sets)
+           :selected-mask-set-index (ui/bind-state :selected-mask-set-index)}
+   :children [{:style {:width :fill
+                       :height 24
+                       :layout {:direction :row
+                                :align-items :center
+                                :gap 4}}
+               :children [{:mode 'ui/text
+                           :class :ui/title
+                           :style {:width :fill}
+                          :state {:value "Mask Sets"}}
+                          (toolbar-button "+" :mask/set-add false)]}
+              {:style {:width :fill
+                       :height :fill}
+               :state {:mask-sets (ui/bind-state :mask-sets)
+                       :selected-mask-set-index
+                       (ui/bind-state :selected-mask-set-index)}
+               :children [{:mode 'mask-workspace-set-list
+                           :state {:mask-sets (ui/bind-state :mask-sets)
+                                   :selected-mask-set-index
+                                   (ui/bind-state
+                                    :selected-mask-set-index)}}]}]})
+
+(defun mask-list-panel-child []
+  {:class :ui/panel
+   :style {:width 230
+           :height :fill
+           :layout {:direction :column
+                    :gap 6}}
+   :state {:mask-sets (ui/bind-state :mask-sets)
+           :selected-mask-set-index (ui/bind-state :selected-mask-set-index)
+           :selected-mask-index (ui/bind-state :selected-mask-index)
+           :mask-add-disabled? (ui/bind-state :mask-add-disabled?)}
+   :children [{:style {:width :fill
+                       :height 24
+                       :layout {:direction :row
+                                :align-items :center
+                                :gap 4}}
+               :children [{:mode 'ui/text
+                           :class :ui/title
+                           :style {:width :fill}
+                           :state {:value "Masks"}}
+                          (toolbar-button
+                           "+"
+                           :mask/add
+                           (ui/bind-state :mask-add-disabled?))]}
+              {:mode 'mask-workspace-mask-list
+               :state {:mask-sets (ui/bind-state :mask-sets)
+                       :selected-mask-set-index
+                       (ui/bind-state :selected-mask-set-index)
+                       :selected-mask-index
+                       (ui/bind-state :selected-mask-index)}}]})
+
+(defun mask-set-detail-editor-children []
+  [{:mode 'ui/text
+    :class :ui/title
+    :state {:value "Mask Set"}}
+   (summary-field "Name"
+                  (ui/bind-state :selected-mask-set-label))
+   (summary-field "Id"
+                  (ui/bind-state :selected-mask-set-id))
+   (control-field
+    "Width"
+    {:mode 'mask-set-size-input
+     :state {:axis :w
+             :value (ui/bind-state :selected-mask-set-width)
+             :disabled? (ui/bind-state :mask-set-editor-disabled?)}})
+   (control-field
+    "Height"
+    {:mode 'mask-set-size-input
+     :state {:axis :h
+             :value (ui/bind-state :selected-mask-set-height)
+             :disabled? (ui/bind-state :mask-set-editor-disabled?)}})
+   (summary-field "Masks"
+                  (ui/bind-state :selected-mask-count))])
+
+(defun mask-detail-tabs-child []
+  (tabs/make
+   {:selected-tab (ui/bind-state :mask-detail-tab)
+    :style {:width :fill
+            :height :fill}
+    :state {:mask-sets (ui/bind-state :mask-sets)
+            :selected-mask-set-index
+            (ui/bind-state :selected-mask-set-index)
+            :selected-mask-index
+            (ui/bind-state :selected-mask-index)
+            :tilesets (ui/bind-state :tilesets)
+            :selected-mask-set-label
+            (ui/bind-state :selected-mask-set-label)
+            :selected-mask-set-id
+            (ui/bind-state :selected-mask-set-id)
+            :selected-mask-set-width
+            (ui/bind-state :selected-mask-set-width)
+            :selected-mask-set-height
+            (ui/bind-state :selected-mask-set-height)
+            :selected-mask-count
+            (ui/bind-state :selected-mask-count)
+            :mask-set-editor-disabled?
+            (ui/bind-state :mask-set-editor-disabled?)
+            :selected-mask-label
+            (ui/bind-state :selected-mask-label)
+            :selected-mask-id
+            (ui/bind-state :selected-mask-id)
+            :selected-mask-tile-items
+            (ui/bind-state :selected-mask-tile-items)
+            :mask-editor-disabled?
+            (ui/bind-state :mask-editor-disabled?)}
+    :tabs [{:id :mask-set
+            :label "Mask Set"
+            :child {:style {:padding 8
+                            :layout {:direction :column
+                                     :gap 8}}
+                    :children (mask-set-detail-editor-children)}}
+           {:id :mask
+            :label "Mask"
+            :disabled? (ui/bind-state :mask-editor-disabled?)
+            :child {:style {:padding 8
+                            :layout {:direction :column
+                                     :gap 8}}
+                    :state (ui/bind-state)
+                    :children (mask-definition-editor-children)}}]}))
+
+(defun detail-panel-child []
+  {:class :ui/panel
+   :style {:width :fill
+           :height :fill
+           :layout {:direction :column}}
+   :state (ui/bind-state)
+   :children [(mask-detail-tabs-child)]})
+
+(defun open-mask-set-add-dialog! [state ctx]
+  (let [mask-set (model/make-mask-set (:mask-sets state))]
+    (do
+      (id-name-dialog/open! ctx
+                            {:title "Add Mask Set"
+                             :id (model/keyword-label (:id mask-set))
+                             :name (or (:label mask-set) "")
+                             :result-event :mask/set-add-dialog-result})
+      state)))
+
+(defun open-mask-set-edit-dialog! [state ctx]
+  (let [mask-set (model/selected-mask-set (:mask-sets state)
+                                          (:selected-mask-set-index state))]
+    (if mask-set
+      (do
+        (id-name-dialog/open! ctx
+                              {:title "Rename Mask Set"
+                               :id (model/keyword-label (:id mask-set))
+                               :name (or (:label mask-set) "")
+                               :result-event
+                               :mask/set-edit-dialog-result})
+        state)
+      state)))
+
+(defun open-mask-set-delete-confirm-dialog! [state ctx]
+  (let [mask-set (model/selected-mask-set (:mask-sets state)
+                                          (:selected-mask-set-index state))]
+    (if mask-set
+      (do
+        (dialog/open-confirm!
+         ctx
+         {:title "Delete Mask Set"
+          :body {:mode 'ui/text
+                 :style {:width :fill}
+                 :state {:value (str "Delete mask set \""
+                                     (model/mask-set-label mask-set)
+                                     "\"?")}}
+          :buttons [:dialog/cancel
+                    {:type :dialog/ok
+                     :label "Delete"}]
+          :result-event :mask/set-delete-confirm-result
+          :payload {:mask-set-index (:selected-mask-set-index state)}})
+        state)
+      state)))
+
+(defun open-mask-add-dialog! [state ctx]
+  (let [mask-set (model/selected-mask-set (:mask-sets state)
+                                          (:selected-mask-set-index state))]
+    (if mask-set
+      (let [mask (model/make-mask (:masks mask-set))]
+        (do
+          (id-name-dialog/open! ctx
+                                {:title "Add Mask"
+                                 :id (model/keyword-label (:id mask))
+                                 :name (or (:label mask) "")
+                                 :result-event :mask/add-dialog-result})
+          state))
+      state)))
+
+(defun open-mask-edit-dialog! [state ctx]
+  (let [mask-set (model/selected-mask-set (:mask-sets state)
+                                          (:selected-mask-set-index state))
+        mask (model/selected-mask mask-set (:selected-mask-index state))]
+    (if mask
+      (do
+        (id-name-dialog/open! ctx
+                              {:title "Rename Mask"
+                               :id (model/keyword-label (:id mask))
+                               :name (or (:label mask) "")
+                               :result-event :mask/edit-dialog-result})
+        state)
+      state)))
+
+(defun open-mask-delete-confirm-dialog! [state ctx]
+  (let [mask-set (model/selected-mask-set (:mask-sets state)
+                                          (:selected-mask-set-index state))
+        mask (model/selected-mask mask-set (:selected-mask-index state))]
+    (if mask
+      (do
+        (dialog/open-confirm!
+         ctx
+         {:title "Delete Mask"
+          :body {:mode 'ui/text
+                 :style {:width :fill}
+                 :state {:value (str "Delete mask \""
+                                     (model/mask-label mask)
+                                     "\"?")}}
+          :buttons [:dialog/cancel
+                    {:type :dialog/ok
+                     :label "Delete"}]
+          :result-event :mask/delete-confirm-result
+          :payload {:mask-index (:selected-mask-index state)}})
+        state)
+      state)))
+
+(defcomponent mask-set-workspace
+  {:style {:width :fill
+           :height :fill
+           :layout {:direction :row
+                    :gap 8}}
+   :update (fn [state ctx]
+             (let [mask-set (model/selected-mask-set
+                             (:mask-sets state)
+                             (:selected-mask-set-index state))
+                   mask (model/selected-mask mask-set
+                                             (:selected-mask-index state))
+                   mask-tileset (model/selected-mask-source-tileset state)
+                  mask-tile-options (data/tile-options (:tilesets state)
+                                                        mask-tileset)
+                   mask-tile-items (model/selected-mask-tile-items state)
+                   selected-mask-tile-item-index
+                   (let [index (:selected-mask-tile-item-index state)]
+                     (if (and (not (nil? index))
+                              (>= index 0)
+                              (< index (count mask-tile-items)))
+                       index
+                       nil))
+                   selected-mask-source-tile
+                   (or (:selected-mask-source-tile state)
+                       (:value (head mask-tile-options)))]
+               (assoc state
+                      :selected-mask-set-label
+                      (if mask-set (model/mask-set-label mask-set) "")
+                      :selected-mask-set-id
+                      (if mask-set
+                        (model/transition-id-label (:id mask-set))
+                        "")
+                      :selected-mask-set-width
+                      (:w (model/selected-mask-set-size state))
+                      :selected-mask-set-height
+                      (:h (model/selected-mask-set-size state))
+                      :selected-mask-count
+                      (str (count (or (:masks mask-set) [])))
+                      :selected-mask-label
+                      (if mask (model/mask-label mask) "")
+                      :selected-mask-id
+                      (if mask
+                        (model/transition-id-label (:id mask))
+                        "")
+                      :selected-mask-source-tile selected-mask-source-tile
+                      :selected-mask-tile-items
+                      mask-tile-items
+                      :selected-mask-tile-item-index
+                      selected-mask-tile-item-index
+                      :mask-editor-disabled? (nil? mask)
+                      :mask-set-editor-disabled? (nil? mask-set)
+                      :mask-tile-add-disabled?
+                      (or (nil? mask)
+                          (nil? selected-mask-source-tile))
+                      :mask-add-disabled? (nil? mask-set))))
+   :on {:mask/set-select
+        (fn [state event ctx]
+          (assoc state
+                 :selected-mask-set-index (:payload event)
+                 :selected-mask-index nil
+                 :selected-mask-tile-item-index nil
+                 :mask-detail-tab :mask-set))
+        :mask/set-add
+        (fn [state event ctx]
+          (open-mask-set-add-dialog! state ctx))
+        :mask/set-edit
+        (fn [state event ctx]
+          (open-mask-set-edit-dialog! state ctx))
+        :mask/set-delete
+        (fn [state event ctx]
+          (open-mask-set-delete-confirm-dialog! state ctx))
+        :mask/select
+        (fn [state event ctx]
+          (assoc state
+                 :selected-mask-index (:payload event)
+                 :selected-mask-tile-item-index nil
+                 :mask-detail-tab :mask))
+        :mask/add
+        (fn [state event ctx]
+          (open-mask-add-dialog! state ctx))
+        :mask/edit
+        (fn [state event ctx]
+          (open-mask-edit-dialog! state ctx))
+        :mask/delete
+        (fn [state event ctx]
+          (open-mask-delete-confirm-dialog! state ctx))
+        :mask/source-type-change
+        (fn [state event ctx]
+          (model/set-selected-mask-source-type state (:payload event)))
+        :mask/set-size-change
+        (fn [state event ctx]
+          (let [payload (:payload event)]
+            (model/set-selected-mask-set-size state
+                                             (:axis payload)
+                                             (:value payload))))
+        :mask/source-tileset-change
+        (fn [state event ctx]
+          (assoc (model/set-selected-mask-source-tileset state (:payload event))
+                 :selected-mask-source-tile nil))
+        :mask/source-tile-select
+        (fn [state event ctx]
+          (assoc state :selected-mask-source-tile (:payload event)))
+        :mask/tile-item-add
+        (fn [state event ctx]
+          (let [tile-ref (or (:selected-mask-source-tile state)
+                             (:value (head (data/tile-options
+                                            (:tilesets state)
+                                            (model/selected-mask-source-tileset
+                                             state)))))]
+            (if tile-ref
+              (model/add-selected-mask-tile state tile-ref)
+              state)))
+        :mask/tile-item-add-at
+        (fn [state event ctx]
+          (let [payload (:payload event)
+                tile-ref (:tile payload)
+                tile-source (:tileset payload)
+                current-source (model/selected-mask-source-tileset state)
+                items (model/selected-mask-tile-items state)
+                offset (or (:offset payload) {:x 0 :y 0})]
+            (if (and tile-ref
+                     (or (nil? tile-source)
+                         (= tile-source current-source)
+                         (empty? items)))
+              (let [state (if (and tile-source
+                                    (not= tile-source current-source)
+                                    (empty? items))
+                            (model/set-selected-mask-source-tileset state
+                                                                    tile-source)
+                            state)
+                    index (count (model/selected-mask-tile-items state))
+                    state (model/add-selected-mask-tile state tile-ref)
+                    state (model/set-selected-mask-tile-item-offset
+                           state
+                           index
+                           :x
+                           (or (:x offset) 0))]
+                (assoc (model/set-selected-mask-tile-item-offset
+                        state
+                        index
+                        :y
+                        (or (:y offset) 0))
+                       :selected-mask-tile-item-index index))
+              state)))
+        :mask/tile-item-select
+        (fn [state event ctx]
+          (assoc state :selected-mask-tile-item-index (:payload event)))
+        :mask/tile-item-offset-change
+        (fn [state event ctx]
+          (let [payload (:payload event)]
+            (if (= (:axis payload) :both)
+              (let [offset (:value payload)
+                    state (model/set-selected-mask-tile-item-offset
+                           state
+                           (:index payload)
+                           :x
+                           (or (:x offset) 0))]
+                (model/set-selected-mask-tile-item-offset
+                 state
+                 (:index payload)
+                 :y
+                 (or (:y offset) 0)))
+              (model/set-selected-mask-tile-item-offset
+               state
+               (:index payload)
+               (:axis payload)
+               (:value payload)))))
+        :mask/tile-item-delete
+        (fn [state event ctx]
+          (assoc (model/delete-selected-mask-tile-item state (:payload event))
+                 :selected-mask-tile-item-index nil))
+        :menu/select
+        (fn [state event ctx]
+          (let [payload (:payload event)
+                command (-> payload :payload :command)
+                index (-> payload :payload :index)]
+            (if (and (= (:type payload) :action)
+                     (= :remove command)
+                     (not (nil? index)))
+              (do
+                (ui/stop-propagation! event)
+                (assoc (model/delete-selected-mask-tile-item state index)
+                       :selected-mask-tile-item-index nil))
+              state)))
+        :mask/set-context-command
+        (fn [state event ctx]
+          (let [payload (:payload event)
+                mask-set-index (:mask-set-index payload)
+                command (:command payload)
+                state (assoc state
+                             :selected-mask-set-index mask-set-index
+                             :selected-mask-index nil)]
+            (case command
+              :rename
+              (open-mask-set-edit-dialog! state ctx)
+
+              :delete
+              (open-mask-set-delete-confirm-dialog! state ctx)
+
+              :default
+              state)))
+        :mask/context-command
+        (fn [state event ctx]
+          (let [payload (:payload event)
+                mask-index (:mask-index payload)
+                command (:command payload)
+                state (assoc state :selected-mask-index mask-index)]
+            (case command
+              :rename
+              (open-mask-edit-dialog! state ctx)
+
+              :delete
+              (open-mask-delete-confirm-dialog! state ctx)
+
+              :default
+              state)))
+        :mask/set-add-dialog-result
+        (fn [state event ctx]
+          (let [payload (:payload event)]
+            (if (= (:type payload) :confirm)
+              (model/add-mask-set-with-id state (:id payload) (:name payload))
+              state)))
+        :mask/set-edit-dialog-result
+        (fn [state event ctx]
+          (let [payload (:payload event)]
+            (if (= (:type payload) :confirm)
+              (model/set-selected-mask-set-label
+               (model/set-selected-mask-set-id state (:id payload))
+               (:name payload))
+              state)))
+        :mask/set-delete-confirm-result
+        (fn [state event ctx]
+          (let [payload (:payload event)]
+            (if (and (= (:choice payload) :dialog/ok)
+                     (not (nil? (-> payload :payload :mask-set-index))))
+              (model/delete-selected-mask-set
+               (assoc state
+                      :selected-mask-set-index
+                      (-> payload :payload :mask-set-index)))
+              state)))
+        :mask/add-dialog-result
+        (fn [state event ctx]
+          (let [payload (:payload event)]
+            (if (= (:type payload) :confirm)
+              (model/add-mask-with-id state (:id payload) (:name payload))
+              state)))
+        :mask/edit-dialog-result
+        (fn [state event ctx]
+          (let [payload (:payload event)]
+            (if (= (:type payload) :confirm)
+              (model/set-selected-mask-label
+               (model/set-selected-mask-id state (:id payload))
+               (:name payload))
+              state)))
+        :mask/delete-confirm-result
+        (fn [state event ctx]
+          (let [payload (:payload event)]
+            (if (and (= (:choice payload) :dialog/ok)
+                     (not (nil? (-> payload :payload :mask-index))))
+              (model/delete-selected-mask
+               (assoc state
+                      :selected-mask-index
+                      (-> payload :payload :mask-index)))
+              state)))
+        :tab-panel/change
+        (fn [state event ctx]
+          (do
+            (ui/stop-propagation! event)
+            (assoc state :mask-detail-tab (-> event :payload :tab))))}
+   :children [(mask-set-list-panel-child)
+              (mask-list-panel-child)
+              (detail-panel-child)]})
+
+(defun make-mask-set-workspace-panel []
+  (hp/make {:title "Masks"
+            :style {:width :fill
+                    :height :fill}
+            :body-style {:padding 8
+                         :height :fill}
+            :state {:mask-sets (ui/bind-state :mask-sets)
+                    :selected-mask-set-index
+                    (ui/bind-state :selected-mask-set-index)
+                    :selected-mask-index
+                    (ui/bind-state :selected-mask-index)
+                    :selected-mask-source-tile
+                    (ui/bind-state :selected-mask-source-tile)
+                    :tilesets (ui/bind-state :tilesets)
+                    :terrain-transitions
+                    (ui/bind-state :terrain-transitions)}
+            :body-state {:mask-sets (ui/bind-state :mask-sets)
+                         :selected-mask-set-index
+                         (ui/bind-state :selected-mask-set-index)
+                         :selected-mask-index
+                         (ui/bind-state :selected-mask-index)
+                         :selected-mask-source-tile
+                         (ui/bind-state :selected-mask-source-tile)
+                         :tilesets (ui/bind-state :tilesets)
+                         :terrain-transitions
+                         (ui/bind-state :terrain-transitions)}
+            :children [{:mode 'mask-set-workspace
+                        :state {:mask-sets (ui/bind-state :mask-sets)
+                                :selected-mask-set-index
+                                (ui/bind-state :selected-mask-set-index)
+                                :selected-mask-index
+                                (ui/bind-state :selected-mask-index)
+                                :selected-mask-source-tile
+                                (ui/bind-state :selected-mask-source-tile)
+                                :tilesets (ui/bind-state :tilesets)
+                                :terrain-transitions
+                                (ui/bind-state :terrain-transitions)}}]}))

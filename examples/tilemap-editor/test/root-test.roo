@@ -18,8 +18,9 @@
       (is (= :tilesets (:tab-id (runtime/view-state (nth tabs 1)))))
       (is (= :brushes (:tab-id (runtime/view-state (nth tabs 2)))))
       (is (= :resources (:tab-id (runtime/view-state (nth tabs 3)))))
-      (is (= :terrains (:tab-id (runtime/view-state (nth tabs 4)))))
-      (is (= :property-sets (:tab-id (runtime/view-state (nth tabs 5))))))))
+      (is (= :masks (:tab-id (runtime/view-state (nth tabs 4)))))
+      (is (= :terrains (:tab-id (runtime/view-state (nth tabs 5)))))
+      (is (= :property-sets (:tab-id (runtime/view-state (nth tabs 6))))))))
 
 (deftest status-bar-renders_at_root
   (let [app (runtime/make-app {:package-root "."
@@ -34,6 +35,16 @@
   (is (= "Cell -" (tilemap-editor.root/map-coordinate-status nil)))
   (is (= "Cell 3,4"
          (tilemap-editor.root/map-coordinate-status {:x 3 :y 4}))))
+
+(deftest transition-mask-diagnostics-status-formats_counts
+  (is (= "Transitions -"
+         (tilemap-editor.root/transition-mask-diagnostics-status nil)))
+  (is (= "Transitions m:2 g:1 f:1"
+         (tilemap-editor.root/transition-mask-diagnostics-status
+          {:has-transition-mask-rules? true
+           :matched-transition-entries 2
+           :generated-transition-entries 1
+           :failed-transition-entries 1}))))
 
 (deftest tileset-shortcut-request-switches_tab_before_dialog
   (let [state (tilemap-editor.root/request-tileset-shortcut-dialog

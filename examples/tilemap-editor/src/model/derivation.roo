@@ -333,6 +333,9 @@
   (and (not (nil? value))
        (not= value unknown-terrain-value)))
 
+(defun terrain-in-condition-value? [condition value]
+  (contains? (or (:terrain-in condition) []) value))
+
 (defun terrain-match-condition-value? [center-terrain condition value]
   (case condition
     :ignore true
@@ -345,7 +348,9 @@
                         (not= value center-terrain))
     :default
     (if (= (type-of condition) "map")
-      (= value (:terrain condition))
+      (if (contains? condition :terrain-in)
+        (terrain-in-condition-value? condition value)
+        (= value (:terrain condition)))
       true)))
 
 (defun terrain-match-condition? [source-layer ruleset center-terrain direction condition x y]
@@ -518,7 +523,9 @@
     :none :none
     :default
     (if (= (type-of condition) "map")
-      (:terrain condition)
+      (if (contains? condition :terrain-in)
+        nil
+        (:terrain condition))
       nil)))
 
 (defun default-terrain-signature-for-rule [rule]
@@ -532,7 +539,9 @@
                    (assoc signature direction value)
                    (if (or (= condition :not-same)
                            (= condition :other-terrain)
-                           (= condition :any-terrain))
+                           (= condition :any-terrain)
+                           (and (= (type-of condition) "map")
+                                (contains? condition :terrain-in)))
                      (dissoc signature direction)
                      signature))))))
 

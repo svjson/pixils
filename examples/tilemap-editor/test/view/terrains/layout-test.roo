@@ -129,6 +129,137 @@
     (is (= "Semantic Roles" (-> tabs (nth 1) :label)))
     (is (= 'terrain-standard-setup-editor (-> tabs (nth 1) :child :mode)))))
 
+(deftest terrain-standard-output-picker-tabs_include_tiles_and_masks
+  (let [panel (layout/terrain-standard-output-picker-tabs-panel)
+        tabs (-> panel :state :tabs)]
+    (is (= :tiles (-> tabs head :id)))
+    (is (= "Tiles" (-> tabs head :label)))
+    (is (= 'terrain-stamp-tile-picker-scroll-pane
+           (-> tabs head :child :mode)))
+    (is (= :masks (-> tabs (nth 1) :id)))
+    (is (= "Masks" (-> tabs (nth 1) :label)))
+    (is (= 'terrain-standard-mask-picker
+           (-> tabs (nth 1) :child :mode)))))
+
+(deftest terrain-detail-tabs_keep_existing_tabs_before_transitions
+  (let [panel (layout/terrain-detail-tabs-child false)
+        tabs (-> panel :state :tabs)]
+    (is (= :terrain-set (-> tabs head :id)))
+    (is (= "Terrain Set" (-> tabs head :label)))
+    (is (= :terrain (-> tabs (nth 1) :id)))
+    (is (= "Terrain" (-> tabs (nth 1) :label)))
+    (is (not (nil? (-> tabs (nth 1) :child :state :mask-sets))))
+    (is (not (nil? (-> tabs (nth 1) :child :state
+                       :terrain-rule-selected-mask))))
+    (is (= :transitions (-> tabs (nth 2) :id)))
+    (is (= "Transitions" (-> tabs (nth 2) :label)))
+    (is (= 'terrain-transition-editor
+           (-> tabs (nth 2) :child :mode)))))
+
+(deftest terrain-transition-editor_has_transition_summary_contract
+  (let [panel (layout/terrain-detail-tabs-child false)
+        transition-tab (nth (-> panel :state :tabs) 2)
+        child (:child transition-tab)
+        field (layout/terrain-transition-summary-field "Recipes" 2)]
+    (is (= 'terrain-transition-editor (:mode child)))
+    (is (not (nil? (-> child :state :mask-sets))))
+    (is (nil? (-> child :state :selected-mask-set-index)))
+    (is (nil? (-> child :state :selected-mask-index)))
+    (is (not (nil? (-> child :state :terrain-transitions))))
+    (is (= "Recipes" (-> field :children head :state :value)))
+    (is (= 2 (-> field :children (nth 1) :state :value)))))
+
+(deftest mask-set-list-rows-have_context_menu
+  (let [row (layout/mask-set-row-child 0 {:value :soft-edge
+                                          :label "Soft Edge"})
+        rename-item (head (:items layout/mask-set-context-menu))
+        delete-item (nth (:items layout/mask-set-context-menu) 1)]
+    (is (= 'mask-set-row (:mode row)))
+    (is (= "Rename Mask Set" (:label rename-item)))
+    (is (= :rename (-> rename-item :payload :command)))
+    (is (= "Delete" (:label delete-item)))
+    (is (= :delete (-> delete-item :payload :command)))))
+
+(deftest mask-set-list-child-renders_current_mask_sets
+  (let [list-box (layout/mask-set-list-child [{:id :soft-edge
+                                               :label "Soft Edge"}]
+                                             0)]
+    (is (= [{:value :soft-edge
+             :label "Soft Edge"}]
+           (-> list-box :state :options)))
+    (is (= [0] (-> list-box :state :selected-indices)))))
+
+(deftest mask-list-rows-have_context_menu
+  (let [row (layout/mask-row-child 0 {:value 0
+                                      :label "North"})
+        rename-item (head (:items layout/mask-context-menu))
+        delete-item (nth (:items layout/mask-context-menu) 1)]
+    (is (= 'mask-row (:mode row)))
+    (is (= "Rename Mask" (:label rename-item)))
+    (is (= :rename (-> rename-item :payload :command)))
+    (is (= "Delete" (:label delete-item)))
+    (is (= :delete (-> delete-item :payload :command)))))
+
+(deftest mask-list-child-renders_current_masks
+  (let [list-box (layout/mask-list-child {:masks [{:id :n
+                                                   :label "North"}]}
+                                         0)]
+    (is (= [{:value 0
+             :label "North"}]
+           (-> list-box :state :options)))
+    (is (= [0] (-> list-box :state :selected-indices)))))
+
+(deftest terrain-standard-mask-row-drag-payload-identifies_mask
+  (let [payload (layout/terrain-standard-mask-drag-payload
+                 {:value {:mask-set :soft-edge
+                          :mask :north}
+                  :label "North"}
+                 {}
+                 {})]
+    (is (= :terrain-rule/mask-output (:kind payload)))
+    (is (= {:mask-set :soft-edge
+            :mask :north}
+           (:mask payload)))))
+
+(deftest terrain-standard-mask-list-scopes_options_to_selected_terrain
+  (let [list-box (layout/terrain-standard-mask-list-child
+                  {:terrain-sets [{:id :overworld
+                                   :terrains [{:id :grass
+                                               :transition-mask-set
+                                               :soft-edge}]}]
+                   :selected-terrain-set-index 0
+                   :selected-terrain-index 0
+                   :mask-sets [{:id :soft-edge
+                                :masks [{:id :north
+                                         :label "North"}]}
+                               {:id :hard-edge
+                                :masks [{:id :south
+                                         :label "South"}]}]})]
+    (is (= [{:value {:mask-set :soft-edge
+                     :mask :north}
+             :label "North"}]
+           (-> list-box :state :options)))))
+
+(deftest mask-definition-editor-exposes_source_controls
+  (let [children (layout/mask-definition-editor-children)
+        source-row (nth children 3)
+        tileset-row (nth children 4)
+        tile-row (nth children 5)
+        tiles-label (nth children 6)
+        item-list (nth children 7)]
+    (is (= "Mask" (-> children head :state :value)))
+    (is (= "Source" (-> source-row :children head :state :value)))
+    (is (= 'mask-source-type-selector
+           (-> source-row :children (nth 1) :mode)))
+    (is (= "Tileset" (-> tileset-row :children head :state :value)))
+    (is (= 'mask-source-tileset-selector
+           (-> tileset-row :children (nth 1) :mode)))
+    (is (= "Tile" (-> tile-row :children head :state :value)))
+    (is (= 'mask-source-tile-selector
+           (-> tile-row :children (nth 1) :children head :mode)))
+    (is (= "Tiles" (-> tiles-label :state :value)))
+    (is (= 'mask-tile-item-list (:mode item-list)))))
+
 (deftest terrain-standard-setup-editor-exposes_role_slots
   (let [slot (layout/terrain-standard-role-slot-child :island-3x3 :n "N")]
     (is (= 'terrain-standard-role-slot (:mode slot)))
@@ -149,6 +280,29 @@
     (is (= 'terrain-standard-setup-panel (:mode panel)))
     (is (= :island-3x3 (-> panel :state :setup-id)))
     (is (= false (contains? (:state panel) :rulesets)))))
+
+(deftest terrain-standard-opposing-menu-includes_terrain_toggles
+  (let [state {:terrain-sets [{:id :overworld
+                               :terrains [{:id :grass}
+                                          {:id :water
+                                           :label "Water"}
+                                          {:id :sand
+                                           :label "Sand"}]}]
+               :selected-terrain-set-index 0
+               :selected-terrain-index 0
+               :terrain-standard-opposing {:terrain-in [:water]}}
+        menu (layout/terrain-standard-opposing-menu state)
+        option-state (layout/terrain-standard-opposing-menu-option-state state)]
+    (is (= "None" (-> menu :items head :label)))
+    (is (= "Any other" (-> menu :items (nth 1) :label)))
+    (is (= "Water" (-> menu :items (nth 2) :label)))
+    (is (= :toggle (-> menu :items (nth 2) :type)))
+    (is (= :toggle-terrain
+           (-> menu :items (nth 2) :payload :action)))
+    (is (= [:option-state :water]
+           (-> menu :items (nth 2) :selected-path)))
+    (is (= true (:water option-state)))
+    (is (= false (:sand option-state)))))
 
 (deftest terrain-standard-setup-groups-use_wrapped_row_layout
   (let [content (layout/terrain-standard-setup-panel-groups-content-child)

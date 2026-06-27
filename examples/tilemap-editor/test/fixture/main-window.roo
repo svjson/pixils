@@ -43,6 +43,7 @@
     :tab/terrains :terrains
     :tab/brushes :brushes
     :tab/resources :resources
+    :tab/masks :masks
     :default target))
 
 (defun switch-to! [app target opts]

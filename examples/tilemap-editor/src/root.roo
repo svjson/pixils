@@ -10,6 +10,7 @@
             [tilemap-editor.view.resources.model :as resource-model]
             [tilemap-editor.view.tileset.model :as tileset-model]
             tilemap-editor.view.brushes.layout
+            tilemap-editor.view.masks.layout
             [tilemap-editor.view.menu :as app-menu]
             tilemap-editor.view.property-sets.layout
             tilemap-editor.view.resources.layout
@@ -62,6 +63,16 @@
     (str "Cell " (:x cell) "," (:y cell))
     "Cell -"))
 
+(defun transition-mask-diagnostics-status [diagnostics]
+  (if (:has-transition-mask-rules? diagnostics)
+    (str "Transitions m:"
+         (:matched-transition-entries diagnostics)
+         " g:"
+         (:generated-transition-entries diagnostics)
+         " f:"
+         (:failed-transition-entries diagnostics))
+    "Transitions -"))
+
 (defcomponent status-bar
   {:id "status-bar"
    :class :ui/content
@@ -69,14 +80,22 @@
            :height 24
            :padding [4 8]
            :layout {:direction :row
-                    :align-items :center}}
+                    :align-items :center
+                    :gap 16}}
    :children [{:mode 'ui/text
                :class :ui/muted
-               :state {:value (ui/bind-state :map-coordinate-status)}}]
+               :state {:value (ui/bind-state :map-coordinate-status)}}
+              {:mode 'ui/text
+               :class :ui/muted
+               :state {:value (ui/bind-state
+                               :transition-mask-diagnostics-status)}}]
    :update (fn [state ctx]
              (assoc state
                     :map-coordinate-status
-                    (map-coordinate-status (:map-hover-cell state))))})
+                    (map-coordinate-status (:map-hover-cell state))
+                    :transition-mask-diagnostics-status
+                    (transition-mask-diagnostics-status
+                     (:transition-mask-diagnostics state))))})
 
 (defmode main-mode
  {:class :ui/app
@@ -99,11 +118,19 @@
            :selected-terrain-index nil
            :rulesets []
            :tile-substitution-rules []
+           :mask-sets []
+           :selected-mask-set-index nil
+           :selected-mask-index nil
+           :selected-mask-source-tile nil
+           :mask-detail-tab :mask-set
+           :terrain-transitions []
+           :selected-terrain-transition-id nil
            :selected-terrain-ruleset-id nil
            :selected-terrain-rule-id nil
            :selected-terrain-rule-match-direction :n
            :selected-terrain-rule-output-position {:x 1 :y 1}
            :terrain-rule-selected-tile nil
+           :terrain-rule-selected-mask nil
            :terrain-rule-list-offset {:x 0 :y 0}
            :layer-profiles []
            :selected-layer-profile-id nil
@@ -147,6 +174,7 @@
            :zoom 1
            :zoom-label "Zoom 100%"
            :show-grid? true
+           :transition-mask-diagnostics nil
            :map-offset {:x 0 :y 0}
            :workspace-tab :map
            :pending-tileset-shortcut-dialog? false})
@@ -252,6 +280,21 @@
                        :selected-terrain-index
                        (ui/bind-state :selected-terrain-index)
                        :rulesets (ui/bind-state :rulesets)
+                       :mask-sets (ui/bind-state :mask-sets)
+                       :transition-mask-diagnostics
+                       (ui/bind-state :transition-mask-diagnostics)
+                       :selected-mask-set-index
+                       (ui/bind-state :selected-mask-set-index)
+                       :selected-mask-index
+                       (ui/bind-state :selected-mask-index)
+                       :selected-mask-source-tile
+                       (ui/bind-state :selected-mask-source-tile)
+                       :mask-detail-tab
+                       (ui/bind-state :mask-detail-tab)
+                       :terrain-transitions
+                       (ui/bind-state :terrain-transitions)
+                       :selected-terrain-transition-id
+                       (ui/bind-state :selected-terrain-transition-id)
                        :selected-terrain-ruleset-id
                        (ui/bind-state :selected-terrain-ruleset-id)
                        :selected-terrain-rule-id
@@ -264,6 +307,8 @@
                         :selected-terrain-rule-output-position)
                        :terrain-rule-selected-tile
                        (ui/bind-state :terrain-rule-selected-tile)
+                       :terrain-rule-selected-mask
+                       (ui/bind-state :terrain-rule-selected-mask)
                        :terrain-rule-list-offset
                        (ui/bind-state :terrain-rule-list-offset)
                        :layer-profiles (ui/bind-state :layer-profiles)
@@ -322,6 +367,21 @@
                                        (ui/bind-state :property-sets)
                                        :terrain-sets (ui/bind-state :terrain-sets)
                                        :rulesets (ui/bind-state :rulesets)
+                                       :mask-sets (ui/bind-state :mask-sets)
+                                       :transition-mask-diagnostics
+                                       (ui/bind-state
+                                        :transition-mask-diagnostics)
+                                       :selected-mask-set-index
+                                       (ui/bind-state :selected-mask-set-index)
+                                       :selected-mask-index
+                                       (ui/bind-state :selected-mask-index)
+                                       :selected-mask-source-tile
+                                       (ui/bind-state :selected-mask-source-tile)
+                                       :terrain-transitions
+                                       (ui/bind-state :terrain-transitions)
+                                       :selected-terrain-transition-id
+                                       (ui/bind-state
+                                        :selected-terrain-transition-id)
                                        :layer-profiles (ui/bind-state :layer-profiles)
                                        :selected-layer-profile-id
                                        (ui/bind-state :selected-layer-profile-id)
@@ -349,7 +409,10 @@
                                        :show-terrain-rules?
                                        (ui/bind-state :show-terrain-rules?)
                                        :show-grid? (ui/bind-state :show-grid?)
-                                       :map-offset (ui/bind-state :map-offset)}}}
+                                       :map-offset (ui/bind-state :map-offset)
+                                       :transition-mask-diagnostics
+                                       (ui/bind-state
+                                        :transition-mask-diagnostics)}}}
                       {:id :tilesets
                        :label "Tilesets"
                        :child {:mode 'tileset-definition-workspace
@@ -394,6 +457,25 @@
                                        :resources (ui/bind-state :resources)
                                        :selected-resource-bundle (ui/bind-state :selected-resource-bundle)
                                        :selected-image-resource (ui/bind-state :selected-image-resource)}}}
+                      {:id :masks
+                       :label "Masks"
+                       :child {:mode 'mask-set-workspace
+                               :style {:padding 8}
+                               :state {:mask-sets (ui/bind-state :mask-sets)
+                                       :selected-mask-set-index
+                                       (ui/bind-state
+                                        :selected-mask-set-index)
+                                       :selected-mask-index
+                                       (ui/bind-state :selected-mask-index)
+                                       :selected-mask-source-tile
+                                       (ui/bind-state
+                                        :selected-mask-source-tile)
+                                       :mask-detail-tab
+                                       (ui/bind-state :mask-detail-tab)
+                                       :tilesets (ui/bind-state :tilesets)
+                                       :terrain-transitions
+                                       (ui/bind-state
+                                        :terrain-transitions)}}}
                       {:id :terrains
                        :label "Terrains"
                        :child {:mode 'terrain-definition-workspace
@@ -403,6 +485,17 @@
                                        :property-sets
                                        (ui/bind-state :property-sets)
                                        :rulesets (ui/bind-state :rulesets)
+                                       :mask-sets (ui/bind-state :mask-sets)
+                                       :selected-mask-set-index
+                                       (ui/bind-state
+                                        :selected-mask-set-index)
+                                       :selected-mask-index
+                                       (ui/bind-state :selected-mask-index)
+                                       :terrain-transitions
+                                       (ui/bind-state :terrain-transitions)
+                                       :selected-terrain-transition-id
+                                       (ui/bind-state
+                                        :selected-terrain-transition-id)
                                        :layers (ui/bind-state :layers)
                                        :layer-profiles
                                        (ui/bind-state :layer-profiles)
@@ -428,6 +521,9 @@
                                        :terrain-rule-selected-tile
                                        (ui/bind-state
                                         :terrain-rule-selected-tile)
+                                       :terrain-rule-selected-mask
+                                       (ui/bind-state
+                                        :terrain-rule-selected-mask)
                                        :terrain-rule-list-offset
                                        (ui/bind-state
                                         :terrain-rule-list-offset)}}}
@@ -447,7 +543,9 @@
                                        :terrain-sets
                                        (ui/bind-state :terrain-sets)}}}]})
              {:mode 'status-bar
-              :state {:map-hover-cell (ui/bind-state :map-hover-cell)}}]
+              :state {:map-hover-cell (ui/bind-state :map-hover-cell)
+                      :transition-mask-diagnostics
+                      (ui/bind-state :transition-mask-diagnostics)}}]
   :on {:palette/select (fn [state event ctx]
                          (assoc state :selected-tile (:payload event)))
        :palette/brush-select (fn [state event ctx]

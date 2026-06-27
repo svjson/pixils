@@ -34,6 +34,206 @@
     (nth (or (:terrains terrain-set) []) index)
     nil))
 
+(defun transition-terrain-set [transition]
+  (:terrain-set transition))
+
+(defun transition-id-label [value]
+  (when (not (nil? value))
+    (let [text (str value)]
+      (if (= ":" (substr text 0 1))
+        (substr text 1)
+        text))))
+
+(defun transitions-for-terrain-set [transitions terrain-set-id]
+  (filter (or transitions [])
+          (fn [transition]
+            (= (transition-terrain-set transition) terrain-set-id))))
+
+(defun transition-label [transition]
+  (or (:label transition)
+      (:name transition)
+      (transition-id-label (:id transition))
+      "Transition"))
+
+(defun selected-transition-id [state]
+  (let [terrain-set-id (:id (selected-terrain-set
+                             (:terrain-sets state)
+                             (:selected-terrain-set-index state)))
+        transitions (transitions-for-terrain-set (:terrain-transitions state)
+                                                 terrain-set-id)
+        requested (:selected-terrain-transition-id state)
+        match (head (filter transitions
+                            (fn [transition]
+                              (= (:id transition) requested))))]
+    (or (:id match)
+        (:id (head transitions)))))
+
+(defun selected-transition [state]
+  (let [transition-id (selected-transition-id state)]
+    (head (filter (or (:terrain-transitions state) [])
+                  (fn [transition]
+                    (= (:id transition) transition-id))))))
+
+(defun transition-options [state]
+  (let [terrain-set-id (selected-terrain-set-id state)]
+    (for-indexed [index transition
+                  (transitions-for-terrain-set (:terrain-transitions state)
+                                               terrain-set-id)]
+      {:value (:id transition)
+       :label (transition-label transition)})))
+
+(defun mask-set-label [mask-set]
+  (or (:label mask-set)
+      (:name mask-set)
+      (transition-id-label (:id mask-set))
+      "Mask Set"))
+
+(defun mask-set-options [mask-sets]
+  (for-indexed [index mask-set (or mask-sets [])]
+    {:value (:id mask-set)
+     :label (mask-set-label mask-set)}))
+
+(defun terrain-transition-mask-set-options [mask-sets]
+  (concat [{:value :none
+            :label "None"}]
+          (mask-set-options mask-sets)))
+
+(defun mask-set-by-id [mask-sets mask-set-id]
+  (head (filter (or mask-sets [])
+                (fn [mask-set]
+                  (= (:id mask-set) mask-set-id)))))
+
+(defun selected-transition-mask-set [state]
+  (mask-set-by-id (:mask-sets state) (:mask-set (selected-transition state))))
+
+(defun selected-mask-set-index [mask-sets index]
+  (let [mask-sets (or mask-sets [])]
+    (when (> (count mask-sets) 0)
+      (min (max (or index 0) 0)
+           (dec (count mask-sets))))))
+
+(defun selected-mask-set [mask-sets index]
+  (if-let [index (selected-mask-set-index mask-sets index)]
+    (nth mask-sets index)
+    nil))
+
+(defun selected-mask-set-id [state]
+  (:id (selected-mask-set (:mask-sets state)
+                          (:selected-mask-set-index state))))
+
+(defun selected-mask-set-indices [mask-sets index]
+  (if-let [index (selected-mask-set-index mask-sets index)]
+    [index]
+    []))
+
+(defun mask-label [mask]
+  (or (:label mask)
+      (:name mask)
+      (transition-id-label (:id mask))
+      "Mask"))
+
+(defun mask-options [mask-set]
+  (for-indexed [index mask (or (:masks mask-set) [])]
+    {:value index
+     :label (mask-label mask)}))
+
+(defun terrain-mask-options [mask-sets]
+  (reduce (or mask-sets [])
+          []
+          (fn [options mask-set]
+            (concat options
+                    (map (or (:masks mask-set) [])
+                         (fn [mask]
+                           {:value {:mask-set (:id mask-set)
+                                    :mask (:id mask)}
+                            :label (str (mask-set-label mask-set)
+                                        " / "
+                                        (mask-label mask))}))))))
+
+(defun mask-options-for-ref [mask-set]
+  (map (or (:masks mask-set) [])
+       (fn [mask]
+         {:value {:mask-set (:id mask-set)
+                  :mask (:id mask)}
+          :label (mask-label mask)})))
+
+(defun terrain-rule-selected-mask-indices [state]
+  (let [mask-ref (:terrain-rule-selected-mask state)
+        index (find-index (terrain-mask-options-for-selected-terrain state)
+                          (fn [option]
+                            (= (:value option) mask-ref)))]
+    (if (nil? index) [] [index])))
+
+(defun selected-mask-index [mask-set index]
+  (let [masks (or (:masks mask-set) [])]
+    (when (> (count masks) 0)
+      (min (max (or index 0) 0)
+           (dec (count masks))))))
+
+(defun selected-mask [mask-set index]
+  (if-let [index (selected-mask-index mask-set index)]
+    (nth (or (:masks mask-set) []) index)
+    nil))
+
+(defun selected-mask-indices [mask-set index]
+  (if-let [index (selected-mask-index mask-set index)]
+    [index]
+    []))
+
+(def mask-source-type-options
+  [{:value :tile-composition
+    :label "Tiles"}])
+
+(defun option-index-by-value [options value]
+  (let [match (head (filter (for-indexed [index option options]
+                              {:index index
+                               :value (:value option)})
+                            (fn [entry]
+                              (= (:value entry) value))))]
+    (:index match)))
+
+(defun mask-source-type-index [mask]
+  (or (option-index-by-value mask-source-type-options
+                             (-> mask :source :type))
+      0))
+
+(defun mask-source-direction-index [mask]
+  0)
+
+(defun mask-source-type-label [mask]
+  (case (-> mask :source :type)
+    :tile-composition "Tiles"
+    :procedural-gradient "Procedural gradient"
+    :image-alpha "Image alpha"
+    :default "Unspecified"))
+
+(defun selected-mask-reference [state]
+  (let [mask-set (selected-mask-set (:mask-sets state)
+                                    (:selected-mask-set-index state))
+        mask (selected-mask mask-set (:selected-mask-index state))]
+    (when (and mask-set mask)
+      {:mask-set (:id mask-set)
+       :mask (:id mask)})))
+
+(defun mask-ref-set [mask-ref]
+  (:mask-set mask-ref))
+
+(defun mask-ref-mask [mask-ref]
+  (:mask mask-ref))
+
+(defun mask-by-ref [mask-sets mask-ref]
+  (let [mask-set (mask-set-by-id mask-sets (mask-ref-set mask-ref))]
+    (head (filter (or (:masks mask-set) [])
+                  (fn [mask]
+                    (= (:id mask) (mask-ref-mask mask-ref)))))))
+
+(defun mask-ref-label [mask-sets mask-ref]
+  (if-let [mask (mask-by-ref mask-sets mask-ref)]
+    (mask-label mask)
+    (if (mask-ref-mask mask-ref)
+      (transition-id-label (mask-ref-mask mask-ref))
+      "")))
+
 (defun selected-terrain-set-indices [terrain-sets index]
   (if-let [index (selected-terrain-set-index terrain-sets index)]
     [index]
@@ -122,6 +322,361 @@
 
 (defun unique-rule-id [rules]
   (unique-id-from rules "rule" nil))
+
+(defun unique-mask-set-id [mask-sets]
+  (unique-id-from mask-sets "mask-set" nil))
+
+(defun unique-mask-id [masks]
+  (unique-id-from masks "mask" nil))
+
+(defun mask-set-size [mask-set]
+  (data/map-tile-dim (or (:mask-size mask-set)
+                         (:size mask-set)
+                         data/tile-dim)))
+
+(defun make-mask-set [mask-sets]
+  {:id (unique-mask-set-id mask-sets)
+   :label "Mask set"
+   :mask-size data/tile-dim
+   :masks []})
+
+(defun make-mask [masks]
+  {:id (unique-mask-id masks)
+   :label "Mask"
+   :source {:type :tile-composition
+            :tileset nil
+            :tiles []}})
+
+(defun mask-set-from-input [mask-sets id label]
+  (let [mask-set (make-mask-set mask-sets)
+        requested-id (if (blank? id)
+                       (keyword-label (:id mask-set))
+                       id)
+        requested-label (if (blank? label)
+                          (:label mask-set)
+                          label)]
+    (assoc mask-set
+           :id (id-from-input mask-sets requested-id nil)
+           :label requested-label)))
+
+(defun add-mask-set [state]
+  (let [mask-sets (or (:mask-sets state) [])
+        mask-set (make-mask-set mask-sets)
+        index (count mask-sets)]
+    (assoc state
+           :mask-sets (concat mask-sets [mask-set])
+           :selected-mask-set-index index
+           :selected-mask-index nil)))
+
+(defun add-mask-set-with-id [state id label]
+  (let [mask-sets (or (:mask-sets state) [])
+        mask-set (mask-set-from-input mask-sets id label)
+        index (count mask-sets)]
+    (assoc state
+           :mask-sets (concat mask-sets [mask-set])
+           :selected-mask-set-index index
+           :selected-mask-index nil)))
+
+(defun update-mask-set-at [mask-sets index update-fn]
+  (for-indexed [mask-set-index mask-set (or mask-sets [])]
+    (if (= mask-set-index index)
+      (update-fn mask-set)
+      mask-set)))
+
+(defun selected-mask-set-path [state]
+  (if-let [mask-set-index (selected-mask-set-index (:mask-sets state)
+                                                   (:selected-mask-set-index state))]
+    [:mask-sets mask-set-index]
+    nil))
+
+(defun set-selected-mask-set-label [state label]
+  (if-let [path (selected-mask-set-path state)]
+    (assoc-in state (concat path [:label]) label)
+    state))
+
+(defun replace-mask-set-reference [value old-id new-id]
+  (case (type-of value)
+    "vector" (map value
+                  (fn [item]
+                    (replace-mask-set-reference item old-id new-id)))
+    "map" (reduce-kv value
+                     {}
+                     (fn [result key item]
+                       (assoc result
+                              key
+                              (replace-mask-set-reference
+                               (if (and (= key :mask-set)
+                                        (= item old-id))
+                                 new-id
+                                 item)
+                               old-id
+                               new-id))))
+    :default value))
+
+(defun replace-terrain-transition-mask-set-reference [terrain-sets old-id new-id]
+  (map (or terrain-sets [])
+       (fn [terrain-set]
+         (assoc terrain-set
+                :terrains
+                (map (or (:terrains terrain-set) [])
+                     (fn [terrain]
+                       (if (= (:transition-mask-set terrain) old-id)
+                         (assoc terrain :transition-mask-set new-id)
+                         terrain)))))))
+
+(defun set-selected-mask-set-id [state value]
+  (if-let [mask-set-index (selected-mask-set-index (:mask-sets state)
+                                                   (:selected-mask-set-index state))]
+    (let [mask-sets (or (:mask-sets state) [])
+          old-id (get-in state [:mask-sets mask-set-index :id])]
+      (if-let [new-id (id-from-input mask-sets value mask-set-index)]
+        (let [state (assoc-in state
+                              [:mask-sets mask-set-index :id]
+                              new-id)]
+          (if (= old-id new-id)
+            state
+            (assoc state
+                   :terrain-sets
+                   (replace-terrain-transition-mask-set-reference
+                    (:terrain-sets state)
+                    old-id
+                    new-id)
+                   :terrain-transitions
+                   (map (or (:terrain-transitions state) [])
+                        (fn [transition]
+                          (if (= (:mask-set transition) old-id)
+                            (assoc transition :mask-set new-id)
+                            transition)))
+                   :rulesets
+                   (replace-mask-set-reference (:rulesets state)
+                                               old-id
+                                               new-id))))
+        state))
+    state))
+
+(defun selected-mask-set-size [state]
+  (mask-set-size (selected-mask-set (:mask-sets state)
+                                    (:selected-mask-set-index state))))
+
+(defun set-selected-mask-set-size [state axis value]
+  (if-let [path (selected-mask-set-path state)]
+    (if (contains? [:w :h] axis)
+      (let [current-size (selected-mask-set-size state)
+            default-value (get current-size axis)
+            next-value (data/bounded-dimension value default-value)]
+        (assoc-in state
+                  (concat path [:mask-size axis])
+                  next-value))
+      state)
+    state))
+
+(defun delete-selected-mask-set [state]
+  (if-let [mask-set-index (selected-mask-set-index (:mask-sets state)
+                                                   (:selected-mask-set-index state))]
+    (let [mask-sets (or (:mask-sets state) [])
+          mask-set (nth mask-sets mask-set-index)
+          mask-set-id (:id mask-set)
+          next-mask-sets (remove-item-at-index mask-sets mask-set-index)
+          next-mask-set-index (selected-index-after-delete
+                               (:selected-mask-set-index state)
+                               mask-set-index
+                               (count next-mask-sets))]
+      (assoc state
+             :mask-sets next-mask-sets
+             :terrain-sets
+             (replace-terrain-transition-mask-set-reference
+              (:terrain-sets state)
+              mask-set-id
+              nil)
+             :terrain-transitions
+             (map (or (:terrain-transitions state) [])
+                  (fn [transition]
+                    (if (= (:mask-set transition) mask-set-id)
+                      (assoc transition :mask-set nil)
+                      transition)))
+             :rulesets
+             (replace-mask-set-reference (:rulesets state)
+                                         mask-set-id
+                                         nil)
+             :selected-mask-set-index next-mask-set-index
+             :selected-mask-index nil))
+    state))
+
+(defun selected-mask-path [state]
+  (if-let [mask-set-index (selected-mask-set-index (:mask-sets state)
+                                                   (:selected-mask-set-index state))]
+    (let [mask-set (nth (:mask-sets state) mask-set-index)]
+      (if-let [mask-index (selected-mask-index
+                           mask-set
+                           (:selected-mask-index state))]
+        [:mask-sets mask-set-index :masks mask-index]
+        nil))
+    nil))
+
+(defun mask-from-input [masks id label]
+  (let [mask (make-mask masks)
+        requested-id (if (blank? id)
+                       (keyword-label (:id mask))
+                       id)
+        requested-label (if (blank? label)
+                          (:label mask)
+                          label)]
+    (assoc mask
+           :id (id-from-input masks requested-id nil)
+           :label requested-label)))
+
+(defun add-mask [state]
+  (if-let [path (selected-mask-set-path state)]
+    (let [masks (or (get-in state (concat path [:masks])) [])
+          mask (make-mask masks)
+          index (count masks)]
+      (assoc (assoc-in state
+                       (concat path [:masks])
+                       (concat masks [mask]))
+             :selected-mask-index index))
+    state))
+
+(defun add-mask-with-id [state id label]
+  (if-let [path (selected-mask-set-path state)]
+    (let [masks (or (get-in state (concat path [:masks])) [])
+          mask (mask-from-input masks id label)
+          index (count masks)]
+      (assoc (assoc-in state
+                       (concat path [:masks])
+                       (concat masks [mask]))
+             :selected-mask-index index))
+    state))
+
+(defun set-selected-mask-label [state label]
+  (if-let [path (selected-mask-path state)]
+    (assoc-in state (concat path [:label]) label)
+    state))
+
+(defun set-selected-mask-id [state value]
+  (if-let [mask-set-index (selected-mask-set-index
+                           (:mask-sets state)
+                           (:selected-mask-set-index state))]
+    (let [mask-set (nth (:mask-sets state) mask-set-index)
+          mask-index (selected-mask-index mask-set
+                                          (:selected-mask-index state))]
+      (if (nil? mask-index)
+        state
+        (if-let [id (id-from-input (:masks mask-set) value mask-index)]
+          (assoc-in state
+                    [:mask-sets mask-set-index :masks mask-index :id]
+                    id)
+          state)))
+    state))
+
+(defun selected-mask-source-path [state]
+  (if-let [path (selected-mask-path state)]
+    (concat path [:source])
+    nil))
+
+(defun default-tile-composition-mask-source []
+  {:type :tile-composition
+   :tileset nil
+   :tiles []})
+
+(defun set-selected-mask-source-type [state source-type]
+  (if-let [path (selected-mask-source-path state)]
+    (case source-type
+      :tile-composition
+      (assoc-in state path (default-tile-composition-mask-source))
+
+      :default
+      state)
+    state))
+
+(defun ensure-selected-mask-tile-source [state]
+  (if-let [path (selected-mask-source-path state)]
+    (let [source (get-in state path)]
+      (if (= (:type source) :tile-composition)
+        state
+        (assoc-in state path (default-tile-composition-mask-source))))
+    state))
+
+(defun selected-mask-source-tileset [state]
+  (let [mask-set (selected-mask-set (:mask-sets state)
+                                    (:selected-mask-set-index state))
+        mask (selected-mask mask-set (:selected-mask-index state))
+        terrain-set (selected-terrain-set (:terrain-sets state)
+                                          (:selected-terrain-set-index state))]
+    (or (-> mask :source :tileset)
+        (:tileset terrain-set)
+        (:id (head (or (:tilesets state) []))))))
+
+(defun set-selected-mask-source-tileset [state tileset-id]
+  (if-let [path (selected-mask-source-path state)]
+    (assoc-in (ensure-selected-mask-tile-source state)
+              (concat path [:tileset])
+              tileset-id)
+    state))
+
+(defun selected-mask-tile-items [state]
+  (let [mask-set (selected-mask-set (:mask-sets state)
+                                    (:selected-mask-set-index state))
+        mask (selected-mask mask-set (:selected-mask-index state))]
+    (or (-> mask :source :tiles) [])))
+
+(defun make-mask-tile-item [tile-ref]
+  {:tile tile-ref
+   :offset {:x 0 :y 0}})
+
+(defun add-selected-mask-tile [state tile-ref]
+  (if-let [path (selected-mask-path state)]
+    (let [state (ensure-selected-mask-tile-source state)
+          tiles (or (get-in state (concat path [:source :tiles])) [])]
+      (assoc-in state
+                (concat path [:source :tiles])
+                (concat tiles [(make-mask-tile-item tile-ref)])))
+    state))
+
+(defun set-selected-mask-tile-item-offset [state item-index axis value]
+  (if-let [path (selected-mask-path state)]
+    (let [items (selected-mask-tile-items state)]
+      (if (and (not (nil? item-index))
+               (>= item-index 0)
+               (< item-index (count items))
+               (contains? [:x :y] axis))
+        (assoc-in (ensure-selected-mask-tile-source state)
+                  (concat path [:source :tiles item-index :offset axis])
+                  (or value 0))
+        state))
+    state))
+
+(defun delete-selected-mask-tile-item [state item-index]
+  (if-let [path (selected-mask-path state)]
+    (let [items (selected-mask-tile-items state)]
+      (if (and (not (nil? item-index))
+               (>= item-index 0)
+               (< item-index (count items)))
+        (assoc-in state
+                  (concat path [:source :tiles])
+                  (remove-item-at-index items item-index))
+        state))
+    state))
+
+(defun delete-selected-mask [state]
+  (if-let [mask-set-index (selected-mask-set-index
+                           (:mask-sets state)
+                           (:selected-mask-set-index state))]
+    (let [mask-set (nth (:mask-sets state) mask-set-index)
+          mask-index (selected-mask-index mask-set
+                                          (:selected-mask-index state))]
+      (if (nil? mask-index)
+        state
+        (let [masks (or (:masks mask-set) [])
+              next-masks (remove-item-at-index masks mask-index)
+              next-mask-index (selected-index-after-delete
+                               (:selected-mask-index state)
+                               mask-index
+                               (count next-masks))]
+          (assoc (assoc-in state
+                           [:mask-sets mask-set-index :masks]
+                           next-masks)
+                 :selected-mask-index next-mask-index))))
+    state))
 
 (defun make-terrain-set [terrain-sets tilesets]
   (let [id (unique-terrain-set-id terrain-sets)]
@@ -375,6 +930,30 @@
         [:terrain-sets set-index :terrains terrain-index]
         nil))
     nil))
+
+(defun selected-terrain-transition-mask-set [state]
+  (if-let [path (selected-terrain-path state)]
+    (get-in state (concat path [:transition-mask-set]))
+    nil))
+
+(defun selected-terrain-transition-mask-set-option-index [state]
+  (or (option-index-by-value
+       (terrain-transition-mask-set-options (:mask-sets state))
+       (or (selected-terrain-transition-mask-set state) :none))
+      0))
+
+(defun set-selected-terrain-transition-mask-set [state mask-set-id]
+  (if-let [path (selected-terrain-path state)]
+    (let [mask-set-id (if (= mask-set-id :none) nil mask-set-id)]
+      (assoc-in state (concat path [:transition-mask-set]) mask-set-id))
+    state))
+
+(defun terrain-mask-options-for-selected-terrain [state]
+  (let [mask-set-id (selected-terrain-transition-mask-set state)
+        mask-set (mask-set-by-id (:mask-sets state) mask-set-id)]
+    (if mask-set
+      (mask-options-for-ref mask-set)
+      (terrain-mask-options (:mask-sets state)))))
 
 (defun set-selected-terrain-set-label [state label]
   (if-let [path (selected-terrain-set-path state)]
@@ -718,7 +1297,9 @@
     :none :none
     :default
     (if (= (type-of condition) "map")
-      (:terrain condition)
+      (if (contains? condition :terrain-in)
+        nil
+        (:terrain condition))
       nil)))
 
 (defun default-terrain-signature-for-rule [rule]
@@ -732,7 +1313,9 @@
                    (assoc signature direction value)
                    (if (or (= condition :not-same)
                            (= condition :other-terrain)
-                           (= condition :any-terrain))
+                           (= condition :any-terrain)
+                           (and (= (type-of condition) "map")
+                                (contains? condition :terrain-in)))
                      (dissoc signature direction)
                      signature))))))
 
@@ -2061,23 +2644,121 @@
 (def terrain-standard-opposing-none :none)
 (def terrain-standard-opposing-any-other :any-other)
 
+(defun terrain-standard-opposing-terrain-in? [opposing]
+  (and (= (type-of opposing) "map")
+       (contains? opposing :terrain-in)))
+
+(defun terrain-standard-opposing-terrain-values [state]
+  (let [terrain-set (selected-terrain-set (:terrain-sets state)
+                                          (:selected-terrain-set-index state))
+        center-terrain-id (selected-terrain-id state)]
+    (map (filter (or (:terrains terrain-set) [])
+                 (fn [terrain]
+                   (not= (:id terrain) center-terrain-id)))
+         :id)))
+
+(defun normalize-terrain-standard-opposing [state opposing]
+  (let [terrain-values (terrain-standard-opposing-terrain-values state)
+        terrain-value? (fn [value]
+                         (contains? terrain-values value))]
+    (cond
+      (nil? opposing) terrain-standard-opposing-none
+      (= opposing terrain-standard-opposing-none) terrain-standard-opposing-none
+      (= opposing terrain-standard-opposing-any-other)
+      terrain-standard-opposing-any-other
+      (terrain-standard-opposing-terrain-in? opposing)
+      (let [requested (or (:terrain-in opposing) [])
+            values (filter terrain-values
+                           (fn [value]
+                             (contains? requested value)))]
+        (case (count values)
+          0 terrain-standard-opposing-none
+          1 (head values)
+          :default
+          {:terrain-in values}))
+      (terrain-value? opposing) opposing
+      :default terrain-standard-opposing-none)))
+
+(defun terrain-standard-opposing-terrain-list [state opposing]
+  (let [opposing (normalize-terrain-standard-opposing state opposing)]
+    (cond
+      (terrain-standard-opposing-terrain-in? opposing)
+      (or (:terrain-in opposing) [])
+      (or (= opposing terrain-standard-opposing-none)
+          (= opposing terrain-standard-opposing-any-other))
+      []
+      :default [opposing])))
+
+(defun terrain-standard-opposing-selected? [state terrain-id]
+  (contains? (terrain-standard-opposing-terrain-list
+              state
+              (:terrain-standard-opposing state))
+             terrain-id))
+
+(defun terrain-standard-opposing-value-from-terrains [terrain-ids]
+  (case (count terrain-ids)
+    0 terrain-standard-opposing-none
+    1 (head terrain-ids)
+    :default
+    {:terrain-in terrain-ids}))
+
+(defun toggle-terrain-standard-opposing [state terrain-id]
+  (let [terrain-values (terrain-standard-opposing-terrain-values state)
+        current (terrain-standard-opposing-terrain-list
+                 state
+                 (:terrain-standard-opposing state))
+        requested (if (contains? current terrain-id)
+                    (filter current
+                            (fn [value]
+                              (not= value terrain-id)))
+                    (concat current [terrain-id]))
+        next-values (filter terrain-values
+                            (fn [value]
+                              (contains? requested value)))]
+    (terrain-standard-opposing-value-from-terrains next-values)))
+
+(defun set-terrain-standard-opposing [state opposing]
+  (assoc state
+         :terrain-standard-opposing
+         (normalize-terrain-standard-opposing state opposing)))
+
 (defun terrain-standard-opposing-condition [opposing]
-  (case opposing
-    :none :none
-    :any-other :other-terrain
+  (cond
+    (= opposing :none) :none
+    (= opposing :any-other) :other-terrain
+    (terrain-standard-opposing-terrain-in? opposing)
+    {:terrain-in (or (:terrain-in opposing) [])}
     :default {:terrain opposing}))
 
+(defun same-terrain-values? [a b]
+  (and (= (count a) (count b))
+       (= 0
+          (count (filter a
+                         (fn [value]
+                           (not (contains? b value))))))))
+
 (defun terrain-standard-opposing-condition? [condition opposing]
-  (case opposing
-    :none (= condition :none)
-    :any-other (or (= condition :other-terrain)
-                   (= condition :not-same))
+  (cond
+    (= opposing :none) (= condition :none)
+    (= opposing :any-other) (or (= condition :other-terrain)
+                                (= condition :not-same))
+    (terrain-standard-opposing-terrain-in? opposing)
+    (and (= (type-of condition) "map")
+         (contains? condition :terrain-in)
+         (same-terrain-values? (or (:terrain-in condition) [])
+                               (or (:terrain-in opposing) [])))
     :default (and (= (type-of condition) "map")
                   (= (:terrain condition) opposing))))
 
 (defun terrain-standard-opposing-option [value label]
   {:value value
    :label label})
+
+(defun terrain-standard-opposing-terrain-label [terrain]
+  (or (:label terrain)
+      (:name terrain)
+      (transition-id-label (:id terrain))
+      (str (:id terrain))))
 
 (defun terrain-standard-opposing-options [state]
   (let [terrain-set (selected-terrain-set (:terrain-sets state)
@@ -2094,21 +2775,15 @@
                  (fn [terrain]
                    (terrain-standard-opposing-option
                     (:id terrain)
-                    (or (:label terrain)
-                        (:name terrain)
-                        (str (:id terrain)))))))))
+                    (terrain-standard-opposing-terrain-label terrain)))))))
 
 (defun terrain-standard-opposing-valid? [state opposing]
-  (not (nil? (head (filter (terrain-standard-opposing-options state)
-                           (fn [option]
-                             (= (:value option) opposing)))))))
+  (= (normalize-terrain-standard-opposing state opposing) opposing))
 
 (defun selected-terrain-standard-opposing [state]
   (let [requested (or (:terrain-standard-opposing state)
                       terrain-standard-opposing-none)]
-    (if (terrain-standard-opposing-valid? state requested)
-      requested
-      terrain-standard-opposing-none)))
+    (normalize-terrain-standard-opposing state requested)))
 
 (defun terrain-standard-opposing-option-index [state]
   (let [opposing (selected-terrain-standard-opposing state)
@@ -2117,11 +2792,31 @@
                             (= (:value option) opposing)))]
     (or index 0)))
 
+(defun comma-join [values]
+  (reduce (or values [])
+          ""
+          (fn [result value]
+            (if (empty? result)
+              value
+              (str result ", " value)))))
+
 (defun terrain-standard-opposing-label [state opposing]
-  (or (:label (head (filter (terrain-standard-opposing-options state)
-                            (fn [option]
-                              (= (:value option) opposing)))))
-      (keyword-label opposing)))
+  (let [opposing (normalize-terrain-standard-opposing state opposing)
+        options (terrain-standard-opposing-options state)
+        option-label (:label (head (filter options
+                                           (fn [option]
+                                             (= (:value option) opposing)))))]
+    (or option-label
+        (when (terrain-standard-opposing-terrain-in? opposing)
+          (comma-join
+           (map (:terrain-in opposing)
+                (fn [terrain-id]
+                  (or (:label (head (filter options
+                                            (fn [option]
+                                              (= (:value option)
+                                                 terrain-id)))))
+                      (keyword-label terrain-id))))))
+        (keyword-label opposing))))
 
 (def terrain-standard-role-opposing-directions
   {:n [:n]
@@ -2239,29 +2934,54 @@
         (= condition :other-terrain)
         (= condition :not-same)
         (and (= (type-of condition) "map")
-             (not (nil? (:terrain condition)))))))
+             (or (not (nil? (:terrain condition)))
+                 (> (count (or (:terrain-in condition) [])) 0))))))
 
-(defun terrain-rule-condition-terrain [center-terrain condition]
+(defun terrain-rule-condition-terrains [center-terrain condition]
   (let [condition (normalized-match-condition condition)]
     (cond
-      (= condition :same) center-terrain
-      (= (type-of condition) "map") (:terrain condition)
-      :default nil)))
+      (= condition :same) [center-terrain]
+      (and (= (type-of condition) "map")
+           (contains? condition :terrain-in))
+      (or (:terrain-in condition) [])
+      (= (type-of condition) "map") [(:terrain condition)]
+      :default [])))
 
 (defun terrain-rule-condition-terrain? [center-terrain condition terrain]
-  (let [condition-terrain (terrain-rule-condition-terrain center-terrain
-                                                          condition)]
-    (and (not (nil? condition-terrain))
-         (= condition-terrain terrain))))
+  (let [terrains (filter (terrain-rule-condition-terrains center-terrain
+                                                          condition)
+                         (fn [value]
+                           (not (nil? value))))]
+    (and (> (count terrains) 0)
+         (= 0
+            (count (filter terrains
+                           (fn [value]
+                             (not= value terrain))))))))
+
+(defun terrain-rule-condition-terrains-in? [center-terrain condition terrains]
+  (let [condition-terrains
+        (filter (terrain-rule-condition-terrains center-terrain condition)
+                (fn [value]
+                  (not (nil? value))))]
+    (and (> (count condition-terrains) 0)
+         (= 0
+            (count (filter condition-terrains
+                           (fn [value]
+                             (not (contains? terrains value)))))))))
 
 (defun terrain-rule-condition-other-terrain? [center-terrain condition]
   (let [condition (normalized-match-condition condition)
-        condition-terrain (terrain-rule-condition-terrain center-terrain
-                                                          condition)]
+        terrains (filter (terrain-rule-condition-terrains center-terrain
+                                                          condition)
+                         (fn [value]
+                           (not (nil? value))))]
     (or (= condition :other-terrain)
         (= condition :not-same)
-        (and (not (nil? condition-terrain))
-             (not= condition-terrain center-terrain)))))
+        (and (> (count terrains) 0)
+             (= 0
+                (count (filter terrains
+                               (fn [value]
+                                 (= value center-terrain)))))))))
 
 (defun terrain-rule-match-condition-implies? [center-terrain specific general]
   (let [specific (normalized-match-condition specific)
@@ -2280,8 +3000,15 @@
       (terrain-rule-condition-other-terrain? center-terrain specific)
       (= general :same)
       (terrain-rule-condition-terrain? center-terrain specific center-terrain)
+      (and (= (type-of general) "map")
+           (contains? general :terrain-in))
+      (terrain-rule-condition-terrains-in? center-terrain
+                                           specific
+                                           (or (:terrain-in general) []))
       (= (type-of general) "map")
-      (terrain-rule-condition-terrain? center-terrain specific (:terrain general))
+      (terrain-rule-condition-terrain? center-terrain
+                                       specific
+                                       (:terrain general))
       :default false)))
 
 (defun terrain-rule-match-implies? [specific general]
@@ -2404,6 +3131,12 @@
         pos (terrain-standard-role-output-position state role-id)]
     (nth (or (nth (or (:tiles layer) []) (:y pos)) []) (:x pos))))
 
+(defun terrain-standard-role-mask-ref [state setup-id role-id opposing]
+  (let [layer (terrain-standard-role-output-layer state setup-id role-id opposing)
+        pos (terrain-standard-role-output-position state role-id)]
+    (nth (or (nth (or (:transition-masks layer) []) (:y pos)) [])
+         (:x pos))))
+
 (defun terrain-standard-role-tileset [state setup-id role-id opposing]
   (let [terrain-set (selected-terrain-set (:terrain-sets state)
                                           (:selected-terrain-set-index state))
@@ -2430,10 +3163,13 @@
         pos (terrain-standard-role-output-position state role-id)
         tile-ref (nth (or (nth (or (:tiles layer) []) (:y pos)) [])
                       (:x pos))
+        mask-ref (nth (or (nth (or (:transition-masks layer) []) (:y pos)) [])
+                      (:x pos))
         tileset (or (:tileset layer)
                     default-tileset)]
     {:rule-id (:id rule)
      :tile-ref tile-ref
+     :mask-ref mask-ref
      :tileset tileset
      :tile (data/tile-in (:tilesets state) tileset tile-ref)}))
 
@@ -2498,21 +3234,44 @@
         signature
         nil))))
 
-(defun terrain-standard-output-layer [state terrain-set terrain rule role-id tile-ref]
+(defun terrain-unit-single-mask-stamp [unit pos mask-ref]
+  (dotimes [y (:h unit)]
+    (dotimes [x (:w unit)]
+      (if (and (= x (:x pos))
+               (= y (:y pos)))
+        mask-ref
+        nil))))
+
+(defun terrain-standard-output-layer [state
+                                      terrain-set
+                                      terrain
+                                      rule
+                                      role-id
+                                      tile-ref
+                                      mask-ref]
   (let [unit (data/terrain-unit terrain-set)
         pos (terrain-standard-role-output-position state role-id)
         fallback-layer (default-output-stamp-layer state terrain-set terrain)
         output-layer (or (head (or (-> rule :output :layers) []))
                          fallback-layer)
-        signature (when tile-ref
+        signature (when (or tile-ref mask-ref)
                     (default-terrain-signature-for-rule rule))]
     (assoc (assoc output-layer
                   :tiles
                   (terrain-unit-single-tile-stamp unit pos tile-ref))
+           :transition-masks
+           (terrain-unit-single-mask-stamp unit pos mask-ref)
            :terrain-signatures
            (terrain-unit-single-signature-stamp unit pos signature))))
 
-(defun terrain-standard-rule-with-tile [state terrain-set terrain rule role-id opposing tile-ref]
+(defun terrain-standard-rule-with-output [state
+                                          terrain-set
+                                          terrain
+                                          rule
+                                          role-id
+                                          opposing
+                                          tile-ref
+                                          mask-ref]
   (replace-first-output-layer
    (assoc rule :match (terrain-standard-role-match role-id opposing))
    (terrain-standard-output-layer state
@@ -2523,7 +3282,28 @@
                                          (terrain-standard-role-match role-id
                                                                       opposing))
                                   role-id
-                                  tile-ref)))
+                                  tile-ref
+                                  mask-ref)))
+
+(defun terrain-standard-rule-with-tile [state terrain-set terrain rule role-id opposing tile-ref]
+  (terrain-standard-rule-with-output state
+                                     terrain-set
+                                     terrain
+                                     rule
+                                     role-id
+                                     opposing
+                                     tile-ref
+                                     nil))
+
+(defun terrain-standard-rule-with-mask [state terrain-set terrain rule role-id opposing mask-ref]
+  (terrain-standard-rule-with-output state
+                                     terrain-set
+                                     terrain
+                                     rule
+                                     role-id
+                                     opposing
+                                     nil
+                                     mask-ref))
 
 (defun add-terrain-standard-role-rule [state setup-id role-id opposing tile-ref]
   (let [state (ensure-terrain-ruleset (derive-terrain-workspace-state state))
@@ -2563,9 +3343,7 @@
 (defun set-terrain-standard-role-tile [state setup-id role-id opposing tile-ref]
   (let [state (derive-terrain-workspace-state state)
         opposing (or opposing (selected-terrain-standard-opposing state))
-        opposing (if (terrain-standard-opposing-valid? state opposing)
-                   opposing
-                   terrain-standard-opposing-none)
+        opposing (normalize-terrain-standard-opposing state opposing)
         rule-id (terrain-standard-role-rule-id state setup-id role-id opposing)]
     (if rule-id
       (let [terrain-set (selected-terrain-set (:terrain-sets state)
@@ -2593,6 +3371,77 @@
                                        tile-ref))))))
                :selected-terrain-rule-id rule-id))
       (add-terrain-standard-role-rule state setup-id role-id opposing tile-ref))))
+
+(defun add-terrain-standard-role-mask-rule [state setup-id role-id opposing mask-ref]
+  (let [state (ensure-terrain-ruleset (derive-terrain-workspace-state state))
+        ruleset-id (selected-terrain-ruleset-id state)
+        terrain-set (selected-terrain-set (:terrain-sets state)
+                                          (:selected-terrain-set-index state))
+        terrain (selected-terrain terrain-set (:selected-terrain-index state))]
+    (if (and ruleset-id terrain-set terrain mask-ref)
+      (let [rule (assoc (make-terrain-rule state)
+                        :label (terrain-standard-rule-label state
+                                                            setup-id
+                                                            role-id
+                                                            opposing)
+                        :exclusive? true
+                        :match (terrain-standard-role-match role-id opposing))
+            rule (terrain-standard-rule-with-mask state
+                                                  terrain-set
+                                                  terrain
+                                                  rule
+                                                  role-id
+                                                  opposing
+                                                  mask-ref)]
+        (assoc state
+               :rulesets (update-ruleset
+                          (:rulesets state)
+                          ruleset-id
+                          (fn [ruleset]
+                            (assoc ruleset
+                                   :rules
+                                   (insert-terrain-rule-by-specificity
+                                    (:rules ruleset)
+                                    rule))))
+               :selected-terrain-ruleset-id ruleset-id
+               :selected-terrain-rule-id (:id rule)))
+      state)))
+
+(defun set-terrain-standard-role-mask [state setup-id role-id opposing mask-ref]
+  (let [state (derive-terrain-workspace-state state)
+        opposing (or opposing (selected-terrain-standard-opposing state))
+        opposing (normalize-terrain-standard-opposing state opposing)
+        rule-id (terrain-standard-role-rule-id state setup-id role-id opposing)]
+    (if rule-id
+      (let [terrain-set (selected-terrain-set (:terrain-sets state)
+                                              (:selected-terrain-set-index state))
+            terrain (selected-terrain terrain-set (:selected-terrain-index state))
+            ruleset-id (selected-terrain-ruleset-id state)]
+        (assoc state
+               :rulesets (update-ruleset
+                          (:rulesets state)
+                          ruleset-id
+                          (fn [ruleset]
+                            (assoc ruleset
+                                   :rules
+                                   (update-rule
+                                    (:rules ruleset)
+                                    rule-id
+                                    (fn [rule]
+                                      (terrain-standard-rule-with-mask
+                                       state
+                                       terrain-set
+                                       terrain
+                                       rule
+                                       role-id
+                                       opposing
+                                       mask-ref))))))
+               :selected-terrain-rule-id rule-id))
+      (add-terrain-standard-role-mask-rule state
+                                           setup-id
+                                           role-id
+                                           opposing
+                                           mask-ref))))
 
 (defun terrain-condition-option [terrain]
   {:value (:id terrain)
@@ -2697,15 +3546,23 @@
         terrain-set (selected-terrain-set terrain-sets set-index)
         terrain-index (selected-terrain-index terrain-set
                                               (:selected-terrain-index state))
+        mask-set-index (selected-mask-set-index (:mask-sets state)
+                                                (:selected-mask-set-index state))
+        mask-set (selected-mask-set (:mask-sets state) mask-set-index)
+        mask-index (selected-mask-index mask-set (:selected-mask-index state))
         state (assoc state
                      :selected-terrain-set-index set-index
-                     :selected-terrain-index terrain-index)
+                     :selected-terrain-index terrain-index
+                     :selected-mask-set-index mask-set-index
+                     :selected-mask-index mask-index)
         ruleset-id (selected-terrain-ruleset-id state)
         rule-id (selected-terrain-rule-id
                  (assoc state :selected-terrain-ruleset-id ruleset-id))
+        transition-id (selected-transition-id state)
         selected-state (assoc state
                               :selected-terrain-ruleset-id ruleset-id
-                              :selected-terrain-rule-id rule-id)
+                              :selected-terrain-rule-id rule-id
+                              :selected-terrain-transition-id transition-id)
         selected-rule (selected-terrain-rule selected-state)
         opposing (selected-terrain-standard-opposing selected-state)
         standard-cache (terrain-standard-role-slot-cache-for-state

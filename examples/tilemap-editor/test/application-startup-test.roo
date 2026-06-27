@@ -493,10 +493,7 @@
       (runtime/mouse-down-in! app terrain-unit-combo 5 5))
     (runtime/update! app)
     (is (= "ui/combo-box-popup" (runtime/active-mode-name app)))
-    (runtime/render! app)
-    (let [popup-panel (runtime/find-view app "ui/combo-box-popup-panel")]
-      (is (not (nil? popup-panel)))
-      (runtime/mouse-click-in! app popup-panel 5 25))
+    (runtime/pop-mode! app {:selected-indices [1]})
     (runtime/update! app)
     (runtime/update! app)
     (runtime/render! app)
@@ -510,6 +507,204 @@
       (is (not (nil? terrain-unit-combo)))
       (is (= 1 (:selected-index (runtime/view-state terrain-unit-combo))))
       (is (= "2 x 2" (:selected-label (runtime/view-state terrain-unit-combo)))))))
+
+(deftest masks-tab-renders_mask_sets_from_state
+  (let [app (make-startup-app)]
+    (runtime/push-mode! app 'main-mode)
+    (runtime/update! app)
+    (runtime/set-active-state!
+     app
+     (assoc (runtime/active-state app)
+            :workspace-tab :masks
+            :mask-sets [{:id :soft-edge
+                         :label "Soft Edge"}]))
+    (runtime/update! app)
+    (runtime/render! app)
+    (is (not (nil? (runtime/find-view app "mask-set-workspace"))))
+    (is (= [{:id :soft-edge
+             :label "Soft Edge"}]
+           (:mask-sets (runtime/view-state
+                        (runtime/find-view app "mask-set-workspace")))))
+    (is (not (nil? (runtime/find-view-containing app
+                                                  "ui/list-box"
+                                                  ":soft-edge"))))))
+
+(deftest masks-tab-renders_selected_mask_palette_and_canvas
+  (let [app (make-startup-app)]
+    (runtime/push-mode! app 'main-mode)
+    (runtime/update! app)
+    (runtime/set-active-state!
+     app
+     (assoc (runtime/active-state app)
+            :workspace-tab :masks
+            :mask-detail-tab :mask
+            :selected-mask-set-index 0
+            :selected-mask-index 0
+            :tilesets [{:id :terrain
+                        :label "Terrain"
+                        :tiles [{:id :edge-n
+                                 :label "Edge N"}]}]
+            :mask-sets [{:id :soft-edge
+                         :label "Soft Edge"
+                         :masks [{:id :north
+                                  :label "North"
+                                  :source {:type :tile-composition
+                                           :tileset :terrain
+                                           :tiles []}}]}]))
+    (runtime/update! app)
+    (runtime/render! app)
+    (let [tileset-selector (runtime/find-view
+                            app
+                            "mask-workspace-source-tileset-selector")
+          tile-palette (runtime/find-view app "mask-source-tile-palette")
+          composition-canvas (runtime/find-view
+                              app
+                              "mask-composition-canvas")]
+      (is (not (nil? tileset-selector)))
+      (is (not (nil? tile-palette)))
+      (is (not (nil? composition-canvas)))
+      (is (= false (:disabled? (runtime/view-state tileset-selector))))
+      (is (= false (:disabled? (runtime/view-state tile-palette))))
+      (is (= [{:value 0
+               :label "Terrain"}]
+             (:tileset-options (runtime/view-state tileset-selector))))
+      (is (= [{:value :edge-n
+               :label nil}]
+             (:tile-options (runtime/view-state tile-palette))))
+      (is (= []
+             (:selected-mask-tile-items
+              (runtime/view-state composition-canvas)))))))
+
+(deftest masks-tab-source_tileset_selection_stores_tileset_id
+  (let [app (make-startup-app)]
+    (runtime/push-mode! app 'main-mode)
+    (runtime/update! app)
+    (runtime/set-active-state!
+     app
+     (assoc (runtime/active-state app)
+            :workspace-tab :masks
+            :mask-detail-tab :mask
+            :selected-mask-set-index 0
+            :selected-mask-index 0
+            :tilesets [{:id :terrain
+                        :label "Terrain"
+                        :tiles [{:id :edge-n}]}
+                       {:id :road
+                        :label "Road"
+                        :tiles [{:id :road-edge}]}]
+            :mask-sets [{:id :soft-edge
+                         :label "Soft Edge"
+                         :masks [{:id :north
+                                  :label "North"
+                                  :source {:type :tile-composition
+                                           :tileset :terrain
+                                           :tiles []}}]}]))
+    (runtime/update! app)
+    (runtime/render! app)
+    (let [tileset-selector (runtime/find-view
+                            app
+                            "mask-workspace-source-tileset-selector")]
+      (is (not (nil? tileset-selector)))
+      (is (= 0 (:selected-tileset-index
+                (runtime/view-state tileset-selector))))
+      (runtime/mouse-down-in! app tileset-selector 5 5))
+    (runtime/update! app)
+    (is (= "ui/combo-box-popup" (runtime/active-mode-name app)))
+    (runtime/pop-mode! app {:selected-indices [1]})
+    (runtime/update! app)
+    (runtime/update! app)
+    (runtime/render! app)
+    (let [tileset-selector (runtime/find-view
+                            app
+                            "mask-workspace-source-tileset-selector")]
+      (is (= :road
+             (get-in (runtime/active-state app)
+                     [:mask-sets 0 :masks 0 :source :tileset])))
+      (is (= 1 (:selected-tileset-index
+                (runtime/view-state tileset-selector)))))))
+
+(deftest masks-tab-clicking_composed_tile_selects_it
+  (let [app (make-startup-app)]
+    (runtime/push-mode! app 'main-mode)
+    (runtime/update! app)
+    (runtime/set-active-state!
+     app
+     (assoc (runtime/active-state app)
+            :workspace-tab :masks
+            :mask-detail-tab :mask
+            :selected-mask-set-index 0
+            :selected-mask-index 0
+            :tilesets [{:id :terrain
+                        :label "Terrain"
+                        :tile-size 16
+                        :tiles [{:id :edge-n}
+                                {:id :edge-e}]}]
+            :mask-sets [{:id :soft-edge
+                         :label "Soft Edge"
+                         :mask-size {:w 16
+                                     :h 16}
+                         :masks [{:id :north
+                                  :label "North"
+                                  :source {:type :tile-composition
+                                           :tileset :terrain
+                                           :tiles [{:tile :edge-n
+                                                    :offset {:x 0
+                                                             :y 0}}]}}]}]))
+    (runtime/update! app)
+    (runtime/render! app)
+    (let [canvas (runtime/find-view app "mask-composition-canvas")]
+      (is (not (nil? canvas)))
+      (runtime/mouse-click-in! app canvas 10 10))
+    (runtime/update! app)
+    (runtime/render! app)
+    (let [canvas (runtime/find-view app "mask-composition-canvas")]
+      (is (= 0 (:selected-mask-tile-item-index
+                (runtime/view-state canvas)))))))
+
+(deftest masks-tab-context_menu_can_remove_composed_tile
+  (let [app (make-startup-app)]
+    (runtime/push-mode! app 'main-mode)
+    (runtime/update! app)
+    (runtime/set-active-state!
+     app
+     (assoc (runtime/active-state app)
+            :workspace-tab :masks
+            :mask-detail-tab :mask
+            :selected-mask-set-index 0
+            :selected-mask-index 0
+            :tilesets [{:id :terrain
+                        :label "Terrain"
+                        :tile-size 16
+                        :tiles [{:id :edge-n}]}]
+            :mask-sets [{:id :soft-edge
+                         :label "Soft Edge"
+                         :mask-size {:w 16
+                                     :h 16}
+                         :masks [{:id :north
+                                  :label "North"
+                                  :source {:type :tile-composition
+                                           :tileset :terrain
+                                           :tiles [{:tile :edge-n
+                                                    :offset {:x 0
+                                                             :y 0}}]}}]}]))
+    (runtime/update! app)
+    (runtime/render! app)
+    (let [canvas (runtime/find-view app "mask-composition-canvas")]
+      (is (not (nil? canvas)))
+      (runtime/mouse-click-in! app canvas 10 10 :right))
+    (runtime/update! app)
+    (is (= "ui/context-menu" (runtime/active-mode-name app)))
+    (runtime/render! app)
+    (let [remove-item (runtime/find-view-containing app
+                                                    "ui/popup-menu-item"
+                                                    ":command :remove")]
+      (is (not (nil? remove-item)))
+      (runtime/click! app remove-item))
+    (runtime/update! app)
+    (runtime/render! app)
+    (is (= []
+           (get-in (runtime/active-state app)
+                   [:mask-sets 0 :masks 0 :source :tiles])))))
 
 (deftest loaded-sprite-project-after-empty-tileset-tab-with-missing-image-renders-preview
   (cleanup-application-startup-test-files!)

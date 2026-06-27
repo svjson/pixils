@@ -270,6 +270,19 @@
     (is (= true
            (derivation/terrain-stamp-rule-matches? source rule 1 1)))))
 
+(deftest terrain-stamp-terrain_in_matches_any_listed_terrain
+  (let [source (terrain-layer (terrain-map [[:water :sand :stone]
+                                           [:grass :grass :grass]]))
+        rule {:id :grass-north-soft-edge
+              :terrain :grass
+              :match {:n {:terrain-in [:water :sand]}}}]
+    (is (= true
+           (derivation/terrain-stamp-rule-matches? source rule 0 1)))
+    (is (= true
+           (derivation/terrain-stamp-rule-matches? source rule 1 1)))
+    (is (= false
+           (derivation/terrain-stamp-rule-matches? source rule 2 1)))))
+
 (deftest terrain-stamp-signature_source_matches_adjacent_tile_ownership
   (let [source {:id :scene/visuals
                 :data-kind :terrain-signature

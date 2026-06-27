@@ -247,6 +247,35 @@
     (is (not= (canvas/map-canvas-render-input-signature base-input)
               (canvas/map-canvas-render-input-signature changed-input)))))
 
+(deftest render-input-signature-changes-with-mask-sets
+  (let [base-input {:width 1
+                    :height 1
+                    :tile-size 16
+                    :tilesets []
+                    :mask-sets []
+                    :layers []
+                    :terrain-sets []
+                    :show-terrain-rules? nil
+                    :layer-profile nil
+                    :rulesets []}
+        changed-input (assoc base-input
+                             :mask-sets [{:id :soft-edge
+                                          :masks [{:id :north}]}])]
+    (is (not= (canvas/map-canvas-render-input-signature base-input)
+              (canvas/map-canvas-render-input-signature changed-input)))))
+
+(deftest materialization-tilemap-includes-mask-sets
+  (let [tilemap (canvas/map-canvas-materialization-tilemap
+                 {:width 1
+                  :height 1
+                  :tile-size 16
+                  :tilesets []
+                  :terrain-sets []
+                  :mask-sets [{:id :soft-edge}]
+                  :rulesets []}
+                 [])]
+    (is (= [{:id :soft-edge}] (:mask-sets tilemap)))))
+
 (deftest materialize-map-canvas-render-map-applies-tile-substitution-rules
   (let [render-map (canvas/materialize-map-canvas-render-map
                     {:width 1

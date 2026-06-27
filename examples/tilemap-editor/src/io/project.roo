@@ -116,6 +116,12 @@
 (defun project-tile-substitution-rules [project]
   (or (:tile-substitution-rules project) data/project-tile-substitution-rules))
 
+(defun project-mask-sets [project]
+  (or (:mask-sets project) data/project-mask-sets))
+
+(defun project-terrain-transitions [project]
+  (or (:terrain-transitions project) data/project-terrain-transitions))
+
 (defun project-brushes [project]
   (or (:brushes project) data/project-brushes))
 
@@ -137,6 +143,8 @@
         terrain-sets (project-terrain-sets project)
         rulesets (project-rulesets project)
         tile-substitution-rules (project-tile-substitution-rules project)
+        mask-sets (project-mask-sets project)
+        terrain-transitions (project-terrain-transitions project)
         brushes (project-brushes project)]
     (if (valid-project-document? project)
       (remember-project!
@@ -151,6 +159,8 @@
                :terrain-sets terrain-sets
                :rulesets rulesets
                :tile-substitution-rules tile-substitution-rules
+               :mask-sets mask-sets
+               :terrain-transitions terrain-transitions
                :brushes brushes
                :maps maps
                :map-ui-states {}

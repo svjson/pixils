@@ -1,0 +1,97 @@
+(ns tilemap-editor.view.masks.layout-test
+  (:require proof.core
+            [tilemap-editor.view.masks.layout :as layout]))
+
+(def test-tilesets
+  [{:id :terrain
+    :label "Terrain"
+    :tile-size 16
+    :tiles [{:id :edge-n}
+            {:id :edge-e}]}])
+
+(def test-state
+  {:tilesets test-tilesets
+   :selected-mask-set-index 0
+   :selected-mask-index 0
+   :mask-sets [{:id :soft-edge
+                :label "Soft Edge"
+                :mask-size {:w 16
+                            :h 16}
+                :masks [{:id :north
+                         :label "North"
+                         :source {:type :tile-composition
+                                  :tileset :terrain
+                                  :tiles []}}]}]})
+
+(deftest mask-canvas-view-size-uses_selected_mask_set_dimensions
+  (is (= {:w 48
+          :h 40}
+         (layout/mask-canvas-view-size
+          (assoc-in test-state
+                    [:mask-sets 0 :mask-size]
+                    {:w 32
+                     :h 24})))))
+
+(deftest mask-canvas-item-context-menu-removes_tiles
+  (let [item (head (:items (layout/mask-canvas-item-context-menu 2)))]
+    (is (= "Remove" (:label item)))
+    (is (= :remove (-> item :payload :command)))
+    (is (= 2 (-> item :payload :index)))))
+
+(deftest mask-canvas-selected-index-rejects_stale_indices
+  (is (= 0
+         (layout/mask-canvas-selected-index
+          {:selected-mask-tile-item-index 0
+           :selected-mask-tile-items [{:tile :edge-n}]})))
+  (is (nil?
+       (layout/mask-canvas-selected-index
+        {:selected-mask-tile-item-index 1
+         :selected-mask-tile-items [{:tile :edge-n}]}))))
+
+(deftest mask-canvas-drop-payload-adds_source_tile_at_drop_position
+  (is (= {:tile :edge-n
+          :tileset :terrain
+          :offset {:x 8
+                   :y 9}}
+         (layout/mask-canvas-drop-payload
+          test-state
+          {:payload {:kind :mask/source-tile
+                     :tile :edge-n
+                     :tileset :terrain
+                     :offset {:x 4
+                              :y 5}}
+           :position {:x 20
+                      :y 22}}))))
+
+(deftest mask-canvas-drop-payload-accepts_tileset_grid_tile
+  (is (= {:tile :edge-e
+          :tileset :terrain
+          :offset {:x 4
+                   :y 6}}
+         (layout/mask-canvas-drop-payload
+          test-state
+          {:payload {:kind :tileset/tile
+                     :source-tileset-index 0
+                     :tile {:id :edge-e}
+                     :offset {:x 8
+                              :y 8}}
+           :position {:x 20
+                      :y 22}}))))
+
+(deftest mask-canvas-drag-payload-identifies_composed_tile
+  (is (= {:kind :mask/composed-tile
+          :index 1
+          :start-offset {:x 4
+                         :y 5}}
+         (layout/mask-canvas-drag-payload
+          (assoc test-state
+                 :selected-mask-tile-items
+                 [{:tile :edge-n
+                   :offset {:x 0
+                            :y 0}}
+                  {:tile :edge-e
+                   :offset {:x 4
+                            :y 5}}])
+          {:start-position {:x 14
+                            :y 15}}
+          {}))))

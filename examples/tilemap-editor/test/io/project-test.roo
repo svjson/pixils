@@ -25,6 +25,18 @@
           {:rulesets [{:id :grass-marching}]})))
   (is (= [] (project-io/project-rulesets {}))))
 
+(deftest project-mask-sets-come-from-project-document
+  (is (= [{:id :soft-edge}]
+         (project-io/project-mask-sets
+          {:mask-sets [{:id :soft-edge}]})))
+  (is (= [] (project-io/project-mask-sets {}))))
+
+(deftest project-terrain-transitions-come-from-project-document
+  (is (= [{:id :road-grass}]
+         (project-io/project-terrain-transitions
+          {:terrain-transitions [{:id :road-grass}]})))
+  (is (= [] (project-io/project-terrain-transitions {}))))
+
 (deftest project-brushes-come-from-project-document
   (is (= [{:id :brush}]
          (project-io/project-brushes {:brushes [{:id :brush}]})))

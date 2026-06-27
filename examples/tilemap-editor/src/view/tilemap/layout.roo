@@ -49,6 +49,9 @@
                              :selected-map-label
                              (ui/bind-state :selected-map-label)
                              :tilesets (ui/bind-state :tilesets)
+                             :mask-sets (ui/bind-state :mask-sets)
+                             :transition-mask-diagnostics
+                             (ui/bind-state :transition-mask-diagnostics)
                              :terrain-sets (ui/bind-state :terrain-sets)
                              :rulesets (ui/bind-state :rulesets)
                              :layer-profiles (ui/bind-state :layer-profiles)
@@ -90,6 +93,9 @@
                                       :map-height (ui/bind-state :map-height)
                                       :tile-size (ui/bind-state :tile-size)
                                       :tilesets (ui/bind-state :tilesets)
+                                      :mask-sets (ui/bind-state :mask-sets)
+                                    :transition-mask-diagnostics
+                                    (ui/bind-state :transition-mask-diagnostics)
                                     :terrain-sets (ui/bind-state :terrain-sets)
                                     :rulesets (ui/bind-state :rulesets)
                                     :layer-profiles (ui/bind-state :layer-profiles)
@@ -149,7 +155,10 @@
                         :selected-label (ui/bind-state :selected-label)
                         :selected-tileset-index (ui/bind-state :selected-tileset-index)
                         :tilesets (ui/bind-state :tilesets)
+                        :mask-sets (ui/bind-state :mask-sets)
                         :tileset (ui/bind-state :tileset)
+                        :transition-mask-diagnostics
+                        (ui/bind-state :transition-mask-diagnostics)
                         :terrain-sets (ui/bind-state :terrain-sets)
                         :rulesets (ui/bind-state :rulesets)
                         :layer-profiles (ui/bind-state :layer-profiles)
@@ -191,6 +200,9 @@
                                     :selected-map-label
                                     (ui/bind-state :selected-map-label)
                                     :tilesets (ui/bind-state :tilesets)
+                                    :mask-sets (ui/bind-state :mask-sets)
+                                    :transition-mask-diagnostics
+                                    (ui/bind-state :transition-mask-diagnostics)
                                     :terrain-sets (ui/bind-state :terrain-sets)
                                     :rulesets (ui/bind-state :rulesets)
                                     :layer-profiles (ui/bind-state :layer-profiles)

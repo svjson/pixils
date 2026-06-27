@@ -83,6 +83,7 @@
    :show-grid? (:show-grid? state)
    :hidden-layer-indices (:hidden-layer-indices state)
    :tilesets (:tilesets state)
+   :mask-sets (:mask-sets state)
    :tile-substitution-rules (:tile-substitution-rules state)
    :synced-resources (:synced-resources state)
    :layer-profile (data/layer-profile-by-id (:layer-profiles state)
@@ -116,29 +117,29 @@
       (concat profile-layers
               (logical-unprofiled-render-layers (:layers input) profile)))))
 
+(defun map-canvas-materialization-tilemap [input render-layers]
+  {:width (:width input)
+   :height (:height input)
+   :tile-size (:tile-size input)
+   :tilesets (:tilesets input)
+   :terrain-sets (:terrain-sets input)
+   :mask-sets (:mask-sets input)
+   :rulesets (:rulesets input)
+   :tile-substitution-rules (:tile-substitution-rules input)
+   :show-terrain-rules? (:show-terrain-rules? input)
+   :layers render-layers})
+
 (defun materialize-map-canvas-render-layers [input render-layers]
   (materialize/materialize-render-map
-   {:width (:width input)
-    :height (:height input)
-    :tile-size (:tile-size input)
-    :tilesets (:tilesets input)
-    :terrain-sets (:terrain-sets input)
-    :rulesets (:rulesets input)
-    :tile-substitution-rules (:tile-substitution-rules input)
-    :show-terrain-rules? (:show-terrain-rules? input)
-    :layers render-layers}))
+   (map-canvas-materialization-tilemap input render-layers)))
+
+(defun map-canvas-transition-mask-diagnostics [input render-layers]
+  (materialize/transition-mask-diagnostics
+   (map-canvas-materialization-tilemap input render-layers)))
 
 (defun materialize-map-canvas-render-layer-rect [input render-layers rect]
   (materialize/materialize-render-rect
-   {:width (:width input)
-    :height (:height input)
-    :tile-size (:tile-size input)
-    :tilesets (:tilesets input)
-    :terrain-sets (:terrain-sets input)
-    :rulesets (:rulesets input)
-    :tile-substitution-rules (:tile-substitution-rules input)
-    :show-terrain-rules? (:show-terrain-rules? input)
-    :layers render-layers}
+   (map-canvas-materialization-tilemap input render-layers)
    rect))
 
 (defun materialize-map-canvas-render-map [input]
@@ -154,6 +155,7 @@
    :height (:height input)
    :tile-size (:tile-size input)
    :tilesets (:tilesets input)
+   :mask-sets (:mask-sets input)
    :layers (map (or (:layers input) []) render-layer-signature)
    :terrain-sets (:terrain-sets input)
    :show-terrain-rules? (:show-terrain-rules? input)
@@ -408,7 +410,11 @@
       (assoc state
              :render-map-input input
              :render-map-input-signature signature)
-      (let [dirty-positions (or (:render-dirty-positions state) [])
+      (let [diagnostic-render-layers (map-canvas-render-layers input)
+            diagnostics (map-canvas-transition-mask-diagnostics
+                         input
+                         diagnostic-render-layers)
+            dirty-positions (or (:render-dirty-positions state) [])
             dirty-rect (dirty-render-rect dirty-positions)
             partial? (and (:render-map state)
                           (:render-map-dirty? state)
@@ -417,7 +423,7 @@
             render-layers (if partial?
                             (map-canvas-dirty-render-layers input
                                                             dirty-positions)
-                            (map-canvas-render-layers input))
+                            diagnostic-render-layers)
             patch-map (when partial?
                         (materialize-map-canvas-render-layer-rect
                          input
@@ -434,6 +440,7 @@
           (assoc state
                  :render-map-input input
                  :render-map-input-signature signature
+                 :transition-mask-diagnostics diagnostics
                  :render-map render-map
                  :render-cache-image nil
                  :render-cache-signature nil
@@ -518,6 +525,7 @@
                    :tilesets []
                    :terrain-sets []
                    :rulesets []
+                   :mask-sets []
                    :layer-profiles []
                    :brushes []
                    :layers []
@@ -591,6 +599,9 @@
                          :map-height (ui/bind-state :map-height)
                          :tile-size (ui/bind-state :tile-size)
                          :tilesets (ui/bind-state :tilesets)
+                         :mask-sets (ui/bind-state :mask-sets)
+                       :transition-mask-diagnostics
+                       (ui/bind-state :transition-mask-diagnostics)
                        :synced-resources (ui/bind-state :synced-resources)
                        :terrain-sets (ui/bind-state :terrain-sets)
                        :rulesets (ui/bind-state :rulesets)
@@ -665,6 +676,9 @@
                          :map-height (ui/bind-state :map-height)
                          :tile-size (ui/bind-state :tile-size)
                          :tilesets (ui/bind-state :tilesets)
+                         :mask-sets (ui/bind-state :mask-sets)
+                       :transition-mask-diagnostics
+                       (ui/bind-state :transition-mask-diagnostics)
                        :terrain-sets (ui/bind-state :terrain-sets)
                        :rulesets (ui/bind-state :rulesets)
                        :layer-profiles (ui/bind-state :layer-profiles)

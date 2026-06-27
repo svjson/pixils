@@ -20,6 +20,287 @@
     (is (= false (:terrain-list-panel-disabled? state)))
     (is (= false (:terrain-detail-panel-disabled? state)))))
 
+(deftest terrain-workspace-selects_first_transition_for_selected_set
+  (let [state (model/derive-terrain-workspace-state
+               {:terrain-sets [{:id :overworld
+                                :terrains []}]
+                :terrain-transitions [{:id :roads
+                                       :terrain-set :overworld}
+                                      {:id :caves
+                                       :terrain-set :caves}]})]
+    (is (= :roads (:selected-terrain-transition-id state)))))
+
+(deftest terrain-workspace_keeps_selected_transition_when_valid
+  (let [state (model/derive-terrain-workspace-state
+               {:terrain-sets [{:id :overworld
+                                :terrains []}]
+                :selected-terrain-transition-id :paths
+                :terrain-transitions [{:id :roads
+                                       :terrain-set :overworld}
+                                      {:id :paths
+                                       :terrain-set :overworld}]})]
+    (is (= :paths (:selected-terrain-transition-id state)))))
+
+(deftest terrain-transition-options_are_scoped_to_selected_terrain_set
+  (is (= [{:value :roads
+           :label "Roads"}]
+         (model/transition-options
+          {:terrain-sets [{:id :overworld}
+                          {:id :caves}]
+           :selected-terrain-set-index 0
+           :terrain-transitions [{:id :roads
+                                  :label "Roads"
+                                  :terrain-set :overworld}
+                                 {:id :cave-path
+                                  :label "Cave Path"
+                                  :terrain-set :caves}]}))))
+
+(deftest mask-set-options_use_labels_and_ids
+  (is (= [{:value :soft-edge
+           :label "Soft Edge"}
+          {:value :hard-edge
+           :label "hard-edge"}]
+         (model/mask-set-options [{:id :soft-edge
+                                   :label "Soft Edge"}
+                                  {:id :hard-edge}]))))
+
+(deftest terrain-transition-mask-set-options_include_none
+  (is (= [{:value :none
+           :label "None"}
+          {:value :soft-edge
+           :label "Soft Edge"}]
+         (model/terrain-transition-mask-set-options
+          [{:id :soft-edge
+            :label "Soft Edge"}]))))
+
+(deftest selected-terrain-transition-mask-set-can_be_set
+  (let [state (model/set-selected-terrain-transition-mask-set
+               {:terrain-sets [{:id :overworld
+                                :terrains [{:id :grass}]}]
+                :mask-sets [{:id :soft-edge}]
+                :selected-terrain-set-index 0
+                :selected-terrain-index 0}
+               :soft-edge)]
+    (is (= :soft-edge
+           (get-in state
+                   [:terrain-sets 0 :terrains 0 :transition-mask-set])))
+    (is (= 1
+           (model/selected-terrain-transition-mask-set-option-index
+            state)))))
+
+(deftest terrain-mask-options_scope_to_selected_terrain_mask_set
+  (is (= [{:value {:mask-set :soft-edge
+                   :mask :north}
+           :label "North"}]
+         (model/terrain-mask-options-for-selected-terrain
+          {:terrain-sets [{:id :overworld
+                           :terrains [{:id :grass
+                                       :transition-mask-set :soft-edge}]}]
+           :mask-sets [{:id :soft-edge
+                        :masks [{:id :north
+                                 :label "North"}]}
+                       {:id :hard-edge
+                        :masks [{:id :south
+                                 :label "South"}]}]
+           :selected-terrain-set-index 0
+           :selected-terrain-index 0}))))
+
+(deftest terrain-workspace-selects_first_available_mask_set
+  (let [state (model/derive-terrain-workspace-state
+               {:mask-sets [{:id :soft-edge}
+                            {:id :hard-edge}]})]
+    (is (= 0 (:selected-mask-set-index state)))))
+
+(deftest terrain-workspace-selects_first_available_mask
+  (let [state (model/derive-terrain-workspace-state
+               {:mask-sets [{:id :soft-edge
+                             :masks [{:id :n}
+                                     {:id :s}]}]
+                :selected-mask-set-index 0})]
+    (is (= 0 (:selected-mask-index state)))))
+
+(deftest mask-set-creation-adds_and_selects_new_set
+  (let [state (model/add-mask-set {:mask-sets []})]
+    (is (= :mask-set (get-in state [:mask-sets 0 :id])))
+    (is (= "Mask set" (get-in state [:mask-sets 0 :label])))
+    (is (= [] (get-in state [:mask-sets 0 :masks])))
+    (is (= 0 (:selected-mask-set-index state)))))
+
+(deftest mask-set-creation-can_use_confirmed_identity
+  (let [state (model/add-mask-set-with-id
+               {:mask-sets [{:id :soft-edge}]}
+               "soft-edge"
+               "Soft Edge Copy")]
+    (is (= :soft-edge-2 (get-in state [:mask-sets 1 :id])))
+    (is (= "Soft Edge Copy" (get-in state [:mask-sets 1 :label])))
+    (is (= 1 (:selected-mask-set-index state)))))
+
+(deftest mask-set-rename-updates_transition_references
+  (let [state (model/set-selected-mask-set-label
+               (model/set-selected-mask-set-id
+                {:mask-sets [{:id :soft-edge
+                              :label "Soft Edge"}]
+                 :terrain-sets [{:id :overworld
+                                  :terrains [{:id :grass
+                                              :transition-mask-set :soft-edge}]}]
+                 :terrain-transitions [{:id :shore
+                                        :mask-set :soft-edge}]
+                 :rulesets [{:id :rules
+                              :rules [{:id :edge
+                                       :output {:layers
+                                                [{:transition-masks
+                                                  [[{:mask-set :soft-edge
+                                                     :mask :north}]]}]}}]}]
+                 :selected-mask-set-index 0}
+                "feathered-edge")
+               "Feathered Edge")]
+    (is (= :feathered-edge (get-in state [:mask-sets 0 :id])))
+    (is (= "Feathered Edge" (get-in state [:mask-sets 0 :label])))
+    (is (= :feathered-edge
+           (get-in state [:terrain-transitions 0 :mask-set])))
+    (is (= :feathered-edge
+           (get-in state
+                   [:terrain-sets 0 :terrains 0 :transition-mask-set])))
+    (is (= :feathered-edge
+           (get-in state
+                   [:rulesets 0 :rules 0 :output :layers 0
+                    :transition-masks 0 0 :mask-set])))))
+
+(deftest mask-set-delete-clears_transition_references
+  (let [state (model/delete-selected-mask-set
+               {:mask-sets [{:id :soft-edge}
+                            {:id :hard-edge}]
+                :terrain-sets [{:id :overworld
+                                 :terrains [{:id :grass
+                                             :transition-mask-set :soft-edge}]}]
+                :terrain-transitions [{:id :shore
+                                       :mask-set :soft-edge}
+                                      {:id :cliff
+                                       :mask-set :hard-edge}]
+                :rulesets [{:id :rules
+                             :rules [{:id :edge
+                                      :output {:layers
+                                               [{:transition-masks
+                                                 [[{:mask-set :soft-edge
+                                                    :mask :north}]]}]}}]}]
+                :selected-mask-set-index 0})]
+    (is (= [:hard-edge] (map (:mask-sets state) :id)))
+    (is (nil? (get-in state [:terrain-transitions 0 :mask-set])))
+    (is (= :hard-edge (get-in state [:terrain-transitions 1 :mask-set])))
+    (is (nil? (get-in state
+                      [:terrain-sets 0 :terrains 0 :transition-mask-set])))
+    (is (nil? (get-in state
+                      [:rulesets 0 :rules 0 :output :layers 0
+                       :transition-masks 0 0 :mask-set])))
+    (is (= 0 (:selected-mask-set-index state)))))
+
+(deftest mask-options_use_labels_and_ids
+  (is (= [{:value 0
+           :label "North"}
+          {:value 1
+           :label "s"}]
+         (model/mask-options {:masks [{:id :n
+                                       :label "North"}
+                                      {:id :s}]}))))
+
+(deftest mask-creation-adds_to_selected_mask_set
+  (let [state (model/add-mask {:mask-sets [{:id :soft-edge
+                                            :masks []}]
+                               :selected-mask-set-index 0})]
+    (is (= :mask (get-in state [:mask-sets 0 :masks 0 :id])))
+    (is (= "Mask" (get-in state [:mask-sets 0 :masks 0 :label])))
+    (is (= :tile-composition
+           (get-in state [:mask-sets 0 :masks 0 :source :type])))
+    (is (= [] (get-in state [:mask-sets 0 :masks 0 :source :tiles])))
+    (is (= 0 (:selected-mask-index state)))))
+
+(deftest mask-set-creation-defaults_to_one_tile_mask_size
+  (let [state (model/add-mask-set {:mask-sets []})]
+    (is (= {:w 16
+            :h 16}
+           (get-in state [:mask-sets 0 :mask-size])))
+    (is (= {:w 16
+            :h 16}
+           (model/selected-mask-set-size state)))))
+
+(deftest mask-set-size-update-changes_selected_mask_dimensions
+  (let [state (-> {:mask-sets [{:id :soft-edge
+                                :masks []}]
+                   :selected-mask-set-index 0}
+                  (model/set-selected-mask-set-size :w 32)
+                  (model/set-selected-mask-set-size :h 24))]
+    (is (= {:w 32
+            :h 24}
+           (get-in state [:mask-sets 0 :mask-size])))
+    (is (= {:w 32
+            :h 24}
+           (model/selected-mask-set-size state)))))
+
+(deftest mask-creation-can_use_confirmed_identity
+  (let [state (model/add-mask-with-id
+               {:mask-sets [{:id :soft-edge
+                             :masks [{:id :mask}]}]
+                :selected-mask-set-index 0}
+               "mask"
+               "Mask Copy")]
+    (is (= :mask-2 (get-in state [:mask-sets 0 :masks 1 :id])))
+    (is (= "Mask Copy" (get-in state [:mask-sets 0 :masks 1 :label])))
+    (is (= 1 (:selected-mask-index state)))))
+
+(deftest mask-rename-updates_selected_mask
+  (let [state (model/set-selected-mask-label
+               (model/set-selected-mask-id
+                {:mask-sets [{:id :soft-edge
+                              :masks [{:id :n
+                                       :label "North"}]}]
+                 :selected-mask-set-index 0
+                 :selected-mask-index 0}
+                "north-edge")
+               "North Edge")]
+    (is (= :north-edge (get-in state [:mask-sets 0 :masks 0 :id])))
+    (is (= "North Edge" (get-in state [:mask-sets 0 :masks 0 :label])))))
+
+(deftest mask-source-edits-update_selected_tile_composition
+  (let [base-state {:mask-sets [{:id :soft-edge
+                                 :masks [(model/make-mask [])]}]
+                    :selected-mask-set-index 0
+                    :selected-mask-index 0}
+        state (model/set-selected-mask-tile-item-offset
+               (model/add-selected-mask-tile
+                (model/set-selected-mask-source-tileset base-state :terrain)
+                :edge-n)
+               0
+               :x
+               -2)
+        state (model/set-selected-mask-tile-item-offset state 0 :y 3)]
+    (is (= :terrain
+           (get-in state [:mask-sets 0 :masks 0 :source :tileset])))
+    (is (= [{:tile :edge-n
+             :offset {:x -2
+                      :y 3}}]
+           (get-in state [:mask-sets 0 :masks 0 :source :tiles])))))
+
+(deftest mask-source-can_delete_composed_tile
+  (let [state (model/delete-selected-mask-tile-item
+               (model/add-selected-mask-tile
+                {:mask-sets [{:id :soft-edge
+                              :masks [(model/make-mask [])]}]
+                 :selected-mask-set-index 0
+                 :selected-mask-index 0}
+                :edge-n)
+               0)]
+    (is (= [] (get-in state [:mask-sets 0 :masks 0 :source :tiles])))))
+
+(deftest mask-delete-selects_neighbor
+  (let [state (model/delete-selected-mask
+               {:mask-sets [{:id :soft-edge
+                             :masks [{:id :n}
+                                     {:id :s}]}]
+                :selected-mask-set-index 0
+                :selected-mask-index 0})]
+    (is (= [:s] (map (get-in state [:mask-sets 0 :masks]) :id)))
+    (is (= 0 (:selected-mask-index state)))))
+
 (deftest terrain-set-creation-adds_and_selects_new_set
   (let [state (model/add-terrain-set {:terrain-sets []})]
     (is (= :terrain-set (get-in state [:terrain-sets 0 :id])))
@@ -1170,7 +1451,9 @@
                                     :terrain :grass
                                     :match {:n :none
                                             :e {:terrain :desert}
-                                            :s :not-same}
+                                            :s :not-same
+                                            :w {:terrain-in [:water
+                                                            :sand]}}
                                     :output {:anchor {:x 0 :y 0}
                                              :layers [{:tiles [[:grass-edge]]}]}}]}]
                :selected-terrain-ruleset-id :overworld-rules
@@ -1179,7 +1462,8 @@
     (is (= :grass (:center signature)))
     (is (= :none (:n signature)))
     (is (= :desert (:e signature)))
-    (is (nil? (:s signature)))))
+    (is (nil? (:s signature)))
+    (is (nil? (:w signature)))))
 
 (deftest terrain-rule-output-signature-edit-updates_selected_stamp_cell
   (let [state (model/set-selected-rule-output-terrain-signature
@@ -1367,6 +1651,115 @@
     (is (= false (:exclusive? (nth rules 1))))
     (is (= {:terrain :water}
            (get-in rules [0 :match :n])))))
+
+(deftest terrain-standard-opposing-toggle-builds_grouped_terrain_selection
+  (let [base-state {:terrain-sets [{:id :overworld
+                                    :terrains [{:id :grass}
+                                               {:id :water
+                                                :label "Water"}
+                                               {:id :sand
+                                                :label "Sand"}
+                                               {:id :stone}]}]
+                    :selected-terrain-set-index 0
+                    :selected-terrain-index 0}
+        water-state (model/set-terrain-standard-opposing
+                     base-state
+                     (model/toggle-terrain-standard-opposing base-state :water))
+        sand-state (model/set-terrain-standard-opposing
+                    water-state
+                    (model/toggle-terrain-standard-opposing water-state :sand))
+        stone-first-state (model/set-terrain-standard-opposing
+                           sand-state
+                           {:terrain-in [:stone :sand :water]})
+        sand-only-state (model/set-terrain-standard-opposing
+                         sand-state
+                         (model/toggle-terrain-standard-opposing sand-state :water))]
+    (is (= :water (:terrain-standard-opposing water-state)))
+    (is (= {:terrain-in [:water :sand]}
+           (:terrain-standard-opposing sand-state)))
+    (is (= {:terrain-in [:water :sand :stone]}
+           (:terrain-standard-opposing stone-first-state)))
+    (is (= :sand (:terrain-standard-opposing sand-only-state)))
+    (is (= "Water, Sand"
+           (model/terrain-standard-opposing-label
+            sand-state
+            (:terrain-standard-opposing sand-state))))))
+
+(deftest terrain-standard-role-tile-can_create_grouped_opposing_rule
+  (let [state (model/set-terrain-standard-role-tile
+               {:terrain-sets [{:id :overworld
+                                :tileset :terrain
+                                :terrains [{:id :grass
+                                            :tile :grass-fill}
+                                           {:id :water
+                                            :tile :water-fill}
+                                           {:id :sand
+                                            :tile :sand-fill}
+                                           {:id :stone
+                                            :tile :stone-fill}]}]
+                :tilesets [{:id :terrain
+                            :tiles [{:id :grass-fill}
+                                    {:id :soft-edge}]}]
+                :selected-terrain-set-index 0
+                :selected-terrain-index 0}
+               :island-3x3
+               :n
+               {:terrain-in [:water :sand]}
+               :soft-edge)
+        rule (get-in state [:rulesets 0 :rules 0])]
+    (is (= "Island N - water, sand" (:label rule)))
+    (is (= {:terrain-in [:water :sand]} (get-in rule [:match :n])))
+    (is (= :soft-edge (get-in rule [:output :layers 0 :tiles 0 0])))))
+
+(deftest terrain-standard-role-mask-can_create_transition_mask_rule
+  (let [mask-ref {:mask-set :soft-edge
+                  :mask :north}
+        state (model/set-terrain-standard-role-mask
+               {:terrain-sets [{:id :overworld
+                                :tileset :terrain
+                                :terrains [{:id :grass}
+                                           {:id :water}]}]
+                :tilesets [{:id :terrain
+                            :tiles [{:id :grass-fill}]}]
+                :mask-sets [{:id :soft-edge
+                             :masks [{:id :north}]}]
+                :selected-terrain-set-index 0
+                :selected-terrain-index 0}
+               :island-3x3
+               :n
+               :water
+               mask-ref)
+        rule (get-in state [:rulesets 0 :rules 0])]
+    (is (= {:terrain :water} (get-in rule [:match :n])))
+    (is (= [[nil]] (get-in rule [:output :layers 0 :tiles])))
+    (is (= [[mask-ref]]
+           (get-in rule [:output :layers 0 :transition-masks])))))
+
+(deftest terrain-rule-match-condition-implies_supports_terrain_in_sets
+  (is (= true
+         (model/terrain-rule-match-condition-implies? :grass
+                                                      {:terrain :water}
+                                                      {:terrain-in [:water
+                                                                    :sand]})))
+  (is (= true
+         (model/terrain-rule-match-condition-implies? :grass
+                                                      {:terrain-in [:water]}
+                                                      {:terrain :water})))
+  (is (= false
+         (model/terrain-rule-match-condition-implies? :grass
+                                                      {:terrain-in [:water
+                                                                    :sand]}
+                                                      {:terrain :water})))
+  (is (= true
+         (model/terrain-rule-match-condition-implies? :grass
+                                                      {:terrain-in [:water
+                                                                    :sand]}
+                                                      :other-terrain)))
+  (is (= false
+         (model/terrain-rule-match-condition-implies? :grass
+                                                      {:terrain-in [:grass
+                                                                    :water]}
+                                                      :other-terrain))))
 
 (deftest terrain-standard-rule-labels_include_semantic_setup_name
   (let [outer-state (model/set-terrain-standard-role-tile
@@ -1772,3 +2165,53 @@
                                                  :island-3x3
                                                  :n
                                                  :water)))))
+
+(deftest terrain-standard-role-recognizes_existing_grouped_opposing_rule
+  (let [state {:terrain-sets [{:id :overworld
+                               :tileset :terrain
+                               :terrains [{:id :grass}
+                                          {:id :water}
+                                          {:id :sand}
+                                          {:id :stone}]}]
+               :tilesets [{:id :terrain
+                           :tiles [{:id :soft-edge}
+                                   {:id :water-edge}]}]
+               :selected-terrain-set-index 0
+               :selected-terrain-index 0
+               :rulesets [{:id :rules
+                           :terrain-set :overworld
+                           :rules [{:id :grouped-edge-n
+                                    :terrain :grass
+                                    :match {:nw :ignore
+                                            :n {:terrain-in [:water :sand]}
+                                            :ne :ignore
+                                            :w :ignore
+                                            :e :ignore
+                                            :sw :ignore
+                                            :s :same
+                                            :se :ignore}
+                                    :output {:layers [{:tileset :terrain
+                                                       :tiles [[:soft-edge]]}]}}
+                                   {:id :water-edge-n
+                                    :terrain :grass
+                                    :match {:nw :ignore
+                                            :n {:terrain :water}
+                                            :ne :ignore
+                                            :w :ignore
+                                            :e :ignore
+                                            :sw :ignore
+                                            :s :same
+                                            :se :ignore}
+                                    :output {:layers [{:tileset :terrain
+                                                       :tiles [[:water-edge]]}]}}]}]
+               :selected-terrain-ruleset-id :rules}
+        grouped {:terrain-in [:water :sand]}]
+    (is (= :grouped-edge-n
+           (model/terrain-standard-role-rule-id state :island-3x3 :n grouped)))
+    (is (= :soft-edge
+           (model/terrain-standard-role-tile-ref state
+                                                 :island-3x3
+                                                 :n
+                                                 grouped)))
+    (is (= :water-edge-n
+           (model/terrain-standard-role-rule-id state :island-3x3 :n :water)))))
