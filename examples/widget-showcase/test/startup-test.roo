@@ -26,6 +26,84 @@
   (+ (-> view :bounds :y)
      (-> view :bounds :h)))
 
+(defun view-render-pixel-at [app view x y]
+  (let [bounds (:bounds view)]
+    (runtime/rendered-pixel app
+                            (+ (:x bounds) x)
+                            (+ (:y bounds) y))))
+
+(defun visible-view-pixel [app view]
+  (let [bounds (:bounds view)
+        background (runtime/rendered-pixel app 1 1)
+        left (min 4 (max 0 (- (:w bounds) 2)))
+        right (max 0 (- (:w bounds) 4))
+        top (min 4 (max 0 (- (:h bounds) 2)))
+        middle-x (int (/ (:w bounds) 2))
+        middle-y (int (/ (:h bounds) 2))
+        pixels [(view-render-pixel-at app view left top)
+                (view-render-pixel-at app view right top)
+                (view-render-pixel-at app view middle-x top)
+                (view-render-pixel-at app view middle-x middle-y)]]
+    (head (filter pixels
+                  (fn [pixel]
+                    (and (not (nil? pixel))
+                         (not (= background pixel))))))))
+
+(defun assert-view-rendered! [app view]
+  (if (not (nil? (runtime/rendered-pixel app 1 1)))
+    (is (not (nil? (visible-view-pixel app view))))
+    true))
+
+(defun style-position [view]
+  {:position (:position (:style view))
+   :left (:left (:style view))
+   :top (:top (:style view))
+   :effective-position (:position (:effective-style view))
+   :effective-left (:left (:effective-style view))
+   :effective-top (:top (:effective-style view))})
+
+(defun vertical-containment [outer inner]
+  {:contained? (and (>= (-> inner :bounds :y)
+                        (-> outer :bounds :y))
+                    (<= (view-bottom inner)
+                        (view-bottom outer)))
+   :outer (:bounds outer)
+   :inner (:bounds inner)})
+
+(defun assert-contained-y! [outer inner]
+  (is (= {:contained? true
+          :outer (:bounds outer)
+          :inner (:bounds inner)}
+         (vertical-containment outer inner))))
+
+(defun window-chrome-snapshot [app]
+  (let [window (runtime/find-view app "ui/window")
+        title-bar (runtime/find-view app "ui/window-title-bar")
+        body (runtime/find-view app "ui/window-body")
+        control (runtime/find-view app "ui/window-control-button")
+        minimize (runtime/find-view app "ui/window-minimize-button")
+        title-text (runtime/find-view-containing app
+                                                 "ui/text"
+                                                 "Pixils Widget Showcase")]
+    {:window-bounds (:bounds window)
+     :window-style-position (style-position window)
+     :title-bar-bounds (:bounds title-bar)
+     :body-bounds (:bounds body)
+     :control-bounds (:bounds control)
+     :minimize-bounds (:bounds minimize)
+     :title-text-bounds (:bounds title-text)}))
+
+(defun assert-window-chrome-contained! [app]
+  (let [title-bar (runtime/find-view app "ui/window-title-bar")
+        control (runtime/find-view app "ui/window-control-button")
+        minimize (runtime/find-view app "ui/window-minimize-button")
+        title-text (runtime/find-view-containing app
+                                                 "ui/text"
+                                                 "Pixils Widget Showcase")]
+    (assert-contained-y! title-bar control)
+    (assert-contained-y! title-bar minimize)
+    (assert-contained-y! title-bar title-text)))
+
 (defun slider-with-state [app predicate]
   (head (filter (runtime/find-views app "ui/slider")
                 (fn [slider]
@@ -91,6 +169,88 @@
              (:h (:bounds scroll-pane))))
       (is (= true (< (:h (:bounds viewport))
                      (:h (:bounds tab-panel))))))))
+
+(deftest widget-showcase-title-bar-stays-anchored-on-first-hover
+  (let [app (runtime/make-app {:package-root "."
+                               :buffer-width 800
+                               :buffer-height 600
+                               :render-backend true})]
+    (runtime/push-mode-with-overrides! app
+                                       'main-mode
+                                       nil
+                                       {:theme 'pixils/windows-3})
+    (runtime/frame! app)
+    (let [window (runtime/find-view app "ui/window")
+          title-bar (runtime/find-view app "ui/window-title-bar")
+          window-bounds (:bounds window)
+          title-bounds (:bounds title-bar)
+          initial-chrome (window-chrome-snapshot app)]
+      (is (= true (> (:h title-bounds) 0)))
+      (is (= true (> (:w title-bounds) 0)))
+      (is (= true (> (:x title-bounds) (:x window-bounds))))
+      (is (= true (> (:y title-bounds) (:y window-bounds))))
+      (assert-window-chrome-contained! app)
+      (assert-view-rendered! app title-bar)
+      (runtime/mouse-move-in! app title-bar 10 10)
+      (runtime/frame! app)
+      (let [window-after (runtime/find-view app "ui/window")
+            title-after (runtime/find-view app "ui/window-title-bar")
+            chrome-after (window-chrome-snapshot app)]
+        (is (= window-bounds (:bounds window-after)))
+        (is (= title-bounds (:bounds title-after)))
+        (is (= initial-chrome chrome-after))
+        (assert-window-chrome-contained! app)
+        (assert-view-rendered! app title-after))
+      (runtime/frame! app)
+      (let [window-after-second-frame (runtime/find-view app "ui/window")
+            title-after-second-frame (runtime/find-view app "ui/window-title-bar")
+            chrome-after-second-frame (window-chrome-snapshot app)]
+        (is (= window-bounds (:bounds window-after-second-frame)))
+        (is (= title-bounds (:bounds title-after-second-frame)))
+        (is (= initial-chrome chrome-after-second-frame))
+        (assert-window-chrome-contained! app)
+        (assert-view-rendered! app title-after-second-frame))
+      (runtime/frame! app)
+      (let [window-after-third-frame (runtime/find-view app "ui/window")
+            title-after-third-frame (runtime/find-view app "ui/window-title-bar")
+            chrome-after-third-frame (window-chrome-snapshot app)]
+        (is (= window-bounds (:bounds window-after-third-frame)))
+        (is (= title-bounds (:bounds title-after-third-frame)))
+        (is (= initial-chrome chrome-after-third-frame))
+        (assert-window-chrome-contained! app)
+        (assert-view-rendered! app title-after-third-frame)))))
+
+(deftest widget-showcase-title-bar-drag-starts-from-current-window-position
+  (let [app (runtime/make-app {:package-root "."
+                               :buffer-width 800
+                               :buffer-height 600
+                               :render-backend false})]
+    (runtime/push-mode-with-overrides! app
+                                       'main-mode
+                                       nil
+                                       {:theme 'pixils/windows-3})
+    (runtime/frame! app)
+    (let [window (runtime/find-view app "ui/window")
+          title-bar (runtime/find-view app "ui/window-title-bar")
+          start-bounds (:bounds window)
+          press-x 120
+          press-y 9
+          drag-dx 24
+          drag-dy 14]
+      (runtime/mouse-down-in! app title-bar press-x press-y)
+      (runtime/frame! app)
+      (let [after-down (runtime/find-view app "ui/window")]
+        (is (= start-bounds (:bounds after-down))))
+      (let [title-bar-after-down (runtime/find-view app "ui/window-title-bar")
+            move-global {:x (+ (:x (:bounds title-bar-after-down)) press-x drag-dx)
+                         :y (+ (:y (:bounds title-bar-after-down)) press-y drag-dy)}]
+        (runtime/mouse-move-at! app (:x move-global) (:y move-global)))
+      (runtime/frame! app)
+      (let [after-first-drag (runtime/find-view app "ui/window")
+            expected-bounds (assoc start-bounds
+                                   :x (+ (:x start-bounds) drag-dx)
+                                   :y (+ (:y start-bounds) drag-dy))]
+        (is (= expected-bounds (:bounds after-first-drag)))))))
 
 (deftest inputs-tab-choices-group-expands_to_contain_combo_box
   (let [app (runtime/make-app {:package-root "."

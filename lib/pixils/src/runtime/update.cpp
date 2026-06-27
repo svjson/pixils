@@ -15,6 +15,21 @@
 
 namespace Pixils::Runtime
 {
+  namespace
+  {
+    Point update_mouse_pos(const HookArguments& hook_args)
+    {
+      if (!hook_args.events || !hook_args.events->mouse_pos ||
+          hook_args.events->mouse_pos->type == Roo::Value::Type::NIL)
+      {
+        return {0.0f, 0.0f};
+      }
+
+      return Roo::obj<Point>(*hook_args.events->mouse_pos);
+    }
+
+  } // namespace
+
   void Session::update_mode()
   {
     PIXILS_BENCHMARK_COUNT(runtime_update_mode_calls);
@@ -66,12 +81,22 @@ namespace Pixils::Runtime
      */
     if (hook_args.events)
     {
-      Pixils::UI::dispatch_interactions(active_mode,
-                                        mouse_state,
-                                        focus_state,
-                                        *hook_args.events,
-                                        hook_args,
-                                        roo_runtime);
+      bool late_interaction_update =
+        Pixils::UI::dispatch_interactions(active_mode,
+                                          mouse_state,
+                                          focus_state,
+                                          *hook_args.events,
+                                          hook_args,
+                                          roo_runtime);
+      if (late_interaction_update)
+      {
+        Pixils::UI::update_view_tree(active_mode,
+                                     mouse_state,
+                                     focus_state,
+                                     update_mouse_pos(hook_args),
+                                     hook_args,
+                                     roo_runtime);
+      }
       Pixils::UI::sync_focus_state(active_mode, focus_state);
       Pixils::UI::refresh_view_interaction_tree(active_mode,
                                                 mouse_state,

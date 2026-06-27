@@ -9,6 +9,79 @@
   (runtime/layout! app)
   app)
 
+(defun view-render-pixel-at [app view x y]
+  (let [bounds (:bounds view)]
+    (runtime/rendered-pixel app
+                            (+ (:x bounds) x)
+                            (+ (:y bounds) y))))
+
+(defun visible-view-pixel [app view]
+  (let [bounds (:bounds view)
+        background (runtime/rendered-pixel app 1 1)
+        left (min 4 (max 0 (- (:w bounds) 2)))
+        right (max 0 (- (:w bounds) 4))
+        top (min 4 (max 0 (- (:h bounds) 2)))
+        middle-x (int (/ (:w bounds) 2))
+        middle-y (int (/ (:h bounds) 2))
+        pixels [(view-render-pixel-at app view left top)
+                (view-render-pixel-at app view right top)
+                (view-render-pixel-at app view middle-x top)
+                (view-render-pixel-at app view middle-x middle-y)]]
+    (head (filter pixels
+                  (fn [pixel]
+                    (and (not (nil? pixel))
+                         (not (= background pixel))))))))
+
+(defun assert-view-rendered! [app view]
+  (if (not (nil? (runtime/rendered-pixel app 1 1)))
+    (is (not (nil? (visible-view-pixel app view))))
+    true))
+
+(defun style-position [view]
+  {:position (:position (:style view))
+   :left (:left (:style view))
+   :top (:top (:style view))
+   :effective-position (:position (:effective-style view))
+   :effective-left (:left (:effective-style view))
+   :effective-top (:top (:effective-style view))})
+
+(defun view-bottom [view]
+  (+ (-> view :bounds :y)
+     (-> view :bounds :h)))
+
+(defun assert-contained-y! [outer inner]
+  (is (= true (>= (-> inner :bounds :y)
+                  (-> outer :bounds :y))))
+  (is (= true (<= (view-bottom inner)
+                  (view-bottom outer)))))
+
+(defun window-chrome-snapshot [app title]
+  (let [window (runtime/find-view app "ui/window")
+        title-bar (runtime/find-view app "ui/window-title-bar")
+        body (runtime/find-view app "ui/window-body")
+        control (runtime/find-view app "ui/window-control-button")
+        minimize (runtime/find-view app "ui/window-minimize-button")
+        title-text (runtime/find-view-containing app "ui/text" title)]
+    {:window-bounds (:bounds window)
+     :window-style-position (style-position window)
+     :title-bar-bounds (:bounds title-bar)
+     :body-bounds (:bounds body)
+     :control-bounds (:bounds control)
+     :minimize-bounds (:bounds minimize)
+     :title-text-bounds (:bounds title-text)}))
+
+(defun assert-window-chrome-contained! [app title]
+  (let [title-bar (runtime/find-view app "ui/window-title-bar")
+        control (runtime/find-view app "ui/window-control-button")
+        minimize (runtime/find-view app "ui/window-minimize-button")
+        title-text (runtime/find-view-containing app "ui/text" title)]
+    (assert-contained-y! title-bar control)
+    (assert-contained-y! title-bar minimize)
+    (assert-contained-y! title-bar title-text)))
+
+(defun centered-axis [frame-size content-size]
+  (int (/ (- frame-size content-size) 2)))
+
 (defun window-move-probe-source []
   "(ns pixils.test.window-move-probe
      (:require pixils
@@ -109,9 +182,30 @@
               :height 40}})
 
    (pixils/defmode root-mode
-     {:children [(pixils.ui.window/make
+     {:theme 'pixils/windows-3
+      :children [(pixils.ui.window/make
                   {:title-bar {:title \"Natural\"}
                    :body [{:mode 'probe-body}]})]})")
+
+(defun dynamic-natural-size-centered-window-probe-source []
+  "(ns pixils.test.dynamic-natural-size-centered-window-probe
+     (:require pixils
+               [pixils.ui :as ui]
+               pixils.ui.window))
+
+   (pixils/defcomponent dynamic-body
+     {:content-size (fn [state ctx]
+                      {:w 80
+                       :h (if (:expanded? state) 80 40)})
+      :on-mouse-down (fn [state event ctx]
+                       (assoc state :expanded? true))})
+
+   (pixils/defmode root-mode
+     {:theme 'pixils/windows-3
+      :children [(pixils.ui.window/make
+                  {:title-bar {:title \"Dynamic\"}
+                   :body [{:mode 'dynamic-body
+                           :state {:expanded? false}}]})]})")
 
 (defun body-style-window-probe-source []
   "(ns pixils.test.body-style-window-probe
@@ -390,7 +484,7 @@
       (is (= 40 (:x (:bounds window))))
       (is (= 32 (:y (:bounds window)))))))
 
-(deftest implicit-natural-size-window-stays-offscreen-until-it-can-center
+(deftest implicit-natural-size-window-centers-after-first-layout
   (let [app (runtime/make-app {:package-root "../.."
                                :buffer-width 160
                                :buffer-height 120
@@ -399,20 +493,136 @@
     (runtime/push-mode! app 'root-mode)
     (runtime/update! app)
     (runtime/layout! app)
-    (let [first-window (runtime/find-view app "ui/window")
-          first-state (runtime/view-state first-window)]
-      (is (= false (:window/explicit-position? first-state)))
-      (is (= nil (:position first-state)))
-      (is (< (:x (:bounds first-window)) 0))
-      (is (< (:y (:bounds first-window)) 0)))
-    (runtime/update! app)
-    (runtime/layout! app)
     (let [centered-window (runtime/find-view app "ui/window")
           centered-state (runtime/view-state centered-window)]
+      (is (= false (:window/explicit-position? centered-state)))
       (is (> (:x (:position centered-state)) 0))
       (is (> (:y (:position centered-state)) 0))
       (is (= (:x (:position centered-state)) (:x (:bounds centered-window))))
-      (is (= (:y (:position centered-state)) (:y (:bounds centered-window)))))))
+      (is (= (:y (:position centered-state)) (:y (:bounds centered-window))))
+      (runtime/layout! app)
+      (let [stable-window (runtime/find-view app "ui/window")]
+        (is (= (:bounds centered-window)
+               (:bounds stable-window)))))))
+
+(deftest implicit-natural-size-window-does-not-drift-during-first-rendered-frames
+  (let [app (runtime/make-app {:package-root "../.."
+                               :buffer-width 160
+                               :buffer-height 120
+                               :render-backend true})]
+    (runtime/eval! app (natural-size-centered-window-probe-source))
+    (runtime/push-mode! app 'root-mode)
+    (runtime/frame! app)
+    (let [first-window (runtime/find-view app "ui/window")
+          first-title-bar (runtime/find-view app "ui/window-title-bar")
+          first-body (runtime/find-view app "ui/window-body")
+          first-window-bounds (:bounds first-window)
+          first-title-bounds (:bounds first-title-bar)
+          first-body-bounds (:bounds first-body)
+          first-state (runtime/view-state first-window)
+          first-chrome (window-chrome-snapshot app "Natural")]
+      (is (= false (:window/explicit-position? first-state)))
+      (is (= (:x (:position first-state)) (:x first-window-bounds)))
+      (is (= (:y (:position first-state)) (:y first-window-bounds)))
+      (assert-window-chrome-contained! app "Natural")
+      (assert-view-rendered! app first-title-bar)
+      (runtime/frame! app)
+      (let [second-window (runtime/find-view app "ui/window")
+            second-title-bar (runtime/find-view app "ui/window-title-bar")
+            second-body (runtime/find-view app "ui/window-body")
+            second-chrome (window-chrome-snapshot app "Natural")]
+        (is (= first-window-bounds (:bounds second-window)))
+        (is (= first-title-bounds (:bounds second-title-bar)))
+        (is (= first-body-bounds (:bounds second-body)))
+        (is (= first-chrome second-chrome))
+        (assert-window-chrome-contained! app "Natural")
+        (assert-view-rendered! app second-title-bar))
+      (runtime/frame! app)
+      (let [third-window (runtime/find-view app "ui/window")
+            third-title-bar (runtime/find-view app "ui/window-title-bar")
+            third-body (runtime/find-view app "ui/window-body")
+            third-chrome (window-chrome-snapshot app "Natural")]
+        (is (= first-window-bounds (:bounds third-window)))
+        (is (= first-title-bounds (:bounds third-title-bar)))
+        (is (= first-body-bounds (:bounds third-body)))
+        (is (= first-chrome third-chrome))
+        (assert-window-chrome-contained! app "Natural")
+        (assert-view-rendered! app third-title-bar)))))
+
+(deftest implicit-natural-size-window-recenters-when-content-size-changes
+  (let [app (runtime/make-app {:package-root "../.."
+                               :buffer-width 160
+                               :buffer-height 140
+                               :render-backend false})]
+    (runtime/eval! app (dynamic-natural-size-centered-window-probe-source))
+    (runtime/push-mode! app 'root-mode)
+    (settle-layout! app)
+    (let [before-window (runtime/find-view app "ui/window")
+          before-bounds (:bounds before-window)
+          body (runtime/find-view app "dynamic-body")]
+      (runtime/mouse-down-in! app body 4 4)
+      (runtime/update! app)
+      (runtime/layout! app)
+      (let [after-window (runtime/find-view app "ui/window")
+            after-state (runtime/view-state after-window)
+            after-bounds (:bounds after-window)]
+        (is (= true (> (:h after-bounds) (:h before-bounds))))
+        (is (= true (< (:y after-bounds) (:y before-bounds))))
+        (is (= (:x (:position after-state)) (:x after-bounds)))
+        (is (= (:y (:position after-state)) (:y after-bounds)))))))
+
+(deftest implicit-natural-size-window-resizes-and-recenters-in-one-rendered-frame
+  (let [app (runtime/make-app {:package-root "../.."
+                               :buffer-width 160
+                               :buffer-height 140
+                               :render-backend true})]
+    (runtime/eval! app (dynamic-natural-size-centered-window-probe-source))
+    (runtime/push-mode! app 'root-mode)
+    (runtime/frame! app)
+    (runtime/frame! app)
+    (let [before-window (runtime/find-view app "ui/window")
+          before-title-bar (runtime/find-view app "ui/window-title-bar")
+          before-body (runtime/find-view app "dynamic-body")
+          before-window-bounds (:bounds before-window)
+          before-title-bounds (:bounds before-title-bar)
+          before-body-bounds (:bounds before-body)
+          before-chrome (window-chrome-snapshot app "Dynamic")]
+      (assert-window-chrome-contained! app "Dynamic")
+      (assert-view-rendered! app before-title-bar)
+      (runtime/mouse-down-in! app before-body 4 4)
+      (runtime/frame! app)
+      (let [after-window (runtime/find-view app "ui/window")
+            after-title-bar (runtime/find-view app "ui/window-title-bar")
+            after-body (runtime/find-view app "dynamic-body")
+            after-state (runtime/view-state after-window)
+            after-window-bounds (:bounds after-window)
+            after-title-bounds (:bounds after-title-bar)
+            after-body-bounds (:bounds after-body)
+            after-chrome (window-chrome-snapshot app "Dynamic")]
+        (is (= true (> (:h after-window-bounds) (:h before-window-bounds))))
+        (is (= true (> (:h after-body-bounds) (:h before-body-bounds))))
+        (is (= true (< (:y after-window-bounds) (:y before-window-bounds))))
+        (is (= (centered-axis 160 (:w after-window-bounds))
+               (:x after-window-bounds)))
+        (is (= (centered-axis 140 (:h after-window-bounds))
+               (:y after-window-bounds)))
+        (is (= (:x (:position after-state)) (:x after-window-bounds)))
+        (is (= (:y (:position after-state)) (:y after-window-bounds)))
+        (is (not (= before-title-bounds after-title-bounds)))
+        (is (not (= before-chrome after-chrome)))
+        (assert-window-chrome-contained! app "Dynamic")
+        (assert-view-rendered! app after-title-bar)
+        (runtime/frame! app)
+        (let [stable-window (runtime/find-view app "ui/window")
+              stable-title-bar (runtime/find-view app "ui/window-title-bar")
+              stable-body (runtime/find-view app "dynamic-body")
+              stable-chrome (window-chrome-snapshot app "Dynamic")]
+          (is (= after-window-bounds (:bounds stable-window)))
+          (is (= after-title-bounds (:bounds stable-title-bar)))
+          (is (= after-body-bounds (:bounds stable-body)))
+          (is (= after-chrome stable-chrome))
+          (assert-window-chrome-contained! app "Dynamic")
+          (assert-view-rendered! app stable-title-bar))))))
 
 (deftest scaled-window-without-explicit-position-centers-visual-bounds
   (let [app (runtime/make-app {:package-root "../.."

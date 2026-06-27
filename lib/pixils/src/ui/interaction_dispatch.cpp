@@ -1114,6 +1114,11 @@ namespace Pixils::UI
           }
         }
       }
+
+      if (mouse_state.drag_operation && mouse_state.drag_operation->button == up_btn)
+        mouse_state.drag_operation = std::nullopt;
+      mouse_state.drag_states.erase(up_btn);
+      mouse_state.button_chains.erase(up_btn);
     }
 
     void handle_mouse_down(const std::shared_ptr<Runtime::View>& root,
@@ -1360,7 +1365,7 @@ namespace Pixils::UI
     }
   }
 
-  void dispatch_interactions(const std::shared_ptr<Runtime::View>& root,
+  bool dispatch_interactions(const std::shared_ptr<Runtime::View>& root,
                              MouseState& mouse_state,
                              FocusState& focus_state,
                              FrameEvents& events,
@@ -1381,6 +1386,8 @@ namespace Pixils::UI
 
     sync_focus_state_impl(root, focus_state);
     traverse(root, mouse_state, focus_state, events, hook_args, runtime);
+
+    const auto generation_after_traverse = root ? root->subtree_generation : 0;
 
     if (events.mouse_moved)
     {
@@ -1417,6 +1424,8 @@ namespace Pixils::UI
         }
       }
     }
+
+    return root && root->subtree_generation != generation_after_traverse;
   }
 
 } // namespace Pixils::UI

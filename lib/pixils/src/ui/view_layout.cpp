@@ -11,6 +11,7 @@
 #include <pixils/ui/theme.h>
 #include <pixils/ui/view_geometry.h>
 
+#include <algorithm>
 #include <functional>
 #include <roo/context.h>
 #include <roo/exception.h>
@@ -29,6 +30,11 @@ namespace Pixils::UI
     };
 
     constexpr size_t MAX_PERSISTENT_NATURAL_SIZE_CHILDREN = 256;
+
+    const Roo::sptr_val KEYWORD__WINDOW_EXPLICIT_POSITION =
+      Roo::keyword("window/explicit-position?");
+    const Roo::sptr_val KEYWORD__WINDOW_MOVED = Roo::keyword("window/moved?");
+    const Roo::sptr_val KEYWORD__POSITION = Roo::keyword("position");
 
     struct NaturalSizeCacheKey
     {
@@ -175,6 +181,162 @@ namespace Pixils::UI
       view.layout_cache.requested_bounds = requested_bounds;
       view.layout_cache.style_generation = style_generation;
       view.layout_cache.dependency_signature = dependency_signature;
+    }
+
+    bool truthy_map_value(const Roo::sptr_val& map, const Roo::sptr_val& key)
+    {
+      auto value = Roo::Dict::get_property(map, key);
+      return value && *value != *Roo::Constant::NIL && *value != *Roo::Constant::BOOL_FALSE;
+    }
+
+    bool is_ui_window(const Pixils::Runtime::View& view)
+    {
+      if (!view.mode) return false;
+      if (view.mode->name == "ui/window") return true;
+      return std::find(view.mode->selector_modes.begin(),
+                       view.mode->selector_modes.end(),
+                       "ui/window") != view.mode->selector_modes.end();
+    }
+
+    bool auto_centered_window(const Pixils::Runtime::View& view)
+    {
+      return view.state && view.state->type == Roo::Value::Type::MAP &&
+             !truthy_map_value(view.state, KEYWORD__WINDOW_EXPLICIT_POSITION) &&
+             !truthy_map_value(view.state, KEYWORD__WINDOW_MOVED);
+    }
+
+    void refresh_visual_geometry(
+      const std::shared_ptr<Pixils::Runtime::View>& view,
+      const std::optional<Rect>& parent_visual_bounds = std::nullopt,
+      int parent_visual_scale = 1,
+      const std::optional<Rect>& parent_logical_bounds = std::nullopt)
+    {
+      if (!view) return;
+
+      int own_scale = style_scale_factor(view->effective_style);
+      int visual_scale = parent_visual_scale * own_scale;
+      int visual_x = view->bounds.x;
+      int visual_y = view->bounds.y;
+
+      if (parent_visual_bounds && parent_logical_bounds)
+      {
+        visual_x = parent_visual_bounds->x +
+                   ((view->bounds.x - parent_logical_bounds->x) * parent_visual_scale);
+        visual_y = parent_visual_bounds->y +
+                   ((view->bounds.y - parent_logical_bounds->y) * parent_visual_scale);
+      }
+
+      view->visual_scale = visual_scale;
+      view->visual_bounds = {visual_x,
+                             visual_y,
+                             view->bounds.w * visual_scale,
+                             view->bounds.h * visual_scale};
+
+      for (auto& child : view->children)
+      {
+        refresh_visual_geometry(child, view->visual_bounds, visual_scale, view->bounds);
+      }
+    }
+
+    void translate_view_tree(const std::shared_ptr<Pixils::Runtime::View>& view,
+                             int dx,
+                             int dy)
+    {
+      if (!view || (dx == 0 && dy == 0)) return;
+
+      view->bounds.x += dx;
+      view->bounds.y += dy;
+      view->external_bounds.x += dx;
+      view->external_bounds.y += dy;
+      view->visual_bounds.x += dx;
+      view->visual_bounds.y += dy;
+      view->layout_cache.valid = false;
+      for (auto& child : view->children)
+      {
+        translate_view_tree(child, dx, dy);
+      }
+    }
+
+    bool position_matches(const Roo::sptr_val& position, int x, int y)
+    {
+      if (!position || position->type != Roo::Value::Type::MAP) return false;
+
+      auto x_val = Roo::Dict::get_property(position, Roo::keyword("x"));
+      auto y_val = Roo::Dict::get_property(position, Roo::keyword("y"));
+      return x_val && y_val && x_val->type == Roo::Value::Type::NUMBER &&
+             y_val->type == Roo::Value::Type::NUMBER && x_val->num().get_int() == x &&
+             y_val->num().get_int() == y;
+    }
+
+    Roo::sptr_val position_map(int x, int y)
+    {
+      auto value = Roo::map({});
+      Roo::Dict::set_property(value, Roo::keyword("x"), Roo::number(x));
+      Roo::Dict::set_property(value, Roo::keyword("y"), Roo::number(y));
+      return value;
+    }
+
+    bool apply_absolute_position(Style& style, int x, int y)
+    {
+      bool changed = false;
+      if (!style.position || *style.position != PositionMode::ABSOLUTE)
+      {
+        style.position = PositionMode::ABSOLUTE;
+        changed = true;
+      }
+      if (!style.left || *style.left != x)
+      {
+        style.left = x;
+        changed = true;
+      }
+      if (!style.top || *style.top != y)
+      {
+        style.top = y;
+        changed = true;
+      }
+      return changed;
+    }
+
+    bool apply_absolute_position(std::optional<Style>& style, int x, int y)
+    {
+      if (!style) style = Style{};
+      return apply_absolute_position(*style, x, y);
+    }
+
+    bool set_absolute_position_style(Pixils::Runtime::View& view, int x, int y)
+    {
+      if (!view.mode) return false;
+      if (!view.owned_mode)
+      {
+        view.owned_mode = std::make_unique<Pixils::Runtime::Mode>(*view.mode);
+        view.mode = view.owned_mode.get();
+      }
+
+      bool changed = apply_absolute_position(view.mode->runtime_style, x, y);
+      changed = apply_absolute_position(view.mode->style, x, y) || changed;
+      changed = apply_absolute_position(view.effective_style, x, y) || changed;
+      if (changed)
+      {
+        view.style_view.invalidate();
+        view.mark_style_changed();
+      }
+      return changed;
+    }
+
+    bool set_window_position_state(Pixils::Runtime::View& view, int x, int y)
+    {
+      auto existing_position = Roo::Dict::get_property(view.state, KEYWORD__POSITION);
+      if (position_matches(existing_position, x, y)) return false;
+
+      auto next_state = Roo::Dict::shallow_copy(view.state);
+      Roo::Dict::set_property(next_state, KEYWORD__POSITION, position_map(x, y));
+      return view.set_state_if_changed(next_state);
+    }
+
+    Rect window_position_frame(const Pixils::Runtime::View& view, const Rect& fallback_frame)
+    {
+      if (!view.parent) return fallback_frame;
+      return view.parent->effective_style.content_rect(view.parent->bounds);
     }
 
     Dimension calculate_outer_size(const Style& style, const Dimension& content_size)
@@ -1616,6 +1778,52 @@ namespace Pixils::UI
                           nullptr,
                           nullptr,
                           append_theme_match_context({}, view));
+    refresh_visual_geometry(view);
+  }
+
+  bool stabilize_auto_centered_windows(const std::shared_ptr<Pixils::Runtime::View>& view,
+                                       const Rect& frame)
+  {
+    if (!view) return false;
+
+    bool changed = false;
+    for (auto& child : view->children)
+    {
+      changed = stabilize_auto_centered_windows(child, frame) || changed;
+    }
+
+    if (!is_ui_window(*view) || !auto_centered_window(*view)) return changed;
+    if (view->external_bounds.w <= 0 || view->external_bounds.h <= 0) return changed;
+
+    const Rect position_frame = window_position_frame(*view, frame);
+    int centered_x = position_frame.x + (position_frame.w - view->external_bounds.w) / 2;
+    int centered_y = position_frame.y + (position_frame.h - view->external_bounds.h) / 2;
+    centered_x = std::clamp(centered_x,
+                            position_frame.x,
+                            position_frame.x +
+                              std::max(0, position_frame.w - view->external_bounds.w));
+    centered_y = std::clamp(centered_y,
+                            position_frame.y,
+                            position_frame.y +
+                              std::max(0, position_frame.h - view->external_bounds.h));
+
+    const int relative_x = centered_x - position_frame.x;
+    const int relative_y = centered_y - position_frame.y;
+    changed = set_absolute_position_style(*view, relative_x, relative_y) || changed;
+    changed = set_window_position_state(*view, relative_x, relative_y) || changed;
+
+    // Keep the current render tree in sync with the state/style persisted for
+    // the next update pass; otherwise auto-sized centered windows visibly drift
+    // for one frame after their content size changes.
+    const int dx = centered_x - view->bounds.x;
+    const int dy = centered_y - view->bounds.y;
+    if (dx != 0 || dy != 0)
+    {
+      translate_view_tree(view, dx, dy);
+      changed = true;
+    }
+
+    return changed;
   }
 
 } // namespace Pixils::UI

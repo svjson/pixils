@@ -33,7 +33,7 @@ namespace Pixils::UI
                                 Pixils::Runtime::HookArguments& hook_args,
                                 Roo::Runtime& runtime);
 
-  void dispatch_interactions(const std::shared_ptr<Pixils::Runtime::View>& root,
+  bool dispatch_interactions(const std::shared_ptr<Pixils::Runtime::View>& root,
                              MouseState& mouse_state,
                              FocusState& focus_state,
                              FrameEvents& events,

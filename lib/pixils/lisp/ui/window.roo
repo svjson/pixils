@@ -149,10 +149,10 @@
   (if (or (:window/explicit-position? state)
           (:window/moved? state))
     (or (:position state) {:x 0 :y 0})
-    (let [centered (centered-window-position ctx)]
-      (if centered
-        (constrained-window-position centered ctx)
-        (:position state)))))
+    (or (:position state)
+        (let [centered (centered-window-position ctx)]
+          (when centered
+            (constrained-window-position centered ctx))))))
 
 (defcomponent ui/window-control-button
   {})
@@ -215,10 +215,16 @@
    :on {:window/move-by (fn [state event ctx]
                           (ui/stop-propagation! event)
                           (if (window-movable? state)
-                            (assoc state
-                                   :position (pt/+ (window-position state ctx)
-                                                   (:payload event))
-                                   :window/moved? true)
+                            (let [next-position (pt/+ (or (:position state)
+                                                           (window-position state ctx))
+                                                       (:payload event))]
+                              (ui/style! (:view ctx)
+                                         {:position :absolute
+                                          :left (:x next-position)
+                                          :top (:y next-position)})
+                              (assoc state
+                                     :position next-position
+                                     :window/moved? true))
                             state))}
    :children [{:mode 'ui/window-title-bar}
               {:mode 'ui/window-body}]})
