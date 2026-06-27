@@ -7,6 +7,7 @@
 #include <roo/runtime/dict.h>
 #include <roo/runtime/value.h>
 #include <string>
+#include <utility>
 
 class ComboBoxTest : public RenderFixture
 {
@@ -365,4 +366,166 @@ TEST_F(ComboBoxTest, combo_box_popup_omits_scrollbar_when_options_fit)
   auto viewport = row->children[0];
   ASSERT_NE(viewport, nullptr);
   EXPECT_EQ(viewport->bounds.w, 98);
+}
+
+TEST_F(ComboBoxTest, scaled_combo_box_popup_uses_anchor_visual_geometry)
+{
+  runtime.eval(R"(
+    (pixils/defmode root-mode
+      {:children [(pixils.ui.combo-box/make
+                   {:options [{:value :a :label "Alpha"}
+                              {:value :b :label "Beta"}]
+                    :style {:width 100 :scale 2}
+                    :row-height 10
+                    :max-height 20})]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  session.update_mode();
+  session.render_mode();
+
+  input().mouse_down({10, 10});
+  update_cycle();
+  session.render_mode();
+
+  ASSERT_NE(session.active_mode, nullptr);
+  EXPECT_EQ(session.active_mode->mode->name, "ui/combo-box-popup");
+  ASSERT_TRUE(session.active_mode->effective_style.scale.has_value());
+  EXPECT_EQ(*session.active_mode->effective_style.scale, 2);
+  ASSERT_EQ(session.active_mode->children.size(), 1u);
+  auto popup_panel = session.active_mode->children[0];
+  ASSERT_NE(popup_panel, nullptr);
+
+  EXPECT_EQ(popup_panel->bounds.x, 0);
+  EXPECT_EQ(popup_panel->bounds.y, 22);
+  EXPECT_EQ(popup_panel->bounds.w, 100);
+  EXPECT_EQ(popup_panel->visual_bounds.x, 0);
+  EXPECT_EQ(popup_panel->visual_bounds.y, 44);
+  EXPECT_EQ(popup_panel->visual_bounds.w, 200);
+  EXPECT_EQ(popup_panel->visual_scale, 2);
+}
+
+TEST_F(ComboBoxTest, scaled_parent_combo_box_popup_aligns_and_reports_selection)
+{
+  runtime.eval(R"(
+    (pixils/defmode scaled-panel
+      {:style {:position :absolute
+               :left 20
+               :top 30
+               :width 140
+               :height 70
+               :scale 2}
+       :children [(pixils.ui.combo-box/make
+                   {:options [{:value :a :label "Alpha"}
+                              {:value :b :label "Beta"}
+                              {:value :c :label "Gamma"}]
+                    :style {:position :absolute
+                            :left 10
+                            :top 5
+                            :width 100}
+                    :row-height 10
+                    :max-height 40})]})
+
+    (pixils/defmode root-mode
+      {:init (fn [state ctx] {:selected-index nil})
+       :on {:combo-box/change (fn [state event ctx]
+                                (assoc (assoc state
+                                              :selected-index
+                                              (:selected-index (:payload event)))
+                                       :value
+                                       (:value (:payload event))))}
+       :children [{:mode 'scaled-panel :id "panel"}]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  session.update_mode();
+  session.render_mode();
+
+  input().mouse_down({50, 44});
+  update_cycle();
+  session.render_mode();
+
+  ASSERT_NE(session.active_mode, nullptr);
+  EXPECT_EQ(session.active_mode->mode->name, "ui/combo-box-popup");
+  ASSERT_TRUE(session.active_mode->effective_style.scale.has_value());
+  EXPECT_EQ(*session.active_mode->effective_style.scale, 2);
+  ASSERT_EQ(session.active_mode->children.size(), 1u);
+  auto popup_panel = session.active_mode->children[0];
+  ASSERT_NE(popup_panel, nullptr);
+  EXPECT_EQ(popup_panel->bounds.x, 20);
+  EXPECT_EQ(popup_panel->bounds.y, 42);
+  EXPECT_EQ(popup_panel->bounds.w, 100);
+  EXPECT_EQ(popup_panel->visual_bounds.x, 40);
+  EXPECT_EQ(popup_panel->visual_bounds.y, 84);
+  EXPECT_EQ(popup_panel->visual_bounds.w, 200);
+
+  ASSERT_EQ(popup_panel->children.size(), 1u);
+  auto popup_list_box = popup_panel->children[0];
+  ASSERT_EQ(popup_list_box->children.size(), 1u);
+  auto popup_scroll_pane = popup_list_box->children[0];
+  ASSERT_EQ(popup_scroll_pane->children.size(), 1u);
+  auto popup_row = popup_scroll_pane->children[0];
+  ASSERT_GE(popup_row->children.size(), 1u);
+  auto popup_viewport = popup_row->children[0];
+  ASSERT_EQ(popup_viewport->children.size(), 1u);
+  auto popup_content = popup_viewport->children[0];
+  ASSERT_GE(popup_content->children.size(), 2u);
+  auto second_popup_item = popup_content->children[1];
+  ASSERT_NE(second_popup_item, nullptr);
+  EXPECT_EQ(second_popup_item->visual_bounds.x, 42);
+  EXPECT_EQ(second_popup_item->visual_bounds.y, 106);
+  EXPECT_EQ(second_popup_item->visual_bounds.w, 196);
+  EXPECT_EQ(second_popup_item->visual_bounds.h, 20);
+
+  auto item_center = std::make_pair(second_popup_item->visual_bounds.x +
+                                      (second_popup_item->visual_bounds.w / 2),
+                                    second_popup_item->visual_bounds.y +
+                                      (second_popup_item->visual_bounds.h / 2));
+  input().mouse_move(item_center);
+  update_cycle();
+  input().mouse_down(item_center);
+  update_cycle();
+  input().mouse_up(item_center);
+  update_cycle();
+
+  ASSERT_NE(session.active_mode, nullptr);
+  EXPECT_EQ(session.active_mode->mode->name, "root-mode");
+  update_cycle();
+  auto selected_index =
+    Roo::Dict::get_property(session.active_mode->state, Roo::keyword("selected-index"));
+  auto value = Roo::Dict::get_property(session.active_mode->state, Roo::keyword("value"));
+  ASSERT_NE(selected_index, nullptr);
+  ASSERT_NE(value, nullptr);
+  EXPECT_EQ(selected_index->num().get_int(), 1);
+  EXPECT_EQ(value->to_string(), ":b");
+}
+
+TEST_F(ComboBoxTest, scaled_combo_box_popup_dismisses_on_outside_click)
+{
+  runtime.eval(R"(
+    (pixils/defmode root-mode
+      {:children [(pixils.ui.combo-box/make
+                   {:options [{:value :a :label "Alpha"}
+                              {:value :b :label "Beta"}]
+                    :style {:width 100 :scale 2}
+                    :row-height 10
+                    :max-height 20})]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  session.update_mode();
+  session.render_mode();
+
+  input().mouse_down({10, 10});
+  update_cycle();
+  session.render_mode();
+
+  ASSERT_NE(session.active_mode, nullptr);
+  EXPECT_EQ(session.active_mode->mode->name, "ui/combo-box-popup");
+
+  input().mouse_down({250, 150});
+  update_cycle();
+
+  ASSERT_NE(session.active_mode, nullptr);
+  EXPECT_EQ(session.active_mode->mode->name, "root-mode");
 }

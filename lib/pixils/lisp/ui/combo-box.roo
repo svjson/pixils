@@ -20,6 +20,15 @@
 (defun option-disabled? [option]
   (= (:disabled? option) true))
 
+(defun valid-option-index? [options index]
+  (and (not (nil? index))
+       (>= index 0)
+       (< index (count options))))
+
+(defun enabled-option-index? [options index]
+  (and (valid-option-index? options index)
+       (not (option-disabled? (nth options index)))))
+
 (defun selected-option [options selected-index]
   (if (empty? options)
     nil
@@ -39,17 +48,21 @@
       nil)))
 
 (defun next-enabled-index-from [options index direction]
-  (if (or (< index 0)
-          (>= index (count options)))
-    nil
-    (let [option (nth options index)]
-      (if (option-disabled? option)
-        (next-enabled-index-from options (+ index direction) direction)
-        index))))
+  (let [next-index (+ index direction)]
+    (cond
+      (or (< next-index 0)
+          (>= next-index (count options)))
+      nil
+
+      (enabled-option-index? options next-index)
+      next-index
+
+      :default
+      (next-enabled-index-from options next-index direction))))
 
 (defun next-enabled-index [options selected-index direction]
   (next-enabled-index-from (or options [])
-                           (+ (or selected-index 0) direction)
+                           (or selected-index 0)
                            direction))
 
 (defun select-index [state index ctx]
@@ -80,10 +93,12 @@
       (select-index state index ctx))))
 
 (defun popup-position [anchor-view]
-  (let [bounds (:bounds anchor-view)]
-    {:left (:x bounds)
-     :top (+ (:y bounds) (:h bounds))
-     :width (:w bounds)}))
+  (let [bounds (:visual-bounds anchor-view)
+        scale (or (:visual-scale anchor-view) 1)]
+    {:left (int (/ (:x bounds) scale))
+     :top (int (/ (+ (:y bounds) (:h bounds)) scale))
+     :width (max 1 (int (/ (:w bounds) scale)))
+     :scale scale}))
 
 (defun popup-selected-indices [state]
   [(or (:selected-index state) 0)])
@@ -101,23 +116,27 @@
         :selected-indices (popup-selected-indices state)
         :row-height row-height
         :max-height max-height}
-       {:origin {:view (:view ctx)
-                 :event :combo-box/select}
-        :children [{:mode 'ui/combo-box-popup-panel
-                    :style {:position :absolute
-                            :left (:left pos)
-                            :top (:top pos)
-                            :width (:width pos)
-                            :height :shrink}
-                    :children [(pixils.ui.list-box/make
-                                {:options options
-                                 :style {:border {:thickness 0}}
-                                 :row-height row-height
-                                 :max-height max-height
-                                 :content-width (max 1 (- (:width pos) 2))
-                                 :selected-indices []
-                                 :hover-highlight? true
-                                 :toggle-selected? false})]}]}))))
+       (merge
+        (if (> (:scale pos) 1)
+          {:style {:scale (:scale pos)}}
+          {})
+        {:origin {:view (:view ctx)
+                  :event :combo-box/select}
+         :children [{:mode 'ui/combo-box-popup-panel
+                     :style {:position :absolute
+                             :left (:left pos)
+                             :top (:top pos)
+                             :width (:width pos)
+                             :height :shrink}
+                     :children [(pixils.ui.list-box/make
+                                 {:options options
+                                  :style {:border {:thickness 0}}
+                                  :row-height row-height
+                                  :max-height max-height
+                                  :content-width (max 1 (- (:width pos) 2))
+                                  :selected-indices []
+                                  :hover-highlight? true
+                                  :toggle-selected? false})]}]})))))
 
 (defcomponent ui/combo-box-trigger
   {:style {:width :fill

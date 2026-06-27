@@ -2,6 +2,7 @@
 #include "session_fixture.h"
 #include <pixils/ui/style.h>
 
+#include <SDL2/SDL_keycode.h>
 #include <SDL2/SDL_mouse.h>
 #include <gtest/gtest.h>
 #include <roo/runtime/dict.h>
@@ -564,6 +565,58 @@ TEST_F(EventRoutingTest, child_override_on_map_merges_with_existing_event_handle
   ASSERT_EQ(session.active_mode->children.size(), 1u);
   auto& mid_mode = *session.active_mode->children[0];
   EXPECT_EQ(mid_mode.state->to_string(), "{:ping-count 1 :pong-count 1}");
+}
+
+TEST_F(EventRoutingTest, keyboard_hook_emitted_event_updates_bound_ancestor_state)
+{
+  runtime.eval(R"(
+    (pixils/defmode child-mode {
+      :focusable true
+      :init (fn [state ctx] {:selected-index 0})
+      :on-key-down (fn [state event ctx]
+                     (case (:key event)
+                       :key/down
+                       (do
+                         (pixils.ui/emit! (:view ctx)
+                                          :child/change
+                                          {:selected-index 1})
+                         (assoc state :selected-index 1))
+
+                       :default state))
+    })
+    (pixils/defmode root-mode {
+      :init (fn [state ctx] {:child {:selected-index 0}
+                             :focused? false
+                             :observed-index nil})
+      :update (fn [state ctx]
+                (do
+                  (when (not (:focused? state))
+                    (pixils.ui/focus! (head (pixils.ui/children ctx))))
+                  (assoc state :focused? true)))
+      :on {:child/change (fn [state event ctx]
+                           (assoc state
+                                  :observed-index
+                                  (:selected-index (:payload event))))}
+      :children [{:mode 'child-mode
+                  :id "child"
+                  :state (pixils.ui/bind-state :child)}]
+    })
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  update_cycle();
+
+  auto child = session.active_mode->children[0];
+  ASSERT_NE(child, nullptr);
+  EXPECT_TRUE(child->interaction.focused);
+
+  input().key_down(SDLK_DOWN);
+  update_cycle();
+
+  ASSERT_NE(session.active_mode, nullptr);
+  EXPECT_EQ(session.active_mode->state->to_string(),
+            "{:child {:selected-index 1} :focused? true :observed-index 1}");
+  EXPECT_EQ(child->state->to_string(), "{:selected-index 1}");
 }
 
 TEST_F(EventRoutingTest, custom_event_stop_propagation_prevents_ancestor_on_handler)
