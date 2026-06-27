@@ -53,6 +53,46 @@
     (is (= :tilesets (:workspace-tab state)))
     (is (= true (:pending-tileset-shortcut-dialog? state)))))
 
+(deftest workspace-tab-switch-remembers_and_restores_terrain_and_mask_view_state
+  (let [state {:workspace-tab :terrains
+               :selected-terrain-set-index 1
+               :selected-terrain-index 2
+               :terrain-detail-tab :terrain
+               :terrain-rule-editor-tab :setups
+               :terrain-standard-output-picker-tab :masks
+               :terrain-standard-opposing [:road
+                                           :water]
+               :selected-mask-set-index 0
+               :selected-mask-index 3
+               :workspace-view-state {:masks {:selected-mask-set-index 4
+                                              :selected-mask-index 5
+                                              :selected-mask-source-tile :edge
+                                              :selected-mask-tile-item-index 1
+                                              :mask-detail-tab :mask}}}
+        state (tilemap-editor.root/select-workspace-tab state :masks)
+        state (assoc state
+                     :selected-mask-set-index 6
+                     :selected-mask-index 7
+                     :selected-mask-source-tile :corner
+                     :selected-mask-tile-item-index 2
+                     :mask-detail-tab :mask-set)
+        state (tilemap-editor.root/select-workspace-tab state :terrains)]
+    (is (= :terrains (:workspace-tab state)))
+    (is (= 1 (:selected-terrain-set-index state)))
+    (is (= 2 (:selected-terrain-index state)))
+    (is (= :terrain (:terrain-detail-tab state)))
+    (is (= :setups (:terrain-rule-editor-tab state)))
+    (is (= :masks (:terrain-standard-output-picker-tab state)))
+    (is (= [:road :water] (:terrain-standard-opposing state)))
+    (is (= 0 (:selected-mask-set-index state)))
+    (is (= 3 (:selected-mask-index state)))
+    (is (= {:selected-mask-set-index 6
+            :selected-mask-index 7
+            :selected-mask-source-tile :corner
+            :selected-mask-tile-item-index 2
+            :mask-detail-tab :mask-set}
+           (get-in state [:workspace-view-state :masks])))))
+
 (deftest tileset-shortcut-dialog-result-adds_tileset
   (let [state (tilemap-editor.root/apply-tileset-shortcut-dialog-result
                {:tilesets []

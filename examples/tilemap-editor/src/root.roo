@@ -6,6 +6,7 @@
             [pixils.tilemap.project.model :as data]
             [tilemap-editor.model.tilemap :as tilemap]
             [tilemap-editor.model.maps :as map-model]
+            [tilemap-editor.model.view-state :as view-state]
             [tilemap-editor.io.project :as project-io]
             [tilemap-editor.view.resources.model :as resource-model]
             [tilemap-editor.view.tileset.model :as tileset-model]
@@ -23,9 +24,46 @@
 
 ;; Root mode
 
+(def terrain-workspace-view-state-keys
+  [:selected-terrain-set-index
+   :selected-terrain-index
+   :terrain-detail-tab
+   :terrain-rule-editor-tab
+   :terrain-standard-output-picker-tab
+   :terrain-standard-opposing
+   :selected-terrain-transition-id
+   :selected-terrain-ruleset-id
+   :selected-terrain-rule-id
+   :selected-terrain-rule-match-direction
+   :selected-terrain-rule-output-position
+   :terrain-rule-selected-tile
+   :terrain-rule-selected-mask
+   :terrain-rule-mask-polarity
+   :terrain-rule-list-offset
+   :selected-mask-set-index
+   :selected-mask-index])
+
+(def mask-workspace-view-state-keys
+  [:selected-mask-set-index
+   :selected-mask-index
+   :selected-mask-source-tile
+   :selected-mask-tile-item-index
+   :mask-detail-tab])
+
+(def workspace-view-state-specs
+  {:terrains {:keys terrain-workspace-view-state-keys}
+   :masks {:keys mask-workspace-view-state-keys}})
+
+(defun select-workspace-tab [state tab]
+  (assoc (view-state/switch-view-state state
+                                       :workspace-view-state
+                                       (:workspace-tab state)
+                                       tab
+                                       workspace-view-state-specs)
+         :workspace-tab tab))
+
 (defun request-tileset-shortcut-dialog [state]
-  (assoc state
-         :workspace-tab :tilesets
+  (assoc (select-workspace-tab state :tilesets)
          :pending-tileset-shortcut-dialog? true))
 
 (defun open-tileset-shortcut-dialog! [state ctx]
@@ -122,6 +160,7 @@
            :selected-mask-set-index nil
            :selected-mask-index nil
            :selected-mask-source-tile nil
+           :selected-mask-tile-item-index nil
            :mask-detail-tab :mask-set
            :terrain-transitions []
            :selected-terrain-transition-id nil
@@ -131,7 +170,12 @@
            :selected-terrain-rule-output-position {:x 1 :y 1}
            :terrain-rule-selected-tile nil
            :terrain-rule-selected-mask nil
+           :terrain-rule-mask-polarity :solid-is-current
            :terrain-rule-list-offset {:x 0 :y 0}
+           :terrain-detail-tab :terrain-set
+           :terrain-rule-editor-tab :rules
+           :terrain-standard-output-picker-tab :tiles
+           :terrain-standard-opposing nil
            :layer-profiles []
            :selected-layer-profile-id nil
            :brushes []
@@ -177,6 +221,7 @@
            :transition-mask-diagnostics nil
            :map-offset {:x 0 :y 0}
            :workspace-tab :map
+           :workspace-view-state {}
            :pending-tileset-shortcut-dialog? false})
   :update (fn [state ctx]
             (let [resources (:resources state)
@@ -289,6 +334,8 @@
                        (ui/bind-state :selected-mask-index)
                        :selected-mask-source-tile
                        (ui/bind-state :selected-mask-source-tile)
+                       :selected-mask-tile-item-index
+                       (ui/bind-state :selected-mask-tile-item-index)
                        :mask-detail-tab
                        (ui/bind-state :mask-detail-tab)
                        :terrain-transitions
@@ -309,8 +356,18 @@
                        (ui/bind-state :terrain-rule-selected-tile)
                        :terrain-rule-selected-mask
                        (ui/bind-state :terrain-rule-selected-mask)
+                       :terrain-rule-mask-polarity
+                       (ui/bind-state :terrain-rule-mask-polarity)
                        :terrain-rule-list-offset
                        (ui/bind-state :terrain-rule-list-offset)
+                       :terrain-detail-tab
+                       (ui/bind-state :terrain-detail-tab)
+                       :terrain-rule-editor-tab
+                       (ui/bind-state :terrain-rule-editor-tab)
+                       :terrain-standard-output-picker-tab
+                       (ui/bind-state :terrain-standard-output-picker-tab)
+                       :terrain-standard-opposing
+                       (ui/bind-state :terrain-standard-opposing)
                        :layer-profiles (ui/bind-state :layer-profiles)
                        :selected-layer-profile-id
                        (ui/bind-state :selected-layer-profile-id)
@@ -470,6 +527,9 @@
                                        :selected-mask-source-tile
                                        (ui/bind-state
                                         :selected-mask-source-tile)
+                                       :selected-mask-tile-item-index
+                                       (ui/bind-state
+                                        :selected-mask-tile-item-index)
                                        :mask-detail-tab
                                        (ui/bind-state :mask-detail-tab)
                                        :tilesets (ui/bind-state :tilesets)
@@ -524,9 +584,23 @@
                                        :terrain-rule-selected-mask
                                        (ui/bind-state
                                         :terrain-rule-selected-mask)
+                                       :terrain-rule-mask-polarity
+                                       (ui/bind-state
+                                        :terrain-rule-mask-polarity)
                                        :terrain-rule-list-offset
                                        (ui/bind-state
-                                        :terrain-rule-list-offset)}}}
+                                        :terrain-rule-list-offset)
+                                       :terrain-detail-tab
+                                       (ui/bind-state :terrain-detail-tab)
+                                       :terrain-rule-editor-tab
+                                       (ui/bind-state
+                                        :terrain-rule-editor-tab)
+                                       :terrain-standard-output-picker-tab
+                                       (ui/bind-state
+                                        :terrain-standard-output-picker-tab)
+                                       :terrain-standard-opposing
+                                       (ui/bind-state
+                                        :terrain-standard-opposing)}}}
                       {:id :property-sets
                        :label "Property Sets"
                        :child {:mode 'property-set-workspace
@@ -568,7 +642,8 @@
        :edit/paste (fn [state event ctx]
                      (tilemap/paste-map-clipboard state))
        :tab-panel/change (fn [state event ctx]
-                           (assoc state :workspace-tab (-> event :payload :tab)))
+                           (select-workspace-tab state
+                                                 (-> event :payload :tab)))
        :layer/name-dialog-result (fn [state event ctx]
                                    (controls/apply-layer-name-dialog-result
                                     state

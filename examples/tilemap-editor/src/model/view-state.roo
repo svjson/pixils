@@ -1,0 +1,32 @@
+(ns tilemap-editor.model.view-state)
+
+(defun capture-view-state [state keys]
+  (reduce (or keys [])
+          {}
+          (fn [snapshot key]
+            (if (contains? state key)
+              (assoc snapshot key (get state key))
+              snapshot))))
+
+(defun remember-view-state [state store-key view-id keys]
+  (if (and view-id (not (empty? keys)))
+    (assoc-in state [store-key view-id]
+              (capture-view-state state keys))
+    state))
+
+(defun restore-view-state [state store-key view-id]
+  (merge state (or (get-in state [store-key view-id]) {})))
+
+(defun view-state-keys [specs view-id]
+  (:keys (get (or specs {}) view-id)))
+
+(defun switch-view-state [state store-key from-view to-view specs]
+  (if (= from-view to-view)
+    state
+    (restore-view-state
+     (remember-view-state state
+                          store-key
+                          from-view
+                          (view-state-keys specs from-view))
+     store-key
+     to-view)))

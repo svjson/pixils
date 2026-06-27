@@ -1,0 +1,43 @@
+(ns tilemap-editor.model.view-state-test
+  (:require proof.core
+            [tilemap-editor.model.view-state :as view-state]))
+
+(deftest capture-view-state-keeps_declared_keys_only
+  (is (= {:a 1
+          :b nil}
+         (view-state/capture-view-state {:a 1
+                                         :b nil
+                                         :c 3}
+                                        [:a :b :missing]))))
+
+(deftest switch-view-state-remembers_previous_view_and_restores_next_view
+  (let [specs {:terrain {:keys [:selected
+                                :tab]}
+               :masks {:keys [:selected
+                              :mask-tab]}}
+        state {:active :terrain
+               :selected :grass
+               :tab :semantic
+               :store {:masks {:selected :soft-edge
+                               :mask-tab :mask}}}
+        state (view-state/switch-view-state state
+                                            :store
+                                            :terrain
+                                            :masks
+                                            specs)]
+    (is (= :soft-edge (:selected state)))
+    (is (= :mask (:mask-tab state)))
+    (is (= {:selected :grass
+            :tab :semantic}
+           (get-in state [:store :terrain])))))
+
+(deftest switch-view-state-does_not_restore_when_view_is_unchanged
+  (let [state {:selected :live
+               :store {:terrain {:selected :stale}}}]
+    (is (= :live
+           (:selected (view-state/switch-view-state
+                       state
+                       :store
+                       :terrain
+                       :terrain
+                       {:terrain {:keys [:selected]}}))))))
