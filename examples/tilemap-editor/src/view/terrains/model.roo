@@ -733,6 +733,20 @@
         state))
     state))
 
+(defun set-selected-mask-tile-item-tile [state tile-ref]
+  (if-let [path (selected-mask-path state)]
+    (let [items (selected-mask-tile-items state)
+          item-index (:selected-mask-tile-item-index state)]
+      (if (and (not (nil? tile-ref))
+               (not (nil? item-index))
+               (>= item-index 0)
+               (< item-index (count items)))
+        (assoc-in (ensure-selected-mask-tile-source state)
+                  (concat path [:source :tiles item-index :tile])
+                  tile-ref)
+        state))
+    state))
+
 (defun delete-selected-mask-tile-item [state item-index]
   (if-let [path (selected-mask-path state)]
     (let [items (selected-mask-tile-items state)]

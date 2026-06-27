@@ -44,6 +44,18 @@
     (is (= "Duplicate Mask" (:label duplicate)))
     (is (= :duplicate (-> duplicate :payload :command)))))
 
+(deftest mask-palette-tile-at-position-finds_swatch_tile
+  (is (= :edge-e
+         (layout/mask-palette-tile-at-position
+          test-state
+          {:x 36 :y 2}
+          {:w 150 :h 192})))
+  (is (nil?
+       (layout/mask-palette-tile-at-position
+        test-state
+        {:x 33 :y 2}
+        {:w 150 :h 192}))))
+
 (deftest mask-canvas-selected-index-rejects_stale_indices
   (is (= 0
          (layout/mask-canvas-selected-index

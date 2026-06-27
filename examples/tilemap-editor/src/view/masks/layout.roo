@@ -380,6 +380,27 @@
        :tile-size (mask-source-tile-size state)
        :offset (mask-palette-drag-offset event rect)})))
 
+(defun mask-palette-tile-at-position [state position bounds]
+  (let [options (mask-source-tile-options state)
+        index (mask-palette-index-at-position position bounds (count options))
+        option (when (not (nil? index)) (nth options index))]
+    (:value option)))
+
+(defun emit-mask-palette-tile-replace! [state event ctx]
+  (let [tile-ref (mask-palette-tile-at-position state
+                                                (:position event)
+                                                (-> ctx :view :bounds))]
+    (if (and (= (:button event) :left)
+             (lb/held-shift? ctx)
+             (not (nil? tile-ref)))
+      (do
+        (ui/stop-propagation! event)
+        (ui/emit! (:view ctx)
+                  :mask/tile-item-tile-change
+                  tile-ref)
+        state)
+      state)))
+
 (defun draw-mask-palette-cell! [state option index columns]
   (let [rect (mask-palette-cell-rect index columns)
         tile (mask-source-tile state (:value option))]
@@ -404,6 +425,7 @@
    :drag {:start {:mode :threshold
                   :distance 3}
           :payload mask-palette-drag-payload}
+   :on-mouse-up emit-mask-palette-tile-replace!
    :update (fn [state ctx]
              (assoc state
                     :tile-options (mask-source-tile-options state)
@@ -1314,6 +1336,9 @@
         (fn [state event ctx]
           (let [payload (:payload event)]
             (apply-mask-tile-item-offset-change state payload)))
+        :mask/tile-item-tile-change
+        (fn [state event ctx]
+          (model/set-selected-mask-tile-item-tile state (:payload event)))
         :mask/tile-item-delete
         (fn [state event ctx]
           (assoc (model/delete-selected-mask-tile-item state (:payload event))

@@ -324,6 +324,30 @@
                       :y 3}}]
            (get-in state [:mask-sets 0 :masks 0 :source :tiles])))))
 
+(deftest mask-source-can_replace_selected_composed_tile
+  (let [state (model/set-selected-mask-tile-item-tile
+               {:mask-sets [{:id :soft-edge
+                             :masks [{:id :north
+                                      :source {:type :tile-composition
+                                               :tileset :terrain
+                                               :tiles [{:tile :edge-n
+                                                        :offset {:x 2
+                                                                 :y 3}}
+                                                       {:tile :edge-e
+                                                        :offset {:x -1
+                                                                 :y 4}}]}}]}]
+                :selected-mask-set-index 0
+                :selected-mask-index 0
+                :selected-mask-tile-item-index 1}
+               :edge-w)]
+    (is (= [{:tile :edge-n
+             :offset {:x 2
+                      :y 3}}
+            {:tile :edge-w
+             :offset {:x -1
+                      :y 4}}]
+           (get-in state [:mask-sets 0 :masks 0 :source :tiles])))))
+
 (deftest mask-source-can_delete_composed_tile
   (let [state (model/delete-selected-mask-tile-item
                (model/add-selected-mask-tile
