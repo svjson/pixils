@@ -18,6 +18,7 @@
 #include <SDL2/SDL_pixels.h>
 #include <SDL2/SDL_render.h>
 #include <SDL2/SDL_surface.h>
+#include <SDL2/SDL_timer.h>
 #include <algorithm>
 #include <chrono>
 #include <iostream>
@@ -238,14 +239,12 @@ namespace Pixils
 
       ctx.finalize_frame();
 
-      int target_frame_ms = frame_budget_ms(*program);
-      [[maybe_unused]] int frame_margin = target_frame_ms - (now() - frame_start);
-
-      // std::cout << "frame #" << frame << " - margin: " << frame_margin << std::endl;
-
       long long pacing_start = now();
-      while (target_frame_ms > 0 && now() - frame_start < target_frame_ms)
+      int target_frame_ms = frame_budget_ms(*program);
+      long long frame_elapsed_ms = now() - frame_start;
+      if (target_frame_ms > 0 && frame_elapsed_ms < target_frame_ms)
       {
+        SDL_Delay(static_cast<Uint32>(target_frame_ms - frame_elapsed_ms));
       }
       last_pacing_wait_ms = static_cast<double>(now() - pacing_start);
 
