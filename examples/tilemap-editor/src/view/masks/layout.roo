@@ -269,6 +269,52 @@
                         :style {:width :fill
                                 :height :fill}})]})
 
+(defcomponent mask-tile-offset-input
+  {:style {:width 58
+           :height 22}
+   :on {:number-input/change
+        (fn [state event ctx]
+          (do
+            (ui/stop-propagation! event)
+            (ui/emit! (:view ctx)
+                      :mask/tile-item-offset-change
+                      {:index (:index state)
+                       :axis (:axis state)
+                       :value (-> event :payload :value)})
+            state))}
+   :children [(ni/make {:value (ui/bind-state :value)
+                        :step 1
+                        :allow-negative? true
+                        :disabled? (ui/bind-state :disabled?)
+                        :style {:width :fill
+                                :height :fill}})]})
+
+(defun mask-tile-offset-input-child [index axis value disabled?]
+  {:mode 'mask-tile-offset-input
+   :state {:index index
+           :axis axis
+           :value value
+           :disabled? disabled?}})
+
+(defun apply-mask-tile-item-offset-change [state payload]
+  (if (= (:axis payload) :both)
+    (let [offset (:value payload)
+          state (model/set-selected-mask-tile-item-offset
+                 state
+                 (:index payload)
+                 :x
+                 (or (:x offset) 0))]
+      (model/set-selected-mask-tile-item-offset
+       state
+       (:index payload)
+       :y
+       (or (:y offset) 0)))
+    (model/set-selected-mask-tile-item-offset
+     state
+     (:index payload)
+     (:axis payload)
+     (:value payload))))
+
 (defun mask-source-tileset [state]
   (model/selected-mask-source-tileset state))
 
@@ -421,6 +467,46 @@
       index
       nil)))
 
+(defun selected-mask-tile-item-state [state]
+  (let [index (mask-canvas-selected-index state)
+        items (or (:selected-mask-tile-items state) [])
+        item (when (not (nil? index)) (nth items index))
+        offset (or (:offset item) {:x 0 :y 0})]
+    {:selected-mask-tile-item-valid-index index
+     :selected-mask-tile-item-label
+     (if item
+       (model/transition-id-label (:tile item))
+       "Select a tile")
+     :selected-mask-tile-offset-x (or (:x offset) 0)
+     :selected-mask-tile-offset-y (or (:y offset) 0)
+     :selected-mask-tile-offset-disabled? (nil? item)}))
+
+(defun mask-tile-nudge-payload [state key]
+  (let [index (mask-canvas-selected-index state)
+        items (or (:selected-mask-tile-items state) [])
+        item (when (not (nil? index)) (nth items index))
+        offset (or (:offset item) {:x 0 :y 0})
+        delta (case key
+                :key/left {:x -1 :y 0}
+                :key/right {:x 1 :y 0}
+                :key/up {:x 0 :y -1}
+                :key/down {:x 0 :y 1}
+                :default nil)]
+    (when (and item delta)
+      {:index index
+       :axis :both
+       :value {:x (+ (or (:x offset) 0) (:x delta))
+               :y (+ (or (:y offset) 0) (:y delta))}})))
+
+(defun emit-mask-tile-nudge! [state event ctx]
+  (let [payload (mask-tile-nudge-payload state (:key event))]
+    (if payload
+      (do
+        (ui/stop-propagation! event)
+        (ui/emit! (:view ctx) :mask/tile-item-offset-change payload)
+        state)
+      state)))
+
 (defun emit-mask-canvas-selection! [state event ctx]
   (let [index (mask-canvas-item-index-at-position state (:position event))]
     (do
@@ -521,6 +607,7 @@
                          index)
                         state))))
    :on-drag emit-mask-canvas-drag!
+   :on-key-down emit-mask-tile-nudge!
    :on-drop (fn [state event ctx]
               (let [drop (mask-canvas-drop-payload state event)]
                 (if drop
@@ -567,6 +654,75 @@
                              {:x (+ (:x inner) 12)
                               :y (+ (:y inner) 16)}
                             {:color {:r 0x86 :g 0x91 :b 0x9b}})))))})
+
+(defcomponent mask-selected-tile-editor
+  {:id "mask-selected-tile-editor"
+   :focusable true
+   :style {:width :fill
+           :height :shrink
+           :layout {:direction :column
+                    :gap 6}}
+   :update (fn [state ctx]
+             (let [state (assoc state
+                                :selected-mask-tile-items
+                                (model/selected-mask-tile-items state))]
+               (merge state (selected-mask-tile-item-state state))))
+   :on-key-down emit-mask-tile-nudge!
+   :on {:mask/tile-item-offset-change
+        (fn [state event ctx]
+          (let [payload (:payload event)]
+            (do
+              (ui/stop-propagation! event)
+              (let [state (apply-mask-tile-item-offset-change state payload)]
+                (assoc state
+                       :selected-mask-tile-items
+                       (model/selected-mask-tile-items state))))))}
+   :children [{:mode 'ui/text
+               :class :ui/muted
+               :state {:value "Selected Tile"}}
+              {:style {:width :fill
+                       :height 24
+                       :layout {:direction :row
+                                :align-items :center
+                                :gap 8}}
+               :children [{:mode 'ui/text
+                           :class :ui/muted
+                           :style {:width 44}
+                           :state {:value "Tile"}}
+                          {:mode 'ui/text
+                           :style {:width :fill}
+                           :state {:value (ui/bind-state
+                                           :selected-mask-tile-item-label)}}]}
+              {:style {:width :fill
+                       :height 24
+                       :layout {:direction :row
+                                :align-items :center
+                                :gap 6}}
+               :state (ui/bind-state)
+               :children [{:mode 'ui/text
+                           :class :ui/muted
+                           :style {:width 44}
+                           :state {:value "Offset"}}
+                          {:mode 'ui/text
+                           :class :ui/muted
+                           :state {:value "X"}}
+                          (mask-tile-offset-input-child
+                           (ui/bind-state
+                            :selected-mask-tile-item-valid-index)
+                           :x
+                           (ui/bind-state :selected-mask-tile-offset-x)
+                           (ui/bind-state
+                            :selected-mask-tile-offset-disabled?))
+                          {:mode 'ui/text
+                           :class :ui/muted
+                           :state {:value "Y"}}
+                          (mask-tile-offset-input-child
+                           (ui/bind-state
+                            :selected-mask-tile-item-valid-index)
+                           :y
+                           (ui/bind-state :selected-mask-tile-offset-y)
+                           (ui/bind-state
+                            :selected-mask-tile-offset-disabled?))]}]})
 
 (defun mask-definition-editor-children []
   [{:mode 'ui/text
@@ -629,6 +785,15 @@
                                     :selected-mask-tile-items
                                     (ui/bind-state
                                      :selected-mask-tile-items)
+                                    :selected-mask-tile-item-index
+                                    (ui/bind-state
+                                     :selected-mask-tile-item-index)}}
+                           {:mode 'mask-selected-tile-editor
+                            :state {:mask-sets (ui/bind-state :mask-sets)
+                                    :selected-mask-set-index
+                                    (ui/bind-state :selected-mask-set-index)
+                                    :selected-mask-index
+                                    (ui/bind-state :selected-mask-index)
                                     :selected-mask-tile-item-index
                                     (ui/bind-state
                                      :selected-mask-tile-item-index)}}]}]}])
@@ -856,6 +1021,8 @@
             (ui/bind-state :selected-mask-id)
             :selected-mask-tile-items
             (ui/bind-state :selected-mask-tile-items)
+            :selected-mask-tile-item-index
+            (ui/bind-state :selected-mask-tile-item-index)
             :mask-editor-disabled?
             (ui/bind-state :mask-editor-disabled?)}
     :tabs [{:id :mask-set
@@ -1126,23 +1293,7 @@
         :mask/tile-item-offset-change
         (fn [state event ctx]
           (let [payload (:payload event)]
-            (if (= (:axis payload) :both)
-              (let [offset (:value payload)
-                    state (model/set-selected-mask-tile-item-offset
-                           state
-                           (:index payload)
-                           :x
-                           (or (:x offset) 0))]
-                (model/set-selected-mask-tile-item-offset
-                 state
-                 (:index payload)
-                 :y
-                 (or (:y offset) 0)))
-              (model/set-selected-mask-tile-item-offset
-               state
-               (:index payload)
-               (:axis payload)
-               (:value payload)))))
+            (apply-mask-tile-item-offset-change state payload)))
         :mask/tile-item-delete
         (fn [state event ctx]
           (assoc (model/delete-selected-mask-tile-item state (:payload event))

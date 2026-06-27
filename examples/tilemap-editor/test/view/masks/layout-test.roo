@@ -48,6 +48,90 @@
         {:selected-mask-tile-item-index 1
          :selected-mask-tile-items [{:tile :edge-n}]}))))
 
+(deftest selected-mask-tile-item-state-exposes_selected_offset
+  (is (= {:selected-mask-tile-item-valid-index 1
+          :selected-mask-tile-item-label "edge-e"
+          :selected-mask-tile-offset-x -2
+          :selected-mask-tile-offset-y 9
+          :selected-mask-tile-offset-disabled? false}
+         (layout/selected-mask-tile-item-state
+          {:selected-mask-tile-item-index 1
+           :selected-mask-tile-items [{:tile :edge-n
+                                       :offset {:x 0
+                                                :y 0}}
+                                      {:tile :edge-e
+                                       :offset {:x -2
+                                                :y 9}}]}))))
+
+(deftest selected-mask-tile-item-state-disables_stale_selection
+  (is (= {:selected-mask-tile-item-valid-index nil
+          :selected-mask-tile-item-label "Select a tile"
+          :selected-mask-tile-offset-x 0
+          :selected-mask-tile-offset-y 0
+          :selected-mask-tile-offset-disabled? true}
+         (layout/selected-mask-tile-item-state
+          {:selected-mask-tile-item-index 4
+           :selected-mask-tile-items [{:tile :edge-n
+                                       :offset {:x 3
+                                                :y 4}}]}))))
+
+(deftest apply-mask-tile-item-offset-change-updates_single_axis
+  (let [state (assoc-in test-state
+                        [:mask-sets 0 :masks 0 :source :tiles]
+                        [{:tile :edge-n
+                          :offset {:x 2
+                                   :y 3}}])
+        state (layout/apply-mask-tile-item-offset-change
+               state
+               {:index 0
+                :axis :x
+                :value -4})]
+    (is (= {:x -4
+            :y 3}
+           (get-in state
+                   [:mask-sets 0 :masks 0 :source :tiles 0 :offset])))))
+
+(deftest apply-mask-tile-item-offset-change-updates_both_axes
+  (let [state (assoc-in test-state
+                        [:mask-sets 0 :masks 0 :source :tiles]
+                        [{:tile :edge-n
+                          :offset {:x 2
+                                   :y 3}}])
+        state (layout/apply-mask-tile-item-offset-change
+               state
+               {:index 0
+                :axis :both
+                :value {:x 6
+                        :y -1}})]
+    (is (= {:x 6
+            :y -1}
+           (get-in state
+                   [:mask-sets 0 :masks 0 :source :tiles 0 :offset])))))
+
+(deftest mask-tile-nudge-payload-moves_selected_tile_one_pixel
+  (let [state {:selected-mask-tile-item-index 0
+               :selected-mask-tile-items [{:tile :edge-n
+                                           :offset {:x 2
+                                                    :y 3}}]}]
+    (is (= {:index 0
+            :axis :both
+            :value {:x 1
+                    :y 3}}
+           (layout/mask-tile-nudge-payload state :key/left)))
+    (is (= {:index 0
+            :axis :both
+            :value {:x 2
+                    :y 4}}
+           (layout/mask-tile-nudge-payload state :key/down)))))
+
+(deftest mask-tile-nudge-payload-ignores_stale_selection
+  (is (nil? (layout/mask-tile-nudge-payload
+             {:selected-mask-tile-item-index 1
+              :selected-mask-tile-items [{:tile :edge-n
+                                          :offset {:x 2
+                                                   :y 3}}]}
+             :key/right))))
+
 (deftest mask-canvas-drop-payload-adds_source_tile_at_drop_position
   (is (= {:tile :edge-n
           :tileset :terrain
