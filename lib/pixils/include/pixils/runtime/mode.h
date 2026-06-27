@@ -84,6 +84,7 @@ namespace Pixils::Runtime
     ResourceDependencies resources;
     Roo::sptr_val init = Roo::Constant::NIL;
     Roo::sptr_val update = Roo::Constant::NIL;
+    Roo::sptr_val after_layout = Roo::Constant::NIL;
     Roo::sptr_val content_size = Roo::Constant::NIL;
     Roo::sptr_val render = Roo::Constant::NIL;
     Roo::sptr_val action_map = Roo::Constant::NIL;

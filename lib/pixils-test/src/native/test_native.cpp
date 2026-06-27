@@ -258,22 +258,20 @@ namespace
       for (size_t i = render_stack.size() - 1; i > 0; i--)
       {
         size_t ctx_idx = session->ctx_stack.size() - i;
-        Pixils::UI::layout_view_tree(session->ctx_stack[ctx_idx],
-                                     full,
-                                     *runtime,
-                                     hook_args.render_args[1]);
-        if (Pixils::UI::stabilize_auto_centered_windows(session->ctx_stack[ctx_idx], full))
+        if (Pixils::UI::layout_view_tree(session->ctx_stack[ctx_idx],
+                                         full,
+                                         *runtime,
+                                         hook_args.render_args[1]))
         {
           session->mode_stack.update_state(session->ctx_stack[ctx_idx]->state,
                                            render_stack.size() - i);
         }
       }
 
-      Pixils::UI::layout_view_tree(session->active_mode,
-                                   full,
-                                   *runtime,
-                                   hook_args.render_args[1]);
-      if (Pixils::UI::stabilize_auto_centered_windows(session->active_mode, full))
+      if (Pixils::UI::layout_view_tree(session->active_mode,
+                                       full,
+                                       *runtime,
+                                       hook_args.render_args[1]))
       {
         session->mode_stack.update_state(session->active_mode->state);
         hook_args.update_state(session->active_mode->state);

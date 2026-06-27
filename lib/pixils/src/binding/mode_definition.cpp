@@ -312,6 +312,7 @@ namespace Pixils::Script
                                           {"extend", &Roo::Type::SYMBOL_VALUE},
                                           {"init", &Roo::Type::ANY},
                                           {"update", &Roo::Type::ANY},
+                                          {"after-layout", &Roo::Type::ANY},
                                           {"content-size", &Roo::Type::ANY},
                                           {"render", &Roo::Type::ANY},
                                           {"action-map", &Roo::Type::ANY},
@@ -382,6 +383,7 @@ namespace Pixils::Script
 
     apply_hook(mode.init, "init");
     apply_hook(mode.update, "update");
+    apply_hook(mode.after_layout, "after-layout");
     apply_hook(mode.content_size, "content-size");
     apply_hook(mode.render, "render");
     apply_hook(mode.action_map, "action-map");

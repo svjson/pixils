@@ -117,32 +117,37 @@
     :default
     :window))
 
+(defun layout-frame-size [ctx]
+  (let [buffer (:buffer-size ctx)]
+    {:w (or (:available-width ctx) (:w buffer))
+     :h (or (:available-height ctx) (:h buffer))}))
+
 (defun centered-window-position [ctx]
-  (let [buffer (:buffer-size ctx)
+  (let [frame (layout-frame-size ctx)
         size (known-window-size ctx)
         width (:w size)
         height (:h size)]
-    (when (and (not (nil? buffer))
-               (number? (:w buffer))
-               (number? (:h buffer))
+    (when (and (not (nil? frame))
+               (number? (:w frame))
+               (number? (:h frame))
                (number? width)
                (number? height))
-      {:x (int (/ (- (:w buffer) width) 2))
-       :y (int (/ (- (:h buffer) height) 2))})))
+      {:x (int (/ (- (:w frame) width) 2))
+       :y (int (/ (- (:h frame) height) 2))})))
 
 (defun constrained-window-position [pos ctx]
-  (let [buffer (:buffer-size ctx)
+  (let [frame (layout-frame-size ctx)
         size (known-window-size ctx)
         width (:w size)
         height (:h size)]
     (if (and (not (nil? pos))
-             (not (nil? buffer))
-             (number? (:w buffer))
-             (number? (:h buffer))
+             (not (nil? frame))
+             (number? (:w frame))
+             (number? (:h frame))
              (number? width)
              (number? height))
-      {:x (clamp (:x pos) 0 (max 0 (- (:w buffer) width)))
-       :y (clamp (:y pos) 0 (max 0 (- (:h buffer) height)))}
+      {:x (clamp (:x pos) 0 (max 0 (- (:w frame) width)))
+       :y (clamp (:y pos) 0 (max 0 (- (:h frame) height)))}
       pos)))
 
 (defun window-position [state ctx]
@@ -153,6 +158,34 @@
         (let [centered (centered-window-position ctx)]
           (when centered
             (constrained-window-position centered ctx))))))
+
+(defun sync-window-position-style! [view pos]
+  (let [style (:style view)]
+    (when (and (not (nil? pos))
+               (or (nil? style)
+                   (not (= (:position style) :absolute))
+                   (not (= (:left style) (:x pos)))
+                   (not (= (:top style) (:y pos)))))
+      (ui/style! view
+                 {:position :absolute
+                  :left (:x pos)
+                  :top (:y pos)}))))
+
+(defun stabilize-window-position-after-layout [state ctx]
+  (if (or (:window/explicit-position? state)
+          (:window/moved? state))
+    state
+    (let [centered (centered-window-position ctx)
+          pos (if centered
+                (constrained-window-position centered ctx)
+                (:position state))]
+      (if (nil? pos)
+        state
+        (do
+          (sync-window-position-style! (:view ctx) pos)
+          (if (= pos (:position state))
+            state
+            (assoc state :position pos)))))))
 
 (defcomponent ui/window-control-button
   {})
@@ -188,16 +221,8 @@
                                       (= pos (:position state)))
                                 state
                                 (assoc state :position pos))
-                   view (:view ctx)
-                   style (:style view)]
-               (when (or (nil? style)
-                         (not (= (:position style) :absolute))
-                         (not (= (:left style) (:x draw-pos)))
-                         (not (= (:top style) (:y draw-pos))))
-                 (ui/style! view
-                            {:position :absolute
-                             :left (:x draw-pos)
-                             :top (:y draw-pos)}))
+                   view (:view ctx)]
+               (sync-window-position-style! view draw-pos)
                (if (:window/auto-focus-pending? next-state)
                  (do
                    (case (:window/auto-focus next-state)
@@ -212,16 +237,14 @@
                      nil)
                    (assoc next-state :window/auto-focus-pending? false))
                  next-state)))
+   :after-layout stabilize-window-position-after-layout
    :on {:window/move-by (fn [state event ctx]
                           (ui/stop-propagation! event)
                           (if (window-movable? state)
                             (let [next-position (pt/+ (or (:position state)
                                                            (window-position state ctx))
                                                        (:payload event))]
-                              (ui/style! (:view ctx)
-                                         {:position :absolute
-                                          :left (:x next-position)
-                                          :top (:y next-position)})
+                              (sync-window-position-style! (:view ctx) next-position)
                               (assoc state
                                      :position next-position
                                      :window/moved? true))

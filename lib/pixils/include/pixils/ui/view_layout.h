@@ -36,17 +36,10 @@ namespace Pixils::UI
    * layout_children, but writes the results onto each live view so later passes
    * can consume them without recomputing layout.
    */
-  void layout_view_tree(const std::shared_ptr<Pixils::Runtime::View>& view,
+  bool layout_view_tree(const std::shared_ptr<Pixils::Runtime::View>& view,
                         const Rect& bounds,
                         Roo::Runtime& runtime,
                         const Roo::sptr_val& hook_ctx);
-
-  /**
-   * Reposition auto-centered ui/window views after layout has resolved their
-   * final natural/external bounds. Returns true when any bounds changed.
-   */
-  bool stabilize_auto_centered_windows(const std::shared_ptr<Pixils::Runtime::View>& view,
-                                       const Rect& frame);
 
   /**
    * Compute absolute layout rects for a set of child views within a parent rect.

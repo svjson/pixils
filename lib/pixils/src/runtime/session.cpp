@@ -532,11 +532,10 @@ namespace Pixils::Runtime
     for (size_t i = render_stack.size() - 1; i > 0; i--)
     {
       size_t ctx_idx = ctx_stack.size() - i;
-      Pixils::UI::layout_view_tree(ctx_stack[ctx_idx],
-                                   full,
-                                   roo_runtime,
-                                   hook_args.render_args[1]);
-      if (Pixils::UI::stabilize_auto_centered_windows(ctx_stack[ctx_idx], full))
+      if (Pixils::UI::layout_view_tree(ctx_stack[ctx_idx],
+                                       full,
+                                       roo_runtime,
+                                       hook_args.render_args[1]))
       {
         mode_stack.update_state(ctx_stack[ctx_idx]->state, render_stack.size() - i);
       }
@@ -546,11 +545,10 @@ namespace Pixils::Runtime
                               ctx_stack[ctx_idx]);
     }
 
-    Pixils::UI::layout_view_tree(active_mode,
-                                 full,
-                                 roo_runtime,
-                                 hook_args.render_args[1]);
-    if (Pixils::UI::stabilize_auto_centered_windows(active_mode, full))
+    if (Pixils::UI::layout_view_tree(active_mode,
+                                     full,
+                                     roo_runtime,
+                                     hook_args.render_args[1]))
     {
       mode_stack.update_state(active_mode->state);
       hook_args.update_state(active_mode->state);
