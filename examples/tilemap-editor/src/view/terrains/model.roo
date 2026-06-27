@@ -150,6 +150,30 @@
                                         " / "
                                         (mask-label mask))}))))))
 
+(def default-terrain-rule-mask-polarity :solid-is-current)
+
+(def terrain-rule-mask-polarity-options
+  [{:value :solid-is-current
+    :label "Base"}
+   {:value :solid-is-opposing
+    :label "Opposing"}])
+
+(defun terrain-rule-mask-polarity [polarity]
+  (if (or (= polarity :solid-is-current)
+          (= polarity :solid-is-opposing))
+    polarity
+    default-terrain-rule-mask-polarity))
+
+(defun terrain-rule-mask-polarity-index [state]
+  (or (option-index-by-value terrain-rule-mask-polarity-options
+                             (terrain-rule-mask-polarity
+                              (:terrain-rule-mask-polarity state)))
+      0))
+
+(defun mask-ref-with-polarity [mask-ref polarity]
+  (when mask-ref
+    (assoc mask-ref :polarity (terrain-rule-mask-polarity polarity))))
+
 (defun mask-options-for-ref [mask-set]
   (map (or (:masks mask-set) [])
        (fn [mask]
@@ -1322,6 +1346,10 @@
 (defun output-layer-terrain-signature-at [output-layer x y]
   (nth (or (nth (output-layer-terrain-signatures output-layer) y) []) x))
 
+(defun output-layer-transition-masks [output-layer]
+  (or (:transition-masks output-layer)
+      (empty-terrain-signature-grid)))
+
 (defun rule-output-terrain-signature-at [rule x y]
   (or (output-layer-terrain-signature-at (head (or (-> rule :output :layers)
                                                    []))
@@ -2419,7 +2447,30 @@
                                                  command)))))))
       state)))
 
-(defun set-selected-rule-stamp-tile [state x y tile-ref]
+(defun rule-with-stamp-output [rule output-layer x y tile-ref mask-ref]
+  (let [signatures (output-layer-terrain-signatures output-layer)
+        transition-masks (output-layer-transition-masks output-layer)
+        existing-signature (output-layer-terrain-signature-at output-layer x y)
+        signature (when (or tile-ref mask-ref)
+                    (or existing-signature
+                        (default-terrain-signature-for-rule rule)))]
+    (assoc-in
+     (assoc-in
+      (assoc-in
+       (assoc-in
+        (assoc-in rule
+                  [:output :layers 0 :tiles y x]
+                  tile-ref)
+        [:output :layers 0 :transition-masks]
+        transition-masks)
+       [:output :layers 0 :transition-masks y x]
+       mask-ref)
+      [:output :layers 0 :terrain-signatures]
+      signatures)
+     [:output :layers 0 :terrain-signatures y x]
+     signature)))
+
+(defun set-selected-rule-stamp-output [state x y tile-ref mask-ref]
   (let [ruleset-id (selected-terrain-ruleset-id state)
         rule-id (or (:selected-terrain-rule-id state)
                     (selected-terrain-rule-id state))]
@@ -2437,53 +2488,24 @@
                                   (:rules ruleset)
                                   rule-id
                                   (fn [rule]
-                                    (if (> (count (or (-> rule
-                                                          :output
-                                                          :layers)
-                                                      []))
-                                           0)
-                                      (let [output-layer
-                                            (head (or (-> rule
-                                                          :output
-                                                          :layers)
-                                                      []))
-                                            signatures
-                                            (output-layer-terrain-signatures
-                                             output-layer)
-                                            existing-signature
-                                            (output-layer-terrain-signature-at
-                                             output-layer
-                                             x
-                                             y)
-                                            signature
-                                            (when tile-ref
-                                              (or existing-signature
-                                                  (default-terrain-signature-for-rule
-                                                   rule)))]
-                                        (assoc-in
-                                         (assoc-in
-                                          (assoc-in rule
-                                                    [:output
-                                                     :layers
-                                                     0
-                                                     :tiles
-                                                     y
-                                                     x]
-                                                    tile-ref)
-                                          [:output
-                                           :layers
-                                           0
-                                           :terrain-signatures]
-                                          signatures)
-                                         [:output
-                                          :layers
-                                          0
-                                          :terrain-signatures
-                                          y
-                                          x]
-                                         signature))
+                                    (if-let [output-layer (head (or (-> rule
+                                                                        :output
+                                                                        :layers)
+                                                                    []))]
+                                      (rule-with-stamp-output rule
+                                                              output-layer
+                                                              x
+                                                              y
+                                                              tile-ref
+                                                              mask-ref)
                                       rule)))))))
       state)))
+
+(defun set-selected-rule-stamp-tile [state x y tile-ref]
+  (set-selected-rule-stamp-output state x y tile-ref nil))
+
+(defun set-selected-rule-stamp-mask [state x y mask-ref]
+  (set-selected-rule-stamp-output state x y nil mask-ref))
 
 (def terrain-standard-setup-definitions
   [{:id :island-3x3

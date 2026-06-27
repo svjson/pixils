@@ -1713,7 +1713,8 @@
 
 (deftest terrain-standard-role-mask-can_create_transition_mask_rule
   (let [mask-ref {:mask-set :soft-edge
-                  :mask :north}
+                  :mask :north
+                  :polarity :solid-is-opposing}
         state (model/set-terrain-standard-role-mask
                {:terrain-sets [{:id :overworld
                                 :tileset :terrain

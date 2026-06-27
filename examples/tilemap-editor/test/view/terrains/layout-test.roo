@@ -116,8 +116,10 @@
     (is (= :rotate-right (-> (nth items 4) :payload :command)))))
 
 (deftest terrain-rule-tile-picker-is_column_shaped
-  (is (= 116 layout/terrain-stamp-tile-picker-width))
-  (is (= 232 layout/terrain-stamp-tile-picker-height)))
+  (is (< layout/terrain-stamp-tile-picker-width
+         layout/terrain-stamp-tile-picker-height))
+  (is (>= layout/terrain-stamp-tile-picker-width
+          layout/terrain-stamp-tile-picker-cell-size)))
 
 (deftest terrain-rule-editor-tabs-keep_manual_editor_first
   (let [panel (layout/terrain-rule-editor-tabs-panel)
@@ -218,27 +220,42 @@
                  {})]
     (is (= :terrain-rule/mask-output (:kind payload)))
     (is (= {:mask-set :soft-edge
-            :mask :north}
+            :mask :north
+            :polarity :solid-is-current}
            (:mask payload)))))
 
-(deftest terrain-standard-mask-list-scopes_options_to_selected_terrain
-  (let [list-box (layout/terrain-standard-mask-list-child
-                  {:terrain-sets [{:id :overworld
-                                   :terrains [{:id :grass
-                                               :transition-mask-set
-                                               :soft-edge}]}]
-                   :selected-terrain-set-index 0
-                   :selected-terrain-index 0
-                   :mask-sets [{:id :soft-edge
-                                :masks [{:id :north
-                                         :label "North"}]}
-                               {:id :hard-edge
-                                :masks [{:id :south
-                                         :label "South"}]}]})]
+(deftest terrain-standard-mask-row-drag-payload-keeps_selected_polarity
+  (let [payload (layout/terrain-standard-mask-drag-payload
+                 {:value {:mask-set :soft-edge
+                          :mask :north}
+                  :label "North"
+                  :terrain-rule-mask-polarity :solid-is-opposing}
+                 {}
+                 {})]
+    (is (= :terrain-rule/mask-output (:kind payload)))
+    (is (= {:mask-set :soft-edge
+            :mask :north
+            :polarity :solid-is-opposing}
+           (:mask payload)))))
+
+(deftest terrain-standard-mask-picker-scopes_options_to_selected_terrain
+  (let [options (layout/terrain-standard-mask-options
+                 {:terrain-sets [{:id :overworld
+                                  :terrains [{:id :grass
+                                              :transition-mask-set
+                                              :soft-edge}]}]
+                  :selected-terrain-set-index 0
+                  :selected-terrain-index 0
+                  :mask-sets [{:id :soft-edge
+                               :masks [{:id :north
+                                        :label "North"}]}
+                              {:id :hard-edge
+                               :masks [{:id :south
+                                        :label "South"}]}]})]
     (is (= [{:value {:mask-set :soft-edge
                      :mask :north}
              :label "North"}]
-           (-> list-box :state :options)))))
+           options))))
 
 (deftest mask-definition-editor-exposes_source_controls
   (let [children (layout/mask-definition-editor-children)

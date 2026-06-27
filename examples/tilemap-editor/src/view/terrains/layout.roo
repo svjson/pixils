@@ -14,7 +14,9 @@
             [pixils.ui.tab-panel :as tabs]
             pixils.ui.text-input
             [pixils.ui.window :as w]
+            [pixils.tilemap.materialize :as materialize]
             [pixils.tilemap.project.model :as data]
+            [pixils.tilemap.renderer :as tilemap-renderer]
             [tilemap-editor.model.tilemap :as tilemap]
             [tilemap-editor.view.id-name-dialog :as id-name-dialog]
             [tilemap-editor.view.property-sets.model :as property-model]
@@ -751,7 +753,7 @@
 (def terrain-rule-grid-gap 2)
 (def terrain-rule-grid-size (+ (* terrain-rule-grid-cell-size 3)
                                (* terrain-rule-grid-gap 2)))
-(def terrain-stamp-tile-picker-width 116)
+(def terrain-stamp-tile-picker-width 150)
 (def terrain-stamp-tile-picker-cell-size 32)
 (def terrain-stamp-tile-picker-gap 2)
 (def terrain-stamp-tile-picker-height 232)
@@ -1026,8 +1028,12 @@
          (= y (:y pos)))))
 
 (defun emit-stamp-grid-cell-paint! [state event ctx]
-  (let [tile-ref (if (secondary-mouse-button? event)
-                   nil
+  (let [mask-ref (when (not (secondary-mouse-button? event))
+                   (model/mask-ref-with-polarity
+                    (:terrain-rule-selected-mask state)
+                    (:terrain-rule-mask-polarity state)))
+        tile-ref (when (and (nil? mask-ref)
+                            (not (secondary-mouse-button? event)))
                    (model/selected-rule-stamp-tile state))]
     (if (:visible? state)
       (do
@@ -1036,21 +1042,37 @@
                   :terrain/rule-stamp-paint
                   {:x (:stamp-x state)
                    :y (:stamp-y state)
-                   :tile tile-ref})
+                   :tile tile-ref
+                   :mask mask-ref})
         state)
       state)))
 
 (defun emit-stamp-grid-cell-drop! [state event ctx]
   (let [payload (:payload event)]
-    (if (and (:visible? state)
-             (terrain-stamp-tile-drag-payload? payload))
+    (cond
+      (and (:visible? state)
+           (terrain-stamp-tile-drag-payload? payload))
       (do
         (ui/stop-propagation! event)
-        (model/set-selected-rule-stamp-tile state
-                                            (:stamp-x state)
-                                            (:stamp-y state)
-                                            (:tile payload)))
-      state)))
+        (ui/emit! (:view ctx)
+                  :terrain/rule-stamp-paint
+                  {:x (:stamp-x state)
+                   :y (:stamp-y state)
+                   :tile (:tile payload)})
+        state)
+
+      (and (:visible? state)
+           (terrain-standard-mask-drag-payload? payload))
+      (do
+        (ui/stop-propagation! event)
+        (ui/emit! (:view ctx)
+                  :terrain/rule-stamp-paint
+                  {:x (:stamp-x state)
+                   :y (:stamp-y state)
+                   :mask (:mask payload)})
+        state)
+
+      :default state)))
 
 (defun draw-terrain-stamp-grid-cell! [state ctx]
   (when (:visible? state)
@@ -1060,7 +1082,8 @@
           x (:stamp-x state)
           y (:stamp-y state)
           tile-ref (nth (or (nth rows y) []) x)
-          tile (stamp-grid-tile state tile-ref)]
+          tile (stamp-grid-tile state tile-ref)
+          mask-ref (nth (or (nth (or (:transition-masks layer) []) y) []) x)]
       (do
         (r/rect! {:x 0
                   :y 0
@@ -1074,6 +1097,16 @@
                           :y 4
                           :w (- terrain-rule-grid-cell-size 8)
                           :h (- terrain-rule-grid-cell-size 8)}))
+        (when (and (not tile) mask-ref)
+          (do
+            (r/rect! {:x 7
+                      :y 7
+                      :w (- terrain-rule-grid-cell-size 14)
+                      :h (- terrain-rule-grid-cell-size 14)}
+                     {:color {:r 0x5d :g 0xc9 :b 0x9a}})
+            (r/text! "M"
+                     {:x 15 :y 13}
+                     {:color {:r 0x5d :g 0xc9 :b 0x9a}})))
         (r/rect! {:x 0
                   :y 0
                   :w terrain-rule-grid-cell-size
@@ -1131,12 +1164,17 @@
            (ui/bind-state :selected-terrain-rule-output-position)
            :terrain-rule-selected-tile
            (ui/bind-state :terrain-rule-selected-tile)
+           :terrain-rule-selected-mask
+           (ui/bind-state :terrain-rule-selected-mask)
+           :terrain-rule-mask-polarity
+           (ui/bind-state :terrain-rule-mask-polarity)
+           :tilesets (ui/bind-state :tilesets)
+           :mask-sets (ui/bind-state :mask-sets)
            :terrain-sets (ui/bind-state :terrain-sets)
            :selected-terrain-set-index
            (ui/bind-state :selected-terrain-set-index)
            :selected-terrain-index
-           (ui/bind-state :selected-terrain-index)
-           :tilesets (ui/bind-state :tilesets)}})
+           (ui/bind-state :selected-terrain-index)}})
 
 (defun terrain-stamp-grid-row [local-y]
   {:style {:width (terrain-unit-grid-size 2)
@@ -2021,6 +2059,10 @@
                         :selected-terrain-rule-match-direction)
                        :terrain-rule-selected-tile
                        (ui/bind-state :terrain-rule-selected-tile)
+                       :terrain-rule-selected-mask
+                       (ui/bind-state :terrain-rule-selected-mask)
+                       :terrain-rule-mask-polarity
+                       (ui/bind-state :terrain-rule-mask-polarity)
                        :terrain-sets (ui/bind-state :terrain-sets)
                        :selected-terrain-set-index
                        (ui/bind-state :selected-terrain-set-index)
@@ -2159,6 +2201,56 @@
                 nil)
               result))))
 
+(defun terrain-standard-preview-opposing-terrain [state]
+  (let [opposing (or (:terrain-standard-role-cache-opposing state)
+                     (model/selected-terrain-standard-opposing state))
+        selected (model/terrain-standard-opposing-terrain-list state opposing)]
+    (or (head selected)
+        (head (model/terrain-standard-opposing-terrain-values state)))))
+
+(defun terrain-standard-preview-mask-ref [state mask-ref]
+  (when mask-ref
+    (if (contains? mask-ref :polarity)
+      mask-ref
+      (model/mask-ref-with-polarity mask-ref
+                                    (:terrain-rule-mask-polarity state)))))
+
+(defun terrain-standard-transition-preview-tile [state mask-ref]
+  (let [center-terrain (model/selected-terrain-id state)
+        opposing-terrain (terrain-standard-preview-opposing-terrain state)
+        terrain-set-id (model/selected-terrain-set-id state)
+        mask-ref (terrain-standard-preview-mask-ref state mask-ref)]
+    (when (and center-terrain opposing-terrain terrain-set-id mask-ref)
+      (materialize/transition-tile-definition
+       {:tile-size data/tile-size
+        :tilesets (:tilesets state)
+        :terrain-sets (:terrain-sets state)
+        :mask-sets (:mask-sets state)}
+       nil
+       {:terrain-set terrain-set-id}
+       {:terrain center-terrain
+        :match {:n {:terrain opposing-terrain}}}
+       mask-ref
+       0
+       0))))
+
+(defun draw-terrain-standard-mask-fallback! [rect]
+  (do
+    (r/rect! {:x (+ (:x rect) 7)
+              :y (+ (:y rect) 7)
+              :w (- (:w rect) 14)
+              :h (- (:h rect) 14)}
+             {:color {:r 0x5d :g 0xc9 :b 0x9a}})
+    (r/text! "M"
+             {:x (+ (:x rect) 15)
+              :y (+ (:y rect) 13)}
+             {:color {:r 0x5d :g 0xc9 :b 0x9a}})))
+
+(defun draw-terrain-standard-transition-preview! [state mask-ref rect]
+  (if-let [tile (terrain-standard-transition-preview-tile state mask-ref)]
+    (tilemap-renderer/draw-tile! tile rect nil 1)
+    (draw-terrain-standard-mask-fallback! rect)))
+
 (defun draw-terrain-standard-role-slot! [state ctx]
   (let [tile (:tile state)
         mask-ref (:mask-ref state)
@@ -2182,16 +2274,13 @@
                   :y (+ (:y tile-rect) 13)}
                  {:color {:r 0x86 :g 0x91 :b 0x9b}}))
       (when (and (not tile) mask-ref)
-        (do
-          (r/rect! {:x (+ (:x tile-rect) 7)
-                    :y (+ (:y tile-rect) 7)
-                    :w (- (:w tile-rect) 14)
-                    :h (- (:h tile-rect) 14)}
-                   {:color {:r 0x5d :g 0xc9 :b 0x9a}})
-          (r/text! "M"
-                   {:x (+ (:x tile-rect) 15)
-                    :y (+ (:y tile-rect) 13)}
-                   {:color {:r 0x5d :g 0xc9 :b 0x9a}})))
+        (draw-terrain-standard-transition-preview!
+         state
+         mask-ref
+         {:x (+ (:x tile-rect) 4)
+          :y (+ (:y tile-rect) 4)
+          :w (- (:w tile-rect) 8)
+          :h (- (:h tile-rect) 8)}))
       (draw-terrain-standard-role-markers! state)
       (r/rect! tile-rect
                {:color (if (:selected? state)
@@ -2234,7 +2323,9 @@
                      {:setup-id (:setup-id state)
                       :role-id (:role-id state)
                       :opposing (:terrain-standard-role-cache-opposing state)
-                      :mask mask-ref})
+                      :mask (model/mask-ref-with-polarity
+                             mask-ref
+                             (:terrain-rule-mask-polarity state))})
            (if-let [tile-ref (:terrain-rule-selected-tile state)]
              (ui/emit! (:view ctx)
                        :terrain/standard-role-tile-change
@@ -2287,6 +2378,15 @@
            (ui/bind-state :terrain-rule-selected-tile)
            :terrain-rule-selected-mask
            (ui/bind-state :terrain-rule-selected-mask)
+           :terrain-rule-mask-polarity
+           (ui/bind-state :terrain-rule-mask-polarity)
+           :tilesets (ui/bind-state :tilesets)
+           :mask-sets (ui/bind-state :mask-sets)
+           :terrain-sets (ui/bind-state :terrain-sets)
+           :selected-terrain-set-index
+           (ui/bind-state :selected-terrain-set-index)
+           :selected-terrain-index
+           (ui/bind-state :selected-terrain-index)
            :terrain-standard-role-cache-opposing
            (ui/bind-state :terrain-standard-role-cache-opposing)
            :terrain-standard-role-slots
@@ -2397,6 +2497,8 @@
 (defun terrain-standard-setup-panel-state [setup]
   {:setup-id (:id setup)
    :terrain-sets (ui/bind-state :terrain-sets)
+   :tilesets (ui/bind-state :tilesets)
+   :mask-sets (ui/bind-state :mask-sets)
    :selected-terrain-set-index
    (ui/bind-state :selected-terrain-set-index)
    :selected-terrain-index
@@ -2407,6 +2509,8 @@
    (ui/bind-state :terrain-rule-selected-tile)
    :terrain-rule-selected-mask
    (ui/bind-state :terrain-rule-selected-mask)
+   :terrain-rule-mask-polarity
+   (ui/bind-state :terrain-rule-mask-polarity)
    :terrain-standard-role-cache-opposing
    (ui/bind-state :terrain-standard-role-cache-opposing)
    :terrain-standard-role-slots
@@ -2466,6 +2570,8 @@
    :children [{:mode 'terrain-standard-setup-panel-scroll-viewport
                :state {:offset (ui/bind-state :offset)
                        :terrain-sets (ui/bind-state :terrain-sets)
+                       :tilesets (ui/bind-state :tilesets)
+                       :mask-sets (ui/bind-state :mask-sets)
                        :selected-terrain-set-index
                        (ui/bind-state :selected-terrain-set-index)
                        :selected-terrain-index
@@ -2476,6 +2582,8 @@
                        (ui/bind-state :terrain-rule-selected-tile)
                        :terrain-rule-selected-mask
                        (ui/bind-state :terrain-rule-selected-mask)
+                       :terrain-rule-mask-polarity
+                       (ui/bind-state :terrain-rule-mask-polarity)
                        :terrain-standard-role-cache-opposing
                        (ui/bind-state :terrain-standard-role-cache-opposing)
                        :terrain-standard-role-slots
@@ -2491,6 +2599,8 @@
 (defun terrain-standard-setup-panel-groups-child []
   {:mode 'terrain-standard-setup-panel-scroll-row
    :state {:terrain-sets (ui/bind-state :terrain-sets)
+           :tilesets (ui/bind-state :tilesets)
+           :mask-sets (ui/bind-state :mask-sets)
            :selected-terrain-set-index
            (ui/bind-state :selected-terrain-set-index)
            :selected-terrain-index
@@ -2501,6 +2611,8 @@
            (ui/bind-state :terrain-rule-selected-tile)
            :terrain-rule-selected-mask
            (ui/bind-state :terrain-rule-selected-mask)
+           :terrain-rule-mask-polarity
+           (ui/bind-state :terrain-rule-mask-polarity)
            :terrain-standard-role-cache-opposing
            (ui/bind-state :terrain-standard-role-cache-opposing)
            :terrain-standard-role-slots
@@ -2596,106 +2708,186 @@
 (defun terrain-standard-mask-drag-payload? [payload]
   (= (:kind payload) :terrain-rule/mask-output))
 
-(defun terrain-standard-mask-drag-payload [state event ctx]
-  (when (:value state)
-    {:kind :terrain-rule/mask-output
-     :mask (:value state)
-     :label (:label state)}))
+(defun terrain-standard-mask-options [state]
+  (model/terrain-mask-options-for-selected-terrain state))
 
-(defcomponent terrain-standard-mask-row
-  {:extend 'ui/list-box-item
-   :class :ui/list-item-hover
+(defun terrain-standard-mask-picker-content-height [state]
+  (let [options (terrain-standard-mask-options state)
+        columns (terrain-stamp-tile-picker-columns
+                 {:w terrain-stamp-tile-picker-width})]
+    (terrain-stamp-tile-picker-content-height (count options) columns)))
+
+(defun terrain-standard-mask-picker-content-size [state]
+  {:w terrain-stamp-tile-picker-width
+   :h (terrain-standard-mask-picker-content-height state)})
+
+(defun terrain-standard-mask-picker-content-state [state]
+  {:terrain-sets (:terrain-sets state)
+   :selected-terrain-set-index (:selected-terrain-set-index state)
+   :selected-terrain-index (:selected-terrain-index state)
+   :terrain-standard-opposing (:terrain-standard-opposing state)
+   :terrain-rule-selected-mask (:terrain-rule-selected-mask state)
+   :terrain-rule-mask-polarity (:terrain-rule-mask-polarity state)
+   :tilesets (:tilesets state)
+   :mask-sets (:mask-sets state)})
+
+(defun terrain-standard-mask-at-picker-index [state index]
+  (when (not (nil? index))
+    (nth (terrain-standard-mask-options state) index)))
+
+(defun terrain-standard-mask-option-from-drag [state event ctx]
+  (if (contains? state :value)
+    {:value (:value state)
+     :label (:label state)}
+    (let [index (terrain-stamp-tile-picker-index-at-position
+                 (:start-position event)
+                 (-> ctx :view :bounds)
+                 (count (terrain-standard-mask-options state)))]
+      (terrain-standard-mask-at-picker-index state index))))
+
+(defun terrain-standard-mask-drag-payload [state event ctx]
+  (when-let [option (terrain-standard-mask-option-from-drag state event ctx)]
+    {:kind :terrain-rule/mask-output
+     :mask (model/mask-ref-with-polarity
+            (:value option)
+            (:terrain-rule-mask-polarity state))
+     :label (:label option)}))
+
+(defun select-terrain-standard-mask-at-event! [state event ctx]
+  (let [index (terrain-stamp-tile-picker-index-at-position
+               (:position event)
+               (-> ctx :view :bounds)
+               (count (terrain-standard-mask-options state)))
+        option (terrain-standard-mask-at-picker-index state index)]
+    (do
+      (ui/stop-propagation! event)
+      (ui/focus! ctx)
+      (when option
+        (ui/emit! (:view ctx)
+                  :terrain/rule-stamp-mask-select
+                  (:value option)))
+      state)))
+
+(defun draw-terrain-standard-mask-picker-cell! [state option index columns]
+  (let [rect (terrain-stamp-tile-picker-cell-rect index columns)
+        mask-ref (model/mask-ref-with-polarity
+                  (:value option)
+                  (:terrain-rule-mask-polarity state))]
+    (do
+      (r/rect! rect {:fill true
+                     :color {:r 0x12 :g 0x15 :b 0x18}})
+      (draw-terrain-standard-transition-preview!
+       state
+       mask-ref
+       {:x (+ (:x rect) 4)
+        :y (+ (:y rect) 4)
+        :w (- (:w rect) 8)
+        :h (- (:h rect) 8)})
+      (r/rect! rect {:color {:r 0x1f :g 0x26 :b 0x2d}})
+      (when (contains? (:selected-indices state) index)
+        (r/rect! (terrain-stamp-tile-picker-selected-rect rect)
+                 {:color {:r 0xff :g 0xcc :b 0x66}})))))
+
+(defcomponent terrain-standard-mask-picker-grid
+  {:focusable true
+   :class :ui/content
    :style {:width :fill
-           :height terrain-list-row-height
-           :padding [3 6]
-           :layout {:direction :row
-                    :align-items :center}}
-   :update (fn [state ctx]
-             (assoc state
-                    :selected
-                    (contains? (:selected-indices state)
-                               (:index state))))
+           :height :fill
+           :clip true
+           :cursor :pointer}
    :drag {:start {:mode :threshold
                   :distance 3}
           :payload terrain-standard-mask-drag-payload}
-   :on-mouse-down (fn [state event ctx]
-                    (do
-                      (ui/stop-propagation! event)
-                      state))
-   :on-mouse-up (fn [state event ctx]
-                  (do
-                    (ui/stop-propagation! event)
-                    (ui/emit! (:view ctx)
-                              :list-box/item-click
-                              {:index (:index state)
-                               :value (:value state)
-                               :shift? false
-                               :ctrl? false})
-                    state))
-   :children [{:mode 'ui/text
-               :style {:width :fill}
-               :state {:value (ui/bind-state :label)}}]})
+   :on-drag-start emit-terrain-stamp-tile-drag-start!
+   :on-drag emit-terrain-stamp-tile-drag-move!
+   :on-drag-end emit-terrain-stamp-tile-drag-end!
+   :update (fn [state ctx]
+             (assoc state
+                    :selected-indices
+                    (model/terrain-rule-selected-mask-indices state)))
+   :on-mouse-down select-terrain-standard-mask-at-event!
+   :render (fn [state ctx]
+             (let [options (terrain-standard-mask-options state)
+                   columns (terrain-stamp-tile-picker-columns
+                            (-> ctx :view :bounds))]
+               (for-indexed [index option options]
+                 (draw-terrain-standard-mask-picker-cell!
+                  state
+                  option
+                  index
+                  columns))))})
 
-(defun terrain-standard-mask-row-child [index option]
-  {:mode 'terrain-standard-mask-row
-   :state {:index index
-           :value (:value option)
-           :label (:label option)
-           :selected-indices (ui/bind-state :selected-indices)}})
+(defcomponent terrain-standard-mask-picker-scroll-pane
+  {:style {:width terrain-stamp-tile-picker-width
+           :height :fill}
+   :update (fn [state ctx]
+             (assoc state
+                    :content-size
+                    (terrain-standard-mask-picker-content-size state)
+                    :picker-state
+                    (terrain-standard-mask-picker-content-state state)))
+   :children [(sp/make {:style {:width :fill
+                                :height :fill}
+                        :content-size {:w terrain-stamp-tile-picker-width
+                                       :h terrain-stamp-tile-picker-height}
+                        :state {:content-size (ui/bind-state :content-size)
+                                :content-state (ui/bind-state :picker-state)}
+                        :scroll-x? false
+                        :scroll-y? :auto
+                        :step (terrain-stamp-tile-picker-stride)
+                        :children [{:mode 'terrain-standard-mask-picker-grid
+                                    :style {:width :fill
+                                            :height :fill}
+                                    :state (ui/bind-state)}]})]})
 
-(defun terrain-standard-mask-list-child [state]
-  (let [options (model/terrain-mask-options-for-selected-terrain state)]
-    (lb/make {:options options
-              :selected-indices
-              (model/terrain-rule-selected-mask-indices state)
-              :force-selection? false
-              :item-child terrain-standard-mask-row-child
-              :style {:width :fill
-                      :height :fill}
-              :row-height terrain-list-row-height
-              :visible-rows 6
-              :content-width 180
-              :disabled? (empty? options)})))
+(defcomponent terrain-standard-mask-polarity-selector
+  {:style {:width :fill
+           :height 22}
+   :update (fn [state ctx]
+             (assoc state
+                    :mask-polarity-options
+                    model/terrain-rule-mask-polarity-options
+                    :selected-mask-polarity-index
+                    (model/terrain-rule-mask-polarity-index state)))
+   :on {:combo-box/change
+        (fn [state event ctx]
+          (let [payload (:payload event)]
+            (ui/stop-propagation! event)
+            (ui/emit! (:view ctx)
+                      :terrain/rule-stamp-mask-polarity-change
+                      (:value payload))
+            (assoc state
+                   :terrain-rule-mask-polarity (:value payload)
+                   :selected-mask-polarity-index
+                   (:selected-index payload))))}
+   :children [(cb/make {:options (ui/bind-state :mask-polarity-options)
+                        :selected-index
+                        (ui/bind-state :selected-mask-polarity-index)})]})
 
 (defcomponent terrain-standard-mask-picker
   {:style {:width terrain-stamp-tile-picker-width
            :height terrain-stamp-tile-picker-height
            :layout {:direction :column
                     :gap 6}}
-   :init (fn [state ctx]
-           (assoc state
-                  :rendered-mask-picker-state-key nil))
-   :update (fn [state ctx]
-             (let [state-key {:mask-sets (:mask-sets state)
-                              :terrain-sets (:terrain-sets state)
-                              :selected-terrain-set-index
-                              (:selected-terrain-set-index state)
-                              :selected-terrain-index
-                              (:selected-terrain-index state)
-                              :terrain-rule-selected-mask
-                              (:terrain-rule-selected-mask state)}]
-               (do
-                 (when (not= state-key (:rendered-mask-picker-state-key state))
-                   (ui/replace-child!
-                    (:view ctx)
-                    "terrain-standard-mask-list"
-                    (merge {:id "terrain-standard-mask-list"}
-                           (terrain-standard-mask-list-child state))))
-                 (assoc state
-                        :rendered-mask-picker-state-key state-key))))
-   :on {:list-box/change
-        (fn [state event ctx]
-          (do
-            (ui/stop-propagation! event)
-            (ui/emit! (:view ctx)
-                      :terrain/rule-stamp-mask-select
-                      (-> event :payload :value))
-            state))}
    :children [{:mode 'ui/text
                :class :ui/title
                :state {:value "Masks"}}
-              (merge {:id "terrain-standard-mask-list"}
-                     (terrain-standard-mask-list-child {}))]})
+              {:style {:width :fill
+                       :height 24
+                       :layout {:direction :row
+                                :align-items :center
+                                :gap 6}}
+               :state (ui/bind-state)
+               :children [{:mode 'ui/text
+                           :class :ui/muted
+                           :style {:width 56}
+                           :state {:value "Polarity"}}
+                          {:mode 'terrain-standard-mask-polarity-selector
+                          :state {:terrain-rule-mask-polarity
+                                   (ui/bind-state
+                                    :terrain-rule-mask-polarity)}}]}
+              {:mode 'terrain-standard-mask-picker-scroll-pane
+               :state (ui/bind-state)}]})
 
 (defun terrain-standard-output-picker-state []
   {:rulesets (ui/bind-state :rulesets)
@@ -2709,6 +2901,8 @@
    (ui/bind-state :terrain-rule-selected-tile)
    :terrain-rule-selected-mask
    (ui/bind-state :terrain-rule-selected-mask)
+   :terrain-rule-mask-polarity
+   (ui/bind-state :terrain-rule-mask-polarity)
    :terrain-standard-opposing
    (ui/bind-state :terrain-standard-opposing)
    :terrain-sets (ui/bind-state :terrain-sets)
@@ -3306,6 +3500,8 @@
             (ui/bind-state :terrain-rule-selected-tile)
             :terrain-rule-selected-mask
             (ui/bind-state :terrain-rule-selected-mask)
+            :terrain-rule-mask-polarity
+            (ui/bind-state :terrain-rule-mask-polarity)
             :terrain-rule-list-offset
             (ui/bind-state :terrain-rule-list-offset)
             :terrain-rule-editor-tab
@@ -3913,6 +4109,8 @@
             (ui/bind-state :terrain-rule-selected-tile)
             :terrain-rule-selected-mask
             (ui/bind-state :terrain-rule-selected-mask)
+            :terrain-rule-mask-polarity
+            (ui/bind-state :terrain-rule-mask-polarity)
             :terrain-rule-list-offset
             (ui/bind-state :terrain-rule-list-offset)
             :terrain-rule-editor-tab
@@ -4001,6 +4199,9 @@
                             :terrain-rule-selected-mask
                             (ui/bind-state
                              :terrain-rule-selected-mask)
+                            :terrain-rule-mask-polarity
+                            (ui/bind-state
+                             :terrain-rule-mask-polarity)
                             :terrain-rule-list-offset
                             (ui/bind-state
                              :terrain-rule-list-offset)
@@ -4134,6 +4335,8 @@
                     (ui/bind-state :terrain-rule-selected-tile)
                     :terrain-rule-selected-mask
                     (ui/bind-state :terrain-rule-selected-mask)
+                    :terrain-rule-mask-polarity
+                    (ui/bind-state :terrain-rule-mask-polarity)
                     :terrain-rule-list-offset
                     (ui/bind-state :terrain-rule-list-offset)
                     :terrain-rule-editor-tab
@@ -4182,6 +4385,8 @@
                          (ui/bind-state :terrain-rule-selected-tile)
                          :terrain-rule-selected-mask
                          (ui/bind-state :terrain-rule-selected-mask)
+                         :terrain-rule-mask-polarity
+                         (ui/bind-state :terrain-rule-mask-polarity)
                          :terrain-rule-list-offset
                          (ui/bind-state :terrain-rule-list-offset)
                          :terrain-rule-editor-tab
@@ -4297,6 +4502,10 @@
              (ui/bind-state :selected-terrain-rule-output-position)
              :terrain-rule-selected-tile
              (ui/bind-state :terrain-rule-selected-tile)
+             :terrain-rule-selected-mask
+             (ui/bind-state :terrain-rule-selected-mask)
+             :terrain-rule-mask-polarity
+             (ui/bind-state :terrain-rule-mask-polarity)
              :terrain-rule-list-offset
              (ui/bind-state :terrain-rule-list-offset)
              :terrain-rule-editor-tab
@@ -4890,6 +5099,11 @@
           (assoc state
                  :terrain-rule-selected-mask (:payload event)
                  :terrain-rule-selected-tile nil))
+        :terrain/rule-stamp-mask-polarity-change
+        (fn [state event ctx]
+          (assoc state
+                 :terrain-rule-mask-polarity
+                 (model/terrain-rule-mask-polarity (:payload event))))
         :terrain/stamp-tile-drag-start
         (fn [state event ctx]
           (assoc state
@@ -4923,14 +5137,23 @@
             (update-selected-ruleset-preview
              state
              (fn [state]
-               (model/set-selected-rule-stamp-tile
-                (assoc state
-                       :selected-terrain-rule-output-position
-                       {:x (:x payload)
-                        :y (:y payload)})
-                (:x payload)
-                (:y payload)
-                (:tile payload))))))
+               (if (:mask payload)
+                 (model/set-selected-rule-stamp-mask
+                  (assoc state
+                         :selected-terrain-rule-output-position
+                         {:x (:x payload)
+                          :y (:y payload)})
+                  (:x payload)
+                  (:y payload)
+                  (:mask payload))
+                 (model/set-selected-rule-stamp-tile
+                  (assoc state
+                         :selected-terrain-rule-output-position
+                         {:x (:x payload)
+                          :y (:y payload)})
+                  (:x payload)
+                  (:y payload)
+                  (:tile payload)))))))
         :terrain/standard-role-tile-change
         (fn [state event ctx]
           (let [payload (:payload event)]
