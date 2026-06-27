@@ -197,6 +197,10 @@ namespace Pixils
 
           auto update_start = StatsClock::now();
           session.update_mode();
+          if (session.process_messages())
+          {
+            session.update_mode();
+          }
           auto update_end = StatsClock::now();
           update_cursor();
           auto render_start = StatsClock::now();

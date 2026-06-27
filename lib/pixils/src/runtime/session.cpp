@@ -429,8 +429,9 @@ namespace Pixils::Runtime
     apply_to_root(active_mode);
   }
 
-  void Session::process_messages()
+  bool Session::process_messages()
   {
+    bool active_frame_changed = false;
     bool focus_changed = false;
 
     while (true)
@@ -454,11 +455,13 @@ namespace Pixils::Runtime
           push_mode(Roo::Dict::get_property(message, Roo::keyword("mode"))->str(),
                     Roo::Dict::get_property(message, Roo::keyword("state")),
                     overrides_val ? overrides_val : Roo::Constant::NIL);
+          active_frame_changed = true;
         }
         else if (type == "pop")
         {
           auto payload = Roo::Dict::get_property(message, Roo::keyword("payload"));
           pop_mode(payload ? payload : Roo::Constant::NIL);
+          active_frame_changed = true;
         }
         else if (type == "focus")
         {
@@ -510,6 +513,8 @@ namespace Pixils::Runtime
                                         focus_state,
                                         current_mouse_pos(hook_args));
     }
+
+    return active_frame_changed;
   }
 
   void Session::render_mode()
@@ -531,6 +536,10 @@ namespace Pixils::Runtime
                                    full,
                                    roo_runtime,
                                    hook_args.render_args[1]);
+      if (Pixils::UI::stabilize_auto_centered_windows(ctx_stack[ctx_idx], full))
+      {
+        mode_stack.update_state(ctx_stack[ctx_idx]->state, render_stack.size() - i);
+      }
       Pixils::UI::render_view(render_ctx,
                               roo_runtime,
                               hook_args.render_args[1],
@@ -541,6 +550,11 @@ namespace Pixils::Runtime
                                  full,
                                  roo_runtime,
                                  hook_args.render_args[1]);
+    if (Pixils::UI::stabilize_auto_centered_windows(active_mode, full))
+    {
+      mode_stack.update_state(active_mode->state);
+      hook_args.update_state(active_mode->state);
+    }
     Pixils::UI::render_view(render_ctx,
                             roo_runtime,
                             hook_args.render_args[1],

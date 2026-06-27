@@ -67,7 +67,7 @@ namespace Pixils::Runtime
                    const Roo::sptr_val& overrides = Roo::Constant::NIL);
     void set_application_theme(const std::optional<std::vector<std::string>>& theme,
                                const std::optional<std::string>& variant = std::nullopt);
-    void process_messages();
+    bool process_messages();
     void update_mode();
     void render_mode();
   };

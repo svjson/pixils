@@ -157,6 +157,8 @@ namespace Pixils::Script
                   state,
                   bounds,
                   external_bounds,
+                  visual_bounds,
+                  visual_scale,
                   interaction,
                   style,
                   effective_style,

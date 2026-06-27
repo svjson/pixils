@@ -153,7 +153,10 @@ InputSimulator& ComposableAppSessionFixture::input()
 void ComposableAppSessionFixture::update_cycle()
 {
   session().update_mode();
-  session().process_messages();
+  if (session().process_messages())
+  {
+    session().update_mode();
+  }
   input_simulator.clear_transients();
 }
 
@@ -166,8 +169,11 @@ void ComposableAppSessionFixture::render_cycle()
 void ComposableAppSessionFixture::frame_cycle()
 {
   session().update_mode();
+  if (session().process_messages())
+  {
+    session().update_mode();
+  }
   session().render_mode();
-  session().process_messages();
   input_simulator.clear_transients();
 }
 

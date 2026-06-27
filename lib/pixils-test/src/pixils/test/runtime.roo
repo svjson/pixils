@@ -12,6 +12,7 @@
 (defun render! [app] (native/render! app))
 (defun layout! [app] (native/layout! app))
 (defun frame! [app] (native/frame! app))
+(defun rendered-pixel [app x y] (native/rendered-pixel app x y))
 (defun active-mode [app] (native/active-mode app))
 (defun active-mode-name [app] (native/active-mode-name app))
 (defun active-state [app] (native/active-state app))

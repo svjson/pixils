@@ -42,6 +42,13 @@ namespace Pixils::UI
                         const Roo::sptr_val& hook_ctx);
 
   /**
+   * Reposition auto-centered ui/window views after layout has resolved their
+   * final natural/external bounds. Returns true when any bounds changed.
+   */
+  bool stabilize_auto_centered_windows(const std::shared_ptr<Pixils::Runtime::View>& view,
+                                       const Rect& frame);
+
+  /**
    * Compute absolute layout rects for a set of child views within a parent rect.
    * Direction controls the main axis (COLUMN = vertical, ROW = horizontal).
    * Each child's resolved style supplies its fixed size on the main axis; children

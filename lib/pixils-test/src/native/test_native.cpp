@@ -225,15 +225,27 @@ namespace
       events.key_up = Roo::Constant::NIL;
     }
 
+    void prepare_render()
+    {
+      if (render_ctx.renderer && render_ctx.buffer_texture)
+      {
+        render_ctx.clear_buffer();
+      }
+    }
+
     void update()
     {
       session->update_mode();
-      session->process_messages();
+      if (session->process_messages())
+      {
+        session->update_mode();
+      }
       clear_transients();
     }
 
     void render()
     {
+      prepare_render();
       session->render_mode();
       clear_transients();
     }
@@ -250,19 +262,33 @@ namespace
                                      full,
                                      *runtime,
                                      hook_args.render_args[1]);
+        if (Pixils::UI::stabilize_auto_centered_windows(session->ctx_stack[ctx_idx], full))
+        {
+          session->mode_stack.update_state(session->ctx_stack[ctx_idx]->state,
+                                           render_stack.size() - i);
+        }
       }
 
       Pixils::UI::layout_view_tree(session->active_mode,
                                    full,
                                    *runtime,
                                    hook_args.render_args[1]);
+      if (Pixils::UI::stabilize_auto_centered_windows(session->active_mode, full))
+      {
+        session->mode_stack.update_state(session->active_mode->state);
+        hook_args.update_state(session->active_mode->state);
+      }
       clear_transients();
     }
 
     void frame()
     {
       session->update_mode();
-      session->process_messages();
+      if (session->process_messages())
+      {
+        session->update_mode();
+      }
+      prepare_render();
       session->render_mode();
       clear_transients();
     }
@@ -427,6 +453,62 @@ namespace
     throw Roo::InvocationException("unsupported key: " + name);
   }
 
+  Roo::sptr_val color_map(Uint8 r, Uint8 g, Uint8 b, Uint8 a)
+  {
+    return Roo::map({
+      Roo::keyword("r"),
+      Roo::number(static_cast<int>(r)),
+      Roo::keyword("g"),
+      Roo::number(static_cast<int>(g)),
+      Roo::keyword("b"),
+      Roo::number(static_cast<int>(b)),
+      Roo::keyword("a"),
+      Roo::number(static_cast<int>(a)),
+    });
+  }
+
+  Roo::sptr_val rendered_pixel(TestApp& app, int x, int y)
+  {
+    if (!app.render_ctx.renderer || !app.render_ctx.buffer_texture)
+    {
+      return Roo::Constant::NIL;
+    }
+    if (x < 0 || y < 0 || x >= app.render_ctx.buffer_dim.w ||
+        y >= app.render_ctx.buffer_dim.h)
+    {
+      return Roo::Constant::NIL;
+    }
+
+    SDL_Texture* previous_target = SDL_GetRenderTarget(app.render_ctx.renderer);
+    SDL_SetRenderTarget(app.render_ctx.renderer, app.render_ctx.buffer_texture);
+
+    Uint32 pixel = 0;
+    SDL_Rect rect{x, y, 1, 1};
+    const int read_result = SDL_RenderReadPixels(app.render_ctx.renderer,
+                                                 &rect,
+                                                 SDL_PIXELFORMAT_RGBA32,
+                                                 &pixel,
+                                                 sizeof(pixel));
+
+    SDL_SetRenderTarget(app.render_ctx.renderer, previous_target);
+    if (read_result != 0)
+    {
+      return Roo::Constant::NIL;
+    }
+
+    SDL_PixelFormat* format = SDL_AllocFormat(SDL_PIXELFORMAT_RGBA32);
+    if (!format) return Roo::Constant::NIL;
+
+    Uint8 r = 0;
+    Uint8 g = 0;
+    Uint8 b = 0;
+    Uint8 a = 0;
+    SDL_GetRGBA(pixel, format, &r, &g, &b, &a);
+    SDL_FreeFormat(format);
+
+    return color_map(r, g, b, a);
+  }
+
   AppTarget package_target(const Roo::sptr_val& opts)
   {
     auto package_root_value =
@@ -583,6 +665,7 @@ namespace
     FUNC(RenderBangFunction, render_bang);
     FUNC(LayoutBangFunction, layout_bang);
     FUNC(FrameBangFunction, frame_bang);
+    FUNC(RenderedPixelFunction, rendered_pixel);
     FUNC(ActiveModeFunction, active_mode);
     FUNC(ActiveModeNameFunction, active_mode_name);
     FUNC(ActiveStateFunction, active_state);
@@ -682,6 +765,18 @@ namespace
     {
       app_from(args[0]).frame();
       return args[0];
+    }
+
+    FUNC_IMPL(RenderedPixelFunction,
+              SIG((FN_ARGS((&HostType::TEST_APP),
+                           (&Roo::Type::NUMBER),
+                           (&Roo::Type::NUMBER)),
+                   EXEC_DISPATCH(&RenderedPixelFunction::exec_rendered_pixel))));
+    EXEC_BODY(RenderedPixelFunction, exec_rendered_pixel)
+    {
+      return rendered_pixel(app_from(args[0]),
+                            required_int(args[1], "x"),
+                            required_int(args[2], "y"));
     }
 
     FUNC_IMPL(ActiveModeFunction,
@@ -1000,6 +1095,7 @@ namespace
       values.emplace("render!", Function::RenderBangFunction::make());
       values.emplace("layout!", Function::LayoutBangFunction::make());
       values.emplace("frame!", Function::FrameBangFunction::make());
+      values.emplace("rendered-pixel", Function::RenderedPixelFunction::make());
       values.emplace("active-mode", Function::ActiveModeFunction::make());
       values.emplace("active-mode-name", Function::ActiveModeNameFunction::make());
       values.emplace("active-state", Function::ActiveStateFunction::make());

@@ -47,6 +47,8 @@ namespace Pixils::Runtime
     Roo::sptr_val initial_state = Roo::Constant::NIL;
     Rect bounds = {0, 0, 0, 0};
     Rect external_bounds = {0, 0, 0, 0};
+    Rect visual_bounds = {0, 0, 0, 0};
+    int visual_scale = 1;
     std::optional<UI::Theme> inherited_theme = std::nullopt;
     UI::StyleView style_view;
     UI::Theme effective_theme;

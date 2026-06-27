@@ -1021,6 +1021,8 @@ namespace Pixils::Script
                       (state),
                       (bounds),
                       ("external-bounds", external_bounds),
+                      ("visual-bounds", visual_bounds),
+                      ("visual-scale", visual_scale),
                       (interaction),
                       (style),
                       ("effective-style", effective_style),
@@ -1044,6 +1046,17 @@ namespace Pixils::Script
   {
     Rect b = best_known_external_bounds(object->get_object());
     return RectAdapter::make_unique(b.x, b.y, b.w, b.h);
+  }
+
+  NOBJ_PROP_GET(ViewAdapter, visual_bounds)
+  {
+    const Rect& b = object->get_object().visual_bounds;
+    return RectAdapter::make_unique(b.x, b.y, b.w, b.h);
+  }
+
+  NOBJ_PROP_GET(ViewAdapter, visual_scale)
+  {
+    return Roo::number(object->get_object().visual_scale);
   }
 
   NOBJ_PROP_GET(ViewAdapter, interaction)
