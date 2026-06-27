@@ -137,11 +137,7 @@ namespace Pixils
 
       ctx.begin_frame(program->get_display());
 
-      events.key_down = Roo::Constant::NIL;
-      events.key_up = Roo::Constant::NIL;
-      events.mouse_button_down = Roo::Constant::NIL;
-      events.mouse_button_up = Roo::Constant::NIL;
-      events.mouse_moved = false;
+      events.clear_transients();
 
       while (SDL_PollEvent(&event))
       {

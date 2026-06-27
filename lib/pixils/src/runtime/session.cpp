@@ -514,6 +514,11 @@ namespace Pixils::Runtime
                                         current_mouse_pos(hook_args));
     }
 
+    if (active_frame_changed && this->hook_args.events)
+    {
+      this->hook_args.events->clear_keyboard_transients();
+    }
+
     return active_frame_changed;
   }
 

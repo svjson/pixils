@@ -134,6 +134,46 @@ TEST_F(SessionHooksTest, root_mode_on_key_down_hook_is_invoked)
   EXPECT_EQ(session.active_mode->state->to_string(), "{:count 1 :last-key :key/space}");
 }
 
+TEST_F(SessionHooksTest, key_down_push_pop_does_not_replay_into_new_active_mode)
+{
+  runtime.eval(R"(
+    (pixils/defmode inventory-mode
+      {:on-key-down (fn [state event ctx]
+                      (if (= (:key event) :key/I)
+                        (do
+                          (pixils/pop-mode!)
+                          state)
+                        state))})
+
+    (pixils/defmode root-mode
+      {:on-key-down (fn [state event ctx]
+                      (if (= (:key event) :key/I)
+                        (do
+                          (pixils/push-mode! 'inventory-mode)
+                          state)
+                        state))})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+
+  input().key_down(SDLK_i);
+  update_cycle();
+  ASSERT_EQ(session.active_mode->mode->name, "inventory-mode");
+
+  update_cycle();
+  EXPECT_EQ(session.active_mode->mode->name, "inventory-mode");
+
+  input().key_up(SDLK_i);
+  update_cycle();
+
+  input().key_down(SDLK_i);
+  update_cycle();
+  ASSERT_EQ(session.active_mode->mode->name, "root-mode");
+
+  update_cycle();
+  EXPECT_EQ(session.active_mode->mode->name, "root-mode");
+}
+
 TEST_F(SessionHooksTest, root_mode_on_key_up_hook_is_invoked)
 {
   // Given

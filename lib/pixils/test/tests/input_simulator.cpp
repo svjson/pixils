@@ -60,11 +60,5 @@ void InputSimulator::key_up(SDL_Keycode key)
 
 void InputSimulator::clear_transients()
 {
-  _events.mouse_button_down = Roo::Constant::NIL;
-  _events.mouse_button_up = Roo::Constant::NIL;
-  _events.mouse_button_down_clicks = 1;
-  _events.mouse_button_up_clicks = 1;
-  _events.mouse_moved = false;
-  _events.key_down = Roo::Constant::NIL;
-  _events.key_up = Roo::Constant::NIL;
+  _events.clear_transients();
 }

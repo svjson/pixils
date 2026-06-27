@@ -23,6 +23,9 @@ namespace Pixils
 
     FrameEvents();
 
+    void clear_keyboard_transients();
+    void clear_transients();
+
     bool is_key_held(const Roo::Value& key) const;
 
     void do_key_down(const SDL_KeyboardEvent& event);

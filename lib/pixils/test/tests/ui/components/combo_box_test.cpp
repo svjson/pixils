@@ -368,6 +368,36 @@ TEST_F(ComboBoxTest, combo_box_popup_omits_scrollbar_when_options_fit)
   EXPECT_EQ(viewport->bounds.w, 98);
 }
 
+TEST_F(ComboBoxTest, open_combo_box_closes_without_reopening_when_trigger_clicked)
+{
+  runtime.eval(R"(
+    (pixils/defmode root-mode
+      {:children [(pixils.ui.combo-box/make
+                   {:options [{:value :a :label "Alpha"}
+                              {:value :b :label "Beta"}]
+                    :style {:width 100}
+                    :row-height 10
+                    :max-height 20})]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  session.update_mode();
+  session.render_mode();
+
+  input().mouse_down({5, 5});
+  update_cycle();
+  session.render_mode();
+
+  ASSERT_NE(session.active_mode, nullptr);
+  EXPECT_EQ(session.active_mode->mode->name, "ui/combo-box-popup");
+
+  input().mouse_down({5, 5});
+  update_cycle();
+
+  ASSERT_NE(session.active_mode, nullptr);
+  EXPECT_EQ(session.active_mode->mode->name, "root-mode");
+}
+
 TEST_F(ComboBoxTest, scaled_combo_box_popup_uses_anchor_visual_geometry)
 {
   runtime.eval(R"(

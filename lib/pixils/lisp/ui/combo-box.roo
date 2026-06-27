@@ -100,6 +100,14 @@
      :width (max 1 (int (/ (:w bounds) scale)))
      :scale scale}))
 
+(defun point-in-rect? [point rect]
+  (and (not (nil? point))
+       (not (nil? rect))
+       (>= (:x point) (:x rect))
+       (>= (:y point) (:y rect))
+       (< (:x point) (+ (:x rect) (:w rect)))
+       (< (:y point) (+ (:y rect) (:h rect)))))
+
 (defun popup-selected-indices [state]
   [(or (:selected-index state) 0)])
 
@@ -114,6 +122,7 @@
        'ui/combo-box-popup
        {:options options
         :selected-indices (popup-selected-indices state)
+        :anchor-bounds (:visual-bounds (:view ctx))
         :row-height row-height
         :max-height max-height}
        (merge
@@ -166,11 +175,18 @@
                     (selected-label (:options state)
                                     (:selected-index state))))
    :on-mouse-down (fn [state event ctx]
-                    (do
-                      (ui/stop-propagation! event)
-                      (when (not (:disabled? state))
-                        (open-popup! state ctx))
-                      state))
+                    (ui/stop-propagation! event)
+                    (cond
+                      (:disabled? state)
+                      state
+
+                      (:suppress-next-open? state)
+                      (assoc state :suppress-next-open? false)
+
+                      :default
+                      (do
+                        (open-popup! state ctx)
+                        state)))
    :on-key-down (fn [state event ctx]
                   (if (:disabled? state)
                     state
@@ -189,9 +205,10 @@
    :on {:combo-box/select (fn [state event ctx]
                             (let [payload (:payload event)
                                   index (head (:selected-indices payload))]
-                              (do
-                                (ui/stop-propagation! event)
-                                (ui/focus! ctx)
+                              (ui/stop-propagation! event)
+                              (ui/focus! ctx)
+                              (if (:anchor-click? payload)
+                                (assoc state :suppress-next-open? true)
                                 (select-index state index ctx))))}
    :children [{:mode 'ui/combo-box-trigger
                :state {:selected-label (ui/bind-state :selected-label)
@@ -199,14 +216,16 @@
 
 (defmode ui/combo-box-popup
   {:on-mouse-down (fn [state event ctx]
-                    (do
-                      (pop-mode! {:type :dismiss})
-                      state))
+                    (pop-mode! (if (point-in-rect? (:global-position event)
+                                                   (:anchor-bounds state))
+                                 {:type :dismiss
+                                  :anchor-click? true}
+                                 {:type :dismiss}))
+                    state)
    :on {:list-box/change (fn [state event ctx]
-                           (do
-                             (ui/stop-propagation! event)
-                             (pop-mode! (:payload event))
-                             state))}
+                           (ui/stop-propagation! event)
+                           (pop-mode! (:payload event))
+                           state)}
    :compose {:render :pass}})
 
 (defcomponent ui/combo-box-popup-panel

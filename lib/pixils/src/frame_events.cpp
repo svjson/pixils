@@ -35,6 +35,22 @@ namespace Pixils
   {
   }
 
+  void FrameEvents::clear_keyboard_transients()
+  {
+    key_down = Roo::Constant::NIL;
+    key_up = Roo::Constant::NIL;
+  }
+
+  void FrameEvents::clear_transients()
+  {
+    clear_keyboard_transients();
+    mouse_button_down = Roo::Constant::NIL;
+    mouse_button_up = Roo::Constant::NIL;
+    mouse_button_down_clicks = 1;
+    mouse_button_up_clicks = 1;
+    mouse_moved = false;
+  }
+
   void FrameEvents::do_mouse_motion(int x, int y)
   {
     mouse_pos =
