@@ -1544,10 +1544,8 @@
 
 (defun materialize-render-map [tilemap & opts]
   (let [opts (or (head opts) {})]
-    (if (materialization-has-transition-masks? tilemap opts)
-      (roo-materialize-render-map tilemap opts)
-      (or (materialize-impl/materialize-render-map tilemap opts)
-          (roo-materialize-render-map tilemap opts)))))
+    (or (materialize-impl/materialize-render-map tilemap opts)
+        (roo-materialize-render-map tilemap opts))))
 
 (defun materialize-render-rect [tilemap rect & opts]
   (let [opts (or (head opts) {})

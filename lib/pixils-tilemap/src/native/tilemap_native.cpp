@@ -1430,6 +1430,7 @@ namespace
     Roo::sptr_val target_layer = Roo::Constant::NIL;
     Roo::sptr_val tileset = Roo::Constant::NIL;
     std::vector<std::vector<Roo::sptr_val>> tiles;
+    std::vector<std::vector<Roo::sptr_val>> transition_masks;
   };
 
   struct TerrainStampRule
@@ -1467,6 +1468,28 @@ namespace
     Roo::sptr_val ruleset_id = Roo::Constant::NIL;
     std::vector<std::vector<Roo::sptr_val>> tiles;
     std::vector<std::vector<bool>> source_mask;
+  };
+
+  struct OutputEntry
+  {
+    int x = 0;
+    int y = 0;
+    Roo::sptr_val tile = Roo::Constant::NIL;
+    Roo::sptr_val mask_ref = Roo::Constant::NIL;
+  };
+
+  struct TerrainRuleMaterialization
+  {
+    std::vector<GeneratedLayer> generated_layers;
+    std::vector<std::vector<Roo::sptr_val>> transition_replacements;
+    std::vector<Roo::sptr_val> transition_tiles;
+    std::unordered_set<std::string> transition_tile_ids;
+  };
+
+  struct LayerMaterialization
+  {
+    std::vector<Roo::sptr_val> layers;
+    std::vector<Roo::sptr_val> transition_tiles;
   };
 
   int positive_int_prop(const Roo::sptr_val& map,
@@ -1555,6 +1578,35 @@ namespace
       }
     }
     return out;
+  }
+
+  using TileDefinitionsByTileset =
+    std::unordered_map<std::string, std::unordered_map<std::string, Roo::sptr_val>>;
+
+  TileDefinitionsByTileset tile_definitions_by_tileset(const Roo::sptr_val& tilesets)
+  {
+    TileDefinitionsByTileset out;
+    for (const auto& tileset : seq_children(tilesets))
+    {
+      auto tileset_id = prop(tileset, "id");
+      auto& tile_defs = out[value_key(tileset_id)];
+      for (const auto& tile : seq_children(prop(tileset, "tiles")))
+      {
+        tile_defs[value_key(prop(tile, "id"))] = tile;
+      }
+    }
+    return out;
+  }
+
+  Roo::sptr_val tile_definition_in(const TileDefinitionsByTileset& tile_defs,
+                                   const Roo::sptr_val& tileset,
+                                   const Roo::sptr_val& tile)
+  {
+    auto tileset_found = tile_defs.find(value_key(tileset));
+    if (tileset_found == tile_defs.end()) return Roo::Constant::NIL;
+    auto tile_found = tileset_found->second.find(value_key(tile));
+    if (tile_found == tileset_found->second.end()) return Roo::Constant::NIL;
+    return tile_found->second;
   }
 
   bool tile_ref_resolves(
@@ -1663,6 +1715,7 @@ namespace
     layer.target_layer = prop(value, "target-layer");
     layer.tileset = prop(value, "tileset");
     layer.tiles = tile_rows(prop(value, "tiles"));
+    layer.transition_masks = tile_rows(prop(value, "transition-masks"));
     return layer;
   }
 
@@ -1835,12 +1888,349 @@ namespace
     return !nil_value(tile) || ruleset.unit_w != 1 || ruleset.unit_h != 1;
   }
 
-  void apply_output_layer(std::vector<GeneratedLayer>& generated_layers,
+  Roo::sptr_val terrain_preview_ref_value(const TerrainSet* terrain_set,
+                                          const Roo::sptr_val& terrain_ref)
+  {
+    TerrainPreview preview = terrain_preview(terrain_set, terrain_ref);
+    if (nil_value(preview.tileset) || nil_value(preview.tile)) return Roo::Constant::NIL;
+    return map_value({keyword_value("tileset"),
+                      preview.tileset,
+                      keyword_value("tile"),
+                      preview.tile});
+  }
+
+  std::vector<Roo::sptr_val> condition_terrains(const Roo::sptr_val& condition)
+  {
+    if (!condition || condition->type != Roo::Value::Type::MAP) return {};
+    auto terrain_in = prop(condition, "terrain-in");
+    if (!nil_value(terrain_in)) return seq_children(terrain_in);
+    auto terrain = prop(condition, "terrain");
+    if (!nil_value(terrain)) return {terrain};
+    return {};
+  }
+
+  Roo::sptr_val first_opposing_terrain(const TerrainStampRule& rule)
+  {
+    static const std::vector<std::string> directions = {
+      "nw", "n", "ne", "w", "e", "sw", "s", "se"};
+    for (const auto& direction : directions)
+    {
+      auto condition = rule.match.find(direction);
+      if (condition == rule.match.end()) continue;
+      for (const auto& terrain : condition_terrains(condition->second))
+      {
+        if (!nil_value(terrain) && !same_value(terrain, rule.center)) return terrain;
+      }
+    }
+    return Roo::Constant::NIL;
+  }
+
+  Roo::sptr_val first_opposing_terrain_at(
+    const std::vector<std::vector<Roo::sptr_val>>& source_rows,
+    const TerrainStampRuleset& ruleset,
+    const TerrainStampRule& rule,
+    int x,
+    int y)
+  {
+    static const std::vector<std::string> directions = {
+      "nw", "n", "ne", "w", "e", "sw", "s", "se"};
+    for (const auto& direction : directions)
+    {
+      auto condition = rule.match.find(direction);
+      if (condition == rule.match.end()) continue;
+      if (keyword_named(condition->second, "ignore")) continue;
+      auto terrain = terrain_value_at(source_rows, ruleset, direction, x, y);
+      if (condition_matches(rule.center, condition->second, terrain) &&
+          known_terrain_value(terrain) && !same_value(terrain, rule.center))
+      {
+        return terrain;
+      }
+    }
+    return first_opposing_terrain(rule);
+  }
+
+  Roo::sptr_val mask_set_by_id(const Roo::sptr_val& mask_sets,
+                               const Roo::sptr_val& mask_set_id)
+  {
+    for (const auto& mask_set : seq_children(mask_sets))
+    {
+      if (same_value(prop(mask_set, "id"), mask_set_id)) return mask_set;
+    }
+    return Roo::Constant::NIL;
+  }
+
+  Roo::sptr_val mask_by_id(const Roo::sptr_val& mask_set,
+                           const Roo::sptr_val& mask_id)
+  {
+    for (const auto& mask : seq_children(prop(mask_set, "masks")))
+    {
+      if (same_value(prop(mask, "id"), mask_id)) return mask;
+    }
+    return Roo::Constant::NIL;
+  }
+
+  Roo::sptr_val resolved_mask_source_tiles(
+    const TileDefinitionsByTileset& tile_defs,
+    const Roo::sptr_val& source)
+  {
+    Roo::sptr_val_v out;
+    auto source_tileset = prop(source, "tileset");
+    for (const auto& item : seq_children(prop(source, "tiles")))
+    {
+      auto copy = Roo::Dict::shallow_copy(item);
+      map_set(copy,
+              "tile-definition",
+              tile_definition_in(tile_defs, source_tileset, prop(item, "tile")));
+      out.push_back(copy);
+    }
+    return Roo::Value::vector(out);
+  }
+
+  Roo::sptr_val resolved_transition_mask_source(
+    const Roo::sptr_val& mask_sets,
+    const TileDefinitionsByTileset& tile_defs,
+    const Roo::sptr_val& mask_ref)
+  {
+    auto mask_set = mask_set_by_id(mask_sets, prop(mask_ref, "mask-set"));
+    auto mask = mask_by_id(mask_set, prop(mask_ref, "mask"));
+    if (nil_value(mask_set) || nil_value(mask)) return Roo::Constant::NIL;
+    auto source = prop(mask, "source");
+    if (!source || source->type != Roo::Value::Type::MAP) return Roo::Constant::NIL;
+    auto out = Roo::Dict::shallow_copy(source);
+    map_set(out, "size", prop(mask_set, "mask-size"));
+    map_set(out, "tiles", resolved_mask_source_tiles(tile_defs, source));
+    return out;
+  }
+
+  Roo::sptr_val transition_mask_polarity(const Roo::sptr_val& mask_ref)
+  {
+    if (keyword_named(prop(mask_ref, "polarity"), "solid-is-opposing"))
+    {
+      return keyword_value("solid-is-opposing");
+    }
+    return keyword_value("solid-is-current");
+  }
+
+  std::string transition_tile_id_label(const Roo::sptr_val& base_ref,
+                                       const Roo::sptr_val& overlay_ref,
+                                       const Roo::sptr_val& mask_ref)
+  {
+    return "transition-" + id_label(prop(base_ref, "tileset")) + "-" +
+           id_label(prop(base_ref, "tile")) + "-" +
+           id_label(prop(overlay_ref, "tileset")) + "-" +
+           id_label(prop(overlay_ref, "tile")) + "-" +
+           id_label(prop(mask_ref, "mask-set")) + "-" +
+           id_label(prop(mask_ref, "mask"));
+  }
+
+  Roo::sptr_val transition_cache_image(const Roo::sptr_val& tile_id)
+  {
+    return keyword_value("pixils-transition-cache/" + id_label(tile_id));
+  }
+
+  Roo::sptr_val transition_tile_ref(const Roo::sptr_val& tile)
+  {
+    return map_value({keyword_value("tileset"),
+                      keyword_value("pixils-transition-tiles"),
+                      keyword_value("tile"),
+                      prop(tile, "id")});
+  }
+
+  Roo::sptr_val transition_ref_with_definition(
+    const Roo::sptr_val& ref,
+    const TileDefinitionsByTileset& tile_defs)
+  {
+    auto out = Roo::Dict::shallow_copy(ref);
+    map_set(out,
+            "tile-definition",
+            tile_definition_in(tile_defs, prop(ref, "tileset"), prop(ref, "tile")));
+    return out;
+  }
+
+  Roo::sptr_val transition_tile_definition(
+    const Roo::sptr_val& tilemap,
+    const Roo::sptr_val& mask_sets,
+    const TileDefinitionsByTileset& tile_defs,
+    const TerrainSet* terrain_set,
+    const std::vector<std::vector<Roo::sptr_val>>& source_rows,
+    const TerrainStampRuleset& ruleset,
+    const TerrainStampRule& rule,
+    const Roo::sptr_val& mask_ref,
+    int source_x,
+    int source_y)
+  {
+    auto base_ref = terrain_preview_ref_value(terrain_set, rule.center);
+    auto opposing_ref =
+      terrain_preview_ref_value(terrain_set,
+                                first_opposing_terrain_at(source_rows,
+                                                          ruleset,
+                                                          rule,
+                                                          source_x,
+                                                          source_y));
+    auto mask_source = resolved_transition_mask_source(mask_sets, tile_defs, mask_ref);
+    if (nil_value(base_ref) || nil_value(opposing_ref) || nil_value(mask_source))
+    {
+      return Roo::Constant::NIL;
+    }
+
+    auto polarity = transition_mask_polarity(mask_ref);
+    auto oriented_base =
+      keyword_named(polarity, "solid-is-opposing") ? opposing_ref : base_ref;
+    auto oriented_overlay =
+      keyword_named(polarity, "solid-is-opposing") ? base_ref : opposing_ref;
+    auto tile_id =
+      keyword_value(transition_tile_id_label(oriented_base, oriented_overlay, mask_ref));
+
+    return map_value({keyword_value("id"),
+                      tile_id,
+                      keyword_value("type"),
+                      keyword_value("transition-mask"),
+                      keyword_value("size"),
+                      prop(tilemap, "tile-size"),
+                      keyword_value("base"),
+                      transition_ref_with_definition(oriented_base, tile_defs),
+                      keyword_value("overlay"),
+                      transition_ref_with_definition(oriented_overlay, tile_defs),
+                      keyword_value("mask"),
+                      mask_ref,
+                      keyword_value("mask-polarity"),
+                      polarity,
+                      keyword_value("mask-source"),
+                      mask_source,
+                      keyword_value("image"),
+                      transition_cache_image(tile_id)});
+  }
+
+  void add_unique_transition_tile(TerrainRuleMaterialization& result,
+                                  const Roo::sptr_val& tile)
+  {
+    if (nil_value(tile)) return;
+    std::string id = value_key(prop(tile, "id"));
+    if (result.transition_tile_ids.insert(id).second)
+    {
+      result.transition_tiles.push_back(tile);
+    }
+  }
+
+  void set_transition_replacement(TerrainRuleMaterialization& result,
+                                  int x,
+                                  int y,
+                                  const Roo::sptr_val& tile_ref)
+  {
+    if (nil_value(tile_ref)) return;
+    if (y < 0 || y >= static_cast<int>(result.transition_replacements.size())) return;
+    if (x < 0 ||
+        x >= static_cast<int>(result.transition_replacements[y].size()))
+    {
+      return;
+    }
+    result.transition_replacements[y][x] = tile_ref;
+  }
+
+  std::vector<OutputEntry> output_entries(const TerrainStampRuleset& ruleset,
+                                          const TerrainStampRule& rule,
+                                          const OutputLayer& output_layer)
+  {
+    if (ruleset.unit_w == 1 && ruleset.unit_h == 1)
+    {
+      return {OutputEntry{rule.anchor_x,
+                          rule.anchor_y,
+                          tile_at(output_layer.tiles, rule.anchor_x, rule.anchor_y),
+                          tile_at(output_layer.transition_masks,
+                                  rule.anchor_x,
+                                  rule.anchor_y)}};
+    }
+
+    std::vector<OutputEntry> out;
+    for (int tile_y = 0; tile_y < static_cast<int>(output_layer.tiles.size()); tile_y++)
+    {
+      for (int tile_x = 0;
+           tile_x < static_cast<int>(output_layer.tiles[tile_y].size());
+           tile_x++)
+      {
+        out.push_back(OutputEntry{tile_x,
+                                  tile_y,
+                                  output_layer.tiles[tile_y][tile_x],
+                                  tile_at(output_layer.transition_masks,
+                                          tile_x,
+                                          tile_y)});
+      }
+    }
+    return out;
+  }
+
+  bool output_layer_generates_layer(const TerrainStampRuleset& ruleset,
+                                    const TerrainStampRule& rule,
+                                    const OutputLayer& output_layer)
+  {
+    for (const auto& entry : output_entries(ruleset, rule, output_layer))
+    {
+      if (nil_value(entry.mask_ref)) return true;
+    }
+    return false;
+  }
+
+  void apply_output_entry(TerrainRuleMaterialization& result,
                           int width,
                           int height,
                           bool known_tilesets,
                           const std::unordered_map<std::string, std::unordered_set<std::string>>&
                             tile_ids,
+                          const Roo::sptr_val& tilemap,
+                          const Roo::sptr_val& mask_sets,
+                          const TileDefinitionsByTileset& tile_defs,
+                          const TerrainSet* terrain_set,
+                          const std::vector<std::vector<Roo::sptr_val>>& source_rows,
+                          const Roo::sptr_val& source_layer,
+                          const TerrainStampRuleset& ruleset,
+                          const TerrainStampRule& rule,
+                          const OutputLayer& output_layer,
+                          const OutputEntry& entry,
+                          int source_x,
+                          int source_y)
+  {
+    int x = source_x + entry.x - rule.anchor_x;
+    int y = source_y + entry.y - rule.anchor_y;
+    if (x < 0 || x >= width || y < 0 || y >= height) return;
+
+    if (!nil_value(entry.mask_ref))
+    {
+      auto tile = transition_tile_definition(tilemap,
+                                             mask_sets,
+                                             tile_defs,
+                                             terrain_set,
+                                             source_rows,
+                                             ruleset,
+                                             rule,
+                                             entry.mask_ref,
+                                             source_x,
+                                             source_y);
+      add_unique_transition_tile(result, tile);
+      set_transition_replacement(
+        result, x, y, nil_value(tile) ? entry.tile : transition_tile_ref(tile));
+      return;
+    }
+
+    auto layer_id = terrain_stamp_output_layer_key(source_layer, ruleset, output_layer);
+    int index = generated_layer_index(result.generated_layers, layer_id);
+    if (index < 0) return;
+    auto& layer = result.generated_layers[index];
+    layer.tiles[y][x] = entry.tile;
+    layer.source_mask[y][x] =
+      output_entry_occupies_source(known_tilesets, tile_ids, ruleset, output_layer, entry.tile);
+  }
+
+  void apply_output_layer(TerrainRuleMaterialization& result,
+                          int width,
+                          int height,
+                          bool known_tilesets,
+                          const std::unordered_map<std::string, std::unordered_set<std::string>>&
+                            tile_ids,
+                          const Roo::sptr_val& tilemap,
+                          const Roo::sptr_val& mask_sets,
+                          const TileDefinitionsByTileset& tile_defs,
+                          const TerrainSet* terrain_set,
+                          const std::vector<std::vector<Roo::sptr_val>>& source_rows,
                           const Roo::sptr_val& source_layer,
                           const TerrainStampRuleset& ruleset,
                           const TerrainStampRule& rule,
@@ -1848,50 +2238,52 @@ namespace
                           int source_x,
                           int source_y)
   {
-    GeneratedLayer& layer = ensure_generated_layer(
-      generated_layers, width, height, source_layer, ruleset, output_layer);
-
-    if (ruleset.unit_w == 1 && ruleset.unit_h == 1)
+    if (output_layer_generates_layer(ruleset, rule, output_layer))
     {
-      Roo::sptr_val tile = tile_at(output_layer.tiles, rule.anchor_x, rule.anchor_y);
-      int x = source_x;
-      int y = source_y;
-      if (x >= 0 && x < width && y >= 0 && y < height)
-      {
-        layer.tiles[y][x] = tile;
-        layer.source_mask[y][x] =
-          output_entry_occupies_source(known_tilesets, tile_ids, ruleset, output_layer, tile);
-      }
-      return;
+      ensure_generated_layer(
+        result.generated_layers, width, height, source_layer, ruleset, output_layer);
     }
 
-    for (int tile_y = 0; tile_y < static_cast<int>(output_layer.tiles.size()); tile_y++)
+    for (const auto& entry : output_entries(ruleset, rule, output_layer))
     {
-      for (int tile_x = 0;
-           tile_x < static_cast<int>(output_layer.tiles[tile_y].size());
-           tile_x++)
-      {
-        int x = source_x + tile_x - rule.anchor_x;
-        int y = source_y + tile_y - rule.anchor_y;
-        if (x < 0 || x >= width || y < 0 || y >= height) continue;
-        Roo::sptr_val tile = output_layer.tiles[tile_y][tile_x];
-        layer.tiles[y][x] = tile;
-        layer.source_mask[y][x] =
-          output_entry_occupies_source(known_tilesets, tile_ids, ruleset, output_layer, tile);
-      }
+      apply_output_entry(result,
+                         width,
+                         height,
+                         known_tilesets,
+                         tile_ids,
+                         tilemap,
+                         mask_sets,
+                         tile_defs,
+                         terrain_set,
+                         source_rows,
+                         source_layer,
+                         ruleset,
+                         rule,
+                         output_layer,
+                         entry,
+                         source_x,
+                         source_y);
     }
   }
 
-  std::vector<GeneratedLayer> materialize_terrain_stamp_layers(
+  TerrainRuleMaterialization materialize_terrain_stamp_layers(
     int width,
     int height,
     bool known_tilesets,
     const std::unordered_map<std::string, std::unordered_set<std::string>>& tile_ids,
+    const Roo::sptr_val& tilemap,
+    const Roo::sptr_val& mask_sets,
+    const TileDefinitionsByTileset& tile_defs,
+    const std::unordered_map<std::string, TerrainSet>& terrain_sets,
     const Roo::sptr_val& source_layer,
     const std::vector<std::vector<Roo::sptr_val>>& source_rows,
     const std::vector<TerrainStampRuleset>& rulesets)
   {
-    std::vector<GeneratedLayer> generated_layers;
+    TerrainRuleMaterialization result;
+    result.transition_replacements = empty_rows(width, height);
+    auto terrain_set_found = terrain_sets.find(value_key(prop(source_layer, "terrain-set")));
+    const TerrainSet* terrain_set =
+      terrain_set_found == terrain_sets.end() ? nullptr : &terrain_set_found->second;
     for (const auto& ruleset : rulesets)
     {
       if (!ruleset_applies_to_layer(ruleset, source_layer)) continue;
@@ -1904,11 +2296,16 @@ namespace
             if (!terrain_rule_matches(source_rows, ruleset, rule, x, y)) continue;
             for (const auto& output_layer : rule.output_layers)
             {
-              apply_output_layer(generated_layers,
+              apply_output_layer(result,
                                  width,
                                  height,
                                  known_tilesets,
                                  tile_ids,
+                                 tilemap,
+                                 mask_sets,
+                                 tile_defs,
+                                 terrain_set,
+                                 source_rows,
                                  source_layer,
                                  ruleset,
                                  rule,
@@ -1921,7 +2318,7 @@ namespace
         }
       }
     }
-    return generated_layers;
+    return result;
   }
 
   bool source_masked(const std::vector<GeneratedLayer>& generated_layers, int x, int y)
@@ -1953,6 +2350,27 @@ namespace
     return rows;
   }
 
+  Roo::sptr_val transition_replacement_at(
+    const std::vector<std::vector<Roo::sptr_val>>& transition_replacements,
+    int x,
+    int y)
+  {
+    return tile_at(transition_replacements, x, y);
+  }
+
+  bool has_transition_replacements(
+    const std::vector<std::vector<Roo::sptr_val>>& transition_replacements)
+  {
+    for (const auto& row : transition_replacements)
+    {
+      for (const auto& cell : row)
+      {
+        if (!nil_value(cell)) return true;
+      }
+    }
+    return false;
+  }
+
   Roo::sptr_val layer_with_tiles(const Roo::sptr_val& source,
                                  const std::vector<std::vector<Roo::sptr_val>>& rows)
   {
@@ -1966,17 +2384,28 @@ namespace
     const TerrainSet* terrain_set,
     const Roo::sptr_val& tileset,
     bool split,
-    const std::vector<std::vector<Roo::sptr_val>>& source_rows)
+    const std::vector<std::vector<Roo::sptr_val>>& source_rows,
+    const std::vector<std::vector<Roo::sptr_val>>& transition_replacements)
   {
     std::vector<std::vector<Roo::sptr_val>> rows;
     rows.reserve(source_rows.size());
-    for (const auto& row : source_rows)
+    for (int y = 0; y < static_cast<int>(source_rows.size()); y++)
     {
+      const auto& row = source_rows[y];
       std::vector<Roo::sptr_val> out_row;
       out_row.reserve(row.size());
-      for (const auto& terrain_ref : row)
+      for (int x = 0; x < static_cast<int>(row.size()); x++)
       {
-        TerrainPreview preview = terrain_preview(terrain_set, terrain_ref);
+        auto replacement = transition_replacement_at(transition_replacements, x, y);
+        if (!nil_value(replacement))
+        {
+          out_row.push_back(same_value(prop(replacement, "tileset"), tileset)
+                              ? replacement
+                              : Roo::Constant::NIL);
+          continue;
+        }
+
+        TerrainPreview preview = terrain_preview(terrain_set, row[x]);
         out_row.push_back(same_value(preview.tileset, tileset) ? preview.tile
                                                                : Roo::Constant::NIL);
       }
@@ -1994,13 +2423,18 @@ namespace
   std::vector<Roo::sptr_val> materialize_terrain_layer(
     const Roo::sptr_val& source_layer,
     const std::unordered_map<std::string, TerrainSet>& terrain_sets,
-    const std::vector<std::vector<Roo::sptr_val>>& source_rows)
+    const std::vector<std::vector<Roo::sptr_val>>& source_rows,
+    const std::vector<std::vector<Roo::sptr_val>>& transition_replacements)
   {
     auto terrain_set_id = value_key(prop(source_layer, "terrain-set"));
     auto terrain_set_found = terrain_sets.find(terrain_set_id);
     const TerrainSet* terrain_set =
       terrain_set_found == terrain_sets.end() ? nullptr : &terrain_set_found->second;
     auto tilesets = terrain_definition_preview_tilesets(terrain_set);
+    if (has_transition_replacements(transition_replacements))
+    {
+      tilesets.push_back(keyword_value("pixils-transition-tiles"));
+    }
     bool split = tilesets.size() > 1;
     std::vector<Roo::sptr_val> out;
     if (tilesets.empty())
@@ -2014,7 +2448,7 @@ namespace
     for (const auto& tileset : tilesets)
     {
       out.push_back(materialize_terrain_layer_for_tileset(
-        source_layer, terrain_set, tileset, split, source_rows));
+        source_layer, terrain_set, tileset, split, source_rows, transition_replacements));
     }
     return out;
   }
@@ -2058,35 +2492,61 @@ namespace
                       rows_value(mask_rows)});
   }
 
-  std::vector<Roo::sptr_val> materialize_layer_with_rules(
+  Roo::sptr_val generated_transition_tilesets_value(
+    const std::vector<Roo::sptr_val>& transition_tiles)
+  {
+    if (transition_tiles.empty()) return Roo::Constant::NIL;
+    return Roo::Value::vector(
+      {map_value({keyword_value("id"),
+                  keyword_value("pixils-transition-tiles"),
+                  keyword_value("label"),
+                  Roo::string("Generated transition tiles"),
+                  keyword_value("tiles"),
+                  Roo::Value::vector(transition_tiles)})});
+  }
+
+  LayerMaterialization materialize_layer_with_rules(
     int width,
     int height,
     bool show_rules,
     bool known_tilesets,
     const std::unordered_map<std::string, std::unordered_set<std::string>>& tile_ids,
+    const Roo::sptr_val& tilemap,
+    const Roo::sptr_val& mask_sets,
+    const TileDefinitionsByTileset& tile_defs,
     const Roo::sptr_val& layer,
     const std::unordered_map<std::string, TerrainSet>& terrain_sets,
     const std::vector<TerrainStampRuleset>& rulesets)
   {
     bool terrain_layer = keyword_named(prop(layer, "data-kind"), "terrain");
     auto source_rows = tile_rows(prop(layer, "tiles"));
-    std::vector<GeneratedLayer> generated_layers =
+    TerrainRuleMaterialization generated =
       (show_rules && terrain_layer)
         ? materialize_terrain_stamp_layers(width,
                                            height,
                                            known_tilesets,
                                            tile_ids,
+                                           tilemap,
+                                           mask_sets,
+                                           tile_defs,
+                                           terrain_sets,
                                            layer,
                                            source_rows,
                                            rulesets)
-        : std::vector<GeneratedLayer>{};
+        : TerrainRuleMaterialization{{},
+                                     empty_rows(width, height),
+                                     {},
+                                     {}};
 
-    std::vector<Roo::sptr_val> out;
+    LayerMaterialization out;
     if (terrain_layer)
     {
-      auto masked_rows = mask_terrain_layer(source_rows, generated_layers);
-      auto terrain_layers = materialize_terrain_layer(layer, terrain_sets, masked_rows);
-      out.insert(out.end(), terrain_layers.begin(), terrain_layers.end());
+      auto masked_rows = mask_terrain_layer(source_rows, generated.generated_layers);
+      auto terrain_layers = materialize_terrain_layer(layer,
+                                                      terrain_sets,
+                                                      masked_rows,
+                                                      generated.transition_replacements);
+      out.layers.insert(out.layers.end(), terrain_layers.begin(), terrain_layers.end());
     }
     else
     {
@@ -2095,12 +2555,13 @@ namespace
       {
         map_set(copied, "data-kind", keyword_value("tile-ref"));
       }
-      out.push_back(copied);
+      out.layers.push_back(copied);
     }
-    for (const auto& generated_layer : generated_layers)
+    for (const auto& generated_layer : generated.generated_layers)
     {
-      out.push_back(generated_layer_value(generated_layer));
+      out.layers.push_back(generated_layer_value(generated_layer));
     }
+    out.transition_tiles = generated.transition_tiles;
     return out;
   }
 
@@ -2266,44 +2727,6 @@ namespace
     return Roo::is_truthy(*value);
   }
 
-  bool transition_mask_rows_empty(const Roo::sptr_val& rows)
-  {
-    for (const auto& row : seq_children(rows))
-    {
-      for (const auto& cell : seq_children(row))
-      {
-        if (!nil_value(cell)) return false;
-      }
-    }
-    return true;
-  }
-
-  bool output_layer_has_transition_masks(const Roo::sptr_val& output_layer)
-  {
-    return !transition_mask_rows_empty(prop(output_layer, "transition-masks"));
-  }
-
-  bool rule_has_transition_masks(const Roo::sptr_val& rule)
-  {
-    for (const auto& output_layer : seq_children(prop(prop(rule, "output"), "layers")))
-    {
-      if (output_layer_has_transition_masks(output_layer)) return true;
-    }
-    return false;
-  }
-
-  bool rulesets_have_transition_masks(const Roo::sptr_val& rulesets)
-  {
-    for (const auto& ruleset : seq_children(rulesets))
-    {
-      for (const auto& rule : seq_children(prop(ruleset, "rules")))
-      {
-        if (rule_has_transition_masks(rule)) return true;
-      }
-    }
-    return false;
-  }
-
   Roo::sptr_val native_materialize_render_map(const Roo::sptr_val& tilemap,
                                               const Roo::sptr_val& opts)
   {
@@ -2319,26 +2742,42 @@ namespace
     auto rulesets_value = prop(opts, "rulesets");
     if (nil_value(rulesets_value)) rulesets_value = prop(tilemap, "rulesets");
 
-    if (rulesets_have_transition_masks(rulesets_value)) return Roo::Constant::NIL;
-
     auto terrain_sets = terrain_sets_by_id(terrain_sets_value);
     auto tile_ids = tile_ids_by_tileset(prop(tilemap, "tilesets"));
+    auto tile_defs = tile_definitions_by_tileset(prop(tilemap, "tilesets"));
     bool known_tilesets = !nil_value(prop(tilemap, "tilesets"));
     auto rulesets = terrain_stamp_rulesets(rulesets_value, terrain_sets);
     auto substitution_rules = materialize_tile_substitution_rules(tilemap, opts);
+    auto mask_sets = prop(opts, "mask-sets");
+    if (nil_value(mask_sets)) mask_sets = prop(tilemap, "mask-sets");
 
     std::vector<Roo::sptr_val> render_layers;
+    std::vector<Roo::sptr_val> transition_tiles;
+    std::unordered_set<std::string> transition_tile_ids;
     for (const auto& layer : seq_children(source_layers_value))
     {
-      auto layers = materialize_layer_with_rules(width,
+      auto result = materialize_layer_with_rules(width,
                                                  height,
                                                  show_terrain_rules(tilemap, opts),
                                                  known_tilesets,
                                                  tile_ids,
+                                                 tilemap,
+                                                 mask_sets,
+                                                 tile_defs,
                                                  layer,
                                                  terrain_sets,
                                                  rulesets);
-      render_layers.insert(render_layers.end(), layers.begin(), layers.end());
+      render_layers.insert(render_layers.end(),
+                           result.layers.begin(),
+                           result.layers.end());
+      for (const auto& tile : result.transition_tiles)
+      {
+        std::string id = value_key(prop(tile, "id"));
+        if (transition_tile_ids.insert(id).second)
+        {
+          transition_tiles.push_back(tile);
+        }
+      }
     }
 
     if (!substitution_rules.empty())
@@ -2357,6 +2796,11 @@ namespace
                              prop(tilemap, "tile-size"),
                              keyword_value("layers"),
                              Roo::Value::vector(render_layers)});
+    auto transition_tilesets = generated_transition_tilesets_value(transition_tiles);
+    if (!nil_value(transition_tilesets))
+    {
+      map_set(result, "tilesets", transition_tilesets);
+    }
     return result;
   }
 

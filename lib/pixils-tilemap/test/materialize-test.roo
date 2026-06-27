@@ -406,10 +406,16 @@
     (is (not= :grass-variant transition-cell))
     (is (not= :water-variant transition-cell))))
 
-(deftest native-materializer-delegates_transition_mask_rules_to_roo_materializer
-  (is (nil? (materialize-impl/materialize-render-map
-             (transition-mask-test-tilemap)
-             {}))))
+(deftest native-materializer-applies_transition_mask_rules
+  (let [render-map (materialize-impl/materialize-render-map
+                    (transition-mask-test-tilemap)
+                    {})
+        generated-tileset (transition-mask-generated-tileset render-map)
+        transition-layer (transition-mask-layer render-map)]
+    (is (= :pixils-transition-tiles (:id generated-tileset)))
+    (is (= {:tileset :pixils-transition-tiles
+            :tile (:id (head (:tiles generated-tileset)))}
+           (get-in transition-layer [:tiles 1 1])))))
 
 (deftest transition-mask-diagnostics-report_matching_generated_entries
   (let [diagnostics (materialize/transition-mask-diagnostics
