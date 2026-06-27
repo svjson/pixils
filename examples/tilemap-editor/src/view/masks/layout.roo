@@ -40,6 +40,9 @@
    :items [{:label "Rename Mask"
             :action :mask/context-dummy
             :payload {:command :rename}}
+           {:label "Duplicate Mask"
+            :action :mask/context-dummy
+            :payload {:command :duplicate}}
            {:label "Delete"
             :action :mask/context-dummy
             :payload {:command :delete}}]})
@@ -1121,6 +1124,23 @@
         state)
       state)))
 
+(defun open-mask-duplicate-dialog! [state ctx]
+  (let [mask-set (model/selected-mask-set (:mask-sets state)
+                                          (:selected-mask-set-index state))
+        masks (or (:masks mask-set) [])
+        mask (model/selected-mask mask-set (:selected-mask-index state))]
+    (if mask
+      (let [name (model/duplicate-mask-name masks mask)]
+        (do
+          (id-name-dialog/open! ctx
+                                {:title "Duplicate Mask"
+                                 :id (kebab-case name)
+                                 :name name
+                                 :result-event
+                                 :mask/duplicate-dialog-result})
+          state))
+      state)))
+
 (defun open-mask-delete-confirm-dialog! [state ctx]
   (let [mask-set (model/selected-mask-set (:mask-sets state)
                                           (:selected-mask-set-index state))
@@ -1338,6 +1358,9 @@
               :rename
               (open-mask-edit-dialog! state ctx)
 
+              :duplicate
+              (open-mask-duplicate-dialog! state ctx)
+
               :delete
               (open-mask-delete-confirm-dialog! state ctx)
 
@@ -1372,6 +1395,16 @@
           (let [payload (:payload event)]
             (if (= (:type payload) :confirm)
               (model/add-mask-with-id state (:id payload) (:name payload))
+              state)))
+        :mask/duplicate-dialog-result
+        (fn [state event ctx]
+          (let [payload (:payload event)]
+            (if (= (:type payload) :confirm)
+              (assoc (model/duplicate-selected-mask-with-id state
+                                                            (:id payload)
+                                                            (:name payload))
+                     :mask-detail-tab :mask
+                     :selected-mask-tile-item-index nil)
               state)))
         :mask/edit-dialog-result
         (fn [state event ctx]

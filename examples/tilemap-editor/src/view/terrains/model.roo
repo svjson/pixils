@@ -341,6 +341,26 @@
                                 (if suffix (inc suffix) 2))
       candidate)))
 
+(defun mask-name-exists? [masks name exclude-index]
+  (> (count (filter (for-indexed [index mask (or masks [])]
+                      {:index index
+                       :label (:label mask)})
+                    (fn [entry]
+                      (and (= (:label entry) name)
+                           (not= (:index entry) exclude-index)))))
+     0))
+
+(defun unique-mask-name-from [masks root-name exclude-index suffix]
+  (let [candidate (if suffix
+                    (str root-name " " suffix)
+                    root-name)]
+    (if (mask-name-exists? masks candidate exclude-index)
+      (unique-mask-name-from masks
+                             root-name
+                             exclude-index
+                             (if suffix (inc suffix) 2))
+      candidate)))
+
 (defun unique-ruleset-id [rulesets terrain-set-id]
   (unique-id-from rulesets (str (keyword-label terrain-set-id) "-rules") nil))
 
@@ -548,6 +568,50 @@
     (assoc mask
            :id (id-from-input masks requested-id nil)
            :label requested-label)))
+
+(defun duplicate-mask-name [masks mask]
+  (unique-mask-name-from masks
+                         (str (mask-label mask) " Copy")
+                         nil
+                         nil))
+
+(defun duplicate-mask-with-id [masks mask id label]
+  (let [requested-label (if (blank? label)
+                          (duplicate-mask-name masks mask)
+                          label)
+        requested-id (if (blank? id)
+                       (kebab-case requested-label)
+                       id)]
+    (assoc (assoc mask
+                  :id (id-from-input masks requested-id nil))
+           :label requested-label)))
+
+(defun insert-mask-after [masks mask-index duplicate]
+  (apply concat
+         (for-indexed [index mask (or masks [])]
+           (if (= index mask-index)
+             [mask duplicate]
+             [mask]))))
+
+(defun duplicate-selected-mask-with-id [state id label]
+  (if-let [mask-set-index (selected-mask-set-index
+                           (:mask-sets state)
+                           (:selected-mask-set-index state))]
+    (let [mask-set (nth (:mask-sets state) mask-set-index)
+          mask-index (selected-mask-index mask-set
+                                          (:selected-mask-index state))
+          masks (or (:masks mask-set) [])
+          mask (when (not (nil? mask-index))
+                 (nth masks mask-index))
+          duplicate (when mask
+                      (duplicate-mask-with-id masks mask id label))]
+      (if duplicate
+        (assoc (assoc-in state
+                         [:mask-sets mask-set-index :masks]
+                         (insert-mask-after masks mask-index duplicate))
+               :selected-mask-index (inc mask-index))
+        state))
+    state))
 
 (defun add-mask [state]
   (if-let [path (selected-mask-set-path state)]

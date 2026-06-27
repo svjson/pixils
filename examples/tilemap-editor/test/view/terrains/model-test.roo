@@ -247,6 +247,50 @@
     (is (= "Mask Copy" (get-in state [:mask-sets 0 :masks 1 :label])))
     (is (= 1 (:selected-mask-index state)))))
 
+(deftest mask-duplicate-inserts_copy_after_selected_mask
+  (let [state (model/duplicate-selected-mask-with-id
+               {:mask-sets [{:id :soft-edge
+                             :masks [{:id :north
+                                      :label "North"
+                                      :source {:type :tile-composition
+                                               :tileset :terrain
+                                               :tiles [{:tile :edge-n
+                                                        :offset {:x 1
+                                                                 :y -2}}]}}
+                                     {:id :south
+                                      :label "South"}]}]
+                :selected-mask-set-index 0
+                :selected-mask-index 0}
+               "north-soft"
+               "North Soft")
+        masks (get-in state [:mask-sets 0 :masks])
+        duplicate (nth masks 1)]
+    (is (= [:north :north-soft :south]
+           (map masks :id)))
+    (is (= "North Soft" (:label duplicate)))
+    (is (= {:type :tile-composition
+            :tileset :terrain
+            :tiles [{:tile :edge-n
+                     :offset {:x 1
+                              :y -2}}]}
+           (:source duplicate)))
+    (is (= 1 (:selected-mask-index state)))))
+
+(deftest mask-duplicate-deduplicates_default_id_and_name
+  (let [state (model/duplicate-selected-mask-with-id
+               {:mask-sets [{:id :soft-edge
+                             :masks [{:id :north
+                                      :label "North"}
+                                     {:id :north-copy
+                                      :label "North Copy"}]}]
+                :selected-mask-set-index 0
+                :selected-mask-index 0}
+               nil
+               nil)
+        duplicate (nth (get-in state [:mask-sets 0 :masks]) 1)]
+    (is (= :north-copy-2 (:id duplicate)))
+    (is (= "North Copy 2" (:label duplicate)))))
+
 (deftest mask-rename-updates_selected_mask
   (let [state (model/set-selected-mask-label
                (model/set-selected-mask-id

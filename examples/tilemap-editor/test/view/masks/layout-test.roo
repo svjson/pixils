@@ -38,6 +38,12 @@
     (is (= :remove (-> item :payload :command)))
     (is (= 2 (-> item :payload :index)))))
 
+(deftest mask-context-menu-includes_duplicate_command
+  (let [items (:items layout/mask-context-menu)
+        duplicate (nth items 1)]
+    (is (= "Duplicate Mask" (:label duplicate)))
+    (is (= :duplicate (-> duplicate :payload :command)))))
+
 (deftest mask-canvas-selected-index-rejects_stale_indices
   (is (= 0
          (layout/mask-canvas-selected-index
