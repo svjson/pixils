@@ -104,7 +104,8 @@
       opts)))
 
 (defcomponent ui/button-inner {:style {:width :fill
-                                       :height :fill}
+                                       :height :fill
+                                       :clip true}
                                :children [{:mode 'ui/text
                                            :style {:width :fill
                                                    :text {:align :center}}
@@ -133,17 +134,9 @@
                   (and (contains? (-> view :interaction :pressed) :left)
                        (-> view :interaction :hovered))))))
 
-(defun button-content-size [state ctx]
-  (if-let [label (:label state)]
-    (let [text (str label)]
-      {:w (+ (* (count text) 8) 14)
-       :h 22})
-    nil))
-
 (defcomponent ui/button {:focusable true
                          :init (fn [state ctx]
                                  (update state :pressed (fn [pressed] pressed)))
-                         :content-size button-content-size
                          :update button-update
                          :children [{:mode 'ui/button-inner
                                      :state {:pressed (ui/bind-state :pressed)

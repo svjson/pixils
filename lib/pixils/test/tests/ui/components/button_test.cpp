@@ -59,9 +59,17 @@ TEST_F(ButtonTest, button_can_use_fitted_background_image_from_style)
 
 TEST_F(ButtonTest, button_label_uses_base_theme_padding)
 {
+  SDLMock::prepared_surfaces["./font.png"] = {16, 12};
   runtime.eval(R"(
+    (pixils/defbundle fonts {:images {:atlas "font.png"}})
+    (pixils/deffont test-font
+      {:type :bitmap
+       :resource :fonts/atlas
+       :glyphs {"O" {:x 0 :y 0 :w 4 :h 8}
+                "K" {:x 4 :y 0 :w 4 :h 8}}})
     (pixils/defmode root-mode
       {:children [{:mode 'ui/button
+                   :style {:text {:font :font/test-font}}
                    :state {:label "OK"}}]})
   )");
 
@@ -92,6 +100,87 @@ TEST_F(ButtonTest, button_label_uses_base_theme_padding)
   EXPECT_EQ(label_value->str(), "OK");
   EXPECT_GT(button->bounds.w, 20);
   EXPECT_GT(button->bounds.h, 10);
+}
+
+TEST_F(ButtonTest, button_label_natural_height_uses_effective_font_and_theme_padding)
+{
+  SDLMock::prepared_surfaces["./font.png"] = {16, 12};
+  runtime.eval(R"(
+    (pixils/defbundle fonts {:images {:atlas "font.png"}})
+    (pixils/deffont tall-font
+      {:type :bitmap
+       :resource :fonts/atlas
+       :line-height 30
+       :glyphs {"O" {:x 0 :y 0 :w 4 :h 8}
+                "K" {:x 4 :y 0 :w 4 :h 8}}})
+    (pixils/defmode root-mode
+      {:children [{:mode 'ui/button
+                   :style {:text {:font :font/tall-font}}
+                   :state {:label "OK"}}]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  session.render_mode();
+
+  auto button = session.active_mode->children[0];
+  ASSERT_NE(button, nullptr);
+  ASSERT_EQ(button->children.size(), 1u);
+  auto inner = button->children[0];
+  ASSERT_NE(inner, nullptr);
+  ASSERT_EQ(inner->children.size(), 1u);
+  auto label = inner->children[0];
+  ASSERT_NE(label, nullptr);
+
+  ASSERT_TRUE(label->effective_style.padding.has_value());
+  ASSERT_TRUE(inner->effective_style.border.has_value());
+  EXPECT_EQ(label->bounds.h,
+            30 + label->effective_style.padding->t + label->effective_style.padding->b);
+  EXPECT_EQ(inner->bounds.h,
+            label->bounds.h + inner->effective_style.border->top_thickness() +
+              inner->effective_style.border->bottom_thickness());
+  EXPECT_EQ(button->bounds.h, inner->bounds.h);
+  EXPECT_GT(button->bounds.h, 22);
+}
+
+TEST_F(ButtonTest, fixed_height_button_clips_oversized_label_to_inner_surface)
+{
+  SDLMock::prepared_surfaces["./font.png"] = {16, 12};
+  runtime.eval(R"(
+    (pixils/defbundle fonts {:images {:atlas "font.png"}})
+    (pixils/deffont tall-font
+      {:type :bitmap
+       :resource :fonts/atlas
+       :line-height 30
+       :glyphs {"O" {:x 0 :y 0 :w 4 :h 8}
+                "K" {:x 4 :y 0 :w 4 :h 8}}})
+    (pixils/defmode root-mode
+      {:children [{:mode 'ui/button
+                   :style {:width 32
+                           :height 18
+                           :text {:font :font/tall-font}}
+                   :state {:label "OK"}}]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  session.render_mode();
+
+  auto button = session.active_mode->children[0];
+  ASSERT_NE(button, nullptr);
+  ASSERT_EQ(button->children.size(), 1u);
+  auto inner = button->children[0];
+  ASSERT_NE(inner, nullptr);
+  ASSERT_EQ(inner->children.size(), 1u);
+  auto label = inner->children[0];
+  ASSERT_NE(label, nullptr);
+
+  ASSERT_TRUE(inner->effective_style.clip.has_value());
+  EXPECT_TRUE(*inner->effective_style.clip);
+
+  auto inner_content = inner->effective_style.content_rect(inner->bounds);
+  EXPECT_EQ(button->bounds.h, 18);
+  EXPECT_EQ(inner->bounds.h, 18);
+  EXPECT_GT(label->bounds.h, inner_content.h);
+  EXPECT_GT(label->bounds.y + label->bounds.h, inner_content.y + inner_content.h);
 }
 
 TEST_F(ButtonTest, button_state_image_is_centered_inside_button_inner)
@@ -488,9 +577,9 @@ TEST_F(ButtonTest, windows_3_pressed_button_keeps_row_layout_stable)
                   unpressed.label_bounds[i].x + unpressed.label_padding[i].l + 1);
         EXPECT_EQ(pressed.label_bounds[i].y + pressed.label_padding[i].t,
                   unpressed.label_bounds[i].y + unpressed.label_padding[i].t + 1);
-        EXPECT_EQ(pressed.label_padding[i].t, unpressed.label_padding[i].t + 1);
+        EXPECT_EQ(pressed.label_padding[i].t, unpressed.label_padding[i].t + 2);
         EXPECT_EQ(pressed.label_padding[i].r, unpressed.label_padding[i].r - 2);
-        EXPECT_EQ(pressed.label_padding[i].b, unpressed.label_padding[i].b - 1);
+        EXPECT_EQ(pressed.label_padding[i].b, unpressed.label_padding[i].b - 2);
         EXPECT_EQ(pressed.label_padding[i].l, unpressed.label_padding[i].l + 2);
       }
       else
@@ -683,9 +772,20 @@ TEST_F(ButtonTest, windows_3_window_minimize_button_keeps_inner_button_border_on
 
 TEST_F(ButtonTest, button_label_has_natural_size_inside_window_body)
 {
+  SDLMock::prepared_surfaces["./font.png"] = {32, 12};
   runtime.eval(R"(
+    (pixils/defbundle fonts {:images {:atlas "font.png"}})
+    (pixils/deffont test-font
+      {:type :bitmap
+       :resource :fonts/atlas
+       :glyphs {"C" {:x 0 :y 0 :w 4 :h 8}
+                "r" {:x 4 :y 0 :w 4 :h 8}
+                "e" {:x 8 :y 0 :w 4 :h 8}
+                "a" {:x 12 :y 0 :w 4 :h 8}
+                "t" {:x 16 :y 0 :w 4 :h 8}}})
     (pixils/defcomponent form-body
       {:children [{:mode 'ui/button
+                   :style {:text {:font :font/test-font}}
                    :state {:label "Create"}}]})
 
     (pixils/defmode root-mode
@@ -708,9 +808,20 @@ TEST_F(ButtonTest, button_label_has_natural_size_inside_window_body)
 
 TEST_F(ButtonTest, button_label_has_natural_size_inside_pushed_dialog_frame)
 {
+  SDLMock::prepared_surfaces["./font.png"] = {32, 12};
   runtime.eval(R"(
+    (pixils/defbundle fonts {:images {:atlas "font.png"}})
+    (pixils/deffont test-font
+      {:type :bitmap
+       :resource :fonts/atlas
+       :glyphs {"C" {:x 0 :y 0 :w 4 :h 8}
+                "r" {:x 4 :y 0 :w 4 :h 8}
+                "e" {:x 8 :y 0 :w 4 :h 8}
+                "a" {:x 12 :y 0 :w 4 :h 8}
+                "t" {:x 16 :y 0 :w 4 :h 8}}})
     (pixils/defcomponent form-body
       {:children [{:mode 'ui/button
+                   :style {:text {:font :font/test-font}}
                    :state {:label "Create"}}]})
 
     (pixils/defmode root-mode

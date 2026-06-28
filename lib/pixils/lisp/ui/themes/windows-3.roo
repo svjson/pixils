@@ -418,7 +418,11 @@
                                                :color (var :panel-shadow)
                                                :thickness 0
                                                :top {:thickness 1}
-                                               :left {:thickness 1}}
+                                               :left {:thickness 1}
+                                               :right {:color (var :highlight)
+                                                       :thickness 3}
+                                               :bottom {:color (var :highlight)
+                                                        :thickness 3}}
                   :button-border-style (var :raised-border-style)
                   :button-hover-border-style (var :button-border-style)
                   :button-disabled-border-style (var :button-border-style)
@@ -508,7 +512,7 @@
                                          :outer-bottom-color (var :control-border)
                                          :inner-top-color (var :border)
                                          :inner-bottom-color (var :panel-shadow)}}
-                 :button-outline-border-style {:color (var :button-bg)
+                 :button-outline-border-style {:color (var :control-border)
                                                :thickness 1
                                                :trim 1}
                  :option-box-indicator {:color (var :text)
@@ -796,7 +800,7 @@
                           :offset {:x 1 :y 1}}}
 
             ['(ui/button-inner {:pressed true}) 'ui/text]
-            {:padding [4 4 2 8]}
+            {:padding [5 4 1 8]}
 
             'ui/text-input
             TEXT-INPUT-FRAME-STYLE
