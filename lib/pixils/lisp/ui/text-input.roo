@@ -240,6 +240,15 @@
 (defun measure-text-width [value text-opts]
   (or (:w (r/text-size value text-opts)) 0))
 
+(defun text-input-content-size [state ctx]
+  (let [style (-> ctx :view :effective-style)
+        text-opts (text-args style)
+        value (or (:value state) "")
+        text-dim (r/text-size (if (> (count value) 0) value "M") text-opts)
+        line-dim (r/text-size "M" text-opts)]
+    {:w (max 1 (or (:w text-dim) 0))
+     :h (max 1 (or (:h line-dim) 0))}))
+
 (defun text-index-at-x-loop [value text-opts target-x index previous-width]
   (if (>= index (count value))
     (count value)
@@ -318,7 +327,9 @@
   {:focusable true
    :drag {:button :left
           :start :motion}
-   :style {:clip true}
+   :style {:width :fill
+           :height :fill
+           :clip true}
    :init (fn [state ctx]
            (let [value (or (:value state) "")]
              (do
@@ -499,7 +510,8 @@
                 (text-input-mouse-move-cursor state event ctx true)))})
 
 (defcomponent ui/text-input
-  {:children [{:mode 'ui/text-input-inner
+  {:content-size text-input-content-size
+   :children [{:mode 'ui/text-input-inner
                :state {:value (ui/bind-state :value)
                        :disabled? (ui/bind-state :disabled?)
                        :read-only? (ui/bind-state :read-only?)

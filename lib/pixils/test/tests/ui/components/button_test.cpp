@@ -142,6 +142,86 @@ TEST_F(ButtonTest, button_label_natural_height_uses_effective_font_and_theme_pad
   EXPECT_GT(button->bounds.h, 22);
 }
 
+TEST_F(ButtonTest, button_label_remeasures_when_theme_default_ttf_font_is_redeclared)
+{
+  runtime.eval(R"(
+    (pixils/deffont test-font
+      {:type :ttf
+       :resource :pixils/autoega-8x14
+       :size 10})
+    (pixils/deftheme ttf-button-theme
+      {:defaults {:text {:font :font/test-font}}})
+    (pixils/defmode root-mode
+      {:theme 'ttf-button-theme
+       :children [{:mode 'ui/button
+                   :state {:label "OK"}}]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  session.render_mode();
+
+  auto button = session.active_mode->children[0];
+  ASSERT_NE(button, nullptr);
+  auto small_button_bounds = button->bounds;
+  auto small_label_bounds = button->children[0]->children[0]->bounds;
+
+  runtime.eval(R"(
+    (pixils/deffont test-font
+      {:type :ttf
+       :resource :pixils/autoega-8x14
+       :size 24})
+  )");
+  session.render_mode();
+
+  auto large_button_bounds = button->bounds;
+  auto large_label_bounds = button->children[0]->children[0]->bounds;
+
+  EXPECT_GT(large_label_bounds.w, small_label_bounds.w);
+  EXPECT_GT(large_label_bounds.h, small_label_bounds.h);
+  EXPECT_GT(large_button_bounds.w, small_button_bounds.w);
+  EXPECT_GT(large_button_bounds.h, small_button_bounds.h);
+}
+
+TEST_F(ButtonTest, windows3_button_label_remeasures_when_default_ttf_font_is_redeclared)
+{
+  runtime.eval(R"(
+    (pixils/deffont test-font
+      {:type :ttf
+       :resource :pixils/autoega-8x14
+       :size 10})
+    (pixils/deftheme ttf-default-theme
+      {:defaults {:text {:font :font/test-font}}})
+    (pixils/defmode root-mode
+      {:theme ['pixils/windows-3 'ttf-default-theme]
+       :children [{:mode 'ui/button
+                   :state {:label "OK"}}]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  session.render_mode();
+
+  auto button = session.active_mode->children[0];
+  ASSERT_NE(button, nullptr);
+  auto small_button_bounds = button->bounds;
+  auto small_label_bounds = button->children[0]->children[0]->bounds;
+
+  runtime.eval(R"(
+    (pixils/deffont test-font
+      {:type :ttf
+       :resource :pixils/autoega-8x14
+       :size 24})
+  )");
+  session.render_mode();
+
+  auto large_button_bounds = button->bounds;
+  auto large_label_bounds = button->children[0]->children[0]->bounds;
+
+  EXPECT_GT(large_label_bounds.w, small_label_bounds.w);
+  EXPECT_GT(large_label_bounds.h, small_label_bounds.h);
+  EXPECT_GT(large_button_bounds.w, small_button_bounds.w);
+  EXPECT_GT(large_button_bounds.h, small_button_bounds.h);
+}
+
 TEST_F(ButtonTest, fixed_height_button_clips_oversized_label_to_inner_surface)
 {
   SDLMock::prepared_surfaces["./font.png"] = {16, 12};

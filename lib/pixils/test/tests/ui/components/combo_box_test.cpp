@@ -76,6 +76,57 @@ TEST_F(ComboBoxTest, combo_box_trigger_uses_styleable_scrollbar_button)
   ASSERT_TRUE(button->effective_style.border.has_value());
 }
 
+TEST_F(ComboBoxTest, natural_height_and_popup_rows_use_default_ttf_font_metrics)
+{
+  runtime.eval(R"(
+    (pixils/deffont large-font
+      {:type :ttf
+       :resource :pixils/autoega-8x14
+       :size 24
+       :line-height 30})
+    (pixils/deftheme large-text-theme
+      {:defaults {:text {:font :font/large-font}}})
+    (pixils/defmode root-mode
+      {:theme ['pixils/windows-3 'large-text-theme]
+       :children [(pixils.ui.combo-box/make
+                   {:options [{:value :a :label "Alpha"}
+                              {:value :b :label "Beta"}]
+                    :style {:width 120}})]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  session.update_mode();
+  session.render_mode();
+
+  ASSERT_EQ(session.active_mode->children.size(), 1u);
+  auto combo = session.active_mode->children[0];
+  ASSERT_NE(combo, nullptr);
+  EXPECT_GT(combo->bounds.h, 22);
+
+  input().mouse_down({combo->bounds.x + 2, combo->bounds.y + 2});
+  update_cycle();
+  session.render_mode();
+  session.update_mode();
+  session.render_mode();
+
+  ASSERT_NE(session.active_mode, nullptr);
+  EXPECT_EQ(session.active_mode->mode->name, "ui/combo-box-popup");
+  ASSERT_EQ(session.active_mode->children.size(), 1u);
+  auto popup_panel = session.active_mode->children[0];
+  ASSERT_EQ(popup_panel->children.size(), 1u);
+  auto popup_list_box = popup_panel->children[0];
+  ASSERT_EQ(popup_list_box->children.size(), 1u);
+  auto popup_scroll_pane = popup_list_box->children[0];
+  ASSERT_EQ(popup_scroll_pane->children.size(), 1u);
+  auto popup_row = popup_scroll_pane->children[0];
+  ASSERT_GE(popup_row->children.size(), 1u);
+  auto popup_viewport = popup_row->children[0];
+  ASSERT_EQ(popup_viewport->children.size(), 1u);
+  auto popup_content = popup_viewport->children[0];
+  ASSERT_GE(popup_content->children.size(), 1u);
+  EXPECT_GT(popup_content->children[0]->bounds.h, 20);
+}
+
 TEST_F(ComboBoxTest, windows_3_combo_box_button_is_flush_to_field_edge)
 {
   auto combo = render_combo_for_theme("pixils/windows-3");

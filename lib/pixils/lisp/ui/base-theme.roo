@@ -83,7 +83,7 @@
 
 (def TEXT-INPUT-FRAME-STYLE
   {:width 80
-   :height 22
+   :min-height 22
    :background (var :field-bg)
    :border (var :inset-border-style)})
 

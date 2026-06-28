@@ -127,6 +127,45 @@ TEST_F(ListBoxTest, windows_3_natural_height_list_box_includes_border_without_sc
   EXPECT_EQ(viewport->bounds.h, 20);
 }
 
+TEST_F(ListBoxTest, natural_row_height_uses_default_ttf_font_metrics_without_extra_scrollbar)
+{
+  runtime.eval(R"(
+    (pixils/deffont large-font
+      {:type :ttf
+       :resource :pixils/autoega-8x14
+       :size 24
+       :line-height 30})
+    (pixils/deftheme large-text-theme
+      {:defaults {:text {:font :font/large-font}}})
+    (pixils/defmode root-mode
+      {:theme ['pixils/windows-3 'large-text-theme]
+       :children [(pixils.ui.list-box/make
+                   {:options [{:value :a :label "Alpha"}
+                              {:value :b :label "Beta"}]
+                    :visible-rows 2
+                    :content-width 100})]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  session.update_mode();
+  session.render_mode();
+  session.update_mode();
+  session.render_mode();
+
+  ASSERT_EQ(session.active_mode->children.size(), 1u);
+  auto list_box = session.active_mode->children[0];
+  ASSERT_NE(list_box, nullptr);
+  auto row = list_box_row(list_box);
+  ASSERT_NE(row, nullptr);
+  ASSERT_EQ(row->children.size(), 1u);
+  auto content = list_box_content(list_box);
+  ASSERT_NE(content, nullptr);
+  ASSERT_EQ(content->children.size(), 2u);
+
+  EXPECT_GT(content->children[0]->bounds.h, 20);
+  EXPECT_GT(list_box->bounds.h, 42);
+}
+
 TEST_F(ListBoxTest, windows_3_natural_height_list_box_with_max_height_keeps_scrollbar_when_clamped)
 {
   runtime.eval(R"(

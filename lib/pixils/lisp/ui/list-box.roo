@@ -1,6 +1,7 @@
 (ns pixils.ui.list-box
   (:require pixils
             pixils.ui.scroll-pane
+            [pixils.render :as r]
             [pixils.ui :as ui]))
 
 (def default-row-height 20)
@@ -176,9 +177,32 @@
   (min (or max-height (* row-height visible-rows))
        (list-box-content-height options row-height)))
 
-(defun list-box-preferred-height [state]
+(defun list-box-style [ctx]
+  (or (-> ctx :view :effective-style)
+      (-> ctx :view :style)))
+
+(defun text-args [style]
+  (reduce-kv (:text style)
+             {}
+             (fn [arg-map k v]
+               (if (nil? v)
+                 arg-map
+                 (merge arg-map {k v})))))
+
+(defun list-box-measured-row-height [ctx]
+  (let [dim (r/text-size "M" (text-args (list-box-style ctx)))]
+    (max default-row-height
+         (+ (or (:h dim) 0) 6))))
+
+(defun list-box-row-height [state ctx]
+  (or (:row-height state)
+      (:computed-row-height state)
+      (when ctx (list-box-measured-row-height ctx))
+      default-row-height))
+
+(defun list-box-preferred-height [state ctx]
   (list-box-visible-height (:options state)
-                           (or (:row-height state) default-row-height)
+                           (list-box-row-height state ctx)
                            (or (:visible-rows state) default-visible-rows)
                            (:max-height state)))
 
@@ -192,7 +216,7 @@
 
 (defun list-box-content-size [state ctx]
   {:w (or (:content-width state) 160)
-   :h (list-box-preferred-height state)})
+   :h (list-box-preferred-height state ctx)})
 
 (defun list-box-stretches-items? [style]
   (let [width (:width (or style {}))]
@@ -202,7 +226,8 @@
 
 (defun list-box-scroll-content-size [state]
   (let [content-height (list-box-content-height (:options state)
-                                                (or (:row-height state)
+                                                (or (:computed-row-height state)
+                                                    (:row-height state)
                                                     default-row-height))]
     (if (:stretch-items? state)
       {:h content-height}
@@ -210,7 +235,9 @@
        :h content-height})))
 
 (defun list-box-scroll-pane-child [state children]
-  (let [row-height (or (:row-height state) default-row-height)
+  (let [row-height (or (:computed-row-height state)
+                       (:row-height state)
+                       default-row-height)
         content-size (list-box-scroll-content-size state)]
     (merge {:id "scroll-pane"}
            (pixils.ui.scroll-pane/make
@@ -223,10 +250,6 @@
              :scroll-y? :auto
              :step row-height
              :children children}))))
-
-(defun list-box-style [ctx]
-  (or (-> ctx :view :effective-style)
-      (-> ctx :view :style)))
 
 (defun list-box-style-padding-side [style side]
   (or (get (:padding style) side) 0))
@@ -246,7 +269,7 @@
        (list-box-style-border-side-thickness style :bottom))))
 
 (defun list-box-managed-height [state ctx]
-  (let [content-height (list-box-preferred-height state)]
+  (let [content-height (list-box-preferred-height state ctx)]
     (if (= (-> (list-box-style ctx) :box-sizing) :content-box)
       content-height
       (+ content-height (list-box-vertical-content-inset ctx)))))
@@ -318,11 +341,11 @@
 
 (defun list-box-visible-content-height [state ctx]
   (or (-> ctx :view :bounds :h)
-      (list-box-preferred-height state)
+      (list-box-preferred-height state ctx)
       0))
 
 (defun list-box-scroll-offset-for-index [state ctx index]
-  (let [row-height (or (:row-height state) default-row-height)
+  (let [row-height (list-box-row-height state ctx)
         visible-height (list-box-visible-content-height state ctx)
         content-height (list-box-content-height (:options state) row-height)
         offset (or (:offset state) {:x 0 :y 0})
@@ -407,14 +430,18 @@
                  state))))))
 
 (defun list-box-drop-index [state event]
-  (let [row-height (or (:row-height state) default-row-height)
+  (let [row-height (or (:computed-row-height state)
+                       (:row-height state)
+                       default-row-height)
         offset (or (:offset state) {:x 0 :y 0})
         y (+ (-> event :position :y) (or (:y offset) 0))
         raw (int (/ (+ y (int (/ row-height 2))) row-height))]
     (max 0 (min (count (:options state)) raw))))
 
 (defun list-box-drop-index-from-local-y [state local-y]
-  (let [row-height (or (:row-height state) default-row-height)
+  (let [row-height (or (:computed-row-height state)
+                       (:row-height state)
+                       default-row-height)
         offset (or (:offset state) {:x 0 :y 0})
         y (+ (or local-y 0) (or (:y offset) 0))
         raw (int (/ (+ y (int (/ row-height 2))) row-height))]
@@ -503,7 +530,7 @@
 (defun list-box-apply-placeholder-visuals! [state ctx items]
   (let [drag (:reorder-drag state)
         from-index (:index drag)
-        row-height (or (:row-height state) default-row-height)
+        row-height (list-box-row-height state ctx)
         item-count (count items)
         local-y (list-box-preview-local-y ctx)
         target-index (list-box-preview-target-index state local-y)
@@ -582,6 +609,7 @@
    :style {:width :fill
            :height default-row-height
            :padding [3 5]
+           :clip true
            :layout {:direction :row
                     :align-items :center}}
    :update (fn [state ctx]
@@ -756,7 +784,9 @@
           child)))))
 
 (defun list-box-item-children [state]
-  (let [row-height (or (:row-height state) default-row-height)
+  (let [row-height (or (:computed-row-height state)
+                       (:row-height state)
+                       default-row-height)
         options (or (:options state) [])]
     (for-indexed [index option options]
       (make-item-child (:item-child state)
@@ -772,6 +802,7 @@
 (defun list-box-render-key [state]
   {:options (:options state)
    :row-height (:row-height state)
+   :computed-row-height (:computed-row-height state)
    :content-width (:content-width state)
    :stretch-items? (:stretch-items? state)
    :disabled? (:disabled? state)
@@ -784,7 +815,11 @@
                               (list-box-item-children state)))
 
 (defun list-box-sync-rendered-options [state ctx]
-  (let [render-key (list-box-render-key state)]
+  (let [computed-row-height (if (:auto-row-height? state)
+                              (list-box-measured-row-height ctx)
+                              (:row-height state))
+        state (assoc state :computed-row-height computed-row-height)
+        render-key (list-box-render-key state)]
     (do
       (when (not= render-key (:rendered-render-key state))
         (ui/replace-child! (:view ctx)
@@ -797,14 +832,14 @@
       (assoc state :rendered-render-key render-key))))
 
 (defun make [{:keys [options style row-height visible-rows max-height content-width selected-indices multi-select? force-selection? toggle-selected? hover-highlight? item-child item-state-keys state disabled? reorderable? reorder-drag-threshold reorder-visual-strategy]}]
-  (let [row-height (or row-height default-row-height)
+  (let [computed-row-height (or row-height default-row-height)
         visible-rows (or visible-rows default-visible-rows)
         options (or options [])
         disabled? (or disabled? (:disabled? state))
         content-width (or content-width 160)
         managed-height? (not (contains? (or style {}) :height))
-        content-height (list-box-content-height options row-height)
-        height (list-box-visible-height options row-height visible-rows max-height)
+        content-height (list-box-content-height options computed-row-height)
+        height (list-box-visible-height options computed-row-height visible-rows max-height)
         final-style (merge {:height (if managed-height?
                                       :shrink
                                       height)
@@ -817,6 +852,8 @@
                    {:options options
                     :item-state-keys item-state-keys
                     :row-height row-height
+                    :computed-row-height computed-row-height
+                    :auto-row-height? (nil? row-height)
                     :visible-rows visible-rows
                     :max-height max-height
                     :content-width content-width
@@ -834,6 +871,7 @@
                     :toggle-selected? toggle-selected?})
      :children [(list-box-scroll-pane-for-state
                  {:row-height row-height
+                  :computed-row-height computed-row-height
                   :content-width content-width
                   :options options
                   :stretch-items? stretch-items?

@@ -1,6 +1,7 @@
 (ns pixils.ui.combo-box
   (:require pixils
             pixils.ui.list-box
+            [pixils.render :as r]
             [pixils.ui :as ui]))
 
 (def default-row-height 20)
@@ -96,6 +97,53 @@
 (defun clamp [value low high]
   (max low (min high value)))
 
+(defun text-args [style]
+  (reduce-kv (:text style)
+             {}
+             (fn [arg-map k v]
+               (if (nil? v)
+                 arg-map
+                 (merge arg-map {k v})))))
+
+(defun style-padding-side [style side]
+  (or (get (:padding style) side) 0))
+
+(defun combo-box-trigger-style [ctx]
+  (let [children (ui/children ctx)
+        trigger (if (> (count children) 0)
+                  (nth children 0)
+                  nil)]
+    (or (-> trigger :effective-style)
+        (-> trigger :style)
+        {})))
+
+(defun combo-box-text-height [ctx]
+  (let [dim (r/text-size "M" (text-args (-> ctx :view :effective-style)))]
+    (max 1 (or (:h dim) 0))))
+
+(defun combo-box-measured-row-height [ctx]
+  (max default-row-height
+       (+ (combo-box-text-height ctx) 6)))
+
+(defun combo-box-row-height [state ctx]
+  (or (:row-height state)
+      (when ctx (combo-box-measured-row-height ctx))
+      default-row-height))
+
+(defun combo-box-content-size [state ctx]
+  (let [style (-> ctx :view :effective-style)
+        trigger-style (combo-box-trigger-style ctx)
+        label (or (:selected-label state)
+                  (selected-label (:options state) (:selected-index state))
+                  "M")
+        text-dim (r/text-size (if (> (count label) 0) label "M")
+                              (text-args style))
+        line-height (combo-box-text-height ctx)
+        vertical-padding (+ (style-padding-side trigger-style :top)
+                            (style-padding-side trigger-style :bottom))]
+    {:w (max 1 (+ (or (:w text-dim) 0) 24))
+     :h (max 1 (+ line-height vertical-padding))}))
+
 (defun popup-list-height [options row-height max-height]
   (min (or max-height (* (count options) row-height))
        (* (count options) row-height)))
@@ -149,7 +197,7 @@
 
 (defun open-popup! [state ctx]
   (let [options (or (:options state) [])
-        row-height (or (:row-height state) default-row-height)
+        row-height (combo-box-row-height state ctx)
         max-height (or (:max-height state) default-max-height)
         pos (popup-position ctx options row-height max-height)]
     (when (and (not (:disabled? state))
@@ -198,7 +246,8 @@
   {:focusable true
    :class :ui/combo-box
    :style {:width :fill
-           :height 22}
+           :min-height 22}
+   :content-size combo-box-content-size
    :init (fn [state ctx]
            (assoc (assoc state
                          :selected-index (or (:selected-index state) 0))
@@ -273,5 +322,5 @@
    :state {:options (or options [])
            :selected-index selected-index
            :disabled? disabled?
-           :row-height (or row-height default-row-height)
+           :row-height row-height
            :max-height (or max-height default-max-height)}})

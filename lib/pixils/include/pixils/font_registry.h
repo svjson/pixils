@@ -3,6 +3,7 @@
 
 #include <pixils/text.h>
 
+#include <cstdint>
 #include <memory>
 #include <string>
 #include <unordered_map>
@@ -52,6 +53,7 @@ namespace Pixils
   class FontRegistry
   {
     std::unordered_map<std::string, std::unique_ptr<BitmapFont>> fonts;
+    std::uint64_t generation_ = 1;
 
    public:
     void register_font(const std::string& key,
@@ -83,6 +85,7 @@ namespace Pixils
 
     BitmapFont* get_font(const std::string& key);
     bool has_font(const std::string& key) const;
+    std::uint64_t generation() const;
   };
 
 } // namespace Pixils

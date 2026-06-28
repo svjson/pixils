@@ -122,6 +122,36 @@ TEST_F(TextInputTest, text_input_edits_bound_value_and_emits_change)
   EXPECT_EQ(last_change->to_string(), "{:value \"ab\"}");
 }
 
+TEST_F(TextInputTest, natural_height_uses_default_ttf_font_metrics)
+{
+  runtime.eval(R"(
+    (pixils/deffont large-font
+      {:type :ttf
+       :resource :pixils/autoega-8x14
+       :size 24
+       :line-height 30})
+    (pixils/deftheme large-text-theme
+      {:defaults {:text {:font :font/large-font}}})
+    (pixils/defmode root-mode
+      {:theme ['pixils/windows-3 'large-text-theme]
+       :children [{:mode 'ui/text-input
+                   :state {:value "Alpha"}}]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  session.update_mode();
+  session.render_mode();
+
+  auto input_view = find_first_mode(session.active_mode, "ui/text-input");
+  ASSERT_NE(input_view, nullptr);
+  ASSERT_EQ(input_view->children.size(), 1u);
+  auto inner = input_view->children[0];
+  ASSERT_NE(inner, nullptr);
+
+  EXPECT_GT(input_view->bounds.h, 22);
+  EXPECT_EQ(inner->bounds.h, input_view->effective_style.content_rect(input_view->bounds).h);
+}
+
 TEST_F(TextInputTest, read_only_text_input_focuses_and_navigates_without_mutating)
 {
   runtime.eval(R"(

@@ -4,6 +4,8 @@
 #include <pixils/binding/pixils_namespace.h>
 #include <pixils/binding/ui/style/style_host_type.h>
 #include <pixils/binding/ui/style/theme_definition.h>
+#include <pixils/context.h>
+#include <pixils/font_registry.h>
 #include <pixils/hook_context.h>
 #include <pixils/runtime/hook_invocation.h>
 #include <pixils/runtime/view.h>
@@ -38,13 +40,15 @@ namespace Pixils::UI
       int available_width = 0;
       bool has_available_height = false;
       int available_height = 0;
+      std::uint64_t font_generation = 0;
 
       bool operator==(const NaturalSizeCacheKey& other) const
       {
         return view == other.view && has_available_width == other.has_available_width &&
                available_width == other.available_width &&
                has_available_height == other.has_available_height &&
-               available_height == other.available_height;
+               available_height == other.available_height &&
+               font_generation == other.font_generation;
       }
     };
 
@@ -61,6 +65,7 @@ namespace Pixils::UI
         combine(std::hash<int>{}(key.available_width));
         combine(std::hash<bool>{}(key.has_available_height));
         combine(std::hash<int>{}(key.available_height));
+        combine(std::hash<std::uint64_t>{}(key.font_generation));
         return seed;
       }
     };
@@ -72,6 +77,7 @@ namespace Pixils::UI
     {
       Roo::Runtime& runtime;
       const Roo::sptr_val& hook_ctx;
+      std::uint64_t font_generation = 0;
       NaturalSizeCache natural_size_cache;
     };
 
@@ -83,13 +89,23 @@ namespace Pixils::UI
     NaturalSizeCacheKey natural_size_cache_key(
       const std::shared_ptr<Pixils::Runtime::View>& view,
       const std::optional<int>& available_width,
-      const std::optional<int>& available_height)
+      const std::optional<int>& available_height,
+      std::uint64_t font_generation)
     {
       return NaturalSizeCacheKey{.view = view.get(),
                                  .has_available_width = available_width.has_value(),
                                  .available_width = available_width.value_or(0),
                                  .has_available_height = available_height.has_value(),
-                                 .available_height = available_height.value_or(0)};
+                                 .available_height = available_height.value_or(0),
+                                 .font_generation = font_generation};
+    }
+
+    std::uint64_t current_font_generation(const Roo::sptr_val& hook_ctx)
+    {
+      if (!hook_ctx || hook_ctx->type == Roo::Value::Type::NIL) return 0;
+      HookContext& native_hook_ctx = Roo::obj<HookContext>(*hook_ctx);
+      if (!native_hook_ctx.render || !native_hook_ctx.render->font_registry) return 0;
+      return native_hook_ctx.render->font_registry->generation();
     }
 
     void append_view_dependency_signature(size_t& seed,
@@ -113,11 +129,13 @@ namespace Pixils::UI
     }
 
     size_t natural_size_dependency_signature(
-      const std::shared_ptr<Pixils::Runtime::View>& view)
+      const std::shared_ptr<Pixils::Runtime::View>& view,
+      std::uint64_t font_generation)
     {
       PIXILS_BENCHMARK_COUNT(layout_dependency_signature_calls);
       PIXILS_BENCHMARK_TIME_BLOCK(layout_dependency_signature_time_ns);
       size_t seed = 0;
+      hash_combine(seed, std::hash<std::uint64_t>{}(font_generation));
       append_view_dependency_signature(seed, view);
 
       return seed;
@@ -828,7 +846,10 @@ namespace Pixils::UI
       if (!view || !view->mode) return std::nullopt;
 
       auto cache_key =
-        natural_size_cache_key(view, parent_available_width, parent_available_height);
+        natural_size_cache_key(view,
+                               parent_available_width,
+                               parent_available_height,
+                               pass.font_generation);
       auto cached = pass.natural_size_cache.find(cache_key);
       if (cached != pass.natural_size_cache.end())
       {
@@ -854,7 +875,7 @@ namespace Pixils::UI
       if (cacheable_natural_size)
       {
         style_generation = view->style_view.generation();
-        subtree_signature = natural_size_dependency_signature(view);
+        subtree_signature = natural_size_dependency_signature(view, pass.font_generation);
         if (natural_size_cache_matches(view->natural_content_size_cache,
                                        parent_available_width,
                                        parent_available_height,
@@ -918,7 +939,8 @@ namespace Pixils::UI
       pass.natural_size_cache.emplace(cache_key, natural);
       if (cacheable_natural_size)
       {
-        const auto resolved_subtree_signature = natural_size_dependency_signature(view);
+        const auto resolved_subtree_signature =
+          natural_size_dependency_signature(view, pass.font_generation);
         remember_natural_content_size(*view,
                                       parent_available_width,
                                       parent_available_height,
@@ -1087,7 +1109,8 @@ namespace Pixils::UI
                                   inherited_theme,
                                   selector_path);
       const auto style_generation = view->style_view.generation();
-      const auto dependency_signature = natural_size_dependency_signature(view);
+      const auto dependency_signature =
+        natural_size_dependency_signature(view, pass.font_generation);
       if (layout_cache_matches(view->layout_cache,
                                bounds,
                                style_generation,
@@ -1204,7 +1227,8 @@ namespace Pixils::UI
                               child_selector_path);
       }
 
-      const auto resolved_dependency_signature = natural_size_dependency_signature(view);
+      const auto resolved_dependency_signature =
+        natural_size_dependency_signature(view, pass.font_generation);
       remember_layout(*view, bounds, style_generation, resolved_dependency_signature);
     }
 
@@ -1680,7 +1704,10 @@ namespace Pixils::UI
     const Style* inherited_style,
     const Theme* inherited_theme)
   {
-    LayoutPass pass{.runtime = runtime, .hook_ctx = hook_ctx, .natural_size_cache = {}};
+    LayoutPass pass{.runtime = runtime,
+                    .hook_ctx = hook_ctx,
+                    .font_generation = current_font_generation(hook_ctx),
+                    .natural_size_cache = {}};
     return layout_children_with_selector_path(children,
                                               parent,
                                               pass,
@@ -1704,7 +1731,10 @@ namespace Pixils::UI
     constexpr int MAX_AFTER_LAYOUT_PASSES = 4;
     for (int pass_index = 0; pass_index < MAX_AFTER_LAYOUT_PASSES; pass_index++)
     {
-      LayoutPass pass{.runtime = runtime, .hook_ctx = hook_ctx, .natural_size_cache = {}};
+      LayoutPass pass{.runtime = runtime,
+                      .hook_ctx = hook_ctx,
+                      .font_generation = current_font_generation(hook_ctx),
+                      .natural_size_cache = {}};
       layout_view_tree_impl(view,
                             bounds,
                             pass,

@@ -1158,6 +1158,93 @@ TEST_F(RenderTest, text_size_accepts_fractional_scale)
   EXPECT_EQ(h->num().get_int(), 11);
 }
 
+TEST_F(RenderTest, text_size_applies_scale_to_ttf_fonts)
+{
+  runtime.eval(R"(
+    (pixils/deffont test-font
+      {:type :ttf
+       :resource :pixils/autoega-8x14
+       :size 14
+       :line-height 14})
+  )");
+
+  auto base = runtime.eval(R"((pixils.render/text-size "AA" {:font :font/test-font}))");
+  auto scaled =
+    runtime.eval(R"((pixils.render/text-size "AA" {:font :font/test-font :scale 2}))");
+
+  auto base_w = Roo::Dict::get_property(base, Roo::keyword("w"));
+  auto base_h = Roo::Dict::get_property(base, Roo::keyword("h"));
+  auto scaled_w = Roo::Dict::get_property(scaled, Roo::keyword("w"));
+  auto scaled_h = Roo::Dict::get_property(scaled, Roo::keyword("h"));
+
+  ASSERT_TRUE(base_w);
+  ASSERT_TRUE(base_h);
+  ASSERT_TRUE(scaled_w);
+  ASSERT_TRUE(scaled_h);
+  EXPECT_EQ(scaled_w->num().get_int(), base_w->num().get_int() * 2);
+  EXPECT_EQ(scaled_h->num().get_int(), base_h->num().get_int() * 2);
+}
+
+TEST_F(RenderTest, text_size_reflects_ttf_declared_size)
+{
+  runtime.eval(R"(
+    (pixils/deffont small-font
+      {:type :ttf
+       :resource :pixils/autoega-8x14
+       :size 10})
+    (pixils/deffont large-font
+      {:type :ttf
+       :resource :pixils/autoega-8x14
+       :size 24})
+  )");
+
+  auto small = runtime.eval(R"((pixils.render/text-size "AA" {:font :font/small-font}))");
+  auto large = runtime.eval(R"((pixils.render/text-size "AA" {:font :font/large-font}))");
+
+  auto small_w = Roo::Dict::get_property(small, Roo::keyword("w"));
+  auto small_h = Roo::Dict::get_property(small, Roo::keyword("h"));
+  auto large_w = Roo::Dict::get_property(large, Roo::keyword("w"));
+  auto large_h = Roo::Dict::get_property(large, Roo::keyword("h"));
+
+  ASSERT_TRUE(small_w);
+  ASSERT_TRUE(small_h);
+  ASSERT_TRUE(large_w);
+  ASSERT_TRUE(large_h);
+  EXPECT_GT(large_w->num().get_int(), small_w->num().get_int());
+  EXPECT_GT(large_h->num().get_int(), small_h->num().get_int());
+}
+
+TEST_F(RenderTest, text_size_reflects_ttf_declared_size_with_smaller_line_height)
+{
+  runtime.eval(R"(
+    (pixils/deffont small-font
+      {:type :ttf
+       :resource :pixils/autoega-8x14
+       :size 10
+       :line-height 10})
+    (pixils/deffont large-font
+      {:type :ttf
+       :resource :pixils/autoega-8x14
+       :size 24
+       :line-height 10})
+  )");
+
+  auto small = runtime.eval(R"((pixils.render/text-size "AA" {:font :font/small-font}))");
+  auto large = runtime.eval(R"((pixils.render/text-size "AA" {:font :font/large-font}))");
+
+  auto small_w = Roo::Dict::get_property(small, Roo::keyword("w"));
+  auto small_h = Roo::Dict::get_property(small, Roo::keyword("h"));
+  auto large_w = Roo::Dict::get_property(large, Roo::keyword("w"));
+  auto large_h = Roo::Dict::get_property(large, Roo::keyword("h"));
+
+  ASSERT_TRUE(small_w);
+  ASSERT_TRUE(small_h);
+  ASSERT_TRUE(large_w);
+  ASSERT_TRUE(large_h);
+  EXPECT_GT(large_w->num().get_int(), small_w->num().get_int());
+  EXPECT_GT(large_h->num().get_int(), small_h->num().get_int());
+}
+
 TEST_F(RenderTest, deffont_replaces_existing_font_definition)
 {
   SDLMock::prepared_surfaces["./font.png"] = {16, 12};
@@ -1404,6 +1491,100 @@ TEST_F(RenderTest, built_in_text_node_accepts_fractional_text_scale)
   EXPECT_EQ(ops[0].type, RenderOpType::RENDER_COPY);
   EXPECT_EQ(ops[0].rendered_rect.w, 6);
   EXPECT_EQ(ops[0].rendered_rect.h, 6);
+}
+
+TEST_F(RenderTest, built_in_text_node_applies_text_scale_to_ttf_font)
+{
+  runtime.eval(R"(
+    (pixils/deffont test-font
+      {:type :ttf
+       :resource :pixils/autoega-8x14
+       :size 14
+       :line-height 14})
+    (pixils/defmode base-mode
+      {:children [{:mode 'ui/text
+                   :state {:value "AA"}
+                   :style {:text {:font :font/test-font}}}]})
+    (pixils/defmode scaled-mode
+      {:children [{:mode 'ui/text
+                   :state {:value "AA"}
+                   :style {:text {:font :font/test-font
+                                  :scale 2}}}]})
+  )");
+
+  session.push_mode("base-mode", Roo::Constant::NIL);
+  session.render_mode();
+  auto base = session.active_mode->children.at(0)->bounds;
+
+  session.push_mode("scaled-mode", Roo::Constant::NIL);
+  session.render_mode();
+  auto scaled = session.active_mode->children.at(0)->bounds;
+
+  EXPECT_EQ(scaled.w, base.w * 2);
+  EXPECT_EQ(scaled.h, base.h * 2);
+}
+
+TEST_F(RenderTest, built_in_text_node_reflects_ttf_declared_size)
+{
+  runtime.eval(R"(
+    (pixils/deffont small-font
+      {:type :ttf
+       :resource :pixils/autoega-8x14
+       :size 10})
+    (pixils/deffont large-font
+      {:type :ttf
+       :resource :pixils/autoega-8x14
+       :size 24})
+    (pixils/defmode small-mode
+      {:children [{:mode 'ui/text
+                   :state {:value "AA"}
+                   :style {:text {:font :font/small-font}}}]})
+    (pixils/defmode large-mode
+      {:children [{:mode 'ui/text
+                   :state {:value "AA"}
+                   :style {:text {:font :font/large-font}}}]})
+  )");
+
+  session.push_mode("small-mode", Roo::Constant::NIL);
+  session.render_mode();
+  auto small = session.active_mode->children.at(0)->bounds;
+
+  session.push_mode("large-mode", Roo::Constant::NIL);
+  session.render_mode();
+  auto large = session.active_mode->children.at(0)->bounds;
+
+  EXPECT_GT(large.w, small.w);
+  EXPECT_GT(large.h, small.h);
+}
+
+TEST_F(RenderTest, built_in_text_node_remeasures_when_ttf_font_is_redeclared)
+{
+  runtime.eval(R"(
+    (pixils/deffont test-font
+      {:type :ttf
+       :resource :pixils/autoega-8x14
+       :size 10})
+    (pixils/defmode root-mode
+      {:children [{:mode 'ui/text
+                   :state {:value "AA"}
+                   :style {:text {:font :font/test-font}}}]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  session.render_mode();
+  auto small = session.active_mode->children.at(0)->bounds;
+
+  runtime.eval(R"(
+    (pixils/deffont test-font
+      {:type :ttf
+       :resource :pixils/autoega-8x14
+       :size 24})
+  )");
+  session.render_mode();
+  auto large = session.active_mode->children.at(0)->bounds;
+
+  EXPECT_GT(large.w, small.w);
+  EXPECT_GT(large.h, small.h);
 }
 
 TEST_F(RenderTest, built_in_text_node_falls_back_to_console_font_when_style_font_is_missing)

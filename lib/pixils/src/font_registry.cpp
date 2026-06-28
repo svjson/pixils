@@ -273,6 +273,7 @@ namespace Pixils
                                               std::move(definition),
                                               spacing,
                                               line_height);
+    generation_++;
   }
 
   bool FontRegistry::register_ttf_font(const std::string& key,
@@ -300,6 +301,7 @@ namespace Pixils
                                               spacing,
                                               font.line_height,
                                               texture);
+    generation_++;
     return true;
   }
 
@@ -330,6 +332,7 @@ namespace Pixils
                                               spacing,
                                               font.line_height,
                                               texture);
+    generation_++;
     return true;
   }
 
@@ -342,6 +345,11 @@ namespace Pixils
   bool FontRegistry::has_font(const std::string& key) const
   {
     return fonts.count(key) > 0;
+  }
+
+  std::uint64_t FontRegistry::generation() const
+  {
+    return generation_;
   }
 
 } // namespace Pixils
