@@ -212,11 +212,11 @@
                  :clip true
                  :text {:color (var :text)}}
 
-    'ui/tab-panel {:background (var :panel-bg)
+    'ui/tab-panel {:background {:r 0 :g 0 :b 0 :a 0}
                    :layout {:direction :column}
                    :text {:color (var :text)}}
 
-    'ui/tab-strip {:background (var :panel-bg)
+    'ui/tab-strip {:background {:r 0 :g 0 :b 0 :a 0}
                    :layout {:direction :row}}
 
     'ui/tab {:background (var :content-bg)

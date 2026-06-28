@@ -173,10 +173,10 @@
                  :border (var :inset-border-style)
                  :clip true}
 
-    'ui/tab-panel {:background (var :surface)
+    'ui/tab-panel {:background {:r 0 :g 0 :b 0 :a 0}
                    :layout {:direction :column}}
 
-    'ui/tab-strip {:background (var :surface)
+    'ui/tab-strip {:background {:r 0 :g 0 :b 0 :a 0}
                    :layout {:direction :row}}
 
     'ui/tab {:padding [3 8]

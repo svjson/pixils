@@ -194,11 +194,29 @@
     (max default-row-height
          (+ (or (:h dim) 0) 6))))
 
+(defun option-label-width [option text-opts]
+  (or (:w (r/text-size (option-label option) text-opts)) 0))
+
+(defun list-box-measured-content-width [state ctx]
+  (let [text-opts (text-args (list-box-style ctx))
+        label-width (reduce (or (:options state) [])
+                            0
+                            (fn [out option]
+                              (max out
+                                   (option-label-width option text-opts))))]
+    (max 1 (+ label-width 10))))
+
 (defun list-box-row-height [state ctx]
   (or (:row-height state)
       (:computed-row-height state)
       (when ctx (list-box-measured-row-height ctx))
       default-row-height))
+
+(defun list-box-content-width [state ctx]
+  (or (:content-width state)
+      (:computed-content-width state)
+      (when ctx (list-box-measured-content-width state ctx))
+      1))
 
 (defun list-box-preferred-height [state ctx]
   (list-box-visible-height (:options state)
@@ -215,7 +233,7 @@
           :active-index (:active-index state)}))
 
 (defun list-box-content-size [state ctx]
-  {:w (or (:content-width state) 160)
+  {:w (list-box-content-width state ctx)
    :h (list-box-preferred-height state ctx)})
 
 (defun list-box-stretches-items? [style]
@@ -231,7 +249,7 @@
                                                     default-row-height))]
     (if (:stretch-items? state)
       {:h content-height}
-      {:w (or (:content-width state) 160)
+      {:w (list-box-content-width state nil)
        :h content-height})))
 
 (defun list-box-scroll-pane-child [state children]
@@ -804,6 +822,7 @@
    :row-height (:row-height state)
    :computed-row-height (:computed-row-height state)
    :content-width (:content-width state)
+   :computed-content-width (:computed-content-width state)
    :stretch-items? (:stretch-items? state)
    :disabled? (:disabled? state)
    :reorderable? (:reorderable? state)
@@ -818,7 +837,11 @@
   (let [computed-row-height (if (:auto-row-height? state)
                               (list-box-measured-row-height ctx)
                               (:row-height state))
+        computed-content-width (if (:auto-content-width? state)
+                                 (list-box-measured-content-width state ctx)
+                                 (:content-width state))
         state (assoc state :computed-row-height computed-row-height)
+        state (assoc state :computed-content-width computed-content-width)
         render-key (list-box-render-key state)]
     (do
       (when (not= render-key (:rendered-render-key state))
@@ -836,7 +859,7 @@
         visible-rows (or visible-rows default-visible-rows)
         options (or options [])
         disabled? (or disabled? (:disabled? state))
-        content-width (or content-width 160)
+        computed-content-width (or content-width 1)
         managed-height? (not (contains? (or style {}) :height))
         content-height (list-box-content-height options computed-row-height)
         height (list-box-visible-height options computed-row-height visible-rows max-height)
@@ -857,6 +880,8 @@
                     :visible-rows visible-rows
                     :max-height max-height
                     :content-width content-width
+                    :computed-content-width computed-content-width
+                    :auto-content-width? (nil? content-width)
                     :managed-height? managed-height?
                     :stretch-items? stretch-items?
                     :disabled? disabled?
@@ -873,6 +898,7 @@
                  {:row-height row-height
                   :computed-row-height computed-row-height
                   :content-width content-width
+                  :computed-content-width computed-content-width
                   :options options
                   :stretch-items? stretch-items?
                   :disabled? disabled?

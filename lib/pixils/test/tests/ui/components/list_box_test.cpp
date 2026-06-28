@@ -445,6 +445,90 @@ TEST_F(ListBoxTest, list_box_defaults_to_shrink_width)
   EXPECT_EQ(viewport->bounds.h, 20);
 }
 
+TEST_F(ListBoxTest, list_box_without_content_width_shrinks_to_option_labels)
+{
+  runtime.eval(R"(
+    (pixils/deffont test-font
+      {:type :ttf
+       :resource :pixils/autoega-8x14
+       :size 10})
+    (pixils/defmode root-mode
+      {:style {:width 300
+               :height 40
+               :layout {:direction :row
+                        :gap 4}}
+       :children [(pixils.ui.list-box/make
+                   {:options [{:value :a :label "A"}]
+                    :style {:text {:font :font/test-font}}
+                    :row-height 10
+                    :visible-rows 1})
+                  (pixils.ui.list-box/make
+                   {:options [{:value :long :label "AAAAAAAAAA"}]
+                    :style {:text {:font :font/test-font}}
+                    :row-height 10
+                    :visible-rows 1})]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  session.update_mode();
+  session.render_mode();
+  session.update_mode();
+  session.render_mode();
+
+  ASSERT_EQ(session.active_mode->children.size(), 2u);
+  auto short_list = session.active_mode->children[0];
+  auto long_list = session.active_mode->children[1];
+  ASSERT_NE(short_list, nullptr);
+  ASSERT_NE(long_list, nullptr);
+
+  EXPECT_LT(short_list->bounds.w, 82);
+  EXPECT_LT(long_list->bounds.w, 162);
+  EXPECT_GT(long_list->bounds.w, short_list->bounds.w);
+}
+
+TEST_F(ListBoxTest, list_box_content_width_uses_default_ttf_font_metrics)
+{
+  runtime.eval(R"(
+    (pixils/deffont small-font
+      {:type :ttf
+       :resource :pixils/autoega-8x14
+       :size 10})
+    (pixils/deffont large-font
+      {:type :ttf
+       :resource :pixils/autoega-8x14
+       :size 24})
+    (pixils/defmode root-mode
+      {:style {:width 400
+               :height 40
+               :layout {:direction :row
+                        :gap 4}}
+       :children [(pixils.ui.list-box/make
+                   {:options [{:value :a :label "Alpha"}]
+                    :style {:text {:font :font/small-font}}
+                    :row-height 10
+                    :visible-rows 1})
+                  (pixils.ui.list-box/make
+                   {:options [{:value :a :label "Alpha"}]
+                    :style {:text {:font :font/large-font}}
+                    :row-height 10
+                    :visible-rows 1})]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  session.update_mode();
+  session.render_mode();
+  session.update_mode();
+  session.render_mode();
+
+  ASSERT_EQ(session.active_mode->children.size(), 2u);
+  auto small_list = session.active_mode->children[0];
+  auto large_list = session.active_mode->children[1];
+  ASSERT_NE(small_list, nullptr);
+  ASSERT_NE(large_list, nullptr);
+
+  EXPECT_GT(large_list->bounds.w, small_list->bounds.w);
+}
+
 TEST_F(ListBoxTest, list_box_with_explicit_width_stretches_items)
 {
   runtime.eval(R"(

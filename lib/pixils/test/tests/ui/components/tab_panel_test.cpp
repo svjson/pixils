@@ -436,9 +436,12 @@ TEST_F(TabPanelTest, windows_95_theme_uses_property_sheet_tabs)
   ASSERT_NE(tabs.body, nullptr);
 
   const Pixils::Color panel{0xb8, 0xb8, 0xb8, 255};
+  const Pixils::Color transparent{0, 0, 0, 0};
   const Pixils::Color highlight{0xdf, 0xdf, 0xdf, 255};
   const Pixils::Color shadow{0x7f, 0x7f, 0x7f, 255};
 
+  ASSERT_TRUE(tabs.tab_panel->effective_style.background.has_value());
+  ASSERT_TRUE(tabs.tab_panel->effective_style.background->color.has_value());
   ASSERT_TRUE(tabs.tab_strip->effective_style.background.has_value());
   ASSERT_TRUE(tabs.tab_strip->effective_style.background->color.has_value());
   ASSERT_TRUE(tabs.selected_tab->effective_style.background.has_value());
@@ -447,7 +450,8 @@ TEST_F(TabPanelTest, windows_95_theme_uses_property_sheet_tabs)
   ASSERT_TRUE(tabs.inactive_tab->effective_style.background->color.has_value());
   ASSERT_TRUE(tabs.body->effective_style.background.has_value());
   ASSERT_TRUE(tabs.body->effective_style.background->color.has_value());
-  EXPECT_EQ(*tabs.tab_strip->effective_style.background->color, panel);
+  EXPECT_EQ(*tabs.tab_panel->effective_style.background->color, transparent);
+  EXPECT_EQ(*tabs.tab_strip->effective_style.background->color, transparent);
   EXPECT_EQ(*tabs.selected_tab->effective_style.background->color, panel);
   EXPECT_EQ(*tabs.inactive_tab->effective_style.background->color, panel);
   EXPECT_EQ(*tabs.body->effective_style.background->color, panel);
@@ -528,6 +532,9 @@ TEST_F(TabPanelTest, windows_3_theme_uses_classic_property_sheet_tabs)
   ASSERT_NE(tabs.body, nullptr);
 
   const Pixils::Color panel{0xc0, 0xc7, 0xc8, 255};
+  const Pixils::Color transparent{0, 0, 0, 0};
+  ASSERT_TRUE(tabs.tab_panel->effective_style.background.has_value());
+  ASSERT_TRUE(tabs.tab_panel->effective_style.background->color.has_value());
   ASSERT_TRUE(tabs.tab_strip->effective_style.background.has_value());
   ASSERT_TRUE(tabs.tab_strip->effective_style.background->color.has_value());
   ASSERT_TRUE(tabs.selected_tab->effective_style.background.has_value());
@@ -536,7 +543,8 @@ TEST_F(TabPanelTest, windows_3_theme_uses_classic_property_sheet_tabs)
   ASSERT_TRUE(tabs.inactive_tab->effective_style.background->color.has_value());
   ASSERT_TRUE(tabs.body->effective_style.background.has_value());
   ASSERT_TRUE(tabs.body->effective_style.background->color.has_value());
-  EXPECT_EQ(*tabs.tab_strip->effective_style.background->color, panel);
+  EXPECT_EQ(*tabs.tab_panel->effective_style.background->color, transparent);
+  EXPECT_EQ(*tabs.tab_strip->effective_style.background->color, transparent);
   EXPECT_EQ(*tabs.selected_tab->effective_style.background->color, panel);
   EXPECT_EQ(*tabs.inactive_tab->effective_style.background->color, panel);
   EXPECT_EQ(*tabs.body->effective_style.background->color, panel);

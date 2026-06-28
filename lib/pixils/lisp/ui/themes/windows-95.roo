@@ -355,12 +355,12 @@
                          :clip true
                          :text {:color (var :content-text)}}
 
-            'ui/tab-panel {:background (var :panel-bg)
+            'ui/tab-panel {:background {:r 0 :g 0 :b 0 :a 0}
                            :layout {:direction :column}
                            :text {:color (var :text)}}
 
             'ui/tab-strip {:width :fill
-                           :background (var :panel-bg)
+                           :background {:r 0 :g 0 :b 0 :a 0}
                            :layout {:direction :row}
                            :padding {:t 3 :l 4}
                            :border {:line-style :solid
