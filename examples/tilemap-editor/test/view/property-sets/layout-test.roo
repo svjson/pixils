@@ -1,6 +1,48 @@
 (ns tilemap-editor.view.property-sets.layout-test
   (:require proof.core
-            [tilemap-editor.view.property-sets.layout :as layout]))
+            [pixils.test.runtime :as runtime]
+            [tilemap-editor.view.property-sets.layout :as layout]
+            [tilemap-editor.view.property-sets.targets :as targets]))
+
+(defun settle-layout! [app]
+  (runtime/update! app)
+  (runtime/layout! app)
+  (runtime/update! app)
+  (runtime/layout! app)
+  app)
+
+(defun property-value-list-probe-source []
+  "(ns tilemap-editor.test.property-value-list-probe
+     (:require pixils
+               [pixils.ui :as ui]
+               tilemap-editor.view.property-sets.targets))
+
+   (pixils/defmode root-mode
+     {:style {:width 320
+              :height 120}
+      :init (fn [state ctx]
+              (assoc state
+                     :property-sets [{:id :movement
+                                      :label \"Movement\"
+                                      :properties [{:id :cost
+                                                    :label \"Cost\"
+                                                    :type :number
+                                                    :default 1}]}]
+                     :property-set-ids [:movement]
+                     :default-values {}
+                     :override-values {:cost 4}
+                     :disabled? false))
+      :children [{:mode 'property-value-list
+                  :state {:title \"Tile Properties\"
+                          :kind :tile
+                          :property-sets (ui/bind-state :property-sets)
+                          :property-set-ids
+                          (ui/bind-state :property-set-ids)
+                          :default-values
+                          (ui/bind-state :default-values)
+                          :override-values
+                          (ui/bind-state :override-values)
+                          :disabled? (ui/bind-state :disabled?)}}]})")
 
 (deftest property-set-list-panel-has_header_and_add_button
   (let [panel (layout/make-property-set-list-panel)
@@ -95,3 +137,34 @@
     (is (= 'property-set-assignment-row (:mode row)))
     (is (= :tileset (-> row :state :kind)))
     (is (= true (-> row :state :attached?)))))
+
+(deftest property-value-control-uses_number_input_for_number_properties
+  (let [control (targets/property-value-control-child
+                 {:id :cost
+                  :label "Cost"
+                  :type :number
+                  :default 1})]
+    (is (= 'property-value-number-control (:mode control)))
+    (is (= :cost (-> control :state :property-id)))
+    (is (not (nil? (-> control :state :kind))))
+    (is (not (nil? (-> control :state :value))))
+    (is (not (nil? (-> control :state :disabled?))))))
+
+(deftest property-value-list-keeps_control_view_when_value_changes
+  (let [app (runtime/make-app {:package-root "."
+                               :buffer-width 320
+                               :buffer-height 120
+                               :render-backend false})]
+    (runtime/eval! app (property-value-list-probe-source))
+    (runtime/push-mode! app 'root-mode)
+    (settle-layout! app)
+    (let [control (runtime/find-view app "property-value-number-control")]
+      (is (= 4 (:value (runtime/view-state control))))
+      (runtime/set-active-state!
+       app
+       (assoc (runtime/active-state app)
+              :override-values {:cost 5}))
+      (settle-layout! app)
+      (is (= control
+             (runtime/find-view app "property-value-number-control")))
+      (is (= 5 (:value (runtime/view-state control)))))))

@@ -74,6 +74,31 @@
                           (ui/bind-state
                            :tile-definition-panel-disabled?)}}]})")
 
+(defun tileset-list-probe-source []
+  "(ns tilemap-editor.test.tileset-list-probe
+     (:require pixils
+               [pixils.ui :as ui]
+               tilemap-editor.view.tileset.panels))
+
+   (pixils/defmode root-mode
+     {:style {:width 320
+              :height 160}
+      :init (fn [state ctx]
+              (assoc state
+                     :tilesets [{:id :terrain
+                                 :label \"Terrain\"
+                                 :tiles [{:id :grass
+                                          :type :color
+                                          :properties {:cost 4}}]}
+                                {:id :objects
+                                 :label \"Objects\"
+                                 :tiles []}]
+                     :selected-tileset-definition-index 0))
+      :children [{:mode 'tileset-definition-list
+                  :state {:selected-tileset-definition-index
+                          (ui/bind-state :selected-tileset-definition-index)
+                          :tilesets (ui/bind-state :tilesets)}}]})")
+
 (deftest tileset-definition-list-is-disabled-when-empty
   (is (= true (:disabled? (:state (panels/tileset-list-box-child [])))))
   (is (= true (:disabled? (:state (panels/tileset-list-box-child nil)))))
@@ -81,6 +106,24 @@
             (:disabled? (:state (panels/tileset-list-box-child
                                  [{:id :terrain
                                    :label "Terrain"}]))))))
+
+(deftest tileset-definition-list-keeps_list_box_when_nested_tiles_change
+  (let [app (runtime/make-app {:package-root "."
+                               :buffer-width 320
+                               :buffer-height 160
+                               :render-backend false})]
+    (runtime/eval! app (tileset-list-probe-source))
+    (runtime/push-mode! app 'root-mode)
+    (settle-layout! app)
+    (let [list-box (runtime/find-view app "ui/list-box")]
+      (runtime/set-active-state!
+       app
+       (assoc-in (runtime/active-state app)
+                 [:tilesets 0 :tiles 0 :properties]
+                 {:cost 5}))
+      (settle-layout! app)
+      (is (= list-box
+             (runtime/find-view app "ui/list-box"))))))
 
 (deftest tileset-context-menu-includes_edit_properties_and_duplicate_commands
   (let [edit-item (head (:items panels/tileset-context-menu))

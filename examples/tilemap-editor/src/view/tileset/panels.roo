@@ -184,18 +184,19 @@
            :height :fill}
    :init (fn [state ctx]
            (assoc state
-                  :tilesets-list nil
+                  :tileset-list-options nil
                   :selected-indices (selected-tileset-definition-indices state)))
    :update (fn [state ctx]
-             (let [tilesets (or (:tilesets state) [])]
+             (let [tilesets (or (:tilesets state) [])
+                   options (data/tileset-options tilesets)]
                (do
-                 (when (not= tilesets (:tilesets-list state))
+                 (when (not= options (:tileset-list-options state))
                    (ui/replace-child! (:view ctx)
                                       "list-box"
                                       (merge {:id "list-box"}
                                              (tileset-list-box-child tilesets))))
                  (assoc state
-                        :tilesets-list tilesets
+                        :tileset-list-options options
                         :selected-indices (selected-tileset-definition-indices state)))))
    :on {:list-box/change (fn [state event ctx]
                            (assoc state
