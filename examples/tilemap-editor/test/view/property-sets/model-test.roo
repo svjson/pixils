@@ -114,12 +114,16 @@
         state (model/set-selected-property-enum-values state "yes, no")
         state (model/set-selected-property-default state "no")
         state (assoc state :selected-property-definition-index 1)
-        state (model/set-selected-property-default state "")]
+        state (model/set-selected-property-default state "")
+        blank-number-default (get-in state
+                                     [:property-sets 0 :properties 1 :default])
+        state (model/set-selected-property-default state "1.5")]
     (is (= [:yes :no]
            (get-in state [:property-sets 0 :properties 0 :values])))
     (is (= :no
            (get-in state [:property-sets 0 :properties 0 :default])))
-    (is (= 0
+    (is (= 0 blank-number-default))
+    (is (= 1.5
            (get-in state [:property-sets 0 :properties 1 :default])))))
 
 (deftest property-definition-enum_values_are_row_based

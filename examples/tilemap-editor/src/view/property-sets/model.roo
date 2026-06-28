@@ -431,6 +431,7 @@
   (cond
     (number? value) value
     (blank? value) 0
+    (string-contains? value "." 0) (float value)
     :default (int value)))
 
 (defun parse-default-value [property value]

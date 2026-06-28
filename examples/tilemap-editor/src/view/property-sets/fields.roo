@@ -127,6 +127,7 @@
               (ni/make {:value (ui/bind-state :value)
                         :step 1
                         :allow-negative? true
+                        :allow-fractions? true
                         :disabled? (ui/bind-state :disabled?)
                         :style {:width 92
                                 :height 22}})]})
