@@ -107,6 +107,29 @@
                                  [{:id :terrain
                                    :label "Terrain"}]))))))
 
+(deftest tileset-definition-list-box-uses_minimum_then_content_height
+  (let [empty-list (panels/tileset-list-box-child [])
+        one-list (panels/tileset-list-box-child [{:id :terrain
+                                                  :label "Terrain"}])
+        many-list (panels/tileset-list-box-child
+                   [{:id :one :label "One"}
+                    {:id :two :label "Two"}
+                    {:id :three :label "Three"}
+                    {:id :four :label "Four"}
+                    {:id :five :label "Five"}
+                    {:id :six :label "Six"}])]
+    (is (= (* panels/tileset-list-row-height
+              panels/tileset-list-min-visible-rows)
+           (-> empty-list :style :height)))
+    (is (= (* panels/tileset-list-row-height
+              panels/tileset-list-min-visible-rows)
+           (-> one-list :style :height)))
+    (is (= (* panels/tileset-list-row-height 6)
+           (-> many-list :style :height)))
+    (is (= panels/tileset-list-min-visible-rows
+           (-> empty-list :state :visible-rows)))
+    (is (= 6 (-> many-list :state :visible-rows)))))
+
 (deftest tileset-definition-list-keeps_list_box_when_nested_tiles_change
   (let [app (runtime/make-app {:package-root "."
                                :buffer-width 320

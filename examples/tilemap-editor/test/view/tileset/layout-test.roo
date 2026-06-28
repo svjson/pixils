@@ -5,8 +5,12 @@
 (deftest tileset-list-panel-has_project_header_and_add_button
   (let [panel (layout/make-tileset-list-panel)
         header (head (:children panel))
+        body (nth (:children panel) 1)
         add-button (nth (:children header) 1)]
     (is (= "Project Tile Sets" (-> panel :state :title)))
+    (is (= :shrink (-> panel :style :height)))
+    (is (= 160 (-> panel :style :min-height)))
+    (is (= :shrink (-> body :style :height)))
     (is (= 'ui/button (:mode add-button)))
     (is (= :ui/toolbar-button (:class add-button)))
     (is (= "+" (-> add-button :state :label)))))

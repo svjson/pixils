@@ -19,7 +19,8 @@
 (defun make-tileset-list-panel []
   (hp/make {:title "Project Tile Sets"
             :style {:width :shrink
-                    :height 160}
+                    :height :shrink
+                    :min-height 160}
             :header-style {:layout {:direction :row
                                     :align-items :center
                                     :gap 4}}
@@ -32,7 +33,7 @@
                                                        :tileset/add)
                                              state))}]
             :body-style {:padding 8
-                         :height :fill}
+                         :height :shrink}
             :state {:selected-tileset-definition-index (ui/bind-state :selected-tileset-definition-index)
                     :selected-tileset-tile-index (ui/bind-state :selected-tileset-tile-index)
                     :selected-tileset-tile-indices (ui/bind-state :selected-tileset-tile-indices)

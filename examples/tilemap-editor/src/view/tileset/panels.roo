@@ -16,6 +16,7 @@
             tilemap-editor.view.tileset.model))
 
 (def tileset-list-row-height 24)
+(def tileset-list-min-visible-rows 5)
 
 (def tileset-context-menu
   {:settings {:mnemonics {:enabled false}}
@@ -166,13 +167,21 @@
            :label (:label option)
            :selected-indices (ui/bind-state :selected-indices)}})
 
+(defun tileset-list-visible-rows [tilesets]
+  (max tileset-list-min-visible-rows
+       (count (or tilesets []))))
+
+(defun tileset-list-height [tilesets]
+  (* tileset-list-row-height
+     (tileset-list-visible-rows tilesets)))
+
 (defun tileset-list-box-child [tilesets]
   (let [tilesets (or tilesets [])]
     (lb/make {:options (data/tileset-options tilesets)
               :style {:width :shrink
-                      :height :fill}
+                      :height (tileset-list-height tilesets)}
               :row-height tileset-list-row-height
-              :visible-rows (count tilesets)
+              :visible-rows (tileset-list-visible-rows tilesets)
               :content-width 220
               :disabled? (empty? tilesets)
               :selected-indices (ui/bind-state :selected-indices)
@@ -181,7 +190,7 @@
 
 (defcomponent tileset-definition-list
   {:style {:width :fill
-           :height :fill}
+           :height :shrink}
    :init (fn [state ctx]
            (assoc state
                   :tileset-list-options nil
