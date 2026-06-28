@@ -23,6 +23,8 @@
 #include <roo/io/dir_root_file_system.h>
 #include <roo/lang/io/io_namespace.h>
 
+#include <stdexcept>
+
 namespace Pixils
 {
   std::vector<std::unique_ptr<Roo::Namespace>> make_roo_native_namespaces(
@@ -87,7 +89,15 @@ namespace Pixils
     UI::Components::register_text_node_component(roo_runtime);
     for (const auto& embedded_source : EmbeddedLisp::core_sources())
     {
-      roo_runtime.eval(embedded_source.source);
+      try
+      {
+        roo_runtime.eval(embedded_source.source);
+      }
+      catch (const std::exception& e)
+      {
+        throw std::runtime_error(std::string("Failed to evaluate embedded Roo source ") +
+                                 embedded_source.path + ": " + e.what());
+      }
     }
     roo_runtime.eval("(ns " + default_namespace + ")");
     for (auto& file_name : source_files)
@@ -143,7 +153,15 @@ namespace Pixils
     UI::Components::register_text_node_component(*roo_runtime);
     for (const auto& embedded_source : EmbeddedLisp::core_sources())
     {
-      roo_runtime->eval(embedded_source.source);
+      try
+      {
+        roo_runtime->eval(embedded_source.source);
+      }
+      catch (const std::exception& e)
+      {
+        throw std::runtime_error(std::string("Failed to evaluate embedded Roo source ") +
+                                 embedded_source.path + ": " + e.what());
+      }
     }
     roo_runtime->eval("(ns " + default_namespace + ")");
     for (auto& file_name : source_files)
