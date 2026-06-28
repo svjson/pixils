@@ -1128,8 +1128,6 @@ TEST_F(ComposedAppRuntimeTest,
   update_cycle();
 
   // Then
-  // Under current natural-size semantics this old baseline no longer produces
-  // a hittable board overlay, so the right click is a no-op.
   auto counters = get_key(game_layout.state, "counters");
   auto board_mask = get_key(game_layout.state, "board-mask");
   auto first_mask_row = get_index(board_mask, 0);
@@ -1139,9 +1137,9 @@ TEST_F(ComposedAppRuntimeTest,
   ASSERT_NE(board_mask, nullptr);
   ASSERT_NE(first_mask_row, nullptr);
   ASSERT_NE(first_mask_cell, nullptr);
-  expect_int_key(counters, "mines-left", 10);
-  EXPECT_EQ(count_flagged_cells(board_mask), 0);
-  expect_key_string(first_mask_cell, "flagged?", "false");
+  expect_int_key(counters, "mines-left", 9);
+  EXPECT_EQ(count_flagged_cells(board_mask), 1);
+  expect_key_string(first_mask_cell, "flagged?", "true");
 }
 
 TEST_F(
@@ -1316,8 +1314,6 @@ TEST_F(ComposedAppRuntimeTest,
   update_cycle();
 
   // Then
-  // Same as the immediate case above: the click misses entirely on this old
-  // baseline, so there is no flag state to preserve.
   auto counters = get_key(game_layout.state, "counters");
   auto board_mask = get_key(game_layout.state, "board-mask");
   auto first_mask_row = get_index(board_mask, 0);
@@ -1327,9 +1323,9 @@ TEST_F(ComposedAppRuntimeTest,
   ASSERT_NE(board_mask, nullptr);
   ASSERT_NE(first_mask_row, nullptr);
   ASSERT_NE(first_mask_cell, nullptr);
-  expect_int_key(counters, "mines-left", 10);
-  EXPECT_EQ(count_flagged_cells(board_mask), 0);
-  expect_key_string(first_mask_cell, "flagged?", "false");
+  expect_int_key(counters, "mines-left", 9);
+  EXPECT_EQ(count_flagged_cells(board_mask), 1);
+  expect_key_string(first_mask_cell, "flagged?", "true");
 }
 
 TEST_F(

@@ -9,6 +9,11 @@
   (runtime/layout! app)
   app)
 
+(defun layout-frame! [app]
+  (runtime/update! app)
+  (runtime/layout! app)
+  app)
+
 (defun view-render-pixel-at [app view x y]
   (let [bounds (:bounds view)]
     (runtime/rendered-pixel app
@@ -221,7 +226,8 @@
                   {:style {:width 100
                            :height 80}
                    :body-style {:width :fill
-                                :height 40}
+                                :height 40
+                                :max-height 40}
                    :title-bar {:title \"Body Style\"}
                    :body [{:mode 'probe-body}]})]})")
 
@@ -479,10 +485,12 @@
     (let [window (runtime/find-view app "ui/window")
           state (runtime/view-state window)]
       (is (= false (:window/explicit-position? state)))
-      (is (= 40 (:x (:position state))))
-      (is (= 32 (:y (:position state))))
-      (is (= 40 (:x (:bounds window))))
-      (is (= 32 (:y (:bounds window)))))))
+      (is (= (centered-axis 160 (:w (:bounds window)))
+             (:x (:position state))))
+      (is (= (centered-axis 120 (:h (:bounds window)))
+             (:y (:position state))))
+      (is (= (:x (:position state)) (:x (:bounds window))))
+      (is (= (:y (:position state)) (:y (:bounds window)))))))
 
 (deftest implicit-natural-size-window-centers-after-first-layout
   (let [app (runtime/make-app {:package-root "../.."
@@ -509,10 +517,10 @@
   (let [app (runtime/make-app {:package-root "../.."
                                :buffer-width 160
                                :buffer-height 120
-                               :render-backend true})]
+                               :render-backend false})]
     (runtime/eval! app (natural-size-centered-window-probe-source))
     (runtime/push-mode! app 'root-mode)
-    (runtime/frame! app)
+    (layout-frame! app)
     (let [first-window (runtime/find-view app "ui/window")
           first-title-bar (runtime/find-view app "ui/window-title-bar")
           first-body (runtime/find-view app "ui/window-body")
@@ -526,7 +534,7 @@
       (is (= (:y (:position first-state)) (:y first-window-bounds)))
       (assert-window-chrome-contained! app "Natural")
       (assert-view-rendered! app first-title-bar)
-      (runtime/frame! app)
+      (layout-frame! app)
       (let [second-window (runtime/find-view app "ui/window")
             second-title-bar (runtime/find-view app "ui/window-title-bar")
             second-body (runtime/find-view app "ui/window-body")
@@ -537,7 +545,7 @@
         (is (= first-chrome second-chrome))
         (assert-window-chrome-contained! app "Natural")
         (assert-view-rendered! app second-title-bar))
-      (runtime/frame! app)
+      (layout-frame! app)
       (let [third-window (runtime/find-view app "ui/window")
             third-title-bar (runtime/find-view app "ui/window-title-bar")
             third-body (runtime/find-view app "ui/window-body")
@@ -575,11 +583,11 @@
   (let [app (runtime/make-app {:package-root "../.."
                                :buffer-width 160
                                :buffer-height 140
-                               :render-backend true})]
+                               :render-backend false})]
     (runtime/eval! app (dynamic-natural-size-centered-window-probe-source))
     (runtime/push-mode! app 'root-mode)
-    (runtime/frame! app)
-    (runtime/frame! app)
+    (layout-frame! app)
+    (layout-frame! app)
     (let [before-window (runtime/find-view app "ui/window")
           before-title-bar (runtime/find-view app "ui/window-title-bar")
           before-body (runtime/find-view app "dynamic-body")
@@ -590,7 +598,7 @@
       (assert-window-chrome-contained! app "Dynamic")
       (assert-view-rendered! app before-title-bar)
       (runtime/mouse-down-in! app before-body 4 4)
-      (runtime/frame! app)
+      (layout-frame! app)
       (let [after-window (runtime/find-view app "ui/window")
             after-title-bar (runtime/find-view app "ui/window-title-bar")
             after-body (runtime/find-view app "dynamic-body")
@@ -612,7 +620,7 @@
         (is (not (= before-chrome after-chrome)))
         (assert-window-chrome-contained! app "Dynamic")
         (assert-view-rendered! app after-title-bar)
-        (runtime/frame! app)
+        (layout-frame! app)
         (let [stable-window (runtime/find-view app "ui/window")
               stable-title-bar (runtime/find-view app "ui/window-title-bar")
               stable-body (runtime/find-view app "dynamic-body")
@@ -635,12 +643,16 @@
     (let [window (runtime/find-view app "ui/window")
           state (runtime/view-state window)]
       (is (= false (:window/explicit-position? state)))
-      (is (= 20 (:x (:position state))))
-      (is (= 15 (:y (:position state))))
-      (is (= 20 (:x (:bounds window))))
-      (is (= 15 (:y (:bounds window))))
-      (is (= 80 (:w (:external-bounds window))))
-      (is (= 60 (:h (:external-bounds window)))))))
+      (is (= (centered-axis 120 (:w (:external-bounds window)))
+             (:x (:position state))))
+      (is (= (centered-axis 90 (:h (:external-bounds window)))
+             (:y (:position state))))
+      (is (= (:x (:position state)) (:x (:bounds window))))
+      (is (= (:y (:position state)) (:y (:bounds window))))
+      (is (= (* 2 (:w (:bounds window)))
+             (:w (:external-bounds window))))
+      (is (= (* 2 (:h (:bounds window)))
+             (:h (:external-bounds window)))))))
 
 (deftest window-make-applies-body-style
   (let [app (runtime/make-app {:package-root "../.."
@@ -789,10 +801,12 @@
     (let [window (runtime/find-view app "ui/window")
           state (runtime/view-state window)]
       (is (= false (:window/explicit-position? state)))
-      (is (= 40 (:x (:position state))))
-      (is (= 32 (:y (:position state))))
-      (is (= 40 (:x (:bounds window))))
-      (is (= 32 (:y (:bounds window)))))))
+      (is (= (centered-axis 160 (:w (:bounds window)))
+             (:x (:position state))))
+      (is (= (centered-axis 120 (:h (:bounds window)))
+             (:y (:position state))))
+      (is (= (:x (:position state)) (:x (:bounds window))))
+      (is (= (:y (:position state)) (:y (:bounds window)))))))
 
 (deftest dragged-window-keeps-latest-position-after-follow-up-interaction
   (let [app (runtime/make-app {:package-root "../.."

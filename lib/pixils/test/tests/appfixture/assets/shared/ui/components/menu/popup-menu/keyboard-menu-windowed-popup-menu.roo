@@ -2,10 +2,94 @@
   (:require pixils
             [pixils.ui :as ui]))
 
+(defun activate-popup-root-index! [state index]
+  (let [node (highlighted-item (:items state) index)]
+    (when (and node
+               (empty? (:items node))
+               (:action node))
+      (pop-mode! {:type :action
+                  :action (:action node)
+                  :payload (:payload node)}))
+    state))
+
 (defmode popup-menu
   {:on-mouse-down (fn [state event ctx]
                     (pop-mode! {:type :dismiss})
                     state)
+   :on-key-down (fn [state event ctx]
+                  (case (:key event)
+                    :key/right
+                    (let [index (:highlighted-index state)
+                          next-state (assoc state :input-source :keyboard)]
+                      (ui/stop-propagation! event)
+                      (let [node (highlighted-item (:items next-state) index)]
+                        (if (and (= 0 (:menu-depth next-state))
+                                 (or (nil? node)
+                                     (empty? (:items node))))
+                          (do
+                            (pop-mode! {:type :navigate-top
+                                        :direction :right})
+                            next-state)
+                          next-state)))
+
+                    :key/left
+                    (let [next-state (assoc state :input-source :keyboard)]
+                      (ui/stop-propagation! event)
+                      (if (= 0 (:menu-depth next-state))
+                        (do
+                          (pop-mode! {:type :navigate-top
+                                      :direction :left})
+                          next-state)
+                        (do
+                          (pop-mode!)
+                          next-state)))
+
+                    :key/down
+                    (do
+                      (ui/stop-propagation! event)
+                      (assoc (assoc state
+                                    :input-source :keyboard)
+                             :highlighted-index
+                             (move-highlight-index (:items state)
+                                                   (:highlighted-index state)
+                                                   1)))
+
+                    :key/up
+                    (do
+                      (ui/stop-propagation! event)
+                      (assoc (assoc state
+                                    :input-source :keyboard)
+                             :highlighted-index
+                             (move-highlight-index (:items state)
+                                                   (:highlighted-index state)
+                                                   -1)))
+
+                    :key/escape
+                    (do
+                      (ui/stop-propagation! event)
+                      (if (= 0 (:menu-depth state))
+                        (pop-mode! {:type :dismiss})
+                        (pop-mode!))
+                      (assoc state :input-source :keyboard))
+
+                    :key/enter
+                    (let [index (:highlighted-index state)
+                          next-state (assoc state :input-source :keyboard)]
+                      (ui/stop-propagation! event)
+                      (activate-popup-root-index! next-state index))
+
+                    :default
+                    (let [mnemonic-char (event-mnemonic-char event)
+                          next-state (assoc state :input-source :keyboard)
+                          index (find-mnemonic-index (:items next-state)
+                                                     mnemonic-char)]
+                      (if (not (nil? index))
+                        (do
+                          (ui/stop-propagation! event)
+                          (activate-popup-root-index! (assoc next-state
+                                                             :highlighted-index index)
+                                                      index))
+                        state))))
    :on {:menu/select (fn [state event ctx]
                        (ui/stop-propagation! event)
                        (pop-mode! (:payload event))

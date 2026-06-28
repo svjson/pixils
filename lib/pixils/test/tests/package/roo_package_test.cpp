@@ -5,8 +5,28 @@
 #include <roo/io/dir_root_file_system.h>
 #include <roo/runtime.h>
 
+#include <filesystem>
+
 namespace
 {
+  class ScopedCurrentPath
+  {
+  public:
+    explicit ScopedCurrentPath(const std::filesystem::path& path)
+      : original_path(std::filesystem::current_path())
+    {
+      std::filesystem::current_path(path);
+    }
+
+    ~ScopedCurrentPath()
+    {
+      std::filesystem::current_path(original_path);
+    }
+
+  private:
+    std::filesystem::path original_path;
+  };
+
   Roo::Package::ResolveOptions test_package_resolve_options()
   {
     return Roo::Package::ResolveOptions{
@@ -27,6 +47,7 @@ namespace
 TEST(PixilsRooPackageTest, loads_native_package_and_runs_roo_proof_tests)
 {
   auto plan = resolve_test_package(PIXILS_TEST_ROO_PACKAGE_DIR);
+  ScopedCurrentPath test_package_cwd(PIXILS_TEST_ROO_PACKAGE_DIR);
 
   auto fs = Roo::Package::make_load_path_file_system(plan);
   Roo::Package::LoadedNativePackages native_packages;
@@ -42,7 +63,7 @@ TEST(PixilsRooPackageTest, loads_native_package_and_runs_roo_proof_tests)
 
   auto summary = runtime.eval("(result-summary (run))");
 
-  EXPECT_EQ(summary->to_string(), "{:total 23 :passed 23 :failed 0}");
+  EXPECT_EQ(summary->to_string(), "{:total 29 :passed 29 :failed 0}");
 }
 
 TEST(PixilsRooPackageTest, pixils_runner_package_loads)
