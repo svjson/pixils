@@ -77,6 +77,51 @@ TEST_F(NumberInputTest, number_input_accepts_digits_and_rejects_other_text)
   EXPECT_EQ(last_change->to_string(), "{:value 12 :text \"12\"}");
 }
 
+TEST_F(NumberInputTest, number_input_accepts_decimal_text_when_fractions_are_allowed)
+{
+  runtime.eval(R"(
+    (pixils/defmode root-mode
+      {:init (fn [state ctx] {:amount nil
+                              :last-change nil})
+       :children [{:mode 'ui/number-input
+                   :style {:width 80 :height 22}
+                   :state {:value (pixils.ui/bind-state :amount)
+                           :allow-fractions? true
+                           :auto-focus? true}}]
+       :on {:number-input/change (fn [state event ctx]
+                                   (assoc state :last-change (:payload event)))}})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  update_cycle();
+  render_cycle();
+
+  input().key_down(SDLK_1);
+  update_cycle();
+  input().key_up(SDLK_1);
+  update_cycle();
+  input().key_down(SDLK_PERIOD);
+  update_cycle();
+  input().key_up(SDLK_PERIOD);
+  update_cycle();
+  input().key_down(SDLK_5);
+  update_cycle();
+
+  auto amount =
+    Roo::Dict::get_property(session.active_mode->state, Roo::keyword("amount"));
+  auto last_change =
+    Roo::Dict::get_property(session.active_mode->state, Roo::keyword("last-change"));
+
+  ASSERT_NE(amount, nullptr);
+  ASSERT_NE(last_change, nullptr);
+  EXPECT_EQ(amount->num().num_type, Roo::Value::NumberType::FLOAT);
+  EXPECT_FLOAT_EQ(amount->num().get_float(), 1.5f);
+  EXPECT_FLOAT_EQ(
+    Roo::Dict::get_property(last_change, Roo::keyword("value"))->num().get_float(),
+    1.5f);
+  EXPECT_EQ(Roo::Dict::get_property(last_change, Roo::keyword("text"))->str(), "1.5");
+}
+
 TEST_F(NumberInputTest, number_input_arrow_keys_step_and_clamp_bound_value)
 {
   runtime.eval(R"(

@@ -8,12 +8,38 @@
       (nil? (:min state))
       (< (:min state) 0)))
 
+(defun allows-fractions? [state]
+  (= (:allow-fractions? state) true))
+
+(defun partial-fraction-text? [text state]
+  (or (= text ".")
+      (and (= text "-.") (allows-negative? state))
+      (= (substr text (- (count text) 1) 1) ".")))
+
+(defun text-contains? [text needle index]
+  (cond
+    (> (+ index (count needle)) (count text)) false
+    (= (substr text index (count needle)) needle) true
+    :default (text-contains? text needle (inc index))))
+
+(defun fraction-text? [text]
+  (text-contains? text "." 0))
+
+(defun parsed-number [text state]
+  (if (and (allows-fractions? state)
+           (fraction-text? text))
+    (float text)
+    (int text)))
+
 (defun integer-text? [value state]
   (let [text (or value "")
-        parsed (int text)]
+        parsed (parsed-number text state)]
     (cond
       (= text "") true
       (= text "-") (allows-negative? state)
+      (and (allows-fractions? state)
+           (partial-fraction-text? text state))
+      true
       (nil? parsed) false
       (= (substr text 0 1) "-") (allows-negative? state)
       :default true)))
@@ -52,11 +78,15 @@
           (assoc :invalid? false)))))
 
 (defun commit-number-input-text [state text ctx]
-  (let [parsed (int text)
+  (let [parsed (parsed-number text state)
         value (when (not (nil? parsed)) (clamp-number parsed state))
         normalized-text (if (nil? value)
                           text
-                          (number-input-text value))]
+                          (if (and (allows-fractions? state)
+                                   (fraction-text? text)
+                                   (= value parsed))
+                            text
+                            (number-input-text value)))]
     (do
       (ui/emit! (:view ctx) :number-input/change {:value value
                                                   :text normalized-text})
@@ -91,6 +121,7 @@
                        :accept-value? integer-text?
                        :emit-change? false
                        :allow-negative? (ui/bind-state :allow-negative?)
+                       :allow-fractions? (ui/bind-state :allow-fractions?)
                        :min (ui/bind-state :min)
                        :max (ui/bind-state :max)}}]
    :on {:text-input/change (fn [state event ctx]
@@ -116,7 +147,7 @@
                       :default
                       (commit-number-input-text-if-changed state ctx))))})
 
-(defun make [{:keys [style value min max step allow-negative? disabled? auto-focus?]}]
+(defun make [{:keys [style value min max step allow-negative? allow-fractions? disabled? auto-focus?]}]
   {:mode 'ui/number-input
    :style (or style {})
    :state {:value value
@@ -124,5 +155,6 @@
            :max max
            :step step
            :allow-negative? allow-negative?
+           :allow-fractions? allow-fractions?
            :disabled? disabled?
            :auto-focus? auto-focus?}})
