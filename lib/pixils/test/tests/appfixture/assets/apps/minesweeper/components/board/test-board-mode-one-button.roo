@@ -3,7 +3,7 @@
             [pixils.ui :as ui]))
 
 (defcomponent board-test-button
-  {:style {:width 17 :height 17}
+  {:style {:width 17 :max-width 17 :height 17 :max-height 17}
    :on-click (fn [state event ctx]
                (when (= (:button event) :right)
                  (ui/emit! (:view ctx) :cell/toggle-flag {:x 0 :y 0}))
@@ -11,4 +11,4 @@
 
 (defmode board-mode
   {:children [{:mode 'board-test-button
-               :style {:width 17 :height 17}}]})
+               :style {:width 17 :max-width 17 :height 17 :max-height 17}}]})

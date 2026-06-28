@@ -421,6 +421,7 @@
                                           :thickness 1}}
                           :width :fill
                           :height 19
+                          :max-height 19
                           :padding 0
                           :layout {:direction :row
                                    :gap :space-between}}
@@ -430,10 +431,14 @@
      :text {:color c/WHITE}}
 
     'ui/window-control-button {:width 18
-                               :height 18}
+                               :max-width 18
+                               :height 18
+                               :max-height 18}
 
     'ui/window-minimize-button {:width 18
-                                :height 18}
+                                :max-width 18
+                                :height 18
+                                :max-height 18}
 
     'ui/text-input TEXT-INPUT-FRAME-STYLE
 

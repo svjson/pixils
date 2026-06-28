@@ -66,7 +66,10 @@ TEST_F(ScrollPaneTest, scroll_pane_offsets_content_inside_clipped_viewport)
     (pixils/defmode content-mode {})
     (pixils/defmode root-mode
       {:children [(pixils.ui.scroll-pane/make
-                   {:style {:width 50 :height 40}
+                   {:style {:width 50
+                            :max-width 50
+                            :height 40
+                            :max-height 40}
                     :content-size {:w 100 :h 80}
                     :offset {:x 10 :y 20}
                     :children [{:mode 'content-mode
@@ -128,7 +131,10 @@ TEST_F(ScrollPaneTest, scroll_pane_clips_translucent_absolute_child_to_viewport)
 
     (pixils/defmode root-mode
       {:children [(pixils.ui.scroll-pane/make
-                   {:style {:width 50 :height 40}
+                   {:style {:width 50
+                            :max-width 50
+                            :height 40
+                            :max-height 40}
                     :content-size {:w 100 :h 100}
                     :offset {:x 0 :y 50}
                     :scroll-x? false
@@ -592,7 +598,10 @@ TEST_F(ScrollPaneTest, windows_3_scroll_pane_uses_theme_scrollbar_size)
     (pixils/defmode root-mode
       {:theme 'pixils/windows-3
        :children [(pixils.ui.scroll-pane/make
-                   {:style {:width 50 :height 40}
+                   {:style {:width 50
+                            :max-width 50
+                            :height 40
+                            :max-height 40}
                     :content-size {:w 100 :h 80}
                     :children [{:mode 'content-mode
                                 :style {:width 100 :height 80}}]})]})

@@ -237,6 +237,7 @@ TEST_F(ButtonTest, fixed_height_button_clips_oversized_label_to_inner_surface)
       {:children [{:mode 'ui/button
                    :style {:width 32
                            :height 18
+                           :max-height 18
                            :text {:font :font/tall-font}}
                    :state {:label "OK"}}]})
   )");

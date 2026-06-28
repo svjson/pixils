@@ -4,5 +4,6 @@
 (defmode window-mode
   {:focusable true
    :children [{:mode 'menu-bar-mode
-               :style {:height 17}}
+               :style {:height 17
+                       :max-height 17}}
               {:mode 'game-layout-mode}]})

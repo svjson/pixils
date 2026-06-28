@@ -5,6 +5,7 @@
 
 (defcomponent status-panel {:style {:width :fill
                                     :height 25
+                                    :max-height 25
                                     :padding 4
                                     :layout {:direction :row
                                              :gap :space-between}}
@@ -13,7 +14,9 @@
 
                                        {:mode 'button
                                         :style {:width 24
-                                                :height 24}
+                                                :max-width 24
+                                                :height 24
+                                                :max-height 24}
                                         :state {:image (ui/bind-state :face)}
                                         :on-click (fn [state event ctx]
                                                     (when (= :left (:button event))

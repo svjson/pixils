@@ -632,6 +632,7 @@
                                             :gap 0}}
 
             'ui/combo-box-button {:width 15
+                                  :max-width 15
                                   :height :fill}
 
             'ui/combo-box-popup-panel {:background (var :field-bg)
@@ -653,10 +654,12 @@
 
             'ui/slider {:width :fill
                         :height 21
+                        :max-height 21
                         :background {:r 0 :g 0 :b 0 :a 0}
                         :border {:thickness 0}}
             '(ui/slider {:axis :y})
-            {:width 21}
+            {:width 21
+             :max-width 21}
 
             'ui/progress-bar {:background (var :field-bg)
                               :border (var :control-border-style)
@@ -680,10 +683,12 @@
                            :text {:color (var :text)}}
 
             '(ui/scrollbar {:axis :x})
-            {:height 17}
+            {:height 17
+             :max-height 17}
 
             '(ui/scrollbar {:axis :y})
-            {:width 17}
+            {:width 17
+             :max-width 17}
 
             'ui/scrollbar-button {:background (var :panel-bg)
                                   :border (var :scrollbar-button-border-style)
@@ -714,12 +719,15 @@
 
             'ui/scrollbar-corner {:background (var :panel-bg)
                                   :width 17
+                                  :max-width 17
                                   :height 17
+                                  :max-height 17
                                   :border (var :raised-border-style)}
 
             'ui/scroll-pane {:background (var :panel-bg)}
 
-            'ui/scroll-pane-footer {:height 17}
+            'ui/scroll-pane-footer {:height 17
+                                    :max-height 17}
 
             'ui/scroll-pane-viewport {:background (var :field-bg)}
 
@@ -753,6 +761,7 @@
                                                     :thickness 1}}
                                   :width :fill
                                   :height 19
+                                  :max-height 19
                                   :padding 0}
 
             ['ui/window:focus-within 'ui/window-title-bar]
@@ -764,15 +773,19 @@
                                                         :color (var :border)}}
                                        :hidden false
                                        :width 18
-                                       :height 18}
+                                       :max-width 18
+                                       :height 18
+                                       :max-height 18}
 
             '(ui/window-minimize-button ui/button)
             {:border {:left {:color (var :border)
                              :thickness 1}
                       :thickness 0}
              :width 18
+             :max-width 18
              :hidden false
-             :height 18}
+             :height 18
+             :max-height 18}
 
             ['ui/window-minimize-button 'ui/button-inner]
             {:background {:image :pixils/win311-minimize-button

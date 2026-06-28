@@ -7,6 +7,7 @@
   {:class :ui/content
    :style {:width :fill
            :height 108
+           :max-height 108
            :padding 2
            :layout {:direction :column
                     :gap 2}}

@@ -1816,7 +1816,8 @@ TEST_F(RenderTest, built_in_text_node_wraps_wordwise_when_fill_width_is_constrai
        :glyphs {"A" {:x 0 :y 0 :w 4 :h 7}
                 " " {:x 4 :y 0 :w 1 :h 7}}})
     (pixils/defcomponent wrap-box
-      {:style {:width 12}
+      {:style {:width 12
+               :max-width 12}
        :children [{:mode 'ui/text
                    :state {:value "AA AA AA"}
                    :style {:width :fill
@@ -1850,7 +1851,8 @@ TEST_F(RenderTest, built_in_text_node_wraps_wordwise_when_parent_width_is_constr
        :glyphs {"A" {:x 0 :y 0 :w 4 :h 7}
                 " " {:x 4 :y 0 :w 1 :h 7}}})
     (pixils/defcomponent wrap-box
-      {:style {:width 12}
+      {:style {:width 12
+               :max-width 12}
        :children [{:mode 'ui/text
                    :state {:value "AA AA AA"}
                    :style {:text {:font :font/test-font}}}]})
@@ -1883,7 +1885,8 @@ TEST_F(RenderTest, built_in_text_node_wrap_none_stays_single_line_when_width_is_
        :glyphs {"A" {:x 0 :y 0 :w 4 :h 7}
                 " " {:x 4 :y 0 :w 1 :h 7}}})
     (pixils/defcomponent wrap-box
-      {:style {:width 12}
+      {:style {:width 12
+               :max-width 12}
        :children [{:mode 'ui/text
                    :state {:value "AA AA AA"}
                    :style {:width :fill

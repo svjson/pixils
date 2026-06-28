@@ -519,6 +519,14 @@ namespace Pixils::UI
       return axis == Axis::HORIZONTAL ? outer.w : outer.h;
     }
 
+    int fixed_preferred_outer_size(const Style& style,
+                                   const std::optional<Dimension>& natural_content_size,
+                                   Axis axis)
+    {
+      return std::max(fixed_outer_size(style, axis),
+                      natural_outer_size(style, natural_content_size, axis));
+    }
+
     bool fills_axis(const Style& style, Axis axis, bool root_context)
     {
       const auto& size = axis_size(style, axis);
@@ -538,7 +546,7 @@ namespace Pixils::UI
       int resolved_size = 0;
       if (size && size->is_fixed())
       {
-        resolved_size = fixed_outer_size(style, axis);
+        resolved_size = fixed_preferred_outer_size(style, natural_content_size, axis);
       }
       else if (fills_axis(style, axis, root_context))
       {
@@ -1012,9 +1020,13 @@ namespace Pixils::UI
         }
 
         if (child_style.width && child_style.width->is_fixed())
-          child_outer_size.w = child_style.total_width();
+          child_outer_size.w = fixed_preferred_outer_size(child_style,
+                                                          child_natural_content_size,
+                                                          Axis::HORIZONTAL);
         if (child_style.height && child_style.height->is_fixed())
-          child_outer_size.h = child_style.total_height();
+          child_outer_size.h = fixed_preferred_outer_size(child_style,
+                                                          child_natural_content_size,
+                                                          Axis::VERTICAL);
         child_outer_size.w =
           apply_outer_size_constraints(child_style, Axis::HORIZONTAL, child_outer_size.w);
         child_outer_size.h =
@@ -1304,7 +1316,8 @@ namespace Pixils::UI
           if (natural) natural_outer = calculate_outer_size(cs, *natural);
 
           int logical_main = natural_outer.w;
-          if (cs.width && cs.width->is_fixed()) logical_main = cs.total_width();
+          if (cs.width && cs.width->is_fixed())
+            logical_main = fixed_preferred_outer_size(cs, natural, Axis::HORIZONTAL);
           logical_main = apply_outer_size_constraints(cs, Axis::HORIZONTAL, logical_main);
 
           int basis_outer = scaled_outer_size(cs, Axis::HORIZONTAL, logical_main);
@@ -1460,7 +1473,7 @@ namespace Pixils::UI
           logical_outer_sizes[i] =
             apply_outer_size_constraints(cs,
                                          main_axis,
-                                         row ? cs.total_width() : cs.total_height());
+                                         fixed_preferred_outer_size(cs, natural, main_axis));
           outer_sizes[i] = scaled_outer_size(cs, main_axis, logical_outer_sizes[i]);
           total_fixed += outer_sizes[i];
         }

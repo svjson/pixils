@@ -6,6 +6,7 @@
 (defcomponent layer-list
   {:style {:width :fill
            :height 108
+           :max-height 108
            :background (pixils/var :content-bg)
            :border {:color (pixils/var :border)
                     :thickness 1}

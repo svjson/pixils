@@ -134,6 +134,7 @@
                                                  :thickness 1}}
                                :width :fill
                                :height 19
+                               :max-height 19
                                :padding 0}
 
             ['window:focus-within 'window-title-bar]
@@ -145,11 +146,15 @@
                                                      :color c/BLACK}}
                                     :hidden false
                                     :width 18
-                                    :height 18}
+                                    :max-width 18
+                                    :height 18
+                                    :max-height 18}
 
             'window-minimize-button {:width 18
+                                     :max-width 18
                                      :hidden false
-                                     :height 18}
+                                     :height 18
+                                     :max-height 18}
 
             '(window-minimize-button button-inner)
             {:background {:image :win3/minimize-button}}

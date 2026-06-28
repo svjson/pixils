@@ -51,6 +51,7 @@ TEST_F(ListBoxTest, shrink_height_list_box_rebuilds_with_scrollbar_when_clamped)
     (pixils/defmode root-mode
       {:style {:width 100
                :height 25
+               :max-height 25
                :layout {:direction :column}}
        :children [{:mode 'header-mode}
                   (pixils.ui.list-box/make
@@ -217,7 +218,8 @@ TEST_F(ListBoxTest, list_box_uses_scroll_pane_and_forces_initial_selection)
                    {:options [{:value :a :label "Alpha"}
                               {:value :b :label "Beta"}
                               {:value :c :label "Gamma"}]
-                    :style {:width 100}
+                    :style {:width 100
+                            :max-width 100}
                     :row-height 10
                     :visible-rows 2
                     :content-width 100

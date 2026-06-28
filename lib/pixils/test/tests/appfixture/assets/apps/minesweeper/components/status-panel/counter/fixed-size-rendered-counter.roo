@@ -5,7 +5,9 @@
 
 (defcomponent counter
   {:style {:width 41
-           :height 25}
+           :max-width 41
+           :height 25
+           :max-height 25}
    :render (fn [state ctx]
              (win/draw-bevel! {:x 0 :y 0 :w 41 :h 25}
                               {:thickness 1 :invert true})

@@ -439,6 +439,7 @@
                                             :gap 0}}
 
             'ui/combo-box-button {:width 16
+                                  :max-width 16
                                   :height :fill}
 
             'ui/combo-box-popup-panel {:background (var :field-bg)
@@ -460,10 +461,12 @@
 
             'ui/slider {:width :fill
                         :height 21
+                        :max-height 21
                         :background {:r 0 :g 0 :b 0 :a 0}
                         :border {:thickness 0}}
             '(ui/slider {:axis :y})
-            {:width 21}
+            {:width 21
+             :max-width 21}
 
             :ui/split-pane-resizer {:background (var :panel-bg)
                                     :border (var :raised-border-style)}
@@ -518,7 +521,8 @@
                                            :bottom {:thickness 0}}
                                   :text {:color (var :text)}
                                   :width :fill
-                                  :height 19}
+                                  :height 19
+                                  :max-height 19}
 
             'ui/window-body {:background (var :menu-bg)
                              :border {:line-style :solid
@@ -546,7 +550,9 @@
 
             'ui/window-minimize-button {:margin {:t 2}
                                         :width 16
-                                        :height 14}
+                                        :max-width 16
+                                        :height 14
+                                        :max-height 14}
 
             ['ui/window-minimize-button 'ui/button-inner]
             {:background {:image :pixils/win95-minimize-button

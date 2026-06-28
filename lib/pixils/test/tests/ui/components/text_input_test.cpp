@@ -217,6 +217,7 @@ TEST_F(TextInputTest, text_input_scrolls_horizontally_to_keep_caret_visible)
       {:init (fn [state ctx] {:text "AAAAAAAAAAAA"})
        :children [{:mode 'ui/text-input
                    :style {:width 50
+                           :max-width 50
                            :height 22
                            :text {:font :font/test-font}}
                    :state {:value (pixils.ui/bind-state :text)

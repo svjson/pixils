@@ -22,7 +22,10 @@ TEST_F(ScrollbarTest, scrollbar_lays_out_button_children_from_axis)
   runtime.eval(R"(
     (pixils/defmode root-mode
       {:children [{:mode 'ui/scrollbar
-                   :style {:width 50 :height 10}
+                   :style {:width 50
+                           :max-width 50
+                           :height 10
+                           :max-height 10}
                    :state {:axis :x :content-size 100 :value 0}}]})
   )");
 
