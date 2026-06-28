@@ -224,10 +224,40 @@
              :step row-height
              :children children}))))
 
-(defun list-box-managed-style [state]
+(defun list-box-style [ctx]
+  (or (-> ctx :view :effective-style)
+      (-> ctx :view :style)))
+
+(defun list-box-style-padding-side [style side]
+  (or (get (:padding style) side) 0))
+
+(defun list-box-style-border-side-thickness [style side]
+  (let [border (:border style)
+        side-style (get border side)]
+    (or (:thickness side-style)
+        (:thickness border)
+        0)))
+
+(defun list-box-vertical-content-inset [ctx]
+  (let [style (list-box-style ctx)]
+    (+ (list-box-style-padding-side style :top)
+       (list-box-style-padding-side style :bottom)
+       (list-box-style-border-side-thickness style :top)
+       (list-box-style-border-side-thickness style :bottom))))
+
+(defun list-box-managed-height [state ctx]
+  (let [content-height (list-box-preferred-height state)]
+    (if (= (-> (list-box-style ctx) :box-sizing) :content-box)
+      content-height
+      (+ content-height (list-box-vertical-content-inset ctx)))))
+
+(defun list-box-managed-style [state ctx]
   (if (:managed-height? state)
-    {:height (list-box-preferred-height state)}
+    {:height (list-box-managed-height state ctx)}
     {}))
+
+(defun list-box-can-sync-managed-height? [ctx]
+  (> (or (-> ctx :view :bounds :h) 0) 0))
 
 (defun child-at [children index]
   (if (and (>= index 0)
@@ -760,9 +790,10 @@
         (ui/replace-child! (:view ctx)
                            "scroll-pane"
                            (list-box-scroll-pane-for-state state)))
-      (when (:managed-height? state)
+      (when (and (:managed-height? state)
+                 (list-box-can-sync-managed-height? ctx))
         (ui/style! (:view ctx)
-                   (list-box-managed-style state)))
+                   (list-box-managed-style state ctx)))
       (assoc state :rendered-render-key render-key))))
 
 (defun make [{:keys [options style row-height visible-rows max-height content-width selected-indices multi-select? force-selection? toggle-selected? hover-highlight? item-child item-state-keys state disabled? reorderable? reorder-drag-threshold reorder-visual-strategy]}]
@@ -774,7 +805,9 @@
         managed-height? (not (contains? (or style {}) :height))
         content-height (list-box-content-height options row-height)
         height (list-box-visible-height options row-height visible-rows max-height)
-        final-style (merge {:height height
+        final-style (merge {:height (if managed-height?
+                                      :shrink
+                                      height)
                             :width :shrink}
                            (or style {}))
         stretch-items? (list-box-stretches-items? final-style)]

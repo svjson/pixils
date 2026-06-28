@@ -22,6 +22,23 @@ namespace
     if (!viewport || viewport->children.empty()) return nullptr;
     return viewport->children[0];
   }
+
+  std::shared_ptr<Pixils::Runtime::View> list_box_row(
+    const std::shared_ptr<Pixils::Runtime::View>& list_box)
+  {
+    if (!list_box || list_box->children.empty()) return nullptr;
+    auto scroll_pane = list_box->children[0];
+    if (!scroll_pane || scroll_pane->children.empty()) return nullptr;
+    return scroll_pane->children[0];
+  }
+
+  std::shared_ptr<Pixils::Runtime::View> list_box_viewport(
+    const std::shared_ptr<Pixils::Runtime::View>& list_box)
+  {
+    auto row = list_box_row(list_box);
+    if (!row || row->children.empty()) return nullptr;
+    return row->children[0];
+  }
 } // namespace
 
 TEST_F(ListBoxTest, shrink_height_list_box_rebuilds_with_scrollbar_when_clamped)
@@ -69,6 +86,90 @@ TEST_F(ListBoxTest, shrink_height_list_box_rebuilds_with_scrollbar_when_clamped)
   EXPECT_EQ(row->children[1]->mode->name, "ui/scrollbar");
 }
 
+TEST_F(ListBoxTest, windows_3_natural_height_list_box_includes_border_without_scrollbar)
+{
+  runtime.eval(R"(
+    (pixils/defcomponent natural-row
+      {:style {:width :fill
+               :height 10}})
+
+    (pixils/defmode root-mode
+      {:theme 'pixils/windows-3
+       :children [(pixils.ui.list-box/make
+                   {:options [{:value :a :label "Alpha"}
+                              {:value :b :label "Beta"}]
+                    :row-height 10
+                    :visible-rows 2
+                    :content-width 80
+                    :item-child (fn [index option]
+                                  {:mode 'natural-row})})]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  session.update_mode();
+  session.render_mode();
+  session.update_mode();
+  session.render_mode();
+
+  ASSERT_NE(session.active_mode, nullptr);
+  ASSERT_EQ(session.active_mode->children.size(), 1u);
+  auto list_box = session.active_mode->children[0];
+  ASSERT_NE(list_box, nullptr);
+
+  EXPECT_EQ(list_box->bounds.h, 22);
+
+  auto row = list_box_row(list_box);
+  ASSERT_NE(row, nullptr);
+  EXPECT_EQ(row->children.size(), 1u);
+
+  auto viewport = list_box_viewport(list_box);
+  ASSERT_NE(viewport, nullptr);
+  EXPECT_EQ(viewport->bounds.h, 20);
+}
+
+TEST_F(ListBoxTest, windows_3_natural_height_list_box_with_max_height_keeps_scrollbar_when_clamped)
+{
+  runtime.eval(R"(
+    (pixils/defcomponent natural-row
+      {:style {:width :fill
+               :height 10}})
+
+    (pixils/defmode root-mode
+      {:theme 'pixils/windows-3
+       :children [(pixils.ui.list-box/make
+                   {:options [{:value :a :label "Alpha"}
+                              {:value :b :label "Beta"}
+                              {:value :c :label "Gamma"}]
+                    :row-height 10
+                    :max-height 20
+                    :content-width 80
+                    :item-child (fn [index option]
+                                  {:mode 'natural-row})})]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  session.update_mode();
+  session.render_mode();
+  session.update_mode();
+  session.render_mode();
+
+  ASSERT_NE(session.active_mode, nullptr);
+  ASSERT_EQ(session.active_mode->children.size(), 1u);
+  auto list_box = session.active_mode->children[0];
+  ASSERT_NE(list_box, nullptr);
+
+  EXPECT_EQ(list_box->bounds.h, 22);
+
+  auto row = list_box_row(list_box);
+  ASSERT_NE(row, nullptr);
+  ASSERT_EQ(row->children.size(), 2u);
+  EXPECT_EQ(row->children[1]->mode->name, "ui/scrollbar");
+
+  auto viewport = list_box_viewport(list_box);
+  ASSERT_NE(viewport, nullptr);
+  EXPECT_EQ(viewport->bounds.h, 20);
+}
+
 TEST_F(ListBoxTest, list_box_uses_scroll_pane_and_forces_initial_selection)
 {
   runtime.eval(R"(
@@ -95,7 +196,7 @@ TEST_F(ListBoxTest, list_box_uses_scroll_pane_and_forces_initial_selection)
   ASSERT_NE(list_box, nullptr);
   ASSERT_NE(list_box->state, nullptr);
   EXPECT_EQ(list_box->bounds.w, 100);
-  EXPECT_EQ(list_box->bounds.h, 20);
+  EXPECT_EQ(list_box->bounds.h, 22);
 
   auto selected =
     Roo::Dict::get_property(list_box->state, Roo::keyword("selected-indices"));
@@ -108,6 +209,7 @@ TEST_F(ListBoxTest, list_box_uses_scroll_pane_and_forces_initial_selection)
   EXPECT_EQ(scroll_pane->mode->name, "ui/scroll-pane");
   auto row = scroll_pane->children[0];
   auto viewport = row->children[0];
+  EXPECT_EQ(viewport->bounds.h, 20);
   auto content = viewport->children[0];
   ASSERT_GE(content->children.size(), 1u);
   auto first_item = content->children[0];
@@ -140,7 +242,7 @@ TEST_F(ListBoxTest, list_box_renders_rows_from_bound_options)
 
   auto list_box = session.active_mode->children[0];
   ASSERT_NE(list_box, nullptr);
-  EXPECT_EQ(list_box->bounds.h, 20);
+  EXPECT_EQ(list_box->bounds.h, 22);
 
   auto content = list_box_content(list_box);
   ASSERT_NE(content, nullptr);
@@ -184,7 +286,7 @@ TEST_F(ListBoxTest, list_box_rebuilds_rows_when_bound_options_change)
 
   auto list_box = session.active_mode->children[0];
   ASSERT_NE(list_box, nullptr);
-  EXPECT_EQ(list_box->bounds.h, 30);
+  EXPECT_EQ(list_box->bounds.h, 32);
 
   auto content = list_box_content(list_box);
   ASSERT_NE(content, nullptr);
@@ -295,12 +397,13 @@ TEST_F(ListBoxTest, list_box_defaults_to_shrink_width)
   auto list_box = session.active_mode->children[0];
   ASSERT_NE(list_box, nullptr);
   EXPECT_EQ(list_box->bounds.w, 82);
-  EXPECT_EQ(list_box->bounds.h, 20);
+  EXPECT_EQ(list_box->bounds.h, 22);
 
   auto scroll_pane = list_box->children[0];
   auto row = scroll_pane->children[0];
   auto viewport = row->children[0];
   EXPECT_EQ(viewport->bounds.w, 80);
+  EXPECT_EQ(viewport->bounds.h, 20);
 }
 
 TEST_F(ListBoxTest, list_box_with_explicit_width_stretches_items)
