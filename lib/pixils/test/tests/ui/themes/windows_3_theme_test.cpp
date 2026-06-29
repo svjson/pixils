@@ -64,6 +64,19 @@ namespace
     EXPECT_EQ(view->effective_style.border->bottom_thickness(), expected);
     EXPECT_EQ(view->effective_style.border->left_thickness(), expected);
   }
+
+  Pixils::Color background_color(const std::shared_ptr<Pixils::Runtime::View>& view)
+  {
+    EXPECT_NE(view, nullptr);
+    EXPECT_TRUE(view->effective_style.background.has_value());
+    EXPECT_TRUE(view->effective_style.background->color.has_value());
+    if (!view || !view->effective_style.background ||
+        !view->effective_style.background->color)
+    {
+      return {};
+    }
+    return *view->effective_style.background->color;
+  }
 } // namespace
 
 TEST_F(Windows3ThemeTest, dark_variant_uses_bright_default_border_for_fields)
@@ -273,4 +286,40 @@ TEST_F(Windows3ThemeTest, dark_variant_uses_bright_scrollbar_arrow_images)
             ":down-image :windows-3-theme/scrollbar-arrow-down-dark "
             ":left-image :windows-3-theme/scrollbar-arrow-left-dark "
             ":right-image :windows-3-theme/scrollbar-arrow-right-dark}");
+}
+
+TEST_F(Windows3ThemeTest,
+       dark_variant_pressed_scrollbar_and_combo_controls_match_button_background)
+{
+  runtime.eval(R"(
+    (pixils/defmode root-mode
+      {:theme 'pixils/windows-3
+       :theme-variant :dark
+       :children [{:mode 'ui/button
+                   :style {:width 80 :height 24}
+                   :state {:label "OK" :pressed true}}
+                  {:mode 'ui/scrollbar-button
+                   :style {:width 17 :height 17}
+                   :state {:direction :up :pressed true}}
+                  {:mode 'ui/scrollbar-handle
+                   :style {:width 17 :height 24}
+                   :state {:axis :y :pressed true}}
+                  {:mode 'ui/combo-box-button
+                   :style {:width 17 :height 24}
+                   :state {:direction :down :pressed true}}]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  session.update_mode();
+  layout_active_mode(runtime, session);
+
+  auto button_inner = find_first_mode(session.active_mode, "ui/button-inner");
+  auto scrollbar_button = find_first_mode(session.active_mode, "ui/scrollbar-button");
+  auto scrollbar_handle = find_first_mode(session.active_mode, "ui/scrollbar-handle");
+  auto combo_button = find_first_mode(session.active_mode, "ui/combo-box-button");
+  const Pixils::Color expected = background_color(button_inner);
+
+  EXPECT_EQ(background_color(scrollbar_button), expected);
+  EXPECT_EQ(background_color(scrollbar_handle), expected);
+  EXPECT_EQ(background_color(combo_button), expected);
 }

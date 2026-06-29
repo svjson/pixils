@@ -726,7 +726,11 @@
                                   :text {:color (var :text)}}
 
             '(ui/scrollbar-button {:pressed true})
-            {:border (var :scrollbar-button-pressed-border-style)}
+            {:background (var :button-pressed-bg)
+             :border (var :scrollbar-button-pressed-border-style)}
+
+            '(ui/combo-box-button {:pressed true})
+            {:background (var :button-pressed-bg)}
 
             'ui/scrollbar-track {:background (var :panel-bg)}
 
@@ -746,7 +750,8 @@
                                   :border (var :raised-border-style)}
 
             '(ui/scrollbar-handle {:pressed true})
-            {:border (var :pressed-border-style)}
+            {:background (var :button-pressed-bg)
+             :border (var :pressed-border-style)}
 
             'ui/scrollbar-corner {:background (var :panel-bg)
                                   :width 17
