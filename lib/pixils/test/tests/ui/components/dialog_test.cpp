@@ -48,6 +48,21 @@ namespace
 
     return nullptr;
   }
+
+  std::shared_ptr<View> find_first_mode(const std::shared_ptr<View>& view,
+                                        const std::string& mode_name)
+  {
+    if (!view) return nullptr;
+    if (view->mode && view->mode->name == mode_name) return view;
+
+    for (const auto& child : view->children)
+    {
+      auto match = find_first_mode(child, mode_name);
+      if (match) return match;
+    }
+
+    return nullptr;
+  }
 } // namespace
 
 TEST_F(DialogTest, make_confirm_renders_buttons_in_declared_order_with_label_overrides)
@@ -72,6 +87,32 @@ TEST_F(DialogTest, make_confirm_renders_buttons_in_declared_order_with_label_ove
   ASSERT_EQ(labels.size(), 2u);
   EXPECT_EQ(labels[0], "Cancel");
   EXPECT_EQ(labels[1], "Delete");
+}
+
+TEST_F(DialogTest, make_confirm_accepts_string_body_and_body_fills_title_width)
+{
+  runtime.eval(R"(
+    (pixils/defmode root-mode
+      {:children [(pixils.ui.dialog/make-confirm
+                   {:title "Exit Character Creation?"
+                    :body "Your current character will be lost if you exit."
+                    :buttons :dialog/ok-cancel})]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  session.render_mode();
+
+  auto window_body = find_first_mode(session.active_mode, "ui/window-body");
+  auto dialog_body = find_first_mode(session.active_mode, "ui/dialog-body");
+  auto text = find_first_mode(dialog_body, "ui/text");
+  ASSERT_NE(window_body, nullptr);
+  ASSERT_NE(dialog_body, nullptr);
+  ASSERT_NE(text, nullptr);
+
+  auto value = get_key(text->state, "value");
+  ASSERT_NE(value, nullptr);
+  EXPECT_EQ(value->str(), "Your current character will be lost if you exit.");
+  EXPECT_EQ(dialog_body->bounds.w, window_body->bounds.w);
 }
 
 TEST_F(DialogTest, open_confirm_pops_selected_choice_and_payload_to_origin_event)

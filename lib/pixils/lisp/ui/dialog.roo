@@ -17,7 +17,8 @@
    :dialog/dismiss "Dismiss"})
 
 (def default-dialog-body-style
-  {:width 260
+  {:width :fill
+   :min-width 260
    :height :shrink
    :padding 10
    :layout {:direction :column
@@ -66,6 +67,9 @@
   (cond
     (nil? body)
     []
+
+    (= (type-of body) "string")
+    [body]
 
     (or (:mode body)
         (:children body)
