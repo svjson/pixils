@@ -104,6 +104,16 @@
 (defun style-padding-side [style side]
   (or (get (:padding style) side) 0))
 
+(defun padding-side [padding side]
+  (or (get padding side)
+      (cond
+        (= side :top) (get padding :t)
+        (= side :right) (get padding :r)
+        (= side :bottom) (get padding :b)
+        (= side :left) (get padding :l)
+        :default nil)
+      0))
+
 (defun combo-box-trigger-style [ctx]
   (let [children (ui/children ctx)
         trigger (if (> (count children) 0)
@@ -126,19 +136,41 @@
       (when ctx (combo-box-measured-row-height ctx))
       default-row-height))
 
+(defun option-label-width [option text-opts]
+  (or (:w (r/text-size (option-label option) text-opts)) 0))
+
+(defun options-label-width [options text-opts]
+  (reduce (or options [])
+          0
+          (fn [out option]
+            (max out (option-label-width option text-opts)))))
+
 (defun combo-box-content-size [state ctx]
   (let [style (-> ctx :view :effective-style)
         trigger-style (combo-box-trigger-style ctx)
         label (or (:selected-label state)
                   (selected-label (:options state) (:selected-index state))
                   "M")
+        text-opts (text-args style)
         text-dim (r/text-size (if (> (count label) 0) label "M")
-                              (text-args style))
+                              text-opts)
+        options-width (options-label-width (:options state) text-opts)
         line-height (combo-box-text-height ctx)
         vertical-padding (+ (style-padding-side trigger-style :top)
                             (style-padding-side trigger-style :bottom))]
-    {:w (max 1 (+ (or (:w text-dim) 0) 24))
+    {:w (max 1 (+ (max (or (:w text-dim) 0)
+                       options-width)
+                  24))
      :h (max 1 (+ line-height vertical-padding))}))
+
+(defun popup-list-content-width [options ctx]
+  (let [text-opts (text-args (-> ctx :view :effective-style))
+        padding (or (ui/theme-var ctx :list-box-item-padding nil)
+                    {:t 3 :r 5 :b 3 :l 5})
+        label-width (options-label-width options text-opts)]
+    (max 1 (+ label-width
+              (padding-side padding :left)
+              (padding-side padding :right)))))
 
 (defun popup-anchor-geometry [ctx]
   (let [anchor-view (:view ctx)
@@ -162,7 +194,10 @@
   (let [options (or (:options state) [])
         row-height (combo-box-row-height state ctx)
         max-height (:max-height state)
-        anchor (popup-anchor-geometry ctx)]
+        anchor (popup-anchor-geometry ctx)
+        content-width (max 1
+                           (max (- (:width anchor) 2)
+                                (popup-list-content-width options ctx)))]
     (when (and (not (:disabled? state))
                (not (empty? options)))
       (push-mode!
@@ -180,13 +215,13 @@
                   :event :combo-box/select}
          :overlay {:anchor (:view ctx)
                    :placement :bottom-start
-                   :fallback-placement :top-start
-                   :match-anchor-width? true}
+                   :fallback-placement :top-start}
          :children [{:mode 'ui/combo-box-popup-panel
                      :style (merge {:position :absolute
                                      :left 0
                                      :top 0
-                                     :width (:width anchor)
+                                     :width :shrink
+                                     :min-width (:width anchor)
                                      :height :shrink}
                                     (if (nil? max-height)
                                       {}
@@ -195,7 +230,7 @@
                                  (merge
                                   {:options options
                                    :style {:border {:thickness 0}}
-                                   :content-width (max 1 (- (:width anchor) 2))
+                                   :content-width content-width
                                    :selected-indices []
                                    :hover-highlight? true
                                    :toggle-selected? false}
@@ -210,7 +245,8 @@
   {:style {:width :fill
            :height :fill}
    :children [{:mode 'ui/text
-               :style {:width :fill}
+               :style {:width :fill
+                       :text {:wrap :none}}
                :state {:value (ui/bind-state :selected-label)}}
               {:mode 'ui/combo-box-button
                :state {:axis :y

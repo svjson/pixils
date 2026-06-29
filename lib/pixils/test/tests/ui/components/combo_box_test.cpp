@@ -525,6 +525,122 @@ TEST_F(ComboBoxTest, combo_box_popup_panel_theme_max_height_caps_scroll_viewport
   EXPECT_EQ(measured_height->num().get_int(), 100);
 }
 
+TEST_F(ComboBoxTest, combo_box_popup_expands_to_wide_option_label)
+{
+  SDLMock::prepared_surfaces["./font.png"] = {16, 12};
+  runtime.eval(R"(
+    (pixils/defbundle fonts {:images {:atlas "font.png"}})
+    (pixils/deffont wide-test-font
+      {:type :bitmap
+       :resource :fonts/atlas
+       :glyphs {"S" {:x 0 :y 0 :w 4 :h 8}
+                "h" {:x 4 :y 0 :w 4 :h 8}
+                "o" {:x 8 :y 0 :w 4 :h 8}
+                "r" {:x 12 :y 0 :w 4 :h 8}
+                "t" {:x 0 :y 0 :w 4 :h 8}
+                "W" {:x 4 :y 0 :w 4 :h 8}}})
+    (pixils/defmode root-mode
+      {:children [(pixils.ui.combo-box/make
+                   {:options [{:value :a :label "Short"}
+                              {:value :b :label "WWWWWWWWWWWWWWWWWWWWWWWW"}]
+                    :style {:width 70
+                            :max-width 70
+                            :text {:font :font/wide-test-font}}
+                    :row-height 20})]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  session.update_mode();
+  session.render_mode();
+
+  auto combo = session.active_mode->children[0];
+  ASSERT_NE(combo, nullptr);
+  input().mouse_down({combo->bounds.x + 2, combo->bounds.y + 2});
+  update_cycle();
+  session.render_mode();
+  session.update_mode();
+  session.render_mode();
+
+  ASSERT_NE(session.active_mode, nullptr);
+  EXPECT_EQ(session.active_mode->mode->name, "ui/combo-box-popup");
+  ASSERT_EQ(session.active_mode->children.size(), 1u);
+  auto popup_panel = session.active_mode->children[0];
+  ASSERT_NE(popup_panel, nullptr);
+  EXPECT_GT(popup_panel->bounds.w, combo->bounds.w);
+
+  ASSERT_EQ(popup_panel->children.size(), 1u);
+  auto list_box = popup_panel->children[0];
+  auto content_width = get_state_key(list_box, "content-width");
+  ASSERT_NE(content_width, nullptr);
+  EXPECT_GT(content_width->num().get_int(), combo->bounds.w - 2);
+  EXPECT_LT(content_width->num().get_int(), 150);
+  EXPECT_GT(list_box->bounds.w, combo->bounds.w - 2);
+}
+
+TEST_F(ComboBoxTest, combo_box_natural_width_uses_widest_option_label)
+{
+  SDLMock::prepared_surfaces["./font.png"] = {16, 12};
+  runtime.eval(R"(
+    (pixils/defbundle fonts {:images {:atlas "font.png"}})
+    (pixils/deffont width-test-font
+      {:type :bitmap
+       :resource :fonts/atlas
+       :glyphs {"S" {:x 0 :y 0 :w 4 :h 8}
+                "h" {:x 4 :y 0 :w 4 :h 8}
+                "o" {:x 8 :y 0 :w 4 :h 8}
+                "r" {:x 12 :y 0 :w 4 :h 8}
+                "t" {:x 0 :y 0 :w 4 :h 8}
+                "W" {:x 4 :y 0 :w 4 :h 8}}})
+    (pixils/defmode root-mode
+      {:init (fn [state ctx] {:selected-index 0})
+       :on {:combo-box/change (fn [state event ctx]
+                                (assoc state
+                                       :selected-index
+                                       (:selected-index (:payload event))))}
+       :children [(pixils.ui.combo-box/make
+                   {:options [{:value :a :label "Short"}
+                              {:value :b :label "WWWWWWWWWWWWWWWWWW"}]
+                    :selected-index (pixils.ui/bind-state :selected-index)
+                    :style {:width :shrink
+                            :text {:font :font/width-test-font}}
+                    :row-height 20})]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  session.update_mode();
+  session.render_mode();
+
+  auto combo = session.active_mode->children[0];
+  ASSERT_NE(combo, nullptr);
+  int initial_width = combo->bounds.w;
+  EXPECT_GT(initial_width, 70);
+
+  input().mouse_down({combo->bounds.x + 2, combo->bounds.y + 2});
+  update_cycle();
+  session.render_mode();
+  ASSERT_EQ(session.active_mode->mode->name, "ui/combo-box-popup");
+  input().mouse_down({combo->bounds.x + 2, combo->bounds.y + 25});
+  update_cycle();
+  input().mouse_up({combo->bounds.x + 2, combo->bounds.y + 25});
+  update_cycle();
+  session.update_mode();
+  session.render_mode();
+
+  ASSERT_EQ(session.active_mode->mode->name, "root-mode");
+  combo = session.active_mode->children[0];
+  ASSERT_NE(combo, nullptr);
+  EXPECT_EQ(combo->bounds.w, initial_width);
+
+  ASSERT_EQ(combo->children.size(), 1u);
+  auto trigger = combo->children[0];
+  ASSERT_EQ(trigger->children.size(), 2u);
+  auto label = trigger->children[0];
+  ASSERT_TRUE(label->effective_style.text.has_value());
+  ASSERT_TRUE(label->effective_style.text->wrap.has_value());
+  EXPECT_EQ(*label->effective_style.text->wrap,
+            Pixils::UI::Style::Text::Wrap::NONE);
+}
+
 TEST_F(ComboBoxTest, open_combo_box_closes_without_reopening_when_trigger_clicked)
 {
   runtime.eval(R"(
