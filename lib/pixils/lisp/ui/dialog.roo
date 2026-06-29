@@ -219,6 +219,7 @@
                 {:origin {:view (:view ctx)
                           :event (or (:result-event opts)
                                      :dialog/result)}
+                 :class (:overlay-class opts)
                  :on (make-result-handlers (:results opts))
                  :children [(make-dialog-window opts)]})
     nil))

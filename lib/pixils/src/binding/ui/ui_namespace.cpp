@@ -339,7 +339,7 @@ namespace Pixils::Script
 
     /** ReplaceChildBangFunction - replace-child! */
     FUNC_IMPL(ReplaceChildBangFunction,
-              SIG((FN_ARGS((&Roo::Type::ANY), (&Roo::Type::ANY), (&Roo::Type::MAP)),
+              SIG((FN_ARGS((&Roo::Type::ANY), (&Roo::Type::ANY), (&Type::MAP_OR_STRING)),
                    EXEC_DISPATCH(&ReplaceChildBangFunction::exec_replace_child))));
 
     EXEC_BODY(ReplaceChildBangFunction, exec_replace_child)

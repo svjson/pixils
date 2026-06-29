@@ -2,6 +2,8 @@
 #include "pixils/runtime/mode.h"
 
 #include <gtest/gtest.h>
+#include <roo/exception.h>
+#include <roo/runtime/dict.h>
 #include <roo/runtime/value.h>
 
 using DefModeTest = BaseFixture;
@@ -222,6 +224,55 @@ TEST_F(DefModeTest, defmode_child_explicit_id_overrides_auto)
   Pixils::Runtime::Mode& mode = get_mode(runtime, "parent-mode");
   ASSERT_EQ(mode.children.size(), 1u);
   EXPECT_EQ(mode.children[0].id, "sidebar");
+}
+
+TEST_F(DefModeTest, string_children_are_normalized_to_text_nodes)
+{
+  runtime.eval(R"(
+    (pixils/defmode parent-mode
+      {:children ["Hello" "World"]})
+  )");
+
+  Pixils::Runtime::Mode& mode = get_mode(runtime, "parent-mode");
+  ASSERT_EQ(mode.children.size(), 2u);
+  EXPECT_EQ(mode.children[0].mode_name, "ui/text");
+  EXPECT_EQ(mode.children[0].id, "ui/text-0");
+  auto first_value =
+    Roo::Dict::get_property(mode.children[0].initial_state, Roo::keyword("value"));
+  ASSERT_NE(first_value, nullptr);
+  EXPECT_EQ(first_value->str(), "Hello");
+
+  EXPECT_EQ(mode.children[1].mode_name, "ui/text");
+  EXPECT_EQ(mode.children[1].id, "ui/text-1");
+  auto second_value =
+    Roo::Dict::get_property(mode.children[1].initial_state, Roo::keyword("value"));
+  ASSERT_NE(second_value, nullptr);
+  EXPECT_EQ(second_value->str(), "World");
+}
+
+TEST_F(DefModeTest, raw_string_children_value_is_one_text_node)
+{
+  runtime.eval(R"(
+    (pixils/defmode parent-mode
+      {:children "Hello"})
+  )");
+
+  Pixils::Runtime::Mode& mode = get_mode(runtime, "parent-mode");
+  ASSERT_EQ(mode.children.size(), 1u);
+  EXPECT_EQ(mode.children[0].mode_name, "ui/text");
+  auto value =
+    Roo::Dict::get_property(mode.children[0].initial_state, Roo::keyword("value"));
+  ASSERT_NE(value, nullptr);
+  EXPECT_EQ(value->str(), "Hello");
+}
+
+TEST_F(DefModeTest, children_reject_non_map_or_string_entries)
+{
+  EXPECT_THROW(runtime.eval(R"(
+    (pixils/defmode parent-mode
+      {:children [42]})
+  )"),
+               Roo::TypeError);
 }
 
 TEST_F(DefModeTest, defmode_resources_accept_sounds)

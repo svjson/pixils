@@ -4,6 +4,7 @@
 #include <pixils/program.h>
 
 #include <gtest/gtest.h>
+#include <roo/exception.h>
 #include <roo/runtime/dict.h>
 #include <roo/runtime/value.h>
 
@@ -1484,4 +1485,47 @@ TEST_F(SessionStateTreeTest, replace_child_bang_accepts_anonymous_child_entry)
   ASSERT_TRUE(child->mode->style->height.has_value());
   EXPECT_EQ(child->mode->style->width->fixed_value_or(), 40);
   EXPECT_EQ(child->mode->style->height->fixed_value_or(), 20);
+}
+
+TEST_F(SessionStateTreeTest, replace_child_bang_accepts_string_child_entry)
+{
+  runtime.eval(R"(
+    (pixils/defmode old-child {})
+    (pixils/defmode root-mode
+      {:init (fn [state ctx] {:swapped? false})
+       :update (fn [state ctx]
+                 (if (:swapped? state)
+                   state
+                   (do (pixils.ui/replace-child! (:view ctx)
+                                                 "message"
+                                                 "Ready")
+                       (assoc state :swapped? true))))
+       :children [{:mode 'old-child
+                   :id "message"}]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  ASSERT_NE(session.active_mode, nullptr);
+  ASSERT_EQ(session.active_mode->children.size(), 1u);
+  ASSERT_EQ(session.active_mode->children[0]->mode->name, "old-child");
+
+  update_cycle();
+
+  ASSERT_EQ(session.active_mode->children.size(), 1u);
+  auto child = session.active_mode->children[0];
+  ASSERT_NE(child, nullptr);
+  EXPECT_EQ(child->id, "message");
+  ASSERT_NE(child->mode, nullptr);
+  EXPECT_EQ(child->mode->name, "ui/text");
+  auto value = Roo::Dict::get_property(child->state, Roo::keyword("value"));
+  ASSERT_NE(value, nullptr);
+  EXPECT_EQ(value->str(), "Ready");
+}
+
+TEST_F(SessionStateTreeTest, replace_child_bang_rejects_non_map_or_string_child_entry)
+{
+  EXPECT_THROW(runtime.eval(R"(
+    (pixils.ui/replace-child! nil "message" 42)
+  )"),
+               Roo::InvocationException);
 }

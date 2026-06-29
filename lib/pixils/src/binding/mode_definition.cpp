@@ -246,21 +246,48 @@ namespace Pixils::Script
     append_materialized_style(style);
   }
 
+  Roo::sptr_val text_child_entry(const Roo::sptr_val& value)
+  {
+    return Roo::map({
+      Roo::keyword("mode"),
+      Roo::symbol("ui/text"),
+      Roo::keyword("state"),
+      Roo::map({
+        Roo::keyword("value"),
+        value,
+      }),
+    });
+  }
+
+  Roo::sptr_val normalize_child_entry(const Roo::sptr_val& entry)
+  {
+    if (entry && entry->type == Roo::Value::Type::STRING)
+    {
+      return text_child_entry(entry);
+    }
+    return entry;
+  }
+
   std::vector<Runtime::ChildSlot> parse_child_slots(Roo::Context& ctx,
                                                     const Roo::sptr_val& children_val)
   {
-    static Roo::MapSchema child_schema({},
-                                          {{"mode", &Roo::Type::SYMBOL},
-                                           {"id", &Roo::Type::ANY},
-                                           {"state", &Roo::Type::ANY}});
+    static Roo::MapSchema child_schema(
+      {},
+      {{"mode", &Roo::Type::SYMBOL}, {"id", &Roo::Type::ANY}, {"state", &Roo::Type::ANY}});
 
     std::unordered_map<std::string, int> name_counts;
     std::vector<Runtime::ChildSlot> slots;
 
-    size_t n = Roo::count(*children_val);
+    Roo::sptr_val entries = children_val;
+    if (entries && entries->type == Roo::Value::Type::STRING)
+    {
+      entries = Roo::vector({entries});
+    }
+
+    size_t n = Roo::count(*entries);
     for (size_t i = 0; i < n; i++)
     {
-      auto child_entry = Roo::get_child(*children_val, i);
+      auto child_entry = normalize_child_entry(Roo::get_child(*entries, i));
       auto child_opts = child_schema.bind(ctx, *child_entry);
 
       Runtime::ChildSlot slot;
@@ -339,7 +366,7 @@ namespace Pixils::Script
                                           {"focusable", &Roo::Type::BOOL},
                                           {"theme", &Roo::Type::ANY},
                                           {"theme-variant", &Roo::Type::ANY},
-                                          {"children", &Roo::Type::ANY}});
+                                          {"children", &Type::CHILDREN}});
 
     auto opts = mode_schema.bind(ctx, *definition_map);
 

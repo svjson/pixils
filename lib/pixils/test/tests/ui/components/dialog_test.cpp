@@ -1,5 +1,6 @@
 #include "../../render_fixture.h"
 
+#include <algorithm>
 #include <SDL2/SDL_mouse.h>
 #include <gtest/gtest.h>
 #include <roo/runtime/dict.h>
@@ -165,6 +166,37 @@ TEST_F(DialogTest, open_confirm_pops_selected_choice_and_payload_to_origin_event
   auto index = get_key(payload, "index");
   ASSERT_NE(index, nullptr);
   EXPECT_EQ(index->num().get_int(), 3);
+}
+
+TEST_F(DialogTest, open_confirm_applies_overlay_class_to_dialog_frame)
+{
+  runtime.eval(R"(
+    (pixils/deftheme dialog-overlay-theme
+      {:styles {:danger-overlay {:background {:r 10 :g 20 :b 30 :a 96}}}})
+
+    (pixils/defmode root-mode
+      {:theme 'dialog-overlay-theme
+       :init (fn [state ctx]
+               (do
+                 (pixils.ui.dialog/open-confirm!
+                  ctx
+                  {:title "Delete"
+                   :body "Delete this?"
+                   :overlay-class :danger-overlay})
+                 state))})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  session.process_messages();
+  ASSERT_EQ(session.active_mode->mode->name, "ui/dialog-frame");
+  session.render_mode();
+
+  const auto& classes = session.active_mode->mode->class_names;
+  EXPECT_NE(std::find(classes.begin(), classes.end(), "danger-overlay"), classes.end());
+  ASSERT_TRUE(session.active_mode->effective_style.background.has_value());
+  ASSERT_TRUE(session.active_mode->effective_style.background->color.has_value());
+  EXPECT_EQ(*session.active_mode->effective_style.background->color,
+            (Pixils::Color{10, 20, 30, 96}));
 }
 
 TEST_F(DialogTest, dismissable_confirm_returns_dismiss_choice_on_escape)
