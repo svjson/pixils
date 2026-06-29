@@ -208,14 +208,14 @@
 
 (defun list-box-row-height [state ctx]
   (or (:row-height state)
-      (:computed-row-height state)
       (when ctx (list-box-measured-row-height ctx))
+      (:computed-row-height state)
       default-row-height))
 
 (defun list-box-content-width [state ctx]
   (or (:content-width state)
-      (:computed-content-width state)
       (when ctx (list-box-measured-content-width state ctx))
+      (:computed-content-width state)
       1))
 
 (defun list-box-preferred-height [state ctx]

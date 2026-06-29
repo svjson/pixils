@@ -10,6 +10,20 @@ using ListBoxTest = RenderFixture;
 
 namespace
 {
+  std::shared_ptr<Pixils::Runtime::View> find_descendant_mode(
+    const std::shared_ptr<Pixils::Runtime::View>& view,
+    const std::string& mode_name)
+  {
+    if (!view) return nullptr;
+    if (view->mode && view->mode->name == mode_name) return view;
+    for (const auto& child : view->children)
+    {
+      auto match = find_descendant_mode(child, mode_name);
+      if (match) return match;
+    }
+    return nullptr;
+  }
+
   std::shared_ptr<Pixils::Runtime::View> list_box_content(
     const std::shared_ptr<Pixils::Runtime::View>& list_box)
   {
@@ -165,6 +179,91 @@ TEST_F(ListBoxTest, natural_row_height_uses_default_ttf_font_metrics_without_ext
 
   EXPECT_GT(content->children[0]->bounds.h, 20);
   EXPECT_GT(list_box->bounds.h, 42);
+}
+
+TEST_F(ListBoxTest, tab_switch_natural_list_box_uses_measured_rows_on_first_frame)
+{
+  runtime.eval(R"(
+    (pixils/deffont large-font
+      {:type :ttf
+       :resource :pixils/autoega-8x14
+       :size 24
+       :line-height 30})
+    (pixils/deftheme large-text-theme
+      {:defaults {:text {:font :font/large-font}}})
+
+    (pixils/defcomponent empty-tab
+      {:style {:width 40
+               :height 20}})
+
+    (pixils/defcomponent identity-tab
+      {:style {:layout {:direction :row}
+               :gap 6}
+       :children [(pixils.ui.list-box/make
+                   {:options [{:value :a :label "Alpha"}
+                              {:value :b :label "Beta"}]
+                    :visible-rows 2
+                    :content-width 100})
+                  (pixils.ui.list-box/make
+                   {:options [{:value :x :label "Xenon"}
+                              {:value :y :label "Yttrium"}]
+                    :visible-rows 2
+                    :content-width 100})]})
+
+    (pixils/defmode root-mode
+      {:theme ['pixils/windows-3 'large-text-theme]
+       :children [(pixils.ui.tab-panel/make
+                   {:selected-tab :blank
+                    :tabs [{:id :blank
+                            :label "Blank"
+                            :child {:mode 'empty-tab}}
+                           {:id :identity
+                            :label "Identity"
+                            :child {:mode 'identity-tab}}]})]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  frame_cycle();
+
+  ASSERT_NE(session.active_mode, nullptr);
+  auto tab_panel = session.active_mode->children[0];
+  ASSERT_NE(tab_panel, nullptr);
+  ASSERT_EQ(tab_panel->children.size(), 2u);
+  auto tab_strip = tab_panel->children[0];
+  ASSERT_NE(tab_strip, nullptr);
+  ASSERT_EQ(tab_strip->children.size(), 2u);
+  auto identity_tab = tab_strip->children[1];
+  ASSERT_NE(identity_tab, nullptr);
+
+  const int click_x = identity_tab->bounds.x + identity_tab->bounds.w / 2;
+  const int click_y = identity_tab->bounds.y + identity_tab->bounds.h / 2;
+  input().mouse_down({click_x, click_y});
+  update_cycle();
+  input().mouse_up({click_x, click_y});
+  update_cycle();
+  render_cycle();
+
+  auto list_box = find_descendant_mode(session.active_mode, "ui/list-box");
+  ASSERT_NE(list_box, nullptr);
+  auto content = list_box_content(list_box);
+  ASSERT_NE(content, nullptr);
+  ASSERT_EQ(content->children.size(), 2u);
+
+  const int first_frame_list_box_height = list_box->bounds.h;
+  const int first_frame_row_height = content->children[0]->bounds.h;
+  EXPECT_GT(content->children[0]->bounds.h, 20);
+  EXPECT_GT(list_box->bounds.h, 42);
+
+  frame_cycle();
+
+  auto stable_list_box = find_descendant_mode(session.active_mode, "ui/list-box");
+  ASSERT_NE(stable_list_box, nullptr);
+  auto stable_content = list_box_content(stable_list_box);
+  ASSERT_NE(stable_content, nullptr);
+  ASSERT_EQ(stable_content->children.size(), 2u);
+
+  EXPECT_EQ(stable_list_box->bounds.h, first_frame_list_box_height);
+  EXPECT_EQ(stable_content->children[0]->bounds.h, first_frame_row_height);
 }
 
 TEST_F(ListBoxTest, windows_3_natural_height_list_box_with_max_height_keeps_scrollbar_when_clamped)
