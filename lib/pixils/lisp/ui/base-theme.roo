@@ -400,7 +400,8 @@
      :border (var :button-border-style)}
 
     ['ui/button-inner 'ui/text]
-    {:padding [3 6]}
+    {:padding [3 6]
+     :text {:wrap :none}}
 
     :ui/toolbar-button
     {:width 18

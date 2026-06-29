@@ -102,6 +102,40 @@ TEST_F(ButtonTest, button_label_uses_base_theme_padding)
   EXPECT_GT(button->bounds.h, 10);
 }
 
+TEST_F(ButtonTest, button_label_does_not_wrap_by_default)
+{
+  SDLMock::prepared_surfaces["./font.png"] = {16, 12};
+  runtime.eval(R"(
+    (pixils/defbundle fonts {:images {:atlas "font.png"}})
+    (pixils/deffont test-font
+      {:type :bitmap
+       :resource :fonts/atlas
+       :glyphs {"O" {:x 0 :y 0 :w 4 :h 8}
+                "K" {:x 4 :y 0 :w 4 :h 8}}})
+    (pixils/defmode root-mode
+      {:children [{:mode 'ui/button
+                   :style {:width 14
+                           :text {:font :font/test-font}}
+                   :state {:label "OK OK"}}]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  session.render_mode();
+
+  auto button = session.active_mode->children[0];
+  ASSERT_NE(button, nullptr);
+  ASSERT_EQ(button->children.size(), 1u);
+  auto inner = button->children[0];
+  ASSERT_NE(inner, nullptr);
+  ASSERT_EQ(inner->children.size(), 1u);
+  auto label = inner->children[0];
+  ASSERT_NE(label, nullptr);
+  ASSERT_TRUE(label->effective_style.text.has_value());
+  ASSERT_TRUE(label->effective_style.text->wrap.has_value());
+  EXPECT_EQ(*label->effective_style.text->wrap,
+            Pixils::UI::Style::Text::Wrap::NONE);
+}
+
 TEST_F(ButtonTest, button_label_natural_height_uses_effective_font_and_theme_padding)
 {
   SDLMock::prepared_surfaces["./font.png"] = {16, 12};
