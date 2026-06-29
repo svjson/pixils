@@ -1478,6 +1478,67 @@ keywords, using `:north`, `:east`, `:south`, and `:west` or `:n`, `:e`, `:s`,
 and `:w`. Omitted source-boundary edges may produce open outline paths; draw
 those with `:close false`.
 
+**`pixils.render/polygon!`**
+
+Draws a polygon from a vector of points. By default, polygons are stroked as an
+open polyline. Use `:close true` to close an outline, or `:fill true` to fill the
+polygon. Filled polygons are implicitly closed.
+
+```clojure
+; Outline.
+(pixils.render/polygon!
+  [{:x 8 :y 4} {:x 28 :y 12} {:x 12 :y 24}]
+  {:close true
+   :color {:r 255 :g 240 :b 80}})
+
+; Solid fill.
+(pixils.render/polygon!
+  [{:x 8 :y 4} {:x 28 :y 12} {:x 12 :y 24}]
+  {:fill true
+   :color {:r 80 :g 180 :b 255}})
+
+; Canonical solid fill-style form.
+(pixils.render/polygon!
+  [{:x 8 :y 4} {:x 28 :y 12} {:x 12 :y 24}]
+  {:fill true
+   :fill-style {:type :solid
+                :color {:r 80 :g 180 :b 255}}})
+```
+
+`:fill-style` describes how a filled polygon is colored. The first non-solid
+fill style is vertex color interpolation:
+
+```clojure
+(pixils.render/polygon!
+  [{:x 0 :y 0}
+   {:x 64 :y 0}
+   {:x 64 :y 64}
+   {:x 0 :y 64}]
+  {:fill true
+   :fill-style {:type :vertex-colors
+                :colors [{:r 40 :g 90 :b 180}
+                         {:r 80 :g 190 :b 120}
+                         {:r 230 :g 220 :b 120}
+                         {:r 120 :g 80 :b 180}]}})
+```
+
+For `:vertex-colors`, `:colors` must contain exactly one color per point, in the
+same order as the polygon's vertices. Pixils triangulates the polygon and uses
+barycentric interpolation inside each triangle. This supports triangles, quads,
+and simple concave polygons. Quads currently use the triangulated behavior, not
+bilinear interpolation.
+
+| Option          | Description |
+|-----------------|-------------|
+| `:close`        | Close an outlined polygon by drawing the final segment back to the first point. Default: `false`. |
+| `:fill`         | Fill the polygon instead of drawing only its outline. Default: `false`. |
+| `:color`        | Solid color for outlines, solid fills, or an explicit stroke drawn over a fill. |
+| `:fill-style`   | Fill style map. Supported forms: `{:type :solid :color color}` and `{:type :vertex-colors :colors [color ...]}`. |
+| `:stroke-width` | Stroke width in pixels. Outlines default to `1`; filled polygons default to no stroke unless this is supplied. |
+| `:rotation`     | Rotation in radians around the origin before offset is applied. Default: `0`. |
+| `:offset`       | Point offset applied after scale and rotation. Default: `{:x 0 :y 0}`. |
+| `:scale`        | Scale multiplier applied before rotation and offset. Default: `1.0`. |
+
 **`pixils.render/image!`**
 
 Draws an image resource. The first argument is a qualified image keyword. The
@@ -1685,7 +1746,7 @@ Accepts the same `:font` and `:scale` options as `text!`.
 | `line!`     | Draw a line between two points. Optional third arg: color or options map `{:color ... :stroke-width N}`. |
 | `rect!`     | Draw a rectangle. Args: `{:x :y :w :h}` rect (or two corner points), options map `{:color ... :fill true/false}`. |
 | `circle!`   | Draw a circle. Args: `{:x :y :r}` center/radius map, options map `{:color ... :fill true/false}`. |
-| `polygon!`  | Draw a polygon from a vector of points. Options: `:close`, `:fill`, `:stroke-width`, `:rotation`, `:offset`, `:color`, `:scale`. |
+| `polygon!`  | Draw a polygon from a vector of points. Options include `:close`, `:fill`, `:stroke-width`, `:rotation`, `:offset`, `:color`, `:scale`, and `:fill-style` for solid or vertex-colored fills. |
 | `image!`    | Draw an image. Args: qualified keyword `:bundle/id`, then point, rect, or options map. Options include `:pos`, `:target`, `:clip-rect`, `:source`, `:scale`, `:repeat-x?`, `:repeat-y?`, `:opacity`, `:rotation`, `:flip-x?`, and `:flip-y?`. |
 | `text!`     | Render a string. Args: string, position point, options map. Returns rendered bounds `{:x :y :w :h}`. |
 | `text-size` | Measure text without rendering. Args: string, optional options map. Returns `{:w :h}`. |

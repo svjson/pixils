@@ -15,15 +15,16 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <cstddef>
 #include <limits>
-#include <vector>
 #include <roo/host/schema.h>
 #include <roo/namespace.h>
-#include <roo/runtime/exec_node.h>
 #include <roo/runtime/dict.h>
+#include <roo/runtime/exec_node.h>
 #include <roo/runtime/lower.h>
 #include <roo/runtime/seq.h>
 #include <roo/runtime/value.h>
+#include <vector>
 
 namespace Pixils::Script
 {
@@ -31,7 +32,9 @@ namespace Pixils::Script
   {
     SHKEY(CLOSE, "close");
     SHKEY(COLOR, "color");
+    SHKEY(COLORS, "colors");
     SHKEY(FILL, "fill");
+    SHKEY(FILL_STYLE, "fill-style");
     SHKEY(CLIP_RECT, "clip-rect");
     SHKEY(OFFSET, "offset");
     SHKEY(POS, "pos");
@@ -42,6 +45,7 @@ namespace Pixils::Script
     SHKEY(SOURCE, "source");
     SHKEY(STROKE_WIDTH, "stroke-width");
     SHKEY(TARGET, "target");
+    SHKEY(FILL_STYLE_TYPE, "type");
     SHKEY(OPACITY, "opacity");
     SHKEY(BLEND_MODE, "blend-mode");
     SHKEY(FLIP_X, "flip-x?");
@@ -88,6 +92,53 @@ namespace Pixils::Script
         return dict_contains(value, "w") || dict_contains(value, "h");
       }
 
+      bool seq_value(const Roo::sptr_val& value)
+      {
+        return value && (value->type == Roo::Value::Type::VECTOR ||
+                         value->type == Roo::Value::Type::LIST);
+      }
+
+      Color color_from_value(Roo::Context& ctx,
+                             Roo::sptr_val value,
+                             const std::string& context)
+      {
+        if (!value)
+        {
+          throw Roo::TypeError(context + " must be a color.");
+        }
+
+        if (!HostType::COLOR.is_type_of(*value))
+        {
+          auto coercion = HostType::COLOR.coerce(ctx, value);
+          if (!coercion.success)
+          {
+            throw Roo::TypeError(context + " must be a color.");
+          }
+          value = coercion.result;
+        }
+
+        return Roo::obj<Color>(*value);
+      }
+
+      Uint8 interpolated_channel(float a, float b, float c, float wa, float wb, float wc)
+      {
+        const float value = (a * wa) + (b * wb) + (c * wc);
+        return static_cast<Uint8>(std::lround(std::clamp(value, 0.0f, 255.0f)));
+      }
+
+      Color interpolated_color(const Color& a,
+                               const Color& b,
+                               const Color& c,
+                               float wa,
+                               float wb,
+                               float wc)
+      {
+        return Color{interpolated_channel(a.r, b.r, c.r, wa, wb, wc),
+                     interpolated_channel(a.g, b.g, c.g, wa, wb, wc),
+                     interpolated_channel(a.b, b.b, c.b, wa, wb, wc),
+                     interpolated_channel(a.a, b.a, c.a, wa, wb, wc)};
+      }
+
       void fill_horizontal_span(SDL_Renderer* renderer, int x1, int x2, int y)
       {
         if (x2 < x1) std::swap(x1, x2);
@@ -99,6 +150,12 @@ namespace Pixils::Script
       {
         SDL_Rect rect{x, y, 1, 1};
         SDL_RenderFillRect(renderer, &rect);
+      }
+
+      void fill_pixel(SDL_Renderer* renderer, int x, int y, const Color& color)
+      {
+        SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, color.a);
+        fill_pixel(renderer, x, y);
       }
 
       void draw_circle_outline(SDL_Renderer* renderer, int cx, int cy, int radius)
@@ -253,12 +310,224 @@ namespace Pixils::Script
           for (size_t i = 0; i + 1 < intersections.size(); i += 2)
           {
             const int x1 = static_cast<int>(std::ceil(intersections[i] - 0.5f));
-            const int x2 =
-              static_cast<int>(std::floor(std::nextafter(intersections[i + 1] - 0.5f,
-                                                         -std::numeric_limits<float>::infinity())));
+            const int x2 = static_cast<int>(
+              std::floor(std::nextafter(intersections[i + 1] - 0.5f,
+                                        -std::numeric_limits<float>::infinity())));
             if (x2 >= x1)
             {
               fill_horizontal_span(renderer, x1, x2, y);
+            }
+          }
+        }
+      }
+
+      struct VertexColoredPoint
+      {
+        Point point;
+        Color color;
+      };
+
+      struct BarycentricWeights
+      {
+        float a = 0.0f;
+        float b = 0.0f;
+        float c = 0.0f;
+      };
+
+      std::optional<BarycentricWeights> barycentric_weights(const Point& p,
+                                                            const Point& a,
+                                                            const Point& b,
+                                                            const Point& c)
+      {
+        const float denominator = ((b.y - c.y) * (a.x - c.x)) + ((c.x - b.x) * (a.y - c.y));
+        if (std::abs(denominator) <= std::numeric_limits<float>::epsilon())
+        {
+          return std::nullopt;
+        }
+
+        BarycentricWeights weights;
+        weights.a =
+          (((b.y - c.y) * (p.x - c.x)) + ((c.x - b.x) * (p.y - c.y))) / denominator;
+        weights.b =
+          (((c.y - a.y) * (p.x - c.x)) + ((a.x - c.x) * (p.y - c.y))) / denominator;
+        weights.c = 1.0f - weights.a - weights.b;
+
+        constexpr float EPSILON = -0.00001f;
+        if (weights.a < EPSILON || weights.b < EPSILON || weights.c < EPSILON)
+        {
+          return std::nullopt;
+        }
+
+        return weights;
+      }
+
+      bool draw_vertex_colored_triangle_pixel(SDL_Renderer* renderer,
+                                              int x,
+                                              int y,
+                                              const VertexColoredPoint& a,
+                                              const VertexColoredPoint& b,
+                                              const VertexColoredPoint& c)
+      {
+        const Point pixel_center{static_cast<float>(x) + 0.5f, static_cast<float>(y) + 0.5f};
+        auto weights = barycentric_weights(pixel_center, a.point, b.point, c.point);
+        if (!weights) return false;
+
+        fill_pixel(
+          renderer,
+          x,
+          y,
+          interpolated_color(a.color, b.color, c.color, weights->a, weights->b, weights->c));
+        return true;
+      }
+
+      float cross_product(const Point& a, const Point& b, const Point& c)
+      {
+        return ((b.x - a.x) * (c.y - a.y)) - ((b.y - a.y) * (c.x - a.x));
+      }
+
+      float signed_polygon_area(const std::vector<Point>& points)
+      {
+        float area = 0.0f;
+        for (size_t i = 0; i < points.size(); i++)
+        {
+          const Point& a = points[i];
+          const Point& b = points[(i + 1) % points.size()];
+          area += (a.x * b.y) - (b.x * a.y);
+        }
+        return area * 0.5f;
+      }
+
+      bool point_in_triangle(const Point& p, const Point& a, const Point& b, const Point& c)
+      {
+        return barycentric_weights(p, a, b, c).has_value();
+      }
+
+      std::vector<std::array<size_t, 3>> triangulate_polygon(
+        const std::vector<Point>& points)
+      {
+        std::vector<std::array<size_t, 3>> triangles;
+        if (points.size() < 3) return triangles;
+
+        const float area = signed_polygon_area(points);
+        if (std::abs(area) <= std::numeric_limits<float>::epsilon()) return triangles;
+
+        const bool ccw = area > 0.0f;
+        std::vector<size_t> remaining;
+        remaining.reserve(points.size());
+        for (size_t i = 0; i < points.size(); i++)
+        {
+          remaining.push_back(i);
+        }
+
+        size_t guard = 0;
+        while (remaining.size() > 3 && guard < points.size() * points.size())
+        {
+          bool clipped = false;
+          for (size_t i = 0; i < remaining.size(); i++)
+          {
+            const size_t prev_index =
+              remaining[(i + remaining.size() - 1) % remaining.size()];
+            const size_t curr_index = remaining[i];
+            const size_t next_index = remaining[(i + 1) % remaining.size()];
+
+            const Point& prev = points[prev_index];
+            const Point& curr = points[curr_index];
+            const Point& next = points[next_index];
+            const float cross = cross_product(prev, curr, next);
+            if ((ccw && cross <= 0.00001f) || (!ccw && cross >= -0.00001f))
+            {
+              continue;
+            }
+
+            bool contains_point = false;
+            for (size_t test_index : remaining)
+            {
+              if (test_index == prev_index || test_index == curr_index ||
+                  test_index == next_index)
+              {
+                continue;
+              }
+
+              if (point_in_triangle(points[test_index], prev, curr, next))
+              {
+                contains_point = true;
+                break;
+              }
+            }
+
+            if (contains_point) continue;
+
+            triangles.push_back({prev_index, curr_index, next_index});
+            remaining.erase(remaining.begin() + static_cast<std::ptrdiff_t>(i));
+            clipped = true;
+            break;
+          }
+
+          if (!clipped) break;
+          guard++;
+        }
+
+        if (remaining.size() == 3)
+        {
+          triangles.push_back({remaining[0], remaining[1], remaining[2]});
+        }
+
+        return triangles;
+      }
+
+      void draw_filled_vertex_colored_polygon(SDL_Renderer* renderer,
+                                              const std::vector<Point>& points,
+                                              const std::vector<Color>& colors)
+      {
+        if (points.size() != colors.size() || points.size() < 3) return;
+
+        std::vector<std::array<size_t, 3>> triangles = triangulate_polygon(points);
+        if (triangles.empty()) return;
+        if (triangles.size() != points.size() - 2)
+        {
+          throw Roo::TypeError(
+            "polygon!: could not triangulate :fill-style :vertex-colors polygon.");
+        }
+
+        std::vector<VertexColoredPoint> vertices;
+        vertices.reserve(points.size());
+        for (size_t i = 0; i < points.size(); i++)
+        {
+          vertices.push_back(VertexColoredPoint{points[i], colors[i]});
+        }
+
+        float min_x = points.front().x;
+        float max_x = points.front().x;
+        float min_y = points.front().y;
+        float max_y = points.front().y;
+        for (const Point& point : points)
+        {
+          min_x = std::min(min_x, point.x);
+          max_x = std::max(max_x, point.x);
+          min_y = std::min(min_y, point.y);
+          max_y = std::max(max_y, point.y);
+        }
+
+        const int first_x = static_cast<int>(std::floor(min_x));
+        const int last_x = static_cast<int>(std::ceil(max_x)) - 1;
+        const int first_y = static_cast<int>(std::floor(min_y));
+        const int last_y = static_cast<int>(std::ceil(max_y)) - 1;
+
+        for (int y = first_y; y <= last_y; y++)
+        {
+          for (int x = first_x; x <= last_x; x++)
+          {
+            for (const auto& triangle : triangles)
+            {
+              if (draw_vertex_colored_triangle_pixel(renderer,
+                                                     x,
+                                                     y,
+                                                     vertices[triangle[0]],
+                                                     vertices[triangle[1]],
+                                                     vertices[triangle[2]]))
+              {
+                break;
+              }
             }
           }
         }
@@ -314,9 +583,9 @@ namespace Pixils::Script
           for (size_t i = 0; i + 1 < intersection_count; i += 2)
           {
             const int x1 = static_cast<int>(std::ceil(intersections[i] - 0.5f));
-            const int x2 =
-              static_cast<int>(std::floor(std::nextafter(intersections[i + 1] - 0.5f,
-                                                         -std::numeric_limits<float>::infinity())));
+            const int x2 = static_cast<int>(
+              std::floor(std::nextafter(intersections[i + 1] - 0.5f,
+                                        -std::numeric_limits<float>::infinity())));
             if (x2 >= x1)
             {
               fill_horizontal_span(renderer, x1, x2, y);
@@ -394,6 +663,102 @@ namespace Pixils::Script
         {
           draw_stroked_segment(renderer, points.back(), points.front(), stroke_width);
         }
+      }
+
+      struct PolygonFillStyle
+      {
+        enum class Type
+        {
+          SOLID,
+          VERTEX_COLORS
+        };
+
+        Type type = Type::SOLID;
+        std::optional<Color> color = std::nullopt;
+        std::vector<Color> colors;
+      };
+
+      std::string required_keyword_property(const Roo::sptr_val& map,
+                                            const std::string& key,
+                                            const std::string& context)
+      {
+        Roo::sptr_val value = Roo::Dict::get_property(*map, key);
+        if (!value || value->type == Roo::Value::Type::NIL)
+        {
+          throw Roo::TypeError(context + " requires :" + key + ".");
+        }
+
+        if (value->type != Roo::Value::Type::KEYWORD)
+        {
+          throw Roo::TypeError(context + " :" + key + " must be a keyword.");
+        }
+
+        return value->str();
+      }
+
+      Roo::sptr_val required_property(const Roo::sptr_val& map,
+                                      const std::string& key,
+                                      const std::string& context)
+      {
+        Roo::sptr_val value = Roo::Dict::get_property(*map, key);
+        if (!value || value->type == Roo::Value::Type::NIL)
+        {
+          throw Roo::TypeError(context + " requires :" + key + ".");
+        }
+        return value;
+      }
+
+      PolygonFillStyle parse_polygon_fill_style(Roo::Context& ctx,
+                                                const Roo::sptr_val& value)
+      {
+        if (!value || value->type != Roo::Value::Type::MAP)
+        {
+          throw Roo::TypeError("polygon!: :fill-style must be a map.");
+        }
+
+        const std::string type =
+          required_keyword_property(value,
+                                    std::get<std::string>(MapKey::FILL_STYLE_TYPE->value),
+                                    "polygon!: :fill-style");
+
+        if (type == "solid")
+        {
+          PolygonFillStyle style;
+          style.type = PolygonFillStyle::Type::SOLID;
+          style.color =
+            color_from_value(ctx,
+                             required_property(value,
+                                               std::get<std::string>(MapKey::COLOR->value),
+                                               "polygon!: :fill-style :solid"),
+                             "polygon!: :fill-style :solid :color");
+          return style;
+        }
+
+        if (type == "vertex-colors")
+        {
+          Roo::sptr_val colors_value =
+            required_property(value,
+                              std::get<std::string>(MapKey::COLORS->value),
+                              "polygon!: :fill-style :vertex-colors");
+          if (!seq_value(colors_value))
+          {
+            throw Roo::TypeError(
+              "polygon!: :fill-style :vertex-colors :colors must be a sequence.");
+          }
+
+          PolygonFillStyle style;
+          style.type = PolygonFillStyle::Type::VERTEX_COLORS;
+          for (auto& color_value : Roo::get_children(*colors_value))
+          {
+            style.colors.push_back(
+              color_from_value(ctx,
+                               color_value,
+                               "polygon!: :fill-style :vertex-colors :colors entry"));
+          }
+          return style;
+        }
+
+        throw Roo::TypeError("polygon!: unsupported :fill-style :type: " + type);
       }
 
       Uint8 image_opacity_alpha(Roo::MapSchema::Inspector& opts)
@@ -514,8 +879,8 @@ namespace Pixils::Script
       int repeat_start(int anchor, int size, int min)
       {
         if (size <= 0) return anchor;
-        double steps = std::floor(static_cast<double>(min - anchor) /
-                                  static_cast<double>(size));
+        double steps =
+          std::floor(static_cast<double>(min - anchor) / static_cast<double>(size));
         return anchor + static_cast<int>(steps) * size;
       }
 
@@ -581,18 +946,18 @@ namespace Pixils::Script
     EXEC_BODY(DrawImageBang, exec_draw_img)
     {
       static Roo::MapSchema draw_image_opts_schema({},
-                                                      {{"pos", &HostType::POINT},
-                                                       {"target", &Roo::Type::ANY},
-                                                       {"clip-rect", &HostType::RECT},
-                                                       {"scale", &Roo::Type::NUMBER},
-                                                       {"opacity", &Roo::Type::NUMBER},
-                                                       {"blend-mode", &Roo::Type::KEYWORD},
-                                                       {"rotation", &Roo::Type::NUMBER},
-                                                       {"source", &HostType::RECT},
-                                                       {"repeat-x?", &Roo::Type::BOOL},
-                                                       {"repeat-y?", &Roo::Type::BOOL},
-                                                       {"flip-x?", &Roo::Type::BOOL},
-                                                       {"flip-y?", &Roo::Type::BOOL}});
+                                                   {{"pos", &HostType::POINT},
+                                                    {"target", &Roo::Type::ANY},
+                                                    {"clip-rect", &HostType::RECT},
+                                                    {"scale", &Roo::Type::NUMBER},
+                                                    {"opacity", &Roo::Type::NUMBER},
+                                                    {"blend-mode", &Roo::Type::KEYWORD},
+                                                    {"rotation", &Roo::Type::NUMBER},
+                                                    {"source", &HostType::RECT},
+                                                    {"repeat-x?", &Roo::Type::BOOL},
+                                                    {"repeat-y?", &Roo::Type::BOOL},
+                                                    {"flip-x?", &Roo::Type::BOOL},
+                                                    {"flip-y?", &Roo::Type::BOOL}});
 
       if (args[0]->type == Roo::Value::Type::KEYWORD)
       {
@@ -605,13 +970,12 @@ namespace Pixils::Script
         Roo::sptr_val map_arg =
           image_options_map(args[1])
             ? args[1]
-            : Roo::map({Roo::keyword(std::get<std::string>(MapKey::TARGET->value)),
-                           args[1]});
+            : Roo::map(
+                {Roo::keyword(std::get<std::string>(MapKey::TARGET->value)), args[1]});
 
         auto opts = draw_image_opts_schema.bind(ctx, *map_arg);
 
-        RenderContext& rc =
-          Roo::obj<RenderContext>(*ctx.lookup(ID__PIXILS__RENDER_CONTEXT));
+        RenderContext& rc = Roo::obj<RenderContext>(*ctx.lookup(ID__PIXILS__RENDER_CONTEXT));
 
         SDL_Texture* texture = rc.asset_registry->get_image(asset_bundle, asset_key);
         if (!texture) return Roo::Constant::NIL;
@@ -645,11 +1009,8 @@ namespace Pixils::Script
           opts.contains(std::get<std::string>(MapKey::TARGET->value))
             ? opts.val(std::get<std::string>(MapKey::TARGET->value))
             : opts.val(std::get<std::string>(MapKey::POS->value));
-        ImageTarget target = image_target_from_value(ctx,
-                                                     target_value,
-                                                     source_width,
-                                                     source_height,
-                                                     scale);
+        ImageTarget target =
+          image_target_from_value(ctx, target_value, source_width, source_height, scale);
         SDL_Rect dest = target.rect.to_SDL_rect();
 
         const SDL_Rect* source_ptr = source_rect ? &*source_rect : nullptr;
@@ -658,8 +1019,8 @@ namespace Pixils::Script
                                         (flip_y ? SDL_FLIP_VERTICAL : SDL_FLIP_NONE));
 
         std::optional<Rect> previous_clip = rc.current_clip_rect;
-        std::optional<Rect> requested_clip = opts.optional_obj<Rect>(
-          std::get<std::string>(MapKey::CLIP_RECT->value));
+        std::optional<Rect> requested_clip =
+          opts.optional_obj<Rect>(std::get<std::string>(MapKey::CLIP_RECT->value));
         std::optional<Rect> effective_bounds;
         if (requested_clip)
         {
@@ -723,8 +1084,7 @@ namespace Pixils::Script
 
     EXEC_BODY(DrawLineBang, exec_draw_line)
     {
-      RenderContext& rc =
-        Roo::obj<RenderContext>(*ctx.lookup(ID__PIXILS__RENDER_CONTEXT));
+      RenderContext& rc = Roo::obj<RenderContext>(*ctx.lookup(ID__PIXILS__RENDER_CONTEXT));
       const Point& from = Roo::obj<Point>(*args[0]);
       const Point& to = Roo::obj<Point>(*args[1]);
       float stroke_width = 1.0f;
@@ -780,12 +1140,10 @@ namespace Pixils::Script
 
     EXEC_BODY(DrawCircleBang, exec_draw_circle)
     {
-      RenderContext& rc =
-        Roo::obj<RenderContext>(*ctx.lookup(ID__PIXILS__RENDER_CONTEXT));
+      RenderContext& rc = Roo::obj<RenderContext>(*ctx.lookup(ID__PIXILS__RENDER_CONTEXT));
 
-      static Roo::MapSchema circle_schema({{"x", &Roo::Type::NUMBER},
-                                           {"y", &Roo::Type::NUMBER},
-                                           {"r", &Roo::Type::NUMBER}});
+      static Roo::MapSchema circle_schema(
+        {{"x", &Roo::Type::NUMBER}, {"y", &Roo::Type::NUMBER}, {"r", &Roo::Type::NUMBER}});
       static Roo::MapSchema opts_schema(
         {},
         {{"color", &HostType::COLOR}, {"fill", &Roo::Type::BOOL}});
@@ -884,6 +1242,7 @@ namespace Pixils::Script
        {std::get<std::string>(MapKey::OFFSET->value), &HostType::POINT},
        {std::get<std::string>(MapKey::COLOR->value), &HostType::COLOR},
        {std::get<std::string>(MapKey::FILL->value), &Roo::Type::BOOL},
+       {std::get<std::string>(MapKey::FILL_STYLE->value), &Roo::Type::MAP},
        {std::get<std::string>(MapKey::STROKE_WIDTH->value), &Roo::Type::NUMBER},
        {std::get<std::string>(MapKey::SCALE->value), &Roo::Type::NUMBER}});
 
@@ -896,8 +1255,7 @@ namespace Pixils::Script
 
     EXEC_BODY(DrawPolygonBang, exec_polygon_with_opts)
     {
-      RenderContext& rc =
-        Roo::obj<RenderContext>(*ctx.lookup(ID__PIXILS__RENDER_CONTEXT));
+      RenderContext& rc = Roo::obj<RenderContext>(*ctx.lookup(ID__PIXILS__RENDER_CONTEXT));
 
       auto opts = polygon_opts.bind(ctx, *args.back());
 
@@ -910,7 +1268,15 @@ namespace Pixils::Script
       float scale = opts.f32(std::get<std::string>(MapKey::SCALE->value), 1.0f);
       std::optional<Color> color =
         opts.optional_obj<Color>(std::get<std::string>(MapKey::COLOR->value));
+      std::optional<PolygonFillStyle> fill_style = std::nullopt;
+      if (auto fill_style_value = opts.val(std::get<std::string>(MapKey::FILL_STYLE->value));
+          fill_style_value && fill_style_value->type != Roo::Value::Type::NIL)
+      {
+        fill_style = parse_polygon_fill_style(ctx, fill_style_value);
+      }
       bool fill_shape = opts.boolean(std::get<std::string>(MapKey::FILL->value), false);
+      const bool explicit_stroke_width =
+        opts.contains(std::get<std::string>(MapKey::STROKE_WIDTH->value));
       float stroke_width = opts.f32(std::get<std::string>(MapKey::STROKE_WIDTH->value),
                                     fill_shape ? 0.0f : 1.0f);
 
@@ -922,6 +1288,12 @@ namespace Pixils::Script
         SDL_SetRenderDrawColor(rc.renderer, color->r, color->g, color->b, color->a);
       }
 
+      if (fill_style && color && fill_shape && !explicit_stroke_width)
+      {
+        throw Roo::TypeError(
+          "polygon!: use either top-level :color or :fill-style for a filled polygon.");
+      }
+
       std::vector<Point> pts;
       if (points.size() > 0)
       {
@@ -929,15 +1301,41 @@ namespace Pixils::Script
         for (auto& poly_pt : points)
         {
           pts.push_back((Roo::obj<Point>(*poly_pt) * scale)
-                        .rotate(POINT__ZERO_ZERO, rotation)
-                        .plus(offset.x, offset.y));
+                          .rotate(POINT__ZERO_ZERO, rotation)
+                          .plus(offset.x, offset.y));
         }
 
         if (fill_shape)
         {
           std::vector<float> intersections;
           SDL_SetRenderDrawBlendMode(rc.renderer, SDL_BLENDMODE_BLEND);
-          draw_filled_polygon(rc.renderer, pts, intersections);
+          if (fill_style && fill_style->type == PolygonFillStyle::Type::VERTEX_COLORS)
+          {
+            if (fill_style->colors.size() != pts.size())
+            {
+              throw Roo::TypeError(
+                "polygon!: :fill-style :vertex-colors :colors count must match points.");
+            }
+            draw_filled_vertex_colored_polygon(rc.renderer, pts, fill_style->colors);
+          }
+          else
+          {
+            if (fill_style && fill_style->type == PolygonFillStyle::Type::SOLID &&
+                fill_style->color)
+            {
+              const Color& fill_color = *fill_style->color;
+              SDL_SetRenderDrawColor(rc.renderer,
+                                     fill_color.r,
+                                     fill_color.g,
+                                     fill_color.b,
+                                     fill_color.a);
+            }
+            draw_filled_polygon(rc.renderer, pts, intersections);
+          }
+          if (color)
+          {
+            SDL_SetRenderDrawColor(rc.renderer, color->r, color->g, color->b, color->a);
+          }
           draw_stroked_polyline(rc.renderer, pts, true, stroke_width);
           SDL_SetRenderDrawBlendMode(rc.renderer, SDL_BLENDMODE_NONE);
         }
@@ -953,17 +1351,15 @@ namespace Pixils::Script
     }
 
     /* DrawRectBang - rect! */
-    FUNC_IMPL(
-      DrawRectBang,
-      MULTI_SIG((FN_ARGS((&HostType::RECT), (&Roo::Type::MAP)),
-                 EXEC_DISPATCH(&DrawRectBang::exec_draw_rect)),
-                (FN_ARGS((&HostType::POINT), (&HostType::POINT), (&Roo::Type::MAP)),
-                 EXEC_DISPATCH(&DrawRectBang::exec_draw_rect_from_points))));
+    FUNC_IMPL(DrawRectBang,
+              MULTI_SIG((FN_ARGS((&HostType::RECT), (&Roo::Type::MAP)),
+                         EXEC_DISPATCH(&DrawRectBang::exec_draw_rect)),
+                        (FN_ARGS((&HostType::POINT), (&HostType::POINT), (&Roo::Type::MAP)),
+                         EXEC_DISPATCH(&DrawRectBang::exec_draw_rect_from_points))));
 
     EXEC_BODY(DrawRectBang, exec_draw_rect)
     {
-      RenderContext& rc =
-        Roo::obj<RenderContext>(*ctx.lookup(ID__PIXILS__RENDER_CONTEXT));
+      RenderContext& rc = Roo::obj<RenderContext>(*ctx.lookup(ID__PIXILS__RENDER_CONTEXT));
 
       const Rect& hrect = Roo::obj<Rect>(*args[0]);
       const Point top_left = hrect.top_left();
@@ -1039,18 +1435,17 @@ namespace Pixils::Script
                  EXEC_DISPATCH(&RenderTextBang::exec_text))));
 
     static Roo::MapSchema text_opts_schema({},
-                                              {{"font", &Roo::Type::KEYWORD},
-                                               {"color", &HostType::COLOR},
-                                               {"scale", &Roo::Type::ANY},
-                                               {"font-styles", &Roo::Type::ANY},
-                                               {"shadow", &Roo::Type::ANY},
-                                               {"marked-style", &Roo::Type::ANY}});
+                                           {{"font", &Roo::Type::KEYWORD},
+                                            {"color", &HostType::COLOR},
+                                            {"scale", &Roo::Type::ANY},
+                                            {"font-styles", &Roo::Type::ANY},
+                                            {"shadow", &Roo::Type::ANY},
+                                            {"marked-style", &Roo::Type::ANY}});
 
     static Text::Scale parse_text_scale(const Roo::sptr_val& value)
     {
       if (!value || value->type == Roo::Value::Type::NIL) return Text::Scale(1);
-      if (value->type == Roo::Value::Type::NUMBER)
-        return Text::Scale(value->f32());
+      if (value->type == Roo::Value::Type::NUMBER) return Text::Scale(value->f32());
       if (value->type != Roo::Value::Type::VECTOR)
       {
         throw Roo::TypeError("Text scale must be a number or [x y] vector");
@@ -1144,13 +1539,13 @@ namespace Pixils::Script
       if (!value || value->type == Roo::Value::Type::NIL) return std::nullopt;
 
       static Roo::MapSchema inline_schema({},
-                                             {{"enabled", &Roo::Type::BOOL},
-                                              {"marker", &Roo::Type::ANY},
-                                              {"font", &Roo::Type::KEYWORD},
-                                              {"color", &HostType::COLOR},
-                                              {"scale", &Roo::Type::ANY},
-                                              {"font-styles", &Roo::Type::ANY},
-                                              {"shadow", &Roo::Type::ANY}});
+                                          {{"enabled", &Roo::Type::BOOL},
+                                           {"marker", &Roo::Type::ANY},
+                                           {"font", &Roo::Type::KEYWORD},
+                                           {"color", &HostType::COLOR},
+                                           {"scale", &Roo::Type::ANY},
+                                           {"font-styles", &Roo::Type::ANY},
+                                           {"shadow", &Roo::Type::ANY}});
 
       auto inline_source = value;
       if (Roo::Dict::contains_key(*value, "color"))
@@ -1160,9 +1555,7 @@ namespace Pixils::Script
             color_value->str() == "none")
         {
           inline_source = Roo::Dict::shallow_copy(value);
-          Roo::Dict::set_property(inline_source,
-                                     Roo::keyword("color"),
-                                     Roo::Constant::NIL);
+          Roo::Dict::set_property(inline_source, Roo::keyword("color"), Roo::Constant::NIL);
         }
       }
 
@@ -1220,8 +1613,7 @@ namespace Pixils::Script
 
     EXEC_BODY(RenderTextBang, exec_text)
     {
-      RenderContext& rc =
-        Roo::obj<RenderContext>(*ctx.lookup(ID__PIXILS__RENDER_CONTEXT));
+      RenderContext& rc = Roo::obj<RenderContext>(*ctx.lookup(ID__PIXILS__RENDER_CONTEXT));
 
       const std::string& text = args[0]->str();
       const Point& pos = Roo::obj<Point>(*args[1]);
@@ -1278,11 +1670,11 @@ namespace Pixils::Script
                          EXEC_DISPATCH(&TextSize::exec_size))));
 
     static Roo::MapSchema text_size_opts_schema({},
-                                                   {{"font", &Roo::Type::KEYWORD},
-                                                    {"scale", &Roo::Type::ANY},
-                                                    {"font-styles", &Roo::Type::ANY},
-                                                    {"shadow", &Roo::Type::ANY},
-                                                    {"marked-style", &Roo::Type::ANY}});
+                                                {{"font", &Roo::Type::KEYWORD},
+                                                 {"scale", &Roo::Type::ANY},
+                                                 {"font-styles", &Roo::Type::ANY},
+                                                 {"shadow", &Roo::Type::ANY},
+                                                 {"marked-style", &Roo::Type::ANY}});
 
     EXEC_BODY(TextSize, exec_size_no_opts)
     {
@@ -1293,8 +1685,7 @@ namespace Pixils::Script
 
     EXEC_BODY(TextSize, exec_size)
     {
-      RenderContext& rc =
-        Roo::obj<RenderContext>(*ctx.lookup(ID__PIXILS__RENDER_CONTEXT));
+      RenderContext& rc = Roo::obj<RenderContext>(*ctx.lookup(ID__PIXILS__RENDER_CONTEXT));
 
       const std::string& text = args[0]->str();
       auto opts = text_size_opts_schema.bind(ctx, *args[1]);
@@ -1352,8 +1743,7 @@ namespace Pixils::Script
 
     EXEC_BODY(UseColorBang, exec_use_color)
     {
-      RenderContext& rc =
-        Roo::obj<RenderContext>(*ctx.lookup(ID__PIXILS__RENDER_CONTEXT));
+      RenderContext& rc = Roo::obj<RenderContext>(*ctx.lookup(ID__PIXILS__RENDER_CONTEXT));
 
       const Color& color = Roo::obj<Color>(*args[0]);
       SDL_SetRenderDrawColor(rc.renderer, color.r, color.g, color.b, color.a);
@@ -1363,8 +1753,7 @@ namespace Pixils::Script
 
     EXEC_BODY(UseColorBang, exec_use_color_num)
     {
-      RenderContext& rc =
-        Roo::obj<RenderContext>(*ctx.lookup(ID__PIXILS__RENDER_CONTEXT));
+      RenderContext& rc = Roo::obj<RenderContext>(*ctx.lookup(ID__PIXILS__RENDER_CONTEXT));
 
       const int r = args[0]->num().get_int();
       const int g = args[1]->num().get_int();
@@ -1403,8 +1792,7 @@ namespace Pixils::Script
 
     EXECNODE_BODY(WithClipRectForm, execnode_with_clip_rect)
     {
-      RenderContext& rc =
-        Roo::obj<RenderContext>(*ctx.lookup(ID__PIXILS__RENDER_CONTEXT));
+      RenderContext& rc = Roo::obj<RenderContext>(*ctx.lookup(ID__PIXILS__RENDER_CONTEXT));
       if (snode.exec_nodes.empty())
       {
         throw Roo::InvocationException("Invalid with-clip-rect execution node.");
