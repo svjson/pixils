@@ -14,6 +14,8 @@
 #include <SDL2/SDL_render.h>
 #include <algorithm>
 #include <cmath>
+#include <limits>
+#include <vector>
 #include <roo/host/schema.h>
 #include <roo/namespace.h>
 #include <roo/runtime/exec_node.h>
@@ -202,6 +204,59 @@ namespace Pixils::Script
           const int y = ellipse_y_for_x(rx, ry, x);
           fill_pixel(renderer, cx + x, cy + y);
           fill_pixel(renderer, cx + x, cy - y);
+        }
+      }
+
+      void draw_filled_polygon(SDL_Renderer* renderer, const std::vector<Point>& points)
+      {
+        if (points.size() < 3) return;
+
+        float min_y = points.front().y;
+        float max_y = points.front().y;
+        for (const Point& point : points)
+        {
+          min_y = std::min(min_y, point.y);
+          max_y = std::max(max_y, point.y);
+        }
+
+        const int first_y = static_cast<int>(std::floor(min_y));
+        const int last_y = static_cast<int>(std::ceil(max_y)) - 1;
+        std::vector<float> intersections;
+        intersections.reserve(points.size());
+
+        for (int y = first_y; y <= last_y; y++)
+        {
+          const float scan_y = static_cast<float>(y) + 0.5f;
+          intersections.clear();
+
+          for (size_t i = 0; i < points.size(); i++)
+          {
+            const Point& a = points[i];
+            const Point& b = points[(i + 1) % points.size()];
+            const float edge_min_y = std::min(a.y, b.y);
+            const float edge_max_y = std::max(a.y, b.y);
+
+            if (edge_min_y == edge_max_y || scan_y < edge_min_y || scan_y >= edge_max_y)
+            {
+              continue;
+            }
+
+            const float t = (scan_y - a.y) / (b.y - a.y);
+            intersections.push_back(a.x + (t * (b.x - a.x)));
+          }
+
+          std::sort(intersections.begin(), intersections.end());
+          for (size_t i = 0; i + 1 < intersections.size(); i += 2)
+          {
+            const int x1 = static_cast<int>(std::ceil(intersections[i] - 0.5f));
+            const int x2 =
+              static_cast<int>(std::floor(std::nextafter(intersections[i + 1] - 0.5f,
+                                                         -std::numeric_limits<float>::infinity())));
+            if (x2 >= x1)
+            {
+              fill_horizontal_span(renderer, x1, x2, y);
+            }
+          }
         }
       }
 
@@ -662,6 +717,7 @@ namespace Pixils::Script
        {std::get<std::string>(MapKey::ROTATION->value), &Roo::Type::NUMBER},
        {std::get<std::string>(MapKey::OFFSET->value), &HostType::POINT},
        {std::get<std::string>(MapKey::COLOR->value), &HostType::COLOR},
+       {std::get<std::string>(MapKey::FILL->value), &Roo::Type::BOOL},
        {std::get<std::string>(MapKey::SCALE->value), &Roo::Type::NUMBER}});
 
     EXEC_BODY(DrawPolygonBang, exec_polygon)
@@ -687,6 +743,7 @@ namespace Pixils::Script
       float scale = opts.f32(std::get<std::string>(MapKey::SCALE->value), 1.0f);
       std::optional<Color> color =
         opts.optional_obj<Color>(std::get<std::string>(MapKey::COLOR->value));
+      bool fill_shape = opts.boolean(std::get<std::string>(MapKey::FILL->value), false);
 
       const Point& offset =
         opts.obj<Point>(std::get<std::string>(MapKey::OFFSET->value), POINT__ZERO_ZERO);
@@ -703,26 +760,35 @@ namespace Pixils::Script
         for (auto& poly_pt : points)
         {
           pts.push_back((Roo::obj<Point>(*poly_pt) * scale)
-                          .rotate(POINT__ZERO_ZERO, rotation)
-                          .plus(offset.x, offset.y));
+                        .rotate(POINT__ZERO_ZERO, rotation)
+                        .plus(offset.x, offset.y));
         }
 
-        if (close_shape)
+        if (fill_shape)
         {
-          pts.push_back((Roo::obj<Point>(*points.front()) * scale)
-                          .rotate(POINT__ZERO_ZERO, rotation)
-                          .plus(offset.x, offset.y));
+          SDL_SetRenderDrawBlendMode(rc.renderer, SDL_BLENDMODE_BLEND);
+          draw_filled_polygon(rc.renderer, pts);
+          SDL_SetRenderDrawBlendMode(rc.renderer, SDL_BLENDMODE_NONE);
         }
-
-        for (size_t i = 0; i < pts.size() - 1; i++)
+        else
         {
-          const Point& from = pts[i];
-          const Point& to = pts[i + 1];
-          SDL_RenderDrawLine(rc.renderer,
-                             from.round_x(),
-                             from.round_y(),
-                             to.round_x(),
-                             to.round_y());
+          if (close_shape)
+          {
+            pts.push_back((Roo::obj<Point>(*points.front()) * scale)
+                            .rotate(POINT__ZERO_ZERO, rotation)
+                            .plus(offset.x, offset.y));
+          }
+
+          for (size_t i = 0; i < pts.size() - 1; i++)
+          {
+            const Point& from = pts[i];
+            const Point& to = pts[i + 1];
+            SDL_RenderDrawLine(rc.renderer,
+                               from.round_x(),
+                               from.round_y(),
+                               to.round_x(),
+                               to.round_y());
+          }
         }
       }
 

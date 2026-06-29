@@ -207,6 +207,77 @@ TEST_F(RenderTest, ellipse_with_negative_radius_draws_nothing)
   EXPECT_TRUE(render_target()->render_ops.empty());
 }
 
+TEST_F(RenderTest, polygon_fill_draws_horizontal_scanlines)
+{
+  // Given
+  runtime.eval(R"(
+    (pixils/defmode test-mode {
+      :render (fn [state ctx]
+                (pixils.render/polygon!
+                  [{:x 2 :y 2} {:x 6 :y 2} {:x 6 :y 5} {:x 2 :y 5}]
+                  {:fill true :color {:r 200 :g 0 :b 0}}))
+    })
+  )");
+  session.push_mode("test-mode", Roo::Constant::NIL);
+
+  // When / Then
+  ASSERT_NO_THROW(session.render_mode());
+  auto& ops = render_target()->render_ops;
+  ASSERT_EQ(ops.size(), 3u);
+  EXPECT_TRUE(has_fill_rect(ops, SDL_Rect{2, 2, 4, 1}));
+  EXPECT_TRUE(has_fill_rect(ops, SDL_Rect{2, 3, 4, 1}));
+  EXPECT_TRUE(has_fill_rect(ops, SDL_Rect{2, 4, 4, 1}));
+}
+
+TEST_F(RenderTest, polygon_fill_uses_pixel_centers_for_fractional_edges)
+{
+  // Given
+  runtime.eval(R"(
+    (pixils/defmode test-mode {
+      :render (fn [state ctx]
+                (pixils.render/polygon!
+                  [{:x 2.1 :y 1} {:x 5.2 :y 1} {:x 5.2 :y 3} {:x 2.1 :y 3}]
+                  {:fill true :color {:r 200 :g 0 :b 0}}))
+    })
+  )");
+  session.push_mode("test-mode", Roo::Constant::NIL);
+
+  // When / Then
+  ASSERT_NO_THROW(session.render_mode());
+  auto& ops = render_target()->render_ops;
+  ASSERT_EQ(ops.size(), 2u);
+  EXPECT_TRUE(has_fill_rect(ops, SDL_Rect{2, 1, 3, 1}));
+  EXPECT_TRUE(has_fill_rect(ops, SDL_Rect{2, 2, 3, 1}));
+}
+
+TEST_F(RenderTest, polygon_fill_handles_concave_shapes)
+{
+  // Given
+  runtime.eval(R"(
+    (pixils/defmode test-mode {
+      :render (fn [state ctx]
+                (pixils.render/polygon!
+                  [{:x 0 :y 0}
+                   {:x 4 :y 0}
+                   {:x 4 :y 2}
+                   {:x 2 :y 2}
+                   {:x 2 :y 4}
+                   {:x 0 :y 4}]
+                  {:fill true :color {:r 200 :g 0 :b 0}}))
+    })
+  )");
+  session.push_mode("test-mode", Roo::Constant::NIL);
+
+  // When / Then
+  ASSERT_NO_THROW(session.render_mode());
+  auto& ops = render_target()->render_ops;
+  ASSERT_EQ(ops.size(), 4u);
+  EXPECT_TRUE(has_fill_rect(ops, SDL_Rect{0, 0, 4, 1}));
+  EXPECT_TRUE(has_fill_rect(ops, SDL_Rect{0, 1, 4, 1}));
+  EXPECT_TRUE(has_fill_rect(ops, SDL_Rect{0, 2, 2, 1}));
+  EXPECT_TRUE(has_fill_rect(ops, SDL_Rect{0, 3, 2, 1}));
+}
+
 TEST_F(RenderTest, with_clip_rect_restores_previous_clip)
 {
   // Given
