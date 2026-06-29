@@ -222,14 +222,17 @@
                              :width (:width pos)
                              :height :shrink}
                      :children [(pixils.ui.list-box/make
-                                 {:options options
-                                  :style {:border {:thickness 0}}
-                                  :row-height row-height
-                                  :max-height max-height
-                                  :content-width (max 1 (- (:width pos) 2))
-                                  :selected-indices []
-                                  :hover-highlight? true
-                                  :toggle-selected? false})]}]})))))
+                                 (merge
+                                  {:options options
+                                   :style {:border {:thickness 0}}
+                                   :max-height max-height
+                                   :content-width (max 1 (- (:width pos) 2))
+                                   :selected-indices []
+                                   :hover-highlight? true
+                                   :toggle-selected? false}
+                                  (if (nil? (:row-height state))
+                                    {}
+                                    {:row-height row-height})))]}]})))))
 
 (defcomponent ui/combo-box-trigger
   {:style {:width :fill

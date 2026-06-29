@@ -382,6 +382,63 @@ TEST_F(ComboBoxTest, combo_box_opens_scrollable_popup_and_reports_selection)
   EXPECT_TRUE(combo->interaction.focused);
 }
 
+TEST_F(ComboBoxTest, combo_box_popup_scroll_range_uses_measured_tall_item_height)
+{
+  runtime.eval(R"(
+    (pixils/deftheme tall-list-item-theme
+      {:styles {'ui/list-box-item {:box-sizing :content-box
+                                   :padding [6 0]}}})
+
+    (pixils/defmode root-mode
+      {:theme ['pixils/base-theme 'tall-list-item-theme]
+       :children [(pixils.ui.combo-box/make
+                   {:options [{:value :a :label "Alpha"}
+                              {:value :b :label "Beta"}
+                              {:value :c :label "Gamma"}
+                              {:value :d :label "Delta"}
+                              {:value :e :label "Epsilon"}]
+                    :style {:width 100}
+                    :max-height 40})]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  session.update_mode();
+  session.render_mode();
+
+  auto combo = session.active_mode->children[0];
+  ASSERT_NE(combo, nullptr);
+  input().mouse_down({combo->bounds.x + 2, combo->bounds.y + 2});
+  update_cycle();
+  session.render_mode();
+  session.update_mode();
+  session.render_mode();
+  session.update_mode();
+  session.render_mode();
+
+  ASSERT_NE(session.active_mode, nullptr);
+  EXPECT_EQ(session.active_mode->mode->name, "ui/combo-box-popup");
+  ASSERT_EQ(session.active_mode->children.size(), 1u);
+  auto popup_panel = session.active_mode->children[0];
+  ASSERT_EQ(popup_panel->children.size(), 1u);
+  auto popup_list_box = popup_panel->children[0];
+  ASSERT_EQ(popup_list_box->children.size(), 1u);
+  auto popup_scroll_pane = popup_list_box->children[0];
+  ASSERT_EQ(popup_scroll_pane->children.size(), 1u);
+  auto popup_row = popup_scroll_pane->children[0];
+  ASSERT_EQ(popup_row->children.size(), 2u);
+  auto popup_viewport = popup_row->children[0];
+  ASSERT_EQ(popup_viewport->children.size(), 1u);
+  auto popup_content = popup_viewport->children[0];
+  ASSERT_EQ(popup_content->children.size(), 5u);
+  EXPECT_EQ(popup_content->children[0]->bounds.h, 32);
+
+  auto content_size = get_state_key(popup_scroll_pane, "content-size");
+  ASSERT_NE(content_size, nullptr);
+  auto measured_height = Roo::Dict::get_property(content_size, Roo::keyword("h"));
+  ASSERT_NE(measured_height, nullptr);
+  EXPECT_EQ(measured_height->num().get_int(), 160);
+}
+
 TEST_F(ComboBoxTest, combo_box_popup_omits_scrollbar_when_options_fit)
 {
   runtime.eval(R"(

@@ -286,6 +286,7 @@
             {:style {:width :fill
                      :height :fill}
              :content-size content-size
+             :content-height-explicit? (:explicit-row-height? state)
              :state {:offset (ui/bind-state :offset)
                      :content-state (ui/bind-state :content-state)}
              :scroll-x? false
@@ -883,6 +884,7 @@
         options (or options [])
         disabled? (or disabled? (:disabled? state))
         computed-content-width (or content-width 1)
+        explicit-row-height? (not (nil? row-height))
         managed-height? (not (contains? (or style {}) :height))
         content-height (list-box-content-height options computed-row-height)
         height (list-box-visible-height options computed-row-height visible-rows max-height)
@@ -898,6 +900,7 @@
                    {:options options
                     :item-state-keys item-state-keys
                     :row-height row-height
+                    :explicit-row-height? explicit-row-height?
                     :computed-row-height computed-row-height
                     :auto-row-height? (nil? row-height)
                     :visible-rows visible-rows
@@ -920,6 +923,7 @@
      :children [(list-box-scroll-pane-for-state
                  {:row-height row-height
                   :computed-row-height computed-row-height
+                  :explicit-row-height? explicit-row-height?
                   :content-width content-width
                   :computed-content-width computed-content-width
                   :options options

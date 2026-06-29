@@ -429,12 +429,16 @@
                        :content-size (ui/bind-state :content-size)
                        :step (ui/bind-state :step)}}]})
 
-(defun make [{:keys [auto-scroll-y children content-size content-state content-state-key offset scroll-x? scroll-y? state step style] :as opts}]
+(defun make [{:keys [auto-scroll-y children content-size content-state content-state-key content-width-explicit? content-height-explicit? offset scroll-x? scroll-y? state step style] :as opts}]
   (let [scroll-x? (scroll-pane-scroll-setting scroll-x?)
         scroll-y? (scroll-pane-scroll-setting scroll-y?)
         effective-scroll-y? (scroll-pane-initial-scrollbar? scroll-y?)
-        content-width-explicit? (scroll-pane-content-axis-explicit? content-size :w)
-        content-height-explicit? (scroll-pane-content-axis-explicit? content-size :h)
+        content-width-explicit? (if (nil? content-width-explicit?)
+                                  (scroll-pane-content-axis-explicit? content-size :w)
+                                  content-width-explicit?)
+        content-height-explicit? (if (nil? content-height-explicit?)
+                                   (scroll-pane-content-axis-explicit? content-size :h)
+                                   content-height-explicit?)
         viewport-fill-width? (scroll-pane-style-axis-explicit? style :width)
         viewport-fill-height? (scroll-pane-style-axis-explicit? style :height)]
     {:mode 'ui/scroll-pane
