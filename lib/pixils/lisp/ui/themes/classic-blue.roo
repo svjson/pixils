@@ -258,7 +258,8 @@
     {:background (var :selection-bg)
      :text {:color (var :selection-text)}}
 
-    :ui/list-item {:text {:color {:r 0xe6 :g 0xea :b 0xee}}}
+    :ui/list-item {:text {:color {:r 0xe6 :g 0xea :b 0xee}
+                          :wrap :none}}
 
     :ui/list-item-hover:hover
     {:background {:r 0x33 :g 0x3b :b 0x48}}

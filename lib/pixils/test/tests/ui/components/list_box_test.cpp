@@ -5,6 +5,7 @@
 #include <gtest/gtest.h>
 #include <roo/runtime/dict.h>
 #include <roo/runtime/value.h>
+#include <set>
 
 using ListBoxTest = RenderFixture;
 
@@ -264,6 +265,42 @@ TEST_F(ListBoxTest, tab_switch_natural_list_box_uses_measured_rows_on_first_fram
 
   EXPECT_EQ(stable_list_box->bounds.h, first_frame_list_box_height);
   EXPECT_EQ(stable_content->children[0]->bounds.h, first_frame_row_height);
+}
+
+TEST_F(ListBoxTest, list_box_item_text_does_not_wrap_when_width_is_constrained)
+{
+  SDLMock::prepared_surfaces["./font.png"] = {16, 12};
+  runtime.eval(R"(
+    (pixils/defbundle fonts {:images {:atlas "font.png"}})
+    (pixils/deffont test-font
+      {:type :bitmap
+       :resource :fonts/atlas
+       :glyphs {"A" {:x 0 :y 0 :w 4 :h 7}
+                " " {:x 4 :y 0 :w 1 :h 7}}})
+    (pixils/deftheme test-font-theme
+      {:defaults {:text {:font :font/test-font}}})
+
+    (pixils/defmode root-mode
+      {:theme ['pixils/base-theme 'test-font-theme]
+       :children [(pixils.ui.list-box/make
+                   {:options [{:value :a :label "AA AA AA"}]
+                    :visible-rows 1
+                    :content-width 12})]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  frame_cycle();
+
+  std::set<int> text_y_positions;
+  for (const auto& op : render_target()->render_ops)
+  {
+    if (op.type == RenderOpType::RENDER_COPY)
+    {
+      text_y_positions.insert(op.rendered_rect.y);
+    }
+  }
+
+  EXPECT_EQ(text_y_positions.size(), 1u);
 }
 
 TEST_F(ListBoxTest, windows_3_natural_height_list_box_with_max_height_keeps_scrollbar_when_clamped)

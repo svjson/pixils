@@ -417,7 +417,8 @@
             {:background (var :selection-bg)
              :text {:color (var :selection-text)}}
 
-            :ui/list-item {:text {:color (var :field-text)}}
+            :ui/list-item {:text {:color (var :field-text)
+                                  :wrap :none}}
 
             :ui/list-item-hover:hover
             {:background (var :focus-bg)
