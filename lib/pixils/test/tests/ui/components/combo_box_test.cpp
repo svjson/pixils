@@ -476,6 +476,55 @@ TEST_F(ComboBoxTest, combo_box_popup_omits_scrollbar_when_options_fit)
   EXPECT_EQ(viewport->bounds.w, 98);
 }
 
+TEST_F(ComboBoxTest, combo_box_popup_panel_theme_max_height_caps_scroll_viewport)
+{
+  runtime.eval(R"(
+    (pixils/deftheme combo-popup-height-theme
+      {:styles {'ui/combo-box-popup-panel {:max-height 40}}})
+
+    (pixils/defmode root-mode
+      {:theme ['pixils/base-theme 'combo-popup-height-theme]
+       :children [(pixils.ui.combo-box/make
+                   {:options [{:value :a :label "Alpha"}
+                              {:value :b :label "Beta"}
+                              {:value :c :label "Gamma"}
+                              {:value :d :label "Delta"}
+                              {:value :e :label "Epsilon"}]
+                    :style {:width 100}
+                    :row-height 20})]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  session.update_mode();
+  session.render_mode();
+
+  input().mouse_down({5, 5});
+  update_cycle();
+  session.render_mode();
+  session.update_mode();
+  session.render_mode();
+
+  ASSERT_NE(session.active_mode, nullptr);
+  EXPECT_EQ(session.active_mode->mode->name, "ui/combo-box-popup");
+  ASSERT_EQ(session.active_mode->children.size(), 1u);
+  auto popup_panel = session.active_mode->children[0];
+  ASSERT_NE(popup_panel, nullptr);
+  EXPECT_EQ(popup_panel->bounds.h, 40);
+  ASSERT_EQ(popup_panel->children.size(), 1u);
+  auto list_box = popup_panel->children[0];
+  ASSERT_EQ(list_box->children.size(), 1u);
+  auto scroll_pane = list_box->children[0];
+  ASSERT_EQ(scroll_pane->children.size(), 1u);
+  auto row = scroll_pane->children[0];
+  ASSERT_EQ(row->children.size(), 2u);
+
+  auto content_size = get_state_key(scroll_pane, "content-size");
+  ASSERT_NE(content_size, nullptr);
+  auto measured_height = Roo::Dict::get_property(content_size, Roo::keyword("h"));
+  ASSERT_NE(measured_height, nullptr);
+  EXPECT_EQ(measured_height->num().get_int(), 100);
+}
+
 TEST_F(ComboBoxTest, open_combo_box_closes_without_reopening_when_trigger_clicked)
 {
   runtime.eval(R"(

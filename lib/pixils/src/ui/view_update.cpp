@@ -9,6 +9,7 @@
 
 #include <roo/host/object.h>
 #include <roo/runtime.h>
+#include <roo/runtime/dict.h>
 #include <roo/runtime/value.h>
 #include <utility>
 
@@ -186,6 +187,73 @@ namespace Pixils::UI
       }
     }
 
+    Roo::sptr_val clear_transient_pressed_state(const Roo::sptr_val& state)
+    {
+      if (!state || state->type != Roo::Value::Type::MAP)
+      {
+        return state;
+      }
+
+      auto pressed = Roo::Dict::get_property(state, Roo::keyword("pressed"));
+      if (!pressed)
+      {
+        return state;
+      }
+
+      auto force_pressed = Roo::Dict::get_property(state, Roo::keyword("force-pressed?"));
+      if (force_pressed && force_pressed->type == Roo::Value::Type::BOOL &&
+          std::get<bool>(force_pressed->value))
+      {
+        return state;
+      }
+
+      auto next = Roo::Dict::shallow_copy(state);
+      Roo::Dict::set_property(next, Roo::keyword("pressed"), Roo::Constant::BOOL_FALSE);
+      return next;
+    }
+
+    void refresh_interaction_visual_state_subtree(
+      const std::shared_ptr<Runtime::View>& view_ptr,
+      const MouseState& mouse_state,
+      const FocusState& focus_state,
+      Roo::sptr_val* parent_state,
+      Runtime::View* parent_view,
+      const Point& mouse_pos)
+    {
+      auto& view = *view_ptr;
+
+      if (parent_state && has_state_binding(view))
+      {
+        view.set_state_if_changed(Runtime::extract_state(*parent_state, view));
+      }
+
+      update_interaction(view, mouse_pos, mouse_state, focus_state);
+      view.set_state_if_changed(clear_transient_pressed_state(view.state));
+
+      for (auto& child : view.children)
+      {
+        refresh_interaction_visual_state_subtree(child,
+                                                 mouse_state,
+                                                 focus_state,
+                                                 &view.state,
+                                                 &view,
+                                                 mouse_pos);
+      }
+
+      if (parent_state && has_state_binding(view))
+      {
+        auto merged = Runtime::merge_state(*parent_state, view, view.state);
+        if (parent_view)
+        {
+          parent_view->set_state_if_changed(merged);
+        }
+        else
+        {
+          *parent_state = merged;
+        }
+      }
+    }
+
   } // namespace
 
   void update_view_tree(const std::shared_ptr<Runtime::View>& root,
@@ -211,6 +279,20 @@ namespace Pixils::UI
                                      const Point& mouse_pos)
   {
     refresh_interaction_subtree(root, mouse_state, focus_state, mouse_pos);
+  }
+
+  void refresh_view_interaction_visual_state_tree(
+    const std::shared_ptr<Runtime::View>& root,
+    const MouseState& mouse_state,
+    const FocusState& focus_state,
+    const Point& mouse_pos)
+  {
+    refresh_interaction_visual_state_subtree(root,
+                                             mouse_state,
+                                             focus_state,
+                                             nullptr,
+                                             nullptr,
+                                             mouse_pos);
   }
 
 } // namespace Pixils::UI

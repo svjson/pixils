@@ -25,17 +25,122 @@
 #include <roo/runtime/dict.h>
 #include <roo/runtime/value.h>
 
+#include <algorithm>
+
 namespace Pixils::Runtime
 {
   namespace
   {
+    const Roo::sptr_val KEYWORD__ANCHOR = Roo::keyword("anchor");
     const Roo::sptr_val KEYWORD__EVENT = Roo::keyword("event");
+    const Roo::sptr_val KEYWORD__FALLBACK_PLACEMENT = Roo::keyword("fallback-placement");
+    const Roo::sptr_val KEYWORD__MATCH_ANCHOR_WIDTH =
+      Roo::keyword("match-anchor-width?");
+    const Roo::sptr_val KEYWORD__OVERLAY = Roo::keyword("overlay");
     const Roo::sptr_val KEYWORD__ORIGIN = Roo::keyword("origin");
+    const Roo::sptr_val KEYWORD__PLACEMENT = Roo::keyword("placement");
     const Roo::sptr_val KEYWORD__POP_RESULT = Roo::keyword("pop/result");
     const Roo::sptr_val KEYWORD__TARGET = Roo::keyword("target");
     const Roo::sptr_val KEYWORD__THEME = Roo::keyword("theme");
     const Roo::sptr_val KEYWORD__THEME_VARIANT = Roo::keyword("theme-variant");
+    const Roo::sptr_val KEYWORD__VIEWPORT_PADDING = Roo::keyword("viewport-padding");
     const Roo::sptr_val KEYWORD__VIEW = Roo::keyword("view");
+
+    Session::ModeFrameMetadata::OverlayPlacement parse_overlay_placement(
+      const Roo::sptr_val& value,
+      Session::ModeFrameMetadata::OverlayPlacement fallback)
+    {
+      if (!value || value->type == Roo::Value::Type::NIL)
+      {
+        return fallback;
+      }
+
+      if (value->type != Roo::Value::Type::KEYWORD &&
+          value->type != Roo::Value::Type::SYMBOL)
+      {
+        throw Roo::TypeError("Overlay placement must be a keyword");
+      }
+
+      const auto name = value->str();
+      if (name == "bottom-start")
+      {
+        return Session::ModeFrameMetadata::OverlayPlacement::BOTTOM_START;
+      }
+      if (name == "top-start")
+      {
+        return Session::ModeFrameMetadata::OverlayPlacement::TOP_START;
+      }
+      if (name == "none")
+      {
+        return Session::ModeFrameMetadata::OverlayPlacement::NONE;
+      }
+
+      throw Roo::InvocationException("Unknown overlay placement '" + name + "'");
+    }
+
+    bool parse_bool_option(const Roo::sptr_val& value, bool fallback, const char* label)
+    {
+      if (!value || value->type == Roo::Value::Type::NIL)
+      {
+        return fallback;
+      }
+      if (value->type != Roo::Value::Type::BOOL)
+      {
+        throw Roo::TypeError(std::string(label) + " must be a boolean");
+      }
+      return std::get<bool>(value->value);
+    }
+
+    int parse_int_option(const Roo::sptr_val& value, int fallback, const char* label)
+    {
+      if (!value || value->type == Roo::Value::Type::NIL)
+      {
+        return fallback;
+      }
+      if (value->type != Roo::Value::Type::NUMBER)
+      {
+        throw Roo::TypeError(std::string(label) + " must be a number");
+      }
+      return std::max(0, value->num().get_int());
+    }
+
+    std::optional<Session::ModeFrameMetadata::Overlay> parse_overlay_metadata(
+      const Roo::sptr_val& overrides)
+    {
+      auto overlay = Roo::Dict::get_property(overrides, KEYWORD__OVERLAY);
+      if (!overlay || overlay->type == Roo::Value::Type::NIL)
+      {
+        return std::nullopt;
+      }
+      if (overlay->type != Roo::Value::Type::MAP)
+      {
+        throw Roo::TypeError("Mode :overlay metadata must be a map");
+      }
+
+      auto anchor = Roo::Dict::get_property(overlay, KEYWORD__ANCHOR);
+      if (!anchor || !Script::HostType::VIEW.is_type_of(*anchor))
+      {
+        throw Roo::TypeError("Mode :overlay :anchor must be a view");
+      }
+
+      Session::ModeFrameMetadata::Overlay metadata;
+      metadata.anchor_view = &Roo::obj<View>(*anchor);
+      metadata.placement = parse_overlay_placement(
+        Roo::Dict::get_property(overlay, KEYWORD__PLACEMENT),
+        Session::ModeFrameMetadata::OverlayPlacement::BOTTOM_START);
+      metadata.fallback_placement = parse_overlay_placement(
+        Roo::Dict::get_property(overlay, KEYWORD__FALLBACK_PLACEMENT),
+        Session::ModeFrameMetadata::OverlayPlacement::NONE);
+      metadata.match_anchor_width = parse_bool_option(
+        Roo::Dict::get_property(overlay, KEYWORD__MATCH_ANCHOR_WIDTH),
+        false,
+        "Mode :overlay :match-anchor-width?");
+      metadata.viewport_padding = parse_int_option(
+        Roo::Dict::get_property(overlay, KEYWORD__VIEWPORT_PADDING),
+        0,
+        "Mode :overlay :viewport-padding");
+      return metadata;
+    }
 
     Session::ModeFrameMetadata parse_frame_metadata(const Roo::sptr_val& overrides)
     {
@@ -44,6 +149,8 @@ namespace Pixils::Runtime
       {
         return metadata;
       }
+
+      metadata.overlay = parse_overlay_metadata(overrides);
 
       auto origin = Roo::Dict::get_property(overrides, KEYWORD__ORIGIN);
       if (!origin || origin->type == Roo::Value::Type::NIL)
@@ -224,6 +331,139 @@ namespace Pixils::Runtime
       {
         invalidate_style_tree(child);
       }
+    }
+
+    std::shared_ptr<View> overlay_target_for_root(const std::shared_ptr<View>& root)
+    {
+      if (!root) return nullptr;
+      if (!root->children.empty()) return root->children.front();
+      return root;
+    }
+
+    int overlay_top_for_placement(Session::ModeFrameMetadata::OverlayPlacement placement,
+                                  const Rect& anchor,
+                                  int target_visual_height)
+    {
+      switch (placement)
+      {
+      case Session::ModeFrameMetadata::OverlayPlacement::TOP_START:
+        return anchor.y - target_visual_height;
+      case Session::ModeFrameMetadata::OverlayPlacement::BOTTOM_START:
+        return anchor.y + anchor.h;
+      case Session::ModeFrameMetadata::OverlayPlacement::NONE:
+        break;
+      }
+      return anchor.y + anchor.h;
+    }
+
+    bool placement_fits_vertically(int visual_top,
+                                   int visual_height,
+                                   const Rect& viewport,
+                                   int padding)
+    {
+      return visual_top >= viewport.y + padding &&
+             visual_top + visual_height <= viewport.y + viewport.h - padding;
+    }
+
+    void offset_visual_subtree(const std::shared_ptr<View>& view,
+                               int dx,
+                               int dy,
+                               int visual_dx,
+                               int visual_dy)
+    {
+      if (!view) return;
+      view->bounds.x += dx;
+      view->bounds.y += dy;
+      view->external_bounds.x += dx;
+      view->external_bounds.y += dy;
+      view->visual_bounds.x += visual_dx;
+      view->visual_bounds.y += visual_dy;
+      for (auto& child : view->children)
+      {
+        offset_visual_subtree(child, dx, dy, visual_dx, visual_dy);
+      }
+    }
+
+    bool apply_overlay_placement(const std::shared_ptr<View>& root,
+                                 const Session::ModeFrameMetadata& metadata,
+                                 const Rect& viewport)
+    {
+      if (!metadata.overlay || !metadata.overlay->anchor_view)
+      {
+        return false;
+      }
+
+      auto target = overlay_target_for_root(root);
+      if (!target)
+      {
+        return false;
+      }
+
+      const auto& overlay = *metadata.overlay;
+      const Rect anchor = overlay.anchor_view->visual_bounds;
+      const int scale = std::max(1, root ? root->visual_scale : target->visual_scale);
+      const int target_visual_width =
+        overlay.match_anchor_width ? anchor.w : target->visual_bounds.w;
+      const int target_visual_height = target->visual_bounds.h;
+      int visual_left = anchor.x;
+      int visual_top = overlay_top_for_placement(overlay.placement,
+                                                 anchor,
+                                                 target_visual_height);
+
+      if (overlay.fallback_placement !=
+            Session::ModeFrameMetadata::OverlayPlacement::NONE &&
+          !placement_fits_vertically(visual_top,
+                                     target_visual_height,
+                                     viewport,
+                                     overlay.viewport_padding))
+      {
+        int fallback_top = overlay_top_for_placement(overlay.fallback_placement,
+                                                     anchor,
+                                                     target_visual_height);
+        if (placement_fits_vertically(fallback_top,
+                                      target_visual_height,
+                                      viewport,
+                                      overlay.viewport_padding))
+        {
+          visual_top = fallback_top;
+        }
+      }
+
+      const int max_left =
+        viewport.x + viewport.w - overlay.viewport_padding - target_visual_width;
+      visual_left = std::clamp(visual_left,
+                               viewport.x + overlay.viewport_padding,
+                               std::max(viewport.x + overlay.viewport_padding, max_left));
+
+      const int max_top =
+        viewport.y + viewport.h - overlay.viewport_padding - target_visual_height;
+      visual_top = std::clamp(visual_top,
+                              viewport.y + overlay.viewport_padding,
+                              std::max(viewport.y + overlay.viewport_padding, max_top));
+
+      const int logical_left = visual_left / scale;
+      const int logical_top = visual_top / scale;
+      const int logical_width = std::max(1, target_visual_width / scale);
+
+      int dx = logical_left - target->bounds.x;
+      int dy = logical_top - target->bounds.y;
+      bool changed = dx != 0 || dy != 0;
+      if (overlay.match_anchor_width && target->bounds.w != logical_width)
+      {
+        target->bounds.w = logical_width;
+        target->external_bounds.w = logical_width;
+        target->visual_bounds.w = target_visual_width;
+        changed = true;
+      }
+      if (dx != 0 || dy != 0)
+      {
+        offset_visual_subtree(target,
+                              dx,
+                              dy,
+                              visual_left - target->visual_bounds.x,
+                              visual_top - target->visual_bounds.y);
+      }
+      return changed;
     }
 
   } // namespace
@@ -537,10 +777,26 @@ namespace Pixils::Runtime
     for (size_t i = render_stack.size() - 1; i > 0; i--)
     {
       size_t ctx_idx = ctx_stack.size() - i;
+      size_t frame_meta_idx = frame_metadata.size() - 1 - i;
+      if (render_stack[i - 1].first->composition.interaction_refresh)
+      {
+        UI::MouseState empty_mouse_state;
+        UI::FocusState empty_focus_state;
+        Pixils::UI::refresh_view_interaction_visual_state_tree(ctx_stack[ctx_idx],
+                                                               empty_mouse_state,
+                                                               empty_focus_state,
+                                                               current_mouse_pos(hook_args));
+        mode_stack.update_state(ctx_stack[ctx_idx]->state, render_stack.size() - i);
+      }
       if (Pixils::UI::layout_view_tree(ctx_stack[ctx_idx],
                                        full,
                                        roo_runtime,
                                        hook_args.render_args[1]))
+      {
+        mode_stack.update_state(ctx_stack[ctx_idx]->state, render_stack.size() - i);
+      }
+      if (frame_meta_idx < frame_metadata.size() &&
+          apply_overlay_placement(ctx_stack[ctx_idx], frame_metadata[frame_meta_idx], full))
       {
         mode_stack.update_state(ctx_stack[ctx_idx]->state, render_stack.size() - i);
       }
@@ -554,6 +810,12 @@ namespace Pixils::Runtime
                                      full,
                                      roo_runtime,
                                      hook_args.render_args[1]))
+    {
+      mode_stack.update_state(active_mode->state);
+      hook_args.update_state(active_mode->state);
+    }
+    if (!frame_metadata.empty() &&
+        apply_overlay_placement(active_mode, frame_metadata.back(), full))
     {
       mode_stack.update_state(active_mode->state);
       hook_args.update_state(active_mode->state);

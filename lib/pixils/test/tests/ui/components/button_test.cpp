@@ -409,6 +409,56 @@ TEST_F(ButtonTest, button_state_image_map_can_override_pressed_offset)
   EXPECT_EQ(copy->rendered_rect.h, 8);
 }
 
+TEST_F(ButtonTest, render_through_interaction_refresh_clears_covered_button_pressed_state)
+{
+  runtime.eval(R"(
+    (pixils/defmode modal-mode
+      {:compose {:render :pass
+                 :interaction :refresh}
+       :children [{:mode 'ui/text
+                   :state {:value "Modal"}}]})
+
+    (pixils/defmode root-mode
+      {:init (fn [state ctx] {:updates 0})
+       :update (fn [state ctx]
+                 (assoc state :updates (+ (:updates state) 1)))
+       :children [{:mode 'ui/button
+                   :style {:width 80
+                           :height 24}
+                   :state {:label "Open"}
+                   :on-mouse-down (fn [state event ctx]
+                                    (do
+                                      (pixils/push-mode! 'modal-mode)
+                                      state))}]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  session.update_mode();
+  session.render_mode();
+
+  input().mouse_down({5, 5});
+  update_cycle();
+  ASSERT_NE(session.active_mode, nullptr);
+  EXPECT_EQ(session.active_mode->mode->name, "modal-mode");
+
+  session.render_mode();
+
+  ASSERT_EQ(session.ctx_stack.size(), 1u);
+  auto covered_root = session.ctx_stack[0];
+  ASSERT_NE(covered_root, nullptr);
+  ASSERT_EQ(covered_root->children.size(), 1u);
+  auto covered_button = covered_root->children[0];
+  ASSERT_NE(covered_button, nullptr);
+
+  auto pressed = get_key(covered_button->state, "pressed");
+  ASSERT_NE(pressed, nullptr);
+  EXPECT_EQ(pressed->to_string(), "false");
+
+  auto updates = get_key(covered_root->state, "updates");
+  ASSERT_NE(updates, nullptr);
+  EXPECT_EQ(updates->num().get_int(), 2);
+}
+
 TEST_F(ButtonTest, disabled_button_does_not_fire_click_handler)
 {
   runtime.eval(R"(

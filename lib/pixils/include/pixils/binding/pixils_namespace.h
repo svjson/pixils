@@ -169,7 +169,9 @@ namespace Pixils::Script
   /*! @brief ModeAdapter - A Roo HostObject Adapter for Mode */
   NATIVE_ADAPTER(ModeAdapter, Runtime::Mode, (init, update, render));
   /*! @brief ModeCompositionAdapter - A Roo HostObject Adapter for ModeComposition */
-  NATIVE_ADAPTER(ModeCompositionAdapter, Runtime::ModeComposition, (render));
+  NATIVE_ADAPTER(ModeCompositionAdapter,
+                 Runtime::ModeComposition,
+                 (render, update, interaction));
   /*! @brief Roo HostObject Adapter for Program */
   NATIVE_ADAPTER(ProgramAdapter,
                  Program,

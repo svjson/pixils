@@ -31,6 +31,12 @@ namespace Pixils::UI
                                      const MouseState& mouse_state,
                                      const FocusState& focus_state,
                                      const Point& mouse_pos);
+
+  void refresh_view_interaction_visual_state_tree(
+    const std::shared_ptr<Runtime::View>& root,
+    const MouseState& mouse_state,
+    const FocusState& focus_state,
+    const Point& mouse_pos);
 }
 
 #endif /* PIXILS__UI__VIEW_UPDATE_H */

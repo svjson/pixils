@@ -32,9 +32,26 @@ namespace Pixils::Runtime
   {
     struct ModeFrameMetadata
     {
+      enum class OverlayPlacement
+      {
+        NONE,
+        BOTTOM_START,
+        TOP_START,
+      };
+
+      struct Overlay
+      {
+        View* anchor_view = nullptr;
+        OverlayPlacement placement = OverlayPlacement::BOTTOM_START;
+        OverlayPlacement fallback_placement = OverlayPlacement::NONE;
+        bool match_anchor_width = false;
+        int viewport_padding = 0;
+      };
+
       View* origin_view = nullptr;
       Roo::sptr_val origin_event = Roo::Constant::NIL;
       UI::FocusState restore_focus;
+      std::optional<Overlay> overlay = std::nullopt;
     };
 
     Roo::Runtime& roo_runtime;

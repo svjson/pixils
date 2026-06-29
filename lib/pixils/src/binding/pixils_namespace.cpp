@@ -583,12 +583,15 @@ namespace Pixils::Script
     {
       static Roo::MapSchema mode_compose_schema(
         {},
-        {{"render", &Roo::Type::KEYWORD}, {"update", &Roo::Type::KEYWORD}});
+        {{"render", &Roo::Type::KEYWORD},
+         {"update", &Roo::Type::KEYWORD},
+         {"interaction", &Roo::Type::KEYWORD}});
 
       auto opts = mode_compose_schema.bind(ctx, *args[0]);
 
       Runtime::ModeComposition composition{opts.str("render", "block") == "pass",
-                                           opts.str("update", "block") == "pass"};
+                                           opts.str("update", "block") == "pass",
+                                           opts.str("interaction", "block") == "refresh"};
 
       return ModeCompositionAdapter::make_unique(composition);
     }
@@ -872,11 +875,24 @@ namespace Pixils::Script
   NATIVE_ADAPTER_IMPL(ModeCompositionAdapter,
                       Runtime::ModeComposition,
                       &HostType::MODE_COMPOSITION,
-                      (render));
+                      (render),
+                      (update),
+                      (interaction));
 
   Roo::sptr_val ModeCompositionAdapter::get_render() const
   {
     return this->get_object().render ? MapKey::PASS : MapKey::BLOCK;
+  }
+
+  Roo::sptr_val ModeCompositionAdapter::get_update() const
+  {
+    return this->get_object().update ? MapKey::PASS : MapKey::BLOCK;
+  }
+
+  Roo::sptr_val ModeCompositionAdapter::get_interaction() const
+  {
+    return this->get_object().interaction_refresh ? Roo::keyword("refresh")
+                                                  : MapKey::BLOCK;
   }
 
   /* DimensionAdapter */

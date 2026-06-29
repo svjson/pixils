@@ -5,7 +5,6 @@
             [pixils.ui :as ui]))
 
 (def default-row-height 20)
-(def default-max-height 120)
 (def popup-panel-inset 2)
 
 (defun option-label [option]
@@ -94,9 +93,6 @@
                                     direction)]
       (select-index state index ctx))))
 
-(defun clamp [value low high]
-  (max low (min high value)))
-
 (defun text-args [style]
   (reduce-kv (:text style)
              {}
@@ -144,44 +140,11 @@
     {:w (max 1 (+ (or (:w text-dim) 0) 24))
      :h (max 1 (+ line-height vertical-padding))}))
 
-(defun popup-list-height [options row-height max-height]
-  (min (or max-height (* (count options) row-height))
-       (* (count options) row-height)))
-
-(defun popup-outer-height [options row-height max-height]
-  (max 1 (+ (popup-list-height options row-height max-height)
-            popup-panel-inset)))
-
-(defun popup-position [ctx options row-height max-height]
+(defun popup-anchor-geometry [ctx]
   (let [anchor-view (:view ctx)
         bounds (:visual-bounds anchor-view)
-        buffer (:buffer-size ctx)
-        scale (or (:visual-scale anchor-view) 1)
-        width (max 1 (int (/ (:w bounds) scale)))
-        height (popup-outer-height options row-height max-height)
-        visual-width (* width scale)
-        visual-height (* height scale)
-        below-top (+ (:y bounds) (:h bounds))
-        desired-top (if (and (not (nil? buffer))
-                             (number? (:h buffer))
-                             (> (+ below-top visual-height) (:h buffer)))
-                      (- (:y bounds) visual-height)
-                      below-top)
-        visual-left (if (and (not (nil? buffer))
-                             (number? (:w buffer)))
-                      (clamp (:x bounds)
-                             0
-                             (max 0 (- (:w buffer) visual-width)))
-                      (:x bounds))
-        visual-top (if (and (not (nil? buffer))
-                            (number? (:h buffer)))
-                     (clamp desired-top
-                            0
-                            (max 0 (- (:h buffer) visual-height)))
-                     desired-top)]
-    {:top (int (/ visual-top scale))
-     :left (int (/ visual-left scale))
-     :width width
+        scale (or (:visual-scale anchor-view) 1)]
+    {:width (max 1 (int (/ (:w bounds) scale)))
      :scale scale}))
 
 (defun point-in-rect? [point rect]
@@ -198,8 +161,8 @@
 (defun open-popup! [state ctx]
   (let [options (or (:options state) [])
         row-height (combo-box-row-height state ctx)
-        max-height (or (:max-height state) default-max-height)
-        pos (popup-position ctx options row-height max-height)]
+        max-height (:max-height state)
+        anchor (popup-anchor-geometry ctx)]
     (when (and (not (:disabled? state))
                (not (empty? options)))
       (push-mode!
@@ -210,26 +173,35 @@
         :row-height row-height
         :max-height max-height}
        (merge
-        (if (> (:scale pos) 1)
-          {:style {:scale (:scale pos)}}
+        (if (> (:scale anchor) 1)
+          {:style {:scale (:scale anchor)}}
           {})
         {:origin {:view (:view ctx)
                   :event :combo-box/select}
+         :overlay {:anchor (:view ctx)
+                   :placement :bottom-start
+                   :fallback-placement :top-start
+                   :match-anchor-width? true}
          :children [{:mode 'ui/combo-box-popup-panel
-                     :style {:position :absolute
-                             :left (:left pos)
-                             :top (:top pos)
-                             :width (:width pos)
-                             :height :shrink}
+                     :style (merge {:position :absolute
+                                     :left 0
+                                     :top 0
+                                     :width (:width anchor)
+                                     :height :shrink}
+                                    (if (nil? max-height)
+                                      {}
+                                      {:max-height max-height}))
                      :children [(pixils.ui.list-box/make
                                  (merge
                                   {:options options
                                    :style {:border {:thickness 0}}
-                                   :max-height max-height
-                                   :content-width (max 1 (- (:width pos) 2))
+                                   :content-width (max 1 (- (:width anchor) 2))
                                    :selected-indices []
                                    :hover-highlight? true
                                    :toggle-selected? false}
+                                  (if (nil? max-height)
+                                    {}
+                                    {:max-height max-height})
                                   (if (nil? (:row-height state))
                                     {}
                                     {:row-height row-height})))]}]})))))
@@ -326,4 +298,4 @@
            :selected-index selected-index
            :disabled? disabled?
            :row-height row-height
-           :max-height (or max-height default-max-height)}})
+           :max-height max-height}})
