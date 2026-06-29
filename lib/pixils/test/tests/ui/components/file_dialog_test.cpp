@@ -4,6 +4,7 @@
 #include <gtest/gtest.h>
 #include <roo/runtime/dict.h>
 
+#include <algorithm>
 #include <chrono>
 #include <filesystem>
 #include <fstream>
@@ -122,7 +123,85 @@ namespace
     return nullptr;
   }
 
+  bool has_class(const std::shared_ptr<View>& view, const std::string& class_name)
+  {
+    if (!view || !view->mode) return false;
+    const auto& classes = view->mode->class_names;
+    return std::find(classes.begin(), classes.end(), class_name) != classes.end();
+  }
+
 } // namespace
+
+TEST_F(FileDialogTest, open_file_dialog_adds_dialog_specific_classes_for_theming)
+{
+  render_ctx.buffer_dim = {640, 480};
+  TempProject project;
+
+  runtime.eval(R"(
+    (pixils/deftheme file-dialog-class-theme
+      {:styles {:ui/file-dialog-window {:width 500}
+                :ui/file-dialog-body {:background {:r 4 :g 5 :b 6 :a 255}}
+                :ui/file-dialog-button-row {:height 30}
+                :ui/file-dialog-confirm-button {:width 112}}})
+
+    (pixils/defmode root-mode
+      {:theme 'file-dialog-class-theme
+       :init (fn [state ctx]
+               (do
+                 (pixils.ui.file-dialog/open-file-dialog!
+                  ctx
+                  {:title "Open Project"
+                   :mode :file-dialog/open
+                   :path )" + lisp_string(project.path()) + R"(
+                   :result-event :project/open-result})
+                 state))})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  session.process_messages();
+  ASSERT_EQ(session.active_mode->mode->name, "ui/dialog-frame");
+  session.update_mode();
+  session.render_mode();
+
+  auto window = find_mode(session.active_mode, "ui/window");
+  auto file_dialog_body = find_mode(session.active_mode, "ui/file-dialog-body");
+  auto button_row = find_mode(session.active_mode, "ui/dialog-button-row");
+  auto open_button = find_button_with_label(session.active_mode, "Open");
+  auto cancel_button = find_button_with_label(session.active_mode, "Cancel");
+
+  ASSERT_NE(window, nullptr);
+  ASSERT_NE(file_dialog_body, nullptr);
+  ASSERT_NE(button_row, nullptr);
+  ASSERT_NE(open_button, nullptr);
+  ASSERT_NE(cancel_button, nullptr);
+
+  EXPECT_TRUE(has_class(window, "ui/dialog-window"));
+  EXPECT_TRUE(has_class(window, "ui/file-dialog-window"));
+  EXPECT_TRUE(has_class(file_dialog_body, "ui/content"));
+  EXPECT_TRUE(has_class(file_dialog_body, "ui/dialog-body"));
+  EXPECT_TRUE(has_class(file_dialog_body, "ui/file-dialog-body"));
+  EXPECT_TRUE(has_class(button_row, "ui/dialog-button-row"));
+  EXPECT_TRUE(has_class(button_row, "ui/file-dialog-button-row"));
+  EXPECT_TRUE(has_class(open_button, "ui/dialog-button"));
+  EXPECT_TRUE(has_class(open_button, "ui/dialog-button-ok"));
+  EXPECT_TRUE(has_class(open_button, "ui/file-dialog-button"));
+  EXPECT_TRUE(has_class(open_button, "ui/file-dialog-confirm-button"));
+  EXPECT_TRUE(has_class(cancel_button, "ui/dialog-button"));
+  EXPECT_TRUE(has_class(cancel_button, "ui/dialog-button-cancel"));
+  EXPECT_TRUE(has_class(cancel_button, "ui/file-dialog-button"));
+  EXPECT_TRUE(has_class(cancel_button, "ui/file-dialog-cancel-button"));
+
+  ASSERT_TRUE(window->effective_style.width.has_value());
+  EXPECT_EQ(window->effective_style.width->fixed_value_or(0), 500);
+  ASSERT_TRUE(file_dialog_body->effective_style.background.has_value());
+  ASSERT_TRUE(file_dialog_body->effective_style.background->color.has_value());
+  EXPECT_EQ(*file_dialog_body->effective_style.background->color,
+            (Pixils::Color{4, 5, 6, 255}));
+  ASSERT_TRUE(button_row->effective_style.height.has_value());
+  EXPECT_EQ(button_row->effective_style.height->fixed_value_or(0), 30);
+  ASSERT_TRUE(open_button->effective_style.width.has_value());
+  EXPECT_EQ(open_button->effective_style.width->fixed_value_or(0), 112);
+}
 
 TEST_F(FileDialogTest, open_file_dialog_returns_selected_file)
 {

@@ -16,29 +16,30 @@
    :dialog/no "No"
    :dialog/dismiss "Dismiss"})
 
-(def default-dialog-body-style
-  {:width :fill
-   :min-width 260
-   :height :shrink
-   :padding 10
-   :layout {:direction :column
-            :gap 10}})
-
-(def default-dialog-button-row-style
-  {:width :fill
-   :height 24
-   :layout {:direction :row
-            :gap :space-between}})
-
-(def default-dialog-button-style
-  {:width 78
-   :height 24})
-
 (defcomponent ui/dialog-body
   {})
 
 (defcomponent ui/dialog-button-row
   {})
+
+(defun option-classes [classes]
+  (cond
+    (nil? classes) []
+    (keyword? classes) [classes]
+    :default classes))
+
+(defun merge-classes [base extra]
+  (concat (option-classes base)
+          (option-classes extra)))
+
+(defun dialog-button-type-class [type]
+  (case type
+    :dialog/ok :ui/dialog-button-ok
+    :dialog/cancel :ui/dialog-button-cancel
+    :dialog/yes :ui/dialog-button-yes
+    :dialog/no :ui/dialog-button-no
+    :dialog/dismiss :ui/dialog-button-dismiss
+    :default :ui/dialog-button-custom))
 
 (defun button-label [type]
   (or (get dialog-button-labels type)
@@ -84,45 +85,49 @@
    :payload (:dialog/payload state)})
 
 (defun stop-dialog-window-mouse-down [state event ctx]
-  (do
-    (ui/stop-propagation! event)
-    state))
+  (ui/stop-propagation! event)
+  state)
 
 (defun make-dialog-button [button]
   (let [button (normalize-button button)
         type (:type button)]
     {:mode 'ui/button
-     :style (merge default-dialog-button-style
-                   (or (:style button) {}))
+     :class (merge-classes [:ui/dialog-button
+                            (dialog-button-type-class type)]
+                           (:class button))
+     :style (or (:style button) {})
      :state (merge (or (:state button) {})
                    {:choice type
                     :label (:label button)})
      :on-click (fn [state event ctx]
-                 (do
-                   (ui/emit! (:view ctx)
-                             :dialog/button
-                             {:choice (:choice state)})
-                   state))}))
+                 (ui/emit! (:view ctx)
+                           :dialog/button
+                           {:choice (:choice state)})
+                 state)}))
 
-(defun make-dialog-button-row [buttons style]
+(defun make-dialog-button-row [buttons style class]
   {:mode 'ui/dialog-button-row
-   :style (merge default-dialog-button-row-style
-                 (or style {}))
+   :class (merge-classes [:ui/dialog-button-row] class)
+   :style (or style {})
    :children (map (normalize-buttons buttons)
                   make-dialog-button)})
 
-(defun make-dialog-body [{:keys [body buttons body-style button-row-style state]}]
+(defun make-dialog-body [{:keys [body buttons body-style button-row-style
+                                 body-class button-row-class state]}]
   {:mode 'ui/dialog-body
-   :class :ui/content
-   :style (merge default-dialog-body-style
-                 (or body-style {}))
+   :class (merge-classes [:ui/content :ui/dialog-body] body-class)
+   :style (or body-style {})
    :state (or state {})
    :children (concat (body-children body)
-                     [(make-dialog-button-row buttons button-row-style)])})
+                     [(make-dialog-button-row buttons
+                                              button-row-style
+                                              button-row-class)])})
 
 (defun make-dialog-window [{:keys [title title-bar position state style body auto-focus auto-focus?]
                             :as opts}]
   (let [window-opts (merge {:title-bar (or title-bar {:title (or title "Dialog")})
+                            :class (merge-classes [:ui/dialog-window]
+                                                  (:class opts))
                             :style (or style {})
                             :state (or state {})
                             :auto-focus (if (contains? opts :auto-focus)
@@ -151,10 +156,9 @@
 
 (defun make-result-handler [handler]
   (fn [state event ctx]
-    (do
-      (ui/stop-propagation! event)
-      (pop-mode! (apply handler [state event ctx]))
-      state)))
+    (ui/stop-propagation! event)
+    (pop-mode! (apply handler [state event ctx]))
+    state))
 
 (defun make-result-handlers [results]
   (reduce (keys (or results {}))
@@ -169,9 +173,8 @@
    :style {:width :fill
            :height :fill}
    :init (fn [state ctx]
-           (do
-             (ui/focus! ctx)
-             state))
+           (ui/focus! ctx)
+           state)
    :on-key-down (fn [state event ctx]
                   (case (:key event)
                     :key/escape
@@ -183,17 +186,15 @@
                     :default
                     state))
    :on-mouse-down (fn [state event ctx]
-                    (do
-                      (ui/preserve-focus! event)
-                      (ui/stop-propagation! event)
-                      (dismiss-dialog! state)
-                      state))
+                    (ui/preserve-focus! event)
+                    (ui/stop-propagation! event)
+                    (dismiss-dialog! state)
+                    state)
    :on {:dialog/button (fn [state event ctx]
-                         (do
-                           (ui/stop-propagation! event)
-                           (pop-mode! (dialog-result state
-                                                     (-> event :payload :choice)))
-                           state))}
+                         (ui/stop-propagation! event)
+                         (pop-mode! (dialog-result state
+                                                   (-> event :payload :choice)))
+                         state)}
    :compose {:render :pass}})
 
 (defun open-confirm! [ctx opts]
@@ -208,18 +209,17 @@
                                       (-> event :payload :choice)))}})))
 
 (defun open-dialog! [ctx opts]
-  (do
-    (push-mode! 'ui/dialog-frame
-                (merge (or (:state opts) {})
-                       {:dialog/payload (:payload opts)
-                        :dialog/dismissable (or (:dismissable opts) false)
-                        :dialog/modal (if (nil? (:modal opts))
-                                        true
-                                        (:modal opts))})
-                {:origin {:view (:view ctx)
-                          :event (or (:result-event opts)
-                                     :dialog/result)}
-                 :class (:overlay-class opts)
-                 :on (make-result-handlers (:results opts))
-                 :children [(make-dialog-window opts)]})
-    nil))
+  (push-mode! 'ui/dialog-frame
+              (merge (or (:state opts) {})
+                     {:dialog/payload (:payload opts)
+                      :dialog/dismissable (or (:dismissable opts) false)
+                      :dialog/modal (if (nil? (:modal opts))
+                                      true
+                                      (:modal opts))})
+              {:origin {:view (:view ctx)
+                        :event (or (:result-event opts)
+                                   :dialog/result)}
+               :class (:overlay-class opts)
+               :on (make-result-handlers (:results opts))
+               :children [(make-dialog-window opts)]})
+  nil)

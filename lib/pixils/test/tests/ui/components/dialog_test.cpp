@@ -64,6 +64,13 @@ namespace
 
     return nullptr;
   }
+
+  bool has_class(const std::shared_ptr<View>& view, const std::string& class_name)
+  {
+    if (!view || !view->mode) return false;
+    const auto& classes = view->mode->class_names;
+    return std::find(classes.begin(), classes.end(), class_name) != classes.end();
+  }
 } // namespace
 
 TEST_F(DialogTest, make_confirm_renders_buttons_in_declared_order_with_label_overrides)
@@ -114,6 +121,59 @@ TEST_F(DialogTest, make_confirm_accepts_string_body_and_body_fills_title_width)
   ASSERT_NE(value, nullptr);
   EXPECT_EQ(value->str(), "Your current character will be lost if you exit.");
   EXPECT_EQ(dialog_body->bounds.w, window_body->bounds.w);
+}
+
+TEST_F(DialogTest, make_confirm_adds_dialog_specific_classes_for_theming)
+{
+  runtime.eval(R"(
+    (pixils/deftheme dialog-class-theme
+      {:styles {:ui/dialog-window {:width 310}
+                :ui/dialog-body {:background {:r 1 :g 2 :b 3 :a 255}}
+                :ui/dialog-button-row {:height 28}
+                :ui/dialog-button-ok {:width 96}}})
+
+    (pixils/defmode root-mode
+      {:theme 'dialog-class-theme
+       :children [(pixils.ui.dialog/make-confirm
+                   {:title "Delete"
+                    :body "Delete this?"
+                    :buttons :dialog/ok-cancel})]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  session.render_mode();
+
+  auto window = find_first_mode(session.active_mode, "ui/window");
+  auto dialog_body = find_first_mode(session.active_mode, "ui/dialog-body");
+  auto button_row = find_first_mode(session.active_mode, "ui/dialog-button-row");
+  auto ok_button = find_button_with_label(session.active_mode, "OK");
+  auto cancel_button = find_button_with_label(session.active_mode, "Cancel");
+
+  ASSERT_NE(window, nullptr);
+  ASSERT_NE(dialog_body, nullptr);
+  ASSERT_NE(button_row, nullptr);
+  ASSERT_NE(ok_button, nullptr);
+  ASSERT_NE(cancel_button, nullptr);
+
+  EXPECT_TRUE(has_class(window, "ui/dialog-window"));
+  EXPECT_TRUE(has_class(dialog_body, "ui/content"));
+  EXPECT_TRUE(has_class(dialog_body, "ui/dialog-body"));
+  EXPECT_TRUE(has_class(button_row, "ui/dialog-button-row"));
+  EXPECT_TRUE(has_class(ok_button, "ui/dialog-button"));
+  EXPECT_TRUE(has_class(ok_button, "ui/dialog-button-ok"));
+  EXPECT_TRUE(has_class(cancel_button, "ui/dialog-button"));
+  EXPECT_TRUE(has_class(cancel_button, "ui/dialog-button-cancel"));
+
+  ASSERT_TRUE(window->effective_style.width.has_value());
+  EXPECT_EQ(window->effective_style.width->fixed_value_or(0), 310);
+  ASSERT_TRUE(dialog_body->effective_style.background.has_value());
+  ASSERT_TRUE(dialog_body->effective_style.background->color.has_value());
+  EXPECT_EQ(*dialog_body->effective_style.background->color,
+            (Pixils::Color{1, 2, 3, 255}));
+  ASSERT_TRUE(button_row->effective_style.height.has_value());
+  EXPECT_EQ(button_row->effective_style.height->fixed_value_or(0), 28);
+  ASSERT_TRUE(ok_button->effective_style.width.has_value());
+  EXPECT_EQ(ok_button->effective_style.width->fixed_value_or(0), 96);
 }
 
 TEST_F(DialogTest, open_confirm_pops_selected_choice_and_payload_to_origin_event)

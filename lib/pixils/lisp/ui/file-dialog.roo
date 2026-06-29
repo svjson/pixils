@@ -13,15 +13,6 @@
    {:label "All files (*)"
     :extensions []}])
 
-(def default-dialog-style {:width 420})
-
-(def default-body-style
-  {:width :fill
-   :height :shrink
-   :padding 10
-   :layout {:direction :column
-            :gap 8}})
-
 (defun filter-patterns [filter]
   (let [patterns (:patterns filter)
         extensions (or (:extensions filter) [])]
@@ -284,10 +275,9 @@
                        :max-height 96}}]})
 
 (defun button-row-child [state]
-  {:style {:width :fill
-           :height 24
-           :layout {:direction :row
-                    :gap :space-between}}
+  {:mode 'ui/dialog-button-row
+   :class [:ui/dialog-button-row
+           :ui/file-dialog-button-row]
    :state {:dialog-mode (ui/bind-state :dialog-mode)
            :path (ui/bind-state :path)
            :entries (ui/bind-state :entries)
@@ -297,6 +287,10 @@
            :filters (ui/bind-state :filters)
            :filter-index (ui/bind-state :filter-index)}
    :children [{:mode 'ui/button
+               :class [:ui/dialog-button
+                       :ui/dialog-button-cancel
+                       :ui/file-dialog-button
+                       :ui/file-dialog-cancel-button]
                :state {:label "Cancel"
                        :dialog-mode (ui/bind-state :dialog-mode)
                        :path (ui/bind-state :path)
@@ -311,6 +305,10 @@
                                            (cancel-result state))
                                  state))}
               {:mode 'ui/button
+               :class [:ui/dialog-button
+                       :ui/dialog-button-ok
+                       :ui/file-dialog-button
+                       :ui/file-dialog-confirm-button]
                :state {:label (confirm-label (:dialog-mode state))
                        :dialog-mode (ui/bind-state :dialog-mode)
                        :path (ui/bind-state :path)
@@ -326,8 +324,9 @@
                                  (confirm-or-navigate state ctx)))}]})
 
 (defcomponent ui/file-dialog-body
-  {:class :ui/content
-   :style default-body-style
+  {:class [:ui/content
+           :ui/dialog-body
+           :ui/file-dialog-body]
    :init (fn [state ctx]
            (let [path (or (:path state) default-path)
                  filters (or (:filters state) default-filters)]
@@ -440,8 +439,9 @@
      (merge opts
             {:title (or (:title opts)
                         (default-title mode))
-             :style (merge default-dialog-style
-                           (or (:style opts) {}))
+             :class (dialog/merge-classes [:ui/file-dialog-window]
+                                          (:class opts))
+             :style (or (:style opts) {})
              :state state
              :body (make-body (assoc opts :mode mode))
              :result-event (or (:result-event opts)

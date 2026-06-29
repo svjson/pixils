@@ -177,6 +177,34 @@
                  :border (var :inset-border-style)
                  :clip true}
 
+    :ui/dialog-body {:width :fill
+                     :min-width 260
+                     :height :shrink
+                     :padding 10
+                     :layout {:direction :column
+                              :gap 10}}
+
+    :ui/dialog-button-row {:width :fill
+                           :height 24
+                           :layout {:direction :row
+                                    :gap :space-between}}
+
+    :ui/dialog-button {:width 78
+                       :height 24}
+
+    :ui/file-dialog-window {:width 420}
+
+    :ui/file-dialog-body {:width :fill
+                          :height :shrink
+                          :padding 10
+                          :layout {:direction :column
+                                   :gap 8}}
+
+    :ui/file-dialog-button-row {:width :fill
+                                :height 24
+                                :layout {:direction :row
+                                         :gap :space-between}}
+
     'ui/tab-panel {:background {:r 0 :g 0 :b 0 :a 0}
                    :layout {:direction :column}}
 
