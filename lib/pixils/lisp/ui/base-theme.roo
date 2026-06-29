@@ -135,6 +135,10 @@
                  :selection-bg {:r 0x00 :g 0x00 :b 0x00}
                  :selection-text {:r 0xff :g 0xff :b 0xff}
                  :desktop-icon-label-padding 1
+                 :list-box-item-padding {:t 3
+                                         :r 5
+                                         :b 3
+                                         :l 5}
                  :option-box-indicator {:color {:r 0x00 :g 0x00 :b 0x00}
                                         :radius 5
                                         :inner-radius 2
@@ -207,7 +211,8 @@
     {:background (var :selection-bg)
      :text {:color (var :selection-text)}}
 
-    :ui/list-item {:text {:color (var :text)
+    :ui/list-item {:padding (var :list-box-item-padding)
+                   :text {:color (var :text)
                           :wrap :none}}
 
     :ui/list-item-hover:hover
@@ -257,7 +262,11 @@
     '(ui/checkbox-box {:pressed true})
     {:background (var :disabled-bg)}
 
-    'ui/option-box {:text {:color (var :text)}}
+    'ui/option-box {:height 18
+                    :text {:color (var :text)}}
+
+    'ui/option-box-indicator {:width 12
+                              :height 12}
 
     'ui/option-box:disabled
     {:text {:color (var :disabled-text)}}

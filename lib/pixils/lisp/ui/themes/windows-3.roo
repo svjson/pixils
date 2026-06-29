@@ -610,7 +610,8 @@
             {:background (var :selection-bg)
              :text {:color (var :selection-text)}}
 
-            :ui/list-item {:text {:color (var :field-text)
+            :ui/list-item {:padding (var :list-box-item-padding)
+                           :text {:color (var :field-text)
                                   :wrap :none}}
 
             :ui/list-item-hover:hover
@@ -648,7 +649,8 @@
             '(ui/checkbox-box {:pressed true})
             {:background (var :panel-bg)}
 
-            'ui/option-box {:text {:color (var :text)}}
+            'ui/option-box {:height 18
+                            :text {:color (var :text)}}
 
             'ui/option-box:disabled
             {:text {:color (var :disabled-text)}}

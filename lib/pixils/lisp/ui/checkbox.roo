@@ -14,6 +14,29 @@
       (-> ctx :view :style :text :color)
       default-mark-color))
 
+(defun checkbox-image [state ctx]
+  (let [theme (ui/theme-var ctx :checkbox-box {})]
+    (cond
+      (:pressed state)
+      (or (:pressed-image theme)
+          (:checked-image theme)
+          (:image theme))
+
+      (checked? state)
+      (or (:checked-image theme)
+          (:image theme))
+
+      :default
+      (:image theme))))
+
+(defun render-checkbox-image! [image bounds]
+  (when image
+    (r/image! image
+              {:target {:x 0
+                        :y 0
+                        :w (:w bounds)
+                        :h (:h bounds)}})))
+
 (defun checkbox-mark-rect [bounds]
   (let [w (max 4 (- (or (:w bounds) 0) 2))
         h (max 4 (- (or (:h bounds) 0) 2))
@@ -48,21 +71,24 @@
 
 (defcomponent ui/checkbox-box
   {:render (fn [state ctx]
-             (when (checked? state)
-               (let [bounds (-> ctx :view :bounds)
-                     color (checkbox-mark-color state ctx)
-                     passes (checkbox-mark-passes bounds)
-                     pass1 (nth passes 0)
-                     pass2 (nth passes 1)]
-                 (do
-                   (render-checkbox-mark! (nth pass1 0)
-                                          (nth pass1 1)
-                                          (nth pass1 2)
-                                          color)
-                   (render-checkbox-mark! (nth pass2 0)
-                                          (nth pass2 1)
-                                          (nth pass2 2)
-                                          color)))))})
+             (let [bounds (-> ctx :view :bounds)
+                   image (checkbox-image state ctx)]
+               (if image
+                 (render-checkbox-image! image bounds)
+                 (when (checked? state)
+                   (let [color (checkbox-mark-color state ctx)
+                         passes (checkbox-mark-passes bounds)
+                         pass1 (nth passes 0)
+                         pass2 (nth passes 1)]
+                     (do
+                       (render-checkbox-mark! (nth pass1 0)
+                                              (nth pass1 1)
+                                              (nth pass1 2)
+                                              color)
+                       (render-checkbox-mark! (nth pass2 0)
+                                              (nth pass2 1)
+                                              (nth pass2 2)
+                                              color)))))))})
 
 (defcomponent ui/checkbox-label
   {:children [{:mode 'ui/text

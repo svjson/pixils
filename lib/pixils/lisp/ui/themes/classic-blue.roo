@@ -258,7 +258,8 @@
     {:background (var :selection-bg)
      :text {:color (var :selection-text)}}
 
-    :ui/list-item {:text {:color {:r 0xe6 :g 0xea :b 0xee}
+    :ui/list-item {:padding (var :list-box-item-padding)
+                   :text {:color {:r 0xe6 :g 0xea :b 0xee}
                           :wrap :none}}
 
     :ui/list-item-hover:hover
@@ -299,7 +300,8 @@
     '(ui/checkbox-box {:pressed true})
     {:border (var :pressed-border-style)}
 
-    'ui/option-box {:text {:color {:r 0xe6 :g 0xea :b 0xee}}}
+    'ui/option-box {:height 18
+                    :text {:color {:r 0xe6 :g 0xea :b 0xee}}}
 
     'ui/option-box:disabled
     {:text {:color (var :disabled-text)}}
