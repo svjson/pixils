@@ -95,6 +95,70 @@ TEST_F(RenderTest, rect_outline_draws_edges_inside_rect_bounds)
   EXPECT_TRUE(has_fill_rect(ops, SDL_Rect{5, 3, 1, 5}));
 }
 
+TEST_F(RenderTest, line_accepts_stroke_width_option)
+{
+  // Given
+  runtime.eval(R"(
+    (pixils/defmode test-mode {
+      :render (fn [state ctx]
+                (pixils.render/line!
+                  {:x 2 :y 5}
+                  {:x 6 :y 5}
+                  {:stroke-width 3 :color {:r 200 :g 0 :b 0}}))
+    })
+  )");
+  session.push_mode("test-mode", Roo::Constant::NIL);
+
+  // When / Then
+  ASSERT_NO_THROW(session.render_mode());
+  auto& ops = render_target()->render_ops;
+  ASSERT_EQ(ops.size(), 3u);
+  EXPECT_TRUE(has_fill_rect(ops, SDL_Rect{2, 4, 5, 1}));
+  EXPECT_TRUE(has_fill_rect(ops, SDL_Rect{2, 5, 5, 1}));
+  EXPECT_TRUE(has_fill_rect(ops, SDL_Rect{2, 6, 5, 1}));
+}
+
+TEST_F(RenderTest, vertical_line_stroke_uses_pixel_centered_width)
+{
+  // Given
+  runtime.eval(R"(
+    (pixils/defmode test-mode {
+      :render (fn [state ctx]
+                (pixils.render/line!
+                  {:x 5 :y 2}
+                  {:x 5 :y 4}
+                  {:stroke-width 2 :color {:r 200 :g 0 :b 0}}))
+    })
+  )");
+  session.push_mode("test-mode", Roo::Constant::NIL);
+
+  // When / Then
+  ASSERT_NO_THROW(session.render_mode());
+  auto& ops = render_target()->render_ops;
+  ASSERT_EQ(ops.size(), 3u);
+  EXPECT_TRUE(has_fill_rect(ops, SDL_Rect{4, 2, 2, 1}));
+  EXPECT_TRUE(has_fill_rect(ops, SDL_Rect{4, 3, 2, 1}));
+  EXPECT_TRUE(has_fill_rect(ops, SDL_Rect{4, 4, 2, 1}));
+}
+
+TEST_F(RenderTest, line_still_accepts_color_as_third_argument)
+{
+  // Given
+  runtime.eval(R"(
+    (pixils/defmode test-mode {
+      :render (fn [state ctx]
+                (pixils.render/line!
+                  {:x 2 :y 5}
+                  {:x 6 :y 5}
+                  {:r 200 :g 0 :b 0}))
+    })
+  )");
+  session.push_mode("test-mode", Roo::Constant::NIL);
+
+  // When / Then
+  ASSERT_NO_THROW(session.render_mode());
+}
+
 TEST_F(RenderTest, circle_fill_draws_horizontal_scanlines)
 {
   // Given
@@ -276,6 +340,52 @@ TEST_F(RenderTest, polygon_fill_handles_concave_shapes)
   EXPECT_TRUE(has_fill_rect(ops, SDL_Rect{0, 1, 4, 1}));
   EXPECT_TRUE(has_fill_rect(ops, SDL_Rect{0, 2, 2, 1}));
   EXPECT_TRUE(has_fill_rect(ops, SDL_Rect{0, 3, 2, 1}));
+}
+
+TEST_F(RenderTest, polygon_outline_accepts_stroke_width)
+{
+  // Given
+  runtime.eval(R"(
+    (pixils/defmode test-mode {
+      :render (fn [state ctx]
+                (pixils.render/polygon!
+                  [{:x 2 :y 2} {:x 6 :y 2} {:x 6 :y 5} {:x 2 :y 5}]
+                  {:close true :stroke-width 2 :color {:r 200 :g 0 :b 0}}))
+    })
+  )");
+  session.push_mode("test-mode", Roo::Constant::NIL);
+
+  // When / Then
+  ASSERT_NO_THROW(session.render_mode());
+  auto& ops = render_target()->render_ops;
+  EXPECT_TRUE(has_fill_rect(ops, SDL_Rect{2, 1, 5, 1}));
+  EXPECT_TRUE(has_fill_rect(ops, SDL_Rect{2, 2, 5, 1}));
+  EXPECT_TRUE(has_fill_rect(ops, SDL_Rect{5, 2, 2, 1}));
+  EXPECT_TRUE(has_fill_rect(ops, SDL_Rect{1, 2, 2, 1}));
+  EXPECT_TRUE(has_fill_rect(ops, SDL_Rect{2, 5, 5, 1}));
+}
+
+TEST_F(RenderTest, filled_polygon_strokes_only_when_stroke_width_is_explicit)
+{
+  // Given
+  runtime.eval(R"(
+    (pixils/defmode test-mode {
+      :render (fn [state ctx]
+                (pixils.render/polygon!
+                  [{:x 2 :y 2} {:x 6 :y 2} {:x 6 :y 5} {:x 2 :y 5}]
+                  {:fill true :stroke-width 2 :color {:r 200 :g 0 :b 0}}))
+    })
+  )");
+  session.push_mode("test-mode", Roo::Constant::NIL);
+
+  // When / Then
+  ASSERT_NO_THROW(session.render_mode());
+  auto& ops = render_target()->render_ops;
+  EXPECT_TRUE(has_fill_rect(ops, SDL_Rect{2, 2, 4, 1}));
+  EXPECT_TRUE(has_fill_rect(ops, SDL_Rect{2, 3, 4, 1}));
+  EXPECT_TRUE(has_fill_rect(ops, SDL_Rect{2, 4, 4, 1}));
+  EXPECT_TRUE(has_fill_rect(ops, SDL_Rect{2, 1, 5, 1}));
+  EXPECT_TRUE(has_fill_rect(ops, SDL_Rect{2, 5, 5, 1}));
 }
 
 TEST_F(RenderTest, with_clip_rect_restores_previous_clip)

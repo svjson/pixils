@@ -13,6 +13,7 @@
 #include <SDL2/SDL_blendmode.h>
 #include <SDL2/SDL_render.h>
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <limits>
 #include <vector>
@@ -39,6 +40,7 @@ namespace Pixils::Script
     SHKEY(ROTATION, "rotation");
     SHKEY(SCALE, "scale");
     SHKEY(SOURCE, "source");
+    SHKEY(STROKE_WIDTH, "stroke-width");
     SHKEY(TARGET, "target");
     SHKEY(OPACITY, "opacity");
     SHKEY(BLEND_MODE, "blend-mode");
@@ -207,7 +209,10 @@ namespace Pixils::Script
         }
       }
 
-      void draw_filled_polygon(SDL_Renderer* renderer, const std::vector<Point>& points)
+      template <typename Points>
+      void draw_filled_polygon(SDL_Renderer* renderer,
+                               const Points& points,
+                               std::vector<float>& intersections)
       {
         if (points.size() < 3) return;
 
@@ -221,7 +226,6 @@ namespace Pixils::Script
 
         const int first_y = static_cast<int>(std::floor(min_y));
         const int last_y = static_cast<int>(std::ceil(max_y)) - 1;
-        std::vector<float> intersections;
         intersections.reserve(points.size());
 
         for (int y = first_y; y <= last_y; y++)
@@ -257,6 +261,138 @@ namespace Pixils::Script
               fill_horizontal_span(renderer, x1, x2, y);
             }
           }
+        }
+      }
+
+      void draw_filled_quad(SDL_Renderer* renderer, const std::array<Point, 4>& points)
+      {
+        float min_y = points.front().y;
+        float max_y = points.front().y;
+        for (const Point& point : points)
+        {
+          min_y = std::min(min_y, point.y);
+          max_y = std::max(max_y, point.y);
+        }
+
+        const int first_y = static_cast<int>(std::floor(min_y));
+        const int last_y = static_cast<int>(std::ceil(max_y)) - 1;
+        std::array<float, 4> intersections{};
+
+        for (int y = first_y; y <= last_y; y++)
+        {
+          const float scan_y = static_cast<float>(y) + 0.5f;
+          size_t intersection_count = 0;
+
+          for (size_t i = 0; i < points.size(); i++)
+          {
+            const Point& a = points[i];
+            const Point& b = points[(i + 1) % points.size()];
+            const float edge_min_y = std::min(a.y, b.y);
+            const float edge_max_y = std::max(a.y, b.y);
+
+            if (edge_min_y == edge_max_y || scan_y < edge_min_y || scan_y >= edge_max_y)
+            {
+              continue;
+            }
+
+            const float t = (scan_y - a.y) / (b.y - a.y);
+            intersections[intersection_count++] = a.x + (t * (b.x - a.x));
+          }
+
+          for (size_t i = 1; i < intersection_count; i++)
+          {
+            float value = intersections[i];
+            size_t j = i;
+            while (j > 0 && intersections[j - 1] > value)
+            {
+              intersections[j] = intersections[j - 1];
+              j--;
+            }
+            intersections[j] = value;
+          }
+
+          for (size_t i = 0; i + 1 < intersection_count; i += 2)
+          {
+            const int x1 = static_cast<int>(std::ceil(intersections[i] - 0.5f));
+            const int x2 =
+              static_cast<int>(std::floor(std::nextafter(intersections[i + 1] - 0.5f,
+                                                         -std::numeric_limits<float>::infinity())));
+            if (x2 >= x1)
+            {
+              fill_horizontal_span(renderer, x1, x2, y);
+            }
+          }
+        }
+      }
+
+      std::array<Point, 4> stroked_segment_quad(const Point& from,
+                                                const Point& to,
+                                                float stroke_width)
+      {
+        const float half_width = stroke_width * 0.5f;
+        const float dx = to.x - from.x;
+        const float dy = to.y - from.y;
+        const float length = std::sqrt((dx * dx) + (dy * dy));
+        const Point from_center{from.x + 0.5f, from.y + 0.5f};
+        const Point to_center{to.x + 0.5f, to.y + 0.5f};
+
+        if (length <= std::numeric_limits<float>::epsilon())
+        {
+          return {Point{from_center.x - half_width, from_center.y - half_width},
+                  Point{from_center.x + half_width, from_center.y - half_width},
+                  Point{from_center.x + half_width, from_center.y + half_width},
+                  Point{from_center.x - half_width, from_center.y + half_width}};
+        }
+
+        const float ux = dx / length;
+        const float uy = dy / length;
+        const float nx = -uy * half_width;
+        const float ny = ux * half_width;
+        const Point start{from_center.x - (ux * 0.5f), from_center.y - (uy * 0.5f)};
+        const Point end{to_center.x + (ux * 0.5f), to_center.y + (uy * 0.5f)};
+
+        return {Point{start.x + nx, start.y + ny},
+                Point{end.x + nx, end.y + ny},
+                Point{end.x - nx, end.y - ny},
+                Point{start.x - nx, start.y - ny}};
+      }
+
+      void draw_stroked_segment(SDL_Renderer* renderer,
+                                const Point& from,
+                                const Point& to,
+                                float stroke_width)
+      {
+        if (stroke_width <= 0.0f) return;
+
+        if (stroke_width <= 1.0f)
+        {
+          SDL_RenderDrawLine(renderer,
+                             from.round_x(),
+                             from.round_y(),
+                             to.round_x(),
+                             to.round_y());
+          return;
+        }
+
+        const auto quad = stroked_segment_quad(from, to, stroke_width);
+        draw_filled_quad(renderer, quad);
+      }
+
+      void draw_stroked_polyline(SDL_Renderer* renderer,
+                                 const std::vector<Point>& points,
+                                 bool close_shape,
+                                 float stroke_width)
+      {
+        if (stroke_width <= 0.0f || points.size() < 2) return;
+
+        for (size_t i = 0; i + 1 < points.size(); i++)
+        {
+          draw_stroked_segment(renderer, points[i], points[i + 1], stroke_width);
+        }
+
+        if (close_shape)
+        {
+          draw_stroked_segment(renderer, points.back(), points.front(), stroke_width);
         }
       }
 
@@ -582,7 +718,7 @@ namespace Pixils::Script
     FUNC_IMPL(DrawLineBang,
               MULTI_SIG((FN_ARGS((&HostType::POINT), (&HostType::POINT)),
                          EXEC_DISPATCH(&DrawLineBang::exec_draw_line)),
-                        (FN_ARGS((&HostType::POINT), (&HostType::POINT), (&HostType::COLOR)),
+                        (FN_ARGS((&HostType::POINT), (&HostType::POINT), (&Roo::Type::ANY)),
                          EXEC_DISPATCH(&DrawLineBang::exec_draw_line))));
 
     EXEC_BODY(DrawLineBang, exec_draw_line)
@@ -591,18 +727,48 @@ namespace Pixils::Script
         Roo::obj<RenderContext>(*ctx.lookup(ID__PIXILS__RENDER_CONTEXT));
       const Point& from = Roo::obj<Point>(*args[0]);
       const Point& to = Roo::obj<Point>(*args[1]);
+      float stroke_width = 1.0f;
+
+      static Roo::MapSchema line_opts(
+        {},
+        {{std::get<std::string>(MapKey::COLOR->value), &HostType::COLOR},
+         {std::get<std::string>(MapKey::STROKE_WIDTH->value), &Roo::Type::NUMBER}});
 
       if (args.size() == 3 && Roo::is_truthy(*args[2]))
       {
-        const Color& color = Roo::obj<Color>(*args[2]);
-        SDL_SetRenderDrawColor(rc.renderer, color.r, color.g, color.b, color.a);
+        if (dict_contains(args[2], std::get<std::string>(MapKey::COLOR->value)) ||
+            dict_contains(args[2], std::get<std::string>(MapKey::STROKE_WIDTH->value)))
+        {
+          auto opts = line_opts.bind(ctx, *args[2]);
+          auto color = opts.optional_obj<Color>(std::get<std::string>(MapKey::COLOR->value));
+          if (color)
+          {
+            SDL_SetRenderDrawColor(rc.renderer, color->r, color->g, color->b, color->a);
+          }
+          stroke_width = opts.f32(std::get<std::string>(MapKey::STROKE_WIDTH->value), 1.0f);
+        }
+        else
+        {
+          Roo::sptr_val color_value = args[2];
+          if (!HostType::COLOR.is_type_of(*color_value))
+          {
+            auto coercion = HostType::COLOR.coerce(ctx, color_value);
+            if (!coercion.success)
+            {
+              throw Roo::TypeError("line!: third argument must be a color or options map.");
+            }
+            color_value = coercion.result;
+          }
+          const Color& color = Roo::obj<Color>(*color_value);
+          SDL_SetRenderDrawColor(rc.renderer, color.r, color.g, color.b, color.a);
+        }
       }
 
-      SDL_RenderDrawLine(rc.renderer,
-                         from.round_x(),
-                         from.round_y(),
-                         to.round_x(),
-                         to.round_y());
+      if (stroke_width <= 0.0f) return Roo::Constant::NIL;
+
+      SDL_SetRenderDrawBlendMode(rc.renderer, SDL_BLENDMODE_BLEND);
+      draw_stroked_segment(rc.renderer, from, to, stroke_width);
+      SDL_SetRenderDrawBlendMode(rc.renderer, SDL_BLENDMODE_NONE);
 
       return Roo::Constant::NIL;
     }
@@ -718,6 +884,7 @@ namespace Pixils::Script
        {std::get<std::string>(MapKey::OFFSET->value), &HostType::POINT},
        {std::get<std::string>(MapKey::COLOR->value), &HostType::COLOR},
        {std::get<std::string>(MapKey::FILL->value), &Roo::Type::BOOL},
+       {std::get<std::string>(MapKey::STROKE_WIDTH->value), &Roo::Type::NUMBER},
        {std::get<std::string>(MapKey::SCALE->value), &Roo::Type::NUMBER}});
 
     EXEC_BODY(DrawPolygonBang, exec_polygon)
@@ -744,6 +911,8 @@ namespace Pixils::Script
       std::optional<Color> color =
         opts.optional_obj<Color>(std::get<std::string>(MapKey::COLOR->value));
       bool fill_shape = opts.boolean(std::get<std::string>(MapKey::FILL->value), false);
+      float stroke_width = opts.f32(std::get<std::string>(MapKey::STROKE_WIDTH->value),
+                                    fill_shape ? 0.0f : 1.0f);
 
       const Point& offset =
         opts.obj<Point>(std::get<std::string>(MapKey::OFFSET->value), POINT__ZERO_ZERO);
@@ -766,29 +935,17 @@ namespace Pixils::Script
 
         if (fill_shape)
         {
+          std::vector<float> intersections;
           SDL_SetRenderDrawBlendMode(rc.renderer, SDL_BLENDMODE_BLEND);
-          draw_filled_polygon(rc.renderer, pts);
+          draw_filled_polygon(rc.renderer, pts, intersections);
+          draw_stroked_polyline(rc.renderer, pts, true, stroke_width);
           SDL_SetRenderDrawBlendMode(rc.renderer, SDL_BLENDMODE_NONE);
         }
         else
         {
-          if (close_shape)
-          {
-            pts.push_back((Roo::obj<Point>(*points.front()) * scale)
-                            .rotate(POINT__ZERO_ZERO, rotation)
-                            .plus(offset.x, offset.y));
-          }
-
-          for (size_t i = 0; i < pts.size() - 1; i++)
-          {
-            const Point& from = pts[i];
-            const Point& to = pts[i + 1];
-            SDL_RenderDrawLine(rc.renderer,
-                               from.round_x(),
-                               from.round_y(),
-                               to.round_x(),
-                               to.round_y());
-          }
+          SDL_SetRenderDrawBlendMode(rc.renderer, SDL_BLENDMODE_BLEND);
+          draw_stroked_polyline(rc.renderer, pts, close_shape, stroke_width);
+          SDL_SetRenderDrawBlendMode(rc.renderer, SDL_BLENDMODE_NONE);
         }
       }
 

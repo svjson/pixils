@@ -1682,10 +1682,10 @@ Accepts the same `:font` and `:scale` options as `text!`.
 | Symbol      | Description |
 |-------------|-------------|
 | `use-color!`| Set the current draw color. Accepts a color object or four RGBA numbers (r g b a). |
-| `line!`     | Draw a line between two points. Optional third arg: color. |
+| `line!`     | Draw a line between two points. Optional third arg: color or options map `{:color ... :stroke-width N}`. |
 | `rect!`     | Draw a rectangle. Args: `{:x :y :w :h}` rect (or two corner points), options map `{:color ... :fill true/false}`. |
 | `circle!`   | Draw a circle. Args: `{:x :y :r}` center/radius map, options map `{:color ... :fill true/false}`. |
-| `polygon!`  | Draw a polygon from a vector of points. Options: `:close`, `:fill`, `:rotation`, `:offset`, `:color`, `:scale`. |
+| `polygon!`  | Draw a polygon from a vector of points. Options: `:close`, `:fill`, `:stroke-width`, `:rotation`, `:offset`, `:color`, `:scale`. |
 | `image!`    | Draw an image. Args: qualified keyword `:bundle/id`, then point, rect, or options map. Options include `:pos`, `:target`, `:clip-rect`, `:source`, `:scale`, `:repeat-x?`, `:repeat-y?`, `:opacity`, `:rotation`, `:flip-x?`, and `:flip-y?`. |
 | `text!`     | Render a string. Args: string, position point, options map. Returns rendered bounds `{:x :y :w :h}`. |
 | `text-size` | Measure text without rendering. Args: string, optional options map. Returns `{:w :h}`. |
