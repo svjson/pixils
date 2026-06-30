@@ -438,6 +438,73 @@ TEST_F(ScrollPaneTest, scroll_pane_measures_runtime_content_growth)
   EXPECT_LT(handle->bounds.h, track->bounds.h);
 }
 
+TEST_F(ScrollPaneTest, scroll_pane_preserves_runtime_content_replacement_when_auto_scrollbar_appears)
+{
+  runtime.eval(R"(
+    (pixils/defmode row-item
+      {:style {:width :fill :height 18}})
+
+    (defun row-column [row-count]
+      {:id "rows"
+       :style {:width :fill}
+       :children (dotimes [index row-count]
+                   {:mode 'row-item})})
+
+    (pixils/defcomponent dynamic-row-list
+      {:style {:width :fill}
+       :init (fn [state ctx]
+               {:row-count 8 :rendered-row-count 0})
+       :update (fn [state ctx]
+                 (let [row-count (:row-count state)]
+                   (when (not= row-count (:rendered-row-count state))
+                     (pixils.ui/replace-child! (:view ctx)
+                                               "rows"
+                                               (row-column row-count)))
+                   (assoc state :rendered-row-count row-count)))
+       :children [(row-column 0)]})
+
+    (pixils/defmode root-mode
+      {:children [(pixils.ui.scroll-pane/make
+                   {:style {:width 80 :height 60}
+                    :scroll-x? false
+                    :scroll-y? :auto
+                    :children [{:mode 'dynamic-row-list}]})]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  session.update_mode();
+  session.render_mode();
+
+  ASSERT_NE(session.active_mode, nullptr);
+  ASSERT_EQ(session.active_mode->children.size(), 1u);
+  auto pane = session.active_mode->children[0];
+  ASSERT_NE(pane, nullptr);
+
+  auto content_size =
+    Roo::Dict::get_property(pane->state, Roo::keyword("content-size"));
+  ASSERT_NE(content_size, nullptr);
+  auto content_height = Roo::Dict::get_property(content_size, Roo::keyword("h"));
+  ASSERT_NE(content_height, nullptr);
+  EXPECT_EQ(content_height->num().get_int(), 144);
+
+  ASSERT_EQ(pane->children.size(), 1u);
+  auto row = pane->children[0];
+  ASSERT_NE(row, nullptr);
+  ASSERT_GE(row->children.size(), 1u);
+  auto viewport = row->children[0];
+  ASSERT_NE(viewport, nullptr);
+  ASSERT_EQ(viewport->children.size(), 1u);
+  auto content = viewport->children[0];
+  ASSERT_NE(content, nullptr);
+  ASSERT_EQ(content->children.size(), 1u);
+  auto row_list = content->children[0];
+  ASSERT_NE(row_list, nullptr);
+  ASSERT_EQ(row_list->children.size(), 1u);
+  auto rows = row_list->children[0];
+  ASSERT_NE(rows, nullptr);
+  EXPECT_EQ(rows->children.size(), 8u);
+}
+
 TEST_F(ScrollPaneTest, auto_scrollbar_is_present_on_first_render_from_measured_content)
 {
   runtime.eval(R"(

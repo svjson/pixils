@@ -54,6 +54,24 @@
    :update scroll-pane-sync-content-style
    :children [{:mode 'ui/scroll-pane-content}]})
 
+(defun scroll-pane-effective-vertical-scrollbar? [state]
+  (cond
+    (= (:scroll-y? state) false)
+    false
+
+    (= (:scroll-y? state) :auto)
+    (= (:effective-scroll-y? state) true)
+
+    :default
+    true))
+
+(defun scroll-pane-vertical-scrollbar-style [state]
+  {:height :fill
+   :hidden (not (scroll-pane-effective-vertical-scrollbar? state))})
+
+(defun scroll-pane-corner-style [state]
+  {:hidden (not (scroll-pane-effective-vertical-scrollbar? state))})
+
 (defcomponent ui/scroll-pane-row
   {:style {:width :fill
            :height :fill
@@ -152,37 +170,43 @@
    :style {}})
 
 (defun scroll-pane-row-child [content-size content-state-key children scroll-x? scroll-y? effective-scroll-y? content-width-explicit? content-height-explicit? viewport-fill-width? viewport-fill-height?]
-  {:mode 'ui/scroll-pane-row
-   :id "row"
-   :state {:offset (ui/bind-state :offset)
-           :content-size (ui/bind-state :content-size)
-           :content-width-explicit? (ui/bind-state :content-width-explicit?)
-           :content-height-explicit? (ui/bind-state :content-height-explicit?)
-           :content-state (ui/bind-state :content-state)
-           :step (ui/bind-state :step)}
-   :children (concat [(scroll-pane-viewport-child content-size
-                                                  content-state-key
-                                                  children
-                                                  scroll-x?
-                                                  scroll-y?
-                                                  content-width-explicit?
-                                                  content-height-explicit?
-                                                  viewport-fill-width?
-                                                  viewport-fill-height?)]
-                     (if (= effective-scroll-y? false)
-                       []
-                       [(scroll-pane-vertical-scrollbar-child)]))})
+  (let [scroll-state {:scroll-y? scroll-y?
+                      :effective-scroll-y? effective-scroll-y?}]
+    {:mode 'ui/scroll-pane-row
+     :id "row"
+     :state {:offset (ui/bind-state :offset)
+             :content-size (ui/bind-state :content-size)
+             :content-width-explicit? (ui/bind-state :content-width-explicit?)
+             :content-height-explicit? (ui/bind-state :content-height-explicit?)
+             :content-state (ui/bind-state :content-state)
+             :step (ui/bind-state :step)}
+     :children (concat [(scroll-pane-viewport-child content-size
+                                                    content-state-key
+                                                    children
+                                                    scroll-x?
+                                                    scroll-y?
+                                                    content-width-explicit?
+                                                    content-height-explicit?
+                                                    viewport-fill-width?
+                                                    viewport-fill-height?)]
+                       (if (= scroll-y? false)
+                         []
+                         [(merge (scroll-pane-vertical-scrollbar-child)
+                                 {:style (scroll-pane-vertical-scrollbar-style scroll-state)})]))}))
 
-(defun scroll-pane-footer-child [scroll-y?]
-  {:mode 'ui/scroll-pane-footer
-   :id "footer"
-   :state {:offset (ui/bind-state :offset)
-           :content-size (ui/bind-state :content-size)
-           :step (ui/bind-state :step)}
-   :children (concat [(scroll-pane-horizontal-scrollbar-child)]
-                     (if (= scroll-y? false)
-                       []
-                       [(scroll-pane-corner-child)]))})
+(defun scroll-pane-footer-child [scroll-y? effective-scroll-y?]
+  (let [scroll-state {:scroll-y? scroll-y?
+                      :effective-scroll-y? effective-scroll-y?}]
+    {:mode 'ui/scroll-pane-footer
+     :id "footer"
+     :state {:offset (ui/bind-state :offset)
+             :content-size (ui/bind-state :content-size)
+             :step (ui/bind-state :step)}
+     :children (concat [(scroll-pane-horizontal-scrollbar-child)]
+                       (if (= scroll-y? false)
+                         []
+                         [(merge (scroll-pane-corner-child)
+                                 {:style (scroll-pane-corner-style scroll-state)})]))}))
 
 (defun scroll-pane-style [style scroll-x? scroll-y?]
   (let [style (or style {})]
@@ -273,6 +297,21 @@
   (let [row (scroll-pane-row-view ctx)]
     (if row
       (scroll-pane-child-at (ui/children row) 0)
+      nil)))
+
+(defun scroll-pane-vertical-scrollbar-view [ctx]
+  (let [row (scroll-pane-row-view ctx)]
+    (if row
+      (scroll-pane-child-at (ui/children row) 1)
+      nil)))
+
+(defun scroll-pane-footer-view [ctx]
+  (scroll-pane-child-at (ui/children ctx) 1))
+
+(defun scroll-pane-corner-view [ctx]
+  (let [footer (scroll-pane-footer-view ctx)]
+    (if footer
+      (scroll-pane-child-at (ui/children footer) 1)
       nil)))
 
 (defun scroll-pane-content-view [ctx]
@@ -372,25 +411,16 @@
                :offset offset))
       state)))
 
-(defun scroll-pane-replace-row! [state ctx effective-scroll-y?]
-  (ui/replace-child! (:view ctx)
-                     "row"
-                     (scroll-pane-row-child (:content-size state)
-                                            (:content-state-key state)
-                                            (:content-children state)
-                                            (:scroll-x? state)
-                                            (:scroll-y? state)
-                                            effective-scroll-y?
-                                            (:content-width-explicit? state)
-                                            (:content-height-explicit? state)
-                                            (:viewport-fill-width? state)
-                                            (:viewport-fill-height? state))))
-
-(defun scroll-pane-replace-footer! [state ctx effective-scroll-y?]
-  (when (not= (:scroll-x? state) false)
-    (ui/replace-child! (:view ctx)
-                       "footer"
-                       (scroll-pane-footer-child effective-scroll-y?))))
+(defun scroll-pane-sync-scrollbar-visibility! [state ctx]
+  (let [vertical-scrollbar (scroll-pane-vertical-scrollbar-view ctx)
+        corner (scroll-pane-corner-view ctx)]
+    (do
+      (when vertical-scrollbar
+        (ui/style! vertical-scrollbar
+                   (scroll-pane-vertical-scrollbar-style state)))
+      (when corner
+        (ui/style! corner
+                   (scroll-pane-corner-style state))))))
 
 (defun scroll-pane-sync-auto-managed [state ctx]
   (if (:auto-managed? state)
@@ -398,10 +428,10 @@
       (let [effective-scroll-y? (scroll-pane-effective-scroll-y? measured-state ctx)]
         (if (= effective-scroll-y? (:effective-scroll-y? measured-state))
           measured-state
-          (do
-            (scroll-pane-replace-row! measured-state ctx effective-scroll-y?)
-            (scroll-pane-replace-footer! measured-state ctx effective-scroll-y?)
-            (assoc measured-state :effective-scroll-y? effective-scroll-y?)))))
+          (let [synced-state (assoc measured-state :effective-scroll-y? effective-scroll-y?)]
+            (do
+              (scroll-pane-sync-scrollbar-visibility! synced-state ctx)
+              synced-state)))))
     state))
 
 (defcomponent ui/scroll-pane
@@ -477,4 +507,5 @@
                                               viewport-fill-height?)]
                        (if (= scroll-x? false)
                          []
-                         [(scroll-pane-footer-child effective-scroll-y?)]))}))
+                         [(scroll-pane-footer-child scroll-y?
+                                                    effective-scroll-y?)]))}))

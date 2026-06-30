@@ -55,6 +55,12 @@ namespace
     return row->children[0];
   }
 
+  bool layout_hidden(const std::shared_ptr<Pixils::Runtime::View>& view)
+  {
+    return view && view->effective_style.visibility &&
+           *view->effective_style.visibility == Pixils::UI::Style::Visibility::NONE;
+  }
+
   Roo::sptr_val get_state_key(const std::shared_ptr<Pixils::Runtime::View>& view,
                               const std::string& key)
   {
@@ -142,7 +148,8 @@ TEST_F(ListBoxTest, windows_3_natural_height_list_box_includes_border_without_sc
 
   auto row = list_box_row(list_box);
   ASSERT_NE(row, nullptr);
-  EXPECT_EQ(row->children.size(), 1u);
+  ASSERT_EQ(row->children.size(), 2u);
+  EXPECT_TRUE(layout_hidden(row->children[1]));
 
   auto viewport = list_box_viewport(list_box);
   ASSERT_NE(viewport, nullptr);
@@ -179,7 +186,8 @@ TEST_F(ListBoxTest, natural_row_height_uses_default_ttf_font_metrics_without_ext
   ASSERT_NE(list_box, nullptr);
   auto row = list_box_row(list_box);
   ASSERT_NE(row, nullptr);
-  ASSERT_EQ(row->children.size(), 1u);
+  ASSERT_EQ(row->children.size(), 2u);
+  EXPECT_TRUE(layout_hidden(row->children[1]));
   auto content = list_box_content(list_box);
   ASSERT_NE(content, nullptr);
   ASSERT_EQ(content->children.size(), 2u);

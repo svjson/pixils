@@ -43,6 +43,12 @@ namespace
   {
     return Roo::Dict::get_property(view->state, Roo::keyword(key));
   }
+
+  bool layout_hidden(const std::shared_ptr<Pixils::Runtime::View>& view)
+  {
+    return view && view->effective_style.visibility &&
+           *view->effective_style.visibility == Pixils::UI::Style::Visibility::NONE;
+  }
 } // namespace
 
 TEST_F(ComboBoxTest, combo_box_trigger_uses_styleable_scrollbar_button)
@@ -466,7 +472,8 @@ TEST_F(ComboBoxTest, combo_box_popup_omits_scrollbar_when_options_fit)
   auto scroll_pane = list_box->children[0];
   ASSERT_EQ(scroll_pane->children.size(), 1u);
   auto row = scroll_pane->children[0];
-  ASSERT_EQ(row->children.size(), 1u);
+  ASSERT_EQ(row->children.size(), 2u);
+  EXPECT_TRUE(layout_hidden(row->children[1]));
   auto viewport = row->children[0];
   ASSERT_NE(viewport, nullptr);
   EXPECT_EQ(viewport->bounds.w, 98);
