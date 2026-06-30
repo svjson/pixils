@@ -361,23 +361,167 @@ namespace Pixils::Script
         return weights;
       }
 
-      bool draw_vertex_colored_triangle_pixel(SDL_Renderer* renderer,
-                                              int x,
-                                              int y,
-                                              const VertexColoredPoint& a,
-                                              const VertexColoredPoint& b,
-                                              const VertexColoredPoint& c)
+      struct BarycentricCoefficients
       {
-        const Point pixel_center{static_cast<float>(x) + 0.5f, static_cast<float>(y) + 0.5f};
-        auto weights = barycentric_weights(pixel_center, a.point, b.point, c.point);
-        if (!weights) return false;
+        float a_dx = 0.0f;
+        float a_dy = 0.0f;
+        float a_base = 0.0f;
+        float b_dx = 0.0f;
+        float b_dy = 0.0f;
+        float b_base = 0.0f;
 
-        fill_pixel(
-          renderer,
-          x,
-          y,
-          interpolated_color(a.color, b.color, c.color, weights->a, weights->b, weights->c));
-        return true;
+        BarycentricWeights weights_at(float x, float y) const
+        {
+          const float a = (a_dx * x) + (a_dy * y) + a_base;
+          const float b = (b_dx * x) + (b_dy * y) + b_base;
+          return BarycentricWeights{a, b, 1.0f - a - b};
+        }
+      };
+
+      std::optional<BarycentricCoefficients> barycentric_coefficients(const Point& a,
+                                                                      const Point& b,
+                                                                      const Point& c)
+      {
+        const float denominator = ((b.y - c.y) * (a.x - c.x)) + ((c.x - b.x) * (a.y - c.y));
+        if (std::abs(denominator) <= std::numeric_limits<float>::epsilon())
+        {
+          return std::nullopt;
+        }
+
+        BarycentricCoefficients coeffs;
+        coeffs.a_dx = (b.y - c.y) / denominator;
+        coeffs.a_dy = (c.x - b.x) / denominator;
+        coeffs.a_base = -((coeffs.a_dx * c.x) + (coeffs.a_dy * c.y));
+        coeffs.b_dx = (c.y - a.y) / denominator;
+        coeffs.b_dy = (a.x - c.x) / denominator;
+        coeffs.b_base = -((coeffs.b_dx * c.x) + (coeffs.b_dy * c.y));
+        return coeffs;
+      }
+
+      bool barycentric_inside(const BarycentricWeights& weights)
+      {
+        constexpr float EPSILON = -0.00001f;
+        return weights.a >= EPSILON && weights.b >= EPSILON && weights.c >= EPSILON;
+      }
+
+      bool constrain_barycentric_x_range(float dx,
+                                         float row_base,
+                                         float& min_center_x,
+                                         float& max_center_x)
+      {
+        constexpr float WEIGHT_EPSILON = -0.00001f;
+        constexpr float SLOPE_EPSILON = 0.000000001f;
+
+        if (std::abs(dx) <= SLOPE_EPSILON)
+        {
+          return row_base >= WEIGHT_EPSILON;
+        }
+
+        const float bound = (WEIGHT_EPSILON - row_base) / dx;
+        if (dx > 0.0f)
+        {
+          min_center_x = std::max(min_center_x, bound);
+        }
+        else
+        {
+          max_center_x = std::min(max_center_x, bound);
+        }
+
+        return min_center_x <= max_center_x;
+      }
+
+      size_t coverage_index(int x, int y, int origin_x, int origin_y, int width)
+      {
+        return (static_cast<size_t>(y - origin_y) * static_cast<size_t>(width)) +
+               static_cast<size_t>(x - origin_x);
+      }
+
+      void draw_vertex_colored_triangle(SDL_Renderer* renderer,
+                                        const VertexColoredPoint& a,
+                                        const VertexColoredPoint& b,
+                                        const VertexColoredPoint& c,
+                                        int coverage_origin_x,
+                                        int coverage_origin_y,
+                                        int coverage_width,
+                                        std::vector<unsigned char>* coverage)
+      {
+        auto coeffs = barycentric_coefficients(a.point, b.point, c.point);
+        if (!coeffs) return;
+
+        const float min_x = std::min({a.point.x, b.point.x, c.point.x});
+        const float max_x = std::max({a.point.x, b.point.x, c.point.x});
+        const float min_y = std::min({a.point.y, b.point.y, c.point.y});
+        const float max_y = std::max({a.point.y, b.point.y, c.point.y});
+
+        const int first_x = static_cast<int>(std::floor(min_x));
+        const int last_x = static_cast<int>(std::ceil(max_x)) - 1;
+        const int first_y = static_cast<int>(std::floor(min_y));
+        const int last_y = static_cast<int>(std::ceil(max_y)) - 1;
+
+        for (int y = first_y; y <= last_y; y++)
+        {
+          const float pixel_y = static_cast<float>(y) + 0.5f;
+          float min_center_x = static_cast<float>(first_x) + 0.5f;
+          float max_center_x = static_cast<float>(last_x) + 0.5f;
+          const float a_row_base = (coeffs->a_dy * pixel_y) + coeffs->a_base;
+          const float b_row_base = (coeffs->b_dy * pixel_y) + coeffs->b_base;
+          const float c_row_base = 1.0f - a_row_base - b_row_base;
+          const float c_dx = -coeffs->a_dx - coeffs->b_dx;
+
+          if (!constrain_barycentric_x_range(coeffs->a_dx,
+                                             a_row_base,
+                                             min_center_x,
+                                             max_center_x) ||
+              !constrain_barycentric_x_range(coeffs->b_dx,
+                                             b_row_base,
+                                             min_center_x,
+                                             max_center_x) ||
+              !constrain_barycentric_x_range(c_dx, c_row_base, min_center_x, max_center_x))
+          {
+            continue;
+          }
+
+          const int row_first_x =
+            std::max(first_x, static_cast<int>(std::ceil(min_center_x - 0.5f)));
+          const int row_last_x =
+            std::min(last_x, static_cast<int>(std::floor(max_center_x - 0.5f)));
+          if (row_last_x < row_first_x) continue;
+
+          BarycentricWeights weights =
+            coeffs->weights_at(static_cast<float>(row_first_x) + 0.5f, pixel_y);
+
+          for (int x = row_first_x; x <= row_last_x; x++)
+          {
+            if (barycentric_inside(weights))
+            {
+              bool already_drawn = false;
+              if (coverage)
+              {
+                const size_t index =
+                  coverage_index(x, y, coverage_origin_x, coverage_origin_y, coverage_width);
+                already_drawn = (*coverage)[index] != 0;
+                (*coverage)[index] = 1;
+              }
+
+              if (!already_drawn)
+              {
+                fill_pixel(renderer,
+                           x,
+                           y,
+                           interpolated_color(a.color,
+                                              b.color,
+                                              c.color,
+                                              weights.a,
+                                              weights.b,
+                                              weights.c));
+              }
+            }
+
+            weights.a += coeffs->a_dx;
+            weights.b += coeffs->b_dx;
+            weights.c -= coeffs->a_dx + coeffs->b_dx;
+          }
+        }
       }
 
       float cross_product(const Point& a, const Point& b, const Point& c)
@@ -513,23 +657,25 @@ namespace Pixils::Script
         const int first_y = static_cast<int>(std::floor(min_y));
         const int last_y = static_cast<int>(std::ceil(max_y)) - 1;
 
-        for (int y = first_y; y <= last_y; y++)
+        const int coverage_width = std::max(0, last_x - first_x + 1);
+        const int coverage_height = std::max(0, last_y - first_y + 1);
+        std::vector<unsigned char> coverage;
+        if (triangles.size() > 1 && coverage_width > 0 && coverage_height > 0)
         {
-          for (int x = first_x; x <= last_x; x++)
-          {
-            for (const auto& triangle : triangles)
-            {
-              if (draw_vertex_colored_triangle_pixel(renderer,
-                                                     x,
-                                                     y,
-                                                     vertices[triangle[0]],
-                                                     vertices[triangle[1]],
-                                                     vertices[triangle[2]]))
-              {
-                break;
-              }
-            }
-          }
+          coverage.resize(static_cast<size_t>(coverage_width) *
+                          static_cast<size_t>(coverage_height));
+        }
+
+        for (const auto& triangle : triangles)
+        {
+          draw_vertex_colored_triangle(renderer,
+                                       vertices[triangle[0]],
+                                       vertices[triangle[1]],
+                                       vertices[triangle[2]],
+                                       first_x,
+                                       first_y,
+                                       coverage_width,
+                                       coverage.empty() ? nullptr : &coverage);
         }
       }
 
