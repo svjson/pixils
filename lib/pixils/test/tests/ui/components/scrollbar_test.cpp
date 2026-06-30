@@ -63,6 +63,34 @@ TEST_F(ScrollbarTest, scrollbar_lays_out_button_children_from_axis)
   EXPECT_EQ(end_button->bounds.h, 10);
 }
 
+TEST_F(ScrollbarTest, scrollbar_track_init_does_not_require_layout_geometry)
+{
+  runtime.eval(R"(
+    (pixils/defmode root-mode
+      {:theme 'pixils/windows-3
+       :children [{:mode 'ui/scrollbar
+                   :style {:width 17 :height 80}
+                   :state {:axis :y :content-size 100 :value 0}}]})
+  )");
+
+  ASSERT_NO_THROW(session.push_mode("root-mode", Roo::Constant::NIL));
+}
+
+TEST_F(ScrollbarTest, scrollbar_track_init_tolerates_bound_content_size_before_state_update)
+{
+  runtime.eval(R"(
+    (pixils/defmode root-mode
+      {:theme 'pixils/windows-3
+       :children [{:mode 'ui/scrollbar
+                   :style {:width 17 :height 80}
+                   :state {:axis :y
+                           :content-size (pixils.ui/bind-state :content-height)
+                           :value 0}}]})
+  )");
+
+  ASSERT_NO_THROW(session.push_mode("root-mode", Roo::Constant::NIL));
+}
+
 TEST_F(ScrollbarTest, vertical_scrollbar_shrinks_parts_when_axis_is_too_short)
 {
   runtime.eval(R"(

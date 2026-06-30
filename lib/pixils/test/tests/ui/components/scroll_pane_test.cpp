@@ -737,3 +737,45 @@ TEST_F(ScrollPaneTest, windows_3_scroll_pane_uses_fixed_vertical_scrollbar_handl
   EXPECT_EQ(handle->bounds.w, track->bounds.w);
   EXPECT_LT(handle->bounds.h, track->bounds.h);
 }
+
+TEST_F(ScrollPaneTest,
+       windows_3_scroll_pane_scrollbar_handle_cross_size_is_stable_on_first_render)
+{
+  runtime.eval(R"(
+    (pixils/defmode content-mode {})
+    (pixils/defmode root-mode
+      {:theme 'pixils/windows-3
+       :children [(pixils.ui.scroll-pane/make
+                   {:style {:width 80 :height 120}
+                    :content-size {:w 80 :h 300}
+                    :scroll-x? false
+                    :children [{:mode 'content-mode
+                                :style {:width 80 :height 300}}]})]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  session.render_mode();
+
+  ASSERT_NE(session.active_mode, nullptr);
+  ASSERT_EQ(session.active_mode->children.size(), 1u);
+  auto pane = session.active_mode->children[0];
+  ASSERT_NE(pane, nullptr);
+  ASSERT_EQ(pane->children.size(), 1u);
+
+  auto row = pane->children[0];
+  ASSERT_NE(row, nullptr);
+  ASSERT_EQ(row->children.size(), 2u);
+
+  auto vertical_scrollbar = row->children[1];
+  ASSERT_NE(vertical_scrollbar, nullptr);
+  ASSERT_EQ(vertical_scrollbar->children.size(), 3u);
+
+  auto track = vertical_scrollbar->children[1];
+  ASSERT_NE(track, nullptr);
+  ASSERT_EQ(track->children.size(), 1u);
+
+  auto handle = track->children[0];
+  ASSERT_NE(handle, nullptr);
+  EXPECT_EQ(handle->bounds.w, track->bounds.w);
+  EXPECT_EQ(handle->bounds.h, 15);
+}

@@ -37,6 +37,19 @@
   (map indices (fn [index]
                  (option-value-at options index))))
 
+(defun resolved-selected-indices [indices]
+  (if (or (nil? indices)
+          (= indices {}))
+    nil
+    indices))
+
+(defun selected-index? [indices index]
+  (let [indices (or (resolved-selected-indices indices) [])]
+    (if (empty? indices)
+      false
+      (or (= (head indices) index)
+          (selected-index? (tail indices) index)))))
+
 (defun add-index [indices index]
   (if (contains? indices index)
     indices
@@ -654,9 +667,12 @@
            :clip true
            :layout {:direction :row
                     :align-items :center}}
+   :init (fn [state ctx]
+           (assoc state :selected (selected-index? (:selected-indices state)
+                                                   (:index state))))
    :update (fn [state ctx]
-             (assoc state :selected (contains? (:selected-indices state)
-                                               (:index state))))
+             (assoc state :selected (selected-index? (:selected-indices state)
+                                                     (:index state))))
    :on-mouse-down (fn [state event ctx]
                     (do
                       (ui/stop-propagation! event)
@@ -690,22 +706,23 @@
    :class :ui/list-box
    :content-size list-box-content-size
    :init (fn [state ctx]
-           (let [selected (or (:selected-indices state)
+           (let [selected (or (resolved-selected-indices (:selected-indices state))
                               (if (forced-selection? state)
                                 (if-let [index (first-enabled-index (:options state))]
                                   [index]
                                   [])
                                 []))]
-             (assoc (assoc (assoc (assoc state
-                                          :selected-indices selected)
-                                   :anchor-index (or (:anchor-index state)
-                                                     (head selected)))
-                            :content-state
-                            (list-box-content-state (assoc state
-                                                          :selected-indices
-                                                          selected)))
-                    :scroll-y?
-                    :auto)))
+             (let [state (assoc (assoc (assoc (assoc state
+                                                       :selected-indices selected)
+                                                :anchor-index (or (:anchor-index state)
+                                                                  (head selected)))
+                                         :content-state
+                                         (list-box-content-state (assoc state
+                                                                       :selected-indices
+                                                                       selected)))
+                                :scroll-y?
+                                :auto)]
+               (list-box-sync-rendered-options state ctx))))
    :update (fn [state ctx]
              (list-box-update-reorder-visuals
               (list-box-sync-rendered-options
@@ -801,7 +818,7 @@
          (merge (or (:style child) {})
                 {:width :fill})))
 
-(defun make-item-child [item-child index option row-height hover-highlight? stretch-items? parent-disabled? reorderable? reorder-drag-threshold]
+(defun make-item-child [item-child index option row-height selected-indices hover-highlight? stretch-items? parent-disabled? reorderable? reorder-drag-threshold]
   (let [disabled? (or parent-disabled?
                       (option-disabled? option))]
     (let [child (if item-child
@@ -815,11 +832,13 @@
                            :value (option-value option)
                            :label (option-label option)
                            :disabled? disabled?
+                           :selected (selected-index? selected-indices index)
                            :selected-indices (ui/bind-state :selected-indices)}})]
       (let [child (assoc child
                          :state
                          (merge (or (:state child) {})
                                 {:disabled? disabled?
+                                 :selected (selected-index? selected-indices index)
                                  :reorderable? reorderable?
                                  :reorder-index index
                                  :reorder-value (option-value option)
@@ -841,6 +860,7 @@
                        index
                        option
                        row-height
+                       (or (:selected-indices state) [])
                        (:hover-highlight? state)
                        (:stretch-items? state)
                        (:disabled? state)
@@ -938,4 +958,5 @@
                   :reorderable? reorderable?
                   :reorder-drag-threshold reorder-drag-threshold
                   :item-child item-child
+                  :selected-indices selected-indices
                   :hover-highlight? hover-highlight?})]}))

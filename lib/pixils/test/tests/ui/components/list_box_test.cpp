@@ -54,6 +54,12 @@ namespace
     if (!row || row->children.empty()) return nullptr;
     return row->children[0];
   }
+
+  Roo::sptr_val get_state_key(const std::shared_ptr<Pixils::Runtime::View>& view,
+                              const std::string& key)
+  {
+    return Roo::Dict::get_property(view->state, Roo::keyword(key));
+  }
 } // namespace
 
 TEST_F(ListBoxTest, shrink_height_list_box_rebuilds_with_scrollbar_when_clamped)
@@ -301,6 +307,385 @@ TEST_F(ListBoxTest, list_box_item_text_does_not_wrap_when_width_is_constrained)
   }
 
   EXPECT_EQ(text_y_positions.size(), 1u);
+}
+
+TEST_F(ListBoxTest, selected_default_item_is_marked_on_first_render)
+{
+  runtime.eval(R"(
+    (pixils/defmode root-mode
+      {:children [(pixils.ui.list-box/make
+                   {:options [{:value :a :label "Alpha"}
+                              {:value :b :label "Beta"}]
+                    :selected-indices [1]
+                    :row-height 10
+                    :visible-rows 2
+                    :content-width 80})]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  session.render_mode();
+
+  ASSERT_NE(session.active_mode, nullptr);
+  ASSERT_EQ(session.active_mode->children.size(), 1u);
+  auto list_box = session.active_mode->children[0];
+  auto content = list_box_content(list_box);
+  ASSERT_NE(content, nullptr);
+  ASSERT_EQ(content->children.size(), 2u);
+
+  auto first_selected = get_state_key(content->children[0], "selected");
+  auto second_selected = get_state_key(content->children[1], "selected");
+  ASSERT_NE(first_selected, nullptr);
+  ASSERT_NE(second_selected, nullptr);
+  EXPECT_EQ(first_selected->to_string(), "false");
+  EXPECT_EQ(second_selected->to_string(), "true");
+}
+
+TEST_F(ListBoxTest, selected_custom_item_is_marked_on_first_render)
+{
+  runtime.eval(R"(
+    (pixils/defcomponent custom-item
+      {:style {:width :fill
+               :height 10}})
+
+    (pixils/defmode root-mode
+      {:children [(pixils.ui.list-box/make
+                   {:options [{:value :a :label "Alpha"}
+                              {:value :b :label "Beta"}]
+                    :selected-indices [1]
+                    :row-height 10
+                    :visible-rows 2
+                    :content-width 80
+                    :item-child (fn [index option]
+                                  {:mode 'custom-item})})]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  session.render_mode();
+
+  ASSERT_NE(session.active_mode, nullptr);
+  ASSERT_EQ(session.active_mode->children.size(), 1u);
+  auto list_box = session.active_mode->children[0];
+  auto content = list_box_content(list_box);
+  ASSERT_NE(content, nullptr);
+  ASSERT_EQ(content->children.size(), 2u);
+
+  auto first_selected = get_state_key(content->children[0], "selected");
+  auto second_selected = get_state_key(content->children[1], "selected");
+  ASSERT_NE(first_selected, nullptr);
+  ASSERT_NE(second_selected, nullptr);
+  EXPECT_EQ(first_selected->to_string(), "false");
+  EXPECT_EQ(second_selected->to_string(), "true");
+}
+
+TEST_F(ListBoxTest, selected_auto_width_item_uses_measured_width_on_first_render)
+{
+  runtime.eval(R"(
+    (pixils/deffont test-font
+      {:type :ttf
+       :resource :pixils/autoega-8x14
+       :size 10})
+
+    (pixils/defmode root-mode
+      {:children [(pixils.ui.list-box/make
+                   {:options [{:value :a :label "A"}
+                              {:value :b :label "AAAAAAAAAA"}]
+                    :selected-indices [1]
+                    :style {:text {:font :font/test-font}}
+                    :row-height 10
+                    :visible-rows 2})]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  session.render_mode();
+
+  ASSERT_NE(session.active_mode, nullptr);
+  ASSERT_EQ(session.active_mode->children.size(), 1u);
+  auto list_box = session.active_mode->children[0];
+  ASSERT_NE(list_box, nullptr);
+  auto content = list_box_content(list_box);
+  ASSERT_NE(content, nullptr);
+  ASSERT_EQ(content->children.size(), 2u);
+
+  auto selected_item = content->children[1];
+  ASSERT_NE(selected_item, nullptr);
+  EXPECT_GT(selected_item->bounds.w, 1);
+  EXPECT_EQ(selected_item->bounds.w, content->bounds.w);
+}
+
+TEST_F(ListBoxTest, tab_switch_selected_auto_width_item_is_stable_on_first_frame)
+{
+  runtime.eval(R"(
+    (pixils/deffont test-font
+      {:type :ttf
+       :resource :pixils/autoega-8x14
+       :size 10})
+
+    (pixils/defcomponent empty-tab
+      {:style {:width 40
+               :height 20}})
+
+    (pixils/defcomponent list-tab
+      {:children [(pixils.ui.list-box/make
+                   {:options [{:value :a :label "A"}
+                              {:value :b :label "AAAAAAAAAA"}]
+                    :selected-indices [1]
+                    :style {:text {:font :font/test-font}}
+                    :row-height 10
+                    :visible-rows 2})]})
+
+    (pixils/defmode root-mode
+      {:children [(pixils.ui.tab-panel/make
+                   {:selected-tab :blank
+                    :tabs [{:id :blank
+                            :label "Blank"
+                            :child {:mode 'empty-tab}}
+                           {:id :list
+                            :label "List"
+                            :child {:mode 'list-tab}}]})]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  frame_cycle();
+
+  auto tab_panel = session.active_mode->children[0];
+  ASSERT_NE(tab_panel, nullptr);
+  ASSERT_EQ(tab_panel->children.size(), 2u);
+  auto tab_strip = tab_panel->children[0];
+  ASSERT_NE(tab_strip, nullptr);
+  ASSERT_EQ(tab_strip->children.size(), 2u);
+  auto list_tab = tab_strip->children[1];
+  ASSERT_NE(list_tab, nullptr);
+
+  const int click_x = list_tab->bounds.x + list_tab->bounds.w / 2;
+  const int click_y = list_tab->bounds.y + list_tab->bounds.h / 2;
+  input().mouse_down({click_x, click_y});
+  update_cycle();
+  input().mouse_up({click_x, click_y});
+  update_cycle();
+  render_cycle();
+
+  auto list_box = find_descendant_mode(session.active_mode, "ui/list-box");
+  ASSERT_NE(list_box, nullptr);
+  auto content = list_box_content(list_box);
+  ASSERT_NE(content, nullptr);
+  ASSERT_EQ(content->children.size(), 2u);
+  auto selected_item = content->children[1];
+  ASSERT_NE(selected_item, nullptr);
+  ASSERT_EQ(selected_item->children.size(), 1u);
+  auto selected_text = selected_item->children[0];
+  ASSERT_NE(selected_text, nullptr);
+
+  const int first_frame_list_width = list_box->bounds.w;
+  const int first_frame_content_width = content->bounds.w;
+  const int first_frame_item_width = selected_item->bounds.w;
+  const int first_frame_text_width = selected_text->bounds.w;
+
+  EXPECT_GT(first_frame_item_width, 1);
+  EXPECT_EQ(first_frame_item_width, first_frame_content_width);
+  EXPECT_GT(first_frame_text_width, 1);
+
+  frame_cycle();
+
+  auto stable_list_box = find_descendant_mode(session.active_mode, "ui/list-box");
+  ASSERT_NE(stable_list_box, nullptr);
+  auto stable_content = list_box_content(stable_list_box);
+  ASSERT_NE(stable_content, nullptr);
+  ASSERT_EQ(stable_content->children.size(), 2u);
+  auto stable_selected_item = stable_content->children[1];
+  ASSERT_NE(stable_selected_item, nullptr);
+  ASSERT_EQ(stable_selected_item->children.size(), 1u);
+  auto stable_selected_text = stable_selected_item->children[0];
+  ASSERT_NE(stable_selected_text, nullptr);
+
+  EXPECT_EQ(stable_list_box->bounds.w, first_frame_list_width);
+  EXPECT_EQ(stable_content->bounds.w, first_frame_content_width);
+  EXPECT_EQ(stable_selected_item->bounds.w, first_frame_item_width);
+  EXPECT_EQ(stable_selected_text->bounds.w, first_frame_text_width);
+}
+
+TEST_F(ListBoxTest, tab_switch_bound_selected_auto_width_item_is_stable_on_first_frame)
+{
+  runtime.eval(R"(
+    (pixils/deffont test-font
+      {:type :ttf
+       :resource :pixils/autoega-8x14
+       :size 10})
+
+    (pixils/defcomponent empty-tab
+      {:style {:width 40
+               :height 20}})
+
+    (pixils/defcomponent list-tab
+      {:state {:list-selected (pixils.ui/bind-state :list-selected)}
+       :children [(pixils.ui.list-box/make
+                   {:options [{:value :a :label "A"}
+                              {:value :b :label "AAAAAAAAAA"}]
+                    :selected-indices (pixils.ui/bind-state :list-selected)
+                    :style {:text {:font :font/test-font}}
+                    :row-height 10
+                    :visible-rows 2})]})
+
+    (pixils/defmode root-mode
+      {:state {:selected-tab :blank
+               :list-selected [1]}
+       :children [(pixils.ui.tab-panel/make
+                   {:selected-tab (pixils.ui/bind-state :selected-tab)
+                    :state {:selected-tab (pixils.ui/bind-state :selected-tab)
+                            :list-selected (pixils.ui/bind-state :list-selected)}
+                    :body-state {:list-selected (pixils.ui/bind-state :list-selected)}
+                    :tabs [{:id :blank
+                            :label "Blank"
+                            :child {:mode 'empty-tab}}
+                           {:id :list
+                            :label "List"
+                            :body {:mode 'list-tab}}]})]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  frame_cycle();
+
+  auto tab_panel = session.active_mode->children[0];
+  ASSERT_NE(tab_panel, nullptr);
+  ASSERT_EQ(tab_panel->children.size(), 2u);
+  auto tab_strip = tab_panel->children[0];
+  ASSERT_NE(tab_strip, nullptr);
+  ASSERT_EQ(tab_strip->children.size(), 2u);
+  auto list_tab = tab_strip->children[1];
+  ASSERT_NE(list_tab, nullptr);
+
+  const int click_x = list_tab->bounds.x + list_tab->bounds.w / 2;
+  const int click_y = list_tab->bounds.y + list_tab->bounds.h / 2;
+  input().mouse_down({click_x, click_y});
+  update_cycle();
+  input().mouse_up({click_x, click_y});
+  update_cycle();
+  render_cycle();
+
+  auto list_box = find_descendant_mode(session.active_mode, "ui/list-box");
+  ASSERT_NE(list_box, nullptr);
+  auto content = list_box_content(list_box);
+  ASSERT_NE(content, nullptr);
+  ASSERT_EQ(content->children.size(), 2u);
+  auto selected_item = content->children[1];
+  ASSERT_NE(selected_item, nullptr);
+  ASSERT_EQ(selected_item->children.size(), 1u);
+  auto selected_text = selected_item->children[0];
+  ASSERT_NE(selected_text, nullptr);
+
+  const int first_frame_list_width = list_box->bounds.w;
+  const int first_frame_content_width = content->bounds.w;
+  const int first_frame_item_width = selected_item->bounds.w;
+  const int first_frame_text_width = selected_text->bounds.w;
+
+  EXPECT_GT(first_frame_item_width, 1);
+  EXPECT_EQ(first_frame_item_width, first_frame_content_width);
+  EXPECT_GT(first_frame_text_width, 1);
+
+  frame_cycle();
+
+  auto stable_list_box = find_descendant_mode(session.active_mode, "ui/list-box");
+  ASSERT_NE(stable_list_box, nullptr);
+  auto stable_content = list_box_content(stable_list_box);
+  ASSERT_NE(stable_content, nullptr);
+  ASSERT_EQ(stable_content->children.size(), 2u);
+  auto stable_selected_item = stable_content->children[1];
+  ASSERT_NE(stable_selected_item, nullptr);
+  ASSERT_EQ(stable_selected_item->children.size(), 1u);
+  auto stable_selected_text = stable_selected_item->children[0];
+  ASSERT_NE(stable_selected_text, nullptr);
+
+  EXPECT_EQ(stable_list_box->bounds.w, first_frame_list_width);
+  EXPECT_EQ(stable_content->bounds.w, first_frame_content_width);
+  EXPECT_EQ(stable_selected_item->bounds.w, first_frame_item_width);
+  EXPECT_EQ(stable_selected_text->bounds.w, first_frame_text_width);
+}
+
+TEST_F(ListBoxTest, tab_switch_explicit_content_width_item_fills_on_first_frame)
+{
+  runtime.eval(R"(
+    (pixils/deffont test-font
+      {:type :ttf
+       :resource :pixils/autoega-8x14
+       :size 10})
+
+    (pixils/defcomponent empty-tab
+      {:style {:width 40
+               :height 20}})
+
+    (pixils/defcomponent list-tab
+      {:style {:width :fill
+               :height :shrink
+               :layout {:direction :row
+                        :gap 10}}
+       :children [(pixils.ui.list-box/make
+                   {:options [{:value :a :label "Short"}
+                              {:value :b :label "A much longer list item"}
+                              {:value :c :label "Medium"}]
+                    :selected-indices [0]
+                    :style {:text {:font :font/test-font}}
+                    :visible-rows 3
+                    :content-width 180})]})
+
+    (pixils/defmode root-mode
+      {:style {:width 260
+               :height 120}
+       :children [(pixils.ui.tab-panel/make
+                   {:selected-tab :blank
+                    :style {:width :fill
+                            :height :shrink}
+                    :tabs [{:id :blank
+                            :label "Blank"
+                            :child {:mode 'empty-tab}}
+                           {:id :list
+                            :label "List"
+                            :child {:mode 'list-tab}}]})]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  frame_cycle();
+
+  auto tab_panel = session.active_mode->children[0];
+  ASSERT_NE(tab_panel, nullptr);
+  ASSERT_EQ(tab_panel->children.size(), 2u);
+  auto tab_strip = tab_panel->children[0];
+  ASSERT_NE(tab_strip, nullptr);
+  ASSERT_EQ(tab_strip->children.size(), 2u);
+  auto list_tab = tab_strip->children[1];
+  ASSERT_NE(list_tab, nullptr);
+
+  const int click_x = list_tab->bounds.x + list_tab->bounds.w / 2;
+  const int click_y = list_tab->bounds.y + list_tab->bounds.h / 2;
+  input().mouse_down({click_x, click_y});
+  update_cycle();
+  input().mouse_up({click_x, click_y});
+  update_cycle();
+  render_cycle();
+
+  auto list_box = find_descendant_mode(session.active_mode, "ui/list-box");
+  ASSERT_NE(list_box, nullptr);
+  auto content = list_box_content(list_box);
+  ASSERT_NE(content, nullptr);
+  ASSERT_EQ(content->children.size(), 3u);
+  auto selected_item = content->children[0];
+  ASSERT_NE(selected_item, nullptr);
+
+  const int first_frame_content_width = content->bounds.w;
+  const int first_frame_item_width = selected_item->bounds.w;
+  EXPECT_EQ(first_frame_content_width, 180);
+  EXPECT_EQ(first_frame_item_width, first_frame_content_width);
+
+  frame_cycle();
+
+  auto stable_list_box = find_descendant_mode(session.active_mode, "ui/list-box");
+  ASSERT_NE(stable_list_box, nullptr);
+  auto stable_content = list_box_content(stable_list_box);
+  ASSERT_NE(stable_content, nullptr);
+  ASSERT_EQ(stable_content->children.size(), 3u);
+  auto stable_selected_item = stable_content->children[0];
+  ASSERT_NE(stable_selected_item, nullptr);
+
+  EXPECT_EQ(stable_content->bounds.w, first_frame_content_width);
+  EXPECT_EQ(stable_selected_item->bounds.w, first_frame_item_width);
 }
 
 TEST_F(ListBoxTest, windows_3_natural_height_list_box_with_max_height_keeps_scrollbar_when_clamped)
