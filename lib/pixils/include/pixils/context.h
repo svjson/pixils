@@ -76,6 +76,15 @@ namespace Pixils
     std::unique_ptr<FontRegistry> font_registry;
     std::unordered_map<std::string, UI::ImageCursor> pointer_registry;
 
+    /*!
+     * @brief Allow render primitives to use SDL_RenderGeometry when available.
+     *
+     * Tests using the SDL mock disable this because the test binary may still
+     * load a real SDL library transitively, while mock renderer pointers are not
+     * valid real SDL_Renderer objects.
+     */
+    bool enable_render_geometry = true;
+
     RenderContext();
     RenderContext(SDL_Window* window, SDL_Renderer* renderer);
     ~RenderContext();

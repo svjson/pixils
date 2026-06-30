@@ -32,6 +32,7 @@ class RenderFixture : public SessionFixture
     ctx.renderer = SDL_CreateRenderer(nullptr, 0, 0);
     ctx.buffer_texture = ctx.renderer->default_render_target;
     ctx.buffer_dim = {320, 200};
+    ctx.enable_render_geometry = false;
     return ctx;
   }
 };

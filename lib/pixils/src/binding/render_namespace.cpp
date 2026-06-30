@@ -12,6 +12,7 @@
 
 #include <SDL2/SDL_blendmode.h>
 #include <SDL2/SDL_render.h>
+#include <SDL2/SDL_version.h>
 #include <algorithm>
 #include <array>
 #include <cmath>
@@ -25,6 +26,11 @@
 #include <roo/runtime/seq.h>
 #include <roo/runtime/value.h>
 #include <vector>
+
+#if SDL_VERSION_ATLEAST(2, 0, 18) && (defined(__unix__) || defined(__APPLE__))
+#define PIXILS_HAS_DYNAMIC_SDL_RENDER_GEOMETRY 1
+#include <dlfcn.h>
+#endif
 
 namespace Pixils::Script
 {
@@ -327,6 +333,35 @@ namespace Pixils::Script
         Color color;
       };
 
+      SDL_Color sdl_color(const Color& color)
+      {
+        return SDL_Color{color.r, color.g, color.b, color.a};
+      }
+
+      SDL_FPoint sdl_point(const Point& point)
+      {
+        return SDL_FPoint{point.x, point.y};
+      }
+
+#if defined(PIXILS_HAS_DYNAMIC_SDL_RENDER_GEOMETRY)
+      using SDLRenderGeometryFn =
+        int (*)(SDL_Renderer*, SDL_Texture*, const SDL_Vertex*, int, const int*, int);
+
+      SDLRenderGeometryFn sdl_render_geometry_fn()
+      {
+        static SDLRenderGeometryFn fn =
+          reinterpret_cast<SDLRenderGeometryFn>(dlsym(RTLD_DEFAULT, "SDL_RenderGeometry"));
+        return fn;
+      }
+#else
+      using SDLRenderGeometryFn = std::nullptr_t;
+
+      SDLRenderGeometryFn sdl_render_geometry_fn()
+      {
+        return nullptr;
+      }
+#endif
+
       struct BarycentricWeights
       {
         float a = 0.0f;
@@ -619,7 +654,50 @@ namespace Pixils::Script
         return triangles;
       }
 
-      void draw_filled_vertex_colored_polygon(SDL_Renderer* renderer,
+      bool draw_vertex_colored_polygon_geometry(
+        RenderContext& rc,
+        const std::vector<VertexColoredPoint>& vertices,
+        const std::vector<std::array<size_t, 3>>& triangles)
+      {
+#if defined(PIXILS_HAS_DYNAMIC_SDL_RENDER_GEOMETRY)
+        if (!rc.enable_render_geometry) return false;
+
+        SDLRenderGeometryFn render_geometry = sdl_render_geometry_fn();
+        if (!render_geometry) return false;
+
+        std::vector<SDL_Vertex> sdl_vertices;
+        sdl_vertices.reserve(triangles.size() * 3);
+
+        for (const auto& triangle : triangles)
+        {
+          for (size_t vertex_index : triangle)
+          {
+            const VertexColoredPoint& vertex = vertices[vertex_index];
+            sdl_vertices.push_back(SDL_Vertex{
+              sdl_point(vertex.point),
+              sdl_color(vertex.color),
+              SDL_FPoint{0.0f, 0.0f},
+            });
+          }
+        }
+
+        if (sdl_vertices.empty()) return true;
+
+        return render_geometry(rc.renderer,
+                               nullptr,
+                               sdl_vertices.data(),
+                               static_cast<int>(sdl_vertices.size()),
+                               nullptr,
+                               0) == 0;
+#else
+        (void)rc;
+        (void)vertices;
+        (void)triangles;
+        return false;
+#endif
+      }
+
+      void draw_filled_vertex_colored_polygon(RenderContext& rc,
                                               const std::vector<Point>& points,
                                               const std::vector<Color>& colors)
       {
@@ -638,6 +716,11 @@ namespace Pixils::Script
         for (size_t i = 0; i < points.size(); i++)
         {
           vertices.push_back(VertexColoredPoint{points[i], colors[i]});
+        }
+
+        if (draw_vertex_colored_polygon_geometry(rc, vertices, triangles))
+        {
+          return;
         }
 
         float min_x = points.front().x;
@@ -668,7 +751,7 @@ namespace Pixils::Script
 
         for (const auto& triangle : triangles)
         {
-          draw_vertex_colored_triangle(renderer,
+          draw_vertex_colored_triangle(rc.renderer,
                                        vertices[triangle[0]],
                                        vertices[triangle[1]],
                                        vertices[triangle[2]],
@@ -1462,7 +1545,7 @@ namespace Pixils::Script
               throw Roo::TypeError(
                 "polygon!: :fill-style :vertex-colors :colors count must match points.");
             }
-            draw_filled_vertex_colored_polygon(rc.renderer, pts, fill_style->colors);
+            draw_filled_vertex_colored_polygon(rc, pts, fill_style->colors);
           }
           else
           {
