@@ -410,10 +410,6 @@ TEST_F(ComboBoxTest, combo_box_popup_scroll_range_uses_measured_tall_item_height
   input().mouse_down({combo->bounds.x + 2, combo->bounds.y + 2});
   update_cycle();
   session.render_mode();
-  session.update_mode();
-  session.render_mode();
-  session.update_mode();
-  session.render_mode();
 
   ASSERT_NE(session.active_mode, nullptr);
   EXPECT_EQ(session.active_mode->mode->name, "ui/combo-box-popup");

@@ -714,6 +714,12 @@
                       (list-box-content-state state))
                ctx)
               ctx))
+   :after-layout (fn [state ctx]
+                   (list-box-sync-rendered-options
+                    (assoc state
+                           :content-state
+                           (list-box-content-state state))
+                    ctx))
    :on-key-down list-box-on-key-down
    :on {:list-box/item-click (fn [state event ctx]
                               (if (:reorder-drag state)

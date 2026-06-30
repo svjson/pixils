@@ -389,6 +389,18 @@
                        "footer"
                        (scroll-pane-footer-child effective-scroll-y?))))
 
+(defun scroll-pane-sync-auto-managed [state ctx]
+  (if (:auto-managed? state)
+    (let [measured-state (scroll-pane-apply-measured-content-size state ctx)]
+      (let [effective-scroll-y? (scroll-pane-effective-scroll-y? measured-state ctx)]
+        (if (= effective-scroll-y? (:effective-scroll-y? measured-state))
+          measured-state
+          (do
+            (scroll-pane-replace-row! measured-state ctx effective-scroll-y?)
+            (scroll-pane-replace-footer! measured-state ctx effective-scroll-y?)
+            (assoc measured-state :effective-scroll-y? effective-scroll-y?)))))
+    state))
+
 (defcomponent ui/scroll-pane
   {:style {:width :fill
            :height :fill
@@ -409,17 +421,8 @@
                    :content-children []
                    :step 16}
                   state))
-   :update (fn [state ctx]
-             (if (:auto-managed? state)
-               (let [state (scroll-pane-apply-measured-content-size state ctx)
-                     effective-scroll-y? (scroll-pane-effective-scroll-y? state ctx)]
-                 (if (= effective-scroll-y? (:effective-scroll-y? state))
-                   state
-                   (do
-                     (scroll-pane-replace-row! state ctx effective-scroll-y?)
-                     (scroll-pane-replace-footer! state ctx effective-scroll-y?)
-                     (assoc state :effective-scroll-y? effective-scroll-y?))))
-               state))
+   :update scroll-pane-sync-auto-managed
+   :after-layout scroll-pane-sync-auto-managed
    :children [{:mode 'ui/scroll-pane-row
                :state {:offset (ui/bind-state :offset)
                        :content-size (ui/bind-state :content-size)

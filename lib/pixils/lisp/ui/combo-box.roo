@@ -229,7 +229,9 @@
                      :children [(pixils.ui.list-box/make
                                  (merge
                                   {:options options
-                                   :style {:border {:thickness 0}}
+                                   :style {:width :fill
+                                           :height :fill
+                                           :border {:thickness 0}}
                                    :content-width content-width
                                    :selected-indices []
                                    :hover-highlight? true

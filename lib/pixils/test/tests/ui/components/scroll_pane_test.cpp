@@ -438,6 +438,55 @@ TEST_F(ScrollPaneTest, scroll_pane_measures_runtime_content_growth)
   EXPECT_LT(handle->bounds.h, track->bounds.h);
 }
 
+TEST_F(ScrollPaneTest, auto_scrollbar_is_present_on_first_render_from_measured_content)
+{
+  runtime.eval(R"(
+    (pixils/defcomponent tall-content
+      {:content-size (fn [state ctx] {:w 100 :h 120})})
+
+    (pixils/defmode root-mode
+      {:children [(pixils.ui.scroll-pane/make
+                   {:style {:width 50
+                            :max-width 50
+                            :height 60
+                            :max-height 60}
+                    :scroll-x? false
+                    :scroll-y? :auto
+                    :children [{:mode 'tall-content}]})]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  session.render_mode();
+
+  ASSERT_NE(session.active_mode, nullptr);
+  ASSERT_EQ(session.active_mode->children.size(), 1u);
+  auto pane = session.active_mode->children[0];
+  ASSERT_NE(pane, nullptr);
+
+  auto content_size =
+    Roo::Dict::get_property(pane->state, Roo::keyword("content-size"));
+  ASSERT_NE(content_size, nullptr);
+  auto content_height = Roo::Dict::get_property(content_size, Roo::keyword("h"));
+  ASSERT_NE(content_height, nullptr);
+  EXPECT_EQ(content_height->num().get_int(), 120);
+  auto effective_scroll_y =
+    Roo::Dict::get_property(pane->state, Roo::keyword("effective-scroll-y?"));
+  ASSERT_NE(effective_scroll_y, nullptr);
+  EXPECT_EQ(effective_scroll_y->to_string(), "true");
+
+  ASSERT_EQ(pane->children.size(), 1u);
+  auto row = pane->children[0];
+  ASSERT_NE(row, nullptr);
+  ASSERT_EQ(row->children.size(), 2u);
+  auto viewport = row->children[0];
+  auto scrollbar = row->children[1];
+  ASSERT_NE(viewport, nullptr);
+  ASSERT_NE(scrollbar, nullptr);
+  EXPECT_EQ(viewport->bounds.w, 36);
+  EXPECT_EQ(scrollbar->bounds.x, 36);
+  EXPECT_EQ(scrollbar->bounds.w, 14);
+}
+
 TEST_F(ScrollPaneTest, scroll_pane_auto_scrolls_to_bottom_when_content_height_grows)
 {
   runtime.eval(R"(
