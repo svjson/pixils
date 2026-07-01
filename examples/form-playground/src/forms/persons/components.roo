@@ -118,46 +118,59 @@
    :on {:person-register/new logic/handle-new-person
         :person-register/save logic/handle-save-person
         :person-register/cancel logic/handle-cancel-person}
-   :children [(form/make {:model :person
-                          :models {:person
-                                   {:schema schema/person-schema
-                                    :value (ui/bind-state :selected-person)}
-                                   :people
-                                   {:value (ui/bind-state :people)}
-                                   :selected-person-index
-                                   {:value
-                                    (ui/bind-state :selected-person-index)
-                                    :transient? true}
-                                   :new-person?
-                                   {:value (ui/bind-state :new-person?)
-                                    :transient? true}
-                                   :new-person
-                                   {:value (ui/bind-state :new-person)
-                                    :transient? true}}
-                          :projection {:target :person
-                                       :items :people
-                                       :selected-index
-                                       :selected-person-index
-                                       :new? :new-person?
-                                       :new-value :new-person}
+   :children [(form/make {:models {:register
+                                   {:models
+                                    {:person
+                                     {:schema schema/person-schema
+                                      :value (ui/bind-state
+                                              :selected-person)}
+                                     :people
+                                     {:value (ui/bind-state :people)}
+                                     :selected-person-index
+                                     {:value
+                                      (ui/bind-state :selected-person-index)
+                                      :transient? true}
+                                     :new-person?
+                                     {:value (ui/bind-state :new-person?)
+                                      :transient? true}
+                                     :new-person
+                                     {:value (ui/bind-state :new-person)
+                                      :transient? true}}
+                                    :projections
+                                    {:current-person
+                                     {:target [:register :person]
+                                      :items [:register :people]
+                                      :selected-index
+                                      [:register :selected-person-index]
+                                      :new? [:register :new-person?]
+                                      :new-value
+                                      [:register :new-person]}}}}
                           :text model/person-text
-                          :layout model/person-layout
                           :style {:width :fill
                                   :height :shrink
-                                  :layout {:direction :row
-                                           :align-items :start
-                                           :gap 12}}
+                                  :layout {:direction :column
+                                           :gap 8}}
                           :valid? (ui/bind-state :person-valid?)
                           :errors (ui/bind-state :person-errors)
-                          :selection {:items :people
-                                      :selected-index
-                                      :selected-person-index
-                                      :placement :right
-                                      :style {:width 180
-                                              :height :shrink
-                                              :layout {:direction :column
-                                                       :gap 4}}
-                                      :item-label model/person-label}})
+                          :layout [{:type :row
+                                    :style {:width :fill
+                                            :height :shrink
+                                            :layout {:direction :row
+                                                     :align-items :start
+                                                     :gap 12}}
+                                    :children [{:type :form
+                                                :model [:register :person]
+                                                :layout model/person-layout}
+                                               {:type :selection
+                                                :projection
+                                                [:register :current-person]
+                                                :style {:width 180
+                                                        :height :shrink
+                                                        :layout
+                                                        {:direction :column
+                                                         :gap 4}}
+                                                :item-label
+                                                model/person-label}]}]})
               {:mode 'person-register-actions
                :state {:people (ui/bind-state :people)
                        :new-person? (ui/bind-state :new-person?)
@@ -181,4 +194,3 @@
    :state {:person (ui/bind-state :selected-person)
            :form-valid? (ui/bind-state :person-valid?)
            :form-errors (ui/bind-state :person-errors)}})
-

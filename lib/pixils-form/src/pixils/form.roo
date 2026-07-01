@@ -65,8 +65,22 @@
 (def form-state-binding
   {:value (ui/bind-state :value)})
 
+(defun child-models [entry]
+  (or (:models entry)
+      (:children entry)))
+
+(defun model-entry-at [models path index]
+  (let [entry (get (or models {}) (nth path index))]
+    (if (or (nil? entry)
+            (= index (dec (count path))))
+      entry
+      (model-entry-at (child-models entry) path (inc index)))))
+
 (defun model-entry [models model-id]
-  (get (or models {}) model-id))
+  (cond
+    (nil? model-id) nil
+    (= (type-of model-id) "vector") (model-entry-at models model-id 0)
+    :default (get (or models {}) model-id)))
 
 (defun model-value [models model-id]
   (:value (or (model-entry models model-id) {})))
@@ -75,8 +89,9 @@
   (:schema (or (model-entry models model-id) {})))
 
 (defun model-ref? [models value]
-  (and (keyword? value)
-       (contains? (or models {}) value)))
+  (or (= (type-of value) "vector")
+      (and (keyword? value)
+           (contains? (or models {}) value))))
 
 (defun model-ref-value [models value]
   (if (model-ref? models value)
@@ -86,6 +101,25 @@
 (defun primary-model-id [opts projection]
   (or (:model opts)
       (:target projection)))
+
+(defun projection-entry-at [models path index]
+  (let [entry (get (or models {}) (nth path index))]
+    (cond
+      (nil? entry)
+      nil
+
+      (= index (- (count path) 2))
+      (get (or (:projections entry) {}) (nth path (dec (count path))))
+
+      :default
+      (projection-entry-at (child-models entry) path (inc index)))))
+
+(defun projection-entry [models projection]
+  (cond
+    (nil? projection) nil
+    (= (type-of projection) "map") projection
+    (= (type-of projection) "vector") (projection-entry-at models projection 0)
+    :default projection))
 
 (defun selection-value [models selection projection key]
   (model-ref-value models (or (get selection key)
@@ -277,10 +311,57 @@
    :state form-state-binding
    :children (map items (fn [item] (layout-item-view item opts)))})
 
+(defun model-layout-opts [opts item]
+  (let [models (:models opts)
+        model-id (or (:model item)
+                     (:model opts))
+        entry (model-entry models model-id)]
+    (assoc opts
+           :model model-id
+           :schema (or (:schema item)
+                       (:schema entry)
+                       (:schema opts))
+           :text (or (:text item)
+                     (:text opts)))))
+
+(defun form-layout-view [item opts]
+  (let [opts (model-layout-opts opts item)
+        schema (:schema opts)
+        children (map (or (:layout item)
+                          (default-layout schema))
+                      (fn [child]
+                        (layout-item-view child opts)))]
+    {:style (or (:style item) default-fields-style)
+     :state (ui/bind-state)
+     :children children}))
+
+(defun selection-layout-view [item opts]
+  (let [projection (projection-entry (:models opts)
+                                     (:projection item))]
+    (selection-view (normalized-selection (:models opts) item projection))))
+
+(defun row-layout-view [item opts]
+  {:style (or (:style item)
+              (:row-style opts)
+              default-row-style)
+   :state (ui/bind-state)
+   :children (map (:children item)
+                  (fn [child]
+                    (layout-item-view child opts)))})
+
+(defun map-layout-item-view [item opts]
+  (cond
+    (= (:type item) :form) (form-layout-view item opts)
+    (= (:type item) :selection) (selection-layout-view item opts)
+    (= (:type item) :row) (row-layout-view item opts)
+    :default {:mode 'ui/text
+              :state {:value (str "Unknown form layout item " item)}}))
+
 (defun layout-item-view [item opts]
   (cond
     (= item separator-token) (separator-view opts)
     (= (type-of item) "vector") (row-view item opts)
+    (= (type-of item) "map") (map-layout-item-view item opts)
     :default (field-view item opts)))
 
 (defun default-layout [schema]
@@ -344,15 +425,37 @@
       :default
       (concat [(selection-view selection)] children))))
 
+(defun layout-item-projection [item]
+  (cond
+    (nil? item) nil
+    (= (type-of item) "map")
+    (or (:projection item)
+        (layout-projection (:children item))
+        (layout-projection (:layout item)))
+    (= (type-of item) "vector") (layout-projection item)
+    :default nil))
+
+(defun layout-projection [layout]
+  (reduce (or layout [])
+          nil
+          (fn [projection item]
+            (or projection
+                (layout-item-projection item)))))
+
 (defun make [{:keys [schema text layout controls value style
                      field-style field-label-style row-style separator-style
                      control-style valid? errors selection models projection]
               :as opts}]
-  (let [selection (normalized-selection models selection projection)
-        state (normalized-form-state opts selection)
+  (let [projection (projection-entry models
+                                     (or projection
+                                         (layout-projection layout)))
+        state-selection (normalized-selection models selection projection)
+        render-selection (when selection state-selection)
+        opts (assoc opts :projection projection)
+        state (normalized-form-state opts state-selection)
         schema (:schema state)
         opts (assoc opts :schema schema)]
     {:mode 'pixils/form
      :style (or style default-style)
      :state state
-     :children (form-children layout schema opts selection)}))
+     :children (form-children layout schema opts render-selection)}))

@@ -133,3 +133,59 @@
     (is (= 2 (count (:children field-view))))
     (is (= "Name"
            (get-in field-view [:children 0 :state :value])))))
+
+(deftest make-supports_hierarchical_model_projection_layout
+  (let [view (form/make
+              {:models {:register
+                        {:models
+                         {:person
+                          {:schema person-schema
+                           :value {:field/name "Ada"
+                                   :field/age 36}}
+                          :people
+                          {:value [{:field/name "Ada"
+                                    :field/age 36}]}
+                          :selected-person-index
+                          {:value 0
+                           :transient? true}
+                          :new-person?
+                          {:value false
+                           :transient? true}
+                          :new-person
+                          {:value {:field/name ""
+                                   :field/age 0}
+                           :transient? true}}
+                         :projections
+                         {:current-person
+                          {:target [:register :person]
+                           :items [:register :people]
+                           :selected-index
+                           [:register :selected-person-index]
+                           :new? [:register :new-person?]
+                           :new-value [:register :new-person]}}}}
+               :text {:field/name "Name"}
+               :layout [{:type :row
+                         :children [{:type :form
+                                     :model [:register :person]
+                                     :layout [:field/name]}
+                                    {:type :selection
+                                     :projection
+                                     [:register :current-person]}]}]})
+        state (:state view)
+        row-view (head (:children view))
+        form-view (head (:children row-view))
+        selection-view (nth (:children row-view) 1)]
+    (is (= person-schema (:schema state)))
+    (is (= {:field/name "Ada"
+            :field/age 36}
+           (:value state)))
+    (is (= 1 (count (:children view))))
+    (is (= 2 (count (:children row-view))))
+    (is (= {} (:state row-view)))
+    (is (= {} (:state form-view)))
+    (is (= [{:field/name "Ada"
+             :field/age 36}]
+           (:items state)))
+    (is (= 'pixils/form-selection (:mode selection-view)))
+    (is (= 0 (:selected-index state)))
+    (is (= false (:new? state)))))
