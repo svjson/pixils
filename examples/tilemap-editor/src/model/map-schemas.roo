@@ -1,0 +1,24 @@
+(ns tilemap-editor.model.map-schemas
+  (:require [pixils.tilemap.project.model :as data]))
+
+(def map-dimensions-schema
+  {:map-dimensions/width {:type :integer
+                          :required true
+                          :min data/min-map-dimension
+                          :max data/max-map-dimension
+                          :path [:width]}
+   :map-dimensions/height {:type :integer
+                           :required true
+                           :min data/min-map-dimension
+                           :max data/max-map-dimension
+                           :path [:height]}
+   :map-dimensions/tile-width {:type :integer
+                               :required true
+                               :min data/min-map-dimension
+                               :max data/max-map-dimension
+                               :path [:tile-size :w]}
+   :map-dimensions/tile-height {:type :integer
+                                :required true
+                                :min data/min-map-dimension
+                                :max data/max-map-dimension
+                                :path [:tile-size :h]}})

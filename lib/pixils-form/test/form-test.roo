@@ -1,6 +1,6 @@
 (ns pixils.form-test
   (:require proof.core
-            [pixils.form :as form]))
+            [pixils.schema :as schema]))
 
 (def person-schema
   {:field/name {:type :text
@@ -13,10 +13,10 @@
                 :path [:profile :city]}})
 
 (deftest validate-reports_required_and_range_errors
-  (let [result (form/validate person-schema
-                              {:field/name ""
-                               :field/age -1
-                               :profile {:city "London"}})]
+  (let [result (schema/validate person-schema
+                                {:field/name ""
+                                 :field/age -1
+                                 :profile {:city "London"}})]
     (is (= false (:valid? result)))
     (is (= [{:rule :required}]
            (get-in result [:errors :field/name])))
@@ -27,9 +27,9 @@
     (is (nil? (get-in result [:errors :field/city])))))
 
 (deftest validate-accepts_valid_values_and_field_paths
-  (let [result (form/validate person-schema
-                              {:field/name "Ada"
-                               :field/age 36
-                               :profile {:city "London"}})]
+  (let [result (schema/validate person-schema
+                                {:field/name "Ada"
+                                 :field/age 36
+                                 :profile {:city "London"}})]
     (is (= true (:valid? result)))
     (is (= {} (:errors result)))))

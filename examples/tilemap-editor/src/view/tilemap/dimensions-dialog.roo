@@ -5,29 +5,8 @@
             [pixils.ui :as ui]
             [pixils.ui.checkbox :as chk]
             [pixils.ui.number-input :as ni]
-            [pixils.ui.window :as w]))
-
-(def dimensions-schema
-  {:map-dimensions/width {:type :integer
-                          :required true
-                          :min data/min-map-dimension
-                          :max data/max-map-dimension
-                          :path [:width]}
-   :map-dimensions/height {:type :integer
-                           :required true
-                           :min data/min-map-dimension
-                           :max data/max-map-dimension
-                           :path [:height]}
-   :map-dimensions/tile-width {:type :integer
-                               :required true
-                               :min data/min-map-dimension
-                               :max data/max-map-dimension
-                               :path [:tile-size :w]}
-   :map-dimensions/tile-height {:type :integer
-                                :required true
-                                :min data/min-map-dimension
-                                :max data/max-map-dimension
-                                :path [:tile-size :h]}})
+            [pixils.ui.window :as w]
+            [tilemap-editor.model.map-schemas :as map-schemas]))
 
 (def dimensions-text
   {:map-dimensions/width "Width"
@@ -96,7 +75,7 @@
   {:integer dimension-number-control})
 
 (defun dimension-form []
-  (form/make {:schema dimensions-schema
+  (form/make {:schema map-schemas/map-dimensions-schema
               :text dimensions-text
               :layout dimensions-layout
               :controls dimension-controls
