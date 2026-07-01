@@ -65,3 +65,12 @@
                    :filename "new.edn"})]
     (is (= ["new.edn" "first.edn"]
            (map promoted :path)))))
+
+(deftest recent-projects-from-document-normalizes_blank_directories
+  (is (= [{:path "/tmp/project/map.edn"
+           :directory "/tmp/project"
+           :filename "map.edn"}]
+         (project-io/recent-projects-from-document
+          {:projects [{:path "/tmp/project/map.edn"
+                       :directory ""
+                       :filename "map.edn"}]}))))

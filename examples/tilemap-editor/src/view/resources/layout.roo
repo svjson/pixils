@@ -22,10 +22,16 @@
                     :gap 8}}
    :update (fn [state ctx]
              (let [state (derive-resource-workspace-state state)]
-               (if (not= (:resources state) (:synced-resources state))
+               (if (or (not= (:resources state) (:synced-resources state))
+                       (not= (:project-directory state)
+                             (:synced-resource-project-directory state)))
                  (do
-                   (sync-project-resources! (:resources state))
-                   (assoc state :synced-resources (:resources state)))
+                   (sync-project-resources! (:resources state)
+                                            (:project-directory state))
+                   (assoc state
+                          :synced-resources (:resources state)
+                          :synced-resource-project-directory
+                          (:project-directory state)))
                  state)))
    :on {:resource/add-bundle (fn [state event ctx]
                                (open-resource-bundle-dialog! state

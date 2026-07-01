@@ -225,10 +225,17 @@
            :pending-tileset-shortcut-dialog? false})
   :update (fn [state ctx]
             (let [resources (:resources state)
-                  state (if (not= resources (:synced-resources state))
+                  project-directory (:project-directory state)
+                  state (if (or (not= resources (:synced-resources state))
+                                (not= project-directory
+                                      (:synced-resource-project-directory state)))
                           (do
-                            (resource-model/sync-project-resources! resources)
-                            (assoc state :synced-resources resources))
+                            (resource-model/sync-project-resources! resources
+                                                                    project-directory)
+                            (assoc state
+                                   :synced-resources resources
+                                   :synced-resource-project-directory
+                                   project-directory))
                           state)
                   state (map-model/commit-active-map-if-needed state)
                   layers (or (:layers state) [])
@@ -394,11 +401,15 @@
                        (ui/bind-state :terrain-stamp-replacements)
                        :show-terrain-rules?
                        (ui/bind-state :show-terrain-rules?)
-                       :show-grid? (ui/bind-state :show-grid?)
-                       :map-offset (ui/bind-state :map-offset)
-                       :resources (ui/bind-state :resources)
-                       :selected-resource-bundle (ui/bind-state :selected-resource-bundle)
-                       :selected-image-resource (ui/bind-state :selected-image-resource)}
+                      :show-grid? (ui/bind-state :show-grid?)
+                      :map-offset (ui/bind-state :map-offset)
+                      :project-path (ui/bind-state :project-path)
+                      :project-directory (ui/bind-state :project-directory)
+                      :resources (ui/bind-state :resources)
+                      :selected-resource-bundle (ui/bind-state :selected-resource-bundle)
+                      :selected-image-resource (ui/bind-state :selected-image-resource)
+                      :selected-image-resources
+                      (ui/bind-state :selected-image-resources)}
                :tabs [{:id :map
                        :label "Map"
                        :child {:mode 'workspace
@@ -508,6 +519,7 @@
                        :child {:mode 'resource-explorer-workspace
                                :style {:padding 8}
                                :state {:project-directory (ui/bind-state :project-directory)
+                                       :project-path (ui/bind-state :project-path)
                                        :tilesets (ui/bind-state :tilesets)
                                        :layers (ui/bind-state :layers)
                                        :terrain-sets (ui/bind-state :terrain-sets)

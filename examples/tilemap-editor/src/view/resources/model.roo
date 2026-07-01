@@ -23,6 +23,128 @@
            (and (> (count path) 1)
                 (= (substr path 1 1) ":")))))
 
+(defun path-separator [ch]
+  (if (= ch "\\") "/" ch))
+
+(defun normalize-path-separators [path index out]
+  (if (>= index (count path))
+    out
+    (normalize-path-separators
+     path
+     (inc index)
+     (str out (path-separator (substr path index 1))))))
+
+(defun trim-trailing-path-separator [path]
+  (if (and (> (count path) 1)
+           (= (substr path (dec (count path)) 1) "/"))
+    (trim-trailing-path-separator (substr path 0 (dec (count path))))
+    path))
+
+(defun path-segments [path index current out]
+  (if (>= index (count path))
+    (if (blank? current) out (concat out [current]))
+    (let [ch (substr path index 1)]
+      (if (= ch "/")
+        (path-segments path
+                       (inc index)
+                       ""
+                       (if (blank? current) out (concat out [current])))
+        (path-segments path
+                       (inc index)
+                       (str current ch)
+                       out)))))
+
+(defun common-path-prefix-length [left right index]
+  (if (and (< index (count left))
+           (< index (count right))
+           (= (nth left index) (nth right index)))
+    (common-path-prefix-length left right (inc index))
+    index))
+
+(defun path-segments-from [segments index]
+  (map (filter (for-indexed [item-index segment (or segments [])]
+                 {:index item-index
+                  :segment segment})
+               (fn [entry]
+                 (>= (:index entry) index)))
+       :segment))
+
+(defun parent-path-segments [count out]
+  (if (<= count 0)
+    out
+    (parent-path-segments (dec count) (concat out [".."]))))
+
+(defun join-relative-path-segments [segments index out]
+  (cond
+    (>= index (count segments))
+    out
+
+    (blank? out)
+    (join-relative-path-segments segments
+                                 (inc index)
+                                 (nth segments index))
+
+    :default
+    (join-relative-path-segments segments
+                                 (inc index)
+                                 (str out "/" (nth segments index)))))
+
+(defun windows-drive-segment? [segment]
+  (and (> (count segment) 1)
+       (= (substr segment 1 1) ":")))
+
+(defun different-windows-drives? [left right]
+  (let [left-drive (and (not (empty? left))
+                        (windows-drive-segment? (head left))
+                        (lower-case (head left)))
+        right-drive (and (not (empty? right))
+                         (windows-drive-segment? (head right))
+                         (lower-case (head right)))]
+    (or (and left-drive (not= left-drive right-drive))
+        (and right-drive (not= left-drive right-drive)))))
+
+(defun project-relative-file-label [path project-directory]
+  (let [path (or path "")
+        project-directory (or project-directory "")
+        result (cond
+                 (blank? path)
+                 ""
+
+                 (or (blank? project-directory)
+                     (not (absolute-path? project-directory))
+                     (not (absolute-path? path)))
+                 path
+
+                 :default
+                 (let [normalized-path (normalize-path-separators path 0 "")
+                       normalized-project-directory
+                       (trim-trailing-path-separator
+                        (normalize-path-separators project-directory 0 ""))
+                       path-parts (path-segments normalized-path 0 "" [])
+                       project-parts (path-segments normalized-project-directory 0 "" [])]
+                   (if (different-windows-drives? path-parts project-parts)
+                     path
+                     (let [common-length (common-path-prefix-length path-parts
+                                                                    project-parts
+                                                                    0)
+                           parent-parts (parent-path-segments
+                                         (- (count project-parts) common-length)
+                                         [])
+                           file-parts (path-segments-from path-parts common-length)
+                           relative-parts (concat parent-parts file-parts)
+                           relative-path (join-relative-path-segments relative-parts
+                                                                      0
+                                                                      "")]
+                       (if (blank? relative-path)
+                         "."
+                         relative-path)))))]
+    (do
+      (prn {:formatter :project-relative-file-label
+            :input path
+            :project-directory project-directory
+            :output result})
+      result)))
+
 (defun project-file-directory [path project-directory]
   (let [directory (file-directory path)]
     (when directory
@@ -363,8 +485,20 @@
     (:id entry)
     nil))
 
-(defun runtime-image-dependency [dependency]
-  (select-keys (or dependency {}) [:file-name :transparency-color]))
+(defun runtime-resource-file-name [file-name project-directory]
+  (if (and (not (blank? file-name))
+           (not (blank? project-directory))
+           (not (absolute-path? file-name)))
+    (io/join-path project-directory file-name)
+    file-name))
+
+(defun runtime-image-dependency [dependency & project-directory]
+  (let [dependency (select-keys (or dependency {})
+                                [:file-name :transparency-color])]
+    (assoc dependency
+           :file-name
+           (runtime-resource-file-name (:file-name dependency)
+                                       project-directory))))
 
 (defun project-image-resources [resources bundle-id]
   (map (project-image-resource-entries resources bundle-id)
@@ -378,6 +512,40 @@
                       (keyword-label id))
             :file-name (:file-name dependency)
             :transparency-color (:transparency-color dependency)}))))
+
+(defun project-relative-resource-dependency [dependency project-directory]
+  (if (and (= (type-of dependency) "map")
+           (contains? dependency :file-name))
+    (assoc dependency
+           :file-name
+           (project-relative-file-label (:file-name dependency)
+                                        project-directory))
+    dependency))
+
+(defun project-relative-bundle [bundle project-directory]
+  (assoc bundle
+         :images
+         (reduce-kv (or (:images bundle) {})
+                    {}
+                    (fn [result image-id dependency]
+                      (assoc result
+                             image-id
+                             (project-relative-resource-dependency
+                              dependency
+                              project-directory))))))
+
+(defun project-relative-resources [resources project-directory]
+  (if (blank? project-directory)
+    resources
+    (assoc resources
+           :bundles
+           (reduce-kv (or (:bundles resources) {})
+                      {}
+                      (fn [result bundle-id bundle]
+                        (assoc result
+                               bundle-id
+                               (project-relative-bundle bundle
+                                                        project-directory)))))))
 
 (defun all-project-image-resources [resources]
   (reduce (dynamic-project-bundle-entries resources)
@@ -437,13 +605,16 @@
        (fn [tileset]
          (remove-resource-tiles-from-tileset tileset resource-key))))
 
-(defun runtime-bundle-dependencies [bundle]
+(defun runtime-bundle-dependencies [bundle & project-directory]
   {:images (reduce-kv (or (:images bundle) {})
                       {}
                       (fn [result image-id dependency]
-                        (assoc result image-id (runtime-image-dependency dependency))))})
+                        (assoc result
+                               image-id
+                               (runtime-image-dependency dependency
+                                                         project-directory))))})
 
-(defun sync-project-resources! [resources]
+(defun sync-project-resources! [resources & project-directory]
   (do
     (for [entry (dynamic-project-bundle-entries resources)]
       (do
@@ -451,7 +622,8 @@
         (for [resource (res/list-images (:id entry))]
           (res/remove-image! (:id resource)))
         (res/create-bundle! (:id entry)
-                            (runtime-bundle-dependencies (:bundle entry)))))
+                            (runtime-bundle-dependencies (:bundle entry)
+                                                         project-directory))))
     resources))
 
 (defun image-resource-options [resources]
@@ -526,8 +698,15 @@
     (first-image-resource-id resources bundle-id)
     selected-id))
 
+(defun effective-project-directory [state]
+  (if (blank? (:project-directory state))
+    (file-directory (:project-path state))
+    (:project-directory state)))
+
 (defun derive-resource-workspace-state [state]
-  (let [resources (:resources state)
+  (let [project-directory (effective-project-directory state)
+        resources (project-relative-resources (:resources state)
+                                              project-directory)
         bundle-id (selected-bundle-id resources
                                       (:selected-resource-bundle state))
         image-ids (selected-image-resource-ids resources
@@ -535,13 +714,22 @@
                                                (:selected-image-resources state)
                                                (:selected-image-resource state))
         image-id (single-selected-image-resource-id image-ids)]
-    (assoc state
-           :selected-resource-bundle bundle-id
-           :selected-image-resource image-id
-           :selected-image-resources image-ids
-           :image-resource-panel-disabled? (nil? bundle-id)
-           :image-resource-add-disabled? (nil? bundle-id)
-           :image-resource-detail-disabled? (not (= (count image-ids) 1)))))
+    (do
+      (prn {:derive :resource-workspace
+            :input-project-path (:project-path state)
+            :input-project-directory (:project-directory state)
+            :effective-project-directory project-directory
+            :selected-resource-bundle (:selected-resource-bundle state)
+            :selected-image-resource (:selected-image-resource state)})
+      (assoc state
+             :resources resources
+             :project-directory project-directory
+             :selected-resource-bundle bundle-id
+             :selected-image-resource image-id
+             :selected-image-resources image-ids
+             :image-resource-panel-disabled? (nil? bundle-id)
+             :image-resource-add-disabled? (nil? bundle-id)
+             :image-resource-detail-disabled? (not (= (count image-ids) 1))))))
 
 (defun resource-dependency [payload]
   (let [dependency {:file-name (:file-name payload)
@@ -551,18 +739,27 @@
       dependency
       (assoc dependency :transparency-color transparency-color))))
 
+(defun project-resource-dependency [state payload]
+  (resource-dependency
+   (assoc payload
+          :file-name
+          (project-relative-file-label (:file-name payload)
+                                       (:project-directory state)))))
+
 (defun add-image-resource! [state payload]
   (let [bundle-id (:bundle-id payload)
-        resource-id (keyword (:resource-id payload))]
+        resource-id (keyword (:resource-id payload))
+        dependency (project-resource-dependency state payload)]
     (if (and bundle-id
              (not (blank? (:resource-id payload)))
              (not (blank? (:file-name payload))))
       (do
         (res/add-image! (image-resource-key bundle-id resource-id)
-                        (runtime-image-dependency (resource-dependency payload)))
+                        (runtime-image-dependency dependency
+                                                  (:project-directory state)))
         (assoc (assoc-in state
                          [:resources :bundles bundle-id :images resource-id]
-                         (resource-dependency payload))
+                         dependency)
                :selected-image-resource resource-id
                :selected-image-resources [resource-id]))
       state)))
@@ -571,7 +768,7 @@
   (let [bundle-id (:bundle-id payload)
         previous-id (:previous-resource-id payload)
         resource-id (keyword (:resource-id payload))
-        dependency (resource-dependency payload)
+        dependency (project-resource-dependency state payload)
         images (dissoc (bundle-images (:resources state) bundle-id) previous-id)]
     (if (and bundle-id
              previous-id
@@ -581,7 +778,8 @@
         (when (not= previous-id resource-id)
           (res/remove-image! (image-resource-key bundle-id previous-id)))
         (res/add-image! (image-resource-key bundle-id resource-id)
-                        (runtime-image-dependency dependency))
+                        (runtime-image-dependency dependency
+                                                  (:project-directory state)))
         (let [state (assoc (assoc-in state
                                      [:resources :bundles bundle-id :images]
                                      (assoc images resource-id dependency))
@@ -614,7 +812,8 @@
 (defun replace-image-resource-file! [state payload]
   (let [bundle-id (:bundle-id payload)
         resource-id (:resource-id payload)
-        file-name (:file-name payload)
+        file-name (project-relative-file-label (:file-name payload)
+                                               (:project-directory state))
         dependency (get-in state [:resources :bundles bundle-id :images resource-id])]
     (if (and bundle-id
              resource-id
@@ -624,7 +823,8 @@
             dependency (assoc dependency :file-name file-name)]
         (do
           (res/remove-image! key)
-          (res/add-image! key (runtime-image-dependency dependency))
+          (res/add-image! key (runtime-image-dependency dependency
+                                                        (:project-directory state)))
           (assoc (assoc-in state
                            [:resources :bundles bundle-id :images resource-id]
                            dependency)

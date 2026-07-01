@@ -40,6 +40,68 @@
     (is (= payload (:last-project-open-result state))))
   (support/cleanup-project-io-test-files!))
 
+(deftest open-dialog-result-derives_project_directory_from_path
+  (support/cleanup-project-io-test-files!)
+  (io/spit-edn! support/OPEN-PATH
+                {:format data/project-format
+                 :version data/project-format-version
+                 :tilesets []
+                 :tilemap {:width 1
+                           :height 1
+                           :layers []}})
+  (let [state (project-io/apply-project-file-dialog-result
+               {:layers []}
+               {:type :confirm
+                :mode :file-dialog/open
+                :path support/OPEN-PATH
+                :filename "loaded-project.edn"})]
+    (is (= (io/parent-path support/OPEN-PATH)
+           (:project-directory state))))
+  (support/cleanup-project-io-test-files!))
+
+(deftest open-dialog-result-ignores_blank_payload_directory
+  (support/cleanup-project-io-test-files!)
+  (io/spit-edn! support/OPEN-PATH
+                {:format data/project-format
+                 :version data/project-format-version
+                 :tilesets []
+                 :tilemap {:width 1
+                           :height 1
+                           :layers []}})
+  (let [state (project-io/apply-project-file-dialog-result
+               {:layers []
+                :project-directory ""}
+               {:type :confirm
+                :mode :file-dialog/open
+                :path support/OPEN-PATH
+                :directory ""
+                :filename "loaded-project.edn"})]
+    (is (= support/OPEN-PATH (:project-path state)))
+    (is (= (io/parent-path support/OPEN-PATH)
+           (:project-directory state))))
+  (support/cleanup-project-io-test-files!))
+
+(deftest open-recent-project-normalizes_blank_stored_directory
+  (support/cleanup-project-io-test-files!)
+  (io/spit-edn! support/OPEN-PATH
+                {:format data/project-format
+                 :version data/project-format-version
+                 :tilesets []
+                 :tilemap {:width 1
+                           :height 1
+                           :layers []}})
+  (let [state (project-io/open-recent-project!
+               {:layers []
+                :recent-projects []
+                :project-directory ""}
+               {:path support/OPEN-PATH
+                :directory ""
+                :filename "loaded-project.edn"})]
+    (is (= support/OPEN-PATH (:project-path state)))
+    (is (= (io/parent-path support/OPEN-PATH)
+           (:project-directory state))))
+  (support/cleanup-project-io-test-files!))
+
 (deftest example-map-loads-through-open-project-path
   (let [state (support/project-open-state)]
     (is (= 4 (count (:layers state))))

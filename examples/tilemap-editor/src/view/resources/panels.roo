@@ -412,15 +412,23 @@
              (let [resource (selected-resource (project-image-resources
                                                 (:resources state)
                                                 (:selected-resource-bundle state))
-                                               (:selected-image-resource state))]
-               (assoc state
-                      :resource resource
-                      :edit-disabled? (nil? resource)
-                      :key-label (if resource (str (:key resource)) "")
-                      :name-label (or (:name resource) "")
-                      :file-label (or (:file-name resource) "")
-                      :transparency-color-label
-                      (or (:transparency-color resource) ""))))
+                                               (:selected-image-resource state))
+                   project-directory (effective-project-directory state)]
+               (do
+                 (prn {:detail :image-resource-detail
+                       :project-path (:project-path state)
+                       :project-directory (:project-directory state)
+                       :effective-project-directory project-directory})
+                 (assoc state
+                        :resource resource
+                        :edit-disabled? (nil? resource)
+                        :key-label (if resource (str (:key resource)) "")
+                        :name-label (or (:name resource) "")
+                        :file-label (project-relative-file-label
+                                     (:file-name resource)
+                                     project-directory)
+                        :transparency-color-label
+                        (or (:transparency-color resource) "")))))
    :children [{:mode 'ui/button
                :class :ui/toolbar-button
                :style {:width :shrink
@@ -545,6 +553,7 @@
                                              state))}
                               ]
             :state {:resources (ui/bind-state :resources)
+                    :project-path (ui/bind-state :project-path)
                     :selected-resource-bundle (ui/bind-state :selected-resource-bundle)
                     :selected-image-resource (ui/bind-state :selected-image-resource)
                     :selected-image-resources
@@ -581,12 +590,18 @@
             :body-style {:padding 8
                          :height :fill}
             :body-state {:resources (ui/bind-state :resources)
+                         :project-path (ui/bind-state :project-path)
+                         :project-directory (ui/bind-state :project-directory)
                          :selected-resource-bundle (ui/bind-state :selected-resource-bundle)
                          :selected-image-resource (ui/bind-state :selected-image-resource)
                          :selected-image-resources
                          (ui/bind-state :selected-image-resources)}
             :children [{:mode 'image-resource-detail
                         :state {:resources (ui/bind-state :resources)
+                                :project-path
+                                (ui/bind-state :project-path)
+                                :project-directory
+                                (ui/bind-state :project-directory)
                                 :selected-resource-bundle
                                 (ui/bind-state :selected-resource-bundle)
                                 :selected-image-resource

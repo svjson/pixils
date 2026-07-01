@@ -15,6 +15,13 @@
 (def max-recent-projects 10)
 (def project-save-edn-options {:pretty? true})
 
+(defun payload-directory [payload]
+  (if (not (blank? (:directory payload)))
+    (:directory payload)
+    (let [directory (io/parent-path (:path payload))]
+      (when (not (blank? directory))
+        directory))))
+
 (defun save-project-result? [payload]
   (and (= (:type payload) :confirm)
        (= (:mode payload) :file-dialog/save)
@@ -34,16 +41,17 @@
 
 (defun recent-project-entry [payload]
   {:path (:path payload)
-   :directory (:directory payload)
+   :directory (payload-directory payload)
    :filename (or (:filename payload) (:path payload))})
 
 (defun recent-project-document [projects]
   {:projects (or projects [])})
 
 (defun recent-projects-from-document [document]
-  (or (:projects document)
-      document
-      []))
+  (map (or (:projects document)
+           document
+           [])
+       recent-project-entry))
 
 (defun load-recent-projects [path]
   (if (and path (io/exists? path))
@@ -129,7 +137,10 @@
   (:tileset (head layers)))
 
 (defun open-project! [state payload]
-  (let [project (data/normalize-project-document (io/slurp-edn! (:path payload)))
+  (let [project-path (:path payload)
+        project-directory (payload-directory payload)
+        project-filename (or (:filename payload) project-path)
+        project (data/normalize-project-document (io/slurp-edn! project-path))
         maps (project-maps project)
         selected-map (project-selected-map project)
         layers (:layers selected-map)
@@ -146,10 +157,18 @@
         mask-sets (project-mask-sets project)
         terrain-transitions (project-terrain-transitions project)
         brushes (project-brushes project)]
+    (prn {:loader :open-project
+          :payload-path project-path
+          :payload-directory (:directory payload)
+          :project-directory project-directory
+          :project-filename project-filename})
     (if (valid-project-document? project)
       (remember-project!
        (tilemap/rebuild-terrain-stamp-preview
         (assoc state
+               :project-path project-path
+               :project-directory project-directory
+               :project-filename project-filename
                :tilesets tilesets
                :property-sets property-sets
                :selected-property-set-index
@@ -205,14 +224,18 @@
                                              :path (:path payload)}))))
 
 (defun open-recent-project! [state payload]
-  (open-project! (assoc state
-                        :project-path (:path payload)
-                        :project-directory (:directory payload)
-                        :project-filename (:filename payload)
-                        :last-project-file-dialog-result payload)
-                 (assoc payload
-                        :type :confirm
-                        :mode :file-dialog/open)))
+  (let [payload (assoc (recent-project-entry payload)
+                       :type :confirm
+                       :mode :file-dialog/open)]
+    (do
+      (prn {:loader :open-recent-project
+            :payload payload})
+      (open-project! (assoc state
+                            :project-path (:path payload)
+                            :project-directory (:directory payload)
+                            :project-filename (:filename payload)
+                            :last-project-file-dialog-result payload)
+                     payload))))
 
 (defun open-project-file-dialog! [state ctx mode title]
   (do
@@ -230,7 +253,7 @@
   (if (= (:type payload) :confirm)
     (let [next-state (assoc state
                             :project-path (:path payload)
-                            :project-directory (:directory payload)
+                            :project-directory (payload-directory payload)
                             :project-filename (:filename payload)
                             :last-project-file-dialog-result payload)]
       (if (save-project-result? payload)

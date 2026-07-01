@@ -24,6 +24,50 @@
          (resources/project-file-directory "/tmp/assets/tiles.png"
                                            "/tmp/project"))))
 
+(deftest project-relative-file-label-shortens_paths_under_project_directory
+  (is (= "assets/tiles.png"
+         (resources/project-relative-file-label
+          "/tmp/project/assets/tiles.png"
+          "/tmp/project")))
+  (is (= "assets/tiles.png"
+         (resources/project-relative-file-label
+          "/tmp/project/assets/tiles.png"
+          "/tmp/project/")))
+  (is (= "assets/tiles.png"
+         (resources/project-relative-file-label
+          "C:\\project\\assets\\tiles.png"
+          "C:\\project"))))
+
+(deftest project-relative-file-label-can_use_parent_segments
+  (is (= "../shared/tiles.png"
+         (resources/project-relative-file-label
+          "/tmp/shared/tiles.png"
+          "/tmp/project")))
+  (is (= "../../../home/assets/tiles.png"
+         (resources/project-relative-file-label
+          "/home/assets/tiles.png"
+          "/tmp/project/maps"))))
+
+(deftest project-relative-file-label-preserves_already_relative_paths
+  (is (= "../other/tiles.png"
+         (resources/project-relative-file-label
+          "/tmp/other/tiles.png"
+          "/tmp/project")))
+  (is (= "assets/tiles.png"
+         (resources/project-relative-file-label
+          "assets/tiles.png"
+          "/tmp/project")))
+  (is (= "/tmp/project/assets/tiles.png"
+         (resources/project-relative-file-label
+          "/tmp/project/assets/tiles.png"
+          "relative/project")))
+  (is (= ""
+         (resources/project-relative-file-label nil "/tmp/project")))
+  (is (= "D:\\assets\\tiles.png"
+         (resources/project-relative-file-label
+          "D:\\assets\\tiles.png"
+          "C:\\project"))))
+
 (deftest default-resource-fields-clean_file_stem
   (is (= "simples-pimples"
          (resources/default-resource-id "/tmp/maps/Simples_Pimples.png")))
@@ -92,6 +136,45 @@
                                          :file-name "/tmp/maps/tiles.png"
                                          :transparency-color "#5a5268"}}}}}
           :terrain-assets))))
+
+(deftest project-relative-resources-migrates_absolute_image_paths
+  (is (= {:bundles {:terrain-assets
+                   {:images {:tiles
+                             {:name "Tiles"
+                              :file-name "assets/tiles.png"}}}}}
+         (resources/project-relative-resources
+          {:bundles {:terrain-assets
+                    {:images {:tiles
+                              {:name "Tiles"
+                               :file-name "/tmp/project/assets/tiles.png"}}}}}
+          "/tmp/project"))))
+
+(deftest resource-workspace-state-derives_project_directory_from_project_path
+  (let [state (resources/derive-resource-workspace-state
+               {:project-path "/tmp/project/map.edn"
+                :resources {:bundles {:terrain-assets
+                                      {:images {:tiles
+                                                {:file-name "/tmp/project/assets/tiles.png"}}}}}
+                :selected-resource-bundle :terrain-assets
+                :selected-image-resource :tiles})]
+    (is (= "/tmp/project" (:project-directory state)))
+    (is (= "assets/tiles.png"
+           (get-in state
+                   [:resources :bundles :terrain-assets :images :tiles :file-name])))))
+
+(deftest resource-workspace-state-treats_blank_project_directory_as_missing
+  (let [state (resources/derive-resource-workspace-state
+               {:project-path "/tmp/project/map.edn"
+                :project-directory ""
+                :resources {:bundles {:terrain-assets
+                                      {:images {:tiles
+                                                {:file-name "/tmp/project/assets/tiles.png"}}}}}
+                :selected-resource-bundle :terrain-assets
+                :selected-image-resource :tiles})]
+    (is (= "/tmp/project" (:project-directory state)))
+    (is (= "assets/tiles.png"
+           (get-in state
+                   [:resources :bundles :terrain-assets :images :tiles :file-name])))))
 
 (deftest resource-key-bundle-replacement-updates_matching_qualified_keys
   (is (= :terrain-v2/grass
@@ -298,6 +381,49 @@
     (is (= :terrain-assets/tiles
            (get-in state [:tilesets 0 :tiles 0 :image])))))
 
+(deftest image-resource-replace-file-stores_project_relative_path
+  (res/create-bundle! :terrain-assets)
+  (res/add-image! :terrain-assets/tiles {:file-name "/tmp/project/assets/old.png"})
+  (let [state (resources/replace-image-resource-file!
+               {:resources {:bundles {:terrain-assets
+                                      {:images {:tiles
+                                                {:file-name "assets/old.png"
+                                                 :name "Tiles"}}}}}
+                :project-directory "/tmp/project"
+                :selected-resource-bundle :terrain-assets
+                :selected-image-resource :tiles
+                :selected-image-resources [:tiles]}
+               {:bundle-id :terrain-assets
+                :resource-id :tiles
+                :file-name "/tmp/project/assets/new.png"})]
+    (is (= "assets/new.png"
+           (get-in state
+                   [:resources :bundles :terrain-assets :images :tiles :file-name])))
+    (is (= "/tmp/project/assets/new.png"
+           (:file-name
+            (head (filter (res/list-images :terrain-assets)
+                          (fn [resource]
+                            (= (:id resource) :terrain-assets/tiles)))))))))
+
+(deftest image-resource-add-stores_project_relative_path
+  (res/create-bundle! :terrain-assets)
+  (let [state (resources/add-image-resource!
+               {:resources {:bundles {:terrain-assets {:images {}}}}
+                :project-directory "/tmp/project"}
+               {:bundle-id :terrain-assets
+                :resource-id "tiles"
+                :resource-name "Tiles"
+                :file-name "/tmp/project/assets/tiles.png"})]
+    (is (= {:file-name "assets/tiles.png"
+            :name "Tiles"}
+           (get-in state
+                   [:resources :bundles :terrain-assets :images :tiles])))
+    (is (= "/tmp/project/assets/tiles.png"
+           (:file-name
+            (head (filter (res/list-images :terrain-assets)
+                          (fn [resource]
+                            (= (:id resource) :terrain-assets/tiles)))))))))
+
 (deftest image-resource-move-transfers_dependency_and_updates_project_references
   (let [state (resources/move-image-resource!
                {:selected-map-id :map/one
@@ -449,7 +575,11 @@
          (resources/runtime-image-dependency
           {:file-name "/tmp/maps/tiles.png"
            :name "Terrain Sheet"
-           :transparency-color "#5a5268"}))))
+           :transparency-color "#5a5268"})))
+  (is (= {:file-name "/tmp/project/assets/tiles.png"}
+         (resources/runtime-image-dependency
+          {:file-name "assets/tiles.png"}
+          "/tmp/project"))))
 
 (deftest image-resource-dependency-includes-optional-transparency-color
   (is (= {:file-name "/tmp/maps/tiles.png"
@@ -471,7 +601,13 @@
          (resources/runtime-bundle-dependencies
           {:images {:simples_pimples
                     {:file-name "/tmp/simples_pimples.png"
-                     :name "Simples Pimples"}}}))))
+                     :name "Simples Pimples"}}})))
+  (is (= {:images {:simples_pimples {:file-name "/tmp/project/assets/simples_pimples.png"}}}
+         (resources/runtime-bundle-dependencies
+          {:images {:simples_pimples
+                    {:file-name "assets/simples_pimples.png"
+                     :name "Simples Pimples"}}}
+          "/tmp/project"))))
 
 (deftest image-resource-options-preserve-resource-id
   (is (= [{:value :tiles
