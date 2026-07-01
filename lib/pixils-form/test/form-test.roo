@@ -13,7 +13,7 @@
    :field/city {:type :text
                 :path [:profile :city]}})
 
-(deftest validate-reports_required_and_range_errors
+(deftest validate-reports-required-and-range-errors
   (let [result (schema/validate person-schema
                                 {:field/name ""
                                  :field/age -1
@@ -27,7 +27,7 @@
            (get-in result [:errors :field/age])))
     (is (nil? (get-in result [:errors :field/city])))))
 
-(deftest validate-accepts_valid_values_and_field_paths
+(deftest validate-accepts-valid-values-and-field-paths
   (let [result (schema/validate person-schema
                                 {:field/name "Ada"
                                  :field/age 36
@@ -35,7 +35,7 @@
     (is (= true (:valid? result)))
     (is (= {} (:errors result)))))
 
-(deftest form-projection-selects_current_collection_item
+(deftest form-projection-selects-current-collection-item
   (let [state (form/projection-state
                {:items [{:name "Ada"}
                         {:name "Grace"}]
@@ -44,7 +44,7 @@
     (is (= 1 (:projected-index state)))
     (is (= {:name "Grace"} (:projected-item state)))))
 
-(deftest form-projection-writes_edited_value_back_to_collection
+(deftest form-projection-writes-edited-value-back-to-collection
   (let [state (form/projection-state
                {:items [{:name "Ada"}
                         {:name "Grace"}]
@@ -57,7 +57,7 @@
            (:items state)))
     (is (= {:name "Grace Hopper"} (:projected-item state)))))
 
-(deftest form-projection-uses_transient_new_value_without_collection_write
+(deftest form-projection-uses-transient-new-value-without-collection-write
   (let [state (form/projection-state
                {:items [{:name "Ada"}]
                 :selected-index nil
@@ -68,7 +68,7 @@
     (is (= true (:projected-new? state)))
     (is (= [{:name "Ada"}] (:items state)))))
 
-(deftest form-projection-keeps_transient_edits_out_of_collection
+(deftest form-projection-keeps-transient-edits-out-of-collection
   (let [state (form/projection-state
                {:items [{:name "Ada"}]
                 :new? true
@@ -78,7 +78,7 @@
     (is (= [{:name "Ada"}] (:items state)))
     (is (= {:name "New Person"} (:projected-item state)))))
 
-(deftest make-normalizes_combined_model_projection
+(deftest make-normalizes-combined-model-projection
   (let [view (form/make {:model :person
                          :models {:person
                                   {:schema person-schema
@@ -121,7 +121,7 @@
             :field/age 0}
            (:new-value state)))))
 
-(deftest make-renders_combined_model_layout_from_resolved_schema
+(deftest make-renders-combined-model-layout-from-resolved-schema
   (let [view (form/make {:model :person
                          :models {:person
                                   {:schema person-schema
@@ -134,7 +134,7 @@
     (is (= "Name"
            (get-in field-view [:children 0 :state :value])))))
 
-(deftest make-supports_hierarchical_model_projection_layout
+(deftest make-supports-hierarchical-model-projection-layout
   (let [view (form/make
               {:models {:register
                         {:models
@@ -189,3 +189,68 @@
     (is (= 'pixils/form-selection (:mode selection-view)))
     (is (= 0 (:selected-index state)))
     (is (= false (:new? state)))))
+
+(deftest action-disabled-uses-form-state-conditions
+  (is (= true
+         (form/action-disabled?
+          {:form-state {:new? true
+                        :valid? false}
+           :disabled-when :new?})))
+  (is (= true
+         (form/action-disabled?
+          {:form-state {:new? true
+                        :valid? false}
+           :enabled-when [:and :new? :valid?]})))
+  (is (= false
+         (form/action-disabled?
+          {:form-state {:new? true
+                        :valid? true}
+           :enabled-when [:and :new? :valid?]}))))
+
+(deftest make-supports-action-layout-nodes
+  (let [view (form/make
+              {:models {:register
+                        {:models
+                         {:person
+                          {:schema person-schema
+                           :value {:field/name "Ada"
+                                   :field/age 36}}
+                          :people
+                          {:value [{:field/name "Ada"
+                                    :field/age 36}]}
+                          :selected-person-index
+                          {:value 0}
+                          :new-person?
+                          {:value false}
+                          :new-person
+                          {:value {:field/name ""
+                                   :field/age 0}}}
+                         :projections
+                         {:current-person
+                          {:target [:register :person]
+                           :items [:register :people]
+                           :selected-index
+                           [:register :selected-person-index]
+                           :new? [:register :new-person?]
+                           :new-value [:register :new-person]}}}}
+               :layout [{:type :selection
+                         :projection [:register :current-person]}
+                        {:type :row
+                         :children [{:type :action
+                                     :id :person/new
+                                     :label "New"
+                                     :disabled-when :new?}
+                                    {:type :action
+                                     :id :person/save
+                                     :label "Save"
+                                     :enabled-when
+                                     [:and :new? :valid?]}]}]})
+        action-row (nth (:children view) 1)
+        new-action (head (:children action-row))
+        save-action (nth (:children action-row) 1)]
+    (is (= 'pixils/form-action (:mode new-action)))
+    (is (= :person/new (get-in new-action [:state :event])))
+    (is (= "New" (get-in new-action [:state :label])))
+    (is (= :new? (get-in new-action [:state :disabled-when])))
+    (is (= [:and :new? :valid?]
+           (get-in save-action [:state :enabled-when])))))

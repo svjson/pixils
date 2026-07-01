@@ -4,8 +4,7 @@
             [form-playground.forms.persons.model :as model]
             [form-playground.forms.persons.schema :as schema]
             [pixils.form :as form]
-            [pixils.ui :as ui]
-            pixils.ui.button))
+            [pixils.ui :as ui]))
 
 (defun preview-line [label state-key]
   {:style {:width :fill
@@ -52,61 +51,6 @@
               (preview-line "Newsletter" :newsletter-value)
               (preview-line "Valid" :valid-value)
               (preview-line "Errors" :errors-value)]})
-
-(defcomponent person-register-actions
-  {:style {:width :fill
-           :height 24
-           :layout {:direction :row
-                    :gap 8}}
-   :update (fn [state ctx]
-             (assoc state
-                    :new-disabled? (:new-person? state)
-                    :save-disabled?
-                    (or (not (:new-person? state))
-                        (not (:person-valid? state)))
-                    :cancel-disabled? (not (:new-person? state))))
-   :children [{:mode 'ui/button
-               :style {:width 104
-                       :height 24}
-               :state {:label "New Person"
-                       :people (ui/bind-state :people)
-                       :disabled? (ui/bind-state :new-disabled?)}
-               :on-click (fn [state event ctx]
-                           (let [items (or (:people state) [])
-                                 index (count items)]
-                             (when (not (:disabled? state))
-                               (ui/emit! (:view ctx)
-                                         :person-register/new
-                                         {:person (model/empty-person index)
-                                          :index index}))
-                             state))}
-              {:mode 'ui/button
-               :style {:width 72
-                       :height 24}
-               :state {:label "Save"
-                       :new-person? (ui/bind-state :new-person?)
-                       :person-valid? (ui/bind-state :person-valid?)
-                       :disabled? (ui/bind-state :save-disabled?)}
-               :on-click (fn [state event ctx]
-                           (do
-                             (when (not (:disabled? state))
-                               (ui/emit! (:view ctx) :person-register/save))
-                             state))}
-              {:mode 'ui/button
-               :style {:width 72
-                       :height 24}
-               :state {:label "Cancel"
-                       :new-person? (ui/bind-state :new-person?)
-                       :disabled? (ui/bind-state :cancel-disabled?)}
-               :on-click (fn [state event ctx]
-                           (do
-                             (when (not (:disabled? state))
-                               (ui/emit! (:view ctx) :person-register/cancel))
-                             state))}
-              {:mode 'ui/text
-               :class :ui/muted
-               :style {:width :fill}
-               :state {:value "New person stays transient until Save."}}]})
 
 (defcomponent person-register
   {:style {:width 620
@@ -161,20 +105,44 @@
                                     :children [{:type :form
                                                 :model [:register :person]
                                                 :layout model/person-layout}
-                                               {:type :selection
-                                                :projection
-                                                [:register :current-person]
+                                               {:type :group
                                                 :style {:width 180
                                                         :height :shrink
                                                         :layout
                                                         {:direction :column
-                                                         :gap 4}}
-                                                :item-label
-                                                model/person-label}]}]})
-              {:mode 'person-register-actions
-               :state {:people (ui/bind-state :people)
-                       :new-person? (ui/bind-state :new-person?)
-                       :person-valid? (ui/bind-state :person-valid?)}}]})
+                                                         :gap 8}}
+                                                :children
+                                                [{:type :selection
+                                                  :projection
+                                                  [:register :current-person]
+                                                  :style {:width :fill
+                                                          :height :shrink
+                                                          :layout
+                                                          {:direction :column
+                                                           :gap 4}}
+                                                  :item-label
+                                                  model/person-label}
+                                                 {:type :action
+                                                  :id :person-register/new
+                                                  :label "New Person"
+                                                  :style {:width :fill
+                                                          :height 24}
+                                                  :disabled-when
+                                                  :new?}]}]}
+                                   {:type :row
+                                    :style {:width :fill
+                                            :height 24
+                                            :layout {:direction :row
+                                                     :gap 8}}
+                                    :children [{:type :action
+                                                :id :person-register/save
+                                                :label "Save"
+                                                :enabled-when
+                                                [:and :new? :valid?]}
+                                               {:type :action
+                                                :id :person-register/cancel
+                                                :label "Cancel"
+                                                :enabled-when :new?}]}]})]})
 
 (defun make []
   {:mode 'person-register

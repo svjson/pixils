@@ -2,6 +2,7 @@
   (:require pixils
             [pixils.schema :as model-schema]
             [pixils.ui :as ui]
+            pixils.ui.button
             [pixils.ui.checkbox :as checkbox]
             [pixils.ui.list-box :as list-box]
             [pixils.ui.number-input :as number-input]))
@@ -59,6 +60,10 @@
    :height :shrink
    :layout {:direction :column
             :gap 8}})
+
+(def default-action-style
+  {:width 96
+   :height 24})
 
 (def separator-token :------)
 
@@ -154,6 +159,46 @@
 
 (defun field-value [value field-id field-schema]
   (model-schema/field-value value field-id field-schema))
+
+(defun form-truthy? [value]
+  (and (not (nil? value))
+       (not (= false value))))
+
+(defun condition-value [state condition]
+  (cond
+    (keyword? condition) (get state condition)
+
+    (= (type-of condition) "vector")
+    (let [op (nth condition 0)]
+      (cond
+        (= op :not)
+        (not (form-truthy? (condition-value state (nth condition 1))))
+
+        (= op :and)
+        (and (form-truthy? (condition-value state (nth condition 1)))
+             (form-truthy? (condition-value state (nth condition 2))))
+
+        (= op :or)
+        (or (form-truthy? (condition-value state (nth condition 1)))
+            (form-truthy? (condition-value state (nth condition 2))))
+
+        (= op :=)
+        (= (condition-value state (nth condition 1))
+           (nth condition 2))
+
+        :default condition))
+
+    :default condition))
+
+(defun condition-true? [state condition]
+  (form-truthy? (condition-value state condition)))
+
+(defun action-disabled? [state]
+  (let [form-state (:form-state state)]
+    (or (condition-true? form-state (:disabled-when state))
+        (and (not (nil? (:enabled-when state)))
+             (not (condition-true? form-state
+                                   (:enabled-when state)))))))
 
 (defun validate-field [schema value field-id]
   (model-schema/validate-field schema value field-id))
@@ -353,6 +398,8 @@
   (cond
     (= (:type item) :form) (form-layout-view item opts)
     (= (:type item) :selection) (selection-layout-view item opts)
+    (= (:type item) :action) (action-view item)
+    (= (:type item) :group) (row-layout-view item opts)
     (= (:type item) :row) (row-layout-view item opts)
     :default {:mode 'ui/text
               :state {:value (str "Unknown form layout item " item)}}))
@@ -376,8 +423,7 @@
                     :selected-indices
                     (selected-indices (:selected-index state))))
    :on {:list-box/change (fn [state event ctx]
-                           (do
-                             (ui/stop-propagation! event)
+                           (let [stopped (ui/stop-propagation! event)]
                              (assoc state
                                     :new? false
                                     :selected-index
@@ -387,6 +433,24 @@
                               (ui/bind-state :selected-indices)
                               :force-selection? false
                               :style default-selection-list-style})]})
+
+(defcomponent pixils/form-action
+  {:style default-action-style
+   :update (fn [state ctx]
+             (assoc state
+                    :disabled?
+                    (action-disabled? state)))
+   :on-click (fn [state event ctx]
+               (let [emitted (when (not (:disabled? state))
+                               (ui/emit! (:view ctx)
+                                         (:event state)
+                                         (:payload state)))]
+                 state))
+   :children [{:mode 'ui/button
+               :style {:width :fill
+                       :height :fill}
+               :state {:label (ui/bind-state :label)
+                       :disabled? (ui/bind-state :disabled?)}}]})
 
 (defcomponent pixils/form
   {:update (fn [state ctx]
@@ -405,6 +469,18 @@
              :selected-index (ui/bind-state :selected-index)
              :new? (ui/bind-state :new?)
              :item-label (:item-label selection)}}))
+
+(defun action-view [action]
+  {:mode 'pixils/form-action
+   :style (or (:style action) default-action-style)
+   :state {:form-state (ui/bind-state)
+           :label (:label action)
+           :event (or (:event action)
+                      (:action action)
+                      (:id action))
+           :payload (:payload action)
+           :enabled-when (:enabled-when action)
+           :disabled-when (:disabled-when action)}})
 
 (defun fields-view [children]
   {:style default-fields-style
