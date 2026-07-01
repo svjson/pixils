@@ -1,0 +1,153 @@
+(ns pixils.form
+  (:require [pixils.ui :as ui]
+            [pixils.ui.checkbox :as checkbox]
+            [pixils.ui.number-input :as number-input]))
+
+(def default-style
+  {:width :fill
+   :height :shrink
+   :layout {:direction :column
+            :gap 8}})
+
+(def default-field-style
+  {:width :fill
+   :height :shrink
+   :layout {:direction :column
+            :gap 3}})
+
+(def default-field-label-style
+  {:width :fill})
+
+(def default-row-style
+  {:width :fill
+   :height :shrink
+   :layout {:direction :row
+            :align-items :start
+            :gap 10}})
+
+(def default-separator-style
+  {:width :fill
+   :height 1
+   :background {:r 0x9a :g 0x9a :b 0x92}})
+
+(def default-control-style
+  {:width :fill
+   :height 24})
+
+(def checkbox-style
+  {:width :fill
+   :height 24})
+
+(def default-display-style
+  {:width :fill
+   :height 18})
+
+(def separator-token :------)
+
+(def form-state-binding
+  {:value (ui/bind-state :value)})
+
+(defun field-path [field-id field-schema]
+  (let [path (:path field-schema)]
+    (cond
+      (nil? path) [field-id]
+      (= (type-of path) "vector") path
+      :default [path])))
+
+(defun field-binding [field-id field-schema]
+  (apply ui/bind-state (concat [:value] (field-path field-id field-schema))))
+
+(defun label-for [field-id text]
+  (or (get (or text {}) field-id)
+      (str field-id)))
+
+(defun field-value-text [field-id field-schema]
+  {:mode 'ui/text
+   :style default-display-style
+   :state {:value (field-binding field-id field-schema)}})
+
+(defun text-control [field-id field-schema field-label opts]
+  {:mode 'ui/text-input
+   :style (or (:control-style opts) default-control-style)
+   :state {:value (field-binding field-id field-schema)
+           :auto-focus? (:auto-focus? field-schema)
+           :read-only? (:read-only? field-schema)}})
+
+(defun number-control [field-id field-schema field-label opts]
+  (number-input/make {:style (or (:control-style opts) default-control-style)
+                      :value (field-binding field-id field-schema)
+                      :min (:min field-schema)
+                      :max (:max field-schema)
+                      :step (:step field-schema)
+                      :allow-negative? (:allow-negative? field-schema)
+                      :allow-fractions? (:allow-fractions? field-schema)
+                      :disabled? (:read-only? field-schema)
+                      :auto-focus? (:auto-focus? field-schema)}))
+
+(defun boolean-control [field-id field-schema field-label opts]
+  (checkbox/make {:style checkbox-style
+                  :label ""
+                  :checked? (field-binding field-id field-schema)
+                  :value field-id}))
+
+(defun display-control [field-id field-schema field-label opts]
+  (field-value-text field-id field-schema))
+
+(def default-controls
+  {:text text-control
+   :string text-control
+   :integer number-control
+   :number number-control
+   :boolean boolean-control
+   :display display-control})
+
+(defun field-control [field-id field-schema field-label opts]
+  (let [controls (merge default-controls (or (:controls opts) {}))
+        control (get controls (:type field-schema))]
+    (if control
+      (apply control [field-id field-schema field-label opts])
+      (display-control field-id field-schema field-label opts))))
+
+(defun field-view [field-id opts]
+  (let [schema (or (:schema opts) {})
+        text (:text opts)
+        field-schema (get schema field-id)
+        field-label (label-for field-id text)]
+    (if field-schema
+      {:style (or (:field-style opts) default-field-style)
+       :state form-state-binding
+       :children [{:mode 'ui/text
+                   :class :ui/muted
+                   :style (or (:field-label-style opts)
+                              default-field-label-style)
+                   :state {:value field-label}}
+                  (field-control field-id field-schema field-label opts)]}
+      {:mode 'ui/text
+       :state {:value (str "Unknown form field " field-id)}})))
+
+(defun separator-view [opts]
+  {:style (or (:separator-style opts) default-separator-style)})
+
+(defun row-view [items opts]
+  {:style (or (:row-style opts) default-row-style)
+   :state form-state-binding
+   :children (map items (fn [item] (layout-item-view item opts)))})
+
+(defun layout-item-view [item opts]
+  (cond
+    (= item separator-token) (separator-view opts)
+    (= (type-of item) "vector") (row-view item opts)
+    :default (field-view item opts)))
+
+(defun default-layout [schema]
+  (keys (or schema {})))
+
+(defun make [{:keys [schema text layout controls value style
+                     field-style field-label-style row-style separator-style
+                     control-style]
+              :as opts}]
+  {:style (or style default-style)
+   :state {:value value}
+   :children (map (or layout (default-layout schema))
+                  (fn [item]
+                    (layout-item-view item opts)))})

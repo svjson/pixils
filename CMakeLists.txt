@@ -23,6 +23,7 @@ endif()
 enable_testing()
 
 add_subdirectory(lib/pixils)
+add_subdirectory(lib/pixils-form)
 add_subdirectory(lib/pixils-tilemap)
 add_subdirectory(lib/pixils-runner)
 add_subdirectory(lib/pixils-test)

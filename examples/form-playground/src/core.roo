@@ -1,0 +1,11 @@
+(ns form-playground.core
+  (:require pixils
+            form-playground.root))
+
+(defprogram form-playground
+  {:display {:resolution {:scale 2}
+             :align :align/center
+             :background {:r 0x1c :g 0x20 :b 0x24}}
+   :target-frame-rate 0
+   :theme 'pixils/windows-3
+   :initial-mode 'main-mode})
