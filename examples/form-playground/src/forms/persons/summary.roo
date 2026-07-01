@@ -27,12 +27,7 @@
                :state {:value (ui/bind-state state-key)}}]})
 
 (defcomponent person-summary
-  {:style {:width :fill
-           :height :shrink
-           :padding 8
-           :background {:r 0xd6 :g 0xd6 :b 0xce}
-           :layout {:direction :column
-                    :gap 4}}
+  {:class :person-summary
    :update (fn [state ctx]
              (let [person (:person state)]
                (assoc state

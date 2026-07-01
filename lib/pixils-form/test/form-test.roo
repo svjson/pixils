@@ -254,3 +254,55 @@
     (is (= :new? (get-in new-action [:state :disabled-when])))
     (is (= [:and :new? :valid?]
            (get-in save-action [:state :enabled-when])))))
+
+(deftest make-supports-vector-layout-shorthand-with-classes
+  (let [view (form/make
+              {:class :person-register-form
+               :models {:register
+                        {:models
+                         {:person
+                          {:schema person-schema
+                           :value {:field/name "Ada"
+                                   :field/age 36}}
+                          :people
+                          {:value [{:field/name "Ada"
+                                    :field/age 36}]}
+                          :selected-person-index
+                          {:value 0}
+                          :new-person?
+                          {:value false}
+                          :new-person
+                          {:value {:field/name ""
+                                   :field/age 0}}}
+                         :projections
+                         {:current-person
+                          {:target [:register :person]
+                           :items [:register :people]
+                           :selected-index
+                           [:register :selected-person-index]
+                           :new? [:register :new-person?]
+                           :new-value [:register :new-person]}}}}
+               :layout [[:row.person-main-row
+                         [:form [:register :person] [:field/name]]
+                         [:group.person-list-column
+                          [:selection.person-list
+                           [:register :current-person]]
+                          [:button.person-new
+                           :person/new
+                           {:label "New"
+                            :disabled-when :new?}]]]]})
+        row-view (head (:children view))
+        form-view (head (:children row-view))
+        group-view (nth (:children row-view) 1)
+        selection-view (head (:children group-view))
+        action-view (nth (:children group-view) 1)]
+    (is (= :person-register-form (:class view)))
+    (is (= :person-main-row (:class row-view)))
+    (is (= :person-list-column (:class group-view)))
+    (is (= :person-list (:class selection-view)))
+    (is (= :person-new (:class action-view)))
+    (is (= {} (:state form-view)))
+    (is (= 'pixils/form-selection (:mode selection-view)))
+    (is (= 'pixils/form-action (:mode action-view)))
+    (is (= :person/new (get-in action-view [:state :event])))
+    (is (= :new? (get-in action-view [:state :disabled-when])))))
