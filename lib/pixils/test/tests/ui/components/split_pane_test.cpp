@@ -69,6 +69,45 @@ TEST_F(SplitPaneTest, split_pane_lays_out_horizontal_panes_from_ratio)
   EXPECT_EQ(secondary->bounds.h, 80);
 }
 
+TEST_F(SplitPaneTest, split_pane_lays_out_horizontal_panes_on_first_render)
+{
+  eval_split_pane_fixture(runtime, R"(
+    {:style {:width :fill :height 210}
+     :split 0.44
+     :children [{:mode 'first-pane
+                 :style {:width :fill :height :fill}}
+                {:mode 'second-pane
+                 :style {:width :fill :height :fill}}]})");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  session.render_mode();
+
+  ASSERT_NE(session.active_mode, nullptr);
+  ASSERT_EQ(session.active_mode->children.size(), 1u);
+  auto pane = session.active_mode->children[0];
+  ASSERT_NE(pane, nullptr);
+  ASSERT_EQ(pane->children.size(), 3u);
+
+  auto primary = pane->children[0];
+  auto resizer = pane->children[1];
+  auto secondary = pane->children[2];
+  ASSERT_NE(primary, nullptr);
+  ASSERT_NE(resizer, nullptr);
+  ASSERT_NE(secondary, nullptr);
+
+  EXPECT_EQ(pane->bounds.w, 320);
+  EXPECT_EQ(primary->bounds.x, 0);
+  EXPECT_EQ(primary->bounds.y, 0);
+  EXPECT_EQ(primary->bounds.w, 138);
+  EXPECT_EQ(primary->bounds.h, 210);
+  EXPECT_EQ(resizer->bounds.x, 138);
+  EXPECT_EQ(resizer->bounds.w, 6);
+  EXPECT_EQ(resizer->bounds.h, 210);
+  EXPECT_EQ(secondary->bounds.x, 144);
+  EXPECT_EQ(secondary->bounds.w, 176);
+  EXPECT_EQ(secondary->bounds.h, 210);
+}
+
 TEST_F(SplitPaneTest, dragging_horizontal_split_pane_resizer_updates_proportions)
 {
   eval_split_pane_fixture(runtime, R"(
