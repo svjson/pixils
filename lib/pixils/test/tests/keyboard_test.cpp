@@ -1,15 +1,15 @@
 #include <pixils/keyboard.h>
 
-#include <SDL2/SDL_events.h>
-#include <SDL2/SDL_keycode.h>
+#include <SDL3/SDL_events.h>
+#include <SDL3/SDL_keycode.h>
 #include <gtest/gtest.h>
 #include <roo/runtime/value.h>
 
 TEST(KeyboardTest, key_to_char_treats_mode_modifier_as_altgr)
 {
   SDL_KeyboardEvent event{};
-  event.keysym.sym = SDLK_7;
-  event.keysym.mod = KMOD_MODE;
+  event.key = SDLK_7;
+  event.mod = SDL_KMOD_MODE;
 
   auto text = Pixils::Keyboard::key_to_char(event);
 
@@ -20,8 +20,8 @@ TEST(KeyboardTest, key_to_char_treats_mode_modifier_as_altgr)
 TEST(KeyboardTest, key_to_char_treats_right_alt_modifier_as_altgr)
 {
   SDL_KeyboardEvent event{};
-  event.keysym.sym = SDLK_PLUS;
-  event.keysym.mod = KMOD_RALT;
+  event.key = SDLK_PLUS;
+  event.mod = SDL_KMOD_RALT;
 
   auto text = Pixils::Keyboard::key_to_char(event);
 
@@ -32,7 +32,7 @@ TEST(KeyboardTest, key_to_char_treats_right_alt_modifier_as_altgr)
 TEST(KeyboardTest, key_event_to_roo_key_maps_tab)
 {
   SDL_KeyboardEvent event{};
-  event.keysym.sym = SDLK_TAB;
+  event.key = SDLK_TAB;
 
   auto key = Pixils::Keyboard::key_event_to_roo_key(event);
 

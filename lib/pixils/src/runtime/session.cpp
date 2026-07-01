@@ -19,7 +19,7 @@
 #include <pixils/ui/view_render.h>
 #include <pixils/ui/view_update.h>
 
-#include <SDL2/SDL_render.h>
+#include <SDL3/SDL_render.h>
 #include <roo/exception.h>
 #include <roo/runtime.h>
 #include <roo/runtime/dict.h>

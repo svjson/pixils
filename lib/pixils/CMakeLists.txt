@@ -1,8 +1,8 @@
 
+find_package(SDL3 REQUIRED CONFIG REQUIRED COMPONENTS SDL3)
+find_package(SDL3_image REQUIRED CONFIG)
+find_package(SDL3_mixer REQUIRED CONFIG)
 find_package(PkgConfig)
-pkg_search_module(SDL2 sdl2)
-pkg_search_module(SDL2IMAGE SDL2_image)
-pkg_search_module(SDL2MIXER SDL2_mixer)
 pkg_search_module(FREETYPE REQUIRED freetype2)
 find_package(X11)
 find_package(roo REQUIRED)
@@ -61,11 +61,16 @@ foreach(target pixils_objects pixils_benchmark_objects)
 
   target_link_libraries(${target}
     PRIVATE
-      SDL2
-      SDL2_image
-      SDL2_mixer
+      SDL3::SDL3
+      SDL3_image::SDL3_image
+      SDL3_mixer::SDL3_mixer
       ${FREETYPE_LIBRARIES}
       Roo::roo_shared
+  )
+
+  target_compile_definitions(${target}
+    PUBLIC
+      SDL_ENABLE_OLD_NAMES
   )
 
 endforeach()
@@ -100,18 +105,18 @@ endforeach()
 
 target_link_libraries(pixils_shared
   PUBLIC
-    SDL2
-    SDL2_image
-    SDL2_mixer
+    SDL3::SDL3
+    SDL3_image::SDL3_image
+    SDL3_mixer::SDL3_mixer
     ${FREETYPE_LIBRARIES}
     Roo::roo_shared
 )
 
 target_link_libraries(pixils_static
   PUBLIC
-    SDL2
-    SDL2_image
-    SDL2_mixer
+    SDL3::SDL3
+    SDL3_image::SDL3_image
+    SDL3_mixer::SDL3_mixer
     ${FREETYPE_LIBRARIES}
     Roo::roo_static
 )
@@ -135,9 +140,9 @@ target_include_directories(pixils_roo_native
 
 target_link_libraries(pixils_roo_native
   PUBLIC
-    SDL2
-    SDL2_image
-    SDL2_mixer
+    SDL3::SDL3
+    SDL3_image::SDL3_image
+    SDL3_mixer::SDL3_mixer
     ${FREETYPE_LIBRARIES}
     Roo::roo_shared
     Roo::package_shared

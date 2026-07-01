@@ -1,9 +1,10 @@
 
 #include <pixils/font_registry.h>
+#include <pixils/sdl_render.h>
 
-#include <SDL2/SDL_pixels.h>
-#include <SDL2/SDL_render.h>
-#include <SDL2/SDL_surface.h>
+#include <SDL3/SDL_pixels.h>
+#include <SDL3/SDL_render.h>
+#include <SDL3/SDL_surface.h>
 #include <algorithm>
 #include <cstdlib>
 #include <ft2build.h>
@@ -23,13 +24,15 @@ namespace Pixils
 
     void put_pixel(SDL_Surface* surface, int x, int y, Uint8 alpha)
     {
-      if (!surface || !surface->pixels || !surface->format) return;
+      if (!surface || !surface->pixels) return;
       if (x < 0 || y < 0 || x >= surface->w || y >= surface->h) return;
+      const SDL_PixelFormatDetails* format = SDL_GetPixelFormatDetails(surface->format);
+      if (!format) return;
 
       auto* pixels = static_cast<Uint32*>(surface->pixels);
       const int stride = surface->pitch / static_cast<int>(sizeof(Uint32));
       pixels[(y * stride) + x] =
-        SDL_MapRGBA(surface->format, 0xff, 0xff, 0xff, alpha);
+        SDL_MapRGBA(format, nullptr, 0xff, 0xff, 0xff, alpha);
     }
 
     RasterizedTtfFont rasterize_ttf_face(SDL_Renderer* renderer,
@@ -102,21 +105,20 @@ namespace Pixils
         glyphs.push_back(std::move(glyph));
       }
 
-      SDL_Surface* surface = SDL_CreateRGBSurfaceWithFormat(0,
-                                                            std::max(1, atlas_width),
-                                                            std::max(1, effective_line_height),
-                                                            32,
-                                                            SDL_PIXELFORMAT_RGBA8888);
+      SDL_Surface* surface = SDL_CreateSurface(std::max(1, atlas_width),
+                                               std::max(1, effective_line_height),
+                                               SDL_PIXELFORMAT_RGBA8888);
       if (!surface)
       {
         return out;
       }
 
-      if (surface->pixels && surface->format)
+      const SDL_PixelFormatDetails* format = SDL_GetPixelFormatDetails(surface->format);
+      if (surface->pixels && format)
       {
         auto* pixels = static_cast<Uint32*>(surface->pixels);
         const int stride = surface->pitch / static_cast<int>(sizeof(Uint32));
-        const Uint32 transparent = SDL_MapRGBA(surface->format, 0, 0, 0, 0);
+        const Uint32 transparent = SDL_MapRGBA(format, nullptr, 0, 0, 0, 0);
         for (int y = 0; y < surface->h; y++)
         {
           for (int x = 0; x < surface->w; x++)
@@ -156,18 +158,18 @@ namespace Pixils
 
       try
       {
-        out.texture = SDL_CreateTextureFromSurface(renderer, surface);
+        out.texture = create_texture_from_surface_nearest(renderer, surface);
       }
       catch (...)
       {
-        out.texture = SDL_CreateTexture(renderer,
-                                        SDL_PIXELFORMAT_RGBA8888,
-                                        SDL_TEXTUREACCESS_STATIC,
-                                        surface->w,
-                                        surface->h);
+        out.texture = create_texture_nearest(renderer,
+                                             SDL_PIXELFORMAT_RGBA8888,
+                                             SDL_TEXTUREACCESS_STATIC,
+                                             surface->w,
+                                             surface->h);
       }
       if (out.texture) SDL_SetTextureBlendMode(out.texture, SDL_BLENDMODE_BLEND);
-      SDL_FreeSurface(surface);
+      SDL_DestroySurface(surface);
 
       out.map = Text::FontMap(glyph_map);
       return out;

@@ -3,7 +3,7 @@
 Pixils! is a runtime for building 2D graphical applications in
 [Roo](https://github.com/svjson/roo-lang) - a Lisp with a modern, practical flavor.
 You write your application entirely in Roo and run it with a single command. Pixils takes
-care of the rendering loop, window management, input, and asset loading - powered by SDL2
+care of the rendering loop, window management, input, and asset loading - powered by SDL3
 underneath, invisible to your scripts.
 
 The result is a tight feedback loop for building anything from games to tools to editors:
@@ -1925,7 +1925,7 @@ with `find_package(pixils REQUIRED)`.
 ### Prerequisites
 
 - CMake 3.20+
-- SDL2, SDL2_image, SDL2_mixer
+- SDL3, SDL3_image, SDL3_mixer
 - The `roo` CMake package installed (see the
   [Roo repository](https://github.com/svjson/roo-lang))
 

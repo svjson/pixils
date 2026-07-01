@@ -4,7 +4,7 @@
 
 #include <gtest/gtest.h>
 #include <roo/runtime/dict.h>
-#include <sdl2_mock/mock_resources.h>
+#include <sdl3_mock/mock_resources.h>
 
 #include <algorithm>
 #include <array>
@@ -32,7 +32,7 @@ namespace
 
 TEST_F(ButtonTest, button_can_use_fitted_background_image_from_style)
 {
-  SDLMock::prepared_surfaces["./brush.png"] = {8, 16};
+  SDL3Mock::prepared_surfaces["./brush.png"] = {8, 16};
   runtime.eval(R"(
     (pixils/defbundle icons {:images {:brush "brush.png"}})
     (pixils/defmode root-mode
@@ -59,7 +59,7 @@ TEST_F(ButtonTest, button_can_use_fitted_background_image_from_style)
 
 TEST_F(ButtonTest, button_label_uses_base_theme_padding)
 {
-  SDLMock::prepared_surfaces["./font.png"] = {16, 12};
+  SDL3Mock::prepared_surfaces["./font.png"] = {16, 12};
   runtime.eval(R"(
     (pixils/defbundle fonts {:images {:atlas "font.png"}})
     (pixils/deffont test-font
@@ -104,7 +104,7 @@ TEST_F(ButtonTest, button_label_uses_base_theme_padding)
 
 TEST_F(ButtonTest, button_label_does_not_wrap_by_default)
 {
-  SDLMock::prepared_surfaces["./font.png"] = {16, 12};
+  SDL3Mock::prepared_surfaces["./font.png"] = {16, 12};
   runtime.eval(R"(
     (pixils/defbundle fonts {:images {:atlas "font.png"}})
     (pixils/deffont test-font
@@ -138,7 +138,7 @@ TEST_F(ButtonTest, button_label_does_not_wrap_by_default)
 
 TEST_F(ButtonTest, button_label_natural_height_uses_effective_font_and_theme_padding)
 {
-  SDLMock::prepared_surfaces["./font.png"] = {16, 12};
+  SDL3Mock::prepared_surfaces["./font.png"] = {16, 12};
   runtime.eval(R"(
     (pixils/defbundle fonts {:images {:atlas "font.png"}})
     (pixils/deffont tall-font
@@ -258,7 +258,7 @@ TEST_F(ButtonTest, windows3_button_label_remeasures_when_default_ttf_font_is_red
 
 TEST_F(ButtonTest, fixed_height_button_clips_oversized_label_to_inner_surface)
 {
-  SDLMock::prepared_surfaces["./font.png"] = {16, 12};
+  SDL3Mock::prepared_surfaces["./font.png"] = {16, 12};
   runtime.eval(R"(
     (pixils/defbundle fonts {:images {:atlas "font.png"}})
     (pixils/deffont tall-font
@@ -300,7 +300,7 @@ TEST_F(ButtonTest, fixed_height_button_clips_oversized_label_to_inner_surface)
 
 TEST_F(ButtonTest, button_state_image_is_centered_inside_button_inner)
 {
-  SDLMock::prepared_surfaces["./brush.png"] = {10, 8};
+  SDL3Mock::prepared_surfaces["./brush.png"] = {10, 8};
   runtime.eval(R"(
     (pixils/defbundle icons {:images {:brush "brush.png"}})
     (pixils/defmode root-mode
@@ -325,7 +325,7 @@ TEST_F(ButtonTest, button_state_image_is_centered_inside_button_inner)
 
 TEST_F(ButtonTest, button_state_image_map_accepts_source_rect_and_offset)
 {
-  SDLMock::prepared_surfaces["./icons.png"] = {32, 16};
+  SDL3Mock::prepared_surfaces["./icons.png"] = {32, 16};
   runtime.eval(R"(
     (pixils/defbundle icons {:images {:sheet "icons.png"}})
     (pixils/defmode root-mode
@@ -352,7 +352,7 @@ TEST_F(ButtonTest, button_state_image_map_accepts_source_rect_and_offset)
 
 TEST_F(ButtonTest, disabled_button_can_style_only_state_image_opacity)
 {
-  SDLMock::prepared_surfaces["./brush.png"] = {10, 8};
+  SDL3Mock::prepared_surfaces["./brush.png"] = {10, 8};
   runtime.eval(R"(
     (pixils/defbundle icons {:images {:brush "brush.png"}})
     (pixils/deftheme dim-disabled-button-theme
@@ -382,7 +382,7 @@ TEST_F(ButtonTest, disabled_button_can_style_only_state_image_opacity)
 
 TEST_F(ButtonTest, button_state_image_map_can_override_pressed_offset)
 {
-  SDLMock::prepared_surfaces["./icons.png"] = {32, 16};
+  SDL3Mock::prepared_surfaces["./icons.png"] = {32, 16};
   runtime.eval(R"(
     (pixils/defbundle icons {:images {:sheet "icons.png"}})
     (pixils/defmode root-mode
@@ -762,8 +762,8 @@ TEST_F(ButtonTest, windows_3_pressed_button_keeps_row_layout_stable)
 
 TEST_F(ButtonTest, windows_3_pressed_button_offsets_state_image)
 {
-  SDLMock::prepared_surfaces["./brush.png"] = {10, 8};
-  SDLMock::prepared_surfaces["./face.png"] = {20, 20};
+  SDL3Mock::prepared_surfaces["./brush.png"] = {10, 8};
+  SDL3Mock::prepared_surfaces["./face.png"] = {20, 20};
   runtime.eval(R"(
     (pixils/defbundle icons {:images {:brush "brush.png"
                                       :face "face.png"}})
@@ -937,7 +937,7 @@ TEST_F(ButtonTest, windows_3_window_minimize_button_keeps_inner_button_border_on
 
 TEST_F(ButtonTest, button_label_has_natural_size_inside_window_body)
 {
-  SDLMock::prepared_surfaces["./font.png"] = {32, 12};
+  SDL3Mock::prepared_surfaces["./font.png"] = {32, 12};
   runtime.eval(R"(
     (pixils/defbundle fonts {:images {:atlas "font.png"}})
     (pixils/deffont test-font
@@ -973,7 +973,7 @@ TEST_F(ButtonTest, button_label_has_natural_size_inside_window_body)
 
 TEST_F(ButtonTest, button_label_has_natural_size_inside_pushed_dialog_frame)
 {
-  SDLMock::prepared_surfaces["./font.png"] = {32, 12};
+  SDL3Mock::prepared_surfaces["./font.png"] = {32, 12};
   runtime.eval(R"(
     (pixils/defbundle fonts {:images {:atlas "font.png"}})
     (pixils/deffont test-font

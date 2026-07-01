@@ -1,7 +1,7 @@
 #ifndef PIXILS__COLOR_H
 #define PIXILS__COLOR_H
 
-#include <SDL2/SDL_pixels.h>
+#include <SDL3/SDL_pixels.h>
 #include <cstdint>
 #include <string_view>
 

@@ -6,11 +6,12 @@
 #include <pixils/binding/resource_namespace.h>
 #include <pixils/context.h>
 #include <pixils/geom.h>
+#include <pixils/sdl_render.h>
 
-#include <SDL2/SDL_blendmode.h>
-#include <SDL2/SDL_pixels.h>
-#include <SDL2/SDL_render.h>
-#include <SDL2/SDL_surface.h>
+#include <SDL3/SDL_blendmode.h>
+#include <SDL3/SDL_pixels.h>
+#include <SDL3/SDL_render.h>
+#include <SDL3/SDL_surface.h>
 #include <roo/exception.h>
 #include <roo/host/accessor.h>
 #include <roo/host/schema.h>
@@ -286,11 +287,11 @@ namespace Pixils::Script
       }
 
       std::unique_ptr<SDL_Texture, decltype(&SDL_DestroyTexture)> texture(
-        SDL_CreateTexture(rc.renderer,
-                          SDL_PIXELFORMAT_RGBA8888,
-                          SDL_TEXTUREACCESS_TARGET,
-                          size.w,
-                          size.h),
+        create_texture_nearest(rc.renderer,
+                               SDL_PIXELFORMAT_RGBA8888,
+                               SDL_TEXTUREACCESS_TARGET,
+                               size.w,
+                               size.h),
         SDL_DestroyTexture);
       if (!texture)
       {
@@ -300,13 +301,9 @@ namespace Pixils::Script
 
       SDL_SetTextureBlendMode(texture.get(), SDL_BLENDMODE_BLEND);
 
-      std::unique_ptr<SDL_Surface, decltype(&SDL_FreeSurface)> surface(
-        SDL_CreateRGBSurfaceWithFormat(0,
-                                       size.w,
-                                       size.h,
-                                       32,
-                                       SDL_PIXELFORMAT_RGBA8888),
-        SDL_FreeSurface);
+      std::unique_ptr<SDL_Surface, decltype(&SDL_DestroySurface)> surface(
+        SDL_CreateSurface(size.w, size.h, SDL_PIXELFORMAT_RGBA8888),
+        SDL_DestroySurface);
       if (!surface)
       {
         throw std::runtime_error("Failed to create generated image surface: " + bundle_id +
@@ -325,13 +322,23 @@ namespace Pixils::Script
         args[2]->exec().execute(ctx, callback_args);
 
         SDL_Rect read_rect{0, 0, size.w, size.h};
-        if (SDL_RenderReadPixels(rc.renderer,
-                                 &read_rect,
-                                 SDL_PIXELFORMAT_RGBA8888,
-                                 surface->pixels,
-                                 surface->pitch) != 0)
+        SDL_Surface* readback = SDL_RenderReadPixels(rc.renderer, &read_rect);
+        if (!readback)
         {
           surface.reset();
+        }
+        else
+        {
+          SDL_Surface* converted = SDL_ConvertSurface(readback, SDL_PIXELFORMAT_RGBA8888);
+          SDL_DestroySurface(readback);
+          if (!converted)
+          {
+            surface.reset();
+          }
+          else
+          {
+            surface.reset(converted);
+          }
         }
       }
 

@@ -9,10 +9,11 @@
 #include <pixils/context.h>
 #include <pixils/font_registry.h>
 #include <pixils/geom.h>
+#include <pixils/sdl_render.h>
 
-#include <SDL2/SDL_blendmode.h>
-#include <SDL2/SDL_render.h>
-#include <SDL2/SDL_version.h>
+#include <SDL3/SDL_blendmode.h>
+#include <SDL3/SDL_render.h>
+#include <SDL3/SDL_version.h>
 #include <algorithm>
 #include <array>
 #include <cmath>
@@ -27,7 +28,7 @@
 #include <roo/runtime/value.h>
 #include <vector>
 
-#if SDL_VERSION_ATLEAST(2, 0, 18) && (defined(__unix__) || defined(__APPLE__))
+#if SDL_VERSION_ATLEAST(3, 0, 0) && (defined(__unix__) || defined(__APPLE__))
 #define PIXILS_HAS_DYNAMIC_SDL_RENDER_GEOMETRY 1
 #include <dlfcn.h>
 #endif
@@ -165,13 +166,13 @@ namespace Pixils::Script
       {
         if (x2 < x1) std::swap(x1, x2);
         SDL_Rect rect{x1, y, x2 - x1 + 1, 1};
-        SDL_RenderFillRect(renderer, &rect);
+        render_fill_rect(renderer, &rect);
       }
 
       void fill_pixel(SDL_Renderer* renderer, int x, int y)
       {
         SDL_Rect rect{x, y, 1, 1};
-        SDL_RenderFillRect(renderer, &rect);
+        render_fill_rect(renderer, &rect);
       }
 
       void fill_pixel(SDL_Renderer* renderer, int x, int y, const Color& color)
@@ -473,9 +474,12 @@ namespace Pixils::Script
         Color color;
       };
 
-      SDL_Color sdl_color(const Color& color)
+      SDL_FColor sdl_color(const Color& color)
       {
-        return SDL_Color{color.r, color.g, color.b, color.a};
+        return SDL_FColor{static_cast<float>(color.r) / 255.0f,
+                          static_cast<float>(color.g) / 255.0f,
+                          static_cast<float>(color.b) / 255.0f,
+                          static_cast<float>(color.a) / 255.0f};
       }
 
       SDL_FPoint sdl_point(const Point& point)
@@ -485,7 +489,7 @@ namespace Pixils::Script
 
 #if defined(PIXILS_HAS_DYNAMIC_SDL_RENDER_GEOMETRY)
       using SDLRenderGeometryFn =
-        int (*)(SDL_Renderer*, SDL_Texture*, const SDL_Vertex*, int, const int*, int);
+        bool (*)(SDL_Renderer*, SDL_Texture*, const SDL_Vertex*, int, const int*, int);
 
       SDLRenderGeometryFn sdl_render_geometry_fn()
       {
@@ -828,7 +832,7 @@ namespace Pixils::Script
                                sdl_vertices.data(),
                                static_cast<int>(sdl_vertices.size()),
                                nullptr,
-                               0) == 0;
+                               0);
 #else
         (void)rc;
         (void)vertices;
@@ -1191,7 +1195,7 @@ namespace Pixils::Script
 
         if (stroke_width <= 1.0f)
         {
-          SDL_RenderDrawLine(renderer,
+          SDL_RenderLine(renderer,
                              from.round_x(),
                              from.round_y(),
                              to.round_x(),
@@ -1545,15 +1549,15 @@ namespace Pixils::Script
                              const SDL_Rect* source,
                              const SDL_Rect& dest,
                              float rotation,
-                             SDL_RendererFlip flip)
+                             SDL_FlipMode flip)
       {
         if (rotation == 0.0f && flip == SDL_FLIP_NONE)
         {
-          SDL_RenderCopy(renderer, texture, source, &dest);
+          render_texture(renderer, texture, source, &dest);
         }
         else
         {
-          SDL_RenderCopyEx(renderer,
+          render_texture_rotated(renderer,
                            texture,
                            source,
                            &dest,
@@ -1571,7 +1575,7 @@ namespace Pixils::Script
                               bool repeat_x,
                               bool repeat_y,
                               float rotation,
-                              SDL_RendererFlip flip)
+                              SDL_FlipMode flip)
       {
         if (target.w <= 0 || target.h <= 0) return;
 
@@ -1654,7 +1658,7 @@ namespace Pixils::Script
 
         int source_width = 0;
         int source_height = 0;
-        SDL_QueryTexture(texture, nullptr, nullptr, &source_width, &source_height);
+        get_texture_size(texture, &source_width, &source_height);
         if (source_rect)
         {
           source_width = source_rect->w;
@@ -1670,8 +1674,8 @@ namespace Pixils::Script
         SDL_Rect dest = target.rect.to_SDL_rect();
 
         const SDL_Rect* source_ptr = source_rect ? &*source_rect : nullptr;
-        SDL_RendererFlip flip =
-          static_cast<SDL_RendererFlip>((flip_x ? SDL_FLIP_HORIZONTAL : SDL_FLIP_NONE) |
+        SDL_FlipMode flip =
+          static_cast<SDL_FlipMode>((flip_x ? SDL_FLIP_HORIZONTAL : SDL_FLIP_NONE) |
                                         (flip_y ? SDL_FLIP_VERTICAL : SDL_FLIP_NONE));
 
         std::optional<Rect> previous_clip = rc.current_clip_rect;
@@ -2131,7 +2135,7 @@ namespace Pixils::Script
       if (Roo::is_truthy(*fill_opt))
       {
         SDL_SetRenderDrawBlendMode(rc.renderer, SDL_BLENDMODE_BLEND);
-        SDL_RenderFillRect(rc.renderer, &rect);
+        render_fill_rect(rc.renderer, &rect);
         SDL_SetRenderDrawBlendMode(rc.renderer, SDL_BLENDMODE_NONE);
       }
       else
@@ -2144,10 +2148,10 @@ namespace Pixils::Script
           SDL_Rect right = {rect.x + rect.w - 1, rect.y, 1, rect.h};
 
           SDL_SetRenderDrawBlendMode(rc.renderer, SDL_BLENDMODE_BLEND);
-          SDL_RenderFillRect(rc.renderer, &top);
-          SDL_RenderFillRect(rc.renderer, &bottom);
-          SDL_RenderFillRect(rc.renderer, &left);
-          SDL_RenderFillRect(rc.renderer, &right);
+          render_fill_rect(rc.renderer, &top);
+          render_fill_rect(rc.renderer, &bottom);
+          render_fill_rect(rc.renderer, &left);
+          render_fill_rect(rc.renderer, &right);
           SDL_SetRenderDrawBlendMode(rc.renderer, SDL_BLENDMODE_NONE);
         }
       }

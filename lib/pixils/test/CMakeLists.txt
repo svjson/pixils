@@ -1,7 +1,7 @@
 
 include(GoogleTest)
 
-find_package(sdl2_mock REQUIRED)
+find_package(sdl3_mock REQUIRED)
 
 get_filename_component(PIXILS_REPO_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../../.." ABSOLUTE)
 set(PIXILS_TEST_ROO_PACKAGE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/roo")
@@ -23,9 +23,6 @@ set_target_properties(testpixils PROPERTIES
 target_include_directories(testpixils
   PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/tests"
-    ${SDL2_INCLUDE_DIRS}
-    ${SDL2IMAGE_INCLUDE_DIRS}
-    ${SDL2MIXER_INCLUDE_DIRS}
 )
 
 target_link_libraries(testpixils
@@ -33,12 +30,14 @@ target_link_libraries(testpixils
   gmock
   pixils_objects
   Roo::package_shared
-  sdl2_mock::sdl2_mock
+  sdl3_mock::sdl3_mock
   Roo::roo_shared
 )
 
 target_compile_definitions(testpixils
   PRIVATE
+    SDL_ENABLE_OLD_NAMES
+    SDL_INTERNAL
     PIXILS_TEST_ROO_PACKAGE_DIR="${PIXILS_TEST_ROO_PACKAGE_DIR}"
     PIXILS_RUNNER_PACKAGE_DIR="${PIXILS_RUNNER_PACKAGE_DIR}"
     PIXILS_TEST_PACKAGE_DIR="${PIXILS_TEST_PACKAGE_DIR}"

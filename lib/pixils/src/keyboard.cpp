@@ -1,8 +1,8 @@
 
 #include <pixils/keyboard.h>
 
-#include <SDL2/SDL_events.h>
-#include <SDL2/SDL_keycode.h>
+#include <SDL3/SDL_events.h>
+#include <SDL3/SDL_keycode.h>
 #include <ctype.h>
 #include <roo/form.h>
 #include <roo/runtime/seq.h>
@@ -43,7 +43,7 @@ namespace Pixils
 
       bool is_altgr_modifier(SDL_Keymod mod)
       {
-        return (mod & KMOD_RALT) || (mod & KMOD_MODE);
+        return (mod & SDL_KMOD_RALT) || (mod & SDL_KMOD_MODE);
       }
     } // namespace
 
@@ -64,11 +64,11 @@ namespace Pixils
 
     bool Shortcut::matches(const SDL_Event& event) const
     {
-      if (keycode.code != event.key.keysym.sym) return false;
+      if (keycode.code != event.key.key) return false;
 
-      if (((event.key.keysym.mod & KMOD_CTRL) > 0) != ctrl) return false;
-      if (((event.key.keysym.mod & KMOD_ALT) > 0) != alt) return false;
-      if (((event.key.keysym.mod & KMOD_SHIFT) > 0) != shift) return false;
+      if (((event.key.mod & SDL_KMOD_CTRL) > 0) != ctrl) return false;
+      if (((event.key.mod & SDL_KMOD_ALT) > 0) != alt) return false;
+      if (((event.key.mod & SDL_KMOD_SHIFT) > 0) != shift) return false;
 
       return true;
     }
@@ -113,32 +113,32 @@ namespace Pixils
      * SYMBOL_TO_KEYCODE map table
      */
     const std::map<std::string, SDL_Keycode> SYMBOL_TO_KEYCODE = {
-      {"A", SDLK_a},
-      {"B", SDLK_b},
-      {"C", SDLK_c},
-      {"D", SDLK_d},
-      {"E", SDLK_e},
-      {"F", SDLK_f},
-      {"G", SDLK_g},
-      {"H", SDLK_h},
-      {"I", SDLK_i},
-      {"J", SDLK_j},
-      {"K", SDLK_k},
-      {"L", SDLK_l},
-      {"M", SDLK_m},
-      {"N", SDLK_n},
-      {"O", SDLK_o},
-      {"P", SDLK_p},
-      {"Q", SDLK_q},
-      {"R", SDLK_r},
-      {"S", SDLK_s},
-      {"T", SDLK_t},
-      {"U", SDLK_u},
-      {"V", SDLK_v},
-      {"W", SDLK_w},
-      {"X", SDLK_x},
-      {"Y", SDLK_y},
-      {"Z", SDLK_z},
+      {"A", SDLK_A},
+      {"B", SDLK_B},
+      {"C", SDLK_C},
+      {"D", SDLK_D},
+      {"E", SDLK_E},
+      {"F", SDLK_F},
+      {"G", SDLK_G},
+      {"H", SDLK_H},
+      {"I", SDLK_I},
+      {"J", SDLK_J},
+      {"K", SDLK_K},
+      {"L", SDLK_L},
+      {"M", SDLK_M},
+      {"N", SDLK_N},
+      {"O", SDLK_O},
+      {"P", SDLK_P},
+      {"Q", SDLK_Q},
+      {"R", SDLK_R},
+      {"S", SDLK_S},
+      {"T", SDLK_T},
+      {"U", SDLK_U},
+      {"V", SDLK_V},
+      {"W", SDLK_W},
+      {"X", SDLK_X},
+      {"Y", SDLK_Y},
+      {"Z", SDLK_Z},
       {"1", SDLK_1},
       {"2", SDLK_2},
       {"3", SDLK_3},
@@ -182,7 +182,7 @@ namespace Pixils
       {"pagedown", SDLK_PAGEDOWN},
       {"plus", SDLK_PLUS},
       {"minus", SDLK_MINUS},
-      {"quote", SDLK_QUOTE},
+      {"quote", SDLK_APOSTROPHE},
       {"comma", SDLK_COMMA},
       {"period", SDLK_PERIOD},
       {"greater", SDLK_GREATER},
@@ -208,9 +208,9 @@ namespace Pixils
     {
       std::unique_ptr<char> typed_char = nullptr;
 
-      if (key_event.keysym.mod & KMOD_SHIFT)
+      if (key_event.mod & SDL_KMOD_SHIFT)
       {
-        switch (key_event.keysym.sym)
+        switch (key_event.key)
         {
         case SDLK_0:
           return std::make_unique<char>('=');
@@ -238,16 +238,16 @@ namespace Pixils
           return std::make_unique<char>('_');
         case SDLK_PLUS:
           return std::make_unique<char>('?');
-        case SDLK_QUOTE:
+        case SDLK_APOSTROPHE:
           return std::make_unique<char>('*');
         case SDLK_LESS:
           return std::make_unique<char>('>');
         }
       }
 
-      if (is_altgr_modifier(static_cast<SDL_Keymod>(key_event.keysym.mod)))
+      if (is_altgr_modifier(static_cast<SDL_Keymod>(key_event.mod)))
       {
-        switch (key_event.keysym.sym)
+        switch (key_event.key)
         {
         case SDLK_4:
           return std::make_unique<char>('$');
@@ -264,7 +264,7 @@ namespace Pixils
         }
       }
 
-      switch (key_event.keysym.sym)
+      switch (key_event.key)
       {
       case SDLK_0:
         typed_char = std::make_unique<char>('0');
@@ -296,82 +296,82 @@ namespace Pixils
       case SDLK_9:
         typed_char = std::make_unique<char>('9');
         break;
-      case SDLK_a:
+      case SDLK_A:
         typed_char = std::make_unique<char>('a');
         break;
-      case SDLK_b:
+      case SDLK_B:
         typed_char = std::make_unique<char>('b');
         break;
-      case SDLK_c:
+      case SDLK_C:
         typed_char = std::make_unique<char>('c');
         break;
-      case SDLK_d:
+      case SDLK_D:
         typed_char = std::make_unique<char>('d');
         break;
-      case SDLK_e:
+      case SDLK_E:
         typed_char = std::make_unique<char>('e');
         break;
-      case SDLK_f:
+      case SDLK_F:
         typed_char = std::make_unique<char>('f');
         break;
-      case SDLK_g:
+      case SDLK_G:
         typed_char = std::make_unique<char>('g');
         break;
-      case SDLK_h:
+      case SDLK_H:
         typed_char = std::make_unique<char>('h');
         break;
-      case SDLK_i:
+      case SDLK_I:
         typed_char = std::make_unique<char>('i');
         break;
-      case SDLK_j:
+      case SDLK_J:
         typed_char = std::make_unique<char>('j');
         break;
-      case SDLK_k:
+      case SDLK_K:
         typed_char = std::make_unique<char>('k');
         break;
-      case SDLK_l:
+      case SDLK_L:
         typed_char = std::make_unique<char>('l');
         break;
-      case SDLK_m:
+      case SDLK_M:
         typed_char = std::make_unique<char>('m');
         break;
-      case SDLK_n:
+      case SDLK_N:
         typed_char = std::make_unique<char>('n');
         break;
-      case SDLK_o:
+      case SDLK_O:
         typed_char = std::make_unique<char>('o');
         break;
-      case SDLK_p:
+      case SDLK_P:
         typed_char = std::make_unique<char>('p');
         break;
-      case SDLK_q:
+      case SDLK_Q:
         typed_char = std::make_unique<char>('q');
         break;
-      case SDLK_r:
+      case SDLK_R:
         typed_char = std::make_unique<char>('r');
         break;
-      case SDLK_s:
+      case SDLK_S:
         typed_char = std::make_unique<char>('s');
         break;
-      case SDLK_t:
+      case SDLK_T:
         typed_char = std::make_unique<char>('t');
         break;
-      case SDLK_u:
+      case SDLK_U:
         typed_char = std::make_unique<char>('u');
         break;
-      case SDLK_v:
+      case SDLK_V:
         typed_char = std::make_unique<char>('v');
         break;
-      case SDLK_w:
+      case SDLK_W:
         typed_char = std::make_unique<char>('w');
         break;
-      case SDLK_x:
+      case SDLK_X:
         typed_char = std::make_unique<char>('x');
         break;
-      case SDLK_y:
+      case SDLK_Y:
         typed_char = std::make_unique<char>('y');
         break;
-      case SDLK_z:
+      case SDLK_Z:
         typed_char = std::make_unique<char>('z');
         break;
       case SDLK_PLUS:
@@ -380,7 +380,7 @@ namespace Pixils
       case SDLK_MINUS:
         typed_char = std::make_unique<char>('-');
         break;
-      case SDLK_QUOTE:
+      case SDLK_APOSTROPHE:
         typed_char = std::make_unique<char>('\'');
         break;
       case SDLK_COMMA:
@@ -397,7 +397,7 @@ namespace Pixils
         break;
       }
 
-      if (key_event.keysym.mod & KMOD_SHIFT)
+      if (key_event.mod & SDL_KMOD_SHIFT)
       {
         if (typed_char)
         {
@@ -410,14 +410,14 @@ namespace Pixils
 
     Roo::sptr_val key_event_to_roo_key(const SDL_KeyboardEvent& event)
     {
-      if (event.keysym.sym == SDLK_KP_ENTER)
+      if (event.key == SDLK_KP_ENTER)
       {
         return Roo::keyword("key/enter");
       }
 
       for (auto& [str, keycode] : SYMBOL_TO_KEYCODE)
       {
-        if (keycode == event.keysym.sym)
+        if (keycode == event.key)
         {
           return Roo::keyword("key/" + str);
         }

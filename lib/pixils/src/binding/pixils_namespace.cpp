@@ -20,7 +20,7 @@
 #include <pixils/runtime/view.h>
 #include <pixils/ui/view_geometry.h>
 
-#include <SDL2/SDL_render.h>
+#include <SDL3/SDL_render.h>
 #include <algorithm>
 #include <roo/exception.h>
 #include <roo/exec.h>

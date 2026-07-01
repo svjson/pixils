@@ -2,7 +2,7 @@
 #ifndef _PIXILS__FRAME_EVENTS_H_
 #define _PIXILS__FRAME_EVENTS_H_
 
-#include <SDL2/SDL_events.h>
+#include <SDL3/SDL_events.h>
 #include <roo/runtime/value.h>
 
 namespace Pixils

@@ -1,6 +1,6 @@
 #include "../../render_fixture.h"
 
-#include <SDL2/SDL_mouse.h>
+#include <SDL3/SDL_mouse.h>
 #include <gtest/gtest.h>
 #include <roo/runtime/dict.h>
 

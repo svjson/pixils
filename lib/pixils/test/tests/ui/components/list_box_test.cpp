@@ -1,7 +1,7 @@
 #include "../../render_fixture.h"
 
-#include <SDL2/SDL_keycode.h>
-#include <SDL2/SDL_mouse.h>
+#include <SDL3/SDL_keycode.h>
+#include <SDL3/SDL_mouse.h>
 #include <gtest/gtest.h>
 #include <roo/runtime/dict.h>
 #include <roo/runtime/value.h>
@@ -283,7 +283,7 @@ TEST_F(ListBoxTest, tab_switch_natural_list_box_uses_measured_rows_on_first_fram
 
 TEST_F(ListBoxTest, list_box_item_text_does_not_wrap_when_width_is_constrained)
 {
-  SDLMock::prepared_surfaces["./font.png"] = {16, 12};
+  SDL3Mock::prepared_surfaces["./font.png"] = {16, 12};
   runtime.eval(R"(
     (pixils/defbundle fonts {:images {:atlas "font.png"}})
     (pixils/deffont test-font

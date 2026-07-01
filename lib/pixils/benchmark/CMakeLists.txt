@@ -1,4 +1,4 @@
-find_package(sdl2_mock REQUIRED)
+find_package(sdl3_mock REQUIRED)
 
 file(GLOB_RECURSE PIXILS_BENCHMARK_SOURCES CONFIGURE_DEPENDS
   *.cpp
@@ -29,13 +29,12 @@ target_include_directories(benchmarkpixils
     "${CMAKE_CURRENT_SOURCE_DIR}"
     "${CMAKE_CURRENT_SOURCE_DIR}/support"
     "${CMAKE_CURRENT_SOURCE_DIR}/../test/tests"
-    ${SDL2_INCLUDE_DIRS}
-    ${SDL2IMAGE_INCLUDE_DIRS}
-    ${SDL2MIXER_INCLUDE_DIRS}
 )
 
 target_compile_definitions(benchmarkpixils
   PRIVATE
+    SDL_ENABLE_OLD_NAMES
+    SDL_INTERNAL
     PIXILS_ENABLE_BENCHMARK_COUNTERS
 )
 
@@ -45,9 +44,6 @@ target_link_libraries(benchmarkpixils
   pixils_benchmark_objects
   Roo::package_shared
   Roo::roo_shared
-  sdl2_mock::sdl2_mock
-  SDL2
-  SDL2_image
-  SDL2_mixer
+  sdl3_mock::sdl3_mock
   ${FREETYPE_LIBRARIES}
 )

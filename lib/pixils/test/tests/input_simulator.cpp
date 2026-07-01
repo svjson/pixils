@@ -47,14 +47,14 @@ void InputSimulator::mouse_up(Coord position, Uint8 button, Uint8 clicks)
 void InputSimulator::key_down(SDL_Keycode key)
 {
   SDL_KeyboardEvent key_event{};
-  key_event.keysym.sym = key;
+  key_event.key = key;
   _events.do_key_down(key_event);
 }
 
 void InputSimulator::key_up(SDL_Keycode key)
 {
   SDL_KeyboardEvent key_event{};
-  key_event.keysym.sym = key;
+  key_event.key = key;
   _events.do_key_up(key_event);
 }
 

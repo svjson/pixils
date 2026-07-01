@@ -8,7 +8,7 @@
 #include <cstddef>
 #include <string>
 
-struct Mix_Chunk;
+struct MIX_Audio;
 struct SDL_Surface;
 struct SDL_Texture;
 
@@ -32,7 +32,7 @@ namespace Pixils::Asset
     SDL_Texture* create_texture(SDL_Surface* surface);
     SDL_Surface* load_surface_from_memory(const unsigned char* data, std::size_t size);
     SDL_Texture* load_texture_from_memory(const unsigned char* data, std::size_t size);
-    Mix_Chunk* load_sound_from_file(const std::string& file_name);
+    MIX_Audio* load_sound_from_file(const std::string& file_name);
   };
 
 } // namespace Pixils::Asset

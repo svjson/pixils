@@ -6,10 +6,11 @@
 #include <pixils/context.h>
 #include <pixils/geom.h>
 #include <pixils/image_trace.h>
+#include <pixils/sdl_render.h>
 
-#include <SDL2/SDL_pixels.h>
-#include <SDL2/SDL_render.h>
-#include <SDL2/SDL_surface.h>
+#include <SDL3/SDL_pixels.h>
+#include <SDL3/SDL_render.h>
+#include <SDL3/SDL_surface.h>
 #include <algorithm>
 #include <cstdint>
 #include <optional>
@@ -40,7 +41,7 @@ namespace Pixils::Script
         {
           int width = 0;
           int height = 0;
-          SDL_QueryTexture(texture, nullptr, nullptr, &width, &height);
+          get_texture_size(texture, &width, &height);
           return Dimension{width, height};
         }
 
@@ -51,7 +52,7 @@ namespace Pixils::Script
 
       Uint32 read_surface_pixel(SDL_Surface* surface, int x, int y)
       {
-        const int bpp = surface->format->BytesPerPixel;
+        const int bpp = SDL_BYTESPERPIXEL(surface->format);
         auto* row = static_cast<Uint8*>(surface->pixels) + (y * surface->pitch);
         Uint8* pixel = row + (x * bpp);
 
@@ -161,7 +162,9 @@ namespace Pixils::Script
         std::vector<uint8_t> alpha(static_cast<std::size_t>(source.w * source.h), 0);
 
         Uint32 color_key = 0;
-        const bool has_color_key = SDL_GetColorKey(surface, &color_key) == 0;
+        const bool has_color_key = SDL_GetSurfaceColorKey(surface, &color_key);
+        const SDL_PixelFormatDetails* format = SDL_GetPixelFormatDetails(surface->format);
+        if (!format) return alpha;
 
         for (int y = 0; y < source.h; y++)
         {
@@ -169,7 +172,7 @@ namespace Pixils::Script
           {
             Uint32 pixel = read_surface_pixel(surface, source.x + x, source.y + y);
             Uint8 r, g, b, a;
-            SDL_GetRGBA(pixel, surface->format, &r, &g, &b, &a);
+            SDL_GetRGBA(pixel, format, nullptr, &r, &g, &b, &a);
             if (has_color_key && pixel == color_key) a = 0;
             alpha[static_cast<std::size_t>(y * source.w + x)] = a;
           }
@@ -210,18 +213,24 @@ namespace Pixils::Script
       RenderContext& rc = Roo::obj<RenderContext>(*ctx.lookup(ID__PIXILS__RENDER_CONTEXT));
 
       SDL_Surface* surface = rc.asset_registry->get_image_surface(bundle_id, asset_id);
-      if (!surface || !surface->format || !surface->pixels) return Roo::Constant::NIL;
+      if (!surface || !surface->pixels) return Roo::Constant::NIL;
 
       const Point& point = Roo::obj<Point>(*args[1]);
       const int x = point.round_x();
       const int y = point.round_y();
       if (x < 0 || y < 0 || x >= surface->w || y >= surface->h) return Roo::Constant::NIL;
 
-      if (SDL_LockSurface(surface) != 0) return Roo::Constant::NIL;
+      if (!SDL_LockSurface(surface)) return Roo::Constant::NIL;
 
       Uint8 r, g, b, a;
       Uint32 pixel = read_surface_pixel(surface, x, y);
-      SDL_GetRGBA(pixel, surface->format, &r, &g, &b, &a);
+      const SDL_PixelFormatDetails* format = SDL_GetPixelFormatDetails(surface->format);
+      if (!format)
+      {
+        SDL_UnlockSurface(surface);
+        return Roo::Constant::NIL;
+      }
+      SDL_GetRGBA(pixel, format, nullptr, &r, &g, &b, &a);
 
       SDL_UnlockSurface(surface);
       return color_map(r, g, b, a);
@@ -308,7 +317,7 @@ namespace Pixils::Script
       RenderContext& rc = Roo::obj<RenderContext>(*ctx.lookup(ID__PIXILS__RENDER_CONTEXT));
 
       SDL_Surface* surface = rc.asset_registry->get_image_surface(bundle_id, asset_id);
-      if (!surface || !surface->format || !surface->pixels) return Roo::vector({});
+      if (!surface || !surface->pixels) return Roo::vector({});
 
       auto opts = opts_schema.bind(ctx, *args[1]);
       Rect source = opts.obj<Rect>("source", Rect{0, 0, surface->w, surface->h});
@@ -322,7 +331,7 @@ namespace Pixils::Script
         .omit_straight_edges =
           parse_omitted_straight_edges(opts.val("omit-straight-edges"))};
 
-      if (SDL_LockSurface(surface) != 0) return Roo::vector({});
+      if (!SDL_LockSurface(surface)) return Roo::vector({});
       std::vector<uint8_t> alpha = read_alpha_mask(surface, source);
       SDL_UnlockSurface(surface);
 

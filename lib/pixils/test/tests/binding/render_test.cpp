@@ -6,7 +6,7 @@
 #include <algorithm>
 #include <gtest/gtest.h>
 #include <roo/runtime/dict.h>
-#include <sdl2_mock/mock_resources.h>
+#include <sdl3_mock/mock_resources.h>
 #include <vector>
 
 class RenderTest : public RenderFixture
@@ -800,7 +800,7 @@ TEST_F(RenderTest, with_clip_rect_restores_clip_after_body_error)
 TEST_F(RenderTest, image_accepts_rotation_in_radians)
 {
   // Given
-  SDLMock::prepared_surfaces["./ship.png"] = {16, 8};
+  SDL3Mock::prepared_surfaces["./ship.png"] = {16, 8};
   runtime.eval(R"(
     (pixils/defbundle sprites {:images {:ship "ship.png"}})
     (pixils/defmode test-mode {
@@ -829,7 +829,7 @@ TEST_F(RenderTest, image_accepts_rotation_in_radians)
 
 TEST_F(RenderTest, image_accepts_source_rect)
 {
-  SDLMock::prepared_surfaces["./tiles.png"] = {32, 16};
+  SDL3Mock::prepared_surfaces["./tiles.png"] = {32, 16};
   runtime.eval(R"(
     (pixils/defbundle sprites {:images {:tiles "tiles.png"}})
     (pixils/defmode test-mode {
@@ -856,7 +856,7 @@ TEST_F(RenderTest, image_accepts_source_rect)
 
 TEST_F(RenderTest, image_accepts_target_point)
 {
-  SDLMock::prepared_surfaces["./ship.png"] = {16, 8};
+  SDL3Mock::prepared_surfaces["./ship.png"] = {16, 8};
   runtime.eval(R"(
     (pixils/defbundle sprites {:images {:ship "ship.png"}})
     (pixils/defmode test-mode {
@@ -881,7 +881,7 @@ TEST_F(RenderTest, image_accepts_target_point)
 
 TEST_F(RenderTest, image_target_rect_scales_single_copy)
 {
-  SDLMock::prepared_surfaces["./ship.png"] = {16, 8};
+  SDL3Mock::prepared_surfaces["./ship.png"] = {16, 8};
   runtime.eval(R"(
     (pixils/defbundle sprites {:images {:ship "ship.png"}})
     (pixils/defmode test-mode {
@@ -906,7 +906,7 @@ TEST_F(RenderTest, image_target_rect_scales_single_copy)
 
 TEST_F(RenderTest, image_accepts_direct_target_rect_map)
 {
-  SDLMock::prepared_surfaces["./ship.png"] = {16, 8};
+  SDL3Mock::prepared_surfaces["./ship.png"] = {16, 8};
   runtime.eval(R"(
     (pixils/defbundle sprites {:images {:ship "ship.png"}})
     (pixils/defmode test-mode {
@@ -931,7 +931,7 @@ TEST_F(RenderTest, image_accepts_direct_target_rect_map)
 
 TEST_F(RenderTest, image_rejects_direct_point_map_with_options)
 {
-  SDLMock::prepared_surfaces["./ship.png"] = {16, 8};
+  SDL3Mock::prepared_surfaces["./ship.png"] = {16, 8};
   EXPECT_THROW(runtime.eval(R"(
     (pixils/defbundle sprites {:images {:ship "ship.png"}})
     (pixils.render/image!
@@ -943,7 +943,7 @@ TEST_F(RenderTest, image_rejects_direct_point_map_with_options)
 
 TEST_F(RenderTest, image_clip_rect_restores_previous_clip)
 {
-  SDLMock::prepared_surfaces["./ship.png"] = {16, 8};
+  SDL3Mock::prepared_surfaces["./ship.png"] = {16, 8};
   render_ctx.set_clip_rect(Pixils::Rect{1, 2, 30, 40});
   ASSERT_NO_THROW(runtime.eval(R"(
     (pixils/defbundle sprites {:images {:ship "ship.png"}})
@@ -959,7 +959,7 @@ TEST_F(RenderTest, image_clip_rect_restores_previous_clip)
 
 TEST_F(RenderTest, image_repeat_fills_clip_rect_from_target_anchor)
 {
-  SDLMock::prepared_surfaces["./tile.png"] = {8, 8};
+  SDL3Mock::prepared_surfaces["./tile.png"] = {8, 8};
   runtime.eval(R"(
     (pixils/defbundle sprites {:images {:tile "tile.png"}})
     (pixils/defmode test-mode {
@@ -991,7 +991,7 @@ TEST_F(RenderTest, image_repeat_fills_clip_rect_from_target_anchor)
 
 TEST_F(RenderTest, image_repeat_uses_active_clip_as_default_bounds)
 {
-  SDLMock::prepared_surfaces["./tile.png"] = {8, 8};
+  SDL3Mock::prepared_surfaces["./tile.png"] = {8, 8};
   runtime.eval(R"(
     (pixils/defbundle sprites {:images {:tile "tile.png"}})
     (pixils/defmode test-mode {
@@ -1019,7 +1019,7 @@ TEST_F(RenderTest, image_repeat_uses_active_clip_as_default_bounds)
 
 TEST_F(RenderTest, image_accepts_flip_options)
 {
-  SDLMock::prepared_surfaces["./ship.png"] = {16, 8};
+  SDL3Mock::prepared_surfaces["./ship.png"] = {16, 8};
   runtime.eval(R"(
     (pixils/defbundle sprites {:images {:ship "ship.png"}})
     (pixils/defmode test-mode {
@@ -1046,7 +1046,7 @@ TEST_F(RenderTest, image_accepts_flip_options)
 
 TEST_F(RenderTest, image_accepts_opacity)
 {
-  SDLMock::prepared_surfaces["./ship.png"] = {16, 8};
+  SDL3Mock::prepared_surfaces["./ship.png"] = {16, 8};
   runtime.eval(R"(
     (pixils/defbundle sprites {:images {:ship "ship.png"}})
     (pixils/defmode test-mode {
@@ -1070,7 +1070,7 @@ TEST_F(RenderTest, image_accepts_opacity)
 
 TEST_F(RenderTest, image_accepts_erase_alpha_blend_mode)
 {
-  SDLMock::prepared_surfaces["./ship.png"] = {16, 8};
+  SDL3Mock::prepared_surfaces["./ship.png"] = {16, 8};
   runtime.eval(R"(
     (pixils/defbundle sprites {:images {:ship "ship.png"}})
     (pixils/defmode test-mode {
@@ -1096,7 +1096,7 @@ TEST_F(RenderTest, image_accepts_erase_alpha_blend_mode)
 
 TEST_F(RenderTest, image_rejects_unknown_blend_mode)
 {
-  SDLMock::prepared_surfaces["./ship.png"] = {16, 8};
+  SDL3Mock::prepared_surfaces["./ship.png"] = {16, 8};
   EXPECT_THROW(runtime.eval(R"(
     (pixils/defbundle sprites {:images {:ship "ship.png"}})
     (pixils.render/image!
@@ -1109,9 +1109,9 @@ TEST_F(RenderTest, image_rejects_unknown_blend_mode)
 
 TEST_F(RenderTest, generated_image_can_draw_base_and_apply_alpha_masks)
 {
-  SDLMock::prepared_surfaces["./base.png"] = {16, 8};
-  SDLMock::prepared_surfaces["./mask-a.png"] = {16, 8};
-  SDLMock::prepared_surfaces["./mask-b.png"] = {16, 8};
+  SDL3Mock::prepared_surfaces["./base.png"] = {16, 8};
+  SDL3Mock::prepared_surfaces["./mask-a.png"] = {16, 8};
+  SDL3Mock::prepared_surfaces["./mask-b.png"] = {16, 8};
   runtime.eval(R"(
     (pixils/defbundle sprites
       {:images {:base "base.png"
@@ -1177,7 +1177,7 @@ TEST_F(RenderTest, image_missing_asset_is_noop)
 
 TEST_F(RenderTest, style_background_image_renders_once_without_repeat)
 {
-  SDLMock::prepared_surfaces["./checkmark.png"] = {7, 7};
+  SDL3Mock::prepared_surfaces["./checkmark.png"] = {7, 7};
   runtime.eval(R"(
     (pixils/defbundle icons {:images {:checkmark "checkmark.png"}})
     (pixils/defmode test-mode
@@ -1198,7 +1198,7 @@ TEST_F(RenderTest, style_background_image_renders_once_without_repeat)
 
 TEST_F(RenderTest, style_background_image_accepts_opacity)
 {
-  SDLMock::prepared_surfaces["./checkmark.png"] = {7, 7};
+  SDL3Mock::prepared_surfaces["./checkmark.png"] = {7, 7};
   runtime.eval(R"(
     (pixils/defbundle icons {:images {:checkmark "checkmark.png"}})
     (pixils/defmode test-mode
@@ -1218,7 +1218,7 @@ TEST_F(RenderTest, style_background_image_accepts_opacity)
 
 TEST_F(RenderTest, style_background_image_can_fit_source_and_align)
 {
-  SDLMock::prepared_surfaces["./icons.png"] = {32, 32};
+  SDL3Mock::prepared_surfaces["./icons.png"] = {32, 32};
   runtime.eval(R"(
     (pixils/defbundle icons {:images {:sheet "icons.png"}})
     (pixils/defmode test-mode
@@ -1244,7 +1244,7 @@ TEST_F(RenderTest, style_background_image_can_fit_source_and_align)
 
 TEST_F(RenderTest, scaled_root_centers_fill_child_background_in_logical_area)
 {
-  SDLMock::prepared_surfaces["./logo.png"] = {20, 10};
+  SDL3Mock::prepared_surfaces["./logo.png"] = {20, 10};
   runtime.eval(R"(
     (pixils/defbundle title {:images {:logo "logo.png"}})
     (pixils/defmode test-mode
@@ -1431,7 +1431,7 @@ TEST_F(RenderTest, translucent_view_renders_to_texture_and_copies_whole_subtree)
 
 TEST_F(RenderTest, text_without_explicit_color_uses_original_font_texture)
 {
-  SDLMock::prepared_surfaces["./font.png"] = {8, 8};
+  SDL3Mock::prepared_surfaces["./font.png"] = {8, 8};
   runtime.eval(R"(
     (pixils/defbundle fonts {:images {:atlas "font.png"}})
     (pixils/deffont test-font
@@ -1462,7 +1462,7 @@ TEST_F(RenderTest, text_without_explicit_color_uses_original_font_texture)
 
 TEST_F(RenderTest, text_with_explicit_color_uses_tint_mask_texture)
 {
-  SDLMock::prepared_surfaces["./font.png"] = {8, 8};
+  SDL3Mock::prepared_surfaces["./font.png"] = {8, 8};
   runtime.eval(R"(
     (pixils/defbundle fonts {:images {:atlas "font.png"}})
     (pixils/deffont test-font
@@ -1497,7 +1497,7 @@ TEST_F(RenderTest, text_with_explicit_color_uses_tint_mask_texture)
 
 TEST_F(RenderTest, text_accepts_vector_scale_as_x_y)
 {
-  SDLMock::prepared_surfaces["./font.png"] = {8, 8};
+  SDL3Mock::prepared_surfaces["./font.png"] = {8, 8};
   runtime.eval(R"(
     (pixils/defbundle fonts {:images {:atlas "font.png"}})
     (pixils/deffont test-font
@@ -1527,7 +1527,7 @@ TEST_F(RenderTest, text_accepts_vector_scale_as_x_y)
 
 TEST_F(RenderTest, text_accepts_fractional_scale)
 {
-  SDLMock::prepared_surfaces["./font.png"] = {8, 8};
+  SDL3Mock::prepared_surfaces["./font.png"] = {8, 8};
   runtime.eval(R"(
     (pixils/defbundle fonts {:images {:atlas "font.png"}})
     (pixils/deffont test-font
@@ -1557,7 +1557,7 @@ TEST_F(RenderTest, text_accepts_fractional_scale)
 
 TEST_F(RenderTest, text_marked_style_accepts_vector_scale_as_x_y)
 {
-  SDLMock::prepared_surfaces["./font.png"] = {16, 8};
+  SDL3Mock::prepared_surfaces["./font.png"] = {16, 8};
   runtime.eval(R"(
     (pixils/defbundle fonts {:images {:atlas "font.png"}})
     (pixils/deffont base-font
@@ -1597,7 +1597,7 @@ TEST_F(RenderTest, text_marked_style_accepts_vector_scale_as_x_y)
 
 TEST_F(RenderTest, text_bang_respects_explicit_newlines)
 {
-  SDLMock::prepared_surfaces["./font.png"] = {16, 12};
+  SDL3Mock::prepared_surfaces["./font.png"] = {16, 12};
   runtime.eval(R"(
     (pixils/defbundle fonts {:images {:atlas "font.png"}})
     (pixils/deffont test-font
@@ -1627,7 +1627,7 @@ B" {:x 12 :y 18} {:font :font/test-font}))
 
 TEST_F(RenderTest, text_size_uses_explicit_font_line_height)
 {
-  SDLMock::prepared_surfaces["./font.png"] = {16, 12};
+  SDL3Mock::prepared_surfaces["./font.png"] = {16, 12};
   runtime.eval(R"(
     (pixils/defbundle fonts {:images {:atlas "font.png"}})
     (pixils/deffont test-font
@@ -1650,7 +1650,7 @@ TEST_F(RenderTest, text_size_uses_explicit_font_line_height)
 
 TEST_F(RenderTest, text_size_respects_explicit_newlines)
 {
-  SDLMock::prepared_surfaces["./font.png"] = {16, 12};
+  SDL3Mock::prepared_surfaces["./font.png"] = {16, 12};
   runtime.eval(R"(
     (pixils/defbundle fonts {:images {:atlas "font.png"}})
     (pixils/deffont test-font
@@ -1673,7 +1673,7 @@ B" {:font :font/test-font}))");
 
 TEST_F(RenderTest, text_size_accepts_vector_scale_as_x_y)
 {
-  SDLMock::prepared_surfaces["./font.png"] = {16, 12};
+  SDL3Mock::prepared_surfaces["./font.png"] = {16, 12};
   runtime.eval(R"(
     (pixils/defbundle fonts {:images {:atlas "font.png"}})
     (pixils/deffont test-font
@@ -1695,7 +1695,7 @@ TEST_F(RenderTest, text_size_accepts_vector_scale_as_x_y)
 
 TEST_F(RenderTest, text_size_accepts_fractional_scale)
 {
-  SDLMock::prepared_surfaces["./font.png"] = {16, 12};
+  SDL3Mock::prepared_surfaces["./font.png"] = {16, 12};
   runtime.eval(R"(
     (pixils/defbundle fonts {:images {:atlas "font.png"}})
     (pixils/deffont test-font
@@ -1804,7 +1804,7 @@ TEST_F(RenderTest, text_size_reflects_ttf_declared_size_with_smaller_line_height
 
 TEST_F(RenderTest, deffont_replaces_existing_font_definition)
 {
-  SDLMock::prepared_surfaces["./font.png"] = {16, 12};
+  SDL3Mock::prepared_surfaces["./font.png"] = {16, 12};
   runtime.eval(R"(
     (pixils/defbundle fonts {:images {:atlas "font.png"}})
     (pixils/deffont test-font
@@ -1826,7 +1826,7 @@ TEST_F(RenderTest, deffont_replaces_existing_font_definition)
 
 TEST_F(RenderTest, text_size_ignores_inline_toggle_markers)
 {
-  SDLMock::prepared_surfaces["./font.png"] = {8, 8};
+  SDL3Mock::prepared_surfaces["./font.png"] = {8, 8};
   runtime.eval(R"(
     (pixils/defbundle fonts {:images {:atlas "font.png"}})
     (pixils/deffont test-font
@@ -1883,7 +1883,7 @@ TEST_F(RenderTest, text_cursor_escapes_double_at_as_literal_at_glyph)
 
 TEST_F(RenderTest, deffont_registers_baseline_and_underline_metrics)
 {
-  SDLMock::prepared_surfaces["./font.png"] = {8, 8};
+  SDL3Mock::prepared_surfaces["./font.png"] = {8, 8};
   runtime.eval(R"(
     (pixils/defbundle fonts {:images {:atlas "font.png"}})
     (pixils/deffont test-font
@@ -1931,7 +1931,7 @@ TEST_F(RenderTest, deffont_ttf_reports_load_failure)
 
 TEST_F(RenderTest, text_with_underline_font_style_renders_fill_rect_for_underline)
 {
-  SDLMock::prepared_surfaces["./font.png"] = {8, 8};
+  SDL3Mock::prepared_surfaces["./font.png"] = {8, 8};
   runtime.eval(R"(
     (pixils/defbundle fonts {:images {:atlas "font.png"}})
     (pixils/deffont test-font
@@ -1964,7 +1964,7 @@ TEST_F(RenderTest, text_with_underline_font_style_renders_fill_rect_for_underlin
 
 TEST_F(RenderTest, text_size_infers_font_line_height_from_tallest_glyph)
 {
-  SDLMock::prepared_surfaces["./font.png"] = {16, 12};
+  SDL3Mock::prepared_surfaces["./font.png"] = {16, 12};
   runtime.eval(R"(
     (pixils/defbundle fonts {:images {:atlas "font.png"}})
     (pixils/deffont test-font
@@ -1986,7 +1986,7 @@ TEST_F(RenderTest, text_size_infers_font_line_height_from_tallest_glyph)
 
 TEST_F(RenderTest, built_in_text_node_renders_and_measures_without_definition)
 {
-  SDLMock::prepared_surfaces["./font.png"] = {16, 12};
+  SDL3Mock::prepared_surfaces["./font.png"] = {16, 12};
   runtime.eval(R"(
     (pixils/defbundle fonts {:images {:atlas "font.png"}})
     (pixils/deffont test-font
@@ -2020,7 +2020,7 @@ TEST_F(RenderTest, built_in_text_node_renders_and_measures_without_definition)
 
 TEST_F(RenderTest, built_in_text_node_accepts_fractional_text_scale)
 {
-  SDLMock::prepared_surfaces["./font.png"] = {16, 12};
+  SDL3Mock::prepared_surfaces["./font.png"] = {16, 12};
   runtime.eval(R"(
     (pixils/defbundle fonts {:images {:atlas "font.png"}})
     (pixils/deffont test-font
@@ -2146,7 +2146,7 @@ TEST_F(RenderTest, built_in_text_node_remeasures_when_ttf_font_is_redeclared)
 
 TEST_F(RenderTest, built_in_text_node_falls_back_to_console_font_when_style_font_is_missing)
 {
-  SDLMock::prepared_surfaces["./font.png"] = {8, 8};
+  SDL3Mock::prepared_surfaces["./font.png"] = {8, 8};
   runtime.eval(R"(
     (pixils/defbundle fonts {:images {:atlas "font.png"}})
     (pixils/deffont console
@@ -2170,7 +2170,7 @@ TEST_F(RenderTest, built_in_text_node_falls_back_to_console_font_when_style_font
 
 TEST_F(RenderTest, built_in_text_node_renders_in_local_viewport_coordinates)
 {
-  SDLMock::prepared_surfaces["./font.png"] = {16, 12};
+  SDL3Mock::prepared_surfaces["./font.png"] = {16, 12};
   runtime.eval(R"(
     (pixils/defbundle fonts {:images {:atlas "font.png"}})
     (pixils/deffont test-font
@@ -2202,7 +2202,7 @@ TEST_F(RenderTest, built_in_text_node_renders_in_local_viewport_coordinates)
 
 TEST_F(RenderTest, built_in_text_node_respects_explicit_newlines)
 {
-  SDLMock::prepared_surfaces["./font.png"] = {16, 12};
+  SDL3Mock::prepared_surfaces["./font.png"] = {16, 12};
   runtime.eval(R"(
     (pixils/defbundle fonts {:images {:atlas "font.png"}})
     (pixils/deffont test-font
@@ -2241,7 +2241,7 @@ B"}
 
 TEST_F(RenderTest, built_in_text_node_inherits_marked_style_and_renders_underline)
 {
-  SDLMock::prepared_surfaces["./font.png"] = {16, 12};
+  SDL3Mock::prepared_surfaces["./font.png"] = {16, 12};
   runtime.eval(R"(
     (pixils/defbundle fonts {:images {:atlas "font.png"}})
     (pixils/deffont test-font
@@ -2275,7 +2275,7 @@ TEST_F(RenderTest, built_in_text_node_inherits_marked_style_and_renders_underlin
 TEST_F(RenderTest,
        built_in_text_node_marked_style_explicit_color_uses_tint_texture_for_mnemonic)
 {
-  SDLMock::prepared_surfaces["./font.png"] = {16, 12};
+  SDL3Mock::prepared_surfaces["./font.png"] = {16, 12};
   runtime.eval(R"(
     (pixils/defbundle fonts {:images {:atlas "font.png"}})
     (pixils/deffont test-font
@@ -2320,7 +2320,7 @@ TEST_F(RenderTest,
 
 TEST_F(RenderTest, built_in_text_node_marked_style_inherits_parent_tint_for_mnemonic)
 {
-  SDLMock::prepared_surfaces["./font.png"] = {16, 12};
+  SDL3Mock::prepared_surfaces["./font.png"] = {16, 12};
   runtime.eval(R"(
     (pixils/defbundle fonts {:images {:atlas "font.png"}})
     (pixils/deffont test-font
@@ -2364,7 +2364,7 @@ TEST_F(RenderTest, built_in_text_node_marked_style_inherits_parent_tint_for_mnem
 
 TEST_F(RenderTest, built_in_text_node_wraps_wordwise_when_fill_width_is_constrained)
 {
-  SDLMock::prepared_surfaces["./font.png"] = {16, 12};
+  SDL3Mock::prepared_surfaces["./font.png"] = {16, 12};
   runtime.eval(R"(
     (pixils/defbundle fonts {:images {:atlas "font.png"}})
     (pixils/deffont test-font
@@ -2399,7 +2399,7 @@ TEST_F(RenderTest, built_in_text_node_wraps_wordwise_when_fill_width_is_constrai
 
 TEST_F(RenderTest, built_in_text_node_wraps_wordwise_when_parent_width_is_constrained)
 {
-  SDLMock::prepared_surfaces["./font.png"] = {16, 12};
+  SDL3Mock::prepared_surfaces["./font.png"] = {16, 12};
   runtime.eval(R"(
     (pixils/defbundle fonts {:images {:atlas "font.png"}})
     (pixils/deffont test-font
@@ -2433,7 +2433,7 @@ TEST_F(RenderTest, built_in_text_node_wraps_wordwise_when_parent_width_is_constr
 
 TEST_F(RenderTest, built_in_text_node_wrap_none_stays_single_line_when_width_is_constrained)
 {
-  SDLMock::prepared_surfaces["./font.png"] = {16, 12};
+  SDL3Mock::prepared_surfaces["./font.png"] = {16, 12};
   runtime.eval(R"(
     (pixils/defbundle fonts {:images {:atlas "font.png"}})
     (pixils/deffont test-font
@@ -2469,7 +2469,7 @@ TEST_F(RenderTest, built_in_text_node_wrap_none_stays_single_line_when_width_is_
 
 TEST_F(RenderTest, built_in_text_node_wrap_preserves_leading_spaces)
 {
-  SDLMock::prepared_surfaces["./font.png"] = {24, 12};
+  SDL3Mock::prepared_surfaces["./font.png"] = {24, 12};
   runtime.eval(R"(
     (pixils/defbundle fonts {:images {:atlas "font.png"}})
     (pixils/deffont test-font

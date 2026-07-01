@@ -4,10 +4,11 @@
 #include <pixils/color.h>
 #include <pixils/context.h>
 #include <pixils/geom.h>
+#include <pixils/sdl_render.h>
 
-#include <SDL2/SDL_blendmode.h>
-#include <SDL2/SDL_render.h>
-#include <SDL2/SDL_version.h>
+#include <SDL3/SDL_blendmode.h>
+#include <SDL3/SDL_render.h>
+#include <SDL3/SDL_version.h>
 #include <algorithm>
 #include <cmath>
 #include <exception>
@@ -27,6 +28,10 @@
 
 namespace
 {
+  using Pixils::get_texture_size;
+  using Pixils::render_fill_rect;
+  using Pixils::render_texture;
+
   std::string package_last_error;
 
   Roo::sptr_val prop(const Roo::sptr_val& map, const std::string& key)
@@ -486,7 +491,7 @@ namespace
     if (!image_key(tile, &bundle, &asset) || !rc.asset_registry) return false;
     SDL_Texture* texture = rc.asset_registry->get_image(bundle, asset);
     if (!texture) return false;
-    SDL_QueryTexture(texture, nullptr, nullptr, source_w, source_h);
+    get_texture_size(texture, source_w, source_h);
     return *source_w > 0 && *source_h > 0;
   }
 
@@ -588,7 +593,7 @@ namespace
     SDL_Rect sdl_rect = rect.to_SDL_rect();
     SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
     SDL_SetRenderDrawColor(renderer, r, g, b, a);
-    SDL_RenderFillRect(renderer, &sdl_rect);
+    render_fill_rect(renderer, &sdl_rect);
     SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_NONE);
   }
 
@@ -757,7 +762,7 @@ namespace
     std::optional<SDL_Rect> source = source_rect(tile);
     int source_w = 0;
     int source_h = 0;
-    SDL_QueryTexture(texture, nullptr, nullptr, &source_w, &source_h);
+    get_texture_size(texture, &source_w, &source_h);
     if (source)
     {
       source_w = source->w;
@@ -778,7 +783,7 @@ namespace
                       ? explicit_draw_dest(tile, rect, source_w, source_h, zoom)
                       : centered_dest(rect, source_w, source_h);
     const SDL_Rect* source_ptr = source ? &*source : nullptr;
-    SDL_RenderCopy(rc.renderer, texture, source_ptr, &dest);
+    render_texture(rc.renderer, texture, source_ptr, &dest);
   }
 
   SDL_BlendMode erase_alpha_blend_mode()
@@ -823,7 +828,7 @@ namespace
     SDL_BlendMode previous = SDL_BLENDMODE_NONE;
     SDL_GetTextureBlendMode(texture, &previous);
     SDL_SetTextureBlendMode(texture, blend_mode);
-    SDL_RenderCopy(rc.renderer, texture, source_ptr, &dest);
+    render_texture(rc.renderer, texture, source_ptr, &dest);
     SDL_SetTextureBlendMode(texture, previous);
   }
 
@@ -905,11 +910,11 @@ namespace
     }
 
     std::unique_ptr<SDL_Texture, decltype(&SDL_DestroyTexture)> texture(
-      SDL_CreateTexture(rc.renderer,
-                        SDL_PIXELFORMAT_RGBA8888,
-                        SDL_TEXTUREACCESS_TARGET,
-                        size.w,
-                        size.h),
+      Pixils::create_texture_nearest(rc.renderer,
+                                     SDL_PIXELFORMAT_RGBA8888,
+                                     SDL_TEXTUREACCESS_TARGET,
+                                     size.w,
+                                     size.h),
       SDL_DestroyTexture);
     if (!texture) return nullptr;
 
@@ -969,7 +974,7 @@ namespace
     if (image)
     {
       SDL_Rect dest = rect.to_SDL_rect();
-      SDL_RenderCopy(rc.renderer, image, nullptr, &dest);
+      render_texture(rc.renderer, image, nullptr, &dest);
     }
     else if (!nil_value(overlay))
     {
@@ -1181,17 +1186,17 @@ namespace
       int capacity_w = fractional_render_cache_grown_capacity(required_w, existing_w);
       int capacity_h = fractional_render_cache_grown_capacity(required_h, existing_h);
       std::unique_ptr<SDL_Texture, decltype(&SDL_DestroyTexture)> texture(
-        SDL_CreateTexture(rc.renderer,
-                          SDL_PIXELFORMAT_RGBA8888,
-                          SDL_TEXTUREACCESS_TARGET,
-                          capacity_w,
-                          capacity_h),
+        Pixils::create_texture_nearest(rc.renderer,
+                                       SDL_PIXELFORMAT_RGBA8888,
+                                       SDL_TEXTUREACCESS_TARGET,
+                                       capacity_w,
+                                       capacity_h),
         SDL_DestroyTexture);
       if (!texture) return {};
 
       SDL_SetTextureBlendMode(texture.get(), SDL_BLENDMODE_BLEND);
-#if SDL_VERSION_ATLEAST(2, 0, 12)
-      SDL_SetTextureScaleMode(texture.get(), SDL_ScaleModeLinear);
+#if SDL_VERSION_ATLEAST(3, 0, 0)
+      SDL_SetTextureScaleMode(texture.get(), SDL_SCALEMODE_LINEAR);
 #endif
       SDL_Texture* committed = texture.get();
       rc.asset_registry->add_generated_image(FRACTIONAL_RENDER_CACHE_BUNDLE,
@@ -1227,7 +1232,7 @@ namespace
     SDL_Texture* previous_target = rc.current_render_target;
     auto previous_clip = rc.current_clip_rect;
     SDL_Rect previous_viewport{0, 0, 0, 0};
-    SDL_RenderGetViewport(rc.renderer, &previous_viewport);
+    SDL_GetRenderViewport(rc.renderer, &previous_viewport);
 
     pad_render_ranges(&plan.source_input,
                       draw_range_padding_for_layers(rc, layers, hidden, plan.source_input));
@@ -1235,7 +1240,7 @@ namespace
     try
     {
       rc.set_render_target(cache.texture);
-      SDL_RenderSetViewport(rc.renderer, nullptr);
+      SDL_SetRenderViewport(rc.renderer, nullptr);
       rc.set_clip_rect(std::nullopt);
       SDL_SetRenderDrawBlendMode(rc.renderer, SDL_BLENDMODE_BLEND);
       SDL_SetRenderDrawColor(rc.renderer, 0, 0, 0, 0);
@@ -1254,13 +1259,13 @@ namespace
     catch (...)
     {
       rc.set_render_target(previous_target);
-      SDL_RenderSetViewport(rc.renderer, &previous_viewport);
+      SDL_SetRenderViewport(rc.renderer, &previous_viewport);
       rc.set_clip_rect(previous_clip);
       throw;
     }
 
     rc.set_render_target(previous_target);
-    SDL_RenderSetViewport(rc.renderer, &previous_viewport);
+    SDL_SetRenderViewport(rc.renderer, &previous_viewport);
     rc.set_clip_rect(previous_clip);
 
     Pixils::Rect effective_clip = intersect_clip_rect(previous_clip, input.target_rect);
@@ -1275,7 +1280,7 @@ namespace
                    static_cast<double>(plan.source_h) * plan.scale_y};
     SDL_Rect source_rect{0, 0, plan.source_w, plan.source_h};
     SDL_FRect dest_rect = dest.to_SDL_frect();
-    SDL_RenderCopyF(rc.renderer, cache.texture, &source_rect, &dest_rect);
+    render_texture(rc.renderer, cache.texture, &source_rect, &dest_rect);
     rc.set_clip_rect(previous_clip);
     return true;
   }

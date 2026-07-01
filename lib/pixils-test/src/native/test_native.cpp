@@ -8,13 +8,14 @@
 #include <pixils/runtime/hook_arguments.h>
 #include <pixils/runtime/session.h>
 #include <pixils/runtime/view.h>
+#include <pixils/sdl_render.h>
 #include <pixils/script.h>
 #include <pixils/ui/view_layout.h>
 
-#include <SDL2/SDL_keycode.h>
-#include <SDL2/SDL_mouse.h>
-#include <SDL2/SDL.h>
-#include <SDL2/SDL_image.h>
+#include <SDL3/SDL_keycode.h>
+#include <SDL3/SDL_mouse.h>
+#include <SDL3/SDL.h>
+#include <SDL3_image/SDL_image.h>
 #include <algorithm>
 #include <cctype>
 #include <filesystem>
@@ -79,33 +80,18 @@ namespace
       attempted = true;
 
       if ((SDL_WasInit(SDL_INIT_VIDEO) & SDL_INIT_VIDEO) == 0 &&
-          SDL_InitSubSystem(SDL_INIT_VIDEO) != 0)
-      {
-        return false;
-      }
-
-      if ((IMG_Init(IMG_INIT_PNG) & IMG_INIT_PNG) == 0)
+          !SDL_InitSubSystem(SDL_INIT_VIDEO))
       {
         return false;
       }
 
       window = SDL_CreateWindow("pixils-test",
-                                SDL_WINDOWPOS_UNDEFINED,
-                                SDL_WINDOWPOS_UNDEFINED,
                                 std::max(1, width),
                                 std::max(1, height),
                                 SDL_WINDOW_HIDDEN);
       if (!window) return false;
 
-      renderer = SDL_CreateRenderer(window,
-                                    -1,
-                                    SDL_RENDERER_SOFTWARE |
-                                      SDL_RENDERER_TARGETTEXTURE);
-      if (!renderer)
-      {
-        renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_SOFTWARE);
-      }
-
+      renderer = SDL_CreateRenderer(window, SDL_SOFTWARE_RENDERER);
       return renderer != nullptr;
     }
 
@@ -152,11 +138,12 @@ namespace
       {
         render_ctx.window = backend.window;
         render_ctx.renderer = backend.renderer;
-        render_ctx.buffer_texture = SDL_CreateTexture(render_ctx.renderer,
-                                                      SDL_PIXELFORMAT_RGBA8888,
-                                                      SDL_TEXTUREACCESS_TARGET,
-                                                      render_ctx.buffer_dim.w,
-                                                      render_ctx.buffer_dim.h);
+        render_ctx.buffer_texture =
+          Pixils::create_texture_nearest(render_ctx.renderer,
+                                         SDL_PIXELFORMAT_RGBA8888,
+                                         SDL_TEXTUREACCESS_TARGET,
+                                         render_ctx.buffer_dim.w,
+                                         render_ctx.buffer_dim.h);
         if (render_ctx.buffer_texture)
         {
           SDL_SetTextureBlendMode(render_ctx.buffer_texture, SDL_BLENDMODE_BLEND);
@@ -211,7 +198,6 @@ namespace
         SDL_DestroyTexture(render_ctx.buffer_texture);
         render_ctx.buffer_texture = nullptr;
       }
-      IMG_Quit();
     }
 
     void clear_transients()
@@ -480,29 +466,25 @@ namespace
     SDL_Texture* previous_target = SDL_GetRenderTarget(app.render_ctx.renderer);
     SDL_SetRenderTarget(app.render_ctx.renderer, app.render_ctx.buffer_texture);
 
-    Uint32 pixel = 0;
     SDL_Rect rect{x, y, 1, 1};
-    const int read_result = SDL_RenderReadPixels(app.render_ctx.renderer,
-                                                 &rect,
-                                                 SDL_PIXELFORMAT_RGBA32,
-                                                 &pixel,
-                                                 sizeof(pixel));
+    SDL_Surface* readback = SDL_RenderReadPixels(app.render_ctx.renderer, &rect);
 
     SDL_SetRenderTarget(app.render_ctx.renderer, previous_target);
-    if (read_result != 0)
+    if (!readback)
     {
       return Roo::Constant::NIL;
     }
-
-    SDL_PixelFormat* format = SDL_AllocFormat(SDL_PIXELFORMAT_RGBA32);
-    if (!format) return Roo::Constant::NIL;
 
     Uint8 r = 0;
     Uint8 g = 0;
     Uint8 b = 0;
     Uint8 a = 0;
-    SDL_GetRGBA(pixel, format, &r, &g, &b, &a);
-    SDL_FreeFormat(format);
+    if (!SDL_ReadSurfacePixel(readback, 0, 0, &r, &g, &b, &a))
+    {
+      SDL_DestroySurface(readback);
+      return Roo::Constant::NIL;
+    }
+    SDL_DestroySurface(readback);
 
     return color_map(r, g, b, a);
   }
@@ -642,14 +624,14 @@ namespace
   void key_down(TestApp& app, SDL_Keycode key)
   {
     SDL_KeyboardEvent event{};
-    event.keysym.sym = key;
+    event.key = key;
     app.events.do_key_down(event);
   }
 
   void key_up(TestApp& app, SDL_Keycode key)
   {
     SDL_KeyboardEvent event{};
-    event.keysym.sym = key;
+    event.key = key;
     app.events.do_key_up(event);
   }
 

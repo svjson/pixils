@@ -12,13 +12,14 @@
 #include <pixils/program.h>
 #include <pixils/runtime/mode.h>
 #include <pixils/runtime/view.h>
+#include <pixils/sdl_render.h>
 
-#include <SDL2/SDL_blendmode.h>
-#include <SDL2/SDL_mouse.h>
-#include <SDL2/SDL_pixels.h>
-#include <SDL2/SDL_render.h>
-#include <SDL2/SDL_surface.h>
-#include <SDL2/SDL_timer.h>
+#include <SDL3/SDL_blendmode.h>
+#include <SDL3/SDL_mouse.h>
+#include <SDL3/SDL_pixels.h>
+#include <SDL3/SDL_render.h>
+#include <SDL3/SDL_surface.h>
+#include <SDL3/SDL_timer.h>
 #include <algorithm>
 #include <chrono>
 #include <iostream>
@@ -68,7 +69,10 @@ namespace Pixils
     if (init_mode)
     {
       this->program = &Pixils::load_program(roo_runtime, session);
-      SDL_ShowCursor(this->program->pointer_visible ? SDL_ENABLE : SDL_DISABLE);
+      if (this->program->pointer_visible)
+        SDL_ShowCursor();
+      else
+        SDL_HideCursor();
     }
   }
 
@@ -89,11 +93,11 @@ namespace Pixils
   {
     for (auto& [_, cursor] : cursor_cache)
     {
-      if (cursor) SDL_FreeCursor(cursor);
+      if (cursor) SDL_DestroyCursor(cursor);
     }
     for (auto& [_, cursor] : image_cursor_cache)
     {
-      if (cursor) SDL_FreeCursor(cursor);
+      if (cursor) SDL_DestroyCursor(cursor);
     }
   }
 
@@ -143,16 +147,16 @@ namespace Pixils
       {
         switch (event.type)
         {
-        case SDL_QUIT:
+        case SDL_EVENT_QUIT:
           quit = true;
           break;
-        case SDL_KEYDOWN:
+        case SDL_EVENT_KEY_DOWN:
           handle_keydown(event.key);
           break;
-        case SDL_KEYUP:
+        case SDL_EVENT_KEY_UP:
           handle_keyup(event.key);
           break;
-        case SDL_MOUSEMOTION:
+        case SDL_EVENT_MOUSE_MOTION:
         {
           Point pos = ctx.window_to_buffer_point(program->get_display(),
                                                  event.motion.x,
@@ -160,7 +164,7 @@ namespace Pixils
           events.do_mouse_motion(pos.round_x(), pos.round_y());
           break;
         }
-        case SDL_MOUSEBUTTONDOWN:
+        case SDL_EVENT_MOUSE_BUTTON_DOWN:
         {
           Point pos = ctx.window_to_buffer_point(program->get_display(),
                                                  event.button.x,
@@ -169,7 +173,7 @@ namespace Pixils
           events.do_mouse_button_down(event.button);
           break;
         }
-        case SDL_MOUSEBUTTONUP:
+        case SDL_EVENT_MOUSE_BUTTON_UP:
         {
           Point pos = ctx.window_to_buffer_point(program->get_display(),
                                                  event.button.x,
@@ -299,7 +303,7 @@ namespace Pixils
 
     SDL_SetRenderDrawBlendMode(ctx.renderer, SDL_BLENDMODE_BLEND);
     SDL_SetRenderDrawColor(ctx.renderer, 0x00, 0x00, 0x00, 0xa8);
-    SDL_RenderFillRect(ctx.renderer, &bounds);
+    render_fill_rect(ctx.renderer, &bounds);
 
     const SDL_Color text_color = {0xff, 0xff, 0xff, 0xff};
     int y = bounds.y + padding;
@@ -312,7 +316,7 @@ namespace Pixils
 
   void Client::handle_keydown(SDL_KeyboardEvent& key_event)
   {
-    switch (key_event.keysym.sym)
+    switch (key_event.key)
     {
     case SDLK_F10:
       if (this->console->get_open_state() == ConsoleOverlay::State::CLOSED ||
@@ -349,44 +353,44 @@ namespace Pixils
       return it->second;
     }
 
-    SDL_SystemCursor sdl_cursor = SDL_SYSTEM_CURSOR_ARROW;
+    SDL_SystemCursor sdl_cursor = SDL_SYSTEM_CURSOR_DEFAULT;
     switch (cursor)
     {
     case UI::SystemCursor::DEFAULT:
-      sdl_cursor = SDL_SYSTEM_CURSOR_ARROW;
+      sdl_cursor = SDL_SYSTEM_CURSOR_DEFAULT;
       break;
     case UI::SystemCursor::POINTER:
-      sdl_cursor = SDL_SYSTEM_CURSOR_HAND;
+      sdl_cursor = SDL_SYSTEM_CURSOR_POINTER;
       break;
     case UI::SystemCursor::TEXT:
-      sdl_cursor = SDL_SYSTEM_CURSOR_IBEAM;
+      sdl_cursor = SDL_SYSTEM_CURSOR_TEXT;
       break;
     case UI::SystemCursor::CROSSHAIR:
       sdl_cursor = SDL_SYSTEM_CURSOR_CROSSHAIR;
       break;
     case UI::SystemCursor::MOVE:
-      sdl_cursor = SDL_SYSTEM_CURSOR_SIZEALL;
+      sdl_cursor = SDL_SYSTEM_CURSOR_MOVE;
       break;
     case UI::SystemCursor::NOT_ALLOWED:
-      sdl_cursor = SDL_SYSTEM_CURSOR_NO;
+      sdl_cursor = SDL_SYSTEM_CURSOR_NOT_ALLOWED;
       break;
     case UI::SystemCursor::WAIT:
       sdl_cursor = SDL_SYSTEM_CURSOR_WAIT;
       break;
     case UI::SystemCursor::PROGRESS:
-      sdl_cursor = SDL_SYSTEM_CURSOR_WAITARROW;
+      sdl_cursor = SDL_SYSTEM_CURSOR_PROGRESS;
       break;
     case UI::SystemCursor::RESIZE_X:
-      sdl_cursor = SDL_SYSTEM_CURSOR_SIZEWE;
+      sdl_cursor = SDL_SYSTEM_CURSOR_EW_RESIZE;
       break;
     case UI::SystemCursor::RESIZE_Y:
-      sdl_cursor = SDL_SYSTEM_CURSOR_SIZENS;
+      sdl_cursor = SDL_SYSTEM_CURSOR_NS_RESIZE;
       break;
     case UI::SystemCursor::RESIZE_NWSE:
-      sdl_cursor = SDL_SYSTEM_CURSOR_SIZENWSE;
+      sdl_cursor = SDL_SYSTEM_CURSOR_NWSE_RESIZE;
       break;
     case UI::SystemCursor::RESIZE_NESW:
-      sdl_cursor = SDL_SYSTEM_CURSOR_SIZENESW;
+      sdl_cursor = SDL_SYSTEM_CURSOR_NESW_RESIZE;
       break;
     }
 
@@ -428,7 +432,7 @@ namespace Pixils
     if (!source_surface) return nullptr;
 
     SDL_Surface* formatted_source =
-      SDL_ConvertSurfaceFormat(source_surface, SDL_PIXELFORMAT_RGBA32, 0);
+      SDL_ConvertSurface(source_surface, SDL_PIXELFORMAT_RGBA32);
     if (!formatted_source) return nullptr;
 
     SDL_Rect source_rect{0, 0, source_surface->w, source_surface->h};
@@ -438,36 +442,34 @@ namespace Pixils
     }
     if (source_rect.w <= 0 || source_rect.h <= 0)
     {
-      SDL_FreeSurface(formatted_source);
+      SDL_DestroySurface(formatted_source);
       return nullptr;
     }
 
     int scale = std::max(1, cursor.scale);
     SDL_Rect target_rect{0, 0, source_rect.w * scale, source_rect.h * scale};
-    SDL_Surface* final_surface = SDL_CreateRGBSurfaceWithFormat(0,
-                                                                target_rect.w,
-                                                                target_rect.h,
-                                                                32,
-                                                                SDL_PIXELFORMAT_RGBA32);
+    SDL_Surface* final_surface =
+      SDL_CreateSurface(target_rect.w, target_rect.h, SDL_PIXELFORMAT_RGBA32);
     if (!final_surface)
     {
-      SDL_FreeSurface(formatted_source);
+      SDL_DestroySurface(formatted_source);
       return nullptr;
     }
 
     SDL_SetSurfaceBlendMode(formatted_source, SDL_BLENDMODE_NONE);
-    if (SDL_BlitScaled(formatted_source, &source_rect, final_surface, &target_rect) != 0)
+    if (!SDL_BlitSurfaceScaled(formatted_source, &source_rect, final_surface, &target_rect,
+                               SDL_SCALEMODE_NEAREST))
     {
-      SDL_FreeSurface(formatted_source);
-      SDL_FreeSurface(final_surface);
+      SDL_DestroySurface(formatted_source);
+      SDL_DestroySurface(final_surface);
       return nullptr;
     }
 
     int hot_x = std::clamp(cursor.hotspot.round_x() * scale, 0, target_rect.w - 1);
     int hot_y = std::clamp(cursor.hotspot.round_y() * scale, 0, target_rect.h - 1);
     SDL_Cursor* created = SDL_CreateColorCursor(final_surface, hot_x, hot_y);
-    SDL_FreeSurface(formatted_source);
-    SDL_FreeSurface(final_surface);
+    SDL_DestroySurface(formatted_source);
+    SDL_DestroySurface(final_surface);
 
     image_cursor_cache[key] = created;
     return created;
@@ -546,33 +548,45 @@ namespace Pixils
       source_rect = cursor->source->to_SDL_rect();
       source_ptr = &source_rect;
     }
-    else if (SDL_QueryTexture(texture, nullptr, nullptr, &source_rect.w, &source_rect.h) ==
-             0)
+    else
     {
+      float texture_w = 0.0f;
+      float texture_h = 0.0f;
+      SDL_GetTextureSize(texture, &texture_w, &texture_h);
+      source_rect.w = static_cast<int>(texture_w);
+      source_rect.h = static_cast<int>(texture_h);
       source_ptr = &source_rect;
     }
     if (source_rect.w <= 0 || source_rect.h <= 0) return;
 
-    int mouse_x = 0;
-    int mouse_y = 0;
+    float mouse_x = 0.0f;
+    float mouse_y = 0.0f;
     SDL_GetMouseState(&mouse_x, &mouse_y);
-    Point mouse_pos = ctx.window_to_buffer_point(program->get_display(), mouse_x, mouse_y);
+    Point mouse_pos = ctx.window_to_buffer_point(program->get_display(),
+                                                 static_cast<int>(mouse_x),
+                                                 static_cast<int>(mouse_y));
     Point snapped = mouse_pos.round();
     int scale = std::max(1, cursor->scale);
-    SDL_Rect dest{snapped.round_x() - (cursor->hotspot.round_x() * scale),
-                  snapped.round_y() - (cursor->hotspot.round_y() * scale),
-                  source_rect.w * scale,
-                  source_rect.h * scale};
+    SDL_FRect source{static_cast<float>(source_rect.x),
+                     static_cast<float>(source_rect.y),
+                     static_cast<float>(source_rect.w),
+                     static_cast<float>(source_rect.h)};
+    SDL_FRect dest{static_cast<float>(snapped.round_x() -
+                                      (cursor->hotspot.round_x() * scale)),
+                   static_cast<float>(snapped.round_y() -
+                                      (cursor->hotspot.round_y() * scale)),
+                   static_cast<float>(source_rect.w * scale),
+                   static_cast<float>(source_rect.h * scale)};
 
     ctx.set_render_target(ctx.buffer_texture);
-    SDL_RenderCopy(ctx.renderer, texture, source_ptr, &dest);
+    SDL_RenderTexture(ctx.renderer, texture, source_ptr ? &source : nullptr, &dest);
   }
 
   void Client::update_cursor()
   {
     if (!program || !program->pointer_visible)
     {
-      SDL_ShowCursor(SDL_DISABLE);
+      SDL_HideCursor();
       active_cursor = std::nullopt;
       return;
     }
@@ -595,12 +609,12 @@ namespace Pixils
 
     if (app_rendered_cursor(next_cursor))
     {
-      SDL_ShowCursor(SDL_DISABLE);
+      SDL_HideCursor();
       active_cursor = next_cursor;
       return;
     }
 
-    SDL_ShowCursor(SDL_ENABLE);
+    SDL_ShowCursor();
     if (auto* cursor = resolved_cursor(next_cursor))
     {
       SDL_SetCursor(cursor);

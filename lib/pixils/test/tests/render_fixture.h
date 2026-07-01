@@ -5,8 +5,8 @@
 #include "runtime/session_fixture.h"
 #include <pixils/runtime/view.h>
 
-#include <SDL2/SDL_render.h>
-#include <sdl2_mock/mock_resources.h>
+#include <SDL3/SDL_render.h>
+#include <sdl3_mock/mock_resources.h>
 
 /**
  * Extends SessionFixture with a live mock renderer. Use this for any test
@@ -21,7 +21,7 @@ class RenderFixture : public SessionFixture
   {
   }
 
-  void TearDown() override { SDLMock::reset_mocks(); }
+  void TearDown() override { SDL3Mock::reset_mocks(); }
 
   SDL_Texture* render_target() { return render_ctx.renderer->render_target; }
 
@@ -29,7 +29,7 @@ class RenderFixture : public SessionFixture
   static Pixils::RenderContext make_render_context()
   {
     Pixils::RenderContext ctx{};
-    ctx.renderer = SDL_CreateRenderer(nullptr, 0, 0);
+    ctx.renderer = SDL_CreateRenderer(nullptr, nullptr);
     ctx.buffer_texture = ctx.renderer->default_render_target;
     ctx.buffer_dim = {320, 200};
     ctx.enable_render_geometry = false;

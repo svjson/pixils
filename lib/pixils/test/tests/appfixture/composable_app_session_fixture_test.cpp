@@ -7,7 +7,7 @@
 #include <gtest/gtest.h>
 #include <roo/runtime/dict.h>
 #include <roo/runtime/value.h>
-#include <sdl2_mock/mock_resources.h>
+#include <sdl3_mock/mock_resources.h>
 
 namespace AppFixture = Pixils::Test::AppFixture;
 

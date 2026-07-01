@@ -4,28 +4,97 @@
 #include <pixils/display.h>
 #include <pixils/font_registry.h>
 #include <pixils/geom.h>
+#include <pixils/sdl_render.h>
 
-#include <SDL2/SDL_blendmode.h>
-#include <SDL2/SDL_mouse.h>
-#include <SDL2/SDL_pixels.h>
-#include <SDL2/SDL_rect.h>
-#include <SDL2/SDL_render.h>
-#include <SDL2/SDL_video.h>
+#include <SDL3/SDL_blendmode.h>
+#include <SDL3/SDL_mouse.h>
+#include <SDL3/SDL_pixels.h>
+#include <SDL3/SDL_rect.h>
+#include <SDL3/SDL_render.h>
+#include <SDL3/SDL_video.h>
+#include <SDL3/SDL_properties.h>
+#include <SDL3_mixer/SDL_mixer.h>
 #include <algorithm>
 
 namespace Pixils
 {
+  namespace
+  {
+    void destroy_audio_resources(MIX_Mixer*& mixer, std::vector<MIX_Track*>& tracks)
+    {
+      for (auto* track : tracks)
+      {
+        if (track) MIX_DestroyTrack(track);
+      }
+      tracks.clear();
+      if (mixer) MIX_DestroyMixer(mixer);
+      mixer = nullptr;
+    }
+  } // namespace
+
   RenderContext::RenderContext() = default;
 
-  RenderContext::RenderContext(SDL_Window* window, SDL_Renderer* renderer)
+  RenderContext::RenderContext(SDL_Window* window, SDL_Renderer* renderer, MIX_Mixer* audio_mixer)
     : window(window)
     , renderer(renderer)
+    , audio_mixer(audio_mixer)
   {
   }
 
-  RenderContext::~RenderContext() = default;
-  RenderContext::RenderContext(RenderContext&&) noexcept = default;
-  RenderContext& RenderContext::operator=(RenderContext&&) noexcept = default;
+  RenderContext::~RenderContext()
+  {
+    destroy_audio_resources(audio_mixer, audio_tracks);
+  }
+
+  RenderContext::RenderContext(RenderContext&& other) noexcept
+    : window(other.window)
+    , renderer(other.renderer)
+    , audio_mixer(other.audio_mixer)
+    , audio_tracks(std::move(other.audio_tracks))
+    , buffer_texture(other.buffer_texture)
+    , current_render_target(other.current_render_target)
+    , current_clip_rect(other.current_clip_rect)
+    , buffer_dim(other.buffer_dim)
+    , window_rect(other.window_rect)
+    , application_rect(other.application_rect)
+    , pixel_size(other.pixel_size)
+    , tile_size(other.tile_size)
+    , asset_registry(std::move(other.asset_registry))
+    , font_registry(std::move(other.font_registry))
+    , pointer_registry(std::move(other.pointer_registry))
+    , enable_render_geometry(other.enable_render_geometry)
+  {
+    other.audio_mixer = nullptr;
+    other.audio_tracks.clear();
+  }
+
+  RenderContext& RenderContext::operator=(RenderContext&& other) noexcept
+  {
+    if (this == &other) return *this;
+
+    destroy_audio_resources(audio_mixer, audio_tracks);
+
+    window = other.window;
+    renderer = other.renderer;
+    audio_mixer = other.audio_mixer;
+    audio_tracks = std::move(other.audio_tracks);
+    buffer_texture = other.buffer_texture;
+    current_render_target = other.current_render_target;
+    current_clip_rect = other.current_clip_rect;
+    buffer_dim = other.buffer_dim;
+    window_rect = other.window_rect;
+    application_rect = other.application_rect;
+    pixel_size = other.pixel_size;
+    tile_size = other.tile_size;
+    asset_registry = std::move(other.asset_registry);
+    font_registry = std::move(other.font_registry);
+    pointer_registry = std::move(other.pointer_registry);
+    enable_render_geometry = other.enable_render_geometry;
+
+    other.audio_mixer = nullptr;
+    other.audio_tracks.clear();
+    return *this;
+  }
 
   Dimension RenderContext::get_window_dimension()
   {
@@ -155,11 +224,11 @@ namespace Pixils
 
   void RenderContext::create_and_target_buffer()
   {
-    this->buffer_texture = SDL_CreateTexture(this->renderer,
-                                             SDL_PIXELFORMAT_RGBA8888,
-                                             SDL_TEXTUREACCESS_TARGET,
-                                             buffer_dim.w,
-                                             buffer_dim.h);
+    this->buffer_texture = create_texture_nearest(this->renderer,
+                                                  SDL_PIXELFORMAT_RGBA8888,
+                                                  SDL_TEXTUREACCESS_TARGET,
+                                                  buffer_dim.w,
+                                                  buffer_dim.h);
     SDL_SetTextureBlendMode(buffer_texture, SDL_BLENDMODE_BLEND);
     set_render_target(this->buffer_texture);
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
@@ -173,7 +242,11 @@ namespace Pixils
     application_rect = application_target_rect(display);
     SDL_Rect target = application_rect.to_SDL_rect();
 
-    SDL_RenderCopy(this->renderer, this->buffer_texture, nullptr, &target);
+    SDL_FRect target_rect{static_cast<float>(target.x),
+                          static_cast<float>(target.y),
+                          static_cast<float>(target.w),
+                          static_cast<float>(target.h)};
+    SDL_RenderTexture(this->renderer, this->buffer_texture, nullptr, &target_rect);
   }
 
   void RenderContext::finalize_frame()
@@ -192,11 +265,63 @@ namespace Pixils
     current_clip_rect = rect;
     if (!rect)
     {
-      SDL_RenderSetClipRect(renderer, nullptr);
+      SDL_SetRenderClipRect(renderer, nullptr);
       return;
     }
 
     SDL_Rect sdl_rect = rect->to_SDL_rect();
-    SDL_RenderSetClipRect(renderer, &sdl_rect);
+    SDL_SetRenderClipRect(renderer, &sdl_rect);
+  }
+
+  int RenderContext::play_audio(MIX_Audio* audio, int channel, int loops, float volume)
+  {
+    if (!audio_mixer || !audio) return -1;
+
+    constexpr int default_track_count = 8;
+    if (audio_tracks.empty())
+    {
+      for (int i = 0; i < default_track_count; i++)
+      {
+        MIX_Track* track = MIX_CreateTrack(audio_mixer);
+        if (!track) break;
+        audio_tracks.push_back(track);
+      }
+    }
+
+    int target_channel = channel;
+    if (target_channel < 0)
+    {
+      target_channel = -1;
+      for (int i = 0; i < static_cast<int>(audio_tracks.size()); i++)
+      {
+        if (!MIX_TrackPlaying(audio_tracks[i]))
+        {
+          target_channel = i;
+          break;
+        }
+      }
+    }
+
+    if (target_channel < 0 || target_channel >= static_cast<int>(audio_tracks.size()))
+    {
+      return -1;
+    }
+
+    MIX_Track* track = audio_tracks[target_channel];
+    MIX_StopTrack(track, 0);
+    if (!MIX_SetTrackAudio(track, audio)) return -1;
+
+    float clamped_volume = std::clamp(volume, 0.0f, 1.0f);
+    if (!MIX_SetTrackGain(track, clamped_volume)) return -1;
+
+    SDL_PropertiesID props = SDL_CreateProperties();
+    if (props)
+    {
+      SDL_SetNumberProperty(props, MIX_PROP_PLAY_LOOPS_NUMBER, loops);
+    }
+
+    bool played = MIX_PlayTrack(track, props);
+    if (props) SDL_DestroyProperties(props);
+    return played ? target_channel : -1;
   }
 } // namespace Pixils

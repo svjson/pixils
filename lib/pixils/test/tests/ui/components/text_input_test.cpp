@@ -4,7 +4,7 @@
 #include <pixils/program.h>
 #include <pixils/ui/view_layout.h>
 
-#include <SDL2/SDL_keycode.h>
+#include <SDL3/SDL_keycode.h>
 #include <gtest/gtest.h>
 #include <roo/runtime/dict.h>
 #include <roo/runtime/value.h>
@@ -112,7 +112,7 @@ TEST_F(TextInputTest, text_input_edits_bound_value_and_emits_change)
   update_cycle();
   render_cycle();
 
-  input().key_down(SDLK_c);
+  input().key_down(SDLK_C);
   update_cycle();
 
   auto text = get_keyword(session.active_mode->state, "text");
@@ -220,7 +220,7 @@ TEST_F(TextInputTest, read_only_text_input_focuses_and_navigates_without_mutatin
   ASSERT_NE(cursor_index, nullptr);
   EXPECT_EQ(cursor_index->num().get_int(), 3);
 
-  input().key_down(SDLK_c);
+  input().key_down(SDLK_C);
   update_cycle();
   input().key_down(SDLK_BACKSPACE);
   update_cycle();
@@ -240,7 +240,7 @@ TEST_F(TextInputTest, read_only_text_input_focuses_and_navigates_without_mutatin
 
 TEST_F(TextInputTest, text_input_scrolls_horizontally_to_keep_caret_visible)
 {
-  SDLMock::prepared_surfaces["./font.png"] = {16, 12};
+  SDL3Mock::prepared_surfaces["./font.png"] = {16, 12};
   runtime.eval(R"(
     (pixils/defbundle fonts {:images {:atlas "font.png"}})
     (pixils/deffont test-font
@@ -294,7 +294,7 @@ TEST_F(TextInputTest, text_input_scrolls_horizontally_to_keep_caret_visible)
 
 TEST_F(TextInputTest, text_input_scrolls_one_pixel_when_text_exactly_fills_width)
 {
-  SDLMock::prepared_surfaces["./font.png"] = {16, 12};
+  SDL3Mock::prepared_surfaces["./font.png"] = {16, 12};
   runtime.eval(R"(
     (pixils/defbundle fonts {:images {:atlas "font.png"}})
     (pixils/deffont test-font
@@ -429,7 +429,7 @@ TEST_F(TextInputTest, text_input_typing_replaces_selected_text)
   update_cycle();
   input().key_up(SDLK_LSHIFT);
   update_cycle();
-  input().key_down(SDLK_x);
+  input().key_down(SDLK_X);
   update_cycle();
 
   auto text = get_keyword(session.active_mode->state, "text");
@@ -582,7 +582,7 @@ TEST_F(TextInputTest, text_input_shift_home_end_extend_selection_and_delete_remo
 
 TEST_F(TextInputTest, text_input_renders_selection_background_under_single_text_layer)
 {
-  SDLMock::prepared_surfaces["./font.png"] = {16, 12};
+  SDL3Mock::prepared_surfaces["./font.png"] = {16, 12};
   runtime.eval(R"(
     (pixils/defbundle fonts {:images {:atlas "font.png"}})
     (pixils/deffont test-font
@@ -656,7 +656,7 @@ TEST_F(TextInputTest, text_input_renders_selection_background_under_single_text_
 
 TEST_F(TextInputTest, text_input_text_never_wraps)
 {
-  SDLMock::prepared_surfaces["./font.png"] = {16, 12};
+  SDL3Mock::prepared_surfaces["./font.png"] = {16, 12};
   runtime.eval(R"(
     (pixils/defbundle fonts {:images {:atlas "font.png"}})
     (pixils/deffont test-font
@@ -716,7 +716,7 @@ TEST_F(TextInputTest, text_input_ctrl_shortcuts_select_copy_cut_and_paste)
   auto text_input_inner = find_first_mode(session.active_mode, "ui/text-input-inner");
   ASSERT_NE(text_input_inner, nullptr);
 
-  press_ctrl_shortcut(input(), [&]() { update_cycle(); }, SDLK_a);
+  press_ctrl_shortcut(input(), [&]() { update_cycle(); }, SDLK_A);
 
   auto cursor_index = get_keyword(text_input_inner->state, "cursor-index");
   auto selection_start = get_keyword(text_input_inner->state, "selection-start");
@@ -728,10 +728,10 @@ TEST_F(TextInputTest, text_input_ctrl_shortcuts_select_copy_cut_and_paste)
   EXPECT_EQ(selection_start->num().get_int(), 0);
   EXPECT_EQ(selection_end->num().get_int(), 4);
 
-  press_ctrl_shortcut(input(), [&]() { update_cycle(); }, SDLK_c);
+  press_ctrl_shortcut(input(), [&]() { update_cycle(); }, SDLK_C);
   EXPECT_EQ(runtime.eval("(pixils.clipboard/get-text)")->to_string(), "\"abcd\"");
 
-  press_ctrl_shortcut(input(), [&]() { update_cycle(); }, SDLK_x);
+  press_ctrl_shortcut(input(), [&]() { update_cycle(); }, SDLK_X);
 
   auto text = get_keyword(session.active_mode->state, "text");
   auto last_change = get_keyword(session.active_mode->state, "last-change");
@@ -745,7 +745,7 @@ TEST_F(TextInputTest, text_input_ctrl_shortcuts_select_copy_cut_and_paste)
   EXPECT_EQ(runtime.eval("(pixils.clipboard/get-text)")->to_string(), "\"abcd\"");
 
   runtime.eval("(pixils.clipboard/set-text! \"xy\")");
-  press_ctrl_shortcut(input(), [&]() { update_cycle(); }, SDLK_v);
+  press_ctrl_shortcut(input(), [&]() { update_cycle(); }, SDLK_V);
 
   text = get_keyword(session.active_mode->state, "text");
   last_change = get_keyword(session.active_mode->state, "last-change");
@@ -785,12 +785,12 @@ TEST_F(TextInputTest, read_only_text_input_shortcuts_copy_without_cutting_or_pas
   auto text_input_inner = find_first_mode(session.active_mode, "ui/text-input-inner");
   ASSERT_NE(text_input_inner, nullptr);
 
-  press_ctrl_shortcut(input(), [&]() { update_cycle(); }, SDLK_a);
-  press_ctrl_shortcut(input(), [&]() { update_cycle(); }, SDLK_c);
+  press_ctrl_shortcut(input(), [&]() { update_cycle(); }, SDLK_A);
+  press_ctrl_shortcut(input(), [&]() { update_cycle(); }, SDLK_C);
   EXPECT_EQ(runtime.eval("(pixils.clipboard/get-text)")->to_string(), "\"abcd\"");
 
   runtime.eval("(pixils.clipboard/set-text! \"sentinel\")");
-  press_ctrl_shortcut(input(), [&]() { update_cycle(); }, SDLK_x);
+  press_ctrl_shortcut(input(), [&]() { update_cycle(); }, SDLK_X);
 
   auto text = get_keyword(session.active_mode->state, "text");
   auto last_change = get_keyword(session.active_mode->state, "last-change");
@@ -810,7 +810,7 @@ TEST_F(TextInputTest, read_only_text_input_shortcuts_copy_without_cutting_or_pas
   EXPECT_EQ(runtime.eval("(pixils.clipboard/get-text)")->to_string(), "\"sentinel\"");
 
   runtime.eval("(pixils.clipboard/set-text! \"xy\")");
-  press_ctrl_shortcut(input(), [&]() { update_cycle(); }, SDLK_v);
+  press_ctrl_shortcut(input(), [&]() { update_cycle(); }, SDLK_V);
 
   text = get_keyword(session.active_mode->state, "text");
   last_change = get_keyword(session.active_mode->state, "last-change");
@@ -822,7 +822,7 @@ TEST_F(TextInputTest, read_only_text_input_shortcuts_copy_without_cutting_or_pas
 
 TEST_F(TextInputTest, text_input_mouse_down_focuses_and_places_caret)
 {
-  SDLMock::prepared_surfaces["./font.png"] = {16, 12};
+  SDL3Mock::prepared_surfaces["./font.png"] = {16, 12};
   runtime.eval(R"(
     (pixils/defbundle fonts {:images {:atlas "font.png"}})
     (pixils/deffont test-font
@@ -879,7 +879,7 @@ TEST_F(TextInputTest, text_input_mouse_down_focuses_and_places_caret)
 
 TEST_F(TextInputTest, text_input_shift_click_extends_selection)
 {
-  SDLMock::prepared_surfaces["./font.png"] = {16, 12};
+  SDL3Mock::prepared_surfaces["./font.png"] = {16, 12};
   runtime.eval(R"(
     (pixils/defbundle fonts {:images {:atlas "font.png"}})
     (pixils/deffont test-font
@@ -933,7 +933,7 @@ TEST_F(TextInputTest, text_input_shift_click_extends_selection)
 
 TEST_F(TextInputTest, text_input_mouse_drag_updates_selection_cursor)
 {
-  SDLMock::prepared_surfaces["./font.png"] = {16, 12};
+  SDL3Mock::prepared_surfaces["./font.png"] = {16, 12};
   runtime.eval(R"(
     (pixils/defbundle fonts {:images {:atlas "font.png"}})
     (pixils/deffont test-font

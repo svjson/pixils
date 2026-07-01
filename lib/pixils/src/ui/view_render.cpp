@@ -3,6 +3,7 @@
 #include <pixils/asset/registry.h>
 #include <pixils/benchmark/counters.h>
 #include <pixils/context.h>
+#include <pixils/sdl_render.h>
 #include <pixils/runtime/hook_invocation.h>
 #include <pixils/runtime/view.h>
 #include <pixils/ui/line.h>
@@ -205,15 +206,15 @@ namespace Pixils::UI
 
         PIXILS_BENCHMARK_COUNT(render_offscreen_passes);
         PIXILS_BENCHMARK_COUNT(render_temporary_texture_creations);
-        SDL_Texture* texture = SDL_CreateTexture(render_ctx.renderer,
-                                                 SDL_PIXELFORMAT_RGBA8888,
-                                                 SDL_TEXTUREACCESS_TARGET,
-                                                 bounds.w,
-                                                 bounds.h);
+        SDL_Texture* texture = create_texture_nearest(render_ctx.renderer,
+                                                      SDL_PIXELFORMAT_RGBA8888,
+                                                      SDL_TEXTUREACCESS_TARGET,
+                                                      bounds.w,
+                                                      bounds.h);
         SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_BLEND);
 
         render_ctx.set_render_target(texture);
-        SDL_RenderSetViewport(render_ctx.renderer, nullptr);
+        SDL_SetRenderViewport(render_ctx.renderer, nullptr);
         render_ctx.set_clip_rect(std::nullopt);
         SDL_SetRenderDrawColor(render_ctx.renderer, 0, 0, 0, 0);
         SDL_RenderClear(render_ctx.renderer);
@@ -228,14 +229,14 @@ namespace Pixils::UI
                          false);
 
         render_ctx.set_render_target(target_texture);
-        SDL_RenderSetViewport(render_ctx.renderer, nullptr);
+        SDL_SetRenderViewport(render_ctx.renderer, nullptr);
         set_clip(render_ctx, inherited_clip, origin);
 
         Rect external = scaled_external_bounds(bounds, style_res);
         SDL_Rect dest = target_rect(external, origin).to_SDL_rect();
         SDL_SetTextureAlphaMod(texture, opacity_to_alpha(opacity));
         PIXILS_BENCHMARK_COUNT(render_copy_calls);
-        SDL_RenderCopy(render_ctx.renderer, texture, nullptr, &dest);
+        render_texture(render_ctx.renderer, texture, nullptr, &dest);
 
         SDL_DestroyTexture(texture);
         render_ctx.set_clip_rect(std::nullopt);
@@ -257,7 +258,7 @@ namespace Pixils::UI
        * rect by the parent's origin. Children 1..N are fine because each child
        * resets to null at its end - child 0 never got that prior reset.
        */
-      SDL_RenderSetViewport(render_ctx.renderer, nullptr);
+      SDL_SetRenderViewport(render_ctx.renderer, nullptr);
       set_clip(render_ctx, inherited_clip, origin);
 
       /**
@@ -282,7 +283,7 @@ namespace Pixils::UI
             SDL_Rect bg_rect = target_rect(*bg_bounds, origin).to_SDL_rect();
             SDL_SetRenderDrawBlendMode(render_ctx.renderer, SDL_BLENDMODE_BLEND);
             PIXILS_BENCHMARK_COUNT(render_fill_rect_calls);
-            SDL_RenderFillRect(render_ctx.renderer, &bg_rect);
+            render_fill_rect(render_ctx.renderer, &bg_rect);
             SDL_SetRenderDrawBlendMode(render_ctx.renderer, SDL_BLENDMODE_NONE);
           }
         }
@@ -298,7 +299,7 @@ namespace Pixils::UI
         {
           SDL_Rect texture_dim = {0, 0, 0, 0};
           PIXILS_BENCHMARK_COUNT(render_texture_queries);
-          SDL_QueryTexture(texture, nullptr, nullptr, &texture_dim.w, &texture_dim.h);
+          get_texture_size(texture, &texture_dim.w, &texture_dim.h);
           SDL_Rect source = background.source ? background.source->to_SDL_rect()
                                               : SDL_Rect{0, 0, texture_dim.w, texture_dim.h};
           SDL_Rect dest =
@@ -317,7 +318,7 @@ namespace Pixils::UI
               const Uint8 alpha = opacity_to_alpha(background.opacity.value_or(1.0f));
               SDL_SetTextureAlphaMod(texture, alpha);
               PIXILS_BENCHMARK_COUNT(render_copy_calls);
-              SDL_RenderCopy(render_ctx.renderer, texture, &*clipped_source, &*clipped_dest);
+              render_texture(render_ctx.renderer, texture, &*clipped_source, &*clipped_dest);
               if (alpha != 255) SDL_SetTextureAlphaMod(texture, 255);
               set_clip(render_ctx, inherited_clip, origin);
             }
@@ -389,7 +390,7 @@ namespace Pixils::UI
       if (content_visible)
       {
         SDL_Rect viewport = target_rect(content, origin).to_SDL_rect();
-        SDL_RenderSetViewport(render_ctx.renderer, &viewport);
+        SDL_SetRenderViewport(render_ctx.renderer, &viewport);
         set_clip(render_ctx, content_clip, origin, content);
 
         PIXILS_BENCHMARK_COUNT(render_hook_calls);
@@ -429,7 +430,7 @@ namespace Pixils::UI
         }
       }
 
-      SDL_RenderSetViewport(render_ctx.renderer, nullptr);
+      SDL_SetRenderViewport(render_ctx.renderer, nullptr);
       render_ctx.set_clip_rect(std::nullopt);
     }
   } // namespace

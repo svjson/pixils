@@ -3,7 +3,7 @@
 #include <pixils/program.h>
 #include <pixils/ui/view_layout.h>
 
-#include <SDL2/SDL_keycode.h>
+#include <SDL3/SDL_keycode.h>
 #include <gtest/gtest.h>
 #include <roo/runtime/dict.h>
 #include <roo/runtime/value.h>
@@ -59,9 +59,9 @@ TEST_F(NumberInputTest, number_input_accepts_digits_and_rejects_other_text)
   update_cycle();
   input().key_up(SDLK_1);
   update_cycle();
-  input().key_down(SDLK_a);
+  input().key_down(SDLK_A);
   update_cycle();
-  input().key_up(SDLK_a);
+  input().key_up(SDLK_A);
   update_cycle();
   input().key_down(SDLK_2);
   update_cycle();

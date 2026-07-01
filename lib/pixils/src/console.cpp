@@ -3,12 +3,13 @@
 #include <pixils/geom.h>
 #include <pixils/keyboard.h>
 #include <pixils/pretty_printer.h>
+#include <pixils/sdl_render.h>
 #include <pixils/state/timer.h>
 #include <pixils/text.h>
 
-#include <SDL2/SDL_blendmode.h>
-#include <SDL2/SDL_keycode.h>
-#include <SDL2/SDL_render.h>
+#include <SDL3/SDL_blendmode.h>
+#include <SDL3/SDL_keycode.h>
+#include <SDL3/SDL_render.h>
 #include <algorithm>
 #include <fstream>
 #include <iterator>
@@ -52,7 +53,7 @@ namespace Pixils
 
   bool is_altgr_modifier(SDL_Keymod mod)
   {
-    return (mod & KMOD_RALT) || (mod & KMOD_MODE);
+    return (mod & SDL_KMOD_RALT) || (mod & SDL_KMOD_MODE);
   }
 
   ConsoleOverlay::ConsoleOverlay(RenderContext& rc,
@@ -102,7 +103,7 @@ namespace Pixils
 
   bool ConsoleOverlay::on_keydown(SDL_KeyboardEvent& event)
   {
-    if (event.keysym.sym == SDLK_BACKSPACE)
+    if (event.key == SDLK_BACKSPACE)
     {
       if (cursor_pos.x > 0)
       {
@@ -117,37 +118,37 @@ namespace Pixils
         cursor_pos.x--;
       }
     }
-    if (event.keysym.sym == SDLK_DELETE)
+    if (event.key == SDLK_DELETE)
     {
       if (input.size() && cursor_pos.x < static_cast<int>(input.size()))
       {
         input = input.substr(0, cursor_pos.x) + input.substr(cursor_pos.x + 1);
       }
     }
-    if (event.keysym.sym == SDLK_k && event.keysym.mod & KMOD_CTRL)
+    if (event.key == SDLK_K && event.mod & SDL_KMOD_CTRL)
     {
       if (input.size() && cursor_pos.x < static_cast<int>(input.size()))
       {
         input = input.substr(0, cursor_pos.x);
       }
     }
-    else if (event.keysym.sym == SDLK_LEFT)
+    else if (event.key == SDLK_LEFT)
     {
       if (cursor_pos.x > 0) cursor_pos.x--;
     }
-    else if (event.keysym.sym == SDLK_RIGHT)
+    else if (event.key == SDLK_RIGHT)
     {
       if (cursor_pos.x < static_cast<int>(input.size())) cursor_pos.x++;
     }
-    else if (event.keysym.sym == SDLK_PAGEUP && event.keysym.mod & KMOD_SHIFT)
+    else if (event.key == SDLK_PAGEUP && event.mod & SDL_KMOD_SHIFT)
     {
       scroll(-get_visible_lines() / 2);
     }
-    else if (event.keysym.sym == SDLK_PAGEDOWN && event.keysym.mod & KMOD_SHIFT)
+    else if (event.key == SDLK_PAGEDOWN && event.mod & SDL_KMOD_SHIFT)
     {
       scroll(get_visible_lines() / 2);
     }
-    else if (event.keysym.sym == SDLK_UP)
+    else if (event.key == SDLK_UP)
     {
       if (history_position == 0)
       {
@@ -180,7 +181,7 @@ namespace Pixils
       }
       cursor_pos.x = input.size();
     }
-    else if (event.keysym.sym == SDLK_DOWN)
+    else if (event.key == SDLK_DOWN)
     {
       if (history_position == -1)
       {
@@ -209,27 +210,27 @@ namespace Pixils
 
       cursor_pos.x = input.size();
     }
-    else if (event.keysym.sym == SDLK_PLUS && event.keysym.mod & KMOD_CTRL &&
-             !is_altgr_modifier(static_cast<SDL_Keymod>(event.keysym.mod)))
+    else if (event.key == SDLK_PLUS && event.mod & SDL_KMOD_CTRL &&
+             !is_altgr_modifier(static_cast<SDL_Keymod>(event.mod)))
     {
       this->rc.pixel_size = std::min(10, rc.pixel_size + 1);
       this->text_renderer.set_scale(this->rc.pixel_size);
     }
-    else if (event.keysym.sym == SDLK_MINUS && event.keysym.mod & KMOD_CTRL &&
-             !is_altgr_modifier(static_cast<SDL_Keymod>(event.keysym.mod)))
+    else if (event.key == SDLK_MINUS && event.mod & SDL_KMOD_CTRL &&
+             !is_altgr_modifier(static_cast<SDL_Keymod>(event.mod)))
     {
       this->rc.pixel_size = std::max(1, rc.pixel_size - 1);
       this->text_renderer.set_scale(this->rc.pixel_size);
     }
-    else if (event.keysym.sym == SDLK_HOME)
+    else if (event.key == SDLK_HOME)
     {
       cursor_pos.x = 0;
     }
-    else if (event.keysym.sym == SDLK_END)
+    else if (event.key == SDLK_END)
     {
       cursor_pos.x = input.size();
     }
-    else if (event.keysym.sym == SDLK_RETURN || event.keysym.sym == SDLK_KP_ENTER)
+    else if (event.key == SDLK_RETURN || event.key == SDLK_KP_ENTER)
     {
       if (input.empty()) return false;
       execute_command(input);
@@ -334,7 +335,7 @@ namespace Pixils
 
     SDL_SetRenderDrawBlendMode(rc.renderer, SDL_BLENDMODE_BLEND);
     SDL_SetRenderDrawColor(rc.renderer, 0x80, 0x80, 0x80, 0x90);
-    SDL_RenderFillRect(rc.renderer, &bounds);
+    render_fill_rect(rc.renderer, &bounds);
 
     int margin_left = 5 * rc.pixel_size;
     // Prompt contains color code control chars, so need to subtract 2 when checking for
@@ -381,7 +382,7 @@ namespace Pixils
       9 * rc.pixel_size};
     SDL_SetRenderDrawBlendMode(rc.renderer, SDL_BLENDMODE_BLEND);
     SDL_SetRenderDrawColor(rc.renderer, 0x60, 0x78, 0xc4, 0x80);
-    SDL_RenderFillRect(rc.renderer, &cursor_rect);
+    render_fill_rect(rc.renderer, &cursor_rect);
   }
 
   void ConsoleOverlay::scroll(int amount)

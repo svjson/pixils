@@ -2,8 +2,8 @@
 #include "render_fixture.h"
 #include <pixils/runtime/view.h>
 
-#include <SDL2/SDL_keycode.h>
-#include <SDL2/SDL_mouse.h>
+#include <SDL3/SDL_keycode.h>
+#include <SDL3/SDL_mouse.h>
 #include <cstdint>
 #include <filesystem>
 #include <fstream>
@@ -12,7 +12,7 @@
 #include <roo/runtime/dict.h>
 #include <roo/runtime/value.h>
 #include <memory>
-#include <sdl2_mock/mock_resources.h>
+#include <sdl3_mock/mock_resources.h>
 #include <string>
 #include <system_error>
 #include <vector>

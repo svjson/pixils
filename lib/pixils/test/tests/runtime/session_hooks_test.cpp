@@ -1,7 +1,7 @@
 
 #include "session_fixture.h"
 
-#include <SDL2/SDL_keycode.h>
+#include <SDL3/SDL_keycode.h>
 #include <gtest/gtest.h>
 #include <roo/runtime/value.h>
 
@@ -156,17 +156,17 @@ TEST_F(SessionHooksTest, key_down_push_pop_does_not_replay_into_new_active_mode)
 
   session.push_mode("root-mode", Roo::Constant::NIL);
 
-  input().key_down(SDLK_i);
+  input().key_down(SDLK_I);
   update_cycle();
   ASSERT_EQ(session.active_mode->mode->name, "inventory-mode");
 
   update_cycle();
   EXPECT_EQ(session.active_mode->mode->name, "inventory-mode");
 
-  input().key_up(SDLK_i);
+  input().key_up(SDLK_I);
   update_cycle();
 
-  input().key_down(SDLK_i);
+  input().key_down(SDLK_I);
   update_cycle();
   ASSERT_EQ(session.active_mode->mode->name, "root-mode");
 
@@ -351,7 +351,7 @@ TEST_F(SessionHooksTest, keyboard_event_to_text_appends_printable_text_in_key_do
   )");
   session.push_mode("key-mode", Roo::Constant::NIL);
 
-  input().key_down(SDLK_a);
+  input().key_down(SDLK_A);
   session.update_mode();
 
   EXPECT_EQ(session.active_mode->state->to_string(), "{:value \"a\"}");

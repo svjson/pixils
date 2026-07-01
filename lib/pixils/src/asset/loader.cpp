@@ -2,13 +2,14 @@
 #include "pixils/asset/loader.h"
 
 #include <pixils/runtime/mode.h>
+#include <pixils/sdl_render.h>
 
-#include <SDL2/SDL_image.h>
-#include <SDL2/SDL_mixer.h>
-#include <SDL2/SDL_pixels.h>
-#include <SDL2/SDL_render.h>
-#include <SDL2/SDL_rwops.h>
-#include <SDL2/SDL_surface.h>
+#include <SDL3_image/SDL_image.h>
+#include <SDL3_mixer/SDL_mixer.h>
+#include <SDL3/SDL_iostream.h>
+#include <SDL3/SDL_pixels.h>
+#include <SDL3/SDL_render.h>
+#include <SDL3/SDL_surface.h>
 #include <filesystem>
 #include <optional>
 
@@ -31,11 +32,13 @@ namespace Pixils::Asset
                                   const std::optional<Color>& transparency_color)
     {
       if (!surface || !transparency_color) return;
-      if (!surface->format) return;
 
       const Color& color = *transparency_color;
-      Uint32 color_key = SDL_MapRGB(surface->format, color.r, color.g, color.b);
-      SDL_SetColorKey(surface, SDL_TRUE, color_key);
+      const SDL_PixelFormatDetails* format = SDL_GetPixelFormatDetails(surface->format);
+      if (!format) return;
+
+      Uint32 color_key = SDL_MapRGB(format, nullptr, color.r, color.g, color.b);
+      SDL_SetSurfaceColorKey(surface, true, color_key);
     }
   } // namespace
 
@@ -59,11 +62,11 @@ namespace Pixils::Asset
     }
     else
     {
-      texture = SDL_CreateTexture(ctx.renderer,
-                                  SDL_PIXELFORMAT_RGBA8888,
-                                  SDL_TEXTUREACCESS_STATIC,
-                                  16,
-                                  16);
+      texture = create_texture_nearest(ctx.renderer,
+                                       SDL_PIXELFORMAT_RGBA8888,
+                                       SDL_TEXTUREACCESS_STATIC,
+                                       16,
+                                       16);
     }
 
     bundle.images.emplace(dependency.resource_id, texture);
@@ -97,17 +100,17 @@ namespace Pixils::Asset
   {
     if (!surface) return nullptr;
 
-    SDL_Texture* texture = SDL_CreateTextureFromSurface(ctx.renderer, surface);
+    SDL_Texture* texture = create_texture_from_surface_nearest(ctx.renderer, surface);
     if (texture) SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_BLEND);
     return texture;
   }
 
   SDL_Surface* Loader::load_surface_from_memory(const unsigned char* data, std::size_t size)
   {
-    SDL_RWops* rw = SDL_RWFromConstMem(data, static_cast<int>(size));
+    SDL_IOStream* rw = SDL_IOFromConstMem(data, size);
     if (!rw) return nullptr;
 
-    return IMG_Load_RW(rw, 1);
+    return IMG_Load_IO(rw, true);
   }
 
   SDL_Texture* Loader::load_texture_from_memory(const unsigned char* data, std::size_t size)
@@ -116,13 +119,14 @@ namespace Pixils::Asset
     if (!surface) return nullptr;
 
     SDL_Texture* texture = create_texture(surface);
-    SDL_FreeSurface(surface);
+    SDL_DestroySurface(surface);
     return texture;
   }
 
-  Mix_Chunk* Loader::load_sound_from_file(const std::string& file_name)
+  MIX_Audio* Loader::load_sound_from_file(const std::string& file_name)
   {
+    if (!ctx.audio_mixer) return nullptr;
     std::string resolved = resolve_asset_path(base_path, file_name);
-    return Mix_LoadWAV(resolved.c_str());
+    return MIX_LoadAudio(ctx.audio_mixer, resolved.c_str(), true);
   }
 } // namespace Pixils::Asset

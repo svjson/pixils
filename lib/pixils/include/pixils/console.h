@@ -8,7 +8,7 @@
 #include <pixils/state/timer.h>
 #include <pixils/text.h>
 
-#include <SDL2/SDL_rect.h>
+#include <SDL3/SDL_rect.h>
 #include <list>
 #include <map>
 #include <string>

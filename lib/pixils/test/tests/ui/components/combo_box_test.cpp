@@ -3,7 +3,7 @@
 #include <pixils/program.h>
 
 #include <gtest/gtest.h>
-#include <SDL2/SDL_keycode.h>
+#include <SDL3/SDL_keycode.h>
 #include <roo/runtime/dict.h>
 #include <roo/runtime/value.h>
 #include <string>
@@ -710,7 +710,7 @@ TEST_F(ComboBoxTest, combo_box_popup_panel_theme_max_height_caps_scroll_viewport
 
 TEST_F(ComboBoxTest, combo_box_popup_expands_to_wide_option_label)
 {
-  SDLMock::prepared_surfaces["./font.png"] = {16, 12};
+  SDL3Mock::prepared_surfaces["./font.png"] = {16, 12};
   runtime.eval(R"(
     (pixils/defbundle fonts {:images {:atlas "font.png"}})
     (pixils/deffont wide-test-font
@@ -762,7 +762,7 @@ TEST_F(ComboBoxTest, combo_box_popup_expands_to_wide_option_label)
 
 TEST_F(ComboBoxTest, combo_box_natural_width_uses_widest_option_label)
 {
-  SDLMock::prepared_surfaces["./font.png"] = {16, 12};
+  SDL3Mock::prepared_surfaces["./font.png"] = {16, 12};
   runtime.eval(R"(
     (pixils/defbundle fonts {:images {:atlas "font.png"}})
     (pixils/deffont width-test-font

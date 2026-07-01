@@ -2,7 +2,9 @@
 #include <pixils/display.h>
 #include <pixils/script.h>
 
+#include <SDL3/SDL_render.h>
 #include <gtest/gtest.h>
+#include <sdl3_mock/mock_resources.h>
 
 namespace
 {
@@ -57,6 +59,19 @@ TEST(RenderContextCoordinateMappingTest, stretch_maps_proportionally)
   ctx.application_rect = ctx.application_target_rect(display);
   EXPECT_EQ(ctx.window_to_buffer_point(display, 400, 300), (Pixils::Point{320, 180}));
   EXPECT_EQ(ctx.buffer_to_window_point({320, 180}), (Pixils::Point{400, 300}));
+}
+
+TEST(RenderContextTextureTest, application_buffer_uses_nearest_scale_mode)
+{
+  Pixils::RenderContext ctx;
+  ctx.renderer = SDL_CreateRenderer(nullptr, nullptr);
+  auto display = fixed_display(Pixils::Display::Scaling::FIT);
+
+  ctx.prepare_application_frame(display);
+
+  ASSERT_NE(ctx.buffer_texture, nullptr);
+  EXPECT_EQ(ctx.buffer_texture->scale_mode, SDL_SCALEMODE_NEAREST);
+  SDL3Mock::reset_mocks();
 }
 
 TEST(RenderContextMouseWarpTest, global_warp_mouse_function_returns_requested_point)

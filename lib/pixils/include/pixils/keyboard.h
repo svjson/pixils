@@ -2,7 +2,7 @@
 #ifndef __KEYBOARD_H_
 #define __KEYBOARD_H_
 
-#include <SDL2/SDL_events.h>
+#include <SDL3/SDL_events.h>
 #include <cstdint>
 #include <roo/type.h>
 #include <map>
@@ -10,14 +10,13 @@
 #include <optional>
 #include <string>
 
-typedef int32_t SDL_Keycode;
 typedef union SDL_Event SDL_Event;
 
 namespace Pixils
 {
   /*!
    * @brief Namespace for general keyboard-related functionality, chiefly
-   * translating SDL2 keyboard events to char/string and an object
+   * translating SDL3 keyboard events to char/string and an object
    * model for keyboard shortcuts
    */
   namespace Keyboard

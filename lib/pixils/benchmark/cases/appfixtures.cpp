@@ -9,7 +9,7 @@
 #include <functional>
 #include <gtest/gtest.h>
 #include <memory>
-#include <sdl2_mock/mock_resources.h>
+#include <sdl3_mock/mock_resources.h>
 #include <string>
 #include <vector>
 

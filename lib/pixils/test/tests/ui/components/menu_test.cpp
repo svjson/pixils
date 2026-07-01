@@ -5,7 +5,7 @@
 #include <gtest/gtest.h>
 #include <roo/runtime/dict.h>
 #include <roo/runtime/value.h>
-#include <SDL2/SDL_mouse.h>
+#include <SDL3/SDL_mouse.h>
 
 using MenuTest = RenderFixture;
 

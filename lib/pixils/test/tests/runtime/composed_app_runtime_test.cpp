@@ -3,8 +3,8 @@
 #include "../appfixture/minesweeper_app_manifest.h"
 #include <pixils/runtime/view.h>
 
-#include <SDL2/SDL_keycode.h>
-#include <SDL2/SDL_mouse.h>
+#include <SDL3/SDL_keycode.h>
+#include <SDL3/SDL_mouse.h>
 #include <filesystem>
 #include <gtest/gtest.h>
 #include <roo/runtime/dict.h>
@@ -1536,9 +1536,9 @@ TEST_F(ComposedAppRuntimeTest,
   ASSERT_NE(session().active_mode, nullptr);
   EXPECT_EQ(session().active_mode->mode->name, "popup-menu");
 
-  input().key_down(SDLK_t);
+  input().key_down(SDLK_T);
   update_cycle();
-  input().key_up(SDLK_t);
+  input().key_up(SDLK_T);
   update_cycle();
 
   ASSERT_NE(session().active_mode, nullptr);

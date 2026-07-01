@@ -2,7 +2,7 @@
 
 #include <gtest/gtest.h>
 #include <roo/runtime/dict.h>
-#include <sdl2_mock/mock_resources.h>
+#include <sdl3_mock/mock_resources.h>
 
 #include <algorithm>
 
@@ -18,7 +18,7 @@ namespace
 
 TEST_F(ToggleButtonTest, pressed_button_state_image_stays_centered)
 {
-  SDLMock::prepared_surfaces["./brush.png"] = {10, 8};
+  SDL3Mock::prepared_surfaces["./brush.png"] = {10, 8};
   runtime.eval(R"(
     (pixils/defbundle icons {:images {:brush "brush.png"}})
     (pixils/defmode root-mode

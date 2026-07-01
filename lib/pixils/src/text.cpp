@@ -4,9 +4,10 @@
 #include <pixils/font_registry.h>
 #include <pixils/geom.h>
 #include <pixils/text.h>
+#include <pixils/sdl_render.h>
 
-#include <SDL2/SDL_rect.h>
-#include <SDL2/SDL_render.h>
+#include <SDL3/SDL_rect.h>
+#include <SDL3/SDL_render.h>
 #include <cmath>
 #include <stddef.h>
 
@@ -328,7 +329,7 @@ namespace Pixils
                       width,
                       thickness};
         SDL_SetRenderDrawColor(rc.renderer, color.r, color.g, color.b, color.a);
-        SDL_RenderFillRect(rc.renderer, &rect);
+        render_fill_rect(rc.renderer, &rect);
       }
 
       int rendered_width_for_segment(RenderContext& rc,
@@ -483,7 +484,7 @@ namespace Pixils
 
         PIXILS_BENCHMARK_COUNT(text_renderer_glyphs_rendered);
         PIXILS_BENCHMARK_COUNT(render_copy_calls);
-        SDL_RenderCopy(rc.renderer, font, &char_rect, &cursor);
+        render_texture(rc.renderer, font, &char_rect, &cursor);
         cursor_x += static_cast<float>(char_rect.w + spacing) * scale.x;
       }
     }
@@ -1029,7 +1030,7 @@ namespace Pixils
                              background_color.b,
                              background_color.a);
       PIXILS_BENCHMARK_COUNT(render_fill_rect_calls);
-      SDL_RenderFillRect(rc.renderer, &bg_rect);
+      render_fill_rect(rc.renderer, &bg_rect);
 
       print(rc, text, color);
     }

@@ -2,9 +2,9 @@
 
 #include <pixils/clipboard.h>
 
-#include <SDL2/SDL_clipboard.h>
-#include <SDL2/SDL_error.h>
-#include <SDL2/SDL_stdinc.h>
+#include <SDL3/SDL_clipboard.h>
+#include <SDL3/SDL_error.h>
+#include <SDL3/SDL_stdinc.h>
 #include <roo/runtime/value.h>
 
 #include <memory>
@@ -29,7 +29,7 @@ namespace Pixils::Clipboard
         return std::string(text.get());
       }
 
-      bool has_text() override { return SDL_HasClipboardText() == SDL_TRUE; }
+      bool has_text() override { return SDL_HasClipboardText() == true; }
 
       bool set_text(const std::string& text, std::string* error) override
       {

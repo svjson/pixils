@@ -3,7 +3,7 @@
 #include <pixils/init_sdl.h>
 #include <pixils/script.h>
 
-#include <SDL2/SDL.h>
+#include <SDL3/SDL.h>
 #include <filesystem>
 #include <roo-package/manifest.h>
 #include <roo-package/native_abi.h>

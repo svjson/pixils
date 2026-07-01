@@ -16,7 +16,7 @@
 #include <roo/runtime.h>
 #include <roo/runtime/dict.h>
 #include <roo/runtime/value.h>
-#include <sdl2_mock/mock_resources.h>
+#include <sdl3_mock/mock_resources.h>
 
 namespace AppFixture = Pixils::Test::AppFixture;
 
@@ -373,7 +373,7 @@ TEST(RuntimeMoveCharacterizationTest,
   materialize_manifest(file_defined_mode_manifest(), app_root);
 
   Pixils::RenderContext render_ctx{};
-  render_ctx.renderer = SDL_CreateRenderer(nullptr, 0, 0);
+  render_ctx.renderer = SDL_CreateRenderer(nullptr, nullptr);
   render_ctx.buffer_texture = render_ctx.renderer->default_render_target;
   render_ctx.buffer_dim.w = 320;
   render_ctx.buffer_dim.h = 200;
@@ -427,7 +427,7 @@ TEST(RuntimeMoveCharacterizationTest,
   materialize_manifest(file_defined_mode_manifest(), app_root);
 
   Pixils::RenderContext render_ctx{};
-  render_ctx.renderer = SDL_CreateRenderer(nullptr, 0, 0);
+  render_ctx.renderer = SDL_CreateRenderer(nullptr, nullptr);
   render_ctx.buffer_texture = render_ctx.renderer->default_render_target;
   render_ctx.buffer_dim.w = 320;
   render_ctx.buffer_dim.h = 200;

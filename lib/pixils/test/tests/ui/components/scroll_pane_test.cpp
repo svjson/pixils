@@ -3,7 +3,7 @@
 #include <gtest/gtest.h>
 #include <roo/runtime/dict.h>
 #include <roo/runtime/value.h>
-#include <sdl2_mock/mock_resources.h>
+#include <sdl3_mock/mock_resources.h>
 
 using ScrollPaneTest = RenderFixture;
 
@@ -176,7 +176,7 @@ TEST_F(ScrollPaneTest, scroll_pane_clips_translucent_absolute_child_to_viewport)
 
 TEST_F(ScrollPaneTest, scroll_pane_clips_absolute_child_background_image_to_viewport)
 {
-  SDLMock::prepared_surfaces["./icon.png"] = {20, 30};
+  SDL3Mock::prepared_surfaces["./icon.png"] = {20, 30};
   runtime.eval(R"(
     (pixils/defbundle sprites {:images {:icon "icon.png"}})
     (pixils/defmode image-panel
@@ -209,7 +209,7 @@ TEST_F(ScrollPaneTest, scroll_pane_clips_absolute_child_background_image_to_view
 
 TEST_F(ScrollPaneTest, scroll_pane_skips_fully_scrolled_out_background_image)
 {
-  SDLMock::prepared_surfaces["./icon.png"] = {20, 30};
+  SDL3Mock::prepared_surfaces["./icon.png"] = {20, 30};
   runtime.eval(R"(
     (pixils/defbundle sprites {:images {:icon "icon.png"}})
     (pixils/defmode image-panel
@@ -599,7 +599,7 @@ TEST_F(ScrollPaneTest, scroll_pane_auto_scrolls_to_bottom_when_content_height_gr
 
 TEST_F(ScrollPaneTest, scroll_pane_auto_measures_padded_wrapping_content_height)
 {
-  SDLMock::prepared_surfaces["./font.png"] = {16, 12};
+  SDL3Mock::prepared_surfaces["./font.png"] = {16, 12};
   runtime.eval(R"(
     (pixils/defbundle fonts {:images {:atlas "font.png"}})
     (pixils/deffont test-font

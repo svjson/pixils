@@ -9,7 +9,7 @@
 #include <pixils/runtime/session.h>
 #include <pixils/script.h>
 
-#include <SDL2/SDL_render.h>
+#include <SDL3/SDL_render.h>
 #include <filesystem>
 #include <gtest/gtest.h>
 #include <roo/runtime.h>

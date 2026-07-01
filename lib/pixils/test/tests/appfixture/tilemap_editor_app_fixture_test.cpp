@@ -7,7 +7,7 @@
 #include <algorithm>
 #include <gtest/gtest.h>
 #include <roo/runtime/dict.h>
-#include <sdl2_mock/mock_resources.h>
+#include <sdl3_mock/mock_resources.h>
 #include <vector>
 
 namespace TilemapEditor = Pixils::Test::AppFixture::TilemapEditor;

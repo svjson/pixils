@@ -8,7 +8,7 @@
 #include <chrono>
 #include <cstdlib>
 #include <iostream>
-#include <sdl2_mock/mock_resources.h>
+#include <sdl3_mock/mock_resources.h>
 #include <stdexcept>
 
 namespace
@@ -60,7 +60,7 @@ namespace
 ComposableAppSessionFixture::ComposableAppSessionFixture()
   : input_simulator(events)
 {
-  render_ctx.renderer = SDL_CreateRenderer(nullptr, 0, 0);
+  render_ctx.renderer = SDL_CreateRenderer(nullptr, nullptr);
   render_ctx.buffer_texture = render_ctx.renderer->default_render_target;
   render_ctx.buffer_dim = {320, 200};
   hook_ctx = std::make_unique<Pixils::HookContext>(
@@ -80,7 +80,7 @@ void ComposableAppSessionFixture::TearDown()
     std::filesystem::remove_all(app_root);
   }
 
-  SDLMock::reset_mocks();
+  SDL3Mock::reset_mocks();
 }
 
 void ComposableAppSessionFixture::load_app(

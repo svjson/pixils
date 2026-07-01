@@ -1,6 +1,8 @@
 #include "pixils/ui/line.h"
 
-#include <SDL2/SDL_render.h>
+#include <pixils/sdl_render.h>
+
+#include <SDL3/SDL_render.h>
 #include <algorithm>
 #include <cmath>
 #include <optional>
@@ -87,7 +89,7 @@ namespace Pixils::UI
     {
       if (x2 <= x1) return;
       SDL_Rect rect = {x1, y, x2 - x1, 1};
-      SDL_RenderFillRect(renderer, &rect);
+      render_fill_rect(renderer, &rect);
     }
 
     void fill_span(SDL_Renderer* renderer,
@@ -151,7 +153,7 @@ namespace Pixils::UI
       }
 
       if (rect.w <= 0 || rect.h <= 0) return;
-      SDL_RenderFillRect(renderer, &rect);
+      render_fill_rect(renderer, &rect);
     }
 
     void render_bevel_edge(SDL_Renderer* renderer,
@@ -163,7 +165,7 @@ namespace Pixils::UI
       auto draw_line = [&](int x1, int y1, int x2, int y2)
       {
         if (x2 < x1 || y2 < y1) return;
-        SDL_RenderDrawLine(renderer, x1, y1, x2, y2);
+        SDL_RenderLine(renderer, x1, y1, x2, y2);
       };
 
       for (int n = 0; n < thickness; n++)
@@ -216,12 +218,12 @@ namespace Pixils::UI
       for (int n = 0; n < join; n++)
       {
         with_line_color(renderer, *left.color);
-        SDL_RenderDrawLine(renderer, bounds.x, bounds.y + n, bounds.x + n, bounds.y + n);
+        SDL_RenderLine(renderer, bounds.x, bounds.y + n, bounds.x + n, bounds.y + n);
 
         if (n < join - 1)
         {
           with_line_color(renderer, *top.color);
-          SDL_RenderDrawLine(renderer,
+          SDL_RenderLine(renderer,
                              bounds.x + n + 1,
                              bounds.y + n,
                              bounds.x + join - 1,
@@ -252,7 +254,7 @@ namespace Pixils::UI
         if (n > 0)
         {
           with_line_color(renderer, *bottom.color);
-          SDL_RenderDrawLine(renderer,
+          SDL_RenderLine(renderer,
                              bounds.x + bounds.w - join,
                              bounds.y + bounds.h - join + n,
                              bounds.x + bounds.w - join + n - 1,
@@ -260,7 +262,7 @@ namespace Pixils::UI
         }
 
         with_line_color(renderer, *right.color);
-        SDL_RenderDrawLine(renderer,
+        SDL_RenderLine(renderer,
                            bounds.x + bounds.w - join + n,
                            bounds.y + bounds.h - join + n,
                            bounds.x + bounds.w - 1,

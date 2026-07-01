@@ -2,12 +2,12 @@
 #include "../render_fixture.h"
 
 #include <gtest/gtest.h>
-#include <sdl2_mock/mock_resources.h>
+#include <sdl3_mock/mock_resources.h>
 
 class ImageTest : public BaseFixture
 {
  protected:
-  void TearDown() override { SDLMock::reset_mocks(); }
+  void TearDown() override { SDL3Mock::reset_mocks(); }
 };
 
 class GeneratedImageTest : public RenderFixture
@@ -17,7 +17,7 @@ class GeneratedImageTest : public RenderFixture
 TEST_F(ImageTest, image_metadata_functions_load_declared_images_on_demand)
 {
   // Given
-  SDLMock::prepared_surfaces["./ship.png"] = {16, 8};
+  SDL3Mock::prepared_surfaces["./ship.png"] = {16, 8};
   runtime.eval("(pixils/defbundle sprites {:images {:ship \"ship.png\"}})");
 
   // When
@@ -37,10 +37,24 @@ TEST_F(ImageTest, image_metadata_functions_load_declared_images_on_demand)
   EXPECT_EQ(size_h->num().get_int(), 8);
 }
 
+TEST_F(ImageTest, loaded_images_use_nearest_scale_mode)
+{
+  // Given
+  SDL3Mock::prepared_surfaces["./ship.png"] = {16, 8};
+  runtime.eval("(pixils/defbundle sprites {:images {:ship \"ship.png\"}})");
+
+  // When
+  SDL_Texture* texture = render_ctx.asset_registry->get_image("sprites", "ship");
+
+  // Then
+  ASSERT_NE(texture, nullptr);
+  EXPECT_EQ(texture->scale_mode, SDL_SCALEMODE_NEAREST);
+}
+
 TEST_F(ImageTest, image_dependencies_accept_map_with_transparency_color)
 {
   // Given
-  SDLMock::prepared_surfaces["./ship.png"] = {16, 8};
+  SDL3Mock::prepared_surfaces["./ship.png"] = {16, 8};
   runtime.eval(R"(
     (pixils/defbundle sprites
       {:images {:ship {:file-name "ship.png"
@@ -89,7 +103,7 @@ TEST_F(ImageTest, resource_dependency_adapter_exposes_images_as_a_map)
 TEST_F(ImageTest, image_rect_uses_optional_point_offset_for_position)
 {
   // Given
-  SDLMock::prepared_surfaces["./ship.png"] = {16, 8};
+  SDL3Mock::prepared_surfaces["./ship.png"] = {16, 8};
   runtime.eval("(pixils/defbundle sprites {:images {:ship \"ship.png\"}})");
 
   // When
@@ -112,7 +126,7 @@ TEST_F(ImageTest, image_rect_uses_optional_point_offset_for_position)
 TEST_F(ImageTest, trace_polygons_is_exposed_in_image_namespace)
 {
   // Given
-  SDLMock::prepared_surfaces["./ship.png"] = {16, 8};
+  SDL3Mock::prepared_surfaces["./ship.png"] = {16, 8};
   runtime.eval("(pixils/defbundle sprites {:images {:ship \"ship.png\"}})");
 
   // When
@@ -125,7 +139,7 @@ TEST_F(ImageTest, trace_polygons_is_exposed_in_image_namespace)
 
 TEST_F(ImageTest, trace_polygons_accepts_omit_straight_edges_option)
 {
-  SDLMock::prepared_surfaces["./ship.png"] = {16, 8};
+  SDL3Mock::prepared_surfaces["./ship.png"] = {16, 8};
   runtime.eval("(pixils/defbundle sprites {:images {:ship \"ship.png\"}})");
 
   auto count = runtime.eval("(count (pixils.image/trace-polygons :sprites/ship "
@@ -138,7 +152,7 @@ TEST_F(ImageTest, trace_polygons_accepts_omit_straight_edges_option)
 TEST_F(ImageTest, dynamic_bundle_images_can_be_added_before_first_lookup)
 {
   // Given
-  SDLMock::prepared_surfaces["./ship.png"] = {32, 12};
+  SDL3Mock::prepared_surfaces["./ship.png"] = {32, 12};
   runtime.eval("(pixils/defbundle-dynamic project-assets)");
 
   // When
@@ -159,7 +173,7 @@ TEST_F(ImageTest, dynamic_bundle_images_can_be_added_before_first_lookup)
 TEST_F(ImageTest, dynamic_bundle_images_can_be_added_after_bundle_is_loaded)
 {
   // Given
-  SDLMock::prepared_surfaces["./ship.png"] = {24, 10};
+  SDL3Mock::prepared_surfaces["./ship.png"] = {24, 10};
   runtime.eval("(pixils/defbundle-dynamic project-assets)");
   auto missing = runtime.eval("(pixils.image/width :project-assets/ship)");
   EXPECT_EQ(missing->type, Roo::Value::Type::NIL);
@@ -197,7 +211,7 @@ TEST_F(ImageTest, dynamic_bundle_images_can_be_listed)
 TEST_F(ImageTest, dynamic_bundle_can_be_created_at_runtime)
 {
   // Given
-  SDLMock::prepared_surfaces["./ship.png"] = {20, 14};
+  SDL3Mock::prepared_surfaces["./ship.png"] = {20, 14};
 
   // When
   auto bundle = runtime.eval("(pixils.resource/create-bundle! :project-assets)");
@@ -214,7 +228,7 @@ TEST_F(ImageTest, dynamic_bundle_can_be_created_at_runtime)
 TEST_F(ImageTest, dynamic_bundle_can_be_created_with_images)
 {
   // Given
-  SDLMock::prepared_surfaces["./ship.png"] = {18, 9};
+  SDL3Mock::prepared_surfaces["./ship.png"] = {18, 9};
 
   // When
   runtime.eval(
@@ -232,7 +246,7 @@ TEST_F(ImageTest, dynamic_bundle_can_be_created_with_images)
 TEST_F(ImageTest, dynamic_bundle_images_can_be_removed)
 {
   // Given
-  SDLMock::prepared_surfaces["./ship.png"] = {24, 10};
+  SDL3Mock::prepared_surfaces["./ship.png"] = {24, 10};
   runtime.eval("(pixils/defbundle-dynamic project-assets)");
   runtime.eval("(pixils.resource/add-image! :project-assets/ship \"ship.png\")");
   auto width = runtime.eval("(pixils.image/width :project-assets/ship)");
@@ -301,6 +315,25 @@ TEST_F(GeneratedImageTest, dynamic_bundle_images_can_be_created_from_lisp_drawin
   EXPECT_EQ(ops[0].sub_ops[0].rendered_rect.y, 2);
   EXPECT_EQ(ops[0].sub_ops[0].rendered_rect.w, 3);
   EXPECT_EQ(ops[0].sub_ops[0].rendered_rect.h, 4);
+}
+
+TEST_F(GeneratedImageTest, generated_images_use_nearest_scale_mode)
+{
+  // Given
+  runtime.eval("(pixils/defbundle-dynamic project-assets)");
+
+  // When
+  runtime.eval(R"(
+    (pixils.resource/create-image!
+      :project-assets/brush
+      {:size {:w 8 :h 8}}
+      (fn [] nil))
+  )");
+
+  // Then
+  SDL_Texture* texture = render_ctx.asset_registry->get_image("project-assets", "brush");
+  ASSERT_NE(texture, nullptr);
+  EXPECT_EQ(texture->scale_mode, SDL_SCALEMODE_NEAREST);
 }
 
 TEST_F(GeneratedImageTest, generated_dynamic_bundle_images_can_be_listed)

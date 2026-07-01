@@ -9,10 +9,14 @@
 #include <optional>
 #include <string>
 #include <unordered_map>
+#include <vector>
 
 typedef struct SDL_Window SDL_Window;
 typedef struct SDL_Renderer SDL_Renderer;
 typedef struct SDL_Texture SDL_Texture;
+typedef struct MIX_Mixer MIX_Mixer;
+typedef struct MIX_Track MIX_Track;
+typedef struct MIX_Audio MIX_Audio;
 
 namespace Pixils
 {
@@ -37,6 +41,8 @@ namespace Pixils
      * @brief Pointer to the SDL renderer that does all rendering
      */
     SDL_Renderer* renderer = nullptr;
+    MIX_Mixer* audio_mixer = nullptr;
+    std::vector<MIX_Track*> audio_tracks;
 
     /*!
      * @brief The buffer texture that all in-game drawing happens against
@@ -86,7 +92,7 @@ namespace Pixils
     bool enable_render_geometry = true;
 
     RenderContext();
-    RenderContext(SDL_Window* window, SDL_Renderer* renderer);
+    RenderContext(SDL_Window* window, SDL_Renderer* renderer, MIX_Mixer* audio_mixer = nullptr);
     ~RenderContext();
     RenderContext(RenderContext&&) noexcept;
     RenderContext& operator=(RenderContext&&) noexcept;
@@ -136,6 +142,7 @@ namespace Pixils
 
     void set_render_target(SDL_Texture* target);
     void set_clip_rect(std::optional<Rect> rect);
+    int play_audio(MIX_Audio* audio, int channel, int loops, float volume);
 
    private:
     /*!

@@ -4,8 +4,8 @@
 
 #include <pixils/geom.h>
 
-#include <SDL2/SDL_pixels.h>
-#include <SDL2/SDL_rect.h>
+#include <SDL3/SDL_pixels.h>
+#include <SDL3/SDL_rect.h>
 #include <cstdint>
 #include <map>
 #include <optional>

@@ -4,8 +4,8 @@
 
 #include <pixils/color.h>
 
-#include <SDL2/SDL_pixels.h>
-#include <SDL2/SDL_rect.h>
+#include <SDL3/SDL_pixels.h>
+#include <SDL3/SDL_rect.h>
 #include <ostream>
 
 namespace Pixils

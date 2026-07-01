@@ -12,7 +12,7 @@
 #include <unordered_map>
 #include <vector>
 
-struct Mix_Chunk;
+struct MIX_Audio;
 struct SDL_Texture;
 struct SDL_Surface;
 
@@ -69,7 +69,7 @@ namespace Pixils::Asset
     SDL_Texture* get_image(const std::string& bundle, const std::string& asset_id);
     SDL_Surface* get_image_surface(const std::string& bundle, const std::string& asset_id);
     SDL_Texture* get_tint_mask(const std::string& bundle, const std::string& asset_id);
-    Mix_Chunk* get_sound(const std::string& bundle, const std::string& asset_id);
+    MIX_Audio* get_sound(const std::string& bundle, const std::string& asset_id);
     std::optional<std::string> get_font_path(const std::string& bundle,
                                              const std::string& asset_id);
     const Assets::EmbeddedAsset* get_embedded_font(const std::string& bundle,

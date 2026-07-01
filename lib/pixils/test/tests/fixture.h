@@ -5,6 +5,8 @@
 #include <pixils/context.h>
 #include <pixils/script.h>
 
+#include <SDL3/SDL_audio.h>
+#include <SDL3_mixer/SDL_mixer.h>
 #include <gtest/gtest.h>
 #include <roo/runtime.h>
 #include <roo/runtime/value.h>
@@ -17,7 +19,10 @@ class BaseFixture : public ::testing::Test
   Roo::Runtime runtime;
 
   BaseFixture()
-    : BaseFixture(Pixils::RenderContext{})
+    : BaseFixture(Pixils::RenderContext{
+        nullptr,
+        nullptr,
+        MIX_CreateMixerDevice(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, nullptr)})
   {
   }
 
