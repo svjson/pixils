@@ -1489,6 +1489,8 @@ polygon. Filled polygons are implicitly closed.
 (pixils.render/polygon!
   [{:x 8 :y 4} {:x 28 :y 12} {:x 12 :y 24}]
   {:close true
+   :stroke-width 4
+   :line-join :round
    :color {:r 255 :g 240 :b 80}})
 
 ; Solid fill.
@@ -1528,16 +1530,68 @@ barycentric interpolation inside each triangle. This supports triangles, quads,
 and simple concave polygons. Quads currently use the triangulated behavior, not
 bilinear interpolation.
 
+`:line-join` controls how adjacent stroked polygon edges meet when
+`:stroke-width` is greater than `1`:
+
+| Join      | Description |
+|-----------|-------------|
+| `:miter`  | Pointy corner using the standard miter join. This is the default. Very sharp joins fall back to bevel. |
+| `:round`  | Rounded corner using an arc fan around the vertex. |
+| `:bevel`  | Clipped corner connecting the outer stroke edges directly. |
+| `:none`   | Preserve the previous independent stroked-segment behavior. |
+
 | Option          | Description |
 |-----------------|-------------|
 | `:close`        | Close an outlined polygon by drawing the final segment back to the first point. Default: `false`. |
 | `:fill`         | Fill the polygon instead of drawing only its outline. Default: `false`. |
 | `:color`        | Solid color for outlines, solid fills, or an explicit stroke drawn over a fill. |
 | `:fill-style`   | Fill style map. Supported forms: `{:type :solid :color color}` and `{:type :vertex-colors :colors [color ...]}`. |
+| `:line-join`    | Stroke join style: `:miter`, `:round`, `:bevel`, or `:none`. Default: `:miter`. |
 | `:stroke-width` | Stroke width in pixels. Outlines default to `1`; filled polygons default to no stroke unless this is supplied. |
 | `:rotation`     | Rotation in radians around the origin before offset is applied. Default: `0`. |
 | `:offset`       | Point offset applied after scale and rotation. Default: `{:x 0 :y 0}`. |
 | `:scale`        | Scale multiplier applied before rotation and offset. Default: `1.0`. |
+
+**Circle And Ellipse Rasterization**
+
+`circle!` and `ellipse!` support two rasterization modes:
+
+```clojure
+; Existing integer pixel rasterization. This is the default.
+(pixils.render/circle!
+  {:x 16 :y 16 :r 4}
+  {:fill true
+   :color {:r 255 :g 80 :b 80}
+   :rasterization :pixel})
+
+; Signed-distance coverage rasterization for smoother small curves.
+(pixils.render/ellipse!
+  {:x 16 :y 16 :rx 8 :ry 4}
+  {:color {:r 255 :g 255 :b 255}
+   :rasterization :smooth})
+```
+
+`:rasterization` applies to both filled shapes and outlines. `:pixel` keeps the
+hard-edged integer scanline/perimeter behavior. `:smooth` uses per-pixel
+coverage near the curve edge so small circles and ellipses read less spiky.
+
+Filled circles and ellipses also accept the canonical solid fill-style form:
+
+```clojure
+(pixils.render/circle!
+  {:x 16 :y 16 :r 4}
+  {:fill true
+   :fill-style {:type :solid
+                :color {:r 80 :g 180 :b 255}}
+   :rasterization :smooth})
+```
+
+| Option             | Description |
+|--------------------|-------------|
+| `:fill`            | Fill the circle or ellipse instead of drawing only its outline. Default: `false`. |
+| `:color`           | Solid color for outlines or simple solid fills. |
+| `:fill-style`      | Fill style map for filled circles/ellipses. Supported form: `{:type :solid :color color}`. |
+| `:rasterization`   | `:pixel` or `:smooth`. Default: `:pixel`. |
 
 **`pixils.render/image!`**
 
@@ -1745,8 +1799,9 @@ Accepts the same `:font` and `:scale` options as `text!`.
 | `use-color!`| Set the current draw color. Accepts a color object or four RGBA numbers (r g b a). |
 | `line!`     | Draw a line between two points. Optional third arg: color or options map `{:color ... :stroke-width N}`. |
 | `rect!`     | Draw a rectangle. Args: `{:x :y :w :h}` rect (or two corner points), options map `{:color ... :fill true/false}`. |
-| `circle!`   | Draw a circle. Args: `{:x :y :r}` center/radius map, options map `{:color ... :fill true/false}`. |
-| `polygon!`  | Draw a polygon from a vector of points. Options include `:close`, `:fill`, `:stroke-width`, `:rotation`, `:offset`, `:color`, `:scale`, and `:fill-style` for solid or vertex-colored fills. |
+| `circle!`   | Draw a circle. Args: `{:x :y :r}` center/radius map, options include `:color`, `:fill`, `:fill-style`, and `:rasterization`. |
+| `ellipse!`  | Draw an ellipse. Args: `{:x :y :rx :ry}` center/radius map, options include `:color`, `:fill`, `:fill-style`, and `:rasterization`. |
+| `polygon!`  | Draw a polygon from a vector of points. Options include `:close`, `:fill`, `:stroke-width`, `:line-join`, `:rotation`, `:offset`, `:color`, `:scale`, and `:fill-style` for solid or vertex-colored fills. |
 | `image!`    | Draw an image. Args: qualified keyword `:bundle/id`, then point, rect, or options map. Options include `:pos`, `:target`, `:clip-rect`, `:source`, `:scale`, `:repeat-x?`, `:repeat-y?`, `:opacity`, `:rotation`, `:flip-x?`, and `:flip-y?`. |
 | `text!`     | Render a string. Args: string, position point, options map. Returns rendered bounds `{:x :y :w :h}`. |
 | `text-size` | Measure text without rendering. Args: string, optional options map. Returns `{:w :h}`. |

@@ -42,10 +42,12 @@ namespace Pixils::Script
     SHKEY(FILL, "fill");
     SHKEY(FILL_STYLE, "fill-style");
     SHKEY(CLIP_RECT, "clip-rect");
+    SHKEY(LINE_JOIN, "line-join");
     SHKEY(OFFSET, "offset");
     SHKEY(POS, "pos");
     SHKEY(REPEAT_X, "repeat-x?");
     SHKEY(REPEAT_Y, "repeat-y?");
+    SHKEY(RASTERIZATION, "rasterization");
     SHKEY(ROTATION, "rotation");
     SHKEY(SCALE, "scale");
     SHKEY(SOURCE, "source");
@@ -145,6 +147,20 @@ namespace Pixils::Script
                      interpolated_channel(a.a, b.a, c.a, wa, wb, wc)};
       }
 
+      enum class Rasterization
+      {
+        PIXEL,
+        SMOOTH
+      };
+
+      enum class LineJoin
+      {
+        NONE,
+        MITER,
+        ROUND,
+        BEVEL
+      };
+
       void fill_horizontal_span(SDL_Renderer* renderer, int x1, int x2, int y)
       {
         if (x2 < x1) std::swap(x1, x2);
@@ -161,6 +177,34 @@ namespace Pixils::Script
       void fill_pixel(SDL_Renderer* renderer, int x, int y, const Color& color)
       {
         SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, color.a);
+        fill_pixel(renderer, x, y);
+      }
+
+      Color current_render_color(SDL_Renderer* renderer)
+      {
+        Uint8 r = 0xff;
+        Uint8 g = 0xff;
+        Uint8 b = 0xff;
+        Uint8 a = 0xff;
+        SDL_GetRenderDrawColor(renderer, &r, &g, &b, &a);
+        return Color{r, g, b, a};
+      }
+
+      Uint8 coverage_alpha(const Color& color, double coverage)
+      {
+        return static_cast<Uint8>(
+          std::lround(static_cast<double>(color.a) * std::clamp(coverage, 0.0, 1.0)));
+      }
+
+      void fill_coverage_pixel(SDL_Renderer* renderer,
+                               int x,
+                               int y,
+                               const Color& color,
+                               double coverage)
+      {
+        const Uint8 alpha = coverage_alpha(color, coverage);
+        if (alpha == 0) return;
+        SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, alpha);
         fill_pixel(renderer, x, y);
       }
 
@@ -194,6 +238,30 @@ namespace Pixils::Script
         }
       }
 
+      void draw_smooth_circle_outline(SDL_Renderer* renderer,
+                                      int cx,
+                                      int cy,
+                                      int radius,
+                                      const Color& color)
+      {
+        if (radius == 0)
+        {
+          fill_coverage_pixel(renderer, cx, cy, color, 1.0);
+          return;
+        }
+
+        const int bounds = radius + 1;
+        for (int y = -bounds; y <= bounds; y++)
+        {
+          for (int x = -bounds; x <= bounds; x++)
+          {
+            const double distance = std::sqrt(static_cast<double>((x * x) + (y * y)));
+            const double coverage = 1.0 - std::abs(distance - static_cast<double>(radius));
+            fill_coverage_pixel(renderer, cx + x, cy + y, color, coverage);
+          }
+        }
+      }
+
       void draw_filled_circle(SDL_Renderer* renderer, int cx, int cy, int radius)
       {
         const int radius_squared = radius * radius;
@@ -202,6 +270,24 @@ namespace Pixils::Script
           const int x = static_cast<int>(
             std::floor(std::sqrt(static_cast<double>(radius_squared - (y * y)))));
           fill_horizontal_span(renderer, cx - x, cx + x, cy + y);
+        }
+      }
+
+      void draw_smooth_filled_circle(SDL_Renderer* renderer,
+                                     int cx,
+                                     int cy,
+                                     int radius,
+                                     const Color& color)
+      {
+        const int bounds = radius + 1;
+        for (int y = -bounds; y <= bounds; y++)
+        {
+          for (int x = -bounds; x <= bounds; x++)
+          {
+            const double distance = std::sqrt(static_cast<double>((x * x) + (y * y)));
+            const double coverage = static_cast<double>(radius) + 0.5 - distance;
+            fill_coverage_pixel(renderer, cx + x, cy + y, color, coverage);
+          }
         }
       }
 
@@ -233,6 +319,37 @@ namespace Pixils::Script
         {
           const int x = ellipse_x_for_y(rx, ry, y);
           fill_horizontal_span(renderer, cx - x, cx + x, cy + y);
+        }
+      }
+
+      double ellipse_edge_distance(int x, int y, int rx, int ry)
+      {
+        const double nx = static_cast<double>(x) / static_cast<double>(rx);
+        const double ny = static_cast<double>(y) / static_cast<double>(ry);
+        const double normalized_distance = std::sqrt((nx * nx) + (ny * ny));
+        return (normalized_distance - 1.0) * static_cast<double>(std::min(rx, ry));
+      }
+
+      void draw_smooth_filled_ellipse(SDL_Renderer* renderer,
+                                      int cx,
+                                      int cy,
+                                      int rx,
+                                      int ry,
+                                      const Color& color)
+      {
+        if (rx == 0 || ry == 0)
+        {
+          draw_filled_ellipse(renderer, cx, cy, rx, ry);
+          return;
+        }
+
+        for (int y = -ry - 1; y <= ry + 1; y++)
+        {
+          for (int x = -rx - 1; x <= rx + 1; x++)
+          {
+            const double coverage = 0.5 - ellipse_edge_distance(x, y, rx, ry);
+            fill_coverage_pixel(renderer, cx + x, cy + y, color, coverage);
+          }
         }
       }
 
@@ -269,6 +386,29 @@ namespace Pixils::Script
           const int y = ellipse_y_for_x(rx, ry, x);
           fill_pixel(renderer, cx + x, cy + y);
           fill_pixel(renderer, cx + x, cy - y);
+        }
+      }
+
+      void draw_smooth_ellipse_outline(SDL_Renderer* renderer,
+                                       int cx,
+                                       int cy,
+                                       int rx,
+                                       int ry,
+                                       const Color& color)
+      {
+        if (rx == 0 || ry == 0)
+        {
+          draw_ellipse_outline(renderer, cx, cy, rx, ry);
+          return;
+        }
+
+        for (int y = -ry - 1; y <= ry + 1; y++)
+        {
+          for (int x = -rx - 1; x <= rx + 1; x++)
+          {
+            const double coverage = 1.0 - std::abs(ellipse_edge_distance(x, y, rx, ry));
+            fill_coverage_pixel(renderer, cx + x, cy + y, color, coverage);
+          }
         }
       }
 
@@ -855,6 +995,193 @@ namespace Pixils::Script
                 Point{start.x - nx, start.y - ny}};
       }
 
+      float point_distance(const Point& a, const Point& b)
+      {
+        const float dx = b.x - a.x;
+        const float dy = b.y - a.y;
+        return std::sqrt((dx * dx) + (dy * dy));
+      }
+
+      std::optional<Point> normalized_direction(const Point& from, const Point& to)
+      {
+        const float dx = to.x - from.x;
+        const float dy = to.y - from.y;
+        const float length = std::sqrt((dx * dx) + (dy * dy));
+        if (length <= std::numeric_limits<float>::epsilon())
+        {
+          return std::nullopt;
+        }
+        return Point{dx / length, dy / length};
+      }
+
+      Point left_normal(const Point& direction)
+      {
+        return Point{-direction.y, direction.x};
+      }
+
+      Point right_normal(const Point& direction)
+      {
+        return Point{direction.y, -direction.x};
+      }
+
+      float direction_cross(const Point& a, const Point& b)
+      {
+        return (a.x * b.y) - (a.y * b.x);
+      }
+
+      std::optional<Point> line_intersection(const Point& a,
+                                             const Point& direction_a,
+                                             const Point& b,
+                                             const Point& direction_b)
+      {
+        const float denominator = direction_cross(direction_a, direction_b);
+        if (std::abs(denominator) <= 0.000001f)
+        {
+          return std::nullopt;
+        }
+
+        const Point delta = b - a;
+        const float t = direction_cross(delta, direction_b) / denominator;
+        return a + (direction_a * t);
+      }
+
+      void draw_bevel_join(SDL_Renderer* renderer,
+                           const Point& center,
+                           const Point& outer_in,
+                           const Point& outer_out)
+      {
+        std::array<Point, 3> triangle{outer_in, outer_out, center};
+        std::vector<float> intersections;
+        draw_filled_polygon(renderer, triangle, intersections);
+      }
+
+      void draw_miter_join(SDL_Renderer* renderer,
+                           const Point& center,
+                           const Point& direction_in,
+                           const Point& direction_out,
+                           const Point& outer_normal_in,
+                           const Point& outer_normal_out,
+                           float half_width,
+                           float miter_limit)
+      {
+        const Point outer_in = center + outer_normal_in;
+        const Point outer_out = center + outer_normal_out;
+        std::optional<Point> miter =
+          line_intersection(outer_in, direction_in, outer_out, direction_out);
+
+        if (!miter || point_distance(center, *miter) > half_width * miter_limit)
+        {
+          draw_bevel_join(renderer, center, outer_in, outer_out);
+          return;
+        }
+
+        const Point miter_direction =
+          (*miter - center) * (1.0f / std::max(point_distance(center, *miter), 0.000001f));
+        const Point rasterized_miter = *miter + (miter_direction * 0.01f);
+        std::array<Point, 4> triangle{center, outer_in, rasterized_miter, outer_out};
+        std::vector<float> intersections;
+        draw_filled_polygon(renderer, triangle, intersections);
+      }
+
+      void draw_round_join(SDL_Renderer* renderer,
+                           const Point& center,
+                           const Point& outer_normal_in,
+                           const Point& outer_normal_out,
+                           float half_width,
+                           bool counter_clockwise)
+      {
+        const float start_angle = std::atan2(outer_normal_in.y, outer_normal_in.x);
+        float end_angle = std::atan2(outer_normal_out.y, outer_normal_out.x);
+
+        constexpr float TWO_PI = 6.28318530717958647692f;
+        if (counter_clockwise)
+        {
+          while (end_angle < start_angle)
+          {
+            end_angle += TWO_PI;
+          }
+        }
+        else
+        {
+          while (end_angle > start_angle)
+          {
+            end_angle -= TWO_PI;
+          }
+        }
+
+        const float sweep = end_angle - start_angle;
+        const int steps = std::max(1, static_cast<int>(std::ceil(std::abs(sweep) / 0.25f)));
+        std::vector<float> intersections;
+        for (int i = 0; i < steps; i++)
+        {
+          const float a0 = start_angle + (sweep * (static_cast<float>(i) / steps));
+          const float a1 = start_angle + (sweep * (static_cast<float>(i + 1) / steps));
+          std::array<Point, 3> triangle{center,
+                                        Point{center.x + (std::cos(a0) * half_width),
+                                              center.y + (std::sin(a0) * half_width)},
+                                        Point{center.x + (std::cos(a1) * half_width),
+                                              center.y + (std::sin(a1) * half_width)}};
+          draw_filled_polygon(renderer, triangle, intersections);
+        }
+      }
+
+      void draw_stroke_join(SDL_Renderer* renderer,
+                            const Point& prev,
+                            const Point& curr,
+                            const Point& next,
+                            float stroke_width,
+                            LineJoin line_join)
+      {
+        if (stroke_width <= 1.0f || line_join == LineJoin::NONE) return;
+
+        std::optional<Point> in_direction = normalized_direction(prev, curr);
+        std::optional<Point> out_direction = normalized_direction(curr, next);
+        if (!in_direction || !out_direction) return;
+
+        const float turn = direction_cross(*in_direction, *out_direction);
+        if (std::abs(turn) <= 0.000001f) return;
+
+        const float half_width = stroke_width * 0.5f;
+        const Point center{curr.x + 0.5f, curr.y + 0.5f};
+        const bool counter_clockwise = turn > 0.0f;
+        const Point outer_normal_in =
+          (counter_clockwise ? right_normal(*in_direction) : left_normal(*in_direction)) *
+          half_width;
+        const Point outer_normal_out =
+          (counter_clockwise ? right_normal(*out_direction) : left_normal(*out_direction)) *
+          half_width;
+
+        if (line_join == LineJoin::ROUND)
+        {
+          draw_round_join(renderer,
+                          center,
+                          outer_normal_in,
+                          outer_normal_out,
+                          half_width,
+                          counter_clockwise);
+          return;
+        }
+
+        if (line_join == LineJoin::BEVEL)
+        {
+          draw_bevel_join(renderer,
+                          center,
+                          center + outer_normal_in,
+                          center + outer_normal_out);
+          return;
+        }
+
+        constexpr float DEFAULT_MITER_LIMIT = 4.0f;
+        draw_miter_join(renderer,
+                        center,
+                        *in_direction,
+                        *out_direction,
+                        outer_normal_in,
+                        outer_normal_out,
+                        half_width,
+                        DEFAULT_MITER_LIMIT);
+      }
+
       void draw_stroked_segment(SDL_Renderer* renderer,
                                 const Point& from,
                                 const Point& to,
@@ -879,7 +1206,8 @@ namespace Pixils::Script
       void draw_stroked_polyline(SDL_Renderer* renderer,
                                  const std::vector<Point>& points,
                                  bool close_shape,
-                                 float stroke_width)
+                                 float stroke_width,
+                                 LineJoin line_join)
       {
         if (stroke_width <= 0.0f || points.size() < 2) return;
 
@@ -891,6 +1219,23 @@ namespace Pixils::Script
         if (close_shape)
         {
           draw_stroked_segment(renderer, points.back(), points.front(), stroke_width);
+        }
+
+        if (line_join == LineJoin::NONE || points.size() < 3) return;
+
+        const size_t first_join = close_shape ? 0 : 1;
+        const size_t last_join = close_shape ? points.size() : points.size() - 1;
+        for (size_t i = first_join; i < last_join; i++)
+        {
+          const size_t prev_index = (i + points.size() - 1) % points.size();
+          const size_t curr_index = i % points.size();
+          const size_t next_index = (i + 1) % points.size();
+          draw_stroke_join(renderer,
+                           points[prev_index],
+                           points[curr_index],
+                           points[next_index],
+                           stroke_width,
+                           line_join);
         }
       }
 
@@ -905,6 +1250,11 @@ namespace Pixils::Script
         Type type = Type::SOLID;
         std::optional<Color> color = std::nullopt;
         std::vector<Color> colors;
+      };
+
+      struct SolidFillStyle
+      {
+        std::optional<Color> color = std::nullopt;
       };
 
       std::string required_keyword_property(const Roo::sptr_val& map,
@@ -937,6 +1287,32 @@ namespace Pixils::Script
         return value;
       }
 
+      std::optional<Color> optional_solid_fill_style_color(Roo::Context& ctx,
+                                                           const Roo::sptr_val& value,
+                                                           const std::string& context)
+      {
+        if (!value || value->type != Roo::Value::Type::MAP)
+        {
+          throw Roo::TypeError(context + " must be a map.");
+        }
+
+        const std::string type =
+          required_keyword_property(value,
+                                    std::get<std::string>(MapKey::FILL_STYLE_TYPE->value),
+                                    context);
+        if (type != "solid")
+        {
+          throw Roo::TypeError(context + " unsupported :type: " + type);
+        }
+
+        return color_from_value(
+          ctx,
+          required_property(value,
+                            std::get<std::string>(MapKey::COLOR->value),
+                            context + " :solid"),
+          context + " :solid :color");
+      }
+
       PolygonFillStyle parse_polygon_fill_style(Roo::Context& ctx,
                                                 const Roo::sptr_val& value)
       {
@@ -954,12 +1330,7 @@ namespace Pixils::Script
         {
           PolygonFillStyle style;
           style.type = PolygonFillStyle::Type::SOLID;
-          style.color =
-            color_from_value(ctx,
-                             required_property(value,
-                                               std::get<std::string>(MapKey::COLOR->value),
-                                               "polygon!: :fill-style :solid"),
-                             "polygon!: :fill-style :solid :color");
+          style.color = optional_solid_fill_style_color(ctx, value, "polygon!: :fill-style");
           return style;
         }
 
@@ -988,6 +1359,62 @@ namespace Pixils::Script
         }
 
         throw Roo::TypeError("polygon!: unsupported :fill-style :type: " + type);
+      }
+
+      std::optional<SolidFillStyle> parse_solid_fill_style(Roo::Context& ctx,
+                                                           Roo::MapSchema::Inspector& opts,
+                                                           const std::string& context)
+      {
+        auto fill_style_value = opts.val(std::get<std::string>(MapKey::FILL_STYLE->value));
+        if (!fill_style_value || fill_style_value->type == Roo::Value::Type::NIL)
+        {
+          return std::nullopt;
+        }
+
+        SolidFillStyle style;
+        style.color = optional_solid_fill_style_color(ctx, fill_style_value, context);
+        return style;
+      }
+
+      Rasterization parse_rasterization(Roo::MapSchema::Inspector& opts,
+                                        const std::string& context)
+      {
+        auto value = opts.val(std::get<std::string>(MapKey::RASTERIZATION->value));
+        if (!value || value->type == Roo::Value::Type::NIL)
+        {
+          return Rasterization::PIXEL;
+        }
+        if (value->type != Roo::Value::Type::KEYWORD)
+        {
+          throw Roo::TypeError(context + " :rasterization must be a keyword.");
+        }
+
+        const std::string rasterization = value->str();
+        if (rasterization == "pixel") return Rasterization::PIXEL;
+        if (rasterization == "smooth") return Rasterization::SMOOTH;
+
+        throw Roo::TypeError(context + " unsupported :rasterization: " + rasterization);
+      }
+
+      LineJoin parse_line_join(Roo::MapSchema::Inspector& opts, const std::string& context)
+      {
+        auto value = opts.val(std::get<std::string>(MapKey::LINE_JOIN->value));
+        if (!value || value->type == Roo::Value::Type::NIL)
+        {
+          return LineJoin::MITER;
+        }
+        if (value->type != Roo::Value::Type::KEYWORD)
+        {
+          throw Roo::TypeError(context + " :line-join must be a keyword.");
+        }
+
+        const std::string line_join = value->str();
+        if (line_join == "miter") return LineJoin::MITER;
+        if (line_join == "round") return LineJoin::ROUND;
+        if (line_join == "bevel") return LineJoin::BEVEL;
+        if (line_join == "none") return LineJoin::NONE;
+
+        throw Roo::TypeError(context + " unsupported :line-join: " + line_join);
       }
 
       Uint8 image_opacity_alpha(Roo::MapSchema::Inspector& opts)
@@ -1375,7 +1802,10 @@ namespace Pixils::Script
         {{"x", &Roo::Type::NUMBER}, {"y", &Roo::Type::NUMBER}, {"r", &Roo::Type::NUMBER}});
       static Roo::MapSchema opts_schema(
         {},
-        {{"color", &HostType::COLOR}, {"fill", &Roo::Type::BOOL}});
+        {{std::get<std::string>(MapKey::COLOR->value), &HostType::COLOR},
+         {std::get<std::string>(MapKey::FILL->value), &Roo::Type::BOOL},
+         {std::get<std::string>(MapKey::FILL_STYLE->value), &Roo::Type::MAP},
+         {std::get<std::string>(MapKey::RASTERIZATION->value), &Roo::Type::ANY}});
 
       auto circle = circle_schema.bind(ctx, *args[0]);
       auto opts = opts_schema.bind(ctx, *args[1]);
@@ -1385,24 +1815,64 @@ namespace Pixils::Script
       const int radius = circle.i32("r");
       if (radius < 0) return Roo::Constant::NIL;
 
-      auto color_opt = opts.val("color");
-      auto fill_opt = opts.val("fill");
+      auto color_opt = opts.val(std::get<std::string>(MapKey::COLOR->value));
+      auto fill_opt = opts.val(std::get<std::string>(MapKey::FILL->value));
+      std::optional<SolidFillStyle> fill_style =
+        parse_solid_fill_style(ctx, opts, "circle!: :fill-style");
+      Rasterization rasterization = parse_rasterization(opts, "circle!");
+      const bool fill_shape = Roo::is_truthy(*fill_opt);
 
+      std::optional<Color> explicit_draw_color = std::nullopt;
       if (Roo::is_truthy(*color_opt))
       {
         const Color& color = Roo::obj<Color>(*color_opt);
+        explicit_draw_color = color;
+        SDL_SetRenderDrawColor(rc.renderer, color.r, color.g, color.b, color.a);
+      }
+
+      if (fill_style && Roo::is_truthy(*color_opt) && fill_shape)
+      {
+        throw Roo::TypeError(
+          "circle!: use either top-level :color or :fill-style for fill.");
+      }
+
+      if (fill_shape && fill_style && fill_style->color)
+      {
+        const Color& color = *fill_style->color;
+        explicit_draw_color = color;
         SDL_SetRenderDrawColor(rc.renderer, color.r, color.g, color.b, color.a);
       }
 
       SDL_SetRenderDrawBlendMode(rc.renderer, SDL_BLENDMODE_BLEND);
-      if (Roo::is_truthy(*fill_opt))
+      const Color draw_color =
+        explicit_draw_color.value_or(current_render_color(rc.renderer));
+      if (fill_shape)
       {
-        draw_filled_circle(rc.renderer, cx, cy, radius);
+        if (rasterization == Rasterization::SMOOTH)
+        {
+          draw_smooth_filled_circle(rc.renderer, cx, cy, radius, draw_color);
+        }
+        else
+        {
+          draw_filled_circle(rc.renderer, cx, cy, radius);
+        }
       }
       else
       {
-        draw_circle_outline(rc.renderer, cx, cy, radius);
+        if (rasterization == Rasterization::SMOOTH)
+        {
+          draw_smooth_circle_outline(rc.renderer, cx, cy, radius, draw_color);
+        }
+        else
+        {
+          draw_circle_outline(rc.renderer, cx, cy, radius);
+        }
       }
+      SDL_SetRenderDrawColor(rc.renderer,
+                             draw_color.r,
+                             draw_color.g,
+                             draw_color.b,
+                             draw_color.a);
       SDL_SetRenderDrawBlendMode(rc.renderer, SDL_BLENDMODE_NONE);
 
       return Roo::Constant::NIL;
@@ -1423,7 +1893,10 @@ namespace Pixils::Script
                                             {"ry", &Roo::Type::NUMBER}});
       static Roo::MapSchema opts_schema(
         {},
-        {{"color", &HostType::COLOR}, {"fill", &Roo::Type::BOOL}});
+        {{std::get<std::string>(MapKey::COLOR->value), &HostType::COLOR},
+         {std::get<std::string>(MapKey::FILL->value), &Roo::Type::BOOL},
+         {std::get<std::string>(MapKey::FILL_STYLE->value), &Roo::Type::MAP},
+         {std::get<std::string>(MapKey::RASTERIZATION->value), &Roo::Type::ANY}});
 
       auto ellipse = ellipse_schema.bind(ctx, *args[0]);
       auto opts = opts_schema.bind(ctx, *args[1]);
@@ -1434,24 +1907,64 @@ namespace Pixils::Script
       const int ry = ellipse.i32("ry");
       if (rx < 0 || ry < 0) return Roo::Constant::NIL;
 
-      auto color_opt = opts.val("color");
-      auto fill_opt = opts.val("fill");
+      auto color_opt = opts.val(std::get<std::string>(MapKey::COLOR->value));
+      auto fill_opt = opts.val(std::get<std::string>(MapKey::FILL->value));
+      std::optional<SolidFillStyle> fill_style =
+        parse_solid_fill_style(ctx, opts, "ellipse!: :fill-style");
+      Rasterization rasterization = parse_rasterization(opts, "ellipse!");
+      const bool fill_shape = Roo::is_truthy(*fill_opt);
 
+      std::optional<Color> explicit_draw_color = std::nullopt;
       if (Roo::is_truthy(*color_opt))
       {
         const Color& color = Roo::obj<Color>(*color_opt);
+        explicit_draw_color = color;
+        SDL_SetRenderDrawColor(rc.renderer, color.r, color.g, color.b, color.a);
+      }
+
+      if (fill_style && Roo::is_truthy(*color_opt) && fill_shape)
+      {
+        throw Roo::TypeError(
+          "ellipse!: use either top-level :color or :fill-style for fill.");
+      }
+
+      if (fill_shape && fill_style && fill_style->color)
+      {
+        const Color& color = *fill_style->color;
+        explicit_draw_color = color;
         SDL_SetRenderDrawColor(rc.renderer, color.r, color.g, color.b, color.a);
       }
 
       SDL_SetRenderDrawBlendMode(rc.renderer, SDL_BLENDMODE_BLEND);
-      if (Roo::is_truthy(*fill_opt))
+      const Color draw_color =
+        explicit_draw_color.value_or(current_render_color(rc.renderer));
+      if (fill_shape)
       {
-        draw_filled_ellipse(rc.renderer, cx, cy, rx, ry);
+        if (rasterization == Rasterization::SMOOTH)
+        {
+          draw_smooth_filled_ellipse(rc.renderer, cx, cy, rx, ry, draw_color);
+        }
+        else
+        {
+          draw_filled_ellipse(rc.renderer, cx, cy, rx, ry);
+        }
       }
       else
       {
-        draw_ellipse_outline(rc.renderer, cx, cy, rx, ry);
+        if (rasterization == Rasterization::SMOOTH)
+        {
+          draw_smooth_ellipse_outline(rc.renderer, cx, cy, rx, ry, draw_color);
+        }
+        else
+        {
+          draw_ellipse_outline(rc.renderer, cx, cy, rx, ry);
+        }
       }
+      SDL_SetRenderDrawColor(rc.renderer,
+                             draw_color.r,
+                             draw_color.g,
+                             draw_color.b,
+                             draw_color.a);
       SDL_SetRenderDrawBlendMode(rc.renderer, SDL_BLENDMODE_NONE);
 
       return Roo::Constant::NIL;
@@ -1472,6 +1985,7 @@ namespace Pixils::Script
        {std::get<std::string>(MapKey::COLOR->value), &HostType::COLOR},
        {std::get<std::string>(MapKey::FILL->value), &Roo::Type::BOOL},
        {std::get<std::string>(MapKey::FILL_STYLE->value), &Roo::Type::MAP},
+       {std::get<std::string>(MapKey::LINE_JOIN->value), &Roo::Type::ANY},
        {std::get<std::string>(MapKey::STROKE_WIDTH->value), &Roo::Type::NUMBER},
        {std::get<std::string>(MapKey::SCALE->value), &Roo::Type::NUMBER}});
 
@@ -1508,6 +2022,7 @@ namespace Pixils::Script
         opts.contains(std::get<std::string>(MapKey::STROKE_WIDTH->value));
       float stroke_width = opts.f32(std::get<std::string>(MapKey::STROKE_WIDTH->value),
                                     fill_shape ? 0.0f : 1.0f);
+      LineJoin line_join = parse_line_join(opts, "polygon!");
 
       const Point& offset =
         opts.obj<Point>(std::get<std::string>(MapKey::OFFSET->value), POINT__ZERO_ZERO);
@@ -1565,13 +2080,13 @@ namespace Pixils::Script
           {
             SDL_SetRenderDrawColor(rc.renderer, color->r, color->g, color->b, color->a);
           }
-          draw_stroked_polyline(rc.renderer, pts, true, stroke_width);
+          draw_stroked_polyline(rc.renderer, pts, true, stroke_width, line_join);
           SDL_SetRenderDrawBlendMode(rc.renderer, SDL_BLENDMODE_NONE);
         }
         else
         {
           SDL_SetRenderDrawBlendMode(rc.renderer, SDL_BLENDMODE_BLEND);
-          draw_stroked_polyline(rc.renderer, pts, close_shape, stroke_width);
+          draw_stroked_polyline(rc.renderer, pts, close_shape, stroke_width, line_join);
           SDL_SetRenderDrawBlendMode(rc.renderer, SDL_BLENDMODE_NONE);
         }
       }

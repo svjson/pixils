@@ -3,6 +3,7 @@
 #include <pixils/font_registry.h>
 #include <pixils/text.h>
 
+#include <algorithm>
 #include <gtest/gtest.h>
 #include <roo/runtime/dict.h>
 #include <sdl2_mock/mock_resources.h>
@@ -26,6 +27,28 @@ namespace
       }
     }
     return false;
+  }
+
+  bool has_filled_pixel(const std::vector<RenderOperation>& ops, int x, int y)
+  {
+    for (const auto& op : ops)
+    {
+      if (op.type == RenderOpType::FILL_RECT && x >= op.rendered_rect.x &&
+          x < op.rendered_rect.x + op.rendered_rect.w && y >= op.rendered_rect.y &&
+          y < op.rendered_rect.y + op.rendered_rect.h)
+      {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  size_t fill_rect_count(const std::vector<RenderOperation>& ops)
+  {
+    return static_cast<size_t>(std::count_if(
+      ops.begin(),
+      ops.end(),
+      [](const RenderOperation& op) { return op.type == RenderOpType::FILL_RECT; }));
   }
 } // namespace
 
@@ -206,6 +229,72 @@ TEST_F(RenderTest, circle_outline_draws_perimeter_pixels)
   EXPECT_FALSE(has_fill_rect(ops, SDL_Rect{10, 10, 1, 1}));
 }
 
+TEST_F(RenderTest, circle_smooth_fill_draws_coverage_pixels)
+{
+  // Given
+  runtime.eval(R"(
+    (pixils/defmode test-mode {
+      :render (fn [state ctx]
+                (pixils.render/circle!
+                  {:x 10 :y 10 :r 2}
+                  {:fill true
+                   :rasterization :smooth
+                   :color {:r 200 :g 0 :b 0}}))
+    })
+  )");
+  session.push_mode("test-mode", Roo::Constant::NIL);
+
+  // When / Then
+  ASSERT_NO_THROW(session.render_mode());
+  auto& ops = render_target()->render_ops;
+  EXPECT_EQ(fill_rect_count(ops), 21u);
+  EXPECT_TRUE(has_fill_rect(ops, SDL_Rect{10, 10, 1, 1}));
+  EXPECT_TRUE(has_fill_rect(ops, SDL_Rect{12, 10, 1, 1}));
+  EXPECT_FALSE(has_fill_rect(ops, SDL_Rect{12, 12, 1, 1}));
+}
+
+TEST_F(RenderTest, circle_smooth_outline_draws_antialiased_neighbors)
+{
+  // Given
+  runtime.eval(R"(
+    (pixils/defmode test-mode {
+      :render (fn [state ctx]
+                (pixils.render/circle!
+                  {:x 10 :y 10 :r 2}
+                  {:rasterization :smooth
+                   :color {:r 200 :g 0 :b 0}}))
+    })
+  )");
+  session.push_mode("test-mode", Roo::Constant::NIL);
+
+  // When / Then
+  ASSERT_NO_THROW(session.render_mode());
+  auto& ops = render_target()->render_ops;
+  EXPECT_TRUE(has_fill_rect(ops, SDL_Rect{10, 8, 1, 1}));
+  EXPECT_TRUE(has_fill_rect(ops, SDL_Rect{9, 9, 1, 1}));
+  EXPECT_FALSE(has_fill_rect(ops, SDL_Rect{10, 10, 1, 1}));
+}
+
+TEST_F(RenderTest, circle_fill_accepts_solid_fill_style)
+{
+  // Given
+  runtime.eval(R"(
+    (pixils/defmode test-mode {
+      :render (fn [state ctx]
+                (pixils.render/circle!
+                  {:x 10 :y 10 :r 2}
+                  {:fill true
+                   :fill-style {:type :solid
+                                :color {:r 200 :g 0 :b 0}}}))
+    })
+  )");
+  session.push_mode("test-mode", Roo::Constant::NIL);
+
+  // When / Then
+  ASSERT_NO_THROW(session.render_mode());
+  EXPECT_FALSE(render_target()->render_ops.empty());
+}
+
 TEST_F(RenderTest, ellipse_fill_draws_horizontal_scanlines)
 {
   // Given
@@ -251,6 +340,88 @@ TEST_F(RenderTest, ellipse_outline_draws_perimeter_pixels)
   EXPECT_TRUE(has_fill_rect(ops, SDL_Rect{7, 10, 1, 1}));
   EXPECT_TRUE(has_fill_rect(ops, SDL_Rect{13, 10, 1, 1}));
   EXPECT_FALSE(has_fill_rect(ops, SDL_Rect{10, 10, 1, 1}));
+}
+
+TEST_F(RenderTest, ellipse_smooth_fill_draws_coverage_pixels)
+{
+  // Given
+  runtime.eval(R"(
+    (pixils/defmode test-mode {
+      :render (fn [state ctx]
+                (pixils.render/ellipse!
+                  {:x 10 :y 10 :rx 3 :ry 2}
+                  {:fill true
+                   :rasterization :smooth
+                   :color {:r 200 :g 0 :b 0}}))
+    })
+  )");
+  session.push_mode("test-mode", Roo::Constant::NIL);
+
+  // When / Then
+  ASSERT_NO_THROW(session.render_mode());
+  auto& ops = render_target()->render_ops;
+  EXPECT_TRUE(fill_rect_count(ops) > 5u);
+  EXPECT_TRUE(has_fill_rect(ops, SDL_Rect{10, 10, 1, 1}));
+  EXPECT_TRUE(has_fill_rect(ops, SDL_Rect{13, 10, 1, 1}));
+  EXPECT_FALSE(has_fill_rect(ops, SDL_Rect{13, 12, 1, 1}));
+}
+
+TEST_F(RenderTest, ellipse_smooth_outline_draws_antialiased_neighbors)
+{
+  // Given
+  runtime.eval(R"(
+    (pixils/defmode test-mode {
+      :render (fn [state ctx]
+                (pixils.render/ellipse!
+                  {:x 10 :y 10 :rx 3 :ry 2}
+                  {:rasterization :smooth
+                   :color {:r 200 :g 0 :b 0}}))
+    })
+  )");
+  session.push_mode("test-mode", Roo::Constant::NIL);
+
+  // When / Then
+  ASSERT_NO_THROW(session.render_mode());
+  auto& ops = render_target()->render_ops;
+  EXPECT_TRUE(has_fill_rect(ops, SDL_Rect{13, 10, 1, 1}));
+  EXPECT_TRUE(has_fill_rect(ops, SDL_Rect{12, 9, 1, 1}));
+  EXPECT_FALSE(has_fill_rect(ops, SDL_Rect{10, 10, 1, 1}));
+}
+
+TEST_F(RenderTest, ellipse_fill_accepts_solid_fill_style)
+{
+  // Given
+  runtime.eval(R"(
+    (pixils/defmode test-mode {
+      :render (fn [state ctx]
+                (pixils.render/ellipse!
+                  {:x 10 :y 10 :rx 3 :ry 2}
+                  {:fill true
+                   :fill-style {:type :solid
+                                :color {:r 200 :g 0 :b 0}}}))
+    })
+  )");
+  session.push_mode("test-mode", Roo::Constant::NIL);
+
+  // When / Then
+  ASSERT_NO_THROW(session.render_mode());
+  EXPECT_FALSE(render_target()->render_ops.empty());
+}
+
+TEST_F(RenderTest, circle_rejects_unknown_rasterization)
+{
+  // Given
+  runtime.eval(R"(
+    (pixils/defmode test-mode {
+      :render (fn [state ctx]
+                (pixils.render/circle!
+                  {:x 10 :y 10 :r 2}
+                  {:rasterization :wat}))})
+  )");
+  session.push_mode("test-mode", Roo::Constant::NIL);
+
+  // When / Then
+  EXPECT_THROW(session.render_mode(), Roo::TypeError);
 }
 
 TEST_F(RenderTest, ellipse_with_negative_radius_draws_nothing)
@@ -471,6 +642,103 @@ TEST_F(RenderTest, polygon_outline_accepts_stroke_width)
   EXPECT_TRUE(has_fill_rect(ops, SDL_Rect{5, 2, 2, 1}));
   EXPECT_TRUE(has_fill_rect(ops, SDL_Rect{1, 2, 2, 1}));
   EXPECT_TRUE(has_fill_rect(ops, SDL_Rect{2, 5, 5, 1}));
+}
+
+TEST_F(RenderTest, polygon_stroke_defaults_to_miter_line_join)
+{
+  // Given
+  runtime.eval(R"(
+    (pixils/defmode test-mode {
+      :render (fn [state ctx]
+                (pixils.render/polygon!
+                  [{:x 2 :y 6} {:x 6 :y 6} {:x 6 :y 2}]
+                  {:stroke-width 4 :color {:r 200 :g 0 :b 0}}))
+    })
+  )");
+  session.push_mode("test-mode", Roo::Constant::NIL);
+
+  // When / Then
+  ASSERT_NO_THROW(session.render_mode());
+  EXPECT_TRUE(has_filled_pixel(render_target()->render_ops, 8, 8));
+}
+
+TEST_F(RenderTest, polygon_stroke_accepts_bevel_line_join)
+{
+  // Given
+  runtime.eval(R"(
+    (pixils/defmode test-mode {
+      :render (fn [state ctx]
+                (pixils.render/polygon!
+                  [{:x 2 :y 6} {:x 6 :y 6} {:x 6 :y 2}]
+                  {:stroke-width 4
+                   :line-join :bevel
+                   :color {:r 200 :g 0 :b 0}}))
+    })
+  )");
+  session.push_mode("test-mode", Roo::Constant::NIL);
+
+  // When / Then
+  ASSERT_NO_THROW(session.render_mode());
+  EXPECT_FALSE(has_filled_pixel(render_target()->render_ops, 8, 8));
+}
+
+TEST_F(RenderTest, polygon_stroke_accepts_round_line_join)
+{
+  // Given
+  runtime.eval(R"(
+    (pixils/defmode test-mode {
+      :render (fn [state ctx]
+                (pixils.render/polygon!
+                  [{:x 2 :y 6} {:x 6 :y 6} {:x 6 :y 2}]
+                  {:stroke-width 4
+                   :line-join :round
+                   :color {:r 200 :g 0 :b 0}}))
+    })
+  )");
+  session.push_mode("test-mode", Roo::Constant::NIL);
+
+  // When / Then
+  ASSERT_NO_THROW(session.render_mode());
+  auto& ops = render_target()->render_ops;
+  EXPECT_TRUE(has_filled_pixel(ops, 7, 7));
+  EXPECT_FALSE(has_filled_pixel(ops, 8, 8));
+}
+
+TEST_F(RenderTest, polygon_stroke_accepts_none_line_join_for_independent_segments)
+{
+  // Given
+  runtime.eval(R"(
+    (pixils/defmode test-mode {
+      :render (fn [state ctx]
+                (pixils.render/polygon!
+                  [{:x 2 :y 6} {:x 6 :y 6} {:x 6 :y 2}]
+                  {:stroke-width 4
+                   :line-join :none
+                   :color {:r 200 :g 0 :b 0}}))
+    })
+  )");
+  session.push_mode("test-mode", Roo::Constant::NIL);
+
+  // When / Then
+  ASSERT_NO_THROW(session.render_mode());
+  EXPECT_FALSE(has_filled_pixel(render_target()->render_ops, 8, 8));
+}
+
+TEST_F(RenderTest, polygon_rejects_unknown_line_join)
+{
+  // Given
+  runtime.eval(R"(
+    (pixils/defmode test-mode {
+      :render (fn [state ctx]
+                (pixils.render/polygon!
+                  [{:x 2 :y 6} {:x 6 :y 6} {:x 6 :y 2}]
+                  {:stroke-width 4 :line-join :pointy}))
+    })
+  )");
+  session.push_mode("test-mode", Roo::Constant::NIL);
+
+  // When / Then
+  EXPECT_THROW(session.render_mode(), Roo::TypeError);
 }
 
 TEST_F(RenderTest, filled_polygon_strokes_only_when_stroke_width_is_explicit)
