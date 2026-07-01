@@ -252,7 +252,10 @@
            (selection-value models selection projection :selected-index)
            :new? (selection-value models selection projection :new?)
            :new-value
-           (selection-value models selection projection :new-value))))
+           (selection-value models selection projection :new-value)
+           :new-value-fn
+           (or (:new-value-fn selection)
+               (:new-value-fn projection)))))
 
 (defun normalized-form-state [{:keys [schema value valid? errors models
                                       projection]
@@ -266,7 +269,9 @@
      :items (:items selection)
      :selected-index (:selected-index selection)
      :new? (:new? selection)
-     :new-value (:new-value selection)}))
+     :new-value (:new-value selection)
+     :new-template (:new-value selection)
+     :new-value-fn (:new-value-fn selection)}))
 
 (defun field-path [field-id field-schema]
   (model-schema/field-path field-id field-schema))
@@ -356,6 +361,56 @@
              (< index (count items)))
       (assoc items index value)
       items)))
+
+(defun new-form-value [state]
+  (let [new-value-fn (:new-value-fn state)]
+    (cond
+      new-value-fn
+      (apply new-value-fn [(count (or (:items state) []))])
+
+      (not (nil? (:new-template state)))
+      (:new-template state)
+
+      :default {})))
+
+(defun begin-new-state [state]
+  (let [value (new-form-value state)]
+    (assoc state
+           :new? true
+           :new-value value
+           :value value
+           :previous-selected-index (:selected-index state)
+           :selected-index nil
+           :projected-new? true
+           :projected-index nil
+           :projected-item value)))
+
+(defun save-new-state [state]
+  (let [items (or (:items state) [])
+        index (count items)
+        value (:value state)]
+    (if (and (:new? state)
+             (:valid? state))
+      (assoc state
+             :items (concat items [value])
+             :selected-index index
+             :new? false
+             :new-value nil
+             :previous-selected-index nil
+             :projected-new? false
+             :projected-index index
+             :projected-item value)
+      state)))
+
+(defun cancel-new-state [state]
+  (assoc state
+         :selected-index (:previous-selected-index state)
+         :new? false
+         :new-value nil
+         :previous-selected-index nil
+         :projected-new? false
+         :projected-index nil
+         :projected-item nil))
 
 (defun projection-state [state]
   (let [new? (:new? state)
@@ -577,7 +632,16 @@
                                                      (:value state))]
                (assoc state
                       :valid? (:valid? validation)
-                      :errors (:errors validation))))})
+                      :errors (:errors validation))))
+   :on {:form/new (fn [state event ctx]
+                    (let [stopped (ui/stop-propagation! event)]
+                      (begin-new-state state)))
+        :form/save-new (fn [state event ctx]
+                         (let [stopped (ui/stop-propagation! event)]
+                           (save-new-state state)))
+        :form/cancel-new (fn [state event ctx]
+                           (let [stopped (ui/stop-propagation! event)]
+                             (cancel-new-state state)))}})
 
 (defun selection-view [selection]
   (when selection

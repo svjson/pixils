@@ -54,8 +54,5 @@
   {:people people
    :selected-person-index 0
    :selected-person nil
-   :new-person? false
-   :new-person nil
-   :previous-person-index nil
    :person-valid? false
    :person-errors {}})

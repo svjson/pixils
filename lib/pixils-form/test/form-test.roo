@@ -13,6 +13,11 @@
    :field/city {:type :text
                 :path [:profile :city]}})
 
+(defun empty-person [index]
+  {:field/name ""
+   :field/age 0
+   :label (str "New Person " (inc index))})
+
 (deftest validate-reports-required-and-range-errors
   (let [result (schema/validate person-schema
                                 {:field/name ""
@@ -77,6 +82,49 @@
                 :value {:name "New Person"}})]
     (is (= [{:name "Ada"}] (:items state)))
     (is (= {:name "New Person"} (:projected-item state)))))
+
+(deftest form-owned-new-session-uses-projection-factory
+  (let [state (form/begin-new-state
+               {:items [{:field/name "Ada"
+                         :field/age 36}]
+                :selected-index 0
+                :new-value-fn empty-person})]
+    (is (= true (:new? state)))
+    (is (= nil (:selected-index state)))
+    (is (= 0 (:previous-selected-index state)))
+    (is (= {:field/name ""
+            :field/age 0
+            :label "New Person 2"}
+           (:value state)))
+    (is (= (:value state) (:new-value state)))))
+
+(deftest form-owned-save-new-appends-and-selects-created-item
+  (let [state (form/save-new-state
+               {:items [{:field/name "Ada"
+                         :field/age 36}]
+                :selected-index nil
+                :new? true
+                :valid? true
+                :value {:field/name "Grace"
+                        :field/age 85}})]
+    (is (= [{:field/name "Ada"
+             :field/age 36}
+            {:field/name "Grace"
+             :field/age 85}]
+           (:items state)))
+    (is (= 1 (:selected-index state)))
+    (is (= false (:new? state)))
+    (is (= nil (:new-value state)))))
+
+(deftest form-owned-cancel-new-restores-previous-selection
+  (let [state (form/cancel-new-state
+               {:selected-index nil
+                :previous-selected-index 2
+                :new? true
+                :new-value {:field/name ""}})]
+    (is (= 2 (:selected-index state)))
+    (is (= false (:new? state)))
+    (is (= nil (:new-value state)))))
 
 (deftest make-normalizes-combined-model-projection
   (let [view (form/make {:model :person
