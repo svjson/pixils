@@ -1,0 +1,65 @@
+(ns form-playground.forms.persons.summary
+  (:require pixils
+            [pixils.ui :as ui]))
+
+(defun summary-value [person key]
+  (let [value (get (or person {}) key)]
+    (if (nil? value) "" (str value))))
+
+(defun errors-text [errors]
+  (if (or (nil? errors)
+          (empty? (keys errors)))
+    "{}"
+    (str errors)))
+
+(defun summary-line [label state-key]
+  {:style {:width :fill
+           :height 18
+           :layout {:direction :row
+                    :gap 6}}
+   :state {state-key (ui/bind-state state-key)}
+   :children [{:mode 'ui/text
+               :class :ui/muted
+               :style {:width 92}
+               :state {:value label}}
+              {:mode 'ui/text
+               :style {:width :fill}
+               :state {:value (ui/bind-state state-key)}}]})
+
+(defcomponent person-summary
+  {:style {:width :fill
+           :height :shrink
+           :padding 8
+           :background {:r 0xd6 :g 0xd6 :b 0xce}
+           :layout {:direction :column
+                    :gap 4}}
+   :update (fn [state ctx]
+             (let [person (:person state)]
+               (assoc state
+                      :first-name-value
+                      (summary-value person :field/first-name)
+                      :last-name-value
+                      (summary-value person :field/last-name)
+                      :age-value
+                      (summary-value person :field/age)
+                      :birth-place-value
+                      (summary-value person :field/birth-place)
+                      :newsletter-value
+                      (str (:field/newsletter? person))
+                      :valid-value
+                      (str (:form-valid? state))
+                      :errors-value
+                      (errors-text (:form-errors state)))))
+   :children [(summary-line "First" :first-name-value)
+              (summary-line "Last" :last-name-value)
+              (summary-line "Age" :age-value)
+              (summary-line "Birth place" :birth-place-value)
+              (summary-line "Newsletter" :newsletter-value)
+              (summary-line "Valid" :valid-value)
+              (summary-line "Errors" :errors-value)]})
+
+(defun make []
+  {:mode 'person-summary
+   :state {:person (ui/bind-state :selected-person)
+           :form-valid? (ui/bind-state :person-valid?)
+           :form-errors (ui/bind-state :person-errors)}})

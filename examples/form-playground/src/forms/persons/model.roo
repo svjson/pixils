@@ -59,17 +59,3 @@
    :previous-person-index nil
    :person-valid? false
    :person-errors {}})
-
-(defun preview-value [person key]
-  (let [value (get (or person {}) key)]
-    (if (nil? value) "" (str value))))
-
-(defun bool-text [value]
-  (if value "true" "false"))
-
-(defun errors-text [errors]
-  (if (or (nil? errors)
-          (empty? (keys errors)))
-    "{}"
-    (str errors)))
-
