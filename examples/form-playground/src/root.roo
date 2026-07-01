@@ -4,9 +4,12 @@
             [pixils.ui :as ui]))
 
 (def person-schema
-  {:field/first-name {:type :text}
-   :field/last-name {:type :text}
+  {:field/first-name {:type :text
+                      :required true}
+   :field/last-name {:type :text
+                     :required true}
    :field/age {:type :integer
+               :required true
                :min 0
                :max 130}
    :field/birth-place {:type :text}
@@ -43,6 +46,12 @@
 (defun bool-text [value]
   (if value "true" "false"))
 
+(defun errors-text [errors]
+  (if (or (nil? errors)
+          (empty? (keys errors)))
+    "{}"
+    (str errors)))
+
 (defun preview-value [person key]
   (let [value (get (or person {}) key)]
     (if (nil? value) "" (str value))))
@@ -66,12 +75,18 @@
                       :birth-place-value
                       (preview-value person :field/birth-place)
                       :newsletter-value
-                      (bool-text (:field/newsletter? person)))))
+                      (bool-text (:field/newsletter? person))
+                      :valid-value
+                      (bool-text (:form-valid? state))
+                      :errors-value
+                      (errors-text (:form-errors state)))))
    :children [(preview-line "First" :first-name-value)
               (preview-line "Last" :last-name-value)
               (preview-line "Age" :age-value)
               (preview-line "Birth place" :birth-place-value)
-              (preview-line "Newsletter" :newsletter-value)]})
+              (preview-line "Newsletter" :newsletter-value)
+              (preview-line "Valid" :valid-value)
+              (preview-line "Errors" :errors-value)]})
 
 (defmode main-mode
   {:class :ui/app
@@ -86,7 +101,9 @@
                      :field/last-name "Lovelace"
                      :field/age 36
                      :field/birth-place "London"
-                     :field/newsletter? true}})
+                     :field/newsletter? true}
+            :person-valid? false
+            :person-errors {}})
    :children [{:mode 'ui/text
                :style {:width :fill
                        :height 22
@@ -97,10 +114,16 @@
                        :height :shrink
                        :padding 10
                        :background {:r 0xd6 :g 0xd6 :b 0xce}}
-               :state {:person (ui/bind-state :person)}
+               :state {:person (ui/bind-state :person)
+                       :person-valid? (ui/bind-state :person-valid?)
+                       :person-errors (ui/bind-state :person-errors)}
                :children [(form/make {:schema person-schema
                                       :text person-text
                                       :layout person-layout
-                                      :value (ui/bind-state :person)})]}
+                                      :value (ui/bind-state :person)
+                                      :valid? (ui/bind-state :person-valid?)
+                                      :errors (ui/bind-state :person-errors)})]}
               {:mode 'person-preview
-               :state {:person (ui/bind-state :person)}}]})
+               :state {:person (ui/bind-state :person)
+                       :form-valid? (ui/bind-state :person-valid?)
+                       :form-errors (ui/bind-state :person-errors)}}]})

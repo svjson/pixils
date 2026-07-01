@@ -1,0 +1,286 @@
+(ns tilemap-editor.view.tilemap.dimensions-dialog
+  (:require pixils
+            [pixils.form :as form]
+            [pixils.tilemap.project.model :as data]
+            [pixils.ui :as ui]
+            [pixils.ui.checkbox :as chk]
+            [pixils.ui.number-input :as ni]
+            [pixils.ui.window :as w]))
+
+(def dimensions-schema
+  {:map-dimensions/width {:type :integer
+                          :required true
+                          :min data/min-map-dimension
+                          :max data/max-map-dimension
+                          :path [:width]}
+   :map-dimensions/height {:type :integer
+                           :required true
+                           :min data/min-map-dimension
+                           :max data/max-map-dimension
+                           :path [:height]}
+   :map-dimensions/tile-width {:type :integer
+                               :required true
+                               :min data/min-map-dimension
+                               :max data/max-map-dimension
+                               :path [:tile-size :w]}
+   :map-dimensions/tile-height {:type :integer
+                                :required true
+                                :min data/min-map-dimension
+                                :max data/max-map-dimension
+                                :path [:tile-size :h]}})
+
+(def dimensions-text
+  {:map-dimensions/width "Width"
+   :map-dimensions/height "Height"
+   :map-dimensions/tile-width "Tile W"
+   :map-dimensions/tile-height "Tile H"})
+
+(def dimensions-layout
+  [[:map-dimensions/width :map-dimensions/height]
+   [:map-dimensions/tile-width :map-dimensions/tile-height]])
+
+(def dimension-fields
+  {:map-dimensions/width :width
+   :map-dimensions/height :height
+   :map-dimensions/tile-width :tile-width
+   :map-dimensions/tile-height :tile-height})
+
+(def form-style
+  {:width :fill
+   :height :shrink
+   :layout {:direction :column
+            :gap 8}})
+
+(def form-row-style
+  {:width :fill
+   :height :shrink
+   :layout {:direction :row
+            :align-items :start
+            :gap 8}})
+
+(def form-field-style
+  {:width :fill
+   :height :shrink
+   :layout {:direction :column
+            :gap 3}})
+
+(def form-control-style
+  {:width :fill
+   :height 22})
+
+(defcomponent map-dimension-number-control
+  {:on {:number-input/change (fn [state event ctx]
+                               (do
+                                 (ui/emit! (:view ctx)
+                                           :map-dimensions/change
+                                           {:dimension (:dimension state)
+                                            :value (-> event :payload :value)})
+                                 state))}
+   :children [(ni/make {:value (ui/bind-state :value)
+                        :min (ui/bind-state :min)
+                        :max (ui/bind-state :max)
+                        :step (ui/bind-state :step)
+                        :style {:width :fill
+                                :height 22}})]})
+
+(defun dimension-number-control [field-id field-schema field-label opts]
+  {:mode 'map-dimension-number-control
+   :style (or (:control-style opts) form-control-style)
+   :state {:dimension (get (:dimension-fields opts) field-id)
+           :value (form/field-binding field-id field-schema)
+           :min (:min field-schema)
+           :max (:max field-schema)
+           :step (or (:step field-schema) 1)}})
+
+(def dimension-controls
+  {:integer dimension-number-control})
+
+(defun dimension-form []
+  (form/make {:schema dimensions-schema
+              :text dimensions-text
+              :layout dimensions-layout
+              :controls dimension-controls
+              :dimension-fields dimension-fields
+              :value (ui/bind-state :dimensions)
+              :valid? (ui/bind-state :valid?)
+              :errors (ui/bind-state :errors)
+              :style form-style
+              :field-style form-field-style
+              :row-style form-row-style
+              :control-style form-control-style}))
+
+(defun dimensions-value [state]
+  {:width (:width state)
+   :height (:height state)
+   :tile-size (data/map-tile-dim (:tile-size state))})
+
+(defun rounded-proportion-dimension [value from-size to-size]
+  (data/map-dimension (int (+ (/ (* value to-size) from-size) 0.5))
+                      data/tile-size))
+
+(defun resize-tile-dim-with-lock [tile-size dimension value lock? proportion]
+  (let [tile-size (data/map-tile-dim tile-size)
+        value (data/map-dimension value data/tile-size)
+        proportion (data/map-tile-dim (or proportion tile-size))]
+    (if lock?
+      (if (= dimension :tile-width)
+        {:w value
+         :h (rounded-proportion-dimension value
+                                          (:w proportion)
+                                          (:h proportion))}
+        {:w (rounded-proportion-dimension value
+                                          (:h proportion)
+                                          (:w proportion))
+         :h value})
+      (if (= dimension :tile-width)
+        (assoc tile-size :w value)
+        (assoc tile-size :h value)))))
+
+(defun apply-map-dimension-change [state dimension value]
+  (case dimension
+    :width (assoc state :width value)
+    :height (assoc state :height value)
+    :tile-width (assoc state
+                       :tile-size
+                       (resize-tile-dim-with-lock
+                        (:tile-size state)
+                        dimension
+                        value
+                        (:lock-tile-proportion? state)
+                        (:tile-proportion state)))
+    :tile-height (assoc state
+                        :tile-size
+                        (resize-tile-dim-with-lock
+                         (:tile-size state)
+                         dimension
+                         value
+                         (:lock-tile-proportion? state)
+                         (:tile-proportion state)))
+    :default state))
+
+(defun apply-dimension-form-change [state dimension value]
+  (let [form-state (merge (:dimensions state)
+                          {:lock-tile-proportion? (:lock-tile-proportion? state)
+                           :tile-proportion (:tile-proportion state)})
+        next-form-state (apply-map-dimension-change form-state dimension value)]
+    (assoc state :dimensions (dimensions-value next-form-state))))
+
+(defcomponent map-dimensions-confirm-button
+  {:extend 'ui/button
+   :update (fn [state ctx]
+             (assoc state :disabled? (not (:valid? state))))
+   :on-click (fn [state event ctx]
+               (do
+                 (when (:valid? state)
+                   (let [dimensions (dimensions-value (:dimensions state))]
+                     (ui/emit! (:view ctx)
+                               :map-dimensions/confirm
+                               {:width (:width dimensions)
+                                :height (:height dimensions)
+                                :tile-size (:tile-size dimensions)})))
+                 state))})
+
+(defun map-dimensions-confirm-button-child []
+  {:mode 'map-dimensions-confirm-button
+   :style {:width 78
+           :height 24}
+   :state {:label "OK"
+           :dimensions (ui/bind-state :dimensions)
+           :valid? (ui/bind-state :valid?)}})
+
+(defcomponent map-dimensions-dialog-buttons
+  {:style {:width :fill
+           :height 24
+           :layout {:direction :row
+                    :gap :space-between}}
+   :children [{:mode 'ui/button
+               :style {:width 78
+                       :height 24}
+               :state {:label "Cancel"}
+               :on-click (fn [state event ctx]
+                           (do
+                             (ui/emit! (:view ctx) :map-dimensions/cancel)
+                             state))}
+              (map-dimensions-confirm-button-child)]})
+
+(defcomponent map-dimensions-dialog-body
+  {:class :ui/content
+   :style {:width 260
+           :height :shrink
+           :padding 10
+           :layout {:direction :column
+                    :gap 8}}
+   :children [(dimension-form)
+              (chk/make {:label "Lock proportion"
+                         :checked? (ui/bind-state :lock-tile-proportion?)
+                         :value :lock-tile-proportion?})
+              {:mode 'map-dimensions-dialog-buttons
+               :state {:dimensions (ui/bind-state :dimensions)
+                       :valid? (ui/bind-state :valid?)}}]})
+
+(defmode map-dimensions-dialog-modal
+  {:on {:map-dimensions/change (fn [state event ctx]
+                                 (let [payload (:payload event)]
+                                   (apply-dimension-form-change
+                                    state
+                                    (:dimension payload)
+                                    (:value payload))))
+        :checkbox/change (fn [state event ctx]
+                           (let [payload (:payload event)]
+                             (if (= (:value payload) :lock-tile-proportion?)
+                               (assoc state
+                                      :lock-tile-proportion?
+                                      (:checked? payload)
+                                      :tile-proportion
+                                      (data/map-tile-dim
+                                       (:tile-size (:dimensions state))))
+                               state)))
+        :map-dimensions/cancel (fn [state event ctx]
+                                 (do
+                                   (ui/stop-propagation! event)
+                                   (pop-mode! {:type :cancel})
+                                   state))
+        :map-dimensions/confirm (fn [state event ctx]
+                                  (do
+                                    (ui/stop-propagation! event)
+                                    (pop-mode! {:type :confirm
+                                                :width (-> event :payload :width)
+                                                :height (-> event :payload :height)
+                                                :tile-size (-> event
+                                                               :payload
+                                                               :tile-size)})
+                                    state))}
+   :compose {:render :pass}
+   :children [(w/make {:title-bar {:title "Map Dimensions"}
+                       :state {:dimensions (ui/bind-state :dimensions)
+                               :lock-tile-proportion?
+                               (ui/bind-state :lock-tile-proportion?)
+                               :tile-proportion
+                               (ui/bind-state :tile-proportion)
+                               :valid? (ui/bind-state :valid?)
+                               :errors (ui/bind-state :errors)}
+                       :body [{:mode 'map-dimensions-dialog-body
+                               :state {:dimensions (ui/bind-state :dimensions)
+                                       :lock-tile-proportion?
+                                       (ui/bind-state :lock-tile-proportion?)
+                                       :tile-proportion
+                                       (ui/bind-state :tile-proportion)
+                                       :valid? (ui/bind-state :valid?)
+                                       :errors (ui/bind-state :errors)}}]})]})
+
+(defun open! [state ctx]
+  (let [tile-size (data/map-tile-dim (:tile-size state))]
+    (do
+      (push-mode! 'map-dimensions-dialog-modal
+                  {:dimensions {:width (data/map-dimension (:map-width state)
+                                                           data/map-width)
+                                :height (data/map-dimension (:map-height state)
+                                                            data/map-height)
+                                :tile-size tile-size}
+                   :tile-proportion tile-size
+                   :lock-tile-proportion? true
+                   :valid? false
+                   :errors {}}
+                  {:origin {:view (:view ctx)
+                            :event :map/dimensions-dialog-result}})
+      state)))

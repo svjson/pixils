@@ -1,5 +1,6 @@
 (ns pixils.form
-  (:require [pixils.ui :as ui]
+  (:require pixils
+            [pixils.ui :as ui]
             [pixils.ui.checkbox :as checkbox]
             [pixils.ui.number-input :as number-input]))
 
@@ -47,12 +48,73 @@
 (def form-state-binding
   {:value (ui/bind-state :value)})
 
+(defun blank-value? [value]
+  (or (nil? value)
+      (and (= (type-of value) "string")
+           (= (count value) 0))))
+
+(defun numeric-value? [value]
+  (number? value))
+
 (defun field-path [field-id field-schema]
   (let [path (:path field-schema)]
     (cond
       (nil? path) [field-id]
       (= (type-of path) "vector") path
       :default [path])))
+
+(defun field-value [value field-id field-schema]
+  (get-in (or value {}) (field-path field-id field-schema)))
+
+(defun append-error [errors error]
+  (if error
+    (concat errors [error])
+    errors))
+
+(defun required-error [value field-schema]
+  (when (and (= (:required field-schema) true)
+             (blank-value? value))
+    {:rule :required}))
+
+(defun min-error [value field-schema]
+  (let [min-value (:min field-schema)]
+    (when (and (not (nil? min-value))
+               (numeric-value? value)
+               (< value min-value))
+      {:rule :min
+       :min min-value
+       :actual value})))
+
+(defun max-error [value field-schema]
+  (let [max-value (:max field-schema)]
+    (when (and (not (nil? max-value))
+               (numeric-value? value)
+               (> value max-value))
+      {:rule :max
+       :max max-value
+       :actual value})))
+
+(defun validate-field [schema value field-id]
+  (let [field-schema (get (or schema {}) field-id)
+        value (field-value value field-id field-schema)
+        errors (append-error [] (required-error value field-schema))
+        errors (append-error errors (min-error value field-schema))
+        errors (append-error errors (max-error value field-schema))]
+    errors))
+
+(defun validation-errors [schema value]
+  (reduce-kv (or schema {})
+             {}
+             (fn [errors field-id field-schema]
+               (let [field-errors (validate-field schema value field-id)]
+                 (if (empty? field-errors)
+                   errors
+                   (assoc errors field-id field-errors))))))
+
+(defun validate [schema value]
+  (let [errors (validation-errors schema value)]
+    {:valid? (empty? (keys errors))
+     :errors errors}))
 
 (defun field-binding [field-id field-schema]
   (apply ui/bind-state (concat [:value] (field-path field-id field-schema))))
@@ -142,12 +204,23 @@
 (defun default-layout [schema]
   (keys (or schema {})))
 
+(defcomponent pixils/form
+  {:update (fn [state ctx]
+             (let [validation (validate (:schema state) (:value state))]
+               (assoc state
+                      :valid? (:valid? validation)
+                      :errors (:errors validation))))})
+
 (defun make [{:keys [schema text layout controls value style
                      field-style field-label-style row-style separator-style
-                     control-style]
+                     control-style valid? errors]
               :as opts}]
-  {:style (or style default-style)
-   :state {:value value}
+  {:mode 'pixils/form
+   :style (or style default-style)
+   :state {:value value
+           :schema schema
+           :valid? valid?
+           :errors errors}
    :children (map (or layout (default-layout schema))
                   (fn [item]
                     (layout-item-view item opts)))})

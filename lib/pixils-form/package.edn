@@ -1,7 +1,10 @@
 {:name pixils-form
  :version "0.1.0"
  :description "Declarative form rendering helpers for Pixils UI."
- :dependencies {pixils {:path "../pixils"}}
+ :dependencies {pixils {:path "../pixils"}
+                proof "0.1.0"}
  :load-roots ["src"]
+ :namespace-roots {pixils ["src/pixils" "test"]}
+ :config {proof {:test-roots ["test"]}}
  :entry-points []
  :test-entry-points []}
