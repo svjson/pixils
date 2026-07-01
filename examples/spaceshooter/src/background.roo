@@ -66,6 +66,7 @@
 
 (defun render! [backgrounds]
   (for [bg backgrounds]
-    (for [inst (:pos bg)]
-      (r/image! (:image bg)
-                {:pos inst}))))
+    (r/images! (:image bg)
+               (map (:pos bg)
+                    (fn [inst]
+                      {:pos inst})))))
