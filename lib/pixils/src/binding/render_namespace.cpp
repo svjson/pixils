@@ -490,6 +490,23 @@ namespace Pixils::Script
 #if defined(PIXILS_HAS_DYNAMIC_SDL_RENDER_GEOMETRY)
       using SDLRenderGeometryFn =
         bool (*)(SDL_Renderer*, SDL_Texture*, const SDL_Vertex*, int, const int*, int);
+      #if SDL_VERSION_ATLEAST(3, 2, 0)
+        using SDLRenderGeometryRawFn =
+          bool (*)(SDL_Renderer*,
+                   SDL_Texture*,
+                   const float*,
+                   int,
+                   const SDL_FColor*,
+                   int,
+                   const float*,
+                   int,
+                   int,
+                   const void*,
+                   int,
+                   int);
+      #else
+        using SDLRenderGeometryRawFn = std::nullptr_t;
+      #endif
 
       SDLRenderGeometryFn sdl_render_geometry_fn()
       {
@@ -497,10 +514,26 @@ namespace Pixils::Script
           reinterpret_cast<SDLRenderGeometryFn>(dlsym(RTLD_DEFAULT, "SDL_RenderGeometry"));
         return fn;
       }
+
+      SDLRenderGeometryRawFn sdl_render_geometry_raw_fn()
+      {
+      #if SDL_VERSION_ATLEAST(3, 2, 0)
+        static SDLRenderGeometryRawFn fn = SDL_RenderGeometryRaw;
+        return fn;
+      #else
+        return nullptr;
+      #endif
+      }
 #else
       using SDLRenderGeometryFn = std::nullptr_t;
+      using SDLRenderGeometryRawFn = std::nullptr_t;
 
       SDLRenderGeometryFn sdl_render_geometry_fn()
+      {
+        return nullptr;
+      }
+
+      SDLRenderGeometryRawFn sdl_render_geometry_raw_fn()
       {
         return nullptr;
       }
@@ -1421,13 +1454,15 @@ namespace Pixils::Script
         throw Roo::TypeError(context + " unsupported :line-join: " + line_join);
       }
 
-      Uint8 image_opacity_alpha(Roo::MapSchema::Inspector& opts)
+      Uint8 image_opacity_alpha(Roo::MapSchema::Inspector& opts, Uint8 inherited_alpha = 255)
       {
         if (opts.contains(std::get<std::string>(MapKey::OPACITY->value)))
         {
-          return opacity_to_alpha(opts.f32(std::get<std::string>(MapKey::OPACITY->value)));
+          const float inherited_opacity = static_cast<float>(inherited_alpha) / 255.0f;
+          return opacity_to_alpha(inherited_opacity *
+                                  opts.f32(std::get<std::string>(MapKey::OPACITY->value)));
         }
-        return 255;
+        return inherited_alpha;
       }
 
       SDL_BlendMode erase_alpha_blend_mode()
@@ -1442,13 +1477,15 @@ namespace Pixils::Script
         return mode;
       }
 
-      SDL_BlendMode image_blend_mode(Roo::MapSchema::Inspector& opts)
+      SDL_BlendMode image_blend_mode(Roo::MapSchema::Inspector& opts,
+                                     const std::string& context,
+                                     SDL_BlendMode fallback = SDL_BLENDMODE_BLEND)
       {
         auto value = opts.val(std::get<std::string>(MapKey::BLEND_MODE->value));
-        if (!value || value->type == Roo::Value::Type::NIL) return SDL_BLENDMODE_BLEND;
+        if (!value || value->type == Roo::Value::Type::NIL) return fallback;
         if (value->type != Roo::Value::Type::KEYWORD)
         {
-          throw Roo::TypeError("image!: :blend-mode must be a keyword.");
+          throw Roo::TypeError(context + ": :blend-mode must be a keyword.");
         }
 
         std::string mode = value->str();
@@ -1456,7 +1493,7 @@ namespace Pixils::Script
         if (mode == "none") return SDL_BLENDMODE_NONE;
         if (mode == "erase-alpha") return erase_alpha_blend_mode();
 
-        throw Roo::TypeError("image!: unsupported :blend-mode: " + mode);
+        throw Roo::TypeError(context + ": unsupported :blend-mode: " + mode);
       }
 
       std::optional<Rect> intersect_clip_rect(const std::optional<Rect>& current,
@@ -1489,11 +1526,12 @@ namespace Pixils::Script
                                           Roo::sptr_val value,
                                           int default_width,
                                           int default_height,
-                                          float scale)
+                                          float scale,
+                                          const std::string& context)
       {
         if (!value || value->type == Roo::Value::Type::NIL)
         {
-          throw Roo::TypeError("image!: options require :target or :pos.");
+          throw Roo::TypeError(context + ": options require :target or :pos.");
         }
 
         if (HostType::RECT.is_type_of(*value))
@@ -1517,7 +1555,7 @@ namespace Pixils::Script
           auto coercion = HostType::RECT.coerce(ctx, rect_value);
           if (!coercion.success)
           {
-            throw Roo::TypeError("image!: :target rect must be a Rect or rect map.");
+            throw Roo::TypeError(context + ": :target rect must be a Rect or rect map.");
           }
           const Rect& rect = Roo::obj<Rect>(*coercion.result);
           return {rect};
@@ -1527,7 +1565,7 @@ namespace Pixils::Script
         auto coercion = HostType::POINT.coerce(ctx, point_value);
         if (!coercion.success)
         {
-          throw Roo::TypeError("image!: :target must be a Point, Rect, or map.");
+          throw Roo::TypeError(context + ": :target must be a Point, Rect, or map.");
         }
         const Point& point = Roo::obj<Point>(*coercion.result);
         return {Rect{point.round_x(),
@@ -1593,18 +1631,7 @@ namespace Pixils::Script
           }
         }
       }
-    } // namespace
 
-    FUNC_IMPL(DrawImageBang,
-              MULTI_SIG((FN_ARGS((&Roo::Type::KEYWORD), (&HostType::POINT)),
-                         EXEC_DISPATCH(&DrawImageBang::exec_draw_img)),
-                        (FN_ARGS((&Roo::Type::KEYWORD), (&HostType::RECT)),
-                         EXEC_DISPATCH(&DrawImageBang::exec_draw_img)),
-                        (FN_ARGS((&Roo::Type::KEYWORD), (&Roo::Type::MAP)),
-                         EXEC_DISPATCH(&DrawImageBang::exec_draw_img))));
-
-    EXEC_BODY(DrawImageBang, exec_draw_img)
-    {
       static Roo::MapSchema draw_image_opts_schema({},
                                                    {{"pos", &HostType::POINT},
                                                     {"target", &Roo::Type::ANY},
@@ -1619,26 +1646,44 @@ namespace Pixils::Script
                                                     {"flip-x?", &Roo::Type::BOOL},
                                                     {"flip-y?", &Roo::Type::BOOL}});
 
-      if (args[0]->type == Roo::Value::Type::KEYWORD)
+      Roo::sptr_val image_options_source(const Roo::sptr_val& value)
       {
-        auto [asset_bundle, asset_key] = args.front()->qual();
+        return image_options_map(value)
+                 ? value
+                 : Roo::map(
+                     {Roo::keyword(std::get<std::string>(MapKey::TARGET->value)), value});
+      }
 
-        /**
-         * Force detection of Point-arg, as coercion will not have happened during
-         * for map-shaped Points during dispatch
-         */
-        Roo::sptr_val map_arg =
-          image_options_map(args[1])
-            ? args[1]
-            : Roo::map(
-                {Roo::keyword(std::get<std::string>(MapKey::TARGET->value)), args[1]});
+      struct ImageDrawSpec
+      {
+        SDL_Rect dest{};
+        std::optional<SDL_Rect> source = std::nullopt;
+        Rect bounds{};
+        std::optional<Rect> entry_clip = std::nullopt;
+        bool repeat_x = false;
+        bool repeat_y = false;
+        float rotation = 0.0f;
+        SDL_FlipMode flip = SDL_FLIP_NONE;
+        Uint8 alpha = 255;
+        SDL_BlendMode blend_mode = SDL_BLENDMODE_BLEND;
 
-        auto opts = draw_image_opts_schema.bind(ctx, *map_arg);
+        bool geometry_supported() const
+        {
+          return !entry_clip && !repeat_x && !repeat_y && rotation == 0.0f &&
+                 dest.w > 0 && dest.h > 0;
+        }
+      };
 
-        RenderContext& rc = Roo::obj<RenderContext>(*ctx.lookup(ID__PIXILS__RENDER_CONTEXT));
-
-        SDL_Texture* texture = rc.asset_registry->get_image(asset_bundle, asset_key);
-        if (!texture) return Roo::Constant::NIL;
+      std::optional<ImageDrawSpec> parse_image_draw_spec(Roo::Context& ctx,
+                                                         RenderContext& rc,
+                                                         SDL_Texture* texture,
+                                                         const Roo::sptr_val& source,
+                                                         Uint8 inherited_alpha,
+                                                         SDL_BlendMode inherited_blend_mode,
+                                                         const std::string& context)
+      {
+        Roo::sptr_val map_source = image_options_source(source);
+        auto opts = draw_image_opts_schema.bind(ctx, *map_source);
 
         float scale = opts.f32("scale", 1.0f);
         float rotation = opts.f32(std::get<std::string>(MapKey::ROTATION->value), 0.0f);
@@ -1646,11 +1691,11 @@ namespace Pixils::Script
         bool flip_y = opts.boolean(std::get<std::string>(MapKey::FLIP_Y->value), false);
         bool repeat_x = opts.boolean(std::get<std::string>(MapKey::REPEAT_X->value), false);
         bool repeat_y = opts.boolean(std::get<std::string>(MapKey::REPEAT_Y->value), false);
-        Uint8 alpha = image_opacity_alpha(opts);
-        SDL_BlendMode blend_mode = image_blend_mode(opts);
+        Uint8 alpha = image_opacity_alpha(opts, inherited_alpha);
+        SDL_BlendMode blend_mode = image_blend_mode(opts, context, inherited_blend_mode);
         std::optional<SDL_Rect> source_rect = std::nullopt;
-        if (auto source = opts.val(std::get<std::string>(MapKey::SOURCE->value));
-            source && source->type != Roo::Value::Type::NIL)
+        if (auto source_value = opts.val(std::get<std::string>(MapKey::SOURCE->value));
+            source_value && source_value->type != Roo::Value::Type::NIL)
         {
           source_rect =
             opts.obj<Rect>(std::get<std::string>(MapKey::SOURCE->value)).to_SDL_rect();
@@ -1669,14 +1714,8 @@ namespace Pixils::Script
           opts.contains(std::get<std::string>(MapKey::TARGET->value))
             ? opts.val(std::get<std::string>(MapKey::TARGET->value))
             : opts.val(std::get<std::string>(MapKey::POS->value));
-        ImageTarget target =
-          image_target_from_value(ctx, target_value, source_width, source_height, scale);
-        SDL_Rect dest = target.rect.to_SDL_rect();
-
-        const SDL_Rect* source_ptr = source_rect ? &*source_rect : nullptr;
-        SDL_FlipMode flip =
-          static_cast<SDL_FlipMode>((flip_x ? SDL_FLIP_HORIZONTAL : SDL_FLIP_NONE) |
-                                        (flip_y ? SDL_FLIP_VERTICAL : SDL_FLIP_NONE));
+        ImageTarget target = image_target_from_value(
+          ctx, target_value, source_width, source_height, scale, context);
 
         std::optional<Rect> previous_clip = rc.current_clip_rect;
         std::optional<Rect> requested_clip =
@@ -1685,8 +1724,7 @@ namespace Pixils::Script
         if (requested_clip)
         {
           effective_bounds = visible_clip_rect(previous_clip, *requested_clip);
-          if (!effective_bounds) return Roo::Constant::NIL;
-          rc.set_clip_rect(effective_bounds);
+          if (!effective_bounds) return std::nullopt;
         }
         else if ((repeat_x || repeat_y) && previous_clip)
         {
@@ -1697,42 +1735,295 @@ namespace Pixils::Script
           effective_bounds = target.rect;
         }
 
-        if (blend_mode != SDL_BLENDMODE_BLEND)
+        SDL_FlipMode flip =
+          static_cast<SDL_FlipMode>((flip_x ? SDL_FLIP_HORIZONTAL : SDL_FLIP_NONE) |
+                                    (flip_y ? SDL_FLIP_VERTICAL : SDL_FLIP_NONE));
+
+        return ImageDrawSpec{target.rect.to_SDL_rect(),
+                             source_rect,
+                             *effective_bounds,
+                             requested_clip,
+                             repeat_x,
+                             repeat_y,
+                             rotation,
+                             flip,
+                             alpha,
+                             blend_mode};
+      }
+
+      void render_image_spec(RenderContext& rc, SDL_Texture* texture, const ImageDrawSpec& spec)
+      {
+        const SDL_Rect* source_ptr = spec.source ? &*spec.source : nullptr;
+        std::optional<Rect> previous_clip = rc.current_clip_rect;
+        if (spec.entry_clip) rc.set_clip_rect(spec.bounds);
+        if (spec.blend_mode != SDL_BLENDMODE_BLEND)
         {
-          SDL_SetTextureBlendMode(texture, blend_mode);
+          SDL_SetTextureBlendMode(texture, spec.blend_mode);
         }
-        SDL_SetTextureAlphaMod(texture, alpha);
+        SDL_SetTextureAlphaMod(texture, spec.alpha);
         try
         {
           render_image_tiles(rc.renderer,
                              texture,
                              source_ptr,
-                             dest,
-                             *effective_bounds,
-                             repeat_x,
-                             repeat_y,
-                             rotation,
-                             flip);
+                             spec.dest,
+                             spec.bounds,
+                             spec.repeat_x,
+                             spec.repeat_y,
+                             spec.rotation,
+                             spec.flip);
         }
         catch (...)
         {
-          if (alpha != 255) SDL_SetTextureAlphaMod(texture, 255);
-          if (blend_mode != SDL_BLENDMODE_BLEND)
+          if (spec.alpha != 255) SDL_SetTextureAlphaMod(texture, 255);
+          if (spec.blend_mode != SDL_BLENDMODE_BLEND)
           {
             SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_BLEND);
           }
-          if (requested_clip) rc.set_clip_rect(previous_clip);
+          if (spec.entry_clip) rc.set_clip_rect(previous_clip);
           throw;
         }
-        if (alpha != 255) SDL_SetTextureAlphaMod(texture, 255);
-        if (blend_mode != SDL_BLENDMODE_BLEND)
+        if (spec.alpha != 255) SDL_SetTextureAlphaMod(texture, 255);
+        if (spec.blend_mode != SDL_BLENDMODE_BLEND)
         {
           SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_BLEND);
         }
-        if (requested_clip) rc.set_clip_rect(previous_clip);
+        if (spec.entry_clip) rc.set_clip_rect(previous_clip);
+      }
+
+      struct ImageGeometryBatch
+      {
+        std::vector<float> xy;
+        std::vector<SDL_FColor> colors;
+        std::vector<float> uv;
+        std::vector<int> indices;
+        SDL_BlendMode blend_mode = SDL_BLENDMODE_BLEND;
+        size_t entries = 0;
+
+        bool empty() const { return entries == 0; }
+
+        void clear()
+        {
+          xy.clear();
+          colors.clear();
+          uv.clear();
+          indices.clear();
+          entries = 0;
+        }
+      };
+
+      SDL_Rect full_texture_rect(SDL_Texture* texture)
+      {
+        int width = 0;
+        int height = 0;
+        get_texture_size(texture, &width, &height);
+        return SDL_Rect{0, 0, width, height};
+      }
+
+      void append_image_geometry(ImageGeometryBatch& batch,
+                                 SDL_Texture* texture,
+                                 const ImageDrawSpec& spec)
+      {
+        SDL_Rect source = spec.source.value_or(full_texture_rect(texture));
+        if (source.w <= 0 || source.h <= 0 || spec.dest.w <= 0 || spec.dest.h <= 0) return;
+
+        const SDL_Rect texture_rect = full_texture_rect(texture);
+        const float texture_w = static_cast<float>(std::max(1, texture_rect.w));
+        const float texture_h = static_cast<float>(std::max(1, texture_rect.h));
+
+        float u1 = static_cast<float>(source.x) / texture_w;
+        float v1 = static_cast<float>(source.y) / texture_h;
+        float u2 = static_cast<float>(source.x + source.w) / texture_w;
+        float v2 = static_cast<float>(source.y + source.h) / texture_h;
+
+        if ((spec.flip & SDL_FLIP_HORIZONTAL) != 0) std::swap(u1, u2);
+        if ((spec.flip & SDL_FLIP_VERTICAL) != 0) std::swap(v1, v2);
+
+        const float x1 = static_cast<float>(spec.dest.x);
+        const float y1 = static_cast<float>(spec.dest.y);
+        const float x2 = static_cast<float>(spec.dest.x + spec.dest.w);
+        const float y2 = static_cast<float>(spec.dest.y + spec.dest.h);
+        const int base = static_cast<int>(batch.xy.size() / 2);
+        const SDL_FColor color{1.0f,
+                               1.0f,
+                               1.0f,
+                               static_cast<float>(spec.alpha) / 255.0f};
+
+        batch.xy.insert(batch.xy.end(), {x1, y1, x2, y1, x2, y2, x1, y2});
+        batch.uv.insert(batch.uv.end(), {u1, v1, u2, v1, u2, v2, u1, v2});
+        batch.colors.insert(batch.colors.end(), {color, color, color, color});
+        batch.indices.insert(batch.indices.end(),
+                             {base, base + 1, base + 2, base, base + 2, base + 3});
+        batch.entries++;
+      }
+
+      bool flush_image_geometry_batch(RenderContext& rc,
+                                      SDL_Texture* texture,
+                                      ImageGeometryBatch& batch)
+      {
+        if (batch.empty()) return true;
+        SDLRenderGeometryRawFn render_geometry_raw = sdl_render_geometry_raw_fn();
+        if (!render_geometry_raw) return false;
+
+        if (batch.blend_mode != SDL_BLENDMODE_BLEND)
+        {
+          SDL_SetTextureBlendMode(texture, batch.blend_mode);
+        }
+
+        bool rendered =
+          render_geometry_raw(rc.renderer,
+                              texture,
+                              batch.xy.data(),
+                              static_cast<int>(sizeof(float) * 2),
+                              batch.colors.data(),
+                              static_cast<int>(sizeof(SDL_FColor)),
+                              batch.uv.data(),
+                              static_cast<int>(sizeof(float) * 2),
+                              static_cast<int>(batch.xy.size() / 2),
+                              batch.indices.data(),
+                              static_cast<int>(batch.indices.size()),
+                              static_cast<int>(sizeof(int)));
+
+        if (batch.blend_mode != SDL_BLENDMODE_BLEND)
+        {
+          SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_BLEND);
+        }
+        batch.clear();
+        return rendered;
+      }
+    } // namespace
+
+    FUNC_IMPL(DrawImageBang,
+              MULTI_SIG((FN_ARGS((&Roo::Type::KEYWORD), (&HostType::POINT)),
+                         EXEC_DISPATCH(&DrawImageBang::exec_draw_img)),
+                        (FN_ARGS((&Roo::Type::KEYWORD), (&HostType::RECT)),
+                         EXEC_DISPATCH(&DrawImageBang::exec_draw_img)),
+                        (FN_ARGS((&Roo::Type::KEYWORD), (&Roo::Type::MAP)),
+                         EXEC_DISPATCH(&DrawImageBang::exec_draw_img))));
+
+    EXEC_BODY(DrawImageBang, exec_draw_img)
+    {
+      if (args[0]->type == Roo::Value::Type::KEYWORD)
+      {
+        auto [asset_bundle, asset_key] = args.front()->qual();
+
+        RenderContext& rc = Roo::obj<RenderContext>(*ctx.lookup(ID__PIXILS__RENDER_CONTEXT));
+
+        SDL_Texture* texture = rc.asset_registry->get_image(asset_bundle, asset_key);
+        if (!texture) return Roo::Constant::NIL;
+
+        if (auto spec = parse_image_draw_spec(ctx,
+                                              rc,
+                                              texture,
+                                              args[1],
+                                              255,
+                                              SDL_BLENDMODE_BLEND,
+                                              "image!"))
+        {
+          render_image_spec(rc, texture, *spec);
+        }
       }
 
       return Roo::Constant::NIL;
+    }
+
+    FUNC_IMPL(DrawImagesBang,
+              MULTI_SIG((FN_ARGS((&Roo::Type::KEYWORD), (&Roo::Type::ANY)),
+                         EXEC_DISPATCH(&DrawImagesBang::exec_draw_imgs)),
+                        (FN_ARGS((&Roo::Type::KEYWORD), (&Roo::Type::ANY), (&Roo::Type::MAP)),
+                         EXEC_DISPATCH(&DrawImagesBang::exec_draw_imgs_with_opts))));
+
+    EXEC_BODY(DrawImagesBang, exec_draw_imgs)
+    {
+      Roo::sptr_val_v opt_args = args;
+      opt_args.push_back(Roo::map({}));
+      return this->exec_draw_imgs_with_opts(ctx, opt_args);
+    }
+
+    EXEC_BODY(DrawImagesBang, exec_draw_imgs_with_opts)
+    {
+      static Roo::MapSchema draw_images_opts_schema(
+        {},
+        {{"clip-rect", &HostType::RECT},
+         {"opacity", &Roo::Type::NUMBER},
+         {"blend-mode", &Roo::Type::KEYWORD}});
+
+      auto [asset_bundle, asset_key] = args.front()->qual();
+      RenderContext& rc = Roo::obj<RenderContext>(*ctx.lookup(ID__PIXILS__RENDER_CONTEXT));
+      SDL_Texture* texture = rc.asset_registry->get_image(asset_bundle, asset_key);
+      if (!texture) return Roo::number(0);
+
+      if (!seq_value(args[1]))
+      {
+        throw Roo::TypeError("images!: entries must be a sequence.");
+      }
+
+      auto opts = draw_images_opts_schema.bind(ctx, *args.back());
+      Uint8 inherited_alpha = image_opacity_alpha(opts);
+      SDL_BlendMode inherited_blend_mode = image_blend_mode(opts, "images!");
+
+      std::optional<Rect> previous_clip = rc.current_clip_rect;
+      std::optional<Rect> requested_clip =
+        opts.optional_obj<Rect>(std::get<std::string>(MapKey::CLIP_RECT->value));
+      if (requested_clip)
+      {
+        auto effective_clip = visible_clip_rect(previous_clip, *requested_clip);
+        if (!effective_clip) return Roo::number(0);
+        rc.set_clip_rect(effective_clip);
+      }
+
+      ImageGeometryBatch batch;
+      size_t submitted = 0;
+      SDLRenderGeometryRawFn render_geometry_raw = sdl_render_geometry_raw_fn();
+
+      auto flush_batch = [&]()
+      {
+        if (!batch.empty() && !flush_image_geometry_batch(rc, texture, batch))
+        {
+          batch.clear();
+        }
+      };
+
+      try
+      {
+        for (auto& entry : Roo::get_children(*args[1]))
+        {
+          auto spec = parse_image_draw_spec(ctx,
+                                           rc,
+                                           texture,
+                                           entry,
+                                           inherited_alpha,
+                                           inherited_blend_mode,
+                                           "images!");
+          if (!spec) continue;
+
+          if (render_geometry_raw && spec->geometry_supported())
+          {
+            if (!batch.empty() && batch.blend_mode != spec->blend_mode)
+            {
+              flush_batch();
+            }
+            batch.blend_mode = spec->blend_mode;
+            append_image_geometry(batch, texture, *spec);
+            submitted++;
+          }
+          else
+          {
+            flush_batch();
+            render_image_spec(rc, texture, *spec);
+            submitted++;
+          }
+        }
+        flush_batch();
+      }
+      catch (...)
+      {
+        if (requested_clip) rc.set_clip_rect(previous_clip);
+        throw;
+      }
+
+      if (requested_clip) rc.set_clip_rect(previous_clip);
+      return Roo::number(static_cast<int>(submitted));
     }
 
     /* DrawLineBang - line! */
@@ -2585,6 +2876,7 @@ namespace Pixils::Script
     : Roo::Namespace(std::string(NS__PIXILS__RENDER))
   {
     values.emplace(FN__DRAW_IMAGE_BANG, Function::DrawImageBang::make());
+    values.emplace(FN__DRAW_IMAGES_BANG, Function::DrawImagesBang::make());
     values.emplace(FN__DRAW_CIRCLE_BANG, Function::DrawCircleBang::make());
     values.emplace(FN__DRAW_ELLIPSE_BANG, Function::DrawEllipseBang::make());
     values.emplace(FN__DRAW_LINE_BANG, Function::DrawLineBang::make());

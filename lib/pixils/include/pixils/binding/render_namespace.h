@@ -12,6 +12,7 @@ namespace Pixils::Script
   inline constexpr std::string_view NS__PIXILS__RENDER = "pixils.render";
 
   inline constexpr std::string_view FN__DRAW_IMAGE_BANG = "image!";
+  inline constexpr std::string_view FN__DRAW_IMAGES_BANG = "images!";
   inline constexpr std::string_view FN__DRAW_CIRCLE_BANG = "circle!";
   inline constexpr std::string_view FN__DRAW_ELLIPSE_BANG = "ellipse!";
   inline constexpr std::string_view FN__DRAW_LINE_BANG = "line!";
@@ -79,6 +80,25 @@ namespace Pixils::Script
      * @return nil
      */
     FUNC(DrawImageBang, draw_img);
+    /**
+     * @brief Draw many copies of one image resource.
+     *
+     * Usage:
+     * @code
+     * (pixils.render/images! :sprites/tiles
+     *   [{:pos {:x 12 :y 18}
+     *     :source {:x 0 :y 0 :w 16 :h 16}}
+     *    {:target {:x 40 :y 18 :w 32 :h 32}
+     *     :source {:x 16 :y 0 :w 16 :h 16}}])
+     * @endcode
+     *
+     * Entries accept the same placement keys as image!. Entries that can be
+     * represented as simple textured quads are grouped internally; entries that
+     * need behavior such as rotation or repetition fall back to the image! path.
+     *
+     * @return number of entries rendered
+     */
+    FUNC(DrawImagesBang, draw_imgs, draw_imgs_with_opts);
     /*! @brief draw-circle! function */
     FUNC(DrawCircleBang, draw_circle);
     /*! @brief draw-ellipse! function */

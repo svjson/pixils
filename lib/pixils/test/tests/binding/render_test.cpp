@@ -854,6 +854,71 @@ TEST_F(RenderTest, image_accepts_source_rect)
   EXPECT_EQ(ops[0].rendered_rect.h, 16);
 }
 
+TEST_F(RenderTest, images_draws_supported_entries_as_single_geometry_operation)
+{
+  SDL3Mock::prepared_surfaces["./tiles.png"] = {32, 16};
+  runtime.eval(R"(
+    (pixils/defbundle sprites {:images {:tiles "tiles.png"}})
+    (pixils/defmode test-mode {
+      :render (fn [state ctx]
+                (pixils.render/images!
+                  :sprites/tiles
+                  [{:pos {:x 3 :y 4}
+                    :source {:x 16 :y 0 :w 8 :h 8}
+                    :scale 2}
+                   {:target {:x 30 :y 10 :w 8 :h 12}
+                    :source {:x 24 :y 0 :w 8 :h 8}}]))
+    })
+  )");
+  session.push_mode("test-mode", Roo::Constant::NIL);
+
+  ASSERT_NO_THROW(session.render_mode());
+
+  auto& ops = render_target()->render_ops;
+  ASSERT_EQ(ops.size(), 1u);
+  EXPECT_EQ(ops[0].type, RenderOpType::RENDER_GEOMETRY);
+  EXPECT_EQ(ops[0].rendered_rect.x, 3);
+  EXPECT_EQ(ops[0].rendered_rect.y, 4);
+  EXPECT_EQ(ops[0].rendered_rect.w, 35);
+  EXPECT_EQ(ops[0].rendered_rect.h, 18);
+  EXPECT_EQ(ops[0].vertex_count, 8);
+  EXPECT_EQ(ops[0].index_count, 12);
+}
+
+TEST_F(RenderTest, images_falls_back_to_image_rendering_for_rotated_entries)
+{
+  SDL3Mock::prepared_surfaces["./tiles.png"] = {32, 16};
+  runtime.eval(R"(
+    (pixils/defbundle sprites {:images {:tiles "tiles.png"}})
+    (pixils/defmode test-mode {
+      :render (fn [state ctx]
+                (pixils.render/images!
+                  :sprites/tiles
+                  [{:pos {:x 1 :y 2}
+                    :source {:x 0 :y 0 :w 8 :h 8}}
+                   {:pos {:x 10 :y 20}
+                    :source {:x 8 :y 0 :w 8 :h 8}
+                    :rotation 1.5707963}
+                   {:pos {:x 30 :y 40}
+                    :source {:x 16 :y 0 :w 8 :h 8}}]))
+    })
+  )");
+  session.push_mode("test-mode", Roo::Constant::NIL);
+
+  ASSERT_NO_THROW(session.render_mode());
+
+  auto& ops = render_target()->render_ops;
+  ASSERT_EQ(ops.size(), 3u);
+  EXPECT_EQ(ops[0].type, RenderOpType::RENDER_GEOMETRY);
+  EXPECT_EQ(ops[1].type, RenderOpType::RENDER_COPY);
+  EXPECT_EQ(ops[1].rendered_rect.x, 10);
+  EXPECT_EQ(ops[1].rendered_rect.y, 20);
+  EXPECT_EQ(ops[1].rendered_rect.w, 8);
+  EXPECT_EQ(ops[1].rendered_rect.h, 8);
+  EXPECT_NEAR(ops[1].rotation_degrees, 90.0, 0.01);
+  EXPECT_EQ(ops[2].type, RenderOpType::RENDER_GEOMETRY);
+}
+
 TEST_F(RenderTest, image_accepts_target_point)
 {
   SDL3Mock::prepared_surfaces["./ship.png"] = {16, 8};
