@@ -63,6 +63,63 @@ TEST_F(ScrollbarTest, scrollbar_lays_out_button_children_from_axis)
   EXPECT_EQ(end_button->bounds.h, 10);
 }
 
+TEST_F(ScrollbarTest, standalone_scrollbar_uses_axis_and_value_on_first_render)
+{
+  runtime.eval(R"(
+    (pixils/defmode root-mode
+      {:children [{:mode 'ui/scrollbar
+                   :style {:width 260 :height 18}
+                   :state {:axis :x
+                           :value 24
+                           :content-size 300
+                           :viewport-size 80
+                           :step 10}}
+                  {:mode 'ui/scrollbar
+                   :style {:width 18 :height 110}
+                   :state {:axis :y
+                           :value 40
+                           :content-size 260
+                           :viewport-size 90
+                           :step 10}}]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  session.render_mode();
+
+  ASSERT_NE(session.active_mode, nullptr);
+  ASSERT_EQ(session.active_mode->children.size(), 2u);
+  auto horizontal = session.active_mode->children[0];
+  auto vertical = session.active_mode->children[1];
+  ASSERT_NE(horizontal, nullptr);
+  ASSERT_NE(vertical, nullptr);
+  ASSERT_EQ(horizontal->children.size(), 3u);
+  ASSERT_EQ(vertical->children.size(), 3u);
+
+  auto horizontal_track = horizontal->children[1];
+  auto vertical_track = vertical->children[1];
+  ASSERT_NE(horizontal_track, nullptr);
+  ASSERT_NE(vertical_track, nullptr);
+  ASSERT_EQ(horizontal_track->children.size(), 1u);
+  ASSERT_EQ(vertical_track->children.size(), 1u);
+  auto horizontal_handle = horizontal_track->children[0];
+  auto vertical_handle = vertical_track->children[0];
+  ASSERT_NE(horizontal_handle, nullptr);
+  ASSERT_NE(vertical_handle, nullptr);
+
+  EXPECT_EQ(horizontal_track->bounds.x, horizontal->children[0]->bounds.w);
+  EXPECT_EQ(horizontal->children[2]->bounds.x + horizontal->children[2]->bounds.w,
+            horizontal->bounds.x + horizontal->bounds.w);
+  EXPECT_GT(horizontal_handle->bounds.x, horizontal_track->bounds.x);
+  EXPECT_EQ(horizontal_handle->bounds.h, horizontal_track->bounds.h);
+
+  EXPECT_EQ(vertical_track->bounds.y,
+            vertical->bounds.y + vertical->children[0]->bounds.h);
+  EXPECT_EQ(vertical->children[2]->bounds.y + vertical->children[2]->bounds.h,
+            vertical->bounds.y + vertical->bounds.h);
+  EXPECT_GT(vertical_handle->bounds.y, vertical_track->bounds.y);
+  EXPECT_EQ(vertical_handle->bounds.w, vertical_track->bounds.w);
+}
+
 TEST_F(ScrollbarTest, scrollbar_track_init_does_not_require_layout_geometry)
 {
   runtime.eval(R"(

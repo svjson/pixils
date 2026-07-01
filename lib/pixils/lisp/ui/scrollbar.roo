@@ -212,17 +212,17 @@
 
 (defun scrollbar-track-axis-size [state ctx]
   (if (= (:axis state) :x)
-    (or (:available-width ctx)
-        (-> ctx :view :bounds :w))
-    (or (:available-height ctx)
-        (-> ctx :view :bounds :h))))
+    (or (positive-size (-> ctx :view :bounds :w))
+        (:available-width ctx))
+    (or (positive-size (-> ctx :view :bounds :h))
+        (:available-height ctx))))
 
 (defun scrollbar-track-cross-size [state ctx]
   (if (= (:axis state) :x)
-    (or (:available-height ctx)
-        (-> ctx :view :bounds :h))
-    (or (:available-width ctx)
-        (-> ctx :view :bounds :w))))
+    (or (positive-size (-> ctx :view :bounds :h))
+        (:available-height ctx))
+    (or (positive-size (-> ctx :view :bounds :w))
+        (:available-width ctx))))
 
 (defun scrollbar-track-viewport-size [state ctx]
   (or (:viewport-size state)
@@ -281,6 +281,13 @@
      :top 0
      :width :fill}))
 
+(defun scrollbar-track-handle-style-matches? [handle style]
+  (and (= (-> handle :style :position) (:position style))
+       (= (-> handle :style :left) (:left style))
+       (= (-> handle :style :top) (:top style))
+       (= (-> handle :style :width) (:width style))
+       (= (-> handle :style :height) (:height style))))
+
 (defun scrollbar-track-has-geometry? [state ctx]
   (and (not (nil? (scrollbar-track-axis-size state ctx)))
        (not (nil? (scrollbar-track-cross-size state ctx)))
@@ -289,10 +296,12 @@
 (defun scrollbar-sync-track-handle [state ctx]
   (let [children (ui/children ctx)]
     (when (> (count children) 0)
-      (ui/style! (nth children 0)
-                 (if (scrollbar-track-has-geometry? state ctx)
-                   (scrollbar-track-handle-style state ctx)
-                   (scrollbar-track-handle-base-style state)))))
+      (let [handle (nth children 0)
+            style (if (scrollbar-track-has-geometry? state ctx)
+                    (scrollbar-track-handle-style state ctx)
+                    (scrollbar-track-handle-base-style state))]
+        (when (not (scrollbar-track-handle-style-matches? handle style))
+          (ui/style! handle style)))))
   state)
 
 (defun scrollbar-handle-content-axis-size [state ctx]
@@ -554,25 +563,34 @@
 (defcomponent ui/scrollbar-track
   {:init scrollbar-sync-track-handle
    :update scrollbar-sync-track-handle
+   :after-layout scrollbar-sync-track-handle
    :children [{:mode 'ui/scrollbar-handle
                :state {:axis (ui/bind-state :axis)
                        :content-size (ui/bind-state :content-size)
                        :viewport-size (ui/bind-state :viewport-size)
                        :active-part (ui/bind-state :active-part)}}]})
 
+(defun scrollbar-layout-direction [state]
+  (if (= (:axis state) :x)
+    :row
+    :column))
+
+(defun scrollbar-sync-layout [state ctx]
+  (let [direction (scrollbar-layout-direction state)]
+    (when (not= (-> ctx :view :style :layout :direction) direction)
+      (ui/style! ctx {:layout {:direction direction}})))
+  state)
+
 (defcomponent ui/scrollbar
   {:focusable true
    :content-size scrollbar-content-size
+   :init scrollbar-sync-layout
    :update (fn [state ctx]
              (let [state (if (and (:active-part state)
                                   (not (scrollbar-left-pressed? ctx)))
                            (scrollbar-clear-active-state state)
                            state)]
-               (do
-                 (ui/style! ctx {:layout {:direction (if (= (:axis state) :x)
-                                                        :row
-                                                        :column)}})
-                 state)))
+               (scrollbar-sync-layout state ctx)))
    :on-mouse-down (fn [state event ctx]
                     (do
                       (ui/stop-propagation! event)
