@@ -2,6 +2,7 @@
 
 #include <pixils/clipboard.h>
 #include <pixils/program.h>
+#include <pixils/ui/view_layout.h>
 
 #include <SDL2/SDL_keycode.h>
 #include <gtest/gtest.h>
@@ -14,6 +15,16 @@ using TextInputTest = RenderFixture;
 
 namespace
 {
+  void layout_active_mode(Roo::Runtime& runtime,
+                          Pixils::Runtime::Session& session)
+  {
+    Pixils::UI::layout_view_tree(session.active_mode,
+                                 {0, 0, session.render_ctx.buffer_dim.w,
+                                  session.render_ctx.buffer_dim.h},
+                                 runtime,
+                                 session.hook_args.render_args[1]);
+  }
+
   std::shared_ptr<Pixils::Runtime::View> find_first_mode(
     const std::shared_ptr<Pixils::Runtime::View>& view,
     const std::string& mode_name)
@@ -150,6 +161,30 @@ TEST_F(TextInputTest, natural_height_uses_default_ttf_font_metrics)
 
   EXPECT_GT(input_view->bounds.h, 22);
   EXPECT_EQ(inner->bounds.h, input_view->effective_style.content_rect(input_view->bounds).h);
+}
+
+TEST_F(TextInputTest, text_input_text_and_caret_are_positioned_on_first_render)
+{
+  runtime.eval(R"(
+    (pixils/defmode root-mode
+      {:theme 'pixils/windows-3
+       :children [{:mode 'ui/text-input
+                   :style {:width 260 :height 24}
+                   :state {:value "Editable text"
+                           :auto-focus? true}}]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  layout_active_mode(runtime, session);
+
+  auto text = find_first_mode(session.active_mode, "ui/text");
+  auto caret = find_first_mode(session.active_mode, "ui/text-input-caret");
+  ASSERT_NE(text, nullptr);
+  ASSERT_NE(caret, nullptr);
+
+  EXPECT_EQ(caret->bounds.y, text->bounds.y);
+  EXPECT_EQ(caret->bounds.h, text->bounds.h);
+  EXPECT_GT(text->bounds.y, 0);
 }
 
 TEST_F(TextInputTest, read_only_text_input_focuses_and_navigates_without_mutating)

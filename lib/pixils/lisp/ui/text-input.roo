@@ -296,28 +296,154 @@
       (clamp-scroll-x (- cursor-right content-width) scrollable-width content-width)
       :default scroll-x)))
 
-(defun position-text-input-children! [ctx scroll-x cursor-y]
+(defun text-input-style-matches? [view style]
+  (and (if (contains? style :position)
+         (= (-> view :style :position) (:position style))
+         true)
+       (if (contains? style :left)
+         (= (-> view :style :left) (:left style))
+         true)
+       (if (contains? style :top)
+         (= (-> view :style :top) (:top style))
+         true)
+       (if (contains? style :height)
+         (= (-> view :style :height) (:height style))
+         true)
+       (if (contains? style :visibility)
+         (= (-> view :style :visibility) (:visibility style))
+         true)))
+
+(defun text-input-style-if-changed! [view style]
+  (when (not (text-input-style-matches? view style))
+    (ui/style! view style)))
+
+(defun position-text-input-children! [ctx scroll-x cursor-y cursor-x cursor-h show-caret?]
   (let [children (ui/children ctx)]
     (do
       (when (> (count children) 0)
-        (ui/style! (nth children 0)
-                   {:position :absolute
-                    :left (* -1 (or scroll-x 0))
-                    :top (or cursor-y 0)})))))
+        (text-input-style-if-changed! (nth children 0)
+                                      {:position :absolute
+                                       :left (* -1 (or scroll-x 0))
+                                       :top (or cursor-y 0)}))
+      (when (> (count children) 1)
+        (text-input-style-if-changed! (nth children 1)
+                                      {:position :absolute
+                                       :left (- (or cursor-x 0) (or scroll-x 0))
+                                       :top (or cursor-y 0)
+                                       :height (or cursor-h 0)
+                                       :visibility (if show-caret?
+                                                     :visible
+                                                     :none)})))))
+
+(defun text-input-caret-style [state]
+  {:position :absolute
+   :left (or (:x state) 0)
+   :top (or (:y state) 0)
+   :height (or (:h state) 0)
+   :visibility (if (:visible? state) :visible :none)})
+
+(defun text-input-sync-caret-style! [state ctx]
+  (text-input-style-if-changed! (:view ctx)
+                                (text-input-caret-style state)))
+
+(defun sync-text-input-state [state ctx]
+  (let [value (or (:value state) "")
+        style (-> ctx :view :effective-style)
+        text-opts (text-args style)
+        cursor-index (max 0 (min (count value)
+                                 (value-or (:cursor-index state)
+                                           (count value))))
+        selection-anchor (if (nil? (:selection-anchor state))
+                           nil
+                           (max 0 (min (count value)
+                                       (:selection-anchor state))))
+        prefix (substr value 0 cursor-index)
+        text-width (measure-text-width value text-opts)
+        cursor-x (measure-text-width prefix text-opts)
+        cursor-h (or (:h (r/text-size "M" text-opts)) 0)
+        content-width (style-content-width (-> ctx :view :bounds)
+                                           style)
+        scroll-x (scroll-x-for-cursor (:scroll-x state)
+                                      cursor-x
+                                      text-width
+                                      content-width)
+        cursor-y (max 0
+                      (int (/ (- (style-content-height
+                                  (-> ctx :view :bounds)
+                                  style)
+                                cursor-h)
+                             2)))
+        show-caret? (and (not (:disabled? state))
+                         (or (-> ctx :view :interaction :focused)
+                             (-> ctx :view :interaction :focus-within)))
+        selection-prefix-width (measure-text-width
+                                 (substr value
+                                         0
+                                         (or (:selection-start state)
+                                             0))
+                                 text-opts)
+        selection-end-width (measure-text-width
+                              (substr value
+                                      0
+                                      (or (:selection-end state)
+                                          0))
+                              text-opts)
+        selection-x (- selection-prefix-width scroll-x)
+        selection-w (max 0 (- selection-end-width
+                              selection-prefix-width))]
+    (do
+      (position-text-input-children! ctx
+                                     scroll-x
+                                     cursor-y
+                                     cursor-x
+                                     cursor-h
+                                     show-caret?)
+      (-> state
+          (assoc :value value)
+          (assoc :cursor-index cursor-index)
+          (assoc :selection-anchor selection-anchor)
+          (assoc :selection-start (if (nil? selection-anchor)
+                                    nil
+                                    (let [start (min selection-anchor
+                                                     cursor-index)
+                                          end (max selection-anchor
+                                                   cursor-index)]
+                                      (if (< start end) start nil))))
+          (assoc :selection-end (if (nil? selection-anchor)
+                                  nil
+                                  (let [start (min selection-anchor
+                                                   cursor-index)
+                                        end (max selection-anchor
+                                                 cursor-index)]
+                                    (if (< start end) end nil))))
+          (assoc :scroll-x scroll-x)
+          (assoc :cursor-x cursor-x)
+          (assoc :caret-x (- cursor-x scroll-x))
+          (assoc :cursor-y cursor-y)
+          (assoc :cursor-h cursor-h)
+          (assoc :selection-x selection-x)
+          (assoc :selection-y cursor-y)
+          (assoc :selection-w selection-w)
+          (assoc :selection-h cursor-h)
+          (assoc :show-caret? show-caret?)))))
 
 (defcomponent ui/text-input-caret
   {:style {:width 1}
+   :init (fn [state ctx]
+           (do
+             (text-input-sync-caret-style! state ctx)
+             state))
    :update (fn [state ctx]
-             (do (assoc-in! ctx [:view :style :position] :absolute)
-                 (assoc-in! ctx [:view :style :left] (:x state))
-                 (assoc-in! ctx [:view :style :top] (:y state))
-                 (assoc-in! ctx [:view :style :height] (or (:h state) 0))
-                 (assoc-in! ctx
-                            [:view :style :visibility]
-                            (if (:visible? state) :visible :none))
-                 state))
+             (do
+               (text-input-sync-caret-style! state ctx)
+               state))
    :render (fn [state ctx]
-             (r/rect! {:x 0 :y 0 :w 1 :h (or (:h state) 0)}
+             (r/rect! {:x 0
+                       :y 0
+                       :w 1
+                       :h (or (:h state)
+                              (-> ctx :view :bounds :h)
+                              0)}
                       {:fill true
                        :color (or (-> ctx :view :effective-style :background)
                                   (-> ctx :view :effective-style :text :color)
@@ -341,82 +467,9 @@
                    (assoc :cursor-index (value-or (:cursor-index state)
                                                   (count value)))))))
    :update (fn [state ctx]
-             (let [value (or (:value state) "")
-                   style (-> ctx :view :effective-style)
-                   text-opts (text-args style)
-                   cursor-index (max 0 (min (count value)
-                                            (value-or (:cursor-index state)
-                                                      (count value))))
-                   selection-anchor (if (nil? (:selection-anchor state))
-                                      nil
-                                      (max 0 (min (count value)
-                                                  (:selection-anchor state))))
-                   prefix (substr value 0 cursor-index)
-                   text-width (measure-text-width value text-opts)
-                   cursor-x (measure-text-width prefix text-opts)
-                   cursor-h (or (:h (r/text-size "M" text-opts)) 0)
-                   content-width (style-content-width (-> ctx :view :bounds)
-                                                      style)
-                   scroll-x (scroll-x-for-cursor (:scroll-x state)
-                                                 cursor-x
-                                                 text-width
-                                                 content-width)
-                   cursor-y (max 0
-                                 (int (/ (- (style-content-height
-                                             (-> ctx :view :bounds)
-                                             style)
-                                           cursor-h)
-                                        2)))
-                   show-caret? (and (not (:disabled? state))
-                                    (or (-> ctx :view :interaction :focused)
-                                        (-> ctx :view :interaction :focus-within)))
-                   selection-prefix-width (measure-text-width
-                                            (substr value
-                                                    0
-                                                    (or (:selection-start state)
-                                                        0))
-                                            text-opts)
-                   selection-end-width (measure-text-width
-                                         (substr value
-                                                 0
-                                                 (or (:selection-end state)
-                                                     0))
-                                         text-opts)
-                   selection-x (- selection-prefix-width scroll-x)
-                   selection-w (max 0 (- selection-end-width
-                                         selection-prefix-width))]
-               (do
-                 (position-text-input-children! ctx
-                                                scroll-x
-                                                cursor-y)
-                 (-> state
-                     (assoc :value value)
-                     (assoc :cursor-index cursor-index)
-                     (assoc :selection-anchor selection-anchor)
-                     (assoc :selection-start (if (nil? selection-anchor)
-                                               nil
-                                               (let [start (min selection-anchor
-                                                                cursor-index)
-                                                     end (max selection-anchor
-                                                              cursor-index)]
-                                                 (if (< start end) start nil))))
-                     (assoc :selection-end (if (nil? selection-anchor)
-                                             nil
-                                             (let [start (min selection-anchor
-                                                              cursor-index)
-                                                   end (max selection-anchor
-                                                            cursor-index)]
-                                               (if (< start end) end nil))))
-                     (assoc :scroll-x scroll-x)
-                     (assoc :cursor-x cursor-x)
-                     (assoc :caret-x (- cursor-x scroll-x))
-                     (assoc :cursor-y cursor-y)
-                     (assoc :cursor-h cursor-h)
-                     (assoc :selection-x selection-x)
-                     (assoc :selection-y cursor-y)
-                     (assoc :selection-w selection-w)
-                     (assoc :selection-h cursor-h)
-                     (assoc :show-caret? show-caret?)))))
+             (sync-text-input-state state ctx))
+   :after-layout (fn [state ctx]
+                   (sync-text-input-state state ctx))
    :render (fn [state ctx]
              (when (> (or (:selection-w state) 0) 0)
                (r/rect! {:x (or (:selection-x state) 0)
