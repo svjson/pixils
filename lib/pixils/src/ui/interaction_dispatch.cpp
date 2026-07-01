@@ -189,6 +189,11 @@ namespace Pixils::UI
       return disabled && Roo::is_truthy(*disabled);
     }
 
+    bool view_suppresses_interaction(const std::shared_ptr<Runtime::View>& view)
+    {
+      return !view || !view->mode || suppresses_interaction(interaction_style(view));
+    }
+
     void fire_hook_on_view(const std::shared_ptr<Runtime::View>& view,
                            const Roo::sptr_val& hook,
                            const Roo::sptr_val& ev_ref,
@@ -920,7 +925,98 @@ namespace Pixils::UI
 
     bool is_focusable(const std::shared_ptr<Runtime::View>& view)
     {
-      return view && view->mode && view->mode->focusable && !view_disabled(view);
+      return view && view->mode && view->mode->focusable && !view_disabled(view) &&
+             !view_suppresses_interaction(view);
+    }
+
+    bool find_focus_chain(const std::shared_ptr<Runtime::View>& view,
+                          Runtime::View* target,
+                          std::vector<std::shared_ptr<Runtime::View>>& chain);
+
+    void collect_focusable_views(const std::shared_ptr<Runtime::View>& view,
+                                 std::vector<std::shared_ptr<Runtime::View>>& views)
+    {
+      if (!view || view_suppresses_interaction(view)) return;
+
+      if (is_focusable(view))
+      {
+        views.push_back(view);
+      }
+
+      for (auto& child : view->children)
+      {
+        collect_focusable_views(child, views);
+      }
+    }
+
+    bool tab_key_event(const KeyboardEvent& event)
+    {
+      return event.key && event.key->type == Roo::Value::Type::KEYWORD &&
+             event.key->str() == "key/tab";
+    }
+
+    bool key_seq_contains(const Roo::sptr_val& keys, const std::string& key)
+    {
+      if (!keys || keys->type == Roo::Value::Type::NIL) return false;
+
+      size_t n = Roo::count(*keys);
+      for (size_t i = 0; i < n; i++)
+      {
+        auto value = Roo::get_child(*keys, i);
+        if (value && value->type == Roo::Value::Type::KEYWORD && value->str() == key)
+        {
+          return true;
+        }
+      }
+
+      return false;
+    }
+
+    bool shift_key_held(const Roo::sptr_val& held_keys)
+    {
+      return key_seq_contains(held_keys, "key/shift") ||
+             key_seq_contains(held_keys, "key/left-shift") ||
+             key_seq_contains(held_keys, "key/right-shift");
+    }
+
+    bool focus_view_by_tab(const std::shared_ptr<Runtime::View>& root,
+                           FocusState& focus_state,
+                           const KeyboardEvent& event)
+    {
+      if (!tab_key_event(event)) return false;
+
+      std::vector<std::shared_ptr<Runtime::View>> views;
+      collect_focusable_views(root, views);
+      if (views.empty()) return false;
+
+      const bool reverse = shift_key_held(event.held_keys);
+      auto focused = focus_state.focused.lock();
+      auto current =
+        focused ? std::find_if(views.begin(),
+                               views.end(),
+                               [&](const auto& view) { return view.get() == focused.get(); })
+                : views.end();
+
+      std::shared_ptr<Runtime::View> target;
+      if (current == views.end())
+      {
+        target = reverse ? views.back() : views.front();
+      }
+      else if (reverse)
+      {
+        target = current == views.begin() ? views.back() : *(current - 1);
+      }
+      else
+      {
+        ++current;
+        target = current == views.end() ? views.front() : *current;
+      }
+
+      std::vector<std::shared_ptr<Runtime::View>> chain;
+      if (!find_focus_chain(root, target.get(), chain)) return false;
+
+      store_focus_chain(focus_state, chain);
+      return true;
     }
 
     bool find_focus_chain(const std::shared_ptr<Runtime::View>& view,
@@ -1352,6 +1448,10 @@ namespace Pixils::UI
       event.key = events.key_down;
       event.held_keys = events.held_keys;
       bubble_keyboard_hook(chain, &Runtime::Mode::on_key_down, event, hook_args, runtime);
+      if (!event.propagation_stopped && focus_view_by_tab(root, focus_state, event))
+      {
+        event.propagation_stopped = true;
+      }
     }
 
     bubble_held_key_hook(chain, events.held_keys, hook_args, runtime);

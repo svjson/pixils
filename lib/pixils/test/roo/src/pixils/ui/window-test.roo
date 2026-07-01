@@ -14,6 +14,34 @@
   (runtime/layout! app)
   app)
 
+(defun press-key! [app key]
+  (runtime/key-down! app key)
+  (runtime/update! app)
+  (runtime/key-up! app key)
+  (runtime/update! app)
+  app)
+
+(defun press-shift-tab! [app]
+  (runtime/key-down! app :left-shift)
+  (runtime/update! app)
+  (runtime/key-down! app :tab)
+  (runtime/update! app)
+  (runtime/key-up! app :tab)
+  (runtime/update! app)
+  (runtime/key-up! app :left-shift)
+  (runtime/update! app)
+  app)
+
+(defun focused-button [app label]
+  (-> (runtime/find-view-containing app "ui/button" label)
+      :interaction
+      :focused))
+
+(defun focused-consuming-button [app]
+  (-> (runtime/find-view app "tab-consuming-button")
+      :interaction
+      :focused))
+
 (defun view-render-pixel-at [app view x y]
   (let [bounds (:bounds view)]
     (runtime/rendered-pixel app
@@ -230,6 +258,61 @@
                                 :max-height 40}
                    :title-bar {:title \"Body Style\"}
                    :body [{:mode 'probe-body}]})]})")
+
+(defun tab-focus-probe-source []
+  "(ns pixils.test.tab-focus-probe
+     (:require pixils))
+
+   (pixils/defmode root-mode
+     {:style {:width 120
+              :height 80
+              :layout {:direction :column
+                       :gap 4}}
+      :children [{:mode 'ui/button
+                  :style {:width 80
+                          :height 20}
+                  :state {:label \"First\"}}
+                 {:mode 'ui/button
+                  :style {:width 80
+                          :height 20}
+                  :state {:label \"Disabled\"
+                          :disabled? true}}
+                 {:mode 'ui/button
+                  :style {:width 80
+                          :height 20}
+                  :state {:label \"Second\"}}
+                 {:mode 'ui/button
+                  :style {:width 80
+                          :height 20}
+                  :state {:label \"Third\"}}]})")
+
+(defun tab-consuming-probe-source []
+  "(ns pixils.test.tab-consuming-probe
+     (:require pixils
+               [pixils.ui :as ui]))
+
+   (pixils/defcomponent tab-consuming-button
+     {:extend 'ui/button
+      :on-key-down (fn [state event ctx]
+                     (if (= :key/tab (:key event))
+                       (do
+                         (ui/stop-propagation! event)
+                         (assoc state :tab-consumed? true))
+                       state))})
+
+   (pixils/defmode root-mode
+     {:style {:width 120
+              :height 52
+              :layout {:direction :column
+                       :gap 4}}
+      :children [{:mode 'ui/button
+                  :style {:width 80
+                          :height 20}
+                  :state {:label \"First\"}}
+                 {:mode 'tab-consuming-button
+                  :style {:width 80
+                          :height 20}
+                  :state {:label \"Second\"}}]})")
 
 (defun centered-scaled-window-probe-source []
   "(ns pixils.test.centered-scaled-window-probe
@@ -718,6 +801,61 @@
           enabled (nth buttons 1)]
       (is (= false (-> disabled :interaction :focused)))
       (is (= true (-> enabled :interaction :focused))))))
+
+(deftest tab-key-focuses_next_focusable_view_and_wraps
+  (let [app (runtime/make-app {:package-root "../.."
+                               :buffer-width 160
+                               :buffer-height 120
+                               :render-backend false})]
+    (runtime/eval! app (tab-focus-probe-source))
+    (runtime/push-mode! app 'root-mode)
+    (settle-layout! app)
+    (do
+      (press-key! app :tab)
+      (is (= true (focused-button app "First")))
+      (press-key! app :tab)
+      (is (= false (focused-button app "Disabled")))
+      (is (= true (focused-button app "Second")))
+      (press-key! app :tab)
+      (is (= true (focused-button app "Third")))
+      (press-key! app :tab)
+      (is (= true (focused-button app "First"))))))
+
+(deftest shift-tab-focuses_previous_focusable_view_and_wraps
+  (let [app (runtime/make-app {:package-root "../.."
+                               :buffer-width 160
+                               :buffer-height 120
+                               :render-backend false})]
+    (runtime/eval! app (tab-focus-probe-source))
+    (runtime/push-mode! app 'root-mode)
+    (settle-layout! app)
+    (do
+      (press-shift-tab! app)
+      (is (= true (focused-button app "Third")))
+      (press-shift-tab! app)
+      (is (= true (focused-button app "Second")))
+      (press-shift-tab! app)
+      (is (= false (focused-button app "Disabled")))
+      (is (= true (focused-button app "First"))))))
+
+(deftest focused_view_can_consume_tab_key
+  (let [app (runtime/make-app {:package-root "../.."
+                               :buffer-width 160
+                               :buffer-height 120
+                               :render-backend false})]
+    (runtime/eval! app (tab-consuming-probe-source))
+    (runtime/push-mode! app 'root-mode)
+    (settle-layout! app)
+    (do
+      (press-key! app :tab)
+      (is (= true (focused-button app "First")))
+      (press-key! app :tab)
+      (is (= true (focused-consuming-button app)))
+      (press-key! app :tab)
+      (is (= true (focused-consuming-button app)))
+      (is (= true (:tab-consumed?
+                   (runtime/view-state
+                    (runtime/find-view app "tab-consuming-button"))))))))
 
 (deftest window-autofocus-can-be-disabled
   (let [app (runtime/make-app {:package-root "../.."

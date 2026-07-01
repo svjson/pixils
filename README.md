@@ -1070,6 +1070,10 @@ Programmatic focus control is also available from hooks:
 uses the same rule and will walk up the hit chain to the nearest focusable ancestor.
 `focus-first!` accepts an optional container mode, such as
 `(pixils.ui/focus-first! ctx 'ui/window-body)`, to limit the descendant search.
+Pressing TAB moves focus to the next enabled, visible focusable view in tree order; pressing
+Shift+TAB moves to the previous one. Traversal wraps at the ends. A focused view can keep
+TAB for its own behavior by handling `:on-key-down` and calling
+`(pixils.ui/stop-propagation! event)`.
 
 With the default `:box-sizing :border-box`, a fixed size includes padding and border but
 not margin. Use `:box-sizing :content-box` to opt into the previous behavior where padding
