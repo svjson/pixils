@@ -14,6 +14,32 @@
    {:label "Delta"
     :value :delta}])
 
+(def scrollable-options
+  [{:label "January"
+    :value :january}
+   {:label "February"
+    :value :february}
+   {:label "March"
+    :value :march}
+   {:label "April"
+    :value :april}
+   {:label "May"
+    :value :may}
+   {:label "June"
+    :value :june}
+   {:label "July"
+    :value :july}
+   {:label "August"
+    :value :august}
+   {:label "September"
+    :value :september}
+   {:label "October"
+    :value :october}
+   {:label "November"
+    :value :november}
+   {:label "December"
+    :value :december}])
+
 (def list-options
   [{:label "List item one"
     :value :one}
@@ -56,6 +82,7 @@
    :toggle-value (ui/bind-state :toggle-value)
    :option-value (ui/bind-state :option-value)
    :combo-index (ui/bind-state :combo-index)
+   :scroll-combo-index (ui/bind-state :scroll-combo-index)
    :list-selected (ui/bind-state :list-selected)
    :list-reorder-options (ui/bind-state :list-reorder-options)
    :slider-value (ui/bind-state :slider-value)
@@ -78,6 +105,7 @@
    :toggle-value :left
    :option-value :one
    :combo-index 1
+   :scroll-combo-index 4
    :list-selected [1]
    :list-reorder-options list-options
    :slider-value 42

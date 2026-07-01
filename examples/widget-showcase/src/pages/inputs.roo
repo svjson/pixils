@@ -47,10 +47,17 @@
                              :value :three
                              :disabled? true}]})
                 (style/field-row
-                 "Combo box"
-                 (combo-box/make {:style {:width 180}
-                                  :selected-index (ui/bind-state :combo-index)
-                                  :options showcase-state/sample-options}))])
+                 "Combo boxes"
+                 {:style {:height :shrink
+                          :layout {:direction :row
+                                   :align-items :center
+                                   :gap 8}}
+                  :children [(combo-box/make {:style {:width 180}
+                                              :selected-index (ui/bind-state :combo-index)
+                                              :options showcase-state/sample-options})
+                             (combo-box/make {:style {:width 180}
+                                              :selected-index (ui/bind-state :scroll-combo-index)
+                                              :options showcase-state/scrollable-options})]})])
               (style/state-section
                "Text And Numeric Input"
                [(style/field-row

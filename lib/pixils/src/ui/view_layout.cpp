@@ -175,6 +175,36 @@ namespace Pixils::UI
       return a.x == b.x && a.y == b.y && a.w == b.w && a.h == b.h;
     }
 
+    void offset_cached_layout_subtree(const std::shared_ptr<Pixils::Runtime::View>& view,
+                                      int dx,
+                                      int dy)
+    {
+      if (!view) return;
+      view->bounds.x += dx;
+      view->bounds.y += dy;
+      view->external_bounds.x += dx;
+      view->external_bounds.y += dy;
+      view->visual_bounds.x += dx;
+      view->visual_bounds.y += dy;
+      for (auto& child : view->children)
+      {
+        offset_cached_layout_subtree(child, dx, dy);
+      }
+    }
+
+    void rebase_cached_layout_subtree(
+      const std::shared_ptr<Pixils::Runtime::View>& view,
+      const Rect& requested_bounds)
+    {
+      if (!view) return;
+      const int dx = requested_bounds.x - view->bounds.x;
+      const int dy = requested_bounds.y - view->bounds.y;
+      if (dx != 0 || dy != 0)
+      {
+        offset_cached_layout_subtree(view, dx, dy);
+      }
+    }
+
     bool layout_cache_matches(const Pixils::Runtime::View::LayoutCache& cache,
                               const Rect& requested_bounds,
                               std::uint64_t style_generation,
@@ -1130,6 +1160,10 @@ namespace Pixils::UI
       {
         PIXILS_BENCHMARK_COUNT(layout_dirty_cache_hits);
         PIXILS_BENCHMARK_ADD(layout_skipped_clean_subtrees, 1);
+        if (inherited_style)
+        {
+          rebase_cached_layout_subtree(view, bounds);
+        }
         return;
       }
       PIXILS_BENCHMARK_COUNT(layout_dirty_cache_misses);

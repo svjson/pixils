@@ -38,6 +38,19 @@ class ComboBoxTest : public RenderFixture
 
 namespace
 {
+  struct ViewSnapshot
+  {
+    int x = 0;
+    int y = 0;
+    int w = 0;
+    int h = 0;
+  };
+
+  ViewSnapshot snapshot_bounds(const std::shared_ptr<Pixils::Runtime::View>& view)
+  {
+    return ViewSnapshot{view->bounds.x, view->bounds.y, view->bounds.w, view->bounds.h};
+  }
+
   Roo::sptr_val get_state_key(const std::shared_ptr<Pixils::Runtime::View>& view,
                                  const std::string& key)
   {
@@ -48,6 +61,69 @@ namespace
   {
     return view && view->effective_style.visibility &&
            *view->effective_style.visibility == Pixils::UI::Style::Visibility::NONE;
+  }
+
+  std::shared_ptr<Pixils::Runtime::View> combo_popup_scrollbar(
+    const std::shared_ptr<Pixils::Runtime::View>& popup_mode)
+  {
+    if (!popup_mode || popup_mode->children.empty()) return nullptr;
+    auto popup_panel = popup_mode->children[0];
+    if (!popup_panel || popup_panel->children.empty()) return nullptr;
+    auto popup_list_box = popup_panel->children[0];
+    if (!popup_list_box || popup_list_box->children.empty()) return nullptr;
+    auto popup_scroll_pane = popup_list_box->children[0];
+    if (!popup_scroll_pane || popup_scroll_pane->children.empty()) return nullptr;
+    auto popup_row = popup_scroll_pane->children[0];
+    if (!popup_row || popup_row->children.size() < 2) return nullptr;
+    return popup_row->children[1];
+  }
+
+  std::shared_ptr<Pixils::Runtime::View> scrollbar_handle(
+    const std::shared_ptr<Pixils::Runtime::View>& scrollbar)
+  {
+    if (!scrollbar || scrollbar->children.size() < 2) return nullptr;
+    auto track = scrollbar->children[1];
+    if (!track || track->children.empty()) return nullptr;
+    return track->children[0];
+  }
+
+  void expect_popup_scrollbar_visible_and_stable(
+    const std::shared_ptr<Pixils::Runtime::View>& popup_mode,
+    const ViewSnapshot& expected_scrollbar,
+    const ViewSnapshot& expected_handle)
+  {
+    ASSERT_NE(popup_mode, nullptr);
+    ASSERT_NE(popup_mode->mode, nullptr);
+    EXPECT_EQ(popup_mode->mode->name, "ui/combo-box-popup");
+
+    auto scrollbar = combo_popup_scrollbar(popup_mode);
+    ASSERT_NE(scrollbar, nullptr);
+    ASSERT_EQ(scrollbar->children.size(), 3u);
+    EXPECT_FALSE(layout_hidden(scrollbar));
+    EXPECT_GT(scrollbar->bounds.w, 0);
+    EXPECT_GT(scrollbar->bounds.h, 0);
+    EXPECT_EQ(snapshot_bounds(scrollbar).x, expected_scrollbar.x);
+    EXPECT_EQ(snapshot_bounds(scrollbar).y, expected_scrollbar.y);
+    EXPECT_EQ(snapshot_bounds(scrollbar).w, expected_scrollbar.w);
+    EXPECT_EQ(snapshot_bounds(scrollbar).h, expected_scrollbar.h);
+
+    for (const auto& child : scrollbar->children)
+    {
+      ASSERT_NE(child, nullptr);
+      EXPECT_FALSE(layout_hidden(child));
+      EXPECT_GT(child->bounds.w, 0);
+      EXPECT_GT(child->bounds.h, 0);
+    }
+
+    auto handle = scrollbar_handle(scrollbar);
+    ASSERT_NE(handle, nullptr);
+    EXPECT_FALSE(layout_hidden(handle));
+    EXPECT_GT(handle->bounds.w, 0);
+    EXPECT_GT(handle->bounds.h, 0);
+    EXPECT_EQ(snapshot_bounds(handle).x, expected_handle.x);
+    EXPECT_EQ(snapshot_bounds(handle).y, expected_handle.y);
+    EXPECT_EQ(snapshot_bounds(handle).w, expected_handle.w);
+    EXPECT_EQ(snapshot_bounds(handle).h, expected_handle.h);
   }
 } // namespace
 
@@ -477,6 +553,110 @@ TEST_F(ComboBoxTest, combo_box_popup_omits_scrollbar_when_options_fit)
   auto viewport = row->children[0];
   ASSERT_NE(viewport, nullptr);
   EXPECT_EQ(viewport->bounds.w, 98);
+}
+
+TEST_F(ComboBoxTest, combo_box_popup_scrollbar_stays_visible_across_cycles)
+{
+  runtime.eval(R"(
+    (pixils/defmode root-mode
+      {:children [(pixils.ui.combo-box/make
+                   {:options [{:value :a :label "Apprentice"}
+                              {:value :b :label "Archivist"}
+                              {:value :c :label "Blacksmith"}
+                              {:value :d :label "Cartographer"}
+                              {:value :e :label "Diplomat"}
+                              {:value :f :label "Engineer"}
+                              {:value :g :label "Farmer"}
+                              {:value :h :label "Healer"}
+                              {:value :i :label "Innkeeper"}
+                              {:value :j :label "Jeweler"}
+                              {:value :k :label "Keeper"}
+                              {:value :l :label "Librarian"}]
+                    :style {:width 180}
+                    :row-height 20
+                    :max-height 60})]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  update_cycle();
+  render_cycle();
+
+  auto combo = session.active_mode->children[0];
+  ASSERT_NE(combo, nullptr);
+  input().mouse_down({combo->bounds.x + 2, combo->bounds.y + 2});
+  update_cycle();
+  render_cycle();
+
+  auto scrollbar = combo_popup_scrollbar(session.active_mode);
+  ASSERT_NE(scrollbar, nullptr);
+  auto handle = scrollbar_handle(scrollbar);
+  ASSERT_NE(handle, nullptr);
+  const auto expected_scrollbar = snapshot_bounds(scrollbar);
+  const auto expected_handle = snapshot_bounds(handle);
+  expect_popup_scrollbar_visible_and_stable(session.active_mode,
+                                           expected_scrollbar,
+                                           expected_handle);
+
+  for (int i = 0; i < 6; i++)
+  {
+    SCOPED_TRACE(i);
+    frame_cycle();
+    expect_popup_scrollbar_visible_and_stable(session.active_mode,
+                                             expected_scrollbar,
+                                             expected_handle);
+  }
+}
+
+TEST_F(ComboBoxTest, combo_box_popup_scrollbar_stays_visible_and_stable_when_hovered)
+{
+  runtime.eval(R"(
+    (pixils/defmode root-mode
+      {:children [(pixils.ui.combo-box/make
+                   {:options [{:value :a :label "Apprentice"}
+                              {:value :b :label "Archivist"}
+                              {:value :c :label "Blacksmith"}
+                              {:value :d :label "Cartographer"}
+                              {:value :e :label "Diplomat"}
+                              {:value :f :label "Engineer"}
+                              {:value :g :label "Farmer"}
+                              {:value :h :label "Healer"}
+                              {:value :i :label "Innkeeper"}
+                              {:value :j :label "Jeweler"}
+                              {:value :k :label "Keeper"}
+                              {:value :l :label "Librarian"}]
+                    :style {:width 180}
+                    :row-height 20
+                    :max-height 60})]})
+  )");
+
+  session.push_mode("root-mode", Roo::Constant::NIL);
+  update_cycle();
+  render_cycle();
+
+  auto combo = session.active_mode->children[0];
+  ASSERT_NE(combo, nullptr);
+  input().mouse_down({combo->bounds.x + 2, combo->bounds.y + 2});
+  update_cycle();
+  render_cycle();
+
+  auto scrollbar = combo_popup_scrollbar(session.active_mode);
+  ASSERT_NE(scrollbar, nullptr);
+  auto handle = scrollbar_handle(scrollbar);
+  ASSERT_NE(handle, nullptr);
+  const auto expected_scrollbar = snapshot_bounds(scrollbar);
+  const auto expected_handle = snapshot_bounds(handle);
+
+  input().mouse_move({scrollbar->bounds.x + 2,
+                      scrollbar->bounds.y + (scrollbar->bounds.h / 2)});
+
+  for (int i = 0; i < 6; i++)
+  {
+    SCOPED_TRACE(i);
+    frame_cycle();
+    expect_popup_scrollbar_visible_and_stable(session.active_mode,
+                                             expected_scrollbar,
+                                             expected_handle);
+  }
 }
 
 TEST_F(ComboBoxTest, combo_box_popup_panel_theme_max_height_caps_scroll_viewport)
