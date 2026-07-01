@@ -1834,6 +1834,24 @@ Accepts the same `:font` and `:scale` options as `text!`.
 | `rotate`   | Rotate a point. Args: `point angle` or `point origin angle`. |
 | `distance` | Distance between two points. |
 
+### `pixils.rect`
+
+| Symbol        | Description |
+|---------------|-------------|
+| `make-rect`   | Construct a rect from `{:x :y :w :h}`. |
+| `contains?`   | Return whether a rect fully contains a point, rect, or polygon. Rect right/bottom edges are exclusive. |
+| `intersects?` | Return whether a rect intersects another rect or a polygon. Touching rect edges without overlap do not intersect. |
+| `inside?`     | Compatibility alias for point-in-rect checks. |
+| `intersect?`  | Compatibility alias for rect-rect intersection checks. |
+
+### `pixils.polygon`
+
+| Symbol        | Description |
+|---------------|-------------|
+| `bounds`      | Return the integer bounding rect for a polygon, or `nil` for an empty point vector. |
+| `contains?`   | Return whether a polygon fully contains a point, rect, or another polygon. Polygon edges count as contained. |
+| `intersects?` | Return whether a polygon intersects a rect or another polygon. Edge/vertex touches count as intersections. |
+
 ### `pixils.resource`
 
 | Symbol                      | Description |

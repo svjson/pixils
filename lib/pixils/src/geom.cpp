@@ -140,8 +140,8 @@ namespace Pixils
 
   bool Rect::intersects(const Rect& other) const
   {
-    return this->contains(other.top_left()) || this->contains(other.top_right()) ||
-           this->contains(other.bottom_left()) || this->contains(other.bottom_right());
+    return x < other.x + other.w && x + w > other.x && y < other.y + other.h &&
+           y + h > other.y;
   }
 
   Rect Rect::merge(const Rect& other) const

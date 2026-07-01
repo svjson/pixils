@@ -9,6 +9,7 @@
 #include <pixils/binding/keyboard_namespace.h>
 #include <pixils/binding/pixils_namespace.h>
 #include <pixils/binding/point_namespace.h>
+#include <pixils/binding/polygon_namespace.h>
 #include <pixils/binding/rect_namespace.h>
 #include <pixils/binding/render_namespace.h>
 #include <pixils/binding/resource_namespace.h>
@@ -22,13 +23,11 @@
 
 #include <roo/io/dir_root_file_system.h>
 #include <roo/lang/io/io_namespace.h>
-
 #include <stdexcept>
 
 namespace Pixils
 {
-  std::vector<std::unique_ptr<Roo::Namespace>> make_roo_native_namespaces(
-    RenderContext& ctx)
+  std::vector<std::unique_ptr<Roo::Namespace>> make_roo_native_namespaces(RenderContext& ctx)
   {
     std::vector<std::unique_ptr<Roo::Namespace>> namespaces;
     namespaces.push_back(std::make_unique<Pixils::Script::PixilsNamespace>(ctx));
@@ -39,6 +38,7 @@ namespace Pixils
     namespaces.push_back(std::make_unique<Pixils::Script::ImageNamespace>());
     namespaces.push_back(std::make_unique<Pixils::Script::KeyboardNamespace>());
     namespaces.push_back(std::make_unique<Pixils::Script::PointNamespace>());
+    namespaces.push_back(std::make_unique<Pixils::Script::PolygonNamespace>());
     namespaces.push_back(std::make_unique<Pixils::Script::RectNamespace>());
     namespaces.push_back(std::make_unique<Pixils::Script::RenderNamespace>());
     namespaces.push_back(std::make_unique<Pixils::Script::StateCounterNamespace>());
@@ -49,15 +49,15 @@ namespace Pixils
   }
 
   Roo::Runtime init_roo_runtime(RenderContext& ctx,
-                                      const std::string& default_namespace,
-                                      const std::vector<std::string>& source_files)
+                                const std::string& default_namespace,
+                                const std::vector<std::string>& source_files)
   {
     return init_roo_runtime(ctx, default_namespace, nullptr, source_files);
   }
   Roo::Runtime init_roo_runtime(RenderContext& ctx,
-                                      const std::string& default_namespace,
-                                      std::function<void(RuntimeConfiguration*)> init_fn,
-                                      const std::vector<std::string>& source_files)
+                                const std::string& default_namespace,
+                                std::function<void(RuntimeConfiguration*)> init_fn,
+                                const std::vector<std::string>& source_files)
   {
     std::vector<std::unique_ptr<Roo::Namespace>> namespaces =
       make_roo_native_namespaces(ctx);
@@ -83,8 +83,8 @@ namespace Pixils
       std::make_unique<Roo::DirRootFileSystem>(rtconfig.load_path);
 
     Roo::Runtime roo_runtime(default_namespace,
-                                   std::move(rtconfig.native_namespaces),
-                                   std::move(fs.release()));
+                             std::move(rtconfig.native_namespaces),
+                             std::move(fs.release()));
     roo_runtime.set_namespace_roots(rtconfig.namespace_roots);
     UI::Components::register_text_node_component(roo_runtime);
     for (const auto& embedded_source : EmbeddedLisp::core_sources())
@@ -145,10 +145,9 @@ namespace Pixils
     std::unique_ptr<Roo::DirRootFileSystem> fs =
       std::make_unique<Roo::DirRootFileSystem>(rtconfig.load_path);
 
-    auto roo_runtime =
-      std::make_unique<Roo::Runtime>(default_namespace,
-                                        std::move(rtconfig.native_namespaces),
-                                        std::move(fs.release()));
+    auto roo_runtime = std::make_unique<Roo::Runtime>(default_namespace,
+                                                      std::move(rtconfig.native_namespaces),
+                                                      std::move(fs.release()));
     roo_runtime->set_namespace_roots(rtconfig.namespace_roots);
     UI::Components::register_text_node_component(*roo_runtime);
     for (const auto& embedded_source : EmbeddedLisp::core_sources())

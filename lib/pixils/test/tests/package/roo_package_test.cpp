@@ -1,29 +1,25 @@
 #include <algorithm>
+#include <filesystem>
 #include <gtest/gtest.h>
 #include <roo-package/manifest.h>
 #include <roo-package/native_loader.h>
 #include <roo/io/dir_root_file_system.h>
 #include <roo/runtime.h>
 
-#include <filesystem>
-
 namespace
 {
   class ScopedCurrentPath
   {
-  public:
+   public:
     explicit ScopedCurrentPath(const std::filesystem::path& path)
       : original_path(std::filesystem::current_path())
     {
       std::filesystem::current_path(path);
     }
 
-    ~ScopedCurrentPath()
-    {
-      std::filesystem::current_path(original_path);
-    }
+    ~ScopedCurrentPath() { std::filesystem::current_path(original_path); }
 
-  private:
+   private:
     std::filesystem::path original_path;
   };
 
@@ -63,7 +59,7 @@ TEST(PixilsRooPackageTest, loads_native_package_and_runs_roo_proof_tests)
 
   auto summary = runtime.eval("(result-summary (run))");
 
-  EXPECT_EQ(summary->to_string(), "{:total 29 :passed 29 :failed 0}");
+  EXPECT_EQ(summary->to_string(), "{:total 32 :passed 32 :failed 0}");
 }
 
 TEST(PixilsRooPackageTest, pixils_runner_package_loads)

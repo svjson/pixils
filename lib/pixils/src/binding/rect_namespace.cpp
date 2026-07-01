@@ -2,6 +2,7 @@
 #include "pixils/binding/rect_namespace.h"
 
 #include "pixils/binding/point_namespace.h"
+#include <pixils/binding/polygon_namespace.h>
 #include <pixils/geom.h>
 
 #include <roo/exec.h>
@@ -18,9 +19,9 @@ namespace Pixils::Script
     EXEC_BODY(MakeRect, exec_make)
     {
       static Roo::MapSchema rect_schema({{"x", &Roo::Type::NUMBER},
-                                            {"y", &Roo::Type::NUMBER},
-                                            {"w", &Roo::Type::NUMBER},
-                                            {"h", &Roo::Type::NUMBER}});
+                                         {"y", &Roo::Type::NUMBER},
+                                         {"w", &Roo::Type::NUMBER},
+                                         {"h", &Roo::Type::NUMBER}});
 
       auto opts = rect_schema.bind(ctx, *args[0]);
 
@@ -28,6 +29,59 @@ namespace Pixils::Script
                                       opts.i32("y"),
                                       opts.i32("w"),
                                       opts.i32("h"));
+    }
+
+    /** RectContainsFunction - contains? */
+    FUNC_IMPL(RectContainsFunction,
+              MULTI_SIG((FN_ARGS((&HostType::RECT), (&HostType::RECT)),
+                         EXEC_DISPATCH(&RectContainsFunction::exec_contains_rect)),
+                        (FN_ARGS((&HostType::RECT), (&HostType::POINT)),
+                         EXEC_DISPATCH(&RectContainsFunction::exec_contains_point)),
+                        (FN_ARGS((&HostType::RECT), (&HostType::VECTOR_OF_POINT)),
+                         EXEC_DISPATCH(&RectContainsFunction::exec_contains_polygon))));
+
+    EXEC_BODY(RectContainsFunction, exec_contains_point)
+    {
+      return Roo::obj<Rect>(*args[0]).contains(Roo::obj<Point>(*args[1]))
+               ? Roo::Constant::BOOL_TRUE
+               : Roo::Constant::BOOL_FALSE;
+    }
+
+    EXEC_BODY(RectContainsFunction, exec_contains_rect)
+    {
+      return Geometry::rect_contains_rect(Roo::obj<Rect>(*args[0]), Roo::obj<Rect>(*args[1]))
+               ? Roo::Constant::BOOL_TRUE
+               : Roo::Constant::BOOL_FALSE;
+    }
+
+    EXEC_BODY(RectContainsFunction, exec_contains_polygon)
+    {
+      return Geometry::rect_contains_polygon(Roo::obj<Rect>(*args[0]),
+                                             Geometry::points_from_value(args[1]))
+               ? Roo::Constant::BOOL_TRUE
+               : Roo::Constant::BOOL_FALSE;
+    }
+
+    /** RectIntersectsFunction - intersects? */
+    FUNC_IMPL(RectIntersectsFunction,
+              MULTI_SIG((FN_ARGS((&HostType::RECT), (&HostType::RECT)),
+                         EXEC_DISPATCH(&RectIntersectsFunction::exec_intersects_rect)),
+                        (FN_ARGS((&HostType::RECT), (&HostType::VECTOR_OF_POINT)),
+                         EXEC_DISPATCH(&RectIntersectsFunction::exec_intersects_polygon))));
+
+    EXEC_BODY(RectIntersectsFunction, exec_intersects_rect)
+    {
+      return Roo::obj<Rect>(*args[0]).intersects(Roo::obj<Rect>(*args[1]))
+               ? Roo::Constant::BOOL_TRUE
+               : Roo::Constant::BOOL_FALSE;
+    }
+
+    EXEC_BODY(RectIntersectsFunction, exec_intersects_polygon)
+    {
+      return Geometry::rect_intersects_polygon(Roo::obj<Rect>(*args[0]),
+                                               Geometry::points_from_value(args[1]))
+               ? Roo::Constant::BOOL_TRUE
+               : Roo::Constant::BOOL_FALSE;
     }
 
     /** InsidePFunction - inside? */
@@ -59,8 +113,10 @@ namespace Pixils::Script
   RectNamespace::RectNamespace()
     : Roo::Namespace(std::string(NS__PIXILS__RECT))
   {
+    values.emplace("contains?", Function::RectContainsFunction::make());
     values.emplace("inside?", Function::InsidePFunction::make());
     values.emplace("intersect?", Function::IntersectPFunction::make());
+    values.emplace("intersects?", Function::RectIntersectsFunction::make());
     values.emplace("make-rect", Function::MakeRect::make());
   }
 
