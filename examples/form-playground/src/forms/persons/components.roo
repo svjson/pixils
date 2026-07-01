@@ -1,0 +1,184 @@
+(ns form-playground.forms.persons.components
+  (:require pixils
+            [form-playground.forms.persons.logic :as logic]
+            [form-playground.forms.persons.model :as model]
+            [form-playground.forms.persons.schema :as schema]
+            [pixils.form :as form]
+            [pixils.ui :as ui]
+            pixils.ui.button))
+
+(defun preview-line [label state-key]
+  {:style {:width :fill
+           :height 18
+           :layout {:direction :row
+                    :gap 6}}
+   :state {state-key (ui/bind-state state-key)}
+   :children [{:mode 'ui/text
+               :class :ui/muted
+               :style {:width 92}
+               :state {:value label}}
+              {:mode 'ui/text
+               :style {:width :fill}
+               :state {:value (ui/bind-state state-key)}}]})
+
+(defcomponent person-preview
+  {:style {:width :fill
+           :height :shrink
+           :padding 8
+           :background {:r 0xd6 :g 0xd6 :b 0xce}
+           :layout {:direction :column
+                    :gap 4}}
+   :update (fn [state ctx]
+             (let [person (:person state)]
+               (assoc state
+                      :first-name-value
+                      (model/preview-value person :field/first-name)
+                      :last-name-value
+                      (model/preview-value person :field/last-name)
+                      :age-value
+                      (model/preview-value person :field/age)
+                      :birth-place-value
+                      (model/preview-value person :field/birth-place)
+                      :newsletter-value
+                      (model/bool-text (:field/newsletter? person))
+                      :valid-value
+                      (model/bool-text (:form-valid? state))
+                      :errors-value
+                      (model/errors-text (:form-errors state)))))
+   :children [(preview-line "First" :first-name-value)
+              (preview-line "Last" :last-name-value)
+              (preview-line "Age" :age-value)
+              (preview-line "Birth place" :birth-place-value)
+              (preview-line "Newsletter" :newsletter-value)
+              (preview-line "Valid" :valid-value)
+              (preview-line "Errors" :errors-value)]})
+
+(defcomponent person-register-actions
+  {:style {:width :fill
+           :height 24
+           :layout {:direction :row
+                    :gap 8}}
+   :update (fn [state ctx]
+             (assoc state
+                    :new-disabled? (:new-person? state)
+                    :save-disabled?
+                    (or (not (:new-person? state))
+                        (not (:person-valid? state)))
+                    :cancel-disabled? (not (:new-person? state))))
+   :children [{:mode 'ui/button
+               :style {:width 104
+                       :height 24}
+               :state {:label "New Person"
+                       :people (ui/bind-state :people)
+                       :disabled? (ui/bind-state :new-disabled?)}
+               :on-click (fn [state event ctx]
+                           (let [items (or (:people state) [])
+                                 index (count items)]
+                             (when (not (:disabled? state))
+                               (ui/emit! (:view ctx)
+                                         :person-register/new
+                                         {:person (model/empty-person index)
+                                          :index index}))
+                             state))}
+              {:mode 'ui/button
+               :style {:width 72
+                       :height 24}
+               :state {:label "Save"
+                       :new-person? (ui/bind-state :new-person?)
+                       :person-valid? (ui/bind-state :person-valid?)
+                       :disabled? (ui/bind-state :save-disabled?)}
+               :on-click (fn [state event ctx]
+                           (do
+                             (when (not (:disabled? state))
+                               (ui/emit! (:view ctx) :person-register/save))
+                             state))}
+              {:mode 'ui/button
+               :style {:width 72
+                       :height 24}
+               :state {:label "Cancel"
+                       :new-person? (ui/bind-state :new-person?)
+                       :disabled? (ui/bind-state :cancel-disabled?)}
+               :on-click (fn [state event ctx]
+                           (do
+                             (when (not (:disabled? state))
+                               (ui/emit! (:view ctx) :person-register/cancel))
+                             state))}
+              {:mode 'ui/text
+               :class :ui/muted
+               :style {:width :fill}
+               :state {:value "New person stays transient until Save."}}]})
+
+(defcomponent person-register
+  {:style {:width 620
+           :height :shrink
+           :padding 10
+           :background {:r 0xd6 :g 0xd6 :b 0xce}
+           :layout {:direction :column
+                    :gap 8}}
+   :on {:person-register/new logic/handle-new-person
+        :person-register/save logic/handle-save-person
+        :person-register/cancel logic/handle-cancel-person}
+   :children [(form/make {:model :person
+                          :models {:person
+                                   {:schema schema/person-schema
+                                    :value (ui/bind-state :selected-person)}
+                                   :people
+                                   {:value (ui/bind-state :people)}
+                                   :selected-person-index
+                                   {:value
+                                    (ui/bind-state :selected-person-index)
+                                    :transient? true}
+                                   :new-person?
+                                   {:value (ui/bind-state :new-person?)
+                                    :transient? true}
+                                   :new-person
+                                   {:value (ui/bind-state :new-person)
+                                    :transient? true}}
+                          :projection {:target :person
+                                       :items :people
+                                       :selected-index
+                                       :selected-person-index
+                                       :new? :new-person?
+                                       :new-value :new-person}
+                          :text model/person-text
+                          :layout model/person-layout
+                          :style {:width :fill
+                                  :height :shrink
+                                  :layout {:direction :row
+                                           :align-items :start
+                                           :gap 12}}
+                          :valid? (ui/bind-state :person-valid?)
+                          :errors (ui/bind-state :person-errors)
+                          :selection {:items :people
+                                      :selected-index
+                                      :selected-person-index
+                                      :placement :right
+                                      :style {:width 180
+                                              :height :shrink
+                                              :layout {:direction :column
+                                                       :gap 4}}
+                                      :item-label model/person-label}})
+              {:mode 'person-register-actions
+               :state {:people (ui/bind-state :people)
+                       :new-person? (ui/bind-state :new-person?)
+                       :person-valid? (ui/bind-state :person-valid?)}}]})
+
+(defun make []
+  {:mode 'person-register
+   :state {:people (ui/bind-state :people)
+           :selected-person-index
+           (ui/bind-state :selected-person-index)
+           :selected-person (ui/bind-state :selected-person)
+           :new-person? (ui/bind-state :new-person?)
+           :new-person (ui/bind-state :new-person)
+           :previous-person-index
+           (ui/bind-state :previous-person-index)
+           :person-valid? (ui/bind-state :person-valid?)
+           :person-errors (ui/bind-state :person-errors)}})
+
+(defun preview []
+  {:mode 'person-preview
+   :state {:person (ui/bind-state :selected-person)
+           :form-valid? (ui/bind-state :person-valid?)
+           :form-errors (ui/bind-state :person-errors)}})
+

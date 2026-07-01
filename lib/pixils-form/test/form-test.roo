@@ -1,5 +1,6 @@
 (ns pixils.form-test
   (:require proof.core
+            [pixils.form :as form]
             [pixils.schema :as schema]))
 
 (def person-schema
@@ -33,3 +34,102 @@
                                  :profile {:city "London"}})]
     (is (= true (:valid? result)))
     (is (= {} (:errors result)))))
+
+(deftest form-projection-selects_current_collection_item
+  (let [state (form/projection-state
+               {:items [{:name "Ada"}
+                        {:name "Grace"}]
+                :selected-index 1})]
+    (is (= {:name "Grace"} (:value state)))
+    (is (= 1 (:projected-index state)))
+    (is (= {:name "Grace"} (:projected-item state)))))
+
+(deftest form-projection-writes_edited_value_back_to_collection
+  (let [state (form/projection-state
+               {:items [{:name "Ada"}
+                        {:name "Grace"}]
+                :selected-index 1
+                :projected-index 1
+                :projected-item {:name "Grace"}
+                :value {:name "Grace Hopper"}})]
+    (is (= [{:name "Ada"}
+            {:name "Grace Hopper"}]
+           (:items state)))
+    (is (= {:name "Grace Hopper"} (:projected-item state)))))
+
+(deftest form-projection-uses_transient_new_value_without_collection_write
+  (let [state (form/projection-state
+               {:items [{:name "Ada"}]
+                :selected-index nil
+                :new? true
+                :new-value {:name ""}
+                :value {:name "Ada"}})]
+    (is (= {:name ""} (:value state)))
+    (is (= true (:projected-new? state)))
+    (is (= [{:name "Ada"}] (:items state)))))
+
+(deftest form-projection-keeps_transient_edits_out_of_collection
+  (let [state (form/projection-state
+               {:items [{:name "Ada"}]
+                :new? true
+                :projected-new? true
+                :projected-item {:name ""}
+                :value {:name "New Person"}})]
+    (is (= [{:name "Ada"}] (:items state)))
+    (is (= {:name "New Person"} (:projected-item state)))))
+
+(deftest make-normalizes_combined_model_projection
+  (let [view (form/make {:model :person
+                         :models {:person
+                                  {:schema person-schema
+                                   :value {:field/name "Ada"
+                                           :field/age 36}}
+                                  :people
+                                  {:value [{:field/name "Ada"
+                                            :field/age 36}]}
+                                  :selected-person-index
+                                  {:value 0
+                                   :transient? true}
+                                  :new-person?
+                                  {:value false
+                                   :transient? true}
+                                  :new-person
+                                  {:value {:field/name ""
+                                           :field/age 0}
+                                   :transient? true}}
+                         :projection {:target :person
+                                      :items :people
+                                      :selected-index
+                                      :selected-person-index
+                                      :new? :new-person?
+                                      :new-value :new-person}
+                         :layout [:field/name]
+                         :selection {:items :people
+                                     :selected-index
+                                     :selected-person-index}})
+        state (:state view)]
+    (is (= person-schema (:schema state)))
+    (is (= {:field/name "Ada"
+            :field/age 36}
+           (:value state)))
+    (is (= [{:field/name "Ada"
+             :field/age 36}]
+           (:items state)))
+    (is (= 0 (:selected-index state)))
+    (is (= false (:new? state)))
+    (is (= {:field/name ""
+            :field/age 0}
+           (:new-value state)))))
+
+(deftest make-renders_combined_model_layout_from_resolved_schema
+  (let [view (form/make {:model :person
+                         :models {:person
+                                  {:schema person-schema
+                                   :value {:field/name "Ada"
+                                           :field/age 36}}}
+                         :text {:field/name "Name"}
+                         :layout [:field/name]})
+        field-view (head (:children view))]
+    (is (= 2 (count (:children field-view))))
+    (is (= "Name"
+           (get-in field-view [:children 0 :state :value])))))

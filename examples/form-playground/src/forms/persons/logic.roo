@@ -1,0 +1,47 @@
+(ns form-playground.forms.persons.logic
+  (:require [pixils.ui :as ui]))
+
+(defun start-new-person [state person]
+  (assoc state
+         :new-person? true
+         :new-person person
+         :previous-person-index (:selected-person-index state)
+         :selected-person-index nil))
+
+(defun save-new-person [state]
+  (let [people (or (:people state) [])
+        index (count people)
+        person (:selected-person state)]
+    (if (and (:new-person? state)
+             (:person-valid? state))
+      (assoc state
+             :people (concat people [person])
+             :selected-person-index index
+             :new-person? false
+             :new-person nil
+             :previous-person-index nil)
+      state)))
+
+(defun cancel-new-person [state]
+  (assoc state
+         :new-person? false
+         :new-person nil
+         :selected-person-index (:previous-person-index state)
+         :previous-person-index nil))
+
+(defun handle-new-person [state event ctx]
+  (let [payload (:payload event)]
+    (do
+      (ui/stop-propagation! event)
+      (start-new-person state (:person payload)))))
+
+(defun handle-save-person [state event ctx]
+  (do
+    (ui/stop-propagation! event)
+    (save-new-person state)))
+
+(defun handle-cancel-person [state event ctx]
+  (do
+    (ui/stop-propagation! event)
+    (cancel-new-person state)))
+

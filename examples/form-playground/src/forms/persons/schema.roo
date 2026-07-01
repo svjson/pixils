@@ -1,0 +1,14 @@
+(ns form-playground.forms.persons.schema)
+
+(def person-schema
+  {:field/first-name {:type :text
+                      :required true}
+   :field/last-name {:type :text
+                     :required true}
+   :field/age {:type :integer
+               :required true
+               :min 0
+               :max 130}
+   :field/birth-place {:type :text}
+   :field/newsletter? {:type :boolean}})
+

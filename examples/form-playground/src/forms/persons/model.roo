@@ -1,0 +1,75 @@
+(ns form-playground.forms.persons.model)
+
+(def person-text
+  {:field/first-name "First name"
+   :field/last-name "Last name"
+   :field/age "Age"
+   :field/birth-place "Birth place"
+   :field/newsletter? "Newsletter"})
+
+(def person-layout
+  [[:field/first-name :field/last-name]
+   :------
+   :field/age
+   :field/birth-place
+   :field/newsletter?])
+
+(def people
+  [{:field/first-name "Ada"
+    :field/last-name "Lovelace"
+    :field/age 36
+    :field/birth-place "London"
+    :field/newsletter? true}
+   {:field/first-name "Grace"
+    :field/last-name "Hopper"
+    :field/age 85
+    :field/birth-place "New York"
+    :field/newsletter? false}
+   {:field/first-name "Katherine"
+    :field/last-name "Johnson"
+    :field/age 101
+    :field/birth-place "White Sulphur Springs"
+    :field/newsletter? true}])
+
+(defun empty-person [index]
+  {:field/first-name ""
+   :field/last-name ""
+   :field/age 0
+   :field/birth-place ""
+   :field/newsletter? false
+   :label (str "New Person " (inc index))})
+
+(defun person-label [person index]
+  (let [first-name (:field/first-name person)
+        last-name (:field/last-name person)
+        fallback (or (:label person) (str "Person " (inc index)))]
+    (if (and (not (nil? first-name))
+             (> (count first-name) 0)
+             (not (nil? last-name))
+             (> (count last-name) 0))
+      (str first-name " " last-name)
+      fallback)))
+
+(defun initial-state []
+  {:people people
+   :selected-person-index 0
+   :selected-person nil
+   :new-person? false
+   :new-person nil
+   :previous-person-index nil
+   :person-valid? false
+   :person-errors {}})
+
+(defun preview-value [person key]
+  (let [value (get (or person {}) key)]
+    (if (nil? value) "" (str value))))
+
+(defun bool-text [value]
+  (if value "true" "false"))
+
+(defun errors-text [errors]
+  (if (or (nil? errors)
+          (empty? (keys errors)))
+    "{}"
+    (str errors)))
+

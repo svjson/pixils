@@ -3,6 +3,7 @@
             [pixils.schema :as model-schema]
             [pixils.ui :as ui]
             [pixils.ui.checkbox :as checkbox]
+            [pixils.ui.list-box :as list-box]
             [pixils.ui.number-input :as number-input]))
 
 (def default-style
@@ -44,10 +45,75 @@
   {:width :fill
    :height 18})
 
+(def default-selection-style
+  {:width :fill
+   :height :shrink
+   :layout {:direction :column
+            :gap 4}})
+
+(def default-selection-list-style
+  {:width :fill})
+
+(def default-fields-style
+  {:width :fill
+   :height :shrink
+   :layout {:direction :column
+            :gap 8}})
+
 (def separator-token :------)
 
 (def form-state-binding
   {:value (ui/bind-state :value)})
+
+(defun model-entry [models model-id]
+  (get (or models {}) model-id))
+
+(defun model-value [models model-id]
+  (:value (or (model-entry models model-id) {})))
+
+(defun model-schema [models model-id]
+  (:schema (or (model-entry models model-id) {})))
+
+(defun model-ref? [models value]
+  (and (keyword? value)
+       (contains? (or models {}) value)))
+
+(defun model-ref-value [models value]
+  (if (model-ref? models value)
+    (model-value models value)
+    value))
+
+(defun primary-model-id [opts projection]
+  (or (:model opts)
+      (:target projection)))
+
+(defun selection-value [models selection projection key]
+  (model-ref-value models (or (get selection key)
+                              (get projection key))))
+
+(defun normalized-selection [models selection projection]
+  (when (or selection projection)
+    (assoc (or selection {})
+           :items (selection-value models selection projection :items)
+           :selected-index
+           (selection-value models selection projection :selected-index)
+           :new? (selection-value models selection projection :new?)
+           :new-value
+           (selection-value models selection projection :new-value))))
+
+(defun normalized-form-state [{:keys [schema value valid? errors models
+                                      projection]
+                               :as opts}
+                              selection]
+  (let [model-id (primary-model-id opts projection)]
+    {:value (or value (model-value models model-id))
+     :schema (or schema (model-schema models model-id))
+     :valid? valid?
+     :errors errors
+     :items (:items selection)
+     :selected-index (:selected-index selection)
+     :new? (:new? selection)
+     :new-value (:new-value selection)}))
 
 (defun field-path [field-id field-schema]
   (model-schema/field-path field-id field-schema))
@@ -63,6 +129,74 @@
 
 (defun validate [schema value]
   (model-schema/validate schema value))
+
+(defun selected-item [items index]
+  (let [items (or items [])]
+    (when (and (not (nil? index))
+               (>= index 0)
+               (< index (count items)))
+      (nth items index))))
+
+(defun default-item-label [item index]
+  (or (:label item)
+      (:name item)
+      (:id item)
+      (str item)))
+
+(defun selection-option [item index item-label]
+  {:value index
+   :label (if item-label
+            (item-label item index)
+            (default-item-label item index))})
+
+(defun selection-options [items item-label]
+  (for-indexed [index item (or items [])]
+    (selection-option item index item-label)))
+
+(defun selected-indices [index]
+  (if (nil? index) [] [index]))
+
+(defun update-selected-item [items index value]
+  (let [items (or items [])]
+    (if (and (not (nil? index))
+             (>= index 0)
+             (< index (count items)))
+      (assoc items index value)
+      items)))
+
+(defun projection-state [state]
+  (let [new? (:new? state)
+        items (:items state)
+        selected-index (:selected-index state)
+        selected (selected-item items selected-index)
+        value (:value state)]
+    (cond
+      (nil? items)
+      state
+
+      new?
+      (if (:projected-new? state)
+        (assoc state :projected-item value)
+        (assoc state
+               :value (:new-value state)
+               :projected-new? true
+               :projected-index nil
+               :projected-item (:new-value state)))
+
+      (or (not= selected-index (:projected-index state))
+          (not= selected (:projected-item state)))
+      (assoc state
+             :value selected
+             :projected-new? false
+             :projected-index selected-index
+             :projected-item selected)
+
+      (not= value selected)
+      (assoc state
+             :items (update-selected-item items selected-index value)
+             :projected-item value)
+
+      :default state)))
 
 (defun field-binding [field-id field-schema]
   (apply ui/bind-state (concat [:value] (field-path field-id field-schema))))
@@ -152,24 +286,73 @@
 (defun default-layout [schema]
   (keys (or schema {})))
 
+(defcomponent pixils/form-selection
+  {:style default-selection-style
+   :update (fn [state ctx]
+             (assoc state
+                    :options (selection-options (:items state)
+                                                (:item-label state))
+                    :selected-indices
+                    (selected-indices (:selected-index state))))
+   :on {:list-box/change (fn [state event ctx]
+                           (do
+                             (ui/stop-propagation! event)
+                             (assoc state
+                                    :new? false
+                                    :selected-index
+                                    (-> event :payload :value))))}
+   :children [(list-box/make {:options (ui/bind-state :options)
+                              :selected-indices
+                              (ui/bind-state :selected-indices)
+                              :force-selection? false
+                              :style default-selection-list-style})]})
+
 (defcomponent pixils/form
   {:update (fn [state ctx]
-             (let [validation (model-schema/validate (:schema state)
+             (let [state (projection-state state)
+                   validation (model-schema/validate (:schema state)
                                                      (:value state))]
                (assoc state
                       :valid? (:valid? validation)
                       :errors (:errors validation))))})
 
+(defun selection-view [selection]
+  (when selection
+    {:mode 'pixils/form-selection
+     :style (or (:style selection) default-selection-style)
+     :state {:items (ui/bind-state :items)
+             :selected-index (ui/bind-state :selected-index)
+             :new? (ui/bind-state :new?)
+             :item-label (:item-label selection)}}))
+
+(defun fields-view [children]
+  {:style default-fields-style
+   :state form-state-binding
+   :children children})
+
+(defun form-children [layout schema opts selection]
+  (let [children (map (or layout (default-layout schema))
+                      (fn [item]
+                        (layout-item-view item opts)))]
+    (cond
+      (nil? selection)
+      children
+
+      (= (:placement selection) :right)
+      [(fields-view children) (selection-view selection)]
+
+      :default
+      (concat [(selection-view selection)] children))))
+
 (defun make [{:keys [schema text layout controls value style
                      field-style field-label-style row-style separator-style
-                     control-style valid? errors]
+                     control-style valid? errors selection models projection]
               :as opts}]
-  {:mode 'pixils/form
-   :style (or style default-style)
-   :state {:value value
-           :schema schema
-           :valid? valid?
-           :errors errors}
-   :children (map (or layout (default-layout schema))
-                  (fn [item]
-                    (layout-item-view item opts)))})
+  (let [selection (normalized-selection models selection projection)
+        state (normalized-form-state opts selection)
+        schema (:schema state)
+        opts (assoc opts :schema schema)]
+    {:mode 'pixils/form
+     :style (or style default-style)
+     :state state
+     :children (form-children layout schema opts selection)}))
